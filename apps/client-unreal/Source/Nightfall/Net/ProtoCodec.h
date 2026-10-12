@@ -1,6 +1,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "SNightfallV1/ItemsMessage.h"
 
 // Wire types the client sends and receives. Mirrors packages/proto/nightfall/v1/world.proto.
 // The structs here are the client's view; the codec maps them to protobuf bytes.
@@ -31,6 +32,16 @@ struct FAcceptResurrectIntent { uint64 OfferId = 0; bool bAccept = true; };
 
 struct FClientMessage
 {
+	TOptional<FGrpcNightfallV1EquipItemRequest> EquipItem;
+	TOptional<FGrpcNightfallV1UnequipItemRequest> UnequipItem;
+	TOptional<FGrpcNightfallV1UseItemRequest> UseItem;
+	TOptional<FGrpcNightfallV1DestroyItemRequest> DestroyItem;
+	TOptional<FGrpcNightfallV1EnchantItemRequest> EnchantItem;
+	TOptional<FGrpcNightfallV1ToggleAutoShotRequest> ToggleAutoShot;
+	TOptional<FGrpcNightfallV1RefineItemRequest> RefineItem;
+	TOptional<FGrpcNightfallV1CancelRefineRequest> CancelRefine;
+	TOptional<FGrpcNightfallV1ExchangeSpecialAbilityRequest> ExchangeSpecialAbility;
+	TOptional<FGrpcNightfallV1CrystallizeItemRequest> CrystallizeItem;
 	uint32 Seq = 0;
 	TOptional<FCastSkillIntent> CastSkill;
 	TOptional<FCancelCastIntent> CancelCast;
@@ -55,6 +66,8 @@ struct FEffectiveStats
 	int64 AccuracyQ = 0; // 8
 	int64 EvasionQ = 0; // 9
 	uint32 CritPermille = 0; // 10
+	int64 ShieldDefQ = 0, ShieldRateQ = 0, PhysicalReachMillitiles = 0;
+	uint32 ShieldAngleDegrees = 0, PhysicalAngleDegrees = 0;
 };
 
 struct FAttackStarted
@@ -303,6 +316,7 @@ struct FEntitySpawn
 	uint32 PvpCount = 0; // 27
 	uint64 StatusFlags = 0; // 28
 	TOptional<FAttackStarted> PendingSwing;
+	TArray<FGrpcNightfallV1VisibleEquipment> VisibleEquipment;
 };
 
 struct FEntityMove
@@ -376,6 +390,9 @@ struct FStatsChanged
 	bool bBaseline = false; // 21
 	uint64 BaselineTick = 0; // 22
 	uint32 Incarnation = 0; // 23
+	TOptional<FGrpcNightfallV1ItemWeightState> ItemWeight;
+	TOptional<FGrpcNightfallV1ItemPenaltyState> ItemPenalties;
+	uint64 InventoryRevision = 0;
 };
 
 /** Owner-only. */
@@ -413,6 +430,17 @@ struct FClassChanged
 
 struct FWorldEvent
 {
+	TArray<uint8> ItemReceiptPayload;
+ bool bReceivedFromWire=false;
+	TOptional<FGrpcNightfallV1InventorySync> InventorySync;
+	TOptional<FGrpcNightfallV1InventoryChanged> InventoryChanged;
+	TOptional<FGrpcNightfallV1EquipmentChanged> EquipmentChanged;
+	TOptional<FGrpcNightfallV1WeightChanged> WeightChanged;
+	TOptional<FGrpcNightfallV1PenaltyChanged> PenaltyChanged;
+	TOptional<FGrpcNightfallV1EnchantResult> EnchantResult;
+	TOptional<FGrpcNightfallV1RefineResult> RefineResult;
+	TOptional<FGrpcNightfallV1ItemOperationResult> ItemOperationResult;
+
 	TOptional<FEntitySpawn> Spawn;     // WorldEvent.spawn = 1
 	TOptional<FEntityMove> Move;       // WorldEvent.move = 2
 	TOptional<FEntityDespawn> Despawn; // WorldEvent.despawn = 3

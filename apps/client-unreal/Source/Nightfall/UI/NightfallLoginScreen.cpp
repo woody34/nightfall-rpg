@@ -1,4 +1,6 @@
 #include "NightfallLoginScreen.h"
+#include "NightfallInventoryDialog.h"
+#include "Items/InventoryStateSubsystem.h"
 #include "Nightfall.h"
 #include "Character/ClassStateSubsystem.h"
 #include "Character/CharacterCreation.h"
@@ -356,6 +358,7 @@ void UNightfallLoginScreen::RefreshCharacters()
 			Handler->CharacterId = Character.Id;
 			Handler->Screen = Self;
 			Row->OnClicked.AddDynamic(Handler, &UNightfallCharacterRowHandler::HandleClicked);
+			auto* Inventory=Self->MakeButton(Self->CharacterList,FText::FromString(TEXT("View inventory")));Inventory->OnClicked.AddDynamic(Handler,&UNightfallCharacterRowHandler::HandleInventoryClicked);
 			Self->RowHandlers.Add(Handler);
 			Self->RowButtons.Add(Row);
 		}
@@ -546,3 +549,9 @@ void UNightfallLoginScreen::UpdatePreview()
 #undef LOCTEXT_NAMESPACE
 
 bool UNightfallLoginScreen::CanCreate() const { return CreateButton && CreateButton->GetIsEnabled(); }
+
+void UNightfallCharacterRowHandler::HandleInventoryClicked()
+{
+ if(!Screen.IsValid())return;auto* D=CreateWidget<UNightfallInventoryDialog>(Screen->GetOwningPlayer());if(!D)return;
+ D->BindState(Screen->GetGameInstance()->GetSubsystem<UInventoryStateSubsystem>());D->ShowDetached(CharacterId);D->AddToViewport(50);D->ActivateWidget();
+}

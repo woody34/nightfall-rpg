@@ -1,4 +1,7 @@
 #include "RemoteEntityActor.h"
+#include "Items/EquipmentPresentationComponent.h"
+#include "Items/InventoryStateSubsystem.h"
+#include "Engine/GameInstance.h"
 #include "Net/NetClientSubsystem.h"
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
@@ -23,6 +26,7 @@ ARemoteEntityActor::ARemoteEntityActor()
 	// Proxies off screen still need their death/corpse pose when they come into view.
 	SkeletalBody->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
 
+	Equipment=CreateDefaultSubobject<UEquipmentPresentationComponent>(TEXT("Equipment"));Equipment->SetupAttachment(RootComponent);
 	Animation = CreateDefaultSubobject<UEntityAnimationComponent>(TEXT("Animation"));
 
 	ClickVolume = CreateDefaultSubobject<UCapsuleComponent>(TEXT("ClickVolume"));
@@ -46,6 +50,7 @@ void ARemoteEntityActor::Bind(UNetClientSubsystem* InNet)
 {
 	Net = InNet;
 	Animation->Bind(InNet, EntityId);
+	if(InNet && InNet->GetGameInstance())Equipment->Bind(InNet->GetGameInstance()->GetSubsystem<UInventoryStateSubsystem>(),EntityId);
 }
 
 void ARemoteEntityActor::Tick(float DeltaSeconds)

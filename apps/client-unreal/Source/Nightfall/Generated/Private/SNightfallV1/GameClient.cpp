@@ -325,6 +325,102 @@ void UGameServiceClient::GetSkillCatalog(FGrpcContextHandle Handle, const FGrpcN
 	}
 }
 
+FGrpcContextHandle UGameServiceClient::InitGetItemCatalog()
+{
+	FGrpcContextHandle handle = Service->TurboLinkManager->GetNextContextHandle();
+	auto context = UGrpcClient::MakeContext<GrpcContext_GameService_GetItemCatalog>(handle);
+	context->RpcContext = UTurboLinkGrpcManager::Private::CreateRpcClientContext();
+	return context->GetHandle();
+}
+
+void UGameServiceClient::GetItemCatalog(FGrpcContextHandle Handle, const FGrpcNightfallV1GetItemCatalogRequest& Request, FGrpcMetaData MetaData, float DeadLineSeconds)
+{
+	auto context = UGrpcClient::GetContext(Handle);
+	if (context != nullptr)
+	{
+		auto contextGetItemCatalog = StaticCastSharedPtr<GrpcContext_GameService_GetItemCatalog>(*context);
+		for (const auto& metaDataPair : MetaData.MetaData)
+		{
+			contextGetItemCatalog->RpcContext->AddMetadata(
+				(const char*)StringCast<UTF8CHAR>(*(metaDataPair.Key)).Get(),
+				(const char*)StringCast<UTF8CHAR>(*(metaDataPair.Value)).Get()
+			);
+		}
+
+		if (DeadLineSeconds > 0.f)
+		{
+			std::chrono::time_point deadLine = std::chrono::system_clock::now() +
+				std::chrono::milliseconds((int32)(1000.f * DeadLineSeconds));
+			contextGetItemCatalog->RpcContext->set_deadline(deadLine);
+		}
+		contextGetItemCatalog->Call(Request);
+	}
+}
+
+FGrpcContextHandle UGameServiceClient::InitGetInventory()
+{
+	FGrpcContextHandle handle = Service->TurboLinkManager->GetNextContextHandle();
+	auto context = UGrpcClient::MakeContext<GrpcContext_GameService_GetInventory>(handle);
+	context->RpcContext = UTurboLinkGrpcManager::Private::CreateRpcClientContext();
+	return context->GetHandle();
+}
+
+void UGameServiceClient::GetInventory(FGrpcContextHandle Handle, const FGrpcNightfallV1GetInventoryRequest& Request, FGrpcMetaData MetaData, float DeadLineSeconds)
+{
+	auto context = UGrpcClient::GetContext(Handle);
+	if (context != nullptr)
+	{
+		auto contextGetInventory = StaticCastSharedPtr<GrpcContext_GameService_GetInventory>(*context);
+		for (const auto& metaDataPair : MetaData.MetaData)
+		{
+			contextGetInventory->RpcContext->AddMetadata(
+				(const char*)StringCast<UTF8CHAR>(*(metaDataPair.Key)).Get(),
+				(const char*)StringCast<UTF8CHAR>(*(metaDataPair.Value)).Get()
+			);
+		}
+
+		if (DeadLineSeconds > 0.f)
+		{
+			std::chrono::time_point deadLine = std::chrono::system_clock::now() +
+				std::chrono::milliseconds((int32)(1000.f * DeadLineSeconds));
+			contextGetInventory->RpcContext->set_deadline(deadLine);
+		}
+		contextGetInventory->Call(Request);
+	}
+}
+
+FGrpcContextHandle UGameServiceClient::InitGrantItem()
+{
+	FGrpcContextHandle handle = Service->TurboLinkManager->GetNextContextHandle();
+	auto context = UGrpcClient::MakeContext<GrpcContext_GameService_GrantItem>(handle);
+	context->RpcContext = UTurboLinkGrpcManager::Private::CreateRpcClientContext();
+	return context->GetHandle();
+}
+
+void UGameServiceClient::GrantItem(FGrpcContextHandle Handle, const FGrpcNightfallV1GrantItemRequest& Request, FGrpcMetaData MetaData, float DeadLineSeconds)
+{
+	auto context = UGrpcClient::GetContext(Handle);
+	if (context != nullptr)
+	{
+		auto contextGrantItem = StaticCastSharedPtr<GrpcContext_GameService_GrantItem>(*context);
+		for (const auto& metaDataPair : MetaData.MetaData)
+		{
+			contextGrantItem->RpcContext->AddMetadata(
+				(const char*)StringCast<UTF8CHAR>(*(metaDataPair.Key)).Get(),
+				(const char*)StringCast<UTF8CHAR>(*(metaDataPair.Value)).Get()
+			);
+		}
+
+		if (DeadLineSeconds > 0.f)
+		{
+			std::chrono::time_point deadLine = std::chrono::system_clock::now() +
+				std::chrono::milliseconds((int32)(1000.f * DeadLineSeconds));
+			contextGrantItem->RpcContext->set_deadline(deadLine);
+		}
+		contextGrantItem->Call(Request);
+	}
+}
+
 void UGameServiceClient::TryCancel(FGrpcContextHandle Handle)
 {
 	auto context = UGrpcClient::GetContext(Handle);
@@ -346,6 +442,9 @@ void UGameServiceClient::Shutdown()
 	OnListLearnableSkillsResponse.Clear();
 	OnLearnSkillResponse.Clear();
 	OnGetSkillCatalogResponse.Clear();
+	OnGetItemCatalogResponse.Clear();
+	OnGetInventoryResponse.Clear();
+	OnGrantItemResponse.Clear();
 	Super::Shutdown();
 }
 

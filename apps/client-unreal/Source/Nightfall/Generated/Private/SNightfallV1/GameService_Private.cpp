@@ -81,3 +81,27 @@ void UGameServiceGetSkillCatalogLambdaWrapper::OnResponse(FGrpcContextHandle _Ha
 	InnerClient->OnGetSkillCatalogResponse.RemoveDynamic(this, &UGameServiceGetSkillCatalogLambdaWrapper::OnResponse);
 }
 
+void UGameServiceGetItemCatalogLambdaWrapper::OnResponse(FGrpcContextHandle _Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1GetItemCatalogResponse& Response)
+{
+	if (_Handle != this->Handle) return;
+
+	ResponseLambda(GrpcResult, Response);
+	InnerClient->OnGetItemCatalogResponse.RemoveDynamic(this, &UGameServiceGetItemCatalogLambdaWrapper::OnResponse);
+}
+
+void UGameServiceGetInventoryLambdaWrapper::OnResponse(FGrpcContextHandle _Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1GetInventoryResponse& Response)
+{
+	if (_Handle != this->Handle) return;
+
+	ResponseLambda(GrpcResult, Response);
+	InnerClient->OnGetInventoryResponse.RemoveDynamic(this, &UGameServiceGetInventoryLambdaWrapper::OnResponse);
+}
+
+void UGameServiceGrantItemLambdaWrapper::OnResponse(FGrpcContextHandle _Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1GrantItemResponse& Response)
+{
+	if (_Handle != this->Handle) return;
+
+	ResponseLambda(GrpcResult, Response);
+	InnerClient->OnGrantItemResponse.RemoveDynamic(this, &UGameServiceGrantItemLambdaWrapper::OnResponse);
+}
+

@@ -27,6 +27,7 @@ public:
 
 	UFUNCTION()
 	void HandleClicked();
+ UFUNCTION() void HandleInventoryClicked();
 };
 
 /** Payload for a catalogue race card. */

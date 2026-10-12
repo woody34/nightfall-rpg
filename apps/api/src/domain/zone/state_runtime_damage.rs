@@ -6265,13 +6265,13 @@ mod tests {
     #[test]
     fn v6_hp_potion_uses_source_cost_alias_and_plain_hp_without_heal_rng() {
         // 21040's source cost14701 is NPC-only/non-storable. It must refuse, not
-        // silently substitute the selected item; E1 closure correction is pending.
+        // silently substitute the selected item; D54 defers it at capability preflight.
         let (mut missing, owner, _, ids) = use_fixture(&[21040]);
         let cursor = missing.rng.get_word_pos();
         let rejected = missing
             .run_tick(missing.draft(vec![use_input(&missing, owner, 960, 1, ids[0], None)]))
             .unwrap();
-        assert_eq!(rejected.dispositions[0].reason, RejectReason::InsufficientItems);
+        assert_eq!(rejected.dispositions[0].reason, RejectReason::ItemCapabilityDeferred);
         assert_eq!(missing.sidecar(owner.entity).unwrap().cast, CastState::Idle);
         assert_eq!(
             missing.phase4.as_ref().unwrap().canonical.players[&owner.entity].inventory[&ids[0]]

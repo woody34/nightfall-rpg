@@ -25,6 +25,12 @@ namespace
 		Out.AccuracyQ = S.AccuracyQ;
 		Out.EvasionQ = S.EvasionQ;
 		Out.CritPermille = S.CritPermille;
+		Out.ShieldDefQ = S.ShieldDefQ;
+		Out.ShieldRateQ = S.ShieldRateQ;
+		Out.ShieldAngleDegrees = S.ShieldAngleDegrees;
+		Out.PhysicalReachMillitiles = S.PhysicalReachMillitiles;
+		Out.PhysicalAngleDegrees = S.PhysicalAngleDegrees;
+
 		return Out;
 	}
 
@@ -309,6 +315,7 @@ namespace
 		Out.PkCount = S.PkCount;
 		Out.PvpCount = S.PvpCount;
 		Out.StatusFlags = S.StatusFlags;
+		Out.VisibleEquipment = S.VisibleEquipment;
 		return Out;
 	}
 
@@ -338,6 +345,9 @@ namespace
 		Out.bBaseline = S.Baseline;
 		Out.BaselineTick = S.BaselineTick;
 		Out.Incarnation = S.Incarnation;
+		if (S.HasItemWeight) Out.ItemWeight = S.ItemWeight;
+		if (S.HasItemPenalties) Out.ItemPenalties = S.ItemPenalties;
+		Out.InventoryRevision = S.InventoryRevision;
 		return Out;
 	}
 
@@ -480,6 +490,30 @@ namespace
 		case EGrpcNightfallV1WorldEventEvent::SkillStateSync:
 			if (Ev.SkillStateSync.IsValid()) Out.SkillStateSync = FromGrpc(*Ev.SkillStateSync);
 			break;
+		case EGrpcNightfallV1WorldEventEvent::InventorySync:
+			Out.InventorySync = Ev.InventorySync;
+			break;
+		case EGrpcNightfallV1WorldEventEvent::InventoryChanged:
+			Out.InventoryChanged = Ev.InventoryChanged;
+			break;
+		case EGrpcNightfallV1WorldEventEvent::EquipmentChanged:
+			Out.EquipmentChanged = Ev.EquipmentChanged;
+			break;
+		case EGrpcNightfallV1WorldEventEvent::WeightChanged:
+			Out.WeightChanged = Ev.WeightChanged;
+			break;
+		case EGrpcNightfallV1WorldEventEvent::PenaltyChanged:
+			Out.PenaltyChanged = Ev.PenaltyChanged;
+			break;
+		case EGrpcNightfallV1WorldEventEvent::EnchantResult:
+			Out.EnchantResult = Ev.EnchantResult;
+			break;
+		case EGrpcNightfallV1WorldEventEvent::RefineResult:
+			Out.RefineResult = Ev.RefineResult;
+			break;
+		case EGrpcNightfallV1WorldEventEvent::ItemOperationResult:
+			Out.ItemOperationResult = Ev.ItemOperationResult;
+			break;
 		case EGrpcNightfallV1WorldEventEvent::VitalsChanged:
 			if (Ev.VitalsChanged.IsValid()) Out.VitalsChanged = FromGrpc(*Ev.VitalsChanged);
 			break;
@@ -564,6 +598,56 @@ namespace NightfallProto
 			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::AcceptResurrect;
 			Msg.Intent.AcceptResurrect = Req;
 		}
+		else if (In.EquipItem.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::EquipItem;
+			Msg.Intent.EquipItem = *In.EquipItem;
+		}
+		else if (In.UnequipItem.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::UnequipItem;
+			Msg.Intent.UnequipItem = *In.UnequipItem;
+		}
+		else if (In.UseItem.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::UseItem;
+			Msg.Intent.UseItem = *In.UseItem;
+		}
+		else if (In.DestroyItem.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::DestroyItem;
+			Msg.Intent.DestroyItem = *In.DestroyItem;
+		}
+		else if (In.EnchantItem.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::EnchantItem;
+			Msg.Intent.EnchantItem = *In.EnchantItem;
+		}
+		else if (In.ToggleAutoShot.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::ToggleAutoShot;
+			Msg.Intent.ToggleAutoShot = *In.ToggleAutoShot;
+		}
+		else if (In.RefineItem.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::RefineItem;
+			Msg.Intent.RefineItem = *In.RefineItem;
+		}
+		else if (In.CancelRefine.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::CancelRefine;
+			Msg.Intent.CancelRefine = *In.CancelRefine;
+		}
+		else if (In.ExchangeSpecialAbility.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::ExchangeSpecialAbility;
+			Msg.Intent.ExchangeSpecialAbility = *In.ExchangeSpecialAbility;
+		}
+		else if (In.CrystallizeItem.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::CrystallizeItem;
+			Msg.Intent.CrystallizeItem = *In.CrystallizeItem;
+		}
 		NightfallWire::EncodeClientMessage(Msg, Out);
 	}
 
@@ -583,7 +667,7 @@ namespace NightfallProto
 			if (Payload.Ack.IsValid()) { Out.Ack = FAck{ Payload.Ack->Seq, Payload.Ack->Tick }; }
 			break;
 		case EGrpcNightfallV1ServerMessagePayload::Event:
-			if (Payload.Event.IsValid()) { Out.Event = FromGrpc(*Payload.Event); }
+			if (Payload.Event.IsValid()) { Out.Event = FromGrpc(*Payload.Event); Out.Event->bReceivedFromWire=true; NightfallWire::ItemReceiptBytes(Data,Size,Out.Event->ItemReceiptPayload); }
 			break;
 		case EGrpcNightfallV1ServerMessagePayload::Rejected:
 			if (Payload.Rejected.IsValid())

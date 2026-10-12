@@ -56,6 +56,8 @@ class Fixtures(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             overlay=Path(tmp)/'data';fixture.phase4.create_overlay(overlay,REPO)
             zone=(overlay/'zones/test_zone.toml').read_text()
+            blacksmith=fixture.phase4.table('capacities')['blacksmith']
+            self.assertEqual(zone.count('name = '+json.dumps(blacksmith['template'])),1)
             for name,pos in [('pole_secondary_a','108, 101'),('pole_secondary_b','108, 99')]:
                 self.assertIn('template = "'+name+'"',zone);self.assertIn('home = ['+pos+']',zone)
                 self.assertIn('attackable = true',(overlay/('npcs/'+name+'.toml')).read_text())
@@ -69,7 +71,7 @@ class Fixtures(unittest.TestCase):
             else:self.assertEqual(fixture.fixture([path]),pack)
         for a,b in fixture.phase4.declared_units(paths[0].parent).values():
             self.assertIn(fixture.fixture([paths[0].parent/a,paths[0].parent/b]),fixture.PHASE4)
-        self.assertTrue(scenarios.client.validate(paths)) # E5 not merged; never silently pass.
+        self.assertEqual(scenarios.client.validate(paths), []) # E5 must register every canonical scenario.
 
     def test_sql_one_transaction_and_no_production_low_range(self):
         roles=fixture.phase4.profiles('phase4-shield',paired=True)

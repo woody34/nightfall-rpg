@@ -53,7 +53,9 @@ public:
 	UButton* AcceptControl() const { return AcceptOffer; }
 	UButton* DeclineControl() const { return DeclineOffer; }
 	UButton* HotbarControl(int32 Slot) const { return HotbarButtons.IsValidIndex(Slot) ? HotbarButtons[Slot] : nullptr; }
-	int32 NumDamageNumbers() const { return Numbers.Num(); }
+	UButton* ItemControl(int32 Slot) const { return ItemButtons.IsValidIndex(Slot)?ItemButtons[Slot]:nullptr; }
+ FString ItemLabel(int32 Slot) const;
+ int32 NumDamageNumbers() const { return Numbers.Num(); }
 	int32 NumFloatingBars() const { return Bars.Num(); }
 
 protected:
@@ -89,6 +91,11 @@ private:
 	UFUNCTION() void HandleRespawnClicked();
 	UFUNCTION() void HandleClassesClicked();
  UFUNCTION() void HandleSkillsClicked();
+ UFUNCTION() void HandleInventoryClicked();
+ void UpdateItems();
+ UPROPERTY() TArray<TObjectPtr<UButton>> ItemButtons;
+ UPROPERTY() TArray<TObjectPtr<UTextBlock>> ItemLabels;
+ UPROPERTY() TArray<TObjectPtr<UNightfallHotbarClick>> ItemClicks;
  UFUNCTION() void AcceptResurrect();
  UFUNCTION() void DeclineResurrect();
  void UpdateSkills();
@@ -139,5 +146,6 @@ class NIGHTFALL_API UNightfallHotbarClick : public UObject
  GENERATED_BODY()
 public:
  int32 Index=0;
+ bool bItem=false;
  UFUNCTION() void Click();
 };
