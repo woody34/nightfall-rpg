@@ -99,6 +99,19 @@ pub struct ItemPayment {
     pub count: u64,
 }
 
+/// Item-granted cast authority and its accepted operation identity.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(missing_docs)]
+pub struct ItemCastOrigin {
+    pub instance: ItemInstanceId,
+    pub template: u32,
+    /// Actual clicked-stack debit; zero requires the source to remain owned.
+    pub count: u64,
+    pub skill_ordinal: u32,
+    pub receipt: super::phase4_projection::ItemReceiptRef,
+}
+
 /// A simultaneous item-origin lane owns its complete cast; a main cast's shot context
 /// refers to the identical canonical Phase3 cast. IDs use one shared allocator.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -107,7 +120,7 @@ pub struct ItemPayment {
 pub struct ItemCastState {
     pub caster: TargetBinding,
     pub cast: CastInFlight,
-    pub origin: Option<ItemPayment>,
+    pub origin: Option<ItemCastOrigin>,
     pub simultaneous: bool,
     pub weapon: Option<ItemInstanceId>,
     pub shots: u8,

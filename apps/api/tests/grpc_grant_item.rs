@@ -184,6 +184,7 @@ fn frozen(
         key: request.key.as_uuid(),
         fingerprint: request.fingerprint.clone(),
         result: FrozenItemResult {
+            accepted_sequence: None,
             request_fingerprint: request.fingerprint.clone(),
             entity: EntityId::from_uuid(character.as_uuid()),
             incarnation: 0,

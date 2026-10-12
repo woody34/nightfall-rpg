@@ -15,6 +15,8 @@ mod item_enchant;
 mod item_grant;
 #[path = "state_item_materialize.rs"]
 mod item_materialize;
+#[path = "state_item_use.rs"]
+mod item_use;
 #[path = "state_item_views.rs"]
 mod item_views;
 #[path = "state_items.rs"]

@@ -31,7 +31,13 @@ pub(super) fn append(w: &mut Writer, p: &Phase4Snapshot) {
         w.u64(id.0);
         w.binding(&context.caster);
         w.item_cast(&context.cast);
-        w.option(context.origin.as_ref(), Writer::item_payment);
+        w.option(context.origin.as_ref(), |w, origin| {
+            w.item_id(&origin.instance);
+            w.u32(origin.template);
+            w.u64(origin.count);
+            w.u32(origin.skill_ordinal);
+            w.0.extend_from_slice(origin.receipt.key.as_bytes());
+        });
         w.bool(context.simultaneous);
         w.option(context.weapon.as_ref(), Writer::item_id);
         w.u8(context.shots);

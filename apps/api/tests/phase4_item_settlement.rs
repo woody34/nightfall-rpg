@@ -147,6 +147,7 @@ async fn fixture<R: CharacterRepository + ItemAdmissionRepository>(
                 request_id: pending.request_id,
                 fingerprint: pending.fingerprint.clone(),
                 result: FrozenItemResult {
+                    accepted_sequence: None,
                     request_fingerprint: pending.fingerprint.clone(),
                     entity: EntityId::from_uuid(character.id.as_uuid()),
                     incarnation: 4,
@@ -297,6 +298,7 @@ fn interleaved(
         request_id: request,
         fingerprint: "grant-body-five".into(),
         result: FrozenItemResult {
+            accepted_sequence: None,
             request_fingerprint: "grant-body-five".into(),
             entity: work.projection.entity,
             incarnation: 4,
@@ -364,6 +366,7 @@ fn destroy(
         request_id: request,
         fingerprint: "destroy-body".into(),
         result: FrozenItemResult {
+            accepted_sequence: None,
             request_fingerprint: "destroy-body".into(),
             entity: work.projection.entity,
             incarnation: 4,
@@ -586,6 +589,7 @@ async fn contract<
         request_id,
         fingerprint: "toggle-with-no-stack".into(),
         result: FrozenItemResult {
+            accepted_sequence: None,
             request_fingerprint: "toggle-with-no-stack".into(),
             entity: toggle_work.projection.entity,
             incarnation: 4,
