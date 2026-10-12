@@ -271,6 +271,9 @@ role's received kill/XP/reuse/effect checks contain no gameplay formulas and do 
 require the currently absent MP-cost metadata. `soak-fixtures.py --casting` emits mode0600 tokens and an exact
 `roles.json` manifest; seed-phase3-soak.py validates canonical inputs/unique UUIDs
 and seeds all roles in one fresh transaction before API startup. The casting
+seeder requires `--compose-project` and `--compose-file` for that owned soak stack
+(except `--dry-run`); `run-soak.sh` supplies them. It executes container `psql`
+with separate libpq variables, so no host PostgreSQL client is required. The casting
 NPC overlay has HP1 as an explicit test input; its source rewards are unchanged.
 Gauntlet/report filenames stay `1-kill-one-monster` for existing artifact consumers.
 Each role must supply positive cast_skill, skill_cast_result and effect_applied

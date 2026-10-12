@@ -90,6 +90,78 @@ class CastingSoakTests(unittest.TestCase):
             self.assertEqual(env['PGDATABASE'], 'nf_phase3_fixture_soak_test')
             for key in ('PGHOSTADDR', 'PGSERVICE', 'PGOPTIONS'): self.assertNotIn(key, env)
 
+    def test_seeder_uses_owned_container_without_host_psql_and_propagates_failure(self):
+        fixtures.prepare(REPO, self.out / 'fixtures', 1, casting=True)
+        tools = self.out / 'bin'
+        tools.mkdir()
+        docker = tools / 'docker'
+        docker.write_text(f'#!{sys.executable}\n'
+                          'import json,os,sys\nfrom pathlib import Path\n'
+                          f'out=Path({str(self.out)!r})\n'
+                          '(out/"docker-call.json").write_text(json.dumps({"args":sys.argv[1:],"env":dict(os.environ)}))\n'
+                          '(out/"sql").write_text(sys.stdin.read())\n'
+                          'sys.exit(int(os.environ.get("FAKE_DOCKER_EXIT","0")))\n')
+        docker.chmod(0o700)
+        compose = self.out / 'compose.json'
+        config = {'services': {'postgres': {'environment': {
+            'POSTGRES_DB': 'nf_phase3_fixture_soak_test', 'POSTGRES_USER': 'user',
+            'POSTGRES_PASSWORD': 'p@ss'}, 'ports': [{'target': 5432, 'published': '27432'}]}}}
+        compose.write_text(json.dumps(config))
+        (self.out / 'empty.env').touch()
+        project = 'nightfall-phase3-harness-soak-123-456'
+        command = [sys.executable, str(REPO / 'infra/scripts/seed-phase3-soak.py'),
+                   '--manifest', str(self.out / 'fixtures/roles.json'),
+                   '--compose-project', project, '--compose-file', str(compose)]
+        env = dict(os.environ, PATH=str(tools), AUTH_DEV_TOKENS='1', NIGHTFALL_PHASE3_FIXTURE='1',
+                   DATABASE_URL='postgres://user:p%40ss@localhost:27432/nf_phase3_fixture_soak_test',
+                   PGHOSTADDR='remote', PGSERVICE='wrong', PGOPTIONS='-c role=admin')
+        self.assertIsNone(shutil.which('psql', path=env['PATH']))
+        result = subprocess.run(command, env=env, capture_output=True, text=True, timeout=10)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue(json.loads(result.stdout)['fixture_enabled'])
+        call = json.loads((self.out / 'docker-call.json').read_text())
+        expected = ['compose', '--env-file', str(self.out / 'empty.env'), '-p', project,
+                    '-f', str(compose), 'exec', '-T']
+        connection = {'PGHOST': '127.0.0.1', 'PGPORT': '5432',
+                      'PGDATABASE': 'nf_phase3_fixture_soak_test', 'PGUSER': 'user', 'PGPASSWORD': 'p@ss',
+                      'PGCONNECT_TIMEOUT': '3', 'PGAPPNAME': 'phase3_fixture_seed'}
+        for key, value in connection.items():
+            expected += ['--env', key]
+            self.assertEqual(call['env'][key], value)
+        self.assertEqual(call['args'], expected + ['postgres', 'psql', '-X', '--set=ON_ERROR_STOP=1', '--quiet'])
+        for key in ('PGHOSTADDR', 'PGSERVICE', 'PGOPTIONS'):
+            self.assertNotIn(key, call['env'])
+        roles = seed.validated_roles(json.loads((self.out / 'fixtures/roles.json').read_text()))
+        self.assertEqual((self.out / 'sql').read_text(), seed.seed.seed_sql(roles))
+        failed = subprocess.run(command, env=env | {'FAKE_DOCKER_EXIT': '1'},
+                                capture_output=True, text=True, timeout=10)
+        self.assertNotEqual(failed.returncode, 0)
+        self.assertNotIn('fixture_enabled', failed.stdout)
+        (self.out / 'docker-call.json').unlink()
+        for bad in (command[:-4], command[:-3] + ['nightfall-development', '--compose-file', str(compose)]):
+            rejected = subprocess.run(bad, env=env, capture_output=True, text=True, timeout=10)
+            self.assertNotEqual(rejected.returncode, 0)
+            self.assertFalse((self.out / 'docker-call.json').exists())
+        for mutate in (
+            lambda d: d['services']['postgres']['environment'].update(POSTGRES_DB='other'),
+            lambda d: d['services']['postgres']['environment'].update(POSTGRES_PASSWORD='other'),
+            lambda d: d['services']['postgres']['ports'][0].update(published='27433'),
+        ):
+            changed = copy.deepcopy(config)
+            mutate(changed)
+            compose.write_text(json.dumps(changed))
+            rejected = subprocess.run(command, env=env, capture_output=True, text=True, timeout=10)
+            self.assertNotEqual(rejected.returncode, 0)
+            self.assertFalse((self.out / 'docker-call.json').exists())
+        compose.write_text(json.dumps(config))
+        rejected = subprocess.run(command, env=env | {'DATABASE_URL': env['DATABASE_URL'].replace('p%40ss', 'p%0Ass')},
+                                  capture_output=True, text=True, timeout=10)
+        self.assertNotEqual(rejected.returncode, 0)
+        self.assertIn('control characters', rejected.stderr)
+        self.assertFalse((self.out / 'docker-call.json').exists())
+        runner = (SCRIPTS / 'run-soak.sh').read_text()
+        self.assertIn('--compose-project "$COMPOSE_PROJECT" --compose-file "$OUT/compose.json"', runner)
+
     def test_two_iterations_include_persisted_endpoint_and_arrival_tolerance(self):
         fixtures.prepare(REPO, self.out, 8, casting=True)
         manifest = json.loads((self.out / 'roles.json').read_text())

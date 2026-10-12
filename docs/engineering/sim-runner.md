@@ -26,6 +26,18 @@ backend stacks (Postgres, NATS, Keycloak, and the Rust game server API).
 | **Environment Vars** | `UE_ROOT`, `LINUX_MULTIARCH_ROOT` set in runner profile and GitHub repo variables | Engine and toolchain location resolution |
 | **Credentials** | Owner GitHub repository admin credentials | Generating the runner registration token (cannot be automated/fabricated) |
 
+First-time TurboLink setup also needs `unzip`; rebuilding cached proto tools needs
+Python's `venv` support and a C++ compiler. The proto installer provisions CMake
+and Ninja in its own virtual environment and uses Unreal's bundled .NET SDK.
+The optional Keycloak token path in `Scripts/run-tests.sh` checks for `jq` and
+`openssl` before using them; neither is required for the dev-token path.
+
+Host `psql`, `rg` and `fd` are not runner prerequisites. Isolated Phase 2/3
+fixture packs install a controlled `psql` shim that executes in their owned
+Postgres service. Casting soak seeding similarly uses `docker compose exec -T`
+with the run's explicit project, resolved Compose file and split libpq variables;
+the host connection port is checked against that service before execution.
+
 ---
 
 ### Step-by-Step Provisioning Checklist

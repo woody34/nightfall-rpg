@@ -52,7 +52,7 @@ docker compose --env-file "$OUT/empty.env" -f "$SIM_REPO/docker-compose.yml" \
 SOAK_DB=nightfall; DB_ARGS=()
 if ((CASTING)); then SOAK_DB="nf_phase3_fixture_soak_$$_$(date +%s)"; DB_ARGS+=(--database "$SOAK_DB"); fi
 python3 "$HERE/soak-compose.py" "$OUT/compose-source.json" "$OUT/compose.json" "$OFFSET" "${DB_ARGS[@]}"
-COMPOSE=(docker compose -p "$COMPOSE_PROJECT" -f "$OUT/compose.json")
+COMPOSE=(docker compose --env-file "$OUT/empty.env" -p "$COMPOSE_PROJECT" -f "$OUT/compose.json")
 API_PID=""
 stop_api() {
   [[ -n "$API_PID" ]] || return 0
@@ -98,6 +98,7 @@ if ((CASTING)); then
   DATABASE_URL="postgres://nightfall:nightfall@localhost:$((5432 + OFFSET))/$SOAK_DB" \
     AUTH_DEV_TOKENS=1 NIGHTFALL_PHASE3_FIXTURE=1 \
     python3 "$SIM_REPO/infra/scripts/seed-phase3-soak.py" --manifest "$OUT/fixtures/roles.json" \
+    --compose-project "$COMPOSE_PROJECT" --compose-file "$OUT/compose.json" \
     >"$OUT/seed.log" 2>&1
 fi
 DATABASE_URL="postgres://nightfall:nightfall@localhost:$((5432 + OFFSET))/$SOAK_DB" \
