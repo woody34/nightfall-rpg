@@ -259,7 +259,7 @@ impl ZoneState {
         let jitter = if random == 0 {
             0
         } else {
-            self.roll_below(random.saturating_add(1))
+            self.item_evidence_npc_roll(npc, "npc_respawn_jitter", random.saturating_add(1))
         };
         let respawn = npc_respawn_tick(tick, delay, random, jitter)
             .unwrap_or(Tick(u64::MAX))
@@ -412,7 +412,7 @@ impl ZoneState {
         if e.speed.milli_tiles_per_tick() == 0 {
             return;
         }
-        if self.roll_below(RANDOM_WALK_RATE) != 0 {
+        if self.item_evidence_npc_roll(npc, "npc_walk", RANDOM_WALK_RATE) != 0 {
             return;
         }
         let r = MAX_DRIFT_RANGE.raw();
@@ -420,10 +420,10 @@ impl ZoneState {
             .unwrap_or(0)
             .saturating_mul(2)
             .saturating_add(1);
-        let dx = i32::try_from(self.roll_below(width))
+        let dx = i32::try_from(self.item_evidence_npc_roll(npc, "npc_walk_x", width))
             .unwrap_or(0)
             .saturating_sub(r);
-        let dy = i32::try_from(self.roll_below(width))
+        let dy = i32::try_from(self.item_evidence_npc_roll(npc, "npc_walk_y", width))
             .unwrap_or(0)
             .saturating_sub(r);
         let Some(e) = self.entities.get_mut(&npc) else {

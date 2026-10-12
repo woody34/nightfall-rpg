@@ -521,6 +521,9 @@ impl ZoneState {
             }
             self.rebuild_v5(id)?;
         }
+        if player && self.phase4.is_some() {
+            self.item_evidence_baseline(id)?;
+        }
         if self.evidence.is_some() {
             self.evidence_fact(
                 "admission_reconstruction",

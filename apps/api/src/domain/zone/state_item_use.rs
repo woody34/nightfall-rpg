@@ -324,6 +324,18 @@ impl ZoneState {
         player.item_reuse = plan.reuse;
         items.canonical.allocator = plan.payments.allocator;
         self.rebuild_v5(id).map_err(|_| RejectReason::InvalidLoad)?;
+        if self.items_evidence_enabled() {
+            for change in &plan.payments.changes {
+                self.item_evidence_delta(
+                    caster,
+                    change,
+                    crate::domain::zone::phase4_projection::ItemOperation::Consume,
+                    0,
+                    Some(reference),
+                    &format!("use:{}", reference.key),
+                );
+            }
+        }
         let phase = &self
             .phase3
             .as_ref()
@@ -514,6 +526,18 @@ impl ZoneState {
         candidate
             .rebuild_v5(id)
             .map_err(|_| RejectReason::InvalidLoad)?;
+        if candidate.items_evidence_enabled() {
+            for change in &payments.changes {
+                candidate.item_evidence_delta(
+                    entry.caster,
+                    change,
+                    crate::domain::zone::phase4_projection::ItemOperation::Consume,
+                    0,
+                    None,
+                    &format!("cast:{}", cast_id.0),
+                );
+            }
+        }
         let phase = &candidate
             .phase3
             .as_ref()

@@ -332,6 +332,23 @@ impl ZoneState {
                     .len(),
             )
             .map_err(|_| TickError::Phase3Invariant)?;
+        if self.items_evidence_enabled() {
+            let subject = self.binding(id).ok_or(TickError::Phase3Invariant)?;
+            for row in &projection.ledger {
+                self.item_evidence_delta(
+                    subject,
+                    &crate::domain::zone::item_inventory::InventoryChange {
+                        before: row.before.clone(),
+                        after: row.after.clone(),
+                    },
+                    row.operation,
+                    row.operation_ordinal,
+                    row.receipt,
+                    &format!("materialize:{}", reference.key),
+                );
+            }
+            self.item_evidence_baseline(id)?;
+        }
         events.push(ZoneEvent::ItemCheckpoint(Box::new(projection)));
         Ok(())
     }

@@ -321,6 +321,27 @@ impl ZoneState {
         player.weight = mutation.weight;
         player.inventory_revision = revision;
         self.rebuild_v5(id).map_err(invalid)?;
+        let reference = ItemReceiptRef {
+            operation: ItemOperation::Grant,
+            key: command.request_id,
+        };
+        let ordinal = u32::try_from(previous.as_ref().map_or(0, |p| p.receipts.len()))
+            .ok()
+            .and_then(|n| n.checked_add(1))
+            .ok_or(RejectReason::InvalidLoad)?;
+        if self.items_evidence_enabled() && incarnation > 0 {
+            let subject = self.binding(id).ok_or(RejectReason::InvalidLoad)?;
+            for change in &mutation.changes {
+                self.item_evidence_delta(
+                    subject,
+                    change,
+                    ItemOperation::Grant,
+                    ordinal,
+                    Some(reference),
+                    &format!("grant:{}", reference.key),
+                );
+            }
+        }
         let phase = &self
             .phase3
             .as_ref()
@@ -347,14 +368,6 @@ impl ZoneState {
         });
         projection.paused_core = None;
         projection.checkpoint = checkpoint;
-        let reference = ItemReceiptRef {
-            operation: ItemOperation::Grant,
-            key: command.request_id,
-        };
-        let ordinal = u32::try_from(projection.receipts.len())
-            .ok()
-            .and_then(|n| n.checked_add(1))
-            .ok_or(RejectReason::InvalidLoad)?;
         let mut affected = Vec::new();
         for change in mutation.changes {
             let after = change.after.as_ref().ok_or(RejectReason::InvalidLoad)?;
