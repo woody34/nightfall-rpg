@@ -3,6 +3,30 @@
 
 use super::record::CodecError;
 
+/// Presence is forbidden, including null and empty values, throughout legacy payloads.
+pub(super) fn pre_phase4_json(value: &serde_json::Value) -> Result<(), CodecError> {
+    match value {
+        serde_json::Value::Object(fields) => {
+            for (key, child) in fields {
+                if matches!(key.as_str(), "phase4" | "capability_revision") {
+                    return Err(CodecError(format!("V6 field {key} in historical payload")));
+                }
+                pre_phase4_json(child)?;
+            }
+        },
+        serde_json::Value::Array(values) => {
+            for child in values {
+                pre_phase4_json(child)?;
+            }
+        },
+        serde_json::Value::Null
+        | serde_json::Value::Bool(_)
+        | serde_json::Value::Number(_)
+        | serde_json::Value::String(_) => {},
+    }
+    Ok(())
+}
+
 pub(super) fn legacy_json(value: &serde_json::Value) -> Result<(), CodecError> {
     match value {
         serde_json::Value::Object(fields) => {
@@ -16,7 +40,9 @@ pub(super) fn legacy_json(value: &serde_json::Value) -> Result<(), CodecError> {
             for (key, child) in fields {
                 if matches!(
                     key.as_str(),
-                    "runtime_revision"
+                    "phase4"
+                        | "capability_revision"
+                        | "runtime_revision"
                         | "phase3"
                         | "phase3_admission_policy"
                         | "active_effects"

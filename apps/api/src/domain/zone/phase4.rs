@@ -317,3 +317,10 @@ mod tests {
         );
     }
 }
+
+/// Runtime-only resolved rules are never serialized with canonical state.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct Phase4Zone {
+    pub canonical: Phase4Snapshot,
+    pub rules: std::sync::Arc<Phase4Rules>,
+}
