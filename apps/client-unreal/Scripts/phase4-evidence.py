@@ -600,18 +600,20 @@ def validate_instance_history(rows):
     """
     canonical={};owners={};exhausted=set()
     def strip(state):return {k:v for k,v in state.items() if k not in ('count','revision')}
-    def observe(state,entity):
-        identity=state['id']
+    def bind(identity,entity):
+        # Owner-binding part of an observation; also applied to malformed enchant bindings.
         if identity in exhausted:raise ValueError('exhausted instance reappeared')
+        if identity in owners and owners[identity]!=entity:raise ValueError('instance observed under two owners')
+        owners[identity]=entity
+    def observe(state,row):
+        identity=state['id'];bind(identity,row['entity'])
         if identity in canonical:
-            if owners[identity]!=entity:raise ValueError('instance observed under two owners')
             if strip(state)!=strip(canonical[identity]):raise ValueError('instance identity drifted between observations')
-        else:owners[identity]=entity
         canonical[identity]=state
     for row in rows[1:-1]:
         data=row['data']
         if row['kind']=='item_baseline':
-            for state in data['instances']:observe(state,row['entity'])
+            for state in data['instances']:observe(state,row)
         elif row['kind']=='item_formula' and data['formula']=='enchant_outcome':
             # Before bindings attest existing instances; formula outputs do not allocate.
             operation=data.get('operation',{})
@@ -619,14 +621,22 @@ def validate_instance_history(rows):
             for field in ('target_before','scroll_before','support_before'):
                 state=operation.get(field)
                 try:validate_instance(state)
-                except (ValueError,TypeError,KeyError):continue # Enchant correlation reports malformed bindings.
-                observe(state,row['entity'])
+                except (ValueError,TypeError,KeyError):
+                    # Enchant correlation reports malformed bindings only for the evaluated
+                    # entity, so owner binding and the D68 cap are applied here for every owner.
+                    if isinstance(state,dict) and type(state.get('id')) is int and state['id']>0:
+                        bind(state['id'],row['entity'])
+                        template,count=state.get('template_id'),state.get('count')
+                        if type(template) is int and type(count) is int and template in item_tables() and count>count_cap(template):
+                            raise ValueError('item count above pinned template cap (D68)')
+                    continue
+                observe(state,row)
         elif row['kind']=='item_delta':
             identity=data['instance'];before,after=data['before'],data['after']
             if before is None:
-                if identity in canonical:raise ValueError('positive row must allocate a fresh instance ID')
+                if identity in canonical or identity in owners:raise ValueError('positive row must allocate a fresh instance ID')
                 owners[identity]=row['entity']
-            else:observe(before,row['entity'])
+            else:observe(before,row)
             # Keep the last canonical metadata even after removal; absence is a tombstone.
             canonical[identity]=after if after is not None else before
             if after is None:exhausted.add(identity)

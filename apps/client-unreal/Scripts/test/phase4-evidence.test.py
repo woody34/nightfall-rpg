@@ -564,6 +564,32 @@ class Evidence(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'identity drifted'):gate.validate_instance_history(bad)
         print(f'Review14 F1/F1b/F1d/F2/F2b/F3: {cases+2} boundary identity drifts reject; unchanged re-admission and distinct-ID controls pass',flush=True)
 
+    def foreign_binding_rows(self,mutation,identity=8,first=False):
+        """Review15 F1: OTHER's malformed enchant binding names OWNER's live instance."""
+        rows=copy.deepcopy(self.rows)
+        formula=copy.deepcopy(self.enchant_rows(entity=OTHER)[1])
+        target=formula['data']['operation']['target_before'];target['id']=identity
+        if mutation=='extra-key':target['extra']=1
+        elif mutation=='count':target['count']=2 # non-stackable template 71, cap 1 (D68)
+        baseline=dict(kind='item_baseline',entity=OWNER,incarnation=1,tick=0,sequence=0,
+            data=dict(inventory_revision=0,instances=[item(8,1,71)],paperdoll={},auto_shots=[]))
+        rows[1:1]=[formula,baseline] if first else [baseline,formula]
+        return self.repair(rows)
+
+    def test_review15_foreign_malformed_enchant_binding_checks_owner_and_cap(self):
+        self.assertTrue(gate.evaluate(self.foreign_binding_rows('extra-key',identity=99),self.recording,OWNER,['pole_damage'],HASH)['passed'])
+        cases=0
+        for mutation,message in (('extra-key','two owners'),('count','two owners|template cap'),('well-formed','two owners')):
+            for first in (False,True):
+                with self.subTest(mutation=mutation,first=first):
+                    bad=self.foreign_binding_rows(mutation,first=first)
+                    with self.assertRaisesRegex(ValueError,message):gate.validate_instance_history(bad)
+                    with self.assertRaisesRegex(ValueError,message):gate.evaluate(bad,self.recording,OWNER,['pole_damage'],HASH)
+                    cases+=1
+        # The cap applies to a foreign malformed binding even when no owner holds the ID.
+        with self.assertRaisesRegex(ValueError,'template cap'):gate.validate_instance_history(self.foreign_binding_rows('count',identity=99))
+        print(f'Review15 F1: {cases+1} foreign malformed/well-formed enchant bindings reject for the evaluated owner',flush=True)
+
     def fresh_grant(self,template,count,identity=400):
         rows=copy.deepcopy(self.rows)
         rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=0,sequence=0,
@@ -741,7 +767,8 @@ class Evidence(unittest.TestCase):
         for field,value in (('entity',OTHER),('incarnation',2)):
             bad=copy.deepcopy(rows)
             next(r for r in bad if r['kind']=='item_delta' and r['data']['operation']=='consume')[field]=value
-            self.assert_rejected(bad) # Foreign owner now fails D69 single-owner identity.
+            # OTHER raises D69 'two owners'; incarnation 2 breaks the per-incarnation receipt correlation (passed=False).
+            self.assert_rejected(bad)
         bad=copy.deepcopy(rows)
         del bad[1]['data']['operation']['receipt_ref']
         self.assertFalse(gate.evaluate(bad,self.recording,OWNER,['enchant_outcome'],HASH)['passed'])

@@ -109,6 +109,9 @@ JSONL contract (schema version 1 of this sidecar):
   entity refuses (Phase 4 has no transfer operation). The record advances from
   `after` only once `before` has matched, so no row can launder drift. No field
   resets at an incarnation boundary.
+  Owner binding and the D68 cap also apply to a malformed (non-canonical)
+  enchant before binding whose `id` is a positive integer, whichever owner is
+  being evaluated.
   ONE shared operation transition table applies to EVERY delta, independently of
   formula correlation. Revision is governed by D55 below; all other canonical
   fields outside the allowed set must remain identical:
