@@ -7,6 +7,7 @@ pub mod create_character;
 pub mod ensure_account;
 pub mod get_character;
 pub mod get_inventory;
+pub mod grant_item;
 pub use get_inventory::{GetInventory, GetInventoryOutput};
 pub mod get_item_catalog;
 pub use get_item_catalog::{GetItemCatalog, RegistryItemCatalogue};
