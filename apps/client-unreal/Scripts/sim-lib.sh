@@ -151,9 +151,9 @@ sim_api_prepare() {
         cd "$SIM_REPO"
         if [[ -f .env ]]; then set -a; . ./.env; set +a; fi
         if [[ -n "${SIM_API_BIN:-}" ]]; then
-          AUTH_DEV_TOKENS=1 PHASE3_ENABLED=1 exec "$SIM_API_BIN"
+          AUTH_DEV_TOKENS=1 PHASE3_ENABLED=1 PHASE4_ENABLED=1 exec "$SIM_API_BIN"
         fi
-        AUTH_DEV_TOKENS=1 PHASE3_ENABLED=1 exec cargo run --quiet -p nightfall-api
+        AUTH_DEV_TOKENS=1 PHASE3_ENABLED=1 PHASE4_ENABLED=1 exec cargo run --quiet -p nightfall-api
       ) >"${SIM_API_LOG:-/dev/null}" 2>&1 &
       SIM_STARTED_API_PID=$!
       trap sim_exit_cleanup EXIT
@@ -377,6 +377,19 @@ sim_phase3_evidence() {
     --report "$dest/$name.xml" --out "$dest/phase3-evidence.json" --replay "$command"
 }
 
+sim_phase4_evidence() {
+  local scenario="$1" dest="$2" name="$3" nfrs=() command
+  python3 "$SIM_HERE/phase4-evidence.py" --list "$scenario" || return 1
+  [[ "$(python3 "$SIM_HERE/phase4-evidence.py" --count "$scenario")" != 0 ]] || return 0
+  shopt -s nullglob; nfrs=("$dest"/*.nfr); shopt -u nullglob
+  ((${#nfrs[@]} == 1)) || { sim_log "Phase4 replay gates require one verified unit recording"; return 1; }
+  [[ -n "${SIM_PHASE4_RULES_HASH:-}" ]] || { sim_log "Phase4 runtime rules hash required"; return 1; }
+  command="${SIM_PHASE4_EVIDENCE_CMD:-$(sim_replay_bin)}"
+  python3 "$SIM_HERE/phase4-evidence.py" --scenario "$scenario" --recording "${nfrs[0]}" \
+    --report "$dest/$name.xml" --out "$dest/phase4-evidence.json" --replay "$command" \
+    --rules-hash "$SIM_PHASE4_RULES_HASH"
+}
+
 # Every current recording is counted using the Rust catalogue; never infer it from scenarios.
 # --no-replay still covers any recording the bot produced, but permits no recordings locally.
 sim_transition_coverage() {
@@ -444,12 +457,12 @@ sim_finalize_verdict() {
 sim_fixture_detect() { python3 "$SIM_HERE/phase2-fixture.py" detect "$@"; }
 sim_phase3_parser_check() {
   local selected="$1"; shift
-  [[ "$selected" == phase3-* ]] || return 0
+  [[ "$selected" == phase3-* || "$selected" == phase4-* ]] || return 0
   python3 "$SIM_HERE/sim-parser-check.py" --project "$SIM_PROJECT_DIR" "$@" \
     || sim_die "Phase3 scenario/client registry mismatch; see phase3-fixtures.md"
 }
 sim_fixture_validate_mode() {
-  [[ "$1" == phase2-* || "$1" == phase3-* ]] || return 0
+  [[ "$1" == phase2-* || "$1" == phase3-* || "$1" == phase4-* ]] || return 0
   [[ "$2" == start ]] || sim_die "Phase2 fixture requires --api start; attaching is refused"
   [[ "$SIM_API_URL" == http://localhost:3000 || "$SIM_API_URL" == http://127.0.0.1:3000 ]] \
     || sim_die "Phase2 chooses fresh endpoints; explicit SIM_API_URL is unsupported"
@@ -493,7 +506,7 @@ sim_unit_prepare() {
       export ZONE_FILE="$RULES_DIR/zones/test_zone.toml"
     fi
   fi
-  if [[ "$selected" != phase2-* && "$selected" != phase3-* ]]; then
+  if [[ "$selected" != phase2-* && "$selected" != phase3-* && "$selected" != phase4-* ]]; then
     [[ -n "$SIM_STARTED_API_PID" ]] || sim_api_prepare "$mode"
     return
   fi
