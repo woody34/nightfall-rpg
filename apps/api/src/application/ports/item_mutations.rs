@@ -133,6 +133,7 @@ impl ItemMutationReceipt {
             || self.result.receipt != self.key
             || self.result.entity.as_uuid() != self.character_id.as_uuid()
             || self.fingerprint.is_empty()
+            || self.result.request_fingerprint != self.fingerprint
             || ItemMutationOperation::from_result(&self.result)? != self.operation
             || (self.operation == ItemMutationOperation::GrantItem) != self.inventory.is_some()
         {

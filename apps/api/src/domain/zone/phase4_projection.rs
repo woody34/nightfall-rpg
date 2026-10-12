@@ -187,6 +187,8 @@ pub struct FrozenItemResult {
     pub tick: Tick,
     pub inventory_revision: u64,
     pub receipt: uuid::Uuid,
+    /// Exact committed request identity, retained in Known payloads (D53).
+    pub request_fingerprint: String,
     pub detail: ItemResultDetail,
 }
 
@@ -295,6 +297,7 @@ impl Phase4Projection {
             receipt.result.validate()?;
             if receipt.request_id.is_nil()
                 || receipt.fingerprint.is_empty()
+                || receipt.result.request_fingerprint != receipt.fingerprint
                 || !receipts.insert(receipt.reference())
                 || receipt.result.entity != self.entity
                 || receipt.result.receipt != receipt.request_id
@@ -439,7 +442,8 @@ impl FrozenItemResult {
 
     /// Frozen result shapes are checked before persistence or replay projection.
     pub fn validate(&self) -> Result<(), ItemError> {
-        if self.receipt.is_nil()
+        if self.request_fingerprint.is_empty()
+            || self.receipt.is_nil()
             || self.entity.as_uuid().is_nil()
             || i64::try_from(self.tick.0).is_err()
             || i64::try_from(self.inventory_revision).is_err()
@@ -558,6 +562,7 @@ pub(crate) mod tests {
                 request_id: key,
                 fingerprint: "body".into(),
                 result: FrozenItemResult {
+                    request_fingerprint: "body".into(),
                     entity,
                     incarnation: 1,
                     tick: Tick(10),
@@ -589,6 +594,22 @@ pub(crate) mod tests {
         let mut invalid = json;
         *invalid.get_mut("result").unwrap() = serde_json::to_value(bytes).unwrap();
         assert!(serde_json::from_value::<ItemReceiptFact>(invalid).is_err());
+    }
+
+    #[test]
+    fn frozen_fingerprint_is_required_and_must_match_receipt_envelope() {
+        let mut state = projection();
+        let receipt = state.receipts.first_mut().unwrap();
+        assert_eq!(receipt.result.request_fingerprint, receipt.fingerprint);
+        let mut json = serde_json::to_value(&receipt.result).unwrap();
+        json.as_object_mut().unwrap().remove("request_fingerprint");
+        assert!(serde_json::from_value::<FrozenItemResult>(json).is_err());
+        receipt.result.request_fingerprint.clear();
+        assert!(receipt.result.payload().is_err());
+        receipt.result.request_fingerprint = "another-body".into();
+        assert!(state.validate_structure(0).is_err());
+        state.receipts.first_mut().unwrap().fingerprint = "another-body".into();
+        state.validate_structure(0).unwrap();
     }
 
     fn item(template_id: u32) -> ItemInstance {
@@ -652,6 +673,10 @@ pub(crate) mod tests {
             recipe: None,
         };
         equip.fingerprint = "equip-body".into();
+        equip
+            .result
+            .request_fingerprint
+            .clone_from(&equip.fingerprint);
         let mut unequip = equip.clone();
         unequip.result.detail = ItemResultDetail::Operation {
             operation: ItemOperation::Unequip,
@@ -659,6 +684,10 @@ pub(crate) mod tests {
             recipe: None,
         };
         unequip.fingerprint = "unequip-body".into();
+        unequip
+            .result
+            .request_fingerprint
+            .clone_from(&unequip.fingerprint);
         let reference = equip.reference();
         state.receipts.extend([equip, unequip]);
         let after = item(1);

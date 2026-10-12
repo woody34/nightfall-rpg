@@ -144,8 +144,9 @@ async fn fixture<R: CharacterRepository + ItemAdmissionRepository>(
                 .collect(),
             receipts: vec![ItemReceiptFact {
                 request_id: pending.request_id,
-                fingerprint: pending.fingerprint,
+                fingerprint: pending.fingerprint.clone(),
                 result: FrozenItemResult {
+                    request_fingerprint: pending.fingerprint.clone(),
                     entity: EntityId::from_uuid(character.id.as_uuid()),
                     incarnation: 4,
                     tick: Tick(73),
@@ -295,6 +296,7 @@ fn interleaved(
         request_id: request,
         fingerprint: "grant-body-five".into(),
         result: FrozenItemResult {
+            request_fingerprint: "grant-body-five".into(),
             entity: work.projection.entity,
             incarnation: 4,
             tick: Tick(74),
@@ -309,6 +311,10 @@ fn interleaved(
     }];
     let mut use_receipt = work.projection.receipts.first().unwrap().clone();
     use_receipt.fingerprint = "use-body-six".into();
+    use_receipt
+        .result
+        .request_fingerprint
+        .clone_from(&use_receipt.fingerprint);
     use_receipt.result.inventory_revision = 4;
     use_receipt.result.detail = ItemResultDetail::Operation {
         operation: ItemOperation::Use,
@@ -357,6 +363,7 @@ fn destroy(
         request_id: request,
         fingerprint: "destroy-body".into(),
         result: FrozenItemResult {
+            request_fingerprint: "destroy-body".into(),
             entity: work.projection.entity,
             incarnation: 4,
             tick: Tick(75),
@@ -551,6 +558,13 @@ async fn contract<
         .first_mut()
         .unwrap()
         .fingerprint = "changed-body".into();
+    conflicting
+        .projection
+        .receipts
+        .first_mut()
+        .unwrap()
+        .result
+        .request_fingerprint = "changed-body".into();
     assert!(matches!(
         repo.checkpoint_items(&duplicate, &second_facts, &conflicting, None)
             .await,
@@ -571,6 +585,7 @@ async fn contract<
         request_id,
         fingerprint: "toggle-with-no-stack".into(),
         result: FrozenItemResult {
+            request_fingerprint: "toggle-with-no-stack".into(),
             entity: toggle_work.projection.entity,
             incarnation: 4,
             tick: Tick(76),
@@ -996,6 +1011,10 @@ async fn unchanged_enchant_contract<
     let receipt = &mut work.projection.receipts[0];
     receipt.request_id = Uuid::now_v7();
     receipt.fingerprint = "b".repeat(64);
+    receipt
+        .result
+        .request_fingerprint
+        .clone_from(&receipt.fingerprint);
     receipt.result.receipt = receipt.request_id;
     receipt.result.tick = Tick(74);
     receipt.result.inventory_revision = 2;

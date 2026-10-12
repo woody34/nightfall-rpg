@@ -81,6 +81,7 @@ impl ItemGrantCommand {
             result.validate()?;
             if known.request_id != self.request_id
                 || known.fingerprint != self.fingerprint
+                || result.request_fingerprint != known.fingerprint
                 || result.entity != self.entity
                 || result.receipt != self.request_id
                 || result.operation() != ItemOperation::Grant

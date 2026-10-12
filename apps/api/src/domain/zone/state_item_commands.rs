@@ -455,6 +455,7 @@ impl ZoneState {
             }
         };
         let result = FrozenItemResult {
+            request_fingerprint: fingerprint.clone(),
             entity: id,
             incarnation,
             tick,
