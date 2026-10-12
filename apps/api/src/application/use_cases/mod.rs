@@ -6,6 +6,7 @@ pub mod consume_play_ticket;
 pub mod create_character;
 pub mod ensure_account;
 pub mod get_character;
+pub mod get_inventory;
 pub mod issue_play_ticket;
 pub mod list_classes;
 pub mod list_my_characters;

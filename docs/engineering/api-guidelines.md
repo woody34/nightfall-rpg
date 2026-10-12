@@ -246,6 +246,9 @@ Existing examples: `grpc_create_character.rs` (10 cases, including a forged `acc
 - `snake_case` fields, `SCREAMING_CASE` enum values with the enum name as prefix, value 0 is
   `_UNSPECIFIED` and is rejected by the server for required enums.
 - Never reuse or renumber a field. Reserve removed numbers.
-- Ids are strings holding UUIDs on the wire; typed on the server.
+- Existing ids are strings holding UUIDs on the wire; typed on the server. Phase 4 item
+  messages use exactly 16 canonical UUID bytes for character/entity ids. Item instance ids
+  are positive signed-bigint-safe `uint64` values from durable zone allocator ranges; they
+  are distinct from UUID identity. See phase-4-zone-design.md §1.1/§11.
 - Document every RPC with its idempotency behaviour and the error codes it returns.
 - `buf breaking` runs in CI against `main` (Phase 9 §3).

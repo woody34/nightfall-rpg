@@ -60,6 +60,7 @@ pub(super) fn character_to_pb(c: &Character) -> pb::Character {
         hair_style: c.appearance.hair_style,
         hair_color: c.appearance.hair_color,
         face: c.appearance.face,
+        ..Default::default()
     }
 }
 
@@ -284,6 +285,7 @@ pub(super) fn learn_result_to_pb(
             accuracy_q: out.effective_stats.accuracy_q,
             evasion_q: out.effective_stats.evasion_q,
             crit_permille: out.effective_stats.crit_permille,
+            ..Default::default()
         }),
     }
 }
