@@ -61,6 +61,7 @@ impl Harness {
                 speed: Speed::DEFAULT,
                 generation: SessionGeneration(1),
                 load: Some(Box::new(PlayerLoad {
+                    phase4: None,
                     phase3: None,
                     checkpoint_revision: Some(0),
                     ..PlayerLoad::fresh("human_fighter")

@@ -6,6 +6,28 @@ use crate::domain::zone::{
 use std::sync::Arc;
 
 impl ZoneState {
+    pub(super) fn remove_items_v6(&mut self, entity: crate::domain::zone::EntityId) {
+        if let Some(items) = &mut self.phase4 {
+            let weapons: std::collections::BTreeSet<_> = items
+                .canonical
+                .players
+                .get(&entity)
+                .into_iter()
+                .flat_map(|player| player.inventory.keys().copied())
+                .collect();
+            items
+                .canonical
+                .charge_bindings
+                .retain(|binding| !weapons.contains(&binding.weapon));
+            items
+                .canonical
+                .item_casts
+                .retain(|_, cast| cast.caster.entity != entity);
+            items.canonical.attack_plans.remove(&entity);
+            items.canonical.players.remove(&entity);
+            items.canonical.facing.remove(&entity);
+        }
+    }
     /// Construct a V6 epoch from validated, explicitly supplied immutable bundles and a
     /// recorded allocator reservation. Service startup supplies the compiled hash bundle.
     #[allow(clippy::too_many_arguments)] // Independent epoch inputs must remain explicit.

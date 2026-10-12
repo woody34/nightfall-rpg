@@ -247,6 +247,7 @@ impl ZoneCommand {
     /// Item intents must never enter a pre-V6 replay epoch.
     pub const fn requires_phase4(&self) -> bool {
         matches!(self, Self::Item(_))
+            || matches!(self, Self::SpawnPlayer { load: Some(load), .. } if load.phase4.is_some())
     }
 
     /// The entity the command is about. `None` for `SpawnNpc`, whose id is not known until the

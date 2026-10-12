@@ -393,7 +393,8 @@ impl ZoneState {
             }),
         };
         if let Some(checkpoint) = checkpoint {
-            let restored = checkpoint
+            let first_sequence = p.next_install_sequence;
+            let mut restored = checkpoint
                 .stage_restore(
                     &p.rules,
                     learned,
@@ -404,6 +405,23 @@ impl ZoneState {
                     p.next_install_sequence,
                 )
                 .map_err(invariant)?;
+            if let Some(items) = load.and_then(|load| load.phase4.as_ref()) {
+                let checkpoint = items.checkpoint.as_ref().ok_or_else(missing)?;
+                let (player, timers) = crate::domain::zone::Phase4Player::restore(
+                    checkpoint,
+                    &restored,
+                    tick,
+                    first_sequence,
+                )
+                .map_err(invariant)?;
+                restored = timers;
+                self.phase4
+                    .as_mut()
+                    .ok_or_else(missing)?
+                    .canonical
+                    .players
+                    .insert(id, player);
+            }
             restored
                 .effects
                 .validate_capacity(crate::domain::zone::effects::EffectCapacities::for_enlarge(0))
@@ -433,6 +451,25 @@ impl ZoneState {
         }
         p.next_entity_ordinal = p.next_entity_ordinal.checked_add(1).ok_or_else(missing)?;
         p.entities.insert(id, sidecar);
+        if let Some(items) = &mut self.phase4 {
+            items
+                .canonical
+                .facing
+                .insert(id, crate::domain::zone::item_angles::FacingVector::EAST);
+            items
+                .canonical
+                .validate_allocations(&items.rules, p)
+                .map_err(invariant)?;
+        }
+        if let Some(refreshed) = self.refresh_items_for(id).map_err(invariant)? {
+            let items = self.phase4.as_ref().ok_or_else(missing)?;
+            let phase = self.phase3.as_ref().ok_or_else(missing)?;
+            if items.canonical.players.get(&id) != Some(&refreshed.player)
+                || refreshed.next_sequence != phase.canonical.next_install_sequence
+            {
+                return Err(missing());
+            }
+        }
         self.rebuild_v5(id)?;
         // Fresh unspecified resources mean the reconstructed maximum, not its effect-free base.
         if let Some(load) = load {
@@ -1077,6 +1114,7 @@ impl ZoneState {
                         staged.cancel_attacks(entity);
                     },
                     ZoneCommand::Despawn { entity } => {
+                        self.remove_items_v6(entity);
                         if let Some(p) = &mut self.phase3 {
                             if let Some(mut side) = p.canonical.entities.remove(&entity) {
                                 if let Some(offer) = side.invalidate_resurrect_offer() {
@@ -1130,6 +1168,22 @@ impl ZoneState {
         Ok(events)
     }
     fn validate_paused_load_v5(&self, load: Option<&PlayerLoad>) -> Result<(), RejectReason> {
+        if let Some(items) = &self.phase4 {
+            let load = load.ok_or(RejectReason::InvalidLoad)?;
+            load.validate_phase4()
+                .map_err(|_| RejectReason::InvalidLoad)?;
+            let retained = load.phase4.as_ref().ok_or(RejectReason::InvalidLoad)?;
+            if !retained.pending.is_empty() || retained.checkpoint.is_none() {
+                return Err(RejectReason::NotYetImplemented);
+            }
+            if retained
+                .checkpoint
+                .as_ref()
+                .is_none_or(|cp| cp.rules_hash != items.rules.hash())
+            {
+                return Err(RejectReason::InvalidLoad);
+            }
+        }
         let Some(load) = load else { return Ok(()) };
         let Some(checkpoint) = &load.phase3 else {
             return Ok(());
@@ -2800,6 +2854,7 @@ impl ZoneState {
         for event in &spawned {
             match event {
                 ZoneEvent::EntityDespawn { entity, .. } => {
+                    self.remove_items_v6(*entity);
                     let phase = self.phase3.as_mut().ok_or_else(missing)?;
                     phase.canonical.entities.remove(entity);
                     phase.effective.remove(entity);

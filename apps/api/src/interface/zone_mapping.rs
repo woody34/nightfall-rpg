@@ -131,6 +131,7 @@ pub fn player_spawn(c: &Character) -> Result<PlayerSpawn, MappingError> {
         pos: Vec2Fixed::new(tiles_to_fixed(c.position.x)?, tiles_to_fixed(c.position.y)?),
         speed: Speed::DEFAULT,
         load: Some(Box::new(PlayerLoad {
+            phase4: None,
             phase3: None,
             level: c.level,
             xp: c.xp,
