@@ -280,6 +280,33 @@ impl ZoneCommand {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RejectReason {
+    /// Phase 4 `ItemNotOwned` refusal.
+    ItemNotOwned,
+    /// Phase 4 `ItemNotUsable` refusal.
+    ItemNotUsable,
+    /// Phase 4 `InvalidEquipSlot` refusal.
+    InvalidEquipSlot,
+    /// Phase 4 `InsufficientItems` refusal.
+    InsufficientItems,
+    /// Phase 4 `InventoryFull` refusal.
+    InventoryFull,
+    /// Phase 4 `ItemGradeMismatch` refusal.
+    ItemGradeMismatch,
+    /// Phase 4 `ItemReuse` refusal.
+    ItemReuse,
+    /// Phase 4 `InvalidEnchant` refusal.
+    InvalidEnchant,
+    /// Phase 4 `InvalidRefinement` refusal.
+    InvalidRefinement,
+    /// Phase 4 `InvalidRecipe` refusal.
+    InvalidRecipe,
+    /// Phase 4 `ItemOperationConflict` refusal.
+    ItemOperationConflict,
+    /// Phase 4 `ItemCapabilityDeferred` refusal.
+    ItemCapabilityDeferred,
+    /// Phase 4 `CrystallizeLevelTooLow` refusal.
+    CrystallizeLevelTooLow,
+
     /// Skill is outside the current lineage or automatically granted.
     SkillNotLearnable,
     /// Purchase must name exactly the next learned rank.
@@ -372,6 +399,19 @@ impl RejectReason {
             Self::SkillItemRequired => "skill learning requires an inventory item",
             Self::SkillDeferred => "skill runtime is deferred",
             Self::InsufficientSp => "insufficient SP",
+            Self::ItemNotOwned => "ItemNotOwned",
+            Self::ItemNotUsable => "ItemNotUsable",
+            Self::InvalidEquipSlot => "InvalidEquipSlot",
+            Self::InsufficientItems => "InsufficientItems",
+            Self::InventoryFull => "InventoryFull",
+            Self::ItemGradeMismatch => "ItemGradeMismatch",
+            Self::ItemReuse => "ItemReuse",
+            Self::InvalidEnchant => "InvalidEnchant",
+            Self::InvalidRefinement => "InvalidRefinement",
+            Self::InvalidRecipe => "InvalidRecipe",
+            Self::ItemOperationConflict => "ItemOperationConflict",
+            Self::ItemCapabilityDeferred => "ItemCapabilityDeferred",
+            Self::CrystallizeLevelTooLow => "CrystallizeLevelTooLow",
             Self::SkillUnknown => "SkillUnknown",
             Self::SkillNotLearned => "SkillNotLearned",
             Self::SkillCooldown => "SkillCooldown",

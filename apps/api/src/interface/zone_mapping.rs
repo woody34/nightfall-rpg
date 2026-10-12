@@ -970,6 +970,19 @@ pub fn world_event_to_pb(ev: &ZoneEvent, server_time_ms: i64) -> Vec<pb::WorldEv
 #[must_use]
 pub fn reject_reason_to_pb(r: RejectReason) -> pb::RejectReason {
     match r {
+        RejectReason::ItemNotOwned => pb::RejectReason::ItemNotOwned,
+        RejectReason::ItemNotUsable => pb::RejectReason::ItemNotUsable,
+        RejectReason::InvalidEquipSlot => pb::RejectReason::InvalidEquipSlot,
+        RejectReason::InsufficientItems => pb::RejectReason::InsufficientItems,
+        RejectReason::InventoryFull => pb::RejectReason::InventoryFull,
+        RejectReason::ItemGradeMismatch => pb::RejectReason::ItemGradeMismatch,
+        RejectReason::ItemReuse => pb::RejectReason::ItemReuse,
+        RejectReason::InvalidEnchant => pb::RejectReason::InvalidEnchant,
+        RejectReason::InvalidRefinement => pb::RejectReason::InvalidRefinement,
+        RejectReason::InvalidRecipe => pb::RejectReason::InvalidRecipe,
+        RejectReason::ItemOperationConflict => pb::RejectReason::ItemOperationConflict,
+        RejectReason::ItemCapabilityDeferred => pb::RejectReason::ItemCapabilityDeferred,
+        RejectReason::CrystallizeLevelTooLow => pb::RejectReason::CrystallizeLevelTooLow,
         RejectReason::SkillUnknown => pb::RejectReason::SkillUnknown,
         RejectReason::SkillNotLearned => pb::RejectReason::SkillNotLearned,
         RejectReason::SkillCooldown => pb::RejectReason::SkillCooldown,

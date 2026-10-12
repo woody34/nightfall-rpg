@@ -157,6 +157,9 @@ fn message(mut bytes: &[u8], node: &str, schema: u32, digested: bool) -> Result<
         }
         if wire == 0 {
             let value = varint(&mut bytes)?;
+            if schema < 8 && node == "PbDisposition" && tag == 5 && value >= 39 {
+                return Err(CodecError("Phase 4 rejection in legacy record".into()));
+            }
             if schema < 7 && node == "PbDisposition" && tag == 5 && value >= 21 {
                 return Err(CodecError("Phase 3 rejection in legacy record".into()));
             }

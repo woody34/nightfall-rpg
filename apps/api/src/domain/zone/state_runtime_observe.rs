@@ -88,6 +88,7 @@ impl ZoneState {
                 continue;
             }
             let mut ordinary = Vec::new();
+            let mut item_results = Vec::new();
             for mut output in std::mem::take(out) {
                 match &mut output {
                     ObserverOutput::Accepted { .. } | ObserverOutput::Rejected(_) => {
@@ -124,6 +125,7 @@ impl ZoneState {
                     ) => {},
                     ObserverOutput::Event(ZoneEvent::StatsChanged { entity, .. })
                         if owner_baseline && entity == observer => {},
+                    ObserverOutput::Event(ZoneEvent::ItemResult(_)) => item_results.push(output),
                     ObserverOutput::Event(_) => ordinary.push(output),
                 }
             }
@@ -388,6 +390,7 @@ impl ZoneState {
                     out.push(ObserverOutput::Event(event));
                 }
             }
+            out.extend(item_results);
         }
         outputs.retain(|_, out| !out.is_empty());
         Ok(outputs)
