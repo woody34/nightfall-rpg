@@ -1467,7 +1467,9 @@ impl ZoneState {
                 player_level: self.phase4.as_ref().map(|_| effective.physical.level()),
                 calculator: &effective.calculator,
                 conditions: FunctionConditions {
-                    weapon_kind: "SWORD",
+                    weapon_kind: self
+                        .item_weapon_kind(entry.caster.entity, "SWORD")
+                        .map_err(|_| RejectReason::InvalidLoad)?,
                     can_resurrect: true,
                 },
                 attack_speed: u32::try_from(
@@ -1695,7 +1697,7 @@ impl ZoneState {
                     player_level: self.phase4.as_ref().map(|_| stats.physical.level()),
                     calculator: &stats.calculator,
                     conditions: FunctionConditions {
-                        weapon_kind: "SWORD",
+                        weapon_kind: self.item_weapon_kind(work.caster, "SWORD")?,
                         can_resurrect: true,
                     },
                     attack_speed: 1,
@@ -2351,7 +2353,8 @@ impl ZoneState {
                 input,
                 &effective.calculator,
                 FunctionConditions {
-                    weapon_kind: if player { "SWORD" } else { "NONE" },
+                    weapon_kind: self
+                        .item_weapon_kind(id, if player { "SWORD" } else { "NONE" })?,
                     can_resurrect: player,
                 },
                 rules.regen(),

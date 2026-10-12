@@ -141,11 +141,14 @@ impl ZoneState {
                 name,
                 initial,
                 FunctionConditions {
-                    weapon_kind: if self.sidecar(id)?.player.is_some() {
-                        "SWORD"
-                    } else {
-                        "NONE"
-                    },
+                    weapon_kind: self.item_weapon_kind(
+                        id,
+                        if self.sidecar(id)?.player.is_some() {
+                            "SWORD"
+                        } else {
+                            "NONE"
+                        },
+                    )?,
                     can_resurrect: true,
                 },
             )
@@ -332,7 +335,11 @@ impl ZoneState {
         .map_err(invariant)?
         .checked_mul(pvp_bonus)
         .map_err(invariant)?
-        .checked_mul(Self::attack_traits_v5(&a, &b, "SWORD")?)
+        .checked_mul(Self::attack_traits_v5(
+            &a,
+            &b,
+            self.item_weapon_kind(caster.entity, "SWORD")?,
+        )?)
         .map_err(invariant)?
         .checked_mul(skill_math::attribute_bonus(0, 0, false, false).map_err(invariant)?)
         .map_err(invariant)?
@@ -4349,6 +4356,80 @@ mod tests {
             .unwrap();
         assert_eq!(zone.sidecar(owner.entity).unwrap().cast, CastState::Casting(cast));
     }
+    #[test]
+    fn v6_weapon_context_tracks_equipment_for_conditional_getters() {
+        use crate::domain::zone::skill::SkillCondition;
+        use crate::domain::zone::stat_functions::{
+            FunctionKey, FunctionOp, StatCalculator, StatFunction,
+        };
+        use crate::domain::zone::{EquipSlot, ItemCommandKind as K};
+        let (mut zone, owner, npc) = equipment_fixture();
+        zone.run_tick(zone.draft(Vec::new())).unwrap();
+        let weapon = zone.phase4.as_ref().unwrap().canonical.players[&owner.entity].paperdoll
+            [&EquipSlot::Rhand];
+        let mut stats = (*zone.effective(owner.entity).unwrap()).clone();
+        stats.calculator = StatCalculator::try_new([StatFunction {
+            key: FunctionKey {
+                stat: "critDmg".into(),
+                priority: 32,
+                install_sequence: 1,
+                handler_ordinal: 0,
+                function_ordinal: 0,
+            },
+            operation: FunctionOp::Mul(2 * Q),
+            conditions: vec![SkillCondition::UsingKind {
+                weapon_kinds: vec!["FIST".into()],
+            }],
+        }])
+        .unwrap();
+        assert_eq!(zone.item_weapon_kind(owner.entity, "SWORD").unwrap(), "SWORD");
+        assert_eq!(zone.item_weapon_kind(npc.entity, "SWORD").unwrap(), "NONE");
+        assert_eq!(
+            zone.damage_stat_v5(owner.entity, &stats, "critDmg", Q)
+                .unwrap(),
+            ExactRatio::whole(1)
+        );
+        for (key, kind, expected) in [
+            (
+                701,
+                K::Unequip {
+                    slot: EquipSlot::Rhand,
+                },
+                "FIST",
+            ),
+            (
+                702,
+                K::Equip {
+                    instance: weapon,
+                    preferred_slot: None,
+                },
+                "SWORD",
+            ),
+        ] {
+            let command = item_intent(&zone, owner.entity, key, kind);
+            let tick = zone
+                .run_tick(zone.draft(vec![review_input(
+                    owner.entity,
+                    u64::try_from(key).unwrap(),
+                    ZoneCommand::Item(Box::new(command)),
+                )]))
+                .unwrap();
+            assert!(tick.dispositions.is_empty(), "{:?}", tick.dispositions);
+            assert_eq!(zone.item_weapon_kind(owner.entity, "SWORD").unwrap(), expected);
+            assert_eq!(
+                zone.damage_stat_v5(owner.entity, &stats, "critDmg", Q)
+                    .unwrap(),
+                ExactRatio::whole(if expected == "FIST" { 2 } else { 1 })
+            );
+        }
+        let (legacy, player, _, npc) = fixture();
+        for entity in [player.entity, npc.entity] {
+            for supplied in ["SWORD", "NONE"] {
+                assert_eq!(legacy.item_weapon_kind(entity, supplied).unwrap(), supplied);
+            }
+        }
+    }
+
     #[test]
     fn v6_allocator_extension_is_system_only_exhausted_atomic_and_replayed() {
         use crate::domain::zone::ItemInstanceRange;

@@ -6,6 +6,26 @@ use crate::domain::zone::{
 use std::sync::Arc;
 
 impl ZoneState {
+    /// V6 callers use the current paperdoll; older callers retain their historical context.
+    pub(super) fn item_weapon_kind<'a>(
+        &'a self,
+        entity: crate::domain::zone::EntityId,
+        legacy: &'a str,
+    ) -> Result<&'a str, super::TickError> {
+        let Some(items) = &self.phase4 else {
+            return Ok(legacy);
+        };
+        let Some(player) = items.canonical.players.get(&entity) else {
+            return Ok("NONE");
+        };
+        crate::domain::zone::effective_stats::EquipmentStatContext {
+            player,
+            rules: &items.rules,
+        }
+        .weapon_kind()
+        .map_err(|_| super::TickError::Phase3Invariant)
+    }
+
     pub(super) fn remove_items_v6(&mut self, entity: crate::domain::zone::EntityId) {
         if let Some(items) = &mut self.phase4 {
             let weapons: std::collections::BTreeSet<_> = items
