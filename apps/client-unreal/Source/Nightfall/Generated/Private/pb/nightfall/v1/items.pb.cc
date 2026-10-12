@@ -594,12 +594,22 @@ PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
 template <typename>
 PROTOBUF_CONSTEXPR EnchantResult::EnchantResult(
     ::_pbi::ConstantInitialized): _impl_{
-    /*decltype(_impl_.refunds_)*/{}
+    /*decltype(_impl_._has_bits_)*/{}
+  , /*decltype(_impl_._cached_size_)*/{}
+  , /*decltype(_impl_.refunds_)*/{}
   , /*decltype(_impl_.entity_id_)*/ {
     &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
   }
 
   , /*decltype(_impl_.receipt_id_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.request_key_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.request_fingerprint_)*/ {
     &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
   }
 
@@ -619,7 +629,10 @@ PROTOBUF_CONSTEXPR EnchantResult::EnchantResult(
 
   , /*decltype(_impl_.announcement_tier_)*/ 0u
 
-  , /*decltype(_impl_._cached_size_)*/{}} {}
+  , /*decltype(_impl_.operation_)*/ 0
+
+  , /*decltype(_impl_.accepted_client_seq_)*/ ::uint64_t{0u}
+} {}
 struct EnchantResultDefaultTypeInternal {
   PROTOBUF_CONSTEXPR EnchantResultDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
   ~EnchantResultDefaultTypeInternal() {}
@@ -643,6 +656,14 @@ PROTOBUF_CONSTEXPR RefineResult::RefineResult(
     &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
   }
 
+  , /*decltype(_impl_.request_key_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.request_fingerprint_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
   , /*decltype(_impl_.tick_)*/ ::uint64_t{0u}
 
   , /*decltype(_impl_.inventory_revision_)*/ ::uint64_t{0u}
@@ -654,6 +675,10 @@ PROTOBUF_CONSTEXPR RefineResult::RefineResult(
   , /*decltype(_impl_.target_instance_id_)*/ ::uint64_t{0u}
 
   , /*decltype(_impl_.outcome_)*/ 0
+
+  , /*decltype(_impl_.operation_)*/ 0
+
+  , /*decltype(_impl_.accepted_client_seq_)*/ ::uint64_t{0u}
 } {}
 struct RefineResultDefaultTypeInternal {
   PROTOBUF_CONSTEXPR RefineResultDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
@@ -681,6 +706,14 @@ PROTOBUF_CONSTEXPR ItemOperationResult::ItemOperationResult(
     &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
   }
 
+  , /*decltype(_impl_.request_key_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
+  , /*decltype(_impl_.request_fingerprint_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
   , /*decltype(_impl_.tick_)*/ ::uint64_t{0u}
 
   , /*decltype(_impl_.inventory_revision_)*/ ::uint64_t{0u}
@@ -690,6 +723,8 @@ PROTOBUF_CONSTEXPR ItemOperationResult::ItemOperationResult(
   , /*decltype(_impl_.operation_)*/ 0
 
   , /*decltype(_impl_.recipe_id_)*/ ::uint64_t{0u}
+
+  , /*decltype(_impl_.accepted_client_seq_)*/ ::uint64_t{0u}
 } {}
 struct ItemOperationResultDefaultTypeInternal {
   PROTOBUF_CONSTEXPR ItemOperationResultDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
@@ -1310,7 +1345,7 @@ const ::uint32_t TableStruct_nightfall_2fv1_2fitems_2eproto::offsets[] PROTOBUF_
     ~0u,
     ~0u,
     0,
-    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EnchantResult, _impl_._has_bits_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::EnchantResult, _internal_metadata_),
     ~0u,  // no _extensions_
     ~0u,  // no _oneof_case_
@@ -1329,6 +1364,25 @@ const ::uint32_t TableStruct_nightfall_2fv1_2fitems_2eproto::offsets[] PROTOBUF_
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::EnchantResult, _impl_.outcome_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::EnchantResult, _impl_.refunds_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::EnchantResult, _impl_.announcement_tier_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EnchantResult, _impl_.request_key_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EnchantResult, _impl_.operation_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EnchantResult, _impl_.request_fingerprint_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EnchantResult, _impl_.accepted_client_seq_),
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    0,
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::RefineResult, _impl_._has_bits_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::RefineResult, _internal_metadata_),
     ~0u,  // no _extensions_
@@ -1345,6 +1399,10 @@ const ::uint32_t TableStruct_nightfall_2fv1_2fitems_2eproto::offsets[] PROTOBUF_
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::RefineResult, _impl_.target_instance_id_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::RefineResult, _impl_.augment_id_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::RefineResult, _impl_.outcome_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::RefineResult, _impl_.request_key_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::RefineResult, _impl_.operation_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::RefineResult, _impl_.request_fingerprint_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::RefineResult, _impl_.accepted_client_seq_),
     ~0u,
     ~0u,
     ~0u,
@@ -1353,6 +1411,10 @@ const ::uint32_t TableStruct_nightfall_2fv1_2fitems_2eproto::offsets[] PROTOBUF_
     ~0u,
     0,
     ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    1,
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::ItemOperationResult, _impl_._has_bits_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::ItemOperationResult, _internal_metadata_),
     ~0u,  // no _extensions_
@@ -1369,6 +1431,9 @@ const ::uint32_t TableStruct_nightfall_2fv1_2fitems_2eproto::offsets[] PROTOBUF_
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::ItemOperationResult, _impl_.operation_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::ItemOperationResult, _impl_.affected_instance_ids_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::ItemOperationResult, _impl_.recipe_id_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ItemOperationResult, _impl_.request_key_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ItemOperationResult, _impl_.request_fingerprint_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ItemOperationResult, _impl_.accepted_client_seq_),
     ~0u,
     ~0u,
     ~0u,
@@ -1377,6 +1442,9 @@ const ::uint32_t TableStruct_nightfall_2fv1_2fitems_2eproto::offsets[] PROTOBUF_
     ~0u,
     ~0u,
     0,
+    ~0u,
+    ~0u,
+    1,
     ~0u,  // no _has_bits_
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::ItemStatDescription, _internal_metadata_),
     ~0u,  // no _extensions_
@@ -1547,21 +1615,21 @@ static const ::_pbi::MigrationSchema
         { 289, -1, -1, sizeof(::nightfall::v1::EquipmentChanged)},
         { 301, 314, -1, sizeof(::nightfall::v1::WeightChanged)},
         { 319, 332, -1, sizeof(::nightfall::v1::PenaltyChanged)},
-        { 337, -1, -1, sizeof(::nightfall::v1::EnchantResult)},
-        { 356, 372, -1, sizeof(::nightfall::v1::RefineResult)},
-        { 380, 396, -1, sizeof(::nightfall::v1::ItemOperationResult)},
-        { 404, -1, -1, sizeof(::nightfall::v1::ItemStatDescription)},
-        { 417, -1, -1, sizeof(::nightfall::v1::ItemSkillReference)},
-        { 428, -1, -1, sizeof(::nightfall::v1::ItemDefinition)},
-        { 448, -1, -1, sizeof(::nightfall::v1::ItemIngredient)},
-        { 458, -1, -1, sizeof(::nightfall::v1::SaRecipe)},
-        { 471, -1, -1, sizeof(::nightfall::v1::ItemCapability)},
-        { 481, 490, -1, sizeof(::nightfall::v1::GetItemCatalogRequest)},
-        { 491, -1, -1, sizeof(::nightfall::v1::GetItemCatalogResponse)},
-        { 504, -1, -1, sizeof(::nightfall::v1::GetInventoryRequest)},
-        { 513, 522, -1, sizeof(::nightfall::v1::GetInventoryResponse)},
-        { 523, -1, -1, sizeof(::nightfall::v1::GrantItemRequest)},
-        { 535, 545, -1, sizeof(::nightfall::v1::GrantItemResponse)},
+        { 337, 360, -1, sizeof(::nightfall::v1::EnchantResult)},
+        { 375, 395, -1, sizeof(::nightfall::v1::RefineResult)},
+        { 407, 426, -1, sizeof(::nightfall::v1::ItemOperationResult)},
+        { 437, -1, -1, sizeof(::nightfall::v1::ItemStatDescription)},
+        { 450, -1, -1, sizeof(::nightfall::v1::ItemSkillReference)},
+        { 461, -1, -1, sizeof(::nightfall::v1::ItemDefinition)},
+        { 481, -1, -1, sizeof(::nightfall::v1::ItemIngredient)},
+        { 491, -1, -1, sizeof(::nightfall::v1::SaRecipe)},
+        { 504, -1, -1, sizeof(::nightfall::v1::ItemCapability)},
+        { 514, 523, -1, sizeof(::nightfall::v1::GetItemCatalogRequest)},
+        { 524, -1, -1, sizeof(::nightfall::v1::GetItemCatalogResponse)},
+        { 537, -1, -1, sizeof(::nightfall::v1::GetInventoryRequest)},
+        { 546, 555, -1, sizeof(::nightfall::v1::GetInventoryResponse)},
+        { 556, -1, -1, sizeof(::nightfall::v1::GrantItemRequest)},
+        { 568, 578, -1, sizeof(::nightfall::v1::GrantItemResponse)},
 };
 
 static const ::_pb::Message* const file_default_instances[] = {
@@ -1685,7 +1753,7 @@ const char descriptor_table_protodef_nightfall_2fv1_2fitems_2eproto[] PROTOBUF_S
     "\001\n\016PenaltyChanged\022\021\n\tentity_id\030\001 \001(\014\022\023\n\013"
     "incarnation\030\002 \001(\r\022\014\n\004tick\030\003 \001(\004\022\032\n\022inven"
     "tory_revision\030\004 \001(\004\0221\n\tpenalties\030\005 \001(\0132\036"
-    ".nightfall.v1.ItemPenaltyState\"\260\002\n\rEncha"
+    ".nightfall.v1.ItemPenaltyState\"\314\003\n\rEncha"
     "ntResult\022\021\n\tentity_id\030\001 \001(\014\022\023\n\013incarnati"
     "on\030\002 \001(\r\022\014\n\004tick\030\003 \001(\004\022\032\n\022inventory_revi"
     "sion\030\004 \001(\004\022\022\n\nreceipt_id\030\005 \001(\t\022\032\n\022target"
@@ -1693,112 +1761,123 @@ const char descriptor_table_protodef_nightfall_2fv1_2fitems_2eproto[] PROTOBUF_S
     "\023\n\013new_enchant\030\010 \001(\r\022-\n\007outcome\030\t \001(\0162\034."
     "nightfall.v1.EnchantOutcome\022)\n\007refunds\030\n"
     " \003(\0132\030.nightfall.v1.ItemRefund\022\031\n\021announ"
-    "cement_tier\030\013 \001(\r\"\346\001\n\014RefineResult\022\021\n\ten"
-    "tity_id\030\001 \001(\014\022\023\n\013incarnation\030\002 \001(\r\022\014\n\004ti"
-    "ck\030\003 \001(\004\022\032\n\022inventory_revision\030\004 \001(\004\022\022\n\n"
-    "receipt_id\030\005 \001(\t\022\032\n\022target_instance_id\030\006"
-    " \001(\004\022\027\n\naugment_id\030\007 \001(\rH\000\210\001\001\022,\n\007outcome"
-    "\030\010 \001(\0162\033.nightfall.v1.RefineOutcomeB\r\n\013_"
-    "augment_id\"\360\001\n\023ItemOperationResult\022\021\n\ten"
-    "tity_id\030\001 \001(\014\022\023\n\013incarnation\030\002 \001(\r\022\014\n\004ti"
-    "ck\030\003 \001(\004\022\032\n\022inventory_revision\030\004 \001(\004\022\022\n\n"
-    "receipt_id\030\005 \001(\t\022.\n\toperation\030\006 \001(\0162\033.ni"
-    "ghtfall.v1.ItemOperation\022\035\n\025affected_ins"
-    "tance_ids\030\007 \003(\004\022\026\n\trecipe_id\030\010 \001(\004H\000\210\001\001B"
-    "\014\n\n_recipe_id\"m\n\023ItemStatDescription\022\014\n\004"
-    "stat\030\001 \001(\t\022\021\n\toperation\030\002 \001(\t\022\021\n\tnumerat"
-    "or\030\003 \001(\003\022\023\n\013denominator\030\004 \001(\003\022\r\n\005order\030\005"
-    " \001(\r\"]\n\022ItemSkillReference\022\n\n\002id\030\001 \001(\r\022\014"
-    "\n\004rank\030\002 \001(\r\022-\n\006source\030\003 \001(\0162\035.nightfall"
-    ".v1.ItemSkillSource\"\323\002\n\016ItemDefinition\022\023"
-    "\n\013template_id\030\001 \001(\r\022\014\n\004name\030\002 \001(\t\022$\n\004kin"
-    "d\030\003 \001(\0162\026.nightfall.v1.ItemKind\022&\n\005grade"
-    "\030\004 \001(\0162\027.nightfall.v1.ItemGrade\022\025\n\rbodyp"
-    "art_mask\030\005 \001(\004\022\016\n\006weight\030\006 \001(\r\022\021\n\tstacka"
-    "ble\030\007 \001(\010\022\016\n\006usable\030\010 \001(\010\022\020\n\010blockers\030\t "
-    "\003(\t\022\020\n\010icon_key\030\n \001(\t\0220\n\005stats\030\013 \003(\0132!.n"
-    "ightfall.v1.ItemStatDescription\0220\n\006skill"
-    "s\030\014 \003(\0132 .nightfall.v1.ItemSkillReferenc"
-    "e\"1\n\016ItemIngredient\022\020\n\010template\030\001 \001(\r\022\r\n"
-    "\005count\030\002 \001(\004\"\237\001\n\010SaRecipe\022\021\n\trecipe_id\030\001"
-    " \001(\004\022\025\n\rbase_template\030\002 \001(\r\0221\n\013ingredien"
-    "ts\030\003 \003(\0132\034.nightfall.v1.ItemIngredient\022\030"
-    "\n\020product_template\030\004 \001(\r\022\034\n\024maintain_enc"
-    "hantment\030\005 \001(\010\"7\n\016ItemCapability\022\023\n\013temp"
-    "late_id\030\001 \001(\r\022\020\n\010blockers\030\002 \003(\t\"K\n\025GetIt"
-    "emCatalogRequest\022\035\n\020known_rules_hash\030\001 \001"
-    "(\014H\000\210\001\001B\023\n\021_known_rules_hash\"\314\001\n\026GetItem"
-    "CatalogResponse\022\024\n\014data_version\030\001 \001(\r\022\022\n"
-    "\nrules_hash\030\002 \001(\014\022+\n\005items\030\003 \003(\0132\034.night"
-    "fall.v1.ItemDefinition\022\'\n\007recipes\030\004 \003(\0132"
-    "\026.nightfall.v1.SaRecipe\0222\n\014capabilities\030"
-    "\005 \003(\0132\034.nightfall.v1.ItemCapability\"+\n\023G"
-    "etInventoryRequest\022\024\n\014character_id\030\001 \001(\014"
-    "\"F\n\024GetInventoryResponse\022.\n\tinventory\030\001 "
-    "\001(\0132\033.nightfall.v1.InventorySync\"e\n\020Gran"
-    "tItemRequest\022\024\n\014character_id\030\001 \001(\014\022\023\n\013te"
-    "mplate_id\030\002 \001(\r\022\r\n\005count\030\003 \001(\004\022\027\n\017idempo"
-    "tency_key\030\004 \001(\t\"v\n\021GrantItemResponse\0221\n\006"
-    "result\030\001 \001(\0132!.nightfall.v1.ItemOperatio"
-    "nResult\022.\n\tinventory\030\002 \001(\0132\033.nightfall.v"
-    "1.InventorySync*\274\001\n\tItemGrade\022\032\n\026ITEM_GR"
-    "ADE_UNSPECIFIED\020\000\022\021\n\rITEM_GRADE_NG\020\001\022\020\n\014"
-    "ITEM_GRADE_D\020\002\022\020\n\014ITEM_GRADE_C\020\003\022\020\n\014ITEM"
-    "_GRADE_B\020\004\022\020\n\014ITEM_GRADE_A\020\005\022\020\n\014ITEM_GRA"
-    "DE_S\020\006\022\022\n\016ITEM_GRADE_S80\020\007\022\022\n\016ITEM_GRADE"
-    "_S84\020\010*\322\004\n\tEquipSlot\022\032\n\026EQUIP_SLOT_UNSPE"
-    "CIFIED\020\000\022\024\n\020EQUIP_SLOT_UNDER\020\001\022\023\n\017EQUIP_"
-    "SLOT_HEAD\020\002\022\023\n\017EQUIP_SLOT_HAIR\020\003\022\024\n\020EQUI"
-    "P_SLOT_HAIR2\020\004\022\023\n\017EQUIP_SLOT_NECK\020\005\022\024\n\020E"
-    "QUIP_SLOT_RHAND\020\006\022\024\n\020EQUIP_SLOT_CHEST\020\007\022"
-    "\024\n\020EQUIP_SLOT_LHAND\020\010\022\023\n\017EQUIP_SLOT_REAR"
-    "\020\t\022\023\n\017EQUIP_SLOT_LEAR\020\n\022\025\n\021EQUIP_SLOT_GL"
-    "OVES\020\013\022\023\n\017EQUIP_SLOT_LEGS\020\014\022\023\n\017EQUIP_SLO"
-    "T_FEET\020\r\022\026\n\022EQUIP_SLOT_RFINGER\020\016\022\026\n\022EQUI"
-    "P_SLOT_LFINGER\020\017\022\030\n\024EQUIP_SLOT_LBRACELET"
-    "\020\020\022\030\n\024EQUIP_SLOT_RBRACELET\020\021\022\024\n\020EQUIP_SL"
-    "OT_DECO1\020\022\022\024\n\020EQUIP_SLOT_DECO2\020\023\022\024\n\020EQUI"
-    "P_SLOT_DECO3\020\024\022\024\n\020EQUIP_SLOT_DECO4\020\025\022\024\n\020"
-    "EQUIP_SLOT_DECO5\020\026\022\024\n\020EQUIP_SLOT_DECO6\020\027"
-    "\022\024\n\020EQUIP_SLOT_CLOAK\020\030\022\023\n\017EQUIP_SLOT_BEL"
-    "T\020\031*g\n\014ItemLocation\022\035\n\031ITEM_LOCATION_UNS"
-    "PECIFIED\020\000\022\033\n\027ITEM_LOCATION_INVENTORY\020\001\022"
-    "\033\n\027ITEM_LOCATION_PAPERDOLL\020\002*p\n\rItemReus"
-    "eKind\022\037\n\033ITEM_REUSE_KIND_UNSPECIFIED\020\000\022\034"
-    "\n\030ITEM_REUSE_KIND_TEMPLATE\020\001\022 \n\034ITEM_REU"
-    "SE_KIND_SHARED_GROUP\020\002*\333\001\n\016EnchantOutcom"
-    "e\022\037\n\033ENCHANT_OUTCOME_UNSPECIFIED\020\000\022\033\n\027EN"
-    "CHANT_OUTCOME_SUCCESS\020\001\022\037\n\033ENCHANT_OUTCO"
-    "ME_SAFE_FAILED\020\002\022!\n\035ENCHANT_OUTCOME_BLES"
-    "SED_RESET\020\003\022\035\n\031ENCHANT_OUTCOME_DESTROYED"
-    "\020\004\022(\n$ENCHANT_OUTCOME_SUCCESS_NO_INCREME"
-    "NT\020\005*g\n\rRefineOutcome\022\036\n\032REFINE_OUTCOME_"
-    "UNSPECIFIED\020\000\022\032\n\026REFINE_OUTCOME_APPLIED\020"
-    "\001\022\032\n\026REFINE_OUTCOME_REMOVED\020\002*\252\003\n\rItemOp"
-    "eration\022\036\n\032ITEM_OPERATION_UNSPECIFIED\020\000\022"
-    "\030\n\024ITEM_OPERATION_EQUIP\020\001\022\032\n\026ITEM_OPERAT"
-    "ION_UNEQUIP\020\002\022\026\n\022ITEM_OPERATION_USE\020\003\022\032\n"
-    "\026ITEM_OPERATION_DESTROY\020\004\022\032\n\026ITEM_OPERAT"
-    "ION_ENCHANT\020\005\022#\n\037ITEM_OPERATION_TOGGLE_A"
-    "UTO_SHOT\020\006\022\031\n\025ITEM_OPERATION_REFINE\020\007\022 \n"
-    "\034ITEM_OPERATION_CANCEL_REFINE\020\010\022\036\n\032ITEM_"
-    "OPERATION_EXCHANGE_SA\020\t\022\036\n\032ITEM_OPERATIO"
-    "N_CRYSTALLIZE\020\n\022\030\n\024ITEM_OPERATION_GRANT\020"
-    "\013\022\032\n\026ITEM_OPERATION_STARTER\020\014\022\033\n\027ITEM_OP"
-    "ERATION_BACKFILL\020\r*c\n\010ItemKind\022\031\n\025ITEM_K"
-    "IND_UNSPECIFIED\020\000\022\024\n\020ITEM_KIND_WEAPON\020\001\022"
-    "\023\n\017ITEM_KIND_ARMOR\020\002\022\021\n\rITEM_KIND_ETC\020\003*"
-    "\256\001\n\017ItemSkillSource\022!\n\035ITEM_SKILL_SOURCE"
-    "_UNSPECIFIED\020\000\022\032\n\026ITEM_SKILL_SOURCE_ITEM"
-    "\020\001\022\"\n\036ITEM_SKILL_SOURCE_ENCHANT_FOUR\020\002\022\031"
-    "\n\025ITEM_SKILL_SOURCE_SET\020\003\022\035\n\031ITEM_SKILL_"
-    "SOURCE_AUGMENT\020\004b\006proto3"
+    "cement_tier\030\013 \001(\r\022\023\n\013request_key\030\014 \001(\014\022."
+    "\n\toperation\030\r \001(\0162\033.nightfall.v1.ItemOpe"
+    "ration\022\033\n\023request_fingerprint\030\016 \001(\t\022 \n\023a"
+    "ccepted_client_seq\030\017 \001(\004H\000\210\001\001B\026\n\024_accept"
+    "ed_client_seq\"\202\003\n\014RefineResult\022\021\n\tentity"
+    "_id\030\001 \001(\014\022\023\n\013incarnation\030\002 \001(\r\022\014\n\004tick\030\003"
+    " \001(\004\022\032\n\022inventory_revision\030\004 \001(\004\022\022\n\nrece"
+    "ipt_id\030\005 \001(\t\022\032\n\022target_instance_id\030\006 \001(\004"
+    "\022\027\n\naugment_id\030\007 \001(\rH\000\210\001\001\022,\n\007outcome\030\010 \001"
+    "(\0162\033.nightfall.v1.RefineOutcome\022\023\n\013reque"
+    "st_key\030\t \001(\014\022.\n\toperation\030\n \001(\0162\033.nightf"
+    "all.v1.ItemOperation\022\033\n\023request_fingerpr"
+    "int\030\013 \001(\t\022 \n\023accepted_client_seq\030\014 \001(\004H\001"
+    "\210\001\001B\r\n\013_augment_idB\026\n\024_accepted_client_s"
+    "eq\"\334\002\n\023ItemOperationResult\022\021\n\tentity_id\030"
+    "\001 \001(\014\022\023\n\013incarnation\030\002 \001(\r\022\014\n\004tick\030\003 \001(\004"
+    "\022\032\n\022inventory_revision\030\004 \001(\004\022\022\n\nreceipt_"
+    "id\030\005 \001(\t\022.\n\toperation\030\006 \001(\0162\033.nightfall."
+    "v1.ItemOperation\022\035\n\025affected_instance_id"
+    "s\030\007 \003(\004\022\026\n\trecipe_id\030\010 \001(\004H\000\210\001\001\022\023\n\013reque"
+    "st_key\030\t \001(\014\022\033\n\023request_fingerprint\030\n \001("
+    "\t\022 \n\023accepted_client_seq\030\013 \001(\004H\001\210\001\001B\014\n\n_"
+    "recipe_idB\026\n\024_accepted_client_seq\"m\n\023Ite"
+    "mStatDescription\022\014\n\004stat\030\001 \001(\t\022\021\n\toperat"
+    "ion\030\002 \001(\t\022\021\n\tnumerator\030\003 \001(\003\022\023\n\013denomina"
+    "tor\030\004 \001(\003\022\r\n\005order\030\005 \001(\r\"]\n\022ItemSkillRef"
+    "erence\022\n\n\002id\030\001 \001(\r\022\014\n\004rank\030\002 \001(\r\022-\n\006sour"
+    "ce\030\003 \001(\0162\035.nightfall.v1.ItemSkillSource\""
+    "\323\002\n\016ItemDefinition\022\023\n\013template_id\030\001 \001(\r\022"
+    "\014\n\004name\030\002 \001(\t\022$\n\004kind\030\003 \001(\0162\026.nightfall."
+    "v1.ItemKind\022&\n\005grade\030\004 \001(\0162\027.nightfall.v"
+    "1.ItemGrade\022\025\n\rbodypart_mask\030\005 \001(\004\022\016\n\006we"
+    "ight\030\006 \001(\r\022\021\n\tstackable\030\007 \001(\010\022\016\n\006usable\030"
+    "\010 \001(\010\022\020\n\010blockers\030\t \003(\t\022\020\n\010icon_key\030\n \001("
+    "\t\0220\n\005stats\030\013 \003(\0132!.nightfall.v1.ItemStat"
+    "Description\0220\n\006skills\030\014 \003(\0132 .nightfall."
+    "v1.ItemSkillReference\"1\n\016ItemIngredient\022"
+    "\020\n\010template\030\001 \001(\r\022\r\n\005count\030\002 \001(\004\"\237\001\n\010SaR"
+    "ecipe\022\021\n\trecipe_id\030\001 \001(\004\022\025\n\rbase_templat"
+    "e\030\002 \001(\r\0221\n\013ingredients\030\003 \003(\0132\034.nightfall"
+    ".v1.ItemIngredient\022\030\n\020product_template\030\004"
+    " \001(\r\022\034\n\024maintain_enchantment\030\005 \001(\010\"7\n\016It"
+    "emCapability\022\023\n\013template_id\030\001 \001(\r\022\020\n\010blo"
+    "ckers\030\002 \003(\t\"K\n\025GetItemCatalogRequest\022\035\n\020"
+    "known_rules_hash\030\001 \001(\014H\000\210\001\001B\023\n\021_known_ru"
+    "les_hash\"\314\001\n\026GetItemCatalogResponse\022\024\n\014d"
+    "ata_version\030\001 \001(\r\022\022\n\nrules_hash\030\002 \001(\014\022+\n"
+    "\005items\030\003 \003(\0132\034.nightfall.v1.ItemDefiniti"
+    "on\022\'\n\007recipes\030\004 \003(\0132\026.nightfall.v1.SaRec"
+    "ipe\0222\n\014capabilities\030\005 \003(\0132\034.nightfall.v1"
+    ".ItemCapability\"+\n\023GetInventoryRequest\022\024"
+    "\n\014character_id\030\001 \001(\014\"F\n\024GetInventoryResp"
+    "onse\022.\n\tinventory\030\001 \001(\0132\033.nightfall.v1.I"
+    "nventorySync\"e\n\020GrantItemRequest\022\024\n\014char"
+    "acter_id\030\001 \001(\014\022\023\n\013template_id\030\002 \001(\r\022\r\n\005c"
+    "ount\030\003 \001(\004\022\027\n\017idempotency_key\030\004 \001(\t\"v\n\021G"
+    "rantItemResponse\0221\n\006result\030\001 \001(\0132!.night"
+    "fall.v1.ItemOperationResult\022.\n\tinventory"
+    "\030\002 \001(\0132\033.nightfall.v1.InventorySync*\274\001\n\t"
+    "ItemGrade\022\032\n\026ITEM_GRADE_UNSPECIFIED\020\000\022\021\n"
+    "\rITEM_GRADE_NG\020\001\022\020\n\014ITEM_GRADE_D\020\002\022\020\n\014IT"
+    "EM_GRADE_C\020\003\022\020\n\014ITEM_GRADE_B\020\004\022\020\n\014ITEM_G"
+    "RADE_A\020\005\022\020\n\014ITEM_GRADE_S\020\006\022\022\n\016ITEM_GRADE"
+    "_S80\020\007\022\022\n\016ITEM_GRADE_S84\020\010*\322\004\n\tEquipSlot"
+    "\022\032\n\026EQUIP_SLOT_UNSPECIFIED\020\000\022\024\n\020EQUIP_SL"
+    "OT_UNDER\020\001\022\023\n\017EQUIP_SLOT_HEAD\020\002\022\023\n\017EQUIP"
+    "_SLOT_HAIR\020\003\022\024\n\020EQUIP_SLOT_HAIR2\020\004\022\023\n\017EQ"
+    "UIP_SLOT_NECK\020\005\022\024\n\020EQUIP_SLOT_RHAND\020\006\022\024\n"
+    "\020EQUIP_SLOT_CHEST\020\007\022\024\n\020EQUIP_SLOT_LHAND\020"
+    "\010\022\023\n\017EQUIP_SLOT_REAR\020\t\022\023\n\017EQUIP_SLOT_LEA"
+    "R\020\n\022\025\n\021EQUIP_SLOT_GLOVES\020\013\022\023\n\017EQUIP_SLOT"
+    "_LEGS\020\014\022\023\n\017EQUIP_SLOT_FEET\020\r\022\026\n\022EQUIP_SL"
+    "OT_RFINGER\020\016\022\026\n\022EQUIP_SLOT_LFINGER\020\017\022\030\n\024"
+    "EQUIP_SLOT_LBRACELET\020\020\022\030\n\024EQUIP_SLOT_RBR"
+    "ACELET\020\021\022\024\n\020EQUIP_SLOT_DECO1\020\022\022\024\n\020EQUIP_"
+    "SLOT_DECO2\020\023\022\024\n\020EQUIP_SLOT_DECO3\020\024\022\024\n\020EQ"
+    "UIP_SLOT_DECO4\020\025\022\024\n\020EQUIP_SLOT_DECO5\020\026\022\024"
+    "\n\020EQUIP_SLOT_DECO6\020\027\022\024\n\020EQUIP_SLOT_CLOAK"
+    "\020\030\022\023\n\017EQUIP_SLOT_BELT\020\031*g\n\014ItemLocation\022"
+    "\035\n\031ITEM_LOCATION_UNSPECIFIED\020\000\022\033\n\027ITEM_L"
+    "OCATION_INVENTORY\020\001\022\033\n\027ITEM_LOCATION_PAP"
+    "ERDOLL\020\002*p\n\rItemReuseKind\022\037\n\033ITEM_REUSE_"
+    "KIND_UNSPECIFIED\020\000\022\034\n\030ITEM_REUSE_KIND_TE"
+    "MPLATE\020\001\022 \n\034ITEM_REUSE_KIND_SHARED_GROUP"
+    "\020\002*\333\001\n\016EnchantOutcome\022\037\n\033ENCHANT_OUTCOME"
+    "_UNSPECIFIED\020\000\022\033\n\027ENCHANT_OUTCOME_SUCCES"
+    "S\020\001\022\037\n\033ENCHANT_OUTCOME_SAFE_FAILED\020\002\022!\n\035"
+    "ENCHANT_OUTCOME_BLESSED_RESET\020\003\022\035\n\031ENCHA"
+    "NT_OUTCOME_DESTROYED\020\004\022(\n$ENCHANT_OUTCOM"
+    "E_SUCCESS_NO_INCREMENT\020\005*g\n\rRefineOutcom"
+    "e\022\036\n\032REFINE_OUTCOME_UNSPECIFIED\020\000\022\032\n\026REF"
+    "INE_OUTCOME_APPLIED\020\001\022\032\n\026REFINE_OUTCOME_"
+    "REMOVED\020\002*\252\003\n\rItemOperation\022\036\n\032ITEM_OPER"
+    "ATION_UNSPECIFIED\020\000\022\030\n\024ITEM_OPERATION_EQ"
+    "UIP\020\001\022\032\n\026ITEM_OPERATION_UNEQUIP\020\002\022\026\n\022ITE"
+    "M_OPERATION_USE\020\003\022\032\n\026ITEM_OPERATION_DEST"
+    "ROY\020\004\022\032\n\026ITEM_OPERATION_ENCHANT\020\005\022#\n\037ITE"
+    "M_OPERATION_TOGGLE_AUTO_SHOT\020\006\022\031\n\025ITEM_O"
+    "PERATION_REFINE\020\007\022 \n\034ITEM_OPERATION_CANC"
+    "EL_REFINE\020\010\022\036\n\032ITEM_OPERATION_EXCHANGE_S"
+    "A\020\t\022\036\n\032ITEM_OPERATION_CRYSTALLIZE\020\n\022\030\n\024I"
+    "TEM_OPERATION_GRANT\020\013\022\032\n\026ITEM_OPERATION_"
+    "STARTER\020\014\022\033\n\027ITEM_OPERATION_BACKFILL\020\r*c"
+    "\n\010ItemKind\022\031\n\025ITEM_KIND_UNSPECIFIED\020\000\022\024\n"
+    "\020ITEM_KIND_WEAPON\020\001\022\023\n\017ITEM_KIND_ARMOR\020\002"
+    "\022\021\n\rITEM_KIND_ETC\020\003*\256\001\n\017ItemSkillSource\022"
+    "!\n\035ITEM_SKILL_SOURCE_UNSPECIFIED\020\000\022\032\n\026IT"
+    "EM_SKILL_SOURCE_ITEM\020\001\022\"\n\036ITEM_SKILL_SOU"
+    "RCE_ENCHANT_FOUR\020\002\022\031\n\025ITEM_SKILL_SOURCE_"
+    "SET\020\003\022\035\n\031ITEM_SKILL_SOURCE_AUGMENT\020\004b\006pr"
+    "oto3"
 };
 static ::absl::once_flag descriptor_table_nightfall_2fv1_2fitems_2eproto_once;
 const ::_pbi::DescriptorTable descriptor_table_nightfall_2fv1_2fitems_2eproto = {
     false,
     false,
-    7504,
+    7924,
     descriptor_table_protodef_nightfall_2fv1_2fitems_2eproto,
     "nightfall/v1/items.proto",
     &descriptor_table_nightfall_2fv1_2fitems_2eproto_once,
@@ -9125,6 +9204,12 @@ void PenaltyChanged::InternalSwap(PenaltyChanged* other) {
 
 class EnchantResult::_Internal {
  public:
+  using HasBits = decltype(std::declval<EnchantResult>()._impl_._has_bits_);
+  static constexpr ::int32_t kHasBitsOffset =
+    8 * PROTOBUF_FIELD_OFFSET(EnchantResult, _impl_._has_bits_);
+  static void set_has_accepted_client_seq(HasBits* has_bits) {
+    (*has_bits)[0] |= 1u;
+  }
 };
 
 EnchantResult::EnchantResult(::PROTOBUF_NAMESPACE_ID::Arena* arena)
@@ -9136,10 +9221,16 @@ EnchantResult::EnchantResult(const EnchantResult& from)
   : ::PROTOBUF_NAMESPACE_ID::Message() {
   EnchantResult* const _this = this; (void)_this;
   new (&_impl_) Impl_{
-      decltype(_impl_.refunds_){from._impl_.refunds_}
+      decltype(_impl_._has_bits_){from._impl_._has_bits_}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.refunds_){from._impl_.refunds_}
     , decltype(_impl_.entity_id_) {}
 
     , decltype(_impl_.receipt_id_) {}
+
+    , decltype(_impl_.request_key_) {}
+
+    , decltype(_impl_.request_fingerprint_) {}
 
     , decltype(_impl_.tick_) {}
 
@@ -9157,7 +9248,10 @@ EnchantResult::EnchantResult(const EnchantResult& from)
 
     , decltype(_impl_.announcement_tier_) {}
 
-    , /*decltype(_impl_._cached_size_)*/{}};
+    , decltype(_impl_.operation_) {}
+
+    , decltype(_impl_.accepted_client_seq_) {}
+  };
 
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   _impl_.entity_id_.InitDefault();
@@ -9174,19 +9268,39 @@ EnchantResult::EnchantResult(const EnchantResult& from)
   if (!from._internal_receipt_id().empty()) {
     _this->_impl_.receipt_id_.Set(from._internal_receipt_id(), _this->GetArenaForAllocation());
   }
+  _impl_.request_key_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.request_key_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_request_key().empty()) {
+    _this->_impl_.request_key_.Set(from._internal_request_key(), _this->GetArenaForAllocation());
+  }
+  _impl_.request_fingerprint_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.request_fingerprint_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_request_fingerprint().empty()) {
+    _this->_impl_.request_fingerprint_.Set(from._internal_request_fingerprint(), _this->GetArenaForAllocation());
+  }
   ::memcpy(&_impl_.tick_, &from._impl_.tick_,
-    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.announcement_tier_) -
-    reinterpret_cast<char*>(&_impl_.tick_)) + sizeof(_impl_.announcement_tier_));
+    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.accepted_client_seq_) -
+    reinterpret_cast<char*>(&_impl_.tick_)) + sizeof(_impl_.accepted_client_seq_));
   // @@protoc_insertion_point(copy_constructor:nightfall.v1.EnchantResult)
 }
 
 inline void EnchantResult::SharedCtor(::_pb::Arena* arena) {
   (void)arena;
   new (&_impl_) Impl_{
-      decltype(_impl_.refunds_){arena}
+      decltype(_impl_._has_bits_){}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.refunds_){arena}
     , decltype(_impl_.entity_id_) {}
 
     , decltype(_impl_.receipt_id_) {}
+
+    , decltype(_impl_.request_key_) {}
+
+    , decltype(_impl_.request_fingerprint_) {}
 
     , decltype(_impl_.tick_) { ::uint64_t{0u} }
 
@@ -9204,7 +9318,10 @@ inline void EnchantResult::SharedCtor(::_pb::Arena* arena) {
 
     , decltype(_impl_.announcement_tier_) { 0u }
 
-    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.operation_) { 0 }
+
+    , decltype(_impl_.accepted_client_seq_) { ::uint64_t{0u} }
+
   };
   _impl_.entity_id_.InitDefault();
   #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
@@ -9213,6 +9330,14 @@ inline void EnchantResult::SharedCtor(::_pb::Arena* arena) {
   _impl_.receipt_id_.InitDefault();
   #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
         _impl_.receipt_id_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  _impl_.request_key_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.request_key_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  _impl_.request_fingerprint_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.request_fingerprint_.Set("", GetArenaForAllocation());
   #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
 }
 
@@ -9230,6 +9355,8 @@ inline void EnchantResult::SharedDtor() {
   _internal_mutable_refunds()->~RepeatedPtrField();
   _impl_.entity_id_.Destroy();
   _impl_.receipt_id_.Destroy();
+  _impl_.request_key_.Destroy();
+  _impl_.request_fingerprint_.Destroy();
 }
 
 void EnchantResult::SetCachedSize(int size) const {
@@ -9245,14 +9372,19 @@ void EnchantResult::Clear() {
   _internal_mutable_refunds()->Clear();
   _impl_.entity_id_.ClearToEmpty();
   _impl_.receipt_id_.ClearToEmpty();
+  _impl_.request_key_.ClearToEmpty();
+  _impl_.request_fingerprint_.ClearToEmpty();
   ::memset(&_impl_.tick_, 0, static_cast<::size_t>(
-      reinterpret_cast<char*>(&_impl_.announcement_tier_) -
-      reinterpret_cast<char*>(&_impl_.tick_)) + sizeof(_impl_.announcement_tier_));
+      reinterpret_cast<char*>(&_impl_.operation_) -
+      reinterpret_cast<char*>(&_impl_.tick_)) + sizeof(_impl_.operation_));
+  _impl_.accepted_client_seq_ = ::uint64_t{0u};
+  _impl_._has_bits_.Clear();
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 const char* EnchantResult::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  _Internal::HasBits has_bits{};
   while (!ctx->Done(&ptr)) {
     ::uint32_t tag;
     ptr = ::_pbi::ReadTag(ptr, &tag);
@@ -9365,6 +9497,47 @@ const char* EnchantResult::_InternalParse(const char* ptr, ::_pbi::ParseContext*
           goto handle_unusual;
         }
         continue;
+      // bytes request_key = 12;
+      case 12:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 98)) {
+          auto str = _internal_mutable_request_key();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.ItemOperation operation = 13;
+      case 13:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 104)) {
+          ::int32_t val = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+          _internal_set_operation(static_cast<::nightfall::v1::ItemOperation>(val));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // string request_fingerprint = 14;
+      case 14:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 114)) {
+          auto str = _internal_mutable_request_fingerprint();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.EnchantResult.request_fingerprint"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // optional uint64 accepted_client_seq = 15;
+      case 15:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 120)) {
+          _Internal::set_has_accepted_client_seq(&has_bits);
+          _impl_.accepted_client_seq_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
       default:
         goto handle_unusual;
     }  // switch
@@ -9381,6 +9554,7 @@ const char* EnchantResult::_InternalParse(const char* ptr, ::_pbi::ParseContext*
     CHK_(ptr != nullptr);
   }  // while
 message_done:
+  _impl_._has_bits_.Or(has_bits);
   return ptr;
 failure:
   ptr = nullptr;
@@ -9472,6 +9646,35 @@ failure:
         11, this->_internal_announcement_tier(), target);
   }
 
+  // bytes request_key = 12;
+  if (!this->_internal_request_key().empty()) {
+    const std::string& _s = this->_internal_request_key();
+    target = stream->WriteBytesMaybeAliased(12, _s, target);
+  }
+
+  // .nightfall.v1.ItemOperation operation = 13;
+  if (this->_internal_operation() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteEnumToArray(
+        13, this->_internal_operation(), target);
+  }
+
+  // string request_fingerprint = 14;
+  if (!this->_internal_request_fingerprint().empty()) {
+    const std::string& _s = this->_internal_request_fingerprint();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.EnchantResult.request_fingerprint");
+    target = stream->WriteStringMaybeAliased(14, _s, target);
+  }
+
+  cached_has_bits = _impl_._has_bits_[0];
+  // optional uint64 accepted_client_seq = 15;
+  if (cached_has_bits & 0x00000001u) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        15, this->_internal_accepted_client_seq(), target);
+  }
+
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
     target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
@@ -9505,6 +9708,18 @@ failure:
   if (!this->_internal_receipt_id().empty()) {
     total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
                                     this->_internal_receipt_id());
+  }
+
+  // bytes request_key = 12;
+  if (!this->_internal_request_key().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::BytesSize(
+                                    this->_internal_request_key());
+  }
+
+  // string request_fingerprint = 14;
+  if (!this->_internal_request_fingerprint().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_request_fingerprint());
   }
 
   // uint64 tick = 3;
@@ -9555,6 +9770,19 @@ failure:
         this->_internal_announcement_tier());
   }
 
+  // .nightfall.v1.ItemOperation operation = 13;
+  if (this->_internal_operation() != 0) {
+    total_size += 1 +
+                  ::_pbi::WireFormatLite::EnumSize(this->_internal_operation());
+  }
+
+  // optional uint64 accepted_client_seq = 15;
+  cached_has_bits = _impl_._has_bits_[0];
+  if (cached_has_bits & 0x00000001u) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_accepted_client_seq());
+  }
+
   return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
 }
 
@@ -9580,6 +9808,12 @@ void EnchantResult::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::
   if (!from._internal_receipt_id().empty()) {
     _this->_internal_set_receipt_id(from._internal_receipt_id());
   }
+  if (!from._internal_request_key().empty()) {
+    _this->_internal_set_request_key(from._internal_request_key());
+  }
+  if (!from._internal_request_fingerprint().empty()) {
+    _this->_internal_set_request_fingerprint(from._internal_request_fingerprint());
+  }
   if (from._internal_tick() != 0) {
     _this->_internal_set_tick(from._internal_tick());
   }
@@ -9604,6 +9838,12 @@ void EnchantResult::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::
   if (from._internal_announcement_tier() != 0) {
     _this->_internal_set_announcement_tier(from._internal_announcement_tier());
   }
+  if (from._internal_operation() != 0) {
+    _this->_internal_set_operation(from._internal_operation());
+  }
+  if ((from._impl_._has_bits_[0] & 0x00000001u) != 0) {
+    _this->_internal_set_accepted_client_seq(from._internal_accepted_client_seq());
+  }
   _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
 }
 
@@ -9623,14 +9863,19 @@ void EnchantResult::InternalSwap(EnchantResult* other) {
   auto* lhs_arena = GetArenaForAllocation();
   auto* rhs_arena = other->GetArenaForAllocation();
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
   _internal_mutable_refunds()->InternalSwap(other->_internal_mutable_refunds());
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.entity_id_, lhs_arena,
                                        &other->_impl_.entity_id_, rhs_arena);
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.receipt_id_, lhs_arena,
                                        &other->_impl_.receipt_id_, rhs_arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.request_key_, lhs_arena,
+                                       &other->_impl_.request_key_, rhs_arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.request_fingerprint_, lhs_arena,
+                                       &other->_impl_.request_fingerprint_, rhs_arena);
   ::PROTOBUF_NAMESPACE_ID::internal::memswap<
-      PROTOBUF_FIELD_OFFSET(EnchantResult, _impl_.announcement_tier_)
-      + sizeof(EnchantResult::_impl_.announcement_tier_)
+      PROTOBUF_FIELD_OFFSET(EnchantResult, _impl_.accepted_client_seq_)
+      + sizeof(EnchantResult::_impl_.accepted_client_seq_)
       - PROTOBUF_FIELD_OFFSET(EnchantResult, _impl_.tick_)>(
           reinterpret_cast<char*>(&_impl_.tick_),
           reinterpret_cast<char*>(&other->_impl_.tick_));
@@ -9651,6 +9896,9 @@ class RefineResult::_Internal {
   static void set_has_augment_id(HasBits* has_bits) {
     (*has_bits)[0] |= 1u;
   }
+  static void set_has_accepted_client_seq(HasBits* has_bits) {
+    (*has_bits)[0] |= 2u;
+  }
 };
 
 RefineResult::RefineResult(::PROTOBUF_NAMESPACE_ID::Arena* arena)
@@ -9668,6 +9916,10 @@ RefineResult::RefineResult(const RefineResult& from)
 
     , decltype(_impl_.receipt_id_) {}
 
+    , decltype(_impl_.request_key_) {}
+
+    , decltype(_impl_.request_fingerprint_) {}
+
     , decltype(_impl_.tick_) {}
 
     , decltype(_impl_.inventory_revision_) {}
@@ -9679,6 +9931,10 @@ RefineResult::RefineResult(const RefineResult& from)
     , decltype(_impl_.target_instance_id_) {}
 
     , decltype(_impl_.outcome_) {}
+
+    , decltype(_impl_.operation_) {}
+
+    , decltype(_impl_.accepted_client_seq_) {}
   };
 
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
@@ -9696,9 +9952,23 @@ RefineResult::RefineResult(const RefineResult& from)
   if (!from._internal_receipt_id().empty()) {
     _this->_impl_.receipt_id_.Set(from._internal_receipt_id(), _this->GetArenaForAllocation());
   }
+  _impl_.request_key_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.request_key_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_request_key().empty()) {
+    _this->_impl_.request_key_.Set(from._internal_request_key(), _this->GetArenaForAllocation());
+  }
+  _impl_.request_fingerprint_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.request_fingerprint_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_request_fingerprint().empty()) {
+    _this->_impl_.request_fingerprint_.Set(from._internal_request_fingerprint(), _this->GetArenaForAllocation());
+  }
   ::memcpy(&_impl_.tick_, &from._impl_.tick_,
-    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.outcome_) -
-    reinterpret_cast<char*>(&_impl_.tick_)) + sizeof(_impl_.outcome_));
+    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.accepted_client_seq_) -
+    reinterpret_cast<char*>(&_impl_.tick_)) + sizeof(_impl_.accepted_client_seq_));
   // @@protoc_insertion_point(copy_constructor:nightfall.v1.RefineResult)
 }
 
@@ -9710,6 +9980,10 @@ inline void RefineResult::SharedCtor(::_pb::Arena* arena) {
     , decltype(_impl_.entity_id_) {}
 
     , decltype(_impl_.receipt_id_) {}
+
+    , decltype(_impl_.request_key_) {}
+
+    , decltype(_impl_.request_fingerprint_) {}
 
     , decltype(_impl_.tick_) { ::uint64_t{0u} }
 
@@ -9723,6 +9997,10 @@ inline void RefineResult::SharedCtor(::_pb::Arena* arena) {
 
     , decltype(_impl_.outcome_) { 0 }
 
+    , decltype(_impl_.operation_) { 0 }
+
+    , decltype(_impl_.accepted_client_seq_) { ::uint64_t{0u} }
+
   };
   _impl_.entity_id_.InitDefault();
   #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
@@ -9731,6 +10009,14 @@ inline void RefineResult::SharedCtor(::_pb::Arena* arena) {
   _impl_.receipt_id_.InitDefault();
   #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
         _impl_.receipt_id_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  _impl_.request_key_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.request_key_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  _impl_.request_fingerprint_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.request_fingerprint_.Set("", GetArenaForAllocation());
   #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
 }
 
@@ -9747,6 +10033,8 @@ inline void RefineResult::SharedDtor() {
   ABSL_DCHECK(GetArenaForAllocation() == nullptr);
   _impl_.entity_id_.Destroy();
   _impl_.receipt_id_.Destroy();
+  _impl_.request_key_.Destroy();
+  _impl_.request_fingerprint_.Destroy();
 }
 
 void RefineResult::SetCachedSize(int size) const {
@@ -9761,13 +10049,16 @@ void RefineResult::Clear() {
 
   _impl_.entity_id_.ClearToEmpty();
   _impl_.receipt_id_.ClearToEmpty();
+  _impl_.request_key_.ClearToEmpty();
+  _impl_.request_fingerprint_.ClearToEmpty();
   ::memset(&_impl_.tick_, 0, static_cast<::size_t>(
       reinterpret_cast<char*>(&_impl_.incarnation_) -
       reinterpret_cast<char*>(&_impl_.tick_)) + sizeof(_impl_.incarnation_));
   _impl_.augment_id_ = 0u;
   ::memset(&_impl_.target_instance_id_, 0, static_cast<::size_t>(
-      reinterpret_cast<char*>(&_impl_.outcome_) -
-      reinterpret_cast<char*>(&_impl_.target_instance_id_)) + sizeof(_impl_.outcome_));
+      reinterpret_cast<char*>(&_impl_.operation_) -
+      reinterpret_cast<char*>(&_impl_.target_instance_id_)) + sizeof(_impl_.operation_));
+  _impl_.accepted_client_seq_ = ::uint64_t{0u};
   _impl_._has_bits_.Clear();
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
@@ -9852,6 +10143,47 @@ const char* RefineResult::_InternalParse(const char* ptr, ::_pbi::ParseContext* 
           ::int32_t val = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
           CHK_(ptr);
           _internal_set_outcome(static_cast<::nightfall::v1::RefineOutcome>(val));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // bytes request_key = 9;
+      case 9:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 74)) {
+          auto str = _internal_mutable_request_key();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.ItemOperation operation = 10;
+      case 10:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 80)) {
+          ::int32_t val = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+          _internal_set_operation(static_cast<::nightfall::v1::ItemOperation>(val));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // string request_fingerprint = 11;
+      case 11:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 90)) {
+          auto str = _internal_mutable_request_fingerprint();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.RefineResult.request_fingerprint"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // optional uint64 accepted_client_seq = 12;
+      case 12:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 96)) {
+          _Internal::set_has_accepted_client_seq(&has_bits);
+          _impl_.accepted_client_seq_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
         } else {
           goto handle_unusual;
         }
@@ -9943,6 +10275,34 @@ failure:
         8, this->_internal_outcome(), target);
   }
 
+  // bytes request_key = 9;
+  if (!this->_internal_request_key().empty()) {
+    const std::string& _s = this->_internal_request_key();
+    target = stream->WriteBytesMaybeAliased(9, _s, target);
+  }
+
+  // .nightfall.v1.ItemOperation operation = 10;
+  if (this->_internal_operation() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteEnumToArray(
+        10, this->_internal_operation(), target);
+  }
+
+  // string request_fingerprint = 11;
+  if (!this->_internal_request_fingerprint().empty()) {
+    const std::string& _s = this->_internal_request_fingerprint();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.RefineResult.request_fingerprint");
+    target = stream->WriteStringMaybeAliased(11, _s, target);
+  }
+
+  // optional uint64 accepted_client_seq = 12;
+  if (cached_has_bits & 0x00000002u) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        12, this->_internal_accepted_client_seq(), target);
+  }
+
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
     target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
@@ -9969,6 +10329,18 @@ failure:
   if (!this->_internal_receipt_id().empty()) {
     total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
                                     this->_internal_receipt_id());
+  }
+
+  // bytes request_key = 9;
+  if (!this->_internal_request_key().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::BytesSize(
+                                    this->_internal_request_key());
+  }
+
+  // string request_fingerprint = 11;
+  if (!this->_internal_request_fingerprint().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_request_fingerprint());
   }
 
   // uint64 tick = 3;
@@ -10008,6 +10380,18 @@ failure:
                   ::_pbi::WireFormatLite::EnumSize(this->_internal_outcome());
   }
 
+  // .nightfall.v1.ItemOperation operation = 10;
+  if (this->_internal_operation() != 0) {
+    total_size += 1 +
+                  ::_pbi::WireFormatLite::EnumSize(this->_internal_operation());
+  }
+
+  // optional uint64 accepted_client_seq = 12;
+  if (cached_has_bits & 0x00000002u) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_accepted_client_seq());
+  }
+
   return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
 }
 
@@ -10032,6 +10416,12 @@ void RefineResult::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::P
   if (!from._internal_receipt_id().empty()) {
     _this->_internal_set_receipt_id(from._internal_receipt_id());
   }
+  if (!from._internal_request_key().empty()) {
+    _this->_internal_set_request_key(from._internal_request_key());
+  }
+  if (!from._internal_request_fingerprint().empty()) {
+    _this->_internal_set_request_fingerprint(from._internal_request_fingerprint());
+  }
   if (from._internal_tick() != 0) {
     _this->_internal_set_tick(from._internal_tick());
   }
@@ -10049,6 +10439,12 @@ void RefineResult::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::P
   }
   if (from._internal_outcome() != 0) {
     _this->_internal_set_outcome(from._internal_outcome());
+  }
+  if (from._internal_operation() != 0) {
+    _this->_internal_set_operation(from._internal_operation());
+  }
+  if ((from._impl_._has_bits_[0] & 0x00000002u) != 0) {
+    _this->_internal_set_accepted_client_seq(from._internal_accepted_client_seq());
   }
   _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
 }
@@ -10074,9 +10470,13 @@ void RefineResult::InternalSwap(RefineResult* other) {
                                        &other->_impl_.entity_id_, rhs_arena);
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.receipt_id_, lhs_arena,
                                        &other->_impl_.receipt_id_, rhs_arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.request_key_, lhs_arena,
+                                       &other->_impl_.request_key_, rhs_arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.request_fingerprint_, lhs_arena,
+                                       &other->_impl_.request_fingerprint_, rhs_arena);
   ::PROTOBUF_NAMESPACE_ID::internal::memswap<
-      PROTOBUF_FIELD_OFFSET(RefineResult, _impl_.outcome_)
-      + sizeof(RefineResult::_impl_.outcome_)
+      PROTOBUF_FIELD_OFFSET(RefineResult, _impl_.accepted_client_seq_)
+      + sizeof(RefineResult::_impl_.accepted_client_seq_)
       - PROTOBUF_FIELD_OFFSET(RefineResult, _impl_.tick_)>(
           reinterpret_cast<char*>(&_impl_.tick_),
           reinterpret_cast<char*>(&other->_impl_.tick_));
@@ -10096,6 +10496,9 @@ class ItemOperationResult::_Internal {
     8 * PROTOBUF_FIELD_OFFSET(ItemOperationResult, _impl_._has_bits_);
   static void set_has_recipe_id(HasBits* has_bits) {
     (*has_bits)[0] |= 1u;
+  }
+  static void set_has_accepted_client_seq(HasBits* has_bits) {
+    (*has_bits)[0] |= 2u;
   }
 };
 
@@ -10117,6 +10520,10 @@ ItemOperationResult::ItemOperationResult(const ItemOperationResult& from)
 
     , decltype(_impl_.receipt_id_) {}
 
+    , decltype(_impl_.request_key_) {}
+
+    , decltype(_impl_.request_fingerprint_) {}
+
     , decltype(_impl_.tick_) {}
 
     , decltype(_impl_.inventory_revision_) {}
@@ -10126,6 +10533,8 @@ ItemOperationResult::ItemOperationResult(const ItemOperationResult& from)
     , decltype(_impl_.operation_) {}
 
     , decltype(_impl_.recipe_id_) {}
+
+    , decltype(_impl_.accepted_client_seq_) {}
   };
 
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
@@ -10143,9 +10552,23 @@ ItemOperationResult::ItemOperationResult(const ItemOperationResult& from)
   if (!from._internal_receipt_id().empty()) {
     _this->_impl_.receipt_id_.Set(from._internal_receipt_id(), _this->GetArenaForAllocation());
   }
+  _impl_.request_key_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.request_key_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_request_key().empty()) {
+    _this->_impl_.request_key_.Set(from._internal_request_key(), _this->GetArenaForAllocation());
+  }
+  _impl_.request_fingerprint_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.request_fingerprint_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_request_fingerprint().empty()) {
+    _this->_impl_.request_fingerprint_.Set(from._internal_request_fingerprint(), _this->GetArenaForAllocation());
+  }
   ::memcpy(&_impl_.tick_, &from._impl_.tick_,
-    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.recipe_id_) -
-    reinterpret_cast<char*>(&_impl_.tick_)) + sizeof(_impl_.recipe_id_));
+    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.accepted_client_seq_) -
+    reinterpret_cast<char*>(&_impl_.tick_)) + sizeof(_impl_.accepted_client_seq_));
   // @@protoc_insertion_point(copy_constructor:nightfall.v1.ItemOperationResult)
 }
 
@@ -10161,6 +10584,10 @@ inline void ItemOperationResult::SharedCtor(::_pb::Arena* arena) {
 
     , decltype(_impl_.receipt_id_) {}
 
+    , decltype(_impl_.request_key_) {}
+
+    , decltype(_impl_.request_fingerprint_) {}
+
     , decltype(_impl_.tick_) { ::uint64_t{0u} }
 
     , decltype(_impl_.inventory_revision_) { ::uint64_t{0u} }
@@ -10171,6 +10598,8 @@ inline void ItemOperationResult::SharedCtor(::_pb::Arena* arena) {
 
     , decltype(_impl_.recipe_id_) { ::uint64_t{0u} }
 
+    , decltype(_impl_.accepted_client_seq_) { ::uint64_t{0u} }
+
   };
   _impl_.entity_id_.InitDefault();
   #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
@@ -10179,6 +10608,14 @@ inline void ItemOperationResult::SharedCtor(::_pb::Arena* arena) {
   _impl_.receipt_id_.InitDefault();
   #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
         _impl_.receipt_id_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  _impl_.request_key_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.request_key_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  _impl_.request_fingerprint_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.request_fingerprint_.Set("", GetArenaForAllocation());
   #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
 }
 
@@ -10196,6 +10633,8 @@ inline void ItemOperationResult::SharedDtor() {
   _impl_.affected_instance_ids_.~RepeatedField();
   _impl_.entity_id_.Destroy();
   _impl_.receipt_id_.Destroy();
+  _impl_.request_key_.Destroy();
+  _impl_.request_fingerprint_.Destroy();
 }
 
 void ItemOperationResult::SetCachedSize(int size) const {
@@ -10211,10 +10650,17 @@ void ItemOperationResult::Clear() {
   _internal_mutable_affected_instance_ids()->Clear();
   _impl_.entity_id_.ClearToEmpty();
   _impl_.receipt_id_.ClearToEmpty();
+  _impl_.request_key_.ClearToEmpty();
+  _impl_.request_fingerprint_.ClearToEmpty();
   ::memset(&_impl_.tick_, 0, static_cast<::size_t>(
       reinterpret_cast<char*>(&_impl_.operation_) -
       reinterpret_cast<char*>(&_impl_.tick_)) + sizeof(_impl_.operation_));
-  _impl_.recipe_id_ = ::uint64_t{0u};
+  cached_has_bits = _impl_._has_bits_[0];
+  if (cached_has_bits & 0x00000003u) {
+    ::memset(&_impl_.recipe_id_, 0, static_cast<::size_t>(
+        reinterpret_cast<char*>(&_impl_.accepted_client_seq_) -
+        reinterpret_cast<char*>(&_impl_.recipe_id_)) + sizeof(_impl_.accepted_client_seq_));
+  }
   _impl_._has_bits_.Clear();
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
@@ -10301,6 +10747,37 @@ const char* ItemOperationResult::_InternalParse(const char* ptr, ::_pbi::ParseCo
         if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 64)) {
           _Internal::set_has_recipe_id(&has_bits);
           _impl_.recipe_id_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // bytes request_key = 9;
+      case 9:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 74)) {
+          auto str = _internal_mutable_request_key();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // string request_fingerprint = 10;
+      case 10:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 82)) {
+          auto str = _internal_mutable_request_fingerprint();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+          CHK_(::_pbi::VerifyUTF8(str, "nightfall.v1.ItemOperationResult.request_fingerprint"));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // optional uint64 accepted_client_seq = 11;
+      case 11:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 88)) {
+          _Internal::set_has_accepted_client_seq(&has_bits);
+          _impl_.accepted_client_seq_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
           CHK_(ptr);
         } else {
           goto handle_unusual;
@@ -10395,6 +10872,27 @@ failure:
         8, this->_internal_recipe_id(), target);
   }
 
+  // bytes request_key = 9;
+  if (!this->_internal_request_key().empty()) {
+    const std::string& _s = this->_internal_request_key();
+    target = stream->WriteBytesMaybeAliased(9, _s, target);
+  }
+
+  // string request_fingerprint = 10;
+  if (!this->_internal_request_fingerprint().empty()) {
+    const std::string& _s = this->_internal_request_fingerprint();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+        _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.ItemOperationResult.request_fingerprint");
+    target = stream->WriteStringMaybeAliased(10, _s, target);
+  }
+
+  // optional uint64 accepted_client_seq = 11;
+  if (cached_has_bits & 0x00000002u) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        11, this->_internal_accepted_client_seq(), target);
+  }
+
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
     target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
@@ -10437,6 +10935,18 @@ failure:
                                     this->_internal_receipt_id());
   }
 
+  // bytes request_key = 9;
+  if (!this->_internal_request_key().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::BytesSize(
+                                    this->_internal_request_key());
+  }
+
+  // string request_fingerprint = 10;
+  if (!this->_internal_request_fingerprint().empty()) {
+    total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
+                                    this->_internal_request_fingerprint());
+  }
+
   // uint64 tick = 3;
   if (this->_internal_tick() != 0) {
     total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
@@ -10461,13 +10971,21 @@ failure:
                   ::_pbi::WireFormatLite::EnumSize(this->_internal_operation());
   }
 
-  // optional uint64 recipe_id = 8;
   cached_has_bits = _impl_._has_bits_[0];
-  if (cached_has_bits & 0x00000001u) {
-    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
-        this->_internal_recipe_id());
-  }
+  if (cached_has_bits & 0x00000003u) {
+    // optional uint64 recipe_id = 8;
+    if (cached_has_bits & 0x00000001u) {
+      total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+          this->_internal_recipe_id());
+    }
 
+    // optional uint64 accepted_client_seq = 11;
+    if (cached_has_bits & 0x00000002u) {
+      total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+          this->_internal_accepted_client_seq());
+    }
+
+  }
   return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
 }
 
@@ -10493,6 +11011,12 @@ void ItemOperationResult::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, co
   if (!from._internal_receipt_id().empty()) {
     _this->_internal_set_receipt_id(from._internal_receipt_id());
   }
+  if (!from._internal_request_key().empty()) {
+    _this->_internal_set_request_key(from._internal_request_key());
+  }
+  if (!from._internal_request_fingerprint().empty()) {
+    _this->_internal_set_request_fingerprint(from._internal_request_fingerprint());
+  }
   if (from._internal_tick() != 0) {
     _this->_internal_set_tick(from._internal_tick());
   }
@@ -10505,8 +11029,15 @@ void ItemOperationResult::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, co
   if (from._internal_operation() != 0) {
     _this->_internal_set_operation(from._internal_operation());
   }
-  if ((from._impl_._has_bits_[0] & 0x00000001u) != 0) {
-    _this->_internal_set_recipe_id(from._internal_recipe_id());
+  cached_has_bits = from._impl_._has_bits_[0];
+  if (cached_has_bits & 0x00000003u) {
+    if (cached_has_bits & 0x00000001u) {
+      _this->_impl_.recipe_id_ = from._impl_.recipe_id_;
+    }
+    if (cached_has_bits & 0x00000002u) {
+      _this->_impl_.accepted_client_seq_ = from._impl_.accepted_client_seq_;
+    }
+    _this->_impl_._has_bits_[0] |= cached_has_bits;
   }
   _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
 }
@@ -10533,9 +11064,13 @@ void ItemOperationResult::InternalSwap(ItemOperationResult* other) {
                                        &other->_impl_.entity_id_, rhs_arena);
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.receipt_id_, lhs_arena,
                                        &other->_impl_.receipt_id_, rhs_arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.request_key_, lhs_arena,
+                                       &other->_impl_.request_key_, rhs_arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.request_fingerprint_, lhs_arena,
+                                       &other->_impl_.request_fingerprint_, rhs_arena);
   ::PROTOBUF_NAMESPACE_ID::internal::memswap<
-      PROTOBUF_FIELD_OFFSET(ItemOperationResult, _impl_.recipe_id_)
-      + sizeof(ItemOperationResult::_impl_.recipe_id_)
+      PROTOBUF_FIELD_OFFSET(ItemOperationResult, _impl_.accepted_client_seq_)
+      + sizeof(ItemOperationResult::_impl_.accepted_client_seq_)
       - PROTOBUF_FIELD_OFFSET(ItemOperationResult, _impl_.tick_)>(
           reinterpret_cast<char*>(&_impl_.tick_),
           reinterpret_cast<char*>(&other->_impl_.tick_));

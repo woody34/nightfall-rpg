@@ -497,6 +497,15 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::EnchantResult* in, FGrpcNightfallV
         GRPC_TO_TURBOLINK(&(in->refunds(i)), &(out->Refunds.AddZeroed_GetRef()));
     }
     out->AnnouncementTier=in->announcement_tier();
+    out->RequestKey=FBytes((const uint8*)in->request_key().c_str(), in->request_key().length());
+    out->Operation=[](int value) { switch (value) { case 0: case 1: case 2: case 3: case 4: case 5: case 6: case 7: case 8: case 9: case 10: case 11: case 12: case 13: return StaticCast<EGrpcNightfallV1ItemOperation>(value); default: return EGrpcNightfallV1ItemOperation::ITEM_OPERATION_UNSPECIFIED; } }(static_cast<int>(in->operation()));
+    out->RequestFingerprint=StringCast<TCHAR>((const UTF8CHAR*)(in->request_fingerprint().c_str())).Get();
+    out->_accepted_client_seq._accepted_client_seqCase = EGrpcNightfallV1EnchantResult_accepted_client_seq::NotSet;
+    if (in->has_accepted_client_seq())
+    {
+        out->_accepted_client_seq.AcceptedClientSeq=in->accepted_client_seq();
+        out->_accepted_client_seq._accepted_client_seqCase = EGrpcNightfallV1EnchantResult_accepted_client_seq::AcceptedClientSeq;
+    }
 }
 
 void TURBOLINK_TO_GRPC(const FGrpcNightfallV1EnchantResult* in, ::nightfall::v1::EnchantResult* out)
@@ -514,6 +523,15 @@ void TURBOLINK_TO_GRPC(const FGrpcNightfallV1EnchantResult* in, ::nightfall::v1:
         TURBOLINK_TO_GRPC(&value, out->add_refunds());
     }
     out->set_announcement_tier(in->AnnouncementTier);
+    out->set_request_key(std::string((const char*)(in->RequestKey.Value.GetData()), (size_t)in->RequestKey.Value.Num()));
+    out->set_operation(::nightfall::v1::ItemOperation(static_cast<uint8>(in->Operation)));
+    out->set_request_fingerprint((const char*)StringCast<UTF8CHAR>(*(in->RequestFingerprint)).Get());
+    switch (in->_accepted_client_seq._accepted_client_seqCase)
+    {
+    case EGrpcNightfallV1EnchantResult_accepted_client_seq::AcceptedClientSeq:
+        out->set_accepted_client_seq(in->_accepted_client_seq.AcceptedClientSeq);
+        break;
+    }
 }
 
 void GRPC_TO_TURBOLINK(const ::nightfall::v1::RefineResult* in, FGrpcNightfallV1RefineResult* out)
@@ -531,6 +549,15 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::RefineResult* in, FGrpcNightfallV1
         out->_augment_id._augment_idCase = EGrpcNightfallV1RefineResult_augment_id::AugmentId;
     }
     out->Outcome=[](int value) { switch (value) { case 0: case 1: case 2: return StaticCast<EGrpcNightfallV1RefineOutcome>(value); default: return EGrpcNightfallV1RefineOutcome::REFINE_OUTCOME_UNSPECIFIED; } }(static_cast<int>(in->outcome()));
+    out->RequestKey=FBytes((const uint8*)in->request_key().c_str(), in->request_key().length());
+    out->Operation=[](int value) { switch (value) { case 0: case 1: case 2: case 3: case 4: case 5: case 6: case 7: case 8: case 9: case 10: case 11: case 12: case 13: return StaticCast<EGrpcNightfallV1ItemOperation>(value); default: return EGrpcNightfallV1ItemOperation::ITEM_OPERATION_UNSPECIFIED; } }(static_cast<int>(in->operation()));
+    out->RequestFingerprint=StringCast<TCHAR>((const UTF8CHAR*)(in->request_fingerprint().c_str())).Get();
+    out->_accepted_client_seq._accepted_client_seqCase = EGrpcNightfallV1RefineResult_accepted_client_seq::NotSet;
+    if (in->has_accepted_client_seq())
+    {
+        out->_accepted_client_seq.AcceptedClientSeq=in->accepted_client_seq();
+        out->_accepted_client_seq._accepted_client_seqCase = EGrpcNightfallV1RefineResult_accepted_client_seq::AcceptedClientSeq;
+    }
 }
 
 void TURBOLINK_TO_GRPC(const FGrpcNightfallV1RefineResult* in, ::nightfall::v1::RefineResult* out)
@@ -548,6 +575,15 @@ void TURBOLINK_TO_GRPC(const FGrpcNightfallV1RefineResult* in, ::nightfall::v1::
         break;
     }
     out->set_outcome(::nightfall::v1::RefineOutcome(static_cast<uint8>(in->Outcome)));
+    out->set_request_key(std::string((const char*)(in->RequestKey.Value.GetData()), (size_t)in->RequestKey.Value.Num()));
+    out->set_operation(::nightfall::v1::ItemOperation(static_cast<uint8>(in->Operation)));
+    out->set_request_fingerprint((const char*)StringCast<UTF8CHAR>(*(in->RequestFingerprint)).Get());
+    switch (in->_accepted_client_seq._accepted_client_seqCase)
+    {
+    case EGrpcNightfallV1RefineResult_accepted_client_seq::AcceptedClientSeq:
+        out->set_accepted_client_seq(in->_accepted_client_seq.AcceptedClientSeq);
+        break;
+    }
 }
 
 void GRPC_TO_TURBOLINK(const ::nightfall::v1::ItemOperationResult* in, FGrpcNightfallV1ItemOperationResult* out)
@@ -568,6 +604,14 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::ItemOperationResult* in, FGrpcNigh
         out->_recipe_id.RecipeId=in->recipe_id();
         out->_recipe_id._recipe_idCase = EGrpcNightfallV1ItemOperationResult_recipe_id::RecipeId;
     }
+    out->RequestKey=FBytes((const uint8*)in->request_key().c_str(), in->request_key().length());
+    out->RequestFingerprint=StringCast<TCHAR>((const UTF8CHAR*)(in->request_fingerprint().c_str())).Get();
+    out->_accepted_client_seq._accepted_client_seqCase = EGrpcNightfallV1ItemOperationResult_accepted_client_seq::NotSet;
+    if (in->has_accepted_client_seq())
+    {
+        out->_accepted_client_seq.AcceptedClientSeq=in->accepted_client_seq();
+        out->_accepted_client_seq._accepted_client_seqCase = EGrpcNightfallV1ItemOperationResult_accepted_client_seq::AcceptedClientSeq;
+    }
 }
 
 void TURBOLINK_TO_GRPC(const FGrpcNightfallV1ItemOperationResult* in, ::nightfall::v1::ItemOperationResult* out)
@@ -585,6 +629,14 @@ void TURBOLINK_TO_GRPC(const FGrpcNightfallV1ItemOperationResult* in, ::nightfal
     {
     case EGrpcNightfallV1ItemOperationResult_recipe_id::RecipeId:
         out->set_recipe_id(in->_recipe_id.RecipeId);
+        break;
+    }
+    out->set_request_key(std::string((const char*)(in->RequestKey.Value.GetData()), (size_t)in->RequestKey.Value.Num()));
+    out->set_request_fingerprint((const char*)StringCast<UTF8CHAR>(*(in->RequestFingerprint)).Get());
+    switch (in->_accepted_client_seq._accepted_client_seqCase)
+    {
+    case EGrpcNightfallV1ItemOperationResult_accepted_client_seq::AcceptedClientSeq:
+        out->set_accepted_client_seq(in->_accepted_client_seq.AcceptedClientSeq);
         break;
     }
 }

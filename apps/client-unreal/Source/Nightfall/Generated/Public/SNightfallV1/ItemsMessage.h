@@ -136,6 +136,13 @@ enum class EGrpcNightfallV1OwnedItem_augment_id : uint8
     NotSet=255,
 };
 
+UENUM(BlueprintType, meta = (DisplayName="NightfallV1.EnchantResult._accepted_client_seq", ScriptName="EGrpcNightfallV1EnchantResult_accepted_client_seq"))
+enum class EGrpcNightfallV1EnchantResult_accepted_client_seq : uint8
+{
+    AcceptedClientSeq=0,
+    NotSet=255,
+};
+
 UENUM(BlueprintType, meta = (DisplayName="NightfallV1.RefineResult._augment_id", ScriptName="EGrpcNightfallV1RefineResult_augment_id"))
 enum class EGrpcNightfallV1RefineResult_augment_id : uint8
 {
@@ -143,10 +150,24 @@ enum class EGrpcNightfallV1RefineResult_augment_id : uint8
     NotSet=255,
 };
 
+UENUM(BlueprintType, meta = (DisplayName="NightfallV1.RefineResult._accepted_client_seq", ScriptName="EGrpcNightfallV1RefineResult_accepted_client_seq"))
+enum class EGrpcNightfallV1RefineResult_accepted_client_seq : uint8
+{
+    AcceptedClientSeq=0,
+    NotSet=255,
+};
+
 UENUM(BlueprintType, meta = (DisplayName="NightfallV1.ItemOperationResult._recipe_id", ScriptName="EGrpcNightfallV1ItemOperationResult_recipe_id"))
 enum class EGrpcNightfallV1ItemOperationResult_recipe_id : uint8
 {
     RecipeId=0,
+    NotSet=255,
+};
+
+UENUM(BlueprintType, meta = (DisplayName="NightfallV1.ItemOperationResult._accepted_client_seq", ScriptName="EGrpcNightfallV1ItemOperationResult_accepted_client_seq"))
+enum class EGrpcNightfallV1ItemOperationResult_accepted_client_seq : uint8
+{
+    AcceptedClientSeq=0,
     NotSet=255,
 };
 
@@ -681,6 +702,20 @@ struct FGrpcNightfallV1PenaltyChanged : public FGrpcMessage
     bool HasPenalties = false;
 };
 
+USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.EnchantResult._accepted_client_seq",
+    HasNativeMake = "/Script/TurboLinkGrpc.GrpcNightfallV1EnchantResult_accepted_client_seqHelperLibrary.Make_accepted_client_seq",
+    HasNativeBreak = "/Script/TurboLinkGrpc.GrpcNightfallV1EnchantResult_accepted_client_seqHelperLibrary.Break_accepted_client_seq"))
+struct FGrpcNightfallV1EnchantResult_accepted_client_seq : public FGrpcMessage
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    EGrpcNightfallV1EnchantResult_accepted_client_seq _accepted_client_seqCase = EGrpcNightfallV1EnchantResult_accepted_client_seq::NotSet;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 AcceptedClientSeq = 0;
+};
+
 USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.EnchantResult"))
 struct FGrpcNightfallV1EnchantResult : public FGrpcMessage
 {
@@ -719,6 +754,18 @@ struct FGrpcNightfallV1EnchantResult : public FGrpcMessage
 
     UPROPERTY(BlueprintReadWrite, Category = TurboLink)
     FUInt32 AnnouncementTier = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FBytes RequestKey;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    EGrpcNightfallV1ItemOperation Operation = static_cast<EGrpcNightfallV1ItemOperation>(0);
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FString RequestFingerprint = "";
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FGrpcNightfallV1EnchantResult_accepted_client_seq _accepted_client_seq;
 };
 
 USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.RefineResult._augment_id",
@@ -733,6 +780,20 @@ struct FGrpcNightfallV1RefineResult_augment_id : public FGrpcMessage
 
     UPROPERTY(BlueprintReadWrite, Category = TurboLink)
     FUInt32 AugmentId = 0;
+};
+
+USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.RefineResult._accepted_client_seq",
+    HasNativeMake = "/Script/TurboLinkGrpc.GrpcNightfallV1RefineResult_accepted_client_seqHelperLibrary.Make_accepted_client_seq",
+    HasNativeBreak = "/Script/TurboLinkGrpc.GrpcNightfallV1RefineResult_accepted_client_seqHelperLibrary.Break_accepted_client_seq"))
+struct FGrpcNightfallV1RefineResult_accepted_client_seq : public FGrpcMessage
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    EGrpcNightfallV1RefineResult_accepted_client_seq _accepted_client_seqCase = EGrpcNightfallV1RefineResult_accepted_client_seq::NotSet;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 AcceptedClientSeq = 0;
 };
 
 USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.RefineResult"))
@@ -764,6 +825,18 @@ struct FGrpcNightfallV1RefineResult : public FGrpcMessage
 
     UPROPERTY(BlueprintReadWrite, Category = TurboLink)
     EGrpcNightfallV1RefineOutcome Outcome = static_cast<EGrpcNightfallV1RefineOutcome>(0);
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FBytes RequestKey;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    EGrpcNightfallV1ItemOperation Operation = static_cast<EGrpcNightfallV1ItemOperation>(0);
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FString RequestFingerprint = "";
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FGrpcNightfallV1RefineResult_accepted_client_seq _accepted_client_seq;
 };
 
 USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.ItemOperationResult._recipe_id",
@@ -778,6 +851,20 @@ struct FGrpcNightfallV1ItemOperationResult_recipe_id : public FGrpcMessage
 
     UPROPERTY(BlueprintReadWrite, Category = TurboLink)
     FUInt64 RecipeId = 0;
+};
+
+USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.ItemOperationResult._accepted_client_seq",
+    HasNativeMake = "/Script/TurboLinkGrpc.GrpcNightfallV1ItemOperationResult_accepted_client_seqHelperLibrary.Make_accepted_client_seq",
+    HasNativeBreak = "/Script/TurboLinkGrpc.GrpcNightfallV1ItemOperationResult_accepted_client_seqHelperLibrary.Break_accepted_client_seq"))
+struct FGrpcNightfallV1ItemOperationResult_accepted_client_seq : public FGrpcMessage
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    EGrpcNightfallV1ItemOperationResult_accepted_client_seq _accepted_client_seqCase = EGrpcNightfallV1ItemOperationResult_accepted_client_seq::NotSet;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 AcceptedClientSeq = 0;
 };
 
 USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.ItemOperationResult"))
@@ -809,6 +896,15 @@ struct FGrpcNightfallV1ItemOperationResult : public FGrpcMessage
 
     UPROPERTY(BlueprintReadWrite, Category = TurboLink)
     FGrpcNightfallV1ItemOperationResult_recipe_id _recipe_id;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FBytes RequestKey;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FString RequestFingerprint = "";
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FGrpcNightfallV1ItemOperationResult_accepted_client_seq _accepted_client_seq;
 };
 
 USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.ItemStatDescription"))
@@ -1083,6 +1179,22 @@ public:
 };
 
 UCLASS()
+class UGrpcNightfallV1EnchantResult_accepted_client_seqHelperLibrary : public UBlueprintFunctionLibrary
+{
+    GENERATED_BODY()
+public:
+    UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
+    static FGrpcNightfallV1EnchantResult_accepted_client_seq Make_accepted_client_seq(EGrpcNightfallV1EnchantResult_accepted_client_seq _accepted_client_seqCase,
+        FUInt64 AcceptedClientSeq
+    );
+
+    UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
+    static void Break_accepted_client_seq(const FGrpcNightfallV1EnchantResult_accepted_client_seq& _accepted_client_seq, EGrpcNightfallV1EnchantResult_accepted_client_seq& _accepted_client_seqCase,
+        FUInt64& AcceptedClientSeq
+    );
+};
+
+UCLASS()
 class UGrpcNightfallV1RefineResult_augment_idHelperLibrary : public UBlueprintFunctionLibrary
 {
     GENERATED_BODY()
@@ -1099,6 +1211,22 @@ public:
 };
 
 UCLASS()
+class UGrpcNightfallV1RefineResult_accepted_client_seqHelperLibrary : public UBlueprintFunctionLibrary
+{
+    GENERATED_BODY()
+public:
+    UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
+    static FGrpcNightfallV1RefineResult_accepted_client_seq Make_accepted_client_seq(EGrpcNightfallV1RefineResult_accepted_client_seq _accepted_client_seqCase,
+        FUInt64 AcceptedClientSeq
+    );
+
+    UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
+    static void Break_accepted_client_seq(const FGrpcNightfallV1RefineResult_accepted_client_seq& _accepted_client_seq, EGrpcNightfallV1RefineResult_accepted_client_seq& _accepted_client_seqCase,
+        FUInt64& AcceptedClientSeq
+    );
+};
+
+UCLASS()
 class UGrpcNightfallV1ItemOperationResult_recipe_idHelperLibrary : public UBlueprintFunctionLibrary
 {
     GENERATED_BODY()
@@ -1111,6 +1239,22 @@ public:
     UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
     static void Break_recipe_id(const FGrpcNightfallV1ItemOperationResult_recipe_id& _recipe_id, EGrpcNightfallV1ItemOperationResult_recipe_id& _recipe_idCase,
         FUInt64& RecipeId
+    );
+};
+
+UCLASS()
+class UGrpcNightfallV1ItemOperationResult_accepted_client_seqHelperLibrary : public UBlueprintFunctionLibrary
+{
+    GENERATED_BODY()
+public:
+    UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
+    static FGrpcNightfallV1ItemOperationResult_accepted_client_seq Make_accepted_client_seq(EGrpcNightfallV1ItemOperationResult_accepted_client_seq _accepted_client_seqCase,
+        FUInt64 AcceptedClientSeq
+    );
+
+    UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
+    static void Break_accepted_client_seq(const FGrpcNightfallV1ItemOperationResult_accepted_client_seq& _accepted_client_seq, EGrpcNightfallV1ItemOperationResult_accepted_client_seq& _accepted_client_seqCase,
+        FUInt64& AcceptedClientSeq
     );
 };
 

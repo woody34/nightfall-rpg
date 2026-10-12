@@ -5552,6 +5552,8 @@ class EnchantResult final :
     kRefundsFieldNumber = 10,
     kEntityIdFieldNumber = 1,
     kReceiptIdFieldNumber = 5,
+    kRequestKeyFieldNumber = 12,
+    kRequestFingerprintFieldNumber = 14,
     kTickFieldNumber = 3,
     kInventoryRevisionFieldNumber = 4,
     kIncarnationFieldNumber = 2,
@@ -5560,6 +5562,8 @@ class EnchantResult final :
     kNewEnchantFieldNumber = 8,
     kOutcomeFieldNumber = 9,
     kAnnouncementTierFieldNumber = 11,
+    kOperationFieldNumber = 13,
+    kAcceptedClientSeqFieldNumber = 15,
   };
   // repeated .nightfall.v1.ItemRefund refunds = 10;
   int refunds_size() const;
@@ -5619,6 +5623,46 @@ class EnchantResult final :
   inline PROTOBUF_ALWAYS_INLINE void _internal_set_receipt_id(
       const std::string& value);
   std::string* _internal_mutable_receipt_id();
+
+  public:
+  // bytes request_key = 12;
+  void clear_request_key() ;
+  const std::string& request_key() const;
+
+
+
+
+  template <typename Arg_ = const std::string&, typename... Args_>
+  void set_request_key(Arg_&& arg, Args_... args);
+  std::string* mutable_request_key();
+  PROTOBUF_NODISCARD std::string* release_request_key();
+  void set_allocated_request_key(std::string* ptr);
+
+  private:
+  const std::string& _internal_request_key() const;
+  inline PROTOBUF_ALWAYS_INLINE void _internal_set_request_key(
+      const std::string& value);
+  std::string* _internal_mutable_request_key();
+
+  public:
+  // string request_fingerprint = 14;
+  void clear_request_fingerprint() ;
+  const std::string& request_fingerprint() const;
+
+
+
+
+  template <typename Arg_ = const std::string&, typename... Args_>
+  void set_request_fingerprint(Arg_&& arg, Args_... args);
+  std::string* mutable_request_fingerprint();
+  PROTOBUF_NODISCARD std::string* release_request_fingerprint();
+  void set_allocated_request_fingerprint(std::string* ptr);
+
+  private:
+  const std::string& _internal_request_fingerprint() const;
+  inline PROTOBUF_ALWAYS_INLINE void _internal_set_request_fingerprint(
+      const std::string& value);
+  std::string* _internal_mutable_request_fingerprint();
 
   public:
   // uint64 tick = 3;
@@ -5701,6 +5745,27 @@ class EnchantResult final :
   void _internal_set_announcement_tier(::uint32_t value);
 
   public:
+  // .nightfall.v1.ItemOperation operation = 13;
+  void clear_operation() ;
+  ::nightfall::v1::ItemOperation operation() const;
+  void set_operation(::nightfall::v1::ItemOperation value);
+
+  private:
+  ::nightfall::v1::ItemOperation _internal_operation() const;
+  void _internal_set_operation(::nightfall::v1::ItemOperation value);
+
+  public:
+  // optional uint64 accepted_client_seq = 15;
+  bool has_accepted_client_seq() const;
+  void clear_accepted_client_seq() ;
+  ::uint64_t accepted_client_seq() const;
+  void set_accepted_client_seq(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_accepted_client_seq() const;
+  void _internal_set_accepted_client_seq(::uint64_t value);
+
+  public:
   // @@protoc_insertion_point(class_scope:nightfall.v1.EnchantResult)
  private:
   class _Internal;
@@ -5709,9 +5774,13 @@ class EnchantResult final :
   typedef void InternalArenaConstructable_;
   typedef void DestructorSkippable_;
   struct Impl_ {
+    ::PROTOBUF_NAMESPACE_ID::internal::HasBits<1> _has_bits_;
+    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
     ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::nightfall::v1::ItemRefund > refunds_;
     ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr entity_id_;
     ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr receipt_id_;
+    ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr request_key_;
+    ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr request_fingerprint_;
     ::uint64_t tick_;
     ::uint64_t inventory_revision_;
     ::uint32_t incarnation_;
@@ -5720,7 +5789,8 @@ class EnchantResult final :
     ::uint32_t new_enchant_;
     int outcome_;
     ::uint32_t announcement_tier_;
-    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+    int operation_;
+    ::uint64_t accepted_client_seq_;
   };
   union { Impl_ _impl_; };
   friend struct ::TableStruct_nightfall_2fv1_2fitems_2eproto;
@@ -5856,12 +5926,16 @@ class RefineResult final :
   enum : int {
     kEntityIdFieldNumber = 1,
     kReceiptIdFieldNumber = 5,
+    kRequestKeyFieldNumber = 9,
+    kRequestFingerprintFieldNumber = 11,
     kTickFieldNumber = 3,
     kInventoryRevisionFieldNumber = 4,
     kIncarnationFieldNumber = 2,
     kAugmentIdFieldNumber = 7,
     kTargetInstanceIdFieldNumber = 6,
     kOutcomeFieldNumber = 8,
+    kOperationFieldNumber = 10,
+    kAcceptedClientSeqFieldNumber = 12,
   };
   // bytes entity_id = 1;
   void clear_entity_id() ;
@@ -5901,6 +5975,46 @@ class RefineResult final :
   inline PROTOBUF_ALWAYS_INLINE void _internal_set_receipt_id(
       const std::string& value);
   std::string* _internal_mutable_receipt_id();
+
+  public:
+  // bytes request_key = 9;
+  void clear_request_key() ;
+  const std::string& request_key() const;
+
+
+
+
+  template <typename Arg_ = const std::string&, typename... Args_>
+  void set_request_key(Arg_&& arg, Args_... args);
+  std::string* mutable_request_key();
+  PROTOBUF_NODISCARD std::string* release_request_key();
+  void set_allocated_request_key(std::string* ptr);
+
+  private:
+  const std::string& _internal_request_key() const;
+  inline PROTOBUF_ALWAYS_INLINE void _internal_set_request_key(
+      const std::string& value);
+  std::string* _internal_mutable_request_key();
+
+  public:
+  // string request_fingerprint = 11;
+  void clear_request_fingerprint() ;
+  const std::string& request_fingerprint() const;
+
+
+
+
+  template <typename Arg_ = const std::string&, typename... Args_>
+  void set_request_fingerprint(Arg_&& arg, Args_... args);
+  std::string* mutable_request_fingerprint();
+  PROTOBUF_NODISCARD std::string* release_request_fingerprint();
+  void set_allocated_request_fingerprint(std::string* ptr);
+
+  private:
+  const std::string& _internal_request_fingerprint() const;
+  inline PROTOBUF_ALWAYS_INLINE void _internal_set_request_fingerprint(
+      const std::string& value);
+  std::string* _internal_mutable_request_fingerprint();
 
   public:
   // uint64 tick = 3;
@@ -5964,6 +6078,27 @@ class RefineResult final :
   void _internal_set_outcome(::nightfall::v1::RefineOutcome value);
 
   public:
+  // .nightfall.v1.ItemOperation operation = 10;
+  void clear_operation() ;
+  ::nightfall::v1::ItemOperation operation() const;
+  void set_operation(::nightfall::v1::ItemOperation value);
+
+  private:
+  ::nightfall::v1::ItemOperation _internal_operation() const;
+  void _internal_set_operation(::nightfall::v1::ItemOperation value);
+
+  public:
+  // optional uint64 accepted_client_seq = 12;
+  bool has_accepted_client_seq() const;
+  void clear_accepted_client_seq() ;
+  ::uint64_t accepted_client_seq() const;
+  void set_accepted_client_seq(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_accepted_client_seq() const;
+  void _internal_set_accepted_client_seq(::uint64_t value);
+
+  public:
   // @@protoc_insertion_point(class_scope:nightfall.v1.RefineResult)
  private:
   class _Internal;
@@ -5976,12 +6111,16 @@ class RefineResult final :
     mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
     ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr entity_id_;
     ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr receipt_id_;
+    ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr request_key_;
+    ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr request_fingerprint_;
     ::uint64_t tick_;
     ::uint64_t inventory_revision_;
     ::uint32_t incarnation_;
     ::uint32_t augment_id_;
     ::uint64_t target_instance_id_;
     int outcome_;
+    int operation_;
+    ::uint64_t accepted_client_seq_;
   };
   union { Impl_ _impl_; };
   friend struct ::TableStruct_nightfall_2fv1_2fitems_2eproto;
@@ -6118,11 +6257,14 @@ class ItemOperationResult final :
     kAffectedInstanceIdsFieldNumber = 7,
     kEntityIdFieldNumber = 1,
     kReceiptIdFieldNumber = 5,
+    kRequestKeyFieldNumber = 9,
+    kRequestFingerprintFieldNumber = 10,
     kTickFieldNumber = 3,
     kInventoryRevisionFieldNumber = 4,
     kIncarnationFieldNumber = 2,
     kOperationFieldNumber = 6,
     kRecipeIdFieldNumber = 8,
+    kAcceptedClientSeqFieldNumber = 11,
   };
   // repeated uint64 affected_instance_ids = 7;
   int affected_instance_ids_size() const;
@@ -6184,6 +6326,46 @@ class ItemOperationResult final :
   std::string* _internal_mutable_receipt_id();
 
   public:
+  // bytes request_key = 9;
+  void clear_request_key() ;
+  const std::string& request_key() const;
+
+
+
+
+  template <typename Arg_ = const std::string&, typename... Args_>
+  void set_request_key(Arg_&& arg, Args_... args);
+  std::string* mutable_request_key();
+  PROTOBUF_NODISCARD std::string* release_request_key();
+  void set_allocated_request_key(std::string* ptr);
+
+  private:
+  const std::string& _internal_request_key() const;
+  inline PROTOBUF_ALWAYS_INLINE void _internal_set_request_key(
+      const std::string& value);
+  std::string* _internal_mutable_request_key();
+
+  public:
+  // string request_fingerprint = 10;
+  void clear_request_fingerprint() ;
+  const std::string& request_fingerprint() const;
+
+
+
+
+  template <typename Arg_ = const std::string&, typename... Args_>
+  void set_request_fingerprint(Arg_&& arg, Args_... args);
+  std::string* mutable_request_fingerprint();
+  PROTOBUF_NODISCARD std::string* release_request_fingerprint();
+  void set_allocated_request_fingerprint(std::string* ptr);
+
+  private:
+  const std::string& _internal_request_fingerprint() const;
+  inline PROTOBUF_ALWAYS_INLINE void _internal_set_request_fingerprint(
+      const std::string& value);
+  std::string* _internal_mutable_request_fingerprint();
+
+  public:
   // uint64 tick = 3;
   void clear_tick() ;
   ::uint64_t tick() const;
@@ -6235,6 +6417,17 @@ class ItemOperationResult final :
   void _internal_set_recipe_id(::uint64_t value);
 
   public:
+  // optional uint64 accepted_client_seq = 11;
+  bool has_accepted_client_seq() const;
+  void clear_accepted_client_seq() ;
+  ::uint64_t accepted_client_seq() const;
+  void set_accepted_client_seq(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_accepted_client_seq() const;
+  void _internal_set_accepted_client_seq(::uint64_t value);
+
+  public:
   // @@protoc_insertion_point(class_scope:nightfall.v1.ItemOperationResult)
  private:
   class _Internal;
@@ -6249,11 +6442,14 @@ class ItemOperationResult final :
     mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _affected_instance_ids_cached_byte_size_;
     ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr entity_id_;
     ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr receipt_id_;
+    ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr request_key_;
+    ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr request_fingerprint_;
     ::uint64_t tick_;
     ::uint64_t inventory_revision_;
     ::uint32_t incarnation_;
     int operation_;
     ::uint64_t recipe_id_;
+    ::uint64_t accepted_client_seq_;
   };
   union { Impl_ _impl_; };
   friend struct ::TableStruct_nightfall_2fv1_2fitems_2eproto;
@@ -12400,6 +12596,145 @@ inline void EnchantResult::_internal_set_announcement_tier(::uint32_t value) {
   _impl_.announcement_tier_ = value;
 }
 
+// bytes request_key = 12;
+inline void EnchantResult::clear_request_key() {
+  _impl_.request_key_.ClearToEmpty();
+}
+inline const std::string& EnchantResult::request_key() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.EnchantResult.request_key)
+  return _internal_request_key();
+}
+template <typename Arg_, typename... Args_>
+inline PROTOBUF_ALWAYS_INLINE void EnchantResult::set_request_key(Arg_&& arg,
+                                                     Args_... args) {
+  ;
+  _impl_.request_key_.SetBytes(static_cast<Arg_&&>(arg), args..., GetArenaForAllocation());
+  // @@protoc_insertion_point(field_set:nightfall.v1.EnchantResult.request_key)
+}
+inline std::string* EnchantResult::mutable_request_key() {
+  std::string* _s = _internal_mutable_request_key();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.EnchantResult.request_key)
+  return _s;
+}
+inline const std::string& EnchantResult::_internal_request_key() const {
+  return _impl_.request_key_.Get();
+}
+inline void EnchantResult::_internal_set_request_key(const std::string& value) {
+  ;
+
+
+  _impl_.request_key_.Set(value, GetArenaForAllocation());
+}
+inline std::string* EnchantResult::_internal_mutable_request_key() {
+  ;
+  return _impl_.request_key_.Mutable( GetArenaForAllocation());
+}
+inline std::string* EnchantResult::release_request_key() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.EnchantResult.request_key)
+  return _impl_.request_key_.Release();
+}
+inline void EnchantResult::set_allocated_request_key(std::string* value) {
+  _impl_.request_key_.SetAllocated(value, GetArenaForAllocation());
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        if (_impl_.request_key_.IsDefault()) {
+          _impl_.request_key_.Set("", GetArenaForAllocation());
+        }
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.EnchantResult.request_key)
+}
+
+// .nightfall.v1.ItemOperation operation = 13;
+inline void EnchantResult::clear_operation() {
+  _impl_.operation_ = 0;
+}
+inline ::nightfall::v1::ItemOperation EnchantResult::operation() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.EnchantResult.operation)
+  return _internal_operation();
+}
+inline void EnchantResult::set_operation(::nightfall::v1::ItemOperation value) {
+   _internal_set_operation(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.EnchantResult.operation)
+}
+inline ::nightfall::v1::ItemOperation EnchantResult::_internal_operation() const {
+  return static_cast<::nightfall::v1::ItemOperation>(_impl_.operation_);
+}
+inline void EnchantResult::_internal_set_operation(::nightfall::v1::ItemOperation value) {
+  ;
+  _impl_.operation_ = value;
+}
+
+// string request_fingerprint = 14;
+inline void EnchantResult::clear_request_fingerprint() {
+  _impl_.request_fingerprint_.ClearToEmpty();
+}
+inline const std::string& EnchantResult::request_fingerprint() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.EnchantResult.request_fingerprint)
+  return _internal_request_fingerprint();
+}
+template <typename Arg_, typename... Args_>
+inline PROTOBUF_ALWAYS_INLINE void EnchantResult::set_request_fingerprint(Arg_&& arg,
+                                                     Args_... args) {
+  ;
+  _impl_.request_fingerprint_.Set(static_cast<Arg_&&>(arg), args..., GetArenaForAllocation());
+  // @@protoc_insertion_point(field_set:nightfall.v1.EnchantResult.request_fingerprint)
+}
+inline std::string* EnchantResult::mutable_request_fingerprint() {
+  std::string* _s = _internal_mutable_request_fingerprint();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.EnchantResult.request_fingerprint)
+  return _s;
+}
+inline const std::string& EnchantResult::_internal_request_fingerprint() const {
+  return _impl_.request_fingerprint_.Get();
+}
+inline void EnchantResult::_internal_set_request_fingerprint(const std::string& value) {
+  ;
+
+
+  _impl_.request_fingerprint_.Set(value, GetArenaForAllocation());
+}
+inline std::string* EnchantResult::_internal_mutable_request_fingerprint() {
+  ;
+  return _impl_.request_fingerprint_.Mutable( GetArenaForAllocation());
+}
+inline std::string* EnchantResult::release_request_fingerprint() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.EnchantResult.request_fingerprint)
+  return _impl_.request_fingerprint_.Release();
+}
+inline void EnchantResult::set_allocated_request_fingerprint(std::string* value) {
+  _impl_.request_fingerprint_.SetAllocated(value, GetArenaForAllocation());
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        if (_impl_.request_fingerprint_.IsDefault()) {
+          _impl_.request_fingerprint_.Set("", GetArenaForAllocation());
+        }
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.EnchantResult.request_fingerprint)
+}
+
+// optional uint64 accepted_client_seq = 15;
+inline bool EnchantResult::has_accepted_client_seq() const {
+  bool value = (_impl_._has_bits_[0] & 0x00000001u) != 0;
+  return value;
+}
+inline void EnchantResult::clear_accepted_client_seq() {
+  _impl_.accepted_client_seq_ = ::uint64_t{0u};
+  _impl_._has_bits_[0] &= ~0x00000001u;
+}
+inline ::uint64_t EnchantResult::accepted_client_seq() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.EnchantResult.accepted_client_seq)
+  return _internal_accepted_client_seq();
+}
+inline void EnchantResult::set_accepted_client_seq(::uint64_t value) {
+  _internal_set_accepted_client_seq(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.EnchantResult.accepted_client_seq)
+}
+inline ::uint64_t EnchantResult::_internal_accepted_client_seq() const {
+  return _impl_.accepted_client_seq_;
+}
+inline void EnchantResult::_internal_set_accepted_client_seq(::uint64_t value) {
+  _impl_._has_bits_[0] |= 0x00000001u;
+  _impl_.accepted_client_seq_ = value;
+}
+
 // -------------------------------------------------------------------
 
 // RefineResult
@@ -12621,6 +12956,145 @@ inline ::nightfall::v1::RefineOutcome RefineResult::_internal_outcome() const {
 inline void RefineResult::_internal_set_outcome(::nightfall::v1::RefineOutcome value) {
   ;
   _impl_.outcome_ = value;
+}
+
+// bytes request_key = 9;
+inline void RefineResult::clear_request_key() {
+  _impl_.request_key_.ClearToEmpty();
+}
+inline const std::string& RefineResult::request_key() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.RefineResult.request_key)
+  return _internal_request_key();
+}
+template <typename Arg_, typename... Args_>
+inline PROTOBUF_ALWAYS_INLINE void RefineResult::set_request_key(Arg_&& arg,
+                                                     Args_... args) {
+  ;
+  _impl_.request_key_.SetBytes(static_cast<Arg_&&>(arg), args..., GetArenaForAllocation());
+  // @@protoc_insertion_point(field_set:nightfall.v1.RefineResult.request_key)
+}
+inline std::string* RefineResult::mutable_request_key() {
+  std::string* _s = _internal_mutable_request_key();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.RefineResult.request_key)
+  return _s;
+}
+inline const std::string& RefineResult::_internal_request_key() const {
+  return _impl_.request_key_.Get();
+}
+inline void RefineResult::_internal_set_request_key(const std::string& value) {
+  ;
+
+
+  _impl_.request_key_.Set(value, GetArenaForAllocation());
+}
+inline std::string* RefineResult::_internal_mutable_request_key() {
+  ;
+  return _impl_.request_key_.Mutable( GetArenaForAllocation());
+}
+inline std::string* RefineResult::release_request_key() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.RefineResult.request_key)
+  return _impl_.request_key_.Release();
+}
+inline void RefineResult::set_allocated_request_key(std::string* value) {
+  _impl_.request_key_.SetAllocated(value, GetArenaForAllocation());
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        if (_impl_.request_key_.IsDefault()) {
+          _impl_.request_key_.Set("", GetArenaForAllocation());
+        }
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.RefineResult.request_key)
+}
+
+// .nightfall.v1.ItemOperation operation = 10;
+inline void RefineResult::clear_operation() {
+  _impl_.operation_ = 0;
+}
+inline ::nightfall::v1::ItemOperation RefineResult::operation() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.RefineResult.operation)
+  return _internal_operation();
+}
+inline void RefineResult::set_operation(::nightfall::v1::ItemOperation value) {
+   _internal_set_operation(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.RefineResult.operation)
+}
+inline ::nightfall::v1::ItemOperation RefineResult::_internal_operation() const {
+  return static_cast<::nightfall::v1::ItemOperation>(_impl_.operation_);
+}
+inline void RefineResult::_internal_set_operation(::nightfall::v1::ItemOperation value) {
+  ;
+  _impl_.operation_ = value;
+}
+
+// string request_fingerprint = 11;
+inline void RefineResult::clear_request_fingerprint() {
+  _impl_.request_fingerprint_.ClearToEmpty();
+}
+inline const std::string& RefineResult::request_fingerprint() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.RefineResult.request_fingerprint)
+  return _internal_request_fingerprint();
+}
+template <typename Arg_, typename... Args_>
+inline PROTOBUF_ALWAYS_INLINE void RefineResult::set_request_fingerprint(Arg_&& arg,
+                                                     Args_... args) {
+  ;
+  _impl_.request_fingerprint_.Set(static_cast<Arg_&&>(arg), args..., GetArenaForAllocation());
+  // @@protoc_insertion_point(field_set:nightfall.v1.RefineResult.request_fingerprint)
+}
+inline std::string* RefineResult::mutable_request_fingerprint() {
+  std::string* _s = _internal_mutable_request_fingerprint();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.RefineResult.request_fingerprint)
+  return _s;
+}
+inline const std::string& RefineResult::_internal_request_fingerprint() const {
+  return _impl_.request_fingerprint_.Get();
+}
+inline void RefineResult::_internal_set_request_fingerprint(const std::string& value) {
+  ;
+
+
+  _impl_.request_fingerprint_.Set(value, GetArenaForAllocation());
+}
+inline std::string* RefineResult::_internal_mutable_request_fingerprint() {
+  ;
+  return _impl_.request_fingerprint_.Mutable( GetArenaForAllocation());
+}
+inline std::string* RefineResult::release_request_fingerprint() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.RefineResult.request_fingerprint)
+  return _impl_.request_fingerprint_.Release();
+}
+inline void RefineResult::set_allocated_request_fingerprint(std::string* value) {
+  _impl_.request_fingerprint_.SetAllocated(value, GetArenaForAllocation());
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        if (_impl_.request_fingerprint_.IsDefault()) {
+          _impl_.request_fingerprint_.Set("", GetArenaForAllocation());
+        }
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.RefineResult.request_fingerprint)
+}
+
+// optional uint64 accepted_client_seq = 12;
+inline bool RefineResult::has_accepted_client_seq() const {
+  bool value = (_impl_._has_bits_[0] & 0x00000002u) != 0;
+  return value;
+}
+inline void RefineResult::clear_accepted_client_seq() {
+  _impl_.accepted_client_seq_ = ::uint64_t{0u};
+  _impl_._has_bits_[0] &= ~0x00000002u;
+}
+inline ::uint64_t RefineResult::accepted_client_seq() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.RefineResult.accepted_client_seq)
+  return _internal_accepted_client_seq();
+}
+inline void RefineResult::set_accepted_client_seq(::uint64_t value) {
+  _internal_set_accepted_client_seq(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.RefineResult.accepted_client_seq)
+}
+inline ::uint64_t RefineResult::_internal_accepted_client_seq() const {
+  return _impl_.accepted_client_seq_;
+}
+inline void RefineResult::_internal_set_accepted_client_seq(::uint64_t value) {
+  _impl_._has_bits_[0] |= 0x00000002u;
+  _impl_.accepted_client_seq_ = value;
 }
 
 // -------------------------------------------------------------------
@@ -12868,6 +13342,125 @@ inline ::uint64_t ItemOperationResult::_internal_recipe_id() const {
 inline void ItemOperationResult::_internal_set_recipe_id(::uint64_t value) {
   _impl_._has_bits_[0] |= 0x00000001u;
   _impl_.recipe_id_ = value;
+}
+
+// bytes request_key = 9;
+inline void ItemOperationResult::clear_request_key() {
+  _impl_.request_key_.ClearToEmpty();
+}
+inline const std::string& ItemOperationResult::request_key() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ItemOperationResult.request_key)
+  return _internal_request_key();
+}
+template <typename Arg_, typename... Args_>
+inline PROTOBUF_ALWAYS_INLINE void ItemOperationResult::set_request_key(Arg_&& arg,
+                                                     Args_... args) {
+  ;
+  _impl_.request_key_.SetBytes(static_cast<Arg_&&>(arg), args..., GetArenaForAllocation());
+  // @@protoc_insertion_point(field_set:nightfall.v1.ItemOperationResult.request_key)
+}
+inline std::string* ItemOperationResult::mutable_request_key() {
+  std::string* _s = _internal_mutable_request_key();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ItemOperationResult.request_key)
+  return _s;
+}
+inline const std::string& ItemOperationResult::_internal_request_key() const {
+  return _impl_.request_key_.Get();
+}
+inline void ItemOperationResult::_internal_set_request_key(const std::string& value) {
+  ;
+
+
+  _impl_.request_key_.Set(value, GetArenaForAllocation());
+}
+inline std::string* ItemOperationResult::_internal_mutable_request_key() {
+  ;
+  return _impl_.request_key_.Mutable( GetArenaForAllocation());
+}
+inline std::string* ItemOperationResult::release_request_key() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ItemOperationResult.request_key)
+  return _impl_.request_key_.Release();
+}
+inline void ItemOperationResult::set_allocated_request_key(std::string* value) {
+  _impl_.request_key_.SetAllocated(value, GetArenaForAllocation());
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        if (_impl_.request_key_.IsDefault()) {
+          _impl_.request_key_.Set("", GetArenaForAllocation());
+        }
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ItemOperationResult.request_key)
+}
+
+// string request_fingerprint = 10;
+inline void ItemOperationResult::clear_request_fingerprint() {
+  _impl_.request_fingerprint_.ClearToEmpty();
+}
+inline const std::string& ItemOperationResult::request_fingerprint() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ItemOperationResult.request_fingerprint)
+  return _internal_request_fingerprint();
+}
+template <typename Arg_, typename... Args_>
+inline PROTOBUF_ALWAYS_INLINE void ItemOperationResult::set_request_fingerprint(Arg_&& arg,
+                                                     Args_... args) {
+  ;
+  _impl_.request_fingerprint_.Set(static_cast<Arg_&&>(arg), args..., GetArenaForAllocation());
+  // @@protoc_insertion_point(field_set:nightfall.v1.ItemOperationResult.request_fingerprint)
+}
+inline std::string* ItemOperationResult::mutable_request_fingerprint() {
+  std::string* _s = _internal_mutable_request_fingerprint();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ItemOperationResult.request_fingerprint)
+  return _s;
+}
+inline const std::string& ItemOperationResult::_internal_request_fingerprint() const {
+  return _impl_.request_fingerprint_.Get();
+}
+inline void ItemOperationResult::_internal_set_request_fingerprint(const std::string& value) {
+  ;
+
+
+  _impl_.request_fingerprint_.Set(value, GetArenaForAllocation());
+}
+inline std::string* ItemOperationResult::_internal_mutable_request_fingerprint() {
+  ;
+  return _impl_.request_fingerprint_.Mutable( GetArenaForAllocation());
+}
+inline std::string* ItemOperationResult::release_request_fingerprint() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ItemOperationResult.request_fingerprint)
+  return _impl_.request_fingerprint_.Release();
+}
+inline void ItemOperationResult::set_allocated_request_fingerprint(std::string* value) {
+  _impl_.request_fingerprint_.SetAllocated(value, GetArenaForAllocation());
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        if (_impl_.request_fingerprint_.IsDefault()) {
+          _impl_.request_fingerprint_.Set("", GetArenaForAllocation());
+        }
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ItemOperationResult.request_fingerprint)
+}
+
+// optional uint64 accepted_client_seq = 11;
+inline bool ItemOperationResult::has_accepted_client_seq() const {
+  bool value = (_impl_._has_bits_[0] & 0x00000002u) != 0;
+  return value;
+}
+inline void ItemOperationResult::clear_accepted_client_seq() {
+  _impl_.accepted_client_seq_ = ::uint64_t{0u};
+  _impl_._has_bits_[0] &= ~0x00000002u;
+}
+inline ::uint64_t ItemOperationResult::accepted_client_seq() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ItemOperationResult.accepted_client_seq)
+  return _internal_accepted_client_seq();
+}
+inline void ItemOperationResult::set_accepted_client_seq(::uint64_t value) {
+  _internal_set_accepted_client_seq(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.ItemOperationResult.accepted_client_seq)
+}
+inline ::uint64_t ItemOperationResult::_internal_accepted_client_seq() const {
+  return _impl_.accepted_client_seq_;
+}
+inline void ItemOperationResult::_internal_set_accepted_client_seq(::uint64_t value) {
+  _impl_._has_bits_[0] |= 0x00000002u;
+  _impl_.accepted_client_seq_ = value;
 }
 
 // -------------------------------------------------------------------

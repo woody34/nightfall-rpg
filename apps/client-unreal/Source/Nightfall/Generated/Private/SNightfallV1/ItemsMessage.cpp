@@ -80,6 +80,25 @@ void UGrpcNightfallV1OwnedItem_augment_idHelperLibrary::Break_augment_id(const F
     AugmentId = _augment_id.AugmentId;
 }
 
+FGrpcNightfallV1EnchantResult_accepted_client_seq UGrpcNightfallV1EnchantResult_accepted_client_seqHelperLibrary::Make_accepted_client_seq(EGrpcNightfallV1EnchantResult_accepted_client_seq _accepted_client_seqCase,
+    FUInt64 AcceptedClientSeq
+)
+{
+    FGrpcNightfallV1EnchantResult_accepted_client_seq _accepted_client_seq;
+    _accepted_client_seq._accepted_client_seqCase = _accepted_client_seqCase;
+    _accepted_client_seq.AcceptedClientSeq = AcceptedClientSeq;
+
+    return _accepted_client_seq;
+}
+
+void UGrpcNightfallV1EnchantResult_accepted_client_seqHelperLibrary::Break_accepted_client_seq(const FGrpcNightfallV1EnchantResult_accepted_client_seq& _accepted_client_seq, EGrpcNightfallV1EnchantResult_accepted_client_seq& _accepted_client_seqCase,
+    FUInt64& AcceptedClientSeq
+)
+{
+    _accepted_client_seqCase = _accepted_client_seq._accepted_client_seqCase;
+    AcceptedClientSeq = _accepted_client_seq.AcceptedClientSeq;
+}
+
 FGrpcNightfallV1RefineResult_augment_id UGrpcNightfallV1RefineResult_augment_idHelperLibrary::Make_augment_id(EGrpcNightfallV1RefineResult_augment_id _augment_idCase,
     FUInt32 AugmentId
 )
@@ -99,6 +118,25 @@ void UGrpcNightfallV1RefineResult_augment_idHelperLibrary::Break_augment_id(cons
     AugmentId = _augment_id.AugmentId;
 }
 
+FGrpcNightfallV1RefineResult_accepted_client_seq UGrpcNightfallV1RefineResult_accepted_client_seqHelperLibrary::Make_accepted_client_seq(EGrpcNightfallV1RefineResult_accepted_client_seq _accepted_client_seqCase,
+    FUInt64 AcceptedClientSeq
+)
+{
+    FGrpcNightfallV1RefineResult_accepted_client_seq _accepted_client_seq;
+    _accepted_client_seq._accepted_client_seqCase = _accepted_client_seqCase;
+    _accepted_client_seq.AcceptedClientSeq = AcceptedClientSeq;
+
+    return _accepted_client_seq;
+}
+
+void UGrpcNightfallV1RefineResult_accepted_client_seqHelperLibrary::Break_accepted_client_seq(const FGrpcNightfallV1RefineResult_accepted_client_seq& _accepted_client_seq, EGrpcNightfallV1RefineResult_accepted_client_seq& _accepted_client_seqCase,
+    FUInt64& AcceptedClientSeq
+)
+{
+    _accepted_client_seqCase = _accepted_client_seq._accepted_client_seqCase;
+    AcceptedClientSeq = _accepted_client_seq.AcceptedClientSeq;
+}
+
 FGrpcNightfallV1ItemOperationResult_recipe_id UGrpcNightfallV1ItemOperationResult_recipe_idHelperLibrary::Make_recipe_id(EGrpcNightfallV1ItemOperationResult_recipe_id _recipe_idCase,
     FUInt64 RecipeId
 )
@@ -116,6 +154,25 @@ void UGrpcNightfallV1ItemOperationResult_recipe_idHelperLibrary::Break_recipe_id
 {
     _recipe_idCase = _recipe_id._recipe_idCase;
     RecipeId = _recipe_id.RecipeId;
+}
+
+FGrpcNightfallV1ItemOperationResult_accepted_client_seq UGrpcNightfallV1ItemOperationResult_accepted_client_seqHelperLibrary::Make_accepted_client_seq(EGrpcNightfallV1ItemOperationResult_accepted_client_seq _accepted_client_seqCase,
+    FUInt64 AcceptedClientSeq
+)
+{
+    FGrpcNightfallV1ItemOperationResult_accepted_client_seq _accepted_client_seq;
+    _accepted_client_seq._accepted_client_seqCase = _accepted_client_seqCase;
+    _accepted_client_seq.AcceptedClientSeq = AcceptedClientSeq;
+
+    return _accepted_client_seq;
+}
+
+void UGrpcNightfallV1ItemOperationResult_accepted_client_seqHelperLibrary::Break_accepted_client_seq(const FGrpcNightfallV1ItemOperationResult_accepted_client_seq& _accepted_client_seq, EGrpcNightfallV1ItemOperationResult_accepted_client_seq& _accepted_client_seqCase,
+    FUInt64& AcceptedClientSeq
+)
+{
+    _accepted_client_seqCase = _accepted_client_seq._accepted_client_seqCase;
+    AcceptedClientSeq = _accepted_client_seq.AcceptedClientSeq;
 }
 
 FGrpcNightfallV1GetItemCatalogRequest_known_rules_hash UGrpcNightfallV1GetItemCatalogRequest_known_rules_hashHelperLibrary::Make_known_rules_hash(EGrpcNightfallV1GetItemCatalogRequest_known_rules_hash _known_rules_hashCase,
