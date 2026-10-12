@@ -551,13 +551,63 @@ async fn contract<
             .await,
         Err(CheckpointError::KeyReused)
     ));
+    let mut toggled = third.clone();
+    toggled.revision_seen = 3;
+    toggled.idempotency.1 = IdempotencyKey::new();
+    let checkpoint = toggled.phase4.as_mut().unwrap();
+    checkpoint.inventory_revision = 6;
+    checkpoint.auto_shots.insert(1463);
+    let mut toggle_work = third_work.clone();
+    toggle_work.projection.tick = Tick(76);
+    toggle_work.projection.checkpoint = checkpoint.clone();
+    toggle_work.projection.ledger.clear();
+    let request_id = Uuid::now_v7();
+    toggle_work.projection.receipts = vec![ItemReceiptFact {
+        request_id,
+        fingerprint: "toggle-with-no-stack".into(),
+        result: FrozenItemResult {
+            entity: toggle_work.projection.entity,
+            incarnation: 4,
+            tick: Tick(76),
+            inventory_revision: 6,
+            receipt: request_id,
+            detail: ItemResultDetail::Operation {
+                operation: ItemOperation::ToggleAutoShot,
+                affected: vec![],
+                recipe: None,
+            },
+        },
+    }];
+    assert_eq!(
+        repo.checkpoint_items(&toggled, &[], &toggle_work, None)
+            .await
+            .unwrap(),
+        CheckpointOutcome::Applied(4)
+    );
+    assert_eq!(
+        repo.checkpoint_items(&toggled, &[], &toggle_work, None)
+            .await
+            .unwrap(),
+        CheckpointOutcome::Replayed(4)
+    );
+    assert!(matches!(
+        repo.item_receipt_lookup(
+            character.account_id,
+            ItemMutationOperation::ToggleAutoShot,
+            &IdempotencyKey::from_uuid(request_id),
+            "toggle-with-no-stack"
+        )
+        .await
+        .unwrap(),
+        ItemReceiptLookup::Known(_)
+    ));
     let current = repo
         .retained_inventory(character.id)
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(current.character_revision, 3);
-    assert_eq!(current.checkpoint, third.phase4);
+    assert_eq!(current.character_revision, 4);
+    assert_eq!(current.checkpoint, toggled.phase4);
     let metadata = repo
         .get(character.id)
         .await
@@ -565,7 +615,7 @@ async fn contract<
         .unwrap()
         .item_metadata
         .unwrap();
-    assert_eq!(metadata.inventory_revision, 5);
+    assert_eq!(metadata.inventory_revision, 6);
     assert_eq!(metadata.rules_hash, bundle.items.hash());
     assert_eq!(
         repo.list_by_account(character.account_id).await.unwrap()[0].item_metadata,
@@ -821,6 +871,49 @@ async fn rejected_contract<
         .unwrap(),
         ItemReceiptLookup::Unknown
     );
+    let mut transient = valid.clone();
+    let id = transient.allocation.allocate().unwrap();
+    let created = ItemInstance {
+        id,
+        template_id: 57,
+        count: 5,
+        location: ItemLocation::Inventory,
+        slot: None,
+        enchant: 0,
+        augment_id: None,
+        charges: 0,
+        created_tick: Tick(74),
+        revision: 4,
+    };
+    let reference = transient.projection.receipts[0].reference();
+    transient.projection.ledger.extend([
+        ItemDeltaPlan {
+            operation: ItemOperation::Grant,
+            operation_ordinal: 3,
+            instance: id,
+            before: None,
+            after: Some(created.clone()),
+            count_delta: 5,
+            receipt: Some(reference),
+            causes: vec![],
+        },
+        ItemDeltaPlan {
+            operation: ItemOperation::Consume,
+            operation_ordinal: 0,
+            instance: id,
+            before: Some(created),
+            after: None,
+            count_delta: -6,
+            receipt: None,
+            causes: vec![ItemAuditEvidence {
+                family: "consume".into(),
+                fields: BTreeMap::new(),
+            }],
+        },
+    ]);
+    assert!(matches!(repo.checkpoint_items(&next, &events, &transient, None).await,
+        Err(CheckpointError::Constraint(name)) if name == "item_ledger_count_conservation"));
+    assert_eq!(repo.retained_inventory(character.id).await.unwrap(), before);
     let mut stale = next.clone();
     stale.revision_seen = 0;
     let stale_events = self::events(&stale, &valid);

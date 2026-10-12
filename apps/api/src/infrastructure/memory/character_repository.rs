@@ -464,6 +464,7 @@ impl crate::application::ports::ItemCheckpointRepository for InMemoryCharacterRe
             return Err(CheckpointError::Constraint("item_checkpoint_rules".into()));
         }
         work.validate(cp, owner)?;
+        work.validate_catalogue(rules)?;
         work.validate_events(cp, events)?;
         let receipts = work.receipts(cp)?;
         for receipt in &receipts {

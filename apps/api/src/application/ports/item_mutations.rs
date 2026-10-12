@@ -8,7 +8,7 @@ use crate::domain::zone::{ItemInstanceRange, Phase4Checkpoint, Phase4Projection,
 use crate::domain::{AccountId, CharacterId, DomainEvent};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 /// Exactly the account/operation scope of the SQL request keys and frozen receipts.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -208,7 +208,40 @@ impl ItemCheckpointWork {
         Ok(())
     }
 
+    /// Immutable catalogue invariants are checked at the storage trust boundary as well.
+    pub fn validate_catalogue(
+        &self,
+        rules: &crate::domain::zone::Phase4Rules,
+    ) -> Result<(), CheckpointError> {
+        for item in self.projection.checkpoint.instances.iter().chain(
+            self.projection
+                .ledger
+                .iter()
+                .flat_map(|delta| delta.before.iter().chain(delta.after.iter())),
+        ) {
+            let definition = rules
+                .parts()
+                .items
+                .get(&item.template_id)
+                .ok_or_else(|| invalid("item_checkpoint_template"))?;
+            if !rules
+                .parts()
+                .capabilities
+                .get(&item.template_id)
+                .is_some_and(|capability| capability.storable)
+                || (!definition.stackable && item.count != 1)
+            {
+                return Err(invalid("item_checkpoint_stackability"));
+            }
+            if item.created_tick > self.projection.tick {
+                return Err(invalid("item_checkpoint_creation_tick"));
+            }
+        }
+        Ok(())
+    }
+
     /// Every changed scalar needs a real ledger fact. Sidecar-only changes need no fake ID.
+    #[allow(clippy::too_many_lines)] // One ordered scalar/count/identity gate for atomic settlement.
     pub fn validate_before(
         &self,
         before: Option<&Phase4Checkpoint>,
@@ -270,7 +303,13 @@ impl ItemCheckpointWork {
         }
         // Aggregate consumption may overlap intervening operations, but all signed deltas
         // together must conserve the committed count of each actual instance.
-        for id in old.keys().chain(new.keys()) {
+        let changed_ids: BTreeSet<_> = old
+            .keys()
+            .chain(new.keys())
+            .chain(self.projection.ledger.iter().map(|delta| &delta.instance))
+            .copied()
+            .collect();
+        for id in &changed_ids {
             let deltas: Vec<_> = self
                 .projection
                 .ledger
@@ -300,7 +339,23 @@ impl ItemCheckpointWork {
                 return Err(invalid("item_ledger_count_conservation"));
             }
         }
+        let mut created = BTreeSet::new();
         for delta in &self.projection.ledger {
+            if delta.before.is_none()
+                && (old.contains_key(&delta.instance) || !created.insert(delta.instance))
+            {
+                return Err(invalid("item_instance_identity_reused"));
+            }
+            if let Some(original) = old.get(&delta.instance) {
+                if delta
+                    .before
+                    .iter()
+                    .chain(delta.after.iter())
+                    .any(|item| item.created_tick != original.created_tick)
+                {
+                    return Err(invalid("item_instance_creation_immutable"));
+                }
+            }
             if delta.before.is_none()
                 && !old.contains_key(&delta.instance)
                 && !(start <= delta.instance.get() && delta.instance.get() < next)
