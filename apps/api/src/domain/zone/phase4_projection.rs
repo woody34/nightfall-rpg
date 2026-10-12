@@ -230,6 +230,9 @@ pub struct ItemMaterializationFact {
 #[serde(deny_unknown_fields)]
 #[allow(missing_docs)]
 pub struct Phase4Projection {
+    /// Complete final paused owner for direct offline settlement; absent for live owners.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub paused_core: Option<Box<super::ItemPausedCore>>,
     pub tick: Tick,
     pub entity: EntityId,
     pub account: crate::domain::AccountId,
@@ -249,6 +252,21 @@ impl Phase4Projection {
             return Err(ItemError("invalid item projection owner or tick"));
         }
         self.checkpoint.validate_structure(phase3_sources)?;
+        if let Some(core) = &self.paused_core {
+            core.validate(self.account)?;
+            if core.load.phase4.as_ref().is_none_or(|items| {
+                !items.pending.is_empty() || items.checkpoint.as_ref() != Some(&self.checkpoint)
+            }) || core
+                .load
+                .phase3
+                .as_ref()
+                .is_none_or(|skills| skills.modifier_install_order.len() != phase3_sources)
+                || core.load.hp.is_none()
+                || core.load.mp.is_none()
+            {
+                return Err(ItemError("paused final core differs from item projection"));
+            }
+        }
         if self.checkpoint.starter_kit_receipt.is_none() {
             return Err(ItemError("projection precedes kit materialization"));
         }
@@ -479,6 +497,7 @@ pub(crate) mod tests {
         let key = uuid::Uuid::from_u128(3);
         let entity = EntityId::from_uuid(uuid::Uuid::from_u128(1));
         Phase4Projection {
+            paused_core: None,
             tick: Tick(10),
             entity,
             account: crate::domain::AccountId::from_uuid(uuid::Uuid::from_u128(2)),

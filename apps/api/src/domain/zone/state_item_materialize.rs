@@ -295,6 +295,7 @@ impl ZoneState {
             })
             .collect::<Result<Vec<_>, TickError>>()?;
         let projection = Phase4Projection {
+            paused_core: None,
             tick,
             entity: id,
             account: load

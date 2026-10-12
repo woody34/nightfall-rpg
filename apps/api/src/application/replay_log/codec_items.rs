@@ -74,6 +74,18 @@ pub(in crate::application::replay_log) fn result_from_json(
     Ok(ZoneEvent::ItemResult(Box::new(result)))
 }
 
+pub(in crate::application::replay_log) fn grant_from_json(
+    bytes: &[u8],
+) -> Result<ZoneCommand, CodecError> {
+    let command: crate::domain::zone::ItemGrantCommand =
+        serde_json::from_slice(bytes).map_err(super::err)?;
+    command.validate().map_err(super::err)?;
+    if canonical_json(&command) != bytes {
+        return Err(CodecError("noncanonical recorded grant".into()));
+    }
+    Ok(ZoneCommand::MaterializePendingItems(Box::new(command)))
+}
+
 pub(super) fn range_from_json(bytes: &[u8]) -> Result<ZoneCommand, CodecError> {
     let range: crate::domain::zone::ItemInstanceRange =
         serde_json::from_slice(bytes).map_err(super::err)?;
@@ -101,6 +113,62 @@ mod tests {
         .with_account(AccountId::from_uuid(uuid::Uuid::from_u128(3)))
         .unwrap()
     }
+    #[test]
+    fn recorded_grants_use_tag_thirty_with_strict_body_identity() {
+        use crate::domain::zone::{AppliedCommand, CommandSource, ItemGrantCommand, Ordinal};
+        let entity = EntityId::from_uuid(uuid::Uuid::from_u128(1));
+        let grant = ItemGrantCommand {
+            entity,
+            account: AccountId::from_uuid(uuid::Uuid::from_u128(2)),
+            request_id: uuid::Uuid::from_u128(3),
+            template_id: 57,
+            count: 10,
+            fingerprint: crate::domain::zone::item_grant::grant_fingerprint(
+                crate::domain::CharacterId::from_uuid(entity.as_uuid()),
+                57,
+                10,
+            ),
+            rules_hash: [1; 32],
+            paused: None,
+            known: None,
+            conflict: None,
+        };
+        let applied = AppliedCommand {
+            ordinal: Ordinal(1),
+            source: CommandSource::System,
+            seq: None,
+            command: ZoneCommand::MaterializePendingItems(Box::new(grant.clone())),
+        };
+        let encoded = super::super::command_to_pb(&applied);
+        assert!(matches!(encoded.kind, Some(PbCommandKind::MaterializePendingItems(_))));
+        for schema in 3..=8 {
+            let record = super::super::PbRecord {
+                schema,
+                commands: vec![encoded.clone()],
+                state_digest: vec![0; 32].into(),
+                ..Default::default()
+            };
+            assert_eq!(super::super::decode_record(&record.encode_to_vec()).is_ok(), schema == 8);
+        }
+        let bytes = canonical_json(&grant);
+        assert_eq!(grant_from_json(&bytes).unwrap(), applied.command);
+        let mut whitespace = bytes;
+        whitespace.push(b' ');
+        assert!(grant_from_json(&whitespace).is_err());
+        let mut bad = grant.clone();
+        bad.count = 11;
+        assert!(grant_from_json(&canonical_json(&bad)).is_err());
+        bad = grant.clone();
+        bad.request_id = uuid::Uuid::nil();
+        assert!(grant_from_json(&canonical_json(&bad)).is_err());
+        bad = grant.clone();
+        bad.conflict = Some(grant.fingerprint.clone());
+        assert!(grant_from_json(&canonical_json(&bad)).is_err());
+        let mut value = serde_json::to_value(&grant).unwrap();
+        value["unknown"] = serde_json::Value::Null;
+        assert!(grant_from_json(&serde_json::to_vec(&value).unwrap()).is_err());
+    }
+
     #[test]
     fn allocator_reservation_uses_tag_thirty_one_only_in_record_eight() {
         use crate::domain::zone::{AppliedCommand, CommandSource, ItemInstanceRange, Ordinal};

@@ -304,6 +304,7 @@ impl ZoneState {
             .checkpoint(id, tick, &phase.canonical)
             .map_err(invalid)?;
         let mut projection = previous.unwrap_or_else(|| Phase4Projection {
+            paused_core: None,
             tick,
             entity: id,
             account,
@@ -405,6 +406,19 @@ impl ZoneState {
         let phase = self.phase3.as_ref().ok_or(TickError::Phase3Invariant)?;
         for event in events.iter_mut() {
             if let ZoneEvent::ItemCheckpoint(projection) = event {
+                if let Some(core) = &projection.paused_core {
+                    projection
+                        .validate_structure(
+                            core.load
+                                .phase3
+                                .as_ref()
+                                .ok_or(TickError::Phase3Invariant)?
+                                .modifier_install_order
+                                .len(),
+                        )
+                        .map_err(|_| TickError::Phase3Invariant)?;
+                    continue;
+                }
                 projection.checkpoint = items
                     .canonical
                     .checkpoint(projection.entity, tick, &phase.canonical)

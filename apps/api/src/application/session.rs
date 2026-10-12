@@ -916,6 +916,7 @@ impl<'a> Actor<'a> {
                     | ZoneCommand::CancelCast { .. }
                     | ZoneCommand::AcceptResurrect { .. }
                     | ZoneCommand::LearnSkill { .. }
+                    | ZoneCommand::MaterializePendingItems(_)
                     | ZoneCommand::ExtendItemRange { .. }
                     | ZoneCommand::Item(_)
                     | ZoneCommand::ChangeClass { .. }
