@@ -13,6 +13,10 @@ gate=importlib.util.module_from_spec(spec);spec.loader.exec_module(gate)
 OWNER='01970000-0000-7000-8000-000000000040';OTHER='01970000-0000-7000-8000-000000000041';HASH='a'*64
 
 
+def item(identity,count,template=17,slot=None):
+    return dict(id=identity,count=count,template_id=template,slot=slot,location='paperdoll' if slot else 'inventory',enchant=0,augment_id=None,charges=0,created_tick=0,revision=0)
+
+
 class Evidence(unittest.TestCase):
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup)
@@ -67,7 +71,7 @@ class Evidence(unittest.TestCase):
     def test_rng_and_ledger_conservation(self):
         rows=copy.deepcopy(self.rows)
         rows.insert(2,dict(kind='item_rng',entity=OWNER,incarnation=1,tick=0,sequence=1,data=dict(callsite='enchant',word_before=0,word_after=1,bound=100000,value=66670)))
-        rows.insert(3,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=0,sequence=2,data=dict(operation='consume',instance=7,before=dict(id=7,count=2),after=dict(id=7,count=1),count_delta=-1,operation_ordinal=0,receipt=None)))
+        rows.insert(3,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=0,sequence=2,data=dict(operation='consume',instance=7,before=item(7,2),after=item(7,1),count_delta=-1,operation_ordinal=0,receipt=None)))
         rows[-1]['facts']=3;gate.validate(rows,self.recording,HASH)
         bad=copy.deepcopy(rows);bad[3]['data']['count_delta']=0
         with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
@@ -82,6 +86,39 @@ class Evidence(unittest.TestCase):
         bad=copy.deepcopy(inputs);bad['after_instance']['id']=7
         with self.assertRaises(ValueError):gate.formula('sa_exchange',bad,dict(product_template=4682,new_instance_id=7))
         gate.formula('grant_denied',dict(auth_dev_tokens=False,status='FAILED_PRECONDITION',before=[1],after=[1],ledger_rows=0,rng_before=0,rng_after=0),{'unchanged':True})
+
+    def test_denied_grant_uses_complete_log_absence_not_invented_actor_command(self):
+        rows=copy.deepcopy(self.rows)
+        rows[1].update(kind='item_baseline',data=dict(inventory_revision=0,instances=[item(1,1,6,'rhand')],paperdoll={'rhand':1},auto_shots=[]))
+        self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['grant_denied'],HASH)['passed'])
+        self.assertFalse(gate.evaluate(rows,self.recording,OTHER,['grant_denied'],HASH)['passed'])
+        self.assertFalse(gate.evaluate(rows,self.recording,OWNER,['pole_damage'],HASH)['passed'])
+        rows.insert(2,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=0,sequence=1,data=dict(operation='grant',instance=2,before=None,after=item(2,1,1),count_delta=1,operation_ordinal=0,receipt=None)))
+        rows[-1]['facts']=2
+        self.assertFalse(gate.evaluate(rows,self.recording,OWNER,['grant_denied'],HASH)['passed'])
+
+    def test_soak_requires_every_owner_positive_auto_payment_and_one_scroll(self):
+        rows=[copy.deepcopy(self.rows[0])];roles={'items':True,'casting':True,'roles':[]}
+        for index in range(8):
+            entity=f'01970000-0000-7000-8000-{index+80:012d}'
+            roles['roles'].append({'seed':{'character_id':entity}})
+            def append(kind,data):rows.append(dict(kind=kind,entity=entity,incarnation=1,tick=0,sequence=len(rows)-1,data=data))
+            append('item_formula',dict(formula='enchant_outcome',inputs=dict(base=100,bonus=0,support=0,residue=0,enchant=0),actual={'outcome':'success','enchant':1,'destroyed':False},resolution_id='enchant:1',baseline=False))
+            append('item_formula',dict(formula='shot_payment',inputs=dict(charges=[],kind='spirit',count=1,available=100,weapon_grade='NONE',shot_grade='NONE',toggle=True),actual=dict(charges=['spirit'],available=99,toggle=True,consumed=1,draws=[],outcome='charged'),resolution_id='cast:1:charge',baseline=False))
+            for offset,template in enumerate((1,6),1):
+                identity=index*100+offset
+                append('item_delta',dict(operation='equip',instance=identity,before=item(identity,1,template),after=item(identity,1,template,'rhand'),count_delta=0,operation_ordinal=0,receipt=None))
+            identity=index*100+3
+            append('item_delta',dict(operation='consume',instance=identity,before=item(identity,1,951),after=None,count_delta=-1,operation_ordinal=0,receipt=None))
+        rows.append(dict(kind='complete',facts=len(rows)-1,ticks=1,last_tick=0))
+        self.assertTrue(gate.soak(rows,self.recording,roles,HASH)['passed'])
+        bad=copy.deepcopy(rows)
+        shot=next(r for r in bad if r.get('kind')=='item_formula' and r['data']['formula']=='shot_payment')
+        shot['data']['inputs']['available']=0
+        shot['data']['actual'].update(charges=[],available=0,toggle=False,consumed=0,outcome='insufficient')
+        self.assertFalse(gate.soak(bad,self.recording,roles,HASH)['passed'])
+        badroles=copy.deepcopy(roles);badroles['roles'][-1]['seed']['character_id']='01970000-0000-7000-8000-000000000099'
+        self.assertFalse(gate.soak(rows,self.recording,badroles,HASH)['passed'])
 
     def test_all_scenarios_have_known_gate_requirements(self):
         for path in (SCRIPTS.parent/'Scenarios').glob('4-*.nfs'):
