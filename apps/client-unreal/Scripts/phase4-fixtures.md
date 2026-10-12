@@ -82,6 +82,79 @@ compares received maxHP (3543's source MaxHp), and restores inactive/active hist
 across reconnect. Full-set/+6 installation/removal and shirt+4 installation/removal
 require provider-specific correlated gear_stats export facts.
 
+Replay item evidence (E6 → Z, D46/D55–D57/D62):
+`nightfall-replay export --items-evidence-out PATH` emits the schema-version1
+whole-recording JSONL described in [phase4-evidence-contract.md](phase4-evidence-contract.md).
+Every fact has `kind,entity,incarnation,tick,sequence,data` and may carry a
+top-level `origin=live|offline`. Offline GrantItem, pending kits and backfill
+must emit `origin=offline`, incarnation0 and the character UUID as `entity`.
+Without that explicit origin, incarnation must be ≥1; owner filtering still
+uses the character identity, so foreign-owner facts cannot satisfy a gate.
+
+Delta data has `operation,instance,before,after,count_delta,operation_ordinal,
+resolution_id` and its receipt field (plus `causes` for Consume). Correlation keys are
+`(resolution_id,instance,operation_ordinal)` within owner/incarnation scope.
+Per-tick batching yields ONE inventory revision step per owner/incarnation/tick,
+derived from the owner's baseline or previous changed tick (previous → previous+1).
+All retained post-states across all instances use that same new revision;
+before-states use the previous step, or the new step for later same-tick changes.
+Equal revisions remain valid. A baseline-free slice binds its initial revision
+from canonical endpoints. Changed ticks strictly advance the owner step, including
+removal-only ticks. Per-instance ordinals strictly increase within a tick and may
+reset on a new tick. Removed instances have no fabricated post-state.
+Carry complete canonical state forward per owner/incarnation/instance. Successive
+target mutations and next-tick aggregates start from the preceding retained state,
+including counts and all other canonical fields, after recorded intervening
+mutations. Untouched canonical snapshots advance to the owner revision at tick end.
+Every enchant target binding, including unchanged safe failures, must match the
+established state immediately before that resolution (complete-baseline membership,
+canonical continuity after intervening mutations, and the owner-tick revision step).
+Creation starts from null; removal records absence; incarnations remain independent.
+Do not fabricate intermediate revisions for enchant, consume or refunds.
+
+The per-instance per-tick `operation=consume` aggregate remains ordinal0 and
+emits `receipt_refs` plus a nonempty ordered `causes` list (D62 amends D57).
+Each cause is `{cause,count_delta}` with a strictly negative signed-bigint delta
+and an identity `auto_shot:<attack resolution_id>`, `arrow:<attack resolution_id>`,
+`item_cast:<cast_id>`, or `receipt:<operation>:<key>`. Net `count_delta` must equal
+the sum of these deltas and the canonical endpoint count change. `receipt_refs`
+is exactly the ordered receipt-cause projection, possibly empty, nonempty iff any
+cause is a client receipt. Automatic costs have no fabricated receipts. Causes
+may interleave automatic and receipt-bound costs within a tick.
+Other rows emit the single `receipt_ref`, nullable for receipt-free facts.
+Exchange is a linked consume(old base / ingredients) + grant(new instance) audit
+plan, not a monolithic `operation=exchange` delta (D52/D57). Consumes include
+`receipt:exchange:<key>` in causes/receipt_refs; the fresh grant carries the same
+receipt_ref. The old base must be exhausted; ingredients may retain counts.
+Constituents share owner/incarnation/tick and consumes precede the grant.
+The old `receipt` field and a singular Consume `receipt_ref` refuse.
+
+Every delta uses the shared operation transition table: consume changes only
+count; equip/unequip only slot/location; enchant only enchant; refine/cancel_refine
+only augment_id. Destroy/crystallize end at null and use separate refund grants.
+Grant/starter/backfill start at null and materialize canonical instances. Other
+canonical fields remain identical, with revision governed by the owner/tick step.
+Counts and causes agree with endpoints; unchanged/revision-only and `use` rows
+refuse. See `phase4-evidence-contract.md` for the complete operation rules.
+
+Each enchant outcome's `operation` additionally binds the nonempty `receipt_ref`
+of its resolution, alongside canonical target/scroll/support before-states.
+For a shared scroll/support stack, group contributions by
+`(entity,incarnation,tick,instance)` in outcome fact sequence order. Its receipt
+causes contain every contributing enchant exactly once, ordered and each at -1;
+unbound receipts in the enchant operation scope refuse. Other client scopes and
+system causes may interleave. Bound before-states reflect ALL preceding cause
+deltas, not just earlier enchant costs. The aggregate uses the first contributor's
+resolution ID (the enchant resolution or automatic attack/cast identity) and its
+canonical initial/final states and net count must agree with the cause list.
+Bound revisions never decrease; later before-states share the applicable tick
+revision. No bound revision may exceed the verified owner step. Retained
+scroll/support endpoints and exhausted contributions use this same step; exhausted
+stacks have no invented post-state. Receipt uniqueness spans all enchant resolutions
+in the scope before stack grouping, including resolutions spending distinct stacks.
+Non-Consume target/refund rows retain their resolution ID and its matching receipt.
+See `phase4-evidence-contract.md` for exact JSON examples.
+
 Combat phases use nf.Mark/target_hits_since_mark; template15's pole receives
 primary108,100 and secondary108,101 /108,99 targets (explicit fixture positions).
 The unarmed phase unequips rhand; source-bound phases require actual weapon caller
