@@ -634,7 +634,12 @@ impl ZoneState {
                 .get(&work.target)
                 .and_then(|e| e.combat.as_ref())
                 .ok_or_else(missing)?;
-            if c.hp == 0 || target.incarnation != effect.target_incarnation {
+            if self
+                .entities
+                .get(&work.target)
+                .is_none_or(|e| e.targeting.dead)
+                || target.incarnation != effect.target_incarnation
+            {
                 continue;
             }
             let fractions = self.sidecar(work.target)?.fractions;
@@ -805,7 +810,12 @@ impl ZoneState {
         };
         let mut outcome = SkillOutcome::Hit;
         let mut granted = 0;
-        if c.hp != 0 && (!cp_handler || cp.is_some()) {
+        if self
+            .entities
+            .get(&target.entity)
+            .is_some_and(|e| !e.targeting.dead)
+            && (!cp_handler || cp.is_some())
+        {
             let current_exact = ExactRatio::whole(i64::from(current))
                 .checked_add(q(fraction).map_err(invariant)?)
                 .map_err(invariant)?;
@@ -956,7 +966,7 @@ impl ZoneState {
             .filter_map(|(id, e)| {
                 let c = e.combat.as_ref()?;
                 (e.kind == EntityKind::Npc
-                    && c.hp > 0
+                    && !e.targeting.dead
                     && self
                         .hate
                         .get(id)

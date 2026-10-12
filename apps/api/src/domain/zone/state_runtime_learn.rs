@@ -129,7 +129,7 @@ impl ZoneState {
                 classes: self.classes.as_deref().ok_or(RejectReason::InvalidLoad)?,
                 rules: &phase.canonical.rules,
                 level: c.sheet.level(),
-                alive: !e.targeting.dead && c.hp != 0,
+                alive: !e.targeting.dead,
                 engaged: self.engaged_for_learning(id),
                 position: e.pos,
             },

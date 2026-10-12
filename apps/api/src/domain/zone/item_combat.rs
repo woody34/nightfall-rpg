@@ -74,6 +74,33 @@ fn roll(bound: u32, value: u32) -> Result<ExactRatio, StatError> {
     Ok(ExactRatio::whole(i64::from(value)))
 }
 
+/// D59/D61: halve total HP at the Q boundary, retaining one Q-unit of life.
+pub fn half_hp(whole: u32, remainder_q: i64) -> Result<(u32, i64), StatError> {
+    if !(0..Q).contains(&remainder_q) {
+        return Err(StatError::Overflow);
+    }
+    let total = i128::from(whole)
+        .checked_mul(i128::from(Q))
+        .and_then(|v| v.checked_add(i128::from(remainder_q)))
+        .and_then(|v| v.checked_div(2))
+        .ok_or(StatError::Overflow)?
+        .max(1);
+    Ok((
+        u32::try_from(
+            total
+                .checked_div(i128::from(Q))
+                .ok_or(StatError::Overflow)?,
+        )
+        .map_err(|_| StatError::Overflow)?,
+        i64::try_from(
+            total
+                .checked_rem(i128::from(Q))
+                .ok_or(StatError::Overflow)?,
+        )
+        .map_err(|_| StatError::Overflow)?,
+    ))
+}
+
 /// Formulas.java:1640 with D50 per-mille adaptation; rates are not rounded or clamped.
 pub fn blow_lands(rate: ExactRatio, residue: u32) -> Result<bool, StatError> {
     Ok(rate
@@ -224,6 +251,22 @@ impl BlowTerms {
 mod tests {
     use super::*;
     use serde_json::{json, Value};
+    #[test]
+    fn lethal_halves_total_hp_with_one_final_q_floor() {
+        for (before, after) in [
+            ((1, 0), (0, 500_000)),
+            ((2, 0), (1, 0)),
+            ((3, 0), (1, 500_000)),
+            ((0, 500_001), (0, 250_000)),
+            ((0, 1), (0, 1)),
+            ((0, 2), (0, 1)),
+            ((u32::MAX, 999_999), (2_147_483_647, 999_999)),
+        ] {
+            assert_eq!(half_hp(before.0, before.1).unwrap(), after);
+        }
+        assert!(half_hp(1, -1).is_err());
+        assert!(half_hp(1, Q).is_err());
+    }
     fn ratio(v: &Value) -> ExactRatio {
         if let Some(n) = v.as_i64() {
             ExactRatio::whole(n)
