@@ -8,6 +8,7 @@ import json
 import math
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import sys
@@ -92,6 +93,21 @@ class CastingSoakTests(unittest.TestCase):
             self.assertEqual(env['PGPORT'], '27432')
             self.assertEqual(env['PGDATABASE'], 'nf_phase3_fixture_soak_test')
             for key in ('PGHOSTADDR', 'PGSERVICE', 'PGOPTIONS'): self.assertNotIn(key, env)
+
+    def test_seeded_names_are_valid_unique_and_fully_normalized_for_one_to_eight_roles(self):
+        for clients in range(1, 9):
+            with self.subTest(clients=clients):
+                out = self.out / str(clients)
+                fixtures.prepare(REPO, out, clients, casting=True)
+                roles = seed.validated_roles(json.loads((out / 'roles.json').read_text()))
+                sql = seed.seed.seed_sql(roles)
+                values = sql.split('INSERT INTO characters(', 1)[1].split('VALUES ', 1)[1].split(';', 1)[0]
+                names = re.findall(r"\('[^']+','[^']+','([^']+)','([^']+)'", values)
+                self.assertEqual(len(names), clients)
+                self.assertEqual(len({name for name, _ in names}), clients)
+                for name, normalized in names:
+                    self.assertRegex(name, r'^[A-Za-z]{3,16}$')
+                    self.assertEqual(normalized, name.lower())
 
     def test_seeder_uses_owned_container_without_host_psql_and_propagates_failure(self):
         fixtures.prepare(REPO, self.out / 'fixtures', 1, casting=True)
