@@ -7,6 +7,8 @@
 mod digest;
 #[path = "state_evidence.rs"]
 mod evidence_hooks;
+#[path = "state_item_commands.rs"]
+mod item_commands;
 #[path = "state_items.rs"]
 mod items;
 #[path = "state_runtime.rs"]

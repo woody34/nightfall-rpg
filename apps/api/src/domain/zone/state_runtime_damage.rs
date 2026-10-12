@@ -3979,4 +3979,354 @@ mod tests {
         assert_eq!(zone.rng.get_word_pos(), before);
         assert!(ZoneState::from_snapshot(zone.snapshot()).is_ok());
     }
+    fn item_intent(
+        zone: &ZoneState,
+        entity: EntityId,
+        key: u128,
+        kind: crate::domain::zone::ItemCommandKind,
+    ) -> crate::domain::zone::ItemCommand {
+        let CombatRole::Player {
+            progression: Some(player),
+            ..
+        } = &zone.entities[&entity].combat.as_ref().unwrap().role
+        else {
+            panic!("player")
+        };
+        crate::domain::zone::ItemCommand::new(entity, Uuid::from_u128(key), kind)
+            .unwrap()
+            .with_account(player.identity.account_id)
+            .unwrap()
+    }
+
+    #[test]
+    #[allow(clippy::too_many_lines)] // One recorded tick proves folding, scope/order, rejection rollback and cold replay.
+    fn v6_equipment_commands_fold_in_order_and_freeze_one_final_tick_checkpoint() {
+        use crate::domain::zone::phase4_projection::ItemOperation;
+        use crate::domain::zone::{EquipSlot, ItemCommandKind as K};
+        let (mut zone, target, _) = equipment_fixture();
+        // Finish the fixture's out-of-tick setup before taking a replay boundary.
+        zone.run_tick(zone.draft(Vec::new())).unwrap();
+        let original = zone.phase4.as_ref().unwrap().canonical.players[&target.entity].clone();
+        let weapon = original.paperdoll[&EquipSlot::Rhand];
+        let source_order = original.equipment_sources.clone();
+        let mut cold = ZoneState::from_snapshot_with_items(
+            zone.snapshot(),
+            Some(Arc::clone(&zone.phase4.as_ref().unwrap().rules)),
+        )
+        .unwrap();
+        let before_rng = zone.rng.get_word_pos();
+        let kinds = [
+            (
+                8,
+                K::Unequip {
+                    slot: EquipSlot::Lfinger,
+                },
+            ),
+            (
+                9,
+                K::Unequip {
+                    slot: EquipSlot::Rhand,
+                },
+            ),
+            (
+                9,
+                K::Equip {
+                    instance: weapon,
+                    preferred_slot: None,
+                },
+            ),
+            (
+                9,
+                K::Equip {
+                    instance: weapon,
+                    preferred_slot: None,
+                },
+            ),
+            (
+                9,
+                K::Equip {
+                    instance: weapon,
+                    preferred_slot: Some(EquipSlot::Lhand),
+                },
+            ),
+            (
+                10,
+                K::Equip {
+                    instance: weapon,
+                    preferred_slot: None,
+                },
+            ),
+        ];
+        let inputs = kinds
+            .into_iter()
+            .enumerate()
+            .map(|(seq, (key, kind))| {
+                ZoneInput::session(
+                    target.entity,
+                    SessionGeneration(1),
+                    u32::try_from(seq.checked_add(1).unwrap()).unwrap(),
+                    ZoneCommand::Item(Box::new(item_intent(&zone, target.entity, key, kind))),
+                )
+            })
+            .collect();
+        let draft = zone.draft(inputs);
+        let applied = zone.run_tick(draft.clone()).unwrap();
+        assert_eq!(applied.dispositions.len(), 1);
+        assert_eq!(applied.dispositions[0].reason, RejectReason::ItemOperationConflict);
+        assert_eq!(applied, cold.run_tick(draft).unwrap());
+        assert_eq!(zone.rng.get_word_pos(), before_rng);
+        let player = &zone.phase4.as_ref().unwrap().canonical.players[&target.entity];
+        assert_eq!(player.inventory_revision, original.inventory_revision.checked_add(1).unwrap());
+        assert_eq!(player.paperdoll, original.paperdoll);
+        assert_ne!(player.equipment_sources, source_order);
+        let checkpoints: Vec<_> = applied
+            .events
+            .iter()
+            .filter_map(|event| {
+                if let ZoneEvent::ItemCheckpoint(p) = event {
+                    Some(p)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        assert_eq!(checkpoints.len(), 1);
+        let checkpoint = checkpoints[0];
+        assert_eq!(checkpoint.receipts.len(), 4);
+        assert_eq!(checkpoint.ledger.len(), 2);
+        assert_eq!(checkpoint.ledger[0].operation, ItemOperation::Unequip);
+        assert_eq!(checkpoint.ledger[1].operation, ItemOperation::Equip);
+        assert_eq!(checkpoint.receipts[1].reference().key, checkpoint.receipts[2].reference().key);
+        assert_ne!(
+            checkpoint.receipts[1].reference().operation,
+            checkpoint.receipts[2].reference().operation
+        );
+        let results: Vec<_> = applied
+            .events
+            .iter()
+            .filter_map(|event| {
+                if let ZoneEvent::ItemResult(r) = event {
+                    Some(r)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        assert_eq!(results.len(), 5);
+        assert_eq!(results[2], results[3]);
+        assert_eq!(results[0].inventory_revision, original.inventory_revision);
+        assert_eq!(results[1].inventory_revision, player.inventory_revision);
+        let ordinary = zone
+            .phase3
+            .as_ref()
+            .unwrap()
+            .canonical
+            .checkpoint(target.entity, applied.tick)
+            .unwrap();
+        checkpoint
+            .validate_structure(ordinary.modifier_install_order.len())
+            .unwrap();
+        for (observer, outputs) in &applied.outputs {
+            if let Some(first) = outputs
+                .iter()
+                .position(|o| matches!(o, ObserverOutput::Event(ZoneEvent::ItemResult(_))))
+            {
+                assert!(outputs[first..]
+                    .iter()
+                    .all(|o| matches!(o, ObserverOutput::Event(ZoneEvent::ItemResult(_)))));
+            }
+            assert!(outputs
+                .iter()
+                .all(|o| !matches!(o, ObserverOutput::Event(ZoneEvent::ItemCheckpoint(_)))));
+            if *observer != target.entity {
+                assert!(outputs
+                    .iter()
+                    .all(|o| !matches!(o, ObserverOutput::Event(ZoneEvent::ItemResult(_)))));
+            }
+        }
+        let record = crate::application::replay_log::AppliedTickRecord::from_applied(
+            zone.seed.zone,
+            &applied,
+        );
+        assert_eq!(
+            crate::application::replay_log::AppliedTickRecord::decode(&record.encode()).unwrap(),
+            record
+        );
+        let restored = ZoneState::from_snapshot_with_items(
+            zone.snapshot(),
+            Some(Arc::clone(&zone.phase4.as_ref().unwrap().rules)),
+        )
+        .unwrap();
+        assert_eq!(zone.snapshot(), restored.snapshot());
+    }
+
+    #[test]
+    fn v6_equipment_command_rebuilds_before_next_command_and_rolls_back_each_refusal() {
+        use crate::domain::zone::{EquipSlot, ItemCommandKind as K, ItemInstanceId};
+        let (mut zone, target, _) = equipment_fixture();
+        let old_sheet = zone.effective(target.entity).unwrap();
+        let old_hp = zone.entities[&target.entity].combat.as_ref().unwrap().hp;
+        let weapon = zone.phase4.as_ref().unwrap().canonical.players[&target.entity].paperdoll
+            [&EquipSlot::Rhand];
+        let unequip = item_intent(
+            &zone,
+            target.entity,
+            20,
+            K::Unequip {
+                slot: EquipSlot::Rhand,
+            },
+        );
+        let mut events = Vec::new();
+        zone.item_command_v6(zone.next_tick, &unequip, &mut events)
+            .unwrap();
+        assert_ne!(
+            zone.effective(target.entity).unwrap().physical.p_atk(),
+            old_sheet.physical.p_atk()
+        );
+        assert!(zone.entities[&target.entity].combat.as_ref().unwrap().hp <= old_hp);
+        let before = zone.snapshot();
+        for kind in [
+            K::Equip {
+                instance: ItemInstanceId::new(99999).unwrap(),
+                preferred_slot: None,
+            },
+            K::Equip {
+                instance: weapon,
+                preferred_slot: Some(EquipSlot::Lfinger),
+            },
+        ] {
+            let command = item_intent(&zone, target.entity, 21, kind);
+            let events_before = events.clone();
+            assert!(zone
+                .item_command_v6(zone.next_tick, &command, &mut events)
+                .is_err());
+            assert_eq!(zone.snapshot(), before);
+            assert_eq!(events, events_before);
+        }
+        let equip = item_intent(
+            &zone,
+            target.entity,
+            21,
+            K::Equip {
+                instance: weapon,
+                preferred_slot: None,
+            },
+        );
+        zone.item_command_v6(zone.next_tick, &equip, &mut events)
+            .unwrap();
+        assert_eq!(zone.effective(target.entity).unwrap().physical, old_sheet.physical);
+        let sequence = zone
+            .phase3
+            .as_ref()
+            .unwrap()
+            .canonical
+            .next_install_sequence;
+        let inventory = zone.phase4.as_ref().unwrap().canonical.players[&target.entity].clone();
+        let noop = item_intent(
+            &zone,
+            target.entity,
+            22,
+            K::Equip {
+                instance: weapon,
+                preferred_slot: None,
+            },
+        );
+        zone.item_command_v6(zone.next_tick, &noop, &mut events)
+            .unwrap();
+        assert_eq!(
+            zone.phase3
+                .as_ref()
+                .unwrap()
+                .canonical
+                .next_install_sequence,
+            sequence
+        );
+        assert_eq!(zone.phase4.as_ref().unwrap().canonical.players[&target.entity], inventory);
+    }
+    #[test]
+    fn v6_equipment_race_and_active_item_cast_refusals_preserve_every_scalar() {
+        use crate::domain::zone::{
+            EquipSlot, ItemCommandKind as K, ItemInstance, ItemInstanceId, ItemLocation,
+        };
+        let (mut zone, owner, npc) = equipment_fixture();
+        let restricted = ItemInstanceId::new(901).unwrap();
+        zone.phase4
+            .as_mut()
+            .unwrap()
+            .canonical
+            .players
+            .get_mut(&owner.entity)
+            .unwrap()
+            .inventory
+            .insert(
+                restricted,
+                ItemInstance {
+                    id: restricted,
+                    template_id: 9210,
+                    count: 1,
+                    location: ItemLocation::Inventory,
+                    slot: None,
+                    enchant: 0,
+                    augment_id: None,
+                    charges: 0,
+                    created_tick: Tick(0),
+                    revision: 1,
+                },
+            );
+        zone.rebuild_v5(owner.entity).unwrap();
+        let command = item_intent(
+            &zone,
+            owner.entity,
+            30,
+            K::Equip {
+                instance: restricted,
+                preferred_slot: None,
+            },
+        );
+        let before = zone.snapshot();
+        let mut events = Vec::new();
+        assert_eq!(
+            zone.item_command_v6(zone.next_tick, &command, &mut events),
+            Err(RejectReason::ItemNotUsable)
+        );
+        assert_eq!(zone.snapshot(), before);
+        assert!(events.is_empty());
+        start_cast(&mut zone, owner, npc);
+        let CastState::Casting(cast) = zone.sidecar(owner.entity).unwrap().cast.clone() else {
+            panic!("cast")
+        };
+        let weapon = zone.phase4.as_ref().unwrap().canonical.players[&owner.entity].paperdoll
+            [&EquipSlot::Rhand];
+        zone.phase4.as_mut().unwrap().canonical.item_casts.insert(
+            cast.id,
+            crate::domain::zone::phase4::ItemCastState {
+                caster: owner,
+                cast: cast.clone(),
+                origin: None,
+                simultaneous: false,
+                weapon: Some(weapon),
+                shots: 0,
+            },
+        );
+        let unequip = item_intent(
+            &zone,
+            owner.entity,
+            31,
+            K::Unequip {
+                slot: EquipSlot::Rhand,
+            },
+        );
+        let before = zone.snapshot();
+        assert_eq!(
+            zone.item_command_v6(zone.next_tick, &unequip, &mut events),
+            Err(RejectReason::AlreadyCasting)
+        );
+        assert_eq!(zone.snapshot(), before);
+        assert!(events.is_empty());
+        zone.phase4.as_mut().unwrap().canonical.item_casts.clear();
+        // An ordinary cast with no weapon condition continues and reads the new sheet at impact.
+        zone.item_command_v6(zone.next_tick, &unequip, &mut events)
+            .unwrap();
+        assert_eq!(zone.sidecar(owner.entity).unwrap().cast, CastState::Casting(cast));
+    }
 }

@@ -1356,9 +1356,23 @@ mod tests;
 pub(crate) fn class_error(reason: crate::domain::zone::RejectReason) -> super::AppError {
     use crate::domain::zone::RejectReason;
     match reason {
-        RejectReason::TransferConflict => super::AppError::IdempotencyConflict,
+        RejectReason::TransferConflict | RejectReason::ItemOperationConflict => {
+            super::AppError::IdempotencyConflict
+        },
         RejectReason::NotPermitted => super::AppError::PermissionDenied(reason.detail().to_owned()),
-        RejectReason::SkillNotLearnable
+        RejectReason::ItemNotOwned
+        | RejectReason::ItemNotUsable
+        | RejectReason::InvalidEquipSlot
+        | RejectReason::InsufficientItems
+        | RejectReason::InventoryFull
+        | RejectReason::ItemGradeMismatch
+        | RejectReason::ItemReuse
+        | RejectReason::InvalidEnchant
+        | RejectReason::InvalidRefinement
+        | RejectReason::InvalidRecipe
+        | RejectReason::ItemCapabilityDeferred
+        | RejectReason::CrystallizeLevelTooLow
+        | RejectReason::SkillNotLearnable
         | RejectReason::SkillWrongRank
         | RejectReason::SkillLevelRequired
         | RejectReason::SkillItemRequired

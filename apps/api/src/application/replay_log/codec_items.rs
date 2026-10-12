@@ -94,6 +94,52 @@ mod tests {
         .unwrap()
     }
     #[test]
+    fn item_rejections_are_additive_and_record_eight_only() {
+        use crate::domain::zone::RejectReason as R;
+        for (index, reason) in [
+            R::ItemNotOwned,
+            R::ItemNotUsable,
+            R::InvalidEquipSlot,
+            R::InsufficientItems,
+            R::InventoryFull,
+            R::ItemGradeMismatch,
+            R::ItemReuse,
+            R::InvalidEnchant,
+            R::InvalidRefinement,
+            R::InvalidRecipe,
+            R::ItemOperationConflict,
+            R::ItemCapabilityDeferred,
+            R::CrystallizeLevelTooLow,
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let tag = 39_i32.checked_add(i32::try_from(index).unwrap()).unwrap();
+            assert_eq!(super::super::reason_to_pb(reason), tag);
+            assert_eq!(super::super::reason_from_pb(tag).unwrap(), reason);
+            assert_eq!(
+                i32::from(crate::interface::zone_mapping::reject_reason_to_pb(reason)),
+                tag.checked_sub(14).unwrap()
+            );
+            for schema in 3..=8 {
+                let record = super::super::PbRecord {
+                    schema,
+                    dispositions: vec![super::super::PbDisposition {
+                        reason: tag,
+                        ..Default::default()
+                    }],
+                    state_digest: vec![0; 32].into(),
+                    ..Default::default()
+                };
+                assert_eq!(
+                    super::super::decode_record(&record.encode_to_vec()).is_ok(),
+                    schema == 8
+                );
+            }
+        }
+    }
+
+    #[test]
     fn frozen_item_results_pin_tags_and_owner_only_record_eight_routing() {
         use crate::domain::zone::phase4_projection::{ItemEnchantOutcome, ItemRefineOutcome};
         let mut result = crate::domain::zone::phase4_projection::tests::projection()

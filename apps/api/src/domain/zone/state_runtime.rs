@@ -242,7 +242,7 @@ impl ZoneState {
         )
         .map(Some)
     }
-    fn rebuild_v5(&mut self, id: EntityId) -> Result<(), TickError> {
+    pub(super) fn rebuild_v5(&mut self, id: EntityId) -> Result<(), TickError> {
         let before = self.evidence.as_ref().map(|_| {
             serde_json::json!({
                 "entity": self.entities.get(&id), "word_cursor": self.rng.get_word_pos().to_string()
@@ -804,6 +804,7 @@ impl ZoneState {
                 }
             }
         }
+        self.freeze_items_v6(tick, &mut events)?;
         self.freeze_learning_v5(tick, &mut events)?;
         self.freeze_transfers_v5(&mut events)?;
         self.phase3
@@ -981,7 +982,7 @@ impl ZoneState {
         if let ZoneCommand::Despawn { entity } | ZoneCommand::ReplaceSession { entity, .. } =
             command.command
         {
-            if events.iter().any(|event| matches!(event, ZoneEvent::SkillLearned { entity: learned, .. } | ZoneEvent::ClassTransfer { entity: learned, .. } if *learned == entity)) {
+            if events.iter().any(|event| matches!(event, ZoneEvent::SkillLearned { entity: learned, .. } | ZoneEvent::ClassTransfer { entity: learned, .. } if *learned == entity) || matches!(event, ZoneEvent::ItemCheckpoint(p) if p.entity == entity)) {
                 return Err(RejectReason::InCombat);
             }
         }
@@ -1091,8 +1092,8 @@ impl ZoneState {
                     })
                     .map_err(cast_reject)?;
             },
-            ZoneCommand::Item(_)
-            | ZoneCommand::AcceptResurrect { .. }
+            ZoneCommand::Item(item) => self.item_command_v6(tick, item, events)?,
+            ZoneCommand::AcceptResurrect { .. }
             | ZoneCommand::ChangeClass { .. }
             | ZoneCommand::Attack { .. }
             | ZoneCommand::AddAggro { .. } => return Err(RejectReason::NotYetImplemented),
