@@ -44,6 +44,8 @@ pub struct Dependencies {
     pub item_grants: Option<Arc<dyn application::ports::ItemGrantRuntime>>,
     /// Same typed item/learning writer installed before durable recovery.
     pub item_checkpoints: Option<Arc<dyn application::ports::ItemCheckpointRepository>>,
+    /// Durable item range reservations from the same character adapter.
+    pub item_admission: Option<Arc<dyn application::ports::ItemAdmissionRepository>>,
     /// Frozen item receipts from the same atomic item checkpoint adapter.
     pub item_receipts: Option<Arc<dyn application::ports::ItemReceiptRepository>>,
     /// Prevalidated V6 metadata; None keeps `GetItemCatalog` fail closed.
@@ -96,6 +98,7 @@ impl Dependencies {
             item_grants: None,
             item_receipts: Some(characters.clone()),
             item_checkpoints: Some(characters.clone()),
+            item_admission: Some(characters.clone()),
             item_catalogue: None,
             item_inventory: Some(characters.clone()),
             learning: Some(characters.clone()),
@@ -242,6 +245,9 @@ pub fn start_realtime(
     );
     if let Some(items) = &deps.item_checkpoints {
         checkpoints = checkpoints.with_items(items.clone());
+    }
+    if let Some(reservations) = &deps.item_admission {
+        checkpoints = checkpoints.with_item_admission(reservations.clone());
     }
     if let Some(learning) = &deps.learning {
         checkpoints = checkpoints.with_learning(learning.clone());

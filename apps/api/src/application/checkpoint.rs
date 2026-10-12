@@ -52,6 +52,7 @@ pub struct CheckpointService {
     repo: Arc<dyn CharacterRepository>,
     learning_repo: Option<Arc<dyn super::ports::LearningCheckpointRepository>>,
     item_repo: Option<Arc<dyn super::ports::ItemCheckpointRepository>>,
+    item_admission: Option<Arc<dyn super::ports::ItemAdmissionRepository>>,
     audit: Arc<dyn SessionAudit>,
     metrics: Arc<dyn CheckpointMetrics>,
     players: BTreeMap<EntityId, Player>,
@@ -72,6 +73,7 @@ impl CheckpointService {
             repo,
             learning_repo: None,
             item_repo: None,
+            item_admission: None,
             audit,
             metrics,
             players: BTreeMap::new(),
@@ -97,6 +99,26 @@ impl CheckpointService {
     pub fn with_items(mut self, repo: Arc<dyn super::ports::ItemCheckpointRepository>) -> Self {
         self.item_repo = Some(repo);
         self
+    }
+    /// Installs durable range reservations before an exhausted V6 actor resumes.
+    #[must_use]
+    pub fn with_item_admission(
+        mut self,
+        repo: Arc<dyn super::ports::ItemAdmissionRepository>,
+    ) -> Self {
+        self.item_admission = Some(repo);
+        self
+    }
+    pub(crate) async fn extend_item_range(
+        &self,
+        seed: crate::domain::zone::ZoneSeed,
+        exhausted_start: u64,
+    ) -> Result<super::ports::ItemIdRange, super::CheckpointError> {
+        self.item_admission
+            .as_ref()
+            .ok_or_else(|| super::CheckpointError::Constraint("item_admission_required".into()))?
+            .reserve_item_range_extension(seed.zone, seed.epoch, exhausted_start)
+            .await
     }
     /// Item simulation cannot activate without a typed durable receipt lane.
     pub fn items_enabled(&self) -> bool {
