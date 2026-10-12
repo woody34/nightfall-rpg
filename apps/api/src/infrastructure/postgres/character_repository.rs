@@ -37,6 +37,7 @@ pub struct PgCharacterRepository {
     metrics: Option<Metrics>,
     classes: Option<Arc<ClassRegistry>>,
     phase3_rules: Option<Arc<Phase3Rules>>,
+    phase4_rules: Option<Arc<crate::domain::zone::Phase4Rules>>,
 }
 
 impl PgCharacterRepository {
@@ -48,6 +49,7 @@ impl PgCharacterRepository {
             metrics: None,
             classes: None,
             phase3_rules: None,
+            phase4_rules: None,
         }
     }
 
@@ -63,6 +65,18 @@ impl PgCharacterRepository {
     pub fn with_phase3_rules(mut self, rules: Arc<Phase3Rules>) -> Self {
         self.phase3_rules = Some(rules);
         self
+    }
+
+    /// Install the exact item/skill pair selected for this V6 epoch, never a mixed catalogue.
+    pub fn with_phase4_rules(
+        mut self,
+        items: Arc<crate::domain::zone::Phase4Rules>,
+        skills: Arc<Phase3Rules>,
+    ) -> anyhow::Result<Self> {
+        items.validate_phase3(&skills).map_err(anyhow::Error::msg)?;
+        self.phase3_rules = Some(skills);
+        self.phase4_rules = Some(items);
+        Ok(self)
     }
 
     fn phase3_rules(&self) -> anyhow::Result<Arc<Phase3Rules>> {
@@ -322,12 +336,30 @@ impl CharacterRepository for PgCharacterRepository {
                 let revision = u64::try_from(m.revision)?;
                 let phase3 = phase3_checkpoint::load(&tx, &m).await?;
                 let phase4 = super::phase4_checkpoint::load(&tx, &m, phase3.as_ref()).await?;
-                // Replace this rollout fence when the canonical V6 PlayerLoad is installed.
-                anyhow::ensure!(phase4.is_none(), "Phase4 admission is not yet available");
+                // Legacy readers must never silently drop retained V6 inventory.
+                anyhow::ensure!(
+                    self.phase4_rules.is_some() || phase4.is_none(),
+                    "Phase4 admission requires its matching runtime bundle"
+                );
                 let mut c = model_to_character(m)?;
                 character_ledger::hydrate(&tx, &mut c).await?;
                 self.validate_versioned(&c, &c.class_state, phase3.as_ref(), alive)?;
+                let phase4 = if let Some(rules) = &self.phase4_rules {
+                    let requests = super::item_admission::load_pending(&tx, c.id).await?;
+                    Some(crate::infrastructure::item_manifests::admission_load(
+                        &c,
+                        phase4,
+                        &requests,
+                        phase3
+                            .as_ref()
+                            .map_or(0, |p| p.modifier_install_order.len()),
+                        rules,
+                    )?)
+                } else {
+                    None
+                };
                 Some(ProgressionState {
+                    phase4,
                     phase3,
                     position: c.position,
                     level: c.level,
@@ -526,6 +558,7 @@ impl PgCharacterRepository {
             .map_err(other)?
             .ok_or(CheckpointError::NotFound)?;
         let phase3_seen = original.phase3_timer_policy_version.is_some();
+        let original_model = original.clone();
         let original = model_to_character(original)?;
         let account = original.account_id.as_uuid();
         // An exact immutable checkpoint retry proves this draft committed, even after
@@ -645,6 +678,13 @@ impl PgCharacterRepository {
             return Ok(LearningCheckpointOutcome::Checkpoint(CheckpointOutcome::Stale));
         }
 
+        let phase3_original = phase3_checkpoint::load(&tx, &original_model).await?;
+        let phase4_original =
+            super::phase4_checkpoint::load(&tx, &original_model, phase3_original.as_ref()).await?;
+        crate::application::ports::validate_item_retention(
+            phase4_original.as_ref(),
+            cp.phase4.as_ref(),
+        )?;
         if phase3_seen && cp.phase3.is_none() {
             return Err(CheckpointError::Constraint("characters_phase3_downgrade".into()));
         }
@@ -655,6 +695,10 @@ impl PgCharacterRepository {
         character_ledger::persist(&tx, cp, &original).await?;
         if let Some(phase3) = &cp.phase3 {
             phase3_checkpoint::persist(&tx, cp.character_id, phase3).await?;
+        }
+
+        if let Some(phase4) = &cp.phase4 {
+            super::phase4_checkpoint::persist_retained(&tx, cp.character_id, phase4).await?;
         }
 
         for event in events {

@@ -332,6 +332,7 @@ async fn progression_failed_commit_publishes_nothing_and_committed_retry_is_brok
     };
     let events = domain_events(ZoneId(1), 2, 1, &delta);
     let cp = CharacterCheckpoint {
+        phase4: None,
         phase3: None,
         character_id: c.id,
         revision_seen: 0,

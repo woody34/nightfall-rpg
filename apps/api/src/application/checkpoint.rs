@@ -17,7 +17,7 @@ use super::ports::{
 use super::replay_log::{AppliedTickRecord, EventLog};
 use crate::domain::zone::{
     AppliedTick, AppliedTickDraft, CombatRole, EntityId, Phase3Entity, ProgressionDelta, Tick,
-    ZoneCommand, ZoneId, ZoneSnapshot, ZoneState, UNITS_PER_TILE,
+    ZoneCommand, ZoneId, ZoneSnapshot, UNITS_PER_TILE,
 };
 use crate::domain::{CharacterId, DomainEvent, EventMetadata, Position, SessionId};
 
@@ -258,6 +258,7 @@ impl CheckpointService {
                         events: p.events.clone(),
                         learning: None,
                         latest: p.latest.as_ref().map(|cp| CharacterCheckpoint {
+                            phase4: None,
                             phase3: cp.phase3.clone(),
                             class_state: cp.class_state.clone(),
                             character_id: CharacterId::from_uuid(p.entity.as_uuid()),
@@ -414,6 +415,7 @@ impl CheckpointService {
                 "player checkpoint sidecar missing"
             );
             let mut cp = CharacterCheckpoint {
+                phase4: None,
                 phase3: phase3
                     .map(|phase| phase.checkpoint(entity.id, tick.tick))
                     .transpose()?,
@@ -714,7 +716,7 @@ impl CheckpointService {
         );
         self.restore(&stored.snapshot);
         let first_tick = stored.snapshot.tick;
-        let mut state = ZoneState::from_snapshot(stored.snapshot)?;
+        let mut state = super::replay_log::restore_snapshot(stored.snapshot)?;
         let mut records = log.read_epoch(zone, epoch).await?;
         while let Some(record) = records.next().await {
             let record = record?;
@@ -782,7 +784,7 @@ async fn close_recovered_epoch(log: &dyn EventLog, zone: ZoneId, epoch: u64) -> 
         .read_snapshot(zone, epoch)
         .await?
         .ok_or_else(|| anyhow::anyhow!("epoch-start snapshot missing during recovery closure"))?;
-    let mut state = ZoneState::from_snapshot(original.snapshot)?;
+    let mut state = super::replay_log::restore_snapshot(original.snapshot)?;
     let mut records = log.read_epoch(zone, epoch).await?;
     let mut count = 0_u64;
     let mut last_tick = None;

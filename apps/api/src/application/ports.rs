@@ -153,6 +153,8 @@ pub struct ProgressionState {
     pub class_state: ClassState,
     /// Explicit paused Phase 3 payload. None identifies legacy state.
     pub phase3: Option<crate::domain::zone::Phase3Checkpoint>,
+    /// Complete recorded V6 admission input, populated only with the matching runtime bundle.
+    pub phase4: Option<crate::domain::zone::Phase4PlayerLoad>,
     /// Bumped by every applied checkpoint; the fence for the next one.
     pub revision: u64,
 }
@@ -180,6 +182,8 @@ pub struct CharacterCheckpoint {
     pub idempotency: (String, IdempotencyKey),
     /// None is legacy recovery: preserve ledger and original checkpoint fingerprint bytes.
     pub class_state: Option<ClassState>,
+    /// Strict V6 retained item state; absent on all legacy requests and fingerprints.
+    pub phase4: Option<crate::domain::zone::Phase4Checkpoint>,
     /// Explicit V5 retained state; absent on all legacy requests and fingerprints.
     pub phase3: Option<crate::domain::zone::Phase3Checkpoint>,
 }
@@ -207,6 +211,9 @@ impl CharacterCheckpoint {
         if let (Some(phase3), Some(object)) = (&self.phase3, body.as_object_mut()) {
             object.insert("phase3".into(), serde_json::json!(phase3));
         }
+        if let (Some(phase4), Some(object)) = (&self.phase4, body.as_object_mut()) {
+            object.insert("phase4".into(), serde_json::json!(phase4));
+        }
         Sha256::digest(body.to_string().as_bytes())
             .iter()
             .fold(String::new(), |mut s, b| {
@@ -220,7 +227,14 @@ impl CharacterCheckpoint {
     /// Postgres would. Returns the violated constraint's name.
     #[must_use]
     pub fn violated_constraint(&self) -> Option<&'static str> {
-        if self.phase3.as_ref().is_some_and(|p| {
+        if self.phase4.as_ref().is_some_and(|p| {
+            self.phase3.as_ref().is_none_or(|phase3| {
+                p.validate_structure(phase3.modifier_install_order.len())
+                    .is_err()
+            })
+        }) {
+            Some("characters_phase4_state_valid")
+        } else if self.phase3.as_ref().is_some_and(|p| {
             self.class_state.is_none()
                 || p.timer_policy_version != 1
                 || p.death_penalty_level > 5

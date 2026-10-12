@@ -8,7 +8,7 @@ use crate::application::ports::{CheckpointError, RepositoryError};
 use crate::application::{CreateOutcome, ProgressionState};
 use crate::domain::zone::{
     DeathFact, PlayerLoad, SessionGeneration, Speed, Vec2Fixed, ZoneBounds, ZoneEvent, ZoneInput,
-    ZoneSeed,
+    ZoneSeed, ZoneState,
 };
 use crate::domain::{AccountId, Character, CharacterName, Race};
 use crate::infrastructure::memory::{

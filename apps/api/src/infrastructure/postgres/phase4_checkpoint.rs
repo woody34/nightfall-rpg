@@ -124,3 +124,22 @@ fn slot_from_db(value: i16) -> anyhow::Result<EquipSlot> {
         .copied()
         .ok_or_else(|| anyhow::anyhow!("invalid item slot"))
 }
+
+pub(super) async fn persist_retained<C: ConnectionTrait>(
+    db: &C,
+    character: CharacterId,
+    checkpoint: &Phase4Checkpoint,
+) -> anyhow::Result<()> {
+    let changed = db
+        .execute_raw(Statement::from_sql_and_values(
+            DbBackend::Postgres,
+            "UPDATE characters SET phase4_checkpoint=$2 WHERE id=$1",
+            [
+                character.as_uuid().into(),
+                serde_json::to_value(checkpoint)?.into(),
+            ],
+        ))
+        .await?;
+    anyhow::ensure!(changed.rows_affected() == 1, "retained item parent disappeared");
+    Ok(())
+}
