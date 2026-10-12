@@ -86,6 +86,8 @@ impl ZoneInput {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ZoneCommand {
+    /// Authenticated owner item intent. V6 only; costs and outcomes are resolved by the zone.
+    Item(Box<super::ItemCommand>),
     /// Stage a skill start; learned rank and selected target are resolved by the zone.
     CastSkill {
         /// Authenticated session-owned caster.
@@ -234,11 +236,17 @@ impl ZoneCommand {
         }
         matches!(
             self,
-            Self::CastSkill { .. }
+            Self::Item(_)
+                | Self::CastSkill { .. }
                 | Self::CancelCast { .. }
                 | Self::AcceptResurrect { .. }
                 | Self::LearnSkill { .. }
         )
+    }
+
+    /// Item intents must never enter a pre-V6 replay epoch.
+    pub const fn requires_phase4(&self) -> bool {
+        matches!(self, Self::Item(_))
     }
 
     /// The entity the command is about. `None` for `SpawnNpc`, whose id is not known until the
@@ -246,6 +254,7 @@ impl ZoneCommand {
     #[must_use]
     pub const fn entity(&self) -> Option<EntityId> {
         match self {
+            Self::Item(command) => Some(command.entity),
             Self::CastSkill { entity, .. }
             | Self::CancelCast { entity, .. }
             | Self::AcceptResurrect { entity, .. }

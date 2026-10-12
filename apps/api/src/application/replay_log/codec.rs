@@ -85,8 +85,11 @@ pub use sizing::{
     AdmissionSizingError, CommandAdmissionSize,
 };
 
+#[path = "codec_items.rs"]
+mod items;
 #[path = "codec_phase3.rs"]
 mod phase3;
+
 use phase3::{PbAcceptResurrect, PbCancelCast, PbCastSkill, PbLearnSkill};
 
 use bytes::Bytes;
@@ -155,13 +158,34 @@ struct PbCommand {
     seq: Option<u32>,
     #[prost(
         oneof = "PbCommandKind",
-        tags = "4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19"
+        tags = "4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29"
     )]
     kind: Option<PbCommandKind>,
 }
 
 #[derive(Clone, PartialEq, prost::Oneof)]
 enum PbCommandKind {
+    #[prost(bytes, tag = "20")]
+    EquipItem(Vec<u8>),
+    #[prost(bytes, tag = "21")]
+    UnequipItem(Vec<u8>),
+    #[prost(bytes, tag = "22")]
+    UseItem(Vec<u8>),
+    #[prost(bytes, tag = "23")]
+    DestroyItem(Vec<u8>),
+    #[prost(bytes, tag = "24")]
+    EnchantItem(Vec<u8>),
+    #[prost(bytes, tag = "25")]
+    ToggleAutoShot(Vec<u8>),
+    #[prost(bytes, tag = "26")]
+    RefineItem(Vec<u8>),
+    #[prost(bytes, tag = "27")]
+    CancelRefine(Vec<u8>),
+    #[prost(bytes, tag = "28")]
+    ExchangeSpecialAbility(Vec<u8>),
+    #[prost(bytes, tag = "29")]
+    CrystallizeItem(Vec<u8>),
+
     #[prost(message, tag = "16")]
     CastSkill(PbCastSkill),
     #[prost(message, tag = "17")]
@@ -759,6 +783,7 @@ fn command_to_pb(c: &AppliedCommand) -> PbCommand {
             skill_id: skill_id.0,
             skill_level: *skill_level,
         }),
+        ZoneCommand::Item(command) => items::command_to_pb(command),
         ZoneCommand::ChangeClass { .. } => PbCommandKind::ChangeClass(canonical_json(&c.command)),
         ZoneCommand::SpawnPlayer {
             entity,
@@ -1584,6 +1609,17 @@ fn source_from(s: Option<PbSession>) -> Result<CommandSource, CodecError> {
 
 fn command_from_pb(c: PbCommand) -> Result<AppliedCommand, CodecError> {
     let command = match c.kind {
+        Some(PbCommandKind::EquipItem(bytes)) => items::command_from_json(&bytes, 20)?,
+        Some(PbCommandKind::UnequipItem(bytes)) => items::command_from_json(&bytes, 21)?,
+        Some(PbCommandKind::UseItem(bytes)) => items::command_from_json(&bytes, 22)?,
+        Some(PbCommandKind::DestroyItem(bytes)) => items::command_from_json(&bytes, 23)?,
+        Some(PbCommandKind::EnchantItem(bytes)) => items::command_from_json(&bytes, 24)?,
+        Some(PbCommandKind::ToggleAutoShot(bytes)) => items::command_from_json(&bytes, 25)?,
+        Some(PbCommandKind::RefineItem(bytes)) => items::command_from_json(&bytes, 26)?,
+        Some(PbCommandKind::CancelRefine(bytes)) => items::command_from_json(&bytes, 27)?,
+        Some(PbCommandKind::ExchangeSpecialAbility(bytes)) => items::command_from_json(&bytes, 28)?,
+        Some(PbCommandKind::CrystallizeItem(bytes)) => items::command_from_json(&bytes, 29)?,
+
         None => return Err(CodecError("command without a kind".to_owned())),
         Some(PbCommandKind::CastSkill(value)) => value.into_command()?,
         Some(PbCommandKind::CancelCast(value)) => value.into_command()?,

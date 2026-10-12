@@ -274,6 +274,7 @@ fn command_details(record: &AppliedTickRecord) -> String {
                 }
                 format!("{command:#?} (private admission load hidden)")
             },
+            ZoneCommand::Item(command) => format!("Item intent for {} (private request hidden)", command.entity),
             ZoneCommand::LearnSkill { entity, skill_id, skill_level, .. } => format!(
                 "LearnSkill actor command: {entity} → skill {} rank {skill_level} (private receipt identity hidden)", skill_id.0
             ),

@@ -302,7 +302,7 @@ impl ItemCommand {
     /// Enrich once with the authenticated owner; retries may only retain the same account.
     pub fn with_account(mut self, account: crate::domain::AccountId) -> Result<Self, ItemError> {
         self.validate_shape()?;
-        if self.account.is_some_and(|old| old != account) {
+        if account.as_uuid().is_nil() || self.account.is_some_and(|old| old != account) {
             return Err(ItemError("item command account mismatch"));
         }
         self.account = Some(account);
@@ -332,8 +332,30 @@ impl ItemCommand {
 
     /// Also called after typed replay decoding, so derived serde cannot bypass shape guards.
     pub fn validate_shape(&self) -> Result<(), ItemError> {
-        if self.request_id.is_nil() {
+        if self.request_id.is_nil()
+            || self.entity.as_uuid().is_nil()
+            || self
+                .account
+                .is_some_and(|account| account.as_uuid().is_nil())
+        {
             return Err(ItemError("empty item request identity"));
+        }
+        let binding = match &self.kind {
+            ItemCommandKind::Use { target, .. } => *target,
+            ItemCommandKind::Refine { npc, .. }
+            | ItemCommandKind::CancelRefine { npc, .. }
+            | ItemCommandKind::ExchangeSpecialAbility { npc, .. } => Some(*npc),
+            ItemCommandKind::Equip { .. }
+            | ItemCommandKind::Unequip { .. }
+            | ItemCommandKind::Destroy { .. }
+            | ItemCommandKind::Enchant { .. }
+            | ItemCommandKind::ToggleAutoShot { .. }
+            | ItemCommandKind::Crystallize { .. } => None,
+        };
+        if binding
+            .is_some_and(|binding| binding.entity.as_uuid().is_nil() || binding.incarnation == 0)
+        {
+            return Err(ItemError("invalid item target binding"));
         }
         match &self.kind {
             ItemCommandKind::Destroy { count, .. }
@@ -399,6 +421,10 @@ mod command_tests {
         let input = command(2, 3);
         assert!(input.authenticated_account().is_err());
         assert!(input.fingerprint().is_err());
+        assert!(input
+            .clone()
+            .with_account(AccountId::from_uuid(uuid::Uuid::nil()))
+            .is_err());
         let authenticated = input.with_account(account).unwrap();
         let retry = command(2, 4).with_account(account).unwrap();
         assert_eq!(authenticated.fingerprint().unwrap(), retry.fingerprint().unwrap());
@@ -424,6 +450,13 @@ mod command_tests {
     fn decoded_invalid_roles_counts_and_keys_are_rejected_before_recording() {
         let instance = ItemInstanceId::new(7).unwrap();
         let cases = [
+            ItemCommandKind::Use {
+                instance,
+                target: Some(super::super::effects::TargetBinding {
+                    entity: super::super::EntityId::from_uuid(uuid::Uuid::from_u128(8)),
+                    incarnation: 0,
+                }),
+            },
             ItemCommandKind::Destroy { instance, count: 0 },
             ItemCommandKind::Destroy {
                 instance,

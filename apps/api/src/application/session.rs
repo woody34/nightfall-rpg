@@ -915,6 +915,7 @@ impl<'a> Actor<'a> {
                     | ZoneCommand::CancelCast { .. }
                     | ZoneCommand::AcceptResurrect { .. }
                     | ZoneCommand::LearnSkill { .. }
+                    | ZoneCommand::Item(_)
                     | ZoneCommand::ChangeClass { .. }
                     | ZoneCommand::SpawnNpc { .. }
                     | ZoneCommand::Despawn { .. }

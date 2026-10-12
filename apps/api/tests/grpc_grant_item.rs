@@ -222,6 +222,8 @@ fn frozen(
                 active_sets: BTreeMap::new(),
                 weight: 1,
                 max_load: 100_000,
+                ordinary_capacity: 83,
+                quest_capacity: 101,
                 weight_penalty_bonus: 1,
                 overload_level: 0,
                 overloaded: false,
