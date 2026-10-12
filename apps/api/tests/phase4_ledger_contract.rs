@@ -1,10 +1,30 @@
 //! API ledger identity, explicit consumption deltas and signed storage boundary contracts.
 #![allow(missing_docs, clippy::unwrap_used)]
 use nightfall_api::application::ports::{ItemLedgerDelta, ItemLedgerEntry, ItemLedgerOperation};
+use nightfall_api::domain::zone::phase4_projection::{ItemAuditEvidence, ItemEvidenceValue};
 use nightfall_api::domain::{
     zone::{ItemInstance, ItemInstanceId, ItemLocation, Tick, ZoneId},
     CharacterId,
 };
+use std::collections::BTreeMap;
+
+fn cause(family: &str, ordinal: u64, debit: i64, receipt: Option<uuid::Uuid>) -> serde_json::Value {
+    let mut fields = BTreeMap::from([
+        ("operation_ordinal".into(), ItemEvidenceValue::Unsigned(ordinal)),
+        ("count_delta".into(), ItemEvidenceValue::Signed(debit)),
+    ]);
+    if let Some(receipt) = receipt {
+        fields.insert("receipt".into(), ItemEvidenceValue::Text(receipt.to_string()));
+    } else {
+        fields
+            .insert("cast_id".into(), ItemEvidenceValue::Unsigned(ordinal.checked_add(1).unwrap()));
+    }
+    serde_json::to_value(ItemAuditEvidence {
+        family: family.into(),
+        fields,
+    })
+    .unwrap()
+}
 
 fn entry() -> ItemLedgerEntry {
     let before = ItemInstance {
@@ -21,7 +41,7 @@ fn entry() -> ItemLedgerEntry {
         revision: 1,
     };
     let mut after = before.clone();
-    after.count = 9;
+    after.count = 4;
     after.revision = 2;
     ItemLedgerEntry {
         character_id: CharacterId::new(),
@@ -39,8 +59,8 @@ fn entry() -> ItemLedgerEntry {
             after: Some(after),
             count_delta: -6,
             causes: vec![
-                serde_json::json!({"ordinal":0,"consumed":2}),
-                serde_json::json!({"ordinal":2,"consumed":4}),
+                cause("skill_cast_payment", 0, -2, None),
+                cause("skill_cast_payment", 2, -4, None),
             ],
         },
         receipt_ref: None,
@@ -59,6 +79,10 @@ fn aggregate_scoped_receipts_preserve_order_and_cannot_claim_one_false_sql_refer
     };
     let mut row = entry();
     row.delta.receipt_refs = vec![first, second];
+    row.delta.causes = vec![
+        cause("exchange_payment", 0, -2, Some(first.key)),
+        cause("enchant_payment", 2, -4, Some(second.key)),
+    ];
     row.validate().unwrap();
     let json = serde_json::to_value(&row).unwrap();
     assert_eq!(
@@ -91,8 +115,8 @@ fn aggregate_scoped_receipts_preserve_order_and_cannot_claim_one_false_sql_refer
         .is_none());
 }
 #[test]
-fn explicit_delta_survives_interleaving_and_typed_roundtrip() {
-    // Endpoint counts span an intervening grant; net consume count remains independently -6.
+fn canonical_consume_endpoint_matches_debit_and_typed_roundtrip() {
+    // D64 emits the consumption endpoint before subsequent positive rows.
     let value = entry();
     value.validate().unwrap();
     let restored: ItemLedgerEntry =
@@ -112,6 +136,10 @@ fn implicit_consume_retains_use_receipt_scope_in_persisted_payload() {
     };
     value.receipt_ref = Some(reference.key);
     value.delta.receipt = Some(reference);
+    value.delta.causes = vec![
+        cause("item_cast_payment", 0, -2, Some(reference.key)),
+        cause("item_cast_payment", 2, -4, Some(reference.key)),
+    ];
     value.validate().unwrap();
     let restored: ItemLedgerDelta =
         serde_json::from_value(serde_json::to_value(&value.delta).unwrap()).unwrap();
@@ -146,7 +174,11 @@ fn invalid_bounds_fabricated_rows_identity_and_batch_ordinal_are_rejected() {
     let mut bad = base.clone();
     bad.delta.after.as_mut().unwrap().revision = 3;
     assert!(bad.validate().is_err());
+    let mut overlap = base.clone();
+    overlap.delta.after.as_mut().unwrap().count = 9;
+    assert!(overlap.validate().is_err());
     let mut high = base;
+    high.delta.after.as_mut().unwrap().revision = i64::MAX.unsigned_abs();
     high.revision = i64::MAX.unsigned_abs();
     high.tick = Tick(i64::MAX.unsigned_abs());
     high.validate().unwrap();

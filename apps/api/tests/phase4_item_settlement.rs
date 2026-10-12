@@ -90,10 +90,10 @@ async fn unified_learning_contract<R>(
         count_delta: -1,
         receipt: None,
         causes: vec![ItemAuditEvidence {
-            family: "consume".into(),
+            family: "skill_cast_payment".into(),
             fields: BTreeMap::from([
-                ("ordinal".into(), ItemEvidenceValue::Unsigned(0)),
-                ("count".into(), ItemEvidenceValue::Unsigned(1)),
+                ("cast_id".into(), ItemEvidenceValue::Unsigned(1)),
+                ("count_delta".into(), ItemEvidenceValue::Signed(-1)),
             ]),
         }],
     }];
@@ -507,32 +507,33 @@ fn interleaved(
     first_work: &ItemCheckpointWork,
 ) -> (CharacterCheckpoint, ItemCheckpointWork, Vec<DomainEvent>) {
     let mut cp = first.clone();
-    cp.revision_seen = 1;
+    cp.revision_seen = first.revision_seen.checked_add(1).unwrap();
     cp.idempotency.1 = IdempotencyKey::new();
     let retained = cp.phase4.as_mut().unwrap();
-    retained.inventory_revision = 4;
+    retained.inventory_revision = retained.inventory_revision.checked_add(1).unwrap();
+    let revision = retained.inventory_revision;
     let target = retained
         .instances
         .iter_mut()
-        .max_by_key(|item| item.count)
+        .max_by_key(|item| (item.revision, item.count))
         .unwrap();
     let before = target.clone();
     let mut grant_before = before.clone();
     grant_before.count = grant_before.count.checked_sub(2).unwrap();
-    grant_before.revision = 2;
+    grant_before.revision = revision;
     let mut grant_after = grant_before.clone();
-    grant_after.count = grant_after.count.checked_add(5).unwrap();
-    grant_after.revision = 3;
-    target.count = target.count.checked_sub(1).unwrap();
-    target.revision = 4;
-    let after = target.clone();
+    grant_after.count = grant_after.count.checked_add(3).unwrap();
+    grant_after.revision = revision;
+    target.count = target.count.checked_add(1).unwrap();
+    target.revision = revision;
     let target_id = target.id;
     let request = Uuid::now_v7();
     let cause = |ordinal, count| ItemAuditEvidence {
-        family: "consume".into(),
+        family: "item_cast_payment".into(),
         fields: BTreeMap::from([
-            ("ordinal".into(), ItemEvidenceValue::Unsigned(ordinal)),
-            ("count".into(), ItemEvidenceValue::Unsigned(count)),
+            ("operation_ordinal".into(), ItemEvidenceValue::Unsigned(ordinal)),
+            ("count_delta".into(), ItemEvidenceValue::Signed(count)),
+            ("receipt".into(), ItemEvidenceValue::Text(request.to_string())),
         ]),
     };
     let mut work = first_work.clone();
@@ -541,43 +542,43 @@ fn interleaved(
     work.projection.ledger = vec![
         ItemDeltaPlan {
             receipt_refs: Vec::new(),
+            operation: ItemOperation::Consume,
+            operation_ordinal: 0,
+            instance: target_id,
+            before: Some(before),
+            after: Some(grant_before.clone()),
+            count_delta: -2,
+            receipt: Some(ItemReceiptRef {
+                operation: ItemOperation::Use,
+                key: request,
+            }),
+            causes: vec![cause(0, -1), cause(2, -1)],
+        },
+        ItemDeltaPlan {
+            receipt_refs: Vec::new(),
             operation: ItemOperation::Grant,
             operation_ordinal: 1,
             instance: target_id,
             before: Some(grant_before),
             after: Some(grant_after),
-            count_delta: 5,
+            count_delta: 3,
             receipt: Some(ItemReceiptRef {
                 operation: ItemOperation::Grant,
                 key: request,
             }),
             causes: Vec::new(),
         },
-        ItemDeltaPlan {
-            receipt_refs: Vec::new(),
-            operation: ItemOperation::Consume,
-            operation_ordinal: 0,
-            instance: target_id,
-            before: Some(before),
-            after: Some(after),
-            count_delta: -6,
-            receipt: Some(ItemReceiptRef {
-                operation: ItemOperation::Use,
-                key: request,
-            }),
-            causes: vec![cause(0, 2), cause(2, 4)],
-        },
     ];
     work.projection.receipts = vec![ItemReceiptFact {
         request_id: request,
-        fingerprint: "grant-body-five".into(),
+        fingerprint: "grant-body-three".into(),
         result: FrozenItemResult {
             accepted_sequence: None,
-            request_fingerprint: "grant-body-five".into(),
+            request_fingerprint: "grant-body-three".into(),
             entity: work.projection.entity,
             incarnation: 4,
             tick: Tick(74),
-            inventory_revision: 3,
+            inventory_revision: revision,
             receipt: request,
             detail: ItemResultDetail::Operation {
                 operation: ItemOperation::Grant,
@@ -587,12 +588,12 @@ fn interleaved(
         },
     }];
     let mut use_receipt = work.projection.receipts.first().unwrap().clone();
-    use_receipt.fingerprint = "use-body-six".into();
+    use_receipt.fingerprint = "use-body-two".into();
     use_receipt
         .result
         .request_fingerprint
         .clone_from(&use_receipt.fingerprint);
-    use_receipt.result.inventory_revision = 4;
+    use_receipt.result.inventory_revision = revision;
     use_receipt.result.detail = ItemResultDetail::Operation {
         operation: ItemOperation::Use,
         affected: vec![target_id],
@@ -611,7 +612,7 @@ fn destroy(
     cp.revision_seen = 2;
     cp.idempotency.1 = IdempotencyKey::new();
     let checkpoint = cp.phase4.as_mut().unwrap();
-    checkpoint.inventory_revision = 5;
+    checkpoint.inventory_revision = 3;
     let target = previous_work.projection.ledger.first().unwrap().instance;
     let index = checkpoint
         .instances
@@ -646,7 +647,7 @@ fn destroy(
             entity: work.projection.entity,
             incarnation: 4,
             tick: Tick(75),
-            inventory_revision: 5,
+            inventory_revision: 3,
             receipt: request,
             detail: ItemResultDetail::Operation {
                 operation: ItemOperation::Destroy,
@@ -760,9 +761,9 @@ async fn contract<
             .unwrap()
             .checkpoint
             .inventory_revision,
-        4
+        2
     );
-    assert_eq!(frozen.result.inventory_revision, 3);
+    assert_eq!(frozen.result.inventory_revision, 2);
     let (third, third_work, third_facts) = destroy(&second, &second_work);
     assert_eq!(
         repo.checkpoint_items(&third, &third_facts, &third_work, None)
@@ -853,7 +854,7 @@ async fn contract<
     toggled.revision_seen = 3;
     toggled.idempotency.1 = IdempotencyKey::new();
     let checkpoint = toggled.phase4.as_mut().unwrap();
-    checkpoint.inventory_revision = 6;
+    checkpoint.inventory_revision = 4;
     checkpoint.auto_shots.insert(1463);
     let mut toggle_work = third_work.clone();
     toggle_work.projection.tick = Tick(76);
@@ -869,7 +870,7 @@ async fn contract<
             entity: toggle_work.projection.entity,
             incarnation: 4,
             tick: Tick(76),
-            inventory_revision: 6,
+            inventory_revision: 4,
             receipt: request_id,
             detail: ItemResultDetail::Operation {
                 operation: ItemOperation::ToggleAutoShot,
@@ -915,7 +916,7 @@ async fn contract<
         .unwrap()
         .item_metadata
         .unwrap();
-    assert_eq!(metadata.inventory_revision, 6);
+    assert_eq!(metadata.inventory_revision, 4);
     assert_eq!(metadata.rules_hash, bundle.items.hash());
     assert_eq!(
         repo.list_by_account(character.account_id).await.unwrap()[0].item_metadata,
@@ -937,7 +938,7 @@ async fn memory_atomic_item_projection_receipts_batching_and_revision_fences() {
         .filter(|row| row.operation == ItemLedgerOperation::Consume)
         .collect();
     assert_eq!(consumed.len(), 1);
-    assert_eq!(consumed[0].delta.count_delta, -6);
+    assert_eq!(consumed[0].delta.count_delta, -2);
     assert_eq!(consumed[0].delta.causes.len(), 2);
     assert_eq!(consumed[0].delta.receipt.unwrap().operation, ItemOperation::Use);
     assert_eq!(consumed[0].instance_id, work.projection.ledger[0].instance);
@@ -963,7 +964,7 @@ async fn postgres_atomic_item_projection_receipts_batching_and_revision_fences()
     assert_eq!(rows.len(), 1);
     assert_eq!(rows[0].0, 0);
     let delta: ItemLedgerDelta = serde_json::from_value(rows[0].1.clone()).unwrap();
-    assert_eq!(delta.count_delta, -6);
+    assert_eq!(delta.count_delta, -2);
     assert_eq!(delta.causes.len(), 2);
     assert_eq!(delta.receipt.unwrap().operation, ItemOperation::Use);
     let cursor: i64 =
@@ -1116,6 +1117,7 @@ async fn postgres_concurrent_item_keys_settle_once() {
     assert_eq!(rows, 1);
 }
 
+#[allow(clippy::too_many_lines)] // Shared atomic refusal matrix for both storage adapters.
 async fn rejected_contract<
     R: CharacterRepository
         + ItemAdmissionRepository
@@ -1135,10 +1137,11 @@ async fn rejected_contract<
     let (next, valid, events) = interleaved(&cp, &work);
     let before = repo.retained_inventory(character.id).await.unwrap();
     let mut corrupt = valid.clone();
-    corrupt.projection.ledger.last_mut().unwrap().count_delta = -7;
-    assert!(
-        matches!(repo.checkpoint_items(&next, &events, &corrupt, None).await, Err(CheckpointError::Constraint(name)) if name == "item_ledger_count_conservation")
-    );
+    corrupt.projection.ledger.first_mut().unwrap().count_delta = -7;
+    assert!(matches!(
+        repo.checkpoint_items(&next, &events, &corrupt, None).await,
+        Err(CheckpointError::Constraint(_))
+    ));
     assert_eq!(repo.retained_inventory(character.id).await.unwrap(), before);
     let mut corrupt = valid.clone();
     corrupt
@@ -1150,9 +1153,10 @@ async fn rejected_contract<
         .as_mut()
         .unwrap()
         .created_tick = Tick(72);
-    assert!(
-        matches!(repo.checkpoint_items(&next, &events, &corrupt, None).await, Err(CheckpointError::Constraint(name)) if name == "item_ledger_initial_scalar")
-    );
+    assert!(matches!(
+        repo.checkpoint_items(&next, &events, &corrupt, None).await,
+        Err(CheckpointError::Constraint(_))
+    ));
     assert_eq!(repo.retained_inventory(character.id).await.unwrap(), before);
     let mut corrupt = valid.clone();
     corrupt.projection.account = AccountId::from_uuid(Uuid::from_u128(7));
@@ -1217,9 +1221,73 @@ async fn rejected_contract<
             }],
         },
     ]);
-    assert!(matches!(repo.checkpoint_items(&next, &events, &transient, None).await,
-        Err(CheckpointError::Constraint(name)) if name == "item_ledger_count_conservation"));
+    assert!(matches!(
+        repo.checkpoint_items(&next, &events, &transient, None)
+            .await,
+        Err(CheckpointError::Constraint(_))
+    ));
     assert_eq!(repo.retained_inventory(character.id).await.unwrap(), before);
+    for mode in 0..8 {
+        let mut bad = valid.clone();
+        let mut bad_cp = next.clone();
+        match mode {
+            0 => bad.projection.ledger.reverse(),
+            1 => {
+                bad.projection.ledger[1].before.as_mut().unwrap().count = bad.projection.ledger[1]
+                    .before
+                    .as_ref()
+                    .unwrap()
+                    .count
+                    .checked_add(1)
+                    .unwrap();
+            },
+            2 => bad.projection.ledger[1].operation_ordinal = 0,
+            3 => {
+                // Fabricated intermediate steps inside one tick (pre-D55).
+                bad.projection.checkpoint.inventory_revision = 4;
+                bad.projection
+                    .checkpoint
+                    .instances
+                    .iter_mut()
+                    .find(|item| item.id == bad.projection.ledger[0].instance)
+                    .unwrap()
+                    .revision = 4;
+                bad.projection.ledger[1].after.as_mut().unwrap().revision = 4;
+                for receipt in &mut bad.projection.receipts {
+                    receipt.result.inventory_revision = 4;
+                }
+                bad_cp.phase4 = Some(bad.projection.checkpoint.clone());
+            },
+            4 => bad.projection.receipts[0].result.inventory_revision = 1,
+            5 => bad.projection.ledger[0].causes.reverse(),
+            6 => bad.projection.ledger[0].causes[0]
+                .fields
+                .insert("count_delta".into(), ItemEvidenceValue::Signed(-2))
+                .map_or((), |_| ()),
+            _ => {
+                let changed = bad.projection.ledger[1].after.as_mut().unwrap();
+                changed.creation_origin.as_mut().unwrap().epoch = 2;
+                let id = changed.id;
+                bad.projection
+                    .checkpoint
+                    .instances
+                    .iter_mut()
+                    .find(|item| item.id == id)
+                    .unwrap()
+                    .creation_origin = changed.creation_origin;
+                bad_cp.phase4 = Some(bad.projection.checkpoint.clone());
+            },
+        }
+        let outbox = self::events(&bad_cp, &bad);
+        assert!(
+            matches!(
+                repo.checkpoint_items(&bad_cp, &outbox, &bad, None).await,
+                Err(CheckpointError::Constraint(_))
+            ),
+            "negative canonical case {mode}"
+        );
+        assert_eq!(repo.retained_inventory(character.id).await.unwrap(), before);
+    }
     let mut stale = next.clone();
     stale.revision_seen = 0;
     let stale_events = self::events(&stale, &valid);

@@ -361,8 +361,29 @@ impl ItemCheckpointWork {
                 return Err(invalid("item_checkpoint_unledgered_scalar"));
             }
         }
-        // Aggregate consumption may overlap intervening operations, but all signed deltas
-        // together must conserve the committed count of each actual instance.
+        let revision = self.projection.checkpoint.inventory_revision;
+        let unchanged = before.is_some_and(|cp| {
+            self.projection.ledger.is_empty()
+                && cp.instances == self.projection.checkpoint.instances
+                && cp.auto_shots == self.projection.checkpoint.auto_shots
+                && cp.inventory_revision == revision
+        });
+        // A fresh no-op receipt can retain the revision; actual mutations take one step.
+        if (!unchanged
+            && before.map_or(0, |cp| cp.inventory_revision).checked_add(1) != Some(revision))
+            || self
+                .projection
+                .receipts
+                .iter()
+                .any(|receipt| receipt.result.inventory_revision != revision)
+            || self
+                .projection
+                .materializations
+                .iter()
+                .any(|fact| fact.inventory_revision != revision)
+        {
+            return Err(invalid("item_checkpoint_revision_step"));
+        }
         let changed_ids: BTreeSet<_> = old
             .keys()
             .chain(new.keys())
@@ -370,33 +391,43 @@ impl ItemCheckpointWork {
             .copied()
             .collect();
         for id in &changed_ids {
-            let deltas: Vec<_> = self
+            let mut endpoint = old.get(id).copied();
+            let mut ordinal = None;
+            for delta in self
                 .projection
                 .ledger
                 .iter()
                 .filter(|delta| delta.instance == *id)
-                .collect();
-            if deltas.is_empty() {
-                continue;
-            }
-            if let Some(initial) = old.get(id) {
-                if !deltas
-                    .iter()
-                    .any(|delta| delta.before.as_ref() == Some(*initial))
-                {
-                    return Err(invalid("item_ledger_initial_scalar"));
+            {
+                if delta.before.as_ref() != endpoint {
+                    return Err(invalid("item_ledger_scalar_continuity"));
                 }
+                if ordinal.is_some_and(|previous| delta.operation_ordinal <= previous)
+                    || (delta.operation == ItemOperation::Consume && ordinal.is_some())
+                {
+                    return Err(invalid("item_ledger_row_order"));
+                }
+                if delta
+                    .after
+                    .as_ref()
+                    .is_some_and(|item| item.revision != revision)
+                {
+                    return Err(invalid("item_ledger_revision_step"));
+                }
+                let difference = i128::from(delta.after.as_ref().map_or(0, |item| item.count))
+                    .checked_sub(i128::from(delta.before.as_ref().map_or(0, |item| item.count)))
+                    .ok_or_else(|| invalid("item_ledger_count_overflow"))?;
+                if difference != i128::from(delta.count_delta) {
+                    return Err(invalid("item_ledger_count_conservation"));
+                }
+                if delta.operation == ItemOperation::Consume {
+                    validate_consumption(delta)?;
+                }
+                endpoint = delta.after.as_ref();
+                ordinal = Some(delta.operation_ordinal);
             }
-            let total_delta = deltas.iter().try_fold(0_i128, |total, delta| {
-                total
-                    .checked_add(i128::from(delta.count_delta))
-                    .ok_or_else(|| invalid("item_ledger_count_overflow"))
-            })?;
-            let expected = i128::from(new.get(id).map_or(0, |item| item.count))
-                .checked_sub(i128::from(old.get(id).map_or(0, |item| item.count)))
-                .ok_or_else(|| invalid("item_ledger_count_overflow"))?;
-            if total_delta != expected {
-                return Err(invalid("item_ledger_count_conservation"));
+            if endpoint != new.get(id).copied() {
+                return Err(invalid("item_ledger_final_scalar"));
             }
         }
         let mut created = BTreeSet::new();
@@ -726,4 +757,54 @@ fn ledger_operation(operation: ItemOperation) -> Result<ItemLedgerOperation, Che
 }
 fn invalid(name: &str) -> CheckpointError {
     CheckpointError::Constraint(name.into())
+}
+
+fn validate_consumption(
+    delta: &crate::domain::zone::phase4_projection::ItemDeltaPlan,
+) -> Result<(), CheckpointError> {
+    use crate::domain::zone::phase4_projection::ItemEvidenceValue;
+    let mut total = 0_i128;
+    let mut ordinal = None;
+    let mut references = Vec::new();
+    for cause in &delta.causes {
+        let Some(ItemEvidenceValue::Signed(debit)) = cause.fields.get("count_delta") else {
+            return Err(invalid("item_consume_contribution"));
+        };
+        if *debit >= 0 {
+            return Err(invalid("item_consume_contribution"));
+        }
+        let receipt = cause
+            .contributing_receipt()
+            .map_err(|_| invalid("item_consume_cause_identity"))?;
+        if let Some(receipt) = receipt {
+            if !references.contains(&receipt) {
+                references.push(receipt);
+            }
+        } else if cause.family != "skill_cast_payment"
+            || !matches!(cause.fields.get("cast_id"), Some(ItemEvidenceValue::Unsigned(id)) if *id > 0)
+        {
+            return Err(invalid("item_consume_cause_identity"));
+        }
+        if let Some(ItemEvidenceValue::Unsigned(current)) = cause.fields.get("operation_ordinal") {
+            if ordinal.is_some_and(|previous| *current < previous) {
+                return Err(invalid("item_consume_cause_order"));
+            }
+            ordinal = Some(*current);
+        }
+        total = total
+            .checked_add(i128::from(*debit))
+            .ok_or_else(|| invalid("item_ledger_count_overflow"))?;
+    }
+    if total != i128::from(delta.count_delta) || total >= 0 {
+        return Err(invalid("item_consume_contribution"));
+    }
+    let expected = if delta.receipt_refs.is_empty() {
+        delta.receipt.iter().copied().collect::<Vec<_>>()
+    } else {
+        delta.receipt_refs.clone()
+    };
+    if references != expected {
+        return Err(invalid("item_consume_receipt_order"));
+    }
+    Ok(())
 }

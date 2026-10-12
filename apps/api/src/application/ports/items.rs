@@ -307,6 +307,20 @@ impl ItemLedgerEntry {
         {
             return Err(CheckpointError::Constraint("item_ledger_projection".into()));
         }
+        let difference = i128::from(self.delta.after.as_ref().map_or(0, |item| item.count))
+            .checked_sub(i128::from(self.delta.before.as_ref().map_or(0, |item| item.count)))
+            .ok_or_else(|| CheckpointError::Constraint("item_ledger_count_overflow".into()))?;
+        if difference != i128::from(self.delta.count_delta)
+            || (self.operation == ItemLedgerOperation::Consume
+                && (self.delta.count_delta >= 0 || self.delta.causes.is_empty()))
+            || self
+                .delta
+                .after
+                .as_ref()
+                .is_some_and(|item| item.revision != self.revision)
+        {
+            return Err(CheckpointError::Constraint("item_ledger_count_or_revision".into()));
+        }
         for item in self.delta.before.iter().chain(self.delta.after.iter()) {
             item.validate()
                 .map_err(|_| CheckpointError::Constraint("item_ledger_scalar".into()))?;
