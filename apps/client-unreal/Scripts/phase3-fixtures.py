@@ -6,6 +6,7 @@ rows stay empty; no typed retained payload or death record is fabricated.
 """
 import hashlib
 import json
+import math
 import re
 from pathlib import Path
 import shutil
@@ -121,13 +122,23 @@ def validate_seed_manifest(seed, selected, owner, observer, repo, paired):
         raise ValueError('Phase3 seed manifest does not match exact pre-admission inputs')
 
 
-def soak_profile(repo, account, character):
+def soak_lane(index, clients):
+    """Canonical radial lane for a zero-based role index among 1..8 clients."""
+    angle = math.radians(5 + 80 * index / max(1, clients - 1))
+    home = (round(180 * math.cos(angle)), round(180 * math.sin(angle)))
+    end = (round(177 * math.cos(angle)), round(177 * math.sin(angle)))
+    waypoints = [(round(end[0] * n / 3), round(end[1] * n / 3)) for n in (1, 2, 3)]
+    return home, waypoints
+
+
+def soak_profile(repo, account, character, index, clients):
     # Level7 is a fixture input with both rank1 skills available in the shipped tree.
     # The level1 reward NPC remains the shipped template, with no XP/SP reward override.
     xp = next(row['xp'] for row in tomllib.loads(
         (repo / 'packages/data/tables/experience.toml').read_text())['to_level'] if row['level'] == 7)
+    _, waypoints = soak_lane(index, clients)
     return profiles('phase3-trainer', repo)['owner'] | {
-        'account_id': account, 'character_id': character, 'position': [0, 0],
+        'account_id': account, 'character_id': character, 'position': list(waypoints[-1]),
         'level': 7, 'xp': xp, 'learned_ranks': {'1177': 1, '1068': 1}}
 
 

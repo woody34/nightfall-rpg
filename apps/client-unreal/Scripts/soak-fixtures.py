@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Give each real soak client a radial lane, with attack or received-state casting assertions."""
 import argparse
-import math
 import importlib.util
 import json
 import os
@@ -17,17 +16,20 @@ def casting_scenario(waypoints):
         '# Soak casting role: fixture coordinates; received state only.',
         '# Pinned dp3ca488dd skills/01100-01199.xml:1645 and01000-01099.xml:1560:',
         '# Base cast4000ms *3=12s; A1 state10ticks *100ms *3=3s.',
-        '# BotLoop retains position: endpoint -> waypoint1 <=120tiles /3.75tiles/s *3=96s.',
-        '# First admission starts at0,0 (<=64tiles); subsequent legs <=64tiles *3/3.75 <=51.2s ->54s.',
-        '# Speed: professions/human_mystic.toml:22; domain/zone/phase2.rs:109-112.',
-        '# Global sum of waits303s plus30s grace <=360s; long Might is1200s (line1553).',
+        '# Seed at lane end (wp3); BotLoop retains that endpoint for later iterations.',
+        '# Every iteration routes end -> wp2 -> wp1 -> wp2 -> wp3, each leg about59tiles.',
+        '# For1..8 clients, legs <=60tiles; +1tile own_at tolerance <=61 <64tile move cap.',
+        '# Move cap: domain/zone/state.rs:39,1376; tolerance: Bot/BotPredicates.cpp:681-691.',
+        '# Move waits: (60+1)tiles /3.75tiles/s *3=48.8s <=54s per leg.',
+        '# Speed: professions/human_mystic.toml:22; domain/zone/phase2.rs:110-114.',
+        '# Global waits: 4*54s moves +99s other waits=315s; +30s grace=345s <=360s.',
+        '# Long Might is1200s (pinned dp skills/01000-01099.xml:1553).',
         'nf.Login', 'nf.WaitFor connected 15', 'nf.EnterWorld', 'nf.WaitFor in_world 15',
         'nf.WaitFor learned_rank 1177 == 1 3',
         'nf.WaitFor skill_ready 1068 12', 'nf.Cast 1068 self', 'nf.WaitFor buff_active 1068 12']
-    for index, (x, y) in enumerate(waypoints):
-        # Include the one-tile arrival tolerance from the preceding iteration.
-        seconds = 96 if index == 0 else 54
-        lines += [f'nf.ClickMove {x} {y}', f'nf.WaitFor own_at {x} {y} 1 {seconds}']
+    wp1, wp2, wp3 = waypoints
+    for x, y in (wp2, wp1, wp2, wp3):
+        lines += [f'nf.ClickMove {x} {y}', f'nf.WaitFor own_at {x} {y} 1 54']
     lines += [
         'nf.WaitFor proxies >= 1 3', 'nf.Target nearest_attackable', 'nf.WaitFor target != none 3',
         'nf.WaitFor skill_ready 1177 12', 'nf.Cast 1177',
@@ -58,10 +60,7 @@ def prepare(repo: Path, out: Path, clients: int, casting: bool = False) -> None:
     for i in range(clients):
         # At most 8 roles: >=35 tiles between homes. This includes both NPCs'
         # maximum wander (sqrt(2)*9.375 each; domain/zone/ai.rs) plus clan-help(8).
-        angle = math.radians(5 + 80 * i / max(1, clients - 1))
-        home = (round(180 * math.cos(angle)), round(180 * math.sin(angle)))
-        end = (round(177 * math.cos(angle)), round(177 * math.sin(angle)))
-        waypoints = [(round(end[0] * n / 3), round(end[1] * n / 3)) for n in (1, 2, 3)]
+        home, waypoints = contracts.soak_lane(i, clients)
         zone += ['[[spawn_slots]]', f'id = "soak_{i + 1:02}"', 'template = "keltir"',
                  f'home = [{home[0]}, {home[1]}]', 'count = 1',
                  'respawn_delay_secs = 5', 'respawn_random_secs = 0']
@@ -72,7 +71,7 @@ def prepare(repo: Path, out: Path, clients: int, casting: bool = False) -> None:
         if casting:
             # Every role is pre-admission seeded; no repeated CreateClass/slot exhaustion.
             account, character = str(uuid.uuid4()), str(uuid.uuid4())
-            seed = contracts.soak_profile(repo, account, character)
+            seed = contracts.soak_profile(repo, account, character, i, clients)
             role_dir = out / f'client-{i + 1:02}'
             role_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
             token = role_dir / 'dev.token'

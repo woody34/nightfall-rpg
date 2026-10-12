@@ -17,7 +17,7 @@ def generate(destination):
     for fixture in ('phase1a-late-entry', 'phase1a-social-aggro'):
         packs.create_phase1a_overlay(destination / fixture, REPO, fixture)
     profiles = {pack: packs.profiles(pack, REPO, True) for pack in sorted(packs.PHASE3)}
-    profiles['casting-soak'] = {'owner': packs.soak_profile(REPO, packs.OWNER, packs.OBSERVER)}
+    profiles['casting-soak'] = {'owner': packs.soak_profile(REPO, packs.OWNER, packs.OBSERVER, 0, 8)}
     (destination / 'packs.json').write_text(json.dumps(profiles, sort_keys=True))
     token_spec = importlib.util.spec_from_file_location('tokens', SCRIPTS / 'token-fixtures.py')
     tokens = importlib.util.module_from_spec(token_spec)

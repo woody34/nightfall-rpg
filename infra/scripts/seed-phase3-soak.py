@@ -24,7 +24,7 @@ def validated_roles(manifest):
         name = f'client-{index:02}'
         supplied = role['seed']
         account, character = str(UUID(supplied['account_id'])), str(UUID(supplied['character_id']))
-        expected = seed.contracts.soak_profile(seed.REPO, account, character)
+        expected = seed.contracts.soak_profile(seed.REPO, account, character, index - 1, len(manifest['roles']))
         if role['name'] != name or supplied != expected or account in accounts or character in characters:
             raise ValueError('soak seed roles must match canonical inputs and use distinct identities')
         # Role keys become the seeded character name (`Skill<key>`), which must be ASCII
