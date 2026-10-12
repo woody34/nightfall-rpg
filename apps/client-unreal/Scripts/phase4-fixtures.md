@@ -94,13 +94,19 @@ uses the character identity, so foreign-owner facts cannot satisfy a gate.
 Delta data has `operation,instance,before,after,count_delta,operation_ordinal,
 resolution_id` and its receipt field. Correlation keys are
 `(resolution_id,instance,operation_ordinal)` within owner/incarnation scope.
-Per-tick batching yields one inventory revision step: canonical before/after
-revisions may be equal on later changes within that tick. Require
-`before.revision ≤ after.revision`, strictly increasing per-instance ordinals
-within a tick, and strictly increasing retained post-revisions across ticks;
-every retained post-state of an instance in the tick must share that revision
-step and exceed the previous tick's retained post-revision, including later rows.
-ordinals can reset on a new tick. Removed instances have no post-revision.
+Per-tick batching yields ONE inventory revision step per owner/incarnation/tick,
+derived from the owner's baseline or previous changed tick (previous → previous+1).
+All retained post-states across all instances use that same new revision;
+before-states use the previous step, or the new step for later same-tick changes.
+Equal revisions remain valid. A baseline-free slice binds its initial revision
+from canonical endpoints. Changed ticks strictly advance the owner step, including
+removal-only ticks. Per-instance ordinals strictly increase within a tick and may
+reset on a new tick. Removed instances have no fabricated post-state.
+Carry complete canonical state forward per owner/incarnation/instance. Successive
+target mutations and next-tick aggregates start from the preceding retained state,
+including counts and all other canonical fields, after recorded intervening
+mutations. Untouched canonical snapshots advance to the owner revision at tick end.
+Creation starts from null; removal records absence; incarnations remain independent.
 Do not fabricate intermediate revisions for enchant, consume or refunds.
 
 The per-instance per-tick `operation=consume` aggregate remains ordinal0 and
@@ -118,8 +124,9 @@ uses the first contributor's `resolution_id` and exactly their ordered receipt
 references; its before/after states and combined debit must match all one-item
 contributions. Bound revisions never decrease; later before-states reflect
 preceding debits and share the applicable tick revision. No bound revision may
-exceed the retained aggregate endpoint. Exhausted stacks do not invent a
-post-state. Receipt uniqueness spans all enchant resolutions in the scope before
+exceed the verified owner step. Retained scroll/support endpoints and exhausted
+stack contributions all use this same owner step. Exhausted stacks do not invent
+a post-state. Receipt uniqueness spans all enchant resolutions in the scope before
 stack grouping, including resolutions spending distinct stacks. Non-Consume
 target/refund rows retain their own resolution ID and its matching receipt.
 

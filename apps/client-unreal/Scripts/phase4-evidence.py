@@ -547,21 +547,55 @@ def validate(rows,recording,rules_hash):
             if before is not None and after is not None and after['revision']<before['revision']:raise ValueError('item revision regressed')
             identity=(row['entity'],row['incarnation'],instance)
             prior=instance_steps.get(identity)
-            previous_revision=current_revision=None
-            if prior is not None:
-                prior_tick,prior_ordinal,previous_revision,current_revision=prior
-                if tick==prior_tick and ordinal<=prior_ordinal:raise ValueError('item operation ordinal did not increase within tick')
-                if tick>prior_tick:
-                    if current_revision is not None:previous_revision=current_revision
-                    current_revision=None
-            if after is not None:
-                revision=after['revision']
-                if previous_revision is not None and revision<=previous_revision:raise ValueError('item revision did not increase across ticks')
-                if current_revision is not None and revision!=current_revision:raise ValueError('item revision changed within tick')
-                current_revision=revision
-            instance_steps[identity]=(tick,ordinal,previous_revision,current_revision)
+            if prior is not None and tick==prior[0] and ordinal<=prior[1]:raise ValueError('item operation ordinal did not increase within tick')
+            instance_steps[identity]=(tick,ordinal)
         else:raise ValueError('unknown item raw fact kind')
+    inventory_history(rows)
     return manifest
+
+
+def inventory_history(rows):
+    """D55: one owner step per changed tick; canonical endpoints survive ticks."""
+    groups={};owners={};steps={}
+    for row in rows[1:-1]:
+        groups.setdefault((row['entity'],row['incarnation'],row['tick']),[]).append(row)
+    for scope,facts in groups.items():
+        owner=scope[:2];tick=scope[2]
+        revision,states,complete=owners.get(owner,(None,{},False))
+        for row in facts:
+            if row['kind']=='item_baseline':
+                baseline=row['data'];bound={item['id']:item for item in baseline['instances']}
+                if revision is not None:
+                    same(baseline['inventory_revision'],revision)
+                    if complete:same(bound,{identity:state for identity,state in states.items() if state is not None})
+                    else:
+                        for identity,state in states.items():same(bound.get(identity),state)
+                revision=baseline['inventory_revision'];states=bound;complete=True
+        deltas=[row['data'] for row in facts if row['kind']=='item_delta']
+        if not deltas:
+            owners[owner]=(revision,states,complete)
+            continue
+        if revision is None:
+            before=[d['before']['revision'] for d in deltas if d['before'] is not None]
+            after=[d['after']['revision']-1 for d in deltas if d['after'] is not None]
+            # A slice without a baseline binds its initial step from canonical endpoints.
+            revision=min(before+after)
+        current=revision+1
+        steps[scope]=(revision,current)
+        for delta in deltas:
+            before,after=delta['before'],delta['after']
+            if after is not None:
+                if after['revision']<=revision:raise ValueError('item revision did not increase across ticks')
+                if after['revision']!=current:raise ValueError('owner item revision changed within tick')
+            if before is not None and before['revision'] not in (revision,current):raise ValueError('owner before revision differs from tick step')
+            identity=delta['instance']
+            if identity in states or complete:
+                same(before,states.get(identity))
+            states[identity]=after
+        # Canonical snapshots use the owner's revision, also for untouched instances.
+        states={identity:state|{'revision':current} if state is not None else None for identity,state in states.items()}
+        owners[owner]=(current,states,complete)
+    return steps
 
 
 def refund_inputs_for(target):
@@ -572,7 +606,7 @@ def refund_inputs_for(target):
                 crystallizable=definition['flags']['is_crystallizable'],crystal_id=grade['crystal_id'])
 
 
-def enchant_evidence(row, rows):
+def enchant_evidence(row, rows, steps=None):
     """RequestEnchantItem.java:123-139,154-271; EnchantScroll.java:149-155.
 
     Even guaranteed success draws; safe/reset/no-increment have no fake target
@@ -624,9 +658,7 @@ def enchant_evidence(row, rows):
     receipts=[r['data']['operation']['receipt_ref'] for r in outcomes]
     if any(not isinstance(ref,str) or not ref for ref in receipts) or len(set(receipts))!=len(receipts):
         raise ValueError('duplicate/invalid enchant resolution receipt')
-    retained_revisions=[r['data']['after']['revision'] for r in rows[1:-1]
-                        if (r['entity'],r['incarnation'],r['tick'])==scope
-                        and r['kind']=='item_delta' and r['data']['after'] is not None]
+    previous_step,tick_step=(inventory_history(rows) if steps is None else steps)[scope]
     for spent in (scroll,support):
         if spent is None:continue
         contributions=[]
@@ -648,7 +680,8 @@ def enchant_evidence(row, rows):
         same(aggregate['receipt_refs'],receipts)
         first=contributions[0][2]
         same(aggregate['before'],first)
-        tick_revision=aggregate['after']['revision'] if aggregate['after'] is not None else max(retained_revisions,default=None)
+        tick_revision=tick_step
+        if first['revision'] not in (previous_step,tick_step):raise ValueError('enchant contribution differs from owner revision step')
         previous_revision=first['revision']
         for index,(_,_,before) in enumerate(contributions):
             same({k:v for k,v in before.items() if k!='revision'},
@@ -657,7 +690,6 @@ def enchant_evidence(row, rows):
             if revision<previous_revision or tick_revision is not None and revision>tick_revision:
                 raise ValueError('enchant contribution revision regressed')
             if index:
-                if tick_revision is None:tick_revision=revision
                 same(revision,tick_revision)
             previous_revision=revision
         same(aggregate['count_delta'],-len(contributions))
@@ -697,11 +729,12 @@ def enchant_evidence(row, rows):
 
 def evaluate(rows,recording,entity,gates,rules_hash,phase_specs=()):
     manifest=validate(rows,recording,rules_hash)
+    steps=inventory_history(rows)
     results=[]
     enchant_errors=[]
     for row in rows[1:-1]:
         if row['entity']==entity and row['kind']=='item_formula' and row['data']['formula']=='enchant_outcome':
-            try:enchant_evidence(row,rows)
+            try:enchant_evidence(row,rows,steps)
             except (ValueError,TypeError,KeyError,IndexError,ZeroDivisionError) as error:enchant_errors.append(str(error))
     resolutions={(r['entity'],r['incarnation'],r['data']['resolution_id']) for r in rows[1:-1] if r['entity']==entity and r['kind']=='item_formula' and r['data']['formula']=='enchant_outcome'}
     for row in rows[1:-1]:

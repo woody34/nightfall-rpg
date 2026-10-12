@@ -46,14 +46,22 @@ JSONL contract (schema version 1 of this sidecar):
   real change, count conservation, duplicate logical rows and consume ordinal0
   are checked. Pure toggles/reuse never fabricate a ledger instance (D28).
   Under D55, correlate deltas by `(resolution_id,instance,operation_ordinal)`
-  within the owner/incarnation scope, independent of operation name. A tick has
-  one inventory revision step: `before.revision ≤ after.revision` when both
-  instances exist; equality is valid for later same-tick changes. Per instance,
-  ordinals strictly increase within a tick and retained post-revisions strictly
-  increase across ticks; every retained post-state of an instance in a tick
-  shares that tick's revision step and exceeds the previous tick's retained
-  post-revision, including later rows. Ordinals may reset on a new tick. A removed instance
-  has no post-revision to compare. Never fabricate intermediate revisions.
+  within the owner/incarnation scope, independent of operation name. Derive ONE
+  revision step per `(entity,incarnation,tick)` from the owner's baseline or
+  previous changed tick: previous revision → previous revision + 1. Every retained
+  post-state, across ALL instances, must use that same new revision. Before-states
+  use the previous revision, or the new revision for later same-tick changes;
+  equality remains valid. A baseline-free slice binds its initial revision from
+  its canonical endpoints. Subsequent changed ticks strictly advance the owner
+  step even when every changed instance is removed. Per-instance ordinals strictly
+  increase within a tick and may reset on a new tick. Removed instances have no
+  fabricated post-state. Never fabricate intermediate revisions.
+  Carry complete canonical states forward per owner/incarnation/instance, including
+  counts, templates, locations, enchantments and removal. Each next mutation or
+  aggregate must start at the established retained state, after recorded intervening
+  changes; untouched canonical snapshots advance to the owner's revision at tick
+  end. Creation starts from null and removal establishes absence. Incarnation
+  boundaries have independent histories.
 - `item_baseline`: `inventory_revision,instances,paperdoll,auto_shots`. Complete
   canonical instances and valid paperdoll references bind an owner. A baseline
   cannot satisfy formula gates. Disabled GrantItem is rejected before actor
@@ -90,8 +98,9 @@ all enchant outcomes in the owner/incarnation/tick scope before grouping by stac
 Canonical contribution revisions never decrease; later bindings equal the tick's
 retained revision step, and no binding may exceed the aggregate's post-revision.
 Equal revisions are permitted. Exhausted stacks have no invented post-state;
-use other retained deltas in the tick to check the step when available, otherwise
-require ordered bindings with one shared later revision.
+use the same verified owner step for every contribution, including exhausted
+stacks. First bindings agree with the aggregate's initial canonical state; later
+bindings account for ordered one-item debits and use the new owner revision.
 The aggregate's `count_delta` is minus the number of contributions; its after-state
 is the resulting stack or null when exhausted. Two same-tick resolutions may thus
 spend one shared stack via one `count_delta=-2` row with

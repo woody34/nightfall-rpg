@@ -35,6 +35,11 @@ class Evidence(unittest.TestCase):
         rows[-1]['facts']=len(rows)-2
         return rows
 
+    def assert_rejected(self,rows,gates=('enchant_outcome',)):
+        try:result=gate.evaluate(rows,self.recording,OWNER,gates,HASH)
+        except ValueError:return
+        self.assertFalse(result['passed'])
+
     def enchant_rows(self,base=100,residue=0,enchant=0,blessed=False,safe=False,entity=OWNER,target_id=8,scroll_id=7,support=False):
         rows=[copy.deepcopy(self.rows[0])]
         target=item(target_id,1,71);target['enchant']=enchant
@@ -60,7 +65,7 @@ class Evidence(unittest.TestCase):
             refund_inputs=dict(base=definition['crystal_count'],bonus=grade['weapon_bonus'],enchant=enchant,weapon=True,crystallizable=definition['flags']['is_crystallizable'],crystal_id=grade['crystal_id'])
             refund=gate.oracle.failure_refund(**refund_inputs)
             append('item_formula',dict(formula='failure_refund',inputs=refund_inputs,actual=refund,baseline=False))
-            if refund:append('item_delta',dict(operation='grant',instance=10,before=None,after=item(10,refund,grade['crystal_id']),count_delta=refund,operation_ordinal=0,receipt_ref='receipt:1'))
+            if refund:append('item_delta',dict(operation='grant',instance=10,before=None,after=item(10,refund,grade['crystal_id'])|{'revision':1},count_delta=refund,operation_ordinal=0,receipt_ref='receipt:1'))
         rows.append(dict(kind='complete',facts=len(rows)-1,ticks=1,last_tick=0))
         return rows
 
@@ -143,7 +148,7 @@ class Evidence(unittest.TestCase):
         bad=copy.deepcopy(rows)
         bad[0]['watermark'].update(records=2,last_tick=1);bad[-1].update(ticks=2,last_tick=1)
         next(r for r in bad if r['kind']=='item_delta' and r['data']['operation']=='consume')['tick']=1
-        self.assertFalse(gate.evaluate(bad,self.recording,OWNER,['enchant_outcome'],HASH)['passed'])
+        self.assert_rejected(bad)
         bad=copy.deepcopy(rows)
         next(r['data'] for r in bad if r['kind']=='item_delta' and r['data']['operation']=='consume')['resolution_id']='unrelated'
         self.assertFalse(gate.evaluate(bad,self.recording,OWNER,['enchant_outcome'],HASH)['passed'])
@@ -204,24 +209,30 @@ class Evidence(unittest.TestCase):
 
     def generated_enchants(self,rng):
         ticks=rng.randint(2,3);stack_ids=rng.sample(range(20,40),rng.randint(1,3))
-        plans=[[rng.choice(stack_ids) for _ in range(rng.randint(2,3))] for _ in range(ticks)]
+        plans=[[rng.choice(stack_ids) for _ in range(rng.randint(3,4))] for _ in range(ticks)]
         support=rng.choice((False,True));initial=rng.randint(0,20)
         counts={identity:sum(plan.count(identity) for plan in plans)+rng.randint(0,3) for identity in stack_ids}
         if support:counts[9]=sum(map(len,plans))+rng.randint(0,3)
         revisions={identity:initial for identity in counts}
-        incarnation=rng.randint(1,5);start=rng.randint(0,30);cursor=0;level=0
+        incarnation=rng.randint(1,5);start=rng.randint(0,30);cursor=0;levels={8:0,10:0}
         rows=[copy.deepcopy(self.rows[0])]
+        baseline=[item(identity,count,12363 if identity==9 else 951)|{'revision':initial} for identity,count in counts.items() if count]
+        baseline.extend(item(identity,1,71)|{'revision':initial} for identity in levels)
+        rows.append(dict(kind='item_baseline',entity=OWNER,incarnation=incarnation,tick=start,sequence=0,
+                         data=dict(inventory_revision=initial,instances=baseline,paperdoll={},auto_shots=[])))
         for tick,plan in enumerate(plans):
-            contributions={};ordinal=rng.randint(0,4)
+            revisions={identity:initial+tick for identity in counts}
+            contributions={};ordinals={identity:rng.randint(0,4) for identity in levels};changed=set()
             for index,scroll_id in enumerate(plan):
-                target=item(8,1,71)|{'enchant':level}
+                target_id=8 if index==0 else 10 if index==1 else rng.choice((8,10))
+                level=levels[target_id];target=item(target_id,1,71)|{'enchant':level}
                 base=int(gate.enchant_source_inputs(target,item(scroll_id,1,951),item(9,1,12363) if support else None)['base'])
-                attempt=self.enchant_rows(base=base,enchant=level,scroll_id=scroll_id,support=support)
+                attempt=self.enchant_rows(base=base,enchant=level,target_id=target_id,scroll_id=scroll_id,support=support)
                 resolution=f'enchant:{rng.getrandbits(64):016x}:{cursor}'
                 receipt=f'receipt:{rng.getrandbits(64):016x}:{cursor}'
                 operation=attempt[1]['data']['operation']
                 operation['receipt_ref']=receipt
-                operation['target_before']['revision']=initial+tick+int(index>0)
+                operation['target_before']['revision']=initial+tick+int(target_id in changed)
                 for key in ('scroll_before','support_before'):
                     before=operation[key]
                     if before is None:continue
@@ -235,10 +246,10 @@ class Evidence(unittest.TestCase):
                     data['resolution_id']=resolution
                     if row['kind']=='item_rng':data.update(word_before=cursor,word_after=cursor+1)
                     if row['kind']=='item_delta':
-                        data.update(receipt_ref=receipt,operation_ordinal=ordinal)
+                        data.update(receipt_ref=receipt,operation_ordinal=ordinals[target_id])
                         data['after']['revision']=initial+tick+1
                     rows.append(copy.deepcopy(row))
-                ordinal+=rng.randint(1,3);cursor+=1;level+=1
+                ordinals[target_id]+=rng.randint(1,3);changed.add(target_id);cursor+=1;levels[target_id]+=1
             for identity,parts in contributions.items():
                 resolution,_,before=parts[0]
                 rows.append(dict(kind='item_delta',entity=OWNER,incarnation=incarnation,tick=start+tick,sequence=0,
@@ -249,14 +260,87 @@ class Evidence(unittest.TestCase):
         rows[0].update(snapshot_tick=start)
         rows[0]['watermark'].update(records=ticks,last_tick=start+ticks-1)
         rows.append(dict(kind='complete',facts=0,ticks=ticks,last_tick=start+ticks-1))
+        other=copy.deepcopy(rows[1:-1])
+        for row in other:
+            row['entity']=OTHER
+            data=row['data']
+            if row['kind']=='item_baseline':
+                data['inventory_revision']+=100
+                for state in data['instances']:state['revision']+=100
+            elif row['kind']=='item_delta':
+                for key in ('before','after'):
+                    if data[key] is not None:data[key]['revision']+=100
+            elif row['kind']=='item_formula' and data['formula']=='enchant_outcome':
+                for state in data['operation'].values():
+                    if isinstance(state,dict):state['revision']+=100
+        rows[1:-1]=sorted(rows[1:-1]+other,key=lambda row:row['tick'])
+        for index,row in enumerate(r for r in rows if r['kind']=='item_rng'):
+            row['data'].update(word_before=index,word_after=index+1)
         return self.repair(rows)
+
+    def test_review9_owner_tick_revision_and_target_rollback(self):
+        for support in (False,True):
+            rows=self.enchant_rows(support=support)
+            scroll=rows[1]['data']['operation']['scroll_before'];scroll['count']=2
+            next(r['data'] for r in rows if r['kind']=='item_delta' and r['data']['instance']==7)['after']=scroll|{'count':1,'revision':1}
+            self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['enchant_outcome'],HASH)['passed'])
+            bad=copy.deepcopy(rows)
+            aggregate=next(r['data'] for r in bad if r['kind']=='item_delta' and r['data']['operation']=='consume')
+            aggregate['after']['revision']=99
+            with self.assertRaisesRegex(ValueError,'within tick'):gate.validate(bad,self.recording,HASH)
+        bad=self.shared_stack_enchants(3,True)
+        outcomes=[r['data'] for r in bad if r['kind']=='item_formula' and r['data']['formula']=='enchant_outcome']
+        outcomes[1]['operation']['support_before']['revision']=2
+        next(r['data'] for r in bad if r['kind']=='item_delta' and r['data']['instance']==9)['after']['revision']=2
+        with self.assertRaisesRegex(ValueError,'within tick'):gate.evaluate(bad,self.recording,OWNER,['enchant_outcome'],HASH)
+        bad=self.shared_stack_enchants(3,True)
+        outcomes=[r['data'] for r in bad if r['kind']=='item_formula' and r['data']['formula']=='enchant_outcome']
+        outcomes[1]['operation']['target_before']['revision']=0
+        with self.assertRaises(ValueError):gate.evaluate(bad,self.recording,OWNER,['enchant_outcome'],HASH)
+
+    def test_review9_locally_conserved_count_discontinuity(self):
+        rows=self.generated_enchants(random.Random(0xE609))
+        self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['enchant_outcome'],HASH)['passed'])
+        aggregate=next(r for r in rows if r.get('entity')==OWNER and r['kind']=='item_delta'
+                       and r['data']['operation']=='consume' and r['tick']>rows[0]['snapshot_tick'])
+        for key in ('before','after'):
+            if aggregate['data'][key] is not None:aggregate['data'][key]['count']+=10
+        if aggregate['data']['after'] is None:
+            aggregate['data']['after']=aggregate['data']['before']|{'count':10,'revision':aggregate['data']['before']['revision']+1}
+        for row in rows:
+            if row.get('entity')==OWNER and row['tick']==aggregate['tick'] and row['kind']=='item_formula' and row['data']['formula']=='enchant_outcome':
+                for key in ('scroll_before','support_before'):
+                    state=row['data']['operation'][key]
+                    if state is not None and state['id']==aggregate['data']['instance']:state['count']+=10
+        with self.assertRaises(ValueError):gate.evaluate(rows,self.recording,OWNER,['enchant_outcome'],HASH)
+
+    def test_history_creation_removal_intervening_mutations_and_incarnation(self):
+        rows=copy.deepcopy(self.rows)
+        first=item(70,2,951)|{'revision':1}
+        facts=[dict(operation='grant',before=None,after=first,count_delta=2),
+               dict(operation='grant',before=first,after=first|{'count':3},count_delta=1),
+               dict(operation='destroy',before=first|{'count':3},after=None,count_delta=-3),
+               dict(operation='grant',before=None,after=first,count_delta=2)]
+        for ordinal,data in enumerate(facts):
+            rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=0,sequence=0,
+                data=data|dict(instance=70,operation_ordinal=ordinal,resolution_id=f'change:{ordinal}',receipt_ref=None)))
+        self.repair(rows);gate.validate(rows,self.recording,HASH)
+        for key in ('count','enchant','revision','template_id'):
+            bad=copy.deepcopy(rows);bad[3]['data']['before']=bad[3]['data']['before']|{key:4 if key=='count' else 2 if key!='template_id' else 952}
+            if key=='count':bad[3]['data']['count_delta']=-1
+            with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
+        # An incarnation boundary starts a separate history, even for the same ID.
+        for row in rows[3:-1]:row['incarnation']=2
+        gate.validate(rows,self.recording,HASH)
 
     def test_seeded_aggregate_correlation_property_check_2000_cases(self):
         rng=random.Random(0xE609)
         mutations=('receipt reuse','swapped ordinals','cross-tick revision','wrong totals',
-                   'missing contributions','duplicated aggregates','foreign-owner rows')
+                   'missing contributions','duplicated aggregates','foreign-owner rows',
+                   'per-instance revision drift','support/scroll endpoint mismatch','cross-owner contamination',
+                   'canonical count discontinuity')
         def passes(rows):
-            try:return gate.evaluate(rows,self.recording,OWNER,['enchant_outcome','enchant_chance'],HASH)['passed']
+            try:return all(gate.evaluate(rows,self.recording,entity,['enchant_outcome','enchant_chance'],HASH)['passed'] for entity in (OWNER,OTHER))
             except ValueError:return False
         for case in range(2000):
             rows=self.generated_enchants(rng)
@@ -264,11 +348,19 @@ class Evidence(unittest.TestCase):
             for mutation in mutations:
                 bad=copy.deepcopy(rows)
                 outcomes=[r for r in bad if r['kind']=='item_formula' and r['data']['formula']=='enchant_outcome']
-                targets=[r for r in bad if r['kind']=='item_delta' and r['data']['operation']=='enchant']
+                targets=[r for r in bad if r.get('entity')==OWNER and r['kind']=='item_delta' and r['data']['operation']=='enchant']
                 aggregates=[r for r in bad if r['kind']=='item_delta' and r['data']['operation']=='consume']
-                if mutation=='receipt reuse':outcomes[1]['data']['operation']['receipt_ref']=outcomes[0]['data']['operation']['receipt_ref']
+                if mutation=='receipt reuse':
+                    old=outcomes[1]['data']['operation']['receipt_ref'];new=outcomes[0]['data']['operation']['receipt_ref']
+                    for row in bad[1:-1]:
+                        data=row['data']
+                        if row['kind']=='item_formula' and data['formula']=='enchant_outcome' and data['operation']['receipt_ref']==old:data['operation']['receipt_ref']=new
+                        elif row['kind']=='item_delta':
+                            if data['operation']=='consume':data['receipt_refs']=[new if ref==old else ref for ref in data['receipt_refs']]
+                            elif data['receipt_ref']==old:data['receipt_ref']=new
                 elif mutation=='swapped ordinals':
-                    a,b=targets[:2]
+                    a,b=next((a,b) for index,a in enumerate(targets) for b in targets[index+1:]
+                             if a['tick']==b['tick'] and a['data']['instance']==b['data']['instance'])
                     a['data']['operation_ordinal'],b['data']['operation_ordinal']=b['data']['operation_ordinal'],a['data']['operation_ordinal']
                 elif mutation=='cross-tick revision':
                     first=targets[0];later=next(r for r in targets if r['tick']>first['tick'])
@@ -279,9 +371,34 @@ class Evidence(unittest.TestCase):
                     aggregate['data']['receipt_refs']=aggregate['data']['receipt_refs'][:-1]
                 elif mutation=='duplicated aggregates':
                     aggregate=rng.choice(aggregates);bad.insert(bad.index(aggregate)+1,copy.deepcopy(aggregate));self.repair(bad)
-                elif mutation=='foreign-owner rows':rng.choice(aggregates)['entity']=OTHER
+                elif mutation=='foreign-owner rows':rng.choice(aggregates)['entity']='01970000-0000-7000-8000-000000000042'
+                elif mutation=='per-instance revision drift':rng.choice(targets)['data']['after']['revision']+=10
+                elif mutation=='support/scroll endpoint mismatch':
+                    aggregate=next(r for r in aggregates if r['data']['after'] is not None)
+                    aggregate['data']['after']['revision']+=10
+                    for outcome in outcomes:
+                        if (outcome['entity'],outcome['incarnation'],outcome['tick'])!=(aggregate['entity'],aggregate['incarnation'],aggregate['tick']):continue
+                        for key in ('scroll_before','support_before'):
+                            state=outcome['data']['operation'][key]
+                            if state is not None and state['id']==aggregate['data']['instance'] and state['revision']!=aggregate['data']['before']['revision']:state['revision']+=10
+                elif mutation=='cross-owner contamination':
+                    aggregate=rng.choice(aggregates)
+                    foreign=next(r for r in aggregates if r['entity']!=aggregate['entity'] and r['tick']==aggregate['tick']
+                                 and r['data']['instance']==aggregate['data']['instance'])
+                    for key in ('before','after'):aggregate['data'][key]=copy.deepcopy(foreign['data'][key])
+                elif mutation=='canonical count discontinuity':
+                    aggregate=next(r for r in aggregates if r['tick']>rows[0]['snapshot_tick'])
+                    for key in ('before','after'):
+                        if aggregate['data'][key] is not None:aggregate['data'][key]['count']+=10
+                    if aggregate['data']['after'] is None:
+                        aggregate['data']['after']=aggregate['data']['before']|{'count':10,'revision':aggregate['data']['before']['revision']+1}
+                    for outcome in outcomes:
+                        if (outcome['entity'],outcome['incarnation'],outcome['tick'])!=(aggregate['entity'],aggregate['incarnation'],aggregate['tick']):continue
+                        for key in ('scroll_before','support_before'):
+                            state=outcome['data']['operation'][key]
+                            if state is not None and state['id']==aggregate['data']['instance']:state['count']+=10
                 self.assertFalse(passes(bad),f'{mutation}, case {case}')
-        print('Aggregate property check: seed=0xE609; 2000 valid sets pass; 14000 corruptions reject',flush=True)
+        print('Aggregate property check: seed=0xE609; 2000 valid two-owner sets pass; 22000 corruptions reject',flush=True)
 
     def test_revisions_increase_across_ticks_with_ordinal_reset(self):
         rows=self.same_tick_enchants()
@@ -291,6 +408,7 @@ class Evidence(unittest.TestCase):
             row['tick']=1;row['data']['resolution_id']='enchant:3'
             if row['kind']=='item_rng':row['data'].update(word_before=2,word_after=3)
             if row['kind']=='item_delta' and row['data']['instance']==8:row['data']['after']['revision']=2
+            if row['kind']=='item_delta' and row['data']['operation']=='consume':row['data']['before']['revision']=1
             rows.insert(-1,row)
         rows[0]['watermark'].update(records=2,last_tick=1)
         rows[-1].update(ticks=2,last_tick=1);self.repair(rows)
@@ -327,6 +445,7 @@ class Evidence(unittest.TestCase):
                 if row['kind']=='item_rng':row['data'].update(word_before=index,word_after=index+1)
                 if row['kind']=='item_delta':
                     row['data']['receipt_refs' if row['data']['operation']=='consume' else 'receipt_ref']=[f'receipt:{index+1}'] if row['data']['operation']=='consume' else f'receipt:{index+1}'
+                    if row['data']['operation']=='consume':row['data']['before']['revision']=1
                 if row['kind']=='item_delta' and row['data']['instance']==8:
                     row['data']['after']['revision']=2;row['data']['operation_ordinal']=index-2
                 rows.insert(-1,row)
@@ -851,7 +970,7 @@ class Evidence(unittest.TestCase):
         self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['grant_denied'],HASH)['passed'])
         self.assertFalse(gate.evaluate(rows,self.recording,OTHER,['grant_denied'],HASH)['passed'])
         self.assertFalse(gate.evaluate(rows,self.recording,OWNER,['pole_damage'],HASH)['passed'])
-        rows.insert(2,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=0,sequence=1,data=dict(resolution_id='enchant:1',operation='grant',instance=2,before=None,after=item(2,1,1),count_delta=1,operation_ordinal=0,receipt_ref=None)))
+        rows.insert(2,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=0,sequence=1,data=dict(resolution_id='enchant:1',operation='grant',instance=2,before=None,after=item(2,1,1)|{'revision':1},count_delta=1,operation_ordinal=0,receipt_ref=None)))
         rows[-1]['facts']=2
         self.assertFalse(gate.evaluate(rows,self.recording,OWNER,['grant_denied'],HASH)['passed'])
 
@@ -869,7 +988,7 @@ class Evidence(unittest.TestCase):
             append('item_formula',dict(formula='shot_payment',inputs=dict(charges=[],kind='spirit',count=1,available=100,weapon_grade='NONE',shot_grade='NONE',toggle=True),actual=dict(charges=['spirit'],available=99,toggle=True,consumed=1,draws=[],outcome='charged'),resolution_id='cast:1:charge',baseline=False))
             for offset,template in enumerate((1,6),1):
                 identity=index*100+offset
-                append('item_delta',dict(operation='equip',instance=identity,before=item(identity,1,template),after=item(identity,1,template,'rhand'),count_delta=0,operation_ordinal=0,receipt_ref=None))
+                append('item_delta',dict(operation='equip',instance=identity,before=item(identity,1,template),after=item(identity,1,template,'rhand')|{'revision':1},count_delta=0,operation_ordinal=0,receipt_ref=None))
 
         rows.append(dict(kind='complete',facts=len(rows)-1,ticks=1,last_tick=0))
         self.assertTrue(gate.soak(rows,self.recording,roles,HASH)['passed'])
