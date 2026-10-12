@@ -182,6 +182,13 @@ class CastingSoakTests(unittest.TestCase):
         self.assertIn('--compose-project "$COMPOSE_PROJECT" --compose-file "$OUT/compose.json"', runner)
 
     def test_two_iterations_include_persisted_endpoint_and_arrival_tolerance(self):
+        peace = tomllib.loads((REPO / 'packages/data/zones/test_zone_phase3.toml').read_text())['peace_zone']
+        self.assertEqual(peace['shape'], 'square')
+        self.assertTrue(peace['inclusive'])
+        half_width = peace['half_width_millitiles'] / 1000
+        peace_min = [centre - half_width for centre in peace['centre']]
+        peace_max = [centre + half_width for centre in peace['centre']]
+        bounds = tomllib.loads((REPO / 'packages/data/zones/test_zone.toml').read_text())['bounds']
         for clients in range(1, 9):
             out = self.out / str(clients)
             fixtures.prepare(REPO, out, clients, casting=True)
@@ -189,6 +196,7 @@ class CastingSoakTests(unittest.TestCase):
             roles = seed.validated_roles(manifest)
             self.assertEqual(list(roles.values()), [role['seed'] for role in manifest['roles']])
             zone = tomllib.loads((out / 'data/zones/test_zone.toml').read_text())
+            self.assertEqual(zone['bounds'], bounds)
             homes = [slot['home'] for slot in zone['spawn_slots']]
             for index, role in enumerate(manifest['roles']):
                 with self.subTest(clients=clients, role=role['name']):
@@ -200,16 +208,27 @@ class CastingSoakTests(unittest.TestCase):
                     self.assertEqual(moves, [(int(x), int(y)) for x, y, _, _ in route])
                     self.assertEqual(len(moves), 4)
                     self.assertEqual(tuple(role['seed']['position']), moves[-1])
+                    for point in (homes[index], moves[-1]):
+                        # Chebyshev distance to the production inclusive peace square.
+                        clearance = max(max(lo - coordinate, coordinate - hi, 0)
+                                        for coordinate, lo, hi in zip(point, peace_min, peace_max))
+                        self.assertGreater(clearance, 20)
+                    for point in (homes[index], *moves):
+                        for coordinate, lo, hi in zip(point, bounds['min'], bounds['max']):
+                            self.assertGreaterEqual(coordinate, lo + 5)
+                            self.assertLessEqual(coordinate, hi - 5)
                     position = role['seed']['position']
                     for iteration in range(2):
                         previous_tolerance = 1 if iteration else 0
                         for x, y, tolerance, budget in route:
+                            self.assertEqual(int(tolerance), 1)
+                            self.assertEqual(int(budget), 54)
                             destination = (int(x), int(y))
                             leg = math.dist(position, destination)
                             # Actual MoveTo start may be anywhere in the preceding own_at radius.
                             distance = leg + previous_tolerance
                             self.assertLessEqual(leg, 60)
-                            self.assertLessEqual(distance, 64)
+                            self.assertLessEqual(distance, 61)
                             self.assertGreaterEqual(int(budget), distance / 3.75 * 3)
                             position, previous_tolerance = destination, int(tolerance)
                     self.assertLess(math.dist(position, homes[index]), 5)
