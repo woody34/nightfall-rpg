@@ -1,0 +1,795 @@
+//! Isolated acknowledged-projection storage contracts; live kit/fold/gameplay gates are separate.
+#![allow(
+    missing_docs,
+    clippy::unwrap_used,
+    clippy::indexing_slicing,
+    clippy::panic
+)]
+mod common;
+use nightfall_api::application::ports::*;
+use nightfall_api::application::{
+    CharacterCheckpoint, CharacterRepository, CheckpointError, CheckpointOutcome, IdempotencyKey,
+};
+use nightfall_api::domain::zone::phase4_checkpoint::StarterKitReceipt;
+use nightfall_api::domain::zone::phase4_projection::*;
+use nightfall_api::domain::zone::{
+    EntityId, ItemInstance, ItemInstanceRange, ItemLocation, Phase3Checkpoint, Phase4Checkpoint,
+    Phase4Projection, Tick, ZoneId,
+};
+use nightfall_api::domain::{
+    AccountId, Character, CharacterName, DomainEvent, EventMetadata, ItemEventFact, Position, Race,
+};
+use nightfall_api::infrastructure::{
+    item_data::{embedded_phase4_bundle, Phase4RuleBundle},
+    memory::InMemoryCharacterRepository,
+    postgres::PgCharacterRepository,
+};
+use std::collections::{BTreeMap, BTreeSet};
+use uuid::Uuid;
+
+#[allow(clippy::too_many_lines)] // One complete immutable materialization fixture.
+async fn fixture<R: CharacterRepository + ItemAdmissionRepository>(
+    repo: &R,
+    bundle: &Phase4RuleBundle,
+    name: &str,
+) -> (Character, CharacterCheckpoint, ItemCheckpointWork, Vec<DomainEvent>) {
+    let character = Character::create(
+        AccountId::from_uuid(Uuid::nil()),
+        CharacterName::new(name).unwrap(),
+        Race::Human,
+    );
+    repo.create_idempotent(&IdempotencyKey::new(), name, &character)
+        .await
+        .unwrap();
+    let pending = repo
+        .pending_item_requests(character.id)
+        .await
+        .unwrap()
+        .remove(0);
+    let kit = match pending.manifest.clone() {
+        PendingItemManifest::Kit(kit) => Some(kit),
+        PendingItemManifest::Grant(_) => None,
+    }
+    .unwrap();
+    let reserved = repo.reserve_item_range(ZoneId(1), 1).await.unwrap();
+    let mut allocation = ItemInstanceRange::new(
+        reserved.range_start,
+        reserved.next_reserved,
+        reserved.range_end_exclusive,
+    )
+    .unwrap();
+    // Full manifest counts are retained; slot/stat execution is deliberately not this adapter fixture.
+    let instances: Vec<_> = kit
+        .items
+        .iter()
+        .map(|row| ItemInstance {
+            id: allocation.allocate().unwrap(),
+            template_id: row.template_id,
+            count: row.count,
+            location: ItemLocation::Inventory,
+            slot: None,
+            enchant: 0,
+            augment_id: None,
+            charges: 0,
+            created_tick: Tick(73),
+            revision: 1,
+        })
+        .collect();
+    let checkpoint = Phase4Checkpoint {
+        schema_version: 1,
+        timer_policy_version: 1,
+        rules_hash: bundle.items.hash(),
+        inventory_revision: 1,
+        instances: instances.clone(),
+        paperdoll: BTreeMap::new(),
+        auto_shots: BTreeSet::new(),
+        item_reuse_remainders: Vec::new(),
+        equipment_install_order: Vec::new(),
+        active_sets: BTreeMap::new(),
+        weight: 0,
+        max_load: 100_000,
+        weight_penalty_bonus: 1,
+        overload_level: 0,
+        overloaded: false,
+        expertise: 0,
+        weapon_penalty: 0,
+        armor_penalty: 0,
+        starter_kit_receipt: Some(StarterKitReceipt {
+            manifest_version: pending.manifest_version,
+            manifest_hash: pending.manifest_hash,
+            source_class: kit.source_class_id,
+            request_id: pending.request_id,
+            materialized_revision: 1,
+        }),
+    };
+    let cp = CharacterCheckpoint {
+        character_id: character.id,
+        revision_seen: 0,
+        level: character.level,
+        xp: character.xp,
+        hp: 20,
+        mp: 10,
+        alive: true,
+        position: Position::default(),
+        idempotency: ("save_checkpoint".into(), IdempotencyKey::new()),
+        class_state: Some(character.class_state.clone()),
+        phase3: Some(Phase3Checkpoint::new()),
+        phase4: Some(checkpoint.clone()),
+    };
+    let work = ItemCheckpointWork {
+        zone: ZoneId(1),
+        epoch: 1,
+        allocation,
+        grant_capacities: None,
+        projection: Phase4Projection {
+            tick: Tick(73),
+            entity: EntityId::from_uuid(character.id.as_uuid()),
+            account: character.account_id,
+            checkpoint,
+            ledger: instances
+                .iter()
+                .map(|item| ItemDeltaPlan {
+                    operation: ItemOperation::Starter,
+                    operation_ordinal: 0,
+                    instance: item.id,
+                    before: None,
+                    after: Some(item.clone()),
+                    count_delta: i64::try_from(item.count).unwrap(),
+                    receipt: Some(pending.request_id),
+                    causes: Vec::new(),
+                })
+                .collect(),
+            receipts: vec![ItemReceiptFact {
+                request_id: pending.request_id,
+                fingerprint: pending.fingerprint,
+                result: FrozenItemResult {
+                    entity: EntityId::from_uuid(character.id.as_uuid()),
+                    incarnation: 4,
+                    tick: Tick(73),
+                    inventory_revision: 1,
+                    receipt: pending.request_id,
+                    detail: ItemResultDetail::Operation {
+                        operation: ItemOperation::Starter,
+                        affected: instances.iter().map(|item| item.id).collect(),
+                        recipe: None,
+                    },
+                },
+            }],
+            materializations: vec![ItemMaterializationFact {
+                request_id: pending.request_id,
+                manifest_version: pending.manifest_version,
+                manifest_hash: pending.manifest_hash,
+                inventory_revision: 1,
+                receipt: pending.request_id,
+            }],
+            evidence: Vec::new(),
+        },
+    };
+    let events = events(&cp, &work);
+    (character, cp, work, events)
+}
+fn events(cp: &CharacterCheckpoint, work: &ItemCheckpointWork) -> Vec<DomainEvent> {
+    work.projection
+        .ledger
+        .iter()
+        .enumerate()
+        .map(|(ordinal, delta)| {
+            let fact = ItemEventFact {
+                metadata: EventMetadata {
+                    event_id: Uuid::from_u128(
+                        1000_u128
+                            .checked_add(u128::try_from(ordinal).unwrap())
+                            .unwrap(),
+                    ),
+                    sequence: (
+                        cp.revision_seen.checked_add(1).unwrap(),
+                        u64::try_from(ordinal).unwrap(),
+                    ),
+                },
+                character_id: cp.character_id,
+                instance_id: delta.instance,
+                template_id: delta.template().unwrap(),
+                count_delta: delta.count_delta,
+                before: delta.before.clone(),
+                after: delta.after.clone(),
+                causes: delta
+                    .causes
+                    .iter()
+                    .map(|cause| serde_json::to_value(cause).unwrap())
+                    .collect(),
+            };
+            match delta.operation {
+                ItemOperation::Starter | ItemOperation::Backfill | ItemOperation::Grant => {
+                    DomainEvent::ItemGranted { fact }
+                },
+                ItemOperation::Consume => DomainEvent::ItemConsumed { fact },
+                ItemOperation::Destroy | ItemOperation::Crystallize => {
+                    DomainEvent::ItemDestroyed { fact }
+                },
+                ItemOperation::Equip => DomainEvent::ItemEquipped { fact },
+                ItemOperation::Unequip => DomainEvent::ItemUnequipped { fact },
+                ItemOperation::Enchant => DomainEvent::ItemEnchanted { fact },
+                ItemOperation::Refine | ItemOperation::CancelRefine => {
+                    DomainEvent::ItemRefined { fact }
+                },
+                ItemOperation::Exchange => DomainEvent::ItemExchanged { fact },
+                ItemOperation::Use | ItemOperation::ToggleAutoShot => {
+                    panic!("owner-only operations cannot be fixture ledger rows")
+                },
+            }
+        })
+        .collect()
+}
+fn interleaved(
+    first: &CharacterCheckpoint,
+    first_work: &ItemCheckpointWork,
+) -> (CharacterCheckpoint, ItemCheckpointWork, Vec<DomainEvent>) {
+    let mut cp = first.clone();
+    cp.revision_seen = 1;
+    cp.idempotency.1 = IdempotencyKey::new();
+    let retained = cp.phase4.as_mut().unwrap();
+    retained.inventory_revision = 4;
+    let target = retained
+        .instances
+        .iter_mut()
+        .max_by_key(|item| item.count)
+        .unwrap();
+    let before = target.clone();
+    let mut grant_before = before.clone();
+    grant_before.count = grant_before.count.checked_sub(2).unwrap();
+    grant_before.revision = 2;
+    let mut grant_after = grant_before.clone();
+    grant_after.count = grant_after.count.checked_add(5).unwrap();
+    grant_after.revision = 3;
+    target.count = target.count.checked_sub(1).unwrap();
+    target.revision = 4;
+    let after = target.clone();
+    let target_id = target.id;
+    let request = Uuid::now_v7();
+    let cause = |ordinal, count| ItemAuditEvidence {
+        family: "consume".into(),
+        fields: BTreeMap::from([
+            ("ordinal".into(), ItemEvidenceValue::Unsigned(ordinal)),
+            ("count".into(), ItemEvidenceValue::Unsigned(count)),
+        ]),
+    };
+    let mut work = first_work.clone();
+    work.projection.tick = Tick(74);
+    work.projection.checkpoint = retained.clone();
+    work.grant_capacities = Some((80, 100));
+    work.projection.ledger = vec![
+        ItemDeltaPlan {
+            operation: ItemOperation::Grant,
+            operation_ordinal: 1,
+            instance: target_id,
+            before: Some(grant_before),
+            after: Some(grant_after),
+            count_delta: 5,
+            receipt: Some(request),
+            causes: Vec::new(),
+        },
+        ItemDeltaPlan {
+            operation: ItemOperation::Consume,
+            operation_ordinal: 0,
+            instance: target_id,
+            before: Some(before),
+            after: Some(after),
+            count_delta: -6,
+            receipt: None,
+            causes: vec![cause(0, 2), cause(2, 4)],
+        },
+    ];
+    work.projection.receipts = vec![ItemReceiptFact {
+        request_id: request,
+        fingerprint: "grant-body-five".into(),
+        result: FrozenItemResult {
+            entity: work.projection.entity,
+            incarnation: 4,
+            tick: Tick(74),
+            inventory_revision: 3,
+            receipt: request,
+            detail: ItemResultDetail::Operation {
+                operation: ItemOperation::Grant,
+                affected: vec![target_id],
+                recipe: None,
+            },
+        },
+    }];
+    work.projection.materializations.clear();
+    let facts = events(&cp, &work);
+    (cp, work, facts)
+}
+fn destroy(
+    previous: &CharacterCheckpoint,
+    previous_work: &ItemCheckpointWork,
+) -> (CharacterCheckpoint, ItemCheckpointWork, Vec<DomainEvent>) {
+    let mut cp = previous.clone();
+    cp.revision_seen = 2;
+    cp.idempotency.1 = IdempotencyKey::new();
+    let checkpoint = cp.phase4.as_mut().unwrap();
+    checkpoint.inventory_revision = 5;
+    let target = previous_work.projection.ledger.first().unwrap().instance;
+    let index = checkpoint
+        .instances
+        .iter()
+        .position(|item| item.id == target)
+        .unwrap();
+    let before = checkpoint.instances.remove(index);
+    let request = Uuid::now_v7();
+    let mut work = previous_work.clone();
+    work.grant_capacities = None;
+    work.projection.tick = Tick(75);
+    work.projection.checkpoint = checkpoint.clone();
+    work.projection.ledger = vec![ItemDeltaPlan {
+        operation: ItemOperation::Destroy,
+        operation_ordinal: 0,
+        instance: target,
+        before: Some(before.clone()),
+        after: None,
+        count_delta: i64::try_from(before.count).unwrap().checked_neg().unwrap(),
+        receipt: Some(request),
+        causes: Vec::new(),
+    }];
+    work.projection.receipts = vec![ItemReceiptFact {
+        request_id: request,
+        fingerprint: "destroy-body".into(),
+        result: FrozenItemResult {
+            entity: work.projection.entity,
+            incarnation: 4,
+            tick: Tick(75),
+            inventory_revision: 5,
+            receipt: request,
+            detail: ItemResultDetail::Operation {
+                operation: ItemOperation::Destroy,
+                affected: vec![target],
+                recipe: None,
+            },
+        },
+    }];
+    let facts = events(&cp, &work);
+    (cp, work, facts)
+}
+#[allow(clippy::too_many_lines)] // Same adapter contract including historical immutable retries.
+async fn contract<
+    R: CharacterRepository
+        + ItemAdmissionRepository
+        + ItemInventoryRepository
+        + ItemCheckpointRepository,
+>(
+    repo: &R,
+    bundle: &Phase4RuleBundle,
+) -> (Character, ItemCheckpointWork) {
+    let (character, cp, work, facts) = fixture(repo, bundle, "ItemSettlement").await;
+    assert_eq!(
+        repo.checkpoint_items(&cp, &facts, &work, None)
+            .await
+            .unwrap(),
+        CheckpointOutcome::Applied(1)
+    );
+    assert_eq!(
+        repo.checkpoint_items(&cp, &facts, &work, None)
+            .await
+            .unwrap(),
+        CheckpointOutcome::Replayed(1)
+    );
+    assert!(repo
+        .pending_item_requests(character.id)
+        .await
+        .unwrap()
+        .iter()
+        .all(|request| matches!(request.status, PendingItemStatus::Materialized { .. })));
+    assert_eq!(
+        repo.load_for_admission(character.id)
+            .await
+            .unwrap()
+            .unwrap()
+            .phase4
+            .unwrap()
+            .pending
+            .len(),
+        0
+    );
+    let (second, second_work, second_facts) = interleaved(&cp, &work);
+    assert_eq!(
+        repo.checkpoint_items(&second, &second_facts, &second_work, None)
+            .await
+            .unwrap(),
+        CheckpointOutcome::Applied(2)
+    );
+    let receipt = second_work.projection.receipts.first().unwrap();
+    let key = IdempotencyKey::from_uuid(receipt.request_id);
+    let known = repo
+        .item_receipt_lookup(
+            character.account_id,
+            ItemMutationOperation::GrantItem,
+            &key,
+            &receipt.fingerprint,
+        )
+        .await
+        .unwrap();
+    let frozen = match &known {
+        ItemReceiptLookup::Known(receipt) => Some(receipt),
+        ItemReceiptLookup::Unknown | ItemReceiptLookup::Conflict => None,
+    }
+    .unwrap();
+    assert_eq!(frozen.inventory.as_ref().unwrap().character_revision, 2);
+    assert_eq!(
+        frozen
+            .inventory
+            .as_ref()
+            .unwrap()
+            .checkpoint
+            .inventory_revision,
+        4
+    );
+    assert_eq!(frozen.result.inventory_revision, 3);
+    let (third, third_work, third_facts) = destroy(&second, &second_work);
+    assert_eq!(
+        repo.checkpoint_items(&third, &third_facts, &third_work, None)
+            .await
+            .unwrap(),
+        CheckpointOutcome::Applied(3)
+    );
+    assert_eq!(
+        repo.item_receipt_lookup(
+            character.account_id,
+            ItemMutationOperation::GrantItem,
+            &key,
+            &receipt.fingerprint
+        )
+        .await
+        .unwrap(),
+        known
+    );
+    assert_eq!(
+        repo.checkpoint_items(&cp, &facts, &work, None)
+            .await
+            .unwrap(),
+        CheckpointOutcome::Replayed(1)
+    );
+    assert_eq!(
+        repo.item_receipt_lookup(
+            character.account_id,
+            ItemMutationOperation::GrantItem,
+            &key,
+            "changed-body"
+        )
+        .await
+        .unwrap(),
+        ItemReceiptLookup::Conflict
+    );
+    assert_eq!(
+        repo.item_receipt_lookup(
+            AccountId::from_uuid(Uuid::from_u128(99)),
+            ItemMutationOperation::GrantItem,
+            &key,
+            &receipt.fingerprint
+        )
+        .await
+        .unwrap(),
+        ItemReceiptLookup::Unknown
+    );
+    assert_eq!(
+        repo.item_receipt_lookup(
+            character.account_id,
+            ItemMutationOperation::EquipItem,
+            &key,
+            &receipt.fingerprint
+        )
+        .await
+        .unwrap(),
+        ItemReceiptLookup::Unknown
+    );
+    let mut duplicate = second.clone();
+    duplicate.idempotency.1 = IdempotencyKey::new();
+    assert_eq!(
+        repo.checkpoint_items(&duplicate, &second_facts, &second_work, None)
+            .await
+            .unwrap(),
+        CheckpointOutcome::Stale
+    );
+    let mut conflicting = second_work.clone();
+    conflicting
+        .projection
+        .receipts
+        .first_mut()
+        .unwrap()
+        .fingerprint = "changed-body".into();
+    assert!(matches!(
+        repo.checkpoint_items(&duplicate, &second_facts, &conflicting, None)
+            .await,
+        Err(CheckpointError::KeyReused)
+    ));
+    let current = repo
+        .retained_inventory(character.id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(current.character_revision, 3);
+    assert_eq!(current.checkpoint, third.phase4);
+    (character, second_work)
+}
+#[tokio::test]
+async fn memory_atomic_item_projection_receipts_batching_and_revision_fences() {
+    let bundle = embedded_phase4_bundle().unwrap();
+    let repo = InMemoryCharacterRepository::default()
+        .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
+        .unwrap();
+    let (_, work) = contract(&repo, &bundle).await;
+    let consumed: Vec<_> = repo
+        .item_ledger_for_test()
+        .into_iter()
+        .filter(|row| row.operation == ItemLedgerOperation::Consume)
+        .collect();
+    assert_eq!(consumed.len(), 1);
+    assert_eq!(consumed[0].delta.count_delta, -6);
+    assert_eq!(consumed[0].delta.causes.len(), 2);
+    assert_eq!(consumed[0].instance_id, work.projection.ledger[0].instance);
+}
+#[tokio::test]
+async fn postgres_atomic_item_projection_receipts_batching_and_revision_fences() {
+    let Some(pool) = common::pg::migrated_pool().await else {
+        return;
+    };
+    common::pg::insert_account(&pool, Uuid::nil()).await;
+    let bundle = embedded_phase4_bundle().unwrap();
+    let repo = PgCharacterRepository::new(pool.clone())
+        .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
+        .unwrap();
+    let (character, _) = contract(&repo, &bundle).await;
+    let rows: Vec<(i32, serde_json::Value)> = sqlx::query_as(
+        "SELECT operation_ordinal,delta FROM item_ledger WHERE character_id=$1 AND op='consume'",
+    )
+    .bind(character.id.as_uuid())
+    .fetch_all(&pool)
+    .await
+    .unwrap();
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].0, 0);
+    let delta: ItemLedgerDelta = serde_json::from_value(rows[0].1.clone()).unwrap();
+    assert_eq!(delta.count_delta, -6);
+    assert_eq!(delta.causes.len(), 2);
+    let cursor: i64 =
+        sqlx::query_scalar("SELECT next_reserved FROM item_id_ranges WHERE zone_id=1 AND epoch=1")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert!(cursor > 4_294_967_296);
+}
+#[tokio::test]
+async fn postgres_outbox_failure_rolls_back_items_ledger_receipts_pending_range_and_parent() {
+    let Some(pool) = common::pg::migrated_pool().await else {
+        return;
+    };
+    common::pg::insert_account(&pool, Uuid::nil()).await;
+    let bundle = embedded_phase4_bundle().unwrap();
+    let repo = PgCharacterRepository::new(pool.clone())
+        .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
+        .unwrap();
+    let (character, cp, work, facts) = fixture(&repo, &bundle, "ItemRollback").await;
+    sqlx::raw_sql("CREATE FUNCTION reject_item_outbox() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.subject LIKE 'nightfall.item.%' THEN RAISE EXCEPTION 'injected outbox failure'; END IF; RETURN NEW; END $$; CREATE TRIGGER reject_item_outbox BEFORE INSERT ON outbox FOR EACH ROW EXECUTE FUNCTION reject_item_outbox();").execute(&pool).await.unwrap();
+    assert!(repo
+        .checkpoint_items(&cp, &facts, &work, None)
+        .await
+        .is_err());
+    assert_eq!(
+        repo.retained_inventory(character.id)
+            .await
+            .unwrap()
+            .unwrap()
+            .character_revision,
+        0
+    );
+    for (table, query) in [
+        ("item_instances", "SELECT count(*) FROM item_instances"),
+        ("item_ledger", "SELECT count(*) FROM item_ledger"),
+        ("item_mutation_receipts", "SELECT count(*) FROM item_mutation_receipts"),
+    ] {
+        let count: i64 = sqlx::query_scalar(query).fetch_one(&pool).await.unwrap();
+        assert_eq!(count, 0, "{table} rolled back");
+    }
+    let pending = repo.pending_item_requests(character.id).await.unwrap();
+    assert!(matches!(pending[0].status, PendingItemStatus::Pending));
+    let receipt = work.projection.receipts.first().unwrap();
+    assert_eq!(
+        repo.item_receipt_lookup(
+            character.account_id,
+            ItemMutationOperation::Starter,
+            &IdempotencyKey::from_uuid(receipt.request_id),
+            &receipt.fingerprint
+        )
+        .await
+        .unwrap(),
+        ItemReceiptLookup::Unknown
+    );
+    let reserved = repo.reserve_item_range(ZoneId(1), 1).await.unwrap();
+    assert_eq!(reserved.next_reserved, reserved.range_start);
+    sqlx::query("DROP TRIGGER reject_item_outbox ON outbox")
+        .execute(&pool)
+        .await
+        .unwrap();
+    assert_eq!(
+        repo.checkpoint_items(&cp, &facts, &work, None)
+            .await
+            .unwrap(),
+        CheckpointOutcome::Applied(1)
+    );
+    assert_eq!(
+        repo.item_receipt_lookup(
+            character.account_id,
+            ItemMutationOperation::Starter,
+            &IdempotencyKey::from_uuid(receipt.request_id),
+            &receipt.fingerprint
+        )
+        .await
+        .unwrap(),
+        ItemReceiptLookup::Known(Box::new(work.receipts(&cp).unwrap().remove(0)))
+    );
+}
+
+async fn concurrent_contract<
+    R: CharacterRepository
+        + ItemAdmissionRepository
+        + ItemCheckpointRepository
+        + ItemInventoryRepository,
+>(
+    repo: &R,
+    bundle: &Phase4RuleBundle,
+) {
+    let (character, cp, work, facts) = fixture(repo, bundle, "ItemConcurrent").await;
+    let (left, right) = tokio::join!(
+        repo.checkpoint_items(&cp, &facts, &work, None),
+        repo.checkpoint_items(&cp, &facts, &work, None)
+    );
+    let mut outcomes = vec![left.unwrap(), right.unwrap()];
+    assert!(outcomes.contains(&CheckpointOutcome::Applied(1)));
+    assert!(outcomes.contains(&CheckpointOutcome::Replayed(1)));
+    outcomes.clear();
+    let (next, next_work, next_facts) = interleaved(&cp, &work);
+    let mut other = next.clone();
+    other.idempotency.1 = IdempotencyKey::new();
+    let (left, right) = tokio::join!(
+        repo.checkpoint_items(&next, &next_facts, &next_work, None),
+        repo.checkpoint_items(&other, &next_facts, &next_work, None)
+    );
+    outcomes.extend([left.unwrap(), right.unwrap()]);
+    assert!(outcomes.contains(&CheckpointOutcome::Applied(2)));
+    assert!(outcomes.contains(&CheckpointOutcome::Stale));
+    assert_eq!(
+        repo.retained_inventory(character.id)
+            .await
+            .unwrap()
+            .unwrap()
+            .character_revision,
+        2
+    );
+}
+
+#[tokio::test]
+async fn memory_concurrent_item_keys_settle_once() {
+    let bundle = embedded_phase4_bundle().unwrap();
+    let repo = InMemoryCharacterRepository::default()
+        .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
+        .unwrap();
+    concurrent_contract(&repo, &bundle).await;
+}
+
+#[tokio::test]
+async fn postgres_concurrent_item_keys_settle_once() {
+    let Some(pool) = common::pg::migrated_pool().await else {
+        return;
+    };
+    common::pg::insert_account(&pool, Uuid::nil()).await;
+    let bundle = embedded_phase4_bundle().unwrap();
+    let repo = PgCharacterRepository::new(pool.clone())
+        .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
+        .unwrap();
+    concurrent_contract(&repo, &bundle).await;
+    let rows: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM item_mutation_receipts WHERE operation='grant_item'",
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(rows, 1);
+    let rows: i64 = sqlx::query_scalar("SELECT count(*) FROM item_ledger WHERE op='consume'")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(rows, 1);
+}
+
+async fn rejected_contract<
+    R: CharacterRepository
+        + ItemAdmissionRepository
+        + ItemCheckpointRepository
+        + ItemInventoryRepository,
+>(
+    repo: &R,
+    bundle: &Phase4RuleBundle,
+) {
+    let (character, cp, work, facts) = fixture(repo, bundle, "ItemRejected").await;
+    assert_eq!(
+        repo.checkpoint_items(&cp, &facts, &work, None)
+            .await
+            .unwrap(),
+        CheckpointOutcome::Applied(1)
+    );
+    let (next, valid, events) = interleaved(&cp, &work);
+    let before = repo.retained_inventory(character.id).await.unwrap();
+    let mut corrupt = valid.clone();
+    corrupt.projection.ledger.last_mut().unwrap().count_delta = -7;
+    assert!(
+        matches!(repo.checkpoint_items(&next, &events, &corrupt, None).await, Err(CheckpointError::Constraint(name)) if name == "item_ledger_count_conservation")
+    );
+    assert_eq!(repo.retained_inventory(character.id).await.unwrap(), before);
+    let mut corrupt = valid.clone();
+    corrupt
+        .projection
+        .ledger
+        .last_mut()
+        .unwrap()
+        .before
+        .as_mut()
+        .unwrap()
+        .created_tick = Tick(72);
+    assert!(
+        matches!(repo.checkpoint_items(&next, &events, &corrupt, None).await, Err(CheckpointError::Constraint(name)) if name == "item_ledger_initial_scalar")
+    );
+    assert_eq!(repo.retained_inventory(character.id).await.unwrap(), before);
+    let mut corrupt = valid.clone();
+    corrupt.projection.account = AccountId::from_uuid(Uuid::from_u128(7));
+    assert!(
+        matches!(repo.checkpoint_items(&next, &events, &corrupt, None).await, Err(CheckpointError::Constraint(name)) if name == "item_checkpoint_identity")
+    );
+    let receipt = &valid.projection.receipts[0];
+    assert_eq!(
+        repo.item_receipt_lookup(
+            character.account_id,
+            ItemMutationOperation::GrantItem,
+            &IdempotencyKey::from_uuid(receipt.request_id),
+            &receipt.fingerprint
+        )
+        .await
+        .unwrap(),
+        ItemReceiptLookup::Unknown
+    );
+    let mut stale = next.clone();
+    stale.revision_seen = 0;
+    let stale_events = self::events(&stale, &valid);
+    assert_eq!(
+        repo.checkpoint_items(&stale, &stale_events, &valid, None)
+            .await
+            .unwrap(),
+        CheckpointOutcome::Stale
+    );
+    assert_eq!(repo.retained_inventory(character.id).await.unwrap(), before);
+    assert_eq!(
+        repo.checkpoint_items(&next, &events, &valid, None)
+            .await
+            .unwrap(),
+        CheckpointOutcome::Applied(2)
+    );
+}
+
+#[tokio::test]
+async fn memory_rejects_unconserved_counts_wrong_initial_scalar_owner_and_stale_fence() {
+    let bundle = embedded_phase4_bundle().unwrap();
+    let repo = InMemoryCharacterRepository::default()
+        .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
+        .unwrap();
+    rejected_contract(&repo, &bundle).await;
+}
+
+#[tokio::test]
+async fn postgres_rejects_unconserved_counts_wrong_initial_scalar_owner_and_stale_fence() {
+    let Some(pool) = common::pg::migrated_pool().await else {
+        return;
+    };
+    common::pg::insert_account(&pool, Uuid::nil()).await;
+    let bundle = embedded_phase4_bundle().unwrap();
+    let repo = PgCharacterRepository::new(pool)
+        .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
+        .unwrap();
+    rejected_contract(&repo, &bundle).await;
+}

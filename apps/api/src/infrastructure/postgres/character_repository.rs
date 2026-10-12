@@ -396,7 +396,7 @@ impl CharacterRepository for PgCharacterRepository {
         events: &[DomainEvent],
     ) -> Result<CheckpointOutcome, CheckpointError> {
         match self
-            .timed("checkpoint", Box::pin(self.checkpoint_tx(checkpoint, events, None)))
+            .timed("checkpoint", Box::pin(self.checkpoint_tx(checkpoint, events, None, None)))
             .await?
         {
             LearningCheckpointOutcome::Checkpoint(outcome) => Ok(outcome),
@@ -453,7 +453,7 @@ impl LearningCheckpointRepository for PgCharacterRepository {
     ) -> Result<LearningCheckpointOutcome, CheckpointError> {
         self.timed(
             "checkpoint_learning",
-            Box::pin(self.checkpoint_tx(checkpoint, events, Some(receipt))),
+            Box::pin(self.checkpoint_tx(checkpoint, events, Some(receipt), None)),
         )
         .await
     }
@@ -529,15 +529,16 @@ async fn claim_learning(
 
 impl PgCharacterRepository {
     #[allow(clippy::too_many_lines)] // Keep receipt/key/fence/ledger/outbox ordering visible in one transaction.
-    async fn checkpoint_tx(
+    pub(super) async fn checkpoint_tx(
         &self,
         cp: &CharacterCheckpoint,
         events: &[DomainEvent],
         receipt: Option<&SuccessfulLearnReceipt>,
+        items: Option<&crate::application::ports::ItemCheckpointWork>,
     ) -> Result<LearningCheckpointOutcome, CheckpointError> {
         let other = checkpoint_db_error;
         // Item audit facts require the atomic inventory/ledger/receipt projection lane.
-        if events.iter().any(DomainEvent::is_item) {
+        if items.is_none() && events.iter().any(DomainEvent::is_item) {
             return Err(CheckpointError::Constraint("item_projection_required".into()));
         }
         if receipt.is_none() {
@@ -545,10 +546,14 @@ impl PgCharacterRepository {
                 return Err(CheckpointError::Constraint(name.to_owned()));
             }
         }
-        let fingerprint = receipt.map_or_else(
-            || Ok(cp.fingerprint(events)),
-            |receipt| receipt.checkpoint_fingerprint(cp, events),
-        )?;
+        let fingerprint = if let Some(work) = items {
+            work.fingerprint(cp, events, receipt)?
+        } else {
+            receipt.map_or_else(
+                || Ok(cp.fingerprint(events)),
+                |receipt| receipt.checkpoint_fingerprint(cp, events),
+            )?
+        };
         let tx = self.db.begin().await.map_err(other)?;
 
         let original = characters::Entity::find_by_id(cp.character_id.as_uuid())
@@ -563,7 +568,7 @@ impl PgCharacterRepository {
         let account = original.account_id.as_uuid();
         // An exact immutable checkpoint retry proves this draft committed, even after
         // another revision. A receipt alone proves only that some purchase won the key.
-        if receipt.is_some() {
+        if receipt.is_some() || items.is_some() {
             if let Some(stored) = super::entities::idempotency_keys::Entity::find_by_id((
                 cp.idempotency.1.as_uuid(),
                 account,
@@ -582,6 +587,21 @@ impl PgCharacterRepository {
                 return Ok(LearningCheckpointOutcome::Checkpoint(CheckpointOutcome::Replayed(
                     result.revision,
                 )));
+            }
+        }
+        if let Some(work) = items {
+            let rules = self
+                .phase4_rules
+                .as_ref()
+                .ok_or_else(|| CheckpointError::Constraint("item_checkpoint_rules".into()))?;
+            if work.projection.checkpoint.rules_hash != rules.hash() {
+                return Err(CheckpointError::Constraint("item_checkpoint_rules".into()));
+            }
+            work.validate(cp, original.account_id)?;
+            work.validate_events(cp, events)?;
+            if super::item_settlement::claim_receipts(&tx, cp, work).await? {
+                tx.rollback().await.map_err(other)?;
+                return Ok(LearningCheckpointOutcome::Checkpoint(CheckpointOutcome::Stale));
             }
         }
         if let Some(receipt) = receipt {
@@ -681,10 +701,14 @@ impl PgCharacterRepository {
         let phase3_original = phase3_checkpoint::load(&tx, &original_model).await?;
         let phase4_original =
             super::phase4_checkpoint::load(&tx, &original_model, phase3_original.as_ref()).await?;
-        crate::application::ports::validate_item_retention(
-            phase4_original.as_ref(),
-            cp.phase4.as_ref(),
-        )?;
+        if let Some(work) = items {
+            work.validate_before(phase4_original.as_ref())?;
+        } else {
+            crate::application::ports::validate_item_retention(
+                phase4_original.as_ref(),
+                cp.phase4.as_ref(),
+            )?;
+        }
         if phase3_seen && cp.phase3.is_none() {
             return Err(CheckpointError::Constraint("characters_phase3_downgrade".into()));
         }
@@ -697,7 +721,9 @@ impl PgCharacterRepository {
             phase3_checkpoint::persist(&tx, cp.character_id, phase3).await?;
         }
 
-        if let Some(phase4) = &cp.phase4 {
+        if let Some(work) = items {
+            super::item_settlement::persist(&tx, cp, work, phase4_original.as_ref()).await?;
+        } else if let Some(phase4) = &cp.phase4 {
             super::phase4_checkpoint::persist_retained(&tx, cp.character_id, phase4).await?;
         }
 
