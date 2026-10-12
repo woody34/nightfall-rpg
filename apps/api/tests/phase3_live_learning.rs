@@ -384,6 +384,7 @@ async fn logged_purchase_with_stale_checkpoint_remains_fenced_during_recovery() 
     let mut output = zone.subscribe();
     let before = repo.load_for_admission(c.id).await.unwrap().unwrap();
     let newer = CharacterCheckpoint {
+        phase4: None,
         character_id: c.id,
         revision_seen: before.revision,
         level: before.level,

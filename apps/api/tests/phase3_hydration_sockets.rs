@@ -176,6 +176,7 @@ async fn ordinary(repo: &InMemoryCharacterRepository, name: &str, x: f32) -> Cha
     phase3.flag_remaining_ticks = 600;
     repo.checkpoint(
         &CharacterCheckpoint {
+            phase4: None,
             character_id: c.id,
             revision_seen: 0,
             level: c.level,
@@ -253,6 +254,7 @@ async fn socket_identity_has_final_status_before_effect_hydration() {
         .push(effects::RetainedModifierSource::Effect { effect_ordinal: 0 });
     repo.checkpoint(
         &CharacterCheckpoint {
+            phase4: None,
             character_id: rooted.id,
             revision_seen: stored.revision,
             level: stored.level,
@@ -439,6 +441,7 @@ async fn corpse_fixture() -> (TestApp, ManualTickDriver, Character, Character, C
         }
         repo.checkpoint(
             &CharacterCheckpoint {
+                phase4: None,
                 character_id: c.id,
                 revision_seen: 0,
                 level: c.level,

@@ -281,3 +281,26 @@ impl ItemLedgerEntry {
         Ok(())
     }
 }
+
+/// A periodic/lifecycle save may retain paused timers, but cannot change ownership or a
+/// request-controlled owner sidecar without the typed item projection transaction.
+pub(crate) fn validate_item_retention(
+    before: Option<&crate::domain::zone::Phase4Checkpoint>,
+    after: Option<&crate::domain::zone::Phase4Checkpoint>,
+) -> Result<(), crate::application::CheckpointError> {
+    use crate::application::CheckpointError;
+    match (before, after) {
+        (Some(_), None) => Err(CheckpointError::Constraint("characters_phase4_downgrade".into())),
+        (None, Some(_)) => Err(CheckpointError::Constraint("item_projection_required".into())),
+        (Some(before), Some(after))
+            if before.instances != after.instances
+                || before.inventory_revision != after.inventory_revision
+                || before.auto_shots != after.auto_shots
+                || before.starter_kit_receipt != after.starter_kit_receipt
+                || before.rules_hash != after.rules_hash =>
+        {
+            Err(CheckpointError::Constraint("item_projection_required".into()))
+        },
+        (None, None) | (Some(_), Some(_)) => Ok(()),
+    }
+}

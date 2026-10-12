@@ -382,7 +382,8 @@ impl SessionRegistry {
                 .await
                 .map_err(|_| AdmitError::LoadFailed)?
                 .ok_or(AdmitError::LoadFailed)?;
-            if loaded.phase3.is_some() && !zone.phase3_enabled() {
+            // Remove this rollout fence when the V6 command codec carries the canonical load.
+            if loaded.phase4.is_some() || (loaded.phase3.is_some() && !zone.phase3_enabled()) {
                 return Err(AdmitError::LoadFailed);
             }
             loaded.name.as_str().clone_into(&mut spawn.name);

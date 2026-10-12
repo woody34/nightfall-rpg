@@ -42,6 +42,7 @@ impl State {
         self.progression.insert(
             c.id,
             ProgressionState {
+                phase4: None,
                 phase3: None,
                 position: c.position,
                 level: c.level,
@@ -67,6 +68,7 @@ pub struct InMemoryCharacterRepository {
     state: Mutex<State>,
     classes: Option<Arc<ClassRegistry>>,
     phase3_rules: Option<Arc<Phase3Rules>>,
+    phase4_rules: Option<Arc<crate::domain::zone::Phase4Rules>>,
 }
 
 impl InMemoryCharacterRepository {
@@ -81,6 +83,18 @@ impl InMemoryCharacterRepository {
     pub fn with_phase3_rules(mut self, rules: Arc<Phase3Rules>) -> Self {
         self.phase3_rules = Some(rules);
         self
+    }
+
+    /// Install the exact item/skill pair selected for this V6 epoch, never a mixed catalogue.
+    pub fn with_phase4_rules(
+        mut self,
+        items: Arc<crate::domain::zone::Phase4Rules>,
+        skills: Arc<Phase3Rules>,
+    ) -> anyhow::Result<Self> {
+        items.validate_phase3(&skills).map_err(anyhow::Error::msg)?;
+        self.phase3_rules = Some(skills);
+        self.phase4_rules = Some(items);
+        Ok(self)
     }
 
     fn phase3_rules(&self) -> anyhow::Result<Arc<Phase3Rules>> {
@@ -165,6 +179,7 @@ impl InMemoryCharacterRepository {
 }
 
 impl InMemoryCharacterRepository {
+    #[allow(clippy::too_many_lines)] // Keep key/fence/validation/atomic mutation ordering visible.
     fn checkpoint_locked(
         &self,
         s: &mut State,
@@ -207,6 +222,10 @@ impl InMemoryCharacterRepository {
         {
             return Err(CheckpointError::Constraint("characters_phase3_downgrade".into()));
         }
+        crate::application::ports::validate_item_retention(
+            s.item_inventories.get(&checkpoint.character_id),
+            checkpoint.phase4.as_ref(),
+        )?;
         if let Some(ledger) = &checkpoint.class_state {
             let character = s
                 .characters
@@ -287,6 +306,10 @@ impl InMemoryCharacterRepository {
             if let Some(ledger) = &checkpoint.class_state {
                 c.class_state = ledger.clone();
             }
+        }
+        if let Some(phase4) = &checkpoint.phase4 {
+            s.item_inventories
+                .insert(checkpoint.character_id, phase4.clone());
         }
         s.outbox.extend_from_slice(events);
         s.checkpoint_keys.insert(scoped, (fingerprint, revision));
@@ -455,10 +478,10 @@ impl CharacterRepository for InMemoryCharacterRepository {
         character_id: CharacterId,
     ) -> anyhow::Result<Option<ProgressionState>> {
         let state = self.state.lock();
-        // Replace this rollout fence when the canonical V6 PlayerLoad is installed.
+        // Legacy readers must never silently drop retained V6 inventory.
         anyhow::ensure!(
-            !state.item_inventories.contains_key(&character_id),
-            "Phase4 admission is not yet available"
+            self.phase4_rules.is_some() || !state.item_inventories.contains_key(&character_id),
+            "Phase4 admission requires its matching runtime bundle"
         );
         if let Some(c) = state.characters.get(&character_id) {
             let progression = state
@@ -472,7 +495,27 @@ impl CharacterRepository for InMemoryCharacterRepository {
                 progression.alive,
             )?;
         }
-        Ok(state.progression.get(&character_id).cloned())
+        let mut loaded = state.progression.get(&character_id).cloned();
+        if let (Some(loaded), Some(rules)) = (&mut loaded, &self.phase4_rules) {
+            let character = state
+                .characters
+                .get(&character_id)
+                .ok_or_else(|| anyhow::anyhow!("progression character missing"))?;
+            loaded.phase4 = Some(crate::infrastructure::item_manifests::admission_load(
+                character,
+                state.item_inventories.get(&character_id).cloned(),
+                state
+                    .pending_item_requests
+                    .get(&character_id)
+                    .map_or(&[], Vec::as_slice),
+                loaded
+                    .phase3
+                    .as_ref()
+                    .map_or(0, |p| p.modifier_install_order.len()),
+                rules,
+            )?);
+        }
+        Ok(loaded)
     }
 
     async fn checkpoint(
@@ -611,6 +654,7 @@ mod tests {
 
     fn cp(c: &Character, seen: u64, key: &str) -> CharacterCheckpoint {
         CharacterCheckpoint {
+            phase4: None,
             phase3: None,
             character_id: c.id,
             revision_seen: seen,

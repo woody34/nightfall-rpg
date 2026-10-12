@@ -63,3 +63,108 @@ pub(super) fn starter_request(character: &Character) -> anyhow::Result<PendingIt
         status: PendingItemStatus::Pending,
     })
 }
+
+/// Freeze all pending contents under the same parent lock as progression and its revision.
+pub(super) fn admission_load(
+    character: &Character,
+    checkpoint: Option<crate::domain::zone::Phase4Checkpoint>,
+    requests: &[PendingItemRequest],
+    phase3_sources: usize,
+    rules: &crate::domain::zone::Phase4Rules,
+) -> anyhow::Result<crate::domain::zone::Phase4PlayerLoad> {
+    use crate::domain::zone::phase4_admission::{
+        ItemGrantManifest, ItemKitManifest, ItemMaterialization, PendingItemMaterialization,
+        StarterKitSeed,
+    };
+    use crate::domain::zone::Phase4PlayerLoad;
+    if let Some(cp) = &checkpoint {
+        anyhow::ensure!(cp.rules_hash == rules.hash(), "retained inventory rules hash mismatch");
+    }
+    let mut pending = Vec::new();
+    for request in requests {
+        anyhow::ensure!(
+            request.character_id == character.id
+                && request.manifest_version == 1
+                && !request.fingerprint.is_empty(),
+            "invalid pending item identity"
+        );
+        let materialization = match (&request.kind, &request.manifest) {
+            (PendingItemKind::Grant, PendingItemManifest::Grant(grant)) => {
+                ItemMaterialization::Grant(ItemGrantManifest {
+                    template_id: grant.template_id,
+                    count: grant.count,
+                })
+            },
+            (
+                kind @ (PendingItemKind::Starter | PendingItemKind::Backfill),
+                PendingItemManifest::Kit(kit),
+            ) => {
+                anyhow::ensure!(
+                    *kit == starter_manifest(character.class_state.base_class_id)?,
+                    "pending kit does not match creation class"
+                );
+                let kit = ItemKitManifest {
+                    source_class_id: kit.source_class_id,
+                    items: kit
+                        .items
+                        .iter()
+                        .map(|item| StarterKitSeed {
+                            template_id: item.template_id,
+                            count: item.count,
+                            equipped: item.equipped,
+                        })
+                        .collect(),
+                };
+                if *kind == PendingItemKind::Starter {
+                    ItemMaterialization::Starter(kit)
+                } else {
+                    ItemMaterialization::Backfill(kit)
+                }
+            },
+            _ => anyhow::bail!("pending item kind/payload mismatch"),
+        };
+        anyhow::ensure!(
+            materialization.manifest_hash()? == request.manifest_hash,
+            "pending item content hash mismatch"
+        );
+        match request.status {
+            PendingItemStatus::Pending => pending.push(PendingItemMaterialization {
+                request_id: request.request_id,
+                request_fingerprint: request.fingerprint.clone(),
+                manifest_version: request.manifest_version,
+                manifest_hash: request.manifest_hash,
+                materialization,
+            }),
+            PendingItemStatus::Materialized { revision, receipt } => {
+                let cp = checkpoint.as_ref().ok_or_else(|| {
+                    anyhow::anyhow!("completed request without inventory checkpoint")
+                })?;
+                anyhow::ensure!(
+                    receipt == request.request_id && revision <= cp.inventory_revision,
+                    "pending item completion mismatch"
+                );
+                if request.kind != PendingItemKind::Grant {
+                    let kit = cp
+                        .starter_kit_receipt
+                        .as_ref()
+                        .ok_or_else(|| anyhow::anyhow!("completed kit without retained receipt"))?;
+                    anyhow::ensure!(
+                        kit.request_id == receipt
+                            && kit.materialized_revision == revision
+                            && kit.manifest_version == request.manifest_version
+                            && kit.manifest_hash == request.manifest_hash
+                            && kit.source_class == character.class_state.base_class_id,
+                        "completed kit receipt mismatch"
+                    );
+                }
+            },
+        }
+    }
+    pending.sort_by_key(|request| request.request_id);
+    let load = Phase4PlayerLoad {
+        checkpoint,
+        pending,
+    };
+    load.validate_structure(phase3_sources)?;
+    Ok(load)
+}
