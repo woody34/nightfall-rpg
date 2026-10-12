@@ -125,20 +125,26 @@ pub(super) async fn load_pending<C: ConnectionTrait>(
     let parent = db
         .query_one_raw(Statement::from_sql_and_values(
             DbBackend::Postgres,
-            "SELECT base_class_id FROM characters WHERE id=$1",
+            "SELECT base_class_id,account_id FROM characters WHERE id=$1",
             [character.as_uuid().into()],
         ))
         .await?
         .ok_or_else(|| anyhow::anyhow!("pending items character missing"))?;
     let expected =
         crate::domain::class::ClassId(u32::try_from(parent.try_get::<i32>("", "base_class_id")?)?);
+    let owner = crate::domain::AccountId::from_uuid(parent.try_get("", "account_id")?);
     let rows=db.query_all_raw(Statement::from_sql_and_values(DbBackend::Postgres,
-        "SELECT request_id,kind,request_fingerprint,manifest_version,manifest_hash,payload,status,materialized_revision,receipt_ref FROM pending_item_requests WHERE character_id=$1 ORDER BY request_id",
+        "SELECT request_id,account_id,operation,kind,request_fingerprint,manifest_version,manifest_hash,payload,status,materialized_revision,receipt_ref FROM pending_item_requests WHERE character_id=$1 ORDER BY request_id",
         [character.as_uuid().into()])).await?;
     rows.into_iter()
         .map(|row| {
             let request = decode_pending(character, &row)?;
-            if let PendingItemManifest::Kit(kit) = &request.manifest {
+            anyhow::ensure!(
+                request.account_id == owner && request.operation == request.kind.operation(),
+                "pending request owner/scope mismatch"
+            );
+            let PendingItemManifest::Kit(kit) = &request.manifest;
+            {
                 anyhow::ensure!(
                     kit.source_class_id == expected
                         && *kit
@@ -158,30 +164,17 @@ fn decode_pending(
     let kind = match row.try_get::<String>("", "kind")?.as_str() {
         "starter" => PendingItemKind::Starter,
         "backfill" => PendingItemKind::Backfill,
-        "grant" => PendingItemKind::Grant,
         _ => anyhow::bail!("unknown pending item kind"),
     };
     let version = u32::try_from(row.try_get::<i32>("", "manifest_version")?)?;
     anyhow::ensure!(version == 1, "unsupported pending manifest version");
     let hash = parse_hash(&row.try_get::<String>("", "manifest_hash")?)?;
     let payload: serde_json::Value = row.try_get("", "payload")?;
-    let manifest = if kind == PendingItemKind::Grant {
-        let grant: crate::application::ports::PendingGrantManifest =
-            serde_json::from_value(payload)?;
-        anyhow::ensure!(
-            grant.template_id > 0
-                && i32::try_from(grant.template_id).is_ok()
-                && grant.count > 0
-                && i64::try_from(grant.count).is_ok(),
-            "invalid pending grant"
-        );
-        anyhow::ensure!(canonical_hash(&grant)? == hash, "pending grant hash mismatch");
-        PendingItemManifest::Grant(grant)
-    } else {
-        let kit: crate::application::ports::StarterKitManifest = serde_json::from_value(payload)?;
-        anyhow::ensure!(kit.hash()? == hash, "pending kit hash mismatch");
-        PendingItemManifest::Kit(kit)
-    };
+    let kit: crate::application::ports::StarterKitManifest = serde_json::from_value(payload)?;
+    anyhow::ensure!(kit.hash()? == hash, "pending kit hash mismatch");
+    let manifest = PendingItemManifest::Kit(kit);
+    let operation =
+        serde_json::from_value(serde_json::Value::String(row.try_get("", "operation")?))?;
     let revision = row.try_get::<Option<i64>>("", "materialized_revision")?;
     let receipt = row.try_get::<Option<uuid::Uuid>>("", "receipt_ref")?;
     let status = match (row.try_get::<String>("", "status")?.as_str(), revision, receipt) {
@@ -193,6 +186,8 @@ fn decode_pending(
         _ => anyhow::bail!("invalid pending request completion"),
     };
     Ok(PendingItemRequest {
+        account_id: crate::domain::AccountId::from_uuid(row.try_get("", "account_id")?),
+        operation,
         request_id: row.try_get("", "request_id")?,
         character_id: character,
         kind,
@@ -202,11 +197,6 @@ fn decode_pending(
         manifest,
         status,
     })
-}
-
-pub(super) fn canonical_hash<T: serde::Serialize>(value: &T) -> anyhow::Result<[u8; 32]> {
-    use sha2::{Digest, Sha256};
-    Ok(Sha256::digest(serde_json::to_vec(&serde_json::to_value(value)?)?).into())
 }
 
 pub(super) fn parse_hash(raw: &str) -> anyhow::Result<[u8; 32]> {
@@ -225,15 +215,13 @@ pub(super) async fn create_starter(
 ) -> anyhow::Result<()> {
     use std::fmt::Write as _;
     let request = crate::infrastructure::item_manifests::starter_request(character)?;
-    let PendingItemManifest::Kit(kit) = request.manifest else {
-        anyhow::bail!("starter request is not a kit")
-    };
+    let PendingItemManifest::Kit(kit) = request.manifest;
     let mut hash = String::with_capacity(64);
     for byte in request.manifest_hash {
         write!(hash, "{byte:02x}")?;
     }
     tx.execute_raw(Statement::from_sql_and_values(DbBackend::Postgres,
-        "INSERT INTO pending_item_requests(request_id,character_id,kind,request_fingerprint,manifest_version,manifest_hash,payload) VALUES($1,$2,'starter',$3,1,$4,$5)",
-        [request.request_id.into(),character.id.as_uuid().into(),request.fingerprint.into(),hash.into(),serde_json::to_value(kit)?.into()])).await?;
+        "INSERT INTO pending_item_requests(request_id,character_id,kind,request_fingerprint,manifest_version,manifest_hash,payload,account_id,operation) VALUES($1,$2,'starter',$3,1,$4,$5,$6,'starter')",
+        [request.request_id.into(),character.id.as_uuid().into(),request.fingerprint.into(),hash.into(),serde_json::to_value(kit)?.into(),character.account_id.as_uuid().into()])).await?;
     Ok(())
 }

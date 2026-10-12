@@ -46,11 +46,7 @@ async fn fixture<R: CharacterRepository + ItemAdmissionRepository>(
         .await
         .unwrap()
         .remove(0);
-    let kit = match pending.manifest.clone() {
-        PendingItemManifest::Kit(kit) => Some(kit),
-        PendingItemManifest::Grant(_) => None,
-    }
-    .unwrap();
+    let PendingItemManifest::Kit(kit) = pending.manifest.clone();
     let reserved = repo.reserve_item_range(ZoneId(1), 1).await.unwrap();
     let mut allocation = ItemInstanceRange::new(
         reserved.range_start,

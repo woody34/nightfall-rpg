@@ -17,6 +17,7 @@ mod m20261010_000008_phase3_combat;
 mod m20261010_000009_phase3_effect_identity;
 mod m20261012_000010_items;
 mod m20261012_000011_pending_item_backfill;
+mod m20261012_000012_pending_item_scope;
 
 /// All migrations in application order.
 #[derive(Debug, Clone, Copy)]
@@ -37,6 +38,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20261010_000009_phase3_effect_identity::Migration),
             Box::new(m20261012_000010_items::Migration),
             Box::new(m20261012_000011_pending_item_backfill::Migration),
+            Box::new(m20261012_000012_pending_item_scope::Migration),
         ]
     }
 }

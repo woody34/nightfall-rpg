@@ -566,9 +566,11 @@ impl crate::application::ports::ItemCheckpointRepository for InMemoryCharacterRe
                 .pending_item_requests
                 .get_mut(&cp.character_id)
                 .and_then(|requests| {
-                    requests
-                        .iter_mut()
-                        .find(|request| request.request_id == completion.request_id)
+                    requests.iter_mut().find(|request| {
+                        request.request_id == completion.request_id
+                            && request.account_id == work.projection.account
+                            && request.operation == request.kind.operation()
+                    })
                 })
                 .ok_or_else(|| {
                     CheckpointError::Constraint("pending_item_completion_missing".into())

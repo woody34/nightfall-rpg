@@ -27,11 +27,7 @@ async fn parity<R: CharacterRepository + ItemAdmissionRepository>(repo: &R) {
     let request = first.first().unwrap();
     assert_eq!(request.kind, PendingItemKind::Starter);
     assert_eq!(request.status, PendingItemStatus::Pending);
-    let kit = match &request.manifest {
-        PendingItemManifest::Kit(kit) => Some(kit),
-        PendingItemManifest::Grant(_) => None,
-    }
-    .unwrap();
+    let PendingItemManifest::Kit(kit) = &request.manifest;
     assert_eq!(kit.source_class_id.0, 44);
     assert_eq!(kit.hash().unwrap(), request.manifest_hash);
     assert_eq!(kit.items.first().unwrap().template_id, 2369);
