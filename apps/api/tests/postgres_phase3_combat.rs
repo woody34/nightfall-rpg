@@ -161,6 +161,15 @@ async fn strict_thresholds_and_child_failure_roll_back_scalar_and_other_children
             .unwrap();
         assert_eq!(count, 1);
     }
+    // Creation now retains a kit marker; this fixture deletes it before testing child cascades.
+    let removed =
+        sqlx::query("DELETE FROM pending_item_requests WHERE character_id=$1 AND status='pending'")
+            .bind(id)
+            .execute(&pool)
+            .await
+            .unwrap()
+            .rows_affected();
+    assert_eq!(removed, 1);
     sqlx::query("DELETE FROM characters WHERE id=$1")
         .bind(id)
         .execute(&pool)
