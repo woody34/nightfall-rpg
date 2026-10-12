@@ -34,11 +34,13 @@ pub mod effects;
 mod entity;
 pub mod evidence;
 mod fixed;
+pub mod item;
 mod npc_template;
 mod phase2;
 mod phase3;
 mod phase3_checkpoint;
 mod phase3_entity;
+pub mod phase4_checkpoint;
 mod progression;
 mod scaled;
 pub mod skill;
@@ -82,6 +84,9 @@ pub use command::{
 };
 pub use entity::{Entity, EntityId, EntityKind, TargetingState, Tick, TICK_MS};
 pub use fixed::{Fixed, Speed, Vec2Fixed, UNITS_PER_TILE};
+pub use item::{
+    EquipSlot, ItemError, ItemInstance, ItemInstanceId, ItemInstanceRange, ItemLocation,
+};
 pub use npc_template::{NpcTemplate, NpcTemplateId, SpawnSlot};
 pub use phase2::{
     profession_stats, transfer_resource, ClassStatsView, PlayerIdentityView, PlayerProgression,
@@ -95,6 +100,7 @@ pub use phase3_entity::{
     CastId, CastInFlight, CastState, EntityOrdinal, OfferId, Phase3Entity, Phase3EntityContext,
     Phase3Player, PvpState, ResurrectOffer,
 };
+pub use phase4_checkpoint::Phase4Checkpoint;
 pub use progression::{add_xp, death_xp_loss, level_for_xp, xp_after_death, xp_cap};
 pub use scaled::{ceil_div, floor_div, isqrt, Scaled, StatError, Q};
 pub use stat_rules::{
@@ -118,8 +124,10 @@ mod tests {
     /// Every source file in this module, embedded at compile time so the scan cannot miss a
     /// file that exists but is not listed: adding a module without adding it here fails
     /// `every_zone_source_is_scanned`.
-    const SOURCES: [(&str, &str); 51] = [
+    const SOURCES: [(&str, &str); 53] = [
         ("mod.rs", include_str!("mod.rs")),
+        ("item.rs", include_str!("item.rs")),
+        ("phase4_checkpoint.rs", include_str!("phase4_checkpoint.rs")),
         ("evidence.rs", include_str!("evidence.rs")),
         ("state_evidence.rs", include_str!("state_evidence.rs")),
         ("effects.rs", include_str!("effects.rs")),
