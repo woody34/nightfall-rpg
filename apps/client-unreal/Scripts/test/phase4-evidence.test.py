@@ -380,6 +380,66 @@ class Evidence(unittest.TestCase):
                 with self.assertRaises(ValueError,msg=(case,mutation)):gate.validate(bad,self.recording,HASH)
         print('D66 property check: seed=0xD66; 2000 fresh/retained/exhaustion controls pass; 14000 corruptions reject',flush=True)
 
+    def neutral_then_consume(self,count=10,spent=3,grant=0,unequip=False):
+        """D69: arrows (template 17) equipped (and optionally topped up) then shot in one tick."""
+        rows=copy.deepcopy(self.rows);start=item(100,count,17,'lhand' if unequip else None)
+        rows.insert(1,dict(kind='item_baseline',entity=OWNER,incarnation=1,tick=0,sequence=0,
+            data=dict(inventory_revision=0,instances=[copy.deepcopy(start)],paperdoll={'lhand':100} if unequip else {},auto_shots=[])))
+        chain=[]
+        if grant:chain.append(('grant',{'count':count+grant},None,'receipt:grant:top'))
+        chain.append(('unequip',{'slot':None,'location':'inventory'},None,'receipt:unequip:1') if unequip
+                     else ('equip',{'slot':'lhand','location':'paperdoll'},None,'receipt:equip:1'))
+        before=start
+        for ordinal,(operation,change,_,ref) in enumerate(chain):
+            after=before|change|{'revision':1}
+            rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=0,sequence=0,
+                data=dict(operation=operation,instance=100,before=copy.deepcopy(before),after=after,
+                          count_delta=after['count']-before['count'],operation_ordinal=ordinal,
+                          resolution_id=f'{operation}:1',receipt_ref=ref)))
+            before=after
+        remaining=before['count']-spent
+        rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=0,sequence=0,
+            data=dict(operation='consume',instance=100,before=copy.deepcopy(before),
+                      after=before|{'count':remaining} if remaining else None,count_delta=-spent,
+                      operation_ordinal=len(chain),resolution_id='attack:7',receipt_refs=[],
+                      causes=[dict(cause=f'arrow:attack:{7+index}',count_delta=-1) for index in range(spent)])))
+        return self.repair(rows)
+
+    def test_d69_count_neutral_rows_precede_consume_with_continuity(self):
+        controls=(dict(),dict(unequip=True),dict(grant=5),dict(count=3,spent=3),dict(grant=2,count=1,spent=3))
+        for kwargs in controls:
+            rows=self.neutral_then_consume(**kwargs)
+            with self.subTest(**kwargs):
+                self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['pole_damage'],HASH)['passed'])
+                deltas=[r for r in rows if r['kind']=='item_delta']
+                # Consume not last: move it ahead of the neutral row(s), repairing ordinals and endpoints locally.
+                bad=copy.deepcopy(rows);moved=[r for r in bad if r['kind']=='item_delta']
+                bad.remove(moved[-1]);bad.insert(bad.index(moved[0]),moved[-1])
+                for ordinal,row in enumerate(r for r in bad if r['kind']=='item_delta'):row['data']['operation_ordinal']=ordinal
+                self.repair(bad)
+                with self.assertRaisesRegex(ValueError,'must be last'):gate.validate(bad,self.recording,HASH)
+                # A neutral row after Consume (two-tick-style equip appended in the same tick).
+                if deltas[-1]['data']['after'] is not None:
+                    bad=copy.deepcopy(rows);last=bad[-2]['data']['after']
+                    flip=dict(slot=None,location='inventory') if last['slot'] else dict(slot='lhand',location='paperdoll')
+                    bad.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=0,sequence=0,
+                        data=dict(operation='unequip' if last['slot'] else 'equip',instance=100,before=copy.deepcopy(last),
+                                  after=last|flip,count_delta=0,operation_ordinal=len(deltas),resolution_id='late:1',receipt_ref=None)))
+                    self.repair(bad)
+                    with self.assertRaisesRegex(ValueError,'must be last'):gate.validate(bad,self.recording,HASH)
+                # Broken continuity: Consume starts from the pre-equip location.
+                bad=copy.deepcopy(rows);consume=bad[-2]['data']
+                consume['before'].update(slot=deltas[0]['data']['before']['slot'],location=deltas[0]['data']['before']['location'])
+                if consume['after']:consume['after'].update(slot=consume['before']['slot'],location=consume['before']['location'])
+                with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
+                # Removal never precedes Consume; two Consume aggregates refuse.
+                bad=copy.deepcopy(rows);bad[-3]['data'].update(operation='destroy',after=None,count_delta=-bad[-3]['data']['before']['count'])
+                with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
+                bad=copy.deepcopy(rows);extra=copy.deepcopy(bad[-2]);extra['data']['operation_ordinal']+=1
+                bad.insert(-1,extra);self.repair(bad)
+                with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
+        print('D69: equip/unequip(+grant) then Consume controls pass; consume-not-last, neutral-after-consume, discontinuity, removal and duplicate aggregate reject',flush=True)
+
     def exhausted_then_fresh_grant(self,entity=OWNER,incarnation=1):
         rows=self.transition_rows('consume',count=2,enchant=0)
         debit=rows[-2]['data']

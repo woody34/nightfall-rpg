@@ -506,6 +506,9 @@ ITEM_TRANSITIONS={
 }
 
 
+PRE_CONSUME=frozenset(('grant','starter','backfill','equip','unequip','enchant','refine','cancel_refine'))
+
+
 def validate_transition(data):
     operation=data['operation'];shape,allowed=ITEM_TRANSITIONS[operation]
     before,after=data['before'],data['after']
@@ -744,8 +747,10 @@ def validate(rows,recording,rules_hash):
         consumes=[d for d in deltas if d['operation']=='consume']
         if not consumes:continue
         if len(consumes)!=1 or deltas[-1] is not consumes[0]:raise ValueError('Consume aggregate must be last for its instance')
-        positives=deltas[:-1]
-        if any(d['operation'] not in ('grant','starter','backfill') for d in positives):raise ValueError('only positive rows may precede Consume')
+        # D69 (amends D66): positive AND count-neutral retained rows precede the Consume
+        # aggregate in cause order; continuity is checked by inventory_history. Removal
+        # rows end the instance, so they can never precede it.
+        if any(d['operation'] not in PRE_CONSUME for d in deltas[:-1]):raise ValueError('only positive or count-neutral rows may precede Consume')
         for ordinal,delta in enumerate(deltas):same(delta['operation_ordinal'],ordinal)
     validate_exchanges(rows)
     validate_instance_history(rows)

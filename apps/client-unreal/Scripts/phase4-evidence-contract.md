@@ -80,6 +80,14 @@ JSONL contract (schema version 1 of this sidecar):
   Runtime counts `3→2→5→4` export Grant `3→6, +3` then Consume `6→4, −2`.
   Other controls: start1 exports Grant `1→4, +3` then Consume `4→2, −2`;
   start absent exports Grant `null→3, +3` then Consume `3→2, −1`.
+  D69 amends D66: the rows before the Consume aggregate are ALL non-consume
+  rows on that instance in cause order — positive (`grant`, `starter`,
+  `backfill`) AND count-neutral retained rows (`equip`, `unequip`, `enchant`,
+  `refine`, `cancel_refine`) — with the same endpoint continuity; the single
+  Consume stays last. Equip-then-shoot on an arrow stack in one tick exports
+  Equip `10→10` (inventory→lhand) then Consume `10→7`. Removal rows
+  (`destroy`, `crystallize`) never precede Consume, and a Consume followed by
+  any row on the same instance and tick refuses.
   A positive row may increase an existing stack; it preserves all canonical
   fields except count/revision. Fresh Exchange products still require null
   before and a new product instance (D37/D52).
