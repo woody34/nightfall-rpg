@@ -160,12 +160,36 @@ moon run client-unreal:sim -- Scenarios/0b-login-enter-world.nfs --api start
 In CI ([.github/workflows/sim.yml](../../.github/workflows/sim.yml)), the test suite is driven by
 [apps/client-unreal/Scripts/run-sim-ci.py](../../apps/client-unreal/Scripts/run-sim-ci.py).
 
-Recursive discovery includes all 106 single/group units, including Phase4 canonical
-scenarios and variants. The per-unit allowance is `max(600, Within+30) + 600`
-seconds for orchestration plus 180 seconds for Compose. Its total is 150,959 seconds.
-The dedicated self-hosted job has a 2,525-minute (151,500-second) deadline, leaving
-9m01s for build, upload and other steps. The discovery regression requires at least
-five minutes of headroom; no required scenarios are excluded to meet the deadline.
+Recursive discovery includes all 121 scenario files / 106 single/group units,
+including all 49 Phase4 files / 47 units. Each client's limit is the largest
+role's rounded-up `nf.Within` plus 30 seconds of launch/exit grace. There is no
+600-second minimum. An explicitly requested `--timeout` can raise the limit.
+
+`run-sim-ci.py::unit_allowances` records the following components in each unit's
+summary. These are enforced failure ceilings, not measured execution durations:
+
+| Component | Derivation |
+|---|---|
+| Fixture | Isolated: seeder help 10s + three logged provision commands (up, migration, seed), each bounded at 180s. Non-isolated fresh stack: Compose up bounded at 180s. Both add a wall-clock API startup limit of 180s plus the last curl/sleep (2s + 1s). |
+| Replay and evidence | Policy: one client window per role for the complete export/check/trace/coverage/formula work, including shared group work. The wrapper process-group watchdog enforces the total window. No replay timing measurements are available for Phase3. |
+| Cleanup | API stop grace 15s. Isolated fixtures add two commands (logs/down), each bounded at 60s, plus one EXIT retry of those commands. |
+| Fallback cleanup | Isolated fixtures only: a further logs/down attempt (2 × 60s) after a forced wrapper termination interrupts its EXIT trap. |
+| Diagnostic retry | Solo units only, when `--video`: capture 110s + kill grace 10s + encode 110s + kill grace 10s. Multi-role units never retry. |
+| Local work and termination | Explicit 30s policy grace for parser/artifact/JUnit/scheduling work; 10s process-group termination grace after the watchdog deadline. |
+| Outer Compose | Down 120s + log collection 60s, only for the 21 non-isolated fresh-stack units. All 85 isolated units (including every Phase4 unit) skip these dispatcher operations. |
+
+The workflow builds once and supplies API, migration and replay binaries plus
+trace/coverage commands to every wrapper, so these allowances do not include
+implicit per-unit compilation. Summed components with every solo video retry are:
+clients 24,773s; fixtures 69,928s; replay/evidence 30,449s; cleanup 21,990s;
+retry 21,840s; local grace 3,180s; outer Compose 3,780s; fallback cleanup 10,200s;
+termination 1,060s. Total: **187,200s (52 hours)**. Headless-only total: 165,360s.
+The self-hosted job deadline is 3,125 minutes (187,500s), with 5m00s beyond those
+failure ceilings. That headroom is not a measured build/upload guarantee; a run
+reaching the job deadline fails. The larger failure ceiling follows all applicable
+provision/cleanup/retry bounds rather than an assumed flat orchestration padding.
+The regression checks the derivations and complete discovery; no scenarios are
+excluded. Actual timing evidence is needed before tightening infrastructure caps.
 
 ### Ephemeral Stack Isolation
 

@@ -126,7 +126,7 @@ socket.getaddrinfo = lambda *a, **k: [(socket.AF_INET, socket.SOCK_STREAM, 6, ''
         (scenarios / 'solo.nfs').write_text('# default fixture\n')
         quarantine = self.root / 'quarantine.json'
         quarantine.write_text('{"schema_version":1,"scenarios":[]}')
-        return ['ci', '--scenarios', str(scenarios), '--quarantine', str(quarantine),
+        return ['ci', '--timeout', '30', '--scenarios', str(scenarios), '--quarantine', str(quarantine),
                 '--artifacts', str(self.root / 'artifacts')]
 
     def test_seeded_stale_xml_and_recording_are_preserved_and_rejected(self):
@@ -151,11 +151,15 @@ socket.getaddrinfo = lambda *a, **k: [(socket.AF_INET, socket.SOCK_STREAM, 6, ''
             for name in ('later', 'solo'):
                 self.assertTrue((self.root / 'artifacts' / name).is_dir())
             calls.append((seconds, env['SIM_SAVED_DIR']))
+            if command[-1].endswith('later.nfs'):
+                self.assertEqual(command[command.index('--timeout')+1],str(3699+30))
             return 2  # Failed units must still allow the rest of the suite to run.
         with patch('sys.argv', args), patch.object(ci, 'run_clients', clients):
             self.assertTrue(ci.main())
         self.assertEqual(len(calls), 2)
-        self.assertEqual(calls[0][0], 3699 + 30 + 600)
+        batch = [scenarios / 'later.nfs']
+        self.assertEqual(calls[0][0], ci.wrapper_seconds(ci.unit_allowances(batch, fresh_stack=False, timeout=30)))
+        self.assertEqual(ci.unit_allowances(batch, fresh_stack=False)['client'], 3699 + 30)
         self.assertNotEqual(calls[0][1], calls[1][1])
         summary = json.loads((self.root / 'artifacts/summary.json').read_text())
         self.assertEqual(len(summary['units']), 2)
@@ -183,18 +187,80 @@ socket.getaddrinfo = lambda *a, **k: [(socket.AF_INET, socket.SOCK_STREAM, 6, ''
 
     def test_sim_workflow_allowance_matches_discovered_suite(self):
         batches = ci.units(sorted((SCRIPTS.parent / 'Scenarios').rglob('*.nfs')))
-        allowance = sum(max(600, ci.phase2.scenario_budget(batch)) + 600 + 180
-                        for batch in batches)
-        workflow = (SCRIPTS.parents[2] / '.github/workflows/sim.yml').read_text()
+        import ast
+        import inspect
+        import math
         import re
+        provision=ast.parse(inspect.getsource(ci.phase2.provision))
+        provision_commands=sum(isinstance(node,ast.Call) and isinstance(node.func,ast.Name)
+                               and node.func.id=='logged' for node in ast.walk(provision))
+        command_cap=inspect.signature(ci.phase2.logged).parameters['seconds'].default
+        self.assertEqual(provision_commands,3)
+        # Observe the real cleanup helper's logs/down calls, without running Compose.
+        owned=self.root/'owned';owned.mkdir();(owned/'state.json').write_text('{}')
+        with patch.object(ci.phase2,'state',return_value={}), patch.object(ci.phase2,'compose',return_value=[]), \
+                patch.object(ci.phase2,'logged') as logged:
+            ci.phase2.cleanup(owned)
+        self.assertEqual([call.args[0][0] for call in logged.call_args_list],['logs','down'])
+        cleanup_cap=sum(call.args[4] for call in logged.call_args_list)
+        allowance = 0
+        for batch in batches:
+            isolated = ci.fixture(batch) in ci.phase2.ISOLATED
+            limits = [math.ceil(float(re.search(r'^nf.Within ([0-9.]+)', path.read_text(), re.M)[1]))
+                      for path in batch]
+            row = ci.unit_allowances(batch, video=True)
+            self.assertEqual(row['client'], max(limits) + 30)
+            self.assertEqual(row['fixture'], (ci.phase2.SEEDER_HELP_TIMEOUT + provision_commands * command_cap
+                                             if isolated else command_cap) + ci.API_WAIT + 3)
+            self.assertEqual(row['replay'], len(batch) * row['client'])
+            self.assertEqual(row['cleanup'], ci.API_STOP_GRACE + (2 * cleanup_cap if isolated else 0))
+            self.assertEqual(row['fallback_cleanup'], cleanup_cap if isolated else 0)
+            self.assertEqual(row['compose'], ci.COMPOSE_DOWN + ci.COMPOSE_LOGS if not isolated else 0)
+            self.assertEqual(row['retry'], ci.VIDEO_CAPTURE + ci.VIDEO_ENCODE + 2 * ci.PROCESS_STOP_GRACE if len(batch)==1 else 0)
+            self.assertEqual(ci.unit_allowances(batch, video=False)['retry'], 0)
+            allowance += sum(row.values())
+        workflow = (SCRIPTS.parents[2] / '.github/workflows/sim.yml').read_text()
         ceiling = int(re.search(r'timeout-minutes: ([0-9]+)', workflow)[1]) * 60
         headroom = ceiling - allowance
         self.assertEqual(len(batches), 106)
-        self.assertEqual(allowance, 150959)
+        self.assertEqual(sum(ci.fixture(batch) in ci.phase2.ISOLATED for batch in batches),85)
+        self.assertEqual(sum(batch[0].name.startswith('4-') for batch in batches),47)
+        self.assertEqual(sum(len(batch) for batch in batches),121)
         self.assertGreaterEqual(headroom, 300)
         self.assertIn(f'# {len(batches)} units:', workflow)
         self.assertIn(f'{allowance:,}s', workflow)
         self.assertIn(f'{headroom // 60}m{headroom % 60:02d}s', workflow)
+
+    def test_budget_scales_with_within_and_actual_fixture_retry_branches(self):
+        scenario=self.root/'unit.nfs'
+        scenario.write_text('nf.Within 12.25\n')
+        attached=ci.unit_allowances([scenario],fresh_stack=False)
+        self.assertEqual(attached['client'],43)
+        self.assertEqual((attached['compose'],attached['retry'],attached['fallback_cleanup']),(0,0,0))
+        scenario.write_text('nf.Within 50\n')
+        longer=ci.unit_allowances([scenario],fresh_stack=False)
+        self.assertEqual(longer['client']-attached['client'],37)
+        self.assertEqual(longer['replay']-attached['replay'],37)
+        shell=(SCRIPTS/'sim-lib.sh').read_text()
+        self.assertEqual(shell.count('while ((SECONDS < deadline))'),2)
+        self.assertIn('curl -sf -m 2',shell)
+        self.assertIn('grace<15',shell)
+        self.assertIn('timeout "${SIM_COMPOSE_UP_TIMEOUT:-180}" docker compose up',shell)
+        video=(SCRIPTS/'sim-video.sh').read_text()
+        self.assertIn('timeout --kill-after=10 "${SIM_VIDEO_TIMEOUT:-110}"',video)
+        self.assertIn('timeout --kill-after=10 "${SIM_VIDEO_ENCODE_TIMEOUT:-110}" ffmpeg',video)
+        self.assertIn('env["SIM_API_WAIT"] = str(API_WAIT)', (SCRIPTS/'run-sim-ci.py').read_text())
+
+    def test_startup_wait_is_wall_clock_even_with_slow_health_polls(self):
+        import time
+        self.fake('docker','exit 0\n')
+        self.fake('cargo','exec sleep 30\n')
+        start=time.monotonic()
+        result=self.shell('sim_api_endpoint_probe() { return 0; }; '
+                          'sim_api_healthy() { sleep 2; return 1; }; sim_api_prepare start',
+                          SIM_REQUIRE_OWNED_API='1',SIM_API_WAIT='2')
+        self.assertEqual(result.returncode,2,result.stderr)
+        self.assertLess(time.monotonic()-start,5)
 
     def test_fresh_flag_overrides_inherited_opt_out(self):
         args = self.ci_args() + ['--fresh-stack']
