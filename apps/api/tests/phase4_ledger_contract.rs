@@ -32,6 +32,7 @@ fn entry() -> ItemLedgerEntry {
         instance_id: before.id,
         operation_ordinal: 0,
         delta: ItemLedgerDelta {
+            receipt: None,
             before: Some(before),
             after: Some(after),
             count_delta: -6,
@@ -53,6 +54,26 @@ fn explicit_delta_survives_interleaving_and_typed_roundtrip() {
     assert_eq!(restored, value);
     assert_eq!(restored.delta.count_delta, -6);
     assert_eq!(restored.operation.as_str(), "consume");
+}
+
+#[test]
+fn implicit_consume_retains_use_receipt_scope_in_persisted_payload() {
+    use nightfall_api::domain::zone::phase4_projection::{ItemOperation, ItemReceiptRef};
+    let mut value = entry();
+    let reference = ItemReceiptRef {
+        operation: ItemOperation::Use,
+        key: uuid::Uuid::from_u128(7),
+    };
+    value.receipt_ref = Some(reference.key);
+    value.delta.receipt = Some(reference);
+    value.validate().unwrap();
+    let restored: ItemLedgerDelta =
+        serde_json::from_value(serde_json::to_value(&value.delta).unwrap()).unwrap();
+    assert_eq!(restored.receipt, Some(reference));
+    value.delta.receipt.as_mut().unwrap().operation = ItemOperation::Consume;
+    assert!(value.validate().is_err());
+    value.delta.receipt = None;
+    assert!(value.validate().is_err());
 }
 #[test]
 fn invalid_bounds_fabricated_rows_identity_and_batch_ordinal_are_rejected() {

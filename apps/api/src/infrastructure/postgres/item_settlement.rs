@@ -134,7 +134,7 @@ pub(super) async fn persist(
             .iter()
             .find(|request| request.request_id == completion.request_id)
             .ok_or_else(|| CheckpointError::Constraint("pending_item_completion_missing".into()))?;
-        complete(tx, request, completion.inventory_revision, completion.receipt).await?;
+        complete(tx, request, completion.inventory_revision, completion.receipt.key).await?;
     }
     super::phase4_checkpoint::persist_retained(tx, cp.character_id, &work.projection.checkpoint)
         .await?;

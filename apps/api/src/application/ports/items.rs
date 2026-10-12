@@ -240,6 +240,9 @@ pub struct ItemLedgerDelta {
     pub after: Option<crate::domain::zone::ItemInstance>,
     pub count_delta: i64,
     pub causes: Vec<serde_json::Value>,
+    /// Full request scope; the SQL `receipt_ref` UUID alone is not unique across operations.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub receipt: Option<crate::domain::zone::phase4_projection::ItemReceiptRef>,
 }
 
 /// One actual instance change in a single acknowledged zone tick. No live-row FK is needed.
@@ -261,6 +264,14 @@ pub struct ItemLedgerEntry {
 impl ItemLedgerEntry {
     /// Mirror SQL widths before any claim/write and reject fabricated pure-sidecar rows.
     pub fn validate(&self) -> Result<(), CheckpointError> {
+        if self.delta.receipt.map(|receipt| receipt.key) != self.receipt_ref
+            || self
+                .delta
+                .receipt
+                .is_some_and(|receipt| receipt.validate().is_err())
+        {
+            return Err(CheckpointError::Constraint("item_ledger_receipt_scope".into()));
+        }
         if i32::try_from(self.zone_id.0).is_err()
             || i64::try_from(self.epoch).is_err()
             || i64::try_from(self.tick.0).is_err()

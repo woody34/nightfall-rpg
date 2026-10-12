@@ -575,7 +575,7 @@ impl crate::application::ports::ItemCheckpointRepository for InMemoryCharacterRe
                 })?;
             pending.status = PendingItemStatus::Materialized {
                 revision: completion.inventory_revision,
-                receipt: completion.receipt,
+                receipt: completion.receipt.key,
             };
         }
         if let Some(receipt) = learning {

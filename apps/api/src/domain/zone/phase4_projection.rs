@@ -24,6 +24,25 @@ pub enum ItemOperation {
     ToggleAutoShot,
 }
 
+/// Account is supplied by the enclosing projection; the request operation may differ
+/// from a ledger operation (for example, Use pays a Consume or Equip removes a slot).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(missing_docs)]
+pub struct ItemReceiptRef {
+    pub operation: ItemOperation,
+    pub key: uuid::Uuid,
+}
+impl ItemReceiptRef {
+    /// Automatic consumption is never an independently idempotent request.
+    pub fn validate(self) -> Result<(), ItemError> {
+        if self.key.is_nil() || self.operation == ItemOperation::Consume {
+            return Err(ItemError("invalid item receipt scope"));
+        }
+        Ok(())
+    }
+}
+
 /// Exact audit values cannot deserialize a fractional numeric literal into domain state.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(
@@ -62,7 +81,7 @@ pub struct ItemDeltaPlan {
     pub before: Option<ItemInstance>,
     pub after: Option<ItemInstance>,
     pub count_delta: i64,
-    pub receipt: Option<uuid::Uuid>,
+    pub receipt: Option<ItemReceiptRef>,
     pub causes: Vec<ItemAuditEvidence>,
 }
 impl ItemDeltaPlan {
@@ -76,10 +95,12 @@ impl ItemDeltaPlan {
     }
     /// Projection validation does not rerun gameplay; it rejects impossible audit identity.
     pub fn validate(&self, revision: u64) -> Result<(), ItemError> {
+        if let Some(receipt) = self.receipt {
+            receipt.validate()?;
+        }
         if self.operation == ItemOperation::ToggleAutoShot
             || (self.before.is_none() && self.after.is_none())
             || (self.before == self.after && self.count_delta == 0)
-            || self.receipt.is_some_and(|id| id.is_nil())
         {
             return Err(ItemError("item ledger requires a real instance change"));
         }
@@ -179,6 +200,16 @@ pub struct ItemReceiptFact {
     pub fingerprint: String,
     pub result: FrozenItemResult,
 }
+impl ItemReceiptFact {
+    /// Scope is derived from the frozen typed outcome, never the last ledger operation.
+    #[must_use]
+    pub const fn reference(&self) -> ItemReceiptRef {
+        ItemReceiptRef {
+            operation: self.result.operation(),
+            key: self.request_id,
+        }
+    }
+}
 
 /// Pending input completion is in the same transaction as ownership and the frozen result.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -189,7 +220,7 @@ pub struct ItemMaterializationFact {
     pub manifest_version: u32,
     pub manifest_hash: [u8; 32],
     pub inventory_revision: u64,
-    pub receipt: uuid::Uuid,
+    pub receipt: ItemReceiptRef,
 }
 
 /// Private `PbOutput40` payload. The actor supplies the ordinary character checkpoint at
@@ -242,7 +273,7 @@ impl Phase4Projection {
             receipt.result.validate()?;
             if receipt.request_id.is_nil()
                 || receipt.fingerprint.is_empty()
-                || !receipts.insert(receipt.request_id)
+                || !receipts.insert(receipt.reference())
                 || receipt.result.entity != self.entity
                 || receipt.result.receipt != receipt.request_id
                 || receipt.result.tick != self.tick
@@ -262,8 +293,12 @@ impl Phase4Projection {
         let mut pending = BTreeSet::new();
         for result in &self.materializations {
             if result.manifest_version != 1
-                || !pending.insert(result.request_id)
-                || result.receipt != result.request_id
+                || !pending.insert(result.receipt)
+                || result.receipt.key != result.request_id
+                || !matches!(
+                    result.receipt.operation,
+                    ItemOperation::Starter | ItemOperation::Backfill
+                )
                 || !receipts.contains(&result.receipt)
                 || result.inventory_revision > self.checkpoint.inventory_revision
             {
@@ -275,9 +310,30 @@ impl Phase4Projection {
 }
 
 impl FrozenItemResult {
+    /// Stable idempotency operation, including the two distinct refine requests.
+    #[must_use]
+    pub const fn operation(&self) -> ItemOperation {
+        match &self.detail {
+            ItemResultDetail::Operation { operation, .. } => *operation,
+            ItemResultDetail::Enchant { .. } => ItemOperation::Enchant,
+            ItemResultDetail::Refine {
+                outcome: ItemRefineOutcome::Applied,
+                ..
+            } => ItemOperation::Refine,
+            ItemResultDetail::Refine {
+                outcome: ItemRefineOutcome::Removed,
+                ..
+            } => ItemOperation::CancelRefine,
+        }
+    }
+
     /// Frozen result shapes are checked before persistence or replay projection.
     pub fn validate(&self) -> Result<(), ItemError> {
-        if self.receipt.is_nil() || i64::try_from(self.inventory_revision).is_err() {
+        if self.receipt.is_nil()
+            || self.entity.as_uuid().is_nil()
+            || i64::try_from(self.tick.0).is_err()
+            || i64::try_from(self.inventory_revision).is_err()
+        {
             return Err(ItemError("invalid frozen item result identity"));
         }
         match &self.detail {
@@ -457,6 +513,104 @@ pub(crate) mod tests {
         state.ledger.first_mut().unwrap().operation = ItemOperation::ToggleAutoShot;
         assert!(state.validate_structure(0).is_err());
     }
+    #[test]
+    fn reused_uuid_keeps_each_operation_scope_and_implicit_ledger_reference() {
+        let mut state = projection();
+        let mut equip = state.receipts.first().unwrap().clone();
+        equip.result.detail = ItemResultDetail::Operation {
+            operation: ItemOperation::Equip,
+            affected: vec![item(1).id],
+            recipe: None,
+        };
+        equip.fingerprint = "equip-body".into();
+        let mut unequip = equip.clone();
+        unequip.result.detail = ItemResultDetail::Operation {
+            operation: ItemOperation::Unequip,
+            affected: vec![item(1).id],
+            recipe: None,
+        };
+        unequip.fingerprint = "unequip-body".into();
+        let reference = equip.reference();
+        state.receipts.extend([equip, unequip]);
+        let after = item(1);
+        let mut before = after.clone();
+        before.location = ItemLocation::Paperdoll;
+        before.slot = Some(super::super::EquipSlot::Rhand);
+        state.checkpoint.instances.push(after.clone());
+        state.ledger.push(ItemDeltaPlan {
+            operation: ItemOperation::Unequip,
+            operation_ordinal: 1,
+            instance: after.id,
+            before: Some(before),
+            after: Some(after),
+            count_delta: 0,
+            receipt: Some(reference),
+            causes: Vec::new(),
+        });
+        state.validate_structure(0).unwrap();
+        let bytes = serde_json::to_vec(&state).unwrap();
+        let restored: Phase4Projection = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(restored, state);
+        let mut absent = state.clone();
+        absent
+            .ledger
+            .first_mut()
+            .unwrap()
+            .receipt
+            .as_mut()
+            .unwrap()
+            .operation = ItemOperation::Use;
+        assert!(absent.validate_structure(0).is_err());
+        let mut automatic = state.clone();
+        automatic
+            .ledger
+            .first_mut()
+            .unwrap()
+            .receipt
+            .as_mut()
+            .unwrap()
+            .operation = ItemOperation::Consume;
+        assert!(automatic.validate_structure(0).is_err());
+        let mut duplicate = state.receipts.last().unwrap().clone();
+        duplicate.fingerprint = "conflicting-body".into();
+        state.receipts.push(duplicate);
+        assert!(state.validate_structure(0).is_err());
+    }
+
+    #[test]
+    fn pending_completion_requires_the_exact_kit_receipt_scope() {
+        let mut state = projection();
+        let mut receipt = state.receipts.first().unwrap().clone();
+        receipt.result.detail = ItemResultDetail::Operation {
+            operation: ItemOperation::Starter,
+            affected: Vec::new(),
+            recipe: None,
+        };
+        state.materializations.push(ItemMaterializationFact {
+            request_id: receipt.request_id,
+            manifest_version: 1,
+            manifest_hash: [2; 32],
+            inventory_revision: 2,
+            receipt: receipt.reference(),
+        });
+        state.receipts.push(receipt);
+        state.validate_structure(0).unwrap();
+        state
+            .materializations
+            .first_mut()
+            .unwrap()
+            .receipt
+            .operation = ItemOperation::Backfill;
+        assert!(state.validate_structure(0).is_err());
+        state
+            .materializations
+            .first_mut()
+            .unwrap()
+            .receipt
+            .operation = ItemOperation::ToggleAutoShot;
+        assert!(state.validate_structure(0).is_err());
+    }
+
     #[test]
     fn duplicate_receipts_unbacked_deltas_and_fractional_audit_values_are_refused() {
         let mut state = projection();
