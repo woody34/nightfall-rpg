@@ -15,8 +15,7 @@ nf.WaitFor connected 15
 nf.EnterWorld
 nf.WaitFor in_world 15
 nf.WaitFor item_baseline 3
-nf.Target template:blacksmith
-nf.WaitFor target != none 3
+nf.WaitFor blacksmith_known 3
 nf.Refine 72 8723
 nf.WaitFor refined 72 3
 nf.Expect inventory_has 8723 == 0

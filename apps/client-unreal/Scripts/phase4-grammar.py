@@ -7,13 +7,13 @@ SLOTS = ('under head hair hair2 neck rhand chest lhand rear lear gloves legs fee
          'rfinger lfinger lbracelet rbracelet deco1 deco2 deco3 deco4 deco5 deco6 cloak belt').split()
 COMMANDS = {
     'nf.Equip': '<item> [slot] [key]', 'nf.Unequip': '<slot> [key]',
-    'nf.UseItem': '<item> [self|target|entity-uuid] [key]',
+    'nf.UseItem': '<item> [self|target|entity:<uuid>] [key]',
     'nf.Destroy': '<item> <count> [key]', 'nf.Crystallize': '<item> [key]',
     'nf.Enchant': '<scroll> <item> [support:<item>] [key]',
     'nf.AutoShot': '<template> on|off [key]',
-    'nf.Refine': '<item> <stone> [target|entity-uuid] [key]',
-    'nf.CancelRefine': '<item> [target|entity-uuid] [key]',
-    'nf.ExchangeSA': '<item> <recipe> [target|entity-uuid] [key]',
+    'nf.Refine': '<item> <stone> [target|entity:<uuid>] [key]',
+    'nf.CancelRefine': '<item> [target|entity:<uuid>] [key]',
+    'nf.ExchangeSA': '<item> <recipe> [target|entity:<uuid>] [key]',
     'nf.GrantItem': '<template> <count> [key]', 'nf.ItemCatalog': '',
 }
 PREDICATES = {
@@ -26,7 +26,7 @@ PREDICATES = {
     'item_operation': '== <operation>', 'enchant_outcome': '== <outcome>',
     'enchant_result_consistent': '', 'refined': '<item>',
     'item_rpc_error': '== none|FAILED_PRECONDITION|UNAVAILABLE|PERMISSION_DENIED|INVALID_ARGUMENT',
-    'item_receipt_matches_first': '',
+    'item_receipt_matches_first': '', 'blacksmith_known': '',
 }
 COMPARISONS = {'==', '!=', '>=', '<=', '>', '<'}
 OPERATIONS = {'equip', 'unequip', 'use', 'destroy', 'enchant', 'toggle_auto_shot',
@@ -40,7 +40,7 @@ def number(text, maximum=2**64-1, zero=False):
 
 def guid(text):
     try:
-        return str(UUID(text)) == text.lower()
+        return str(UUID(text)) == text.lower() and UUID(text).int != 0
     except ValueError:
         return False
 
@@ -57,11 +57,11 @@ def command(tokens):
     if name is None:
         return None
     args = list(tokens[1:])
+    if name == 'nf.ItemCatalog': return not args
     if args and guid(args[-1]):
         # Positional UUID target is ambiguous: use entity:<uuid> for explicit targets.
         args.pop()
     target = lambda s: s in ('self', 'target') or s.startswith('entity:') and guid(s[7:])
-    if name == 'nf.ItemCatalog': return not args
     if name == 'nf.Equip': return len(args) in (1, 2) and item(args[0]) and (len(args) == 1 or args[1] in SLOTS)
     if name == 'nf.Unequip': return len(args) == 1 and args[0] in SLOTS
     if name == 'nf.UseItem': return len(args) in (1, 2) and item(args[0]) and (len(args) == 1 or target(args[1]))

@@ -57,8 +57,9 @@ def seed_sql(roles):
                     f"{role['recoverable_death_xp_loss']},{role['phase3_timer_policy_version']},'{installation}'::jsonb)")
         for skill, rank in sorted(role['learned_ranks'].items(), key=lambda item: int(item[0])):
             skills.append(f"('{role['character_id']}',0,'l2.skill.{skill}',{rank})")
+    skill_sql = ('INSERT INTO character_learned_skills(character_id,slot,skill_key,skill_level)\nVALUES ' + ','.join(skills) + ';') if skills else ''
     accounts = ','.join(f"('{r['account_id']}')" for r in roles.values())
-    return f"""BEGIN;
+    sql = f"""BEGIN;
 SET LOCAL lock_timeout = '3s';
 LOCK TABLE characters, account_sessions, play_tickets, zone_epochs IN ACCESS EXCLUSIVE MODE;
 DO $$ BEGIN
@@ -76,10 +77,15 @@ INSERT INTO characters(id,account_id,name,name_normalized,race,level,str,dex,con
 VALUES {','.join(rows)};
 INSERT INTO character_class_slots(character_id,slot,class_id,level,exp,sp)
 SELECT id,0,current_class_id,level,xp,sp FROM characters;
-INSERT INTO character_learned_skills(character_id,slot,skill_key,skill_level)
-VALUES {','.join(skills)};
+{skill_sql}
 COMMIT;
 """
+
+    if os.environ.get('PHASE4_ENABLED') == '1' and all('inventory' not in r for r in roles.values()):
+        spec = importlib.util.spec_from_file_location('phase4_pending_kits', Path(__file__).with_name('phase4-pending-kits.py'))
+        pending = importlib.util.module_from_spec(spec); spec.loader.exec_module(pending)
+        sql = sql.removesuffix('COMMIT;\n') + pending.seed_sql(roles.values()) + 'COMMIT;\n'
+    return sql
 
 
 def main():
