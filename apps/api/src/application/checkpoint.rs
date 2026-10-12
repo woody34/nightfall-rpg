@@ -820,6 +820,9 @@ impl CheckpointService {
         self.players.clear();
         self.sessions.clear();
         self.last = None;
+        // Historical policy belongs only to the settled epoch, never its successor.
+        self.internal_cadence = true;
+        self.wrote_since_index = false;
         Ok(())
     }
 }
