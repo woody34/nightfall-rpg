@@ -611,3 +611,40 @@ async fn assert_character_header(
     assert_eq!(header.inventory_revision, revision);
     assert_eq!(header.item_rules_hash, rules_hash);
 }
+
+#[tokio::test]
+async fn nonpositive_retained_maximum_projects_zero_and_preserves_overload_history() {
+    let (repo, character, inventory) = fixture();
+    let data = inventory.clone();
+    let app = TestApp::spawn_with(move |deps| {
+        deps.characters = repo;
+        deps.item_inventory = Some(data);
+        deps.item_catalogue = Some(catalogue());
+    })
+    .await;
+    for maximum in [-5, 0] {
+        {
+            let mut retained = inventory.value.lock();
+            let cp = retained.as_mut().unwrap().checkpoint.as_mut().unwrap();
+            cp.max_load = maximum;
+            cp.overload_level = 3;
+            cp.overloaded = true;
+        }
+        let before = inventory.value.lock().clone();
+        let baseline = app
+            .grpc
+            .clone()
+            .get_inventory(request(&character))
+            .await
+            .unwrap()
+            .into_inner()
+            .inventory
+            .unwrap();
+        let weight = baseline.weight.unwrap();
+        assert_eq!((weight.weight, weight.max_load, weight.per_mille), (1000, maximum, 0));
+        let penalty = baseline.penalties.unwrap();
+        assert_eq!((penalty.overload_level, penalty.overloaded), (3, true));
+        assert_eq!(inventory.value.lock().clone(), before);
+    }
+    assert!(app.bus.published().is_empty());
+}

@@ -533,13 +533,14 @@ pub(super) fn detached_inventory_to_pb(
 ) -> Result<pb::InventorySync, crate::application::AppError> {
     use crate::domain::zone::{phase4_checkpoint::ItemReuseKey, ItemLocation};
     let cp = &output.checkpoint;
-    if cp.max_load <= 0 {
-        return Err(anyhow::anyhow!("retained inventory max load is invalid").into());
-    }
-    let per_mille = i128::from(cp.weight)
-        .checked_mul(1000)
-        .and_then(|weight| weight.checked_div(i128::from(cp.max_load)))
-        .ok_or_else(|| anyhow::anyhow!("retained weight projection overflow"))?;
+    let per_mille = if cp.max_load <= 0 {
+        0 // D45: pinned no-op maximum preserves the retained overload history.
+    } else {
+        i128::from(cp.weight)
+            .checked_mul(1000)
+            .and_then(|weight| weight.checked_div(i128::from(cp.max_load)))
+            .ok_or_else(|| anyhow::anyhow!("retained weight projection overflow"))?
+    };
     Ok(pb::InventorySync {
         entity_id: output.character_id.as_uuid().as_bytes().to_vec(),
         incarnation: 0,
@@ -660,6 +661,34 @@ mod tests {
 
     use super::*;
     use crate::domain::{AccountId, CharacterName};
+
+    #[test]
+    fn detached_nonpositive_maximum_displays_zero_without_changing_penalty_history() {
+        use crate::application::use_cases::GetInventoryOutput;
+        let mut checkpoint = crate::domain::zone::phase4_projection::tests::projection().checkpoint;
+        checkpoint.weight = 500;
+        checkpoint.overload_level = 3;
+        checkpoint.overloaded = true;
+        for (maximum, per_mille) in [(-5, 0), (0, 0), (250, 2000)] {
+            checkpoint.max_load = maximum;
+            let output = GetInventoryOutput {
+                character_id: crate::domain::CharacterId::from_uuid(Uuid::from_u128(1)),
+                character_revision: 9,
+                ordinary_capacity: checkpoint.ordinary_capacity,
+                quest_capacity: checkpoint.quest_capacity,
+                checkpoint: checkpoint.clone(),
+            };
+            let wire = detached_inventory_to_pb(&output).unwrap();
+            let weight = wire.weight.unwrap();
+            assert_eq!(
+                (weight.weight, weight.max_load, weight.per_mille),
+                (500, maximum, per_mille)
+            );
+            let penalties = wire.penalties.unwrap();
+            assert_eq!((penalties.overload_level, penalties.overloaded), (3, true));
+            assert_eq!(output.checkpoint, checkpoint);
+        }
+    }
 
     #[test]
     fn race_round_trips_and_rejects_unspecified() {
