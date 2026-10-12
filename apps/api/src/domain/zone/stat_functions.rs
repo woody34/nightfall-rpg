@@ -138,9 +138,18 @@ impl FunctionConditions<'_> {
             SkillCondition::Not { conditions, .. } if conditions.len() == 1 => self
                 .matches(conditions.first().ok_or(StatError::Overflow)?)
                 .map(|value| !value),
-            SkillCondition::Not { .. } | SkillCondition::Unsupported { .. } => {
-                Err(StatError::Overflow)
-            },
+            SkillCondition::PlayerInsideZoneIds { .. }
+            | SkillCondition::PlayerResting { .. }
+            | SkillCondition::PlayerStanding { .. }
+            | SkillCondition::PlayerMoving { .. }
+            | SkillCondition::PlayerRunning { .. }
+            | SkillCondition::PlayerCanEscape { .. }
+            | SkillCondition::PlayerFlyMounted { .. }
+            | SkillCondition::UsingSlot { .. }
+            | SkillCondition::PlayerWeight { .. }
+            | SkillCondition::PlayerInventorySize { .. }
+            | SkillCondition::Not { .. }
+            | SkillCondition::Unsupported { .. } => Err(StatError::Overflow),
         }
     }
 }

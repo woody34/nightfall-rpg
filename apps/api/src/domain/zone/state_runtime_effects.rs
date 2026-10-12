@@ -427,7 +427,11 @@ impl ZoneState {
         let mut chance_evidence = None;
         let a = self.effective(caster.entity)?;
         let b = self.effective(target.entity)?;
-        if abnormal.is_debuff && skill.activate_rate != -1 {
+        let activate_rate = *skill
+            .activate_rate
+            .at(rank, skill.max_level)
+            .ok_or_else(missing)?;
+        if abnormal.is_debuff && activate_rate != -1 {
             self.evidence_roll("EffectReflection", Some(target), 100);
         }
         let trait_modifier = Self::trait_modifier_v5(&a, &b, &skill.r#trait)?;
@@ -436,13 +440,13 @@ impl ZoneState {
         let index = usize::try_from(rank.checked_sub(1).ok_or_else(missing)?).map_err(invariant)?;
         let magic_level =
             i32::try_from(*skill.magic_level.get(index).ok_or_else(missing)?).map_err(invariant)?;
-        let success = if skill.activate_rate == -1 || skill.basic_property == "NONE" {
+        let success = if activate_rate == -1 || skill.basic_property == "NONE" {
             true
         } else {
             let inputs = skill_math::EffectSuccessInputs {
                 magic_level,
                 target_level: b.physical.level(),
-                activate_rate: i32::try_from(skill.activate_rate).map_err(invariant)?,
+                activate_rate: i32::try_from(activate_rate).map_err(invariant)?,
                 level_bonus_rate: i32::try_from(skill.level_bonus_rate).map_err(invariant)?,
                 target_base_stat,
                 basic_property_none: false,
