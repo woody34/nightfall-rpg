@@ -53,7 +53,9 @@ public:
 	UButton* AcceptControl() const { return AcceptOffer; }
 	UButton* DeclineControl() const { return DeclineOffer; }
 	UButton* HotbarControl(int32 Slot) const { return HotbarButtons.IsValidIndex(Slot) ? HotbarButtons[Slot] : nullptr; }
-	int32 NumDamageNumbers() const { return Numbers.Num(); }
+	UButton* ItemControl(int32 Slot) const { return ItemButtons.IsValidIndex(Slot)?ItemButtons[Slot]:nullptr; }
+ FString ItemLabel(int32 Slot) const;
+ int32 NumDamageNumbers() const { return Numbers.Num(); }
 	int32 NumFloatingBars() const { return Bars.Num(); }
 
 protected:

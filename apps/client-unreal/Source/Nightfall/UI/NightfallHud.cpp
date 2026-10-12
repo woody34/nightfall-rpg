@@ -517,3 +517,5 @@ void UNightfallHud::UpdateItems()
  const auto* GI=GetGameInstance();const auto* S=GI?GI->GetSubsystem<UInventoryStateSubsystem>():nullptr;if(!S)return;const auto Slots=S->Hotbar();
  for(int32 I=0;I<ItemButtons.Num();++I){const auto& Slot=Slots[I];const auto* D=S->Definition(Slot.Key);const auto Count=S->Count(Slot.Key);ItemLabels[I]->SetText(FText::FromString(FString::Printf(TEXT("F%d %s\nx%llu%s"),I+1,D?*D->Name:TEXT("empty"),Count.IsSet()?*Count:0,Slot.Value?(S->AutoShot(Slot.Key)?TEXT(" AUTO ON"):TEXT(" AUTO OFF")):TEXT(""))));ItemButtons[I]->SetIsEnabled(S->HasBaseline() && D && Count.IsSet() && (Slot.Value || *Count>0));}
 }
+
+FString UNightfallHud::ItemLabel(int32 Slot) const {return ItemLabels.IsValidIndex(Slot)?ItemLabels[Slot]->GetText().ToString():FString();}

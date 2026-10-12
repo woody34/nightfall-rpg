@@ -667,7 +667,7 @@ namespace NightfallProto
 			if (Payload.Ack.IsValid()) { Out.Ack = FAck{ Payload.Ack->Seq, Payload.Ack->Tick }; }
 			break;
 		case EGrpcNightfallV1ServerMessagePayload::Event:
-			if (Payload.Event.IsValid()) { Out.Event = FromGrpc(*Payload.Event); NightfallWire::ItemReceiptBytes(Data,Size,Out.Event->ItemReceiptPayload); }
+			if (Payload.Event.IsValid()) { Out.Event = FromGrpc(*Payload.Event); Out.Event->bReceivedFromWire=true; NightfallWire::ItemReceiptBytes(Data,Size,Out.Event->ItemReceiptPayload); }
 			break;
 		case EGrpcNightfallV1ServerMessagePayload::Rejected:
 			if (Payload.Rejected.IsValid())

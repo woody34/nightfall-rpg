@@ -17,7 +17,7 @@ namespace ItemTest
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FItemStateTest,"Nightfall.Item.Reducer.HydrationRevisionPrivacy",EAutomationTestFlags::EditorContext|EAutomationTestFlags::ProductFilter)
 bool FItemStateTest::RunTest(const FString&)
 {
- using namespace ItemTest;FScopedTestGameInstance Scope;auto* N=Scope.Get<UNetClientSubsystem>();auto* S=Scope.Get<UInventoryStateSubsystem>();N->SetOwnEntityId(Owner);
+ using namespace ItemTest;FScopedTestGameInstance Scope;Scope.Get<USessionClient>()->SetBearerToken(TEXT("test:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"));auto* N=Scope.Get<UNetClientSubsystem>();auto* S=Scope.Get<UInventoryStateSubsystem>();N->SetOwnEntityId(Owner);
  S->ApplySync(Sync());TestFalse(TEXT("identity before baseline"),S->HasBaseline());S->ApplySpawn(Spawn());S->ApplySync(Sync());TestTrue(TEXT("same-tick hydration"),S->HasBaseline());
  auto Other=Sync();Other.EntityId=NightfallItems::UuidBytes(TEXT("22222222-2222-4222-8222-222222222222"));Other.Items.Reset();S->ApplySync(Other);TestEqual(TEXT("private peer baseline ignored"),*S->Count(6),uint64(1));
  FGrpcNightfallV1WeightChanged W;W.EntityId=Sync().EntityId;W.Incarnation=1;W.Tick=11;W.InventoryRevision=2;W.HasWeight=true;W.Weight.PerMille=500;S->ApplyWeight(W);
@@ -30,7 +30,7 @@ bool FItemStateTest::RunTest(const FString&)
  C.Tick=12;C.InventoryRevision=4;C.PreviousRevision=3;S->ApplyChanged(C);TestTrue(TEXT("revision gap fails closed"),S->NeedsBaseline());TestFalse(TEXT("gap never predicts counts"),S->Count(6).IsSet());
  S->Reset();S->ApplySpawn(Spawn());auto Invalid=Sync();const auto Duplicate=Invalid.Items[0];Invalid.Items.Add(Duplicate);S->ApplySync(Invalid);TestFalse(TEXT("duplicate IDs atomic refusal"),S->HasBaseline());
  S->Reset();S->ApplySpawn(Spawn());S->ApplySync(Sync());auto R=FEntityRespawned{};R.Entity=Owner;R.Tick=11;R.Incarnation=2;S->ApplyRespawn(R);S->ApplySync(Sync());TestFalse(TEXT("old-life baseline rejected"),S->HasBaseline());
- FGrpcNightfallV1GetInventoryResponse Detached;Detached.HasInventory=true;Detached.Inventory=Sync();Detached.Inventory.Tick=Detached.Inventory.BaselineTick=0;Detached.Inventory.Incarnation=0;S->ApplyDetached(Detached);TestTrue(TEXT("detached sentinel accepted separately"),S->Detached().IsSet());TestFalse(TEXT("detached cannot hydrate"),S->HasBaseline());
+ FGrpcNightfallV1GetInventoryResponse Detached;Detached.HasInventory=true;Detached.Inventory=Sync();Detached.Inventory.Tick=Detached.Inventory.BaselineTick=0;Detached.Inventory.Incarnation=0;S->SetInventoryProviderForTesting([](const auto&,auto){});S->LoadDetached(Owner);S->ApplyDetached(Owner,Detached);TestTrue(TEXT("detached sentinel accepted separately"),S->Detached(Owner)!=nullptr);TestFalse(TEXT("detached cannot hydrate"),S->HasBaseline());
  return true;
 }
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FItemWireTest,"Nightfall.Item.Codec.IntentsAndEnrichments",EAutomationTestFlags::EditorContext|EAutomationTestFlags::ProductFilter)
@@ -44,7 +44,7 @@ bool FItemWireTest::RunTest(const FString&)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FItemBotTest,"Nightfall.Item.Bot.GrammarUnknownAndReset",EAutomationTestFlags::EditorContext|EAutomationTestFlags::ProductFilter)
 bool FItemBotTest::RunTest(const FString&)
 {
- FScopedTestGameInstance Scope;auto* N=Scope.Get<UNetClientSubsystem>();auto* S=Scope.Get<UInventoryStateSubsystem>();N->SetOwnEntityId(ItemTest::Owner);FBotContext C;C.GameInstance=Scope.GameInstance;FBotPredicateRegistry R;R.RegisterBuiltins();
+ FScopedTestGameInstance Scope;Scope.Get<USessionClient>()->SetBearerToken(TEXT("test:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"));auto* N=Scope.Get<UNetClientSubsystem>();auto* S=Scope.Get<UInventoryStateSubsystem>();N->SetOwnEntityId(ItemTest::Owner);FBotContext C;C.GameInstance=Scope.GameInstance;FBotPredicateRegistry R;R.RegisterBuiltins();
  auto Eval=[&](const TCHAR* Text){FString E;auto P=R.Parse(R.Tokenize(Text),E);TestTrue(TEXT("bind predicate"),bool(P));return P?P(C):FBotPredicateValue{};};
  for(const TCHAR* Text:{TEXT("inventory_has 6 == 0"),TEXT("equipped rhand == 0"),TEXT("weight_pct == 0"),TEXT("item_rpc_error == none"),TEXT("item_receipt_matches_first")})TestFalse(TEXT("absence UNKNOWN"),Eval(Text).bTrue);
  S->ApplySpawn(ItemTest::Spawn());auto ZeroWeight=ItemTest::Sync();ZeroWeight.Weight.Weight=0;ZeroWeight.Weight.MaxLoad=1;S->ApplySync(ZeroWeight);TestTrue(TEXT("received bag count"),Eval(TEXT("inventory_has 6 == 1")).bTrue);TestTrue(TEXT("exact received percent"),Eval(TEXT("weight_pct == 0/3")).bTrue);
@@ -57,7 +57,7 @@ bool FItemBotTest::RunTest(const FString&)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FItemCatalogTest,"Nightfall.Item.Catalog.FailureHashAndLifetime",EAutomationTestFlags::EditorContext|EAutomationTestFlags::ProductFilter)
 bool FItemCatalogTest::RunTest(const FString&)
 {
- FScopedTestGameInstance Scope;auto* S=Scope.Get<UInventoryStateSubsystem>();auto* N=Scope.Get<UNetClientSubsystem>();N->SetOwnEntityId(ItemTest::Owner);S->ApplySpawn(ItemTest::Spawn());S->ApplySync(ItemTest::Sync());
+ FScopedTestGameInstance Scope;auto* S=Scope.Get<UInventoryStateSubsystem>();Scope.Get<USessionClient>()->SetBearerToken(TEXT("test:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"));auto* N=Scope.Get<UNetClientSubsystem>();N->SetOwnEntityId(ItemTest::Owner);S->ApplySpawn(ItemTest::Spawn());S->ApplySync(ItemTest::Sync());
  USessionClient::FGetItemCatalogCallback Pending;S->SetCatalogProviderForTesting([&](auto Callback){Pending=MoveTemp(Callback);});S->LoadCatalog();FNetResult Failed;Failed.Error=ENetError::Unavailable;Failed.Message=TEXT("catalogue unavailable");Pending(Failed,{});TestFalse(TEXT("optional unavailable is fail-closed"),S->HasCatalog());TestTrue(TEXT("completed failure status visible"),S->RpcDone() && S->RpcResult().Error==ENetError::Unavailable);
  FGrpcNightfallV1GetItemCatalogResponse C;C.DataVersion=2;C.RulesHash=ItemTest::Sync().RulesHash;S->LoadCatalog();Pending({},C);TestTrue(TEXT("matching immutable catalogue"),S->HasCatalog());C.RulesHash.Value[0]=2;S->ApplyCatalog(C);TestFalse(TEXT("mismatched bundle fails closed"),S->HasCatalog());
  C.RulesHash=ItemTest::Sync().RulesHash;S->LoadCatalog();S->Reset();Pending({},C);TestFalse(TEXT("old transport callback discarded"),S->HasCatalog());
@@ -68,7 +68,7 @@ bool FItemCatalogTest::RunTest(const FString&)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FItemPredicateCarriersTest,"Nightfall.Item.Bot.AllReceivedCarriers",EAutomationTestFlags::EditorContext|EAutomationTestFlags::ProductFilter)
 bool FItemPredicateCarriersTest::RunTest(const FString&)
 {
- FScopedTestGameInstance Scope;auto* N=Scope.Get<UNetClientSubsystem>();auto* S=Scope.Get<UInventoryStateSubsystem>();N->SetOwnEntityId(ItemTest::Owner);S->ApplySpawn(ItemTest::Spawn());auto Base=ItemTest::Sync();auto& I=Base.Items[0];I.Slot=EGrpcNightfallV1EquipSlot::EQUIP_SLOT_RHAND;I.Location=EGrpcNightfallV1ItemLocation::ITEM_LOCATION_PAPERDOLL;I.Enchant=3;FGrpcNightfallV1PaperdollEntry Doll;Doll.Slot=I.Slot;Doll.InstanceId=I.InstanceId;Base.Paperdoll.Add(Doll);Base.Weight.Weight=1;Base.Weight.MaxLoad=3;Base.Weight.PerMille=333;Base.Penalties.WeaponLevel=1;Base.Penalties.ArmorLevel=2;Base.Penalties.OverloadLevel=3;Base.AutoShotTemplates.Add(2509);S->ApplySync(Base);
+ FScopedTestGameInstance Scope;Scope.Get<USessionClient>()->SetBearerToken(TEXT("test:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"));auto* N=Scope.Get<UNetClientSubsystem>();auto* S=Scope.Get<UInventoryStateSubsystem>();N->SetOwnEntityId(ItemTest::Owner);S->ApplySpawn(ItemTest::Spawn());auto Base=ItemTest::Sync();auto& I=Base.Items[0];I.Slot=EGrpcNightfallV1EquipSlot::EQUIP_SLOT_RHAND;I.Location=EGrpcNightfallV1ItemLocation::ITEM_LOCATION_PAPERDOLL;I.Enchant=3;FGrpcNightfallV1PaperdollEntry Doll;Doll.Slot=I.Slot;Doll.InstanceId=I.InstanceId;Base.Paperdoll.Add(Doll);Base.Weight.Weight=1;Base.Weight.MaxLoad=3;Base.Weight.PerMille=333;Base.Penalties.WeaponLevel=1;Base.Penalties.ArmorLevel=2;Base.Penalties.OverloadLevel=3;Base.AutoShotTemplates.Add(2509);S->ApplySync(Base);
  FBotPredicateRegistry R;R.RegisterBuiltins();FBotContext C;C.GameInstance=Scope.GameInstance;auto Eval=[&](const TCHAR* T){FString Error;auto P=R.Parse(R.Tokenize(T),Error);TestTrue(TEXT("predicate binds"),bool(P));return P?P(C):FBotPredicateValue{};};
  for(const TCHAR* T:{TEXT("item_baseline"),TEXT("inventory_revision == 1"),TEXT("inventory_has 6 >= 1"),TEXT("equipped rhand == 6"),TEXT("equipped lhand == 0"),TEXT("enchant_level rhand == 3"),TEXT("weight_pct == 100/3"),TEXT("weight_pct > 33.333"),TEXT("overload_level == 3"),TEXT("grade_penalty weapon == 1"),TEXT("grade_penalty armor == 2"),TEXT("autoshot_on 2509"),TEXT("arrows_remaining == 0")})TestTrue(FString(T),Eval(T).bTrue);
  TestFalse(TEXT("cleared slot enchant UNKNOWN"),Eval(TEXT("enchant_level lhand == 0")).bTrue);TestFalse(TEXT("display rounding is not equality"),Eval(TEXT("weight_pct == 33.3")).bTrue);
@@ -113,7 +113,7 @@ bool FItemEnrichedCodecTest::RunTest(const FString&)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FItemAuditTest,"Nightfall.Item.Audit.StickyCoherenceAndReset",EAutomationTestFlags::EditorContext|EAutomationTestFlags::ProductFilter)
 bool FItemAuditTest::RunTest(const FString&)
 {
- FScopedTestGameInstance Scope;auto* N=Scope.Get<UNetClientSubsystem>();auto* S=Scope.Get<UInventoryStateSubsystem>();auto* A=Scope.Get<UItemAuditSubsystem>();N->SetOwnEntityId(ItemTest::Owner);S->ApplySpawn(ItemTest::Spawn());S->ApplySync(ItemTest::Sync());FString Detail;TestFalse(TEXT("no outcome isn't a pass"),A->Check(Detail).IsSet());
+ FScopedTestGameInstance Scope;Scope.Get<USessionClient>()->SetBearerToken(TEXT("test:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"));auto* N=Scope.Get<UNetClientSubsystem>();auto* S=Scope.Get<UInventoryStateSubsystem>();auto* A=Scope.Get<UItemAuditSubsystem>();N->SetOwnEntityId(ItemTest::Owner);S->ApplySpawn(ItemTest::Spawn());S->ApplySync(ItemTest::Sync());FString Detail;TestFalse(TEXT("no outcome isn't a pass"),A->Check(Detail).IsSet());
  FGrpcNightfallV1EnchantResult R;R.EntityId=ItemTest::Sync().EntityId;R.Incarnation=1;R.Tick=11;R.InventoryRevision=1;R.TargetInstanceId=1;R.ReceiptId=TEXT("12345678-1111-4111-8111-123456789abc");R.Outcome=EGrpcNightfallV1EnchantOutcome::ENCHANT_OUTCOME_SUCCESS;R.NewEnchant=1;FWorldEvent E;E.EnchantResult=R;FServerMessage M;M.Event=E;N->DispatchServerMessage(M);const auto Invalid=A->Check(Detail);TestTrue(TEXT("mismatch is an observed failure"),Invalid.IsSet() && !*Invalid);
  R.Outcome=EGrpcNightfallV1EnchantOutcome::ENCHANT_OUTCOME_SAFE_FAILED;R.NewEnchant=0;E.EnchantResult=R;M.Event=E;N->DispatchServerMessage(M);TestTrue(TEXT("later coherent fact can't erase violation"),A->Check(Detail).IsSet() && !*A->Check(Detail));A->Reset();TestFalse(TEXT("transport reset invalidates audit"),A->Check(Detail).IsSet());return true;
 }
@@ -122,7 +122,7 @@ bool FItemAuditTest::RunTest(const FString&)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FItemHistoricalReceiptTest,"Nightfall.Item.Receipt.RevivalHistoryIsNotLiveState",EAutomationTestFlags::EditorContext|EAutomationTestFlags::ProductFilter)
 bool FItemHistoricalReceiptTest::RunTest(const FString&)
 {
- FScopedTestGameInstance Scope;auto* N=Scope.Get<UNetClientSubsystem>();auto* S=Scope.Get<UInventoryStateSubsystem>();N->SetOwnEntityId(ItemTest::Owner);S->ApplySpawn(ItemTest::Spawn());S->ApplySync(ItemTest::Sync());
+ FScopedTestGameInstance Scope;Scope.Get<USessionClient>()->SetBearerToken(TEXT("test:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"));auto* N=Scope.Get<UNetClientSubsystem>();auto* S=Scope.Get<UInventoryStateSubsystem>();N->SetOwnEntityId(ItemTest::Owner);S->ApplySpawn(ItemTest::Spawn());S->ApplySync(ItemTest::Sync());
  FGrpcNightfallV1ItemOperationResult R;R.EntityId=ItemTest::Sync().EntityId;R.Incarnation=1;R.Tick=11;R.InventoryRevision=1;R.ReceiptId=TEXT("12345678-1111-4111-8111-123456789abc");R.Operation=EGrpcNightfallV1ItemOperation::ITEM_OPERATION_EQUIP;FWorldEvent E;E.ItemOperationResult=R;FServerMessage M;M.Event=E;N->DispatchServerMessage(M);
  S->ApplySpawn(ItemTest::Spawn(ItemTest::Owner,20,2));auto B=ItemTest::Sync();B.Tick=B.BaselineTick=20;B.Incarnation=2;S->ApplySync(B);N->DispatchServerMessage(M);TestTrue(TEXT("same frozen historical bytes compare across revival"),S->ReceiptMatchesFirst().IsSet() && *S->ReceiptMatchesFirst());TestFalse(TEXT("historical receipt never becomes new life operation"),S->LastOperation().IsSet());TestEqual(TEXT("historical receipt cannot modify inventory"),S->Revision(),uint64(1));return true;
 }
@@ -133,7 +133,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FItemMarkTest,"Nightfall.Item.Bot.ReceivedMarks
 bool FItemMarkTest::RunTest(const FString&)
 {
  using namespace ItemTest;
- FScopedTestGameInstance Scope;auto* N=Scope.Get<UNetClientSubsystem>();auto* S=Scope.Get<UInventoryStateSubsystem>();N->SetOwnEntityId(Owner);
+ FScopedTestGameInstance Scope;Scope.Get<USessionClient>()->SetBearerToken(TEXT("test:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"));auto* N=Scope.Get<UNetClientSubsystem>();auto* S=Scope.Get<UInventoryStateSubsystem>();N->SetOwnEntityId(Owner);
  FBotPredicateRegistry Registry;Registry.RegisterBuiltins();FBotContext Context;Context.GameInstance=Scope.GameInstance;
  auto Eval=[&](const TCHAR* Text){FString Error;auto Predicate=Registry.Parse(Registry.Tokenize(Text),Error);TestTrue(TEXT("revised predicate binds"),bool(Predicate));return Predicate?Predicate(Context):FBotPredicateValue{};};
  TestFalse(TEXT("missing carriers cannot mark"),S->Execute({TEXT("nf.MarkItemState")}));
@@ -162,7 +162,7 @@ bool FItemMarkTest::RunTest(const FString&)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FItemRefineJoinTest,"Nightfall.Item.Bot.RefineAppliedRemovedRevisionJoin",EAutomationTestFlags::EditorContext|EAutomationTestFlags::ProductFilter)
 bool FItemRefineJoinTest::RunTest(const FString&)
 {
- using namespace ItemTest;FScopedTestGameInstance Scope;auto* N=Scope.Get<UNetClientSubsystem>();auto* S=Scope.Get<UInventoryStateSubsystem>();N->SetOwnEntityId(Owner);S->ApplySpawn(Spawn());S->ApplySync(Sync());
+ using namespace ItemTest;FScopedTestGameInstance Scope;Scope.Get<USessionClient>()->SetBearerToken(TEXT("test:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"));auto* N=Scope.Get<UNetClientSubsystem>();auto* S=Scope.Get<UInventoryStateSubsystem>();N->SetOwnEntityId(Owner);S->ApplySpawn(Spawn());S->ApplySync(Sync());
  FBotPredicateRegistry Registry;Registry.RegisterBuiltins();FBotContext Context;Context.GameInstance=Scope.GameInstance;auto Eval=[&](const TCHAR* Text){FString Error;auto Predicate=Registry.Parse(Registry.Tokenize(Text),Error);TestTrue(TEXT("refine predicate binds"),bool(Predicate));return Predicate?Predicate(Context):FBotPredicateValue{};};
  TestFalse(TEXT("no result UNKNOWN"),Eval(TEXT("refine_result_consistent")).bTrue);
  FGrpcNightfallV1RefineResult Result;Result.EntityId=Sync().EntityId;Result.Incarnation=1;Result.Tick=11;Result.InventoryRevision=2;Result.TargetInstanceId=1;Result.Outcome=EGrpcNightfallV1RefineOutcome::REFINE_OUTCOME_APPLIED;Result._augment_id._augment_idCase=EGrpcNightfallV1RefineResult_augment_id::AugmentId;Result._augment_id.AugmentId=MAX_uint32;S->ApplyRefine(Result);

@@ -122,7 +122,10 @@ public:
 	void K2_IssuePlayTicket(const FGrpcNightfallV1IssuePlayTicketRequest& Request, FOnNetPlayTicketDone OnDone);
 
 	/** Sets the access token sent on every later call except Ping. Empty stops sending the header. */
-	void SetBearerToken(const FString& Token) { BearerToken = Token; }
+	void SetBearerToken(const FString& Token);
+	const FString& AccountId() const { return AuthenticatedAccount; }
+	uint64 AuthenticationGeneration() const { return AuthGeneration; }
+	FSimpleMulticastDelegate OnAuthenticationChanged;
 
 	/** True once a bearer token is set. The token itself is never exposed. */
 	UFUNCTION(BlueprintPure, Category = "Nightfall|Net")
@@ -192,6 +195,8 @@ private:
 	FString Endpoint;
 	float CallTimeoutSeconds = 5.f;
 	FString BearerToken;
+	FString AuthenticatedAccount;
+	uint64 AuthGeneration=0;
 
 	TMap<uint32, FCatalogueCallback> PendingListClasses;
 	TMap<uint32, FTransferOptionsCallback> PendingTransferOptions;

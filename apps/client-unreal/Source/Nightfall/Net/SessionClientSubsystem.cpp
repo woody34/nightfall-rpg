@@ -3,6 +3,8 @@
 #include "NetSettings.h"
 #include "Engine/GameInstance.h"
 #include "Misc/App.h"
+#include "Misc/Base64.h"
+#include "Serialization/JsonSerializer.h"
 #include "TurboLinkGrpcConfig.h"
 #include "TurboLinkGrpcManager.h"
 #include "SNightfallV1/GameClient.h"
@@ -450,4 +452,19 @@ void USessionClient::GrantItem(const FGrpcNightfallV1GrantItemRequest& Request, 
 void USessionClient::HandleGrantItem(FGrpcContextHandle Handle, const FGrpcResult& Result, const FGrpcNightfallV1GrantItemResponse& Response)
 {
  Complete(PendingGrantItem, Handle.Value, Result, Response);
+}
+
+void USessionClient::SetBearerToken(const FString& Token)
+{
+ FString Subject;
+ // AccountId is the UUID subject (authenticate.rs:40); tokens are never scope keys.
+ if(Token.StartsWith(TEXT("test:")))Subject=Token.Mid(5);
+ else {
+  TArray<FString> Parts;Token.ParseIntoArray(Parts,TEXT("."),false);
+  if(Parts.Num()==3){FString Payload=Parts[1].Replace(TEXT("-"),TEXT("+")).Replace(TEXT("_"),TEXT("/"));while(Payload.Len()%4)Payload+=TEXT("=");FString Json;
+   if(FBase64::Decode(Payload,Json)){TSharedPtr<FJsonObject> Object;if(FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Json),Object) && Object.IsValid())Object->TryGetStringField(TEXT("sub"),Subject);}}
+ }
+ FGuid Id;const FString Account=FGuid::Parse(Subject,Id)?Id.ToString(EGuidFormats::DigitsWithHyphensLower):FString();
+ BearerToken=Token;
+ if(Account!=AuthenticatedAccount){AuthenticatedAccount=Account;++AuthGeneration;OnAuthenticationChanged.Broadcast();}
 }

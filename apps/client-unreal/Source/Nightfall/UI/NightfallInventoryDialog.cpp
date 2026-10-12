@@ -52,7 +52,7 @@ FString UNightfallInventoryDialog::ItemLabel(uint64 Id) const
 void UNightfallInventoryDialog::Render()
 {
  if(!Grid || !State)return;Grid->ClearChildren();Paperdoll->ClearChildren();Choices.Reset();const bool Detached=!DetachedCharacter.IsEmpty();const bool Live=!Detached && State->HasBaseline();
- const auto* View=Detached?(State->Detached().IsSet()?&*State->Detached():nullptr):Live?&State->GetInventory():nullptr;
+ const auto* View=Detached?State->Detached(DetachedCharacter):Live?&State->GetInventory():nullptr;
  Status->SetText(FText::FromString(State->Status()));
  if(View){Summary->SetText(FText::FromString(FString::Printf(TEXT("%s • %d items / %u ordinary + %u quest\nWeight %lld / %lld (%lld/10%%) • overload %u • grade weapon %u / armor %u"),Detached?TEXT("Out of world"):TEXT("Live inventory"),View->Items.Num(),View->OrdinaryCapacity.Value,View->QuestCapacity.Value,View->Weight.Weight,View->Weight.MaxLoad,View->Weight.PerMille,View->Penalties.OverloadLevel.Value,View->Penalties.WeaponLevel.Value,View->Penalties.ArmorLevel.Value)));Weight->SetPercent(FMath::Clamp(float(View->Weight.PerMille)/1000.f,0.f,1.f));Weight->SetFillColorAndOpacity(View->Penalties.Overloaded?FLinearColor::Red:FLinearColor(0.2f,0.7f,0.3f));}
  else {Summary->SetText(FText::FromString(TEXT("Inventory state unknown")));Weight->SetPercent(0);}
@@ -66,8 +66,8 @@ void UNightfallInventoryDialog::Render()
 }
 void UNightfallInventoryDialog::Select(uint64 Id){if(Selected!=Id){Key.Reset();Selected=Id;}SelectedSlot.Reset();Render();}
 void UNightfallInventoryDialog::SelectSlot(const FString& Slot){if(SelectedSlot!=Slot)Key.Reset();SelectedSlot=Slot;const auto* I=State?State->Equipped(NightfallItems::Slot(Slot)):nullptr;Selected=I?I->InstanceId.Value:0;Render();}
-void UNightfallInventoryDialog::Equip(){if(!State || !EquipButton->GetIsEnabled())return;if(Key.IsEmpty())Key=FGuid::NewGuid().ToString(EGuidFormats::DigitsWithHyphensLower);State->Execute({TEXT("nf.Equip"),FString::Printf(TEXT("instance:%llu"),Selected),Key});}
-void UNightfallInventoryDialog::Unequip(){if(!State || !UnequipButton->GetIsEnabled())return;if(Key.IsEmpty())Key=FGuid::NewGuid().ToString(EGuidFormats::DigitsWithHyphensLower);State->Execute({TEXT("nf.Unequip"),SelectedSlot,Key});}
+void UNightfallInventoryDialog::Equip(){if(!State || !EquipButton->GetIsEnabled())return;Key=FGuid::NewGuid().ToString(EGuidFormats::DigitsWithHyphensLower);State->Execute({TEXT("nf.Equip"),FString::Printf(TEXT("instance:%llu"),Selected),Key});}
+void UNightfallInventoryDialog::Unequip(){if(!State || !UnequipButton->GetIsEnabled())return;Key=FGuid::NewGuid().ToString(EGuidFormats::DigitsWithHyphensLower);State->Execute({TEXT("nf.Unequip"),SelectedSlot,Key});}
 void UNightfallInventoryDialog::Use(){if(!State || !UseButton->GetIsEnabled())return;State->Execute({TEXT("nf.UseItem"),FString::Printf(TEXT("instance:%llu"),Selected)});}
 void UNightfallInventoryDialog::Enchant(){if(!EnchantButton || !EnchantButton->GetIsEnabled())return;auto* D=CreateWidget<UNightfallItemOperationDialog>(GetOwningPlayer());if(D){D->BindState(State,false,Selected);D->AddToViewport(60);D->ActivateWidget();}}
 void UNightfallInventoryDialog::Blacksmith(){if(!BlacksmithButton || !BlacksmithButton->GetIsEnabled())return;auto* D=CreateWidget<UNightfallItemOperationDialog>(GetOwningPlayer());if(D){D->BindState(State,true,Selected);D->AddToViewport(60);D->ActivateWidget();}}

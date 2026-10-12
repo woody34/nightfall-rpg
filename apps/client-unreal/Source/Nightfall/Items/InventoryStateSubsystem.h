@@ -72,12 +72,14 @@ public:
  const FGrpcNightfallV1ItemDefinition* Definition(uint32 Id) const;
  const FGrpcNightfallV1GetItemCatalogResponse& GetCatalog() const { return Catalog; }
  void LoadDetached(const FString& Character);
- void ApplyDetached(const FGrpcNightfallV1GetInventoryResponse& R);
- const TOptional<FGrpcNightfallV1InventorySync>& Detached() const { return DetachedInventory; }
+ void ApplyDetached(const FString& Character,const FGrpcNightfallV1GetInventoryResponse& R);
+ const FGrpcNightfallV1InventorySync* Detached(const FString& Character) const;
+ using FInventoryProvider = TFunction<void(const FGrpcNightfallV1GetInventoryRequest&,USessionClient::FGetInventoryCallback)>;
+ void SetInventoryProviderForTesting(FInventoryProvider P) { InventoryProvider=MoveTemp(P); }
  void Grant(uint32 Template, uint64 Count, const FString& Key);
  const FNetResult& RpcResult() const { return LastRpc; }
  bool RpcDone() const { return bRpcDone; }
- bool IsBusy() const { return bRpcBusy || PendingSeq != 0; }
+ bool IsBusy() const { return bRpcBusy || !Outstanding.IsEmpty(); }
  TOptional<bool> ReceiptMatchesFirst() const { return ReceiptMatches; }
  const FString& Status() const { return StatusText; }
  FOnInventoryStateChanged OnChanged;
@@ -91,6 +93,8 @@ private:
  void Publish(const TMap<uint64,FGrpcNightfallV1OwnedItem>& Candidate);
  void Remember(EGrpcNightfallV1ItemOperation Op, const FString& Key, const TArray<uint8>& Payload);
  void FinishSend(uint32 Seq,const FString& Key,EGrpcNightfallV1ItemOperation Op);
+ FString RequestScope(EGrpcNightfallV1ItemOperation Op,const FString& Key) const;
+ void AuthenticationChanged();
  UPROPERTY() TObjectPtr<UNetClientSubsystem> Net;
  UPROPERTY() TObjectPtr<USessionClient> Session;
  FPresentationFence Fence;
@@ -103,12 +107,15 @@ private:
  uint64 WeightTick=0,PenaltyTick=0;
  uint64 OwnerTick = 0, CatalogSerial = 0, RpcSerial = 0;
  bool bBaseline = false, bResync = false, bCatalog = false, bRpcDone = false, bRpcBusy = false;
- uint32 PendingSeq = 0;
- FString PendingKey;
- EGrpcNightfallV1ItemOperation PendingOperation=EGrpcNightfallV1ItemOperation::ITEM_OPERATION_UNSPECIFIED;
+ TMap<FString,TSet<uint32>> Outstanding;
+ TMap<uint32,FString> SequenceRequests;
+ uint32 LastSendSeq=0;
+ uint64 SyncTick=0;
  FGrpcNightfallV1GetItemCatalogResponse Catalog;
  FCatalogProvider CatalogProvider;
- TOptional<FGrpcNightfallV1InventorySync> DetachedInventory;
+ struct FDetachedView { uint64 Generation=0, Serial=0; TOptional<FGrpcNightfallV1InventorySync> Inventory; };
+ TMap<FString,FDetachedView> DetachedViews;
+ FInventoryProvider InventoryProvider;
  TOptional<FGrpcNightfallV1EnchantResult> Enchant;
  TOptional<FGrpcNightfallV1RefineResult> Refine;
  TOptional<FStatsChanged> CurrentStats,MarkedStats;

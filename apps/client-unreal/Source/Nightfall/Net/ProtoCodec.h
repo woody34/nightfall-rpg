@@ -431,6 +431,7 @@ struct FClassChanged
 struct FWorldEvent
 {
 	TArray<uint8> ItemReceiptPayload;
+ bool bReceivedFromWire=false;
 	TOptional<FGrpcNightfallV1InventorySync> InventorySync;
 	TOptional<FGrpcNightfallV1InventoryChanged> InventoryChanged;
 	TOptional<FGrpcNightfallV1EquipmentChanged> EquipmentChanged;
