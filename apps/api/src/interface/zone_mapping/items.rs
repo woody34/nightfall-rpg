@@ -531,6 +531,15 @@ mod tests {
     }
     #[allow(clippy::wildcard_enum_match_arm)] // Only these three receipt carriers are valid; future variants fail this test.
     fn round_trip(result: &FrozenItemResult) -> pb::world_event::Event {
+        for sequence in [None, Some(7), Some(u32::MAX)] {
+            let mut committed = result.clone();
+            committed.accepted_sequence = sequence;
+            round_trip_one(&committed);
+        }
+        round_trip_one(result)
+    }
+    #[allow(clippy::wildcard_enum_match_arm)] // Verify every frozen carrier's original identity.
+    fn round_trip_one(result: &FrozenItemResult) -> pb::world_event::Event {
         let event = frozen_item_result_to_pb(result).unwrap();
         let message = pb::WorldEvent {
             event: Some(event.clone()),
