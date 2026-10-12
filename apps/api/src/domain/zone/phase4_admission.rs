@@ -523,6 +523,7 @@ impl ItemCommand {
             let result = known.payload.result()?;
             if self.account.is_none()
                 || known.fingerprint != self.body_fingerprint_hex()?
+                || result.request_fingerprint != known.fingerprint
                 || result.entity != self.entity
                 || result.receipt != self.request_id
                 || result.operation() != self.operation()
@@ -610,8 +611,9 @@ mod command_tests {
             affected: vec![ItemInstanceId::new(7).unwrap()],
             recipe: None,
         };
-        let payload = result.payload().unwrap();
         let fingerprint = fresh.fingerprint_hex().unwrap();
+        result.request_fingerprint.clone_from(&fingerprint);
+        let payload = result.payload().unwrap();
         let known = fresh
             .clone()
             .with_known_receipt(fingerprint.clone(), payload.clone())
@@ -636,13 +638,14 @@ mod command_tests {
         assert!(wrong_body
             .with_known_receipt(fingerprint.clone(), payload)
             .is_err());
-        for field in ["owner", "key", "operation", "incarnation"] {
+        for field in ["owner", "key", "operation", "incarnation", "fingerprint"] {
             let mut wrong = result.clone();
             match field {
                 "owner" => {
                     wrong.entity = super::super::EntityId::from_uuid(uuid::Uuid::from_u128(99));
                 },
                 "key" => wrong.receipt = uuid::Uuid::from_u128(99),
+                "fingerprint" => wrong.request_fingerprint = "f".repeat(64),
                 "operation" => {
                     wrong.detail = ItemResultDetail::Operation {
                         operation: ItemOperation::Equip,

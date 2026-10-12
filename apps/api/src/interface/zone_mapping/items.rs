@@ -508,6 +508,7 @@ mod tests {
     }
     fn result(detail: ItemResultDetail) -> FrozenItemResult {
         FrozenItemResult {
+            request_fingerprint: "a".repeat(64),
             entity: owner(),
             incarnation: 7,
             tick: crate::domain::zone::Tick(81),
