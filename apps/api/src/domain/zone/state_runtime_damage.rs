@@ -6499,4 +6499,97 @@ mod tests {
         assert_eq!(zone.rng.get_word_pos(), cursor);
         assert_eq!(zone.sidecar(owner.entity).unwrap().cast, CastState::Idle);
     }
+    #[test]
+    fn v6_item_evidence_captures_enchant_inputs_without_changing_replay() {
+        use crate::application::replay_log::{AppliedTickRecord, Watermark, WatermarkReason};
+        use crate::domain::zone::evidence::ItemEvidenceData;
+        let (mut live, owner, target, scroll) =
+            enchant_fixture(956, crate::domain::zone::EquipSlot::Chest, 0);
+        let snapshot = live.snapshot();
+        let mut observed = live.clone();
+        observed.enable_items_replay_evidence().unwrap();
+        let intent = item_intent(
+            &live,
+            owner.entity,
+            950,
+            crate::domain::zone::ItemCommandKind::Enchant {
+                target,
+                scroll,
+                support: None,
+            },
+        );
+        let draft = live.draft(vec![ZoneInput::session(
+            owner.entity,
+            SessionGeneration(1),
+            1,
+            ZoneCommand::Item(Box::new(intent)),
+        )]);
+        let applied = live.run_tick(draft.clone()).unwrap();
+        assert!(applied.dispositions.is_empty());
+        assert_eq!(applied, observed.run_tick(draft).unwrap());
+        let facts = observed.take_items_replay_evidence();
+        assert_eq!(
+            facts
+                .iter()
+                .filter(|f| matches!(f.fact, ItemEvidenceData::Baseline(_)))
+                .count(),
+            2
+        );
+        assert_eq!(
+            facts
+                .iter()
+                .filter(|f| matches!(f.fact, ItemEvidenceData::Delta(_)))
+                .count(),
+            2
+        );
+        let draws: Vec<_> = facts
+            .iter()
+            .filter_map(|f| match &f.fact {
+                ItemEvidenceData::Rng {
+                    word_before,
+                    word_after,
+                    bound,
+                    value,
+                    callsite,
+                    ..
+                } => Some((*word_before, *word_after, *bound, *value, callsite.as_str())),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(draws.len(), 1);
+        assert_eq!(draws[0].2, 100_000);
+        assert_eq!(draws[0].4, "enchant");
+        assert_eq!(draws[0].1, draws[0].0 + 1);
+        let formulas: Vec<_> = facts
+            .iter()
+            .filter_map(|f| match &f.fact {
+                ItemEvidenceData::Formula(data) => Some(data),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(formulas.len(), 2);
+        assert_eq!(formulas[0]["actual"], 100_000);
+        assert_eq!(formulas[1]["actual"]["enchant"], 1);
+        assert_eq!(formulas[1]["operation"]["target_before"]["enchant"], 0);
+        assert_eq!(formulas[1]["operation"]["scroll_before"]["count"], 3);
+        assert_eq!(live.snapshot(), observed.snapshot());
+        // Manual CLI/consumer probe uses this exact generated recording, never a synthetic verdict.
+        if let Ok(path) = std::env::var("NIGHTFALL_TEST_ITEM_EVIDENCE_RECORDING") {
+            let recording = crate::infrastructure::eventlog::Recording {
+                watermark: Watermark {
+                    zone: snapshot.seed.zone,
+                    epoch: snapshot.seed.epoch,
+                    records: 1,
+                    last_tick: Some(applied.tick),
+                    reason: WatermarkReason::Shutdown,
+                },
+                records: vec![AppliedTickRecord::from_applied(
+                    snapshot.seed.zone,
+                    &applied,
+                )],
+                snapshot,
+            };
+            std::fs::write(path, recording.to_bytes().unwrap()).unwrap();
+        }
+    }
 }

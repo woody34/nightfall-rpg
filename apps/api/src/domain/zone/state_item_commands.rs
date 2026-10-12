@@ -427,6 +427,57 @@ impl ZoneState {
             items.attack_plans.remove(&id);
             items.charge_bindings.retain(|binding| !matches!(binding.action, crate::domain::zone::phase4::ItemActionBinding::Attack { attacker, .. } if attacker == id));
         }
+        if self.items_evidence_enabled() {
+            let subject = self.binding(id).ok_or(RejectReason::InvalidLoad)?;
+            let resolution = format!("{:?}:{}", reference.operation, reference.key).to_lowercase();
+            if let Some((detail, attempt, _)) = &enchant {
+                self.item_evidence_enchant(subject, attempt, detail)?;
+            }
+            for change in &mutation.changes {
+                let instance = change
+                    .after
+                    .as_ref()
+                    .or(change.before.as_ref())
+                    .ok_or(RejectReason::InvalidLoad)?
+                    .id;
+                let before_count = change.before.as_ref().map_or(0, |i| i.count);
+                let after_count = change.after.as_ref().map_or(0, |i| i.count);
+                let operation = if enchant
+                    .as_ref()
+                    .is_some_and(|(_, _, payments)| payments.contains(&instance))
+                {
+                    ItemOperation::Consume
+                } else if enchant
+                    .as_ref()
+                    .is_some_and(|(_, attempt, _)| attempt.target == instance)
+                    && change.before.as_ref().and_then(|i| i.slot)
+                        == change.after.as_ref().and_then(|i| i.slot)
+                    && before_count == after_count
+                {
+                    ItemOperation::Enchant
+                } else if after_count < before_count {
+                    ItemOperation::Destroy
+                } else if after_count > before_count {
+                    ItemOperation::Grant
+                } else if change.after.as_ref().is_some_and(|i| i.slot.is_some()) {
+                    ItemOperation::Equip
+                } else {
+                    ItemOperation::Unequip
+                };
+                self.item_evidence_delta(
+                    subject,
+                    change,
+                    operation,
+                    if operation == ItemOperation::Consume {
+                        0
+                    } else {
+                        operation_ordinal
+                    },
+                    Some(reference),
+                    &resolution,
+                );
+            }
+        }
         let phase = self.phase3.as_ref().ok_or(RejectReason::InvalidLoad)?;
         let checkpoint = self
             .phase4
