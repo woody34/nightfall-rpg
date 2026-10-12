@@ -14,6 +14,7 @@ COMMANDS = {
     'nf.Refine': '<item> <stone> [target|entity:<uuid>] [key]',
     'nf.CancelRefine': '<item> [target|entity:<uuid>] [key]',
     'nf.ExchangeSA': '<item> <recipe> [target|entity:<uuid>] [key]',
+    'nf.MarkItemState': '',
     'nf.GrantItem': '<template> <count> [key]', 'nf.ItemCatalog': '',
 }
 PREDICATES = {
@@ -25,12 +26,16 @@ PREDICATES = {
     'inventory_revision': '<comparison> <revision>', 'item_baseline': '', 'item_catalog_ready': '',
     'item_operation': '== <operation>', 'enchant_outcome': '== <outcome>',
     'enchant_result_consistent': '', 'refined': '<item>',
+    'refine_outcome': '== applied|removed', 'refine_result_consistent': '',
+    'inventory_revision_since_mark': '<comparison> <revision>',
+    'owner_stat_delta': 'max_hp|p_def <comparison> <signed-integer>',
+    'owner_stats_match_mark': '',
     'item_rpc_error': '== none|FAILED_PRECONDITION|UNAVAILABLE|PERMISSION_DENIED|INVALID_ARGUMENT',
     'item_receipt_matches_first': '', 'blacksmith_known': '',
 }
 COMPARISONS = {'==', '!=', '>=', '<=', '>', '<'}
 OPERATIONS = {'equip', 'unequip', 'use', 'destroy', 'enchant', 'toggle_auto_shot',
-              'refine', 'cancel_refine', 'exchange_sa', 'crystallize', 'grant'}
+              'exchange_sa', 'crystallize', 'grant'}
 OUTCOMES = {'success', 'success_no_increment', 'safe_failed', 'blessed_reset', 'destroyed'}
 
 
@@ -57,7 +62,7 @@ def command(tokens):
     if name is None:
         return None
     args = list(tokens[1:])
-    if name == 'nf.ItemCatalog': return not args
+    if name in ('nf.ItemCatalog', 'nf.MarkItemState'): return not args
     if args and guid(args[-1]):
         # Positional UUID target is ambiguous: use entity:<uuid> for explicit targets.
         args.pop()
@@ -82,6 +87,9 @@ def predicate(tokens):
     if not PREDICATES[name]: return not args
     if name in ('autoshot_on', 'refined'):
         return len(args) == 1 and (number(args[0], 2**32-1) if name == 'autoshot_on' else item(args[0]))
+    if name == 'owner_stat_delta':
+        return len(args)==3 and args[0] in ('max_hp','p_def') and args[1] in COMPARISONS and bool(re.fullmatch(r'-?[0-9]+',args[2]))
+    if name == 'refine_outcome':return len(args)==2 and args[0]=='==' and args[1] in ('applied','removed')
     if name in ('item_operation', 'enchant_outcome', 'item_rpc_error'):
         values = OPERATIONS if name == 'item_operation' else OUTCOMES if name == 'enchant_outcome' else {'none', 'FAILED_PRECONDITION', 'UNAVAILABLE', 'PERMISSION_DENIED', 'INVALID_ARGUMENT'}
         return len(args) == 2 and args[0] == '==' and args[1] in values
