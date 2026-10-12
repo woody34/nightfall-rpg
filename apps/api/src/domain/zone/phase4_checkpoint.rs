@@ -587,15 +587,21 @@ impl Phase4Player {
             .into_iter()
             .map(|(key, until)| ItemReuse { key, until })
             .collect();
+        // D71: a new incarnation keeps every retained canonical field except the transient
+        // shot charges and auto-shot toggles (in-memory only in the pinned source).
         Ok((
             Self {
                 inventory: checkpoint
                     .instances
                     .iter()
-                    .map(|item| (item.id, item.clone()))
+                    .map(|item| {
+                        let mut item = item.clone();
+                        item.charges = 0;
+                        (item.id, item)
+                    })
                     .collect(),
                 paperdoll: checkpoint.paperdoll.clone(),
-                auto_shots: checkpoint.auto_shots.clone(),
+                auto_shots: BTreeSet::new(),
                 item_reuse,
                 equipment_sources,
                 active_sets: checkpoint.active_sets.clone(),
@@ -705,6 +711,40 @@ mod player_tests {
         assert!(items.overloaded);
         assert_eq!(items.overload_level, 1);
         assert_eq!(old, timers(100));
+        // D71: retained charges and toggles are cleared at re-admission; nothing else changes.
+        let mut charged = checkpoint();
+        charged.auto_shots = BTreeSet::from([1835]);
+        charged.instances.push(ItemInstance {
+            creation_origin: None,
+            id: super::ItemInstanceId::new(7).unwrap(),
+            template_id: 71,
+            count: 1,
+            location: super::ItemLocation::Paperdoll,
+            slot: Some(super::EquipSlot::Rhand),
+            enchant: 3,
+            augment_id: None,
+            charges: 3,
+            created_tick: Tick(9),
+            revision: 1,
+        });
+        charged
+            .paperdoll
+            .insert(super::EquipSlot::Rhand, super::ItemInstanceId::new(7).unwrap());
+        let (cleared, _) = Phase4Player::restore(&charged, &old, Tick(500), 100).unwrap();
+        assert_eq!(cleared.inventory.len(), 1);
+        assert!(cleared.auto_shots.is_empty());
+        for item in &charged.instances {
+            let restored = cleared.inventory.get(&item.id).unwrap();
+            assert_eq!(restored.charges, 0);
+            assert_eq!(
+                ItemInstance {
+                    charges: item.charges,
+                    ..restored.clone()
+                },
+                *item
+            );
+        }
+        assert_eq!(cleared.inventory_revision, charged.inventory_revision);
     }
     #[test]
     fn failed_restore_never_mutates_staged_skills_and_rejects_reordered_phase3() {
