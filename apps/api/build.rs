@@ -7,6 +7,7 @@ fn main() -> anyhow::Result<()> {
     let proto_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../packages/proto");
     let files = [
         proto_root.join("nightfall/v1/game.proto"),
+        proto_root.join("nightfall/v1/items.proto"),
         proto_root.join("nightfall/v1/world.proto"),
         proto_root.join("nightfall/v1/session.proto"),
     ];

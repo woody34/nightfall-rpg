@@ -35,6 +35,9 @@ pub enum MappingError {
     /// Phase 3 wire contract is present, but the actor runtime has not been integrated.
     #[error("phase 3 runtime is not yet available")]
     Phase3Unavailable,
+    /// Phase 4 contract is present; item actor integration is not installed yet.
+    #[error("phase 4 runtime is not yet available")]
+    Phase4Unavailable,
     /// Target is neither empty nor a UUID.
     #[error("target must be a UUID or empty")]
     InvalidTarget,
@@ -52,7 +55,9 @@ impl MappingError {
     #[must_use]
     pub const fn reject_reason(self) -> pb::RejectReason {
         match self {
-            Self::Phase3Unavailable => pb::RejectReason::NotYetImplemented,
+            Self::Phase3Unavailable | Self::Phase4Unavailable => {
+                pb::RejectReason::NotYetImplemented
+            },
             Self::InvalidCoordinate => pb::RejectReason::OutOfBounds,
             Self::InvalidTarget | Self::MissingIntent | Self::MissingDestination => {
                 pb::RejectReason::Invalid
@@ -186,6 +191,16 @@ pub fn command_from_pb(
         pb::client_message::Intent::Attack(_) => Ok(ZoneCommand::Attack { entity }),
         pb::client_message::Intent::StopAttack(_) => Ok(ZoneCommand::StopAttack { entity }),
         pb::client_message::Intent::Respawn(_) => Ok(ZoneCommand::Respawn { entity }),
+        pb::client_message::Intent::EquipItem(_)
+        | pb::client_message::Intent::UnequipItem(_)
+        | pb::client_message::Intent::UseItem(_)
+        | pb::client_message::Intent::DestroyItem(_)
+        | pb::client_message::Intent::EnchantItem(_)
+        | pb::client_message::Intent::ToggleAutoShot(_)
+        | pb::client_message::Intent::RefineItem(_)
+        | pb::client_message::Intent::CancelRefine(_)
+        | pb::client_message::Intent::ExchangeSpecialAbility(_)
+        | pb::client_message::Intent::CrystallizeItem(_) => Err(MappingError::Phase4Unavailable),
         pb::client_message::Intent::CastSkill(_)
         | pb::client_message::Intent::CancelCast(_)
         | pb::client_message::Intent::AcceptResurrect(_) => Err(MappingError::Phase3Unavailable),
@@ -541,8 +556,10 @@ pub fn world_event_to_pb(ev: &ZoneEvent, server_time_ms: i64) -> Vec<pb::WorldEv
                     accuracy_q: p.effective.accuracy_q,
                     evasion_q: p.effective.evasion_q,
                     crit_permille: p.effective.crit_permille,
+                    ..Default::default()
                 }
             }),
+            ..Default::default()
         }))],
         ZoneEvent::XpGained {
             entity,

@@ -1,0 +1,421 @@
+syntax = "proto3";
+
+package nightfall.v1;
+
+// Phase 4 item identity is a positive signed-bigint-safe uint64, not a UUID.
+// UUID byte fields contain exactly the canonical 16 UUID bytes.
+
+enum ItemGrade {
+  ITEM_GRADE_UNSPECIFIED = 0;
+  ITEM_GRADE_NG = 1;
+  ITEM_GRADE_D = 2;
+  ITEM_GRADE_C = 3;
+  ITEM_GRADE_B = 4;
+  ITEM_GRADE_A = 5;
+  ITEM_GRADE_S = 6;
+  ITEM_GRADE_S80 = 7;
+  ITEM_GRADE_S84 = 8;
+}
+
+enum EquipSlot {
+  EQUIP_SLOT_UNSPECIFIED = 0;
+  EQUIP_SLOT_UNDER = 1;
+  EQUIP_SLOT_HEAD = 2;
+  EQUIP_SLOT_HAIR = 3;
+  EQUIP_SLOT_HAIR2 = 4;
+  EQUIP_SLOT_NECK = 5;
+  EQUIP_SLOT_RHAND = 6;
+  EQUIP_SLOT_CHEST = 7;
+  EQUIP_SLOT_LHAND = 8;
+  EQUIP_SLOT_REAR = 9;
+  EQUIP_SLOT_LEAR = 10;
+  EQUIP_SLOT_GLOVES = 11;
+  EQUIP_SLOT_LEGS = 12;
+  EQUIP_SLOT_FEET = 13;
+  EQUIP_SLOT_RFINGER = 14;
+  EQUIP_SLOT_LFINGER = 15;
+  EQUIP_SLOT_LBRACELET = 16;
+  EQUIP_SLOT_RBRACELET = 17;
+  EQUIP_SLOT_DECO1 = 18;
+  EQUIP_SLOT_DECO2 = 19;
+  EQUIP_SLOT_DECO3 = 20;
+  EQUIP_SLOT_DECO4 = 21;
+  EQUIP_SLOT_DECO5 = 22;
+  EQUIP_SLOT_DECO6 = 23;
+  EQUIP_SLOT_CLOAK = 24;
+  EQUIP_SLOT_BELT = 25;
+}
+
+enum ItemLocation {
+  ITEM_LOCATION_UNSPECIFIED = 0;
+  ITEM_LOCATION_INVENTORY = 1;
+  ITEM_LOCATION_PAPERDOLL = 2;
+}
+
+enum ItemReuseKind {
+  ITEM_REUSE_KIND_UNSPECIFIED = 0;
+  ITEM_REUSE_KIND_TEMPLATE = 1;
+  ITEM_REUSE_KIND_SHARED_GROUP = 2;
+}
+
+enum EnchantOutcome {
+  ENCHANT_OUTCOME_UNSPECIFIED = 0;
+  ENCHANT_OUTCOME_SUCCESS = 1;
+  ENCHANT_OUTCOME_SAFE_FAILED = 2;
+  ENCHANT_OUTCOME_BLESSED_RESET = 3;
+  ENCHANT_OUTCOME_DESTROYED = 4;
+  ENCHANT_OUTCOME_SUCCESS_NO_INCREMENT = 5;
+}
+
+enum RefineOutcome {
+  REFINE_OUTCOME_UNSPECIFIED = 0;
+  REFINE_OUTCOME_APPLIED = 1;
+  REFINE_OUTCOME_REMOVED = 2;
+}
+
+enum ItemOperation {
+  ITEM_OPERATION_UNSPECIFIED = 0;
+  ITEM_OPERATION_EQUIP = 1;
+  ITEM_OPERATION_UNEQUIP = 2;
+  ITEM_OPERATION_USE = 3;
+  ITEM_OPERATION_DESTROY = 4;
+  ITEM_OPERATION_ENCHANT = 5;
+  ITEM_OPERATION_TOGGLE_AUTO_SHOT = 6;
+  ITEM_OPERATION_REFINE = 7;
+  ITEM_OPERATION_CANCEL_REFINE = 8;
+  ITEM_OPERATION_EXCHANGE_SA = 9;
+  ITEM_OPERATION_CRYSTALLIZE = 10;
+  ITEM_OPERATION_GRANT = 11;
+  ITEM_OPERATION_STARTER = 12;
+  ITEM_OPERATION_BACKFILL = 13;
+}
+
+enum ItemKind {
+  ITEM_KIND_UNSPECIFIED = 0;
+  ITEM_KIND_WEAPON = 1;
+  ITEM_KIND_ARMOR = 2;
+  ITEM_KIND_ETC = 3;
+}
+
+enum ItemSkillSource {
+  ITEM_SKILL_SOURCE_UNSPECIFIED = 0;
+  ITEM_SKILL_SOURCE_ITEM = 1;
+  ITEM_SKILL_SOURCE_ENCHANT_FOUR = 2;
+  ITEM_SKILL_SOURCE_SET = 3;
+  ITEM_SKILL_SOURCE_AUGMENT = 4;
+}
+
+message ItemTarget {
+  bytes entity_id = 1;
+  uint32 incarnation = 2;
+}
+
+// Owner comes from the authenticated session. UUID key freezes the committed receipt;
+// same key/body replays, changed body conflicts before mutation. Rejections consume no key.
+message EquipItemRequest {
+  string idempotency_key = 1;
+  uint64 instance_id = 2;
+  EquipSlot preferred_slot = 3;
+}
+
+// Owner comes from the authenticated session. UUID key freezes the committed receipt;
+// same key/body replays, changed body conflicts before mutation. Rejections consume no key.
+message UnequipItemRequest {
+  string idempotency_key = 1;
+  EquipSlot slot = 2;
+}
+
+// Owner comes from the authenticated session. UUID key freezes the committed receipt;
+// same key/body replays, changed body conflicts before mutation. Rejections consume no key.
+message UseItemRequest {
+  string idempotency_key = 1;
+  uint64 instance_id = 2;
+  ItemTarget target = 3;
+}
+
+// Owner comes from the authenticated session. UUID key freezes the committed receipt;
+// same key/body replays, changed body conflicts before mutation. Rejections consume no key.
+message DestroyItemRequest {
+  string idempotency_key = 1;
+  uint64 instance_id = 2;
+  uint64 count = 3;
+}
+
+// Owner comes from the authenticated session. UUID key freezes the committed receipt;
+// same key/body replays, changed body conflicts before mutation. Rejections consume no key.
+message EnchantItemRequest {
+  string idempotency_key = 1;
+  uint64 scroll_instance_id = 2;
+  uint64 target_instance_id = 3;
+  optional uint64 support_instance_id = 4;
+}
+
+// Owner comes from the authenticated session. UUID key freezes the committed receipt;
+// same key/body replays, changed body conflicts before mutation. Rejections consume no key.
+message ToggleAutoShotRequest {
+  string idempotency_key = 1;
+  uint32 template_id = 2;
+  bool enabled = 3;
+}
+
+// Owner comes from the authenticated session. UUID key freezes the committed receipt;
+// same key/body replays, changed body conflicts before mutation. Rejections consume no key.
+message RefineItemRequest {
+  string idempotency_key = 1;
+  ItemTarget npc = 2;
+  uint64 target_instance_id = 3;
+  uint64 stone_instance_id = 4;
+}
+
+// Owner comes from the authenticated session. UUID key freezes the committed receipt;
+// same key/body replays, changed body conflicts before mutation. Rejections consume no key.
+message CancelRefineRequest {
+  string idempotency_key = 1;
+  ItemTarget npc = 2;
+  uint64 target_instance_id = 3;
+}
+
+// Owner comes from the authenticated session. UUID key freezes the committed receipt;
+// same key/body replays, changed body conflicts before mutation. Rejections consume no key.
+message ExchangeSpecialAbilityRequest {
+  string idempotency_key = 1;
+  ItemTarget npc = 2;
+  uint64 target_instance_id = 3;
+  uint64 recipe_id = 4;
+}
+
+// Owner comes from the authenticated session. UUID key freezes the committed receipt;
+// same key/body replays, changed body conflicts before mutation. Rejections consume no key.
+message CrystallizeItemRequest {
+  string idempotency_key = 1;
+  uint64 instance_id = 2;
+}
+
+message OwnedItem {
+  uint64 instance_id = 1;
+  uint32 template_id = 2;
+  uint64 count = 3;
+  uint32 enchant = 4;
+  optional uint32 augment_id = 5;
+  ItemLocation location = 6;
+  EquipSlot slot = 7;
+  uint32 charge_bits = 8;
+  uint64 revision = 9;
+}
+
+message PaperdollEntry {
+  EquipSlot slot = 1;
+  uint64 instance_id = 2;
+}
+
+message VisibleEquipment {
+  EquipSlot slot = 1;
+  uint32 template_id = 2;
+  uint32 glow_tier = 3;
+}
+
+message ItemReuseState {
+  ItemReuseKind kind = 1;
+  uint32 key = 2;
+  uint64 until_tick = 3;
+}
+
+message ItemWeightState {
+  int64 weight = 1;
+  int64 max_load = 2;
+  int64 penalty_bonus = 3;
+  int64 per_mille = 4;
+}
+
+message ItemPenaltyState {
+  uint32 expertise = 1;
+  uint32 weapon_level = 2;
+  uint32 armor_level = 3;
+  uint32 overload_level = 4;
+  bool overloaded = 5;
+}
+
+message ItemRefund {
+  uint32 template_id = 1;
+  uint64 count = 2;
+  uint64 instance_id = 3;
+}
+
+// Owner only. Emit only after log acknowledgement and fenced checkpoint commit.
+message InventorySync {
+  bytes entity_id = 1;
+  uint32 incarnation = 2;
+  uint64 tick = 3;
+  uint64 inventory_revision = 4;
+  uint64 baseline_tick = 5;
+  bool baseline = 6;
+  repeated OwnedItem items = 7;
+  repeated PaperdollEntry paperdoll = 8;
+  repeated uint32 auto_shot_templates = 9;
+  ItemWeightState weight = 10;
+  ItemPenaltyState penalties = 11;
+  repeated ItemReuseState reuse = 12;
+  bytes rules_hash = 13;
+  uint32 ordinary_capacity = 14;
+  uint32 quest_capacity = 15;
+}
+
+// Owner only. Emit only after log acknowledgement and fenced checkpoint commit.
+message InventoryChanged {
+  bytes entity_id = 1;
+  uint32 incarnation = 2;
+  uint64 tick = 3;
+  uint64 inventory_revision = 4;
+  uint64 previous_revision = 5;
+  repeated OwnedItem added = 6;
+  repeated uint64 removed_ids = 7;
+  repeated OwnedItem updated = 8;
+  repeated uint32 auto_shot_templates = 9;
+  repeated ItemReuseState reuse = 10;
+}
+
+// Public changed-slot projection; template zero clears a slot. No owner revision.
+message EquipmentChanged {
+  bytes entity_id = 1;
+  uint32 incarnation = 2;
+  uint64 tick = 3;
+  reserved 4;
+  repeated VisibleEquipment visible = 5;
+}
+
+// Owner only. Emit only after log acknowledgement and fenced checkpoint commit.
+message WeightChanged {
+  bytes entity_id = 1;
+  uint32 incarnation = 2;
+  uint64 tick = 3;
+  uint64 inventory_revision = 4;
+  ItemWeightState weight = 5;
+}
+
+// Owner only. Emit only after log acknowledgement and fenced checkpoint commit.
+message PenaltyChanged {
+  bytes entity_id = 1;
+  uint32 incarnation = 2;
+  uint64 tick = 3;
+  uint64 inventory_revision = 4;
+  ItemPenaltyState penalties = 5;
+}
+
+// Owner only. Emit only after log acknowledgement and fenced checkpoint commit.
+message EnchantResult {
+  bytes entity_id = 1;
+  uint32 incarnation = 2;
+  uint64 tick = 3;
+  uint64 inventory_revision = 4;
+  string receipt_id = 5;
+  uint64 target_instance_id = 6;
+  uint32 old_enchant = 7;
+  uint32 new_enchant = 8;
+  EnchantOutcome outcome = 9;
+  repeated ItemRefund refunds = 10;
+  uint32 announcement_tier = 11;
+}
+
+// Owner only. Emit only after log acknowledgement and fenced checkpoint commit.
+message RefineResult {
+  bytes entity_id = 1;
+  uint32 incarnation = 2;
+  uint64 tick = 3;
+  uint64 inventory_revision = 4;
+  string receipt_id = 5;
+  uint64 target_instance_id = 6;
+  optional uint32 augment_id = 7;
+  RefineOutcome outcome = 8;
+}
+
+// Owner only. Emit only after log acknowledgement and fenced checkpoint commit.
+message ItemOperationResult {
+  bytes entity_id = 1;
+  uint32 incarnation = 2;
+  uint64 tick = 3;
+  uint64 inventory_revision = 4;
+  string receipt_id = 5;
+  ItemOperation operation = 6;
+  repeated uint64 affected_instance_ids = 7;
+  optional uint64 recipe_id = 8;
+}
+
+message ItemStatDescription {
+  string stat = 1;
+  string operation = 2;
+  int64 numerator = 3;
+  int64 denominator = 4;
+  uint32 order = 5;
+}
+
+message ItemSkillReference {
+  uint32 id = 1;
+  uint32 rank = 2;
+  ItemSkillSource source = 3;
+}
+
+message ItemDefinition {
+  uint32 template_id = 1;
+  string name = 2;
+  ItemKind kind = 3;
+  ItemGrade grade = 4;
+  uint64 bodypart_mask = 5;
+  uint32 weight = 6;
+  bool stackable = 7;
+  bool usable = 8;
+  repeated string blockers = 9;
+  string icon_key = 10;
+  repeated ItemStatDescription stats = 11;
+  repeated ItemSkillReference skills = 12;
+}
+
+message ItemIngredient {
+  uint32 template = 1;
+  uint64 count = 2;
+}
+
+message SaRecipe {
+  uint64 recipe_id = 1;
+  uint32 base_template = 2;
+  repeated ItemIngredient ingredients = 3;
+  uint32 product_template = 4;
+  bool maintain_enchantment = 5;
+}
+
+message ItemCapability {
+  uint32 template_id = 1;
+  repeated string blockers = 2;
+}
+
+message GetItemCatalogRequest {
+  optional bytes known_rules_hash = 1;
+}
+
+// data_version is 2. Informational metadata, never authoritative command input.
+message GetItemCatalogResponse {
+  uint32 data_version = 1;
+  bytes rules_hash = 2;
+  repeated ItemDefinition items = 3;
+  repeated SaRecipe recipes = 4;
+  repeated ItemCapability capabilities = 5;
+}
+
+message GetInventoryRequest {
+  bytes character_id = 1;
+}
+
+message GetInventoryResponse {
+  InventorySync inventory = 1;
+}
+
+message GrantItemRequest {
+  bytes character_id = 1;
+  uint32 template_id = 2;
+  uint64 count = 3;
+  string idempotency_key = 4;
+}
+
+message GrantItemResponse {
+  ItemOperationResult result = 1;
+  InventorySync inventory = 2;
+}
