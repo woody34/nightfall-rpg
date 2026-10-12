@@ -113,3 +113,6 @@ typedef grpc::ClientAsyncResponseReader<::nightfall::v1::ChangeClassResponse> Ga
 typedef grpc::ClientAsyncResponseReader<::nightfall::v1::ListLearnableSkillsResponse> GameService_ListLearnableSkills_ReaderWriter;
 typedef grpc::ClientAsyncResponseReader<::nightfall::v1::LearnSkillResponse> GameService_LearnSkill_ReaderWriter;
 typedef grpc::ClientAsyncResponseReader<::nightfall::v1::GetSkillCatalogResponse> GameService_GetSkillCatalog_ReaderWriter;
+typedef grpc::ClientAsyncResponseReader<::nightfall::v1::GetItemCatalogResponse> GameService_GetItemCatalog_ReaderWriter;
+typedef grpc::ClientAsyncResponseReader<::nightfall::v1::GetInventoryResponse> GameService_GetInventory_ReaderWriter;
+typedef grpc::ClientAsyncResponseReader<::nightfall::v1::GrantItemResponse> GameService_GrantItem_ReaderWriter;

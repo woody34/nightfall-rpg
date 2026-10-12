@@ -48,6 +48,8 @@ namespace SkillCatalogRpcTests
   void Serialize(const TCHAR* Message,ELogVerbosity::Type Verbosity,const FName& Category) override
   {
    if(Category!=TEXT("LogTurboLink"))return;
+   // Channel startup notices are separate from RPC result severity.
+   if(Verbosity==ELogVerbosity::Warning && FString(Message).StartsWith(TEXT("Connect to ")))return;
    if(Verbosity==ELogVerbosity::Warning){++Warnings;WarningMessage=Message;}
    if(Verbosity==ELogVerbosity::Error){++Errors;ErrorMessage=Message;}
   }

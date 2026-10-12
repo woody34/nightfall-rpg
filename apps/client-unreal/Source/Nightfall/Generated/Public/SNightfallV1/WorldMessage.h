@@ -2,6 +2,7 @@
 #pragma once
 #include "TurboLinkGrpcMessage.h"
 #include "SNightfallV1/GameMessage.h"
+#include "SNightfallV1/ItemsMessage.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "WorldMessage.generated.h"
 
@@ -33,6 +34,19 @@ enum class EGrpcNightfallV1RejectReason : uint8
     REJECT_REASON_PEACE_ZONE=22,
     REJECT_REASON_WEAPON_CONDITION=23,
     REJECT_REASON_NO_RESURRECT_OFFER=24,
+    REJECT_REASON_ITEM_NOT_OWNED=25,
+    REJECT_REASON_ITEM_NOT_USABLE=26,
+    REJECT_REASON_INVALID_EQUIP_SLOT=27,
+    REJECT_REASON_INSUFFICIENT_ITEMS=28,
+    REJECT_REASON_INVENTORY_FULL=29,
+    REJECT_REASON_ITEM_GRADE_MISMATCH=30,
+    REJECT_REASON_ITEM_REUSE=31,
+    REJECT_REASON_INVALID_ENCHANT=32,
+    REJECT_REASON_INVALID_REFINEMENT=33,
+    REJECT_REASON_INVALID_RECIPE=34,
+    REJECT_REASON_ITEM_OPERATION_CONFLICT=35,
+    REJECT_REASON_ITEM_CAPABILITY_DEFERRED=36,
+    REJECT_REASON_CRYSTALLIZE_LEVEL_TOO_LOW=37,
 };
 
 UENUM(BlueprintType, meta = (DisplayName="NightfallV1.EntityKind", ScriptName="EGrpcNightfallV1EntityKind"))
@@ -146,6 +160,16 @@ enum class EGrpcNightfallV1ClientMessageIntent : uint8
     CastSkill=6,
     CancelCast=7,
     AcceptResurrect=8,
+    EquipItem=9,
+    UnequipItem=10,
+    UseItem=11,
+    DestroyItem=12,
+    EnchantItem=13,
+    ToggleAutoShot=14,
+    RefineItem=15,
+    CancelRefine=16,
+    ExchangeSpecialAbility=17,
+    CrystallizeItem=18,
 };
 
 UENUM(BlueprintType, meta = (DisplayName="NightfallV1.CastSkillRequest._target", ScriptName="EGrpcNightfallV1CastSkillRequest_target"))
@@ -198,6 +222,14 @@ enum class EGrpcNightfallV1WorldEventEvent : uint8
     SpGained=22,
     SkillStateSync=23,
     VitalsChanged=24,
+    InventorySync=25,
+    InventoryChanged=26,
+    EquipmentChanged=27,
+    WeightChanged=28,
+    PenaltyChanged=29,
+    EnchantResult=30,
+    RefineResult=31,
+    ItemOperationResult=32,
 };
 
 UENUM(BlueprintType, meta = (DisplayName="NightfallV1.AttackStarted._attacker_incarnation", ScriptName="EGrpcNightfallV1AttackStarted_attacker_incarnation"))
@@ -304,6 +336,36 @@ struct FGrpcNightfallV1ClientMessageIntent : public FGrpcMessage
     TSharedPtr<FGrpcNightfallV1CancelCastRequest> CancelCast;
 
     TSharedPtr<FGrpcNightfallV1AcceptResurrectRequest> AcceptResurrect;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FGrpcNightfallV1EquipItemRequest EquipItem;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FGrpcNightfallV1UnequipItemRequest UnequipItem;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FGrpcNightfallV1UseItemRequest UseItem;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FGrpcNightfallV1DestroyItemRequest DestroyItem;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FGrpcNightfallV1EnchantItemRequest EnchantItem;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FGrpcNightfallV1ToggleAutoShotRequest ToggleAutoShot;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FGrpcNightfallV1RefineItemRequest RefineItem;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FGrpcNightfallV1CancelRefineRequest CancelRefine;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FGrpcNightfallV1ExchangeSpecialAbilityRequest ExchangeSpecialAbility;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FGrpcNightfallV1CrystallizeItemRequest CrystallizeItem;
 };
 
 USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.ClientMessage"))
@@ -550,6 +612,30 @@ struct FGrpcNightfallV1WorldEventEvent : public FGrpcMessage
     TSharedPtr<FGrpcNightfallV1SkillStateSync> SkillStateSync;
 
     TSharedPtr<FGrpcNightfallV1VitalsChanged> VitalsChanged;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FGrpcNightfallV1InventorySync InventorySync;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FGrpcNightfallV1InventoryChanged InventoryChanged;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FGrpcNightfallV1EquipmentChanged EquipmentChanged;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FGrpcNightfallV1WeightChanged WeightChanged;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FGrpcNightfallV1PenaltyChanged PenaltyChanged;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FGrpcNightfallV1EnchantResult EnchantResult;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FGrpcNightfallV1RefineResult RefineResult;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FGrpcNightfallV1ItemOperationResult ItemOperationResult;
 };
 
 USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.WorldEvent"))
@@ -651,6 +737,9 @@ struct FGrpcNightfallV1EntitySpawn : public FGrpcMessage
 
     UPROPERTY(BlueprintReadWrite, Category = TurboLink)
     FUInt32 PvpCount = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    TArray<FGrpcNightfallV1VisibleEquipment> VisibleEquipment;
 
     UPROPERTY(BlueprintReadWrite, Category = TurboLink)
     FUInt64 StatusFlags = 0;
@@ -920,6 +1009,23 @@ struct FGrpcNightfallV1StatsChanged : public FGrpcMessage
 
     UPROPERTY(BlueprintReadWrite, Category = TurboLink)
     FUInt32 Incarnation = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FGrpcNightfallV1ItemWeightState ItemWeight;
+
+    // Proto3 message presence is independent of a present, zero-valued sheet.
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    bool HasItemWeight = false;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FGrpcNightfallV1ItemPenaltyState ItemPenalties;
+
+    // Proto3 message presence is independent of a present, zero-valued sheet.
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    bool HasItemPenalties = false;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt64 InventoryRevision = 0;
 };
 
 USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.XpGained"))
@@ -1643,14 +1749,22 @@ public:
     static FGrpcNightfallV1ClientMessageIntent MakeIntent(EGrpcNightfallV1ClientMessageIntent IntentCase,
         FGrpcNightfallV1MoveToRequest MoveTo, FGrpcNightfallV1StopMoveRequest StopMove, FGrpcNightfallV1SetTargetRequest SetTarget,
         FGrpcNightfallV1AttackRequest Attack, FGrpcNightfallV1StopAttackRequest StopAttack, FGrpcNightfallV1RespawnRequest Respawn,
-        FGrpcNightfallV1CastSkillRequest CastSkill, FGrpcNightfallV1CancelCastRequest CancelCast, FGrpcNightfallV1AcceptResurrectRequest AcceptResurrect
+        FGrpcNightfallV1CastSkillRequest CastSkill, FGrpcNightfallV1CancelCastRequest CancelCast, FGrpcNightfallV1AcceptResurrectRequest AcceptResurrect,
+        FGrpcNightfallV1EquipItemRequest EquipItem, FGrpcNightfallV1UnequipItemRequest UnequipItem, FGrpcNightfallV1UseItemRequest UseItem,
+        FGrpcNightfallV1DestroyItemRequest DestroyItem, FGrpcNightfallV1EnchantItemRequest EnchantItem, FGrpcNightfallV1ToggleAutoShotRequest ToggleAutoShot,
+        FGrpcNightfallV1RefineItemRequest RefineItem, FGrpcNightfallV1CancelRefineRequest CancelRefine, FGrpcNightfallV1ExchangeSpecialAbilityRequest ExchangeSpecialAbility,
+        FGrpcNightfallV1CrystallizeItemRequest CrystallizeItem
     );
 
     UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
     static void BreakIntent(const FGrpcNightfallV1ClientMessageIntent& Intent, EGrpcNightfallV1ClientMessageIntent& IntentCase,
         FGrpcNightfallV1MoveToRequest& MoveTo, FGrpcNightfallV1StopMoveRequest& StopMove, FGrpcNightfallV1SetTargetRequest& SetTarget,
         FGrpcNightfallV1AttackRequest& Attack, FGrpcNightfallV1StopAttackRequest& StopAttack, FGrpcNightfallV1RespawnRequest& Respawn,
-        FGrpcNightfallV1CastSkillRequest& CastSkill, FGrpcNightfallV1CancelCastRequest& CancelCast, FGrpcNightfallV1AcceptResurrectRequest& AcceptResurrect
+        FGrpcNightfallV1CastSkillRequest& CastSkill, FGrpcNightfallV1CancelCastRequest& CancelCast, FGrpcNightfallV1AcceptResurrectRequest& AcceptResurrect,
+        FGrpcNightfallV1EquipItemRequest& EquipItem, FGrpcNightfallV1UnequipItemRequest& UnequipItem, FGrpcNightfallV1UseItemRequest& UseItem,
+        FGrpcNightfallV1DestroyItemRequest& DestroyItem, FGrpcNightfallV1EnchantItemRequest& EnchantItem, FGrpcNightfallV1ToggleAutoShotRequest& ToggleAutoShot,
+        FGrpcNightfallV1RefineItemRequest& RefineItem, FGrpcNightfallV1CancelRefineRequest& CancelRefine, FGrpcNightfallV1ExchangeSpecialAbilityRequest& ExchangeSpecialAbility,
+        FGrpcNightfallV1CrystallizeItemRequest& CrystallizeItem
     );
 };
 
@@ -1717,7 +1831,9 @@ public:
         FGrpcNightfallV1SkillCastCancelled SkillCastCancelled, FGrpcNightfallV1EffectApplied EffectApplied, FGrpcNightfallV1EffectRemoved EffectRemoved,
         FGrpcNightfallV1SkillReuse SkillReuse, FGrpcNightfallV1SkillLearned SkillLearned, FGrpcNightfallV1PvpStateChanged PvpStateChanged,
         FGrpcNightfallV1ResurrectOffer ResurrectOffer, FGrpcNightfallV1SpGained SpGained, FGrpcNightfallV1SkillStateSync SkillStateSync,
-        FGrpcNightfallV1VitalsChanged VitalsChanged
+        FGrpcNightfallV1VitalsChanged VitalsChanged, FGrpcNightfallV1InventorySync InventorySync, FGrpcNightfallV1InventoryChanged InventoryChanged,
+        FGrpcNightfallV1EquipmentChanged EquipmentChanged, FGrpcNightfallV1WeightChanged WeightChanged, FGrpcNightfallV1PenaltyChanged PenaltyChanged,
+        FGrpcNightfallV1EnchantResult EnchantResult, FGrpcNightfallV1RefineResult RefineResult, FGrpcNightfallV1ItemOperationResult ItemOperationResult
     );
 
     UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
@@ -1730,7 +1846,9 @@ public:
         FGrpcNightfallV1SkillCastCancelled& SkillCastCancelled, FGrpcNightfallV1EffectApplied& EffectApplied, FGrpcNightfallV1EffectRemoved& EffectRemoved,
         FGrpcNightfallV1SkillReuse& SkillReuse, FGrpcNightfallV1SkillLearned& SkillLearned, FGrpcNightfallV1PvpStateChanged& PvpStateChanged,
         FGrpcNightfallV1ResurrectOffer& ResurrectOffer, FGrpcNightfallV1SpGained& SpGained, FGrpcNightfallV1SkillStateSync& SkillStateSync,
-        FGrpcNightfallV1VitalsChanged& VitalsChanged
+        FGrpcNightfallV1VitalsChanged& VitalsChanged, FGrpcNightfallV1InventorySync& InventorySync, FGrpcNightfallV1InventoryChanged& InventoryChanged,
+        FGrpcNightfallV1EquipmentChanged& EquipmentChanged, FGrpcNightfallV1WeightChanged& WeightChanged, FGrpcNightfallV1PenaltyChanged& PenaltyChanged,
+        FGrpcNightfallV1EnchantResult& EnchantResult, FGrpcNightfallV1RefineResult& RefineResult, FGrpcNightfallV1ItemOperationResult& ItemOperationResult
     );
 };
 
@@ -1750,7 +1868,7 @@ public:
         FUInt32 HairColor, FUInt32 Face, FUInt64 StateTick,
         FUInt64 FlagUntilTick, FUInt32 Karma, TArray<FGrpcNightfallV1ActiveEffect> ActiveEffects,
         FGrpcNightfallV1SkillCastStarted PendingCast, FUInt32 PkCount, FUInt32 PvpCount,
-        FUInt64 StatusFlags
+        TArray<FGrpcNightfallV1VisibleEquipment> VisibleEquipment, FUInt64 StatusFlags
     );
 
     UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
@@ -1764,7 +1882,7 @@ public:
         FUInt32& HairColor, FUInt32& Face, FUInt64& StateTick,
         FUInt64& FlagUntilTick, FUInt32& Karma, TArray<FGrpcNightfallV1ActiveEffect>& ActiveEffects,
         FGrpcNightfallV1SkillCastStarted& PendingCast, FUInt32& PkCount, FUInt32& PvpCount,
-        FUInt64& StatusFlags
+        TArray<FGrpcNightfallV1VisibleEquipment>& VisibleEquipment, FUInt64& StatusFlags
     );
 };
 

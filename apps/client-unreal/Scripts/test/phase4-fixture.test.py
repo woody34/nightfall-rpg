@@ -69,7 +69,7 @@ class Fixtures(unittest.TestCase):
             else:self.assertEqual(fixture.fixture([path]),pack)
         for a,b in fixture.phase4.declared_units(paths[0].parent).values():
             self.assertIn(fixture.fixture([paths[0].parent/a,paths[0].parent/b]),fixture.PHASE4)
-        self.assertTrue(scenarios.client.validate(paths)) # E5 not merged; never silently pass.
+        self.assertEqual(scenarios.client.validate(paths), []) # E5 must register every canonical scenario.
 
     def test_sql_one_transaction_and_no_production_low_range(self):
         roles=fixture.phase4.profiles('phase4-shield',paired=True)

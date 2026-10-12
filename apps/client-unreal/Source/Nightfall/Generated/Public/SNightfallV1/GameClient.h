@@ -14,6 +14,9 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnGameServiceChangeClassResponse
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnGameServiceListLearnableSkillsResponse, FGrpcContextHandle, Handle, const FGrpcResult&, GrpcResult, const FGrpcNightfallV1ListLearnableSkillsResponse&, Response);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnGameServiceLearnSkillResponse, FGrpcContextHandle, Handle, const FGrpcResult&, GrpcResult, const FGrpcNightfallV1LearnSkillResponse&, Response);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnGameServiceGetSkillCatalogResponse, FGrpcContextHandle, Handle, const FGrpcResult&, GrpcResult, const FGrpcNightfallV1GetSkillCatalogResponse&, Response);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnGameServiceGetItemCatalogResponse, FGrpcContextHandle, Handle, const FGrpcResult&, GrpcResult, const FGrpcNightfallV1GetItemCatalogResponse&, Response);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnGameServiceGetInventoryResponse, FGrpcContextHandle, Handle, const FGrpcResult&, GrpcResult, const FGrpcNightfallV1GetInventoryResponse&, Response);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnGameServiceGrantItemResponse, FGrpcContextHandle, Handle, const FGrpcResult&, GrpcResult, const FGrpcNightfallV1GrantItemResponse&, Response);
 
 UCLASS(ClassGroup = TurboLink, BlueprintType)
 class TURBOLINKGRPC_API UGameServiceClient : public UGrpcClient
@@ -50,6 +53,15 @@ public:
 
 	UPROPERTY(BlueprintAssignable)
 	FOnGameServiceGetSkillCatalogResponse OnGetSkillCatalogResponse;
+
+	UPROPERTY(BlueprintAssignable)
+	FOnGameServiceGetItemCatalogResponse OnGetItemCatalogResponse;
+
+	UPROPERTY(BlueprintAssignable)
+	FOnGameServiceGetInventoryResponse OnGetInventoryResponse;
+
+	UPROPERTY(BlueprintAssignable)
+	FOnGameServiceGrantItemResponse OnGrantItemResponse;
 
 public:
 	UFUNCTION(BlueprintCallable, Category = TurboLink)
@@ -111,6 +123,24 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = TurboLink, meta = (AdvancedDisplay = 2))
 	void GetSkillCatalog(FGrpcContextHandle Handle, const FGrpcNightfallV1GetSkillCatalogRequest& Request, FGrpcMetaData MetaData = FGrpcMetaData(), float DeadLineSeconds = 0.f);
+
+	UFUNCTION(BlueprintCallable, Category = TurboLink)
+	FGrpcContextHandle InitGetItemCatalog();
+
+	UFUNCTION(BlueprintCallable, Category = TurboLink, meta = (AdvancedDisplay = 2))
+	void GetItemCatalog(FGrpcContextHandle Handle, const FGrpcNightfallV1GetItemCatalogRequest& Request, FGrpcMetaData MetaData = FGrpcMetaData(), float DeadLineSeconds = 0.f);
+
+	UFUNCTION(BlueprintCallable, Category = TurboLink)
+	FGrpcContextHandle InitGetInventory();
+
+	UFUNCTION(BlueprintCallable, Category = TurboLink, meta = (AdvancedDisplay = 2))
+	void GetInventory(FGrpcContextHandle Handle, const FGrpcNightfallV1GetInventoryRequest& Request, FGrpcMetaData MetaData = FGrpcMetaData(), float DeadLineSeconds = 0.f);
+
+	UFUNCTION(BlueprintCallable, Category = TurboLink)
+	FGrpcContextHandle InitGrantItem();
+
+	UFUNCTION(BlueprintCallable, Category = TurboLink, meta = (AdvancedDisplay = 2))
+	void GrantItem(FGrpcContextHandle Handle, const FGrpcNightfallV1GrantItemRequest& Request, FGrpcMetaData MetaData = FGrpcMetaData(), float DeadLineSeconds = 0.f);
 
 public:
 	virtual void Shutdown() override;

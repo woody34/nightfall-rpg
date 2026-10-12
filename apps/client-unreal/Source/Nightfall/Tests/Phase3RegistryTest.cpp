@@ -28,3 +28,22 @@ bool FPhase3RegistryTest::RunTest(const FString& Parameters)
  return true;
 }
 #endif
+
+#if WITH_DEV_AUTOMATION_TESTS
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPhase4RegistryTest,"Nightfall.Item.Bot.Phase4ScenarioRegistry",EAutomationTestFlags::EditorContext|EAutomationTestFlags::ProductFilter)
+bool FPhase4RegistryTest::RunTest(const FString&)
+{
+ FBotPredicateRegistry Registry;Registry.RegisterBuiltins();
+ const auto Commands=BotSteps::RegisterTestOnlyCommands();
+ TArray<FString> Files;IFileManager::Get().FindFilesRecursive(Files,*FPaths::Combine(FPaths::ProjectDir(),TEXT("Scenarios")),TEXT("4-*.nfs"),true,false);
+ TestEqual(TEXT("all canonical and runtime variant sources found"),Files.Num(),49);
+ for(const auto& Path:Files)
+ {
+  FString Text;TestTrue(TEXT("scenario readable"),FFileHelper::LoadFileToString(Text,*Path));FBotScenario Scenario;TArray<FString> Errors;
+  const bool Parsed=BotScenario::Parse(Path,Text,Registry,[](const FString& Name){return IConsoleManager::Get().FindConsoleObject(*Name)!=nullptr;},Scenario,Errors);
+  TestTrue(Path+TEXT(": ")+FString::Join(Errors,TEXT("; ")),Parsed);
+ }
+ for(auto* Command:Commands)IConsoleManager::Get().UnregisterConsoleObject(Command,false);
+ return true;
+}
+#endif

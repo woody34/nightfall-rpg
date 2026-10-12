@@ -199,6 +199,10 @@ PROTOBUF_CONSTEXPR Character::Character(
     &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
   }
 
+  , /*decltype(_impl_.item_rules_hash_)*/ {
+    &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
+  }
+
   , /*decltype(_impl_.stats_)*/nullptr
   , /*decltype(_impl_.position_)*/nullptr
   , /*decltype(_impl_.race_)*/ 0
@@ -216,6 +220,8 @@ PROTOBUF_CONSTEXPR Character::Character(
   , /*decltype(_impl_.hair_style_)*/ 0u
 
   , /*decltype(_impl_.hair_color_)*/ 0u
+
+  , /*decltype(_impl_.inventory_revision_)*/ ::uint64_t{0u}
 
   , /*decltype(_impl_.face_)*/ 0u
 } {}
@@ -875,7 +881,17 @@ PROTOBUF_CONSTEXPR EffectiveStats::EffectiveStats(
 
   , /*decltype(_impl_.evasion_q_)*/ ::int64_t{0}
 
+  , /*decltype(_impl_.shield_def_q_)*/ ::int64_t{0}
+
   , /*decltype(_impl_.crit_permille_)*/ 0u
+
+  , /*decltype(_impl_.shield_angle_degrees_)*/ 0u
+
+  , /*decltype(_impl_.shield_rate_q_)*/ ::int64_t{0}
+
+  , /*decltype(_impl_.physical_reach_millitiles_)*/ ::int64_t{0}
+
+  , /*decltype(_impl_.physical_angle_degrees_)*/ 0u
 
   , /*decltype(_impl_._cached_size_)*/{}} {}
 struct EffectiveStatsDefaultTypeInternal {
@@ -1003,12 +1019,16 @@ const ::uint32_t TableStruct_nightfall_2fv1_2fgame_2eproto::offsets[] PROTOBUF_S
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::Character, _impl_.hair_style_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::Character, _impl_.hair_color_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::Character, _impl_.face_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::Character, _impl_.inventory_revision_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::Character, _impl_.item_rules_hash_),
     ~0u,
     ~0u,
     ~0u,
     ~0u,
     0,
     1,
+    ~0u,
+    ~0u,
     ~0u,
     ~0u,
     ~0u,
@@ -1403,6 +1423,11 @@ const ::uint32_t TableStruct_nightfall_2fv1_2fgame_2eproto::offsets[] PROTOBUF_S
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::EffectiveStats, _impl_.accuracy_q_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::EffectiveStats, _impl_.evasion_q_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::EffectiveStats, _impl_.crit_permille_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EffectiveStats, _impl_.shield_def_q_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EffectiveStats, _impl_.shield_rate_q_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EffectiveStats, _impl_.shield_angle_degrees_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EffectiveStats, _impl_.physical_reach_millitiles_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EffectiveStats, _impl_.physical_angle_degrees_),
 };
 
 static const ::_pbi::MigrationSchema
@@ -1414,32 +1439,32 @@ static const ::_pbi::MigrationSchema
         { 36, -1, -1, sizeof(::nightfall::v1::GetCharacterRequest)},
         { 45, 62, -1, sizeof(::nightfall::v1::CreateCharacterRequest)},
         { 71, -1, -1, sizeof(::nightfall::v1::BaseStats)},
-        { 85, 107, -1, sizeof(::nightfall::v1::Character)},
-        { 121, -1, -1, sizeof(::nightfall::v1::Position)},
-        { 131, -1, -1, sizeof(::nightfall::v1::ClassProgress)},
-        { 144, -1, -1, sizeof(::nightfall::v1::SkillLearnInfo)},
-        { 162, -1, -1, sizeof(::nightfall::v1::SkillItemRequirement)},
-        { 172, -1, -1, sizeof(::nightfall::v1::ProficiencyInfo)},
-        { 186, 211, -1, sizeof(::nightfall::v1::ClassInfo)},
-        { 228, -1, -1, sizeof(::nightfall::v1::PassiveInfo)},
-        { 240, -1, -1, sizeof(::nightfall::v1::RaceInfo)},
-        { 259, 270, -1, sizeof(::nightfall::v1::ClassMasterInfo)},
-        { 273, -1, -1, sizeof(::nightfall::v1::ListClassesRequest)},
-        { 281, 295, -1, sizeof(::nightfall::v1::ListClassesResponse)},
-        { 301, -1, -1, sizeof(::nightfall::v1::TransferOptionsRequest)},
-        { 310, -1, -1, sizeof(::nightfall::v1::TransferOption)},
-        { 321, -1, -1, sizeof(::nightfall::v1::TransferOptionsResponse)},
-        { 333, -1, -1, sizeof(::nightfall::v1::ChangeClassRequest)},
-        { 344, 356, -1, sizeof(::nightfall::v1::ChangeClassResponse)},
-        { 360, -1, -1, sizeof(::nightfall::v1::ListLearnableSkillsRequest)},
-        { 369, 383, -1, sizeof(::nightfall::v1::LearnableSkill)},
-        { 389, -1, -1, sizeof(::nightfall::v1::ListLearnableSkillsResponse)},
-        { 400, -1, -1, sizeof(::nightfall::v1::LearnSkillRequest)},
-        { 412, 434, -1, sizeof(::nightfall::v1::LearnSkillResponse)},
-        { 448, -1, -1, sizeof(::nightfall::v1::GetSkillCatalogRequest)},
-        { 456, -1, -1, sizeof(::nightfall::v1::SkillCatalogEntry)},
-        { 479, -1, -1, sizeof(::nightfall::v1::GetSkillCatalogResponse)},
-        { 489, -1, -1, sizeof(::nightfall::v1::EffectiveStats)},
+        { 85, 109, -1, sizeof(::nightfall::v1::Character)},
+        { 125, -1, -1, sizeof(::nightfall::v1::Position)},
+        { 135, -1, -1, sizeof(::nightfall::v1::ClassProgress)},
+        { 148, -1, -1, sizeof(::nightfall::v1::SkillLearnInfo)},
+        { 166, -1, -1, sizeof(::nightfall::v1::SkillItemRequirement)},
+        { 176, -1, -1, sizeof(::nightfall::v1::ProficiencyInfo)},
+        { 190, 215, -1, sizeof(::nightfall::v1::ClassInfo)},
+        { 232, -1, -1, sizeof(::nightfall::v1::PassiveInfo)},
+        { 244, -1, -1, sizeof(::nightfall::v1::RaceInfo)},
+        { 263, 274, -1, sizeof(::nightfall::v1::ClassMasterInfo)},
+        { 277, -1, -1, sizeof(::nightfall::v1::ListClassesRequest)},
+        { 285, 299, -1, sizeof(::nightfall::v1::ListClassesResponse)},
+        { 305, -1, -1, sizeof(::nightfall::v1::TransferOptionsRequest)},
+        { 314, -1, -1, sizeof(::nightfall::v1::TransferOption)},
+        { 325, -1, -1, sizeof(::nightfall::v1::TransferOptionsResponse)},
+        { 337, -1, -1, sizeof(::nightfall::v1::ChangeClassRequest)},
+        { 348, 360, -1, sizeof(::nightfall::v1::ChangeClassResponse)},
+        { 364, -1, -1, sizeof(::nightfall::v1::ListLearnableSkillsRequest)},
+        { 373, 387, -1, sizeof(::nightfall::v1::LearnableSkill)},
+        { 393, -1, -1, sizeof(::nightfall::v1::ListLearnableSkillsResponse)},
+        { 404, -1, -1, sizeof(::nightfall::v1::LearnSkillRequest)},
+        { 416, 438, -1, sizeof(::nightfall::v1::LearnSkillResponse)},
+        { 452, -1, -1, sizeof(::nightfall::v1::GetSkillCatalogRequest)},
+        { 460, -1, -1, sizeof(::nightfall::v1::SkillCatalogEntry)},
+        { 483, -1, -1, sizeof(::nightfall::v1::GetSkillCatalogResponse)},
+        { 493, -1, -1, sizeof(::nightfall::v1::EffectiveStats)},
 };
 
 static const ::_pb::Message* const file_default_instances[] = {
@@ -1478,173 +1503,188 @@ static const ::_pb::Message* const file_default_instances[] = {
     &::nightfall::v1::_EffectiveStats_default_instance_._instance,
 };
 const char descriptor_table_protodef_nightfall_2fv1_2fgame_2eproto[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) = {
-    "\n\027nightfall/v1/game.proto\022\014nightfall.v1\""
-    "\031\n\027ListMyCharactersRequest\"G\n\030ListMyChar"
-    "actersResponse\022+\n\ncharacters\030\001 \003(\0132\027.nig"
-    "htfall.v1.Character\"%\n\013PingRequest\022\026\n\016cl"
-    "ient_version\030\001 \001(\t\">\n\014PingResponse\022\026\n\016se"
-    "rver_version\030\001 \001(\t\022\026\n\016server_time_ms\030\002 \001"
-    "(\003\"+\n\023GetCharacterRequest\022\024\n\014character_i"
-    "d\030\001 \001(\t\"\375\001\n\026CreateCharacterRequest\022\027\n\017id"
-    "empotency_key\030\001 \001(\t\022\026\n\naccount_id\030\002 \001(\tB"
-    "\002\030\001\022\014\n\004name\030\003 \001(\t\022 \n\004race\030\004 \001(\0162\022.nightf"
-    "all.v1.Race\022\032\n\rbase_class_id\030\005 \001(\rH\000\210\001\001\022"
-    "\036\n\003sex\030\006 \001(\0162\021.nightfall.v1.Sex\022\022\n\nhair_"
-    "style\030\007 \001(\r\022\022\n\nhair_color\030\010 \001(\r\022\014\n\004face\030"
-    "\t \001(\rB\020\n\016_base_class_id\"Y\n\tBaseStats\022\013\n\003"
-    "str\030\001 \001(\r\022\013\n\003dex\030\002 \001(\r\022\013\n\003con\030\003 \001(\r\022\013\n\003i"
-    "nt\030\004 \001(\r\022\013\n\003wit\030\005 \001(\r\022\013\n\003men\030\006 \001(\r\"\360\002\n\tC"
-    "haracter\022\n\n\002id\030\001 \001(\t\022\014\n\004name\030\002 \001(\t\022 \n\004ra"
-    "ce\030\003 \001(\0162\022.nightfall.v1.Race\022\r\n\005level\030\004 "
-    "\001(\r\022&\n\005stats\030\005 \001(\0132\027.nightfall.v1.BaseSt"
-    "ats\022(\n\010position\030\006 \001(\0132\026.nightfall.v1.Pos"
-    "ition\022\020\n\010class_id\030\007 \001(\r\022\025\n\rbase_class_id"
-    "\030\010 \001(\r\022\031\n\021active_class_slot\030\t \001(\r\022,\n\007cla"
-    "sses\030\n \003(\0132\033.nightfall.v1.ClassProgress\022"
-    "\036\n\003sex\030\013 \001(\0162\021.nightfall.v1.Sex\022\022\n\nhair_"
-    "style\030\014 \001(\r\022\022\n\nhair_color\030\r \001(\r\022\014\n\004face\030"
-    "\016 \001(\r\" \n\010Position\022\t\n\001x\030\001 \001(\002\022\t\n\001y\030\002 \001(\002\""
-    "W\n\rClassProgress\022\014\n\004slot\030\001 \001(\r\022\020\n\010class_"
-    "id\030\002 \001(\r\022\r\n\005level\030\003 \001(\r\022\013\n\003exp\030\004 \001(\004\022\n\n\002"
-    "sp\030\005 \001(\004\"\377\001\n\016SkillLearnInfo\022\013\n\003key\030\001 \001(\t"
-    "\022\023\n\013skill_level\030\002 \001(\r\022\026\n\016required_level\030"
-    "\003 \001(\r\022\017\n\007sp_cost\030\004 \001(\004\022\020\n\010auto_get\030\005 \001(\010"
-    "\022:\n\016required_items\030\006 \003(\0132\".nightfall.v1."
-    "SkillItemRequirement\022\020\n\010skill_id\030\007 \001(\r\022\016"
-    "\n\006l2_ref\030\010 \001(\t\022\026\n\016learned_by_npc\030\t \001(\010\022\032"
-    "\n\022effect_implemented\030\n \001(\010\"3\n\024SkillItemR"
-    "equirement\022\014\n\004item\030\001 \001(\t\022\r\n\005count\030\002 \001(\r\""
-    "\204\001\n\017ProficiencyInfo\022\013\n\003key\030\001 \001(\t\022\021\n\tmin_"
-    "level\030\002 \001(\r\022\020\n\010skill_id\030\003 \001(\r\022\023\n\013skill_l"
-    "evel\030\004 \001(\r\022\016\n\006l2_ref\030\005 \001(\t\022\032\n\022effect_imp"
-    "lemented\030\006 \001(\010\"\356\003\n\tClassInfo\022\020\n\010class_id"
-    "\030\001 \001(\r\022\013\n\003key\030\002 \001(\t\022\024\n\014display_name\030\003 \001("
-    "\t\022 \n\004race\030\004 \001(\0162\022.nightfall.v1.Race\022\014\n\004t"
-    "ier\030\005 \001(\r\022\027\n\017parent_class_id\030\006 \001(\r\022\021\n\tmi"
-    "n_level\030\007 \001(\r\022*\n\tarchetype\030\010 \001(\0162\027.night"
-    "fall.v1.Archetype\022+\n\nbase_stats\030\t \001(\0132\027."
-    "nightfall.v1.BaseStats\022\030\n\020subclass_allow"
-    "ed\030\n \001(\010\022\034\n\024subclass_equivalents\030\013 \003(\r\0220"
-    "\n\nskill_tree\030\014 \003(\0132\034.nightfall.v1.SkillL"
-    "earnInfo\0224\n\rproficiencies\030\r \003(\0132\035.nightf"
-    "all.v1.ProficiencyInfo\022\022\n\nwalk_speed\030\016 \001"
-    "(\r\022\021\n\trun_speed\030\017 \001(\r\022\022\n\nswim_speed\030\020 \001("
-    "\r\022\034\n\024skill_tree_populated\030\021 \001(\010\"Z\n\013Passi"
-    "veInfo\022\013\n\003key\030\001 \001(\t\022\024\n\014display_name\030\002 \001("
-    "\t\022\023\n\013description\030\003 \001(\t\022\023\n\013implemented\030\004 "
-    "\001(\010\"\247\002\n\010RaceInfo\022 \n\004race\030\001 \001(\0162\022.nightfa"
-    "ll.v1.Race\022\024\n\014display_name\030\002 \001(\t\022\023\n\013myst"
-    "ic_path\030\003 \001(\010\022\022\n\nwalk_speed\030\004 \001(\r\022\021\n\trun"
-    "_speed\030\005 \001(\r\022\026\n\016base_class_ids\030\006 \003(\r\022\032\n\022"
-    "passive_skill_keys\030\007 \003(\t\022\030\n\020hair_style_c"
-    "ount\030\010 \001(\r\022\030\n\020hair_color_count\030\t \001(\r\022\022\n\n"
-    "face_count\030\n \001(\r\022+\n\010passives\030\013 \003(\0132\031.nig"
-    "htfall.v1.PassiveInfo\"e\n\017ClassMasterInfo"
-    "\022\014\n\004name\030\001 \001(\t\022(\n\010position\030\002 \001(\0132\026.night"
-    "fall.v1.Position\022\032\n\022interaction_radius\030\003"
-    " \001(\002\"\024\n\022ListClassesRequest\"\350\001\n\023ListClass"
-    "esResponse\022\024\n\014data_version\030\001 \001(\t\022%\n\005race"
-    "s\030\002 \003(\0132\026.nightfall.v1.RaceInfo\022(\n\007class"
-    "es\030\003 \003(\0132\027.nightfall.v1.ClassInfo\022\032\n\022pla"
-    "yable_level_cap\030\004 \001(\r\022\031\n\021max_transfer_ti"
-    "er\030\005 \001(\r\0223\n\014class_master\030\006 \001(\0132\035.nightfa"
-    "ll.v1.ClassMasterInfo\".\n\026TransferOptions"
-    "Request\022\024\n\014character_id\030\001 \001(\t\"C\n\016Transfe"
-    "rOption\022\020\n\010class_id\030\001 \001(\r\022\020\n\010eligible\030\002 "
-    "\001(\010\022\r\n\005unmet\030\003 \003(\t\"\232\001\n\027TransferOptionsRe"
-    "sponse\022-\n\007options\030\001 \003(\0132\034.nightfall.v1.T"
-    "ransferOption\022\030\n\020current_class_id\030\002 \001(\r\022"
-    "\032\n\022token_tier_1_count\030\003 \001(\r\022\032\n\022token_tie"
-    "r_2_count\030\004 \001(\r\"\\\n\022ChangeClassRequest\022\024\n"
-    "\014character_id\030\001 \001(\t\022\027\n\017target_class_id\030\002"
-    " \001(\r\022\027\n\017idempotency_key\030\003 \001(\t\"\225\001\n\023Change"
-    "ClassResponse\022*\n\tcharacter\030\001 \001(\0132\027.night"
-    "fall.v1.Character\022\032\n\022granted_skill_keys\030"
-    "\002 \003(\t\022\032\n\022token_tier_1_count\030\003 \001(\r\022\032\n\022tok"
-    "en_tier_2_count\030\004 \001(\r\"2\n\032ListLearnableSk"
-    "illsRequest\022\024\n\014character_id\030\001 \001(\t\"\235\001\n\016Le"
-    "arnableSkill\022+\n\005skill\030\001 \001(\0132\034.nightfall."
-    "v1.SkillLearnInfo\022\017\n\007learned\030\002 \001(\010\022\022\n\naf"
-    "fordable\030\003 \001(\010\022\030\n\020trainer_required\030\004 \001(\010"
-    "\022\020\n\010eligible\030\005 \001(\010\022\r\n\005unmet\030\006 \003(\t\"q\n\033Lis"
-    "tLearnableSkillsResponse\022,\n\006skills\030\001 \003(\013"
-    "2\034.nightfall.v1.LearnableSkill\022\030\n\020curren"
-    "t_class_id\030\002 \001(\r\022\n\n\002sp\030\003 \001(\004\"i\n\021LearnSki"
-    "llRequest\022\024\n\014character_id\030\001 \001(\t\022\020\n\010skill"
-    "_id\030\002 \001(\r\022\023\n\013skill_level\030\003 \001(\r\022\027\n\017idempo"
-    "tency_key\030\004 \001(\t\"\247\002\n\022LearnSkillResponse\022\020"
-    "\n\010skill_id\030\001 \001(\r\022\023\n\013skill_level\030\002 \001(\r\022\020\n"
-    "\010sp_spent\030\003 \001(\004\022\024\n\014sp_remaining\030\004 \001(\004\022\014\n"
-    "\004tick\030\005 \001(\004\022\n\n\002hp\030\006 \001(\r\022\016\n\006max_hp\030\007 \001(\r\022"
-    "\n\n\002mp\030\010 \001(\r\022\016\n\006max_mp\030\t \001(\r\022\n\n\002cp\030\n \001(\r\022"
-    "\016\n\006max_cp\030\013 \001(\r\022\024\n\014character_id\030\014 \001(\t\0225\n"
-    "\017effective_stats\030\r \001(\0132\034.nightfall.v1.Ef"
-    "fectiveStats\022\023\n\013incarnation\030\016 \001(\r\"\030\n\026Get"
-    "SkillCatalogRequest\"\357\002\n\021SkillCatalogEntr"
-    "y\022\020\n\010skill_id\030\001 \001(\r\022\013\n\003key\030\002 \001(\t\022\024\n\014disp"
-    "lay_name\030\003 \001(\t\022\021\n\tmax_level\030\004 \001(\r\022\032\n\022eff"
-    "ect_implemented\030\005 \001(\010\022\030\n\020deferred_reason"
-    "s\030\006 \003(\t\022\016\n\006l2_ref\030\007 \001(\t\022\030\n\020mp_consume_st"
-    "art\030\010 \003(\r\022\026\n\016mp_consume_end\030\t \003(\r\022\022\n\nhp_"
-    "consume\030\n \003(\r\022\020\n\010reuse_ms\030\013 \003(\r\022\023\n\013hit_t"
-    "ime_ms\030\014 \003(\r\0224\n\014operate_type\030\r \001(\0162\036.nig"
-    "htfall.v1.SkillOperateType\022\023\n\013target_typ"
-    "e\030\016 \003(\t\022\024\n\014affect_scope\030\017 \003(\t\"`\n\027GetSkil"
-    "lCatalogResponse\022\024\n\014data_version\030\001 \001(\t\022/"
-    "\n\006skills\030\002 \003(\0132\037.nightfall.v1.SkillCatal"
-    "ogEntry\"\315\001\n\016EffectiveStats\022\017\n\007p_atk_q\030\001 "
-    "\001(\003\022\017\n\007p_def_q\030\002 \001(\003\022\017\n\007m_atk_q\030\003 \001(\003\022\017\n"
-    "\007m_def_q\030\004 \001(\003\022\024\n\014attack_speed\030\005 \001(\r\022\022\n\n"
-    "cast_speed\030\006 \001(\r\022\017\n\007speed_q\030\007 \001(\003\022\022\n\nacc"
-    "uracy_q\030\010 \001(\003\022\021\n\tevasion_q\030\t \001(\003\022\025\n\rcrit"
-    "_permille\030\n \001(\r*k\n\004Race\022\024\n\020RACE_UNSPECIF"
-    "IED\020\000\022\016\n\nRACE_HUMAN\020\001\022\014\n\010RACE_ELF\020\002\022\021\n\rR"
-    "ACE_DARK_ELF\020\003\022\014\n\010RACE_ORC\020\004\022\016\n\nRACE_DWA"
-    "RF\020\005*8\n\003Sex\022\023\n\017SEX_UNSPECIFIED\020\000\022\014\n\010SEX_"
-    "MALE\020\001\022\016\n\nSEX_FEMALE\020\002*S\n\tArchetype\022\031\n\025A"
-    "RCHETYPE_UNSPECIFIED\020\000\022\025\n\021ARCHETYPE_FIGH"
-    "TER\020\001\022\024\n\020ARCHETYPE_MYSTIC\020\002*\226\002\n\020SkillOpe"
-    "rateType\022\"\n\036SKILL_OPERATE_TYPE_UNSPECIFI"
-    "ED\020\000\022%\n!SKILL_OPERATE_TYPE_ACTIVE_INSTAN"
-    "T\020\001\0220\n,SKILL_OPERATE_TYPE_ACTIVE_INSTANT"
-    "_CONTINUOUS\020\002\022(\n$SKILL_OPERATE_TYPE_ACTI"
-    "VE_CONTINUOUS\020\003\022\036\n\032SKILL_OPERATE_TYPE_PA"
-    "SSIVE\020\004\022\035\n\031SKILL_OPERATE_TYPE_TOGGLE\020\005\022\034"
-    "\n\030SKILL_OPERATE_TYPE_OTHER\020\0062\362\006\n\013GameSer"
-    "vice\022=\n\004Ping\022\031.nightfall.v1.PingRequest\032"
-    "\032.nightfall.v1.PingResponse\022J\n\014GetCharac"
-    "ter\022!.nightfall.v1.GetCharacterRequest\032\027"
-    ".nightfall.v1.Character\022P\n\017CreateCharact"
-    "er\022$.nightfall.v1.CreateCharacterRequest"
-    "\032\027.nightfall.v1.Character\022a\n\020ListMyChara"
-    "cters\022%.nightfall.v1.ListMyCharactersReq"
-    "uest\032&.nightfall.v1.ListMyCharactersResp"
-    "onse\022R\n\013ListClasses\022 .nightfall.v1.ListC"
-    "lassesRequest\032!.nightfall.v1.ListClasses"
-    "Response\022^\n\017TransferOptions\022$.nightfall."
-    "v1.TransferOptionsRequest\032%.nightfall.v1"
-    ".TransferOptionsResponse\022R\n\013ChangeClass\022"
-    " .nightfall.v1.ChangeClassRequest\032!.nigh"
-    "tfall.v1.ChangeClassResponse\022j\n\023ListLear"
-    "nableSkills\022(.nightfall.v1.ListLearnable"
-    "SkillsRequest\032).nightfall.v1.ListLearnab"
-    "leSkillsResponse\022O\n\nLearnSkill\022\037.nightfa"
-    "ll.v1.LearnSkillRequest\032 .nightfall.v1.L"
-    "earnSkillResponse\022^\n\017GetSkillCatalog\022$.n"
-    "ightfall.v1.GetSkillCatalogRequest\032%.nig"
-    "htfall.v1.GetSkillCatalogResponseb\006proto"
-    "3"
+    "\n\027nightfall/v1/game.proto\022\014nightfall.v1\032"
+    "\030nightfall/v1/items.proto\"\031\n\027ListMyChara"
+    "ctersRequest\"G\n\030ListMyCharactersResponse"
+    "\022+\n\ncharacters\030\001 \003(\0132\027.nightfall.v1.Char"
+    "acter\"%\n\013PingRequest\022\026\n\016client_version\030\001"
+    " \001(\t\">\n\014PingResponse\022\026\n\016server_version\030\001"
+    " \001(\t\022\026\n\016server_time_ms\030\002 \001(\003\"+\n\023GetChara"
+    "cterRequest\022\024\n\014character_id\030\001 \001(\t\"\375\001\n\026Cr"
+    "eateCharacterRequest\022\027\n\017idempotency_key\030"
+    "\001 \001(\t\022\026\n\naccount_id\030\002 \001(\tB\002\030\001\022\014\n\004name\030\003 "
+    "\001(\t\022 \n\004race\030\004 \001(\0162\022.nightfall.v1.Race\022\032\n"
+    "\rbase_class_id\030\005 \001(\rH\000\210\001\001\022\036\n\003sex\030\006 \001(\0162\021"
+    ".nightfall.v1.Sex\022\022\n\nhair_style\030\007 \001(\r\022\022\n"
+    "\nhair_color\030\010 \001(\r\022\014\n\004face\030\t \001(\rB\020\n\016_base"
+    "_class_id\"Y\n\tBaseStats\022\013\n\003str\030\001 \001(\r\022\013\n\003d"
+    "ex\030\002 \001(\r\022\013\n\003con\030\003 \001(\r\022\013\n\003int\030\004 \001(\r\022\013\n\003wi"
+    "t\030\005 \001(\r\022\013\n\003men\030\006 \001(\r\"\245\003\n\tCharacter\022\n\n\002id"
+    "\030\001 \001(\t\022\014\n\004name\030\002 \001(\t\022 \n\004race\030\003 \001(\0162\022.nig"
+    "htfall.v1.Race\022\r\n\005level\030\004 \001(\r\022&\n\005stats\030\005"
+    " \001(\0132\027.nightfall.v1.BaseStats\022(\n\010positio"
+    "n\030\006 \001(\0132\026.nightfall.v1.Position\022\020\n\010class"
+    "_id\030\007 \001(\r\022\025\n\rbase_class_id\030\010 \001(\r\022\031\n\021acti"
+    "ve_class_slot\030\t \001(\r\022,\n\007classes\030\n \003(\0132\033.n"
+    "ightfall.v1.ClassProgress\022\036\n\003sex\030\013 \001(\0162\021"
+    ".nightfall.v1.Sex\022\022\n\nhair_style\030\014 \001(\r\022\022\n"
+    "\nhair_color\030\r \001(\r\022\014\n\004face\030\016 \001(\r\022\032\n\022inven"
+    "tory_revision\030\017 \001(\004\022\027\n\017item_rules_hash\030\020"
+    " \001(\014\" \n\010Position\022\t\n\001x\030\001 \001(\002\022\t\n\001y\030\002 \001(\002\"W"
+    "\n\rClassProgress\022\014\n\004slot\030\001 \001(\r\022\020\n\010class_i"
+    "d\030\002 \001(\r\022\r\n\005level\030\003 \001(\r\022\013\n\003exp\030\004 \001(\004\022\n\n\002s"
+    "p\030\005 \001(\004\"\377\001\n\016SkillLearnInfo\022\013\n\003key\030\001 \001(\t\022"
+    "\023\n\013skill_level\030\002 \001(\r\022\026\n\016required_level\030\003"
+    " \001(\r\022\017\n\007sp_cost\030\004 \001(\004\022\020\n\010auto_get\030\005 \001(\010\022"
+    ":\n\016required_items\030\006 \003(\0132\".nightfall.v1.S"
+    "killItemRequirement\022\020\n\010skill_id\030\007 \001(\r\022\016\n"
+    "\006l2_ref\030\010 \001(\t\022\026\n\016learned_by_npc\030\t \001(\010\022\032\n"
+    "\022effect_implemented\030\n \001(\010\"3\n\024SkillItemRe"
+    "quirement\022\014\n\004item\030\001 \001(\t\022\r\n\005count\030\002 \001(\r\"\204"
+    "\001\n\017ProficiencyInfo\022\013\n\003key\030\001 \001(\t\022\021\n\tmin_l"
+    "evel\030\002 \001(\r\022\020\n\010skill_id\030\003 \001(\r\022\023\n\013skill_le"
+    "vel\030\004 \001(\r\022\016\n\006l2_ref\030\005 \001(\t\022\032\n\022effect_impl"
+    "emented\030\006 \001(\010\"\356\003\n\tClassInfo\022\020\n\010class_id\030"
+    "\001 \001(\r\022\013\n\003key\030\002 \001(\t\022\024\n\014display_name\030\003 \001(\t"
+    "\022 \n\004race\030\004 \001(\0162\022.nightfall.v1.Race\022\014\n\004ti"
+    "er\030\005 \001(\r\022\027\n\017parent_class_id\030\006 \001(\r\022\021\n\tmin"
+    "_level\030\007 \001(\r\022*\n\tarchetype\030\010 \001(\0162\027.nightf"
+    "all.v1.Archetype\022+\n\nbase_stats\030\t \001(\0132\027.n"
+    "ightfall.v1.BaseStats\022\030\n\020subclass_allowe"
+    "d\030\n \001(\010\022\034\n\024subclass_equivalents\030\013 \003(\r\0220\n"
+    "\nskill_tree\030\014 \003(\0132\034.nightfall.v1.SkillLe"
+    "arnInfo\0224\n\rproficiencies\030\r \003(\0132\035.nightfa"
+    "ll.v1.ProficiencyInfo\022\022\n\nwalk_speed\030\016 \001("
+    "\r\022\021\n\trun_speed\030\017 \001(\r\022\022\n\nswim_speed\030\020 \001(\r"
+    "\022\034\n\024skill_tree_populated\030\021 \001(\010\"Z\n\013Passiv"
+    "eInfo\022\013\n\003key\030\001 \001(\t\022\024\n\014display_name\030\002 \001(\t"
+    "\022\023\n\013description\030\003 \001(\t\022\023\n\013implemented\030\004 \001"
+    "(\010\"\247\002\n\010RaceInfo\022 \n\004race\030\001 \001(\0162\022.nightfal"
+    "l.v1.Race\022\024\n\014display_name\030\002 \001(\t\022\023\n\013mysti"
+    "c_path\030\003 \001(\010\022\022\n\nwalk_speed\030\004 \001(\r\022\021\n\trun_"
+    "speed\030\005 \001(\r\022\026\n\016base_class_ids\030\006 \003(\r\022\032\n\022p"
+    "assive_skill_keys\030\007 \003(\t\022\030\n\020hair_style_co"
+    "unt\030\010 \001(\r\022\030\n\020hair_color_count\030\t \001(\r\022\022\n\nf"
+    "ace_count\030\n \001(\r\022+\n\010passives\030\013 \003(\0132\031.nigh"
+    "tfall.v1.PassiveInfo\"e\n\017ClassMasterInfo\022"
+    "\014\n\004name\030\001 \001(\t\022(\n\010position\030\002 \001(\0132\026.nightf"
+    "all.v1.Position\022\032\n\022interaction_radius\030\003 "
+    "\001(\002\"\024\n\022ListClassesRequest\"\350\001\n\023ListClasse"
+    "sResponse\022\024\n\014data_version\030\001 \001(\t\022%\n\005races"
+    "\030\002 \003(\0132\026.nightfall.v1.RaceInfo\022(\n\007classe"
+    "s\030\003 \003(\0132\027.nightfall.v1.ClassInfo\022\032\n\022play"
+    "able_level_cap\030\004 \001(\r\022\031\n\021max_transfer_tie"
+    "r\030\005 \001(\r\0223\n\014class_master\030\006 \001(\0132\035.nightfal"
+    "l.v1.ClassMasterInfo\".\n\026TransferOptionsR"
+    "equest\022\024\n\014character_id\030\001 \001(\t\"C\n\016Transfer"
+    "Option\022\020\n\010class_id\030\001 \001(\r\022\020\n\010eligible\030\002 \001"
+    "(\010\022\r\n\005unmet\030\003 \003(\t\"\232\001\n\027TransferOptionsRes"
+    "ponse\022-\n\007options\030\001 \003(\0132\034.nightfall.v1.Tr"
+    "ansferOption\022\030\n\020current_class_id\030\002 \001(\r\022\032"
+    "\n\022token_tier_1_count\030\003 \001(\r\022\032\n\022token_tier"
+    "_2_count\030\004 \001(\r\"\\\n\022ChangeClassRequest\022\024\n\014"
+    "character_id\030\001 \001(\t\022\027\n\017target_class_id\030\002 "
+    "\001(\r\022\027\n\017idempotency_key\030\003 \001(\t\"\225\001\n\023ChangeC"
+    "lassResponse\022*\n\tcharacter\030\001 \001(\0132\027.nightf"
+    "all.v1.Character\022\032\n\022granted_skill_keys\030\002"
+    " \003(\t\022\032\n\022token_tier_1_count\030\003 \001(\r\022\032\n\022toke"
+    "n_tier_2_count\030\004 \001(\r\"2\n\032ListLearnableSki"
+    "llsRequest\022\024\n\014character_id\030\001 \001(\t\"\235\001\n\016Lea"
+    "rnableSkill\022+\n\005skill\030\001 \001(\0132\034.nightfall.v"
+    "1.SkillLearnInfo\022\017\n\007learned\030\002 \001(\010\022\022\n\naff"
+    "ordable\030\003 \001(\010\022\030\n\020trainer_required\030\004 \001(\010\022"
+    "\020\n\010eligible\030\005 \001(\010\022\r\n\005unmet\030\006 \003(\t\"q\n\033List"
+    "LearnableSkillsResponse\022,\n\006skills\030\001 \003(\0132"
+    "\034.nightfall.v1.LearnableSkill\022\030\n\020current"
+    "_class_id\030\002 \001(\r\022\n\n\002sp\030\003 \001(\004\"i\n\021LearnSkil"
+    "lRequest\022\024\n\014character_id\030\001 \001(\t\022\020\n\010skill_"
+    "id\030\002 \001(\r\022\023\n\013skill_level\030\003 \001(\r\022\027\n\017idempot"
+    "ency_key\030\004 \001(\t\"\247\002\n\022LearnSkillResponse\022\020\n"
+    "\010skill_id\030\001 \001(\r\022\023\n\013skill_level\030\002 \001(\r\022\020\n\010"
+    "sp_spent\030\003 \001(\004\022\024\n\014sp_remaining\030\004 \001(\004\022\014\n\004"
+    "tick\030\005 \001(\004\022\n\n\002hp\030\006 \001(\r\022\016\n\006max_hp\030\007 \001(\r\022\n"
+    "\n\002mp\030\010 \001(\r\022\016\n\006max_mp\030\t \001(\r\022\n\n\002cp\030\n \001(\r\022\016"
+    "\n\006max_cp\030\013 \001(\r\022\024\n\014character_id\030\014 \001(\t\0225\n\017"
+    "effective_stats\030\r \001(\0132\034.nightfall.v1.Eff"
+    "ectiveStats\022\023\n\013incarnation\030\016 \001(\r\"\030\n\026GetS"
+    "killCatalogRequest\"\357\002\n\021SkillCatalogEntry"
+    "\022\020\n\010skill_id\030\001 \001(\r\022\013\n\003key\030\002 \001(\t\022\024\n\014displ"
+    "ay_name\030\003 \001(\t\022\021\n\tmax_level\030\004 \001(\r\022\032\n\022effe"
+    "ct_implemented\030\005 \001(\010\022\030\n\020deferred_reasons"
+    "\030\006 \003(\t\022\016\n\006l2_ref\030\007 \001(\t\022\030\n\020mp_consume_sta"
+    "rt\030\010 \003(\r\022\026\n\016mp_consume_end\030\t \003(\r\022\022\n\nhp_c"
+    "onsume\030\n \003(\r\022\020\n\010reuse_ms\030\013 \003(\r\022\023\n\013hit_ti"
+    "me_ms\030\014 \003(\r\0224\n\014operate_type\030\r \001(\0162\036.nigh"
+    "tfall.v1.SkillOperateType\022\023\n\013target_type"
+    "\030\016 \003(\t\022\024\n\014affect_scope\030\017 \003(\t\"`\n\027GetSkill"
+    "CatalogResponse\022\024\n\014data_version\030\001 \001(\t\022/\n"
+    "\006skills\030\002 \003(\0132\037.nightfall.v1.SkillCatalo"
+    "gEntry\"\333\002\n\016EffectiveStats\022\017\n\007p_atk_q\030\001 \001"
+    "(\003\022\017\n\007p_def_q\030\002 \001(\003\022\017\n\007m_atk_q\030\003 \001(\003\022\017\n\007"
+    "m_def_q\030\004 \001(\003\022\024\n\014attack_speed\030\005 \001(\r\022\022\n\nc"
+    "ast_speed\030\006 \001(\r\022\017\n\007speed_q\030\007 \001(\003\022\022\n\naccu"
+    "racy_q\030\010 \001(\003\022\021\n\tevasion_q\030\t \001(\003\022\025\n\rcrit_"
+    "permille\030\n \001(\r\022\024\n\014shield_def_q\030\013 \001(\003\022\025\n\r"
+    "shield_rate_q\030\014 \001(\003\022\034\n\024shield_angle_degr"
+    "ees\030\r \001(\r\022!\n\031physical_reach_millitiles\030\016"
+    " \001(\003\022\036\n\026physical_angle_degrees\030\017 \001(\r*k\n\004"
+    "Race\022\024\n\020RACE_UNSPECIFIED\020\000\022\016\n\nRACE_HUMAN"
+    "\020\001\022\014\n\010RACE_ELF\020\002\022\021\n\rRACE_DARK_ELF\020\003\022\014\n\010R"
+    "ACE_ORC\020\004\022\016\n\nRACE_DWARF\020\005*8\n\003Sex\022\023\n\017SEX_"
+    "UNSPECIFIED\020\000\022\014\n\010SEX_MALE\020\001\022\016\n\nSEX_FEMAL"
+    "E\020\002*S\n\tArchetype\022\031\n\025ARCHETYPE_UNSPECIFIE"
+    "D\020\000\022\025\n\021ARCHETYPE_FIGHTER\020\001\022\024\n\020ARCHETYPE_"
+    "MYSTIC\020\002*\226\002\n\020SkillOperateType\022\"\n\036SKILL_O"
+    "PERATE_TYPE_UNSPECIFIED\020\000\022%\n!SKILL_OPERA"
+    "TE_TYPE_ACTIVE_INSTANT\020\001\0220\n,SKILL_OPERAT"
+    "E_TYPE_ACTIVE_INSTANT_CONTINUOUS\020\002\022(\n$SK"
+    "ILL_OPERATE_TYPE_ACTIVE_CONTINUOUS\020\003\022\036\n\032"
+    "SKILL_OPERATE_TYPE_PASSIVE\020\004\022\035\n\031SKILL_OP"
+    "ERATE_TYPE_TOGGLE\020\005\022\034\n\030SKILL_OPERATE_TYP"
+    "E_OTHER\020\0062\364\010\n\013GameService\022=\n\004Ping\022\031.nigh"
+    "tfall.v1.PingRequest\032\032.nightfall.v1.Ping"
+    "Response\022J\n\014GetCharacter\022!.nightfall.v1."
+    "GetCharacterRequest\032\027.nightfall.v1.Chara"
+    "cter\022P\n\017CreateCharacter\022$.nightfall.v1.C"
+    "reateCharacterRequest\032\027.nightfall.v1.Cha"
+    "racter\022a\n\020ListMyCharacters\022%.nightfall.v"
+    "1.ListMyCharactersRequest\032&.nightfall.v1"
+    ".ListMyCharactersResponse\022R\n\013ListClasses"
+    "\022 .nightfall.v1.ListClassesRequest\032!.nig"
+    "htfall.v1.ListClassesResponse\022^\n\017Transfe"
+    "rOptions\022$.nightfall.v1.TransferOptionsR"
+    "equest\032%.nightfall.v1.TransferOptionsRes"
+    "ponse\022R\n\013ChangeClass\022 .nightfall.v1.Chan"
+    "geClassRequest\032!.nightfall.v1.ChangeClas"
+    "sResponse\022j\n\023ListLearnableSkills\022(.night"
+    "fall.v1.ListLearnableSkillsRequest\032).nig"
+    "htfall.v1.ListLearnableSkillsResponse\022O\n"
+    "\nLearnSkill\022\037.nightfall.v1.LearnSkillReq"
+    "uest\032 .nightfall.v1.LearnSkillResponse\022^"
+    "\n\017GetSkillCatalog\022$.nightfall.v1.GetSkil"
+    "lCatalogRequest\032%.nightfall.v1.GetSkillC"
+    "atalogResponse\022[\n\016GetItemCatalog\022#.night"
+    "fall.v1.GetItemCatalogRequest\032$.nightfal"
+    "l.v1.GetItemCatalogResponse\022U\n\014GetInvent"
+    "ory\022!.nightfall.v1.GetInventoryRequest\032\""
+    ".nightfall.v1.GetInventoryResponse\022L\n\tGr"
+    "antItem\022\036.nightfall.v1.GrantItemRequest\032"
+    "\037.nightfall.v1.GrantItemResponseb\006proto3"
+};
+static const ::_pbi::DescriptorTable* const descriptor_table_nightfall_2fv1_2fgame_2eproto_deps[1] =
+    {
+        &::descriptor_table_nightfall_2fv1_2fitems_2eproto,
 };
 static ::absl::once_flag descriptor_table_nightfall_2fv1_2fgame_2eproto_once;
 const ::_pbi::DescriptorTable descriptor_table_nightfall_2fv1_2fgame_2eproto = {
     false,
     false,
-    6201,
+    6680,
     descriptor_table_protodef_nightfall_2fv1_2fgame_2eproto,
     "nightfall/v1/game.proto",
     &descriptor_table_nightfall_2fv1_2fgame_2eproto_once,
-    nullptr,
-    0,
+    descriptor_table_nightfall_2fv1_2fgame_2eproto_deps,
+    1,
     33,
     schemas,
     file_default_instances,
@@ -3428,6 +3468,8 @@ Character::Character(const Character& from)
 
     , decltype(_impl_.name_) {}
 
+    , decltype(_impl_.item_rules_hash_) {}
+
     , decltype(_impl_.stats_){nullptr}
     , decltype(_impl_.position_){nullptr}
     , decltype(_impl_.race_) {}
@@ -3446,6 +3488,8 @@ Character::Character(const Character& from)
 
     , decltype(_impl_.hair_color_) {}
 
+    , decltype(_impl_.inventory_revision_) {}
+
     , decltype(_impl_.face_) {}
   };
 
@@ -3463,6 +3507,13 @@ Character::Character(const Character& from)
   #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
   if (!from._internal_name().empty()) {
     _this->_impl_.name_.Set(from._internal_name(), _this->GetArenaForAllocation());
+  }
+  _impl_.item_rules_hash_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.item_rules_hash_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  if (!from._internal_item_rules_hash().empty()) {
+    _this->_impl_.item_rules_hash_.Set(from._internal_item_rules_hash(), _this->GetArenaForAllocation());
   }
   if ((from._impl_._has_bits_[0] & 0x00000001u) != 0) {
     _this->_impl_.stats_ = new ::nightfall::v1::BaseStats(*from._impl_.stats_);
@@ -3486,6 +3537,8 @@ inline void Character::SharedCtor(::_pb::Arena* arena) {
 
     , decltype(_impl_.name_) {}
 
+    , decltype(_impl_.item_rules_hash_) {}
+
     , decltype(_impl_.stats_){nullptr}
     , decltype(_impl_.position_){nullptr}
     , decltype(_impl_.race_) { 0 }
@@ -3504,6 +3557,8 @@ inline void Character::SharedCtor(::_pb::Arena* arena) {
 
     , decltype(_impl_.hair_color_) { 0u }
 
+    , decltype(_impl_.inventory_revision_) { ::uint64_t{0u} }
+
     , decltype(_impl_.face_) { 0u }
 
   };
@@ -3514,6 +3569,10 @@ inline void Character::SharedCtor(::_pb::Arena* arena) {
   _impl_.name_.InitDefault();
   #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
         _impl_.name_.Set("", GetArenaForAllocation());
+  #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
+  _impl_.item_rules_hash_.InitDefault();
+  #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
+        _impl_.item_rules_hash_.Set("", GetArenaForAllocation());
   #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
 }
 
@@ -3531,6 +3590,7 @@ inline void Character::SharedDtor() {
   _internal_mutable_classes()->~RepeatedPtrField();
   _impl_.id_.Destroy();
   _impl_.name_.Destroy();
+  _impl_.item_rules_hash_.Destroy();
   if (this != internal_default_instance()) delete _impl_.stats_;
   if (this != internal_default_instance()) delete _impl_.position_;
 }
@@ -3548,6 +3608,7 @@ void Character::Clear() {
   _internal_mutable_classes()->Clear();
   _impl_.id_.ClearToEmpty();
   _impl_.name_.ClearToEmpty();
+  _impl_.item_rules_hash_.ClearToEmpty();
   cached_has_bits = _impl_._has_bits_[0];
   if (cached_has_bits & 0x00000003u) {
     if (cached_has_bits & 0x00000001u) {
@@ -3710,6 +3771,25 @@ const char* Character::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx
           goto handle_unusual;
         }
         continue;
+      // uint64 inventory_revision = 15;
+      case 15:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 120)) {
+          _impl_.inventory_revision_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // bytes item_rules_hash = 16;
+      case 16:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 130)) {
+          auto str = _internal_mutable_item_rules_hash();
+          ptr = ::_pbi::InlineGreedyStringParser(str, ptr, ctx);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
       default:
         goto handle_unusual;
     }  // switch
@@ -3842,6 +3922,19 @@ failure:
         14, this->_internal_face(), target);
   }
 
+  // uint64 inventory_revision = 15;
+  if (this->_internal_inventory_revision() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt64ToArray(
+        15, this->_internal_inventory_revision(), target);
+  }
+
+  // bytes item_rules_hash = 16;
+  if (!this->_internal_item_rules_hash().empty()) {
+    const std::string& _s = this->_internal_item_rules_hash();
+    target = stream->WriteBytesMaybeAliased(16, _s, target);
+  }
+
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
     target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
@@ -3875,6 +3968,12 @@ failure:
   if (!this->_internal_name().empty()) {
     total_size += 1 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::StringSize(
                                     this->_internal_name());
+  }
+
+  // bytes item_rules_hash = 16;
+  if (!this->_internal_item_rules_hash().empty()) {
+    total_size += 2 + ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::BytesSize(
+                                    this->_internal_item_rules_hash());
   }
 
   cached_has_bits = _impl_._has_bits_[0];
@@ -3942,6 +4041,12 @@ failure:
         this->_internal_hair_color());
   }
 
+  // uint64 inventory_revision = 15;
+  if (this->_internal_inventory_revision() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt64SizePlusOne(
+        this->_internal_inventory_revision());
+  }
+
   // uint32 face = 14;
   if (this->_internal_face() != 0) {
     total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
@@ -3972,6 +4077,9 @@ void Character::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROT
   }
   if (!from._internal_name().empty()) {
     _this->_internal_set_name(from._internal_name());
+  }
+  if (!from._internal_item_rules_hash().empty()) {
+    _this->_internal_set_item_rules_hash(from._internal_item_rules_hash());
   }
   cached_has_bits = from._impl_._has_bits_[0];
   if (cached_has_bits & 0x00000003u) {
@@ -4008,6 +4116,9 @@ void Character::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROT
   if (from._internal_hair_color() != 0) {
     _this->_internal_set_hair_color(from._internal_hair_color());
   }
+  if (from._internal_inventory_revision() != 0) {
+    _this->_internal_set_inventory_revision(from._internal_inventory_revision());
+  }
   if (from._internal_face() != 0) {
     _this->_internal_set_face(from._internal_face());
   }
@@ -4036,6 +4147,8 @@ void Character::InternalSwap(Character* other) {
                                        &other->_impl_.id_, rhs_arena);
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.name_, lhs_arena,
                                        &other->_impl_.name_, rhs_arena);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.item_rules_hash_, lhs_arena,
+                                       &other->_impl_.item_rules_hash_, rhs_arena);
   ::PROTOBUF_NAMESPACE_ID::internal::memswap<
       PROTOBUF_FIELD_OFFSET(Character, _impl_.face_)
       + sizeof(Character::_impl_.face_)
@@ -12108,7 +12221,17 @@ inline void EffectiveStats::SharedCtor(::_pb::Arena* arena) {
 
     , decltype(_impl_.evasion_q_) { ::int64_t{0} }
 
+    , decltype(_impl_.shield_def_q_) { ::int64_t{0} }
+
     , decltype(_impl_.crit_permille_) { 0u }
+
+    , decltype(_impl_.shield_angle_degrees_) { 0u }
+
+    , decltype(_impl_.shield_rate_q_) { ::int64_t{0} }
+
+    , decltype(_impl_.physical_reach_millitiles_) { ::int64_t{0} }
+
+    , decltype(_impl_.physical_angle_degrees_) { 0u }
 
     , /*decltype(_impl_._cached_size_)*/{}
   };
@@ -12138,8 +12261,8 @@ void EffectiveStats::Clear() {
   (void) cached_has_bits;
 
   ::memset(&_impl_.p_atk_q_, 0, static_cast<::size_t>(
-      reinterpret_cast<char*>(&_impl_.crit_permille_) -
-      reinterpret_cast<char*>(&_impl_.p_atk_q_)) + sizeof(_impl_.crit_permille_));
+      reinterpret_cast<char*>(&_impl_.physical_angle_degrees_) -
+      reinterpret_cast<char*>(&_impl_.p_atk_q_)) + sizeof(_impl_.physical_angle_degrees_));
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
@@ -12234,6 +12357,51 @@ const char* EffectiveStats::_InternalParse(const char* ptr, ::_pbi::ParseContext
       case 10:
         if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 80)) {
           _impl_.crit_permille_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // int64 shield_def_q = 11;
+      case 11:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 88)) {
+          _impl_.shield_def_q_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // int64 shield_rate_q = 12;
+      case 12:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 96)) {
+          _impl_.shield_rate_q_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 shield_angle_degrees = 13;
+      case 13:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 104)) {
+          _impl_.shield_angle_degrees_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // int64 physical_reach_millitiles = 14;
+      case 14:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 112)) {
+          _impl_.physical_reach_millitiles_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 physical_angle_degrees = 15;
+      case 15:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 120)) {
+          _impl_.physical_angle_degrees_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
           CHK_(ptr);
         } else {
           goto handle_unusual;
@@ -12338,6 +12506,41 @@ failure:
         10, this->_internal_crit_permille(), target);
   }
 
+  // int64 shield_def_q = 11;
+  if (this->_internal_shield_def_q() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteInt64ToArray(
+        11, this->_internal_shield_def_q(), target);
+  }
+
+  // int64 shield_rate_q = 12;
+  if (this->_internal_shield_rate_q() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteInt64ToArray(
+        12, this->_internal_shield_rate_q(), target);
+  }
+
+  // uint32 shield_angle_degrees = 13;
+  if (this->_internal_shield_angle_degrees() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        13, this->_internal_shield_angle_degrees(), target);
+  }
+
+  // int64 physical_reach_millitiles = 14;
+  if (this->_internal_physical_reach_millitiles() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteInt64ToArray(
+        14, this->_internal_physical_reach_millitiles(), target);
+  }
+
+  // uint32 physical_angle_degrees = 15;
+  if (this->_internal_physical_angle_degrees() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        15, this->_internal_physical_angle_degrees(), target);
+  }
+
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
     target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
@@ -12408,10 +12611,40 @@ failure:
         this->_internal_evasion_q());
   }
 
+  // int64 shield_def_q = 11;
+  if (this->_internal_shield_def_q() != 0) {
+    total_size += ::_pbi::WireFormatLite::Int64SizePlusOne(
+        this->_internal_shield_def_q());
+  }
+
   // uint32 crit_permille = 10;
   if (this->_internal_crit_permille() != 0) {
     total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
         this->_internal_crit_permille());
+  }
+
+  // uint32 shield_angle_degrees = 13;
+  if (this->_internal_shield_angle_degrees() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_shield_angle_degrees());
+  }
+
+  // int64 shield_rate_q = 12;
+  if (this->_internal_shield_rate_q() != 0) {
+    total_size += ::_pbi::WireFormatLite::Int64SizePlusOne(
+        this->_internal_shield_rate_q());
+  }
+
+  // int64 physical_reach_millitiles = 14;
+  if (this->_internal_physical_reach_millitiles() != 0) {
+    total_size += ::_pbi::WireFormatLite::Int64SizePlusOne(
+        this->_internal_physical_reach_millitiles());
+  }
+
+  // uint32 physical_angle_degrees = 15;
+  if (this->_internal_physical_angle_degrees() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_physical_angle_degrees());
   }
 
   return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
@@ -12459,8 +12692,23 @@ void EffectiveStats::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const :
   if (from._internal_evasion_q() != 0) {
     _this->_internal_set_evasion_q(from._internal_evasion_q());
   }
+  if (from._internal_shield_def_q() != 0) {
+    _this->_internal_set_shield_def_q(from._internal_shield_def_q());
+  }
   if (from._internal_crit_permille() != 0) {
     _this->_internal_set_crit_permille(from._internal_crit_permille());
+  }
+  if (from._internal_shield_angle_degrees() != 0) {
+    _this->_internal_set_shield_angle_degrees(from._internal_shield_angle_degrees());
+  }
+  if (from._internal_shield_rate_q() != 0) {
+    _this->_internal_set_shield_rate_q(from._internal_shield_rate_q());
+  }
+  if (from._internal_physical_reach_millitiles() != 0) {
+    _this->_internal_set_physical_reach_millitiles(from._internal_physical_reach_millitiles());
+  }
+  if (from._internal_physical_angle_degrees() != 0) {
+    _this->_internal_set_physical_angle_degrees(from._internal_physical_angle_degrees());
   }
   _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
 }
@@ -12480,8 +12728,8 @@ void EffectiveStats::InternalSwap(EffectiveStats* other) {
   using std::swap;
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
   ::PROTOBUF_NAMESPACE_ID::internal::memswap<
-      PROTOBUF_FIELD_OFFSET(EffectiveStats, _impl_.crit_permille_)
-      + sizeof(EffectiveStats::_impl_.crit_permille_)
+      PROTOBUF_FIELD_OFFSET(EffectiveStats, _impl_.physical_angle_degrees_)
+      + sizeof(EffectiveStats::_impl_.physical_angle_degrees_)
       - PROTOBUF_FIELD_OFFSET(EffectiveStats, _impl_.p_atk_q_)>(
           reinterpret_cast<char*>(&_impl_.p_atk_q_),
           reinterpret_cast<char*>(&other->_impl_.p_atk_q_));

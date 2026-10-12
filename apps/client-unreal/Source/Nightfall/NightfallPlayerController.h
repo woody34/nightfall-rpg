@@ -9,6 +9,7 @@ class UInputAction;
 class UNightfallHud;
 class UNightfallClassDialog;
 class UNightfallSkillDialog;
+class UNightfallInventoryDialog;
 class AClassMasterActor;
 
 /**
@@ -61,6 +62,7 @@ public:
 	UNightfallClassDialog* GetClassDialog() const { return ClassDialog; }
 
 	void OpenSkillDialog();
+	void OpenInventoryDialog();
 	/** Production mouse-hit resolver and key-binding setup, also exercised headlessly. */
 	bool ClickEntityProxy(const FString& EntityId);
 	void BindSkillKeys();
@@ -75,6 +77,7 @@ public:
 private:
 	void OnClickMove();
 	UPROPERTY(Transient) TObjectPtr<UNightfallSkillDialog> SkillDialog;
+	UPROPERTY(Transient) TObjectPtr<UNightfallInventoryDialog> InventoryDialog;
 	void ShowClassMaster();
 	void LoadClassCatalogue();
 	UPROPERTY(Transient) TObjectPtr<UNightfallClassDialog> ClassDialog;
