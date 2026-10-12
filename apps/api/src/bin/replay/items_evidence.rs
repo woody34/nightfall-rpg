@@ -87,13 +87,6 @@ pub(super) fn collect(rec: &Recording, recording_bytes: &[u8]) -> anyhow::Result
         if !record.reproduced_by(&AppliedTickRecord::from_applied(seed.zone, &applied)) {
             bail!("item evidence replay divergence at tick {}", record.tick.0);
         }
-        if applied.events.iter().any(|event| {
-            matches!(event,
-            nightfall_api::domain::zone::ZoneEvent::ItemCheckpoint(projection)
-            if projection.paused_core.is_some())
-        }) {
-            bail!("D46 positive incarnation contract cannot represent offline item work");
-        }
         for fact in state.take_items_replay_evidence() {
             if let nightfall_api::domain::zone::evidence::ItemEvidenceData::Rng {
                 word_before,
@@ -112,7 +105,11 @@ pub(super) fn collect(rec: &Recording, recording_bytes: &[u8]) -> anyhow::Result
                 }
                 cursor = *word_after;
             }
-            if fact.incarnation == 0 || fact.tick > record.tick {
+            if (fact.incarnation == 0)
+                != (fact.origin
+                    == nightfall_api::domain::zone::evidence::ItemEvidenceOrigin::Offline)
+                || fact.tick > record.tick
+            {
                 bail!("invalid item evidence subject/tick");
             }
             line(
@@ -203,6 +200,7 @@ mod tests {
         let fact = ItemEvidenceFact {
             entity: "00000000-0000-0000-0000-000000000001".parse()?,
             incarnation: 1,
+            origin: nightfall_api::domain::zone::evidence::ItemEvidenceOrigin::Live,
             tick: nightfall_api::domain::zone::Tick(1),
             fact: ItemEvidenceData::Rng {
                 callsite: "enchant".into(),

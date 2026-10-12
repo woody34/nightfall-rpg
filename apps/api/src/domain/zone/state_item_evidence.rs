@@ -1,7 +1,7 @@
 //! D46 sidecar capture; no observation changes canonical state or consumes randomness.
 use super::*;
 use crate::domain::zone::effects::TargetBinding;
-use crate::domain::zone::evidence::{ItemEvidenceData, ItemEvidenceFact};
+use crate::domain::zone::evidence::{ItemEvidenceData, ItemEvidenceFact, ItemEvidenceOrigin};
 use crate::domain::zone::item_inventory::InventoryChange;
 use crate::domain::zone::phase4_projection::{ItemOperation, ItemReceiptRef};
 use serde_json::json;
@@ -57,10 +57,41 @@ impl ZoneState {
             facts.push(ItemEvidenceFact {
                 entity: subject.entity,
                 incarnation: subject.incarnation,
+                origin: ItemEvidenceOrigin::Live,
                 tick: self.next_tick,
                 fact,
             });
         }
+    }
+
+    /// The private candidate retains earlier observations; adopt only its new suffix.
+    pub(super) fn adopt_offline_item_evidence(
+        &mut self,
+        candidate: &Self,
+        owner: EntityId,
+    ) -> Result<(), RejectReason> {
+        let Some(facts) = self
+            .evidence
+            .as_mut()
+            .and_then(|buffer| buffer.items.as_mut())
+        else {
+            return Ok(());
+        };
+        let suffix = candidate
+            .evidence
+            .as_ref()
+            .and_then(|buffer| buffer.items.as_ref())
+            .and_then(|rows| rows.get(facts.len()..))
+            .ok_or(RejectReason::InvalidLoad)?;
+        if suffix.iter().any(|row| row.entity != owner) {
+            return Err(RejectReason::InvalidLoad);
+        }
+        facts.extend(suffix.iter().cloned().map(|mut row| {
+            row.incarnation = 0;
+            row.origin = ItemEvidenceOrigin::Offline;
+            row
+        }));
+        Ok(())
     }
 
     pub(super) fn item_evidence_baseline(&mut self, owner: EntityId) -> Result<(), TickError> {

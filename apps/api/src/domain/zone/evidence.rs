@@ -48,11 +48,23 @@ pub struct ItemEvidenceFact {
     pub entity: EntityId,
     /// Incarnation is captured before later death, departure or respawn.
     pub incarnation: u32,
+    /// D56 distinguishes private paused work from a live combatant life.
+    pub origin: ItemEvidenceOrigin,
     /// Tick containing this observation.
     pub tick: Tick,
     /// Frozen D46 fact kind and payload.
     #[serde(flatten)]
     pub fact: ItemEvidenceData,
+}
+
+/// Owner context at the operation boundary; never inferred from later entity state.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ItemEvidenceOrigin {
+    /// An admitted combatant with a positive incarnation.
+    Live,
+    /// A paused character, identified by its character UUID and incarnation zero.
+    Offline,
 }
 
 /// Typed RNG cursors serialize as full-width JSON integers, including values above u64.

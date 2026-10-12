@@ -68,6 +68,28 @@ pub struct ItemAuditEvidence {
     pub family: String,
     pub fields: BTreeMap<String, ItemEvidenceValue>,
 }
+impl ItemAuditEvidence {
+    /// Payment families with an owner receipt; learned casts have no item intent receipt.
+    pub(crate) fn contributing_receipt(&self) -> Result<Option<ItemReceiptRef>, ItemError> {
+        let operation = match self.family.as_str() {
+            "enchant_payment" => ItemOperation::Enchant,
+            "exchange_payment" => ItemOperation::Exchange,
+            "item_cast_payment" => ItemOperation::Use,
+            _ => return Ok(None),
+        };
+        let Some(ItemEvidenceValue::Text(key)) = self.fields.get("receipt") else {
+            return Err(ItemError("payment cause lacks its receipt"));
+        };
+        let receipt = ItemReceiptRef {
+            operation,
+            key: key
+                .parse()
+                .map_err(|_| ItemError("invalid payment receipt"))?,
+        };
+        receipt.validate()?;
+        Ok(Some(receipt))
+    }
+}
 
 /// One real instance change; aggregate consumption carries explicit net count and ordered
 /// causes, even when another logical mutation intervened between two consumptions.
@@ -82,6 +104,9 @@ pub struct ItemDeltaPlan {
     pub after: Option<ItemInstance>,
     pub count_delta: i64,
     pub receipt: Option<ItemReceiptRef>,
+    /// D57 first-contribution order for a physical per-instance Consume aggregate.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub receipt_refs: Vec<ItemReceiptRef>,
     pub causes: Vec<ItemAuditEvidence>,
 }
 impl ItemDeltaPlan {
@@ -97,6 +122,13 @@ impl ItemDeltaPlan {
     pub fn validate(&self, revision: u64) -> Result<(), ItemError> {
         if let Some(receipt) = self.receipt {
             receipt.validate()?;
+        }
+        let mut references = BTreeSet::new();
+        for receipt in &self.receipt_refs {
+            receipt.validate()?;
+            if self.operation != ItemOperation::Consume || !references.insert(*receipt) {
+                return Err(ItemError("invalid aggregate receipt references"));
+            }
         }
         if self.operation == ItemOperation::ToggleAutoShot
             || (self.before.is_none() && self.after.is_none())
@@ -118,6 +150,23 @@ impl ItemDeltaPlan {
         if self.operation == ItemOperation::Consume {
             if self.count_delta > 0 || self.causes.is_empty() || self.operation_ordinal != 0 {
                 return Err(ItemError("consume aggregate lacks ordered causes"));
+            }
+            let mut expected = Vec::new();
+            for cause in &self.causes {
+                if let Some(receipt) = cause.contributing_receipt()? {
+                    if !expected.contains(&receipt) {
+                        expected.push(receipt);
+                    }
+                }
+            }
+            let legacy_single =
+                self.receipt_refs.is_empty() && expected.as_slice() == self.receipt.as_slice();
+            if (!legacy_single && self.receipt_refs != expected)
+                || self
+                    .receipt
+                    .is_some_and(|receipt| !expected.is_empty() && expected.as_slice() != [receipt])
+            {
+                return Err(ItemError("consume aggregate receipt order differs from causes"));
             }
         } else if difference != i128::from(self.count_delta) {
             return Err(ItemError("item count delta mismatch"));
@@ -316,7 +365,12 @@ impl Phase4Projection {
         if self
             .ledger
             .iter()
-            .filter_map(|delta| delta.receipt)
+            .flat_map(|delta| {
+                delta
+                    .receipt
+                    .into_iter()
+                    .chain(delta.receipt_refs.iter().copied())
+            })
             .any(|id| !receipts.contains(&id))
         {
             return Err(ItemError("item ledger receipt is absent"));
@@ -683,6 +737,7 @@ pub(crate) mod tests {
         let mut after = item(2);
         after.id = ItemInstanceId::new(8).unwrap();
         state.ledger.push(ItemDeltaPlan {
+            receipt_refs: Vec::new(),
             operation: ItemOperation::Exchange,
             operation_ordinal: 1,
             instance: before.id,
@@ -693,6 +748,7 @@ pub(crate) mod tests {
             causes: Vec::new(),
         });
         let delta = ItemDeltaPlan {
+            receipt_refs: Vec::new(),
             operation: ItemOperation::Exchange,
             operation_ordinal: 1,
             instance: after.id,
@@ -745,6 +801,7 @@ pub(crate) mod tests {
         before.slot = Some(super::super::EquipSlot::Rhand);
         state.checkpoint.instances.push(after.clone());
         state.ledger.push(ItemDeltaPlan {
+            receipt_refs: Vec::new(),
             operation: ItemOperation::Unequip,
             operation_ordinal: 1,
             instance: after.id,
@@ -877,6 +934,7 @@ pub(crate) mod tests {
             // Final inventory contains no target: audit still retains the exact attempt.
             if let Some(after) = &attempt.after {
                 state.ledger.push(ItemDeltaPlan {
+                    receipt_refs: Vec::new(),
                     operation: ItemOperation::Destroy,
                     operation_ordinal: 2,
                     instance: attempt.target,
@@ -954,6 +1012,7 @@ pub(crate) mod tests {
         assert!(state.validate_structure(0).is_err());
         let mut state = projection();
         state.ledger.push(ItemDeltaPlan {
+            receipt_refs: Vec::new(),
             operation: ItemOperation::Grant,
             operation_ordinal: 0,
             instance: item(1).id,

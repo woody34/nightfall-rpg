@@ -257,6 +257,7 @@ pub(super) fn prepare(
             .map_err(|_| R::InvalidRecipe)?;
             let consume = count_delta < 0;
             Ok(ItemDeltaPlan {
+                receipt_refs: Vec::new(),
                 operation: if consume {
                     ItemOperation::Consume
                 } else {

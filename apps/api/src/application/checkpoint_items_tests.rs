@@ -1155,6 +1155,7 @@ async fn captured_enchant_outbox_preserves_all_outcomes_before_later_destruction
         // The final inventory is intentionally different from the captured attempt.
         work.projection.checkpoint.instances.clear();
         work.projection.ledger.push(ItemDeltaPlan {
+            receipt_refs: Vec::new(),
             operation: if outcome == ItemEnchantOutcome::Destroyed {
                 ItemOperation::Enchant
             } else {
@@ -1174,6 +1175,7 @@ async fn captured_enchant_outbox_preserves_all_outcomes_before_later_destruction
         });
         if outcome == ItemEnchantOutcome::Success {
             work.projection.ledger.push(ItemDeltaPlan {
+                receipt_refs: Vec::new(),
                 operation: ItemOperation::Enchant,
                 operation_ordinal: 1,
                 instance: before.id,

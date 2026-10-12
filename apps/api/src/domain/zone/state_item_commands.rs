@@ -575,6 +575,7 @@ impl ZoneState {
                 continue;
             }
             projection.ledger.push(ItemDeltaPlan {
+                receipt_refs: Vec::new(),
                 operation: if enchant
                     .as_ref()
                     .is_some_and(|(_, attempt, _)| attempt.target == instance)
@@ -977,6 +978,7 @@ pub(super) fn append_item_consumption(
     cause: crate::domain::zone::phase4_projection::ItemAuditEvidence,
 ) -> Result<(), RejectReason> {
     let instance = change.before.as_ref().ok_or(RejectReason::InvalidLoad)?.id;
+    let receipt = cause.contributing_receipt().map_err(invalid)?;
     if let Some(index) = projection
         .ledger
         .iter()
@@ -988,11 +990,17 @@ pub(super) fn append_item_consumption(
             .checked_add(count_delta)
             .ok_or(RejectReason::InvalidLoad)?;
         aggregate.after = change.after;
+        if let Some(receipt) = receipt {
+            if !aggregate.receipt_refs.contains(&receipt) {
+                aggregate.receipt_refs.push(receipt);
+            }
+        }
         aggregate.causes.push(cause);
         // The last scalar must remain after intervening grants in the ordered ledger.
         projection.ledger.push(aggregate);
     } else {
         projection.ledger.push(ItemDeltaPlan {
+            receipt_refs: receipt.into_iter().collect(),
             operation: ItemOperation::Consume,
             operation_ordinal: 0,
             instance,
