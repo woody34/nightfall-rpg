@@ -6592,4 +6592,329 @@ mod tests {
             std::fs::write(path, recording.to_bytes().unwrap()).unwrap();
         }
     }
+    #[allow(clippy::arithmetic_side_effects)]
+    fn exchange_fixture(
+    ) -> (ZoneState, TargetBinding, TargetBinding, crate::domain::zone::ItemInstanceId) {
+        use crate::domain::zone::{EquipSlot, ItemInstanceId, ItemLocation};
+        let (mut zone, owner, _) = equipment_fixture();
+        let items = zone.phase4.as_mut().unwrap();
+        let recipe = items.rules.parts().sa_recipes[&4_316_442_132_483].clone();
+        let player = items.canonical.players.get_mut(&owner.entity).unwrap();
+        let target = player.paperdoll[&EquipSlot::Rhand];
+        let mut seed = player
+            .inventory
+            .remove(&ItemInstanceId::new(900).unwrap())
+            .unwrap();
+        for (index, ingredient) in recipe
+            .ingredients
+            .iter()
+            .filter(|i| i.template_id != recipe.base_template)
+            .enumerate()
+        {
+            seed.id = ItemInstanceId::new(901 + u64::try_from(index).unwrap()).unwrap();
+            seed.template_id = ingredient.template_id;
+            seed.count = if items.rules.parts().items[&ingredient.template_id].stackable {
+                ingredient.count * 2
+            } else {
+                ingredient.count
+            };
+            player.inventory.insert(seed.id, seed.clone());
+            if !items.rules.parts().items[&ingredient.template_id].stackable {
+                seed.id = ItemInstanceId::new(911 + u64::try_from(index).unwrap()).unwrap();
+                player.inventory.insert(seed.id, seed.clone());
+            }
+        }
+        player.inventory.get_mut(&target).unwrap().augment_id = Some((2 << 16) | 1);
+        let mut second = player.inventory[&target].clone();
+        second.id = ItemInstanceId::new(920).unwrap();
+        second.location = ItemLocation::Inventory;
+        second.slot = None;
+        player.inventory.insert(second.id, second);
+        crate::domain::zone::item_sources::reconcile_sources(
+            player,
+            &items.rules,
+            &mut zone
+                .phase3
+                .as_mut()
+                .unwrap()
+                .canonical
+                .next_install_sequence,
+        )
+        .unwrap();
+        let from = zone.entities[&owner.entity].pos;
+        let to = Vec2Fixed::from_tiles(126, 126);
+        zone.entities.get_mut(&owner.entity).unwrap().pos = to;
+        zone.aoi.relocate(owner.entity, from, to);
+        zone.rebuild_v5(owner.entity).unwrap();
+        let applied = zone
+            .run_tick(zone.draft(vec![ZoneInput::system(ZoneCommand::SpawnNpc {
+                name: "blacksmith".into(),
+                pos: Vec2Fixed::from_tiles(124, 128),
+                speed: Speed::from_milli_tiles_per_tick(0),
+                combat: None,
+            })]))
+            .unwrap();
+        assert!(applied.dispositions.is_empty());
+        let npc = TargetBinding {
+            entity: zone
+                .entities
+                .values()
+                .find(|e| e.name == "blacksmith")
+                .unwrap()
+                .id,
+            incarnation: 0,
+        };
+        zone.validate_runtime_v5().unwrap();
+        (zone, owner, npc, target)
+    }
+
+    #[test]
+    #[allow(clippy::too_many_lines, clippy::arithmetic_side_effects)]
+    fn v6_exchange_two_receipts_aggregate_shared_ingredients_and_cold_replay() {
+        use crate::domain::zone::phase4_projection::ItemOperation;
+        use crate::domain::zone::{EquipSlot, ItemCommandKind as K, ItemInstanceId};
+        let (mut zone, owner, npc, target) = exchange_fixture();
+        let old = zone.phase4.as_ref().unwrap().canonical.clone();
+        let mut cold = ZoneState::from_snapshot_with_items(
+            zone.snapshot(),
+            Some(Arc::clone(&zone.phase4.as_ref().unwrap().rules)),
+        )
+        .unwrap();
+        let first = item_intent(
+            &zone,
+            owner.entity,
+            701,
+            K::ExchangeSpecialAbility {
+                npc,
+                target,
+                recipe: 4_316_442_132_483,
+            },
+        );
+        let second = item_intent(
+            &zone,
+            owner.entity,
+            702,
+            K::ExchangeSpecialAbility {
+                npc,
+                target: ItemInstanceId::new(920).unwrap(),
+                recipe: 4_316_442_132_483,
+            },
+        );
+        let draft = zone.draft(
+            [first.clone(), first, second]
+                .into_iter()
+                .enumerate()
+                .map(|(index, command)| {
+                    ZoneInput::session(
+                        owner.entity,
+                        SessionGeneration(1),
+                        u32::try_from(index + 1).unwrap(),
+                        ZoneCommand::Item(Box::new(command)),
+                    )
+                })
+                .collect(),
+        );
+        zone.enable_items_replay_evidence().unwrap();
+        let cursor = zone.rng.get_word_pos();
+        let applied = zone.run_tick(draft.clone()).unwrap();
+        assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+        assert_eq!(applied, cold.run_tick(draft).unwrap());
+        assert_eq!(cursor, zone.rng.get_word_pos());
+        let evidence = zone.take_items_replay_evidence();
+        let facts = evidence
+            .iter()
+            .filter_map(|fact| {
+                if let crate::domain::zone::evidence::ItemEvidenceData::Formula(value) = &fact.fact
+                {
+                    Some(value)
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(facts.len(), 2);
+        assert_eq!(facts[0]["formula"], "sa_exchange");
+        assert_eq!(
+            facts[0]["inputs"]["ingredients_after"],
+            facts[1]["inputs"]["ingredients_before"]
+        );
+        assert_eq!(facts[1]["inputs"]["ingredients_after"]["57"], 0);
+        if let Ok(path) = std::env::var("NIGHTFALL_TEST_SA_FACTS") {
+            std::fs::write(path, serde_json::to_vec(&facts).unwrap()).unwrap();
+        }
+        let projection = applied
+            .events
+            .iter()
+            .find_map(|event| {
+                if let ZoneEvent::ItemCheckpoint(p) = event {
+                    Some(p)
+                } else {
+                    None
+                }
+            })
+            .unwrap();
+        assert_eq!(projection.exchanges.len(), 2);
+        assert_eq!(projection.receipts.len(), 2);
+        assert_eq!(
+            applied
+                .events
+                .iter()
+                .filter(|e| matches!(e, ZoneEvent::ItemResult(_)))
+                .count(),
+            3
+        );
+        let player = &zone.phase4.as_ref().unwrap().canonical.players[&owner.entity];
+        assert_eq!(player.inventory_revision, old.players[&owner.entity].inventory_revision + 1);
+        assert!(!player.paperdoll.contains_key(&EquipSlot::Rhand));
+        for (index, audit) in projection.exchanges.iter().enumerate() {
+            assert_eq!(
+                audit.after.id.get(),
+                old.allocator.bounds().1 + u64::try_from(index).unwrap()
+            );
+            assert_eq!(
+                (audit.before.template_id, audit.after.template_id, audit.after.enchant),
+                (71, 4711, 4)
+            );
+            assert!(audit.after.slot.is_none());
+            assert_eq!(audit.after.augment_id, Some((2 << 16) | 1));
+            assert!(audit
+                .rows
+                .iter()
+                .all(|row| row.receipt == Some(audit.receipt)));
+            assert_eq!(
+                audit
+                    .rows
+                    .iter()
+                    .map(|row| row.template().unwrap())
+                    .collect::<Vec<_>>(),
+                vec![71, 4634, 2131, 57, 4711]
+            );
+        }
+        for id in [902, 903] {
+            let id = ItemInstanceId::new(id).unwrap();
+            let rows = projection
+                .ledger
+                .iter()
+                .filter(|row| row.instance == id && row.operation == ItemOperation::Consume)
+                .collect::<Vec<_>>();
+            assert_eq!(rows.len(), 1);
+            assert_eq!(rows[0].causes.len(), 2);
+            assert_eq!(
+                rows[0].count_delta,
+                -i64::try_from(old.players[&owner.entity].inventory[&id].count).unwrap()
+            );
+            assert!(rows[0].after.is_none());
+        }
+        let record = crate::application::replay_log::AppliedTickRecord::from_applied(
+            zone.seed.zone,
+            &applied,
+        );
+        assert_eq!(
+            crate::application::replay_log::AppliedTickRecord::decode(&record.encode()).unwrap(),
+            record
+        );
+        assert_eq!(
+            zone.snapshot(),
+            ZoneState::from_snapshot_with_items(
+                zone.snapshot(),
+                Some(Arc::clone(&zone.phase4.as_ref().unwrap().rules))
+            )
+            .unwrap()
+            .snapshot()
+        );
+        for case in 0..8 {
+            let mut invalid = projection.as_ref().clone();
+            match case {
+                0 => invalid.exchanges.clear(),
+                1 => invalid.exchanges[0].rows[1].receipt = None,
+                2 => invalid.exchanges[0].rows[1].count_delta -= 1,
+                3 => invalid.exchanges[0].after.enchant += 1,
+                4 => invalid.exchanges[0].after.id = target,
+                5 => invalid.exchanges[0].recipe += 1,
+                6 => invalid.exchanges[0].rows.swap(0, 1),
+                _ => invalid.exchanges.push(invalid.exchanges[0].clone()),
+            }
+            assert!(
+                invalid
+                    .validate_structure(
+                        zone.phase3
+                            .as_ref()
+                            .unwrap()
+                            .canonical
+                            .checkpoint(owner.entity, zone.next_tick)
+                            .unwrap()
+                            .modifier_install_order
+                            .len()
+                    )
+                    .is_err(),
+                "case {case}"
+            );
+        }
+    }
+
+    #[test]
+    fn v6_exchange_invalid_guard_cost_recipe_and_capacity_do_not_mutate() {
+        use crate::domain::zone::{ItemCommandKind as K, ItemInstanceId};
+        let (zone, owner, npc, target) = exchange_fixture();
+        for case in 0..7 {
+            let mut zone = zone.clone();
+            let mut npc = npc;
+            let mut recipe = 4_316_442_132_483;
+            match case {
+                0 => npc.incarnation = 1,
+                1 => {
+                    zone.entities.get_mut(&owner.entity).unwrap().pos =
+                        Vec2Fixed::from_tiles(127, 129);
+                },
+                2 => {
+                    zone.phase4
+                        .as_mut()
+                        .unwrap()
+                        .canonical
+                        .players
+                        .get_mut(&owner.entity)
+                        .unwrap()
+                        .inventory
+                        .remove(&ItemInstanceId::new(902).unwrap());
+                },
+                3 => recipe = 4_316_442_132_481,
+                4 => {
+                    zone.phase4
+                        .as_mut()
+                        .unwrap()
+                        .canonical
+                        .players
+                        .get_mut(&owner.entity)
+                        .unwrap()
+                        .max_load = 0;
+                },
+                5 => {
+                    let (start, _, end) =
+                        zone.phase4.as_ref().unwrap().canonical.allocator.bounds();
+                    zone.phase4.as_mut().unwrap().canonical.allocator =
+                        crate::domain::zone::ItemInstanceRange::new(start, end, end).unwrap();
+                },
+                _ => zone.entities.get_mut(&npc.entity).unwrap().targeting.dead = true,
+            }
+            let snapshot = zone.snapshot();
+            let command = item_intent(
+                &zone,
+                owner.entity,
+                704,
+                K::ExchangeSpecialAbility {
+                    npc,
+                    target,
+                    recipe,
+                },
+            );
+            let mut events = Vec::new();
+            assert!(
+                zone.item_command_v6(zone.next_tick, &command, &mut events, &mut BTreeMap::new())
+                    .is_err(),
+                "case {case}"
+            );
+            assert_eq!(zone.snapshot(), snapshot, "case {case}");
+            assert!(events.is_empty());
+        }
+    }
 }

@@ -350,6 +350,7 @@ impl ZoneState {
             .map_err(|_| RejectReason::InvalidLoad)?;
         let mut projection = previous.unwrap_or_else(|| Phase4Projection {
             enchant_attempts: Vec::new(),
+            exchanges: Vec::new(),
             paused_core: None,
             tick,
             entity: id,
@@ -568,6 +569,7 @@ impl ZoneState {
         };
         let mut projection = previous.unwrap_or_else(|| Phase4Projection {
             enchant_attempts: Vec::new(),
+            exchanges: Vec::new(),
             paused_core: None,
             tick,
             entity: id,
