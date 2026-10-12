@@ -140,11 +140,15 @@ impl ZoneState {
         // The entire ledger was validated at admission/restore and every mutation preserves
         // it. Validation here fails closed by retaining an unchanged ledger.
         let adjustment = if phase3 {
+            let Some(skill_rules) = self.phase3.as_ref().map(|phase| &phase.canonical.rules) else {
+                return;
+            };
             if p.class_state
-                .validate_for_phase3(
+                .validate_for_skill_rules(
                     registry,
                     &p.identity,
                     CharacterId::from_uuid(entity.as_uuid()),
+                    skill_rules,
                 )
                 .is_err()
             {
@@ -207,10 +211,16 @@ impl ZoneState {
             (None, None) => {},
             (Some(registry), Some(p)) => {
                 if self.phase3_enabled() {
-                    p.class_state.validate_for_phase3(
+                    p.class_state.validate_for_skill_rules(
                         registry,
                         &p.identity,
                         CharacterId::from_uuid(entity.as_uuid()),
+                        &self
+                            .phase3
+                            .as_ref()
+                            .ok_or(RejectReason::InvalidLoad)?
+                            .canonical
+                            .rules,
                     )
                 } else {
                     p.class_state.validate_for(
@@ -580,10 +590,16 @@ impl ZoneState {
             .record_success(receipt.clone())
             .map_err(|_| RejectReason::TransferConflict)?;
         if self.complete_runtime_v5() {
-            p.class_state.validate_for_phase3(
+            p.class_state.validate_for_skill_rules(
                 registry,
                 &p.identity,
                 CharacterId::from_uuid(entity.as_uuid()),
+                &self
+                    .phase3
+                    .as_ref()
+                    .ok_or(RejectReason::InvalidLoad)?
+                    .canonical
+                    .rules,
             )
         } else {
             p.class_state.validate_for(

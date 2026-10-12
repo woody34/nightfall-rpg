@@ -5,7 +5,7 @@ use crate::domain::zone::item_rules::ItemDefinition;
 use crate::domain::zone::phase4::ItemReuse;
 use crate::domain::zone::phase4_checkpoint::ItemReuseKey;
 use crate::domain::zone::skill::{SkillId, SkillRef};
-use crate::domain::zone::{ItemInstanceId, ItemLocation};
+use crate::domain::zone::{CastState, ItemInstanceId, ItemLocation};
 use std::collections::BTreeSet;
 
 struct PreparedItemUse {
@@ -412,5 +412,190 @@ impl ZoneState {
             .map_err(|_| RejectReason::InvalidLoad)?;
         events.push(ZoneEvent::ItemResult(Box::new(result)));
         Ok(projection)
+    }
+}
+
+impl ZoneState {
+    /// L2Character.java:1560–1566: learned casts debit itemConsume once at accepted start.
+    #[allow(clippy::too_many_lines, clippy::too_many_arguments)] // One candidate publishes the cast and its exact inventory work together.
+    pub(super) fn start_paid_skill_cast_v6(
+        &mut self,
+        tick: Tick,
+        entry: &crate::domain::zone::state_skill::StagedCast,
+        skill: &crate::domain::zone::skill::SkillDef,
+        reference: SkillRef,
+        initial_revision: Option<u64>,
+        events: &mut Vec<ZoneEvent>,
+    ) -> Result<(), RejectReason> {
+        use crate::domain::zone::item_inventory::InventoryEdit;
+        use crate::domain::zone::phase4_projection::{ItemAuditEvidence, ItemEvidenceValue as V};
+        use crate::domain::zone::Phase4Projection;
+        let id = entry.caster.entity;
+        let previous = events.iter().find_map(|event| {
+            if let ZoneEvent::ItemCheckpoint(projection) = event {
+                (projection.entity == id).then(|| projection.as_ref().clone())
+            } else {
+                None
+            }
+        });
+        let items = self.phase4.as_ref().ok_or(RejectReason::InvalidLoad)?;
+        let player = items
+            .canonical
+            .players
+            .get(&id)
+            .ok_or(RejectReason::InvalidLoad)?;
+        let changed = initial_revision.map_or_else(
+            || previous.as_ref().is_some_and(|p| !p.ledger.is_empty()),
+            |initial| initial != player.inventory_revision,
+        );
+        let revision = if changed {
+            player.inventory_revision
+        } else {
+            player
+                .inventory_revision
+                .checked_add(1)
+                .filter(|r| i64::try_from(*r).is_ok())
+                .ok_or(RejectReason::InvalidLoad)?
+        };
+        let mut edits = Vec::new();
+        for cost in &skill.item_consume {
+            let template = *cost
+                .item_id
+                .at(reference.rank, skill.max_level)
+                .ok_or(RejectReason::InvalidLoad)?;
+            let count = *cost
+                .count
+                .at(reference.rank, skill.max_level)
+                .ok_or(RejectReason::InvalidLoad)?;
+            if template == 0 || count == 0 {
+                return Err(RejectReason::InvalidLoad);
+            }
+            edits.push(InventoryEdit::TakeTemplate {
+                template,
+                count: u64::from(count),
+                preferred: None,
+            });
+        }
+        let payments = InventoryMutation::prepare(
+            &player.inventory,
+            items.canonical.allocator,
+            &edits,
+            &items.rules,
+            InventoryLimits::from_player(player),
+            InventoryBoundary { tick, revision },
+        )
+        .map_err(|_| RejectReason::InsufficientItems)?;
+        for change in &payments.changes {
+            self.guard_item_removal_v6(
+                id,
+                change.before.as_ref().ok_or(RejectReason::InvalidLoad)?,
+            )?;
+        }
+        let mut candidate = self.clone();
+        let mut local = Vec::new();
+        candidate.start_defined_cast_v6(tick, entry, skill, reference, None, &mut local)?;
+        let CastState::Casting(cast) = &candidate
+            .sidecar(id)
+            .map_err(|_| RejectReason::InvalidLoad)?
+            .cast
+        else {
+            return Err(RejectReason::InvalidLoad);
+        };
+        let cast_id = cast.id;
+        let items = candidate.phase4.as_mut().ok_or(RejectReason::InvalidLoad)?;
+        let player = items
+            .canonical
+            .players
+            .get_mut(&id)
+            .ok_or(RejectReason::InvalidLoad)?;
+        player.inventory = payments.inventory;
+        player.inventory_revision = revision;
+        items.canonical.allocator = payments.allocator;
+        candidate
+            .rebuild_v5(id)
+            .map_err(|_| RejectReason::InvalidLoad)?;
+        let phase = &candidate
+            .phase3
+            .as_ref()
+            .ok_or(RejectReason::InvalidLoad)?
+            .canonical;
+        let checkpoint = candidate
+            .phase4
+            .as_ref()
+            .ok_or(RejectReason::InvalidLoad)?
+            .canonical
+            .checkpoint(id, tick, phase)
+            .map_err(|_| RejectReason::InvalidLoad)?;
+        let account = match &candidate
+            .entities
+            .get(&id)
+            .and_then(|e| e.combat.as_ref())
+            .ok_or(RejectReason::InvalidLoad)?
+            .role
+        {
+            CombatRole::Player {
+                progression: Some(p),
+                ..
+            } => p.identity.account_id,
+            CombatRole::Player {
+                progression: None, ..
+            }
+            | CombatRole::Npc { .. } => return Err(RejectReason::NotAPlayer),
+        };
+        let mut projection = previous.unwrap_or_else(|| Phase4Projection {
+            enchant_attempts: Vec::new(),
+            paused_core: None,
+            tick,
+            entity: id,
+            account,
+            checkpoint: checkpoint.clone(),
+            ledger: Vec::new(),
+            receipts: Vec::new(),
+            materializations: Vec::new(),
+            evidence: Vec::new(),
+        });
+        projection.checkpoint = checkpoint;
+        for change in payments.changes {
+            let before = change.before.as_ref().ok_or(RejectReason::InvalidLoad)?;
+            let count_delta = i64::try_from(
+                before
+                    .count
+                    .checked_sub(change.after.as_ref().map_or(0, |i| i.count))
+                    .ok_or(RejectReason::InvalidLoad)?,
+            )
+            .ok()
+            .and_then(i64::checked_neg)
+            .ok_or(RejectReason::InvalidLoad)?;
+            let cause = ItemAuditEvidence {
+                family: "skill_cast_payment".into(),
+                fields: BTreeMap::from([
+                    ("cast_id".into(), V::Unsigned(cast_id.0)),
+                    ("command_ordinal".into(), V::Unsigned(entry.ordinal.0)),
+                    ("skill_id".into(), V::Unsigned(u64::from(reference.id.0))),
+                    ("rank".into(), V::Unsigned(u64::from(reference.rank))),
+                    ("count_delta".into(), V::Signed(count_delta)),
+                ]),
+            };
+            super::item_commands::append_item_consumption(
+                &mut projection,
+                change,
+                count_delta,
+                cause,
+            )?;
+        }
+        projection
+            .validate_structure(
+                phase
+                    .checkpoint(id, tick)
+                    .map_err(|_| RejectReason::InvalidLoad)?
+                    .modifier_install_order
+                    .len(),
+            )
+            .map_err(|_| RejectReason::InvalidLoad)?;
+        *self = candidate;
+        events.retain(|event| !matches!(event, ZoneEvent::ItemCheckpoint(p) if p.entity == id));
+        events.extend(local);
+        events.push(ZoneEvent::ItemCheckpoint(Box::new(projection)));
+        Ok(())
     }
 }
