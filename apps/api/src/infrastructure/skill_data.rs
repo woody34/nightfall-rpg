@@ -6,6 +6,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 include!("skill_data_embedded.rs");
+include!(concat!(env!("OUT_DIR"), "/phase4_skills.rs"));
 #[path = "skill_data_rules.rs"]
 mod rules;
 pub use rules::{load_phase3_rules, Phase3DataSource, ProfileDataSource};
@@ -15,6 +16,15 @@ pub use rules::{load_phase3_rules, Phase3DataSource, ProfileDataSource};
 pub struct SkillSource(pub BTreeMap<String, String>);
 
 impl SkillSource {
+    /// D31: immutable V6 closure embedded at build; historical sources stay separate.
+    pub fn phase4_embedded() -> Self {
+        Self(
+            EMBEDDED_PHASE4_SKILLS
+                .iter()
+                .map(|(name, text)| ((*name).to_owned(), (*text).to_owned()))
+                .collect(),
+        )
+    }
     /// All definitions, including deferred skills; malformed files cannot be skipped.
     pub fn embedded() -> Self {
         Self(
@@ -58,6 +68,22 @@ pub fn load_skills(
     source: &SkillSource,
     required: &[SkillId],
 ) -> Result<SkillRegistry, SkillDataError> {
+    load_skills_revision(source, required, false)
+}
+
+/// Validate the complete V6 capability manifest before item rules may reference it.
+pub fn load_phase4_skills(
+    source: &SkillSource,
+    required: &[SkillId],
+) -> Result<SkillRegistry, SkillDataError> {
+    load_skills_revision(source, required, true)
+}
+
+fn load_skills_revision(
+    source: &SkillSource,
+    required: &[SkillId],
+    phase4: bool,
+) -> Result<SkillRegistry, SkillDataError> {
     let mut errors = Vec::new();
     let mut skills = BTreeMap::new();
     for (path, text) in &source.0 {
@@ -77,7 +103,11 @@ pub fn load_skills(
         {
             errors.push(format!("{path}: skill {} identity/provenance mismatch", id.0));
         }
-        validate_skill_shape(&skill, &mut errors);
+        if phase4 {
+            crate::domain::zone::skill::validate_skill_shape_revision(&skill, &mut errors, true);
+        } else {
+            validate_skill_shape(&skill, &mut errors);
+        }
         if skill.sample_only {
             continue;
         }
@@ -93,7 +123,12 @@ pub fn load_skills(
     if !errors.is_empty() {
         return Err(SkillDataError(errors));
     }
-    SkillRegistry::try_new(skills).map_err(SkillDataError)
+    if phase4 {
+        SkillRegistry::try_new_phase4(skills)
+    } else {
+        SkillRegistry::try_new(skills)
+    }
+    .map_err(SkillDataError)
 }
 
 #[cfg(test)]
@@ -104,6 +139,41 @@ pub fn load_skills(
 )]
 mod tests {
     use super::*;
+
+    #[test]
+    fn phase4_registry_has_an_isolated_capability_revision() {
+        let source = SkillSource::phase4_embedded();
+        let loaded = load_phase4_skills(&source, &[SkillId(4270), SkillId(6209), SkillId(6213)]);
+        assert!(
+            loaded.is_ok(),
+            "first V6 errors: {:?}",
+            loaded
+                .as_ref()
+                .err()
+                .map(|errors| errors.0.iter().take(20).collect::<Vec<_>>())
+        );
+        let registry = loaded.unwrap();
+        assert_eq!(registry.capability_revision(), 2);
+        assert!(registry.skills().len() > 2_000);
+        assert!(load_skills(&source, &[]).is_err());
+        let bytes = serde_json::to_vec(&registry).unwrap();
+        assert_eq!(serde_json::from_slice::<SkillRegistry>(&bytes).unwrap(), registry);
+        let legacy = SkillRegistry::try_new(BTreeMap::new()).unwrap();
+        let value = serde_json::to_value(legacy).unwrap();
+        assert!(value.get("capability_revision").is_none());
+        for marker in [
+            serde_json::Value::Null,
+            serde_json::json!(1),
+            serde_json::json!(3),
+        ] {
+            let mut forged = value.clone();
+            forged
+                .as_object_mut()
+                .unwrap()
+                .insert("capability_revision".into(), marker);
+            assert!(serde_json::from_value::<SkillRegistry>(forged).is_err());
+        }
+    }
     use crate::domain::class::RuntimeSkillStatus;
     use crate::domain::zone::skill::numeric;
     use crate::domain::zone::skill::SkillCondition;

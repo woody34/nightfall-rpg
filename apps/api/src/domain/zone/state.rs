@@ -444,9 +444,13 @@ impl ZoneSnapshot {
                             )
                         })
                     }) && self
-                        .meta
-                        .phase3_admission_policy
-                        .is_some_and(super::Phase3AdmissionPolicy::is_valid)
+                        .phase3
+                        .as_ref()
+                        .is_some_and(|phase3| phase3.rules.runtime_revision() <= 2)
+                        && self
+                            .meta
+                            .phase3_admission_policy
+                            .is_some_and(super::Phase3AdmissionPolicy::is_valid)
                         && self.rules.as_ref().zip(self.phase3.as_ref()).is_some_and(
                             |(stats, phase3)| {
                                 phase3
@@ -572,6 +576,11 @@ impl ZoneState {
         classes: Arc<crate::domain::class::ClassRegistry>,
         phase3_rules: super::Phase3Rules,
     ) -> Result<Self, SnapshotError> {
+        if phase3_rules.runtime_revision() > 2 {
+            return Err(SnapshotError::Rules(
+                "V6 skill bundle requires an explicit V6 epoch".into(),
+            ));
+        }
         Self::validate_damage_profiles_v5(&phase3_rules)?;
         phase3_rules
             .validate_catalogue(&classes)

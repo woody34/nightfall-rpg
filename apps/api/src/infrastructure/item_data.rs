@@ -4,11 +4,60 @@
 use std::borrow::Cow;
 use std::collections::BTreeMap;
 use std::path::Path;
+use std::sync::{Arc, OnceLock};
 
 use serde_json::{Map, Value};
 
 use crate::domain::zone::item_rules::{ItemRulesParts, Phase4Rules};
 use crate::domain::zone::skill_math::ExactRatio;
+
+/// D27/D31 immutable build inputs resolved together. Only these hashes enter V6 records.
+#[derive(Debug, Clone)]
+pub struct Phase4RuleBundle {
+    /// Item definitions and every item-policy input.
+    pub items: Arc<Phase4Rules>,
+    /// Full V6 skills and their physical/magic/profile/policy inputs.
+    pub skills: Arc<crate::domain::zone::Phase3Rules>,
+}
+
+/// Compile once from embedded sources; no filesystem, database or current-data fallback
+/// is permitted when a recorded hash differs from this executable's bundle.
+pub fn embedded_phase4_bundle() -> Result<Phase4RuleBundle, String> {
+    static BUNDLE: OnceLock<Result<Phase4RuleBundle, String>> = OnceLock::new();
+    BUNDLE
+        .get_or_init(|| {
+            use super::skill_data::{
+                load_phase3_rules, load_phase4_skills, Phase3DataSource, SkillSource,
+            };
+            let base = load_phase3_rules(&Phase3DataSource::embedded(), &[])
+                .map_err(|error| error.to_string())?;
+            let skills = load_phase4_skills(&SkillSource::phase4_embedded(), &[])
+                .map_err(|error| error.to_string())?;
+            let skills = base
+                .with_phase4_skills(skills)
+                .map_err(|errors| errors.join("; "))?;
+            let items = load_embedded_phase4_rules(skills.hash())?;
+            items.validate_phase3(&skills)?;
+            Ok(Phase4RuleBundle {
+                items: Arc::new(items),
+                skills: Arc::new(skills),
+            })
+        })
+        .clone()
+}
+
+/// Resolve both exact recorded hashes before constructing a V6 zone or decoding its
+/// dynamic sidecars. A later build must never substitute a different capability closure.
+pub fn resolve_phase4_bundle(
+    item_hash: [u8; 32],
+    skill_hash: [u8; 32],
+) -> Result<Phase4RuleBundle, String> {
+    let bundle = embedded_phase4_bundle()?;
+    if bundle.items.hash() != item_hash || bundle.skills.hash() != skill_hash {
+        return Err("recorded V6 rules are unavailable in this build".into());
+    }
+    Ok(bundle)
+}
 
 /// Read one immutable generated bundle. This path is not enabled by legacy bootstrap.
 /// The caller supplies the hash of the exact Phase3 skill/profile extension for the epoch.
@@ -442,6 +491,22 @@ pub(crate) fn generated_test_rules() -> &'static Phase4Rules {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn replay_resolves_exact_compiled_item_and_skill_hashes_without_fallback() {
+        let bundle = embedded_phase4_bundle().unwrap();
+        assert_eq!(bundle.skills.runtime_revision(), 3);
+        assert_eq!(bundle.skills.skills().capability_revision(), 2);
+        let restored = resolve_phase4_bundle(bundle.items.hash(), bundle.skills.hash()).unwrap();
+        assert!(Arc::ptr_eq(&bundle.items, &restored.items));
+        assert!(Arc::ptr_eq(&bundle.skills, &restored.skills));
+        let mut wrong = bundle.items.hash();
+        wrong[0] ^= 1;
+        assert!(resolve_phase4_bundle(wrong, bundle.skills.hash()).is_err());
+        let mut wrong = bundle.skills.hash();
+        wrong[0] ^= 1;
+        assert!(resolve_phase4_bundle(bundle.items.hash(), wrong).is_err());
+    }
 
     #[test]
     fn every_manifest_table_is_embedded_byte_exactly() {

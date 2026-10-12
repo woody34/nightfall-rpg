@@ -87,6 +87,24 @@ impl Phase3Rules {
         Self::try_new_revision(skills, pvp, regen, constants, profiles, geometry, npc, 2)
     }
 
+    /// Construct a new V6 epoch bundle with the separately validated item skill closure.
+    /// This consumes immutable source data; it never upgrades a live or recovered V5 epoch.
+    pub fn with_phase4_skills(
+        self,
+        skills: super::skill::SkillRegistry,
+    ) -> Result<Self, Vec<String>> {
+        Self::try_new_revision(
+            skills,
+            self.pvp,
+            self.regen,
+            self.constants,
+            self.profiles,
+            self.geometry,
+            self.npc,
+            3,
+        )
+    }
+
     #[allow(clippy::too_many_arguments)]
     fn try_new_revision(
         skills: super::skill::SkillRegistry,
@@ -98,7 +116,9 @@ impl Phase3Rules {
         npc: super::skill_npc::NpcSkillRules,
         runtime_revision: u32,
     ) -> Result<Self, Vec<String>> {
-        if !matches!(runtime_revision, 1 | 2) {
+        if !matches!(runtime_revision, 1..=3)
+            || skills.capability_revision() != if runtime_revision == 3 { 2 } else { 1 }
+        {
             return Err(vec!["unsupported Phase3 runtime revision".into()]);
         }
         let errors: Vec<_> = [
@@ -170,7 +190,12 @@ impl Phase3Rules {
             if skill.key != known.key
                 || skill.max_level != known.max_level
                 || skill.l2_ref != known.l2_ref
-                || skill.runtime_status != known.runtime_status
+                || (skill.runtime_status != known.runtime_status
+                    && !(self.runtime_revision == 3
+                        && known.runtime_status
+                            == crate::domain::class::RuntimeSkillStatus::Deferred
+                        && skill.runtime_status
+                            == crate::domain::class::RuntimeSkillStatus::Executable))
                 || skill.provenance.file != known.source_file
             {
                 return Err(format!("Phase3 rules disagree with catalogue skill {}", known.id));
