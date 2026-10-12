@@ -6242,6 +6242,17 @@
       },
       "sha256": "4856ed134ed42e8510c341ea79a45f07984db5b9397c0d188f3cc2ae45ce92b1",
       "bytes": 31115
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-game",
+        "revision": "abfde0490ac52a2106e884b7242c0276c44cdf76",
+        "file": "src/main/resources/config/customs.properties",
+        "lines": "1-435",
+        "symbol": "source file"
+      },
+      "sha256": "05d586309f9f029d22d2f55f4b20432ab827c2c76bfd4921763f815c8d413d95",
+      "bytes": 16231
     }
   ],
   "items": [

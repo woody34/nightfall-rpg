@@ -107,7 +107,7 @@ def source(file, line, symbol, game=False):
 class Inputs:
     def __init__(self, dp, game):
         provenance.admit(dp, DATAPACK_REVISION, [D, 'src/main/java/com/l2jserver/datapack/handlers/'])
-        provenance.admit(game, GAME_REVISION, [G, provenance.CONFIG])
+        provenance.admit(game, GAME_REVISION, [G, provenance.CONFIG, 'src/main/resources/config/customs.properties'])
         self.dp, self.game = dp, game
         self.files = {}
     def read(self, file, game=False):
@@ -390,7 +390,7 @@ def constants(inputs):
         'blacksmith':{'template':'blacksmith','x':124,'y':128,'radius_millitiles':3000,'tax_rate':'0'},
         'policy':{'formula_revision':'1','facing':'primitive_last_nonzero_movement_initial_east',
                   'overloaded':'change_only_on_penalty_rank_transition','system_sources':'retain_equipment_across_death',
-                  'augmentation':'retail_only','glow':'placeholder_weapon_7_15_armor_6'}}
+                  'augmentation':'retail_only','weapon_conversion':'deferred_ConvertItem_skill_mechanic','glow':'placeholder_weapon_7_15_armor_6'}}
     tables['capacities.toml']=capacities
     return tables
 
@@ -416,7 +416,7 @@ def local_blockers(item):
     if item['weapon_type'] not in gen_skills.ALLOWED_WEAPON_KINDS: blockers.add('weapon_kind:'+item['weapon_type'])
     if item['bodypart_mask']<0:blockers.add('context:pet')
     if item['bodypart'] in {'hair','hair2','dhair','alldress','rbracelet','lbracelet','deco1'}:blockers.add('slot:'+item['bodypart'])
-    for key in ['oncrit_skill','onmagic_skill','unequip_skill','change_weaponId','equip_condition','use_condition']:
+    for key in ['oncrit_skill','onmagic_skill','unequip_skill','equip_condition','use_condition']:
         if key in p:blockers.add('property:'+key)
     for n in item['conditions']:blockers.update(condition_blockers(n))
     for f in item['functions']:
@@ -534,6 +534,7 @@ def capabilities(items,tables,skills):
         b=local_blockers(row)|dependencies(row['skills']+row['enchant4_skills']+set_by_chest.get(sid,[]))
         for oid in enchant_options.get(sid,[]):
             if oid not in option_index or not option_index[oid]['admitted']:b.add('enchant_option:'+str(oid))
+        if row['handler']=='ManaPotion' and tables['capacities.toml']['policy']['mana_potion_support']=='false':b.add('configuration:mana_potions_disabled')
         use=set()
         if row['handler'] not in supported_handlers:use.add('handler:'+row['handler'])
         # EnchantScrolls selects a target; EnchantItem performs the actual operation.
@@ -584,6 +585,12 @@ def generate(dp=DEFAULT_DP,game=DEFAULT_GAME):
     tables['augmentation_chances.toml']['blacklist']=[int(x.strip()) for x in config_value('AugmentationBlacklist').split(',')]
     tables['augmentation_chances.toml']['sources'].append(source(provenance.CONFIG,'393-415','augmentation eligibility/policies',True))
     tables['capacities.toml']['policy']['allow_augment_pvp_items']=config_value('AllowAugmentPvPItems').lower()
+    custom_file='src/main/resources/config/customs.properties'
+    custom=inputs.read(custom_file,True)
+    mana=re.search(r'^EnableManaPotionSupport\s*=\s*(True|False)\s*$',custom,re.M)
+    if mana is None:raise SourceError('missing mana potion support default')
+    tables['capacities.toml']['policy']['mana_potion_support']=mana[1].lower()
+    tables['capacities.toml']['sources'].append(source(custom_file,'234','EnableManaPotionSupport',True))
     tables['augmentation_chances.toml']['inactive_policy']['skill_chances']=','.join(config_value(key) for key in ['AugmentationNGSkillChance','AugmentationMidSkillChance','AugmentationHighSkillChance','AugmentationTopSkillChance'])
     tables['augmentation_chances.toml']['inactive_policy']['glow_chances']=','.join(config_value(key) for key in ['AugmentationNGGlowChance','AugmentationMidGlowChance','AugmentationHighGlowChance','AugmentationTopGlowChance'])
     items=closure(all_items,tables)
