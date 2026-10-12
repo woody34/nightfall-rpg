@@ -375,7 +375,7 @@
   },
   "policy": "Independent pinned-source exact-rational oracle; injected random residues; V6 integer adaptations, not Java binary64 identity.",
   "coverage": {
-    "F1": 73,
+    "F1": 75,
     "F10": 97,
     "F11": 762,
     "F12": 2077,
@@ -385,12 +385,12 @@
     "F5": 80,
     "F6": 64,
     "F7": 119,
-    "F8": 239,
+    "F8": 242,
     "F9": 22
   },
   "coverage_gate": {
     "design": "12.1",
-    "required_cases": 312,
+    "required_cases": 323,
     "scroll_group_bindings": 126,
     "covered_scroll_group_levels": 8257536,
     "level_encoding": "contiguous inclusive source-rate intervals",
@@ -528086,6 +528086,136 @@
       "vector_sha256": "92740494ff4d552d7c3482fe0f94c254f7e063c2956573ed9ba398edbb9e48bd"
     },
     {
+      "id": "heal-clamp-over-fraction-positive",
+      "family": "F8",
+      "inputs": {
+        "power": 100,
+        "m_atk": 121,
+        "current_hp": 1001,
+        "recoverable_hp": 1000,
+        "remainder_q": 500000
+      },
+      "expected": {
+        "amount": {
+          "numerator": 0,
+          "denominator": 1
+        },
+        "restoration_q": 115556349,
+        "applied_q": 0,
+        "current_hp": 1001,
+        "remainder_q": 500000,
+        "whole_credit": 0,
+        "coefficient": {
+          "numerator": 2,
+          "denominator": 1
+        },
+        "static_bonus": {
+          "numerator": 0,
+          "denominator": 1
+        },
+        "root_lower": {
+          "numerator": 286963992157321208671,
+          "denominator": 18446744073709551616
+        },
+        "root_upper": {
+          "numerator": 8967624754916287771,
+          "denominator": 576460752303423488
+        }
+      },
+      "sources": [
+        "H/effecthandlers/instant/Heal.java:92-104"
+      ],
+      "draws": [],
+      "vector_sha256": "aa3022acd3cd3c7694a7fb8df86c2211324d19c55668977c6bba1ac03680787b"
+    },
+    {
+      "id": "heal-clamp-over-fraction-zero",
+      "family": "F8",
+      "inputs": {
+        "power": 0,
+        "m_atk": 121,
+        "static": true,
+        "current_hp": 1001,
+        "recoverable_hp": 1000,
+        "remainder_q": 500000
+      },
+      "expected": {
+        "amount": {
+          "numerator": 0,
+          "denominator": 1
+        },
+        "restoration_q": 0,
+        "applied_q": 0,
+        "current_hp": 1001,
+        "remainder_q": 500000,
+        "whole_credit": 0,
+        "coefficient": {
+          "numerator": 0,
+          "denominator": 1
+        },
+        "static_bonus": {
+          "numerator": 0,
+          "denominator": 1
+        },
+        "root_lower": {
+          "numerator": 0,
+          "denominator": 1
+        },
+        "root_upper": {
+          "numerator": 0,
+          "denominator": 1
+        }
+      },
+      "sources": [
+        "H/effecthandlers/instant/Heal.java:92-104"
+      ],
+      "draws": [],
+      "vector_sha256": "143d68c84d151af511f049ccd33666f2bec1d8548916f1731b8d5fe0005198c7"
+    },
+    {
+      "id": "heal-clamp-at-cap-fraction",
+      "family": "F8",
+      "inputs": {
+        "power": 100,
+        "m_atk": 121,
+        "current_hp": 1000,
+        "recoverable_hp": 1000,
+        "remainder_q": 500000
+      },
+      "expected": {
+        "amount": {
+          "numerator": 0,
+          "denominator": 1
+        },
+        "restoration_q": 115556349,
+        "applied_q": 0,
+        "current_hp": 1000,
+        "remainder_q": 500000,
+        "whole_credit": 0,
+        "coefficient": {
+          "numerator": 2,
+          "denominator": 1
+        },
+        "static_bonus": {
+          "numerator": 0,
+          "denominator": 1
+        },
+        "root_lower": {
+          "numerator": 286963992157321208671,
+          "denominator": 18446744073709551616
+        },
+        "root_upper": {
+          "numerator": 8967624754916287771,
+          "denominator": 576460752303423488
+        }
+      },
+      "sources": [
+        "H/effecthandlers/instant/Heal.java:92-104"
+      ],
+      "draws": [],
+      "vector_sha256": "4d87e9b7bd4d1980078b7c5c7443f2079edd914943f2a606d18b1d634e7d7b99"
+    },
+    {
       "id": "heal-clamp-static",
       "family": "F8",
       "inputs": {
@@ -529719,6 +529849,1276 @@
       ],
       "draws": [],
       "vector_sha256": "52113f2e34b81b0221ab0d68db46ba8fe43a4701fabb14fe9cf792edd8c43460"
+    },
+    {
+      "id": "attribute-same-priority-1",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/HumanFighter.xml",
+        "level": 1,
+        "equipment": [
+          [
+            1,
+            0,
+            "rhand",
+            1
+          ]
+        ],
+        "skill_refs": [
+          [
+            8498,
+            1,
+            2
+          ]
+        ],
+        "base_deltas": {
+          "str": 2
+        },
+        "base_delta_sequence": 1,
+        "synthetic": {
+          "kind": "synthetic",
+          "description": "skill8498 STR ADD replaced with priority-1 SET40; set STR+2 at priority1",
+          "skill_override_xml": "<skill id=\"8498\" levels=\"1\" name=\"Pink Talisman - STR\">\n\t\t\n\t\t<set name=\"icon\" val=\"icon.etc_talisman_event_i00\" />\n\t\t<set name=\"magicLvl\" val=\"55\" />\n\t\t<set name=\"operateType\" val=\"P\" />\n\t\t<set name=\"targetType\" val=\"SELF\" />\n\t\t<effects>\n\t\t\t<effect name=\"Buff\">\n\t\t\t\t<set stat=\"STR\" val=\"40\" order=\"1\" />\n\t\t\t</effect>\n\t\t</effects>\n\t</skill>"
+        }
+      },
+      "expected": {
+        "exact": {
+          "pAtk": {
+            "numerator": 216,
+            "denominator": 25
+          },
+          "mAtk": {
+            "numerator": 1594323,
+            "denominator": 500000
+          },
+          "pDef": {
+            "numerator": 72,
+            "denominator": 1
+          },
+          "mDef": {
+            "numerator": 5904,
+            "denominator": 125
+          },
+          "critRate": {
+            "numerator": 88,
+            "denominator": 1
+          },
+          "pAtkSpd": {
+            "numerator": 4169,
+            "denominator": 10
+          },
+          "maxHp": {
+            "numerator": 632,
+            "denominator": 5
+          },
+          "maxMp": {
+            "numerator": 192,
+            "denominator": 5
+          },
+          "maxCp": {
+            "numerator": 1264,
+            "denominator": 25
+          },
+          "mAtkSpd": {
+            "numerator": 5328,
+            "denominator": 25
+          },
+          "runSpd": {
+            "numerator": 253,
+            "denominator": 2
+          },
+          "regHp": {
+            "numerator": 711,
+            "denominator": 250
+          },
+          "regMp": {
+            "numerator": 648,
+            "denominator": 625
+          },
+          "regCp": {
+            "numerator": 711,
+            "denominator": 250
+          },
+          "atkCountMax": {
+            "numerator": 1,
+            "denominator": 1
+          },
+          "pAtkAngle": {
+            "numerator": 120,
+            "denominator": 1
+          },
+          "pAtkRange": {
+            "numerator": 40,
+            "denominator": 1
+          },
+          "critDmg": {
+            "numerator": 1,
+            "denominator": 1
+          },
+          "critDmgAdd": {
+            "numerator": 0,
+            "denominator": 1
+          },
+          "sDef": {
+            "numerator": 0,
+            "denominator": 1
+          },
+          "rShld": {
+            "numerator": 0,
+            "denominator": 1
+          },
+          "shieldDefAngle": {
+            "numerator": 0,
+            "denominator": 1
+          },
+          "rEvas": {
+            "numerator": 33,
+            "denominator": 1
+          },
+          "weightLimit": 109020
+        },
+        "root_expressions": {
+          "accCombat": {
+            "rational": {
+              "numerator": 1,
+              "denominator": 1
+            },
+            "root_coefficient": {
+              "numerator": 6,
+              "denominator": 1
+            },
+            "radicand": 30
+          }
+        },
+        "q": {
+          "pAtk": 8640000,
+          "mAtk": 3188646,
+          "pDef": 72000000,
+          "mDef": 47232000,
+          "critRate": 88000000,
+          "pAtkSpd": 416900000,
+          "maxHp": 126400000,
+          "maxMp": 38400000,
+          "maxCp": 50560000,
+          "mAtkSpd": 213120000,
+          "runSpd": 126500000,
+          "regHp": 2844000,
+          "regMp": 1036800,
+          "regCp": 2844000,
+          "atkCountMax": 1000000,
+          "pAtkAngle": 120000000,
+          "pAtkRange": 40000000,
+          "critDmg": 1000000,
+          "critDmgAdd": 0,
+          "sDef": 0,
+          "rShld": 0,
+          "shieldDefAngle": 0,
+          "rEvas": 33000000,
+          "weightLimit": 109020000000,
+          "accCombat": 33863353
+        },
+        "getters": {
+          "pAtk": 8,
+          "mAtk": 3,
+          "pDef": 72,
+          "mDef": 47,
+          "critRate": 88,
+          "pAtkSpd": 416,
+          "maxHp": 126,
+          "maxMp": 38,
+          "maxCp": 50,
+          "mAtkSpd": 213,
+          "runSpd": 126,
+          "regHp": 2,
+          "regMp": 1,
+          "regCp": 2,
+          "atkCountMax": 1,
+          "pAtkAngle": 120,
+          "pAtkRange": 40,
+          "critDmg": 1,
+          "critDmgAdd": 0,
+          "sDef": 0,
+          "rShld": 0,
+          "shieldDefAngle": 0,
+          "rEvas": 33,
+          "weightLimit": 109020,
+          "accCombat": 33
+        },
+        "trace": [
+          {
+            "order": 1,
+            "sequence": 1,
+            "handler_ordinal": 0,
+            "ordinal": 0,
+            "stat": "STR",
+            "operation": "add",
+            "before": {
+              "numerator": 40,
+              "denominator": 1
+            },
+            "operand": {
+              "numerator": 2,
+              "denominator": 1
+            },
+            "after": {
+              "numerator": 42,
+              "denominator": 1
+            }
+          },
+          {
+            "order": 1,
+            "sequence": 2,
+            "handler_ordinal": 0,
+            "ordinal": 0,
+            "stat": "STR",
+            "operation": "set",
+            "before": {
+              "numerator": 42,
+              "denominator": 1
+            },
+            "operand": {
+              "numerator": 40,
+              "denominator": 1
+            },
+            "after": {
+              "numerator": 40,
+              "denominator": 1
+            }
+          },
+          {
+            "order": 0,
+            "sequence": 1,
+            "handler_ordinal": 0,
+            "ordinal": 0,
+            "stat": "pAtk",
+            "operation": "set",
+            "before": {
+              "numerator": 4,
+              "denominator": 1
+            },
+            "operand": {
+              "numerator": 8,
+              "denominator": 1
+            },
+            "after": {
+              "numerator": 8,
+              "denominator": 1
+            }
+          },
+          {
+            "order": 0,
+            "sequence": 1,
+            "handler_ordinal": 0,
+            "ordinal": 1,
+            "stat": "mAtk",
+            "operation": "set",
+            "before": {
+              "numerator": 6,
+              "denominator": 1
+            },
+            "operand": {
+              "numerator": 6,
+              "denominator": 1
+            },
+            "after": {
+              "numerator": 6,
+              "denominator": 1
+            }
+          },
+          {
+            "order": 0,
+            "sequence": 1,
+            "handler_ordinal": 0,
+            "ordinal": 2,
+            "stat": "critRate",
+            "operation": "set",
+            "before": {
+              "numerator": 4,
+              "denominator": 1
+            },
+            "operand": {
+              "numerator": 8,
+              "denominator": 1
+            },
+            "after": {
+              "numerator": 8,
+              "denominator": 1
+            }
+          },
+          {
+            "order": 0,
+            "sequence": 1,
+            "handler_ordinal": 0,
+            "ordinal": 3,
+            "stat": "pAtkSpd",
+            "operation": "set",
+            "before": {
+              "numerator": 300,
+              "denominator": 1
+            },
+            "operand": {
+              "numerator": 379,
+              "denominator": 1
+            },
+            "after": {
+              "numerator": 379,
+              "denominator": 1
+            }
+          },
+          {
+            "order": 1,
+            "sequence": -1,
+            "handler_ordinal": 0,
+            "ordinal": 0,
+            "stat": "pAtk",
+            "operation": "mul",
+            "before": {
+              "numerator": 8,
+              "denominator": 1
+            },
+            "operand": {
+              "numerator": 27,
+              "denominator": 25
+            },
+            "after": {
+              "numerator": 216,
+              "denominator": 25
+            }
+          },
+          {
+            "order": 1,
+            "sequence": -1,
+            "handler_ordinal": 0,
+            "ordinal": 0,
+            "stat": "mAtk",
+            "operation": "mul",
+            "before": {
+              "numerator": 6,
+              "denominator": 1
+            },
+            "operand": {
+              "numerator": 531441,
+              "denominator": 1000000
+            },
+            "after": {
+              "numerator": 1594323,
+              "denominator": 500000
+            }
+          },
+          {
+            "order": 1,
+            "sequence": -1,
+            "handler_ordinal": 0,
+            "ordinal": 0,
+            "stat": "pDef",
+            "operation": "submul",
+            "before": {
+              "numerator": 80,
+              "denominator": 1
+            },
+            "operand": {
+              "numerator": 9,
+              "denominator": 10
+            },
+            "after": {
+              "numerator": 72,
+              "denominator": 1
+            }
+          },
+          {
+            "order": 1,
+            "sequence": -1,
+            "handler_ordinal": 0,
+            "ordinal": 0,
+            "stat": "mDef",
+            "operation": "submul",
+            "before": {
+              "numerator": 41,
+              "denominator": 1
+            },
+            "operand": {
+              "numerator": 144,
+              "denominator": 125
+            },
+            "after": {
+              "numerator": 5904,
+              "denominator": 125
+            }
+          },
+          {
+            "order": 1,
+            "sequence": -1,
+            "handler_ordinal": 0,
+            "ordinal": 0,
+            "stat": "critRate",
+            "operation": "mul",
+            "before": {
+              "numerator": 8,
+              "denominator": 1
+            },
+            "operand": {
+              "numerator": 11,
+              "denominator": 1
+            },
+            "after": {
+              "numerator": 88,
+              "denominator": 1
+            }
+          },
+          {
+            "order": 1,
+            "sequence": -1,
+            "handler_ordinal": 0,
+            "ordinal": 0,
+            "stat": "pAtkSpd",
+            "operation": "mul",
+            "before": {
+              "numerator": 379,
+              "denominator": 1
+            },
+            "operand": {
+              "numerator": 11,
+              "denominator": 10
+            },
+            "after": {
+              "numerator": 4169,
+              "denominator": 10
+            }
+          },
+          {
+            "order": 1,
+            "sequence": -1,
+            "handler_ordinal": 0,
+            "ordinal": 0,
+            "stat": "mAtkSpd",
+            "operation": "mul",
+            "before": {
+              "numerator": 333,
+              "denominator": 1
+            },
+            "operand": {
+              "numerator": 16,
+              "denominator": 25
+            },
+            "after": {
+              "numerator": 5328,
+              "denominator": 25
+            }
+          },
+          {
+            "order": 1,
+            "sequence": -1,
+            "handler_ordinal": 0,
+            "ordinal": 0,
+            "stat": "runSpd",
+            "operation": "mul",
+            "before": {
+              "numerator": 115,
+              "denominator": 1
+            },
+            "operand": {
+              "numerator": 11,
+              "denominator": 10
+            },
+            "after": {
+              "numerator": 253,
+              "denominator": 2
+            }
+          },
+          {
+            "order": 1,
+            "sequence": -1,
+            "handler_ordinal": 0,
+            "ordinal": 0,
+            "stat": "maxHp",
+            "operation": "mul",
+            "before": {
+              "numerator": 80,
+              "denominator": 1
+            },
+            "operand": {
+              "numerator": 79,
+              "denominator": 50
+            },
+            "after": {
+              "numerator": 632,
+              "denominator": 5
+            }
+          },
+          {
+            "order": 1,
+            "sequence": -1,
+            "handler_ordinal": 0,
+            "ordinal": 0,
+            "stat": "maxCp",
+            "operation": "mul",
+            "before": {
+              "numerator": 32,
+              "denominator": 1
+            },
+            "operand": {
+              "numerator": 79,
+              "denominator": 50
+            },
+            "after": {
+              "numerator": 1264,
+              "denominator": 25
+            }
+          },
+          {
+            "order": 1,
+            "sequence": -1,
+            "handler_ordinal": 0,
+            "ordinal": 0,
+            "stat": "maxMp",
+            "operation": "mul",
+            "before": {
+              "numerator": 30,
+              "denominator": 1
+            },
+            "operand": {
+              "numerator": 32,
+              "denominator": 25
+            },
+            "after": {
+              "numerator": 192,
+              "denominator": 5
+            }
+          },
+          {
+            "order": 1,
+            "sequence": -1,
+            "handler_ordinal": 0,
+            "ordinal": 0,
+            "stat": "rEvas",
+            "operation": "evasion",
+            "before": {
+              "numerator": 0,
+              "denominator": 1
+            },
+            "operand": {
+              "numerator": 33,
+              "denominator": 1
+            },
+            "after": {
+              "numerator": 33,
+              "denominator": 1
+            }
+          },
+          {
+            "order": 1,
+            "sequence": -1,
+            "handler_ordinal": 0,
+            "ordinal": 0,
+            "stat": "accCombat",
+            "operation": "accuracy",
+            "before": {
+              "rational": {
+                "numerator": 0,
+                "denominator": 1
+              },
+              "root_coefficient": {
+                "numerator": 0,
+                "denominator": 1
+              },
+              "radicand": 30
+            },
+            "operand": {
+              "numerator": 1,
+              "denominator": 1
+            },
+            "after": {
+              "rational": {
+                "numerator": 1,
+                "denominator": 1
+              },
+              "root_coefficient": {
+                "numerator": 6,
+                "denominator": 1
+              },
+              "radicand": 30
+            }
+          },
+          {
+            "order": 40,
+            "sequence": -1,
+            "handler_ordinal": 0,
+            "ordinal": 0,
+            "stat": "maxHp",
+            "operation": "add",
+            "before": {
+              "numerator": 632,
+              "denominator": 5
+            },
+            "operand": {
+              "numerator": 0,
+              "denominator": 1
+            },
+            "after": {
+              "numerator": 632,
+              "denominator": 5
+            }
+          }
+        ],
+        "base_stats": {
+          "STR": 40,
+          "DEX": 30,
+          "CON": 43,
+          "INT": 21,
+          "WIT": 11,
+          "MEN": 25
+        },
+        "weapon_type": "SWORD",
+        "random_damage": 10,
+        "spread_bound": 21,
+        "enchant_hp": 0,
+        "traits": [],
+        "weight": 1600
+      },
+      "sources": [
+        "design/3.2 FunctionKey install order; synthetic SET operand",
+        "D/stats/skills/08400-08499.xml:1906-1916",
+        "G/model/stats/BaseStats.java:80-85",
+        "G/model/stats/functions/formulas/FuncPAtkMod.java:42-43",
+        "G/model/stats/functions/formulas/FuncArmorSet.java:46-67"
+      ],
+      "draws": [],
+      "vector_sha256": "8ffa0b3f8151eae9b0dd2d792db5b45bd0258ef75f6f79aafcaa625361a00f5d"
+    },
+    {
+      "id": "attribute-same-priority-3",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/HumanFighter.xml",
+        "level": 1,
+        "equipment": [
+          [
+            1,
+            0,
+            "rhand",
+            1
+          ]
+        ],
+        "skill_refs": [
+          [
+            8498,
+            1,
+            2
+          ]
+        ],
+        "base_deltas": {
+          "str": 2
+        },
+        "base_delta_sequence": 3,
+        "synthetic": {
+          "kind": "synthetic",
+          "description": "skill8498 STR ADD replaced with priority-1 SET40; set STR+2 at priority1",
+          "skill_override_xml": "<skill id=\"8498\" levels=\"1\" name=\"Pink Talisman - STR\">\n\t\t\n\t\t<set name=\"icon\" val=\"icon.etc_talisman_event_i00\" />\n\t\t<set name=\"magicLvl\" val=\"55\" />\n\t\t<set name=\"operateType\" val=\"P\" />\n\t\t<set name=\"targetType\" val=\"SELF\" />\n\t\t<effects>\n\t\t\t<effect name=\"Buff\">\n\t\t\t\t<set stat=\"STR\" val=\"40\" order=\"1\" />\n\t\t\t</effect>\n\t\t</effects>\n\t</skill>"
+        }
+      },
+      "expected": {
+        "exact": {
+          "pAtk": {
+            "numerator": 1161,
+            "denominator": 125
+          },
+          "mAtk": {
+            "numerator": 1594323,
+            "denominator": 500000
+          },
+          "pDef": {
+            "numerator": 72,
+            "denominator": 1
+          },
+          "mDef": {
+            "numerator": 5904,
+            "denominator": 125
+          },
+          "critRate": {
+            "numerator": 88,
+            "denominator": 1
+          },
+          "pAtkSpd": {
+            "numerator": 4169,
+            "denominator": 10
+          },
+          "maxHp": {
+            "numerator": 632,
+            "denominator": 5
+          },
+          "maxMp": {
+            "numerator": 192,
+            "denominator": 5
+          },
+          "maxCp": {
+            "numerator": 1264,
+            "denominator": 25
+          },
+          "mAtkSpd": {
+            "numerator": 5328,
+            "denominator": 25
+          },
+          "runSpd": {
+            "numerator": 253,
+            "denominator": 2
+          },
+          "regHp": {
+            "numerator": 711,
+            "denominator": 250
+          },
+          "regMp": {
+            "numerator": 648,
+            "denominator": 625
+          },
+          "regCp": {
+            "numerator": 711,
+            "denominator": 250
+          },
+          "atkCountMax": {
+            "numerator": 1,
+            "denominator": 1
+          },
+          "pAtkAngle": {
+            "numerator": 120,
+            "denominator": 1
+          },
+          "pAtkRange": {
+            "numerator": 40,
+            "denominator": 1
+          },
+          "critDmg": {
+            "numerator": 1,
+            "denominator": 1
+          },
+          "critDmgAdd": {
+            "numerator": 0,
+            "denominator": 1
+          },
+          "sDef": {
+            "numerator": 0,
+            "denominator": 1
+          },
+          "rShld": {
+            "numerator": 0,
+            "denominator": 1
+          },
+          "shieldDefAngle": {
+            "numerator": 0,
+            "denominator": 1
+          },
+          "rEvas": {
+            "numerator": 33,
+            "denominator": 1
+          },
+          "weightLimit": 109020
+        },
+        "root_expressions": {
+          "accCombat": {
+            "rational": {
+              "numerator": 1,
+              "denominator": 1
+            },
+            "root_coefficient": {
+              "numerator": 6,
+              "denominator": 1
+            },
+            "radicand": 30
+          }
+        },
+        "q": {
+          "pAtk": 9288000,
+          "mAtk": 3188646,
+          "pDef": 72000000,
+          "mDef": 47232000,
+          "critRate": 88000000,
+          "pAtkSpd": 416900000,
+          "maxHp": 126400000,
+          "maxMp": 38400000,
+          "maxCp": 50560000,
+          "mAtkSpd": 213120000,
+          "runSpd": 126500000,
+          "regHp": 2844000,
+          "regMp": 1036800,
+          "regCp": 2844000,
+          "atkCountMax": 1000000,
+          "pAtkAngle": 120000000,
+          "pAtkRange": 40000000,
+          "critDmg": 1000000,
+          "critDmgAdd": 0,
+          "sDef": 0,
+          "rShld": 0,
+          "shieldDefAngle": 0,
+          "rEvas": 33000000,
+          "weightLimit": 109020000000,
+          "accCombat": 33863353
+        },
+        "getters": {
+          "pAtk": 9,
+          "mAtk": 3,
+          "pDef": 72,
+          "mDef": 47,
+          "critRate": 88,
+          "pAtkSpd": 416,
+          "maxHp": 126,
+          "maxMp": 38,
+          "maxCp": 50,
+          "mAtkSpd": 213,
+          "runSpd": 126,
+          "regHp": 2,
+          "regMp": 1,
+          "regCp": 2,
+          "atkCountMax": 1,
+          "pAtkAngle": 120,
+          "pAtkRange": 40,
+          "critDmg": 1,
+          "critDmgAdd": 0,
+          "sDef": 0,
+          "rShld": 0,
+          "shieldDefAngle": 0,
+          "rEvas": 33,
+          "weightLimit": 109020,
+          "accCombat": 33
+        },
+        "trace": [
+          {
+            "order": 1,
+            "sequence": 2,
+            "handler_ordinal": 0,
+            "ordinal": 0,
+            "stat": "STR",
+            "operation": "set",
+            "before": {
+              "numerator": 40,
+              "denominator": 1
+            },
+            "operand": {
+              "numerator": 40,
+              "denominator": 1
+            },
+            "after": {
+              "numerator": 40,
+              "denominator": 1
+            }
+          },
+          {
+            "order": 1,
+            "sequence": 3,
+            "handler_ordinal": 0,
+            "ordinal": 0,
+            "stat": "STR",
+            "operation": "add",
+            "before": {
+              "numerator": 40,
+              "denominator": 1
+            },
+            "operand": {
+              "numerator": 2,
+              "denominator": 1
+            },
+            "after": {
+              "numerator": 42,
+              "denominator": 1
+            }
+          },
+          {
+            "order": 0,
+            "sequence": 1,
+            "handler_ordinal": 0,
+            "ordinal": 0,
+            "stat": "pAtk",
+            "operation": "set",
+            "before": {
+              "numerator": 4,
+              "denominator": 1
+            },
+            "operand": {
+              "numerator": 8,
+              "denominator": 1
+            },
+            "after": {
+              "numerator": 8,
+              "denominator": 1
+            }
+          },
+          {
+            "order": 0,
+            "sequence": 1,
+            "handler_ordinal": 0,
+            "ordinal": 1,
+            "stat": "mAtk",
+            "operation": "set",
+            "before": {
+              "numerator": 6,
+              "denominator": 1
+            },
+            "operand": {
+              "numerator": 6,
+              "denominator": 1
+            },
+            "after": {
+              "numerator": 6,
+              "denominator": 1
+            }
+          },
+          {
+            "order": 0,
+            "sequence": 1,
+            "handler_ordinal": 0,
+            "ordinal": 2,
+            "stat": "critRate",
+            "operation": "set",
+            "before": {
+              "numerator": 4,
+              "denominator": 1
+            },
+            "operand": {
+              "numerator": 8,
+              "denominator": 1
+            },
+            "after": {
+              "numerator": 8,
+              "denominator": 1
+            }
+          },
+          {
+            "order": 0,
+            "sequence": 1,
+            "handler_ordinal": 0,
+            "ordinal": 3,
+            "stat": "pAtkSpd",
+            "operation": "set",
+            "before": {
+              "numerator": 300,
+              "denominator": 1
+            },
+            "operand": {
+              "numerator": 379,
+              "denominator": 1
+            },
+            "after": {
+              "numerator": 379,
+              "denominator": 1
+            }
+          },
+          {
+            "order": 1,
+            "sequence": -1,
+            "handler_ordinal": 0,
+            "ordinal": 0,
+            "stat": "pAtk",
+            "operation": "mul",
+            "before": {
+              "numerator": 8,
+              "denominator": 1
+            },
+            "operand": {
+              "numerator": 1161,
+              "denominator": 1000
+            },
+            "after": {
+              "numerator": 1161,
+              "denominator": 125
+            }
+          },
+          {
+            "order": 1,
+            "sequence": -1,
+            "handler_ordinal": 0,
+            "ordinal": 0,
+            "stat": "mAtk",
+            "operation": "mul",
+            "before": {
+              "numerator": 6,
+              "denominator": 1
+            },
+            "operand": {
+              "numerator": 531441,
+              "denominator": 1000000
+            },
+            "after": {
+              "numerator": 1594323,
+              "denominator": 500000
+            }
+          },
+          {
+            "order": 1,
+            "sequence": -1,
+            "handler_ordinal": 0,
+            "ordinal": 0,
+            "stat": "pDef",
+            "operation": "submul",
+            "before": {
+              "numerator": 80,
+              "denominator": 1
+            },
+            "operand": {
+              "numerator": 9,
+              "denominator": 10
+            },
+            "after": {
+              "numerator": 72,
+              "denominator": 1
+            }
+          },
+          {
+            "order": 1,
+            "sequence": -1,
+            "handler_ordinal": 0,
+            "ordinal": 0,
+            "stat": "mDef",
+            "operation": "submul",
+            "before": {
+              "numerator": 41,
+              "denominator": 1
+            },
+            "operand": {
+              "numerator": 144,
+              "denominator": 125
+            },
+            "after": {
+              "numerator": 5904,
+              "denominator": 125
+            }
+          },
+          {
+            "order": 1,
+            "sequence": -1,
+            "handler_ordinal": 0,
+            "ordinal": 0,
+            "stat": "critRate",
+            "operation": "mul",
+            "before": {
+              "numerator": 8,
+              "denominator": 1
+            },
+            "operand": {
+              "numerator": 11,
+              "denominator": 1
+            },
+            "after": {
+              "numerator": 88,
+              "denominator": 1
+            }
+          },
+          {
+            "order": 1,
+            "sequence": -1,
+            "handler_ordinal": 0,
+            "ordinal": 0,
+            "stat": "pAtkSpd",
+            "operation": "mul",
+            "before": {
+              "numerator": 379,
+              "denominator": 1
+            },
+            "operand": {
+              "numerator": 11,
+              "denominator": 10
+            },
+            "after": {
+              "numerator": 4169,
+              "denominator": 10
+            }
+          },
+          {
+            "order": 1,
+            "sequence": -1,
+            "handler_ordinal": 0,
+            "ordinal": 0,
+            "stat": "mAtkSpd",
+            "operation": "mul",
+            "before": {
+              "numerator": 333,
+              "denominator": 1
+            },
+            "operand": {
+              "numerator": 16,
+              "denominator": 25
+            },
+            "after": {
+              "numerator": 5328,
+              "denominator": 25
+            }
+          },
+          {
+            "order": 1,
+            "sequence": -1,
+            "handler_ordinal": 0,
+            "ordinal": 0,
+            "stat": "runSpd",
+            "operation": "mul",
+            "before": {
+              "numerator": 115,
+              "denominator": 1
+            },
+            "operand": {
+              "numerator": 11,
+              "denominator": 10
+            },
+            "after": {
+              "numerator": 253,
+              "denominator": 2
+            }
+          },
+          {
+            "order": 1,
+            "sequence": -1,
+            "handler_ordinal": 0,
+            "ordinal": 0,
+            "stat": "maxHp",
+            "operation": "mul",
+            "before": {
+              "numerator": 80,
+              "denominator": 1
+            },
+            "operand": {
+              "numerator": 79,
+              "denominator": 50
+            },
+            "after": {
+              "numerator": 632,
+              "denominator": 5
+            }
+          },
+          {
+            "order": 1,
+            "sequence": -1,
+            "handler_ordinal": 0,
+            "ordinal": 0,
+            "stat": "maxCp",
+            "operation": "mul",
+            "before": {
+              "numerator": 32,
+              "denominator": 1
+            },
+            "operand": {
+              "numerator": 79,
+              "denominator": 50
+            },
+            "after": {
+              "numerator": 1264,
+              "denominator": 25
+            }
+          },
+          {
+            "order": 1,
+            "sequence": -1,
+            "handler_ordinal": 0,
+            "ordinal": 0,
+            "stat": "maxMp",
+            "operation": "mul",
+            "before": {
+              "numerator": 30,
+              "denominator": 1
+            },
+            "operand": {
+              "numerator": 32,
+              "denominator": 25
+            },
+            "after": {
+              "numerator": 192,
+              "denominator": 5
+            }
+          },
+          {
+            "order": 1,
+            "sequence": -1,
+            "handler_ordinal": 0,
+            "ordinal": 0,
+            "stat": "rEvas",
+            "operation": "evasion",
+            "before": {
+              "numerator": 0,
+              "denominator": 1
+            },
+            "operand": {
+              "numerator": 33,
+              "denominator": 1
+            },
+            "after": {
+              "numerator": 33,
+              "denominator": 1
+            }
+          },
+          {
+            "order": 1,
+            "sequence": -1,
+            "handler_ordinal": 0,
+            "ordinal": 0,
+            "stat": "accCombat",
+            "operation": "accuracy",
+            "before": {
+              "rational": {
+                "numerator": 0,
+                "denominator": 1
+              },
+              "root_coefficient": {
+                "numerator": 0,
+                "denominator": 1
+              },
+              "radicand": 30
+            },
+            "operand": {
+              "numerator": 1,
+              "denominator": 1
+            },
+            "after": {
+              "rational": {
+                "numerator": 1,
+                "denominator": 1
+              },
+              "root_coefficient": {
+                "numerator": 6,
+                "denominator": 1
+              },
+              "radicand": 30
+            }
+          },
+          {
+            "order": 40,
+            "sequence": -1,
+            "handler_ordinal": 0,
+            "ordinal": 0,
+            "stat": "maxHp",
+            "operation": "add",
+            "before": {
+              "numerator": 632,
+              "denominator": 5
+            },
+            "operand": {
+              "numerator": 0,
+              "denominator": 1
+            },
+            "after": {
+              "numerator": 632,
+              "denominator": 5
+            }
+          }
+        ],
+        "base_stats": {
+          "STR": 42,
+          "DEX": 30,
+          "CON": 43,
+          "INT": 21,
+          "WIT": 11,
+          "MEN": 25
+        },
+        "weapon_type": "SWORD",
+        "random_damage": 10,
+        "spread_bound": 21,
+        "enchant_hp": 0,
+        "traits": [],
+        "weight": 1600
+      },
+      "sources": [
+        "design/3.2 FunctionKey install order; synthetic SET operand",
+        "D/stats/skills/08400-08499.xml:1906-1916",
+        "G/model/stats/BaseStats.java:80-85",
+        "G/model/stats/functions/formulas/FuncPAtkMod.java:42-43",
+        "G/model/stats/functions/formulas/FuncArmorSet.java:46-67"
+      ],
+      "draws": [],
+      "vector_sha256": "580a1702db9e903182dfecea8dadf12f673848da43422ee9ce209d1438ea9220"
     },
     {
       "id": "provider-install-remove-reinstall-0",
@@ -609958,112 +611358,214 @@
       "id": "consumable-same-tick-lanes",
       "family": "F12",
       "inputs": {
-        "tick": 10,
-        "definitions": [
+        "starts": [
           {
-            "template_id": 736,
-            "handler": "ItemSkills",
-            "default_action": "SKILL_REDUCE",
-            "etcitem_type": "SCROLL",
-            "reuse_delay_ms": 0,
-            "reuse_group": 0,
-            "immediate": false,
-            "ex_immediate": false,
-            "skills": [
-              {
-                "id": 2013,
-                "rank": 1,
-                "hit_time_ms": 20000,
-                "static": true,
-                "simultaneous": false,
-                "reuse_delay_ms": 0,
-                "item_consume_id": 736,
-                "item_consume_count": 1,
-                "conditions": [
-                  "<cond msgId=\"113\" addName=\"1\">\n\t\t\t<and>\n\t\t\t\t<player canEscape=\"true\" />\n\t\t\t\t<not>\n\t\t\t\t\t<player insideZoneId=\"10501, 10502, 10503, 10504, 10505, 10506, 10507, 10508\" />\n\t\t\t\t</not>\n\t\t\t</and>\n\t\t</cond>"
-                ],
-                "effects": [
-                  {
-                    "name": "Escape",
-                    "params": {
-                      "escapeType": "TOWN"
+            "tick": 10,
+            "cast_id": 1,
+            "definition": {
+              "template_id": 736,
+              "handler": "ItemSkills",
+              "default_action": "SKILL_REDUCE",
+              "etcitem_type": "SCROLL",
+              "reuse_delay_ms": 0,
+              "reuse_group": 0,
+              "immediate": false,
+              "ex_immediate": false,
+              "skills": [
+                {
+                  "id": 2013,
+                  "rank": 1,
+                  "hit_time_ms": 20000,
+                  "static": true,
+                  "simultaneous": false,
+                  "reuse_delay_ms": 0,
+                  "item_consume_id": 736,
+                  "item_consume_count": 1,
+                  "conditions": [
+                    "<cond msgId=\"113\" addName=\"1\">\n\t\t\t<and>\n\t\t\t\t<player canEscape=\"true\" />\n\t\t\t\t<not>\n\t\t\t\t\t<player insideZoneId=\"10501, 10502, 10503, 10504, 10505, 10506, 10507, 10508\" />\n\t\t\t\t</not>\n\t\t\t</and>\n\t\t</cond>"
+                  ],
+                  "effects": [
+                    {
+                      "name": "Escape",
+                      "params": {
+                        "escapeType": "TOWN"
+                      }
                     }
-                  }
-                ],
-                "source": "src/main/resources/data/stats/skills/02000-02099.xml"
-              }
-            ]
+                  ],
+                  "source": "src/main/resources/data/stats/skills/02000-02099.xml"
+                }
+              ]
+            },
+            "available": {
+              "736": 1,
+              "1539": 2
+            },
+            "condition_context": {
+              "canEscape": true,
+              "inside_zone_ids": []
+            }
           },
           {
-            "template_id": 1539,
-            "handler": "ItemSkills",
-            "default_action": "SKILL_REDUCE",
-            "etcitem_type": "POTION",
-            "reuse_delay_ms": 10000,
-            "reuse_group": 0,
-            "immediate": true,
-            "ex_immediate": false,
-            "skills": [
-              {
-                "id": 2037,
-                "rank": 1,
-                "hit_time_ms": 0,
-                "static": true,
-                "simultaneous": false,
-                "reuse_delay_ms": 0,
-                "item_consume_id": 0,
-                "item_consume_count": 0,
-                "conditions": [],
-                "effects": [
-                  {
-                    "name": "TickHp",
-                    "params": {
-                      "power": "50",
-                      "ticks": "3",
-                      "mode": "DIFF"
+            "tick": 209,
+            "cast_id": 2,
+            "definition": {
+              "template_id": 1539,
+              "handler": "ItemSkills",
+              "default_action": "SKILL_REDUCE",
+              "etcitem_type": "POTION",
+              "reuse_delay_ms": 10000,
+              "reuse_group": 0,
+              "immediate": true,
+              "ex_immediate": false,
+              "skills": [
+                {
+                  "id": 2037,
+                  "rank": 1,
+                  "hit_time_ms": 0,
+                  "static": true,
+                  "simultaneous": false,
+                  "reuse_delay_ms": 0,
+                  "item_consume_id": 0,
+                  "item_consume_count": 0,
+                  "conditions": [],
+                  "effects": [
+                    {
+                      "name": "TickHp",
+                      "params": {
+                        "power": "50",
+                        "ticks": "3",
+                        "mode": "DIFF"
+                      }
                     }
-                  }
-                ],
-                "source": "src/main/resources/data/stats/skills/02000-02099.xml"
-              }
-            ]
+                  ],
+                  "source": "src/main/resources/data/stats/skills/02000-02099.xml"
+                }
+              ]
+            }
           }
-        ]
+        ],
+        "caster_ordinal": 0,
+        "caster_id": 100
       },
-      "expected": [
-        {
-          "accepted": true,
-          "consumed": {
-            "736": 1
+      "expected": {
+        "trace": [
+          {
+            "event": "start",
+            "tick": 10,
+            "cast": {
+              "cast_id": 1,
+              "lane": "main",
+              "skill_id": 2013,
+              "start_tick": 10,
+              "completion_tick": 210,
+              "caster_ordinal": 0,
+              "caster_id": 100,
+              "prepaid": true
+            },
+            "consumed": {
+              "736": 1
+            },
+            "inventory": {
+              "736": 0,
+              "1539": 2
+            },
+            "main_cast": {
+              "cast_id": 1,
+              "lane": "main",
+              "skill_id": 2013,
+              "start_tick": 10,
+              "completion_tick": 210,
+              "caster_ordinal": 0,
+              "caster_id": 100,
+              "prepaid": true
+            }
           },
-          "lanes": [
-            "main"
-          ],
-          "item_deadlines": {},
-          "skill_deadlines": {},
-          "main_cast_preserved": false
+          {
+            "event": "start",
+            "tick": 209,
+            "cast": {
+              "cast_id": 2,
+              "lane": "item",
+              "skill_id": 2037,
+              "start_tick": 209,
+              "completion_tick": 210,
+              "caster_ordinal": 0,
+              "caster_id": 100,
+              "prepaid": true
+            },
+            "consumed": {
+              "1539": 1
+            },
+            "inventory": {
+              "736": 0,
+              "1539": 1
+            },
+            "main_cast": {
+              "cast_id": 1,
+              "lane": "main",
+              "skill_id": 2013,
+              "start_tick": 10,
+              "completion_tick": 210,
+              "caster_ordinal": 0,
+              "caster_id": 100,
+              "prepaid": true
+            }
+          },
+          {
+            "event": "complete",
+            "tick": 210,
+            "cast_id": 1,
+            "lane": "main",
+            "consumed": {},
+            "inventory": {
+              "736": 0,
+              "1539": 1
+            },
+            "main_cast": null
+          },
+          {
+            "event": "complete",
+            "tick": 210,
+            "cast_id": 2,
+            "lane": "item",
+            "consumed": {},
+            "inventory": {
+              "736": 0,
+              "1539": 1
+            },
+            "main_cast": null
+          }
+        ],
+        "completion_order": [
+          1,
+          2
+        ],
+        "total_consumed": {
+          "736": 1,
+          "1539": 1
         },
-        {
-          "accepted": true,
-          "consumed": {
-            "1539": 1
-          },
-          "lanes": [
-            "item"
-          ],
-          "item_deadlines": {
-            "1539": 110
-          },
-          "skill_deadlines": {},
-          "main_cast_preserved": true
-        }
-      ],
+        "completion_consumed": {},
+        "inventory": {
+          "736": 0,
+          "1539": 1
+        },
+        "main_cast": null,
+        "item_casts": [],
+        "item_deadlines": {
+          "1539": 309
+        },
+        "skill_deadlines": {}
+      },
       "sources": [
+        "src/main/resources/data/stats/items/00700-00799.xml:497",
+        "src/main/resources/data/stats/items/01500-01599.xml:362",
+        "D/stats/skills/02000-02099.xml (2013/2037)",
         "H/itemhandlers/ItemSkillsTemplate.java:98-129",
-        "design/I5 same tick main/item lanes"
+        "G/model/actor/L2Character.java:1560-1566",
+        "design/2.1 phase5 (deadline,caster ordinal,caster id,cast id); 5.5 minimum one tick; I5 prepaid lanes"
       ],
       "draws": [],
-      "vector_sha256": "a9f6c048b4d9ea3de629b4d6acaa24633e75d1748e3222838f14a31b0e24a43b"
+      "vector_sha256": "485a779f8d2c4d9fd58d1093c2b2d0dad43b7dea5adf45a9ed6b1baffbea09b2"
     },
     {
       "id": "elixir-range-2287-1-0",
@@ -617118,5 +618620,5 @@
       }
     }
   ],
-  "vector_set_sha256": "8f617f09c25259755f98a89a1e4474efb600427a333da9b99029fafd2e99b5e8"
+  "vector_set_sha256": "d1391be286d6182305ba0a3f5f31cad011bc17664af2cf05ebb20926b201233f"
 }
