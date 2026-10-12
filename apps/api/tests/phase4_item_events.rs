@@ -127,3 +127,41 @@ fn v5_snapshot_grammar_rejects_every_item_audit_subject() {
         assert!(snapshot.validate_version().is_err());
     }
 }
+
+#[test]
+fn exchanged_fact_preserves_distinct_before_after_templates_and_selects_current_template() {
+    let item = ItemInstance {
+        id: ItemInstanceId::new(1).unwrap(),
+        template_id: 72,
+        count: 1,
+        location: ItemLocation::Inventory,
+        slot: None,
+        enchant: 3,
+        augment_id: None,
+        charges: 0,
+        created_tick: Tick(1),
+        revision: 1,
+    };
+    let mut after = item.clone();
+    after.template_id = 4681;
+    after.revision = 2;
+    let fact = ItemEventFact {
+        metadata: EventMetadata::default(),
+        character_id: CharacterId::new(),
+        instance_id: item.id,
+        template_id: after.template_id,
+        count_delta: 0,
+        before: Some(item.clone()),
+        after: Some(after.clone()),
+        causes: Vec::new(),
+    };
+    fact.validate().unwrap();
+    let event = DomainEvent::ItemExchanged { fact: fact.clone() };
+    assert_eq!(
+        serde_json::from_slice::<DomainEvent>(&serde_json::to_vec(&event).unwrap()).unwrap(),
+        event
+    );
+    let mut invalid = fact;
+    invalid.template_id = item.template_id;
+    assert!(invalid.validate().is_err());
+}

@@ -166,11 +166,17 @@ impl ItemEventFact {
         );
         for item in self.before.iter().chain(self.after.iter()) {
             item.validate()?;
-            anyhow::ensure!(
-                item.id == self.instance_id && item.template_id == self.template_id,
-                "item audit identity mismatch"
-            );
+            anyhow::ensure!(item.id == self.instance_id, "item audit identity mismatch");
         }
+        let current = self
+            .after
+            .as_ref()
+            .or(self.before.as_ref())
+            .ok_or_else(|| anyhow::anyhow!("item audit scalar state is missing"))?;
+        anyhow::ensure!(
+            current.template_id == self.template_id,
+            "item audit template projection mismatch"
+        );
         Ok(())
     }
 }
