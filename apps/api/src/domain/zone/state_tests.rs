@@ -1040,3 +1040,26 @@ fn phase3_inputs_cannot_partially_mutate_any_legacy_draft() {
         assert_eq!(zone.snapshot(), before);
     }
 }
+
+#[test]
+fn item_intent_never_mutates_a_historical_epoch() {
+    use crate::domain::zone::{ItemCommand, ItemCommandKind};
+    let mut state = zone();
+    run(&mut state, vec![spawn_player(1, 10, 10)]);
+    let item = ItemCommand::new(
+        id(1),
+        Uuid::from_u128(2),
+        ItemCommandKind::ToggleAutoShot {
+            template: 1835,
+            enabled: true,
+        },
+    )
+    .unwrap()
+    .with_account(crate::domain::AccountId::from_uuid(Uuid::from_u128(3)))
+    .unwrap();
+    let before = state.snapshot();
+    let input = ZoneInput::session(id(1), GEN1, 9, ZoneCommand::Item(Box::new(item)));
+    let draft = state.draft(vec![input]);
+    assert_eq!(state.run_tick(draft), Err(TickError::Phase4CommandInLegacy));
+    assert_eq!(state.snapshot(), before);
+}

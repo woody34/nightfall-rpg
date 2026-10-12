@@ -1054,7 +1054,8 @@ impl ZoneState {
                     })
                     .map_err(cast_reject)?;
             },
-            ZoneCommand::AcceptResurrect { .. }
+            ZoneCommand::Item(_)
+            | ZoneCommand::AcceptResurrect { .. }
             | ZoneCommand::ChangeClass { .. }
             | ZoneCommand::Attack { .. }
             | ZoneCommand::AddAggro { .. } => return Err(RejectReason::NotYetImplemented),
@@ -1095,6 +1096,7 @@ impl ZoneState {
                     | ZoneCommand::CancelCast { .. }
                     | ZoneCommand::AcceptResurrect { .. }
                     | ZoneCommand::LearnSkill { .. }
+                    | ZoneCommand::Item(_)
                     | ZoneCommand::ChangeClass { .. }
                     | ZoneCommand::SpawnPlayer { .. }
                     | ZoneCommand::SpawnNpc { .. }

@@ -372,6 +372,12 @@ pub enum TickError {
     /// A new-policy command cannot enter a historical epoch, even through direct callers.
     #[error("Phase 3 command in a legacy epoch")]
     Phase3CommandInLegacy,
+    /// Item intents require an explicitly admitted V6 epoch.
+    #[error("Phase 4 command in a historical epoch")]
+    Phase4CommandInLegacy,
+    /// Only normalized authenticated item envelopes can become replay inputs.
+    #[error("invalid Phase 4 command envelope")]
+    Phase4CommandMalformed,
     /// The Phase 3 boundary exists, but gameplay installation is not complete.
     #[error("Phase 3 gameplay is not installed")]
     Phase3NotReady,
@@ -941,6 +947,15 @@ impl ZoneState {
     /// AI phases, advances movement and combat, then diffs every player's AOI. The result is a pure function of the state and the
     /// draft. A draft that does not continue this zone is refused and nothing changes.
     pub fn run_tick(&mut self, draft: AppliedTickDraft) -> Result<AppliedTick, TickError> {
+        if !self.phase4_enabled() && draft.commands.iter().any(|c| c.command.requires_phase4()) {
+            return Err(TickError::Phase4CommandInLegacy);
+        }
+        for command in &draft.commands {
+            if let ZoneCommand::Item(item) = &command.command {
+                item.authenticated_account()
+                    .map_err(|_| TickError::Phase4CommandMalformed)?;
+            }
+        }
         if self.phase3_enabled() {
             self.run_tick_v5(draft)
         } else {
@@ -1086,6 +1101,13 @@ impl ZoneState {
             return Ok(());
         };
         match cmd {
+            ZoneCommand::Item(command) if command.entity == entity => {
+                match self.entities.get(&entity) {
+                    Some(e) if e.generation != generation => Err(RejectReason::StaleSession),
+                    Some(_) | None => Ok(()),
+                }
+            },
+
             ZoneCommand::CastSkill { entity: target, .. }
             | ZoneCommand::CancelCast { entity: target, .. }
             | ZoneCommand::AcceptResurrect { entity: target, .. }
@@ -1106,7 +1128,8 @@ impl ZoneState {
                     Some(_) | None => Ok(()),
                 }
             },
-            ZoneCommand::CastSkill { .. }
+            ZoneCommand::Item(_)
+            | ZoneCommand::CastSkill { .. }
             | ZoneCommand::CancelCast { .. }
             | ZoneCommand::AcceptResurrect { .. }
             | ZoneCommand::LearnSkill { .. }
@@ -1133,7 +1156,8 @@ impl ZoneState {
         match &c.command {
             // Only the V5 dispatcher may execute these; legacy run_tick rejects the entire
             // draft before mutation. Keep this dispatcher exhaustive while rollout is fenced.
-            ZoneCommand::CastSkill { .. }
+            ZoneCommand::Item(_)
+            | ZoneCommand::CastSkill { .. }
             | ZoneCommand::CancelCast { .. }
             | ZoneCommand::AcceptResurrect { .. }
             | ZoneCommand::LearnSkill { .. } => Err(RejectReason::NotYetImplemented),
@@ -1271,6 +1295,17 @@ impl ZoneState {
             return Ok(());
         }
         match cmd {
+            ZoneCommand::Item(command) => {
+                if self
+                    .entities
+                    .get(&command.entity)
+                    .is_some_and(|e| e.targeting.dead)
+                {
+                    Err(RejectReason::DeadActor)
+                } else {
+                    Ok(())
+                }
+            },
             ZoneCommand::CastSkill { entity, .. }
             | ZoneCommand::LearnSkill { entity, .. }
             | ZoneCommand::MoveTo { entity, .. }

@@ -103,16 +103,35 @@ fn varint(bytes: &mut &[u8]) -> Result<u64, CodecError> {
     Err(CodecError("overflowed varint".into()))
 }
 
+#[cfg(test)]
+pub(super) fn item_command(bytes: &[u8]) -> Result<(), CodecError> {
+    message(bytes, "PbCommand", 8, false)
+}
+
 fn message(mut bytes: &[u8], node: &str, schema: u32, digested: bool) -> Result<(), CodecError> {
+    let mut command_kind_seen = false;
+    let mut command_fields = std::collections::BTreeSet::new();
     while !bytes.is_empty() {
         let key = varint(&mut bytes)?;
         let tag = u32::try_from(key >> 3).map_err(|e| CodecError(e.to_string()))?;
         let wire = key & 7;
-        let (expected, mut child, json) = if schema >= 7 {
-            phase3_field(node, tag).map_or_else(|| field(node, tag), Ok)?
-        } else {
-            field(node, tag)?
-        };
+        if schema >= 8 && node == "PbCommand" && !command_fields.insert(tag) {
+            return Err(CodecError("duplicate V6 command field".into()));
+        }
+        if schema >= 8 && node == "PbCommand" && tag >= 4 {
+            if command_kind_seen {
+                return Err(CodecError("duplicate V6 command kind".into()));
+            }
+            command_kind_seen = true;
+        }
+        let (expected, mut child, json) =
+            if schema >= 8 && node == "PbCommand" && (20..=29).contains(&tag) {
+                (2, None, false)
+            } else if schema >= 7 {
+                phase3_field(node, tag).map_or_else(|| field(node, tag), Ok)?
+            } else {
+                field(node, tag)?
+            };
         if wire != expected && !(expected == 3 && (wire == 0 || wire == 2)) {
             return Err(CodecError(format!("wrong wire type for {node}.{tag}")));
         }
