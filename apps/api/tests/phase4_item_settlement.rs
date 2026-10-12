@@ -216,6 +216,31 @@ async fn unified_learning_contract<R>(
         Err(CheckpointError::KeyReused)
     ));
     assert_eq!(repo.load_for_admission(c.id).await.unwrap().unwrap(), committed);
+    // D59/D61: V6 whole HP zero is live only with a positive retained fraction.
+    let mut fractional = cp.clone();
+    fractional.revision_seen = 2;
+    fractional.idempotency.1 = IdempotencyKey::new();
+    fractional.hp = 0;
+    fractional.phase3.as_mut().unwrap().resource_fractions.hp = 500_000;
+    assert_eq!(repo.checkpoint(&fractional, &[]).await.unwrap(), CheckpointOutcome::Applied(3));
+    let read = repo.load_for_admission(c.id).await.unwrap().unwrap();
+    assert!(read.alive);
+    assert_eq!(read.hp, Some(0));
+    assert_eq!(read.phase3.as_ref().unwrap().resource_fractions.hp, 500_000);
+    for alive in [false, true] {
+        let mut invalid = fractional.clone();
+        invalid.revision_seen = 3;
+        invalid.idempotency.1 = IdempotencyKey::new();
+        invalid.alive = alive;
+        if alive {
+            invalid.phase3.as_mut().unwrap().resource_fractions.hp = 0;
+        }
+        assert!(matches!(
+            repo.checkpoint(&invalid, &[]).await,
+            Err(CheckpointError::Constraint(_))
+        ));
+        assert_eq!(repo.load_for_admission(c.id).await.unwrap().unwrap(), read);
+    }
 }
 
 #[tokio::test]
