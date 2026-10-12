@@ -14,6 +14,7 @@
 # item-phase: {"name":"chest-then-shield","formula":"set_shield_history","context":{"set_id":3},"inputs":{"mutation":"equip_shield","complete":false},"actual":true,"mutation":{"operation":"equip","template":628,"slot":"lhand"}}
 # item-phase: {"name":"shield-then-chest","formula":"set_shield_history","context":{"set_id":3},"inputs":{"mutation":"equip_chest","complete":false},"actual":false,"mutation":{"operation":"equip","template":58,"slot":"chest"}}
 # item-phase: {"name":"inactive-history-reconnect","formula":"gear_stats","context":{"set_id":3,"event":"admission"},"absent_providers":[3543]}
+# item-phase: {"name":"active-incomplete-history-reconnect","formula":"gear_stats","context":{"set_id":3,"event":"admission"},"providers":[3543],"equipment":{"legs":461,"head":null,"chest":58,"lhand":628}}
 # item-phase: {"name":"active-shield-provider","formula":"gear_stats","context":{"set_id":3},"providers":[3543],"mutation":{"operation":"equip","template":628,"slot":"lhand"}}
 # item-phase: {"name":"removed-shield-provider","formula":"gear_stats","context":{"set_id":3},"absent_providers":[3543],"mutation":{"operation":"unequip","template":628,"slot":"lhand"}}
 # item-phase: {"name":"enchant4-installed","formula":"gear_stats","providers":[3439],"mutation":{"operation":"equip","template":10491,"slot":"under"}}
@@ -38,6 +39,11 @@ nf.Equip 628
 nf.WaitFor equipped lhand == 628 3
 nf.WaitFor owner_stat_delta max_hp == 0 3
 nf.MarkItemState
+nf.DropSocket
+nf.WaitFor reconnects >= 1 15
+nf.WaitFor item_baseline 15
+nf.WaitFor owner_stats_match_mark 3
+nf.MarkItemState
 nf.Unequip chest
 nf.WaitFor equipped chest == 0 3
 nf.Unequip lhand
@@ -49,7 +55,7 @@ nf.WaitFor equipped chest == 58 3
 nf.WaitFor owner_stat_delta max_hp < 0 3
 nf.MarkItemState
 nf.DropSocket
-nf.WaitFor reconnects >= 1 15
+nf.WaitFor reconnects >= 2 15
 nf.WaitFor item_baseline 15
 nf.WaitFor owner_stats_match_mark 3
 nf.Equip 59
@@ -58,7 +64,7 @@ nf.Equip 47
 nf.WaitFor equipped head == 47 3
 nf.MarkItemState
 nf.DropSocket
-nf.WaitFor reconnects >= 2 15
+nf.WaitFor reconnects >= 3 15
 nf.WaitFor item_baseline 15
 nf.WaitFor owner_stats_match_mark 3
 nf.Unequip legs
@@ -73,4 +79,4 @@ nf.MarkItemState
 nf.Unequip under
 nf.WaitFor equipped under == 0 3
 nf.WaitFor owner_stat_delta max_hp < 0 3
-nf.Within 189
+nf.Within 222

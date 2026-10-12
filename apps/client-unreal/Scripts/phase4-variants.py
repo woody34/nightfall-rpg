@@ -25,11 +25,14 @@ def armor_body(config):
     six_skills=[r['id'] for r in row['enchant6_skills']]
     phase=lambda name,formula,**selectors:'# item-phase: '+json.dumps(dict(name=name,formula=formula,**selectors),separators=(',',':'))
     context={'set_id':row['id']}
+    starter={r['slot']:r['template_id'] for r in scenarios.fixtures.profiles('phase4-armor')['owner']['inventory'] if r['slot']}
     declarations=[phase('chest-then-shield','set_shield_history',context=context,inputs={'mutation':'equip_shield','complete':False},actual=True,
                          mutation={'operation':'equip','template':shield,'slot':'lhand'}),
                   phase('shield-then-chest','set_shield_history',context=context,inputs={'mutation':'equip_chest','complete':False},actual=False,
                          mutation={'operation':'equip','template':chest,'slot':'chest'}),
                   phase('inactive-history-reconnect','gear_stats',context=context|{'event':'admission'},absent_providers=shield_skills),
+                  phase('active-incomplete-history-reconnect','gear_stats',context=context|{'event':'admission'},providers=shield_skills,
+                        equipment={**{items[i]['bodypart']:starter.get(items[i]['bodypart']) for i in required if i!=chest},'chest':chest,'lhand':shield}),
                   phase('active-shield-provider','gear_stats',context=context,providers=shield_skills,
                          mutation={'operation':'equip','template':shield,'slot':'lhand'}),
                   phase('removed-shield-provider','gear_stats',context=context,absent_providers=shield_skills,
@@ -40,18 +43,20 @@ def armor_body(config):
           'nf.WaitFor owner_stat_delta max_hp > 0 3','nf.MarkItemState',
           'nf.Unequip lhand','nf.WaitFor equipped lhand == 0 3','nf.WaitFor owner_stat_delta max_hp < 0 3',
           f'nf.Equip {shield}',f'nf.WaitFor equipped lhand == {shield} 3','nf.WaitFor owner_stat_delta max_hp == 0 3',
+          'nf.MarkItemState','nf.DropSocket','nf.WaitFor reconnects >= 1 15','nf.WaitFor item_baseline 15',
+          'nf.WaitFor owner_stats_match_mark 3',
           # Mark the active incomplete state; reverse order reaches identical paperdoll without the provider.
           'nf.MarkItemState','nf.Unequip chest','nf.WaitFor equipped chest == 0 3',
           'nf.Unequip lhand','nf.WaitFor equipped lhand == 0 3',
           f'nf.Equip {shield}',f'nf.WaitFor equipped lhand == {shield} 3',
           f'nf.Equip {chest}',f'nf.WaitFor equipped chest == {chest} 3','nf.WaitFor owner_stat_delta max_hp < 0 3',
-          'nf.MarkItemState','nf.DropSocket','nf.WaitFor reconnects >= 1 15','nf.WaitFor item_baseline 15',
+          'nf.MarkItemState','nf.DropSocket','nf.WaitFor reconnects >= 2 15','nf.WaitFor item_baseline 15',
           'nf.WaitFor owner_stats_match_mark 3']
     for i in required:
         if i==chest:continue
         concrete=items[i]['bodypart']
         body += [f'nf.Equip {i}',f'nf.WaitFor equipped {concrete} == {i} 3']
-    body += ['nf.MarkItemState','nf.DropSocket','nf.WaitFor reconnects >= 2 15','nf.WaitFor item_baseline 15','nf.WaitFor owner_stats_match_mark 3']
+    body += ['nf.MarkItemState','nf.DropSocket','nf.WaitFor reconnects >= 3 15','nf.WaitFor item_baseline 15','nf.WaitFor owner_stats_match_mark 3']
     if config.get('enchant')==6:
         declarations += [phase('enchant6-installed','gear_stats',context=context,providers=six_skills),
                          phase('enchant6-reconnect','gear_stats',context=context|{'event':'admission'},providers=six_skills+shield_skills),

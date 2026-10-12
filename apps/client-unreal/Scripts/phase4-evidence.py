@@ -68,7 +68,7 @@ def phases(scenario):
     for line in scenario.read_text().splitlines():
         if not line.startswith('# item-phase: '):continue
         value=json.loads(line.removeprefix('# item-phase: '),object_pairs_hook=unique_object,parse_float=no_float)
-        if not {'name','formula'}<=set(value) or set(value)-{'name','formula','context','inputs','actual','providers','absent_providers','mutation'} or value['formula'] not in FORMULAS:
+        if not {'name','formula'}<=set(value) or set(value)-{'name','formula','context','inputs','actual','providers','absent_providers','mutation','equipment'} or value['formula'] not in FORMULAS:
             raise ValueError('invalid item phase specification')
         if any(r['name']==value['name'] for r in result):raise ValueError('duplicate item phase')
         result.append(value)
@@ -113,6 +113,102 @@ INTEGER_INPUTS = {
     'enchant_safe': {'current','safe_enchant','safe_fullarmor','residue'},
     'player_level_range': {'level','minimum','maximum'},
 }
+# Canonical counts/ticks are signed-bigint, enchant values are u32 (E1 item
+# oracle checked_u32; D17/D28). Additive stat modifiers and coordinates stay signed.
+INTEGER_INPUTS.update({
+    'crystal_count': {'base','bonus','enchant'}, 'failure_refund': {'base','bonus','enchant','crystal_id'},
+    'cast_time': {'hit_time'}, 'heal': {'current_hp','remainder_q'},
+    'overload': {'weight','maximum','previous_level'}, 'grade_penalties': {'expertise','bonus'},
+    'consumable_use': {'tick'}, 'consumable_cast_sequence': {'caster_ordinal'},
+    'player_level_range': {'rank','level'},
+    'resurrection_scroll': {'start_tick','available','death_incarnation','current_incarnation','response_tick','response_offer_id','recoverable_xp'},
+    'learned_item_cost': {'skill_id','rank','consume_id','consume_count'},
+    'escape_timing': {'start_tick','available','incarnation'},
+    'dual_plan': {'hit_chance','spread_radius'},
+    'dormant_use': {'template_id','selected_instance','allocator_next'},
+    'augmentation_provider': {'option_id','other_provider'},
+    'item_regen_status': {'current','maximum','remainder_q'},
+    'bow_launch': {'lhand','reuse_remaining','hit_chance','hit_residue','reduction_residue'},
+    'magic_damage': {'level_difference'},
+})
+NONNEGATIVE_INPUTS = {
+    'enchant_hp': {'bonuses'}, 'enchant_chance': {'base','bonus','support'},
+    'enchant_outcome': {'base','bonus','support'}, 'quantized_enchant': {'base','bonus','support'},
+    'enchant_safe': {'base'}, 'max_load': {'con_bonus','weight_limit','multiplier'},
+    'overload': {'bonus'}, 'pole_damage': {'percent'},
+    'bow_reuse': {'weapon_reuse_modifier'}, 'shield': {'rate','dex_bonus'},
+    'physical_damage': {'p_atk','defence','power','shield_def','crit_dmg','crit_pos','def_crit_dmg','trait','spread','pvp','attribute','npc'},
+    'magic_damage': {'power','m_atk','m_def','shield_def','pvp_magic_def','pvp_skill_def','magic_crit_damage','spread','pvp_magic_damage','pvp_skill_damage','attribute','npc'},
+    'heal': {'power','m_atk','mp_consume2','heal_effect','recoverable_hp'},
+    'blow_success': {'chance','dex','modifier'}, 'lethal': {'full','half','attribute','trait'},
+    'clamp_no_heal': {'current','new_max'}, 'bow_launch': {'mp','mp_modifier'},
+    'bow_refill': {'mp'}, 'resurrection_scroll': {'hp','max_hp','mp','cp','restore_percent','restore_hp'},
+    'augmentation_provider': {'hp','maximum'},
+    'item_regen_status': {'base','level_modifier','stat_bonus','posture_modifier','regen_modifier','periodic_credit'},
+}
+POSITIVE_INPUTS = {'dual_timing': {'attack_speed'}, 'bow_reuse': {'attack_speed'},
+                   'cast_time': {'casting_speed'}, 'escape_timing': {'casting_speed'}}
+U32_INPUTS = {'enchant_increment': {'enchant'}, 'enchant_hp': {'enchant'},
+    'crystal_count': {'enchant'}, 'failure_refund': {'enchant'}, 'enchant_outcome': {'enchant'},
+    'enchant_valid': {'current','max_enchant'}, 'enchant_safe': {'current','safe_enchant','safe_fullarmor'}}
+
+
+def input_domains(name,inputs):
+    def bounded(value,minimum=0,maximum=2**63-1):
+        integer(value,minimum)
+        if value>maximum:raise ValueError('formula integer outside domain')
+    for key in INTEGER_INPUTS.get(name,()):
+        if inputs.get(key) is None:continue
+        minimum=0
+        if key in ('dx_milli','dy_milli','level_difference') or name=='grade_penalties' and key=='bonus':minimum=-2**63
+        elif key=='base_delta_sequence':minimum=-1
+        elif key in ('level','rank','incarnation','death_incarnation','current_incarnation','template_id','skill_id','selected_instance','allocator_next','option_id','other_provider'):minimum=1
+        bounded(inputs[key],minimum,2**32-1 if key in U32_INPUTS.get(name,()) or key in ('crystal_id','template_id','skill_id','consume_id','rank') else 2**63-1)
+    decoded=oracle.decode_rationals(inputs)
+    for key in NONNEGATIVE_INPUTS.get(name,set()) | POSITIVE_INPUTS.get(name,set()):
+        value=decoded.get(key)
+        if value is None:continue
+        for number in value if isinstance(value,list) else [value]:
+            number=oracle.exact(number)
+            if number<0 or key in POSITIVE_INPUTS.get(name,()) and number==0:
+                raise ValueError('formula numeric outside domain: '+key)
+    bounds={'enchant_outcome': {'residue':99999}, 'enchant_safe': {'residue':99999},
+            'blow_success': {'residue':999}, 'lethal': {'full_residue':999,'half_residue':999},
+            'shield': {'perfect_residue':99,'normal_residue':99},
+            'retail_select': {'residue':9999}, 'category': {'residue':9999},
+            'pack_options': {'first':65535,'second':65535},
+            'heal': {'remainder_q':oracle.Q-1}, 'item_regen_status': {'remainder_q':oracle.Q-1},
+            'overload': {'previous_level':4}, 'bow_launch': {'hit_residue':999,'reduction_residue':99,'hit_chance':1000}}
+    bounds['shot_payment']={'residue':99}
+    for key,maximum in bounds.get(name,{}).items():
+        if inputs.get(key) is not None:bounded(inputs[key],1 if name=='pack_options' else 0,maximum)
+    # Nested canonical operands, including inventories and gear enchant levels.
+    def nested(value,key=''):
+        if isinstance(value,dict):
+            if key in ('available','inventory','ingredients_before','ingredients_after','item_deadlines','skill_deadlines'):
+                for count in value.values():bounded(count)
+            elif set(value)!={'numerator','denominator'}:
+                for child_key,child in value.items():nested(child,child_key)
+        elif isinstance(value,list):
+            for child in value:nested(child,key)
+        elif value is not None and key in ('count','enchant','tick','start_tick','expires_at','created_at','sequence','hit_time_ms','reuse_delay_ms','item_consume_count','mp_cost','reduced_cost','spread_radius','crystal_count'):
+            bounded(value,0,2**32-1 if key=='enchant' else 2**63-1)
+    nested(inputs)
+    for template,enchant,slot,sequence in inputs.get('equipment',[]):
+        bounded(template,1,2**32-1);bounded(enchant,0,2**32-1);bounded(sequence)
+    for skill,rank,sequence in inputs.get('skill_refs',[]):
+        bounded(skill,1,2**32-1);bounded(rank,1,2**32-1);bounded(sequence)
+    for key in ('hit_residues',):
+        for value in inputs.get(key,[]):bounded(value,0,999)
+    if inputs.get('reduction'):
+        chance,count=inputs['reduction'];bounded(chance,0,100);bounded(count)
+    if name in ('retail_select','retail_distribution'):
+        for option,chance in decoded['rows']:
+            bounded(option,1,65535)
+            if not 0<=oracle.exact(chance)<=100:raise ValueError('retail chance outside domain')
+    if name=='winning_providers':
+        for provider in inputs['providers']:
+            bounded(provider['skill_id'],1,2**32-1);bounded(provider['rank'],1,2**32-1);bounded(provider['sequence'])
 NESTED_FLAGS = set(('weapon arrow eligible hit admitted stackable equipped static simultaneous immediate '
     'ex_immediate ex_immediate_effect immediate_effect dead invulnerable hp_blocked is_magic_weapon '
     'is_crystallizable is_common is_hero is_pvp for_npc allow_self_resurrection is_oly_restricted '
@@ -122,6 +218,7 @@ NESTED_FLAGS = set(('weapon arrow eligible hit admitted stackable equipped stati
 
 def input_types(name, inputs):
     function=getattr(oracle,name,None) or getattr(oracle.behavior,name,None)
+    parameters=inspect.signature(function).parameters if function else {}
     flags=set(BOOLEAN_REQUIRED.get(name,()))
     if function:
         flags.update(k for k,p in inspect.signature(function).parameters.items() if type(p.default) is bool)
@@ -141,8 +238,12 @@ def input_types(name, inputs):
             for child in value:check(child,False,nested)
     for key,value in inputs.items():
         if value is None and name=='magic_damage' and key in ('is_pvp','second_success'):continue
-        if key in INTEGER_INPUTS.get(name,()) and value is not None and type(value) is not int:
-            raise ValueError('integer formula input required: '+key)
+        if key in INTEGER_INPUTS.get(name,()):
+            nullable=key in parameters and parameters[key].default is None or (name,key) in {
+                ('bow_launch','lhand'),('bow_launch','reduction_residue'),
+                ('resurrection_scroll','response_offer_id'),('augmentation_provider','other_provider')}
+            if not (value is None and nullable) and type(value) is not int:
+                raise ValueError('integer formula input required: '+key)
         if name in ('dual_plan','shared_shot_bundle') and key=='hits':
             if not isinstance(value,list):raise ValueError('boolean hit list required')
             for child in value:check(child,True)
@@ -156,9 +257,75 @@ def item_tables():
             for r in tomllib.loads((directory/(name+'.toml')).read_text())['items']}
 
 
+@lru_cache(maxsize=None)
+def table(name):
+    return tomllib.loads((REPO/'packages/data/tables-phase4'/(name+'.toml')).read_text())
+
+
+@lru_cache(maxsize=1)
+def shot_templates():
+    admitted={r['template_id'] for r in table('capabilities')['items'] if r['admitted']}
+    return {identity for identity,item in item_tables().items() if identity in admitted
+            and item['etcitem_type']=='SHOT' and item['handler'] in ('SoulShots','SpiritShot','BlessedSpiritShot')}
+
+
+@lru_cache(maxsize=1)
+def slot_masks():
+    # GAME@abfde049 EnchantRateItem.java:71-77; ItemTable.java:74-109 aliases.
+    constants={name:int(value,0) for name,value in re.findall(
+        r'public static final int (SLOT_\w+) = (-?0x[0-9A-Fa-f]+|-?\d+);',source().read(oracle.G+'model/items/L2Item.java',True))}
+    slots={}
+    for name,expression in re.findall(r'SLOTS.put\("([^"]+)", (.+?)\);',source().read(oracle.G+'datatables/ItemTable.java',True)):
+        slots[name]=0
+        for part in expression.split('|'):slots[name]|=constants[part.strip().removeprefix('L2Item.')]
+    return slots
+
+
+def enchant_source_inputs(target,scroll,support):
+    # DP@3ca488dd enchantItemData/Groups.xml; GAME@abfde049
+    # AbstractEnchantItem.java:111-145, EnchantScroll.java:100-157, L2Item.java:539-540.
+    definitions=table('enchant_scrolls');item=item_tables()[target['template_id']]
+    if not item['enchant_enabled'] or target['template_id'] in definitions['blacklist'] or item['kind'] not in ('Weapon','Armor'):
+        raise ValueError('ineligible enchant target')
+    weapon=item['kind']=='Weapon';grade='S' if item['grade'] in ('S80','S84') else item['grade']
+    def resolve(instance,kind):
+        matches=[r for r in definitions[kind] if r['template_id']==instance['template_id']]
+        if len(matches)!=1:raise ValueError('unknown enchant '+kind+' template')
+        definition=matches[0]
+        if definition['weapon']!=weapon or definition['target_grade']!=grade or (definition['max_enchant'] and target['enchant']>definition['max_enchant']):
+            raise ValueError('enchant grade/type/level mismatch')
+        if definition['allowed_items'] and target['template_id'] not in definition['allowed_items']:
+            raise ValueError('enchant target outside allowed items')
+        return definition
+    definition=resolve(scroll,'scrolls');support_rate=oracle.F(0)
+    if support is not None:
+        if definition['blessed']:raise ValueError('blessed scroll forbids support')
+        support_rate=oracle.F(resolve(support,'supports')['bonus_rate'])
+    groups=table('enchant_groups')
+    binding=next((r['raw'] for r in groups['bindings'] if r['id']==definition['group_id']),None)
+    if binding is None:raise ValueError('unknown enchant scroll group')
+    group=None
+    for rate in binding['children']:
+        mask=0;magic=None;item_id=0
+        for candidate in rate['children']:
+            attributes=candidate['attributes']
+            if 'slot' in attributes:mask|=slot_masks()[attributes['slot']]
+            if 'magicWeapon' in attributes:magic=attributes['magicWeapon']=='true'
+            if 'id' in attributes:item_id=int(attributes['id'])
+        if (not item_id or item_id==target['template_id']) and (not mask or mask&item['bodypart_mask']) and (magic is None or magic==item['flags']['is_magic_weapon']):
+            group=rate['attributes']['group'];break
+    if group is None:raise ValueError('missing enchant item group')
+    ranges=next(r['ranges'] for r in groups['rates'] if r['name']==group)
+    # EnchantItemGroup.java:64-77 falls back to its final range when unmatched.
+    chance=next((r['chance'] for r in ranges if r['min']<=target['enchant']<=r['max']),ranges[-1]['chance'])
+    return dict(base=oracle.F(chance),bonus=oracle.F(definition['bonus_rate']),support=support_rate,
+                blessed=definition['blessed'],safe=definition['safe'])
+
+
 def formula(name,inputs,actual):
     if name not in FORMULAS:raise ValueError('unknown item formula')
     input_types(name,inputs)
+    input_domains(name,inputs)
     # Match E1's finite function registry on arbitrary resolution inputs.
     if name=='gear_stats':
         required={'class_file','level','equipment','skill_refs','base_deltas','base_delta_sequence'}
@@ -219,6 +386,8 @@ def validate_instance(value):
     for name in ('id','template_id','count'):integer(value[name],1)
     for name in ('enchant','charges','created_tick','revision'):integer(value[name])
     if value['id']>=2**63 or value['count']>=2**63 or value['template_id']>=2**31 or value['enchant']>=2**32 or value['charges']>7 or value['created_tick']>=2**63 or value['revision']>=2**63:raise ValueError('item scalar outside domain width')
+    # Dormant starter items remain canonical catalogue members (D17).
+    if value['template_id'] not in item_tables():raise ValueError('unknown canonical template')
     if value['location'] not in ('inventory','paperdoll') or (value['location']=='paperdoll')!=(value['slot'] is not None):raise ValueError('item location/slot mismatch')
     if value['slot'] is not None and value['slot'] not in SLOTS:raise ValueError('unknown canonical slot')
     if value['charges'] and value['slot']!='rhand':raise ValueError('charge on nonweapon slot')
@@ -286,6 +455,7 @@ def validate(rows,recording,rules_hash):
             same(data['paperdoll'],expected)
             for template in data['auto_shots']:
                 if integer(template,1)>=2**32:raise ValueError('auto-shot ID outside u32')
+                if template not in shot_templates():raise ValueError('unsupported auto-shot template')
             if len(set(data['auto_shots']))!=len(data['auto_shots']):raise ValueError('duplicate auto-shot')
         elif row['kind']=='item_rng':
             if set(data)!= {'callsite','word_before','word_after','bound','value','resolution_id'}:raise ValueError('unknown/missing RNG fields')
@@ -338,12 +508,20 @@ def enchant_evidence(row, rows):
     for item in (target,scroll,support):
         if item is not None:validate_instance(item)
     if target is None or scroll is None or len({i['id'] for i in (target,scroll,support) if i})!=2+int(support is not None):raise ValueError('invalid enchant instance binding')
+    expected=enchant_source_inputs(target,scroll,support)
+    decoded=oracle.decode_rationals(data['inputs'])
+    for key,value in expected.items():
+        if key in ('safe','blessed'):same(data['inputs'].get(key,False),value)
+        elif oracle.exact(decoded[key])!=value:raise ValueError('enchant source input mismatch: '+key)
     formula('enchant_outcome',data['inputs'],data['actual'])
     same(data['inputs']['enchant'],target['enchant'])
     chance=[r for r in correlated if r['kind']=='item_formula' and r['data']['formula']=='enchant_chance']
     if len(chance)!=1:raise ValueError('one correlated enchant chance required')
     formula('enchant_chance',chance[0]['data']['inputs'],chance[0]['data']['actual'])
-    same(chance[0]['data']['actual'],oracle.enchant_chance(**{k:data['inputs'][k] for k in ('base','bonus','support')}))
+    chance_inputs=oracle.decode_rationals(chance[0]['data']['inputs'])
+    for key in ('base','bonus','support'):
+        if oracle.exact(chance_inputs.get(key,0))!=expected[key]:raise ValueError('enchant chance source mismatch: '+key)
+    same(chance[0]['data']['actual'],oracle.enchant_chance(**{k:decoded[k] for k in ('base','bonus','support')}))
     draws=[r['data'] for r in correlated if r['kind']=='item_rng']
     if len(draws)!=1 or draws[0]['callsite']!='enchant' or draws[0]['bound']!=100000:raise ValueError('one source enchant RNG draw required')
     same(draws[0]['value'],data['inputs']['residue'])
@@ -433,6 +611,8 @@ def evaluate(rows,recording,entity,gates,rules_hash,phase_specs=()):
             if data['formula']!=phase['formula']:continue
             if any(data.get('context',{}).get(k)!=v for k,v in phase.get('context',{}).items()):continue
             if any(k not in data['inputs'] or data['inputs'][k]!=v for k,v in phase.get('inputs',{}).items()):continue
+            equipment={r[2]:r[0] for r in data['inputs'].get('equipment',[])}
+            if any(equipment.get(slot)!=template for slot,template in phase.get('equipment',{}).items()):continue
             if 'actual' in phase and data['actual']!=phase['actual']:continue
             providers={r[0] for r in data['inputs'].get('skill_refs',[])}
             if not set(phase.get('providers',[]))<=providers or set(phase.get('absent_providers',[]))&providers:continue

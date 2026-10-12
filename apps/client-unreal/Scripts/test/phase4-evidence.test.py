@@ -39,14 +39,15 @@ class Evidence(unittest.TestCase):
         target=item(target_id,1,71);target['enchant']=enchant
         scroll=item(scroll_id,1,6573 if blessed else 22227 if safe else 951)
         support_item=item(9,1,12363) if support else None
-        inputs=dict(base=base,bonus=0,support=0,residue=residue,enchant=enchant,blessed=blessed,safe=safe)
+        inputs=dict(base=base,bonus=0,support=18 if support else 0,residue=residue,enchant=enchant,blessed=blessed,safe=safe)
         result=gate.oracle.enchant_outcome(**inputs)
         def append(kind,data):
             data['resolution_id']='enchant:1'
             rows.append(dict(kind=kind,entity=entity,incarnation=1,tick=0,sequence=len(rows)-1,data=data))
         append('item_formula',dict(formula='enchant_outcome',inputs=inputs,actual=result,baseline=False,
                operation=dict(target_before=target,scroll_before=scroll,support_before=support_item)))
-        append('item_formula',dict(formula='enchant_chance',inputs=dict(base=base,bonus=0,support=0),actual=gate.oracle.enchant_chance(base),baseline=False))
+        chance_inputs={k:inputs[k] for k in ('base','bonus','support')}
+        append('item_formula',dict(formula='enchant_chance',inputs=chance_inputs,actual=gate.oracle.enchant_chance(**chance_inputs),baseline=False))
         append('item_rng',dict(callsite='enchant',word_before=0,word_after=1,bound=100000,value=residue))
         for spent in (scroll,support_item):
             if spent:append('item_delta',dict(operation='consume',instance=spent['id'],before=spent,after=None,count_delta=-1,operation_ordinal=0,receipt='receipt:1'))
@@ -84,9 +85,36 @@ class Evidence(unittest.TestCase):
             rows=self.enchant_rows(**kw)
             self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['enchant_outcome','failure_refund'],HASH)['passed'])
             self.assertFalse(any(r['kind']=='item_delta' and r['data']['operation']=='grant' for r in rows))
-        # Blessed +0 failure and safe failure leave the target unchanged (D28).
-        rows=self.enchant_rows(base=0,residue=0,blessed=True)
+        rows=self.enchant_rows(blessed=True)
         self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['enchant_outcome'],HASH)['passed'])
+
+    def test_enchant_source_template_flags_eligibility_and_chance(self):
+        for field,value in [('safe',True),('blessed',True),('base',71),('bonus',1),('support',18)]:
+            rows=self.enchant_rows(base=70,residue=99999,enchant=3)
+            rows[1]['data']['inputs'][field]=value
+            self.assertFalse(gate.evaluate(rows,self.recording,OWNER,['enchant_outcome','enchant_chance','failure_refund'],HASH)['passed'],field)
+        # Reproduce the false safe branch with an internally consistent ledger,
+        # then substitute normal scroll951 (or arrow17) in every binding/debit.
+        for template in (951,17):
+            rows=self.enchant_rows(base=70,residue=99999,enchant=3,safe=True)
+            rows[1]['data']['operation']['scroll_before']['template_id']=template
+            next(r for r in rows if r['kind']=='item_delta')['data']['before']['template_id']=template
+            self.assertFalse(gate.evaluate(rows,self.recording,OWNER,['enchant_outcome','failure_refund'],HASH)['passed'])
+        for target,scroll,support in [(17,951,None),(1,951,None),(71,955,None),(71,951,12362),(71,951,12368),(71,6573,12363),(71,951,17)]:
+            with self.assertRaises(ValueError):gate.enchant_source_inputs(item(1,1,target),item(2,1,scroll),item(3,1,support) if support else None)
+        for enchant,scroll,support in [(15,22227,None),(10,951,12363),(65536,951,None)]:
+            with self.assertRaises(ValueError):gate.enchant_source_inputs(item(1,1,71)|{'enchant':enchant},item(2,1,scroll),item(3,1,support) if support else None)
+        # A capped chance alone cannot prove the individual source contributions.
+        rows=self.enchant_rows(support=True);rows[1]['data']['inputs']['support']=0
+        self.assertFalse(gate.evaluate(rows,self.recording,OWNER,['enchant_outcome'],HASH)['passed'])
+        rows=self.enchant_rows(support=True);rows[2]['data']['inputs']['support']=0
+        self.assertFalse(gate.evaluate(rows,self.recording,OWNER,['enchant_outcome'],HASH)['passed'])
+        # Source slot masks map both underwear/shirt and onepiece/fullarmor.
+        shirt=gate.enchant_source_inputs(item(1,1,10491)|{'enchant':3},item(2,1,952),None)
+        self.assertEqual(shirt['base'],gate.oracle.F('66.67'))
+        armor=next(r for r in gate.item_tables().values() if r['grade']=='C' and r['bodypart']=='onepiece' and r['enchant_enabled'])
+        full=gate.enchant_source_inputs(item(1,1,armor['template_id'])|{'enchant':3},item(2,1,952),None)
+        self.assertEqual(full['base'],100)
 
     def test_canonical_slot_paperdoll_autoshot_mutations(self):
         rows=copy.deepcopy(self.rows);rows[1].update(kind='item_baseline',data=dict(inventory_revision=0,instances=[item(1,1,6,'rhand')],paperdoll={'rhand':1},auto_shots=[5789]))
@@ -99,9 +127,38 @@ class Evidence(unittest.TestCase):
         for change in (invented,other,missing,wrong,duplicate):
             bad=copy.deepcopy(rows);change(bad[1]['data'])
             with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
-        for value in ('bad-template',True,0,-1,2**32):
+        for value in ('bad-template',True,0,-1,2**32,2000000000,1):
             bad=copy.deepcopy(rows);bad[1]['data']['auto_shots']=[value]
             with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
+        bad=copy.deepcopy(rows);bad[1]['data']['instances'][0]['template_id']=2000000000
+        with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
+        # D17 dormant starter maps/elixirs still exist in the bound catalogue.
+        rows[1]['data']['instances'].append(item(2,1,5588))
+        self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['grant_denied'],HASH)['passed'])
+
+    def test_formula_domains_reject_negative_and_overflow_through_evaluate(self):
+        cases=[('cancel_fee',dict(grade='C',crystals=-1)),
+               ('enchant_valid',dict(current=None,max_enchant=0)),
+               ('enchant_valid',dict(current=-1,max_enchant=-1)),
+               ('enchant_valid',dict(current=2**32,max_enchant=2**32)),
+               ('crystal_count',dict(base=-1,bonus=45,enchant=0,weapon=True)),
+               ('shot_payment',dict(charges=[],kind='soul',count=-1,available=100,weapon_grade='NONE',shot_grade='NONE')),
+               ('lethal',dict(full=0,half=0,full_residue=-1,half_residue=0)),
+               ('heal',dict(power=0,m_atk=0,current_hp=-1)),
+               ('cancel_fee',dict(grade='C',crystals=2**63)),
+               ('enchant_hp',dict(bonuses=[1],enchant=2**32))]
+        for name,inputs in cases:
+            rows=copy.deepcopy(self.rows)
+            try:actual=getattr(gate.oracle,name)(**inputs)
+            except ValueError:actual=None
+            rows[1]['data'].update(formula=name,inputs=inputs,actual=gate.oracle.rational(actual))
+            self.assertFalse(gate.evaluate(rows,self.recording,OWNER,[name],HASH)['passed'],(name,inputs))
+        for name,inputs in [('grade_penalties',dict(equipped=[],expertise=0,bonus=-2)),
+                            ('max_load',dict(con_bonus=1,add=-10)),
+                            ('bow_damage',dict(formula='100',dx_milli=-12500,dy_milli=0))]:
+            actual=gate.oracle.rational(getattr(gate.oracle,name)(**inputs))
+            rows=copy.deepcopy(self.rows);rows[1]['data'].update(formula=name,inputs=inputs,actual=actual)
+            self.assertTrue(gate.evaluate(rows,self.recording,OWNER,[name],HASH)['passed'],name)
 
     def test_numeric_input_types_before_oracle(self):
         for inputs in ({'base':True},{'base':{'numerator':True,'denominator':1}},{'base':100,'bonus':False}):
@@ -132,6 +189,26 @@ class Evidence(unittest.TestCase):
             self.assertFalse(gate.evaluate(bad,self.recording,OWNER,['pole_damage'],HASH,[phase])['passed'])
         bad=copy.deepcopy(rows);bad[2]['data']['resolution_id']='foreign-operation'
         self.assertFalse(gate.evaluate(bad,self.recording,OWNER,['pole_damage'],HASH,[phase])['passed'])
+
+    def test_incomplete_armour_admission_rejects_stateless_history_mutation(self):
+        phase=next(p for p in gate.phases(SCRIPTS.parent/'Scenarios/4-armor-set.nfs') if p['name']=='active-incomplete-history-reconnect')
+        inputs=dict(class_file=gate.oracle.D+'stats/chars/baseStats/HumanMystic.xml',level=14,
+                    equipment=[[58,0,'chest',1],[628,0,'lhand',2],[461,0,'legs',0]],skill_refs=[[3543,1,3]],base_deltas={},base_delta_sequence=0)
+        rows=copy.deepcopy(self.rows)
+        def fact(values):
+            return dict(formula='gear_stats',inputs=values,actual=gate.oracle.rational(gate.oracle.gear_stats(gate.source(),**values)),
+                        context={'set_id':3,'event':'admission'},baseline=False,resolution_id='admission:1')
+        rows[1]['data']=fact(inputs)
+        self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['gear_stats'],HASH,[phase])['passed'])
+        # Rebuild with full_set&&shield and recompute the sheet, so generic formula
+        # correctness still passes but the required retained provider gate fails.
+        bad=copy.deepcopy(rows);bad[1]['data']=fact(inputs|{'skill_refs':[]})
+        self.assertTrue(gate.evaluate(bad,self.recording,OWNER,['gear_stats'],HASH)['passed'])
+        self.assertFalse(gate.evaluate(bad,self.recording,OWNER,['gear_stats'],HASH,[phase])['passed'])
+        self.assertNotEqual(rows[1]['data']['actual'],bad[1]['data']['actual'])
+        # A complete-set admission with the provider cannot satisfy this checkpoint.
+        bad[1]['data']=fact(inputs|{'equipment':inputs['equipment'][:2]+[[59,0,'legs',4],[47,0,'head',5]]})
+        self.assertFalse(gate.evaluate(bad,self.recording,OWNER,['gear_stats'],HASH,[phase])['passed'])
 
     def test_actual_intermediates_d24_d25_and_bow(self):
         self.assertTrue(gate.evaluate(self.rows,self.recording,OWNER,['pole_damage'],HASH)['passed'])
