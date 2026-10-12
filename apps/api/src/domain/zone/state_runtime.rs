@@ -2373,18 +2373,26 @@ impl ZoneState {
                     .map_err(invariant)?
                     .raw())
                 .map_err(invariant)?,
-                con_bonus: q(stats
-                    .bonus()
-                    .bonus(crate::domain::zone::StatKind::Con, base.con)
+                con_bonus: if self.phase4.is_some() && player {
+                    self.base_property_v5(id, "CON")?.1
+                } else {
+                    q(stats
+                        .bonus()
+                        .bonus(crate::domain::zone::StatKind::Con, base.con)
+                        .map_err(invariant)?
+                        .raw())
                     .map_err(invariant)?
-                    .raw())
-                .map_err(invariant)?,
-                men_bonus: q(stats
-                    .bonus()
-                    .bonus(crate::domain::zone::StatKind::Men, base.men)
+                },
+                men_bonus: if self.phase4.is_some() && player {
+                    self.base_property_v5(id, "MEN")?.1
+                } else {
+                    q(stats
+                        .bonus()
+                        .bonus(crate::domain::zone::StatKind::Men, base.men)
+                        .map_err(invariant)?
+                        .raw())
                     .map_err(invariant)?
-                    .raw())
-                .map_err(invariant)?,
+                },
                 posture: if e.dest.is_some() {
                     RegenPosture::Moving
                 } else {

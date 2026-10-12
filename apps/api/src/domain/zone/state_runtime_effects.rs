@@ -1258,4 +1258,105 @@ mod item_attribute_tests {
         }
         assert_eq!(zone.base_property_v5(owner.entity, "NONE").unwrap(), (0, ExactRatio::whole(1)));
     }
+    #[test]
+    fn v6_regeneration_uses_folded_con_and_men_with_current_weapon() {
+        let (mut zone, owner, _) = ZoneState::item_checkpoint_fixture();
+        let tick = zone.sidecar(owner.entity).unwrap().regen.next_at.unwrap();
+        let combat = zone
+            .entities
+            .get_mut(&owner.entity)
+            .unwrap()
+            .combat
+            .as_mut()
+            .unwrap();
+        combat.hp = 1;
+        combat.mp = 0;
+        let CombatRole::Player {
+            progression: Some(player),
+            ..
+        } = &mut combat.role
+        else {
+            unreachable!()
+        };
+        player.class_state.cp = 0;
+        zone.sidecar_mut(owner.entity).unwrap().fractions = ResourceFractions::default();
+        let credit = |zone: &ZoneState| {
+            let combat = zone.entities[&owner.entity].combat.as_ref().unwrap();
+            let CombatRole::Player {
+                progression: Some(player),
+                ..
+            } = &combat.role
+            else {
+                unreachable!()
+            };
+            let fractions = zone.sidecar(owner.entity).unwrap().fractions;
+            [
+                i64::from(combat.hp) * Q + fractions.hp,
+                i64::from(combat.mp) * Q + fractions.mp,
+                i64::from(player.class_state.cp) * Q + fractions.cp,
+            ]
+        };
+        let mut effective = (*zone.effective(owner.entity).unwrap()).clone();
+        effective.calculator = StatCalculator::default();
+        zone.phase3
+            .as_mut()
+            .unwrap()
+            .effective
+            .insert(owner.entity, Arc::new(effective));
+        let mut baseline = zone.clone();
+        baseline.regen_v5(tick).unwrap();
+        let original = credit(&baseline);
+        for (stat, changed) in [("CON", [true, false, true]), ("MEN", [false, true, false])] {
+            let mut current = zone.clone();
+            let mut effective = (*current.effective(owner.entity).unwrap()).clone();
+            let functions = [StatFunction {
+                key: FunctionKey {
+                    stat: stat.into(),
+                    priority: 48,
+                    install_sequence: 999,
+                    handler_ordinal: 0,
+                    function_ordinal: 0,
+                },
+                operation: FunctionOp::Add(40 * Q),
+                conditions: vec![SkillCondition::UsingKind {
+                    weapon_kinds: vec!["SWORD".into()],
+                }],
+            }];
+            effective.calculator = StatCalculator::try_new(functions).unwrap();
+            current
+                .phase3
+                .as_mut()
+                .unwrap()
+                .effective
+                .insert(owner.entity, Arc::new(effective));
+            let mut legacy = current.clone();
+            legacy.phase4 = None;
+            legacy.regen_v5(tick).unwrap();
+            assert_eq!(credit(&legacy), original);
+            let mut unarmed = current.clone();
+            unarmed
+                .phase4
+                .as_mut()
+                .unwrap()
+                .canonical
+                .players
+                .get_mut(&owner.entity)
+                .unwrap()
+                .paperdoll
+                .remove(&crate::domain::zone::EquipSlot::Rhand);
+            unarmed.regen_v5(tick).unwrap();
+            // Synthetic calculator is held fixed to isolate the getter's weapon predicate.
+            assert_eq!(credit(&unarmed), original);
+            current.regen_v5(tick).unwrap();
+            for ((after, before), changed) in
+                credit(&current).into_iter().zip(original).zip(changed)
+            {
+                if changed {
+                    assert!(after > before, "{stat}: {after} <= {before}");
+                } else {
+                    assert_eq!(after, before, "{stat}");
+                }
+            }
+        }
+    }
 }
