@@ -45,6 +45,26 @@ namespace ItemUiTest
  {
   auto Socket=MakeShared<FSocket>();N->SetSocketFactoryForTesting([Socket](const auto&)->TSharedRef<IWebSocket>{return Socket;});N->SetSchedulerForTesting([](float,TFunction<void()>){ });N->Connect(TEXT("ws://test"),TEXT("test"));Socket->Connected.Broadcast();return Socket;
  }
+ template<class T> void Identity(T& Receipt,const TArray<uint8>& Wire,const FString& Entity=Owner,bool WithSequence=false)
+ {
+  FGrpcNightfallV1ClientMessage M;NightfallWire::DecodeClientMessage(Wire.GetData(),Wire.Num(),M);FClientMessage Body;
+  switch(M.Intent.IntentCase){
+   case EGrpcNightfallV1ClientMessageIntent::EquipItem:Body.EquipItem=M.Intent.EquipItem;Receipt.Operation=EGrpcNightfallV1ItemOperation::ITEM_OPERATION_EQUIP;break;
+   case EGrpcNightfallV1ClientMessageIntent::UnequipItem:Body.UnequipItem=M.Intent.UnequipItem;Receipt.Operation=EGrpcNightfallV1ItemOperation::ITEM_OPERATION_UNEQUIP;break;
+   case EGrpcNightfallV1ClientMessageIntent::UseItem:Body.UseItem=M.Intent.UseItem;Receipt.Operation=EGrpcNightfallV1ItemOperation::ITEM_OPERATION_USE;break;
+   case EGrpcNightfallV1ClientMessageIntent::DestroyItem:Body.DestroyItem=M.Intent.DestroyItem;Receipt.Operation=EGrpcNightfallV1ItemOperation::ITEM_OPERATION_DESTROY;break;
+   case EGrpcNightfallV1ClientMessageIntent::EnchantItem:Body.EnchantItem=M.Intent.EnchantItem;Receipt.Operation=EGrpcNightfallV1ItemOperation::ITEM_OPERATION_ENCHANT;break;
+   case EGrpcNightfallV1ClientMessageIntent::ToggleAutoShot:Body.ToggleAutoShot=M.Intent.ToggleAutoShot;Receipt.Operation=EGrpcNightfallV1ItemOperation::ITEM_OPERATION_TOGGLE_AUTO_SHOT;break;
+   case EGrpcNightfallV1ClientMessageIntent::RefineItem:Body.RefineItem=M.Intent.RefineItem;Receipt.Operation=EGrpcNightfallV1ItemOperation::ITEM_OPERATION_REFINE;break;
+   case EGrpcNightfallV1ClientMessageIntent::CancelRefine:Body.CancelRefine=M.Intent.CancelRefine;Receipt.Operation=EGrpcNightfallV1ItemOperation::ITEM_OPERATION_CANCEL_REFINE;break;
+   case EGrpcNightfallV1ClientMessageIntent::ExchangeSpecialAbility:Body.ExchangeSpecialAbility=M.Intent.ExchangeSpecialAbility;Receipt.Operation=EGrpcNightfallV1ItemOperation::ITEM_OPERATION_EXCHANGE_SA;break;
+   case EGrpcNightfallV1ClientMessageIntent::CrystallizeItem:Body.CrystallizeItem=M.Intent.CrystallizeItem;Receipt.Operation=EGrpcNightfallV1ItemOperation::ITEM_OPERATION_CRYSTALLIZE;break;
+   default:checkNoEntry();
+  }
+  Receipt.RequestKey=NightfallItems::UuidBytes(Receipt.ReceiptId);Receipt.RequestFingerprint=NightfallItems::RequestFingerprint(Body,Entity);
+  if(WithSequence){Receipt._accepted_client_seq._accepted_client_seqCase=decltype(Receipt._accepted_client_seq._accepted_client_seqCase)::AcceptedClientSeq;Receipt._accepted_client_seq.AcceptedClientSeq=uint64(M.Seq.Value);}
+ }
+
 }
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FItemInventoryUiTest,"Nightfall.Item.UI.InventoryCountsWeightInput",EAutomationTestFlags::EditorContext|EAutomationTestFlags::ProductFilter)
 bool FItemInventoryUiTest::RunTest(const FString&)
@@ -63,7 +83,7 @@ bool FItemOperationUiTest::RunTest(const FString&)
  auto* D=NewObject<UNightfallItemOperationDialog>(Scope.GameInstance);D->EnsureLayout();D->BindState(S,false,1);D->IngredientControl()->SetSelectedIndex(1);TestTrue(TEXT("received selections permit enchant"),D->CanConfirm());const FString Key=D->RetryKey();D->ConfirmControl()->OnClicked.Broadcast();TestEqual(TEXT("actual enchant button sends"),Socket->Sent.Num(),1);
  FGrpcNightfallV1ClientMessage M;NightfallWire::DecodeClientMessage(Socket->Sent.Last().GetData(),Socket->Sent.Last().Num(),M);TestEqual(TEXT("scroll instance"),M.Intent.EnchantItem.ScrollInstanceId.Value,uint64(2));TestEqual(TEXT("target instance"),M.Intent.EnchantItem.TargetInstanceId.Value,uint64(1));TestEqual(TEXT("same retry key"),M.Intent.EnchantItem.IdempotencyKey,Key);
  FGrpcNightfallV1InventoryChanged C;C.EntityId=NightfallItems::UuidBytes(ItemUiTest::Owner);C.Incarnation=1;C.Tick=11;C.InventoryRevision=2;C.PreviousRevision=1;C.RemovedIds.Add(2);auto I=ItemUiTest::Item(1,6);I.Enchant=1;C.Updated.Add(I);S->ApplyChanged(C);
- FGrpcNightfallV1EnchantResult E;E.EntityId=C.EntityId;E.Incarnation=1;E.Tick=11;E.InventoryRevision=2;E.ReceiptId=Key;E.TargetInstanceId=1;E.NewEnchant=1;E.Outcome=EGrpcNightfallV1EnchantOutcome::ENCHANT_OUTCOME_SUCCESS;FWorldEvent Event;Event.EnchantResult=E;FServerMessage Server;Server.Event=Event;N->DispatchServerMessage(Server);
+ FGrpcNightfallV1EnchantResult E;E.EntityId=C.EntityId;E.Incarnation=1;E.Tick=11;E.InventoryRevision=2;E.ReceiptId=Key;E.TargetInstanceId=1;E.NewEnchant=1;E.Outcome=EGrpcNightfallV1EnchantOutcome::ENCHANT_OUTCOME_SUCCESS;ItemUiTest::Identity(E,Socket->Sent[0]);FWorldEvent Event;Event.EnchantResult=E;FServerMessage Server;Server.Event=Event;N->DispatchServerMessage(Server);
  TestTrue(TEXT("received outcome coherent"),S->EnchantConsistent());D->RetryControl()->OnClicked.Broadcast();TestEqual(TEXT("retry sends after scroll consumed"),Socket->Sent.Num(),2);FGrpcNightfallV1ClientMessage Retry;NightfallWire::DecodeClientMessage(Socket->Sent.Last().GetData(),Socket->Sent.Last().Num(),Retry);TestEqual(TEXT("frozen exact body"),Retry.Intent.EnchantItem.ToJsonString(false),M.Intent.EnchantItem.ToJsonString(false));
  N->DispatchServerMessage(Server);TestTrue(TEXT("frozen receipt matches first"),S->ReceiptMatchesFirst().IsSet() && *S->ReceiptMatchesFirst());
  D->ActionControl()->SetSelectedOption(TEXT("Crystallize"));TestTrue(TEXT("new action gets new key"),D->RetryKey()!=Key);
@@ -102,11 +122,11 @@ bool FItemAccountPendingTest::RunTest(const FString&)
  const uint32 RetrySeq=N->GetLastSentSeq();TestTrue(TEXT("same scope concurrent retry"),S->Execute({TEXT("nf.Equip"),TEXT("template:6"),Key}));Rejected.Seq=RetrySeq;S->ApplyRejected(Rejected);TestTrue(TEXT("rejecting one retry retains other sequence"),S->IsBusy());
  FGrpcNightfallV1ClientMessage Original;NightfallWire::DecodeClientMessage(Socket->Sent.Last().GetData(),Socket->Sent.Last().Num(),Original);TestEqual(TEXT("UUID normalized"),Original.Intent.EquipItem.IdempotencyKey,Key.ToLower());
  FGrpcNightfallV1ItemOperationResult Receipt;Receipt.EntityId=NightfallItems::UuidBytes(ItemUiTest::Owner);Receipt.Incarnation=1;Receipt.Tick=11;Receipt.InventoryRevision=1;Receipt.ReceiptId=Key;Receipt.Operation=EGrpcNightfallV1ItemOperation::ITEM_OPERATION_EQUIP;
- FWorldEvent Event;Event.ItemOperationResult=Receipt;S->ApplyReceiptPayload(Event);TestFalse(TEXT("receipt completes matching request"),S->IsBusy());
+ ItemUiTest::Identity(Receipt,Socket->Sent.Last());FWorldEvent Event;Event.ItemOperationResult=Receipt;S->ApplyReceiptPayload(Event);TestFalse(TEXT("receipt completes matching request"),S->IsBusy());
  const FString Other=TEXT("22222222-2222-4222-8222-222222222222");N->SetOwnEntityId(Other);FEntitySpawn Spawn;Spawn.EntityId=Other;Spawn.Kind=1;Spawn.StateTick=20;Spawn.LifeIncarnation=1;S->ApplySpawn(Spawn);auto Base=S->GetInventory();Base.EntityId=NightfallItems::UuidBytes(Other);Base.Tick=Base.BaselineTick=20;Base.Incarnation=1;Base.Baseline=true;Base.HasWeight=Base.HasPenalties=true;Base.InventoryRevision=1;Base.RulesHash.Value.Init(1,32);Base.Items={ItemUiTest::Item(9,6)};S->ApplySync(Base);
  TestTrue(TEXT("cross-character explicit retry"),S->Execute({TEXT("nf.Equip"),TEXT("template:6"),Key}));FGrpcNightfallV1ClientMessage Retry;NightfallWire::DecodeClientMessage(Socket->Sent.Last().GetData(),Socket->Sent.Last().Num(),Retry);TestEqual(TEXT("account preserves frozen body across characters"),Retry.Intent.EquipItem.ToJsonString(false),Original.Intent.EquipItem.ToJsonString(false));
  S->ApplyReceiptPayload(Event);TestTrue(TEXT("old-character receipt compares in account scope"),S->ReceiptMatchesFirst().IsSet() && *S->ReceiptMatchesFirst());TestFalse(TEXT("cross-character pending completed"),S->IsBusy());TestFalse(TEXT("old character result is never live"),S->LastOperation().IsSet());
- Receipt.Operation=EGrpcNightfallV1ItemOperation::ITEM_OPERATION_UNEQUIP;Receipt.EntityId=Base.EntityId;Receipt.Tick=21;Event.ItemOperationResult=Receipt;S->ApplyReceiptPayload(Event);TestFalse(TEXT("same UUID new operation has separate history"),S->ReceiptMatchesFirst().IsSet());S->ApplyReceiptPayload(Event);TestTrue(TEXT("operation replay compares only own history"),*S->ReceiptMatchesFirst());
+ Receipt.Operation=EGrpcNightfallV1ItemOperation::ITEM_OPERATION_UNEQUIP;Receipt.EntityId=Base.EntityId;Receipt.Tick=21;ItemUiTest::Identity(Receipt,Socket->Sent[1],Other);Event.ItemOperationResult=Receipt;S->ApplyReceiptPayload(Event);TestFalse(TEXT("same UUID new operation has separate history"),S->ReceiptMatchesFirst().IsSet());S->ApplyReceiptPayload(Event);TestTrue(TEXT("operation replay compares only own history"),*S->ReceiptMatchesFirst());
  Session->SetBearerToken(TEXT("test:bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"));S->ApplySpawn(Spawn);S->ApplySync(Base);S->ApplyReceiptPayload(Event);TestFalse(TEXT("different account has separate receipt history"),S->ReceiptMatchesFirst().IsSet());N->Disconnect();return true;
 }
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FItemConflictingBodyTest,"Nightfall.Item.Receipt.OriginalReceiptBeforeFingerprintConflict",EAutomationTestFlags::EditorContext|EAutomationTestFlags::ProductFilter)
@@ -120,7 +140,7 @@ bool FItemConflictingBodyTest::RunTest(const FString&)
  TestEqual(TEXT("original wire count"),First.Intent.DestroyItem.Count.Value,uint64(1));TestEqual(TEXT("conflict wire count"),Second.Intent.DestroyItem.Count.Value,uint64(2));TestEqual(TEXT("same key on wire"),First.Intent.DestroyItem.IdempotencyKey,Second.Intent.DestroyItem.IdempotencyKey);
  TestTrue(TEXT("matching body retry submitted"),S->Execute({TEXT("nf.Destroy"),TEXT("template:6"),TEXT("1"),Key}));const uint32 Retry=N->GetLastSentSeq();
  FGrpcNightfallV1ItemOperationResult Receipt;Receipt.EntityId=NightfallItems::UuidBytes(ItemUiTest::Owner);Receipt.Incarnation=1;Receipt.Tick=11;Receipt.InventoryRevision=2;Receipt.ReceiptId=Key;Receipt.Operation=EGrpcNightfallV1ItemOperation::ITEM_OPERATION_DESTROY;
- FWorldEvent Event;Event.ItemOperationResult=Receipt;S->ApplyReceiptPayload(Event);
+ ItemUiTest::Identity(Receipt,Socket->Sent[0]);FWorldEvent Event;Event.ItemOperationResult=Receipt;S->ApplyReceiptPayload(Event);
  TestTrue(TEXT("original receipt retains conflicting sequence pending"),S->IsBusy());TestEqual(TEXT("still awaiting conflict result"),S->Status(),FString(TEXT("Waiting for server item result")));
  FIntentRejected Rejected;Rejected.Seq=Original;Rejected.Detail=TEXT("late rejection of completed original");S->ApplyRejected(Rejected);Rejected.Seq=Retry;S->ApplyRejected(Rejected);
  TestEqual(TEXT("receipt completed both matching fingerprints despite different selectors"),S->Status(),FString(TEXT("Waiting for server item result")));TestTrue(TEXT("conflict remains pending"),S->IsBusy());
@@ -144,7 +164,7 @@ bool FItemCorrectedBodyTest::RunTest(const FString&)
  TestTrue(TEXT("corrected request awaiting receipt"),S->IsBusy());TestEqual(TEXT("pending display"),S->Status(),FString(TEXT("Waiting for server item result")));
  FGrpcNightfallV1InventoryChanged Changed;Changed.EntityId=NightfallItems::UuidBytes(ItemUiTest::Owner);Changed.Incarnation=1;Changed.Tick=11;Changed.PreviousRevision=1;Changed.InventoryRevision=2;Changed.RemovedIds.Add(1);S->ApplyChanged(Changed);
  FGrpcNightfallV1ItemOperationResult Receipt;Receipt.EntityId=Changed.EntityId;Receipt.Incarnation=1;Receipt.Tick=11;Receipt.InventoryRevision=2;Receipt.ReceiptId=Key;Receipt.Operation=EGrpcNightfallV1ItemOperation::ITEM_OPERATION_DESTROY;
- FWorldEvent Event;Event.ItemOperationResult=Receipt;S->ApplyReceiptPayload(Event);
+ ItemUiTest::Identity(Receipt,Socket->Sent.Last());FWorldEvent Event;Event.ItemOperationResult=Receipt;S->ApplyReceiptPayload(Event);
  TestFalse(TEXT("corrected receipt clears pending and busy"),S->IsBusy());TestEqual(TEXT("successful receipt displayed"),S->Status(),FString(TEXT("Server committed item operation")));TestEqual(TEXT("committed destroy removes displayed count"),*S->Count(6),uint64(0));
  Rejected.Seq=Corrected;Rejected.Detail=TEXT("late rejection");S->ApplyRejected(Rejected);TestEqual(TEXT("corrected sequence is terminal"),S->Status(),FString(TEXT("Server committed item operation")));
  TestTrue(TEXT("identical corrected retry after consumption"),S->Execute({TEXT("nf.Destroy"),TEXT("instance:1"),TEXT("1"),Key}));FGrpcNightfallV1ClientMessage Replay;NightfallWire::DecodeClientMessage(Socket->Sent.Last().GetData(),Socket->Sent.Last().Num(),Replay);TestEqual(TEXT("corrected arguments retain exact committed body"),Replay.Intent.DestroyItem.ToJsonString(false),Accepted.Intent.DestroyItem.ToJsonString(false));
@@ -159,16 +179,61 @@ bool FItemCommittedBodyTest::RunTest(const FString&)
  TestTrue(TEXT("original count submitted"),S->Execute({TEXT("nf.Destroy"),TEXT("instance:1"),TEXT("1"),Key}));
  FGrpcNightfallV1ClientMessage Original;NightfallWire::DecodeClientMessage(Socket->Sent.Last().GetData(),Socket->Sent.Last().Num(),Original);
  FGrpcNightfallV1ItemOperationResult Receipt;Receipt.EntityId=NightfallItems::UuidBytes(ItemUiTest::Owner);Receipt.Incarnation=1;Receipt.Tick=11;Receipt.InventoryRevision=2;Receipt.ReceiptId=Key;Receipt.Operation=EGrpcNightfallV1ItemOperation::ITEM_OPERATION_DESTROY;
- FWorldEvent Event;Event.ItemOperationResult=Receipt;S->ApplyReceiptPayload(Event);TestFalse(TEXT("original receipt commits before conflict"),S->IsBusy());
+ ItemUiTest::Identity(Receipt,Socket->Sent[0]);FWorldEvent Event;Event.ItemOperationResult=Receipt;S->ApplyReceiptPayload(Event);TestFalse(TEXT("original receipt commits before conflict"),S->IsBusy());
  for(int32 Attempt=0;Attempt<2;++Attempt){
-  TestTrue(TEXT("later different body sent for server refusal"),S->Execute({TEXT("nf.Destroy"),TEXT("instance:1"),TEXT("2"),Key}));const uint32 Conflict=N->GetLastSentSeq();
-  FGrpcNightfallV1ClientMessage Different;NightfallWire::DecodeClientMessage(Socket->Sent.Last().GetData(),Socket->Sent.Last().Num(),Different);TestEqual(TEXT("later body differs on wire"),Different.Intent.DestroyItem.Count.Value,uint64(2));
-  S->ApplyReceiptPayload(Event);TestTrue(TEXT("committed replay cannot complete conflicting body"),S->IsBusy());
-  FIntentRejected Rejected;Rejected.Seq=Conflict;Rejected.Detail=TEXT("D43 fingerprint conflict: FAILED_PRECONDITION");S->ApplyRejected(Rejected);TestFalse(TEXT("later conflict rejection clears busy"),S->IsBusy());TestEqual(TEXT("later conflict refusal displayed"),S->Status(),Rejected.Detail);
-  S->ApplyReceiptPayload(Event);TestEqual(TEXT("receipt replay preserves later refusal"),S->Status(),Rejected.Detail);
+  const int32 Before=Socket->Sent.Num();
+  TestFalse(TEXT("later different body refused locally"),S->Execute({TEXT("nf.Destroy"),TEXT("instance:1"),TEXT("2"),Key}));
+  TestEqual(TEXT("conflict never sent"),Socket->Sent.Num(),Before);TestFalse(TEXT("local conflict creates no pending sequence"),S->IsBusy());
+  TestEqual(TEXT("local conflict displayed"),S->Status(),FString(TEXT("D43 fingerprint conflict: FAILED_PRECONDITION")));
+  S->ApplyReceiptPayload(Event);TestEqual(TEXT("receipt replay preserves local refusal"),S->Status(),FString(TEXT("D43 fingerprint conflict: FAILED_PRECONDITION")));
  }
  TestTrue(TEXT("original committed body still retryable"),S->Execute({TEXT("nf.Destroy"),TEXT("instance:1"),TEXT("1"),Key}));FGrpcNightfallV1ClientMessage Retry;NightfallWire::DecodeClientMessage(Socket->Sent.Last().GetData(),Socket->Sent.Last().Num(),Retry);TestEqual(TEXT("committed body remains frozen"),Retry.Intent.DestroyItem.ToJsonString(false),Original.Intent.DestroyItem.ToJsonString(false));
  S->ApplyReceiptPayload(Event);TestFalse(TEXT("original retry completes"),S->IsBusy());TestEqual(TEXT("original retry success displayed"),S->Status(),FString(TEXT("Server committed item operation")));N->Disconnect();return true;
+}
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FItemInterleavedCorrectionTest,"Nightfall.Item.Receipt.PerSequenceCorrectionAllDeliveryOrders",EAutomationTestFlags::EditorContext|EAutomationTestFlags::ProductFilter)
+bool FItemInterleavedCorrectionTest::RunTest(const FString&)
+{
+ const int32 Orders[][3]={{0,1,2},{0,2,1},{1,0,2},{1,2,0},{2,0,1},{2,1,0}};
+ for(const auto& Order:Orders)for(int32 Prefix=0;Prefix<=2;++Prefix)for(bool WithSequence:{false,true}){
+  int32 ReceiptPosition=0;while(Order[ReceiptPosition]!=2)++ReceiptPosition;if(Prefix>ReceiptPosition)continue;
+  FScopedTestGameInstance Scope;auto* N=Scope.Get<UNetClientSubsystem>();auto* S=Scope.Get<UInventoryStateSubsystem>();auto Socket=ItemUiTest::Connect(N);ItemUiTest::Seed(N,S);
+  const FString Key=TEXT("abcdefab-1111-4111-8111-123456789abc");uint32 Sequences[3];
+  TestTrue(TEXT("A submitted"),S->Execute({TEXT("nf.Destroy"),TEXT("instance:1"),TEXT("2"),Key}));Sequences[0]=N->GetLastSentSeq();
+  TestTrue(TEXT("A2 submitted"),S->Execute({TEXT("nf.Destroy"),TEXT("instance:1"),TEXT("2"),Key}));Sequences[1]=N->GetLastSentSeq();
+  auto Reject=[&](int32 Index){FIntentRejected R;R.Seq=Sequences[Index];R.Detail=TEXT("excessive count: FAILED_PRECONDITION");S->ApplyRejected(R);};
+  for(int32 I=0;I<Prefix;++I)Reject(Order[I]);
+  TestTrue(TEXT("B allowed before commitment regardless of rejected A attempts"),S->Execute({TEXT("nf.Destroy"),TEXT("instance:1"),TEXT("1"),Key}));Sequences[2]=N->GetLastSentSeq();
+  FGrpcNightfallV1ClientMessage B;NightfallWire::DecodeClientMessage(Socket->Sent.Last().GetData(),Socket->Sent.Last().Num(),B);TestEqual(TEXT("B own wire body"),B.Intent.DestroyItem.Count.Value,uint64(1));
+  FGrpcNightfallV1ItemOperationResult Receipt;Receipt.EntityId=NightfallItems::UuidBytes(ItemUiTest::Owner);Receipt.Incarnation=1;Receipt.Tick=11;Receipt.InventoryRevision=2;Receipt.ReceiptId=Key;ItemUiTest::Identity(Receipt,Socket->Sent.Last(),ItemUiTest::Owner,WithSequence);FWorldEvent E;E.ItemOperationResult=Receipt;
+  for(int32 I=Prefix;I<3;++I){
+   if(Order[I]==2){
+    FGrpcNightfallV1InventoryChanged C;C.EntityId=Receipt.EntityId;C.Incarnation=1;C.Tick=11;C.PreviousRevision=1;C.InventoryRevision=2;C.RemovedIds.Add(1);S->ApplyChanged(C);S->ApplyReceiptPayload(E);
+    TestEqual(TEXT("B receipt status reflects remaining A attempts"),S->Status(),FString(I==2?TEXT("Server committed item operation"):TEXT("Waiting for server item result")));
+    FIntentRejected Late;Late.Seq=Sequences[2];Late.Detail=TEXT("late B rejection");const FString Before=S->Status();S->ApplyRejected(Late);TestEqual(TEXT("B alone became terminal"),S->Status(),Before);
+   }else {Reject(Order[I]);TestEqual(TEXT("unmatched A rejection still processed"),S->Status(),FString(TEXT("excessive count: FAILED_PRECONDITION")));}
+   TestEqual(TEXT("only remaining responses keep busy"),S->IsBusy(),I<2);
+  }
+  TestEqual(TEXT("successful B inventory displayed"),*S->Count(6),uint64(0));
+  TestTrue(TEXT("committed B retries after consumption"),S->Execute({TEXT("nf.Destroy"),TEXT("instance:1"),TEXT("1"),Key}));FGrpcNightfallV1ClientMessage Retry;NightfallWire::DecodeClientMessage(Socket->Sent.Last().GetData(),Socket->Sent.Last().Num(),Retry);TestEqual(TEXT("B retry preserves its own body"),Retry.Intent.DestroyItem.ToJsonString(false),B.Intent.DestroyItem.ToJsonString(false));S->ApplyReceiptPayload(E);TestFalse(TEXT("B retry settles"),S->IsBusy());TestEqual(TEXT("B retry success display"),S->Status(),FString(TEXT("Server committed item operation")));
+  const int32 Sent=Socket->Sent.Num();TestFalse(TEXT("committed scope refuses A locally"),S->Execute({TEXT("nf.Destroy"),TEXT("instance:1"),TEXT("2"),Key}));TestEqual(TEXT("A never sent after B commits"),Socket->Sent.Num(),Sent);TestFalse(TEXT("local refusal stays idle"),S->IsBusy());
+  N->Disconnect();
+ }
+ return true;
+}
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FItemRequestResetTest,"Nightfall.Item.Receipt.ResetAndSessionClearRequestBodies",EAutomationTestFlags::EditorContext|EAutomationTestFlags::ProductFilter)
+bool FItemRequestResetTest::RunTest(const FString&)
+{
+ for(bool ChangeSession:{false,true}){
+  FScopedTestGameInstance Scope;auto* N=Scope.Get<UNetClientSubsystem>();auto* S=Scope.Get<UInventoryStateSubsystem>();auto Socket=ItemUiTest::Connect(N);ItemUiTest::Seed(N,S);
+  const FString Key=TEXT("abcdefab-1111-4111-8111-123456789abc");S->Execute({TEXT("nf.Destroy"),TEXT("instance:1"),TEXT("1"),Key});
+  FGrpcNightfallV1ItemOperationResult R;R.EntityId=NightfallItems::UuidBytes(ItemUiTest::Owner);R.Incarnation=1;R.Tick=11;R.InventoryRevision=1;R.ReceiptId=Key;ItemUiTest::Identity(R,Socket->Sent.Last());FWorldEvent E;E.ItemOperationResult=R;S->ApplyReceiptPayload(E);
+  S->Execute({TEXT("nf.Destroy"),TEXT("instance:1"),TEXT("1"),Key});const uint32 Old=N->GetLastSentSeq();
+  if(ChangeSession){Scope.Get<USessionClient>()->SetBearerToken(TEXT(""));Scope.Get<USessionClient>()->SetBearerToken(TEXT("test:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"));}else S->Reset();
+  TestFalse(TEXT("lifecycle clears outstanding"),S->IsBusy());ItemUiTest::Seed(N,S);
+  TestTrue(TEXT("lifecycle permits a different same-key body"),S->Execute({TEXT("nf.Destroy"),TEXT("instance:1"),TEXT("2"),Key}));const FString Before=S->Status();FIntentRejected Late;Late.Seq=Old;Late.Detail=TEXT("old session rejection");S->ApplyRejected(Late);TestEqual(TEXT("old sequence invalidated"),S->Status(),Before);TestTrue(TEXT("new sequence remains pending"),S->IsBusy());
+  ItemUiTest::Identity(R,Socket->Sent.Last());E.ItemOperationResult=R;S->ApplyReceiptPayload(E);TestFalse(TEXT("new identity commits"),S->IsBusy());TestFalse(TEXT("old receipt history cleared"),S->ReceiptMatchesFirst().IsSet());N->Disconnect();
+ }
+ return true;
 }
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FItemGrantDetachedOverlapTest,"Nightfall.Item.Rpc.GrantDetachedOverlapAndLifecycle",EAutomationTestFlags::EditorContext|EAutomationTestFlags::ProductFilter)
 bool FItemGrantDetachedOverlapTest::RunTest(const FString&)
@@ -219,7 +284,7 @@ bool FItemFreshActionKeyTest::RunTest(const FString&)
  auto Change=[&](bool Equipped,uint64 Revision){FGrpcNightfallV1InventoryChanged C;C.EntityId=NightfallItems::UuidBytes(ItemUiTest::Owner);C.Incarnation=1;C.Tick=10+Revision;C.PreviousRevision=Revision-1;C.InventoryRevision=Revision;auto I=ItemUiTest::Item(1,6);if(Equipped){I.Slot=EGrpcNightfallV1EquipSlot::EQUIP_SLOT_RHAND;I.Location=EGrpcNightfallV1ItemLocation::ITEM_LOCATION_PAPERDOLL;}C.Updated.Add(I);S->ApplyChanged(C);};Change(true,2);
  auto* D=NewObject<UNightfallInventoryDialog>(Scope.GameInstance);D->BindState(S,false);D->SelectSlot(TEXT("rhand"));TArray<FString> Keys;
  for(int32 Step=0;Step<3;++Step){auto* Button=Step==1?D->EquipControl():D->UnequipControl();TestTrue(TEXT("sequence button enabled"),Button->GetIsEnabled());Button->OnClicked.Broadcast();FGrpcNightfallV1ClientMessage M;NightfallWire::DecodeClientMessage(Socket->Sent.Last().GetData(),Socket->Sent.Last().Num(),M);const FString Key=Step==1?M.Intent.EquipItem.IdempotencyKey:M.Intent.UnequipItem.IdempotencyKey;Keys.Add(Key);TestFalse(TEXT("waits for authoritative completion"),Button->GetIsEnabled());Change(Step==1,3+Step);
-  FGrpcNightfallV1ItemOperationResult R;R.EntityId=NightfallItems::UuidBytes(ItemUiTest::Owner);R.Incarnation=1;R.Tick=13+Step;R.InventoryRevision=3+Step;R.ReceiptId=Key;R.Operation=Step==1?EGrpcNightfallV1ItemOperation::ITEM_OPERATION_EQUIP:EGrpcNightfallV1ItemOperation::ITEM_OPERATION_UNEQUIP;FWorldEvent E;E.ItemOperationResult=R;S->ApplyReceiptPayload(E);}
+  FGrpcNightfallV1ItemOperationResult R;R.EntityId=NightfallItems::UuidBytes(ItemUiTest::Owner);R.Incarnation=1;R.Tick=13+Step;R.InventoryRevision=3+Step;R.ReceiptId=Key;R.Operation=Step==1?EGrpcNightfallV1ItemOperation::ITEM_OPERATION_EQUIP:EGrpcNightfallV1ItemOperation::ITEM_OPERATION_UNEQUIP;ItemUiTest::Identity(R,Socket->Sent.Last());FWorldEvent E;E.ItemOperationResult=R;S->ApplyReceiptPayload(E);}
  TestTrue(TEXT("two successful unequips are new operations"),Keys[0]!=Keys[2]);TestEqual(TEXT("all three clicks sent"),Socket->Sent.Num(),3);N->Disconnect();return true;
 }
 #endif
@@ -240,9 +305,9 @@ bool FItemAllOperationControlsTest::RunTest(const FString&)
   if(Action==TEXT("CancelRefine")){TestEqual(TEXT("cancel target"),M.Intent.CancelRefine.TargetInstanceId.Value,uint64(1));TestEqual(TEXT("cancel npc incarnation"),M.Intent.CancelRefine.Npc.Incarnation.Value,uint32(7));TestTrue(TEXT("cancel npc identity"),M.Intent.CancelRefine.Npc.EntityId.Value==NightfallItems::UuidBytes(Npc.EntityId).Value);Op=EGrpcNightfallV1ItemOperation::ITEM_OPERATION_CANCEL_REFINE;}
   if(Action==TEXT("ExchangeSA")){TestEqual(TEXT("SA target"),M.Intent.ExchangeSpecialAbility.TargetInstanceId.Value,uint64(1));TestEqual(TEXT("SA recipe width"),M.Intent.ExchangeSpecialAbility.RecipeId.Value,uint64(MAX_uint64));TestEqual(TEXT("SA npc incarnation"),M.Intent.ExchangeSpecialAbility.Npc.Incarnation.Value,uint32(7));TestTrue(TEXT("SA npc identity"),M.Intent.ExchangeSpecialAbility.Npc.EntityId.Value==NightfallItems::UuidBytes(Npc.EntityId).Value);Op=EGrpcNightfallV1ItemOperation::ITEM_OPERATION_EXCHANGE_SA;}
   TestFalse(TEXT("pending disables confirm"),D->ConfirmControl()->GetIsEnabled());FWorldEvent E;
-  if(Op==EGrpcNightfallV1ItemOperation::ITEM_OPERATION_ENCHANT){FGrpcNightfallV1EnchantResult R;R.EntityId=NightfallItems::UuidBytes(ItemUiTest::Owner);R.Incarnation=1;R.Tick=11;R.InventoryRevision=1;R.ReceiptId=Key;R.TargetInstanceId=1;R.Outcome=EGrpcNightfallV1EnchantOutcome::ENCHANT_OUTCOME_SAFE_FAILED;E.EnchantResult=R;}
-  else if(Op==EGrpcNightfallV1ItemOperation::ITEM_OPERATION_REFINE || Op==EGrpcNightfallV1ItemOperation::ITEM_OPERATION_CANCEL_REFINE){FGrpcNightfallV1RefineResult R;R.EntityId=NightfallItems::UuidBytes(ItemUiTest::Owner);R.Incarnation=1;R.Tick=11;R.InventoryRevision=1;R.ReceiptId=Key;R.TargetInstanceId=1;R.Outcome=Op==EGrpcNightfallV1ItemOperation::ITEM_OPERATION_REFINE?EGrpcNightfallV1RefineOutcome::REFINE_OUTCOME_APPLIED:EGrpcNightfallV1RefineOutcome::REFINE_OUTCOME_REMOVED;E.RefineResult=R;}
-  else {FGrpcNightfallV1ItemOperationResult R;R.EntityId=NightfallItems::UuidBytes(ItemUiTest::Owner);R.Incarnation=1;R.Tick=11;R.InventoryRevision=1;R.ReceiptId=Key;R.Operation=Op;E.ItemOperationResult=R;}
+  if(Op==EGrpcNightfallV1ItemOperation::ITEM_OPERATION_ENCHANT){FGrpcNightfallV1EnchantResult R;R.EntityId=NightfallItems::UuidBytes(ItemUiTest::Owner);R.Incarnation=1;R.Tick=11;R.InventoryRevision=1;R.ReceiptId=Key;R.TargetInstanceId=1;R.Outcome=EGrpcNightfallV1EnchantOutcome::ENCHANT_OUTCOME_SAFE_FAILED;ItemUiTest::Identity(R,Socket->Sent.Last());E.EnchantResult=R;}
+  else if(Op==EGrpcNightfallV1ItemOperation::ITEM_OPERATION_REFINE || Op==EGrpcNightfallV1ItemOperation::ITEM_OPERATION_CANCEL_REFINE){FGrpcNightfallV1RefineResult R;R.EntityId=NightfallItems::UuidBytes(ItemUiTest::Owner);R.Incarnation=1;R.Tick=11;R.InventoryRevision=1;R.ReceiptId=Key;R.TargetInstanceId=1;R.Outcome=Op==EGrpcNightfallV1ItemOperation::ITEM_OPERATION_REFINE?EGrpcNightfallV1RefineOutcome::REFINE_OUTCOME_APPLIED:EGrpcNightfallV1RefineOutcome::REFINE_OUTCOME_REMOVED;ItemUiTest::Identity(R,Socket->Sent.Last());E.RefineResult=R;}
+  else {FGrpcNightfallV1ItemOperationResult R;R.EntityId=NightfallItems::UuidBytes(ItemUiTest::Owner);R.Incarnation=1;R.Tick=11;R.InventoryRevision=1;R.ReceiptId=Key;R.Operation=Op;ItemUiTest::Identity(R,Socket->Sent.Last());E.ItemOperationResult=R;}
   FServerMessage Server;Server.Event=E;N->DispatchServerMessage(Server);TestFalse(TEXT("completion clears pending"),S->IsBusy());TestTrue(TEXT("completion enables new action"),D->ConfirmControl()->GetIsEnabled());D->RetryControl()->OnClicked.Broadcast();FGrpcNightfallV1ClientMessage Retry;NightfallWire::DecodeClientMessage(Socket->Sent.Last().GetData(),Socket->Sent.Last().Num(),Retry);TestEqual(TEXT("explicit retry retains exact original body"),Retry.Intent.ToJsonString(false),M.Intent.ToJsonString(false));FIntentRejected Rejected;Rejected.Seq=N->GetLastSentSeq();Rejected.Detail=Action+TEXT(" refused");S->ApplyRejected(Rejected);TestFalse(TEXT("rejection clears matching pending"),S->IsBusy());TestEqual(TEXT("received rejection displayed"),S->Status(),Rejected.Detail);
   D->ConfirmControl()->OnClicked.Broadcast();TestTrue(TEXT("new confirm allocates fresh UUID"),D->RetryKey()!=Key);Rejected.Seq=N->GetLastSentSeq();S->ApplyRejected(Rejected);
  }
@@ -257,5 +322,40 @@ bool FItemHudControlsTest::RunTest(const FString&)
  Hud->ItemControl(1)->OnClicked.Broadcast();NightfallWire::DecodeClientMessage(Socket->Sent.Last().GetData(),Socket->Sent.Last().Num(),M);TestEqual(TEXT("HUD auto template"),M.Intent.ToggleAutoShot.TemplateId.Value,uint32(6));TestTrue(TEXT("HUD sends on"),M.Intent.ToggleAutoShot.Enabled);Hud->RefreshPresentation();TestTrue(TEXT("HUD stays off until received"),Hud->ItemLabel(1).Contains(TEXT("AUTO OFF")));
  FGrpcNightfallV1InventoryChanged C;C.EntityId=NightfallItems::UuidBytes(ItemUiTest::Owner);C.Incarnation=1;C.Tick=11;C.PreviousRevision=1;C.InventoryRevision=2;C.AutoShotTemplates.Add(6);S->ApplyChanged(C);R.Seq=N->GetLastSentSeq();S->ApplyRejected(R);Hud->RefreshPresentation();TestTrue(TEXT("HUD projects received auto on"),Hud->ItemLabel(1).Contains(TEXT("AUTO ON")));Hud->ItemControl(1)->OnClicked.Broadcast();NightfallWire::DecodeClientMessage(Socket->Sent.Last().GetData(),Socket->Sent.Last().Num(),M);TestFalse(TEXT("HUD sends off after received on"),M.Intent.ToggleAutoShot.Enabled);
  S->Reset();Hud->RefreshPresentation();TestFalse(TEXT("HUD reset disables manual"),Hud->ItemControl(0)->GetIsEnabled());TestFalse(TEXT("HUD reset disables auto"),Hud->ItemControl(1)->GetIsEnabled());IFileManager::Get().Delete(*Config);N->Disconnect();return true;
+}
+#endif
+#if WITH_DEV_AUTOMATION_TESTS
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FItemRequestFingerprintTest,"Nightfall.Item.Receipt.CanonicalRequestFingerprintVectors",EAutomationTestFlags::EditorContext|EAutomationTestFlags::ProductFilter)
+bool FItemRequestFingerprintTest::RunTest(const FString&)
+{
+ // Independent SHA-256 vectors of the sorted serde JSON in zone/phase4_admission.rs.
+ FGrpcNightfallV1ItemTarget Npc;Npc.EntityId=NightfallItems::UuidBytes(TEXT("22222222-2222-4222-8222-222222222222"));Npc.Incarnation=MAX_uint32;
+ {FGrpcNightfallV1EquipItemRequest Q;Q.InstanceId=uint64(MAX_int64);FClientMessage B;B.EquipItem=Q;TestEqual(TEXT("EquipItem canonical vector"),NightfallItems::RequestFingerprint(B,ItemUiTest::Owner),FString(TEXT("c8483f2526d14c6f78829635b796ae19b45e3053d9f659574f9e9aadb725e0c5")));
+  Q.IdempotencyKey=TEXT("abcdefab-1111-4111-8111-123456789abc");B.EquipItem=Q;B.Seq=999;TestEqual(TEXT("key/sequence excluded"),NightfallItems::RequestFingerprint(B,ItemUiTest::Owner),FString(TEXT("c8483f2526d14c6f78829635b796ae19b45e3053d9f659574f9e9aadb725e0c5")));}
+ {FGrpcNightfallV1EquipItemRequest Q;Q.InstanceId=1;Q.PreferredSlot=EGrpcNightfallV1EquipSlot::EQUIP_SLOT_RHAND;FClientMessage B;B.EquipItem=Q;TestEqual(TEXT("EquipItem canonical vector"),NightfallItems::RequestFingerprint(B,ItemUiTest::Owner),FString(TEXT("5417d17dd8bb604150e64bb4583e01acc100093f08820a966d233c80d6c140af")));
+  Q.IdempotencyKey=TEXT("abcdefab-1111-4111-8111-123456789abc");B.EquipItem=Q;B.Seq=999;TestEqual(TEXT("key/sequence excluded"),NightfallItems::RequestFingerprint(B,ItemUiTest::Owner),FString(TEXT("5417d17dd8bb604150e64bb4583e01acc100093f08820a966d233c80d6c140af")));}
+ {FGrpcNightfallV1UnequipItemRequest Q;Q.Slot=EGrpcNightfallV1EquipSlot::EQUIP_SLOT_LFINGER;FClientMessage B;B.UnequipItem=Q;TestEqual(TEXT("UnequipItem canonical vector"),NightfallItems::RequestFingerprint(B,ItemUiTest::Owner),FString(TEXT("538df8225a1020f451d22b7a8f9a60f2823dec7174984ecd3c6a233eb88808fd")));
+  Q.IdempotencyKey=TEXT("abcdefab-1111-4111-8111-123456789abc");B.UnequipItem=Q;B.Seq=999;TestEqual(TEXT("key/sequence excluded"),NightfallItems::RequestFingerprint(B,ItemUiTest::Owner),FString(TEXT("538df8225a1020f451d22b7a8f9a60f2823dec7174984ecd3c6a233eb88808fd")));}
+ {FGrpcNightfallV1UseItemRequest Q;Q.InstanceId=1;FClientMessage B;B.UseItem=Q;TestEqual(TEXT("UseItem canonical vector"),NightfallItems::RequestFingerprint(B,ItemUiTest::Owner),FString(TEXT("86229cbe84da5a945d397cbe97d4dd0ba71155db861b09d21604a30062102d0c")));
+  Q.IdempotencyKey=TEXT("abcdefab-1111-4111-8111-123456789abc");B.UseItem=Q;B.Seq=999;TestEqual(TEXT("key/sequence excluded"),NightfallItems::RequestFingerprint(B,ItemUiTest::Owner),FString(TEXT("86229cbe84da5a945d397cbe97d4dd0ba71155db861b09d21604a30062102d0c")));}
+ {FGrpcNightfallV1UseItemRequest Q;Q.InstanceId=1;Q.HasTarget=true;Q.Target=Npc;FClientMessage B;B.UseItem=Q;TestEqual(TEXT("UseItem canonical vector"),NightfallItems::RequestFingerprint(B,ItemUiTest::Owner),FString(TEXT("849784a6e97cab85fe67352de8408e94ce5bc2c2f488cce3adcc9457dca95d57")));
+  Q.IdempotencyKey=TEXT("abcdefab-1111-4111-8111-123456789abc");B.UseItem=Q;B.Seq=999;TestEqual(TEXT("key/sequence excluded"),NightfallItems::RequestFingerprint(B,ItemUiTest::Owner),FString(TEXT("849784a6e97cab85fe67352de8408e94ce5bc2c2f488cce3adcc9457dca95d57")));}
+ {FGrpcNightfallV1DestroyItemRequest Q;Q.InstanceId=uint64(MAX_int64);Q.Count=uint64(MAX_int64);FClientMessage B;B.DestroyItem=Q;TestEqual(TEXT("DestroyItem canonical vector"),NightfallItems::RequestFingerprint(B,ItemUiTest::Owner),FString(TEXT("142c1cc5d5c05e686a75871cb50e8e06bfde9902d938541c80542dda2526d0d1")));
+  Q.IdempotencyKey=TEXT("abcdefab-1111-4111-8111-123456789abc");B.DestroyItem=Q;B.Seq=999;TestEqual(TEXT("key/sequence excluded"),NightfallItems::RequestFingerprint(B,ItemUiTest::Owner),FString(TEXT("142c1cc5d5c05e686a75871cb50e8e06bfde9902d938541c80542dda2526d0d1")));}
+ {FGrpcNightfallV1EnchantItemRequest Q;Q.ScrollInstanceId=1;Q.TargetInstanceId=2;FClientMessage B;B.EnchantItem=Q;TestEqual(TEXT("EnchantItem canonical vector"),NightfallItems::RequestFingerprint(B,ItemUiTest::Owner),FString(TEXT("9ea9e266b5e4cff3593b0e6f51ad3732c708ed4d2e28359780a3d7bbd52d4fcb")));
+  Q.IdempotencyKey=TEXT("abcdefab-1111-4111-8111-123456789abc");B.EnchantItem=Q;B.Seq=999;TestEqual(TEXT("key/sequence excluded"),NightfallItems::RequestFingerprint(B,ItemUiTest::Owner),FString(TEXT("9ea9e266b5e4cff3593b0e6f51ad3732c708ed4d2e28359780a3d7bbd52d4fcb")));}
+ {FGrpcNightfallV1EnchantItemRequest Q;Q.ScrollInstanceId=1;Q.TargetInstanceId=2;Q._support_instance_id._support_instance_idCase=EGrpcNightfallV1EnchantItemRequest_support_instance_id::SupportInstanceId;Q._support_instance_id.SupportInstanceId=uint64(MAX_int64);FClientMessage B;B.EnchantItem=Q;TestEqual(TEXT("EnchantItem canonical vector"),NightfallItems::RequestFingerprint(B,ItemUiTest::Owner),FString(TEXT("08e1f556562f73f01f874c273086d35c75868d230eede1849c2dfcff8678626e")));
+  Q.IdempotencyKey=TEXT("abcdefab-1111-4111-8111-123456789abc");B.EnchantItem=Q;B.Seq=999;TestEqual(TEXT("key/sequence excluded"),NightfallItems::RequestFingerprint(B,ItemUiTest::Owner),FString(TEXT("08e1f556562f73f01f874c273086d35c75868d230eede1849c2dfcff8678626e")));}
+ {FGrpcNightfallV1ToggleAutoShotRequest Q;Q.TemplateId=MAX_uint32;Q.Enabled=true;FClientMessage B;B.ToggleAutoShot=Q;TestEqual(TEXT("ToggleAutoShot canonical vector"),NightfallItems::RequestFingerprint(B,ItemUiTest::Owner),FString(TEXT("e2d69b4ffd0de1076c16bb11719280bf848a32e4e5f198d43af5854f1dff8e9e")));
+  Q.IdempotencyKey=TEXT("abcdefab-1111-4111-8111-123456789abc");B.ToggleAutoShot=Q;B.Seq=999;TestEqual(TEXT("key/sequence excluded"),NightfallItems::RequestFingerprint(B,ItemUiTest::Owner),FString(TEXT("e2d69b4ffd0de1076c16bb11719280bf848a32e4e5f198d43af5854f1dff8e9e")));}
+ {FGrpcNightfallV1RefineItemRequest Q;Q.HasNpc=true;Q.Npc=Npc;Q.TargetInstanceId=uint64(MAX_int64);Q.StoneInstanceId=1;FClientMessage B;B.RefineItem=Q;TestEqual(TEXT("RefineItem canonical vector"),NightfallItems::RequestFingerprint(B,ItemUiTest::Owner),FString(TEXT("dced39ae9f2f6f8a5f88dee42eadaa027a0e8ee7f9093beceb4093c3b801c174")));
+  Q.IdempotencyKey=TEXT("abcdefab-1111-4111-8111-123456789abc");B.RefineItem=Q;B.Seq=999;TestEqual(TEXT("key/sequence excluded"),NightfallItems::RequestFingerprint(B,ItemUiTest::Owner),FString(TEXT("dced39ae9f2f6f8a5f88dee42eadaa027a0e8ee7f9093beceb4093c3b801c174")));}
+ {FGrpcNightfallV1CancelRefineRequest Q;Q.HasNpc=true;Q.Npc=Npc;Q.TargetInstanceId=uint64(MAX_int64);FClientMessage B;B.CancelRefine=Q;TestEqual(TEXT("CancelRefine canonical vector"),NightfallItems::RequestFingerprint(B,ItemUiTest::Owner),FString(TEXT("4ffca1d2017f8b9fcbcf7e09f2024b753e2f9c97d679ffd66c76ed774ba56916")));
+  Q.IdempotencyKey=TEXT("abcdefab-1111-4111-8111-123456789abc");B.CancelRefine=Q;B.Seq=999;TestEqual(TEXT("key/sequence excluded"),NightfallItems::RequestFingerprint(B,ItemUiTest::Owner),FString(TEXT("4ffca1d2017f8b9fcbcf7e09f2024b753e2f9c97d679ffd66c76ed774ba56916")));}
+ {FGrpcNightfallV1ExchangeSpecialAbilityRequest Q;Q.HasNpc=true;Q.Npc=Npc;Q.TargetInstanceId=1;Q.RecipeId=MAX_uint64;FClientMessage B;B.ExchangeSpecialAbility=Q;TestEqual(TEXT("ExchangeSpecialAbility canonical vector"),NightfallItems::RequestFingerprint(B,ItemUiTest::Owner),FString(TEXT("77bc49c8a375240d66eea69478dc4e92832bdf5fa5c5e5eabd79ae64714a9afc")));
+  Q.IdempotencyKey=TEXT("abcdefab-1111-4111-8111-123456789abc");B.ExchangeSpecialAbility=Q;B.Seq=999;TestEqual(TEXT("key/sequence excluded"),NightfallItems::RequestFingerprint(B,ItemUiTest::Owner),FString(TEXT("77bc49c8a375240d66eea69478dc4e92832bdf5fa5c5e5eabd79ae64714a9afc")));}
+ {FGrpcNightfallV1CrystallizeItemRequest Q;Q.InstanceId=uint64(MAX_int64);FClientMessage B;B.CrystallizeItem=Q;TestEqual(TEXT("CrystallizeItem canonical vector"),NightfallItems::RequestFingerprint(B,ItemUiTest::Owner),FString(TEXT("7e44d379bbe16b005e89f30bc13b7cd12d609f746cdbca7a28bb542f6ba22a41")));
+  Q.IdempotencyKey=TEXT("abcdefab-1111-4111-8111-123456789abc");B.CrystallizeItem=Q;B.Seq=999;TestEqual(TEXT("key/sequence excluded"),NightfallItems::RequestFingerprint(B,ItemUiTest::Owner),FString(TEXT("7e44d379bbe16b005e89f30bc13b7cd12d609f746cdbca7a28bb542f6ba22a41")));}
+ return true;
 }
 #endif

@@ -262,6 +262,7 @@ TestTrue(TEXT("PenaltyChanged decode"),NightfallProto::Decode(B.GetData(),B.Num(
 if(!TestTrue(TEXT("PenaltyChanged dispatch"),Decoded.Event.IsSet() && Decoded.Event->PenaltyChanged.IsSet()))return false;
 TestEqual(TEXT("PenaltyChanged all fields presence True"),Decoded.Event->PenaltyChanged->ToJsonString(false),Q.ToJsonString(false));}
  {FGrpcNightfallV1EnchantResult Q;
+Q.RequestKey.Value.Init(0xab,16);Q.RequestFingerprint=TEXT("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");Q.Operation=EGrpcNightfallV1ItemOperation::ITEM_OPERATION_ENCHANT;
 Q.EntityId.Value.Init(18,16);
 Q.Incarnation=uint32(MAX_uint32-2);
 Q.Tick=uint64(MAX_uint64-3);
@@ -284,6 +285,8 @@ TestTrue(TEXT("EnchantResult decode"),NightfallProto::Decode(B.GetData(),B.Num()
 if(!TestTrue(TEXT("EnchantResult dispatch"),Decoded.Event.IsSet() && Decoded.Event->EnchantResult.IsSet()))return false;
 TestEqual(TEXT("EnchantResult all fields presence False"),Decoded.Event->EnchantResult->ToJsonString(false),Q.ToJsonString(false));}
  {FGrpcNightfallV1EnchantResult Q;
+Q._accepted_client_seq._accepted_client_seqCase=EGrpcNightfallV1EnchantResult_accepted_client_seq::AcceptedClientSeq;Q._accepted_client_seq.AcceptedClientSeq=MAX_uint64;
+Q.RequestKey.Value.Init(0xab,16);Q.RequestFingerprint=TEXT("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");Q.Operation=EGrpcNightfallV1ItemOperation::ITEM_OPERATION_ENCHANT;
 Q.EntityId.Value.Init(18,16);
 Q.Incarnation=uint32(MAX_uint32-2);
 Q.Tick=uint64(MAX_uint64-3);
@@ -306,6 +309,7 @@ TestTrue(TEXT("EnchantResult decode"),NightfallProto::Decode(B.GetData(),B.Num()
 if(!TestTrue(TEXT("EnchantResult dispatch"),Decoded.Event.IsSet() && Decoded.Event->EnchantResult.IsSet()))return false;
 TestEqual(TEXT("EnchantResult all fields presence True"),Decoded.Event->EnchantResult->ToJsonString(false),Q.ToJsonString(false));}
  {FGrpcNightfallV1RefineResult Q;
+Q.RequestKey.Value.Init(0xab,16);Q.RequestFingerprint=TEXT("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");Q.Operation=EGrpcNightfallV1ItemOperation::ITEM_OPERATION_CANCEL_REFINE;
 Q.EntityId.Value.Init(18,16);
 Q.Incarnation=uint32(MAX_uint32-2);
 Q.Tick=uint64(MAX_uint64-3);
@@ -319,6 +323,8 @@ TestTrue(TEXT("RefineResult decode"),NightfallProto::Decode(B.GetData(),B.Num(),
 if(!TestTrue(TEXT("RefineResult dispatch"),Decoded.Event.IsSet() && Decoded.Event->RefineResult.IsSet()))return false;
 TestEqual(TEXT("RefineResult all fields presence False"),Decoded.Event->RefineResult->ToJsonString(false),Q.ToJsonString(false));}
  {FGrpcNightfallV1RefineResult Q;
+Q._accepted_client_seq._accepted_client_seqCase=EGrpcNightfallV1RefineResult_accepted_client_seq::AcceptedClientSeq;Q._accepted_client_seq.AcceptedClientSeq=MAX_uint64;
+Q.RequestKey.Value.Init(0xab,16);Q.RequestFingerprint=TEXT("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");Q.Operation=EGrpcNightfallV1ItemOperation::ITEM_OPERATION_CANCEL_REFINE;
 Q.EntityId.Value.Init(18,16);
 Q.Incarnation=uint32(MAX_uint32-2);
 Q.Tick=uint64(MAX_uint64-3);
@@ -334,6 +340,7 @@ TestTrue(TEXT("RefineResult decode"),NightfallProto::Decode(B.GetData(),B.Num(),
 if(!TestTrue(TEXT("RefineResult dispatch"),Decoded.Event.IsSet() && Decoded.Event->RefineResult.IsSet()))return false;
 TestEqual(TEXT("RefineResult all fields presence True"),Decoded.Event->RefineResult->ToJsonString(false),Q.ToJsonString(false));}
  {FGrpcNightfallV1ItemOperationResult Q;
+Q.RequestKey.Value.Init(0xab,16);Q.RequestFingerprint=TEXT("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");Q.Operation=EGrpcNightfallV1ItemOperation::ITEM_OPERATION_DESTROY;
 Q.EntityId.Value.Init(18,16);
 Q.Incarnation=uint32(MAX_uint32-2);
 Q.Tick=uint64(MAX_uint64-3);
@@ -347,6 +354,8 @@ TestTrue(TEXT("ItemOperationResult decode"),NightfallProto::Decode(B.GetData(),B
 if(!TestTrue(TEXT("ItemOperationResult dispatch"),Decoded.Event.IsSet() && Decoded.Event->ItemOperationResult.IsSet()))return false;
 TestEqual(TEXT("ItemOperationResult all fields presence False"),Decoded.Event->ItemOperationResult->ToJsonString(false),Q.ToJsonString(false));}
  {FGrpcNightfallV1ItemOperationResult Q;
+Q._accepted_client_seq._accepted_client_seqCase=EGrpcNightfallV1ItemOperationResult_accepted_client_seq::AcceptedClientSeq;Q._accepted_client_seq.AcceptedClientSeq=MAX_uint64;
+Q.RequestKey.Value.Init(0xab,16);Q.RequestFingerprint=TEXT("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");Q.Operation=EGrpcNightfallV1ItemOperation::ITEM_OPERATION_DESTROY;
 Q.EntityId.Value.Init(18,16);
 Q.Incarnation=uint32(MAX_uint32-2);
 Q.Tick=uint64(MAX_uint64-3);
