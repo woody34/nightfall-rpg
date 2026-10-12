@@ -5,6 +5,8 @@ import xml.etree.ElementTree as ET
 D = 'src/main/resources/data/'
 G = 'src/main/java/com/l2jserver/gameserver/'
 Q = 1000000
+BLOW_SOURCES = ['G/model/stats/Formulas.java:1621-1642',
+                'docs/plans/phase-4-zone-design.md:269 (§5; A8): integer100 to per-mille; roll1000*Q < rate_q*10']
 
 
 def bow_definition(src, sid):
@@ -166,6 +168,11 @@ def learned_item_cost(skill_id, rank, consume_id, consume_count, inventory, phas
                 completion_consumed={}, repeated_consumed={}, phase=phase, draws=[])
 
 
+def cast_impact_delay(animation):
+    # P3:126; L2Character.java:1643,4577: short nonzero casts retain the impact stage.
+    return max(0, animation-400) + (400 if animation else 0)
+
+
 def escape_timing(definition, start_tick, casting_speed, available, resources, incarnation):
     skill = definition['skills'][0]
     hit = skill['hit_time_ms']
@@ -177,7 +184,7 @@ def escape_timing(definition, start_tick, casting_speed, available, resources, i
         return dict(accepted=False, inventory=available, consumed=0, draws=[])
     return dict(accepted=True, animation_ms=animation, launch_ms=max(0, animation-400),
                 launch_tick=start_tick+(max(0, animation-400)+99)//100,
-                completion_tick=start_tick+max(1, (animation+99)//100),
+                completion_tick=start_tick+max(1, (cast_impact_delay(animation)+99)//100),
                 interrupt_cutoff_tick=start_tick+max(0, animation//100-2),
                 consumed=cost, completion_consumed=0, inventory=available-cost,
                 destination=[126, 126], resources=resources, incarnation=incarnation,
@@ -346,7 +353,8 @@ def add_behavior_vectors(src, add, o):
                           available=2, resources={'hp': 13, 'mp': 17, 'cp': 19, 'xp': 101}, incarnation=7)
             add('F12', f'consumable-escape-timing-{sid}-{speed}', inputs, escape_timing(**inputs),
                 [src.citation(sid), D+'stats/skills/02000-02099.xml:163-187,440-462',
-                 'G/model/actor/L2Character.java:1625-1643,4577-4581', 'design/8 Escape timing/destination; no town respawn'])
+                 'G/model/actor/L2Character.java:1625-1643,4577-4581',
+                 'docs/plans/phase-3-zone-design.md:126 launch/impact staging', 'design/8 Escape timing/destination; no town respawn'])
     # D12 names tutorial/teleport handlers outside the admitted world contexts.
     for kit in src.xml(D+'stats/initialEquipment.xml').findall('equipment'):
         cid = int(kit.get('classId'))
@@ -411,7 +419,8 @@ def add_audit_vectors(src, add, o):
     for chance in [F(0), F(999, 10), F(100), F(101)]:
         for residue in [998, 999]:
             inputs = dict(chance=chance, dex=F(1), proximity='front', residue=residue)
-            add('F10', f'blow-boundary-{chance}-{residue}', inputs, o.blow_success(**inputs), ['G/model/stats/Formulas.java:1621-1642'])
+            add('F10', f'blow-boundary-{chance}-{residue}', inputs, o.blow_success(**inputs), BLOW_SOURCES,
+                [dict(site='blow', bound=1000, residue=residue)])
     for power in [F(-1), F(0), F(79, 77), F(80, 77), F(81, 77), F(199, 77)]:
         for critical in [False, True]:
             inputs = dict(p_atk=0, defence=80, power=power, caller='blow', critical=critical)
