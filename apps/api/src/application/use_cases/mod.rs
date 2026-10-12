@@ -7,6 +7,8 @@ pub mod create_character;
 pub mod ensure_account;
 pub mod get_character;
 pub mod get_inventory;
+pub mod get_item_catalog;
+pub use get_item_catalog::{GetItemCatalog, RegistryItemCatalogue};
 pub mod issue_play_ticket;
 pub mod list_classes;
 pub mod list_my_characters;

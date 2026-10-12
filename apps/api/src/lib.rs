@@ -38,6 +38,8 @@ pub const DEFAULT_WS_PUBLIC_URL: &str = "ws://localhost:3000/ws";
 /// The ports the server needs, already bound to adapters.
 #[derive(Clone)]
 pub struct Dependencies {
+    /// Prevalidated V6 metadata; None keeps `GetItemCatalog` fail closed.
+    pub item_catalogue: Option<Arc<dyn application::ports::ItemCataloguePort>>,
     /// The same character adapter's atomic checkpoint/receipt writer, installed before
     /// recovery and actor admission. Absent adapters cannot enable paid learning.
     pub learning: Option<Arc<dyn application::ports::LearningCheckpointRepository>>,
@@ -80,6 +82,7 @@ impl Dependencies {
     pub fn in_memory() -> Self {
         let characters = Arc::new(infrastructure::memory::InMemoryCharacterRepository::default());
         Self {
+            item_catalogue: None,
             learning: Some(characters.clone()),
             classes: None,
             class_transfers: None,
@@ -136,7 +139,10 @@ pub fn build_grpc_services(deps: &Dependencies) -> anyhow::Result<GrpcServices> 
                 deps.class_transfers.clone(),
             ),
             TransferOptions::new(deps.characters.clone(), deps.class_transfers.clone()),
-        ),
+        )
+        .with_item_catalogue(application::use_cases::GetItemCatalog::new(
+            deps.item_catalogue.clone(),
+        )),
         session: SessionServiceImpl::new(IssuePlayTicket::new(
             deps.characters.clone(),
             deps.sessions.clone(),
