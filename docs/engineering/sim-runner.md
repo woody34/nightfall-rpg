@@ -160,6 +160,13 @@ moon run client-unreal:sim -- Scenarios/0b-login-enter-world.nfs --api start
 In CI ([.github/workflows/sim.yml](../../.github/workflows/sim.yml)), the test suite is driven by
 [apps/client-unreal/Scripts/run-sim-ci.py](../../apps/client-unreal/Scripts/run-sim-ci.py).
 
+Recursive discovery includes all 106 single/group units, including Phase4 canonical
+scenarios and variants. The per-unit allowance is `max(600, Within+30) + 600`
+seconds for orchestration plus 180 seconds for Compose. Its total is 150,959 seconds.
+The dedicated self-hosted job has a 2,525-minute (151,500-second) deadline, leaving
+9m01s for build, upload and other steps. The discovery regression requires at least
+five minutes of headroom; no required scenarios are excluded to meet the deadline.
+
 ### Ephemeral Stack Isolation
 
 1. **Dedicated Project Namespace**:

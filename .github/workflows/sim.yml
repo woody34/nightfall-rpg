@@ -31,11 +31,11 @@ jobs:
       (github.event.pull_request.head.repo.full_name == github.repository &&
        (contains(github.event.pull_request.labels.*.name, 'sim') || vars.SIM_PR_REQUIRED == 'true'))
     runs-on: [self-hosted, linux, unreal]
-    # 59 units: sum(max(600, Within+30) + 600 orchestration + 180 Compose)
-    # = 86,099s after the token death waits apply Phase1a R1's 3x margin.
-    # 1,440 minutes = 86,400s, leaving 5m01s for build/upload/other steps.
+    # 106 units: sum(max(600, Within+30) + 600 orchestration + 180 Compose)
+    # = 150,959s including every Phase4 canonical/variant unit and existing margins.
+    # 2,525 minutes = 151,500s, leaving 9m01s for build/upload/other steps.
     # Scripts/test/pipeline-corrections.test.py validates discovery and >=5m headroom.
-    timeout-minutes: 1440
+    timeout-minutes: 2525
     continue-on-error: ${{ vars.SIM_PR_REQUIRED != 'true' }}
     env:
       COMPOSE_PROJECT_NAME: nightfall-sim-${{ github.run_id }}-${{ github.run_attempt }}

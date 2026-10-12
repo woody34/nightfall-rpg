@@ -189,8 +189,8 @@ socket.getaddrinfo = lambda *a, **k: [(socket.AF_INET, socket.SOCK_STREAM, 6, ''
         import re
         ceiling = int(re.search(r'timeout-minutes: ([0-9]+)', workflow)[1]) * 60
         headroom = ceiling - allowance
-        self.assertEqual(len(batches), 59)
-        self.assertEqual(allowance, 86099)
+        self.assertEqual(len(batches), 106)
+        self.assertEqual(allowance, 150959)
         self.assertGreaterEqual(headroom, 300)
         self.assertIn(f'# {len(batches)} units:', workflow)
         self.assertIn(f'{allowance:,}s', workflow)
