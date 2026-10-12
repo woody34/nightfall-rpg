@@ -198,6 +198,7 @@ pub struct FrozenItemResult {
 pub struct ItemReceiptFact {
     pub request_id: uuid::Uuid,
     pub fingerprint: String,
+    #[serde(with = "result_payload")]
     pub result: FrozenItemResult,
 }
 impl ItemReceiptFact {
@@ -309,7 +310,76 @@ impl Phase4Projection {
     }
 }
 
+/// Canonical frozen result bytes shared by private receipts and recorded actor preflight.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(try_from = "Vec<u8>", into = "Vec<u8>")]
+pub struct ItemResultPayload(Vec<u8>);
+impl ItemResultPayload {
+    /// Exact original bytes; decoding never accepts whitespace, unknown fields or aliases.
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.0
+    }
+    /// Recover the validated typed result without consulting mutable state.
+    pub fn result(&self) -> Result<FrozenItemResult, ItemError> {
+        FrozenItemResult::from_payload(&self.0)
+    }
+}
+impl TryFrom<Vec<u8>> for ItemResultPayload {
+    type Error = ItemError;
+    fn try_from(bytes: Vec<u8>) -> Result<Self, Self::Error> {
+        FrozenItemResult::from_payload(&bytes)?;
+        Ok(Self(bytes))
+    }
+}
+impl From<ItemResultPayload> for Vec<u8> {
+    fn from(payload: ItemResultPayload) -> Self {
+        payload.0
+    }
+}
+
+/// Receipts persist canonical payload bytes. Strict decoding proves that re-encoding the
+/// immutable typed value reproduces those bytes exactly; no duplicated mutable result copy.
+pub mod result_payload {
+    use super::{FrozenItemResult, ItemResultPayload};
+    use serde::{Deserialize as _, Serialize as _};
+    /// Serialize receipt payload bytes, rather than a second editable JSON object.
+    pub fn serialize<S: serde::Serializer>(
+        result: &FrozenItemResult,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        result
+            .payload()
+            .map_err(serde::ser::Error::custom)?
+            .serialize(serializer)
+    }
+    /// Reject noncanonical/malformed stored bytes at the repository/replay boundary.
+    pub fn deserialize<'de, D: serde::Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<FrozenItemResult, D::Error> {
+        ItemResultPayload::deserialize(deserializer)?
+            .result()
+            .map_err(serde::de::Error::custom)
+    }
+}
+
 impl FrozenItemResult {
+    /// Canonical payload used verbatim by replay result tags37–39 and receipt storage.
+    pub fn payload(&self) -> Result<ItemResultPayload, ItemError> {
+        self.validate()?;
+        serde_json::to_vec(self)
+            .map(ItemResultPayload)
+            .map_err(|_| ItemError("item result encoding failed"))
+    }
+    /// Accept exactly one validated canonical representation.
+    pub fn from_payload(bytes: &[u8]) -> Result<Self, ItemError> {
+        let result: Self =
+            serde_json::from_slice(bytes).map_err(|_| ItemError("invalid item result payload"))?;
+        if result.payload()?.as_bytes() != bytes {
+            return Err(ItemError("noncanonical item result payload"));
+        }
+        Ok(result)
+    }
+
     /// Stable idempotency operation, including the two distinct refine requests.
     #[must_use]
     pub const fn operation(&self) -> ItemOperation {
@@ -462,6 +532,23 @@ pub(crate) mod tests {
             evidence: Vec::new(),
         }
     }
+    #[test]
+    fn receipt_json_persists_exact_canonical_result_bytes_and_rejects_aliases() {
+        let fact = projection().receipts.remove(0);
+        let payload = fact.result.payload().unwrap();
+        assert_eq!(payload.result().unwrap(), fact.result);
+        let json = serde_json::to_value(&fact).unwrap();
+        assert_eq!(json.get("result").unwrap(), &serde_json::to_value(payload.as_bytes()).unwrap());
+        let roundtrip: ItemReceiptFact = serde_json::from_value(json.clone()).unwrap();
+        assert_eq!(roundtrip.result.payload().unwrap().as_bytes(), payload.as_bytes());
+        let mut bytes = payload.as_bytes().to_vec();
+        bytes.push(b' ');
+        assert!(ItemResultPayload::try_from(bytes.clone()).is_err());
+        let mut invalid = json;
+        *invalid.get_mut("result").unwrap() = serde_json::to_value(bytes).unwrap();
+        assert!(serde_json::from_value::<ItemReceiptFact>(invalid).is_err());
+    }
+
     fn item(template_id: u32) -> ItemInstance {
         ItemInstance {
             id: ItemInstanceId::new(7).unwrap(),

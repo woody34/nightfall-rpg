@@ -4177,7 +4177,8 @@ mod tests {
             },
         );
         let mut events = Vec::new();
-        zone.item_command_v6(zone.next_tick, &unequip, &mut events)
+        let mut receipts = BTreeMap::new();
+        zone.item_command_v6(zone.next_tick, &unequip, &mut events, &mut receipts)
             .unwrap();
         assert_ne!(
             zone.effective(target.entity).unwrap().physical.p_atk(),
@@ -4198,7 +4199,7 @@ mod tests {
             let command = item_intent(&zone, target.entity, 21, kind);
             let events_before = events.clone();
             assert!(zone
-                .item_command_v6(zone.next_tick, &command, &mut events)
+                .item_command_v6(zone.next_tick, &command, &mut events, &mut receipts)
                 .is_err());
             assert_eq!(zone.snapshot(), before);
             assert_eq!(events, events_before);
@@ -4212,7 +4213,7 @@ mod tests {
                 preferred_slot: None,
             },
         );
-        zone.item_command_v6(zone.next_tick, &equip, &mut events)
+        zone.item_command_v6(zone.next_tick, &equip, &mut events, &mut receipts)
             .unwrap();
         assert_eq!(zone.effective(target.entity).unwrap().physical, old_sheet.physical);
         let sequence = zone
@@ -4231,7 +4232,7 @@ mod tests {
                 preferred_slot: None,
             },
         );
-        zone.item_command_v6(zone.next_tick, &noop, &mut events)
+        zone.item_command_v6(zone.next_tick, &noop, &mut events, &mut receipts)
             .unwrap();
         assert_eq!(
             zone.phase3
@@ -4285,8 +4286,9 @@ mod tests {
         );
         let before = zone.snapshot();
         let mut events = Vec::new();
+        let mut receipts = BTreeMap::new();
         assert_eq!(
-            zone.item_command_v6(zone.next_tick, &command, &mut events),
+            zone.item_command_v6(zone.next_tick, &command, &mut events, &mut receipts),
             Err(RejectReason::ItemNotUsable)
         );
         assert_eq!(zone.snapshot(), before);
@@ -4318,15 +4320,188 @@ mod tests {
         );
         let before = zone.snapshot();
         assert_eq!(
-            zone.item_command_v6(zone.next_tick, &unequip, &mut events),
+            zone.item_command_v6(zone.next_tick, &unequip, &mut events, &mut receipts),
             Err(RejectReason::AlreadyCasting)
         );
         assert_eq!(zone.snapshot(), before);
         assert!(events.is_empty());
         zone.phase4.as_mut().unwrap().canonical.item_casts.clear();
         // An ordinary cast with no weapon condition continues and reads the new sheet at impact.
-        zone.item_command_v6(zone.next_tick, &unequip, &mut events)
+        zone.item_command_v6(zone.next_tick, &unequip, &mut events, &mut receipts)
             .unwrap();
         assert_eq!(zone.sidecar(owner.entity).unwrap().cast, CastState::Casting(cast));
+    }
+    #[test]
+    #[allow(clippy::too_many_lines)] // Durable receipt retry after death must retain every original result field.
+    fn v6_recorded_known_item_result_survives_dead_eligibility_without_reexecution() {
+        use crate::domain::zone::{EquipSlot, ItemCommandKind as K};
+        let (mut zone, owner, npc) = equipment_fixture();
+        zone.run_tick(zone.draft(Vec::new())).unwrap();
+        let command = item_intent(
+            &zone,
+            owner.entity,
+            99,
+            K::Unequip {
+                slot: EquipSlot::Rhand,
+            },
+        );
+        let tick = zone
+            .run_tick(zone.draft(vec![ZoneInput::session(
+                owner.entity,
+                SessionGeneration(1),
+                1,
+                ZoneCommand::Item(Box::new(command.clone())),
+            )]))
+            .unwrap();
+        assert!(tick.dispositions.is_empty());
+        let original = tick
+            .events
+            .iter()
+            .find_map(|e| {
+                if let ZoneEvent::ItemResult(result) = e {
+                    Some(result.as_ref().clone())
+                } else {
+                    None
+                }
+            })
+            .unwrap();
+        let payload = original.payload().unwrap();
+        let known = command
+            .clone()
+            .with_known_receipt(
+                item_intent(
+                    &zone,
+                    owner.entity,
+                    99,
+                    K::Unequip {
+                        slot: EquipSlot::Rhand,
+                    },
+                )
+                .fingerprint_hex()
+                .unwrap(),
+                payload.clone(),
+            )
+            .unwrap();
+        set_resources(&mut zone, owner, 1, 0);
+        zone.apply_damage_rolled_v5(
+            Tick(3),
+            DamageRequest {
+                source: zone.damage_source_v5(npc).unwrap(),
+                target: owner,
+                cause: DamageCause::Direct,
+                rolled_damage: 50,
+            },
+            &mut Vec::new(),
+            &mut scripted(&[(DamageRollSite::DeathPenalty, 100, 99)], &mut Vec::new()),
+        )
+        .unwrap();
+        zone.run_tick(zone.draft(Vec::new())).unwrap();
+        assert_eq!(zone.entities[&owner.entity].combat.as_ref().unwrap().hp, 0);
+        let before = zone.phase4.as_ref().unwrap().canonical.clone();
+        let rng = zone.rng.get_word_pos();
+        let sequence = zone
+            .phase3
+            .as_ref()
+            .unwrap()
+            .canonical
+            .next_install_sequence;
+        let mut cold = ZoneState::from_snapshot_with_items(
+            zone.snapshot(),
+            Some(Arc::clone(&zone.phase4.as_ref().unwrap().rules)),
+        )
+        .unwrap();
+        let mut conflicting = command.clone();
+        conflicting.kind = K::Unequip {
+            slot: EquipSlot::Lhand,
+        };
+        let draft = zone.draft(vec![
+            ZoneInput::session(
+                owner.entity,
+                SessionGeneration(1),
+                2,
+                ZoneCommand::Item(Box::new(known.clone())),
+            ),
+            ZoneInput::session(
+                owner.entity,
+                SessionGeneration(1),
+                3,
+                ZoneCommand::Item(Box::new(command.clone())),
+            ),
+            ZoneInput::session(
+                owner.entity,
+                SessionGeneration(1),
+                4,
+                ZoneCommand::Item(Box::new(conflicting)),
+            ),
+        ]);
+        let applied = zone.run_tick(draft.clone()).unwrap();
+        assert_eq!(applied, cold.run_tick(draft).unwrap());
+        assert_eq!(applied.dispositions.len(), 1);
+        assert_eq!(applied.dispositions[0].reason, RejectReason::ItemOperationConflict);
+        assert_eq!(zone.phase4.as_ref().unwrap().canonical, before);
+        assert_eq!(zone.rng.get_word_pos(), rng);
+        assert_eq!(
+            zone.phase3
+                .as_ref()
+                .unwrap()
+                .canonical
+                .next_install_sequence,
+            sequence
+        );
+        assert!(!applied
+            .events
+            .iter()
+            .any(|e| matches!(e, ZoneEvent::ItemCheckpoint(_))));
+        let returned: Vec<_> = applied
+            .events
+            .iter()
+            .filter_map(|e| {
+                if let ZoneEvent::ItemResult(result) = e {
+                    Some(result.as_ref())
+                } else {
+                    None
+                }
+            })
+            .collect();
+        assert_eq!(returned.len(), 2);
+        for result in returned {
+            assert_eq!(result, &original);
+            assert_eq!(result.payload().unwrap().as_bytes(), payload.as_bytes());
+            assert!(result.tick < applied.tick);
+        }
+        let record = crate::application::replay_log::AppliedTickRecord::from_applied(
+            zone.seed.zone,
+            &applied,
+        );
+        assert_eq!(
+            crate::application::replay_log::AppliedTickRecord::decode(&record.encode()).unwrap(),
+            record
+        );
+        let fresh = zone
+            .run_tick(zone.draft(vec![ZoneInput::session(
+                owner.entity,
+                SessionGeneration(1),
+                5,
+                ZoneCommand::Item(Box::new(command)),
+            )]))
+            .unwrap();
+        assert_eq!(fresh.dispositions[0].reason, RejectReason::DeadActor);
+        assert!(!fresh
+            .events
+            .iter()
+            .any(|e| matches!(e, ZoneEvent::ItemResult(_))));
+        let rejected = zone
+            .run_tick(zone.draft(vec![ZoneInput::session(
+                owner.entity,
+                SessionGeneration(0),
+                3,
+                ZoneCommand::Item(Box::new(known)),
+            )]))
+            .unwrap();
+        assert_eq!(rejected.dispositions[0].reason, RejectReason::StaleSession);
+        assert!(!rejected
+            .events
+            .iter()
+            .any(|e| matches!(e, ZoneEvent::ItemResult(_) | ZoneEvent::ItemCheckpoint(_))));
     }
 }

@@ -102,6 +102,7 @@ pub struct ItemMutationReceipt {
     pub operation: ItemMutationOperation,
     pub key: uuid::Uuid,
     pub fingerprint: String,
+    #[serde(with = "crate::domain::zone::phase4_projection::result_payload")]
     pub result: FrozenItemResult,
     pub inventory: Option<FrozenItemInventory>,
 }

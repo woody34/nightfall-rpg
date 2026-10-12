@@ -281,7 +281,16 @@ pub struct ItemCommand {
     pub kind: ItemCommandKind,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     account: Option<crate::domain::AccountId>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    known: Option<RecordedItemReceipt>,
 }
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RecordedItemReceipt {
+    fingerprint: String,
+    payload: super::phase4_projection::ItemResultPayload,
+}
+
 impl ItemCommand {
     /// Transport-independent shape validation. Gameplay checks still run in the zone.
     pub fn new(
@@ -294,6 +303,7 @@ impl ItemCommand {
             request_id,
             kind,
             account: None,
+            known: None,
         };
         command.validate_shape()?;
         Ok(command)
@@ -320,6 +330,9 @@ impl ItemCommand {
     /// Account scope belongs to the receipt repository and is retained in the envelope.
     pub fn fingerprint(&self) -> Result<[u8; 32], ItemError> {
         self.authenticated_account()?;
+        self.body_fingerprint()
+    }
+    fn body_fingerprint(&self) -> Result<[u8; 32], ItemError> {
         let value = serde_json::to_value((self.entity, &self.kind))
             .map_err(|_| ItemError("item command encoding failed"))?;
         let bytes = serde_json::to_vec(&sort_manifest(value))
@@ -328,6 +341,68 @@ impl ItemCommand {
         hash.update(b"nightfall.item.request.1\0");
         hash.update(bytes);
         Ok(hash.finalize().into())
+    }
+
+    /// Repository fingerprint representation; identical for fresh and Known preflight.
+    pub fn fingerprint_hex(&self) -> Result<String, ItemError> {
+        self.authenticated_account()?;
+        self.body_fingerprint_hex()
+    }
+    fn body_fingerprint_hex(&self) -> Result<String, ItemError> {
+        use std::fmt::Write as _;
+        let mut value = String::with_capacity(64);
+        for byte in self.body_fingerprint()? {
+            write!(&mut value, "{byte:02x}")
+                .map_err(|_| ItemError("item fingerprint encoding failed"))?;
+        }
+        Ok(value)
+    }
+    /// Actor-only enrichment after an authenticated scoped receipt lookup. The stored
+    /// result is bound to the normalized body/key/owner before it can enter a replay record.
+    pub fn with_known_receipt(
+        mut self,
+        fingerprint: String,
+        payload: super::phase4_projection::ItemResultPayload,
+    ) -> Result<Self, ItemError> {
+        self.authenticated_account()?;
+        let known = RecordedItemReceipt {
+            fingerprint,
+            payload,
+        };
+        if self.known.as_ref().is_some_and(|old| old != &known) {
+            return Err(ItemError("item preflight result changed"));
+        }
+        self.known = Some(known);
+        self.validate_shape()?;
+        Ok(self)
+    }
+    /// Known receipts bypass current gameplay eligibility; session/account checks remain.
+    pub const fn has_known_receipt(&self) -> bool {
+        self.known.is_some()
+    }
+    /// No repository call or mutation is needed to recover the recorded result.
+    pub fn known_result(&self) -> Result<Option<super::FrozenItemResult>, ItemError> {
+        self.validate_shape()?;
+        self.known
+            .as_ref()
+            .map(|known| known.payload.result())
+            .transpose()
+    }
+    /// Logical receipt scope, independent of automatic ledger changes.
+    pub const fn operation(&self) -> super::phase4_projection::ItemOperation {
+        use super::phase4_projection::ItemOperation as O;
+        match self.kind {
+            ItemCommandKind::Equip { .. } => O::Equip,
+            ItemCommandKind::Unequip { .. } => O::Unequip,
+            ItemCommandKind::Use { .. } => O::Use,
+            ItemCommandKind::Destroy { .. } => O::Destroy,
+            ItemCommandKind::Enchant { .. } => O::Enchant,
+            ItemCommandKind::ToggleAutoShot { .. } => O::ToggleAutoShot,
+            ItemCommandKind::Refine { .. } => O::Refine,
+            ItemCommandKind::CancelRefine { .. } => O::CancelRefine,
+            ItemCommandKind::ExchangeSpecialAbility { .. } => O::Exchange,
+            ItemCommandKind::Crystallize { .. } => O::Crystallize,
+        }
     }
 
     /// Also called after typed replay decoding, so derived serde cannot bypass shape guards.
@@ -393,7 +468,20 @@ impl ItemCommand {
             | ItemCommandKind::CancelRefine { .. }
             | ItemCommandKind::ExchangeSpecialAbility { .. }
             | ItemCommandKind::Crystallize { .. } => Ok(()),
+        }?;
+        if let Some(known) = &self.known {
+            let result = known.payload.result()?;
+            if self.account.is_none()
+                || known.fingerprint != self.body_fingerprint_hex()?
+                || result.entity != self.entity
+                || result.receipt != self.request_id
+                || result.operation() != self.operation()
+                || result.incarnation == 0
+            {
+                return Err(ItemError("item preflight result scope mismatch"));
+            }
         }
+        Ok(())
     }
 }
 
@@ -403,6 +491,82 @@ mod command_tests {
     use super::super::ItemInstanceId;
     use super::*;
     use crate::domain::AccountId;
+
+    #[test]
+    fn known_receipt_is_actor_only_and_bound_to_body_owner_key_and_operation() {
+        use super::super::phase4_projection::{ItemOperation, ItemResultDetail};
+        let fresh = command(1, 22)
+            .with_account(AccountId::from_uuid(uuid::Uuid::from_u128(3)))
+            .unwrap();
+        let mut result = super::super::phase4_projection::tests::projection()
+            .receipts
+            .remove(0)
+            .result;
+        result.entity = fresh.entity;
+        result.receipt = fresh.request_id;
+        result.detail = ItemResultDetail::Operation {
+            operation: ItemOperation::Destroy,
+            affected: vec![ItemInstanceId::new(7).unwrap()],
+            recipe: None,
+        };
+        let payload = result.payload().unwrap();
+        let fingerprint = fresh.fingerprint_hex().unwrap();
+        let known = fresh
+            .clone()
+            .with_known_receipt(fingerprint.clone(), payload.clone())
+            .unwrap();
+        assert_eq!(known.fingerprint().unwrap(), fresh.fingerprint().unwrap());
+        assert!(known.has_known_receipt());
+        assert_eq!(known.known_result().unwrap(), Some(result.clone()));
+        let bytes = serde_json::to_vec(&known).unwrap();
+        let decoded: ItemCommand = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(decoded, known);
+        decoded.authenticated_account().unwrap();
+        assert!(command(1, 22)
+            .with_known_receipt(fingerprint.clone(), payload.clone())
+            .is_err());
+        assert!(fresh
+            .clone()
+            .with_known_receipt("wrong".into(), payload.clone())
+            .is_err());
+        let wrong_body = command(2, 22)
+            .with_account(AccountId::from_uuid(uuid::Uuid::from_u128(3)))
+            .unwrap();
+        assert!(wrong_body
+            .with_known_receipt(fingerprint.clone(), payload)
+            .is_err());
+        for field in ["owner", "key", "operation", "incarnation"] {
+            let mut wrong = result.clone();
+            match field {
+                "owner" => {
+                    wrong.entity = super::super::EntityId::from_uuid(uuid::Uuid::from_u128(99));
+                },
+                "key" => wrong.receipt = uuid::Uuid::from_u128(99),
+                "operation" => {
+                    wrong.detail = ItemResultDetail::Operation {
+                        operation: ItemOperation::Equip,
+                        affected: Vec::new(),
+                        recipe: None,
+                    }
+                },
+                _ => wrong.incarnation = 0,
+            }
+            assert!(fresh
+                .clone()
+                .with_known_receipt(fingerprint.clone(), wrong.payload().unwrap())
+                .is_err());
+        }
+        let mut corrupt = known.clone();
+        corrupt.kind = ItemCommandKind::Destroy {
+            instance: ItemInstanceId::new(7).unwrap(),
+            count: 2,
+        };
+        assert!(corrupt.validate_shape().is_err());
+        result.inventory_revision = result.inventory_revision.checked_add(1).unwrap();
+        assert!(known
+            .with_known_receipt(fingerprint, result.payload().unwrap())
+            .is_err());
+    }
 
     fn command(count: u64, key: u128) -> ItemCommand {
         ItemCommand::new(

@@ -976,6 +976,7 @@ impl ZoneState {
             ZoneCommand::CastSkill { .. }
                 | ZoneCommand::Attack { .. }
                 | ZoneCommand::AcceptResurrect { .. }
+                | ZoneCommand::Item(_)
         ) {
             self.refuse_dead_actor(command.source, &command.command)?;
         }
@@ -1092,7 +1093,9 @@ impl ZoneState {
                     })
                     .map_err(cast_reject)?;
             },
-            ZoneCommand::Item(item) => self.item_command_v6(tick, item, events)?,
+            ZoneCommand::Item(item) => {
+                self.item_command_v6(tick, item, events, &mut staged.item_receipts)?;
+            },
             ZoneCommand::AcceptResurrect { .. }
             | ZoneCommand::ChangeClass { .. }
             | ZoneCommand::Attack { .. }

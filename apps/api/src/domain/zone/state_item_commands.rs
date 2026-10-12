@@ -8,7 +8,6 @@ use crate::domain::zone::phase4_projection::{
     ItemResultDetail,
 };
 use crate::domain::zone::{CastState, EquipSlot, ItemCommand, ItemCommandKind, Phase4Projection};
-use std::fmt::Write as _;
 
 fn invalid<E>(_: E) -> RejectReason {
     RejectReason::InvalidLoad
@@ -19,24 +18,28 @@ impl ZoneState {
         tick: Tick,
         command: &ItemCommand,
         events: &mut Vec<ZoneEvent>,
+        receipts: &mut BTreeMap<
+            (crate::domain::account::AccountId, ItemReceiptRef),
+            ItemReceiptFact,
+        >,
     ) -> Result<(), RejectReason> {
-        let operation = match command.kind {
-            ItemCommandKind::Equip { .. } => ItemOperation::Equip,
-            ItemCommandKind::Unequip { .. } => ItemOperation::Unequip,
-            ItemCommandKind::Use { .. }
-            | ItemCommandKind::Destroy { .. }
-            | ItemCommandKind::Enchant { .. }
-            | ItemCommandKind::ToggleAutoShot { .. }
-            | ItemCommandKind::Refine { .. }
-            | ItemCommandKind::CancelRefine { .. }
-            | ItemCommandKind::ExchangeSpecialAbility { .. }
-            | ItemCommandKind::Crystallize { .. } => return Err(RejectReason::NotYetImplemented),
-        };
         let account = command.authenticated_account().map_err(invalid)?;
-        let mut fingerprint = String::with_capacity(64);
-        for byte in command.fingerprint().map_err(invalid)? {
-            write!(&mut fingerprint, "{byte:02x}").map_err(invalid)?;
+        let entity = self
+            .entities
+            .get(&command.entity)
+            .ok_or(RejectReason::UnknownEntity)?;
+        let Some(CombatRole::Player {
+            progression: Some(player),
+            ..
+        }) = entity.combat.as_ref().map(|c| &c.role)
+        else {
+            return Err(RejectReason::NotAPlayer);
+        };
+        if player.identity.account_id != account {
+            return Err(RejectReason::NotPermitted);
         }
+        let operation = command.operation();
+        let fingerprint = command.fingerprint_hex().map_err(invalid)?;
         let existing = events.iter().find_map(|event| {
             if let ZoneEvent::ItemCheckpoint(projection) = event {
                 if projection.entity == command.entity {
@@ -52,22 +55,28 @@ impl ZoneState {
             operation,
             key: command.request_id,
         };
-        let known = events.iter().find_map(|event| {
-            if let ZoneEvent::ItemCheckpoint(projection) = event {
-                if projection.account == account {
-                    return projection
-                        .receipts
-                        .iter()
-                        .find(|r| r.reference() == reference);
-                }
-            }
-            None
-        });
-        if let Some(receipt) = known {
-            if receipt.fingerprint != fingerprint {
+        let recorded = command.known_result().map_err(invalid)?;
+        if let Some(receipt) = receipts.get(&(account, reference)) {
+            if receipt.fingerprint != fingerprint
+                || recorded
+                    .as_ref()
+                    .is_some_and(|result| result != &receipt.result)
+            {
                 return Err(RejectReason::ItemOperationConflict);
             }
             events.push(ZoneEvent::ItemResult(Box::new(receipt.result.clone())));
+            return Ok(());
+        }
+        if let Some(result) = recorded {
+            receipts.insert(
+                (account, reference),
+                ItemReceiptFact {
+                    request_id: command.request_id,
+                    fingerprint,
+                    result: result.clone(),
+                },
+            );
+            events.push(ZoneEvent::ItemResult(Box::new(result)));
             return Ok(());
         }
         let mut candidate = self.clone();
@@ -80,7 +89,14 @@ impl ZoneState {
             fingerprint,
             &mut local,
         )?;
+        let receipt = projection
+            .receipts
+            .iter()
+            .find(|r| r.reference() == reference)
+            .ok_or(RejectReason::InvalidLoad)?
+            .clone();
         *self = candidate;
+        receipts.insert((account, reference), receipt);
         events.retain(
             |event| !matches!(event, ZoneEvent::ItemCheckpoint(p) if p.entity == command.entity),
         );
