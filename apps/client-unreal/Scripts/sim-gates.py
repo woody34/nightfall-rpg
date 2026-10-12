@@ -37,16 +37,21 @@ V3_REACHABLE = {
 }
 
 
+# Proposed E2 V6 producer contract: additive counters, inherited lifecycle reachability unchanged.
+V4_COUNTERS = ('item_operations', 'enchant_outcomes', 'refine_outcomes', 'shot_payments')
+V4_SCALARS = ('item_ledger_rows', 'item_allocations', 'inventory_baselines')
+
+
 def transition_scalars(data):
-    return (V2_SCALARS if data['schema_version'] >= 2 else ()) + (V3_SCALARS if data['schema_version'] == 3 else ())
+    return (V2_SCALARS if data['schema_version'] >= 2 else ()) + (V3_SCALARS if data['schema_version'] >= 3 else ()) + (V4_SCALARS if data['schema_version'] == 4 else ())
 
 
 def transition_tables(data):
-    return TABLES + (V3_TABLES if data['schema_version'] == 3 else ())
+    return TABLES + (V3_TABLES if data['schema_version'] >= 3 else ())
 
 
 def transition_counters(data):
-    return COUNTERS + (V2_COUNTERS if data['schema_version'] >= 2 else ()) + (V3_COUNTERS if data['schema_version'] == 3 else ())
+    return COUNTERS + (V2_COUNTERS if data['schema_version'] >= 2 else ()) + (V3_COUNTERS if data['schema_version'] >= 3 else ()) + (V4_COUNTERS if data['schema_version'] == 4 else ())
 
 
 
@@ -304,7 +309,7 @@ def transition_facts(data):
 def read_transitions(path):
     data = json.loads(Path(path).read_text(), object_pairs_hook=transition_object)
     if (not isinstance(data, dict) or type(data.get('schema_version')) is not int
-            or data['schema_version'] not in (1, 2, 3)):
+            or data['schema_version'] not in (1, 2, 3, 4)):
         raise ValueError(f'{path}: unsupported transition schema')
     for key in transition_tables(data):
         rows = data.get(key)
@@ -340,6 +345,8 @@ def read_transitions(path):
         raise ValueError('schema 1 cannot carry schema 2 coverage facts')
     if data['schema_version'] < 3 and any(key in data for key in (*V3_TABLES, *V3_COUNTERS, *V3_SCALARS)):
         raise ValueError('legacy schema cannot carry schema3 coverage facts')
+    if data['schema_version'] < 4 and any(key in data for key in (*V4_COUNTERS, *V4_SCALARS)):
+        raise ValueError('legacy schema cannot carry schema4 item facts')
     counters = transition_counters(data)
     for key in counters:
         values = data.get(key)
@@ -361,7 +368,7 @@ def read_transitions(path):
                 match = re.fullmatch(pattern, name)
                 if not match or any(int(part) > 2**32 - 1 for part in match.groups()):
                     raise ValueError('invalid class coverage ID or transfer pair')
-        if key in V3_COUNTERS and any(not re.fullmatch(r'[A-Za-z][A-Za-z0-9_]*(?::[A-Za-z][A-Za-z0-9_]*)?', name) for name in values):
+        if key in (*V3_COUNTERS, *V4_COUNTERS) and any(not re.fullmatch(r'[A-Za-z][A-Za-z0-9_]*(?::[A-Za-z][A-Za-z0-9_]*)?', name) for name in values):
             raise ValueError('schema3 labels must be bounded kind/reason symbols, never IDs')
         if key in ('deaths', 'respawns') and set(values) != {'player', 'npc'}:
             raise ValueError('missing player/NPC lifecycle counters')
