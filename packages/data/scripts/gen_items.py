@@ -188,6 +188,9 @@ def project_item(n, file, slots, classifications=None):
            'icon': p.get('icon', ''), 'handler': p.get('handler', ''),
            'stackable': p.get('is_stackable', 'false') == 'true', 'properties': p,
            'source': source(file, n['line'], 'item '+a['id']), 'raw': n}
+    # L2EtcItem.java:51-55 overrides the literal XML type for shot actions.
+    if row['kind'] == 'EtcItem' and p.get('default_action') in {'SOULSHOT', 'SUMMON_SOULSHOT', 'SUMMON_SPIRITSHOT', 'SPIRITSHOT'}:
+        row['etcitem_type'] = 'SHOT'
     if row['kind'] == 'Armor' and row['armor_type'] == 'NONE' and body == 'lhand':
         row['armor_type'] = 'SHIELD'
     for key, default in [('weight', 0), ('price', 0), ('crystal_count', 0), ('enchant_enabled', 0),
@@ -628,6 +631,13 @@ def generate(dp=DEFAULT_DP,game=DEFAULT_GAME):
             'not_imported':sum(r['kind']==kind for r in all_items.values())-len(rows)}
     for key in ['options','augmentation','recipes']:
         rows=caps[key];counts[key]={'imported':len(rows),'admitted':sum(r['admitted'] for r in rows),'deferred':sum(not r['admitted'] for r in rows)}
+    elixir_skills={2287,2288,2289,2860,2861,2862}
+    elixir_ids=sorted(sid for sid,row in items.items() if any(ref['id'] in elixir_skills for ref in row['skills']))
+    admitted_ids={row['template_id'] for row in caps['items'] if row['admitted']}
+    counts['required_condition_closure']={'condition':'player_level_range','architect':'D34',
+        'runtime_support':'pending_zone_publication','skill_ids':sorted(elixir_skills),'template_ids':elixir_ids,
+        'imported':len(elixir_ids),'admitted':sum(sid in admitted_ids for sid in elixir_ids),
+        'deferred':sum(sid not in admitted_ids for sid in elixir_ids)}
     inventory={'schema':1,'counts':dict(Counter(r['kind'] for r in all_items.values())),
                'files':[row for key,row in sorted(inputs.files.items())],'items':ledger}
     files['tables-phase4/source_inventory.json']=json.dumps(inventory,indent=2,ensure_ascii=False)+'\n'

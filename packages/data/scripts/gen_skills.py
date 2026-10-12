@@ -193,7 +193,19 @@ def get_cond_blockers(cond_elem: ET.Element, phase4: bool = False) -> set[str]:
     return blockers
 
 
-def parse_cond_node(elem: ET.Element, phase4: bool = False) -> dict:
+def parse_cond_node(elem: ET.Element, phase4: bool = False, tables=None, levels=1) -> dict:
+    if phase4 and elem.tag == "player" and set(elem.attrib) == {"levelRange"}:
+        ranges = []
+        for value in expand(elem.attrib["levelRange"], tables or {}, levels):
+            parts = value.split(";")
+            if len(parts) != 2 or not all(part.isdigit() for part in parts):
+                raise SourceError("invalid player levelRange")
+            minimum, maximum = map(int, parts)
+            if minimum > maximum:
+                raise SourceError("inverted player levelRange")
+            ranges.append({"minimum": minimum, "maximum": maximum})
+        # D34: publish the contract; keep the capability blocker until Z support.
+        return {"kind": "player_level_range", "ranges": ranges}
     if phase4 and is_cond_allowed(elem, phase4):
         if elem.tag == "player" and set(elem.attrib) == {"insideZoneId"}:
             return {"kind": "player_inside_zone_ids", "zone_ids": [int(part.strip()) for part in elem.attrib["insideZoneId"].split(",")]}
@@ -211,7 +223,7 @@ def parse_cond_node(elem: ET.Element, phase4: bool = False) -> dict:
     elif elem.tag == "player" and is_cond_allowed(elem):
         return {"kind": "player_can_resurrect", "value": elem.attrib["canResurrect"] == "true"}
     elif elem.tag in ("and", "or", "not"):
-        node = {"kind": elem.tag, "conditions": [parse_cond_node(c, phase4) for c in elem]}
+        node = {"kind": elem.tag, "conditions": [parse_cond_node(c, phase4, tables, levels) for c in elem]}
         if elem.attrib:
             node["attrs"] = dict(elem.attrib)
         return node
@@ -507,7 +519,7 @@ def generate_skill_toml(
                         if value.startswith("#"):
                             condition_tables[value] = expand(value, tables, levels)
             result["raw_conditions"] = [re.sub(r">\s+<", "><", ET.tostring(c, encoding="unicode").strip()) for c in conds]
-            result["conditions"] = [parse_cond_node(ch, phase4) for ch in condition_nodes(elem)]
+            result["conditions"] = [parse_cond_node(ch, phase4, tables, levels) for ch in condition_nodes(elem)]
         return result
 
     boolean = lambda v: v.lower() == "true"  # StatsSet/Boolean.parseBoolean semantics

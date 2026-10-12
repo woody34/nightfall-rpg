@@ -44,9 +44,11 @@ attribute = { type = "NONE", power = 0 }
 source_sets = { icon = "icon.etc_x_mas_tree_i00", magicLvl = "40", operateType = "P", targetType = "SELF" }
 
 [[conditions]]
-kind = "unsupported"
-tag = "player"
-attrs = { levelRange = "52;60" }
+kind = "player_level_range"
+
+[[conditions.ranges]]
+minimum = 52
+maximum = 60
 
 [[effects]]
 section = "effects"

@@ -44,9 +44,27 @@ attribute = { type = "NONE", power = 0 }
 source_sets = { affectScope = "SINGLE", isMagic = "2", magicLvl = "1", operateType = "A1", reuseDelay = "600000", rideState = "NONE;STRIDER;WYVERN;WOLF", targetType = "SELF" }
 
 [[conditions]]
-kind = "unsupported"
-tag = "player"
-attrs = { levelRange = "61;75" }
+kind = "player_level_range"
+
+[[conditions.ranges]]
+minimum = 61
+maximum = 75
+
+[[conditions.ranges]]
+minimum = 61
+maximum = 75
+
+[[conditions.ranges]]
+minimum = 61
+maximum = 75
+
+[[conditions.ranges]]
+minimum = 61
+maximum = 75
+
+[[conditions.ranges]]
+minimum = 61
+maximum = 75
 
 [[effects]]
 section = "effects"

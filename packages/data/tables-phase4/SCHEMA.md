@@ -109,3 +109,20 @@ build-embedded data; snapshots/records carry hashes, not rule bodies. Runtime
 must verify the content hash before admission/replay. Generator per-file semantic
 hashes remain unchanged by this transport decision. D33 preserves pinned disabled
 Mana Potion support in capacities.policy.mana_potion_support.
+
+Revision 2: `Item.etcitem_type` is the effective Java type: EtcItems with
+SOULSHOT/SUMMON_SOULSHOT/SUMMON_SPIRITSHOT/SPIRITSHOT default actions are SHOT
+(`L2EtcItem.java:51-55`). Literal XML remains in `properties` and `raw`.
+V6 conditions additionally encode `player_level_range {ranges:{minimum:int,
+maximum:int}[]}` with one inclusive range per skill rank, expanded from literal
+or table values. Rank is one-based; the evaluator rejects missing/out-of-range
+ranks, then tests `minimum <= player.level <= maximum`
+(`ConditionPlayerLevelRange.java:41-43`). D34 keeps `cond:player:levelRange`
+blocked until Z publishes executable support; representation alone does not
+promote skills/items. Existing fields and V5 condition representations retain
+their meaning. D27 per-file hash fields and ordering are unchanged.
+
+Diagnostic `capability_counts.json.required_condition_closure` records
+`condition:string`, `architect:string`, `runtime_support:string`,
+`skill_ids:int[]`, `template_ids:int[]`, `imported/admitted/deferred:int` for the
+D34 required elixir closure. This JSON remains outside semantic runtime hashes.

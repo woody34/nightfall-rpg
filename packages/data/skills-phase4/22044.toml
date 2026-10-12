@@ -45,9 +45,31 @@ source_sets = { affectScope = "SINGLE", blockedInOlympiad = "true", isMagic = "2
 condition_tables = { "#levelRange" = ["0;0", "20;39", "40;51", "52;60", "61;75", "76;85"] }
 
 [[conditions]]
-kind = "unsupported"
-tag = "player"
-attrs = { levelRange = "#levelRange" }
+kind = "player_level_range"
+
+[[conditions.ranges]]
+minimum = 0
+maximum = 0
+
+[[conditions.ranges]]
+minimum = 20
+maximum = 39
+
+[[conditions.ranges]]
+minimum = 40
+maximum = 51
+
+[[conditions.ranges]]
+minimum = 52
+maximum = 60
+
+[[conditions.ranges]]
+minimum = 61
+maximum = 75
+
+[[conditions.ranges]]
+minimum = 76
+maximum = 85
 
 [[effects]]
 section = "effects"
