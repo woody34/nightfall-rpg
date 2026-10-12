@@ -9,6 +9,7 @@ mod character_repository;
 pub mod entities;
 mod idempotency;
 mod item_admission;
+mod item_settlement;
 mod migrations;
 mod phase3_checkpoint;
 mod phase4_checkpoint;
