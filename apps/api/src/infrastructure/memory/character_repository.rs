@@ -52,6 +52,47 @@ impl State {
         view
     }
 
+    fn item_checkpoint(
+        &self,
+        character: CharacterId,
+    ) -> anyhow::Result<Option<crate::domain::zone::Phase4Checkpoint>> {
+        let Some(mut checkpoint) = self.item_inventories.get(&character).cloned() else {
+            return Ok(None);
+        };
+        for item in &mut checkpoint.instances {
+            let birth = self.item_ledger.iter().find(|row| {
+                row.character_id == character
+                    && row.instance_id == item.id
+                    && row.delta.before.is_none()
+            });
+            if let Some(birth) = birth {
+                anyhow::ensure!(
+                    birth
+                        .delta
+                        .after
+                        .as_ref()
+                        .is_some_and(|born| born.created_tick == item.created_tick),
+                    "item creation tick disagrees with ledger"
+                );
+            }
+            let recorded = birth.map(|row| crate::domain::zone::ItemCreationOrigin {
+                zone: row.zone_id,
+                epoch: row.epoch,
+            });
+            if item.creation_origin.is_none() {
+                item.creation_origin =
+                    Some(recorded.ok_or_else(|| anyhow::anyhow!("item creation ledger missing"))?);
+            } else if let Some(recorded) = recorded {
+                anyhow::ensure!(
+                    item.creation_origin == Some(recorded),
+                    "item creation provenance disagrees with ledger"
+                );
+            }
+            item.validate()?;
+        }
+        Ok(Some(checkpoint))
+    }
+
     fn put(&mut self, c: &Character) {
         self.progression.insert(
             c.id,
@@ -232,6 +273,9 @@ impl InMemoryCharacterRepository {
             .ok_or(CheckpointError::NotFound)?;
         if current != checkpoint.revision_seen {
             return Ok(CheckpointOutcome::Stale);
+        }
+        if let Some(before) = s.item_checkpoint(checkpoint.character_id)? {
+            s.item_inventories.insert(checkpoint.character_id, before);
         }
         if let Some(name) = checkpoint.violated_constraint() {
             return Err(CheckpointError::Constraint(name.to_owned()));
@@ -493,7 +537,12 @@ impl crate::application::ports::ItemCheckpointRepository for InMemoryCharacterRe
             receipt.validate(cp, owner)?;
         }
         let mut staged = current.clone();
-        let before = staged.item_inventories.get(&cp.character_id).cloned();
+        let before = staged.item_checkpoint(cp.character_id)?;
+        if let Some(before) = &before {
+            staged
+                .item_inventories
+                .insert(cp.character_id, before.clone());
+        }
         let outcome = self.checkpoint_locked(&mut staged, cp, events, fingerprint, Some(work))?;
         if !matches!(outcome, CheckpointOutcome::Applied(_)) {
             return Ok(outcome);
@@ -721,7 +770,7 @@ impl CharacterRepository for InMemoryCharacterRepository {
                 .ok_or_else(|| anyhow::anyhow!("progression character missing"))?;
             loaded.phase4 = Some(crate::infrastructure::item_manifests::admission_load(
                 character,
-                state.item_inventories.get(&character_id).cloned(),
+                state.item_checkpoint(character_id)?,
                 state
                     .pending_item_requests
                     .get(&character_id)
@@ -872,7 +921,7 @@ impl crate::application::ports::ItemInventoryRepository for InMemoryCharacterRep
         let Some(progression) = state.progression.get(&character) else {
             return Ok(None);
         };
-        let checkpoint = state.item_inventories.get(&character).cloned();
+        let checkpoint = state.item_checkpoint(character)?;
         if let Some(checkpoint) = &checkpoint {
             let phase3 = progression
                 .phase3

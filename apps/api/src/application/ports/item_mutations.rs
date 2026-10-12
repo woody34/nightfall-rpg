@@ -280,7 +280,20 @@ impl ItemCheckpointWork {
             {
                 return Err(invalid("item_checkpoint_stackability"));
             }
-            if item.created_tick > self.projection.tick {
+        }
+        // Retained creation ticks belong to their origin epoch, whose clock may be ahead.
+        for item in self
+            .projection
+            .ledger
+            .iter()
+            .filter(|delta| delta.before.is_none())
+            .flat_map(|delta| delta.after.iter())
+        {
+            if item.created_tick > self.projection.tick
+                || item
+                    .creation_origin
+                    .is_some_and(|origin| origin.zone != self.zone || origin.epoch != self.epoch)
+            {
                 return Err(invalid("item_checkpoint_creation_tick"));
             }
         }
@@ -394,12 +407,10 @@ impl ItemCheckpointWork {
                 return Err(invalid("item_instance_identity_reused"));
             }
             if let Some(original) = old.get(&delta.instance) {
-                if delta
-                    .before
-                    .iter()
-                    .chain(delta.after.iter())
-                    .any(|item| item.created_tick != original.created_tick)
-                {
+                if delta.before.iter().chain(delta.after.iter()).any(|item| {
+                    item.created_tick != original.created_tick
+                        || item.creation_origin != original.creation_origin
+                }) {
                     return Err(invalid("item_instance_creation_immutable"));
                 }
             }

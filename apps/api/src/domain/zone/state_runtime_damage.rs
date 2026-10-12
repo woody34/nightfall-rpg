@@ -1876,7 +1876,8 @@ mod tests {
         player.inventory.insert(
             id,
             crate::domain::zone::ItemInstance {
-                creation_origin: None,                id,
+                creation_origin: None,
+                id,
                 template_id: 17,
                 count,
                 location: crate::domain::zone::ItemLocation::Inventory,
@@ -4300,7 +4301,8 @@ mod tests {
             .insert(
                 restricted,
                 ItemInstance {
-                    creation_origin: None,                    id: restricted,
+                    creation_origin: None,
+                    id: restricted,
                     template_id: 9210,
                     count: 1,
                     location: ItemLocation::Inventory,
@@ -7181,6 +7183,4 @@ mod tests {
             assert_ne!(digest, candidate.state_digest());
         }
     }
-
-
 }

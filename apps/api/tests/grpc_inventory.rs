@@ -87,7 +87,10 @@ fn cp(c: &Character) -> Phase4Checkpoint {
         inventory_revision: 9,
         instances: vec![
             ItemInstance {
-                creation_origin: None,
+                creation_origin: Some(nightfall_api::domain::zone::ItemCreationOrigin {
+                    zone: nightfall_api::domain::zone::ZoneId(1),
+                    epoch: 1,
+                }),
                 id: ItemInstanceId::new(77).unwrap(),
                 template_id: 57,
                 count: 5,
@@ -100,7 +103,10 @@ fn cp(c: &Character) -> Phase4Checkpoint {
                 revision: 9,
             },
             ItemInstance {
-                creation_origin: None,
+                creation_origin: Some(nightfall_api::domain::zone::ItemCreationOrigin {
+                    zone: nightfall_api::domain::zone::ZoneId(1),
+                    epoch: 1,
+                }),
                 id: ItemInstanceId::new(78).unwrap(),
                 template_id: 2369,
                 count: 1,
@@ -507,6 +513,7 @@ async fn postgres_detached_transport_reads_consistent_revision_and_rejects_row_d
             .bind(i64::try_from(item.id.get()).unwrap()).bind(c.id.as_uuid()).bind(if item.location==ItemLocation::Inventory{"inventory"}else{"paperdoll"})
             .bind(item.slot.map(|slot|i16::from(slot as u8))).bind(i32::try_from(item.template_id).unwrap()).bind(i64::try_from(item.count).unwrap())
             .bind(i64::from(item.enchant)).bind(item.augment_id.map(i64::from)).bind(i16::from(item.charges)).bind(i64::try_from(item.created_tick.0).unwrap()).bind(i64::try_from(item.revision).unwrap()).execute(&mut *tx).await.unwrap();
+        common::pg::seed_item_creation(&mut tx, c.id, item).await;
     }
     tx.commit().await.unwrap();
     let configured = repo.clone();
