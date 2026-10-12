@@ -1,6 +1,7 @@
 #include "NightfallWire.h"
 #include "SNightfallV1/WorldMarshaling.h"
 #include "SNightfallV1/GameMarshaling.h"
+#include "SNightfallV1/ItemsMarshaling.h"
 
 namespace NightfallWire
 {
@@ -125,4 +126,23 @@ void NightfallWire::EncodeServerMessage(const FGrpcNightfallV1ServerMessage& In,
  if(bSpawn){if(!bSwing)Msg.mutable_event()->mutable_spawn()->clear_pending_swing();if(!bCast)Msg.mutable_event()->mutable_spawn()->clear_pending_cast();}
 	Out.SetNumUninitialized(static_cast<int32>(Msg.ByteSizeLong()));
 	Msg.SerializeWithCachedSizesToArray(Out.GetData());
+}
+
+void NightfallWire::ItemReceiptBytes(const uint8* Data,int32 Size,TArray<uint8>& Out)
+{
+ Out.Reset();::nightfall::v1::ServerMessage M;if(Size<0 || (Size>0 && !Data) || !M.ParseFromArray(Data,Size) || !M.has_event())return;
+ std::string Payload;const auto& E=M.event();if(E.has_enchant_result())Payload=E.enchant_result().SerializeAsString();else if(E.has_refine_result())Payload=E.refine_result().SerializeAsString();else if(E.has_item_operation_result())Payload=E.item_operation_result().SerializeAsString();
+ Out.Append(reinterpret_cast<const uint8*>(Payload.data()),static_cast<int32>(Payload.size()));
+}
+void NightfallWire::EncodeItemReceipt(const FGrpcNightfallV1EnchantResult& In,TArray<uint8>& Out)
+{
+ ::nightfall::v1::EnchantResult M;TURBOLINK_TO_GRPC(&In,&M);Out.SetNumUninitialized(static_cast<int32>(M.ByteSizeLong()));M.SerializeWithCachedSizesToArray(Out.GetData());
+}
+void NightfallWire::EncodeItemReceipt(const FGrpcNightfallV1RefineResult& In,TArray<uint8>& Out)
+{
+ ::nightfall::v1::RefineResult M;TURBOLINK_TO_GRPC(&In,&M);Out.SetNumUninitialized(static_cast<int32>(M.ByteSizeLong()));M.SerializeWithCachedSizesToArray(Out.GetData());
+}
+void NightfallWire::EncodeItemReceipt(const FGrpcNightfallV1ItemOperationResult& In,TArray<uint8>& Out)
+{
+ ::nightfall::v1::ItemOperationResult M;TURBOLINK_TO_GRPC(&In,&M);Out.SetNumUninitialized(static_cast<int32>(M.ByteSizeLong()));M.SerializeWithCachedSizesToArray(Out.GetData());
 }

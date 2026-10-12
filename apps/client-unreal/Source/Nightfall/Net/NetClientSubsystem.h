@@ -37,6 +37,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnResurrectOffer, const FResurrectOffer&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnSpGained, const FSpGained&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnSkillStateSync, const FSkillStateSync&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnVitalsChanged, const FVitalsChanged&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnItemReceiptPayload, const FWorldEvent&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnInventorySync, const FGrpcNightfallV1InventorySync&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnInventoryChanged, const FGrpcNightfallV1InventoryChanged&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnEquipmentChanged, const FGrpcNightfallV1EquipmentChanged&);
@@ -240,6 +241,7 @@ public:
 	FOnSpGained OnSpGained;
 	FOnSkillStateSync OnSkillStateSync;
 	FOnVitalsChanged OnVitalsChanged;
+	FOnItemReceiptPayload OnItemReceiptPayload;
 	FOnInventorySync OnInventorySync;
 	FOnInventoryChanged OnInventoryChanged;
 	FOnEquipmentChanged OnEquipmentChanged;

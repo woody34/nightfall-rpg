@@ -354,6 +354,7 @@ void UNetClientSubsystem::DispatchServerMessage(const FServerMessage& Msg)
 		if (E.RefineResult.IsSet()) OnRefineResult.Broadcast(*E.RefineResult);
 		if (E.ItemOperationResult.IsSet()) OnItemOperationResult.Broadcast(*E.ItemOperationResult);
 		if (E.VitalsChanged.IsSet()) OnVitalsChanged.Broadcast(*E.VitalsChanged);
+		if(E.EnchantResult.IsSet() || E.RefineResult.IsSet() || E.ItemOperationResult.IsSet())OnItemReceiptPayload.Broadcast(E);
 		if (E.XpGained.IsSet()) OnXpGained.Broadcast(*E.XpGained);
 		if (E.LevelUp.IsSet()) OnLevelUp.Broadcast(*E.LevelUp);
 		if (E.TargetChanged.IsSet()) OnTargetChanged.Broadcast(*E.TargetChanged);
