@@ -86,7 +86,7 @@ pub fn prepare_learn(
     let classes = context.classes;
     let rules = context.rules;
     ledger
-        .validate_for_phase3(classes, context.identity, context.character)
+        .validate_for_skill_rules(classes, context.identity, context.character, rules)
         .map_err(|_| LearnError::InvalidState)?;
     if phase3.player.is_none()
         || ledger.sp > i64::MAX.unsigned_abs()
@@ -189,7 +189,7 @@ pub fn prepare_learn(
     }
     candidate
         .ledger
-        .validate_for_phase3(classes, context.identity, context.character)
+        .validate_for_skill_rules(classes, context.identity, context.character, rules)
         .map_err(|_| LearnError::InvalidState)?;
     Ok(candidate)
 }

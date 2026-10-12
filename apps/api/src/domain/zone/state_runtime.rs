@@ -661,12 +661,13 @@ impl ZoneState {
             } = &c.role
             {
                 p.class_state
-                    .validate_for_phase3(
+                    .validate_for_skill_rules(
                         self.classes
                             .as_deref()
                             .ok_or(SnapshotError::CombatMismatch)?,
                         &p.identity,
                         crate::domain::CharacterId::from_uuid(id.as_uuid()),
+                        &phase.canonical.rules,
                     )
                     .map_err(|_| SnapshotError::CombatMismatch)?;
                 let rules = self.rules.as_deref().ok_or(SnapshotError::CombatMismatch)?;
@@ -790,7 +791,8 @@ impl ZoneState {
         let mut item_receipts = std::mem::take(&mut staged.item_receipts);
         for entry in staged.drain() {
             let ordinal = entry.ordinal();
-            if let Err(reason) = self.start_action_v5(tick, entry, &mut item_receipts, &mut events)
+            if let Err(reason) =
+                self.start_action_v5(tick, entry, before_items, &mut item_receipts, &mut events)
             {
                 let c = draft
                     .commands
@@ -900,6 +902,7 @@ impl ZoneState {
         &mut self,
         tick: Tick,
         action: StagedAction,
+        before_items: Option<&crate::domain::zone::Phase4Snapshot>,
         item_receipts: &mut BTreeMap<
             (crate::domain::AccountId, crate::domain::zone::phase4_projection::ItemReceiptRef),
             ItemReceiptState,
@@ -920,7 +923,14 @@ impl ZoneState {
                 if entry.canceled.is_some() {
                     Ok(())
                 } else {
-                    self.start_cast_v5(tick, &entry, events)
+                    self.start_cast_v5(
+                        tick,
+                        &entry,
+                        before_items
+                            .and_then(|items| items.players.get(&entry.caster.entity))
+                            .map(|p| p.inventory_revision),
+                        events,
+                    )
                 }
             },
             StagedAction::Attack {
@@ -1534,6 +1544,7 @@ impl ZoneState {
         &mut self,
         tick: Tick,
         entry: &StagedCast,
+        initial_revision: Option<u64>,
         events: &mut Vec<ZoneEvent>,
     ) -> Result<(), RejectReason> {
         let e = self
@@ -1558,6 +1569,16 @@ impl ZoneState {
             entry.skill_id,
         )
         .map_err(cast_reject)?;
+        if self.phase4.is_some() && !skill.item_consume.is_empty() {
+            return self.start_paid_skill_cast_v6(
+                tick,
+                entry,
+                &skill.clone(),
+                reference,
+                initial_revision,
+                events,
+            );
+        }
         self.start_defined_cast_v6(tick, entry, &skill.clone(), reference, None, events)
     }
 
@@ -1999,7 +2020,7 @@ impl ZoneState {
             }
             let resolve = if matches!(handler.name.as_str(), "DispelBySlot" | "DispelByCategory") {
                 Self::dispel_handler_v5
-            } else if matches!(handler.name.as_str(), "Heal" | "HpPerMax" | "Mp" | "Cp") {
+            } else if matches!(handler.name.as_str(), "Heal" | "Hp" | "HpPerMax" | "Mp" | "Cp") {
                 Self::restore_handler_v5
             } else if matches!(handler.name.as_str(), "GetAgro" | "AddHate") {
                 Self::agro_handler_v5
@@ -3025,6 +3046,7 @@ fn supported_cast(skill: &SkillDef, rank: u32) -> bool {
                     | "MagicalAttack"
                     | "MagicalAttackRange"
                     | "Heal"
+                    | "Hp"
                     | "HpPerMax"
                     | "Mp"
                     | "Cp"

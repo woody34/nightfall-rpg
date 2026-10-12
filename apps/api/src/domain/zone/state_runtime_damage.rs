@@ -6262,4 +6262,241 @@ mod tests {
         );
         assert_ne!(zone.entities[&owner.entity].pos, zone.safe_point.unwrap());
     }
+    #[test]
+    fn v6_hp_potion_uses_source_cost_alias_and_plain_hp_without_heal_rng() {
+        // 21040's source cost14701 is NPC-only/non-storable. It must refuse, not
+        // silently substitute the selected item; E1 closure correction is pending.
+        let (mut missing, owner, _, ids) = use_fixture(&[21040]);
+        let cursor = missing.rng.get_word_pos();
+        let rejected = missing
+            .run_tick(missing.draft(vec![use_input(&missing, owner, 960, 1, ids[0], None)]))
+            .unwrap();
+        assert_eq!(rejected.dispositions[0].reason, RejectReason::InsufficientItems);
+        assert_eq!(missing.sidecar(owner.entity).unwrap().cast, CastState::Idle);
+        assert_eq!(
+            missing.phase4.as_ref().unwrap().canonical.players[&owner.entity].inventory[&ids[0]]
+                .count,
+            3
+        );
+        assert_eq!(missing.rng.get_word_pos(), cursor);
+        // Potion of a Hero uses both the source Hp500 and Mp200 instant handlers.
+        let (mut zone, owner, _, ids) = use_fixture(&[21038]);
+        set_resources(&mut zone, owner, 1, 5);
+        let cursor = zone.rng.get_word_pos();
+        let started = zone
+            .run_tick(zone.draft(vec![use_input(&zone, owner, 960, 1, ids[0], None)]))
+            .unwrap();
+        assert!(started.dispositions.is_empty(), "{:?}", started.dispositions);
+        assert_eq!(
+            zone.phase4.as_ref().unwrap().canonical.players[&owner.entity].inventory[&ids[0]].count,
+            2
+        );
+        let rules = Arc::clone(&zone.phase4.as_ref().unwrap().rules);
+        let mut cold = ZoneState::from_snapshot_with_items(zone.snapshot(), Some(rules)).unwrap();
+        let tick = zone.run_tick(zone.draft(Vec::new())).unwrap();
+        assert_eq!(tick, cold.run_tick(cold.draft(Vec::new())).unwrap());
+        let combat = zone.entities[&owner.entity].combat.as_ref().unwrap();
+        assert_eq!(combat.hp, combat.sheet.max_hp().min(501));
+        assert_eq!(combat.mp, combat.sheet.max_mp().min(205));
+        assert_eq!(zone.rng.get_word_pos(), cursor);
+        assert!(!tick
+            .events
+            .iter()
+            .any(|event| matches!(event, ZoneEvent::ItemCheckpoint(_))));
+        assert!(zone
+            .phase4
+            .as_ref()
+            .unwrap()
+            .canonical
+            .item_casts
+            .is_empty());
+    }
+    #[test]
+    #[allow(clippy::too_many_lines)] // Fixture-seeded learned rank, real skill/cost definitions and critical projection.
+    fn v6_learned_item_cost_is_atomic_paid_once_and_not_refunded_on_cancel() {
+        use crate::domain::subclass::LearnedSkill;
+        use crate::domain::zone::skill::SkillId;
+        let (mut zone, owner, _, ids) = use_fixture(&[3031]);
+        let xp_at_60 = zone.rules.as_ref().unwrap().xp_to_level(60).unwrap();
+        let base_stats = zone
+            .classes
+            .as_ref()
+            .unwrap()
+            .get(ClassId(10))
+            .unwrap()
+            .base_stats;
+        let combat = zone
+            .entities
+            .get_mut(&owner.entity)
+            .unwrap()
+            .combat
+            .as_mut()
+            .unwrap();
+        let CombatRole::Player {
+            xp,
+            progression: Some(player),
+            ..
+        } = &mut combat.role
+        else {
+            unreachable!()
+        };
+        *xp = xp_at_60;
+        player.class_state.current_class_id = ClassId(17);
+        // A fixture-seeded Prophet with both required historical transfer receipts.
+        for (target_class, level) in [(15, 20), (17, 40)] {
+            player.class_state.successful_transfer_receipts.push(
+                crate::domain::character_progression::SuccessfulTransferReceipt {
+                    key: Uuid::from_u128(u128::from(target_class)),
+                    target_class_id: ClassId(target_class),
+                    result: crate::domain::character_progression::FrozenTransferResult {
+                        character_id: crate::domain::CharacterId::from_uuid(owner.entity.as_uuid()),
+                        identity: player.identity.clone(),
+                        name: crate::domain::CharacterName::new("First").unwrap(),
+                        current_class_id: ClassId(target_class),
+                        level,
+                        xp: 0,
+                        sp: 0,
+                        stats: base_stats,
+                        position_millitiles: [10000, 10000],
+                        hp: 1,
+                        mp: 1,
+                        cp: 0,
+                        max_hp: 1,
+                        max_mp: 1,
+                        max_cp: 0,
+                        token_tier_1_count: 0,
+                        token_tier_2_count: 0,
+                        granted_skill_keys: Vec::new(),
+                    },
+                },
+            );
+        }
+        player.class_state.merge_learned_skills(vec![LearnedSkill {
+            key: "l2.skill.1388".into(),
+            level: 1,
+        }]);
+        assert!(player
+            .class_state
+            .validate_for_phase3(
+                zone.classes.as_ref().unwrap(),
+                &player.identity,
+                crate::domain::CharacterId::from_uuid(owner.entity.as_uuid())
+            )
+            .is_err());
+        player
+            .class_state
+            .validate_for_skill_rules(
+                zone.classes.as_ref().unwrap(),
+                &player.identity,
+                crate::domain::CharacterId::from_uuid(owner.entity.as_uuid()),
+                &zone.phase3.as_ref().unwrap().canonical.rules,
+            )
+            .unwrap();
+        zone.relevel(owner.entity).unwrap();
+        zone.sync_passives_v5(owner.entity).unwrap();
+        zone.rebuild_v5(owner.entity).unwrap();
+        let max = zone.effective(owner.entity).unwrap();
+        set_resources(&mut zone, owner, max.physical.max_hp(), max.max_cp);
+        zone.entities
+            .get_mut(&owner.entity)
+            .unwrap()
+            .combat
+            .as_mut()
+            .unwrap()
+            .mp = max.physical.max_mp();
+        zone.run_tick(zone.draft(Vec::new())).unwrap();
+        let input = |seq| {
+            ZoneInput::session(
+                owner.entity,
+                SessionGeneration(1),
+                seq,
+                ZoneCommand::CastSkill {
+                    entity: owner.entity,
+                    skill_id: SkillId(1388),
+                    target: Some(owner.entity),
+                },
+            )
+        };
+        let cursor = zone.rng.get_word_pos();
+        let mut missing = zone.clone();
+        missing
+            .phase4
+            .as_mut()
+            .unwrap()
+            .canonical
+            .players
+            .get_mut(&owner.entity)
+            .unwrap()
+            .inventory
+            .remove(&ids[0]);
+        missing.rebuild_v5(owner.entity).unwrap();
+        let mana = missing.entities[&owner.entity].combat.as_ref().unwrap().mp;
+        let refused = missing.run_tick(missing.draft(vec![input(1)])).unwrap();
+        assert_eq!(refused.dispositions[0].reason, RejectReason::InsufficientItems);
+        assert_eq!(missing.entities[&owner.entity].combat.as_ref().unwrap().mp, mana);
+        assert_eq!(missing.sidecar(owner.entity).unwrap().cast, CastState::Idle);
+        assert_eq!(missing.rng.get_word_pos(), cursor);
+        let rules = Arc::clone(&zone.phase4.as_ref().unwrap().rules);
+        let mut cold =
+            ZoneState::from_snapshot_with_items(zone.snapshot(), Some(Arc::clone(&rules))).unwrap();
+        let draft = zone.draft(vec![input(1)]);
+        let started = zone.run_tick(draft.clone()).unwrap();
+        assert_eq!(started, cold.run_tick(draft).unwrap());
+        assert!(started.dispositions.is_empty(), "{:?}", started.dispositions);
+        let projection = started
+            .events
+            .iter()
+            .find_map(|e| {
+                if let ZoneEvent::ItemCheckpoint(p) = e {
+                    Some(p)
+                } else {
+                    None
+                }
+            })
+            .unwrap();
+        assert!(projection.receipts.is_empty());
+        assert_eq!(projection.ledger.len(), 1);
+        assert_eq!(projection.ledger[0].count_delta, -1);
+        assert_eq!(
+            zone.phase4.as_ref().unwrap().canonical.players[&owner.entity].inventory[&ids[0]].count,
+            2
+        );
+        let CastState::Casting(cast) = zone.sidecar(owner.entity).unwrap().cast.clone() else {
+            unreachable!()
+        };
+        let mut canceled = zone.clone();
+        let stopped = canceled
+            .run_tick(canceled.draft(vec![ZoneInput::session(
+                owner.entity,
+                SessionGeneration(1),
+                2,
+                ZoneCommand::StopMove {
+                    entity: owner.entity,
+                },
+            )]))
+            .unwrap();
+        assert!(stopped.dispositions.is_empty());
+        assert_eq!(canceled.sidecar(owner.entity).unwrap().cast, CastState::Idle);
+        assert_eq!(
+            canceled.phase4.as_ref().unwrap().canonical.players[&owner.entity].inventory[&ids[0]]
+                .count,
+            2
+        );
+        let mut restored =
+            ZoneState::from_snapshot_with_items(zone.snapshot(), Some(rules)).unwrap();
+        while zone.next_tick <= cast.complete_at {
+            let tick = zone.run_tick(zone.draft(Vec::new())).unwrap();
+            assert_eq!(tick, restored.run_tick(restored.draft(Vec::new())).unwrap());
+            assert!(!tick
+                .events
+                .iter()
+                .any(|e| matches!(e, ZoneEvent::ItemCheckpoint(_))));
+        }
+        assert_eq!(
+            zone.phase4.as_ref().unwrap().canonical.players[&owner.entity].inventory[&ids[0]].count,
+            2
+        );
+        assert_eq!(zone.rng.get_word_pos(), cursor);
+        assert_eq!(zone.sidecar(owner.entity).unwrap().cast, CastState::Idle);
+    }
 }

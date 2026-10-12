@@ -851,10 +851,11 @@ impl ZoneState {
                 let mut ledger = p.class_state.clone();
                 ledger.merge_learned_skills(grants);
                 ledger
-                    .validate_for_phase3(
+                    .validate_for_skill_rules(
                         self.classes.as_deref()?,
                         &p.identity,
                         crate::domain::CharacterId::from_uuid(player.as_uuid()),
+                        &self.phase3.as_ref()?.canonical.rules,
                     )
                     .ok()?;
                 p.class_state = ledger;

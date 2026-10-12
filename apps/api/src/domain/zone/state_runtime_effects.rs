@@ -777,7 +777,8 @@ impl ZoneState {
                 .and_then(|v| v.at(rank, skill.max_level))
                 .map_or_else(|| default.to_owned(), Clone::clone)
         };
-        let hp_handler = matches!(handler.name.as_str(), "Heal" | "HpPerMax");
+        // Hp.java:68–81 uses amount/mode, without Heal's M.Atk or critical draw.
+        let hp_handler = matches!(handler.name.as_str(), "Heal" | "Hp" | "HpPerMax");
         let cp_handler = handler.name == "Cp";
         let fractions = self.sidecar(target.entity)?.fractions;
         let c = self
@@ -866,7 +867,8 @@ impl ZoneState {
                 } else {
                     input
                 };
-                if (cp_handler && param("mode", "DIFF") == "DIFF" || input.parts().0 >= 0)
+                if ((cp_handler || handler.name == "Hp") && param("mode", "DIFF") == "DIFF"
+                    || input.parts().0 >= 0)
                     && amount.checked_cmp(gap).map_err(invariant)? == std::cmp::Ordering::Greater
                 {
                     amount = gap;
