@@ -116,7 +116,11 @@ For a shared scroll/support stack, group contributions by
 `(entity,incarnation,tick,instance)` in outcome fact sequence order. The aggregate
 uses the first contributor's `resolution_id` and exactly their ordered receipt
 references; its before/after states and combined debit must match all one-item
-contributions. Later bound before-counts reflect preceding debits. Non-Consume
+contributions. Bound revisions never decrease; later before-states reflect
+preceding debits and share the applicable tick revision. No bound revision may
+exceed the retained aggregate endpoint. Exhausted stacks do not invent a
+post-state. Receipt uniqueness spans all enchant resolutions in the scope before
+stack grouping, including resolutions spending distinct stacks. Non-Consume
 target/refund rows retain their own resolution ID and its matching receipt.
 
 Combat phases use nf.Mark/target_hits_since_mark; template15's pole receives

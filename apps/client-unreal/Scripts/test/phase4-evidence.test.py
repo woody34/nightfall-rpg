@@ -3,6 +3,7 @@
 import copy
 import importlib.util
 import json
+import random
 from pathlib import Path
 import tempfile
 import unittest
@@ -173,6 +174,115 @@ class Evidence(unittest.TestCase):
         next(r for r in reversed(bad) if r['kind']=='item_delta' and r['data']['instance']==8)['data']['after']['revision']=0
         with self.assertRaisesRegex(ValueError,'revision regressed'):gate.validate(bad,self.recording,HASH)
 
+    def test_distinct_stacks_cannot_reuse_one_resolution_receipt(self):
+        rows=self.same_tick_enchants()
+        self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['enchant_outcome','enchant_chance'],HASH)['passed'])
+        bad=copy.deepcopy(rows)
+        for row in bad[1:-1]:
+            data=row['data']
+            if row['kind']=='item_formula' and data['formula']=='enchant_outcome':data['operation']['receipt_ref']='receipt:1'
+            elif row['kind']=='item_delta':
+                data['receipt_refs' if data['operation']=='consume' else 'receipt_ref']=['receipt:1'] if data['operation']=='consume' else 'receipt:1'
+        self.assertFalse(gate.evaluate(bad,self.recording,OWNER,['enchant_outcome','enchant_chance'],HASH)['passed'])
+
+    def test_shared_scroll_and_support_bindings_preserve_tick_revision(self):
+        for count in (2,3):
+            for key in ('scroll_before','support_before'):
+                rows=self.shared_stack_enchants(count,support=True)
+                outcomes=[r['data'] for r in rows if r['kind']=='item_formula' and r['data']['formula']=='enchant_outcome']
+                self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['enchant_outcome'],HASH)['passed'])
+                for revision in (0,99):
+                    bad=copy.deepcopy(rows)
+                    [r['data'] for r in bad if r['kind']=='item_formula' and r['data']['formula']=='enchant_outcome'][1]['operation'][key]['revision']=revision
+                    self.assertFalse(gate.evaluate(bad,self.recording,OWNER,['enchant_outcome'],HASH)['passed'],(count,key,revision))
+                # Equal revisions remain valid; lowering the later binding then rolls back.
+                outcomes[0]['operation'][key]['revision']=1
+                next(r['data'] for r in rows if r['kind']=='item_delta' and r['data']['instance']==outcomes[0]['operation'][key]['id'])['before']['revision']=1
+                self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['enchant_outcome'],HASH)['passed'])
+                outcomes[1]['operation'][key]['revision']=0
+                self.assertFalse(gate.evaluate(rows,self.recording,OWNER,['enchant_outcome'],HASH)['passed'])
+
+    def generated_enchants(self,rng):
+        ticks=rng.randint(2,3);stack_ids=rng.sample(range(20,40),rng.randint(1,3))
+        plans=[[rng.choice(stack_ids) for _ in range(rng.randint(2,3))] for _ in range(ticks)]
+        support=rng.choice((False,True));initial=rng.randint(0,20)
+        counts={identity:sum(plan.count(identity) for plan in plans)+rng.randint(0,3) for identity in stack_ids}
+        if support:counts[9]=sum(map(len,plans))+rng.randint(0,3)
+        revisions={identity:initial for identity in counts}
+        incarnation=rng.randint(1,5);start=rng.randint(0,30);cursor=0;level=0
+        rows=[copy.deepcopy(self.rows[0])]
+        for tick,plan in enumerate(plans):
+            contributions={};ordinal=rng.randint(0,4)
+            for index,scroll_id in enumerate(plan):
+                target=item(8,1,71)|{'enchant':level}
+                base=int(gate.enchant_source_inputs(target,item(scroll_id,1,951),item(9,1,12363) if support else None)['base'])
+                attempt=self.enchant_rows(base=base,enchant=level,scroll_id=scroll_id,support=support)
+                resolution=f'enchant:{rng.getrandbits(64):016x}:{cursor}'
+                receipt=f'receipt:{rng.getrandbits(64):016x}:{cursor}'
+                operation=attempt[1]['data']['operation']
+                operation['receipt_ref']=receipt
+                operation['target_before']['revision']=initial+tick+int(index>0)
+                for key in ('scroll_before','support_before'):
+                    before=operation[key]
+                    if before is None:continue
+                    identity=before['id'];before.update(count=counts[identity],revision=revisions[identity])
+                    contributions.setdefault(identity,[]).append((resolution,receipt,copy.deepcopy(before)))
+                    counts[identity]-=1;revisions[identity]=initial+tick+1
+                for row in attempt[1:-1]:
+                    data=row['data']
+                    if row['kind']=='item_delta' and data['operation']=='consume':continue
+                    row.update(tick=start+tick,incarnation=incarnation)
+                    data['resolution_id']=resolution
+                    if row['kind']=='item_rng':data.update(word_before=cursor,word_after=cursor+1)
+                    if row['kind']=='item_delta':
+                        data.update(receipt_ref=receipt,operation_ordinal=ordinal)
+                        data['after']['revision']=initial+tick+1
+                    rows.append(copy.deepcopy(row))
+                ordinal+=rng.randint(1,3);cursor+=1;level+=1
+            for identity,parts in contributions.items():
+                resolution,_,before=parts[0]
+                rows.append(dict(kind='item_delta',entity=OWNER,incarnation=incarnation,tick=start+tick,sequence=0,
+                    data=dict(operation='consume',instance=identity,before=copy.deepcopy(before),
+                              after=before|{'count':counts[identity],'revision':initial+tick+1} if counts[identity] else None,
+                              count_delta=-len(parts),operation_ordinal=0,resolution_id=resolution,
+                              receipt_refs=[receipt for _,receipt,_ in parts])))
+        rows[0].update(snapshot_tick=start)
+        rows[0]['watermark'].update(records=ticks,last_tick=start+ticks-1)
+        rows.append(dict(kind='complete',facts=0,ticks=ticks,last_tick=start+ticks-1))
+        return self.repair(rows)
+
+    def test_seeded_aggregate_correlation_property_check_2000_cases(self):
+        rng=random.Random(0xE609)
+        mutations=('receipt reuse','swapped ordinals','cross-tick revision','wrong totals',
+                   'missing contributions','duplicated aggregates','foreign-owner rows')
+        def passes(rows):
+            try:return gate.evaluate(rows,self.recording,OWNER,['enchant_outcome','enchant_chance'],HASH)['passed']
+            except ValueError:return False
+        for case in range(2000):
+            rows=self.generated_enchants(rng)
+            self.assertTrue(passes(rows),f'valid case {case}')
+            for mutation in mutations:
+                bad=copy.deepcopy(rows)
+                outcomes=[r for r in bad if r['kind']=='item_formula' and r['data']['formula']=='enchant_outcome']
+                targets=[r for r in bad if r['kind']=='item_delta' and r['data']['operation']=='enchant']
+                aggregates=[r for r in bad if r['kind']=='item_delta' and r['data']['operation']=='consume']
+                if mutation=='receipt reuse':outcomes[1]['data']['operation']['receipt_ref']=outcomes[0]['data']['operation']['receipt_ref']
+                elif mutation=='swapped ordinals':
+                    a,b=targets[:2]
+                    a['data']['operation_ordinal'],b['data']['operation_ordinal']=b['data']['operation_ordinal'],a['data']['operation_ordinal']
+                elif mutation=='cross-tick revision':
+                    first=targets[0];later=next(r for r in targets if r['tick']>first['tick'])
+                    later['data']['after']['revision']=first['data']['after']['revision']
+                elif mutation=='wrong totals':rng.choice(aggregates)['data']['count_delta']-=1
+                elif mutation=='missing contributions':
+                    aggregate=next((r for r in aggregates if len(r['data']['receipt_refs'])>1),aggregates[0])
+                    aggregate['data']['receipt_refs']=aggregate['data']['receipt_refs'][:-1]
+                elif mutation=='duplicated aggregates':
+                    aggregate=rng.choice(aggregates);bad.insert(bad.index(aggregate)+1,copy.deepcopy(aggregate));self.repair(bad)
+                elif mutation=='foreign-owner rows':rng.choice(aggregates)['entity']=OTHER
+                self.assertFalse(passes(bad),f'{mutation}, case {case}')
+        print('Aggregate property check: seed=0xE609; 2000 valid sets pass; 14000 corruptions reject',flush=True)
+
     def test_revisions_increase_across_ticks_with_ordinal_reset(self):
         rows=self.same_tick_enchants()
         third=self.enchant_rows(enchant=2,scroll_id=22)
@@ -211,9 +321,12 @@ class Evidence(unittest.TestCase):
         for index in (2,3):
             attempt=self.enchant_rows(base=100 if index==2 else 70,enchant=index,scroll_id=20+index)
             attempt[1]['data']['operation']['target_before']['revision']=index-1
+            attempt[1]['data']['operation']['receipt_ref']=f'receipt:{index+1}'
             for row in attempt[1:-1]:
                 row['tick']=1;row['data']['resolution_id']=f'enchant:{index+1}'
                 if row['kind']=='item_rng':row['data'].update(word_before=index,word_after=index+1)
+                if row['kind']=='item_delta':
+                    row['data']['receipt_refs' if row['data']['operation']=='consume' else 'receipt_ref']=[f'receipt:{index+1}'] if row['data']['operation']=='consume' else f'receipt:{index+1}'
                 if row['kind']=='item_delta' and row['data']['instance']==8:
                     row['data']['after']['revision']=2;row['data']['operation_ordinal']=index-2
                 rows.insert(-1,row)

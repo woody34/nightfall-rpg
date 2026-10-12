@@ -618,12 +618,19 @@ def enchant_evidence(row, rows):
             if actual is None:raise ValueError('missing enchant post-instance')
             same({k:v for k,v in actual.items() if k!='revision'},{k:v for k,v in after.items() if k!='revision'})
         required.append(matched[0])
+    scope=(row['entity'],row['incarnation'],row['tick'])
+    outcomes=[r for r in rows[1:-1] if (r['entity'],r['incarnation'],r['tick'])==scope
+              and r['kind']=='item_formula' and r['data']['formula']=='enchant_outcome']
+    receipts=[r['data']['operation']['receipt_ref'] for r in outcomes]
+    if any(not isinstance(ref,str) or not ref for ref in receipts) or len(set(receipts))!=len(receipts):
+        raise ValueError('duplicate/invalid enchant resolution receipt')
+    retained_revisions=[r['data']['after']['revision'] for r in rows[1:-1]
+                        if (r['entity'],r['incarnation'],r['tick'])==scope
+                        and r['kind']=='item_delta' and r['data']['after'] is not None]
     for spent in (scroll,support):
         if spent is None:continue
-        scope=(row['entity'],row['incarnation'],row['tick'])
         contributions=[]
-        for other in rows[1:-1]:
-            if (other['entity'],other['incarnation'],other['tick'])!=scope or other['kind']!='item_formula' or other['data']['formula']!='enchant_outcome':continue
+        for other in outcomes:
             binding=other['data']['operation']
             for key in ('scroll_before','support_before'):
                 item=binding[key]
@@ -641,9 +648,18 @@ def enchant_evidence(row, rows):
         same(aggregate['receipt_refs'],receipts)
         first=contributions[0][2]
         same(aggregate['before'],first)
+        tick_revision=aggregate['after']['revision'] if aggregate['after'] is not None else max(retained_revisions,default=None)
+        previous_revision=first['revision']
         for index,(_,_,before) in enumerate(contributions):
             same({k:v for k,v in before.items() if k!='revision'},
                  {k:v for k,v in (first|{'count':first['count']-index}).items() if k!='revision'})
+            revision=before['revision']
+            if revision<previous_revision or tick_revision is not None and revision>tick_revision:
+                raise ValueError('enchant contribution revision regressed')
+            if index:
+                if tick_revision is None:tick_revision=revision
+                same(revision,tick_revision)
+            previous_revision=revision
         same(aggregate['count_delta'],-len(contributions))
         remaining=first['count']-len(contributions)
         if remaining<0:raise ValueError('insufficient enchant consume stack')

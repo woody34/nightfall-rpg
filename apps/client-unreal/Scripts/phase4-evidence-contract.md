@@ -85,7 +85,13 @@ resolution ID per debit. For each scroll/support stack, collect contributing
 ordinal0 aggregate carries the first contributor's `resolution_id` and exactly
 that ordered `receipt_refs` list. Its canonical before-state equals the first
 bound scroll/support before-state; later bindings retain the same instance fields
-and reflect each preceding one-item debit (revision may share the tick's step).
+and reflect each preceding one-item debit. Receipt uniqueness is checked across
+all enchant outcomes in the owner/incarnation/tick scope before grouping by stack.
+Canonical contribution revisions never decrease; later bindings equal the tick's
+retained revision step, and no binding may exceed the aggregate's post-revision.
+Equal revisions are permitted. Exhausted stacks have no invented post-state;
+use other retained deltas in the tick to check the step when available, otherwise
+require ordered bindings with one shared later revision.
 The aggregate's `count_delta` is minus the number of contributions; its after-state
 is the resulting stack or null when exhausted. Two same-tick resolutions may thus
 spend one shared stack via one `count_delta=-2` row with
