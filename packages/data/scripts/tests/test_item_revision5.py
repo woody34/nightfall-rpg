@@ -237,7 +237,10 @@ class Revision5Tests(unittest.TestCase):
                 sets = {n.get('name'): n.get('val') for n in self.src.skills[skill_id][1].findall('set')}
                 ms = int(sets['hitTime'])
                 self.assertEqual(sets['isMagic'], '2')
-                self.assertEqual(y['animation_ms'], ms); self.assertEqual(y['completion_tick'], 10+max(1, (ms+99)//100))
+                self.assertEqual(y['animation_ms'], ms)
+                # P3:126 and L2Character:1643,4577: 200ms launches now, impacts +400ms.
+                self.assertEqual(ms, 20000 if sid == 736 else 200)
+                self.assertEqual(y['completion_tick'], 210 if sid == 736 else 14)
                 self.assertEqual(y['launch_tick'], 10+(max(0, ms-400)+99)//100)
                 self.assertEqual(y['interrupt_cutoff_tick'], 10+max(0, ms//100-2))
                 self.assertEqual(y['consumed'], 1); self.assertEqual(y['completion_consumed'], 0)
@@ -245,6 +248,55 @@ class Revision5Tests(unittest.TestCase):
                 self.assertFalse(y['town_respawn']); self.assertEqual(y['destination'], [126, 126])
         self.assertNotEqual(self.by_id['consumable-escape-timing-736-333']['expected']['animation_ms'],
                             self.by_id['consumable-escape-timing-1538-333']['expected']['animation_ms'])
+
+    def test_cast_sequence_stages_blessed_and_preserves_normal_and_zero_time(self):
+        for sid, ms, completion in [(736, 20000, 210), (1538, 200, 14), (1539, 0, 11)]:
+            definition = o.consumable_definition(self.src, sid)
+            self.assertEqual(definition['skills'][0]['hit_time_ms'], ms)
+            starts = [dict(tick=10, cast_id=1, definition=definition, available={sid:2},
+                           condition_context={'canEscape':True, 'inside_zone_ids':[]})]
+            result = o.consumable_cast_sequence(starts, 0, 100)
+            self.assertEqual(result['trace'][0]['cast']['completion_tick'], completion)
+            self.assertEqual(result['trace'][1]['tick'], completion)
+            self.assertEqual(result['total_consumed'], {sid:1})
+            self.assertEqual(result['completion_consumed'], {})
+            self.assertEqual(result['inventory'], {sid:1})
+        self.assertEqual([e['tick'] for e in self.by_id['consumable-same-tick-lanes']['expected']['trace']],
+                         [10, 209, 210, 210])
+
+    def test_blow_draws_adaptation_and_trace_mutations(self):
+        count = 0
+        for name, row in self.by_id.items():
+            if not name.startswith(('blow-front-', 'blow-side-', 'blow-back-', 'blow-boundary-')):
+                continue
+            count += 1
+            x = o.decode_rationals(row['inputs'])
+            rate = F(x['chance'])*F(x['dex'])*{'front':1, 'side':F(3, 2), 'back':2}[x['proximity']]
+            self.assertEqual(row['expected'], F(x['residue'], 10) < rate)
+            trace = [dict(site='blow', bound=1000, residue=x['residue'])]
+            self.assertEqual(row['draws'], trace)
+            citations = ['G/model/stats/Formulas.java:1621-1642',
+                         'docs/plans/phase-4-zone-design.md:269 (§5; A8): integer100 to per-mille; roll1000*Q < rate_q*10']
+            self.assertTrue(all(c in row['sources'] for c in citations))
+            mutations = [dict(row, draws=[])]
+            missing = dict(row); del missing['draws']; mutations.append(missing)
+            for field, wrong in [('site', 'hit'), ('bound', 100), ('residue', x['residue']-1)]:
+                for action in ['delete', 'replace']:
+                    draw = dict(trace[0])
+                    if action == 'delete':
+                        del draw[field]
+                    else:
+                        draw[field] = wrong
+                    mutations.append(dict(row, draws=[draw]))
+            for mutation in mutations:
+                with self.subTest(case=name, draws=mutation.get('draws')), self.assertRaisesRegex(ValueError, 'draw trace'):
+                    verify_case(name, self.required[name], mutation)
+            for citation in citations:
+                with self.assertRaisesRegex(ValueError, 'source citation'):
+                    verify_case(name, self.required[name], dict(row, sources=[c for c in row['sources'] if c != citation]))
+            with self.assertRaisesRegex(ValueError, 'draw trace'):
+                o.verify_coverage(self.src, [dict(v, draws=[]) if v['id'] == name else v for v in self.vectors])
+        self.assertEqual(count, 23)  # 15 positional + 8 zero/certain/cap boundary draws.
 
     def test_regen_precedes_item_restore_with_source_status_guards(self):
         for name, row in self.by_id.items():

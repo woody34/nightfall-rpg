@@ -497,8 +497,9 @@ def consumable_cast_sequence(starts,caster_ordinal,caster_id):
         skill=definition['skills'][0];lane=result['lanes'][0]
         if lane=='main' and main is not None:raise ValueError('occupied main lane')
         hit_ms=cast_time(skill['hit_time_ms'],333,static=skill['static'])
+        impact_ms=behavior.cast_impact_delay(hit_ms)
         cast={'cast_id':start['cast_id'],'lane':lane,'skill_id':skill['id'],
-              'start_tick':tick,'completion_tick':tick+max(1,(hit_ms+99)//100),
+              'start_tick':tick,'completion_tick':tick+max(1,(impact_ms+99)//100),
               'caster_ordinal':caster_ordinal,'caster_id':caster_id,'prepaid':True}
         for sid,count in result['consumed'].items():available[sid]-=count;consumed[sid]+=count
         item_deadlines=result['item_deadlines'];skill_deadlines=result['skill_deadlines']
@@ -1073,7 +1074,9 @@ def make_vectors(src):
         add('F9','shield-guard-'+guard,dict(kwargs,rate=0 if guard=='zero' else 20),shield(0 if guard=='zero' else 20,**kwargs),['G/model/stats/Formulas.java:1077-1105'])
     for relative in [(1,0),(-1,0),(0,1),(1,2),(0,0)]:add('F9','position-'+str(relative),{'facing':[1,0],'relative':relative},position((1,0),relative),['G/model/actor/L2Character.java:4930-4993'])
     for pos in ['front','side','back']:
-        for residue in [499,500,749,750,999]:add('F10',f'blow-{pos}-{residue}',{'chance':50,'dex':1,'proximity':pos,'residue':residue},blow_success(50,1,pos,residue),['G/model/stats/Formulas.java:1621-1640','design/A8 per-mille'])
+        for residue in [499,500,749,750,999]:
+            add('F10',f'blow-{pos}-{residue}',{'chance':50,'dex':1,'proximity':pos,'residue':residue},
+                blow_success(50,1,pos,residue),behavior.BLOW_SOURCES,[{'site':'blow','bound':1000,'residue':residue}])
     for full_r,half_r in [(0,0),(10,0),(10,50),(999,999)]:
         add('F10',f'lethal-{full_r}-{half_r}',{'full':1,'half':5,'full_residue':full_r,'half_residue':half_r},lethal(1,5,full_r,half_r),['H/effecthandlers/instant/Lethal.java:60-96'])
     for kind,name in [('weapon','retailchances.xml'),('accessory','retailchances_accessory.xml')]:

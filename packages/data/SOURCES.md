@@ -952,3 +952,15 @@ completion and interrupt cutoff at two casting speeds, retaining resources and
 incarnation at destination(126,126) (`L2Character.java:1625-1643,4577-4581`, §8).
 Additional HP-potion interaction cases preserve regeneration while skipping the
 item's restoration for invulnerability and HP-blocked status (`Hp.java:60-89`).
+
+Data review revision 6: Escape and consumable sequences share P3 launch/impact
+staging (`docs/plans/phase-3-zone-design.md:126`, `L2Character.java:1643,4577`).
+Blessed skill2036's 200ms animation (`02000-02099.xml:440-447`) launches at once
+and impacts after 400ms: start10 completes14. Normal Escape remains210; zero-time
+potions retain their one-tick minimum. All 23 positional/boundary blow rows emit
+the unconditional blow draw, including zero/certain rates (`Formulas.java:1640`).
+Each binds site, bound1000 and injected residue, citing the §5 per-mille adaptation
+at `docs/plans/phase-4-zone-design.md:269`: `roll1000*Q < rate_q*10`, replacing
+source integer100 resolution under A8. Independent coverage requirements reject
+absent/empty/wrong traces and missing source/adaptation citations; tests mutate
+each draw field and independently assert outcomes and completion deadlines.

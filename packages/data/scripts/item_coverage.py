@@ -22,10 +22,14 @@ def required_cases(src):
         import item_oracle as o
     cases = {}
 
-    def need(family, name, **dimensions):
+    def need(family, name, draws=None, sources=None, **dimensions):
         if name in cases:
             raise ValueError('duplicate coverage requirement: ' + name)
         cases[name] = {'family': family, 'inputs': o.rational(dimensions)}
+        if draws is not None:
+            cases[name]['draws'] = draws
+        if sources is not None:
+            cases[name]['sources'] = sources
 
     human = D + 'stats/chars/baseStats/HumanFighter.xml'
     # §12.1 rows 01–18: choose minimum IDs from source predicates, never evidence.
@@ -196,7 +200,10 @@ def required_cases(src):
                              (F(10199, 100), 12500, 0), (100, 7500, 10000), (100, 7501, 10000), (1, 0, 0)]:
         need('F10', f'bow-{formula}-{dx}-{dy}', formula=formula, dx_milli=dx, dy_milli=dy)
     for pos, residue in product(['front', 'side', 'back'], [499, 500, 749, 750, 999]):
-        need('F10', f'blow-{pos}-{residue}', chance=50, dex=1, proximity=pos, residue=residue)
+        need('F10', f'blow-{pos}-{residue}', chance=50, dex=1, proximity=pos, residue=residue,
+             draws=[dict(site='blow', bound=1000, residue=residue)],
+             sources=['G/model/stats/Formulas.java:1621-1642',
+                      'docs/plans/phase-4-zone-design.md:269 (§5; A8): integer100 to per-mille; roll1000*Q < rate_q*10'])
     for full, half in [(0, 0), (10, 0), (10, 50), (999, 999)]:
         need('F10', f'lethal-{full}-{half}', full=1, half=5, full_residue=full, half_residue=half)
 
@@ -481,7 +488,10 @@ def _behavior_requirements(src, need, o):
     for count in [0, 1, 2]:
         need('F10', f'pole-count-{count}', candidates=[dict(eligible=True, hit=True, formula=F(499, 10)) for _ in range(4)], maximum=count)
     for chance, residue in product([F(0), F(999, 10), F(100), F(101)], [998, 999]):
-        need('F10', f'blow-boundary-{chance}-{residue}', chance=chance, dex=F(1), proximity='front', residue=residue)
+        need('F10', f'blow-boundary-{chance}-{residue}', chance=chance, dex=F(1), proximity='front', residue=residue,
+             draws=[dict(site='blow', bound=1000, residue=residue)],
+             sources=['G/model/stats/Formulas.java:1621-1642',
+                      'docs/plans/phase-4-zone-design.md:269 (§5; A8): integer100 to per-mille; roll1000*Q < rate_q*10'])
     for power, critical in product([F(-1), F(0), F(79, 77), F(80, 77), F(81, 77), F(199, 77)], [False, True]):
         need('F10', f'blow-cap-rounding-{power}-{critical}', p_atk=0, defence=80, power=power, caller='blow', critical=critical)
     for accessory in [False, True]:
@@ -533,3 +543,7 @@ def verify_case(name, case, row):
         # bool/int compare equal in Python; coverage dimensions retain JSON types.
         if key not in inputs or json.dumps(inputs[key], sort_keys=True) != json.dumps(value, sort_keys=True):
             raise ValueError('design 12.1 incorrect input dimension: ' + name + '.' + key)
+    if 'draws' in case and json.dumps(row.get('draws'), sort_keys=True) != json.dumps(case['draws'], sort_keys=True):
+        raise ValueError('design 12.1 incorrect draw trace: ' + name)
+    if any(source not in row.get('sources', []) for source in case.get('sources', [])):
+        raise ValueError('design 12.1 missing source citation: ' + name)
