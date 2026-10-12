@@ -2,7 +2,7 @@
 //! responses: the tick driver settles staged dispositions at the new-intent phase.
 //! Pinned L2Character.java:1495-1543,1664-1675,4617-4642 and CharStat.java:482-514.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -152,6 +152,11 @@ impl StagedAction {
 #[derive(Debug, Default)]
 pub struct StagedActions {
     entries: Vec<StagedAction>,
+    /// Accepted and recorded Known receipts share the same tick-local deduplication scope.
+    pub(crate) item_receipts: BTreeMap<
+        (crate::domain::account::AccountId, super::phase4_projection::ItemReceiptRef),
+        super::phase4_projection::ItemReceiptFact,
+    >,
 }
 impl StagedActions {
     /// Called only after source/generation authorization. Target is captured at this

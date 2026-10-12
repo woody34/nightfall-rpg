@@ -417,6 +417,11 @@ async fn contract<
         CheckpointOutcome::Applied(2)
     );
     let receipt = second_work.projection.receipts.first().unwrap();
+    let encoded = serde_json::to_value(receipt).unwrap();
+    assert_eq!(
+        encoded.get("result").unwrap(),
+        &serde_json::to_value(receipt.result.payload().unwrap().as_bytes()).unwrap()
+    );
     let key = IdempotencyKey::from_uuid(receipt.request_id);
     let use_receipt = second_work.projection.receipts.get(1).unwrap();
     let ItemReceiptLookup::Known(used) = repo
@@ -432,6 +437,18 @@ async fn contract<
         panic!("same-tick Use receipt must coexist with Grant");
     };
     assert_eq!(used.result, use_receipt.result);
+    let persisted = serde_json::to_value(&used).unwrap();
+    assert_eq!(
+        persisted["result"],
+        serde_json::to_value(use_receipt.result.payload().unwrap().as_bytes()).unwrap()
+    );
+    assert_eq!(
+        serde_json::from_value::<Box<nightfall_api::application::ports::ItemMutationReceipt>>(
+            persisted
+        )
+        .unwrap(),
+        used
+    );
     let known = repo
         .item_receipt_lookup(
             character.account_id,

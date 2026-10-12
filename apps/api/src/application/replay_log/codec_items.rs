@@ -62,14 +62,13 @@ pub(in crate::application::replay_log) fn result_from_json(
     bytes: &[u8],
     expected_tag: u32,
 ) -> Result<ZoneEvent, CodecError> {
-    let result: FrozenItemResult = serde_json::from_slice(bytes).map_err(super::err)?;
-    result.validate().map_err(super::err)?;
+    let result = FrozenItemResult::from_payload(bytes).map_err(super::err)?;
     let tag = match result.detail {
         ItemResultDetail::Enchant { .. } => 37,
         ItemResultDetail::Refine { .. } => 38,
         ItemResultDetail::Operation { .. } => 39,
     };
-    if expected_tag != tag || canonical_json(&result) != bytes || result.incarnation == 0 {
+    if expected_tag != tag || result.incarnation == 0 {
         return Err(CodecError("noncanonical or mismatched live item result".into()));
     }
     Ok(ZoneEvent::ItemResult(Box::new(result)))
