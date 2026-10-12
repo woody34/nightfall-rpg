@@ -6,6 +6,39 @@ use super::phase4_projection::{
 use super::{ItemError, ItemInstance, ItemInstanceId};
 use serde::{Deserialize, Serialize};
 
+/// Full instance crystal yield, before enchanting's distinct failure refund reduction.
+/// L2Item.java:405–420; grade bonuses are imported from CrystalType.java.
+pub fn crystal_count(
+    definition: &super::item_rules::ItemDefinition,
+    enchant: u32,
+    rules: &super::Phase4Rules,
+) -> Result<u64, ItemError> {
+    let grade = rules
+        .parts()
+        .grades
+        .iter()
+        .find(|grade| grade.grade == definition.grade)
+        .ok_or(ItemError("missing crystal grade"))?;
+    let (bonus, multiplier, offset) = match definition.kind.as_str() {
+        "Weapon" => (grade.weapon_bonus, 2_u64, 3_u64),
+        "Armor" => (grade.armor_bonus, 3, 6),
+        _ => (0, 1, 0),
+    };
+    let levels = if enchant > 3 {
+        u64::from(enchant)
+            .checked_mul(multiplier)
+            .and_then(|n| n.checked_sub(offset))
+    } else {
+        Some(u64::from(enchant))
+    }
+    .ok_or(ItemError("crystal yield overflow"))?;
+    u64::from(bonus)
+        .checked_mul(levels)
+        .and_then(|n| n.checked_add(u64::from(definition.crystal_count)))
+        .filter(|n| i64::try_from(*n).is_ok())
+        .ok_or(ItemError("crystal yield overflow"))
+}
+
 /// D49 captures the attempted scalar before another operation can destroy or exchange it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -73,5 +106,46 @@ impl EnchantAttempt {
             return Err(ItemError("enchant attempt result mismatch"));
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::indexing_slicing)]
+mod tests {
+    #[test]
+    fn source_crystal_yield_preserves_weapon_and_armour_breakpoints() {
+        let bundle = crate::infrastructure::item_data::embedded_phase4_bundle().unwrap();
+        for (template, expected) in [
+            (71, [705, 750, 840, 930, 1110]),
+            (58, [260, 271, 293, 326, 392]),
+            (59, [180, 191, 213, 246, 312]),
+        ] {
+            for (enchant, count) in [0, 1, 3, 4, 6].into_iter().zip(expected) {
+                assert_eq!(
+                    super::crystal_count(
+                        &bundle.items.parts().items[&template],
+                        enchant,
+                        &bundle.items
+                    )
+                    .unwrap(),
+                    count
+                );
+            }
+        }
+        // Every imported grade's exact source bonuses; no S80/S84 rank-index shortcut.
+        for (grade, expected) in [
+            ("D", 451),
+            ("C", 226),
+            ("B", 336),
+            ("A", 726),
+            ("S", 1251),
+            ("S80", 1251),
+            ("S84", 1251),
+        ] {
+            let mut definition = bundle.items.parts().items[&71].clone();
+            definition.grade = grade.into();
+            definition.crystal_count = 1;
+            assert_eq!(super::crystal_count(&definition, 4, &bundle.items).unwrap(), expected);
+        }
     }
 }

@@ -4357,6 +4357,21 @@ mod tests {
         );
         assert_eq!(zone.snapshot(), before);
         assert!(events.is_empty());
+        for kind in [
+            K::Destroy {
+                instance: weapon,
+                count: 1,
+            },
+            K::Crystallize { instance: weapon },
+        ] {
+            let command = item_intent(&zone, owner.entity, 32, kind);
+            assert_eq!(
+                zone.item_command_v6(zone.next_tick, &command, &mut events, &mut receipts),
+                Err(RejectReason::AlreadyCasting)
+            );
+            assert_eq!(zone.snapshot(), before);
+            assert!(events.is_empty());
+        }
         zone.phase4.as_mut().unwrap().canonical.item_casts.clear();
         // An ordinary cast with no weapon condition continues and reads the new sheet at impact.
         zone.item_command_v6(zone.next_tick, &unequip, &mut events, &mut receipts)
@@ -4862,5 +4877,321 @@ mod tests {
             .events
             .iter()
             .any(|e| matches!(e, ZoneEvent::ItemResult(_) | ZoneEvent::ItemCheckpoint(_))));
+    }
+
+    fn crystallize_fixture() -> (ZoneState, TargetBinding) {
+        let (mut zone, owner, _) = equipment_fixture();
+        let xp40 = zone.rules.as_ref().unwrap().xp_to_level(40).unwrap();
+        let entity = zone.entities.get_mut(&owner.entity).unwrap();
+        let combat = entity.combat.as_mut().unwrap();
+        let CombatRole::Player {
+            progression: Some(progression),
+            class,
+            xp,
+        } = &mut combat.role
+        else {
+            unreachable!()
+        };
+        progression.identity.race = Race::Dwarf;
+        progression.identity.base_class_id = ClassId(53);
+        progression.class_state = ClassState::new(ClassId(53));
+        *class = crate::domain::character_progression::base_class_profile(ClassId(53))
+            .unwrap()
+            .into();
+        *xp = xp40;
+        let (sheet, max_cp, _, radius) = crate::domain::zone::profession_stats(
+            zone.rules.as_ref().unwrap(),
+            zone.classes.as_ref().unwrap(),
+            &progression.identity,
+            &progression.class_state,
+            40,
+        )
+        .unwrap();
+        progression.max_cp = max_cp;
+        combat.sheet = sheet;
+        combat.collision_radius = radius;
+        zone.phase4
+            .as_mut()
+            .unwrap()
+            .canonical
+            .players
+            .get_mut(&owner.entity)
+            .unwrap()
+            .starter_kit_receipt
+            .source_class = ClassId(53);
+        zone.sync_passives_v5(owner.entity).unwrap();
+        zone.rebuild_v5(owner.entity).unwrap();
+        zone.reconcile_player_tokens(zone.next_tick, owner.entity, None, &mut Vec::new());
+        let old = zone.entities[&owner.entity].pos;
+        let pos = Vec2Fixed::from_tiles(126, 128);
+        zone.entities.get_mut(&owner.entity).unwrap().pos = pos;
+        zone.aoi.relocate(owner.entity, old, pos);
+        for (seq, target) in [(100, ClassId(54)), (101, ClassId(55))] {
+            let command = ZoneCommand::ChangeClass {
+                entity: owner.entity,
+                account: AccountId::from_uuid(owner.entity.as_uuid()),
+                request_key: Uuid::from_u128(u128::from(seq)),
+                target,
+            };
+            let applied = zone
+                .run_tick(zone.draft(vec![review_input(owner.entity, seq, command)]))
+                .unwrap();
+            assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+        }
+        (zone, owner)
+    }
+
+    #[test]
+    #[allow(clippy::too_many_lines)] // Real command ordering, provider removal and cold replay share one source fixture.
+    fn v6_removal_commands_unequip_refund_and_replay_without_rng() {
+        use crate::domain::zone::phase4_projection::ItemOperation as Op;
+        use crate::domain::zone::{EquipSlot, ItemCommandKind as K, ItemInstanceId};
+        let (mut zone, owner) = crystallize_fixture();
+        let CombatRole::Player {
+            progression: Some(progression),
+            ..
+        } = &mut zone
+            .entities
+            .get_mut(&owner.entity)
+            .unwrap()
+            .combat
+            .as_mut()
+            .unwrap()
+            .role
+        else {
+            unreachable!()
+        };
+        progression
+            .class_state
+            .merge_learned_skills([crate::domain::subclass::LearnedSkill {
+                key: "l2.skill.248".into(),
+                level: 2,
+            }]);
+        let items = &mut zone.phase4.as_mut().unwrap().canonical;
+        let player = items.players.get_mut(&owner.entity).unwrap();
+        let weapon = player.paperdoll[&EquipSlot::Rhand];
+        let chest = player.paperdoll[&EquipSlot::Chest];
+        let arrows = ItemInstanceId::new(900).unwrap();
+        let arrow_count = player.inventory[&arrows].count;
+        let crystal = ItemInstanceId::new(901).unwrap();
+        let mut stack = player.inventory[&arrows].clone();
+        stack.id = crystal;
+        stack.template_id = 1459;
+        stack.count = 10;
+        player.inventory.insert(crystal, stack);
+        zone.sync_passives_v5(owner.entity).unwrap();
+        zone.rebuild_v5(owner.entity).unwrap();
+        zone.run_tick(zone.draft(Vec::new())).unwrap();
+        let original = zone.phase4.as_ref().unwrap().canonical.players[&owner.entity].clone();
+        let allocation = zone.phase4.as_ref().unwrap().canonical.allocator;
+        let rng = zone.rng.get_word_pos();
+        zone.validate_runtime_v5().unwrap();
+        let mut cold = ZoneState::from_snapshot_with_items(
+            zone.snapshot(),
+            Some(Arc::clone(&zone.phase4.as_ref().unwrap().rules)),
+        )
+        .unwrap();
+        let commands = [
+            (
+                20,
+                K::Destroy {
+                    instance: arrows,
+                    count: 3,
+                },
+            ),
+            (
+                20,
+                K::Destroy {
+                    instance: arrows,
+                    count: 3,
+                },
+            ),
+            (
+                21,
+                K::Destroy {
+                    instance: chest,
+                    count: 1,
+                },
+            ),
+            (22, K::Crystallize { instance: weapon }),
+        ]
+        .into_iter()
+        .enumerate()
+        .map(|(seq, (key, kind))| {
+            ZoneInput::session(
+                owner.entity,
+                SessionGeneration(1),
+                u32::try_from(seq + 1).unwrap(),
+                ZoneCommand::Item(Box::new(item_intent(&zone, owner.entity, key, kind))),
+            )
+        })
+        .collect();
+        let draft = zone.draft(commands);
+        let applied = zone.run_tick(draft.clone()).unwrap();
+        assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+        assert_eq!(applied, cold.run_tick(draft).unwrap());
+        assert_eq!(zone.rng.get_word_pos(), rng);
+        assert_eq!(zone.phase4.as_ref().unwrap().canonical.allocator, allocation);
+        let player = &zone.phase4.as_ref().unwrap().canonical.players[&owner.entity];
+        assert_eq!(player.inventory_revision, original.inventory_revision + 1);
+        assert_eq!(player.inventory[&arrows].count, arrow_count - 3);
+        // Flamberge 705 + C weapon bonus45*(2*4-3) = 930; merge into original10.
+        assert_eq!(player.inventory[&crystal].count, 940);
+        assert!(!player.inventory.contains_key(&weapon));
+        assert!(!player.inventory.contains_key(&chest));
+        assert!(!player.paperdoll.contains_key(&EquipSlot::Rhand));
+        assert!(!player.paperdoll.contains_key(&EquipSlot::Chest));
+        assert!(player.active_sets.is_empty());
+        assert!(!player.equipment_sources.values().any(|source| matches!(source, crate::domain::zone::phase4_checkpoint::EquipmentSourceKey::Item { instance } if *instance == weapon || *instance == chest)));
+        let projection = applied
+            .events
+            .iter()
+            .find_map(|e| {
+                if let ZoneEvent::ItemCheckpoint(p) = e {
+                    Some(p)
+                } else {
+                    None
+                }
+            })
+            .unwrap();
+        assert_eq!(projection.receipts.len(), 3);
+        assert_eq!(
+            projection
+                .ledger
+                .iter()
+                .map(|delta| delta.operation)
+                .collect::<Vec<_>>(),
+            vec![
+                Op::Destroy,
+                Op::Unequip,
+                Op::Destroy,
+                Op::Unequip,
+                Op::Destroy,
+                Op::Grant
+            ]
+        );
+        assert_eq!(projection.ledger.last().unwrap().receipt.unwrap().operation, Op::Crystallize);
+        let record = crate::application::replay_log::AppliedTickRecord::from_applied(
+            zone.seed.zone,
+            &applied,
+        );
+        assert_eq!(
+            crate::application::replay_log::AppliedTickRecord::decode(&record.encode()).unwrap(),
+            record
+        );
+        let restored = ZoneState::from_snapshot_with_items(
+            zone.snapshot(),
+            Some(Arc::clone(&zone.phase4.as_ref().unwrap().rules)),
+        )
+        .unwrap();
+        assert_eq!(zone.snapshot(), restored.snapshot());
+    }
+
+    #[test]
+    fn v6_removal_refusals_preserve_items_providers_allocator_and_receipts() {
+        use crate::domain::zone::{EquipSlot, ItemCommandKind as K, ItemInstanceId};
+        let (mut zone, owner, _) = equipment_fixture();
+        let weapon = zone.phase4.as_ref().unwrap().canonical.players[&owner.entity].paperdoll
+            [&EquipSlot::Rhand];
+        let arrows = ItemInstanceId::new(900).unwrap();
+        let count =
+            zone.phase4.as_ref().unwrap().canonical.players[&owner.entity].inventory[&arrows].count;
+        let cases = [
+            (K::Crystallize { instance: weapon }, RejectReason::CrystallizeLevelTooLow),
+            (K::Crystallize { instance: arrows }, RejectReason::ItemNotUsable),
+            (
+                K::Destroy {
+                    instance: arrows,
+                    count: count + 1,
+                },
+                RejectReason::InsufficientItems,
+            ),
+            (
+                K::Destroy {
+                    instance: weapon,
+                    count: 2,
+                },
+                RejectReason::InsufficientItems,
+            ),
+            (
+                K::Destroy {
+                    instance: ItemInstanceId::new(999).unwrap(),
+                    count: 1,
+                },
+                RejectReason::ItemNotOwned,
+            ),
+        ];
+        let mut events = Vec::new();
+        let mut receipts = BTreeMap::new();
+        for (kind, expected) in cases {
+            let snapshot = zone.snapshot();
+            let command = item_intent(&zone, owner.entity, 20, kind);
+            assert_eq!(
+                zone.item_command_v6(zone.next_tick, &command, &mut events, &mut receipts),
+                Err(expected)
+            );
+            assert_eq!(zone.snapshot(), snapshot);
+            assert!(events.is_empty());
+            assert!(receipts.is_empty());
+        }
+        let CombatRole::Player {
+            progression: Some(progression),
+            ..
+        } = &mut zone
+            .entities
+            .get_mut(&owner.entity)
+            .unwrap()
+            .combat
+            .as_mut()
+            .unwrap()
+            .role
+        else {
+            unreachable!()
+        };
+        progression
+            .class_state
+            .merge_learned_skills([crate::domain::subclass::LearnedSkill {
+                key: "l2.skill.248".into(),
+                level: 2,
+            }]);
+        // The refund cannot occupy the retained zero-slot inventory. No unequip survives.
+        zone.phase4
+            .as_mut()
+            .unwrap()
+            .canonical
+            .players
+            .get_mut(&owner.entity)
+            .unwrap()
+            .ordinary_capacity = 0;
+        let snapshot = zone.snapshot();
+        let command = item_intent(&zone, owner.entity, 20, K::Crystallize { instance: weapon });
+        assert_eq!(
+            zone.item_command_v6(zone.next_tick, &command, &mut events, &mut receipts),
+            Err(RejectReason::InventoryFull)
+        );
+        assert_eq!(zone.snapshot(), snapshot);
+        // Removal remains possible with a nonpositive retained weight/capacity ceiling.
+        zone.phase4
+            .as_mut()
+            .unwrap()
+            .canonical
+            .players
+            .get_mut(&owner.entity)
+            .unwrap()
+            .max_load = -1;
+        let command = item_intent(
+            &zone,
+            owner.entity,
+            20,
+            K::Destroy {
+                instance: arrows,
+                count,
+            },
+        );
+        zone.item_command_v6(zone.next_tick, &command, &mut events, &mut receipts)
+            .unwrap();
+        assert!(!zone.phase4.as_ref().unwrap().canonical.players[&owner.entity]
+            .inventory
+            .contains_key(&arrows));
     }
 }

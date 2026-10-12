@@ -257,24 +257,35 @@ pub fn apply_paperdoll(
     let mut staged = player.clone();
     let mut next = next_sequence;
     for change in &mutation.changes {
-        let before = change
-            .before
-            .as_ref()
-            .ok_or(ItemError("equipment change lacks before"))?;
-        let after = change
+        let instance = change
             .after
             .as_ref()
-            .ok_or(ItemError("equipment change lacks after"))?;
-        if staged.inventory.get(&before.id) != Some(before) || before.id != after.id {
+            .or(change.before.as_ref())
+            .ok_or(ItemError("empty inventory transition"))?
+            .id;
+        if staged.inventory.get(&instance) != change.before.as_ref()
+            || change
+                .after
+                .as_ref()
+                .is_some_and(|after| after.id != instance)
+            || change
+                .before
+                .as_ref()
+                .is_some_and(|before| before.id != instance)
+        {
             return Err(ItemError("equipment transition does not match inventory"));
         }
-        if let Some(slot) = before.slot {
+        if let Some(slot) = change.before.as_ref().and_then(|before| before.slot) {
             staged.paperdoll.remove(&slot);
         }
-        if let Some(slot) = after.slot {
-            staged.paperdoll.insert(slot, after.id);
+        if let Some(after) = &change.after {
+            if let Some(slot) = after.slot {
+                staged.paperdoll.insert(slot, after.id);
+            }
+            staged.inventory.insert(instance, after.clone());
+        } else {
+            staged.inventory.remove(&instance);
         }
-        staged.inventory.insert(after.id, after.clone());
         staged.active_sets = reconcile_sets(&staged, rules, Some(change))?;
         reconcile_sources(&mut staged, rules, &mut next)?;
     }

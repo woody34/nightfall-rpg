@@ -13,15 +13,13 @@ pub struct InventoryLimits {
 }
 impl InventoryLimits {
     /// Live mutations use retained, authoritatively folded capacities (D39).
-    pub fn from_player(player: &super::Phase4Player) -> Result<Self, ItemError> {
-        if player.max_load < 0 {
-            return Err(ItemError("negative inventory weight capacity"));
-        }
-        Ok(Self {
+    pub fn from_player(player: &super::Phase4Player) -> Self {
+        // A negative retained limit still permits removals; any addition fails capacity.
+        Self {
             ordinary: player.ordinary_capacity,
             quest: player.quest_capacity,
             max_weight: player.max_load,
-        })
+        }
     }
     /// Slot ceilings come from the immutable source policy; the effective load getter
     /// supplies the checked weight ceiling after attributes and modifiers have folded.
@@ -436,7 +434,7 @@ mod tests {
         let mut player = crate::domain::zone::item_functions::tests::player();
         player.ordinary_capacity = 86;
         player.quest_capacity = 100;
-        let limits = InventoryLimits::from_player(&player).unwrap();
+        let limits = InventoryLimits::from_player(&player);
         assert_eq!((limits.ordinary, limits.quest), (86, 100));
     }
     #[test]

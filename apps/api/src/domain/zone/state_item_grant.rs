@@ -303,7 +303,7 @@ impl ZoneState {
                 count: command.count,
             }],
             &items.rules,
-            InventoryLimits::from_player(player).map_err(invalid)?,
+            InventoryLimits::from_player(player),
             InventoryBoundary { tick, revision },
         )
         .map_err(|_| RejectReason::InventoryFull)?;
