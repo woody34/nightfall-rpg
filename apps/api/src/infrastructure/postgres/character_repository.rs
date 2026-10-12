@@ -33,7 +33,7 @@ use crate::infrastructure::telemetry::Metrics;
 /// Character persistence in Postgres.
 #[derive(Clone)]
 pub struct PgCharacterRepository {
-    db: DatabaseConnection,
+    pub(super) db: DatabaseConnection,
     metrics: Option<Metrics>,
     classes: Option<Arc<ClassRegistry>>,
     phase3_rules: Option<Arc<Phase3Rules>>,
@@ -745,6 +745,7 @@ impl PgCharacterRepository {
         }
 
         character_ledger::create_main_slot(&tx, character).await?;
+        super::item_admission::create_starter(&tx, character).await?;
         let event = DomainEvent::CharacterCreated {
             character_id: character.id,
             account_id: character.account_id,

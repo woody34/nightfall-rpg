@@ -17,6 +17,10 @@ use crate::domain::{AccountId, Character, CharacterId, DomainEvent};
 #[derive(Default)]
 struct State {
     characters: HashMap<CharacterId, Character>,
+    item_ranges:
+        BTreeMap<(crate::domain::zone::ZoneId, u64), crate::application::ports::ItemIdRange>,
+    pending_item_requests:
+        BTreeMap<CharacterId, Vec<crate::application::ports::PendingItemRequest>>,
     names: HashMap<String, CharacterId>,
     /// `(account, key)`: keys are scoped to the account, like the Postgres primary key.
     keys: HashMap<(AccountId, IdempotencyKey), (String, CharacterId)>,
@@ -426,6 +430,8 @@ impl CharacterRepository for InMemoryCharacterRepository {
         {
             return Err(RepositoryError::SlotsFull);
         }
+        let starter = crate::infrastructure::item_manifests::starter_request(character)?;
+        s.pending_item_requests.insert(character.id, vec![starter]);
         s.names.insert(norm, character.id);
         s.keys
             .insert(scoped, (fingerprint.to_owned(), character.id));
@@ -466,6 +472,62 @@ impl CharacterRepository for InMemoryCharacterRepository {
     ) -> Result<CheckpointOutcome, CheckpointError> {
         let mut s = self.state.lock();
         self.checkpoint_locked(&mut s, checkpoint, events, checkpoint.fingerprint(events))
+    }
+}
+
+#[async_trait]
+impl crate::application::ports::ItemAdmissionRepository for InMemoryCharacterRepository {
+    async fn reserve_item_range(
+        &self,
+        zone: crate::domain::zone::ZoneId,
+        epoch: u64,
+    ) -> Result<crate::application::ports::ItemIdRange, CheckpointError> {
+        use crate::application::ports::ItemIdRange;
+        if i32::try_from(zone.0).is_err() {
+            return Err(CheckpointError::Constraint("item_id_ranges_zone".into()));
+        }
+        if i64::try_from(epoch).is_err() {
+            return Err(CheckpointError::Constraint("item_id_ranges_epoch".into()));
+        }
+        let mut state = self.state.lock();
+        if let Some(range) = state.item_ranges.get(&(zone, epoch)) {
+            return Ok(*range);
+        }
+        let start = state
+            .item_ranges
+            .values()
+            .map(|range| range.range_end_exclusive)
+            .max()
+            .unwrap_or(1_u64 << 32);
+        let end = start
+            .checked_add(1_u64 << 32)
+            .filter(|end| i64::try_from(*end).is_ok())
+            .ok_or_else(|| CheckpointError::Constraint("item_id_ranges_exhausted".into()))?;
+        let range = ItemIdRange {
+            zone_id: zone,
+            epoch,
+            range_start: start,
+            range_end_exclusive: end,
+            next_reserved: start,
+        };
+        range.validate()?;
+        state.item_ranges.insert((zone, epoch), range);
+        Ok(range)
+    }
+    async fn pending_item_requests(
+        &self,
+        character: CharacterId,
+    ) -> anyhow::Result<Vec<crate::application::ports::PendingItemRequest>> {
+        let state = self.state.lock();
+        anyhow::ensure!(
+            state.characters.contains_key(&character),
+            "pending items character missing"
+        );
+        Ok(state
+            .pending_item_requests
+            .get(&character)
+            .cloned()
+            .unwrap_or_default())
     }
 }
 

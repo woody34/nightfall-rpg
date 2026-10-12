@@ -262,8 +262,8 @@ message EntitySpawn {
   SkillCastStarted pending_cast = 25; // absent in V5 identities; hydrate after all spawns
   uint32 pk_count = 26;
   uint32 pvp_count = 27;
-  repeated VisibleEquipment visible_equipment = 29;
   uint64 status_flags = 28; // public status bits; no death-penalty modifier disclosure
+  repeated VisibleEquipment visible_equipment = 29;
 }
 
 message EntityMove {
