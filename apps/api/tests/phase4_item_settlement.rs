@@ -27,7 +27,247 @@ use nightfall_api::infrastructure::{
     postgres::PgCharacterRepository,
 };
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::Arc;
 use uuid::Uuid;
+
+// Storage-only: simultaneous paid rank and item consumption, not book eligibility/gameplay.
+#[allow(clippy::too_many_lines)]
+async fn unified_learning_contract<R>(
+    repo: Arc<R>,
+    bundle: &Phase4RuleBundle,
+    pool: Option<&sqlx::PgPool>,
+) where
+    R: CharacterRepository
+        + ItemAdmissionRepository
+        + ItemCheckpointRepository
+        + LearnReceiptRepository,
+{
+    use nightfall_api::domain::subclass::LearnedSkill;
+    use nightfall_api::domain::zone::skill::{SkillId, SkillRef};
+    let (c, mut baseline, baseline_work, baseline_events) =
+        fixture(repo.as_ref(), bundle, "UnifiedLearn").await;
+    baseline.level = 5;
+    baseline.class_state.as_mut().unwrap().sp = 100;
+    assert_eq!(
+        repo.checkpoint_items(&baseline, &baseline_events, &baseline_work, None)
+            .await
+            .unwrap(),
+        CheckpointOutcome::Applied(1)
+    );
+    let before = repo.load_for_admission(c.id).await.unwrap();
+    let mut cp = baseline.clone();
+    cp.revision_seen = 1;
+    cp.idempotency.1 = IdempotencyKey::new();
+    let ledger = cp.class_state.as_mut().unwrap();
+    ledger.sp = 50;
+    ledger.merge_learned_skills([LearnedSkill {
+        key: "l2.skill.3".into(),
+        level: 1,
+    }]);
+    let retained = cp.phase4.as_mut().unwrap();
+    retained.inventory_revision = 2;
+    let scroll = retained
+        .instances
+        .iter_mut()
+        .find(|item| item.count > 1)
+        .unwrap();
+    let old_scroll = scroll.clone();
+    scroll.count = scroll.count.checked_sub(1).unwrap();
+    scroll.revision = 2;
+    let new_scroll = scroll.clone();
+    let mut work = baseline_work.clone();
+    work.projection.tick = Tick(74);
+    work.projection.checkpoint = retained.clone();
+    work.projection.receipts.clear();
+    work.projection.materializations.clear();
+    work.projection.ledger = vec![ItemDeltaPlan {
+        operation: ItemOperation::Consume,
+        operation_ordinal: 0,
+        instance: old_scroll.id,
+        before: Some(old_scroll),
+        after: Some(new_scroll),
+        count_delta: -1,
+        receipt: None,
+        causes: vec![ItemAuditEvidence {
+            family: "consume".into(),
+            fields: BTreeMap::from([
+                ("ordinal".into(), ItemEvidenceValue::Unsigned(0)),
+                ("count".into(), ItemEvidenceValue::Unsigned(1)),
+            ]),
+        }],
+    }];
+    let receipt = SuccessfulLearnReceipt {
+        account_id: c.account_id,
+        key: IdempotencyKey::new(),
+        request_fingerprint: learn_skill_fingerprint(
+            c.id,
+            SkillRef {
+                id: SkillId(3),
+                rank: 1,
+            },
+        ),
+        result: FrozenLearnResult {
+            character_id: c.id,
+            skill: SkillRef {
+                id: SkillId(3),
+                rank: 1,
+            },
+            sp_spent: 50,
+            sp_remaining: 50,
+            tick: Tick(74),
+            hp: cp.hp,
+            max_hp: cp.hp,
+            mp: cp.mp,
+            max_mp: cp.mp,
+            cp: 0,
+            max_cp: 0,
+            effective_stats: LearnedEffectiveStats {
+                p_atk_q: 0,
+                p_def_q: 0,
+                m_atk_q: 0,
+                m_def_q: 0,
+                attack_speed: 0,
+                cast_speed: 0,
+                speed_q: 0,
+                accuracy_q: 0,
+                evasion_q: 0,
+                crit_permille: 0,
+            },
+            incarnation: 4,
+        },
+    };
+    let mut outbox = events(&cp, &work);
+    outbox.push(DomainEvent::CharacterSkillLearned {
+        metadata: EventMetadata {
+            event_id: Uuid::now_v7(),
+            sequence: (2, 1),
+        },
+        character_id: c.id,
+        skill_id: 3,
+        skill_level: 1,
+        sp_spent: 50,
+        sp_remaining: 50,
+        tick: 74,
+        request_key: receipt.key.as_uuid(),
+    });
+    let lookup =
+        || repo.learn_receipt_lookup(c.account_id, &receipt.key, &receipt.request_fingerprint);
+    let mut stale = cp.clone();
+    stale.revision_seen = 7;
+    let stale_events = events(&stale, &work);
+    assert_eq!(
+        repo.checkpoint_items(&stale, &stale_events, &work, Some(&receipt))
+            .await
+            .unwrap(),
+        CheckpointOutcome::Stale
+    );
+    let mut invalid = work.clone();
+    invalid.projection.ledger[0].count_delta = -2;
+    assert!(repo
+        .checkpoint_items(&cp, &outbox, &invalid, Some(&receipt))
+        .await
+        .is_err());
+    assert_eq!(lookup().await.unwrap(), LearnReceiptLookup::Unknown);
+    assert_eq!(repo.load_for_admission(c.id).await.unwrap(), before);
+    if let Some(pool) = pool {
+        sqlx::query("ALTER TABLE outbox ADD CONSTRAINT fail_unified_learn CHECK (subject <> 'nightfall.character.skill_learned')")
+            .execute(pool).await.unwrap();
+        assert!(matches!(
+            repo.checkpoint_items(&cp, &outbox, &work, Some(&receipt))
+                .await,
+            Err(CheckpointError::Constraint(_))
+        ));
+        assert_eq!(lookup().await.unwrap(), LearnReceiptLookup::Unknown);
+        assert_eq!(repo.load_for_admission(c.id).await.unwrap(), before);
+        sqlx::query("ALTER TABLE outbox DROP CONSTRAINT fail_unified_learn")
+            .execute(pool)
+            .await
+            .unwrap();
+    }
+    let (a, b) = tokio::join!(
+        repo.checkpoint_items(&cp, &outbox, &work, Some(&receipt)),
+        repo.checkpoint_items(&cp, &outbox, &work, Some(&receipt))
+    );
+    assert!(matches!(
+        (a.unwrap(), b.unwrap()),
+        (CheckpointOutcome::Applied(2), CheckpointOutcome::Replayed(2))
+            | (CheckpointOutcome::Replayed(2), CheckpointOutcome::Applied(2))
+    ));
+    assert_eq!(lookup().await.unwrap(), LearnReceiptLookup::Known(receipt.result.clone()));
+    let committed = repo.load_for_admission(c.id).await.unwrap().unwrap();
+    assert_eq!((committed.revision, committed.class_state.sp), (2, 50));
+    assert_eq!(committed.phase4.as_ref().unwrap().checkpoint, cp.phase4);
+    assert_eq!(committed.class_state, *cp.class_state.as_ref().unwrap());
+    let mut different_key = cp.clone();
+    different_key.idempotency.1 = IdempotencyKey::new();
+    assert_eq!(
+        repo.checkpoint_items(&different_key, &outbox, &work, Some(&receipt))
+            .await
+            .unwrap(),
+        CheckpointOutcome::Stale
+    );
+    let mut changed = receipt.clone();
+    changed.result.skill.rank = 2;
+    changed.request_fingerprint = learn_skill_fingerprint(c.id, changed.result.skill);
+    assert!(matches!(
+        repo.checkpoint_items(&different_key, &outbox, &work, Some(&changed))
+            .await,
+        Err(CheckpointError::KeyReused)
+    ));
+    assert_eq!(repo.load_for_admission(c.id).await.unwrap().unwrap(), committed);
+}
+
+#[tokio::test]
+async fn memory_unified_learning_and_item_work_settle_once() {
+    let bundle = embedded_phase4_bundle().unwrap();
+    let repo = Arc::new(
+        InMemoryCharacterRepository::default()
+            .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
+            .unwrap(),
+    );
+    unified_learning_contract(repo.clone(), &bundle, None).await;
+    assert_eq!(
+        repo.staged_events()
+            .iter()
+            .filter(|event| matches!(event, DomainEvent::CharacterSkillLearned { .. }))
+            .count(),
+        1
+    );
+    assert_eq!(
+        repo.item_ledger_for_test()
+            .iter()
+            .filter(|row| row.operation == ItemLedgerOperation::Consume)
+            .count(),
+        1
+    );
+}
+
+#[tokio::test]
+async fn postgres_unified_learning_and_item_work_roll_back_outbox_failure() {
+    let Some(pool) = common::pg::migrated_pool().await else {
+        return;
+    };
+    common::pg::insert_account(&pool, Uuid::from_u128(1)).await;
+    let bundle = embedded_phase4_bundle().unwrap();
+    let repo = Arc::new(
+        PgCharacterRepository::new(pool.clone())
+            .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
+            .unwrap(),
+    );
+    unified_learning_contract(repo, &bundle, Some(&pool)).await;
+    let count: i64 = sqlx::query_scalar("SELECT count(*) FROM item_ledger WHERE op='consume'")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(count, 1);
+    let count: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM outbox WHERE subject='nightfall.character.skill_learned'",
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(count, 1);
+}
 
 #[allow(clippy::too_many_lines)] // One complete immutable materialization fixture.
 async fn fixture<R: CharacterRepository + ItemAdmissionRepository>(
