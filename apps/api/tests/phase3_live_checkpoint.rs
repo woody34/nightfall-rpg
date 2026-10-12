@@ -463,3 +463,73 @@ async fn retained_admission_waits_for_ack_and_retry_freezes_paused_request() {
         2
     );
 }
+
+#[tokio::test]
+async fn durable_tail_rebuilds_fractions_reuse_and_effects_before_fresh_admission() {
+    use nightfall_api::application::replay_log::AppliedTickRecord;
+    for head in [35, 55, 605] {
+        let repo = Arc::new(InMemoryCharacterRepository::default().with_phase3_rules(rules()));
+        let c = seed(repo.clone()).await;
+        let (zone, driver, log) = actor(repo.clone()).await;
+        let entity = spawn(&c).entity;
+        SessionRegistry::with_characters(repo.clone())
+            .admit(&zone, SessionId::new(), SessionGeneration(1), &spawn(&c))
+            .await
+            .unwrap();
+        driver.step().await.unwrap();
+        let baseline = zone.snapshot().await.unwrap();
+        log.write_recovery_snapshot(&baseline).await.unwrap();
+        drop(driver);
+        zone.stopped().await;
+        let before = repo.load_for_admission(c.id).await.unwrap().unwrap();
+        let facts = repo.staged_events();
+        let mut state = ZoneState::from_snapshot(baseline.clone()).unwrap();
+        // All these ticks have durable ACKs, but no corresponding DB checkpoint.
+        while state.next_tick() <= Tick(head) {
+            let applied = state.run_tick(state.draft(vec![])).unwrap();
+            log.append_applied(&AppliedTickRecord::from_applied(ZoneId(77), &applied))
+                .await
+                .unwrap();
+        }
+        let expected = state.snapshot();
+        assert_ne!(baseline.phase3, expected.phase3);
+        let expected_cp = expected
+            .phase3
+            .as_ref()
+            .unwrap()
+            .checkpoint(entity, Tick(head))
+            .unwrap();
+        if head == 35 {
+            assert_ne!(
+                expected_cp.resource_fractions,
+                before.phase3.as_ref().unwrap().resource_fractions
+            );
+        }
+        if head >= 55 {
+            assert!(expected_cp.reuse_remainders.is_empty());
+        }
+        if head >= 605 {
+            assert!(expected_cp.effect_remainders.is_empty());
+        }
+        let mut recovery = CheckpointService::new(
+            repo.clone(),
+            Arc::new(InMemorySessionAudit::default()),
+            Arc::new(Metrics::detached()),
+        );
+        recovery.recover(log.as_ref(), ZoneId(77), 1).await.unwrap();
+        let restored = repo.load_for_admission(c.id).await.unwrap().unwrap();
+        assert_eq!(restored.phase3, Some(expected_cp));
+        let combat = expected
+            .entities
+            .iter()
+            .find(|e| e.id == entity)
+            .unwrap()
+            .combat
+            .as_ref()
+            .unwrap();
+        assert_eq!((restored.hp, restored.mp), (Some(combat.hp), Some(combat.mp)));
+        recovery.recover(log.as_ref(), ZoneId(77), 1).await.unwrap();
+        assert_eq!(repo.load_for_admission(c.id).await.unwrap().unwrap(), restored);
+        assert_eq!(repo.staged_events(), facts, "recovery creates no duplicate outbox facts");
+    }
+}

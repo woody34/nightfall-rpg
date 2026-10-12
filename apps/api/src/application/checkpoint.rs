@@ -782,8 +782,7 @@ impl CheckpointService {
             .players
             .iter()
             .filter(|(_, p)| {
-                !p.events.is_empty()
-                    || (p.dirty && p.latest.as_ref().is_some_and(|cp| cp.phase3.is_some()))
+                !p.events.is_empty() || p.latest.as_ref().is_some_and(|cp| cp.phase3.is_some())
             })
             .map(|(id, _)| *id)
             .collect();
