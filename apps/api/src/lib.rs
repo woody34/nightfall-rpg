@@ -186,6 +186,19 @@ pub async fn build_live_grpc_services(
     let mut services = build_grpc_services(deps)?;
     services.game = services
         .game
+        .with_grant_item(application::use_cases::GrantItem::new(
+            deps.dev_item_grants,
+            deps.characters.clone(),
+            deps.item_receipts.clone(),
+            deps.item_catalogue.clone(),
+            Some(
+                deps.item_grants
+                    .clone()
+                    .unwrap_or_else(|| realtime.sessions.clone()),
+            ),
+        ));
+    services.game = services
+        .game
         .with_get_inventory(application::use_cases::GetInventory::new(
             deps.characters.clone(),
             deps.item_inventory.clone(),

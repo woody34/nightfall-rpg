@@ -414,9 +414,9 @@ impl Phase3UseCases {
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("class registry missing"))?;
         let catalogue = Arc::new(
-            crate::application::use_cases::get_skill_catalog::RegistrySkillCatalogue::new(
+            crate::application::use_cases::get_skill_catalog::RegistrySkillCatalogue::for_rules(
                 classes,
-                phase.rules.skills(),
+                &phase.rules,
             )?,
         );
         Ok(Self {

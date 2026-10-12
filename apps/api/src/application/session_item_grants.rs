@@ -105,12 +105,28 @@ impl ItemGrantRuntime for SessionContext {
                     let position = saved_position(loaded.position).ok_or_else(|| {
                         AppError::FailedPrecondition("invalid saved position".into())
                     })?;
+                    // A pending owner with no learned providers has the canonical empty paused origin.
+                    let phase3 = match loaded.phase3 {
+                        Some(checkpoint) => checkpoint,
+                        None if loaded.class_state.learned_skills.is_empty()
+                            && loaded.phase4.as_ref().is_some_and(|items| {
+                                items.checkpoint.is_none() && !items.pending.is_empty()
+                            }) =>
+                        {
+                            crate::domain::zone::Phase3Checkpoint::new()
+                        },
+                        None => {
+                            return Err(AppError::FailedPrecondition(
+                                "paused skill checkpoint unavailable".into(),
+                            ))
+                        },
+                    };
                     command.paused = Some(Box::new(ItemPausedCore {
                         name: loaded.name.as_str().to_owned(),
                         position,
                         load: PlayerLoad {
                             phase4: loaded.phase4,
-                            phase3: loaded.phase3,
+                            phase3: Some(phase3),
                             progression: Some(Box::new(PlayerProgression {
                                 identity: loaded.identity,
                                 class_state: loaded.class_state,
