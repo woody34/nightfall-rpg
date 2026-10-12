@@ -377,6 +377,134 @@ pub fn refresh_penalties(
     Ok(())
 }
 
+/// Resolve the skills owned by one validated System provider. Active skills remain grants;
+/// only passive definitions enter the stat fold. Trigger skills retain their own paths.
+pub fn source_skills(
+    player: &Phase4Player,
+    rules: &Phase4Rules,
+    source: &EquipmentSourceKey,
+) -> Result<Vec<super::skill::SkillRef>, ItemError> {
+    use super::skill::{SkillId, SkillRef};
+    let item = |id| {
+        player
+            .inventory
+            .get(id)
+            .ok_or(ItemError("missing provider item"))
+    };
+    let selected: Vec<&super::item_rules::ItemSkillRef> = match source {
+        EquipmentSourceKey::Item { .. } => Vec::new(),
+        EquipmentSourceKey::ItemSkill {
+            instance,
+            xml_ordinal,
+        } => vec![definition(item(instance)?, rules)?
+            .skills
+            .iter()
+            .find(|skill| skill.xml_ordinal == *xml_ordinal)
+            .ok_or(ItemError("missing item skill ordinal"))?],
+        EquipmentSourceKey::Enchant4 { instance } => definition(item(instance)?, rules)?
+            .enchant4_skills
+            .iter()
+            .collect(),
+        EquipmentSourceKey::EnchantOption { .. } | EquipmentSourceKey::Augment { .. } => {
+            source_option(player, rules, source)?
+                .ok_or(ItemError("missing option provider"))?
+                .skills
+                .iter()
+                .filter(|skill| !matches!(skill.kind.as_str(), "attack_skill" | "magic_skill"))
+                .collect()
+        },
+        EquipmentSourceKey::ArmorSet {
+            set,
+            skill_kind,
+            ordinal,
+            ..
+        } => {
+            if *ordinal == SET_ATTRIBUTES_ORDINAL {
+                return Ok(Vec::new());
+            }
+            let set = rules
+                .parts()
+                .armor_sets
+                .get(set)
+                .ok_or(ItemError("missing set provider"))?;
+            let skills = match skill_kind {
+                SetSkillKind::Full => &set.skills,
+                SetSkillKind::Shield => &set.shield_skills,
+                SetSkillKind::Enchant6 => &set.enchant6_skills,
+            };
+            vec![skills
+                .iter()
+                .find(|skill| skill.xml_ordinal == *ordinal)
+                .ok_or(ItemError("missing set skill ordinal"))?]
+        },
+        EquipmentSourceKey::GradePenalty { weapon } => {
+            return Ok(vec![SkillRef {
+                id: SkillId(if *weapon { 6209 } else { 6213 }),
+                rank: u32::from(if *weapon {
+                    player.weapon_penalty
+                } else {
+                    player.armor_penalty
+                }),
+            }])
+        },
+        EquipmentSourceKey::Overload => {
+            return Ok(vec![SkillRef {
+                id: SkillId(4270),
+                rank: u32::from(player.overload_level),
+            }])
+        },
+        EquipmentSourceKey::Polearm => {
+            return Ok(vec![SkillRef {
+                id: SkillId(3599),
+                rank: 1,
+            }])
+        },
+    };
+    Ok(selected
+        .into_iter()
+        .map(|skill| SkillRef {
+            id: SkillId(skill.id),
+            rank: skill.level,
+        })
+        .collect())
+}
+
+/// Exact option half, shared by passive functions and capability/proc resolution.
+pub fn source_option<'a>(
+    player: &Phase4Player,
+    rules: &'a Phase4Rules,
+    source: &EquipmentSourceKey,
+) -> Result<Option<&'a super::item_rules::AugmentOptionRule>, ItemError> {
+    let option = match source {
+        EquipmentSourceKey::EnchantOption { option, .. } => *option,
+        EquipmentSourceKey::Augment { instance, half } => {
+            let packed = player
+                .inventory
+                .get(instance)
+                .and_then(|item| item.augment_id)
+                .ok_or(ItemError("missing augmentation"))?;
+            match half {
+                0 => packed & 0xffff,
+                1 => packed >> 16,
+                _ => return Err(ItemError("invalid option half")),
+            }
+        },
+        EquipmentSourceKey::Item { .. }
+        | EquipmentSourceKey::ItemSkill { .. }
+        | EquipmentSourceKey::Enchant4 { .. }
+        | EquipmentSourceKey::ArmorSet { .. }
+        | EquipmentSourceKey::GradePenalty { .. }
+        | EquipmentSourceKey::Overload
+        | EquipmentSourceKey::Polearm => return Ok(None),
+    };
+    rules
+        .parts()
+        .augment_options
+        .get(&option)
+        .map(Some)
+        .ok_or(ItemError("missing option definition"))
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
 mod tests {

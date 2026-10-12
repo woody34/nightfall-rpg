@@ -1714,6 +1714,173 @@ mod tests {
         }
     }
 
+    fn equipment_fixture() -> (ZoneState, TargetBinding, TargetBinding) {
+        use crate::domain::zone::{
+            item_angles::FacingVector,
+            item_functions::tests::{equip, player},
+            item_sources,
+            phase4::Phase4Zone,
+            ItemInstanceRange, Phase4Snapshot,
+        };
+        let bundle = crate::infrastructure::item_data::embedded_phase4_bundle().unwrap();
+        let (mut zone, source, target, npc) = fixture();
+        zone.phase3.as_mut().unwrap().canonical.rules = Arc::clone(&bundle.skills);
+        zone.meta.schema_version = 10;
+        zone.meta.digest_version = StateDigestVersion::BinaryV6;
+        zone.meta.phase3_admission_policy =
+            Some(crate::domain::zone::Phase3AdmissionPolicy::version_two());
+        let mut items =
+            Phase4Snapshot::new(&bundle.items, ItemInstanceRange::new(1, 1000, 10000).unwrap());
+        for id in [source.entity, target.entity] {
+            let mut item_player = player();
+            item_player.starter_kit_receipt.source_class = ClassId(10);
+            if id == target.entity {
+                let next = zone
+                    .phase3
+                    .as_ref()
+                    .unwrap()
+                    .canonical
+                    .next_install_sequence;
+                equip(&mut item_player, 71, 4, crate::domain::zone::EquipSlot::Rhand, next);
+                equip(
+                    &mut item_player,
+                    58,
+                    6,
+                    crate::domain::zone::EquipSlot::Chest,
+                    next.checked_add(1).unwrap(),
+                );
+                equip(
+                    &mut item_player,
+                    59,
+                    6,
+                    crate::domain::zone::EquipSlot::Legs,
+                    next.checked_add(2).unwrap(),
+                );
+                equip(
+                    &mut item_player,
+                    47,
+                    6,
+                    crate::domain::zone::EquipSlot::Head,
+                    next.checked_add(3).unwrap(),
+                );
+                zone.phase3
+                    .as_mut()
+                    .unwrap()
+                    .canonical
+                    .next_install_sequence = next.checked_add(4).unwrap();
+                item_player.weapon_penalty = 2;
+                item_player.armor_penalty = 1;
+                item_player.overload_level = 2;
+                item_player.active_sets =
+                    item_sources::reconcile_sets(&item_player, &bundle.items, None).unwrap();
+                item_sources::reconcile_sources(
+                    &mut item_player,
+                    &bundle.items,
+                    &mut zone
+                        .phase3
+                        .as_mut()
+                        .unwrap()
+                        .canonical
+                        .next_install_sequence,
+                )
+                .unwrap();
+            }
+            items.players.insert(id, item_player);
+        }
+        for id in zone.phase3.as_ref().unwrap().canonical.entities.keys() {
+            items.facing.insert(*id, FacingVector::EAST);
+        }
+        zone.phase4 = Some(Phase4Zone {
+            canonical: items,
+            rules: Arc::clone(&bundle.items),
+        });
+        zone.rebuild_v5(source.entity).unwrap();
+        zone.rebuild_v5(target.entity).unwrap();
+        (zone, target, npc)
+    }
+
+    #[test]
+    fn v6_equipment_survives_death_dead_checkpoint_restore_and_town_resurrection() {
+        use crate::domain::zone::Phase4Player;
+        let bundle = crate::infrastructure::item_data::embedded_phase4_bundle().unwrap();
+        let (mut zone, target, npc) = equipment_fixture();
+        let equipment_before =
+            zone.phase4.as_ref().unwrap().canonical.players[&target.entity].clone();
+        let living = zone.effective(target.entity).unwrap();
+        set_resources(&mut zone, target, 1, 0);
+        zone.apply_damage_rolled_v5(
+            Tick(1),
+            DamageRequest {
+                source: zone.damage_source_v5(npc).unwrap(),
+                target,
+                cause: DamageCause::Direct,
+                rolled_damage: 50,
+            },
+            &mut Vec::new(),
+            &mut scripted(&[(DamageRollSite::DeathPenalty, 100, 99)], &mut Vec::new()),
+        )
+        .unwrap();
+        assert_eq!(
+            zone.phase4.as_ref().unwrap().canonical.players[&target.entity],
+            equipment_before
+        );
+        assert_eq!(zone.effective(target.entity).unwrap().physical, living.physical);
+        assert_eq!(zone.entities[&target.entity].combat.as_ref().unwrap().hp, 0);
+        let phase = &zone.phase3.as_ref().unwrap().canonical;
+        let checkpoint = phase.checkpoint(target.entity, Tick(1)).unwrap();
+        let item_checkpoint = zone
+            .phase4
+            .as_ref()
+            .unwrap()
+            .canonical
+            .checkpoint(target.entity, Tick(1), phase)
+            .unwrap();
+        let combat = zone.entities[&target.entity].combat.as_ref().unwrap();
+        let CombatRole::Player {
+            progression: Some(progression),
+            ..
+        } = &combat.role
+        else {
+            panic!("player");
+        };
+        let first = phase.next_install_sequence;
+        let timers = checkpoint
+            .stage_restore(
+                &bundle.skills,
+                &progression.class_state.learned_skills,
+                false,
+                combat.incarnation,
+                Tick(2),
+                phase.next_effect_id,
+                first,
+            )
+            .unwrap();
+        let (restored, timers) =
+            Phase4Player::restore(&item_checkpoint, &timers, Tick(2), first).unwrap();
+        zone.phase4
+            .as_mut()
+            .unwrap()
+            .canonical
+            .players
+            .insert(target.entity, restored);
+        let phase = &mut zone.phase3.as_mut().unwrap().canonical;
+        phase.next_install_sequence = timers.next_install_sequence;
+        phase.next_effect_id = timers.next_effect_id;
+        let side = phase.entities.get_mut(&target.entity).unwrap();
+        side.effects = timers.effects;
+        side.reuse = timers.reuse;
+        side.modifier_install_order = timers.modifier_install_order;
+        zone.rebuild_v5(target.entity).unwrap();
+        assert_eq!(zone.effective(target.entity).unwrap().physical, living.physical);
+        assert_eq!(zone.entities[&target.entity].combat.as_ref().unwrap().hp, 0);
+        let retained = zone.phase4.as_ref().unwrap().canonical.players[&target.entity].clone();
+        zone.respawn_town_v5(Tick(2), target.entity).unwrap();
+        assert_eq!(zone.phase4.as_ref().unwrap().canonical.players[&target.entity], retained);
+        assert_eq!(zone.effective(target.entity).unwrap().physical, living.physical);
+        assert!(zone.entities[&target.entity].combat.as_ref().unwrap().hp > 0);
+        assert_eq!(zone.sidecar(target.entity).unwrap().effects.entries().len(), 0);
+    }
+
     #[test]
     fn live_town_respawn_restores_from_corpse_and_emits_final_life_vitals() {
         let (mut zone, _, target, npc) = fixture();
