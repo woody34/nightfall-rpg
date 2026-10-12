@@ -40,6 +40,7 @@ pub mod item_equipment;
 pub mod item_functions;
 pub mod item_inventory;
 pub mod item_modifiers;
+pub mod item_refresh;
 pub mod item_rules;
 pub mod item_sources;
 mod npc_template;
@@ -140,7 +141,7 @@ mod tests {
     /// Every source file in this module, embedded at compile time so the scan cannot miss a
     /// file that exists but is not listed: adding a module without adding it here fails
     /// `every_zone_source_is_scanned`.
-    const SOURCES: [(&str, &str); 65] = [
+    const SOURCES: [(&str, &str); 66] = [
         ("mod.rs", include_str!("mod.rs")),
         ("item.rs", include_str!("item.rs")),
         ("item_rules.rs", include_str!("item_rules.rs")),
@@ -151,6 +152,7 @@ mod tests {
         ("item_inventory.rs", include_str!("item_inventory.rs")),
         ("item_functions.rs", include_str!("item_functions.rs")),
         ("item_modifiers.rs", include_str!("item_modifiers.rs")),
+        ("item_refresh.rs", include_str!("item_refresh.rs")),
         ("item_equipment.rs", include_str!("item_equipment.rs")),
         ("phase4_admission.rs", include_str!("phase4_admission.rs")),
         ("phase4_checkpoint.rs", include_str!("phase4_checkpoint.rs")),

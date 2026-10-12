@@ -363,6 +363,8 @@ mod tests {
                 active_sets: BTreeMap::new(),
                 weight: 0,
                 max_load: 1000,
+                ordinary_capacity: 80,
+                quest_capacity: 100,
                 weight_penalty_bonus: 1,
                 overload_level: 0,
                 overloaded: false,

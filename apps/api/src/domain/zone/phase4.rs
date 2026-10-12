@@ -58,6 +58,8 @@ pub struct Phase4Player {
     pub active_sets: BTreeMap<u32, SetActivation>,
     pub weight: i64,
     pub max_load: i64,
+    pub ordinary_capacity: u32,
+    pub quest_capacity: u32,
     pub weight_penalty_bonus: i64,
     pub overload_level: u8,
     pub overloaded: bool,

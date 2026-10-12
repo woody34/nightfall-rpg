@@ -467,7 +467,7 @@ fn condition_matches(
     clippy::indexing_slicing,
     clippy::arithmetic_side_effects
 )]
-mod tests {
+pub(crate) mod tests {
     use super::super::item_functions::tests::{equip, player};
     use super::super::item_sources::{reconcile_sets, reconcile_sources};
     use super::super::phase3_entity::tests::blank;
@@ -487,7 +487,7 @@ mod tests {
         rules_data::{load_rules, RulesSource},
     };
 
-    fn entity(stats: &StatRules) -> Entity {
+    pub(crate) fn entity(stats: &StatRules) -> Entity {
         Entity {
             id: EntityId::from_uuid(uuid::Uuid::from_u128(1)),
             kind: EntityKind::Player,

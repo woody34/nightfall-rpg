@@ -225,6 +225,35 @@ impl Phase4Rules {
                 return Err(format!("Phase4 skill capability disagrees with registry {}", cap.id));
             }
         }
+        // Penalties are installed after load/capacity getters, so they cannot feed back
+        // into the inputs that select their own rank or the preceding capacity fold.
+        for id in [4270, 6209, 6213] {
+            let skill = rules
+                .skills()
+                .get(super::skill::SkillId(id))
+                .ok_or_else(|| format!("missing equipment penalty {id}"))?;
+            if skill
+                .effects
+                .iter()
+                .flat_map(|handler| &handler.stat_children)
+                .any(|modifier| {
+                    matches!(
+                        modifier.stat.as_str(),
+                        "STR"
+                            | "DEX"
+                            | "CON"
+                            | "INT"
+                            | "MEN"
+                            | "WIT"
+                            | "weightLimit"
+                            | "weightPenalty"
+                            | "inventoryLimit"
+                    )
+                })
+            {
+                return Err(format!("cyclic equipment penalty {id}"));
+            }
+        }
         Ok(())
     }
 
