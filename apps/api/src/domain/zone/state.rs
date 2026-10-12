@@ -440,7 +440,22 @@ impl ZoneSnapshot {
                                 })
                         })
                 },
-                (9, BinaryV5, true) => self.validate_skill_boundary(2, 1),
+                (9, BinaryV5, true) => {
+                    self.validate_skill_boundary(2, 1)
+                        && self.checkpoints.iter().all(|lane| {
+                            lane.events.iter().all(|event| {
+                                matches!(
+                                    event.subject(),
+                                    "nightfall.character.created"
+                                        | "nightfall.character.leveled"
+                                        | "nightfall.character.class_changed"
+                                        | "nightfall.character.died"
+                                        | "nightfall.character.token_granted"
+                                        | "nightfall.character.skill_learned"
+                                )
+                            })
+                        })
+                },
                 (10, BinaryV6, true) => {
                     self.validate_skill_boundary(3, 2)
                         && self
