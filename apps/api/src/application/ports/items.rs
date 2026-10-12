@@ -149,3 +149,22 @@ pub trait ItemAdmissionRepository: Send + Sync {
         character: CharacterId,
     ) -> anyhow::Result<Vec<PendingItemRequest>>;
 }
+
+/// One revision-consistent retained inventory projection. None identifies legacy state.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(missing_docs)]
+pub struct RetainedInventory {
+    pub character_id: CharacterId,
+    pub character_revision: u64,
+    pub checkpoint: Option<crate::domain::zone::Phase4Checkpoint>,
+}
+
+/// Retained state only; the use case must exclude concurrent/live admission before reading.
+#[async_trait]
+pub trait ItemInventoryRepository: Send + Sync {
+    /// Reads checkpoint and scalar rows under the parent lock; corruption fails closed.
+    async fn retained_inventory(
+        &self,
+        character: CharacterId,
+    ) -> anyhow::Result<Option<RetainedInventory>>;
+}

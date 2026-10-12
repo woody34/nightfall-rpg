@@ -17,6 +17,7 @@ use crate::domain::{AccountId, Character, CharacterId, DomainEvent};
 #[derive(Default)]
 struct State {
     characters: HashMap<CharacterId, Character>,
+    item_inventories: BTreeMap<CharacterId, crate::domain::zone::Phase4Checkpoint>,
     item_ranges:
         BTreeMap<(crate::domain::zone::ZoneId, u64), crate::application::ports::ItemIdRange>,
     pending_item_requests:
@@ -450,6 +451,11 @@ impl CharacterRepository for InMemoryCharacterRepository {
         character_id: CharacterId,
     ) -> anyhow::Result<Option<ProgressionState>> {
         let state = self.state.lock();
+        // Replace this rollout fence when the canonical V6 PlayerLoad is installed.
+        anyhow::ensure!(
+            !state.item_inventories.contains_key(&character_id),
+            "Phase4 admission is not yet available"
+        );
         if let Some(c) = state.characters.get(&character_id) {
             let progression = state
                 .progression
@@ -528,6 +534,54 @@ impl crate::application::ports::ItemAdmissionRepository for InMemoryCharacterRep
             .get(&character)
             .cloned()
             .unwrap_or_default())
+    }
+}
+
+#[async_trait]
+impl crate::application::ports::ItemInventoryRepository for InMemoryCharacterRepository {
+    async fn retained_inventory(
+        &self,
+        character: CharacterId,
+    ) -> anyhow::Result<Option<crate::application::ports::RetainedInventory>> {
+        let state = self.state.lock();
+        let Some(progression) = state.progression.get(&character) else {
+            return Ok(None);
+        };
+        let checkpoint = state.item_inventories.get(&character).cloned();
+        if let Some(checkpoint) = &checkpoint {
+            let phase3 = progression
+                .phase3
+                .as_ref()
+                .ok_or_else(|| anyhow::anyhow!("Phase4 checkpoint requires Phase3 state"))?;
+            checkpoint.validate_structure(phase3.modifier_install_order.len())?;
+        }
+        Ok(Some(crate::application::ports::RetainedInventory {
+            character_id: character,
+            character_revision: progression.revision,
+            checkpoint,
+        }))
+    }
+}
+
+impl InMemoryCharacterRepository {
+    /// Explicit fixture seed only, before actor admission. Never called by a grant RPC.
+    pub fn insert_item_checkpoint_for_test(
+        &self,
+        character: CharacterId,
+        checkpoint: crate::domain::zone::Phase4Checkpoint,
+    ) -> anyhow::Result<()> {
+        let mut state = self.state.lock();
+        let progression = state
+            .progression
+            .get(&character)
+            .ok_or_else(|| anyhow::anyhow!("fixture character missing"))?;
+        let phase3 = progression
+            .phase3
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Phase4 fixture requires Phase3 state"))?;
+        checkpoint.validate_structure(phase3.modifier_install_order.len())?;
+        state.item_inventories.insert(character, checkpoint);
+        Ok(())
     }
 }
 

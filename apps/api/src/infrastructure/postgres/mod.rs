@@ -11,6 +11,7 @@ mod idempotency;
 mod item_admission;
 mod migrations;
 mod phase3_checkpoint;
+mod phase4_checkpoint;
 mod session_repository;
 mod zone_snapshot_store;
 
