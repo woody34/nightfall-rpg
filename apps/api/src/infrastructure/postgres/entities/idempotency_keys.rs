@@ -22,11 +22,19 @@ pub struct Model {
 pub enum Relation {
     #[sea_orm(has_many = "super::character_transfer_receipts::Entity")]
     CharacterTransferReceipts,
+    #[sea_orm(has_one = "super::item_mutation_receipts::Entity")]
+    ItemMutationReceipts,
 }
 
 impl Related<super::character_transfer_receipts::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::CharacterTransferReceipts.def()
+    }
+}
+
+impl Related<super::item_mutation_receipts::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::ItemMutationReceipts.def()
     }
 }
 
