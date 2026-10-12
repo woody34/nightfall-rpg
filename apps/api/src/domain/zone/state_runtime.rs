@@ -1996,6 +1996,7 @@ impl ZoneState {
                     target,
                     &skill,
                     cast.skill.rank,
+                    cast.id,
                     events,
                     &mut results,
                 )?;
@@ -2019,6 +2020,7 @@ impl ZoneState {
         target: TargetBinding,
         skill: &SkillDef,
         rank: u32,
+        cast_id: CastId,
         events: &mut Vec<ZoneEvent>,
         results: &mut Vec<SkillTargetResult>,
     ) -> Result<(), TickError> {
@@ -2051,7 +2053,29 @@ impl ZoneState {
                 )?);
                 continue;
             }
-            let resolve = if matches!(handler.name.as_str(), "DispelBySlot" | "DispelByCategory") {
+            if handler.name == "FatalBlow" {
+                let shots = self
+                    .phase4
+                    .as_ref()
+                    .and_then(|items| items.canonical.item_casts.get(&cast_id))
+                    .map_or(0, |context| context.shots);
+                results.push(
+                    self.blow_handler_v6(
+                        tick, caster, target, skill, rank, handler, shots, events,
+                    )?,
+                );
+                if self
+                    .entities
+                    .get(&target.entity)
+                    .is_none_or(|e| e.targeting.dead)
+                {
+                    break;
+                }
+                continue;
+            }
+            let resolve = if handler.name == "Lethal" {
+                Self::lethal_handler_v6
+            } else if matches!(handler.name.as_str(), "DispelBySlot" | "DispelByCategory") {
                 Self::dispel_handler_v5
             } else if matches!(handler.name.as_str(), "Heal" | "Hp" | "HpPerMax" | "Mp" | "Cp") {
                 Self::restore_handler_v5
@@ -3056,7 +3080,13 @@ fn hostile_skill(skill: &SkillDef) -> bool {
         || skill.effects.iter().any(|h| {
             matches!(
                 h.name.as_str(),
-                "MagicalAttack" | "MagicalAttackRange" | "PhysicalAttack" | "GetAgro" | "AddHate"
+                "MagicalAttack"
+                    | "MagicalAttackRange"
+                    | "PhysicalAttack"
+                    | "FatalBlow"
+                    | "Lethal"
+                    | "GetAgro"
+                    | "AddHate"
             )
         })
 }
@@ -3077,6 +3107,8 @@ fn supported_cast(skill: &SkillDef, rank: u32) -> bool {
                 "Resurrection"
                     | "Escape"
                     | "PhysicalAttack"
+                    | "FatalBlow"
+                    | "Lethal"
                     | "MagicalAttack"
                     | "MagicalAttackRange"
                     | "Heal"

@@ -90,6 +90,7 @@ pub struct NpcPenaltyContext {
 pub enum NpcPenaltyPath {
     Physical { critical: bool },
     PhysicalSkill { critical: bool },
+    Blow,
     Magical,
     MagicFailure,
 }
@@ -116,7 +117,9 @@ impl NpcPenaltyRules {
         };
         let gap = context.target_level.saturating_sub(player);
         let (attackable, threshold) = match path {
-            NpcPenaltyPath::PhysicalSkill { .. } => (context.l2attackable, 2),
+            NpcPenaltyPath::PhysicalSkill { .. } | NpcPenaltyPath::Blow => {
+                (context.l2attackable, 2)
+            },
             NpcPenaltyPath::MagicFailure => (context.attackable, 3),
             NpcPenaltyPath::Physical { .. } | NpcPenaltyPath::Magical => (context.attackable, 2),
         };
@@ -156,7 +159,9 @@ impl NpcPenaltyRules {
                     },
                     index,
                 )?),
-            NpcPenaltyPath::Magical => self.coefficient("SkillDmgPenaltyForLvLDifferences", index),
+            NpcPenaltyPath::Magical | NpcPenaltyPath::Blow => {
+                self.coefficient("SkillDmgPenaltyForLvLDifferences", index)
+            },
             NpcPenaltyPath::MagicFailure => {
                 self.coefficient("SkillChancePenaltyForLvLDifferences", index)
             },
@@ -270,6 +275,7 @@ impl NpcPenaltyRules {
                 (NpcPenaltyPath::PhysicalSkill { critical: false }, row.physical_skill_q),
                 (NpcPenaltyPath::PhysicalSkill { critical: true }, row.physical_skill_critical_q),
                 (NpcPenaltyPath::Magical, row.magic_q),
+                (NpcPenaltyPath::Blow, row.magic_q),
                 (NpcPenaltyPath::MagicFailure, row.magic_failure_q),
             ] {
                 if self.multiplier(c, path)?.to_q()? != expected {

@@ -1,6 +1,8 @@
 //! Live skill damage callers. Their RNG order is distinct from auto-attacks.
 #[path = "state_runtime_auto.rs"]
 mod auto;
+#[path = "state_runtime_blow.rs"]
+mod blow;
 use super::*;
 
 impl ZoneState {
@@ -7121,5 +7123,410 @@ mod tests {
                 .unwrap()
                 .snapshot()
         );
+    }
+    #[test]
+    #[allow(clippy::too_many_lines)] // One source fixture covers Q boundaries, both resource setters and skipped draws.
+    fn v6_lethal_callers_use_q_setters_and_conditional_draws_without_death_hooks() {
+        use crate::domain::zone::skill::SkillId;
+        use DamageRollSite as R;
+        let (mut original, owner, npc) = equipment_fixture();
+        original.run_tick(original.draft(Vec::new())).unwrap();
+        // Actual pinned handler descriptors; these direct caller checks do not promote
+        // the still-deferred learned-skill capability or bypass CastSkill admission.
+        let skill = original
+            .phase3
+            .as_ref()
+            .unwrap()
+            .canonical
+            .rules
+            .skills()
+            .get(SkillId(30))
+            .unwrap()
+            .clone();
+        let handler = skill.effects.iter().find(|h| h.name == "Lethal").unwrap();
+        for (whole, remainder, expected) in [
+            (1, 0, (0, 500_000)),
+            (2, 0, (1, 0)),
+            (3, 0, (1, 500_000)),
+            (0, 1, (0, 1)),
+            (0, 2, (0, 1)),
+        ] {
+            let mut zone = original.clone();
+            set_resources(&mut zone, npc, whole, 0);
+            zone.sidecar_mut(npc.entity).unwrap().fractions.hp = remainder;
+            let life = zone.binding(npc.entity);
+            let effects = zone.sidecar(npc.entity).unwrap().effects.clone();
+            let mut trace = Vec::new();
+            let result = zone
+                .lethal_handler_rolled_v6(
+                    zone.next_tick,
+                    owner,
+                    npc,
+                    &skill,
+                    1,
+                    handler,
+                    &mut scripted(
+                        &[(R::LethalFull, 1000, 999), (R::LethalHalf, 1000, 0)],
+                        &mut trace,
+                    ),
+                )
+                .unwrap();
+            assert_eq!(trace.len(), 2);
+            assert_eq!(
+                (result.target_hp_after, zone.sidecar(npc.entity).unwrap().fractions.hp),
+                expected
+            );
+            assert_eq!(zone.binding(npc.entity), life);
+            assert!(!zone.entities[&npc.entity].targeting.dead);
+            assert_eq!(zone.sidecar(npc.entity).unwrap().effects, effects);
+            assert_eq!(zone.hate, original.hate);
+            let rules = Arc::clone(&zone.phase4.as_ref().unwrap().rules);
+            let cold = ZoneState::from_snapshot_with_items(zone.snapshot(), Some(rules)).unwrap();
+            assert_eq!(zone.snapshot(), cold.snapshot());
+        }
+        let full_skill = original
+            .phase3
+            .as_ref()
+            .unwrap()
+            .canonical
+            .rules
+            .skills()
+            .get(SkillId(1400))
+            .unwrap()
+            .clone();
+        let full_handler = full_skill
+            .effects
+            .iter()
+            .find(|h| h.name == "Lethal")
+            .unwrap();
+        for full in [false, true] {
+            let mut zone = original.clone();
+            set_resources(&mut zone, owner, 15, 20);
+            zone.sidecar_mut(owner.entity).unwrap().fractions.hp = 500_000;
+            zone.sidecar_mut(owner.entity).unwrap().fractions.cp = 250_000;
+            let expected = if full {
+                vec![(R::LethalFull, 1000, 0)]
+            } else {
+                vec![(R::LethalFull, 1000, 999), (R::LethalHalf, 1000, 0)]
+            };
+            let mut trace = Vec::new();
+            let result = zone
+                .lethal_handler_rolled_v6(
+                    zone.next_tick,
+                    npc,
+                    owner,
+                    if full { &full_skill } else { &skill },
+                    1,
+                    if full { full_handler } else { handler },
+                    &mut scripted(&expected, &mut trace),
+                )
+                .unwrap();
+            assert_eq!(trace.len(), expected.len());
+            assert_eq!(result.target_hp_after, if full { 1 } else { 15 });
+            assert_eq!(
+                zone.sidecar(owner.entity).unwrap().fractions.hp,
+                if full { 0 } else { 500_000 }
+            );
+            assert_eq!(zone.sidecar(owner.entity).unwrap().fractions.cp, 0);
+            let CombatRole::Player {
+                progression: Some(p),
+                ..
+            } = &zone.entities[&owner.entity].combat.as_ref().unwrap().role
+            else {
+                unreachable!()
+            };
+            assert_eq!(p.class_state.cp, 1);
+            assert_eq!(result.cp_absorbed, 0);
+        }
+        let mut zone = original.clone();
+        zone.entities
+            .get_mut(&npc.entity)
+            .unwrap()
+            .combat
+            .as_mut()
+            .unwrap()
+            .protected_until = Some(Tick(zone.next_tick.0 + 1));
+        let mut trace = Vec::new();
+        let result = zone
+            .lethal_handler_rolled_v6(
+                zone.next_tick,
+                owner,
+                npc,
+                &skill,
+                1,
+                handler,
+                &mut scripted(&[], &mut trace),
+            )
+            .unwrap();
+        assert_eq!(result.outcome, SkillOutcome::Miss);
+        assert!(trace.is_empty());
+        let mut young = skill.clone();
+        young.magic_level = vec![0; usize::try_from(skill.max_level).unwrap()];
+        // Raise the actual player sheet above magicLvl0+6; fixture players start at1.
+        let xp19 = zone.rules.as_ref().unwrap().xp_to_level(19).unwrap();
+        if let CombatRole::Player { xp, .. } = &mut zone
+            .entities
+            .get_mut(&owner.entity)
+            .unwrap()
+            .combat
+            .as_mut()
+            .unwrap()
+            .role
+        {
+            *xp = xp19;
+        }
+        zone.relevel(owner.entity).unwrap();
+        zone.sync_passives_v5(owner.entity).unwrap();
+        zone.rebuild_v5(owner.entity).unwrap();
+        zone.lethal_handler_rolled_v6(
+            zone.next_tick,
+            npc,
+            owner,
+            &young,
+            1,
+            handler,
+            &mut scripted(&[], &mut trace),
+        )
+        .unwrap();
+        assert!(trace.is_empty());
+    }
+
+    #[test]
+    #[allow(clippy::too_many_lines)] // Shared source fixture compares miss, hit and shield short-circuit traces.
+    fn v6_fatal_blow_caller_draw_order_and_perfect_shield_short_circuit() {
+        use crate::domain::zone::{
+            skill::{RankValue, SkillId},
+            EquipSlot,
+        };
+        use DamageRollSite as R;
+        let (mut original, owner, npc) = equipment_fixture();
+        original.run_tick(original.draft(Vec::new())).unwrap();
+        let skill = original
+            .phase3
+            .as_ref()
+            .unwrap()
+            .canonical
+            .rules
+            .skills()
+            .get(SkillId(16))
+            .unwrap()
+            .clone();
+        let handler = skill
+            .effects
+            .iter()
+            .find(|h| h.name == "FatalBlow")
+            .unwrap();
+        let mut miss = original.clone();
+        let mut trace = Vec::new();
+        let result = miss
+            .blow_handler_rolled_v6(
+                miss.next_tick,
+                owner,
+                npc,
+                &skill,
+                1,
+                handler,
+                0,
+                &mut Vec::new(),
+                &mut scripted(
+                    &[(R::PhysicalEvasion, 100, 99), (R::BlowSuccess, 1000, 999)],
+                    &mut trace,
+                ),
+            )
+            .unwrap();
+        assert_eq!(result.outcome, SkillOutcome::Miss);
+        assert_eq!(trace.len(), 2);
+        let mut hit = original.clone();
+        let radius = hit
+            .effective(owner.entity)
+            .unwrap()
+            .physical
+            .random_damage();
+        let rolls = [
+            (R::PhysicalEvasion, 100, 99),
+            (R::BlowSuccess, 1000, 0),
+            (R::Spread, radius * 2 + 1, radius),
+            (R::PhysicalVengeance, 100, 99),
+        ];
+        let mut trace = Vec::new();
+        let result = hit
+            .blow_handler_rolled_v6(
+                hit.next_tick,
+                owner,
+                npc,
+                &skill,
+                1,
+                handler,
+                0,
+                &mut Vec::new(),
+                &mut scripted(&rolls, &mut trace),
+            )
+            .unwrap();
+        assert!(result.rolled >= 1);
+        assert_eq!(result.outcome, SkillOutcome::Hit);
+        assert_eq!(trace.len(), 4);
+        let mut shield = original;
+        let shield_id = crate::domain::zone::ItemInstanceId::new(901).unwrap();
+        let player = shield
+            .phase4
+            .as_mut()
+            .unwrap()
+            .canonical
+            .players
+            .get_mut(&owner.entity)
+            .unwrap();
+        let mut item =
+            player.inventory[&crate::domain::zone::ItemInstanceId::new(900).unwrap()].clone();
+        item.id = shield_id;
+        item.template_id = 628;
+        item.count = 1;
+        player.inventory.insert(shield_id, item);
+        shield.rebuild_v5(owner.entity).unwrap();
+        let command = item_intent(
+            &shield,
+            owner.entity,
+            981,
+            crate::domain::zone::ItemCommandKind::Equip {
+                instance: shield_id,
+                preferred_slot: Some(EquipSlot::Lhand),
+            },
+        );
+        let tick = shield
+            .run_tick(shield.draft(vec![ZoneInput::session(
+                owner.entity,
+                SessionGeneration(1),
+                1,
+                ZoneCommand::Item(Box::new(command)),
+            )]))
+            .unwrap();
+        assert!(tick.dispositions.is_empty(), "{:?}", tick.dispositions);
+        assert_eq!(
+            shield.phase4.as_ref().unwrap().canonical.players[&owner.entity].paperdoll
+                [&EquipSlot::Lhand],
+            shield_id
+        );
+        let before = shield.entities[&npc.entity].pos;
+        let pos = shield.entities[&owner.entity].pos;
+        shield.entities.get_mut(&npc.entity).unwrap().pos = pos;
+        shield.aoi.relocate(npc.entity, before, pos);
+        let mut normal = shield.clone();
+        let mut trace = Vec::new();
+        assert_eq!(
+            normal
+                .shield_v6(
+                    npc,
+                    owner,
+                    &mut scripted(
+                        &[(R::ShieldPerfect, 100, 90), (R::ShieldNormal, 100, 0)],
+                        &mut trace
+                    )
+                )
+                .unwrap(),
+            crate::domain::zone::phase4::ShieldOutcome::Normal
+        );
+        assert_eq!(trace.len(), 2);
+        let old = normal.entities[&npc.entity].pos;
+        let behind = Vec2Fixed::from_tiles(9, 10);
+        normal.entities.get_mut(&npc.entity).unwrap().pos = behind;
+        normal.aoi.relocate(npc.entity, old, behind);
+        let mut trace = Vec::new();
+        assert_eq!(
+            normal
+                .shield_v6(npc, owner, &mut scripted(&[], &mut trace))
+                .unwrap(),
+            crate::domain::zone::phase4::ShieldOutcome::None
+        );
+        assert!(trace.is_empty());
+        // Source optional critical happens after the perfect-block return and still doubles1.
+        let mut critical_handler = handler.clone();
+        critical_handler
+            .params
+            .insert("criticalChance".into(), RankValue::Scalar("100".into()));
+        let mut trace = Vec::new();
+        let result = shield
+            .blow_handler_rolled_v6(
+                shield.next_tick,
+                npc,
+                owner,
+                &skill,
+                1,
+                &critical_handler,
+                0,
+                &mut Vec::new(),
+                &mut scripted(
+                    &[
+                        (R::PhysicalEvasion, 100, 99),
+                        (R::BlowSuccess, 1000, 0),
+                        (R::ShieldPerfect, 100, 91),
+                        (R::PhysicalCritical, 100_000_000, 0),
+                        (R::PhysicalVengeance, 100, 99),
+                    ],
+                    &mut trace,
+                ),
+            )
+            .unwrap();
+        assert_eq!(result.rolled, 2);
+        assert_eq!(result.outcome, SkillOutcome::Crit);
+        assert_eq!(trace.len(), 5);
+    }
+    #[test]
+    fn v6_blow_xml_order_lethal_can_land_when_fatal_blow_misses() {
+        use crate::domain::zone::skill::SkillId;
+        let (mut zone, owner, npc) = equipment_fixture();
+        zone.run_tick(zone.draft(Vec::new())).unwrap();
+        let skill = zone
+            .phase3
+            .as_ref()
+            .unwrap()
+            .canonical
+            .rules
+            .skills()
+            .get(SkillId(263))
+            .unwrap()
+            .clone();
+        assert_eq!(
+            skill
+                .effects
+                .iter()
+                .map(|h| h.name.as_str())
+                .collect::<Vec<_>>(),
+            vec!["Lethal", "FatalBlow"]
+        );
+        // Exercise the real XML dispatcher with an actual deterministic RNG position.
+        // The learned-skill capability remains deferred until E1's coordinated promotion.
+        let (position, expected_end) = (0_u128..10_000)
+            .find_map(|position| {
+                let mut candidate = zone.clone();
+                candidate.rng.set_word_pos(position);
+                candidate.roll_below(1000);
+                let half = candidate.roll_below(1000);
+                candidate.roll_below(100);
+                let blow = candidate.roll_below(1000);
+                (half < 100 && blow >= 900).then_some((position, candidate.rng.get_word_pos()))
+            })
+            .unwrap();
+        zone.rng.set_word_pos(position);
+        set_resources(&mut zone, npc, 1, 0);
+        let mut results = Vec::new();
+        let mut events = Vec::new();
+        zone.impact_target_v5(
+            zone.next_tick,
+            owner,
+            npc,
+            &skill,
+            1,
+            CastId(99),
+            &mut events,
+            &mut results,
+        )
+        .unwrap();
+        assert_eq!(results.len(), 2);
+        assert_eq!(results[0].outcome, SkillOutcome::Hit);
+        assert_eq!(results[1].outcome, SkillOutcome::Miss);
+        assert_eq!(zone.entities[&npc.entity].combat.as_ref().unwrap().hp, 0);
+        assert_eq!(zone.sidecar(npc.entity).unwrap().fractions.hp, 500_000);
+        assert!(!zone.entities[&npc.entity].targeting.dead);
+        assert!(events.is_empty());
+        assert_eq!(zone.rng.get_word_pos(), expected_end);
     }
 }
