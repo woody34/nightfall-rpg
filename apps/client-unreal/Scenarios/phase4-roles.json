@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "units": {
+    "4-shield-block-a": [
+      "4-shield-block-a.nfs",
+      "4-shield-block-b.nfs"
+    ],
+    "4-resurrection-scroll-a": [
+      "4-resurrection-scroll-a.nfs",
+      "4-resurrection-scroll-b.nfs"
+    ]
+  }
+}

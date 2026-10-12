@@ -50,6 +50,7 @@ def selection(repo=REPO):
         'soulshot': dict(handler='SoulShots', grade='NONE'),
         'spiritshot': dict(handler='SpiritShot', grade='NONE'),
         'blessed_spiritshot': dict(handler='BlessedSpiritShot', grade='NONE'),
+        'd_weapon': dict(kind='Weapon', weapon_type='SWORD', grade='D'),
         'c_weapon': dict(kind='Weapon', weapon_type='SWORD', grade='C'),
         'overgrade': dict(kind='Weapon', weapon_type='SWORD', grade='S'),
     }.items(): result[name] = select(repo, **conditions)['template_id']
@@ -125,9 +126,17 @@ def profiles(pack, repo=REPO, paired=False):
     elif pack == 'phase4-overload':
         # Weight is an input. Exact overload ranks are checked externally with actual maxLoad.
         extras = [(s['arrow'], 100000, 0)]
-    elif pack in ('phase4-enchant', 'phase4-crystallize'):
+    elif pack == 'phase4-enchant':
         extras = [(s['c_weapon'], 1, 0), (s['c_weapon'], 1, 3)]
         extras += [(s[k], 2, 0) for k in ('scroll', 'blessed_scroll', 'safe_scroll')]
+    elif pack == 'phase4-crystallize':
+        extras = [(s['d_weapon'], 1, 0), (s['d_weapon'], 1, 0)]
+        owner = role(repo, profession='dwarven_fighter', level=20, position=(126, 128))
+        owner['tokens'] = [1, 0]
+    elif pack == 'phase4-learn':
+        owner = role(repo, level=52, position=(126, 128))
+        owner['tokens'] = [1, 1]
+        owner['book_learn'] = dict(skill=1405, rank=1, template=8618, count=1, source='professions/bishop.toml:48-55; pinned DP/classSkillTree.xml')
     elif pack == 'phase4-shots': extras = [(s[k], 100, 0) for k in ('soulshot', 'spiritshot', 'blessed_spiritshot')]
     elif pack == 'phase4-consumables':
         extras = [(s['potion'], 2, 0)]; owner.update(hp=1, mp=1, cp=1)
@@ -167,6 +176,7 @@ def soak_profile(repo, account, character, index, clients):
 
 
 def declared_units(directory):
+    if not (directory / 'phase4-roles.json').is_file(): return {}
     data = json.loads((directory / 'phase4-roles.json').read_text())
     if data.get('schema_version') != 1: raise ValueError('invalid Phase4 roles')
     seen = set()
@@ -198,3 +208,24 @@ if __name__ == '__main__':
     parser.add_argument('--publish', type=Path, required=True)
     args = parser.parse_args()
     args.publish.write_text(json.dumps(publish(), indent=2, sort_keys=True) + '\n')
+
+
+def denied_auth_inputs():
+    import os
+    from uuid import UUID
+    path = Path(os.environ.get('SIM_PHASE4_AUTH_TOKEN_FILE', ''))
+    if not path.is_absolute() or not path.is_file() or path.is_symlink():
+        raise ValueError('grant-denied requires explicit absolute real-auth token file')
+    token = path.read_text().strip()
+    if not token or token.startswith('test:') or any(c.isspace() for c in token):
+        raise ValueError('grant-denied refuses dev tokens; real authenticating credentials required')
+    issuer, audience = os.environ.get('SIM_PHASE4_OIDC_ISSUER'), os.environ.get('SIM_PHASE4_OIDC_AUDIENCE')
+    if not issuer or not audience: raise ValueError('grant-denied requires explicit OIDC issuer/audience')
+    return dict(token=token, issuer=issuer, audience=audience, account=str(UUID(os.environ.get('SIM_PHASE4_OWNER_ACCOUNT', ''))))
+
+
+def create_overlay(destination, repo):
+    phase3.create_overlay(destination, repo)
+    zone = destination / 'zones/test_zone.toml'
+    blacksmith = table('capacities', repo)['blacksmith']
+    zone.write_text(zone.read_text() + '\n[[npcs]]\nname = "Blacksmith"\nattackable = false\npos = [' + str(blacksmith['x']) + ', ' + str(blacksmith['y']) + ']\nspeed = 0\n')

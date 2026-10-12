@@ -1498,23 +1498,23 @@
       "owner": {
         "alive": true,
         "allocator": {
-          "next_item_instance": 12,
+          "next_item_instance": 10,
           "range_end_exclusive": 4294967296,
           "range_start": 1
         },
         "auto_shots": [],
-        "base_class_id": 10,
+        "base_class_id": 53,
         "base_stats": {
-          "con": 27,
-          "dex": 21,
-          "int": 41,
-          "men": 39,
-          "str": 22,
-          "wit": 20
+          "con": 45,
+          "dex": 29,
+          "int": 20,
+          "men": 27,
+          "str": 39,
+          "wit": 10
         },
         "character_id": "01970000-0000-7000-8000-000000000040",
-        "class_id": 10,
-        "class_profile": "human_mystic",
+        "class_id": 53,
+        "class_profile": "dwarven_fighter",
         "cp": 0,
         "cp_fraction_q": 0,
         "death_incarnation": null,
@@ -1539,12 +1539,12 @@
             "slot": "rhand",
             "source": {
               "file": "src/main/resources/data/stats/initialEquipment.xml",
-              "lines": "15",
+              "lines": "82",
               "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
               "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
               "symbol": "starter item"
             },
-            "template_id": 6
+            "template_id": 2370
           },
           {
             "augment_id": null,
@@ -1552,17 +1552,17 @@
             "count": 1,
             "enchant": 0,
             "instance_id": 2,
-            "location": "paperdoll",
+            "location": "inventory",
             "revision": 0,
-            "slot": "chest",
+            "slot": null,
             "source": {
               "file": "src/main/resources/data/stats/initialEquipment.xml",
-              "lines": "16",
+              "lines": "83",
               "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
               "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
               "symbol": "starter item"
             },
-            "template_id": 425
+            "template_id": 10
           },
           {
             "augment_id": null,
@@ -1572,15 +1572,15 @@
             "instance_id": 3,
             "location": "paperdoll",
             "revision": 0,
-            "slot": "legs",
+            "slot": "chest",
             "source": {
               "file": "src/main/resources/data/stats/initialEquipment.xml",
-              "lines": "17",
+              "lines": "84",
               "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
               "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
               "symbol": "starter item"
             },
-            "template_id": 461
+            "template_id": 1146
           },
           {
             "augment_id": null,
@@ -1588,12 +1588,30 @@
             "count": 1,
             "enchant": 0,
             "instance_id": 4,
+            "location": "paperdoll",
+            "revision": 0,
+            "slot": "legs",
+            "source": {
+              "file": "src/main/resources/data/stats/initialEquipment.xml",
+              "lines": "85",
+              "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+              "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+              "symbol": "starter item"
+            },
+            "template_id": 1147
+          },
+          {
+            "augment_id": null,
+            "charge_bits": 0,
+            "count": 1,
+            "enchant": 0,
+            "instance_id": 5,
             "location": "inventory",
             "revision": 0,
             "slot": null,
             "source": {
               "file": "src/main/resources/data/stats/initialEquipment.xml",
-              "lines": "18",
+              "lines": "86",
               "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
               "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
               "symbol": "starter item"
@@ -1605,13 +1623,13 @@
             "charge_bits": 0,
             "count": 5,
             "enchant": 0,
-            "instance_id": 5,
+            "instance_id": 6,
             "location": "inventory",
             "revision": 0,
             "slot": null,
             "source": {
               "file": "src/main/resources/data/stats/initialEquipment.xml",
-              "lines": "19",
+              "lines": "87",
               "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
               "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
               "symbol": "starter item"
@@ -1623,13 +1641,13 @@
             "charge_bits": 0,
             "count": 10,
             "enchant": 0,
-            "instance_id": 6,
+            "instance_id": 7,
             "location": "inventory",
             "revision": 0,
             "slot": null,
             "source": {
               "file": "src/main/resources/data/stats/initialEquipment.xml",
-              "lines": "20",
+              "lines": "88",
               "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
               "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
               "symbol": "starter item"
@@ -1641,97 +1659,40 @@
             "charge_bits": 0,
             "count": 1,
             "enchant": 0,
-            "instance_id": 7,
-            "location": "inventory",
-            "revision": 0,
-            "slot": null,
-            "source": {
-              "file": "src/main/resources/data/stats/items/00000-00099.xml",
-              "lines": "1191",
-              "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-              "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-              "symbol": "item 71"
-            },
-            "template_id": 71
-          },
-          {
-            "augment_id": null,
-            "charge_bits": 0,
-            "count": 1,
-            "enchant": 3,
             "instance_id": 8,
             "location": "inventory",
             "revision": 0,
             "slot": null,
             "source": {
               "file": "src/main/resources/data/stats/items/00000-00099.xml",
-              "lines": "1191",
+              "lines": "1137",
               "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
               "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-              "symbol": "item 71"
+              "symbol": "item 69"
             },
-            "template_id": 71
+            "template_id": 69
           },
           {
             "augment_id": null,
             "charge_bits": 0,
-            "count": 2,
+            "count": 1,
             "enchant": 0,
             "instance_id": 9,
             "location": "inventory",
             "revision": 0,
             "slot": null,
             "source": {
-              "file": "src/main/resources/data/stats/items/00900-00999.xml",
-              "lines": "751",
+              "file": "src/main/resources/data/stats/items/00000-00099.xml",
+              "lines": "1137",
               "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
               "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-              "symbol": "item 951"
+              "symbol": "item 69"
             },
-            "template_id": 951
-          },
-          {
-            "augment_id": null,
-            "charge_bits": 0,
-            "count": 2,
-            "enchant": 0,
-            "instance_id": 10,
-            "location": "inventory",
-            "revision": 0,
-            "slot": null,
-            "source": {
-              "file": "src/main/resources/data/stats/items/06500-06599.xml",
-              "lines": "839",
-              "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-              "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-              "symbol": "item 6573"
-            },
-            "template_id": 6573
-          },
-          {
-            "augment_id": null,
-            "charge_bits": 0,
-            "count": 2,
-            "enchant": 0,
-            "instance_id": 11,
-            "location": "inventory",
-            "revision": 0,
-            "slot": null,
-            "source": {
-              "file": "src/main/resources/data/stats/items/22200-22299.xml",
-              "lines": "304",
-              "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-              "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-              "symbol": "item 22227"
-            },
-            "template_id": 22227
+            "template_id": 69
           }
         ],
         "karma": 0,
-        "learned_ranks": {
-          "1068": 1,
-          "1177": 1
-        },
+        "learned_ranks": {},
         "ledger": [
           {
             "after": {
@@ -1743,7 +1704,7 @@
               "location": "paperdoll",
               "revision": 0,
               "slot": "rhand",
-              "template_id": 6
+              "template_id": 2370
             },
             "before": null,
             "instance_id": 1,
@@ -1756,10 +1717,10 @@
               "count": 1,
               "enchant": 0,
               "instance_id": 2,
-              "location": "paperdoll",
+              "location": "inventory",
               "revision": 0,
-              "slot": "chest",
-              "template_id": 425
+              "slot": null,
+              "template_id": 10
             },
             "before": null,
             "instance_id": 2,
@@ -1774,8 +1735,8 @@
               "instance_id": 3,
               "location": "paperdoll",
               "revision": 0,
-              "slot": "legs",
-              "template_id": 461
+              "slot": "chest",
+              "template_id": 1146
             },
             "before": null,
             "instance_id": 3,
@@ -1788,10 +1749,10 @@
               "count": 1,
               "enchant": 0,
               "instance_id": 4,
-              "location": "inventory",
+              "location": "paperdoll",
               "revision": 0,
-              "slot": null,
-              "template_id": 5588
+              "slot": "legs",
+              "template_id": 1147
             },
             "before": null,
             "instance_id": 4,
@@ -1801,13 +1762,13 @@
             "after": {
               "augment_id": null,
               "charge_bits": 0,
-              "count": 5,
+              "count": 1,
               "enchant": 0,
               "instance_id": 5,
               "location": "inventory",
               "revision": 0,
               "slot": null,
-              "template_id": 10650
+              "template_id": 5588
             },
             "before": null,
             "instance_id": 5,
@@ -1817,13 +1778,13 @@
             "after": {
               "augment_id": null,
               "charge_bits": 0,
-              "count": 10,
+              "count": 5,
               "enchant": 0,
               "instance_id": 6,
               "location": "inventory",
               "revision": 0,
               "slot": null,
-              "template_id": 12753
+              "template_id": 10650
             },
             "before": null,
             "instance_id": 6,
@@ -1833,13 +1794,13 @@
             "after": {
               "augment_id": null,
               "charge_bits": 0,
-              "count": 1,
+              "count": 10,
               "enchant": 0,
               "instance_id": 7,
               "location": "inventory",
               "revision": 0,
               "slot": null,
-              "template_id": 71
+              "template_id": 12753
             },
             "before": null,
             "instance_id": 7,
@@ -1850,12 +1811,12 @@
               "augment_id": null,
               "charge_bits": 0,
               "count": 1,
-              "enchant": 3,
+              "enchant": 0,
               "instance_id": 8,
               "location": "inventory",
               "revision": 0,
               "slot": null,
-              "template_id": 71
+              "template_id": 69
             },
             "before": null,
             "instance_id": 8,
@@ -1865,74 +1826,46 @@
             "after": {
               "augment_id": null,
               "charge_bits": 0,
-              "count": 2,
+              "count": 1,
               "enchant": 0,
               "instance_id": 9,
               "location": "inventory",
               "revision": 0,
               "slot": null,
-              "template_id": 951
+              "template_id": 69
             },
             "before": null,
             "instance_id": 9,
             "op": "grant"
-          },
-          {
-            "after": {
-              "augment_id": null,
-              "charge_bits": 0,
-              "count": 2,
-              "enchant": 0,
-              "instance_id": 10,
-              "location": "inventory",
-              "revision": 0,
-              "slot": null,
-              "template_id": 6573
-            },
-            "before": null,
-            "instance_id": 10,
-            "op": "grant"
-          },
-          {
-            "after": {
-              "augment_id": null,
-              "charge_bits": 0,
-              "count": 2,
-              "enchant": 0,
-              "instance_id": 11,
-              "location": "inventory",
-              "revision": 0,
-              "slot": null,
-              "template_id": 22227
-            },
-            "before": null,
-            "instance_id": 11,
-            "op": "grant"
           }
         ],
-        "level": 14,
+        "level": 20,
         "modifier_install_order": [],
         "mp": null,
         "mp_fraction_q": 0,
         "paperdoll": {
-          "chest": 2,
-          "legs": 3,
+          "chest": 3,
+          "legs": 4,
           "rhand": 1
         },
         "phase3_timer_policy_version": 1,
         "pk_count": 0,
         "position": [
-          110,
-          100
+          126,
+          128
         ],
         "pre_death_xp": null,
-        "profession": "human_mystic",
+        "profession": "dwarven_fighter",
         "pvp_count": 0,
-        "race": "human",
+        "race": "dwarf",
         "recoverable_death_xp_loss": 0,
         "reuse_remainders": [],
         "sp": 100000,
-        "xp": 191454
+        "tokens": [
+          1,
+          0
+        ],
+        "xp": 835862
       }
     },
     "phase4-enchant": {
@@ -3716,6 +3649,13 @@
           "str": 22,
           "wit": 20
         },
+        "book_learn": {
+          "count": 1,
+          "rank": 1,
+          "skill": 1405,
+          "source": "professions/bishop.toml:48-55; pinned DP/classSkillTree.xml",
+          "template": 8618
+        },
         "character_id": "01970000-0000-7000-8000-000000000040",
         "class_id": 10,
         "class_profile": "human_mystic",
@@ -3944,7 +3884,7 @@
             "op": "grant"
           }
         ],
-        "level": 14,
+        "level": 52,
         "modifier_install_order": [],
         "mp": null,
         "mp_fraction_q": 0,
@@ -3956,8 +3896,8 @@
         "phase3_timer_policy_version": 1,
         "pk_count": 0,
         "position": [
-          110,
-          100
+          126,
+          128
         ],
         "pre_death_xp": null,
         "profession": "human_mystic",
@@ -3966,7 +3906,11 @@
         "recoverable_death_xp_loss": 0,
         "reuse_remainders": [],
         "sp": 100000,
-        "xp": 191454
+        "tokens": [
+          1,
+          1
+        ],
+        "xp": 51262490
       }
     },
     "phase4-overload": {
@@ -6415,6 +6359,7 @@
     "blunt": 4,
     "bow": 13,
     "c_weapon": 71,
+    "d_weapon": 69,
     "dagger": 10,
     "dual": 1299,
     "dualfist": 253,
