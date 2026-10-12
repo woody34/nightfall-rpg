@@ -702,6 +702,7 @@ async fn receipt_actor(
 }
 
 #[tokio::test]
+#[allow(clippy::too_many_lines)] // Keep real log/DB/Known/cold-replay checks and original-sequence proof together.
 async fn item_receipt_preflight_records_frozen_known_and_conflict_without_reexecution() {
     use crate::application::zone_actor::TickOutcome;
     use crate::domain::zone::{AppliedTickDraft, ItemInstanceId, RejectReason, ZoneEvent};
@@ -723,6 +724,8 @@ async fn item_receipt_preflight_records_frozen_known_and_conflict_without_reexec
             }
         })
         .collect();
+    assert_eq!(original[0].accepted_sequence, Some(1));
+    assert_eq!(original[1].accepted_sequence, Some(2));
     // A later committed unequip makes replaying the old Equip command observably wrong.
     let later = ZoneInput::session(
         h.entity,
@@ -769,7 +772,7 @@ async fn item_receipt_preflight_records_frozen_known_and_conflict_without_reexec
             .send(ZoneInput::session(
                 h.entity,
                 SessionGeneration(1),
-                u32::try_from(index + 1).unwrap(),
+                u32::try_from(index + 11).unwrap(),
                 ZoneCommand::Item(Box::new(
                     ItemCommand::new(h.entity, command.request_id, kind).unwrap(),
                 )),

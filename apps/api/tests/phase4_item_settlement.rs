@@ -1236,6 +1236,7 @@ async fn range_extension_contract<
             tick: Tick(74),
             inventory_revision: 2,
             receipt: key,
+            accepted_sequence: None,
             request_fingerprint: "c".repeat(64),
             detail: ItemResultDetail::Operation {
                 operation: ItemOperation::ToggleAutoShot,

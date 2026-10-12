@@ -170,7 +170,7 @@ pub fn frozen_item_result_to_pb(
             receipt_id,
             request_key: result.receipt.as_bytes().to_vec(),
             request_fingerprint: result.request_fingerprint.clone(),
-            accepted_client_seq: None,
+            accepted_client_seq: result.accepted_sequence.map(u64::from),
             operation: operation_to_pb(*operation)?.into(),
             affected_instance_ids: affected.iter().map(|id| id.get()).collect(),
             recipe_id: *recipe,
@@ -190,7 +190,7 @@ pub fn frozen_item_result_to_pb(
             receipt_id,
             request_key: result.receipt.as_bytes().to_vec(),
             request_fingerprint: result.request_fingerprint.clone(),
-            accepted_client_seq: None,
+            accepted_client_seq: result.accepted_sequence.map(u64::from),
             operation: operation_to_pb(result.operation())?.into(),
             target_instance_id: target.get(),
             old_enchant: *old_enchant,
@@ -225,7 +225,7 @@ pub fn frozen_item_result_to_pb(
             receipt_id,
             request_key: result.receipt.as_bytes().to_vec(),
             request_fingerprint: result.request_fingerprint.clone(),
-            accepted_client_seq: None,
+            accepted_client_seq: result.accepted_sequence.map(u64::from),
             operation: operation_to_pb(result.operation())?.into(),
             target_instance_id: target.get(),
             augment_id: *augment,
@@ -561,8 +561,43 @@ mod tests {
         assert_eq!(key.len(), 16);
         assert_eq!(fingerprint, &result.request_fingerprint);
         assert_eq!(operation, i32::from(operation_to_pb(result.operation()).unwrap()));
-        assert_eq!(sequence, None);
+        assert_eq!(sequence, result.accepted_sequence.map(u64::from));
         event
+    }
+    #[test]
+    fn original_sequence_survives_frozen_payload_and_all_three_carriers() {
+        let target = ItemInstanceId::new(1).unwrap();
+        for detail in [
+            ItemResultDetail::Operation {
+                operation: ItemOperation::Use,
+                affected: vec![target],
+                recipe: None,
+            },
+            ItemResultDetail::Enchant {
+                target,
+                old_enchant: 0,
+                new_enchant: 1,
+                outcome: ItemEnchantOutcome::Success,
+                refunds: Vec::new(),
+                announcement_tier: 0,
+            },
+            ItemResultDetail::Refine {
+                target,
+                augment: None,
+                outcome: ItemRefineOutcome::Removed,
+            },
+        ] {
+            for sequence in [None, Some(0), Some(u32::MAX)] {
+                let mut original = result(detail.clone());
+                original.accepted_sequence = sequence;
+                let payload = original.payload().unwrap();
+                let frozen = payload.result().unwrap();
+                assert_eq!(frozen, original);
+                assert_eq!(round_trip(&frozen), round_trip(&original));
+                let json: serde_json::Value = serde_json::from_slice(payload.as_bytes()).unwrap();
+                assert_eq!(json.get("accepted_sequence").is_some(), sequence.is_some());
+            }
+        }
     }
     #[test]
     fn operation_results_include_exact_identity_revision_key_affected_ids_and_recipe() {
