@@ -28,7 +28,7 @@ bool FItemStateTest::RunTest(const FString&)
  W.Tick=20;W.Weight.PerMille=700;S->ApplyWeight(W);W.Tick=12;W.Weight.PerMille=800;S->ApplyWeight(W);TestEqual(TEXT("older same-revision summary rejected"),S->GetInventory().Weight.PerMille,int64(700));
  C.Tick=10;C.InventoryRevision=3;C.PreviousRevision=2;S->ApplyChanged(C);TestEqual(TEXT("stale baseline tick rejected"),S->Revision(),uint64(2));
  C.Tick=12;C.InventoryRevision=4;C.PreviousRevision=3;S->ApplyChanged(C);TestTrue(TEXT("revision gap fails closed"),S->NeedsBaseline());TestFalse(TEXT("gap never predicts counts"),S->Count(6).IsSet());
- S->Reset();S->ApplySpawn(Spawn());auto Invalid=Sync();Invalid.Items.Add(Invalid.Items[0]);S->ApplySync(Invalid);TestFalse(TEXT("duplicate IDs atomic refusal"),S->HasBaseline());
+ S->Reset();S->ApplySpawn(Spawn());auto Invalid=Sync();const auto Duplicate=Invalid.Items[0];Invalid.Items.Add(Duplicate);S->ApplySync(Invalid);TestFalse(TEXT("duplicate IDs atomic refusal"),S->HasBaseline());
  S->Reset();S->ApplySpawn(Spawn());S->ApplySync(Sync());auto R=FEntityRespawned{};R.Entity=Owner;R.Tick=11;R.Incarnation=2;S->ApplyRespawn(R);S->ApplySync(Sync());TestFalse(TEXT("old-life baseline rejected"),S->HasBaseline());
  FGrpcNightfallV1GetInventoryResponse Detached;Detached.HasInventory=true;Detached.Inventory=Sync();Detached.Inventory.Tick=Detached.Inventory.BaselineTick=0;Detached.Inventory.Incarnation=0;S->ApplyDetached(Detached);TestTrue(TEXT("detached sentinel accepted separately"),S->Detached().IsSet());TestFalse(TEXT("detached cannot hydrate"),S->HasBaseline());
  return true;
@@ -47,7 +47,7 @@ bool FItemBotTest::RunTest(const FString&)
  FScopedTestGameInstance Scope;auto* N=Scope.Get<UNetClientSubsystem>();auto* S=Scope.Get<UInventoryStateSubsystem>();N->SetOwnEntityId(ItemTest::Owner);FBotContext C;C.GameInstance=Scope.GameInstance;FBotPredicateRegistry R;R.RegisterBuiltins();
  auto Eval=[&](const TCHAR* Text){FString E;auto P=R.Parse(R.Tokenize(Text),E);TestTrue(TEXT("bind predicate"),bool(P));return P?P(C):FBotPredicateValue{};};
  for(const TCHAR* Text:{TEXT("inventory_has 6 == 0"),TEXT("equipped rhand == 0"),TEXT("weight_pct == 0"),TEXT("item_rpc_error == none"),TEXT("item_receipt_matches_first")})TestFalse(TEXT("absence UNKNOWN"),Eval(Text).bTrue);
- S->ApplySpawn(ItemTest::Spawn());S->ApplySync(ItemTest::Sync());TestTrue(TEXT("received bag count"),Eval(TEXT("inventory_has 6 == 1")).bTrue);TestTrue(TEXT("exact received percent"),Eval(TEXT("weight_pct == 0/3")).bTrue);
+ S->ApplySpawn(ItemTest::Spawn());auto ZeroWeight=ItemTest::Sync();ZeroWeight.Weight.Weight=0;ZeroWeight.Weight.MaxLoad=1;S->ApplySync(ZeroWeight);TestTrue(TEXT("received bag count"),Eval(TEXT("inventory_has 6 == 1")).bTrue);TestTrue(TEXT("exact received percent"),Eval(TEXT("weight_pct == 0/3")).bTrue);
  for(const TCHAR* Text:{TEXT("nf.Equip template:6 rhand"),TEXT("nf.UseItem instance:1 self"),TEXT("nf.Enchant 951 6 support:instance:2"),TEXT("nf.Refine 6 8723"),TEXT("nf.ExchangeSA 6 18446744073709551615"),TEXT("nf.AutoShot 2509 off")}){FString E;TestTrue(TEXT("valid E6 command"),ItemBotPredicates::ValidateCommand(R.Tokenize(Text),E));}
  for(const TCHAR* Text:{TEXT("nf.Equip instance:9223372036854775808"),TEXT("nf.Enchant 0 6"),TEXT("nf.AutoShot 1 maybe"),TEXT("nf.Refine 6 8723 self"),TEXT("nf.ItemCatalog extra")}){FString E;TestFalse(TEXT("malformed command"),ItemBotPredicates::ValidateCommand(R.Tokenize(Text),E));}
  S->Reset();TestFalse(TEXT("transport reset UNKNOWN"),Eval(TEXT("inventory_has 6 == 1")).bTrue);return true;
@@ -125,5 +125,53 @@ bool FItemHistoricalReceiptTest::RunTest(const FString&)
  FScopedTestGameInstance Scope;auto* N=Scope.Get<UNetClientSubsystem>();auto* S=Scope.Get<UInventoryStateSubsystem>();N->SetOwnEntityId(ItemTest::Owner);S->ApplySpawn(ItemTest::Spawn());S->ApplySync(ItemTest::Sync());
  FGrpcNightfallV1ItemOperationResult R;R.EntityId=ItemTest::Sync().EntityId;R.Incarnation=1;R.Tick=11;R.InventoryRevision=1;R.ReceiptId=TEXT("12345678-1111-4111-8111-123456789abc");R.Operation=EGrpcNightfallV1ItemOperation::ITEM_OPERATION_EQUIP;FWorldEvent E;E.ItemOperationResult=R;FServerMessage M;M.Event=E;N->DispatchServerMessage(M);
  S->ApplySpawn(ItemTest::Spawn(ItemTest::Owner,20,2));auto B=ItemTest::Sync();B.Tick=B.BaselineTick=20;B.Incarnation=2;S->ApplySync(B);N->DispatchServerMessage(M);TestTrue(TEXT("same frozen historical bytes compare across revival"),S->ReceiptMatchesFirst().IsSet() && *S->ReceiptMatchesFirst());TestFalse(TEXT("historical receipt never becomes new life operation"),S->LastOperation().IsSet());TestEqual(TEXT("historical receipt cannot modify inventory"),S->Revision(),uint64(1));return true;
+}
+#endif
+
+#if WITH_DEV_AUTOMATION_TESTS
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FItemMarkTest,"Nightfall.Item.Bot.ReceivedMarksAndStatsFences",EAutomationTestFlags::EditorContext|EAutomationTestFlags::ProductFilter)
+bool FItemMarkTest::RunTest(const FString&)
+{
+ using namespace ItemTest;
+ FScopedTestGameInstance Scope;auto* N=Scope.Get<UNetClientSubsystem>();auto* S=Scope.Get<UInventoryStateSubsystem>();N->SetOwnEntityId(Owner);
+ FBotPredicateRegistry Registry;Registry.RegisterBuiltins();FBotContext Context;Context.GameInstance=Scope.GameInstance;
+ auto Eval=[&](const TCHAR* Text){FString Error;auto Predicate=Registry.Parse(Registry.Tokenize(Text),Error);TestTrue(TEXT("revised predicate binds"),bool(Predicate));return Predicate?Predicate(Context):FBotPredicateValue{};};
+ TestFalse(TEXT("missing carriers cannot mark"),S->Execute({TEXT("nf.MarkItemState")}));
+ S->ApplySpawn(Spawn());
+ FStatsChanged Stats;Stats.Entity=Owner;Stats.Incarnation=1;Stats.Tick=Stats.BaselineTick=10;Stats.bBaseline=true;Stats.InventoryRevision=1;Stats.MaxHp=100;Stats.MaxMp=20;Stats.MaxCp=30;Stats.EffectiveStats=FEffectiveStats{};Stats.EffectiveStats->PDefQ=MIN_int64;
+ S->ApplyStats(Stats);TestFalse(TEXT("stats alone cannot mark"),S->MarkItemState());S->ApplySync(Sync());
+ TestTrue(TEXT("baseline stats preceding inventory retained"),S->Execute({TEXT("nf.MarkItemState")}));
+ TestTrue(TEXT("exact initial revision mark"),Eval(TEXT("inventory_revision_since_mark == 0")).bTrue);TestTrue(TEXT("complete received sheet equals mark"),Eval(TEXT("owner_stats_match_mark")).bTrue);
+ FGrpcNightfallV1InventoryChanged Change;Change.EntityId=Sync().EntityId;Change.Incarnation=1;Change.Tick=11;Change.PreviousRevision=1;Change.InventoryRevision=2;Change.Added.Add(Item(2,17));S->ApplyChanged(Change);
+ TestTrue(TEXT("revision delta is received"),Eval(TEXT("inventory_revision_since_mark == 1")).bTrue);TestFalse(TEXT("old revision stats cannot establish delta"),Eval(TEXT("owner_stat_delta max_hp == 0")).bTrue);
+ Stats.bBaseline=false;Stats.Tick=11;Stats.InventoryRevision=2;Stats.MaxHp=110;Stats.EffectiveStats->PDefQ=MAX_int64;S->ApplyStats(Stats);
+ TestTrue(TEXT("received maxima increase"),Eval(TEXT("owner_stat_delta max_hp == 10")).bTrue);TestTrue(TEXT("signed sheet delta keeps full width"),Eval(TEXT("owner_stat_delta p_def == 18446744073709551615")).bTrue);TestFalse(TEXT("different sheet does not match"),Eval(TEXT("owner_stats_match_mark")).bTrue);
+ Stats.Tick=12;Stats.MaxHp=90;Stats.EffectiveStats->PDefQ=MIN_int64;S->ApplyStats(Stats);TestTrue(TEXT("negative received delta"),Eval(TEXT("owner_stat_delta max_hp == -10")).bTrue);
+ Stats.Tick=11;Stats.MaxHp=999;S->ApplyStats(Stats);TestTrue(TEXT("stale same-revision stats discarded"),Eval(TEXT("owner_stat_delta max_hp == -10")).bTrue);
+ Stats.Entity=TEXT("22222222-2222-4222-8222-222222222222");Stats.Tick=13;S->ApplyStats(Stats);TestTrue(TEXT("peer cannot replace owner stats"),Eval(TEXT("owner_stat_delta max_hp == -10")).bTrue);
+ S->Reset();TestFalse(TEXT("reconnect projections UNKNOWN"),Eval(TEXT("owner_stats_match_mark")).bTrue);
+ S->ApplySpawn(Spawn(Owner,20,2));auto Base=Sync();Base.Tick=Base.BaselineTick=20;Base.Incarnation=2;Base.InventoryRevision=2;S->ApplySync(Base);
+ Stats.Entity=Owner;Stats.Incarnation=2;Stats.Tick=Stats.BaselineTick=20;Stats.bBaseline=true;Stats.MaxHp=100;Stats.InventoryRevision=2;S->ApplyStats(Stats);
+ TestTrue(TEXT("same character mark retained across incarnation"),Eval(TEXT("owner_stats_match_mark")).bTrue);TestTrue(TEXT("retained comparison revision"),Eval(TEXT("inventory_revision_since_mark == 1")).bTrue);
+ Stats.Hp=1;Stats.Mp=2;Stats.Cp=3;S->ApplyStats(Stats);TestTrue(TEXT("current vitals excluded from sheet equality"),Eval(TEXT("owner_stats_match_mark")).bTrue);
+ N->SetOwnEntityId(TEXT("22222222-2222-4222-8222-222222222222"));S->Reset();N->SetOwnEntityId(Owner);S->ApplySpawn(Spawn());S->ApplySync(Sync());TestFalse(TEXT("character switch invalidates comparison mark"),S->RevisionSinceMark().IsSet());
+ FString Error;for(const TCHAR* Text:{TEXT("nf.MarkItemState extra"),TEXT("nf.MarkItemState 12345678-1111-4111-8111-123456789abc")})TestFalse(TEXT("mark takes no arguments or key"),ItemBotPredicates::ValidateCommand(Registry.Tokenize(Text),Error));
+ for(const TCHAR* Text:{TEXT("owner_stat_delta hp == 0"),TEXT("owner_stat_delta max_hp == +1"),TEXT("item_operation == refine"),TEXT("item_operation == cancel_refine")})TestFalse(TEXT("revised malformed grammar rejected"),bool(Registry.Parse(Registry.Tokenize(Text),Error)));
+ return true;
+}
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FItemRefineJoinTest,"Nightfall.Item.Bot.RefineAppliedRemovedRevisionJoin",EAutomationTestFlags::EditorContext|EAutomationTestFlags::ProductFilter)
+bool FItemRefineJoinTest::RunTest(const FString&)
+{
+ using namespace ItemTest;FScopedTestGameInstance Scope;auto* N=Scope.Get<UNetClientSubsystem>();auto* S=Scope.Get<UInventoryStateSubsystem>();N->SetOwnEntityId(Owner);S->ApplySpawn(Spawn());S->ApplySync(Sync());
+ FBotPredicateRegistry Registry;Registry.RegisterBuiltins();FBotContext Context;Context.GameInstance=Scope.GameInstance;auto Eval=[&](const TCHAR* Text){FString Error;auto Predicate=Registry.Parse(Registry.Tokenize(Text),Error);TestTrue(TEXT("refine predicate binds"),bool(Predicate));return Predicate?Predicate(Context):FBotPredicateValue{};};
+ TestFalse(TEXT("no result UNKNOWN"),Eval(TEXT("refine_result_consistent")).bTrue);
+ FGrpcNightfallV1RefineResult Result;Result.EntityId=Sync().EntityId;Result.Incarnation=1;Result.Tick=11;Result.InventoryRevision=2;Result.TargetInstanceId=1;Result.Outcome=EGrpcNightfallV1RefineOutcome::REFINE_OUTCOME_APPLIED;Result._augment_id._augment_idCase=EGrpcNightfallV1RefineResult_augment_id::AugmentId;Result._augment_id.AugmentId=MAX_uint32;S->ApplyRefine(Result);
+ TestTrue(TEXT("received applied outcome"),Eval(TEXT("refine_outcome == applied")).bTrue);TestFalse(TEXT("future result requires owner delta"),Eval(TEXT("refine_result_consistent")).bTrue);
+ FGrpcNightfallV1InventoryChanged Change;Change.EntityId=Result.EntityId;Change.Incarnation=1;Change.Tick=11;Change.PreviousRevision=1;Change.InventoryRevision=2;auto Updated=Item(1,6);Updated._augment_id._augment_idCase=EGrpcNightfallV1OwnedItem_augment_id::AugmentId;Updated._augment_id.AugmentId=MAX_uint32;Change.Updated.Add(Updated);S->ApplyChanged(Change);TestTrue(TEXT("applied result joins exact unsigned augment"),Eval(TEXT("refine_result_consistent")).bTrue);
+ Result.Tick=12;Result.InventoryRevision=3;Result.Outcome=EGrpcNightfallV1RefineOutcome::REFINE_OUTCOME_REMOVED;Result._augment_id._augment_idCase=EGrpcNightfallV1RefineResult_augment_id::NotSet;S->ApplyRefine(Result);
+ TestTrue(TEXT("cancellation uses received event32 outcome"),Eval(TEXT("refine_outcome == removed")).bTrue);TestFalse(TEXT("removed waits for inventory revision"),Eval(TEXT("refine_result_consistent")).bTrue);
+ Change.Tick=12;Change.PreviousRevision=2;Change.InventoryRevision=3;Change.Updated[0]._augment_id._augment_idCase=EGrpcNightfallV1OwnedItem_augment_id::NotSet;S->ApplyChanged(Change);TestTrue(TEXT("removed requires augment absence"),Eval(TEXT("refine_result_consistent")).bTrue);TestFalse(TEXT("cancellation never becomes operation33"),S->LastOperation().IsSet());
+ Result._augment_id._augment_idCase=EGrpcNightfallV1RefineResult_augment_id::AugmentId;S->ApplyRefine(Result);TestFalse(TEXT("malformed removed payload is inconsistent"),Eval(TEXT("refine_result_consistent")).bTrue);
+ S->Reset();TestFalse(TEXT("reset outcome UNKNOWN"),Eval(TEXT("refine_outcome == removed")).bTrue);TestFalse(TEXT("reset join UNKNOWN"),Eval(TEXT("refine_result_consistent")).bTrue);return true;
 }
 #endif

@@ -59,6 +59,9 @@ void UInventoryStateSubsystem::Deinitialize()
 }
 void UInventoryStateSubsystem::ClearOwner()
 {
+ CurrentStats.Reset();
+ // Keep comparison references across re-admission, scoped to the selected character.
+ if(!Net || MarkOwner!=Net->GetOwnEntityId().ToLower()){MarkedStats.Reset();MarkRevision.Reset();MarkOwner.Reset();}
  ++RpcSerial; Inventory={}; Items.Reset(); PendingWeights.Reset(); PendingPenalties.Reset(); Enchant.Reset(); Refine.Reset(); Operation.Reset();
  ReceiptMatches.Reset(); DetachedInventory.Reset(); OwnerTick=WeightTick=PenaltyTick=0; PendingSeq=0; PendingKey.Reset(); PendingOperation=EGrpcNightfallV1ItemOperation::ITEM_OPERATION_UNSPECIFIED; bBaseline=bResync=bRpcBusy=bRpcDone=false; StatusText.Reset();
 }
@@ -162,10 +165,15 @@ void UInventoryStateSubsystem::ApplyPenalty(const FGrpcNightfallV1PenaltyChanged
 }
 void UInventoryStateSubsystem::ApplyStats(const FStatsChanged& S)
 {
- if (!S.InventoryRevision) return;
+ if(!Owner(NightfallItems::UuidBytes(S.Entity)) || !Fence.Accept(S.Entity,S.Incarnation,S.Tick,S.bBaseline,S.BaselineTick))return;
+ if(CurrentStats.IsSet() && (S.Tick<CurrentStats->Tick || S.InventoryRevision<CurrentStats->InventoryRevision))return;
+ if(!S.bBaseline && !Accept(NightfallItems::UuidBytes(S.Entity),S.Incarnation,S.Tick,S.InventoryRevision))return;
+ if(HasBaseline() && S.InventoryRevision<Revision())return;
+ CurrentStats=S;
  FGrpcNightfallV1WeightChanged W; W.EntityId=NightfallItems::UuidBytes(S.Entity); W.Incarnation=S.Incarnation; W.Tick=S.Tick; W.InventoryRevision=S.InventoryRevision;
  if (S.ItemWeight.IsSet()) { W.HasWeight=true; W.Weight=*S.ItemWeight; ApplyWeight(W); }
  if (S.ItemPenalties.IsSet()) { FGrpcNightfallV1PenaltyChanged P; P.EntityId=W.EntityId; P.Incarnation=W.Incarnation; P.Tick=W.Tick; P.InventoryRevision=W.InventoryRevision; P.HasPenalties=true; P.Penalties=*S.ItemPenalties; ApplyPenalty(P); }
+ OnChanged.Broadcast();
 }
 void UInventoryStateSubsystem::ApplyEquipment(const FGrpcNightfallV1EquipmentChanged& S)
 {
@@ -193,13 +201,13 @@ void UInventoryStateSubsystem::Remember(EGrpcNightfallV1ItemOperation Op,const F
  else { Receipts.Add(Scope,Payload); ReceiptMatches.Reset(); }
  if(Key==PendingKey && Op==PendingOperation){PendingSeq=0;PendingKey.Reset();} StatusText=PendingSeq?TEXT("Waiting for server item result"):TEXT("Server committed item operation"); OnChanged.Broadcast();
 }
-void UInventoryStateSubsystem::ApplyOperation(const FGrpcNightfallV1ItemOperationResult& S) { if (Accept(S.EntityId,S.Incarnation,S.Tick,S.InventoryRevision)) {Operation=S.Operation; OnChanged.Broadcast();} }
+void UInventoryStateSubsystem::ApplyOperation(const FGrpcNightfallV1ItemOperationResult& S) { if (uint8(S.Operation)>0 && uint8(S.Operation)<=11 && S.Operation!=EGrpcNightfallV1ItemOperation::ITEM_OPERATION_REFINE && S.Operation!=EGrpcNightfallV1ItemOperation::ITEM_OPERATION_CANCEL_REFINE && Accept(S.EntityId,S.Incarnation,S.Tick,S.InventoryRevision)) {Operation=S.Operation; OnChanged.Broadcast();} }
 void UInventoryStateSubsystem::ApplyEnchant(const FGrpcNightfallV1EnchantResult& S)
 {
  if (!Accept(S.EntityId,S.Incarnation,S.Tick,S.InventoryRevision) || !uint8(S.Outcome)) return;
  Enchant=S; OnChanged.Broadcast();
 }
-void UInventoryStateSubsystem::ApplyRefine(const FGrpcNightfallV1RefineResult& S) { if (Accept(S.EntityId,S.Incarnation,S.Tick,S.InventoryRevision) && uint8(S.Outcome)) { Refine=S;OnChanged.Broadcast(); } }
+void UInventoryStateSubsystem::ApplyRefine(const FGrpcNightfallV1RefineResult& S) { if (Accept(S.EntityId,S.Incarnation,S.Tick,S.InventoryRevision) && (S.Outcome==EGrpcNightfallV1RefineOutcome::REFINE_OUTCOME_APPLIED || S.Outcome==EGrpcNightfallV1RefineOutcome::REFINE_OUTCOME_REMOVED)) { Refine=S;OnChanged.Broadcast(); } }
 bool UInventoryStateSubsystem::EnchantConsistent() const
 {
  if (!HasBaseline() || !Enchant.IsSet() || Enchant->InventoryRevision.Value!=Revision()) return false;
@@ -211,6 +219,55 @@ bool UInventoryStateSubsystem::EnchantConsistent() const
  switch(E.Outcome){case EGrpcNightfallV1EnchantOutcome::ENCHANT_OUTCOME_SUCCESS:Transition=E.OldEnchant.Value<MAX_uint32 && E.NewEnchant.Value==E.OldEnchant.Value+1;break;case EGrpcNightfallV1EnchantOutcome::ENCHANT_OUTCOME_BLESSED_RESET:Transition=E.NewEnchant.Value==0;break;case EGrpcNightfallV1EnchantOutcome::ENCHANT_OUTCOME_SAFE_FAILED:case EGrpcNightfallV1EnchantOutcome::ENCHANT_OUTCOME_SUCCESS_NO_INCREMENT:Transition=E.NewEnchant.Value==E.OldEnchant.Value;break;default:break;}
  return Transition && I && I->Enchant.Value==E.NewEnchant.Value && (E.Outcome==EGrpcNightfallV1EnchantOutcome::ENCHANT_OUTCOME_SUCCESS || E.Outcome==EGrpcNightfallV1EnchantOutcome::ENCHANT_OUTCOME_SUCCESS_NO_INCREMENT || E.Outcome==EGrpcNightfallV1EnchantOutcome::ENCHANT_OUTCOME_SAFE_FAILED || E.Outcome==EGrpcNightfallV1EnchantOutcome::ENCHANT_OUTCOME_BLESSED_RESET);
 }
+bool UInventoryStateSubsystem::StatsSynchronized() const
+{
+ return HasBaseline() && CurrentStats.IsSet() && CurrentStats->EffectiveStats.IsSet()
+  && Net && Net->IsOwnEntity(CurrentStats->Entity) && Fence.Visible(CurrentStats->Entity,CurrentStats->Incarnation)
+  && CurrentStats->InventoryRevision==Revision();
+}
+bool UInventoryStateSubsystem::MarkItemState()
+{
+ if(!StatsSynchronized())return false;
+ MarkOwner=Net->GetOwnEntityId().ToLower();MarkRevision=Revision();MarkedStats=CurrentStats;return true;
+}
+TOptional<uint64> UInventoryStateSubsystem::RevisionSinceMark() const
+{
+ if(!HasBaseline() || !MarkRevision.IsSet() || !Net || MarkOwner!=Net->GetOwnEntityId().ToLower() || Revision()<*MarkRevision)return {};
+ return Revision()-*MarkRevision;
+}
+TOptional<FString> UInventoryStateSubsystem::OwnerStatDelta(const FString& Name) const
+{
+ if(!StatsSynchronized() || !RevisionSinceMark().IsSet() || !MarkedStats.IsSet())return {};
+ const __int128 Current=Name==TEXT("max_hp")?CurrentStats->MaxHp:CurrentStats->EffectiveStats->PDefQ;
+ const __int128 Saved=Name==TEXT("max_hp")?MarkedStats->MaxHp:MarkedStats->EffectiveStats->PDefQ;
+ const __int128 Delta=Current-Saved;
+ return FString::Printf(TEXT("%s%llu"),Delta<0?TEXT("-"):TEXT(""),uint64(Delta<0?-Delta:Delta));
+}
+TOptional<bool> UInventoryStateSubsystem::OwnerStatsMatchMark() const
+{
+ if(!StatsSynchronized() || !RevisionSinceMark().IsSet() || !MarkedStats.IsSet())return {};
+ const auto& A=*CurrentStats->EffectiveStats;const auto& B=*MarkedStats->EffectiveStats;
+ return CurrentStats->MaxHp==MarkedStats->MaxHp && CurrentStats->MaxMp==MarkedStats->MaxMp && CurrentStats->MaxCp==MarkedStats->MaxCp
+  && A.PAtkQ==B.PAtkQ && A.PDefQ==B.PDefQ && A.MAtkQ==B.MAtkQ && A.MDefQ==B.MDefQ
+  && A.AttackSpeed==B.AttackSpeed && A.CastSpeed==B.CastSpeed && A.SpeedQ==B.SpeedQ
+  && A.AccuracyQ==B.AccuracyQ && A.EvasionQ==B.EvasionQ && A.CritPermille==B.CritPermille
+  && A.ShieldDefQ==B.ShieldDefQ && A.ShieldRateQ==B.ShieldRateQ && A.ShieldAngleDegrees==B.ShieldAngleDegrees
+  && A.PhysicalReachMillitiles==B.PhysicalReachMillitiles && A.PhysicalAngleDegrees==B.PhysicalAngleDegrees;
+}
+TOptional<bool> UInventoryStateSubsystem::RefineConsistent() const
+{
+ if(!HasBaseline() || !Refine.IsSet() || Refine->InventoryRevision.Value>Revision())return {};
+ const auto* I=Find(Refine->TargetInstanceId);
+ if(!I)return false;
+ const bool Present=I->_augment_id._augment_idCase==EGrpcNightfallV1OwnedItem_augment_id::AugmentId;
+ if(Refine->Outcome==EGrpcNightfallV1RefineOutcome::REFINE_OUTCOME_APPLIED)
+  return Present && Refine->_augment_id._augment_idCase==EGrpcNightfallV1RefineResult_augment_id::AugmentId
+   && I->_augment_id.AugmentId.Value==Refine->_augment_id.AugmentId.Value;
+ if(Refine->Outcome==EGrpcNightfallV1RefineOutcome::REFINE_OUTCOME_REMOVED)
+  return !Present && Refine->_augment_id._augment_idCase==EGrpcNightfallV1RefineResult_augment_id::NotSet;
+ return {};
+}
+
 void UInventoryStateSubsystem::ApplyRejected(const FIntentRejected& R) { if (R.Seq!=PendingSeq || !PendingSeq) return; PendingSeq=0;PendingKey.Reset(); StatusText=R.Detail; OnChanged.Broadcast(); }
 void UInventoryStateSubsystem::FinishSend(uint32 Seq,const FString& Key,EGrpcNightfallV1ItemOperation Op) { PendingSeq=Seq;PendingKey=Seq?Key:FString();PendingOperation=Op; StatusText=Seq?TEXT("Waiting for server item result"):TEXT("World channel unavailable"); OnChanged.Broadcast(); }
 FString UInventoryStateSubsystem::Blacksmith() const
@@ -264,6 +321,7 @@ bool UInventoryStateSubsystem::Execute(const TArray<FString>& Tokens)
  FString Error; if(Tokens.IsEmpty() || !Net || !ItemBotPredicates::ValidateCommand(Tokens,Error))return false;
  const FString Name=Tokens[0].ToLower();TArray<FString>A=Tokens;A.RemoveAt(0);
  if(Name==TEXT("nf.itemcatalog")){LoadCatalog();return true;}
+ if(Name==TEXT("nf.markitemstate"))return MarkItemState();
  FGuid G; FString Key=FGuid::NewGuid().ToString(EGuidFormats::DigitsWithHyphensLower);
  if(!A.IsEmpty() && FGuid::ParseExact(A.Last(),EGuidFormats::DigitsWithHyphens,G)){Key=A.Pop();}
  auto Number=[](const FString& Text){uint64 V=0;SkillBotPredicates::ParseUnsigned(Text,V);return V;};

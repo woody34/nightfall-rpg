@@ -48,6 +48,11 @@ public:
  TOptional<uint64> Resolve(const FString& Selector) const;
  bool AutoShot(uint32 Template) const;
  bool EnchantConsistent() const;
+ TOptional<bool> RefineConsistent() const;
+ bool MarkItemState();
+ TOptional<uint64> RevisionSinceMark() const;
+ TOptional<FString> OwnerStatDelta(const FString& Name) const;
+ TOptional<bool> OwnerStatsMatchMark() const;
  const TOptional<FGrpcNightfallV1EnchantResult>& GetEnchant() const { return Enchant; }
  const TOptional<FGrpcNightfallV1RefineResult>& GetRefine() const { return Refine; }
  void SetHotbarConfigForTesting(const FString& Path) {HotbarConfigOverride=Path;Hotbars.Reset();}
@@ -77,6 +82,7 @@ public:
  const FString& Status() const { return StatusText; }
  FOnInventoryStateChanged OnChanged;
 private:
+ bool StatsSynchronized() const;
  bool Owner(const FBytes& Id) const;
  bool Accept(const FBytes& Id, uint32 Inc, uint64 Tick, uint64 Revision, bool bReceipt = false);
  void ClearOwner();
@@ -105,6 +111,9 @@ private:
  TOptional<FGrpcNightfallV1InventorySync> DetachedInventory;
  TOptional<FGrpcNightfallV1EnchantResult> Enchant;
  TOptional<FGrpcNightfallV1RefineResult> Refine;
+ TOptional<FStatsChanged> CurrentStats,MarkedStats;
+ TOptional<uint64> MarkRevision;
+ FString MarkOwner;
  TMap<FString,FClientMessage> FrozenRequests;
  TMap<FString,FString> FrozenArguments;
  TMap<FString,TArray<TPair<uint32,bool>>> Hotbars;
