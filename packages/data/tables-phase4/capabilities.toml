@@ -4725,8 +4725,8 @@ use_blockers = ["use:no_handler"]
 template_id = 726
 admitted = false
 storable = false
-blockers = ["configuration:mana_potions_disabled", "context:npc_only"]
-use_blockers = ["configuration:mana_potions_disabled", "context:npc_only"]
+blockers = ["configuration:mana_potions_disabled", "consumable:skill:10000:1:item:726", "context:npc_only"]
+use_blockers = ["configuration:mana_potions_disabled", "consumable:skill:10000:1:item:726", "context:npc_only"]
 
 [[items]]
 template_id = 727
@@ -4739,8 +4739,8 @@ use_blockers = ["use:no_handler"]
 template_id = 728
 admitted = false
 storable = false
-blockers = ["configuration:mana_potions_disabled", "context:npc_only"]
-use_blockers = ["configuration:mana_potions_disabled", "context:npc_only"]
+blockers = ["configuration:mana_potions_disabled", "consumable:skill:10001:1:item:728", "context:npc_only"]
+use_blockers = ["configuration:mana_potions_disabled", "consumable:skill:10001:1:item:728", "context:npc_only"]
 
 [[items]]
 template_id = 729
@@ -6356,15 +6356,15 @@ use_blockers = ["use:no_handler"]
 template_id = 1829
 admitted = false
 storable = true
-blockers = ["skill:2040:1"]
-use_blockers = ["skill:2040:1"]
+blockers = ["consumable:skill:2040:1:item:1829", "skill:2040:1"]
+use_blockers = ["consumable:skill:2040:1:item:1829", "skill:2040:1"]
 
 [[items]]
 template_id = 1830
 admitted = false
 storable = true
-blockers = ["skill:2041:1"]
-use_blockers = ["skill:2041:1"]
+blockers = ["consumable:skill:2041:1:item:1830", "skill:2041:1"]
+use_blockers = ["consumable:skill:2041:1:item:1830", "skill:2041:1"]
 
 [[items]]
 template_id = 1831
@@ -10850,99 +10850,99 @@ use_blockers = ["skill:2103:1"]
 template_id = 5235
 admitted = false
 storable = true
-blockers = ["skill:2122:1"]
-use_blockers = ["skill:2122:1"]
+blockers = ["consumable:skill:2122:1:item:5235", "skill:2122:1"]
+use_blockers = ["consumable:skill:2122:1:item:5235", "skill:2122:1"]
 
 [[items]]
 template_id = 5236
 admitted = false
 storable = true
-blockers = ["skill:2123:1"]
-use_blockers = ["skill:2123:1"]
+blockers = ["consumable:skill:2123:1:item:5236", "skill:2123:1"]
+use_blockers = ["consumable:skill:2123:1:item:5236", "skill:2123:1"]
 
 [[items]]
 template_id = 5237
 admitted = false
 storable = true
-blockers = ["skill:2124:1"]
-use_blockers = ["skill:2124:1"]
+blockers = ["consumable:skill:2124:1:item:5237", "skill:2124:1"]
+use_blockers = ["consumable:skill:2124:1:item:5237", "skill:2124:1"]
 
 [[items]]
 template_id = 5238
 admitted = false
 storable = true
-blockers = ["skill:2125:1"]
-use_blockers = ["skill:2125:1"]
+blockers = ["consumable:skill:2125:1:item:5238", "skill:2125:1"]
+use_blockers = ["consumable:skill:2125:1:item:5238", "skill:2125:1"]
 
 [[items]]
 template_id = 5239
 admitted = false
 storable = true
-blockers = ["skill:2126:1"]
-use_blockers = ["skill:2126:1"]
+blockers = ["consumable:skill:2126:1:item:5239", "skill:2126:1"]
+use_blockers = ["consumable:skill:2126:1:item:5239", "skill:2126:1"]
 
 [[items]]
 template_id = 5240
 admitted = false
 storable = true
-blockers = ["skill:2127:1"]
-use_blockers = ["skill:2127:1"]
+blockers = ["consumable:skill:2127:1:item:5240", "skill:2127:1"]
+use_blockers = ["consumable:skill:2127:1:item:5240", "skill:2127:1"]
 
 [[items]]
 template_id = 5241
 admitted = false
 storable = true
-blockers = ["skill:2128:1"]
-use_blockers = ["skill:2128:1"]
+blockers = ["consumable:skill:2128:1:item:5241", "skill:2128:1"]
+use_blockers = ["consumable:skill:2128:1:item:5241", "skill:2128:1"]
 
 [[items]]
 template_id = 5242
 admitted = false
 storable = true
-blockers = ["skill:2129:1"]
-use_blockers = ["skill:2129:1"]
+blockers = ["consumable:skill:2129:1:item:5242", "skill:2129:1"]
+use_blockers = ["consumable:skill:2129:1:item:5242", "skill:2129:1"]
 
 [[items]]
 template_id = 5243
 admitted = false
 storable = true
-blockers = ["skill:2130:1"]
-use_blockers = ["skill:2130:1"]
+blockers = ["consumable:skill:2130:1:item:5243", "skill:2130:1"]
+use_blockers = ["consumable:skill:2130:1:item:5243", "skill:2130:1"]
 
 [[items]]
 template_id = 5244
 admitted = false
 storable = true
-blockers = ["skill:2131:1"]
-use_blockers = ["skill:2131:1"]
+blockers = ["consumable:skill:2131:1:item:5244", "skill:2131:1"]
+use_blockers = ["consumable:skill:2131:1:item:5244", "skill:2131:1"]
 
 [[items]]
 template_id = 5245
 admitted = false
 storable = true
-blockers = ["skill:2132:1"]
-use_blockers = ["skill:2132:1"]
+blockers = ["consumable:skill:2132:1:item:5245", "skill:2132:1"]
+use_blockers = ["consumable:skill:2132:1:item:5245", "skill:2132:1"]
 
 [[items]]
 template_id = 5246
 admitted = false
 storable = true
-blockers = ["skill:2133:1"]
-use_blockers = ["skill:2133:1"]
+blockers = ["consumable:skill:2133:1:item:5246", "skill:2133:1"]
+use_blockers = ["consumable:skill:2133:1:item:5246", "skill:2133:1"]
 
 [[items]]
 template_id = 5247
 admitted = false
 storable = true
-blockers = ["skill:2134:1"]
-use_blockers = ["skill:2134:1"]
+blockers = ["consumable:skill:2134:1:item:5247", "skill:2134:1"]
+use_blockers = ["consumable:skill:2134:1:item:5247", "skill:2134:1"]
 
 [[items]]
 template_id = 5248
 admitted = false
 storable = true
-blockers = ["skill:2135:1"]
-use_blockers = ["skill:2135:1"]
+blockers = ["consumable:skill:2135:1:item:5248", "skill:2135:1"]
+use_blockers = ["consumable:skill:2135:1:item:5248", "skill:2135:1"]
 
 [[items]]
 template_id = 5283
@@ -12299,15 +12299,15 @@ use_blockers = []
 template_id = 5858
 admitted = false
 storable = true
-blockers = ["skill:2177:1"]
-use_blockers = ["skill:2177:1"]
+blockers = ["consumable:skill:2177:1:item:5858", "skill:2177:1"]
+use_blockers = ["consumable:skill:2177:1:item:5858", "skill:2177:1"]
 
 [[items]]
 template_id = 5859
 admitted = false
 storable = true
-blockers = ["skill:2178:1"]
-use_blockers = ["skill:2178:1"]
+blockers = ["consumable:skill:2178:1:item:5859", "skill:2178:1"]
+use_blockers = ["consumable:skill:2178:1:item:5859", "skill:2178:1"]
 
 [[items]]
 template_id = 5908
@@ -12677,8 +12677,8 @@ use_blockers = []
 template_id = 6387
 admitted = false
 storable = true
-blockers = ["skill:2179:1"]
-use_blockers = ["skill:2179:1"]
+blockers = ["consumable:skill:2179:1:item:6387", "skill:2179:1"]
+use_blockers = ["consumable:skill:2179:1:item:6387", "skill:2179:1"]
 
 [[items]]
 template_id = 6394
@@ -15484,99 +15484,99 @@ use_blockers = ["handler:SummonItems", "skill:2103:1"]
 template_id = 8664
 admitted = false
 storable = true
-blockers = ["skill:2291:1"]
-use_blockers = ["skill:2291:1"]
+blockers = ["consumable:skill:2291:1:item:8664", "skill:2291:1"]
+use_blockers = ["consumable:skill:2291:1:item:8664", "skill:2291:1"]
 
 [[items]]
 template_id = 8665
 admitted = false
 storable = true
-blockers = ["skill:2292:1"]
-use_blockers = ["skill:2292:1"]
+blockers = ["consumable:skill:2292:1:item:8665", "skill:2292:1"]
+use_blockers = ["consumable:skill:2292:1:item:8665", "skill:2292:1"]
 
 [[items]]
 template_id = 8666
 admitted = false
 storable = true
-blockers = ["skill:2293:1"]
-use_blockers = ["skill:2293:1"]
+blockers = ["consumable:skill:2293:1:item:8666", "skill:2293:1"]
+use_blockers = ["consumable:skill:2293:1:item:8666", "skill:2293:1"]
 
 [[items]]
 template_id = 8667
 admitted = false
 storable = true
-blockers = ["skill:2294:1"]
-use_blockers = ["skill:2294:1"]
+blockers = ["consumable:skill:2294:1:item:8667", "skill:2294:1"]
+use_blockers = ["consumable:skill:2294:1:item:8667", "skill:2294:1"]
 
 [[items]]
 template_id = 8668
 admitted = false
 storable = true
-blockers = ["skill:2295:1"]
-use_blockers = ["skill:2295:1"]
+blockers = ["consumable:skill:2295:1:item:8668", "skill:2295:1"]
+use_blockers = ["consumable:skill:2295:1:item:8668", "skill:2295:1"]
 
 [[items]]
 template_id = 8669
 admitted = false
 storable = true
-blockers = ["skill:2296:1"]
-use_blockers = ["skill:2296:1"]
+blockers = ["consumable:skill:2296:1:item:8669", "skill:2296:1"]
+use_blockers = ["consumable:skill:2296:1:item:8669", "skill:2296:1"]
 
 [[items]]
 template_id = 8670
 admitted = false
 storable = true
-blockers = ["skill:2297:1"]
-use_blockers = ["skill:2297:1"]
+blockers = ["consumable:skill:2297:1:item:8670", "skill:2297:1"]
+use_blockers = ["consumable:skill:2297:1:item:8670", "skill:2297:1"]
 
 [[items]]
 template_id = 8671
 admitted = false
 storable = true
-blockers = ["skill:2298:1"]
-use_blockers = ["skill:2298:1"]
+blockers = ["consumable:skill:2298:1:item:8671", "skill:2298:1"]
+use_blockers = ["consumable:skill:2298:1:item:8671", "skill:2298:1"]
 
 [[items]]
 template_id = 8672
 admitted = false
 storable = true
-blockers = ["skill:2299:1"]
-use_blockers = ["skill:2299:1"]
+blockers = ["consumable:skill:2299:1:item:8672", "skill:2299:1"]
+use_blockers = ["consumable:skill:2299:1:item:8672", "skill:2299:1"]
 
 [[items]]
 template_id = 8673
 admitted = false
 storable = true
-blockers = ["skill:2300:1"]
-use_blockers = ["skill:2300:1"]
+blockers = ["consumable:skill:2300:1:item:8673", "skill:2300:1"]
+use_blockers = ["consumable:skill:2300:1:item:8673", "skill:2300:1"]
 
 [[items]]
 template_id = 8674
 admitted = false
 storable = true
-blockers = ["skill:2301:1"]
-use_blockers = ["skill:2301:1"]
+blockers = ["consumable:skill:2301:1:item:8674", "skill:2301:1"]
+use_blockers = ["consumable:skill:2301:1:item:8674", "skill:2301:1"]
 
 [[items]]
 template_id = 8675
 admitted = false
 storable = true
-blockers = ["skill:2302:1"]
-use_blockers = ["skill:2302:1"]
+blockers = ["consumable:skill:2302:1:item:8675", "skill:2302:1"]
+use_blockers = ["consumable:skill:2302:1:item:8675", "skill:2302:1"]
 
 [[items]]
 template_id = 8676
 admitted = false
 storable = true
-blockers = ["skill:2303:1"]
-use_blockers = ["skill:2303:1"]
+blockers = ["consumable:skill:2303:1:item:8676", "skill:2303:1"]
+use_blockers = ["consumable:skill:2303:1:item:8676", "skill:2303:1"]
 
 [[items]]
 template_id = 8677
 admitted = false
 storable = true
-blockers = ["skill:2304:1"]
-use_blockers = ["skill:2304:1"]
+blockers = ["consumable:skill:2304:1:item:8677", "skill:2304:1"]
+use_blockers = ["consumable:skill:2304:1:item:8677", "skill:2304:1"]
 
 [[items]]
 template_id = 8678
@@ -20447,15 +20447,15 @@ use_blockers = []
 template_id = 9688
 admitted = false
 storable = true
-blockers = ["condition:player:SiegeZone", "skill:2342:1"]
-use_blockers = ["condition:player:SiegeZone", "skill:2342:1"]
+blockers = ["condition:player:SiegeZone", "consumable:skill:2342:1:item:9688", "skill:2342:1"]
+use_blockers = ["condition:player:SiegeZone", "consumable:skill:2342:1:item:9688", "skill:2342:1"]
 
 [[items]]
 template_id = 9689
 admitted = false
 storable = false
-blockers = ["context:npc_only", "skill:2368:1"]
-use_blockers = ["context:npc_only", "skill:2368:1"]
+blockers = ["consumable:skill:2368:1:item:9689", "context:npc_only", "skill:2368:1"]
+use_blockers = ["consumable:skill:2368:1:item:9689", "context:npc_only", "skill:2368:1"]
 
 [[items]]
 template_id = 9702
@@ -20468,8 +20468,8 @@ use_blockers = ["context:npc_only"]
 template_id = 9713
 admitted = false
 storable = true
-blockers = ["skill:2353:1"]
-use_blockers = ["skill:2353:1"]
+blockers = ["consumable:skill:2353:1:item:9713", "skill:2353:1"]
+use_blockers = ["consumable:skill:2353:1:item:9713", "skill:2353:1"]
 
 [[items]]
 template_id = 9720
@@ -21679,15 +21679,15 @@ use_blockers = ["context:npc_only"]
 template_id = 10129
 admitted = false
 storable = true
-blockers = ["skill:2365:1"]
-use_blockers = ["skill:2365:1"]
+blockers = ["consumable:skill:2365:1:item:10129", "skill:2365:1"]
+use_blockers = ["consumable:skill:2365:1:item:10129", "skill:2365:1"]
 
 [[items]]
 template_id = 10130
 admitted = false
 storable = true
-blockers = ["skill:2364:1"]
-use_blockers = ["skill:2364:1"]
+blockers = ["consumable:skill:2364:1:item:10130", "skill:2364:1"]
+use_blockers = ["consumable:skill:2364:1:item:10130", "skill:2364:1"]
 
 [[items]]
 template_id = 10139
@@ -21721,15 +21721,15 @@ use_blockers = ["context:shadow", "property:unequip_skill", "skill:3336:1", "slo
 template_id = 10149
 admitted = false
 storable = true
-blockers = ["condition:player:SiegeZone"]
-use_blockers = ["condition:player:SiegeZone"]
+blockers = ["condition:player:SiegeZone", "consumable:skill:2392:1:item:10149"]
+use_blockers = ["condition:player:SiegeZone", "consumable:skill:2392:1:item:10149"]
 
 [[items]]
 template_id = 10150
 admitted = false
 storable = true
-blockers = ["condition:player:SiegeZone"]
-use_blockers = ["condition:player:SiegeZone"]
+blockers = ["condition:player:SiegeZone", "consumable:skill:2393:1:item:10150"]
+use_blockers = ["condition:player:SiegeZone", "consumable:skill:2393:1:item:10150"]
 
 [[items]]
 template_id = 10152
@@ -21784,8 +21784,8 @@ use_blockers = ["context:shadow", "skill:3315:1", "slot:deco1"]
 template_id = 10159
 admitted = false
 storable = true
-blockers = ["condition:player:SiegeZone"]
-use_blockers = ["condition:player:SiegeZone"]
+blockers = ["condition:player:SiegeZone", "consumable:skill:2399:1:item:10159"]
+use_blockers = ["condition:player:SiegeZone", "consumable:skill:2399:1:item:10159"]
 
 [[items]]
 template_id = 10166
@@ -35049,8 +35049,8 @@ use_blockers = ["condition:player:categoryType", "context:npc_only"]
 template_id = 12753
 admitted = false
 storable = true
-blockers = ["skill:2525:1"]
-use_blockers = ["skill:2525:1"]
+blockers = ["consumable:skill:2525:1:item:12753", "skill:2525:1"]
+use_blockers = ["consumable:skill:2525:1:item:12753", "skill:2525:1"]
 
 [[items]]
 template_id = 12754
@@ -36841,8 +36841,8 @@ use_blockers = ["skill:8310:1"]
 template_id = 13129
 admitted = false
 storable = true
-blockers = ["condition:player:instanceId"]
-use_blockers = ["condition:player:instanceId"]
+blockers = ["condition:player:instanceId", "consumable:skill:2594:1:item:13129"]
+use_blockers = ["condition:player:instanceId", "consumable:skill:2594:1:item:13129"]
 
 [[items]]
 template_id = 13137
@@ -37940,15 +37940,15 @@ use_blockers = []
 template_id = 13420
 admitted = false
 storable = true
-blockers = ["skill:2645:1"]
-use_blockers = ["skill:2645:1"]
+blockers = ["consumable:skill:2645:1:item:13420", "skill:2645:1"]
+use_blockers = ["consumable:skill:2645:1:item:13420", "skill:2645:1"]
 
 [[items]]
 template_id = 13421
 admitted = false
 storable = true
-blockers = ["skill:2646:1"]
-use_blockers = ["skill:2646:1"]
+blockers = ["consumable:skill:2646:1:item:13421", "skill:2646:1"]
+use_blockers = ["consumable:skill:2646:1:item:13421", "skill:2646:1"]
 
 [[items]]
 template_id = 13429
@@ -38885,64 +38885,64 @@ use_blockers = ["condition:player:castle", "condition:player:cloakStatus", "cond
 template_id = 13731
 admitted = false
 storable = true
-blockers = ["skill:2649:1"]
-use_blockers = ["skill:2649:1"]
+blockers = ["consumable:skill:2649:1:item:13731", "skill:2649:1"]
+use_blockers = ["consumable:skill:2649:1:item:13731", "skill:2649:1"]
 
 [[items]]
 template_id = 13732
 admitted = false
 storable = true
-blockers = ["skill:2649:2"]
-use_blockers = ["skill:2649:2"]
+blockers = ["consumable:skill:2649:2:item:13732", "skill:2649:2"]
+use_blockers = ["consumable:skill:2649:2:item:13732", "skill:2649:2"]
 
 [[items]]
 template_id = 13733
 admitted = false
 storable = true
-blockers = ["skill:2649:3"]
-use_blockers = ["skill:2649:3"]
+blockers = ["consumable:skill:2649:3:item:13733", "skill:2649:3"]
+use_blockers = ["consumable:skill:2649:3:item:13733", "skill:2649:3"]
 
 [[items]]
 template_id = 13734
 admitted = false
 storable = true
-blockers = ["skill:2649:5"]
-use_blockers = ["skill:2649:5"]
+blockers = ["consumable:skill:2649:5:item:13734", "skill:2649:5"]
+use_blockers = ["consumable:skill:2649:5:item:13734", "skill:2649:5"]
 
 [[items]]
 template_id = 13735
 admitted = false
 storable = true
-blockers = ["skill:2649:6"]
-use_blockers = ["skill:2649:6"]
+blockers = ["consumable:skill:2649:6:item:13735", "skill:2649:6"]
+use_blockers = ["consumable:skill:2649:6:item:13735", "skill:2649:6"]
 
 [[items]]
 template_id = 13736
 admitted = false
 storable = true
-blockers = ["skill:2649:4"]
-use_blockers = ["skill:2649:4"]
+blockers = ["consumable:skill:2649:4:item:13736", "skill:2649:4"]
+use_blockers = ["consumable:skill:2649:4:item:13736", "skill:2649:4"]
 
 [[items]]
 template_id = 13737
 admitted = false
 storable = true
-blockers = ["skill:2649:7"]
-use_blockers = ["skill:2649:7"]
+blockers = ["consumable:skill:2649:7:item:13737", "skill:2649:7"]
+use_blockers = ["consumable:skill:2649:7:item:13737", "skill:2649:7"]
 
 [[items]]
 template_id = 13738
 admitted = false
 storable = true
-blockers = ["skill:2649:8"]
-use_blockers = ["skill:2649:8"]
+blockers = ["consumable:skill:2649:8:item:13738", "skill:2649:8"]
+use_blockers = ["consumable:skill:2649:8:item:13738", "skill:2649:8"]
 
 [[items]]
 template_id = 13739
 admitted = false
 storable = true
-blockers = ["skill:2649:9"]
-use_blockers = ["skill:2649:9"]
+blockers = ["consumable:skill:2649:9:item:13739", "skill:2649:9"]
+use_blockers = ["consumable:skill:2649:9:item:13739", "skill:2649:9"]
 
 [[items]]
 template_id = 13740
@@ -42168,15 +42168,15 @@ use_blockers = []
 template_id = 14614
 admitted = false
 storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+blockers = ["consumable:skill:2856:1:item:14614", "context:npc_only"]
+use_blockers = ["consumable:skill:2856:1:item:14614", "context:npc_only"]
 
 [[items]]
 template_id = 14615
 admitted = false
 storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+blockers = ["consumable:skill:2857:1:item:14615", "context:npc_only"]
+use_blockers = ["consumable:skill:2857:1:item:14615", "context:npc_only"]
 
 [[items]]
 template_id = 14617
@@ -42364,141 +42364,141 @@ use_blockers = ["context:time_limited", "property:unequip_skill", "skill:3267:1"
 template_id = 14682
 admitted = false
 storable = true
-blockers = ["skill:2860:1"]
-use_blockers = ["skill:2860:1"]
+blockers = ["consumable:skill:2860:1:item:14682", "skill:2860:1"]
+use_blockers = ["consumable:skill:2860:1:item:14682", "skill:2860:1"]
 
 [[items]]
 template_id = 14683
 admitted = false
 storable = true
-blockers = ["skill:2860:2"]
-use_blockers = ["skill:2860:2"]
+blockers = ["consumable:skill:2860:2:item:14683", "skill:2860:2"]
+use_blockers = ["consumable:skill:2860:2:item:14683", "skill:2860:2"]
 
 [[items]]
 template_id = 14684
 admitted = false
 storable = true
-blockers = ["skill:2860:3"]
-use_blockers = ["skill:2860:3"]
+blockers = ["consumable:skill:2860:3:item:14684", "skill:2860:3"]
+use_blockers = ["consumable:skill:2860:3:item:14684", "skill:2860:3"]
 
 [[items]]
 template_id = 14685
 admitted = false
 storable = true
-blockers = ["skill:2860:4"]
-use_blockers = ["skill:2860:4"]
+blockers = ["consumable:skill:2860:4:item:14685", "skill:2860:4"]
+use_blockers = ["consumable:skill:2860:4:item:14685", "skill:2860:4"]
 
 [[items]]
 template_id = 14686
 admitted = false
 storable = true
-blockers = ["skill:2860:5"]
-use_blockers = ["skill:2860:5"]
+blockers = ["consumable:skill:2860:5:item:14686", "skill:2860:5"]
+use_blockers = ["consumable:skill:2860:5:item:14686", "skill:2860:5"]
 
 [[items]]
 template_id = 14687
 admitted = false
 storable = true
-blockers = ["skill:2860:6"]
-use_blockers = ["skill:2860:6"]
+blockers = ["consumable:skill:2860:6:item:14687", "skill:2860:6"]
+use_blockers = ["consumable:skill:2860:6:item:14687", "skill:2860:6"]
 
 [[items]]
 template_id = 14688
 admitted = false
 storable = true
-blockers = ["skill:2861:1"]
-use_blockers = ["skill:2861:1"]
+blockers = ["consumable:skill:2861:1:item:14688", "skill:2861:1"]
+use_blockers = ["consumable:skill:2861:1:item:14688", "skill:2861:1"]
 
 [[items]]
 template_id = 14689
 admitted = false
 storable = true
-blockers = ["skill:2861:2"]
-use_blockers = ["skill:2861:2"]
+blockers = ["consumable:skill:2861:2:item:14689", "skill:2861:2"]
+use_blockers = ["consumable:skill:2861:2:item:14689", "skill:2861:2"]
 
 [[items]]
 template_id = 14690
 admitted = false
 storable = true
-blockers = ["skill:2861:3"]
-use_blockers = ["skill:2861:3"]
+blockers = ["consumable:skill:2861:3:item:14690", "skill:2861:3"]
+use_blockers = ["consumable:skill:2861:3:item:14690", "skill:2861:3"]
 
 [[items]]
 template_id = 14691
 admitted = false
 storable = true
-blockers = ["skill:2861:4"]
-use_blockers = ["skill:2861:4"]
+blockers = ["consumable:skill:2861:4:item:14691", "skill:2861:4"]
+use_blockers = ["consumable:skill:2861:4:item:14691", "skill:2861:4"]
 
 [[items]]
 template_id = 14692
 admitted = false
 storable = true
-blockers = ["skill:2861:5"]
-use_blockers = ["skill:2861:5"]
+blockers = ["consumable:skill:2861:5:item:14692", "skill:2861:5"]
+use_blockers = ["consumable:skill:2861:5:item:14692", "skill:2861:5"]
 
 [[items]]
 template_id = 14693
 admitted = false
 storable = true
-blockers = ["skill:2861:6"]
-use_blockers = ["skill:2861:6"]
+blockers = ["consumable:skill:2861:6:item:14693", "skill:2861:6"]
+use_blockers = ["consumable:skill:2861:6:item:14693", "skill:2861:6"]
 
 [[items]]
 template_id = 14694
 admitted = false
 storable = true
-blockers = ["skill:2862:1"]
-use_blockers = ["skill:2862:1"]
+blockers = ["consumable:skill:2862:1:item:14694", "skill:2862:1"]
+use_blockers = ["consumable:skill:2862:1:item:14694", "skill:2862:1"]
 
 [[items]]
 template_id = 14695
 admitted = false
 storable = true
-blockers = ["skill:2862:2"]
-use_blockers = ["skill:2862:2"]
+blockers = ["consumable:skill:2862:2:item:14695", "skill:2862:2"]
+use_blockers = ["consumable:skill:2862:2:item:14695", "skill:2862:2"]
 
 [[items]]
 template_id = 14696
 admitted = false
 storable = true
-blockers = ["skill:2862:3"]
-use_blockers = ["skill:2862:3"]
+blockers = ["consumable:skill:2862:3:item:14696", "skill:2862:3"]
+use_blockers = ["consumable:skill:2862:3:item:14696", "skill:2862:3"]
 
 [[items]]
 template_id = 14697
 admitted = false
 storable = true
-blockers = ["skill:2862:4"]
-use_blockers = ["skill:2862:4"]
+blockers = ["consumable:skill:2862:4:item:14697", "skill:2862:4"]
+use_blockers = ["consumable:skill:2862:4:item:14697", "skill:2862:4"]
 
 [[items]]
 template_id = 14698
 admitted = false
 storable = true
-blockers = ["skill:2862:5"]
-use_blockers = ["skill:2862:5"]
+blockers = ["consumable:skill:2862:5:item:14698", "skill:2862:5"]
+use_blockers = ["consumable:skill:2862:5:item:14698", "skill:2862:5"]
 
 [[items]]
 template_id = 14699
 admitted = false
 storable = true
-blockers = ["skill:2862:6"]
-use_blockers = ["skill:2862:6"]
+blockers = ["consumable:skill:2862:6:item:14699", "skill:2862:6"]
+use_blockers = ["consumable:skill:2862:6:item:14699", "skill:2862:6"]
 
 [[items]]
 template_id = 14700
 admitted = false
 storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+blockers = ["consumable:skill:2863:1:item:14700", "context:npc_only"]
+use_blockers = ["consumable:skill:2863:1:item:14700", "context:npc_only"]
 
 [[items]]
 template_id = 14701
 admitted = false
 storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+blockers = ["consumable:skill:2864:1:item:14701", "context:npc_only"]
+use_blockers = ["consumable:skill:2864:1:item:14701", "context:npc_only"]
 
 [[items]]
 template_id = 14702
@@ -42616,22 +42616,22 @@ use_blockers = ["use:no_handler"]
 template_id = 14742
 admitted = false
 storable = true
-blockers = ["skill:2883:1"]
-use_blockers = ["skill:2883:1"]
+blockers = ["consumable:skill:2883:1:item:14742", "skill:2883:1"]
+use_blockers = ["consumable:skill:2883:1:item:14742", "skill:2883:1"]
 
 [[items]]
 template_id = 14743
 admitted = false
 storable = true
-blockers = ["skill:2884:1"]
-use_blockers = ["skill:2884:1"]
+blockers = ["consumable:skill:2884:1:item:14743", "skill:2884:1"]
+use_blockers = ["consumable:skill:2884:1:item:14743", "skill:2884:1"]
 
 [[items]]
 template_id = 14744
 admitted = false
 storable = true
-blockers = ["skill:9166:1"]
-use_blockers = ["skill:9166:1"]
+blockers = ["consumable:skill:9166:1:item:14744", "skill:9166:1"]
+use_blockers = ["consumable:skill:9166:1:item:14744", "skill:9166:1"]
 
 [[items]]
 template_id = 14745
@@ -42777,8 +42777,8 @@ use_blockers = ["context:shadow"]
 template_id = 14769
 admitted = false
 storable = true
-blockers = ["skill:2894:1"]
-use_blockers = ["skill:2894:1"]
+blockers = ["consumable:skill:2894:1:item:14769", "skill:2894:1"]
+use_blockers = ["consumable:skill:2894:1:item:14769", "skill:2894:1"]
 
 [[items]]
 template_id = 14770
@@ -43099,8 +43099,8 @@ use_blockers = ["condition:player:SiegeZone", "skill:2909:5"]
 template_id = 14832
 admitted = false
 storable = true
-blockers = ["skill:2905:1"]
-use_blockers = ["skill:2905:1"]
+blockers = ["consumable:skill:2905:1:item:14832", "skill:2905:1"]
+use_blockers = ["consumable:skill:2905:1:item:14832", "skill:2905:1"]
 
 [[items]]
 template_id = 14922
@@ -45402,15 +45402,15 @@ use_blockers = ["context:npc_only"]
 template_id = 15379
 admitted = false
 storable = true
-blockers = ["skill:9038:1"]
-use_blockers = ["skill:9038:1"]
+blockers = ["consumable:skill:9038:1:item:15379", "skill:9038:1"]
+use_blockers = ["consumable:skill:9038:1:item:15379", "skill:9038:1"]
 
 [[items]]
 template_id = 15380
 admitted = false
 storable = true
-blockers = ["skill:9039:1"]
-use_blockers = ["skill:9039:1"]
+blockers = ["consumable:skill:9039:1:item:15380", "skill:9039:1"]
+use_blockers = ["consumable:skill:9039:1:item:15380", "skill:9039:1"]
 
 [[items]]
 template_id = 15381
@@ -45605,15 +45605,15 @@ use_blockers = ["context:time_limited", "property:unequip_skill", "skill:8246:1"
 template_id = 15438
 admitted = false
 storable = true
-blockers = ["skill:9067:1"]
-use_blockers = ["skill:9067:1"]
+blockers = ["consumable:skill:9067:1:item:15438", "skill:9067:1"]
+use_blockers = ["consumable:skill:9067:1:item:15438", "skill:9067:1"]
 
 [[items]]
 template_id = 15440
 admitted = false
 storable = true
-blockers = ["skill:9068:2"]
-use_blockers = ["skill:9068:2"]
+blockers = ["consumable:skill:9068:2:item:15440", "skill:9068:2"]
+use_blockers = ["consumable:skill:9068:2:item:15440", "skill:9068:2"]
 
 [[items]]
 template_id = 15441
@@ -49966,36 +49966,36 @@ use_blockers = ["property:unequip_skill", "skill:3267:1", "skill:5959:1", "skill
 template_id = 16403
 admitted = false
 storable = true
-blockers = ["skill:9081:1"]
-use_blockers = ["skill:9081:1"]
+blockers = ["consumable:skill:9081:1:item:16403", "skill:9081:1"]
+use_blockers = ["consumable:skill:9081:1:item:16403", "skill:9081:1"]
 
 [[items]]
 template_id = 16404
 admitted = false
 storable = true
-blockers = ["skill:9082:1"]
-use_blockers = ["skill:9082:1"]
+blockers = ["consumable:skill:9082:1:item:16404", "skill:9082:1"]
+use_blockers = ["consumable:skill:9082:1:item:16404", "skill:9082:1"]
 
 [[items]]
 template_id = 16405
 admitted = false
 storable = true
-blockers = ["skill:9083:1"]
-use_blockers = ["skill:9083:1"]
+blockers = ["consumable:skill:9083:1:item:16405", "skill:9083:1"]
+use_blockers = ["consumable:skill:9083:1:item:16405", "skill:9083:1"]
 
 [[items]]
 template_id = 16406
 admitted = false
 storable = true
-blockers = ["skill:9084:1"]
-use_blockers = ["skill:9084:1"]
+blockers = ["consumable:skill:9084:1:item:16406", "skill:9084:1"]
+use_blockers = ["consumable:skill:9084:1:item:16406", "skill:9084:1"]
 
 [[items]]
 template_id = 16408
 admitted = false
 storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+blockers = ["consumable:skill:9079:1:item:16408", "context:npc_only"]
+use_blockers = ["consumable:skill:9079:1:item:16408", "context:npc_only"]
 
 [[items]]
 template_id = 16837
@@ -51128,253 +51128,253 @@ use_blockers = []
 template_id = 17094
 admitted = false
 storable = true
-blockers = ["skill:9114:1"]
-use_blockers = ["skill:9114:1"]
+blockers = ["consumable:skill:9114:1:item:17094", "skill:9114:1"]
+use_blockers = ["consumable:skill:9114:1:item:17094", "skill:9114:1"]
 
 [[items]]
 template_id = 17095
 admitted = false
 storable = true
-blockers = ["condition:player:levelRange", "skill:9115:1"]
-use_blockers = ["condition:player:levelRange", "skill:9115:1"]
+blockers = ["condition:player:levelRange", "consumable:skill:9115:1:item:17095", "skill:9115:1"]
+use_blockers = ["condition:player:levelRange", "consumable:skill:9115:1:item:17095", "skill:9115:1"]
 
 [[items]]
 template_id = 17096
 admitted = false
 storable = true
-blockers = ["condition:player:levelRange", "skill:9116:1"]
-use_blockers = ["condition:player:levelRange", "skill:9116:1"]
+blockers = ["condition:player:levelRange", "consumable:skill:9116:1:item:17096", "skill:9116:1"]
+use_blockers = ["condition:player:levelRange", "consumable:skill:9116:1:item:17096", "skill:9116:1"]
 
 [[items]]
 template_id = 17097
 admitted = false
 storable = true
-blockers = ["condition:player:levelRange", "skill:9117:1"]
-use_blockers = ["condition:player:levelRange", "skill:9117:1"]
+blockers = ["condition:player:levelRange", "consumable:skill:9117:1:item:17097", "skill:9117:1"]
+use_blockers = ["condition:player:levelRange", "consumable:skill:9117:1:item:17097", "skill:9117:1"]
 
 [[items]]
 template_id = 17098
 admitted = false
 storable = true
-blockers = ["condition:player:levelRange", "skill:9118:1"]
-use_blockers = ["condition:player:levelRange", "skill:9118:1"]
+blockers = ["condition:player:levelRange", "consumable:skill:9118:1:item:17098", "skill:9118:1"]
+use_blockers = ["condition:player:levelRange", "consumable:skill:9118:1:item:17098", "skill:9118:1"]
 
 [[items]]
 template_id = 17099
 admitted = false
 storable = true
-blockers = ["condition:player:levelRange", "skill:9119:1"]
-use_blockers = ["condition:player:levelRange", "skill:9119:1"]
+blockers = ["condition:player:levelRange", "consumable:skill:9119:1:item:17099", "skill:9119:1"]
+use_blockers = ["condition:player:levelRange", "consumable:skill:9119:1:item:17099", "skill:9119:1"]
 
 [[items]]
 template_id = 17100
 admitted = false
 storable = true
-blockers = ["condition:player:levelRange", "skill:9120:1"]
-use_blockers = ["condition:player:levelRange", "skill:9120:1"]
+blockers = ["condition:player:levelRange", "consumable:skill:9120:1:item:17100", "skill:9120:1"]
+use_blockers = ["condition:player:levelRange", "consumable:skill:9120:1:item:17100", "skill:9120:1"]
 
 [[items]]
 template_id = 17101
 admitted = false
 storable = true
-blockers = ["condition:player:levelRange", "skill:9121:1"]
-use_blockers = ["condition:player:levelRange", "skill:9121:1"]
+blockers = ["condition:player:levelRange", "consumable:skill:9121:1:item:17101", "skill:9121:1"]
+use_blockers = ["condition:player:levelRange", "consumable:skill:9121:1:item:17101", "skill:9121:1"]
 
 [[items]]
 template_id = 17102
 admitted = false
 storable = true
-blockers = ["condition:player:levelRange", "skill:9122:1"]
-use_blockers = ["condition:player:levelRange", "skill:9122:1"]
+blockers = ["condition:player:levelRange", "consumable:skill:9122:1:item:17102", "skill:9122:1"]
+use_blockers = ["condition:player:levelRange", "consumable:skill:9122:1:item:17102", "skill:9122:1"]
 
 [[items]]
 template_id = 17103
 admitted = false
 storable = true
-blockers = ["condition:player:levelRange", "skill:9123:1"]
-use_blockers = ["condition:player:levelRange", "skill:9123:1"]
+blockers = ["condition:player:levelRange", "consumable:skill:9123:1:item:17103", "skill:9123:1"]
+use_blockers = ["condition:player:levelRange", "consumable:skill:9123:1:item:17103", "skill:9123:1"]
 
 [[items]]
 template_id = 17104
 admitted = false
 storable = true
-blockers = ["condition:player:levelRange", "skill:9124:1"]
-use_blockers = ["condition:player:levelRange", "skill:9124:1"]
+blockers = ["condition:player:levelRange", "consumable:skill:9124:1:item:17104", "skill:9124:1"]
+use_blockers = ["condition:player:levelRange", "consumable:skill:9124:1:item:17104", "skill:9124:1"]
 
 [[items]]
 template_id = 17105
 admitted = false
 storable = true
-blockers = ["condition:player:levelRange", "skill:9125:1"]
-use_blockers = ["condition:player:levelRange", "skill:9125:1"]
+blockers = ["condition:player:levelRange", "consumable:skill:9125:1:item:17105", "skill:9125:1"]
+use_blockers = ["condition:player:levelRange", "consumable:skill:9125:1:item:17105", "skill:9125:1"]
 
 [[items]]
 template_id = 17106
 admitted = false
 storable = true
-blockers = ["condition:player:levelRange", "skill:9126:1"]
-use_blockers = ["condition:player:levelRange", "skill:9126:1"]
+blockers = ["condition:player:levelRange", "consumable:skill:9126:1:item:17106", "skill:9126:1"]
+use_blockers = ["condition:player:levelRange", "consumable:skill:9126:1:item:17106", "skill:9126:1"]
 
 [[items]]
 template_id = 17107
 admitted = false
 storable = true
-blockers = ["condition:player:levelRange", "skill:9127:1"]
-use_blockers = ["condition:player:levelRange", "skill:9127:1"]
+blockers = ["condition:player:levelRange", "consumable:skill:9127:1:item:17107", "skill:9127:1"]
+use_blockers = ["condition:player:levelRange", "consumable:skill:9127:1:item:17107", "skill:9127:1"]
 
 [[items]]
 template_id = 17108
 admitted = false
 storable = true
-blockers = ["condition:player:levelRange", "skill:9128:1"]
-use_blockers = ["condition:player:levelRange", "skill:9128:1"]
+blockers = ["condition:player:levelRange", "consumable:skill:9128:1:item:17108", "skill:9128:1"]
+use_blockers = ["condition:player:levelRange", "consumable:skill:9128:1:item:17108", "skill:9128:1"]
 
 [[items]]
 template_id = 17109
 admitted = false
 storable = true
-blockers = ["condition:player:levelRange", "skill:9129:1"]
-use_blockers = ["condition:player:levelRange", "skill:9129:1"]
+blockers = ["condition:player:levelRange", "consumable:skill:9129:1:item:17109", "skill:9129:1"]
+use_blockers = ["condition:player:levelRange", "consumable:skill:9129:1:item:17109", "skill:9129:1"]
 
 [[items]]
 template_id = 17110
 admitted = false
 storable = true
-blockers = ["condition:player:levelRange", "skill:9130:1"]
-use_blockers = ["condition:player:levelRange", "skill:9130:1"]
+blockers = ["condition:player:levelRange", "consumable:skill:9130:1:item:17110", "skill:9130:1"]
+use_blockers = ["condition:player:levelRange", "consumable:skill:9130:1:item:17110", "skill:9130:1"]
 
 [[items]]
 template_id = 17111
 admitted = false
 storable = true
-blockers = ["condition:player:levelRange", "skill:9131:1"]
-use_blockers = ["condition:player:levelRange", "skill:9131:1"]
+blockers = ["condition:player:levelRange", "consumable:skill:9131:1:item:17111", "skill:9131:1"]
+use_blockers = ["condition:player:levelRange", "consumable:skill:9131:1:item:17111", "skill:9131:1"]
 
 [[items]]
 template_id = 17112
 admitted = false
 storable = true
-blockers = ["condition:player:levelRange", "skill:9132:1"]
-use_blockers = ["condition:player:levelRange", "skill:9132:1"]
+blockers = ["condition:player:levelRange", "consumable:skill:9132:1:item:17112", "skill:9132:1"]
+use_blockers = ["condition:player:levelRange", "consumable:skill:9132:1:item:17112", "skill:9132:1"]
 
 [[items]]
 template_id = 17113
 admitted = false
 storable = true
-blockers = ["condition:player:levelRange", "skill:9133:1"]
-use_blockers = ["condition:player:levelRange", "skill:9133:1"]
+blockers = ["condition:player:levelRange", "consumable:skill:9133:1:item:17113", "skill:9133:1"]
+use_blockers = ["condition:player:levelRange", "consumable:skill:9133:1:item:17113", "skill:9133:1"]
 
 [[items]]
 template_id = 17114
 admitted = false
 storable = true
-blockers = ["condition:player:levelRange", "skill:9134:1"]
-use_blockers = ["condition:player:levelRange", "skill:9134:1"]
+blockers = ["condition:player:levelRange", "consumable:skill:9134:1:item:17114", "skill:9134:1"]
+use_blockers = ["condition:player:levelRange", "consumable:skill:9134:1:item:17114", "skill:9134:1"]
 
 [[items]]
 template_id = 17115
 admitted = false
 storable = true
-blockers = ["condition:player:levelRange", "skill:9135:1"]
-use_blockers = ["condition:player:levelRange", "skill:9135:1"]
+blockers = ["condition:player:levelRange", "consumable:skill:9135:1:item:17115", "skill:9135:1"]
+use_blockers = ["condition:player:levelRange", "consumable:skill:9135:1:item:17115", "skill:9135:1"]
 
 [[items]]
 template_id = 17116
 admitted = false
 storable = true
-blockers = ["condition:player:levelRange", "skill:9136:1"]
-use_blockers = ["condition:player:levelRange", "skill:9136:1"]
+blockers = ["condition:player:levelRange", "consumable:skill:9136:1:item:17116", "skill:9136:1"]
+use_blockers = ["condition:player:levelRange", "consumable:skill:9136:1:item:17116", "skill:9136:1"]
 
 [[items]]
 template_id = 17117
 admitted = false
 storable = true
-blockers = ["condition:player:levelRange", "skill:9137:1"]
-use_blockers = ["condition:player:levelRange", "skill:9137:1"]
+blockers = ["condition:player:levelRange", "consumable:skill:9137:1:item:17117", "skill:9137:1"]
+use_blockers = ["condition:player:levelRange", "consumable:skill:9137:1:item:17117", "skill:9137:1"]
 
 [[items]]
 template_id = 17118
 admitted = false
 storable = true
-blockers = ["condition:player:levelRange", "skill:9138:1"]
-use_blockers = ["condition:player:levelRange", "skill:9138:1"]
+blockers = ["condition:player:levelRange", "consumable:skill:9138:1:item:17118", "skill:9138:1"]
+use_blockers = ["condition:player:levelRange", "consumable:skill:9138:1:item:17118", "skill:9138:1"]
 
 [[items]]
 template_id = 17119
 admitted = false
 storable = true
-blockers = ["condition:player:levelRange", "skill:9139:1"]
-use_blockers = ["condition:player:levelRange", "skill:9139:1"]
+blockers = ["condition:player:levelRange", "consumable:skill:9139:1:item:17119", "skill:9139:1"]
+use_blockers = ["condition:player:levelRange", "consumable:skill:9139:1:item:17119", "skill:9139:1"]
 
 [[items]]
 template_id = 17120
 admitted = false
 storable = true
-blockers = ["condition:player:levelRange", "skill:9140:1"]
-use_blockers = ["condition:player:levelRange", "skill:9140:1"]
+blockers = ["condition:player:levelRange", "consumable:skill:9140:1:item:17120", "skill:9140:1"]
+use_blockers = ["condition:player:levelRange", "consumable:skill:9140:1:item:17120", "skill:9140:1"]
 
 [[items]]
 template_id = 17121
 admitted = false
 storable = true
-blockers = ["condition:player:levelRange", "skill:9141:1"]
-use_blockers = ["condition:player:levelRange", "skill:9141:1"]
+blockers = ["condition:player:levelRange", "consumable:skill:9141:1:item:17121", "skill:9141:1"]
+use_blockers = ["condition:player:levelRange", "consumable:skill:9141:1:item:17121", "skill:9141:1"]
 
 [[items]]
 template_id = 17122
 admitted = false
 storable = true
-blockers = ["condition:player:levelRange", "skill:9142:1"]
-use_blockers = ["condition:player:levelRange", "skill:9142:1"]
+blockers = ["condition:player:levelRange", "consumable:skill:9142:1:item:17122", "skill:9142:1"]
+use_blockers = ["condition:player:levelRange", "consumable:skill:9142:1:item:17122", "skill:9142:1"]
 
 [[items]]
 template_id = 17123
 admitted = false
 storable = true
-blockers = ["condition:player:levelRange", "skill:9143:1"]
-use_blockers = ["condition:player:levelRange", "skill:9143:1"]
+blockers = ["condition:player:levelRange", "consumable:skill:9143:1:item:17123", "skill:9143:1"]
+use_blockers = ["condition:player:levelRange", "consumable:skill:9143:1:item:17123", "skill:9143:1"]
 
 [[items]]
 template_id = 17124
 admitted = false
 storable = true
-blockers = ["condition:player:levelRange", "skill:9144:1"]
-use_blockers = ["condition:player:levelRange", "skill:9144:1"]
+blockers = ["condition:player:levelRange", "consumable:skill:9144:1:item:17124", "skill:9144:1"]
+use_blockers = ["condition:player:levelRange", "consumable:skill:9144:1:item:17124", "skill:9144:1"]
 
 [[items]]
 template_id = 17125
 admitted = false
 storable = true
-blockers = ["condition:player:levelRange", "skill:9145:1"]
-use_blockers = ["condition:player:levelRange", "skill:9145:1"]
+blockers = ["condition:player:levelRange", "consumable:skill:9145:1:item:17125", "skill:9145:1"]
+use_blockers = ["condition:player:levelRange", "consumable:skill:9145:1:item:17125", "skill:9145:1"]
 
 [[items]]
 template_id = 17126
 admitted = false
 storable = true
-blockers = ["condition:player:levelRange", "skill:9146:1"]
-use_blockers = ["condition:player:levelRange", "skill:9146:1"]
+blockers = ["condition:player:levelRange", "consumable:skill:9146:1:item:17126", "skill:9146:1"]
+use_blockers = ["condition:player:levelRange", "consumable:skill:9146:1:item:17126", "skill:9146:1"]
 
 [[items]]
 template_id = 17127
 admitted = false
 storable = true
-blockers = ["condition:player:levelRange", "skill:9147:1"]
-use_blockers = ["condition:player:levelRange", "skill:9147:1"]
+blockers = ["condition:player:levelRange", "consumable:skill:9147:1:item:17127", "skill:9147:1"]
+use_blockers = ["condition:player:levelRange", "consumable:skill:9147:1:item:17127", "skill:9147:1"]
 
 [[items]]
 template_id = 17128
 admitted = false
 storable = true
-blockers = ["condition:player:levelRange", "skill:9148:1"]
-use_blockers = ["condition:player:levelRange", "skill:9148:1"]
+blockers = ["condition:player:levelRange", "consumable:skill:9148:1:item:17128", "skill:9148:1"]
+use_blockers = ["condition:player:levelRange", "consumable:skill:9148:1:item:17128", "skill:9148:1"]
 
 [[items]]
 template_id = 17129
 admitted = false
 storable = true
-blockers = ["condition:player:levelRange", "skill:9149:1"]
-use_blockers = ["condition:player:levelRange", "skill:9149:1"]
+blockers = ["condition:player:levelRange", "consumable:skill:9149:1:item:17129", "skill:9149:1"]
+use_blockers = ["condition:player:levelRange", "consumable:skill:9149:1:item:17129", "skill:9149:1"]
 
 [[items]]
 template_id = 17141
@@ -51499,8 +51499,8 @@ use_blockers = []
 template_id = 17163
 admitted = false
 storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+blockers = ["consumable:skill:9165:1:item:17163", "context:npc_only"]
+use_blockers = ["consumable:skill:9165:1:item:17163", "context:npc_only"]
 
 [[items]]
 template_id = 17170
@@ -51730,50 +51730,50 @@ use_blockers = ["property:unequip_skill", "skill:23236:1", "skill:23237:1", "ski
 template_id = 17206
 admitted = false
 storable = true
-blockers = ["skill:9167:1"]
-use_blockers = ["skill:9167:1"]
+blockers = ["consumable:skill:9167:1:item:17206", "skill:9167:1"]
+use_blockers = ["consumable:skill:9167:1:item:17206", "skill:9167:1"]
 
 [[items]]
 template_id = 17207
 admitted = false
 storable = true
-blockers = ["skill:9168:1"]
-use_blockers = ["skill:9168:1"]
+blockers = ["consumable:skill:9168:1:item:17207", "skill:9168:1"]
+use_blockers = ["consumable:skill:9168:1:item:17207", "skill:9168:1"]
 
 [[items]]
 template_id = 17208
 admitted = false
 storable = true
-blockers = ["skill:9169:1"]
-use_blockers = ["skill:9169:1"]
+blockers = ["consumable:skill:9169:1:item:17208", "skill:9169:1"]
+use_blockers = ["consumable:skill:9169:1:item:17208", "skill:9169:1"]
 
 [[items]]
 template_id = 17209
 admitted = false
 storable = true
-blockers = ["skill:9170:1"]
-use_blockers = ["skill:9170:1"]
+blockers = ["consumable:skill:9170:1:item:17209", "skill:9170:1"]
+use_blockers = ["consumable:skill:9170:1:item:17209", "skill:9170:1"]
 
 [[items]]
 template_id = 17210
 admitted = false
 storable = true
-blockers = ["skill:9171:1"]
-use_blockers = ["skill:9171:1"]
+blockers = ["consumable:skill:9171:1:item:17210", "skill:9171:1"]
+use_blockers = ["consumable:skill:9171:1:item:17210", "skill:9171:1"]
 
 [[items]]
 template_id = 17211
 admitted = false
 storable = true
-blockers = ["skill:9172:1"]
-use_blockers = ["skill:9172:1"]
+blockers = ["consumable:skill:9172:1:item:17211", "skill:9172:1"]
+use_blockers = ["consumable:skill:9172:1:item:17211", "skill:9172:1"]
 
 [[items]]
 template_id = 17212
 admitted = false
 storable = true
-blockers = ["skill:9173:1"]
-use_blockers = ["skill:9173:1"]
+blockers = ["consumable:skill:9173:1:item:17212", "skill:9173:1"]
+use_blockers = ["consumable:skill:9173:1:item:17212", "skill:9173:1"]
 
 [[items]]
 template_id = 17269
@@ -51800,15 +51800,15 @@ use_blockers = ["slot:lbracelet"]
 template_id = 17283
 admitted = false
 storable = true
-blockers = ["skill:9181:1"]
-use_blockers = ["skill:9181:1"]
+blockers = ["consumable:skill:9181:1:item:17283", "skill:9181:1"]
+use_blockers = ["consumable:skill:9181:1:item:17283", "skill:9181:1"]
 
 [[items]]
 template_id = 17284
 admitted = false
 storable = true
-blockers = ["skill:9182:1"]
-use_blockers = ["skill:9182:1"]
+blockers = ["consumable:skill:9182:1:item:17284", "skill:9182:1"]
+use_blockers = ["consumable:skill:9182:1:item:17284", "skill:9182:1"]
 
 [[items]]
 template_id = 17288
@@ -54733,8 +54733,8 @@ use_blockers = ["context:time_limited", "property:unequip_skill", "skill:21169:1
 template_id = 20868
 admitted = false
 storable = true
-blockers = ["skill:22127:1"]
-use_blockers = ["skill:22127:1"]
+blockers = ["consumable:skill:22127:1:item:20868", "skill:22127:1"]
+use_blockers = ["consumable:skill:22127:1:item:20868", "skill:22127:1"]
 
 [[items]]
 template_id = 20897
@@ -54747,8 +54747,8 @@ use_blockers = ["context:time_limited", "skill:21170:4"]
 template_id = 20899
 admitted = false
 storable = true
-blockers = ["skill:22138:1"]
-use_blockers = ["skill:22138:1"]
+blockers = ["consumable:skill:22138:1:item:20899", "skill:22138:1"]
+use_blockers = ["consumable:skill:22138:1:item:20899", "skill:22138:1"]
 
 [[items]]
 template_id = 20900
@@ -54920,24 +54920,24 @@ use_blockers = ["property:unequip_skill", "skill:21196:1"]
 
 [[items]]
 template_id = 20973
-admitted = true
+admitted = false
 storable = true
-blockers = []
-use_blockers = []
+blockers = ["consumable:skill:21197:1:item:20976"]
+use_blockers = ["consumable:skill:21197:1:item:20976"]
 
 [[items]]
 template_id = 20974
 admitted = false
 storable = true
-blockers = ["skill:21198:1"]
-use_blockers = ["skill:21198:1"]
+blockers = ["consumable:skill:21198:1:item:20976", "skill:21198:1"]
+use_blockers = ["consumable:skill:21198:1:item:20976", "skill:21198:1"]
 
 [[items]]
 template_id = 20975
 admitted = false
 storable = true
-blockers = ["skill:21199:1"]
-use_blockers = ["skill:21199:1"]
+blockers = ["consumable:skill:21199:1:item:20976", "skill:21199:1"]
+use_blockers = ["consumable:skill:21199:1:item:20976", "skill:21199:1"]
 
 [[items]]
 template_id = 20976
@@ -55165,17 +55165,17 @@ use_blockers = []
 
 [[items]]
 template_id = 21039
-admitted = true
+admitted = false
 storable = true
-blockers = []
-use_blockers = []
+blockers = ["consumable:skill:2863:1:item:14700"]
+use_blockers = ["consumable:skill:2863:1:item:14700"]
 
 [[items]]
 template_id = 21040
-admitted = true
+admitted = false
 storable = true
-blockers = []
-use_blockers = []
+blockers = ["consumable:skill:2864:1:item:14701"]
+use_blockers = ["consumable:skill:2864:1:item:14701"]
 
 [[items]]
 template_id = 21042
@@ -55356,8 +55356,8 @@ use_blockers = []
 template_id = 21106
 admitted = false
 storable = true
-blockers = ["skill:22180:1"]
-use_blockers = ["skill:22180:1"]
+blockers = ["consumable:skill:22180:1:item:21106", "skill:22180:1"]
+use_blockers = ["consumable:skill:22180:1:item:21106", "skill:22180:1"]
 
 [[items]]
 template_id = 21108
@@ -55566,8 +55566,8 @@ use_blockers = ["context:time_limited", "property:unequip_skill", "skill:21234:1
 template_id = 21170
 admitted = false
 storable = true
-blockers = ["skill:22182:1"]
-use_blockers = ["skill:22182:1"]
+blockers = ["consumable:skill:22182:1:item:21170", "skill:22182:1"]
+use_blockers = ["consumable:skill:22182:1:item:21170", "skill:22182:1"]
 
 [[items]]
 template_id = 21202
@@ -55601,15 +55601,15 @@ use_blockers = ["context:time_limited", "skill:3559:1"]
 template_id = 21210
 admitted = false
 storable = true
-blockers = ["skill:22214:1"]
-use_blockers = ["skill:22214:1"]
+blockers = ["consumable:skill:22214:1:item:21210", "skill:22214:1"]
+use_blockers = ["consumable:skill:22214:1:item:21210", "skill:22214:1"]
 
 [[items]]
 template_id = 21212
 admitted = false
 storable = true
-blockers = ["skill:22215:1"]
-use_blockers = ["skill:22215:1"]
+blockers = ["consumable:skill:22215:1:item:21212", "skill:22215:1"]
+use_blockers = ["consumable:skill:22215:1:item:21212", "skill:22215:1"]
 
 [[items]]
 template_id = 21218
@@ -55720,29 +55720,29 @@ use_blockers = []
 template_id = 21247
 admitted = false
 storable = true
-blockers = ["skill:22221:1"]
-use_blockers = ["skill:22221:1"]
+blockers = ["consumable:skill:22221:1:item:21247", "skill:22221:1"]
+use_blockers = ["consumable:skill:22221:1:item:21247", "skill:22221:1"]
 
 [[items]]
 template_id = 21248
 admitted = false
 storable = true
-blockers = ["skill:22222:1"]
-use_blockers = ["skill:22222:1"]
+blockers = ["consumable:skill:22222:1:item:21248", "skill:22222:1"]
+use_blockers = ["consumable:skill:22222:1:item:21248", "skill:22222:1"]
 
 [[items]]
 template_id = 21251
 admitted = false
 storable = true
-blockers = ["skill:22223:1"]
-use_blockers = ["skill:22223:1"]
+blockers = ["consumable:skill:22223:1:item:21251", "skill:22223:1"]
+use_blockers = ["consumable:skill:22223:1:item:21251", "skill:22223:1"]
 
 [[items]]
 template_id = 21252
 admitted = false
 storable = true
-blockers = ["skill:22224:1"]
-use_blockers = ["skill:22224:1"]
+blockers = ["consumable:skill:22224:1:item:21252", "skill:22224:1"]
+use_blockers = ["consumable:skill:22224:1:item:21252", "skill:22224:1"]
 
 [[items]]
 template_id = 21331
@@ -56637,15 +56637,15 @@ use_blockers = ["enchant_option:24983"]
 template_id = 21581
 admitted = false
 storable = true
-blockers = ["skill:22247:1"]
-use_blockers = ["skill:22247:1"]
+blockers = ["consumable:skill:22247:1:item:21581", "skill:22247:1"]
+use_blockers = ["consumable:skill:22247:1:item:21581", "skill:22247:1"]
 
 [[items]]
 template_id = 21582
 admitted = false
 storable = true
-blockers = ["skill:22248:1"]
-use_blockers = ["skill:22248:1"]
+blockers = ["consumable:skill:22248:1:item:21582", "skill:22248:1"]
+use_blockers = ["consumable:skill:22248:1:item:21582", "skill:22248:1"]
 
 [[items]]
 template_id = 21583
@@ -56693,8 +56693,8 @@ use_blockers = []
 template_id = 21595
 admitted = false
 storable = true
-blockers = ["condition:player:vehicleMounted", "skill:22249:1"]
-use_blockers = ["condition:player:vehicleMounted", "skill:22249:1"]
+blockers = ["condition:player:vehicleMounted", "consumable:skill:22249:1:item:21595", "skill:22249:1"]
+use_blockers = ["condition:player:vehicleMounted", "consumable:skill:22249:1:item:21595", "skill:22249:1"]
 
 [[items]]
 template_id = 21706
@@ -56707,8 +56707,8 @@ use_blockers = ["enchant_option:24983"]
 template_id = 21707
 admitted = false
 storable = true
-blockers = ["skill:22248:1"]
-use_blockers = ["skill:22248:1"]
+blockers = ["consumable:skill:22248:1:item:21582", "skill:22248:1"]
+use_blockers = ["consumable:skill:22248:1:item:21582", "skill:22248:1"]
 
 [[items]]
 template_id = 21709
@@ -57484,43 +57484,43 @@ use_blockers = []
 template_id = 21899
 admitted = false
 storable = true
-blockers = ["condition:player:insideZoneId", "skill:22294:1"]
-use_blockers = ["condition:player:insideZoneId", "skill:22294:1"]
+blockers = ["condition:player:insideZoneId", "consumable:skill:22294:1:item:21899", "skill:22294:1"]
+use_blockers = ["condition:player:insideZoneId", "consumable:skill:22294:1:item:21899", "skill:22294:1"]
 
 [[items]]
 template_id = 21900
 admitted = false
 storable = true
-blockers = ["condition:player:insideZoneId", "skill:22295:1"]
-use_blockers = ["condition:player:insideZoneId", "skill:22295:1"]
+blockers = ["condition:player:insideZoneId", "consumable:skill:22295:1:item:21900", "skill:22295:1"]
+use_blockers = ["condition:player:insideZoneId", "consumable:skill:22295:1:item:21900", "skill:22295:1"]
 
 [[items]]
 template_id = 21901
 admitted = false
 storable = true
-blockers = ["condition:player:insideZoneId", "skill:22296:1"]
-use_blockers = ["condition:player:insideZoneId", "skill:22296:1"]
+blockers = ["condition:player:insideZoneId", "consumable:skill:22296:1:item:21901", "skill:22296:1"]
+use_blockers = ["condition:player:insideZoneId", "consumable:skill:22296:1:item:21901", "skill:22296:1"]
 
 [[items]]
 template_id = 21902
 admitted = false
 storable = true
-blockers = ["condition:player:insideZoneId", "skill:22297:1"]
-use_blockers = ["condition:player:insideZoneId", "skill:22297:1"]
+blockers = ["condition:player:insideZoneId", "consumable:skill:22297:1:item:21902", "skill:22297:1"]
+use_blockers = ["condition:player:insideZoneId", "consumable:skill:22297:1:item:21902", "skill:22297:1"]
 
 [[items]]
 template_id = 21903
 admitted = false
 storable = true
-blockers = ["condition:player:insideZoneId", "skill:22298:1"]
-use_blockers = ["condition:player:insideZoneId", "skill:22298:1"]
+blockers = ["condition:player:insideZoneId", "consumable:skill:22298:1:item:21903", "skill:22298:1"]
+use_blockers = ["condition:player:insideZoneId", "consumable:skill:22298:1:item:21903", "skill:22298:1"]
 
 [[items]]
 template_id = 21904
 admitted = false
 storable = true
-blockers = ["condition:player:insideZoneId", "skill:22299:1"]
-use_blockers = ["condition:player:insideZoneId", "skill:22299:1"]
+blockers = ["condition:player:insideZoneId", "consumable:skill:22299:1:item:21904", "skill:22299:1"]
+use_blockers = ["condition:player:insideZoneId", "consumable:skill:22299:1:item:21904", "skill:22299:1"]
 
 [[items]]
 template_id = 21919
@@ -58142,15 +58142,15 @@ use_blockers = []
 template_id = 22022
 admitted = false
 storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+blockers = ["consumable:skill:26022:1:item:22022", "context:npc_only"]
+use_blockers = ["consumable:skill:26022:1:item:22022", "context:npc_only"]
 
 [[items]]
 template_id = 22023
 admitted = false
 storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+blockers = ["consumable:skill:26023:1:item:22023", "context:npc_only"]
+use_blockers = ["consumable:skill:26023:1:item:22023", "context:npc_only"]
 
 [[items]]
 template_id = 22024
@@ -58604,8 +58604,8 @@ use_blockers = []
 template_id = 22188
 admitted = false
 storable = true
-blockers = ["skill:22312:1"]
-use_blockers = ["skill:22312:1"]
+blockers = ["consumable:skill:22312:1:item:22188", "skill:22312:1"]
+use_blockers = ["consumable:skill:22312:1:item:22188", "skill:22312:1"]
 
 [[items]]
 template_id = 22189

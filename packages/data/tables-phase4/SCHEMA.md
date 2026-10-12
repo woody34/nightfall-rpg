@@ -99,6 +99,21 @@ selection handler for EnchantItem, not a missing cast effect. Sample286 carries
 V6 has no lifecycle/owner state for those items. Unsupported ordinary equipment
 effects or starter-extra uses remain storable while equip/use fails closed.
 
+D54 consumable closure: an admitted item's referenced skills (item/enchant4/set
+providers at their declared ranks) may consume only imported items that are both
+`storable=true` and `admitted=true`. Rank-expanded `item_consume.item_id/count`
+are paired at that rank; zero IDs or nonpositive counts incur no cost. Admission
+is reduced to a fixed point so deferral propagates through consuming items;
+self-consumption and cycles remain admitted only when every member otherwise
+passes. A missing, non-storable or deferred target adds
+`consumable:skill:<id>:<rank>:item:<template_id>` to both `blockers` and
+`use_blockers`. The consuming item can remain storable while its use is deferred.
+SA multisell/recipe ingredients and products must likewise be imported, storable
+and admitted; the recipe retains its named `item:<template_id>` blocker.
+A deferred optional recipe does not defer its otherwise usable base weapon.
+These blockers participate in the existing capability semantic hash and counts;
+no schema field or historical V5 input changes.
+
 `properties.change_weaponId` is preserved conversion metadata. It is read only
 by the deferred ConvertItem skill/ConditionChangeWeapon path, not ordinary equip,
 enchant or SA exchange. `capacities.policy.weapon_conversion` explicitly defers
