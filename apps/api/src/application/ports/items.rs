@@ -251,6 +251,9 @@ pub struct ItemLedgerDelta {
     /// Full request scope; the SQL `receipt_ref` UUID alone is not unique across operations.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub receipt: Option<crate::domain::zone::phase4_projection::ItemReceiptRef>,
+    /// Ordered scoped contributors to a per-instance/tick Consume aggregate (D57).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub receipt_refs: Vec<crate::domain::zone::phase4_projection::ItemReceiptRef>,
 }
 
 /// One actual instance change in a single acknowledged zone tick. No live-row FK is needed.
@@ -272,6 +275,20 @@ pub struct ItemLedgerEntry {
 impl ItemLedgerEntry {
     /// Mirror SQL widths before any claim/write and reject fabricated pure-sidecar rows.
     pub fn validate(&self) -> Result<(), CheckpointError> {
+        let mut references = std::collections::BTreeSet::new();
+        if (!self.delta.receipt_refs.is_empty() && self.operation != ItemLedgerOperation::Consume)
+            || self
+                .delta
+                .receipt_refs
+                .iter()
+                .any(|receipt| receipt.validate().is_err() || !references.insert(*receipt))
+            || self.delta.receipt.is_some_and(|receipt| {
+                !self.delta.receipt_refs.is_empty()
+                    && self.delta.receipt_refs.as_slice() != [receipt]
+            })
+        {
+            return Err(CheckpointError::Constraint("item_ledger_receipt_scope".into()));
+        }
         if self.delta.receipt.map(|receipt| receipt.key) != self.receipt_ref
             || self
                 .delta

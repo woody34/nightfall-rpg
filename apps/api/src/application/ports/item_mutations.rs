@@ -598,6 +598,7 @@ impl ItemCheckpointWork {
                     instance_id: delta.instance,
                     operation_ordinal: delta.operation_ordinal,
                     delta: ItemLedgerDelta {
+                        receipt_refs: delta.receipt_refs.clone(),
                         receipt: delta.receipt,
                         before: delta.before.clone(),
                         after: delta.after.clone(),

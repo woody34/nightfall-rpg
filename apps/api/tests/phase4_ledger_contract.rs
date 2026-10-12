@@ -32,6 +32,7 @@ fn entry() -> ItemLedgerEntry {
         instance_id: before.id,
         operation_ordinal: 0,
         delta: ItemLedgerDelta {
+            receipt_refs: Vec::new(),
             receipt: None,
             before: Some(before),
             after: Some(after),
@@ -43,6 +44,50 @@ fn entry() -> ItemLedgerEntry {
         },
         receipt_ref: None,
     }
+}
+#[test]
+fn aggregate_scoped_receipts_preserve_order_and_cannot_claim_one_false_sql_reference() {
+    use nightfall_api::domain::zone::phase4_projection::{ItemOperation, ItemReceiptRef};
+    let first = ItemReceiptRef {
+        operation: ItemOperation::Exchange,
+        key: uuid::Uuid::from_u128(7),
+    };
+    let second = ItemReceiptRef {
+        operation: ItemOperation::Enchant,
+        key: uuid::Uuid::from_u128(8),
+    };
+    let mut row = entry();
+    row.delta.receipt_refs = vec![first, second];
+    row.validate().unwrap();
+    let json = serde_json::to_value(&row).unwrap();
+    assert_eq!(
+        json.get("delta")
+            .unwrap()
+            .get("receipt_refs")
+            .unwrap()
+            .clone(),
+        serde_json::to_value([first, second]).unwrap()
+    );
+    assert!(json.get("receipt_ref").unwrap().is_null());
+    for mode in 0..3 {
+        let mut bad = row.clone();
+        match mode {
+            0 => bad.delta.receipt_refs.push(first),
+            1 => bad.operation = ItemLedgerOperation::Grant,
+            _ => {
+                bad.delta.receipt = Some(first);
+                bad.receipt_ref = Some(first.key);
+            },
+        }
+        assert!(bad.validate().is_err());
+    }
+    row.delta.receipt_refs.clear();
+    assert!(serde_json::to_value(row)
+        .unwrap()
+        .get("delta")
+        .unwrap()
+        .get("receipt_refs")
+        .is_none());
 }
 #[test]
 fn explicit_delta_survives_interleaving_and_typed_roundtrip() {
