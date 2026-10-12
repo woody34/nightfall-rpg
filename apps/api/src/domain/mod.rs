@@ -17,5 +17,5 @@ pub mod zone;
 
 pub use account::AccountId;
 pub use character::{BaseStats, Character, CharacterId, CharacterName, Position, Race};
-pub use events::{DomainEvent, EventMetadata};
+pub use events::{DomainEvent, EventMetadata, ItemEventFact};
 pub use session::{PlayTicket, SessionGeneration, SessionId, TicketHash};

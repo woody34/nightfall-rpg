@@ -172,6 +172,10 @@ impl InMemoryCharacterRepository {
         events: &[DomainEvent],
         fingerprint: String,
     ) -> Result<CheckpointOutcome, CheckpointError> {
+        // Item audit facts require the atomic inventory/ledger/receipt projection lane.
+        if events.iter().any(DomainEvent::is_item) {
+            return Err(CheckpointError::Constraint("item_projection_required".into()));
+        }
         let account = s
             .characters
             .get(&checkpoint.character_id)

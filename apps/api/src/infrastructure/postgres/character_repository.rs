@@ -504,6 +504,10 @@ impl PgCharacterRepository {
         receipt: Option<&SuccessfulLearnReceipt>,
     ) -> Result<LearningCheckpointOutcome, CheckpointError> {
         let other = checkpoint_db_error;
+        // Item audit facts require the atomic inventory/ledger/receipt projection lane.
+        if events.iter().any(DomainEvent::is_item) {
+            return Err(CheckpointError::Constraint("item_projection_required".into()));
+        }
         if receipt.is_none() {
             if let Some(name) = cp.violated_constraint() {
                 return Err(CheckpointError::Constraint(name.to_owned()));

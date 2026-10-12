@@ -431,7 +431,20 @@ impl ZoneSnapshot {
                         })
                 },
                 (9, BinaryV5, true) => {
-                    self.meta
+                    self.checkpoints.iter().all(|lane| {
+                        lane.events.iter().all(|event| {
+                            matches!(
+                                event.subject(),
+                                "nightfall.character.created"
+                                    | "nightfall.character.leveled"
+                                    | "nightfall.character.class_changed"
+                                    | "nightfall.character.died"
+                                    | "nightfall.character.token_granted"
+                                    | "nightfall.character.skill_learned"
+                            )
+                        })
+                    }) && self
+                        .meta
                         .phase3_admission_policy
                         .is_some_and(super::Phase3AdmissionPolicy::is_valid)
                         && self.rules.as_ref().zip(self.phase3.as_ref()).is_some_and(

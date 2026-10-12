@@ -620,6 +620,14 @@ impl CheckpointService {
                             | DomainEvent::CharacterClassChanged { metadata, .. }
                             | DomainEvent::CharacterTokenGranted { metadata, .. }
                             | DomainEvent::CharacterSkillLearned { metadata, .. } => metadata,
+                            DomainEvent::ItemGranted { fact }
+                            | DomainEvent::ItemEquipped { fact }
+                            | DomainEvent::ItemUnequipped { fact }
+                            | DomainEvent::ItemConsumed { fact }
+                            | DomainEvent::ItemEnchanted { fact }
+                            | DomainEvent::ItemDestroyed { fact }
+                            | DomainEvent::ItemRefined { fact }
+                            | DomainEvent::ItemExchanged { fact } => &mut fact.metadata,
                             DomainEvent::CharacterCreated { .. } => continue,
                         };
                         let ordinal = offset.saturating_add(n as u64);
