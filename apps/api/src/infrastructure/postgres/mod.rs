@@ -8,6 +8,7 @@ mod character_repository;
 #[allow(missing_docs, unreachable_pub, clippy::pedantic)]
 pub mod entities;
 mod idempotency;
+mod item_admission;
 mod migrations;
 mod phase3_checkpoint;
 mod session_repository;

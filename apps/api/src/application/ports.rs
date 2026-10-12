@@ -1,5 +1,8 @@
 //! Ports: the traits the application layer needs the outside world to implement.
 
+mod items;
+pub use items::*;
+
 use crate::domain::character_progression::{CharacterIdentity, ClassState, FrozenTransferResult};
 use crate::domain::class::ClassId;
 use crate::domain::ids::uuid_id;

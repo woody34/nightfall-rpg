@@ -1,0 +1,342 @@
+[
+  {
+    "items": [
+      {
+        "count": 1,
+        "equipped": true,
+        "template_id": 2369
+      },
+      {
+        "count": 1,
+        "equipped": false,
+        "template_id": 10
+      },
+      {
+        "count": 1,
+        "equipped": true,
+        "template_id": 1146
+      },
+      {
+        "count": 1,
+        "equipped": true,
+        "template_id": 1147
+      },
+      {
+        "count": 1,
+        "equipped": false,
+        "template_id": 5588
+      },
+      {
+        "count": 5,
+        "equipped": false,
+        "template_id": 10650
+      },
+      {
+        "count": 10,
+        "equipped": false,
+        "template_id": 12753
+      }
+    ],
+    "source_class_id": 0
+  },
+  {
+    "items": [
+      {
+        "count": 1,
+        "equipped": true,
+        "template_id": 6
+      },
+      {
+        "count": 1,
+        "equipped": true,
+        "template_id": 425
+      },
+      {
+        "count": 1,
+        "equipped": true,
+        "template_id": 461
+      },
+      {
+        "count": 1,
+        "equipped": false,
+        "template_id": 5588
+      },
+      {
+        "count": 5,
+        "equipped": false,
+        "template_id": 10650
+      },
+      {
+        "count": 10,
+        "equipped": false,
+        "template_id": 12753
+      }
+    ],
+    "source_class_id": 10
+  },
+  {
+    "items": [
+      {
+        "count": 1,
+        "equipped": true,
+        "template_id": 2369
+      },
+      {
+        "count": 1,
+        "equipped": false,
+        "template_id": 10
+      },
+      {
+        "count": 1,
+        "equipped": true,
+        "template_id": 1146
+      },
+      {
+        "count": 1,
+        "equipped": true,
+        "template_id": 1147
+      },
+      {
+        "count": 1,
+        "equipped": false,
+        "template_id": 5588
+      },
+      {
+        "count": 5,
+        "equipped": false,
+        "template_id": 10650
+      },
+      {
+        "count": 10,
+        "equipped": false,
+        "template_id": 12753
+      }
+    ],
+    "source_class_id": 18
+  },
+  {
+    "items": [
+      {
+        "count": 1,
+        "equipped": true,
+        "template_id": 6
+      },
+      {
+        "count": 1,
+        "equipped": true,
+        "template_id": 425
+      },
+      {
+        "count": 1,
+        "equipped": true,
+        "template_id": 461
+      },
+      {
+        "count": 1,
+        "equipped": false,
+        "template_id": 5588
+      },
+      {
+        "count": 5,
+        "equipped": false,
+        "template_id": 10650
+      },
+      {
+        "count": 10,
+        "equipped": false,
+        "template_id": 12753
+      }
+    ],
+    "source_class_id": 25
+  },
+  {
+    "items": [
+      {
+        "count": 1,
+        "equipped": true,
+        "template_id": 2369
+      },
+      {
+        "count": 1,
+        "equipped": false,
+        "template_id": 10
+      },
+      {
+        "count": 1,
+        "equipped": true,
+        "template_id": 1146
+      },
+      {
+        "count": 1,
+        "equipped": true,
+        "template_id": 1147
+      },
+      {
+        "count": 1,
+        "equipped": false,
+        "template_id": 5588
+      },
+      {
+        "count": 5,
+        "equipped": false,
+        "template_id": 10650
+      },
+      {
+        "count": 10,
+        "equipped": false,
+        "template_id": 12753
+      }
+    ],
+    "source_class_id": 31
+  },
+  {
+    "items": [
+      {
+        "count": 1,
+        "equipped": true,
+        "template_id": 6
+      },
+      {
+        "count": 1,
+        "equipped": true,
+        "template_id": 425
+      },
+      {
+        "count": 1,
+        "equipped": true,
+        "template_id": 461
+      },
+      {
+        "count": 1,
+        "equipped": false,
+        "template_id": 5588
+      },
+      {
+        "count": 5,
+        "equipped": false,
+        "template_id": 10650
+      },
+      {
+        "count": 10,
+        "equipped": false,
+        "template_id": 12753
+      }
+    ],
+    "source_class_id": 38
+  },
+  {
+    "items": [
+      {
+        "count": 1,
+        "equipped": false,
+        "template_id": 2369
+      },
+      {
+        "count": 1,
+        "equipped": true,
+        "template_id": 2368
+      },
+      {
+        "count": 1,
+        "equipped": true,
+        "template_id": 1146
+      },
+      {
+        "count": 1,
+        "equipped": true,
+        "template_id": 1147
+      },
+      {
+        "count": 1,
+        "equipped": false,
+        "template_id": 5588
+      },
+      {
+        "count": 5,
+        "equipped": false,
+        "template_id": 10650
+      },
+      {
+        "count": 10,
+        "equipped": false,
+        "template_id": 12753
+      }
+    ],
+    "source_class_id": 44
+  },
+  {
+    "items": [
+      {
+        "count": 1,
+        "equipped": true,
+        "template_id": 2368
+      },
+      {
+        "count": 1,
+        "equipped": true,
+        "template_id": 425
+      },
+      {
+        "count": 1,
+        "equipped": true,
+        "template_id": 461
+      },
+      {
+        "count": 1,
+        "equipped": false,
+        "template_id": 5588
+      },
+      {
+        "count": 5,
+        "equipped": false,
+        "template_id": 10650
+      },
+      {
+        "count": 10,
+        "equipped": false,
+        "template_id": 12753
+      }
+    ],
+    "source_class_id": 49
+  },
+  {
+    "items": [
+      {
+        "count": 1,
+        "equipped": true,
+        "template_id": 2370
+      },
+      {
+        "count": 1,
+        "equipped": false,
+        "template_id": 10
+      },
+      {
+        "count": 1,
+        "equipped": true,
+        "template_id": 1146
+      },
+      {
+        "count": 1,
+        "equipped": true,
+        "template_id": 1147
+      },
+      {
+        "count": 1,
+        "equipped": false,
+        "template_id": 5588
+      },
+      {
+        "count": 5,
+        "equipped": false,
+        "template_id": 10650
+      },
+      {
+        "count": 10,
+        "equipped": false,
+        "template_id": 12753
+      }
+    ],
+    "source_class_id": 53
+  }
+]
