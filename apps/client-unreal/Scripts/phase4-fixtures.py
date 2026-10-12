@@ -11,7 +11,22 @@ REPO = Path(__file__).resolve().parents[3]
 _spec = importlib.util.spec_from_file_location('phase4_phase3', Path(__file__).with_name('phase3-fixtures.py'))
 phase3 = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(phase3)
+soak_lane = phase3.soak_lane
 PHASE4 = frozenset('phase4-' + name for name in ('starter equip armor shield bow grade overload enchant crystallize shots consumables scrolls resurrection blacksmith learn grant-denied kinds').split())
+BASE_PACKS = PHASE4
+VARIANT_PACKS = {
+    'phase4-equip-ring': {'base': 'phase4-equip', 'equipment_case': 'ring'},
+    'phase4-equip-onepiece': {'base': 'phase4-equip', 'equipment_case': 'onepiece'},
+    'phase4-equip-twohand': {'base': 'phase4-equip', 'equipment_case': 'twohand'},
+    'phase4-bow-last-arrow': {'base': 'phase4-bow', 'arrows': 1},
+    **{'phase4-starter-' + name: {'base': 'phase4-starter', 'profession': name}
+       for name in ('human_fighter', 'human_mystic', 'elven_fighter', 'elven_mystic', 'dark_fighter', 'dark_mystic', 'orc_fighter', 'orc_mystic', 'dwarven_fighter')},
+    **{'phase4-equip-level' + str(level): {'base': 'phase4-equip', 'level': level}
+       for level in (1, 3, 4, 8, 9, 15, 16)},
+    **{'phase4-armor-enchant' + str(level): {'base': 'phase4-armor', 'enchant': level}
+       for level in (4, 6)},
+}
+PHASE4 = PHASE4 | VARIANT_PACKS.keys()
 PAIRED = frozenset(('phase4-shield', 'phase4-resurrection'))
 OWNER = '01970000-0000-7000-8000-000000000040'
 OBSERVER = '01970000-0000-7000-8000-000000000041'
@@ -51,12 +66,15 @@ def selection(repo=REPO):
         'spiritshot': dict(handler='SpiritShot', grade='NONE'),
         'blessed_spiritshot': dict(handler='BlessedSpiritShot', grade='NONE'),
         'd_weapon': dict(kind='Weapon', weapon_type='SWORD', grade='D'),
+        'ring': dict(bodypart='rfinger;lfinger', grade='NONE'),
+        'onepiece': dict(bodypart='onepiece'),
+        'twohand': dict(kind='Weapon', weapon_type='SWORD', bodypart='lrhand', grade='NONE'),
         'c_weapon': dict(kind='Weapon', weapon_type='SWORD', grade='C'),
         'overgrade': dict(kind='Weapon', weapon_type='SWORD', grade='S'),
     }.items(): result[name] = select(repo, **conditions)['template_id']
     # Exact named source rows for scrolls and player HP potion; validate admission below.
     for name, title in [('escape', 'Scroll of Escape'), ('resurrect', 'Scroll of Resurrection'),
-                        ('potion', 'Healing Potion')]:
+                        ('potion', 'Healing Potion'), ('blessed_escape', 'Blessed Scroll of Escape')]:
         result[name] = next(i for i, r in sorted(catalogue(repo).items())
                             if r['name'] == title and capabilities(repo)[i]['admitted'])
     scrolls = table('enchant_scrolls', repo)['scrolls']
@@ -105,7 +123,7 @@ def inventory(repo, base_class, index, extras=()):
             continue
         if not definition['stackable'] and count != 1: raise ValueError('nonstackable fixture count')
         slot = definition['bodypart'] if equipped else None
-        slot = {'lrhand': 'rhand', 'fullarmor': 'chest'}.get(slot, slot)
+        slot = {'lrhand': 'rhand', 'fullarmor': 'chest', 'onepiece': 'chest'}.get(slot, slot)
         rows.append(dict(instance_id=index * ROLE_STRIDE + len(rows) + 1, template_id=template, count=count,
                          enchant=enchant, augment_id=None, charge_bits=0, location='paperdoll' if equipped else 'inventory',
                          slot=slot, revision=0, source=source))
@@ -115,13 +133,20 @@ def inventory(repo, base_class, index, extras=()):
 def profiles(pack, repo=REPO, paired=False):
     if pack not in PHASE4: raise ValueError('unknown Phase4 pack')
     if pack in PAIRED and not paired: raise ValueError('Phase4 pack requires cooperating roles')
+    config = VARIANT_PACKS.get(pack, {})
+    pack = config.get('base', pack)
     s = selection(repo)
     extras = []
-    owner = role(repo)
-    if pack == 'phase4-equip': extras = [(s['sword'], 1, 0), (s['dagger'], 1, 0)]
-    elif pack == 'phase4-armor': extras = [(i, 1, 0) for i in armor_set(repo)[1]]
+    owner = role(repo, profession=config.get('profession', 'human_mystic'), level=config.get('level', 14))
+    if pack == 'phase4-equip':
+        extras = [(s['sword'], 1, 0), (s['dagger'], 1, 0)]
+        case = config.get('equipment_case')
+        if case == 'ring': extras += [(s['ring'], 1, 0), (s['ring'], 1, 0)]
+        if case == 'onepiece': extras += [(s['onepiece'], 1, 4)]
+        if case == 'twohand': extras += [(s['twohand'], 1, 0), (s['shield'], 1, 0)]
+    elif pack == 'phase4-armor': extras = [(i, 1, config.get('enchant', 0)) for i in armor_set(repo)[1]]
     elif pack == 'phase4-shield': extras = [(s['sword'], 1, 0)]
-    elif pack == 'phase4-bow': extras = [(s['bow'], 1, 0), (s['arrow'], 2, 0)]
+    elif pack == 'phase4-bow': extras = [(s['bow'], 1, 0), (s['arrow'], config.get('arrows', 2), 0)]
     elif pack == 'phase4-grade': extras = [(s['overgrade'], 1, 0)]
     elif pack == 'phase4-overload':
         # Weight is an input. Exact overload ranks are checked externally with actual maxLoad.
@@ -136,11 +161,11 @@ def profiles(pack, repo=REPO, paired=False):
     elif pack == 'phase4-learn':
         owner = role(repo, level=52, position=(126, 128))
         owner['tokens'] = [1, 1]
-        owner['book_learn'] = dict(skill=1405, rank=1, template=8618, count=1, source='professions/bishop.toml:48-55; pinned DP/classSkillTree.xml')
+        owner['book_learn'] = dict(skill=1405, rank=1, template=8618, count=1, source='DP@3ca488dd/src/main/resources/data/skillTrees/classSkillTree.xml:11947-11949; professions/bishop.toml:48-55')
     elif pack == 'phase4-shots': extras = [(s[k], 100, 0) for k in ('soulshot', 'spiritshot', 'blessed_spiritshot')]
     elif pack == 'phase4-consumables':
         extras = [(s['potion'], 2, 0)]; owner.update(hp=1, mp=1, cp=1)
-    elif pack == 'phase4-scrolls': extras = [(s['escape'], 2, 0)]
+    elif pack == 'phase4-scrolls': extras = [(s[k], 2, 0) for k in ('escape', 'blessed_escape')]
     elif pack == 'phase4-resurrection': extras = [(s['resurrect'], 2, 0)]
     elif pack == 'phase4-blacksmith':
         r = recipe(repo)

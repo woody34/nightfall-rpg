@@ -13,8 +13,7 @@ nf.WaitFor connected 15
 nf.EnterWorld
 nf.WaitFor in_world 15
 nf.WaitFor item_baseline 3
-nf.Target template:blacksmith
-nf.WaitFor target != none 3
+nf.WaitFor blacksmith_known 3
 nf.ExchangeSA 72 4316442132481 01970000-0000-7000-8000-000000000042
 nf.WaitFor item_operation == exchange_sa 3
 nf.WaitFor inventory_has 4682 == 1 3

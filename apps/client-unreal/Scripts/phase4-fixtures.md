@@ -10,8 +10,9 @@ accepts optional trailing UUID key; omitted key is fresh per invocation. A retry
 with an explicit key reuses the originally resolved instance/target/body (do not
 resolve a template anew after destruction/SA). Changed body with same key must
 reach the server conflict path. Equip's optional slot maps to preferred_slot.
-UseItem defaults to self. Refine/CancelRefine/ExchangeSA default NPC is the current
-received target; explicitly target `template:blacksmith` first. GrantItem calls
+UseItem defaults to self. Refine/CancelRefine/ExchangeSA default NPC is the unique received noncombat entity named `Blacksmith`;
+wait for `blacksmith_known`. An explicit `target` uses the current received target.
+Existing nf.Target template lookup filters attackable NPCs, so it cannot select this NPC. GrantItem calls
 the authenticated dev RPC for the selected character, never SQL or console GM.
 
 Command forms (optional target is `self|target|entity:<uuid>` for UseItem,
@@ -47,6 +48,7 @@ lrhand weapon; chest for onepiece). Numeric comparisons support == != >= <= > <.
 | autoshot_on template | Received owner auto-shot set; charge/damage cannot imply toggle |
 | arrows_remaining cmp count | Received owner lhand ARROW count, catalogue identifies arrow; empty slot is 0 after baseline |
 | inventory_revision cmp revision; item_baseline | Owner revision and accepted live baseline |
+| blacksmith_known | Received EntitySpawn identity/name/incarnation for the unique noncombat Blacksmith, invalidated on despawn/fence reset |
 | item_catalog_ready | Authenticated GetItemCatalog version2 and validated content |
 | item_operation == operation | Last received keyed ItemOperationResult, operation names in grammar |
 | enchant_outcome == outcome | Last received EnchantResult, normalized enum suffix |
