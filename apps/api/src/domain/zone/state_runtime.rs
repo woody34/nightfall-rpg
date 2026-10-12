@@ -1598,7 +1598,12 @@ impl ZoneState {
             entry.skill_id,
         )
         .map_err(cast_reject)?;
-        if self.phase4.is_some() && !skill.item_consume.is_empty() {
+        let has_auto_shots = self
+            .phase4
+            .as_ref()
+            .and_then(|items| items.canonical.players.get(&entry.caster.entity))
+            .is_some_and(|player| !player.auto_shots.is_empty());
+        if self.phase4.is_some() && (!skill.item_consume.is_empty() || has_auto_shots) {
             return self.start_paid_skill_cast_v6(
                 tick,
                 entry,
@@ -1608,7 +1613,7 @@ impl ZoneState {
                 events,
             );
         }
-        self.start_defined_cast_v6(tick, entry, &skill.clone(), reference, None, events)
+        self.start_defined_cast_v6(tick, entry, &skill.clone(), reference, None, None, events)
     }
 
     #[allow(clippy::too_many_lines, clippy::too_many_arguments)] // Shared validated start preserves learned and item lane ordering.
@@ -1619,6 +1624,10 @@ impl ZoneState {
         skill: &SkillDef,
         reference: crate::domain::zone::skill::SkillRef,
         origin: Option<(crate::domain::zone::phase4::ItemCastOrigin, bool)>,
+        item_payment: Option<(
+            &mut crate::domain::zone::Phase4Projection,
+            crate::domain::zone::item_inventory::InventoryBoundary,
+        )>,
         events: &mut Vec<ZoneEvent>,
     ) -> Result<(), RejectReason> {
         let caster = self
@@ -1691,7 +1700,7 @@ impl ZoneState {
         let effective = self
             .effective(entry.caster.entity)
             .map_err(|_| RejectReason::InvalidLoad)?;
-        let (weapon, shots) = self.available_cast_shots_v6(entry.caster.entity, skill)?;
+        let (mut weapon, mut shots) = self.available_cast_shots_v6(entry.caster.entity, skill)?;
         let mut terms = state_skill::cast_terms(
             skill,
             reference.rank,
@@ -1758,29 +1767,62 @@ impl ZoneState {
             .get(&entry.caster.entity)
             .and_then(|e| e.combat.as_ref())
             .ok_or(RejectReason::InvalidLoad)?;
-        let mut mp = c.mp;
+        let original_mp = c.mp;
+        let original_next_id = next_cast_id;
+        let hp = c.hp;
+        let incarnation = c.incarnation;
+        let unstarted_side = item_payment.as_ref().map(|_| side.clone());
+        let mut mp = original_mp;
         let hp_remainder_q = if self.phase4.is_some() {
             side.fractions.hp
         } else {
             0
         };
+        let mut start = CastStart {
+            now: tick,
+            ordinal: entry.ordinal,
+            incarnation,
+            terms,
+            target: Some(target),
+            affect_limit: 0,
+            targets: Vec::new(),
+        };
         let mut cast = side
-            .begin_cast(
-                &mut next_cast_id,
-                &mut mp,
-                c.hp,
-                hp_remainder_q,
-                CastStart {
-                    now: tick,
-                    ordinal: entry.ordinal,
-                    incarnation: c.incarnation,
-                    terms,
-                    target: Some(target),
-                    affect_limit: 0,
-                    targets: Vec::new(),
-                },
-            )
+            .begin_cast(&mut next_cast_id, &mut mp, hp, hp_remainder_q, start.clone())
             .map_err(cast_reject)?;
+        if let Some((projection, boundary)) = item_payment {
+            // Deterministic cast guards above precede the source's optional reduction draw.
+            self.recharge_cast_shots_v6(entry.caster, skill, cast.id, boundary, projection)?;
+            let available = self.available_cast_shots_v6(entry.caster.entity, skill)?;
+            if available != (weapon, shots) {
+                (weapon, shots) = available;
+                if skill.is_magic == 1 && shots & 6 != 0 {
+                    let hit_time = u32::try_from(
+                        *skill
+                            .hit_time_ms
+                            .at(reference.rank, skill.max_level)
+                            .ok_or(RejectReason::InvalidLoad)?,
+                    )
+                    .map_err(|_| RejectReason::InvalidLoad)?;
+                    start.terms.animation = crate::domain::zone::effects::FrozenRatio::new(
+                        skill_math::cast_animation(
+                            hit_time,
+                            effective.cast_speed,
+                            false,
+                            true,
+                            true,
+                        )
+                        .map_err(|_| RejectReason::InvalidLoad)?,
+                    );
+                }
+                side = unstarted_side.ok_or(RejectReason::InvalidLoad)?;
+                next_cast_id = original_next_id;
+                mp = original_mp;
+                cast = side
+                    .begin_cast(&mut next_cast_id, &mut mp, hp, hp_remainder_q, start)
+                    .map_err(cast_reject)?;
+            }
+        }
         let (affect_limit, targets) =
             self.collect_targets_v5(tick, entry.caster, target, skill, reference.rank)?;
         cast.affect_limit = affect_limit;

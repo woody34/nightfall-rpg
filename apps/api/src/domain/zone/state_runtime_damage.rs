@@ -8183,6 +8183,152 @@ mod tests {
 
     #[test]
     #[allow(clippy::too_many_lines)]
+    fn v6_shot_automatic_cast_recharges_after_guards_and_retains_paid_charge_on_cancel() {
+        use crate::domain::zone::phase4_projection::ItemOperation;
+        use crate::domain::zone::{EquipSlot, ItemCommandKind};
+        let (mut zone, owner, npc, ids) = use_fixture(&[2511, 3949, 1463]);
+        let rules = Arc::clone(&zone.phase4.as_ref().unwrap().rules);
+        let player = zone
+            .phase4
+            .as_mut()
+            .unwrap()
+            .canonical
+            .players
+            .get_mut(&owner.entity)
+            .unwrap();
+        let weapon = player.paperdoll[&EquipSlot::Rhand];
+        player.auto_shots.extend([2511, 3949, 1463, 1465]);
+        let inventory = player.inventory.clone();
+        // Install the real learned skill before the replay boundary.
+        let CombatRole::Player {
+            progression: Some(p),
+            ..
+        } = &mut zone
+            .entities
+            .get_mut(&owner.entity)
+            .unwrap()
+            .combat
+            .as_mut()
+            .unwrap()
+            .role
+        else {
+            panic!("player")
+        };
+        p.class_state.learned_skills = vec![crate::domain::subclass::LearnedSkill {
+            key: "l2.skill.1177".into(),
+            level: 1,
+        }];
+        zone.rebuild_v5(owner.entity).unwrap();
+        let mut cold =
+            ZoneState::from_snapshot_with_items(zone.snapshot(), Some(Arc::clone(&rules))).unwrap();
+        let input = |target| {
+            review_input(
+                owner.entity,
+                1,
+                ZoneCommand::CastSkill {
+                    entity: owner.entity,
+                    skill_id: crate::domain::zone::skill::SkillId(1177),
+                    target,
+                },
+            )
+        };
+        let mut refused = zone.clone();
+        let cursor = refused.rng.get_word_pos();
+        let bad = refused.run_tick(refused.draft(vec![input(None)])).unwrap();
+        assert!(!bad.dispositions.is_empty());
+        assert_eq!(refused.rng.get_word_pos(), cursor);
+        assert_eq!(
+            refused.phase4.as_ref().unwrap().canonical.players[&owner.entity].inventory,
+            inventory
+        );
+        assert!(!bad
+            .events
+            .iter()
+            .any(|e| matches!(e, ZoneEvent::ItemCheckpoint(_))));
+        zone.enable_items_replay_evidence().unwrap();
+        let draft = zone.draft(vec![input(Some(npc.entity))]);
+        let applied = zone.run_tick(draft.clone()).unwrap();
+        assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+        assert_eq!(applied, cold.run_tick(draft).unwrap());
+        let CastState::Casting(cast) = zone.sidecar(owner.entity).unwrap().cast.clone() else {
+            panic!("cast")
+        };
+        let player = &zone.phase4.as_ref().unwrap().canonical.players[&owner.entity];
+        assert_eq!(player.inventory[&weapon].charges, 6);
+        assert_eq!(player.inventory[&ids[0]].count, 1);
+        assert_eq!(player.inventory[&ids[1]].count, 1);
+        assert_eq!(player.inventory[&ids[2]].count, 3);
+        assert!(!player.auto_shots.contains(&1465));
+        assert!(player.auto_shots.contains(&1463));
+        assert_eq!(zone.phase4.as_ref().unwrap().canonical.item_casts[&cast.id].shots, 4);
+        let projection = applied
+            .events
+            .iter()
+            .find_map(|e| {
+                if let ZoneEvent::ItemCheckpoint(p) = e {
+                    Some(p)
+                } else {
+                    None
+                }
+            })
+            .unwrap();
+        assert!(projection.receipts.is_empty());
+        let debits = projection
+            .ledger
+            .iter()
+            .filter(|d| d.operation == ItemOperation::Consume)
+            .collect::<Vec<_>>();
+        assert_eq!(debits.len(), 2);
+        for debit in debits {
+            assert_eq!(debit.count_delta, -2);
+            assert!(debit.receipt.is_none());
+            assert!(debit.receipt_refs.is_empty());
+            assert_eq!(debit.causes[0].family, "auto_shot_payment");
+        }
+        assert_eq!(zone.snapshot(), cold.snapshot());
+        let stop = review_input(
+            owner.entity,
+            2,
+            ZoneCommand::CancelCast {
+                entity: owner.entity,
+                cast_id: Some(cast.id),
+            },
+        );
+        let stopped = zone.run_tick(zone.draft(vec![stop])).unwrap();
+        assert!(stopped.dispositions.is_empty());
+        assert!(zone
+            .phase4
+            .as_ref()
+            .unwrap()
+            .canonical
+            .charge_bindings
+            .is_empty());
+        assert_eq!(
+            zone.phase4.as_ref().unwrap().canonical.players[&owner.entity].inventory[&weapon]
+                .charges,
+            6
+        );
+        // Manual enable while charged cannot debit either stack again.
+        let command = item_intent(
+            &zone,
+            owner.entity,
+            2900,
+            ItemCommandKind::ToggleAutoShot {
+                template: 3949,
+                enabled: true,
+            },
+        );
+        let input = review_input(owner.entity, 3, ZoneCommand::Item(Box::new(command)));
+        let enabled = zone.run_tick(zone.draft(vec![input])).unwrap();
+        assert!(enabled.dispositions.is_empty());
+        let player = &zone.phase4.as_ref().unwrap().canonical.players[&owner.entity];
+        assert_eq!(player.inventory[&ids[0]].count, 1);
+        assert_eq!(player.inventory[&ids[1]].count, 1);
+        ZoneState::from_snapshot_with_items(zone.snapshot(), Some(rules)).unwrap();
+    }
+
+    #[test]
+    #[allow(clippy::too_many_lines)]
     fn v6_shot_cast_freezes_exclusive_blessed_timing_damage_cancel_and_cold_replay() {
         use crate::application::replay_log::{AppliedTickRecord, Watermark, WatermarkReason};
         use crate::domain::zone::phase4::ItemActionBinding;

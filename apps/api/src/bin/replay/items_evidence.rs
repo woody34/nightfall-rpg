@@ -134,6 +134,14 @@ fn export_cause(cause: &ItemAuditEvidence) -> anyhow::Result<Value> {
     }
     let identity = if let Some(receipt) = cause.contributing_receipt()? {
         receipt_text(serde_json::to_value(receipt)?)?
+    } else if cause.family == "auto_shot_payment" {
+        let Some(ItemEvidenceValue::Text(resolution)) = cause.fields.get("resolution_id") else {
+            bail!("automatic shot payment lacks resolution identity");
+        };
+        if resolution.is_empty() || resolution.chars().any(char::is_whitespace) {
+            bail!("invalid automatic shot resolution identity");
+        }
+        json!(format!("auto_shot:{resolution}"))
     } else if cause.family == "skill_cast_payment" {
         let Some(ItemEvidenceValue::Unsigned(id)) = cause.fields.get("cast_id") else {
             bail!("skill payment lacks cast identity");

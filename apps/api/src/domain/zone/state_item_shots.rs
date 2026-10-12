@@ -548,4 +548,78 @@ impl ZoneState {
         }
         Ok((resolved.outcome, affected))
     }
+    /// I2 accepted-start recharge visits every retained template, including missing stacks.
+    pub(super) fn recharge_cast_shots_v6(
+        &mut self,
+        subject: crate::domain::zone::effects::TargetBinding,
+        skill: &crate::domain::zone::skill::SkillDef,
+        cast: crate::domain::zone::CastId,
+        boundary: InventoryBoundary,
+        projection: &mut Phase4Projection,
+    ) -> Result<(), RejectReason> {
+        let mut player = self
+            .phase4
+            .as_ref()
+            .ok_or(RejectReason::InvalidLoad)?
+            .canonical
+            .players
+            .get(&subject.entity)
+            .ok_or(RejectReason::InvalidLoad)?
+            .clone();
+        let before = player.auto_shots.clone();
+        let (magic, physical) = crate::domain::zone::item_shots::skill_kinds(skill);
+        for template in before.iter().copied() {
+            let stack = player
+                .inventory
+                .values()
+                .find(|item| {
+                    item.template_id == template && item.location == ItemLocation::Inventory
+                })
+                .cloned();
+            let Some(stack) = stack else {
+                player.auto_shots.remove(&template);
+                continue;
+            };
+            let definition = self
+                .phase4
+                .as_ref()
+                .ok_or(RejectReason::InvalidLoad)?
+                .rules
+                .parts()
+                .items
+                .get(&template)
+                .ok_or(RejectReason::InvalidLoad)?;
+            let enabled = match definition
+                .properties
+                .get("default_action")
+                .map(String::as_str)
+            {
+                Some("SOULSHOT") => physical,
+                Some("SPIRITSHOT") => magic,
+                Some(_) | None => false,
+            };
+            if !enabled {
+                continue;
+            }
+            self.apply_shot_v6(
+                subject,
+                &mut player,
+                &stack,
+                boundary,
+                None,
+                &format!("cast:{}:shot:{template}", cast.0),
+                projection,
+            )?;
+        }
+        if before != player.auto_shots {
+            player.inventory_revision = boundary.revision;
+        }
+        self.phase4
+            .as_mut()
+            .ok_or(RejectReason::InvalidLoad)?
+            .canonical
+            .players
+            .insert(subject.entity, player);
+        Ok(())
+    }
 }
