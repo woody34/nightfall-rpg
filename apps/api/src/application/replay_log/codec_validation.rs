@@ -130,7 +130,7 @@ fn message(mut bytes: &[u8], node: &str, schema: u32, digested: bool) -> Result<
         let (expected, mut child, json) = if schema >= 8
             && ((node == "PbCommand" && (20..=29).contains(&tag))
                 || (node == "PbPlayerLoad" && tag == 10)
-                || (node == "PbOutput" && (37..=40).contains(&tag)))
+                || (node == "PbOutput" && (32..=40).contains(&tag)))
         {
             (2, None, false)
         } else if schema >= 7 {
@@ -186,6 +186,9 @@ fn message(mut bytes: &[u8], node: &str, schema: u32, digested: bool) -> Result<
                 })
             {
                 return Err(CodecError("private item checkpoint in observer output".into()));
+            }
+            if schema >= 8 && node == "PbOutput" && (32..=36).contains(&tag) {
+                super::codec::item_view_from_json(payload, tag)?;
             }
             if schema >= 8 && node == "PbOutput" && (37..=39).contains(&tag) {
                 super::codec::result_from_json(payload, tag)?;

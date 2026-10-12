@@ -586,6 +586,8 @@ pub enum ZoneEvent {
     ItemCheckpoint(Box<super::Phase4Projection>),
     /// Frozen operation result, visible only to the owning player.
     ItemResult(Box<super::FrozenItemResult>),
+    /// Owner inventory or public changed-slot equipment projection.
+    ItemView(Box<super::item_views::ItemViewEvent>),
     /// Final public flag/karma/counters, also used for identity bootstrap.
     #[allow(missing_docs)]
     PvpStateChanged {
@@ -624,6 +626,7 @@ pub enum ZoneEvent {
         entity: EntityId,
         incarnation: u32,
         learned: Vec<super::skill::SkillRef>,
+        #[serde(deserialize_with = "deserialize_skill_reuse")]
         reuse: BTreeMap<super::skill::SkillId, Tick>,
         sp: u64,
         pvp: super::PvpState,
@@ -985,6 +988,7 @@ impl ZoneEvent {
             | Self::NpcIntentionChanged { tick, .. } => *tick,
             Self::ItemCheckpoint(p) => p.tick,
             Self::ItemResult(result) => result.tick,
+            Self::ItemView(view) => view.tick,
             Self::Progression(d) => d.tick,
         }
     }
@@ -1020,6 +1024,7 @@ impl ZoneEvent {
             | Self::NpcIntentionChanged { entity, .. } => *entity,
             Self::ItemCheckpoint(p) => p.entity,
             Self::ItemResult(result) => result.entity,
+            Self::ItemView(view) => view.entity,
             Self::Progression(d) => d.entity,
             Self::AttackResult { attacker, .. }
             | Self::AttackStarted { attacker, .. }
@@ -1170,4 +1175,22 @@ pub enum AttackOutcome {
     Hit,
     /// Landed critical damage.
     Crit,
+}
+
+// Internally tagged serde enums buffer map keys as strings, bypassing JSON's numeric-key
+// adapter. Keep the existing numeric-key encoding and require its exact decimal spelling.
+fn deserialize_skill_reuse<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<BTreeMap<super::skill::SkillId, Tick>, D::Error> {
+    let values = BTreeMap::<String, Tick>::deserialize(deserializer)?;
+    values
+        .into_iter()
+        .map(|(key, tick)| {
+            let id = key.parse::<u32>().map_err(serde::de::Error::custom)?;
+            if id == 0 || id.to_string() != key {
+                return Err(serde::de::Error::custom("invalid skill reuse key"));
+            }
+            Ok((super::skill::SkillId(id), tick))
+        })
+        .collect()
 }

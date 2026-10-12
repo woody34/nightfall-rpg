@@ -85,8 +85,11 @@ pub use sizing::{
     AdmissionSizingError, CommandAdmissionSize,
 };
 
+#[path = "codec_item_views.rs"]
+mod item_views;
 #[path = "codec_items.rs"]
 mod items;
+pub(super) use item_views::from_json as item_view_from_json;
 pub(super) use items::result_from_json;
 #[path = "codec_phase3.rs"]
 mod phase3;
@@ -463,13 +466,23 @@ struct PbOutputs {
 struct PbOutput {
     #[prost(
         oneof = "PbOutputItem",
-        tags = "1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 29, 30, 31, 37, 38, 39, 40"
+        tags = "1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40"
     )]
     item: Option<PbOutputItem>,
 }
 
 #[derive(Clone, PartialEq, prost::Oneof)]
 enum PbOutputItem {
+    #[prost(bytes, tag = "32")]
+    InventorySync(Vec<u8>),
+    #[prost(bytes, tag = "33")]
+    InventoryChanged(Vec<u8>),
+    #[prost(bytes, tag = "34")]
+    EquipmentChanged(Vec<u8>),
+    #[prost(bytes, tag = "35")]
+    WeightChanged(Vec<u8>),
+    #[prost(bytes, tag = "36")]
+    PenaltyChanged(Vec<u8>),
     #[prost(bytes, tag = "37")]
     EnchantResult(Vec<u8>),
     #[prost(bytes, tag = "38")]
@@ -1249,6 +1262,7 @@ fn event_to_pb(e: &ZoneEvent) -> PbOutputItem {
         return PbOutputItem::Phase2(canonical_json(e));
     }
     match e {
+        ZoneEvent::ItemView(view) => item_views::to_pb(view),
         ZoneEvent::ItemResult(result) => items::result_to_pb(result),
         ZoneEvent::ItemCheckpoint(projection) => {
             PbOutputItem::ItemCheckpoint(canonical_json(projection))
@@ -1521,6 +1535,11 @@ fn player_output_from_pb(
     let entity = entity_from(&o.entity)?;
     if phase4 && form == OutputForm::Encoded {
         for output in decode_outputs(&o.encoded)? {
+            if let ObserverOutput::Event(ZoneEvent::ItemView(view)) = &output {
+                if view.owner_only() && view.entity != entity {
+                    return Err(CodecError("inventory in another owner's output".into()));
+                }
+            }
             if let ObserverOutput::Event(ZoneEvent::ItemResult(result)) = output {
                 if result.entity != entity {
                     return Err(CodecError("item result in another owner's output".into()));
@@ -1837,6 +1856,11 @@ fn stats_from_pb(s: PbStats) -> FinalStats {
 #[allow(clippy::too_many_lines)] // exhaustive one-to-one durable event mapping
 fn event_from_pb(item: PbOutputItem) -> Result<ZoneEvent, CodecError> {
     Ok(match item {
+        PbOutputItem::InventorySync(bytes) => item_views::from_json(&bytes, 32)?,
+        PbOutputItem::InventoryChanged(bytes) => item_views::from_json(&bytes, 33)?,
+        PbOutputItem::EquipmentChanged(bytes) => item_views::from_json(&bytes, 34)?,
+        PbOutputItem::WeightChanged(bytes) => item_views::from_json(&bytes, 35)?,
+        PbOutputItem::PenaltyChanged(bytes) => item_views::from_json(&bytes, 36)?,
         PbOutputItem::EnchantResult(bytes) => items::result_from_json(&bytes, 37)?,
         PbOutputItem::RefineResult(bytes) => items::result_from_json(&bytes, 38)?,
         PbOutputItem::ItemOperationResult(bytes) => items::result_from_json(&bytes, 39)?,

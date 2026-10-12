@@ -63,6 +63,7 @@ fn glyph(e: &ZoneEvent) -> Option<(&'static str, &'static str)> {
         | ZoneEvent::LevelUp { .. }
         | ZoneEvent::EntitySpawn { .. }
         | ZoneEvent::EntityMove { .. }
+        | ZoneEvent::ItemView(_)
         | ZoneEvent::ItemResult(_)
         | ZoneEvent::ItemCheckpoint(_)
         | ZoneEvent::Progression(_)
@@ -148,6 +149,7 @@ impl Projection {
             | ZoneEvent::XpGained { .. }
             | ZoneEvent::LevelUp { .. }
             | ZoneEvent::TargetChanged { .. }
+            | ZoneEvent::ItemView(_)
             | ZoneEvent::ItemResult(_)
             | ZoneEvent::ItemCheckpoint(_)
             | ZoneEvent::Progression(_) => {},
@@ -239,6 +241,16 @@ fn event_detail(event: &ZoneEvent, owner: Option<EntityId>) -> String {
             "Progression checkpoint: {} · tick {} (private state hidden)",
             delta.entity, delta.tick.0
         ),
+        ZoneEvent::ItemView(view) => {
+            if !view.owner_only() || owner == Some(view.entity) {
+                format!("{event:#?}")
+            } else {
+                format!(
+                    "Inventory update: {} · tick {} (owner-private fields hidden)",
+                    view.entity, view.tick.0
+                )
+            }
+        },
         ZoneEvent::ItemResult(result) => {
             if owner == Some(result.entity) {
                 format!("{event:#?}")
