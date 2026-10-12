@@ -5,6 +5,8 @@
 //! D7). Inbound floats are rounded to the nearest 1/1000 tile once, at the edge, so everything
 //! downstream (including replay of the recorded inbound bytes) is integer and deterministic.
 
+mod items;
+pub use items::{frozen_item_result_to_pb, item_command_from_pb};
 mod hydration;
 pub use hydration::{
     phase3_identity_to_pb, phase3_selection_to_pb, phase3_swing_to_pb, pvp_state_to_pb,
@@ -38,6 +40,9 @@ pub enum MappingError {
     /// Phase 4 contract is present; item actor integration is not installed yet.
     #[error("phase 4 runtime is not yet available")]
     Phase4Unavailable,
+    /// Invalid item key/identity/count/slot or stale target binding shape.
+    #[error("invalid item request")]
+    InvalidItem,
     /// Target is neither empty nor a UUID.
     #[error("target must be a UUID or empty")]
     InvalidTarget,
@@ -59,9 +64,10 @@ impl MappingError {
                 pb::RejectReason::NotYetImplemented
             },
             Self::InvalidCoordinate => pb::RejectReason::OutOfBounds,
-            Self::InvalidTarget | Self::MissingIntent | Self::MissingDestination => {
-                pb::RejectReason::Invalid
-            },
+            Self::InvalidItem
+            | Self::InvalidTarget
+            | Self::MissingIntent
+            | Self::MissingDestination => pb::RejectReason::Invalid,
         }
     }
 }

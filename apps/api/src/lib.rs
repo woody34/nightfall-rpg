@@ -40,6 +40,10 @@ pub const DEFAULT_WS_PUBLIC_URL: &str = "ws://localhost:3000/ws";
 pub struct Dependencies {
     /// Exact startup `AUTH_DEV_TOKENS=1` gate, independent of catalogue/runtime availability.
     pub dev_item_grants: bool,
+    /// Typed actor materialization port; None refuses grants before repository reads.
+    pub item_grants: Option<Arc<dyn application::ports::ItemGrantRuntime>>,
+    /// Frozen item receipts from the same atomic item checkpoint adapter.
+    pub item_receipts: Option<Arc<dyn application::ports::ItemReceiptRepository>>,
     /// Prevalidated V6 metadata; None keeps `GetItemCatalog` fail closed.
     pub item_catalogue: Option<Arc<dyn application::ports::ItemCataloguePort>>,
     /// Same adapter as character persistence; None refuses detached inventory reads.
@@ -87,6 +91,8 @@ impl Dependencies {
         let characters = Arc::new(infrastructure::memory::InMemoryCharacterRepository::default());
         Self {
             dev_item_grants: false,
+            item_grants: None,
+            item_receipts: Some(characters.clone()),
             item_catalogue: None,
             item_inventory: Some(characters.clone()),
             learning: Some(characters.clone()),
@@ -147,6 +153,13 @@ pub fn build_grpc_services(deps: &Dependencies) -> anyhow::Result<GrpcServices> 
             TransferOptions::new(deps.characters.clone(), deps.class_transfers.clone()),
         )
         .with_dev_item_grants(deps.dev_item_grants)
+        .with_grant_item(application::use_cases::GrantItem::new(
+            deps.dev_item_grants,
+            deps.characters.clone(),
+            deps.item_receipts.clone(),
+            deps.item_catalogue.clone(),
+            deps.item_grants.clone(),
+        ))
         .with_item_catalogue(application::use_cases::GetItemCatalog::new(
             deps.item_catalogue.clone(),
         )),

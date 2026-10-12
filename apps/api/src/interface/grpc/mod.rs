@@ -55,6 +55,7 @@ pub struct GameServiceImpl {
     get_item_catalog: crate::application::use_cases::GetItemCatalog,
     get_inventory: Option<crate::application::use_cases::GetInventory>,
     dev_item_grants: bool,
+    grant_item: Option<crate::application::use_cases::GrantItem>,
 }
 
 /// Phase 3 use cases shared by live composition and transport tests.
@@ -94,6 +95,7 @@ impl GameServiceImpl {
             get_item_catalog: crate::application::use_cases::GetItemCatalog::new(None),
             get_inventory: None,
             dev_item_grants: false,
+            grant_item: None,
         }
     }
 
@@ -121,6 +123,13 @@ impl GameServiceImpl {
         use_case: crate::application::use_cases::GetInventory,
     ) -> Self {
         self.get_inventory = Some(use_case);
+        self
+    }
+
+    /// Installs the typed authenticated actor materialization use case.
+    #[must_use]
+    pub fn with_grant_item(mut self, use_case: crate::application::use_cases::GrantItem) -> Self {
+        self.grant_item = Some(use_case);
         self
     }
 
@@ -171,10 +180,24 @@ impl GameService for GameServiceImpl {
         &self,
         req: Request<pb::GrantItemRequest>,
     ) -> Result<Response<pb::GrantItemResponse>, Status> {
-        auth::caller(&req)?;
+        let caller = auth::caller(&req)?;
         crate::application::use_cases::grant_item::require_dev_grants(self.dev_item_grants)
             .map_err(to_status)?;
-        Err(to_status(AppError::Unavailable("item runtime is not yet available".into())))
+        let use_case = self.grant_item.as_ref().ok_or_else(|| {
+            to_status(AppError::Unavailable("item runtime is unavailable".into()))
+        })?;
+        let body = req.into_inner();
+        let receipt = use_case
+            .execute(crate::application::use_cases::GrantItemInput {
+                caller,
+                character_id: body.character_id,
+                template_id: body.template_id,
+                count: body.count,
+                idempotency_key: body.idempotency_key,
+            })
+            .await
+            .map_err(to_status)?;
+        Ok(Response::new(mapping::grant_receipt_to_pb(&receipt).map_err(to_status)?))
     }
 
     async fn list_learnable_skills(

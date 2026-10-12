@@ -605,6 +605,48 @@ pub(super) fn detached_inventory_to_pb(
     })
 }
 
+/// Freeze the original Grant response without reading current DB inventory or capacities.
+pub(super) fn grant_receipt_to_pb(
+    receipt: &crate::application::ports::ItemMutationReceipt,
+) -> Result<pb::GrantItemResponse, crate::application::AppError> {
+    receipt.validate().map_err(anyhow::Error::from)?;
+    let pb::world_event::Event::ItemOperationResult(result) =
+        crate::interface::zone_mapping::frozen_item_result_to_pb(&receipt.result)?
+    else {
+        return Err(anyhow::anyhow!("grant receipt does not contain an operation result").into());
+    };
+    if receipt.operation != crate::application::ports::ItemMutationOperation::GrantItem {
+        return Err(anyhow::anyhow!("grant receipt operation is invalid").into());
+    }
+    let frozen = receipt
+        .inventory
+        .as_ref()
+        .ok_or_else(|| anyhow::anyhow!("grant receipt has no frozen inventory"))?;
+    let mut inventory =
+        detached_inventory_to_pb(&crate::application::use_cases::GetInventoryOutput {
+            character_id: receipt.character_id,
+            character_revision: frozen.character_revision,
+            checkpoint: frozen.checkpoint.clone(),
+            ordinary_capacity: frozen.ordinary_capacity,
+            quest_capacity: frozen.quest_capacity,
+        })?;
+    if result.incarnation != 0 {
+        inventory.incarnation = result.incarnation;
+        inventory.tick = result.tick;
+        inventory.baseline_tick = result.tick;
+        for reuse in &mut inventory.reuse {
+            reuse.until_tick = reuse
+                .until_tick
+                .checked_add(result.tick)
+                .ok_or_else(|| anyhow::anyhow!("grant baseline reuse deadline overflow"))?;
+        }
+    }
+    Ok(pb::GrantItemResponse {
+        result: Some(result),
+        inventory: Some(inventory),
+    })
+}
+
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::indexing_slicing)]
 mod tests {

@@ -171,6 +171,7 @@ async fn build_dependencies(
     let characters = Arc::new(memory);
     deps.characters = characters.clone();
     deps.item_inventory = Some(characters.clone());
+    deps.item_receipts = Some(characters.clone());
     deps.learning = Some(characters);
     if let Some(path) = std::env::var_os("CHARACTER_NAME_BLOCKLIST_PATH") {
         let raw = std::fs::read_to_string(path)?;
@@ -201,6 +202,7 @@ async fn build_dependencies(
         let characters = Arc::new(characters);
         deps.characters = characters.clone();
         deps.item_inventory = Some(characters.clone());
+        deps.item_receipts = Some(characters.clone());
         deps.learning = Some(characters);
         deps.accounts = Arc::new(
             infrastructure::postgres::PgAccountRepository::new(conn.clone())
