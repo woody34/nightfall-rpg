@@ -169,7 +169,14 @@ impl ZoneState {
                 }],
                 &rules,
                 InventoryLimits::from_player(player),
-                InventoryBoundary { tick, revision: 1 },
+                InventoryBoundary {
+                    tick,
+                    revision: 1,
+                    origin: crate::domain::zone::ItemCreationOrigin {
+                        zone: self.seed.zone,
+                        epoch: self.seed.epoch,
+                    },
+                },
             )
             .map_err(|_| TickError::Phase3Invariant)?;
             let granted: Vec<_> = mutation

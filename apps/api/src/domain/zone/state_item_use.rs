@@ -226,7 +226,18 @@ impl ZoneState {
                 .filter(|r| i64::try_from(*r).is_ok())
                 .ok_or(RejectReason::InvalidLoad)?
         };
-        let plan = self.prepare_item_use_v6(id, instance, InventoryBoundary { tick, revision })?;
+        let plan = self.prepare_item_use_v6(
+            id,
+            instance,
+            InventoryBoundary {
+                tick,
+                revision,
+                origin: crate::domain::zone::ItemCreationOrigin {
+                    zone: self.seed.zone,
+                    epoch: self.seed.epoch,
+                },
+            },
+        )?;
         let combat = self
             .entities
             .get(&id)
@@ -495,7 +506,14 @@ impl ZoneState {
             &edits,
             &items.rules,
             InventoryLimits::from_player(player),
-            InventoryBoundary { tick, revision },
+            InventoryBoundary {
+                tick,
+                revision,
+                origin: crate::domain::zone::ItemCreationOrigin {
+                    zone: self.seed.zone,
+                    epoch: self.seed.epoch,
+                },
+            },
         )
         .map_err(|_| RejectReason::InsufficientItems)?;
         for change in &payments.changes {

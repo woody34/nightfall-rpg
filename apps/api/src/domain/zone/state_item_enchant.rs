@@ -555,6 +555,10 @@ mod tests {
                 support: support.map(|_| ItemInstanceId::new(3).unwrap()),
             },
             InventoryBoundary {
+                origin: crate::domain::zone::ItemCreationOrigin {
+                    zone: crate::domain::zone::ZoneId(1),
+                    epoch: 1,
+                },
                 tick: crate::domain::zone::Tick(7),
                 revision: 2,
             },

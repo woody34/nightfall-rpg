@@ -70,6 +70,7 @@ pub fn computed_capacities(
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[allow(missing_docs)]
 pub struct InventoryBoundary {
+    pub origin: super::ItemCreationOrigin,
     pub tick: Tick,
     pub revision: u64,
 }
@@ -116,15 +117,17 @@ impl InventoryMutation {
         limits: InventoryLimits,
         boundary: InventoryBoundary,
     ) -> Result<Self, ItemError> {
-        let InventoryBoundary { tick, revision } = boundary;
+        let InventoryBoundary {
+            tick,
+            revision,
+            origin,
+        } = boundary;
         if i64::try_from(revision).is_err() || i64::try_from(tick.0).is_err() {
             return Err(ItemError("inventory revision overflow"));
         }
+        origin.validate()?;
         let (_, _, weight) = inventory_totals(inventory, rules)?;
-        if inventory
-            .values()
-            .any(|item| item.revision > revision || item.created_tick > tick)
-        {
+        if inventory.values().any(|item| item.revision > revision) {
             return Err(ItemError("inventory revision regressed"));
         }
         let mut plan = Self {
@@ -204,7 +207,11 @@ impl InventoryMutation {
         limits: InventoryLimits,
         boundary: InventoryBoundary,
     ) -> Result<(), ItemError> {
-        let InventoryBoundary { tick, revision } = boundary;
+        let InventoryBoundary {
+            tick,
+            revision,
+            origin,
+        } = boundary;
         checked_count(count)?;
         let definition = rules
             .parts()
@@ -264,7 +271,7 @@ impl InventoryMutation {
         for _ in 0..slots {
             let id = self.allocator.allocate()?;
             let item = ItemInstance {
-                creation_origin: None,
+                creation_origin: Some(origin),
                 id,
                 template_id: template,
                 count: if definition.stackable { count } else { 1 },
@@ -276,6 +283,7 @@ impl InventoryMutation {
                 created_tick: tick,
                 revision,
             };
+            item.validate()?;
             if self.inventory.insert(id, item.clone()).is_some() {
                 return Err(ItemError("allocated item identity collision"));
             }
@@ -393,6 +401,127 @@ mod tests {
         InventoryLimits::from_rules(rules, false, i64::MAX).unwrap()
     }
     #[test]
+    fn creation_provenance_survives_later_epoch_consumption_and_merge_and_new_ids_use_current_clock(
+    ) {
+        use super::super::{ItemCreationOrigin, ZoneId};
+        let bundle = embedded_phase4_bundle().unwrap();
+        let rules = &bundle.items;
+        let old_origin = ItemCreationOrigin {
+            zone: ZoneId(4),
+            epoch: 6,
+        };
+        let current = ItemCreationOrigin {
+            zone: ZoneId(9),
+            epoch: 2,
+        };
+        let mut old = seed(3, 57, 20);
+        old.creation_origin = Some(old_origin);
+        old.created_tick = Tick(900);
+        let id = old.id;
+        let original = BTreeMap::from([(id, old.clone())]);
+        let range = ItemInstanceRange::new(100, 100, 1000).unwrap();
+        let plan = InventoryMutation::prepare(
+            &original,
+            range,
+            &[
+                InventoryEdit::TakeInstance {
+                    instance: id,
+                    count: 2,
+                },
+                InventoryEdit::Add {
+                    template: 57,
+                    count: 3,
+                },
+                InventoryEdit::Add {
+                    template: 3031,
+                    count: 3,
+                },
+            ],
+            rules,
+            ordinary(rules),
+            InventoryBoundary {
+                tick: Tick(1),
+                revision: 2,
+                origin: current,
+            },
+        )
+        .unwrap();
+        let retained = plan.inventory.get(&id).unwrap();
+        assert_eq!(retained.count, 21);
+        assert_eq!(retained.created_tick, Tick(900));
+        assert_eq!(retained.creation_origin, Some(old_origin));
+        let fresh = plan
+            .inventory
+            .get(&ItemInstanceId::new(100).unwrap())
+            .unwrap();
+        assert_eq!(fresh.created_tick, Tick(1));
+        assert_eq!(fresh.creation_origin, Some(current));
+        for change in &plan.changes {
+            for item in change.before.iter().chain(change.after.iter()) {
+                if item.id == id {
+                    assert_eq!(
+                        (item.created_tick, item.creation_origin),
+                        (Tick(900), Some(old_origin))
+                    );
+                }
+            }
+        }
+        let historical = BTreeMap::from([(
+            id,
+            ItemInstance {
+                creation_origin: None,
+                ..old
+            },
+        )]);
+        let plan = InventoryMutation::prepare(
+            &historical,
+            range,
+            &[InventoryEdit::TakeInstance {
+                instance: id,
+                count: 1,
+            }],
+            rules,
+            ordinary(rules),
+            InventoryBoundary {
+                tick: Tick(0),
+                revision: 2,
+                origin: current,
+            },
+        )
+        .unwrap();
+        assert_eq!(plan.inventory.get(&id).unwrap().creation_origin, None);
+        assert_eq!(plan.inventory.get(&id).unwrap().created_tick, Tick(900));
+        for origin in [
+            ItemCreationOrigin {
+                zone: ZoneId(u32::MAX),
+                ..current
+            },
+            ItemCreationOrigin {
+                epoch: u64::MAX,
+                ..current
+            },
+        ] {
+            assert!(InventoryMutation::prepare(
+                &original,
+                range,
+                &[InventoryEdit::Add {
+                    template: 3031,
+                    count: 1
+                }],
+                rules,
+                ordinary(rules),
+                InventoryBoundary {
+                    tick: Tick(1),
+                    revision: 2,
+                    origin
+                }
+            )
+            .is_err());
+        }
+        assert_eq!(original.get(&id).unwrap().count, 20);
+    }
+
+    #[test]
     fn retained_capacities_fold_bonus_from_zero_before_adding_race_base() {
         use crate::domain::zone::stat_functions::{
             FunctionConditions, FunctionKey, FunctionOp, StatCalculator, StatFunction,
@@ -465,6 +594,10 @@ mod tests {
             rules,
             ordinary(rules),
             InventoryBoundary {
+                origin: super::super::ItemCreationOrigin {
+                    zone: super::super::ZoneId(1),
+                    epoch: 1,
+                },
                 tick: Tick(10),
                 revision: 2,
             },
@@ -540,6 +673,10 @@ mod tests {
                 rules,
                 ordinary(rules),
                 InventoryBoundary {
+                    origin: super::super::ItemCreationOrigin {
+                        zone: super::super::ZoneId(1),
+                        epoch: 1
+                    },
                     tick: Tick(10),
                     revision: 2
                 }
@@ -578,6 +715,10 @@ mod tests {
             rules,
             one_slot,
             InventoryBoundary {
+                origin: super::super::ItemCreationOrigin {
+                    zone: super::super::ZoneId(1),
+                    epoch: 1,
+                },
                 tick: Tick(10),
                 revision: 2,
             },
@@ -596,6 +737,10 @@ mod tests {
             rules,
             one_slot,
             InventoryBoundary {
+                origin: super::super::ItemCreationOrigin {
+                    zone: super::super::ZoneId(1),
+                    epoch: 1
+                },
                 tick: Tick(10),
                 revision: 2
             }
@@ -609,6 +754,10 @@ mod tests {
             rules,
             zero_weight,
             InventoryBoundary {
+                origin: super::super::ItemCreationOrigin {
+                    zone: super::super::ZoneId(1),
+                    epoch: 1
+                },
                 tick: Tick(10),
                 revision: 2
             }
@@ -623,6 +772,10 @@ mod tests {
             rules,
             zero_weight,
             InventoryBoundary {
+                origin: super::super::ItemCreationOrigin {
+                    zone: super::super::ZoneId(1),
+                    epoch: 1
+                },
                 tick: Tick(10),
                 revision: 2
             }
@@ -652,6 +805,10 @@ mod tests {
                     rules,
                     ordinary(rules),
                     InventoryBoundary {
+                        origin: super::super::ItemCreationOrigin {
+                            zone: super::super::ZoneId(1),
+                            epoch: 1,
+                        },
                         tick: Tick(10),
                         revision: 2,
                     },
@@ -682,6 +839,10 @@ mod tests {
                         rules,
                         ordinary(rules),
                         InventoryBoundary {
+                            origin: super::super::ItemCreationOrigin {
+                                zone: super::super::ZoneId(1),
+                                epoch: 1,
+                            },
                             tick: Tick(10),
                             revision: 2,
                         },
