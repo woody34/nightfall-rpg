@@ -144875,11 +144875,17 @@
       },
       "expected": true,
       "sources": [
-        "G/model/stats/Formulas.java:1621-1640",
-        "design/A8 per-mille"
+        "G/model/stats/Formulas.java:1621-1642",
+        "docs/plans/phase-4-zone-design.md:269 (§5; A8): integer100 to per-mille; roll1000*Q < rate_q*10"
       ],
-      "draws": [],
-      "vector_sha256": "4178f38fa9300a24816452082b4b36dfc63adb4a3dceff63d14df85cd1271dff"
+      "draws": [
+        {
+          "site": "blow",
+          "bound": 1000,
+          "residue": 499
+        }
+      ],
+      "vector_sha256": "19422f9a57552ce4a641929a0ca6564a38ac979b8a69c61db5e4639d56def4b1"
     },
     {
       "id": "blow-front-500",
@@ -144892,11 +144898,17 @@
       },
       "expected": false,
       "sources": [
-        "G/model/stats/Formulas.java:1621-1640",
-        "design/A8 per-mille"
+        "G/model/stats/Formulas.java:1621-1642",
+        "docs/plans/phase-4-zone-design.md:269 (§5; A8): integer100 to per-mille; roll1000*Q < rate_q*10"
       ],
-      "draws": [],
-      "vector_sha256": "baadd91cd09c5ea752b8e17c8e5bad07403babdee99b5d07faaf56e1826ac1fb"
+      "draws": [
+        {
+          "site": "blow",
+          "bound": 1000,
+          "residue": 500
+        }
+      ],
+      "vector_sha256": "fa824be789d681e3b04dd3ded0732f754d74b9fdf599832dbc9a569150d0d533"
     },
     {
       "id": "blow-front-749",
@@ -144909,11 +144921,17 @@
       },
       "expected": false,
       "sources": [
-        "G/model/stats/Formulas.java:1621-1640",
-        "design/A8 per-mille"
+        "G/model/stats/Formulas.java:1621-1642",
+        "docs/plans/phase-4-zone-design.md:269 (§5; A8): integer100 to per-mille; roll1000*Q < rate_q*10"
       ],
-      "draws": [],
-      "vector_sha256": "72e2d8479b7f995a4c06e2dc9a142f1c9d254e88c1f7530994762ce85f22aa99"
+      "draws": [
+        {
+          "site": "blow",
+          "bound": 1000,
+          "residue": 749
+        }
+      ],
+      "vector_sha256": "74d8eafaf737af3e5f303fea52da3881d880a0e088e39bbb36f8966dbb780fc0"
     },
     {
       "id": "blow-front-750",
@@ -144926,11 +144944,17 @@
       },
       "expected": false,
       "sources": [
-        "G/model/stats/Formulas.java:1621-1640",
-        "design/A8 per-mille"
+        "G/model/stats/Formulas.java:1621-1642",
+        "docs/plans/phase-4-zone-design.md:269 (§5; A8): integer100 to per-mille; roll1000*Q < rate_q*10"
       ],
-      "draws": [],
-      "vector_sha256": "bb89fdcddc79837e1f5215bc4a5003009fbf91b46c440a3d988780bc11115c35"
+      "draws": [
+        {
+          "site": "blow",
+          "bound": 1000,
+          "residue": 750
+        }
+      ],
+      "vector_sha256": "54ecb1ac1336881e0e3256699e4c105d5b331a005dc1b3be64a06597568ad2d5"
     },
     {
       "id": "blow-front-999",
@@ -144943,11 +144967,17 @@
       },
       "expected": false,
       "sources": [
-        "G/model/stats/Formulas.java:1621-1640",
-        "design/A8 per-mille"
+        "G/model/stats/Formulas.java:1621-1642",
+        "docs/plans/phase-4-zone-design.md:269 (§5; A8): integer100 to per-mille; roll1000*Q < rate_q*10"
       ],
-      "draws": [],
-      "vector_sha256": "b4bbf1ae9b117aa50249900a906a730221b5aa55217377012b2a5b5e92ac8682"
+      "draws": [
+        {
+          "site": "blow",
+          "bound": 1000,
+          "residue": 999
+        }
+      ],
+      "vector_sha256": "da7ff6136d8444da122b4ce15b621cb51e922ac3d37ee2dc08b269465d3a50fb"
     },
     {
       "id": "blow-side-499",
@@ -144960,11 +144990,17 @@
       },
       "expected": true,
       "sources": [
-        "G/model/stats/Formulas.java:1621-1640",
-        "design/A8 per-mille"
+        "G/model/stats/Formulas.java:1621-1642",
+        "docs/plans/phase-4-zone-design.md:269 (§5; A8): integer100 to per-mille; roll1000*Q < rate_q*10"
       ],
-      "draws": [],
-      "vector_sha256": "b381e6531909798ad9d4212cb16141e5592b69f7722d97f0827bcd9886c63b00"
+      "draws": [
+        {
+          "site": "blow",
+          "bound": 1000,
+          "residue": 499
+        }
+      ],
+      "vector_sha256": "6e1cb1c625abfba263f114e460476e97d1364ce620eca09d0973426562a6a75f"
     },
     {
       "id": "blow-side-500",
@@ -144977,11 +145013,17 @@
       },
       "expected": true,
       "sources": [
-        "G/model/stats/Formulas.java:1621-1640",
-        "design/A8 per-mille"
+        "G/model/stats/Formulas.java:1621-1642",
+        "docs/plans/phase-4-zone-design.md:269 (§5; A8): integer100 to per-mille; roll1000*Q < rate_q*10"
       ],
-      "draws": [],
-      "vector_sha256": "19c825da261e999d93838442f3f39dd4f621cedcd4edeaba8862a3575b477f41"
+      "draws": [
+        {
+          "site": "blow",
+          "bound": 1000,
+          "residue": 500
+        }
+      ],
+      "vector_sha256": "666cb63b1e7b343c5498c92bda2eb5f5b8f20eeceb2f056ef047e3f3823a8009"
     },
     {
       "id": "blow-side-749",
@@ -144994,11 +145036,17 @@
       },
       "expected": true,
       "sources": [
-        "G/model/stats/Formulas.java:1621-1640",
-        "design/A8 per-mille"
+        "G/model/stats/Formulas.java:1621-1642",
+        "docs/plans/phase-4-zone-design.md:269 (§5; A8): integer100 to per-mille; roll1000*Q < rate_q*10"
       ],
-      "draws": [],
-      "vector_sha256": "baf7f8256788b984829513edb6b34b969e2c36e29c6ac36abda5394a7849d274"
+      "draws": [
+        {
+          "site": "blow",
+          "bound": 1000,
+          "residue": 749
+        }
+      ],
+      "vector_sha256": "e8536d2808eb70ca4b61a4b9ad96e02ea22a6c3e349ebcabf28aac585c016a58"
     },
     {
       "id": "blow-side-750",
@@ -145011,11 +145059,17 @@
       },
       "expected": false,
       "sources": [
-        "G/model/stats/Formulas.java:1621-1640",
-        "design/A8 per-mille"
+        "G/model/stats/Formulas.java:1621-1642",
+        "docs/plans/phase-4-zone-design.md:269 (§5; A8): integer100 to per-mille; roll1000*Q < rate_q*10"
       ],
-      "draws": [],
-      "vector_sha256": "4e235486a309acc31cd631cb0c770292db5b40d8d3aae3b9b574dfdc05434f9d"
+      "draws": [
+        {
+          "site": "blow",
+          "bound": 1000,
+          "residue": 750
+        }
+      ],
+      "vector_sha256": "e2d5dfd60994b114101e1bdd69d4fab580d65a7a3730870b07b54230c8032a19"
     },
     {
       "id": "blow-side-999",
@@ -145028,11 +145082,17 @@
       },
       "expected": false,
       "sources": [
-        "G/model/stats/Formulas.java:1621-1640",
-        "design/A8 per-mille"
+        "G/model/stats/Formulas.java:1621-1642",
+        "docs/plans/phase-4-zone-design.md:269 (§5; A8): integer100 to per-mille; roll1000*Q < rate_q*10"
       ],
-      "draws": [],
-      "vector_sha256": "2003c8c497e5f3d0235cf6b7505d3f93a18d2c9a6d7ea901a804e87231626d16"
+      "draws": [
+        {
+          "site": "blow",
+          "bound": 1000,
+          "residue": 999
+        }
+      ],
+      "vector_sha256": "a9ebf100a5e266cb97caa1dc067a8658e613e5d03e1aa64cb25605c73f201ffb"
     },
     {
       "id": "blow-back-499",
@@ -145045,11 +145105,17 @@
       },
       "expected": true,
       "sources": [
-        "G/model/stats/Formulas.java:1621-1640",
-        "design/A8 per-mille"
+        "G/model/stats/Formulas.java:1621-1642",
+        "docs/plans/phase-4-zone-design.md:269 (§5; A8): integer100 to per-mille; roll1000*Q < rate_q*10"
       ],
-      "draws": [],
-      "vector_sha256": "d81f213fcd061e47bb8a78c7da8dc5c45e019d982b7ac28a5444c59b57f5a888"
+      "draws": [
+        {
+          "site": "blow",
+          "bound": 1000,
+          "residue": 499
+        }
+      ],
+      "vector_sha256": "58779ff32a5442a186d626f1960d94f9a4e5fb3d3403d3792ae9ed0cec2739d6"
     },
     {
       "id": "blow-back-500",
@@ -145062,11 +145128,17 @@
       },
       "expected": true,
       "sources": [
-        "G/model/stats/Formulas.java:1621-1640",
-        "design/A8 per-mille"
+        "G/model/stats/Formulas.java:1621-1642",
+        "docs/plans/phase-4-zone-design.md:269 (§5; A8): integer100 to per-mille; roll1000*Q < rate_q*10"
       ],
-      "draws": [],
-      "vector_sha256": "2ab915dc0f6fc072068f7a53d752d61c459ee0ca5d7ee18158a36258d075f20e"
+      "draws": [
+        {
+          "site": "blow",
+          "bound": 1000,
+          "residue": 500
+        }
+      ],
+      "vector_sha256": "e5e9b4dd3ac9e5d56548cd2ee47bf9484d902de981c84c4b754c819710e0e638"
     },
     {
       "id": "blow-back-749",
@@ -145079,11 +145151,17 @@
       },
       "expected": true,
       "sources": [
-        "G/model/stats/Formulas.java:1621-1640",
-        "design/A8 per-mille"
+        "G/model/stats/Formulas.java:1621-1642",
+        "docs/plans/phase-4-zone-design.md:269 (§5; A8): integer100 to per-mille; roll1000*Q < rate_q*10"
       ],
-      "draws": [],
-      "vector_sha256": "e615ad05d9b62cf55e88650f93f5c2804d4c83762fc460f277c729309fbf112c"
+      "draws": [
+        {
+          "site": "blow",
+          "bound": 1000,
+          "residue": 749
+        }
+      ],
+      "vector_sha256": "51be0acf9e76292f4992780a4d1046e3a1e6af2ccc0e28e99ab2b1e574cfb1e9"
     },
     {
       "id": "blow-back-750",
@@ -145096,11 +145174,17 @@
       },
       "expected": true,
       "sources": [
-        "G/model/stats/Formulas.java:1621-1640",
-        "design/A8 per-mille"
+        "G/model/stats/Formulas.java:1621-1642",
+        "docs/plans/phase-4-zone-design.md:269 (§5; A8): integer100 to per-mille; roll1000*Q < rate_q*10"
       ],
-      "draws": [],
-      "vector_sha256": "76e32d60d4724c4ddf2b88c0b24246a45d4a5db56a1dd3b53af6d77b1cbb9c17"
+      "draws": [
+        {
+          "site": "blow",
+          "bound": 1000,
+          "residue": 750
+        }
+      ],
+      "vector_sha256": "e2e08fd464c852efbe0fd7b24022240ca696a3702795e360a89943d7e556f3bd"
     },
     {
       "id": "blow-back-999",
@@ -145113,11 +145197,17 @@
       },
       "expected": true,
       "sources": [
-        "G/model/stats/Formulas.java:1621-1640",
-        "design/A8 per-mille"
+        "G/model/stats/Formulas.java:1621-1642",
+        "docs/plans/phase-4-zone-design.md:269 (§5; A8): integer100 to per-mille; roll1000*Q < rate_q*10"
       ],
-      "draws": [],
-      "vector_sha256": "aee886774507512bb233a7e74f26405193add8fcbcebfc4555538198c4e9248d"
+      "draws": [
+        {
+          "site": "blow",
+          "bound": 1000,
+          "residue": 999
+        }
+      ],
+      "vector_sha256": "0b05fc61728ba414bdd1c4676ef4557dff53cb60fe417f96074ae1d142bf5320"
     },
     {
       "id": "lethal-0-0",
@@ -668212,10 +668302,11 @@
         "src/main/resources/data/stats/items/00700-00799.xml:497",
         "src/main/resources/data/stats/skills/02000-02099.xml:163-187,440-462",
         "G/model/actor/L2Character.java:1625-1643,4577-4581",
+        "docs/plans/phase-3-zone-design.md:126 launch/impact staging",
         "design/8 Escape timing/destination; no town respawn"
       ],
       "draws": [],
-      "vector_sha256": "1fb9036065576d606c2df9cded93d7fa6217c61a0aaa5c04d5e26cd23e4e77af"
+      "vector_sha256": "af0c4331ebc9133498163638b45e78d58d0f77f9b6323efb2988b09a7cc2439c"
     },
     {
       "id": "consumable-escape-timing-736-1500",
@@ -668296,10 +668387,11 @@
         "src/main/resources/data/stats/items/00700-00799.xml:497",
         "src/main/resources/data/stats/skills/02000-02099.xml:163-187,440-462",
         "G/model/actor/L2Character.java:1625-1643,4577-4581",
+        "docs/plans/phase-3-zone-design.md:126 launch/impact staging",
         "design/8 Escape timing/destination; no town respawn"
       ],
       "draws": [],
-      "vector_sha256": "30a442cd15ea2aefca7ecb6eba68536e03b70cacc2f2d5991a80cf8690ed367c"
+      "vector_sha256": "4701edc4c4f70aa09f3aace09fb236ef0f3357cf849221a3bc216bc689920d1d"
     },
     {
       "id": "consumable-escape-timing-1538-333",
@@ -668355,7 +668447,7 @@
         "animation_ms": 200,
         "launch_ms": 0,
         "launch_tick": 10,
-        "completion_tick": 12,
+        "completion_tick": 14,
         "interrupt_cutoff_tick": 10,
         "consumed": 1,
         "completion_consumed": 0,
@@ -668380,10 +668472,11 @@
         "src/main/resources/data/stats/items/01500-01599.xml:350",
         "src/main/resources/data/stats/skills/02000-02099.xml:163-187,440-462",
         "G/model/actor/L2Character.java:1625-1643,4577-4581",
+        "docs/plans/phase-3-zone-design.md:126 launch/impact staging",
         "design/8 Escape timing/destination; no town respawn"
       ],
       "draws": [],
-      "vector_sha256": "dba8c2fadce2ccb9ceb61d96d6c9d8ef260252170e5e94cd8b5daf69f236d5b1"
+      "vector_sha256": "75b6d7b0b0e8b125bf4a3b83c01281af87b91ecdba6a5d535fd71b5482302a78"
     },
     {
       "id": "consumable-escape-timing-1538-1500",
@@ -668439,7 +668532,7 @@
         "animation_ms": 200,
         "launch_ms": 0,
         "launch_tick": 10,
-        "completion_tick": 12,
+        "completion_tick": 14,
         "interrupt_cutoff_tick": 10,
         "consumed": 1,
         "completion_consumed": 0,
@@ -668464,10 +668557,11 @@
         "src/main/resources/data/stats/items/01500-01599.xml:350",
         "src/main/resources/data/stats/skills/02000-02099.xml:163-187,440-462",
         "G/model/actor/L2Character.java:1625-1643,4577-4581",
+        "docs/plans/phase-3-zone-design.md:126 launch/impact staging",
         "design/8 Escape timing/destination; no town respawn"
       ],
       "draws": [],
-      "vector_sha256": "26bb803ab899e86f3e78fdf9533401811b223e5e0d814226d77503f368eb0833"
+      "vector_sha256": "fd321879ef31a30f7a92c22317dfd483c13d3b42dfe0289cb1a17016b5ce1cb3"
     },
     {
       "id": "dormant-starter-use-0-5588",
@@ -683274,10 +683368,17 @@
       },
       "expected": false,
       "sources": [
-        "G/model/stats/Formulas.java:1621-1642"
+        "G/model/stats/Formulas.java:1621-1642",
+        "docs/plans/phase-4-zone-design.md:269 (§5; A8): integer100 to per-mille; roll1000*Q < rate_q*10"
       ],
-      "draws": [],
-      "vector_sha256": "0f5eeca7c48ef4282699de60753b6d50d42deff3985af6068df2471016f8dfb0"
+      "draws": [
+        {
+          "site": "blow",
+          "bound": 1000,
+          "residue": 998
+        }
+      ],
+      "vector_sha256": "f5f397fe882cdc6aa25a1d78b64e782888410a10a82689dcc76f9b237b346176"
     },
     {
       "id": "blow-boundary-0-999",
@@ -683296,10 +683397,17 @@
       },
       "expected": false,
       "sources": [
-        "G/model/stats/Formulas.java:1621-1642"
+        "G/model/stats/Formulas.java:1621-1642",
+        "docs/plans/phase-4-zone-design.md:269 (§5; A8): integer100 to per-mille; roll1000*Q < rate_q*10"
       ],
-      "draws": [],
-      "vector_sha256": "d58b89214d769a1a6f11c2c2e16fb8bd4829ce4e186f5a8b17b35d9488403b27"
+      "draws": [
+        {
+          "site": "blow",
+          "bound": 1000,
+          "residue": 999
+        }
+      ],
+      "vector_sha256": "c92364d7216dd3d7fb75fa6153a9937cb267ad404052e75e29e840ab095fd30c"
     },
     {
       "id": "blow-boundary-999/10-998",
@@ -683318,10 +683426,17 @@
       },
       "expected": true,
       "sources": [
-        "G/model/stats/Formulas.java:1621-1642"
+        "G/model/stats/Formulas.java:1621-1642",
+        "docs/plans/phase-4-zone-design.md:269 (§5; A8): integer100 to per-mille; roll1000*Q < rate_q*10"
       ],
-      "draws": [],
-      "vector_sha256": "c63a546f1f087960d02fffd03cec96a35be106232a9fdffe4740ee4931b6979a"
+      "draws": [
+        {
+          "site": "blow",
+          "bound": 1000,
+          "residue": 998
+        }
+      ],
+      "vector_sha256": "8ee5c036e86363d9783223ddc79034d96a6ef9c8d92c2748c70f5944876eaea3"
     },
     {
       "id": "blow-boundary-999/10-999",
@@ -683340,10 +683455,17 @@
       },
       "expected": false,
       "sources": [
-        "G/model/stats/Formulas.java:1621-1642"
+        "G/model/stats/Formulas.java:1621-1642",
+        "docs/plans/phase-4-zone-design.md:269 (§5; A8): integer100 to per-mille; roll1000*Q < rate_q*10"
       ],
-      "draws": [],
-      "vector_sha256": "ccc93f8919aa664de1713f1db8379c6c1b5be289f4ad580d62adac354246dcef"
+      "draws": [
+        {
+          "site": "blow",
+          "bound": 1000,
+          "residue": 999
+        }
+      ],
+      "vector_sha256": "ff858da65d99737205df3aee90d9dae823a17259d3be17b2403e6f3b8d14ed80"
     },
     {
       "id": "blow-boundary-100-998",
@@ -683362,10 +683484,17 @@
       },
       "expected": true,
       "sources": [
-        "G/model/stats/Formulas.java:1621-1642"
+        "G/model/stats/Formulas.java:1621-1642",
+        "docs/plans/phase-4-zone-design.md:269 (§5; A8): integer100 to per-mille; roll1000*Q < rate_q*10"
       ],
-      "draws": [],
-      "vector_sha256": "df32fbd0df3102c9cf0b49333d1bfacf548df49fc3024628e95526e430ee5597"
+      "draws": [
+        {
+          "site": "blow",
+          "bound": 1000,
+          "residue": 998
+        }
+      ],
+      "vector_sha256": "ba3a93bb18e3afe6486b2e21ec54121c4ce873372cb1e4320bd9da3f938ec23b"
     },
     {
       "id": "blow-boundary-100-999",
@@ -683384,10 +683513,17 @@
       },
       "expected": true,
       "sources": [
-        "G/model/stats/Formulas.java:1621-1642"
+        "G/model/stats/Formulas.java:1621-1642",
+        "docs/plans/phase-4-zone-design.md:269 (§5; A8): integer100 to per-mille; roll1000*Q < rate_q*10"
       ],
-      "draws": [],
-      "vector_sha256": "22c0a6246887ef932383359e575b74ac2fb7264d9aff51c2a84711f1d69a4a01"
+      "draws": [
+        {
+          "site": "blow",
+          "bound": 1000,
+          "residue": 999
+        }
+      ],
+      "vector_sha256": "5b666d42d80b460786df437c3140b8cdb9fa56ea15e11718c1f5a91ac56346e1"
     },
     {
       "id": "blow-boundary-101-998",
@@ -683406,10 +683542,17 @@
       },
       "expected": true,
       "sources": [
-        "G/model/stats/Formulas.java:1621-1642"
+        "G/model/stats/Formulas.java:1621-1642",
+        "docs/plans/phase-4-zone-design.md:269 (§5; A8): integer100 to per-mille; roll1000*Q < rate_q*10"
       ],
-      "draws": [],
-      "vector_sha256": "5a570f198ae01d5f23b78ca33d64653df7a7b49add8f777a979fc09d86e6d9ee"
+      "draws": [
+        {
+          "site": "blow",
+          "bound": 1000,
+          "residue": 998
+        }
+      ],
+      "vector_sha256": "7e735e2ee6d072f63aebd5d0539f86f05733f42d9022b31a279341ab2b23a3e7"
     },
     {
       "id": "blow-boundary-101-999",
@@ -683428,10 +683571,17 @@
       },
       "expected": true,
       "sources": [
-        "G/model/stats/Formulas.java:1621-1642"
+        "G/model/stats/Formulas.java:1621-1642",
+        "docs/plans/phase-4-zone-design.md:269 (§5; A8): integer100 to per-mille; roll1000*Q < rate_q*10"
       ],
-      "draws": [],
-      "vector_sha256": "accc19766f9ddc5fa1be413777dfbd3308d96fccdd5b580d6bc2574179612973"
+      "draws": [
+        {
+          "site": "blow",
+          "bound": 1000,
+          "residue": 999
+        }
+      ],
+      "vector_sha256": "9b6f710b9fd9d87699f7c9a0e7e4fdddf9960ed4b7f5bd00ac7e617b1d619c6e"
     },
     {
       "id": "blow-cap-rounding--1-False",
@@ -692709,5 +692859,5 @@
       }
     }
   ],
-  "vector_set_sha256": "572357cffcf6a85115f9d9812d03cc681f4ffac5ed9d4de3aa7aa2c547922d79"
+  "vector_set_sha256": "cad824c0e19842a81c84d8e3a8d30440771982c50028fc127e8e46430c6fb059"
 }
