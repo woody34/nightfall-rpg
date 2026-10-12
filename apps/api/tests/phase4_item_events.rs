@@ -116,6 +116,8 @@ fn v5_snapshot_grammar_rejects_every_item_audit_subject() {
     for event in facts() {
         let mut snapshot = original.clone();
         snapshot.checkpoints.push(CheckpointSnapshot {
+            learning: None,
+            item_work: None,
             entity: EntityId::from_uuid(Uuid::from_u128(1)),
             revision: 0,
             last_saved: Tick(0),

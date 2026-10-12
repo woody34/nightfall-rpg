@@ -41,6 +41,7 @@ struct Player {
     last_phase3: Option<Phase3Entity>,
     events: Vec<DomainEvent>,
     learning: Option<super::ports::SuccessfulLearnReceipt>,
+    items: Option<super::ports::ItemCheckpointWork>,
     dirty: bool,
     fenced: bool,
 }
@@ -50,6 +51,7 @@ struct Player {
 pub struct CheckpointService {
     repo: Arc<dyn CharacterRepository>,
     learning_repo: Option<Arc<dyn super::ports::LearningCheckpointRepository>>,
+    item_repo: Option<Arc<dyn super::ports::ItemCheckpointRepository>>,
     audit: Arc<dyn SessionAudit>,
     metrics: Arc<dyn CheckpointMetrics>,
     players: BTreeMap<EntityId, Player>,
@@ -69,6 +71,7 @@ impl CheckpointService {
         Self {
             repo,
             learning_repo: None,
+            item_repo: None,
             audit,
             metrics,
             players: BTreeMap::new(),
@@ -87,6 +90,31 @@ impl CheckpointService {
     ) -> Self {
         self.learning_repo = Some(repo);
         self
+    }
+
+    /// Installs the same atomic item/learning writer before recovery or V6 admission.
+    #[must_use]
+    pub fn with_items(mut self, repo: Arc<dyn super::ports::ItemCheckpointRepository>) -> Self {
+        self.item_repo = Some(repo);
+        self
+    }
+    /// Item simulation cannot activate without a typed durable receipt lane.
+    pub fn items_enabled(&self) -> bool {
+        self.item_repo.is_some()
+    }
+    /// Trusted actor preflight account/operation lookup, before simulation/RNG.
+    pub async fn item_receipt_lookup(
+        &self,
+        account: crate::domain::AccountId,
+        operation: super::ports::ItemMutationOperation,
+        key: &IdempotencyKey,
+        fingerprint: &str,
+    ) -> anyhow::Result<super::ports::ItemReceiptLookup> {
+        self.item_repo
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("item persistence unavailable"))?
+            .item_receipt_lookup(account, operation, key, fingerprint)
+            .await
     }
 
     /// Whether paid mutations have a typed receipt/checkpoint writer.
@@ -213,6 +241,22 @@ impl CheckpointService {
             .players
             .iter()
             .map(|(entity, p)| crate::domain::zone::CheckpointSnapshot {
+                learning: p
+                    .learning
+                    .as_ref()
+                    .filter(|_| p.latest.as_ref().is_some_and(|cp| cp.phase4.is_some()))
+                    .map(|receipt| crate::domain::zone::CheckpointLearnReceiptSnapshot {
+                        account: receipt.account_id,
+                        key: receipt.key.as_uuid(),
+                        fingerprint: receipt.request_fingerprint.clone(),
+                        result: receipt.result.clone(),
+                    }),
+                item_work: p.items.as_ref().map(|work| {
+                    crate::domain::zone::ItemCheckpointWorkSnapshot {
+                        allocation: work.allocation,
+                        projection: work.projection.clone(),
+                    }
+                }),
                 entity: *entity,
                 revision: p.revision,
                 last_saved: p.last_saved,
@@ -221,6 +265,7 @@ impl CheckpointService {
                 events: p.events.clone(),
                 latest: p.latest.as_ref().map(|cp| {
                     crate::domain::zone::CheckpointRequestSnapshot {
+                        phase4: cp.phase4.clone(),
                         phase3: cp.phase3.clone(),
                         class_state: cp.class_state.clone(),
                         revision_seen: cp.revision_seen,
@@ -256,9 +301,25 @@ impl CheckpointService {
                         dirty: p.dirty,
                         fenced: p.fenced,
                         events: p.events.clone(),
-                        learning: None,
+                        learning: p.learning.as_ref().map(|receipt| {
+                            super::ports::SuccessfulLearnReceipt {
+                                account_id: receipt.account,
+                                key: IdempotencyKey::from_uuid(receipt.key),
+                                request_fingerprint: receipt.fingerprint.clone(),
+                                result: receipt.result.clone(),
+                            }
+                        }),
+                        items: p
+                            .item_work
+                            .as_ref()
+                            .map(|work| super::ports::ItemCheckpointWork {
+                                zone: snapshot.seed.zone,
+                                epoch: snapshot.seed.epoch,
+                                allocation: work.allocation,
+                                projection: work.projection.clone(),
+                            }),
                         latest: p.latest.as_ref().map(|cp| CharacterCheckpoint {
-                            phase4: None,
+                            phase4: cp.phase4.clone(),
                             phase3: cp.phase3.clone(),
                             class_state: cp.class_state.clone(),
                             character_id: CharacterId::from_uuid(p.entity.as_uuid()),
@@ -323,6 +384,7 @@ impl CheckpointService {
             save(
                 self.repo.as_ref(),
                 self.learning_repo.as_deref(),
+                self.item_repo.as_deref(),
                 self.audit.as_ref(),
                 self.metrics.as_ref(),
                 self.sessions.get(&entity).copied(),
@@ -370,11 +432,18 @@ impl CheckpointService {
                             latest: None,
                             events: Vec::new(),
                             learning: None,
+                            items: None,
                             dirty: false,
                             fenced: false,
                         },
                     );
                 }
+            }
+        }
+        for event in &tick.events {
+            if let crate::domain::zone::ZoneEvent::ItemCheckpoint(projection) = event {
+                anyhow::ensure!(self.item_repo.is_some() && snapshot.entities.iter().any(|entity| entity.id == projection.entity),
+                    "offline item projection requires its published final core; item lane unavailable");
             }
         }
         for event in &tick.events {
@@ -415,7 +484,19 @@ impl CheckpointService {
                 "player checkpoint sidecar missing"
             );
             let mut cp = CharacterCheckpoint {
-                phase4: None,
+                phase4: snapshot
+                    .phase4
+                    .as_ref()
+                    .map(|phase| {
+                        let skills = snapshot
+                            .phase3
+                            .as_ref()
+                            .ok_or_else(|| anyhow::anyhow!("item checkpoint needs skill state"))?;
+                        phase
+                            .checkpoint(entity.id, tick.tick, skills)
+                            .map_err(anyhow::Error::from)
+                    })
+                    .transpose()?,
                 phase3: phase3
                     .map(|phase| phase.checkpoint(entity.id, tick.tick))
                     .transpose()?,
@@ -454,6 +535,66 @@ impl CheckpointService {
                 cp.alive = delta.alive;
                 cp.position = position(delta.pos);
             }
+            let projections: Vec<_> = tick
+                .events
+                .iter()
+                .filter_map(|event| {
+                    if let crate::domain::zone::ZoneEvent::ItemCheckpoint(projection) = event {
+                        (projection.entity == entity.id).then_some(projection.as_ref())
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            anyhow::ensure!(
+                projections.len() <= 1,
+                "multiple final item checkpoints for one tick/owner"
+            );
+            if projections.is_empty() {
+                if let Some(before) = player.latest.as_ref().and_then(|cp| cp.phase4.as_ref()) {
+                    let mut before = before.clone();
+                    let mut after = cp
+                        .phase4
+                        .clone()
+                        .ok_or_else(|| anyhow::anyhow!("item sidecar removed"))?;
+                    // Paused remainders fall with time; every other retained change needs its frozen work.
+                    before.item_reuse_remainders.clear();
+                    after.item_reuse_remainders.clear();
+                    anyhow::ensure!(
+                        before == after,
+                        "retained item mutation without private checkpoint"
+                    );
+                }
+            }
+            if let Some(projection) = projections.first() {
+                anyhow::ensure!(self.item_repo.is_some(), "item checkpoint repository missing");
+                let account = match &combat.role {
+                    CombatRole::Player {
+                        progression: Some(progression),
+                        ..
+                    } => progression.identity.account_id,
+                    CombatRole::Player {
+                        progression: None, ..
+                    }
+                    | CombatRole::Npc { .. } => {
+                        anyhow::bail!("item checkpoint owner context missing")
+                    },
+                };
+                let work = super::ports::ItemCheckpointWork {
+                    zone: snapshot.seed.zone,
+                    epoch: tick.epoch,
+                    allocation: snapshot
+                        .phase4
+                        .as_ref()
+                        .ok_or_else(|| anyhow::anyhow!("item allocation missing"))?
+                        .allocator,
+                    projection: (*projection).clone(),
+                };
+                work.validate(&cp, account)?;
+                anyhow::ensure!(projection.tick == tick.tick, "item projection tick mismatch");
+                player.items = Some(work);
+                player.dirty = true;
+            }
             let retained_critical = phase3.is_some()
                 && (retained_phase3_changed(player.last_phase3.as_ref(), retained)
                     || player
@@ -470,9 +611,9 @@ impl CheckpointService {
                     || old.position != cp.position
             });
             player.dirty |= changed || retained_critical;
-            player.latest = Some(cp);
+            player.latest = Some(cp.clone());
             player.last_phase3 = retained.cloned();
-            let mut immediate = retained_critical || tick.events.iter().any(|event| matches!(event,
+            let mut immediate = player.items.is_some() || retained_critical || tick.events.iter().any(|event| matches!(event,
                 crate::domain::zone::ZoneEvent::TokensReconciled { entity: who, .. } if *who == entity.id));
             for event in &tick.events {
                 if let crate::domain::zone::ZoneEvent::TokensReconciled {
@@ -645,10 +786,16 @@ impl CheckpointService {
                 }
                 player.events.extend(facts);
             }
+            if let Some(work) = &player.items {
+                player
+                    .events
+                    .extend(item_events(&cp, work, player.events.len())?);
+            }
             if immediate || tick.tick.0.saturating_sub(player.last_saved.0) >= 50 {
                 save(
                     self.repo.as_ref(),
                     self.learning_repo.as_deref(),
+                    self.item_repo.as_deref(),
                     self.audit.as_ref(),
                     self.metrics.as_ref(),
                     self.sessions.get(&entity.id).copied(),
@@ -820,9 +967,11 @@ async fn close_recovered_epoch(log: &dyn EventLog, zone: ZoneId, epoch: u64) -> 
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)] // Explicit writer/audit/metrics at the atomic save barrier.
 async fn save(
     repo: &dyn CharacterRepository,
     learning_repo: Option<&dyn super::ports::LearningCheckpointRepository>,
+    item_repo: Option<&dyn super::ports::ItemCheckpointRepository>,
     audit: &dyn SessionAudit,
     metrics: &dyn CheckpointMetrics,
     session: Option<SessionId>,
@@ -849,7 +998,14 @@ async fn save(
     loop {
         metrics.lag(started.elapsed());
         let attempt = async {
-            if let Some(receipt) = &player.learning {
+            if let Some(work) = &player.items {
+                let writer = item_repo.ok_or_else(|| {
+                    super::ports::CheckpointError::Constraint("item_repository_missing".into())
+                })?;
+                writer
+                    .checkpoint_items(cp, &player.events, work, player.learning.as_ref())
+                    .await
+            } else if let Some(receipt) = &player.learning {
                 let repo = learning_repo.ok_or_else(|| {
                     super::ports::CheckpointError::Constraint("learning_repository_missing".into())
                 })?;
@@ -896,6 +1052,7 @@ async fn save(
                 player.revision = revision;
                 player.events.clear();
                 player.learning = None;
+                player.items = None;
                 player.dirty = false;
                 metrics.lag(Duration::ZERO);
                 return Ok(());
@@ -1083,3 +1240,74 @@ fn retained_phase3_changed(before: Option<&Phase3Entity>, after: Option<&Phase3E
 #[cfg(test)]
 #[path = "checkpoint_phase3_tests.rs"]
 mod phase3_tests;
+
+#[cfg(test)]
+#[path = "checkpoint_items_tests.rs"]
+mod item_tests;
+
+fn item_events(
+    cp: &CharacterCheckpoint,
+    work: &super::ports::ItemCheckpointWork,
+    offset: usize,
+) -> anyhow::Result<Vec<DomainEvent>> {
+    use crate::domain::zone::phase4_projection::ItemOperation;
+    work.projection
+        .ledger
+        .iter()
+        .enumerate()
+        .map(|(index, delta)| {
+            let ordinal = u64::try_from(
+                offset
+                    .checked_add(index)
+                    .ok_or_else(|| anyhow::anyhow!("item event ordinal overflow"))?,
+            )?;
+            let fact = crate::domain::ItemEventFact {
+                metadata: EventMetadata {
+                    event_id: stable_id(
+                        work.projection.entity,
+                        work.zone,
+                        work.epoch,
+                        work.projection.tick,
+                        Some(ordinal),
+                    ),
+                    sequence: (
+                        cp.revision_seen
+                            .checked_add(1)
+                            .ok_or_else(|| anyhow::anyhow!("checkpoint revision overflow"))?,
+                        ordinal,
+                    ),
+                },
+                character_id: cp.character_id,
+                instance_id: delta.instance,
+                template_id: delta.template()?,
+                count_delta: delta.count_delta,
+                before: delta.before.clone(),
+                after: delta.after.clone(),
+                causes: delta
+                    .causes
+                    .iter()
+                    .map(serde_json::to_value)
+                    .collect::<Result<_, _>>()?,
+            };
+            Ok(match delta.operation {
+                ItemOperation::Grant | ItemOperation::Starter | ItemOperation::Backfill => {
+                    DomainEvent::ItemGranted { fact }
+                },
+                ItemOperation::Equip => DomainEvent::ItemEquipped { fact },
+                ItemOperation::Unequip => DomainEvent::ItemUnequipped { fact },
+                ItemOperation::Consume | ItemOperation::Use => DomainEvent::ItemConsumed { fact },
+                ItemOperation::Enchant => DomainEvent::ItemEnchanted { fact },
+                ItemOperation::Destroy | ItemOperation::Crystallize => {
+                    DomainEvent::ItemDestroyed { fact }
+                },
+                ItemOperation::Refine | ItemOperation::CancelRefine => {
+                    DomainEvent::ItemRefined { fact }
+                },
+                ItemOperation::Exchange => DomainEvent::ItemExchanged { fact },
+                ItemOperation::ToggleAutoShot => {
+                    anyhow::bail!("pure owner toggle cannot fabricate an item audit row")
+                },
+            })
+        })
+        .collect()
+}

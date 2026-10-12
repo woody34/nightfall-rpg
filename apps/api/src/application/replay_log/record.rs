@@ -668,6 +668,8 @@ mod legacy_learning_boundary_tests {
             snapshot.meta.digest_version = version;
             ZoneState::from_snapshot(snapshot.clone()).unwrap();
             snapshot.checkpoints.push(CheckpointSnapshot {
+                learning: None,
+                item_work: None,
                 entity: EntityId::from_uuid(Uuid::nil()),
                 revision: 1,
                 last_saved: Tick(0),

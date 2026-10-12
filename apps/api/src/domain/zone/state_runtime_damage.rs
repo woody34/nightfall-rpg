@@ -580,6 +580,13 @@ impl ZoneState {
 }
 
 #[cfg(test)]
+impl ZoneState {
+    pub(crate) fn item_checkpoint_fixture() -> (Self, TargetBinding, TargetBinding) {
+        tests::equipment_fixture()
+    }
+}
+
+#[cfg(test)]
 #[allow(
     clippy::unwrap_used,
     clippy::expect_used,
@@ -1745,7 +1752,7 @@ mod tests {
         }
     }
 
-    fn equipment_fixture() -> (ZoneState, TargetBinding, TargetBinding) {
+    pub(super) fn equipment_fixture() -> (ZoneState, TargetBinding, TargetBinding) {
         use crate::domain::zone::{
             item_angles::FacingVector,
             item_functions::tests::{equip, player},

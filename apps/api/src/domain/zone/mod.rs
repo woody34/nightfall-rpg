@@ -132,9 +132,10 @@ pub use stat_sheet::{
     resource_max, sqrt_dex, FinalStats, StatSheet,
 };
 pub use state::{
-    CheckpointRequestSnapshot, CheckpointSnapshot, InvalidBounds, NpcHate, RngState, SnapshotError,
-    SnapshotMeta, StateDigestVersion, TickError, ZoneBounds, ZoneId, ZoneSeed, ZoneSnapshot,
-    ZoneState, MAX_MOVE_DISTANCE_TILES, SNAPSHOT_SCHEMA_VERSION,
+    CheckpointLearnReceiptSnapshot, CheckpointRequestSnapshot, CheckpointSnapshot, InvalidBounds,
+    ItemCheckpointWorkSnapshot, NpcHate, RngState, SnapshotError, SnapshotMeta, StateDigestVersion,
+    TickError, ZoneBounds, ZoneId, ZoneSeed, ZoneSnapshot, ZoneState, MAX_MOVE_DISTANCE_TILES,
+    SNAPSHOT_SCHEMA_VERSION,
 };
 
 #[cfg(test)]

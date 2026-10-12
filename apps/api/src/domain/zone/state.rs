@@ -281,9 +281,36 @@ pub struct ZoneSnapshot {
     pub safe_point: Option<Vec2Fixed>,
 }
 
+/// Exact acknowledged private item work retained until its fenced transaction succeeds.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ItemCheckpointWorkSnapshot {
+    /// Final allocator from the acknowledged tick, never reconstructed from a later boundary.
+    pub allocation: super::ItemInstanceRange,
+    /// Frozen instance facts, receipts and audit evidence.
+    pub projection: super::Phase4Projection,
+}
+
+/// Frozen paid-learning context for the same pending V6 transaction as item costs.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(missing_docs)]
+pub struct CheckpointLearnReceiptSnapshot {
+    pub account: crate::domain::AccountId,
+    pub key: uuid::Uuid,
+    pub fingerprint: String,
+    pub result: super::FrozenLearnResult,
+}
+
 /// Persistence metadata owned by the application; it never participates in simulation hashes.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CheckpointSnapshot {
+    /// Optional unified paid-learning context, omitted from every historical snapshot.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub learning: Option<CheckpointLearnReceiptSnapshot>,
+    /// Immutable critical item transaction awaiting acknowledgement.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub item_work: Option<ItemCheckpointWorkSnapshot>,
     /// Player identity.
     pub entity: EntityId,
     /// Last acknowledged repository revision.
@@ -303,6 +330,9 @@ pub struct CheckpointSnapshot {
 /// Integer-only representation of an application checkpoint request.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CheckpointRequestSnapshot {
+    /// Paused item state, omitted from every historical request.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub phase4: Option<super::Phase4Checkpoint>,
     /// Frozen paused timers and policy, absent from all legacy request fingerprints.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub phase3: Option<super::Phase3Checkpoint>,
@@ -423,7 +453,17 @@ impl ZoneSnapshot {
     /// an unsupported digest into an accepted one.
     pub fn validate_version(&self) -> Result<(), SnapshotError> {
         use StateDigestVersion::{BinaryV2, BinaryV3, BinaryV4, BinaryV5, BinaryV6, JsonV1};
-        if self.meta.schema_version < 10 && self.phase4.is_some() {
+        if self.meta.schema_version < 10
+            && (self.phase4.is_some()
+                || self.checkpoints.iter().any(|lane| {
+                    lane.item_work.is_some()
+                        || lane.learning.is_some()
+                        || lane
+                            .latest
+                            .as_ref()
+                            .is_some_and(|request| request.phase4.is_some())
+                }))
+        {
             return Err(SnapshotError::CombatMismatch);
         }
         let valid =
@@ -480,6 +520,128 @@ impl ZoneSnapshot {
                 (4..=10, _, _) => false,
                 (version, _, _) => return Err(SnapshotError::Schema(version)),
             };
+        if valid {
+            self.validate_item_checkpoints()?;
+            Ok(())
+        } else {
+            Err(SnapshotError::CombatMismatch)
+        }
+    }
+    fn validate_item_checkpoints(&self) -> Result<(), SnapshotError> {
+        for lane in &self.checkpoints {
+            self.validate_learning_checkpoint(lane)?;
+            let items = lane
+                .latest
+                .as_ref()
+                .and_then(|request| request.phase4.as_ref());
+            if let Some(checkpoint) = items {
+                let sources = lane
+                    .latest
+                    .as_ref()
+                    .and_then(|request| request.phase3.as_ref())
+                    .ok_or(SnapshotError::CombatMismatch)?
+                    .modifier_install_order
+                    .len();
+                checkpoint
+                    .validate_structure(sources)
+                    .map_err(|_| SnapshotError::CombatMismatch)?;
+                if self
+                    .phase4
+                    .as_ref()
+                    .is_none_or(|phase| phase.rules_hash != checkpoint.rules_hash)
+                {
+                    return Err(SnapshotError::CombatMismatch);
+                }
+            }
+            if let Some(work) = &lane.item_work {
+                let request = lane.latest.as_ref().ok_or(SnapshotError::CombatMismatch)?;
+                let sources = request
+                    .phase3
+                    .as_ref()
+                    .ok_or(SnapshotError::CombatMismatch)?
+                    .modifier_install_order
+                    .len();
+                work.projection
+                    .validate_structure(sources)
+                    .map_err(|_| SnapshotError::CombatMismatch)?;
+                if work.projection.entity != lane.entity
+                    || items != Some(&work.projection.checkpoint)
+                    || work.projection.tick >= self.tick
+                {
+                    return Err(SnapshotError::CombatMismatch);
+                }
+                if self.checkpoint_owner(lane.entity) != Some(work.projection.account) {
+                    return Err(SnapshotError::CombatMismatch);
+                }
+                let allocation = self
+                    .phase4
+                    .as_ref()
+                    .ok_or(SnapshotError::CombatMismatch)?
+                    .allocator
+                    .bounds();
+                let stored = work.allocation.bounds();
+                if stored.0 != allocation.0 || stored.2 != allocation.2 || stored.1 > allocation.1 {
+                    return Err(SnapshotError::CombatMismatch);
+                }
+            }
+        }
+        Ok(())
+    }
+    fn checkpoint_owner(&self, entity: EntityId) -> Option<crate::domain::AccountId> {
+        self.entities
+            .iter()
+            .find(|owner| owner.id == entity)
+            .and_then(|owner| owner.combat.as_ref())
+            .and_then(|combat| {
+                if let CombatRole::Player {
+                    progression: Some(progression),
+                    ..
+                } = &combat.role
+                {
+                    Some(progression.identity.account_id)
+                } else {
+                    None
+                }
+            })
+    }
+    fn validate_learning_checkpoint(&self, lane: &CheckpointSnapshot) -> Result<(), SnapshotError> {
+        use crate::domain::DomainEvent;
+        let learned: Vec<_> = lane
+            .events
+            .iter()
+            .filter(|event| matches!(event, DomainEvent::CharacterSkillLearned { .. }))
+            .collect();
+        let Some(receipt) = &lane.learning else {
+            if self.meta.schema_version >= 10 && !learned.is_empty() {
+                return Err(SnapshotError::CombatMismatch);
+            }
+            return Ok(());
+        };
+        let request = lane.latest.as_ref().ok_or(SnapshotError::CombatMismatch)?;
+        let result = &receipt.result;
+        let valid = self.checkpoint_owner(lane.entity) == Some(receipt.account)
+            && result.character_id.as_uuid() == lane.entity.as_uuid()
+            && result.skill.id.0 > 0
+            && result.skill.rank > 0
+            && result.tick < self.tick
+            && receipt.fingerprint
+                == format!(
+                    "v1|{}|{}|{}",
+                    result.character_id, result.skill.id.0, result.skill.rank
+                )
+            && request.phase3.is_some()
+            && request.phase4.is_some()
+            && request.class_state.as_ref().is_some_and(|ledger| {
+                ledger.learned_skills.iter().any(|skill| {
+                    skill.key == format!("l2.skill.{}", result.skill.id.0)
+                        && skill.level >= result.skill.rank
+                })
+            })
+            && matches!(learned.as_slice(), [DomainEvent::CharacterSkillLearned {character_id, skill_id, skill_level, sp_spent, sp_remaining, tick, request_key, metadata}]
+                if *character_id == result.character_id && *skill_id == result.skill.id.0
+                    && *skill_level == result.skill.rank && *sp_spent == result.sp_spent
+                    && *sp_remaining == result.sp_remaining && *tick == result.tick.0
+                    && *request_key == receipt.key && request.revision_seen.checked_add(1) == Some(metadata.sequence.0));
         if valid {
             Ok(())
         } else {
