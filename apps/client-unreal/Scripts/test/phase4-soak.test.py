@@ -15,6 +15,7 @@ fixtures=load('soak4_fixtures',SCRIPTS/'soak-fixtures.py')
 seed=load('soak4_seed',REPO/'infra/scripts/seed-phase4-soak.py')
 grammar=load('soak4_grammar',SCRIPTS/'phase4-grammar.py')
 variants=load('soak4_variants',SCRIPTS/'phase4-variants.py')
+evidence=load('soak4_evidence',SCRIPTS/'phase4-evidence.py')
 
 
 class Soak(unittest.TestCase):
@@ -53,6 +54,39 @@ class Soak(unittest.TestCase):
         data=variants.validate();self.assertEqual(len(data['runtime_cases']),26)
         for row in data['runtime_cases']:self.assertIn('pending',row['execution'])
         self.assertEqual(len({r['id'] for r in data['runtime_cases']}),26)
+
+    def test_armour_reconnect_distinguishes_retained_history_from_full_set_and_shield(self):
+        paths=[SCRIPTS.parent/'Scenarios/4-armor-set.nfs',
+               *(SCRIPTS.parent/'Scenarios/variants').glob('4-armor-enchant*.nfs')]
+        for path in paths:
+            pack=re.search(r'^# fixture: (\S+)$',path.read_text(),re.M)[1]
+            equipment={r['slot']:r['template_id'] for r in variants.scenarios.fixtures.profiles(pack)['owner']['inventory'] if r['slot']}
+            phase=next(p for p in evidence.phases(path) if p['name']=='active-incomplete-history-reconnect')
+            previous=False;checkpoints=[]
+            for line in path.read_text().splitlines():
+                tokens=line.split()
+                if not tokens:continue
+                mutation=None
+                if tokens[0]=='nf.Equip':
+                    template=int(tokens[1]);slot=variants.scenarios.fixtures.catalogue()[template]['bodypart']
+                    equipment[slot]=template
+                    mutation='equip_shield' if slot=='lhand' else 'equip_chest'
+                elif tokens[0]=='nf.Unequip':
+                    equipment.pop(tokens[1],None);mutation='remove'
+                complete=all(equipment.get(slot)==template for slot,template in [('chest',58),('legs',59),('head',47)])
+                shield=equipment.get('lhand')==628
+                if mutation:
+                    previous=evidence.oracle.set_shield_history(previous,mutation,equipment.get('chest')==58,shield,complete,
+                        required_part=tokens[0]=='nf.Unequip' and tokens[1] in ('chest','legs','head'))
+                if tokens[0]=='nf.DropSocket':
+                    if not checkpoints:
+                        self.assertTrue(all(equipment.get(slot)==template for slot,template in phase['equipment'].items()))
+                    checkpoints.append((previous,complete and shield))
+            self.assertEqual(checkpoints,[(True,False),(False,False),(True,True)],path.name)
+            self.assertIn('nf.WaitFor owner_stats_match_mark 3',path.read_text())
+            self.assertIn('"active-incomplete-history-reconnect"',path.read_text())
+            # The full_set&&shield reconnect mutation loses provider3543 at the first checkpoint.
+            self.assertNotEqual([retained for retained,_ in checkpoints],[rebuilt for _,rebuilt in checkpoints])
 
 
 if __name__=='__main__':unittest.main()
