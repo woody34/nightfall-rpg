@@ -26,11 +26,14 @@ def casting_scenario(waypoints):
         '# Move cap: domain/zone/state.rs:39,1376; tolerance: Bot/BotPredicates.cpp:681-691.',
         '# Move waits: (60+1)tiles /3.75tiles/s *3=48.8s <=54s per leg.',
         '# Speed: professions/human_mystic.toml:22; domain/zone/phase2.rs:110-114.',
-        '# Global waits: 4*54s moves +99s other waits=315s; +30s grace=345s <=360s.',
+        '# Global waits: 4*54s moves +114s other waits=330s; +30s grace=360s <=360s.',
         '# Long Might is1200s (pinned dp skills/01000-01099.xml:1553).',
+        '# Observe the new Might start/result before moving; an old buff cannot prove a recast.',
         'nf.Login', 'nf.WaitFor connected 15', 'nf.EnterWorld', 'nf.WaitFor in_world 15',
         'nf.WaitFor learned_rank 1177 == 1 3',
-        'nf.WaitFor skill_ready 1068 12', 'nf.Cast 1068 self', 'nf.WaitFor buff_active 1068 12']
+        'nf.WaitFor skill_ready 1068 12', 'nf.Cast 1068 self',
+        'nf.WaitFor cast_state == casting 12', 'nf.WaitFor cast_state == idle 12',
+        'nf.WaitFor buff_active 1068 3', 'nf.Expect cast_results == 1']
     wp1, wp2, wp3 = waypoints
     for x, y in (wp2, wp1, wp2, wp3):
         lines += [f'nf.ClickMove {x} {y}', f'nf.WaitFor own_at {x} {y} 1 54']

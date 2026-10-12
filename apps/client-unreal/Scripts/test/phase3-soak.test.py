@@ -201,6 +201,11 @@ class CastingSoakTests(unittest.TestCase):
             for index, role in enumerate(manifest['roles']):
                 with self.subTest(clients=clients, role=role['name']):
                     source = Path(role['scenario']).read_text()
+                    # Each loop reconnect clears result history, but restores the old buff.
+                    # Require a new start and successful result before the first move.
+                    self.assertIn('nf.Cast 1068 self\nnf.WaitFor cast_state == casting 12\n'
+                                  'nf.WaitFor cast_state == idle 12\nnf.WaitFor buff_active 1068 3\n'
+                                  'nf.Expect cast_results == 1\nnf.ClickMove ', source)
                     route = [line.split()[2:] for line in source.splitlines()
                              if line.startswith('nf.WaitFor own_at ')]
                     moves = [tuple(map(int, line.split()[1:])) for line in source.splitlines()
@@ -236,9 +241,9 @@ class CastingSoakTests(unittest.TestCase):
                         self.assertGreaterEqual(math.dist(homes[index], other), 35)
                     waits = sum(int(line.split()[-1]) for line in source.splitlines()
                                 if line.startswith('nf.WaitFor '))
-                    self.assertEqual(waits, 315)
+                    self.assertEqual(waits, 330)
                     self.assertIn('nf.Within 360', source)
-                    self.assertIn('4*54s moves +99s other waits=315s', source)
+                    self.assertIn('4*54s moves +114s other waits=330s; +30s grace=360s <=360s', source)
                     self.assertGreaterEqual(360, waits + 30)
         self.assertIn('-SoakScenarioSeconds=360', (SCRIPTS / 'run-soak.sh').read_text())
 
