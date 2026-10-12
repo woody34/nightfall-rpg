@@ -244,6 +244,9 @@ impl InventoryMutation {
                     .checked_add(count)
                     .ok_or(ItemError("item count overflow"))?;
                 checked_count(after.count)?;
+                if after.count > count_cap(template, true) {
+                    return Err(ItemError("item count exceeds pinned cap"));
+                }
                 after.revision = revision;
                 self.inventory.insert(after.id, after.clone());
                 self.changes.push(InventoryChange {
@@ -264,6 +267,9 @@ impl InventoryMutation {
         } else {
             (ordinary, limits.ordinary)
         };
+        if definition.stackable && count > count_cap(template, true) {
+            return Err(ItemError("item count exceeds pinned cap"));
+        }
         let slots = if definition.stackable { 1 } else { count };
         if used.checked_add(slots).is_none_or(|n| n > u64::from(limit)) {
             return Err(ItemError("inventory capacity exceeded"));
@@ -322,6 +328,24 @@ impl InventoryMutation {
         Ok(())
     }
 }
+/// Pinned `MaxAdena` (GAME@abfde049 character.properties:671).
+pub const MAX_ADENA: u64 = 99_900_000_000;
+/// L2ItemInstance.java:422 caps every other stack at `Integer.MAX_VALUE`.
+pub const MAX_STACK: u64 = 2_147_483_647;
+const ADENA: u32 = 57;
+
+/// D68: a stack may never exceed its pinned per-template maximum; acceptance refuses the
+/// grant instead of reproducing the source's silent clamp (L2ItemInstance.java:418-426).
+pub fn count_cap(template: u32, stackable: bool) -> u64 {
+    if !stackable {
+        1
+    } else if template == ADENA {
+        MAX_ADENA
+    } else {
+        MAX_STACK
+    }
+}
+
 fn checked_count(count: u64) -> Result<(), ItemError> {
     if count == 0 || i64::try_from(count).is_err() {
         Err(ItemError("item count outside positive bigint"))
@@ -400,6 +424,161 @@ mod tests {
     fn ordinary(rules: &Phase4Rules) -> InventoryLimits {
         InventoryLimits::from_rules(rules, false, i64::MAX).unwrap()
     }
+    proptest::proptest! {
+        #![proptest_config(proptest::prelude::ProptestConfig::with_cases(64))]
+        /// Design §12.2: positive counts, identities never reused, grant/consume conservation
+        /// and all-or-nothing refusal over legal-and-illegal edit sequences.
+        #[test]
+        fn inventory_sequences_conserve_counts_and_never_reuse_identity(
+            steps in proptest::collection::vec(
+                proptest::collection::vec((0_usize..3, 0_u8..3, 1_u64..6), 1..4),
+                1..12,
+            )
+        ) {
+            use super::super::{ItemCreationOrigin, ZoneId};
+            let bundle = embedded_phase4_bundle().unwrap();
+            let rules = &bundle.items;
+            let templates = [57_u32, 3031, 71];
+            let mut inventory = BTreeMap::new();
+            let mut allocator = ItemInstanceRange::new(100, 100, 100_000).unwrap();
+            let mut seen = std::collections::BTreeSet::new();
+            let total = |inventory: &BTreeMap<ItemInstanceId, ItemInstance>, template| {
+                inventory
+                    .values()
+                    .filter(|item: &&ItemInstance| item.template_id == template)
+                    .map(|item| u128::from(item.count))
+                    .sum::<u128>()
+            };
+            for (revision, step) in (2_u64..).zip(steps) {
+                let edits: Vec<InventoryEdit> = step
+                    .iter()
+                    .map(|&(template, kind, count)| {
+                        let template = *templates.get(template).unwrap();
+                        match kind {
+                            0 => InventoryEdit::Add { template, count },
+                            1 => InventoryEdit::TakeTemplate { template, count, preferred: None },
+                            _ => inventory
+                                .keys()
+                                .next()
+                                .map_or(InventoryEdit::Add { template, count }, |instance| {
+                                    InventoryEdit::TakeInstance { instance: *instance, count }
+                                }),
+                        }
+                    })
+                    .collect();
+                let before = inventory.clone();
+                let Ok(plan) = InventoryMutation::prepare(
+                    &inventory,
+                    allocator,
+                    &edits,
+                    rules,
+                    ordinary(rules),
+                    InventoryBoundary {
+                        tick: Tick(revision),
+                        revision,
+                        origin: ItemCreationOrigin { zone: ZoneId(1), epoch: 1 },
+                    },
+                ) else {
+                    // A refused sequence is pure: nothing to roll back, inputs untouched.
+                    proptest::prop_assert_eq!(&inventory, &before);
+                    continue;
+                };
+                for template in templates {
+                    let mut expected = i128::try_from(total(&before, template)).unwrap();
+                    for edit in &edits {
+                        match *edit {
+                            InventoryEdit::Add { template: t, count } if t == template => {
+                                expected = expected.checked_add(i128::from(count)).unwrap();
+                            },
+                            InventoryEdit::TakeTemplate { template: t, count, .. } if t == template => {
+                                expected = expected.checked_sub(i128::from(count)).unwrap();
+                            },
+                            InventoryEdit::TakeInstance { instance, count }
+                                if before.get(&instance).or(plan.inventory.get(&instance))
+                                    .is_some_and(|item| item.template_id == template) => {
+                                expected = expected.checked_sub(i128::from(count)).unwrap();
+                            },
+                            InventoryEdit::Add { .. }
+                            | InventoryEdit::TakeTemplate { .. }
+                            | InventoryEdit::TakeInstance { .. } => {},
+                        }
+                    }
+                    proptest::prop_assert_eq!(
+                        i128::try_from(total(&plan.inventory, template)).unwrap(),
+                        expected
+                    );
+                }
+                for item in plan.inventory.values() {
+                    proptest::prop_assert!(item.count > 0);
+                    if !before.contains_key(&item.id) {
+                        // Fresh identities come from the monotone range and were never held.
+                        proptest::prop_assert!(seen.insert(item.id));
+                    }
+                }
+                for id in before.keys() {
+                    seen.insert(*id);
+                }
+                inventory = plan.inventory;
+                allocator = plan.allocator;
+            }
+        }
+    }
+
+    #[test]
+    fn d68_stack_caps_refuse_at_acceptance_without_partial_change() {
+        use super::super::{ItemCreationOrigin, ZoneId};
+        let bundle = embedded_phase4_bundle().unwrap();
+        let rules = &bundle.items;
+        let items = &rules.parts().items;
+        assert!(items.get(&57).unwrap().stackable && items.get(&3031).unwrap().stackable);
+        let boundary = InventoryBoundary {
+            tick: Tick(1),
+            revision: 2,
+            origin: ItemCreationOrigin {
+                zone: ZoneId(1),
+                epoch: 1,
+            },
+        };
+        let range = ItemInstanceRange::new(100, 100, 1000).unwrap();
+        for (template, cap) in [(57, MAX_ADENA), (3031, MAX_STACK)] {
+            let held =
+                BTreeMap::from([(ItemInstanceId::new(3).unwrap(), seed(3, template, cap - 1))]);
+            let add = |count| {
+                InventoryMutation::prepare(
+                    &held,
+                    range,
+                    &[InventoryEdit::Add { template, count }],
+                    rules,
+                    ordinary(rules),
+                    boundary,
+                )
+            };
+            let plan = add(1).unwrap();
+            let merged = plan
+                .inventory
+                .get(&ItemInstanceId::new(3).unwrap())
+                .unwrap();
+            assert_eq!(merged.count, cap);
+            assert!(add(2).is_err());
+            // A fresh stack above the cap is refused before any allocation.
+            let refused = InventoryMutation::prepare(
+                &BTreeMap::new(),
+                range,
+                &[InventoryEdit::Add {
+                    template,
+                    count: cap + 1,
+                }],
+                rules,
+                ordinary(rules),
+                boundary,
+            );
+            assert!(refused.is_err());
+        }
+        assert_eq!(count_cap(57, true), 99_900_000_000);
+        assert_eq!(count_cap(1463, true), 2_147_483_647);
+        assert_eq!(count_cap(71, false), 1);
+    }
+
     #[test]
     fn creation_provenance_survives_later_epoch_consumption_and_merge_and_new_ids_use_current_clock(
     ) {
@@ -789,7 +968,8 @@ mod tests {
         let rules = &bundle.items;
         let mut runner = proptest::test_runner::TestRunner::default();
         runner
-            .run(&(1_u64..=i64::MAX as u64, 1_u64..=i64::MAX as u64), |(initial, addition)| {
+            // D68: both sides of the pinned adena cap, plus the old signed-bigint extremes.
+            .run(&(prop_oneof![1_u64..=2 * MAX_ADENA, 1_u64..=i64::MAX as u64], prop_oneof![1_u64..=2 * MAX_ADENA, 1_u64..=i64::MAX as u64]), |(initial, addition)| {
                 let inventory = [seed(3, 57, initial)]
                     .into_iter()
                     .map(|item| (item.id, item))
@@ -816,7 +996,7 @@ mod tests {
                 let sum = u128::from(initial)
                     .checked_add(u128::from(addition))
                     .unwrap();
-                if sum > i64::MAX as u128 {
+                if sum > u128::from(MAX_ADENA) {
                     prop_assert!(result.is_err());
                 } else {
                     let plan = result.unwrap();
