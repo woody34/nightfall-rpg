@@ -10,6 +10,7 @@ namespace NightfallItems
 {
  NIGHTFALL_API FBytes UuidBytes(const FString& Id);
  NIGHTFALL_API FString UuidString(const FBytes& Id);
+ NIGHTFALL_API FString RequestFingerprint(const FClientMessage& Body, const FString& Owner);
  NIGHTFALL_API EGrpcNightfallV1EquipSlot Slot(const FString& Name);
  NIGHTFALL_API FString SlotName(EGrpcNightfallV1EquipSlot Slot);
 }
@@ -93,8 +94,8 @@ private:
  void Gap();
  bool Validate(const TMap<uint64,FGrpcNightfallV1OwnedItem>& Candidate) const;
  void Publish(const TMap<uint64,FGrpcNightfallV1OwnedItem>& Candidate);
- void Remember(EGrpcNightfallV1ItemOperation Op, const FString& Key, const TArray<uint8>& Payload);
- void FinishSend(uint32 Seq,const FString& Key,EGrpcNightfallV1ItemOperation Op,const FClientMessage& Body);
+ void Remember(EGrpcNightfallV1ItemOperation Op, const FString& Key, const FString& Fingerprint, TOptional<uint64> AcceptedSeq, const TArray<uint8>& Payload);
+ void FinishSend(uint32 Seq,const FString& Key,EGrpcNightfallV1ItemOperation Op,const FClientMessage& Body,const FString& Arguments,const FString& Fingerprint);
  FString RequestScope(EGrpcNightfallV1ItemOperation Op,const FString& Key) const;
  void AuthenticationChanged();
  UPROPERTY() TObjectPtr<UNetClientSubsystem> Net;
@@ -111,7 +112,7 @@ private:
  bool bBaseline = false, bResync = false, bCatalog = false, bRpcDone = false, bRpcBusy = false;
  TMap<FString,TSet<uint32>> Outstanding;
  enum class ERequestStatus : uint8 { Pending, Committed, Rejected };
- struct FSubmittedRequest { FString Scope; TArray<uint8> Fingerprint; ERequestStatus Status=ERequestStatus::Pending; };
+ struct FSubmittedRequest { FString Scope,Arguments,Fingerprint; FClientMessage Body; ERequestStatus Status=ERequestStatus::Pending; };
  TMap<uint32,FSubmittedRequest> SequenceRequests;
  uint32 LastSendSeq=0;
  uint64 SyncTick=0;
@@ -126,8 +127,8 @@ private:
  TOptional<FStatsChanged> CurrentStats,MarkedStats;
  TOptional<uint64> MarkRevision;
  FString MarkOwner;
- TMap<FString,FClientMessage> FrozenRequests;
- TMap<FString,FString> FrozenArguments;
+ TMap<FString,FSubmittedRequest> CommittedRequests;
+ TMap<FString,FString> CommittedFingerprints;
  TMap<FString,TArray<TPair<uint32,bool>>> Hotbars;
  TOptional<EGrpcNightfallV1ItemOperation> Operation;
  TMap<FString,TArray<uint8>> Receipts;

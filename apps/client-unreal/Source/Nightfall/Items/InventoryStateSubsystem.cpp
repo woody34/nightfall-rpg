@@ -1,5 +1,6 @@
 #include "InventoryStateSubsystem.h"
 #include "NightfallWire.h"
+#include "Auth/AuthCrypto.h"
 #include "Net/NetClientSubsystem.h"
 #include "Combat/CombatStateSubsystem.h"
 #include "Bot/ItemBotPredicates.h"
@@ -26,6 +27,28 @@ namespace NightfallItems
  const TCHAR* Slots[] = {TEXT("unspecified"),TEXT("under"),TEXT("head"),TEXT("hair"),TEXT("hair2"),TEXT("neck"),TEXT("rhand"),TEXT("chest"),TEXT("lhand"),TEXT("rear"),TEXT("lear"),TEXT("gloves"),TEXT("legs"),TEXT("feet"),TEXT("rfinger"),TEXT("lfinger"),TEXT("lbracelet"),TEXT("rbracelet"),TEXT("deco1"),TEXT("deco2"),TEXT("deco3"),TEXT("deco4"),TEXT("deco5"),TEXT("deco6"),TEXT("cloak"),TEXT("belt")};
  EGrpcNightfallV1EquipSlot Slot(const FString& Name) { for (uint8 I=1;I<UE_ARRAY_COUNT(Slots);++I) if (Name==Slots[I]) return EGrpcNightfallV1EquipSlot(I); return EGrpcNightfallV1EquipSlot::EQUIP_SLOT_UNSPECIFIED; }
  FString SlotName(EGrpcNightfallV1EquipSlot S) { return uint8(S)<UE_ARRAY_COUNT(Slots)?Slots[uint8(S)]:TEXT("unknown"); }
+ FString RequestFingerprint(const FClientMessage& B,const FString& Owner)
+ {
+  // D42 hashes the zone's sorted JSON tuple (owner, normalized command), never proto bytes.
+  auto N=[](uint64 V){return FString::Printf(TEXT("%llu"),V);};
+  auto Binding=[&](const FGrpcNightfallV1ItemTarget& T){return FString::Printf(TEXT("{\"entity\":\"%s\",\"incarnation\":%u}"),*UuidString(T.EntityId),T.Incarnation.Value);};
+  FString Kind;
+  if(B.EquipItem.IsSet()){const auto& Q=*B.EquipItem;Kind=FString::Printf(TEXT("{\"instance\":%llu,\"operation\":\"equip\",\"preferred_slot\":%s}"),Q.InstanceId.Value,Q.PreferredSlot==EGrpcNightfallV1EquipSlot::EQUIP_SLOT_UNSPECIFIED?TEXT("null"):*(TEXT("\"")+SlotName(Q.PreferredSlot)+TEXT("\"")));}
+  else if(B.UnequipItem.IsSet())Kind=TEXT("{\"operation\":\"unequip\",\"slot\":\"")+SlotName(B.UnequipItem->Slot)+TEXT("\"}");
+  else if(B.UseItem.IsSet()){const auto& Q=*B.UseItem;Kind=TEXT("{\"instance\":")+N(Q.InstanceId)+TEXT(",\"operation\":\"use\",\"target\":")+(Q.HasTarget?Binding(Q.Target):TEXT("null"))+TEXT("}");}
+  else if(B.DestroyItem.IsSet()){const auto& Q=*B.DestroyItem;Kind=TEXT("{\"count\":")+N(Q.Count)+TEXT(",\"instance\":")+N(Q.InstanceId)+TEXT(",\"operation\":\"destroy\"}");}
+  else if(B.EnchantItem.IsSet()){const auto& Q=*B.EnchantItem;Kind=TEXT("{\"operation\":\"enchant\",\"scroll\":")+N(Q.ScrollInstanceId)+TEXT(",\"support\":")+(Q._support_instance_id._support_instance_idCase==EGrpcNightfallV1EnchantItemRequest_support_instance_id::SupportInstanceId?N(Q._support_instance_id.SupportInstanceId):TEXT("null"))+TEXT(",\"target\":")+N(Q.TargetInstanceId)+TEXT("}");}
+  else if(B.ToggleAutoShot.IsSet()){const auto& Q=*B.ToggleAutoShot;Kind=TEXT("{\"enabled\":")+FString(Q.Enabled?TEXT("true"):TEXT("false"))+TEXT(",\"operation\":\"toggle_auto_shot\",\"template\":")+N(Q.TemplateId)+TEXT("}");}
+  else if(B.RefineItem.IsSet()){const auto& Q=*B.RefineItem;Kind=TEXT("{\"npc\":")+Binding(Q.Npc)+TEXT(",\"operation\":\"refine\",\"stone\":")+N(Q.StoneInstanceId)+TEXT(",\"target\":")+N(Q.TargetInstanceId)+TEXT("}");}
+  else if(B.CancelRefine.IsSet()){const auto& Q=*B.CancelRefine;Kind=TEXT("{\"npc\":")+Binding(Q.Npc)+TEXT(",\"operation\":\"cancel_refine\",\"target\":")+N(Q.TargetInstanceId)+TEXT("}");}
+  else if(B.ExchangeSpecialAbility.IsSet()){const auto& Q=*B.ExchangeSpecialAbility;Kind=TEXT("{\"npc\":")+Binding(Q.Npc)+TEXT(",\"operation\":\"exchange_special_ability\",\"recipe\":")+N(Q.RecipeId)+TEXT(",\"target\":")+N(Q.TargetInstanceId)+TEXT("}");}
+  else if(B.CrystallizeItem.IsSet())Kind=TEXT("{\"instance\":")+N(B.CrystallizeItem->InstanceId)+TEXT(",\"operation\":\"crystallize\"}");
+  else return {};
+  const FTCHARToUTF8 Label(TEXT("nightfall.item.request.1")),Json(*(TEXT("[\"")+Owner.ToLower()+TEXT("\",")+Kind+TEXT("]")));
+  TArray<uint8> Bytes;Bytes.Append(reinterpret_cast<const uint8*>(Label.Get()),Label.Length());Bytes.Add(0);Bytes.Append(reinterpret_cast<const uint8*>(Json.Get()),Json.Length());
+  FString Hex;for(uint8 V:NightfallAuthCrypto::Sha256(Bytes.GetData(),Bytes.Num()))Hex+=FString::Printf(TEXT("%02x"),V);return Hex;
+ }
+
 }
 void UInventoryStateSubsystem::Initialize(FSubsystemCollectionBase& C)
 {
@@ -68,7 +91,7 @@ void UInventoryStateSubsystem::ClearOwner()
  ReceiptMatches.Reset(); DetachedViews.Reset(); OwnerTick=WeightTick=PenaltyTick=SyncTick=0; bBaseline=bResync=bRpcBusy=bRpcDone=false; StatusText.Reset();
 }
 void UInventoryStateSubsystem::AuthenticationChanged() { MarkedStats.Reset();MarkRevision.Reset();MarkOwner.Reset();Reset(); }
-void UInventoryStateSubsystem::Reset() { Outstanding.Reset();SequenceRequests.Reset();ClearOwner(); ++CatalogSerial; bCatalog=false; Fence.Reset(); Equipment.Reset(); EquipmentTicks.Reset(); OnChanged.Broadcast(); }
+void UInventoryStateSubsystem::Reset() { Outstanding.Reset();SequenceRequests.Reset();CommittedRequests.Reset();CommittedFingerprints.Reset();Receipts.Reset();ClearOwner(); ++CatalogSerial; bCatalog=false; Fence.Reset(); Equipment.Reset(); EquipmentTicks.Reset(); OnChanged.Broadcast(); }
 void UInventoryStateSubsystem::ApplySpawn(const FEntitySpawn& S)
 {
  if (!Fence.Spawn(S)) return;
@@ -203,19 +226,21 @@ FString UInventoryStateSubsystem::RequestScope(EGrpcNightfallV1ItemOperation Op,
  if(!Session || Session->AccountId().IsEmpty() || Normalized.IsEmpty() || !uint8(Op))return {};
  return Session->AccountId()+FString::Printf(TEXT(":%u:%s"),uint8(Op),*Normalized);
 }
-void UInventoryStateSubsystem::Remember(EGrpcNightfallV1ItemOperation Op,const FString& Key,const TArray<uint8>& Payload)
+void UInventoryStateSubsystem::Remember(EGrpcNightfallV1ItemOperation Op,const FString& Key,const FString& Fingerprint,TOptional<uint64> AcceptedSeq,const TArray<uint8>& Payload)
 {
  const FString Scope=RequestScope(Op,Key);if(Scope.IsEmpty())return;
  if(const auto* First=Receipts.Find(Scope))ReceiptMatches=(*First==Payload);
  else {Receipts.Add(Scope,Payload);ReceiptMatches.Reset();}
  bool Completed=false;
- // D43 settles the frozen request body; changed-body sequences await their own rejection.
- if(const auto* Body=FrozenRequests.Find(Scope)){
-  TArray<uint8> Fingerprint;NightfallProto::Encode(*Body,Fingerprint);
+ if(!Fingerprint.IsEmpty()){
+  if(const auto* Committed=CommittedFingerprints.Find(Scope)){if(*Committed!=Fingerprint)return;}
+  else CommittedFingerprints.Add(Scope,Fingerprint);
   if(auto* Sequences=Outstanding.Find(Scope)){
    for(auto It=Sequences->CreateIterator();It;++It){
     auto& Request=SequenceRequests.FindChecked(*It);
-    if(Request.Status==ERequestStatus::Pending && Request.Fingerprint==Fingerprint){Request.Status=ERequestStatus::Committed;It.RemoveCurrent();Completed=true;}
+    if(Request.Fingerprint==Fingerprint || (AcceptedSeq.IsSet() && *AcceptedSeq==*It)){
+     Request.Status=ERequestStatus::Committed;auto Committed=Request;Committed.Fingerprint=Fingerprint;CommittedRequests.Add(Scope,MoveTemp(Committed));It.RemoveCurrent();Completed=true;
+    }
    }
    if(Sequences->IsEmpty())Outstanding.Remove(Scope);
   }
@@ -293,14 +318,12 @@ void UInventoryStateSubsystem::ApplyRejected(const FIntentRejected& R)
 {
  auto* Found=SequenceRequests.Find(R.Seq);if(!Found || Found->Status!=ERequestStatus::Pending)return;const FString Scope=Found->Scope;Found->Status=ERequestStatus::Rejected;
  if(auto* Sequences=Outstanding.Find(Scope)){Sequences->Remove(R.Seq);if(Sequences->IsEmpty())Outstanding.Remove(Scope);}
- // Definitively rejected attempts do not commit a body; pending attempts and receipts keep their freeze.
- if(!Outstanding.Contains(Scope) && !Receipts.Contains(Scope)){FrozenRequests.Remove(Scope);FrozenArguments.Remove(Scope);}
  StatusText=R.Detail;OnChanged.Broadcast();
 }
-void UInventoryStateSubsystem::FinishSend(uint32 Seq,const FString& Key,EGrpcNightfallV1ItemOperation Op,const FClientMessage& Body)
+void UInventoryStateSubsystem::FinishSend(uint32 Seq,const FString& Key,EGrpcNightfallV1ItemOperation Op,const FClientMessage& Body,const FString& Arguments,const FString& Fingerprint)
 {
  LastSendSeq=Seq;const FString Scope=RequestScope(Op,Key);
- if(Seq && !Scope.IsEmpty()){Outstanding.FindOrAdd(Scope).Add(Seq);FSubmittedRequest Request;Request.Scope=Scope;NightfallProto::Encode(Body,Request.Fingerprint);SequenceRequests.Add(Seq,MoveTemp(Request));}
+ if(Seq && !Scope.IsEmpty()){Outstanding.FindOrAdd(Scope).Add(Seq);FSubmittedRequest Request;Request.Scope=Scope;Request.Body=Body;Request.Arguments=Arguments;Request.Fingerprint=Fingerprint;SequenceRequests.Add(Seq,MoveTemp(Request));}
  StatusText=Seq?TEXT("Waiting for server item result"):TEXT("World channel unavailable");OnChanged.Broadcast();
 }
 FString UInventoryStateSubsystem::Blacksmith() const
@@ -380,10 +403,22 @@ bool UInventoryStateSubsystem::Execute(const TArray<FString>& Tokens)
  EGrpcNightfallV1ItemOperation Op=EGrpcNightfallV1ItemOperation::ITEM_OPERATION_UNSPECIFIED;for(uint8 I=1;I<UE_ARRAY_COUNT(CommandNames);++I)if(Name==CommandNames[I])Op=EGrpcNightfallV1ItemOperation(I);
  const FString Scope=RequestScope(Op,Key), Arguments=FString::Join(A,TEXT(" "));
  if(Scope.IsEmpty())return false;
- const auto* Previous=FrozenRequests.Find(Scope);
- TArray<FString> Original;FrozenArguments.FindRef(Scope).ParseIntoArrayWS(Original);
- if (const auto* Frozen=Previous) {
-  if (FrozenArguments.FindRef(Scope)==Arguments) {const uint32 Retry=Net->SendItemMessage(*Frozen); FinishSend(Retry,Key,Op,*Frozen); return Retry!=0;}
+ const FSubmittedRequest* PreviousRequest=CommittedRequests.Find(Scope);
+ if(!PreviousRequest){
+  uint32 Latest=0,Matching=0;
+  for(const auto& P:SequenceRequests)if(P.Value.Scope==Scope && P.Value.Status==ERequestStatus::Pending){
+   if(P.Key>Latest)Latest=P.Key;
+   if(P.Value.Arguments==Arguments && P.Key>Matching)Matching=P.Key;
+  }
+  PreviousRequest=SequenceRequests.Find(Matching?Matching:Latest);
+ }
+ const FClientMessage* Previous=PreviousRequest?&PreviousRequest->Body:nullptr;
+ TArray<FString> Original;if(PreviousRequest)PreviousRequest->Arguments.ParseIntoArrayWS(Original);
+ if(PreviousRequest && PreviousRequest->Arguments==Arguments){
+  // Copy before FinishSend can grow the sequence map.
+  const FClientMessage Body=PreviousRequest->Body;const FString Fingerprint=PreviousRequest->Fingerprint;
+  if(const auto* Committed=CommittedFingerprints.Find(Scope))if(*Committed!=Fingerprint){StatusText=TEXT("D43 fingerprint conflict: FAILED_PRECONDITION");OnChanged.Broadcast();return false;}
+  const uint32 Retry=Net->SendItemMessage(Body);FinishSend(Retry,Key,Op,Body,Arguments,Fingerprint);return Retry!=0;
  }
  auto ResolveAt=[&](int32 Index,const FString& Selector)->TOptional<uint64>{
   // Unchanged selectors retain the originally received binding even after consumption.
@@ -415,25 +450,26 @@ bool UInventoryStateSubsystem::Execute(const TArray<FString>& Tokens)
   return Target(Selector,Npc);
  };
  FClientMessage FrozenMessage;
- uint32 Seq=0;
- if(Name==TEXT("nf.unequip")){FGrpcNightfallV1UnequipItemRequest Q;Q.IdempotencyKey=Key;Q.Slot=NightfallItems::Slot(A[0]);FrozenMessage.UnequipItem=Q;Seq=Net->SendUnequipItem(Q);}
- else if(Name==TEXT("nf.autoshot")){FGrpcNightfallV1ToggleAutoShotRequest Q;Q.IdempotencyKey=Key;Q.TemplateId=uint32(Number(A[0]));Q.Enabled=A[1]==TEXT("on");FrozenMessage.ToggleAutoShot=Q;Seq=Net->SendToggleAutoShot(Q);}
+ if(Name==TEXT("nf.unequip")){FGrpcNightfallV1UnequipItemRequest Q;Q.IdempotencyKey=Key;Q.Slot=NightfallItems::Slot(A[0]);FrozenMessage.UnequipItem=Q;}
+ else if(Name==TEXT("nf.autoshot")){FGrpcNightfallV1ToggleAutoShotRequest Q;Q.IdempotencyKey=Key;Q.TemplateId=uint32(Number(A[0]));Q.Enabled=A[1]==TEXT("on");FrozenMessage.ToggleAutoShot=Q;}
  else {
   const auto Id=ResolveAt(0,A[0]);if(!Id.IsSet())return false;
-  if(Name==TEXT("nf.equip")){FGrpcNightfallV1EquipItemRequest Q;Q.IdempotencyKey=Key;Q.InstanceId=*Id;if(A.Num()>1)Q.PreferredSlot=NightfallItems::Slot(A[1]);FrozenMessage.EquipItem=Q;Seq=Net->SendEquipItem(Q);}
-  else if(Name==TEXT("nf.useitem")){FGrpcNightfallV1UseItemRequest Q;Q.IdempotencyKey=Key;Q.InstanceId=*Id;if(A.Num()>1){const auto T=ResolveTarget(1,false);if(!T.IsSet())return false;Q.HasTarget=true;Q.Target=*T;}FrozenMessage.UseItem=Q;Seq=Net->SendUseItem(Q);}
-  else if(Name==TEXT("nf.destroy")){FGrpcNightfallV1DestroyItemRequest Q;Q.IdempotencyKey=Key;Q.InstanceId=*Id;Q.Count=Number(A[1]);FrozenMessage.DestroyItem=Q;Seq=Net->SendDestroyItem(Q);}
-  else if(Name==TEXT("nf.crystallize")){FGrpcNightfallV1CrystallizeItemRequest Q;Q.IdempotencyKey=Key;Q.InstanceId=*Id;FrozenMessage.CrystallizeItem=Q;Seq=Net->SendCrystallizeItem(Q);}
-  else if(Name==TEXT("nf.enchant")){const auto TargetId=ResolveAt(1,A[1]);if(!TargetId.IsSet())return false;FGrpcNightfallV1EnchantItemRequest Q;Q.IdempotencyKey=Key;Q.ScrollInstanceId=*Id;Q.TargetInstanceId=*TargetId;if(A.Num()>2){const auto Support=ResolveAt(2,A[2].Mid(8));if(!Support.IsSet())return false;Q._support_instance_id._support_instance_idCase=EGrpcNightfallV1EnchantItemRequest_support_instance_id::SupportInstanceId;Q._support_instance_id.SupportInstanceId=*Support;}FrozenMessage.EnchantItem=Q;Seq=Net->SendEnchantItem(Q);}
+  if(Name==TEXT("nf.equip")){FGrpcNightfallV1EquipItemRequest Q;Q.IdempotencyKey=Key;Q.InstanceId=*Id;if(A.Num()>1)Q.PreferredSlot=NightfallItems::Slot(A[1]);FrozenMessage.EquipItem=Q;}
+  else if(Name==TEXT("nf.useitem")){FGrpcNightfallV1UseItemRequest Q;Q.IdempotencyKey=Key;Q.InstanceId=*Id;if(A.Num()>1){const auto T=ResolveTarget(1,false);if(!T.IsSet())return false;Q.HasTarget=true;Q.Target=*T;}FrozenMessage.UseItem=Q;}
+  else if(Name==TEXT("nf.destroy")){FGrpcNightfallV1DestroyItemRequest Q;Q.IdempotencyKey=Key;Q.InstanceId=*Id;Q.Count=Number(A[1]);FrozenMessage.DestroyItem=Q;}
+  else if(Name==TEXT("nf.crystallize")){FGrpcNightfallV1CrystallizeItemRequest Q;Q.IdempotencyKey=Key;Q.InstanceId=*Id;FrozenMessage.CrystallizeItem=Q;}
+  else if(Name==TEXT("nf.enchant")){const auto TargetId=ResolveAt(1,A[1]);if(!TargetId.IsSet())return false;FGrpcNightfallV1EnchantItemRequest Q;Q.IdempotencyKey=Key;Q.ScrollInstanceId=*Id;Q.TargetInstanceId=*TargetId;if(A.Num()>2){const auto Support=ResolveAt(2,A[2].Mid(8));if(!Support.IsSet())return false;Q._support_instance_id._support_instance_idCase=EGrpcNightfallV1EnchantItemRequest_support_instance_id::SupportInstanceId;Q._support_instance_id.SupportInstanceId=*Support;}FrozenMessage.EnchantItem=Q;}
   else if(Name==TEXT("nf.refine") || Name==TEXT("nf.cancelrefine") || Name==TEXT("nf.exchangesa")) {
    const int32 Index=Name==TEXT("nf.cancelrefine")?1:2;const auto Npc=ResolveTarget(Index,true);if(!Npc.IsSet())return false;
-   if(Name==TEXT("nf.refine")){const auto Stone=ResolveAt(1,A[1]);if(!Stone.IsSet())return false;FGrpcNightfallV1RefineItemRequest Q;Q.IdempotencyKey=Key;Q.HasNpc=true;Q.Npc=*Npc;Q.TargetInstanceId=*Id;Q.StoneInstanceId=*Stone;FrozenMessage.RefineItem=Q;Seq=Net->SendRefineItem(Q);}
-   else if(Name==TEXT("nf.cancelrefine")){FGrpcNightfallV1CancelRefineRequest Q;Q.IdempotencyKey=Key;Q.HasNpc=true;Q.Npc=*Npc;Q.TargetInstanceId=*Id;FrozenMessage.CancelRefine=Q;Seq=Net->SendCancelRefine(Q);}
-   else {FGrpcNightfallV1ExchangeSpecialAbilityRequest Q;Q.IdempotencyKey=Key;Q.HasNpc=true;Q.Npc=*Npc;Q.TargetInstanceId=*Id;Q.RecipeId=Number(A[1]);FrozenMessage.ExchangeSpecialAbility=Q;Seq=Net->SendExchangeSpecialAbility(Q);}
+   if(Name==TEXT("nf.refine")){const auto Stone=ResolveAt(1,A[1]);if(!Stone.IsSet())return false;FGrpcNightfallV1RefineItemRequest Q;Q.IdempotencyKey=Key;Q.HasNpc=true;Q.Npc=*Npc;Q.TargetInstanceId=*Id;Q.StoneInstanceId=*Stone;FrozenMessage.RefineItem=Q;}
+   else if(Name==TEXT("nf.cancelrefine")){FGrpcNightfallV1CancelRefineRequest Q;Q.IdempotencyKey=Key;Q.HasNpc=true;Q.Npc=*Npc;Q.TargetInstanceId=*Id;FrozenMessage.CancelRefine=Q;}
+   else {FGrpcNightfallV1ExchangeSpecialAbilityRequest Q;Q.IdempotencyKey=Key;Q.HasNpc=true;Q.Npc=*Npc;Q.TargetInstanceId=*Id;Q.RecipeId=Number(A[1]);FrozenMessage.ExchangeSpecialAbility=Q;}
   } else return false;
  }
- if(Seq && !FrozenRequests.Contains(Scope)){FrozenRequests.Add(Scope,FrozenMessage);FrozenArguments.Add(Scope,Arguments);}
- FinishSend(Seq,Key,Op,FrozenMessage);return Seq!=0;
+ const FString Fingerprint=NightfallItems::RequestFingerprint(FrozenMessage,Net->GetOwnEntityId());
+ if(const auto* Committed=CommittedFingerprints.Find(Scope))if(*Committed!=Fingerprint){StatusText=TEXT("D43 fingerprint conflict: FAILED_PRECONDITION");OnChanged.Broadcast();return false;}
+ const uint32 Seq=Net->SendItemMessage(FrozenMessage);
+ FinishSend(Seq,Key,Op,FrozenMessage,Arguments,Fingerprint);return Seq!=0;
 }
 
 TArray<TPair<uint32,bool>> UInventoryStateSubsystem::Hotbar() const
@@ -468,11 +504,14 @@ FString UInventoryStateSubsystem::HotbarConfigFile() const {return HotbarConfigO
 void UInventoryStateSubsystem::ApplyReceiptPayload(const FWorldEvent& E)
 {
  auto Receive=[&](const auto& R,EGrpcNightfallV1ItemOperation Op){
-  const FString Scope=RequestScope(Op,R.ReceiptId);if(Scope.IsEmpty())return;
+  const FString Key=R.RequestKey.Value.IsEmpty()?R.ReceiptId:NightfallItems::UuidString(R.RequestKey);
+  const FString Scope=RequestScope(Op,Key);if(Scope.IsEmpty())return;
   const bool Requested=Outstanding.Contains(Scope);
   if(!Accept(R.EntityId,R.Incarnation,R.Tick,R.InventoryRevision,true) && !Receipts.Contains(Scope) && !Requested)return;
-  TArray<uint8> Bytes=E.ItemReceiptPayload;if(Bytes.IsEmpty() && !E.bReceivedFromWire)NightfallWire::EncodeItemReceipt(R,Bytes);Remember(Op,R.ReceiptId,Bytes);};
+  TArray<uint8> Bytes=E.ItemReceiptPayload;if(Bytes.IsEmpty() && !E.bReceivedFromWire)NightfallWire::EncodeItemReceipt(R,Bytes);TOptional<uint64> AcceptedSeq;
+  if(uint8(R._accepted_client_seq._accepted_client_seqCase)==0)AcceptedSeq=R._accepted_client_seq.AcceptedClientSeq.Value;
+  Remember(Op,Key,R.RequestFingerprint,AcceptedSeq,Bytes);};
  if(E.ItemOperationResult.IsSet())Receive(*E.ItemOperationResult,E.ItemOperationResult->Operation);
- if(E.EnchantResult.IsSet())Receive(*E.EnchantResult,EGrpcNightfallV1ItemOperation::ITEM_OPERATION_ENCHANT);
- if(E.RefineResult.IsSet())Receive(*E.RefineResult,E.RefineResult->Outcome==EGrpcNightfallV1RefineOutcome::REFINE_OUTCOME_APPLIED?EGrpcNightfallV1ItemOperation::ITEM_OPERATION_REFINE:EGrpcNightfallV1ItemOperation::ITEM_OPERATION_CANCEL_REFINE);
+ if(E.EnchantResult.IsSet())Receive(*E.EnchantResult,E.EnchantResult->Operation);
+ if(E.RefineResult.IsSet())Receive(*E.RefineResult,E.RefineResult->Operation);
 }
