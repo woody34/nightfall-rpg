@@ -1665,3 +1665,280 @@ async fn postgres_range_extensions_preserve_archived_blocks_and_frozen_repeat_id
         .unwrap();
     assert_eq!(count, 5);
 }
+
+// Storage-boundary regression; domain fold/execution of these plans is owned by Z.
+#[allow(clippy::too_many_lines)]
+async fn new_epoch_canonical_contract<R>(repo: &R, bundle: &Phase4RuleBundle)
+where
+    R: CharacterRepository
+        + ItemAdmissionRepository
+        + ItemCheckpointRepository
+        + ItemInventoryRepository,
+{
+    use nightfall_api::domain::zone::EquipSlot;
+    let (character, first, first_work, first_events) =
+        fixture(repo, bundle, "EpochCanonical").await;
+    assert_eq!(
+        repo.checkpoint_items(&first, &first_events, &first_work, None)
+            .await
+            .unwrap(),
+        CheckpointOutcome::Applied(1)
+    );
+    let mut cp = first.clone();
+    cp.revision_seen = 1;
+    cp.idempotency.1 = IdempotencyKey::new();
+    let checkpoint = cp.phase4.as_mut().unwrap();
+    checkpoint.inventory_revision = 2;
+    let stack = checkpoint
+        .instances
+        .iter_mut()
+        .max_by_key(|item| item.count)
+        .unwrap();
+    let before = stack.clone();
+    let debit = i64::try_from(stack.count.checked_sub(3).unwrap())
+        .unwrap()
+        .checked_neg()
+        .unwrap();
+    stack.count = 3;
+    stack.revision = 2;
+    let after = stack.clone();
+    let gear = checkpoint
+        .instances
+        .iter_mut()
+        .find(|item| item.count == 1)
+        .unwrap();
+    let unequipped = gear.clone();
+    gear.location = ItemLocation::Paperdoll;
+    gear.slot = Some(EquipSlot::Rhand);
+    gear.revision = 2;
+    let equipped = gear.clone();
+    checkpoint.paperdoll.insert(EquipSlot::Rhand, gear.id);
+    let mut work = first_work.clone();
+    work.epoch = 2;
+    let reserved = repo
+        .reserve_item_range(work.zone, work.epoch)
+        .await
+        .unwrap();
+    work.allocation = ItemInstanceRange::new(
+        reserved.range_start,
+        reserved.next_reserved,
+        reserved.range_end_exclusive,
+    )
+    .unwrap();
+    work.projection.tick = Tick(0);
+    work.projection.checkpoint = checkpoint.clone();
+    work.projection.materializations.clear();
+    work.projection.receipts.clear();
+    work.projection.ledger = vec![
+        ItemDeltaPlan {
+            operation: ItemOperation::Consume,
+            operation_ordinal: 0,
+            instance: before.id,
+            before: Some(before),
+            after: Some(after),
+            count_delta: debit,
+            receipt: None,
+            receipt_refs: vec![],
+            causes: vec![ItemAuditEvidence {
+                family: "skill_cast_payment".into(),
+                fields: BTreeMap::from([
+                    ("cast_id".into(), ItemEvidenceValue::Unsigned(1)),
+                    ("count_delta".into(), ItemEvidenceValue::Signed(debit)),
+                ]),
+            }],
+        },
+        ItemDeltaPlan {
+            operation: ItemOperation::Equip,
+            operation_ordinal: 1,
+            instance: equipped.id,
+            before: Some(unequipped),
+            after: Some(equipped),
+            count_delta: 0,
+            receipt: None,
+            receipt_refs: vec![],
+            causes: vec![],
+        },
+    ];
+    let outbox = events(&cp, &work);
+    assert_eq!(
+        repo.checkpoint_items(&cp, &outbox, &work, None)
+            .await
+            .unwrap(),
+        CheckpointOutcome::Applied(2)
+    );
+    let (next, mut next_work, _) = interleaved(&cp, &work);
+    next_work.projection.tick = Tick(1);
+    for receipt in &mut next_work.projection.receipts {
+        receipt.result.tick = Tick(1);
+    }
+    let consume = &next_work.projection.ledger[0];
+    let grant = &next_work.projection.ledger[1];
+    assert_eq!(
+        (
+            consume.before.as_ref().unwrap().count,
+            consume.after.as_ref().unwrap().count,
+            consume.count_delta
+        ),
+        (3, 1, -2)
+    );
+    assert_eq!(
+        (
+            grant.before.as_ref().unwrap().count,
+            grant.after.as_ref().unwrap().count,
+            grant.count_delta
+        ),
+        (1, 4, 3)
+    );
+    assert_eq!(consume.after, grant.before);
+    let outbox = events(&next, &next_work);
+    assert_eq!(
+        repo.checkpoint_items(&next, &outbox, &next_work, None)
+            .await
+            .unwrap(),
+        CheckpointOutcome::Applied(3)
+    );
+    let retained = repo
+        .retained_inventory(character.id)
+        .await
+        .unwrap()
+        .unwrap()
+        .checkpoint
+        .unwrap();
+    assert_eq!(retained.inventory_revision, 3);
+    for original in &first_work.projection.checkpoint.instances {
+        let current = retained
+            .instances
+            .iter()
+            .find(|item| item.id == original.id)
+            .unwrap();
+        assert_eq!(current.created_tick, Tick(73));
+        assert_eq!(current.created_tick, original.created_tick);
+        assert_eq!(current.creation_origin, original.creation_origin);
+    }
+    let mut fabricated = next_work.clone();
+    let id = fabricated.allocation.allocate().unwrap();
+    let mut item = fabricated.projection.checkpoint.instances[0].clone();
+    item.id = id;
+    item.created_tick = Tick(2);
+    item.creation_origin = Some(nightfall_api::domain::zone::ItemCreationOrigin {
+        zone: fabricated.zone,
+        epoch: fabricated.epoch,
+    });
+    fabricated.projection.ledger.push(ItemDeltaPlan {
+        operation: ItemOperation::Grant,
+        operation_ordinal: 2,
+        instance: id,
+        before: None,
+        after: Some(item),
+        count_delta: 1,
+        receipt: None,
+        receipt_refs: vec![],
+        causes: vec![],
+    });
+    assert!(fabricated.validate_catalogue(&bundle.items).is_err());
+    fabricated
+        .projection
+        .ledger
+        .last_mut()
+        .unwrap()
+        .after
+        .as_mut()
+        .unwrap()
+        .created_tick = Tick(1);
+    fabricated
+        .projection
+        .ledger
+        .last_mut()
+        .unwrap()
+        .after
+        .as_mut()
+        .unwrap()
+        .creation_origin
+        .as_mut()
+        .unwrap()
+        .epoch = 1;
+    assert!(fabricated.validate_catalogue(&bundle.items).is_err());
+}
+
+#[tokio::test]
+async fn memory_new_epoch_preserves_creation_and_settles_3_to_2_to_5_to_4_canonically() {
+    let bundle = embedded_phase4_bundle().unwrap();
+    let repo = InMemoryCharacterRepository::default()
+        .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
+        .unwrap();
+    new_epoch_canonical_contract(&repo, &bundle).await;
+    let rows = repo.item_ledger_for_test();
+    let rows: Vec<_> = rows
+        .iter()
+        .filter(|row| row.epoch == 2 && row.tick == Tick(1))
+        .collect();
+    assert_eq!(rows.len(), 2);
+    assert_eq!(
+        (rows[0].operation, rows[0].operation_ordinal),
+        (ItemLedgerOperation::Consume, 0)
+    );
+    assert_eq!((rows[1].operation, rows[1].operation_ordinal), (ItemLedgerOperation::Grant, 1));
+    assert_eq!(rows[0].delta.after, rows[1].delta.before);
+    assert_eq!((rows[0].revision, rows[1].revision), (3, 3));
+    let character = rows[0].character_id;
+    let expected = repo.retained_inventory(character).await.unwrap().unwrap();
+    let mut historical = expected.checkpoint.clone().unwrap();
+    for item in &mut historical.instances {
+        item.creation_origin = None;
+    }
+    repo.insert_item_checkpoint_for_test(character, historical)
+        .unwrap();
+    assert_eq!(repo.retained_inventory(character).await.unwrap().unwrap(), expected);
+    let loaded = repo.load_for_admission(character).await.unwrap().unwrap();
+    assert_eq!(loaded.phase4.unwrap().checkpoint, expected.checkpoint);
+    let mut rewritten = expected.checkpoint.unwrap();
+    rewritten.instances[0].created_tick = Tick(74);
+    repo.insert_item_checkpoint_for_test(character, rewritten)
+        .unwrap();
+    assert!(repo.retained_inventory(character).await.is_err());
+}
+
+#[tokio::test]
+async fn postgres_new_epoch_preserves_creation_and_settles_3_to_2_to_5_to_4_canonically() {
+    let Some(pool) = common::pg::migrated_pool().await else {
+        return;
+    };
+    common::pg::insert_account(&pool, Uuid::from_u128(1)).await;
+    let bundle = embedded_phase4_bundle().unwrap();
+    let repo = PgCharacterRepository::new(pool.clone())
+        .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
+        .unwrap();
+    new_epoch_canonical_contract(&repo, &bundle).await;
+    let rows: Vec<(String, i32, i64, serde_json::Value)> = sqlx::query_as(
+        "SELECT op,operation_ordinal,revision,delta FROM item_ledger WHERE epoch=2 AND tick=1 ORDER BY operation_ordinal")
+        .fetch_all(&pool).await.unwrap();
+    assert_eq!(rows.len(), 2);
+    assert_eq!((&*rows[0].0, rows[0].1, rows[0].2), ("consume", 0, 3));
+    assert_eq!((&*rows[1].0, rows[1].1, rows[1].2), ("grant", 1, 3));
+    let consume: ItemLedgerDelta = serde_json::from_value(rows[0].3.clone()).unwrap();
+    let grant: ItemLedgerDelta = serde_json::from_value(rows[1].3.clone()).unwrap();
+    assert_eq!(consume.after, grant.before);
+    let character: Uuid = sqlx::query_scalar("SELECT character_id FROM item_ledger LIMIT 1")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    let character = CharacterId::from_uuid(character);
+    let expected = repo.retained_inventory(character).await.unwrap().unwrap();
+    // Missing additive fields resolve to the creation row, not the latest epoch2/tick1.
+    sqlx::query("UPDATE characters SET phase4_checkpoint=jsonb_set(phase4_checkpoint,'{instances}',(SELECT jsonb_agg(item - 'creation_origin') FROM jsonb_array_elements(phase4_checkpoint->'instances') item)) WHERE id=$1")
+        .bind(character.as_uuid()).execute(&pool).await.unwrap();
+    assert_eq!(repo.retained_inventory(character).await.unwrap().unwrap(), expected);
+    assert_eq!(
+        repo.load_for_admission(character)
+            .await
+            .unwrap()
+            .unwrap()
+            .phase4
+            .unwrap()
+            .checkpoint,
+        expected.checkpoint
+    );
+    sqlx::query("UPDATE characters SET phase4_checkpoint=jsonb_set(phase4_checkpoint,'{instances}',(SELECT jsonb_agg(item || '{\"creation_origin\":{\"zone\":1,\"epoch\":2}}'::jsonb) FROM jsonb_array_elements(phase4_checkpoint->'instances') item)) WHERE id=$1")
+        .bind(character.as_uuid()).execute(&pool).await.unwrap();
+    assert!(repo.retained_inventory(character).await.is_err());
+}
