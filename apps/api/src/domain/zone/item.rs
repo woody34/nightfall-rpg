@@ -176,9 +176,9 @@ pub struct ItemCreationOrigin {
     pub epoch: u64,
 }
 impl ItemCreationOrigin {
-    /// Provenance must fit the persisted positive zone/epoch namespace.
+    /// Provenance uses the persisted nonnegative integer/bigint namespace, including zero.
     pub fn validate(self) -> Result<(), ItemError> {
-        if self.zone.0 == 0 || self.epoch == 0 || i64::try_from(self.epoch).is_err() {
+        if i32::try_from(self.zone.0).is_err() || i64::try_from(self.epoch).is_err() {
             return Err(ItemError("invalid item creation origin"));
         }
         Ok(())
@@ -260,12 +260,23 @@ mod tests {
         let encoded = serde_json::to_value(&item).unwrap();
         assert_eq!(encoded.get("creation_origin"), Some(&serde_json::json!({"zone":7,"epoch":2})));
         assert_eq!(serde_json::from_value::<ItemInstance>(encoded).unwrap(), item);
+        ItemCreationOrigin {
+            zone: super::super::ZoneId(0),
+            epoch: 0,
+        }
+        .validate()
+        .unwrap();
+        ItemCreationOrigin {
+            zone: super::super::ZoneId(i32::MAX as u32),
+            epoch: i64::MAX as u64,
+        }
+        .validate()
+        .unwrap();
         for origin in [
             ItemCreationOrigin {
-                zone: super::super::ZoneId(0),
+                zone: super::super::ZoneId(u32::MAX),
                 ..valid
             },
-            ItemCreationOrigin { epoch: 0, ..valid },
             ItemCreationOrigin {
                 epoch: u64::MAX,
                 ..valid
