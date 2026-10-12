@@ -1445,6 +1445,7 @@ impl ZoneState {
             &skill,
             reference.rank,
             CastStatContext {
+                player_level: self.phase4.as_ref().map(|_| effective.physical.level()),
                 calculator: &effective.calculator,
                 conditions: FunctionConditions {
                     weapon_kind: "SWORD",
@@ -1672,6 +1673,7 @@ impl ZoneState {
                 &skill,
                 cast.skill.rank,
                 CastStatContext {
+                    player_level: self.phase4.as_ref().map(|_| stats.physical.level()),
                     calculator: &stats.calculator,
                     conditions: FunctionConditions {
                         weapon_kind: "SWORD",

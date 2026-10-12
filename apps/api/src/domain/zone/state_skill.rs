@@ -236,6 +236,7 @@ impl StagedActions {
 #[derive(Debug, Clone, Copy)]
 #[allow(missing_docs)]
 pub struct CastStatContext<'a> {
+    pub player_level: Option<u32>,
     pub calculator: &'a StatCalculator,
     pub conditions: FunctionConditions<'a>,
     pub attack_speed: u32,
@@ -338,7 +339,10 @@ pub fn cast_terms(
         return Err(CastError::Silenced);
     }
     for condition in &skill.conditions {
-        if !context.conditions.matches(condition)? {
+        if !context
+            .conditions
+            .matches_at_rank(condition, context.player_level, rank)?
+        {
             return Err(CastError::Condition);
         }
     }
@@ -652,8 +656,66 @@ mod tests {
             incarnation: 1,
         }
     }
+
+    #[test]
+    fn v6_cast_level_range_uses_resolved_rank_and_inclusive_bounds() {
+        use super::super::skill::{PlayerLevelRange, SkillCondition};
+        let rules = load_phase3_rules(&Phase3DataSource::embedded(), &[]).unwrap();
+        let mut skill = rules.skills().get(SkillId(3)).unwrap().clone();
+        let mut ranges = vec![
+            PlayerLevelRange {
+                minimum: 10,
+                maximum: 20
+            };
+            usize::try_from(skill.max_level).unwrap()
+        ];
+        ranges[1] = PlayerLevelRange {
+            minimum: 30,
+            maximum: 40,
+        };
+        let negate = |condition| SkillCondition::Not {
+            conditions: vec![condition],
+            attrs: BTreeMap::new(),
+        };
+        skill.conditions = vec![SkillCondition::And {
+            conditions: vec![
+                SkillCondition::UsingKind {
+                    weapon_kinds: vec!["SWORD".into()],
+                },
+                negate(negate(SkillCondition::PlayerLevelRange { ranges })),
+            ],
+            attrs: BTreeMap::new(),
+        }];
+        let calculator = StatCalculator::default();
+        for (rank, level, allowed) in [
+            (1, 9, false),
+            (1, 10, true),
+            (1, 20, true),
+            (1, 21, false),
+            (2, 29, false),
+            (2, 30, true),
+            (2, 40, true),
+            (2, 41, false),
+        ] {
+            let mut inputs = context(&calculator);
+            inputs.player_level = Some(level);
+            let outcome = cast_terms(&skill, rank, inputs);
+            if allowed {
+                assert!(outcome.is_ok(), "{rank}:{level}: {outcome:?}");
+            } else {
+                assert_eq!(outcome, Err(CastError::Condition));
+            }
+        }
+        assert!(cast_terms(&skill, 1, context(&calculator)).is_err());
+        let mut inputs = context(&calculator);
+        inputs.player_level = Some(15);
+        assert!(cast_terms(&skill, 0, inputs).is_err());
+        inputs.conditions.weapon_kind = "FIST";
+        assert_eq!(cast_terms(&skill, 1, inputs), Err(CastError::Condition));
+    }
     fn context(calc: &StatCalculator) -> CastStatContext<'_> {
         CastStatContext {
+            player_level: None,
             calculator: calc,
             conditions: FunctionConditions {
                 weapon_kind: "SWORD",
