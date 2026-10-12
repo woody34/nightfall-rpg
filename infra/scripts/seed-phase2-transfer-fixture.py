@@ -92,6 +92,13 @@ INSERT INTO character_learned_skills(character_id,slot,skill_key,skill_level)
 SELECT id,0,'racial.adaptable',1 FROM characters;
 COMMIT;
 """
+    if os.environ.get('PHASE4_ENABLED') == '1':
+        import importlib.util
+        spec = importlib.util.spec_from_file_location('phase4_pending_kits', Path(__file__).with_name('phase4-pending-kits.py'))
+        pending = importlib.util.module_from_spec(spec); spec.loader.exec_module(pending)
+        kit_roles = [dict(character_id=OWNER, base_class_id=0)]
+        if args.fixture == 'phase2-transfer-observer': kit_roles.append(dict(character_id=OBSERVER, base_class_id=0))
+        sql = sql.removesuffix('COMMIT;\n') + pending.seed_sql(kit_roles) + 'COMMIT;\n'
     print(f"PHASE2_FIXTURE_ENABLED pack={args.fixture} before-admission isolated fixture", file=sys.stderr)
     if args.dry_run:
         print(sql)

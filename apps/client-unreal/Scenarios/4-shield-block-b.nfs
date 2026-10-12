@@ -15,9 +15,12 @@ nf.WaitFor in_world 15
 nf.WaitFor item_baseline 3
 nf.Equip 18
 nf.WaitFor equipped lhand == 18 3
+# One-tile west move sets last-movement facing toward attacker110100; exact arrival avoids an early tolerance match.
+nf.ClickMove 111 100
+nf.WaitFor own_at 111 100 0 3
 nf.Cast 1068 self
 nf.WaitFor buff_active 1068 12
 nf.WaitFor damage_numbers >= 1 60
 nf.Expect inventory_has 18 == 1
 # Total budget: sum of declared conservative waits +30s exit grace.
-nf.Within 138
+nf.Within 141

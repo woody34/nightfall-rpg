@@ -70,9 +70,29 @@ class Fixtures(unittest.TestCase):
                 token.write_text('signed-fixture-token')
                 self.assertEqual(fixture.phase4.denied_auth_inputs()['account'],env['SIM_PHASE4_OWNER_ACCOUNT'])
 
+    def test_seed_uses_only_owned_postgres_container_exec(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path=Path(tmp)/'compose.json'
+            path.write_text(json.dumps(dict(services=dict(postgres=dict(environment=dict(POSTGRES_DB='nf_phase4_fixture_test',POSTGRES_USER='u',POSTGRES_PASSWORD='p'),ports=[dict(target=5432,published=15432)])))))
+            env=dict(DATABASE_URL='postgres://u:p@127.0.0.1:15432/nf_phase4_fixture_test')
+            with patch.dict(os.environ,env),patch.object(seed.soak_base.subprocess,'run') as call:
+                seed.seed_container('BEGIN;COMMIT;','nightfall-phase4-harness-abcd-123',path)
+                command=call.call_args.args[0]
+                self.assertEqual(command[:2],['docker','compose'])
+                self.assertIn('exec',command);self.assertIn('-T',command)
+                self.assertEqual(command[-5:],['postgres','psql','-X','--set=ON_ERROR_STOP=1','--quiet'])
+                self.assertEqual(call.call_args.kwargs['env']['PGHOST'],'127.0.0.1')
+                self.assertEqual(call.call_args.kwargs['env']['PGPORT'],'5432')
+                with self.assertRaises(ValueError):seed.seed_container('SQL','nightfall-other-project',path)
+                self.assertEqual(call.call_count,1)
+
     def test_seed_verdict_refuses_admission_pending(self):
         roles=fixture.phase4.profiles('phase4-equip')
         supplied=seed.manifest('phase4-equip',roles,False)
+        for pack in sorted(fixture.PHASE4):
+            selected=fixture.phase4.profiles(pack,paired=pack in fixture.phase4.PAIRED)
+            selected={name:r|{'account_id':'01970000-0000-7000-8000-00000000004'+str(i+2)} for i,(name,r) in enumerate(selected.items())}
+            self.assertNotIn('VALUES ;',seed.seed_sql(selected),pack)
         self.assertFalse(supplied['admission_ready'])
         with self.assertRaises(ValueError):fixture.phase4.validate_seed_manifest(supplied,'phase4-equip','owner','observer',REPO,False)
 
