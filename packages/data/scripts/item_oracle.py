@@ -21,6 +21,11 @@ import tomllib
 from types import SimpleNamespace
 import xml.etree.ElementTree as ET
 
+try:
+    from . import item_behavior_oracle as behavior
+except ImportError:
+    import item_behavior_oracle as behavior
+
 ROOT=Path(__file__).resolve().parents[1]
 DP=Path('/home/matt-woodruff/.cache/nightfall/l2j/l2j-dp')
 GAME=DP.parent/'l2j-game'
@@ -847,6 +852,9 @@ def verify_facts(facts):
         enchant_chance,enchant_outcome,enchant_valid,max_load,overload,grade_penalties,fist_spread,pole_damage,pole_sequence,
         bow_reuse,bow_damage,dual_damage,dual_timing,skill_caller_damage,position,shield,physical_damage,magic_damage,cast_time,heal,blow_success,lethal,retail_select,
         retail_distribution,category,pack_options,cancel_fee,set_shield_history,clamp_no_heal,charge_transition,shot_payment,shared_shot_bundle,winning_providers,consumable_use,consumable_cast_sequence,player_level_range]}
+    formulas.update({f.__name__: f for f in [behavior.bow_launch, behavior.bow_refill, behavior.resurrection_scroll,
+        behavior.dormant_use, behavior.learned_item_cost, behavior.escape_timing, behavior.dual_plan, behavior.enchant_safe,
+        behavior.quantized_enchant, behavior.augmentation_provider, behavior.retail_draw_contract, behavior.item_regen_status]})
     if not facts:raise ValueError('missing item facts')
     for fact in facts:
         if set(fact)!={'formula','inputs','expected'} or fact['formula'] not in formulas:raise ValueError('unsupported or malformed item fact')
@@ -1116,6 +1124,7 @@ def make_vectors(src):
             inputs={'charges':['soul','spirit','blessed'],'use_spirit':use_spirit,'use_soul':use_soul,'landed':landed,'unequip':unequip}
             add('F8',f'charge-{landed}-{unequip}-{use_spirit}-{use_soul}',inputs,charge_transition(**inputs),['design/I2 shared charge, all miss retention and blessed precedence'])
     add_revision_vectors(src,add,human)
+    behavior.add_behavior_vectors(src,add,sys.modules[__name__])
     table=independent_angle_table()
     for deg,relative in [(0,(1,0)),(90,(1,1)),(120,(1,2)),(180,(0,1)),(270,(-1,1)),(360,(-1,0))]:
         add('F9',f'angle-{deg}-{relative}',{'degrees':deg,'facing':[1,0],'relative':relative},
