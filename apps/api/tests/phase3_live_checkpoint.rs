@@ -55,7 +55,10 @@ fn rules() -> Arc<Phase3Rules> {
     Arc::new(load_phase3_rules(&Phase3DataSource::embedded(), &[]).unwrap())
 }
 fn shield(rules: &Phase3Rules) -> RetainedEffect {
-    let skill = rules.skills().get(SkillId(1040)).unwrap();
+    retained_effect(rules, 1040)
+}
+fn retained_effect(rules: &Phase3Rules, id: u32) -> RetainedEffect {
+    let skill = rules.skills().get(SkillId(id)).unwrap();
     let abnormal = skill.abnormal.as_ref().unwrap();
     let flag = |v: &RankValue<bool>| *v.at(1, skill.max_level).unwrap();
     ActiveEffect {
@@ -70,7 +73,7 @@ fn shield(rules: &Phase3Rules) -> RetainedEffect {
         },
         target_incarnation: 9,
         applied_at: Tick(0),
-        expires_at: Some(Tick(600)),
+        expires_at: Some(Tick(600.min(u64::try_from(abnormal.time_s[0]).unwrap() * 10))),
         pool: EffectPool::Buff,
         abnormal_type: abnormal.r#type.clone(),
         abnormal_level: abnormal.level[0],
@@ -552,7 +555,7 @@ async fn durable_tail_rebuilds_fractions_reuse_and_effects_before_fresh_admissio
 }
 
 struct BatchProbe {
-    inner: Arc<InMemoryCharacterRepository>,
+    inner: Arc<dyn CharacterRepository>,
     armed: AtomicBool,
     failure: std::sync::atomic::AtomicU8,
     failed_id: CharacterId,
@@ -866,8 +869,11 @@ async fn internal_retained_state_waits_for_cadence_and_survives_both_crash_windo
     }
 }
 
-async fn seed_full_cp(repo: Arc<InMemoryCharacterRepository>) -> Character {
-    let c = seed(repo.clone()).await;
+async fn seed_full_cp(repo: Arc<dyn CharacterRepository>) -> Character {
+    seed_full_cp_named(repo, "DormantMage").await
+}
+async fn seed_full_cp_named(repo: Arc<dyn CharacterRepository>, name: &str) -> Character {
+    let c = seed_named(repo.clone(), name).await;
     let saved = repo.load_for_admission(c.id).await.unwrap().unwrap();
     let (_, max_cp, _, _) = profession_stats(
         &load_rules(&RulesSource::embedded()).unwrap().rules,
@@ -960,3 +966,6 @@ async fn historical_checkpoint_policy_recovers_existing_keys_and_survives_snapsh
     recovery.recover(log.as_ref(), ZoneId(77), 1).await.unwrap();
     assert_eq!(repo.load_for_admission(c.id).await.unwrap().unwrap(), restored);
 }
+
+#[path = "phase3_live_checkpoint/startup.rs"]
+mod startup;
