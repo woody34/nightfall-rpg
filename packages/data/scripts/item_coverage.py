@@ -272,6 +272,7 @@ def required_cases(src):
         need('F8', f'charge-{landed}-{unequip}-{spirit}-{soul}', charges=['soul', 'spirit', 'blessed'],
              use_spirit=spirit, use_soul=soul, landed=landed, unequip=unequip)
     _revision_requirements(src, need, o, human)
+    _behavior_requirements(src, need, o)
     return cases
 
 
@@ -395,6 +396,131 @@ def _revision_requirements(src, need, o, human):
             lo, hi = map(int, value.split(';'))
             for level in [lo-1, lo, hi, hi+1]:
                 need('F12', f'elixir-range-{sid}-{rank}-{level}', skill_id=sid, rank=rank, minimum=lo, maximum=hi, level=level)
+
+
+def _behavior_requirements(src, need, o):
+    # §12.1 source/state domains. Never consult emitted vectors or case builders.
+    b = o.behavior
+    bows = [sid for sid in sorted(src.items) if src.properties(sid).get('weapon_type') == 'BOW'
+            and src.properties(sid).get('for_npc', 'false') != 'true' and src.items[sid][2].find('cond') is None]
+    arrows = [sid for sid in sorted(src.items) if src.properties(sid).get('etcitem_type') == 'ARROW']
+    for grade in src.grades:
+        sid = min(s for s in bows if src.properties(s).get('crystal_type', 'NONE') == grade)
+        weapon = b.bow_definition(src, sid)
+        match = 'S' if grade in {'S80', 'S84'} else grade
+        aid = min(s for s in arrows if src.properties(s).get('crystal_type', 'NONE') == match)
+        wrong = min(s for s in arrows if src.properties(s).get('crystal_type', 'NONE') != match)
+        for state, miss in product(['equipped', 'refill', 'empty', 'wrong', 'wrong-equipped', 'exhausted'], [False, True]):
+            inventory = [] if state == 'empty' else [b.arrow_stack(src, wrong if state.startswith('wrong') else aid,
+                                                                1 if state == 'exhausted' else 2)]
+            need('F10', f'bow-launch-{grade}-{state}-{miss}', weapon=weapon, inventory=inventory,
+                 lhand=1 if state in {'equipped', 'wrong-equipped'} else None, mp=F(10), mp_modifier=F(1),
+                 reduction_residue=None, miss=miss, reuse_remaining=0, hit_chance=800, hit_residue=801 if miss else 800)
+        need('F10', 'bow-refill-history-'+grade, weapon=weapon, arrow=b.arrow_stack(src, aid, 1), mp=F(20))
+    sid = min(s for s in bows if int(src.properties(s).get('reduced_mp_consume', '0,0').split(',')[1]) > 0)
+    weapon = b.bow_definition(src, sid)
+    aid = min(s for s in arrows if src.properties(s).get('crystal_type', 'NONE') == weapon['grade'])
+    for residue, cost, delta, modifier in product([0, weapon['reduced_chance']-1, weapon['reduced_chance'], 99],
+            sorted({weapon['mp_cost'], weapon['reduced_cost']}), [F(-1, 1000000), F(0), F(1, 1000000)], [F(1), F(3, 2), F(0)]):
+        need('F10', f'bow-mp-{sid}-{residue}-{cost}-{delta}-{modifier}', weapon=weapon,
+             inventory=[b.arrow_stack(src, aid, 2)], lhand=None, mp=max(F(0), int(F(cost)*modifier)+delta),
+             mp_modifier=modifier, reduction_residue=residue, miss=True, reuse_remaining=0, hit_chance=800, hit_residue=801)
+    for state in ['empty', 'reuse']:
+        need('F10', 'bow-mp-skip-'+state, weapon=weapon,
+             inventory=[] if state == 'empty' else [b.arrow_stack(src, aid, 2)], lhand=None,
+             mp=F(10), mp_modifier=F(1), reduction_residue=0, miss=False, reuse_remaining=int(state == 'reuse'), hit_chance=800, hit_residue=800)
+    definition = o.consumable_definition(src, 737)
+    effect = src.skills[2014][1].find('effects/effect')
+    power = F(next((n.get('power') for n in effect.findall('param') if n.get('power') is not None), '0'))
+    hp_restore = F(re.search(r'^RespawnRestoreHP\s*=\s*(\S+)',
+                           src.read('src/main/resources/config/character.properties', True), re.M)[1])
+    base = dict(definition=definition, start_tick=10, available=2, death_incarnation=7,
+                current_incarnation=7, dead=True, response='offer', response_tick=160, response_offer_id=1,
+                existing_offer=None, repeat=0, hp=F(0), max_hp=101, mp=F(13, 2), cp=F(17, 2),
+                recoverable_xp=101, restore_percent=power, restore_hp=hp_restore)
+    for name, changes in [('offer', {}), ('decline', {'response': 'decline'}),
+            ('accept', {'response': 'accept', 'repeat': 1}), ('stale-id', {'response': 'accept', 'response_offer_id': 2}),
+            ('stale-death', {'current_incarnation': 8, 'response': 'accept'}),
+            ('alive', {'dead': False, 'response': 'accept'}), ('empty', {'available': 0})]:
+        need('F12', 'resurrection-scroll-'+name, **dict(base, **changes))
+    for response, delta in product(['accept', 'decline', 'expire'], [-1, 0, 1]):
+        need('F12', f'resurrection-scroll-{response}-expiry-{delta}', **dict(base, response=response, response_tick=760+delta))
+    need('F12', 'resurrection-scroll-first-valid', **dict(base, existing_offer=dict(offer_id=9, target_incarnation=7,
+         created_at=1, expires_at=601, restore_percent=F(50), recoverable_xp=101), response='accept', response_offer_id=9, repeat=1))
+    for sid, speed in product([736, 1538], [333, 1500]):
+        need('F12', f'consumable-escape-timing-{sid}-{speed}', definition=o.consumable_definition(src, sid),
+             start_tick=10, casting_speed=speed, available=2, resources={'hp': 13, 'mp': 17, 'cp': 19, 'xp': 101}, incarnation=7)
+    for kit in src.xml(D+'stats/initialEquipment.xml').findall('equipment'):
+        cid = int(kit.get('classId'))
+        if src.races[cid] == 'KAMAEL':
+            continue
+        for item in kit.findall('item'):
+            sid = int(item.get('id')); p = src.properties(sid)
+            if p.get('handler') == 'Book' or p.get('item_skill') in {'2531-1', '2525-1'}:
+                need('F12', f'dormant-starter-use-{cid}-{sid}', template_id=sid, properties=p,
+                     inventory=[dict(instance_id=1, template_id=sid, count=int(item.get('count'))),
+                                dict(instance_id=2, template_id=57, count=10)], selected_instance=1,
+                     paperdoll={'rhand': 3}, allocator_next=4, reuse={'737': 800})
+    safe = 1+max(hi for lo, hi, rate in src.rates['ARMOR_GROUP'] if rate == 100)
+    full = 1+max(hi for lo, hi, rate in src.rates['FULL_ARMOR_GROUP'] if rate == 100)
+    for body, e in product([False, True], [2, 3, 4, 5]):
+        need('F4', f'enchant-safe-{body}-{e}', current=e, fullarmor=body, safe_enchant=safe,
+             safe_fullarmor=full, base=F(0), residue=99999)
+    for base_rate, bonus, support in [(F(0), F(0), F(0)), (F(6667, 100), F(0), F(0)),
+                                      (F(100), F(0), F(0)), (F(0), F(10), F(5))]:
+        need('F4', f'enchant-quantized-{base_rate}-{bonus}-{support}', base=base_rate, bonus=bonus, support=support)
+    for (con, bonus), limit in product(src.bonuses['CON'].items(), [F(1, 2), F(3, 2)]):
+        need('F7', f'load-modifier-{con}-{limit}', con=con, bonus=bonus, weight_limit=limit, multiplier=F(3, 2), add=F(1, 3))
+    for slot, expertise in product(range(25), range(8)):
+        need('F6', f'grade-slot-{slot}-{expertise}', equipped=[dict(instance_id=1, slot=slot, grade=7, weapon=slot == 5)], expertise=expertise)
+    for speed in [379, 400, 1500]:
+        need('F10', f'bow-reuse-speed-{speed}', reuse_delay=1500, attack_speed=speed, weapon_reuse_modifier=F(3, 2))
+    for hits, valid in product([[False, False], [True, False], [False, True], [True, True]], [False, True]):
+        need('F10', f'dual-plan-{hits}-{valid}', hits=hits, formulas=[F(499, 10), F(10199, 100)], second_valid=valid,
+             hit_residues=[800 if h else 801 for h in hits], hit_chance=800, spread_radius=6)
+    for count in [0, 1, 2]:
+        need('F10', f'pole-count-{count}', candidates=[dict(eligible=True, hit=True, formula=F(499, 10)) for _ in range(4)], maximum=count)
+    for chance, residue in product([F(0), F(999, 10), F(100), F(101)], [998, 999]):
+        need('F10', f'blow-boundary-{chance}-{residue}', chance=chance, dex=F(1), proximity='front', residue=residue)
+    for power, critical in product([F(-1), F(0), F(79, 77), F(80, 77), F(81, 77), F(199, 77)], [False, True]):
+        need('F10', f'blow-cap-rounding-{power}-{critical}', p_atk=0, defence=80, power=power, caller='blow', critical=critical)
+    for accessory in [False, True]:
+        need('F11', f'retail-draw-contract-{accessory}', accessory=accessory)
+    # Minimum source option for each function/active/passive/trigger form.
+    options = {}
+    for path in sorted((src.dp/(D+'stats/options')).glob('*.xml')):
+        for node in src.xml(path.relative_to(src.dp).as_posix()).findall('option'):
+            for kind in ['for', 'active_skill', 'passive_skill', 'attack_skill', 'critical_skill', 'magic_skill']:
+                if node.find(kind) is not None and kind not in options:
+                    options[kind] = node
+    for kind in ['for', 'active_skill', 'passive_skill', 'attack_skill', 'critical_skill', 'magic_skill']:
+        node = options[kind]
+        for event in ['install', 'unequip', 'cancel', 'death', 'dead_admission', 'resurrection']:
+            need('F11', f'augmentation-provider-{kind}-{event}', option_id=int(node.get('id')),
+                 option_xml=ET.tostring(node, encoding='unicode'), event=event, other_provider=99, hp=F(100), maximum=75,
+                 stat_baseline={n.get('stat'): F(100) for n in node.findall('for/*')})
+    sets = {n.get('name'): n.get('val') for n in src.skills[1401][1].findall('set')}
+    for phase, available in product(['complete', 'cancel'], [0, 1, 2]):
+        need('F12', f'learned-item-consume-{phase}-{available}', skill_id=1401, rank=1,
+             consume_id=int(sets['itemConsumeId']), consume_count=int(sets['itemConsumeCount']),
+             inventory=[] if available == 0 else [dict(instance_id=2, template_id=3031, count=available), dict(instance_id=1, template_id=3031, count=1)],
+             phase=phase, repeat=True)
+    root = src.xml(D+'stats/chars/baseStats/HumanFighter.xml')
+    regen = F(root.find('lvlUpgainData').find('level').findtext('hpRegen'))
+    bonus = src.bonuses['CON'][int(root.findtext('staticData/baseCON'))]
+    for (posture, modifier), (dead, stunned) in product([('standing', F(11, 10)), ('running', F(7, 10)), ('sitting', F(3, 2))],
+                                                      [(False, False), (False, True), (True, False)]):
+        for current, maximum in [(0, 1000), (99, 100), (999, 1000)]:
+            need('F12', f'item-regen-status-{posture}-{dead}-{stunned}-{current}', base=regen, level_modifier=F(9, 10),
+                 stat_bonus=bonus, posture_modifier=modifier, regen_modifier=F(1, 2),
+                 periodic_credit=F(o.consumable_definition(src, 1540)['skills'][0]['effects'][0]['params']['amount']),
+                 current=current, maximum=maximum, remainder_q=500000, dead=dead, stunned=stunned)
+    for guard in ['invulnerable', 'hp_blocked']:
+        need('F12', 'item-regen-status-'+guard, base=regen, level_modifier=F(9, 10), stat_bonus=bonus,
+             posture_modifier=F(11, 10), regen_modifier=F(1, 2),
+             periodic_credit=F(o.consumable_definition(src, 1540)['skills'][0]['effects'][0]['params']['amount']),
+             current=0, maximum=1000, remainder_q=500000, dead=False, stunned=False,
+             invulnerable=guard == 'invulnerable', hp_blocked=guard == 'hp_blocked')
 
 
 def verify_case(name, case, row):
