@@ -13,6 +13,63 @@ scenarios=importlib.util.module_from_spec(spec);spec.loader.exec_module(scenario
 DIRECTORY=SCRIPTS.parent/'Scenarios'
 
 
+def armor_body(config):
+    row,templates=scenarios.fixtures.armor_set()
+    items=scenarios.fixtures.catalogue()
+    by_slot={items[i]['bodypart']:i for i in templates}
+    chest,shield=by_slot['chest'],by_slot['lhand']
+    required=[i for i in templates if i!=shield]
+    removed=next(i for i in required if i!=chest)
+    slot=items[removed]['bodypart']
+    shield_skills=[r['id'] for r in row['shield_skills']]
+    six_skills=[r['id'] for r in row['enchant6_skills']]
+    phase=lambda name,formula,**selectors:'# item-phase: '+json.dumps(dict(name=name,formula=formula,**selectors),separators=(',',':'))
+    context={'set_id':row['id']}
+    declarations=[phase('chest-then-shield','set_shield_history',context=context,inputs={'mutation':'equip_shield','complete':False},actual=True,
+                         mutation={'operation':'equip','template':shield,'slot':'lhand'}),
+                  phase('shield-then-chest','set_shield_history',context=context,inputs={'mutation':'equip_chest','complete':False},actual=False,
+                         mutation={'operation':'equip','template':chest,'slot':'chest'}),
+                  phase('inactive-history-reconnect','gear_stats',context=context|{'event':'admission'},absent_providers=shield_skills),
+                  phase('active-shield-provider','gear_stats',context=context,providers=shield_skills,
+                         mutation={'operation':'equip','template':shield,'slot':'lhand'}),
+                  phase('removed-shield-provider','gear_stats',context=context,absent_providers=shield_skills,
+                         mutation={'operation':'unequip','template':shield,'slot':'lhand'})]
+    body=['nf.Login','nf.WaitFor connected 15','nf.EnterWorld','nf.WaitFor in_world 15','nf.WaitFor item_baseline 3',
+          f'nf.Equip {chest}',f'nf.WaitFor equipped chest == {chest} 3','nf.MarkItemState',
+          f'nf.Equip {shield}',f'nf.WaitFor equipped lhand == {shield} 3','nf.WaitFor inventory_revision_since_mark >= 1 3',
+          'nf.WaitFor owner_stat_delta max_hp > 0 3','nf.MarkItemState',
+          'nf.Unequip lhand','nf.WaitFor equipped lhand == 0 3','nf.WaitFor owner_stat_delta max_hp < 0 3',
+          f'nf.Equip {shield}',f'nf.WaitFor equipped lhand == {shield} 3','nf.WaitFor owner_stat_delta max_hp == 0 3',
+          # Mark the active incomplete state; reverse order reaches identical paperdoll without the provider.
+          'nf.MarkItemState','nf.Unequip chest','nf.WaitFor equipped chest == 0 3',
+          'nf.Unequip lhand','nf.WaitFor equipped lhand == 0 3',
+          f'nf.Equip {shield}',f'nf.WaitFor equipped lhand == {shield} 3',
+          f'nf.Equip {chest}',f'nf.WaitFor equipped chest == {chest} 3','nf.WaitFor owner_stat_delta max_hp < 0 3',
+          'nf.MarkItemState','nf.DropSocket','nf.WaitFor reconnects >= 1 15','nf.WaitFor item_baseline 15',
+          'nf.WaitFor owner_stats_match_mark 3']
+    for i in required:
+        if i==chest:continue
+        concrete=items[i]['bodypart']
+        body += [f'nf.Equip {i}',f'nf.WaitFor equipped {concrete} == {i} 3']
+    body += ['nf.MarkItemState','nf.DropSocket','nf.WaitFor reconnects >= 2 15','nf.WaitFor item_baseline 15','nf.WaitFor owner_stats_match_mark 3']
+    if config.get('enchant')==6:
+        declarations += [phase('enchant6-installed','gear_stats',context=context,providers=six_skills),
+                         phase('enchant6-reconnect','gear_stats',context=context|{'event':'admission'},providers=six_skills+shield_skills),
+                         phase('enchant6-removed','gear_stats',context=context,absent_providers=six_skills,
+                               mutation={'operation':'unequip','template':removed,'slot':slot})]
+        body += ['nf.Expect enchant_level chest == 6']
+    body += [f'nf.Unequip {slot}',f'nf.WaitFor equipped {slot} == 0 3',f'nf.Expect inventory_has {removed} == 1']
+    if config.get('enchant')==4:
+        shirt=scenarios.fixtures.enchant4_item();sid=shirt['template_id'];providers=[r['id'] for r in shirt['enchant4_skills']]
+        declarations += [phase('enchant4-installed','gear_stats',providers=providers,mutation={'operation':'equip','template':sid,'slot':'under'}),
+                         phase('enchant4-removed','gear_stats',absent_providers=providers,mutation={'operation':'unequip','template':sid,'slot':'under'})]
+        body += ['nf.MarkItemState',f'nf.Equip {sid} under',f'nf.WaitFor equipped under == {sid} 3',
+                 'nf.WaitFor owner_stat_delta max_hp > 0 3','nf.Expect enchant_level under == 4',
+                 'nf.MarkItemState','nf.Unequip under','nf.WaitFor equipped under == 0 3','nf.WaitFor owner_stat_delta max_hp < 0 3']
+    budget=sum(int(l.split()[-1]) for l in body if l.startswith('nf.WaitFor '))+30
+    return declarations+body+[f'nf.Within {budget}']
+
+
 def generate(directory=DIRECTORY):
     variants=directory/'variants';variants.mkdir(exist_ok=True)
     rows=[]
@@ -45,7 +102,7 @@ def generate(directory=DIRECTORY):
             budget=sum(int(l.split()[-1]) for l in body if l.startswith('nf.WaitFor '))+30
             text=text[:text.index('nf.Login')]+'\n'.join(body+[f'nf.Within {budget}'])+'\n'
         if base=='phase4-bow':text=text.replace('arrows_remaining == 2','arrows_remaining == 1').replace('arrows_remaining < 2','arrows_remaining == 0')
-        if base=='phase4-armor':text=text.replace('nf.Unequip head',f"nf.Expect enchant_level chest == {config['enchant']}\nnf.Unequip head")
+        if base=='phase4-armor':text=text[:text.index('# D20 provider cases')]+'\n'.join(armor_body(config))+'\n'
         path=variants/(name+'.nfs');path.write_text(text)
         assertions=[l for l in text.splitlines() if l.startswith(('nf.Expect ','# item-gate:'))]
         rows.append(dict(id=name,fixture=pack,canonical=canonical,scenarios=[str(path.relative_to(directory))],assertions=assertions,execution='pending E2/E3/E5'))

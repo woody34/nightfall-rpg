@@ -11,20 +11,59 @@
 # item-gate: gear_stats
 # item-gate: set_shield_history
 # item-gate: clamp_no_heal
+# item-phase: {"name":"chest-then-shield","formula":"set_shield_history","context":{"set_id":3},"inputs":{"mutation":"equip_shield","complete":false},"actual":true,"mutation":{"operation":"equip","template":628,"slot":"lhand"}}
+# item-phase: {"name":"shield-then-chest","formula":"set_shield_history","context":{"set_id":3},"inputs":{"mutation":"equip_chest","complete":false},"actual":false,"mutation":{"operation":"equip","template":58,"slot":"chest"}}
+# item-phase: {"name":"inactive-history-reconnect","formula":"gear_stats","context":{"set_id":3,"event":"admission"},"absent_providers":[3543]}
+# item-phase: {"name":"active-shield-provider","formula":"gear_stats","context":{"set_id":3},"providers":[3543],"mutation":{"operation":"equip","template":628,"slot":"lhand"}}
+# item-phase: {"name":"removed-shield-provider","formula":"gear_stats","context":{"set_id":3},"absent_providers":[3543],"mutation":{"operation":"unequip","template":628,"slot":"lhand"}}
+# item-phase: {"name":"enchant6-installed","formula":"gear_stats","context":{"set_id":3},"providers":[3611]}
+# item-phase: {"name":"enchant6-reconnect","formula":"gear_stats","context":{"set_id":3,"event":"admission"},"providers":[3611,3543]}
+# item-phase: {"name":"enchant6-removed","formula":"gear_stats","context":{"set_id":3},"absent_providers":[3611],"mutation":{"operation":"unequip","template":59,"slot":"legs"}}
 nf.Login
 nf.WaitFor connected 15
 nf.EnterWorld
 nf.WaitFor in_world 15
 nf.WaitFor item_baseline 3
-nf.Equip 23
-nf.WaitFor equipped chest == 23 3
-nf.Equip 2386
-nf.WaitFor equipped legs == 2386 3
-nf.Equip 43
-nf.WaitFor equipped head == 43 3
+nf.Equip 58
+nf.WaitFor equipped chest == 58 3
+nf.MarkItemState
+nf.Equip 628
+nf.WaitFor equipped lhand == 628 3
+nf.WaitFor inventory_revision_since_mark >= 1 3
+nf.WaitFor owner_stat_delta max_hp > 0 3
+nf.MarkItemState
+nf.Unequip lhand
+nf.WaitFor equipped lhand == 0 3
+nf.WaitFor owner_stat_delta max_hp < 0 3
+nf.Equip 628
+nf.WaitFor equipped lhand == 628 3
+nf.WaitFor owner_stat_delta max_hp == 0 3
+nf.MarkItemState
+nf.Unequip chest
+nf.WaitFor equipped chest == 0 3
+nf.Unequip lhand
+nf.WaitFor equipped lhand == 0 3
+nf.Equip 628
+nf.WaitFor equipped lhand == 628 3
+nf.Equip 58
+nf.WaitFor equipped chest == 58 3
+nf.WaitFor owner_stat_delta max_hp < 0 3
+nf.MarkItemState
+nf.DropSocket
+nf.WaitFor reconnects >= 1 15
+nf.WaitFor item_baseline 15
+nf.WaitFor owner_stats_match_mark 3
+nf.Equip 59
+nf.WaitFor equipped legs == 59 3
+nf.Equip 47
+nf.WaitFor equipped head == 47 3
+nf.MarkItemState
+nf.DropSocket
+nf.WaitFor reconnects >= 2 15
+nf.WaitFor item_baseline 15
+nf.WaitFor owner_stats_match_mark 3
 nf.Expect enchant_level chest == 6
-nf.Unequip head
-nf.WaitFor equipped head == 0 3
-nf.Expect inventory_has 43 == 1
-# Total budget: sum of declared conservative waits +30s exit grace.
-nf.Within 75
+nf.Unequip legs
+nf.WaitFor equipped legs == 0 3
+nf.Expect inventory_has 59 == 1
+nf.Within 177
