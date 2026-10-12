@@ -8,7 +8,10 @@ pub(super) fn pre_phase4_json(value: &serde_json::Value) -> Result<(), CodecErro
     match value {
         serde_json::Value::Object(fields) => {
             for (key, child) in fields {
-                if matches!(key.as_str(), "phase4" | "capability_revision") {
+                if matches!(
+                    key.as_str(),
+                    "phase4" | "item_work" | "learning" | "capability_revision"
+                ) {
                     return Err(CodecError(format!("V6 field {key} in historical payload")));
                 }
                 pre_phase4_json(child)?;
@@ -41,6 +44,8 @@ pub(super) fn legacy_json(value: &serde_json::Value) -> Result<(), CodecError> {
                 if matches!(
                     key.as_str(),
                     "phase4"
+                        | "item_work"
+                        | "learning"
                         | "capability_revision"
                         | "runtime_revision"
                         | "phase3"
@@ -439,4 +444,23 @@ fn phase3_field(node: &str, tag: u32) -> Option<(u64, Option<&'static str>, bool
         | ("PbLearnSkill", 4 | 5) => (0, None, false),
         _ => return None,
     })
+}
+
+#[cfg(test)]
+mod metadata_tests {
+    #[test]
+    fn legacy_item_work_presence_is_refused_even_when_null_or_nested() {
+        for value in [
+            serde_json::json!({"checkpoints":[{"item_work":null}]}),
+            serde_json::json!({"checkpoints":[{"latest":{"phase4":null}}]}),
+            serde_json::json!({"item_work":{}}),
+            serde_json::json!({"checkpoints":[{"learning":null}]}),
+        ] {
+            assert!(super::pre_phase4_json(&value).is_err());
+            assert!(super::legacy_json(&value).is_err());
+        }
+        let empty = serde_json::json!({"checkpoints":[{"latest":{"hp":1}}]});
+        assert!(super::pre_phase4_json(&empty).is_ok());
+        assert!(super::legacy_json(&empty).is_ok());
+    }
 }

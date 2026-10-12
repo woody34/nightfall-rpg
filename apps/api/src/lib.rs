@@ -42,6 +42,8 @@ pub struct Dependencies {
     pub dev_item_grants: bool,
     /// Typed actor materialization port; None refuses grants before repository reads.
     pub item_grants: Option<Arc<dyn application::ports::ItemGrantRuntime>>,
+    /// Same typed item/learning writer installed before durable recovery.
+    pub item_checkpoints: Option<Arc<dyn application::ports::ItemCheckpointRepository>>,
     /// Frozen item receipts from the same atomic item checkpoint adapter.
     pub item_receipts: Option<Arc<dyn application::ports::ItemReceiptRepository>>,
     /// Prevalidated V6 metadata; None keeps `GetItemCatalog` fail closed.
@@ -93,6 +95,7 @@ impl Dependencies {
             dev_item_grants: false,
             item_grants: None,
             item_receipts: Some(characters.clone()),
+            item_checkpoints: Some(characters.clone()),
             item_catalogue: None,
             item_inventory: Some(characters.clone()),
             learning: Some(characters.clone()),
@@ -224,6 +227,9 @@ pub fn start_realtime(
         deps.audit.clone(),
         Arc::new(deps.metrics.clone()),
     );
+    if let Some(items) = &deps.item_checkpoints {
+        checkpoints = checkpoints.with_items(items.clone());
+    }
     if let Some(learning) = &deps.learning {
         checkpoints = checkpoints.with_learning(learning.clone());
     }

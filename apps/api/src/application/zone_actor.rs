@@ -742,6 +742,7 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
         }
     }
 
+    #[allow(clippy::too_many_lines)] // Keep durability, persistence and release in one ordered barrier.
     async fn tick(&mut self) -> TickOutcome {
         // Metrics only (see module docs).
         let started = Instant::now();
@@ -760,6 +761,27 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
             },
         };
         let tick = record.tick;
+        if record
+            .commands
+            .iter()
+            .any(|command| matches!(command.command, crate::domain::zone::ZoneCommand::Item(_)))
+            || record
+                .events
+                .iter()
+                .any(|event| matches!(event, crate::domain::zone::ZoneEvent::ItemCheckpoint(_)))
+        {
+            let enabled = match self.checkpoints.service() {
+                Some(service) => service.lock().await.items_enabled(),
+                None => false,
+            };
+            if !self.gate.durable() || !enabled {
+                tracing::error!("item work requires durable log and typed receipt lane");
+                self.failed = true;
+                self.fail_replies();
+                self.publish_stats(tick, started, 0);
+                return TickOutcome::Held(tick);
+            }
+        }
         if record
             .events
             .iter()
