@@ -533,14 +533,12 @@ pub(super) fn detached_inventory_to_pb(
 ) -> Result<pb::InventorySync, crate::application::AppError> {
     use crate::domain::zone::{phase4_checkpoint::ItemReuseKey, ItemLocation};
     let cp = &output.checkpoint;
-    let per_mille = if cp.max_load <= 0 {
-        0 // D45: pinned no-op maximum preserves the retained overload history.
-    } else {
-        i128::from(cp.weight)
-            .checked_mul(1000)
-            .and_then(|weight| weight.checked_div(i128::from(cp.max_load)))
-            .ok_or_else(|| anyhow::anyhow!("retained weight projection overflow"))?
-    };
+    let weight = crate::domain::zone::item_views::ItemWeightView::new(
+        cp.weight,
+        cp.max_load,
+        cp.weight_penalty_bonus,
+    )
+    .map_err(anyhow::Error::from)?;
     Ok(pb::InventorySync {
         entity_id: output.character_id.as_uuid().as_bytes().to_vec(),
         incarnation: 0,
@@ -582,7 +580,7 @@ pub(super) fn detached_inventory_to_pb(
             weight: cp.weight,
             max_load: cp.max_load,
             penalty_bonus: cp.weight_penalty_bonus,
-            per_mille: i64::try_from(per_mille).map_err(anyhow::Error::from)?,
+            per_mille: weight.per_mille,
         }),
         penalties: Some(pb::ItemPenaltyState {
             expertise: u32::from(cp.expertise),
@@ -661,6 +659,40 @@ mod tests {
 
     use super::*;
     use crate::domain::{AccountId, CharacterName};
+
+    #[test]
+    fn detached_inventory_nonpositive_load_matches_live_display() {
+        for maximum in [0, -1, i64::MIN, 1000] {
+            let mut checkpoint =
+                crate::domain::zone::phase4_projection::tests::projection().checkpoint;
+            checkpoint.weight = 100;
+            checkpoint.max_load = maximum;
+            checkpoint.overload_level = 4;
+            checkpoint.overloaded = true;
+            let expected = crate::domain::zone::item_views::ItemWeightView::new(
+                checkpoint.weight,
+                maximum,
+                checkpoint.weight_penalty_bonus,
+            )
+            .unwrap();
+            let wire =
+                detached_inventory_to_pb(&crate::application::use_cases::GetInventoryOutput {
+                    character_id: crate::domain::CharacterId::from_uuid(Uuid::from_u128(1)),
+                    character_revision: 2,
+                    ordinary_capacity: checkpoint.ordinary_capacity,
+                    quest_capacity: checkpoint.quest_capacity,
+                    checkpoint,
+                })
+                .unwrap();
+            let weight = wire.weight.unwrap();
+            assert_eq!(weight.max_load, maximum);
+            assert_eq!(weight.per_mille, expected.per_mille);
+            let penalties = wire.penalties.unwrap();
+            assert_eq!(penalties.overload_level, 4);
+            assert!(penalties.overloaded);
+            assert_eq!((wire.tick, wire.baseline_tick, wire.incarnation), (0, 0, 0));
+        }
+    }
 
     #[test]
     fn detached_nonpositive_maximum_displays_zero_without_changing_penalty_history() {

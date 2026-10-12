@@ -81,14 +81,19 @@ pub struct ItemWeightView {
 impl ItemWeightView {
     /// Match the detached inventory display using checked wide arithmetic.
     pub fn new(weight: i64, max_load: i64, penalty_bonus: i64) -> Result<Self, ItemError> {
-        if weight < 0 || max_load <= 0 {
+        if weight < 0 {
             return Err(ItemError("invalid displayed item weight"));
         }
-        let per_mille = i128::from(weight)
-            .checked_mul(1000)
-            .and_then(|v| v.checked_div(i128::from(max_load)))
-            .and_then(|v| i64::try_from(v).ok())
-            .ok_or(ItemError("item weight display overflow"))?;
+        // D45: the pinned nonpositive-limit no-op preserves retained penalty history.
+        let per_mille = if max_load <= 0 {
+            0
+        } else {
+            i128::from(weight)
+                .checked_mul(1000)
+                .and_then(|v| v.checked_div(i128::from(max_load)))
+                .and_then(|v| i64::try_from(v).ok())
+                .ok_or(ItemError("item weight display overflow"))?
+        };
         Ok(Self {
             weight,
             max_load,
@@ -602,5 +607,22 @@ pub(crate) mod tests {
                 .per_mille,
             1000
         );
+    }
+    #[test]
+    fn nonpositive_load_display_preserves_penalty_history() {
+        for maximum in [0, -1, i64::MIN] {
+            let mut view = inventory();
+            view.weight = ItemWeightView::new(i64::MAX, maximum, 17).unwrap();
+            view.penalties.overload_level = 4;
+            view.penalties.overloaded = true;
+            let before = view.penalties.clone();
+            view.validate().unwrap();
+            assert_eq!(view.weight.per_mille, 0);
+            assert_eq!(view.weight.max_load, maximum);
+            assert_eq!(view.penalties, before);
+            view.weight.per_mille = 1;
+            assert!(view.validate().is_err());
+        }
+        assert!(ItemWeightView::new(-1, 0, 0).is_err());
     }
 }
