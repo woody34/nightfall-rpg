@@ -15,10 +15,14 @@ JSONL contract (schema version 1 of this sidecar):
   `watermark={zone,epoch,records,last_tick,reason}`, `phase4_rules_hash`,
   `snapshot_schema=10`, `record_schema=8`, `digest_version=BinaryV6`.
   Reason is `shutdown` or `epoch_closed`; partial exports refuse.
-- Every fact: exactly `kind,entity,incarnation,tick,sequence,data`. Canonical UUID
-  entity, positive incarnation, contiguous zero-based sequence and ordered ticks
+- Every fact: exactly `kind,entity,incarnation,tick,sequence,data`, plus optional
+  top-level `origin` (`live|offline`). Canonical UUID entity, live incarnation ≥1,
+  contiguous zero-based sequence and ordered ticks
   within the watermark. Facts cover the complete epoch; owner filtering happens
   in the consumer, so missing or foreign-owner facts cannot satisfy a gate.
+  Offline GrantItem, pending-kit and backfill materialization facts explicitly
+  carry `origin=offline`, incarnation0 and the character UUID in `entity` (D56).
+  Incarnation0 without that explicit origin refuses; it never invents a live owner.
 - `item_formula` data: `formula,inputs,actual,resolution_id,baseline=false`.
   The independent E1 Fraction functions recompute `actual` from actual resolution
   inputs; no vector lookup, tolerance, floats, booleans masquerading as integers
@@ -30,11 +34,24 @@ JSONL contract (schema version 1 of this sidecar):
   continuity. Draw-free branches have no fabricated draw. Enchant always requires one bound100000
   draw at callsite `enchant`, including guaranteed success (GAME@abfde049
   EnchantScroll.java:149-155). Its residue must equal the outcome input.
-- `item_delta`: `operation,instance,before,after,count_delta,operation_ordinal,receipt,resolution_id`.
+- `item_delta`: `operation,instance,before,after,count_delta,operation_ordinal,resolution_id`,
+  plus `receipt_refs` for `operation=consume`, otherwise `receipt_ref`.
+  Consume is one aggregate row per instance per tick at ordinal0; `receipt_refs`
+  is an ordered list of ≥1 nonempty receipt references, in contribution order
+  (D57). Other rows have a single `receipt_ref` (nullable for receipt-free facts);
+  Exchange rows require the single nonempty Exchange receipt (D52/D57), including
+  constituent rows whose operation is `exchange`. The old `receipt` field refuses.
   `before/after` are null or the complete canonical ItemInstance fields from
   `domain/zone/item.rs`, not partial count projections. Exact widths, identity,
   real change, count conservation, duplicate logical rows and consume ordinal0
   are checked. Pure toggles/reuse never fabricate a ledger instance (D28).
+  Under D55, correlate deltas by `(resolution_id,instance,operation_ordinal)`
+  within the owner/incarnation scope, independent of operation name. A tick has
+  one inventory revision step: `before.revision ≤ after.revision` when both
+  instances exist; equality is valid for later same-tick changes. Per instance,
+  ordinals strictly increase within a tick and retained post-revisions strictly
+  increase across ticks; ordinals may reset on a new tick. A removed instance
+  has no post-revision to compare. Never fabricate intermediate revisions.
 - `item_baseline`: `inventory_revision,instances,paperdoll,auto_shots`. Complete
   canonical instances and valid paperdoll references bind an owner. A baseline
   cannot satisfy formula gates. Disabled GrantItem is rejected before actor
@@ -57,6 +74,14 @@ refund; unchanged targets have no D28 ledger row. Sources: GAME@abfde049
 RequestEnchantItem.java:123-139,154-271; L2Item.java:353,398-419;
 CrystalType.java:26-33. Deletion tests repair sequences/trailer counts.
 E2 must implement these correlation additions before producer verification.
+
+D55–D57 revise this same schema-version1 sidecar for the accepted producer:
+same-tick enchant/consume/refund rows may share revisions, offline facts must
+emit the explicit top-level origin, and Consume aggregates emit ordered
+`receipt_refs` while Exchange rows emit `receipt_ref`. Positive controls and
+repaired-deletion/mutation probes cover multiple enchant deltas on one instance,
+revision/ordinal ordering, offline incarnation0 owner binding and two-receipt
+Consume aggregates. These checks do not attest a live producer.
 
 Formula data may also carry `context` with only `weapon_template,skill_id,
 target_entity,event,set_id`. IDs are bounded integers; weapon0 means unarmed;

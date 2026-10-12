@@ -82,6 +82,33 @@ compares received maxHP (3543's source MaxHp), and restores inactive/active hist
 across reconnect. Full-set/+6 installation/removal and shirt+4 installation/removal
 require provider-specific correlated gear_stats export facts.
 
+Replay item evidence (E6 → Z, D46/D55–D57):
+`nightfall-replay export --items-evidence-out PATH` emits the schema-version1
+whole-recording JSONL described in [phase4-evidence-contract.md](phase4-evidence-contract.md).
+Every fact has `kind,entity,incarnation,tick,sequence,data` and may carry a
+top-level `origin=live|offline`. Offline GrantItem, pending kits and backfill
+must emit `origin=offline`, incarnation0 and the character UUID as `entity`.
+Without that explicit origin, incarnation must be ≥1; owner filtering still
+uses the character identity, so foreign-owner facts cannot satisfy a gate.
+
+Delta data has `operation,instance,before,after,count_delta,operation_ordinal,
+resolution_id` and its receipt field. Correlation keys are
+`(resolution_id,instance,operation_ordinal)` within owner/incarnation scope.
+Per-tick batching yields one inventory revision step: canonical before/after
+revisions may be equal on later changes within that tick. Require
+`before.revision ≤ after.revision`, strictly increasing per-instance ordinals
+within a tick, and strictly increasing retained post-revisions across ticks;
+ordinals can reset on a new tick. Removed instances have no post-revision.
+Do not fabricate intermediate revisions for enchant, consume or refunds.
+
+The per-instance per-tick `operation=consume` aggregate remains ordinal0 and
+emits `receipt_refs`, an ordered list of ≥1 nonempty contributing receipt
+references (for example `["receipt:2","receipt:1"]` in contribution order).
+Other rows emit the single `receipt_ref`, nullable for receipt-free facts.
+Exchange rows require the single Exchange receipt, including constituent
+exchange audit rows (D52); they never use the Consume receipt-list field.
+The old `receipt` field and a singular Consume `receipt_ref` refuse.
+
 Combat phases use nf.Mark/target_hits_since_mark; template15's pole receives
 primary108,100 and secondary108,101 /108,99 targets (explicit fixture positions).
 The unarmed phase unequips rhand; source-bound phases require actual weapon caller

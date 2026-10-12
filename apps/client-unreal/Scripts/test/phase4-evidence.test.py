@@ -50,18 +50,134 @@ class Evidence(unittest.TestCase):
         append('item_formula',dict(formula='enchant_chance',inputs=chance_inputs,actual=gate.oracle.enchant_chance(**chance_inputs),baseline=False))
         append('item_rng',dict(callsite='enchant',word_before=0,word_after=1,bound=100000,value=residue))
         for spent in (scroll,support_item):
-            if spent:append('item_delta',dict(operation='consume',instance=spent['id'],before=spent,after=None,count_delta=-1,operation_ordinal=0,receipt='receipt:1'))
+            if spent:append('item_delta',dict(operation='consume',instance=spent['id'],before=spent,after=None,count_delta=-1,operation_ordinal=0,receipt_refs=['receipt:1']))
         if result['destroyed'] or result['enchant']!=enchant:
             after=None if result['destroyed'] else target|dict(enchant=result['enchant'],revision=1)
-            append('item_delta',dict(operation='destroy' if result['destroyed'] else 'enchant',instance=target_id,before=target,after=after,count_delta=-1 if after is None else 0,operation_ordinal=0,receipt='receipt:1'))
+            append('item_delta',dict(operation='destroy' if result['destroyed'] else 'enchant',instance=target_id,before=target,after=after,count_delta=-1 if after is None else 0,operation_ordinal=0,receipt_ref='receipt:1'))
         if result['destroyed']:
             definition=gate.item_tables()[71];grade=gate.source().grades[definition['grade']]
             refund_inputs=dict(base=definition['crystal_count'],bonus=grade['weapon_bonus'],enchant=enchant,weapon=True,crystallizable=definition['flags']['is_crystallizable'],crystal_id=grade['crystal_id'])
             refund=gate.oracle.failure_refund(**refund_inputs)
             append('item_formula',dict(formula='failure_refund',inputs=refund_inputs,actual=refund,baseline=False))
-            if refund:append('item_delta',dict(operation='grant',instance=10,before=None,after=item(10,refund,grade['crystal_id']),count_delta=refund,operation_ordinal=0,receipt='receipt:1'))
+            if refund:append('item_delta',dict(operation='grant',instance=10,before=None,after=item(10,refund,grade['crystal_id']),count_delta=refund,operation_ordinal=0,receipt_ref='receipt:1'))
         rows.append(dict(kind='complete',facts=len(rows)-1,ticks=1,last_tick=0))
         return rows
+
+    def same_tick_enchants(self):
+        rows=[copy.deepcopy(self.rows[0])]
+        for index in range(2):
+            attempt=self.enchant_rows(enchant=index,scroll_id=20+index)
+            attempt[1]['data']['operation']['target_before']['revision']=min(index,1)
+            for row in attempt[1:-1]:
+                row['data']['resolution_id']=f'enchant:{index+1}'
+                if row['kind']=='item_rng':row['data'].update(word_before=index,word_after=index+1)
+                if row['kind']=='item_delta' and row['data']['instance']==8:row['data']['operation_ordinal']=index
+                rows.append(row)
+        rows.append(dict(kind='complete',facts=0,ticks=1,last_tick=0))
+        return self.repair(rows)
+
+    def test_same_tick_enchants_correlate_ordinals_with_shared_revision(self):
+        rows=self.same_tick_enchants()
+        self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['enchant_outcome','enchant_chance'],HASH)['passed'])
+        for index in range(1,len(rows)-1):
+            bad=copy.deepcopy(rows);del bad[index];self.repair(bad)
+            self.assertFalse(gate.evaluate(bad,self.recording,OWNER,['enchant_outcome','enchant_chance'],HASH)['passed'],index)
+        for ordinal in (0,):
+            bad=copy.deepcopy(rows)
+            targets=[r['data'] for r in bad if r['kind']=='item_delta' and r['data']['instance']==8]
+            targets[-1]['operation_ordinal']=ordinal
+            with self.assertRaisesRegex(ValueError,'ordinal'):gate.evaluate(bad,self.recording,OWNER,['enchant_outcome'],HASH)
+        bad=copy.deepcopy(rows)
+        targets=[r['data'] for r in bad if r['kind']=='item_delta' and r['data']['instance']==8]
+        targets[0]['operation_ordinal'],targets[1]['operation_ordinal']=1,0
+        with self.assertRaisesRegex(ValueError,'ordinal'):gate.validate(bad,self.recording,HASH)
+        bad=copy.deepcopy(rows)
+        duplicate=copy.deepcopy(next(r for r in bad if r['kind']=='item_delta' and r['data']['instance']==8))
+        duplicate['data']['operation']='refine';bad.insert(-1,duplicate);self.repair(bad)
+        with self.assertRaisesRegex(ValueError,'repeated ledger'):gate.validate(bad,self.recording,HASH)
+        bad=copy.deepcopy(rows)
+        next(r for r in reversed(bad) if r['kind']=='item_delta' and r['data']['instance']==8)['data']['after']['revision']=0
+        with self.assertRaisesRegex(ValueError,'revision regressed'):gate.validate(bad,self.recording,HASH)
+
+    def test_revisions_increase_across_ticks_with_ordinal_reset(self):
+        rows=self.same_tick_enchants()
+        third=self.enchant_rows(enchant=2,scroll_id=22)
+        third[1]['data']['operation']['target_before']['revision']=1
+        for row in third[1:-1]:
+            row['tick']=1;row['data']['resolution_id']='enchant:3'
+            if row['kind']=='item_rng':row['data'].update(word_before=2,word_after=3)
+            if row['kind']=='item_delta' and row['data']['instance']==8:row['data']['after']['revision']=2
+            rows.insert(-1,row)
+        rows[0]['watermark'].update(records=2,last_tick=1)
+        rows[-1].update(ticks=2,last_tick=1);self.repair(rows)
+        self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['enchant_outcome'],HASH)['passed'])
+        for revision in (0,1):
+            bad=copy.deepcopy(rows)
+            target=next(r['data'] for r in reversed(bad) if r['kind']=='item_delta' and r['data']['instance']==8)
+            target['before']['revision']=0;target['after']['revision']=revision
+            with self.assertRaisesRegex(ValueError,'across ticks'):gate.evaluate(bad,self.recording,OWNER,['enchant_outcome'],HASH)
+
+    def test_equal_revision_scroll_and_existing_refund_stack(self):
+        rows=self.enchant_rows()
+        scroll=rows[1]['data']['operation']['scroll_before'];scroll.update(count=2,revision=1)
+        consume=next(r['data'] for r in rows if r['kind']=='item_delta' and r['data']['operation']=='consume')
+        consume['after']=scroll|{'count':1}
+        self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['enchant_outcome'],HASH)['passed'])
+        bad=copy.deepcopy(rows)
+        next(r['data'] for r in bad if r['kind']=='item_delta' and r['data']['operation']=='consume')['after']['revision']=0
+        with self.assertRaisesRegex(ValueError,'revision regressed'):gate.validate(bad,self.recording,HASH)
+        rows=self.enchant_rows(base=70,residue=99999,enchant=3)
+        refund=next(r['data'] for r in rows if r['kind']=='item_delta' and r['data']['operation']=='grant')
+        refund['before']=refund['after']|{'count':5,'revision':1}
+        refund['after']=refund['after']|{'count':5+refund['count_delta'],'revision':1}
+        self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['enchant_outcome','failure_refund'],HASH)['passed'])
+
+    def test_offline_zero_incarnation_requires_explicit_origin_and_owner(self):
+        for operation in ('grant','starter','backfill'):
+            rows=copy.deepcopy(self.rows)
+            rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=0,origin='offline',tick=0,sequence=1,
+                data=dict(resolution_id='offline:1',operation=operation,instance=2,before=None,after=item(2,1,1),
+                          count_delta=1,operation_ordinal=0,receipt_ref=None)))
+            self.repair(rows)
+            self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['pole_damage'],HASH)['passed'])
+            self.assertFalse(gate.evaluate(rows,self.recording,OTHER,['pole_damage'],HASH)['passed'])
+            for origin in (None,'live','invented',0,False,[],{}):
+                bad=copy.deepcopy(rows)
+                if origin is None:del bad[2]['origin']
+                else:bad[2]['origin']=origin
+                with self.assertRaises(ValueError,msg=(operation,origin)):gate.evaluate(bad,self.recording,OWNER,['pole_damage'],HASH)
+        rows=copy.deepcopy(self.rows);rows[1].update(incarnation=0,origin='offline')
+        self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['pole_damage'],HASH)['passed'])
+        del rows[1]['origin']
+        with self.assertRaises(ValueError):gate.evaluate(rows,self.recording,OWNER,['pole_damage'],HASH)
+
+    def test_consume_ordered_receipts_and_exchange_single_receipt_schema(self):
+        rows=copy.deepcopy(self.rows)
+        rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=0,sequence=1,
+            data=dict(resolution_id=rows[1]['data']['resolution_id'],operation='consume',instance=7,
+                      before=item(7,3),after=item(7,1),count_delta=-2,operation_ordinal=0,receipt_refs=['receipt:2','receipt:1'])))
+        self.repair(rows)
+        phase=dict(name='consume-aggregate',formula='pole_damage',mutation=dict(operation='consume',template=17,slot=None))
+        self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['pole_damage'],HASH,[phase])['passed'])
+        self.assertEqual(rows[2]['data']['receipt_refs'],['receipt:2','receipt:1'])
+        bad=copy.deepcopy(rows);del bad[2];self.repair(bad)
+        self.assertFalse(gate.evaluate(bad,self.recording,OWNER,['pole_damage'],HASH,[phase])['passed'])
+        for value in ([],None,'receipt:1',{},[None],[''],[1],[False],[['receipt:1']]):
+            bad=copy.deepcopy(rows);bad[2]['data']['receipt_refs']=value
+            with self.assertRaises(ValueError,msg=value):gate.validate(bad,self.recording,HASH)
+        for name in ('receipt','receipt_ref',None):
+            bad=copy.deepcopy(rows);del bad[2]['data']['receipt_refs']
+            if name:bad[2]['data'][name]='receipt:1'
+            with self.assertRaises(ValueError,msg=name):gate.validate(bad,self.recording,HASH)
+        bad=copy.deepcopy(rows);bad.insert(-1,copy.deepcopy(bad[2]));bad[3]['data']['resolution_id']='other';self.repair(bad)
+        with self.assertRaisesRegex(ValueError,'ordinal'):gate.validate(bad,self.recording,HASH)
+        rows[2]['data'].update(operation='exchange',receipt_ref='exchange:1');del rows[2]['data']['receipt_refs']
+        gate.validate(rows,self.recording,HASH)
+        for value in (None,[],['exchange:1'],'',False):
+            bad=copy.deepcopy(rows);bad[2]['data']['receipt_ref']=value
+            with self.assertRaises(ValueError,msg=value):gate.validate(bad,self.recording,HASH)
+        bad=copy.deepcopy(rows);bad[2]['data']['receipt_refs']=['exchange:1']
+        with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
 
     def test_enchant_requires_each_correlated_row_after_repaired_deletion(self):
         for rows in (self.enchant_rows(support=True),self.enchant_rows(base=70,residue=99999,enchant=3)):
@@ -430,7 +546,7 @@ class Evidence(unittest.TestCase):
         rows[1]['data']['context']['weapon_template']=15
         rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=0,sequence=1,
             data=dict(resolution_id=rows[1]['data']['resolution_id'],operation='equip',instance=8,
-                      before=item(8,1,15),after=item(8,1,15,'rhand'),count_delta=0,operation_ordinal=0,receipt='equip:1')))
+                      before=item(8,1,15),after=item(8,1,15,'rhand'),count_delta=0,operation_ordinal=0,receipt_ref='equip:1')))
         self.repair(rows)
         self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['pole_damage'],HASH,[phase])['passed'])
         bad=copy.deepcopy(rows);del bad[2];self.repair(bad)
@@ -503,7 +619,7 @@ class Evidence(unittest.TestCase):
     def test_rng_and_ledger_conservation(self):
         rows=copy.deepcopy(self.rows)
         rows.insert(2,dict(kind='item_rng',entity=OWNER,incarnation=1,tick=0,sequence=1,data=dict(resolution_id='enchant:1',callsite='enchant',word_before=0,word_after=1,bound=100000,value=66670)))
-        rows.insert(3,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=0,sequence=2,data=dict(resolution_id='enchant:1',operation='consume',instance=7,before=item(7,2),after=item(7,1),count_delta=-1,operation_ordinal=0,receipt=None)))
+        rows.insert(3,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=0,sequence=2,data=dict(resolution_id='enchant:1',operation='consume',instance=7,before=item(7,2),after=item(7,1),count_delta=-1,operation_ordinal=0,receipt_refs=['receipt:1'])))
         rows[-1]['facts']=3;gate.validate(rows,self.recording,HASH)
         bad=copy.deepcopy(rows);bad[3]['data']['count_delta']=0
         with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
@@ -525,7 +641,7 @@ class Evidence(unittest.TestCase):
         self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['grant_denied'],HASH)['passed'])
         self.assertFalse(gate.evaluate(rows,self.recording,OTHER,['grant_denied'],HASH)['passed'])
         self.assertFalse(gate.evaluate(rows,self.recording,OWNER,['pole_damage'],HASH)['passed'])
-        rows.insert(2,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=0,sequence=1,data=dict(resolution_id='enchant:1',operation='grant',instance=2,before=None,after=item(2,1,1),count_delta=1,operation_ordinal=0,receipt=None)))
+        rows.insert(2,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=0,sequence=1,data=dict(resolution_id='enchant:1',operation='grant',instance=2,before=None,after=item(2,1,1),count_delta=1,operation_ordinal=0,receipt_ref=None)))
         rows[-1]['facts']=2
         self.assertFalse(gate.evaluate(rows,self.recording,OWNER,['grant_denied'],HASH)['passed'])
 
@@ -543,7 +659,7 @@ class Evidence(unittest.TestCase):
             append('item_formula',dict(formula='shot_payment',inputs=dict(charges=[],kind='spirit',count=1,available=100,weapon_grade='NONE',shot_grade='NONE',toggle=True),actual=dict(charges=['spirit'],available=99,toggle=True,consumed=1,draws=[],outcome='charged'),resolution_id='cast:1:charge',baseline=False))
             for offset,template in enumerate((1,6),1):
                 identity=index*100+offset
-                append('item_delta',dict(operation='equip',instance=identity,before=item(identity,1,template),after=item(identity,1,template,'rhand'),count_delta=0,operation_ordinal=0,receipt=None))
+                append('item_delta',dict(operation='equip',instance=identity,before=item(identity,1,template),after=item(identity,1,template,'rhand'),count_delta=0,operation_ordinal=0,receipt_ref=None))
 
         rows.append(dict(kind='complete',facts=len(rows)-1,ticks=1,last_tick=0))
         self.assertTrue(gate.soak(rows,self.recording,roles,HASH)['passed'])

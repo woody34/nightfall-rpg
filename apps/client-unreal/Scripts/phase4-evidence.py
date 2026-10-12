@@ -465,10 +465,12 @@ def validate(rows,recording,rules_hash):
     for key,value in {'zone':zone,'epoch':epoch,'last_tick':last}.items():same(watermark[key],value)
     if watermark['reason'] not in ('shutdown','epoch_closed'):raise ValueError('incomplete watermark')
     same(complete,dict(kind='complete',facts=len(rows)-2,ticks=ticks,last_tick=last))
-    previous=start;seen=set();cursor=None
+    previous=start;seen=set();cursor=None;instance_steps={}
     for sequence,row in enumerate(rows[1:-1]):
-        if set(row)!= {'kind','entity','incarnation','tick','sequence','data'}:raise ValueError('missing/unknown raw item fields')
-        same(row['sequence'],sequence);same(str(UUID(row['entity'])),row['entity']);integer(row['incarnation'],1)
+        if set(row)-{'origin'}!= {'kind','entity','incarnation','tick','sequence','data'}:raise ValueError('missing/unknown raw item fields')
+        if 'origin' in row and row['origin'] not in ('live','offline'):raise ValueError('unknown item fact origin')
+        same(row['sequence'],sequence);same(str(UUID(row['entity'])),row['entity'])
+        integer(row['incarnation'],0 if row.get('origin')=='offline' else 1)
         tick=integer(row['tick'])
         if not previous<=tick<=last:raise ValueError('unordered/out-of-scope fact')
         previous=tick;data=row['data']
@@ -519,8 +521,14 @@ def validate(rows,recording,rules_hash):
             cursor=after
             if not isinstance(data['callsite'],str) or not data['callsite']:raise ValueError('RNG callsite required')
         elif row['kind']=='item_delta':
-            if set(data)!= {'operation','instance','before','after','count_delta','operation_ordinal','receipt','resolution_id'}:raise ValueError('unknown/missing ledger fields')
+            receipt_field='receipt_refs' if data.get('operation')=='consume' else 'receipt_ref'
+            if set(data)!= {'operation','instance','before','after','count_delta','operation_ordinal',receipt_field,'resolution_id'}:raise ValueError('unknown/missing ledger fields')
             if data['operation'] not in {'grant','starter','backfill','equip','unequip','consume','enchant','destroy','crystallize','refine','cancel_refine','exchange','use'}:raise ValueError('unknown ledger operation')
+            refs=data[receipt_field]
+            if receipt_field=='receipt_refs':
+                if not isinstance(refs,list) or not refs or any(not isinstance(ref,str) or not ref for ref in refs):raise ValueError('ordered nonempty consume receipt_refs required')
+            elif refs is not None and (not isinstance(refs,str) or not refs) or data['operation']=='exchange' and refs is None:
+                raise ValueError('single ledger receipt_ref required')
             instance=integer(data['instance'],1)
             before,after=data['before'],data['after']
             if before==after or before is None and after is None:raise ValueError('ledger must contain actual change (D28)')
@@ -532,10 +540,18 @@ def validate(rows,recording,rules_hash):
             net=(after['count'] if after else 0)-(before['count'] if before else 0)
             same(data['count_delta'],net)
             ordinal=integer(data['operation_ordinal'])
-            key=(row['entity'],row['incarnation'],data['resolution_id'],instance,data['operation'],ordinal)
+            key=(row['entity'],row['incarnation'],data['resolution_id'],instance,ordinal)
             if key in seen:raise ValueError('repeated ledger fact')
             seen.add(key)
             if data['operation']=='consume':same(ordinal,0)
+            if before is not None and after is not None and after['revision']<before['revision']:raise ValueError('item revision regressed')
+            identity=(row['entity'],row['incarnation'],instance)
+            prior=instance_steps.get(identity)
+            if prior is not None:
+                prior_tick,prior_ordinal,prior_revision=prior
+                if tick==prior_tick and ordinal<=prior_ordinal:raise ValueError('item operation ordinal did not increase within tick')
+                if tick>prior_tick and after is not None and after['revision']<=prior_revision:raise ValueError('item revision did not increase across ticks')
+            instance_steps[identity]=(tick,ordinal,(after or before)['revision'])
         else:raise ValueError('unknown item raw fact kind')
     return manifest
 
@@ -591,7 +607,6 @@ def enchant_evidence(row, rows):
             actual=matched[0]['after']
             if actual is None:raise ValueError('missing enchant post-instance')
             same({k:v for k,v in actual.items() if k!='revision'},{k:v for k,v in after.items() if k!='revision'})
-            if actual['revision']<=before['revision']:raise ValueError('enchant item revision did not advance')
         required.append(matched[0])
     for spent in (scroll,support):
         if spent is None:continue
@@ -615,7 +630,6 @@ def enchant_evidence(row, rows):
         if grant['before'] is not None:
             before,after=grant['before'],grant['after']
             same({k:v for k,v in before.items() if k not in ('count','revision')},{k:v for k,v in after.items() if k not in ('count','revision')})
-            if after['revision']<=before['revision']:raise ValueError('refund revision did not advance')
         elif grant['after']['location']!='inventory' or grant['after']['slot'] is not None:
             raise ValueError('refund must enter inventory')
         required.append(grant)
