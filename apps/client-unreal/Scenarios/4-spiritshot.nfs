@@ -1,0 +1,31 @@
+# covers: 4 E1.4, 4 E1.6, 4 E4.1, 4 E4.6, 4 E5.3, 4 E5.5, 4 E6.5
+# fixture: phase4-shots
+# Pending E2/E3/E5 live integration; syntax/traceability is not execution evidence.
+# Exact inventory/paperdoll/enchant/count source operands: phase4-packs.json.
+# Waits: delivery 10ticks*100ms*3=3s (A1); RPC/login policy5s*3=15s.
+# Combat fixture allowance30s; death90s; offer180s (inherited phase3 fixtures).
+# Source scroll Escape20s*3=60s (pinned DP skills02000-02099; design§8).
+# Skill1177 hitTime4000ms*3=12s (pinned DP skills01100-01199.xml:1645).
+# Counts/enchant are fixture inputs; numeric formulas are checked by actual-input export oracle.
+# item-gate: shot_payment
+# item-gate: charge_transition
+# item-gate: magic_damage
+# item-gate: cast_time
+nf.Login
+nf.WaitFor connected 15
+nf.EnterWorld
+nf.WaitFor in_world 15
+nf.WaitFor item_baseline 3
+nf.ItemCatalog
+nf.WaitFor item_catalog_ready 15
+nf.UseItem 2509
+nf.WaitFor inventory_has 2509 == 99 3
+nf.AutoShot 3947 on
+nf.WaitFor autoshot_on 3947 3
+nf.Target template:skill_target
+nf.WaitFor target != none 3
+nf.Cast 1177
+nf.WaitFor cast_damage_results >= 1 12
+nf.WaitFor inventory_has 3947 < 100 3
+# Total budget: sum of declared conservative waits +30s exit grace.
+nf.Within 102

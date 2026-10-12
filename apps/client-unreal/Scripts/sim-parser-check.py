@@ -6,6 +6,7 @@ execution or predicate truth. Missing projections still fail at runtime.
 """
 import argparse
 import json
+import importlib.util
 from pathlib import Path
 import re
 import shlex
@@ -13,6 +14,10 @@ import sys
 import uuid
 
 PROJECT = Path(__file__).resolve().parents[1]
+_p4_spec = importlib.util.spec_from_file_location('phase4_grammar', Path(__file__).with_name('phase4-grammar.py'))
+phase4 = importlib.util.module_from_spec(_p4_spec)
+_p4_spec.loader.exec_module(phase4)
+
 
 
 def clean_cpp(source):
@@ -50,6 +55,9 @@ def registry(project=PROJECT):
 
 
 def phase3_arguments(tokens):
+    item_command = phase4.command(tokens)
+    if item_command is not None:
+        return item_command
     head, args = tokens[0].lower(), tokens[1:]
     def positive(value, maximum):
         return bool(re.fullmatch(r'[0-9]+', value)) and 0 < int(value) <= maximum
@@ -94,12 +102,14 @@ def validate(paths, project=PROJECT):
                     error = 'unregistered predicate ' + tokens[1]
                 elif tokens[1] in unavailable:
                     error = 'unavailable received projection ' + tokens[1]
+                elif phase4.predicate(tokens[1:-1] if head == 'nf.waitfor' else tokens[1:]) is False:
+                    error = 'invalid Phase4 predicate arguments'
                 elif head == 'nf.waitfor' and not re.fullmatch(r'(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)', tokens[-1]):
                     error = 'invalid timeout'
                 elif head == 'nf.waitfor' and float(tokens[-1]) <= 0:
                     error = 'nonpositive timeout'
             elif not phase3_arguments(tokens):
-                error = 'invalid Phase3 command arguments'
+                error = 'invalid command arguments'
             if error:
                 failures.append({'scenario': path.name, 'line': line, 'error': error})
     return failures
