@@ -321,6 +321,9 @@ impl CharacterRepository for PgCharacterRepository {
                 let class_profile = m.class_profile.clone();
                 let revision = u64::try_from(m.revision)?;
                 let phase3 = phase3_checkpoint::load(&tx, &m).await?;
+                let phase4 = super::phase4_checkpoint::load(&tx, &m, phase3.as_ref()).await?;
+                // Replace this rollout fence when the canonical V6 PlayerLoad is installed.
+                anyhow::ensure!(phase4.is_none(), "Phase4 admission is not yet available");
                 let mut c = model_to_character(m)?;
                 character_ledger::hydrate(&tx, &mut c).await?;
                 self.validate_versioned(&c, &c.class_state, phase3.as_ref(), alive)?;
