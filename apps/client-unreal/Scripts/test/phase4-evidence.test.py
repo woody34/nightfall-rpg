@@ -214,20 +214,22 @@ class Evidence(unittest.TestCase):
         counts={identity:sum(plan.count(identity) for plan in plans)+rng.randint(0,3) for identity in stack_ids}
         if support:counts[9]=sum(map(len,plans))+rng.randint(0,3)
         revisions={identity:initial for identity in counts}
-        incarnation=rng.randint(1,5);start=rng.randint(0,30);cursor=0;levels={8:0,10:0}
+        incarnation=rng.randint(1,5);start=rng.randint(0,30);cursor=0;levels={8:0,10:3}
         rows=[copy.deepcopy(self.rows[0])]
-        baseline=[item(identity,count,12363 if identity==9 else 951)|{'revision':initial} for identity,count in counts.items() if count]
-        baseline.extend(item(identity,1,71)|{'revision':initial} for identity in levels)
+        baseline=[item(identity,count,12363 if identity==9 else 22227)|{'revision':initial} for identity,count in counts.items() if count]
+        baseline.extend(item(identity,1,71)|{'revision':initial,'enchant':level} for identity,level in levels.items())
         rows.append(dict(kind='item_baseline',entity=OWNER,incarnation=incarnation,tick=start,sequence=0,
                          data=dict(inventory_revision=initial,instances=baseline,paperdoll={},auto_shots=[])))
         for tick,plan in enumerate(plans):
             revisions={identity:initial+tick for identity in counts}
             contributions={};ordinals={identity:rng.randint(0,4) for identity in levels};changed=set()
             for index,scroll_id in enumerate(plan):
-                target_id=8 if index==0 else 10 if index==1 else rng.choice((8,10))
+                target_id=8 if index in (0,2) else 10 if index==1 else rng.choice((8,10))
                 level=levels[target_id];target=item(target_id,1,71)|{'enchant':level}
-                base=int(gate.enchant_source_inputs(target,item(scroll_id,1,951),item(9,1,12363) if support else None)['base'])
-                attempt=self.enchant_rows(base=base,enchant=level,target_id=target_id,scroll_id=scroll_id,support=support)
+                base=int(gate.enchant_source_inputs(target,item(scroll_id,1,22227),item(9,1,12363) if support else None)['base'])
+                no_change=index==1 or index>2 and level>=3 and rng.choice((False,True))
+                attempt=self.enchant_rows(base=base,residue=99999 if no_change else 0,safe=True,
+                                          enchant=level,target_id=target_id,scroll_id=scroll_id,support=support)
                 resolution=f'enchant:{rng.getrandbits(64):016x}:{cursor}'
                 receipt=f'receipt:{rng.getrandbits(64):016x}:{cursor}'
                 operation=attempt[1]['data']['operation']
@@ -249,7 +251,8 @@ class Evidence(unittest.TestCase):
                         data.update(receipt_ref=receipt,operation_ordinal=ordinals[target_id])
                         data['after']['revision']=initial+tick+1
                     rows.append(copy.deepcopy(row))
-                ordinals[target_id]+=rng.randint(1,3);changed.add(target_id);cursor+=1;levels[target_id]+=1
+                ordinals[target_id]+=rng.randint(1,3);cursor+=1
+                if not no_change:changed.add(target_id);levels[target_id]+=1
             for identity,parts in contributions.items():
                 resolution,_,before=parts[0]
                 rows.append(dict(kind='item_delta',entity=OWNER,incarnation=incarnation,tick=start+tick,sequence=0,
@@ -338,7 +341,7 @@ class Evidence(unittest.TestCase):
         mutations=('receipt reuse','swapped ordinals','cross-tick revision','wrong totals',
                    'missing contributions','duplicated aggregates','foreign-owner rows',
                    'per-instance revision drift','support/scroll endpoint mismatch','cross-owner contamination',
-                   'canonical count discontinuity')
+                   'canonical count discontinuity','unchanged target revision','unchanged target missing','unchanged target id')
         def passes(rows):
             try:return all(gate.evaluate(rows,self.recording,entity,['enchant_outcome','enchant_chance'],HASH)['passed'] for entity in (OWNER,OTHER))
             except ValueError:return False
@@ -397,8 +400,16 @@ class Evidence(unittest.TestCase):
                         for key in ('scroll_before','support_before'):
                             state=outcome['data']['operation'][key]
                             if state is not None and state['id']==aggregate['data']['instance']:state['count']+=10
+                elif mutation.startswith('unchanged target'):
+                    outcome=next(r for r in outcomes if r['entity']==OWNER and r['data']['actual']['enchant']==r['data']['inputs']['enchant'])
+                    target=outcome['data']['operation']['target_before']
+                    if mutation=='unchanged target revision':target['revision']+=99
+                    elif mutation=='unchanged target id':target['id']=999
+                    else:
+                        baseline=next(r['data'] for r in bad if r['kind']=='item_baseline' and r['entity']==OWNER)
+                        baseline['instances']=[s for s in baseline['instances'] if s['id']!=target['id']]
                 self.assertFalse(passes(bad),f'{mutation}, case {case}')
-        print('Aggregate property check: seed=0xE609; 2000 valid two-owner sets pass; 22000 corruptions reject',flush=True)
+        print('Aggregate property check: seed=0xE609; 2000 valid two-owner sets with no-change outcomes pass; 28000 corruptions reject',flush=True)
 
     def test_revisions_increase_across_ticks_with_ordinal_reset(self):
         rows=self.same_tick_enchants()
@@ -532,6 +543,37 @@ class Evidence(unittest.TestCase):
             self.assertFalse(any(r['kind']=='item_delta' and r['data']['operation']=='grant' for r in rows))
         rows=self.enchant_rows(blessed=True)
         self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['enchant_outcome'],HASH)['passed'])
+
+    def test_unchanged_enchant_target_matches_complete_baseline(self):
+        rows=self.enchant_rows(base=70,residue=99999,enchant=3,safe=True)
+        op=rows[1]['data']['operation']
+        rows.insert(1,dict(kind='item_baseline',entity=OWNER,incarnation=1,tick=0,sequence=0,
+            data=dict(inventory_revision=0,instances=copy.deepcopy([op['target_before'],op['scroll_before']]),paperdoll={},auto_shots=[])))
+        self.repair(rows)
+        gates=['enchant_outcome','enchant_chance','failure_refund']
+        self.assertTrue(gate.evaluate(rows,self.recording,OWNER,gates,HASH)['passed'])
+        self.assertFalse(any(r['kind']=='item_delta' and r['data']['instance']==8 for r in rows))
+        for mutation in ('revision','membership','identity','canonical'):
+            bad=copy.deepcopy(rows);target=bad[2]['data']['operation']['target_before']
+            if mutation=='revision':target['revision']=99
+            elif mutation=='identity':target['id']=999
+            elif mutation=='canonical':target['created_tick']=1
+            else:bad[1]['data']['instances']=[s for s in bad[1]['data']['instances'] if s['id']!=8]
+            self.assert_rejected(bad,gates)
+
+    def test_unchanged_enchant_target_follows_intervening_mutations(self):
+        rows=self.enchant_rows(base=70,residue=99999,enchant=3,safe=True)
+        target=rows[1]['data']['operation']['target_before']
+        rows.insert(1,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=0,sequence=0,
+            data=dict(operation='enchant',instance=8,before=target|{'enchant':2},after=target|{'revision':1},
+                      count_delta=0,operation_ordinal=0,resolution_id='earlier:1',receipt_ref=None)))
+        target['revision']=1;self.repair(rows)
+        self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['enchant_outcome'],HASH)['passed'])
+        for field,value in (('revision',0),('created_tick',1)):
+            bad=copy.deepcopy(rows);bad[2]['data']['operation']['target_before'][field]=value
+            self.assert_rejected(bad)
+        bad=copy.deepcopy(rows);bad[1]['data'].update(operation='destroy',after=None,count_delta=-1)
+        self.assert_rejected(bad)
 
     def test_enchant_source_template_flags_eligibility_and_chance(self):
         for field,value in [('safe',True),('blessed',True),('base',71),('bonus',1),('support',18)]:

@@ -82,7 +82,10 @@ target/refund deltas carry this same receipt. Exactly one correlated `enchant_ch
 and outcome-dependent target change are required. Destruction verifies source
 crystal/refund inputs from E1 grades/items and requires the actual positive refund
 row when applicable. Success/reset/no-increment/safe branches have no fabricated
-refund; unchanged targets have no D28 ledger row. Sources: GAME@abfde049
+refund; unchanged targets have no D28 ledger row. EVERY target binding, including
+unchanged outcomes, must match the canonical owner/incarnation/instance state
+immediately before that resolution: complete-baseline membership, continuity
+after intervening mutations, and the applicable owner-tick revision step. Sources: GAME@abfde049
 RequestEnchantItem.java:123-139,154-271; L2Item.java:353,398-419;
 CrystalType.java:26-33. Deletion tests repair sequences/trailer counts.
 E2 must implement these correlation additions before producer verification.

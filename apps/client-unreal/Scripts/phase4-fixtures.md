@@ -106,6 +106,9 @@ Carry complete canonical state forward per owner/incarnation/instance. Successiv
 target mutations and next-tick aggregates start from the preceding retained state,
 including counts and all other canonical fields, after recorded intervening
 mutations. Untouched canonical snapshots advance to the owner revision at tick end.
+Every enchant target binding, including unchanged safe failures, must match the
+established state immediately before that resolution (complete-baseline membership,
+canonical continuity after intervening mutations, and the owner-tick revision step).
 Creation starts from null; removal records absence; incarnations remain independent.
 Do not fabricate intermediate revisions for enchant, consume or refunds.
 

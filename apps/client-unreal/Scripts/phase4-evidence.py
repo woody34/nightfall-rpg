@@ -554,7 +554,7 @@ def validate(rows,recording,rules_hash):
     return manifest
 
 
-def inventory_history(rows):
+def inventory_history(rows,targets=None):
     """D55: one owner step per changed tick; canonical endpoints survive ticks."""
     groups={};owners={};steps={}
     for row in rows[1:-1]:
@@ -582,7 +582,17 @@ def inventory_history(rows):
             revision=min(before+after)
         current=revision+1
         steps[scope]=(revision,current)
-        for delta in deltas:
+        for row in facts:
+            if row['kind']=='item_formula' and row['data']['formula']=='enchant_outcome' and targets is not None:
+                operation=row['data'].get('operation')
+                target=operation.get('target_before') if isinstance(operation,dict) else None
+                try:validate_instance(target)
+                except (ValueError,TypeError,KeyError):continue # Enchant validation reports malformed bindings.
+                identity=target['id']
+                targets[row['sequence']]=(identity in states or complete,states.get(identity))
+                if identity not in states and not complete:states[identity]=target
+            if row['kind']!='item_delta':continue
+            delta=row['data']
             before,after=delta['before'],delta['after']
             if after is not None:
                 if after['revision']<=revision:raise ValueError('item revision did not increase across ticks')
@@ -606,7 +616,7 @@ def refund_inputs_for(target):
                 crystallizable=definition['flags']['is_crystallizable'],crystal_id=grade['crystal_id'])
 
 
-def enchant_evidence(row, rows, steps=None):
+def enchant_evidence(row, rows, steps=None,targets=None):
     """RequestEnchantItem.java:123-139,154-271; EnchantScroll.java:149-155.
 
     Even guaranteed success draws; safe/reset/no-increment have no fake target
@@ -659,6 +669,11 @@ def enchant_evidence(row, rows, steps=None):
     if any(not isinstance(ref,str) or not ref for ref in receipts) or len(set(receipts))!=len(receipts):
         raise ValueError('duplicate/invalid enchant resolution receipt')
     previous_step,tick_step=(inventory_history(rows) if steps is None else steps)[scope]
+    if targets is None:
+        targets={};inventory_history(rows,targets)
+    known,established=targets[row['sequence']]
+    if target['revision'] not in (previous_step,tick_step):raise ValueError('enchant target differs from owner revision step')
+    if known:same(target,established)
     for spent in (scroll,support):
         if spent is None:continue
         contributions=[]
@@ -729,12 +744,13 @@ def enchant_evidence(row, rows, steps=None):
 
 def evaluate(rows,recording,entity,gates,rules_hash,phase_specs=()):
     manifest=validate(rows,recording,rules_hash)
-    steps=inventory_history(rows)
+    targets={};enchant_errors=[]
+    try:steps=inventory_history(rows,targets)
+    except ValueError as error:steps={};enchant_errors.append(str(error))
     results=[]
-    enchant_errors=[]
     for row in rows[1:-1]:
         if row['entity']==entity and row['kind']=='item_formula' and row['data']['formula']=='enchant_outcome':
-            try:enchant_evidence(row,rows,steps)
+            try:enchant_evidence(row,rows,steps,targets)
             except (ValueError,TypeError,KeyError,IndexError,ZeroDivisionError) as error:enchant_errors.append(str(error))
     resolutions={(r['entity'],r['incarnation'],r['data']['resolution_id']) for r in rows[1:-1] if r['entity']==entity and r['kind']=='item_formula' and r['data']['formula']=='enchant_outcome'}
     for row in rows[1:-1]:
