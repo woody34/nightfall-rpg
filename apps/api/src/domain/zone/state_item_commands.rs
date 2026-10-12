@@ -7,6 +7,7 @@ use crate::domain::zone::phase4_projection::{
     FrozenItemResult, ItemDeltaPlan, ItemOperation, ItemReceiptFact, ItemReceiptRef,
     ItemResultDetail,
 };
+use crate::domain::zone::state_skill::ItemReceiptState;
 use crate::domain::zone::{CastState, EquipSlot, ItemCommand, ItemCommandKind, Phase4Projection};
 
 fn invalid<E>(_: E) -> RejectReason {
@@ -20,7 +21,7 @@ impl ZoneState {
         events: &mut Vec<ZoneEvent>,
         receipts: &mut BTreeMap<
             (crate::domain::account::AccountId, ItemReceiptRef),
-            ItemReceiptFact,
+            ItemReceiptState,
         >,
     ) -> Result<(), RejectReason> {
         let account = command.authenticated_account().map_err(invalid)?;
@@ -55,26 +56,50 @@ impl ZoneState {
             operation,
             key: command.request_id,
         };
+        if let Some(stored) = command.receipt_conflict().map_err(invalid)? {
+            let previous = receipts
+                .get(&(account, reference))
+                .map(|receipt| match receipt {
+                    ItemReceiptState::Known(receipt) => receipt.fingerprint.as_str(),
+                    ItemReceiptState::Conflict(fingerprint) => fingerprint.as_str(),
+                });
+            if previous.is_some_and(|fingerprint| fingerprint != stored) {
+                return Err(RejectReason::InvalidLoad);
+            }
+            receipts
+                .entry((account, reference))
+                .or_insert_with(|| ItemReceiptState::Conflict(stored.to_owned()));
+            return Err(RejectReason::ItemOperationConflict);
+        }
         let recorded = command.known_result().map_err(invalid)?;
         if let Some(receipt) = receipts.get(&(account, reference)) {
-            if receipt.fingerprint != fingerprint
-                || recorded
-                    .as_ref()
-                    .is_some_and(|result| result != &receipt.result)
-            {
-                return Err(RejectReason::ItemOperationConflict);
+            match receipt {
+                ItemReceiptState::Known(receipt) => {
+                    if receipt.fingerprint != fingerprint
+                        || recorded
+                            .as_ref()
+                            .is_some_and(|result| result != &receipt.result)
+                    {
+                        return Err(RejectReason::ItemOperationConflict);
+                    }
+                    events.push(ZoneEvent::ItemResult(Box::new(receipt.result.clone())));
+                    return Ok(());
+                },
+                ItemReceiptState::Conflict(stored) => {
+                    if stored != &fingerprint || recorded.is_none() {
+                        return Err(RejectReason::ItemOperationConflict);
+                    }
+                },
             }
-            events.push(ZoneEvent::ItemResult(Box::new(receipt.result.clone())));
-            return Ok(());
         }
         if let Some(result) = recorded {
             receipts.insert(
                 (account, reference),
-                ItemReceiptFact {
+                ItemReceiptState::Known(ItemReceiptFact {
                     request_id: command.request_id,
                     fingerprint,
                     result: result.clone(),
-                },
+                }),
             );
             events.push(ZoneEvent::ItemResult(Box::new(result)));
             return Ok(());
@@ -96,7 +121,7 @@ impl ZoneState {
             .ok_or(RejectReason::InvalidLoad)?
             .clone();
         *self = candidate;
-        receipts.insert((account, reference), receipt);
+        receipts.insert((account, reference), ItemReceiptState::Known(receipt));
         events.retain(
             |event| !matches!(event, ZoneEvent::ItemCheckpoint(p) if p.entity == command.entity),
         );

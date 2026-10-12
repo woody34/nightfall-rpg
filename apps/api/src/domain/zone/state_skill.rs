@@ -155,8 +155,14 @@ pub struct StagedActions {
     /// Accepted and recorded Known receipts share the same tick-local deduplication scope.
     pub(crate) item_receipts: BTreeMap<
         (crate::domain::account::AccountId, super::phase4_projection::ItemReceiptRef),
-        super::phase4_projection::ItemReceiptFact,
+        ItemReceiptState,
     >,
+}
+/// Tick-local receipt knowledge; a recorded conflict must not be bypassed by a later fresh intent.
+#[derive(Debug)]
+pub(crate) enum ItemReceiptState {
+    Known(super::phase4_projection::ItemReceiptFact),
+    Conflict(String),
 }
 impl StagedActions {
     /// Called only after source/generation authorization. Target is captured at this
