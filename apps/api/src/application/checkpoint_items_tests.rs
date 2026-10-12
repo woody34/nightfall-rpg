@@ -1059,3 +1059,152 @@ async fn recorded_grant_unavailable_before_receipt_reads_without_durable_gate() 
     drop(driver);
     handle.stopped().await;
 }
+
+#[tokio::test]
+#[allow(clippy::too_many_lines)] // Five outcome branches share one exact captured-audit contract.
+async fn captured_enchant_outbox_preserves_all_outcomes_before_later_destruction() {
+    use crate::domain::zone::phase4_projection::{
+        ItemAuditEvidence, ItemDeltaPlan, ItemEnchantOutcome, ItemOperation, ItemResultDetail,
+    };
+    use crate::domain::zone::{EnchantAttempt, ItemInstanceId};
+    let mut h = Harness::new().await;
+    let tick = h.equipment_tick();
+    let projection = tick
+        .events
+        .iter()
+        .find_map(|event| {
+            if let crate::domain::zone::ZoneEvent::ItemCheckpoint(p) = event {
+                Some(p.as_ref())
+            } else {
+                None
+            }
+        })
+        .unwrap();
+    let mut cp = h
+        .service
+        .players
+        .get(&h.entity)
+        .unwrap()
+        .latest
+        .clone()
+        .unwrap();
+    cp.phase4 = Some(projection.checkpoint.clone());
+    let before = projection
+        .checkpoint
+        .instances
+        .iter()
+        .find(|item| item.count == 1)
+        .unwrap()
+        .clone();
+    for outcome in [
+        ItemEnchantOutcome::Success,
+        ItemEnchantOutcome::SafeFailed,
+        ItemEnchantOutcome::BlessedReset,
+        ItemEnchantOutcome::Destroyed,
+        ItemEnchantOutcome::SuccessNoIncrement,
+    ] {
+        let mut work = ItemCheckpointWork {
+            zone: h.state.snapshot().seed.zone,
+            epoch: tick.epoch,
+            allocation: h.state.snapshot().phase4.unwrap().allocator,
+            projection: projection.clone(),
+        };
+        work.projection.ledger.clear();
+        work.projection.receipts.truncate(1);
+        let mut after = before.clone();
+        after.enchant = match outcome {
+            ItemEnchantOutcome::Success => before.enchant + 1,
+            ItemEnchantOutcome::SafeFailed | ItemEnchantOutcome::SuccessNoIncrement => {
+                before.enchant
+            },
+            ItemEnchantOutcome::BlessedReset | ItemEnchantOutcome::Destroyed => 0,
+        };
+        let receipt = work.projection.receipts.first_mut().unwrap();
+        receipt.result.detail = ItemResultDetail::Enchant {
+            target: before.id,
+            old_enchant: before.enchant,
+            new_enchant: after.enchant,
+            outcome,
+            refunds: Vec::new(),
+            announcement_tier: 0,
+        };
+        let success =
+            matches!(outcome, ItemEnchantOutcome::Success | ItemEnchantOutcome::SuccessNoIncrement);
+        let attempt = EnchantAttempt {
+            operation_ordinal: 1,
+            receipt: receipt.reference(),
+            target: before.id,
+            template: before.template_id,
+            old_enchant: before.enchant,
+            new_enchant: after.enchant,
+            outcome,
+            before: before.clone(),
+            after: (outcome != ItemEnchantOutcome::Destroyed).then_some(after.clone()),
+            scroll: ItemInstanceId::new(9_999_999).unwrap(),
+            scroll_template: 951,
+            chance_1e5: if success { 100_000 } else { 0 },
+            raw_draw: 199_999,
+            draw: 99_999,
+            cause: ItemAuditEvidence {
+                family: "enchant".into(),
+                fields: BTreeMap::new(),
+            },
+        };
+        attempt.validate(receipt).unwrap();
+        work.projection.enchant_attempts = vec![attempt.clone()];
+        // The final inventory is intentionally different from the captured attempt.
+        work.projection.checkpoint.instances.clear();
+        work.projection.ledger.push(ItemDeltaPlan {
+            operation: if outcome == ItemEnchantOutcome::Destroyed {
+                ItemOperation::Enchant
+            } else {
+                ItemOperation::Destroy
+            },
+            operation_ordinal: if outcome == ItemEnchantOutcome::Destroyed {
+                1
+            } else {
+                2
+            },
+            instance: before.id,
+            before: Some(after),
+            after: None,
+            count_delta: -1,
+            receipt: Some(attempt.receipt),
+            causes: Vec::new(),
+        });
+        if outcome == ItemEnchantOutcome::Success {
+            work.projection.ledger.push(ItemDeltaPlan {
+                operation: ItemOperation::Enchant,
+                operation_ordinal: 1,
+                instance: before.id,
+                before: Some(before.clone()),
+                after: attempt.after.clone(),
+                count_delta: 0,
+                receipt: Some(attempt.receipt),
+                causes: Vec::new(),
+            });
+        }
+        let events = item_events(&cp, &work, 4).unwrap();
+        assert_eq!(events.len(), 2);
+        let DomainEvent::ItemEnchanted { fact } = &events[0] else {
+            panic!("missing enchant attempt");
+        };
+        assert_eq!(fact.before.as_ref(), Some(&before));
+        assert_eq!(fact.after, attempt.after);
+        assert_eq!(fact.causes, vec![serde_json::to_value(&attempt).unwrap()]);
+        assert_eq!(fact.metadata.sequence, (cp.revision_seen + 1, 4));
+        assert!(matches!(events[1], DomainEvent::ItemDestroyed { .. }));
+        work.validate_events(&cp, &events).unwrap();
+        assert_eq!(events, item_events(&cp, &work, 4).unwrap());
+        assert!(work.validate_events(&cp, &events[1..]).is_err());
+        let mut altered = events.clone();
+        let DomainEvent::ItemEnchanted { fact } = &mut altered[0] else {
+            panic!();
+        };
+        fact.causes.clear();
+        assert!(work.validate_events(&cp, &altered).is_err());
+        let mut duplicate = events.clone();
+        duplicate.push(events[0].clone());
+        assert!(work.validate_events(&cp, &duplicate).is_err());
+    }
+}
