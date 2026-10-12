@@ -107,7 +107,16 @@ fn instance(value: u64) -> Result<ItemInstanceId, MappingError> {
     ItemInstanceId::new(value).map_err(|_| MappingError::InvalidItem)
 }
 fn required_binding(value: Option<&pb::ItemTarget>) -> Result<TargetBinding, MappingError> {
-    binding(value.ok_or(MappingError::InvalidItem)?)
+    let value = value.ok_or(MappingError::InvalidItem)?;
+    let uuid = uuid::Uuid::from_slice(&value.entity_id).map_err(|_| MappingError::InvalidItem)?;
+    if uuid.is_nil() {
+        return Err(MappingError::InvalidItem);
+    }
+    // D58: the actor verifies that zero names a current noncombat blacksmith.
+    Ok(TargetBinding {
+        entity: EntityId::from_uuid(uuid),
+        incarnation: value.incarnation,
+    })
 }
 fn binding(value: &pb::ItemTarget) -> Result<TargetBinding, MappingError> {
     let uuid = uuid::Uuid::from_slice(&value.entity_id).map_err(|_| MappingError::InvalidItem)?;
@@ -422,6 +431,57 @@ mod tests {
         assert_eq!(optional_slot(0).unwrap(), None);
         assert!(optional_slot(26).is_err());
         assert!(optional_slot(-1).is_err());
+    }
+    #[test]
+    fn noncombat_blacksmith_zero_life_is_preserved_only_for_npc_requests() {
+        use pb::client_message::Intent;
+        let key = uuid::Uuid::from_u128(7).to_string();
+        let npc = pb::ItemTarget {
+            incarnation: 0,
+            ..target()
+        };
+        for intent in [
+            Intent::RefineItem(pb::RefineItemRequest {
+                idempotency_key: key.clone(),
+                npc: Some(npc.clone()),
+                target_instance_id: 1,
+                stone_instance_id: 2,
+            }),
+            Intent::CancelRefine(pb::CancelRefineRequest {
+                idempotency_key: key.clone(),
+                npc: Some(npc.clone()),
+                target_instance_id: 1,
+            }),
+            Intent::ExchangeSpecialAbility(pb::ExchangeSpecialAbilityRequest {
+                idempotency_key: key.clone(),
+                npc: Some(npc.clone()),
+                target_instance_id: 1,
+                recipe_id: 1,
+            }),
+        ] {
+            let command = item_command_from_pb(owner(), &intent).unwrap().unwrap();
+            let (ItemCommandKind::Refine { npc: binding, .. }
+            | ItemCommandKind::CancelRefine { npc: binding, .. }
+            | ItemCommandKind::ExchangeSpecialAbility { npc: binding, .. }) = command.kind
+            else {
+                unreachable!()
+            };
+            assert_eq!(binding.incarnation, 0);
+        }
+        assert!(item_command_from_pb(
+            owner(),
+            &Intent::UseItem(pb::UseItemRequest {
+                idempotency_key: key,
+                instance_id: 1,
+                target: Some(npc)
+            })
+        )
+        .is_err());
+        assert!(required_binding(Some(&pb::ItemTarget {
+            entity_id: vec![0; 16],
+            incarnation: 0
+        }))
+        .is_err());
     }
     #[test]
     fn malformed_keys_slots_counts_ids_and_target_lives_are_invalid() {

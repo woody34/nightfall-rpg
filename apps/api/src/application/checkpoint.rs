@@ -1272,34 +1272,16 @@ fn item_events(
             ItemOperation::Refine | ItemOperation::CancelRefine => {
                 DomainEvent::ItemRefined { fact }
             },
-            ItemOperation::Exchange => DomainEvent::ItemExchanged { fact },
+            ItemOperation::Exchange => {
+                anyhow::bail!("exchange audit must come from its captured operation")
+            },
             ItemOperation::ToggleAutoShot => {
                 anyhow::bail!("pure owner toggle cannot fabricate an item audit row")
             },
         };
         facts.push((delta.operation_ordinal, 1_u8, event));
     }
-    for attempt in &work.projection.enchant_attempts {
-        facts.push((
-            attempt.operation_ordinal,
-            0,
-            DomainEvent::ItemEnchanted {
-                fact: crate::domain::ItemEventFact {
-                    metadata: EventMetadata {
-                        event_id: Uuid::nil(),
-                        sequence: (0, 0),
-                    },
-                    character_id: cp.character_id,
-                    instance_id: attempt.target,
-                    template_id: attempt.template,
-                    count_delta: if attempt.after.is_none() { -1 } else { 0 },
-                    before: Some(attempt.before.clone()),
-                    after: attempt.after.clone(),
-                    causes: vec![serde_json::to_value(attempt)?],
-                },
-            },
-        ));
-    }
+    facts.extend(captured_item_events(cp, work)?);
     facts.sort_by_key(|(operation, kind, _)| (*operation, *kind));
     facts
         .into_iter()
@@ -1347,6 +1329,56 @@ fn item_events(
             Ok(event)
         })
         .collect()
+}
+
+fn captured_item_events(
+    cp: &CharacterCheckpoint,
+    work: &super::ports::ItemCheckpointWork,
+) -> anyhow::Result<Vec<(u32, u8, DomainEvent)>> {
+    let mut facts = Vec::new();
+    for attempt in &work.projection.enchant_attempts {
+        facts.push((
+            attempt.operation_ordinal,
+            0,
+            DomainEvent::ItemEnchanted {
+                fact: crate::domain::ItemEventFact {
+                    metadata: EventMetadata {
+                        event_id: Uuid::nil(),
+                        sequence: (0, 0),
+                    },
+                    character_id: cp.character_id,
+                    instance_id: attempt.target,
+                    template_id: attempt.template,
+                    count_delta: if attempt.after.is_none() { -1 } else { 0 },
+                    before: Some(attempt.before.clone()),
+                    after: attempt.after.clone(),
+                    causes: vec![serde_json::to_value(attempt)?],
+                },
+            },
+        ));
+    }
+    for exchange in &work.projection.exchanges {
+        facts.push((
+            exchange.operation_ordinal,
+            0,
+            DomainEvent::ItemExchanged {
+                fact: crate::domain::ItemEventFact {
+                    metadata: EventMetadata {
+                        event_id: Uuid::nil(),
+                        sequence: (0, 0),
+                    },
+                    character_id: cp.character_id,
+                    instance_id: exchange.before.id,
+                    template_id: exchange.before.template_id,
+                    count_delta: -1,
+                    before: Some(exchange.before.clone()),
+                    after: None,
+                    causes: vec![serde_json::to_value(exchange)?],
+                },
+            },
+        ));
+    }
+    Ok(facts)
 }
 
 #[path = "checkpoint_paused.rs"]

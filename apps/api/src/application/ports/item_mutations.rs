@@ -259,6 +259,12 @@ impl ItemCheckpointWork {
                 .chain(self.projection.enchant_attempts.iter().flat_map(|attempt| {
                     std::iter::once(&attempt.before).chain(attempt.after.iter())
                 }))
+                .chain(self.projection.exchanges.iter().flat_map(|exchange| {
+                    exchange
+                        .rows
+                        .iter()
+                        .flat_map(|row| row.before.iter().chain(row.after.iter()))
+                }))
         {
             let definition = rules
                 .parts()
@@ -453,6 +459,37 @@ impl ItemCheckpointWork {
                 != 1
             {
                 return Err(invalid("item_enchant_outbox_attempt"));
+            }
+        }
+        let exchange_facts: Vec<_> = events
+            .iter()
+            .filter_map(|event| {
+                if let DomainEvent::ItemExchanged { fact } = event {
+                    Some(fact)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        if exchange_facts.len() != self.projection.exchanges.len() {
+            return Err(invalid("item_exchange_outbox_count"));
+        }
+        for exchange in &self.projection.exchanges {
+            let causes = vec![serde_json::to_value(exchange).map_err(anyhow::Error::from)?];
+            if exchange_facts
+                .iter()
+                .filter(|fact| {
+                    fact.instance_id == exchange.before.id
+                        && fact.template_id == exchange.before.template_id
+                        && fact.before.as_ref() == Some(&exchange.before)
+                        && fact.after.is_none()
+                        && fact.count_delta == -1
+                        && fact.causes == causes
+                })
+                .count()
+                != 1
+            {
+                return Err(invalid("item_exchange_outbox_attempt"));
             }
         }
         for event in events {

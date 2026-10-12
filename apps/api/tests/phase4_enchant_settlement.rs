@@ -89,11 +89,36 @@ where
     let loaded = repo.load_for_admission(c.id).await.unwrap().unwrap();
     let core = ItemPausedCore {
         name: c.name.as_str().to_owned(),
-        position: Vec2Fixed::from_tiles(0, 0),
+        position: Vec2Fixed::from_tiles(
+            bundle.items.parts().capacities.blacksmith.x,
+            bundle.items.parts().capacities.blacksmith.y,
+        ),
         load: player_load(loaded),
     };
     let entity = EntityId::from_uuid(c.id.as_uuid());
-    let grants = [(71, 1), (22227, 2)]
+    let recipe = bundle
+        .items
+        .parts()
+        .sa_recipes
+        .values()
+        .find(|recipe| {
+            recipe.base_template == 71
+                && recipe
+                    .products
+                    .iter()
+                    .any(|product| product.template_id == 4711)
+        })
+        .unwrap()
+        .clone();
+    let mut grant_items = vec![(71, 3), (22227, 2)];
+    grant_items.extend(
+        recipe
+            .ingredients
+            .iter()
+            .filter(|row| row.template_id != recipe.base_template)
+            .map(|row| (row.template_id, row.count.checked_mul(2).unwrap())),
+    );
+    let grants = grant_items
         .into_iter()
         .map(|(template, count)| {
             ZoneInput::system(ZoneCommand::MaterializePendingItems(Box::new(ItemGrantCommand {
@@ -118,14 +143,22 @@ where
     service.admitted(&grant, &state.snapshot()).await.unwrap();
     let loaded = repo.load_for_admission(c.id).await.unwrap().unwrap();
     let admitted = state
-        .run_tick(state.draft(vec![ZoneInput::system(ZoneCommand::SpawnPlayer {
-            entity,
-            name: c.name.as_str().to_owned(),
-            pos: core.position,
-            speed: Speed::DEFAULT,
-            generation: SessionGeneration(1),
-            load: Some(Box::new(player_load(loaded))),
-        })]))
+        .run_tick(state.draft(vec![
+            ZoneInput::system(ZoneCommand::SpawnPlayer {
+                entity,
+                name: c.name.as_str().to_owned(),
+                pos: core.position,
+                speed: Speed::DEFAULT,
+                generation: SessionGeneration(1),
+                load: Some(Box::new(player_load(loaded))),
+            }),
+            ZoneInput::system(ZoneCommand::SpawnNpc {
+                name: bundle.items.parts().capacities.blacksmith.template.clone(),
+                pos: core.position,
+                speed: Speed::from_milli_tiles_per_tick(0),
+                combat: None,
+            }),
+        ]))
         .unwrap();
     assert!(admitted.dispositions.is_empty());
     log.append_applied(&AppliedTickRecord::from_applied(zone, &admitted))
@@ -273,6 +306,158 @@ where
         .checkpoint
         .unwrap();
     assert_eq!(saved, projection.checkpoint);
+    let snapshot = state.snapshot();
+    let npc = effects::TargetBinding {
+        entity: snapshot
+            .entities
+            .iter()
+            .find(|npc| npc.name == bundle.items.parts().capacities.blacksmith.template)
+            .unwrap()
+            .id,
+        incarnation: 0,
+    };
+    let bases: Vec<_> = saved
+        .instances
+        .iter()
+        .filter(|item| item.template_id == recipe.base_template)
+        .map(|item| item.id)
+        .collect();
+    assert_eq!(bases.len(), 2);
+    let commands: Vec<_> = bases
+        .iter()
+        .map(|base| {
+            ItemCommand::new(
+                entity,
+                Uuid::now_v7(),
+                ItemCommandKind::ExchangeSpecialAbility {
+                    npc,
+                    target: *base,
+                    recipe: recipe.recipe_id,
+                },
+            )
+            .unwrap()
+            .with_account(c.account_id)
+            .unwrap()
+        })
+        .collect();
+    let draft = state.draft(vec![
+        intent(5, commands[0].clone()),
+        intent(6, commands[0].clone()),
+        intent(7, commands[1].clone()),
+    ]);
+    let before_exchange = repo.load_for_admission(c.id).await.unwrap().unwrap();
+    let mut cold = restore_snapshot(snapshot.clone()).unwrap();
+    let exchanged = state.run_tick(draft.clone()).unwrap();
+    assert_eq!(exchanged, cold.run_tick(draft).unwrap());
+    assert!(exchanged.dispositions.is_empty(), "{:?}", exchanged.dispositions);
+    assert_eq!(state.snapshot().rng.word_pos, snapshot.rng.word_pos);
+    let record = AppliedTickRecord::from_applied(zone, &exchanged);
+    assert_eq!(AppliedTickRecord::decode(&record.encode()).unwrap(), record);
+    log.append_applied(&record).await.unwrap();
+    let projection = exchanged
+        .events
+        .iter()
+        .find_map(|event| {
+            if let ZoneEvent::ItemCheckpoint(p) = event {
+                Some(p.as_ref())
+            } else {
+                None
+            }
+        })
+        .unwrap();
+    assert_eq!(projection.exchanges.len(), 2);
+    let work = ItemCheckpointWork {
+        zone,
+        epoch: 1,
+        allocation: state.snapshot().phase4.unwrap().allocator,
+        projection: projection.clone(),
+    };
+    let request = api::application::CharacterCheckpoint {
+        character_id: c.id,
+        revision_seen: before_exchange.revision,
+        level: before_exchange.level,
+        xp: before_exchange.xp,
+        hp: before_exchange.hp.unwrap(),
+        mp: before_exchange.mp.unwrap(),
+        alive: before_exchange.alive,
+        position: before_exchange.position,
+        idempotency: ("save_checkpoint".into(), IdempotencyKey::new()),
+        class_state: Some(before_exchange.class_state.clone()),
+        phase3: before_exchange.phase3.clone(),
+        phase4: Some(projection.checkpoint.clone()),
+    };
+    let audits: Vec<_> = projection
+        .exchanges
+        .iter()
+        .enumerate()
+        .map(|(index, exchange)| DomainEvent::ItemExchanged {
+            fact: api::domain::ItemEventFact {
+                metadata: api::domain::EventMetadata {
+                    event_id: Uuid::now_v7(),
+                    sequence: (
+                        before_exchange.revision.checked_add(1).unwrap(),
+                        u64::try_from(index).unwrap(),
+                    ),
+                },
+                character_id: c.id,
+                instance_id: exchange.before.id,
+                template_id: exchange.before.template_id,
+                count_delta: -1,
+                before: Some(exchange.before.clone()),
+                after: None,
+                causes: vec![serde_json::to_value(exchange).unwrap()],
+            },
+        })
+        .collect();
+    work.validate_events(&request, &audits).unwrap();
+    let mut duplicate = audits.clone();
+    duplicate.push(audits[0].clone());
+    let mut altered = audits.clone();
+    let DomainEvent::ItemExchanged { fact } = &mut altered[0] else {
+        unreachable!()
+    };
+    fact.causes[0]["after"]["id"] = serde_json::json!(projection.exchanges[0].before.id);
+    for invalid in [Vec::new(), duplicate, altered] {
+        assert!(matches!(
+            repo.checkpoint_items(&request, &invalid, &work, None).await,
+            Err(api::application::CheckpointError::Constraint(_))
+        ));
+        assert_eq!(repo.load_for_admission(c.id).await.unwrap().unwrap(), before_exchange);
+    }
+    service
+        .admitted(&exchanged, &state.snapshot())
+        .await
+        .unwrap();
+    for (index, command) in commands.iter().enumerate() {
+        let ItemReceiptLookup::Known(receipt) = repo
+            .item_receipt_lookup(
+                c.account_id,
+                ItemMutationOperation::ExchangeSpecialAbility,
+                &IdempotencyKey::from_uuid(command.request_id),
+                &command.fingerprint_hex().unwrap(),
+            )
+            .await
+            .unwrap()
+        else {
+            panic!("missing exchange receipt")
+        };
+        let audit = &projection.exchanges[index];
+        assert_ne!(audit.before.id, audit.after.id);
+        assert_eq!(receipt.result.accepted_sequence, Some(if index == 0 { 5 } else { 7 }));
+        assert_eq!(audit.after.enchant, audit.before.enchant);
+    }
+    let retained = repo
+        .retained_inventory(c.id)
+        .await
+        .unwrap()
+        .unwrap()
+        .checkpoint
+        .unwrap();
+    assert_eq!(retained, projection.checkpoint);
+    assert!(!retained
+        .instances
+        .iter()
+        .any(|item| bases.contains(&item.id)));
     c.id
 }
 
@@ -285,6 +470,20 @@ async fn memory_actual_enchant_audit_survives_later_target_destruction_and_dupli
             .unwrap(),
     );
     contract(repo.clone(), bundle, Arc::new(InMemoryEventLog::default())).await;
+    let exchanged: Vec<_> = repo
+        .staged_events()
+        .into_iter()
+        .filter_map(|event| {
+            if let DomainEvent::ItemExchanged { fact } = event {
+                Some(fact)
+            } else {
+                None
+            }
+        })
+        .collect();
+    assert_eq!(exchanged.len(), 2);
+    assert!(exchanged.iter().all(|fact| fact.after.is_none()
+        && fact.causes[0]["before"]["id"] != fact.causes[0]["after"]["id"]));
     let attempts: Vec<_> = repo
         .staged_events()
         .into_iter()
@@ -325,4 +524,9 @@ async fn owned_postgres_jetstream_actual_enchant_audit_survives_target_destructi
     assert_eq!(facts[0]["causes"][0]["old_enchant"], 0);
     let receipts: i64 = sqlx::query_scalar("SELECT count(*) FROM item_mutation_receipts WHERE character_id=$1 AND operation='enchant_item'").bind(id.as_uuid()).fetch_one(&pool).await.unwrap();
     assert_eq!(receipts, 1);
+    let exchanged: Vec<serde_json::Value> = sqlx::query_scalar("SELECT payload->'fact' FROM outbox WHERE subject='nightfall.item.exchanged' AND payload->'fact'->>'character_id'=$1").bind(id.to_string()).fetch_all(&pool).await.unwrap();
+    assert_eq!(exchanged.len(), 2);
+    assert!(exchanged
+        .iter()
+        .all(|fact| fact["causes"][0]["before"]["id"] != fact["causes"][0]["after"]["id"]));
 }
