@@ -48,7 +48,7 @@ def seed_sql(roles):
         s = role['base_stats']
         installation = json.dumps(role['modifier_install_order'], separators=(',', ':'))
         number = lambda value: 'NULL' if value is None else str(value)
-        rows.append(f"('{role['character_id']}','{role['account_id']}','Skill{name}','skill{name}','{role['race']}',"
+        rows.append(f"('{role['character_id']}','{role['account_id']}','Skill{name}','skill{name.lower()}','{role['race']}',"
                     f"{role['level']},{s['str']},{s['dex']},{s['con']},{s['int']},{s['wit']},{s['men']},"
                     f"{role['position'][0]},{role['position'][1]},{role['xp']},{number(role['hp'])},{number(role['mp'])},"
                     f"{number(role['cp'])},'{role['class_profile']}',true,0,{role['base_class_id']},{role['class_id']},"
