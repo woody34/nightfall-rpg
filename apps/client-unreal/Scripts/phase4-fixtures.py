@@ -85,11 +85,35 @@ def selection(repo=REPO):
 
 
 def armor_set(repo=REPO):
-    items, caps = catalogue(repo), capabilities(repo)
-    for row in sorted(table('armor_sets', repo)['sets'], key=lambda r: r['id']):
-        required = [min(row[k]) for k in ('chest', 'legs', 'head', 'gloves', 'feet') if row[k]]
-        if required and all(caps[i]['admitted'] for i in required) and all(items[i]['grade'] == 'NONE' for i in required): return row, required
-    raise ValueError('no admitted no-grade armour set')
+    """D20 provider closure, selected from E1 including admitted skills."""
+    caps=capabilities(repo);skills={r['id']:r for r in table('capabilities',repo)['skills']}
+    for row in sorted(table('armor_sets',repo)['sets'],key=lambda r:r['id']):
+        if not row['shield_skills'] or not row['enchant6_skills']:continue
+        required=[]
+        for slot in ('chest','legs','head','gloves','feet','shield'):
+            eligible=[i for i in row[slot] if caps[i]['admitted']]
+            if row[slot] and not eligible:break
+            if eligible:required.append(min(eligible))
+        else:
+            if all(skills[r['id']]['admitted'] for kind in ('skills','shield_skills','enchant6_skills') for r in row[kind]):return row,required
+    raise ValueError('no admitted shield/enchant6 provider set')
+
+
+def enchant4_item(repo=REPO):
+    skills={r['id']:r for r in table('capabilities',repo)['skills']}
+    return next(r for i,r in sorted(catalogue(repo).items()) if capabilities(repo)[i]['admitted']
+                and r['enchant4_skills'] and all(skills[s['id']]['admitted'] for s in r['enchant4_skills']))
+
+
+def combat_skill_candidates(repo=REPO):
+    """Do not seed a skill until E1 admits its full source closure (D5)."""
+    caps={r['id']:r for r in table('capabilities',repo)['skills']};result=[]
+    for path in sorted((repo/'packages/data/skills-phase4').glob('*.toml')):
+        text=path.read_text()
+        if not any('name = "'+name+'"' in text for name in ('FatalBlow','Backstab','Lethal')):continue
+        row=tomllib.loads(text)
+        result.append(dict(skill_id=row['id'],source=row['provenance'],admitted=caps[row['id']]['admitted'],blockers=caps[row['id']]['blockers']))
+    return result
 
 
 def recipe(repo=REPO):
@@ -144,7 +168,9 @@ def profiles(pack, repo=REPO, paired=False):
         if case == 'ring': extras += [(s['ring'], 1, 0), (s['ring'], 1, 0)]
         if case == 'onepiece': extras += [(s['onepiece'], 1, 4)]
         if case == 'twohand': extras += [(s['twohand'], 1, 0), (s['shield'], 1, 0)]
-    elif pack == 'phase4-armor': extras = [(i, 1, config.get('enchant', 0)) for i in armor_set(repo)[1]]
+    elif pack == 'phase4-armor':
+        extras=[(i,1,6 if config.get('enchant')==6 else 0) for i in armor_set(repo)[1]]
+        if config.get('enchant')==4:extras.append((enchant4_item(repo)['template_id'],1,4))
     elif pack == 'phase4-shield': extras = [(s['sword'], 1, 0)]
     elif pack == 'phase4-bow': extras = [(s['bow'], 1, 0), (s['arrow'], config.get('arrows', 2), 0)]
     elif pack == 'phase4-grade': extras = [(s['overgrade'], 1, 0)]
@@ -174,7 +200,10 @@ def profiles(pack, repo=REPO, paired=False):
         cost = next(x for x in table('augmentation_chances', repo)['costs'] if x['grade'] == catalogue(repo)[r['base_template']]['grade'])
         extras += [(stone['template_id'], 1, 0), (cost['gemstone_id'], cost['weapon_count'], 0), (57, 210000, 0)]
         owner = role(repo, level=stone['level'], position=(126, 128))
-    elif pack == 'phase4-kinds': extras = [(s[k], 1, 0) for k in ('dual', 'dualfist', 'pole', 'dagger')]
+    elif pack == 'phase4-kinds':
+        extras=[(s[k],1,0) for k in ('dual','dualfist','pole','dagger')]
+        owner=role(repo,profession='human_fighter',level=14)
+        owner['combat_capability_dependencies']=combat_skill_candidates(repo)
     result = {'owner': owner}
     if paired:
         result['observer'] = role(repo, OBSERVER, position=(112, 100))
@@ -253,4 +282,13 @@ def create_overlay(destination, repo):
     phase3.create_overlay(destination, repo)
     zone = destination / 'zones/test_zone.toml'
     blacksmith = table('capacities', repo)['blacksmith']
+    # Stationary fixture targets preserve initial east facing (design §2.1/§6.2).
+    target=destination/'npcs/skill_target.toml'
+    target.write_text(target.read_text().replace('move_speed = 400','move_speed = 0'))
+    # Eligible passive secondary recipients are fixture inputs, not source stats.
+    for name,position in [('pole_secondary_a',(108,101)),('pole_secondary_b',(108,99))]:
+        template=(destination/'npcs/skill_target.toml').read_text().replace('skill_target',name)
+        (destination/('npcs/'+name+'.toml')).write_text(template)
+        with zone.open('a') as out:
+            out.write(f'\n[[spawn_slots]]\nid = "{name}"\ntemplate = "{name}"\nhome = [{position[0]}, {position[1]}]\ncount = 1\n')
     zone.write_text(zone.read_text() + '\n[[npcs]]\nname = "Blacksmith"\nattackable = false\npos = [' + str(blacksmith['x']) + ', ' + str(blacksmith['y']) + ']\nspeed = 0\n')

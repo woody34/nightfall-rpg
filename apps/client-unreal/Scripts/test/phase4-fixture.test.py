@@ -33,6 +33,33 @@ class Fixtures(unittest.TestCase):
                 self.assertEqual(role['paperdoll'],{r['slot']:r['instance_id'] for r in role['inventory'] if r['slot']})
                 self.assertTrue(all(r['source']['revision']== '3ca488dd2bd0bfaca43e378886a3c2e37968153a' for r in role['inventory']))
 
+    def test_armour_providers_and_combat_geometry_are_source_bound(self):
+        row,templates=fixture.phase4.armor_set()
+        caps=fixture.phase4.capabilities();skills={r['id']:r for r in fixture.phase4.table('capabilities')['skills']}
+        self.assertTrue(row['shield_skills']);self.assertTrue(row['enchant6_skills'])
+        self.assertTrue(all(caps[i]['admitted'] for i in templates))
+        self.assertTrue(all(skills[r['id']]['admitted'] for k in ('skills','shield_skills','enchant6_skills') for r in row[k]))
+        shirt=fixture.phase4.enchant4_item()
+        self.assertTrue(caps[shirt['template_id']]['admitted']);self.assertTrue(shirt['enchant4_skills'])
+        four=fixture.phase4.profiles('phase4-armor-enchant4')['owner']['inventory']
+        self.assertTrue(any(i['template_id']==shirt['template_id'] and i['enchant']==4 for i in four))
+        six=fixture.phase4.profiles('phase4-armor-enchant6')['owner']['inventory']
+        self.assertTrue(all(any(i['template_id']==t and i['enchant']==6 for i in six) for t in templates))
+        candidates=fixture.phase4.combat_skill_candidates()
+        self.assertTrue(candidates)
+        # A named source dependency, not admission of deferred learned skills.
+        self.assertEqual([c for c in candidates if c['admitted']],[])
+        self.assertTrue(all(c['blockers'] for c in candidates))
+        kinds=(SCRIPTS.parent/'Scenarios/4-combat-kinds.nfs').read_text()
+        self.assertNotIn('damage_numbers',kinds);self.assertIn('nf.Unequip rhand',kinds)
+        self.assertEqual(kinds.count('nf.Mark\n'),kinds.count('nf.Attack\n'))
+        with tempfile.TemporaryDirectory() as tmp:
+            overlay=Path(tmp)/'data';fixture.phase4.create_overlay(overlay,REPO)
+            zone=(overlay/'zones/test_zone.toml').read_text()
+            for name,pos in [('pole_secondary_a','108, 101'),('pole_secondary_b','108, 99')]:
+                self.assertIn('template = "'+name+'"',zone);self.assertIn('home = ['+pos+']',zone)
+                self.assertIn('attackable = true',(overlay/('npcs/'+name+'.toml')).read_text())
+
     def test_all_scenarios_and_pair_dispatch(self):
         paths=scenarios.matrix();self.assertEqual(scenarios.validate(paths),[])
         for path in paths:
