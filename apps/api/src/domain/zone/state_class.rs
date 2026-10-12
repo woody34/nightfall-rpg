@@ -110,7 +110,9 @@ impl ZoneState {
     ) {
         if !matches!(
             self.meta.digest_version,
-            StateDigestVersion::BinaryV4 | StateDigestVersion::BinaryV5
+            StateDigestVersion::BinaryV4
+                | StateDigestVersion::BinaryV5
+                | StateDigestVersion::BinaryV6
         ) {
             return;
         }

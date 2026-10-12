@@ -1,4 +1,4 @@
-//! V6 equipment commands: stage all scalar/provider/resource changes before publishing.
+//! V6 item commands: stage all scalar/provider/resource changes before publishing.
 use super::*;
 use crate::domain::zone::effects::StatusFlags;
 use crate::domain::zone::item_conditions::ItemConditionContext;
@@ -106,7 +106,7 @@ impl ZoneState {
         }
         let mut candidate = self.clone();
         let mut local = Vec::new();
-        let projection = candidate.equip_command_v6(
+        let projection = candidate.resolve_item_command_v6(
             tick,
             command,
             existing.cloned(),
@@ -131,7 +131,7 @@ impl ZoneState {
     }
 
     #[allow(clippy::too_many_lines, clippy::too_many_arguments)] // Explicit staged operation and receipt inputs.
-    fn equip_command_v6(
+    fn resolve_item_command_v6(
         &mut self,
         tick: Tick,
         command: &ItemCommand,
@@ -184,6 +184,7 @@ impl ZoneState {
                 .filter(|r| i64::try_from(*r).is_ok())
                 .ok_or(RejectReason::InvalidLoad)?
         };
+        let mut allocator = items.canonical.allocator;
         let mutation = match command.kind {
             ItemCommandKind::Equip {
                 instance,
@@ -230,6 +231,7 @@ impl ZoneState {
                     &items.rules,
                     revision,
                 )
+                .map_err(|_| RejectReason::InvalidEquipSlot)?
             },
             ItemCommandKind::Unequip { slot } => PaperdollMutation::unequip(
                 &player.inventory,
@@ -237,17 +239,53 @@ impl ZoneState {
                 slot,
                 &items.rules,
                 revision,
-            ),
+            )
+            .map_err(|_| RejectReason::InvalidEquipSlot)?,
+            ItemCommandKind::Destroy { instance, .. }
+            | ItemCommandKind::Crystallize { instance } => {
+                let item = player
+                    .inventory
+                    .get(&instance)
+                    .ok_or(RejectReason::ItemNotOwned)?;
+                self.guard_item_removal_v6(id, item)?;
+                let rank = self
+                    .phase3
+                    .as_ref()
+                    .and_then(|phase| {
+                        phase
+                            .canonical
+                            .rules
+                            .skills()
+                            .get(crate::domain::zone::skill::SkillId(248))
+                    })
+                    .and_then(|skill| {
+                        progression
+                            .class_state
+                            .learned_skills
+                            .iter()
+                            .find(|entry| entry.key == skill.key)
+                    })
+                    .map_or(0, |entry| entry.level);
+                let (plan, next) = removal_plan(
+                    player,
+                    &items.rules,
+                    allocator,
+                    &command.kind,
+                    rank,
+                    crate::domain::zone::item_inventory::InventoryBoundary { tick, revision },
+                )?;
+                allocator = next;
+                plan
+            },
             ItemCommandKind::Use { .. }
-            | ItemCommandKind::Destroy { .. }
             | ItemCommandKind::Enchant { .. }
             | ItemCommandKind::ToggleAutoShot { .. }
             | ItemCommandKind::Refine { .. }
             | ItemCommandKind::CancelRefine { .. }
-            | ItemCommandKind::ExchangeSpecialAbility { .. }
-            | ItemCommandKind::Crystallize { .. } => return Err(RejectReason::NotYetImplemented),
-        }
-        .map_err(|_| RejectReason::InvalidEquipSlot)?;
+            | ItemCommandKind::ExchangeSpecialAbility { .. } => {
+                return Err(RejectReason::NotYetImplemented)
+            },
+        };
         let weapon_changed = mutation.changes.iter().any(|change| {
             change
                 .before
@@ -273,12 +311,13 @@ impl ZoneState {
         if !mutation.changes.is_empty() {
             staged.inventory_revision = revision;
         }
-        self.phase4
+        let items = &mut self
+            .phase4
             .as_mut()
             .ok_or(RejectReason::InvalidLoad)?
-            .canonical
-            .players
-            .insert(id, staged);
+            .canonical;
+        items.allocator = allocator;
+        items.players.insert(id, staged);
         self.phase3
             .as_mut()
             .ok_or(RejectReason::InvalidLoad)?
@@ -322,17 +361,36 @@ impl ZoneState {
             .ok_or(RejectReason::InvalidLoad)?;
         let mut affected = std::collections::BTreeSet::new();
         for change in mutation.changes {
-            let after = change.after.as_ref().ok_or(RejectReason::InvalidLoad)?;
-            affected.insert(after.id);
+            let instance = change
+                .after
+                .as_ref()
+                .or(change.before.as_ref())
+                .ok_or(RejectReason::InvalidLoad)?
+                .id;
+            let count_delta = i64::try_from(
+                i128::from(change.after.as_ref().map_or(0, |i| i.count))
+                    .checked_sub(i128::from(change.before.as_ref().map_or(0, |i| i.count)))
+                    .ok_or(RejectReason::InvalidLoad)?,
+            )
+            .map_err(invalid)?;
+            affected.insert(instance);
             projection.ledger.push(ItemDeltaPlan {
-                operation: if after.slot.is_some() {
+                operation: if count_delta < 0 {
+                    ItemOperation::Destroy
+                } else if count_delta > 0 {
+                    ItemOperation::Grant
+                } else if change
+                    .after
+                    .as_ref()
+                    .is_some_and(|after| after.slot.is_some())
+                {
                     ItemOperation::Equip
                 } else {
                     ItemOperation::Unequip
                 },
                 operation_ordinal,
-                instance: after.id,
-                count_delta: 0,
+                instance,
+                count_delta,
                 before: change.before,
                 after: change.after,
                 receipt: Some(reference),
@@ -368,6 +426,54 @@ impl ZoneState {
             .map_err(invalid)?;
         events.push(ZoneEvent::ItemResult(Box::new(result)));
         Ok(projection)
+    }
+
+    fn guard_item_removal_v6(
+        &self,
+        id: EntityId,
+        item: &crate::domain::zone::ItemInstance,
+    ) -> Result<(), RejectReason> {
+        let phase = self.phase3.as_ref().ok_or(RejectReason::InvalidLoad)?;
+        let items = self.phase4.as_ref().ok_or(RejectReason::InvalidLoad)?;
+        let mut casts = Vec::new();
+        if let CastState::Casting(cast) = &self.sidecar(id).map_err(invalid)?.cast {
+            casts.push(cast);
+        }
+        for lane in items
+            .canonical
+            .item_casts
+            .values()
+            .filter(|cast| cast.caster.entity == id)
+        {
+            if lane
+                .origin
+                .as_ref()
+                .is_some_and(|payment| payment.instance == item.id)
+                || lane.weapon == Some(item.id)
+            {
+                return Err(RejectReason::AlreadyCasting);
+            }
+            casts.push(&lane.cast);
+        }
+        for cast in casts {
+            let skill = phase
+                .canonical
+                .rules
+                .skills()
+                .get(cast.skill.id)
+                .ok_or(RejectReason::InvalidLoad)?;
+            for cost in &skill.item_consume {
+                if *cost
+                    .item_id
+                    .at(cast.skill.rank, skill.max_level)
+                    .ok_or(RejectReason::InvalidLoad)?
+                    == item.template_id
+                {
+                    return Err(RejectReason::AlreadyCasting);
+                }
+            }
+        }
+        Ok(())
     }
 
     fn guard_equipment_cast_v6(&self, id: EntityId) -> Result<(), RejectReason> {
@@ -469,4 +575,111 @@ fn weapon_condition(condition: &crate::domain::zone::skill::SkillCondition) -> b
         | C::PlayerInventorySize { .. }
         | C::PlayerCanResurrect { .. } => false,
     }
+}
+
+// A complete plan pays inputs after unequipping, before allocating/merging the refund.
+fn removal_plan(
+    player: &crate::domain::zone::Phase4Player,
+    rules: &crate::domain::zone::Phase4Rules,
+    allocator: crate::domain::zone::ItemInstanceRange,
+    kind: &ItemCommandKind,
+    crystallize_rank: u32,
+    boundary: crate::domain::zone::item_inventory::InventoryBoundary,
+) -> Result<(PaperdollMutation, crate::domain::zone::ItemInstanceRange), RejectReason> {
+    use crate::domain::zone::item_inventory::{InventoryEdit, InventoryLimits, InventoryMutation};
+    let (instance, count, crystallize) = match *kind {
+        ItemCommandKind::Destroy { instance, count } => (instance, count, false),
+        ItemCommandKind::Crystallize { instance } => (instance, 1, true),
+        ItemCommandKind::Equip { .. }
+        | ItemCommandKind::Unequip { .. }
+        | ItemCommandKind::Use { .. }
+        | ItemCommandKind::Enchant { .. }
+        | ItemCommandKind::ToggleAutoShot { .. }
+        | ItemCommandKind::Refine { .. }
+        | ItemCommandKind::CancelRefine { .. }
+        | ItemCommandKind::ExchangeSpecialAbility { .. } => return Err(RejectReason::InvalidLoad),
+    };
+    let item = player
+        .inventory
+        .get(&instance)
+        .ok_or(RejectReason::ItemNotOwned)?;
+    let definition = rules
+        .parts()
+        .items
+        .get(&item.template_id)
+        .ok_or(RejectReason::InvalidLoad)?;
+    if count == 0 || count > item.count || (!definition.stackable && count != 1) {
+        return Err(RejectReason::InsufficientItems);
+    }
+    let mut edits = vec![InventoryEdit::TakeInstance { instance, count }];
+    if crystallize {
+        if !rules
+            .parts()
+            .capabilities
+            .get(&item.template_id)
+            .is_some_and(|cap| cap.admitted)
+        {
+            return Err(RejectReason::ItemCapabilityDeferred);
+        }
+        let grade = rules
+            .parts()
+            .grades
+            .iter()
+            .find(|g| g.grade == definition.grade)
+            .ok_or(RejectReason::InvalidLoad)?;
+        if !matches!(definition.kind.as_str(), "Weapon" | "Armor")
+            || definition.stackable
+            || definition.flags.get("is_crystallizable") != Some(&true)
+            || definition.flags.get("is_hero") == Some(&true)
+            || definition.crystal_count == 0
+            || grade.id == 0
+            || grade.crystal_id == 0
+        {
+            return Err(RejectReason::ItemNotUsable);
+        }
+        if crystallize_rank < u32::from(grade.id.min(5)) {
+            return Err(RejectReason::CrystallizeLevelTooLow);
+        }
+        edits.push(InventoryEdit::Add {
+            template: grade.crystal_id,
+            count: crate::domain::zone::item_enchant::crystal_count(
+                definition,
+                item.enchant,
+                rules,
+            )
+            .map_err(invalid)?,
+        });
+    } else if definition.flags.get("is_destroyable") != Some(&true)
+        || definition.flags.get("is_hero") == Some(&true)
+    {
+        return Err(RejectReason::ItemNotUsable);
+    }
+    let mut plan = if let Some(slot) = item.slot {
+        PaperdollMutation::unequip(
+            &player.inventory,
+            &player.paperdoll,
+            slot,
+            rules,
+            boundary.revision,
+        )
+        .map_err(invalid)?
+    } else {
+        PaperdollMutation {
+            inventory: player.inventory.clone(),
+            paperdoll: player.paperdoll.clone(),
+            changes: Vec::new(),
+        }
+    };
+    let mutation = InventoryMutation::prepare(
+        &plan.inventory,
+        allocator,
+        &edits,
+        rules,
+        InventoryLimits::from_player(player),
+        boundary,
+    )
+    .map_err(|_| RejectReason::InventoryFull)?;
+    plan.inventory = mutation.inventory;
+    plan.changes.extend(mutation.changes);
+    Ok((plan, mutation.allocator))
 }

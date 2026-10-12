@@ -168,7 +168,7 @@ impl ZoneState {
                     count: row.count,
                 }],
                 &rules,
-                InventoryLimits::from_player(player).map_err(|_| TickError::Phase3Invariant)?,
+                InventoryLimits::from_player(player),
                 InventoryBoundary { tick, revision: 1 },
             )
             .map_err(|_| TickError::Phase3Invariant)?;
