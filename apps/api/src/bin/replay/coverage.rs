@@ -355,6 +355,7 @@ fn commands(
             | ZoneCommand::CancelCast { .. }
             | ZoneCommand::AcceptResurrect { .. }
             | ZoneCommand::LearnSkill { .. }
+            | ZoneCommand::ExtendItemRange { .. }
             | ZoneCommand::Item(_)
             | ZoneCommand::SpawnPlayer { .. }
             | ZoneCommand::SpawnNpc { .. }

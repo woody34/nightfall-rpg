@@ -4357,6 +4357,80 @@ mod tests {
         assert_eq!(zone.sidecar(owner.entity).unwrap().cast, CastState::Casting(cast));
     }
     #[test]
+    fn v6_allocator_extension_is_system_only_exhausted_atomic_and_replayed() {
+        use crate::domain::zone::ItemInstanceRange;
+        let (mut zone, owner, _) = equipment_fixture();
+        zone.run_tick(zone.draft(Vec::new())).unwrap();
+        let replacement = ItemInstanceRange::new(20000, 20000, 30000).unwrap();
+        let before = zone.phase4.as_ref().unwrap().canonical.clone();
+        let premature = zone
+            .run_tick(zone.draft(vec![ZoneInput::system(ZoneCommand::ExtendItemRange {
+                range: replacement,
+            })]))
+            .unwrap();
+        assert_eq!(premature.dispositions[0].reason, RejectReason::InvalidLoad);
+        assert_eq!(zone.phase4.as_ref().unwrap().canonical, before);
+        zone.phase4.as_mut().unwrap().canonical.allocator =
+            ItemInstanceRange::new(1, 10000, 10000).unwrap();
+        let before = zone.phase4.as_ref().unwrap().canonical.clone();
+        let rng = zone.rng.get_word_pos();
+        for range in [
+            ItemInstanceRange::new(9999, 9999, 11000).unwrap(),
+            ItemInstanceRange::new(20000, 20001, 30000).unwrap(),
+        ] {
+            let rejected = zone
+                .run_tick(
+                    zone.draft(vec![ZoneInput::system(ZoneCommand::ExtendItemRange { range })]),
+                )
+                .unwrap();
+            assert_eq!(rejected.dispositions[0].reason, RejectReason::InvalidLoad);
+            assert_eq!(zone.phase4.as_ref().unwrap().canonical, before);
+        }
+        let rejected = zone
+            .run_tick(zone.draft(vec![ZoneInput::session(
+                owner.entity,
+                SessionGeneration(1),
+                1,
+                ZoneCommand::ExtendItemRange { range: replacement },
+            )]))
+            .unwrap();
+        assert_eq!(rejected.dispositions[0].reason, RejectReason::NotPermitted);
+        assert_eq!(zone.phase4.as_ref().unwrap().canonical, before);
+        let mut cold = ZoneState::from_snapshot_with_items(
+            zone.snapshot(),
+            Some(Arc::clone(&zone.phase4.as_ref().unwrap().rules)),
+        )
+        .unwrap();
+        let draft = zone.draft(vec![ZoneInput::system(ZoneCommand::ExtendItemRange {
+            range: replacement,
+        })]);
+        let applied = zone.run_tick(draft.clone()).unwrap();
+        assert_eq!(applied, cold.run_tick(draft).unwrap());
+        assert!(applied.dispositions.is_empty());
+        assert_eq!(zone.rng.get_word_pos(), rng);
+        assert!(applied.events.is_empty());
+        assert!(applied.outputs.values().all(Vec::is_empty));
+        let mut expected = before;
+        expected.allocator = replacement;
+        assert_eq!(zone.phase4.as_ref().unwrap().canonical, expected);
+        let record = crate::application::replay_log::AppliedTickRecord::from_applied(
+            zone.seed.zone,
+            &applied,
+        );
+        assert_eq!(
+            crate::application::replay_log::AppliedTickRecord::decode(&record.encode()).unwrap(),
+            record
+        );
+        let restored = ZoneState::from_snapshot_with_items(
+            zone.snapshot(),
+            Some(Arc::clone(&zone.phase4.as_ref().unwrap().rules)),
+        )
+        .unwrap();
+        assert_eq!(restored.phase4.as_ref().unwrap().canonical.allocator, replacement);
+        assert_eq!(restored.state_digest(), zone.state_digest());
+    }
+
+    #[test]
     #[allow(clippy::too_many_lines)] // A session replacement and later equipment mutation exercise both owner boundaries.
     fn v6_inventory_replacement_baseline_and_deltas_preserve_privacy_and_replay() {
         use crate::domain::zone::item_views::{InventoryView, ItemViewDetail};

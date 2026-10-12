@@ -162,13 +162,15 @@ struct PbCommand {
     seq: Option<u32>,
     #[prost(
         oneof = "PbCommandKind",
-        tags = "4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29"
+        tags = "4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 31"
     )]
     kind: Option<PbCommandKind>,
 }
 
 #[derive(Clone, PartialEq, prost::Oneof)]
 enum PbCommandKind {
+    #[prost(bytes, tag = "31")]
+    ExtendItemRange(Vec<u8>),
     #[prost(bytes, tag = "20")]
     EquipItem(Vec<u8>),
     #[prost(bytes, tag = "21")]
@@ -808,6 +810,9 @@ fn command_to_pb(c: &AppliedCommand) -> PbCommand {
             skill_id: skill_id.0,
             skill_level: *skill_level,
         }),
+        ZoneCommand::ExtendItemRange { range } => {
+            PbCommandKind::ExtendItemRange(canonical_json(range))
+        },
         ZoneCommand::Item(command) => items::command_to_pb(command),
         ZoneCommand::ChangeClass { .. } => PbCommandKind::ChangeClass(canonical_json(&c.command)),
         ZoneCommand::SpawnPlayer {
@@ -1682,6 +1687,7 @@ fn source_from(s: Option<PbSession>) -> Result<CommandSource, CodecError> {
 
 fn command_from_pb(c: PbCommand) -> Result<AppliedCommand, CodecError> {
     let command = match c.kind {
+        Some(PbCommandKind::ExtendItemRange(bytes)) => items::range_from_json(&bytes)?,
         Some(PbCommandKind::EquipItem(bytes)) => items::command_from_json(&bytes, 20)?,
         Some(PbCommandKind::UnequipItem(bytes)) => items::command_from_json(&bytes, 21)?,
         Some(PbCommandKind::UseItem(bytes)) => items::command_from_json(&bytes, 22)?,
