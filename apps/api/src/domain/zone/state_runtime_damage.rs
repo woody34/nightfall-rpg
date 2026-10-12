@@ -4364,6 +4364,43 @@ mod tests {
         assert_eq!(zone.sidecar(owner.entity).unwrap().cast, CastState::Casting(cast));
     }
     #[test]
+    fn v6_enlarge_capacity_caller_uses_current_fold_and_keeps_legacy_limit() {
+        use crate::domain::zone::effects::EffectCapacities;
+        use crate::domain::zone::stat_functions::{
+            FunctionKey, FunctionOp, StatCalculator, StatFunction,
+        };
+        let (mut zone, owner, _) = equipment_fixture();
+        zone.run_tick(zone.draft(Vec::new())).unwrap();
+        let mut stats = (*zone.effective(owner.entity).unwrap()).clone();
+        stats.calculator = StatCalculator::try_new([StatFunction {
+            key: FunctionKey {
+                stat: "enlargeAbnormalSlot".into(),
+                priority: 30,
+                install_sequence: 1,
+                handler_ordinal: 0,
+                function_ordinal: 1,
+            },
+            operation: FunctionOp::Add(4 * Q),
+            conditions: Vec::new(),
+        }])
+        .unwrap();
+        zone.phase3
+            .as_mut()
+            .unwrap()
+            .effective
+            .insert(owner.entity, Arc::new(stats));
+        assert_eq!(
+            zone.effect_capacities_v6(owner.entity).unwrap(),
+            EffectCapacities::for_enlarge(4)
+        );
+        zone.phase4 = None;
+        assert_eq!(
+            zone.effect_capacities_v6(owner.entity).unwrap(),
+            EffectCapacities::for_enlarge(0)
+        );
+    }
+
+    #[test]
     fn v6_weapon_context_tracks_equipment_for_conditional_getters() {
         use crate::domain::zone::skill::SkillCondition;
         use crate::domain::zone::stat_functions::{

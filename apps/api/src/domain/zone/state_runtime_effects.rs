@@ -2,8 +2,8 @@
 //! BuffInfo.java:260-278: success/duration precede instant handlers; installation follows.
 use super::*;
 use crate::domain::zone::effects::{
-    self, ActiveEffect, ActiveHandler, ActivePeriodic, EffectAdmission, EffectCapacities,
-    EffectFlags, EffectId, EffectPool, EffectRemoveReason, EffectSource, PulseSchedule,
+    self, ActiveEffect, ActiveHandler, ActivePeriodic, EffectAdmission, EffectFlags, EffectId,
+    EffectPool, EffectRemoveReason, EffectSource, PulseSchedule,
 };
 use crate::domain::zone::skill::SkillRef;
 
@@ -168,10 +168,11 @@ impl ZoneState {
         effect
             .validate_source(phase.canonical.rules.skills())
             .map_err(invariant)?;
+        let capacities = self.effect_capacities_v6(target.entity)?;
         let admitted = self
             .sidecar_mut(target.entity)?
             .effects
-            .admit(effect.clone(), EffectCapacities::for_enlarge(0))
+            .admit(effect.clone(), capacities)
             .map_err(invariant)?;
         let mut applied_effect_ids = Vec::new();
         if let EffectAdmission::Applied { removed } = admitted {

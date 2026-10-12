@@ -200,6 +200,24 @@ impl ZoneState {
             sidecar,
         )
     }
+    pub(super) fn effect_capacities_v6(
+        &self,
+        id: EntityId,
+    ) -> Result<crate::domain::zone::effects::EffectCapacities, TickError> {
+        use crate::domain::zone::effects::{EffectCapacities, StatusFlags};
+        if self.phase4.is_none() {
+            return Ok(EffectCapacities::for_enlarge(0));
+        }
+        let effective = self.effective(id)?;
+        EffectCapacities::from_calculator(
+            &effective.calculator,
+            FunctionConditions {
+                weapon_kind: self.item_weapon_kind(id, "SWORD")?,
+                can_resurrect: !effective.flags.intersects(StatusFlags::RESURRECTION_BLOCK),
+            },
+        )
+        .map_err(invariant)
+    }
     pub(super) fn effective(&self, id: EntityId) -> Result<Arc<EffectiveStats>, TickError> {
         if let Some(cached) = self.phase3.as_ref().and_then(|p| p.effective.get(&id)) {
             return Ok(Arc::clone(cached));
@@ -424,10 +442,14 @@ impl ZoneState {
                     .players
                     .insert(id, player);
             }
-            restored
-                .effects
-                .validate_capacity(crate::domain::zone::effects::EffectCapacities::for_enlarge(0))
-                .map_err(invariant)?;
+            if self.phase4.is_none() {
+                restored
+                    .effects
+                    .validate_capacity(crate::domain::zone::effects::EffectCapacities::for_enlarge(
+                        0,
+                    ))
+                    .map_err(invariant)?;
+            }
             p.next_effect_id = restored.next_effect_id;
             p.next_install_sequence = restored.next_install_sequence;
             sidecar.reuse = restored.reuse;
@@ -478,6 +500,10 @@ impl ZoneState {
             }
         }
         self.rebuild_v5(id)?;
+        self.sidecar(id)?
+            .effects
+            .validate_capacity(self.effect_capacities_v6(id)?)
+            .map_err(invariant)?;
         // Fresh unspecified resources mean the reconstructed maximum, not its effect-free base.
         if let Some(load) = load {
             let c = self
