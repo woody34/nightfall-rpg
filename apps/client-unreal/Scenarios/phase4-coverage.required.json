@@ -1,6 +1,7 @@
 {
   "enchant_outcomes": [
     "success",
+    "success_no_increment",
     "safe_failed",
     "blessed_reset",
     "destroyed"
@@ -39,7 +40,9 @@
     "crystallize",
     "refine",
     "cancel_refine",
-    "exchange"
+    "exchange",
+    "use",
+    "toggle_auto_shot"
   ],
   "kind": "required future observations, not baseline evidence",
   "refine_outcomes": [

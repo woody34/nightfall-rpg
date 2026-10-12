@@ -23,19 +23,23 @@ def required_wire():
     events=dict(re.findall(r'^    \w+ (\w+) = (2[6-9]|3[0-3]);$',event_source,re.M))
     return dict(schema_version=1,kind='required future observations, not baseline evidence',
                 intents=intents,events=events,
-                item_operations=['grant','starter','backfill','equip','unequip','consume','enchant','destroy','crystallize','refine','cancel_refine','exchange'],
-                enchant_outcomes=['success','safe_failed','blessed_reset','destroyed'],
+                item_operations=['grant','starter','backfill','equip','unequip','consume','enchant','destroy','crystallize','refine','cancel_refine','exchange','use','toggle_auto_shot'],
+                enchant_outcomes=['success','success_no_increment','safe_failed','blessed_reset','destroyed'],
                 refine_outcomes=['applied','removed'],shot_payments=['soul','spirit','blessed_spirit'])
 
 
 def check(contract_path,transitions_path,baseline_path,required):
     current=contract.read(contract_path);transitions=gates.read_transitions(transitions_path)
-    errors=contract.regressions(current,contract.read(baseline_path))
+    baseline=contract.read(baseline_path)
+    errors=contract.regressions(current,baseline)
+    for group,entries in baseline.get('wire_numbers',{}).items():
+        for name,number in entries.items():
+            if current.get('wire_numbers',{}).get(group,{}).get(name)!=number:errors.append('historical wire tag changed '+group+'.'+name)
     if transitions['schema_version']!=4:raise ValueError('V6 schema4 item transitions required')
     for group in ('intents','events'):
         for name,tag in required[group].items():
             if int(current['counts'][group].get(name,0))<1:errors.append('missing item wire '+group+'.'+name)
-            # wire_numbers catalogs use integer/string tags; descriptor counts do not prove renumbering safety.
+            if current.get('wire_numbers',{}).get(group,{}).get(name)!=int(tag):errors.append('item wire tag changed '+group+'.'+name)
     for group in ('item_operations','enchant_outcomes','refine_outcomes','shot_payments'):
         for name in required[group]:
             if int(transitions[group].get(name,0))<1:errors.append('missing item transition '+group+'.'+name)

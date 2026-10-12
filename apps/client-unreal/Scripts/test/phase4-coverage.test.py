@@ -42,6 +42,22 @@ class Coverage(unittest.TestCase):
         bad=copy.deepcopy(self.data);bad['schema_version']=3;path.write_text(json.dumps(bad))
         with self.assertRaises(ValueError):p4.gates.read_transitions(path)
 
+    def test_required_presence_and_frozen_tags_reject_missing_or_renumbered_observations(self):
+        baseline=SCRIPTS.parent/'Scenarios/coverage.contract.baseline.json'
+        current=json.loads(baseline.read_text());required=p4.required_wire()
+        for group in ('intents','events'):
+            for name,tag in required[group].items():
+                current['counts'][group][name]='1';current['wire_numbers'][group][name]=int(tag)
+        wire=self.root/'wire.json';transitions=self.root/'transitions.json'
+        wire.write_text(json.dumps(current));transitions.write_text(json.dumps(self.data))
+        self.assertTrue(p4.check(wire,transitions,baseline,required)['passed'])
+        current['wire_numbers']['intents']['equip_item']=20;wire.write_text(json.dumps(current))
+        self.assertFalse(p4.check(wire,transitions,baseline,required)['passed'])
+        current['wire_numbers']['intents']['equip_item']=19;current['counts']['events']['inventory_sync']='0';wire.write_text(json.dumps(current))
+        self.assertFalse(p4.check(wire,transitions,baseline,required)['passed'])
+        bad=copy.deepcopy(self.data);bad['item_operations']['item_1234']=1;transitions.write_text(json.dumps(bad))
+        with self.assertRaises(ValueError):p4.gates.read_transitions(transitions)
+
     def test_merge_preserves_all_old_and_new_fields(self):
         paths=[]
         for i in range(2):

@@ -40,6 +40,13 @@ V3_REACHABLE = {
 # Proposed E2 V6 producer contract: additive counters, inherited lifecycle reachability unchanged.
 V4_COUNTERS = ('item_operations', 'enchant_outcomes', 'refine_outcomes', 'shot_payments')
 V4_SCALARS = ('item_ledger_rows', 'item_allocations', 'inventory_baselines')
+V4_LABELS = {
+    'item_operations': set('grant starter backfill equip unequip consume enchant destroy crystallize refine cancel_refine exchange use toggle_auto_shot'.split()),
+    'enchant_outcomes': set('success success_no_increment safe_failed blessed_reset destroyed'.split()),
+    'refine_outcomes': {'applied', 'removed'},
+    'shot_payments': {'soul', 'spirit', 'blessed_spirit'},
+}
+
 
 
 def transition_scalars(data):
@@ -368,6 +375,8 @@ def read_transitions(path):
                 match = re.fullmatch(pattern, name)
                 if not match or any(int(part) > 2**32 - 1 for part in match.groups()):
                     raise ValueError('invalid class coverage ID or transfer pair')
+        if key in V4_LABELS and set(values) - V4_LABELS[key]:
+            raise ValueError('unknown/unbounded schema4 item counter label')
         if key in (*V3_COUNTERS, *V4_COUNTERS) and any(not re.fullmatch(r'[A-Za-z][A-Za-z0-9_]*(?::[A-Za-z][A-Za-z0-9_]*)?', name) for name in values):
             raise ValueError('schema3 labels must be bounded kind/reason symbols, never IDs')
         if key in ('deaths', 'respawns') and set(values) != {'player', 'npc'}:
