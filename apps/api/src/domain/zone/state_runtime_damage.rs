@@ -8182,6 +8182,203 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::too_many_lines)] // Actual swing start, impact, discharge/retention and cold parity.
+    fn v6_shot_automatic_attack_recharges_at_swing_start_and_discharges_only_on_landing() {
+        use crate::domain::zone::phase4::ItemActionBinding;
+        use crate::domain::zone::phase4_projection::ItemOperation;
+        use crate::domain::zone::{AttackOutcome, EquipSlot};
+        // C-grade 1464 matches Flamberge; D-grade 1463 is a persisted mismatch (I2).
+        let (mut zone, owner, npc, ids) = use_fixture(&[1464, 1463]);
+        let rules = Arc::clone(&zone.phase4.as_ref().unwrap().rules);
+        let mut plain = zone.clone();
+        let player = zone
+            .phase4
+            .as_mut()
+            .unwrap()
+            .canonical
+            .players
+            .get_mut(&owner.entity)
+            .unwrap();
+        let weapon = player.paperdoll[&EquipSlot::Rhand];
+        player.auto_shots.extend([1463, 1464]);
+        player.inventory.get_mut(&ids[0]).unwrap().count = 20;
+        let weapon_template = player.inventory[&weapon].template_id;
+        assert_eq!(rules.parts().items[&weapon_template].soulshots, 2);
+        // Flamberge has no reduced-soulshot table, so recharge draws nothing: the plain
+        // run without toggles consumes the identical RNG stream.
+        assert!(rules.parts().items[&weapon_template]
+            .reduced_soulshot
+            .is_empty());
+        plain
+            .phase4
+            .as_mut()
+            .unwrap()
+            .canonical
+            .players
+            .get_mut(&owner.entity)
+            .unwrap()
+            .inventory
+            .get_mut(&ids[0])
+            .unwrap()
+            .count = 20;
+        zone.rebuild_v5(owner.entity).unwrap();
+        plain.rebuild_v5(owner.entity).unwrap();
+        let mut cold =
+            match ZoneState::from_snapshot_with_items(zone.snapshot(), Some(Arc::clone(&rules))) {
+                Ok(cold) => cold,
+                Err(error) => panic!("{error:?}"),
+            };
+        zone.enable_items_replay_evidence().unwrap();
+        let start = vec![
+            review_input(
+                owner.entity,
+                1,
+                ZoneCommand::SetTarget {
+                    entity: owner.entity,
+                    target: Some(npc.entity),
+                },
+            ),
+            review_input(
+                owner.entity,
+                2,
+                ZoneCommand::Attack {
+                    entity: owner.entity,
+                },
+            ),
+        ];
+        let mut drafts = Vec::new();
+        let mut results = Vec::new();
+        let mut expect_payment = true;
+        let mut stock = 20_u64;
+        let (mut hits, mut misses, mut doubled) = (0, 0, 0);
+        for step in 0..400 {
+            let draft = zone.draft(if step == 0 { start.clone() } else { Vec::new() });
+            let hp_before = zone.entities[&npc.entity].combat.as_ref().unwrap().hp;
+            let applied = zone.run_tick(draft.clone()).unwrap();
+            let baseline = plain.run_tick(draft.clone()).unwrap();
+            assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+            let owner_rows = |kind: ItemOperation, instance| {
+                applied
+                    .events
+                    .iter()
+                    .filter_map(|e| match e {
+                        ZoneEvent::ItemCheckpoint(p) if p.entity == owner.entity => Some(p),
+                        _ => None,
+                    })
+                    .flat_map(|p| p.ledger.iter())
+                    .filter(|d| d.operation == kind && d.instance == instance)
+                    .cloned()
+                    .collect::<Vec<_>>()
+            };
+            let result = |events: &[ZoneEvent]| {
+                events.iter().find_map(|e| match e {
+                    ZoneEvent::AttackResult {
+                        attacker,
+                        outcome,
+                        damage,
+                        target_hp_after,
+                        ..
+                    } if *attacker == owner.entity => Some((*outcome, *damage, *target_hp_after)),
+                    _ => None,
+                })
+            };
+            let mut target_died = false;
+            if let Some((outcome, damage, hp_after)) = result(&applied.events) {
+                let (plain_outcome, plain_damage, plain_hp) = result(&baseline.events).unwrap();
+                assert_eq!(outcome, plain_outcome);
+                let discharges = owner_rows(ItemOperation::Use, weapon);
+                if outcome == AttackOutcome::Miss {
+                    // All-miss retains the paid charge for the next bundle.
+                    assert!(discharges.is_empty());
+                    misses += 1;
+                    expect_payment = false;
+                } else {
+                    assert_eq!(discharges.len(), 1);
+                    assert_eq!(discharges[0].causes[0].family, "shot_discharge");
+                    assert_eq!(discharges[0].after.as_ref().unwrap().charges & 1, 0);
+                    // A lethal hit is capped by the remaining HP in both runs.
+                    assert!(damage >= plain_damage && damage <= hp_before);
+                    hits += 1;
+                    expect_payment = true;
+                }
+                target_died = hp_after == 0 || plain_hp == 0;
+            }
+            if applied.events.iter().any(|e| {
+                matches!(e, ZoneEvent::AttackStarted { attacker, .. } if *attacker == owner.entity)
+            }) {
+                if doubled == 0 {
+                    // Formulas.java:684,690: the frozen soulshot doubles the non-critical
+                    // P.Atk term before truncation; the identical forced draws without the
+                    // bundle's binding give the plain value.
+                    let mut charged = zone.clone();
+                    let mut uncharged = zone.clone();
+                    let items = &mut uncharged.phase4.as_mut().unwrap().canonical;
+                    items.attack_plans.clear();
+                    items.charge_bindings.clear();
+                    let source = zone.binding(owner.entity).unwrap();
+                    let target = zone.binding(npc.entity).unwrap();
+                    let mut forced = |z: &mut ZoneState, site, _, bound| {
+                        let value = z.roll_below(bound);
+                        Ok(match site {
+                            DamageRollSite::AutoHit => 0,
+                            DamageRollSite::AutoCritical => bound - 1,
+                            _ => value,
+                        })
+                    };
+                    let (ss_outcome, ss) =
+                        charged.auto_damage_v5(source, target, &mut forced).unwrap();
+                    let (outcome, base) =
+                        uncharged.auto_damage_v5(source, target, &mut forced).unwrap();
+                    assert_eq!((ss_outcome, outcome), (AttackOutcome::Hit, AttackOutcome::Hit));
+                    assert!(base > 1 && (ss == 2 * base || ss == 2 * base + 1), "{ss}/{base}");
+                    assert_eq!(charged.rng.get_word_pos(), uncharged.rng.get_word_pos());
+                    doubled += 1;
+                }
+                let items = &zone.phase4.as_ref().unwrap().canonical;
+                let bundle = &items.attack_plans[&owner.entity];
+                assert_eq!((bundle.shots, bundle.weapon), (1, Some(weapon)));
+                assert_eq!(
+                    items.charge_bindings,
+                    vec![crate::domain::zone::phase4::ChargeBinding {
+                        weapon,
+                        shot: crate::domain::zone::phase4::ShotKind::Soul,
+                        action: ItemActionBinding::Attack {
+                            attacker: owner.entity,
+                            start: bundle.start
+                        }
+                    }]
+                );
+                let debits = owner_rows(ItemOperation::Consume, ids[0]);
+                if expect_payment {
+                    assert_eq!(debits.len(), 1);
+                    assert_eq!(debits[0].count_delta, -2);
+                    assert!(debits[0].receipt_refs.is_empty());
+                    assert_eq!(debits[0].causes[0].family, "auto_shot_payment");
+                    stock -= 2;
+                } else {
+                    assert!(debits.is_empty());
+                }
+                let held = &items.players[&owner.entity];
+                assert_eq!(held.inventory[&ids[0]].count, stock);
+                assert_eq!(held.inventory[&ids[1]].count, 3);
+                assert!(held.auto_shots.contains(&1463));
+            }
+            drafts.push(draft);
+            results.push(applied);
+            if target_died || (hits >= 2 && misses >= 1) || hits >= 6 {
+                break;
+            }
+        }
+        // The fixed fixture stream yields both branches: retained misses and a landed hit.
+        assert!(hits >= 1 && misses >= 1 && doubled == 1, "{hits}/{misses}/{doubled}");
+        for (draft, expected) in drafts.into_iter().zip(results) {
+            assert_eq!(cold.run_tick(draft).unwrap(), expected);
+        }
+        assert_eq!(zone.snapshot(), cold.snapshot());
+        ZoneState::from_snapshot_with_items(zone.snapshot(), Some(rules)).unwrap();
+    }
+
+    #[test]
     #[allow(clippy::too_many_lines)]
     fn v6_shot_automatic_cast_recharges_after_guards_and_retains_paid_charge_on_cancel() {
         use crate::domain::zone::phase4_projection::ItemOperation;

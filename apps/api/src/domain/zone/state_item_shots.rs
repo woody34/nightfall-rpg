@@ -557,6 +557,29 @@ impl ZoneState {
         boundary: InventoryBoundary,
         projection: &mut Phase4Projection,
     ) -> Result<(), RejectReason> {
+        let (magic, physical) = crate::domain::zone::item_shots::skill_kinds(skill);
+        self.recharge_shots_v6(
+            subject,
+            magic,
+            physical,
+            &format!("cast:{}", cast.0),
+            boundary,
+            projection,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)] // Action eligibility and its settlement boundary.
+    /// Shared I2 recharge: every retained toggle in template order, physical/magical
+    /// eligibility from the starting action (L2PcInstance.java:6993 rechargeShots).
+    pub(super) fn recharge_shots_v6(
+        &mut self,
+        subject: crate::domain::zone::effects::TargetBinding,
+        magic: bool,
+        physical: bool,
+        action: &str,
+        boundary: InventoryBoundary,
+        projection: &mut Phase4Projection,
+    ) -> Result<(), RejectReason> {
         let mut player = self
             .phase4
             .as_ref()
@@ -567,7 +590,6 @@ impl ZoneState {
             .ok_or(RejectReason::InvalidLoad)?
             .clone();
         let before = player.auto_shots.clone();
-        let (magic, physical) = crate::domain::zone::item_shots::skill_kinds(skill);
         for template in before.iter().copied() {
             let stack = player
                 .inventory
@@ -607,7 +629,7 @@ impl ZoneState {
                 &stack,
                 boundary,
                 None,
-                &format!("cast:{}:shot:{template}", cast.0),
+                &format!("{action}:shot:{template}"),
                 projection,
             )?;
         }

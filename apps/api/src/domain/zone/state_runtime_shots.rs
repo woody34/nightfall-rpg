@@ -289,4 +289,379 @@ impl ZoneState {
         events.push(ZoneEvent::ItemCheckpoint(Box::new(projection)));
         Ok(())
     }
+
+    /// The owner's private projection for this tick plus the one shared revision step (D55).
+    fn attack_projection_v6(
+        &self,
+        tick: Tick,
+        attacker: EntityId,
+        initial_revision: Option<u64>,
+        events: &[ZoneEvent],
+    ) -> Result<(Option<Phase4Projection>, u64), TickError> {
+        let previous = events.iter().find_map(|event| {
+            if let ZoneEvent::ItemCheckpoint(projection) = event {
+                (projection.entity == attacker && projection.tick == tick)
+                    .then(|| projection.as_ref().clone())
+            } else {
+                None
+            }
+        });
+        let player = self
+            .phase4
+            .as_ref()
+            .and_then(|items| items.canonical.players.get(&attacker))
+            .ok_or_else(missing)?;
+        let changed = initial_revision.map_or_else(
+            || previous.as_ref().is_some_and(|p| !p.ledger.is_empty()),
+            |initial| initial != player.inventory_revision,
+        );
+        let revision = if changed {
+            player.inventory_revision
+        } else {
+            player
+                .inventory_revision
+                .checked_add(1)
+                .filter(|r| i64::try_from(*r).is_ok())
+                .ok_or_else(missing)?
+        };
+        Ok((previous, revision))
+    }
+
+    #[allow(clippy::too_many_arguments)] // The owner's tick projection and its revision base.
+    fn publish_attack_projection_v6(
+        &mut self,
+        tick: Tick,
+        attacker: EntityId,
+        had_previous: bool,
+        mut projection: Phase4Projection,
+        original_revision: u64,
+        events: &mut Vec<ZoneEvent>,
+    ) -> Result<(), TickError> {
+        self.rebuild_v5(attacker).map_err(invariant)?;
+        let phase = &self.phase3.as_ref().ok_or_else(missing)?.canonical;
+        projection.checkpoint = self
+            .phase4
+            .as_ref()
+            .ok_or_else(missing)?
+            .canonical
+            .checkpoint(attacker, tick, phase)
+            .map_err(invariant)?;
+        if !had_previous
+            && projection.ledger.is_empty()
+            && projection.evidence.is_empty()
+            && projection.checkpoint.inventory_revision == original_revision
+        {
+            return Ok(());
+        }
+        projection
+            .validate_structure(
+                phase
+                    .checkpoint(attacker, tick)
+                    .map_err(invariant)?
+                    .modifier_install_order
+                    .len(),
+            )
+            .map_err(invariant)?;
+        events
+            .retain(|event| !matches!(event, ZoneEvent::ItemCheckpoint(p) if p.entity == attacker));
+        events.push(ZoneEvent::ItemCheckpoint(Box::new(projection)));
+        Ok(())
+    }
+
+    fn empty_projection_v6(
+        &self,
+        tick: Tick,
+        attacker: EntityId,
+    ) -> Result<Phase4Projection, TickError> {
+        let CombatRole::Player {
+            progression: Some(progression),
+            ..
+        } = &self
+            .entities
+            .get(&attacker)
+            .and_then(|entity| entity.combat.as_ref())
+            .ok_or_else(missing)?
+            .role
+        else {
+            return Err(missing());
+        };
+        let phase = &self.phase3.as_ref().ok_or_else(missing)?.canonical;
+        Ok(Phase4Projection {
+            exchanges: Vec::new(),
+            enchant_attempts: Vec::new(),
+            paused_core: None,
+            tick,
+            entity: attacker,
+            account: progression.identity.account_id,
+            checkpoint: self
+                .phase4
+                .as_ref()
+                .ok_or_else(missing)?
+                .canonical
+                .checkpoint(attacker, tick, phase)
+                .map_err(invariant)?,
+            ledger: Vec::new(),
+            receipts: Vec::new(),
+            materializations: Vec::new(),
+            evidence: Vec::new(),
+        })
+    }
+
+    /// Attack bundles end with their swing; a canceled or retargeted swing keeps its paid
+    /// charge (design I2: "cancel before use leaves weapon charge intact").
+    pub(super) fn release_stale_attack_plans_v6(&mut self) {
+        let Some(items) = self.phase4.as_ref() else {
+            return;
+        };
+        let stale: Vec<_> = items
+            .canonical
+            .attack_plans
+            .iter()
+            .filter(|(attacker, plan)| {
+                self.entities
+                    .get(attacker)
+                    .and_then(|entity| entity.combat.as_ref())
+                    .and_then(|combat| combat.swing)
+                    .is_none_or(|swing| swing.start != plan.start)
+            })
+            .map(|(attacker, plan)| (*attacker, plan.start))
+            .collect();
+        if let Some(items) = self.phase4.as_mut() {
+            for (attacker, start) in stale {
+                items.canonical.attack_plans.remove(&attacker);
+                items.canonical.charge_bindings.retain(|binding| {
+                    binding.action != ItemActionBinding::Attack { attacker, start }
+                });
+            }
+        }
+    }
+
+    /// Accepted swing start: I2 physical recharge (rechargeShots(true,false)) before the
+    /// bundle freezes its soulshot, then one exclusive binding for the whole bundle.
+    pub(super) fn start_attack_shots_v6(
+        &mut self,
+        tick: Tick,
+        attacker: EntityId,
+        initial_revision: Option<u64>,
+        events: &mut Vec<ZoneEvent>,
+    ) -> Result<(), TickError> {
+        let Some(player) = self
+            .phase4
+            .as_ref()
+            .and_then(|items| items.canonical.players.get(&attacker))
+        else {
+            return Ok(());
+        };
+        let Some(swing) = self
+            .entities
+            .get(&attacker)
+            .and_then(|entity| entity.combat.as_ref())
+            .and_then(|combat| combat.swing)
+            .filter(|swing| swing.start == tick)
+        else {
+            return Ok(());
+        };
+        let Some(weapon) = player.paperdoll.get(&EquipSlot::Rhand).copied() else {
+            return Ok(());
+        };
+        let original_revision = player.inventory_revision;
+        let subject = self.binding(attacker).ok_or_else(missing)?;
+        if !player.auto_shots.is_empty() {
+            let (previous, revision) =
+                self.attack_projection_v6(tick, attacker, initial_revision, events)?;
+            let mut projection = match previous.clone() {
+                Some(projection) => projection,
+                None => self.empty_projection_v6(tick, attacker)?,
+            };
+            self.recharge_shots_v6(
+                subject,
+                false,
+                true,
+                &format!("attack:{attacker}:{}", tick.0),
+                crate::domain::zone::item_inventory::InventoryBoundary {
+                    tick,
+                    revision,
+                    origin: crate::domain::zone::ItemCreationOrigin {
+                        zone: self.seed.zone,
+                        epoch: self.seed.epoch,
+                    },
+                },
+                &mut projection,
+            )
+            .map_err(invariant)?;
+            self.publish_attack_projection_v6(
+                tick,
+                attacker,
+                previous.is_some(),
+                projection,
+                original_revision,
+                events,
+            )?;
+        }
+        let items = &mut self.phase4.as_mut().ok_or_else(missing)?.canonical;
+        let charged = items
+            .players
+            .get(&attacker)
+            .and_then(|player| player.inventory.get(&weapon))
+            .is_some_and(|item| item.charges & ShotKind::Soul.bit() != 0);
+        let reserved = items
+            .charge_bindings
+            .iter()
+            .any(|binding| binding.weapon == weapon && binding.shot == ShotKind::Soul);
+        if !charged || reserved {
+            return Ok(());
+        }
+        items.charge_bindings.push(ChargeBinding {
+            weapon,
+            shot: ShotKind::Soul,
+            action: ItemActionBinding::Attack {
+                attacker,
+                start: tick,
+            },
+        });
+        items
+            .charge_bindings
+            .sort_by_key(|binding| (binding.weapon, binding.shot));
+        items.attack_plans.insert(
+            attacker,
+            crate::domain::zone::phase4::ItemAttackPlan {
+                attacker: subject,
+                start: tick,
+                ready: swing.ready,
+                weapon: Some(weapon),
+                shots: ShotKind::Soul.bit(),
+                arrow: None,
+                hits: vec![crate::domain::zone::phase4::PlannedItemHit {
+                    target: crate::domain::zone::effects::TargetBinding {
+                        entity: swing.target,
+                        incarnation: swing.target_incarnation,
+                    },
+                    at: swing.impact,
+                    prepared: None,
+                }],
+                next_hit: 0,
+            },
+        );
+        Ok(())
+    }
+
+    /// Whether the landing swing carries its frozen paid soulshot (Formulas.java:684 ssboost).
+    pub(super) fn attack_soulshot_v6(&self, attacker: EntityId) -> bool {
+        self.phase4.as_ref().is_some_and(|items| {
+            items
+                .canonical
+                .attack_plans
+                .get(&attacker)
+                .is_some_and(|plan| {
+                    plan.shots & ShotKind::Soul.bit() != 0
+                        && items.canonical.charge_bindings.iter().any(|binding| {
+                            binding.action
+                                == ItemActionBinding::Attack {
+                                    attacker,
+                                    start: plan.start,
+                                }
+                        })
+                })
+        })
+    }
+
+    #[allow(clippy::too_many_arguments)] // Bundle identity, landing and the tick revision base.
+    /// L2Character.java:953-958: a landed bundle clears the soulshot; an all-miss or canceled
+    /// bundle retains it. Either way the bundle's binding ends with the swing.
+    pub(super) fn finish_attack_shots_v6(
+        &mut self,
+        tick: Tick,
+        attacker: EntityId,
+        start: Tick,
+        landed: bool,
+        initial_revision: Option<u64>,
+        events: &mut Vec<ZoneEvent>,
+    ) -> Result<(), TickError> {
+        let discharge = landed && self.attack_soulshot_v6(attacker);
+        let Some(items) = self.phase4.as_mut() else {
+            return Ok(());
+        };
+        let Some(plan) = items
+            .canonical
+            .attack_plans
+            .get(&attacker)
+            .filter(|plan| plan.start == start)
+            .cloned()
+        else {
+            return Ok(());
+        };
+        items.canonical.attack_plans.remove(&attacker);
+        items
+            .canonical
+            .charge_bindings
+            .retain(|binding| binding.action != ItemActionBinding::Attack { attacker, start });
+        if !discharge {
+            return Ok(());
+        }
+        let weapon = plan.weapon.ok_or_else(missing)?;
+        let (previous, revision) =
+            self.attack_projection_v6(tick, attacker, initial_revision, events)?;
+        let mut projection = match previous.clone() {
+            Some(projection) => projection,
+            None => self.empty_projection_v6(tick, attacker)?,
+        };
+        let items = self.phase4.as_mut().ok_or_else(missing)?;
+        let player = items
+            .canonical
+            .players
+            .get_mut(&attacker)
+            .ok_or_else(missing)?;
+        let original_revision = player.inventory_revision;
+        let item = player.inventory.get_mut(&weapon).ok_or_else(missing)?;
+        if item.charges & ShotKind::Soul.bit() == 0 {
+            return Err(missing());
+        }
+        let before = item.clone();
+        item.charges &= !ShotKind::Soul.bit();
+        item.revision = revision;
+        let change = InventoryChange {
+            before: Some(before),
+            after: Some(item.clone()),
+        };
+        player.inventory_revision = revision;
+        let ordinal = projection.next_operation_ordinal().map_err(invariant)?;
+        let resolution = format!("attack:{attacker}:{}", start.0);
+        let cause = ItemAuditEvidence {
+            family: "shot_discharge".into(),
+            fields: BTreeMap::from([
+                ("attack_start".into(), V::Unsigned(start.0)),
+                ("resolution_id".into(), V::Text(resolution.clone())),
+                ("frozen_charges".into(), V::Unsigned(u64::from(plan.shots))),
+                ("discharged".into(), V::Unsigned(u64::from(ShotKind::Soul.bit()))),
+            ]),
+        };
+        projection.evidence.push(cause.clone());
+        projection.ledger.push(ItemDeltaPlan {
+            operation: ItemOperation::Use,
+            operation_ordinal: ordinal,
+            instance: weapon,
+            before: change.before.clone(),
+            after: change.after.clone(),
+            count_delta: 0,
+            receipt: None,
+            receipt_refs: Vec::new(),
+            causes: vec![cause],
+        });
+        self.item_evidence_delta(
+            plan.attacker,
+            &change,
+            ItemOperation::Use,
+            ordinal,
+            None,
+            &resolution,
+        );
+        self.publish_attack_projection_v6(
+            tick,
+            attacker,
+            previous.is_some(),
+            projection,
+            original_revision,
+            events,
+        )
+    }
 }

@@ -792,7 +792,8 @@ impl ZoneState {
         // A due stun/lethal cast cancels a swing before any of its damage draws.
         self.complete_casts_v5(tick, before_items, &mut events)?;
         if self.complete_runtime_v5() {
-            self.land_autos_v5(tick, &mut events)?;
+            self.land_autos_v5(tick, before_items, &mut events)?;
+            self.release_stale_attack_plans_v6();
         }
         self.note_hits_v5(tick)?;
         let mut item_receipts = std::mem::take(&mut staged.item_receipts);
@@ -816,8 +817,21 @@ impl ZoneState {
             }
         }
         if self.complete_runtime_v5() {
+            self.release_stale_attack_plans_v6();
             let first = events.len();
             self.start_swings(tick, &mut events);
+            let started: Vec<_> = events
+                .get(first..)
+                .ok_or_else(missing)?
+                .iter()
+                .filter_map(|event| {
+                    if let ZoneEvent::AttackStarted { attacker, .. } = event {
+                        Some(*attacker)
+                    } else {
+                        None
+                    }
+                })
+                .collect();
             for event in events.get(first..).ok_or_else(missing)? {
                 if let ZoneEvent::AttackStarted {
                     attacker, target, ..
@@ -828,6 +842,14 @@ impl ZoneState {
                         self.binding(*attacker).ok_or_else(missing)?,
                         self.binding(*target).ok_or_else(missing)?,
                     )?;
+                }
+            }
+            if self.phase4.is_some() {
+                for attacker in started {
+                    let initial = before_items
+                        .and_then(|items| items.players.get(&attacker))
+                        .map(|player| player.inventory_revision);
+                    self.start_attack_shots_v6(tick, attacker, initial, &mut events)?;
                 }
             }
         }

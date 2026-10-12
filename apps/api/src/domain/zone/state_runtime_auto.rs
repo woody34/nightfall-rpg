@@ -7,6 +7,7 @@ impl ZoneState {
     pub(in super::super) fn land_autos_v5(
         &mut self,
         tick: Tick,
+        before_items: Option<&crate::domain::zone::Phase4Snapshot>,
         events: &mut Vec<ZoneEvent>,
     ) -> Result<(), TickError> {
         let due: Vec<_> = self
@@ -28,6 +29,20 @@ impl ZoneState {
             };
             let start = events.len();
             self.land_auto_v5(tick, id, swing, events, &mut draw_damage_v5)?;
+            if self.phase4.is_some() {
+                let landed = events
+                    .get(start..)
+                    .ok_or_else(missing)?
+                    .iter()
+                    .any(|event| {
+                        matches!(event, ZoneEvent::AttackResult { attacker, outcome, .. }
+                        if *attacker == id && *outcome != AttackOutcome::Miss)
+                    });
+                let initial = before_items
+                    .and_then(|items| items.players.get(&id))
+                    .map(|player| player.inventory_revision);
+                self.finish_attack_shots_v6(tick, id, swing.start, landed, initial, events)?;
+            }
             if self.evidence.is_some() {
                 self.evidence_fact(
                     "auto_attack_resolution",
@@ -220,6 +235,12 @@ impl ZoneState {
             .checked_mul(ExactRatio::whole(76))
             .and_then(|v| v.checked_div(q(b.physical.p_def().raw())?))
             .map_err(invariant)?;
+        // Formulas.java:684,690 ssboost doubles P.Atk before the critical branch (V6 only).
+        if self.attack_soulshot_v6(source.entity) {
+            damage = damage
+                .checked_mul(ExactRatio::whole(2))
+                .map_err(invariant)?;
+        }
         if critical {
             let race_q = if self.entities.get(&source.entity).and_then(|e| e.combat.as_ref()).is_some_and(|c| matches!(&c.role, CombatRole::Player { progression: Some(p), .. } if p.identity.race == crate::domain::Race::DarkElf)) { 1_050_000 } else { Q };
             damage = damage
