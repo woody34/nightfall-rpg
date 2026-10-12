@@ -118,11 +118,23 @@ pub struct SkillHandler {
     pub section_raw_conditions: Vec<String>,
 }
 
+/// Rank-expanded inclusive source level interval (ConditionPlayerLevelRange.java:41–43).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(missing_docs)]
+pub struct PlayerLevelRange {
+    pub minimum: u32,
+    pub maximum: u32,
+}
+
 /// Recursive source conditions. Unsupported leaves remain inspectable deferred metadata.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 #[allow(missing_docs)]
 pub enum SkillCondition {
+    PlayerLevelRange {
+        ranges: Vec<PlayerLevelRange>,
+    },
     PlayerInsideZoneIds {
         zone_ids: Vec<u32>,
     },
@@ -184,6 +196,33 @@ pub enum SkillCondition {
 }
 
 impl SkillCondition {
+    fn valid_level_ranges(&self, ranks: u32) -> bool {
+        match self {
+            Self::PlayerLevelRange { ranges } => {
+                usize::try_from(ranks).ok() == Some(ranges.len())
+                    && ranges.iter().all(|range| range.minimum <= range.maximum)
+            },
+            Self::And { conditions, .. }
+            | Self::Or { conditions, .. }
+            | Self::Not { conditions, .. } => conditions
+                .iter()
+                .all(|child| child.valid_level_ranges(ranks)),
+            Self::PlayerInsideZoneIds { .. }
+            | Self::PlayerResting { .. }
+            | Self::PlayerStanding { .. }
+            | Self::PlayerMoving { .. }
+            | Self::PlayerRunning { .. }
+            | Self::PlayerCanEscape { .. }
+            | Self::PlayerFlyMounted { .. }
+            | Self::UsingSlot { .. }
+            | Self::PlayerWeight { .. }
+            | Self::PlayerInventorySize { .. }
+            | Self::UsingKind { .. }
+            | Self::PlayerCanResurrect { .. }
+            | Self::Unsupported { .. } => true,
+        }
+    }
+
     fn has_phase4(&self) -> bool {
         match self {
             Self::And { conditions, .. }
@@ -192,7 +231,8 @@ impl SkillCondition {
             Self::UsingKind { .. } | Self::PlayerCanResurrect { .. } | Self::Unsupported { .. } => {
                 false
             },
-            Self::PlayerInsideZoneIds { .. }
+            Self::PlayerLevelRange { .. }
+            | Self::PlayerInsideZoneIds { .. }
             | Self::PlayerResting { .. }
             | Self::PlayerStanding { .. }
             | Self::PlayerMoving { .. }
@@ -388,6 +428,11 @@ impl SkillRegistry {
         let mut blockers = BTreeMap::new();
         for (id, skill) in &skills {
             validate_skill_shape_revision(skill, &mut errors, phase4);
+            for condition in all_conditions(skill) {
+                if !condition.valid_level_ranges(skill.max_level) {
+                    errors.push(format!("skill {}: invalid rank level ranges", id.0));
+                }
+            }
             if *id != skill.id
                 || id.0 == 0
                 || skill.sample_only
@@ -732,6 +777,10 @@ fn condition_capabilities(
     phase4: bool,
 ) {
     match condition {
+        SkillCondition::PlayerLevelRange { .. } => {
+            // D34: retain the generated blocker until the live cast caller executes it.
+            missing.insert("cond:player:levelRange".into());
+        },
         SkillCondition::UsingKind { weapon_kinds } => {
             if weapon_kinds.is_empty()
                 || weapon_kinds.iter().any(|kind| {
