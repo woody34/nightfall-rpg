@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Independent Fraction oracle for V6 item formulas and actual-input replay gates.
 
-Reads pinned XML/Java directly, never generated item tables or Rust expectations.
+Expectations derive from pinned XML/Java and independent rational mathematics.
+Generated angle certificates are untrusted validation targets only.
 Unsupported source effects/conditions fail closed. Combat randomness is injected.
 """
 from __future__ import annotations
@@ -16,6 +17,7 @@ from pathlib import Path
 import re
 import subprocess
 import sys
+import tomllib
 from types import SimpleNamespace
 import xml.etree.ElementTree as ET
 
@@ -267,12 +269,34 @@ def physical_damage(p_atk,defence,power=0,caller='auto',shot=False,proximity='fr
     return max(F(1),result)
 
 
-def magic_damage(power,m_atk,m_def,spirit=False,blessed=False,shield_def=0,perfect=False,critical=False):
-    if perfect:return {'lower':F(1),'upper':F(1),'damage':1}
+def magic_damage(power,m_atk,m_def,spirit=False,blessed=False,shield_def=0,perfect=False,critical=False,
+                 attacker_player=True,target_player=False,is_pvp=None,skill_is_magic=True,
+                 pvp_magic_def=1,pvp_skill_def=1,magic_failures=False,first_success=True,
+                 second_success=None,level_difference=0,magic_crit_damage=1,spread=1,
+                 pvp_magic_damage=1,pvp_skill_damage=1,attribute=1,npc=1):
+    # Formulas.java:815-897: perfect block precedes all stat reads and draws.
+    if perfect:return {'lower':F(1),'upper':F(1),'damage':1,'damage_q':Q,'branch':'perfect'}
+    is_pvp=attacker_player and target_player if is_pvp is None else is_pvp
+    defence=exact(m_def)+exact(shield_def)
+    if is_pvp:defence*=exact(pvp_magic_def if skill_is_magic else pvp_skill_def)
+    if defence<=0 or exact(m_atk)<0:raise ValueError('unsupported magic stats')
     factor=4 if blessed else 2 if spirit else 1
-    coefficient=91*exact(power)/(exact(m_def)+exact(shield_def))*(3 if critical else 1)
-    result,lo,hi=floor_a_plus_b_root(0,coefficient,exact(m_atk)*factor)
-    return {'lower':coefficient*lo,'upper':coefficient*hi,'damage':max(1,result)}
+    coefficient=91*exact(power)/defence;constant=F(0);branch='success'
+    if magic_failures and not first_success:
+        branch='npc_failure'  # non-player failure leaves base damage unchanged
+        if attacker_player:
+            if second_success is None:raise ValueError('missing second magic success input')
+            if second_success and level_difference<=9:coefficient/=2;branch='half'
+            else:coefficient=F(0);constant=F(1);branch='resisted'
+    elif critical:
+        coefficient*=(F(5,2) if attacker_player and target_player else 3)*exact(magic_crit_damage)
+        branch='critical'
+    modifier=exact(spread)*(exact(pvp_magic_damage if skill_is_magic else pvp_skill_damage) if is_pvp else 1)*exact(attribute)*exact(npc)
+    coefficient*=modifier;constant*=modifier
+    damage,lo,hi=floor_a_plus_b_root(constant,coefficient,exact(m_atk)*factor)
+    damage_q=floor_a_plus_b_root(constant*Q,coefficient*Q,exact(m_atk)*factor)[0]
+    return {'lower':constant+coefficient*lo,'upper':constant+coefficient*hi,
+            'damage':damage,'damage_q':damage_q,'branch':branch}
 
 
 def cast_time(hit_time,casting_speed,spirit=False,blessed=False,static=False,is_magic=True):
@@ -283,18 +307,31 @@ def cast_time(hit_time,casting_speed,spirit=False,blessed=False,static=False,is_
     return max(500,time) if hit_time>500 else time
 
 
-def heal(power,m_atk,mp_consume2=0,mage=False,npc=False,grade='NONE',spirit=False,blessed=False,static=False,heal_effect=1,critical=False):
-    if static:return {'amount':exact(power),'coefficient':F(0),'static_bonus':F(0)}
-    static_bonus=F(0)
-    if (mage or npc) and (spirit or blessed):
-        coefficient=4 if blessed or npc else 2
-        static_bonus=exact(mp_consume2)*(F(12,5) if blessed or npc else 1)
-    else:
-        coefficient={'S84':4,'S80':2}.get(grade,1)
-        coefficient=coefficient*4 if blessed else coefficient+1
-    multiplier=exact(heal_effect)*(3 if critical else 1)
-    amount,lo,hi=floor_a_plus_b_root((exact(power)+static_bonus)*multiplier,multiplier,coefficient*exact(m_atk))
-    return {'amount':amount,'coefficient':F(coefficient),'static_bonus':static_bonus,'root_lower':lo,'root_upper':hi}
+def heal(power,m_atk,mp_consume2=0,mage=False,npc=False,grade='NONE',spirit=False,blessed=False,
+         static=False,heal_effect=1,critical=False,is_magic=True,current_hp=0,recoverable_hp=None,remainder_q=0):
+    if type(current_hp) is not int or type(remainder_q) is not int or not 0<=remainder_q<Q:
+        raise ValueError('invalid restoration state')
+    spirit=spirit and is_magic;blessed=blessed and is_magic
+    static_bonus=F(0);coefficient=0
+    if not static:
+        if (mage or npc) and (spirit or blessed):
+            coefficient=4 if blessed or npc else 2
+            static_bonus=exact(mp_consume2)*(F(12,5) if blessed or npc else 1)
+        else:
+            coefficient={'S84':4,'S80':2}.get(grade,1)
+            coefficient=coefficient*4 if blessed else coefficient+1
+    multiplier=F(1) if static else exact(heal_effect)*(3 if critical and is_magic else 1)
+    a=(exact(power)+static_bonus)*multiplier;b=F(0) if static else multiplier
+    amount_q,lo,hi=floor_a_plus_b_root(a*Q,b*Q,coefficient*exact(m_atk))
+    restoration_q=max(0,amount_q)
+    current_q=current_hp*Q+remainder_q
+    capacity_q=None if recoverable_hp is None else max(0,q(recoverable_hp)-current_q)
+    applied_q=restoration_q if capacity_q is None else min(restoration_q,capacity_q)
+    new_hp,new_remainder=divmod(current_q+applied_q,Q)
+    if capacity_q is not None and applied_q==capacity_q:new_remainder=0
+    return {'amount':F(applied_q,Q),'restoration_q':restoration_q,'applied_q':applied_q,
+            'current_hp':new_hp,'remainder_q':new_remainder,'whole_credit':new_hp-current_hp,
+            'coefficient':F(coefficient),'static_bonus':static_bonus,'root_lower':lo,'root_upper':hi}
 
 
 def blow_success(chance,dex,proximity,residue,modifier=1):
@@ -378,6 +415,70 @@ def charge_transition(charges,use_spirit=False,use_soul=False,landed=True,unequi
     return sorted(result)
 
 
+def shot_payment(charges,kind,count,available,weapon_grade,shot_grade,toggle=False,reduction=(),residue=None):
+    if kind not in {'soul','spirit','blessed'}:raise ValueError('unsupported shot kind')
+    result={'charges':sorted(charges),'available':available,'toggle':toggle,'consumed':0,'draws':[],'outcome':'unavailable'}
+    if count<=0 or weapon_grade is None:return result
+    splus=lambda grade:'S' if grade in {'S80','S84'} else grade
+    # Spirit handlers check existing charge first; SoulShots checks grade first.
+    if kind!='soul' and kind in charges:result['outcome']='already_charged';return result
+    if splus(weapon_grade)!=splus(shot_grade):result['outcome']='wrong_grade';return result
+    if kind in charges:result['outcome']='already_charged';return result
+    cost=count
+    if kind=='soul' and reduction and reduction[1]>0:
+        if residue is None or not 0<=residue<100:raise ValueError('missing reduction draw')
+        result['draws']=[{'site':'soulshot_reduction','bound':100,'residue':residue}]
+        if residue<reduction[0]:cost=reduction[1]
+    if available<cost:result['toggle']=False;result['outcome']='insufficient';return result
+    result.update(charges=sorted(set(charges)|{kind}),available=available-cost,consumed=cost,outcome='charged')
+    return result
+
+
+def shared_shot_bundle(charges,hits,use_spirit=False,use_soul=False,canceled=False,unequip=False):
+    # I2: one paid bundle is frozen for every recipient, then discharged once.
+    frozen=sorted(charges)
+    return {'recipient_charges':[frozen for hit in hits if hit and not canceled],
+            'after':charge_transition(frozen,use_spirit,use_soul,any(hits) and not canceled,unequip),
+            'payments':0}
+
+
+def winning_providers(providers):
+    if len({p['key'] for p in providers})!=len(providers):raise ValueError('duplicate provider key')
+    winners={}
+    for provider in sorted(providers,key=lambda p:p['key']):
+        sid=provider['skill_id']
+        if sid not in winners or provider['rank']>winners[sid]['rank']:winners[sid]=provider
+    return [(sid,p['rank'],p['sequence']) for sid,p in sorted(winners.items())]
+
+
+def consumable_use(definition,tick,available,item_deadlines=None,skill_deadlines=None,main_casting=False,condition_context=None):
+    available={int(key):count for key,count in available.items()}
+    item_deadlines={int(key):deadline for key,deadline in (item_deadlines or {}).items()}
+    skill_deadlines={int(key):deadline for key,deadline in (skill_deadlines or {}).items()}
+    key=definition['reuse_group'] if definition['reuse_group']>0 else definition['template_id']
+    if item_deadlines.get(key,0)>tick:return {'accepted':False,'reason':'item_reuse','consumed':{},'lanes':[]}
+    consumed=Counter();lanes=[]
+    for skill in definition['skills']:
+        if skill.get('blockers'):raise ValueError('unsupported consumable skill')
+        for condition in skill.get('conditions',[]):
+            if condition_context is None:raise ValueError('missing consumable condition context')
+            if not condition_matches(ET.fromstring(condition),condition_context):
+                return {'accepted':False,'reason':'condition','consumed':{},'lanes':[]}
+        if skill_deadlines.get(skill['id'],0)>tick:return {'accepted':False,'reason':'skill_reuse','consumed':{},'lanes':[]}
+        if main_casting and definition['etcitem_type'] not in {'POTION','ELIXIR','SCROLL'} and not definition['ex_immediate']:
+            return {'accepted':False,'reason':'casting_guard','consumed':{},'lanes':[]}
+        if skill['item_consume_id']>0:consumed[skill['item_consume_id']]+=skill['item_consume_count']
+        lanes.append('item' if skill['simultaneous'] or ((definition['immediate'] or definition['ex_immediate']) and skill['static']) else 'main')
+    if not any(skill['item_consume_id']>0 for skill in definition['skills']) and definition['default_action'] in {'CAPSULE','SKILL_REDUCE'} and definition['immediate']:
+        consumed[definition['template_id']]+=1
+    if any(available.get(sid,0)<count for sid,count in consumed.items()):return {'accepted':False,'reason':'items','consumed':{},'lanes':[]}
+    if definition['reuse_delay_ms']>0:item_deadlines[key]=tick+(definition['reuse_delay_ms']+99)//100
+    for skill in definition['skills']:
+        if skill['reuse_delay_ms']>0:skill_deadlines[skill['id']]=tick+(skill['reuse_delay_ms']+99)//100
+    return {'accepted':True,'consumed':dict(consumed),'lanes':lanes,'item_deadlines':item_deadlines,
+            'skill_deadlines':skill_deadlines,'main_cast_preserved':all(lane=='item' for lane in lanes)}
+
+
 class Source:
     def __init__(self,dp=DP,game=GAME):
         self.dp,self.game=dp,game;self.hashes={};self.items={};self.skills={};self.sets=[]
@@ -398,6 +499,8 @@ class Source:
         for path in sorted((dp/(D+'stats/armorsets')).glob('*.xml')):
             file=path.relative_to(dp).as_posix();text=self.read(file)
             for row in ET.fromstring(text).findall('set'):self.sets.append((file,row))
+        class_ids=self.read(G+'model/base/ClassId.java',True)
+        self.races={int(sid,16):race for sid,race in re.findall(r'\w+\((0x[0-9a-f]+), (?:true|false), (?:true, )?Race\.(\w+),',class_ids)}
         self.bonuses={s.tag:{int(r.get('value')):F(r.get('bonus')) for r in s.findall('stat')}
                       for s in self.xml(D+'stats/statBonus.xml')}
         self.hp={row.get('grade'):[int(b.text) for b in row.findall('bonus')]
@@ -408,15 +511,16 @@ class Source:
         self.grades={m[1]:{'id':int(m[2]),'crystal_id':int(m[3]),'armor_bonus':int(m[4]),'weapon_bonus':int(m[5])}
                      for m in re.finditer(r'^\s*(\w+)\((\d+), (\d+), (\d+), (\d+)\)',text,re.M)}
         for file in ['model/stats/functions/FuncEnchant.java','model/stats/functions/FuncEnchantHp.java',
-            'model/items/L2Item.java','model/actor/L2Character.java','model/actor/instance/L2PcInstance.java',
-            'model/stats/Formulas.java','network/clientpackets/RequestEnchantItem.java','network/clientpackets/RequestRefineCancel.java',
+            'model/items/L2Item.java','model/items/L2EtcItem.java','model/conditions/ConditionPlayerLevelRange.java','model/conditions/ConditionPlayerRace.java','model/actor/L2Character.java','model/actor/instance/L2PcInstance.java',
+            'model/stats/Formulas.java','model/stats/BaseStats.java','network/clientpackets/RequestEnchantItem.java','network/clientpackets/RequestRefineCancel.java',
             'network/clientpackets/AbstractRefinePacket.java','datatables/AugmentationData.java','model/itemcontainer/PcInventory.java',
             'model/stats/functions/formulas/FuncPDefMod.java','model/stats/functions/formulas/FuncMDefMod.java',
             'enums/StatFunction.java']:
             self.read(G+file,True)
         for path in sorted((game/(G+'model/stats/functions/formulas')).glob('*.java')):
             self.read(path.relative_to(game).as_posix(),True)
-        self.read('src/main/java/com/l2jserver/datapack/handlers/effecthandlers/instant/Heal.java')
+        for file in ['effecthandlers/instant/Heal.java','itemhandlers/SoulShots.java','itemhandlers/SpiritShot.java','itemhandlers/BlessedSpiritShot.java','itemhandlers/ItemSkillsTemplate.java','itemhandlers/ManaPotion.java']:
+            self.read('src/main/java/com/l2jserver/datapack/handlers/'+file)
         self.read('src/main/resources/config/character.properties',True)
         self.read('src/main/resources/config/customs.properties',True)
     def read(self,file,game=False):
@@ -437,10 +541,32 @@ class Source:
         raise ValueError('no eligible source template')
 
 
+def player_level_range(condition,rank,level):
+    if set(condition)!={'kind','ranges'} or condition['kind']!='player_level_range':raise ValueError('invalid level-range node')
+    if type(rank) is not int or not 1<=rank<=len(condition['ranges']) or type(level) is not int:raise ValueError('invalid level-range input')
+    bounds=condition['ranges'][rank-1]
+    if set(bounds)!={'minimum','maximum'} or any(type(v) is not int for v in bounds.values()) or bounds['minimum']>bounds['maximum']:
+        raise ValueError('invalid level-range bounds')
+    return bounds['minimum']<=level<=bounds['maximum']
+
+
 def condition_matches(node,context):
     if node.tag in {'and','cond'}:return all(condition_matches(c,context) for c in node)
     if node.tag=='or':return any(condition_matches(c,context) for c in node)
     if node.tag=='not':return not any(condition_matches(c,context) for c in node)
+    if node.tag=='player' and set(node.attrib) in ({'canEscape'},{'canResurrect'}):
+        key=next(iter(node.attrib))
+        return context[key]==(node.get(key)=='true')
+    if node.tag=='player' and set(node.attrib)=={'insideZoneId'}:
+        return bool(set(map(int,node.get('insideZoneId').split(','))) & set(context['inside_zone_ids']))
+    if node.tag=='player' and set(node.attrib)=={'races'}:
+        return context['race'] in node.get('races').split(',')
+    if node.tag=='player' and set(node.attrib)=={'levelRange'}:
+        parts=node.get('levelRange').split(';')
+        if len(parts)!=2 or not all(p.isdigit() for p in parts):raise ValueError('unresolved level range')
+        minimum,maximum=map(int,parts)
+        if minimum>maximum:raise ValueError('inverted level range')
+        return minimum<=context['level']<=maximum
     if node.tag=='using' and set(node.attrib)=={'kind'}:return context['weapon_type'] in node.get('kind').split(',') or context.get('armor_type') in node.get('kind').split(',')
     if node.tag=='using' and set(node.attrib)=={'slot'}:return node.get('slot') in context['slots']
     if node.tag=='player' and set(node.attrib) in ({'resting'},{'standing'},{'moving'},{'running'}):
@@ -450,7 +576,7 @@ def condition_matches(node,context):
     raise ValueError('unsupported oracle fold condition '+node.tag+str(node.attrib))
 
 
-def gear_stats(src,class_file,level,equipment,skill_refs=(),base_deltas=None):
+def gear_stats(src,class_file,level,equipment,skill_refs=(),base_deltas=None,base_delta_sequence=-1):
     """Equipment entries are (template_id, enchant, concrete slot, install sequence).
 
     Skills are explicit winning providers; no synthetic learned mastery or expertise.
@@ -458,8 +584,6 @@ def gear_stats(src,class_file,level,equipment,skill_refs=(),base_deltas=None):
     """
     root=src.xml(class_file);static=root.find('staticData');gain=next(n for n in root.findall('lvlUpgainData/level') if int(n.get('val'))==level)
     base={k:int(static.findtext('base'+k)) for k in ['STR','DEX','CON','INT','WIT','MEN']}
-    for key,delta in (base_deltas or {}).items():base[key.upper()]+=delta
-    bonus={k:src.bonuses[k][v] for k,v in base.items()}
     lm=F(level+89,100)
     pslots={n.tag:F(n.text) for n in static.find('basePDef')}
     mslots={n.tag:F(n.text) for n in static.find('baseMDef')};mslots['lfinger']=mslots['rfinger']
@@ -467,11 +591,11 @@ def gear_stats(src,class_file,level,equipment,skill_refs=(),base_deltas=None):
         'mDef':sum(mslots.values()),'critRate':F(static.findtext('baseCritRate')),'pAtkSpd':F(static.findtext('basePAtkSpd')),
         'maxHp':F(gain.findtext('hp')),'maxMp':F(gain.findtext('mp')),'maxCp':F(gain.findtext('cp')),
         'mAtkSpd':F(static.findtext('baseMAtkSpd','333')),'runSpd':F(static.findtext('baseMoveSpd/run')),
-        'regHp':max(F(1),F(gain.findtext('hpRegen'))*bonus['CON']*lm),
-        'regMp':max(F(1),F(gain.findtext('mpRegen'))*bonus['MEN']*lm),
-        'regCp':max(F(1),F(gain.findtext('cpRegen'))*bonus['CON']*lm),
+        'regHp':F(gain.findtext('hpRegen'))*lm,
+        'regMp':F(gain.findtext('mpRegen'))*lm,
+        'regCp':F(gain.findtext('cpRegen'))*lm,
         'atkCountMax':F(1),'pAtkAngle':F(static.findtext('baseDamRange/width')),'pAtkRange':F(static.findtext('baseAtkRange')),
-        'critDmg':F(1),'critDmgAdd':F(0),'sDef':F(0),'rShld':F(0),'shieldDefAngle':F(0),'rEvas':F(0),'weightLimit':F(69000)*bonus['CON']//1}
+        'critDmg':F(1),'critDmgAdd':F(0),'sDef':F(0),'rShld':F(0),'shieldDefAngle':F(0),'rEvas':F(0),'weightLimit':F(69000)}
     slots={row[2] for row in equipment};weapon_type='FIST';armor_type='NONE'
     for sid,enchant,slot,seq in equipment:
         p=src.properties(sid)
@@ -481,11 +605,13 @@ def gear_stats(src,class_file,level,equipment,skill_refs=(),base_deltas=None):
             damage_parts=p.get('damage_range','').split(';')
             values['pAtkAngle']=F(damage_parts[3]) if len(damage_parts)>=4 and damage_parts[3].isdigit() else F(120)
         if slot=='chest':armor_type=p.get('armor_type','NONE')
-    context={'slots':slots,'weapon_type':weapon_type,'armor_type':armor_type};funcs=[];hp_bonus=0;traits=[]
+    context={'slots':slots,'weapon_type':weapon_type,'armor_type':armor_type,'level':level,'race':src.races[int(root.findtext('classId'))]};funcs=[];hp_bonus=0;traits=[]
     if len({sid for sid,rank,seq in skill_refs})!=len(skill_refs):raise ValueError('duplicate winning skill provider')
     orders={'set':0,'enchant':0,'add':30,'sub':30,'mul':20,'div':20}
     for sid,enchant,slot,seq in equipment:
         file,line,item=src.items[sid];p=src.properties(sid)
+        if p.get('for_npc')=='true':raise ValueError('NPC-only equipment')
+        if item.find('cond') is not None and not condition_matches(item.find('cond'),context):raise ValueError('equipment condition failed')
         for ordinal,node in enumerate(item.findall('for/*')):
             if node.tag not in orders:raise ValueError('unsupported oracle function '+node.tag)
             stat=node.get('stat');value=F(node.get('val','0'))
@@ -494,7 +620,20 @@ def gear_stats(src,class_file,level,equipment,skill_refs=(),base_deltas=None):
         if item.get('type')=='Armor' and p.get('crystal_type','NONE')!='NONE' and p.get('bodypart') in {'chest','legs','feet','head','gloves','back','fullarmor','onepiece','shirt','underwear','lhand','belt','waist'}:
             hp_bonus+=enchant_hp(src.hp.get('S' if p['crystal_type'] in {'S80','S84'} else p['crystal_type'],[]),enchant,p.get('bodypart') in {'fullarmor','onepiece'})
     for sid,rank,seq in skill_refs:
-        file,skill=src.skills[sid];tables={n.get('name'):n.text.split() for n in skill.findall('table')}
+        file,skill=src.skills[sid]
+        if not 1<=rank<=int(skill.get('levels','1')):raise ValueError('invalid provider rank')
+        if skill.get('id') is None:raise ValueError('missing skill identity')
+        tables={n.get('name'):n.text.split() for n in skill.findall('table')}
+        def resolved_conditions(nodes):
+            result=[]
+            for node in nodes:
+                copied=ET.fromstring(ET.tostring(node))
+                for child in copied.iter():
+                    for key,value in child.attrib.items():
+                        if value.startswith('#'):child.set(key,tables[value][rank-1])
+                result.append(copied)
+            return result
+        if not all(condition_matches(node,context) for node in resolved_conditions(skill.findall('cond'))):continue
         for effect_ordinal,effect in enumerate(skill.findall('effects/effect')):
             name=effect.get('name')
             if name in {'DefenceTrait','AttackTrait'}:
@@ -511,7 +650,32 @@ def gear_stats(src,class_file,level,equipment,skill_refs=(),base_deltas=None):
             for ordinal,node in enumerate(effect):
                 if node.tag not in orders:raise ValueError('unsupported passive oracle child '+node.tag)
                 value=node.get('val');value=tables[value][rank-1] if value.startswith('#') else value
-                funcs.append((int(node.get('order',orders[node.tag])),seq,(effect_ordinal,ordinal),node.get('stat'),node.tag,F(value),list(node)))
+                funcs.append((int(node.get('order',orders[node.tag])),seq,(effect_ordinal,ordinal),node.get('stat'),node.tag,F(value),resolved_conditions(list(node))))
+    for ordinal,(key,delta) in enumerate((base_deltas or {}).items()):
+        if key.upper() not in base:raise ValueError('unknown set attribute')
+        funcs.append((1,base_delta_sequence,(0,ordinal),key.upper(),'add',exact(delta),[]))
+    trace=[]
+    ordered=sorted(funcs,key=lambda row:(row[0],row[1],row[2]))
+    for order,seq,ordinal,stat,op,value,conditions in ordered:
+        if stat not in base:continue
+        if not all(condition_matches(c,context) for c in conditions):continue
+        old=F(base[stat])
+        if op=='set':new=value
+        elif op=='add':new=old+value
+        elif op=='sub':new=old-value
+        elif op=='mul':new=old*value
+        elif op=='div':new=old/value
+        else:raise ValueError('unsupported attribute operation')
+        if new.denominator!=1 or int(new) not in src.bonuses[stat]:raise ValueError('unsupported effective attribute')
+        base[stat]=int(new)
+        trace.append({'order':order,'sequence':seq,'handler_ordinal':ordinal[0],'ordinal':ordinal[1],
+                      'stat':stat,'operation':op,'before':old,'operand':value,'after':new})
+    funcs=[row for row in funcs if row[3] not in base]
+    bonus={k:src.bonuses[k][v] for k,v in base.items()}
+    values['regHp']=max(F(1),values['regHp']*bonus['CON'])
+    values['regMp']=max(F(1),values['regMp']*bonus['MEN'])
+    values['regCp']=max(F(1),values['regCp']*bonus['CON'])
+    values['weightLimit']=values['weightLimit']*bonus['CON']//1
     psub=msub=F(0)
     for stat in pslots:
         concrete={'underwear':'under','cloak':'cloak'}.get(stat,stat)
@@ -529,7 +693,7 @@ def gear_stats(src,class_file,level,equipment,skill_refs=(),base_deltas=None):
     accuracy_add=F(level+(level-76 if level>77 else 0)+(level-69 if level>69 else 0))
     funcs.append((1,-1,(0,0),'accCombat','accuracy',accuracy_add,[]))
     funcs.append((40,-1,(0,0),'maxHp','add',F(hp_bonus),[]))
-    trace=[];accuracy_a=accuracy_b=F(0)
+    accuracy_a=accuracy_b=F(0)
     for order,seq,ordinal,stat,op,value,conditions in sorted(funcs,key=lambda row:(row[0],row[1],row[2])):
         if not all(condition_matches(c,context) for c in conditions):continue
         if stat=='accCombat':
@@ -544,7 +708,8 @@ def gear_stats(src,class_file,level,equipment,skill_refs=(),base_deltas=None):
             new={'rational':accuracy_a,'root_coefficient':accuracy_b,'radicand':base['DEX']}
             trace.append({'order':order,'sequence':seq,'handler_ordinal':ordinal[0],'ordinal':ordinal[1],'stat':stat,'operation':op,'before':old,'operand':value,'after':new})
             continue
-        old=values.get(stat,F(0 if op!='mul' else 1))
+        if stat not in values:raise ValueError('unsupported oracle stat '+str(stat))
+        old=values[stat]
         if op in {'set','evasion'}:new=value
         elif op=='add':new=old+value
         elif op=='sub':new=old-value
@@ -574,14 +739,22 @@ def consumable_definition(src,template_id):
         tables={n.get('name'):n.text.split() for n in skill.findall('table')}
         def resolve(value):return tables[value][rank-1] if value.startswith('#') else value
         sets={n.get('name'):resolve(n.get('val')) for n in skill.findall('set')}
+        conditions=[]
+        for cond in skill.findall('cond'):
+            copied=ET.fromstring(ET.tostring(cond))
+            for node in copied.iter():
+                for key,value in node.attrib.items():node.set(key,resolve(value))
+            conditions.append(ET.tostring(copied,encoding='unicode'))
         effects=[]
         for effect in skill.findall('effects/effect'):
             effects.append({'name':effect.get('name'),'params':{key:resolve(value) for n in effect.findall('param') for key,value in n.attrib.items()}})
         result.append({'id':sid,'rank':rank,'hit_time_ms':int(sets.get('hitTime','0')),
             'static':sets.get('isMagic')=='2','simultaneous':sets.get('simultaneousCast','false')=='true',
-            'item_consume_id':int(sets.get('itemConsumeId','0')),'item_consume_count':int(sets.get('itemConsumeCount','0')),
+            'reuse_delay_ms':int(sets.get('reuseDelay','0')),
+            'item_consume_id':int(sets.get('itemConsumeId','0')),'item_consume_count':int(sets.get('itemConsumeCount','0')),'conditions':conditions,
             'effects':effects,'source':file})
     return {'template_id':template_id,'handler':properties.get('handler',''),
+        'default_action':properties.get('default_action','NONE'),'etcitem_type':properties.get('etcitem_type','NONE'),
         'reuse_delay_ms':int(properties.get('reuse_delay','0')),'reuse_group':int(properties.get('shared_reuse_group','0')),
         'immediate':properties.get('immediate_effect','false')=='true','ex_immediate':properties.get('ex_immediate_effect','false')=='true',
         'skills':result}
@@ -601,7 +774,7 @@ def verify_facts(facts):
     formulas={function.__name__:function for function in [enchant_increment,enchant_hp,crystal_count,failure_refund,
         enchant_chance,enchant_outcome,enchant_valid,max_load,overload,grade_penalties,fist_spread,pole_damage,pole_sequence,
         bow_reuse,bow_damage,dual_damage,dual_timing,skill_caller_damage,position,shield,physical_damage,magic_damage,cast_time,heal,blow_success,lethal,retail_select,
-        retail_distribution,category,pack_options,cancel_fee,set_shield_history,clamp_no_heal,charge_transition]}
+        retail_distribution,category,pack_options,cancel_fee,set_shield_history,clamp_no_heal,charge_transition,shot_payment,shared_shot_bundle,winning_providers,consumable_use,player_level_range]}
     if not facts:raise ValueError('missing item facts')
     for fact in facts:
         if set(fact)!={'formula','inputs','expected'} or fact['formula'] not in formulas:raise ValueError('unsupported or malformed item fact')
@@ -620,11 +793,12 @@ def make_vectors(src):
     human=D+'stats/chars/baseStats/HumanFighter.xml'
     core_sources=['G/model/stats/functions/FuncEnchant.java:43-155','G/model/stats/functions/formulas/FuncPDefMod.java:44-70',
                   'G/model/stats/functions/formulas/FuncMDefMod.java:44-66','G/model/actor/templates/L2PcTemplate.java:71-75']
-    def eligible(p):return not any(k in p for k in ['duration','time','item_skill','oncrit_skill','onmagic_skill','unequip_skill'])
+    def eligible(p):return p.get('for_npc','false')!='true' and not any(k in p for k in ['duration','time','item_skill','oncrit_skill','onmagic_skill','unequip_skill'])
     for i,kind in enumerate(['SWORD','BLUNT','DAGGER','BOW','DUAL','DUALFIST','POLE'],1):
-        sid=src.choose(lambda sid,n,p:p.get('weapon_type')==kind and eligible(p) and n.find('cond') is None)
+        sid=15 if kind=='POLE' else src.choose(lambda sid,n,p:p.get('weapon_type')==kind and eligible(p) and n.find('cond') is None)
+        refs=[(3599,1,2)] if kind=='POLE' else []
         gear=[(sid,0,'rhand',1)]
-        add('F1',f'gear-{i:02d}-{kind}',{'class_file':human,'level':84,'equipment':gear,'expertise':7,'masteries':[]},gear_stats(src,human,84,gear),[src.citation(sid),*core_sources])
+        add('F1',f'gear-{i:02d}-{kind}',{'class_file':human,'level':84,'equipment':gear,'expertise':7,'masteries':[],'skill_refs':refs},gear_stats(src,human,84,gear,refs),[src.citation(sid),*core_sources])
     add('F1','gear-08-FIST',{'class_file':human,'level':1,'equipment':[],'masteries':[]},gear_stats(src,human,1,[]),core_sources+['G/model/actor/L2Character.java:5034-5044'])
     for i,grade in enumerate(['D','C','B','A','S','S80'],9):
         magic=grade in {'D','B','S'};twohand=grade in {'C','A','S80'}
@@ -682,7 +856,7 @@ def make_vectors(src):
     injected=ET.fromstring(src.read(human))
     injected.find('staticData/baseMDef/lfinger').text='999'
     injected.find('staticData/baseMDef/rfinger').text='7'
-    proxy=SimpleNamespace(xml=lambda file:injected,bonuses=src.bonuses,items=src.items,skills=src.skills,hp=src.hp,properties=src.properties)
+    proxy=SimpleNamespace(xml=lambda file:injected,bonuses=src.bonuses,items=src.items,skills=src.skills,hp=src.hp,properties=src.properties,races=src.races)
     add('F1','RFINGER-duplication-unequal-injected-bases',{'class_file':human,'level':84,'injected_lfinger':999,'injected_rfinger':7},
         gear_stats(proxy,human,84,[]),[human,'G/model/actor/templates/L2PcTemplate.java:71-75','design/12.1 injected unequal finger bases'])
     for sid in [4270,6209,6213,3599]:
@@ -838,7 +1012,193 @@ def make_vectors(src):
         for use_spirit,use_soul in [(True,True),(False,True)]:
             inputs={'charges':['soul','spirit','blessed'],'use_spirit':use_spirit,'use_soul':use_soul,'landed':landed,'unequip':unequip}
             add('F8',f'charge-{landed}-{unequip}-{use_spirit}-{use_soul}',inputs,charge_transition(**inputs),['design/I2 shared charge, all miss retention and blessed precedence'])
+    add_revision_vectors(src,add,human)
     return vectors
+
+
+def scroll_bindings(src):
+    groups=src.xml(D+'enchantItemGroups.xml')
+    for scroll in src.xml(D+'enchantItemData.xml').findall('enchant'):
+        sid=int(scroll.get('id'));kind=src.properties(sid).get('etcitem_type','NONE')
+        weapon=kind in {'ANCIENT_CRYSTAL_ENCHANT_WP','BLESS_SCRL_ENCHANT_WP','SCRL_ENCHANT_WP'}
+        group_id=int(scroll.get('scrollGroupId','0'))
+        group=next((g for g in groups.findall('enchantScrollGroup') if int(g.get('id'))==group_id),None)
+        if group is None:raise ValueError('unsupported scroll group')
+        for binding in group.findall('enchantRate'):
+            targets=[dict(n.attrib) for n in binding.findall('item') if (n.get('slot') in {'rhand','lrhand'})==weapon]
+            if targets:yield scroll,binding.get('group'),targets
+
+
+def add_revision_vectors(src,add,human):
+    formula=['G/model/stats/Formulas.java:815-897']
+    for name,kwargs in [
+        ('pve-critical',{'critical':True}),
+        ('pvp-critical',{'critical':True,'target_player':True}),
+        ('playable-nonplayer-critical',{'critical':True,'is_pvp':True,'attacker_player':False,'target_player':True}),
+        ('half-success',{'critical':True,'magic_failures':True,'first_success':False,'second_success':True,'level_difference':9}),
+        ('resisted-level',{'magic_failures':True,'first_success':False,'second_success':True,'level_difference':10}),
+        ('resisted-second',{'magic_failures':True,'first_success':False,'second_success':False}),
+        ('nonplayer-failure',{'attacker_player':False,'magic_failures':True,'first_success':False,'critical':True}),
+        ('disabled-failures',{'magic_failures':False,'first_success':False,'critical':True}),
+        ('perfect-skips',{'perfect':True,'m_def':0,'magic_failures':True,'first_success':False}),
+        ('modifiers-magic',{'target_player':True,'pvp_magic_def':2,'pvp_magic_damage':F(3,2),'spread':F(9,10),'attribute':F(6,5),'npc':F(4,5),'magic_crit_damage':F(5,4),'critical':True}),
+        ('modifiers-physical',{'target_player':True,'skill_is_magic':False,'pvp_skill_def':3,'pvp_skill_damage':2,'attribute':F(7,5)})]:
+        for spirit,blessed in [(False,False),(True,False),(False,True),(True,True)]:
+            inputs=dict(power=100,m_atk=100,m_def=100,spirit=spirit,blessed=blessed);inputs.update(kwargs)
+            add('F8',f'magic-branch-{name}-{spirit}-{blessed}',inputs,magic_damage(**inputs),formula)
+    hp=0;remainder=0
+    for step in range(3):
+        inputs=dict(power=100,m_atk=121,current_hp=hp,remainder_q=remainder,recoverable_hp=1000)
+        result=heal(**inputs);hp=result['current_hp'];remainder=result['remainder_q']
+        add('F8',f'heal-fraction-repeat-{step}',inputs,result,['H/effecthandlers/instant/Heal.java:92-104','design/P3:128 restoration Q remainder'])
+    for name,kwargs in [('partial',{'current_hp':950,'recoverable_hp':1000,'remainder_q':500000}),
+                        ('full',{'current_hp':1000,'recoverable_hp':1000}),
+                        ('over',{'current_hp':1001,'recoverable_hp':1000}),
+                        ('static',{'static':True,'power':'1.25','heal_effect':9,'critical':True,'current_hp':9,'recoverable_hp':10}),
+                        ('negative-static',{'static':True,'power':-1})]:
+        inputs=dict(power=100,m_atk=121);inputs.update(kwargs)
+        add('F8','heal-clamp-'+name,inputs,heal(**inputs),['H/effecthandlers/instant/Heal.java:92-104'])
+    inputs={'class_file':human,'level':1,'equipment':[(1,0,'rhand',1)],'skill_refs':[(8498,1,2)]}
+    attribute_sources=['D/stats/skills/08400-08499.xml:1906-1916','G/model/stats/BaseStats.java:80-85',
+        'G/model/stats/functions/formulas/FuncPAtkMod.java:42-43','G/model/stats/functions/formulas/FuncArmorSet.java:46-67']
+    add('F1','attribute-provider',inputs,gear_stats(src,**inputs),attribute_sources)
+    for file,set_node in src.sets:
+        deltas={n.tag:int(n.get('val')) for n in set_node if n.tag in {'str','dex','con','int','wit','men'}}
+        if not deltas.get('str'):continue
+        gear=[(1,0,'rhand',1)]+[(int(set_node.find(slot).get('id')),0,slot,i+2)
+            for i,slot in enumerate(['chest','legs','head','gloves','feet']) if set_node.find(slot) is not None]
+        refs=[(int(n.get('id')),int(n.get('level')),100+i) for i,n in enumerate(set_node.findall('skill'))]+[(8498,1,200)]
+        inputs={'class_file':human,'level':1,'equipment':gear,'skill_refs':refs,'base_deltas':deltas}
+        try:sheet=gear_stats(src,**inputs)
+        except (ValueError,KeyError):continue
+        text=src.read(file);anchor=text[:text.index('<set id="'+set_node.get('id')+'"')].count('\n')+1
+        add('F1','attribute-set-interaction',dict(inputs,set_id=int(set_node.get('id'))),sheet,[file+':'+str(anchor),*attribute_sources])
+        break
+    else:raise ValueError('no source-executable attribute/set interaction')
+    # Source SET/enchant installation, complete removal, and fresh reinstallation.
+    for step,gear in enumerate([[(69,4,'rhand',1)],[],[(69,4,'rhand',3)]]):
+        inputs={'class_file':human,'level':1,'equipment':gear}
+        add('F1',f'provider-install-remove-reinstall-{step}',inputs,gear_stats(src,**inputs),
+            [src.citation(69),'design/3.2 retained sequence and no onStart'])
+    providers=[];sequence=0
+    events=[('install','item:15',3599,1),('install','learned:3599',3599,1),
+            ('remove','item:15',3599,1),('install','item:15',3599,1),('remove','learned:3599',3599,1)]
+    for step,(op,key,sid,rank) in enumerate(events):
+        if op=='install':
+            sequence+=1;providers.append({'key':key,'skill_id':sid,'rank':rank,'sequence':sequence})
+        else:providers=[p for p in providers if p['key']!=key]
+        refs=winning_providers(providers)
+        inputs={'providers':list(providers),'event':events[step],'equipment':[(15,0,'rhand',10)]}
+        result={'winning_refs':refs,'sheet':gear_stats(src,human,1,inputs['equipment'],refs),'on_start_hooks':[]}
+        add('F1',f'provider-overlap-{step}',inputs,result,[src.citation(15),'D/stats/skills/03500-03599.xml:1695-1705','design/3.2 provider-key tie and rank winner'])
+    for scroll,name,targets in scroll_bindings(src):
+        sid=int(scroll.get('id'));maximum=int(scroll.get('maxEnchant','65535'));bonus=F(scroll.get('bonusRate','0'))
+        for lower,upper,chance in src.rates[name]:
+            # Compact intervals cover EVERY integer level, with maximum boundary split.
+            stops=sorted({lower,upper+1,*([maximum+1] if lower<=maximum<upper else [])})
+            for start,end in zip(stops,stops[1:]):
+                valid=enchant_valid(start,maximum)
+                inputs={'scroll_id':sid,'group_id':int(scroll.get('scrollGroupId','0')),'group':name,
+                        'targets':targets,'current_min':start,'current_max':end-1,'bonus':bonus,'max_enchant':maximum}
+                result={'valid':valid,'base':chance,'chance_1e5':enchant_chance(chance,bonus),
+                        'success_enchant_delta':int(chance>0),'draw_bound':100000 if valid else None}
+                add('F4',f'scroll-binding-{sid}-{name}-{start}-{end-1}',inputs,result,
+                    ['D/enchantItemData.xml:4-136','D/enchantItemGroups.xml:4-99','G/model/items/enchant/EnchantScroll.java:49-56,102-157','G/model/items/enchant/AbstractEnchantItem.java:59-61,109-130'])
+    for kind in ['soul','spirit','blessed']:
+        for toggle in [False,True]:
+            for name,kwargs in [('paid',{}),('splus',{'weapon_grade':'S84','shot_grade':'S'}),
+                                ('wrong-grade',{'shot_grade':'C'}),('empty',{'available':0}),
+                                ('already',{'charges':[kind]}),('no-weapon',{'weapon_grade':None})]:
+                inputs=dict(charges=[],kind=kind,count=2,available=10,weapon_grade='D',shot_grade='D',toggle=toggle);inputs.update(kwargs)
+                payment=shot_payment(**inputs)
+                add('F8',f'shot-payment-{kind}-{toggle}-{name}',inputs,payment,
+                    ['H/itemhandlers/SoulShots.java:61-98','H/itemhandlers/SpiritShot.java:60-92','H/itemhandlers/BlessedSpiritShot.java:63-95'],payment['draws'])
+    reduced_sid=next(sid for sid in sorted(src.items) if 'reduced_soulshot' in src.properties(sid))
+    p=src.properties(reduced_sid);reduction=list(map(int,p['reduced_soulshot'].split(',')))
+    for residue in [0,reduction[0]-1,reduction[0],99]:
+        for available in [0,reduction[1],int(p['soulshots'])]:
+            inputs=dict(charges=[],kind='soul',count=int(p['soulshots']),available=available,
+                        weapon_grade=p['crystal_type'],shot_grade=p['crystal_type'],toggle=True,reduction=reduction,residue=residue)
+            payment=shot_payment(**inputs)
+            add('F8',f'shot-reduction-{reduced_sid}-{residue}-{available}',inputs,payment,
+                [src.citation(reduced_sid),'H/itemhandlers/SoulShots.java:85-98'],payment['draws'])
+    for caller,hits in [('dual',[False,False]),('dual',[True,False]),('dual',[False,True]),('dual',[True,True]),('pole',[False,True,True]),('multi-target',[True,True,True])]:
+        for canceled,unequip in [(False,False),(True,False),(False,True)]:
+            inputs=dict(charges=['soul','spirit','blessed'],hits=hits,use_spirit=caller=='multi-target',use_soul=caller!='multi-target',canceled=canceled,unequip=unequip)
+            add('F8',f'shot-bundle-{caller}-{hits}-{canceled}-{unequip}',inputs,shared_shot_bundle(**inputs),['design/I2 single charge/discharge per bundle'])
+    for template in [736,1538,737,1539,1540,5591,5592,8628,14688]:
+        definition=consumable_definition(src,template)
+        inputs={'definition':definition,'tick':10,'available':{template:10},'condition_context':{'level':1,'canEscape':True,'canResurrect':True,'inside_zone_ids':[]}}
+        result=consumable_use(**inputs)
+        add('F12',f'consumable-consume-once-{template}',inputs,result,[src.citation(template),'H/itemhandlers/ItemSkillsTemplate.java:81-129,139-149','G/model/actor/L2Character.java:1560-1566'])
+        if result['accepted'] and result['item_deadlines']:
+            next_inputs=dict(inputs,tick=11,item_deadlines=result['item_deadlines'],skill_deadlines=result['skill_deadlines'])
+            add('F12',f'consumable-shared-reuse-{template}',dict(next_inputs,stack_identity=2),consumable_use(**next_inputs),[src.citation(template),'design/8 reuse shared-group across stack identities'])
+        inputs['main_casting']=True
+        add('F12',f'consumable-lane-{template}',inputs,consumable_use(**inputs),[src.citation(template),'H/itemhandlers/ItemSkillsTemplate.java:98-115','design/I5 ordered lane'])
+    # Same-tick lane decisions and consumption remain distinct with an in-flight main cast.
+    lane_defs=[consumable_definition(src,sid) for sid in [736,1539]]
+    add('F12','consumable-same-tick-lanes',{'tick':10,'definitions':lane_defs},
+        [consumable_use(d,10,{d['template_id']:1},main_casting=False,condition_context={'level':1,'canEscape':True,'canResurrect':True,'inside_zone_ids':[]}) for d in lane_defs],['H/itemhandlers/ItemSkillsTemplate.java:98-129','design/I5 same tick main/item lanes'])
+    for sid in [2287,2288,2289,2860,2861,2862]:
+        if sid not in src.skills:raise ValueError('missing elixir skill')
+        file,skill=src.skills[sid];tables={n.get('name'):n.text.split() for n in skill.findall('table')}
+        node=skill.find('cond/player');values=tables[node.get('levelRange')]
+        for rank,value in enumerate(values,1):
+            minimum,maximum=map(int,value.split(';'));resolved=ET.fromstring(ET.tostring(node));resolved.set('levelRange',value)
+            for level in [minimum-1,minimum,maximum,maximum+1]:
+                add('F12',f'elixir-range-{sid}-{rank}-{level}',{'skill_id':sid,'rank':rank,'minimum':minimum,'maximum':maximum,'level':level},
+                    condition_matches(resolved,{'level':level}),[file,'G/model/conditions/ConditionPlayerLevelRange.java:41-43'])
+
+
+def verify_coverage(src,vectors):
+    """Design 12.1 data-only gates; live runtime/codec/scenarios remain 12.2/12.4."""
+    by_id={v['id']:v for v in vectors}
+    required={f'gear-{i:02d}-{kind}' for i,kind in enumerate(['SWORD','BLUNT','DAGGER','BOW','DUAL','DUALFIST','POLE'],1)}
+    required|={'gear-08-FIST','attribute-provider','attribute-set-interaction','consumable-same-tick-lanes'}
+    required|={f'provider-install-remove-reinstall-{step}' for step in range(3)}
+    required|={f'provider-overlap-{step}' for step in range(5)}
+    required|={f'heal-fraction-repeat-{step}' for step in range(3)}
+    required|={f'heal-clamp-{name}' for name in ['partial','full','over','static','negative-static']}
+    required|={f'consumable-{kind}-{sid}' for sid in [736,1538,737,1539,1540,5591,5592,8628,14688] for kind in ['consume-once','lane']}
+    required|={f'shot-payment-{kind}-{toggle}-{case}' for kind in ['soul','spirit','blessed'] for toggle in [False,True]
+               for case in ['paid','splus','wrong-grade','empty','already','no-weapon']}
+    required|={f'gear-{i:02d}-{grade}-e4' for i,grade in enumerate(['D','C','B','A','S','S80'],9)}
+    required|={'gear-15-S84-e6','gear-16-chest-e4','gear-17-lhand-e6','gear-18-lfinger-e6'}
+    required|={f'gear-{i:02d}-{kind}-set' for i,kind in [(19,'HEAVY'),(20,'LIGHT'),(21,'MAGIC')]}
+    required|={f'magic-branch-{name}-{spirit}-{blessed}' for name in ['pve-critical','pvp-critical','playable-nonplayer-critical',
+        'half-success','resisted-level','resisted-second','nonplayer-failure','disabled-failures','perfect-skips','modifiers-magic','modifiers-physical']
+        for spirit,blessed in [(False,False),(True,False),(False,True),(True,True)]}
+    required|={f'shot-bundle-{caller}-{hits}-{canceled}-{unequip}' for caller,hits in [('dual',[False,False]),('dual',[True,False]),('dual',[False,True]),('dual',[True,True]),('pole',[False,True,True]),('multi-target',[True,True,True])]
+        for canceled,unequip in [(False,False),(True,False),(False,True)]}
+    reduced_sid=next(sid for sid in sorted(src.items) if 'reduced_soulshot' in src.properties(sid))
+    p=src.properties(reduced_sid);reduction=list(map(int,p['reduced_soulshot'].split(',')))
+    required|={f'shot-reduction-{reduced_sid}-{residue}-{available}' for residue in [0,reduction[0]-1,reduction[0],99]
+        for available in [0,reduction[1],int(p['soulshots'])]}
+    for sid in [2287,2288,2289,2860,2861,2862]:
+        table={n.get('name'):n.text.split() for n in src.skills[sid][1].findall('table')}
+        for rank,value in enumerate(table['#levelRange'],1):
+            lo,hi=map(int,value.split(';'))
+            required|={f'elixir-range-{sid}-{rank}-{level}' for level in [lo-1,lo,hi,hi+1]}
+    missing=required-by_id.keys()
+    if missing:raise ValueError('design 12.1 missing vectors: '+','.join(sorted(missing)))
+    pole=by_id['gear-07-POLE']['inputs']
+    if pole['equipment'][0][0]!=15 or pole['skill_refs']!=[[3599,1,2]]:raise ValueError('missing player pole skill')
+    binding_count=0;level_count=0
+    for scroll,name,targets in scroll_bindings(src):
+        sid=int(scroll.get('id'));rows=sorted((v for v in vectors if v['id'].startswith(f'scroll-binding-{sid}-{name}-')),key=lambda v:v['inputs']['current_min'])
+        cursor=0
+        for row in rows:
+            inputs=row['inputs']
+            if inputs['current_min']!=cursor or inputs['targets']!=targets:raise ValueError('scroll/group/level coverage gap')
+            cursor=inputs['current_max']+1
+        if cursor!=65536:raise ValueError('incomplete scroll/group/level coverage')
+        binding_count+=1;level_count+=cursor
+    for family in [f'F{i}' for i in range(1,13)]:
+        if not any(v['family']==family for v in vectors):raise ValueError('missing design 12.1 family '+family)
+    return {'design':'12.1','required_cases':len(required),'scroll_group_bindings':binding_count,
+            'covered_scroll_group_levels':level_count,'level_encoding':'contiguous inclusive source-rate intervals',
+            'live_integration_sections':['12.2','12.4']}
 
 
 @lru_cache(maxsize=None)
@@ -854,11 +1214,13 @@ def independent_pi():
     return F(lower*scale//1,scale),F(-((-upper*scale)//1),scale)
 
 
+@lru_cache(maxsize=None)
 def independent_cosine(degrees):
     degrees=F(degrees)%360
     if degrees>180:degrees=360-degrees
     if degrees==0:return F(1),F(1)
     if degrees==180:return F(-1),F(-1)
+    if degrees==90:return F(0),F(0)
     lower,upper=independent_pi();lower*=degrees/180;upper*=degrees/180
     def series(argument):
         partial=sum(((-1)**k*argument**(2*k)/factorial(2*k) for k in range(56)),F())
@@ -866,28 +1228,61 @@ def independent_cosine(degrees):
     return series(upper)[0],series(lower)[1]
 
 
+EXACT_ANGLES={0:F(1),60:F(3,4),90:F(1,2),120:F(1,4),180:F(0),240:F(1,4),270:F(1,2),300:F(3,4),360:F(1)}
+ANGLE_BOUND=256000  # test_zone bounds: 0..256 tiles, design D21
+
+
+def independent_angle_table():
+    rows=[];scale=1<<192
+    for degrees in range(361):
+        lo,hi=independent_cosine(degrees)
+        if degrees in EXACT_ANGLES:lower=upper=EXACT_ANGLES[degrees]
+        else:lower=F(((1+lo)/2)*scale//1,scale);upper=F(-((-((1+hi)/2)*scale)//1),scale)
+        clo,chi=independent_cosine(F(degrees,2))
+        rows.append({'degrees':degrees,'cos2_lower':str(lower),'cos2_upper':str(upper),
+                     'cos_lower':str(F(clo*scale//1,scale)),'cos_upper':str(F(-((-chi*scale)//1),scale)),
+                     'certified':True,'blockers':[]})
+    return {'coordinate_bound_millitiles':ANGLE_BOUND,'angles':rows}
+
+
+def verify_angle_table(table):
+    if type(table['coordinate_bound_millitiles']) is not int or table['coordinate_bound_millitiles']!=ANGLE_BOUND:
+        raise ValueError('incorrect angle coordinate bound')
+    if [row['degrees'] for row in table['angles']]!=list(range(361)):raise ValueError('incomplete angle table')
+    maximum=4*ANGLE_BOUND**4
+    for row in table['angles']:
+        deg=row['degrees'];lower,upper=F(row['cos2_lower']),F(row['cos2_upper'])
+        if row['certified'] is not True or row['blockers']:raise ValueError('invalid angle certificate')
+        if deg in EXACT_ANGLES:
+            if lower!=EXACT_ANGLES[deg] or upper!=EXACT_ANGLES[deg]:raise ValueError('incorrect exact angle boundary')
+        else:
+            lo,hi=independent_cosine(deg)
+            if not lower<=(1+lo)/2<=(1+hi)/2<=upper:raise ValueError('angle interval not independently enclosing')
+            if lower<=((lower+upper)/2).limit_denominator(maximum)<=upper:raise ValueError('angle rational separation failed')
+        lo,hi=independent_cosine(F(deg,2))
+        if not F(row['cos_lower'])<=lo<=hi<=F(row['cos_upper']):raise ValueError('cosine interval not independently enclosing')
+    return True
+
+
 def generate(dp=DP,game=GAME):
     src=Source(dp,game);vectors=make_vectors(src)
-    # Independent angle enclosure: direct full-angle Taylor rather than generator's half-angle values.
-    try:from gen_item_angles import generate_angles
-    except ModuleNotFoundError:from packages.data.scripts.gen_item_angles import generate_angles
-    table=generate_angles();angles=[]
-    bound=table['coordinate_bound_millitiles'];maximum=4*bound**4
+    # Generated output is evidence under test, never an expectation provider.
+    verify_angle_table(tomllib.loads((ROOT/'tables-phase4/angle_table.toml').read_text()))
+    table=independent_angle_table();angles=[]
     for row in table['angles']:
-        deg=row['degrees'];lo,hi=independent_cosine(deg)
-        lower,upper=F(row['cos2_lower']),F(row['cos2_upper'])
-        if lower!=upper and not (lower<=(1+lo)/2<=(1+hi)/2<=upper):raise ValueError('angle interval not independently enclosing')
-        if lower!=upper and lower<=((lower+upper)/2).limit_denominator(maximum)<=upper:raise ValueError('angle rational separation failed')
-        angles.append({'degrees':deg,'certified':row['certified'],'cos2_lower':lower,'cos2_upper':upper})
+        angles.append({'degrees':row['degrees'],'certified':True,
+                       'cos2_lower':F(row['cos2_lower']),'cos2_upper':F(row['cos2_upper'])})
     for deg,relative in [(0,(1,0)),(90,(1,1)),(120,(1,2)),(180,(0,1)),(270,(-1,1)),(360,(-1,0))]:
         vectors.append({'id':f'angle-{deg}-{relative}','family':'F9','inputs':{'degrees':deg,'facing':[1,0],'relative':relative},
                         'expected':angle_contains((1,0),relative,deg,table),'sources':['design/D21 bounded certified interval geometry'],'draws':[]})
     for vector in vectors:
         vector['vector_sha256']=hashlib.sha256(json.dumps({k:v for k,v in vector.items() if k!='vector_sha256'},sort_keys=True,separators=(',',':')).encode()).hexdigest()
     if len({vector['id'] for vector in vectors})!=len(vectors):raise ValueError('duplicate oracle vector identity')
+    coverage_gate=verify_coverage(src,vectors)
     manifest={'schema':1,'source_revisions':{'datapack':DP_REV,'game':GAME_REV},'source_file_sha256':dict(sorted(src.hashes.items())),
               'policy':'Independent pinned-source exact-rational oracle; injected random residues; V6 integer adaptations, not Java binary64 identity.',
               'coverage':dict(sorted(Counter(r['family'] for r in vectors).items())),
+              'coverage_gate':coverage_gate,
               'vectors':vectors,'angles':rational(angles)}
     manifest=rational(manifest)
     manifest['vector_set_sha256']=hashlib.sha256(json.dumps(manifest['vectors'],sort_keys=True,separators=(',',':')).encode()).hexdigest()
