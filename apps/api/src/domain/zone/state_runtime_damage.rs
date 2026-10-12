@@ -3,7 +3,10 @@
 mod auto;
 #[path = "state_runtime_blow.rs"]
 mod blow;
+#[path = "state_runtime_bow.rs"]
+mod bow;
 use super::*;
+pub(in crate::domain::zone) use bow::BowStart;
 
 impl ZoneState {
     /// Formulas.java:708–710,767–770,880–883: player-versus-player only, before
@@ -7517,6 +7520,212 @@ mod tests {
         assert_eq!(result.outcome, SkillOutcome::Crit);
         assert_eq!(trace.len(), 5);
     }
+    #[test]
+    #[allow(clippy::too_many_lines)] // Actual equip, start guards, payment, timing and falloff.
+    fn v6_bow_pays_arrow_and_mp_at_start_uses_bow_timing_reach_and_distance_falloff() {
+        use crate::domain::zone::phase4_projection::ItemOperation;
+        use crate::domain::zone::{EquipSlot, ItemCommandKind};
+        let (mut zone, owner, npc, ids) = use_fixture(&[13]);
+        let rules = Arc::clone(&zone.phase4.as_ref().unwrap().rules);
+        let bow = ids[0];
+        let equip = item_intent(
+            &zone,
+            owner.entity,
+            983,
+            ItemCommandKind::Equip {
+                instance: bow,
+                preferred_slot: None,
+            },
+        );
+        let tick = zone
+            .run_tick(zone.draft(vec![review_input(
+                owner.entity,
+                1,
+                ZoneCommand::Item(Box::new(equip)),
+            )]))
+            .unwrap();
+        assert!(tick.dispositions.is_empty(), "{:?}", tick.dispositions);
+        let held = &zone.phase4.as_ref().unwrap().canonical.players[&owner.entity];
+        let arrow = held.paperdoll[&EquipSlot::Lhand];
+        assert_eq!(held.inventory[&arrow].template_id, 17);
+        let stock = held.inventory[&arrow].count;
+        // Bow reach is floor(500×1000/32) milli-tiles (CharStat.java:424-436, design §5.4).
+        assert_eq!(
+            zone.entities[&owner.entity]
+                .combat
+                .as_ref()
+                .unwrap()
+                .attack_range,
+            Fixed::from_raw(15_625)
+        );
+        // Eight tiles away: far outside melee reach, inside bow reach.
+        let start = zone.entities[&owner.entity].pos;
+        let far = Vec2Fixed::new(Fixed::from_raw(start.x.raw() + 8_000), start.y);
+        let old = zone.entities[&npc.entity].pos;
+        zone.entities.get_mut(&npc.entity).unwrap().pos = far;
+        zone.aoi.relocate(npc.entity, old, far);
+        let attack = |zone: &ZoneState, seq| {
+            zone.draft(vec![
+                review_input(
+                    owner.entity,
+                    seq,
+                    ZoneCommand::SetTarget {
+                        entity: owner.entity,
+                        target: Some(npc.entity),
+                    },
+                ),
+                review_input(
+                    owner.entity,
+                    seq + 1,
+                    ZoneCommand::Attack {
+                        entity: owner.entity,
+                    },
+                ),
+            ])
+        };
+        // Not enough MP: no start, no arrow, the intention is retained (retry later).
+        let mut starved = zone.clone();
+        starved
+            .entities
+            .get_mut(&owner.entity)
+            .unwrap()
+            .combat
+            .as_mut()
+            .unwrap()
+            .mp = 0;
+        starved.sidecar_mut(owner.entity).unwrap().fractions.mp = 0;
+        let waited = starved.run_tick(attack(&starved, 2)).unwrap();
+        assert!(!waited
+            .events
+            .iter()
+            .any(|e| matches!(e, ZoneEvent::AttackStarted { .. })));
+        let c = starved.entities[&owner.entity].combat.as_ref().unwrap();
+        assert!(c.auto_attack && c.swing.is_none());
+        assert_eq!(
+            starved.phase4.as_ref().unwrap().canonical.players[&owner.entity].inventory[&arrow]
+                .count,
+            stock
+        );
+        // No arrows anywhere: the attack intention ends without payment.
+        let mut empty = zone.clone();
+        let destroy = item_intent(
+            &empty,
+            owner.entity,
+            984,
+            ItemCommandKind::Destroy {
+                instance: arrow,
+                count: stock,
+            },
+        );
+        let destroyed = empty
+            .run_tick(empty.draft(vec![review_input(
+                owner.entity,
+                2,
+                ZoneCommand::Item(Box::new(destroy)),
+            )]))
+            .unwrap();
+        assert!(destroyed.dispositions.is_empty(), "{:?}", destroyed.dispositions);
+        assert!(!empty.phase4.as_ref().unwrap().canonical.players[&owner.entity]
+            .inventory
+            .values()
+            .any(|item| item.template_id == 17));
+        let mp = empty.entities[&owner.entity].combat.as_ref().unwrap().mp;
+        let stopped = empty.run_tick(attack(&empty, 3)).unwrap();
+        assert!(!stopped
+            .events
+            .iter()
+            .any(|e| matches!(e, ZoneEvent::AttackStarted { .. })));
+        let c = empty.entities[&owner.entity].combat.as_ref().unwrap();
+        assert!(!c.auto_attack);
+        assert_eq!(c.mp, mp);
+        // The last arrow fires and leaves the left hand empty (design §5.4).
+        let mut last = zone.clone();
+        let trim = item_intent(
+            &last,
+            owner.entity,
+            985,
+            ItemCommandKind::Destroy {
+                instance: arrow,
+                count: stock - 1,
+            },
+        );
+        let trimmed = last
+            .run_tick(last.draft(vec![review_input(
+                owner.entity,
+                2,
+                ZoneCommand::Item(Box::new(trim)),
+            )]))
+            .unwrap();
+        assert!(trimmed.dispositions.is_empty(), "{:?}", trimmed.dispositions);
+        let shot = last.run_tick(attack(&last, 3)).unwrap();
+        assert!(shot
+            .events
+            .iter()
+            .any(|e| matches!(e, ZoneEvent::AttackStarted { .. })));
+        let held = &last.phase4.as_ref().unwrap().canonical.players[&owner.entity];
+        assert!(!held.paperdoll.contains_key(&EquipSlot::Lhand));
+        assert!(!held.inventory.contains_key(&arrow));
+        ZoneState::from_snapshot_with_items(last.snapshot(), Some(Arc::clone(&rules))).unwrap();
+        // Accepted start pays MP once and one arrow, and freezes bow timing.
+        let mut cold =
+            ZoneState::from_snapshot_with_items(zone.snapshot(), Some(Arc::clone(&rules))).unwrap();
+        zone.enable_items_replay_evidence().unwrap();
+        let mp = zone.entities[&owner.entity].combat.as_ref().unwrap().mp;
+        let draft = attack(&zone, 2);
+        let fired = zone.run_tick(draft.clone()).unwrap();
+        assert!(fired.dispositions.is_empty(), "{:?}", fired.dispositions);
+        assert_eq!(fired, cold.run_tick(draft).unwrap());
+        let c = zone.entities[&owner.entity].combat.as_ref().unwrap();
+        let swing = c.swing.unwrap();
+        assert_eq!(c.mp, mp - 1);
+        let speed = (i128::from(c.sheet.attack_speed().raw()) + i128::from(Q) / 2) / i128::from(Q);
+        let attack_ms = 500_000 / speed;
+        let reuse_ms = 1500 * 333 / speed;
+        let ceil = |ms: i128| u64::try_from((ms + 99) / 100).unwrap();
+        assert_eq!(swing.impact.0 - swing.start.0, ceil(attack_ms));
+        assert_eq!(swing.ready.0 - swing.start.0, ceil(attack_ms + reuse_ms));
+        let held = &zone.phase4.as_ref().unwrap().canonical.players[&owner.entity];
+        assert_eq!(held.inventory[&arrow].count, stock - 1);
+        let debit = fired
+            .events
+            .iter()
+            .find_map(|e| match e {
+                ZoneEvent::ItemCheckpoint(p) if p.entity == owner.entity => Some(p),
+                _ => None,
+            })
+            .unwrap()
+            .ledger
+            .iter()
+            .find(|d| d.operation == ItemOperation::Consume)
+            .unwrap()
+            .clone();
+        assert_eq!((debit.instance, debit.count_delta), (arrow, -1));
+        assert!(debit.receipt_refs.is_empty());
+        assert_eq!(debit.causes[0].family, "arrow_payment");
+        // L2Character.java:1033 falloff: trunc(D×(distance/4000 + 4/5)), distance in L2 units.
+        let mut probe = zone.clone();
+        for (offset, damage, expected) in [
+            (0, 100, 80),
+            (125_000, 100, 180),
+            (15_625, 100, 92),
+            (8_000, 37, 31),
+            (0, 1, 0),
+        ] {
+            let at = Vec2Fixed::new(Fixed::from_raw(start.x.raw() + offset), start.y);
+            let before = probe.entities[&npc.entity].pos;
+            probe.entities.get_mut(&npc.entity).unwrap().pos = at;
+            probe.aoi.relocate(npc.entity, before, at);
+            assert_eq!(
+                probe
+                    .bow_distance_v6(owner.entity, npc.entity, damage)
+                    .unwrap(),
+                expected,
+                "{offset} {damage}"
+            );
+        }
+        ZoneState::from_snapshot_with_items(zone.snapshot(), Some(rules)).unwrap();
+    }
+
     #[test]
     #[allow(clippy::too_many_lines)] // One shielded victim exercised through every auto branch.
     fn v6_auto_attack_shield_block_position_and_draw_order() {

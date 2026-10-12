@@ -291,7 +291,7 @@ impl ZoneState {
     }
 
     /// The owner's private projection for this tick plus the one shared revision step (D55).
-    fn attack_projection_v6(
+    pub(super) fn attack_projection_v6(
         &self,
         tick: Tick,
         attacker: EntityId,
@@ -328,7 +328,7 @@ impl ZoneState {
     }
 
     #[allow(clippy::too_many_arguments)] // The owner's tick projection and its revision base.
-    fn publish_attack_projection_v6(
+    pub(super) fn publish_attack_projection_v6(
         &mut self,
         tick: Tick,
         attacker: EntityId,
@@ -368,7 +368,7 @@ impl ZoneState {
         Ok(())
     }
 
-    fn empty_projection_v6(
+    pub(super) fn empty_projection_v6(
         &self,
         tick: Tick,
         attacker: EntityId,

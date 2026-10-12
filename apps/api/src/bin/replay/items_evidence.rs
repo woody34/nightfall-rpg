@@ -134,6 +134,14 @@ fn export_cause(cause: &ItemAuditEvidence) -> anyhow::Result<Value> {
     }
     let identity = if let Some(receipt) = cause.contributing_receipt()? {
         receipt_text(serde_json::to_value(receipt)?)?
+    } else if cause.family == "arrow_payment" {
+        let Some(ItemEvidenceValue::Text(resolution)) = cause.fields.get("resolution_id") else {
+            bail!("arrow payment lacks attack resolution identity");
+        };
+        if resolution.is_empty() || resolution.chars().any(char::is_whitespace) {
+            bail!("invalid arrow resolution identity");
+        }
+        json!(format!("arrow:{resolution}"))
     } else if cause.family == "auto_shot_payment" {
         let Some(ItemEvidenceValue::Text(resolution)) = cause.fields.get("resolution_id") else {
             bail!("automatic shot payment lacks resolution identity");
@@ -325,14 +333,15 @@ fn normalize_d66(
                 .context("delta operation")?
                 .to_owned())
         };
+        // Positive rows and count-neutral rows (e.g. an automatic arrow equip) keep their
+        // observed order ahead of the aggregate, exactly as the engine ledger does.
         let mut positives = Vec::new();
         let mut consumes = Vec::new();
-        let mut others = 0_usize;
         for &index in &slots {
-            match operation(index)?.as_str() {
-                "grant" | "starter" | "backfill" => positives.push(index),
-                "consume" => consumes.push(index),
-                _ => others = others.saturating_add(1),
+            if operation(index)? == "consume" {
+                consumes.push(index);
+            } else {
+                positives.push(index);
             }
         }
         let [consume] = consumes.as_slice() else {
@@ -341,10 +350,6 @@ fn normalize_d66(
             }
             bail!("D66 chain has more than one Consume aggregate");
         };
-        if others != 0 {
-            // Equip/enchant/etc. on a consumed instance in one tick has no D66 canonical order.
-            bail!("D66 cannot order a Consume chain that also changes non-count fields");
-        }
         let (start, end) = bounds.get(&key).context("D66 chain bounds")?;
         let mut rows = Vec::with_capacity(slots.len());
         let mut state = start.clone();
@@ -356,10 +361,13 @@ fn normalize_d66(
             let delta = row
                 .get("count_delta")
                 .and_then(Value::as_i64)
-                .filter(|delta| *delta > 0)
-                .context("positive row lacks a positive count delta")?;
+                .filter(|delta| *delta >= 0)
+                .context("D66 chain row before the Consume aggregate removes count")?;
             let observed = row.get("after").context("positive after")?;
-            if observed.is_null() || (!state.is_null() && !same_identity(&state, observed)) {
+            if observed.is_null()
+                || (state.is_null() && delta == 0)
+                || (delta > 0 && !state.is_null() && !same_identity(&state, observed))
+            {
                 bail!("D66 positive row changes instance identity");
             }
             let count = json_count(&state)?
@@ -882,7 +890,25 @@ mod tests {
         if let ItemEvidenceData::Delta(row) = &mut equip.fact {
             *row.pointer_mut("/after/location").context("location")? = json!("paperdoll");
         }
-        assert!(d66(vec![equip, observed("consume", Some(3), Some(2))]).is_err());
+        // A count-neutral automatic equip stays ahead of the aggregate (bow arrow auto-select).
+        let mut equipped = observed("consume", Some(3), Some(2));
+        if let ItemEvidenceData::Delta(row) = &mut equipped.fact {
+            *row.pointer_mut("/before/location").context("location")? = json!("paperdoll");
+            *row.pointer_mut("/after/location").context("location")? = json!("paperdoll");
+        }
+        assert_eq!(
+            d66(vec![equip, equipped])?,
+            vec![
+                json!({"operation":"equip","ordinal":0,"before":3,"after":3,"delta":0}),
+                json!({"operation":"consume","ordinal":1,"before":3,"after":2,"delta":-1}),
+            ]
+        );
+        // A non-Consume count decrease cannot precede the aggregate.
+        assert!(d66(vec![
+            observed("destroy", Some(3), Some(1)),
+            observed("consume", Some(1), Some(0))
+        ])
+        .is_err());
         let mut relabelled = observed("grant", Some(2), Some(5));
         if let ItemEvidenceData::Delta(row) = &mut relabelled.fact {
             *row.pointer_mut("/after/template_id").context("template")? = json!(1463);

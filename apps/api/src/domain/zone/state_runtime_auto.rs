@@ -255,9 +255,14 @@ impl ZoneState {
             AttackOutcome::Hit
         };
         if v6 {
-            return self
-                .auto_damage_v6(source, target, &a, &b, proximity, shield, critical, draw)
-                .map(|damage| (outcome, damage));
+            let damage =
+                self.auto_damage_v6(source, target, &a, &b, proximity, shield, critical, draw)?;
+            let damage = if self.bow_attacker_v6(source.entity) {
+                self.bow_distance_v6(source.entity, target.entity, damage)?
+            } else {
+                damage
+            };
+            return Ok((outcome, damage));
         }
         let mut damage = q(a.physical.p_atk().raw())
             .map_err(invariant)?

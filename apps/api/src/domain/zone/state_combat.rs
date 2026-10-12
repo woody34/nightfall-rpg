@@ -1000,9 +1000,15 @@ impl ZoneState {
 
     /// After impacts: every idle auto-attacker whose cooldown is over and whose target is in
     /// reach stops and starts a swing; one out of reach keeps chasing.
-    pub(super) fn start_swings(&mut self, tick: Tick, events: &mut Vec<ZoneEvent>) {
+    pub(super) fn start_swings(
+        &mut self,
+        tick: Tick,
+        before_items: Option<&crate::domain::zone::Phase4Snapshot>,
+        events: &mut Vec<ZoneEvent>,
+    ) -> Result<(), super::TickError> {
+        use super::runtime::BowStart;
         let Some(rules) = self.rules.clone() else {
-            return;
+            return Ok(());
         };
         for id in self.idle_attackers() {
             let Some(attacker) = self.entities.get(&id) else {
@@ -1025,21 +1031,52 @@ impl ZoneState {
                 continue;
             }
             self.halt(tick, id, events);
+            let ready = self
+                .entities
+                .get(&id)
+                .and_then(|e| e.combat.as_ref())
+                .is_some_and(|c| tick >= c.ready_at);
+            // V6 bow guard (design §5.4): arrows/MP are paid at the accepted start.
+            let bow = if ready && self.phase4.is_some() {
+                let initial = before_items
+                    .and_then(|items| items.players.get(&id))
+                    .map(|player| player.inventory_revision);
+                self.bow_start_v6(tick, id, initial, events)?
+            } else {
+                BowStart::Melee
+            };
+            match bow {
+                BowStart::Wait => continue,
+                BowStart::Stop => {
+                    self.disengage(tick, id, SwingCancel::Stopped, events);
+                    continue;
+                },
+                BowStart::Melee | BowStart::Fire { .. } => {},
+            }
             let Some(c) = self.entities.get_mut(&id).and_then(|e| e.combat.as_mut()) else {
                 continue;
             };
             if tick < c.ready_at {
                 continue;
             }
-            let Ok(timing) = attack_timing(rules.constants(), c.sheet.attack_speed()) else {
-                continue;
+            let (impact_ticks, cycle_ticks) = if let BowStart::Fire {
+                impact_ticks,
+                cycle_ticks,
+            } = bow
+            {
+                (impact_ticks, cycle_ticks)
+            } else {
+                let Ok(timing) = attack_timing(rules.constants(), c.sheet.attack_speed()) else {
+                    continue;
+                };
+                (timing.impact_ticks, timing.cycle_ticks)
             };
             let swing = Swing {
                 target: g.target,
                 target_incarnation: g.incarnation,
                 start: tick,
-                impact: Tick(tick.0.saturating_add(timing.impact_ticks)),
-                ready: Tick(tick.0.saturating_add(timing.cycle_ticks)),
+                impact: Tick(tick.0.saturating_add(impact_ticks)),
+                ready: Tick(tick.0.saturating_add(cycle_ticks)),
             };
             c.swing = Some(swing);
             c.ready_at = swing.ready;
@@ -1060,6 +1097,7 @@ impl ZoneState {
                 ready: swing.ready,
             });
         }
+        Ok(())
     }
 }
 

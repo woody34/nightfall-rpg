@@ -15,6 +15,7 @@ mod live_life;
 mod live_observe;
 #[path = "state_runtime_shots.rs"]
 mod live_shots;
+pub(in crate::domain::zone) use live_damage::BowStart;
 
 use super::*;
 use crate::domain::zone::effective_stats::{EffectiveStats, NpcStatInputs, PlayerStatInputs};
@@ -308,8 +309,12 @@ impl ZoneState {
                 .vitals_dirty
                 .insert(id);
         }
+        let attack_range = self.attack_range_v6(id, &effective)?;
         let e = self.entities.get_mut(&id).ok_or_else(missing)?;
         let c = e.combat.as_mut().ok_or_else(missing)?;
+        if let Some(range) = attack_range {
+            c.attack_range = range;
+        }
         c.hp = c.hp.min(effective.physical.max_hp());
         c.mp = c.mp.min(effective.physical.max_mp());
         c.sheet = effective.physical;
@@ -819,7 +824,7 @@ impl ZoneState {
         if self.complete_runtime_v5() {
             self.release_stale_attack_plans_v6();
             let first = events.len();
-            self.start_swings(tick, &mut events);
+            self.start_swings(tick, before_items, &mut events)?;
             let started: Vec<_> = events
                 .get(first..)
                 .ok_or_else(missing)?
