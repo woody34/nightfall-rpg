@@ -94,3 +94,7 @@ no effects in any section: these are source item-selector no-ops (e.g. support
 skill2515). It never admits targetless damage/buffs. EnchantScrolls is an explicit
 selection handler for EnchantItem, not a missing cast effect. Sample286 carries
 `sample:out_of_scope` in both its V6 definition and capability row.
+
+`storable` is false for excluded Common/shadow/time-limited/NPC-only/pet contexts;
+V6 has no lifecycle/owner state for those items. Unsupported ordinary equipment
+effects or starter-extra uses remain storable while equip/use fails closed.
