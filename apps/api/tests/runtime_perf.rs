@@ -33,6 +33,7 @@ use api::infrastructure::telemetry::Metrics;
 use api::infrastructure::zone_data::{parse_zone, TEST_ZONE_TOML};
 use api::interface::ws::Phase3Codec;
 use api::zone_runtime::prepare_phase3_bootstrap;
+use futures_util::StreamExt as _;
 use nightfall_api as api;
 use sha2::{Digest, Sha256};
 use sqlx::Row;
@@ -131,7 +132,7 @@ async fn eight_session_casting_runtime() {
             Arc::new(metrics.clone()),
         )
         .with_learning(repo.clone())
-        .with_durability(log, store),
+        .with_durability(log.clone(), store),
     );
     let registry = SessionRegistry::with_characters(repo.clone());
     let mut players = Vec::new();
@@ -202,6 +203,7 @@ async fn eight_session_casting_runtime() {
     let interval = std::env::var("PERF_INTERVAL_MS").map_or(100, |s| s.parse::<u64>().unwrap());
     let mut durations = Vec::new();
     let mut casts = BTreeMap::<EntityId, usize>::new();
+    let mut completions = BTreeMap::<EntityId, usize>::new();
     let mut frames = 0_usize;
     for tick in 1..=ticks {
         let started = Instant::now();
@@ -235,6 +237,19 @@ async fn eight_session_casting_runtime() {
         let mapping = Instant::now();
         while let Ok(record) = outputs.try_recv() {
             for event in &record.events {
+                if let ZoneEvent::SkillCastResult {
+                    caster, targets, ..
+                } = event
+                {
+                    if targets.iter().any(|t| {
+                        matches!(
+                            t.outcome,
+                            SkillOutcome::Hit | SkillOutcome::Crit | SkillOutcome::Half
+                        )
+                    }) {
+                        *completions.entry(caster.entity).or_default() += 1;
+                    }
+                }
                 if let ZoneEvent::SkillCastStarted { caster, .. } = event {
                     *casts.entry(caster.entity).or_default() += 1;
                 }
@@ -263,9 +278,32 @@ async fn eight_session_casting_runtime() {
         casts.values().sum::<usize>(),
         frames
     );
+    // The actor broadcast omits idle ticks. Read the acknowledged log outside timing.
+    let mut records = log.read_epoch(def_zone(), 1).await.unwrap();
+    let mut next = 0;
+    while let Some(record) = records.next().await {
+        let record = record.unwrap();
+        assert_eq!(record.tick, Tick(next));
+        println!(
+            "DURABLE_FINGERPRINT tick={} record={:x}",
+            record.tick.0,
+            Sha256::digest(record.encode())
+        );
+        next += 1;
+    }
+    assert_eq!(next, ticks + 1);
     for player in &players {
         let count = casts.get(player).copied().unwrap_or_default();
         println!("CASTS player={player} successful={count}");
+        let completed = completions.get(player).copied().unwrap_or_default();
+        println!("COMPLETIONS player={player} successful={completed}");
+        assert!(
+            completed
+                >= usize::try_from(ticks / 60)
+                    .unwrap()
+                    .saturating_sub(1)
+                    .max(1)
+        );
         assert!(
             count
                 >= usize::try_from(ticks / 60)
