@@ -3,6 +3,7 @@ syntax = "proto3";
 package nightfall.v1;
 
 import "nightfall/v1/game.proto";
+import "nightfall/v1/items.proto";
 
 // Real-time channel envelopes (Phase 0 §3.2). These are NOT gRPC messages: one ClientMessage
 // or ServerMessage is sent per binary WebSocket frame on GET /ws. The play ticket goes in the
@@ -41,6 +42,16 @@ message ClientMessage {
     CastSkillRequest cast_skill = 16;
     CancelCastRequest cancel_cast = 17;
     AcceptResurrectRequest accept_resurrect = 18;
+    EquipItemRequest equip_item = 19;
+    UnequipItemRequest unequip_item = 20;
+    UseItemRequest use_item = 21;
+    DestroyItemRequest destroy_item = 22;
+    EnchantItemRequest enchant_item = 23;
+    ToggleAutoShotRequest toggle_auto_shot = 24;
+    RefineItemRequest refine_item = 25;
+    CancelRefineRequest cancel_refine = 26;
+    ExchangeSpecialAbilityRequest exchange_special_ability = 27;
+    CrystallizeItemRequest crystallize_item = 28;
   }
 }
 
@@ -158,6 +169,19 @@ enum RejectReason {
   REJECT_REASON_PEACE_ZONE = 22; // hostility is forbidden at either endpoint
   REJECT_REASON_WEAPON_CONDITION = 23; // equipped weapon fails skill condition
   REJECT_REASON_NO_RESURRECT_OFFER = 24; // offer is absent, stale, expired or consumed
+  REJECT_REASON_ITEM_NOT_OWNED = 25;
+  REJECT_REASON_ITEM_NOT_USABLE = 26;
+  REJECT_REASON_INVALID_EQUIP_SLOT = 27;
+  REJECT_REASON_INSUFFICIENT_ITEMS = 28;
+  REJECT_REASON_INVENTORY_FULL = 29;
+  REJECT_REASON_ITEM_GRADE_MISMATCH = 30;
+  REJECT_REASON_ITEM_REUSE = 31;
+  REJECT_REASON_INVALID_ENCHANT = 32;
+  REJECT_REASON_INVALID_REFINEMENT = 33;
+  REJECT_REASON_INVALID_RECIPE = 34;
+  REJECT_REASON_ITEM_OPERATION_CONFLICT = 35;
+  REJECT_REASON_ITEM_CAPABILITY_DEFERRED = 36;
+  REJECT_REASON_CRYSTALLIZE_LEVEL_TOO_LOW = 37;
 }
 
 message WorldEvent {
@@ -187,6 +211,14 @@ message WorldEvent {
     SpGained sp_gained = 23;
     SkillStateSync skill_state_sync = 24;
     VitalsChanged vitals_changed = 25;
+    InventorySync inventory_sync = 26;
+    InventoryChanged inventory_changed = 27;
+    EquipmentChanged equipment_changed = 28;
+    WeightChanged weight_changed = 29;
+    PenaltyChanged penalty_changed = 30;
+    EnchantResult enchant_result = 31;
+    RefineResult refine_result = 32;
+    ItemOperationResult item_operation_result = 33;
   }
 }
 
@@ -230,6 +262,7 @@ message EntitySpawn {
   SkillCastStarted pending_cast = 25; // absent in V5 identities; hydrate after all spawns
   uint32 pk_count = 26;
   uint32 pvp_count = 27;
+  repeated VisibleEquipment visible_equipment = 29;
   uint64 status_flags = 28; // public status bits; no death-penalty modifier disclosure
 }
 
@@ -341,6 +374,9 @@ message StatsChanged {
   bool baseline = 21; // admission/replacement owner update accepted at baseline_tick
   uint64 baseline_tick = 22;
   uint32 incarnation = 23;
+  ItemWeightState item_weight = 24;
+  ItemPenaltyState item_penalties = 25;
+  uint64 inventory_revision = 26;
 }
 
 // Authoritative xp gained fact; responses precede facts, spawns precede references.

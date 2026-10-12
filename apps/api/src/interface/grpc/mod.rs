@@ -107,6 +107,32 @@ impl GameServiceImpl {
 
 #[tonic::async_trait]
 impl GameService for GameServiceImpl {
+    async fn get_item_catalog(
+        &self,
+        req: Request<pb::GetItemCatalogRequest>,
+    ) -> Result<Response<pb::GetItemCatalogResponse>, Status> {
+        auth::caller(&req)?;
+        Err(to_status(AppError::Unavailable("item catalogue is not yet available".into())))
+    }
+
+    async fn get_inventory(
+        &self,
+        req: Request<pb::GetInventoryRequest>,
+    ) -> Result<Response<pb::GetInventoryResponse>, Status> {
+        auth::caller(&req)?;
+        crate::application::use_cases::get_inventory::require_out_of_world(false, false, false)
+            .map_err(to_status)?;
+        Err(to_status(AppError::Unavailable("item runtime is not yet available".into())))
+    }
+
+    async fn grant_item(
+        &self,
+        req: Request<pb::GrantItemRequest>,
+    ) -> Result<Response<pb::GrantItemResponse>, Status> {
+        auth::caller(&req)?;
+        Err(to_status(AppError::Unavailable("item runtime is not yet available".into())))
+    }
+
     async fn list_learnable_skills(
         &self,
         req: Request<pb::ListLearnableSkillsRequest>,

@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package nightfall.v1;
 
+import "nightfall/v1/items.proto";
+
 // First-pass contract. Expand as the character / combat systems take shape.
 //
 // Conventions (see docs/engineering/api-guidelines.md):
@@ -73,6 +75,23 @@ service GameService {
   // Authenticated naturally idempotent immutable catalogue with honest deferred blockers.
   // Errors: UNAUTHENTICATED, UNAVAILABLE (catalogue unavailable, including rollout stub), INTERNAL.
   rpc GetSkillCatalog(GetSkillCatalogRequest) returns (GetSkillCatalogResponse);
+
+  // Authenticated immutable read; naturally idempotent. data_version=2.
+  // Errors: UNAUTHENTICATED, UNAVAILABLE (missing/unsupported catalogue), INTERNAL.
+  rpc GetItemCatalog(GetItemCatalogRequest) returns (GetItemCatalogResponse);
+
+  // Owner-only out-of-world retained read; naturally idempotent, no key.
+  // Errors: UNAUTHENTICATED, INVALID_ARGUMENT (UUID bytes), NOT_FOUND, PERMISSION_DENIED,
+  // FAILED_PRECONDITION (admitted character), UNAVAILABLE (zone/catalogue absent), INTERNAL.
+  rpc GetInventory(GetInventoryRequest) returns (GetInventoryResponse);
+
+  // Owner-only zone critical mutation, accepted only with AUTH_DEV_TOKENS=1.
+  // Required UUID key freezes the original result; changed body conflicts, failures consume
+  // no key. Success follows durable log acknowledgement and atomic checkpoint/ledger commit.
+  // Errors: UNAUTHENTICATED, INVALID_ARGUMENT, NOT_FOUND, PERMISSION_DENIED,
+  // FAILED_PRECONDITION (dev gate off, key conflict, item eligibility), UNAVAILABLE,
+  // RESOURCE_EXHAUSTED (capacity/queue), INTERNAL.
+  rpc GrantItem(GrantItemRequest) returns (GrantItemResponse);
 }
 
 message ListMyCharactersRequest {}
@@ -144,6 +163,8 @@ message Character {
   uint32 hair_style = 12;
   uint32 hair_color = 13;
   uint32 face = 14;
+  uint64 inventory_revision = 15;
+  bytes item_rules_hash = 16;
 }
 
 message Position {
@@ -389,4 +410,9 @@ message EffectiveStats {
   int64 accuracy_q = 8;
   int64 evasion_q = 9;
   uint32 crit_permille = 10;
+  int64 shield_def_q = 11;
+  int64 shield_rate_q = 12;
+  uint32 shield_angle_degrees = 13;
+  int64 physical_reach_millitiles = 14;
+  uint32 physical_angle_degrees = 15;
 }
