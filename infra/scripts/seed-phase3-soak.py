@@ -35,8 +35,8 @@ def validated_roles(manifest):
     return result
 
 
-def seed_container(sql, project, compose_file):
-    if not project or not re.fullmatch(r'nightfall-phase3-harness-soak-[0-9]+-[0-9]+', project):
+def seed_container(sql, project, compose_file, project_pattern=r'nightfall-phase3-harness-soak-[0-9]+-[0-9]+'):
+    if not project or not re.fullmatch(project_pattern, project):
         raise ValueError('soak seed requires its owned Compose project')
     if compose_file is None:
         raise ValueError('soak seed requires its resolved Compose file')

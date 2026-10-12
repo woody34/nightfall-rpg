@@ -65,7 +65,8 @@ def units(scenarios):
     result = []
     directories = {path.parent for path in scenarios}
     declared = {name: [directory / role for role in roles] for directory in directories
-                for name, roles in phase2.phase3.declared_units(directory).items()}
+                for provider in (phase2.phase3, phase2.phase4)
+                for name, roles in provider.declared_units(directory).items() if (directory / ('phase4-roles.json' if provider is phase2.phase4 else 'phase3-roles.json')).exists()}
     managed = {path.stem for roles in declared.values() for path in roles}
     for name, path in sorted(paths.items()):
         if name in managed:

@@ -1,0 +1,22 @@
+# covers: 4 E1.5, 4 E1.6, 4 E3.4, 4 E3.5, 4 E5.3, 4 E5.5, 4 E6.5
+# fixture: phase4-scrolls
+# Pending E2/E3/E5 live integration; syntax/traceability is not execution evidence.
+# Exact inventory/paperdoll/enchant/count source operands: phase4-packs.json.
+# Waits: delivery 10ticks*100ms*3=3s (A1); RPC/login policy5s*3=15s.
+# Combat fixture allowance30s; death90s; offer180s (inherited phase3 fixtures).
+# Source scroll Escape20s*3=60s (pinned DP skills02000-02099; design§8).
+# Skill1177 hitTime4000ms*3=12s (pinned DP skills01100-01199.xml:1645).
+# Counts/enchant are fixture inputs; numeric formulas are checked by actual-input export oracle.
+# item-gate: escape_timing
+nf.Login
+nf.WaitFor connected 15
+nf.EnterWorld
+nf.WaitFor in_world 15
+nf.WaitFor item_baseline 3
+nf.UseItem 736
+nf.WaitFor inventory_has 736 == 1 3
+nf.WaitFor own_at 126 126 1 60
+nf.Expect own_hp > 0
+nf.Expect inventory_has 736 == 1
+# Total budget: sum of declared conservative waits +30s exit grace.
+nf.Within 126
