@@ -313,7 +313,14 @@ async fn typed_grant_routing_full_response_frozen_retry_later_grant_and_concurre
             receipt_id: body.idempotency_key.clone(),
             operation: pb::ItemOperation::Grant.into(),
             affected_instance_ids: vec![1],
-            recipe_id: None
+            recipe_id: None,
+            request_key: IdempotencyKey::parse(&body.idempotency_key)
+                .unwrap()
+                .as_uuid()
+                .as_bytes()
+                .to_vec(),
+            request_fingerprint: grant_item_fingerprint(character.id, body.template_id, body.count),
+            accepted_client_seq: None,
         }
     );
     let inventory = first.inventory.as_ref().unwrap();

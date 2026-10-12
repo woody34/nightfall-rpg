@@ -99,3 +99,42 @@ fn full_width_owner_values_and_presence_survive_wire() -> Result<(), prost::Deco
     assert_eq!(i32::from(pb::RejectReason::CrystallizeLevelTooLow), 37);
     Ok(())
 }
+
+#[test]
+fn d53_request_scope_fields_use_only_frozen_append_tags() -> Result<(), prost::DecodeError> {
+    let operation = pb::ItemOperationResult {
+        request_key: vec![b'k'],
+        request_fingerprint: "f".into(),
+        accepted_client_seq: Some(7),
+        ..Default::default()
+    };
+    assert_eq!(operation.encode_to_vec(), [74, 1, b'k', 82, 1, b'f', 88, 7]);
+    assert_eq!(
+        pb::ItemOperationResult::decode(operation.encode_to_vec().as_slice())?,
+        operation
+    );
+    let enchant = pb::EnchantResult {
+        request_key: vec![b'k'],
+        operation: pb::ItemOperation::Enchant.into(),
+        request_fingerprint: "f".into(),
+        accepted_client_seq: Some(7),
+        ..Default::default()
+    };
+    assert_eq!(enchant.encode_to_vec(), [98, 1, b'k', 104, 5, 114, 1, b'f', 120, 7]);
+    assert_eq!(pb::EnchantResult::decode(enchant.encode_to_vec().as_slice())?, enchant);
+    let refine = pb::RefineResult {
+        request_key: vec![b'k'],
+        operation: pb::ItemOperation::CancelRefine.into(),
+        request_fingerprint: "f".into(),
+        accepted_client_seq: Some(7),
+        ..Default::default()
+    };
+    assert_eq!(refine.encode_to_vec(), [74, 1, b'k', 80, 8, 90, 1, b'f', 96, 7]);
+    assert_eq!(pb::RefineResult::decode(refine.encode_to_vec().as_slice())?, refine);
+    assert!(pb::ItemOperationResult::default()
+        .accepted_client_seq
+        .is_none());
+    assert!(pb::EnchantResult::default().accepted_client_seq.is_none());
+    assert!(pb::RefineResult::default().accepted_client_seq.is_none());
+    Ok(())
+}

@@ -1232,6 +1232,7 @@ async fn range_extension_contract<
             tick: Tick(74),
             inventory_revision: 2,
             receipt: key,
+            request_fingerprint: "c".repeat(64),
             detail: ItemResultDetail::Operation {
                 operation: ItemOperation::ToggleAutoShot,
                 affected: vec![],

@@ -168,6 +168,9 @@ pub fn frozen_item_result_to_pb(
             tick: result.tick.0,
             inventory_revision: result.inventory_revision,
             receipt_id,
+            request_key: result.receipt.as_bytes().to_vec(),
+            request_fingerprint: result.request_fingerprint.clone(),
+            accepted_client_seq: None,
             operation: operation_to_pb(*operation)?.into(),
             affected_instance_ids: affected.iter().map(|id| id.get()).collect(),
             recipe_id: *recipe,
@@ -185,6 +188,10 @@ pub fn frozen_item_result_to_pb(
             tick: result.tick.0,
             inventory_revision: result.inventory_revision,
             receipt_id,
+            request_key: result.receipt.as_bytes().to_vec(),
+            request_fingerprint: result.request_fingerprint.clone(),
+            accepted_client_seq: None,
+            operation: operation_to_pb(result.operation())?.into(),
             target_instance_id: target.get(),
             old_enchant: *old_enchant,
             new_enchant: *new_enchant,
@@ -216,6 +223,10 @@ pub fn frozen_item_result_to_pb(
             tick: result.tick.0,
             inventory_revision: result.inventory_revision,
             receipt_id,
+            request_key: result.receipt.as_bytes().to_vec(),
+            request_fingerprint: result.request_fingerprint.clone(),
+            accepted_client_seq: None,
+            operation: operation_to_pb(result.operation())?.into(),
             target_instance_id: target.get(),
             augment_id: *augment,
             outcome: match outcome {
@@ -517,12 +528,39 @@ mod tests {
             detail,
         }
     }
+    #[allow(clippy::wildcard_enum_match_arm)] // Only these three receipt carriers are valid; future variants fail this test.
     fn round_trip(result: &FrozenItemResult) -> pb::world_event::Event {
         let event = frozen_item_result_to_pb(result).unwrap();
         let message = pb::WorldEvent {
             event: Some(event.clone()),
         };
         assert_eq!(pb::WorldEvent::decode(message.encode_to_vec().as_slice()).unwrap(), message);
+        let (key, fingerprint, operation, sequence) = match &event {
+            pb::world_event::Event::ItemOperationResult(mapped) => (
+                &mapped.request_key,
+                &mapped.request_fingerprint,
+                mapped.operation,
+                mapped.accepted_client_seq,
+            ),
+            pb::world_event::Event::EnchantResult(mapped) => (
+                &mapped.request_key,
+                &mapped.request_fingerprint,
+                mapped.operation,
+                mapped.accepted_client_seq,
+            ),
+            pb::world_event::Event::RefineResult(mapped) => (
+                &mapped.request_key,
+                &mapped.request_fingerprint,
+                mapped.operation,
+                mapped.accepted_client_seq,
+            ),
+            _ => panic!("wrong frozen result carrier"),
+        };
+        assert_eq!(key, result.receipt.as_bytes());
+        assert_eq!(key.len(), 16);
+        assert_eq!(fingerprint, &result.request_fingerprint);
+        assert_eq!(operation, i32::from(operation_to_pb(result.operation()).unwrap()));
+        assert_eq!(sequence, None);
         event
     }
     #[test]
@@ -561,7 +599,10 @@ mod tests {
                     receipt_id: r.receipt.to_string(),
                     operation: operation_to_pb(operation).unwrap().into(),
                     affected_instance_ids: vec![1, i64::MAX as u64],
-                    recipe_id: recipe
+                    recipe_id: recipe,
+                    request_key: r.receipt.as_bytes().to_vec(),
+                    request_fingerprint: r.request_fingerprint.clone(),
+                    accepted_client_seq: None,
                 }
             );
         }
