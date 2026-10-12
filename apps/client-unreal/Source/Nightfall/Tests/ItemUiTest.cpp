@@ -109,6 +109,55 @@ bool FItemAccountPendingTest::RunTest(const FString&)
  Receipt.Operation=EGrpcNightfallV1ItemOperation::ITEM_OPERATION_UNEQUIP;Receipt.EntityId=Base.EntityId;Receipt.Tick=21;Event.ItemOperationResult=Receipt;S->ApplyReceiptPayload(Event);TestFalse(TEXT("same UUID new operation has separate history"),S->ReceiptMatchesFirst().IsSet());S->ApplyReceiptPayload(Event);TestTrue(TEXT("operation replay compares only own history"),*S->ReceiptMatchesFirst());
  Session->SetBearerToken(TEXT("test:bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"));S->ApplySpawn(Spawn);S->ApplySync(Base);S->ApplyReceiptPayload(Event);TestFalse(TEXT("different account has separate receipt history"),S->ReceiptMatchesFirst().IsSet());N->Disconnect();return true;
 }
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FItemConflictingBodyTest,"Nightfall.Item.Receipt.OriginalReceiptBeforeFingerprintConflict",EAutomationTestFlags::EditorContext|EAutomationTestFlags::ProductFilter)
+bool FItemConflictingBodyTest::RunTest(const FString&)
+{
+ FScopedTestGameInstance Scope;auto* N=Scope.Get<UNetClientSubsystem>();auto* S=Scope.Get<UInventoryStateSubsystem>();auto Socket=ItemUiTest::Connect(N);ItemUiTest::Seed(N,S);
+ const FString Key=TEXT("abcdefab-1111-4111-8111-123456789abc");
+ TestTrue(TEXT("original count submitted"),S->Execute({TEXT("nf.Destroy"),TEXT("instance:1"),TEXT("1"),Key}));const uint32 Original=N->GetLastSentSeq();
+ TestTrue(TEXT("same account operation UUID different count submitted"),S->Execute({TEXT("nf.Destroy"),TEXT("instance:1"),TEXT("2"),Key}));const uint32 Conflict=N->GetLastSentSeq();
+ FGrpcNightfallV1ClientMessage First,Second;NightfallWire::DecodeClientMessage(Socket->Sent[0].GetData(),Socket->Sent[0].Num(),First);NightfallWire::DecodeClientMessage(Socket->Sent[1].GetData(),Socket->Sent[1].Num(),Second);
+ TestEqual(TEXT("original wire count"),First.Intent.DestroyItem.Count.Value,uint64(1));TestEqual(TEXT("conflict wire count"),Second.Intent.DestroyItem.Count.Value,uint64(2));TestEqual(TEXT("same key on wire"),First.Intent.DestroyItem.IdempotencyKey,Second.Intent.DestroyItem.IdempotencyKey);
+ TestTrue(TEXT("matching body retry submitted"),S->Execute({TEXT("nf.Destroy"),TEXT("template:6"),TEXT("1"),Key}));const uint32 Retry=N->GetLastSentSeq();
+ FGrpcNightfallV1ItemOperationResult Receipt;Receipt.EntityId=NightfallItems::UuidBytes(ItemUiTest::Owner);Receipt.Incarnation=1;Receipt.Tick=11;Receipt.InventoryRevision=2;Receipt.ReceiptId=Key;Receipt.Operation=EGrpcNightfallV1ItemOperation::ITEM_OPERATION_DESTROY;
+ FWorldEvent Event;Event.ItemOperationResult=Receipt;S->ApplyReceiptPayload(Event);
+ TestTrue(TEXT("original receipt retains conflicting sequence pending"),S->IsBusy());TestEqual(TEXT("still awaiting conflict result"),S->Status(),FString(TEXT("Waiting for server item result")));
+ FIntentRejected Rejected;Rejected.Seq=Original;Rejected.Detail=TEXT("late rejection of completed original");S->ApplyRejected(Rejected);Rejected.Seq=Retry;S->ApplyRejected(Rejected);
+ TestEqual(TEXT("receipt completed both matching fingerprints despite different selectors"),S->Status(),FString(TEXT("Waiting for server item result")));TestTrue(TEXT("conflict remains pending"),S->IsBusy());
+ Rejected.Seq=Conflict;Rejected.Detail=TEXT("D43 fingerprint conflict: FAILED_PRECONDITION");S->ApplyRejected(Rejected);
+ TestFalse(TEXT("conflict rejection clears final pending sequence"),S->IsBusy());TestEqual(TEXT("displayed failure retained"),S->Status(),Rejected.Detail);
+ S->ApplyReceiptPayload(Event);TestEqual(TEXT("replayed receipt cannot hide conflict failure"),S->Status(),Rejected.Detail);
+ Rejected.Detail=TEXT("duplicate rejection");S->ApplyRejected(Rejected);TestEqual(TEXT("terminal rejection is not processed twice"),S->Status(),FString(TEXT("D43 fingerprint conflict: FAILED_PRECONDITION")));
+ N->Disconnect();return true;
+}
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FItemGrantDetachedOverlapTest,"Nightfall.Item.Rpc.GrantDetachedOverlapAndLifecycle",EAutomationTestFlags::EditorContext|EAutomationTestFlags::ProductFilter)
+bool FItemGrantDetachedOverlapTest::RunTest(const FString&)
+{
+ FScopedTestGameInstance Scope;auto* N=Scope.Get<UNetClientSubsystem>();auto* S=Scope.Get<UInventoryStateSubsystem>();auto* Session=Scope.Get<USessionClient>();ItemUiTest::Seed(N,S);
+ USessionClient::FGrantItemCallback Grant;USessionClient::FGetInventoryCallback Detached;
+ FGrpcNightfallV1GrantItemRequest SubmittedGrant;FGrpcNightfallV1GetInventoryRequest SubmittedRead;
+ S->SetGrantProviderForTesting([&](const auto& Q,auto Callback){SubmittedGrant=Q;Grant=MoveTemp(Callback);});S->SetInventoryProviderForTesting([&](const auto& Q,auto Callback){SubmittedRead=Q;Detached=MoveTemp(Callback);});
+ const FString Other=TEXT("22222222-2222-4222-8222-222222222222"),Key=TEXT("abcdefab-1111-4111-8111-123456789abc");
+ FGrpcNightfallV1GetInventoryResponse View;View.HasInventory=true;View.Inventory.EntityId=NightfallItems::UuidBytes(Other);auto Item=ItemUiTest::Item(9,6);Item.Count=7;View.Inventory.Items.Add(Item);
+ FNetResult GrantResult;GrantResult.Error=ENetError::FailedPrecondition;GrantResult.Message=TEXT("grant completion observed");
+ int32 Observed=0;const auto Handle=S->OnChanged.AddLambda([&]{if(S->RpcDone() && S->RpcResult().Message==GrantResult.Message)++Observed;});
+ for(bool GrantFirst:{true,false}){
+  S->Grant(6,3,Key);S->LoadDetached(Other);TestTrue(TEXT("grant stays busy during detached read"),S->IsBusy());TestTrue(TEXT("detached pending starts empty"),S->Detached(Other)==nullptr);
+  TestEqual(TEXT("grant bound to owner"),NightfallItems::UuidString(SubmittedGrant.CharacterId),FString(ItemUiTest::Owner));TestEqual(TEXT("grant requested count"),SubmittedGrant.Count.Value,uint64(3));TestEqual(TEXT("read bound to other character"),NightfallItems::UuidString(SubmittedRead.CharacterId),Other);
+  const int32 Before=Observed;
+  if(GrantFirst){Grant(GrantResult,{});TestFalse(TEXT("grant-first busy cleared"),S->IsBusy());TestTrue(TEXT("grant-first completion observable"),S->RpcDone() && S->RpcResult().Error==ENetError::FailedPrecondition);Detached({},View);}
+  else {Detached({},View);TestTrue(TEXT("read-first still waits for grant"),S->IsBusy());Grant(GrantResult,{});TestTrue(TEXT("read-first completion observable"),S->RpcDone() && S->RpcResult().Error==ENetError::FailedPrecondition);}
+  TestEqual(TEXT("grant completion broadcast in either order"),Observed,Before+1);TestFalse(TEXT("both complete busy cleared"),S->IsBusy());
+  const auto* Held=S->Detached(Other);TestTrue(TEXT("detached response remains bound"),Held && NightfallItems::UuidString(Held->EntityId)==Other && Held->Items[0].Count.Value==7);TestTrue(TEXT("read never populates owner's detached cache"),S->Detached(ItemUiTest::Owner)==nullptr);TestEqual(TEXT("detached never changes live owner inventory"),*S->Count(6),uint64(1));
+ }
+ for(bool ChangeSession:{false,true}){
+  S->Grant(6,3,Key);auto Old=MoveTemp(Grant);
+  if(ChangeSession)Session->SetBearerToken(TEXT("test:bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"));else S->Reset();
+  S->Grant(6,3,Key);const int32 Before=Observed;Old(GrantResult,{});TestTrue(TEXT("stale grant cannot clear newer grant busy"),S->IsBusy());TestEqual(TEXT("stale grant is not observable"),Observed,Before);
+  Grant(GrantResult,{});TestFalse(TEXT("current grant completes after lifecycle invalidation"),S->IsBusy());TestEqual(TEXT("current grant observable"),Observed,Before+1);
+ }
+ S->OnChanged.Remove(Handle);return true;
+}
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FItemDetachedDialogsTest,"Nightfall.Item.UI.DetachedCharacterSessionPendingFailureAndDialogs",EAutomationTestFlags::EditorContext|EAutomationTestFlags::ProductFilter)
 bool FItemDetachedDialogsTest::RunTest(const FString&)
 {
