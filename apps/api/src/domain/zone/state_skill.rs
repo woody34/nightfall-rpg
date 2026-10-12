@@ -561,12 +561,7 @@ impl Phase3Entity {
         let CastState::Casting(cast) = &mut self.cast else {
             return false;
         };
-        if cast.id != id || cast.launched || cast.launch_at > now {
-            return false;
-        }
-        cast.targets.retain(|target| valid(*target));
-        cast.launched = true;
-        true
+        cast.id == id && cast.launch(now, &mut valid)
     }
 
     /// Cancel exactly this live cast (or any live cast when unguarded). Costs/reuse persist.
@@ -628,25 +623,53 @@ impl Phase3Entity {
         let CastState::Casting(cast) = &self.cast else {
             return Ok(None);
         };
-        if cast.id != id || !cast.launched || cast.complete_at > now {
+        if cast.id != id {
+            return Ok(None);
+        }
+        let result = cast.pay_impact(now, mp, hp, mp_end, hp_end);
+        if result.is_err() {
+            self.cancel_cast(Some(id));
+        }
+        result
+    }
+}
+
+impl CastInFlight {
+    /// Shared main/item-lane launch; the canonical target list can only shrink.
+    pub fn launch(&mut self, now: Tick, mut valid: impl FnMut(TargetBinding) -> bool) -> bool {
+        if self.launched || self.launch_at > now {
+            return false;
+        }
+        self.targets.retain(|target| valid(*target));
+        self.launched = true;
+        true
+    }
+
+    /// Source MP2-before-HP payment shared by both lanes. The owner removes this exact
+    /// cast on error and keeps it visible through successful handlers, then finalizes it.
+    pub fn pay_impact(
+        &self,
+        now: Tick,
+        mp: &mut u32,
+        hp: &mut u32,
+        mp_end: u32,
+        hp_end: u32,
+    ) -> Result<Option<Self>, CastCancelReason> {
+        if !self.launched || self.complete_at > now {
             return Ok(None);
         }
         if *hp == 0 {
-            self.cancel_cast(Some(id));
             return Err(CastCancelReason::CasterDied);
         }
         let Some(remaining_mp) = mp.checked_sub(mp_end) else {
-            self.cancel_cast(Some(id));
             return Err(CastCancelReason::Resources);
         };
         *mp = remaining_mp;
         if *hp <= hp_end {
-            self.cancel_cast(Some(id));
             return Err(CastCancelReason::Resources);
         }
-        *hp = hp.saturating_sub(hp_end); // Proven hp > hp_end above; fractions remain unchanged.
-                                         // Remain Casting through effect handlers; finish_cast runs after source finalization.
-        Ok(Some(cast.clone()))
+        *hp = hp.saturating_sub(hp_end);
+        Ok(Some(self.clone()))
     }
 }
 

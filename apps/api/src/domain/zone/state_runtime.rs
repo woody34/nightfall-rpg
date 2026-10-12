@@ -5,6 +5,8 @@
 mod live_damage;
 #[path = "state_runtime_effects.rs"]
 mod live_effects;
+#[path = "state_runtime_item_cast.rs"]
+mod live_item_cast;
 #[path = "state_runtime_learn.rs"]
 mod live_learning;
 #[path = "state_runtime_life.rs"]
@@ -1330,6 +1332,7 @@ impl ZoneState {
                 reason,
             });
         }
+        self.cancel_item_casts_v6(tick, entity, id, reason, events);
     }
     fn hostility_v5(
         &self,
@@ -1666,14 +1669,9 @@ impl ZoneState {
         events: &mut Vec<ZoneEvent>,
     ) -> Result<(), TickError> {
         self.refresh_schedule_v5()?;
-        let launches = self
-            .phase3
-            .as_ref()
-            .ok_or_else(missing)?
-            .schedule
-            .cast_launches(tick);
+        let launches = self.cast_work_v6(tick, true)?;
         for work in launches {
-            let CastState::Casting(cast) = self.sidecar(work.caster)?.cast.clone() else {
+            let Some(cast) = self.cast_for_work_v6(work)? else {
                 continue;
             };
             let rules = &self.phase3.as_ref().ok_or_else(missing)?.canonical.rules;
@@ -1698,18 +1696,12 @@ impl ZoneState {
                 self.cancel_v5(tick, work.caster, Some(cast.id), target_cancel(reason), events);
                 continue;
             }
-            self.sidecar_mut(work.caster)?
-                .launch_cast(tick, work.cast, |target| targets.contains(&target));
+            self.launch_cast_work_v6(tick, work, &targets)?;
         }
         self.refresh_schedule_v5()?;
-        let impacts = self
-            .phase3
-            .as_ref()
-            .ok_or_else(missing)?
-            .schedule
-            .cast_impacts(tick);
+        let impacts = self.cast_work_v6(tick, false)?;
         for work in impacts {
-            let CastState::Casting(cast) = self.sidecar(work.caster)?.cast.clone() else {
+            let Some(cast) = self.cast_for_work_v6(work)? else {
                 continue;
             };
             let skill = self
@@ -1768,19 +1760,7 @@ impl ZoneState {
                 },
             )
             .map_err(invariant)?;
-            let phase = self.phase3.as_mut().ok_or_else(missing)?;
-            phase.schedule_dirty.insert(work.caster);
-            let side = phase
-                .canonical
-                .entities
-                .get_mut(&work.caster)
-                .ok_or_else(missing)?;
-            let c = self
-                .entities
-                .get_mut(&work.caster)
-                .and_then(|e| e.combat.as_mut())
-                .ok_or_else(missing)?;
-            match side.pay_cast_impact(tick, cast.id, &mut c.mp, &mut c.hp, mp, hp) {
+            match self.pay_cast_work_v6(tick, work, mp, hp)? {
                 Err(reason) => {
                     events.push(ZoneEvent::SkillCastCancelled {
                         tick,
@@ -1808,7 +1788,7 @@ impl ZoneState {
                     &mut results,
                 )?;
             }
-            self.sidecar_mut(work.caster)?.finish_cast(cast.id);
+            self.finish_cast_work_v6(work)?;
             events.push(ZoneEvent::SkillCastResult {
                 tick,
                 caster,
