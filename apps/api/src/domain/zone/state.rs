@@ -573,7 +573,22 @@ impl ZoneSnapshot {
                 {
                     return Err(SnapshotError::CombatMismatch);
                 }
-                if self.checkpoint_owner(lane.entity) != Some(work.projection.account) {
+                if let Some(core) = &work.projection.paused_core {
+                    if self.entities.iter().any(|entity| entity.id == lane.entity)
+                        || core.load.checkpoint_revision != Some(lane.revision)
+                        || core.load.checkpoint_revision != Some(request.revision_seen)
+                        || core.load.hp != Some(request.hp)
+                        || core.load.mp != Some(request.mp)
+                        || core.load.level != request.level
+                        || core.load.xp != request.xp
+                        || core.load.alive != request.alive
+                        || core.load.phase3 != request.phase3
+                        || core.load.progression.as_ref().map(|p| &p.class_state)
+                            != request.class_state.as_ref()
+                    {
+                        return Err(SnapshotError::CombatMismatch);
+                    }
+                } else if self.checkpoint_owner(lane.entity) != Some(work.projection.account) {
                     return Err(SnapshotError::CombatMismatch);
                 }
                 let allocation = self

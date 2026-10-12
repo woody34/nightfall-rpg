@@ -1208,3 +1208,6 @@ async fn recorded_grant_unavailable_before_receipt_reads_without_durable_gate() 
     drop(driver);
     handle.stopped().await;
 }
+
+#[path = "checkpoint_paused_tests.rs"]
+mod paused_tests;
