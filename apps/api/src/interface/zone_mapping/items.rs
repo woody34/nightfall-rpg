@@ -170,7 +170,7 @@ pub fn frozen_item_result_to_pb(
             receipt_id,
             request_key: result.receipt.as_bytes().to_vec(),
             request_fingerprint: result.request_fingerprint.clone(),
-            accepted_client_seq: None,
+            accepted_client_seq: result.accepted_sequence.map(u64::from),
             operation: operation_to_pb(*operation)?.into(),
             affected_instance_ids: affected.iter().map(|id| id.get()).collect(),
             recipe_id: *recipe,
@@ -190,7 +190,7 @@ pub fn frozen_item_result_to_pb(
             receipt_id,
             request_key: result.receipt.as_bytes().to_vec(),
             request_fingerprint: result.request_fingerprint.clone(),
-            accepted_client_seq: None,
+            accepted_client_seq: result.accepted_sequence.map(u64::from),
             operation: operation_to_pb(result.operation())?.into(),
             target_instance_id: target.get(),
             old_enchant: *old_enchant,
@@ -225,7 +225,7 @@ pub fn frozen_item_result_to_pb(
             receipt_id,
             request_key: result.receipt.as_bytes().to_vec(),
             request_fingerprint: result.request_fingerprint.clone(),
-            accepted_client_seq: None,
+            accepted_client_seq: result.accepted_sequence.map(u64::from),
             operation: operation_to_pb(result.operation())?.into(),
             target_instance_id: target.get(),
             augment_id: *augment,
@@ -531,6 +531,15 @@ mod tests {
     }
     #[allow(clippy::wildcard_enum_match_arm)] // Only these three receipt carriers are valid; future variants fail this test.
     fn round_trip(result: &FrozenItemResult) -> pb::world_event::Event {
+        for sequence in [None, Some(7), Some(u32::MAX)] {
+            let mut committed = result.clone();
+            committed.accepted_sequence = sequence;
+            round_trip_one(&committed);
+        }
+        round_trip_one(result)
+    }
+    #[allow(clippy::wildcard_enum_match_arm)] // Verify every frozen carrier's original identity.
+    fn round_trip_one(result: &FrozenItemResult) -> pb::world_event::Event {
         let event = frozen_item_result_to_pb(result).unwrap();
         let message = pb::WorldEvent {
             event: Some(event.clone()),
@@ -561,7 +570,7 @@ mod tests {
         assert_eq!(key.len(), 16);
         assert_eq!(fingerprint, &result.request_fingerprint);
         assert_eq!(operation, i32::from(operation_to_pb(result.operation()).unwrap()));
-        assert_eq!(sequence, None);
+        assert_eq!(sequence, result.accepted_sequence.map(u64::from));
         event
     }
     #[test]
