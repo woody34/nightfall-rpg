@@ -70,7 +70,7 @@ pub struct ItemAuditEvidence {
 }
 impl ItemAuditEvidence {
     /// Payment families with an owner receipt; learned casts have no item intent receipt.
-    pub(crate) fn contributing_receipt(&self) -> Result<Option<ItemReceiptRef>, ItemError> {
+    pub fn contributing_receipt(&self) -> Result<Option<ItemReceiptRef>, ItemError> {
         let operation = match self.family.as_str() {
             "enchant_payment" => ItemOperation::Enchant,
             "exchange_payment" => ItemOperation::Exchange,

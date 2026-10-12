@@ -6467,6 +6467,7 @@ mod tests {
         assert_eq!(missing.entities[&owner.entity].combat.as_ref().unwrap().mp, mana);
         assert_eq!(missing.sidecar(owner.entity).unwrap().cast, CastState::Idle);
         assert_eq!(missing.rng.get_word_pos(), cursor);
+        let snapshot = zone.snapshot();
         let rules = Arc::clone(&zone.phase4.as_ref().unwrap().rules);
         let mut cold =
             ZoneState::from_snapshot_with_items(zone.snapshot(), Some(Arc::clone(&rules))).unwrap();
@@ -6474,6 +6475,28 @@ mod tests {
         let started = zone.run_tick(draft.clone()).unwrap();
         assert_eq!(started, cold.run_tick(draft).unwrap());
         assert!(started.dispositions.is_empty(), "{:?}", started.dispositions);
+        if let Ok(path) = std::env::var("NIGHTFALL_TEST_CAST_COST_EVIDENCE_RECORDING") {
+            use crate::application::replay_log::{AppliedTickRecord, Watermark, WatermarkReason};
+            let recording = crate::infrastructure::eventlog::Recording {
+                watermark: Watermark {
+                    zone: snapshot.seed.zone,
+                    epoch: snapshot.seed.epoch,
+                    records: 1,
+                    last_tick: Some(started.tick),
+                    reason: WatermarkReason::Shutdown,
+                },
+                records: vec![AppliedTickRecord::from_applied(
+                    snapshot.seed.zone,
+                    &started,
+                )],
+                snapshot,
+            };
+            let bytes = recording.to_bytes().unwrap();
+            let decoded = crate::infrastructure::eventlog::Recording::from_bytes(&bytes).unwrap();
+            assert!(decoded.records[0].reproduced_by(&recording.records[0]));
+            std::fs::write(path, bytes).unwrap();
+        }
+
         let projection = started
             .events
             .iter()
