@@ -2053,7 +2053,7 @@ mod combat_tests {
             ..Default::default()
         };
         let error = super::decode_record(&prost::Message::encode_to_vec(&pb)).unwrap_err();
-        assert_eq!(error.to_string(), "cannot decode replay-log record: record schema 999 is not supported (this build reads 3, 4, 5, 6, 7 and 7)");
+        assert_eq!(error.to_string(), "cannot decode replay-log record: record schema 999 is not supported (this build reads 3, 4, 5, 6, 7 and 8)");
     }
 
     use super::*;
