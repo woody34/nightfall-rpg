@@ -45,7 +45,7 @@ class Evidence(unittest.TestCase):
             data['resolution_id']='enchant:1'
             rows.append(dict(kind=kind,entity=entity,incarnation=1,tick=0,sequence=len(rows)-1,data=data))
         append('item_formula',dict(formula='enchant_outcome',inputs=inputs,actual=result,baseline=False,
-               operation=dict(target_before=target,scroll_before=scroll,support_before=support_item)))
+               operation=dict(target_before=target,scroll_before=scroll,support_before=support_item,receipt_ref='receipt:1')))
         chance_inputs={k:inputs[k] for k in ('base','bonus','support')}
         append('item_formula',dict(formula='enchant_chance',inputs=chance_inputs,actual=gate.oracle.enchant_chance(**chance_inputs),baseline=False))
         append('item_rng',dict(callsite='enchant',word_before=0,word_after=1,bound=100000,value=residue))
@@ -68,13 +68,87 @@ class Evidence(unittest.TestCase):
         for index in range(2):
             attempt=self.enchant_rows(enchant=index,scroll_id=20+index)
             attempt[1]['data']['operation']['target_before']['revision']=min(index,1)
+            attempt[1]['data']['operation']['receipt_ref']=f'receipt:{index+1}'
             for row in attempt[1:-1]:
                 row['data']['resolution_id']=f'enchant:{index+1}'
                 if row['kind']=='item_rng':row['data'].update(word_before=index,word_after=index+1)
-                if row['kind']=='item_delta' and row['data']['instance']==8:row['data']['operation_ordinal']=index
+                if row['kind']=='item_delta':
+                    if row['data']['operation']=='consume':row['data']['receipt_refs']=[f'receipt:{index+1}']
+                    else:row['data']['receipt_ref']=f'receipt:{index+1}'
+                    if row['data']['instance']==8:row['data']['operation_ordinal']=index
                 rows.append(row)
         rows.append(dict(kind='complete',facts=0,ticks=1,last_tick=0))
         return self.repair(rows)
+
+    def shared_stack_enchants(self,count=2,support=False):
+        rows=self.same_tick_enchants()
+        outcomes=[r['data'] for r in rows if r['kind']=='item_formula' and r['data']['formula']=='enchant_outcome']
+        for index,outcome in enumerate(outcomes):
+            outcome['operation']['scroll_before'].update(id=20,count=count-index,revision=min(index,1))
+            if support:
+                outcome['operation']['support_before']=item(9,count-index,12363)|{'revision':min(index,1)}
+                outcome['inputs']['support']=18
+                outcome['actual']=gate.oracle.enchant_outcome(**outcome['inputs'])
+        for row in rows:
+            if support and row['kind']=='item_formula' and row['data']['formula']=='enchant_chance':
+                row['data']['inputs']['support']=18
+                row['data']['actual']=gate.oracle.enchant_chance(**row['data']['inputs'])
+        rows=[r for r in rows if r['kind']!='item_delta' or r['data']['operation']!='consume']
+        for key in ('scroll_before','support_before'):
+            before=outcomes[0]['operation'][key]
+            if before is None:continue
+            rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=0,sequence=0,
+                data=dict(operation='consume',instance=before['id'],before=before,
+                          after=before|{'count':count-2,'revision':1} if count>2 else None,
+                          count_delta=-2,operation_ordinal=0,resolution_id='enchant:1',receipt_refs=['receipt:1','receipt:2'])))
+        return self.repair(rows)
+
+    def test_shared_scroll_stack_consumes_ordered_resolution_receipts(self):
+        for count,support in ((2,False),(3,False),(2,True),(3,True)):
+            rows=self.shared_stack_enchants(count,support)
+            self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['enchant_outcome','enchant_chance'],HASH)['passed'],(count,support))
+            for index in range(1,len(rows)-1):
+                bad=copy.deepcopy(rows);del bad[index];self.repair(bad)
+                self.assertFalse(gate.evaluate(bad,self.recording,OWNER,['enchant_outcome','enchant_chance'],HASH)['passed'],(count,support,index))
+
+    def test_shared_scroll_stack_rejects_contribution_order_and_total_mutations(self):
+        rows=self.shared_stack_enchants()
+        for receipts in (['receipt:1'],['receipt:2'],['receipt:2','receipt:1'],['receipt:1','receipt:1'],['receipt:1','receipt:2','receipt:3']):
+            bad=copy.deepcopy(rows)
+            next(r['data'] for r in bad if r['kind']=='item_delta' and r['data']['operation']=='consume')['receipt_refs']=receipts
+            self.assertFalse(gate.evaluate(bad,self.recording,OWNER,['enchant_outcome'],HASH)['passed'],receipts)
+        for total in (1,3):
+            bad=copy.deepcopy(rows)
+            aggregate=next(r['data'] for r in bad if r['kind']=='item_delta' and r['data']['operation']=='consume')
+            if total==1:aggregate['after']=aggregate['before']|{'count':1,'revision':1}
+            else:aggregate['before']=aggregate['before']|{'count':3}
+            aggregate['count_delta']=-total
+            gate.validate(bad,self.recording,HASH)
+            self.assertFalse(gate.evaluate(bad,self.recording,OWNER,['enchant_outcome'],HASH)['passed'],total)
+        for receipt in (None,'',[],{},False,'receipt:1','unrelated'):
+            bad=copy.deepcopy(rows)
+            [r for r in bad if r['kind']=='item_formula' and r['data']['formula']=='enchant_outcome'][-1]['data']['operation']['receipt_ref']=receipt
+            self.assertFalse(gate.evaluate(bad,self.recording,OWNER,['enchant_outcome'],HASH)['passed'],receipt)
+        for field,value in (('entity',OTHER),('incarnation',2)):
+            bad=copy.deepcopy(rows)
+            next(r for r in bad if r['kind']=='item_delta' and r['data']['operation']=='consume')[field]=value
+            self.assertFalse(gate.evaluate(bad,self.recording,OWNER,['enchant_outcome'],HASH)['passed'])
+        bad=copy.deepcopy(rows)
+        del bad[1]['data']['operation']['receipt_ref']
+        self.assertFalse(gate.evaluate(bad,self.recording,OWNER,['enchant_outcome'],HASH)['passed'])
+        bad=copy.deepcopy(rows)
+        next(r['data'] for r in bad if r['kind']=='item_delta' and r['data']['operation']=='enchant')['receipt_ref']='unrelated'
+        self.assertFalse(gate.evaluate(bad,self.recording,OWNER,['enchant_outcome'],HASH)['passed'])
+        bad=copy.deepcopy(rows)
+        bad[0]['watermark'].update(records=2,last_tick=1);bad[-1].update(ticks=2,last_tick=1)
+        next(r for r in bad if r['kind']=='item_delta' and r['data']['operation']=='consume')['tick']=1
+        self.assertFalse(gate.evaluate(bad,self.recording,OWNER,['enchant_outcome'],HASH)['passed'])
+        bad=copy.deepcopy(rows)
+        next(r['data'] for r in bad if r['kind']=='item_delta' and r['data']['operation']=='consume')['resolution_id']='unrelated'
+        self.assertFalse(gate.evaluate(bad,self.recording,OWNER,['enchant_outcome'],HASH)['passed'])
+        bad=copy.deepcopy(rows)
+        [r for r in bad if r['kind']=='item_formula' and r['data']['formula']=='enchant_outcome'][-1]['data']['operation']['scroll_before']['count']=2
+        self.assertFalse(gate.evaluate(bad,self.recording,OWNER,['enchant_outcome'],HASH)['passed'])
 
     def test_same_tick_enchants_correlate_ordinals_with_shared_revision(self):
         rows=self.same_tick_enchants()
@@ -131,6 +205,29 @@ class Evidence(unittest.TestCase):
         refund['before']=refund['after']|{'count':5,'revision':1}
         refund['after']=refund['after']|{'count':5+refund['count_delta'],'revision':1}
         self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['enchant_outcome','failure_refund'],HASH)['passed'])
+
+    def test_every_later_same_tick_post_revision_must_advance_and_share_step(self):
+        rows=self.same_tick_enchants()
+        for index in (2,3):
+            attempt=self.enchant_rows(base=100 if index==2 else 70,enchant=index,scroll_id=20+index)
+            attempt[1]['data']['operation']['target_before']['revision']=index-1
+            for row in attempt[1:-1]:
+                row['tick']=1;row['data']['resolution_id']=f'enchant:{index+1}'
+                if row['kind']=='item_rng':row['data'].update(word_before=index,word_after=index+1)
+                if row['kind']=='item_delta' and row['data']['instance']==8:
+                    row['data']['after']['revision']=2;row['data']['operation_ordinal']=index-2
+                rows.insert(-1,row)
+        rows[0]['watermark'].update(records=2,last_tick=1)
+        rows[-1].update(ticks=2,last_tick=1);self.repair(rows)
+        self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['enchant_outcome','enchant_chance'],HASH)['passed'])
+        for revision in (0,1,3):
+            bad=copy.deepcopy(rows)
+            outcome=[r['data'] for r in bad if r['kind']=='item_formula' and r['data']['formula']=='enchant_outcome'][-1]
+            target=[r['data'] for r in bad if r['kind']=='item_delta' and r['data']['instance']==8][-1]
+            outcome['operation']['target_before']['revision']=min(revision,1)
+            target['after']['revision']=revision
+            with self.assertRaisesRegex(ValueError,'across ticks' if revision<=1 else 'within tick'):
+                gate.evaluate(bad,self.recording,OWNER,['enchant_outcome','enchant_chance'],HASH)
 
     def test_offline_zero_incarnation_requires_explicit_origin_and_owner(self):
         for operation in ('grant','starter','backfill'):

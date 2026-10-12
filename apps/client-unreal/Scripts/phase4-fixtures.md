@@ -98,6 +98,8 @@ Per-tick batching yields one inventory revision step: canonical before/after
 revisions may be equal on later changes within that tick. Require
 `before.revision ≤ after.revision`, strictly increasing per-instance ordinals
 within a tick, and strictly increasing retained post-revisions across ticks;
+every retained post-state of an instance in the tick must share that revision
+step and exceed the previous tick's retained post-revision, including later rows.
 ordinals can reset on a new tick. Removed instances have no post-revision.
 Do not fabricate intermediate revisions for enchant, consume or refunds.
 
@@ -108,6 +110,14 @@ Other rows emit the single `receipt_ref`, nullable for receipt-free facts.
 Exchange rows require the single Exchange receipt, including constituent
 exchange audit rows (D52); they never use the Consume receipt-list field.
 The old `receipt` field and a singular Consume `receipt_ref` refuse.
+Each enchant outcome's `operation` additionally binds the nonempty `receipt_ref`
+of its resolution, alongside canonical target/scroll/support before-states.
+For a shared scroll/support stack, group contributions by
+`(entity,incarnation,tick,instance)` in outcome fact sequence order. The aggregate
+uses the first contributor's `resolution_id` and exactly their ordered receipt
+references; its before/after states and combined debit must match all one-item
+contributions. Later bound before-counts reflect preceding debits. Non-Consume
+target/refund rows retain their own resolution ID and its matching receipt.
 
 Combat phases use nf.Mark/target_hits_since_mark; template15's pole receives
 primary108,100 and secondary108,101 /108,99 targets (explicit fixture positions).

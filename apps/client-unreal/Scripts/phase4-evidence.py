@@ -547,11 +547,19 @@ def validate(rows,recording,rules_hash):
             if before is not None and after is not None and after['revision']<before['revision']:raise ValueError('item revision regressed')
             identity=(row['entity'],row['incarnation'],instance)
             prior=instance_steps.get(identity)
+            previous_revision=current_revision=None
             if prior is not None:
-                prior_tick,prior_ordinal,prior_revision=prior
+                prior_tick,prior_ordinal,previous_revision,current_revision=prior
                 if tick==prior_tick and ordinal<=prior_ordinal:raise ValueError('item operation ordinal did not increase within tick')
-                if tick>prior_tick and after is not None and after['revision']<=prior_revision:raise ValueError('item revision did not increase across ticks')
-            instance_steps[identity]=(tick,ordinal,(after or before)['revision'])
+                if tick>prior_tick:
+                    if current_revision is not None:previous_revision=current_revision
+                    current_revision=None
+            if after is not None:
+                revision=after['revision']
+                if previous_revision is not None and revision<=previous_revision:raise ValueError('item revision did not increase across ticks')
+                if current_revision is not None and revision!=current_revision:raise ValueError('item revision changed within tick')
+                current_revision=revision
+            instance_steps[identity]=(tick,ordinal,previous_revision,current_revision)
         else:raise ValueError('unknown item raw fact kind')
     return manifest
 
@@ -574,7 +582,8 @@ def enchant_evidence(row, rows):
     correlated=[r for r in rows[1:-1] if r['kind'] in ('item_formula','item_rng','item_delta')
                 and (r['entity'],r['incarnation'],r['data']['resolution_id'])==identity]
     op=data['operation']
-    if set(op)!={'target_before','scroll_before','support_before'}:raise ValueError('incomplete enchant operation binding')
+    if set(op)!={'target_before','scroll_before','support_before','receipt_ref'}:raise ValueError('incomplete enchant operation binding')
+    if not isinstance(op['receipt_ref'],str) or not op['receipt_ref']:raise ValueError('enchant receipt binding required')
     target,scroll,support=(op[k] for k in ('target_before','scroll_before','support_before'))
     for item in (target,scroll,support):
         if item is not None:validate_instance(item)
@@ -601,6 +610,7 @@ def enchant_evidence(row, rows):
     def require(instance,operation,before,after):
         matched=[d for d in deltas if d['instance']==instance and d['operation']==operation]
         if len(matched)!=1:raise ValueError('missing/duplicate enchant '+operation+' row')
+        same(matched[0]['receipt_ref'],op['receipt_ref'])
         same(matched[0]['before'],before)
         if after is None:same(matched[0]['after'],None)
         else:
@@ -610,8 +620,40 @@ def enchant_evidence(row, rows):
         required.append(matched[0])
     for spent in (scroll,support):
         if spent is None:continue
-        after=spent|{'count':spent['count']-1} if spent['count']>1 else None
-        require(spent['id'],'consume',spent,after)
+        scope=(row['entity'],row['incarnation'],row['tick'])
+        contributions=[]
+        for other in rows[1:-1]:
+            if (other['entity'],other['incarnation'],other['tick'])!=scope or other['kind']!='item_formula' or other['data']['formula']!='enchant_outcome':continue
+            binding=other['data']['operation']
+            for key in ('scroll_before','support_before'):
+                item=binding[key]
+                if item is not None and item['id']==spent['id']:
+                    validate_instance(item)
+                    contributions.append((other['data']['resolution_id'],binding['receipt_ref'],item))
+        receipts=[receipt for _,receipt,_ in contributions]
+        if len(set(receipts))!=len(receipts):raise ValueError('duplicate enchant receipt contribution')
+        aggregates=[r['data'] for r in rows[1:-1] if r['kind']=='item_delta'
+                    and (r['entity'],r['incarnation'],r['tick'])==scope
+                    and r['data']['operation']=='consume' and r['data']['instance']==spent['id']]
+        if len(aggregates)!=1:raise ValueError('missing/duplicate enchant consume row')
+        aggregate=aggregates[0]
+        same(aggregate['resolution_id'],contributions[0][0])
+        same(aggregate['receipt_refs'],receipts)
+        first=contributions[0][2]
+        same(aggregate['before'],first)
+        for index,(_,_,before) in enumerate(contributions):
+            same({k:v for k,v in before.items() if k!='revision'},
+                 {k:v for k,v in (first|{'count':first['count']-index}).items() if k!='revision'})
+        same(aggregate['count_delta'],-len(contributions))
+        remaining=first['count']-len(contributions)
+        if remaining<0:raise ValueError('insufficient enchant consume stack')
+        if remaining==0:same(aggregate['after'],None)
+        else:
+            after=aggregate['after']
+            if after is None:raise ValueError('missing enchant post-instance')
+            same({k:v for k,v in after.items() if k!='revision'},
+                 {k:v for k,v in (first|{'count':remaining}).items() if k!='revision'})
+        if aggregate in deltas:required.append(aggregate)
     outcome=data['actual'];destroyed=outcome['destroyed']
     if destroyed:require(target['id'],'destroy',target,None)
     elif outcome['enchant']!=target['enchant']:require(target['id'],'enchant',target,target|{'enchant':outcome['enchant']})
@@ -627,6 +669,7 @@ def enchant_evidence(row, rows):
         candidates=[d for d in deltas if d['operation']=='grant' and d['after'] and d['after']['template_id']==crystal]
         if len(candidates)!=1 or candidates[0]['count_delta']!=refund:raise ValueError('missing exact enchant crystal refund')
         grant=candidates[0]
+        same(grant['receipt_ref'],op['receipt_ref'])
         if grant['before'] is not None:
             before,after=grant['before'],grant['after']
             same({k:v for k,v in before.items() if k not in ('count','revision')},{k:v for k,v in after.items() if k not in ('count','revision')})

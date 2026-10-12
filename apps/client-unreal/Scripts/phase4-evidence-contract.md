@@ -50,7 +50,9 @@ JSONL contract (schema version 1 of this sidecar):
   one inventory revision step: `before.revision ≤ after.revision` when both
   instances exist; equality is valid for later same-tick changes. Per instance,
   ordinals strictly increase within a tick and retained post-revisions strictly
-  increase across ticks; ordinals may reset on a new tick. A removed instance
+  increase across ticks; every retained post-state of an instance in a tick
+  shares that tick's revision step and exceeds the previous tick's retained
+  post-revision, including later rows. Ordinals may reset on a new tick. A removed instance
   has no post-revision to compare. Never fabricate intermediate revisions.
 - `item_baseline`: `inventory_revision,instances,paperdoll,auto_shots`. Complete
   canonical instances and valid paperdoll references bind an owner. A baseline
@@ -61,12 +63,14 @@ JSONL contract (schema version 1 of this sidecar):
   manifest watermark and number of preceding fact rows.
 
 Revision 2 tightens the D46 interface under the accepted review instructions:
-RNG and ledger facts now carry the same `resolution_id` as their formula facts.
+RNG and non-aggregate ledger facts carry the same `resolution_id` as their formula facts.
 The key is `(entity,incarnation,resolution_id)`, never tick or owner alone.
 An `enchant_outcome` formula additionally requires
-`operation={target_before,scroll_before,support_before}` (support may be null),
-each a canonical instance at resolution time, consistent with D49's audit capture.
-Exactly one correlated `enchant_chance`, draw, scroll debit, optional support debit,
+`operation={target_before,scroll_before,support_before,receipt_ref}` (support may be null).
+The three before-states are canonical instances at resolution time, consistent with D49's audit capture.
+`receipt_ref` is the nonempty receipt of this resolution, unique among contributing
+enchant resolutions within the owner/incarnation/tick scope. Its non-Consume
+target/refund deltas carry this same receipt. Exactly one correlated `enchant_chance`, draw, scroll debit, optional support debit,
 and outcome-dependent target change are required. Destruction verifies source
 crystal/refund inputs from E1 grades/items and requires the actual positive refund
 row when applicable. Success/reset/no-increment/safe branches have no fabricated
@@ -74,6 +78,19 @@ refund; unchanged targets have no D28 ledger row. Sources: GAME@abfde049
 RequestEnchantItem.java:123-139,154-271; L2Item.java:353,398-419;
 CrystalType.java:26-33. Deletion tests repair sequences/trailer counts.
 E2 must implement these correlation additions before producer verification.
+
+Consume correlation uses `(entity,incarnation,tick,instance)`, rather than one
+resolution ID per debit. For each scroll/support stack, collect contributing
+`enchant_outcome.operation.receipt_ref` values in fact sequence order. The single
+ordinal0 aggregate carries the first contributor's `resolution_id` and exactly
+that ordered `receipt_refs` list. Its canonical before-state equals the first
+bound scroll/support before-state; later bindings retain the same instance fields
+and reflect each preceding one-item debit (revision may share the tick's step).
+The aggregate's `count_delta` is minus the number of contributions; its after-state
+is the resulting stack or null when exhausted. Two same-tick resolutions may thus
+spend one shared stack via one `count_delta=-2` row with
+`receipt_refs=["receipt:1","receipt:2"]`. Missing, duplicated or reordered
+contributions, repaired deletion, and incorrect combined totals refuse.
 
 D55–D57 revise this same schema-version1 sidecar for the accepted producer:
 same-tick enchant/consume/refund rows may share revisions, offline facts must
