@@ -772,3 +772,148 @@ async fn independent_saves_overlap_but_the_entire_batch_still_gates_output() {
         );
     }
 }
+
+// This adapter records immutable requests, including exact replays, without inventing DB retries.
+#[derive(Default)]
+struct CountCheckpoints {
+    requests: parking_lot::Mutex<Vec<CharacterCheckpoint>>,
+    keys: parking_lot::Mutex<BTreeMap<Uuid, (String, u64)>>,
+}
+#[async_trait::async_trait]
+impl CharacterRepository for CountCheckpoints {
+    async fn load_for_admission(&self, _: CharacterId) -> anyhow::Result<Option<ProgressionState>> {
+        anyhow::bail!("analysis only")
+    }
+    async fn get(&self, _: CharacterId) -> anyhow::Result<Option<Character>> {
+        anyhow::bail!("analysis only")
+    }
+    async fn list_by_account(&self, _: AccountId) -> anyhow::Result<Vec<Character>> {
+        anyhow::bail!("analysis only")
+    }
+    async fn create_idempotent(
+        &self,
+        _: &IdempotencyKey,
+        _: &str,
+        _: &Character,
+    ) -> Result<CreateOutcome, RepositoryError> {
+        Err(RepositoryError::Other(anyhow::anyhow!("analysis only")))
+    }
+    async fn checkpoint(
+        &self,
+        cp: &CharacterCheckpoint,
+        events: &[DomainEvent],
+    ) -> Result<CheckpointOutcome, CheckpointError> {
+        self.requests.lock().push(cp.clone());
+        let mut keys = self.keys.lock();
+        let fp = cp.fingerprint(events);
+        if let Some((prior, rev)) = keys.get(&cp.idempotency.1.as_uuid()) {
+            assert_eq!(prior, &fp);
+            return Ok(CheckpointOutcome::Replayed(*rev));
+        }
+        let rev = cp.revision_seen + 1;
+        keys.insert(cp.idempotency.1.as_uuid(), (fp, rev));
+        Ok(CheckpointOutcome::Applied(rev))
+    }
+}
+
+#[tokio::test]
+#[ignore = "offline full checkpoint accounting; requires PERF_RECORDING"]
+#[allow(clippy::print_stderr)] // Manual evidence report.
+async fn recorded_checkpoint_accounting() {
+    use crate::infrastructure::eventlog::Recording;
+    let recording =
+        Recording::read(std::path::Path::new(&std::env::var("PERF_RECORDING").unwrap())).unwrap();
+    let mut state = ZoneState::from_snapshot(recording.snapshot.clone()).unwrap();
+    let old_repo = Arc::new(CountCheckpoints::default());
+    let new_repo = Arc::new(CountCheckpoints::default());
+    let mut lanes: Vec<_> = [old_repo.clone(), new_repo.clone()]
+        .into_iter()
+        .map(|repo| {
+            let mut lane = CheckpointService::new(
+                repo,
+                Arc::new(InMemorySessionAudit::default()),
+                Arc::new(Metrics::detached()),
+            );
+            lane.restore(&recording.snapshot);
+            lane.internal_cadence = true;
+            lane
+        })
+        .collect();
+    let mut counts = [BTreeMap::<&str, usize>::new(), BTreeMap::new()];
+    for record in recording.records {
+        let applied = state
+            .run_tick(AppliedTickDraft {
+                epoch: record.epoch,
+                tick: record.tick,
+                commands: record.commands.clone(),
+            })
+            .unwrap();
+        assert!(record.reproduced_by(&AppliedTickRecord::from_applied(record.zone, &applied)));
+        let snapshot = state.snapshot();
+        for (index, (lane, repo)) in lanes.iter_mut().zip([&old_repo, &new_repo]).enumerate() {
+            let start = repo.requests.lock().len();
+            for cmd in &applied.commands {
+                if let ZoneCommand::Despawn { entity }
+                | ZoneCommand::ReplaceSession { entity, .. } = cmd.command
+                {
+                    lane.flush(entity).await.unwrap();
+                }
+            }
+            let after_flush = repo.requests.lock().len();
+            *counts[index].entry("lifecycle").or_default() += after_flush - start;
+            let mut reasons = BTreeMap::new();
+            for entity in &snapshot.entities {
+                let side = snapshot
+                    .phase3
+                    .as_ref()
+                    .and_then(|p| p.entities.get(&entity.id));
+                let Some(player) = lane.players.get_mut(&entity.id) else {
+                    reasons.insert(entity.id, "admission");
+                    continue;
+                };
+                let retained = retained_phase3_changed(player.last_phase3.as_ref(), side);
+                let class = match entity.combat.as_ref().map(|c| &c.role) {
+                    Some(CombatRole::Player {
+                        progression: Some(p),
+                        ..
+                    }) => {
+                        player.latest.as_ref().and_then(|c| c.class_state.as_ref())
+                            != Some(&p.class_state)
+                    },
+                    _ => false,
+                };
+                let progression = applied.progression().any(|d| {
+                    d.entity == entity.id
+                        && (d.died.is_some() || d.level_before != d.level || d.respawned)
+                });
+                reasons.insert(
+                    entity.id,
+                    if retained {
+                        "retained"
+                    } else if class {
+                        "class_sp_cp"
+                    } else if progression {
+                        "death_level_respawn"
+                    } else {
+                        "cadence"
+                    },
+                );
+                // Reproduce 995195c's exact old trigger using the real lane's bookkeeping.
+                if index == 0 && retained {
+                    player.last_phase3 = None;
+                }
+            }
+            lane.admitted(&applied, &snapshot).await.unwrap();
+            for cp in &repo.requests.lock()[after_flush..] {
+                let id = EntityId::from_uuid(cp.character_id.as_uuid());
+                *counts[index].entry(reasons[&id]).or_default() += 1;
+            }
+        }
+    }
+    for (index, repo) in [old_repo, new_repo].into_iter().enumerate() {
+        let requests = repo.requests.lock().len();
+        let distinct = repo.keys.lock().len();
+        assert_eq!(counts[index].values().sum::<usize>(), requests);
+        eprintln!("ACCOUNTING historical={} requests={requests} distinct={distinct} repeats={} causes={:?}", index == 0, requests - distinct, counts[index]);
+    }
+}
