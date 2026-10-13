@@ -10,6 +10,31 @@ builds a binary or accepts producer PASS flags. `SIM_PHASE4_RULES_HASH` and
 
 JSONL contract (schema version 1 of this sidecar):
 
+- Integers (D80): every integer whose value lies outside ±2^53 is encoded as
+  a canonical decimal string (`-?(0|[1-9][0-9]*)`, no sign `+`, no leading
+  zeros, no exponent); integers inside (−2^53, 2^53) stay JSON numbers, and a
+  decimal string for such a value refuses. Exactly ±2^53 may use either form.
+  The consumer parses both forms for out-of-range values in EVERY numeric
+  field — manifest/watermark/trailer counters, fact `incarnation/tick/sequence`,
+  RNG `word_before/word_after/bound/value`, delta `instance/count_delta/
+  operation_ordinal` and per-cause `count_delta`, every canonical ItemInstance
+  integer (`id,template_id,count,enchant,augment_id,charges,created_tick,
+  revision`) in baselines, deltas and enchant bindings, baseline
+  `inventory_revision`, paperdoll ids and `auto_shots`, context ids, formula
+  `inputs` integer and `{numerator,denominator}` positions (schema-directed by
+  the input schema) and formula `actual` values (schema-free: only
+  out-of-range decimal strings convert, so text such as an outcome name never
+  does). Text fields (`resolution_id`, receipts, causes, UUIDs) are never
+  converted. Domain bounds apply after decoding (formula inputs stay
+  signed-bigint; instance ids < 2^63).
+  Exact-numeric formula inputs (rationals) follow the same rule: a JSON
+  integer, a `{numerator,denominator}` object, a canonical rational string
+  `-?(0|[1-9][0-9]*)/[1-9][0-9]*`, or a wide decimal string (|n| ≥ 2^53). An
+  in-range integer string (`"100"`), decimal-point or exponent forms
+  (`"1.25"`, `"1e2"`), signs `+`, leading zeros and zero denominators refuse
+  (review-2 P3-3); E1 decimal-point vectors are exported as `n/d`.
+  `bow_damage.actual.distance_l2_lower/upper` (certified 2^-bits √ bounds) is
+  the motivating case.
 - First row: `kind=manifest`, `schema_version=1`, `scope=whole_recording`,
   `recording_sha256`, `zone`, `epoch`, `snapshot_tick`,
   `watermark={zone,epoch,records,last_tick,reason}`, `phase4_rules_hash`,
@@ -29,6 +54,12 @@ JSONL contract (schema version 1 of this sidecar):
   or duplicate resolution identity. `gear_stats` additionally carries the pinned
   class XML path, level, concrete equipment/install sequence, resolved winning
   skill providers and base stat deltas. Source-dependent inputs fail closed.
+  D81: `lethal.inputs.full_residue` and `half_residue` are nullable, with the
+  rule "null iff the corresponding draw was not taken": the full draw is taken
+  only when `eligible`, the half draw only when the full draw missed. A
+  sentinel (the withdrawn 999, or any value) for an untaken draw refuses, and
+  null for a taken draw refuses; 999 remains a legitimate taken residue
+  (bound 1000).
 - `item_rng`: `callsite,word_before,word_after,bound,value,resolution_id`. Preserve the complete
   ordered draw trace, including intervening non-item draws when needed for cursor
   continuity. Draw-free branches have no fabricated draw. Enchant always requires one bound100000
@@ -72,7 +103,10 @@ JSONL contract (schema version 1 of this sidecar):
   D66 amends D64: canonical order per `(entity,incarnation,tick,instance)` is
   ALL positive rows (`grant`, including refunds/Exchange products, `starter`,
   `backfill`) FIRST in cause order, then the single Consume aggregate LAST.
-  Ordinals are zero-based in this chain. The first before equals tick-start
+  D76/D83: `operation_ordinal` is the row POSITION 0..n−1 in this chain, for
+  EVERY chain (with or without a Consume aggregate; the aggregate therefore
+  has the highest ordinal). One logical operation producing two rows on one
+  instance takes consecutive ordinals. The first before equals tick-start
   state (null for a fresh allocation); each next before equals the preceding
   after. Consume's before is the post-positive state and its after is tick-end.
   Validate `tick_end_count = tick_start_count + sum(count_delta)` across all rows.
@@ -85,9 +119,14 @@ JSONL contract (schema version 1 of this sidecar):
   `backfill`) AND count-neutral retained rows (`equip`, `unequip`, `enchant`,
   `refine`, `cancel_refine`) — with the same endpoint continuity; the single
   Consume stays last. Equip-then-shoot on an arrow stack in one tick exports
-  Equip `10→10` (inventory→lhand) then Consume `10→7`. Removal rows
-  (`destroy`, `crystallize`) never precede Consume, and a Consume followed by
-  any row on the same instance and tick refuses.
+  Equip `10→10` (inventory→lhand) then Consume `10→7`.
+  D94 amends the tail: the chain shape is [non-terminal rows in position
+  order…, Consume aggregate, at most ONE terminal row]. Terminal rows are
+  `destroy`/`crystallize` (Phase 5: whole transfer-out); a terminal row is
+  always last and, with a Consume aggregate present, immediately follows it
+  (refine payment then Crystallize; Consume then Destroy of the remainder).
+  A terminal row before Consume, a non-terminal row after Consume, a second
+  Consume or two terminal rows refuse.
   A positive row may increase an existing stack; it preserves all canonical
   fields except count/revision. Fresh Exchange products still require null
   before and a new product instance (D37/D52).
@@ -116,6 +155,12 @@ JSONL contract (schema version 1 of this sidecar):
   incarnations (toggles are off after relog). Slot/location (the paperdoll is
   retained, D16) and every other canonical field must still match, and within
   one incarnation `charges` is compared like any other field.
+  D72 narrows D71: at that boundary `charges` may only CLEAR — the new value
+  is 0 or unchanged; a charge that appears or changes kind refuses. The
+  owner's first `item_baseline` of a later incarnation, once an earlier live
+  incarnation (≥1) of that entity was observed in the recording, carries
+  `auto_shots=[]`. A recording whose first observation of the owner is
+  already a later incarnation (snapshot start) is not a re-admission.
   Owner binding and the D68 cap also apply to a malformed (non-canonical)
   enchant before binding whose `id` is a positive integer, whichever owner is
   being evaluated.
@@ -132,6 +177,7 @@ JSONL contract (schema version 1 of this sidecar):
   | destroy / crystallize | Existing before; after is null. Refunds are separate grant rows. |
   | grant | Canonical after; strictly positive count_delta. Before is null for creation, or canonical for a retained stack with only count changing. |
   | starter / backfill | Before is null; after is canonical. |
+  | use (D73) | Both endpoints; only `charges` changes; count unchanged (count_delta 0). |
 
   D68 bounds every canonical count (baseline instances, enchant bindings and
   both endpoints of every ledger row, which are the only intermediate states
@@ -141,25 +187,51 @@ JSONL contract (schema version 1 of this sidecar):
   (`L2ItemInstance.java:422`, the pinned stack ceiling; the E1 tables carry
   `stackable` but no per-template maximum); `stackable=false` items at 1. Python
   integers are unbounded, so sums never wrap (i128-equivalent).
+  D74 amends D68 for ledger endpoints: caps are enforced on the live acceptance
+  path, so the consumer checks them at the tick-start (first `before`) and
+  tick-end (last `after`) endpoints of each `(entity,incarnation,tick,instance)`
+  chain, and for every earlier row requires `after.count − (Consume debits
+  later in the same chain) ≤ cap`. The D69 export order may therefore show an
+  intermediate `after` above the cap only when same-tick consumption brings the
+  tick end back under it (C → C+1 → C is legal). Baselines and enchant
+  before-bindings are live states and stay capped directly.
   `count_delta` is an exact signed-bigint integer equal to the endpoint count
-  difference for every operation. Revision-only rows and `operation=use` refuse;
-  item-use costs belong in Consume aggregates.
+  difference for every operation. Revision-only rows refuse; item-use COSTS
+  still belong in Consume aggregates. D73: a count-neutral `use` row records a
+  shot discharge (or any use that changes only the instance's `charges`). It
+  carries `receipt_ref` (null for automatic discharges) AND a nonempty ordered
+  `causes` list of `{cause,count_delta}` with every `count_delta` exactly 0 and
+  the discharge cause grammar of D93 (`shot_discharge:<attack resolution_id>`,
+  `cast_discharge:<skill_id>`, or a `receipt:` cause). `receipt_ref` equals the single `receipt:` cause when one
+  exists and is null otherwise. `use` rows are count-neutral retained rows, so
+  under D69 they may precede a Consume aggregate on the same instance; several
+  use rows on one instance in one tick take consecutive positional ordinals.
+  Pure toggles still have no row (D28).
   Under D55, correlate deltas by `(resolution_id,instance,operation_ordinal)`
-  within the owner/incarnation scope, independent of operation name. Derive ONE
+  within the owner/incarnation scope, independent of operation name, where the
+  ordinal is the D83 chain position of the row within its tick (so the join is
+  `(entity,incarnation,tick,instance,position)` with the resolution identity
+  binding it to its formula/RNG facts). Derive ONE
   revision step per `(entity,incarnation,tick)` from the owner's baseline or
   previous changed tick: previous revision → previous revision + 1. Every retained
-  post-state, across ALL instances, must use that same new revision. Before-states
-  use the previous revision, or the new revision for later same-tick changes;
-  equality remains valid. A baseline-free slice binds its initial revision from
-  its canonical endpoints. Subsequent changed ticks strictly advance the owner
-  step even when every changed instance is removed. Per-instance ordinals strictly
-  increase within a tick and may reset on a new tick. Removed instances have no
+  post-state written in that tick, across ALL changed instances, must use that
+  same new revision. D79: an item's `revision` is its LAST-CHANGE revision —
+  untouched items do not advance per tick. A before-state equals the
+  instance's retained state exactly, including that last-change revision; on
+  the first touch of an instance in a tick it is strictly below the tick's
+  step (any earlier step, not necessarily the previous one), and later
+  same-tick rows on that instance see the step itself. Baseline instances
+  carry revisions ≤ `inventory_revision`; enchant bindings never exceed the
+  tick's step. A baseline-free slice binds its step from the tick's
+  post-states (befores cannot bind it). Subsequent changed ticks strictly advance the owner
+  step even when every changed instance is removed. Per-instance ordinals are
+  exactly 0,1,…,n−1 within a tick (D83) and restart at 0 on every tick. Removed instances have no
   fabricated post-state. Never fabricate intermediate revisions.
   Carry complete canonical states forward per owner/incarnation/instance, including
   counts, templates, locations, enchantments and removal. Each next mutation or
   aggregate must start at the established retained state, after recorded intervening
-  changes; untouched canonical snapshots advance to the owner's revision at tick
-  end. Creation starts from null and removal establishes absence. Incarnation
+  changes; untouched instances keep their last-change revision (D79 withdraws
+  the former tick-end re-stamp). Creation starts from null and removal establishes absence. Incarnation
   boundaries have independent state/revision histories; allocation freshness,
   exhausted-ID tombstones, single-owner binding and canonical identity fields
   (D69, except `charges` at the boundary, D71) are recording-wide.
@@ -290,3 +362,119 @@ D26 live/replayed wire bytes, enriched tag41 round trips, legacy tag selection,
 Revision 2 producer implementation, live ledger/receipt cause linkage and measurement
 proof remain E2/E3 integration gates. Synthetic Python tests prove consumer
 rejection and formula behavior, never that a server emitted these facts.
+
+## Next-tranche formula families (zone session 8) — schema revision 17
+
+The zone exports these 14 `item_formula` families next (zone-progress session 7
+gap list): `bow_launch`, `bow_reuse`, `magic_damage`, `heal`, `gear_stats`,
+`set_shield_history`, `clamp_no_heal`, `charge_transition`, `consumable_use`,
+`escape_timing`, `resurrection_scroll`, `learned_item_cost`, `pole_sequence`,
+`dual_plan`; `bow_damage` (D80) and `lethal` (D81) are revised with them. Each
+fact keeps the frozen shape `formula,inputs,actual,resolution_id,baseline=false`
+plus optional `context`. `inputs` must match `INPUT_SCHEMAS[family]` exactly
+(required = the E1 oracle function's parameters without defaults, optional =
+the rest, absent means default, never null unless the schema says nullable).
+`actual` must match `ACTUAL_SCHEMAS[family]` (new in this revision: the shape
+of the E1 oracle's return value after `rational()`, checked before exact
+oracle equality; numbers are exact integers or `{numerator,denominator}`,
+D80 wide integers as decimal strings). Sources: E1 `item_oracle.py` /
+`item_behavior_oracle.py` at the rev 8 import (zone 80b8077 → 89df126),
+design `docs/plans/phase-4-zone-design.md` §12.1 and the producer in
+`state_item_evidence.rs` (`item_formula_v6`, `attack_context_v6`).
+
+| Family | Producer caller / `context.event` | `inputs` (beyond the oracle signature) | `actual` |
+|---|---|---|---|
+| `bow_launch` | bow attack start, `attack` (+`weapon_template`, `target_entity`) | `weapon` = E1 bow_definition record; `inventory` = ITEM records of candidate arrows; `lhand` occupied arrow id or null; `mp`, `mp_modifier` exact; `reduction_residue` null iff no reduced-MP draw; `miss`; `reuse_remaining` TICKS (D88); `hit_chance` per-mille, hit iff `hit_residue < hit_chance` (D88); `hit_residue`, `critical_residue`, `spread_residue` (D87, required, null iff the draw was not taken, D89) | `{accepted, reason∈arrows/reuse/mp/launched, inventory, lhand, equipped_lhand, mp, mp_q, mp_paid, arrows_consumed∈0..1, draws, hit, mp_cost?}`; the launch's arrow debit is an `arrow:<resolution_id>` Consume cause |
+| `bow_reuse` | bow attack accepted, `attack` | `reuse_delay` (template ms), `attack_speed` exact P.Atk.Spd, `weapon_reuse_modifier` | whole ms `trunc(reuse·333/speed)` (D17) |
+| `bow_damage` | bow hit, `attack` | `formula` exact calcPhysDam, `dx_milli`, `dy_milli` signed milli-tiles | `{base, distance_l2_lower, distance_l2_upper, damage}`; bounds are certified 2^-bits rationals, D80 strings |
+| `pole_sequence` | pole swing, `attack` | `candidates` in attempt order `{eligible, hit, formula}`, `maximum` secondary count | per eligible attempt `{percent, hit, draws, base?, damage?}` (D25 85% ÷23/20) |
+| `dual_plan` | dual swing, `attack` | `hits` pair (hit iff residue < `hit_chance`, D88), `formulas` pair, `second_valid`, `hit_residues` pair, `hit_chance`, `spread_radius`, `critical_residues` pair and `spread_residues` pair (D87, required, entry null iff that subhit's draw was not taken, D89) | `{plan, stored_second, applied=[first, second|null], second_recomputed, draws, refunded_draws}` |
+| `magic_damage` | magic skill hit, `cast` (+`skill_id`, `target_entity`) | exact stats + shot flags + branch inputs; `first_success`/`second_success` null iff their draw was not taken; `is_pvp` required boolean (D89) | `{lower, upper, damage, damage_q, branch}` |
+| `heal` | heal effect, `cast` | power/m_atk/shot/grade inputs; `current_hp`, `remainder_q` before; `recoverable_hp` null = uncapped | `{amount, restoration_q, applied_q, current_hp, remainder_q, whole_credit, coefficient, static_bonus, root_lower, root_upper}` |
+| `gear_stats` | dirty rebuild, `equip`/`unequip`/`enchant`/`admission` (+`set_id`) | `class_file` pinned path, `level`, `equipment` `[template, enchant, slot, install_seq]`, `skill_refs` `[skill, rank, seq]` winning providers, `base_deltas`, `base_delta_sequence` | `{exact, root_expressions, q, getters, trace, base_stats, weapon_type, random_damage, spread_bound, enchant_hp, traits, weight}`, full dictionary, `trace` in oracle order (D90) |
+| `set_shield_history` | set listener on slot mutation, `equip`/`unequip` + `set_id` | `previous`, `mutation∈remove/equip_shield/equip_chest`, `chest_present`, `matching_shield`, `complete`, `required_part` | boolean `shield_skill_active` after the mutation (D20) |
+| `clamp_no_heal` | dirty-rebuild clamp, event of the rebuild | `current`, `new_max` exact | `min(current,new_max)`; one fact per resource, `resolution_id` suffix `:hp|:mp|:cp` (D91) |
+| `charge_transition` | discharge/unequip, `attack`/`cast`/`unequip` | `charges` set before, `use_spirit`, `use_soul`, `landed`, `unequip` | sorted charges after; correlates with the D73 `use` row on the weapon |
+| `consumable_use` | UseItem acceptance, `cast` | `definition` (E1 item definition + skills), `tick`, `available` count map, reuse deadline maps, `main_casting`, `condition_context` | `{accepted, consumed, lanes, reason?, item_deadlines?, skill_deadlines?, main_cast_preserved?}`; accepted costs appear as Consume causes `receipt:use:<key>` |
+| `escape_timing` | Escape/Blessed Escape cast start, `cast` | `definition`, `start_tick`, `casting_speed`, `available`, `resources`, `incarnation` | `{accepted, inventory, consumed, draws, animation_ms?, launch_ms?, launch_tick?, completion_tick?, interrupt_cutoff_tick?, completion_consumed?, destination?, resources?, incarnation?, movement_canceled?, auto_canceled?, town_respawn?}` |
+| `resurrection_scroll` | scroll 737 cast + offer response, `cast` | `definition`, `start_tick`, `available`, death/current incarnation, `dead`, `response∈offer/accept/decline/expire`, `response_tick`, `response_offer_id`, `existing_offer`, `repeat`, resources, `restore_percent`, `restore_hp` ratio | `{accepted, consumed, inventory, draws, reason?, completion_consumed?, offer?, trace?, dead?, incarnation?, hp?, hp_q?, mp?, cp?, xp_refund?, recoverable_xp?}`; one fact on the resurrection-applied tick under the intent's resolution id (D92) |
+| `learned_item_cost` | learned skill with itemConsume, `cast` | `skill_id`, `rank`, `consume_id`, `consume_count`, `inventory` ITEM records, `phase∈complete/cancel`, `repeat` | `{accepted, inventory, consumed, draws, completion_consumed?, repeated_consumed?, phase?}`; debits are `item_cast:cast:<id>` Consume causes |
+| `lethal` | blow skill, `cast` | D81 nullable residues | `{outcome∈none/full/half, draws}` |
+
+Draw lists in `actual` name `{site,bound,residue}`; when the family also has
+`item_rng` facts they share the family's `resolution_id`. The revision 17
+producer questions were decided as D87–D93 (below); every family is still
+verified by exact oracle equality on the producer's actual inputs.
+
+### Revision 18 — architect decisions D87–D93 on Q-F1..Q-F7
+
+- D87 (Q-F1): `bow_launch.inputs` gains REQUIRED `critical_residue` and
+  `spread_residue`; `dual_plan.inputs` gains REQUIRED `critical_residues` and
+  `spread_residues` (pairs, one per subhit). Each is nullable only under the
+  D89 rule (null iff that draw was not taken: no landed hit, or no spread draw
+  for a zero-radius bow). The producer emits the live residues; neutral-case-
+  only export is rejected. The E1 rev 8 oracle still hard-codes 999 / radius,
+  so the consumer (`residue_family`) runs it and substitutes the fact's
+  residues into `draws` by site (`critical`/`spread`, `critical1/2`/`spread1/2`),
+  checking each against its draw bound; neither residue alters any other
+  output. When E1 adds these parameters the consumer passes them through.
+- D88 (Q-F2): every duration in evidence is in TICKS (`bow_launch.reuse_remaining`
+  included). A bow/dual hit happens iff `residue < hit_chance` (pinned
+  `Rnd.get(n) < chance`); residue == chance is a miss. The E1 rev 8 oracle
+  still tests `<=`; the consumer probes that once and then passes
+  `hit_chance − 1`, which selects exactly the residues below the chance. E1
+  vectors at the `residue == chance` boundary no longer verify (E1 follow-up:
+  adopt the strict inequality; the probe then disables the adapter).
+  Rev 9 import path (D96, review-2 P3-1): when the E1 oracle signature takes
+  the D87 residue parameters, the consumer passes them through and applies
+  neither adapter (no substitution, no `hit_chance − 1`, no probe). The
+  adapters run only on the pre-D87 data revisions (rules_manifest
+  `data_sha256` rev 7 `5b77911e…` or rev 8 `8e27de15…`); newer data with an
+  old-shaped oracle, or a probe that cannot classify the oracle, is a
+  ValueError gate verdict, never a crash.
+- D89 (Q-F3): D81's rule generalises to every draw-derived field whose draw may
+  not occur: the field is null (or absent) iff its draw was not taken, and a
+  value for an untaken draw (any sentinel) or a null for a taken draw refuses.
+  Covered fields: `lethal.full_residue/half_residue`, `shield.perfect_residue/
+  normal_residue`, `shot_payment.residue` (soulshot reduction),
+  `bow_launch.reduction_residue/hit_residue/critical_residue/spread_residue`,
+  `dual_plan.critical_residues[i]/spread_residues[i]`, and
+  `magic_damage.first_success` (taken iff not perfect and magic failures
+  enabled) / `second_success` (taken iff the first failed for a player
+  attacker). Booleans that are always evaluated are never null:
+  `magic_damage.is_pvp` is a plain boolean and REQUIRED (review-2 P3-4), even
+  though the oracle has a default for it.
+- D90 (Q-F4): the `gear_stats` producer emits the oracle's FULL dictionary
+  (`exact, root_expressions, q, getters, trace, base_stats, weapon_type,
+  random_damage, spread_bound, enchant_hp, traits, weight`), with `trace` rows
+  in oracle order (function order, then install sequence, then
+  (effect, child) ordinal). Missing/extra keys refuse by schema; reordered or
+  dropped trace rows refuse by exact oracle equality.
+- D91 (Q-F5): every `clamp_no_heal` fact's `resolution_id` is
+  `<rebuild resolution>:hp|:mp|:cp` (lowercase, nonempty prefix), so the HP,
+  MP and CP clamps of one rebuild are distinct formula identities.
+- D92 (Q-F6): `consumable_use`, `escape_timing`, `resurrection_scroll` and
+  `learned_item_cost` carry exactly ONE fact per intent, on the tick where the
+  terminal effect applies (effect application / teleport landing /
+  resurrection applied / learn committed), with `resolution_id` = the
+  originating intent's receipt or resolution id. The consumer refuses a
+  second terminal fact for the same `(entity,incarnation,resolution_id)` and
+  any fact of that intent (prepay Consume, draws, other formulas) on a later
+  tick than the terminal fact. A fact belongs to the intent when its
+  `resolution_id`, or (for ledger rows) its `receipt_ref` / any `receipt_refs`
+  entry, equals the terminal fact's `resolution_id`: a receipt-first prepay
+  Consume is bound by its receipt cause, not its resolution (D62). Facts are
+  correlated within one entity; the entity carrying the resurrection_scroll
+  terminal fact (caster vs resurrected target) is to be pinned with Z. The
+  tick of the effect itself is not otherwise observable in the sidecar.
+- D93 (Q-F7): the exporter attaches `causes` to `use` rows. Use causes are
+  `shot_discharge:<attack resolution_id>` (new family), `cast_discharge:<skill_id>`
+  (decimal skill id) or `receipt:<operation>:<key>`; Consume payment causes
+  (`auto_shot`, `arrow`, `item_cast`) refuse on use rows and discharge causes
+  refuse on Consume. An automatic attack discharge row's `resolution_id`
+  equals its first cause's resolution id. A `cast_discharge` cause names a
+  skill, not a resolution; D96: such a row's `resolution_id` is
+  `cast:<cast_id>` and the consumer checks the `cast:` prefix only.
+  A use row with any discharge cause may only CLEAR charge bits
+  (`after.charges & ~before.charges == 0`); only a receipt-bound use (manual
+  shot charge) may add them.

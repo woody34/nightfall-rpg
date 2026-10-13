@@ -47,9 +47,14 @@ class Fixtures(unittest.TestCase):
         self.assertTrue(all(any(i['template_id']==t and i['enchant']==6 for i in six) for t in templates))
         candidates=fixture.phase4.combat_skill_candidates()
         self.assertTrue(candidates)
-        # A named source dependency, not admission of deferred learned skills.
-        self.assertEqual([c for c in candidates if c['admitted']],[])
-        self.assertTrue(all(c['blockers'] for c in candidates))
+        # A named source dependency, not admission of deferred learned skills. Rev 7 (the only
+        # pre-D50 data, identified by its rules_manifest data_sha256) admits none; every later
+        # revision (rev 8, rev 9, ...) admits at least blow skills 16 and 263 (D50 promotion).
+        rev7=fixture.phase4.table('rules_manifest')['data_sha256']=='5b77911ec6bba0b186b9de16d63ea832726943475152a82ea40a5ebd203c4656'
+        admitted={c['skill_id'] for c in candidates if c['admitted']}
+        if rev7:self.assertEqual(admitted,set())
+        else:self.assertLessEqual({16,263},admitted)
+        self.assertTrue(all(c['blockers'] for c in candidates if not c['admitted']))
         kinds=(SCRIPTS.parent/'Scenarios/4-combat-kinds.nfs').read_text()
         self.assertNotIn('damage_numbers',kinds);self.assertIn('nf.Unequip rhand',kinds)
         self.assertEqual(kinds.count('nf.Mark\n'),kinds.count('nf.Attack\n'))

@@ -4,6 +4,7 @@ import copy
 import importlib.util
 import json
 import random
+import re
 from pathlib import Path
 import tempfile
 import unittest
@@ -17,6 +18,7 @@ ALLOWED_CHANGES={
     'consume':{'count'},'equip':{'slot','location'},'unequip':{'slot','location'},
     'enchant':{'enchant'},'refine':{'augment_id'},'cancel_refine':{'augment_id'},
     'destroy':set(),'crystallize':set(),'grant':{'count'},'starter':set(),'backfill':set(),
+    'use':{'charges'},
 }
 
 
@@ -50,6 +52,7 @@ class Evidence(unittest.TestCase):
         rows=copy.deepcopy(self.rows)
         if operation!='consume':count=1
         before=item(100,count,2509 if operation=='consume' else 71)|dict(enchant=enchant,created_tick=created_tick)
+        if operation=='use':before.update(slot='rhand',location='paperdoll',charges=1)
         after=before|{'revision':1}
         if operation=='consume':after['count']-=1
         elif operation=='equip':after.update(slot='rhand',location='paperdoll')
@@ -59,6 +62,7 @@ class Evidence(unittest.TestCase):
         elif operation=='cancel_refine':before['augment_id']=65537
         elif operation in ('destroy','crystallize'):after=None
         elif operation in ('grant','starter','backfill'):before=None
+        elif operation=='use':after['charges']=0 # D73: receipt-free soulshot discharge.
         else:raise AssertionError(operation)
         rows.insert(1,dict(kind='item_baseline',entity=OWNER,incarnation=1,tick=0,sequence=0,
             data=dict(inventory_revision=0,instances=[copy.deepcopy(before)] if before else [],
@@ -68,6 +72,7 @@ class Evidence(unittest.TestCase):
                    operation_ordinal=0,resolution_id='transition:1')
         if operation=='consume':delta.update(receipt_refs=[],causes=[dict(cause='auto_shot:transition:1',count_delta=-1)])
         else:delta['receipt_ref']=None
+        if operation=='use':delta['causes']=[dict(cause='shot_discharge:transition:1',count_delta=0)] # D93
         rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=0,sequence=0,data=delta))
         return self.repair(rows)
 
@@ -136,6 +141,190 @@ class Evidence(unittest.TestCase):
             rows.insert(-1,grant);self.repair(rows);gate.validate(rows,self.recording,HASH)
         bad=self.transition_rows('consume');bad[3]['data']['operation']='use'
         with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
+
+    def test_d73_use_rows_change_only_charges_with_neutral_causes(self):
+        rows=self.transition_rows('use');gate.validate(rows,self.recording,HASH)
+        self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['pole_damage'],HASH)['passed'])
+        # Receipt-bound use (manual shot charge): the receipt cause is projected into receipt_ref.
+        bound=copy.deepcopy(rows);delta=bound[3]['data']
+        delta['before']['charges']=0;delta['after']['charges']=1;bound[1]['data']['instances'][0]['charges']=0
+        delta.update(receipt_ref='receipt:use:k1',causes=[dict(cause='receipt:use:k1',count_delta=0)])
+        gate.validate(bound,self.recording,HASH)
+        # Three discharges on one weapon in one tick: positional ordinals 0/1/2 (D76/D83).
+        chain=copy.deepcopy(rows);first=chain[3];chain[1]['data']['instances'][0]['charges']=7
+        first['data']['before']['charges']=7;first['data']['after']['charges']=3
+        for ordinal,(start,end) in enumerate(((3,1),(1,0)),1):
+            row=copy.deepcopy(first);row['data'].update(operation_ordinal=ordinal,resolution_id=f'transition:{ordinal+1}',
+                before=first['data']['after']|{'charges':start},after=first['data']['after']|{'charges':end},
+                causes=[dict(cause=f'shot_discharge:transition:{ordinal+1}',count_delta=0)])
+            chain.insert(-1,row)
+        self.repair(chain);gate.validate(chain,self.recording,HASH)
+        mutations={
+            'count changes':lambda d:(d['after'].update(count=2),d.update(count_delta=1)),
+            'enchant changes':lambda d:d['after'].update(enchant=3),
+            'charges unchanged':lambda d:d['after'].update(charges=1),
+            'causes missing':lambda d:d.pop('causes'),
+            'causes empty':lambda d:d.update(causes=[]),
+            'negative cause':lambda d:d.update(causes=[dict(cause='shot_discharge:transition:1',count_delta=-1)]),
+            'boolean cause':lambda d:d.update(causes=[dict(cause='shot_discharge:transition:1',count_delta=False)]),
+            'payment cause on use (D93)':lambda d:d.update(causes=[dict(cause='auto_shot:transition:1',count_delta=0)]),
+            'discharge resolution mismatch (D93)':lambda d:d.update(resolution_id='transition:9'),
+            'discharge adds charges (review-2 P3-2)':lambda d:(d['before'].update(charges=1),d['after'].update(charges=3)),
+            'discharge swaps charge kind':lambda d:(d['before'].update(charges=1),d['after'].update(charges=2)),
+            'malformed cast discharge (D93)':lambda d:d.update(causes=[dict(cause='cast_discharge:cast:4',count_delta=0)]),
+            'discharge cause on consume (D93)':None,
+            'malformed cause':lambda d:d.update(causes=[dict(cause='discharge',count_delta=0)]),
+            'receipt_ref without cause':lambda d:d.update(receipt_ref='receipt:use:k1'),
+            'receipt cause without ref':lambda d:d.update(causes=[dict(cause='receipt:use:k1',count_delta=0)]),
+            'receipt_refs list':lambda d:(d.pop('receipt_ref'),d.update(receipt_refs=[])),
+            'charge off rhand':lambda d:d['before'].update(slot='lhand'),
+        }
+        mutations.pop('discharge cause on consume (D93)')
+        consume=self.transition_rows('consume');consume[3]['data']['causes'][0]['cause']='shot_discharge:transition:1'
+        with self.assertRaises(ValueError):gate.validate(consume,self.recording,HASH)
+        # A cast discharge names the skill; it is not tied to a resolution id (cast:<id>).
+        cast=copy.deepcopy(rows);cast[3]['data'].update(causes=[dict(cause='cast_discharge:1011',count_delta=0)],resolution_id='cast:7')
+        gate.validate(cast,self.recording,HASH)
+        # D96: its resolution_id carries the cast: prefix.
+        for resolution in ('banana','transition:1','cast:','attack:7'):
+            bad=copy.deepcopy(cast);bad[3]['data']['resolution_id']=resolution
+            with self.assertRaisesRegex(ValueError,'D96',msg=resolution):gate.validate(bad,self.recording,HASH)
+        for name,mutate in mutations.items():
+            with self.subTest(mutation=name):
+                bad=copy.deepcopy(rows);mutate(bad[3]['data'])
+                with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
+        print(f'D73: use/receipt-bound use/three-discharge chain pass; {len(mutations)} use mutations reject',flush=True)
+
+    def last_change_rows(self,baseline=True):
+        """D79 (zone session 7 Q1): baseline rev1 weapon untouched while the owner steps to 2."""
+        rows=copy.deepcopy(self.rows)
+        weapon=item(100,1,71)|{'revision':1};shots=item(101,5,2509)
+        if baseline:
+            rows.insert(1,dict(kind='item_baseline',entity=OWNER,incarnation=1,tick=0,sequence=0,
+                data=dict(inventory_revision=1,instances=[copy.deepcopy(weapon),copy.deepcopy(shots)],paperdoll={},auto_shots=[])))
+        rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=1,sequence=0,
+            data=dict(operation='consume',instance=101,before=copy.deepcopy(shots),after=shots|{'count':4,'revision':2},
+                      count_delta=-1,operation_ordinal=0,resolution_id='attack:1',receipt_refs=[],
+                      causes=[dict(cause='auto_shot:attack:1',count_delta=-1)])))
+        rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=2,sequence=0,
+            data=dict(operation='equip',instance=100,before=copy.deepcopy(weapon),after=weapon|{'slot':'rhand','location':'paperdoll','revision':3},
+                      count_delta=0,operation_ordinal=0,resolution_id='equip:2',receipt_ref='receipt:equip:k2')))
+        rows[0]['watermark'].update(records=3,last_tick=2);rows[-1].update(ticks=3,last_tick=2)
+        return self.repair(rows)
+
+    def test_d79_untouched_items_keep_their_last_change_revision(self):
+        equip=lambda rows:next(r['data'] for r in rows if r['kind']=='item_delta' and r['data']['operation']=='equip')
+        for baseline in (True,False):
+            with self.subTest(baseline=baseline):
+                rows=self.last_change_rows(baseline);gate.validate(rows,self.recording,HASH)
+                self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['pole_damage'],HASH)['passed'])
+                steps=gate.inventory_history(rows)
+                self.assertEqual(steps[(OWNER,1,2)],(2,3))
+                # The withdrawn re-stamp: the untouched weapon "advanced" to the owner's previous step.
+                # Only a baseline establishes the last change; a baseline-free slice cannot tell.
+                bad=copy.deepcopy(rows);equip(bad)['before']['revision']=2
+                if baseline:
+                    with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
+                else:gate.validate(bad,self.recording,HASH)
+                # First touch at the tick's own step, or ahead of it.
+                for value in (3,4):
+                    bad=copy.deepcopy(rows);equip(bad)['before']['revision']=value
+                    with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
+                # The post-state still carries the owner's step for that tick.
+                for value in (1,2,4):
+                    bad=copy.deepcopy(rows);equip(bad)['after']['revision']=value
+                    with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
+        # A retained baseline cannot hold an item revised after the inventory revision.
+        bad=self.last_change_rows();bad[1]['data']['instances'][0]['revision']=2
+        with self.assertRaisesRegex(ValueError,'ahead of inventory revision'):gate.validate(bad,self.recording,HASH)
+        # A later baseline (reconnect) carries the untouched weapon at revision 1 next to the rev2 stack.
+        rows=self.last_change_rows()
+        rows.insert(-2,dict(kind='item_baseline',entity=OWNER,incarnation=1,tick=2,sequence=0,
+            data=dict(inventory_revision=2,instances=[item(100,1,71)|{'revision':1},item(101,4,2509)|{'revision':2}],paperdoll={},auto_shots=[])))
+        self.repair(rows);gate.validate(rows,self.recording,HASH)
+        bad=copy.deepcopy(rows);bad[-3]['data']['instances'][0]['revision']=2
+        with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
+        # Review-2 P2-1: a baseline-free removal-only tick still advances the owner step.
+        def removal_then(kind,revision):
+            rows=self.transition_rows('destroy')
+            del rows[1] # baseline-free slice: tick 0 destroys instance 100 (before revision 0)
+            if kind=='baseline':
+                rows.insert(-1,dict(kind='item_baseline',entity=OWNER,incarnation=1,tick=1,sequence=0,
+                    data=dict(inventory_revision=revision,instances=[],paperdoll={},auto_shots=[])))
+            else:
+                rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=1,sequence=0,
+                    data=dict(operation='grant',instance=300,before=None,after=item(300,3,1458)|{'revision':revision},
+                              count_delta=3,operation_ordinal=0,resolution_id='grant:300',receipt_ref=None)))
+            rows[0]['watermark'].update(records=2,last_tick=1);rows[-1].update(ticks=2,last_tick=1)
+            return self.repair(rows)
+        for kind,bad_revision,good_revision in (('baseline',0,1),('grant',1,2)):
+            with self.subTest(kind=kind):
+                gate.validate(removal_then(kind,good_revision),self.recording,HASH)
+                with self.assertRaises(ValueError):gate.validate(removal_then(kind,bad_revision),self.recording,HASH)
+        print('D79: last-change revisions pass with and without baselines; re-stamped/ahead befores and wrong post steps reject',flush=True)
+
+    def test_d83_positional_ordinals_for_every_chain(self):
+        # A Consume-free chain: equip then unequip of one weapon in one tick (positions 0, 1).
+        rows=self.transition_rows('equip');equip=rows[3]
+        unequip=copy.deepcopy(equip);unequip['data'].update(operation='unequip',operation_ordinal=1,resolution_id='transition:2',
+            before=copy.deepcopy(equip['data']['after']),after=equip['data']['before']|{'revision':1})
+        rows.insert(-1,unequip);self.repair(rows);gate.validate(rows,self.recording,HASH)
+        for ordinals in ((0,0),(1,2),(0,2),(1,0),(2,1)):
+            with self.subTest(ordinals=ordinals):
+                bad=copy.deepcopy(rows);bad[3]['data']['operation_ordinal'],bad[4]['data']['operation_ordinal']=ordinals
+                with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
+        # Single-row chains are position 0 for every operation, with or without Consume.
+        for operation in ALLOWED_CHANGES:
+            with self.subTest(operation=operation):
+                bad=self.transition_rows(operation);bad[3]['data']['operation_ordinal']=1
+                with self.assertRaisesRegex(ValueError,'chain row position'):gate.validate(bad,self.recording,HASH)
+        # Positions restart per tick: the same instance at tick 1 starts again at 0.
+        later=copy.deepcopy(rows)
+        again=copy.deepcopy(later[3]);again.update(tick=1);again['data'].update(resolution_id='transition:3',
+            before=copy.deepcopy(later[4]['data']['after']),after=later[3]['data']['after']|{'revision':2})
+        later.insert(-1,again);later[0]['watermark'].update(records=2,last_tick=1);later[-1].update(ticks=2,last_tick=1)
+        self.repair(later);gate.validate(later,self.recording,HASH)
+        later[-2]['data']['operation_ordinal']=2
+        with self.assertRaisesRegex(ValueError,'chain row position'):gate.validate(later,self.recording,HASH)
+        print('D83: positional ordinals hold for Consume-free and single-row chains and restart per tick',flush=True)
+
+    def d94_rows(self,operations,count=5):
+        """One stack (instance 100, template 2509) with the given ordered operations in one tick."""
+        rows=self.transition_rows('consume',count=count);rows.pop(3)
+        state=copy.deepcopy(rows[1]['data']['instances'][0])
+        for ordinal,operation in enumerate(operations):
+            before=copy.deepcopy(state)
+            if operation=='consume':
+                after=before|{'count':before['count']-2,'revision':1}
+                data=dict(receipt_refs=[],causes=[dict(cause='auto_shot:attack:1',count_delta=-2)],resolution_id='attack:1')
+            elif operation=='grant':
+                after=before|{'count':before['count']+1,'revision':1};data=dict(receipt_ref='receipt:grant:1',resolution_id='grant:1')
+            else:
+                after=None;data=dict(receipt_ref=f'receipt:{operation}:1',resolution_id=f'{operation}:1')
+            data.update(operation=operation,instance=100,before=before,after=after,
+                        count_delta=(after['count'] if after else 0)-before['count'],operation_ordinal=ordinal)
+            rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=0,sequence=0,data=data))
+            # After a terminal row the mutations reuse the last live state, so the D94 shape
+            # rule (not only continuity) is what must refuse them.
+            state=after if after is not None else before
+        return self.repair(rows)
+
+    def test_d94_consume_then_one_terminal_row(self):
+        controls=(['consume','destroy'],['consume','crystallize'],['grant','consume','destroy'],['grant','destroy'],
+                  ['destroy'],['grant','consume'])
+        for operations in controls:
+            with self.subTest(control=operations):
+                rows=self.d94_rows(operations);gate.validate(rows,self.recording,HASH)
+                self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['pole_damage'],HASH)['passed'])
+        mutations=(['destroy','consume'],['consume','grant'],['consume','destroy','destroy'],['destroy','destroy'],
+                   ['consume','consume','destroy'],['consume','crystallize','consume'])
+        for operations in mutations:
+            with self.subTest(mutation=operations):
+                with self.assertRaises(ValueError):gate.validate(self.d94_rows(operations,count=9),self.recording,HASH)
+        bad=self.d94_rows(['consume','destroy'])
+        bad[3]['data']['operation_ordinal'],bad[4]['data']['operation_ordinal']=1,0
+        with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
+        print(f'D94: {len(controls)} [non-terminal..., Consume, terminal] controls pass; {len(mutations)+1} shape/order mutations reject',flush=True)
 
     def test_system_shot_review11_field_drift_without_enchant_correlation(self):
         rows=self.transition_rows('consume',enchant=0)
@@ -610,6 +799,43 @@ class Evidence(unittest.TestCase):
                 cases+=1
         print(f'D71: charges/auto-shots cleared on re-admission pass; {cases} slot/field/same-incarnation charge drifts reject',flush=True)
 
+    def d72_rows(self,start,seen,auto_shots=(),baseline=True):
+        """D72: inc1 weapon with `start` charges re-observed at inc2 with `seen` charges."""
+        rows=self.readmission_rows('control' if baseline else 'no-baseline')
+        first=next(r for r in rows if r['kind']=='item_baseline')
+        first['data']['instances'][0]['charges']=start
+        for row in rows[1:-1]:
+            if row['incarnation']!=2:continue
+            if row['kind']=='item_baseline':
+                row['data']['instances'][0]['charges']=seen;row['data']['auto_shots']=list(auto_shots)
+            elif row['kind']=='item_delta':row['data']['before']['charges']=seen
+        if seen and baseline:
+            # A still-charged weapon stays equipped: the inc2 baseline alone observes it.
+            rows=self.repair([r for r in rows if r['kind']!='item_delta'])
+        return rows
+
+    def test_d72_readmission_charges_only_clear_and_toggles_reset(self):
+        # Controls: cleared (1 -> 0), unchanged (1 -> 1), absent (0 -> 0), with and without the inc2 baseline.
+        for start,seen,baseline in ((1,0,True),(1,0,False),(1,1,True),(4,4,True),(0,0,True)):
+            with self.subTest(start=start,seen=seen,baseline=baseline):
+                rows=self.d72_rows(start,seen,baseline=baseline);gate.validate_instance_history(rows)
+                self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['pole_damage'],HASH)['passed'])
+        cases=0
+        # Mutations: a charge appears (0 -> 1, 0 -> 4) or changes kind (1 -> 2, 2 -> 6) at the boundary.
+        for start,seen,baseline in ((0,1,True),(0,1,False),(0,4,True),(1,2,True),(2,6,False)):
+            with self.subTest(start=start,seen=seen,baseline=baseline):
+                bad=self.d72_rows(start,seen,baseline=baseline);self.assert_rejected(bad,('pole_damage',))
+                with self.assertRaisesRegex(ValueError,'charges appeared at re-admission'):gate.validate_instance_history(bad)
+                cases+=1
+        # The owner's first baseline of a later incarnation must carry no auto-shot toggles.
+        bad=self.d72_rows(1,0,auto_shots=[5789]);self.assert_rejected(bad,('pole_damage',))
+        with self.assertRaisesRegex(ValueError,'auto-shot toggles survived'):gate.validate_instance_history(bad)
+        cases+=1
+        # A recording that starts at incarnation 2 (no earlier live life observed) keeps its toggles.
+        rows=self.repair([r for r in self.d72_rows(0,0,auto_shots=[5789]) if r['kind'] in ('manifest','complete') or r['incarnation']==2])
+        gate.validate_instance_history(rows)
+        print(f'D72: cleared/unchanged charges pass; {cases} appearing charges / surviving toggles reject',flush=True)
+
     def foreign_binding_rows(self,mutation,identity=8,first=False):
         """Review15 F1: OTHER's malformed enchant binding names OWNER's live instance."""
         rows=copy.deepcopy(self.rows)
@@ -662,13 +888,31 @@ class Evidence(unittest.TestCase):
                 if state:state['template_id']=57
         rows[1]['data']['instances'][0]['template_id']=57
         gate.validate(rows,self.recording,HASH)
-        bad=copy.deepcopy(rows);grant,consume=(r['data'] for r in bad if r['kind']=='item_delta')
+        # D74: the legal C -> C+1 -> C intermediate (export order shows grant before the same-tick
+        # consumption) passes; a tick end above the cap, or a positive row whose after exceeds the cap by
+        # more than the consumption that follows it, rejects.
+        legal=copy.deepcopy(rows);grant,consume=(r['data'] for r in legal if r['kind']=='item_delta')
         grant['after']['count']=99_900_000_001;grant['count_delta']=99_900_000_001-3
         consume['before']['count']=99_900_000_001;consume['after']['count']=99_900_000_000
+        gate.validate(legal,self.recording,HASH)
+        bad=copy.deepcopy(legal);grant,consume=(r['data'] for r in bad if r['kind']=='item_delta')
+        grant['after']['count']=99_900_000_002;grant['count_delta']=99_900_000_002-3
+        consume['before']['count']=99_900_000_002;consume['after']['count']=99_900_000_001
+        with self.assertRaisesRegex(ValueError,'template cap'):gate.validate(bad,self.recording,HASH)
+        bad=copy.deepcopy(legal);grant,consume=(r['data'] for r in bad if r['kind']=='item_delta')
+        grant['after']['count']=99_900_000_003;grant['count_delta']=99_900_000_003-3
+        consume['before']['count']=99_900_000_003;consume['after']['count']=99_900_000_002;consume['count_delta']=-1
+        with self.assertRaisesRegex(ValueError,'template cap'):gate.validate(bad,self.recording,HASH)
+        # Tick-start endpoint above the cap (baseline-free slice) rejects even when consumption follows.
+        bad=copy.deepcopy(legal);del bad[1];self.repair(bad)
+        grant,consume=(r['data'] for r in bad if r['kind']=='item_delta')
+        grant['before']['count']=99_900_000_001;grant['after']['count']=99_900_000_004;grant['count_delta']=3
+        consume['before']['count']=99_900_000_004;consume['after']['count']=99_900_000_000;consume['count_delta']=-4
+        consume['causes']=[dict(cause='auto_shot:attack:0',count_delta=-4)]
         with self.assertRaisesRegex(ValueError,'template cap'):gate.validate(bad,self.recording,HASH)
         bad=copy.deepcopy(rows);bad[1]['data']['instances'][0]['count']=99_900_000_001
         with self.assertRaisesRegex(ValueError,'template cap'):gate.validate(bad,self.recording,HASH)
-        print('D68: adena 99900000000 / stackable 2147483647 / non-stackable 1 at-cap controls pass; over-cap grants, intermediates and baselines reject',flush=True)
+        print('D68: adena 99900000000 / stackable 2147483647 / non-stackable 1 at-cap controls pass; D74 C->C+1->C intermediate passes; over-cap grants, tick ends/starts and baselines reject',flush=True)
 
     def test_seeded_d67_id_reuse_corruptions_2000_cases(self):
         rng=random.Random(0xD67);corruptions=0
@@ -877,9 +1121,13 @@ class Evidence(unittest.TestCase):
                     bad=copy.deepcopy(rows)
                     [r['data'] for r in bad if r['kind']=='item_formula' and r['data']['formula']=='enchant_outcome'][1]['operation'][key]['revision']=revision
                     self.assertFalse(gate.evaluate(bad,self.recording,OWNER,['enchant_outcome'],HASH)['passed'],(count,key,revision))
-                # Equal revisions remain valid; lowering the later binding then rolls back.
+                # D79: the first binding is the stack's earlier last-change revision, so a first
+                # binding at the tick's own step refuses; a later binding below the step rolls back.
                 outcomes[0]['operation'][key]['revision']=1
                 next(r['data'] for r in rows if r['kind']=='item_delta' and r['data']['instance']==outcomes[0]['operation'][key]['id'])['before']['revision']=1
+                self.assert_rejected(copy.deepcopy(rows))
+                outcomes[0]['operation'][key]['revision']=0
+                next(r['data'] for r in rows if r['kind']=='item_delta' and r['data']['instance']==outcomes[0]['operation'][key]['id'])['before']['revision']=0
                 self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['enchant_outcome'],HASH)['passed'])
                 outcomes[1]['operation'][key]['revision']=0
                 self.assertFalse(gate.evaluate(rows,self.recording,OWNER,['enchant_outcome'],HASH)['passed'])
@@ -901,9 +1149,11 @@ class Evidence(unittest.TestCase):
         baseline.append(item(50,ticks*3+1,1835)|{'revision':initial})
         rows.append(dict(kind='item_baseline',entity=OWNER,incarnation=incarnation,tick=start,sequence=0,
                          data=dict(inventory_revision=initial,instances=baseline,paperdoll={},auto_shots=[])))
+        target_revisions={identity:initial for identity in levels}
         for tick,plan in enumerate(plans):
-            revisions={identity:initial+tick for identity in counts}
-            contributions={};ordinals={identity:rng.randint(0,4) for identity in levels};changed=set()
+            # D79: revisions are last-change revisions; untouched stacks keep theirs.
+            # D83: target rows take their positional chain ordinal (0..n-1 per instance and tick).
+            contributions={};ordinals={identity:0 for identity in levels};changed=set()
             def automatic(identity,amount):
                 if not amount:return
                 resolution=f'cast:{cursor}:cost'
@@ -921,7 +1171,7 @@ class Evidence(unittest.TestCase):
                 receipt=f'receipt:enchant:{rng.getrandbits(64):016x}:{cursor}'
                 operation=attempt[1]['data']['operation']
                 operation['receipt_ref']=receipt
-                operation['target_before']['revision']=initial+tick+int(target_id in changed)
+                operation['target_before']['revision']=target_revisions[target_id]
                 auto_before=rng.choice((False,True));cost=automatic_counts[tick][index]
                 if auto_before:automatic(scroll_id,cost)
                 for key in ('scroll_before','support_before'):
@@ -941,8 +1191,8 @@ class Evidence(unittest.TestCase):
                         data.update(receipt_ref=receipt,operation_ordinal=ordinals[target_id])
                         data['after']['revision']=initial+tick+1
                     rows.append(copy.deepcopy(row))
-                ordinals[target_id]+=rng.randint(1,3);cursor+=1
-                if not no_change:changed.add(target_id);levels[target_id]+=1
+                ordinals[target_id]+=int(not no_change);cursor+=1
+                if not no_change:changed.add(target_id);levels[target_id]+=1;target_revisions[target_id]=initial+tick+1
             for identity,parts in contributions.items():
                 resolution,_,before,_=parts[0]
                 rows.append(dict(kind='item_delta',entity=OWNER,incarnation=incarnation,tick=start+tick,sequence=0,
@@ -1025,14 +1275,19 @@ class Evidence(unittest.TestCase):
                dict(operation='grant',before=None,after=first|{'id':71},count_delta=2)]
         for ordinal,data in enumerate(facts):
             rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=0,sequence=0,
-                data=data|dict(instance=71 if ordinal==3 else 70,operation_ordinal=ordinal,resolution_id=f'change:{ordinal}',receipt_ref=None)))
+                data=data|dict(instance=71 if ordinal==3 else 70,operation_ordinal=0 if ordinal==3 else ordinal,resolution_id=f'change:{ordinal}',receipt_ref=None)))
         self.repair(rows);gate.validate(rows,self.recording,HASH)
         for key in ('count','enchant','revision','template_id'):
             bad=copy.deepcopy(rows);bad[3]['data']['before']=bad[3]['data']['before']|{key:4 if key=='count' else 2 if key!='template_id' else 952}
             if key=='count':bad[3]['data']['count_delta']=-1
             with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
         # Incarnations have separate state/revision histories; allocations stay unique.
-        for row in rows[3:-1]:row['incarnation']=2
+        # D79: inc2's first touch of 70 sees its inc1 last-change revision 1; inc2 writes step 2.
+        for row in rows[3:-1]:
+            row['incarnation']=2;data=row['data']
+            if data['instance']==70:data['operation_ordinal']-=1 # D83: positions restart in the inc2 chain.
+            if data['after'] is not None:data['after']['revision']=2
+            if data['operation']=='destroy':data['before']['revision']=2
         gate.validate(rows,self.recording,HASH)
 
     def test_seeded_aggregate_correlation_property_check_2000_cases(self):
@@ -1142,11 +1397,13 @@ class Evidence(unittest.TestCase):
 
     def test_equal_revision_scroll_and_existing_refund_stack(self):
         rows=self.enchant_rows()
-        scroll=rows[1]['data']['operation']['scroll_before'];scroll.update(count=2,revision=1)
+        scroll=rows[1]['data']['operation']['scroll_before'];scroll.update(count=2)
         consume=next(r['data'] for r in rows if r['kind']=='item_delta' and r['data']['operation']=='consume')
-        consume['after']=scroll|{'count':1}
+        consume['after']=scroll|{'count':1,'revision':1}
         self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['enchant_outcome'],HASH)['passed'])
-        bad=copy.deepcopy(rows)
+        # D79: a first touch carries an EARLIER last-change revision; the tick's own step refuses.
+        bad=copy.deepcopy(rows);bad[1]['data']['operation']['scroll_before']['revision']=1
+        with self.assertRaisesRegex(ValueError,'earlier last-change revision'):gate.validate(bad,self.recording,HASH)
         next(r['data'] for r in bad if r['kind']=='item_delta' and r['data']['operation']=='consume')['after']['revision']=0
         with self.assertRaisesRegex(ValueError,'revision regressed'):gate.validate(bad,self.recording,HASH)
         rows=self.enchant_rows(base=70,residue=99999,enchant=3)
@@ -1211,7 +1468,7 @@ class Evidence(unittest.TestCase):
         rows=copy.deepcopy(self.rows)
         rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=0,sequence=1,
             data=dict(resolution_id=rows[1]['data']['resolution_id'],operation='consume',instance=7,
-                      before=item(7,3),after=item(7,1),count_delta=-2,operation_ordinal=0,receipt_refs=['receipt:enchant:2','receipt:enchant:1'],
+                      before=item(7,3),after=item(7,1)|{'revision':1},count_delta=-2,operation_ordinal=0,receipt_refs=['receipt:enchant:2','receipt:enchant:1'],
                       causes=[dict(cause=ref,count_delta=-1) for ref in ('receipt:enchant:2','receipt:enchant:1')])))
         self.repair(rows)
         phase=dict(name='consume-aggregate',formula='pole_damage',mutation=dict(operation='consume',template=17,slot=None))
@@ -1415,18 +1672,205 @@ class Evidence(unittest.TestCase):
     def test_source_bow_launch_inventory_records_and_count_maps(self):
         inputs=dict(weapon=gate.oracle.behavior.bow_definition(gate.source(),13),
                     inventory=[gate.oracle.behavior.arrow_stack(gate.source(),17,2)],
-                    lhand=None,mp=10,mp_modifier=1,reduction_residue=0,miss=False,
-                    hit_chance=800,hit_residue=800)
-        actual=gate.oracle.behavior.bow_launch(**inputs)
+                    lhand=None,mp=10,mp_modifier=1,reduction_residue=None,miss=False,
+                    hit_chance=800,hit_residue=799,critical_residue=17,spread_residue=3)
+        actual=gate.residue_family('bow_launch',inputs)
         self.assertEqual((actual['arrows_consumed'],actual['inventory'][0]['count'],actual['mp']),(1,1,9))
         rows=copy.deepcopy(self.rows)
         rows[1]['data'].update(formula='bow_launch',inputs=inputs,actual=gate.oracle.rational(actual))
         self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['bow_launch'],HASH)['passed'])
         for count in (-1,2**63):
             bad=copy.deepcopy(rows);bad[1]['data']['inputs']['inventory'][0]['count']=count
-            bad[1]['data']['actual']=gate.oracle.rational(gate.oracle.behavior.bow_launch(**bad[1]['data']['inputs']))
+            bad[1]['data']['inputs']=self.with_residues('bow_launch',{k:v for k,v in bad[1]['data']['inputs'].items() if k not in gate.RESIDUE_INPUTS['bow_launch']})
+            bad[1]['data']['actual']=gate.oracle.rational(gate.residue_family('bow_launch',bad[1]['data']['inputs']))
             self.assertFalse(gate.evaluate(bad,self.recording,OWNER,['bow_launch'],HASH)['passed'])
             with self.assertRaises(ValueError):gate.input_domains('learned_item_cost',dict(inventory={'17':count}))
+
+    def test_d87_bow_and_dual_residues_are_fact_inputs(self):
+        bow=dict(weapon=gate.oracle.behavior.bow_definition(gate.source(),13),
+                 inventory=[gate.oracle.behavior.arrow_stack(gate.source(),17,2)],lhand=None,mp=10,mp_modifier=1,
+                 reduction_residue=None,miss=False,hit_chance=800,hit_residue=100,critical_residue=17,spread_residue=3)
+        dual=dict(hits=[True,False],formulas=[10,'3/2'],second_valid=True,hit_residues=[100,900],hit_chance=800,
+                  spread_radius=6,critical_residues=[4,None],spread_residues=[0,None])
+        for name,inputs,sites in (('bow_launch',bow,{'critical':17,'spread':3}),('dual_plan',dual,{'critical1':4,'spread1':0})):
+            with self.subTest(formula=name):
+                actual=gate.oracle.rational(gate.residue_family(name,inputs))
+                self.assertEqual({d['site']:d['residue'] for d in actual['draws'] if d['site'] in sites},sites)
+                rows=copy.deepcopy(self.rows);rows[1]['data'].update(formula=name,inputs=inputs,actual=actual)
+                self.assertTrue(gate.evaluate(rows,self.recording,OWNER,[name],HASH)['passed'])
+                # The E1 neutral-caller output (critical 999, spread = radius) no longer matches live residues.
+                neutral=gate.oracle.rational(getattr(gate.oracle.behavior,name)(**{k:v for k,v in gate.oracle.decode_rationals(inputs).items() if k not in gate.RESIDUE_INPUTS[name]}))
+                with self.assertRaises(ValueError):gate.formula(name,inputs,neutral)
+        mutations=[('bow_launch',dict(critical_residue=None)),('bow_launch',dict(spread_residue=None)),
+                   ('bow_launch',dict(spread_residue=11)),('bow_launch',dict(critical_residue=1000)),
+                   ('bow_launch',dict(miss=True,hit_residue=900)), # miss: residues present for untaken draws
+                   ('dual_plan',dict(critical_residues=[None,None])),('dual_plan',dict(spread_residues=[13,None])),
+                   ('dual_plan',dict(critical_residues=[4,999])),('dual_plan',dict(spread_residues=[0,6]))]
+        for name,change in mutations:
+            with self.subTest(formula=name,change=change):
+                inputs=(bow if name=='bow_launch' else dual)|change
+                with self.assertRaises(ValueError):gate.formula(name,inputs,None)
+        for name,inputs in (('bow_launch',bow),('dual_plan',dual)):
+            for key in gate.RESIDUE_INPUTS[name]:
+                with self.assertRaises(ValueError):gate.input_domains(name,{k:v for k,v in inputs.items() if k!=key})
+        print(f'D87: live critical/spread residues verified for bow_launch/dual_plan; {len(mutations)} residue mutations and missing fields reject',flush=True)
+
+    def test_d88_hit_iff_residue_below_chance(self):
+        self.assertTrue(gate.oracle_hit_inclusive()) # E1 rev 8 still uses <=; the consumer adapts.
+        bow=dict(weapon=gate.oracle.behavior.bow_definition(gate.source(),13),
+                 inventory=[gate.oracle.behavior.arrow_stack(gate.source(),17,2)],lhand=None,mp=10,mp_modifier=1,
+                 reduction_residue=None,miss=False,hit_chance=800,hit_residue=799,critical_residue=17,spread_residue=3)
+        miss=bow|dict(miss=True,critical_residue=None,spread_residue=None)
+        for inputs,hit in ((bow,True),(miss|dict(hit_residue=800),False),(miss|dict(hit_residue=999),False),
+                           (bow|dict(hit_chance=1,hit_residue=0),True),(miss|dict(hit_chance=0,hit_residue=0),False)):
+            with self.subTest(inputs=(inputs['hit_chance'],inputs['hit_residue'],hit)):
+                actual=gate.oracle.rational(gate.residue_family('bow_launch',inputs))
+                self.assertEqual(actual['hit'],hit);gate.formula('bow_launch',inputs,actual)
+        # The boundary residue == chance is a miss: claiming a hit there rejects, as does a miss below it.
+        for inputs in (bow|dict(hit_residue=800),miss|dict(hit_residue=799)):
+            with self.assertRaises(ValueError):gate.formula('bow_launch',inputs,None)
+        dual=dict(hits=[True,False],formulas=[10,10],second_valid=True,hit_residues=[799,800],hit_chance=800,
+                  spread_radius=0,critical_residues=[5,None],spread_residues=[0,None])
+        gate.formula('dual_plan',dual,gate.oracle.rational(gate.residue_family('dual_plan',dual)))
+        with self.assertRaises(ValueError):gate.formula('dual_plan',dual|dict(hits=[True,True],critical_residues=[5,5],spread_residues=[0,0]),None)
+        print('D88: hit iff residue < hit_chance at the boundary for bow_launch and dual_plan',flush=True)
+
+    def test_d89_draw_derived_fields_null_iff_draw_not_taken(self):
+        magic=dict(power=10,m_atk=100,m_def=50,is_pvp=False)
+        controls=[('magic_damage',magic),('magic_damage',magic|dict(magic_failures=True,first_success=True)),
+                  ('magic_damage',magic|dict(magic_failures=True,first_success=False,second_success=True)),
+                  ('magic_damage',magic|dict(magic_failures=True,first_success=False,attacker_player=False)),
+                  ('magic_damage',magic|dict(perfect=True,magic_failures=True)),
+                  ('shield',dict(rate=50,eligible=True,perfect_residue=95,normal_residue=None)),
+                  ('shield',dict(rate=50,eligible=True,perfect_residue=10,normal_residue=20)),
+                  ('shield',dict(rate=50,eligible=False)),
+                  ('shot_payment',dict(charges=[],kind='soul',count=2,available=5,weapon_grade='D',shot_grade='D',reduction=[10,1],residue=50)),
+                  ('shot_payment',dict(charges=[],kind='soul',count=2,available=5,weapon_grade='D',shot_grade='D'))]
+        for name,inputs in controls:
+            with self.subTest(control=(name,inputs)):
+                rows=self.formula_rows(name,inputs);result=gate.evaluate(rows,self.recording,OWNER,[name],HASH)
+                self.assertTrue(result['passed'],result)
+        mutations=[('magic_damage',magic|dict(first_success=True)),          # no failure draw without magic_failures
+                   ('magic_damage',magic|dict(second_success=False)),
+                   ('magic_damage',magic|dict(magic_failures=True)),          # first draw taken but null
+                   ('magic_damage',magic|dict(magic_failures=True,first_success=True,second_success=False)),
+                   ('magic_damage',magic|dict(magic_failures=True,first_success=False,attacker_player=False,second_success=True)),
+                   ('magic_damage',magic|dict(perfect=True,magic_failures=True,first_success=True)),
+                   ('shield',dict(rate=50,eligible=True,perfect_residue=95,normal_residue=50)),
+                   ('shield',dict(rate=50,eligible=False,perfect_residue=0)),
+                   ('shield',dict(rate=50,eligible=True,perfect_residue=None)),
+                   ('shot_payment',dict(charges=[],kind='soul',count=2,available=5,weapon_grade='D',shot_grade='D',residue=0))]
+        for name,inputs in mutations:
+            with self.subTest(mutation=(name,inputs)):
+                rows=self.formula_rows(name,inputs)
+                if rows[1]['data']['actual'] is None:rows[1]['data']['actual']={}
+                self.assertFalse(gate.evaluate(rows,self.recording,OWNER,[name],HASH)['passed'])
+                with self.assertRaises(ValueError):gate.formula(name,inputs,rows[1]['data']['actual'])
+        with self.assertRaises(ValueError):gate.input_domains('magic_damage',magic|dict(is_pvp=None))
+        # Review-2 P3-4: is_pvp is required, not merely non-null.
+        with self.assertRaises(ValueError):gate.input_domains('magic_damage',{k:v for k,v in magic.items() if k!='is_pvp'})
+        print(f'D89: {len(controls)} draw-derived controls pass; {len(mutations)} null/present mismatches and a null is_pvp reject',flush=True)
+
+    def test_d90_gear_stats_full_dictionary_with_ordered_trace(self):
+        vectors=json.loads((gate.REPO/'packages/data/fixtures/item-oracle.json').read_text())['vectors']
+        controls=0
+        for vector in vectors:
+            if not {'class_file','level','equipment'}<=set(vector['inputs'])<=set(gate.INPUT_SCHEMAS['gear_stats']):continue
+            inputs=dict(skill_refs=[],base_deltas=None,base_delta_sequence=-1)|copy.deepcopy(vector['inputs'])
+            actual=gate.oracle.rational(gate.oracle.gear_stats(gate.source(),**gate.oracle.decode_rationals(inputs)))
+            try:gate.formula('gear_stats',inputs,actual)
+            except ValueError:continue
+            controls+=1
+            if len(actual['trace'])<2:continue
+            mutations={'reversed trace':lambda a:a['trace'].reverse(),'dropped trace row':lambda a:a['trace'].pop(),
+                       'missing trace':lambda a:a.pop('trace'),'missing traits':lambda a:a.pop('traits'),
+                       'missing root_expressions':lambda a:a.pop('root_expressions'),'extra key':lambda a:a.update(note=1)}
+            for label,mutate in mutations.items():
+                with self.subTest(vector=vector['id'],mutation=label):
+                    bad=copy.deepcopy(actual);mutate(bad)
+                    with self.assertRaises(ValueError):gate.formula('gear_stats',inputs,bad)
+        self.assertGreaterEqual(controls,1)
+        print(f'D90: {controls} full gear_stats dictionaries pass; reordered/dropped trace rows and missing keys reject',flush=True)
+
+    def test_d91_clamp_no_heal_resource_suffix(self):
+        rows=copy.deepcopy(self.rows);base=rows[1]
+        for index,(resource,current) in enumerate((('hp',120),('mp',40),('cp',0))):
+            row=copy.deepcopy(base);row['data']=dict(formula='clamp_no_heal',inputs=dict(current=current,new_max=100),
+                actual=min(current,100),resolution_id=f'load:rebuild:7:{resource}',baseline=False)
+            rows.insert(-1,row)
+        self.repair(rows)
+        self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['clamp_no_heal'],HASH)['passed'])
+        for resolution in ('load:rebuild:7',':hp','load:rebuild:7:HP','load:rebuild:7:sp','load:rebuild:7:hp:x','hp','x::hp'):
+            with self.subTest(resolution=resolution):
+                bad=copy.deepcopy(rows);bad[2]['data']['resolution_id']=resolution
+                with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
+        bad=copy.deepcopy(rows);bad[3]['data']['resolution_id']=bad[2]['data']['resolution_id']
+        with self.assertRaisesRegex(ValueError,'repeated formula resolution'):gate.validate(bad,self.recording,HASH)
+        print('D91: hp/mp/cp clamps of one rebuild pass with distinct suffixes; missing/unknown suffixes and reuse reject',flush=True)
+
+    def test_d92_multi_tick_families_one_terminal_fact(self):
+        vectors=json.loads((gate.REPO/'packages/data/fixtures/item-oracle.json').read_text())['vectors']
+        vector=next(v for v in vectors if v['id'].startswith('consumable-escape-timing-'))
+        rows=self.formula_rows('escape_timing',copy.deepcopy(vector['inputs']))
+        rows[1].update(tick=2);rows[1]['data']['resolution_id']='receipt:use:k1'
+        # The intent's start-tick draw (prepay/cast start) precedes the terminal teleport fact.
+        rows.insert(1,dict(kind='item_rng',entity=OWNER,incarnation=1,tick=1,sequence=0,data=dict(resolution_id='receipt:use:k1',
+            callsite='cast_start',word_before=0,word_after=1,bound=100,value=3)))
+        rows[0]['watermark'].update(records=3,last_tick=2);rows[-1].update(ticks=3,last_tick=2);self.repair(rows)
+        self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['escape_timing'],HASH)['passed'])
+        bad=copy.deepcopy(rows);bad[1].update(tick=2);bad[2].update(tick=1);bad[1],bad[2]=bad[2],bad[1];self.repair(bad)
+        with self.assertRaisesRegex(ValueError,'D92'):gate.validate(bad,self.recording,HASH)
+        bad=copy.deepcopy(rows);extra=copy.deepcopy(bad[2]);extra['data']['formula']='consumable_use';bad.insert(-1,extra);self.repair(bad)
+        with self.assertRaisesRegex(ValueError,'more than one terminal fact'):gate.validate(bad,self.recording,HASH)
+        # Another intent's later facts are unaffected.
+        ok=copy.deepcopy(rows);later=copy.deepcopy(ok[1]);later.update(tick=2);later['data'].update(resolution_id='receipt:use:k2',word_before=1,word_after=2)
+        ok.insert(-1,later);self.repair(ok);gate.validate(ok,self.recording,HASH)
+        # Review-2 P2-2: a prepay Consume correlates by its receipt cause even under another resolution_id.
+        def with_consume(tick):
+            out=self.transition_rows('consume');delta=out[3]
+            delta.update(tick=tick);delta['data'].update(resolution_id='other:9',receipt_refs=['receipt:use:k1'],
+                causes=[dict(cause='receipt:use:k1',count_delta=-1)])
+            fact=copy.deepcopy(rows[2]);fact.update(tick=1);out.insert(-1,fact)
+            out[0]['watermark'].update(records=3,last_tick=2);out[-1].update(ticks=3,last_tick=2)
+            out[1:-1]=sorted(out[1:-1],key=lambda r:r['tick']);return self.repair(out)
+        gate.validate(with_consume(0),self.recording,HASH)
+        with self.assertRaisesRegex(ValueError,'D92'):gate.validate(with_consume(2),self.recording,HASH)
+        print('D92: one terminal fact per intent on or after every correlated fact; earlier/duplicate terminal facts and a later prepay Consume (by receipt) reject',flush=True)
+
+    def test_rev9_import_path_and_probe_verdicts(self):
+        """Review-2 P3-1 / D96: adapters only on pre-D87 data; rev 9 oracles pass residues through."""
+        from unittest.mock import patch
+        dual=dict(hits=[True,False],formulas=[10,10],second_valid=True,hit_residues=[799,800],hit_chance=800,
+                  spread_radius=2,critical_residues=[5,None],spread_residues=[1,None])
+        expected=gate.oracle.rational(gate.residue_family('dual_plan',dual))
+        rev8=gate.oracle.behavior.dual_plan
+        def rev9(hits,formulas,second_valid,hit_residues,hit_chance,spread_radius,critical_residues,spread_residues):
+            # A rev 9-shaped oracle: strict `<` and the residues as parameters.
+            result=rev8(hits,formulas,second_valid,hit_residues,hit_chance-1,spread_radius)
+            for draw in result['draws']:
+                if draw['site'][:-1] in ('critical','spread'):
+                    draw['residue']=(critical_residues if draw['site'].startswith('critical') else spread_residues)[int(draw['site'][-1])-1]
+            return result
+        with patch.object(gate.oracle.behavior,'dual_plan',rev9),patch.object(gate,'oracle_hit_inclusive',side_effect=AssertionError('probe used')):
+            self.assertTrue(gate.oracle_adopted_d87('dual_plan'))
+            gate.formula('dual_plan',dual,expected) # no adjustment, no probe, any data hash
+            with patch.object(gate,'source_data_sha256',return_value='f'*64):gate.formula('dual_plan',dual,expected)
+        # Rev 8-shaped oracle on unknown (newer) data: the adapter refuses as a verdict.
+        with patch.object(gate,'source_data_sha256',return_value='f'*64):
+            with self.assertRaisesRegex(ValueError,'D96'):gate.formula('dual_plan',dual,expected)
+            rows=copy.deepcopy(self.rows)
+            rows[1]['data'].update(formula='dual_plan',inputs=dual,actual=expected)
+            result=gate.evaluate(rows,self.recording,OWNER,['dual_plan'],HASH)
+            self.assertFalse(result['passed']);self.assertTrue(any('D96' in e for g in result['gates'] for e in g['errors']))
+        # A probe that cannot classify the oracle is a ValueError verdict, not a TypeError crash.
+        def odd(*args,critical_residues=None,**kwargs):raise TypeError('unexpected signature')
+        gate.oracle_hit_inclusive.cache_clear()
+        try:
+            with patch.object(gate.oracle.behavior,'dual_plan',odd):
+                with self.assertRaisesRegex(ValueError,'D88'):gate.oracle_hit_inclusive()
+        finally:gate.oracle_hit_inclusive.cache_clear()
+        self.assertTrue(gate.oracle_hit_inclusive())
+        print('Rev 9 path: residue parameters detected by signature remove both adapters; unknown data or an unclassifiable probe is a verdict',flush=True)
 
     def test_item_record_scalar_substitutions_through_evaluate(self):
         vectors=gate.oracle.make_vectors(gate.source())
@@ -1483,7 +1927,7 @@ class Evidence(unittest.TestCase):
     def test_signed_formula_controls(self):
         for name,inputs in [('grade_penalties',dict(equipped=[],expertise=0,bonus=-2)),
                             ('max_load',dict(con_bonus=1,add=-10)),
-                            ('bow_damage',dict(formula='100',dx_milli=-12500,dy_milli=0))]:
+                            ('bow_damage',dict(formula=100,dx_milli=-12500,dy_milli=0))]:
             actual=gate.oracle.rational(getattr(gate.oracle,name)(**inputs))
             rows=copy.deepcopy(self.rows);rows[1]['data'].update(formula=name,inputs=inputs,actual=actual)
             self.assertTrue(gate.evaluate(rows,self.recording,OWNER,[name],HASH)['passed'],name)
@@ -1492,14 +1936,41 @@ class Evidence(unittest.TestCase):
         for inputs in ({'base':True},{'base':{'numerator':True,'denominator':1}},{'base':100,'bonus':False}):
             with self.assertRaises(ValueError):gate.formula('enchant_chance',inputs,1000)
         with self.assertRaises(ValueError):gate.formula('enchant_outcome',dict(base=100,bonus=0,support=True,residue=0,enchant=0),{})
-        with self.assertRaises(ValueError):gate.formula('pole_damage',dict(formula='100',primary=1),{})
+        with self.assertRaises(ValueError):gate.formula('pole_damage',dict(formula=100,primary=1),{})
         for residue in ('0',{'numerator':0,'denominator':1},True):
             with self.assertRaises(ValueError):gate.formula('fist_spread',dict(level=14,residue=residue),{})
-        gate.formula('pole_damage',dict(formula='100',primary=True),gate.oracle.rational(gate.oracle.pole_damage('100',primary=True)))
+        gate.formula('pole_damage',dict(formula=100,primary=True),gate.oracle.rational(gate.oracle.pole_damage('100',primary=True)))
+
+    @staticmethod
+    def with_residues(name,inputs):
+        """D87: read the oracle's own critical/spread residues back as fact inputs."""
+        def canonical(value):
+            # Review-2 P3-3: E1 decimal-point strings ('1.25') become canonical n/d rationals.
+            if isinstance(value,dict):return {k:canonical(v) for k,v in value.items()}
+            if isinstance(value,list):return [canonical(v) for v in value]
+            if isinstance(value,str) and re.fullmatch(r'-?[0-9]+\.[0-9]+',value):
+                number=gate.oracle.F(value);return f'{number.numerator}/{number.denominator}'
+            return value
+        inputs=canonical(copy.deepcopy(inputs))
+        if name=='magic_damage' and 'is_pvp' not in inputs:
+            # Review-2 P3-4: is_pvp is required; E1 vectors leave it to the oracle default.
+            inputs['is_pvp']=inputs.get('attacker_player',True) and inputs.get('target_player',False)
+        if name not in gate.RESIDUE_INPUTS:return inputs
+        function=getattr(gate.oracle.behavior,name)
+        try:draws={d['site']:d['residue'] for d in function(**gate.oracle.decode_rationals(inputs))['draws']}
+        except (ValueError,TypeError,KeyError):draws={}
+        if name=='bow_launch':
+            # D89: E1 vectors give untaken draws a placeholder; facts carry null instead.
+            inputs.update(critical_residue=draws.get('critical'),spread_residue=draws.get('spread'),
+                          reduction_residue=draws.get('bow_mp_reduction'),hit_residue=draws.get('hit'))
+        else:inputs.update(critical_residues=[draws.get('critical1'),draws.get('critical2')],
+                           spread_residues=[draws.get('spread1'),draws.get('spread2')])
+        return inputs
 
     def formula_rows(self,name,inputs):
         rows=copy.deepcopy(self.rows)
         function=getattr(gate.oracle,name,None) or getattr(gate.oracle.behavior,name,None)
+        if name in gate.RESIDUE_INPUTS:function=lambda **_:gate.residue_family(name,inputs)
         try:actual=gate.oracle.rational(function(**gate.oracle.decode_rationals(inputs)))
         except (TypeError,ValueError,KeyError,IndexError,ZeroDivisionError,AttributeError):actual=None
         rows[1]['data'].update(formula=name,inputs=inputs,actual=actual)
@@ -1523,9 +1994,13 @@ class Evidence(unittest.TestCase):
             function=getattr(gate.oracle,name,None) or getattr(gate.oracle.behavior,name,None)
             with self.subTest(formula=name):
                 parameters=dict(inspect.signature(function).parameters);parameters.pop('src',None)
-                self.assertEqual(set(gate.INPUT_SCHEMAS[name]),set(parameters))
+                # D87 adds the critical/spread residues the E1 rev 8 oracle still hard-codes.
+                self.assertEqual(set(gate.INPUT_SCHEMAS[name]),set(parameters)|set(gate.RESIDUE_INPUTS.get(name,())))
                 for key,param in parameters.items():
-                    if param.default is None:self.assertEqual(gate.INPUT_SCHEMAS[name][key][0],'nullable')
+                    # D89: always-evaluated booleans are never null; draw-derived flags may be.
+                    if (name,key)==('magic_damage','is_pvp'):self.assertEqual(gate.INPUT_SCHEMAS[name][key],gate.BOOL)
+                    elif (name,key)==('magic_damage','first_success'):self.assertEqual(gate.INPUT_SCHEMAS[name][key],gate.nullable(gate.BOOL))
+                    elif param.default is None:self.assertEqual(gate.INPUT_SCHEMAS[name][key][0],'nullable')
                     elif type(param.default) is bool:self.assertEqual(gate.INPUT_SCHEMAS[name][key],gate.BOOL)
 
     def test_signature_compatible_e1_vector_inputs_preserve_shapes(self):
@@ -1542,15 +2017,71 @@ class Evidence(unittest.TestCase):
                 inputs=copy.deepcopy(vector['inputs'])
                 # E1 expresses repeat as 0/1; the D46 flag is a JSON boolean.
                 if name=='resurrection_scroll':inputs['repeat']=bool(inputs['repeat'])
+                inputs=self.with_residues(name,inputs)
                 with self.subTest(formula=name,vector=vector['id']):gate.input_domains(name,inputs)
                 controls+=1;formulas.add(name)
         self.assertGreaterEqual(controls,3202)
         self.assertGreaterEqual(len(formulas),43)
 
+    def test_next_tranche_actual_schemas_match_e1_outputs(self):
+        """Revision 17: every `actual` shape of the 14 next-tranche families (+bow_damage, lethal)
+        accepts the E1 oracle's own outputs on E1 vectors, and rejects shape mutations."""
+        import inspect
+        families={'bow_launch','bow_reuse','magic_damage','heal','gear_stats','set_shield_history','clamp_no_heal',
+                  'charge_transition','consumable_use','escape_timing','resurrection_scroll','learned_item_cost',
+                  'pole_sequence','dual_plan','bow_damage','lethal'}
+        self.assertEqual(set(gate.ACTUAL_SCHEMAS),families)
+        vectors=json.loads((gate.REPO/'packages/data/fixtures/item-oracle.json').read_text())['vectors']
+        covered={};src=gate.source()
+        for name in sorted(families):
+            function=getattr(gate.oracle,name,None) or getattr(gate.oracle.behavior,name,None)
+            parameters=inspect.signature(function).parameters
+            required={k for k,p in parameters.items() if k!='src' and p.default is inspect.Parameter.empty}
+            for vector in vectors:
+                inputs=copy.deepcopy(vector['inputs'])
+                if not required<=set(inputs) or set(inputs)-set(gate.INPUT_SCHEMAS[name]):continue
+                if name=='resurrection_scroll':inputs['repeat']=bool(inputs['repeat'])
+                inputs=self.with_residues(name,inputs)
+                try:
+                    gate.input_domains(name,inputs)
+                    decoded=gate.oracle.decode_rationals(inputs)
+                    if name in gate.RESIDUE_INPUTS:output=gate.residue_family(name,inputs)
+                    else:output=function(src,**decoded) if 'src' in parameters else function(**decoded)
+                except (ValueError,TypeError,KeyError,IndexError,ZeroDivisionError):continue
+                actual=gate.oracle.rational(output)
+                with self.subTest(formula=name,vector=vector['id']):
+                    gate.validate_input(actual,gate.ACTUAL_SCHEMAS[name],name+'.actual')
+                covered[name]=covered.get(name,0)+1
+        # Families without a signature-compatible E1 vector get a direct oracle control.
+        direct={'bow_reuse':dict(reuse_delay=1500,attack_speed=400),'clamp_no_heal':dict(current=120,new_max={'numerator':199,'denominator':2}),
+                'set_shield_history':dict(previous=False,mutation='equip_shield',chest_present=True,matching_shield=True),
+                'charge_transition':dict(charges=['soul','blessed'],use_spirit=True),
+                'lethal':dict(full=10,half=20,full_residue=500,half_residue=150),
+                'bow_damage':dict(formula=100,dx_milli=12499,dy_milli=7),
+                'pole_sequence':dict(candidates=[dict(eligible=True,hit=True,formula='499/10'),dict(eligible=True,hit=False,formula=0)],maximum=3),
+                'magic_damage':dict(power=10,m_atk=100,m_def=50,spirit=True,is_pvp=False),
+                'heal':dict(power=100,m_atk=200,current_hp=10,recoverable_hp=500)}
+        for name,inputs in direct.items():
+            with self.subTest(formula=name,direct=True):
+                actual=gate.oracle.rational((getattr(gate.oracle,name,None) or getattr(gate.oracle.behavior,name))(**gate.oracle.decode_rationals(inputs)))
+                gate.formula(name,inputs,actual);covered[name]=covered.get(name,0)+1
+        self.assertEqual(set(covered),families,covered)
+        # Shape mutations reject before oracle equality (booleans/text masquerading as numbers, missing keys).
+        actual=gate.oracle.rational(gate.oracle.bow_damage('100',12499,7))
+        for mutate in (lambda a:a.update(damage=True),lambda a:a.update(damage='90'),lambda a:a.pop('base'),
+                       lambda a:a.update(extra=1),lambda a:a.update(distance_l2_lower=1.5)):
+            bad=copy.deepcopy(actual);mutate(bad)
+            with self.assertRaises(ValueError):gate.formula('bow_damage',dict(formula=100,dx_milli=12499,dy_milli=7),bad)
+        with self.assertRaisesRegex(ValueError,'set_shield_history.actual'):
+            gate.formula('set_shield_history',direct['set_shield_history'],1)
+        with self.assertRaisesRegex(ValueError,'charge_transition.actual'):
+            gate.formula('charge_transition',direct['charge_transition'],['shot'])
+        print('Revision 17 actual schemas: E1 outputs accepted '+', '.join(f'{k}:{v}' for k,v in sorted(covered.items())),flush=True)
+
     def test_scalar_shape_mutations_on_perfect_block_branches(self):
         # Recompute output: these oracle branches deliberately never read operands.
         for name,inputs in [('physical_damage',dict(p_atk=10,defence=10,perfect=True)),
-                            ('magic_damage',dict(power=10,m_atk=10,m_def=10,perfect=True))]:
+                            ('magic_damage',dict(power=10,m_atk=10,m_def=10,perfect=True,is_pvp=False))]:
             control=self.formula_rows(name,inputs)
             self.assertTrue(gate.evaluate(control,self.recording,OWNER,[name],HASH)['passed'])
             for key,kind in gate.INPUT_SCHEMAS[name].items():
@@ -1594,14 +2125,15 @@ class Evidence(unittest.TestCase):
              (None,True,1,{},[None],[1],['bad'],[[]])),
             ('heal',dict(power=0,m_atk=0,recoverable_hp=None),'recoverable_hp',
              ([],[1],{},True,'bad',-1,2**63)),
-            ('magic_damage',dict(power=10,m_atk=10,m_def=10,perfect=True,is_pvp=None),'is_pvp',
-             ([],[True],{},0,1,'bad')),
+            ('magic_damage',dict(power=10,m_atk=10,m_def=10,perfect=True,is_pvp=True),'is_pvp',
+             ([],[True],{},0,1,'bad',None)),
             ('shot_payment',dict(charges=[],kind='soul',count=1,available=0,weapon_grade=None,shot_grade='D'),
              'weapon_grade',([],['D'],{},True,1,'bad')),
             ('shot_payment',dict(charges=[],kind='soul',count=1,available=0,weapon_grade='D',shot_grade='D',reduction=[]),
              'reduction',(None,1,{},[1],[0,1,2],[None,1],[1,-1],[1,2**63],[101,1])),
             ('dual_plan',dict(hits=[True,False],formulas=[10,'3/2'],second_valid=True,
-                             hit_residues=[800,801],hit_chance=800,spread_radius=6),'formulas',
+                             hit_residues=[799,800],hit_chance=800,spread_radius=6,
+                             critical_residues=[999,None],spread_residues=[6,None]),'formulas',
              (None,1,{},[],[1],[1,2,3],[True,1],[None,1],[[],1],[2**63,1])),
             ('winning_providers',dict(providers=[dict(key='item:1',skill_id=1,rank=1,sequence=0)]),'providers',
              (None,{},1,[None],[{}],[dict(key='item:1',skill_id=1,rank=1,sequence=0,unknown=1)],
@@ -1644,7 +2176,7 @@ class Evidence(unittest.TestCase):
                     self.assertFalse(result['passed'])
                     self.assertTrue(any('invalid formula input '+name+'.charges' in e for r in result['gates'] for e in r['errors']),result)
         for name,inputs in [('physical_damage',dict(p_atk=10,defence=10,perfect=True)),
-                            ('magic_damage',dict(power=10,m_atk=10,m_def=10,perfect=True)),
+                            ('magic_damage',dict(power=10,m_atk=10,m_def=10,perfect=True,is_pvp=False)),
                             ('charge_transition',dict(charges=[]))]:
             control=self.formula_rows(name,inputs)
             for key in ('unknown','src'):
@@ -1660,7 +2192,7 @@ class Evidence(unittest.TestCase):
                ('physical_damage',dict(p_atk=0,defence=80,power=-1,caller='blow')),
                ('position',dict(facing=[1,0],relative=[-1,0])),
                ('grade_penalties',dict(equipped=[dict(instance_id=1,slot=0,grade=7,weapon=False)],expertise=0)),
-               ('magic_damage',dict(power=1,m_atk=1,m_def=1,is_pvp=True,second_success=False)),
+               ('magic_damage',dict(power=1,m_atk=1,m_def=1,is_pvp=True,second_success=None)),
                ('overload',dict(weight=0,maximum=-1)),
                ('player_level_range',dict(condition={'kind':'player_level_range','ranges':[{'minimum':1,'maximum':84}]},rank=1,level=84))]
         # E1 vectors supply genuine definition, map, and nullable offer operands.
@@ -1671,7 +2203,9 @@ class Evidence(unittest.TestCase):
             vector=next(v for v in vectors if v['id'].startswith(prefix))
             inputs=copy.deepcopy(vector['inputs'])
             if name=='resurrection_scroll':inputs['repeat']=bool(inputs['repeat'])
-            cases.append((name,inputs))
+            # D88: E1's boundary hit (residue == chance) is a miss now; take the residue just below.
+            if name=='bow_launch' and not inputs['miss'] and inputs['hit_residue']==inputs['hit_chance']:inputs['hit_residue']-=1
+            cases.append((name,self.with_residues(name,inputs)))
         for name,inputs in cases:
             with self.subTest(formula=name):
                 rows=self.formula_rows(name,inputs)
@@ -1688,7 +2222,7 @@ class Evidence(unittest.TestCase):
         rows[1]['data']['context']['weapon_template']=15
         rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=0,sequence=1,
             data=dict(resolution_id=rows[1]['data']['resolution_id'],operation='equip',instance=8,
-                      before=item(8,1,15),after=item(8,1,15,'rhand'),count_delta=0,operation_ordinal=0,receipt_ref='equip:1')))
+                      before=item(8,1,15),after=item(8,1,15,'rhand')|{'revision':1},count_delta=0,operation_ordinal=0,receipt_ref='equip:1')))
         self.repair(rows)
         self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['pole_damage'],HASH,[phase])['passed'])
         bad=copy.deepcopy(rows);del bad[2];self.repair(bad)
@@ -1726,10 +2260,115 @@ class Evidence(unittest.TestCase):
         for dx,damage in [(12499,89),(12500,90),(12501,90)]:
             expected=gate.oracle.rational(gate.oracle.bow_damage('100',dx,0))
             self.assertEqual(expected['damage'],damage)
-            gate.formula('bow_damage',dict(formula='100',dx_milli=dx,dy_milli=0),expected)
+            gate.formula('bow_damage',dict(formula=100,dx_milli=dx,dy_milli=0),expected)
         gate.formula('bow_reuse',dict(reuse_delay=1500,attack_speed=400,weapon_reuse_modifier=2),1248)
         bad=copy.deepcopy(self.rows);bad[1]['data']['actual']['damage']=42
         self.assertFalse(gate.evaluate(bad,self.recording,OWNER,['pole_damage'],HASH)['passed'])
+
+    def test_d80_wide_integers_parse_as_decimal_strings(self):
+        def stringify(value):
+            # D80 producer encoding: integers outside ±2^53 become decimal strings.
+            if isinstance(value,dict):return {k:stringify(v) for k,v in value.items()}
+            if isinstance(value,list):return [stringify(v) for v in value]
+            if type(value) is int and abs(value)>2**53:return str(value)
+            return value
+        # RNG word positions are u128 cursors.
+        rows=copy.deepcopy(self.rows)
+        rows.insert(2,dict(kind='item_rng',entity=OWNER,incarnation=1,tick=0,sequence=1,data=dict(resolution_id='npc:shield:1',
+            callsite='shield_perfect',word_before=str(2**64),word_after=str(2**64+1),bound=100,value=7)))
+        self.repair(rows);gate.validate(rows,self.recording,HASH)
+        self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['pole_damage'],HASH)['passed'])
+        numeric=copy.deepcopy(rows);numeric[2]['data'].update(word_before=2**64,word_after=2**64+1)
+        gate.validate(numeric,self.recording,HASH) # the consumer parses both forms
+        for value in ('5','0','-1',str(2**53-1),str(-(2**53-1))):
+            bad=copy.deepcopy(rows);bad[2]['data']['word_before']=value
+            with self.assertRaisesRegex(ValueError,'inside ±2\\^53',msg=value):gate.validate(bad,self.recording,HASH)
+        for value in ('0x10',' 18446744073709551616','+18446744073709551616','018446744073709551616','1e30','1.0'):
+            bad=copy.deepcopy(rows);bad[2]['data']['word_before']=value
+            with self.assertRaises(ValueError,msg=value):gate.validate(bad,self.recording,HASH)
+        bad=copy.deepcopy(rows);bad[2]['data']['word_after']=str(2**64-1)
+        with self.assertRaisesRegex(ValueError,'RNG cursor'):gate.validate(bad,self.recording,HASH)
+        # Canonical instance ids beyond 2^53 (allocator ranges reach 2^63): baseline, delta, causes.
+        wide=2**60+100;rows=self.transition_rows('consume')
+        for row in rows[1:-1]:
+            data=row['data']
+            if row['kind']=='item_baseline':data['instances'][0]['id']=wide
+            elif row['kind']=='item_delta':
+                data['instance']=wide
+                for key in ('before','after'):
+                    if data[key]:data[key]['id']=wide
+        encoded=stringify(rows)
+        self.assertEqual(encoded[3]['data']['instance'],str(wide))
+        gate.validate(encoded,self.recording,HASH);gate.validate(rows,self.recording,HASH)
+        self.assertTrue(gate.evaluate(encoded,self.recording,OWNER,['pole_damage'],HASH)['passed'])
+        bad=copy.deepcopy(encoded);bad[3]['data']['instance']=str(wide+1)
+        with self.assertRaisesRegex(ValueError,'identity mismatch'):gate.validate(bad,self.recording,HASH)
+        bad=copy.deepcopy(encoded);bad[3]['data']['before']['id']=str(2**63)
+        with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
+        bad=copy.deepcopy(encoded);bad[3]['data']['count_delta']='-1'
+        with self.assertRaisesRegex(ValueError,'inside ±2\\^53'):gate.validate(bad,self.recording,HASH)
+        bad=copy.deepcopy(encoded);bad[3]['data']['causes'][0]['count_delta']='-1'
+        with self.assertRaisesRegex(ValueError,'inside ±2\\^53'):gate.validate(bad,self.recording,HASH)
+        # Text fields never convert: a decimal resolution identity stays text.
+        digits=copy.deepcopy(rows);digits[2]['data']['resolution_id']=str(2**64)
+        self.assertTrue(gate.evaluate(digits,self.recording,OWNER,['pole_damage'],HASH)['passed'])
+        # bow_damage: certified 2^-bits sqrt bounds carry > i64 numerators in `actual`.
+        inputs=dict(formula=100,dx_milli=12499,dy_milli=7)
+        actual=gate.oracle.rational(gate.oracle.bow_damage(**inputs))
+        self.assertGreater(actual['distance_l2_lower']['denominator'],2**63)
+        encoded_actual=stringify(actual)
+        self.assertIsInstance(encoded_actual['distance_l2_lower']['denominator'],str)
+        gate.formula('bow_damage',inputs,encoded_actual)
+        rows=copy.deepcopy(self.rows);rows[1]['data'].update(formula='bow_damage',inputs=inputs,actual=encoded_actual)
+        self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['bow_damage'],HASH)['passed'])
+        bad=copy.deepcopy(encoded_actual);bad['distance_l2_lower']['numerator']=str(int(bad['distance_l2_lower']['numerator'])+1)
+        with self.assertRaises(ValueError):gate.formula('bow_damage',inputs,bad)
+        # Wide inputs decode, then the signed-bigint input domain still applies.
+        gate.formula('bow_damage',dict(formula=100,dx_milli=str(2**60),dy_milli=0),
+                     stringify(gate.oracle.rational(gate.oracle.bow_damage('100',2**60,0))))
+        for value in (str(2**63),'5'):
+            with self.assertRaises(ValueError,msg=value):gate.formula('bow_damage',dict(formula=100,dx_milli=value,dy_milli=0),actual)
+        with self.assertRaises(ValueError):
+            gate.formula('pole_damage',dict(formula={'numerator':str(2**64),'denominator':'1'},percent=85,primary=False),None)
+        print('D80: wide RNG cursors, instance ids, bow bounds and inputs parse as decimal strings; in-range strings and malformed decimals reject',flush=True)
+
+    def test_d81_lethal_residues_null_iff_draw_not_taken(self):
+        base=dict(full=10,half=20,eligible=True,attribute=1,trait=1)
+        controls=[(dict(full_residue=50,half_residue=None),'full'),(dict(full_residue=500,half_residue=150),'half'),
+                  (dict(full_residue=500,half_residue=999),'none'),(dict(full_residue=999,half_residue=0),'half'),
+                  (dict(full_residue=None,half_residue=None,eligible=False),'none')]
+        for change,outcome in controls:
+            with self.subTest(control=change):
+                rows=self.formula_rows('lethal',base|change)
+                self.assertEqual(rows[1]['data']['actual']['outcome'],outcome)
+                result=gate.evaluate(rows,self.recording,OWNER,['lethal'],HASH);self.assertTrue(result['passed'],result)
+        # The withdrawn 999 sentinel (and any other value) for an untaken draw, and null for a taken draw.
+        mutations=[dict(full_residue=50,half_residue=999),dict(full_residue=50,half_residue=0),
+                   dict(full_residue=500,half_residue=None),dict(full_residue=None,half_residue=150),
+                   dict(full_residue=None,half_residue=None),
+                   dict(full_residue=999,half_residue=999,eligible=False),dict(full_residue=None,half_residue=999,eligible=False)]
+        for change in mutations:
+            with self.subTest(mutation=change):
+                rows=self.formula_rows('lethal',base|change)
+                if rows[1]['data']['actual'] is None:rows[1]['data']['actual']={'outcome':'none','draws':[]}
+                result=gate.evaluate(rows,self.recording,OWNER,['lethal'],HASH);self.assertFalse(result['passed'])
+                with self.assertRaises(ValueError):gate.formula('lethal',base|change,rows[1]['data']['actual'])
+        with self.assertRaisesRegex(ValueError,'D81'):
+            gate.formula('lethal',base|dict(full_residue=50,half_residue=999),gate.oracle.rational(gate.oracle.lethal(**base|dict(full_residue=50,half_residue=999))))
+        print(f'D81: {len(controls)} lethal residue controls pass; {len(mutations)} sentinel/null mismatches reject',flush=True)
+
+    def test_exact_numeric_strings_are_rationals_or_wide_decimals(self):
+        """Review-2 P3-3 (D80): exact-numeric inputs accept n/d rationals and wide decimals only."""
+        def run(formula,good=True):
+            inputs=dict(formula=formula,percent=85,primary=False)
+            actual=gate.oracle.rational(gate.oracle.pole_damage(**gate.oracle.decode_rationals(inputs))) if good else None
+            gate.formula('pole_damage',inputs,actual)
+        for good in (100,'499/10','-3/2','0/1',str(2**60),{'numerator':499,'denominator':10}):
+            with self.subTest(good=good):run(good)
+        for bad in ('100','1.25','1e2','+3/2','03/2','3/02','3/0',' 3/2','0x10','-0'):
+            with self.subTest(bad=bad):
+                with self.assertRaisesRegex(ValueError,'invalid formula input'):run(bad,False)
+        print('Exact-numeric strings: n/d rationals and wide decimals pass; in-range integer, decimal-point and exponent strings reject',flush=True)
 
     def test_missing_foreign_owner_unknown_baseline_and_repeated_fail(self):
         self.assertFalse(gate.evaluate(self.rows,self.recording,OTHER,['pole_damage'],HASH)['passed'])
@@ -1761,7 +2400,7 @@ class Evidence(unittest.TestCase):
     def test_rng_and_ledger_conservation(self):
         rows=copy.deepcopy(self.rows)
         rows.insert(2,dict(kind='item_rng',entity=OWNER,incarnation=1,tick=0,sequence=1,data=dict(resolution_id='enchant:1',callsite='enchant',word_before=0,word_after=1,bound=100000,value=66670)))
-        rows.insert(3,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=0,sequence=2,data=dict(resolution_id='enchant:1',operation='consume',instance=7,before=item(7,2),after=item(7,1),count_delta=-1,operation_ordinal=0,receipt_refs=['receipt:enchant:1'],causes=[dict(cause='receipt:enchant:1',count_delta=-1)])))
+        rows.insert(3,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=0,sequence=2,data=dict(resolution_id='enchant:1',operation='consume',instance=7,before=item(7,2),after=item(7,1)|{'revision':1},count_delta=-1,operation_ordinal=0,receipt_refs=['receipt:enchant:1'],causes=[dict(cause='receipt:enchant:1',count_delta=-1)])))
         rows[-1]['facts']=3;gate.validate(rows,self.recording,HASH)
         bad=copy.deepcopy(rows);bad[3]['data']['count_delta']=0
         with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)

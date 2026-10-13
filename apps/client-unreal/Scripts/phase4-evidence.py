@@ -175,8 +175,9 @@ INPUT_SCHEMAS={
         spread=NONNEG_NUMERIC,pvp=NONNEG_NUMERIC,attribute=NONNEG_NUMERIC,npc=NONNEG_NUMERIC),
     'magic_damage':dict(power=NONNEG_NUMERIC,m_atk=NONNEG_NUMERIC,m_def=NONNEG_NUMERIC,spirit=BOOL,
         blessed=BOOL,shield_def=NONNEG_NUMERIC,perfect=BOOL,critical=BOOL,attacker_player=BOOL,
-        target_player=BOOL,is_pvp=nullable(BOOL),skill_is_magic=BOOL,pvp_magic_def=NONNEG_NUMERIC,
-        pvp_skill_def=NONNEG_NUMERIC,magic_failures=BOOL,first_success=BOOL,second_success=nullable(BOOL),
+        # D89: is_pvp is always evaluated (never null); the success flags are draw-derived.
+        target_player=BOOL,is_pvp=BOOL,skill_is_magic=BOOL,pvp_magic_def=NONNEG_NUMERIC,
+        pvp_skill_def=NONNEG_NUMERIC,magic_failures=BOOL,first_success=nullable(BOOL),second_success=nullable(BOOL),
         level_difference=SIGNED_INT,magic_crit_damage=NONNEG_NUMERIC,spread=NONNEG_NUMERIC,
         pvp_magic_damage=NONNEG_NUMERIC,pvp_skill_damage=NONNEG_NUMERIC,attribute=NONNEG_NUMERIC,npc=NONNEG_NUMERIC),
     'cast_time':dict(hit_time=NONNEG_INT,casting_speed=POSITIVE_NUMERIC,spirit=BOOL,blessed=BOOL,static=BOOL,is_magic=BOOL),
@@ -185,8 +186,9 @@ INPUT_SCHEMAS={
         current_hp=NONNEG_INT,recoverable_hp=nullable(NONNEG_NUMERIC),remainder_q=int_range(0,oracle.Q-1)),
     'blow_success':dict(chance=NONNEG_NUMERIC,dex=NONNEG_NUMERIC,proximity=PROXIMITY,
         residue=int_range(0,999),modifier=NONNEG_NUMERIC),
-    'lethal':dict(full=NONNEG_NUMERIC,half=NONNEG_NUMERIC,full_residue=int_range(0,999),
-        half_residue=int_range(0,999),eligible=BOOL,attribute=NONNEG_NUMERIC,trait=NONNEG_NUMERIC),
+    # D81: a residue is null iff its draw was not taken; 999 is a real residue, never a sentinel.
+    'lethal':dict(full=NONNEG_NUMERIC,half=NONNEG_NUMERIC,full_residue=nullable(int_range(0,999)),
+        half_residue=nullable(int_range(0,999)),eligible=BOOL,attribute=NONNEG_NUMERIC,trait=NONNEG_NUMERIC),
     'retail_select':dict(rows=RETAIL_ROWS,residue=int_range(0,9999)),
     'retail_distribution':dict(rows=RETAIL_ROWS),
     'category':dict(residue=int_range(0,9999),accessory=BOOL),
@@ -209,7 +211,8 @@ INPUT_SCHEMAS={
         ranges=list_of(record(dict(minimum=NONNEG_INT,maximum=NONNEG_INT))))),rank=TEMPLATE,level=IDENTITY),
     'bow_launch':dict(weapon=WEAPON,inventory=list_of(ITEM),lhand=nullable(IDENTITY),mp=NONNEG_NUMERIC,
         mp_modifier=NONNEG_NUMERIC,reduction_residue=nullable(int_range(0,99)),miss=BOOL,
-        reuse_remaining=NONNEG_INT,hit_chance=int_range(0,1000),hit_residue=nullable(int_range(0,999))),
+        reuse_remaining=NONNEG_INT,hit_chance=int_range(0,1000),hit_residue=nullable(int_range(0,999)),
+        critical_residue=nullable(int_range(0,999)),spread_residue=nullable(NONNEG_INT)),
     'bow_refill':dict(weapon=WEAPON,arrow=ITEM,mp=NONNEG_NUMERIC),
     'resurrection_scroll':dict(definition=DEFINITION,start_tick=NONNEG_INT,available=NONNEG_INT,
         death_incarnation=IDENTITY,current_incarnation=IDENTITY,dead=BOOL,
@@ -223,7 +226,9 @@ INPUT_SCHEMAS={
     'escape_timing':dict(definition=DEFINITION,start_tick=NONNEG_INT,casting_speed=POSITIVE_NUMERIC,
         available=NONNEG_INT,resources=record(dict(hp=NONNEG_NUMERIC,mp=NONNEG_NUMERIC,cp=NONNEG_NUMERIC,xp=NONNEG_INT)),incarnation=IDENTITY),
     'dual_plan':dict(hits=tuple_of(BOOL,BOOL),formulas=tuple_of(NUMERIC,NUMERIC),second_valid=BOOL,
-        hit_residues=tuple_of(int_range(0,999),int_range(0,999)),hit_chance=int_range(0,1000),spread_radius=NONNEG_INT),
+        hit_residues=tuple_of(int_range(0,999),int_range(0,999)),hit_chance=int_range(0,1000),spread_radius=NONNEG_INT,
+        critical_residues=tuple_of(nullable(int_range(0,999)),nullable(int_range(0,999))),
+        spread_residues=tuple_of(nullable(NONNEG_INT),nullable(NONNEG_INT))),
     'enchant_safe':dict(current=U32,fullarmor=BOOL,safe_enchant=U32,safe_fullarmor=U32,
         base=NONNEG_NUMERIC,residue=int_range(0,99999)),
     'quantized_enchant':dict(base=NONNEG_NUMERIC,bonus=NONNEG_NUMERIC,support=NONNEG_NUMERIC),
@@ -244,6 +249,151 @@ INPUT_SCHEMAS={
 }
 
 
+# D80: evidence JSON encodes every integer outside ±2^53 as a canonical decimal
+# string; integers inside that range stay JSON numbers. The consumer parses both
+# forms for out-of-range integers, schema-directed, so text fields never convert.
+SAFE_INTEGER=2**53
+DECIMAL=re.compile(r'-?(?:0|[1-9][0-9]*)')
+RATIONAL=re.compile(r'-?(?:0|[1-9][0-9]*)/[1-9][0-9]*')
+INSTANCE_INTEGERS=frozenset(('id','template_id','count','enchant','augment_id','charges','created_tick','revision'))
+
+
+def wide(value):
+    """One integer position: a decimal string must lie outside ±2^53 (D80)."""
+    if type(value) is str and DECIMAL.fullmatch(value):
+        number=int(value)
+        if -SAFE_INTEGER<number<SAFE_INTEGER:raise ValueError('integer inside ±2^53 must be a JSON number (D80)')
+        return number
+    return value
+
+
+def wide_any(value):
+    """Schema-free formula outputs: only out-of-range canonical decimal strings convert."""
+    if isinstance(value,dict):return {key:wide_any(child) for key,child in value.items()}
+    if isinstance(value,list):return [wide_any(child) for child in value]
+    if type(value) is str and DECIMAL.fullmatch(value) and not -SAFE_INTEGER<int(value)<SAFE_INTEGER:return int(value)
+    return value
+
+
+def wide_input(value,schema):
+    """Schema-directed D80 decode; shapes that do not fit, including in-range decimal
+    strings, are left unchanged so the input schema refuses them per formula gate."""
+    kind=schema[0]
+    if kind=='nullable':return value if value is None else wide_input(value,schema[1])
+    if kind=='list' and type(value) is list:return [wide_input(child,schema[1]) for child in value]
+    if kind=='list-tuple' and type(value) is list and value:return wide_input(value,schema[1])
+    if kind=='tuple' and type(value) is list and len(value)==len(schema[1]):
+        return [wide_input(child,child_schema) for child,child_schema in zip(value,schema[1])]
+    if kind=='record' and type(value) is dict:
+        kinds=schema[1]|schema[2]
+        return {key:wide_input(child,kinds[key]) if key in kinds else child for key,child in value.items()}
+    if kind=='map' and type(value) is dict:return {key:wide_input(child,schema[2]) for key,child in value.items()}
+    if kind in ('int','nonneg-int','u32'):return wide_any(value)
+    if kind=='exact-numeric' and type(value) is dict and set(value)=={'numerator','denominator'}:
+        return {key:wide_any(child) for key,child in value.items()}
+    if kind=='any':return wide_any(value)
+    return value
+
+
+def wide_instance(state):
+    if not isinstance(state,dict):return state
+    return {key:wide(child) if key in INSTANCE_INTEGERS else child for key,child in state.items()}
+
+
+def wide_fields(mapping,keys):
+    return {key:wide(child) if key in keys else child for key,child in mapping.items()}
+
+
+def decode_rows(rows):
+    """D80 decode of a whole export into a fresh list; malformed shapes pass through unchanged."""
+    if not isinstance(rows,list):return rows
+    result=[]
+    for row in rows:
+        if not isinstance(row,dict):result.append(row);continue
+        kind=row.get('kind')
+        if kind=='manifest':
+            row=wide_fields(row,{'schema_version','zone','epoch','snapshot_tick','snapshot_schema','record_schema'})
+            if isinstance(row.get('watermark'),dict):row['watermark']=wide_fields(row['watermark'],{'zone','epoch','records','last_tick'})
+        elif kind=='complete':row=wide_fields(row,{'facts','ticks','last_tick'})
+        else:
+            row=wide_fields(row,{'incarnation','tick','sequence'});data=row.get('data')
+            if isinstance(data,dict):row['data']=decode_data(kind,data)
+        result.append(row)
+    return result
+
+
+def decode_data(kind,data):
+    data=dict(data)
+    if kind=='item_rng':return wide_fields(data,{'word_before','word_after','bound','value'})
+    if kind=='item_delta':
+        data=wide_fields(data,{'instance','count_delta','operation_ordinal'})
+        for key in ('before','after'):
+            if key in data:data[key]=wide_instance(data[key])
+        if isinstance(data.get('causes'),list):
+            data['causes']=[wide_fields(cause,{'count_delta'}) if isinstance(cause,dict) else cause for cause in data['causes']]
+        return data
+    if kind=='item_baseline':
+        data=wide_fields(data,{'inventory_revision'})
+        if isinstance(data.get('instances'),list):data['instances']=[wide_instance(state) for state in data['instances']]
+        if isinstance(data.get('paperdoll'),dict):data['paperdoll']={slot:wide(identity) for slot,identity in data['paperdoll'].items()}
+        if isinstance(data.get('auto_shots'),list):data['auto_shots']=[wide(template) for template in data['auto_shots']]
+        return data
+    if kind=='item_formula':
+        name=data.get('formula')
+        if name in INPUT_SCHEMAS and isinstance(data.get('inputs'),dict):
+            data['inputs']=wide_input(data['inputs'],record({},INPUT_SCHEMAS[name]))
+        if 'actual' in data:data['actual']=wide_any(data['actual'])
+        if isinstance(data.get('context'),dict):data['context']=wide_fields(data['context'],{'weapon_template','skill_id','set_id'})
+        if isinstance(data.get('operation'),dict):
+            data['operation']={key:wide_instance(child) if key.endswith('_before') else child for key,child in data['operation'].items()}
+    return data
+
+
+# Output (`actual`) shapes of the E2.8 families the zone exports next (session 8),
+# plus bow_damage/lethal (D80/D81). Derived from the E1 oracle return values
+# (item_oracle.py / item_behavior_oracle.py at the E1 rev 8 import) and design
+# §12.1; values are still pinned by exact oracle equality afterwards. Checked
+# without width bounds: D80 actuals may exceed i64 (certified sqrt bounds).
+ANY=('any',)
+SIGNED=('int',-2**63,I64_MAX)
+DRAW=record(dict(site=TEXT,bound=IDENTITY,residue=NONNEG_INT))
+ACTUAL_SCHEMAS={
+    'pole_sequence':list_of(record(dict(percent=NONNEG_NUMERIC,hit=BOOL,draws=list_of(enum('shield','critical','spread'))),
+        dict(base=SIGNED,damage=SIGNED))),
+    'bow_reuse':NONNEG_INT,
+    'bow_damage':record(dict(base=SIGNED,distance_l2_lower=NONNEG_NUMERIC,distance_l2_upper=NONNEG_NUMERIC,damage=SIGNED)),
+    'lethal':record(dict(outcome=enum('none','full','half'),draws=list_of(DRAW))),
+    'magic_damage':record(dict(lower=NUMERIC,upper=NUMERIC,damage=SIGNED,damage_q=SIGNED,
+        branch=enum('perfect','success','npc_failure','half','resisted','critical'))),
+    'heal':record(dict(amount=NONNEG_NUMERIC,restoration_q=NONNEG_INT,applied_q=NONNEG_INT,current_hp=NONNEG_INT,
+        remainder_q=int_range(0,oracle.Q-1),whole_credit=NONNEG_INT,coefficient=NONNEG_NUMERIC,static_bonus=NONNEG_NUMERIC,
+        root_lower=NONNEG_NUMERIC,root_upper=NONNEG_NUMERIC)),
+    'gear_stats':record(dict(exact=map_of(TEXT,NUMERIC),root_expressions=map_of(TEXT,ANY),q=map_of(TEXT,SIGNED),
+        getters=map_of(TEXT,SIGNED),trace=list_of(ANY),base_stats=map_of(TEXT,NONNEG_INT),weapon_type=WEAPON_TYPE,
+        random_damage=NONNEG_INT,spread_bound=IDENTITY,enchant_hp=NONNEG_NUMERIC,traits=list_of(ANY),weight=NONNEG_INT)),
+    'set_shield_history':BOOL,
+    'clamp_no_heal':NONNEG_NUMERIC,
+    'charge_transition':list_of(CHARGE),
+    'consumable_use':record(dict(accepted=BOOL,consumed=COUNT_MAP,lanes=list_of(enum('item','main'))),
+        dict(reason=enum('item_reuse','condition','skill_reuse','casting_guard','items'),item_deadlines=COUNT_MAP,
+             skill_deadlines=COUNT_MAP,main_cast_preserved=BOOL)),
+    'bow_launch':record(dict(accepted=BOOL,reason=enum('arrows','reuse','mp','launched'),inventory=list_of(ITEM),
+        lhand=nullable(IDENTITY),equipped_lhand=nullable(IDENTITY),mp=NONNEG_NUMERIC,mp_q=NONNEG_INT,mp_paid=NONNEG_INT,
+        arrows_consumed=int_range(0,1),draws=list_of(DRAW),hit=nullable(BOOL)),dict(mp_cost=NONNEG_INT)),
+    'resurrection_scroll':record(dict(accepted=BOOL,consumed=NONNEG_INT,inventory=NONNEG_INT,draws=list_of(DRAW)),
+        dict(reason=enum('items'),completion_consumed=NONNEG_INT,offer=nullable(OFFER),trace=list_of(ANY),dead=BOOL,
+             incarnation=IDENTITY,hp=NONNEG_NUMERIC,hp_q=NONNEG_INT,mp=NONNEG_NUMERIC,cp=NONNEG_NUMERIC,
+             xp_refund=NONNEG_INT,recoverable_xp=NONNEG_INT)),
+    'learned_item_cost':record(dict(accepted=BOOL,inventory=list_of(ITEM),consumed=COUNT_MAP,draws=list_of(DRAW)),
+        dict(completion_consumed=COUNT_MAP,repeated_consumed=COUNT_MAP,phase=enum('complete','cancel'))),
+    'escape_timing':record(dict(accepted=BOOL,inventory=NONNEG_INT,consumed=NONNEG_INT,draws=list_of(DRAW)),
+        dict(animation_ms=NONNEG_INT,launch_ms=NONNEG_INT,launch_tick=NONNEG_INT,completion_tick=NONNEG_INT,
+             interrupt_cutoff_tick=NONNEG_INT,completion_consumed=NONNEG_INT,destination=tuple_of(NONNEG_INT,NONNEG_INT),
+             resources=record(dict(hp=NONNEG_NUMERIC,mp=NONNEG_NUMERIC,cp=NONNEG_NUMERIC,xp=NONNEG_INT)),incarnation=IDENTITY,
+             movement_canceled=BOOL,auto_canceled=BOOL,town_respawn=BOOL)),
+    'dual_plan':record(dict(plan=tuple_of(SIGNED,SIGNED),stored_second=SIGNED,applied=tuple_of(SIGNED,nullable(SIGNED)),
+        second_recomputed=BOOL,draws=list_of(DRAW),refunded_draws=list_of(DRAW))),
+}
 def validate_input(value,schema,path,bounds=False):
     kind=schema[0]
     def invalid():raise ValueError('invalid formula input '+path+' ('+kind+')')
@@ -268,6 +418,7 @@ def validate_input(value,schema,path,bounds=False):
         for key,child in value.items():
             validate_input(key,schema[1],path+'.key',bounds)
             validate_input(child,schema[2],path+'['+str(key)+']',bounds)
+    elif kind=='any':pass # Structure is pinned by exact oracle equality.
     elif kind=='bool':
         if type(value) is not bool:invalid()
     elif kind=='string':
@@ -287,6 +438,9 @@ def validate_input(value,schema,path,bounds=False):
             if bounds and (not -2**63<=value['numerator']<=I64_MAX or value['denominator']>I64_MAX):invalid()
             number=oracle.F(value['numerator'],value['denominator'])
         elif type(value) in (int,str,oracle.F):
+            # D80 / review-2 P3-3: a string is a canonical rational n/d or a wide (>= 2^53)
+            # decimal integer; in-range integer strings, decimal points and exponents refuse.
+            if type(value) is str and not (RATIONAL.fullmatch(value) or DECIMAL.fullmatch(value) and abs(int(value))>=SAFE_INTEGER):invalid()
             try:number=oracle.exact(value)
             except (ValueError,TypeError,ZeroDivisionError):invalid()
         else:invalid()
@@ -296,12 +450,80 @@ def validate_input(value,schema,path,bounds=False):
     else:raise ValueError('unknown input schema kind: '+kind)
 
 
+# D87: the critical and spread residues of bow_launch/dual_plan are required fact inputs.
+# The E1 rev 8 oracle still hard-codes them (999 / radius), so until E1 takes them as
+# parameters the consumer runs the oracle and substitutes the actual residues by draw site;
+# neither residue changes any other output (damage enters through `formulas`).
+RESIDUE_INPUTS={'bow_launch':('critical_residue','spread_residue'),'dual_plan':('critical_residues','spread_residues')}
+
+
+# E1 data revisions whose oracle predates D87/D88 (rules_manifest data_sha256: rev 7, rev 8).
+# The temporary adapters below are legal ONLY on these; the rev 9 import (D96: residue
+# parameters + strict `<`) is detected by the oracle signature and removes both adapters.
+PRE_D87_DATA=frozenset(('5b77911ec6bba0b186b9de16d63ea832726943475152a82ea40a5ebd203c4656',
+                        '8e27de155b2682db3bec34d485316f425678634ddd74b000a8849548a91110c0'))
+
+
+def oracle_adopted_d87(name):
+    return set(RESIDUE_INPUTS[name])<=set(inspect.signature(getattr(oracle.behavior,name)).parameters)
+
+
+@lru_cache(maxsize=1)
+def oracle_hit_inclusive():
+    """True while E1 still decides a hit as residue <= hit_chance (rev 8): probed, not assumed.
+    Any unexpected probe failure is a ValueError, i.e. a gate verdict, never a crash."""
+    try:oracle.behavior.dual_plan([False,False],[0,0],True,[5,5],5,0)
+    except ValueError:return True
+    except TypeError as error:raise ValueError('cannot classify the E1 dual_plan hit inequality (D88)') from error
+    return False
+
+
+def residue_family(name,inputs):
+    decoded=oracle.decode_rationals(inputs)
+    extra={key:decoded.pop(key) for key in RESIDUE_INPUTS[name]}
+    function=getattr(oracle.behavior,name)
+    if oracle_adopted_d87(name):
+        # Rev 9 path (D96): E1 takes the residues and uses the strict inequality itself.
+        result=function(**decoded,**extra)
+        if name in DRAW_FIELDS:draw_fields(name,inputs,result)
+        return result
+    if source_data_sha256() not in PRE_D87_DATA:
+        raise ValueError('E1 data is newer than rev 8 but its oracle lacks the D87 residue parameters (D96)')
+    # D88: a hit iff residue < hit_chance (pinned Rnd.get(n) < chance). The rev 8 oracle tests
+    # residue <= chance, so it is given chance-1, which selects exactly the residues below chance.
+    if oracle_hit_inclusive():decoded['hit_chance']-=1
+    result=function(**decoded)
+    if name=='bow_launch':sites={'critical':extra['critical_residue'],'spread':extra['spread_residue']}
+    else:
+        sites={f'{kind}{index}':extra[kind+'_residues'][index-1] for kind in ('critical','spread') for index in (1,2)}
+    taken=set()
+    for draw in result['draws']:
+        if draw['site'] not in sites:continue
+        value=sites[draw['site']];taken.add(draw['site'])
+        if value is None or not 0<=value<draw['bound']:raise ValueError(name+' '+draw['site']+' residue missing or outside its draw bound (D87)')
+        draw['residue']=value
+    if any(value is not None and site not in taken for site,value in sites.items()):
+        raise ValueError(name+' residue present for a draw that was not taken (D87/D89)')
+    if name in DRAW_FIELDS:draw_fields(name,inputs,result)
+    return result
+
+
+def source_data_sha256():
+    return table('rules_manifest')['data_sha256']
+
+
+# Review-2 P3-4 (D89): always-evaluated booleans the producer must emit even though the
+# oracle has a default for them.
+REQUIRED_INPUTS={'magic_damage':('is_pvp',)}
+
+
 def input_domains(name,inputs):
     if name not in INPUT_SCHEMAS or type(inputs) is not dict:raise ValueError('unknown formula input schema')
     function=getattr(oracle,name,None) or getattr(oracle.behavior,name,None)
     if function:
         parameters=inspect.signature(function).parameters
         required={key for key,p in parameters.items() if key!='src' and p.default is inspect.Parameter.empty}
+        required|=set(RESIDUE_INPUTS.get(name,()))|set(REQUIRED_INPUTS.get(name,()))
     else:required=set(INPUT_SCHEMAS[name])
     schema=record({k:INPUT_SCHEMAS[name][k] for k in required},
                   {k:v for k,v in INPUT_SCHEMAS[name].items() if k not in required})
@@ -384,7 +606,10 @@ def enchant_source_inputs(target,scroll,support):
 
 def formula(name,inputs,actual):
     if name not in FORMULAS:raise ValueError('unknown item formula')
+    if name in INPUT_SCHEMAS and isinstance(inputs,dict):inputs=wide_input(inputs,record({},INPUT_SCHEMAS[name])) # D80
+    actual=wide_any(actual)
     input_domains(name,inputs)
+    if name in ACTUAL_SCHEMAS:validate_input(actual,ACTUAL_SCHEMAS[name],name+'.actual')
     # Match E1's finite function registry on arbitrary resolution inputs.
     if name=='gear_stats':
         required={'class_file','level','equipment','skill_refs','base_deltas','base_delta_sequence'}
@@ -425,10 +650,44 @@ def formula(name,inputs,actual):
         same(inputs['auth_dev_tokens'],False);same(inputs['status'],'FAILED_PRECONDITION')
         same(inputs['before'],inputs['after']);same(inputs['ledger_rows'],0);same(inputs['rng_before'],inputs['rng_after'])
         same(actual,{'unchanged':True})
+    elif name in RESIDUE_INPUTS:
+        same(actual,oracle.rational(residue_family(name,inputs)))
     else:
-        oracle.verify_facts([dict(formula=name,inputs=inputs,expected=actual)])
         function=getattr(oracle,name,None) or getattr(oracle.behavior,name,None)
+        if name=='magic_damage':magic_draws(inputs)
+        if name in DRAW_FIELDS:
+            try:result=function(**oracle.decode_rationals(inputs))
+            except TypeError as error:raise ValueError(name+' draw-derived field is null although its draw was taken (D81/D89)') from error
+            draw_fields(name,inputs,result)
+        oracle.verify_facts([dict(formula=name,inputs=inputs,expected=actual)])
         same(actual,oracle.rational(function(**oracle.decode_rationals(inputs))))
+
+
+# D81/D89: draw-derived residue fields, by the oracle draw site that consumes them.
+DRAW_FIELDS={
+    'lethal':{'full_residue':'lethal_full','half_residue':'lethal_half'},
+    'shield':{'perfect_residue':'shield_perfect','normal_residue':'shield_normal'},
+    'shot_payment':{'residue':'soulshot_reduction'},
+    'bow_launch':{'reduction_residue':'bow_mp_reduction','hit_residue':'hit'},
+}
+
+
+def draw_fields(name,inputs,result):
+    """D81/D89: a draw-derived field is null (or absent) iff its draw was not taken."""
+    sites={draw['site'] for draw in result['draws']}
+    for key,site in DRAW_FIELDS[name].items():
+        if (inputs.get(key) is None)!=(site not in sites):
+            raise ValueError(name+' '+key+' must be null iff its draw was not taken (D81/D89)')
+
+
+def magic_draws(inputs):
+    """D89 (Formulas.java:815-897): perfect block precedes every draw; the first magic-success
+    draw exists only with magic failures enabled, the second only for a player attacker
+    after a failed first draw."""
+    first=not inputs.get('perfect',False) and inputs.get('magic_failures',False)
+    second=first and inputs.get('first_success') is False and inputs.get('attacker_player',True)
+    for key,taken in (('first_success',first),('second_success',second)):
+        if (inputs.get(key) is None)==taken:raise ValueError('magic_damage '+key+' must be null iff its draw was not taken (D89)')
 
 
 @lru_cache(maxsize=None)
@@ -472,7 +731,7 @@ def count_cap(template):
     return stack if item_tables()[template]['stackable'] is True else 1
 
 
-def validate_instance(value):
+def validate_instance(value,cap=True):
     fields={'id','template_id','count','location','slot','enchant','augment_id','charges','created_tick','revision'}
     if not isinstance(value,dict) or set(value)!=fields:raise ValueError('missing/unknown canonical item scalar')
     for name in ('id','template_id','count'):integer(value[name],1)
@@ -480,8 +739,8 @@ def validate_instance(value):
     if value['id']>=2**63 or value['count']>=2**63 or value['template_id']>=2**31 or value['enchant']>=2**32 or value['charges']>7 or value['created_tick']>=2**63 or value['revision']>=2**63:raise ValueError('item scalar outside domain width')
     # Dormant starter items remain canonical catalogue members (D17).
     if value['template_id'] not in item_tables():raise ValueError('unknown canonical template')
-    # Every ledger endpoint is an intermediate state under D66/D69, so this covers them (D68).
-    if value['count']>count_cap(value['template_id']):raise ValueError('item count above pinned template cap (D68)')
+    # D68/D74: baselines and live bindings are capped here; ledger endpoints are capped per chain.
+    if cap and value['count']>count_cap(value['template_id']):raise ValueError('item count above pinned template cap (D68)')
     if value['location'] not in ('inventory','paperdoll') or (value['location']=='paperdoll')!=(value['slot'] is not None):raise ValueError('item location/slot mismatch')
     if value['slot'] is not None and value['slot'] not in SLOTS:raise ValueError('unknown canonical slot')
     if value['charges'] and value['slot']!='rhand':raise ValueError('charge on nonweapon slot')
@@ -498,6 +757,8 @@ ITEM_TRANSITIONS={
     'enchant':('retain',frozenset({'enchant'})),
     'refine':('retain',frozenset({'augment_id'})),
     'cancel_refine':('retain',frozenset({'augment_id'})),
+    # D73: a shot discharge (or any use that changes only `charges`) is count-neutral.
+    'use':('retain',frozenset({'charges'})),
     'destroy':('remove',frozenset()),
     'crystallize':('remove',frozenset()),
     'grant':('positive',frozenset({'count'})),
@@ -506,7 +767,23 @@ ITEM_TRANSITIONS={
 }
 
 
-PRE_CONSUME=frozenset(('grant','starter','backfill','equip','unequip','enchant','refine','cancel_refine'))
+TERMINAL=frozenset(('destroy','crystallize'))
+PRE_CONSUME=frozenset(('grant','starter','backfill','equip','unequip','enchant','refine','cancel_refine','use'))
+CAUSE=re.compile(r'(?:auto_shot|arrow|item_cast):\S+|receipt:[^:\s]+:\S+')
+# D93: discharges (use rows) name their own family; payment causes stay Consume-only.
+USE_CAUSE=re.compile(r'shot_discharge:\S+|cast_discharge:[1-9][0-9]*|receipt:[^:\s]+:\S+')
+
+
+def validate_causes(causes,negative):
+    """D62/D63 ordered `{cause,count_delta}` list; D73 use causes are count-neutral (0)."""
+    if not isinstance(causes,list) or not causes:raise ValueError('ordered nonempty causes required')
+    for cause in causes:
+        if not isinstance(cause,dict) or set(cause)!={'cause','count_delta'}:raise ValueError('complete cause required')
+        if not isinstance(cause['cause'],str) or not (CAUSE if negative else USE_CAUSE).fullmatch(cause['cause']):raise ValueError('unknown/malformed cause')
+        delta=cause['count_delta']
+        if negative and (type(delta) is not int or not -(2**63)<delta<0):raise ValueError('negative signed-bigint consume cause delta required')
+        if not negative and (type(delta) is not int or delta!=0):raise ValueError('use cause must be count-neutral (D73)')
+    return [c['cause'] for c in causes if c['cause'].startswith('receipt:')]
 
 
 def validate_transition(data):
@@ -533,6 +810,44 @@ def validate_transition(data):
     if operation=='unequip' and (before['location']!='paperdoll' or after['location']!='inventory'):raise ValueError('unequip must leave paperdoll')
     if operation=='refine' and after['augment_id'] is None:raise ValueError('refine must install augmentation')
     if operation=='cancel_refine' and (before['augment_id'] is None or after['augment_id'] is not None):raise ValueError('cancel_refine must remove augmentation')
+
+
+def validate_chain_caps(deltas):
+    """D74 (amends D68): caps hold at the tick-start/tick-end endpoints of each
+    (owner, incarnation, tick, instance) chain; under the D69 export order an
+    earlier row's `after` may exceed the cap only by the same-tick consumption
+    that follows it: after.count - later consumption <= cap."""
+    first=deltas[0]['before']
+    if first is not None and first['count']>count_cap(first['template_id']):raise ValueError('item count above pinned template cap (D68)')
+    for index,delta in enumerate(deltas):
+        after=delta['after']
+        if after is None:continue
+        later=-sum(d['count_delta'] for d in deltas[index+1:] if d['operation']=='consume')
+        if after['count']-later>count_cap(after['template_id']):raise ValueError('item count above pinned template cap (D68/D74)')
+
+
+# D92: multi-tick families carry ONE fact, on the tick the terminal effect applies, under
+# the originating intent's resolution id; no correlated fact of that intent may follow it.
+TERMINAL_FAMILIES=frozenset(('consumable_use','escape_timing','resurrection_scroll','learned_item_cost'))
+
+
+def validate_terminal_facts(rows):
+    terminal={}
+    for row in rows[1:-1]:
+        if row['kind']=='item_formula' and row['data']['formula'] in TERMINAL_FAMILIES:
+            key=(row['entity'],row['incarnation'],row['data']['resolution_id'])
+            if key in terminal:raise ValueError('multi-tick intent carries more than one terminal fact (D92)')
+            terminal[key]=row
+    for row in rows[1:-1]:
+        data=row['data'];identities={data.get('resolution_id')}
+        if row['kind']=='item_delta':
+            # Review-2 P2-2: a receipt-first prepay Consume binds the intent by its receipt cause,
+            # not by resolution_id (D62), so receipt references correlate as well.
+            identities|={ref for ref in [data.get('receipt_ref')]+list(data.get('receipt_refs') or ()) if isinstance(ref,str)}
+        for identity in identities:
+            fact=terminal.get((row['entity'],row['incarnation'],identity))
+            if fact is not None and row is not fact and row['tick']>fact['tick']:
+                raise ValueError('terminal fact precedes a later fact of its intent (D92)')
 
 
 def validate_exchanges(rows):
@@ -598,10 +913,13 @@ def validate_instance_history(rows):
     count/revision unchanged. D71: at an incarnation boundary (the first
     observation of an instance under a later incarnation of its owner) exactly
     the transient `charges` field is exempt; slot/location and every other
-    canonical field must still match. The stored record advances from `after`
+    canonical field must still match. D72: at that boundary `charges` may only
+    CLEAR (become 0 or stay unchanged), never appear, and the owner's first
+    baseline of a later incarnation (after a live earlier incarnation was
+    observed) carries `auto_shots=[]`. The stored record advances from `after`
     only once its `before` has matched.
     """
-    canonical={};owners={};incarnations={};exhausted=set()
+    canonical={};owners={};incarnations={};exhausted=set();lives={};baselines=set()
     def strip(state,boundary):
         transient={'count','revision'}|({'charges'} if boundary else set())
         return {k:v for k,v in state.items() if k not in transient}
@@ -613,11 +931,20 @@ def validate_instance_history(rows):
     def observe(state,row):
         identity=state['id'];bind(identity,row['entity'])
         if identity in canonical:
+            previous=canonical[identity]
             boundary=row['incarnation']>incarnations[identity]
-            if strip(state,boundary)!=strip(canonical[identity],boundary):raise ValueError('instance identity drifted between observations')
+            if strip(state,boundary)!=strip(previous,boundary):raise ValueError('instance identity drifted between observations')
+            if boundary and state['charges'] not in (0,previous['charges']):
+                raise ValueError('shot charges appeared at re-admission (D72)')
         canonical[identity]=state;incarnations[identity]=row['incarnation']
     for row in rows[1:-1]:
-        data=row['data']
+        data=row['data'];life=(row['entity'],row['incarnation'])
+        if row['kind']=='item_baseline':
+            earlier=any(0<incarnation<row['incarnation'] for incarnation in lives.get(row['entity'],()))
+            if life not in baselines and earlier and data['auto_shots']!=[]:
+                raise ValueError('auto-shot toggles survived re-admission (D72)')
+            baselines.add(life)
+        lives.setdefault(row['entity'],set()).add(row['incarnation'])
         if row['kind']=='item_baseline':
             for state in data['instances']:observe(state,row)
         elif row['kind']=='item_formula' and data['formula']=='enchant_outcome':
@@ -651,6 +978,7 @@ def validate_instance_history(rows):
 
 def validate(rows,recording,rules_hash):
     if not isinstance(rows,list) or len(rows)<3:raise ValueError('manifest, facts and complete trailer required')
+    rows=decode_rows(rows) # D80
     manifest,complete=rows[0],rows[-1]
     fields={'kind','schema_version','scope','recording_sha256','zone','epoch','snapshot_tick','watermark','phase4_rules_hash','snapshot_schema','record_schema','digest_version'}
     if set(manifest)!=fields:raise ValueError('unknown/missing Phase4 manifest fields')
@@ -685,6 +1013,9 @@ def validate(rows,recording,rules_hash):
                 if 'target_entity' in context:same(str(UUID(context['target_entity'])),context['target_entity'])
                 if 'event' in context and context['event'] not in ('equip','unequip','enchant','admission','attack','cast'):raise ValueError('unknown formula event')
             if not isinstance(data['resolution_id'],str) or not data['resolution_id']:raise ValueError('resolution identity required')
+            # D91: one clamp fact per resource of a rebuild, distinguished by its suffix.
+            if data['formula']=='clamp_no_heal' and not re.fullmatch(r'\S*[^\s:]:(?:hp|mp|cp)',data['resolution_id']):
+                raise ValueError('clamp_no_heal resolution_id needs a :hp|:mp|:cp suffix (D91)')
             identity=(row['entity'],row['incarnation'],data['resolution_id'],data['formula'])
             if identity in seen:raise ValueError('repeated formula resolution')
             seen.add(identity)
@@ -721,32 +1052,41 @@ def validate(rows,recording,rules_hash):
         elif row['kind']=='item_delta':
             receipt_field='receipt_refs' if data.get('operation')=='consume' else 'receipt_ref'
             fields={'operation','instance','before','after','count_delta','operation_ordinal',receipt_field,'resolution_id'}
-            if receipt_field=='receipt_refs':fields.add('causes')
+            if data.get('operation') in ('consume','use'):fields.add('causes')
             if set(data)!=fields:raise ValueError('unknown/missing ledger fields')
             if data['operation'] not in ITEM_TRANSITIONS:raise ValueError('unknown ledger operation')
             refs=data[receipt_field]
             if receipt_field=='receipt_refs':
                 if not isinstance(refs,list) or any(not isinstance(ref,str) or not ref for ref in refs):raise ValueError('ordered consume receipt_refs required')
                 causes=data['causes']
-                if not isinstance(causes,list) or not causes:raise ValueError('ordered nonempty consume causes required')
-                for cause in causes:
-                    if not isinstance(cause,dict) or set(cause)!={'cause','count_delta'}:raise ValueError('complete consume cause required')
-                    if not isinstance(cause['cause'],str) or not re.fullmatch(r'(?:auto_shot|arrow|item_cast):\S+|receipt:[^:\s]+:\S+',cause['cause']):raise ValueError('unknown/malformed consume cause')
-                    delta=cause['count_delta']
-                    if type(delta) is not int or not -(2**63)<delta<0:raise ValueError('negative signed-bigint consume cause delta required')
-                same(refs,[c['cause'] for c in causes if c['cause'].startswith('receipt:')])
+                same(refs,validate_causes(causes,True))
                 same(data['count_delta'],sum(c['count_delta'] for c in causes))
                 first=causes[0]['cause']
                 if not first.startswith('receipt:'):same(data['resolution_id'],first.split(':',1)[1])
             elif refs is not None and (not isinstance(refs,str) or not refs):
                 raise ValueError('single ledger receipt_ref required')
+            if data['operation']=='use':
+                # D73: the receipt projection of a use row is its single optional receipt_ref.
+                same([] if refs is None else [refs],validate_causes(data['causes'],False))
+                # D93: an automatic attack discharge row resolves under its first cause's resolution.
+                first=data['causes'][0]['cause']
+                if first.startswith('shot_discharge:'):same(data['resolution_id'],first.split(':',1)[1])
+                # Review-2 P3-2: a discharge only clears charge bits; a receipt-bound use may charge.
+                if any(not c['cause'].startswith('receipt:') for c in data['causes']):
+                    before,after=data['before'],data['after']
+                    if isinstance(before,dict) and isinstance(after,dict) and type(before.get('charges')) is int and type(after.get('charges')) is int \
+                            and after['charges']&~before['charges']:
+                        raise ValueError('a discharge use row cannot add charges')
+                # D96: a cast discharge resolves under its cast (`cast:<cast_id>`); prefix only.
+                if first.startswith('cast_discharge:') and not re.fullmatch(r'cast:\S+',data['resolution_id']):
+                    raise ValueError('cast-discharge use row needs a cast: resolution_id (D96)')
             instance=integer(data['instance'],1)
             before,after=data['before'],data['after']
             if before==after or before is None and after is None:raise ValueError('ledger must contain actual change (D28)')
             for value in (before,after):
                 if value is not None:
                     # Canonical domain instances, not partial count-only projections.
-                    validate_instance(value)
+                    validate_instance(value,cap=False)
                     if value['id']!=instance:raise ValueError('ledger identity mismatch')
             ordinal=integer(data['operation_ordinal'])
             key=(row['entity'],row['incarnation'],data['resolution_id'],instance,ordinal)
@@ -761,14 +1101,24 @@ def validate(rows,recording,rules_hash):
             instance_rows.setdefault((*identity,tick),[]).append(data)
         else:raise ValueError('unknown item raw fact kind')
     for deltas in instance_rows.values():
-        consumes=[d for d in deltas if d['operation']=='consume']
+        validate_chain_caps(deltas)
+        # D76/D83: operation_ordinal is the row POSITION 0..n-1 within EVERY
+        # (owner, incarnation, tick, instance) chain, Consume or not.
+        for ordinal,delta in enumerate(deltas):
+            if delta['operation_ordinal']!=ordinal:raise ValueError('operation_ordinal is not the chain row position (D76/D83)')
+        # D94 (amends D69/D76): [non-terminal rows..., Consume aggregate, <=1 terminal row].
+        # Terminal rows (Destroy/Crystallize; Phase 5 whole transfer-out) end the chain.
+        terminals=[index for index,delta in enumerate(deltas) if delta['operation'] in TERMINAL]
+        if len(terminals)>1 or terminals and terminals[0]!=len(deltas)-1:raise ValueError('at most one terminal row, last in its chain (D94)')
+        body=deltas[:-1] if terminals else deltas
+        consumes=[delta for delta in body if delta['operation']=='consume']
+        if len(consumes)!=len([d for d in deltas if d['operation']=='consume']):raise ValueError('Consume aggregate must precede the terminal row (D94)')
         if not consumes:continue
-        if len(consumes)!=1 or deltas[-1] is not consumes[0]:raise ValueError('Consume aggregate must be last for its instance')
-        # D69 (amends D66): positive AND count-neutral retained rows precede the Consume
-        # aggregate in cause order; continuity is checked by inventory_history. Removal
-        # rows end the instance, so they can never precede it.
-        if any(d['operation'] not in PRE_CONSUME for d in deltas[:-1]):raise ValueError('only positive or count-neutral rows may precede Consume')
-        for ordinal,delta in enumerate(deltas):same(delta['operation_ordinal'],ordinal)
+        if len(consumes)!=1 or body[-1] is not consumes[0]:raise ValueError('Consume aggregate must be last before any terminal row (D94)')
+        # D69: positive AND count-neutral retained rows precede the Consume aggregate in cause
+        # order; continuity is checked by inventory_history.
+        if any(d['operation'] not in PRE_CONSUME for d in body[:-1]):raise ValueError('only positive or count-neutral rows may precede Consume')
+    validate_terminal_facts(rows)
     validate_exchanges(rows)
     validate_instance_history(rows)
     inventory_history(rows)
@@ -776,34 +1126,49 @@ def validate(rows,recording,rules_hash):
 
 
 def inventory_history(rows,targets=None):
-    """D55/D66: one owner step, ordered continuity and conservation per tick."""
+    """D55/D66/D79: one owner step, ordered continuity and conservation per tick.
+
+    D79: an item's `revision` is its LAST-CHANGE revision. The owner advances one
+    step per changed tick and every post-state written in that tick carries the
+    new step; untouched instances keep their older revision (no per-tick
+    re-stamp). A `before` therefore equals the instance's retained state exactly,
+    including that last-change revision: strictly below the tick's step on its
+    first touch in the tick, equal to the step for later same-tick rows.
+    """
     groups={};owners={};steps={}
     for row in rows[1:-1]:
         groups.setdefault((row['entity'],row['incarnation'],row['tick']),[]).append(row)
     for scope,facts in groups.items():
         owner=scope[:2];tick=scope[2]
-        revision,states,complete=owners.get(owner,(None,{},False))
+        revision,states,complete,floor=owners.get(owner,(None,{},False,-1))
         balances={}
         for row in facts:
             if row['kind']=='item_baseline':
                 baseline=row['data'];bound={item['id']:item for item in baseline['instances']}
+                if any(item['revision']>baseline['inventory_revision'] for item in baseline['instances']):
+                    raise ValueError('baseline item revision ahead of inventory revision (D79)')
                 if revision is not None:
                     same(baseline['inventory_revision'],revision)
                     if complete:same(bound,{identity:state for identity,state in states.items() if state is not None})
                     else:
                         for identity,state in states.items():same(bound.get(identity),state)
+                elif baseline['inventory_revision']<floor:raise ValueError('baseline inventory revision regressed')
                 revision=baseline['inventory_revision'];states=bound;complete=True
         deltas=[row['data'] for row in facts if row['kind']=='item_delta']
         if not deltas:
-            owners[owner]=(revision,states,complete)
+            owners[owner]=(revision,states,complete,floor)
             continue
+        afters={d['after']['revision'] for d in deltas if d['after'] is not None}
         if revision is None:
-            before=[d['before']['revision'] for d in deltas if d['before'] is not None]
-            after=[d['after']['revision']-1 for d in deltas if d['after'] is not None]
-            # A slice without a baseline binds its initial step from canonical endpoints.
-            revision=min(before+after)
-        current=revision+1
+            # A slice without a baseline binds its step from the tick's post-states;
+            # befores carry older last-change revisions and cannot bind it (D79).
+            if len(afters)>1:raise ValueError('owner item revision changed within tick')
+            current=afters.pop() if afters else None
+            if current is not None and current<=floor:raise ValueError('item revision did not increase across ticks')
+            revision=None if current is None else current-1
+        else:current=revision+1
         steps[scope]=(revision,current)
+        touched=set()
         for row in facts:
             if row['kind']=='item_formula' and row['data']['formula']=='enchant_outcome' and targets is not None:
                 operation=row['data'].get('operation')
@@ -816,23 +1181,32 @@ def inventory_history(rows,targets=None):
             if row['kind']!='item_delta':continue
             delta=row['data']
             before,after=delta['before'],delta['after']
-            if after is not None:
-                if after['revision']<=revision:raise ValueError('item revision did not increase across ticks')
+            if after is not None and current is not None:
+                if revision is not None and after['revision']<=revision:raise ValueError('item revision did not increase across ticks')
                 if after['revision']!=current:raise ValueError('owner item revision changed within tick')
-            if before is not None and before['revision'] not in (revision,current):raise ValueError('owner before revision differs from tick step')
             identity=delta['instance']
+            if before is not None:
+                if identity in touched:
+                    if current is not None and before['revision']!=current:raise ValueError('same-tick before differs from owner step')
+                elif current is not None and before['revision']>=current:
+                    raise ValueError('item before revision is not an earlier last-change revision (D79)')
+                floor=max(floor,before['revision'])
             balance=balances.setdefault(identity,[before['count'] if before else 0,0])
             balance[1]+=delta['count_delta']
             if identity in states or complete:
                 same(before,states.get(identity))
-            states[identity]=after
+            states[identity]=after;touched.add(identity)
         for identity,(start_count,net_delta) in balances.items():
             end=states[identity]
             if (end['count'] if end else 0)!=start_count+net_delta:
                 raise ValueError('per-instance tick count conservation mismatch')
-        # Canonical snapshots use the owner's revision, also for untouched instances.
-        states={identity:state|{'revision':current} if state is not None else None for identity,state in states.items()}
-        owners[owner]=(current,states,complete)
+        # D79: untouched instances keep their last-change revision.
+        if current is not None:floor=max(floor,current)
+        else:
+            # A removal-only tick still took a step s >= max(before.revision)+1; later changed
+            # ticks must exceed it and later baselines must reach it (D79, review-2 P2-1).
+            floor=max(floor,max(d['before']['revision'] for d in deltas if d['before'] is not None)+1)
+        owners[owner]=(current,states,complete,floor)
     return steps
 
 
@@ -900,7 +1274,8 @@ def enchant_evidence(row, rows, steps=None,targets=None):
     if targets is None:
         targets={};inventory_history(rows,targets)
     known,established=targets[row['sequence']]
-    if target['revision'] not in (previous_step,tick_step):raise ValueError('enchant target differs from owner revision step')
+    # D79: a binding carries the instance's last-change revision, never beyond the tick's step.
+    if tick_step is not None and target['revision']>tick_step:raise ValueError('enchant target revision ahead of owner revision step')
     if known:same(target,established)
     for spent in (scroll,support):
         if spent is None:continue
@@ -930,7 +1305,7 @@ def enchant_evidence(row, rows, steps=None,targets=None):
                 raise ValueError('missing enchant consume contribution')
         first=aggregate['before']
         if first is None:raise ValueError('missing enchant consume initial instance')
-        if first['revision'] not in (previous_step,tick_step):raise ValueError('enchant contribution differs from owner revision step')
+        if tick_step is not None and first['revision']>tick_step:raise ValueError('enchant contribution revision ahead of owner revision step')
         remaining=first['count'];previous_revision=first['revision']
         for index,cause in enumerate(causes):
             ref=cause['cause']
@@ -942,8 +1317,8 @@ def enchant_evidence(row, rows, steps=None,targets=None):
                 same({k:v for k,v in before.items() if k!='revision'},
                      {k:v for k,v in (first|{'count':remaining}).items() if k!='revision'})
                 revision=before['revision']
-                if revision<previous_revision or revision>tick_step:raise ValueError('enchant contribution revision regressed')
-                if index:same(revision,tick_step)
+                if revision<previous_revision or tick_step is not None and revision>tick_step:raise ValueError('enchant contribution revision regressed')
+                if index and tick_step is not None:same(revision,tick_step)
                 previous_revision=revision
             elif index==0 and not ref.startswith('receipt:'):
                 same(aggregate['resolution_id'],ref.split(':',1)[1])
@@ -973,6 +1348,7 @@ def enchant_evidence(row, rows, steps=None,targets=None):
 
 
 def evaluate(rows,recording,entity,gates,rules_hash,phase_specs=()):
+    rows=decode_rows(rows) # D80: wide integers arrive as decimal strings.
     manifest=validate(rows,recording,rules_hash)
     targets={};enchant_errors=[]
     try:steps=inventory_history(rows,targets)
@@ -1060,6 +1436,7 @@ def run(scenario,recording,report,out,replay,rules_hash):
 
 
 def soak(rows,recording,roles,rules_hash):
+    rows=decode_rows(rows) # D80
     validate(rows,recording,rules_hash)
     if roles.get('items') is not True or roles.get('casting') is not True or len(roles.get('roles',[]))!=8:
         raise ValueError('acceptance soak requires all eight item/casting clients')
