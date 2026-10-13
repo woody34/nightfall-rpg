@@ -48,6 +48,12 @@ JSONL contract (schema version 1 of this sidecar):
   or duplicate resolution identity. `gear_stats` additionally carries the pinned
   class XML path, level, concrete equipment/install sequence, resolved winning
   skill providers and base stat deltas. Source-dependent inputs fail closed.
+  D81: `lethal.inputs.full_residue` and `half_residue` are nullable, with the
+  rule "null iff the corresponding draw was not taken": the full draw is taken
+  only when `eligible`, the half draw only when the full draw missed. A
+  sentinel (the withdrawn 999, or any value) for an untaken draw refuses, and
+  null for a taken draw refuses; 999 remains a legitimate taken residue
+  (bound 1000).
 - `item_rng`: `callsite,word_before,word_after,bound,value,resolution_id`. Preserve the complete
   ordered draw trace, including intervening non-item draws when needed for cursor
   continuity. Draw-free branches have no fabricated draw. Enchant always requires one bound100000

@@ -1956,6 +1956,31 @@ class Evidence(unittest.TestCase):
             gate.formula('pole_damage',dict(formula={'numerator':str(2**64),'denominator':'1'},percent=85,primary=False),None)
         print('D80: wide RNG cursors, instance ids, bow bounds and inputs parse as decimal strings; in-range strings and malformed decimals reject',flush=True)
 
+    def test_d81_lethal_residues_null_iff_draw_not_taken(self):
+        base=dict(full=10,half=20,eligible=True,attribute=1,trait=1)
+        controls=[(dict(full_residue=50,half_residue=None),'full'),(dict(full_residue=500,half_residue=150),'half'),
+                  (dict(full_residue=500,half_residue=999),'none'),(dict(full_residue=999,half_residue=0),'half'),
+                  (dict(full_residue=None,half_residue=None,eligible=False),'none')]
+        for change,outcome in controls:
+            with self.subTest(control=change):
+                rows=self.formula_rows('lethal',base|change)
+                self.assertEqual(rows[1]['data']['actual']['outcome'],outcome)
+                result=gate.evaluate(rows,self.recording,OWNER,['lethal'],HASH);self.assertTrue(result['passed'],result)
+        # The withdrawn 999 sentinel (and any other value) for an untaken draw, and null for a taken draw.
+        mutations=[dict(full_residue=50,half_residue=999),dict(full_residue=50,half_residue=0),
+                   dict(full_residue=500,half_residue=None),dict(full_residue=None,half_residue=150),
+                   dict(full_residue=None,half_residue=None),
+                   dict(full_residue=999,half_residue=999,eligible=False),dict(full_residue=None,half_residue=999,eligible=False)]
+        for change in mutations:
+            with self.subTest(mutation=change):
+                rows=self.formula_rows('lethal',base|change)
+                if rows[1]['data']['actual'] is None:rows[1]['data']['actual']={'outcome':'none','draws':[]}
+                result=gate.evaluate(rows,self.recording,OWNER,['lethal'],HASH);self.assertFalse(result['passed'])
+                with self.assertRaises(ValueError):gate.formula('lethal',base|change,rows[1]['data']['actual'])
+        with self.assertRaisesRegex(ValueError,'D81'):
+            gate.formula('lethal',base|dict(full_residue=50,half_residue=999),gate.oracle.rational(gate.oracle.lethal(**base|dict(full_residue=50,half_residue=999))))
+        print(f'D81: {len(controls)} lethal residue controls pass; {len(mutations)} sentinel/null mismatches reject',flush=True)
+
     def test_missing_foreign_owner_unknown_baseline_and_repeated_fail(self):
         self.assertFalse(gate.evaluate(self.rows,self.recording,OTHER,['pole_damage'],HASH)['passed'])
         self.assertFalse(gate.evaluate(self.rows,self.recording,OWNER,['bow_damage'],HASH)['passed'])

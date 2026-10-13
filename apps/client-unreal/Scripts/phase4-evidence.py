@@ -185,8 +185,9 @@ INPUT_SCHEMAS={
         current_hp=NONNEG_INT,recoverable_hp=nullable(NONNEG_NUMERIC),remainder_q=int_range(0,oracle.Q-1)),
     'blow_success':dict(chance=NONNEG_NUMERIC,dex=NONNEG_NUMERIC,proximity=PROXIMITY,
         residue=int_range(0,999),modifier=NONNEG_NUMERIC),
-    'lethal':dict(full=NONNEG_NUMERIC,half=NONNEG_NUMERIC,full_residue=int_range(0,999),
-        half_residue=int_range(0,999),eligible=BOOL,attribute=NONNEG_NUMERIC,trait=NONNEG_NUMERIC),
+    # D81: a residue is null iff its draw was not taken; 999 is a real residue, never a sentinel.
+    'lethal':dict(full=NONNEG_NUMERIC,half=NONNEG_NUMERIC,full_residue=nullable(int_range(0,999)),
+        half_residue=nullable(int_range(0,999)),eligible=BOOL,attribute=NONNEG_NUMERIC,trait=NONNEG_NUMERIC),
     'retail_select':dict(rows=RETAIL_ROWS,residue=int_range(0,9999)),
     'retail_distribution':dict(rows=RETAIL_ROWS),
     'category':dict(residue=int_range(0,9999),accessory=BOOL),
@@ -528,9 +529,22 @@ def formula(name,inputs,actual):
         same(inputs['before'],inputs['after']);same(inputs['ledger_rows'],0);same(inputs['rng_before'],inputs['rng_after'])
         same(actual,{'unchanged':True})
     else:
+        if name=='lethal':lethal_residues(inputs)
         oracle.verify_facts([dict(formula=name,inputs=inputs,expected=actual)])
         function=getattr(oracle,name,None) or getattr(oracle.behavior,name,None)
         same(actual,oracle.rational(function(**oracle.decode_rationals(inputs))))
+
+
+def lethal_residues(inputs):
+    """D81: each residue is null iff the corresponding draw was not taken (Formulas.java
+    lethal: the full draw only when eligible, the half draw only after a missed full)."""
+    probe=dict(oracle.decode_rationals(inputs))
+    for key in ('full_residue','half_residue'):
+        if probe.get(key) is None:probe[key]=0 # placeholder: only decides which draws occur
+    sites={draw['site'] for draw in oracle.lethal(**probe)['draws']}
+    for key,site in (('full_residue','lethal_full'),('half_residue','lethal_half')):
+        if (inputs.get(key) is None)!=(site not in sites):
+            raise ValueError('lethal '+key+' must be null iff its draw was not taken (D81)')
 
 
 @lru_cache(maxsize=None)
