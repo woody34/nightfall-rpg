@@ -90,8 +90,8 @@ class Revision5Tests(unittest.TestCase):
                     if launched:
                         reason = 'launched'
                         draws.append(dict(site='hit', bound=1000, residue=x['hit_residue']))
-                        # D88: a hit iff the residue is strictly below the chance.
-                        self.assertEqual(x['miss'], x['hit_residue'] >= x['hit_chance'], name)
+                        # calcHitMiss: miss iff chance < residue (D88 strictness revoked).
+                        self.assertEqual(x['miss'], x['hit_residue'] > x['hit_chance'], name)
                         if not x['miss']:
                             # D87: the caller's live residues, not a neutral 999 / radius.
                             draws.append(dict(site='critical', bound=1000, residue=x['critical_residue']))
@@ -108,7 +108,7 @@ class Revision5Tests(unittest.TestCase):
             self.assertEqual(y['arrows_consumed'], int(launched), name)
             self.assertEqual(sum(i['count'] for i in y['inventory']), sum(i['count'] for i in x['inventory'])-int(launched), name)
             if launched:
-                self.assertEqual(y['hit'], x['hit_residue'] < x['hit_chance'], name)
+                self.assertEqual(y['hit'], x['hit_residue'] <= x['hit_chance'], name)
                 self.assertEqual(y['lhand'], arrow['instance_id'] if arrow['count'] > 1 else None, name)
 
     def test_exhaustion_refill_and_empty_skip_payment(self):

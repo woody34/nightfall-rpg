@@ -651587,7 +651587,7 @@
         "spread_residue": 0,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 799
+        "hit_residue": 800
       },
       "expected": {
         "accepted": true,
@@ -651614,7 +651614,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 799
+            "residue": 800
           },
           {
             "site": "critical",
@@ -651645,7 +651645,7 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 799
+          "residue": 800
         },
         {
           "site": "critical",
@@ -651658,7 +651658,7 @@
           "residue": 0
         }
       ],
-      "vector_sha256": "0b013ad999c974068da27e59b8c7aa6e2b066e8aae3cf34770a01db46cff36a0"
+      "vector_sha256": "667044c0fbe75d4033a92114ed8b048ef87121a9ed4f01ca434421b2afa0200c"
     },
     {
       "id": "bow-launch-NONE-equipped-True",
@@ -651696,7 +651696,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -651723,7 +651723,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -651744,10 +651744,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "c231feef6c16c13b8866069ebfe60efb51421711e05f533ebab131a7dd4b1ea6"
+      "vector_sha256": "6623c13f596fa64d86ee3dc2dbc7d2454b8f2d05b1ee03daff8f1663a058e1c9"
     },
     {
       "id": "bow-launch-NONE-refill-False",
@@ -651785,7 +651785,7 @@
         "spread_residue": 5,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 799
+        "hit_residue": 800
       },
       "expected": {
         "accepted": true,
@@ -651812,7 +651812,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 799
+            "residue": 800
           },
           {
             "site": "critical",
@@ -651843,7 +651843,7 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 799
+          "residue": 800
         },
         {
           "site": "critical",
@@ -651856,7 +651856,7 @@
           "residue": 5
         }
       ],
-      "vector_sha256": "b146c3405ed22b79db041e1ff80332e5ea7b85deb1d66535f0ddbfe377efe06c"
+      "vector_sha256": "62edfb2934f9d6b3c1702933914e4f02c2e2b6d7650002b50452bf16376ae84c"
     },
     {
       "id": "bow-launch-NONE-refill-True",
@@ -651894,7 +651894,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -651921,7 +651921,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -651942,10 +651942,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "e40277d35f95fa9bb808182f64ce6b1c380ad6a01718d64afa8b934da9490b35"
+      "vector_sha256": "4d78c4a709be6dfad5bfe7c613d04642200014480b398aeb3985a00e17c0a50e"
     },
     {
       "id": "bow-launch-NONE-empty-False",
@@ -651975,66 +651975,6 @@
         "spread_residue": 5,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 799
-      },
-      "expected": {
-        "accepted": false,
-        "reason": "arrows",
-        "inventory": [],
-        "lhand": null,
-        "equipped_lhand": null,
-        "mp": {
-          "numerator": 10,
-          "denominator": 1
-        },
-        "mp_q": 10000000,
-        "mp_paid": 0,
-        "arrows_consumed": 0,
-        "draws": [],
-        "hit": null
-      },
-      "sources": [
-        "src/main/resources/data/stats/items/00000-00099.xml:274",
-        "src/main/resources/data/stats/items/00000-00099.xml:368",
-        "src/main/resources/data/stats/items/01300-01399.xml:681",
-        "G/model/itemcontainer/Inventory.java:679-694",
-        "G/model/items/L2Item.java:387-391",
-        "G/model/items/L2Weapon.java:91-106",
-        "G/model/actor/L2Character.java:724-757,1012-1021",
-        "G/model/actor/instance/L2PcInstance.java:5280-5360",
-        "design/2.1 projectile costs at accepted start"
-      ],
-      "draws": [],
-      "vector_sha256": "e22ce277552af2954b2c07d070aff69843269b59bb1eeae38f9bcdd804c2c39e"
-    },
-    {
-      "id": "bow-launch-NONE-empty-True",
-      "family": "F10",
-      "inputs": {
-        "weapon": {
-          "template_id": 13,
-          "grade": "NONE",
-          "mp_cost": 1,
-          "reduced_chance": 0,
-          "reduced_cost": 0,
-          "spread_radius": 5
-        },
-        "inventory": [],
-        "lhand": null,
-        "mp": {
-          "numerator": 10,
-          "denominator": 1
-        },
-        "mp_modifier": {
-          "numerator": 1,
-          "denominator": 1
-        },
-        "reduction_residue": null,
-        "miss": true,
-        "critical_residue": null,
-        "spread_residue": null,
-        "reuse_remaining": 0,
-        "hit_chance": 800,
         "hit_residue": 800
       },
       "expected": {
@@ -652065,7 +652005,67 @@
         "design/2.1 projectile costs at accepted start"
       ],
       "draws": [],
-      "vector_sha256": "4ce5c1b6886fb724d6a66bbc54a555628a88bf2890e05e38879d6a2737fff39d"
+      "vector_sha256": "f1ef03fa6a4df8375657667cafa186166c4bdad01780e05b7c64afc790d035ba"
+    },
+    {
+      "id": "bow-launch-NONE-empty-True",
+      "family": "F10",
+      "inputs": {
+        "weapon": {
+          "template_id": 13,
+          "grade": "NONE",
+          "mp_cost": 1,
+          "reduced_chance": 0,
+          "reduced_cost": 0,
+          "spread_radius": 5
+        },
+        "inventory": [],
+        "lhand": null,
+        "mp": {
+          "numerator": 10,
+          "denominator": 1
+        },
+        "mp_modifier": {
+          "numerator": 1,
+          "denominator": 1
+        },
+        "reduction_residue": null,
+        "miss": true,
+        "critical_residue": null,
+        "spread_residue": null,
+        "reuse_remaining": 0,
+        "hit_chance": 800,
+        "hit_residue": 801
+      },
+      "expected": {
+        "accepted": false,
+        "reason": "arrows",
+        "inventory": [],
+        "lhand": null,
+        "equipped_lhand": null,
+        "mp": {
+          "numerator": 10,
+          "denominator": 1
+        },
+        "mp_q": 10000000,
+        "mp_paid": 0,
+        "arrows_consumed": 0,
+        "draws": [],
+        "hit": null
+      },
+      "sources": [
+        "src/main/resources/data/stats/items/00000-00099.xml:274",
+        "src/main/resources/data/stats/items/00000-00099.xml:368",
+        "src/main/resources/data/stats/items/01300-01399.xml:681",
+        "G/model/itemcontainer/Inventory.java:679-694",
+        "G/model/items/L2Item.java:387-391",
+        "G/model/items/L2Weapon.java:91-106",
+        "G/model/actor/L2Character.java:724-757,1012-1021",
+        "G/model/actor/instance/L2PcInstance.java:5280-5360",
+        "design/2.1 projectile costs at accepted start"
+      ],
+      "draws": [],
+      "vector_sha256": "69ecd920cdd2933f27b900afbcb95f36bb90e260eed0bc37f8b9030efdaa5adb"
     },
     {
       "id": "bow-launch-NONE-wrong-False",
@@ -652103,7 +652103,7 @@
         "spread_residue": 5,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 799
+        "hit_residue": 800
       },
       "expected": {
         "accepted": false,
@@ -652141,7 +652141,7 @@
         "design/2.1 projectile costs at accepted start"
       ],
       "draws": [],
-      "vector_sha256": "8f7ca95391a53da04f126ccc4b94bce171d5b71e42b99bad819c3e0e014a8c1c"
+      "vector_sha256": "5ff09ddfcbda68363b9bea3c9431412354971db4f6d9e3e5c6140bfc242cee18"
     },
     {
       "id": "bow-launch-NONE-wrong-True",
@@ -652179,7 +652179,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": false,
@@ -652217,7 +652217,7 @@
         "design/2.1 projectile costs at accepted start"
       ],
       "draws": [],
-      "vector_sha256": "7160dc13f200467ad4b4ab3770c3f76dd56dc1ca155a9a26b01f4e3bd8691954"
+      "vector_sha256": "cce80a7d1a1fe9f5144540eec9e8c470eea89a1890934860af1a98d5aaeb4594"
     },
     {
       "id": "bow-launch-NONE-wrong-equipped-False",
@@ -652255,7 +652255,7 @@
         "spread_residue": 5,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 799
+        "hit_residue": 800
       },
       "expected": {
         "accepted": true,
@@ -652282,7 +652282,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 799
+            "residue": 800
           },
           {
             "site": "critical",
@@ -652313,7 +652313,7 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 799
+          "residue": 800
         },
         {
           "site": "critical",
@@ -652326,7 +652326,7 @@
           "residue": 5
         }
       ],
-      "vector_sha256": "3eca27951904214b766fd9bf3afe6900a8e8b70b065a0cb7334506800b37be57"
+      "vector_sha256": "1547363d5bfd120f813a4bbf6dc14ebd13bcf851fd77b4b6ad82ebf2ac6ebd0a"
     },
     {
       "id": "bow-launch-NONE-wrong-equipped-True",
@@ -652364,7 +652364,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -652391,7 +652391,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -652412,10 +652412,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "3e28cb4707e1739f52f4c8590ee9b307e1e8040d4caf82a305784edbab011b74"
+      "vector_sha256": "1ab7bc79aa31f6aeb18a01dc5afca616631dfa944d3252003e4504a5a8661ff7"
     },
     {
       "id": "bow-launch-NONE-exhausted-False",
@@ -652453,7 +652453,7 @@
         "spread_residue": 5,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 799
+        "hit_residue": 800
       },
       "expected": {
         "accepted": true,
@@ -652472,7 +652472,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 799
+            "residue": 800
           },
           {
             "site": "critical",
@@ -652503,7 +652503,7 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 799
+          "residue": 800
         },
         {
           "site": "critical",
@@ -652516,7 +652516,7 @@
           "residue": 5
         }
       ],
-      "vector_sha256": "0747b0c14d424be6a2ee20a662fbc58678bff3d86cb0cd37f3cc8da7ff0b1866"
+      "vector_sha256": "f6ff0dd369a5e7908c65709f48414332eda11ee7a3d3bb3356c38abd04804d09"
     },
     {
       "id": "bow-launch-NONE-exhausted-True",
@@ -652554,7 +652554,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -652573,7 +652573,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -652594,10 +652594,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "b7d13605461ffe0b6765dbfacb3f286ecd91d8a53183fc5fc9e1fbdea4f9860a"
+      "vector_sha256": "7433a5ed9c0e267336345f98a94eafb0967fe6d5a2191b37c78e4508fe59e60b"
     },
     {
       "id": "bow-refill-history-NONE",
@@ -652642,7 +652642,7 @@
               {
                 "site": "hit",
                 "bound": 1000,
-                "residue": 799
+                "residue": 800
               },
               {
                 "site": "critical",
@@ -652691,7 +652691,7 @@
               {
                 "site": "hit",
                 "bound": 1000,
-                "residue": 800
+                "residue": 801
               }
             ],
             "hit": false,
@@ -652720,7 +652720,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 799
+            "residue": 800
           },
           {
             "site": "critical",
@@ -652735,7 +652735,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ]
       },
@@ -652753,7 +652753,7 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 799
+          "residue": 800
         },
         {
           "site": "critical",
@@ -652768,10 +652768,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "766591b5fa7854a09fb4e3df52046e22322237d50bd163b25bc274dc0a07a320"
+      "vector_sha256": "17d7646bd8b9d19706315a8995e0b8b93cec8c5ca886d2690bb173fecf76d29c"
     },
     {
       "id": "bow-launch-D-equipped-False",
@@ -652809,7 +652809,7 @@
         "spread_residue": 0,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 799
+        "hit_residue": 800
       },
       "expected": {
         "accepted": true,
@@ -652836,7 +652836,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 799
+            "residue": 800
           },
           {
             "site": "critical",
@@ -652867,7 +652867,7 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 799
+          "residue": 800
         },
         {
           "site": "critical",
@@ -652880,7 +652880,7 @@
           "residue": 0
         }
       ],
-      "vector_sha256": "32272d796de29af46f5bded0bdc9f2575eb239b6582c464cdd7c796d3cb75699"
+      "vector_sha256": "4f62611669a6e795778946cb15cba46e2f94ae52f742c07e1edd56abe5f25e52"
     },
     {
       "id": "bow-launch-D-equipped-True",
@@ -652918,7 +652918,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -652945,7 +652945,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -652966,10 +652966,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "031c9ad0b73ee30724c0104222869c293cf45cdae673d125c423d652484f91de"
+      "vector_sha256": "5f78d31f2e1fb63fc384fa5d7d61f8c105daa58c70fc7e8f77c2326fb27ea10f"
     },
     {
       "id": "bow-launch-D-refill-False",
@@ -653007,7 +653007,7 @@
         "spread_residue": 5,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 799
+        "hit_residue": 800
       },
       "expected": {
         "accepted": true,
@@ -653034,7 +653034,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 799
+            "residue": 800
           },
           {
             "site": "critical",
@@ -653065,7 +653065,7 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 799
+          "residue": 800
         },
         {
           "site": "critical",
@@ -653078,7 +653078,7 @@
           "residue": 5
         }
       ],
-      "vector_sha256": "d1a3300edd4ecae633c700b0980449c8132942b4a48ca2d321da4e6a31ca8416"
+      "vector_sha256": "ecb706bbfe24001da1d6cfaa3a95e4e27144a22c5096262afee7863c7b6d71f1"
     },
     {
       "id": "bow-launch-D-refill-True",
@@ -653116,7 +653116,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -653143,7 +653143,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -653164,10 +653164,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "1a8ca12f73ac581402a10fa8afefebd91a5da43a29c7572869064532fd4a6c72"
+      "vector_sha256": "8f946ec9c83e76425b61a0baf001a7489bb207de50d07d5e0a5aa65bb96421ae"
     },
     {
       "id": "bow-launch-D-empty-False",
@@ -653197,66 +653197,6 @@
         "spread_residue": 5,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 799
-      },
-      "expected": {
-        "accepted": false,
-        "reason": "arrows",
-        "inventory": [],
-        "lhand": null,
-        "equipped_lhand": null,
-        "mp": {
-          "numerator": 10,
-          "denominator": 1
-        },
-        "mp_q": 10000000,
-        "mp_paid": 0,
-        "arrows_consumed": 0,
-        "draws": [],
-        "hit": null
-      },
-      "sources": [
-        "src/main/resources/data/stats/items/00200-00299.xml:1863",
-        "src/main/resources/data/stats/items/01300-01399.xml:681",
-        "src/main/resources/data/stats/items/00000-00099.xml:368",
-        "G/model/itemcontainer/Inventory.java:679-694",
-        "G/model/items/L2Item.java:387-391",
-        "G/model/items/L2Weapon.java:91-106",
-        "G/model/actor/L2Character.java:724-757,1012-1021",
-        "G/model/actor/instance/L2PcInstance.java:5280-5360",
-        "design/2.1 projectile costs at accepted start"
-      ],
-      "draws": [],
-      "vector_sha256": "a2767339bf969506271b94000a87713a5709072be958955ea657b907b1bef7de"
-    },
-    {
-      "id": "bow-launch-D-empty-True",
-      "family": "F10",
-      "inputs": {
-        "weapon": {
-          "template_id": 274,
-          "grade": "D",
-          "mp_cost": 1,
-          "reduced_chance": 0,
-          "reduced_cost": 0,
-          "spread_radius": 5
-        },
-        "inventory": [],
-        "lhand": null,
-        "mp": {
-          "numerator": 10,
-          "denominator": 1
-        },
-        "mp_modifier": {
-          "numerator": 1,
-          "denominator": 1
-        },
-        "reduction_residue": null,
-        "miss": true,
-        "critical_residue": null,
-        "spread_residue": null,
-        "reuse_remaining": 0,
-        "hit_chance": 800,
         "hit_residue": 800
       },
       "expected": {
@@ -653287,7 +653227,67 @@
         "design/2.1 projectile costs at accepted start"
       ],
       "draws": [],
-      "vector_sha256": "d7be615b818e80fcb5bd8017f5316bb29501738664d60c017c08193bbdf1ec2d"
+      "vector_sha256": "e5b049909ed0dfe51d22d820fd3e317698bc123219ff47412ef4b611e01bfcef"
+    },
+    {
+      "id": "bow-launch-D-empty-True",
+      "family": "F10",
+      "inputs": {
+        "weapon": {
+          "template_id": 274,
+          "grade": "D",
+          "mp_cost": 1,
+          "reduced_chance": 0,
+          "reduced_cost": 0,
+          "spread_radius": 5
+        },
+        "inventory": [],
+        "lhand": null,
+        "mp": {
+          "numerator": 10,
+          "denominator": 1
+        },
+        "mp_modifier": {
+          "numerator": 1,
+          "denominator": 1
+        },
+        "reduction_residue": null,
+        "miss": true,
+        "critical_residue": null,
+        "spread_residue": null,
+        "reuse_remaining": 0,
+        "hit_chance": 800,
+        "hit_residue": 801
+      },
+      "expected": {
+        "accepted": false,
+        "reason": "arrows",
+        "inventory": [],
+        "lhand": null,
+        "equipped_lhand": null,
+        "mp": {
+          "numerator": 10,
+          "denominator": 1
+        },
+        "mp_q": 10000000,
+        "mp_paid": 0,
+        "arrows_consumed": 0,
+        "draws": [],
+        "hit": null
+      },
+      "sources": [
+        "src/main/resources/data/stats/items/00200-00299.xml:1863",
+        "src/main/resources/data/stats/items/01300-01399.xml:681",
+        "src/main/resources/data/stats/items/00000-00099.xml:368",
+        "G/model/itemcontainer/Inventory.java:679-694",
+        "G/model/items/L2Item.java:387-391",
+        "G/model/items/L2Weapon.java:91-106",
+        "G/model/actor/L2Character.java:724-757,1012-1021",
+        "G/model/actor/instance/L2PcInstance.java:5280-5360",
+        "design/2.1 projectile costs at accepted start"
+      ],
+      "draws": [],
+      "vector_sha256": "5a1c3cfe3a54fab0166dbc813d40a37f7531bf07ab4d95d05c294f6ee64bbd12"
     },
     {
       "id": "bow-launch-D-wrong-False",
@@ -653325,7 +653325,7 @@
         "spread_residue": 5,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 799
+        "hit_residue": 800
       },
       "expected": {
         "accepted": false,
@@ -653363,7 +653363,7 @@
         "design/2.1 projectile costs at accepted start"
       ],
       "draws": [],
-      "vector_sha256": "764767014723633a12e36dd1693858eb9ae564fd13d87fdb2b07147a1f268d7f"
+      "vector_sha256": "1777544af6b871aae9f000ee7977b542f7987ce7b57f2dc938ba64e9b91a3c4d"
     },
     {
       "id": "bow-launch-D-wrong-True",
@@ -653401,7 +653401,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": false,
@@ -653439,7 +653439,7 @@
         "design/2.1 projectile costs at accepted start"
       ],
       "draws": [],
-      "vector_sha256": "b27fc25d2985c4a3c1ed3035f070d2f4e5aaaed222d1ade785346d5d5388c9da"
+      "vector_sha256": "b058a8fb0bbf9ee99bbb1053f812eb57b00aad76703d6b97c9d335e2d5879ee9"
     },
     {
       "id": "bow-launch-D-wrong-equipped-False",
@@ -653477,7 +653477,7 @@
         "spread_residue": 5,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 799
+        "hit_residue": 800
       },
       "expected": {
         "accepted": true,
@@ -653504,7 +653504,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 799
+            "residue": 800
           },
           {
             "site": "critical",
@@ -653535,7 +653535,7 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 799
+          "residue": 800
         },
         {
           "site": "critical",
@@ -653548,7 +653548,7 @@
           "residue": 5
         }
       ],
-      "vector_sha256": "efeb7a76c6c8b12d7b342f1d500f425f15503de8827464531478c725533aee35"
+      "vector_sha256": "3a0958313a45885c951a35af0a0a95020f34c837f6c4e70c9d92302188010f81"
     },
     {
       "id": "bow-launch-D-wrong-equipped-True",
@@ -653586,7 +653586,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -653613,7 +653613,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -653634,10 +653634,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "0d29292b832bd50a9ed2b6e193cacdc7b11349f303a278e64e5cdb511fb3e180"
+      "vector_sha256": "96d8936ec34c09e80d2a44cba76a806ad492889f1ed56aa9e11200961e1d0ee3"
     },
     {
       "id": "bow-launch-D-exhausted-False",
@@ -653675,7 +653675,7 @@
         "spread_residue": 5,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 799
+        "hit_residue": 800
       },
       "expected": {
         "accepted": true,
@@ -653694,7 +653694,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 799
+            "residue": 800
           },
           {
             "site": "critical",
@@ -653725,7 +653725,7 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 799
+          "residue": 800
         },
         {
           "site": "critical",
@@ -653738,7 +653738,7 @@
           "residue": 5
         }
       ],
-      "vector_sha256": "c3325be9222e05a7a56d47a51b105f0b1252cba32807aea9929c7b8c8ee029bf"
+      "vector_sha256": "bee0744da5d7f109c71f9cccd2d52b9bfc61a7d101d434227e108dba702be174"
     },
     {
       "id": "bow-launch-D-exhausted-True",
@@ -653776,7 +653776,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -653795,7 +653795,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -653816,10 +653816,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "7d7231cee7672baeb1598df1be540ef96ceb85f34cab167deda0dd57ab5c182b"
+      "vector_sha256": "e80d3031c89c7c28bcca176de5f6b2a5aee6959c01f5ad0fe898c86a76721f83"
     },
     {
       "id": "bow-refill-history-D",
@@ -653864,7 +653864,7 @@
               {
                 "site": "hit",
                 "bound": 1000,
-                "residue": 799
+                "residue": 800
               },
               {
                 "site": "critical",
@@ -653913,7 +653913,7 @@
               {
                 "site": "hit",
                 "bound": 1000,
-                "residue": 800
+                "residue": 801
               }
             ],
             "hit": false,
@@ -653942,7 +653942,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 799
+            "residue": 800
           },
           {
             "site": "critical",
@@ -653957,7 +653957,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ]
       },
@@ -653975,7 +653975,7 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 799
+          "residue": 800
         },
         {
           "site": "critical",
@@ -653990,10 +653990,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "ed58e58deba2548aef1519a5e5a04772f5141d2426ea441ad9c3279f93913f05"
+      "vector_sha256": "77fd96aab759896ccd16ba24ba3ff075e16dcfa18dfb723239adef39f88690d1"
     },
     {
       "id": "bow-launch-C-equipped-False",
@@ -654031,7 +654031,7 @@
         "spread_residue": 0,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 799
+        "hit_residue": 800
       },
       "expected": {
         "accepted": true,
@@ -654058,7 +654058,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 799
+            "residue": 800
           },
           {
             "site": "critical",
@@ -654089,7 +654089,7 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 799
+          "residue": 800
         },
         {
           "site": "critical",
@@ -654102,7 +654102,7 @@
           "residue": 0
         }
       ],
-      "vector_sha256": "f90c3e23d65f11494b61ffbdd8b6688e3bdda3217f67d55d34f20527bafd4fde"
+      "vector_sha256": "0e1941d90e54fee5d25b1be51884374577a75d06037e4491076508e3e5746687"
     },
     {
       "id": "bow-launch-C-equipped-True",
@@ -654140,7 +654140,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -654167,7 +654167,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -654188,10 +654188,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "39d6002a360df2c91df77cf69bb22c2438acb4a9f25ef0bdf2e20816da70ca6e"
+      "vector_sha256": "4494e8443b288202429ccaa513daf03f20b9abde1a607009a8cae69980e07822"
     },
     {
       "id": "bow-launch-C-refill-False",
@@ -654229,7 +654229,7 @@
         "spread_residue": 5,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 799
+        "hit_residue": 800
       },
       "expected": {
         "accepted": true,
@@ -654256,7 +654256,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 799
+            "residue": 800
           },
           {
             "site": "critical",
@@ -654287,7 +654287,7 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 799
+          "residue": 800
         },
         {
           "site": "critical",
@@ -654300,7 +654300,7 @@
           "residue": 5
         }
       ],
-      "vector_sha256": "cfb41b4075e3929e375b49299fe8b57fd65a021b7d6f73f7663e42bc4b3a9197"
+      "vector_sha256": "11ba34e9d3fc8d75b8a0892b7c738536b393485c5605de566b95bf486b898d0c"
     },
     {
       "id": "bow-launch-C-refill-True",
@@ -654338,7 +654338,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -654365,7 +654365,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -654386,10 +654386,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "ad70ba1bf63d047e5666d1fbc2ece04dc34d7e74fe80937a2636cefbe0a27cd1"
+      "vector_sha256": "8a954fe91a1b00201ea7aa141e360fa5426d89847b34158cc19586fb83a8a0d1"
     },
     {
       "id": "bow-launch-C-empty-False",
@@ -654419,66 +654419,6 @@
         "spread_residue": 5,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 799
-      },
-      "expected": {
-        "accepted": false,
-        "reason": "arrows",
-        "inventory": [],
-        "lhand": null,
-        "equipped_lhand": null,
-        "mp": {
-          "numerator": 10,
-          "denominator": 1
-        },
-        "mp_q": 10000000,
-        "mp_paid": 0,
-        "arrows_consumed": 0,
-        "draws": [],
-        "hit": null
-      },
-      "sources": [
-        "src/main/resources/data/stats/items/00200-00299.xml:2073",
-        "src/main/resources/data/stats/items/01300-01399.xml:694",
-        "src/main/resources/data/stats/items/00000-00099.xml:368",
-        "G/model/itemcontainer/Inventory.java:679-694",
-        "G/model/items/L2Item.java:387-391",
-        "G/model/items/L2Weapon.java:91-106",
-        "G/model/actor/L2Character.java:724-757,1012-1021",
-        "G/model/actor/instance/L2PcInstance.java:5280-5360",
-        "design/2.1 projectile costs at accepted start"
-      ],
-      "draws": [],
-      "vector_sha256": "4ae1a0f4a08d39eca56d5c6008ed6dcdabd2bd6143d36ecb7645b06a9a96220b"
-    },
-    {
-      "id": "bow-launch-C-empty-True",
-      "family": "F10",
-      "inputs": {
-        "weapon": {
-          "template_id": 281,
-          "grade": "C",
-          "mp_cost": 2,
-          "reduced_chance": 0,
-          "reduced_cost": 0,
-          "spread_radius": 5
-        },
-        "inventory": [],
-        "lhand": null,
-        "mp": {
-          "numerator": 10,
-          "denominator": 1
-        },
-        "mp_modifier": {
-          "numerator": 1,
-          "denominator": 1
-        },
-        "reduction_residue": null,
-        "miss": true,
-        "critical_residue": null,
-        "spread_residue": null,
-        "reuse_remaining": 0,
-        "hit_chance": 800,
         "hit_residue": 800
       },
       "expected": {
@@ -654509,7 +654449,67 @@
         "design/2.1 projectile costs at accepted start"
       ],
       "draws": [],
-      "vector_sha256": "49710f1b5f42d0f5774170d6cdeb366e6ca90768ad31b90e01b1764ee3d5409a"
+      "vector_sha256": "8ad0c0c59788535dabeccadecd24906af1f4d1402d912488257c16ac6ef1a247"
+    },
+    {
+      "id": "bow-launch-C-empty-True",
+      "family": "F10",
+      "inputs": {
+        "weapon": {
+          "template_id": 281,
+          "grade": "C",
+          "mp_cost": 2,
+          "reduced_chance": 0,
+          "reduced_cost": 0,
+          "spread_radius": 5
+        },
+        "inventory": [],
+        "lhand": null,
+        "mp": {
+          "numerator": 10,
+          "denominator": 1
+        },
+        "mp_modifier": {
+          "numerator": 1,
+          "denominator": 1
+        },
+        "reduction_residue": null,
+        "miss": true,
+        "critical_residue": null,
+        "spread_residue": null,
+        "reuse_remaining": 0,
+        "hit_chance": 800,
+        "hit_residue": 801
+      },
+      "expected": {
+        "accepted": false,
+        "reason": "arrows",
+        "inventory": [],
+        "lhand": null,
+        "equipped_lhand": null,
+        "mp": {
+          "numerator": 10,
+          "denominator": 1
+        },
+        "mp_q": 10000000,
+        "mp_paid": 0,
+        "arrows_consumed": 0,
+        "draws": [],
+        "hit": null
+      },
+      "sources": [
+        "src/main/resources/data/stats/items/00200-00299.xml:2073",
+        "src/main/resources/data/stats/items/01300-01399.xml:694",
+        "src/main/resources/data/stats/items/00000-00099.xml:368",
+        "G/model/itemcontainer/Inventory.java:679-694",
+        "G/model/items/L2Item.java:387-391",
+        "G/model/items/L2Weapon.java:91-106",
+        "G/model/actor/L2Character.java:724-757,1012-1021",
+        "G/model/actor/instance/L2PcInstance.java:5280-5360",
+        "design/2.1 projectile costs at accepted start"
+      ],
+      "draws": [],
+      "vector_sha256": "6c092d78bb7a635464b383512db48c6dca23dc65d574e933c52334f2957fe41b"
     },
     {
       "id": "bow-launch-C-wrong-False",
@@ -654547,7 +654547,7 @@
         "spread_residue": 5,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 799
+        "hit_residue": 800
       },
       "expected": {
         "accepted": false,
@@ -654585,7 +654585,7 @@
         "design/2.1 projectile costs at accepted start"
       ],
       "draws": [],
-      "vector_sha256": "8de928af155fc946d309b26c78d39efbc22308e808a5bdb94538100914f3fcdb"
+      "vector_sha256": "abbff809f95c5f19e974ad88260bd910bebe1e5c46377f8d5bff9161864b483f"
     },
     {
       "id": "bow-launch-C-wrong-True",
@@ -654623,7 +654623,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": false,
@@ -654661,7 +654661,7 @@
         "design/2.1 projectile costs at accepted start"
       ],
       "draws": [],
-      "vector_sha256": "2999c932f9a96c2c06dc9c8e225b81e982bfbc076b87c23e34b80cae1b898089"
+      "vector_sha256": "bfcd0d0ecd872664b7f58598933a4e8c791728d0c7774274af15ab340c3281fe"
     },
     {
       "id": "bow-launch-C-wrong-equipped-False",
@@ -654699,7 +654699,7 @@
         "spread_residue": 5,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 799
+        "hit_residue": 800
       },
       "expected": {
         "accepted": true,
@@ -654726,7 +654726,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 799
+            "residue": 800
           },
           {
             "site": "critical",
@@ -654757,7 +654757,7 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 799
+          "residue": 800
         },
         {
           "site": "critical",
@@ -654770,7 +654770,7 @@
           "residue": 5
         }
       ],
-      "vector_sha256": "36e9d759d7f8584838f0862e6095b20196176b6dc6b885cc557c5e5f4a4b867e"
+      "vector_sha256": "42dd33076acbcf35fbdc6f2b451342085fc4582f8289ab01f556d6a8c30cc68b"
     },
     {
       "id": "bow-launch-C-wrong-equipped-True",
@@ -654808,7 +654808,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -654835,7 +654835,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -654856,10 +654856,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "302b9d24a08422062a664aa7f14f9b45d5cf9a1f00914b19c8a0125b168d2854"
+      "vector_sha256": "556757dcc88901d7fc32f3fb5b7ebd5bc358796cf2499736d107e66483c119ec"
     },
     {
       "id": "bow-launch-C-exhausted-False",
@@ -654897,7 +654897,7 @@
         "spread_residue": 5,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 799
+        "hit_residue": 800
       },
       "expected": {
         "accepted": true,
@@ -654916,7 +654916,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 799
+            "residue": 800
           },
           {
             "site": "critical",
@@ -654947,7 +654947,7 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 799
+          "residue": 800
         },
         {
           "site": "critical",
@@ -654960,7 +654960,7 @@
           "residue": 5
         }
       ],
-      "vector_sha256": "ad8a99516bf5fd1e4f9c5033061d31e95be5d6653f48d4362c7cb002a44bc26e"
+      "vector_sha256": "3c917c1b3b4a094e29e1d9db66509079476d81fdf3f0785a77ddfd26e525b1ce"
     },
     {
       "id": "bow-launch-C-exhausted-True",
@@ -654998,7 +654998,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -655017,7 +655017,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -655038,10 +655038,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "91dee694566bf0cd19d19c3ef6e567ffdb966aa9c88e99f07eaac583650dc528"
+      "vector_sha256": "472b90df01ada1194773907b50ee71c8c60b8341baba674da3bd1968b4e3e55f"
     },
     {
       "id": "bow-refill-history-C",
@@ -655086,7 +655086,7 @@
               {
                 "site": "hit",
                 "bound": 1000,
-                "residue": 799
+                "residue": 800
               },
               {
                 "site": "critical",
@@ -655135,7 +655135,7 @@
               {
                 "site": "hit",
                 "bound": 1000,
-                "residue": 800
+                "residue": 801
               }
             ],
             "hit": false,
@@ -655164,7 +655164,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 799
+            "residue": 800
           },
           {
             "site": "critical",
@@ -655179,7 +655179,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ]
       },
@@ -655197,7 +655197,7 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 799
+          "residue": 800
         },
         {
           "site": "critical",
@@ -655212,10 +655212,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "ec087e3202261eec98999e9a68a21914360f5ae4153910ed35dfc869ff52fef0"
+      "vector_sha256": "d655e79948329a172035f9c152f55ba2fbc9bc1933abe2efce1ad79cbf46e04b"
     },
     {
       "id": "bow-launch-B-equipped-False",
@@ -655253,7 +655253,7 @@
         "spread_residue": 0,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 799
+        "hit_residue": 800
       },
       "expected": {
         "accepted": true,
@@ -655280,7 +655280,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 799
+            "residue": 800
           },
           {
             "site": "critical",
@@ -655311,7 +655311,7 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 799
+          "residue": 800
         },
         {
           "site": "critical",
@@ -655324,7 +655324,7 @@
           "residue": 0
         }
       ],
-      "vector_sha256": "888babc9d9fa385d8e48429367fcea316f648826943910fe1ca3ea1e0263dfd9"
+      "vector_sha256": "0c97d457ed32825e3b715473dc3d72f3252319bffc27c133d67046a872c877af"
     },
     {
       "id": "bow-launch-B-equipped-True",
@@ -655362,7 +655362,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -655389,7 +655389,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -655410,10 +655410,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "e5cc2060910c28961da582d75fe8e75710ef953cadb08fcb0138ec5c1cc2e438"
+      "vector_sha256": "3f9841b1f73b888862a82939e3a6652954e6173c951ffa01c242e51d8a18664a"
     },
     {
       "id": "bow-launch-B-refill-False",
@@ -655451,7 +655451,7 @@
         "spread_residue": 5,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 799
+        "hit_residue": 800
       },
       "expected": {
         "accepted": true,
@@ -655478,7 +655478,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 799
+            "residue": 800
           },
           {
             "site": "critical",
@@ -655509,7 +655509,7 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 799
+          "residue": 800
         },
         {
           "site": "critical",
@@ -655522,7 +655522,7 @@
           "residue": 5
         }
       ],
-      "vector_sha256": "462c4117046d76978c805a82f77980b1a7d13cb4458f6e74f30bd6a796718a06"
+      "vector_sha256": "769b62deeb914fe77e9005d4385698be74f1402d0dcfcaf59c339bf676d3055a"
     },
     {
       "id": "bow-launch-B-refill-True",
@@ -655560,7 +655560,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -655587,7 +655587,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -655608,10 +655608,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "b4be32034116078708b1c05c61373eb9f4b44b59cd4c5476d9190b1059105aad"
+      "vector_sha256": "8e978eb2cfa387d66a476e0a37b40d7fc8be6da219cb8552289233e55a712743"
     },
     {
       "id": "bow-launch-B-empty-False",
@@ -655641,66 +655641,6 @@
         "spread_residue": 5,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 799
-      },
-      "expected": {
-        "accepted": false,
-        "reason": "arrows",
-        "inventory": [],
-        "lhand": null,
-        "equipped_lhand": null,
-        "mp": {
-          "numerator": 10,
-          "denominator": 1
-        },
-        "mp_q": 10000000,
-        "mp_paid": 0,
-        "arrows_consumed": 0,
-        "draws": [],
-        "hit": null
-      },
-      "sources": [
-        "src/main/resources/data/stats/items/00200-00299.xml:2163",
-        "src/main/resources/data/stats/items/01300-01399.xml:707",
-        "src/main/resources/data/stats/items/00000-00099.xml:368",
-        "G/model/itemcontainer/Inventory.java:679-694",
-        "G/model/items/L2Item.java:387-391",
-        "G/model/items/L2Weapon.java:91-106",
-        "G/model/actor/L2Character.java:724-757,1012-1021",
-        "G/model/actor/instance/L2PcInstance.java:5280-5360",
-        "design/2.1 projectile costs at accepted start"
-      ],
-      "draws": [],
-      "vector_sha256": "c2d7d1fda027e036e8c0a3f42971a5349374c63bfc1a53ed17e64ed341365bca"
-    },
-    {
-      "id": "bow-launch-B-empty-True",
-      "family": "F10",
-      "inputs": {
-        "weapon": {
-          "template_id": 284,
-          "grade": "B",
-          "mp_cost": 3,
-          "reduced_chance": 0,
-          "reduced_cost": 0,
-          "spread_radius": 5
-        },
-        "inventory": [],
-        "lhand": null,
-        "mp": {
-          "numerator": 10,
-          "denominator": 1
-        },
-        "mp_modifier": {
-          "numerator": 1,
-          "denominator": 1
-        },
-        "reduction_residue": null,
-        "miss": true,
-        "critical_residue": null,
-        "spread_residue": null,
-        "reuse_remaining": 0,
-        "hit_chance": 800,
         "hit_residue": 800
       },
       "expected": {
@@ -655731,7 +655671,67 @@
         "design/2.1 projectile costs at accepted start"
       ],
       "draws": [],
-      "vector_sha256": "27203c23faf0df35f97665d8dda3260d6b27b90a155ba834af5e3fc26bdef8ca"
+      "vector_sha256": "cd8d20896e9b76341d14e695d713747663511bace3d92a1ccc7c28c795974db6"
+    },
+    {
+      "id": "bow-launch-B-empty-True",
+      "family": "F10",
+      "inputs": {
+        "weapon": {
+          "template_id": 284,
+          "grade": "B",
+          "mp_cost": 3,
+          "reduced_chance": 0,
+          "reduced_cost": 0,
+          "spread_radius": 5
+        },
+        "inventory": [],
+        "lhand": null,
+        "mp": {
+          "numerator": 10,
+          "denominator": 1
+        },
+        "mp_modifier": {
+          "numerator": 1,
+          "denominator": 1
+        },
+        "reduction_residue": null,
+        "miss": true,
+        "critical_residue": null,
+        "spread_residue": null,
+        "reuse_remaining": 0,
+        "hit_chance": 800,
+        "hit_residue": 801
+      },
+      "expected": {
+        "accepted": false,
+        "reason": "arrows",
+        "inventory": [],
+        "lhand": null,
+        "equipped_lhand": null,
+        "mp": {
+          "numerator": 10,
+          "denominator": 1
+        },
+        "mp_q": 10000000,
+        "mp_paid": 0,
+        "arrows_consumed": 0,
+        "draws": [],
+        "hit": null
+      },
+      "sources": [
+        "src/main/resources/data/stats/items/00200-00299.xml:2163",
+        "src/main/resources/data/stats/items/01300-01399.xml:707",
+        "src/main/resources/data/stats/items/00000-00099.xml:368",
+        "G/model/itemcontainer/Inventory.java:679-694",
+        "G/model/items/L2Item.java:387-391",
+        "G/model/items/L2Weapon.java:91-106",
+        "G/model/actor/L2Character.java:724-757,1012-1021",
+        "G/model/actor/instance/L2PcInstance.java:5280-5360",
+        "design/2.1 projectile costs at accepted start"
+      ],
+      "draws": [],
+      "vector_sha256": "ec371bd36ee51a661015fc08a2a1d50a1bca51e906f8cbf740a4b86b1f7a45f0"
     },
     {
       "id": "bow-launch-B-wrong-False",
@@ -655769,7 +655769,7 @@
         "spread_residue": 5,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 799
+        "hit_residue": 800
       },
       "expected": {
         "accepted": false,
@@ -655807,7 +655807,7 @@
         "design/2.1 projectile costs at accepted start"
       ],
       "draws": [],
-      "vector_sha256": "08fe7940eb16cc2ea3524332f78728c6d20c0acce13d00d49b3371743cb5953a"
+      "vector_sha256": "10b0d0c6bb6a0ab000244048e620ecf5cc31940a8d0c8f2f4d9e0ed7d04f2f3c"
     },
     {
       "id": "bow-launch-B-wrong-True",
@@ -655845,7 +655845,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": false,
@@ -655883,7 +655883,7 @@
         "design/2.1 projectile costs at accepted start"
       ],
       "draws": [],
-      "vector_sha256": "129e82731cc3f5c339d2c652da4568660cf1a4a7ab24f41119ab4000eee45e85"
+      "vector_sha256": "569521001db7b6c92a8d68e7186fc682ac0bfb8e231b405cc7a63e1b71284a57"
     },
     {
       "id": "bow-launch-B-wrong-equipped-False",
@@ -655921,7 +655921,7 @@
         "spread_residue": 5,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 799
+        "hit_residue": 800
       },
       "expected": {
         "accepted": true,
@@ -655948,7 +655948,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 799
+            "residue": 800
           },
           {
             "site": "critical",
@@ -655979,7 +655979,7 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 799
+          "residue": 800
         },
         {
           "site": "critical",
@@ -655992,7 +655992,7 @@
           "residue": 5
         }
       ],
-      "vector_sha256": "5499afff0a41a625fa3f6343347cdd76451e5c0f9603ec5d23ce91097e012336"
+      "vector_sha256": "b5f117eb2086c896069763ef7af903350ac8493640152fcbbf9b933e7b4a8f1c"
     },
     {
       "id": "bow-launch-B-wrong-equipped-True",
@@ -656030,7 +656030,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -656057,7 +656057,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -656078,10 +656078,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "700118a10a8c96d82f7ced8fd0fdd561f6255af7e70cb5147694a4872192c4a9"
+      "vector_sha256": "cb7b5c6fb180d7a868cffd7d055df34d6c689b1ff27247a911a90201364eccdb"
     },
     {
       "id": "bow-launch-B-exhausted-False",
@@ -656119,7 +656119,7 @@
         "spread_residue": 5,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 799
+        "hit_residue": 800
       },
       "expected": {
         "accepted": true,
@@ -656138,7 +656138,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 799
+            "residue": 800
           },
           {
             "site": "critical",
@@ -656169,7 +656169,7 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 799
+          "residue": 800
         },
         {
           "site": "critical",
@@ -656182,7 +656182,7 @@
           "residue": 5
         }
       ],
-      "vector_sha256": "14462d96f7cf60906bf2ef79e08b01fda3fc61e2e5af0914f176c698db870f7b"
+      "vector_sha256": "652e1cded4005ed30c9c3b9bb4a37659d78c80d7c6c45af240a2dd5ec9104bc5"
     },
     {
       "id": "bow-launch-B-exhausted-True",
@@ -656220,7 +656220,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -656239,7 +656239,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -656260,10 +656260,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "eef8a23994df94ec1976463142f11227be05d76060caad85ef4a1cdea9447e56"
+      "vector_sha256": "ead7effa3b9205275d6bdc6a47d10650bf13d4a39d1a1eaf99614f3f38a173af"
     },
     {
       "id": "bow-refill-history-B",
@@ -656308,7 +656308,7 @@
               {
                 "site": "hit",
                 "bound": 1000,
-                "residue": 799
+                "residue": 800
               },
               {
                 "site": "critical",
@@ -656357,7 +656357,7 @@
               {
                 "site": "hit",
                 "bound": 1000,
-                "residue": 800
+                "residue": 801
               }
             ],
             "hit": false,
@@ -656386,7 +656386,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 799
+            "residue": 800
           },
           {
             "site": "critical",
@@ -656401,7 +656401,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ]
       },
@@ -656419,7 +656419,7 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 799
+          "residue": 800
         },
         {
           "site": "critical",
@@ -656434,10 +656434,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "0568ece2596151b5e7295184a5c86f6bb8d7332131e86bd17267c93d40b9363a"
+      "vector_sha256": "bcd013cb63279752c244e9583a09aa239ba4ecd2ef75464777fd16f9f1958331"
     },
     {
       "id": "bow-launch-A-equipped-False",
@@ -656475,7 +656475,7 @@
         "spread_residue": 0,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 799
+        "hit_residue": 800
       },
       "expected": {
         "accepted": true,
@@ -656502,7 +656502,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 799
+            "residue": 800
           },
           {
             "site": "critical",
@@ -656533,7 +656533,7 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 799
+          "residue": 800
         },
         {
           "site": "critical",
@@ -656546,7 +656546,7 @@
           "residue": 0
         }
       ],
-      "vector_sha256": "9d6840f2374458128807649cbc6b32d83e250167d3ee4afddaa2da8279625b97"
+      "vector_sha256": "5212c238d3a39ddfa70ed6a1677a4b0d6791886e7d722f419d914b799656403d"
     },
     {
       "id": "bow-launch-A-equipped-True",
@@ -656584,7 +656584,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -656611,7 +656611,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -656632,10 +656632,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "3023790657c004b24c89d3f93f6125555392a4d91fdff636eaba90ed2e33259d"
+      "vector_sha256": "20a89279764befbcad3ac9c43156ddecb829994536625e9506fad4d20da5e61d"
     },
     {
       "id": "bow-launch-A-refill-False",
@@ -656673,7 +656673,7 @@
         "spread_residue": 5,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 799
+        "hit_residue": 800
       },
       "expected": {
         "accepted": true,
@@ -656700,7 +656700,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 799
+            "residue": 800
           },
           {
             "site": "critical",
@@ -656731,7 +656731,7 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 799
+          "residue": 800
         },
         {
           "site": "critical",
@@ -656744,7 +656744,7 @@
           "residue": 5
         }
       ],
-      "vector_sha256": "3d5cf8e7daba196b7050eaa05666e7dbf58b1c7c01fb9c3d127f78a171b58216"
+      "vector_sha256": "a830defcd7d22b1a44e706e3e9e7156958f208291a596e8d0dbeb59c9d42cd3a"
     },
     {
       "id": "bow-launch-A-refill-True",
@@ -656782,7 +656782,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -656809,7 +656809,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -656830,10 +656830,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "e31e85401c3de156a52090ff72ca9c0d4da43ed664197b62ed523af40a1bd513"
+      "vector_sha256": "75df191536792af1a92e19a8a7997ab3336d0c74b94ae8f06d77bc43b737c02a"
     },
     {
       "id": "bow-launch-A-empty-False",
@@ -656863,66 +656863,6 @@
         "spread_residue": 5,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 799
-      },
-      "expected": {
-        "accepted": false,
-        "reason": "arrows",
-        "inventory": [],
-        "lhand": null,
-        "equipped_lhand": null,
-        "mp": {
-          "numerator": 10,
-          "denominator": 1
-        },
-        "mp_q": 10000000,
-        "mp_paid": 0,
-        "arrows_consumed": 0,
-        "draws": [],
-        "hit": null
-      },
-      "sources": [
-        "src/main/resources/data/stats/items/00200-00299.xml:2283",
-        "src/main/resources/data/stats/items/01300-01399.xml:720",
-        "src/main/resources/data/stats/items/00000-00099.xml:368",
-        "G/model/itemcontainer/Inventory.java:679-694",
-        "G/model/items/L2Item.java:387-391",
-        "G/model/items/L2Weapon.java:91-106",
-        "G/model/actor/L2Character.java:724-757,1012-1021",
-        "G/model/actor/instance/L2PcInstance.java:5280-5360",
-        "design/2.1 projectile costs at accepted start"
-      ],
-      "draws": [],
-      "vector_sha256": "a3cd8a99c428d3cb65b766cf7e6401e0069d00572cda035779c19e5de4799626"
-    },
-    {
-      "id": "bow-launch-A-empty-True",
-      "family": "F10",
-      "inputs": {
-        "weapon": {
-          "template_id": 288,
-          "grade": "A",
-          "mp_cost": 4,
-          "reduced_chance": 0,
-          "reduced_cost": 0,
-          "spread_radius": 5
-        },
-        "inventory": [],
-        "lhand": null,
-        "mp": {
-          "numerator": 10,
-          "denominator": 1
-        },
-        "mp_modifier": {
-          "numerator": 1,
-          "denominator": 1
-        },
-        "reduction_residue": null,
-        "miss": true,
-        "critical_residue": null,
-        "spread_residue": null,
-        "reuse_remaining": 0,
-        "hit_chance": 800,
         "hit_residue": 800
       },
       "expected": {
@@ -656953,7 +656893,67 @@
         "design/2.1 projectile costs at accepted start"
       ],
       "draws": [],
-      "vector_sha256": "0e81f8ab044744851d5e1a32567ad9dcfcbc8bfba09645b412e9a732977913b6"
+      "vector_sha256": "4f5de30292b37a2c6c21a1eeefefeaf9ebf4af77b7e3fe946219fdafdcbb613f"
+    },
+    {
+      "id": "bow-launch-A-empty-True",
+      "family": "F10",
+      "inputs": {
+        "weapon": {
+          "template_id": 288,
+          "grade": "A",
+          "mp_cost": 4,
+          "reduced_chance": 0,
+          "reduced_cost": 0,
+          "spread_radius": 5
+        },
+        "inventory": [],
+        "lhand": null,
+        "mp": {
+          "numerator": 10,
+          "denominator": 1
+        },
+        "mp_modifier": {
+          "numerator": 1,
+          "denominator": 1
+        },
+        "reduction_residue": null,
+        "miss": true,
+        "critical_residue": null,
+        "spread_residue": null,
+        "reuse_remaining": 0,
+        "hit_chance": 800,
+        "hit_residue": 801
+      },
+      "expected": {
+        "accepted": false,
+        "reason": "arrows",
+        "inventory": [],
+        "lhand": null,
+        "equipped_lhand": null,
+        "mp": {
+          "numerator": 10,
+          "denominator": 1
+        },
+        "mp_q": 10000000,
+        "mp_paid": 0,
+        "arrows_consumed": 0,
+        "draws": [],
+        "hit": null
+      },
+      "sources": [
+        "src/main/resources/data/stats/items/00200-00299.xml:2283",
+        "src/main/resources/data/stats/items/01300-01399.xml:720",
+        "src/main/resources/data/stats/items/00000-00099.xml:368",
+        "G/model/itemcontainer/Inventory.java:679-694",
+        "G/model/items/L2Item.java:387-391",
+        "G/model/items/L2Weapon.java:91-106",
+        "G/model/actor/L2Character.java:724-757,1012-1021",
+        "G/model/actor/instance/L2PcInstance.java:5280-5360",
+        "design/2.1 projectile costs at accepted start"
+      ],
+      "draws": [],
+      "vector_sha256": "cc3ebda68ee60ce0c17b881c3b7049a1d9ba7fc60a483f23fb56a200d4c94e2a"
     },
     {
       "id": "bow-launch-A-wrong-False",
@@ -656991,7 +656991,7 @@
         "spread_residue": 5,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 799
+        "hit_residue": 800
       },
       "expected": {
         "accepted": false,
@@ -657029,7 +657029,7 @@
         "design/2.1 projectile costs at accepted start"
       ],
       "draws": [],
-      "vector_sha256": "32496de472b78f6fc89ab9444722842c57eecb4d2920c44ce535e5f6e4e2e405"
+      "vector_sha256": "d50d9e177d7d82ede8448c8334fe7ca91d299b400082852ffa05a60798ee7486"
     },
     {
       "id": "bow-launch-A-wrong-True",
@@ -657067,7 +657067,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": false,
@@ -657105,7 +657105,7 @@
         "design/2.1 projectile costs at accepted start"
       ],
       "draws": [],
-      "vector_sha256": "dae035335706fee04e38efa5351beac7123c23708d21a00ebe92528961809d14"
+      "vector_sha256": "e7dc23b2ac9f10ac4f2bae0f2d618d9c81ae1aad62646023fc973509567aa284"
     },
     {
       "id": "bow-launch-A-wrong-equipped-False",
@@ -657143,7 +657143,7 @@
         "spread_residue": 5,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 799
+        "hit_residue": 800
       },
       "expected": {
         "accepted": true,
@@ -657170,7 +657170,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 799
+            "residue": 800
           },
           {
             "site": "critical",
@@ -657201,7 +657201,7 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 799
+          "residue": 800
         },
         {
           "site": "critical",
@@ -657214,7 +657214,7 @@
           "residue": 5
         }
       ],
-      "vector_sha256": "285f1cc62153f733e2367714842097bc9d9fb57e42fa4ef9f6a3a8bdd6343673"
+      "vector_sha256": "1ae87af41ef36ee3a1ce222316e82d46b6498b384325075910364e452be15d6b"
     },
     {
       "id": "bow-launch-A-wrong-equipped-True",
@@ -657252,7 +657252,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -657279,7 +657279,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -657300,10 +657300,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "b5a04564aee44ace0ff61aeb6f32db25c92387392162329ced584892661c4bb6"
+      "vector_sha256": "5c0f05e9ab62ac4963fc9cc5b573f2d7bfdd59b41cd02c89a102e3650bb1f10d"
     },
     {
       "id": "bow-launch-A-exhausted-False",
@@ -657341,7 +657341,7 @@
         "spread_residue": 5,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 799
+        "hit_residue": 800
       },
       "expected": {
         "accepted": true,
@@ -657360,7 +657360,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 799
+            "residue": 800
           },
           {
             "site": "critical",
@@ -657391,7 +657391,7 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 799
+          "residue": 800
         },
         {
           "site": "critical",
@@ -657404,7 +657404,7 @@
           "residue": 5
         }
       ],
-      "vector_sha256": "a84e9c63aace00d07648eeef749d0897c123c8ca923aec5cdc97e3ad7f184216"
+      "vector_sha256": "23acbadd28e4212a3e40056d8e1cf4a480649b7064093986b1332ee9ff2fbae7"
     },
     {
       "id": "bow-launch-A-exhausted-True",
@@ -657442,7 +657442,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -657461,7 +657461,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -657482,10 +657482,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "dfd54ff6b80e6e272dd53104c8c5429165156ac91e10794e681483b30e758812"
+      "vector_sha256": "36f0ca313b1b0e2d521500cb71b1c3cf0d6e5efeefac44ecabc7a5af8643bad8"
     },
     {
       "id": "bow-refill-history-A",
@@ -657530,7 +657530,7 @@
               {
                 "site": "hit",
                 "bound": 1000,
-                "residue": 799
+                "residue": 800
               },
               {
                 "site": "critical",
@@ -657579,7 +657579,7 @@
               {
                 "site": "hit",
                 "bound": 1000,
-                "residue": 800
+                "residue": 801
               }
             ],
             "hit": false,
@@ -657608,7 +657608,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 799
+            "residue": 800
           },
           {
             "site": "critical",
@@ -657623,7 +657623,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ]
       },
@@ -657641,7 +657641,7 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 799
+          "residue": 800
         },
         {
           "site": "critical",
@@ -657656,10 +657656,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "4eb862ac70787fe870811e8ee26befd9d7c27e2ef86517df87b098766a55499d"
+      "vector_sha256": "d3316829df4eaa636f61edad6df76649447d2083fae53dfc649edc4d677ac310"
     },
     {
       "id": "bow-launch-S-equipped-False",
@@ -657697,7 +657697,7 @@
         "spread_residue": 0,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 799
+        "hit_residue": 800
       },
       "expected": {
         "accepted": true,
@@ -657724,7 +657724,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 799
+            "residue": 800
           },
           {
             "site": "critical",
@@ -657755,7 +657755,7 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 799
+          "residue": 800
         },
         {
           "site": "critical",
@@ -657768,7 +657768,7 @@
           "residue": 0
         }
       ],
-      "vector_sha256": "8cf3a72c81a81c23f1b9ad67ed2c6672f51035a6c9551d863980f8dc4696c0b2"
+      "vector_sha256": "0e04c87572cc8dbe20a8cd42ef26b063aadeda6ef4b372373f60066cf6b35710"
     },
     {
       "id": "bow-launch-S-equipped-True",
@@ -657806,7 +657806,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -657833,7 +657833,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -657854,10 +657854,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "524cac1fee2dabb1ca1696722b3d3f7fac6677f95e0473d05f88aeafd4cf3167"
+      "vector_sha256": "e6fadbd46a6d74c65048277ddee41e812821f513ca0f58fef07890389c6d3985"
     },
     {
       "id": "bow-launch-S-refill-False",
@@ -657895,7 +657895,7 @@
         "spread_residue": 5,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 799
+        "hit_residue": 800
       },
       "expected": {
         "accepted": true,
@@ -657922,7 +657922,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 799
+            "residue": 800
           },
           {
             "site": "critical",
@@ -657953,7 +657953,7 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 799
+          "residue": 800
         },
         {
           "site": "critical",
@@ -657966,7 +657966,7 @@
           "residue": 5
         }
       ],
-      "vector_sha256": "9794d258c318b4934d41789eae4bff4df88e814444823e644578f46cc3437399"
+      "vector_sha256": "94fe171822ac945196aad90a4a1c06a2d2f7d1fabc616bda6a14de152c0279c8"
     },
     {
       "id": "bow-launch-S-refill-True",
@@ -658004,7 +658004,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -658031,7 +658031,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -658052,10 +658052,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "151257f6f208028742099365fe79d46b7cb6e93c560fe2638230fdf2993cc0f7"
+      "vector_sha256": "d29eb0289e32603d8b17f177390d3e7820a2f88683ff98e9d0e390921d1030bb"
     },
     {
       "id": "bow-launch-S-empty-False",
@@ -658085,66 +658085,6 @@
         "spread_residue": 5,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 799
-      },
-      "expected": {
-        "accepted": false,
-        "reason": "arrows",
-        "inventory": [],
-        "lhand": null,
-        "equipped_lhand": null,
-        "mp": {
-          "numerator": 10,
-          "denominator": 1
-        },
-        "mp_q": 10000000,
-        "mp_paid": 0,
-        "arrows_consumed": 0,
-        "draws": [],
-        "hit": null
-      },
-      "sources": [
-        "src/main/resources/data/stats/items/00200-00299.xml:2343",
-        "src/main/resources/data/stats/items/01300-01399.xml:733",
-        "src/main/resources/data/stats/items/00000-00099.xml:368",
-        "G/model/itemcontainer/Inventory.java:679-694",
-        "G/model/items/L2Item.java:387-391",
-        "G/model/items/L2Weapon.java:91-106",
-        "G/model/actor/L2Character.java:724-757,1012-1021",
-        "G/model/actor/instance/L2PcInstance.java:5280-5360",
-        "design/2.1 projectile costs at accepted start"
-      ],
-      "draws": [],
-      "vector_sha256": "7abc360492f3cf55c28e20e07c3fac276c5fac47e0deeff276dabc2c092e04c3"
-    },
-    {
-      "id": "bow-launch-S-empty-True",
-      "family": "F10",
-      "inputs": {
-        "weapon": {
-          "template_id": 290,
-          "grade": "S",
-          "mp_cost": 5,
-          "reduced_chance": 0,
-          "reduced_cost": 0,
-          "spread_radius": 5
-        },
-        "inventory": [],
-        "lhand": null,
-        "mp": {
-          "numerator": 10,
-          "denominator": 1
-        },
-        "mp_modifier": {
-          "numerator": 1,
-          "denominator": 1
-        },
-        "reduction_residue": null,
-        "miss": true,
-        "critical_residue": null,
-        "spread_residue": null,
-        "reuse_remaining": 0,
-        "hit_chance": 800,
         "hit_residue": 800
       },
       "expected": {
@@ -658175,7 +658115,67 @@
         "design/2.1 projectile costs at accepted start"
       ],
       "draws": [],
-      "vector_sha256": "6fd0cc550f3868a66c9fe7eedadf2fc835f7d1cecb688cf59744468ae7a02363"
+      "vector_sha256": "2dbb93eade0d0d89a98caa515a597a2cf20aeb74dd702e3b217f7cedd1f9db82"
+    },
+    {
+      "id": "bow-launch-S-empty-True",
+      "family": "F10",
+      "inputs": {
+        "weapon": {
+          "template_id": 290,
+          "grade": "S",
+          "mp_cost": 5,
+          "reduced_chance": 0,
+          "reduced_cost": 0,
+          "spread_radius": 5
+        },
+        "inventory": [],
+        "lhand": null,
+        "mp": {
+          "numerator": 10,
+          "denominator": 1
+        },
+        "mp_modifier": {
+          "numerator": 1,
+          "denominator": 1
+        },
+        "reduction_residue": null,
+        "miss": true,
+        "critical_residue": null,
+        "spread_residue": null,
+        "reuse_remaining": 0,
+        "hit_chance": 800,
+        "hit_residue": 801
+      },
+      "expected": {
+        "accepted": false,
+        "reason": "arrows",
+        "inventory": [],
+        "lhand": null,
+        "equipped_lhand": null,
+        "mp": {
+          "numerator": 10,
+          "denominator": 1
+        },
+        "mp_q": 10000000,
+        "mp_paid": 0,
+        "arrows_consumed": 0,
+        "draws": [],
+        "hit": null
+      },
+      "sources": [
+        "src/main/resources/data/stats/items/00200-00299.xml:2343",
+        "src/main/resources/data/stats/items/01300-01399.xml:733",
+        "src/main/resources/data/stats/items/00000-00099.xml:368",
+        "G/model/itemcontainer/Inventory.java:679-694",
+        "G/model/items/L2Item.java:387-391",
+        "G/model/items/L2Weapon.java:91-106",
+        "G/model/actor/L2Character.java:724-757,1012-1021",
+        "G/model/actor/instance/L2PcInstance.java:5280-5360",
+        "design/2.1 projectile costs at accepted start"
+      ],
+      "draws": [],
+      "vector_sha256": "607a43536396e5a919fc601dfa3932c9086d7c97f0bf93512ce10201ef8d35c3"
     },
     {
       "id": "bow-launch-S-wrong-False",
@@ -658213,7 +658213,7 @@
         "spread_residue": 5,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 799
+        "hit_residue": 800
       },
       "expected": {
         "accepted": false,
@@ -658251,7 +658251,7 @@
         "design/2.1 projectile costs at accepted start"
       ],
       "draws": [],
-      "vector_sha256": "5b4def358ff3af99f796e6a275aaf46d1132b1ce9a4204ad01928432216a3140"
+      "vector_sha256": "e4dbcbcca204fd95517e4a00c8944474d1040bf76709887e110df95759247e45"
     },
     {
       "id": "bow-launch-S-wrong-True",
@@ -658289,7 +658289,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": false,
@@ -658327,7 +658327,7 @@
         "design/2.1 projectile costs at accepted start"
       ],
       "draws": [],
-      "vector_sha256": "25fc27934be8f295c6f614ed3441b93c11cb96c1770e7ff3539bc78df4a07242"
+      "vector_sha256": "499a758dd86e82bbd690a8e0eb56673ee533a2800d08be0edbbaa63f82142fd1"
     },
     {
       "id": "bow-launch-S-wrong-equipped-False",
@@ -658365,7 +658365,7 @@
         "spread_residue": 5,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 799
+        "hit_residue": 800
       },
       "expected": {
         "accepted": true,
@@ -658392,7 +658392,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 799
+            "residue": 800
           },
           {
             "site": "critical",
@@ -658423,7 +658423,7 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 799
+          "residue": 800
         },
         {
           "site": "critical",
@@ -658436,7 +658436,7 @@
           "residue": 5
         }
       ],
-      "vector_sha256": "65364220eb6f62ca375bbb028aa89b8073c60d65a5d890cbd49942c83ffe3cf2"
+      "vector_sha256": "be044773b96e0827d831310488f345813014eb88ccebba4f5ecdc7cb068d7e30"
     },
     {
       "id": "bow-launch-S-wrong-equipped-True",
@@ -658474,7 +658474,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -658501,7 +658501,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -658522,10 +658522,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "aa9b034743e24e6ddf93c9d5748048da98ecfc146e84b8670d98268bcd3f554e"
+      "vector_sha256": "5a6d931eebfc090fc35b12aadbcc4ea3251b35ab275893201d4f78156e368a94"
     },
     {
       "id": "bow-launch-S-exhausted-False",
@@ -658563,7 +658563,7 @@
         "spread_residue": 5,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 799
+        "hit_residue": 800
       },
       "expected": {
         "accepted": true,
@@ -658582,7 +658582,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 799
+            "residue": 800
           },
           {
             "site": "critical",
@@ -658613,7 +658613,7 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 799
+          "residue": 800
         },
         {
           "site": "critical",
@@ -658626,7 +658626,7 @@
           "residue": 5
         }
       ],
-      "vector_sha256": "5cd0f160339911dd0e64cffe2b4e76cf085e3b92040638a4dd100af0d9adc68a"
+      "vector_sha256": "bfb5cd4fc47069eda64a30a2e1c94385a7876cc5b3a669ceabeb354e1b81f6b5"
     },
     {
       "id": "bow-launch-S-exhausted-True",
@@ -658664,7 +658664,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -658683,7 +658683,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -658704,10 +658704,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "fda49d31be9dcdd6ba6db7f73a6f39f795d25f4d89b6e09d60e4dc9a25b2e534"
+      "vector_sha256": "4ae427ea0428b8fa0f3ae1c6d831fb8b678449a09c5a4e89cb33f1545455872b"
     },
     {
       "id": "bow-refill-history-S",
@@ -658752,7 +658752,7 @@
               {
                 "site": "hit",
                 "bound": 1000,
-                "residue": 799
+                "residue": 800
               },
               {
                 "site": "critical",
@@ -658801,7 +658801,7 @@
               {
                 "site": "hit",
                 "bound": 1000,
-                "residue": 800
+                "residue": 801
               }
             ],
             "hit": false,
@@ -658830,7 +658830,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 799
+            "residue": 800
           },
           {
             "site": "critical",
@@ -658845,7 +658845,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ]
       },
@@ -658863,7 +658863,7 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 799
+          "residue": 800
         },
         {
           "site": "critical",
@@ -658878,10 +658878,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "3a407ab7775e83e646424ca8dfe9b2e6f9253787e706f300a098809077666eac"
+      "vector_sha256": "4de4341a5385aa09118c889317f6ec9d4cda4a9d68af08701bb0d2b601c2eb88"
     },
     {
       "id": "bow-launch-S80-equipped-False",
@@ -658919,7 +658919,7 @@
         "spread_residue": 0,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 799
+        "hit_residue": 800
       },
       "expected": {
         "accepted": true,
@@ -658946,7 +658946,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 799
+            "residue": 800
           },
           {
             "site": "critical",
@@ -658977,7 +658977,7 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 799
+          "residue": 800
         },
         {
           "site": "critical",
@@ -658990,7 +658990,7 @@
           "residue": 0
         }
       ],
-      "vector_sha256": "d0be7e3426caee57128f6d414fd5bd44197ae606030843840221735c4bb341d5"
+      "vector_sha256": "82b6ebf40173f0edd55b45364e9a321351470d374a1c20bc874a97d01a189d22"
     },
     {
       "id": "bow-launch-S80-equipped-True",
@@ -659028,7 +659028,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -659055,7 +659055,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -659076,10 +659076,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "cee2d61c05a5ad85c344997a56fcf93b6015a9ce6621c491e2f480e6de874e55"
+      "vector_sha256": "6f26d25d8be9ef536c8524f1f7a2d184184077cd09c933f5ef5d2402511e5611"
     },
     {
       "id": "bow-launch-S80-refill-False",
@@ -659117,7 +659117,7 @@
         "spread_residue": 5,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 799
+        "hit_residue": 800
       },
       "expected": {
         "accepted": true,
@@ -659144,7 +659144,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 799
+            "residue": 800
           },
           {
             "site": "critical",
@@ -659175,7 +659175,7 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 799
+          "residue": 800
         },
         {
           "site": "critical",
@@ -659188,7 +659188,7 @@
           "residue": 5
         }
       ],
-      "vector_sha256": "156c00d38f64488710ed4d86242709383c9277811b70a7eca4ebf3623a756269"
+      "vector_sha256": "4f2cc6d4f94c8606870d25bc1abf5b953861ae10f1c69e712559aab8bbd0ad72"
     },
     {
       "id": "bow-launch-S80-refill-True",
@@ -659226,7 +659226,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -659253,7 +659253,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -659274,10 +659274,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "314d5022b622b43ec2d43ac1a754ea66a130d3c28f963877fb93c788fc03bdda"
+      "vector_sha256": "82ba6e139333f47d62cd94a92161d37aba46dc02119971eff65cb8c5820d8863"
     },
     {
       "id": "bow-launch-S80-empty-False",
@@ -659307,66 +659307,6 @@
         "spread_residue": 5,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 799
-      },
-      "expected": {
-        "accepted": false,
-        "reason": "arrows",
-        "inventory": [],
-        "lhand": null,
-        "equipped_lhand": null,
-        "mp": {
-          "numerator": 10,
-          "denominator": 1
-        },
-        "mp_q": 10000000,
-        "mp_paid": 0,
-        "arrows_consumed": 0,
-        "draws": [],
-        "hit": null
-      },
-      "sources": [
-        "src/main/resources/data/stats/items/10200-10299.xml:436",
-        "src/main/resources/data/stats/items/01300-01399.xml:733",
-        "src/main/resources/data/stats/items/00000-00099.xml:368",
-        "G/model/itemcontainer/Inventory.java:679-694",
-        "G/model/items/L2Item.java:387-391",
-        "G/model/items/L2Weapon.java:91-106",
-        "G/model/actor/L2Character.java:724-757,1012-1021",
-        "G/model/actor/instance/L2PcInstance.java:5280-5360",
-        "design/2.1 projectile costs at accepted start"
-      ],
-      "draws": [],
-      "vector_sha256": "04463af4c77916dbe0ef14e01c204c2bed93df1694f20d7ffd3cd8904a532932"
-    },
-    {
-      "id": "bow-launch-S80-empty-True",
-      "family": "F10",
-      "inputs": {
-        "weapon": {
-          "template_id": 10223,
-          "grade": "S80",
-          "mp_cost": 6,
-          "reduced_chance": 0,
-          "reduced_cost": 0,
-          "spread_radius": 5
-        },
-        "inventory": [],
-        "lhand": null,
-        "mp": {
-          "numerator": 10,
-          "denominator": 1
-        },
-        "mp_modifier": {
-          "numerator": 1,
-          "denominator": 1
-        },
-        "reduction_residue": null,
-        "miss": true,
-        "critical_residue": null,
-        "spread_residue": null,
-        "reuse_remaining": 0,
-        "hit_chance": 800,
         "hit_residue": 800
       },
       "expected": {
@@ -659397,7 +659337,67 @@
         "design/2.1 projectile costs at accepted start"
       ],
       "draws": [],
-      "vector_sha256": "672698f43b913f0ad840948b7be932276073094db87e4d552383e721370a5ebf"
+      "vector_sha256": "8323123874e7d28c5277191aaab519d2fbe95d6a9aea65be19e9236ef8b575a0"
+    },
+    {
+      "id": "bow-launch-S80-empty-True",
+      "family": "F10",
+      "inputs": {
+        "weapon": {
+          "template_id": 10223,
+          "grade": "S80",
+          "mp_cost": 6,
+          "reduced_chance": 0,
+          "reduced_cost": 0,
+          "spread_radius": 5
+        },
+        "inventory": [],
+        "lhand": null,
+        "mp": {
+          "numerator": 10,
+          "denominator": 1
+        },
+        "mp_modifier": {
+          "numerator": 1,
+          "denominator": 1
+        },
+        "reduction_residue": null,
+        "miss": true,
+        "critical_residue": null,
+        "spread_residue": null,
+        "reuse_remaining": 0,
+        "hit_chance": 800,
+        "hit_residue": 801
+      },
+      "expected": {
+        "accepted": false,
+        "reason": "arrows",
+        "inventory": [],
+        "lhand": null,
+        "equipped_lhand": null,
+        "mp": {
+          "numerator": 10,
+          "denominator": 1
+        },
+        "mp_q": 10000000,
+        "mp_paid": 0,
+        "arrows_consumed": 0,
+        "draws": [],
+        "hit": null
+      },
+      "sources": [
+        "src/main/resources/data/stats/items/10200-10299.xml:436",
+        "src/main/resources/data/stats/items/01300-01399.xml:733",
+        "src/main/resources/data/stats/items/00000-00099.xml:368",
+        "G/model/itemcontainer/Inventory.java:679-694",
+        "G/model/items/L2Item.java:387-391",
+        "G/model/items/L2Weapon.java:91-106",
+        "G/model/actor/L2Character.java:724-757,1012-1021",
+        "G/model/actor/instance/L2PcInstance.java:5280-5360",
+        "design/2.1 projectile costs at accepted start"
+      ],
+      "draws": [],
+      "vector_sha256": "f4c996249b7afa01ecd9597a7bad873c4afcf1992b565d7766b4abb10b63b393"
     },
     {
       "id": "bow-launch-S80-wrong-False",
@@ -659435,7 +659435,7 @@
         "spread_residue": 5,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 799
+        "hit_residue": 800
       },
       "expected": {
         "accepted": false,
@@ -659473,7 +659473,7 @@
         "design/2.1 projectile costs at accepted start"
       ],
       "draws": [],
-      "vector_sha256": "13afc4bb28382ddabe257448d22c7f6224731354cfcc7d97aa75ae1d8712304a"
+      "vector_sha256": "705f1b9bf939db8cd72f1b4a2918d5eb08ec68eb8daa892e70111bcfc71d3057"
     },
     {
       "id": "bow-launch-S80-wrong-True",
@@ -659511,7 +659511,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": false,
@@ -659549,7 +659549,7 @@
         "design/2.1 projectile costs at accepted start"
       ],
       "draws": [],
-      "vector_sha256": "a658065a9ac374da099834aa40bba9a44959d937b4960bdcb99dac88a3e39d0d"
+      "vector_sha256": "14625e8eee75160f505da176598731c99a2005684b889e41d11636099ed4fc4d"
     },
     {
       "id": "bow-launch-S80-wrong-equipped-False",
@@ -659587,7 +659587,7 @@
         "spread_residue": 5,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 799
+        "hit_residue": 800
       },
       "expected": {
         "accepted": true,
@@ -659614,7 +659614,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 799
+            "residue": 800
           },
           {
             "site": "critical",
@@ -659645,7 +659645,7 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 799
+          "residue": 800
         },
         {
           "site": "critical",
@@ -659658,7 +659658,7 @@
           "residue": 5
         }
       ],
-      "vector_sha256": "7a278dad17d40cb33c53beaa82c01241bcf682b3c7ea589c4dc86ba03c71bcfd"
+      "vector_sha256": "be6edbbda48d16525388392ca696de0442620853fe1d06f14c4c3af0967154da"
     },
     {
       "id": "bow-launch-S80-wrong-equipped-True",
@@ -659696,7 +659696,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -659723,7 +659723,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -659744,10 +659744,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "0ace4e40aa733bc8fcf50121afacfafa4d016b2ac96b1009337720bafe4f1964"
+      "vector_sha256": "1b17151751ac3cc5b071e47cb0c499bd025d0adfec5b847e1eff6e7a8d8449be"
     },
     {
       "id": "bow-launch-S80-exhausted-False",
@@ -659785,7 +659785,7 @@
         "spread_residue": 5,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 799
+        "hit_residue": 800
       },
       "expected": {
         "accepted": true,
@@ -659804,7 +659804,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 799
+            "residue": 800
           },
           {
             "site": "critical",
@@ -659835,7 +659835,7 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 799
+          "residue": 800
         },
         {
           "site": "critical",
@@ -659848,7 +659848,7 @@
           "residue": 5
         }
       ],
-      "vector_sha256": "b441ec263b64ca3a1de5c3f127346859e089a52a963ab80a2a02cf6f9fdddd62"
+      "vector_sha256": "b3657c21b36770fbf5be18a2ea0c232c23319010561c67da1f86c4b17863b8bb"
     },
     {
       "id": "bow-launch-S80-exhausted-True",
@@ -659886,7 +659886,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -659905,7 +659905,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -659926,10 +659926,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "455338a48d9556997dca6eb5e48b1eacb30f836265aef36b65fb6eeb461926fa"
+      "vector_sha256": "e8b85e72200a9841131cdc25ee12310e450a31666090830f8b4cae4b8e7e8943"
     },
     {
       "id": "bow-refill-history-S80",
@@ -659974,7 +659974,7 @@
               {
                 "site": "hit",
                 "bound": 1000,
-                "residue": 799
+                "residue": 800
               },
               {
                 "site": "critical",
@@ -660023,7 +660023,7 @@
               {
                 "site": "hit",
                 "bound": 1000,
-                "residue": 800
+                "residue": 801
               }
             ],
             "hit": false,
@@ -660052,7 +660052,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 799
+            "residue": 800
           },
           {
             "site": "critical",
@@ -660067,7 +660067,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ]
       },
@@ -660085,7 +660085,7 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 799
+          "residue": 800
         },
         {
           "site": "critical",
@@ -660100,10 +660100,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "5a5443029cd98378ac19cfc4c4fadf899157344d6dc2f4131dba5c62e4a76364"
+      "vector_sha256": "1cfcce92b298ceb7be1ceeb99039d522ad8797869efbc542cb825e83722d98c4"
     },
     {
       "id": "bow-launch-S84-equipped-False",
@@ -660141,7 +660141,7 @@
         "spread_residue": 0,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 799
+        "hit_residue": 800
       },
       "expected": {
         "accepted": true,
@@ -660168,7 +660168,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 799
+            "residue": 800
           },
           {
             "site": "critical",
@@ -660199,7 +660199,7 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 799
+          "residue": 800
         },
         {
           "site": "critical",
@@ -660212,7 +660212,7 @@
           "residue": 0
         }
       ],
-      "vector_sha256": "7b39830be37dc3cde5fcf2fee61b019a4811e5b930184d2400e2318f8600ddde"
+      "vector_sha256": "a456893be4a3ae6ecf0de7c2d1a25fa8ed3ef4688f453eba1c23afa22233a39e"
     },
     {
       "id": "bow-launch-S84-equipped-True",
@@ -660250,7 +660250,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -660277,7 +660277,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -660298,10 +660298,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "577b5e60ccdd2d7118246d691e6b4eb53ed9603d79d2e05e64a3cfa4646bf967"
+      "vector_sha256": "4f33ff6dcd9e9698a11752952379f3d7ce0237c64edc88bfae9c22f442de8869"
     },
     {
       "id": "bow-launch-S84-refill-False",
@@ -660339,7 +660339,7 @@
         "spread_residue": 5,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 799
+        "hit_residue": 800
       },
       "expected": {
         "accepted": true,
@@ -660366,7 +660366,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 799
+            "residue": 800
           },
           {
             "site": "critical",
@@ -660397,7 +660397,7 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 799
+          "residue": 800
         },
         {
           "site": "critical",
@@ -660410,7 +660410,7 @@
           "residue": 5
         }
       ],
-      "vector_sha256": "384391a94361e4fd39a7d0929ac9961abb1608fd4a351272154b3489dce64752"
+      "vector_sha256": "f4aa4968e95e83603f5c7cf1ee10991507c2f8cdf0f07860421a96d0bb605178"
     },
     {
       "id": "bow-launch-S84-refill-True",
@@ -660448,7 +660448,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -660475,7 +660475,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -660496,10 +660496,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "001f150f7d9723f4cc7b3c532846a18aa41a1941b947c3d0a6c3b7fbbf60165b"
+      "vector_sha256": "aeaf468d4fa354d5f5238fea6702363cfe8c6cccff8be81920b33fd9718ca379"
     },
     {
       "id": "bow-launch-S84-empty-False",
@@ -660529,66 +660529,6 @@
         "spread_residue": 5,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 799
-      },
-      "expected": {
-        "accepted": false,
-        "reason": "arrows",
-        "inventory": [],
-        "lhand": null,
-        "equipped_lhand": null,
-        "mp": {
-          "numerator": 10,
-          "denominator": 1
-        },
-        "mp_q": 10000000,
-        "mp_paid": 0,
-        "arrows_consumed": 0,
-        "draws": [],
-        "hit": null
-      },
-      "sources": [
-        "src/main/resources/data/stats/items/13400-13499.xml:1195",
-        "src/main/resources/data/stats/items/01300-01399.xml:733",
-        "src/main/resources/data/stats/items/00000-00099.xml:368",
-        "G/model/itemcontainer/Inventory.java:679-694",
-        "G/model/items/L2Item.java:387-391",
-        "G/model/items/L2Weapon.java:91-106",
-        "G/model/actor/L2Character.java:724-757,1012-1021",
-        "G/model/actor/instance/L2PcInstance.java:5280-5360",
-        "design/2.1 projectile costs at accepted start"
-      ],
-      "draws": [],
-      "vector_sha256": "6710e16c1e74c9c626be4ece1240aa0f0562fd82eb991c08d3b12734eaeaae72"
-    },
-    {
-      "id": "bow-launch-S84-empty-True",
-      "family": "F10",
-      "inputs": {
-        "weapon": {
-          "template_id": 13467,
-          "grade": "S84",
-          "mp_cost": 6,
-          "reduced_chance": 0,
-          "reduced_cost": 0,
-          "spread_radius": 5
-        },
-        "inventory": [],
-        "lhand": null,
-        "mp": {
-          "numerator": 10,
-          "denominator": 1
-        },
-        "mp_modifier": {
-          "numerator": 1,
-          "denominator": 1
-        },
-        "reduction_residue": null,
-        "miss": true,
-        "critical_residue": null,
-        "spread_residue": null,
-        "reuse_remaining": 0,
-        "hit_chance": 800,
         "hit_residue": 800
       },
       "expected": {
@@ -660619,7 +660559,67 @@
         "design/2.1 projectile costs at accepted start"
       ],
       "draws": [],
-      "vector_sha256": "9008fb21e4730df293e562f958370809ca0c22c062492e44ffa52c7cd295bcc3"
+      "vector_sha256": "b7801233eefeddfa2451cf8649df2edc35a7b1b039812cf71c1e2e07e162e5e7"
+    },
+    {
+      "id": "bow-launch-S84-empty-True",
+      "family": "F10",
+      "inputs": {
+        "weapon": {
+          "template_id": 13467,
+          "grade": "S84",
+          "mp_cost": 6,
+          "reduced_chance": 0,
+          "reduced_cost": 0,
+          "spread_radius": 5
+        },
+        "inventory": [],
+        "lhand": null,
+        "mp": {
+          "numerator": 10,
+          "denominator": 1
+        },
+        "mp_modifier": {
+          "numerator": 1,
+          "denominator": 1
+        },
+        "reduction_residue": null,
+        "miss": true,
+        "critical_residue": null,
+        "spread_residue": null,
+        "reuse_remaining": 0,
+        "hit_chance": 800,
+        "hit_residue": 801
+      },
+      "expected": {
+        "accepted": false,
+        "reason": "arrows",
+        "inventory": [],
+        "lhand": null,
+        "equipped_lhand": null,
+        "mp": {
+          "numerator": 10,
+          "denominator": 1
+        },
+        "mp_q": 10000000,
+        "mp_paid": 0,
+        "arrows_consumed": 0,
+        "draws": [],
+        "hit": null
+      },
+      "sources": [
+        "src/main/resources/data/stats/items/13400-13499.xml:1195",
+        "src/main/resources/data/stats/items/01300-01399.xml:733",
+        "src/main/resources/data/stats/items/00000-00099.xml:368",
+        "G/model/itemcontainer/Inventory.java:679-694",
+        "G/model/items/L2Item.java:387-391",
+        "G/model/items/L2Weapon.java:91-106",
+        "G/model/actor/L2Character.java:724-757,1012-1021",
+        "G/model/actor/instance/L2PcInstance.java:5280-5360",
+        "design/2.1 projectile costs at accepted start"
+      ],
+      "draws": [],
+      "vector_sha256": "511bfe5fe369d5c441abcdf759ce146ba71f2707e194947260cc8bb52f82a4cd"
     },
     {
       "id": "bow-launch-S84-wrong-False",
@@ -660657,7 +660657,7 @@
         "spread_residue": 5,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 799
+        "hit_residue": 800
       },
       "expected": {
         "accepted": false,
@@ -660695,7 +660695,7 @@
         "design/2.1 projectile costs at accepted start"
       ],
       "draws": [],
-      "vector_sha256": "f61ae4f6b7a67b3ef8222c35150365a06586f6d4e3b3bffeb12fbbe7a22c27bb"
+      "vector_sha256": "a58c777f0e8368c6c0677f2e31314d884ce4f066bbc9b3c8e76c89cd1cb78a96"
     },
     {
       "id": "bow-launch-S84-wrong-True",
@@ -660733,7 +660733,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": false,
@@ -660771,7 +660771,7 @@
         "design/2.1 projectile costs at accepted start"
       ],
       "draws": [],
-      "vector_sha256": "4babe3535f5020b5c39efd4cf7ad00ea33ca4ec450a1dd7392b1b1cf26988e4c"
+      "vector_sha256": "e7e270d43c85c2e2ecea3930d0fa0aa727862fa4db5fd5993a0c2613d15bf3a4"
     },
     {
       "id": "bow-launch-S84-wrong-equipped-False",
@@ -660809,7 +660809,7 @@
         "spread_residue": 5,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 799
+        "hit_residue": 800
       },
       "expected": {
         "accepted": true,
@@ -660836,7 +660836,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 799
+            "residue": 800
           },
           {
             "site": "critical",
@@ -660867,7 +660867,7 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 799
+          "residue": 800
         },
         {
           "site": "critical",
@@ -660880,7 +660880,7 @@
           "residue": 5
         }
       ],
-      "vector_sha256": "9e26fc3f35c3f393e13a58e6df5f172d245e020c718f8f5a9b34462116d911d7"
+      "vector_sha256": "aaef6096eedc86c3d04b3d8d715f4ce05cf16754eda0e34f7b5a91e43ada5a5b"
     },
     {
       "id": "bow-launch-S84-wrong-equipped-True",
@@ -660918,7 +660918,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -660945,7 +660945,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -660966,10 +660966,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "e8c2f6c7f8a454fb69bfea54437894b1e676fbdf8bfc8d76c074285c22cbac5a"
+      "vector_sha256": "3f94a430736b8df13b79924d395e87e2d9651dc95faa89e83e0129a72b94bde7"
     },
     {
       "id": "bow-launch-S84-exhausted-False",
@@ -661007,7 +661007,7 @@
         "spread_residue": 5,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 799
+        "hit_residue": 800
       },
       "expected": {
         "accepted": true,
@@ -661026,7 +661026,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 799
+            "residue": 800
           },
           {
             "site": "critical",
@@ -661057,7 +661057,7 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 799
+          "residue": 800
         },
         {
           "site": "critical",
@@ -661070,7 +661070,7 @@
           "residue": 5
         }
       ],
-      "vector_sha256": "58670185113ff2c1f5b7096840d1db827cc936c1c8fbb89094ce0593105dbbc6"
+      "vector_sha256": "cc94d8eec80f428211ac4e10dc27a883d82b4f49b4f22af599048e4f3b446d58"
     },
     {
       "id": "bow-launch-S84-exhausted-True",
@@ -661108,7 +661108,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -661127,7 +661127,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -661148,10 +661148,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "749d3792ba6ee90c6dc90f2885c5f3eb2519665550bc0eb441e9c54ab874c014"
+      "vector_sha256": "3b054cdabf8a7e750196474e9995c4e7afa18a5ac8fbc4d33ce80084243998b2"
     },
     {
       "id": "bow-refill-history-S84",
@@ -661196,7 +661196,7 @@
               {
                 "site": "hit",
                 "bound": 1000,
-                "residue": 799
+                "residue": 800
               },
               {
                 "site": "critical",
@@ -661245,7 +661245,7 @@
               {
                 "site": "hit",
                 "bound": 1000,
-                "residue": 800
+                "residue": 801
               }
             ],
             "hit": false,
@@ -661274,7 +661274,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 799
+            "residue": 800
           },
           {
             "site": "critical",
@@ -661289,7 +661289,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ]
       },
@@ -661307,7 +661307,7 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 799
+          "residue": 800
         },
         {
           "site": "critical",
@@ -661322,10 +661322,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "5881b30d33288441d3e93c2e4863fa9558e499d23dd4f7249d0a80e197574ebb"
+      "vector_sha256": "885ddbef952cc648a520a666c4f31c461809cea085322d9e8e6f505e885e63a2"
     },
     {
       "id": "bow-mp-4818-0-1--1/1000000-1",
@@ -661363,7 +661363,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": false,
@@ -661413,7 +661413,7 @@
           "residue": 0
         }
       ],
-      "vector_sha256": "c5982490279638a2122404ca7902fd654a6fe134138189f047ce291a11b579ac"
+      "vector_sha256": "682fa2b5a7f94e45de22444a9e548d58062f4b8f6c599434364719beec0a5ec8"
     },
     {
       "id": "bow-mp-4818-0-1--1/1000000-3/2",
@@ -661451,7 +661451,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": false,
@@ -661501,7 +661501,7 @@
           "residue": 0
         }
       ],
-      "vector_sha256": "b49b434eef25ee746197474715563d1f831b024bb472e61cee187ce48a56f5b6"
+      "vector_sha256": "a4174b28239487255e8d5b9d0d6933af52842009f3a74860a10d8e6c9133f347"
     },
     {
       "id": "bow-mp-4818-0-1--1/1000000-0",
@@ -661539,7 +661539,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -661571,7 +661571,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -661596,10 +661596,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "8afd87f75680fdab9295325801fa692229390b5d32be3738bfba39a062e8a7f7"
+      "vector_sha256": "4e0630ef49b0725ba041c2ff1b00a8f5819fecdea99f79f076fc1afb4be0e910"
     },
     {
       "id": "bow-mp-4818-0-1-0-1",
@@ -661637,7 +661637,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -661669,7 +661669,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -661694,10 +661694,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "3adb2d6f388de57da9d6c6b9d2974cd70548e8f7fd075facdd067b518f83ea00"
+      "vector_sha256": "28e2fa734b6f4d20ccee7d89ccfe335007498dfc6a9152b5a26e8275f02caf62"
     },
     {
       "id": "bow-mp-4818-0-1-0-3/2",
@@ -661735,7 +661735,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -661767,7 +661767,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -661792,10 +661792,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "b221febf13e7d7a664f51716d26be109616cd5e664e4c0f1cd931d4ff28eda37"
+      "vector_sha256": "605f52a30cde7d89e4db3634217af7c553df51f216c671141ae1db2b85d1f7b5"
     },
     {
       "id": "bow-mp-4818-0-1-0-0",
@@ -661833,7 +661833,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -661865,7 +661865,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -661890,10 +661890,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "7ce1fe0bd2cb41fbd83aaf8a4e7552dcb0054478be48a770db800686c9ea509c"
+      "vector_sha256": "16ec41d312513b2f19fa1fad54ff1730748027b66ad3e8de8bd7c549b7b6174a"
     },
     {
       "id": "bow-mp-4818-0-1-1/1000000-1",
@@ -661931,7 +661931,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -661963,7 +661963,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -661988,10 +661988,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "5249c07b62670689d13e19c7493afa011aec047d33455b375e4281e151a35bc7"
+      "vector_sha256": "fd86795c53d4f92986fadc58e04dc35ca1c54ce36d4f838e4b420d45b962f31d"
     },
     {
       "id": "bow-mp-4818-0-1-1/1000000-3/2",
@@ -662029,7 +662029,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -662061,7 +662061,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -662086,10 +662086,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "d8e5732d68aa7954fcade9f1c650b5a3d60f482003dca28ed0a0239f20ed10fa"
+      "vector_sha256": "1a979f3c8e668ebf07c046b1ee1e792b492ffd9137e97cda6728b856ad661ab1"
     },
     {
       "id": "bow-mp-4818-0-1-1/1000000-0",
@@ -662127,7 +662127,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -662159,7 +662159,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -662184,10 +662184,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "3e5aa1d22d11a7eca2f18b1706bb57059c44f2365fa5554f4d16ab832f800475"
+      "vector_sha256": "55ebc91e56525d37bc7167fe7001c5f01618c29e036e62dfcdb1d188f206e127"
     },
     {
       "id": "bow-mp-4818-0-3--1/1000000-1",
@@ -662225,7 +662225,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -662257,7 +662257,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -662282,10 +662282,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "8e9bdf220ab1462807fc0e9426dbe841524ee89803ef98bb0513fc519c459e9b"
+      "vector_sha256": "6de9c3bfabdaf1844e0b539fc90fb7dbae57d3c77d0bba6d77f62d1ca512b97c"
     },
     {
       "id": "bow-mp-4818-0-3--1/1000000-3/2",
@@ -662323,7 +662323,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -662355,7 +662355,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -662380,10 +662380,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "8f0cf4b90b28c9af5a48e5221b8f908d7c33d79809a1a057217bacc3e1181b14"
+      "vector_sha256": "2d5862c8c5b9db5ec3139e6ebb298dd99fcfb7f5cb7af184e141a3c5552d0ccb"
     },
     {
       "id": "bow-mp-4818-0-3--1/1000000-0",
@@ -662421,7 +662421,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -662453,7 +662453,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -662478,10 +662478,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "c1c1563b3168d32357c833cea3125950a6b734fd812fe835d28b5620c3c088fa"
+      "vector_sha256": "7732916798f4949fb19f9459b49f834feacd1bb1e10da4caf51d911022ba4bfd"
     },
     {
       "id": "bow-mp-4818-0-3-0-1",
@@ -662519,7 +662519,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -662551,7 +662551,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -662576,10 +662576,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "f019e57a1b025256d5dbbf86374de1c046816a419620a70e7b4f1da6144d86f4"
+      "vector_sha256": "f30128cbbd553dd849f98b8beb7ada503de7c12ab783443309ccf0bdad9bfdc0"
     },
     {
       "id": "bow-mp-4818-0-3-0-3/2",
@@ -662617,7 +662617,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -662649,7 +662649,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -662674,10 +662674,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "e725e029ebc2a674a7d366646695aaec8ba38521f2cf12eb21a9ce1823f69339"
+      "vector_sha256": "f555a6244384e41808bac1e6be846039f1d305337a423adb17b7f45a17687aab"
     },
     {
       "id": "bow-mp-4818-0-3-0-0",
@@ -662715,7 +662715,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -662747,7 +662747,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -662772,10 +662772,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "ef77feeb2def98a90781429a4803978d9031cb57acb85ed1c69d54ba735119fc"
+      "vector_sha256": "06a25c45dff97eea56186d53c2e9f94254168b1ff1d0bf85c5d12bb5cf6102c7"
     },
     {
       "id": "bow-mp-4818-0-3-1/1000000-1",
@@ -662813,7 +662813,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -662845,7 +662845,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -662870,10 +662870,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "8e7de86cd4371283def2862206f8a905869b6eaf568683411450ffcd81af50fd"
+      "vector_sha256": "82593e26120a881fac87352cb612f619a9adb3349a87765932b243c3f6a6b07d"
     },
     {
       "id": "bow-mp-4818-0-3-1/1000000-3/2",
@@ -662911,7 +662911,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -662943,7 +662943,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -662968,10 +662968,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "7ec174f80a063048ad6d5f92d0c7911c3f79c2ea2a87ad6349ee6a8d83352178"
+      "vector_sha256": "62ce20d21e14c66a896f876f17b3b51c37af80c71eeb1ae3136f36f5759e79bb"
     },
     {
       "id": "bow-mp-4818-0-3-1/1000000-0",
@@ -663009,7 +663009,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -663041,7 +663041,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -663066,10 +663066,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "cbc638090eecd5a52efdcde34fa40d8c6bd8a87adce8a68b7e8d050c230cb8eb"
+      "vector_sha256": "901a45167c09e7b8a8c0782ef02be57786a463ce496c958b7ee703dfc1690bdc"
     },
     {
       "id": "bow-mp-4818-46-1--1/1000000-1",
@@ -663107,7 +663107,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": false,
@@ -663157,7 +663157,7 @@
           "residue": 46
         }
       ],
-      "vector_sha256": "684688530fc9fc58a223a705cfabdcc6f6a8493fc3c778b2dfea33e59a76105e"
+      "vector_sha256": "793167c333f0003b8a024a6193876b20515a35ab7542f20cdf11ba7d6d627821"
     },
     {
       "id": "bow-mp-4818-46-1--1/1000000-3/2",
@@ -663195,7 +663195,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": false,
@@ -663245,7 +663245,7 @@
           "residue": 46
         }
       ],
-      "vector_sha256": "1eac0376e98c967beab384627fe4d54424f9ccba4aa0bbb481684c2f4690e7ee"
+      "vector_sha256": "bfcd4c1452598dfa777c7901ad67e1d75a987da90cf1e06d45d193e60836999f"
     },
     {
       "id": "bow-mp-4818-46-1--1/1000000-0",
@@ -663283,7 +663283,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -663315,7 +663315,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -663340,10 +663340,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "6e080e96904a7742896cec003bb38cb379999a2e65ee0f255d93d8966c7c6850"
+      "vector_sha256": "34174c1ea5a25305fe0e4e6f9b4c2d39da911fad7c7cadd118797c5710ec352f"
     },
     {
       "id": "bow-mp-4818-46-1-0-1",
@@ -663381,7 +663381,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -663413,7 +663413,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -663438,10 +663438,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "19b0b80000ad643791b490068d8464e78010c0fe4b624b74fe9c1ee276eef715"
+      "vector_sha256": "b6635b0ea38c9c689ddd95cacb98f25ad2d268347ca0719daffd550a1995558b"
     },
     {
       "id": "bow-mp-4818-46-1-0-3/2",
@@ -663479,7 +663479,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -663511,7 +663511,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -663536,10 +663536,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "3495c4694c4f7ed91a541ee89cb32727461d3867e63536628b02e7a1d3da96ee"
+      "vector_sha256": "fee9e5d14fe3baa11b956b5940d03658cbc410b107e20f295e535964aeef392c"
     },
     {
       "id": "bow-mp-4818-46-1-0-0",
@@ -663577,7 +663577,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -663609,7 +663609,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -663634,10 +663634,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "43668293648d70bc3368aff48fb82a7305f882a9f5ff28a3c4741c30dce1afa4"
+      "vector_sha256": "83255d1f3286eb09481dd092b74be544e43c3359f6d6a6a1496cee37f4e51bee"
     },
     {
       "id": "bow-mp-4818-46-1-1/1000000-1",
@@ -663675,7 +663675,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -663707,7 +663707,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -663732,10 +663732,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "e3d3a78174a8f543b10026bb8cb465bb4fa280146668d113692f60d9fc94a9da"
+      "vector_sha256": "f4337916c59820784e557daba4758529a93826a207df86bc4fd4d7c7132d270f"
     },
     {
       "id": "bow-mp-4818-46-1-1/1000000-3/2",
@@ -663773,7 +663773,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -663805,7 +663805,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -663830,10 +663830,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "8c2b79978f3238197bd847f68bcc61ac3ef55eee89ef6228c1947280ae09aa99"
+      "vector_sha256": "67f9f0c660ba49b9bb0ff8f5d31285b871f11a611f9d4ee268d8aab9438eaadc"
     },
     {
       "id": "bow-mp-4818-46-1-1/1000000-0",
@@ -663871,7 +663871,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -663903,7 +663903,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -663928,10 +663928,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "c80890c7da60f4df2088518057752235136d4cce02f133cfe2be7f867eed2268"
+      "vector_sha256": "b3bf3f756e46b99b353eba5d01c2d5047bd7f405ffa5b1d39a459aed826a72d7"
     },
     {
       "id": "bow-mp-4818-46-3--1/1000000-1",
@@ -663969,7 +663969,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -664001,7 +664001,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -664026,10 +664026,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "a638913e8292cb6a0c01c933bb04c903e59bf3f4f08560e11adc1fee1dce4eb0"
+      "vector_sha256": "97dd8c289e18c55d303cfa34446f2f2ffa0a1da2f70885927dc82b4343b23dda"
     },
     {
       "id": "bow-mp-4818-46-3--1/1000000-3/2",
@@ -664067,7 +664067,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -664099,7 +664099,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -664124,10 +664124,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "b75d69019f1e3d7ee431badfd7f52ecbda08bff9d25d5f720ddce2c8a0a4dd77"
+      "vector_sha256": "5bbdd72bb332c7de08df260904bf3f6d6412ed9525b5fe7a927014447dfd9cbc"
     },
     {
       "id": "bow-mp-4818-46-3--1/1000000-0",
@@ -664165,7 +664165,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -664197,7 +664197,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -664222,10 +664222,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "a0772444caefd3e4e25ff6b653bf429bf15f83f65ae21e0da4e718a558c0e7ba"
+      "vector_sha256": "190578d99c5b8acec6fb0e3365ebc4344b7c360563d1df3b242751ee796bdbb0"
     },
     {
       "id": "bow-mp-4818-46-3-0-1",
@@ -664263,7 +664263,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -664295,7 +664295,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -664320,10 +664320,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "3b43820538a9effc1895565d2f8b7884f04f9e77cdd300a008cff31a6e49b843"
+      "vector_sha256": "f31ab9ad711b453b8e28c8e123ddaf2133d16cb864ab7d4b6cf6fdf7a0255cf3"
     },
     {
       "id": "bow-mp-4818-46-3-0-3/2",
@@ -664361,7 +664361,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -664393,7 +664393,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -664418,10 +664418,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "f0dc9b1053d0f853d796f2abcd6a4fc85ee00b68a3b179dfe203d0a40f785c80"
+      "vector_sha256": "90ee25d082706513767735aea9b3f226f59721d8a3c765ad01dbbbff69751b2e"
     },
     {
       "id": "bow-mp-4818-46-3-0-0",
@@ -664459,7 +664459,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -664491,7 +664491,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -664516,10 +664516,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "3295c8a0b23a629ab54d46ebae89507baf6a0fa70201181b00257c967a3ec8e0"
+      "vector_sha256": "d122ed54b0c9d11bf201a5a9541d1e2e64e41fc7aef3f386655f12caea096ab6"
     },
     {
       "id": "bow-mp-4818-46-3-1/1000000-1",
@@ -664557,7 +664557,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -664589,7 +664589,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -664614,10 +664614,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "6ee957494282f7e2ca66a49aacba42dfe1c69512c3e09369690e56b31c7bd694"
+      "vector_sha256": "2fa686b6f804a05d3cff87466509ff2bca3f50d4756df32c3739e6aebd919da0"
     },
     {
       "id": "bow-mp-4818-46-3-1/1000000-3/2",
@@ -664655,7 +664655,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -664687,7 +664687,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -664712,10 +664712,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "5f62ce41735f57ba81bec703710b2a937372d6031423dea42cda01de566c8231"
+      "vector_sha256": "5ac8be330fd3f822ddedc6fb4a5456937f75cedbfe75c1bfe5da36f4cf0dd3d1"
     },
     {
       "id": "bow-mp-4818-46-3-1/1000000-0",
@@ -664753,7 +664753,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -664785,7 +664785,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -664810,10 +664810,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "e740f1f8801abb2dbec63e2d146507886a7d32e28dd359f267b2df54dd1488eb"
+      "vector_sha256": "b3c414d8e42c9623124509cf1157681477faf5fe6a68e24d4134f58ed24dc916"
     },
     {
       "id": "bow-mp-4818-47-1--1/1000000-1",
@@ -664851,7 +664851,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": false,
@@ -664901,7 +664901,7 @@
           "residue": 47
         }
       ],
-      "vector_sha256": "0ce009211542e883dbf3929b4bc55e58a5cdfec757d2fd5d96a3da08bb33c65a"
+      "vector_sha256": "d6f1c0696de932f5bae2eb692e4a4de78b7f4872c4203faf78f4e6dd2efdfe1e"
     },
     {
       "id": "bow-mp-4818-47-1--1/1000000-3/2",
@@ -664939,7 +664939,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": false,
@@ -664989,7 +664989,7 @@
           "residue": 47
         }
       ],
-      "vector_sha256": "a66cf9eab1597afc7ff1f17e6b10f05809ce56a62729f186bd4cc84569db3c30"
+      "vector_sha256": "4d1e6e2b20fa12866948115aea997738289fee5dcde750eb0b694ee2211e1ca9"
     },
     {
       "id": "bow-mp-4818-47-1--1/1000000-0",
@@ -665027,7 +665027,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -665059,7 +665059,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -665084,10 +665084,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "e32e1acc2e9f80edca9db9a052eb713e41d28a8d3b2edbfcba4ebcd9c45f45ad"
+      "vector_sha256": "f9dcf13873555de601f34d2b53bae5953951d0af967ecbe15ea15b1d9eb33c37"
     },
     {
       "id": "bow-mp-4818-47-1-0-1",
@@ -665125,7 +665125,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": false,
@@ -665175,7 +665175,7 @@
           "residue": 47
         }
       ],
-      "vector_sha256": "58a3d45cb52ca69d0522e83df69777317e563f22686a05257d433db6572cd2c5"
+      "vector_sha256": "fe7a9dc68b792ce3b343e95a3ad1b13c4ea0888f93de6e4ff9beccf1956af3bd"
     },
     {
       "id": "bow-mp-4818-47-1-0-3/2",
@@ -665213,7 +665213,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": false,
@@ -665263,7 +665263,7 @@
           "residue": 47
         }
       ],
-      "vector_sha256": "bad44c4ebb692ba8639808d98fcb14f6f5ee7de343eda06a9b3f5d9addd8b57f"
+      "vector_sha256": "1d9139506c6240acf8fa0eea427dca3e0403cd46b28c32dc05261521691849c3"
     },
     {
       "id": "bow-mp-4818-47-1-0-0",
@@ -665301,7 +665301,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -665333,7 +665333,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -665358,10 +665358,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "ea7fa94a993ef834a4d2be8c879a1614e16683ba923ac90477ad624d77f83e14"
+      "vector_sha256": "2c3d607fa38722173a23b0b4df6ae130b1a7d03bc0f284ea3dc15b921e7f5c1f"
     },
     {
       "id": "bow-mp-4818-47-1-1/1000000-1",
@@ -665399,7 +665399,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": false,
@@ -665449,7 +665449,7 @@
           "residue": 47
         }
       ],
-      "vector_sha256": "8545ffa3bebb0c03c6528dd916799ecf1ce34c62c592785afa1807f2c5e417f5"
+      "vector_sha256": "052c526ca62034bee6f3b1a1960fd5b3f22ae41f1d416828996f6770f03fb16c"
     },
     {
       "id": "bow-mp-4818-47-1-1/1000000-3/2",
@@ -665487,7 +665487,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": false,
@@ -665537,7 +665537,7 @@
           "residue": 47
         }
       ],
-      "vector_sha256": "3ee2bc2bd84152f63596341983ab660aa2330403af5895603ad4896aec69a71c"
+      "vector_sha256": "5550137bad521be003bab1b2a28d589df7cd85320f285ee981b9377cbfad61a4"
     },
     {
       "id": "bow-mp-4818-47-1-1/1000000-0",
@@ -665575,7 +665575,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -665607,7 +665607,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -665632,10 +665632,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "652994a2917ca75307ad1871a013d19a6a89fc5ab63e9d3fa0d24eb7c05c7604"
+      "vector_sha256": "5e8f7dd48c02cab03a05998bc398601d5e3d76b6672c19dcf0b19d45c97cc4ca"
     },
     {
       "id": "bow-mp-4818-47-3--1/1000000-1",
@@ -665673,7 +665673,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": false,
@@ -665723,7 +665723,7 @@
           "residue": 47
         }
       ],
-      "vector_sha256": "276fe3f2d0d0e35e0722bd514d8ec94810c0840f832de885f6ce5561a9181be3"
+      "vector_sha256": "934f088410bd38c9e68429b382c43eccb174e70e130ed9d0648e8fda003e34ef"
     },
     {
       "id": "bow-mp-4818-47-3--1/1000000-3/2",
@@ -665761,7 +665761,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": false,
@@ -665811,7 +665811,7 @@
           "residue": 47
         }
       ],
-      "vector_sha256": "d383572808a637fb364478d263633f1759a887af636e7ecd7c3bc04acebef391"
+      "vector_sha256": "9a344eaf314c8f74ef0140fda7aa07ee62043ecb23c82971f8d9cad4a7dcf7d2"
     },
     {
       "id": "bow-mp-4818-47-3--1/1000000-0",
@@ -665849,7 +665849,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -665881,7 +665881,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -665906,10 +665906,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "67d6b0331f2ff65ab0674f7c18950c1451313013fecb547b1303df18fc18d189"
+      "vector_sha256": "5e3e8a2fdd9ef5bbac93804d3326ae08f3bd6a9fe3e42f643e6c88d0ca085fab"
     },
     {
       "id": "bow-mp-4818-47-3-0-1",
@@ -665947,7 +665947,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -665979,7 +665979,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -666004,10 +666004,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "248ee6b42eef982ccf5773d6ca2528ffde0d601efb46580cfed25a03b0fc850c"
+      "vector_sha256": "bd1b844a5a63034b65179f27bb3b361f547d10a8c582b29779dccad1b780c96f"
     },
     {
       "id": "bow-mp-4818-47-3-0-3/2",
@@ -666045,7 +666045,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -666077,7 +666077,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -666102,10 +666102,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "118b0951ecd3515e80688f158af499dca1d6e2978419d5ecd571fad343f2f739"
+      "vector_sha256": "cbe54b85ceafd15d889b09e2a9a8ca5eb41eba308a9573ac8bae10694485895e"
     },
     {
       "id": "bow-mp-4818-47-3-0-0",
@@ -666143,7 +666143,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -666175,7 +666175,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -666200,10 +666200,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "5689206156e67fce1415180e8e7f08e0127045d25d7c0a8d3348f843f9ea743a"
+      "vector_sha256": "643dc31bad21eb8798063ee36b61b2f1ae86332aef6526c6ac404fe594882e0b"
     },
     {
       "id": "bow-mp-4818-47-3-1/1000000-1",
@@ -666241,7 +666241,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -666273,7 +666273,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -666298,10 +666298,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "19abc6aec33b3c7555c967425765bf8cbf48606c89fe342c69d1daec44feae42"
+      "vector_sha256": "f257a1db6a31c0c4700973f5a31c3f38a3a6cf167511f7e18212cf6f634b45b3"
     },
     {
       "id": "bow-mp-4818-47-3-1/1000000-3/2",
@@ -666339,7 +666339,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -666371,7 +666371,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -666396,10 +666396,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "e149c9ef6b9d66638bfd8c4d421f428e8b61f2b674d5631d32fe9354c892d01a"
+      "vector_sha256": "0ffaf815969057d4db5feac92bfd09600e7c9f44a58ed06f1a7d974413d97f35"
     },
     {
       "id": "bow-mp-4818-47-3-1/1000000-0",
@@ -666437,7 +666437,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -666469,7 +666469,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -666494,10 +666494,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "2e55751fc4b4735d5b2d1664629e7f7e3f72167ac1d092b010c98ce22e8d7723"
+      "vector_sha256": "0738eab91745bebf3af1af34a3dffc16fddca67213ddf02845c5cf660f8a12d6"
     },
     {
       "id": "bow-mp-4818-99-1--1/1000000-1",
@@ -666535,7 +666535,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": false,
@@ -666585,7 +666585,7 @@
           "residue": 99
         }
       ],
-      "vector_sha256": "272bf48d6e3f339b575d765cca3721d4ccbfb128d03abfa8f6a4f78aba07334c"
+      "vector_sha256": "09ba54c1a5678dd5913f49dfcbb7c3c773bdcacc8dbd049ef3f3794ebf7c7019"
     },
     {
       "id": "bow-mp-4818-99-1--1/1000000-3/2",
@@ -666623,7 +666623,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": false,
@@ -666673,7 +666673,7 @@
           "residue": 99
         }
       ],
-      "vector_sha256": "b36566ae76a364dcc3592cc3b98ec7332e7ade93f97d933848c37e6044fa5474"
+      "vector_sha256": "746947672954a8a1ef3a3c586c77ff8233710888242737ff6f8e7b735dc993fc"
     },
     {
       "id": "bow-mp-4818-99-1--1/1000000-0",
@@ -666711,7 +666711,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -666743,7 +666743,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -666768,10 +666768,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "39bca626552b05230c40c7689bc4d5187e16bfd054e120ee57cc3aa8714ae127"
+      "vector_sha256": "2087df7c89c747efb11261b57de0199c227bd0e776e52dddbf3b70c9585c4127"
     },
     {
       "id": "bow-mp-4818-99-1-0-1",
@@ -666809,7 +666809,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": false,
@@ -666859,7 +666859,7 @@
           "residue": 99
         }
       ],
-      "vector_sha256": "c233bc5b11331ed0ad8c93d67271c3490408d4fd714abaed59d859d591762393"
+      "vector_sha256": "153152624819f3bbe299abd9eed61147acf3ee1f7083c17752f6b8bd1931ed15"
     },
     {
       "id": "bow-mp-4818-99-1-0-3/2",
@@ -666897,7 +666897,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": false,
@@ -666947,7 +666947,7 @@
           "residue": 99
         }
       ],
-      "vector_sha256": "4b8a6f5ab98f77446567062beaae3d8c7b1766bfe14b2718953e74d487d951c2"
+      "vector_sha256": "95afc5e620f4386b3909d69cb6fff1e5b1576ed1e0cfc7e73d017a36b9e8fd6f"
     },
     {
       "id": "bow-mp-4818-99-1-0-0",
@@ -666985,7 +666985,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -667017,7 +667017,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -667042,10 +667042,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "af28913992a4f08407bfcbb12d96e5a4ee4e42e7c68287d34243577e020a4bac"
+      "vector_sha256": "72bf8b94e79ba0f182c27e051ac110705c143c5e326df546718abad9170bef37"
     },
     {
       "id": "bow-mp-4818-99-1-1/1000000-1",
@@ -667083,7 +667083,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": false,
@@ -667133,7 +667133,7 @@
           "residue": 99
         }
       ],
-      "vector_sha256": "81bcf5ca0db12b29c33be262895ebd3e01dc8c9f0ea3907204950ac003a6e737"
+      "vector_sha256": "0e1ab0c85ddd50237d192f19d66cc15194430abc57b1fdba3bb050407b386d25"
     },
     {
       "id": "bow-mp-4818-99-1-1/1000000-3/2",
@@ -667171,7 +667171,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": false,
@@ -667221,7 +667221,7 @@
           "residue": 99
         }
       ],
-      "vector_sha256": "0ed8c437fb0cdf277c1464bffa8d1b3ede516f3637b49b256bd898c955400905"
+      "vector_sha256": "eb5cfb4e430ee05b8e47829aebb4bc3d1986dcd29048eccd77182f4642065141"
     },
     {
       "id": "bow-mp-4818-99-1-1/1000000-0",
@@ -667259,7 +667259,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -667291,7 +667291,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -667316,10 +667316,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "f523b091c44283fecc423633843227a38bc2a511f17e5047e99c9f1935c68f4e"
+      "vector_sha256": "5c70b0dd612babe15c8b48b3913336495cacd1d8eb3f808b94c776f7895cf2ff"
     },
     {
       "id": "bow-mp-4818-99-3--1/1000000-1",
@@ -667357,7 +667357,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": false,
@@ -667407,7 +667407,7 @@
           "residue": 99
         }
       ],
-      "vector_sha256": "f27c2582444ea08dede5a7c5e8b4287e9f443c7fe7011577eb762737cfa31a6e"
+      "vector_sha256": "3484cf795ef948bd176fa24be4e3cd46597feeb98e516c41fa46f482df393b2b"
     },
     {
       "id": "bow-mp-4818-99-3--1/1000000-3/2",
@@ -667445,7 +667445,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": false,
@@ -667495,7 +667495,7 @@
           "residue": 99
         }
       ],
-      "vector_sha256": "6e05a5d3cc15f1bc2b4e41b5fcdb662e54494870810c1e4bf36653da31db4385"
+      "vector_sha256": "44f2c970d94bb10341670d9d7ab86f27a6ac7bc803052e21c952a41f03df2bc3"
     },
     {
       "id": "bow-mp-4818-99-3--1/1000000-0",
@@ -667533,7 +667533,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -667565,7 +667565,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -667590,10 +667590,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "f3f4889a2e22c120843561d6a5ac9dad4e12b5d94db480664291bc85caf612ac"
+      "vector_sha256": "803f3f12e844c37551edde1595f0fa9290e1e372e2d97fd2eb9d916e23dee48d"
     },
     {
       "id": "bow-mp-4818-99-3-0-1",
@@ -667631,7 +667631,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -667663,7 +667663,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -667688,10 +667688,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "0af91a198c98047699ac8c4657baef2150c0608fc3eedadefd8d3510b9145e4c"
+      "vector_sha256": "a07bf759a09ee72d7c1f7af225d6dade88f4b48301ad908f394dff1e42ff4da0"
     },
     {
       "id": "bow-mp-4818-99-3-0-3/2",
@@ -667729,7 +667729,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -667761,7 +667761,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -667786,10 +667786,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "7afe19dcfa773ed1a99ce98028f895789d5497bd790cac8372102f9af988b2d2"
+      "vector_sha256": "c3c0a6a3e19d6cc3aa95cf36ec8d24e924f0d7011a23599739d34dbc1e2a41b4"
     },
     {
       "id": "bow-mp-4818-99-3-0-0",
@@ -667827,7 +667827,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -667859,7 +667859,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -667884,10 +667884,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "8a540d3d144362b4bd6c4418f6dc20a91019d79edbb6a65ea8bf36419ea45f17"
+      "vector_sha256": "7196ace3b64e857c742b4419981e82c0304f72d5f92d7d71cd008b4fbedeead3"
     },
     {
       "id": "bow-mp-4818-99-3-1/1000000-1",
@@ -667925,7 +667925,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -667957,7 +667957,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -667982,10 +667982,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "f2f0fe6c8c34252c25adb925ee81ead9d999b28c643885e436b2cf2aaf02a500"
+      "vector_sha256": "0f1bd510e9a1290507da27091cb8c8d9a257315165fb86b240a65d0895259af1"
     },
     {
       "id": "bow-mp-4818-99-3-1/1000000-3/2",
@@ -668023,7 +668023,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -668055,7 +668055,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -668080,10 +668080,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "940e0c393682df6e3632b27bf50c897658ad5144ab5bf78b276774713e5ab037"
+      "vector_sha256": "da21509ef10bd10b46beab0fbeef89be75a5f96b5a5f674076fcc8115976cfa3"
     },
     {
       "id": "bow-mp-4818-99-3-1/1000000-0",
@@ -668121,7 +668121,7 @@
         "spread_residue": null,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 800
+        "hit_residue": 801
       },
       "expected": {
         "accepted": true,
@@ -668153,7 +668153,7 @@
           {
             "site": "hit",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "hit": false,
@@ -668178,10 +668178,10 @@
         {
           "site": "hit",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "0962df89fea6b256edb26abc2b1195baa81b182e1c828450d513299a7b8de2e8"
+      "vector_sha256": "8e6db0bff7a7c836693d3cc24544ef9dc8bc93ca4bb543db9ec579d67b19e9f1"
     },
     {
       "id": "bow-mp-skip-empty",
@@ -668211,7 +668211,7 @@
         "spread_residue": 5,
         "reuse_remaining": 0,
         "hit_chance": 800,
-        "hit_residue": 799
+        "hit_residue": 800
       },
       "expected": {
         "accepted": false,
@@ -668239,7 +668239,7 @@
         "design/2.1 projectile costs at accepted start"
       ],
       "draws": [],
-      "vector_sha256": "ac7fc36e3db6229210ce0f728e8bc823f515c1f08aff31d5a1629425897e52a8"
+      "vector_sha256": "765cb38a7d0bf377792ce9b686da42425cd07edd62d13fc74c1502343776c153"
     },
     {
       "id": "bow-mp-skip-reuse",
@@ -668277,7 +668277,7 @@
         "spread_residue": 5,
         "reuse_remaining": 1,
         "hit_chance": 800,
-        "hit_residue": 799
+        "hit_residue": 800
       },
       "expected": {
         "accepted": false,
@@ -668313,7 +668313,7 @@
         "design/2.1 projectile costs at accepted start"
       ],
       "draws": [],
-      "vector_sha256": "d9d65bd116dead377f596256391f27da7d8fa72e20a8752b137b156c323becdc"
+      "vector_sha256": "91fe39d9a740d614a76fb879e92d97a3d4dd7003f6c7e38c8e41a550a14b7f7b"
     },
     {
       "id": "resurrection-scroll-offer",
@@ -684926,8 +684926,8 @@
         ],
         "second_valid": false,
         "hit_residues": [
-          800,
-          800
+          801,
+          801
         ],
         "hit_chance": 800,
         "spread_radius": 6,
@@ -684955,12 +684955,12 @@
           {
             "site": "hit1",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           },
           {
             "site": "hit2",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "refunded_draws": []
@@ -684968,21 +684968,21 @@
       "sources": [
         "G/model/actor/L2Character.java:1137-1182,5034-5044",
         "G/model/stats/Formulas.java:1054-1063",
-        "design/2.2 I3 stored second resolution; shieldless caller; residues are inputs (D87); strict hit (D88)"
+        "design/2.2 I3 stored second resolution; shieldless caller; residues are inputs (D87)"
       ],
       "draws": [
         {
           "site": "hit1",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         },
         {
           "site": "hit2",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "a8ada5cd71a8d9194c5fa405440bc21eaad83c025c2e7a963969b22b5032c8b4"
+      "vector_sha256": "27cfb327722db6af08ebb5b13af575dcb02fcdc0c9caecbf594cc7fa9d60a42f"
     },
     {
       "id": "dual-plan-[False, False]-True",
@@ -685004,8 +685004,8 @@
         ],
         "second_valid": true,
         "hit_residues": [
-          800,
-          800
+          801,
+          801
         ],
         "hit_chance": 800,
         "spread_radius": 6,
@@ -685033,12 +685033,12 @@
           {
             "site": "hit1",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           },
           {
             "site": "hit2",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           }
         ],
         "refunded_draws": []
@@ -685046,21 +685046,21 @@
       "sources": [
         "G/model/actor/L2Character.java:1137-1182,5034-5044",
         "G/model/stats/Formulas.java:1054-1063",
-        "design/2.2 I3 stored second resolution; shieldless caller; residues are inputs (D87); strict hit (D88)"
+        "design/2.2 I3 stored second resolution; shieldless caller; residues are inputs (D87)"
       ],
       "draws": [
         {
           "site": "hit1",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         },
         {
           "site": "hit2",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         }
       ],
-      "vector_sha256": "1c0851ef8da428e4a8479ecaf48255f73e5d5820d8c6f2b0521325148682c1d1"
+      "vector_sha256": "a2be8d109e82fdad8f5de355773de155993f581801b572782b4d29de4a64a816"
     },
     {
       "id": "dual-plan-[True, False]-False",
@@ -685082,8 +685082,8 @@
         ],
         "second_valid": false,
         "hit_residues": [
-          799,
-          800
+          800,
+          801
         ],
         "hit_chance": 800,
         "spread_radius": 6,
@@ -685111,12 +685111,12 @@
           {
             "site": "hit1",
             "bound": 1000,
-            "residue": 799
+            "residue": 800
           },
           {
             "site": "hit2",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           },
           {
             "site": "critical1",
@@ -685134,18 +685134,18 @@
       "sources": [
         "G/model/actor/L2Character.java:1137-1182,5034-5044",
         "G/model/stats/Formulas.java:1054-1063",
-        "design/2.2 I3 stored second resolution; shieldless caller; residues are inputs (D87); strict hit (D88)"
+        "design/2.2 I3 stored second resolution; shieldless caller; residues are inputs (D87)"
       ],
       "draws": [
         {
           "site": "hit1",
           "bound": 1000,
-          "residue": 799
+          "residue": 800
         },
         {
           "site": "hit2",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         },
         {
           "site": "critical1",
@@ -685158,7 +685158,7 @@
           "residue": 6
         }
       ],
-      "vector_sha256": "13b8eb4709e72450995c425eb10f063c768721f8189093093430f1b825a43671"
+      "vector_sha256": "6932137ed920f02e0ce2274f32a21a69ff8423af9230437e3fb0d632c2bf7ea3"
     },
     {
       "id": "dual-plan-[True, False]-True",
@@ -685180,8 +685180,8 @@
         ],
         "second_valid": true,
         "hit_residues": [
-          799,
-          800
+          800,
+          801
         ],
         "hit_chance": 800,
         "spread_radius": 6,
@@ -685209,12 +685209,12 @@
           {
             "site": "hit1",
             "bound": 1000,
-            "residue": 799
+            "residue": 800
           },
           {
             "site": "hit2",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           },
           {
             "site": "critical1",
@@ -685232,18 +685232,18 @@
       "sources": [
         "G/model/actor/L2Character.java:1137-1182,5034-5044",
         "G/model/stats/Formulas.java:1054-1063",
-        "design/2.2 I3 stored second resolution; shieldless caller; residues are inputs (D87); strict hit (D88)"
+        "design/2.2 I3 stored second resolution; shieldless caller; residues are inputs (D87)"
       ],
       "draws": [
         {
           "site": "hit1",
           "bound": 1000,
-          "residue": 799
+          "residue": 800
         },
         {
           "site": "hit2",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         },
         {
           "site": "critical1",
@@ -685256,7 +685256,7 @@
           "residue": 12
         }
       ],
-      "vector_sha256": "9771517496dd2538ff658bedee2460302e4c0d40570029f7a421d9befef793a1"
+      "vector_sha256": "82cecd58bc34af66b2caec2e96d6eacf29d0debbc24dca7211c8854a382b09f3"
     },
     {
       "id": "dual-plan-[False, True]-False",
@@ -685278,8 +685278,8 @@
         ],
         "second_valid": false,
         "hit_residues": [
-          800,
-          799
+          801,
+          800
         ],
         "hit_chance": 800,
         "spread_radius": 6,
@@ -685307,12 +685307,12 @@
           {
             "site": "hit1",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           },
           {
             "site": "hit2",
             "bound": 1000,
-            "residue": 799
+            "residue": 800
           },
           {
             "site": "critical2",
@@ -685330,18 +685330,18 @@
       "sources": [
         "G/model/actor/L2Character.java:1137-1182,5034-5044",
         "G/model/stats/Formulas.java:1054-1063",
-        "design/2.2 I3 stored second resolution; shieldless caller; residues are inputs (D87); strict hit (D88)"
+        "design/2.2 I3 stored second resolution; shieldless caller; residues are inputs (D87)"
       ],
       "draws": [
         {
           "site": "hit1",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         },
         {
           "site": "hit2",
           "bound": 1000,
-          "residue": 799
+          "residue": 800
         },
         {
           "site": "critical2",
@@ -685354,7 +685354,7 @@
           "residue": 6
         }
       ],
-      "vector_sha256": "3c98c1d9704e5fd3dfb149ebfb720915c527e59e790118870c62ee13808a93b6"
+      "vector_sha256": "e0b0bfaf78c2ad0b5c8e3ad2a84576beb617bf39a5f7f32a01861c5089bdc1c5"
     },
     {
       "id": "dual-plan-[False, True]-True",
@@ -685376,8 +685376,8 @@
         ],
         "second_valid": true,
         "hit_residues": [
-          800,
-          799
+          801,
+          800
         ],
         "hit_chance": 800,
         "spread_radius": 6,
@@ -685405,12 +685405,12 @@
           {
             "site": "hit1",
             "bound": 1000,
-            "residue": 800
+            "residue": 801
           },
           {
             "site": "hit2",
             "bound": 1000,
-            "residue": 799
+            "residue": 800
           },
           {
             "site": "critical2",
@@ -685428,18 +685428,18 @@
       "sources": [
         "G/model/actor/L2Character.java:1137-1182,5034-5044",
         "G/model/stats/Formulas.java:1054-1063",
-        "design/2.2 I3 stored second resolution; shieldless caller; residues are inputs (D87); strict hit (D88)"
+        "design/2.2 I3 stored second resolution; shieldless caller; residues are inputs (D87)"
       ],
       "draws": [
         {
           "site": "hit1",
           "bound": 1000,
-          "residue": 800
+          "residue": 801
         },
         {
           "site": "hit2",
           "bound": 1000,
-          "residue": 799
+          "residue": 800
         },
         {
           "site": "critical2",
@@ -685452,7 +685452,7 @@
           "residue": 12
         }
       ],
-      "vector_sha256": "b3ce27b239d8014fb08700d51dec73d380b16324dbf5b8570706182833138031"
+      "vector_sha256": "2b673ff2538ded4646fe474ef041dc9790260a13638c8b8c27d7bc0b1edc5d88"
     },
     {
       "id": "dual-plan-[True, True]-False",
@@ -685474,8 +685474,8 @@
         ],
         "second_valid": false,
         "hit_residues": [
-          799,
-          799
+          800,
+          800
         ],
         "hit_chance": 800,
         "spread_radius": 6,
@@ -685503,12 +685503,12 @@
           {
             "site": "hit1",
             "bound": 1000,
-            "residue": 799
+            "residue": 800
           },
           {
             "site": "hit2",
             "bound": 1000,
-            "residue": 799
+            "residue": 800
           },
           {
             "site": "critical1",
@@ -685536,18 +685536,18 @@
       "sources": [
         "G/model/actor/L2Character.java:1137-1182,5034-5044",
         "G/model/stats/Formulas.java:1054-1063",
-        "design/2.2 I3 stored second resolution; shieldless caller; residues are inputs (D87); strict hit (D88)"
+        "design/2.2 I3 stored second resolution; shieldless caller; residues are inputs (D87)"
       ],
       "draws": [
         {
           "site": "hit1",
           "bound": 1000,
-          "residue": 799
+          "residue": 800
         },
         {
           "site": "hit2",
           "bound": 1000,
-          "residue": 799
+          "residue": 800
         },
         {
           "site": "critical1",
@@ -685570,7 +685570,7 @@
           "residue": 6
         }
       ],
-      "vector_sha256": "bf6144dfe75d378436db5ca5f1509e938bdd27fd228ad40b71f33d881b0c588c"
+      "vector_sha256": "32ddb9727710ec4f53dacf71f3faebd34da3680604c597a5eea05767ca58efad"
     },
     {
       "id": "dual-plan-[True, True]-True",
@@ -685592,8 +685592,8 @@
         ],
         "second_valid": true,
         "hit_residues": [
-          799,
-          799
+          800,
+          800
         ],
         "hit_chance": 800,
         "spread_radius": 6,
@@ -685621,12 +685621,12 @@
           {
             "site": "hit1",
             "bound": 1000,
-            "residue": 799
+            "residue": 800
           },
           {
             "site": "hit2",
             "bound": 1000,
-            "residue": 799
+            "residue": 800
           },
           {
             "site": "critical1",
@@ -685654,18 +685654,18 @@
       "sources": [
         "G/model/actor/L2Character.java:1137-1182,5034-5044",
         "G/model/stats/Formulas.java:1054-1063",
-        "design/2.2 I3 stored second resolution; shieldless caller; residues are inputs (D87); strict hit (D88)"
+        "design/2.2 I3 stored second resolution; shieldless caller; residues are inputs (D87)"
       ],
       "draws": [
         {
           "site": "hit1",
           "bound": 1000,
-          "residue": 799
+          "residue": 800
         },
         {
           "site": "hit2",
           "bound": 1000,
-          "residue": 799
+          "residue": 800
         },
         {
           "site": "critical1",
@@ -685688,7 +685688,7 @@
           "residue": 12
         }
       ],
-      "vector_sha256": "d58fa21415f65cfa030dbab6d1e3bf6a045e4c29e4bcb27cc5cad9d136084656"
+      "vector_sha256": "9a7e0f290e4de4d3ebe43965595e8036d9032715a90afeadd533b353b602c569"
     },
     {
       "id": "pole-count-0",
@@ -695426,5 +695426,5 @@
       }
     }
   ],
-  "vector_set_sha256": "07fb24f9fe4c46386df4a9980862e7788ab999f75e8d20f422ee3aad2aa9b4b1"
+  "vector_set_sha256": "f01d371ebe79dc8189369b0bab8a75c2e6a1944deaf445291f89ca6c88beb42b"
 }
