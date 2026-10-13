@@ -211,7 +211,7 @@ INPUT_SCHEMAS={
         ranges=list_of(record(dict(minimum=NONNEG_INT,maximum=NONNEG_INT))))),rank=TEMPLATE,level=IDENTITY),
     'bow_launch':dict(weapon=WEAPON,inventory=list_of(ITEM),lhand=nullable(IDENTITY),mp=NONNEG_NUMERIC,
         mp_modifier=NONNEG_NUMERIC,reduction_residue=nullable(int_range(0,99)),miss=BOOL,
-        reuse_remaining=NONNEG_INT,hit_chance=int_range(0,1000),hit_residue=nullable(int_range(0,999)),
+        reuse_remaining=NONNEG_INT,hit_chance=int_range(200,980),hit_residue=nullable(int_range(0,999)),
         critical_residue=nullable(int_range(0,999)),spread_residue=nullable(NONNEG_INT)),
     'bow_refill':dict(weapon=WEAPON,arrow=ITEM,mp=NONNEG_NUMERIC),
     'resurrection_scroll':dict(definition=DEFINITION,start_tick=NONNEG_INT,available=NONNEG_INT,
@@ -226,7 +226,7 @@ INPUT_SCHEMAS={
     'escape_timing':dict(definition=DEFINITION,start_tick=NONNEG_INT,casting_speed=POSITIVE_NUMERIC,
         available=NONNEG_INT,resources=record(dict(hp=NONNEG_NUMERIC,mp=NONNEG_NUMERIC,cp=NONNEG_NUMERIC,xp=NONNEG_INT)),incarnation=IDENTITY),
     'dual_plan':dict(hits=tuple_of(BOOL,BOOL),formulas=tuple_of(NUMERIC,NUMERIC),second_valid=BOOL,
-        hit_residues=tuple_of(int_range(0,999),int_range(0,999)),hit_chance=int_range(0,1000),spread_radius=NONNEG_INT,
+        hit_residues=tuple_of(int_range(0,999),int_range(0,999)),hit_chance=int_range(200,980),spread_radius=NONNEG_INT,
         critical_residues=tuple_of(nullable(int_range(0,999)),nullable(int_range(0,999))),
         spread_residues=tuple_of(nullable(NONNEG_INT),nullable(NONNEG_INT))),
     'enchant_safe':dict(current=U32,fullarmor=BOOL,safe_enchant=U32,safe_fullarmor=U32,
@@ -468,31 +468,30 @@ def oracle_adopted_d87(name):
     return set(RESIDUE_INPUTS[name])<=set(inspect.signature(getattr(oracle.behavior,name)).parameters)
 
 
-@lru_cache(maxsize=1)
-def oracle_hit_inclusive():
-    """True while E1 still decides a hit as residue <= hit_chance (rev 8): probed, not assumed.
-    Any unexpected probe failure is a ValueError, i.e. a gate verdict, never a crash."""
-    extra=dict(critical_residues=[None,None],spread_residues=[None,None]) if oracle_adopted_d87('dual_plan') else {}
-    try:oracle.behavior.dual_plan([False,False],[0,0],True,[5,5],5,0,**extra)
-    except ValueError:return True
-    except TypeError as error:raise ValueError('cannot classify the E1 dual_plan hit inequality (D88)') from error
-    return False
+def hit_rule(name,inputs):
+    """Pinned Formulas.calcHitMiss (GAME@abfde049): miss iff chance < Rnd.get(1000), i.e. a hit iff
+    residue <= hit_chance, with the chance clamped to [200, 980] (input domain). Checked by the
+    consumer itself, independently of the oracle's own inequality (D88's strict < is revoked)."""
+    chance=inputs['hit_chance']
+    if name=='bow_launch':
+        residue=inputs.get('hit_residue')
+        if residue is not None and inputs['miss']!=(residue>chance):raise ValueError('bow hit iff residue <= hit_chance (calcHitMiss)')
+    elif [r<=chance for r in inputs['hit_residues']]!=list(inputs['hits']):
+        raise ValueError('dual hit iff residue <= hit_chance (calcHitMiss)')
 
 
 def residue_family(name,inputs):
+    hit_rule(name,inputs)
     decoded=oracle.decode_rationals(inputs)
     extra={key:decoded.pop(key) for key in RESIDUE_INPUTS[name]}
     function=getattr(oracle.behavior,name)
     if oracle_adopted_d87(name):
-        # Rev 9 path (D96): E1 takes the residues and uses the strict inequality itself.
+        # Rev 9 path (D96): E1 takes the residues as parameters; pass straight through.
         result=function(**decoded,**extra)
         if name in DRAW_FIELDS:draw_fields(name,inputs,result)
         return result
     if source_data_sha256() not in PRE_D87_DATA:
         raise ValueError('E1 data is newer than rev 8 but its oracle lacks the D87 residue parameters (D96)')
-    # D88: a hit iff residue < hit_chance (pinned Rnd.get(n) < chance). The rev 8 oracle tests
-    # residue <= chance, so it is given chance-1, which selects exactly the residues below chance.
-    if oracle_hit_inclusive():decoded['hit_chance']-=1
     result=function(**decoded)
     if name=='bow_launch':sites={'critical':extra['critical_residue'],'spread':extra['spread_residue']}
     else:
@@ -610,6 +609,7 @@ def formula(name,inputs,actual):
     if name in INPUT_SCHEMAS and isinstance(inputs,dict):inputs=wide_input(inputs,record({},INPUT_SCHEMAS[name])) # D80
     actual=wide_any(actual)
     input_domains(name,inputs)
+    if name in RESIDUE_INPUTS:hit_rule(name,inputs) # calcHitMiss before any output check
     if name in ACTUAL_SCHEMAS:validate_input(actual,ACTUAL_SCHEMAS[name],name+'.actual')
     # Match E1's finite function registry on arbitrary resolution inputs.
     if name=='gear_stats':
