@@ -1601,7 +1601,7 @@ class Evidence(unittest.TestCase):
         inputs=dict(weapon=gate.oracle.behavior.bow_definition(gate.source(),13),
                     inventory=[gate.oracle.behavior.arrow_stack(gate.source(),17,2)],
                     lhand=None,mp=10,mp_modifier=1,reduction_residue=0,miss=False,
-                    hit_chance=800,hit_residue=800,critical_residue=17,spread_residue=3)
+                    hit_chance=800,hit_residue=799,critical_residue=17,spread_residue=3)
         actual=gate.residue_family('bow_launch',inputs)
         self.assertEqual((actual['arrows_consumed'],actual['inventory'][0]['count'],actual['mp']),(1,1,9))
         rows=copy.deepcopy(self.rows)
@@ -1642,6 +1642,26 @@ class Evidence(unittest.TestCase):
             for key in gate.RESIDUE_INPUTS[name]:
                 with self.assertRaises(ValueError):gate.input_domains(name,{k:v for k,v in inputs.items() if k!=key})
         print(f'D87: live critical/spread residues verified for bow_launch/dual_plan; {len(mutations)} residue mutations and missing fields reject',flush=True)
+
+    def test_d88_hit_iff_residue_below_chance(self):
+        self.assertTrue(gate.oracle_hit_inclusive()) # E1 rev 8 still uses <=; the consumer adapts.
+        bow=dict(weapon=gate.oracle.behavior.bow_definition(gate.source(),13),
+                 inventory=[gate.oracle.behavior.arrow_stack(gate.source(),17,2)],lhand=None,mp=10,mp_modifier=1,
+                 reduction_residue=0,miss=False,hit_chance=800,hit_residue=799,critical_residue=17,spread_residue=3)
+        miss=bow|dict(miss=True,critical_residue=None,spread_residue=None)
+        for inputs,hit in ((bow,True),(miss|dict(hit_residue=800),False),(miss|dict(hit_residue=999),False),
+                           (bow|dict(hit_chance=1,hit_residue=0),True),(miss|dict(hit_chance=0,hit_residue=0),False)):
+            with self.subTest(inputs=(inputs['hit_chance'],inputs['hit_residue'],hit)):
+                actual=gate.oracle.rational(gate.residue_family('bow_launch',inputs))
+                self.assertEqual(actual['hit'],hit);gate.formula('bow_launch',inputs,actual)
+        # The boundary residue == chance is a miss: claiming a hit there rejects, as does a miss below it.
+        for inputs in (bow|dict(hit_residue=800),miss|dict(hit_residue=799)):
+            with self.assertRaises(ValueError):gate.formula('bow_launch',inputs,None)
+        dual=dict(hits=[True,False],formulas=[10,10],second_valid=True,hit_residues=[799,800],hit_chance=800,
+                  spread_radius=0,critical_residues=[5,None],spread_residues=[0,None])
+        gate.formula('dual_plan',dual,gate.oracle.rational(gate.residue_family('dual_plan',dual)))
+        with self.assertRaises(ValueError):gate.formula('dual_plan',dual|dict(hits=[True,True],critical_residues=[5,5],spread_residues=[0,0]),None)
+        print('D88: hit iff residue < hit_chance at the boundary for bow_launch and dual_plan',flush=True)
 
     def test_item_record_scalar_substitutions_through_evaluate(self):
         vectors=gate.oracle.make_vectors(gate.source())
@@ -1887,7 +1907,7 @@ class Evidence(unittest.TestCase):
             ('shot_payment',dict(charges=[],kind='soul',count=1,available=0,weapon_grade='D',shot_grade='D',reduction=[]),
              'reduction',(None,1,{},[1],[0,1,2],[None,1],[1,-1],[1,2**63],[101,1])),
             ('dual_plan',dict(hits=[True,False],formulas=[10,'3/2'],second_valid=True,
-                             hit_residues=[800,801],hit_chance=800,spread_radius=6,
+                             hit_residues=[799,800],hit_chance=800,spread_radius=6,
                              critical_residues=[999,None],spread_residues=[6,None]),'formulas',
              (None,1,{},[],[1],[1,2,3],[True,1],[None,1],[[],1],[2**63,1])),
             ('winning_providers',dict(providers=[dict(key='item:1',skill_id=1,rank=1,sequence=0)]),'providers',

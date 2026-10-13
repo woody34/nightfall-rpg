@@ -408,3 +408,10 @@ oracle equality on the producer's actual inputs.
   residues into `draws` by site (`critical`/`spread`, `critical1/2`/`spread1/2`),
   checking each against its draw bound; neither residue alters any other
   output. When E1 adds these parameters the consumer passes them through.
+- D88 (Q-F2): every duration in evidence is in TICKS (`bow_launch.reuse_remaining`
+  included). A bow/dual hit happens iff `residue < hit_chance` (pinned
+  `Rnd.get(n) < chance`); residue == chance is a miss. The E1 rev 8 oracle
+  still tests `<=`; the consumer probes that once and then passes
+  `hit_chance − 1`, which selects exactly the residues below the chance. E1
+  vectors at the `residue == chance` boundary no longer verify (E1 follow-up:
+  adopt the strict inequality; the probe then disables the adapter).

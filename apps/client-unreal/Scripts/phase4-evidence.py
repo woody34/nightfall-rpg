@@ -452,9 +452,20 @@ def validate_input(value,schema,path,bounds=False):
 RESIDUE_INPUTS={'bow_launch':('critical_residue','spread_residue'),'dual_plan':('critical_residues','spread_residues')}
 
 
+@lru_cache(maxsize=1)
+def oracle_hit_inclusive():
+    """True while E1 still decides a hit as residue <= hit_chance (rev 8): probed, not assumed."""
+    try:oracle.behavior.dual_plan([False,False],[0,0],True,[5,5],5,0)
+    except ValueError:return True
+    return False
+
+
 def residue_family(name,inputs):
     decoded=oracle.decode_rationals(inputs)
     extra={key:decoded.pop(key) for key in RESIDUE_INPUTS[name]}
+    # D88: a hit iff residue < hit_chance (pinned Rnd.get(n) < chance). The rev 8 oracle tests
+    # residue <= chance, so it is given chance-1, which selects exactly the residues below chance.
+    if oracle_hit_inclusive():decoded['hit_chance']-=1
     function=getattr(oracle.behavior,name)
     if set(extra)<=set(inspect.signature(function).parameters):return function(**decoded,**extra) # E1 adopted D87
     result=function(**decoded)
