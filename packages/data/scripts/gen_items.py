@@ -417,7 +417,7 @@ def local_blockers(item):
     if item['flags'].get('is_common',False) or name.startswith('common item -'):blockers.add('context:common')
     if int(p.get('duration','-1'))!=-1:blockers.add('context:shadow')
     if int(p.get('time','-1'))!=-1:blockers.add('context:time_limited')
-    if item['flags']['for_npc']:blockers.add('context:npc_only')
+    # D97: for_npc (L2Item.isForNpc, L2Item.java:725) is read only by RequestPetUseItem.java:65.
     if item['weapon_type'] not in gen_skills.ALLOWED_WEAPON_KINDS: blockers.add('weapon_kind:'+item['weapon_type'])
     if item['bodypart_mask']<0:blockers.add('context:pet')
     if item['bodypart'] in {'hair','hair2','dhair','alldress','rbracelet','lbracelet','deco1'}:blockers.add('slot:'+item['bodypart'])
@@ -549,7 +549,7 @@ def capabilities(items,tables,skills,skill_files):
             use.add('use:no_handler')
         if row['kind']=='EtcItem' and use and row['skills']:b.update(use)
         rows.append({'template_id':sid,'admitted':not b,
-                     'storable':not bool(b & {'context:common','context:shadow','context:time_limited','context:npc_only','context:pet'}),'blockers':sorted(b),'use_blockers':sorted(b|use)})
+                     'storable':not bool(b & {'context:common','context:shadow','context:time_limited','context:pet'}),'blockers':sorted(b),'use_blockers':sorted(b|use)})
     item_index={r['template_id']:r for r in rows}
     consumables={}
     for sid,item in sorted(items.items()):

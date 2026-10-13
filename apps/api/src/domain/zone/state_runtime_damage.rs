@@ -6525,14 +6525,15 @@ mod tests {
     }
     #[test]
     fn v6_hp_potion_uses_source_cost_alias_and_plain_hp_without_heal_rng() {
-        // 21040's source cost14701 is NPC-only/non-storable. It must refuse, not
-        // silently substitute the selected item; accepted D54 defers it before payment.
+        // 21040's source cost is item 14701 (itemConsumeId). D97: for_npc no longer defers
+        // either template, so without 14701 the use refuses as InsufficientItems before any
+        // draw, never substituting the selected item.
         let (mut missing, owner, _, ids) = use_fixture(&[21040]);
         let cursor = missing.rng.get_word_pos();
         let rejected = missing
             .run_tick(missing.draft(vec![use_input(&missing, owner, 960, 1, ids[0], None)]))
             .unwrap();
-        assert_eq!(rejected.dispositions[0].reason, RejectReason::ItemCapabilityDeferred);
+        assert_eq!(rejected.dispositions[0].reason, RejectReason::InsufficientItems);
         assert_eq!(missing.sidecar(owner.entity).unwrap().cast, CastState::Idle);
         assert_eq!(
             missing.phase4.as_ref().unwrap().canonical.players[&owner.entity].inventory[&ids[0]]
@@ -8257,52 +8258,92 @@ mod tests {
                 .attack_plans
                 .contains_key(&owner.entity));
         }
-        // A dead (or respawned) recipient discards the stored second result.
-        let mut dead = zone.clone();
-        let swing = arm_swing(&mut dead, owner, npc);
-        dead.phase4.as_mut().unwrap().canonical.attack_plans.insert(
-            owner.entity,
-            crate::domain::zone::phase4::ItemAttackPlan {
-                attacker: owner,
-                start: swing.start,
-                ready: swing.ready,
-                weapon: None,
-                shots: 0,
-                arrow: None,
-                hits: vec![
-                    crate::domain::zone::phase4::PlannedItemHit {
-                        target: npc,
-                        at: swing.impact,
-                        prepared: None,
+        // A dead recipient, a stunned attacker or a recipient inside the peace square at the
+        // deadline discards the stored second result without any further draw (P2-1).
+        for case in ["dead", "stunned", "peace"] {
+            let mut armed = zone.clone();
+            let swing = arm_swing(&mut armed, owner, npc);
+            armed
+                .phase4
+                .as_mut()
+                .unwrap()
+                .canonical
+                .attack_plans
+                .insert(
+                    owner.entity,
+                    crate::domain::zone::phase4::ItemAttackPlan {
+                        attacker: owner,
+                        start: swing.start,
+                        ready: swing.ready,
+                        weapon: None,
+                        shots: 0,
+                        arrow: None,
+                        hits: vec![
+                            crate::domain::zone::phase4::PlannedItemHit {
+                                target: npc,
+                                at: swing.impact,
+                                prepared: None,
+                            },
+                            crate::domain::zone::phase4::PlannedItemHit {
+                                target: npc,
+                                at: Tick(swing.impact.0 + 3),
+                                prepared: None,
+                            },
+                        ],
+                        next_hit: 0,
                     },
-                    crate::domain::zone::phase4::PlannedItemHit {
-                        target: npc,
-                        at: Tick(swing.impact.0 + 3),
-                        prepared: None,
-                    },
-                ],
-                next_hit: 0,
-            },
-        );
-        let mut trace = Vec::new();
-        dead.land_auto_v5(
-            swing.impact,
-            owner.entity,
-            swing,
-            &mut Vec::new(),
-            &mut forced(&[], &mut trace),
-        )
-        .unwrap();
-        dead.entities.get_mut(&npc.entity).unwrap().targeting.dead = true;
-        let mut events = Vec::new();
-        dead.land_dual_second_v6(
-            Tick(swing.impact.0 + 3),
-            owner.entity,
-            &mut events,
-            &mut forced(&[], &mut trace),
-        )
-        .unwrap();
-        assert!(events.is_empty());
+                );
+            let mut trace = Vec::new();
+            armed
+                .land_auto_v5(
+                    swing.impact,
+                    owner.entity,
+                    swing,
+                    &mut Vec::new(),
+                    &mut forced(&[], &mut trace),
+                )
+                .unwrap();
+            assert!(armed.phase4.as_ref().unwrap().canonical.attack_plans[&owner.entity].hits[1]
+                .prepared
+                .is_some());
+            match case {
+                "dead" => armed.entities.get_mut(&npc.entity).unwrap().targeting.dead = true,
+                "stunned" => add_stun(&mut armed, owner),
+                _ => {
+                    let centre = armed
+                        .phase3
+                        .as_ref()
+                        .unwrap()
+                        .canonical
+                        .rules
+                        .geometry()
+                        .center()
+                        .unwrap();
+                    place(&mut armed, npc.entity, centre);
+                },
+            }
+            let hp = armed.entities[&npc.entity].combat.as_ref().unwrap().hp;
+            let drawn = trace.len();
+            let mut events = Vec::new();
+            armed
+                .land_dual_second_v6(
+                    Tick(swing.impact.0 + 3),
+                    owner.entity,
+                    &mut events,
+                    &mut forced(&[], &mut trace),
+                )
+                .unwrap();
+            assert!(events.is_empty(), "{case}: {events:?}");
+            assert_eq!(trace.len(), drawn, "{case}");
+            assert_eq!(armed.entities[&npc.entity].combat.as_ref().unwrap().hp, hp);
+            assert!(!armed
+                .phase4
+                .as_ref()
+                .unwrap()
+                .canonical
+                .attack_plans
+                .contains_key(&owner.entity));
+        }
         // Live ticks: AttackStarted.impact is the first subhit (timeToHit/2), the second lands
         // at timeToHit, and cold replay from the boundary agrees.
         let mut live = zone.clone();
@@ -8507,88 +8548,118 @@ mod tests {
     }
 
     #[test]
-    fn v6_crossbow_selects_and_pays_a_bolt_without_bow_distance_terms() {
+    #[allow(clippy::too_many_lines)]
+    fn v6_crossbow_refills_arrows_not_bolts_at_attack_time() {
         use crate::domain::zone::item_equipment::PaperdollMutation;
         use crate::domain::zone::EquipSlot;
-        // Hand Crossbow 9217 (D) and Bone Bolt 9633 (D). Crossbows are KAMAEL-conditioned,
-        // so the fixture installs the paperdoll directly; the ranged start is under test.
-        let (mut zone, owner, npc, ids) = use_fixture(&[9217, 9633]);
-        let rules = Arc::clone(&zone.phase4.as_ref().unwrap().rules);
-        let player = zone.phase4.as_ref().unwrap().canonical.players[&owner.entity].clone();
-        let mutation = PaperdollMutation::equip(
-            &player.inventory,
-            &player.paperdoll,
-            ids[0],
-            None,
-            &rules,
-            player.inventory_revision,
-        )
-        .unwrap();
-        let next = zone
-            .phase3
-            .as_ref()
-            .unwrap()
-            .canonical
-            .next_install_sequence;
-        let (staged, next) =
-            crate::domain::zone::item_sources::apply_paperdoll(&player, &mutation, &rules, next)
-                .unwrap();
-        zone.phase4
-            .as_mut()
-            .unwrap()
-            .canonical
-            .players
-            .insert(owner.entity, staged);
-        zone.phase3
-            .as_mut()
-            .unwrap()
-            .canonical
-            .next_install_sequence = next;
-        zone.rebuild_v5(owner.entity).unwrap();
-        assert!(!zone.bow_attacker_v6(owner.entity));
-        assert_eq!(
-            zone.attack_style_v6(owner.entity),
-            crate::domain::zone::state::runtime::AttackStyle::Simple
-        );
-        let start = zone.entities[&owner.entity].pos;
-        place(
-            &mut zone,
-            npc.entity,
-            Vec2Fixed::new(Fixed::from_raw(start.x.raw() + 8_000), start.y),
-        );
-        let mut started = false;
-        for step in 0..10 {
-            let inputs = if step == 0 {
-                vec![
-                    review_input(
-                        owner.entity,
-                        2,
-                        ZoneCommand::SetTarget {
-                            entity: owner.entity,
-                            target: Some(npc.entity),
-                        },
-                    ),
-                    review_input(
-                        owner.entity,
-                        3,
-                        ZoneCommand::Attack {
-                            entity: owner.entity,
-                        },
-                    ),
-                ]
+        // Hand Crossbow 9217 (D), Bone Bolt 9633 (D), Bone Arrow 1341 (D). Crossbows are
+        // KAMAEL-conditioned, so the fixture installs the paperdoll directly. D85: the
+        // attack-time refill is findArrowForBow (ARROW only), never a bolt.
+        for with_arrow in [true, false] {
+            let (mut zone, owner, npc, ids) = use_fixture(&[9217, 9633, 1341]);
+            let rules = Arc::clone(&zone.phase4.as_ref().unwrap().rules);
+            let mut player = zone.phase4.as_ref().unwrap().canonical.players[&owner.entity].clone();
+            if !with_arrow {
+                player.inventory.remove(&ids[2]);
+            }
+            let mutation = PaperdollMutation::equip(
+                &player.inventory,
+                &player.paperdoll,
+                ids[0],
+                None,
+                &rules,
+                player.inventory_revision,
+            )
+            .unwrap();
+            let next = zone
+                .phase3
+                .as_ref()
+                .unwrap()
+                .canonical
+                .next_install_sequence;
+            let (staged, next) = crate::domain::zone::item_sources::apply_paperdoll(
+                &player, &mutation, &rules, next,
+            )
+            .unwrap();
+            // Equipping a crossbow auto-equips a bolt (findBoltForCrossBow); take it off so the
+            // left hand is empty when the attack starts.
+            assert_eq!(staged.paperdoll[&EquipSlot::Lhand], ids[1]);
+            let mutation = PaperdollMutation::unequip(
+                &staged.inventory,
+                &staged.paperdoll,
+                EquipSlot::Lhand,
+                &rules,
+                staged.inventory_revision,
+            )
+            .unwrap();
+            let (staged, next) = crate::domain::zone::item_sources::apply_paperdoll(
+                &staged, &mutation, &rules, next,
+            )
+            .unwrap();
+            zone.phase4
+                .as_mut()
+                .unwrap()
+                .canonical
+                .players
+                .insert(owner.entity, staged);
+            zone.phase3
+                .as_mut()
+                .unwrap()
+                .canonical
+                .next_install_sequence = next;
+            zone.rebuild_v5(owner.entity).unwrap();
+            assert!(!zone.bow_attacker_v6(owner.entity));
+            assert!(!zone.phase4.as_ref().unwrap().canonical.players[&owner.entity]
+                .paperdoll
+                .contains_key(&EquipSlot::Lhand));
+            let start = zone.entities[&owner.entity].pos;
+            place(
+                &mut zone,
+                npc.entity,
+                Vec2Fixed::new(Fixed::from_raw(start.x.raw() + 8_000), start.y),
+            );
+            let mut started = false;
+            for step in 0..10 {
+                let inputs = if step == 0 {
+                    vec![
+                        review_input(
+                            owner.entity,
+                            2,
+                            ZoneCommand::SetTarget {
+                                entity: owner.entity,
+                                target: Some(npc.entity),
+                            },
+                        ),
+                        review_input(
+                            owner.entity,
+                            3,
+                            ZoneCommand::Attack {
+                                entity: owner.entity,
+                            },
+                        ),
+                    ]
+                } else {
+                    Vec::new()
+                };
+                let applied = zone.run_tick(zone.draft(inputs)).unwrap();
+                if applied.events.iter().any(|e| matches!(e, ZoneEvent::AttackStarted { attacker, .. } if *attacker == owner.entity)) {
+                    started = true;
+                    break;
+                }
+            }
+            let player = &zone.phase4.as_ref().unwrap().canonical.players[&owner.entity];
+            // Bolts are never taken at attack time.
+            assert_eq!(player.inventory[&ids[1]].count, 3);
+            if with_arrow {
+                assert!(started);
+                assert_eq!(player.paperdoll[&EquipSlot::Lhand], ids[2]);
+                assert_eq!(player.inventory[&ids[2]].count, 2);
             } else {
-                Vec::new()
-            };
-            let applied = zone.run_tick(zone.draft(inputs)).unwrap();
-            if applied.events.iter().any(|e| matches!(e, ZoneEvent::AttackStarted { attacker, .. } if *attacker == owner.entity)) {
-                started = true;
-                break;
+                // Only bolts: checkAndEquipArrows fails and the attack intention ends.
+                assert!(!started);
+                assert!(!player.paperdoll.contains_key(&EquipSlot::Lhand));
             }
         }
-        assert!(started);
-        let player = &zone.phase4.as_ref().unwrap().canonical.players[&owner.entity];
-        assert_eq!(player.paperdoll[&EquipSlot::Lhand], ids[1]);
-        assert_eq!(player.inventory[&ids[1]].count, 2);
     }
 
     #[test]
@@ -9043,10 +9114,54 @@ mod tests {
         matches!(value["formula"].as_str(), Some("max_load" | "overload" | "grade_penalties"))
     }
 
+    #[test]
+    fn load_family_resolution_ids_are_unique_within_a_tick() {
+        use crate::domain::zone::evidence::ItemEvidenceData;
+        use crate::domain::zone::ItemCommandKind as K;
+        // Review-3 P2-8: two weight-changing commands with no draw between them.
+        let (mut zone, owner, _, ids) = use_fixture(&[13, 15]);
+        zone.enable_items_replay_evidence().unwrap();
+        let draft = session_tick(
+            &zone,
+            owner.entity,
+            ids.iter()
+                .zip(961_u128..)
+                .map(|(id, request)| {
+                    item_intent(
+                        &zone,
+                        owner.entity,
+                        request,
+                        K::Destroy {
+                            instance: *id,
+                            count: 1,
+                        },
+                    )
+                })
+                .collect(),
+        );
+        let applied = zone.run_tick(draft).unwrap();
+        assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+        let mut seen = std::collections::BTreeSet::new();
+        let mut rebuilds = std::collections::BTreeSet::new();
+        for fact in zone.take_items_replay_evidence() {
+            if let ItemEvidenceData::Formula(value) = &fact.fact {
+                if load_family(value) {
+                    let id = value["resolution_id"].as_str().unwrap().to_owned();
+                    let formula = value["formula"].as_str().unwrap().to_owned();
+                    assert!(seen.insert((formula, id.clone())), "duplicate {id}");
+                    rebuilds.insert(id);
+                }
+            }
+        }
+        assert_eq!(rebuilds.len(), 2, "{rebuilds:?}");
+    }
+
     /// D4/C10 measurement gate: the V6 snapshot envelope with eight fully loaded owners
-    /// (100 ordinary + 100 quest instances each, full paperdoll, high-entropy maximal-width
-    /// scalars) must stay inside the broker (1 MiB − 1 KiB) and decoded (32 MiB) budgets.
-    /// Rules are hash-referenced (D27) and are not part of the envelope.
+    /// (200 storable instances each, a full paperdoll with enchant and augment values, its
+    /// providers/sets, high-entropy maximal-width scalars) must stay inside the broker and
+    /// decoded budgets (record.rs `MAX_SNAPSHOT_ENCODED` / `MAX_SNAPSHOT_JSON`), decode, and
+    /// restore through `from_snapshot_with_items` (review-3 P2-9). Rules are hash-referenced
+    /// (D27) and are not part of the envelope.
     #[test]
     #[allow(
         clippy::print_stderr,
@@ -9055,12 +9170,17 @@ mod tests {
         clippy::too_many_lines
     )]
     fn v6_c10_snapshot_envelope_with_eight_full_inventories_fits_budgets() {
-        use crate::application::replay_log::{decode_snapshot, encode_snapshot};
-        use crate::domain::zone::{ItemInstance, ItemInstanceId, ItemLocation};
+        use crate::application::replay_log::{
+            decode_snapshot, encode_snapshot, MAX_SNAPSHOT_ENCODED, MAX_SNAPSHOT_JSON,
+        };
+        use crate::domain::zone::item_equipment::PaperdollMutation;
+        use crate::domain::zone::{item_sources, ItemInstance, ItemInstanceId, ItemLocation};
         let (zone, owner, _) = equipment_fixture();
         let baseline = encode_snapshot(&zone.snapshot()).unwrap();
-        let mut snapshot = zone.snapshot();
-        let template = snapshot.phase4.as_ref().unwrap().players[&owner.entity].clone();
+        // Synthetic owners are built in a live zone and rebuilt there, so their combat
+        // sheets follow the worn equipment and the envelope restores strictly.
+        let mut live = zone.clone();
+        let template = live.phase4.as_ref().unwrap().canonical.players[&owner.entity].clone();
         let rules = Arc::clone(&zone.phase4.as_ref().unwrap().rules);
         // Distinct storable stackable templates (no quest items are admitted, so the D4
         // 100-ordinary + 100-quest owner is measured as 200 ordinary instances).
@@ -9080,6 +9200,27 @@ mod tests {
             .take(200)
             .collect();
         assert_eq!(templates.len(), 200);
+        // Unconditioned admitted equipment, tried in template order until no slot is free.
+        let equipment: Vec<u32> = rules
+            .parts()
+            .items
+            .values()
+            .filter(|d| {
+                matches!(d.kind.as_str(), "Weapon" | "Armor")
+                    && !d.stackable
+                    && d.conditions.is_empty()
+                    && rules
+                        .parts()
+                        .capabilities
+                        .get(&d.template_id)
+                        .is_some_and(|c| c.admitted && c.storable)
+            })
+            .map(|d| d.template_id)
+            .collect();
+        // The widest admitted augmentation: the two highest option ids.
+        let mut options = rules.parts().augment_options.keys().rev();
+        let (high, low) = (*options.next().unwrap(), *options.next().unwrap());
+        let augment = crate::domain::zone::item_refine::pack(low, high).unwrap();
         let mut state = 0x9e37_79b9_7f4a_7c15_u64;
         let mut next = || {
             state = state
@@ -9089,11 +9230,10 @@ mod tests {
         };
         // Maximal-width identities: a reserved block just below 2^62 (D8/D19 bound 2^63).
         let top = 1_u64 << 62;
-        snapshot.phase4.as_mut().unwrap().allocator =
+        live.phase4.as_mut().unwrap().canonical.allocator =
             crate::domain::zone::ItemInstanceRange::new(1, top, top + (1 << 32)).unwrap();
         let mut allocated = 0_u64;
         for n in 0..8_u128 {
-            let items = snapshot.phase4.as_mut().unwrap();
             let mut player = template.clone();
             player.inventory.clear();
             player.paperdoll.clear();
@@ -9101,6 +9241,64 @@ mod tests {
             player.active_sets.clear();
             player.auto_shots.clear();
             player.item_reuse.clear();
+            let mut sequence = live
+                .phase3
+                .as_ref()
+                .unwrap()
+                .canonical
+                .next_install_sequence;
+            for template_id in &equipment {
+                allocated += 1;
+                let id = ItemInstanceId::new(top - allocated).unwrap();
+                let mut item = template.inventory.values().next().unwrap().clone();
+                item.id = id;
+                item.template_id = *template_id;
+                item.count = 1;
+                item.location = ItemLocation::Inventory;
+                item.slot = None;
+                item.enchant = 0;
+                item.augment_id = None;
+                item.charges = 0;
+                let mut staged = player.clone();
+                staged.inventory.insert(id, item);
+                let installed = PaperdollMutation::equip(
+                    &staged.inventory,
+                    &staged.paperdoll,
+                    id,
+                    None,
+                    &rules,
+                    staged.inventory_revision,
+                )
+                .ok()
+                .filter(|m| m.paperdoll.len() > player.paperdoll.len())
+                .and_then(|m| item_sources::apply_paperdoll(&staged, &m, &rules, sequence).ok());
+                match installed {
+                    Some((next_player, next_sequence)) => {
+                        player = next_player;
+                        sequence = next_sequence;
+                    },
+                    None => allocated -= 1,
+                }
+            }
+            // Maximal-width equipped scalars: high enchant on every piece, the widest
+            // augmentation on the weapon, then the enchant-dependent sets/providers.
+            let worn: Vec<_> = player.paperdoll.values().copied().collect();
+            for id in &worn {
+                let item = player.inventory.get_mut(id).unwrap();
+                item.enchant = 65_535;
+                if item.slot == Some(crate::domain::zone::EquipSlot::Rhand) {
+                    // Every charge bit (soulshot, spiritshot, blessed) is held by the weapon.
+                    item.charges = 7;
+                    item.augment_id = Some(augment);
+                }
+            }
+            player.active_sets = item_sources::reconcile_sets(&player, &rules, None).unwrap();
+            item_sources::reconcile_sources(&mut player, &rules, &mut sequence).unwrap();
+            live.phase3
+                .as_mut()
+                .unwrap()
+                .canonical
+                .next_install_sequence = sequence;
             for template_id in &templates {
                 allocated += 1;
                 let id = ItemInstanceId::new(top - allocated).unwrap();
@@ -9133,18 +9331,10 @@ mod tests {
             // Each synthetic owner is a complete clone of the fixture player (entity, Phase3
             // sidecar) so the envelope encoder's cross-section validation still holds.
             let id = EntityId::from_uuid(Uuid::from_u128(0xC10_0000 + n));
-            items.players.insert(id, player);
-            if let Some(facing) = items.facing.get(&owner.entity).copied() {
-                items.facing.insert(id, facing);
-            }
-            let mut entity = snapshot
-                .entities
-                .iter()
-                .find(|e| e.id == owner.entity)
-                .unwrap()
-                .clone();
+            let mut entity = live.entities[&owner.entity].clone();
             entity.id = id;
-            entity.name = format!("Owner{n}");
+            // Character names are ASCII letters only.
+            entity.name = format!("Owner{}", char::from(b'A' + n as u8));
             if let Some(CombatRole::Player {
                 progression: Some(p),
                 ..
@@ -9153,23 +9343,31 @@ mod tests {
                 p.identity.account_id =
                     crate::domain::AccountId::from_uuid(Uuid::from_u128(0xACC0 + n));
             }
-            snapshot.entities.push(entity);
-            if let Some(cell) = snapshot
-                .aoi
-                .iter_mut()
-                .find(|cell| cell.entities.contains(&owner.entity))
-            {
-                cell.entities.push(id);
-                cell.entities.sort();
-            }
-            let phase3 = snapshot.phase3.as_mut().unwrap();
+            live.aoi.insert(id, entity.pos);
+            live.entities.insert(id, entity);
+            let phase3 = &mut live.phase3.as_mut().unwrap().canonical;
             let mut sidecar = phase3.entities[&owner.entity].clone();
             sidecar.ordinal = crate::domain::zone::EntityOrdinal(phase3.next_entity_ordinal);
             phase3.next_entity_ordinal += 1;
             phase3.entities.insert(id, sidecar);
+            let items = &mut live.phase4.as_mut().unwrap().canonical;
+            items.players.insert(id, player);
+            if let Some(facing) = items.facing.get(&owner.entity).copied() {
+                items.facing.insert(id, facing);
+            }
+            live.rebuild_v5(id).unwrap();
         }
+        let snapshot = live.snapshot();
         let encoded = encode_snapshot(&snapshot).unwrap();
         let decoded_len = u32::from_le_bytes(encoded[8..12].try_into().unwrap()) as usize;
+        let worn: usize = snapshot
+            .phase4
+            .as_ref()
+            .unwrap()
+            .players
+            .values()
+            .map(|p| p.paperdoll.len())
+            .sum();
         let instances: usize = snapshot
             .phase4
             .as_ref()
@@ -9179,18 +9377,23 @@ mod tests {
             .map(|p| p.inventory.len())
             .sum();
         eprintln!(
-            "PHASE4_C10 baseline_encoded={} worst_encoded={} worst_decoded={} owners={} instances={} budget_encoded={} budget_decoded={}",
+            "PHASE4_C10 baseline_encoded={} worst_encoded={} worst_decoded={} owners={} instances={} worn={} budget_encoded={} budget_decoded={}",
             baseline.len(),
             encoded.len(),
             decoded_len,
             snapshot.phase4.as_ref().unwrap().players.len(),
             instances,
-            1024 * 1024 - 1024,
-            32 * 1024 * 1024
+            worn,
+            MAX_SNAPSHOT_ENCODED,
+            MAX_SNAPSHOT_JSON
         );
-        assert!(encoded.len() <= 1024 * 1024 - 1024);
-        assert!(decoded_len <= 32 * 1024 * 1024);
-        assert!(decode_snapshot(&baseline).is_ok());
+        assert!(worn >= 8 * 12, "a full paperdoll per synthetic owner: {worn}");
+        assert!(encoded.len() <= MAX_SNAPSHOT_ENCODED);
+        assert!(decoded_len <= MAX_SNAPSHOT_JSON);
+        // The worst envelope itself decodes and restores a runnable V6 zone.
+        let decoded = decode_snapshot(&encoded).unwrap();
+        assert_eq!(decoded, snapshot);
+        ZoneState::from_snapshot_with_items(decoded, Some(rules)).unwrap();
     }
 
     /// Recorded evidence run: every tick is cold-replayed from the boundary, its record kept
@@ -10383,7 +10586,8 @@ mod tests {
         let revision = player.inventory_revision;
         // Retained toggles may outlive their stack or a previous charge/weapon.
         player.auto_shots.extend([1464, 2511, 3949, 1465]);
-        for invalid in [1835, 57, u32::MAX] {
+        // D97 admits Soulshot: No Grade 1835 itself; a potion is still not a shot.
+        for invalid in [1060, 57, u32::MAX] {
             let mut corrupt = zone.snapshot();
             corrupt
                 .phase4

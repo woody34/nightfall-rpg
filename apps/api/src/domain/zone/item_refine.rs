@@ -174,7 +174,8 @@ impl RefineAudit {
     }
 }
 
-/// One XML `augment` row in its retained order; `hundredths` is `chance × 100` exactly.
+/// One XML `augment` row in its retained order; `hundredths` is the decimal `chance × 100`
+/// exactly (Java's float rounding is applied by [`select`], D86).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[allow(missing_docs)]
 pub struct RetailRow {
@@ -360,17 +361,80 @@ impl RetailSelectors {
     }
 }
 
-/// Descending-tail selection, AugmentationData.java:462–468: while the remaining threshold
-/// exceeds the residue, subtract `chance × 100` and select the visited row. Exact integer
-/// hundredths replace Java's float accumulation; no reachable residue may leave option 0.
+/// Fixed-point scale of the binary32 emulation: values are exact integers times 2^-40, so every
+/// float the selector reaches (chances ≥ 0.01, accumulators ≤ 10000) is represented exactly.
+const BINARY32_SCALE: u32 = 40;
+
+/// Round the positive rational `numerator / denominator` (in 2^-40 units) to the nearest
+/// binary32, ties to even, IEEE 754 roundTiesToEven as Java float arithmetic does. Values
+/// below the scale's 24-bit window must already be exact; anything else fails closed.
+fn round_binary32(numerator: u128, denominator: u128) -> Result<u128, ItemError> {
+    let invalid = ItemError("retail binary32 emulation out of range");
+    let whole = numerator.checked_div(denominator).ok_or(invalid)?;
+    let bits = 128_u32.checked_sub(whole.leading_zeros()).ok_or(invalid)?;
+    let Some(shift) = bits.checked_sub(24) else {
+        // Below 2^24 units the float grid is no coarser than one unit: exact or reject.
+        return (numerator.checked_rem(denominator) == Some(0))
+            .then_some(whole)
+            .ok_or(invalid);
+    };
+    let unit = denominator.checked_shl(shift).ok_or(invalid)?;
+    let mut mantissa = numerator.checked_div(unit).ok_or(invalid)?;
+    let twice = numerator
+        .checked_rem(unit)
+        .and_then(|r| r.checked_mul(2))
+        .ok_or(invalid)?;
+    if twice > unit || (twice == unit && mantissa % 2 == 1) {
+        mantissa = mantissa.checked_add(1).ok_or(invalid)?;
+    }
+    mantissa.checked_shl(shift).ok_or(invalid)
+}
+
+/// `(float) value` for a signed exact value in 2^-40 units.
+fn round_binary32_signed(value: i128) -> Result<i128, ItemError> {
+    let invalid = ItemError("retail binary32 emulation out of range");
+    let magnitude =
+        i128::try_from(round_binary32(value.unsigned_abs(), 1)?).map_err(|_| invalid)?;
+    Ok(if value < 0 {
+        magnitude.checked_neg().ok_or(invalid)?
+    } else {
+        magnitude
+    })
+}
+
+/// `getAugmentChance() * 100` in float: Float.parseFloat of the exact decimal (`hundredths /
+/// 100`), then the float product with the int literal 100, each rounded to binary32.
+fn float_decrement(hundredths: u32) -> Result<i128, ItemError> {
+    let invalid = ItemError("retail binary32 emulation out of range");
+    let chance = round_binary32(
+        u128::from(hundredths)
+            .checked_shl(BINARY32_SCALE)
+            .ok_or(invalid)?,
+        100,
+    )?;
+    let product = round_binary32(chance.checked_mul(100).ok_or(invalid)?, 1)?;
+    i128::try_from(product).map_err(|_| invalid)
+}
+
+/// Descending-tail selection, AugmentationData.java:464–468 (and 497–503, 518–522, 550–555,
+/// 705–709, 729–734): while `float s` exceeds the residue, `s -= chance * 100` and select the
+/// visited row. D86: the accumulator emulates Java binary32 exactly in integers; the residue
+/// widens to float exactly (< 2^24). No reachable residue may leave option 0.
 pub fn select(rows: &[RetailRow], residue: u32) -> Result<u32, ItemError> {
-    let mut threshold = i64::from(RETAIL_RESIDUES);
+    let invalid = ItemError("retail threshold overflow");
+    let mut threshold = i128::from(RETAIL_RESIDUES)
+        .checked_shl(BINARY32_SCALE)
+        .ok_or(invalid)?;
+    let residue = i128::from(residue)
+        .checked_shl(BINARY32_SCALE)
+        .ok_or(invalid)?;
     let mut selected = 0;
     for row in rows {
-        if threshold > i64::from(residue) {
-            threshold = threshold
-                .checked_sub(i64::from(row.hundredths))
-                .ok_or(ItemError("retail threshold overflow"))?;
+        if threshold > residue {
+            let difference = threshold
+                .checked_sub(float_decrement(row.hundredths)?)
+                .ok_or(invalid)?;
+            threshold = round_binary32_signed(difference)?;
             selected = row.option;
         }
     }
@@ -803,7 +867,94 @@ mod tests {
     }
 
     #[test]
-    fn every_admitted_stone_covers_all_residues_without_option_zero() {
+    fn retail_selection_matches_literal_rows_read_from_the_pinned_xml() {
+        // Expected ids read by hand from retailchances*.xml (DP 3ca488dd), not the selector:
+        // 8723 warrior variation 1 = ids 1..91 (1.1 each, last 1.0); mage = 3641..3731;
+        // 8723 warrior variation 2 category 55 = 7281..7293 (7.69 each, last 7.72);
+        // 8753 variation 1 = 95 rows ending 16343, 16344 at 1.05 (D86 float tail at 105);
+        // accessory 12754 variation 1 = 16687..16704.
+        let rules = embedded_phase4_bundle().unwrap().items;
+        let warrior = RetailSelectors::new(&rules, false, false, 8723).unwrap();
+        let mage = RetailSelectors::new(&rules, false, true, 8723).unwrap();
+        let tail = RetailSelectors::new(&rules, false, false, 8753).unwrap();
+        let accessory = RetailSelectors::new(&rules, true, false, 12754).unwrap();
+        let cat55 = warrior.category_rows(55);
+        for (rows, residue, option) in [
+            (&warrior.first, 9999, 1),
+            (&warrior.first, 9890, 1),
+            (&warrior.first, 9889, 2),
+            (&warrior.first, 0, 91),
+            (&mage.first, 9999, 3641),
+            (&mage.first, 0, 3731),
+            (&cat55, 9999, 7281),
+            (&cat55, 9231, 7281),
+            (&cat55, 9230, 7282),
+            (&cat55, 0, 7293),
+            (&tail.first, 9999, 2731),
+            (&tail.first, 105, 16344),
+            (&tail.first, 0, 16344),
+            (&accessory.first, 9999, 16687),
+            (&accessory.first, 0, 16704),
+        ] {
+            assert_eq!(select(rows, residue).unwrap(), option, "{residue}");
+        }
+    }
+
+    #[test]
+    fn binary32_selection_matches_independent_oracle_on_every_divergent_table() {
+        // D86: packages/data/scripts/refine_binary32_oracle.py parses the pinned XML and emulates
+        // Java float with struct round trips; each entry is [residue, java, exact decimal].
+        let rules = embedded_phase4_bundle().unwrap().items;
+        let oracle: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../../../packages/data/fixtures/refine-binary32-oracle.json"
+        ))
+        .unwrap();
+        let tables = oracle.get("tables").and_then(|t| t.as_array()).unwrap();
+        let mut checked = 0;
+        for table in tables {
+            let text = |key: &str| table.get(key).and_then(|v| v.as_str()).unwrap();
+            let accessory = text("kind") == "accessory";
+            let mage = text("weapon_type") == "mage";
+            if accessory && mage {
+                continue; // generateRandomAccessoryAugmentation reads warrior rows only.
+            }
+            let stone = u32::try_from(
+                table
+                    .get("stone")
+                    .and_then(serde_json::Value::as_u64)
+                    .unwrap(),
+            )
+            .unwrap();
+            let selectors = RetailSelectors::new(&rules, accessory, mage, stone).unwrap();
+            let rows = match text("selector") {
+                "option12" => selectors.first.clone(),
+                label => selectors.category_rows(label.parse().unwrap()),
+            };
+            for entry in table.get("residues").and_then(|v| v.as_array()).unwrap() {
+                let value = |index: usize| {
+                    u32::try_from(
+                        entry
+                            .get(index)
+                            .and_then(serde_json::Value::as_u64)
+                            .unwrap(),
+                    )
+                    .unwrap()
+                };
+                assert_ne!(value(1), value(2), "{table}");
+                assert_eq!(select(&rows, value(0)).unwrap(), value(1), "{stone} {entry}");
+            }
+            checked += 1;
+        }
+        assert_eq!(checked, 30);
+        // The 30 are the 95-row option12 tables (chance 1.05) of 15 stones × warrior/mage: the
+        // float accumulator still exceeds residue 105 before the last row. Rounding helpers:
+        assert!(round_binary32(3, 2).is_err());
+        assert_eq!(round_binary32(3 << BINARY32_SCALE, 2).unwrap(), 3 << (BINARY32_SCALE - 1));
+        assert_eq!(float_decrement(110).unwrap(), 110 << BINARY32_SCALE);
+    }
+
+    #[test]
+    fn every_admitted_stone_table_selects_a_nonzero_option_for_every_residue() {
         let rules = embedded_phase4_bundle().unwrap().items;
         let mut checked = 0;
         for cap in &rules.parts().augment_capabilities {

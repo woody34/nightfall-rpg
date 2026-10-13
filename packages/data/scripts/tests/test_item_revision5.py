@@ -90,11 +90,14 @@ class Revision5Tests(unittest.TestCase):
                     if launched:
                         reason = 'launched'
                         draws.append(dict(site='hit', bound=1000, residue=x['hit_residue']))
+                        # D88: a hit iff the residue is strictly below the chance.
+                        self.assertEqual(x['miss'], x['hit_residue'] >= x['hit_chance'], name)
                         if not x['miss']:
-                            draws.append(dict(site='critical', bound=1000, residue=999))
+                            # D87: the caller's live residues, not a neutral 999 / radius.
+                            draws.append(dict(site='critical', bound=1000, residue=x['critical_residue']))
                             radius = int(props.get('random_damage', '0'))
                             if radius:
-                                draws.append(dict(site='spread', bound=2*radius+1, residue=radius))
+                                draws.append(dict(site='spread', bound=2*radius+1, residue=x['spread_residue']))
             self.assertEqual(y['accepted'], launched, name)
             self.assertEqual(y['reason'], reason, name)
             self.assertEqual(y['mp_paid'], cost if launched else 0, name)
@@ -105,7 +108,7 @@ class Revision5Tests(unittest.TestCase):
             self.assertEqual(y['arrows_consumed'], int(launched), name)
             self.assertEqual(sum(i['count'] for i in y['inventory']), sum(i['count'] for i in x['inventory'])-int(launched), name)
             if launched:
-                self.assertEqual(y['hit'], x['hit_residue'] <= x['hit_chance'], name)
+                self.assertEqual(y['hit'], x['hit_residue'] < x['hit_chance'], name)
                 self.assertEqual(y['lhand'], arrow['instance_id'] if arrow['count'] > 1 else None, name)
 
     def test_exhaustion_refill_and_empty_skip_payment(self):
@@ -187,7 +190,8 @@ class Revision5Tests(unittest.TestCase):
             self.assertEqual(y['stats_q'], {k: int(v*1000000) for k, v in values.items()})
             for field, tags in [('granted_active', ['active_skill']), ('system_passive', ['passive_skill']),
                                 ('triggers', ['attack_skill', 'critical_skill', 'magic_skill'])]:
-                self.assertEqual(y[field], [dict(n.attrib, kind=n.tag) for n in node if n.tag in tags] if install else [])
+                self.assertEqual(y[field], [dict({k: f'{F(v).numerator}/{F(v).denominator}' if '.' in v else v  # D98 n/d
+                                    for k, v in n.attrib.items()}, kind=n.tag) for n in node if n.tag in tags] if install else [])
             self.assertEqual(y['other_provider'], 99); self.assertEqual(y['hp'], 75)
             self.assertFalse(y['on_start_replayed']); self.assertEqual(y['draws'], [])
         self.assertEqual(kinds, {'active_skill', 'passive_skill', 'attack_skill', 'critical_skill', 'magic_skill'})

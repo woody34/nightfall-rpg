@@ -34,6 +34,8 @@ pub use record::{
     phase3_snapshot_size, AppliedTickRecord, CodecError, EpochStatus, OutputForm, PlayerOutput,
     Seq, SessionInRecord, SessionOutRecord, StoredSnapshot, Watermark, WatermarkReason,
 };
+#[cfg(test)]
+pub(crate) use record::{MAX_SNAPSHOT_ENCODED, MAX_SNAPSHOT_JSON};
 
 /// Resolve immutable V6 inputs before domain restoration; historical epochs load only
 /// their recorded inputs. A missing or mismatched compiled bundle is a hard error.

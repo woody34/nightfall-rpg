@@ -66,6 +66,7 @@ def main() -> int:
         ("gen_skills.py", sources[:2]),
         ("gen_items.py", sources),
         ("item_oracle.py", sources),
+        ("refine_binary32_oracle.py", sources[:2]),
         ("skill_oracle.py", []),
         ("skill_oracle.py", ["--class-phase3"]),
         ("starter_weapon_oracle.py", []),

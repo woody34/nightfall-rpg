@@ -760,6 +760,19 @@ impl ZoneState {
         if source != plan.attacker || !attacker_alive || !target_alive {
             return Ok(());
         }
+        // Review-3 P2-1 / design §6 row 6: the deadline revalidates status and hostility as the
+        // first subhit does. Pinned onHitTimer cancels on isStunned/isSleeping/isAfraid/
+        // isPhysicalAttackMuted (fear is not admitted); the auto-action gate also covers
+        // paralysis and casting. Peace/hostility use the same classifier. A failure discards
+        // the stored result; planning draws are never refunded (I3).
+        let muted = self.effective(id).is_ok_and(|s| {
+            s.flags
+                .intersects(crate::domain::zone::effects::StatusFlags::PHYSICAL_MUTE)
+        });
+        if !self.auto_action_v5(id) || muted || self.hostility_v5(tick, source, hit.target).is_err()
+        {
+            return Ok(());
+        }
         self.apply_auto_hit_v5(
             tick,
             id,

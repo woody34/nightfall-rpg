@@ -138,6 +138,23 @@ impl PaperdollMutation {
         validate_paperdoll(&plan.inventory, &plan.paperdoll, rules)?;
         Ok(plan)
     }
+    /// checkAndEquipArrows (L2PcInstance.java:5334-5352): `setPaperdollItem(LHAND, arrow)`
+    /// into an empty left hand, bypassing equipItem's displacement rules (D85).
+    pub fn install_ammunition(
+        inventory: &BTreeMap<ItemInstanceId, ItemInstance>,
+        paperdoll: &BTreeMap<EquipSlot, ItemInstanceId>,
+        ammunition: ItemInstanceId,
+        rules: &Phase4Rules,
+        revision: u64,
+    ) -> Result<Self, ItemError> {
+        if paperdoll.contains_key(&EquipSlot::Lhand) {
+            return Err(ItemError("left hand already holds ammunition"));
+        }
+        let mut plan = Self::stage(inventory, paperdoll, rules, revision)?;
+        plan.set(EquipSlot::Lhand, Some(ammunition), rules, revision)?;
+        validate_paperdoll(&plan.inventory, &plan.paperdoll, rules)?;
+        Ok(plan)
+    }
     fn at<'a>(
         &self,
         slot: EquipSlot,
@@ -255,11 +272,18 @@ fn definition<'a>(
         .get(&item.template_id)
         .ok_or(ItemError("unknown equipment template"))
 }
+/// Inventory.equipItem LHAND displacement pairs (Inventory.java:560-568).
 fn ammunition_pair(right: &ItemDefinition, left: &ItemDefinition) -> bool {
     matches!(
         (right.weapon_type.as_str(), left.etcitem_type.as_str()),
         ("BOW", "ARROW") | ("CROSSBOW", "BOLT") | ("FISHINGROD", "LURE")
     )
+}
+/// Legal held pairs: the equip pairs plus a crossbow holding arrows, which the attack-time
+/// refill installs without displacement (checkAndEquipArrows, L2PcInstance.java:5334-5352; D85).
+fn held_ammunition(right: &ItemDefinition, left: &ItemDefinition) -> bool {
+    ammunition_pair(right, left)
+        || (right.weapon_type == "CROSSBOW" && left.etcitem_type == "ARROW")
 }
 fn slots(bodypart: &str) -> Result<&'static [EquipSlot], ItemError> {
     use EquipSlot::{
@@ -345,7 +369,7 @@ pub fn validate_paperdoll(
             .transpose()
     };
     if let (Some(right), Some(left)) = (at(EquipSlot::Rhand)?, at(EquipSlot::Lhand)?) {
-        if right.bodypart == "lrhand" && !ammunition_pair(right, left) {
+        if right.bodypart == "lrhand" && !held_ammunition(right, left) {
             return Err(ItemError("two-hand equipment conflict"));
         }
     }

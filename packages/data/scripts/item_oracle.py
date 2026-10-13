@@ -652,7 +652,6 @@ def gear_stats(src,class_file,level,equipment,skill_refs=(),base_deltas=None,bas
     orders={'set':0,'enchant':0,'add':30,'sub':30,'mul':20,'div':20}
     for sid,enchant,slot,seq in equipment:
         file,line,item=src.items[sid];p=src.properties(sid)
-        if p.get('for_npc')=='true':raise ValueError('NPC-only equipment')
         if item.find('cond') is not None and not condition_matches(item.find('cond'),context):raise ValueError('equipment condition failed')
         for ordinal,node in enumerate(item.findall('for/*')):
             if node.tag not in orders:raise ValueError('unsupported oracle function '+node.tag)
@@ -852,7 +851,7 @@ def consumable_definition(src,template_id):
             conditions.append(ET.tostring(copied,encoding='unicode'))
         effects=[]
         for effect in skill.findall('effects/effect'):
-            effects.append({'name':effect.get('name'),'params':{key:resolve(value) for n in effect.findall('param') for key,value in n.attrib.items()}})
+            effects.append({'name':effect.get('name'),'params':{key:behavior.exact_text(resolve(value)) for n in effect.findall('param') for key,value in n.attrib.items()}})
         result.append({'id':sid,'rank':rank,'hit_time_ms':int(sets.get('hitTime','0')),
             'static':sets.get('isMagic')=='2','simultaneous':sets.get('simultaneousCast','false')=='true',
             'reuse_delay_ms':int(sets.get('reuseDelay','0')),
@@ -1212,7 +1211,7 @@ def add_revision_vectors(src,add,human):
                         ('over-fraction-positive',{'current_hp':1001,'recoverable_hp':1000,'remainder_q':500000}),
                         ('over-fraction-zero',{'static':True,'power':0,'current_hp':1001,'recoverable_hp':1000,'remainder_q':500000}),
                         ('at-cap-fraction',{'current_hp':1000,'recoverable_hp':1000,'remainder_q':500000}),
-                        ('static',{'static':True,'power':'1.25','heal_effect':9,'critical':True,'current_hp':9,'recoverable_hp':10}),
+                        ('static',{'static':True,'power':'5/4','heal_effect':9,'critical':True,'current_hp':9,'recoverable_hp':10}),
                         ('negative-static',{'static':True,'power':-1})]:
         inputs=dict(power=100,m_atk=121);inputs.update(kwargs)
         add('F8','heal-clamp-'+name,inputs,heal(**inputs),['H/effecthandlers/instant/Heal.java:92-104'])

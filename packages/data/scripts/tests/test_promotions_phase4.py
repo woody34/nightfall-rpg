@@ -5,8 +5,9 @@ import tomllib
 import unittest
 from packages.data.scripts import gen_items as gen, gen_skills as skills
 
-# Admitted counts after the coordinated promotion (data-progress revision 7 preview, all four families).
-EXPECTED = {'Weapon': 1536, 'Armor': 1834, 'EtcItem': 416, 'skills': 1562, 'options': 23764,
+# Admitted counts after the coordinated promotion (data-progress revision 7 preview, all four families),
+# plus D97 (rev 9): for_npc is not a blocker (+77 weapons, +5 armour, +76 etc items).
+EXPECTED = {'Weapon': 1613, 'Armor': 1839, 'EtcItem': 492, 'skills': 1562, 'options': 23764,
             'augmentation': 27, 'recipes': 925}
 
 
