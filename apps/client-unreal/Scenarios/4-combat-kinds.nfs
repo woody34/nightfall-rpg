@@ -18,7 +18,9 @@
 # D24 unarmed radius: GAME@abfde049 L2Character.java:5034-5044.
 # D25 pole recipients: GAME@abfde049 L2Character.java:1282-1283,1335-1338.
 # Blow/lethal closure is PENDING: phase4-packs.json combat_capability_dependencies.
-# E1 admits NONE of FatalBlow/Backstab/Lethal skills at this revision; do not seed deferred skills.
+# Local E1 rev 7 admits none; E1 rev 8 (packs data_sha256 8e27de15...) admits blow skills 16 and 263.
+# The bot body cannot be gated on the data hash, so blow/lethal steps are added in the scenario
+# revision that follows the rev 8 data import; do not seed deferred skills before then.
 # item-phase: {"name":"dual","formula":"dual_damage","context":{"weapon_template":1299}}
 # item-phase: {"name":"dualfist","formula":"dual_damage","context":{"weapon_template":253}}
 # item-phase: {"name":"pole-primary","formula":"pole_damage","context":{"weapon_template":15},"inputs":{"primary":true}}

@@ -47,9 +47,12 @@ class Fixtures(unittest.TestCase):
         self.assertTrue(all(any(i['template_id']==t and i['enchant']==6 for i in six) for t in templates))
         candidates=fixture.phase4.combat_skill_candidates()
         self.assertTrue(candidates)
-        # A named source dependency, not admission of deferred learned skills.
-        self.assertEqual([c for c in candidates if c['admitted']],[])
-        self.assertTrue(all(c['blockers'] for c in candidates))
+        # A named source dependency, not admission of deferred learned skills. E1 rev 8 (D50
+        # promotion) admits blow skills 16 and 263; gate on the data hash so this activates
+        # when packages/data rev 8 lands here (harness revision 18).
+        rev8=fixture.phase4.table('rules_manifest')['data_sha256']=='8e27de155b2682db3bec34d485316f425678634ddd74b000a8849548a91110c0'
+        self.assertEqual(sorted(c['skill_id'] for c in candidates if c['admitted']),[16,263] if rev8 else [])
+        self.assertTrue(all(c['blockers'] for c in candidates if not c['admitted']))
         kinds=(SCRIPTS.parent/'Scenarios/4-combat-kinds.nfs').read_text()
         self.assertNotIn('damage_numbers',kinds);self.assertIn('nf.Unequip rhand',kinds)
         self.assertEqual(kinds.count('nf.Mark\n'),kinds.count('nf.Attack\n'))
