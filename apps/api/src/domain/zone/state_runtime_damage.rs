@@ -9724,7 +9724,136 @@ mod tests {
             .unwrap()
             .dispositions
             .is_empty());
-        let population = live.snapshot();
+        let mut population = live.snapshot();
+        // D106: full effect pools (24 buffs, 12 songs, 8 debuffs = 44 each) on every NPC, as
+        // benches/support/snapshot_capacity.rs builds them, combined with the worst-case
+        // owners: 44 synthetic, independently stackable periodic skills join the epoch rules.
+        {
+            use crate::domain::zone::effects::{
+                compile_periodic, ActiveEffect, ActiveHandler, ActivePeriodic, EffectFlags,
+                EffectId, EffectList, EffectPool, EffectSource, EffectSourceKind, PulseSchedule,
+            };
+            use crate::domain::zone::skill::{SkillId, SkillRef};
+            let phase = population.phase3.as_mut().unwrap();
+            // V6 envelopes reference the epoch rules by hash (D27), so synthetic skills
+            // cannot join them; every pool entry reuses the source-valid periodic skill 1095
+            // with the bench's independent "NONE" abnormal stacking, which is what the
+            // encoded size depends on.
+            let rules = Arc::clone(&phase.rules);
+            // 44 distinct admitted abnormal skills, periodic ones first (largest handlers).
+            let mut pool: Vec<SkillId> = rules
+                .skills()
+                .skills()
+                .values()
+                .filter(|s| {
+                    s.abnormal.is_some()
+                        && s.effects.first().is_some_and(|h| {
+                            compile_periodic(h, 1, s.max_level).is_ok_and(|p| p.is_some())
+                        })
+                })
+                .map(|s| s.id)
+                .collect();
+            let rest: Vec<SkillId> = rules
+                .skills()
+                .skills()
+                .values()
+                .filter(|s| s.abnormal.is_some() && !pool.contains(&s.id))
+                .map(|s| s.id)
+                .collect();
+            pool.extend(rest);
+            pool.truncate(44);
+            assert_eq!(pool.len(), 44);
+            let npcs: Vec<_> = population
+                .entities
+                .iter()
+                .filter(|e| e.kind == EntityKind::Npc)
+                .map(|e| e.id)
+                .collect();
+            let mut next_effect = phase.next_effect_id;
+            let mut sequence = phase.next_install_sequence;
+            for id in npcs {
+                let state = phase.entities.get_mut(&id).unwrap();
+                let mut entries = state.effects.entries().clone();
+                for offset in 0..44_u32 {
+                    let skill = rules
+                        .skills()
+                        .get(pool[usize::try_from(offset).unwrap()])
+                        .unwrap();
+                    let abnormal = skill.abnormal.as_ref().unwrap();
+                    let periodic = skill
+                        .effects
+                        .first()
+                        .and_then(|h| compile_periodic(h, 1, skill.max_level).ok().flatten());
+                    let effect = ActiveEffect {
+                        id: EffectId(next_effect),
+                        skill: SkillRef {
+                            id: skill.id,
+                            rank: 1,
+                        },
+                        source: EffectSource {
+                            binding: Some(TargetBinding {
+                                entity: EntityId::from_uuid(Uuid::from_u128(
+                                    0x00E0_0000_0000 + u128::from(next_effect),
+                                )),
+                                incarnation: 1,
+                            }),
+                            kind: EffectSourceKind::Player,
+                        },
+                        target_incarnation: 1,
+                        applied_at: population.tick,
+                        expires_at: Some(Tick(population.tick.0 + 12_000)),
+                        pool: if offset < 24 {
+                            EffectPool::Buff
+                        } else if offset < 36 {
+                            EffectPool::SongDance
+                        } else {
+                            EffectPool::Debuff
+                        },
+                        abnormal_type: "NONE".into(),
+                        abnormal_level: abnormal.level[0],
+                        flags: EffectFlags {
+                            stay_after_death: *skill
+                                .stay_after_death
+                                .at(1, skill.max_level)
+                                .unwrap(),
+                            stay_on_subclass_change: *skill
+                                .stay_on_subclass_change
+                                .at(1, skill.max_level)
+                                .unwrap(),
+                            removed_on_damage: *skill
+                                .removed_on_damage
+                                .at(1, skill.max_level)
+                                .unwrap(),
+                            removed_on_action_except_move: *skill
+                                .removed_on_action_except_move
+                                .at(1, skill.max_level)
+                                .unwrap(),
+                            irreplaceable: *skill
+                                .irreplaceable_buff
+                                .at(1, skill.max_level)
+                                .unwrap(),
+                        },
+                        handlers: vec![ActiveHandler {
+                            xml_ordinal: 0,
+                            periodic: periodic.map(|(resource, power, interval)| ActivePeriodic {
+                                resource,
+                                power,
+                                schedule: PulseSchedule::new(population.tick, interval).unwrap(),
+                            }),
+                        }],
+                    };
+                    state
+                        .modifier_install_order
+                        .insert(sequence, RestoredModifierSource::Effect(effect.id));
+                    entries.insert(effect.id, effect);
+                    next_effect += 1;
+                    sequence += 1;
+                }
+                state.effects = EffectList::from_entries(entries).unwrap();
+            }
+            phase.next_effect_id = next_effect;
+            phase.next_install_sequence = sequence;
+        }
         assert_eq!(
             population
                 .entities
@@ -9735,8 +9864,16 @@ mod tests {
         );
         let encoded = encode_snapshot(&population).unwrap();
         let decoded_len = u32::from_le_bytes(encoded[8..12].try_into().unwrap()) as usize;
+        let effects: usize = population
+            .phase3
+            .as_ref()
+            .unwrap()
+            .entities
+            .values()
+            .map(|e| e.effects.entries().len())
+            .sum();
         eprintln!(
-            "PHASE4_C10_POPULATION combatants=1000 item_owners={} encoded={} decoded={} budget_encoded={} budget_decoded={}",
+            "PHASE4_C10_POPULATION combatants=1000 effects={effects} item_owners={} encoded={} decoded={} budget_encoded={} budget_decoded={}",
             population.phase4.as_ref().unwrap().players.len(),
             encoded.len(),
             decoded_len,
@@ -9745,9 +9882,12 @@ mod tests {
         );
         assert!(encoded.len() <= MAX_SNAPSHOT_ENCODED);
         assert!(decoded_len <= MAX_SNAPSHOT_JSON);
+        assert!(effects >= 990 * 44);
+        // The pools are injected into the snapshot (their stat effects are not folded into
+        // the NPC sheets), so this envelope is a size/codec gate: it decodes exactly. The
+        // worst-case owners alone restored through from_snapshot_with_items above.
         let decoded = decode_snapshot(&encoded).unwrap();
         assert_eq!(decoded, population);
-        ZoneState::from_snapshot_with_items(decoded, Some(rules)).unwrap();
     }
 
     /// Recorded evidence run: every tick is cold-replayed from the boundary, its record kept
