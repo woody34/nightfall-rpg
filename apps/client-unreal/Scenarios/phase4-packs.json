@@ -1,5 +1,5 @@
 {
-  "data_sha256": "5b77911ec6bba0b186b9de16d63ea832726943475152a82ea40a5ebd203c4656",
+  "data_sha256": "8e27de155b2682db3bec34d485316f425678634ddd74b000a8849548a91110c0",
   "inputs_are_test_policy": true,
   "packs": {
     "phase4-armor": {
@@ -8042,10 +8042,8 @@
             }
           },
           {
-            "admitted": false,
-            "blockers": [
-              "param:FatalBlow.blowChance"
-            ],
+            "admitted": true,
+            "blockers": [],
             "skill_id": 16,
             "source": {
               "file": "src/main/resources/data/stats/skills/00000-00099.xml",
@@ -8055,10 +8053,8 @@
             }
           },
           {
-            "admitted": false,
-            "blockers": [
-              "param:FatalBlow.blowChance"
-            ],
+            "admitted": true,
+            "blockers": [],
             "skill_id": 263,
             "source": {
               "file": "src/main/resources/data/stats/skills/00200-00299.xml",
@@ -8097,7 +8093,6 @@
           {
             "admitted": false,
             "blockers": [
-              "param:FatalBlow.blowChance",
               "section:selfEffects"
             ],
             "skill_id": 409,
