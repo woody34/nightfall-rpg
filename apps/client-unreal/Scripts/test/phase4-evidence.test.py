@@ -2,6 +2,7 @@
 """Synthetic exporter validation and independent actual-input Fraction gate tests."""
 import copy
 import importlib.util
+import inspect
 import json
 import random
 import re
@@ -1673,7 +1674,7 @@ class Evidence(unittest.TestCase):
         inputs=dict(weapon=gate.oracle.behavior.bow_definition(gate.source(),13),
                     inventory=[gate.oracle.behavior.arrow_stack(gate.source(),17,2)],
                     lhand=None,mp=10,mp_modifier=1,reduction_residue=None,miss=False,
-                    hit_chance=800,hit_residue=799,critical_residue=17,spread_residue=3)
+                    hit_chance=800,hit_residue=799,critical_residue=17,spread_residue=3,blocked=False)
         actual=gate.residue_family('bow_launch',inputs)
         self.assertEqual((actual['arrows_consumed'],actual['inventory'][0]['count'],actual['mp']),(1,1,9))
         rows=copy.deepcopy(self.rows)
@@ -1689,9 +1690,9 @@ class Evidence(unittest.TestCase):
     def test_d87_bow_and_dual_residues_are_fact_inputs(self):
         bow=dict(weapon=gate.oracle.behavior.bow_definition(gate.source(),13),
                  inventory=[gate.oracle.behavior.arrow_stack(gate.source(),17,2)],lhand=None,mp=10,mp_modifier=1,
-                 reduction_residue=None,miss=False,hit_chance=800,hit_residue=100,critical_residue=17,spread_residue=3)
+                 reduction_residue=None,miss=False,hit_chance=800,hit_residue=100,critical_residue=17,spread_residue=3,blocked=False)
         dual=dict(hits=[True,False],formulas=[10,'3/2'],second_valid=True,hit_residues=[100,900],hit_chance=800,
-                  spread_radius=6,critical_residues=[4,None],spread_residues=[0,None])
+                  spread_radius=6,critical_residues=[4,None],spread_residues=[0,None],blocked=[False,False])
         for name,inputs,sites in (('bow_launch',bow,{'critical':17,'spread':3}),('dual_plan',dual,{'critical1':4,'spread1':0})):
             with self.subTest(formula=name):
                 actual=gate.oracle.rational(gate.residue_family(name,inputs))
@@ -1731,7 +1732,7 @@ class Evidence(unittest.TestCase):
         D88's strict `<` is revoked; the ticks unit stands."""
         bow=dict(weapon=gate.oracle.behavior.bow_definition(gate.source(),13),
                  inventory=[gate.oracle.behavior.arrow_stack(gate.source(),17,2)],lhand=None,mp=10,mp_modifier=1,
-                 reduction_residue=None,miss=False,hit_chance=800,hit_residue=799,critical_residue=17,spread_residue=3)
+                 reduction_residue=None,miss=False,hit_chance=800,hit_residue=799,critical_residue=17,spread_residue=3,blocked=False)
         miss=bow|dict(miss=True,critical_residue=None,spread_residue=None)
         strict=self.oracle_hit_strict()
         for inputs,hit,boundary in ((bow,True,False),(bow|dict(hit_residue=800),True,True),(miss|dict(hit_residue=801),False,False),
@@ -1751,7 +1752,7 @@ class Evidence(unittest.TestCase):
         for chance in (199,981,0,1000):
             with self.assertRaises(ValueError):gate.input_domains('bow_launch',bow|dict(hit_chance=chance))
         dual=dict(hits=[True,False],formulas=[10,10],second_valid=True,hit_residues=[800,801],hit_chance=800,
-                  spread_radius=0,critical_residues=[5,None],spread_residues=[0,None])
+                  spread_radius=0,critical_residues=[5,None],spread_residues=[0,None],blocked=[False,False])
         gate.hit_rule('dual_plan',dual)
         if not strict:gate.formula('dual_plan',dual,gate.oracle.rational(gate.residue_family('dual_plan',dual)))
         for bad in (dual|dict(hits=[False,False],critical_residues=[None,None],spread_residues=[None,None]),
@@ -1873,7 +1874,7 @@ class Evidence(unittest.TestCase):
         """Review-2 P3-1 / D96: adapters only on pre-D87 data; rev 9 oracles pass residues through."""
         from unittest.mock import patch
         dual=dict(hits=[True,False],formulas=[10,10],second_valid=True,hit_residues=[799,801],hit_chance=800,
-                  spread_radius=2,critical_residues=[5,None],spread_residues=[1,None])
+                  spread_radius=2,critical_residues=[5,None],spread_residues=[1,None],blocked=[False,False])
         expected=gate.oracle.rational(gate.residue_family('dual_plan',dual))
         real=gate.oracle.behavior.dual_plan;adopted=gate.oracle_adopted_d87('dual_plan')
         def rev9(hits,formulas,second_valid,hit_residues,hit_chance,spread_radius,critical_residues,spread_residues):
@@ -1898,6 +1899,38 @@ class Evidence(unittest.TestCase):
             result=gate.evaluate(rows,self.recording,OWNER,['dual_plan'],HASH)
             self.assertFalse(result['passed']);self.assertTrue(any('D96' in e for g in result['gates'] for e in g['errors']))
         print('Rev 9 path: residue parameters detected by signature pass through; an old oracle on unknown data is a verdict',flush=True)
+
+    def test_d108_perfect_block_takes_no_spread_and_d109_reduced_mp_callsite(self):
+        bow=dict(weapon=gate.oracle.behavior.bow_definition(gate.source(),13),
+                 inventory=[gate.oracle.behavior.arrow_stack(gate.source(),17,2)],lhand=None,mp=10,mp_modifier=1,
+                 reduction_residue=None,miss=False,hit_chance=800,hit_residue=100,critical_residue=17,spread_residue=None,blocked=True)
+        actual=gate.oracle.rational(gate.residue_family('bow_launch',bow))
+        self.assertEqual([d['site'] for d in actual['draws']],['hit','critical']) # no spread draw on a perfect block
+        rows=copy.deepcopy(self.rows);rows[1]['data'].update(formula='bow_launch',inputs=bow,actual=actual)
+        self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['bow_launch'],HASH)['passed'])
+        dual=dict(hits=[True,True],formulas=[10,10],second_valid=True,hit_residues=[100,200],hit_chance=800,
+                  spread_radius=3,critical_residues=[5,6],spread_residues=[None,4],blocked=[True,False])
+        actual=gate.oracle.rational(gate.residue_family('dual_plan',dual))
+        self.assertEqual([d['site'] for d in actual['draws'] if d['site'].startswith('spread')],['spread2'])
+        gate.formula('dual_plan',dual,actual)
+        mutations=[('bow_launch',bow|dict(spread_residue=3)),('bow_launch',bow|dict(blocked=False)),           # spread null iff blocked
+                   ('bow_launch',bow|dict(miss=True,hit_residue=900,critical_residue=None)),                   # a miss is never blocked
+                   ('bow_launch',{k:v for k,v in bow.items() if k!='blocked'}),('bow_launch',bow|dict(blocked=None)),
+                   ('dual_plan',dual|dict(spread_residues=[2,4])),('dual_plan',dual|dict(blocked=[False,False])),
+                   ('dual_plan',dual|dict(hits=[True,False],hit_residues=[100,900],critical_residues=[5,None],spread_residues=[None,None],blocked=[True,True])),
+                   ('dual_plan',dual|dict(blocked=True))]
+        for name,inputs in mutations:
+            with self.subTest(formula=name,inputs={k:inputs.get(k) for k in ('blocked','spread_residue','spread_residues','miss')}):
+                with self.assertRaises(ValueError):gate.formula(name,inputs,actual)
+        # D109: the reduced_mp_consume roll records callsite bow_reduced_mp with bound 100.
+        rows=copy.deepcopy(self.rows)
+        rows.insert(2,dict(kind='item_rng',entity=OWNER,incarnation=1,tick=0,sequence=1,data=dict(resolution_id='attack:9',
+            callsite='bow_reduced_mp',word_before=0,word_after=1,bound=100,value=42)))
+        self.repair(rows);gate.validate(rows,self.recording,HASH)
+        for bound in (1000,99):
+            bad=copy.deepcopy(rows);bad[2]['data']['bound']=bound
+            with self.assertRaisesRegex(ValueError,'callsite bound'):gate.validate(bad,self.recording,HASH)
+        print(f'D108: perfect-block bow/dual facts without a spread draw pass; {len(mutations)} block/spread mutations reject. D109: bow_reduced_mp bound 100 accepted',flush=True)
 
     def test_item_record_scalar_substitutions_through_evaluate(self):
         vectors=gate.oracle.make_vectors(gate.source())
@@ -2015,7 +2048,9 @@ class Evidence(unittest.TestCase):
             # Review-2 P3-4: is_pvp is required; E1 vectors leave it to the oracle default.
             inputs['is_pvp']=inputs.get('attacker_player',True) and inputs.get('target_player',False)
         if name not in gate.RESIDUE_INPUTS:return inputs
-        function=getattr(gate.oracle.behavior,name)
+        inputs.setdefault('blocked',False if name=='bow_launch' else [False,False]) # D108
+        function=lambda **kw:getattr(gate.oracle.behavior,name)(**{k:v for k,v in kw.items() if k!='blocked' or 'blocked' in sig})
+        sig=inspect.signature(getattr(gate.oracle.behavior,name)).parameters
         if gate.oracle_adopted_d87(name):
             # Rev 9: vectors already carry the residues; fixtures get 0 for taken draws, null otherwise.
             if set(gate.RESIDUE_INPUTS[name])<=set(inputs):return inputs
@@ -2071,7 +2106,7 @@ class Evidence(unittest.TestCase):
             with self.subTest(formula=name):
                 parameters=dict(inspect.signature(function).parameters);parameters.pop('src',None)
                 # D87 adds the critical/spread residues the E1 rev 8 oracle still hard-codes.
-                self.assertEqual(set(gate.INPUT_SCHEMAS[name]),set(parameters)|set(gate.RESIDUE_INPUTS.get(name,()))|set(gate.EXTRA_INPUTS.get(name,())))
+                self.assertEqual(set(gate.INPUT_SCHEMAS[name]),set(parameters)|set(gate.RESIDUE_INPUTS.get(name,()))|set(gate.EXTRA_INPUTS.get(name,()))|set(gate.BLOCK_INPUTS.get(name,())))
                 for key,param in parameters.items():
                     # D89: always-evaluated booleans are never null; draw-derived flags may be.
                     if (name,key)==('magic_damage','is_pvp'):self.assertEqual(gate.INPUT_SCHEMAS[name][key],gate.BOOL)
@@ -2210,7 +2245,7 @@ class Evidence(unittest.TestCase):
              'reduction',(None,1,{},[1],[0,1,2],[None,1],[1,-1],[1,2**63],[101,1])),
             ('dual_plan',dict(hits=[True,False],formulas=[10,'3/2'],second_valid=True,
                              hit_residues=[799,801],hit_chance=800,spread_radius=6,
-                             critical_residues=[999,None],spread_residues=[6,None]),'formulas',
+                             critical_residues=[999,None],spread_residues=[6,None],blocked=[False,False]),'formulas',
              (None,1,{},[],[1],[1,2,3],[True,1],[None,1],[[],1],[2**63,1])),
             ('winning_providers',dict(providers=[dict(key='item:1',skill_id=1,rank=1,sequence=0)]),'providers',
              (None,{},1,[None],[{}],[dict(key='item:1',skill_id=1,rank=1,sequence=0,unknown=1)],

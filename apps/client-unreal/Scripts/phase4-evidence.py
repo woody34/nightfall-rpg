@@ -212,7 +212,7 @@ INPUT_SCHEMAS={
     'bow_launch':dict(weapon=WEAPON,inventory=list_of(ITEM),lhand=nullable(IDENTITY),mp=NONNEG_NUMERIC,
         mp_modifier=NONNEG_NUMERIC,reduction_residue=nullable(int_range(0,99)),miss=BOOL,
         reuse_remaining=NONNEG_INT,hit_chance=int_range(200,980),hit_residue=nullable(int_range(0,999)),
-        critical_residue=nullable(int_range(0,999)),spread_residue=nullable(NONNEG_INT)),
+        critical_residue=nullable(int_range(0,999)),spread_residue=nullable(NONNEG_INT),blocked=BOOL),
     'bow_refill':dict(weapon=WEAPON,arrow=ITEM,mp=NONNEG_NUMERIC),
     'resurrection_scroll':dict(definition=DEFINITION,start_tick=NONNEG_INT,available=NONNEG_INT,
         death_incarnation=IDENTITY,current_incarnation=IDENTITY,dead=BOOL,
@@ -229,7 +229,7 @@ INPUT_SCHEMAS={
     'dual_plan':dict(hits=tuple_of(BOOL,BOOL),formulas=tuple_of(NUMERIC,NUMERIC),second_valid=BOOL,
         hit_residues=tuple_of(int_range(0,999),int_range(0,999)),hit_chance=int_range(200,980),spread_radius=NONNEG_INT,
         critical_residues=tuple_of(nullable(int_range(0,999)),nullable(int_range(0,999))),
-        spread_residues=tuple_of(nullable(NONNEG_INT),nullable(NONNEG_INT))),
+        spread_residues=tuple_of(nullable(NONNEG_INT),nullable(NONNEG_INT)),blocked=tuple_of(BOOL,BOOL)),
     'enchant_safe':dict(current=U32,fullarmor=BOOL,safe_enchant=U32,safe_fullarmor=U32,
         base=NONNEG_NUMERIC,residue=int_range(0,99999)),
     'quantized_enchant':dict(base=NONNEG_NUMERIC,bonus=NONNEG_NUMERIC,support=NONNEG_NUMERIC),
@@ -460,6 +460,8 @@ def validate_input(value,schema,path,bounds=False):
 # parameters the consumer runs the oracle and substitutes the actual residues by draw site;
 # neither residue changes any other output (damage enters through `formulas`).
 RESIDUE_INPUTS={'bow_launch':('critical_residue','spread_residue'),'dual_plan':('critical_residues','spread_residues')}
+# D108: a perfect shield block takes no spread draw; `blocked` (bow) / per-subhit pair (dual).
+BLOCK_INPUTS={'bow_launch':('blocked',),'dual_plan':('blocked',)}
 
 
 # E1 data revisions whose oracle predates D87/D88 (rules_manifest data_sha256: rev 7, rev 8).
@@ -489,15 +491,34 @@ def residue_family(name,inputs):
     hit_rule(name,inputs)
     decoded=oracle.decode_rationals(inputs)
     extra={key:decoded.pop(key) for key in RESIDUE_INPUTS[name]}
+    blocked=decoded.pop('blocked')
+    # D108: blocked spread sites; a perfect block needs a landed hit and leaves its spread null.
+    if name=='bow_launch':
+        if blocked and decoded['miss']:raise ValueError('a missed bow shot cannot be perfectly blocked (D108)')
+        blocked_sites={'spread'} if blocked else set()
+        if blocked and extra['spread_residue'] is not None:raise ValueError('a perfectly blocked hit takes no spread draw (D108/D89)')
+    else:
+        if any(b and not h for b,h in zip(blocked,decoded['hits'])):raise ValueError('a missed subhit cannot be perfectly blocked (D108)')
+        blocked_sites={f'spread{i}' for i,b in enumerate(blocked,1) if b}
+        if any(b and v is not None for b,v in zip(blocked,extra['spread_residues'])):raise ValueError('a perfectly blocked subhit takes no spread draw (D108/D89)')
     function=getattr(oracle.behavior,name)
+    parameters=inspect.signature(function).parameters
+    def unblocked(result):
+        result['draws']=[d for d in result['draws'] if d['site'] not in blocked_sites]
+        return result
     if oracle_adopted_d87(name):
         # Rev 9 path (D96): E1 takes the residues as parameters; pass straight through.
-        result=function(**decoded,**extra)
+        if 'blocked' in parameters:result=function(**decoded,**extra,blocked=blocked)
+        else:
+            # Oracle without D108: give the blocked spread draw a placeholder, then drop that draw.
+            if name=='bow_launch' and blocked and decoded['weapon']['spread_radius']>0:extra['spread_residue']=0
+            if name=='dual_plan':extra['spread_residues']=[0 if b else v for b,v in zip(blocked,extra['spread_residues'])]
+            result=unblocked(function(**decoded,**extra))
         if name in DRAW_FIELDS:draw_fields(name,inputs,result)
         return result
     if source_data_sha256() not in PRE_D87_DATA:
         raise ValueError('E1 data is newer than rev 8 but its oracle lacks the D87 residue parameters (D96)')
-    result=function(**decoded)
+    result=unblocked(function(**decoded))
     if name=='bow_launch':sites={'critical':extra['critical_residue'],'spread':extra['spread_residue']}
     else:
         sites={f'{kind}{index}':extra[kind+'_residues'][index-1] for kind in ('critical','spread') for index in (1,2)}
@@ -517,6 +538,11 @@ def source_data_sha256():
     return table('rules_manifest')['data_sha256']
 
 
+# Item RNG callsites with pinned bounds. D109: `bow_reduced_mp` (Rnd.get(100), the
+# reduced_mp_consume roll of the 21 such bows) appears in bow recordings.
+CALLSITE_BOUNDS={'enchant':100000,'bow_reduced_mp':100}
+
+
 # D104: optional harness inputs beyond the E1 signature (engine MP respawn floor operands).
 EXTRA_INPUTS={'resurrection_scroll':('max_mp','restore_mp')}
 
@@ -532,7 +558,7 @@ def input_domains(name,inputs):
     if function:
         parameters=inspect.signature(function).parameters
         required={key for key,p in parameters.items() if key!='src' and p.default is inspect.Parameter.empty}
-        required|=set(RESIDUE_INPUTS.get(name,()))|set(REQUIRED_INPUTS.get(name,()))
+        required|=set(RESIDUE_INPUTS.get(name,()))|set(REQUIRED_INPUTS.get(name,()))|set(BLOCK_INPUTS.get(name,()))
     else:required=set(INPUT_SCHEMAS[name])
     schema=record({k:INPUT_SCHEMAS[name][k] for k in required},
                   {k:v for k,v in INPUT_SCHEMAS[name].items() if k not in required})
@@ -1109,6 +1135,8 @@ def validate(rows,recording,rules_hash):
             if after<=before or cursor is not None and before!=cursor or value>=bound:raise ValueError('invalid RNG cursor/residue')
             cursor=after
             if not isinstance(data['callsite'],str) or not data['callsite']:raise ValueError('RNG callsite required')
+            # Known callsites have pinned bounds; other callsites stay accepted (draw table, D46).
+            if data['callsite'] in CALLSITE_BOUNDS and bound!=CALLSITE_BOUNDS[data['callsite']]:raise ValueError('RNG callsite bound mismatch: '+data['callsite'])
         elif row['kind']=='item_delta':
             receipt_field='receipt_refs' if data.get('operation')=='consume' else 'receipt_ref'
             fields={'operation','instance','before','after','count_delta','operation_ordinal',receipt_field,'resolution_id'}

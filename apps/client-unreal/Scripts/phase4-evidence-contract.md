@@ -384,11 +384,11 @@ design `docs/plans/phase-4-zone-design.md` §12.1 and the producer in
 
 | Family | Producer caller / `context.event` | `inputs` (beyond the oracle signature) | `actual` |
 |---|---|---|---|
-| `bow_launch` | bow attack start, `attack` (+`weapon_template`, `target_entity`) | `weapon` = E1 bow_definition record; `inventory` = ITEM records of candidate arrows; `lhand` occupied arrow id or null; `mp`, `mp_modifier` exact; `reduction_residue` null iff no reduced-MP draw; `miss`; `reuse_remaining` TICKS (D88); `hit_chance` per-mille clamped to [200, 980], hit iff `hit_residue <= hit_chance` (calcHitMiss; D88's `<` revoked); `hit_residue`, `critical_residue`, `spread_residue` (D87, required, null iff the draw was not taken, D89) | `{accepted, reason∈arrows/reuse/mp/launched, inventory, lhand, equipped_lhand, mp, mp_q, mp_paid, arrows_consumed∈0..1, draws, hit, mp_cost?}`; the launch's arrow debit is an `arrow:<resolution_id>` Consume cause |
+| `bow_launch` | bow attack start, `attack` (+`weapon_template`, `target_entity`) | `weapon` = E1 bow_definition record; `inventory` = ITEM records of candidate arrows; `lhand` occupied arrow id or null; `mp`, `mp_modifier` exact; `reduction_residue` null iff no reduced-MP draw; `miss`; `reuse_remaining` TICKS (D88); `hit_chance` per-mille clamped to [200, 980], hit iff `hit_residue <= hit_chance` (calcHitMiss; D88's `<` revoked); `hit_residue`, `critical_residue`, `spread_residue` (D87, required, null iff the draw was not taken, D89); `blocked` required boolean, true iff perfect shield block, then `spread_residue` is null (D108); RNG callsite `bow_reduced_mp` bound 100 for reduced_mp_consume bows (D109) | `{accepted, reason∈arrows/reuse/mp/launched, inventory, lhand, equipped_lhand, mp, mp_q, mp_paid, arrows_consumed∈0..1, draws, hit, mp_cost?}`; the launch's arrow debit is an `arrow:<resolution_id>` Consume cause |
 | `bow_reuse` | bow attack accepted, `attack` | `reuse_delay` (template ms), `attack_speed` exact P.Atk.Spd, `weapon_reuse_modifier` | whole ms `trunc(reuse·333/speed)` (D17) |
 | `bow_damage` | bow hit, `attack` | `formula` exact calcPhysDam, `dx_milli`, `dy_milli` signed milli-tiles | `{base, distance_l2_lower, distance_l2_upper, damage}`; bounds are certified 2^-bits rationals, D80 strings |
 | `pole_sequence` | pole swing, `attack` | `candidates` in attempt order `{eligible, hit, formula}`, `maximum` secondary count | per eligible attempt `{percent, hit, draws, base?, damage?}` (D25 85% ÷23/20) |
-| `dual_plan` | dual swing, `attack` | `hits` pair (hit iff residue <= `hit_chance`, chance in [200, 980], calcHitMiss), `formulas` pair, `second_valid`, `hit_residues` pair, `hit_chance`, `spread_radius`, `critical_residues` pair and `spread_residues` pair (D87, required, entry null iff that subhit's draw was not taken, D89) | `{plan, stored_second, applied=[first, second|null], second_recomputed, draws, refunded_draws}` |
+| `dual_plan` | dual swing, `attack` | `hits` pair (hit iff residue <= `hit_chance`, chance in [200, 980], calcHitMiss), `formulas` pair, `second_valid`, `hit_residues` pair, `hit_chance`, `spread_radius`, `critical_residues` pair and `spread_residues` pair (D87, required, entry null iff that subhit's draw was not taken, D89); `blocked` pair of booleans per subhit, true iff perfect block, then that subhit's spread entry is null (D108) | `{plan, stored_second, applied=[first, second|null], second_recomputed, draws, refunded_draws}` |
 | `magic_damage` | magic skill hit, `cast` (+`skill_id`, `target_entity`) | exact stats + shot flags + branch inputs; `first_success`/`second_success` null iff their draw was not taken; `is_pvp` required boolean (D89) | `{lower, upper, damage, damage_q, branch}` |
 | `heal` | heal effect, `cast` | power/m_atk/shot/grade inputs; `current_hp`, `remainder_q` before; `recoverable_hp` null = uncapped | `{amount, restoration_q, applied_q, current_hp, remainder_q, whole_credit, coefficient, static_bonus, root_lower, root_upper}` |
 | `gear_stats` | dirty rebuild, `equip`/`unequip`/`enchant`/`admission` (+`set_id`) | `class_file` pinned path, `level`, `equipment` `[template, enchant, slot, install_seq]`, `skill_refs` `[skill, rank, seq]` winning providers, `base_deltas`, `base_delta_sequence` | `{q, getters, base_stats}`: q/getters = exactly the 11 folded stats (pAtk, mAtk, pDef, mDef, critRate, pAtkSpd, maxHp, maxMp, maxCp, mAtkSpd, runSpd), getters = trunc(q/Q); base_stats STR..MEN after deltas (D103) |
@@ -492,3 +492,15 @@ verified by exact oracle equality on the producer's actual inputs.
   changed in Phase 4) and accepted as exactly `max(mp, floor(max_mp ×
   restore_mp))` when the optional inputs `max_mp`/`restore_mp` are emitted,
   otherwise as any raise; an MP decrease refuses.
+- D108 (engine-review-4): on a perfect shield block the spread draw is not
+  taken. `bow_launch.inputs.blocked` (boolean) and `dual_plan.inputs.blocked`
+  (one boolean per subhit — harness reading of D108 for the two-subhit
+  family) are REQUIRED; blocked is true iff that hit was perfectly blocked,
+  requires a landed hit, and then the corresponding spread residue is null
+  (D89). The consumer passes `blocked` to the oracle when its signature takes
+  it; otherwise it gives the oracle a placeholder spread residue and drops the
+  blocked spread draw from the expected `draws`.
+- D109: item_rng callsite `bow_reduced_mp` (pinned `Rnd.get(100)` of the 21
+  reduced_mp_consume bows) is accepted. Callsites with pinned bounds are
+  checked (`enchant` 100000, `bow_reduced_mp` 100); other callsites remain
+  accepted as before.
