@@ -647,10 +647,9 @@ async fn owned_jetstream_item_actor_acknowledges_log_before_item_checkpoint_and_
     let Ok(url) = std::env::var("NATS_URL") else {
         return;
     };
+    // D102(b): the event log creates the streams it needs; the outbox publisher is not part
+    // of this contract.
     let client = async_nats::connect(url).await.unwrap();
-    crate::infrastructure::outbox::JetStreamPublisher::connect(client.clone())
-        .await
-        .unwrap();
     let log =
         crate::infrastructure::eventlog::JetStreamEventLog::connect(client, Metrics::detached())
             .await
