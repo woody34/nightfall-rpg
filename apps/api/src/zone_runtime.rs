@@ -37,6 +37,11 @@ pub struct ZoneRuntimeConfig {
     /// selects legacy new epochs; exact1 explicitly requests V5. Simulation fixtures
     /// retain legacy policy unless explicitly selected. Malformed values refuse startup.
     pub phase3_enabled: Option<String>,
+    /// `PHASE4_ENABLED` (D27): unset or exact `0` keeps V5 new epochs (legacy replay
+    /// unchanged); exact `1` boots every new epoch as V6 with the embedded, hash-referenced
+    /// Phase 4 item and skill bundle. V6 extends V5, so it requires the V5 selection.
+    /// Malformed values refuse startup.
+    pub phase4_enabled: Option<String>,
 }
 
 impl ZoneRuntimeConfig {
@@ -59,6 +64,7 @@ impl ZoneRuntimeConfig {
             simulation_fixture: get("ZONE_SIM_FIXTURE").map(|v| v.to_string_lossy().into_owned()),
             auth_dev_tokens: get("AUTH_DEV_TOKENS").is_some_and(|v| v == "1"),
             phase3_enabled: get("PHASE3_ENABLED").map(|v| v.to_string_lossy().into_owned()),
+            phase4_enabled: get("PHASE4_ENABLED").map(|v| v.to_string_lossy().into_owned()),
         }
     }
 
@@ -71,10 +77,70 @@ impl ZoneRuntimeConfig {
         }
     }
 
+    fn phase4_requested(&self) -> anyhow::Result<bool> {
+        match self.phase4_enabled.as_deref() {
+            None | Some("0") => Ok(false),
+            Some("1") => {
+                anyhow::ensure!(
+                    self.phase3_requested()?,
+                    "PHASE4_ENABLED=1 extends the V5 bundle; PHASE3_ENABLED must be unset or 1"
+                );
+                Ok(true)
+            },
+            Some(_) => anyhow::bail!("PHASE4_ENABLED must be unset, 0 or 1"),
+        }
+    }
+
     /// Validates the compiled epoch selection before adapter connections and recovery.
-    /// Full bundle validation remains required whenever V5 is selected.
+    /// Full bundle validation remains required whenever V5 or V6 is selected.
     pub fn validate_production_selection(&self) -> anyhow::Result<()> {
-        self.phase3_requested().map(|_| ())
+        self.phase3_requested()?;
+        self.phase4_requested().map(|_| ())
+    }
+
+    /// Loads and validates the V6 bundle (D27: embedded tables, referenced by hash) before
+    /// adapters connect or epochs recover. `None` keeps V5 new epochs. The returned skills
+    /// replace the V5 skill bundle for persistence validators and the zone.
+    pub fn prepare_phase4(
+        &self,
+        classes: &crate::infrastructure::class_data::ResolvedClasses,
+    ) -> anyhow::Result<Option<crate::infrastructure::item_data::Phase4RuleBundle>> {
+        if !self.phase4_requested()? {
+            return Ok(None);
+        }
+        let bundle = crate::infrastructure::item_data::embedded_phase4_bundle()
+            .map_err(anyhow::Error::msg)?;
+        let rules = match &self.rules_dir {
+            Some(dir) => rules_data::load_rules_dir(dir)?,
+            None => rules_data::load_rules(&rules_data::RulesSource::embedded())?,
+        };
+        let zone = self.load_zone()?;
+        // The V6 skills pass every V5 bootstrap check against this installation.
+        phase3::validate_phase3_rules(&bundle.skills, &rules, classes, &zone)?;
+        bundle
+            .items
+            .validate_phase3(&bundle.skills)
+            .map_err(anyhow::Error::msg)?;
+        let blacksmith = &bundle.items.parts().capacities.blacksmith;
+        anyhow::ensure!(
+            zone.bounds
+                .contains(crate::domain::zone::Vec2Fixed::from_tiles(blacksmith.x, blacksmith.y)),
+            "Phase4 blacksmith is outside zone bounds"
+        );
+        let hex = |hash: [u8; 32]| {
+            let mut text = "sha256:".to_owned();
+            for byte in hash {
+                let _ = std::fmt::Write::write_fmt(&mut text, format_args!("{byte:02x}"));
+            }
+            text
+        };
+        tracing::info!(phase4_item_rules_hash = %hex(bundle.items.hash()),
+            phase4_skill_rules_hash = %hex(bundle.skills.hash()),
+            physical_rules_hash = %rules.config_hash,
+            classes_hash = %classes.config_hash,
+            zone_config_hash = %zone.config_hash,
+            "Phase3 bootstrap bundle validated with the Phase4 (V6) item extension");
+        Ok(Some(bundle))
     }
 
     /// Loads the complete V5 bundle before adapters connect or epochs recover. The
@@ -169,6 +235,12 @@ pub async fn start(
         "persistent character runtime requires NATS_URL for durable replay before startup"
     );
     let phase3_requested = cfg.phase3_requested()?;
+    let phase4 = match &deps.classes {
+        Some(classes) => cfg.prepare_phase4(classes)?,
+        None => cfg.prepare_phase4(&crate::infrastructure::class_data::load_classes(
+            &crate::infrastructure::class_data::ClassSource::embedded(),
+        )?)?,
+    };
     let metrics = deps.metrics.clone();
     let clock = deps.clock.clone();
     let def = cfg.load_zone()?;
@@ -184,7 +256,13 @@ pub async fn start(
             &crate::infrastructure::class_data::ClassSource::embedded(),
         )?,
     };
-    let phase3 = if phase3_requested {
+    let phase3 = if let Some(bundle) = &phase4 {
+        anyhow::ensure!(
+            deps.learning.is_some() && deps.item_checkpoints.is_some() && deps.item_admission.is_some(),
+            "Phase4 requires atomic learning, item checkpoint and item range persistence before recovery"
+        );
+        Some((*bundle.skills).clone())
+    } else if phase3_requested {
         let source = cfg.phase3_source()?;
         anyhow::ensure!(
             deps.learning.is_some(),
@@ -214,6 +292,13 @@ pub async fn start(
     if let Some(learning) = &deps.learning {
         checkpoints = checkpoints.with_learning(learning.clone());
     }
+    // Recovered V6 epochs and new V6 work settle through the same atomic item lane.
+    if let Some(items) = &deps.item_checkpoints {
+        checkpoints = checkpoints.with_items(items.clone());
+    }
+    if let Some(reservations) = &deps.item_admission {
+        checkpoints = checkpoints.with_item_admission(reservations.clone());
+    }
     if let Some(store) = &snapshots {
         checkpoints
             .recover_indexed(log.as_ref(), store.as_ref(), def.zone)
@@ -228,6 +313,10 @@ pub async fn start(
         .with_classes(classes.registry, classes.config_hash);
     if let Some(phase3) = phase3 {
         bootstrap = bootstrap.with_phase3_rules(phase3);
+    }
+    if let (Some(bundle), Some(reservations)) = (phase4, &deps.item_admission) {
+        // Every new epoch of this run boots V6 with fresh durable instance reservations.
+        bootstrap = bootstrap.with_phase4_rules(bundle.items, reservations.clone());
     }
     let running = bootstrap.start(&def, IntervalTicks::new()).await?;
     running.handle().checkpoints.install(checkpoints);

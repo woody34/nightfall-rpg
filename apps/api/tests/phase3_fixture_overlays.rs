@@ -170,6 +170,7 @@ fn generated_overlay_and_all_seed_roles_pass_real_admission() -> anyhow::Result<
                 simulation_fixture: (fixture == "phase1a-social-aggro").then(|| fixture.to_owned()),
                 auth_dev_tokens: true,
                 phase3_enabled: Some("1".into()),
+                phase4_enabled: None,
             };
             let prepared = config
                 .prepare_phase3(load_classes(&ClassSource::from_dir(&data)?)?)?

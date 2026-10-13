@@ -50,21 +50,14 @@ impl PreparedPhase3Bootstrap {
     }
 }
 
-/// Validates every input before any production broker connection, recovery or epoch write.
-/// Class-catalogue and NPC-template compatibility prevent combining different installations.
-pub fn prepare_phase3_bootstrap(
-    source: &Phase3DataSource,
-    physical: ResolvedRules,
-    classes: ResolvedClasses,
-    zone: ZoneDefinition,
-) -> anyhow::Result<PreparedPhase3Bootstrap> {
-    let required = classes
-        .registry
-        .known_skills()
-        .iter()
-        .map(|s| crate::domain::zone::skill::SkillId(s.id))
-        .collect::<Vec<_>>();
-    let phase3 = load_phase3_rules(source, &required)?;
+/// Checks a skill bundle (V5, or the V6 extension) against the class catalogue, the zone's
+/// peace geometry, the physical starter weapon and every NPC template of this installation.
+pub(super) fn validate_phase3_rules(
+    phase3: &Phase3Rules,
+    physical: &ResolvedRules,
+    classes: &ResolvedClasses,
+    zone: &ZoneDefinition,
+) -> anyhow::Result<()> {
     phase3
         .validate_catalogue(&classes.registry)
         .map_err(anyhow::Error::msg)?;
@@ -85,6 +78,25 @@ pub fn prepare_phase3_bootstrap(
             template.id.0
         );
     }
+    Ok(())
+}
+
+/// Validates every input before any production broker connection, recovery or epoch write.
+/// Class-catalogue and NPC-template compatibility prevent combining different installations.
+pub fn prepare_phase3_bootstrap(
+    source: &Phase3DataSource,
+    physical: ResolvedRules,
+    classes: ResolvedClasses,
+    zone: ZoneDefinition,
+) -> anyhow::Result<PreparedPhase3Bootstrap> {
+    let required = classes
+        .registry
+        .known_skills()
+        .iter()
+        .map(|s| crate::domain::zone::skill::SkillId(s.id))
+        .collect::<Vec<_>>();
+    let phase3 = load_phase3_rules(source, &required)?;
+    validate_phase3_rules(&phase3, &physical, &classes, &zone)?;
     let mut hash = "sha256:".to_owned();
     for byte in phase3.hash() {
         write!(&mut hash, "{byte:02x}")?;
