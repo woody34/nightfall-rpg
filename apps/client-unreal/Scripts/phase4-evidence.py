@@ -815,34 +815,49 @@ def validate(rows,recording,rules_hash):
 
 
 def inventory_history(rows,targets=None):
-    """D55/D66: one owner step, ordered continuity and conservation per tick."""
+    """D55/D66/D79: one owner step, ordered continuity and conservation per tick.
+
+    D79: an item's `revision` is its LAST-CHANGE revision. The owner advances one
+    step per changed tick and every post-state written in that tick carries the
+    new step; untouched instances keep their older revision (no per-tick
+    re-stamp). A `before` therefore equals the instance's retained state exactly,
+    including that last-change revision: strictly below the tick's step on its
+    first touch in the tick, equal to the step for later same-tick rows.
+    """
     groups={};owners={};steps={}
     for row in rows[1:-1]:
         groups.setdefault((row['entity'],row['incarnation'],row['tick']),[]).append(row)
     for scope,facts in groups.items():
         owner=scope[:2];tick=scope[2]
-        revision,states,complete=owners.get(owner,(None,{},False))
+        revision,states,complete,floor=owners.get(owner,(None,{},False,-1))
         balances={}
         for row in facts:
             if row['kind']=='item_baseline':
                 baseline=row['data'];bound={item['id']:item for item in baseline['instances']}
+                if any(item['revision']>baseline['inventory_revision'] for item in baseline['instances']):
+                    raise ValueError('baseline item revision ahead of inventory revision (D79)')
                 if revision is not None:
                     same(baseline['inventory_revision'],revision)
                     if complete:same(bound,{identity:state for identity,state in states.items() if state is not None})
                     else:
                         for identity,state in states.items():same(bound.get(identity),state)
+                elif baseline['inventory_revision']<floor:raise ValueError('baseline inventory revision regressed')
                 revision=baseline['inventory_revision'];states=bound;complete=True
         deltas=[row['data'] for row in facts if row['kind']=='item_delta']
         if not deltas:
-            owners[owner]=(revision,states,complete)
+            owners[owner]=(revision,states,complete,floor)
             continue
+        afters={d['after']['revision'] for d in deltas if d['after'] is not None}
         if revision is None:
-            before=[d['before']['revision'] for d in deltas if d['before'] is not None]
-            after=[d['after']['revision']-1 for d in deltas if d['after'] is not None]
-            # A slice without a baseline binds its initial step from canonical endpoints.
-            revision=min(before+after)
-        current=revision+1
+            # A slice without a baseline binds its step from the tick's post-states;
+            # befores carry older last-change revisions and cannot bind it (D79).
+            if len(afters)>1:raise ValueError('owner item revision changed within tick')
+            current=afters.pop() if afters else None
+            if current is not None and current<=floor:raise ValueError('item revision did not increase across ticks')
+            revision=None if current is None else current-1
+        else:current=revision+1
         steps[scope]=(revision,current)
+        touched=set()
         for row in facts:
             if row['kind']=='item_formula' and row['data']['formula']=='enchant_outcome' and targets is not None:
                 operation=row['data'].get('operation')
@@ -855,23 +870,28 @@ def inventory_history(rows,targets=None):
             if row['kind']!='item_delta':continue
             delta=row['data']
             before,after=delta['before'],delta['after']
-            if after is not None:
-                if after['revision']<=revision:raise ValueError('item revision did not increase across ticks')
+            if after is not None and current is not None:
+                if revision is not None and after['revision']<=revision:raise ValueError('item revision did not increase across ticks')
                 if after['revision']!=current:raise ValueError('owner item revision changed within tick')
-            if before is not None and before['revision'] not in (revision,current):raise ValueError('owner before revision differs from tick step')
             identity=delta['instance']
+            if before is not None:
+                if identity in touched:
+                    if current is not None and before['revision']!=current:raise ValueError('same-tick before differs from owner step')
+                elif current is not None and before['revision']>=current:
+                    raise ValueError('item before revision is not an earlier last-change revision (D79)')
+                floor=max(floor,before['revision'])
             balance=balances.setdefault(identity,[before['count'] if before else 0,0])
             balance[1]+=delta['count_delta']
             if identity in states or complete:
                 same(before,states.get(identity))
-            states[identity]=after
+            states[identity]=after;touched.add(identity)
         for identity,(start_count,net_delta) in balances.items():
             end=states[identity]
             if (end['count'] if end else 0)!=start_count+net_delta:
                 raise ValueError('per-instance tick count conservation mismatch')
-        # Canonical snapshots use the owner's revision, also for untouched instances.
-        states={identity:state|{'revision':current} if state is not None else None for identity,state in states.items()}
-        owners[owner]=(current,states,complete)
+        # D79: untouched instances keep their last-change revision.
+        if current is not None:floor=max(floor,current)
+        owners[owner]=(current,states,complete,floor)
     return steps
 
 
@@ -939,7 +959,8 @@ def enchant_evidence(row, rows, steps=None,targets=None):
     if targets is None:
         targets={};inventory_history(rows,targets)
     known,established=targets[row['sequence']]
-    if target['revision'] not in (previous_step,tick_step):raise ValueError('enchant target differs from owner revision step')
+    # D79: a binding carries the instance's last-change revision, never beyond the tick's step.
+    if tick_step is not None and target['revision']>tick_step:raise ValueError('enchant target revision ahead of owner revision step')
     if known:same(target,established)
     for spent in (scroll,support):
         if spent is None:continue
@@ -969,7 +990,7 @@ def enchant_evidence(row, rows, steps=None,targets=None):
                 raise ValueError('missing enchant consume contribution')
         first=aggregate['before']
         if first is None:raise ValueError('missing enchant consume initial instance')
-        if first['revision'] not in (previous_step,tick_step):raise ValueError('enchant contribution differs from owner revision step')
+        if tick_step is not None and first['revision']>tick_step:raise ValueError('enchant contribution revision ahead of owner revision step')
         remaining=first['count'];previous_revision=first['revision']
         for index,cause in enumerate(causes):
             ref=cause['cause']
@@ -981,8 +1002,8 @@ def enchant_evidence(row, rows, steps=None,targets=None):
                 same({k:v for k,v in before.items() if k!='revision'},
                      {k:v for k,v in (first|{'count':remaining}).items() if k!='revision'})
                 revision=before['revision']
-                if revision<previous_revision or revision>tick_step:raise ValueError('enchant contribution revision regressed')
-                if index:same(revision,tick_step)
+                if revision<previous_revision or tick_step is not None and revision>tick_step:raise ValueError('enchant contribution revision regressed')
+                if index and tick_step is not None:same(revision,tick_step)
                 previous_revision=revision
             elif index==0 and not ref.startswith('receipt:'):
                 same(aggregate['resolution_id'],ref.split(':',1)[1])

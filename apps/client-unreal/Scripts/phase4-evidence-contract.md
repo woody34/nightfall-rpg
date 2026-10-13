@@ -172,18 +172,24 @@ JSONL contract (schema version 1 of this sidecar):
   within the owner/incarnation scope, independent of operation name. Derive ONE
   revision step per `(entity,incarnation,tick)` from the owner's baseline or
   previous changed tick: previous revision → previous revision + 1. Every retained
-  post-state, across ALL instances, must use that same new revision. Before-states
-  use the previous revision, or the new revision for later same-tick changes;
-  equality remains valid. A baseline-free slice binds its initial revision from
-  its canonical endpoints. Subsequent changed ticks strictly advance the owner
+  post-state written in that tick, across ALL changed instances, must use that
+  same new revision. D79: an item's `revision` is its LAST-CHANGE revision —
+  untouched items do not advance per tick. A before-state equals the
+  instance's retained state exactly, including that last-change revision; on
+  the first touch of an instance in a tick it is strictly below the tick's
+  step (any earlier step, not necessarily the previous one), and later
+  same-tick rows on that instance see the step itself. Baseline instances
+  carry revisions ≤ `inventory_revision`; enchant bindings never exceed the
+  tick's step. A baseline-free slice binds its step from the tick's
+  post-states (befores cannot bind it). Subsequent changed ticks strictly advance the owner
   step even when every changed instance is removed. Per-instance ordinals strictly
   increase within a tick and may reset on a new tick. Removed instances have no
   fabricated post-state. Never fabricate intermediate revisions.
   Carry complete canonical states forward per owner/incarnation/instance, including
   counts, templates, locations, enchantments and removal. Each next mutation or
   aggregate must start at the established retained state, after recorded intervening
-  changes; untouched canonical snapshots advance to the owner's revision at tick
-  end. Creation starts from null and removal establishes absence. Incarnation
+  changes; untouched instances keep their last-change revision (D79 withdraws
+  the former tick-end re-stamp). Creation starts from null and removal establishes absence. Incarnation
   boundaries have independent state/revision histories; allocation freshness,
   exhausted-ID tombstones, single-owner binding and canonical identity fields
   (D69, except `charges` at the boundary, D71) are recording-wide.

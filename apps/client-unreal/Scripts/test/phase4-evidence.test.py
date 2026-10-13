@@ -178,6 +178,57 @@ class Evidence(unittest.TestCase):
                 with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
         print(f'D73: use/receipt-bound use/three-discharge chain pass; {len(mutations)} use mutations reject',flush=True)
 
+    def last_change_rows(self,baseline=True):
+        """D79 (zone session 7 Q1): baseline rev1 weapon untouched while the owner steps to 2."""
+        rows=copy.deepcopy(self.rows)
+        weapon=item(100,1,71)|{'revision':1};shots=item(101,5,2509)
+        if baseline:
+            rows.insert(1,dict(kind='item_baseline',entity=OWNER,incarnation=1,tick=0,sequence=0,
+                data=dict(inventory_revision=1,instances=[copy.deepcopy(weapon),copy.deepcopy(shots)],paperdoll={},auto_shots=[])))
+        rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=1,sequence=0,
+            data=dict(operation='consume',instance=101,before=copy.deepcopy(shots),after=shots|{'count':4,'revision':2},
+                      count_delta=-1,operation_ordinal=0,resolution_id='attack:1',receipt_refs=[],
+                      causes=[dict(cause='auto_shot:attack:1',count_delta=-1)])))
+        rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=2,sequence=0,
+            data=dict(operation='equip',instance=100,before=copy.deepcopy(weapon),after=weapon|{'slot':'rhand','location':'paperdoll','revision':3},
+                      count_delta=0,operation_ordinal=0,resolution_id='equip:2',receipt_ref='receipt:equip:k2')))
+        rows[0]['watermark'].update(records=3,last_tick=2);rows[-1].update(ticks=3,last_tick=2)
+        return self.repair(rows)
+
+    def test_d79_untouched_items_keep_their_last_change_revision(self):
+        equip=lambda rows:next(r['data'] for r in rows if r['kind']=='item_delta' and r['data']['operation']=='equip')
+        for baseline in (True,False):
+            with self.subTest(baseline=baseline):
+                rows=self.last_change_rows(baseline);gate.validate(rows,self.recording,HASH)
+                self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['pole_damage'],HASH)['passed'])
+                steps=gate.inventory_history(rows)
+                self.assertEqual(steps[(OWNER,1,2)],(2,3))
+                # The withdrawn re-stamp: the untouched weapon "advanced" to the owner's previous step.
+                # Only a baseline establishes the last change; a baseline-free slice cannot tell.
+                bad=copy.deepcopy(rows);equip(bad)['before']['revision']=2
+                if baseline:
+                    with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
+                else:gate.validate(bad,self.recording,HASH)
+                # First touch at the tick's own step, or ahead of it.
+                for value in (3,4):
+                    bad=copy.deepcopy(rows);equip(bad)['before']['revision']=value
+                    with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
+                # The post-state still carries the owner's step for that tick.
+                for value in (1,2,4):
+                    bad=copy.deepcopy(rows);equip(bad)['after']['revision']=value
+                    with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
+        # A retained baseline cannot hold an item revised after the inventory revision.
+        bad=self.last_change_rows();bad[1]['data']['instances'][0]['revision']=2
+        with self.assertRaisesRegex(ValueError,'ahead of inventory revision'):gate.validate(bad,self.recording,HASH)
+        # A later baseline (reconnect) carries the untouched weapon at revision 1 next to the rev2 stack.
+        rows=self.last_change_rows()
+        rows.insert(-2,dict(kind='item_baseline',entity=OWNER,incarnation=1,tick=2,sequence=0,
+            data=dict(inventory_revision=2,instances=[item(100,1,71)|{'revision':1},item(101,4,2509)|{'revision':2}],paperdoll={},auto_shots=[])))
+        self.repair(rows);gate.validate(rows,self.recording,HASH)
+        bad=copy.deepcopy(rows);bad[-3]['data']['instances'][0]['revision']=2
+        with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
+        print('D79: last-change revisions pass with and without baselines; re-stamped/ahead befores and wrong post steps reject',flush=True)
+
     def test_system_shot_review11_field_drift_without_enchant_correlation(self):
         rows=self.transition_rows('consume',enchant=0)
         # Exercise the shared transition rule without baseline/history comparisons.
@@ -973,9 +1024,13 @@ class Evidence(unittest.TestCase):
                     bad=copy.deepcopy(rows)
                     [r['data'] for r in bad if r['kind']=='item_formula' and r['data']['formula']=='enchant_outcome'][1]['operation'][key]['revision']=revision
                     self.assertFalse(gate.evaluate(bad,self.recording,OWNER,['enchant_outcome'],HASH)['passed'],(count,key,revision))
-                # Equal revisions remain valid; lowering the later binding then rolls back.
+                # D79: the first binding is the stack's earlier last-change revision, so a first
+                # binding at the tick's own step refuses; a later binding below the step rolls back.
                 outcomes[0]['operation'][key]['revision']=1
                 next(r['data'] for r in rows if r['kind']=='item_delta' and r['data']['instance']==outcomes[0]['operation'][key]['id'])['before']['revision']=1
+                self.assert_rejected(copy.deepcopy(rows))
+                outcomes[0]['operation'][key]['revision']=0
+                next(r['data'] for r in rows if r['kind']=='item_delta' and r['data']['instance']==outcomes[0]['operation'][key]['id'])['before']['revision']=0
                 self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['enchant_outcome'],HASH)['passed'])
                 outcomes[1]['operation'][key]['revision']=0
                 self.assertFalse(gate.evaluate(rows,self.recording,OWNER,['enchant_outcome'],HASH)['passed'])
@@ -997,8 +1052,9 @@ class Evidence(unittest.TestCase):
         baseline.append(item(50,ticks*3+1,1835)|{'revision':initial})
         rows.append(dict(kind='item_baseline',entity=OWNER,incarnation=incarnation,tick=start,sequence=0,
                          data=dict(inventory_revision=initial,instances=baseline,paperdoll={},auto_shots=[])))
+        target_revisions={identity:initial for identity in levels}
         for tick,plan in enumerate(plans):
-            revisions={identity:initial+tick for identity in counts}
+            # D79: revisions are last-change revisions; untouched stacks keep theirs.
             contributions={};ordinals={identity:rng.randint(0,4) for identity in levels};changed=set()
             def automatic(identity,amount):
                 if not amount:return
@@ -1017,7 +1073,7 @@ class Evidence(unittest.TestCase):
                 receipt=f'receipt:enchant:{rng.getrandbits(64):016x}:{cursor}'
                 operation=attempt[1]['data']['operation']
                 operation['receipt_ref']=receipt
-                operation['target_before']['revision']=initial+tick+int(target_id in changed)
+                operation['target_before']['revision']=target_revisions[target_id]
                 auto_before=rng.choice((False,True));cost=automatic_counts[tick][index]
                 if auto_before:automatic(scroll_id,cost)
                 for key in ('scroll_before','support_before'):
@@ -1038,7 +1094,7 @@ class Evidence(unittest.TestCase):
                         data['after']['revision']=initial+tick+1
                     rows.append(copy.deepcopy(row))
                 ordinals[target_id]+=rng.randint(1,3);cursor+=1
-                if not no_change:changed.add(target_id);levels[target_id]+=1
+                if not no_change:changed.add(target_id);levels[target_id]+=1;target_revisions[target_id]=initial+tick+1
             for identity,parts in contributions.items():
                 resolution,_,before,_=parts[0]
                 rows.append(dict(kind='item_delta',entity=OWNER,incarnation=incarnation,tick=start+tick,sequence=0,
@@ -1128,7 +1184,11 @@ class Evidence(unittest.TestCase):
             if key=='count':bad[3]['data']['count_delta']=-1
             with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
         # Incarnations have separate state/revision histories; allocations stay unique.
-        for row in rows[3:-1]:row['incarnation']=2
+        # D79: inc2's first touch of 70 sees its inc1 last-change revision 1; inc2 writes step 2.
+        for row in rows[3:-1]:
+            row['incarnation']=2;data=row['data']
+            if data['after'] is not None:data['after']['revision']=2
+            if data['operation']=='destroy':data['before']['revision']=2
         gate.validate(rows,self.recording,HASH)
 
     def test_seeded_aggregate_correlation_property_check_2000_cases(self):
@@ -1238,11 +1298,13 @@ class Evidence(unittest.TestCase):
 
     def test_equal_revision_scroll_and_existing_refund_stack(self):
         rows=self.enchant_rows()
-        scroll=rows[1]['data']['operation']['scroll_before'];scroll.update(count=2,revision=1)
+        scroll=rows[1]['data']['operation']['scroll_before'];scroll.update(count=2)
         consume=next(r['data'] for r in rows if r['kind']=='item_delta' and r['data']['operation']=='consume')
-        consume['after']=scroll|{'count':1}
+        consume['after']=scroll|{'count':1,'revision':1}
         self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['enchant_outcome'],HASH)['passed'])
-        bad=copy.deepcopy(rows)
+        # D79: a first touch carries an EARLIER last-change revision; the tick's own step refuses.
+        bad=copy.deepcopy(rows);bad[1]['data']['operation']['scroll_before']['revision']=1
+        with self.assertRaisesRegex(ValueError,'earlier last-change revision'):gate.validate(bad,self.recording,HASH)
         next(r['data'] for r in bad if r['kind']=='item_delta' and r['data']['operation']=='consume')['after']['revision']=0
         with self.assertRaisesRegex(ValueError,'revision regressed'):gate.validate(bad,self.recording,HASH)
         rows=self.enchant_rows(base=70,residue=99999,enchant=3)
@@ -1307,7 +1369,7 @@ class Evidence(unittest.TestCase):
         rows=copy.deepcopy(self.rows)
         rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=0,sequence=1,
             data=dict(resolution_id=rows[1]['data']['resolution_id'],operation='consume',instance=7,
-                      before=item(7,3),after=item(7,1),count_delta=-2,operation_ordinal=0,receipt_refs=['receipt:enchant:2','receipt:enchant:1'],
+                      before=item(7,3),after=item(7,1)|{'revision':1},count_delta=-2,operation_ordinal=0,receipt_refs=['receipt:enchant:2','receipt:enchant:1'],
                       causes=[dict(cause=ref,count_delta=-1) for ref in ('receipt:enchant:2','receipt:enchant:1')])))
         self.repair(rows)
         phase=dict(name='consume-aggregate',formula='pole_damage',mutation=dict(operation='consume',template=17,slot=None))
@@ -1784,7 +1846,7 @@ class Evidence(unittest.TestCase):
         rows[1]['data']['context']['weapon_template']=15
         rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=0,sequence=1,
             data=dict(resolution_id=rows[1]['data']['resolution_id'],operation='equip',instance=8,
-                      before=item(8,1,15),after=item(8,1,15,'rhand'),count_delta=0,operation_ordinal=0,receipt_ref='equip:1')))
+                      before=item(8,1,15),after=item(8,1,15,'rhand')|{'revision':1},count_delta=0,operation_ordinal=0,receipt_ref='equip:1')))
         self.repair(rows)
         self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['pole_damage'],HASH,[phase])['passed'])
         bad=copy.deepcopy(rows);del bad[2];self.repair(bad)
@@ -1857,7 +1919,7 @@ class Evidence(unittest.TestCase):
     def test_rng_and_ledger_conservation(self):
         rows=copy.deepcopy(self.rows)
         rows.insert(2,dict(kind='item_rng',entity=OWNER,incarnation=1,tick=0,sequence=1,data=dict(resolution_id='enchant:1',callsite='enchant',word_before=0,word_after=1,bound=100000,value=66670)))
-        rows.insert(3,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=0,sequence=2,data=dict(resolution_id='enchant:1',operation='consume',instance=7,before=item(7,2),after=item(7,1),count_delta=-1,operation_ordinal=0,receipt_refs=['receipt:enchant:1'],causes=[dict(cause='receipt:enchant:1',count_delta=-1)])))
+        rows.insert(3,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=0,sequence=2,data=dict(resolution_id='enchant:1',operation='consume',instance=7,before=item(7,2),after=item(7,1)|{'revision':1},count_delta=-1,operation_ordinal=0,receipt_refs=['receipt:enchant:1'],causes=[dict(cause='receipt:enchant:1',count_delta=-1)])))
         rows[-1]['facts']=3;gate.validate(rows,self.recording,HASH)
         bad=copy.deepcopy(rows);bad[3]['data']['count_delta']=0
         with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
