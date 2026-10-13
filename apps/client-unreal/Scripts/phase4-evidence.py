@@ -210,7 +210,8 @@ INPUT_SCHEMAS={
         ranges=list_of(record(dict(minimum=NONNEG_INT,maximum=NONNEG_INT))))),rank=TEMPLATE,level=IDENTITY),
     'bow_launch':dict(weapon=WEAPON,inventory=list_of(ITEM),lhand=nullable(IDENTITY),mp=NONNEG_NUMERIC,
         mp_modifier=NONNEG_NUMERIC,reduction_residue=nullable(int_range(0,99)),miss=BOOL,
-        reuse_remaining=NONNEG_INT,hit_chance=int_range(0,1000),hit_residue=nullable(int_range(0,999))),
+        reuse_remaining=NONNEG_INT,hit_chance=int_range(0,1000),hit_residue=nullable(int_range(0,999)),
+        critical_residue=nullable(int_range(0,999)),spread_residue=nullable(NONNEG_INT)),
     'bow_refill':dict(weapon=WEAPON,arrow=ITEM,mp=NONNEG_NUMERIC),
     'resurrection_scroll':dict(definition=DEFINITION,start_tick=NONNEG_INT,available=NONNEG_INT,
         death_incarnation=IDENTITY,current_incarnation=IDENTITY,dead=BOOL,
@@ -224,7 +225,9 @@ INPUT_SCHEMAS={
     'escape_timing':dict(definition=DEFINITION,start_tick=NONNEG_INT,casting_speed=POSITIVE_NUMERIC,
         available=NONNEG_INT,resources=record(dict(hp=NONNEG_NUMERIC,mp=NONNEG_NUMERIC,cp=NONNEG_NUMERIC,xp=NONNEG_INT)),incarnation=IDENTITY),
     'dual_plan':dict(hits=tuple_of(BOOL,BOOL),formulas=tuple_of(NUMERIC,NUMERIC),second_valid=BOOL,
-        hit_residues=tuple_of(int_range(0,999),int_range(0,999)),hit_chance=int_range(0,1000),spread_radius=NONNEG_INT),
+        hit_residues=tuple_of(int_range(0,999),int_range(0,999)),hit_chance=int_range(0,1000),spread_radius=NONNEG_INT,
+        critical_residues=tuple_of(nullable(int_range(0,999)),nullable(int_range(0,999))),
+        spread_residues=tuple_of(nullable(NONNEG_INT),nullable(NONNEG_INT))),
     'enchant_safe':dict(current=U32,fullarmor=BOOL,safe_enchant=U32,safe_fullarmor=U32,
         base=NONNEG_NUMERIC,residue=int_range(0,99999)),
     'quantized_enchant':dict(base=NONNEG_NUMERIC,bonus=NONNEG_NUMERIC,support=NONNEG_NUMERIC),
@@ -442,12 +445,40 @@ def validate_input(value,schema,path,bounds=False):
     else:raise ValueError('unknown input schema kind: '+kind)
 
 
+# D87: the critical and spread residues of bow_launch/dual_plan are required fact inputs.
+# The E1 rev 8 oracle still hard-codes them (999 / radius), so until E1 takes them as
+# parameters the consumer runs the oracle and substitutes the actual residues by draw site;
+# neither residue changes any other output (damage enters through `formulas`).
+RESIDUE_INPUTS={'bow_launch':('critical_residue','spread_residue'),'dual_plan':('critical_residues','spread_residues')}
+
+
+def residue_family(name,inputs):
+    decoded=oracle.decode_rationals(inputs)
+    extra={key:decoded.pop(key) for key in RESIDUE_INPUTS[name]}
+    function=getattr(oracle.behavior,name)
+    if set(extra)<=set(inspect.signature(function).parameters):return function(**decoded,**extra) # E1 adopted D87
+    result=function(**decoded)
+    if name=='bow_launch':sites={'critical':extra['critical_residue'],'spread':extra['spread_residue']}
+    else:
+        sites={f'{kind}{index}':extra[kind+'_residues'][index-1] for kind in ('critical','spread') for index in (1,2)}
+    taken=set()
+    for draw in result['draws']:
+        if draw['site'] not in sites:continue
+        value=sites[draw['site']];taken.add(draw['site'])
+        if value is None or not 0<=value<draw['bound']:raise ValueError(name+' '+draw['site']+' residue missing or outside its draw bound (D87)')
+        draw['residue']=value
+    if any(value is not None and site not in taken for site,value in sites.items()):
+        raise ValueError(name+' residue present for a draw that was not taken (D87/D89)')
+    return result
+
+
 def input_domains(name,inputs):
     if name not in INPUT_SCHEMAS or type(inputs) is not dict:raise ValueError('unknown formula input schema')
     function=getattr(oracle,name,None) or getattr(oracle.behavior,name,None)
     if function:
         parameters=inspect.signature(function).parameters
         required={key for key,p in parameters.items() if key!='src' and p.default is inspect.Parameter.empty}
+        required|=set(RESIDUE_INPUTS.get(name,()))
     else:required=set(INPUT_SCHEMAS[name])
     schema=record({k:INPUT_SCHEMAS[name][k] for k in required},
                   {k:v for k,v in INPUT_SCHEMAS[name].items() if k not in required})
@@ -574,6 +605,8 @@ def formula(name,inputs,actual):
         same(inputs['auth_dev_tokens'],False);same(inputs['status'],'FAILED_PRECONDITION')
         same(inputs['before'],inputs['after']);same(inputs['ledger_rows'],0);same(inputs['rng_before'],inputs['rng_after'])
         same(actual,{'unchanged':True})
+    elif name in RESIDUE_INPUTS:
+        same(actual,oracle.rational(residue_family(name,inputs)))
     else:
         if name=='lethal':lethal_residues(inputs)
         oracle.verify_facts([dict(formula=name,inputs=inputs,expected=actual)])

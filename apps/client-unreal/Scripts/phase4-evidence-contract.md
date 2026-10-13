@@ -395,3 +395,16 @@ Draw lists in `actual` name `{site,bound,residue}`; when the family also has
 questions are tracked in harness-progress.md (revision 17, Q-F1..Q-F7); the
 consumer does not guess them — every family is still verified by exact
 oracle equality on the producer's actual inputs.
+
+### Revision 18 — architect decisions D87–D93 on Q-F1..Q-F7
+
+- D87 (Q-F1): `bow_launch.inputs` gains REQUIRED `critical_residue` and
+  `spread_residue`; `dual_plan.inputs` gains REQUIRED `critical_residues` and
+  `spread_residues` (pairs, one per subhit). Each is nullable only under the
+  D89 rule (null iff that draw was not taken: no landed hit, or no spread draw
+  for a zero-radius bow). The producer emits the live residues; neutral-case-
+  only export is rejected. The E1 rev 8 oracle still hard-codes 999 / radius,
+  so the consumer (`residue_family`) runs it and substitutes the fact's
+  residues into `draws` by site (`critical`/`spread`, `critical1/2`/`spread1/2`),
+  checking each against its draw bound; neither residue alters any other
+  output. When E1 adds these parameters the consumer passes them through.
