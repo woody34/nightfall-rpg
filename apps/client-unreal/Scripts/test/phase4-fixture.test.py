@@ -52,8 +52,14 @@ class Fixtures(unittest.TestCase):
         # revision (rev 8, rev 9, ...) admits at least blow skills 16 and 263 (D50 promotion).
         rev7=fixture.phase4.table('rules_manifest')['data_sha256']=='5b77911ec6bba0b186b9de16d63ea832726943475152a82ea40a5ebd203c4656'
         admitted={c['skill_id'] for c in candidates if c['admitted']}
-        if rev7:self.assertEqual(admitted,set())
-        else:self.assertLessEqual({16,263},admitted)
+        kinds_owner=fixture.phase4.profiles('phase4-kinds')['owner']
+        if rev7:
+            self.assertEqual(admitted,set())
+            self.assertEqual((kinds_owner['profession'],kinds_owner['level'],kinds_owner['learned_ranks']),('human_fighter',14,{}))
+        else:
+            self.assertLessEqual({16,263},admitted)
+            # D50 un-pended: source ranks of the human_fighter→rogue→treasure_hunter chain at level 40.
+            self.assertEqual((kinds_owner['profession'],kinds_owner['level'],kinds_owner['learned_ranks']),('treasure_hunter',40,{'16':24,'263':3}))
         self.assertTrue(all(c['blockers'] for c in candidates if not c['admitted']))
         kinds=(SCRIPTS.parent/'Scenarios/4-combat-kinds.nfs').read_text()
         self.assertNotIn('damage_numbers',kinds);self.assertIn('nf.Unequip rhand',kinds)

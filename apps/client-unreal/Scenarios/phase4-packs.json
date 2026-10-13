@@ -8024,8 +8024,8 @@
           "wit": 11
         },
         "character_id": "01970000-0000-7000-8000-000000000040",
-        "class_id": 0,
-        "class_profile": "human_fighter",
+        "class_id": 8,
+        "class_profile": "treasure_hunter",
         "combat_capability_dependencies": [
           {
             "admitted": false,
@@ -8331,7 +8331,10 @@
           }
         ],
         "karma": 0,
-        "learned_ranks": {},
+        "learned_ranks": {
+          "16": 24,
+          "263": 3
+        },
         "ledger": [
           {
             "after": {
@@ -8510,7 +8513,7 @@
             "op": "grant"
           }
         ],
-        "level": 14,
+        "level": 40,
         "modifier_install_order": [],
         "mp": null,
         "mp_fraction_q": 0,
@@ -8526,13 +8529,13 @@
           100
         ],
         "pre_death_xp": null,
-        "profession": "human_fighter",
+        "profession": "treasure_hunter",
         "pvp_count": 0,
         "race": "human",
         "recoverable_death_xp_loss": 0,
         "reuse_remainders": [],
         "sp": 100000,
-        "xp": 191454
+        "xp": 15422929
       }
     },
     "phase4-learn": {

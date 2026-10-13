@@ -17,15 +17,18 @@
 # item-gate: lethal
 # D24 unarmed radius: GAME@abfde049 L2Character.java:5034-5044.
 # D25 pole recipients: GAME@abfde049 L2Character.java:1282-1283,1335-1338.
-# Blow/lethal closure is PENDING: phase4-packs.json combat_capability_dependencies.
-# Local E1 rev 7 admits none; E1 rev 8 (packs data_sha256 8e27de15...) admits blow skills 16 and 263.
-# The bot body cannot be gated on the data hash, so blow/lethal steps are added in the scenario
-# revision that follows the rev 8 data import; do not seed deferred skills before then.
+# Blow/lethal (D50): E1 rev 8+ admits Mortal Blow 16 (FatalBlow) and Deadly Blow 263 (FatalBlow +
+# Lethal halfLethal10); phase4-packs.json (rev 9) seeds a level-40 Treasure Hunter with ranks
+# 16:24 / 263:3 (source skill trees human_fighter→rogue→treasure_hunter). Requires rev 8+ data.
+# item-phase: {"name":"blow-mortal","formula":"blow_success","context":{"skill_id":16,"event":"cast"}}
+# item-phase: {"name":"blow-deadly","formula":"blow_success","context":{"skill_id":263,"event":"cast"}}
+# item-phase: {"name":"lethal-deadly","formula":"lethal","context":{"skill_id":263,"event":"cast"}}
 # item-phase: {"name":"dual","formula":"dual_damage","context":{"weapon_template":1299}}
 # item-phase: {"name":"dualfist","formula":"dual_damage","context":{"weapon_template":253}}
 # item-phase: {"name":"pole-primary","formula":"pole_damage","context":{"weapon_template":15},"inputs":{"primary":true}}
 # item-phase: {"name":"pole-secondary","formula":"pole_damage","context":{"weapon_template":15},"inputs":{"primary":false}}
-# item-phase: {"name":"unarmed","formula":"fist_spread","context":{"weapon_template":0},"inputs":{"template_radius":null}}
+# D84 (rev 9): unarmed resolves the class fists template, so the phase selects on weapon 0 only.
+# item-phase: {"name":"unarmed","formula":"fist_spread","context":{"weapon_template":0}}
 # Stationary targets retain initial east facing (zone design §6.2, A10).
 # item-phase: {"name":"dagger-front","formula":"physical_damage","context":{"weapon_template":10},"inputs":{"caller":"auto","proximity":"front"}}
 # item-phase: {"name":"dagger-side","formula":"physical_damage","context":{"weapon_template":10},"inputs":{"caller":"auto","proximity":"side"}}
@@ -84,6 +87,11 @@ nf.Mark
 nf.Attack
 nf.WaitFor target_hits_since_mark >= 1 30
 nf.StopAttack
+# Blow skills from the back position with the dagger (source using kind DAGGER).
+nf.Cast 16
+nf.WaitFor cast_results >= 1 12
+nf.Cast 263
+nf.WaitFor cast_results >= 2 12
 nf.Unequip rhand
 nf.WaitFor equipped rhand == 0 3
 nf.Mark
@@ -91,4 +99,4 @@ nf.Attack
 nf.WaitFor target_hits_since_mark >= 1 30
 nf.StopAttack
 # Total budget: sum of declared conservative waits +30s exit grace.
-nf.Within 390
+nf.Within 414
