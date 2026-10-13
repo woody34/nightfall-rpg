@@ -28,6 +28,13 @@ use nightfall_api::infrastructure::{
 };
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
+/// D77 read paths surface the typed permanent constraint through `anyhow`.
+fn assert_constraint(error: &anyhow::Error, expected: &str) {
+    assert!(
+        matches!(error.downcast_ref::<CheckpointError>(), Some(CheckpointError::Constraint(name)) if name == expected),
+        "expected {expected}: {error:?}"
+    );
+}
 use uuid::Uuid;
 
 // Storage-only: simultaneous paid rank and item consumption, not book eligibility/gameplay.
@@ -506,6 +513,18 @@ fn interleaved(
     first: &CharacterCheckpoint,
     first_work: &ItemCheckpointWork,
 ) -> (CharacterCheckpoint, ItemCheckpointWork, Vec<DomainEvent>) {
+    // D66: observed n -> n-1 -> n+2 -> n+1 exports grant(n -> n+3) then consume(n+3 -> n+1).
+    grant_then_consume(first, first_work, 74, 3, 2)
+}
+/// One tick on the newest stack: Grant(+gained) then, when `consumed > 0`, the Consume
+/// aggregate (-consumed). D76: ordinals are the instance's row positions (grant 0, consume 1).
+fn grant_then_consume(
+    first: &CharacterCheckpoint,
+    first_work: &ItemCheckpointWork,
+    tick: u64,
+    gained: u64,
+    consumed: u64,
+) -> (CharacterCheckpoint, ItemCheckpointWork, Vec<DomainEvent>) {
     let mut cp = first.clone();
     cp.revision_seen = first.revision_seen.checked_add(1).unwrap();
     cp.idempotency.1 = IdempotencyKey::new();
@@ -517,13 +536,11 @@ fn interleaved(
         .iter_mut()
         .max_by_key(|item| (item.revision, item.count))
         .unwrap();
-    // D66: observed n -> n-1 -> n+2 -> n+1 exports grant(n -> n+3) then consume(n+3 -> n+1).
-    // The grant keeps its cause ordinal 1; the Consume aggregate keeps the ordinal-0 batch marker.
     let before = target.clone();
     let mut granted = before.clone();
-    granted.count = granted.count.checked_add(3).unwrap();
+    granted.count = granted.count.checked_add(gained).unwrap();
     granted.revision = revision;
-    target.count = target.count.checked_add(1).unwrap();
+    target.count = granted.count.checked_sub(consumed).unwrap();
     target.revision = revision;
     let ended = target.clone();
     let target_id = target.id;
@@ -536,39 +553,47 @@ fn interleaved(
             ("receipt".into(), ItemEvidenceValue::Text(request.to_string())),
         ]),
     };
+    let debit = i64::try_from(consumed).unwrap();
     let mut work = first_work.clone();
-    work.projection.tick = Tick(74);
+    work.projection.tick = Tick(tick);
     work.projection.checkpoint = retained.clone();
-    work.projection.ledger = vec![
-        ItemDeltaPlan {
-            receipt_refs: Vec::new(),
+    work.projection.ledger = vec![ItemDeltaPlan {
+        receipt_refs: Vec::new(),
+        operation: ItemOperation::Grant,
+        operation_ordinal: 0,
+        instance: target_id,
+        before: Some(before),
+        after: Some(granted.clone()),
+        count_delta: i64::try_from(gained).unwrap(),
+        receipt: Some(ItemReceiptRef {
             operation: ItemOperation::Grant,
-            operation_ordinal: 1,
-            instance: target_id,
-            before: Some(before),
-            after: Some(granted.clone()),
-            count_delta: 3,
-            receipt: Some(ItemReceiptRef {
-                operation: ItemOperation::Grant,
-                key: request,
-            }),
-            causes: Vec::new(),
-        },
-        ItemDeltaPlan {
+            key: request,
+        }),
+        causes: Vec::new(),
+    }];
+    if consumed > 0 {
+        work.projection.ledger.push(ItemDeltaPlan {
             receipt_refs: Vec::new(),
             operation: ItemOperation::Consume,
-            operation_ordinal: 0,
+            operation_ordinal: 1,
             instance: target_id,
             before: Some(granted),
             after: Some(ended),
-            count_delta: -2,
+            count_delta: debit.checked_neg().unwrap(),
             receipt: Some(ItemReceiptRef {
                 operation: ItemOperation::Use,
                 key: request,
             }),
-            causes: vec![cause(0, -1), cause(2, -1)],
-        },
-    ];
+            causes: if consumed == 1 {
+                vec![cause(0, -1)]
+            } else {
+                vec![
+                    cause(0, -1),
+                    cause(2, debit.checked_sub(1).unwrap().checked_neg().unwrap()),
+                ]
+            },
+        });
+    }
     work.projection.receipts = vec![ItemReceiptFact {
         request_id: request,
         fingerprint: "grant-body-three".into(),
@@ -577,7 +602,7 @@ fn interleaved(
             request_fingerprint: "grant-body-three".into(),
             entity: work.projection.entity,
             incarnation: 4,
-            tick: Tick(74),
+            tick: Tick(tick),
             inventory_revision: revision,
             receipt: request,
             detail: ItemResultDetail::Operation {
@@ -587,19 +612,20 @@ fn interleaved(
             },
         },
     }];
-    let mut use_receipt = work.projection.receipts.first().unwrap().clone();
-    use_receipt.fingerprint = "use-body-two".into();
-    use_receipt
-        .result
-        .request_fingerprint
-        .clone_from(&use_receipt.fingerprint);
-    use_receipt.result.inventory_revision = revision;
-    use_receipt.result.detail = ItemResultDetail::Operation {
-        operation: ItemOperation::Use,
-        affected: vec![target_id],
-        recipe: None,
-    };
-    work.projection.receipts.push(use_receipt);
+    if consumed > 0 {
+        let mut use_receipt = work.projection.receipts.first().unwrap().clone();
+        use_receipt.fingerprint = "use-body-two".into();
+        use_receipt
+            .result
+            .request_fingerprint
+            .clone_from(&use_receipt.fingerprint);
+        use_receipt.result.detail = ItemResultDetail::Operation {
+            operation: ItemOperation::Use,
+            affected: vec![target_id],
+            recipe: None,
+        };
+        work.projection.receipts.push(use_receipt);
+    }
     work.projection.materializations.clear();
     let facts = events(&cp, &work);
     (cp, work, facts)
@@ -938,7 +964,7 @@ async fn memory_atomic_item_projection_receipts_batching_and_revision_fences() {
         .filter(|row| row.operation == ItemLedgerOperation::Consume)
         .collect();
     assert_eq!(consumed.len(), 1);
-    assert_eq!(consumed[0].operation_ordinal, 0);
+    assert_eq!(consumed[0].operation_ordinal, 1);
     assert_eq!(consumed[0].delta.count_delta, -2);
     assert_eq!(consumed[0].delta.causes.len(), 2);
     assert_eq!(consumed[0].delta.receipt.unwrap().operation, ItemOperation::Use);
@@ -963,7 +989,7 @@ async fn postgres_atomic_item_projection_receipts_batching_and_revision_fences()
     .await
     .unwrap();
     assert_eq!(rows.len(), 1);
-    assert_eq!(rows[0].0, 0);
+    assert_eq!(rows[0].0, 1);
     let delta: ItemLedgerDelta = serde_json::from_value(rows[0].1.clone()).unwrap();
     assert_eq!(delta.count_delta, -2);
     assert_eq!(delta.causes.len(), 2);
@@ -1137,12 +1163,15 @@ async fn rejected_contract<
     );
     let (next, valid, events) = interleaved(&cp, &work);
     let before = repo.retained_inventory(character.id).await.unwrap();
+    let next_before = before.as_ref().and_then(|view| view.checkpoint.clone());
     let mut corrupt = valid.clone();
     corrupt.projection.ledger.first_mut().unwrap().count_delta = -7;
-    assert!(matches!(
-        repo.checkpoint_items(&next, &events, &corrupt, None).await,
-        Err(CheckpointError::Constraint(_))
-    ));
+    // The zone domain gate refuses the unconserved row first (count delta mismatch).
+    let refused = repo.checkpoint_items(&next, &events, &corrupt, None).await;
+    assert!(
+        matches!(&refused, Err(CheckpointError::Constraint(name)) if name == "item_checkpoint_projection"),
+        "{refused:?}"
+    );
     assert_eq!(repo.retained_inventory(character.id).await.unwrap(), before);
     let mut corrupt = valid.clone();
     corrupt
@@ -1154,10 +1183,12 @@ async fn rejected_contract<
         .as_mut()
         .unwrap()
         .created_tick = Tick(72);
-    assert!(matches!(
-        repo.checkpoint_items(&next, &events, &corrupt, None).await,
-        Err(CheckpointError::Constraint(_))
-    ));
+    // The Consume row's before (creation tick 72) is not the grant's after: continuity.
+    let refused = repo.checkpoint_items(&next, &events, &corrupt, None).await;
+    assert!(
+        matches!(&refused, Err(CheckpointError::Constraint(name)) if name == "item_ledger_scalar_continuity"),
+        "{refused:?}"
+    );
     assert_eq!(repo.retained_inventory(character.id).await.unwrap(), before);
     let mut corrupt = valid.clone();
     corrupt.projection.account = AccountId::from_uuid(Uuid::from_u128(7));
@@ -1192,14 +1223,14 @@ async fn rejected_contract<
         augment_id: None,
         charges: 0,
         created_tick: Tick(74),
-        revision: 4,
+        revision: transient.projection.checkpoint.inventory_revision,
     };
     let reference = transient.projection.receipts[0].reference();
     transient.projection.ledger.extend([
         ItemDeltaPlan {
             receipt_refs: Vec::new(),
             operation: ItemOperation::Grant,
-            operation_ordinal: 3,
+            operation_ordinal: 0,
             instance: id,
             before: None,
             after: Some(created.clone()),
@@ -1210,37 +1241,48 @@ async fn rejected_contract<
         ItemDeltaPlan {
             receipt_refs: Vec::new(),
             operation: ItemOperation::Consume,
-            operation_ordinal: 0,
+            operation_ordinal: 1,
             instance: id,
             before: Some(created),
             after: None,
             count_delta: -6,
             receipt: None,
             causes: vec![ItemAuditEvidence {
-                family: "consume".into(),
-                fields: BTreeMap::new(),
+                family: "skill_cast_payment".into(),
+                fields: BTreeMap::from([
+                    ("cast_id".into(), ItemEvidenceValue::Unsigned(1)),
+                    ("count_delta".into(), ItemEvidenceValue::Signed(-6)),
+                ]),
             }],
         },
     ]);
-    assert!(matches!(
-        repo.checkpoint_items(&next, &events, &transient, None)
-            .await,
-        Err(CheckpointError::Constraint(_))
-    ));
+    // A consumed transient (+5 then -6) does not conserve its row count.
+    let refused = repo
+        .checkpoint_items(&next, &events, &transient, None)
+        .await;
+    assert!(
+        matches!(&refused, Err(CheckpointError::Constraint(name)) if name == "item_ledger_count_or_revision"),
+        "{refused:?}"
+    );
     assert_eq!(repo.retained_inventory(character.id).await.unwrap(), before);
-    for (mode, expected) in [
-        "item_ledger_row_order",            // pre-D66 Consume-first export
-        "item_ledger_scalar_continuity",    // overlapping row endpoints
-        "item_ledger_row_order",            // positive rows out of cause order
-        "item_ledger_count_or_revision",    // fabricated intermediate revision step
-        "item_checkpoint_revision_step",    // stale receipt revision
-        "item_consume_cause_order",         // reversed causes
-        "item_consume_contribution",        // fabricated debit
-        "item_instance_creation_immutable", // altered provenance
-        "item_ledger_row_order",            // any row after the Consume aggregate
-        "item_ledger_row_order",            // positive row after a non-Consume debit
-        "item_checkpoint_projection",       // split Consume aggregate (domain batch key)
-        "item_count_cap",                   // D68 intermediate above the pinned cap
+    // (settlement result on both adapters, API settlement validator result where it differs):
+    // the zone domain gate (ItemDeltaPlan/Phase4Projection::validate_structure) runs first and
+    // refuses non-positional ordinals as item_checkpoint_projection; the API validator behind it
+    // refuses the same shapes as item_ledger_row_ordinal (D76 defence in depth).
+    for (mode, (expected, validator)) in [
+        ("item_ledger_row_order", None), // pre-D66 Consume-first export
+        ("item_ledger_scalar_continuity", None), // overlapping row endpoints
+        ("item_checkpoint_projection", Some("item_ledger_row_ordinal")), // D76 duplicate ordinal
+        ("item_ledger_count_or_revision", None), // fabricated intermediate revision step
+        ("item_checkpoint_revision_step", None), // stale receipt revision
+        ("item_consume_cause_order", None), // reversed causes
+        ("item_consume_contribution", None), // fabricated debit
+        ("item_instance_creation_immutable", None), // altered provenance
+        ("item_ledger_row_order", None), // any row after the Consume aggregate
+        ("item_ledger_row_order", None), // positive row after a non-Consume debit
+        ("item_checkpoint_projection", None), // split Consume aggregate (domain batch key)
+        ("item_checkpoint_projection", Some("item_ledger_row_ordinal")), // D76 ordinal gap
+        ("item_checkpoint_projection", Some("item_ledger_row_ordinal")), // D76 Consume at 0
     ]
     .into_iter()
     .enumerate()
@@ -1256,6 +1298,8 @@ async fn rejected_contract<
                 let mut low = end.clone();
                 low.count = start.count.checked_sub(2).unwrap();
                 bad.projection.ledger.reverse();
+                bad.projection.ledger[0].operation_ordinal = 0;
+                bad.projection.ledger[1].operation_ordinal = 1;
                 bad.projection.ledger[0].before = Some(start.clone());
                 bad.projection.ledger[0].after = Some(low.clone());
                 bad.projection.ledger[1].before = Some(low);
@@ -1269,18 +1313,19 @@ async fn rejected_contract<
                 grant.count_delta = grant.count_delta.checked_add(1).unwrap();
             },
             2 => {
-                // grant(+1, ordinal 2) recorded before grant(+2, ordinal 1).
+                // The e6d37ec shape: two rows of the instance share ordinal 0, grant(+1) and
+                // grant(+2), then the Consume aggregate at its position 2.
                 let mut middle = start.clone();
                 middle.count = start.count.checked_add(1).unwrap();
                 middle.revision = end.revision;
                 let mut second = bad.projection.ledger[0].clone();
                 let first = &mut bad.projection.ledger[0];
-                first.operation_ordinal = 2;
                 first.after = Some(middle.clone());
                 first.count_delta = 1;
                 second.before = Some(middle);
                 second.count_delta = 2;
                 bad.projection.ledger.insert(1, second);
+                bad.projection.ledger[2].operation_ordinal = 2;
             },
             3 => {
                 // Fabricated intermediate steps inside one tick (pre-D55): grant r, consume r+1.
@@ -1320,7 +1365,7 @@ async fn rejected_contract<
             8 => {
                 bad.projection.ledger.push(ItemDeltaPlan {
                     operation: ItemOperation::Destroy,
-                    operation_ordinal: 3,
+                    operation_ordinal: 2,
                     instance: target,
                     count_delta: i64::try_from(end.count).unwrap().checked_neg().unwrap(),
                     before: Some(end),
@@ -1371,31 +1416,18 @@ async fn rejected_contract<
                 second.before = Some(middle);
                 second.count_delta = -1;
                 second.causes.remove(0);
+                second.operation_ordinal = 2;
                 bad.projection.ledger.push(second);
             },
-            _ => {
-                // A conserved, continuous tick whose intermediate grant exceeds the cap.
-                let cap = if start.template_id == 57 {
-                    99_900_000_000_u64
-                } else {
-                    i32::MAX.unsigned_abs().into()
-                };
-                let mut high = end.clone();
-                high.count = cap.checked_add(1).unwrap();
-                let consumed = i64::try_from(high.count.checked_sub(end.count).unwrap()).unwrap();
-                let grant = &mut bad.projection.ledger[0];
-                grant.after = Some(high.clone());
-                grant.count_delta =
-                    i64::try_from(high.count.checked_sub(start.count).unwrap()).unwrap();
-                let consume = &mut bad.projection.ledger[1];
-                consume.before = Some(high);
-                consume.count_delta = consumed.checked_neg().unwrap();
-                consume.causes.truncate(1);
-                consume.causes[0].fields.insert(
-                    "count_delta".into(),
-                    ItemEvidenceValue::Signed(consumed.checked_neg().unwrap()),
-                );
-            },
+            11 => bad.projection.ledger[1].operation_ordinal = 2,
+            _ => bad.projection.ledger[1].operation_ordinal = 0,
+        }
+        if let Some(validator) = validator {
+            let result = bad.validate_before(next_before.as_ref());
+            assert!(
+                matches!(&result, Err(CheckpointError::Constraint(name)) if name == validator),
+                "API validator case {mode}: {result:?}"
+            );
         }
         let outbox = self::events(&bad_cp, &bad);
         let result = repo.checkpoint_items(&bad_cp, &outbox, &bad, None).await;
@@ -1443,6 +1475,201 @@ async fn postgres_rejects_unconserved_counts_wrong_initial_scalar_owner_and_stal
         .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
         .unwrap();
     rejected_contract(&repo, &bundle).await;
+}
+
+fn pinned_cap(item: &ItemInstance) -> u64 {
+    if item.template_id == 57 {
+        99_900_000_000
+    } else {
+        i32::MAX.unsigned_abs().into()
+    }
+}
+
+/// D74: caps hold on tick endpoints and, per positive row, after - later same-tick consumption.
+/// Returns the character after the legal C -> C+1 -> C tick settled at tick 75.
+#[allow(clippy::too_many_lines)] // One shared memory/Pg cap-edge contract.
+async fn cap_edge_contract<
+    R: CharacterRepository
+        + ItemAdmissionRepository
+        + ItemCheckpointRepository
+        + ItemInventoryRepository,
+>(
+    repo: &R,
+    bundle: &Phase4RuleBundle,
+) -> Character {
+    let (character, cp, work, facts) = fixture(repo, bundle, "ItemCapEdge").await;
+    assert_eq!(
+        repo.checkpoint_items(&cp, &facts, &work, None)
+            .await
+            .unwrap(),
+        CheckpointOutcome::Applied(1)
+    );
+    let stack = cp
+        .phase4
+        .as_ref()
+        .unwrap()
+        .instances
+        .iter()
+        .max_by_key(|item| (item.revision, item.count))
+        .unwrap()
+        .clone();
+    let cap = pinned_cap(&stack);
+    // Tick 74 reaches the cap through its own legal C+2 -> C intermediate.
+    let (at_cap, at_cap_work, at_cap_facts) = grant_then_consume(
+        &cp,
+        &work,
+        74,
+        cap.checked_add(2)
+            .unwrap()
+            .checked_sub(stack.count)
+            .unwrap(),
+        2,
+    );
+    at_cap_work.validate_catalogue(&bundle.items).unwrap();
+    assert_eq!(
+        repo.checkpoint_items(&at_cap, &at_cap_facts, &at_cap_work, None)
+            .await
+            .unwrap(),
+        CheckpointOutcome::Applied(2)
+    );
+    // (a) start C, grant +1 (C -> C+1), consume -1 (C+1 -> C): legal, settles.
+    let (edge, edge_work, edge_facts) = grant_then_consume(&at_cap, &at_cap_work, 75, 1, 1);
+    let rows = &edge_work.projection.ledger;
+    assert_eq!(
+        rows.iter()
+            .map(|row| (
+                row.operation,
+                row.operation_ordinal,
+                row.before.as_ref().unwrap().count,
+                row.after.as_ref().unwrap().count
+            ))
+            .collect::<Vec<_>>(),
+        vec![
+            (ItemOperation::Grant, 0, cap, cap.checked_add(1).unwrap()),
+            (ItemOperation::Consume, 1, cap.checked_add(1).unwrap(), cap),
+        ]
+    );
+    edge_work.validate_catalogue(&bundle.items).unwrap();
+    assert_eq!(
+        repo.checkpoint_items(&edge, &edge_facts, &edge_work, None)
+            .await
+            .unwrap(),
+        CheckpointOutcome::Applied(3)
+    );
+    let settled = repo.retained_inventory(character.id).await.unwrap();
+    // (b) tick end C+1 is refused.
+    let (over, over_work, over_facts) = grant_then_consume(&edge, &edge_work, 76, 1, 0);
+    let refused = over_work.validate_catalogue(&bundle.items);
+    assert!(
+        matches!(&refused, Err(CheckpointError::Constraint(name)) if name == "item_count_cap"),
+        "{refused:?}"
+    );
+    let result = repo
+        .checkpoint_items(&over, &over_facts, &over_work, None)
+        .await;
+    assert!(
+        matches!(&result, Err(CheckpointError::Constraint(name)) if name == "item_count_cap"),
+        "tick-end above cap: {result:?}"
+    );
+    assert_eq!(repo.retained_inventory(character.id).await.unwrap(), settled);
+    // (c) grant C -> C+2, Destroy -1 (C+2 -> C+1), consume -1 (C+1 -> C): the tick ends at C,
+    // but the grant's after (C+2) minus its later same-tick consumption (1) is C+1 > C.
+    let (over, mut over_work, _) = grant_then_consume(&edge, &edge_work, 76, 2, 2);
+    let peak = over_work.projection.ledger[0].after.clone().unwrap();
+    assert_eq!(peak.count, cap.checked_add(2).unwrap());
+    let mut middle = peak.clone();
+    middle.count = cap.checked_add(1).unwrap();
+    let consume = &mut over_work.projection.ledger[1];
+    consume.before = Some(middle.clone());
+    consume.count_delta = -1;
+    consume.causes.truncate(1);
+    consume.operation_ordinal = 2;
+    over_work.projection.ledger.insert(
+        1,
+        ItemDeltaPlan {
+            receipt_refs: Vec::new(),
+            operation: ItemOperation::Destroy,
+            operation_ordinal: 1,
+            instance: peak.id,
+            before: Some(peak),
+            after: Some(middle),
+            count_delta: -1,
+            receipt: None,
+            causes: Vec::new(),
+        },
+    );
+    let refused = over_work.validate_catalogue(&bundle.items);
+    assert!(
+        matches!(&refused, Err(CheckpointError::Constraint(name)) if name == "item_count_cap"),
+        "{refused:?}"
+    );
+    let over_facts = events(&over, &over_work);
+    let result = repo
+        .checkpoint_items(&over, &over_facts, &over_work, None)
+        .await;
+    assert!(
+        matches!(&result, Err(CheckpointError::Constraint(name)) if name == "item_count_cap"),
+        "positive row above cap after later consumption: {result:?}"
+    );
+    assert_eq!(repo.retained_inventory(character.id).await.unwrap(), settled);
+    character
+}
+
+#[tokio::test]
+async fn memory_cap_edge_settles_c_to_c_plus_1_to_c_and_refuses_tick_end_or_row_above_cap() {
+    let bundle = embedded_phase4_bundle().unwrap();
+    let repo = InMemoryCharacterRepository::default()
+        .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
+        .unwrap();
+    cap_edge_contract(&repo, &bundle).await;
+    let rows: Vec<_> = repo
+        .item_ledger_for_test()
+        .into_iter()
+        .filter(|row| row.tick == Tick(75))
+        .map(|row| (row.operation, row.operation_ordinal, row.delta.count_delta))
+        .collect();
+    assert_eq!(
+        rows,
+        vec![
+            (ItemLedgerOperation::Grant, 0, 1),
+            (ItemLedgerOperation::Consume, 1, -1)
+        ]
+    );
+}
+
+#[tokio::test]
+async fn postgres_cap_edge_settles_c_to_c_plus_1_to_c_and_refuses_tick_end_or_row_above_cap() {
+    let Some(pool) = common::pg::migrated_pool().await else {
+        return;
+    };
+    common::pg::insert_account(&pool, Uuid::from_u128(1)).await;
+    let bundle = embedded_phase4_bundle().unwrap();
+    let repo = PgCharacterRepository::new(pool.clone())
+        .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
+        .unwrap();
+    let character = cap_edge_contract(&repo, &bundle).await;
+    let rows: Vec<(String, i32, serde_json::Value)> = sqlx::query_as(
+        "SELECT op,operation_ordinal,delta FROM item_ledger WHERE character_id=$1 AND tick=75 ORDER BY id",
+    )
+    .bind(character.id.as_uuid())
+    .fetch_all(&pool)
+    .await
+    .unwrap();
+    let rows: Vec<_> = rows
+        .into_iter()
+        .map(|(op, ordinal, delta)| {
+            let delta: ItemLedgerDelta = serde_json::from_value(delta).unwrap();
+            (op, ordinal, delta.before.unwrap().count, delta.after.unwrap().count)
+        })
+        .collect();
+    let cap = rows[0].2;
+    assert_eq!(
+        rows,
+        vec![
+            ("grant".to_owned(), 0, cap, cap.checked_add(1).unwrap()),
+            ("consume".to_owned(), 1, cap.checked_add(1).unwrap(), cap),
+        ]
+    );
 }
 
 #[allow(clippy::too_many_lines)] // Shared memory/Pg atomic unchanged-attempt contract.
@@ -1866,7 +2093,7 @@ where
         },
         ItemDeltaPlan {
             operation: ItemOperation::Equip,
-            operation_ordinal: 1,
+            operation_ordinal: 0,
             instance: equipped.id,
             before: Some(unequipped),
             after: Some(equipped),
@@ -1946,7 +2173,7 @@ where
     });
     fabricated.projection.ledger.push(ItemDeltaPlan {
         operation: ItemOperation::Grant,
-        operation_ordinal: 2,
+        operation_ordinal: 0,
         instance: id,
         before: None,
         after: Some(item),
@@ -1993,10 +2220,11 @@ async fn memory_new_epoch_preserves_creation_and_settles_3_to_2_to_5_to_4_canoni
         .filter(|row| row.epoch == 2 && row.tick == Tick(1))
         .collect();
     assert_eq!(rows.len(), 2);
-    assert_eq!((rows[0].operation, rows[0].operation_ordinal), (ItemLedgerOperation::Grant, 1));
+    // D76: row positions, grant 0 then the Consume aggregate 1.
+    assert_eq!((rows[0].operation, rows[0].operation_ordinal), (ItemLedgerOperation::Grant, 0));
     assert_eq!(
         (rows[1].operation, rows[1].operation_ordinal),
-        (ItemLedgerOperation::Consume, 0)
+        (ItemLedgerOperation::Consume, 1)
     );
     assert_eq!((rows[0].delta.count_delta, rows[1].delta.count_delta), (3, -2));
     assert_eq!(rows[0].delta.after, rows[1].delta.before);
@@ -2017,7 +2245,10 @@ async fn memory_new_epoch_preserves_creation_and_settles_3_to_2_to_5_to_4_canoni
     rewritten.instances[0].created_tick = Tick(74);
     repo.insert_item_checkpoint_for_test(character, rewritten)
         .unwrap();
-    assert!(repo.retained_inventory(character).await.is_err());
+    assert_constraint(
+        &repo.retained_inventory(character).await.unwrap_err(),
+        "item_creation_ledger_tick",
+    );
 }
 
 #[tokio::test]
@@ -2035,9 +2266,9 @@ async fn postgres_new_epoch_preserves_creation_and_settles_3_to_2_to_5_to_4_cano
         "SELECT op,operation_ordinal,revision,delta FROM item_ledger WHERE epoch=2 AND tick=1 ORDER BY id")
         .fetch_all(&pool).await.unwrap();
     assert_eq!(rows.len(), 2);
-    // Append order (identity id) is the canonical D66 order; Consume keeps ordinal marker 0.
-    assert_eq!((&*rows[0].0, rows[0].1, rows[0].2), ("grant", 1, 3));
-    assert_eq!((&*rows[1].0, rows[1].1, rows[1].2), ("consume", 0, 3));
+    // Append order (identity id) is the canonical D66 order; D76 ordinals are row positions.
+    assert_eq!((&*rows[0].0, rows[0].1, rows[0].2), ("grant", 0, 3));
+    assert_eq!((&*rows[1].0, rows[1].1, rows[1].2), ("consume", 1, 3));
     let grant: ItemLedgerDelta = serde_json::from_value(rows[0].3.clone()).unwrap();
     let consume: ItemLedgerDelta = serde_json::from_value(rows[1].3.clone()).unwrap();
     assert_eq!((grant.count_delta, consume.count_delta), (3, -2));
@@ -2065,5 +2296,175 @@ async fn postgres_new_epoch_preserves_creation_and_settles_3_to_2_to_5_to_4_cano
     );
     sqlx::query("UPDATE characters SET phase4_checkpoint=jsonb_set(phase4_checkpoint,'{instances}',(SELECT jsonb_agg(item || '{\"creation_origin\":{\"zone\":1,\"epoch\":2}}'::jsonb) FROM jsonb_array_elements(phase4_checkpoint->'instances') item)) WHERE id=$1")
         .bind(character.as_uuid()).execute(&pool).await.unwrap();
-    assert!(repo.retained_inventory(character).await.is_err());
+    assert_constraint(
+        &repo.retained_inventory(character).await.unwrap_err(),
+        "item_creation_ledger_origin",
+    );
+}
+
+/// D77: a retained item without its birth ledger row is a permanent named constraint on the
+/// settlement and read paths; nothing is written and the call returns promptly (no retry).
+async fn missing_birth_contract<R>(
+    repo: &R,
+    character: &Character,
+    cp: &CharacterCheckpoint,
+    work: &ItemCheckpointWork,
+) where
+    R: CharacterRepository + ItemCheckpointRepository + ItemInventoryRepository,
+{
+    assert_constraint(
+        &repo.retained_inventory(character.id).await.unwrap_err(),
+        "item_creation_ledger_missing",
+    );
+    assert_constraint(
+        &repo.load_for_admission(character.id).await.unwrap_err(),
+        "item_creation_ledger_missing",
+    );
+    let (next, next_work, next_facts) = interleaved(cp, work);
+    let result = tokio::time::timeout(
+        std::time::Duration::from_secs(10),
+        repo.checkpoint_items(&next, &next_facts, &next_work, None),
+    )
+    .await
+    .unwrap();
+    assert!(
+        matches!(&result, Err(CheckpointError::Constraint(name)) if name == "item_creation_ledger_missing"),
+        "{result:?}"
+    );
+}
+
+#[tokio::test]
+async fn memory_missing_birth_ledger_row_is_a_permanent_named_constraint() {
+    let bundle = embedded_phase4_bundle().unwrap();
+    let repo = InMemoryCharacterRepository::default()
+        .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
+        .unwrap();
+    let (character, cp, work, facts) = fixture(&repo, &bundle, "ItemNoBirth").await;
+    assert_eq!(
+        repo.checkpoint_items(&cp, &facts, &work, None)
+            .await
+            .unwrap(),
+        CheckpointOutcome::Applied(1)
+    );
+    let mut corrupt = cp.phase4.clone().unwrap();
+    let mut orphan = corrupt.instances[0].clone();
+    orphan.id = work.allocation.clone().allocate().unwrap();
+    corrupt.instances.push(orphan);
+    repo.insert_item_checkpoint_for_test(character.id, corrupt)
+        .unwrap();
+    let rows = repo.item_ledger_for_test();
+    missing_birth_contract(&repo, &character, &cp, &work).await;
+    assert_eq!(repo.item_ledger_for_test(), rows);
+    let header = repo.get(character.id).await.unwrap().unwrap();
+    assert_eq!(header.item_metadata.unwrap().inventory_revision, 1);
+}
+
+#[tokio::test]
+async fn postgres_missing_birth_ledger_row_is_a_permanent_named_constraint() {
+    let Some(pool) = common::pg::migrated_pool().await else {
+        return;
+    };
+    common::pg::insert_account(&pool, Uuid::from_u128(1)).await;
+    let bundle = embedded_phase4_bundle().unwrap();
+    let repo = PgCharacterRepository::new(pool.clone())
+        .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
+        .unwrap();
+    let (character, cp, work, facts) = fixture(&repo, &bundle, "ItemNoBirth").await;
+    assert_eq!(
+        repo.checkpoint_items(&cp, &facts, &work, None)
+            .await
+            .unwrap(),
+        CheckpointOutcome::Applied(1)
+    );
+    let source = i64::try_from(cp.phase4.as_ref().unwrap().instances[0].id.get()).unwrap();
+    let orphan = i64::try_from(work.allocation.clone().allocate().unwrap().get()).unwrap();
+    // A retained row and checkpoint entry whose append-only birth row was never written.
+    sqlx::query("INSERT INTO item_instances(id,character_id,location,slot,template_id,count,enchant,augment_id,charge_bits,bound,created_tick,revision) SELECT $2,character_id,location,slot,template_id,count,enchant,augment_id,charge_bits,bound,created_tick,revision FROM item_instances WHERE id=$1")
+        .bind(source).bind(orphan).execute(&pool).await.unwrap();
+    sqlx::query("UPDATE characters SET phase4_checkpoint=jsonb_set(phase4_checkpoint,'{instances}',(phase4_checkpoint->'instances') || jsonb_build_array((SELECT item || jsonb_build_object('id',$2::bigint) FROM jsonb_array_elements(phase4_checkpoint->'instances') item WHERE (item->>'id')::bigint=$1))) WHERE id=$3")
+        .bind(source).bind(orphan).bind(character.id.as_uuid()).execute(&pool).await.unwrap();
+    let counts =
+        "SELECT (SELECT count(*) FROM item_ledger)+(SELECT count(*) FROM item_mutation_receipts)";
+    let rows: i64 = sqlx::query_scalar(counts).fetch_one(&pool).await.unwrap();
+    missing_birth_contract(&repo, &character, &cp, &work).await;
+    assert_eq!(
+        sqlx::query_scalar::<_, i64>(counts)
+            .fetch_one(&pool)
+            .await
+            .unwrap(),
+        rows
+    );
+    let revision: i64 = sqlx::query_scalar("SELECT revision FROM characters WHERE id=$1")
+        .bind(character.id.as_uuid())
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(revision, 1);
+}
+
+/// D76 at the storage boundary: the deferred trigger refuses duplicate, gapped and
+/// Consume-not-last ordinals with its exact name, and accepts the canonical positions.
+#[tokio::test]
+async fn postgres_item_ledger_row_ordinal_trigger_enforces_row_positions() {
+    let Some(pool) = common::pg::migrated_pool().await else {
+        return;
+    };
+    common::pg::insert_account(&pool, Uuid::from_u128(1)).await;
+    let bundle = embedded_phase4_bundle().unwrap();
+    let repo = PgCharacterRepository::new(pool.clone())
+        .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
+        .unwrap();
+    let (character, cp, work, facts) = fixture(&repo, &bundle, "ItemRowOrdinal").await;
+    assert_eq!(
+        repo.checkpoint_items(&cp, &facts, &work, None)
+            .await
+            .unwrap(),
+        CheckpointOutcome::Applied(1)
+    );
+    let row = "INSERT INTO item_ledger(character_id,zone_id,epoch,tick,revision,op,instance_id,operation_ordinal,delta) VALUES($1,9,1,500,2,$2,7,$3,'{}'::jsonb)";
+    for (rows, refused) in [
+        (vec![("grant", 0), ("consume", 1)], false),
+        (vec![("unequip", 0), ("destroy", 0)], true), // duplicate (the e6d37ec shape)
+        (vec![("equip", 0), ("unequip", 2)], true),   // gap
+        (vec![("grant", 1), ("consume", 0)], true),   // Consume at 0 after a positive row
+        (vec![("equip", 1)], true),                   // does not start at 0
+    ] {
+        let mut tx = pool.begin().await.unwrap();
+        for (op, ordinal) in &rows {
+            sqlx::query(row)
+                .bind(character.id.as_uuid())
+                .bind(*op)
+                .bind(*ordinal)
+                .execute(&mut *tx)
+                .await
+                .unwrap();
+        }
+        let result = sqlx::query("SET CONSTRAINTS item_ledger_row_ordinal IMMEDIATE")
+            .execute(&mut *tx)
+            .await;
+        if refused {
+            let error = result.unwrap_err();
+            let database = error.as_database_error().unwrap();
+            assert_eq!(
+                (database.code().as_deref(), database.constraint()),
+                (Some("23514"), Some("item_ledger_row_ordinal")),
+                "{rows:?}"
+            );
+            tx.rollback().await.unwrap();
+        } else {
+            result.unwrap();
+            tx.rollback().await.unwrap();
+        }
+    }
+    // Deferred to COMMIT when nothing sets it immediate.
+    let mut tx = pool.begin().await.unwrap();
+    sqlx::query(row)
+        .bind(character.id.as_uuid())
+        .bind("equip")
+        .bind(1)
+        .execute(&mut *tx)
+        .await
+        .unwrap();
+    let error = tx.commit().await.unwrap_err();
+    assert_eq!(error.as_database_error().unwrap().constraint(), Some("item_ledger_row_ordinal"));
 }

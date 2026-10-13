@@ -121,6 +121,7 @@ async fn memory_retains_exact_history_and_legacy_none_without_synthesizing_items
         .is_none());
     repo.insert_item_checkpoint_for_test(c.id, retained())
         .unwrap();
+    repo.seed_item_birth_ledger_for_test(c.id).unwrap();
     let view = repo.retained_inventory(c.id).await.unwrap().unwrap();
     assert_eq!(view.character_revision, 1);
     assert_eq!(view.checkpoint, Some(retained()));
@@ -298,6 +299,7 @@ async fn memory_periodic_checkpoint_preserves_items_retries_and_refuses_unledger
     let c = seed(&repo).await;
     repo.insert_item_checkpoint_for_test(c.id, retained())
         .unwrap();
+    repo.seed_item_birth_ledger_for_test(c.id).unwrap();
     periodic_contract(&repo, &c).await;
 }
 
