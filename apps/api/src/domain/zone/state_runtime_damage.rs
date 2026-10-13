@@ -8501,7 +8501,8 @@ mod tests {
                 .unwrap()
                 .min(cap)
         };
-        for misses in [&[][..], &[3][..]] {
+        // A primary miss (draw 1) still scans every secondary (doAttackHitByPole).
+        for misses in [&[][..], &[3][..], &[1][..]] {
             let mut zone = zone.clone();
             let swing = arm_swing(&mut zone, owner, npc);
             let mut trace = Vec::new();
@@ -8528,7 +8529,11 @@ mod tests {
                 .collect();
             // Primary + (count > max) ⇒ max + 1 attempted secondaries.
             assert_eq!(results.len(), 1 + maximum + 1, "{misses:?}");
-            assert_eq!(results[0], (npc.entity, AttackOutcome::Hit, base.min(cap)));
+            if misses.contains(&1) {
+                assert_eq!(results[0], (npc.entity, AttackOutcome::Miss, 0));
+            } else {
+                assert_eq!(results[0], (npc.entity, AttackOutcome::Hit, base.min(cap)));
+            }
             for (k, (target, outcome, damage)) in results[1..].iter().enumerate() {
                 let k = u32::try_from(k).unwrap();
                 assert_eq!(*target, extra[k as usize]);
@@ -8543,6 +8548,97 @@ mod tests {
                 .iter()
                 .any(|(t, ..)| *t == extra[8] || *t == extra[9]));
         }
+        // Player candidates (L2PcInstance.isAutoAttackable): the other player stands first in
+        // the cone and in ordinal order; it is skipped while neither flagged nor chaotic, and
+        // takes the first 85% secondary when chaotic or flagged, shifting every NPC by one.
+        let other = zone
+            .entities
+            .values()
+            .find(|e| e.kind == EntityKind::Player && e.id != owner.entity)
+            .unwrap()
+            .id;
+        assert!(zone.sidecar(other).unwrap().ordinal < zone.sidecar(extra[0]).unwrap().ordinal);
+        place(&mut zone, other, raw(10_700, 10_000));
+        let other_binding = zone.binding(other).unwrap();
+        let mut other_probe = Vec::new();
+        let (_, other_base, _, _) = zone
+            .clone()
+            .auto_resolve_v5(owner, other_binding, &mut forced(&[], &mut other_probe))
+            .unwrap();
+        for (karma, flagged, included) in [(0, false, false), (1, false, true), (0, true, true)] {
+            let mut zone = zone.clone();
+            let tick = zone.next_tick;
+            let pvp = &mut zone
+                .sidecar_mut(other)
+                .unwrap()
+                .player
+                .as_mut()
+                .unwrap()
+                .pvp;
+            pvp.karma = karma;
+            pvp.flag_until = flagged.then_some(Tick(tick.0 + 100));
+            let swing = arm_swing(&mut zone, owner, npc);
+            let mut events = Vec::new();
+            zone.land_auto_v5(
+                swing.impact,
+                owner.entity,
+                swing,
+                &mut events,
+                &mut forced(&[], &mut Vec::new()),
+            )
+            .unwrap();
+            let targets: Vec<_> = events
+                .iter()
+                .filter_map(|e| match e {
+                    ZoneEvent::AttackResult { target, damage, .. } => Some((*target, *damage)),
+                    _ => None,
+                })
+                .collect();
+            assert_eq!(targets.len(), 1 + maximum + 1, "{karma} {flagged}");
+            if included {
+                let first = u32::try_from(i128::from(other_base) * 85 / 100).unwrap();
+                assert_eq!(targets[1].0, other);
+                assert_eq!(targets[1].1, first.min(other_base));
+                assert_eq!(targets[2].0, extra[0]);
+                assert_eq!(targets[2].1, expected(1));
+            } else {
+                assert!(targets.iter().all(|(t, _)| *t != other));
+                assert_eq!(targets[1], (extra[0], expected(0)));
+            }
+        }
+        // A candidate killed by its own secondary (1 HP left) is counted and the scan goes on
+        // to the next candidate at the next percentage.
+        let mut lethal = zone.clone();
+        lethal
+            .entities
+            .get_mut(&extra[0])
+            .unwrap()
+            .combat
+            .as_mut()
+            .unwrap()
+            .hp = 1;
+        let swing = arm_swing(&mut lethal, owner, npc);
+        let mut events = Vec::new();
+        lethal
+            .land_auto_v5(
+                swing.impact,
+                owner.entity,
+                swing,
+                &mut events,
+                &mut forced(&[], &mut Vec::new()),
+            )
+            .unwrap();
+        let results: Vec<_> = events
+            .iter()
+            .filter_map(|e| match e {
+                ZoneEvent::AttackResult { target, damage, .. } => Some((*target, *damage)),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(results.len(), 1 + maximum + 1);
+        assert_eq!(results[1], (extra[0], 1));
+        assert!(lethal.entities[&extra[0]].targeting.dead);
+        assert_eq!(results[2], (extra[1], expected(1)));
         // The fixture must exercise uncapped secondary percentages.
         assert!(expected(1) < cap && expected(1) < expected(0));
     }
