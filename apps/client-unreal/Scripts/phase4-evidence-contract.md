@@ -351,3 +351,47 @@ D26 live/replayed wire bytes, enriched tag41 round trips, legacy tag selection,
 Revision 2 producer implementation, live ledger/receipt cause linkage and measurement
 proof remain E2/E3 integration gates. Synthetic Python tests prove consumer
 rejection and formula behavior, never that a server emitted these facts.
+
+## Next-tranche formula families (zone session 8) — schema revision 17
+
+The zone exports these 14 `item_formula` families next (zone-progress session 7
+gap list): `bow_launch`, `bow_reuse`, `magic_damage`, `heal`, `gear_stats`,
+`set_shield_history`, `clamp_no_heal`, `charge_transition`, `consumable_use`,
+`escape_timing`, `resurrection_scroll`, `learned_item_cost`, `pole_sequence`,
+`dual_plan`; `bow_damage` (D80) and `lethal` (D81) are revised with them. Each
+fact keeps the frozen shape `formula,inputs,actual,resolution_id,baseline=false`
+plus optional `context`. `inputs` must match `INPUT_SCHEMAS[family]` exactly
+(required = the E1 oracle function's parameters without defaults, optional =
+the rest, absent means default, never null unless the schema says nullable).
+`actual` must match `ACTUAL_SCHEMAS[family]` (new in this revision: the shape
+of the E1 oracle's return value after `rational()`, checked before exact
+oracle equality; numbers are exact integers or `{numerator,denominator}`,
+D80 wide integers as decimal strings). Sources: E1 `item_oracle.py` /
+`item_behavior_oracle.py` at the rev 8 import (zone 80b8077 → 89df126),
+design `docs/plans/phase-4-zone-design.md` §12.1 and the producer in
+`state_item_evidence.rs` (`item_formula_v6`, `attack_context_v6`).
+
+| Family | Producer caller / `context.event` | `inputs` (beyond the oracle signature) | `actual` |
+|---|---|---|---|
+| `bow_launch` | bow attack start, `attack` (+`weapon_template`, `target_entity`) | `weapon` = E1 bow_definition record; `inventory` = ITEM records of candidate arrows; `lhand` occupied arrow id or null; `mp`, `mp_modifier` exact; `reduction_residue` null iff no reduced-MP draw; `miss`; `reuse_remaining` ticks/ms (QUESTION Q-F2); `hit_chance` per-mille; `hit_residue` | `{accepted, reason∈arrows/reuse/mp/launched, inventory, lhand, equipped_lhand, mp, mp_q, mp_paid, arrows_consumed∈0..1, draws, hit, mp_cost?}`; the launch's arrow debit is an `arrow:<resolution_id>` Consume cause |
+| `bow_reuse` | bow attack accepted, `attack` | `reuse_delay` (template ms), `attack_speed` exact P.Atk.Spd, `weapon_reuse_modifier` | whole ms `trunc(reuse·333/speed)` (D17) |
+| `bow_damage` | bow hit, `attack` | `formula` exact calcPhysDam, `dx_milli`, `dy_milli` signed milli-tiles | `{base, distance_l2_lower, distance_l2_upper, damage}`; bounds are certified 2^-bits rationals, D80 strings |
+| `pole_sequence` | pole swing, `attack` | `candidates` in attempt order `{eligible, hit, formula}`, `maximum` secondary count | per eligible attempt `{percent, hit, draws, base?, damage?}` (D25 85% ÷23/20) |
+| `dual_plan` | dual swing, `attack` | `hits` pair, `formulas` pair, `second_valid`, `hit_residues` pair, `hit_chance`, `spread_radius` | `{plan, stored_second, applied=[first, second|null], second_recomputed, draws, refunded_draws}` |
+| `magic_damage` | magic skill hit, `cast` (+`skill_id`, `target_entity`) | exact stats + shot flags + branch inputs; `second_success` null when no second draw (QUESTION Q-F3) | `{lower, upper, damage, damage_q, branch}` |
+| `heal` | heal effect, `cast` | power/m_atk/shot/grade inputs; `current_hp`, `remainder_q` before; `recoverable_hp` null = uncapped | `{amount, restoration_q, applied_q, current_hp, remainder_q, whole_credit, coefficient, static_bonus, root_lower, root_upper}` |
+| `gear_stats` | dirty rebuild, `equip`/`unequip`/`enchant`/`admission` (+`set_id`) | `class_file` pinned path, `level`, `equipment` `[template, enchant, slot, install_seq]`, `skill_refs` `[skill, rank, seq]` winning providers, `base_deltas`, `base_delta_sequence` | `{exact, root_expressions, q, getters, trace, base_stats, weapon_type, random_damage, spread_bound, enchant_hp, traits, weight}` (QUESTION Q-F4) |
+| `set_shield_history` | set listener on slot mutation, `equip`/`unequip` + `set_id` | `previous`, `mutation∈remove/equip_shield/equip_chest`, `chest_present`, `matching_shield`, `complete`, `required_part` | boolean `shield_skill_active` after the mutation (D20) |
+| `clamp_no_heal` | dirty-rebuild clamp, event of the rebuild | `current`, `new_max` exact | `min(current,new_max)` (QUESTION Q-F5: one fact per resource) |
+| `charge_transition` | discharge/unequip, `attack`/`cast`/`unequip` | `charges` set before, `use_spirit`, `use_soul`, `landed`, `unequip` | sorted charges after; correlates with the D73 `use` row on the weapon |
+| `consumable_use` | UseItem acceptance, `cast` | `definition` (E1 item definition + skills), `tick`, `available` count map, reuse deadline maps, `main_casting`, `condition_context` | `{accepted, consumed, lanes, reason?, item_deadlines?, skill_deadlines?, main_cast_preserved?}`; accepted costs appear as Consume causes `receipt:use:<key>` |
+| `escape_timing` | Escape/Blessed Escape cast start, `cast` | `definition`, `start_tick`, `casting_speed`, `available`, `resources`, `incarnation` | `{accepted, inventory, consumed, draws, animation_ms?, launch_ms?, launch_tick?, completion_tick?, interrupt_cutoff_tick?, completion_consumed?, destination?, resources?, incarnation?, movement_canceled?, auto_canceled?, town_respawn?}` |
+| `resurrection_scroll` | scroll 737 cast + offer response, `cast` | `definition`, `start_tick`, `available`, death/current incarnation, `dead`, `response∈offer/accept/decline/expire`, `response_tick`, `response_offer_id`, `existing_offer`, `repeat`, resources, `restore_percent`, `restore_hp` ratio | `{accepted, consumed, inventory, draws, reason?, completion_consumed?, offer?, trace?, dead?, incarnation?, hp?, hp_q?, mp?, cp?, xp_refund?, recoverable_xp?}` (QUESTION Q-F6) |
+| `learned_item_cost` | learned skill with itemConsume, `cast` | `skill_id`, `rank`, `consume_id`, `consume_count`, `inventory` ITEM records, `phase∈complete/cancel`, `repeat` | `{accepted, inventory, consumed, draws, completion_consumed?, repeated_consumed?, phase?}`; debits are `item_cast:cast:<id>` Consume causes |
+| `lethal` | blow skill, `cast` | D81 nullable residues | `{outcome∈none/full/half, draws}` |
+
+Draw lists in `actual` name `{site,bound,residue}`; when the family also has
+`item_rng` facts they share the family's `resolution_id`. Open producer
+questions are tracked in harness-progress.md (revision 17, Q-F1..Q-F7); the
+consumer does not guess them — every family is still verified by exact
+oracle equality on the producer's actual inputs.

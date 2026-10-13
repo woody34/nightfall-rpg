@@ -344,6 +344,51 @@ def decode_data(kind,data):
     return data
 
 
+# Output (`actual`) shapes of the E2.8 families the zone exports next (session 8),
+# plus bow_damage/lethal (D80/D81). Derived from the E1 oracle return values
+# (item_oracle.py / item_behavior_oracle.py at the E1 rev 8 import) and design
+# §12.1; values are still pinned by exact oracle equality afterwards. Checked
+# without width bounds: D80 actuals may exceed i64 (certified sqrt bounds).
+ANY=('any',)
+SIGNED=('int',-2**63,I64_MAX)
+DRAW=record(dict(site=TEXT,bound=IDENTITY,residue=NONNEG_INT))
+ACTUAL_SCHEMAS={
+    'pole_sequence':list_of(record(dict(percent=NONNEG_NUMERIC,hit=BOOL,draws=list_of(enum('shield','critical','spread'))),
+        dict(base=SIGNED,damage=SIGNED))),
+    'bow_reuse':NONNEG_INT,
+    'bow_damage':record(dict(base=SIGNED,distance_l2_lower=NONNEG_NUMERIC,distance_l2_upper=NONNEG_NUMERIC,damage=SIGNED)),
+    'lethal':record(dict(outcome=enum('none','full','half'),draws=list_of(DRAW))),
+    'magic_damage':record(dict(lower=NUMERIC,upper=NUMERIC,damage=SIGNED,damage_q=SIGNED,
+        branch=enum('perfect','success','npc_failure','half','resisted','critical'))),
+    'heal':record(dict(amount=NONNEG_NUMERIC,restoration_q=NONNEG_INT,applied_q=NONNEG_INT,current_hp=NONNEG_INT,
+        remainder_q=int_range(0,oracle.Q-1),whole_credit=NONNEG_INT,coefficient=NONNEG_NUMERIC,static_bonus=NONNEG_NUMERIC,
+        root_lower=NONNEG_NUMERIC,root_upper=NONNEG_NUMERIC)),
+    'gear_stats':record(dict(exact=map_of(TEXT,NUMERIC),root_expressions=map_of(TEXT,ANY),q=map_of(TEXT,SIGNED),
+        getters=map_of(TEXT,SIGNED),trace=list_of(ANY),base_stats=map_of(TEXT,NONNEG_INT),weapon_type=WEAPON_TYPE,
+        random_damage=NONNEG_INT,spread_bound=IDENTITY,enchant_hp=NONNEG_NUMERIC,traits=list_of(ANY),weight=NONNEG_INT)),
+    'set_shield_history':BOOL,
+    'clamp_no_heal':NONNEG_NUMERIC,
+    'charge_transition':list_of(CHARGE),
+    'consumable_use':record(dict(accepted=BOOL,consumed=COUNT_MAP,lanes=list_of(enum('item','main'))),
+        dict(reason=enum('item_reuse','condition','skill_reuse','casting_guard','items'),item_deadlines=COUNT_MAP,
+             skill_deadlines=COUNT_MAP,main_cast_preserved=BOOL)),
+    'bow_launch':record(dict(accepted=BOOL,reason=enum('arrows','reuse','mp','launched'),inventory=list_of(ITEM),
+        lhand=nullable(IDENTITY),equipped_lhand=nullable(IDENTITY),mp=NONNEG_NUMERIC,mp_q=NONNEG_INT,mp_paid=NONNEG_INT,
+        arrows_consumed=int_range(0,1),draws=list_of(DRAW),hit=nullable(BOOL)),dict(mp_cost=NONNEG_INT)),
+    'resurrection_scroll':record(dict(accepted=BOOL,consumed=NONNEG_INT,inventory=NONNEG_INT,draws=list_of(DRAW)),
+        dict(reason=enum('items'),completion_consumed=NONNEG_INT,offer=nullable(OFFER),trace=list_of(ANY),dead=BOOL,
+             incarnation=IDENTITY,hp=NONNEG_NUMERIC,hp_q=NONNEG_INT,mp=NONNEG_NUMERIC,cp=NONNEG_NUMERIC,
+             xp_refund=NONNEG_INT,recoverable_xp=NONNEG_INT)),
+    'learned_item_cost':record(dict(accepted=BOOL,inventory=list_of(ITEM),consumed=COUNT_MAP,draws=list_of(DRAW)),
+        dict(completion_consumed=COUNT_MAP,repeated_consumed=COUNT_MAP,phase=enum('complete','cancel'))),
+    'escape_timing':record(dict(accepted=BOOL,inventory=NONNEG_INT,consumed=NONNEG_INT,draws=list_of(DRAW)),
+        dict(animation_ms=NONNEG_INT,launch_ms=NONNEG_INT,launch_tick=NONNEG_INT,completion_tick=NONNEG_INT,
+             interrupt_cutoff_tick=NONNEG_INT,completion_consumed=NONNEG_INT,destination=tuple_of(NONNEG_INT,NONNEG_INT),
+             resources=record(dict(hp=NONNEG_NUMERIC,mp=NONNEG_NUMERIC,cp=NONNEG_NUMERIC,xp=NONNEG_INT)),incarnation=IDENTITY,
+             movement_canceled=BOOL,auto_canceled=BOOL,town_respawn=BOOL)),
+    'dual_plan':record(dict(plan=tuple_of(SIGNED,SIGNED),stored_second=SIGNED,applied=tuple_of(SIGNED,nullable(SIGNED)),
+        second_recomputed=BOOL,draws=list_of(DRAW),refunded_draws=list_of(DRAW))),
+}
 def validate_input(value,schema,path,bounds=False):
     kind=schema[0]
     def invalid():raise ValueError('invalid formula input '+path+' ('+kind+')')
@@ -488,6 +533,7 @@ def formula(name,inputs,actual):
     if name in INPUT_SCHEMAS and isinstance(inputs,dict):inputs=wide_input(inputs,record({},INPUT_SCHEMAS[name])) # D80
     actual=wide_any(actual)
     input_domains(name,inputs)
+    if name in ACTUAL_SCHEMAS:validate_input(actual,ACTUAL_SCHEMAS[name],name+'.actual')
     # Match E1's finite function registry on arbitrary resolution inputs.
     if name=='gear_stats':
         required={'class_file','level','equipment','skill_refs','base_deltas','base_delta_sequence'}

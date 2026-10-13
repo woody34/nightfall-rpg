@@ -1732,6 +1732,59 @@ class Evidence(unittest.TestCase):
         self.assertGreaterEqual(controls,3202)
         self.assertGreaterEqual(len(formulas),43)
 
+    def test_next_tranche_actual_schemas_match_e1_outputs(self):
+        """Revision 17: every `actual` shape of the 14 next-tranche families (+bow_damage, lethal)
+        accepts the E1 oracle's own outputs on E1 vectors, and rejects shape mutations."""
+        import inspect
+        families={'bow_launch','bow_reuse','magic_damage','heal','gear_stats','set_shield_history','clamp_no_heal',
+                  'charge_transition','consumable_use','escape_timing','resurrection_scroll','learned_item_cost',
+                  'pole_sequence','dual_plan','bow_damage','lethal'}
+        self.assertEqual(set(gate.ACTUAL_SCHEMAS),families)
+        vectors=json.loads((gate.REPO/'packages/data/fixtures/item-oracle.json').read_text())['vectors']
+        covered={};src=gate.source()
+        for name in sorted(families):
+            function=getattr(gate.oracle,name,None) or getattr(gate.oracle.behavior,name,None)
+            parameters=inspect.signature(function).parameters
+            required={k for k,p in parameters.items() if k!='src' and p.default is inspect.Parameter.empty}
+            for vector in vectors:
+                inputs=copy.deepcopy(vector['inputs'])
+                if not required<=set(inputs) or set(inputs)-set(gate.INPUT_SCHEMAS[name]):continue
+                if name=='resurrection_scroll':inputs['repeat']=bool(inputs['repeat'])
+                try:
+                    gate.input_domains(name,inputs)
+                    decoded=gate.oracle.decode_rationals(inputs)
+                    output=function(src,**decoded) if 'src' in parameters else function(**decoded)
+                except (ValueError,TypeError,KeyError,IndexError,ZeroDivisionError):continue
+                actual=gate.oracle.rational(output)
+                with self.subTest(formula=name,vector=vector['id']):
+                    gate.validate_input(actual,gate.ACTUAL_SCHEMAS[name],name+'.actual')
+                covered[name]=covered.get(name,0)+1
+        # Families without a signature-compatible E1 vector get a direct oracle control.
+        direct={'bow_reuse':dict(reuse_delay=1500,attack_speed=400),'clamp_no_heal':dict(current=120,new_max={'numerator':199,'denominator':2}),
+                'set_shield_history':dict(previous=False,mutation='equip_shield',chest_present=True,matching_shield=True),
+                'charge_transition':dict(charges=['soul','blessed'],use_spirit=True),
+                'lethal':dict(full=10,half=20,full_residue=500,half_residue=150),
+                'bow_damage':dict(formula='100',dx_milli=12499,dy_milli=7),
+                'pole_sequence':dict(candidates=[dict(eligible=True,hit=True,formula='499/10'),dict(eligible=True,hit=False,formula=0)],maximum=3),
+                'magic_damage':dict(power=10,m_atk=100,m_def=50,spirit=True),
+                'heal':dict(power=100,m_atk=200,current_hp=10,recoverable_hp=500)}
+        for name,inputs in direct.items():
+            with self.subTest(formula=name,direct=True):
+                actual=gate.oracle.rational((getattr(gate.oracle,name,None) or getattr(gate.oracle.behavior,name))(**gate.oracle.decode_rationals(inputs)))
+                gate.formula(name,inputs,actual);covered[name]=covered.get(name,0)+1
+        self.assertEqual(set(covered),families,covered)
+        # Shape mutations reject before oracle equality (booleans/text masquerading as numbers, missing keys).
+        actual=gate.oracle.rational(gate.oracle.bow_damage('100',12499,7))
+        for mutate in (lambda a:a.update(damage=True),lambda a:a.update(damage='90'),lambda a:a.pop('base'),
+                       lambda a:a.update(extra=1),lambda a:a.update(distance_l2_lower=1.5)):
+            bad=copy.deepcopy(actual);mutate(bad)
+            with self.assertRaises(ValueError):gate.formula('bow_damage',dict(formula='100',dx_milli=12499,dy_milli=7),bad)
+        with self.assertRaisesRegex(ValueError,'set_shield_history.actual'):
+            gate.formula('set_shield_history',direct['set_shield_history'],1)
+        with self.assertRaisesRegex(ValueError,'charge_transition.actual'):
+            gate.formula('charge_transition',direct['charge_transition'],['shot'])
+        print('Revision 17 actual schemas: E1 outputs accepted '+', '.join(f'{k}:{v}' for k,v in sorted(covered.items())),flush=True)
+
     def test_scalar_shape_mutations_on_perfect_block_branches(self):
         # Recompute output: these oracle branches deliberately never read operands.
         for name,inputs in [('physical_damage',dict(p_atk=10,defence=10,perfect=True)),
