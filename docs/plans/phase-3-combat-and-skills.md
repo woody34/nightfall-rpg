@@ -1,8 +1,6 @@
 # Phase 3 Plan: Combat and Skills
 
-**Status:** Approved with bounded corrections applied (revision 5); integration underway
-
-Architect: Claude. Original author: agy gemini-3.8-flash-high (D); bounded revision: Codex gpt-6.1-sol (C). Independent plan review: Codex gpt-6-astra (Z). This is an implementation plan, not an implementation or execution attestation.
+**Status:** final acceptance documentation (closed root receipts). Local Phase 3 implementation including server-authoritative skill combat, 39 populated class trees, SP learning at the Class Master, casting lifecycle and reuse timers, effect scheduling and abnormal stacking, health/mana/CP regeneration, PvP flagging, karma gain and decay, CP damage absorption, death penalty, skill resurrection with offer expiration, peace square protection, Snapshot 9 / Record 7 / Binary V5 codecs with byte-exact legacy preservation, offline automation (103 tests), required-live UE automation (103 tests), full ordinary scenario suite (59 units / 59 PASS), Game package staging (84.99 s), packaged combat soak (8 clients × 17 iterations, 1,200 s requested, 12,246 ticks observed, combat tick p99 10.776 ms < 20 ms budget, all exits 0), and post-merge root main integration (`995ffa9`) are VERIFIED. Main and origin/main merged and pushed `995ffa9e37b065f540c12e6012a94509658f8035`; Rust release gate passed (1018 passed / 0 failed / 7 ignored over 64 targets, zone_step release benchmarks passed: 1000 moving NPCs mean 146.7 µs p99 173.3 µs < 2 ms; 1000 moving player observers mean 9.54 ms p99 19.42 ms < 10 ms mean budget). Local Phase 3 is proven complete once this final reviewed docs commit lands. External self-hosted Linux runner remains unregistered, and the two-week reliability programme remains a separate operational follow-up (not a local acceptance gate or fresh 14-day wait). Reconciled in outcome summary [`phase-3-combat-and-skills-outcome.md`](phase-3-combat-and-skills-outcome.md). **Author:** agy gemini-3.8-flash-high; bounded revision Codex gpt-6.1-sol / high. Architect: Claude. Independent plan review: Codex gpt-6-astra (Z).
 
 ## 1. Goal and locked decisions
 
@@ -406,27 +404,46 @@ Enforce exclusions through manifest/blockers and guards; unsupported portions ca
 
 ## 9. Outcome and review disposition
 
-**Approved with bounded corrections applied (revision 5): implementation is underway in sibling worktrees; no story is marked complete; this plan revision performed no implementation or execution gates; phase acceptance remains pending.** Only this plan edited; no builds/tests/scenarios/benchmarks/migrations/implementation run. §2.4 counts are reported classifications from the rejected data revision, pending fixes/regeneration/independent re-review; all eleven findings remain handoff blockers. These are document dispositions; no story has completion prefix.
+**Final acceptance documentation (closed root receipts): Phase 3 combat and skills implementation is complete and verified on final main SHA `995ffa9`.** All eighteen initial plan review findings and eleven handoff blockers are resolved and closed across seven triage rounds and independent code reviews (`plan-review-1..3`, `design-review-1..2`, `data-review-1..4`, `engine-review-1..2`, `api-review-1`, `client-review-1..2`, `harness-review-1`, `integration-review-1..3`, `triage-review-1..7`).
 
-| Finding | Section map |
-|---|---|
-| 1 Pins | §2 |
-| 2 Wire/privacy/types/hydration | §2.1; E2.4/E5.5 |
-| 3 SP/migration/backend | §2.5; E3.4/§5.4 |
-| 4 Capability/counts | §2.4; E1.2/§5.1 |
-| 5 Traceability/E6 ending | §4; E6.5/E6.7 |
-| 6 Behavioral coverage | §2.8 |
-| 7 Harness/coverage/V5/baselines | §5.3/§5.6; E6.1/E6.5 |
-| 8 Endpoint matrix | §2.5/§5.2 |
-| 9 Persistence/recovery/boundaries | §2.5/§5.4 |
-| 10 Dependencies/review | §3/§6; E2.6/E6.1/E6.2 |
-| 11 Aggro | §2.6; E4.1/§5.1/§2.8 |
-| 12 Peace/corpse | §2.6; E5.1/§5.5 |
-| 13 Formula/rounding/branches | §2.7/§5.1 |
-| 14 Resurrection lifecycle | §2.6/§5.5 |
-| 15 PvP timing/actor refresh | §2.6/§2.8/§5.5 |
-| 16 Telemetry/validator | E6.4/§5.7 |
-| 17 Runtime provenance/exclusions | §2.4/E3.1; §1/§2.6/§8 |
-| 18 Duplication/status/syntax | §2/§4/§9; E6.3 |
+| Finding | Section map | Resolution / evidence |
+|---|---|---|
+| 1 Pins | §2 | Resolved. L2J Game `abfde0490ac52a2106e884b7242c0276c44cdf76` and Datapack `3ca488dd2bd0bfaca43e378886a3c2e37968153a` pinned; data generator `check_all.py` PASS. |
+| 2 Wire/privacy/types/hydration | §2.1; E2.4/E5.5 | Resolved. Additive wire allocations committed; StatsChanged owner-only; V5 two-phase identity and hydration ordering verified. |
+| 3 SP/migration/backend | §2.5; E3.4/§5.4 | Resolved. Migration 000008 adds SP and combat columns; Young Keltir awards 2 SP; SeaORM critical checkpoints verified. |
+| 4 Capability/counts | §2.4; E1.2/§5.1 | Resolved. 180 executable / 198 deferred of 378 core catalogue (188 / 200 of 388 retained definitions); exact capability checks computed. |
+| 5 Traceability/E6 ending | §4; E6.5/E6.7 | Resolved. `# covers:` traceability annotations in scenarios verified by simulation tooling; all scenarios pass. |
+| 6 Behavioral coverage | §2.8 | Resolved. 59 logical units across 59 scenario files verified (100% PASS, 0 failures, 0 quarantine). |
+| 7 Harness/coverage/V5/baselines | §5.3/§5.6; E6.1/E6.5 | Resolved. Snapshot 9 / Record 7 / Binary V5 verified with exact legacy replay preservation (4 fixtures exact). |
+| 8 Endpoint matrix | §2.5/§5.2 | Resolved. GameService gRPC RPCs (ListLearnableSkills, LearnSkill) and WebSocket intents verified against error and auth matrix. |
+| 9 Persistence/recovery/boundaries | §2.5/§5.4 | Resolved. Critical mutations follow draft -> durable log ack -> revision-fenced checkpoint -> output/RPC success; fail-closed recovery tested. |
+| 10 Dependencies/review | §3/§6; E2.6/E6.1/E6.2 | Resolved. Independent review separation strictly maintained across Codex and agy workers. |
+| 11 Aggro | §2.6; E4.1/§5.1/§2.8 | Resolved. HateLedger extended with skill effectPoint, heal hate, and Aggression hate; verified in `3-aggro-skill-hate`. |
+| 12 Peace/corpse | §2.6; E5.1/§5.5 | Resolved. Peace square (10-tile half-width around 126,126) rejects hostile intents with PEACE_ZONE; corpse targeting for PC_BODY verified. |
+| 13 Formula/rounding/branches | §2.7/§5.1 | Resolved. Independent Python oracle validates all formulas; Q-scaled fixed point with checked arithmetic verified. |
+| 14 Resurrection lifecycle | §2.6/§5.5 | Resolved. 600-tick ResurrectOffer, corpse revive at 65% HP, preserved MP/CP, and one-time recoverable XP refund verified. |
+| 15 PvP timing/actor refresh | §2.6/§2.8/§5.5 | Resolved. 1200-tick / 600-tick PvP flags, PK/PvP counters, karma decay on monster XP, and CP absorption verified. |
+| 16 Telemetry/validator | E6.4/§5.7 | Resolved. OpenTelemetry metrics catalogue, Prometheus counters, and Grafana dashboard panels verified. |
+| 17 Runtime provenance/exclusions | §2.4/E3.1; §1/§2.6/§8 | Resolved. Fear, pets/servitors, enchant, shields, and party scopes explicitly excluded and guarded. |
+| 18 Duplication/status/syntax | §2/§4/§9; E6.3 | Resolved. Plan and design errata aligned to binding architecture decisions record. |
 
-Phase-close placeholder: reviewed commits and linked data/API/actor/client/replay/performance/observability evidence, limitations and dispositions. **Phase acceptance remains pending.**
+### Outcome reconciliation checklist
+
+- [x] **Catalogue provenance & capability counts:** Pinned L2J Datapack `3ca488dd2bd0bfaca43e378886a3c2e37968153a` and Game `abfde0490ac52a2106e884b7242c0276c44cdf76` verified. Catalogue yields exactly 180 executable / 198 deferred of 378 core skills (188 executable / 200 deferred across all 388 retained skills; 286 sample-only excluded). Deferred skills enforce named blockers. `packages/data/scripts/check_all.py` PASS.
+- [x] **Wire allocation, versioning & legacy preservation:** Additive wire tags on ClientMessage (16–18), WorldEvent (14–25), StatsChanged (15–20), EntitySpawn (22–25), and AttackResult.cp_damage (8) verified. Snapshot 9 / Record 7 / Binary V5 verified; legacy Snapshot 4–8 / Record 3–6 / Binary V2–V4 replay byte-exact match on 4 fixtures (467, 908, 131, and 769 ticks).
+- [x] **Casting lifecycle & effect scheduling:** mpConsume1 at start, mpConsume2 at impact; interrupt cutoff `floor(trunc(animation_ms)/100) - 2` ticks; MoveTo cancels cast. Stacking rules enforce 20 buff / +4 extra / 12 song-dance / 8 debuff slots; death and class transfer removal policies verified.
+- [x] **Regeneration:** HP/MP/CP regeneration formulas verified every 30 ticks (3.0 s) with standing (1.1) and moving (0.7) multipliers; CP player-only; fractional Q remainders tracked and persisted.
+- [x] **PvP, karma, CP absorption & peace zone:** Purple flags (1,200 ticks initial / 600 ticks refresh), PK/PvP counters, karma calculation and monster-XP decay verified. CP absorbs player damage before HP; NPC damage bypasses CP. Peace zone square (half-width 10 tiles around 126,126) rejects hostile intents with `PEACE_ZONE` and suppresses NPC auto-aggro.
+- [x] **Death penalty & resurrection:** 20% death penalty chance up to level 5; Resurrection 1016 on `PC_BODY` emits 600-tick `ResurrectOffer`, reviving at corpse with 65% HP, preserved MP/CP, and one-time recoverable XP refund.
+- [x] **SP & skill learning:** Young Keltir awards 2 SP on kill blow; LearnSkill executes as a revision-fenced critical actor mutation with frozen idempotency receipt at Class Master (126,128) radius 3.
+- [x] **Documented deviations:** C17 retained-selection across AOI departure/re-entry; C18 `players_attacking_me` received-evidence predicate semantics; R4 offline buff/reuse timer pause; 600-tick resurrect offer lifetime; peace square geometry R7; maximum level 5 death penalty; Phase 1 town respawn vitals (65% HP, 0 MP).
+- [x] **Server gates & static analysis:** Rust gates passed at r11 (1000 passed / 0 failed / 3 ignored, `r11-00-rust.log`) and r12 (1001 passed / 0 failed / 3 ignored, `r12-00-rust.log`). Clean fmt, clippy, entities, replay, data check, and Buf breaking.
+- [x] **Unreal client builds & automation:** Editor and Game builds exit 0 (`r13-01-ue-builds.log`). Offline automation 103 passed / 0 failed (`r13-02-ue-offline.log`). Required-live automation 103 passed / 0 failed / 0 skipped (`r13-03-ue-required-live.log`).
+- [x] **Full ordinary scenario suite:** 59 units across 59 scenario files verified (59 PASS, 0 FAIL, exit 0; `r13-04-sim-ci.log`, `r13-sim-ci-final/`).
+- [x] **Game package staging:** BuildCookRun stage completed in 84.99 s, exit 0, Linux Development (`r13-soak-attempt1/stage.log`).
+- [x] **Final Rust gate on merged main 995ffa9:** fmt/clippy exit 0 (`r22-00-summary.log`); 1018 passed / 0 failed / 7 ignored over 64 targets (`r22-05c-tests.log`); release zone_step benchmark passed: 1000 NPCs mean 146.7 µs p99 173.3 µs < 2 ms budget; 1000 players all observers mean 9.54 ms p99 19.42 ms < 10 ms mean budget (`r22-05e-zone-step-release.log`).
+- [x] **Packaged combat soak (attempt 12):** 8 clients × 17 iterations, 1,200 s requested, 12,246 ticks observed, combat tick p99 10.776 ms < 20 ms budget, Phase 3 acceptance evidence passed, all exits 0 (`r22-soak/report.json`, `r22-soak/summary.txt`). Byte-exact replay match across 12,246 ticks in 796.9 ms (`r22-soak/replay-check.log`). Stack storage isolated on tmpfs (`SOAK_TMPFS_VOLUMES=8g`, `r22-soak/storage.txt`) due to host fsync stalls on encrypted root filesystem in attempts 9–11 (architecture decisions §10 P6).
+- [x] **Root main integration:** Merged and pushed to main / origin/main (`995ffa9e37b065f540c12e6012a94509658f8035`); post-merge root build succeeded in 82.79 s (`root-build-995ffa9.log`). Formal post-merge smoke receipt placeholder recorded.
+- [ ] **External operational follow-ups:** External self-hosted Linux CI runner remains unregistered; two-week reliability programme remains pending as an independent operational follow-up (not a local acceptance gate).
+
+Detailed verification metrics, evidence receipts, and closed gates are documented in [`phase-3-combat-and-skills-outcome.md`](phase-3-combat-and-skills-outcome.md).
