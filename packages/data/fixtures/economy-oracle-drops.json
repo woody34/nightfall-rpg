@@ -2502,7 +2502,32 @@
    "-7": "0000000000000000",
    "0": "3ff0000000000000"
   },
-  "ungrouped_raid_uses_window": true
+  "raid_victim": [
+   {
+    "d": -1,
+    "group_bits": "3feb333333333333",
+    "ungrouped_adena_bits": "3ff0000000000000",
+    "ungrouped_bits": "3ff0000000000000"
+   },
+   {
+    "d": -6,
+    "group_bits": "3fb99999999999a0",
+    "ungrouped_adena_bits": "3ff0000000000000",
+    "ungrouped_bits": "3fea3d70a3d70a3d"
+   },
+   {
+    "d": -7,
+    "group_bits": "0000000000000000",
+    "ungrouped_adena_bits": "3ff0000000000000",
+    "ungrouped_bits": "3fe47ae147ae147b"
+   },
+   {
+    "d": -10,
+    "group_bits": "0000000000000000",
+    "ungrouped_adena_bits": "3fe7c57c57c57c58",
+    "ungrouped_bits": "3fb999999999999a"
+   }
+  ]
  },
  "dm_single_item_g15": {
   "cells": 57608,

@@ -15,41 +15,295 @@
    ]
   ],
   "cancel": {
-   "cancelled": "skip",
-   "finished_older_than_14_days": "refused",
-   "leader_finished": "refused",
-   "leader_started": "reserve not met, no refund",
-   "other": "refund last bid"
+   "cancelled_again": [
+    "skip",
+    0
+   ],
+   "finished_older_than_14_days": [
+    "refused",
+    0
+   ],
+   "leader_finished": [
+    "refused",
+    0
+   ],
+   "leader_started": [
+    "reserve_not_met",
+    0
+   ],
+   "other_finished": [
+    "refunded",
+    100000
+   ],
+   "other_started": [
+    "refunded",
+    100000
+   ]
   },
-  "extension_minutes": [
-   5,
-   3,
-   0
+  "extension_end_minutes": [
+   305,
+   308,
+   308,
+   308
   ],
   "item_draw": "roll_below(82)"
  },
  "c_vectors": {
-  "fee_on_failure": "kept by the crafter",
-  "masterwork_threshold": {
-   "0": "0",
-   "1": "184467440737095517",
-   "20": "3689348814741910324",
-   "4": "737869762948382065"
+  "rare": {
+   "product": [
+    910,
+    2
+   ],
+   "result": "crafted",
+   "trace": [
+    [
+     "mp",
+     84
+    ],
+    [
+     "fee",
+     0
+    ],
+    [
+     "materials",
+     [
+      [
+       1899,
+       4
+      ],
+      [
+       1886,
+       1
+      ],
+      [
+       1878,
+       15
+      ],
+      [
+       1865,
+       3
+      ],
+      [
+       2130,
+       2
+      ]
+     ]
+    ],
+    [
+     "success_draw",
+     true
+    ],
+    [
+     "masterwork_draw",
+     20,
+     true
+    ]
+   ]
   },
-  "order": [
-   "MP",
-   "fee",
-   "materials",
-   "success draw",
-   "masterwork draw (always, rarity 0 included)"
+  "runs": [
+   {
+    "product": [
+     264,
+     1
+    ],
+    "recipe": 138,
+    "result": "crafted",
+    "seed": 1,
+    "trace": [
+     [
+      "mp",
+      171
+     ],
+     [
+      "fee",
+      500
+     ],
+     [
+      "materials",
+      [
+       [
+        5008,
+        1
+       ],
+       [
+        4103,
+        12
+       ],
+       [
+        1890,
+        70
+       ],
+       [
+        1888,
+        70
+       ],
+       [
+        1885,
+        35
+       ],
+       [
+        4042,
+        35
+       ],
+       [
+        1459,
+        310
+       ],
+       [
+        2132,
+        55
+       ]
+      ]
+     ],
+     [
+      "success_draw",
+      true
+     ],
+     [
+      "masterwork_draw",
+      0,
+      false
+     ]
+    ]
+   },
+   {
+    "product": [
+     264,
+     1
+    ],
+    "recipe": 138,
+    "result": "crafted",
+    "seed": 2,
+    "trace": [
+     [
+      "mp",
+      171
+     ],
+     [
+      "fee",
+      500
+     ],
+     [
+      "materials",
+      [
+       [
+        5008,
+        1
+       ],
+       [
+        4103,
+        12
+       ],
+       [
+        1890,
+        70
+       ],
+       [
+        1888,
+        70
+       ],
+       [
+        1885,
+        35
+       ],
+       [
+        4042,
+        35
+       ],
+       [
+        1459,
+        310
+       ],
+       [
+        2132,
+        55
+       ]
+      ]
+     ],
+     [
+      "success_draw",
+      true
+     ],
+     [
+      "masterwork_draw",
+      0,
+      false
+     ]
+    ]
+   },
+   {
+    "fee_kept": true,
+    "recipe": 138,
+    "result": "failed",
+    "seed": 3,
+    "trace": [
+     [
+      "mp",
+      171
+     ],
+     [
+      "fee",
+      500
+     ],
+     [
+      "materials",
+      [
+       [
+        5008,
+        1
+       ],
+       [
+        4103,
+        12
+       ],
+       [
+        1890,
+        70
+       ],
+       [
+        1888,
+        70
+       ],
+       [
+        1885,
+        35
+       ],
+       [
+        4042,
+        35
+       ],
+       [
+        1459,
+        310
+       ],
+       [
+        2132,
+        55
+       ]
+      ]
+     ],
+     [
+      "success_draw",
+      false
+     ]
+    ]
+   }
   ],
-  "success_threshold": {
-   "10": "1844674407370955162",
-   "100": "18446744073709551616",
-   "25": "4611686018427387904",
-   "60": "11068046444225730970",
-   "70": "12912720851596686132",
-   "95": "17524406870024074036"
+  "thresholds": {
+   "masterwork": {
+    "0": "0",
+    "1": "184467440737095517",
+    "20": "3689348814741910324",
+    "4": "737869762948382065"
+   },
+   "success": {
+    "10": "1844674407370955162",
+    "100": "18446744073709551616",
+    "25": "4611686018427387904",
+    "60": "11068046444225730970",
+    "70": "12912720851596686132",
+    "95": "17524406870024074036"
+   }
   }
  },
  "f_vectors": [
@@ -79,25 +333,39 @@
   }
  ],
  "fl_vectors": {
-  "earlier_failing_check": "next unchanged",
+  "e35": {
+   "after": [
+    "REJECTED_AFTER_GATE",
+    {
+     "transaction": 60
+    }
+   ],
+   "before": [
+    "REJECTED_BEFORE_GATE",
+    {}
+   ]
+  },
   "gates": [
-   {
-    "accept_again_at": 101,
-    "accept_at": 100,
-    "interval": 1,
-    "kind": "multisell",
-    "refuse_at": 100
-   },
    {
     "accept_again_at": 110,
     "accept_at": 100,
+    "intent": "VendorBuy",
     "interval": 10,
     "kind": "transaction",
     "refuse_at": 109
    },
    {
+    "accept_again_at": 101,
+    "accept_at": 100,
+    "intent": "MultisellChoose",
+    "interval": 1,
+    "kind": "multisell",
+    "refuse_at": 100
+   },
+   {
     "accept_again_at": 103,
     "accept_at": 100,
+    "intent": "CraftItem",
     "interval": 3,
     "kind": "manufacture",
     "refuse_at": 102
@@ -105,6 +373,7 @@
    {
     "accept_again_at": 130,
     "accept_at": 100,
+    "intent": "ManorBuySeed",
     "interval": 30,
     "kind": "manor",
     "refuse_at": 129
@@ -112,6 +381,7 @@
    {
     "accept_again_at": 200,
     "accept_at": 100,
+    "intent": "MailSend",
     "interval": 100,
     "kind": "send_mail",
     "refuse_at": 199
@@ -119,30 +389,104 @@
    {
     "accept_again_at": 105,
     "accept_at": 100,
+    "intent": "ItemAuctionCancelBid",
     "interval": 5,
     "kind": "server_bypass",
     "refuse_at": 104
    }
   ],
-  "later_failing_check": "next updated (E35)",
-  "manufacture_users": [
-   "CraftItem",
-   "PrivateManufactureOrder"
-  ],
-  "server_bypass_users": [
-   "ItemAuctionCancelBid"
-  ],
-  "transaction_shared": true
+  "shared_transaction": "RATE_LIMITED",
+  "users": {
+   "manor": [
+    "ManorBuySeed"
+   ],
+   "manufacture": [
+    "CraftItem",
+    "PrivateManufactureOrder"
+   ],
+   "multisell": [
+    "MultisellChoose"
+   ],
+   "send_mail": [
+    "MailSend"
+   ],
+   "server_bypass": [
+    "ItemAuctionCancelBid"
+   ],
+   "transaction": [
+    "VendorBuy",
+    "VendorSell",
+    "VendorRefund",
+    "WarehouseDeposit",
+    "WarehouseWithdraw",
+    "FreightSend",
+    "FreightWithdraw",
+    "TradeConfirm",
+    "TradeCancel",
+    "PrivateStoreBuy",
+    "PrivateStoreSell",
+    "DeleteRecipe",
+    "MailTakeAttachments",
+    "MailReject",
+    "MailCancel",
+    "ItemAuctionBid"
+   ]
+  }
  },
  "lt": {
   "distinct_bits": 19,
   "rows": 22
  },
  "m_vectors": {
-  "amount_bounds": [
-   1,
-   5000
-  ],
+  "amount_bounds": {
+   "0": "INVALID_QUANTITY",
+   "1": null,
+   "5000": null,
+   "5001": "INVALID_QUANTITY"
+  },
+  "maintain_enchantment": {
+   "inventory": [
+    {
+     "augment": 777,
+     "enchant": 3,
+     "id": 1,
+     "template": 9417
+    },
+    {
+     "enchant": 0,
+     "id": 2,
+     "template": 9417
+    },
+    {
+     "enchant": 3,
+     "id": 3,
+     "template": 9417
+    }
+   ],
+   "products": [
+    {
+     "augment": 777,
+     "count": 1,
+     "enchant": 3,
+     "template": 9416
+    }
+   ],
+   "taken_lowest": [
+    {
+     "enchant": 0,
+     "id": 2,
+     "template": 9417
+    }
+   ],
+   "taken_maintained": [
+    {
+     "augment": 777,
+     "enchant": 3,
+     "id": 1,
+     "template": 9417
+    }
+   ]
+  },
   "maintain_enchantment_lists": 31,
   "maintain_ingredient_consumed": [
    {
@@ -293,11 +637,7 @@
     "required": 3
    }
   ],
-  "non_stackable_amount_gt_1": "INVALID_QUANTITY",
-  "rejected": [
-   0,
-   5001
-  ],
+  "non_stackable_list": 616,
   "tax_half_up": [
    {
     "count": 1,
@@ -2800,20 +3140,111 @@
   }
  ],
  "vs_vectors": {
-  "merge_grows_entries": false,
-  "overflow_keeps": [
-   1,
-   2,
-   3,
-   4,
-   5,
-   6,
-   7,
-   8,
-   9,
-   10,
-   11,
-   12
+  "after_merge": [
+   {
+    "count": 1,
+    "template": 1001
+   },
+   {
+    "count": 1,
+    "template": 1002
+   },
+   {
+    "count": 1,
+    "template": 1003
+   },
+   {
+    "count": 1,
+    "template": 1004
+   },
+   {
+    "count": 5,
+    "template": 1005
+   },
+   {
+    "count": 1,
+    "template": 1006
+   },
+   {
+    "count": 1,
+    "template": 1007
+   },
+   {
+    "count": 1,
+    "template": 1008
+   },
+   {
+    "count": 1,
+    "template": 1009
+   },
+   {
+    "count": 1,
+    "template": 1010
+   },
+   {
+    "count": 1,
+    "template": 1011
+   },
+   {
+    "count": 1,
+    "template": 1012
+   }
+  ],
+  "after_overflow": [
+   {
+    "count": 1,
+    "template": 1001
+   },
+   {
+    "count": 1,
+    "template": 1002
+   },
+   {
+    "count": 1,
+    "template": 1003
+   },
+   {
+    "count": 1,
+    "template": 1004
+   },
+   {
+    "count": 1,
+    "template": 1005
+   },
+   {
+    "count": 1,
+    "template": 1006
+   },
+   {
+    "count": 1,
+    "template": 1007
+   },
+   {
+    "count": 1,
+    "template": 1008
+   },
+   {
+    "count": 1,
+    "template": 1009
+   },
+   {
+    "count": 1,
+    "template": 1010
+   },
+   {
+    "count": 1,
+    "template": 1011
+   },
+   {
+    "count": 1,
+    "template": 1012
+   }
+  ],
+  "overflow_destroyed": [
+   {
+    "count": 1,
+    "template": 1000
+   }
   ],
   "prices": [
    {

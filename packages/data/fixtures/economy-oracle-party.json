@@ -671,10 +671,6 @@
   ]
  },
  "x_vectors": {
-  "dead_member_second_pass": {
-   "award": null,
-   "partyDmg": 0
-  },
   "float_steps": {
    "e": 16777217,
    "partyMul_1_3_bits": "3fd5555560000000",
@@ -1011,6 +1007,151 @@
     "n": 9
    }
   ],
+  "reward_pass": {
+   "R": {
+    "1": {
+     "damage": 600
+    },
+    "2": {
+     "damage": 300
+    },
+    "3": {
+     "damage": 150
+    },
+    "5": {
+     "damage": 250
+    }
+   },
+   "S": 17624,
+   "X": 67258,
+   "players": {
+    "1": {
+     "alive": true,
+     "in_range": true,
+     "level": 55
+    },
+    "2": {
+     "alive": false,
+     "in_range": true,
+     "level": 50
+    },
+    "3": {
+     "alive": true,
+     "in_range": false,
+     "level": 48
+    },
+    "4": {
+     "alive": true,
+     "in_range": true,
+     "level": 53
+    },
+    "5": {
+     "alive": true,
+     "in_range": true,
+     "level": 60
+    }
+   },
+   "result": {
+    "awards": {
+     "1": [
+      8171,
+      2140
+     ],
+     "4": [
+      7588,
+      1988
+     ],
+     "5": [
+      7485,
+      1961
+     ]
+    },
+    "passes": [
+     {
+      "branch": "party",
+      "distribution": [
+       [
+        8171,
+        2140
+       ],
+       [
+        7588,
+        1988
+       ]
+      ],
+      "exp": 14327,
+      "partyDmg": 600,
+      "partyLvl": 55,
+      "partyMul_bits": "3fdd89d8a0000000",
+      "rewarded": [
+       1,
+       4
+      ],
+      "sp": 3754,
+      "visit": 1
+     },
+     {
+      "branch": "party",
+      "exp": 0,
+      "partyDmg": 0,
+      "partyLvl": 55,
+      "partyMul_bits": "0000000000000000",
+      "rewarded": [
+       1,
+       4
+      ],
+      "sp": 0,
+      "visit": 2
+     },
+     {
+      "awarded": true,
+      "branch": "solo",
+      "exp": 7485,
+      "sp": 1961,
+      "visit": 5
+     }
+    ],
+    "total": 1300
+   },
+   "whole_party": {
+    "awards": {
+     "1": [
+      38361,
+      10051
+     ],
+     "4": [
+      35622,
+      9334
+     ]
+    },
+    "passes": [
+     {
+      "branch": "party",
+      "distribution": [
+       [
+        38361,
+        10051
+       ],
+       [
+        35622,
+        9334
+       ]
+      ],
+      "exp": 67258,
+      "partyDmg": 1000,
+      "partyLvl": 55,
+      "partyMul_bits": "3ff0000000000000",
+      "rewarded": [
+       1,
+       4
+      ],
+      "sp": 17624,
+      "visit": 1
+     }
+    ],
+    "total": 1000
+   }
+  },
   "solo": {
    "S": 17624,
    "X": 39797,

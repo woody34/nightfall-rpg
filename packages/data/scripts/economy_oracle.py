@@ -482,6 +482,24 @@ def fam_dw(out: dict) -> str:
     return f"widest intermediate: G=1 {w1} bits; G=2^32 {whi}; G=2^-32 {wlo} (<= 255)"
 
 
+def group_killer_l(victim_is_raid: bool, d: int) -> F:
+    """IKillerChanceModifierStrategy.DEFAULT_STRATEGY (groups and single-item groups)."""
+    if victim_is_raid and prop("npc.properties", "UseDeepBlueDropRulesRaid") == "True":
+        return killer_l("raid_clamp", d)
+    if prop("npc.properties", "UseDeepBlueDropRules") == "True":
+        return killer_l("item_window", d)
+    return F(1)
+
+
+def nongroup_killer_l(item_id: int, victim_is_raid: bool, d: int) -> F:
+    """DEFAULT_NONGROUP_STRATEGY: raids use the window, never the clamp (F32); adena has its own window."""
+    raid_rule = prop("npc.properties", "UseDeepBlueDropRulesRaid") == "True"
+    rule = prop("npc.properties", "UseDeepBlueDropRules") == "True"
+    if (not victim_is_raid and rule) or (victim_is_raid and raid_rule):
+        return killer_l("adena_window" if item_id == 57 else "item_window", d)
+    return F(1)
+
+
 @family("D-L", "1.5")
 def fam_dl(out: dict) -> str:
     vec = {}
@@ -496,7 +514,14 @@ def fam_dl(out: dict) -> str:
             require(killer_l(s, d) == killer_l(s, d, exact=False), f"{s} {d} vs binary64")
     require(killer_l("raid_clamp", -7) == 0 and killer_l("raid_clamp", -6) == ref(-6 * 0.15 + 1), "raid clamp tail")
     # Ungrouped rows of a raid use the window, not the clamp (DEFAULT_NONGROUP_STRATEGY; F32)
-    vec["ungrouped_raid_uses_window"] = True
+    raid_rows = []
+    for d in (-1, -6, -7, -10):
+        g_l, u_l = group_killer_l(True, d), nongroup_killer_l(1864, True, d)
+        require(u_l == killer_l("item_window", d) and g_l == killer_l("raid_clamp", d), f"raid strategies d={d}")
+        raid_rows.append({"d": d, "group_bits": bits(g_l), "ungrouped_bits": bits(u_l),
+                          "ungrouped_adena_bits": bits(nongroup_killer_l(57, True, d))})
+    require(raid_rows[2]["group_bits"] != raid_rows[2]["ungrouped_bits"], "raid ungrouped differs from the clamp at d=-7")
+    vec["raid_victim"] = raid_rows
     out["dl_vectors"] = vec
     return "item d=-4..-11, adena d=-8..-16, raid d=-1..-7 = binary64 references"
 
@@ -600,25 +625,31 @@ def format_decimal(q: F, digits: int) -> str:
 # --- whole-death traces (§2.2, §2.3) ---------------------------------------------------
 
 
+def roll_ungrouped(item: dict, c: F, site: int, words: Words, trace: list):
+    """IDropCalculationStrategy.DEFAULT_STRATEGY (:32-47): chance draw; STRICT > 100 precise branch
+    with its remainder draw; quantity roll_below even at min == max (P3)."""
+    r = words.u64()
+    trace.append({"site": site, "draw": "chance", "C": bits(c), "pass": chance(r, c)})
+    if not chance(r, c):
+        return None
+    mult = 1
+    if c > 100:
+        mult = int(c) // 100
+        rem = remainder(c)
+        r2 = words.u64()
+        trace.append({"site": site, "draw": "remainder", "C": bits(rem), "pass": chance(r2, rem)})
+        if chance(r2, rem):
+            mult += 1
+    n = item["max"] - item["min"] + 1
+    q, used = roll_below_words(words, n)
+    trace.append({"site": site, "draw": "quantity", "n": n, "words": used})
+    return (item["id"], (item["min"] + q) * mult)
+
+
 def roll_node(node: dict, scope: str, raid: bool, L_group: F, L_item, words: Words, trace: list) -> list:
     """Draws of one drop node in pinned order; returns holders [(item, count)]."""
     def ungrouped(item, c, site):
-        r = words.u64()
-        trace.append({"site": site, "draw": "chance", "C": bits(c), "pass": chance(r, c)})
-        if not chance(r, c):
-            return None
-        mult = 1
-        if c > 100:
-            mult = int(c) // 100
-            rem = remainder(c)
-            r2 = words.u64()
-            trace.append({"site": site, "draw": "remainder", "C": bits(rem), "pass": chance(r2, rem)})
-            if chance(r2, rem):
-                mult += 1
-        n = item["max"] - item["min"] + 1
-        q, used = roll_below_words(words, n)
-        trace.append({"site": site, "draw": "quantity", "n": n, "words": used})
-        return (item["id"], (item["min"] + q) * mult)
+        return roll_ungrouped(item, c, site, words, trace)
 
     site = 2 if scope == "corpse" else 3
     if node["kind"] == "item":
@@ -664,8 +695,8 @@ def death_trace(npc: dict, killer_level: int, spoiled: bool, respawn_random: int
     words = Words(seed)
     trace: list = []
     d = npc["level"] - killer_level
-    L_group = killer_l("raid_clamp" if npc["is_raid"] else "item_window", d)
-    L_item = lambda iid: killer_l("adena_window" if iid == 57 else "item_window", d)  # noqa: E731
+    L_group = group_killer_l(npc["is_raid"], d)
+    L_item = lambda iid: nongroup_killer_l(iid, npc["is_raid"], d)  # noqa: E731
     sweep = []
     if spoiled:
         for node in npc["corpse"]:
@@ -820,6 +851,15 @@ def fam_dp(out: dict) -> str:
             "break at 10; gate 40; offsets [-25, 24]; NPC killer no draw; freight refuses shadow")
 
 
+def decay_due(dropped: int, limit: int) -> int:
+    """X8: smallest T = 0 (mod 50) with T - dropped > limit (ItemsAutoDestroy strict >, 5 s grid)."""
+    scan = table("ground.toml")["ground"]["scanner_ms"] // 100
+    t = -(-dropped // scan) * scan
+    while t - dropped <= limit:
+        t += scan
+    return t
+
+
 @family("D-T", "1.5")
 def fam_dt(out: dict) -> str:
     gr = table("ground.toml")["ground"]
@@ -828,14 +868,7 @@ def fam_dt(out: dict) -> str:
     limits = {"auto_destroy_9849": gr["auto_destroy_time"][0]["seconds"] * 10,
               "herb": gr["herb_decay_seconds"] * 10, "loot": gr["decay_seconds"] * 10}
     require(sorted(limits.values()) == [100, 600, 6000], "limits 100/600/6,000 ticks")
-
-    def due(dropped: int, limit: int) -> int:
-        t = -(-dropped // scan) * scan
-        while t - dropped <= limit:  # strict `now - dropTime > limit`
-            t += scan
-        return t
-
-    vec = {k: {str(t): due(t, lim) for t in (0, 1, 49, 50, 51)} for k, lim in limits.items()}
+    vec = {k: {str(t): decay_due(t, lim) for t in (0, 1, 49, 50, 51)} for k, lim in limits.items()}
     require(vec["auto_destroy_9849"]["0"] == 150 and vec["auto_destroy_9849"]["50"] == 200, "strict > on the grid")
     require(vec["loot"]["1"] == 6050 and vec["herb"]["49"] == 650, "grid rounding")
     vec["pk_drop"] = None  # never registered (DestroyPlayerDroppedItem = False)
@@ -994,6 +1027,65 @@ def party_distribute(e: int, s: int, levels: list[int], alive: list[bool], top: 
     return out
 
 
+def reward_pass(R: dict[int, dict], parties: list[list[int]], players: dict[int, dict], npc_level: int,
+                X: int, S: int) -> dict:
+    """§4.5 / L2Attackable.calculateRewards :400-535 over the reward snapshot R.
+
+    R: entity id -> {"damage"} (players with damage > 1 within PartyRange of the NPC, §3.6).
+    parties: member lists in member order. players: id -> {"level", "alive", "in_range"} where
+    in_range is PartyRange 1,600 to the NPC. Visits R in ascending EntityId order (X7); entries
+    removed by a party pass are not visited again; a dead member's entry stays and its later visit
+    runs the party branch with partyDmg = 0 (no award). Returns per-pass records and awards."""
+    total = sum(r["damage"] for r in R.values())
+    R = {k: dict(v) for k, v in R.items()}
+    party_of = {m: tuple(p) for p in parties for m in p}
+    awards: dict[int, list[int]] = {}
+    passes = []
+    for pid in sorted(R):
+        if pid not in R:
+            continue
+        info = players[pid]
+        if pid not in party_of:
+            e, s = calc_exp_sp(info["level"] - npc_level, R[pid]["damage"], total, X, S)
+            e = math.floor(fl32(fl32(e) * 1))  # exp *= penalty (float, servitor penalty 1)
+            if info["alive"]:
+                awards.setdefault(pid, [0, 0])
+                awards[pid][0] += e
+                awards[pid][1] += s
+            passes.append({"visit": pid, "branch": "solo", "exp": e, "sp": s, "awarded": info["alive"]})
+            continue
+        party_dmg, party_lvl, rewarded = 0, 0, []
+        for m in party_of[pid]:
+            pm = players[m]
+            if not pm["alive"]:
+                continue
+            if m in R:
+                if pm["in_range"]:
+                    party_dmg += R[m]["damage"]
+                    rewarded.append(m)
+                    party_lvl = max(party_lvl, pm["level"])
+                del R[m]
+            elif pm["in_range"]:
+                rewarded.append(m)
+                party_lvl = max(party_lvl, pm["level"])
+        party_mul = F(1) if party_dmg >= total else fl32(fl32(party_dmg) / fl32(total))
+        e, s = calc_exp_sp(party_lvl - npc_level, party_dmg, total, X, S)
+        e = math.floor(fl32(fl32(e) * party_mul))
+        s = math.floor(fl32(fl32(s) * party_mul))
+        rec = {"visit": pid, "branch": "party", "partyDmg": party_dmg, "partyLvl": party_lvl,
+               "partyMul_bits": bits(party_mul), "exp": e, "sp": s, "rewarded": rewarded}
+        if party_dmg > 0:
+            dist = party_distribute(e, s, [players[m]["level"] for m in rewarded],
+                                    [players[m]["alive"] for m in rewarded], party_lvl)
+            for m, (ae, as_) in zip(rewarded, dist):
+                awards.setdefault(m, [0, 0])
+                awards[m][0] += ae
+                awards[m][1] += as_
+            rec["distribution"] = dist
+        passes.append(rec)
+    return {"total": total, "passes": passes, "awards": {str(k): v for k, v in sorted(awards.items())}}
+
+
 @family("X", "1.6")
 def fam_x(out: dict) -> str:
     vec: dict = {}
@@ -1062,14 +1154,29 @@ def fam_x(out: dict) -> str:
             "gaps 9 (100%), 10 (30%), 14 (30%), 15 (0%), negative (nothing)")
     require(round_half_up(F(5, 2)) == 3 and round_half_up(F(-5, 2)) == -2 and round_half_up(fl(F("0.49999999999999994"))) == 0,
             "Math.round halves (Java 7+)")
-    # Dead member: skipped (no partyDmg, entry stays); its later visit gives partyDmg = 0 -> no award
-    dead = party_distribute(100000, 5000, [60, 60, 60], [True, False, True], 60)
-    require(dead[1] == (0, 0), "dead member gets nothing")
+    # Full party branch (steps 1-5): partyDmg/partyLvl accumulation, partyMul, dead-member second pass
+    Xn, Sn = base_rewards(52, "24.8737348778133", "17624")
+    players = {1: {"level": 55, "alive": True, "in_range": True}, 2: {"level": 50, "alive": False, "in_range": True},
+               3: {"level": 48, "alive": True, "in_range": False}, 4: {"level": 53, "alive": True, "in_range": True},
+               5: {"level": 60, "alive": True, "in_range": True}}
+    R = {1: {"damage": 600}, 2: {"damage": 300}, 3: {"damage": 150}, 5: {"damage": 250}}
+    rp = reward_pass(R, [[1, 2, 3, 4]], players, 52, Xn, Sn)
+    p1 = rp["passes"][0]
+    require(p1["branch"] == "party" and p1["partyDmg"] == 600 and p1["rewarded"] == [1, 4] and p1["partyLvl"] == 55,
+            "party pass: dead 2 skipped, out-of-range 3 removed but not rewarded, 4 joins without damage")
+    require(p1["partyMul_bits"] == bits(fl32(fl32(600) / fl32(1300))), "partyMul = fl32(fl32(partyDmg)/fl32(total))")
+    second = [q for q in rp["passes"] if q["visit"] == 2]
+    require(second and second[0]["partyDmg"] == 0 and "distribution" not in second[0], "dead-member second pass awards nothing")
+    require(not any(q["visit"] == 3 for q in rp["passes"]), "removed entry not revisited")
+    require(rp["passes"][-1]["visit"] == 5 and rp["passes"][-1]["branch"] == "solo", "solo attacker")
+    full = reward_pass({1: {"damage": 500}, 4: {"damage": 500}}, [[1, 4]], players, 52, Xn, Sn)
+    require(full["passes"][0]["partyMul_bits"] == bits(F(1)), "partyDmg == total -> partyMul 1")
     vec["party"] = party
     vec["gaps"] = gaps
-    vec["dead_member_second_pass"] = {"partyDmg": 0, "award": None}
+    vec["reward_pass"] = {"X": Xn, "S": Sn, "players": {str(k): v for k, v in players.items()},
+                          "R": {str(k): v for k, v in R.items()}, "result": rp, "whole_party": full}
     out["x_vectors"] = vec
-    return f"n=5 e<2e6: {diffs:,} differences (e=45 -> 62); 36 SP-only -> 0/0; solo diffs; k=80 fails closed; party n=1..9; gaps; dead pass"
+    return f"n=5 e<2e6: {diffs:,} differences (e=45 -> 62); 36 SP-only -> 0/0; solo diffs; k=80 fails closed; party n=1..9; gaps; full party branch incl. partyMul and the dead-member second pass"
 
 
 # --- ledger (§11.2, T1) -------------------------------------------------------------------
@@ -1103,6 +1210,14 @@ def transfer(src: dict, n: int, target_stack: dict | None, stackable: bool, next
     return out, inn
 
 
+def d67_ok(inn: dict, outs: list[dict]) -> bool:
+    """D67 as amended by B13: an identity transfer_in with before = None (reusing the source id) is
+    exempt from "never seen earlier" only when its link names a matching identity transfer_out."""
+    if inn["mode"] != "identity":
+        return True
+    return any(x["link"] == inn["link"] and x["mode"] == "identity" and x["instance"] == inn["instance"] for x in outs)
+
+
 @family("G", "1.6")
 def fam_g(out: dict) -> str:
     vec = {}
@@ -1126,11 +1241,6 @@ def fam_g(out: dict) -> str:
     o3, i3 = transfer(src, 2, None, True, 99, "L3")
     require(i3["mode"] == "split" and i3["instance"] == 99 and o3["after"] == 3 and o3["op"] == "transfer_out", "split")
     vec["pairs"] = [[o, i], [o2, i2], [o3, i3]]
-    # D67: a before=None transfer_in is exempt only when linked to a matching identity transfer_out
-    def d67_ok(inn, outs):
-        if inn["before"] is not None or inn["mode"] != "identity":
-            return inn["mode"] != "identity" or inn["before"] is None
-        return any(x["link"] == inn["link"] and x["mode"] == "identity" and x["instance"] == inn["instance"] for x in outs)
     require(d67_ok(i, [o]) and not d67_ok(i, [o3]), "D67 link exemption")
     # D68/D74 caps on merge receivers
     cap_adena = int(prop("character.properties", "MaxAdena"))
@@ -1211,54 +1321,183 @@ def fam_vr(out: dict) -> str:
     return "delay -> minutes 1,500/1,428/722/480/361/300/240/120/60 over all entries; due tick; refill; clamp"
 
 
+# --- vendor sell / refund (§6.5, §6.6) ------------------------------------------------------
+
+
+def sell_price(ref: int, count: int) -> int:
+    """RequestSellItem :142: price = ref / 2 per unit."""
+    return count * (ref // 2)
+
+
+def refund_price(ref: int, count: int) -> int:
+    """RequestRefundItem :155,182: whole entry, floor(count * ref / 2)."""
+    return (count * ref) // 2
+
+
+def refund_tab_add(tab: list[dict], template: int, count: int, stackable: bool) -> tuple[list[dict], list[dict]]:
+    """PcRefund.addItem: merge into an existing stack (entry count unchanged) or append; then
+    destroy the oldest while size > 12 (:57-69). Returns (tab, destroyed)."""
+    tab = [dict(e) for e in tab]
+    for e in tab:
+        if stackable and e["template"] == template:
+            e["count"] += count
+            return tab, []
+    tab.append({"template": template, "count": count})
+    destroyed = []
+    while len(tab) > 12:
+        destroyed.append(tab.pop(0))
+    return tab, destroyed
+
+
 @family("V-S", "1.7")
 def fam_vs(out: dict) -> str:
     require("getSize() > 12" in game_text(GJ + "model/itemcontainer/PcRefund.java"), "refund tab 12")
     vec = []
     for p in (3, 5, 7, 101):
         for c in range(1, 6):
-            sell = c * (p // 2)
-            refund = (c * p) // 2
+            sell, refund = sell_price(p, c), refund_price(p, c)
             require(refund - sell == c // 2, "refund costs floor(c/2) more")
             vec.append({"p": p, "c": c, "sell": sell, "refund": refund, "difference": refund - sell})
-    require((4 * (3 // 2), (4 * 3) // 2, 2) == (4, 6, 2), "p=3, c=4 -> 4, 6, 2")
-    tab: list[int] = []
+    require((sell_price(3, 4), refund_price(3, 4)) == (4, 6), "p=3, c=4 -> 4, 6, 2")
+    tab: list[dict] = []
+    destroyed_all = []
     for i in range(13):
-        tab.append(i)
-        if len(tab) > 12:
-            tab.pop(0)
-    require(tab[0] == 1 and len(tab) == 12, "13th entry destroys the oldest")
-    out["vs_vectors"] = {"prices": vec, "overflow_keeps": tab, "merge_grows_entries": False}
+        tab, destroyed = refund_tab_add(tab, 1000 + i, 1, False)
+        destroyed_all += destroyed
+    require(len(tab) == 12 and destroyed_all == [{"template": 1000, "count": 1}], "13th entry destroys the oldest")
+    merged, d2 = refund_tab_add(tab, 1005, 4, True)
+    require(len(merged) == 12 and not d2 and next(e for e in merged if e["template"] == 1005)["count"] == 5, "merge does not grow the tab")
+    out["vs_vectors"] = {"prices": vec, "overflow_destroyed": destroyed_all, "after_overflow": tab, "after_merge": merged}
     return "odd p, c=1..5 sell/refund/difference; 12-entry overflow; merge does not grow the tab"
+
+
+# --- multisell (§7) -------------------------------------------------------------------------
+
+
+def multisell_validate(entry: dict, amount: int) -> str | None:
+    """MultiSellChoose :109 (amount 1..5000) and :135 (non-stackable entry needs amount 1)."""
+    if amount < 1 or amount > 5000:
+        return "INVALID_QUANTITY"
+    if any(not is_stackable(p["id"]) for p in entry["products"] if p["id"] > 0) and amount > 1:
+        return "INVALID_QUANTITY"
+    return None
+
+
+def multisell_required(ing: dict, amount: int) -> int:
+    """MultiSellChoose :212: (blacksmithUseRecipes || !maintainIngredient) ? count * amount : count."""
+    blacksmith = prop("character.properties", "BlacksmithUseRecipes") == "True"
+    return ing["count"] * amount if (blacksmith or not ing["maintain"]) else ing["count"]
+
+
+def multisell_take(instances: list[dict], template: int, n: int, maintain_enchantment: bool, enchant: int) -> list[dict]:
+    """Non-stackable consumption (:255-300): exact enchant matches in inventory order when the list
+    maintains enchantment, else the lowest enchant levels first."""
+    own = [i for i in instances if i["template"] == template]
+    if maintain_enchantment:
+        pick = [i for i in own if i["enchant"] == enchant]
+    else:
+        pick = sorted(own, key=lambda i: i["enchant"])
+    require(len(pick) >= n, "insufficient instances")
+    return pick[:n]
+
+
+def multisell_products(entry: dict, amount: int, maintain_enchantment: bool, taken: list[dict]) -> list[dict]:
+    """Products x amount; maintainEnchantment copies the consumed enchant level (:362) and the i-th
+    consumed augmentation to the i-th product (:354-356); elementals are a no-op (B10)."""
+    out = []
+    augs = [t["augment"] for t in taken if t.get("augment")]
+    enchant = taken[0]["enchant"] if (maintain_enchantment and taken) else 0
+    k = 0
+    for p in entry["products"]:
+        for _ in range(amount if is_stackable(p["id"]) else p["count"] * amount):
+            row = {"template": p["id"], "count": p["count"] * amount if is_stackable(p["id"]) else 1, "enchant": enchant}
+            if maintain_enchantment and k < len(augs):
+                row["augment"] = augs[k]
+                k += 1
+            out.append(row)
+            if is_stackable(p["id"]):
+                break
+    return out
+
+
+def multisell_tax(count: int, tax_rate: F) -> int:
+    """PreparedEntry :49: Math.round(count * taxRate) on the exact double (Java 7+ half-up)."""
+    return round_half_up(fl(fl(F(count)) * fl(tax_rate)))
 
 
 @family("M", "1.7")
 def fam_m(out: dict) -> str:
     src = game_text(GJ + "network/clientpackets/MultiSellChoose.java")
     require("(_amount < 1) || (_amount > 5000)" in src, "amount 1..5000")
-    require(prop("character.properties", "BlacksmithUseRecipes") == "True", "BlacksmithUseRecipes")
+    require("if (!entry.isStackable() && (_amount > 1))" in src, "non-stackable amount")
     ms = table("multisell.toml")
     flagged = [(lst["id"], i) for lst in ms["list"] for e in lst["entries"] for i in e["ingredients"] if i["maintain"]]
     require(len(flagged) == 21, "21 maintainIngredient")
     require(not any(i["is_tax"] for lst in ms["list"] for e in lst["entries"] for i in e["ingredients"]), "no isTaxIngredient")
-    # required = (blacksmithUseRecipes || !maintainIngredient) ? count * amount : count
-    def required(count, amount, maintain):
-        return count * amount if (True or not maintain) else count
-    vec = {"amount_bounds": [1, 5000], "rejected": [0, 5001],
-           "maintain_ingredient_consumed": [{"list": l, "id": i["id"], "count": i["count"], "amount": 3,
-                                             "required": required(i["count"], 3, True)} for l, i in flagged]}
-    # synthetic isTaxIngredient: Math.round(count * taxRate), half-up on the exact double
+    stack_entry = next(e for lst in ms["list"] for e in lst["entries"] if all(is_stackable(p["id"]) for p in e["products"] if p["id"] > 0))
+    nonstack_list = next(lst for lst in ms["list"] if lst["maintain_enchantment"])
+    nonstack_entry = next(e for e in nonstack_list["entries"] if any(not is_stackable(p["id"]) for p in e["products"]))
+    bounds = {str(a): multisell_validate(stack_entry, a) for a in (0, 1, 5000, 5001)}
+    require(bounds == {"0": "INVALID_QUANTITY", "1": None, "5000": None, "5001": "INVALID_QUANTITY"}, "amount bounds")
+    require(multisell_validate(nonstack_entry, 2) == "INVALID_QUANTITY" and multisell_validate(nonstack_entry, 1) is None,
+            "non-stackable amount > 1 rejected")
+    consumed = [{"list": l, "id": i["id"], "count": i["count"], "amount": 3, "required": multisell_required(i, 3)} for l, i in flagged]
+    require(all(c["required"] == c["count"] * 3 for c in consumed), "BlacksmithUseRecipes consumes maintainIngredient rows")
+    # maintainEnchantment: exact match + copy; non-maintained: lowest first
+    src_ing = next(i for i in nonstack_entry["ingredients"] if i["id"] > 0 and not is_stackable(i["id"]))
+    inv = [{"id": 1, "template": src_ing["id"], "enchant": 3, "augment": 777}, {"id": 2, "template": src_ing["id"], "enchant": 0},
+           {"id": 3, "template": src_ing["id"], "enchant": 3}]
+    taken_m = multisell_take(inv, src_ing["id"], 1, True, 3)
+    taken_n = multisell_take(inv, src_ing["id"], 1, False, 0)
+    require([t["id"] for t in taken_m] == [1] and [t["id"] for t in taken_n] == [2], "exact match vs lowest")
+    prods = multisell_products(nonstack_entry, 1, True, taken_m)
+    require(prods[0]["enchant"] == 3 and prods[0].get("augment") == 777, "enchant and augment copied")
     tax = []
     for count, rate in ((1, F(1, 2)), (3, F(1, 2)), (5, fl(F("0.1"))), (7, F(5, 100))):
-        v = fl(fl(F(count)) * fl(rate))
-        tax.append({"count": count, "rate_bits": bits(fl(rate)), "tax": round_half_up(v)})
+        tax.append({"count": count, "rate_bits": bits(fl(rate)), "tax": multisell_tax(count, rate)})
     require(tax[0]["tax"] == 1 and tax[1]["tax"] == 2, "half-up at .5")
-    vec["tax_half_up"] = tax
-    vec["non_stackable_amount_gt_1"] = "INVALID_QUANTITY"
-    vec["maintain_enchantment_lists"] = sum(1 for lst in ms["list"] if lst["maintain_enchantment"])
-    require(vec["maintain_enchantment_lists"] == 31, "31 maintainEnchantment lists")
-    out["m_vectors"] = vec
-    return "amount 1/5000 (0, 5001 rejected); 21 maintainIngredient rows consumed (BlacksmithUseRecipes); tax half-up; 31 maintainEnchantment lists"
+    me = sum(1 for lst in ms["list"] if lst["maintain_enchantment"])
+    require(me == 31, "31 maintainEnchantment lists")
+    out["m_vectors"] = {"amount_bounds": bounds, "non_stackable_list": nonstack_list["id"],
+                        "maintain_ingredient_consumed": consumed, "maintain_enchantment": {
+                            "inventory": inv, "taken_maintained": taken_m, "taken_lowest": taken_n, "products": prods},
+                        "tax_half_up": tax, "maintain_enchantment_lists": me}
+    return "amount 1/5000 (0, 5001 rejected); non-stackable > 1 rejected; 21 maintainIngredient rows consumed; exact-match/lowest consumption with enchant+augment copy; tax half-up"
+
+
+# --- craft (§8.2) -------------------------------------------------------------------------
+
+
+def craft(recipe: dict, crafter: dict, customer: dict, fee: int, words: Words) -> dict:
+    """RecipeItemMaker: every check before any payment, then MP -> fee -> materials -> success draw
+    (#10) -> masterwork draw (#11, always taken, rarity 0 included). Returns the step trace."""
+    trace = []
+    rank_key = "create_item" if recipe["type"] == "dwarven" else "create_common_item"
+    if crafter["ranks"].get(rank_key, 0) < recipe["craft_level"]:
+        return {"result": "CRAFT_LEVEL_TOO_LOW", "trace": trace}
+    for ing in recipe["ingredients"]:
+        if customer["items"].get(ing["id"], 0) < ing["count"]:
+            return {"result": "MISSING_MATERIALS", "trace": trace}
+    mp = sum(s["value"] for s in recipe["stat_use"] if s["name"] == "MP")
+    if crafter["mp"] < mp:
+        return {"result": "INSUFFICIENT_MP", "trace": trace}
+    if customer is not crafter and customer["adena"] < fee:
+        return {"result": "INSUFFICIENT_ADENA", "trace": trace}
+    trace.append(["mp", mp])
+    if customer is not crafter:
+        trace.append(["fee", fee])
+    trace.append(["materials", [[i["id"], i["count"]] for i in recipe["ingredients"]]])
+    r = words.u64()
+    ok = chance_bound(r, recipe["success_rate"], 100)
+    trace.append(["success_draw", ok])
+    if not ok:
+        return {"result": "failed", "trace": trace, "fee_kept": customer is not crafter}
+    rarity = recipe["production_rare"]["rarity"] if "production_rare" in recipe else 0
+    r2 = words.u64()
+    rare = chance_bound(r2, rarity, 100)
+    trace.append(["masterwork_draw", rarity, rare])
+    prod = recipe["production_rare"] if rare else recipe["production"]
+    return {"result": "crafted", "trace": trace, "product": [prod["id"], prod["count"]]}
 
 
 @family("C", "1.7")
@@ -1268,13 +1507,31 @@ def fam_c(out: dict) -> str:
     require(rates == [10, 25, 60, 70, 95, 100], f"success rates {rates}")
     rar = sorted({r["production_rare"]["rarity"] for r in rec if "production_rare" in r})
     require(rar == [1, 4, 20], f"rarities {rar}")
-    vec = {"success_threshold": {str(k): str(chance_threshold(F(k * 100, 100))) for k in rates},
-           "masterwork_threshold": {str(k): str(chance_threshold(F(k * 100, 100))) for k in rar + [0]}}
-    require(vec["success_threshold"]["100"] == str(TWO64) and vec["masterwork_threshold"]["0"] == "0", "bounds")
-    vec["order"] = ["MP", "fee", "materials", "success draw", "masterwork draw (always, rarity 0 included)"]
-    vec["fee_on_failure"] = "kept by the crafter"
-    out["c_vectors"] = vec
-    return "chance_bound for successRate 10/25/60/70/95/100; masterwork 1/4/20 and rarity 0; MP -> fee -> materials -> roll; fee kept on failure"
+    thresholds = {"success": {str(k): str(chance_threshold(F(k * 100, 100))) for k in rates},
+                  "masterwork": {str(k): str(chance_threshold(F(k * 100, 100))) for k in rar + [0]}}
+    require(thresholds["success"]["100"] == str(TWO64) and thresholds["masterwork"]["0"] == "0", "bounds")
+    plain = next(r for r in rec if r["success_rate"] == 60 and "production_rare" not in r)
+    rare = next(r for r in rec if "production_rare" in r and r["success_rate"] == 100)
+    crafter = {"ranks": {"create_item": 10, "create_common_item": 9}, "mp": 10_000, "adena": 0, "items": {}}
+    customer = {"ranks": {}, "mp": 0, "adena": 1_000_000, "items": {i["id"]: 10 ** 6 for r in (plain, rare) for i in r["ingredients"]}}
+    runs = []
+    seen = set()
+    for seed in range(1, 60):
+        res = craft(plain, crafter, customer, 500, Words(seed))
+        runs.append({"recipe": plain["id"], "seed": seed, **res})
+        seen.add(res["result"])
+        if {"failed", "crafted"} <= seen:
+            break
+    require({"failed", "crafted"} <= seen, "both outcomes reached")
+    fail = next(r for r in runs if r["result"] == "failed")
+    require([t[0] for t in fail["trace"]] == ["mp", "fee", "materials", "success_draw"] and fail["fee_kept"], "order; fee kept on failure")
+    ok = next(r for r in runs if r["result"] == "crafted")
+    require(ok["trace"][-1][0] == "masterwork_draw" and ok["trace"][-1][1] == 0, "rarity 0 still draws (P4)")
+    empty = {"ranks": crafter["ranks"], "mp": 10_000, "adena": 0, "items": {}}
+    require(craft(plain, empty, empty, 0, Words(1)) == {"result": "MISSING_MATERIALS", "trace": []}, "nothing spent on a missing material")
+    rare_run = craft(rare, crafter, customer, 0, Words(7))
+    out["c_vectors"] = {"thresholds": thresholds, "runs": runs, "rare": rare_run}
+    return "chance_bound for successRate 10/25/60/70/95/100; masterwork 1/4/20 and rarity 0; MP -> fee -> materials -> roll; fee kept on failure; missing material spends nothing"
 
 
 def sow_basic(seed_level: int, alternative: bool, player: int, target: int) -> int:
@@ -1365,52 +1622,100 @@ def fam_s(out: dict) -> str:
             f"for all {len(tested) - len(bad):,} tested P below {first:,} (first difference; {len(bad):,} tested P above it differ; reachable P <= {reach:,})")
 
 
+# --- item auction (§10.5) -----------------------------------------------------------------
+
+
+def auction_new() -> dict:
+    return {"state": "STARTED", "bids": {}, "highest": None, "extend": "INITIAL", "last_bidder": 0,
+            "end_minutes": 300, "start_age_days": 0}
+
+
+def auction_bid(a: dict, who: int, amount: int, init_bid: int, remaining_minutes: int) -> tuple[str, int]:
+    """ItemAuction.registerBid (:215-278) and onPlayerBid (:280-335). Returns (result, payment)."""
+    if amount < init_bid:
+        return "BID_TOO_LOW", 0
+    if amount > 100_000_000_000:
+        return "BID_TOO_HIGH", 0
+    if a["state"] != "STARTED":
+        return "AUCTION_NOT_ACTIVE", 0
+    if a["highest"] is not None and amount < a["bids"][a["highest"]]:
+        return "BID_TOO_LOW", 0  # strict <: an equal bid is accepted
+    prev = a["bids"].get(who)
+    if prev is None or prev == -1:
+        pay = amount  # new bid, or re-bid after cancel: full amount
+    else:
+        if amount < prev:
+            return "BID_TOO_LOW", 0
+        pay = amount - prev  # increment only
+    a["bids"][who] = amount
+    if a["highest"] is None or a["bids"][a["highest"]] < amount:
+        a["highest"] = who
+    if remaining_minutes <= 10:
+        if a["extend"] == "INITIAL":
+            a["extend"], a["end_minutes"] = "EXTEND_5", a["end_minutes"] + 5
+        elif a["extend"] == "EXTEND_5":
+            prev_last, a["last_bidder"] = a["last_bidder"], who
+            if prev_last != who:
+                a["extend"], a["end_minutes"] = "EXTEND_3", a["end_minutes"] + 3
+        elif a["extend"] == "EXTEND_3":
+            extra = int(prop("general.properties", "ItemAuctionTimeExtendsOnBid"))
+            if extra > 0:
+                a["end_minutes"] += extra
+    return "OK", pay
+
+
+def auction_cancel(a: dict, who: int) -> tuple[str, int]:
+    """ItemAuction.cancelBid (:354-406): returns (result, refund)."""
+    if a["state"] == "CREATED":
+        return "refused", 0
+    if a["state"] == "FINISHED" and a["start_age_days"] > int(prop("general.properties", "ItemAuctionExpiredAfter")):
+        return "refused", 0
+    if a["highest"] is None or who not in a["bids"]:
+        return "refused", 0
+    if who == a["highest"]:
+        return ("refused", 0) if a["state"] == "FINISHED" else ("reserve_not_met", 0)
+    if a["bids"][who] == -1:
+        return "skip", 0
+    refund = a["bids"][who]
+    if a["state"] == "FINISHED":
+        del a["bids"][who]
+    else:
+        a["bids"][who] = -1
+    return "refunded", refund
+
+
 @family("A", "1.7")
 def fam_a(out: dict) -> str:
     src = game_text(GJ + "model/itemauction/ItemAuction.java")
     require("(_highestBid != null) && (newBid < _highestBid.getLastBid())" in src, "equal bid accepted")
     require("_highestBid.getLastBid() < bid.getLastBid()" in src, "leader changes on strictly higher")
-    cfg = table("auction.toml")["config"]
     inst = table("auction.toml")["instance"][0]
-
-    def bid(state, who, amount):
-        if amount < inst["items"][0]["init_bid"]:
-            return "BID_TOO_LOW", 0
-        if amount > 100_000_000_000:
-            return "BID_TOO_HIGH", 0
-        if state["highest"] is not None and amount < state["bids"][state["highest"]]:
-            return "BID_TOO_LOW", 0
-        prev = state["bids"].get(who)
-        pay = amount if prev is None or prev == -1 else amount - prev
-        if prev not in (None, -1) and amount < prev:
-            return "BID_TOO_LOW", 0
-        state["bids"][who] = amount
-        if state["highest"] is None or state["bids"][state["highest"]] < amount:
-            state["highest"] = who
-        return "OK", pay
-
-    st = {"bids": {}, "highest": None}
-    r1 = bid(st, "a", 100000)
-    r2 = bid(st, "b", 100000)  # equal to highest: accepted but not leading
-    r3 = bid(st, "a", 150000)  # increment-only payment
-    require(r1 == ("OK", 100000) and r2 == ("OK", 100000) and st["highest"] == "a" and r3 == ("OK", 50000), "bid rules")
-    # extension: INITIAL -> +5 (any bidder) -> +3 if bidder != last tracked (starts at 0) -> config 0 stops
-    ext, state, last = [], "INITIAL", 0
-    for who in ("a", "b", "c"):
-        if state == "INITIAL":
-            state, add = "EXTEND_5", 5
-        elif state == "EXTEND_5":
-            add = 3 if who != last else 0
-            last = who
-            state = "EXTEND_3" if add else state
-        else:
-            add = cfg["time_extends_on_bid"]
-        ext.append(add)
-    require(ext == [5, 3, 0], f"extension {ext}")
-    cancel = {"leader_started": "reserve not met, no refund", "leader_finished": "refused",
-              "finished_older_than_14_days": "refused", "cancelled": "skip", "other": "refund last bid"}
-    require(cfg["expired_after_days"] == 14, "14 days")
-    out["a_vectors"] = {"bids": [r1, r2, r3], "extension_minutes": ext, "cancel": cancel,
+    init = inst["items"][0]["init_bid"]
+    a = auction_new()
+    steps = [auction_bid(a, 1, init, init, 60), auction_bid(a, 2, init, init, 60), auction_bid(a, 1, init + 50000, init, 60)]
+    require(steps == [("OK", init), ("OK", init), ("OK", 50000)] and a["highest"] == 1, "equal bid not leading; increment-only")
+    require(auction_bid(a, 3, init - 1, init, 60) == ("BID_TOO_LOW", 0), "below init bid")
+    cancel = {"other_started": auction_cancel(a, 2), "cancelled_again": auction_cancel(a, 2), "leader_started": auction_cancel(a, 1)}
+    require(cancel["other_started"] == ("refunded", init) and cancel["cancelled_again"] == ("skip", 0)
+            and cancel["leader_started"] == ("reserve_not_met", 0), "cancel matrix (started)")
+    require(auction_bid(a, 2, init + 60000, init, 60) == ("OK", init + 60000), "re-bid after cancel pays in full")
+    fin = auction_new()
+    auction_bid(fin, 1, init, init, 60)
+    auction_bid(fin, 2, init + 1, init, 60)
+    fin["state"] = "FINISHED"
+    old = dict(fin, bids=dict(fin["bids"]), start_age_days=15)
+    cancel["leader_finished"] = auction_cancel(fin, 2)
+    cancel["finished_older_than_14_days"] = auction_cancel(old, 1)
+    cancel["other_finished"] = auction_cancel(fin, 1)
+    require(cancel["leader_finished"] == ("refused", 0) and cancel["finished_older_than_14_days"] == ("refused", 0)
+            and cancel["other_finished"] == ("refunded", init) and 1 not in fin["bids"], "cancel matrix (finished)")
+    ext = auction_new()
+    ends = []
+    for who in (1, 1, 2, 3):
+        auction_bid(ext, who, init + 1000 * len(ends), init, 5)
+        ends.append(ext["end_minutes"])
+    require(ends == [305, 308, 308, 308], f"extension 5 -> 3 -> stop {ends}")
+    out["a_vectors"] = {"bids": steps, "cancel": {k: list(v) for k, v in cancel.items()}, "extension_end_minutes": ends,
                         "item_draw": f"roll_below({len(inst['items'])})"}
     return "equal bid accepted not leading; increment-only payment; cancel matrix; extension 5 -> 3 -> stop; roll_below(82)"
 
@@ -1488,6 +1793,44 @@ def fam_lt(out: dict) -> str:
     return "22 rows recomputed from the §3.3 expressions = frozen bits (19 distinct)"
 
 
+# --- flood gates (§2.4, E35) --------------------------------------------------------------
+
+# Design §2.4 table: Phase 5 intent -> FloodKind (one `next` per kind per player).
+FLOOD_USERS = {
+    "transaction": ["VendorBuy", "VendorSell", "VendorRefund", "WarehouseDeposit", "WarehouseWithdraw", "FreightSend",
+                    "FreightWithdraw", "TradeConfirm", "TradeCancel", "PrivateStoreBuy", "PrivateStoreSell", "DeleteRecipe",
+                    "MailTakeAttachments", "MailReject", "MailCancel", "ItemAuctionBid"],
+    "multisell": ["MultisellChoose"],
+    "manufacture": ["CraftItem", "PrivateManufactureOrder"],
+    "manor": ["ManorBuySeed"],
+    "send_mail": ["MailSend"],
+    "server_bypass": ["ItemAuctionCancelBid"],
+}
+
+
+def flood_kind(intent: str) -> str | None:
+    for kind, users in FLOOD_USERS.items():
+        if intent in users:
+            return kind
+    return None
+
+
+def flood_intent(state: dict, intent: str, tick: int, before_ok: bool = True, after_ok: bool = True) -> tuple[str, dict]:
+    """FloodProtectorAction.tryPerformAction (:90-127) at its pinned step (E35): a failing check
+    before the gate leaves `next` untouched; the gate refuses at tick < next (RATE_LIMITED);
+    once it passes, next := tick + interval even when a later check rejects."""
+    state = dict(state)
+    if not before_ok:
+        return "REJECTED_BEFORE_GATE", state
+    kind = flood_kind(intent)
+    if kind is None:
+        return ("OK" if after_ok else "REJECTED"), state
+    if tick < state.get(kind, 0):
+        return "RATE_LIMITED", state
+    state[kind] = tick + table("storage_mail.toml")["flood_intervals_ticks"][kind]
+    return ("OK" if after_ok else "REJECTED_AFTER_GATE"), state
+
+
 @family("FL", "1.7")
 def fam_fl(out: dict) -> str:
     iv = table("storage_mail.toml")["flood_intervals_ticks"]
@@ -1496,25 +1839,27 @@ def fam_fl(out: dict) -> str:
     for k, p in keys.items():
         require(iv[k] == int(prop("floodprotector.properties", p)), f"interval {k}")
     require("if ((curTick < nextGameTick) || punishmentInProgress)" in game_text(GJ + "util/FloodProtectorAction.java"), "gate")
-
-    def gate(nxt, tick, interval):
-        if tick < nxt:
-            return False, nxt
-        return True, tick + interval
-
     vec = []
-    for k in keys:
-        n = iv[k]
-        ok1, nxt = gate(0, 100, n)
-        ok2, nxt2 = gate(nxt, 100 + n - 1, n)
-        ok3, nxt3 = gate(nxt, 100 + n, n)
-        require(ok1 and not ok2 and nxt2 == nxt and ok3 and nxt3 == 100 + 2 * n, f"{k} gate")
-        vec.append({"kind": k, "interval": n, "accept_at": 100, "refuse_at": 100 + n - 1, "accept_again_at": 100 + n})
-    out["fl_vectors"] = {"gates": vec, "earlier_failing_check": "next unchanged",
-                         "later_failing_check": "next updated (E35)", "transaction_shared": True,
-                         "manufacture_users": ["CraftItem", "PrivateManufactureOrder"],
-                         "server_bypass_users": ["ItemAuctionCancelBid"]}
-    return "refuse at tick < next, accept at next, next := tick + interval for 6 kinds; E35 positions"
+    for kind, users in FLOOD_USERS.items():
+        n = iv[kind]
+        intent = users[0]
+        r1, st = flood_intent({}, intent, 100)
+        r2, st2 = flood_intent(st, intent, 100 + n - 1)
+        r3, st3 = flood_intent(st, intent, 100 + n)
+        require(r1 == "OK" and r2 == "RATE_LIMITED" and st2 == st and r3 == "OK" and st3[kind] == 100 + 2 * n, f"{kind} gate")
+        vec.append({"kind": kind, "intent": intent, "interval": n, "accept_at": 100, "refuse_at": 100 + n - 1,
+                    "accept_again_at": 100 + n})
+    rb, sb = flood_intent({}, "VendorBuy", 50, before_ok=False)
+    ra, sa = flood_intent({}, "VendorBuy", 50, after_ok=False)
+    require(rb == "REJECTED_BEFORE_GATE" and sb == {} and ra == "REJECTED_AFTER_GATE" and sa == {"transaction": 60}, "E35")
+    _, shared = flood_intent({}, "VendorBuy", 10)
+    rs, _ = flood_intent(shared, "TradeConfirm", 15)
+    require(rs == "RATE_LIMITED", "Transaction is shared across its intents")
+    require(flood_kind("PickUpItem") is None and flood_kind("ManorSellCrop") is None, "no gate for other intents")
+    out["fl_vectors"] = {"gates": vec, "e35": {"before": [rb, sb], "after": [ra, sa]}, "shared_transaction": rs,
+                         "users": FLOOD_USERS}
+    return "refuse at tick < next, accept at next, next := tick + interval for 6 kinds; E35 before/after positions; shared Transaction"
+
 
 
 # ---------------------------------------------------------------------------
