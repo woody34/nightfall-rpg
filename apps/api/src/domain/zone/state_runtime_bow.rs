@@ -706,6 +706,135 @@ impl ZoneState {
     }
 }
 
+/// D46 `dual_plan` evidence (D87/D89): planned at the first subhit, completed when the
+/// stored second is applied or discarded at its deadline. Evidence-only.
+impl ZoneState {
+    pub(super) fn dual_plan_mark_v6(
+        &self,
+        source: TargetBinding,
+        target: TargetBinding,
+    ) -> Option<(usize, i128)> {
+        if !self.items_evidence_enabled() || !self.phase4_player_v6(source.entity) {
+            return None;
+        }
+        let chance = self.hit_chance_v5(source, target).ok()?;
+        Some((self.evidence_mark(), chance))
+    }
+
+    #[allow(clippy::too_many_arguments)] // The observed halves of one dual plan.
+    pub(super) fn dual_plan_stage_v6(
+        &mut self,
+        id: EntityId,
+        resolution: &str,
+        mark: usize,
+        chance: i128,
+        observed: &[(usize, Option<ExactRatio>)],
+        damages: [u32; 2],
+    ) {
+        use crate::domain::zone::state::item_evidence_hooks::ratio_json as r;
+        let hit_residues: Vec<u32> = self
+            .evidence_draws(mark)
+            .iter()
+            .filter(|draw| draw.callsite == "AutoHit")
+            .map(|draw| draw.value)
+            .take(2)
+            .collect();
+        let Ok(radius) = self
+            .effective(id)
+            .map(|stats| stats.physical.random_damage())
+        else {
+            return;
+        };
+        if hit_residues.len() != 2 || observed.len() != 2 {
+            return;
+        }
+        let mut hits = Vec::new();
+        let mut formulas = Vec::new();
+        let mut criticals = Vec::new();
+        let mut spreads = Vec::new();
+        let mut draws: Vec<Value> = hit_residues
+            .iter()
+            .enumerate()
+            .map(|(index, residue)| {
+                json!({"site": format!("hit{}", index.saturating_add(1)), "bound": 1000, "residue": residue})
+            })
+            .collect();
+        for (index, ((start, exact), residue)) in observed.iter().zip(&hit_residues).enumerate() {
+            let hit = i128::from(*residue) <= chance;
+            let end = observed
+                .get(index.saturating_add(1))
+                .map_or(usize::MAX, |(next, _)| *next);
+            let window: Vec<_> = self
+                .evidence_draws(*start)
+                .iter()
+                .take(end.saturating_sub(*start))
+                .map(|draw| (draw.callsite.clone(), draw.value, draw.bound))
+                .collect();
+            let find = |site: &str| {
+                window
+                    .iter()
+                    .find(|(name, ..)| name == site)
+                    .map(|(_, value, bound)| (*value, *bound))
+            };
+            let (critical, spread) = if hit {
+                (find("AutoCritical"), find("Spread"))
+            } else {
+                (None, None)
+            };
+            if let (Some((c, cb)), Some((s, sb))) = (critical, spread) {
+                draws.push(
+                    json!({"site": format!("critical{}", index.saturating_add(1)), "bound": cb, "residue": c}),
+                );
+                draws.push(
+                    json!({"site": format!("spread{}", index.saturating_add(1)), "bound": sb, "residue": s}),
+                );
+            } else if hit {
+                // A landed subhit without both draws (e.g. a perfect block) has no oracle shape.
+                return;
+            }
+            hits.push(hit);
+            formulas.push(exact.map_or(json!(0), r));
+            criticals.push(critical.map(|(value, _)| value));
+            spreads.push(spread.map(|(value, _)| value));
+        }
+        let inputs = json!({"hits": hits, "formulas": formulas, "hit_residues": hit_residues,
+            "hit_chance": chance, "spread_radius": radius, "critical_residues": criticals,
+            "spread_residues": spreads});
+        let actual = json!({"plan": damages, "stored_second": damages[1],
+            "second_recomputed": false, "draws": draws, "refunded_draws": []});
+        if let Some(buffer) = self.evidence.as_mut() {
+            buffer
+                .pending_dual
+                .insert(id, (resolution.to_owned(), inputs, actual));
+        }
+    }
+
+    pub(super) fn dual_plan_complete_v6(&mut self, id: EntityId, target: EntityId, valid: bool) {
+        let Some((resolution, mut inputs, mut actual)) = self
+            .evidence
+            .as_mut()
+            .and_then(|buffer| buffer.pending_dual.remove(&id))
+        else {
+            return;
+        };
+        let (Some(inputs_map), Some(actual_map)) = (inputs.as_object_mut(), actual.as_object_mut())
+        else {
+            return;
+        };
+        inputs_map.insert("second_valid".into(), json!(valid));
+        let plan = actual_map.get("plan").cloned().unwrap_or(Value::Null);
+        let first = plan.get(0).cloned().unwrap_or(Value::Null);
+        let second = if valid {
+            plan.get(1).cloned().unwrap_or(Value::Null)
+        } else {
+            Value::Null
+        };
+        actual_map.insert("applied".into(), json!([first, second]));
+        let context = Some(self.attack_context_v6(id, target));
+        self.item_formula_v6(id, "dual_plan", inputs, actual, &resolution, context);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::isqrt;

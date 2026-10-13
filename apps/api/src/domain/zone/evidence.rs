@@ -42,6 +42,9 @@ pub(crate) struct EvidenceBuffer {
     /// D46 `bow_launch` facts opened at an accepted bow start and completed with the hit,
     /// critical and spread residues at impact: (resolution id, inputs, actual). Evidence only.
     pub pending_launch: std::collections::BTreeMap<EntityId, (String, Value, Value)>,
+    /// D46 `dual_plan` facts planned at the first subhit and completed when the stored
+    /// second is applied or discarded: (resolution id, inputs, actual). Evidence only.
+    pub pending_dual: std::collections::BTreeMap<EntityId, (String, Value, Value)>,
 }
 
 /// D46 observations captured at their operation boundary, never persisted as state.

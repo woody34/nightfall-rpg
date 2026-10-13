@@ -694,14 +694,18 @@ impl ZoneState {
         events: &mut Vec<ZoneEvent>,
         draw: &mut DamageRoll<'_>,
     ) -> Result<(), TickError> {
+        let evidence = self.dual_plan_mark_v6(source, target);
         let hit1 = self.auto_hit_v5(source, target, draw)?;
         let hit2 = self.auto_hit_v5(source, target, draw)?;
         let mut halves = Vec::with_capacity(2);
+        let mut observed = Vec::with_capacity(2);
         for (index, hit) in [hit1, hit2].into_iter().enumerate() {
+            let mark = self.evidence_mark();
             halves.push(if hit {
                 let word = self.rng.get_word_pos();
                 let (outcome, damage, shield, exact) =
                     self.auto_resolve_v5(source, target, draw)?;
+                observed.push((mark, exact));
                 // L2Character.java:1155-1171: (int)calcPhysDam then integer /2.
                 self.subhit_evidence_v6(
                     id,
@@ -713,6 +717,7 @@ impl ZoneState {
                 )?;
                 (outcome, damage / 2, shield)
             } else {
+                observed.push((mark, None));
                 self.subhit_evidence_v6(
                     id,
                     target.entity,
@@ -728,6 +733,16 @@ impl ZoneState {
         else {
             return Err(missing());
         };
+        if let Some((mark, chance)) = evidence {
+            self.dual_plan_stage_v6(
+                id,
+                &format!("attack:{id}:{}", swing.start.0),
+                mark,
+                chance,
+                &observed,
+                [*first_damage, *second_damage],
+            );
+        }
         let plan = self
             .phase4
             .as_mut()
@@ -779,6 +794,7 @@ impl ZoneState {
                 .get(&hit.target.entity)
                 .is_some_and(|e| !e.targeting.dead);
         if source != plan.attacker || !attacker_alive || !target_alive {
+            self.dual_plan_complete_v6(id, hit.target.entity, false);
             return Ok(());
         }
         // Review-3 P2-1 / design §6 row 6: the deadline revalidates status and hostility as the
@@ -792,8 +808,10 @@ impl ZoneState {
         });
         if !self.auto_action_v5(id) || muted || self.hostility_v5(tick, source, hit.target).is_err()
         {
+            self.dual_plan_complete_v6(id, hit.target.entity, false);
             return Ok(());
         }
+        self.dual_plan_complete_v6(id, hit.target.entity, true);
         self.apply_auto_hit_v5(
             tick,
             id,
@@ -903,6 +921,10 @@ impl ZoneState {
         candidates.sort_by_key(|(ordinal, entity, _)| (*ordinal, *entity));
         let mut percent = ExactRatio::whole(85);
         let mut count = 0_i128;
+        // D46 `pole_sequence` evidence: candidates in attempt order and per-attempt results.
+        let mut observed: Option<(Vec<serde_json::Value>, Vec<serde_json::Value>)> =
+            (self.items_evidence_enabled() && self.phase4_player_v6(id))
+                .then(|| (Vec::new(), Vec::new()));
         for (_, _, target) in candidates {
             // A previous recipient's death hook may have removed this candidate.
             if self.binding(target.entity) != Some(target)
@@ -911,6 +933,10 @@ impl ZoneState {
                     .get(&target.entity)
                     .is_none_or(|e| e.targeting.dead)
             {
+                if let Some((candidates, _)) = observed.as_mut() {
+                    candidates
+                        .push(serde_json::json!({"eligible": false, "hit": false, "formula": 0}));
+                }
                 continue;
             }
             let (outcome, damage) = if self.auto_hit_v5(source, target, draw)? {
@@ -922,6 +948,17 @@ impl ZoneState {
                     .and_then(ExactRatio::trunc)
                     .map_err(invariant)?;
                 let scaled = u32::try_from(scaled).map_err(invariant)?;
+                if let Some((candidates, rows)) = observed.as_mut() {
+                    use crate::domain::zone::state::item_evidence_hooks::ratio_json as r;
+                    match exact {
+                        Some(exact) => {
+                            candidates.push(serde_json::json!({"eligible": true, "hit": true, "formula": r(exact)}));
+                            rows.push(serde_json::json!({"percent": r(percent), "hit": true,
+                                "draws": ["shield", "critical", "spread"], "base": base, "damage": scaled}));
+                        },
+                        None => observed = None,
+                    }
+                }
                 if let Some(exact) = exact {
                     use crate::domain::zone::state::item_evidence_hooks::ratio_json as r;
                     self.item_formula_v6(
@@ -935,6 +972,14 @@ impl ZoneState {
                 }
                 (outcome, scaled)
             } else {
+                if let Some((candidates, rows)) = observed.as_mut() {
+                    use crate::domain::zone::state::item_evidence_hooks::ratio_json as r;
+                    candidates
+                        .push(serde_json::json!({"eligible": true, "hit": false, "formula": 0}));
+                    rows.push(
+                        serde_json::json!({"percent": r(percent), "hit": false, "draws": []}),
+                    );
+                }
                 (AttackOutcome::Miss, 0)
             };
             self.apply_auto_hit_v5(tick, id, source, target, outcome, damage, events, draw)?;
@@ -945,6 +990,16 @@ impl ZoneState {
             if count > maximum {
                 break;
             }
+        }
+        if let Some((candidates, rows)) = observed {
+            self.item_formula_v6(
+                id,
+                "pole_sequence",
+                serde_json::json!({"candidates": candidates, "maximum": maximum}),
+                serde_json::Value::Array(rows),
+                &format!("pole_sequence:{id}:{}", tick.0),
+                Some(self.attack_context_v6(id, primary.entity)),
+            );
         }
         Ok(())
     }

@@ -9237,6 +9237,8 @@ mod tests {
         for required in [
             "dual_timing",
             "dual_damage",
+            "dual_plan",
+            "pole_sequence",
             "physical_damage",
             "fist_spread",
             "position",
