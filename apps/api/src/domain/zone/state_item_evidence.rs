@@ -651,6 +651,55 @@ pub(in crate::domain::zone) fn ratio_json(
     json!({"numerator": wide_json(numerator), "denominator": wide_json(denominator)})
 }
 
+/// The E1 oracle's `floor_a_plus_b_root` certificate for nonnegative rationals `a`, `b` and
+/// radicand `r`: root bounds at 64/128/256/512 bits until `floor(a + b·root)` agrees (or the
+/// upper floor is an exact tie). Returns (floor, a + b·lower, a + b·upper) as JSON.
+#[allow(clippy::arithmetic_side_effects)] // Arbitrary-precision integers; divisors are nonzero.
+pub(in crate::domain::zone) fn root_floor_certificate(
+    a: ExactRatio,
+    b: ExactRatio,
+    r: ExactRatio,
+) -> Option<(serde_json::Value, serde_json::Value, serde_json::Value)> {
+    use num_bigint::BigUint;
+    let big = |value: i128| u128::try_from(value).ok().map(BigUint::from);
+    let ((an, ad), (bn, bd), (rn, rd)) = (a.parts(), b.parts(), r.parts());
+    let (an, ad, bn, bd, rn, rd) = (big(an)?, big(ad)?, big(bn)?, big(bd)?, big(rn)?, big(rd)?);
+    if ad == BigUint::ZERO || bd == BigUint::ZERO || rd == BigUint::ZERO {
+        return None;
+    }
+    for bits in [64_u32, 128, 256, 512] {
+        let scale = BigUint::from(1_u8) << bits;
+        let target = &rn * &scale * &scale;
+        let lower = (&target / &rd).sqrt();
+        let upper = if &lower * &lower * &rd == target {
+            lower.clone()
+        } else {
+            &lower + 1_u8
+        };
+        // a + b·L/S = (an·bd·S + bn·L·ad) / (ad·bd·S)
+        let denominator = &ad * &bd * &scale;
+        let value = |root: &BigUint| &an * &bd * &scale + &bn * root * &ad;
+        let (low, high) = (value(&lower), value(&upper));
+        let lo = &low / &denominator;
+        let hi = &high / &denominator;
+        let tie = bn != BigUint::ZERO && {
+            let hi_ad = &hi * &ad;
+            hi_ad >= an && {
+                let numerator = (hi_ad - &an) * &bd;
+                &numerator * &numerator * &rd == (&ad * &bn) * (&ad * &bn) * &rn
+            }
+        };
+        if lo == hi || tie {
+            return Some((
+                big_json(&hi),
+                big_ratio(&low, &denominator),
+                big_ratio(&high, &denominator),
+            ));
+        }
+    }
+    None
+}
+
 fn big_json(value: &num_bigint::BigUint) -> serde_json::Value {
     if value.bits() <= 53 {
         u64::try_from(value).map_or_else(|_| json!(value.to_string()), |v| json!(v))

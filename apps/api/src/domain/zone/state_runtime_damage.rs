@@ -633,6 +633,7 @@ impl ZoneState {
             crate::domain::zone::phase4::ShieldOutcome::None
         };
         if shield == crate::domain::zone::phase4::ShieldOutcome::Perfect {
+            self.magic_perfect_evidence_v6(caster, target, skill, rank, handler, shots, critical);
             return self.magic_apply_v6(
                 tick,
                 caster,
@@ -670,11 +671,19 @@ impl ZoneState {
         let success =
             i64::from(draw(self, DamageRollSite::MagicSuccess, target, 100).map_err(invariant)?)
                 < i64::from(rate);
+        // The second (failure) draw is taken only for a player caster after a failed first.
+        let second_success = if !success && self.sidecar(caster.entity)?.player.is_some() {
+            Some(
+                i64::from(
+                    draw(self, DamageRollSite::MagicFailure, target, 100).map_err(invariant)?,
+                ) < i64::from(rate),
+            )
+        } else {
+            None
+        };
         let resolution = if success {
             MagicResolution::Success
-        } else if self.sidecar(caster.entity)?.player.is_some()
-            && i64::from(draw(self, DamageRollSite::MagicFailure, target, 100).map_err(invariant)?)
-                < i64::from(rate)
+        } else if second_success == Some(true)
             && b.physical.level().saturating_sub(a.physical.level()) <= 9
         {
             MagicResolution::Half
@@ -692,6 +701,7 @@ impl ZoneState {
         .map_err(invariant)?;
         // A normal block adds sDef, or shieldDefensePercent of it (MagicalAttackRange).
         let mut m_def = q(b.m_def_q).map_err(invariant)?;
+        let mut shield_def = ExactRatio::whole(0);
         if shield == crate::domain::zone::phase4::ShieldOutcome::Normal {
             let s_def = ExactRatio::new(
                 self.damage_stat_v5(target.entity, &b, "sDef", 0)?
@@ -719,23 +729,52 @@ impl ZoneState {
                 s_def
             };
             m_def = m_def.checked_add(added).map_err(invariant)?;
+            shield_def = added;
         }
+        let pvp_bonus = self.item_pvp_damage_bonus(
+            caster.entity,
+            target.entity,
+            &a,
+            if skill.is_magic == 1 {
+                "pvpMagicalDmg"
+            } else {
+                "pvpPhysSkillsDmg"
+            },
+        )?;
+        // Unelemented starter equipment returns 1 before skill attributePower is read.
+        let attribute = skill_math::attribute_bonus(0, 0, false, false).map_err(invariant)?;
+        let npc = self.npc_penalty_v5(
+            caster.entity,
+            target.entity,
+            crate::domain::zone::skill_npc::NpcPenaltyPath::Magical,
+        )?;
+        let target_player = self.sidecar(target.entity)?.player.is_some();
         let damage = skill_math::magical_skill_base(
             power,
-            q(a.m_atk_q).and_then(|value| value.checked_mul(ExactRatio::whole(if shots & 4 != 0 {4} else if shots & 2 != 0 {2} else {1}))).map_err(invariant)?,
+            q(a.m_atk_q)
+                .and_then(|value| {
+                    value.checked_mul(ExactRatio::whole(if shots & 4 != 0 {
+                        4
+                    } else if shots & 2 != 0 {
+                        2
+                    } else {
+                        1
+                    }))
+                })
+                .map_err(invariant)?,
             m_def,
             resolution,
             critical,
-            self.sidecar(caster.entity)?.player.is_some() && self.sidecar(target.entity)?.player.is_some(),
+            self.sidecar(caster.entity)?.player.is_some() && target_player,
         )
         .map_err(invariant)?
-        .checked_mul(spread).map_err(invariant)?
-        .checked_mul(self.item_pvp_damage_bonus(caster.entity, target.entity, &a,
-            if skill.is_magic == 1 { "pvpMagicalDmg" } else { "pvpPhysSkillsDmg" })?).map_err(invariant)?
-        // Unelemented starter equipment returns 1 before skill attributePower is read.
-        .checked_mul(skill_math::attribute_bonus(0, 0, false, false).map_err(invariant)?)
+        .checked_mul(spread)
         .map_err(invariant)?
-        .checked_mul(self.npc_penalty_v5(caster.entity, target.entity, crate::domain::zone::skill_npc::NpcPenaltyPath::Magical)?)
+        .checked_mul(pvp_bonus)
+        .map_err(invariant)?
+        .checked_mul(attribute)
+        .map_err(invariant)?
+        .checked_mul(npc)
         .map_err(invariant)?;
         let positive = damage
             .checked_cmp(ExactRatio::whole(0))
@@ -746,6 +785,52 @@ impl ZoneState {
         } else {
             0
         };
+        if self.items_evidence_enabled() && self.phase4_player_v6(caster.entity) {
+            use crate::domain::zone::state::item_evidence_hooks::{
+                ratio_json as r, root_floor_certificate,
+            };
+            let (offset, coefficient, radicand) = damage.parts();
+            let scale = ExactRatio::whole(Q);
+            let certificate = root_floor_certificate(offset, coefficient, radicand);
+            let scaled = offset
+                .checked_mul(scale)
+                .and_then(|o| coefficient.checked_mul(scale).map(|c| (o, c)))
+                .ok()
+                .and_then(|(o, c)| root_floor_certificate(o, c, radicand));
+            if let (Some((floor, lower, upper)), Some((floor_q, _, _))) = (certificate, scaled) {
+                let branch = match resolution {
+                    MagicResolution::Half => "half",
+                    MagicResolution::Resist => "resisted",
+                    MagicResolution::Success if critical => "critical",
+                    MagicResolution::Success => "success",
+                };
+                let level_difference =
+                    i64::from(b.physical.level()).saturating_sub(i64::from(a.physical.level()));
+                let (pvp_magic, pvp_skill) = if skill.is_magic == 1 {
+                    (pvp_bonus, ExactRatio::whole(1))
+                } else {
+                    (ExactRatio::whole(1), pvp_bonus)
+                };
+                self.item_formula_v6(
+                    caster.entity,
+                    "magic_damage",
+                    serde_json::json!({"power": r(power), "m_atk": r(q(a.m_atk_q).map_err(invariant)?),
+                        "m_def": r(q(b.m_def_q).map_err(invariant)?), "spirit": shots & 2 != 0,
+                        "blessed": shots & 4 != 0, "shield_def": r(shield_def), "perfect": false,
+                        "critical": critical, "attacker_player": true, "target_player": target_player,
+                        "is_pvp": target_player, "skill_is_magic": skill.is_magic == 1,
+                        "pvp_magic_def": 1, "pvp_skill_def": 1, "magic_failures": true,
+                        "first_success": success, "second_success": second_success,
+                        "level_difference": level_difference, "magic_crit_damage": 1,
+                        "spread": r(spread), "pvp_magic_damage": r(pvp_magic),
+                        "pvp_skill_damage": r(pvp_skill), "attribute": r(attribute), "npc": r(npc)}),
+                    serde_json::json!({"lower": lower, "upper": upper, "damage": floor,
+                        "damage_q": floor_q, "branch": branch}),
+                    &format!("magic:{}:{}:{}", caster.entity, target.entity, self.rng.get_word_pos()),
+                    Some(serde_json::json!({"skill_id": skill.id.0, "target_entity": target.entity.to_string(), "event": "cast"})),
+                );
+            }
+        }
         if self.evidence.is_some() {
             let mut detail = serde_json::json!({
                 "formula": "calcMagicDam", "skill_id": skill.id, "rank": rank,
@@ -765,6 +850,58 @@ impl ZoneState {
         self.magic_apply_v6(
             tick, caster, target, critical, resolution, positive, rolled, events, draw,
         )
+    }
+
+    /// D46 `magic_damage` for a perfect block: Formulas.java:815-827 returns 1 before any
+    /// success/spread draw, so both success fields are null (D89). Evidence-only.
+    #[allow(clippy::too_many_arguments)] // The caller's frozen cast inputs.
+    fn magic_perfect_evidence_v6(
+        &mut self,
+        caster: TargetBinding,
+        target: TargetBinding,
+        skill: &SkillDef,
+        rank: u32,
+        handler: &crate::domain::zone::skill::SkillHandler,
+        shots: u8,
+        critical: bool,
+    ) {
+        use crate::domain::zone::state::item_evidence_hooks::ratio_json as r;
+        if !self.items_evidence_enabled() || !self.phase4_player_v6(caster.entity) {
+            return;
+        }
+        let (Ok(a), Ok(b)) = (self.effective(caster.entity), self.effective(target.entity)) else {
+            return;
+        };
+        let (Some(power), Ok(m_atk), Ok(m_def), Ok(target_side)) = (
+            handler
+                .params
+                .get("power")
+                .and_then(|p| p.at(rank, skill.max_level))
+                .and_then(|p| ExactRatio::parse_literal(p).ok()),
+            q(a.m_atk_q),
+            q(b.m_def_q),
+            self.sidecar(target.entity),
+        ) else {
+            return;
+        };
+        let target_player = target_side.player.is_some();
+        let level_difference =
+            i64::from(b.physical.level()).saturating_sub(i64::from(a.physical.level()));
+        self.item_formula_v6(
+            caster.entity,
+            "magic_damage",
+            serde_json::json!({"power": r(power), "m_atk": r(m_atk), "m_def": r(m_def),
+                "spirit": shots & 2 != 0, "blessed": shots & 4 != 0, "shield_def": 0,
+                "perfect": true, "critical": critical, "attacker_player": true,
+                "target_player": target_player, "is_pvp": target_player,
+                "skill_is_magic": skill.is_magic == 1, "pvp_magic_def": 1, "pvp_skill_def": 1,
+                "magic_failures": true, "first_success": null, "second_success": null,
+                "level_difference": level_difference, "magic_crit_damage": 1, "spread": 1,
+                "pvp_magic_damage": 1, "pvp_skill_damage": 1, "attribute": 1, "npc": 1}),
+            serde_json::json!({"lower": 1, "upper": 1, "damage": 1, "damage_q": Q, "branch": "perfect"}),
+            &format!("magic:{}:{}:{}", caster.entity, target.entity, self.rng.get_word_pos()),
+            Some(serde_json::json!({"skill_id": skill.id.0, "target_entity": target.entity.to_string(), "event": "cast"})),
+        );
     }
 
     /// Shared magical recipient tail; a perfect block enters with rolled damage 1.
