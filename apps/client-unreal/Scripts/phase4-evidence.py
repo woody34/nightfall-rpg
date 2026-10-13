@@ -472,7 +472,7 @@ def count_cap(template):
     return stack if item_tables()[template]['stackable'] is True else 1
 
 
-def validate_instance(value):
+def validate_instance(value,cap=True):
     fields={'id','template_id','count','location','slot','enchant','augment_id','charges','created_tick','revision'}
     if not isinstance(value,dict) or set(value)!=fields:raise ValueError('missing/unknown canonical item scalar')
     for name in ('id','template_id','count'):integer(value[name],1)
@@ -480,8 +480,8 @@ def validate_instance(value):
     if value['id']>=2**63 or value['count']>=2**63 or value['template_id']>=2**31 or value['enchant']>=2**32 or value['charges']>7 or value['created_tick']>=2**63 or value['revision']>=2**63:raise ValueError('item scalar outside domain width')
     # Dormant starter items remain canonical catalogue members (D17).
     if value['template_id'] not in item_tables():raise ValueError('unknown canonical template')
-    # Every ledger endpoint is an intermediate state under D66/D69, so this covers them (D68).
-    if value['count']>count_cap(value['template_id']):raise ValueError('item count above pinned template cap (D68)')
+    # D68/D74: baselines and live bindings are capped here; ledger endpoints are capped per chain.
+    if cap and value['count']>count_cap(value['template_id']):raise ValueError('item count above pinned template cap (D68)')
     if value['location'] not in ('inventory','paperdoll') or (value['location']=='paperdoll')!=(value['slot'] is not None):raise ValueError('item location/slot mismatch')
     if value['slot'] is not None and value['slot'] not in SLOTS:raise ValueError('unknown canonical slot')
     if value['charges'] and value['slot']!='rhand':raise ValueError('charge on nonweapon slot')
@@ -548,6 +548,20 @@ def validate_transition(data):
     if operation=='unequip' and (before['location']!='paperdoll' or after['location']!='inventory'):raise ValueError('unequip must leave paperdoll')
     if operation=='refine' and after['augment_id'] is None:raise ValueError('refine must install augmentation')
     if operation=='cancel_refine' and (before['augment_id'] is None or after['augment_id'] is not None):raise ValueError('cancel_refine must remove augmentation')
+
+
+def validate_chain_caps(deltas):
+    """D74 (amends D68): caps hold at the tick-start/tick-end endpoints of each
+    (owner, incarnation, tick, instance) chain; under the D69 export order an
+    earlier row's `after` may exceed the cap only by the same-tick consumption
+    that follows it: after.count - later consumption <= cap."""
+    first=deltas[0]['before']
+    if first is not None and first['count']>count_cap(first['template_id']):raise ValueError('item count above pinned template cap (D68)')
+    for index,delta in enumerate(deltas):
+        after=delta['after']
+        if after is None:continue
+        later=-sum(d['count_delta'] for d in deltas[index+1:] if d['operation']=='consume')
+        if after['count']-later>count_cap(after['template_id']):raise ValueError('item count above pinned template cap (D68/D74)')
 
 
 def validate_exchanges(rows):
@@ -770,7 +784,7 @@ def validate(rows,recording,rules_hash):
             for value in (before,after):
                 if value is not None:
                     # Canonical domain instances, not partial count-only projections.
-                    validate_instance(value)
+                    validate_instance(value,cap=False)
                     if value['id']!=instance:raise ValueError('ledger identity mismatch')
             ordinal=integer(data['operation_ordinal'])
             key=(row['entity'],row['incarnation'],data['resolution_id'],instance,ordinal)
@@ -785,6 +799,7 @@ def validate(rows,recording,rules_hash):
             instance_rows.setdefault((*identity,tick),[]).append(data)
         else:raise ValueError('unknown item raw fact kind')
     for deltas in instance_rows.values():
+        validate_chain_caps(deltas)
         consumes=[d for d in deltas if d['operation']=='consume']
         if not consumes:continue
         if len(consumes)!=1 or deltas[-1] is not consumes[0]:raise ValueError('Consume aggregate must be last for its instance')

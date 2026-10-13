@@ -148,6 +148,14 @@ JSONL contract (schema version 1 of this sidecar):
   (`L2ItemInstance.java:422`, the pinned stack ceiling; the E1 tables carry
   `stackable` but no per-template maximum); `stackable=false` items at 1. Python
   integers are unbounded, so sums never wrap (i128-equivalent).
+  D74 amends D68 for ledger endpoints: caps are enforced on the live acceptance
+  path, so the consumer checks them at the tick-start (first `before`) and
+  tick-end (last `after`) endpoints of each `(entity,incarnation,tick,instance)`
+  chain, and for every earlier row requires `after.count − (Consume debits
+  later in the same chain) ≤ cap`. The D69 export order may therefore show an
+  intermediate `after` above the cap only when same-tick consumption brings the
+  tick end back under it (C → C+1 → C is legal). Baselines and enchant
+  before-bindings are live states and stay capped directly.
   `count_delta` is an exact signed-bigint integer equal to the endpoint count
   difference for every operation. Revision-only rows refuse; item-use COSTS
   still belong in Consume aggregates. D73: a count-neutral `use` row records a

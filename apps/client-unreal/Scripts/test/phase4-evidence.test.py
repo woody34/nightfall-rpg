@@ -740,13 +740,31 @@ class Evidence(unittest.TestCase):
                 if state:state['template_id']=57
         rows[1]['data']['instances'][0]['template_id']=57
         gate.validate(rows,self.recording,HASH)
-        bad=copy.deepcopy(rows);grant,consume=(r['data'] for r in bad if r['kind']=='item_delta')
+        # D74: the legal C -> C+1 -> C intermediate (export order shows grant before the same-tick
+        # consumption) passes; a tick end above the cap, or a positive row whose after exceeds the cap by
+        # more than the consumption that follows it, rejects.
+        legal=copy.deepcopy(rows);grant,consume=(r['data'] for r in legal if r['kind']=='item_delta')
         grant['after']['count']=99_900_000_001;grant['count_delta']=99_900_000_001-3
         consume['before']['count']=99_900_000_001;consume['after']['count']=99_900_000_000
+        gate.validate(legal,self.recording,HASH)
+        bad=copy.deepcopy(legal);grant,consume=(r['data'] for r in bad if r['kind']=='item_delta')
+        grant['after']['count']=99_900_000_002;grant['count_delta']=99_900_000_002-3
+        consume['before']['count']=99_900_000_002;consume['after']['count']=99_900_000_001
+        with self.assertRaisesRegex(ValueError,'template cap'):gate.validate(bad,self.recording,HASH)
+        bad=copy.deepcopy(legal);grant,consume=(r['data'] for r in bad if r['kind']=='item_delta')
+        grant['after']['count']=99_900_000_003;grant['count_delta']=99_900_000_003-3
+        consume['before']['count']=99_900_000_003;consume['after']['count']=99_900_000_002;consume['count_delta']=-1
+        with self.assertRaisesRegex(ValueError,'template cap'):gate.validate(bad,self.recording,HASH)
+        # Tick-start endpoint above the cap (baseline-free slice) rejects even when consumption follows.
+        bad=copy.deepcopy(legal);del bad[1];self.repair(bad)
+        grant,consume=(r['data'] for r in bad if r['kind']=='item_delta')
+        grant['before']['count']=99_900_000_001;grant['after']['count']=99_900_000_004;grant['count_delta']=3
+        consume['before']['count']=99_900_000_004;consume['after']['count']=99_900_000_000;consume['count_delta']=-4
+        consume['causes']=[dict(cause='auto_shot:attack:0',count_delta=-4)]
         with self.assertRaisesRegex(ValueError,'template cap'):gate.validate(bad,self.recording,HASH)
         bad=copy.deepcopy(rows);bad[1]['data']['instances'][0]['count']=99_900_000_001
         with self.assertRaisesRegex(ValueError,'template cap'):gate.validate(bad,self.recording,HASH)
-        print('D68: adena 99900000000 / stackable 2147483647 / non-stackable 1 at-cap controls pass; over-cap grants, intermediates and baselines reject',flush=True)
+        print('D68: adena 99900000000 / stackable 2147483647 / non-stackable 1 at-cap controls pass; D74 C->C+1->C intermediate passes; over-cap grants, tick ends/starts and baselines reject',flush=True)
 
     def test_seeded_d67_id_reuse_corruptions_2000_cases(self):
         rng=random.Random(0xD67);corruptions=0
