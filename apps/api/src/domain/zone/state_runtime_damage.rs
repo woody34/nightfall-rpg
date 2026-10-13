@@ -173,9 +173,10 @@ impl ZoneState {
             shield_rate_q: raw(self.damage_stat_v5(id, &stats, "rShld", 0)?)?,
             shield_angle_degrees: u32::try_from(angle).map_err(invariant)?,
             physical_reach_millitiles: i64::from(combat.attack_range.raw()),
-            physical_angle_degrees: self
-                .held_weapon_v6(id)
-                .map_or(120, |(_, definition)| definition.attack_angle),
+            physical_angle_degrees: match self.held_weapon_v6(id) {
+                Some((_, definition)) => definition.attack_angle,
+                None => self.unarmed_angle_v6(id)?,
+            },
         })
     }
 
@@ -7248,6 +7249,146 @@ mod tests {
     /// Blacksmith fixture: level-46 owner beside the NPC with an unaugmented C-grade necklace
     /// (916, 80 crystals), two accessory stones 12754, D gemstones 2130 and Adena.
     #[allow(clippy::arithmetic_side_effects)]
+    /// D94 rows for one instance in the tick's frozen projection.
+    fn d94_rows(
+        events: &[ZoneEvent],
+        instance: crate::domain::zone::ItemInstanceId,
+    ) -> Vec<(
+        crate::domain::zone::phase4_projection::ItemOperation,
+        u32,
+        Option<u64>,
+        Option<u64>,
+    )> {
+        let projection = events
+            .iter()
+            .find_map(|event| match event {
+                ZoneEvent::ItemCheckpoint(p) => Some(p),
+                _ => None,
+            })
+            .unwrap();
+        projection
+            .ledger
+            .iter()
+            .filter(|row| row.instance == instance)
+            .map(|row| {
+                (
+                    row.operation,
+                    row.operation_ordinal,
+                    row.before.as_ref().map(|i| i.count),
+                    row.after.as_ref().map(|i| i.count),
+                )
+            })
+            .collect()
+    }
+
+    #[test]
+    fn d94_enchant_then_destroy_freezes_consume_then_terminal_and_replays() {
+        use crate::domain::zone::phase4_projection::ItemOperation as Op;
+        use crate::domain::zone::{EquipSlot, ItemCommandKind as K};
+        // api-review-4 poison tick: Enchant{target, scroll} then Destroy{scroll, 2} on 3.
+        let (mut zone, owner, target, scroll) = enchant_fixture(956, EquipSlot::Chest, 0);
+        let rules = Arc::clone(&zone.phase4.as_ref().unwrap().rules);
+        let mut cold =
+            ZoneState::from_snapshot_with_items(zone.snapshot(), Some(Arc::clone(&rules))).unwrap();
+        let draft = session_tick(
+            &zone,
+            owner.entity,
+            vec![
+                item_intent(
+                    &zone,
+                    owner.entity,
+                    941,
+                    K::Enchant {
+                        target,
+                        scroll,
+                        support: None,
+                    },
+                ),
+                item_intent(
+                    &zone,
+                    owner.entity,
+                    942,
+                    K::Destroy {
+                        instance: scroll,
+                        count: 2,
+                    },
+                ),
+            ],
+        );
+        let applied = zone.run_tick(draft.clone()).unwrap();
+        assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+        assert_eq!(
+            d94_rows(&applied.events, scroll),
+            vec![
+                (Op::Consume, 0, Some(3), Some(2)),
+                (Op::Destroy, 1, Some(2), None)
+            ]
+        );
+        assert_eq!(applied, cold.run_tick(draft).unwrap());
+        ZoneState::from_snapshot_with_items(zone.snapshot(), Some(rules)).unwrap();
+    }
+
+    #[test]
+    fn d94_refine_payment_then_destroy_freezes_consume_then_terminal_and_replays() {
+        use crate::domain::zone::phase4_projection::ItemOperation as Op;
+        use crate::domain::zone::{ItemCommandKind as K, ItemInstanceId};
+        // A life stone debited by Refine, then the remaining stack destroyed in the same tick
+        // (stones cannot be crystallized; Destroy is the reachable terminal for a payment).
+        let (mut zone, owner, npc) = refine_fixture();
+        let necklace = ItemInstanceId::new(930).unwrap();
+        let stone = ItemInstanceId::new(931).unwrap();
+        // Settle the fixture's vitals baseline so live and cold start from one boundary.
+        zone.run_tick(zone.draft(Vec::new())).unwrap();
+        let rules = Arc::clone(&zone.phase4.as_ref().unwrap().rules);
+        let mut cold =
+            ZoneState::from_snapshot_with_items(zone.snapshot(), Some(Arc::clone(&rules))).unwrap();
+        let draft = session_tick(
+            &zone,
+            owner.entity,
+            vec![
+                item_intent(
+                    &zone,
+                    owner.entity,
+                    943,
+                    K::Equip {
+                        instance: necklace,
+                        preferred_slot: None,
+                    },
+                ),
+                item_intent(
+                    &zone,
+                    owner.entity,
+                    944,
+                    K::Refine {
+                        npc,
+                        target: necklace,
+                        stone,
+                    },
+                ),
+                item_intent(
+                    &zone,
+                    owner.entity,
+                    945,
+                    K::Destroy {
+                        instance: stone,
+                        count: 1,
+                    },
+                ),
+            ],
+        );
+        let applied = zone.run_tick(draft.clone()).unwrap();
+        assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+        assert_eq!(
+            d94_rows(&applied.events, stone),
+            vec![
+                (Op::Consume, 0, Some(2), Some(1)),
+                (Op::Destroy, 1, Some(1), None)
+            ]
+        );
+        assert_eq!(applied, cold.run_tick(draft).unwrap());
+        ZoneState::from_snapshot_with_items(zone.snapshot(), Some(rules)).unwrap();
+    }
+
     fn refine_fixture() -> (ZoneState, TargetBinding, TargetBinding) {
         use crate::domain::zone::{ItemInstanceId, ItemLocation};
         let (mut zone, owner, npc) = exchange_fixture_base();
@@ -8010,11 +8151,13 @@ mod tests {
         // The unarmed player FIST falls through to the dual handler; NPCs stay simple.
         assert_eq!(zone.attack_style_v6(other), AttackStyle::Dual);
         assert_eq!(zone.attack_style_v6(npc.entity), AttackStyle::Simple);
-        // D75: unarmed reach is the class baseAtkRange 20 (class_combat.toml), 20×1000/32.
+        // D84: an unarmed human mystic attacks with the class fists weapon 251 (range 40,
+        // random damage 5): 40×1000/32 milli-tiles, not the template baseAtkRange 20.
         assert_eq!(
             zone.entities[&other].combat.as_ref().unwrap().attack_range,
-            Fixed::from_raw(625)
+            Fixed::from_raw(1250)
         );
+        assert_eq!(zone.effective(other).unwrap().physical.random_damage(), 5);
         for misses in [&[][..], &[1][..], &[2][..], &[1, 2][..]] {
             let mut zone = zone.clone();
             let swing = arm_swing(&mut zone, owner, npc);
@@ -9048,6 +9191,127 @@ mod tests {
         assert!(encoded.len() <= 1024 * 1024 - 1024);
         assert!(decoded_len <= 32 * 1024 * 1024);
         assert!(decode_snapshot(&baseline).is_ok());
+    }
+
+    /// Recorded evidence run: every tick is cold-replayed from the boundary, its record kept
+    /// and its D46 facts collected; `write` emits the exact recording for the CLI exporter.
+    struct EvidenceRun {
+        zone: ZoneState,
+        cold: ZoneState,
+        boundary: crate::domain::zone::ZoneSnapshot,
+        records: Vec<crate::application::replay_log::AppliedTickRecord>,
+        facts: Vec<crate::domain::zone::evidence::ItemEvidenceFact>,
+        seq: u32,
+    }
+    impl EvidenceRun {
+        fn start(mut zone: ZoneState) -> Self {
+            let boundary = zone.snapshot();
+            let cold = ZoneState::from_snapshot_with_items(
+                boundary.clone(),
+                Some(Arc::clone(&zone.phase4.as_ref().unwrap().rules)),
+            )
+            .unwrap();
+            zone.enable_items_replay_evidence().unwrap();
+            Self {
+                zone,
+                cold,
+                boundary,
+                records: Vec::new(),
+                facts: Vec::new(),
+                seq: 100,
+            }
+        }
+        /// Session commands from `owner`, in order.
+        fn tick(&mut self, owner: EntityId, commands: Vec<ZoneCommand>) -> AppliedTick {
+            let inputs = commands
+                .into_iter()
+                .map(|command| {
+                    self.seq = self.seq.checked_add(1).unwrap();
+                    ZoneInput::session(owner, SessionGeneration(1), self.seq, command)
+                })
+                .collect();
+            let draft = self.zone.draft(inputs);
+            let applied = self.zone.run_tick(draft.clone()).unwrap();
+            assert_eq!(applied, self.cold.run_tick(draft).unwrap());
+            self.records
+                .push(crate::application::replay_log::AppliedTickRecord::from_applied(
+                    self.zone.seed.zone,
+                    &applied,
+                ));
+            self.facts.extend(self.zone.take_items_replay_evidence());
+            applied
+        }
+        fn formulas(&self) -> std::collections::BTreeSet<String> {
+            self.facts
+                .iter()
+                .filter_map(|f| match &f.fact {
+                    crate::domain::zone::evidence::ItemEvidenceData::Formula(v) => {
+                        v["formula"].as_str().map(str::to_owned)
+                    },
+                    _ => None,
+                })
+                .collect()
+        }
+        fn write(self, variable: &str) {
+            use crate::application::replay_log::{Watermark, WatermarkReason};
+            if let Ok(path) = std::env::var(variable) {
+                let recording = crate::infrastructure::eventlog::Recording {
+                    watermark: Watermark {
+                        zone: self.boundary.seed.zone,
+                        epoch: self.boundary.seed.epoch,
+                        records: u64::try_from(self.records.len()).unwrap(),
+                        last_tick: self.records.last().map(|r| r.tick),
+                        reason: WatermarkReason::Shutdown,
+                    },
+                    records: self.records,
+                    snapshot: self.boundary,
+                };
+                std::fs::write(path, recording.to_bytes().unwrap()).unwrap();
+            }
+        }
+    }
+
+    #[test]
+    fn v6_bow_evidence_recording_exports_damage_reuse_and_launch() {
+        use crate::domain::zone::ItemCommandKind as K;
+        let (mut zone, owner, npc, ids) = use_fixture(&[13]);
+        let start = zone.entities[&owner.entity].pos;
+        place(
+            &mut zone,
+            npc.entity,
+            Vec2Fixed::new(Fixed::from_raw(start.x.raw() + 6_000), start.y),
+        );
+        let mut run = EvidenceRun::start(zone);
+        let equip = item_intent(
+            &run.zone,
+            owner.entity,
+            1301,
+            K::Equip {
+                instance: ids[0],
+                preferred_slot: None,
+            },
+        );
+        run.tick(owner.entity, vec![ZoneCommand::Item(Box::new(equip))]);
+        run.tick(
+            owner.entity,
+            vec![
+                ZoneCommand::SetTarget {
+                    entity: owner.entity,
+                    target: Some(npc.entity),
+                },
+                ZoneCommand::Attack {
+                    entity: owner.entity,
+                },
+            ],
+        );
+        for _ in 0..60 {
+            run.tick(owner.entity, Vec::new());
+        }
+        let names = run.formulas();
+        for required in ["bow_reuse", "bow_damage", "physical_damage"] {
+            assert!(names.contains(required), "{required}: {names:?}");
+        }
+        run.write("NIGHTFALL_TEST_BOW_RECORDING");
     }
 
     #[test]

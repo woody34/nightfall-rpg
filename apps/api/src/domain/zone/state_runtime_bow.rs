@@ -57,9 +57,9 @@ impl ZoneState {
         Some((weapon, items.rules.parts().items.get(&held.template_id)?))
     }
 
-    /// CharStat.java:424-436 physical attack range: the equipped weapon's base range, or with
-    /// no active weapon the current class template's `baseAtkRange` (D75: hashed
-    /// `class_combat.toml`, 20 or 25 for orcs), then the integer `pAtkRange` getter.
+    /// CharStat.java:424-436 physical attack range: the active weapon's base range — the
+    /// equipped weapon, else the class fists weapon (D84, 40) — else the current class
+    /// template's `baseAtkRange` (D75: 20, orcs 25), then the integer `pAtkRange` getter.
     pub(in crate::domain::zone) fn attack_range_v6(
         &self,
         id: EntityId,
@@ -104,16 +104,52 @@ impl ZoneState {
             return Err(missing());
         };
         let current = progression.class_state.current_class_id.0;
-        self.phase4
-            .as_ref()
-            .ok_or_else(missing)?
-            .rules
-            .parts()
+        let parts = self.phase4.as_ref().ok_or_else(missing)?.rules.parts();
+        // D84: getActiveWeaponItem() falls back to the class fists weapon (range 40); the
+        // template baseAtkRange is reached only for classes without one (3rd class/Kamael).
+        if let Some(fists) = parts.fists_weapon(current) {
+            return Ok(fists.attack_range);
+        }
+        parts
             .class_combat
             .iter()
             .find(|row| row.lineage_class_ids.contains(&current))
             .map(|row| row.attack_range)
             .ok_or_else(missing)
+    }
+
+    /// D84/CharStat.java:438-447: the fists weapon's base angle, else the unarmed 120.
+    pub(super) fn unarmed_angle_v6(&self, id: EntityId) -> Result<u32, TickError> {
+        let parts = self.phase4.as_ref().ok_or_else(missing)?.rules.parts();
+        Ok(self
+            .unarmed_fists_v6(id)?
+            .map_or(parts.unarmed_combat.attack_angle, |fists| fists.attack_angle))
+    }
+
+    /// The current class fists weapon (D84), if the class has one.
+    pub(super) fn unarmed_fists_v6(
+        &self,
+        id: EntityId,
+    ) -> Result<Option<&crate::domain::zone::item_rules::ItemDefinition>, TickError> {
+        let combat = self
+            .entities
+            .get(&id)
+            .and_then(|e| e.combat.as_ref())
+            .ok_or_else(missing)?;
+        let CombatRole::Player {
+            progression: Some(progression),
+            ..
+        } = &combat.role
+        else {
+            return Ok(None);
+        };
+        Ok(self
+            .phase4
+            .as_ref()
+            .ok_or_else(missing)?
+            .rules
+            .parts()
+            .fists_weapon(progression.class_state.current_class_id.0))
     }
 
     /// Whether the attacker's equipped weapon is a bow (distance falloff and the shield
@@ -374,6 +410,17 @@ impl ZoneState {
             .checked_mul(333)
             .and_then(|v| v.checked_div(speed))
             .ok_or_else(missing)?;
+        // D46 `bow_reuse` (D17): ordinary-weapon reuse from the rounded speed; the weapon
+        // reuse modifier does not participate (L2Character.java:4353-4357).
+        self.item_formula_v6(
+            id,
+            "bow_reuse",
+            serde_json::json!({"reuse_delay": definition.reuse_delay,
+                "attack_speed": i64::try_from(speed).map_err(invariant)?, "weapon_reuse_modifier": 1}),
+            serde_json::json!(i64::try_from(reuse_ms).map_err(invariant)?),
+            &format!("bow_reuse:{id}:{}", tick.0),
+            Some(serde_json::json!({"weapon_template": definition.template_id, "event": "attack"})),
+        );
         let tick_ms = i128::from(crate::domain::zone::TICK_MS);
         let ceil = |ms: i128| -> Result<u64, TickError> {
             let ticks = ms

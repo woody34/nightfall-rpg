@@ -129,7 +129,12 @@ impl PlayerStatInputs {
                     .ok_or(StatError::Overflow)?
                     .random_damage
             },
-            None => super::fist_random_damage(stats.constants(), level)?,
+            // D84: the class fists weapon's random damage (5, Orc Shaman 10); 5+isqrt(level)
+            // only without one (L2Character.java:5034-5044, D24).
+            None => match equipment.rules.parts().fists_weapon(class_id.0) {
+                Some(fists) => fists.random_damage,
+                None => super::fist_random_damage(stats.constants(), level)?,
+            },
         };
         inputs.functions = super::stat_functions::standard_functions(
             &class.base_stats,

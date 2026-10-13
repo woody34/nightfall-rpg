@@ -136,8 +136,9 @@ fn load_items(
         parts.insert(target.into(), take(&mut table, source)?);
     }
     // D75: hash-bound unarmed bases (class_combat.toml), keyed by base class.
-    let mut combat = read_table(directory, "class_combat.toml", &["unarmed", "classes"])?;
+    let mut combat = read_table(directory, "class_combat.toml", &["unarmed", "classes", "fists"])?;
     parts.insert("class_combat".into(), take(&mut combat, "classes")?);
+    parts.insert("fists_weapons".into(), take(&mut combat, "fists")?);
     parts.insert("unarmed_combat".into(), take(&mut combat, "unarmed")?);
     let mut capacity = read_table(
         directory,

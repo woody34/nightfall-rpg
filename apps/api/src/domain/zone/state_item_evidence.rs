@@ -507,14 +507,103 @@ impl ZoneState {
     }
 }
 
-/// Exact reduced ratio in the frozen `{numerator, denominator}` evidence shape.
+/// D80: an integer outside ±2^53 is an exact decimal string; others stay JSON numbers.
+pub(in crate::domain::zone) fn wide_json(value: i128) -> serde_json::Value {
+    const LIMIT: u128 = 1 << 53;
+    if value.unsigned_abs() > LIMIT {
+        json!(value.to_string())
+    } else {
+        i64::try_from(value).map_or_else(|_| json!(value.to_string()), |v| json!(v))
+    }
+}
+
+/// Exact reduced ratio in the frozen `{numerator, denominator}` evidence shape (D80 widths).
 pub(in crate::domain::zone) fn ratio_json(
     value: crate::domain::zone::skill_math::ExactRatio,
 ) -> serde_json::Value {
     let (numerator, denominator) = value.parts();
-    match (i64::try_from(numerator), i64::try_from(denominator)) {
-        (Ok(n), Ok(d)) => json!({"numerator": n, "denominator": d}),
-        // Out of the contract's signed-bigint range: refused visibly by the consumer.
-        _ => json!({"numerator": numerator.to_string(), "denominator": denominator.to_string()}),
+    json!({"numerator": wide_json(numerator), "denominator": wide_json(denominator)})
+}
+
+fn big_json(value: &num_bigint::BigUint) -> serde_json::Value {
+    if value.bits() <= 53 {
+        u64::try_from(value).map_or_else(|_| json!(value.to_string()), |v| json!(v))
+    } else {
+        json!(value.to_string())
     }
+}
+
+#[allow(clippy::arithmetic_side_effects)] // Arbitrary-precision integers; divisors are nonzero.
+fn big_gcd(a: &num_bigint::BigUint, b: &num_bigint::BigUint) -> num_bigint::BigUint {
+    let (mut a, mut b) = (a.clone(), b.clone());
+    while b != num_bigint::BigUint::ZERO {
+        let r = &a % &b;
+        a = b;
+        b = r;
+    }
+    a
+}
+
+#[allow(clippy::arithmetic_side_effects)] // Arbitrary-precision integers; divisors are nonzero.
+fn big_ratio(
+    numerator: &num_bigint::BigUint,
+    denominator: &num_bigint::BigUint,
+) -> serde_json::Value {
+    let divisor = big_gcd(numerator, denominator);
+    let divisor = if divisor == num_bigint::BigUint::ZERO {
+        num_bigint::BigUint::from(1_u8)
+    } else {
+        divisor
+    };
+    json!({"numerator": big_json(&(numerator / &divisor)), "denominator": big_json(&(denominator / &divisor))})
+}
+
+/// D46/D80 `bow_damage` actual, reproducing the frozen certificate exactly: `base =
+/// trunc(formula)`, `damage = floor(4·base/5 + base·√R/125000)` with R = dx²+dy² (milli-
+/// tiles), decided on the first 2^-bits (64, 128, 256, 512) root interval whose floors agree
+/// or whose upper floor is an exact root tie; distances are those bounds × 32/1000.
+#[allow(clippy::arithmetic_side_effects)] // Arbitrary-precision integers; divisors are nonzero.
+pub(in crate::domain::zone) fn bow_damage_actual(
+    base: u64,
+    dx: i64,
+    dy: i64,
+) -> Option<serde_json::Value> {
+    use num_bigint::BigUint;
+    let radicand =
+        BigUint::from(dx.unsigned_abs()).pow(2) + BigUint::from(dy.unsigned_abs()).pow(2);
+    let base_big = BigUint::from(base);
+    for bits in [64_u32, 128, 256, 512] {
+        let scale = BigUint::from(1_u8) << bits;
+        let scaled = &radicand * &scale * &scale;
+        let lower = scaled.sqrt();
+        let upper = if &lower * &lower == scaled {
+            lower.clone()
+        } else {
+            &lower + 1_u8
+        };
+        // floor(base·(500000·S + 5·root)/(625000·S))
+        let floor_at = |root: &BigUint| -> BigUint {
+            (&base_big * (BigUint::from(500_000_u32) * &scale + root * 5_u8))
+                / (BigUint::from(625_000_u32) * &scale)
+        };
+        let lo = floor_at(&lower);
+        let hi = floor_at(&upper);
+        let tie = base > 0 && {
+            // ((hi − 4·base/5)·125000/base)² == R, with the quotient nonnegative.
+            let five_hi = &hi * 5_u8;
+            let four_base = &base_big * 4_u8;
+            five_hi >= four_base && {
+                let numerator = (five_hi - four_base) * 25_000_u32;
+                &numerator * &numerator == &radicand * &base_big * &base_big
+            }
+        };
+        if lo == hi || tie {
+            let thousand_scale = BigUint::from(1000_u16) * &scale;
+            return Some(json!({"base": base,
+                "distance_l2_lower": big_ratio(&(&lower * 32_u8), &thousand_scale),
+                "distance_l2_upper": big_ratio(&(&upper * 32_u8), &thousand_scale),
+                "damage": big_json(&hi)}));
+        }
+    }
+    None
 }

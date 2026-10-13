@@ -634,6 +634,8 @@ mod tests {
             })
             .collect();
         assert_eq!(deltas.len(), 2);
+        // Raw producer facts keep the logical operation ordinal; the exporter publishes the
+        // D76 row position for every chain (D83, items_evidence d83_* test).
         for (data, expected_ordinal) in deltas.iter().zip([1, 2]) {
             assert_eq!(data["operation_ordinal"], expected_ordinal);
         }

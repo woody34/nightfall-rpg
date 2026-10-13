@@ -326,8 +326,9 @@ impl Phase4Projection {
     /// rows in cause order) first, rebased onto the tick-start state, then the single Consume
     /// aggregate last at a strictly greater ordinal, before = the post-positive state and
     /// after = the tick-end checkpoint state. Only endpoints and net deltas are canonical (A3);
-    /// counts are rebased, never invented. Instances whose other rows remove the item keep
-    /// their observed order (no valid D66 chain exists for them).
+    /// counts are rebased, never invented. D94: a terminal row (`after = None`: Destroy,
+    /// Crystallize or a whole transfer-out) stays the instance's final row, observed
+    /// unchanged, with the Consume aggregate immediately before it ending at its `before`.
     pub fn normalize_d66(&mut self) -> Result<(), ItemError> {
         let consumed: Vec<ItemInstanceId> = self
             .ledger
@@ -343,23 +344,39 @@ impl Phase4Projection {
                     })
                 })
                 .collect();
-            if others.is_empty()
-                || others.iter().any(|index| {
+            // D94: at most one terminal row, and it is the instance's last observed row.
+            let terminals: Vec<usize> = others
+                .iter()
+                .copied()
+                .filter(|index| {
                     self.ledger
                         .get(*index)
                         .is_none_or(|row| row.after.is_none())
                 })
-            {
-                continue;
-            }
+                .collect();
+            let terminal_index = match terminals.as_slice() {
+                [] => None,
+                [index] if others.last() == Some(index) => Some(*index),
+                _ => return Err(ItemError("D94 terminal row is not the instance's last row")),
+            };
             let position = self
                 .ledger
                 .iter()
                 .position(|row| row.instance == id && row.operation == ItemOperation::Consume)
                 .ok_or(ItemError("missing consume aggregate"))?;
+            if terminal_index.is_some_and(|index| index < position) {
+                return Err(ItemError("D94 consume follows the terminal row"));
+            }
             let mut consume = self.ledger.remove(position);
+            let terminal = terminal_index
+                .map(|index| self.ledger.remove(index.saturating_sub(1)))
+                .filter(|row| row.instance == id && row.after.is_none());
+            if terminal.is_some() != terminal_index.is_some() {
+                return Err(ItemError("missing D94 terminal row"));
+            }
             let others: Vec<usize> = others
                 .into_iter()
+                .filter(|index| Some(*index) != terminal_index)
                 .map(|index| {
                     if index > position {
                         index.saturating_sub(1)
@@ -368,12 +385,16 @@ impl Phase4Projection {
                     }
                 })
                 .collect();
-            let end = self
-                .checkpoint
-                .instances
-                .iter()
-                .find(|item| item.id == id)
-                .cloned();
+            // With a terminal row the aggregate ends at the observed pre-removal state.
+            let end = match &terminal {
+                Some(row) => row.before.clone(),
+                None => self
+                    .checkpoint
+                    .instances
+                    .iter()
+                    .find(|item| item.id == id)
+                    .cloned(),
+            };
             let count =
                 |item: &Option<ItemInstance>| i128::from(item.as_ref().map_or(0, |i| i.count));
             let total = others
@@ -386,16 +407,13 @@ impl Phase4Projection {
             let start_count = count(&end)
                 .checked_sub(total)
                 .ok_or(ItemError("item count delta overflow"))?;
-            let first = others
-                .first()
-                .and_then(|index| self.ledger.get(*index))
-                .ok_or(ItemError("missing item ledger row"))?;
             // A row observed before the first debit still holds the tick-start count; every
             // debit is strictly negative, so a later row cannot (D62 causes).
-            let mut state = if first.before.is_none() || count(&first.before) == start_count {
-                first.before.clone()
-            } else {
-                consume.before.clone()
+            let mut state = match others.first().and_then(|index| self.ledger.get(*index)) {
+                Some(first) if first.before.is_none() || count(&first.before) == start_count => {
+                    first.before.clone()
+                },
+                _ => consume.before.clone(),
             };
             if count(&state) != start_count {
                 return Err(ItemError("D66 chain does not conserve the tick-start count"));
@@ -429,6 +447,9 @@ impl Phase4Projection {
                 .checked_add(1)
                 .ok_or(ItemError("item operation ordinal overflow"))?;
             self.ledger.push(consume);
+            if let Some(terminal) = terminal {
+                self.ledger.push(terminal);
+            }
         }
         self.renumber_positions()
     }
@@ -483,6 +504,48 @@ impl Phase4Projection {
         self.validate_inner(phase3_sources, false)
     }
 
+    /// Ledger rows: per-row validity, D76 ordinals, D94 shape and the checkpoint endpoint.
+    fn validate_ledger(&self, positional: bool) -> Result<(), ItemError> {
+        let mut final_items = BTreeMap::new();
+        let mut rows = BTreeSet::new();
+        // D76: per instance, ordinals are the canonical row positions 0..n-1 (strictly
+        // increasing, one per row) with at most one Consume aggregate. D94 shape (positional
+        // only): [non-terminal rows…, Consume aggregate, at most one terminal row]; nothing
+        // follows a row that ends the instance, and only a terminal row follows the aggregate.
+        let mut positions = BTreeMap::<_, u32>::new();
+        let mut consume = BTreeSet::new();
+        let mut ended = BTreeSet::new();
+        for delta in &self.ledger {
+            delta.validate(self.checkpoint.inventory_revision)?;
+            if positional
+                && (ended.contains(&delta.instance)
+                    || (consume.contains(&delta.instance) && delta.after.is_some()))
+            {
+                return Err(ItemError("D94 item ledger shape"));
+            }
+            if delta.after.is_none() {
+                ended.insert(delta.instance);
+            }
+            final_items.insert(delta.instance, delta.after.as_ref());
+            let position = positions.entry(delta.instance).or_insert(0);
+            if (positional && delta.operation_ordinal != *position)
+                || (!positional
+                    && !rows.insert((delta.operation_ordinal, delta.instance, delta.operation)))
+                || (delta.operation == ItemOperation::Consume && !consume.insert(delta.instance))
+            {
+                return Err(ItemError("duplicate item ledger plan"));
+            }
+            *position = position
+                .checked_add(1)
+                .ok_or(ItemError("item ledger ordinal overflow"))?;
+        }
+        for (id, after) in final_items {
+            if self.checkpoint.instances.iter().find(|item| item.id == id) != after {
+                return Err(ItemError("ledger does not end at checkpoint inventory"));
+            }
+        }
+        Ok(())
+    }
     fn validate_inner(&self, phase3_sources: usize, positional: bool) -> Result<(), ItemError> {
         if self.entity.as_uuid().is_nil()
             || self.account.as_uuid().is_nil()
@@ -509,33 +572,7 @@ impl Phase4Projection {
         if self.checkpoint.starter_kit_receipt.is_none() {
             return Err(ItemError("projection precedes kit materialization"));
         }
-        let mut final_items = BTreeMap::new();
-        let mut rows = BTreeSet::new();
-        // D76: per instance, ordinals are the canonical row positions 0..n-1 (strictly
-        // increasing, one per row) with at most one Consume aggregate; the API settlement
-        // validator additionally refuses any row after that aggregate (D66).
-        let mut positions = BTreeMap::<_, u32>::new();
-        let mut consume = BTreeSet::new();
-        for delta in &self.ledger {
-            delta.validate(self.checkpoint.inventory_revision)?;
-            final_items.insert(delta.instance, delta.after.as_ref());
-            let position = positions.entry(delta.instance).or_insert(0);
-            if (positional && delta.operation_ordinal != *position)
-                || (!positional
-                    && !rows.insert((delta.operation_ordinal, delta.instance, delta.operation)))
-                || (delta.operation == ItemOperation::Consume && !consume.insert(delta.instance))
-            {
-                return Err(ItemError("duplicate item ledger plan"));
-            }
-            *position = position
-                .checked_add(1)
-                .ok_or(ItemError("item ledger ordinal overflow"))?;
-        }
-        for (id, after) in final_items {
-            if self.checkpoint.instances.iter().find(|item| item.id == id) != after {
-                return Err(ItemError("ledger does not end at checkpoint inventory"));
-            }
-        }
+        self.validate_ledger(positional)?;
         let mut receipts = BTreeSet::new();
         for receipt in &self.receipts {
             receipt.result.validate()?;
@@ -1035,6 +1072,115 @@ pub(crate) mod tests {
                 )
             })
             .collect()
+    }
+
+    #[test]
+    fn d94_terminal_row_stays_last_after_the_rebased_consume_aggregate() {
+        use ItemOperation::{Consume, Destroy, Grant};
+        // Consume 3->2 then Destroy 2->None is already the D94 shape.
+        assert_eq!(
+            d66_chain(&[(Consume, Some(3), Some(2)), (Destroy, Some(2), None)], None),
+            vec![
+                (Consume, 0, Some(3), Some(2), -1),
+                (Destroy, 1, Some(2), None, -2)
+            ]
+        );
+        // Consume, Grant, Destroy: the grant rebases first, the aggregate ends at the
+        // observed pre-removal state, and the terminal row is unchanged and last.
+        assert_eq!(
+            d66_chain(
+                &[
+                    (Consume, Some(3), Some(2)),
+                    (Grant, Some(2), Some(5)),
+                    (Destroy, Some(5), None)
+                ],
+                None
+            ),
+            vec![
+                (Grant, 0, Some(3), Some(6), 3),
+                (Consume, 1, Some(6), Some(5), -1),
+                (Destroy, 2, Some(5), None, -5)
+            ]
+        );
+    }
+
+    #[test]
+    fn d94_positional_validator_enforces_consume_then_one_terminal_row() {
+        use ItemOperation::{Consume, Destroy, Grant};
+        let row = |operation, ordinal, before: Option<u64>, after: Option<u64>| {
+            let stack = |count: Option<u64>| {
+                count.map(|count| ItemInstance {
+                    count,
+                    revision: 2,
+                    ..item(3031)
+                })
+            };
+            let delta = i64::try_from(after.unwrap_or(0)).unwrap()
+                - i64::try_from(before.unwrap_or(0)).unwrap();
+            ItemDeltaPlan {
+                operation,
+                operation_ordinal: ordinal,
+                instance: item(3031).id,
+                before: stack(before),
+                after: stack(after),
+                count_delta: delta,
+                receipt: None,
+                receipt_refs: Vec::new(),
+                causes: if operation == Consume {
+                    vec![ItemAuditEvidence {
+                        family: "skill_cast_payment".into(),
+                        fields: BTreeMap::from([
+                            ("cast_id".into(), ItemEvidenceValue::Unsigned(9)),
+                            ("count_delta".into(), ItemEvidenceValue::Signed(delta)),
+                        ]),
+                    }]
+                } else {
+                    Vec::new()
+                },
+            }
+        };
+        let check = |rows: Vec<ItemDeltaPlan>, end: Option<u64>| {
+            let mut state = projection();
+            state.checkpoint.instances = end
+                .map(|count| ItemInstance {
+                    count,
+                    revision: 2,
+                    ..item(3031)
+                })
+                .into_iter()
+                .collect();
+            state.ledger = rows;
+            state.validate_structure(0)
+        };
+        check(
+            vec![
+                row(Consume, 0, Some(3), Some(2)),
+                row(Destroy, 1, Some(2), None),
+            ],
+            None,
+        )
+        .unwrap();
+        check(
+            vec![
+                row(Grant, 0, Some(3), Some(5)),
+                row(Consume, 1, Some(5), Some(4)),
+            ],
+            Some(4),
+        )
+        .unwrap();
+        // A non-terminal row after the aggregate, or anything after a terminal row, is refused.
+        assert!(check(
+            vec![
+                row(Consume, 0, Some(3), Some(2)),
+                row(Grant, 1, Some(2), Some(4))
+            ],
+            Some(4)
+        )
+        .is_err());
+        assert!(
+            check(vec![row(Destroy, 0, Some(3), None), row(Grant, 1, None, Some(2))], Some(2))
+                .is_err()
+        );
     }
 
     #[test]

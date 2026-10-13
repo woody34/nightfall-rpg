@@ -6,7 +6,7 @@ domain_separator = "nightfall.phase4.rules.1\u0000"
 formula_revision = 1
 skill_bundle_sha256 = "27d35a082f8951817fddf18e2d26dbc10bce37b726841999087c2ce6794ce000"
 profile_bundle_sha256 = "06b56a9a0f66d6645554b1254253f2dc5345a6a50623690de8ac94705570955c"
-data_sha256 = "8e27de155b2682db3bec34d485316f425678634ddd74b000a8849548a91110c0"
+data_sha256 = "b67a9dc5e8dcbcf3393d9fb0b82e6ae81976994f9556a8049d9727edba66e4a5"
 
 [[files]]
 file = "angle_table.toml"
@@ -42,7 +42,7 @@ semantic_sha256 = "a93181a02131baec58c6a5d52fcb27e97438380567228d22afee37255dac1
 
 [[files]]
 file = "class_combat.toml"
-semantic_sha256 = "956bc12ab60b53882d5c5b944bc24f6f9385e4e1bd57e502acf1149bd2e1af82"
+semantic_sha256 = "e6d16d900d4f52075575bcdd5dbcfd96c73678eb9902ba41548d1c25af1992ad"
 
 [[files]]
 file = "class_slots.toml"
