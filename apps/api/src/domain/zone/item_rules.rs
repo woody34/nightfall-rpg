@@ -154,12 +154,18 @@ record!(ClassSlotRule {
     m_def_slots_xml: BTreeMap<super::EquipSlot, u32>,
     m_def_slots: BTreeMap<super::EquipSlot, u32>
 });
+record!(UnarmedCombatRule { attack_angle: u32, random_damage_radius_base: u32 });
+record!(ClassCombatRule {
+    base_class_id: u32, key: String, attack_type: String, attack_range: u32,
+    p_atk: u32, p_atk_spd: u32, crit_rate: u32, lineage_class_ids: Vec<u32>
+});
 record!(ItemRulesParts {
     formula_revision: u32, phase3_hash: [u8; 32], items: BTreeMap<u32, ItemDefinition>,
     capabilities: BTreeMap<u32, ItemCapability>,
     skill_capabilities: BTreeMap<u32, ItemSkillCapability>, option_capabilities: BTreeMap<u32, OptionCapability>,
     augment_capabilities: Vec<AugmentCapability>, recipe_capabilities: BTreeMap<u64, RecipeCapability>,
     weapon_types: Vec<WeaponTypeRule>, grades: Vec<ItemGradeRule>, class_slots: Vec<ClassSlotRule>,
+    class_combat: Vec<ClassCombatRule>, unarmed_combat: UnarmedCombatRule,
     capacities: ItemCapacityRules, enchant_rates: Vec<EnchantRates>, enchant_bindings: Vec<EnchantBinding>,
     enchant_scrolls: BTreeMap<u32, EnchantScrollRule>, enchant_supports: BTreeMap<u32, EnchantScrollRule>,
     enchant_blacklist: Vec<u32>, enchant_options: BTreeMap<u32, Vec<EnchantOptionLevel>>,
@@ -339,11 +345,32 @@ fn write_len(value: usize, bytes: &mut Vec<u8>) -> Result<(), String> {
 impl ItemRulesParts {
     fn validate(&self) -> Result<(), String> {
         self.validate_class_slots()?;
+        self.validate_class_combat()?;
         self.validate_items()?;
         self.validate_enchant()?;
         self.validate_references()?;
         self.validate_capabilities()?;
         self.validate_angles()
+    }
+
+    /// D75: one unarmed row per class-slot base class, ascending, FIST bases only.
+    fn validate_class_combat(&self) -> Result<(), String> {
+        let bases: Vec<_> = self.class_slots.iter().map(|row| row.base_class_id).collect();
+        let combat: Vec<_> = self.class_combat.iter().map(|row| row.base_class_id).collect();
+        if bases != combat
+            || self.unarmed_combat.attack_angle == 0
+            || self.unarmed_combat.attack_angle > 360
+            || self.class_combat.iter().any(|row| {
+                row.key.is_empty()
+                    || row.attack_type != "FIST"
+                    || row.attack_range == 0
+                    || row.p_atk_spd == 0
+                    || !row.lineage_class_ids.contains(&row.base_class_id)
+            })
+        {
+            return Err("invalid class unarmed combat bases".into());
+        }
+        Ok(())
     }
 
     fn validate_class_slots(&self) -> Result<(), String> {

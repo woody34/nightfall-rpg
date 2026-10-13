@@ -778,8 +778,10 @@ fn condition_capabilities(
 ) {
     match condition {
         SkillCondition::PlayerLevelRange { .. } => {
-            // D34: caller support lands before the coordinated generated-table promotion.
-            missing.insert("cond:player:levelRange".into());
+            // D34: the rank-expanded inclusive range is executed at V6 cast start only.
+            if !phase4 {
+                missing.insert("cond:player:levelRange".into());
+            }
         },
         SkillCondition::UsingKind { weapon_kinds } => {
             if weapon_kinds.is_empty()
@@ -849,7 +851,8 @@ fn condition_capabilities(
 
 fn handler_capabilities(handler: &SkillHandler, missing: &mut BTreeSet<String>, phase4: bool) {
     let allowed: &[&str] = match handler.name.as_str() {
-        "FatalBlow" if phase4 => &["power", "criticalChance"],
+        // D50: FatalBlow.java:43-46 int blowChance, executed by the V6 blow caller.
+        "FatalBlow" if phase4 => &["power", "blowChance", "criticalChance"],
         "Lethal" if phase4 => &["fullLethal", "halfLethal"],
         "Hp" if phase4 => &["amount", "mode"],
         "Escape" if phase4 => &["escapeType"],
@@ -889,7 +892,7 @@ fn handler_capabilities(handler: &SkillHandler, missing: &mut BTreeSet<String>, 
                 "mode" | "type" => ["DIFF", "PER"].contains(&value.as_str()),
                 "ignoreShieldDefence" | "heal" => ["true", "false"].contains(&value.as_str()),
                 "slot" => ["ALL", "BUFF", "DEBUFF"].contains(&value.as_str()),
-                "criticalChance" | "max" | "rate" => value.parse::<i32>().is_ok(),
+                "criticalChance" | "blowChance" | "max" | "rate" => value.parse::<i32>().is_ok(),
                 "ticks" => value
                     .parse::<u32>()
                     .is_ok_and(|v| periodic_interval(v, 666).is_ok()),
@@ -1035,4 +1038,10 @@ const PHASE4_STATS: &[&str] = &[
     "mCritRate",
     "physicalSkillPower",
     "mpConsume",
+    // D34: executed at every implemented PvP caller (auto, PhysicalAttack, MagicalAttack,
+    // FatalBlow); D47: abnormal-slot capacity folded at live admission.
+    "pvpPhysDmg",
+    "pvpPhysSkillsDmg",
+    "pvpMagicalDmg",
+    "enlargeAbnormalSlot",
 ];

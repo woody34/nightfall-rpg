@@ -135,6 +135,10 @@ fn load_items(
         let mut table = read_table(directory, file, &[source])?;
         parts.insert(target.into(), take(&mut table, source)?);
     }
+    // D75: hash-bound unarmed bases (class_combat.toml), keyed by base class.
+    let mut combat = read_table(directory, "class_combat.toml", &["unarmed", "classes"])?;
+    parts.insert("class_combat".into(), take(&mut combat, "classes")?);
+    parts.insert("unarmed_combat".into(), take(&mut combat, "unarmed")?);
     let mut capacity = read_table(
         directory,
         "capacities.toml",
@@ -325,6 +329,9 @@ impl ItemDataSource<'_> {
                 },
                 "capabilities.toml" => {
                     include_str!("../../../../packages/data/tables-phase4/capabilities.toml")
+                },
+                "class_combat.toml" => {
+                    include_str!("../../../../packages/data/tables-phase4/class_combat.toml")
                 },
                 "class_slots.toml" => {
                     include_str!("../../../../packages/data/tables-phase4/class_slots.toml")

@@ -46,7 +46,7 @@ fn isqrt(value: u128) -> u128 {
 }
 
 impl ZoneState {
-    fn held_weapon_v6(
+    pub(super) fn held_weapon_v6(
         &self,
         id: EntityId,
     ) -> Option<(ItemInstanceId, &crate::domain::zone::item_rules::ItemDefinition)> {
@@ -57,8 +57,9 @@ impl ZoneState {
         Some((weapon, items.rules.parts().items.get(&held.template_id)?))
     }
 
-    /// CharStat.java:424-436 physical attack range: the equipped weapon's base range (the
-    /// epoch's starter profile without one), then the integer pAtkRange getter.
+    /// CharStat.java:424-436 physical attack range: the equipped weapon's base range, or with
+    /// no active weapon the current class template's `baseAtkRange` (D75: hashed
+    /// class_combat.toml, 20 or 25 for orcs), then the integer pAtkRange getter.
     pub(in crate::domain::zone) fn attack_range_v6(
         &self,
         id: EntityId,
@@ -73,13 +74,7 @@ impl ZoneState {
         }
         let base = match self.held_weapon_v6(id) {
             Some((_, definition)) => definition.attack_range,
-            None => {
-                self.rules
-                    .as_ref()
-                    .ok_or_else(missing)?
-                    .starter_weapon()
-                    .attack_range_l2
-            },
+            None => self.unarmed_range_v6(id)?,
         };
         let range = self
             .damage_stat_v5(
@@ -91,6 +86,34 @@ impl ZoneState {
             .trunc()
             .map_err(invariant)?;
         Ok(Some(l2_reach(range.max(0))?))
+    }
+
+    /// D75: the player's current-class unarmed range. Every descendant shares its base
+    /// class value (E1 generation census), so the row is found by lineage membership.
+    fn unarmed_range_v6(&self, id: EntityId) -> Result<u32, TickError> {
+        let combat = self
+            .entities
+            .get(&id)
+            .and_then(|e| e.combat.as_ref())
+            .ok_or_else(missing)?;
+        let CombatRole::Player {
+            progression: Some(progression),
+            ..
+        } = &combat.role
+        else {
+            return Err(missing());
+        };
+        let current = progression.class_state.current_class_id.0;
+        self.phase4
+            .as_ref()
+            .ok_or_else(missing)?
+            .rules
+            .parts()
+            .class_combat
+            .iter()
+            .find(|row| row.lineage_class_ids.contains(&current))
+            .map(|row| row.attack_range)
+            .ok_or_else(missing)
     }
 
     /// Whether the attacker's equipped weapon is a bow (crossbows have their own branch).
