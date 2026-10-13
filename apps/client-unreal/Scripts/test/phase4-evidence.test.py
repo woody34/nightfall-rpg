@@ -17,6 +17,7 @@ ALLOWED_CHANGES={
     'consume':{'count'},'equip':{'slot','location'},'unequip':{'slot','location'},
     'enchant':{'enchant'},'refine':{'augment_id'},'cancel_refine':{'augment_id'},
     'destroy':set(),'crystallize':set(),'grant':{'count'},'starter':set(),'backfill':set(),
+    'use':{'charges'},
 }
 
 
@@ -50,6 +51,7 @@ class Evidence(unittest.TestCase):
         rows=copy.deepcopy(self.rows)
         if operation!='consume':count=1
         before=item(100,count,2509 if operation=='consume' else 71)|dict(enchant=enchant,created_tick=created_tick)
+        if operation=='use':before.update(slot='rhand',location='paperdoll',charges=1)
         after=before|{'revision':1}
         if operation=='consume':after['count']-=1
         elif operation=='equip':after.update(slot='rhand',location='paperdoll')
@@ -59,6 +61,7 @@ class Evidence(unittest.TestCase):
         elif operation=='cancel_refine':before['augment_id']=65537
         elif operation in ('destroy','crystallize'):after=None
         elif operation in ('grant','starter','backfill'):before=None
+        elif operation=='use':after['charges']=0 # D73: receipt-free soulshot discharge.
         else:raise AssertionError(operation)
         rows.insert(1,dict(kind='item_baseline',entity=OWNER,incarnation=1,tick=0,sequence=0,
             data=dict(inventory_revision=0,instances=[copy.deepcopy(before)] if before else [],
@@ -68,6 +71,7 @@ class Evidence(unittest.TestCase):
                    operation_ordinal=0,resolution_id='transition:1')
         if operation=='consume':delta.update(receipt_refs=[],causes=[dict(cause='auto_shot:transition:1',count_delta=-1)])
         else:delta['receipt_ref']=None
+        if operation=='use':delta['causes']=[dict(cause='auto_shot:transition:1',count_delta=0)]
         rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=0,sequence=0,data=delta))
         return self.repair(rows)
 
@@ -136,6 +140,43 @@ class Evidence(unittest.TestCase):
             rows.insert(-1,grant);self.repair(rows);gate.validate(rows,self.recording,HASH)
         bad=self.transition_rows('consume');bad[3]['data']['operation']='use'
         with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
+
+    def test_d73_use_rows_change_only_charges_with_neutral_causes(self):
+        rows=self.transition_rows('use');gate.validate(rows,self.recording,HASH)
+        self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['pole_damage'],HASH)['passed'])
+        # Receipt-bound use (manual shot charge): the receipt cause is projected into receipt_ref.
+        bound=copy.deepcopy(rows);delta=bound[3]['data']
+        delta['before']['charges']=0;delta['after']['charges']=1;bound[1]['data']['instances'][0]['charges']=0
+        delta.update(receipt_ref='receipt:use:k1',causes=[dict(cause='receipt:use:k1',count_delta=0)])
+        gate.validate(bound,self.recording,HASH)
+        # Three discharges on one weapon in one tick: positional ordinals 0/1/2 (D76/D83).
+        chain=copy.deepcopy(rows);first=chain[3];chain[1]['data']['instances'][0]['charges']=7
+        first['data']['before']['charges']=7;first['data']['after']['charges']=3
+        for ordinal,(start,end) in enumerate(((3,1),(1,0)),1):
+            row=copy.deepcopy(first);row['data'].update(operation_ordinal=ordinal,resolution_id=f'transition:{ordinal+1}',
+                before=first['data']['after']|{'charges':start},after=first['data']['after']|{'charges':end},
+                causes=[dict(cause=f'auto_shot:transition:{ordinal+1}',count_delta=0)])
+            chain.insert(-1,row)
+        self.repair(chain);gate.validate(chain,self.recording,HASH)
+        mutations={
+            'count changes':lambda d:(d['after'].update(count=2),d.update(count_delta=1)),
+            'enchant changes':lambda d:d['after'].update(enchant=3),
+            'charges unchanged':lambda d:d['after'].update(charges=1),
+            'causes missing':lambda d:d.pop('causes'),
+            'causes empty':lambda d:d.update(causes=[]),
+            'negative cause':lambda d:d.update(causes=[dict(cause='auto_shot:transition:1',count_delta=-1)]),
+            'boolean cause':lambda d:d.update(causes=[dict(cause='auto_shot:transition:1',count_delta=False)]),
+            'malformed cause':lambda d:d.update(causes=[dict(cause='discharge',count_delta=0)]),
+            'receipt_ref without cause':lambda d:d.update(receipt_ref='receipt:use:k1'),
+            'receipt cause without ref':lambda d:d.update(causes=[dict(cause='receipt:use:k1',count_delta=0)]),
+            'receipt_refs list':lambda d:(d.pop('receipt_ref'),d.update(receipt_refs=[])),
+            'charge off rhand':lambda d:d['before'].update(slot='lhand'),
+        }
+        for name,mutate in mutations.items():
+            with self.subTest(mutation=name):
+                bad=copy.deepcopy(rows);mutate(bad[3]['data'])
+                with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
+        print(f'D73: use/receipt-bound use/three-discharge chain pass; {len(mutations)} use mutations reject',flush=True)
 
     def test_system_shot_review11_field_drift_without_enchant_correlation(self):
         rows=self.transition_rows('consume',enchant=0)

@@ -138,6 +138,7 @@ JSONL contract (schema version 1 of this sidecar):
   | destroy / crystallize | Existing before; after is null. Refunds are separate grant rows. |
   | grant | Canonical after; strictly positive count_delta. Before is null for creation, or canonical for a retained stack with only count changing. |
   | starter / backfill | Before is null; after is canonical. |
+  | use (D73) | Both endpoints; only `charges` changes; count unchanged (count_delta 0). |
 
   D68 bounds every canonical count (baseline instances, enchant bindings and
   both endpoints of every ledger row, which are the only intermediate states
@@ -148,8 +149,17 @@ JSONL contract (schema version 1 of this sidecar):
   `stackable` but no per-template maximum); `stackable=false` items at 1. Python
   integers are unbounded, so sums never wrap (i128-equivalent).
   `count_delta` is an exact signed-bigint integer equal to the endpoint count
-  difference for every operation. Revision-only rows and `operation=use` refuse;
-  item-use costs belong in Consume aggregates.
+  difference for every operation. Revision-only rows refuse; item-use COSTS
+  still belong in Consume aggregates. D73: a count-neutral `use` row records a
+  shot discharge (or any use that changes only the instance's `charges`). It
+  carries `receipt_ref` (null for automatic discharges) AND a nonempty ordered
+  `causes` list of `{cause,count_delta}` with every `count_delta` exactly 0 and
+  the same cause grammar as Consume (`auto_shot:<attack resolution_id>` for an
+  attack discharge). `receipt_ref` equals the single `receipt:` cause when one
+  exists and is null otherwise. `use` rows are count-neutral retained rows, so
+  under D69 they may precede a Consume aggregate on the same instance; several
+  use rows on one instance in one tick take consecutive positional ordinals.
+  Pure toggles still have no row (D28).
   Under D55, correlate deltas by `(resolution_id,instance,operation_ordinal)`
   within the owner/incarnation scope, independent of operation name. Derive ONE
   revision step per `(entity,incarnation,tick)` from the owner's baseline or

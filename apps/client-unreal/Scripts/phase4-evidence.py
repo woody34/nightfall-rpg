@@ -498,6 +498,8 @@ ITEM_TRANSITIONS={
     'enchant':('retain',frozenset({'enchant'})),
     'refine':('retain',frozenset({'augment_id'})),
     'cancel_refine':('retain',frozenset({'augment_id'})),
+    # D73: a shot discharge (or any use that changes only `charges`) is count-neutral.
+    'use':('retain',frozenset({'charges'})),
     'destroy':('remove',frozenset()),
     'crystallize':('remove',frozenset()),
     'grant':('positive',frozenset({'count'})),
@@ -506,7 +508,20 @@ ITEM_TRANSITIONS={
 }
 
 
-PRE_CONSUME=frozenset(('grant','starter','backfill','equip','unequip','enchant','refine','cancel_refine'))
+PRE_CONSUME=frozenset(('grant','starter','backfill','equip','unequip','enchant','refine','cancel_refine','use'))
+CAUSE=re.compile(r'(?:auto_shot|arrow|item_cast):\S+|receipt:[^:\s]+:\S+')
+
+
+def validate_causes(causes,negative):
+    """D62/D63 ordered `{cause,count_delta}` list; D73 use causes are count-neutral (0)."""
+    if not isinstance(causes,list) or not causes:raise ValueError('ordered nonempty causes required')
+    for cause in causes:
+        if not isinstance(cause,dict) or set(cause)!={'cause','count_delta'}:raise ValueError('complete cause required')
+        if not isinstance(cause['cause'],str) or not CAUSE.fullmatch(cause['cause']):raise ValueError('unknown/malformed cause')
+        delta=cause['count_delta']
+        if negative and (type(delta) is not int or not -(2**63)<delta<0):raise ValueError('negative signed-bigint consume cause delta required')
+        if not negative and (type(delta) is not int or delta!=0):raise ValueError('use cause must be count-neutral (D73)')
+    return [c['cause'] for c in causes if c['cause'].startswith('receipt:')]
 
 
 def validate_transition(data):
@@ -733,25 +748,22 @@ def validate(rows,recording,rules_hash):
         elif row['kind']=='item_delta':
             receipt_field='receipt_refs' if data.get('operation')=='consume' else 'receipt_ref'
             fields={'operation','instance','before','after','count_delta','operation_ordinal',receipt_field,'resolution_id'}
-            if receipt_field=='receipt_refs':fields.add('causes')
+            if data.get('operation') in ('consume','use'):fields.add('causes')
             if set(data)!=fields:raise ValueError('unknown/missing ledger fields')
             if data['operation'] not in ITEM_TRANSITIONS:raise ValueError('unknown ledger operation')
             refs=data[receipt_field]
             if receipt_field=='receipt_refs':
                 if not isinstance(refs,list) or any(not isinstance(ref,str) or not ref for ref in refs):raise ValueError('ordered consume receipt_refs required')
                 causes=data['causes']
-                if not isinstance(causes,list) or not causes:raise ValueError('ordered nonempty consume causes required')
-                for cause in causes:
-                    if not isinstance(cause,dict) or set(cause)!={'cause','count_delta'}:raise ValueError('complete consume cause required')
-                    if not isinstance(cause['cause'],str) or not re.fullmatch(r'(?:auto_shot|arrow|item_cast):\S+|receipt:[^:\s]+:\S+',cause['cause']):raise ValueError('unknown/malformed consume cause')
-                    delta=cause['count_delta']
-                    if type(delta) is not int or not -(2**63)<delta<0:raise ValueError('negative signed-bigint consume cause delta required')
-                same(refs,[c['cause'] for c in causes if c['cause'].startswith('receipt:')])
+                same(refs,validate_causes(causes,True))
                 same(data['count_delta'],sum(c['count_delta'] for c in causes))
                 first=causes[0]['cause']
                 if not first.startswith('receipt:'):same(data['resolution_id'],first.split(':',1)[1])
             elif refs is not None and (not isinstance(refs,str) or not refs):
                 raise ValueError('single ledger receipt_ref required')
+            if data['operation']=='use':
+                # D73: the receipt projection of a use row is its single optional receipt_ref.
+                same([] if refs is None else [refs],validate_causes(data['causes'],False))
             instance=integer(data['instance'],1)
             before,after=data['before'],data['after']
             if before==after or before is None and after is None:raise ValueError('ledger must contain actual change (D28)')
