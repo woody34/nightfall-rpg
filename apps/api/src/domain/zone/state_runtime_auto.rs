@@ -172,14 +172,23 @@ impl ZoneState {
             }
         } else {
             let launch = self.bow_launch_mark_v6(source, target);
-            let result = self.auto_damage_v5(source, target, draw)?;
+            // auto_damage_v5 inlined (same draw order) to keep the shield outcome for D108.
+            let (result, shield) = if self.auto_hit_v5(source, target, draw)? {
+                let (outcome, damage, shield, _) = self.auto_resolve_v5(source, target, draw)?;
+                ((outcome, damage), shield)
+            } else {
+                ((AttackOutcome::Miss, 0), crate::domain::zone::phase4::ShieldOutcome::None)
+            };
             if let Some((mark, chance)) = launch {
                 self.bow_launch_complete_v6(
                     id,
                     target.entity,
                     mark,
                     chance,
-                    result.0 != AttackOutcome::Miss,
+                    (
+                        result.0 != AttackOutcome::Miss,
+                        shield == crate::domain::zone::phase4::ShieldOutcome::Perfect,
+                    ),
                 );
             }
             result
@@ -276,6 +285,8 @@ impl ZoneState {
 
     /// Formulas.java:1054-1063 and :665-743: condition multiplication precedes clamp;
     /// critical/traits/spread/penalty remain rational until the caller's integer cast.
+    /// The simple-swing caller inlines this (keeping the D108 shield outcome); tests drive it.
+    #[cfg(test)]
     #[allow(clippy::too_many_lines)] // Shared legacy/V6 draw order: hit, shield, critical.
     pub(super) fn auto_damage_v5(
         &mut self,
@@ -705,7 +716,11 @@ impl ZoneState {
                 let word = self.rng.get_word_pos();
                 let (outcome, damage, shield, exact) =
                     self.auto_resolve_v5(source, target, draw)?;
-                observed.push((mark, exact));
+                observed.push((
+                    mark,
+                    exact,
+                    shield == crate::domain::zone::phase4::ShieldOutcome::Perfect,
+                ));
                 // L2Character.java:1155-1171: (int)calcPhysDam then integer /2.
                 self.subhit_evidence_v6(
                     id,
@@ -717,7 +732,7 @@ impl ZoneState {
                 )?;
                 (outcome, damage / 2, shield)
             } else {
-                observed.push((mark, None));
+                observed.push((mark, None, false));
                 self.subhit_evidence_v6(
                     id,
                     target.entity,
