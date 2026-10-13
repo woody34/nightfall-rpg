@@ -755,6 +755,307 @@ def fam_dt(out: dict) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Story 1.6: party, XP and ledger families
+# ---------------------------------------------------------------------------
+
+
+def in_range_party2(dist_sq: int, rad: int = 0) -> bool:
+    # checkIfInRange(PartyRange2, ..., true) -> 4*dist^2 <= (2*R + rad)^2, R = m(1400) = 43,750 (X1/X2)
+    r = int(prop("character.properties", "PartyRange2")) * 1000 // 32
+    return 4 * dist_sq <= (2 * r + rad) ** 2
+
+
+def random_looter(members: list[dict], words: Words) -> tuple[str, int]:
+    cands = [m["name"] for m in members if in_range_party2(m["dist_sq"])]
+    if not cands:
+        return "picker", 0
+    return cands[words.roll_below(len(cands))], 1
+
+
+def by_turn_looter(members: list[dict], cursor: int) -> tuple[str | None, int]:
+    for _ in range(len(members)):
+        cursor += 1
+        if cursor >= len(members):
+            cursor = 0
+        if in_range_party2(members[cursor]["dist_sq"]):
+            return members[cursor]["name"], cursor
+    return None, cursor
+
+
+def even_split(members: list[dict], amount: int, words: Words) -> dict[str, int]:
+    rec = [m["name"] for m in members if in_range_party2(m["dist_sq"])]  # member order (X9)
+    if not rec:
+        return {}
+    k = len(rec)
+    got = {n: amount // k for n in rec}
+    for _ in range(amount % k):
+        got[rec[words.roll_below(k)]] += 1
+    return {n: v for n, v in got.items() if v > 0}
+
+
+MODES = ["FINDERS_KEEPERS", "RANDOM", "RANDOM_INCLUDING_SPOIL", "BY_TURN", "BY_TURN_INCLUDING_SPOIL"]
+
+
+@family("L-P", "1.6")
+def fam_lp(out: dict) -> str:
+    near, far = 40000 ** 2, 44000 ** 2
+    require(in_range_party2(43750 ** 2) and not in_range_party2(43751 ** 2), "PartyRange2 1,400 -> 43,750 non-strict")
+    vec: dict = {"random": [], "by_turn": [], "even_split": [], "sweep_routing": []}
+    # RANDOM over every in-range subset of a 4-member party
+    for mask in range(16):
+        members = [{"name": f"m{i}", "dist_sq": near if mask >> i & 1 else far} for i in range(4)]
+        w = Words(100 + mask)
+        looter, draws = random_looter(members, w)
+        require(draws == (1 if mask else 0), "RANDOM draws only with candidates")
+        vec["random"].append({"in_range_mask": mask, "seed": 100 + mask, "looter": looter, "words": w.log})
+    # BY_TURN: pre-increment, wrap, skip-advance, full lap -> picker with cursor advanced by len
+    members = [{"name": f"m{i}", "dist_sq": far if i in (1, 2) else near} for i in range(4)]
+    cur, seq = -1, []
+    for _ in range(5):
+        who, cur = by_turn_looter(members, cur)
+        seq.append((who, cur))
+    require([s[0] for s in seq] == ["m0", "m3", "m0", "m3", "m0"], f"by-turn order {seq}")
+    nobody = [{"name": f"m{i}", "dist_sq": far} for i in range(3)]
+    who, cur2 = by_turn_looter(nobody, 1)
+    require(who is None and cur2 == 1, "full lap returns the picker; cursor advanced by len (mod len)")
+    vec["by_turn"] = {"sequence": seq, "full_lap_cursor_in": 1, "full_lap_cursor_out": cur2}
+    # Even split k = 1..9 with remainders, draws with replacement
+    for k in range(1, 10):
+        members = [{"name": f"m{i}", "dist_sq": near} for i in range(k)]
+        for amount in (k * 7 + k - 1, 2, 1000003):
+            w = Words(k * 31 + amount)
+            got = even_split(members, amount, w)
+            require(sum(got.values()) == amount, "split conserves")
+            require(len(w.log) >= amount % k, "one draw per leftOver")
+            vec["even_split"].append({"k": k, "amount": amount, "seed": k * 31 + amount, "payout": got, "words": w.log})
+    # count 1 is never split: isItemToEvenlyDistribute requires count > 1 -> mode path
+    require(int(prop("character.properties", "PartyEvenlyDistributeItems").split(",")[0]) == 57, "split template 57")
+    vec["split_count_1"] = "mode path"
+    # Sweep routing: spoil=true in every mode; adena count > 1 splits in every mode
+    for mode in MODES:
+        spoil_to = "picker" if mode in ("FINDERS_KEEPERS", "RANDOM", "BY_TURN") else (
+            "random" if mode == "RANDOM_INCLUDING_SPOIL" else "next")
+        vec["sweep_routing"].append({"mode": mode, "non_adena": spoil_to, "adena_gt_1": "even_split"})
+    out["lp_vectors"] = vec
+    return "RANDOM over 16 in-range subsets; BY_TURN cursor/wrap/full lap; even split k=1..9; sweep routing in 5 modes"
+
+
+def pow56(k: int) -> F:
+    require(1 <= k <= 79, f"pow56 k={k} fails closed")
+    return fl(fl(F(5) / 6) ** k)
+
+
+def base_rewards(level: int, exp_rate: str, sp: str, g: str = "1") -> tuple[int, int]:
+    G = fl(F(g))
+    rx = fl32(fl(fl(F(prop("rates.properties", "RateXp"))) * G))
+    rs = fl32(fl(fl(F(prop("rates.properties", "RateSp"))) * G))
+    X = math.floor(fl(fl(level * level * cd(exp_rate)) * rx))
+    S = math.floor(fl(cd(sp) * rs))
+    return X, S
+
+
+def calc_exp_sp(diff: int, dmg: int, total: int, X: int, S: int) -> tuple[int, int]:
+    diff = max(diff, -5)
+    x = fl(fl(F(X) * dmg) / total)
+    s = fl(fl(F(S) * dmg) / total)
+    if diff > 5:
+        p = pow56(diff - 5)
+        x, s = fl(x * p), fl(s * p)
+    if x <= 0:
+        x, s = F(0), F(0)
+    elif s <= 0:
+        s = F(0)
+    return math.floor(x), math.floor(s)
+
+
+def round_half_up(v: F) -> int:
+    return math.floor(v + F(1, 2))
+
+
+def bonus(n: int, key: str) -> F:
+    B = [fl(F(b)) for b in table("party.toml")["party"]["bonus_exp_sp"]]
+    if n < 2:
+        return F(1)
+    return fl(B[min(n - 1, 8)] * fl32(fl(F(prop("rates.properties", key)))))
+
+
+def party_distribute(e: int, s: int, levels: list[int], alive: list[bool], top: int) -> list[tuple[int, int]]:
+    n = len(levels)
+    e = math.floor(fl(e * bonus(n, "RatePartyXp")))
+    s = math.floor(fl(s * bonus(n, "RatePartySp")))
+    sq = sum(lv * lv for lv in levels)
+    gaps = [tuple(map(int, g.split(","))) for g in prop("character.properties", "PartyXpCutoffGaps").split(";")]
+    pct = [int(x) for x in prop("character.properties", "PartyXpCutoffGapPercent").split(",")]
+    out = []
+    for lv, ok in zip(levels, alive):
+        if not ok:
+            out.append((0, 0))
+            continue
+        pre = fl(fl(F(lv * lv) / sq) * 1)
+        ae = round_half_up(fl(e * pre))
+        as_ = math.floor(fl(s * pre))
+        gap = top - lv
+        award = (0, 0)
+        for (lo, hi), p in zip(gaps, pct):
+            if lo <= gap <= hi:
+                award = (ae * p // 100, as_ * p // 100)
+                break
+        out.append(award)
+    return out
+
+
+@family("X", "1.6")
+def fam_x(out: dict) -> str:
+    vec: dict = {}
+    # n = 5: every e < 2*10^6, floor(fl(e * 1.4)) vs floor(7e/5)
+    b5 = bonus(5, "RatePartyXp")
+    require(b5 == fl(F("1.40")), "n=5 bonus is fl(1.40)")
+    diffs, first = 0, None
+    bf = float(b5)
+    for e in range(2_000_000):
+        if int(e * bf) != (7 * e) // 5:
+            diffs += 1
+            if first is None:
+                first = e
+    require(diffs == 74892, f"n=5 differences {diffs}")
+    require(math.floor(fl(45 * b5)) == 62 and (7 * 45) // 5 == 63, "e = 45 -> 62")
+    for e in (45, 1_999_999, 2 ** 25 + 1):
+        require(math.floor(fl(e * b5)) == int(e * bf), "binary64 reference")
+    vec["n5"] = {"differences_below_2e6": diffs, "first": first, "e45": 62}
+    # 36 SP-only templates: expRate absent -> 0 XP and 0 SP
+    sp_only = table("drops.toml")["sp_only_templates"]
+    require(len(sp_only) == 36, "36 SP-only")
+    lv_sp = {}
+    for f in sorted((DP / DPD / "stats/npcs").glob("*.xml")):
+        for n in ET.parse(f).getroot().findall("npc"):
+            if int(n.get("id")) in sp_only:
+                a = n.find("acquire")
+                require(a.get("expRate") is None, "expRate absent")
+                lv_sp[int(n.get("id"))] = (int(n.get("level", 70)), a.get("sp"))
+    for nid, (lv, sp) in lv_sp.items():
+        X, S = base_rewards(lv, "0", sp)
+        for lvl in (1, lv, 85):
+            require(calc_exp_sp(lvl - lv, 1000, 1000, X, S) == (0, 0), f"SP-only {nid}")
+    require({sp for _, sp in lv_sp.values()} >= {"557272", "144137"}, "raid-class SP rows")
+    vec["sp_only"] = sorted(lv_sp)
+    # Solo diffs (pow56 per E32); diff 85 (k = 80) fails closed
+    X, S = base_rewards(40, "24.8737348778133", "17624")
+    solo = {}
+    for diff in (-6, -5, 0, 5, 6, 7, 84):
+        e, s = calc_exp_sp(diff, 700, 1000, X, S)
+        e = math.floor(fl32(fl32(e) * 1))
+        solo[str(diff)] = (e, s)
+    require(solo["-6"] == solo["-5"] == solo["0"] == solo["5"], "diff <= 5 has no penalty")
+    try:
+        calc_exp_sp(85, 700, 1000, X, S)
+        raise OracleError("diff 85 must fail closed")
+    except OracleError as err:
+        require("fails closed" in str(err), "pow56 k=80")
+    vec["solo"] = {"X": X, "S": S, "results": solo}
+    # Fractional 0 < x < 1 keeps SP
+    e, s = calc_exp_sp(0, 1, 3, 2, 300)
+    require(e == 0 and s == 100, "0 < x < 1 keeps SP")
+    vec["fractional_x"] = {"X": 2, "S": 300, "dmg": 1, "total": 3, "result": (e, s)}
+    # e > 2^24: float rounding of long *= float
+    big = 2 ** 24 + 1
+    require(math.floor(fl32(fl32(big) * 1)) == 2 ** 24, "fl32 above 2^24")
+    pm = fl32(fl32(1) / fl32(3))
+    require(math.floor(fl32(fl32(big) * pm)) == int(struct.unpack('>f', struct.pack('>f', struct.unpack('>f', struct.pack('>f', float(big)))[0] * float(pm)))[0]), "partyMul product")
+    vec["float_steps"] = {"e": big, "solo": 2 ** 24, "partyMul_1_3_bits": bits(pm)}
+    # Party n = 1..9, Math.round halves, highfive gaps 9/10/14/15 and negative
+    party = []
+    for n in range(1, 10):
+        levels = [60 - 3 * i for i in range(n)]
+        party.append({"n": n, "levels": levels, "awards": party_distribute(100000, 5000, levels, [True] * n, 60)})
+    gaps = party_distribute(100000, 5000, [70, 61, 60, 56, 55, 75], [True] * 6, 70)
+    require(gaps[1][0] > 0 and gaps[2][0] > 0 and gaps[3][0] > 0 and gaps[4][0] == 0 and gaps[5] == (0, 0),
+            "gaps 9 (100%), 10 (30%), 14 (30%), 15 (0%), negative (nothing)")
+    require(round_half_up(F(5, 2)) == 3 and round_half_up(F(-5, 2)) == -2 and round_half_up(fl(F("0.49999999999999994"))) == 0,
+            "Math.round halves (Java 7+)")
+    # Dead member: skipped (no partyDmg, entry stays); its later visit gives partyDmg = 0 -> no award
+    dead = party_distribute(100000, 5000, [60, 60, 60], [True, False, True], 60)
+    require(dead[1] == (0, 0), "dead member gets nothing")
+    vec["party"] = party
+    vec["gaps"] = gaps
+    vec["dead_member_second_pass"] = {"partyDmg": 0, "award": None}
+    out["x_vectors"] = vec
+    return f"n=5 e<2e6: {diffs:,} differences (e=45 -> 62); 36 SP-only -> 0/0; solo diffs; k=80 fails closed; party n=1..9; gaps; dead pass"
+
+
+# --- ledger (§11.2, T1) -------------------------------------------------------------------
+
+
+TERMINAL = ("transfer_out_whole", "destroy")
+
+
+def t1_order(rows: list[dict]) -> list[dict]:
+    """Rule T1 per (owner, tick, instance): non-terminal rows (cause order), Consume aggregate, terminal."""
+    nonterm = [r for r in rows if r["op"] not in ("consume",) + TERMINAL]
+    cons = [r for r in rows if r["op"] == "consume"]
+    term = [r for r in rows if r["op"] in TERMINAL]
+    require(len(cons) <= 1 and len(term) <= 1, "one consume aggregate, at most one terminal row")
+    ordered = sorted(nonterm, key=lambda r: r["cause"]) + cons + term
+    return [dict(r, ordinal=i) for i, r in enumerate(ordered)]
+
+
+def transfer(src: dict, n: int, target_stack: dict | None, stackable: bool, next_id: int, link: str):
+    """ItemContainer.transferItem: identity / merge / split rows (§11.2)."""
+    whole = n == src["count"]
+    if stackable and target_stack is not None:
+        mode, tid, before = "merge", target_stack["id"], target_stack["count"]
+    elif whole:
+        mode, tid, before = "identity", src["id"], None
+    else:
+        mode, tid, before = "split", next_id, None
+    out = {"op": "transfer_out_whole" if whole else "transfer_out", "instance": src["id"],
+           "after": None if whole else src["count"] - n, "link": link, "mode": mode, "cause": "x"}
+    inn = {"op": "transfer_in", "instance": tid, "before": before, "count_delta": n, "link": link, "mode": mode, "cause": "x"}
+    return out, inn
+
+
+@family("G", "1.6")
+def fam_g(out: dict) -> str:
+    vec = {}
+    # T1: consume then terminal; ordinals contiguous
+    rows = t1_order([{"op": "destroy", "cause": "pk_drop"}, {"op": "consume", "cause": "C(shot)"},
+                     {"op": "unequip", "cause": "pk_drop"}, {"op": "grant", "cause": "a"}])
+    require([r["op"] for r in rows] == ["grant", "unequip", "consume", "destroy"], "T1 order")
+    require([r["ordinal"] for r in rows] == [0, 1, 2, 3], "contiguous ordinals")
+    vec["t1"] = [r["op"] for r in rows]
+    try:
+        t1_order([{"op": "destroy", "cause": "a"}, {"op": "transfer_out_whole", "cause": "b"}])
+        raise OracleError("two terminal rows accepted")
+    except OracleError as err:
+        require("at most one terminal" in str(err), "terminal uniqueness")
+    # identity / merge / split pairs
+    src = {"id": 10, "count": 5}
+    o, i = transfer(src, 5, None, True, 99, "L1")
+    require(i["mode"] == "identity" and i["instance"] == 10 and i["before"] is None and o["after"] is None, "identity")
+    o2, i2 = transfer(src, 5, {"id": 20, "count": 7}, True, 99, "L2")
+    require(i2["mode"] == "merge" and i2["instance"] == 20 and i2["before"] == 7 and o2["after"] is None, "merge whole")
+    o3, i3 = transfer(src, 2, None, True, 99, "L3")
+    require(i3["mode"] == "split" and i3["instance"] == 99 and o3["after"] == 3 and o3["op"] == "transfer_out", "split")
+    vec["pairs"] = [[o, i], [o2, i2], [o3, i3]]
+    # D67: a before=None transfer_in is exempt only when linked to a matching identity transfer_out
+    def d67_ok(inn, outs):
+        if inn["before"] is not None or inn["mode"] != "identity":
+            return inn["mode"] != "identity" or inn["before"] is None
+        return any(x["link"] == inn["link"] and x["mode"] == "identity" and x["instance"] == inn["instance"] for x in outs)
+    require(d67_ok(i, [o]) and not d67_ok(i, [o3]), "D67 link exemption")
+    # D68/D74 caps on merge receivers
+    cap_adena = int(prop("character.properties", "MaxAdena"))
+    require(cap_adena == 99_900_000_000, "adena cap")
+    require(cap_adena - 1 + 2 > cap_adena, "a merge past the adena cap is refused (ITEM_COUNT_CAP)")
+    vec["caps"] = {"adena": cap_adena, "other_stackable": 2 ** 31 - 1}
+    # Conservation across pairs
+    for o_, i_ in vec["pairs"]:
+        moved_out = src["count"] - (o_["after"] or 0)
+        require(moved_out == i_["count_delta"], "conservation")
+    out["g_vectors"] = vec
+    return "T1 orders and terminal uniqueness; identity/merge/split pairs; D67 link exemption; caps; conservation"
+
+
+# ---------------------------------------------------------------------------
 # Driver
 # ---------------------------------------------------------------------------
 
