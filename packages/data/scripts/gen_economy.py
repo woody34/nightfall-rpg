@@ -50,6 +50,10 @@ def check_repo(root: Path, revision: str, label: str) -> None:
     head = res.stdout.strip()
     if head != revision:
         raise SourceError(f"{label} clone at {root} has revision {head}, expected pinned {revision}")
+    dirty = subprocess.run(["git", "-C", str(root), "status", "--porcelain", "--untracked-files=no"],
+                           capture_output=True, text=True)
+    if dirty.returncode != 0 or dirty.stdout.strip():
+        raise SourceError(f"{label} clone at {root} has local modifications")
 
 
 def fl_bits(val: str | float) -> str:
@@ -554,7 +558,8 @@ def rate_row(key: str, value: str, kind: str, g: Fraction, extra: str = "") -> s
         raise SourceError(f"rate {key} = {value!r} is not a plain decimal")
     fields = f'{extra}kind = "{kind}", value = "{value}"'
     if key in G_MULTIPLIED:
-        prime = fl32(fl(fl(Fraction(value)) * g))
+        parsed = fl32(Fraction(value)) if kind == "float" else fl(Fraction(value))  # Float.parseFloat vs Double.parseDouble
+        prime = fl32(fl(parsed * g))
         fields += f', rate_prime = "{exact_decimal(prime)}", rate_prime_bits = "{bits64(prime)}"'
     return fields
 

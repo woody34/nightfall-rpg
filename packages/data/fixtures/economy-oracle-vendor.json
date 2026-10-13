@@ -438,6 +438,186 @@
   "rows": 22
  },
  "m_vectors": {
+  "adena_aggregation": {
+   "entries_reordered": 275,
+   "entries_with_several_adena": 0,
+   "examples": [
+    {
+     "entry": 1,
+     "list": 221,
+     "prepared": [
+      {
+       "count": 1,
+       "id": 3918,
+       "is_tax": false,
+       "maintain": false
+      },
+      {
+       "count": 40000,
+       "id": 57,
+       "is_tax": false,
+       "maintain": false
+      }
+     ],
+     "xml": [
+      {
+       "count": 40000,
+       "id": 57,
+       "is_tax": false,
+       "maintain": false
+      },
+      {
+       "count": 1,
+       "id": 3918,
+       "is_tax": false,
+       "maintain": false
+      }
+     ]
+    },
+    {
+     "entry": 2,
+     "list": 221,
+     "prepared": [
+      {
+       "count": 1,
+       "id": 5170,
+       "is_tax": false,
+       "maintain": false
+      },
+      {
+       "count": 40000,
+       "id": 57,
+       "is_tax": false,
+       "maintain": false
+      }
+     ],
+     "xml": [
+      {
+       "count": 40000,
+       "id": 57,
+       "is_tax": false,
+       "maintain": false
+      },
+      {
+       "count": 1,
+       "id": 5170,
+       "is_tax": false,
+       "maintain": false
+      }
+     ]
+    },
+    {
+     "entry": 3,
+     "list": 221,
+     "prepared": [
+      {
+       "count": 1,
+       "id": 5182,
+       "is_tax": false,
+       "maintain": false
+      },
+      {
+       "count": 57500,
+       "id": 57,
+       "is_tax": false,
+       "maintain": false
+      }
+     ],
+     "xml": [
+      {
+       "count": 57500,
+       "id": 57,
+       "is_tax": false,
+       "maintain": false
+      },
+      {
+       "count": 1,
+       "id": 5182,
+       "is_tax": false,
+       "maintain": false
+      }
+     ]
+    },
+    {
+     "entry": 4,
+     "list": 221,
+     "prepared": [
+      {
+       "count": 1,
+       "id": 5171,
+       "is_tax": false,
+       "maintain": false
+      },
+      {
+       "count": 57500,
+       "id": 57,
+       "is_tax": false,
+       "maintain": false
+      }
+     ],
+     "xml": [
+      {
+       "count": 57500,
+       "id": 57,
+       "is_tax": false,
+       "maintain": false
+      },
+      {
+       "count": 1,
+       "id": 5171,
+       "is_tax": false,
+       "maintain": false
+      }
+     ]
+    },
+    {
+     "entry": 5,
+     "list": 221,
+     "prepared": [
+      {
+       "count": 1,
+       "id": 5183,
+       "is_tax": false,
+       "maintain": false
+      },
+      {
+       "count": 85000,
+       "id": 57,
+       "is_tax": false,
+       "maintain": false
+      }
+     ],
+     "xml": [
+      {
+       "count": 85000,
+       "id": 57,
+       "is_tax": false,
+       "maintain": false
+      },
+      {
+       "count": 1,
+       "id": 5183,
+       "is_tax": false,
+       "maintain": false
+      }
+     ]
+    }
+   ],
+   "synthetic": [
+    {
+     "count": 2,
+     "id": 1864,
+     "is_tax": false,
+     "maintain": false
+    },
+    {
+     "count": 650,
+     "id": 57,
+     "is_tax": false,
+     "maintain": false
+    }
+   ]
+  },
   "amount_bounds": {
    "0": "INVALID_QUANTITY",
    "1": null,

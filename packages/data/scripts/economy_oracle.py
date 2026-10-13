@@ -526,6 +526,17 @@ def fam_dl(out: dict) -> str:
     return "item d=-4..-11, adena d=-8..-16, raid d=-1..-7 = binary64 references"
 
 
+def parse_config(value: str, kind: str) -> F:
+    """Java config parsing: double -> Double.parseDouble = fl(decimal); float -> Float.parseFloat =
+    fl32(decimal), a single rounding to binary32 (not fl32(fl(decimal)))."""
+    return fl32(F(value)) if kind == "float" else fl(F(value))
+
+
+def rate_prime(value: str, kind: str, G: F) -> F:
+    """rate' = fl32(fl(rate x G)) with the config parsed per its Java kind (E37)."""
+    return fl32(fl(parse_config(value, kind) * G))
+
+
 def m_branch(item_id: int, scope: str, raid: bool, g_str: str) -> tuple[str, F]:
     """m(item) per IChanceMultiplierStrategy.DEFAULT_STRATEGY with G folded per E37."""
     G = fl(F(g_str))
@@ -535,17 +546,15 @@ def m_branch(item_id: int, scope: str, raid: bool, g_str: str) -> tuple[str, F]:
         if pair.strip():
             k, v = pair.split(",")
             over[int(k)] = v
-    def prime(v: str) -> F:
-        return fl32(fl(fl(F(v)) * G))
     if item_id in over:
-        branch, rate = "override", prime(over[item_id])
+        branch, rate = "override", rate_prime(over[item_id], "float", G)  # Map<Integer, Float>
     elif is_herb(item_id):
-        branch, rate = "herb", prime(prop("rates.properties", "HerbDropChanceMultiplier"))
+        branch, rate = "herb", rate_prime(prop("rates.properties", "HerbDropChanceMultiplier"), "double", G)
     elif raid:
-        branch, rate = "raid", prime(prop("rates.properties", "RaidDropChanceMultiplier"))
+        branch, rate = "raid", rate_prime(prop("rates.properties", "RaidDropChanceMultiplier"), "double", G)
     else:
         key = "DeathDropChanceMultiplier" if scope == "death" else "CorpseDropChanceMultiplier"
-        branch, rate = scope, prime(prop("rates.properties", key))
+        branch, rate = scope, rate_prime(prop("rates.properties", key), "double", G)
     m = fl32(fl(F(1) * rate))  # float multiplier = 1; multiplier *= rate'
     _ = rates
     return branch, m
@@ -569,6 +578,12 @@ def fam_dm(out: dict) -> str:
             if ref_m is not None:
                 require(m == ref(ref_m), f"m {want} G={g}")
             vec.append({"G": g, "branch": branch, "item": item, "m_bits": bits(m)})
+    # Float.parseFloat is a single rounding: rate "1.1" (float config) at G = "1.5"
+    fp = rate_prime("1.1", "float", fl(F("1.5")))
+    dbl = fl32(fl(fl(F("1.1")) * fl(F("1.5"))))
+    jref = struct.unpack(">f", struct.pack(">f", struct.unpack(">f", struct.pack(">f", 1.1))[0] * 1.5))[0]
+    require(fp == ref(jref) and fp != dbl, "float configs parse as binary32")
+    vec.append({"case": "float_config_1.1_G_1.5", "rate_prime_bits": bits(fp), "double_parse_bits": bits(dbl)})
     # surplus -> precise mult: ungrouped chance 60 at G = 2 -> C = 120 -> mult 1 + remainder draw 20
     c = fl(F(1) * fl(F(60) * fl32(fl(F(2)))))
     require(c == 120 and int(c) // 100 == 1 and remainder(c) == 20, "surplus to mult")
@@ -970,8 +985,8 @@ def pow56(k: int) -> F:
 
 def base_rewards(level: int, exp_rate: str, sp: str, g: str = "1") -> tuple[int, int]:
     G = fl(F(g))
-    rx = fl32(fl(fl(F(prop("rates.properties", "RateXp"))) * G))
-    rs = fl32(fl(fl(F(prop("rates.properties", "RateSp"))) * G))
+    rx = rate_prime(prop("rates.properties", "RateXp"), "float", G)
+    rs = rate_prime(prop("rates.properties", "RateSp"), "float", G)
     X = math.floor(fl(fl(level * level * cd(exp_rate)) * rx))
     S = math.floor(fl(cd(sp) * rs))
     return X, S
@@ -999,7 +1014,7 @@ def bonus(n: int, key: str) -> F:
     B = [fl(F(b)) for b in table("party.toml")["party"]["bonus_exp_sp"]]
     if n < 2:
         return F(1)
-    return fl(B[min(n - 1, 8)] * fl32(fl(F(prop("rates.properties", key)))))
+    return fl(B[min(n - 1, 8)] * parse_config(prop("rates.properties", key), "float"))
 
 
 def party_distribute(e: int, s: int, levels: list[int], alive: list[bool], top: int) -> list[tuple[int, int]]:
@@ -1425,6 +1440,39 @@ def multisell_tax(count: int, tax_rate: F) -> int:
     return round_half_up(fl(fl(F(count)) * fl(tax_rate)))
 
 
+def multisell_prepared_ingredients(entry: dict, apply_taxes: bool, tax_rate: F) -> list[dict]:
+    """PreparedEntry (:43-69): every adena (57) ingredient is removed from its place; non-tax adena
+    counts are summed, plus Math.round(count x taxRate) per tax ingredient when the list applies taxes,
+    and ONE adena ingredient with the total is appended last (if > 0). Other ingredients keep order."""
+    out, adena, tax = [], 0, 0
+    for ing in entry["ingredients"]:
+        if ing["id"] == 57:
+            if ing["is_tax"]:
+                if apply_taxes:
+                    tax += multisell_tax(ing["count"], tax_rate)
+            else:
+                adena += ing["count"]
+            continue
+        out.append(dict(ing))
+    adena += tax
+    if adena > 0:
+        out.append({"id": 57, "count": adena, "is_tax": False, "maintain": False})
+    return out
+
+
+def multisell_check_list(ingredients: list[dict]) -> list[dict]:
+    """MultiSellChoose :168-195: duplicate (id, enchant) ingredients merge into one possession check."""
+    out: list[dict] = []
+    for ing in ingredients:
+        for ex in out:
+            if ex["id"] == ing["id"] and ex.get("enchant", 0) == ing.get("enchant", 0):
+                ex["count"] += ing["count"]
+                break
+        else:
+            out.append(dict(ing))
+    return out
+
+
 @family("M", "1.7")
 def fam_m(out: dict) -> str:
     src = game_text(GJ + "network/clientpackets/MultiSellChoose.java")
@@ -1458,11 +1506,37 @@ def fam_m(out: dict) -> str:
     require(tax[0]["tax"] == 1 and tax[1]["tax"] == 2, "half-up at .5")
     me = sum(1 for lst in ms["list"] if lst["maintain_enchantment"])
     require(me == 31, "31 maintainEnchantment lists")
+    require("adenaAmount += _taxAmount; // do not forget tax" in game_text(GJ + "model/multisell/PreparedEntry.java"),
+            "PreparedEntry adena aggregation")
+    moved, merged, examples = 0, 0, []
+    for lst in ms["list"]:
+        for idx, e in enumerate(lst["entries"], start=1):
+            adena_rows = [i for i in e["ingredients"] if i["id"] == 57]
+            if not adena_rows:
+                continue
+            prep = multisell_prepared_ingredients(e, lst["apply_taxes"], F(0))
+            require(prep[-1]["id"] == 57 and prep[-1]["count"] == sum(i["count"] for i in adena_rows), "one adena row, last")
+            if e["ingredients"][-1]["id"] != 57:
+                moved += 1
+                if len(examples) < 5:
+                    examples.append({"list": lst["id"], "entry": idx, "xml": e["ingredients"], "prepared": prep})
+            if len(adena_rows) > 1:
+                merged += 1
+    synthetic = {"ingredients": [{"id": 57, "count": 100, "is_tax": False, "maintain": False},
+                                 {"id": 1864, "count": 2, "is_tax": False, "maintain": False},
+                                 {"id": 57, "count": 1000, "is_tax": True, "maintain": False},
+                                 {"id": 57, "count": 50, "is_tax": False, "maintain": False}], "products": []}
+    prep = multisell_prepared_ingredients(synthetic, True, F(1, 2))
+    require(prep == [{"id": 1864, "count": 2, "is_tax": False, "maintain": False},
+                     {"id": 57, "count": 650, "is_tax": False, "maintain": False}], "adena + tax merged and appended last")
+    require(multisell_check_list([{"id": 5, "count": 1}, {"id": 5, "count": 1}]) == [{"id": 5, "count": 2}], "duplicate merge")
     out["m_vectors"] = {"amount_bounds": bounds, "non_stackable_list": nonstack_list["id"],
                         "maintain_ingredient_consumed": consumed, "maintain_enchantment": {
                             "inventory": inv, "taken_maintained": taken_m, "taken_lowest": taken_n, "products": prods},
-                        "tax_half_up": tax, "maintain_enchantment_lists": me}
-    return "amount 1/5000 (0, 5001 rejected); non-stackable > 1 rejected; 21 maintainIngredient rows consumed; exact-match/lowest consumption with enchant+augment copy; tax half-up"
+                        "tax_half_up": tax, "maintain_enchantment_lists": me,
+                        "adena_aggregation": {"entries_reordered": moved, "entries_with_several_adena": merged,
+                                              "examples": examples, "synthetic": prep}}
+    return "amount 1/5000 (0, 5001 rejected); non-stackable > 1 rejected; 21 maintainIngredient rows consumed; exact-match/lowest consumption with enchant+augment copy; tax half-up; adena aggregated last"
 
 
 # --- craft (§8.2) -------------------------------------------------------------------------
@@ -1890,6 +1964,9 @@ def main() -> int:
         for root, label in ((DP, "datapack"), (GAME, "game")):
             head = subprocess.run(["git", "-C", str(root), "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
             require(head == repos[label]["revision"], f"{label} clone at {head}, pinned {repos[label]['revision']}")
+            dirty = subprocess.run(["git", "-C", str(root), "status", "--porcelain", "--untracked-files=no"],
+                                   capture_output=True, text=True).stdout.strip()
+            require(not dirty, f"{label} clone has local modifications")
         outs, lines = run(args.family)
     except OracleError as err:
         print(f"economy_oracle: FAILED: {err}", file=sys.stderr)

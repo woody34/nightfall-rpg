@@ -2937,6 +2937,11 @@
    "m_bits": "3ff0000000000000"
   },
   {
+   "case": "float_config_1.1_G_1.5",
+   "double_parse_bits": "3ffa666660000000",
+   "rate_prime_bits": "3ffa666680000000"
+  },
+  {
    "C": "120",
    "amount_multiplier": "1",
    "case": "surplus",
