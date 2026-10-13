@@ -269,7 +269,7 @@ impl ZoneState {
             causes: vec![cause],
         });
         projection
-            .validate_structure(
+            .validate_staged(
                 phase
                     .checkpoint(work.caster, tick)
                     .map_err(invariant)?
@@ -355,7 +355,7 @@ impl ZoneState {
             return Ok(());
         }
         projection
-            .validate_structure(
+            .validate_staged(
                 phase
                     .checkpoint(attacker, tick)
                     .map_err(invariant)?

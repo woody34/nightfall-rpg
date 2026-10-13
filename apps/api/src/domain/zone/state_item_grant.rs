@@ -127,7 +127,7 @@ impl ZoneState {
                 receipt.result.incarnation = 0;
             }
             projection
-                .validate_structure(
+                .validate_staged(
                     projection
                         .paused_core
                         .as_ref()
@@ -425,7 +425,7 @@ impl ZoneState {
             },
         });
         projection
-            .validate_structure(
+            .validate_staged(
                 phase
                     .checkpoint(id, tick)
                     .map_err(invalid)?

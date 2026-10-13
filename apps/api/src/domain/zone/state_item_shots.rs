@@ -310,7 +310,7 @@ impl ZoneState {
             events.push(ZoneEvent::ItemResult(Box::new(result)));
         }
         projection
-            .validate_structure(
+            .validate_staged(
                 phase
                     .checkpoint(id, tick)
                     .map_err(invalid)?

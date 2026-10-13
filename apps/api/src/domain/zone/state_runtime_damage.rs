@@ -10209,7 +10209,8 @@ mod tests {
                 .iter()
                 .map(|row| row.operation_ordinal)
                 .collect::<Vec<_>>(),
-            vec![1, 2, 3]
+            // D76: canonical row positions on the one weapon instance.
+            vec![0, 1, 2]
         );
         assert_eq!(
             charges

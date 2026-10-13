@@ -809,7 +809,7 @@ impl ZoneState {
             result: result.clone(),
         });
         projection
-            .validate_structure(
+            .validate_staged(
                 phase
                     .canonical
                     .checkpoint(id, tick)
@@ -970,7 +970,7 @@ impl ZoneState {
             if let ZoneEvent::ItemCheckpoint(projection) = event {
                 if let Some(core) = &projection.paused_core {
                     projection
-                        .validate_structure(
+                        .validate_staged(
                             core.load
                                 .phase3
                                 .as_ref()
@@ -986,7 +986,7 @@ impl ZoneState {
                     .checkpoint(projection.entity, tick, &phase.canonical)
                     .map_err(|_| TickError::Phase3Invariant)?;
                 projection
-                    .validate_structure(
+                    .validate_staged(
                         phase
                             .canonical
                             .checkpoint(projection.entity, tick)

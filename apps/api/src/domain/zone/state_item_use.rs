@@ -449,7 +449,7 @@ impl ZoneState {
             result: result.clone(),
         });
         projection
-            .validate_structure(
+            .validate_staged(
                 phase
                     .checkpoint(id, tick)
                     .map_err(|_| RejectReason::InvalidLoad)?
@@ -690,7 +690,7 @@ impl ZoneState {
             || !projection.evidence.is_empty()
             || projection.checkpoint.inventory_revision != original_revision;
         projection
-            .validate_structure(
+            .validate_staged(
                 phase
                     .checkpoint(id, tick)
                     .map_err(|_| RejectReason::InvalidLoad)?

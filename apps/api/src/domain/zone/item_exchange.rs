@@ -97,7 +97,6 @@ impl ExchangeAudit {
                     != Some(i128::from(row.count_delta))
                 || (last
                     && (row.operation != ItemOperation::Grant
-                        || row.operation_ordinal != self.operation_ordinal
                         || row.before.is_some()
                         || row.after.as_ref() != Some(&self.after)))
                 || (!last && (row.operation != ItemOperation::Consume || row.count_delta >= 0))

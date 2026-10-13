@@ -430,10 +430,60 @@ impl Phase4Projection {
                 .ok_or(ItemError("item operation ordinal overflow"))?;
             self.ledger.push(consume);
         }
+        self.renumber_positions()
+    }
+
+    /// D76: each row's `operation_ordinal` becomes its canonical position 0..n−1 among the
+    /// same instance's rows this tick (ledger order, Consume aggregate last). Logical
+    /// operation ordinals survive in causes and the captured audits; the mirrored Exchange
+    /// grant rows are renumbered with their ledger rows.
+    fn renumber_positions(&mut self) -> Result<(), ItemError> {
+        let mut positions = BTreeMap::<ItemInstanceId, u32>::new();
+        let mut renumbered = Vec::with_capacity(self.ledger.len());
+        for row in &mut self.ledger {
+            let position = positions.entry(row.instance).or_insert(0);
+            renumbered.push((
+                row.instance,
+                row.operation,
+                row.receipt,
+                row.operation_ordinal,
+                *position,
+            ));
+            row.operation_ordinal = *position;
+            *position = position
+                .checked_add(1)
+                .ok_or(ItemError("item ledger ordinal overflow"))?;
+        }
+        for exchange in &mut self.exchanges {
+            for row in exchange
+                .rows
+                .iter_mut()
+                .filter(|row| row.operation != ItemOperation::Consume)
+            {
+                if let Some((.., position)) = renumbered.iter().find(|(id, op, receipt, old, _)| {
+                    *id == row.instance
+                        && *op == row.operation
+                        && *receipt == row.receipt
+                        && *old == row.operation_ordinal
+                }) {
+                    row.operation_ordinal = *position;
+                }
+            }
+        }
         Ok(())
     }
     /// Enforce identity/version/order before the application can stage this private fact.
     pub fn validate_structure(&self, phase3_sources: usize) -> Result<(), ItemError> {
+        self.validate_inner(phase3_sources, true)
+    }
+
+    /// Mid-tick producer check before the tick-boundary D66/D76 normalization: logical
+    /// operation ordinals are still unique per (ordinal, instance, operation).
+    pub(crate) fn validate_staged(&self, phase3_sources: usize) -> Result<(), ItemError> {
+        self.validate_inner(phase3_sources, false)
+    }
+
+    fn validate_inner(&self, phase3_sources: usize, positional: bool) -> Result<(), ItemError> {
         if self.entity.as_uuid().is_nil()
             || self.account.as_uuid().is_nil()
             || i64::try_from(self.tick.0).is_err()
@@ -461,15 +511,25 @@ impl Phase4Projection {
         }
         let mut final_items = BTreeMap::new();
         let mut rows = BTreeSet::new();
+        // D76: per instance, ordinals are the canonical row positions 0..n-1 (strictly
+        // increasing, one per row) with at most one Consume aggregate; the API settlement
+        // validator additionally refuses any row after that aggregate (D66).
+        let mut positions = BTreeMap::<_, u32>::new();
         let mut consume = BTreeSet::new();
         for delta in &self.ledger {
             delta.validate(self.checkpoint.inventory_revision)?;
             final_items.insert(delta.instance, delta.after.as_ref());
-            if !rows.insert((delta.operation_ordinal, delta.instance, delta.operation))
+            let position = positions.entry(delta.instance).or_insert(0);
+            if (positional && delta.operation_ordinal != *position)
+                || (!positional
+                    && !rows.insert((delta.operation_ordinal, delta.instance, delta.operation)))
                 || (delta.operation == ItemOperation::Consume && !consume.insert(delta.instance))
             {
                 return Err(ItemError("duplicate item ledger plan"));
             }
+            *position = position
+                .checked_add(1)
+                .ok_or(ItemError("item ledger ordinal overflow"))?;
         }
         for (id, after) in final_items {
             if self.checkpoint.instances.iter().find(|item| item.id == id) != after {
@@ -991,24 +1051,24 @@ pub(crate) mod tests {
                 Some(4)
             ),
             vec![
-                (Grant, 2, Some(3), Some(6), 3),
-                (Consume, 3, Some(6), Some(4), -2)
+                (Grant, 0, Some(3), Some(6), 3),
+                (Consume, 1, Some(6), Some(4), -2)
             ]
         );
         // Start 1, grant +3, consume 2: grant(1->4) then consume(4->2).
         assert_eq!(
             d66_chain(&[(Grant, Some(1), Some(4)), (Consume, Some(4), Some(2))], Some(2)),
             vec![
-                (Grant, 1, Some(1), Some(4), 3),
-                (Consume, 2, Some(4), Some(2), -2)
+                (Grant, 0, Some(1), Some(4), 3),
+                (Consume, 1, Some(4), Some(2), -2)
             ]
         );
         // Start absent, grant 3, consume 1: grant(None->3) then consume(3->2).
         assert_eq!(
             d66_chain(&[(Grant, None, Some(3)), (Consume, Some(3), Some(2))], Some(2)),
             vec![
-                (Grant, 1, None, Some(3), 3),
-                (Consume, 2, Some(3), Some(2), -1)
+                (Grant, 0, None, Some(3), 3),
+                (Consume, 1, Some(3), Some(2), -1)
             ]
         );
         // A lone aggregate keeps ordinal 0 and its observed endpoints.
@@ -1028,7 +1088,7 @@ pub(crate) mod tests {
         state.ledger.push(ItemDeltaPlan {
             receipt_refs: Vec::new(),
             operation: ItemOperation::Exchange,
-            operation_ordinal: 1,
+            operation_ordinal: 0,
             instance: before.id,
             before: Some(before),
             after: None,
@@ -1039,7 +1099,7 @@ pub(crate) mod tests {
         let delta = ItemDeltaPlan {
             receipt_refs: Vec::new(),
             operation: ItemOperation::Exchange,
-            operation_ordinal: 1,
+            operation_ordinal: 0,
             instance: after.id,
             before: None,
             after: Some(after.clone()),
@@ -1092,7 +1152,7 @@ pub(crate) mod tests {
         state.ledger.push(ItemDeltaPlan {
             receipt_refs: Vec::new(),
             operation: ItemOperation::Unequip,
-            operation_ordinal: 1,
+            operation_ordinal: 0,
             instance: after.id,
             before: Some(before),
             after: Some(after),
@@ -1225,7 +1285,7 @@ pub(crate) mod tests {
                 state.ledger.push(ItemDeltaPlan {
                     receipt_refs: Vec::new(),
                     operation: ItemOperation::Destroy,
-                    operation_ordinal: 2,
+                    operation_ordinal: 0,
                     instance: attempt.target,
                     before: Some(after.clone()),
                     after: None,
