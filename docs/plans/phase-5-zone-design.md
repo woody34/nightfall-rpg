@@ -1,5 +1,7 @@
 > **BINDING RECORD — Phase 5 zone engine and economy design (Claude author per AD5 E23).** This is the implementation contract for new Snapshot 11 / Record 9 / Binary V7 epochs. It incorporates owner decisions P1–P4 and the approved defaults, architect decisions A1–A20, dispositions B1–B26, and errata E1–E55 (incl. the §10 answers E24–E29 to this design's former Q1–Q6, E30 binary64 fidelity, E31 single-writer containers, the §11 review-4 dispositions E32–E36, the §12 review-5 dispositions E37–E40, the §13 review-6 dispositions E41–E42, and the §14–§15 data-review dispositions E47–E55). It replaces the two rejected agy drafts (e602c25 and 43c02a6) in full. Revision 4 applied design-review-3 to dc2a625, revision 5 applied design-review-4 to d429ab7, and revision 6 applied design-review-5 to 587a2f4, and revision 7 applies design-review-6 (accept with bounded fixes) to 53597de; per B21 revision 7 is **FROZEN** on commit. Every finding of design-review-1 (F1–F36), design-review-2 (R1–R44), design-review-3 (P1-1…P1-5, P2-1…P2-14, nits 1–16), design-review-4 (P1-A, P2-1…P2-5, nits 1–11), design-review-5 (P1-1, P2-1…P2-5, nits 1–15) and design-review-6 (P2-1, P2-2, nits 1–11) is answered in §16. It does not claim that any implementation or acceptance gate passes.
 >
+> **Revision 9.** It corrects rev 8's freight sentence. Freight refuses only non-freightable items, as pinned. The `isDepositable` rule belongs to the warehouse deposit path (§10.1), per E53 as corrected by the architect. This is text only; the design stays FROZEN.
+>
 > **Revision 8 (B26).** This revision is the implementation-time design edit (B22) pulled forward. It changes text only as the architect listed: §3.9 (E53), §7 adena-ingredient merge, §10.6/§14.1 manor-fee bound, the normative `roll_below`, the herb Armor note, the E51/E52/E55 data facts, the E49 deviation in §16, design-review-7 nits A–D and the domain-vs-wire `ItemLocation` note. There is no other semantic change; the design stays FROZEN.
 >
 > **Data provenance.** The generated tables come from `codex/phase5-data` @ **ac021b3** (accepted, B26): `gen_economy --check` (15 files), `economy_oracle --check` (22 families).
@@ -1257,7 +1259,7 @@ The pre-image and decision fields are encoded with deterministic canonical JSON 
 9. `adena − deposited adena ≥ fee`, else `INSUFFICIENT_ADENA` (`:147`);
 10. no active trade.
 
-Pinned charges the fee before steps 6–10 and then silently skips non-depositable entries without a refund (`:147-167`). Nightfall rule **P17**: every entry is validated with `isDepositable(true)` (not equipped, and the template is depositable — **augmented items allowed**, `L2ItemInstance.java:701-711`; E17) and `isAvailable(player, true, true)` (`:751-762`) **before** anything is charged. Any failure refuses the request with `ITEM_NOT_DEPOSITABLE`. There is no weight check (`ItemContainer.java:603-605`).
+Pinned charges the fee before steps 6–10 and then silently skips non-depositable entries without a refund (`:147-167`). Nightfall rule **P17**: every entry is validated with the pinned warehouse depositability rule `isDepositable(isPrivate)` (`L2ItemInstance.java:701-709`). For **any** warehouse it refuses an equipped item or a template that is not depositable. For a **non-private** warehouse (clan/castle, Phase 7) it additionally requires `isTradeable()` (no augment) and `!isShadowItem()`. For the private warehouse it is `isDepositable(true)`, so **augmented and shadow items are allowed** (E17, E53 as corrected; rev 9) and `isAvailable(player, true, true)` (`:751-762`) **before** anything is charged. Any failure refuses the request with `ITEM_NOT_DEPOSITABLE`. There is no weight check (`ItemContainer.java:603-605`).
 
 Commit:
 - the fee is a consume, with cause `receipt:warehouse_deposit:<key>`;
@@ -1283,7 +1285,7 @@ There is no fee. Moves are transfer pairs.
 4. no active trade (`:99`);
 5. karma: vacuous (`:104`);
 6. **fee** = `entries.len() × 1,000` (`:109`);
-7. per entry: `checkItemManipulation`; `isFreightable` (template flag, default false, `GJ/model/items/L2Item.java:182`; `L2ItemInstance.java:1665-1667`). Any non-freightable entry aborts the whole request (`:114-125`), with `ITEM_NOT_FREIGHTABLE`. Augmented freightable items are allowed (E17). **E53:** shadow items are refused, following the non-private-container depositability rule `isDepositable(false)` → `isTradeable() && !isShadowItem()` (`L2ItemInstance.java:700-711`). The pinned `RequestPackageSend` path itself calls only `isFreightable` (`:114-125`); the shadow refusal is the architect's binding reading (E53);
+7. per entry: `checkItemManipulation`; `isFreightable` (template flag, default false, `GJ/model/items/L2Item.java:182`; `L2ItemInstance.java:1665-1667`). Any non-freightable entry aborts the whole request (`:114-125`), with `ITEM_NOT_FREIGHTABLE`. Augmented freightable items are allowed (E17). Freight refuses **only** non-freightable items, as pinned: `RequestPackageSend.java:121` checks `isFreightable()` alone and never calls `isDepositable`. Shadow items whose template is freightable are therefore accepted (E53 as corrected; rev 9);
 8. slots: the adena entry adds **no** slot; a non-stackable entry adds its count; a stackable entry adds 1 unless the target freight holds the template (`:126-134`);
 9. capacity ≤ **200**: the target's `FREIGHT_LIM` is ignored because `_owner = null` (`:113,137`; `PcFreight.java:34-38,66-68`) → `FREIGHT_FULL`;
 10. adena ≥ fee (`:144`).
@@ -2510,7 +2512,8 @@ Each design-review-1 (F) and design-review-2 (R) finding maps to the section tha
 
 | Item | Where |
 |---|---|
-| E53 shadow/time-limited PK exclusion is live; freight refuses shadow items | §3.9 `excluded(item)`; §10.2 step 7 |
+| E53 shadow/time-limited PK exclusion is live | §3.9 `excluded(item)` |
+| E53 as corrected (rev 9): freight checks only `isFreightable` (pinned `RequestPackageSend.java:121`); `isDepositable` is the warehouse-deposit rule | §10.2 step 7; §10.1 P17 |
 | E49 `001.xml` deviation; 196 files / 195 ids | §1.10 item 7; this section |
 | Multisell adena-ingredient merge (275 entries reordered) and ledger row order | §7 |
 | Manor-fee equality bound P < 6,755,399,441,055,759 | §10.6; §14.1 S |
