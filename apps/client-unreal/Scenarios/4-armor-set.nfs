@@ -14,10 +14,12 @@
 # GAME@abfde049 PcInventory.java:1147-1208,1232-1285; persisted history, no fabricated listener calls.
 # item-phase: {"name":"chest-then-shield","formula":"set_shield_history","context":{"set_id":3},"inputs":{"mutation":"equip_shield","complete":false},"actual":true,"mutation":{"operation":"equip","template":628,"slot":"lhand"}}
 # item-phase: {"name":"shield-then-chest","formula":"set_shield_history","context":{"set_id":3},"inputs":{"mutation":"equip_chest","complete":false},"actual":false,"mutation":{"operation":"equip","template":58,"slot":"chest"}}
-# item-phase: {"name":"active-incomplete-history-reconnect","formula":"gear_stats","context":{"set_id":3,"event":"admission"},"providers":[3543],"equipment":{"chest":58,"lhand":628,"legs":461,"head":null}}
-# item-phase: {"name":"inactive-history-reconnect","formula":"gear_stats","context":{"set_id":3,"event":"admission"},"absent_providers":[3543]}
-# item-phase: {"name":"active-shield-provider","formula":"gear_stats","context":{"set_id":3},"providers":[3543],"mutation":{"operation":"equip","template":628,"slot":"lhand"}}
-# item-phase: {"name":"removed-shield-provider","formula":"gear_stats","context":{"set_id":3},"absent_providers":[3543],"mutation":{"operation":"unequip","template":628,"slot":"lhand"}}
+# D111: gear_stats phases bind the producer fields (context.event equip|unequip, command resolution;
+# no set_id/admission gear fact); the owner is level 20 with Expertise D (D110 guard).
+# item-phase: {"name":"active-incomplete-history-reconnect","formula":"gear_stats","context":{"event":"equip"},"providers":[3543],"equipment":{"chest":58,"lhand":628,"legs":461,"head":null},"mutation":{"operation":"equip","template":628,"slot":"lhand"}}
+# item-phase: {"name":"inactive-history-reconnect","formula":"gear_stats","context":{"event":"equip"},"absent_providers":[3543],"equipment":{"chest":58,"lhand":628},"mutation":{"operation":"equip","template":58,"slot":"chest"}}
+# item-phase: {"name":"active-shield-provider","formula":"gear_stats","context":{"event":"equip"},"providers":[3543],"mutation":{"operation":"equip","template":628,"slot":"lhand"}}
+# item-phase: {"name":"removed-shield-provider","formula":"gear_stats","context":{"event":"unequip"},"absent_providers":[3543],"mutation":{"operation":"unequip","template":628,"slot":"lhand"}}
 nf.Login
 nf.WaitFor connected 15
 nf.EnterWorld

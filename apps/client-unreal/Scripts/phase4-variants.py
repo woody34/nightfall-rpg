@@ -30,12 +30,17 @@ def armor_body(config):
                          mutation={'operation':'equip','template':shield,'slot':'lhand'}),
                   phase('shield-then-chest','set_shield_history',context=context,inputs={'mutation':'equip_chest','complete':False},actual=False,
                          mutation={'operation':'equip','template':chest,'slot':'chest'}),
-                  phase('inactive-history-reconnect','gear_stats',context=context|{'event':'admission'},absent_providers=shield_skills),
-                  phase('active-incomplete-history-reconnect','gear_stats',context=context|{'event':'admission'},providers=shield_skills,
-                        equipment={**{items[i]['bodypart']:starter.get(items[i]['bodypart']) for i in required if i!=chest},'chest':chest,'lhand':shield}),
-                  phase('active-shield-provider','gear_stats',context=context,providers=shield_skills,
+                  # D111: gear_stats facts carry context {event: equip|unequip|enchant} under the
+                  # command's resolution (no set_id, no admission fact), so the history phases bind
+                  # the equip that creates each state; reconnects then assert unchanged stats.
+                  phase('inactive-history-reconnect','gear_stats',context={'event':'equip'},absent_providers=shield_skills,
+                        equipment={'chest':chest,'lhand':shield},mutation={'operation':'equip','template':chest,'slot':'chest'}),
+                  phase('active-incomplete-history-reconnect','gear_stats',context={'event':'equip'},providers=shield_skills,
+                        equipment={**{items[i]['bodypart']:starter.get(items[i]['bodypart']) for i in required if i!=chest},'chest':chest,'lhand':shield},
+                        mutation={'operation':'equip','template':shield,'slot':'lhand'}),
+                  phase('active-shield-provider','gear_stats',context={'event':'equip'},providers=shield_skills,
                          mutation={'operation':'equip','template':shield,'slot':'lhand'}),
-                  phase('removed-shield-provider','gear_stats',context=context,absent_providers=shield_skills,
+                  phase('removed-shield-provider','gear_stats',context={'event':'unequip'},absent_providers=shield_skills,
                          mutation={'operation':'unequip','template':shield,'slot':'lhand'})]
     body=['nf.Login','nf.WaitFor connected 15','nf.EnterWorld','nf.WaitFor in_world 15','nf.WaitFor item_baseline 3',
           f'nf.Equip {chest}',f'nf.WaitFor equipped chest == {chest} 3','nf.MarkItemState',
@@ -58,9 +63,10 @@ def armor_body(config):
         body += [f'nf.Equip {i}',f'nf.WaitFor equipped {concrete} == {i} 3']
     body += ['nf.MarkItemState','nf.DropSocket','nf.WaitFor reconnects >= 3 15','nf.WaitFor item_baseline 15','nf.WaitFor owner_stats_match_mark 3']
     if config.get('enchant')==6:
-        declarations += [phase('enchant6-installed','gear_stats',context=context,providers=six_skills),
-                         phase('enchant6-reconnect','gear_stats',context=context|{'event':'admission'},providers=six_skills+shield_skills),
-                         phase('enchant6-removed','gear_stats',context=context,absent_providers=six_skills,
+        # D111: producer gear facts carry {event} only (no set_id, no admission fact).
+        declarations += [phase('enchant6-installed','gear_stats',context={'event':'equip'},providers=six_skills),
+                         phase('enchant6-reconnect','gear_stats',context={'event':'equip'},providers=six_skills+shield_skills),
+                         phase('enchant6-removed','gear_stats',context={'event':'unequip'},absent_providers=six_skills,
                                mutation={'operation':'unequip','template':removed,'slot':slot})]
         body += ['nf.Expect enchant_level chest == 6']
     body += [f'nf.Unequip {slot}',f'nf.WaitFor equipped {slot} == 0 3',f'nf.Expect inventory_has {removed} == 1']

@@ -109,6 +109,16 @@ def enchant4_item(repo=REPO):
 
 
 BLOW_SKILLS=frozenset((16,263))
+ARMOR_LEVEL=20
+EXPERTISE=239
+
+
+def expertise_rank(repo,profession,level):
+    """Highest Expertise (239) rank the source skill tree grants at this level (auto-get)."""
+    rows=[r for r in tomllib.loads((repo/f'packages/data/professions/{profession}.toml').read_text()).get('skill_tree',[])
+          if r['skill_id']==EXPERTISE and r['required_level']<=level and r['auto_get']]
+    if not rows:raise ValueError('no expertise at this level')
+    return {str(EXPERTISE):max(r['skill_level'] for r in rows)}
 
 
 def blow_ranks(repo,chain,level):
@@ -187,6 +197,11 @@ def profiles(pack, repo=REPO, paired=False):
         if case == 'twohand': extras += [(s['twohand'], 1, 0), (s['shield'], 1, 0)]
     elif pack == 'phase4-armor':
         extras=[(i,1,6 if config.get('enchant')==6 else 0) for i in armor_set(repo)[1]]
+        # D111: inside the D110 gear_stats export guard. Level 20 gives Expertise D (skill 239,
+        # auto-get rank from the source human_mystic tree), so the D-grade set carries no grade
+        # penalty; still a base-class player with no timed effect, death penalty or overload.
+        owner=role(repo,level=ARMOR_LEVEL)
+        owner['learned_ranks']=owner['learned_ranks']|expertise_rank(repo,'human_mystic',ARMOR_LEVEL)
         if config.get('enchant')==4:extras.append((enchant4_item(repo)['template_id'],1,4))
     elif pack == 'phase4-shield': extras = [(s['sword'], 1, 0)]
     elif pack == 'phase4-bow': extras = [(s['bow'], 1, 0), (s['arrow'], config.get('arrows', 2), 0)]

@@ -521,3 +521,11 @@ verified by exact oracle equality on the producer's actual inputs.
   terminal row, terminal = a whole Destroy/Crystallize with after null) and
   the D74 per-chain caps constrain order, with endpoint continuity and
   conservation as before.
+- D111: `gear_stats` facts are emitted only inside the D110 export guard
+  (base-class player; no timed effect or death-penalty source; no grade or
+  overload penalty; no augment, enchant option or armor set with base-stat
+  deltas) and carry `context {event: equip|unequip|enchant}` under the
+  command's resolution id; there is no `set_id` and no admission gear fact.
+  Scenario phases therefore select gear facts by `context.event`, the
+  `equipment` map and the correlated ledger `mutation`; the phase4-armor owner
+  is a level-20 Human Mystic with Expertise D (skill 239 rank 1).
