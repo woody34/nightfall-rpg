@@ -10,16 +10,34 @@ impl ZoneState {
         before_items: Option<&crate::domain::zone::Phase4Snapshot>,
         events: &mut Vec<ZoneEvent>,
     ) -> Result<(), TickError> {
-        let due: Vec<_> = self
+        let mut due: Vec<_> = self
             .entities
             .values()
             .filter_map(|e| {
                 let swing = e.combat.as_ref()?.swing?;
-                (swing.impact <= tick).then_some((e.id, swing))
+                (swing.impact <= tick).then_some((e.id, Some(swing)))
             })
             .collect();
+        // I3: a stored second dual subhit belongs to an earlier attack than any new swing of
+        // the same attacker, so it lands first (attacker order, then subhit order).
+        if let Some(items) = self.phase4.as_ref() {
+            for (attacker, plan) in &items.canonical.attack_plans {
+                let pending = usize::try_from(plan.next_hit)
+                    .ok()
+                    .filter(|index| *index > 0)
+                    .and_then(|index| plan.hits.get(index));
+                if pending.is_some_and(|hit| hit.at <= tick && hit.prepared.is_some()) {
+                    due.push((*attacker, None));
+                }
+            }
+        }
+        due.sort_by_key(|(id, swing)| (*id, swing.is_some()));
         // BTreeMap traversal retains the legacy attacker EntityId order (design phase6).
         for (id, swing) in due {
+            let Some(swing) = swing else {
+                self.land_dual_second_v6(tick, id, events, &mut draw_damage_v5)?;
+                continue;
+            };
             let mark = self.evidence_mark();
             let before = if self.evidence.is_some() {
                 serde_json::json!({"source": self.evidence_context(id)?,
@@ -30,14 +48,25 @@ impl ZoneState {
             let start = events.len();
             self.land_auto_v5(tick, id, swing, events, &mut draw_damage_v5)?;
             if self.phase4.is_some() {
-                let landed = events
-                    .get(start..)
-                    .ok_or_else(missing)?
-                    .iter()
-                    .any(|event| {
-                        matches!(event, ZoneEvent::AttackResult { attacker, outcome, .. }
-                        if *attacker == id && *outcome != AttackOutcome::Miss)
-                    });
+                // Source discharges at launch when hit1 OR hit2 lands (L2Character.java:951-958);
+                // a dual's second outcome is already resolved in its plan.
+                let pending_landed = self
+                    .phase4
+                    .as_ref()
+                    .and_then(|items| items.canonical.attack_plans.get(&id))
+                    .filter(|plan| plan.start == swing.start)
+                    .and_then(|plan| plan.hits.get(usize::try_from(plan.next_hit).ok()?))
+                    .and_then(|hit| hit.prepared.as_ref())
+                    .is_some_and(|hit| hit.outcome != AttackOutcome::Miss);
+                let landed = pending_landed
+                    || events
+                        .get(start..)
+                        .ok_or_else(missing)?
+                        .iter()
+                        .any(|event| {
+                            matches!(event, ZoneEvent::AttackResult { attacker, outcome, .. }
+                            if *attacker == id && *outcome != AttackOutcome::Miss)
+                        });
                 let initial = before_items
                     .and_then(|items| items.players.get(&id))
                     .map(|player| player.inventory_revision);
@@ -116,7 +145,32 @@ impl ZoneState {
             return Ok(());
         }
         self.note_hostility_v5(tick, source, target)?;
+        let style = self.attack_style_v6(id);
+        if style == AttackStyle::Dual {
+            return self.land_dual_first_v6(tick, id, swing, source, target, events, draw);
+        }
         let (outcome, rolled) = self.auto_damage_v5(source, target, draw)?;
+        self.apply_auto_hit_v5(tick, id, source, target, outcome, rolled, events, draw)?;
+        if style == AttackStyle::Pole {
+            self.land_pole_secondaries_v6(tick, id, source, target, events, draw)?;
+        }
+        Ok(())
+    }
+
+    /// Recipient application shared by every auto subhit (single, dual halves, pole
+    /// recipients): status/death hooks, hate, attack break and the public result.
+    #[allow(clippy::too_many_arguments)] // Frozen subhit identity and its resolved outcome.
+    pub(super) fn apply_auto_hit_v5(
+        &mut self,
+        tick: Tick,
+        id: EntityId,
+        source: TargetBinding,
+        target: TargetBinding,
+        outcome: AttackOutcome,
+        rolled: u32,
+        events: &mut Vec<ZoneEvent>,
+        draw: &mut DamageRoll<'_>,
+    ) -> Result<(), TickError> {
         let damage = if outcome == AttackOutcome::Miss {
             // An evasion is not a reduceCurrentHp call: no status removal/hate/break draw.
             DamageOutcome {
@@ -195,8 +249,22 @@ impl ZoneState {
         target: TargetBinding,
         draw: &mut DamageRoll<'_>,
     ) -> Result<(AttackOutcome, u32), TickError> {
+        if !self.auto_hit_v5(source, target, draw)? {
+            return Ok((AttackOutcome::Miss, 0));
+        }
+        self.auto_resolve_v5(source, target, draw)
+            .map(|(outcome, damage, _)| (outcome, damage))
+    }
+
+    /// Formulas.calcHitMiss: one hit draw; `true` when the hit lands.
+    pub(super) fn auto_hit_v5(
+        &mut self,
+        source: TargetBinding,
+        target: TargetBinding,
+        draw: &mut DamageRoll<'_>,
+    ) -> Result<bool, TickError> {
         use crate::domain::zone::scaled::round_div;
-        use crate::domain::zone::skill_npc::{HitPosition, NpcPenaltyPath};
+        use crate::domain::zone::skill_npc::HitPosition;
         let a = self.effective(source.entity)?;
         let b = self.effective(target.entity)?;
         let round = |v: i64| round_div(i128::from(v), i128::from(Q)).map_err(invariant);
@@ -236,12 +304,29 @@ impl ZoneState {
             .and_then(ExactRatio::trunc)
             .map_err(invariant)?
             .clamp(200, 980);
-        if i128::from(draw(self, DamageRollSite::AutoHit, target, 1000).map_err(invariant)?)
-            > chance
-        {
-            return Ok((AttackOutcome::Miss, 0));
-        }
-        // L2Character.java:1324-1335: hit, then shield, then critical, then damage.
+        Ok(
+            i128::from(draw(self, DamageRollSite::AutoHit, target, 1000).map_err(invariant)?)
+                <= chance,
+        )
+    }
+
+    /// Landed subhit: shield, critical, then the caller's damage (L2Character.java:1324-1335).
+    #[allow(clippy::too_many_lines)] // Shared legacy/V6 order: shield, critical, damage.
+    pub(super) fn auto_resolve_v5(
+        &mut self,
+        source: TargetBinding,
+        target: TargetBinding,
+        draw: &mut DamageRoll<'_>,
+    ) -> Result<(AttackOutcome, u32, crate::domain::zone::phase4::ShieldOutcome), TickError> {
+        use crate::domain::zone::skill_npc::NpcPenaltyPath;
+        let a = self.effective(source.entity)?;
+        let b = self.effective(target.entity)?;
+        let v6 = self.phase4.is_some();
+        let proximity = if v6 {
+            self.proximity_v6(source.entity, target.entity)?
+        } else {
+            crate::domain::zone::item_combat::Proximity::Front
+        };
         let shield = if v6 {
             self.shield_v6(source, target, draw)?
         } else {
@@ -262,7 +347,7 @@ impl ZoneState {
             } else {
                 damage
             };
-            return Ok((outcome, damage));
+            return Ok((outcome, damage, shield));
         }
         let mut damage = q(a.physical.p_atk().raw())
             .map_err(invariant)?
@@ -326,6 +411,7 @@ impl ZoneState {
                 AttackOutcome::Hit
             },
             u32::try_from(damage.trunc().map_err(invariant)?.max(1)).map_err(invariant)?,
+            shield,
         ))
     }
 
@@ -447,5 +533,262 @@ impl ZoneState {
             )?)
             .map_err(invariant)?;
         u32::try_from(damage.trunc().map_err(invariant)?.max(1)).map_err(invariant)
+    }
+}
+
+/// L2Character.java:897-934 attack routing for a V6 player (NPCs and legacy stay simple).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::domain::zone) enum AttackStyle {
+    /// `doAttackHitSimple` (and the bow/crossbow callers).
+    Simple,
+    /// `doAttackHitByDual`: DUAL/DUALFIST/DUALDAGGER and the player FIST fall-through.
+    Dual,
+    /// `doAttackHitByPole`: primary plus percentage-scaled secondaries.
+    Pole,
+}
+
+impl ZoneState {
+    /// Player weapon routing; an unarmed player attacks with the template FIST type, which
+    /// falls through to the dual handler (L2Character.java:923-935).
+    pub(in crate::domain::zone) fn attack_style_v6(&self, id: EntityId) -> AttackStyle {
+        if self
+            .phase4
+            .as_ref()
+            .is_none_or(|items| !items.canonical.players.contains_key(&id))
+        {
+            return AttackStyle::Simple;
+        }
+        match self
+            .held_weapon_v6(id)
+            .map(|(_, definition)| definition.weapon_type.as_str())
+        {
+            None | Some("FIST" | "DUAL" | "DUALFIST" | "DUALDAGGER") => AttackStyle::Dual,
+            Some("POLE") => AttackStyle::Pole,
+            Some(_) => AttackStyle::Simple,
+        }
+    }
+
+    /// I3 (design §5.4): when the first subhit is due, draw hit1 and hit2, then shield/
+    /// critical/spread for each landed hit in order (L2Character.java:1137-1179); each half
+    /// is `trunc(formula) / 2`. The first applies now; the second waits in the plan.
+    #[allow(clippy::too_many_arguments)] // Frozen swing identity and the shared draw source.
+    fn land_dual_first_v6(
+        &mut self,
+        tick: Tick,
+        id: EntityId,
+        swing: Swing,
+        source: TargetBinding,
+        target: TargetBinding,
+        events: &mut Vec<ZoneEvent>,
+        draw: &mut DamageRoll<'_>,
+    ) -> Result<(), TickError> {
+        let hit1 = self.auto_hit_v5(source, target, draw)?;
+        let hit2 = self.auto_hit_v5(source, target, draw)?;
+        let mut halves = Vec::with_capacity(2);
+        for hit in [hit1, hit2] {
+            halves.push(if hit {
+                let (outcome, damage, shield) = self.auto_resolve_v5(source, target, draw)?;
+                (outcome, damage / 2, shield)
+            } else {
+                (AttackOutcome::Miss, 0, crate::domain::zone::phase4::ShieldOutcome::None)
+            });
+        }
+        let [(first, first_damage, _), (second, second_damage, second_shield)] = halves.as_slice()
+        else {
+            return Err(missing());
+        };
+        let plan = self
+            .phase4
+            .as_mut()
+            .ok_or_else(missing)?
+            .canonical
+            .attack_plans
+            .get_mut(&id)
+            .filter(|plan| plan.start == swing.start && plan.hits.len() == 2 && plan.next_hit == 0)
+            .ok_or_else(missing)?;
+        let pending = plan.hits.get_mut(1).ok_or_else(missing)?;
+        pending.prepared = Some(crate::domain::zone::phase4::PreparedItemHit {
+            outcome: *second,
+            shield: *second_shield,
+            damage: *second_damage,
+        });
+        plan.next_hit = 1;
+        self.apply_auto_hit_v5(tick, id, source, target, *first, *first_damage, events, draw)
+    }
+
+    /// Second dual subhit at its own deadline: the stored result applies to the planned
+    /// life only while attacker and recipient are alive (`HitTask`; no new damage draws).
+    pub(in crate::domain::zone) fn land_dual_second_v6(
+        &mut self,
+        tick: Tick,
+        id: EntityId,
+        events: &mut Vec<ZoneEvent>,
+        draw: &mut DamageRoll<'_>,
+    ) -> Result<(), TickError> {
+        let Some(plan) = self
+            .phase4
+            .as_mut()
+            .and_then(|items| items.canonical.attack_plans.remove(&id))
+        else {
+            return Ok(());
+        };
+        let hit = usize::try_from(plan.next_hit)
+            .ok()
+            .and_then(|index| plan.hits.get(index))
+            .ok_or_else(missing)?;
+        let prepared = hit.prepared.as_ref().ok_or_else(missing)?;
+        let source = self.binding(id).ok_or_else(missing)?;
+        let attacker_alive = self
+            .entities
+            .get(&id)
+            .is_some_and(|e| !e.targeting.dead && e.combat.is_some());
+        let target_alive = self.binding(hit.target.entity) == Some(hit.target)
+            && self
+                .entities
+                .get(&hit.target.entity)
+                .is_some_and(|e| !e.targeting.dead);
+        if source != plan.attacker || !attacker_alive || !target_alive {
+            return Ok(());
+        }
+        self.apply_auto_hit_v5(
+            tick,
+            id,
+            source,
+            hit.target,
+            prepared.outcome,
+            prepared.damage,
+            events,
+            draw,
+        )
+    }
+
+    /// `doAttackHitByPole` secondaries (D25, design §5.4): candidates in entity-ordinal then
+    /// `EntityId` order, inside `range + collision/2` and the weapon attack cone around the
+    /// primary-target heading, alive and auto-attackable; each attempted candidate (hit or
+    /// miss) advances 85% by ÷23/20 and the scan breaks once the count exceeds atkCountMax.
+    #[allow(clippy::too_many_lines, clippy::too_many_arguments)] // Source scan, eligibility and per-recipient caller.
+    fn land_pole_secondaries_v6(
+        &mut self,
+        tick: Tick,
+        id: EntityId,
+        source: TargetBinding,
+        primary: TargetBinding,
+        events: &mut Vec<ZoneEvent>,
+        draw: &mut DamageRoll<'_>,
+    ) -> Result<(), TickError> {
+        let a = self.effective(id)?;
+        let maximum = self
+            .damage_stat_v5(id, &a, "atkCountMax", Q)?
+            .trunc()
+            .map_err(invariant)?;
+        let (_, definition) = self.held_weapon_v6(id).ok_or_else(missing)?;
+        // CharStat.java:438-447: the weapon base angle, without stat modifiers.
+        let angle = definition.attack_angle;
+        let attacker = self.entities.get(&id).ok_or_else(missing)?;
+        let combat = attacker.combat.as_ref().ok_or_else(missing)?;
+        let (origin, range, radius) = (attacker.pos, combat.attack_range, combat.collision_radius);
+        let primary_pos = self.entities.get(&primary.entity).ok_or_else(missing)?.pos;
+        // Source sets the heading toward the primary target at launch (doAttack:888).
+        let heading =
+            crate::domain::zone::item_angles::FacingVector::EAST.moved(origin, primary_pos);
+        let items = self.phase4.as_ref().ok_or_else(missing)?;
+        let certificate = items
+            .rules
+            .parts()
+            .angles
+            .get(usize::try_from(angle).map_err(invariant)?)
+            .ok_or_else(missing)?;
+        let bound = items.rules.parts().coordinate_bound_millitiles;
+        let mut candidates = Vec::new();
+        for other in self.aoi.in_aoi(origin) {
+            if other == id || other == primary.entity {
+                continue;
+            }
+            let Some(entity) = self.entities.get(&other) else {
+                continue;
+            };
+            let Some(c) = entity.combat.as_ref() else {
+                continue;
+            };
+            if entity.targeting.dead {
+                continue;
+            }
+            // Util.checkIfInRange: d − (rA + rB)/2 ≤ range, compared exactly as
+            // 4d² ≤ (2·range + rA + rB)².
+            let reach = i128::from(range.raw())
+                .checked_mul(2)
+                .and_then(|v| v.checked_add(i128::from(radius.raw())))
+                .and_then(|v| v.checked_add(i128::from(c.collision_radius.raw())))
+                .ok_or_else(missing)?;
+            let distance = i128::try_from(origin.distance_sq(entity.pos)).map_err(invariant)?;
+            if distance.checked_mul(4).ok_or_else(missing)?
+                > reach.checked_mul(reach).ok_or_else(missing)?
+            {
+                continue;
+            }
+            let dx = i64::from(entity.pos.x.raw())
+                .checked_sub(i64::from(origin.x.raw()))
+                .ok_or_else(missing)?;
+            let dy = i64::from(entity.pos.y.raw())
+                .checked_sub(i64::from(origin.y.raw()))
+                .ok_or_else(missing)?;
+            if !heading
+                .within(dx, dy, certificate, bound)
+                .map_err(invariant)?
+            {
+                continue;
+            }
+            let binding = TargetBinding {
+                entity: other,
+                incarnation: c.incarnation,
+            };
+            if self.hostility_v5(tick, source, binding).is_err() {
+                continue;
+            }
+            // L2PcInstance.isAutoAttackable: another player only while flagged or chaotic.
+            if entity.kind == EntityKind::Player
+                && !self.sidecar(other)?.player.as_ref().is_some_and(|p| {
+                    p.pvp.karma > 0 || p.pvp.flag_until.is_some_and(|until| until > tick)
+                })
+            {
+                continue;
+            }
+            let ordinal = self.sidecar(other)?.ordinal;
+            candidates.push((ordinal, other, binding));
+        }
+        candidates.sort_by_key(|(ordinal, entity, _)| (*ordinal, *entity));
+        let mut percent = ExactRatio::whole(85);
+        let mut count = 0_i128;
+        for (_, _, target) in candidates {
+            // A previous recipient's death hook may have removed this candidate.
+            if self.binding(target.entity) != Some(target)
+                || self
+                    .entities
+                    .get(&target.entity)
+                    .is_none_or(|e| e.targeting.dead)
+            {
+                continue;
+            }
+            let (outcome, damage) = if self.auto_hit_v5(source, target, draw)? {
+                let (outcome, base, _) = self.auto_resolve_v5(source, target, draw)?;
+                let scaled = ExactRatio::whole(i64::from(base))
+                    .checked_mul(percent)
+                    .and_then(|v| v.checked_div(ExactRatio::whole(100)))
+                    .and_then(ExactRatio::trunc)
+                    .map_err(invariant)?;
+                (outcome, u32::try_from(scaled).map_err(invariant)?)
+            } else {
+                (AttackOutcome::Miss, 0)
+            };
+            self.apply_auto_hit_v5(tick, id, source, target, outcome, damage, events, draw)?;
+            percent = percent
+                .checked_mul(ExactRatio::new(20, 23).map_err(invariant)?)
+                .map_err(invariant)?;
+            count = count.checked_add(1).ok_or_else(missing)?;
+            if count > maximum {
+                break;
+            }
+        }
+        Ok(())
     }
 }

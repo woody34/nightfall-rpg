@@ -2106,6 +2106,7 @@ fn diff_into(
 /// The spawn an observer receives when `e` enters its AOI: full current movement state.
 fn spawn_event(tick: Tick, e: &Entity) -> ZoneEvent {
     ZoneEvent::EntitySpawn {
+        phase4: None,
         identity: e.combat.as_ref().and_then(|c| match &c.role {
             CombatRole::Player { progression, .. } => progression.as_ref().map(|p| p.public()),
             CombatRole::Npc { .. } => None,
@@ -2199,6 +2200,7 @@ fn npc_combat(spec: &NpcCombat) -> Result<CombatState, RejectReason> {
 /// The owner-only resource fact.
 pub(super) fn stats_changed(tick: Tick, entity: EntityId, c: &CombatState) -> ZoneEvent {
     ZoneEvent::StatsChanged {
+        phase4: None,
         class: match &c.role {
             CombatRole::Player { progression, .. } => progression.as_ref().map(|p| p.stats()),
             CombatRole::Npc { .. } => None,

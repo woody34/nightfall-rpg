@@ -375,6 +375,7 @@ fn offer_hydration_requires_matching_v5_identity_and_only_marks_offered() -> any
         (true, true, 7, 100, 100, ResurrectOfferState::Expired, false),
     ] {
         let identity = ZoneEvent::EntitySpawn {
+            phase4: None,
             identity: None,
             tick: Tick(identity_tick),
             entity: if same_entity {

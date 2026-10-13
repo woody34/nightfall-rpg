@@ -59,7 +59,7 @@ impl ZoneState {
 
     /// CharStat.java:424-436 physical attack range: the equipped weapon's base range, or with
     /// no active weapon the current class template's `baseAtkRange` (D75: hashed
-    /// class_combat.toml, 20 or 25 for orcs), then the integer pAtkRange getter.
+    /// `class_combat.toml`, 20 or 25 for orcs), then the integer `pAtkRange` getter.
     pub(in crate::domain::zone) fn attack_range_v6(
         &self,
         id: EntityId,
@@ -116,13 +116,26 @@ impl ZoneState {
             .ok_or_else(missing)
     }
 
-    /// Whether the attacker's equipped weapon is a bow (crossbows have their own branch).
+    /// Whether the attacker's equipped weapon is a bow (distance falloff and the shield
+    /// ×1.3 apply to BOW only; crossbows share the ranged start but not those terms).
     pub(in crate::domain::zone) fn bow_attacker_v6(&self, id: EntityId) -> bool {
         self.held_weapon_v6(id)
             .is_some_and(|(_, definition)| definition.weapon_type == "BOW")
     }
 
-    /// canUseRangeWeapon + doAttackHitByBow at an accepted start: arrows are auto-selected
+    /// canUseRangeWeapon ammunition: arrows for a bow, bolts for a crossbow
+    /// (L2Character.java:897-916, Inventory.java:688-713).
+    fn ranged_ammo_v6(&self, id: EntityId) -> Option<&'static str> {
+        self.held_weapon_v6(id)
+            .and_then(|(_, definition)| match definition.weapon_type.as_str() {
+                "BOW" => Some("ARROW"),
+                "CROSSBOW" => Some("BOLT"),
+                _ => None,
+            })
+    }
+
+    /// canUseRangeWeapon + doAttackHitByBow/CrossBow at an accepted start: ammunition is
+    /// auto-selected
     /// when the left hand is empty, the optional reduced-MP draw happens before the MP check,
     /// MP and one arrow are paid before the hit (an arrow is spent even on a miss), and bow
     /// timing replaces the melee half-interval impact.
@@ -134,9 +147,9 @@ impl ZoneState {
         initial_revision: Option<u64>,
         events: &mut Vec<ZoneEvent>,
     ) -> Result<BowStart, TickError> {
-        if !self.bow_attacker_v6(id) {
+        let Some(ammo_type) = self.ranged_ammo_v6(id) else {
             return Ok(BowStart::Melee);
-        }
+        };
         let (_, definition) = self.held_weapon_v6(id).ok_or_else(missing)?;
         let definition = definition.clone();
         let items = self.phase4.as_ref().ok_or_else(missing)?;
@@ -164,7 +177,7 @@ impl ZoneState {
                             .items
                             .get(&item.template_id)
                             .is_some_and(|ammo| {
-                                ammo.etcitem_type == "ARROW"
+                                ammo.etcitem_type == ammo_type
                                     && items
                                         .rules
                                         .parts()

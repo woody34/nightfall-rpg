@@ -420,11 +420,16 @@ impl ZoneState {
             .attack_plans
             .iter()
             .filter(|(attacker, plan)| {
-                self.entities
-                    .get(attacker)
-                    .and_then(|entity| entity.combat.as_ref())
-                    .and_then(|combat| combat.swing)
-                    .is_none_or(|swing| swing.start != plan.start)
+                // I3: a stored second dual subhit outlives its swing until its deadline.
+                let pending = plan.next_hit > 0
+                    && usize::try_from(plan.next_hit).is_ok_and(|index| index < plan.hits.len());
+                !pending
+                    && self
+                        .entities
+                        .get(attacker)
+                        .and_then(|entity| entity.combat.as_ref())
+                        .and_then(|combat| combat.swing)
+                        .is_none_or(|swing| swing.start != plan.start)
             })
             .map(|(attacker, plan)| (*attacker, plan.start))
             .collect();
@@ -524,6 +529,16 @@ impl ZoneState {
         items
             .charge_bindings
             .sort_by_key(|binding| (binding.weapon, binding.shot));
+        // A dual bundle's two-subhit plan already exists for this start; it gains the charge.
+        if let Some(plan) = items
+            .attack_plans
+            .get_mut(&attacker)
+            .filter(|plan| plan.start == tick)
+        {
+            plan.weapon = Some(weapon);
+            plan.shots = ShotKind::Soul.bit();
+            return Ok(());
+        }
         items.attack_plans.insert(
             attacker,
             crate::domain::zone::phase4::ItemAttackPlan {
@@ -592,7 +607,16 @@ impl ZoneState {
         else {
             return Ok(());
         };
-        items.canonical.attack_plans.remove(&attacker);
+        let pending = plan.next_hit > 0
+            && usize::try_from(plan.next_hit).is_ok_and(|index| index < plan.hits.len());
+        if pending {
+            // I3: the second subhit keeps its stored result; its charge is settled now.
+            if let Some(kept) = items.canonical.attack_plans.get_mut(&attacker) {
+                kept.shots = 0;
+            }
+        } else {
+            items.canonical.attack_plans.remove(&attacker);
+        }
         items
             .canonical
             .charge_bindings

@@ -388,6 +388,69 @@ pub fn validate_visible(visible: &[VisibleEquipment], delta: bool) -> Result<(),
     }
     Ok(())
 }
+/// D26 public spawn enrichment: the visible paperdoll subset (empty when no public gear).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(missing_docs)]
+pub struct Phase4SpawnView {
+    pub visible: Vec<VisibleEquipment>,
+}
+
+/// D26 / design §11.2 `EffectiveStats` fields 11..15, explicit even when zero.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(missing_docs)]
+pub struct Phase4EffectiveView {
+    pub shield_def_q: i64,
+    pub shield_rate_q: i64,
+    pub shield_angle_degrees: u32,
+    pub physical_reach_millitiles: i64,
+    pub physical_angle_degrees: u32,
+}
+
+/// D26 owner `StatsChanged` enrichment sharing the inventory revision of
+/// `InventorySync`/`InventoryChanged`; the effective extension accompanies the owner sheet.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(missing_docs)]
+pub struct Phase4StatsView {
+    pub weight: ItemWeightView,
+    pub penalties: ItemPenaltyView,
+    pub inventory_revision: u64,
+    pub effective: Phase4EffectiveView,
+}
+impl Phase4SpawnView {
+    /// Public slots are unique, ordered and never tombstones in a spawn.
+    pub fn validate(&self) -> Result<(), ItemError> {
+        let mut previous = None;
+        for entry in &self.visible {
+            if entry.template_id == 0
+                || entry.glow_tier > 2
+                || previous.is_some_and(|slot| slot >= entry.slot)
+            {
+                return Err(ItemError("invalid spawn visible equipment"));
+            }
+            previous = Some(entry.slot);
+        }
+        Ok(())
+    }
+}
+impl Phase4StatsView {
+    /// Weight display, penalty ranks and angles are internally consistent.
+    pub fn validate(&self) -> Result<(), ItemError> {
+        self.weight.validate()?;
+        if i64::try_from(self.inventory_revision).is_err()
+            || self.penalties.overload_level > 4
+            || self.effective.shield_angle_degrees > 360
+            || self.effective.physical_angle_degrees > 360
+            || self.effective.physical_reach_millitiles < 0
+        {
+            return Err(ItemError("invalid owner stats enrichment"));
+        }
+        Ok(())
+    }
+}
+
 /// Presentation-only milestones from Phase4 design §1.5/I6; exact enchant stays private.
 pub fn visible_equipment(
     player: &Phase4Player,

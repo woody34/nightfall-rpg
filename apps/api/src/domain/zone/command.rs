@@ -853,6 +853,9 @@ pub enum ZoneEvent {
         /// Phase 2 owner-only resources; absent in legacy output.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         class: Option<super::ClassStatsView>,
+        /// D26 owner weight/penalty/revision and effective extension; V6 only.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        phase4: Option<Box<super::item_views::Phase4StatsView>>,
         /// Tick of the fact.
         tick: Tick,
         /// owner UUID; this event is owner-only (MP is private).
@@ -909,6 +912,9 @@ pub enum ZoneEvent {
         /// Public Phase 2 identity; absent for legacy entities and NPCs.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         identity: Option<super::PlayerIdentityView>,
+        /// D26 public visible equipment of a V6 player; absent otherwise.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        phase4: Option<Box<super::item_views::Phase4SpawnView>>,
         /// When.
         tick: Tick,
         /// Who.

@@ -15,7 +15,7 @@ mod live_life;
 mod live_observe;
 #[path = "state_runtime_shots.rs"]
 mod live_shots;
-pub(in crate::domain::zone) use live_damage::BowStart;
+pub(in crate::domain::zone) use live_damage::{AttackStyle, BowStart};
 
 use super::*;
 use crate::domain::zone::effective_stats::{EffectiveStats, NpcStatInputs, PlayerStatInputs};
@@ -2890,6 +2890,33 @@ impl ZoneState {
                     crit_permille: stats.physical.crit_permille(),
                 },
             }));
+        }
+        // D26: a V6 owner's StatsChanged carries weight/penalties/revision and the
+        // effective extension, published through PbOutput41.
+        if let Some(player) = self
+            .phase4
+            .as_ref()
+            .and_then(|items| items.canonical.players.get(&id))
+        {
+            let enrichment = crate::domain::zone::item_views::Phase4StatsView {
+                weight: crate::domain::zone::item_views::ItemWeightView::new(
+                    player.weight,
+                    player.max_load,
+                    player.weight_penalty_bonus,
+                )
+                .map_err(invariant)?,
+                penalties: crate::domain::zone::item_views::ItemPenaltyView::from(player),
+                inventory_revision: player.inventory_revision,
+                effective: self.phase4_effective_view_v6(id)?,
+            };
+            if let ZoneEvent::StatsChanged {
+                class: Some(_),
+                phase4,
+                ..
+            } = &mut event
+            {
+                *phase4 = Some(Box::new(enrichment));
+            }
         }
         Ok(event)
     }

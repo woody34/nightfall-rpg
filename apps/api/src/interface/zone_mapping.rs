@@ -326,6 +326,7 @@ pub fn world_event_to_pb(ev: &ZoneEvent, server_time_ms: i64) -> Vec<pb::WorldEv
     match ev {
         ZoneEvent::EntitySpawn {
             identity,
+            phase4,
             tick,
             entity,
             kind,
@@ -337,6 +338,14 @@ pub fn world_event_to_pb(ev: &ZoneEvent, server_time_ms: i64) -> Vec<pb::WorldEv
             combat,
         } => {
             let mut spawn = spawn_to_pb(*entity, *kind, name, *pos, *generation, combat.as_ref());
+            // D26: public visible equipment only (field 29); never owned records.
+            if let (Some(items), Some(Event::Spawn(s))) = (phase4, &mut spawn.event) {
+                s.visible_equipment = items
+                    .visible
+                    .iter()
+                    .map(item_views::visible_to_pb)
+                    .collect();
+            }
             if let (Some(identity), Some(Event::Spawn(s))) = (identity, &mut spawn.event) {
                 s.race = match identity.race {
                     Race::Human => pb::Race::Human,
@@ -501,6 +510,7 @@ pub fn world_event_to_pb(ev: &ZoneEvent, server_time_ms: i64) -> Vec<pb::WorldEv
         }))],
         ZoneEvent::StatsChanged {
             class,
+            phase4,
             tick,
             entity,
             hp,
@@ -509,8 +519,13 @@ pub fn world_event_to_pb(ev: &ZoneEvent, server_time_ms: i64) -> Vec<pb::WorldEv
             max_mp,
             level,
             xp,
-            ..
         } => vec![world(Event::StatsChanged(pb::StatsChanged {
+            // D26 owner enrichment: fields 24..26 share the InventorySync/Changed revision.
+            item_weight: phase4.as_ref().map(|p| item_views::weight_to_pb(&p.weight)),
+            item_penalties: phase4
+                .as_ref()
+                .map(|p| item_views::penalty_to_pb(&p.penalties)),
+            inventory_revision: phase4.as_ref().map_or(0, |p| p.inventory_revision),
             entity: entity.to_string(),
             hp: *hp,
             max_hp: *max_hp,
@@ -571,10 +586,19 @@ pub fn world_event_to_pb(ev: &ZoneEvent, server_time_ms: i64) -> Vec<pb::WorldEv
                     accuracy_q: p.effective.accuracy_q,
                     evasion_q: p.effective.evasion_q,
                     crit_permille: p.effective.crit_permille,
-                    ..Default::default()
+                    shield_def_q: phase4.as_ref().map_or(0, |e| e.effective.shield_def_q),
+                    shield_rate_q: phase4.as_ref().map_or(0, |e| e.effective.shield_rate_q),
+                    shield_angle_degrees: phase4
+                        .as_ref()
+                        .map_or(0, |e| e.effective.shield_angle_degrees),
+                    physical_reach_millitiles: phase4
+                        .as_ref()
+                        .map_or(0, |e| e.effective.physical_reach_millitiles),
+                    physical_angle_degrees: phase4
+                        .as_ref()
+                        .map_or(0, |e| e.effective.physical_angle_degrees),
                 }
             }),
-            ..Default::default()
         }))],
         ZoneEvent::XpGained {
             entity,
@@ -1183,6 +1207,7 @@ mod tests {
     #[test]
     fn spawn_of_a_moving_entity_is_followed_by_its_move() {
         let ev = ZoneEvent::EntitySpawn {
+            phase4: None,
             identity: None,
             tick: Tick(1),
             entity: EntityId::from_uuid(Uuid::from_u128(1)),
@@ -1350,6 +1375,7 @@ mod combat_tests {
     #[test]
     fn stats_changed_all_fields_round_trip() {
         let event = ZoneEvent::StatsChanged {
+            phase4: None,
             class: None,
             tick: Tick(31),
             entity: id(1),

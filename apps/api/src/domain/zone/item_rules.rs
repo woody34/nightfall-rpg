@@ -154,7 +154,10 @@ record!(ClassSlotRule {
     m_def_slots_xml: BTreeMap<super::EquipSlot, u32>,
     m_def_slots: BTreeMap<super::EquipSlot, u32>
 });
-record!(UnarmedCombatRule { attack_angle: u32, random_damage_radius_base: u32 });
+record!(UnarmedCombatRule {
+    attack_angle: u32,
+    random_damage_radius_base: u32
+});
 record!(ClassCombatRule {
     base_class_id: u32, key: String, attack_type: String, attack_range: u32,
     p_atk: u32, p_atk_spd: u32, crit_rate: u32, lineage_class_ids: Vec<u32>
@@ -355,8 +358,16 @@ impl ItemRulesParts {
 
     /// D75: one unarmed row per class-slot base class, ascending, FIST bases only.
     fn validate_class_combat(&self) -> Result<(), String> {
-        let bases: Vec<_> = self.class_slots.iter().map(|row| row.base_class_id).collect();
-        let combat: Vec<_> = self.class_combat.iter().map(|row| row.base_class_id).collect();
+        let bases: Vec<_> = self
+            .class_slots
+            .iter()
+            .map(|row| row.base_class_id)
+            .collect();
+        let combat: Vec<_> = self
+            .class_combat
+            .iter()
+            .map(|row| row.base_class_id)
+            .collect();
         if bases != combat
             || self.unarmed_combat.attack_angle == 0
             || self.unarmed_combat.attack_angle > 360

@@ -1000,6 +1000,7 @@ impl ZoneState {
 
     /// After impacts: every idle auto-attacker whose cooldown is over and whose target is in
     /// reach stops and starts a swing; one out of reach keeps chasing.
+    #[allow(clippy::too_many_lines)] // One start: guards, ranged/dual timing and the I3 plan.
     pub(super) fn start_swings(
         &mut self,
         tick: Tick,
@@ -1053,12 +1054,25 @@ impl ZoneState {
                 },
                 BowStart::Melee | BowStart::Fire { .. } => {},
             }
+            let dual = matches!(bow, BowStart::Melee)
+                && self.attack_style_v6(id) == super::runtime::AttackStyle::Dual;
+            let weapon = self
+                .phase4
+                .as_ref()
+                .and_then(|items| items.canonical.players.get(&id))
+                .and_then(|player| {
+                    player
+                        .paperdoll
+                        .get(&crate::domain::zone::EquipSlot::Rhand)
+                        .copied()
+                });
             let Some(c) = self.entities.get_mut(&id).and_then(|e| e.combat.as_mut()) else {
                 continue;
             };
             if tick < c.ready_at {
                 continue;
             }
+            let mut second = None;
             let (impact_ticks, cycle_ticks) = if let BowStart::Fire {
                 impact_ticks,
                 cycle_ticks,
@@ -1069,7 +1083,30 @@ impl ZoneState {
                 let Ok(timing) = attack_timing(rules.constants(), c.sheet.attack_speed()) else {
                     continue;
                 };
-                (timing.impact_ticks, timing.cycle_ticks)
+                if dual {
+                    // L2Character.java:1173-1176: hit1 at timeToHit/2, hit2 at timeToHit,
+                    // timeToHit being the source integer half-interval.
+                    let invariant = super::TickError::Phase3Invariant;
+                    let tick_ms = i128::from(crate::domain::zone::TICK_MS);
+                    let time_to_hit = timing
+                        .interval_ms
+                        .0
+                        .checked_div(i128::from(rules.constants().impact_divisor))
+                        .ok_or(invariant)?;
+                    let first_ms = time_to_hit.checked_div(2).ok_or(invariant)?;
+                    let first = u64::try_from(
+                        first_ms
+                            .checked_add(tick_ms.checked_sub(1).ok_or(invariant)?)
+                            .and_then(|v| v.checked_div(tick_ms))
+                            .ok_or(invariant)?
+                            .max(1),
+                    )
+                    .map_err(|_| invariant)?;
+                    second = Some(timing.impact_ticks);
+                    (first, timing.cycle_ticks)
+                } else {
+                    (timing.impact_ticks, timing.cycle_ticks)
+                }
             };
             let swing = Swing {
                 target: g.target,
@@ -1096,6 +1133,38 @@ impl ZoneState {
                 impact: swing.impact,
                 ready: swing.ready,
             });
+            if let Some(second) = second {
+                // I3 plan: both subhits are fixed at the accepted start; results are prepared
+                // when the first becomes due.
+                let attacker = self.binding(id).ok_or(super::TickError::Phase3Invariant)?;
+                let target = super::super::effects::TargetBinding {
+                    entity: g.target,
+                    incarnation: g.incarnation,
+                };
+                let hit = |at| crate::domain::zone::phase4::PlannedItemHit {
+                    target,
+                    at,
+                    prepared: None,
+                };
+                self.phase4
+                    .as_mut()
+                    .ok_or(super::TickError::Phase3Invariant)?
+                    .canonical
+                    .attack_plans
+                    .insert(
+                        id,
+                        crate::domain::zone::phase4::ItemAttackPlan {
+                            attacker,
+                            start: tick,
+                            ready: swing.ready,
+                            weapon,
+                            shots: 0,
+                            arrow: None,
+                            hits: vec![hit(swing.impact), hit(Tick(tick.0.saturating_add(second)))],
+                            next_hit: 0,
+                        },
+                    );
+            }
         }
         Ok(())
     }

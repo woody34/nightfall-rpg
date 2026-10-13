@@ -574,6 +574,7 @@ mod tests {
             generation: SessionGeneration(u64::MAX),
         };
         let stats = ZoneEvent::StatsChanged {
+            phase4: None,
             entity: owner,
             tick,
             hp: 1,
