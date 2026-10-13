@@ -282,6 +282,7 @@ impl ItemCheckpointWork {
             }
         }
         self.validate_count_caps(rules)?;
+        self.validate_refines(rules)?;
         // Retained creation ticks belong to their origin epoch, whose clock may be ahead.
         for item in self
             .projection
@@ -296,6 +297,106 @@ impl ItemCheckpointWork {
                     .is_some_and(|origin| origin.zone != self.zone || origin.epoch != self.epoch)
             {
                 return Err(invalid("item_checkpoint_creation_tick"));
+            }
+        }
+        Ok(())
+    }
+
+    /// D95: each captured refine audit is re-derived at the trust boundary. A Refine's three
+    /// retail draws reproduce its selection (and so its packed augment) from the hashed tables;
+    /// a `CancelRefine` has no draw and pays exactly the hashed Adena fee. The audit's payments
+    /// equal, per template, the Consume causes of its family carrying its receipt, and no such
+    /// cause is left unaccounted.
+    fn validate_refines(
+        &self,
+        rules: &crate::domain::zone::Phase4Rules,
+    ) -> Result<(), CheckpointError> {
+        use crate::domain::zone::item_refine::{cancel_fee, RetailSelectors, ADENA};
+        use crate::domain::zone::phase4_projection::ItemEvidenceValue;
+        for refine in &self.projection.refines {
+            let applied = refine.outcome == ItemRefineOutcome::Applied;
+            match (&refine.selection, refine.stone) {
+                (Some(selection), Some(stone)) if applied => {
+                    let selectors =
+                        RetailSelectors::new(rules, refine.accessory, refine.mage, stone)
+                            .map_err(|_| invalid("item_refine_draws"))?;
+                    let mut words = [
+                        selection.first_raw,
+                        selection.category_raw,
+                        selection.second_raw,
+                    ]
+                    .into_iter();
+                    let mut drawn = 0_u8;
+                    let recomputed = selectors
+                        .select(|| {
+                            drawn = drawn.saturating_add(1);
+                            words.next().unwrap_or(u32::MAX)
+                        })
+                        .map_err(|_| invalid("item_refine_draws"))?;
+                    if drawn != 3
+                        || &recomputed != selection
+                        || refine.payments.first().map(|payment| payment.template_id) != Some(stone)
+                    {
+                        return Err(invalid("item_refine_draws"));
+                    }
+                },
+                (None, None) if !applied => {
+                    let definition = rules
+                        .parts()
+                        .items
+                        .get(&refine.before.template_id)
+                        .ok_or_else(|| invalid("item_refine_cancel_fee"))?;
+                    let fee = cancel_fee(rules, definition, refine.before.enchant)
+                        .map_err(|_| invalid("item_refine_cancel_fee"))?;
+                    if refine.payments.len() != 1
+                        || refine.payments.first().map(|p| (p.template_id, p.count))
+                            != Some((ADENA, fee))
+                    {
+                        return Err(invalid("item_refine_cancel_fee"));
+                    }
+                },
+                _ => return Err(invalid("item_refine_draws")),
+            }
+            let family = if applied {
+                "refine_payment"
+            } else {
+                "cancel_refine_payment"
+            };
+            let key = refine.receipt.key.to_string();
+            let mut paid = BTreeMap::<u32, i128>::new();
+            for payment in &refine.payments {
+                let total = paid.entry(payment.template_id).or_insert(0);
+                *total = total
+                    .checked_add(i128::from(payment.count))
+                    .ok_or_else(|| invalid("item_refine_payment"))?;
+            }
+            let mut consumed = BTreeMap::<u32, i128>::new();
+            for delta in self
+                .projection
+                .ledger
+                .iter()
+                .filter(|delta| delta.operation == ItemOperation::Consume)
+            {
+                for cause in delta.causes.iter().filter(|cause| {
+                    cause.family == family
+                        && cause.fields.get("receipt")
+                            == Some(&ItemEvidenceValue::Text(key.clone()))
+                }) {
+                    let Some(ItemEvidenceValue::Signed(debit)) = cause.fields.get("count_delta")
+                    else {
+                        return Err(invalid("item_refine_payment"));
+                    };
+                    let template = delta
+                        .template()
+                        .map_err(|_| invalid("item_refine_payment"))?;
+                    let total = consumed.entry(template).or_insert(0);
+                    *total = total
+                        .checked_sub(i128::from(*debit))
+                        .ok_or_else(|| invalid("item_refine_payment"))?;
+                }
+            }
+            if paid != consumed {
+                return Err(invalid("item_refine_payment"));
             }
         }
         Ok(())
@@ -539,6 +640,46 @@ impl ItemCheckpointWork {
         Ok(())
     }
 
+    /// D95: exactly one captured fact per Refine (`ItemRefined`) / `CancelRefine`
+    /// (`ItemRefineCancelled`), carrying the audit as its single cause.
+    fn validate_refine_events(&self, events: &[DomainEvent]) -> Result<(), CheckpointError> {
+        let refine_facts: Vec<_> = events
+            .iter()
+            .filter_map(|event| {
+                if let DomainEvent::ItemRefined { fact } = event {
+                    Some((ItemRefineOutcome::Applied, fact))
+                } else if let DomainEvent::ItemRefineCancelled { fact } = event {
+                    Some((ItemRefineOutcome::Removed, fact))
+                } else {
+                    None
+                }
+            })
+            .collect();
+        if refine_facts.len() != self.projection.refines.len() {
+            return Err(invalid("item_refine_outbox_count"));
+        }
+        for refine in &self.projection.refines {
+            let causes = vec![serde_json::to_value(refine).map_err(anyhow::Error::from)?];
+            if refine_facts
+                .iter()
+                .filter(|(outcome, fact)| {
+                    *outcome == refine.outcome
+                        && fact.instance_id == refine.after.id
+                        && fact.template_id == refine.before.template_id
+                        && fact.before.as_ref() == Some(&refine.before)
+                        && fact.after.as_ref() == Some(&refine.after)
+                        && fact.count_delta == 0
+                        && fact.causes == causes
+                })
+                .count()
+                != 1
+            {
+                return Err(invalid("item_refine_outbox_attempt"));
+            }
+        }
+        Ok(())
+    }
+
     /// Audit events belong to this owner and this same committed parent revision.
     #[allow(clippy::manual_let_else)] // Exhaustive non-item arms force review for new event variants.
     pub fn validate_events(
@@ -581,6 +722,7 @@ impl ItemCheckpointWork {
                 return Err(invalid("item_enchant_outbox_attempt"));
             }
         }
+        self.validate_refine_events(events)?;
         let exchange_facts: Vec<_> = events
             .iter()
             .filter_map(|event| {
@@ -621,6 +763,7 @@ impl ItemCheckpointWork {
                 | DomainEvent::ItemEnchanted { fact }
                 | DomainEvent::ItemDestroyed { fact }
                 | DomainEvent::ItemRefined { fact }
+                | DomainEvent::ItemRefineCancelled { fact }
                 | DomainEvent::ItemExchanged { fact } => fact,
                 DomainEvent::CharacterCreated { .. }
                 | DomainEvent::CharacterLeveled { .. }

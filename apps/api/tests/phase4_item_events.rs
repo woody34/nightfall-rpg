@@ -45,6 +45,7 @@ fn facts() -> Vec<DomainEvent> {
         DomainEvent::ItemEnchanted { fact: fact.clone() },
         DomainEvent::ItemDestroyed { fact: fact.clone() },
         DomainEvent::ItemRefined { fact: fact.clone() },
+        DomainEvent::ItemRefineCancelled { fact: fact.clone() },
         DomainEvent::ItemExchanged { fact },
     ]
 }
@@ -59,6 +60,7 @@ fn all_item_subjects_are_exact_and_scalar_audit_round_trips() {
         "enchanted",
         "destroyed",
         "refined",
+        "refine_cancelled",
         "exchanged",
     ]) {
         assert_eq!(event.subject(), format!("nightfall.item.{subject}"));

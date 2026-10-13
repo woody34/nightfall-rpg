@@ -787,6 +787,7 @@ impl CheckpointService {
                             | DomainEvent::ItemEnchanted { fact }
                             | DomainEvent::ItemDestroyed { fact }
                             | DomainEvent::ItemRefined { fact }
+                            | DomainEvent::ItemRefineCancelled { fact }
                             | DomainEvent::ItemExchanged { fact } => &mut fact.metadata,
                             DomainEvent::CharacterCreated { .. } => continue,
                         };
@@ -1260,8 +1261,11 @@ fn item_events(
     use crate::domain::zone::phase4_projection::ItemOperation;
     let mut facts = Vec::new();
     for (position, delta) in work.projection.ledger.iter().enumerate() {
-        // D49: enchant attempts have their own captured audit, including unchanged results.
-        if delta.operation == ItemOperation::Enchant && delta.after.is_some() {
+        // D49: enchant attempts have their own captured audit, including unchanged results;
+        // D95: so do Refine/CancelRefine, whose target rows are always retained.
+        if (delta.operation == ItemOperation::Enchant && delta.after.is_some())
+            || matches!(delta.operation, ItemOperation::Refine | ItemOperation::CancelRefine)
+        {
             continue;
         }
         let fact = crate::domain::ItemEventFact {
@@ -1292,7 +1296,7 @@ fn item_events(
                 DomainEvent::ItemDestroyed { fact }
             },
             ItemOperation::Refine | ItemOperation::CancelRefine => {
-                DomainEvent::ItemRefined { fact }
+                anyhow::bail!("refine audit must come from its captured operation")
             },
             ItemOperation::Exchange => {
                 anyhow::bail!("exchange audit must come from its captured operation")
@@ -1323,6 +1327,7 @@ fn item_events(
                 | DomainEvent::ItemEnchanted { fact }
                 | DomainEvent::ItemDestroyed { fact }
                 | DomainEvent::ItemRefined { fact }
+                | DomainEvent::ItemRefineCancelled { fact }
                 | DomainEvent::ItemExchanged { fact } => fact,
                 DomainEvent::CharacterCreated { .. }
                 | DomainEvent::CharacterLeveled { .. }
@@ -1416,6 +1421,35 @@ fn captured_item_events(
                     after: attempt.after.clone(),
                     causes: vec![serde_json::to_value(attempt)?],
                 },
+            },
+        ));
+    }
+    for refine in &work.projection.refines {
+        let applied =
+            refine.outcome == crate::domain::zone::phase4_projection::ItemRefineOutcome::Applied;
+        let fact = crate::domain::ItemEventFact {
+            metadata: EventMetadata {
+                event_id: Uuid::nil(),
+                sequence: (0, 0),
+            },
+            character_id: cp.character_id,
+            instance_id: refine.after.id,
+            template_id: refine.before.template_id,
+            count_delta: 0,
+            before: Some(refine.before.clone()),
+            after: Some(refine.after.clone()),
+            causes: vec![serde_json::to_value(refine)?],
+        };
+        facts.push((
+            (
+                position(refine.after.id, refine.receipt, refine.receipt.operation),
+                0,
+                refine.operation_ordinal,
+            ),
+            if applied {
+                DomainEvent::ItemRefined { fact }
+            } else {
+                DomainEvent::ItemRefineCancelled { fact }
             },
         ));
     }

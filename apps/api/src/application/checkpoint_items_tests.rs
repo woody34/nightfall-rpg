@@ -1495,6 +1495,9 @@ fn event_kinds(events: &[DomainEvent]) -> Vec<(&'static str, u64)> {
             DomainEvent::ItemEnchanted { fact } => ("enchanted", fact.metadata.sequence.1),
             DomainEvent::ItemDestroyed { fact } => ("destroyed", fact.metadata.sequence.1),
             DomainEvent::ItemRefined { fact } => ("refined", fact.metadata.sequence.1),
+            DomainEvent::ItemRefineCancelled { fact } => {
+                ("refine_cancelled", fact.metadata.sequence.1)
+            },
             DomainEvent::ItemExchanged { fact } => ("exchanged", fact.metadata.sequence.1),
             DomainEvent::CharacterCreated { .. }
             | DomainEvent::CharacterLeveled { .. }
@@ -1645,4 +1648,201 @@ async fn captured_enchant_anchors_to_its_own_row_after_same_tick_equip() {
     ];
     let events = item_events(&cp, &work, 4).unwrap();
     assert_eq!(event_kinds(&events), vec![("equipped", 4), ("enchanted", 5)]);
+}
+
+/// D95: a Refine then `CancelRefine` of one necklace, paid by a life stone, gemstones and the
+/// Adena fee, built from the hashed retail tables. The API re-derives the three draws, the
+/// cancel fee and the per-template payments, and publishes one captured fact per audit
+/// (`ItemRefined`, `ItemRefineCancelled`) in place of the target rows' facts.
+#[tokio::test]
+#[allow(clippy::too_many_lines)] // One captured-audit contract with its refusals.
+async fn refine_audits_are_rederived_and_published_once_each() {
+    use crate::domain::zone::item_refine::{cancel_fee, RefinePayment, RetailSelectors, ADENA};
+    use crate::domain::zone::phase4_projection::{
+        ItemAuditEvidence, ItemDeltaPlan, ItemEvidenceValue, ItemOperation, ItemReceiptRef,
+        ItemRefineOutcome,
+    };
+    use crate::domain::zone::{ItemInstanceId, ItemLocation, RefineAudit};
+    let (cp, mut work) = outbox_fixture().await;
+    let bundle = item_data::embedded_phase4_bundle().unwrap();
+    let rules = &bundle.items;
+    let (necklace, life_stone) = (916, 12754);
+    let grade = rules.parts().items[&necklace].grade.clone();
+    let cost = rules
+        .parts()
+        .augment_costs
+        .iter()
+        .find(|cost| cost.grade == grade)
+        .unwrap()
+        .clone();
+    let gems = u64::from(cost.accessory_count);
+    let fee = cancel_fee(rules, &rules.parts().items[&necklace], 0).unwrap();
+    let revision = work.projection.checkpoint.inventory_revision;
+    let mut seed = work.projection.checkpoint.instances[0].clone();
+    seed.location = ItemLocation::Inventory;
+    seed.slot = None;
+    seed.enchant = 0;
+    seed.augment_id = None;
+    seed.revision = revision;
+    let item = |id: u64, template: u32, count: u64| {
+        let mut item = seed.clone();
+        item.id = ItemInstanceId::new(id).unwrap();
+        item.template_id = template;
+        item.count = count;
+        item
+    };
+    let target = item(930, necklace, 1);
+    let (stone, gem, adena) = (
+        item(931, life_stone, 2),
+        item(932, cost.gemstone_id, gems + 10),
+        item(933, ADENA, fee + 10),
+    );
+    let refine_key = ItemReceiptRef {
+        operation: ItemOperation::Refine,
+        key: Uuid::from_u128(0x0190_0000_0000_7000_8000_0000_0000_0951),
+    };
+    let cancel_key = ItemReceiptRef {
+        operation: ItemOperation::CancelRefine,
+        key: Uuid::from_u128(0x0190_0000_0000_7000_8000_0000_0000_0952),
+    };
+    let mut words = [17_u32, 40_009, 9_999_999].into_iter();
+    let selection = RetailSelectors::new(rules, true, false, life_stone)
+        .unwrap()
+        .select(|| words.next().unwrap())
+        .unwrap();
+    let mut refined = target.clone();
+    refined.augment_id = Some(selection.packed().unwrap());
+    let applied = RefineAudit {
+        operation_ordinal: 1,
+        receipt: refine_key,
+        outcome: ItemRefineOutcome::Applied,
+        before: target.clone(),
+        after: refined.clone(),
+        stone: Some(life_stone),
+        payments: vec![
+            RefinePayment {
+                template_id: life_stone,
+                count: 1,
+            },
+            RefinePayment {
+                template_id: cost.gemstone_id,
+                count: gems,
+            },
+        ],
+        accessory: true,
+        mage: false,
+        selection: Some(selection),
+    };
+    let removed = RefineAudit {
+        operation_ordinal: 2,
+        receipt: cancel_key,
+        outcome: ItemRefineOutcome::Removed,
+        before: refined.clone(),
+        after: target.clone(),
+        stone: None,
+        payments: vec![RefinePayment {
+            template_id: ADENA,
+            count: fee,
+        }],
+        accessory: true,
+        mage: false,
+        selection: None,
+    };
+    let row = |operation, ordinal, before: &crate::domain::zone::ItemInstance, after, receipt| {
+        ItemDeltaPlan {
+            receipt_refs: Vec::new(),
+            operation,
+            operation_ordinal: ordinal,
+            instance: before.id,
+            before: Some(before.clone()),
+            after: Some(after),
+            count_delta: 0,
+            receipt,
+            causes: Vec::new(),
+        }
+    };
+    let paid = |item: &crate::domain::zone::ItemInstance, count: u64, audit: &RefineAudit| {
+        let mut after = item.clone();
+        after.count -= count;
+        let debit = -i64::try_from(count).unwrap();
+        ItemDeltaPlan {
+            receipt_refs: Vec::new(),
+            operation: ItemOperation::Consume,
+            operation_ordinal: 0,
+            instance: item.id,
+            before: Some(item.clone()),
+            after: Some(after),
+            count_delta: debit,
+            receipt: Some(audit.receipt),
+            causes: vec![audit.payment_cause(debit)],
+        }
+    };
+    work.projection.ledger = vec![
+        row(ItemOperation::Refine, 0, &target, refined.clone(), Some(refine_key)),
+        row(ItemOperation::CancelRefine, 1, &refined, target.clone(), Some(cancel_key)),
+        paid(&stone, 1, &applied),
+        paid(&gem, gems, &applied),
+        paid(&adena, fee, &removed),
+    ];
+    work.projection.refines = vec![applied, removed];
+    work.validate_catalogue(rules).unwrap();
+    let events = item_events(&cp, &work, 4).unwrap();
+    assert_eq!(
+        event_kinds(&events),
+        vec![
+            ("refined", 4),
+            ("refine_cancelled", 5),
+            ("consumed", 6),
+            ("consumed", 7),
+            ("consumed", 8)
+        ]
+    );
+    let DomainEvent::ItemRefined { fact } = &events[0] else {
+        panic!("refine fact first");
+    };
+    assert_eq!(
+        (fact.before.as_ref(), fact.after.as_ref(), fact.count_delta),
+        (Some(&target), Some(&refined), 0)
+    );
+    assert_eq!(fact.causes, vec![serde_json::to_value(&work.projection.refines[0]).unwrap()]);
+    work.validate_events(&cp, &events).unwrap();
+    let refused = |result: Result<(), CheckpointError>, name: &str| {
+        assert!(
+            matches!(&result, Err(CheckpointError::Constraint(n)) if n == name),
+            "{name}: {result:?}"
+        );
+    };
+    refused(work.validate_events(&cp, &events[1..]), "item_refine_outbox_count");
+    let mut altered = events.clone();
+    if let DomainEvent::ItemRefineCancelled { fact } = &mut altered[1] {
+        fact.causes.clear();
+    }
+    refused(work.validate_events(&cp, &altered), "item_refine_outbox_attempt");
+    // Each of the three draws must reproduce its captured result from the raw word.
+    for draw in 0..3 {
+        let mut bad = work.clone();
+        let selection = bad.projection.refines[0].selection.as_mut().unwrap();
+        match draw {
+            0 => selection.option12 ^= 1,
+            1 => selection.category = if selection.category == 55 { 35 } else { 55 },
+            _ => selection.option34 ^= 1,
+        }
+        refused(bad.validate_catalogue(rules), "item_refine_draws");
+    }
+    let mut bad = work.clone();
+    bad.projection.refines[1].payments[0].count += 1;
+    refused(bad.validate_catalogue(rules), "item_refine_cancel_fee");
+    let mut bad = work.clone();
+    bad.projection.ledger[3].causes =
+        vec![bad.projection.refines[0].payment_cause(1 - i64::try_from(gems).unwrap())];
+    refused(bad.validate_catalogue(rules), "item_refine_payment");
+    let mut bad = work.clone();
+    bad.projection.ledger[2].causes.push(ItemAuditEvidence {
+        family: "refine_payment".into(),
+        fields: BTreeMap::from([
+            ("receipt".into(), ItemEvidenceValue::Text(refine_key.key.to_string())),
+            ("count_delta".into(), ItemEvidenceValue::Signed(-1)),
+        ]),
+    });
+    refused(bad.validate_catalogue(rules), "item_refine_payment");
 }
