@@ -172,6 +172,10 @@ impl ZoneBounds {
 /// them; replay compares them and warns on mismatch.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct SnapshotMeta {
+    /// Application-only checkpoint policy. Absent/false epochs retain per-change recovery.
+    /// This is outside the canonical simulation digest.
+    #[serde(default, skip_serializing_if = "checkpoint_policy_is_historical")]
+    pub checkpoint_internal_cadence: bool,
     /// Recorded pre-draft byte policy; required for V5 and forbidden in every legacy epoch.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub phase3_admission_policy: Option<super::Phase3AdmissionPolicy>,
@@ -200,10 +204,16 @@ pub struct SnapshotMeta {
     pub first_log_seq: Option<u64>,
 }
 
+#[allow(clippy::trivially_copy_pass_by_ref)] // serde skip predicates borrow the field.
+fn checkpoint_policy_is_historical(cadence: &bool) -> bool {
+    !cadence
+}
+
 impl SnapshotMeta {
     /// Explicit historical constructor; a latest-schema bump cannot upgrade legacy policy.
     pub fn legacy() -> Self {
         Self {
+            checkpoint_internal_cadence: false,
             phase3_admission_policy: None,
             classes_hash: String::new(),
             classes_rules_hash: None,

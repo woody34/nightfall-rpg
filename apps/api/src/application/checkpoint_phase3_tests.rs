@@ -1,4 +1,4 @@
-//! Canonical critical-save detection; these equality probes do not execute gameplay policy.
+//! Canonical retained-state dirty detection; these equality probes do not execute gameplay policy.
 #![allow(clippy::unwrap_used, clippy::indexing_slicing)]
 use super::retained_phase3_changed;
 use crate::domain::zone::effects::{
@@ -39,7 +39,7 @@ fn side() -> Phase3Entity {
     }
 }
 #[test]
-fn only_canonical_retained_changes_are_critical_not_clock_or_nonretained_schedules() {
+fn only_canonical_retained_changes_are_dirty_not_clock_or_nonretained_schedules() {
     let before = side();
     assert!(!retained_phase3_changed(Some(&before), Some(&before)));
     let mut later = before.clone();
@@ -79,7 +79,7 @@ fn only_canonical_retained_changes_are_critical_not_clock_or_nonretained_schedul
     }
 }
 #[test]
-fn initialized_effect_pulse_phase_is_critical_without_waiting_for_whole_hp_to_change() {
+fn initialized_effect_pulse_phase_is_dirty_without_waiting_for_whole_hp_to_change() {
     let mut before = side();
     let effect = ActiveEffect {
         id: EffectId(1),
@@ -120,4 +120,31 @@ fn initialized_effect_pulse_phase_is_critical_without_waiting_for_whole_hp_to_ch
     after.effects.advance_pulse(EffectId(1), 0).unwrap();
     assert!(retained_phase3_changed(Some(&before), Some(&after)));
     assert_eq!(before.fractions, after.fractions);
+}
+
+#[test]
+fn internal_changes_are_dirty_but_only_external_facts_are_critical() {
+    use super::critical_phase3_changed;
+    let before = side();
+    for change in 0..8 {
+        let mut after = before.clone();
+        match change {
+            0 => after.fractions.mp = 1,
+            1 => {
+                after.reuse.insert(SkillId(3), Tick(601));
+            },
+            2 => after.player.as_mut().unwrap().pvp.flag_until = Some(Tick(1201)),
+            3 => {
+                after
+                    .modifier_install_order
+                    .insert(1, crate::domain::zone::RestoredModifierSource::DeathPenalty);
+            },
+            4 => after.player.as_mut().unwrap().pvp.karma = 1,
+            5 => after.player.as_mut().unwrap().pvp.pk_count = 1,
+            6 => after.player.as_mut().unwrap().pvp.pvp_count = 1,
+            _ => after.player.as_mut().unwrap().death_penalty_level = 1,
+        }
+        assert!(retained_phase3_changed(Some(&before), Some(&after)));
+        assert_eq!(critical_phase3_changed(Some(&before), Some(&after)), change >= 4);
+    }
 }

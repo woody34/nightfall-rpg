@@ -565,3 +565,53 @@ async fn forged_persisted_learning_metadata_fails_closed_at_read_and_admission()
     }
     assert_eq!(repo.get(c.id).await.unwrap().unwrap(), c);
 }
+
+#[tokio::test]
+async fn ordinary_checkpoints_do_not_rewrite_unchanged_learned_rows() {
+    let Some(pool) = migrated_pool().await else {
+        return;
+    };
+    let repo = PgCharacterRepository::new(pool.clone());
+    let mut c = character("StableSkills");
+    c.class_state.learned_skills = vec![LearnedSkill {
+        key: "racial.adaptable".into(),
+        level: 1,
+    }];
+    repo.create_idempotent(&IdempotencyKey::new(), "create", &c)
+        .await
+        .unwrap();
+    let before: Vec<(String,)> =
+        sqlx::query_as("SELECT xmin::text FROM character_learned_skills WHERE character_id=$1")
+            .bind(c.id.as_uuid())
+            .fetch_all(&pool)
+            .await
+            .unwrap();
+    assert_eq!(before.len(), 1);
+    let mut cp = checkpoint(&c, IdempotencyKey::new());
+    cp.class_state = Some(c.class_state.clone());
+    cp.level = c.level;
+    cp.xp = c.xp;
+    assert_eq!(repo.checkpoint(&cp, &[]).await.unwrap(), CheckpointOutcome::Applied(1));
+    let after: Vec<(String,)> =
+        sqlx::query_as("SELECT xmin::text FROM character_learned_skills WHERE character_id=$1")
+            .bind(c.id.as_uuid())
+            .fetch_all(&pool)
+            .await
+            .unwrap();
+    assert_eq!(before, after, "unchanged skills must keep their original row version");
+    cp.revision_seen = 1;
+    cp.idempotency.1 = IdempotencyKey::new();
+    cp.class_state.as_mut().unwrap().learned_skills.clear();
+    assert!(
+        repo.checkpoint(&cp, &[]).await.is_err(),
+        "monotone validation is still mandatory"
+    );
+    assert_eq!(
+        repo.load_for_admission(c.id)
+            .await
+            .unwrap()
+            .unwrap()
+            .revision,
+        1
+    );
+}

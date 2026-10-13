@@ -231,6 +231,7 @@ impl ZoneBootstrap {
             }
         }
         let mut snapshot = state.snapshot();
+        snapshot.meta.checkpoint_internal_cadence = snapshot.phase3.is_some();
         if let Some((_, hash)) = &self.classes {
             snapshot.meta.classes_hash = hash.clone();
         }

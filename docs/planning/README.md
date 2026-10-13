@@ -9,7 +9,7 @@ all derive from the stat formulas defined there.
 | 0 | [00-foundations.md](00-foundations.md) | Architecture, networking, persistence, data pipeline, accounts | Complete |
 | 1 | [01-stat-formulas.md](01-stat-formulas.md) | Base stats, derived stats, XP curves | Complete |
 | 2 | [02-race-and-class.md](02-race-and-class.md) | Races, class tree, transfers, subclasses | Complete |
-| 3 | [03-combat-and-skills.md](03-combat-and-skills.md) | Combat core, skills, buffs, status, elements, aggro, death, PvP, pets | Integration |
+| 3 | [03-combat-and-skills.md](03-combat-and-skills.md) | Combat core, skills, buffs, status, elements, aggro, death, PvP, pets | Complete |
 | 4 | [04-items-and-equipment.md](04-items-and-equipment.md) · [Executable plan](../plans/phase-4-items-and-equipment.md) | Weapons, armor, grades, consumables, enchant, augment, inventory | Planning |
 | 5 | [05-economy-and-crafting.md](05-economy-and-crafting.md) · [Executable plan](../plans/phase-5-economy-and-crafting.md) · [Zone design](../plans/phase-5-zone-design.md) (frozen at 0d525c7; on `codex/phase5-design` until integration) | Drops, crafting, currency sinks, vendors, player trade, storage, mail, auction, manor | Planning |
 | 6 | [06-world-and-content.md](06-world-and-content.md) | Zones, monsters and AI, travel, quests, raids, instances | Planned |
@@ -59,7 +59,7 @@ architecture layers, the NATS event-bus core, idempotent endpoints, atomic trans
 per-endpoint test matrix, and the Rust standard enforced by rustfmt, clippy, workspace lints,
 and cargo-deny. Those documents win over anything in a phase document about code structure.
 
-See [docs/plans/](../plans/) for phase plans: Phase 0b, Phase 1 ([phase-1-kill-a-monster.md](../plans/phase-1-kill-a-monster.md)), and Phase 2 ([phase-2-race-and-class.md](../plans/phase-2-race-and-class.md)) are complete, Phase 1a ([phase-1a-simulation-testing.md](../plans/phase-1a-simulation-testing.md)) is in progress, and Phase 3 ([phase-3-combat-and-skills.md](../plans/phase-3-combat-and-skills.md)) is in integration. Phase 1a builds a headless Unreal bot that runs scripted gameplay scenarios in CI, back-fills them for Phases 0b–1, and makes a simulation scenario a required story of every later client epic (see E5.1 there).
+See [docs/plans/](../plans/) for phase plans: Phase 0b, Phase 1 ([phase-1-kill-a-monster.md](../plans/phase-1-kill-a-monster.md)), Phase 2 ([phase-2-race-and-class.md](../plans/phase-2-race-and-class.md)), and Phase 3 ([phase-3-combat-and-skills.md](../plans/phase-3-combat-and-skills.md)) are complete, and Phase 1a ([phase-1a-simulation-testing.md](../plans/phase-1a-simulation-testing.md)) is in progress. Phase 1a builds a headless Unreal bot that runs scripted gameplay scenarios in CI, back-fills them for Phases 0b–1, and makes a simulation scenario a required story of every later client epic (see E5.1 there).
 See [docs/decisions/phase-1-combat.md](../decisions/phase-1-combat.md) for the Phase 1 combat decision record.
 
 ## Cross-cutting decisions

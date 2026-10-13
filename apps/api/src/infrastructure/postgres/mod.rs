@@ -11,6 +11,7 @@ mod idempotency;
 mod migrations;
 mod phase3_checkpoint;
 mod session_repository;
+mod storage_timing;
 mod zone_snapshot_store;
 
 pub use account_repository::PgAccountRepository;
@@ -88,6 +89,7 @@ pub fn connection_from_pool(pool: &PgPool) -> DatabaseConnection {
 pub async fn connect(database_url: &str) -> anyhow::Result<DatabaseConnection> {
     let pool = PgPoolOptions::new()
         .max_connections(10)
+        .acquire_time_level(tracing::log::LevelFilter::Debug)
         .acquire_timeout(std::time::Duration::from_secs(5))
         .connect(database_url)
         .await?;

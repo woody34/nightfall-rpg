@@ -117,17 +117,10 @@ pub(super) async fn persist(
     let order =
         serde_json::to_value(&phase3.modifier_install_order).map_err(anyhow::Error::from)?;
     tx.execute_raw(Statement::from_sql_and_values(DbBackend::Postgres,
-        "UPDATE characters SET phase3_timer_policy_version=$2,karma=$3,pk_count=$4,pvp_count=$5,flag_remaining_ticks=$6,death_penalty_level=$7,death_incarnation=$8,pre_death_xp=$9,recoverable_death_xp_loss=$10,hp_fraction_q=$11,mp_fraction_q=$12,cp_fraction_q=$13,modifier_install_order=$14 WHERE id=$1",
+        "WITH clear_reuse AS (DELETE FROM character_skill_reuse WHERE character_id=$1), \
+         clear_effects AS (DELETE FROM character_effects WHERE character_id=$1) \
+         UPDATE characters SET phase3_timer_policy_version=$2,karma=$3,pk_count=$4,pvp_count=$5,flag_remaining_ticks=$6,death_penalty_level=$7,death_incarnation=$8,pre_death_xp=$9,recoverable_death_xp_loss=$10,hp_fraction_q=$11,mp_fraction_q=$12,cp_fraction_q=$13,modifier_install_order=$14 WHERE id=$1",
         [character.as_uuid().into(),i32::try_from(phase3.timer_policy_version).map_err(anyhow::Error::from)?.into(),i64::from(phase3.karma).into(),i64::from(phase3.pk_count).into(),i64::from(phase3.pvp_count).into(),signed(phase3.flag_remaining_ticks)?.into(),i16::from(phase3.death_penalty_level).into(),death_incarnation.into(),pre_death_xp.into(),loss.into(),phase3.resource_fractions.hp.into(),phase3.resource_fractions.mp.into(),phase3.resource_fractions.cp.into(),order.into()])).await.map_err(super::character_repository::checkpoint_db_error)?;
-    for table in ["character_skill_reuse", "character_effects"] {
-        tx.execute_raw(Statement::from_sql_and_values(
-            DbBackend::Postgres,
-            format!("DELETE FROM {table} WHERE character_id=$1"),
-            [character.as_uuid().into()],
-        ))
-        .await
-        .map_err(super::character_repository::checkpoint_db_error)?;
-    }
     for (skill, remaining) in &phase3.reuse_remainders {
         tx.execute_raw(Statement::from_sql_and_values(DbBackend::Postgres,
             "INSERT INTO character_skill_reuse(character_id,skill_id,remaining_ticks) VALUES($1,$2,$3)",
