@@ -9114,6 +9114,48 @@ mod tests {
         matches!(value["formula"].as_str(), Some("max_load" | "overload" | "grade_penalties"))
     }
 
+    #[test]
+    fn load_family_resolution_ids_are_unique_within_a_tick() {
+        use crate::domain::zone::evidence::ItemEvidenceData;
+        use crate::domain::zone::ItemCommandKind as K;
+        // Review-3 P2-8: two weight-changing commands with no draw between them.
+        let (mut zone, owner, _, ids) = use_fixture(&[13, 15]);
+        zone.enable_items_replay_evidence().unwrap();
+        let draft = session_tick(
+            &zone,
+            owner.entity,
+            ids.iter()
+                .zip(961_u128..)
+                .map(|(id, request)| {
+                    item_intent(
+                        &zone,
+                        owner.entity,
+                        request,
+                        K::Destroy {
+                            instance: *id,
+                            count: 1,
+                        },
+                    )
+                })
+                .collect(),
+        );
+        let applied = zone.run_tick(draft).unwrap();
+        assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+        let mut seen = std::collections::BTreeSet::new();
+        let mut rebuilds = std::collections::BTreeSet::new();
+        for fact in zone.take_items_replay_evidence() {
+            if let ItemEvidenceData::Formula(value) = &fact.fact {
+                if load_family(value) {
+                    let id = value["resolution_id"].as_str().unwrap().to_owned();
+                    let formula = value["formula"].as_str().unwrap().to_owned();
+                    assert!(seen.insert((formula, id.clone())), "duplicate {id}");
+                    rebuilds.insert(id);
+                }
+            }
+        }
+        assert_eq!(rebuilds.len(), 2, "{rebuilds:?}");
+    }
+
     /// D4/C10 measurement gate: the V6 snapshot envelope with eight fully loaded owners
     /// (100 ordinary + 100 quest instances each, full paperdoll, high-entropy maximal-width
     /// scalars) must stay inside the broker (1 MiB − 1 KiB) and decoded (32 MiB) budgets.

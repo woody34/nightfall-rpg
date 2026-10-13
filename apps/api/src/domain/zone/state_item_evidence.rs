@@ -360,7 +360,30 @@ impl ZoneState {
         };
         let new = &refreshed.player;
         let word = self.rng.get_word_pos();
-        let resolution = format!("load:{id}:{}:{word}", self.next_tick.0);
+        // Review-3 P2-8: two rebuilds in one tick with no draw between them share the
+        // cursor, so a per-(owner, tick) sequence keeps each load resolution id unique.
+        let prefix = format!("load:{id}:{}:", self.next_tick.0);
+        let sequence = self
+            .evidence
+            .as_ref()
+            .and_then(|buffer| buffer.items.as_ref())
+            .map_or(0, |facts| {
+                facts
+                    .iter()
+                    .filter_map(|fact| {
+                        if let ItemEvidenceData::Formula(value) = &fact.fact {
+                            value
+                                .get("resolution_id")
+                                .and_then(serde_json::Value::as_str)
+                                .filter(|resolution| resolution.starts_with(&prefix))
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<std::collections::BTreeSet<_>>()
+                    .len()
+            });
+        let resolution = format!("{prefix}{word}:{sequence}");
         if (old.max_load, old.weight, old.overload_level, old.overloaded)
             != (new.max_load, new.weight, new.overload_level, new.overloaded)
         {
