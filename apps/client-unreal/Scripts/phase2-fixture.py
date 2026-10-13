@@ -106,6 +106,16 @@ def clean_env():
     return {key: os.environ[key] for key in ('PATH', 'HOME', 'LANG', 'LC_ALL', 'LD_LIBRARY_PATH') if key in os.environ}
 
 
+def zone_flags(selected):
+    """Per-unit zone version flags, recorded in the unit manifest: Phase 4 packs boot a V6
+    zone (PHASE4_ENABLED=1); Phase 2/3 units leave it unset so legacy recordings stay
+    byte-exact."""
+    flags = {'PHASE3_ENABLED': '1'}
+    if selected in PHASE4:
+        flags['PHASE4_ENABLED'] = '1'
+    return flags
+
+
 def candidate_binaries(folder):
     keys = ('SIM_API_BIN', 'SIM_MIGRATE_BIN')
     missing = [key for key in keys if not os.environ.get(key)]
@@ -312,8 +322,7 @@ def provision(folder, batch):
             'NATS_URL': f'nats://127.0.0.1:{nats}', 'HTTP_ADDR': f'127.0.0.1:{http}',
             'GRPC_ADDR': f'127.0.0.1:{grpc}', 'WS_PUBLIC_URL': f'ws://127.0.0.1:{http}/ws',
             'AUTH_DEV_TOKENS': '1', f'NIGHTFALL_PHASE{version}_FIXTURE': '1',
-            'PHASE3_ENABLED': '1',
-            'PHASE4_ENABLED': '1',
+            **zone_flags(selected),
             'ZONE_FILE': str(zone_file),
             'RULES_DIR': str(rules_dir)}
         if selected == 'phase4-grant-denied':
@@ -330,6 +339,7 @@ def provision(folder, batch):
         else:
             role_token_files(folder, roles, owner)
         manifest = {'schema_version': 1, 'fixture': selected, 'project': project, 'database': db,
+                    'zone_flags': zone_flags(selected),
                     'ports': dict(postgres=pg, nats=nats, http=http, grpc=grpc), 'roles': roles,
                     'api_binary': api, 'migrate_binary': migrate, 'seeder': str(seeder),
                     'data_sources': {'rules_dir': str(rules_dir), 'zone_file': str(zone_file),
@@ -493,6 +503,8 @@ def main():
                 raise ValueError('API binary changed after fixture provisioning')
             if not (folder / 'seed-complete').is_file():
                 raise ValueError('API startup requires completed before-admission seed')
+            if {k: value['env'][k] for k in ('PHASE3_ENABLED', 'PHASE4_ENABLED') if k in value['env']} != zone_flags(value['fixture']):
+                raise ValueError('API zone flags differ from the unit manifest')
             # Running outside the repo also prevents a binary's dotenv lookup from finding root .env.
             os.chdir(folder)
             os.execve(value['api_binary'], [value['api_binary']], value['env'])

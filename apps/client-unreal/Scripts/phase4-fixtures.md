@@ -183,8 +183,12 @@ UUIDv5 keys, serial per character; the first grant materializes the kit. Admissi
 is confirmed from the offline GetInventory baseline (every template/count/enchant/
 slot must equal the pack) and the server-allocated ids are recorded as
 `instance_map`; the bot runs a scenario copy whose `instance:N` labels are mapped
-(`phase2-fixture.py scenario`). Pack rows with enchant/charges/augment, or items
-equipped beyond the kit, have no GrantItem transport and refuse before any write.
+(`phase2-fixture.py scenario`). D113: enchanted pack instances are granted at their
+level through the optional GrantItem `enchant_level` (one constant, ENCHANT_FIELD) and
+the level is confirmed from GetInventory; all 39 packs provision. Charges/augment, or
+items equipped beyond the kit, still have no transport and refuse before any write.
+Zone flags are per unit (`zone_flags` in the unit manifest): Phase 4 packs and the items
+soak run the API with PHASE4_ENABLED=1; Phase 0b-3 units leave it unset.
 Blacksmith is at (124,128), design §7; tax0 is hashed fixture policy.
 
 Live grammar compatibility is separately checked by sim-parser-check.py against

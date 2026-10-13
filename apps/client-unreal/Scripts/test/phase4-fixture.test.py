@@ -124,7 +124,7 @@ class Fixtures(unittest.TestCase):
                 self.assertEqual(call.call_count,1)
 
     def test_dry_run_grant_plan_over_every_pack(self):
-        """D112 dry run over all packs: deterministic GrantItem plans; only enchanted packs block."""
+        """D112/D113 dry run over all packs: deterministic GrantItem plans; every pack provisions."""
         blocked_packs=set();planned=0
         for pack in sorted(fixture.PHASE4):
             paired=pack in fixture.phase4.PAIRED
@@ -140,7 +140,7 @@ class Fixtures(unittest.TestCase):
                     if not fixture.phase4.catalogue()[grant['template_id']]['stackable']:self.assertEqual(grant['count'],1)
                 planned+=len(plan['grants'])
                 if plan['blockers']:blocked_packs.add(pack)
-            # Kit + grants reproduce every pack template total.
+            # Kit + grants reproduce every pack template total and every enchant level (D113).
             for name,role in roles.items():
                 kit=next(k for k in fixture.phase4.table('starter_kits')['kits'] if k['class_id']==role['base_class_id'])
                 totals={}
@@ -149,10 +149,13 @@ class Fixtures(unittest.TestCase):
                 expected={}
                 for row in role['inventory']:expected[row['template_id']]=expected.get(row['template_id'],0)+row['count']
                 self.assertEqual(totals,expected,(pack,name))
+                self.assertEqual(sorted(g['enchant'] for g in plans[name]['grants'] if g['enchant']),
+                                 sorted(r['enchant'] for r in role['inventory'] if r['enchant']),(pack,name))
         enchanted={p for p in fixture.PHASE4 if any(r['enchant'] for role in fixture.phase4.profiles(p,paired=p in fixture.phase4.PAIRED).values() for r in role['inventory'])}
-        self.assertEqual(blocked_packs,enchanted)
-        self.assertGreater(planned,0)
-        print(f'D112 dry run: {len(fixture.PHASE4)} packs, {planned} grants planned; enchant-blocked packs {sorted(enchanted)}',flush=True)
+        self.assertEqual(enchanted,{'phase4-enchant','phase4-blacksmith','phase4-equip-onepiece','phase4-armor-enchant4','phase4-armor-enchant6'})
+        self.assertEqual(blocked_packs,set()) # all 39 packs provision
+        self.assertEqual(len(fixture.PHASE4),39);self.assertGreater(planned,0)
+        print(f'D112/D113 dry run: all {len(fixture.PHASE4)} packs provision, {planned} grants planned (enchanted: {sorted(enchanted)})',flush=True)
 
     def test_grant_stage_calls_grantitem_then_confirms_offline(self):
         roles=fixture.phase4.profiles('phase4-equip')
@@ -188,11 +191,41 @@ class Fixtures(unittest.TestCase):
             class Refused:
                 returncode=1;stdout='';stderr='failed_precondition: GrantItem requires AUTH_DEV_TOKENS=1'
             with self.assertRaisesRegex(ValueError,'GrantItem refused'):seed.grant_role('phase4-equip','owner',role,'127.0.0.1:15051',lambda c,**k:Refused())
-        # Enchanted packs refuse before any call.
+        # D113: an enchanted pack grants its +3 sword through ENCHANT_FIELD and confirms the level.
         enchanted=fixture.phase4.profiles('phase4-enchant')['owner']|{'account_id':'01970000-0000-7000-8000-000000000042'}
-        with self.assertRaisesRegex(ValueError,'cannot be provisioned'):seed.grant_role('phase4-enchant','owner',enchanted,'127.0.0.1:15051',lambda c,**k:self.fail('called'))
+        bodies=[]
+        def enchant_runner(command,**kwargs):
+            body=json.loads(command[command.index('-d')+1]);method=command[-1].rsplit('/',1)[1]
+            items=[dict(instanceId=str(4294967296+i),templateId=r['template_id'],count=str(r['count']),enchant=r['enchant'])
+                   for i,r in enumerate(enchanted['inventory'])]
+            paperdoll=[dict(slot='EQUIP_SLOT_'+r['slot'].upper(),instanceId=str(4294967296+i)) for i,r in enumerate(enchanted['inventory']) if r['slot']]
+            if method=='GrantItem':
+                bodies.append(body)
+                return Done(dict(result=dict(receiptId=body['idempotencyKey'],operation='ITEM_OPERATION_GRANT',inventoryRevision='2'),
+                                 inventory=dict(items=items,paperdoll=paperdoll)))
+            return Done(dict(inventory=dict(inventoryRevision='9',items=items,paperdoll=paperdoll)))
+        with patch.object(seed.shutil,'which',return_value='/usr/bin/buf'):
+            result=seed.grant_role('phase4-enchant','owner',enchanted,'127.0.0.1:15051',enchant_runner)
+        self.assertEqual([b.get(seed.ENCHANT_FIELD) for b in bodies if b['templateId']==71],[None,3])
+        self.assertEqual(seed.ENCHANT_FIELD,'enchant_level')
+        self.assertEqual(set(result['instance_map']),{str(r['instance_id']) for r in enchanted['inventory']})
+        # The server reporting +0 where the pack needs +3 refuses.
+        def wrong(command,**kwargs):
+            reply=enchant_runner(command,**kwargs);body=json.loads(reply.stdout)
+            for item in body['inventory']['items']:item['enchant']=0
+            reply.stdout=json.dumps(body);return reply
+        with patch.object(seed.shutil,'which',return_value='/usr/bin/buf'):
+            with self.assertRaisesRegex(ValueError,'admission mismatch'):seed.grant_role('phase4-enchant','owner',enchanted,'127.0.0.1:15051',wrong)
         for address in ('127.0.0.1:50051','10.0.0.1:15051','127.0.0.1','localhost:80'):
             with self.assertRaises(ValueError):seed.guarded_grpc(address)
+
+    def test_zone_flags_are_per_unit(self):
+        # Phase 4 packs boot V6; Phase 2/3 units leave PHASE4_ENABLED unset (byte-exact legacy).
+        for pack in fixture.PHASE4:self.assertEqual(fixture.zone_flags(pack),{'PHASE3_ENABLED':'1','PHASE4_ENABLED':'1'},pack)
+        for pack in fixture.PHASE3|fixture.PHASE2:self.assertNotIn('PHASE4_ENABLED',fixture.zone_flags(pack),pack)
+        lib=(SCRIPTS/'sim-lib.sh').read_text();soak=(SCRIPTS/'run-soak.sh').read_text()
+        self.assertNotIn('PHASE4_ENABLED=1 exec',lib);self.assertIn('unset PHASE4_ENABLED',lib)
+        self.assertIn('ZONE_FLAGS=(env -u PHASE4_ENABLED)',soak);self.assertNotIn('PHASE4_ENABLED="$ITEMS"',soak)
 
     def test_stage_manifests_are_validated(self):
         roles={name:r|{'account_id':'owner'} for name,r in fixture.phase4.profiles('phase4-equip').items()}

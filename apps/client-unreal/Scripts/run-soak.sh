@@ -111,6 +111,13 @@ if ((CASTING)); then
     --compose-project "$COMPOSE_PROJECT" --compose-file "$OUT/compose.json" \
     >"$OUT/seed.log" 2>&1
 fi
+# Per-run zone flags from the role manifest: the items soak boots V6; other soaks leave
+# PHASE4_ENABLED unset (legacy recordings stay byte-exact).
+ZONE_FLAGS=(env -u PHASE4_ENABLED)
+if [[ "$(python3 -c 'import json,sys; print(int(json.load(open(sys.argv[1])).get("items") is True))' "$OUT/fixtures/roles.json" 2>/dev/null || echo 0)" == 1 ]]; then
+  ((ITEMS)) || sim_die "role manifest declares items but --items was not requested"
+  ZONE_FLAGS=(env PHASE4_ENABLED=1)
+fi
 DATABASE_URL="postgres://nightfall:nightfall@localhost:$((5432 + OFFSET))/$SOAK_DB" \
 NATS_URL="nats://localhost:$((4222 + OFFSET))" \
 HTTP_ADDR="127.0.0.1:$HTTP_PORT" GRPC_ADDR="127.0.0.1:$GRPC_PORT" \
@@ -118,7 +125,7 @@ WS_PUBLIC_URL="ws://localhost:$HTTP_PORT/ws" AUTH_DEV_TOKENS=1 WS_MAX_SESSIONS_P
 OIDC_ISSUER="http://localhost:$((8080 + OFFSET))/realms/nightfall" OIDC_AUDIENCE=nightfall-api \
 OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:$((4317 + OFFSET))" OTEL_SERVICE_NAME=nightfall-api \
 ZONE_FILE="$OUT/fixtures/data/zones/test_zone.toml" RULES_DIR="$OUT/fixtures/data" \
-PHASE3_ENABLED="$CASTING" PHASE4_ENABLED="$ITEMS" \
+PHASE3_ENABLED="$CASTING" "${ZONE_FLAGS[@]}" \
 "$SOAK_API_BIN" >"$OUT/api.log" 2>&1 &
 API_PID=$!
 for ((i=0; i<180; i++)); do

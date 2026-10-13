@@ -33,6 +33,9 @@ REPO = Path(__file__).resolve().parents[2]
 BACKFILL = REPO / 'apps/api/src/infrastructure/postgres/migrations/m20261012_000011_pending_item_backfill.sql'
 PROTO = REPO / 'packages/proto'
 SERVICE = 'nightfall.v1.GameService'
+# D113: optional enchant level on the dev GrantItem request (proto field name; protobuf JSON
+# accepts the proto name as well as its lowerCamel json_name).
+ENCHANT_FIELD = 'enchant_level'
 GRANT_ATTEMPTS = 3
 
 
@@ -84,8 +87,9 @@ def seed_sql(roles):
 def grant_plan(fixture, name, role, repo=REPO):
     """Grants that turn the materialized starter kit into the pack inventory.
 
-    Returns (grants, blockers). A grant is {index, template_id, count, key}; blockers name
-    pack rows the GrantItem transport cannot produce.
+    Returns (grants, blockers). A grant is {index, template_id, count, enchant, key}; blockers
+    name pack rows the GrantItem transport cannot produce. D113: enchanted non-stackable
+    instances are granted at their level through ENCHANT_FIELD; kit instances stay at +0.
     """
     catalogue = contracts.catalogue(repo)
     kit = next(k for k in contracts.table('starter_kits', repo)['kits'] if k['class_id'] == role['base_class_id'])
@@ -95,14 +99,16 @@ def grant_plan(fixture, name, role, repo=REPO):
         kit_instances[row['template_id']] = kit_instances.get(row['template_id'], 0) + 1
         if row['equipped']:
             kit_equipped[row['template_id']] = kit_equipped.get(row['template_id'], 0) + 1
-    blockers, totals, instances, equipped = [], {}, {}, {}
+    blockers, totals, enchants, equipped = [], {}, {}, {}
     for row in role['inventory']:
         template = row['template_id']
-        if row['enchant'] or row['charge_bits'] or row['augment_id'] is not None:
-            blockers.append(dict(instance_id=row['instance_id'], template_id=template, enchant=row['enchant'],
-                                 reason='enchant/charges/augment have no GrantItem transport'))
+        if row['charge_bits'] or row['augment_id'] is not None:
+            blockers.append(dict(instance_id=row['instance_id'], template_id=template,
+                                 reason='charges/augment have no GrantItem transport'))
+        if row['enchant'] and catalogue[template]['stackable']:
+            blockers.append(dict(instance_id=row['instance_id'], template_id=template, reason='enchanted stackable'))
         totals[template] = totals.get(template, 0) + row['count']
-        instances[template] = instances.get(template, 0) + 1
+        enchants.setdefault(template, []).append(row['enchant'])
         if row['slot'] is not None:
             equipped[template] = equipped.get(template, 0) + 1
     for template, count in equipped.items():
@@ -112,16 +118,22 @@ def grant_plan(fixture, name, role, repo=REPO):
     for template in sorted(totals):
         if catalogue[template]['stackable']:
             missing = totals[template] - kit_total.get(template, 0)
-            calls = [missing] if missing > 0 else []
+            if missing < 0:
+                raise ValueError(f'pack {fixture}/{name} holds less of template {template} than its starter kit')
+            calls = [(missing, 0)] if missing > 0 else []
         else:
-            missing = instances[template] - kit_instances.get(template, 0)
-            calls = [1] * max(missing, 0)
-        if missing < 0:
-            raise ValueError(f'pack {fixture}/{name} holds less of template {template} than its starter kit')
-        for count in calls:
+            levels = sorted(enchants[template])
+            for _ in range(kit_instances.get(template, 0)):
+                if 0 not in levels:
+                    blockers.append(dict(template_id=template, reason='a starter-kit instance cannot be granted enchanted'))
+                    break
+                levels.remove(0)
+            calls = [(1, level) for level in levels]
+        for count, enchant in calls:
             index = len(grants)
-            key = str(uuid.uuid5(uuid.NAMESPACE_URL, f'nightfall:phase4-fixture:{fixture}:{name}:{index}:{template}:{count}'))
-            grants.append(dict(index=index, template_id=template, count=count, key=key))
+            label = f'nightfall:phase4-fixture:{fixture}:{name}:{index}:{template}:{count}' + (f':+{enchant}' if enchant else '')
+            grants.append(dict(index=index, template_id=template, count=count, enchant=enchant,
+                               key=str(uuid.uuid5(uuid.NAMESPACE_URL, label))))
     return grants, blockers
 
 
@@ -156,6 +168,8 @@ def grant_role(fixture, name, role, grpc, runner=subprocess.run):
     for grant in grants:  # serial per character
         body = dict(characterId=b64(character), templateId=grant['template_id'], count=str(grant['count']),
                     idempotencyKey=grant['key'])
+        if grant['enchant']:
+            body[ENCHANT_FIELD] = grant['enchant']
         for attempt in range(GRANT_ATTEMPTS):
             try:
                 reply = call('GrantItem', body, account, grpc, runner)
