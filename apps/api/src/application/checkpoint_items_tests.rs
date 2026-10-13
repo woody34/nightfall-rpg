@@ -1846,3 +1846,145 @@ async fn refine_audits_are_rederived_and_published_once_each() {
     });
     refused(bad.validate_catalogue(rules), "item_refine_payment");
 }
+
+/// D78 fallbacks for an attempt without its own row (an unchanged enchant): rule 3 anchors
+/// before the target's first row of a LATER command, including a Consume aggregate that names
+/// that command only in `receipt_refs`; rule 4 (nothing later on the target) puts the fact after
+/// every row. An exchange anchors to the base's Consume aggregate carrying its receipt.
+#[tokio::test]
+#[allow(clippy::too_many_lines)] // Four anchor shapes over one shared fixture.
+async fn captured_fact_fallback_anchors_and_exchange_anchor() {
+    use crate::domain::zone::phase4_projection::{
+        ItemAuditEvidence, ItemDeltaPlan, ItemEnchantOutcome, ItemOperation, ItemReceiptRef,
+        ItemResultDetail,
+    };
+    use crate::domain::zone::{EnchantAttempt, ExchangeAudit, ItemInstanceId, ItemLocation};
+    let (cp, mut work) = outbox_fixture().await;
+    let instances = work.projection.checkpoint.instances.clone();
+    let target = instances
+        .iter()
+        .find(|item| item.count == 1)
+        .unwrap()
+        .clone();
+    let other = instances
+        .iter()
+        .find(|item| item.id != target.id)
+        .unwrap()
+        .clone();
+    // Command order: the enchant (index 0), then a later Destroy (index 1).
+    let mut enchant = work.projection.receipts[0].clone();
+    enchant.request_id = Uuid::from_u128(0x0190_0000_0000_7000_8000_0000_0000_0a01);
+    enchant.result.receipt = enchant.request_id;
+    enchant.result.detail = ItemResultDetail::Enchant {
+        target: target.id,
+        old_enchant: target.enchant,
+        new_enchant: target.enchant,
+        outcome: ItemEnchantOutcome::SafeFailed,
+        refunds: Vec::new(),
+        announcement_tier: 0,
+    };
+    let mut later = work.projection.receipts[0].clone();
+    later.request_id = Uuid::from_u128(0x0190_0000_0000_7000_8000_0000_0000_0a02);
+    later.result.receipt = later.request_id;
+    later.result.detail = ItemResultDetail::Operation {
+        operation: ItemOperation::Destroy,
+        affected: vec![target.id],
+        recipe: None,
+    };
+    let later_ref = later.reference();
+    work.projection.receipts = vec![enchant.clone(), later];
+    work.projection.enchant_attempts = vec![EnchantAttempt {
+        operation_ordinal: 1,
+        receipt: enchant.reference(),
+        target: target.id,
+        template: target.template_id,
+        old_enchant: target.enchant,
+        new_enchant: target.enchant,
+        outcome: ItemEnchantOutcome::SafeFailed,
+        before: target.clone(),
+        after: Some(target.clone()),
+        scroll: ItemInstanceId::new(9_999_999).unwrap(),
+        scroll_template: 951,
+        chance_1e5: 0,
+        raw_draw: 199_999,
+        draw: 99_999,
+        cause: ItemAuditEvidence {
+            family: "enchant".into(),
+            fields: BTreeMap::new(),
+        },
+    }];
+    let mut moved = other.clone();
+    moved.location = ItemLocation::Inventory;
+    moved.slot = None;
+    let unequip = ItemDeltaPlan {
+        receipt_refs: Vec::new(),
+        operation: ItemOperation::Unequip,
+        operation_ordinal: 0,
+        instance: other.id,
+        before: Some(other.clone()),
+        after: Some(moved),
+        count_delta: 0,
+        receipt: None,
+        causes: Vec::new(),
+    };
+    let on_target = |operation, receipt, receipt_refs, count_delta| ItemDeltaPlan {
+        receipt_refs,
+        operation,
+        operation_ordinal: 0,
+        instance: target.id,
+        before: Some(target.clone()),
+        after: None,
+        count_delta,
+        receipt,
+        causes: Vec::new(),
+    };
+    // Rule 3: the later command's Destroy of the target.
+    work.projection.ledger = vec![
+        unequip.clone(),
+        on_target(ItemOperation::Destroy, Some(later_ref), Vec::new(), -1),
+    ];
+    assert_eq!(
+        event_kinds(&item_events(&cp, &work, 4).unwrap()),
+        vec![("unequipped", 4), ("enchanted", 5), ("destroyed", 6)]
+    );
+    // Rule 3 through a later Consume aggregate whose receipt is None (receipt_refs only).
+    work.projection.ledger = vec![
+        unequip.clone(),
+        on_target(ItemOperation::Consume, None, vec![later_ref], -1),
+    ];
+    assert_eq!(
+        event_kinds(&item_events(&cp, &work, 4).unwrap()),
+        vec![("unequipped", 4), ("enchanted", 5), ("consumed", 6)]
+    );
+    // Rule 4: nothing on the target this tick, so the audit follows every row.
+    work.projection.ledger = vec![unequip.clone()];
+    assert_eq!(
+        event_kinds(&item_events(&cp, &work, 4).unwrap()),
+        vec![("unequipped", 4), ("enchanted", 5)]
+    );
+    // Exchange: the base's Consume aggregate names the exchange receipt only in receipt_refs.
+    work.projection.enchant_attempts.clear();
+    let exchange_ref = ItemReceiptRef {
+        operation: ItemOperation::Exchange,
+        key: Uuid::from_u128(0x0190_0000_0000_7000_8000_0000_0000_0a03),
+    };
+    let mut product = target.clone();
+    product.id = ItemInstanceId::new(9_999_998).unwrap();
+    work.projection.exchanges = vec![ExchangeAudit {
+        operation_ordinal: 1,
+        receipt: exchange_ref,
+        recipe: 1,
+        maintain_enchantment: false,
+        before: target.clone(),
+        after: product,
+        rows: Vec::new(),
+    }];
+    work.projection.ledger = vec![
+        unequip,
+        on_target(ItemOperation::Consume, None, vec![exchange_ref], -1),
+    ];
+    assert_eq!(
+        event_kinds(&item_events(&cp, &work, 4).unwrap()),
+        vec![("unequipped", 4), ("exchanged", 5), ("consumed", 6)]
+    );
+}

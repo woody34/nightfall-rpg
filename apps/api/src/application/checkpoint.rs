@@ -1366,8 +1366,9 @@ fn captured_item_events(
     // D78: a captured enchant/exchange audit precedes the attempt's OWN ledger row (the
     // target's row of that operation carrying its receipt), so earlier same-tick rows on the
     // target (Equip, then Enchant) stay first. Without such a row it precedes the target's
-    // first row carrying the receipt, else the target's first row of a later command; with
-    // none of these (an unchanged attempt) it follows every row, in operation order.
+    // first row carrying the receipt, else the target's first row of a later command (its
+    // receipt or any Consume aggregate contributor); with none of these (an unchanged attempt
+    // and nothing later on the target) it follows every row, in operation order.
     use crate::domain::zone::phase4_projection::{ItemOperation, ItemReceiptRef};
     let ledger = &work.projection.ledger;
     let command = |receipt: ItemReceiptRef| {
@@ -1393,8 +1394,10 @@ fn captured_item_events(
                     delta.instance == target
                         && delta
                             .receipt
-                            .and_then(command)
-                            .is_some_and(|later| later > mine)
+                            .iter()
+                            .chain(&delta.receipt_refs)
+                            .filter_map(|receipt| command(*receipt))
+                            .any(|later| later > mine)
                 })
             })
             .unwrap_or(ledger.len())
