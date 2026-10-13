@@ -599,6 +599,31 @@ impl crate::application::ports::ItemCheckpointRepository for InMemoryCharacterRe
             }
             staged.item_ledger.push(row);
         }
+        // Mirrors the deferred item_ledger_row_ordinal trigger (D76) once the tick is appended.
+        for row in work.ledger_entries()? {
+            let group: Vec<_> = staged
+                .item_ledger
+                .iter()
+                .filter(|known| {
+                    (known.zone_id, known.epoch, known.tick, known.character_id, known.instance_id)
+                        == (row.zone_id, row.epoch, row.tick, row.character_id, row.instance_id)
+                })
+                .collect();
+            let ordinals: std::collections::BTreeSet<_> =
+                group.iter().map(|known| known.operation_ordinal).collect();
+            let highest = u32::try_from(group.len())
+                .ok()
+                .and_then(|count| count.checked_sub(1));
+            if ordinals.len() != group.len()
+                || ordinals.last().copied() != highest
+                || group.iter().any(|known| {
+                    known.operation == crate::application::ports::ItemLedgerOperation::Consume
+                        && Some(known.operation_ordinal) != highest
+                })
+            {
+                return Err(CheckpointError::Constraint("item_ledger_row_ordinal".into()));
+            }
+        }
         for item in &work.projection.checkpoint.instances {
             if staged.item_inventories.iter().any(|(id, inventory)| {
                 *id != cp.character_id
