@@ -557,7 +557,7 @@ impl ItemCheckpointWork {
             .collect();
         for id in &changed_ids {
             let mut endpoint = old.get(id).copied();
-            let (mut consumed, mut debited, mut ended) = (false, false, false);
+            let (mut consumed, mut ended) = (false, false);
             for (position, delta) in self
                 .projection
                 .ledger
@@ -570,16 +570,18 @@ impl ItemCheckpointWork {
                 }
                 // D66/D94: [non-terminal rows in cause order..., the single Consume aggregate, at
                 // most one terminal row (after = None: whole transfer-out, Destroy, Crystallize)];
-                // nothing follows a terminal row and no credit follows a debit.
+                // nothing follows a terminal row. D100: non-terminal rows keep D69 cause order,
+                // so a credit may follow a non-Consume debit (partial Destroy, then a crystal
+                // refund); continuity, conservation and the D74 caps still bind every row.
                 let terminal = delta.operation != ItemOperation::Consume && delta.after.is_none();
-                if ended || (consumed && !terminal) || (debited && delta.count_delta > 0) {
+                if ended || (consumed && !terminal) {
                     return Err(invalid("item_ledger_row_order"));
                 }
                 ended = terminal;
                 // D76/D55: the ordinal is this row's canonical position 0..n-1 among the
-                // instance's rows this tick, so it strictly increases, every row of one logical
-                // operation (implicit Unequip + Destroy) takes its own ordinal and the Consume
-                // aggregate holds the highest one.
+                // instance's rows this tick, so it strictly increases and every row of one
+                // logical operation (implicit Unequip + Destroy) takes its own ordinal; under D94
+                // the Consume aggregate holds n-1, or n-2 when a terminal row follows it.
                 if u64::from(delta.operation_ordinal)
                     != u64::try_from(position).map_err(anyhow::Error::from)?
                 {
@@ -602,7 +604,6 @@ impl ItemCheckpointWork {
                     validate_consumption(delta)?;
                     consumed = true;
                 }
-                debited |= delta.count_delta < 0;
                 endpoint = delta.after.as_ref();
             }
             if endpoint != new.get(id).copied() {

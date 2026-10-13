@@ -1283,7 +1283,8 @@ async fn rejected_contract<
         ("item_instance_creation_immutable", None), // altered provenance
         // A non-terminal row after the Consume: zone D94 shape check first, then the API.
         ("item_checkpoint_projection", Some("item_ledger_row_order")),
-        ("item_ledger_row_order", None), // positive row after a non-Consume debit
+        // D100: a credit after a non-Consume debit is legal D69 cause order; accepted below.
+        ("accepted", None),
         ("item_checkpoint_projection", None), // split Consume aggregate (domain batch key)
         ("item_checkpoint_projection", Some("item_ledger_row_ordinal")), // D76 ordinal gap
         ("item_checkpoint_projection", Some("item_ledger_row_ordinal")), // D76 Consume at 0
@@ -1391,7 +1392,7 @@ async fn rejected_contract<
                 bad_cp.phase4 = Some(bad.projection.checkpoint.clone());
             },
             9 => {
-                // Destroy(n -> n-2) then grant(n-2 -> n+1): debits may not precede credits.
+                // D100: Destroy(n -> n-2) then grant(n-2 -> n+1), credit after a plain debit.
                 let mut low = end.clone();
                 low.count = start.count.checked_sub(2).unwrap();
                 bad.projection.ledger = vec![
@@ -1431,6 +1432,13 @@ async fn rejected_contract<
             },
             11 => bad.projection.ledger[1].operation_ordinal = 2,
             _ => bad.projection.ledger[1].operation_ordinal = 0,
+        }
+        if expected == "accepted" {
+            // Both gates accept it; settled end to end by the real-tick D100 regression.
+            bad.projection.validate_structure(0).unwrap();
+            bad.validate_catalogue(&bundle.items).unwrap();
+            bad.validate_before(next_before.as_ref()).unwrap();
+            continue;
         }
         if let Some(validator) = validator {
             let result = bad.validate_before(next_before.as_ref());
