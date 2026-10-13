@@ -323,7 +323,9 @@ PHASE4_STATS = {"sDef", "rShld", "shieldDefAngle", "blowRate", "weightLimit", "w
                 # D47: Z folds the abnormal-slot capacity at live admission (402e554).
                 "enlargeAbnormalSlot"}
 PHASE4_EFFECT_PARAMS = {
-    "FatalBlow": {"power": "number", "criticalChance": "int"},
+    # D50: FatalBlow.java:43-46 reads double power, int blowChance/criticalChance;
+    # Z executes FatalBlow/Lethal/blowRate at runtime (bfc00a7).
+    "FatalBlow": {"power": "number", "blowChance": "int", "criticalChance": "int"},
     "Lethal": {"fullLethal": "number", "halfLethal": "number"},
     "Hp": {"amount": "number", "mode": {"DIFF", "PER"}},
     "Escape": {"escapeType": {"TOWN"}},

@@ -185,5 +185,6 @@ in `source_inventory.json`.
 
 D34/D47/D50 promotions (V6 only; historical allow-lists unchanged): PHASE4_STATS
 adds `pvpPhysDmg`, `pvpPhysSkillsDmg`, `pvpMagicalDmg` (Z 4f9ac8c, bfc00a7) and
-`enlargeAbnormalSlot` (Z 402e554). Exact admitted deltas and identities are
+`enlargeAbnormalSlot` (Z 402e554); D50 types the FatalBlow effect parameter
+`blowChance:int` (`FatalBlow.java:43-46`; Z bfc00a7) alongside `power`/`criticalChance`. Exact admitted deltas and identities are
 recorded in `packages/data/SOURCES.md` (Phase 4 promotions).

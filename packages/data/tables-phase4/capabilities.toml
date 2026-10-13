@@ -59039,8 +59039,8 @@ blockers = []
 [[skills]]
 id = 16
 max_level = 24
-admitted = false
-blockers = ["param:FatalBlow.blowChance"]
+admitted = true
+blockers = []
 
 [[skills]]
 id = 18
@@ -59831,8 +59831,8 @@ blockers = []
 [[skills]]
 id = 263
 max_level = 37
-admitted = false
-blockers = ["param:FatalBlow.blowChance"]
+admitted = true
+blockers = []
 
 [[skills]]
 id = 278
@@ -60036,7 +60036,7 @@ blockers = ["cond:player:hp", "stat:healEffect"]
 id = 409
 max_level = 10
 admitted = false
-blockers = ["param:FatalBlow.blowChance", "section:selfEffects"]
+blockers = ["section:selfEffects"]
 
 [[skills]]
 id = 411

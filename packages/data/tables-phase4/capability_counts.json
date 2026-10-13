@@ -12,8 +12,8 @@
     },
     "phase4": {
       "imported": 2705,
-      "admitted": 1560,
-      "deferred": 1145
+      "admitted": 1562,
+      "deferred": 1143
     },
     "changed_definitions": [
       {
@@ -46,9 +46,7 @@
         "before": [
           "effect:FatalBlow"
         ],
-        "after": [
-          "param:FatalBlow.blowChance"
-        ]
+        "after": []
       },
       {
         "id": 22,
@@ -322,9 +320,7 @@
           "effect:FatalBlow",
           "effect:Lethal"
         ],
-        "after": [
-          "param:FatalBlow.blowChance"
-        ]
+        "after": []
       },
       {
         "id": 278,
@@ -479,7 +475,6 @@
           "stat:blowRate"
         ],
         "after": [
-          "param:FatalBlow.blowChance",
           "section:selfEffects"
         ]
       },
@@ -19639,8 +19634,8 @@
         "class": "assassin",
         "imported": 28,
         "phase3_admitted": 14,
-        "phase4_admitted": 17,
-        "phase4_deferred": 11
+        "phase4_admitted": 18,
+        "phase4_deferred": 10
       },
       {
         "class": "bishop",
@@ -19667,8 +19662,8 @@
         "class": "dark_fighter",
         "imported": 13,
         "phase3_admitted": 7,
-        "phase4_admitted": 8,
-        "phase4_deferred": 5
+        "phase4_admitted": 9,
+        "phase4_deferred": 4
       },
       {
         "class": "dark_mystic",
@@ -19702,8 +19697,8 @@
         "class": "elven_fighter",
         "imported": 12,
         "phase3_admitted": 8,
-        "phase4_admitted": 9,
-        "phase4_deferred": 3
+        "phase4_admitted": 10,
+        "phase4_deferred": 2
       },
       {
         "class": "elven_knight",
@@ -19730,8 +19725,8 @@
         "class": "elven_scout",
         "imported": 28,
         "phase3_admitted": 16,
-        "phase4_admitted": 19,
-        "phase4_deferred": 9
+        "phase4_admitted": 20,
+        "phase4_deferred": 8
       },
       {
         "class": "elven_wizard",
@@ -19758,8 +19753,8 @@
         "class": "human_fighter",
         "imported": 10,
         "phase3_admitted": 5,
-        "phase4_admitted": 6,
-        "phase4_deferred": 4
+        "phase4_admitted": 7,
+        "phase4_deferred": 3
       },
       {
         "class": "human_knight",
@@ -19842,8 +19837,8 @@
         "class": "rogue",
         "imported": 25,
         "phase3_admitted": 11,
-        "phase4_admitted": 16,
-        "phase4_deferred": 9
+        "phase4_admitted": 17,
+        "phase4_deferred": 8
       },
       {
         "class": "scavenger",
@@ -19884,8 +19879,8 @@
         "class": "treasure_hunter",
         "imported": 33,
         "phase3_admitted": 12,
-        "phase4_admitted": 15,
-        "phase4_deferred": 18
+        "phase4_admitted": 16,
+        "phase4_deferred": 17
       },
       {
         "class": "warcryer",

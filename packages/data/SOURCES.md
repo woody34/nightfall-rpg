@@ -944,8 +944,17 @@ regenerated with the documented `gen_items.py` command, never hand-edited):
   `data/skillTrees/classSkillTree.xml:172-183`) were already admitted learn inputs
   and keep `use:no_handler`; item counts unchanged.
 
+- D50: `PHASE4_EFFECT_PARAMS["FatalBlow"]` adds `blowChance: int`
+  (`datapack/handlers/effecthandlers/instant/FatalBlow.java:43-46`: double power,
+  int blowChance/criticalChance; Lethal.java:42-43 params and the `blowRate` stat
+  were already represented; Z runtime bfc00a7). The parameter value was already
+  emitted in each skill's `params`; the change types/validates it. Skills +2
+  (16 Mortal Blow, 263 Deadly Blow); item/option/recipe counts unchanged (no item
+  was blocked only by these). 409 keeps `section:selfEffects`, 30 keeps
+  `effect:Backstab`.
+
 Every delta equals the revision-7 read-only preview, item and skill identities
-included (691 items, 69 skills; no demotions).
+included (691 items, 71 skills; no demotions).
 
 Data review revision 4: `scripts/item_coverage.py` independently enumerates
 §12.1 requirements from the design boundaries and pinned source domains;

@@ -5,8 +5,8 @@ import tomllib
 import unittest
 from packages.data.scripts import gen_items as gen, gen_skills as skills
 
-# Admitted counts after the coordinated promotion (data-progress revision 7 preview: D34 PvP + levelRange, D47).
-EXPECTED = {'Weapon': 1536, 'Armor': 1834, 'EtcItem': 416, 'skills': 1560, 'options': 23764,
+# Admitted counts after the coordinated promotion (data-progress revision 7 preview, all four families).
+EXPECTED = {'Weapon': 1536, 'Armor': 1834, 'EtcItem': 416, 'skills': 1562, 'options': 23764,
             'augmentation': 27, 'recipes': 925}
 
 
@@ -45,6 +45,21 @@ class PromotionTests(unittest.TestCase):
                 finally:
                     skills.PHASE4_STATS.clear(); skills.PHASE4_STATS.update(saved)
                 self.assertEqual(self.blockers(sid), set())
+
+    def test_blow_parameters(self):
+        for sid in [16, 263]:
+            self.assertTrue(self.skill[sid]['admitted'], sid)
+            saved = copy.deepcopy(skills.PHASE4_EFFECT_PARAMS)
+            try:
+                del skills.PHASE4_EFFECT_PARAMS['FatalBlow']['blowChance']
+                self.assertEqual(self.blockers(sid), {'param:FatalBlow.blowChance'})
+            finally:
+                skills.PHASE4_EFFECT_PARAMS.clear(); skills.PHASE4_EFFECT_PARAMS.update(saved)
+        # Independent blockers stay deferred (no substitute promotion).
+        self.assertEqual(self.skill[30]['blockers'], ['effect:Backstab'])
+        self.assertIn('section:selfEffects', self.skill[409]['blockers'])
+        for sid, param in [(16, 'blowChance'), (263, 'blowChance')]:
+            self.assertFalse(skills.param_allowed('1.5', skills.PHASE4_EFFECT_PARAMS['FatalBlow'][param]))
 
 
 if __name__ == '__main__':
