@@ -218,7 +218,8 @@ INPUT_SCHEMAS={
         death_incarnation=IDENTITY,current_incarnation=IDENTITY,dead=BOOL,
         response=enum('offer','accept','decline','expire'),response_tick=NONNEG_INT,response_offer_id=nullable(IDENTITY),
         existing_offer=nullable(OFFER),repeat=BOOL,hp=NONNEG_NUMERIC,max_hp=NONNEG_NUMERIC,mp=NONNEG_NUMERIC,
-        cp=NONNEG_NUMERIC,recoverable_xp=NONNEG_INT,restore_percent=NONNEG_NUMERIC,restore_hp=('exact-numeric',0,1)),
+        cp=NONNEG_NUMERIC,recoverable_xp=NONNEG_INT,restore_percent=NONNEG_NUMERIC,restore_hp=('exact-numeric',0,1),
+        max_mp=NONNEG_NUMERIC,restore_mp=('exact-numeric',0,1)),
     'dormant_use':dict(template_id=TEMPLATE,properties=map_of(TEXT,TEXT),inventory=list_of(ITEM),
         selected_instance=IDENTITY,paperdoll=map_of(SLOT,IDENTITY),allocator_next=IDENTITY,reuse=COUNT_MAP),
     'learned_item_cost':dict(skill_id=TEMPLATE,rank=TEMPLATE,consume_id=U32,consume_count=NONNEG_INT,
@@ -516,6 +517,10 @@ def source_data_sha256():
     return table('rules_manifest')['data_sha256']
 
 
+# D104: optional harness inputs beyond the E1 signature (engine MP respawn floor operands).
+EXTRA_INPUTS={'resurrection_scroll':('max_mp','restore_mp')}
+
+
 # Review-2 P3-4 (D89): always-evaluated booleans the producer must emit even though the
 # oracle has a default for them.
 REQUIRED_INPUTS={'magic_damage':('is_pvp',)}
@@ -657,6 +662,8 @@ def formula(name,inputs,actual):
         same(actual,{'unchanged':True})
     elif name in RESIDUE_INPUTS:
         same(actual,oracle.rational(residue_family(name,inputs)))
+    elif name=='resurrection_scroll':
+        same(actual,oracle.rational(resurrection_expected(inputs,actual)))
     else:
         function=getattr(oracle,name,None) or getattr(oracle.behavior,name,None)
         if name=='magic_damage':magic_draws(inputs)
@@ -699,6 +706,48 @@ def gear_fact(calculated):
     """D103: the compared projection of the oracle's gear_stats dictionary."""
     return dict(q={k:calculated['q'][k] for k in GEAR_STATS},getters={k:calculated['getters'][k] for k in GEAR_STATS},
                 base_stats={k:calculated['base_stats'][k] for k in GEAR_BASE_STATS})
+
+
+def resurrection_expected(inputs,actual):
+    """D104: the accepted Phase 3 resurrection semantics over the E1 oracle.
+
+    * offer_id comes from the recording (the actual `offered` event), never the oracle's
+      hard-coded 1; the response is matched against that recorded id.
+    * HP on acceptance = max(current, floor_Q(max_hp × restore_hp)) at Q resolution.
+    * MP: the Phase 3 zone design §1.2 (pinned doRevive, RespawnRestoreMP default 0) preserves
+      current MP. The engine raises MP to its respawn floor; that is a recorded Phase 3
+      deviation, accepted only as max(mp, floor(max_mp × restore_mp)) when those operands are
+      given, otherwise as any raise above the current MP — never a decrease.
+    """
+    decoded=oracle.decode_rationals({k:v for k,v in inputs.items() if k not in EXTRA_INPUTS['resurrection_scroll']})
+    recorded=None
+    if isinstance(actual,dict) and isinstance(actual.get('trace'),list):
+        offered=[e for e in actual['trace'] if isinstance(e,dict) and e.get('event')=='offered']
+        if offered:
+            recorded=offered[0].get('offer',{}).get('offer_id') if isinstance(offered[0].get('offer'),dict) else None
+            if type(recorded) is not int or recorded<1:raise ValueError('resurrection offer_id must come from the recording (D104)')
+    call=dict(decoded)
+    if recorded is not None and decoded['existing_offer'] is None:
+        response=decoded['response_offer_id']
+        call['response_offer_id']=1 if response==recorded else (2**63-1 if response==1 else response)
+    result=oracle.behavior.resurrection_scroll(**call)
+    if recorded is not None and decoded['existing_offer'] is None:
+        def relabel(offer):
+            if isinstance(offer,dict) and offer.get('offer_id')==1:offer['offer_id']=recorded
+        relabel(result['offer'])
+        for event in result['trace']:relabel(event.get('offer'))
+    if any(event['event']=='accepted' for event in result.get('trace',())):
+        floor_q=oracle.F(decoded['max_hp'])*oracle.F(decoded['restore_hp'])*oracle.Q//1
+        result['hp']=max(oracle.F(decoded['hp']),oracle.F(int(floor_q),oracle.Q));result['hp_q']=int(result['hp']*oracle.Q)
+        mp=oracle.F(decoded['mp']);seen=actual.get('mp') if isinstance(actual,dict) else None
+        seen=oracle.exact(oracle.decode_rationals(seen)) if seen is not None else mp
+        if seen!=mp:
+            if 'max_mp' in inputs and 'restore_mp' in inputs:
+                floor_mp=int(oracle.exact(oracle.decode_rationals(inputs['max_mp']))*oracle.exact(oracle.decode_rationals(inputs['restore_mp'])))
+                if seen!=max(mp,oracle.F(floor_mp)):raise ValueError('resurrection MP is neither preserved nor the engine respawn floor (D104)')
+            elif seen<mp:raise ValueError('resurrection may not lower MP (D104)')
+            result['mp']=seen # recorded Phase 3 deviation (engine respawn-floor MP)
+    return result
 
 
 @lru_cache(maxsize=None)

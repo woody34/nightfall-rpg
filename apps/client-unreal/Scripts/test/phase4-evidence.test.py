@@ -1951,6 +1951,37 @@ class Evidence(unittest.TestCase):
             bad=copy.deepcopy(rows);bad[1]['data']['inputs']['restore_hp']=value
             self.assertFalse(gate.evaluate(bad,self.recording,OWNER,['resurrection_scroll'],HASH)['passed'])
 
+    def test_d104_resurrection_q_floor_hp_recorded_offer_and_mp_deviation(self):
+        F=gate.oracle.F;Q=gate.oracle.Q
+        definition=gate.oracle.consumable_definition(gate.source(),737)
+        inputs=dict(definition=definition,start_tick=10,available=2,death_incarnation=7,current_incarnation=7,dead=True,
+                    response='accept',response_tick=160,response_offer_id=41,existing_offer=None,repeat=False,hp=0,max_hp=100,
+                    mp=13,cp=17,recoverable_xp=101,restore_percent=0,restore_hp=F(2,3))
+        # Independent expectation: the oracle run with its own id 1, relabelled to the recorded 41,
+        # HP as the Q-resolution floor of 100 x 2/3 (66.666666), MP preserved (Phase 3 design §1.2).
+        base=gate.oracle.behavior.resurrection_scroll(**inputs|dict(response_offer_id=1))
+        for event in base['trace']:
+            if isinstance(event.get('offer'),dict):event['offer']['offer_id']=41
+        base['hp']=F(66666666,Q);base['hp_q']=66666666
+        control=gate.oracle.rational(base)
+        rows=copy.deepcopy(self.rows);rows[1]['data'].update(formula='resurrection_scroll',inputs=gate.oracle.rational(inputs),actual=control)
+        self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['resurrection_scroll'],HASH)['passed'])
+        def rejected(actual,extra=None):
+            with self.assertRaises(ValueError):gate.formula('resurrection_scroll',gate.oracle.rational(inputs|(extra or {})),actual)
+        exact=copy.deepcopy(control);exact.update(hp={'numerator':200,'denominator':3},hp_q=66666666);rejected(exact)
+        ceiling=copy.deepcopy(control);ceiling.update(hp={'numerator':66666667,'denominator':Q},hp_q=66666667);rejected(ceiling)
+        hard=gate.oracle.rational(gate.oracle.behavior.resurrection_scroll(**inputs|dict(response_offer_id=1)))
+        rejected(hard) # oracle-hard-coded id 1 with the recorded response 41: not the recorded offer
+        zero=copy.deepcopy(control);zero['trace'][2]['offer']['offer_id']=0;rejected(zero)
+        # MP: the engine's respawn floor is an accepted, recorded deviation; anything else rejects.
+        floor=copy.deepcopy(control);floor['mp']={'numerator':35,'denominator':1}
+        gate.formula('resurrection_scroll',gate.oracle.rational(inputs|dict(max_mp=50,restore_mp=F(7,10))),floor)
+        gate.formula('resurrection_scroll',gate.oracle.rational(inputs),floor) # operands absent: a raise is accepted
+        for mp in (36,34):
+            bad=copy.deepcopy(control);bad['mp']={'numerator':mp,'denominator':1};rejected(bad,dict(max_mp=50,restore_mp=F(7,10)))
+        lower=copy.deepcopy(control);lower['mp']={'numerator':12,'denominator':1};rejected(lower)
+        print('D104: Q-floor HP, recorded offer_id and the engine MP respawn floor (recorded deviation) pass; exact/ceil HP, id 1 and other MP reject',flush=True)
+
     def test_signed_formula_controls(self):
         for name,inputs in [('grade_penalties',dict(equipped=[],expertise=0,bonus=-2)),
                             ('max_load',dict(con_bonus=1,add=-10)),
@@ -2040,7 +2071,7 @@ class Evidence(unittest.TestCase):
             with self.subTest(formula=name):
                 parameters=dict(inspect.signature(function).parameters);parameters.pop('src',None)
                 # D87 adds the critical/spread residues the E1 rev 8 oracle still hard-codes.
-                self.assertEqual(set(gate.INPUT_SCHEMAS[name]),set(parameters)|set(gate.RESIDUE_INPUTS.get(name,())))
+                self.assertEqual(set(gate.INPUT_SCHEMAS[name]),set(parameters)|set(gate.RESIDUE_INPUTS.get(name,()))|set(gate.EXTRA_INPUTS.get(name,())))
                 for key,param in parameters.items():
                     # D89: always-evaluated booleans are never null; draw-derived flags may be.
                     if (name,key)==('magic_damage','is_pvp'):self.assertEqual(gate.INPUT_SCHEMAS[name][key],gate.BOOL)

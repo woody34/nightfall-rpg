@@ -397,7 +397,7 @@ design `docs/plans/phase-4-zone-design.md` §12.1 and the producer in
 | `charge_transition` | discharge/unequip, `attack`/`cast`/`unequip` | `charges` set before, `use_spirit`, `use_soul`, `landed`, `unequip` | sorted charges after; correlates with the D73 `use` row on the weapon |
 | `consumable_use` | UseItem acceptance, `cast` | `definition` (E1 item definition + skills), `tick`, `available` count map, reuse deadline maps, `main_casting`, `condition_context` | `{accepted, consumed, lanes, reason?, item_deadlines?, skill_deadlines?, main_cast_preserved?}`; accepted costs appear as Consume causes `receipt:use:<key>` |
 | `escape_timing` | Escape/Blessed Escape cast start, `cast` | `definition`, `start_tick`, `casting_speed`, `available`, `resources`, `incarnation` | `{accepted, inventory, consumed, draws, animation_ms?, launch_ms?, launch_tick?, completion_tick?, interrupt_cutoff_tick?, completion_consumed?, destination?, resources?, incarnation?, movement_canceled?, auto_canceled?, town_respawn?}` |
-| `resurrection_scroll` | scroll 737 cast + offer response, `cast` | `definition`, `start_tick`, `available`, death/current incarnation, `dead`, `response∈offer/accept/decline/expire`, `response_tick`, `response_offer_id`, `existing_offer`, `repeat`, resources, `restore_percent`, `restore_hp` ratio | `{accepted, consumed, inventory, draws, reason?, completion_consumed?, offer?, trace?, dead?, incarnation?, hp?, hp_q?, mp?, cp?, xp_refund?, recoverable_xp?}`; one fact on the resurrection-applied tick under the intent's resolution id (D92) |
+| `resurrection_scroll` | scroll 737 cast + offer response, `cast` | `definition`, `start_tick`, `available`, death/current incarnation, `dead`, `response∈offer/accept/decline/expire`, `response_tick`, `response_offer_id`, `existing_offer`, `repeat`, resources, `restore_percent`, `restore_hp` ratio | `{accepted, consumed, inventory, draws, reason?, completion_consumed?, offer?, trace?, dead?, incarnation?, hp?, hp_q?, mp?, cp?, xp_refund?, recoverable_xp?}`; one fact on the resurrection-applied tick under the intent's resolution id (D92); HP Q-floor, recorded offer_id, MP preserved or the engine respawn floor as a recorded deviation, optional `max_mp`/`restore_mp` inputs (D104) |
 | `learned_item_cost` | learned skill with itemConsume, `cast` | `skill_id`, `rank`, `consume_id`, `consume_count`, `inventory` ITEM records, `phase∈complete/cancel`, `repeat` | `{accepted, inventory, consumed, draws, completion_consumed?, repeated_consumed?, phase?}`; debits are `item_cast:cast:<id>` Consume causes |
 | `lethal` | blow skill, `cast` | D81 nullable residues | `{outcome∈none/full/half, draws}` |
 
@@ -480,3 +480,15 @@ verified by exact oracle equality on the producer's actual inputs.
   A use row with any discharge cause may only CLEAR charge bits
   (`after.charges & ~before.charges == 0`); only a receipt-bound use (manual
   shot charge) may add them.
+- D104 (Q-Z8-2): `resurrection_scroll` follows the engine's accepted Phase 3
+  resurrection semantics. On acceptance HP = max(current, floor at Q resolution
+  of `max_hp × restore_hp`); the exact rational and any ceiling refuse.
+  `offer_id` comes from the recording (the `offered` trace event; a positive
+  integer) and the response is matched against it, never against a
+  hard-coded 1. MP: the Phase 3 zone design §1.2 (pinned
+  `L2PcInstance.doRevive`, `RespawnRestoreMP` default 0) specifies NO MP
+  restore — current MP is preserved. The engine raises MP to its respawn
+  floor; that is recorded as a KNOWN Phase 3 DEVIATION (to be re-examined, not
+  changed in Phase 4) and accepted as exactly `max(mp, floor(max_mp ×
+  restore_mp))` when the optional inputs `max_mp`/`restore_mp` are emitted,
+  otherwise as any raise; an MP decrease refuses.
