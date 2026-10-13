@@ -357,6 +357,8 @@ def decode_data(kind,data):
 ANY=('any',)
 SIGNED=('int',-2**63,I64_MAX)
 DRAW=record(dict(site=TEXT,bound=IDENTITY,residue=NONNEG_INT))
+GEAR_STATS=('pAtk','mAtk','pDef','mDef','critRate','pAtkSpd','maxHp','maxMp','maxCp','mAtkSpd','runSpd')
+GEAR_BASE_STATS=('STR','DEX','CON','INT','WIT','MEN')
 ACTUAL_SCHEMAS={
     'pole_sequence':list_of(record(dict(percent=NONNEG_NUMERIC,hit=BOOL,draws=list_of(enum('shield','critical','spread'))),
         dict(base=SIGNED,damage=SIGNED))),
@@ -368,9 +370,11 @@ ACTUAL_SCHEMAS={
     'heal':record(dict(amount=NONNEG_NUMERIC,restoration_q=NONNEG_INT,applied_q=NONNEG_INT,current_hp=NONNEG_INT,
         remainder_q=int_range(0,oracle.Q-1),whole_credit=NONNEG_INT,coefficient=NONNEG_NUMERIC,static_bonus=NONNEG_NUMERIC,
         root_lower=NONNEG_NUMERIC,root_upper=NONNEG_NUMERIC)),
-    'gear_stats':record(dict(exact=map_of(TEXT,NUMERIC),root_expressions=map_of(TEXT,ANY),q=map_of(TEXT,SIGNED),
-        getters=map_of(TEXT,SIGNED),trace=list_of(ANY),base_stats=map_of(TEXT,NONNEG_INT),weapon_type=WEAPON_TYPE,
-        random_damage=NONNEG_INT,spread_bound=IDENTITY,enchant_hp=NONNEG_NUMERIC,traits=list_of(ANY),weight=NONNEG_INT)),
+    # D103 (amends D90): only the 11 engine-folded stats as q and getters (trunc q/Q) plus the
+    # six base stats after set/skill deltas; `exact`, the fold trace and other oracle keys are
+    # not part of the fact.
+    'gear_stats':record(dict(q=record({k:SIGNED for k in GEAR_STATS}),getters=record({k:SIGNED for k in GEAR_STATS}),
+        base_stats=record({k:NONNEG_INT for k in GEAR_BASE_STATS}))),
     'set_shield_history':BOOL,
     'clamp_no_heal':NONNEG_NUMERIC,
     'charge_transition':list_of(CHARGE),
@@ -618,7 +622,7 @@ def formula(name,inputs,actual):
         class_file=inputs['class_file']
         if not re.fullmatch(r'src/main/resources/data/stats/chars/baseStats/[A-Za-z]+\.xml',class_file):raise ValueError('invalid pinned class file')
         calculated=oracle.rational(oracle.gear_stats(source(),**oracle.decode_rationals(inputs)))
-        same(actual,calculated)
+        same(actual,gear_fact(calculated))
     elif name=='sa_exchange':
         required={'recipe_id','before_instance','after_instance','ingredients_before','ingredients_after','tax_rate'}
         if set(inputs)!=required:raise ValueError('incomplete SA inputs')
@@ -689,6 +693,12 @@ def magic_draws(inputs):
     second=first and inputs.get('first_success') is False and inputs.get('attacker_player',True)
     for key,taken in (('first_success',first),('second_success',second)):
         if (inputs.get(key) is None)==taken:raise ValueError('magic_damage '+key+' must be null iff its draw was not taken (D89)')
+
+
+def gear_fact(calculated):
+    """D103: the compared projection of the oracle's gear_stats dictionary."""
+    return dict(q={k:calculated['q'][k] for k in GEAR_STATS},getters={k:calculated['getters'][k] for k in GEAR_STATS},
+                base_stats={k:calculated['base_stats'][k] for k in GEAR_BASE_STATS})
 
 
 @lru_cache(maxsize=None)

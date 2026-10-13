@@ -391,7 +391,7 @@ design `docs/plans/phase-4-zone-design.md` §12.1 and the producer in
 | `dual_plan` | dual swing, `attack` | `hits` pair (hit iff residue <= `hit_chance`, chance in [200, 980], calcHitMiss), `formulas` pair, `second_valid`, `hit_residues` pair, `hit_chance`, `spread_radius`, `critical_residues` pair and `spread_residues` pair (D87, required, entry null iff that subhit's draw was not taken, D89) | `{plan, stored_second, applied=[first, second|null], second_recomputed, draws, refunded_draws}` |
 | `magic_damage` | magic skill hit, `cast` (+`skill_id`, `target_entity`) | exact stats + shot flags + branch inputs; `first_success`/`second_success` null iff their draw was not taken; `is_pvp` required boolean (D89) | `{lower, upper, damage, damage_q, branch}` |
 | `heal` | heal effect, `cast` | power/m_atk/shot/grade inputs; `current_hp`, `remainder_q` before; `recoverable_hp` null = uncapped | `{amount, restoration_q, applied_q, current_hp, remainder_q, whole_credit, coefficient, static_bonus, root_lower, root_upper}` |
-| `gear_stats` | dirty rebuild, `equip`/`unequip`/`enchant`/`admission` (+`set_id`) | `class_file` pinned path, `level`, `equipment` `[template, enchant, slot, install_seq]`, `skill_refs` `[skill, rank, seq]` winning providers, `base_deltas`, `base_delta_sequence` | `{exact, root_expressions, q, getters, trace, base_stats, weapon_type, random_damage, spread_bound, enchant_hp, traits, weight}`, full dictionary, `trace` in oracle order (D90) |
+| `gear_stats` | dirty rebuild, `equip`/`unequip`/`enchant`/`admission` (+`set_id`) | `class_file` pinned path, `level`, `equipment` `[template, enchant, slot, install_seq]`, `skill_refs` `[skill, rank, seq]` winning providers, `base_deltas`, `base_delta_sequence` | `{q, getters, base_stats}`: q/getters = exactly the 11 folded stats (pAtk, mAtk, pDef, mDef, critRate, pAtkSpd, maxHp, maxMp, maxCp, mAtkSpd, runSpd), getters = trunc(q/Q); base_stats STR..MEN after deltas (D103) |
 | `set_shield_history` | set listener on slot mutation, `equip`/`unequip` + `set_id` | `previous`, `mutation∈remove/equip_shield/equip_chest`, `chest_present`, `matching_shield`, `complete`, `required_part` | boolean `shield_skill_active` after the mutation (D20) |
 | `clamp_no_heal` | dirty-rebuild clamp, event of the rebuild | `current`, `new_max` exact | `min(current,new_max)`; one fact per resource, `resolution_id` suffix `:hp|:mp|:cp` (D91) |
 | `charge_transition` | discharge/unequip, `attack`/`cast`/`unequip` | `charges` set before, `use_spirit`, `use_soul`, `landed`, `unequip` | sorted charges after; correlates with the D73 `use` row on the weapon |
@@ -445,12 +445,13 @@ verified by exact oracle equality on the producer's actual inputs.
   attacker). Booleans that are always evaluated are never null:
   `magic_damage.is_pvp` is a plain boolean and REQUIRED (review-2 P3-4), even
   though the oracle has a default for it.
-- D90 (Q-F4): the `gear_stats` producer emits the oracle's FULL dictionary
-  (`exact, root_expressions, q, getters, trace, base_stats, weapon_type,
-  random_damage, spread_bound, enchant_hp, traits, weight`), with `trace` rows
-  in oracle order (function order, then install sequence, then
-  (effect, child) ordinal). Missing/extra keys refuse by schema; reordered or
-  dropped trace rows refuse by exact oracle equality.
+- D90 (Q-F4), amended by D103: a `gear_stats` fact's `actual` is exactly
+  `{q, getters, base_stats}`. `q` and `getters` (trunc q/Q) each carry exactly
+  the 11 engine-folded stats `pAtk, mAtk, pDef, mDef, critRate, pAtkSpd,
+  maxHp, maxMp, maxCp, mAtkSpd, runSpd`; `base_stats` carries `STR, DEX, CON,
+  INT, WIT, MEN` after set/skill deltas. The consumer compares exactly these
+  keys with the oracle's `q`/`getters`/`base_stats`. `exact`, the fold `trace`
+  and every other oracle key are not part of the fact and refuse if present.
 - D91 (Q-F5): every `clamp_no_heal` fact's `resolution_id` is
   `<rebuild resolution>:hp|:mp|:cp` (lowercase, nonempty prefix), so the HP,
   MP and CP clamps of one rebuild are distinct formula identities.

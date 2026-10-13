@@ -1795,26 +1795,34 @@ class Evidence(unittest.TestCase):
         with self.assertRaises(ValueError):gate.input_domains('magic_damage',{k:v for k,v in magic.items() if k!='is_pvp'})
         print(f'D89: {len(controls)} draw-derived controls pass; {len(mutations)} null/present mismatches and a null is_pvp reject',flush=True)
 
-    def test_d90_gear_stats_full_dictionary_with_ordered_trace(self):
+    def test_d103_gear_stats_fact_is_folded_stats_and_base_stats(self):
         vectors=json.loads((gate.REPO/'packages/data/fixtures/item-oracle.json').read_text())['vectors']
         controls=0
         for vector in vectors:
             if not {'class_file','level','equipment'}<=set(vector['inputs'])<=set(gate.INPUT_SCHEMAS['gear_stats']):continue
             inputs=dict(skill_refs=[],base_deltas=None,base_delta_sequence=-1)|copy.deepcopy(vector['inputs'])
-            actual=gate.oracle.rational(gate.oracle.gear_stats(gate.source(),**gate.oracle.decode_rationals(inputs)))
-            try:gate.formula('gear_stats',inputs,actual)
+            full=gate.oracle.rational(gate.oracle.gear_stats(gate.source(),**gate.oracle.decode_rationals(inputs)))
+            fact=gate.gear_fact(full)
+            try:gate.formula('gear_stats',inputs,fact)
             except ValueError:continue
             controls+=1
-            if len(actual['trace'])<2:continue
-            mutations={'reversed trace':lambda a:a['trace'].reverse(),'dropped trace row':lambda a:a['trace'].pop(),
-                       'missing trace':lambda a:a.pop('trace'),'missing traits':lambda a:a.pop('traits'),
-                       'missing root_expressions':lambda a:a.pop('root_expressions'),'extra key':lambda a:a.update(note=1)}
+            self.assertEqual(set(fact['q']),set(gate.GEAR_STATS));self.assertEqual(set(fact['base_stats']),set(gate.GEAR_BASE_STATS))
+            self.assertEqual(fact['getters'],{k:v//gate.oracle.Q for k,v in fact['q'].items()} if all(v>=0 for v in fact['q'].values()) else fact['getters'])
+            first=lambda d:next(iter(d))
+            mutations={'full oracle dictionary':lambda a:a.update({k:v for k,v in full.items() if k not in a}),
+                       'exact included':lambda a:a.update(exact=full['exact']),'trace included':lambda a:a.update(trace=full['trace']),
+                       'missing q':lambda a:a.pop('q'),'missing getters':lambda a:a.pop('getters'),'missing base_stats':lambda a:a.pop('base_stats'),
+                       'missing folded stat':lambda a:a['q'].pop('runSpd'),'extra folded stat':lambda a:a['getters'].update(regHp=1),
+                       'q drift':lambda a:a['q'].update(pAtk=a['q']['pAtk']+1),
+                       'getter drift':lambda a:a['getters'].update(maxHp=a['getters']['maxHp']+1),
+                       'base stat drift':lambda a:a['base_stats'].update(CON=a['base_stats']['CON']+1),
+                       'missing base stat':lambda a:a['base_stats'].pop('MEN')}
             for label,mutate in mutations.items():
                 with self.subTest(vector=vector['id'],mutation=label):
-                    bad=copy.deepcopy(actual);mutate(bad)
+                    bad=copy.deepcopy(fact);mutate(bad)
                     with self.assertRaises(ValueError):gate.formula('gear_stats',inputs,bad)
         self.assertGreaterEqual(controls,1)
-        print(f'D90: {controls} full gear_stats dictionaries pass; reordered/dropped trace rows and missing keys reject',flush=True)
+        print(f'D103: {controls} gear_stats facts (11 folded q/getters + 6 base stats) pass; exact/trace/extra keys and drift reject',flush=True)
 
     def test_d91_clamp_no_heal_resource_suffix(self):
         rows=copy.deepcopy(self.rows);base=rows[1]
@@ -2086,6 +2094,7 @@ class Evidence(unittest.TestCase):
                     else:output=function(src,**decoded) if 'src' in parameters else function(**decoded)
                 except (ValueError,TypeError,KeyError,IndexError,ZeroDivisionError):continue
                 actual=gate.oracle.rational(output)
+                if name=='gear_stats':actual=gate.gear_fact(actual) # D103: the fact is the compared projection
                 with self.subTest(formula=name,vector=vector['id']):
                     gate.validate_input(actual,gate.ACTUAL_SCHEMAS[name],name+'.actual')
                 covered[name]=covered.get(name,0)+1
@@ -2277,7 +2286,7 @@ class Evidence(unittest.TestCase):
                     equipment=[[58,0,'chest',1],[628,0,'lhand',2],[461,0,'legs',0]],skill_refs=[[3543,1,3]],base_deltas={},base_delta_sequence=0)
         rows=copy.deepcopy(self.rows)
         def fact(values):
-            return dict(formula='gear_stats',inputs=values,actual=gate.oracle.rational(gate.oracle.gear_stats(gate.source(),**values)),
+            return dict(formula='gear_stats',inputs=values,actual=gate.gear_fact(gate.oracle.rational(gate.oracle.gear_stats(gate.source(),**values))),
                         context={'set_id':3,'event':'admission'},baseline=False,resolution_id='admission:1')
         rows[1]['data']=fact(inputs)
         self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['gear_stats'],HASH,[phase])['passed'])
