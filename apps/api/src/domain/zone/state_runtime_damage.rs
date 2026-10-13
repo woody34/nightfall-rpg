@@ -9662,7 +9662,7 @@ mod tests {
             run.tick(owner.entity, Vec::new());
         }
         let names = run.formulas();
-        for required in ["bow_reuse", "bow_damage", "physical_damage"] {
+        for required in ["bow_reuse", "bow_damage", "bow_launch", "physical_damage"] {
             assert!(names.contains(required), "{required}: {names:?}");
         }
         run.write("NIGHTFALL_TEST_BOW_RECORDING");

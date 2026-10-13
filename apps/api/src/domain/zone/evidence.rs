@@ -39,6 +39,9 @@ pub(crate) struct EvidenceBuffer {
     pub facts: Vec<EvidenceFact>,
     pub draws: Vec<EvidenceDraw>,
     pub items: Option<Vec<ItemEvidenceFact>>,
+    /// D46 `bow_launch` facts opened at an accepted bow start and completed with the hit,
+    /// critical and spread residues at impact: (resolution id, inputs, actual). Evidence only.
+    pub pending_launch: std::collections::BTreeMap<EntityId, (String, Value, Value)>,
 }
 
 /// D46 observations captured at their operation boundary, never persisted as state.

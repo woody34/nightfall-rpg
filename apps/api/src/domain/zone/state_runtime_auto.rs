@@ -171,7 +171,18 @@ impl ZoneState {
                 (AttackOutcome::Miss, 0)
             }
         } else {
-            self.auto_damage_v5(source, target, draw)?
+            let launch = self.bow_launch_mark_v6(source, target);
+            let result = self.auto_damage_v5(source, target, draw)?;
+            if let Some((mark, chance)) = launch {
+                self.bow_launch_complete_v6(
+                    id,
+                    target.entity,
+                    mark,
+                    chance,
+                    result.0 != AttackOutcome::Miss,
+                );
+            }
+            result
         };
         self.apply_auto_hit_v5(tick, id, source, target, outcome, rolled, events, draw)?;
         if style == AttackStyle::Pole {
@@ -286,6 +297,20 @@ impl ZoneState {
         target: TargetBinding,
         draw: &mut DamageRoll<'_>,
     ) -> Result<bool, TickError> {
+        let chance = self.hit_chance_v5(source, target)?;
+        // Formulas.java:1060-1063: miss iff chance < Rnd.get(1000), so residue == chance hits.
+        Ok(
+            i128::from(draw(self, DamageRollSite::AutoHit, target, 1000).map_err(invariant)?)
+                <= chance,
+        )
+    }
+
+    /// calcHitMiss chance: condition multiplication precedes the [200, 980] clamp.
+    pub(super) fn hit_chance_v5(
+        &self,
+        source: TargetBinding,
+        target: TargetBinding,
+    ) -> Result<i128, TickError> {
         use crate::domain::zone::scaled::round_div;
         use crate::domain::zone::skill_npc::HitPosition;
         let a = self.effective(source.entity)?;
@@ -322,15 +347,11 @@ impl ZoneState {
             .hit_condition
             .multiplier(0, false, position)
             .map_err(invariant)?;
-        let chance = ExactRatio::new(base, 1)
+        Ok(ExactRatio::new(base, 1)
             .and_then(|v| v.checked_mul(condition))
             .and_then(ExactRatio::trunc)
             .map_err(invariant)?
-            .clamp(200, 980);
-        Ok(
-            i128::from(draw(self, DamageRollSite::AutoHit, target, 1000).map_err(invariant)?)
-                <= chance,
-        )
+            .clamp(200, 980))
     }
 
     /// Landed subhit: shield, critical, then the caller's damage (L2Character.java:1324-1335).
