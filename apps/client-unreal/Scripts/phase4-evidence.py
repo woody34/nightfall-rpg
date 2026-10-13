@@ -954,6 +954,9 @@ def validate(rows,recording,rules_hash):
                 if 'target_entity' in context:same(str(UUID(context['target_entity'])),context['target_entity'])
                 if 'event' in context and context['event'] not in ('equip','unequip','enchant','admission','attack','cast'):raise ValueError('unknown formula event')
             if not isinstance(data['resolution_id'],str) or not data['resolution_id']:raise ValueError('resolution identity required')
+            # D91: one clamp fact per resource of a rebuild, distinguished by its suffix.
+            if data['formula']=='clamp_no_heal' and not re.fullmatch(r'\S+:(?:hp|mp|cp)',data['resolution_id']):
+                raise ValueError('clamp_no_heal resolution_id needs a :hp|:mp|:cp suffix (D91)')
             identity=(row['entity'],row['incarnation'],data['resolution_id'],data['formula'])
             if identity in seen:raise ValueError('repeated formula resolution')
             seen.add(identity)

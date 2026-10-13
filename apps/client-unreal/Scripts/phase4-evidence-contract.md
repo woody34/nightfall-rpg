@@ -432,3 +432,6 @@ oracle equality on the producer's actual inputs.
   in oracle order (function order, then install sequence, then
   (effect, child) ordinal). Missing/extra keys refuse by schema; reordered or
   dropped trace rows refuse by exact oracle equality.
+- D91 (Q-F5): every `clamp_no_heal` fact's `resolution_id` is
+  `<rebuild resolution>:hp|:mp|:cp` (lowercase, nonempty prefix), so the HP,
+  MP and CP clamps of one rebuild are distinct formula identities.

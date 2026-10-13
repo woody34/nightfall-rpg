@@ -1718,6 +1718,22 @@ class Evidence(unittest.TestCase):
         self.assertGreaterEqual(controls,1)
         print(f'D90: {controls} full gear_stats dictionaries pass; reordered/dropped trace rows and missing keys reject',flush=True)
 
+    def test_d91_clamp_no_heal_resource_suffix(self):
+        rows=copy.deepcopy(self.rows);base=rows[1]
+        for index,(resource,current) in enumerate((('hp',120),('mp',40),('cp',0))):
+            row=copy.deepcopy(base);row['data']=dict(formula='clamp_no_heal',inputs=dict(current=current,new_max=100),
+                actual=min(current,100),resolution_id=f'load:rebuild:7:{resource}',baseline=False)
+            rows.insert(-1,row)
+        self.repair(rows)
+        self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['clamp_no_heal'],HASH)['passed'])
+        for resolution in ('load:rebuild:7',':hp','load:rebuild:7:HP','load:rebuild:7:sp','load:rebuild:7:hp:x','hp'):
+            with self.subTest(resolution=resolution):
+                bad=copy.deepcopy(rows);bad[2]['data']['resolution_id']=resolution
+                with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
+        bad=copy.deepcopy(rows);bad[3]['data']['resolution_id']=bad[2]['data']['resolution_id']
+        with self.assertRaisesRegex(ValueError,'repeated formula resolution'):gate.validate(bad,self.recording,HASH)
+        print('D91: hp/mp/cp clamps of one rebuild pass with distinct suffixes; missing/unknown suffixes and reuse reject',flush=True)
+
     def test_item_record_scalar_substitutions_through_evaluate(self):
         vectors=gate.oracle.make_vectors(gate.source())
         learned=next(v for v in vectors if v['id']=='learned-item-consume-complete-1')
