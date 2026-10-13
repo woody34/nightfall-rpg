@@ -737,6 +737,8 @@ ITEM_TRANSITIONS={
 
 PRE_CONSUME=frozenset(('grant','starter','backfill','equip','unequip','enchant','refine','cancel_refine','use'))
 CAUSE=re.compile(r'(?:auto_shot|arrow|item_cast):\S+|receipt:[^:\s]+:\S+')
+# D93: discharges (use rows) name their own family; payment causes stay Consume-only.
+USE_CAUSE=re.compile(r'shot_discharge:\S+|cast_discharge:[1-9][0-9]*|receipt:[^:\s]+:\S+')
 
 
 def validate_causes(causes,negative):
@@ -744,7 +746,7 @@ def validate_causes(causes,negative):
     if not isinstance(causes,list) or not causes:raise ValueError('ordered nonempty causes required')
     for cause in causes:
         if not isinstance(cause,dict) or set(cause)!={'cause','count_delta'}:raise ValueError('complete cause required')
-        if not isinstance(cause['cause'],str) or not CAUSE.fullmatch(cause['cause']):raise ValueError('unknown/malformed cause')
+        if not isinstance(cause['cause'],str) or not (CAUSE if negative else USE_CAUSE).fullmatch(cause['cause']):raise ValueError('unknown/malformed cause')
         delta=cause['count_delta']
         if negative and (type(delta) is not int or not -(2**63)<delta<0):raise ValueError('negative signed-bigint consume cause delta required')
         if not negative and (type(delta) is not int or delta!=0):raise ValueError('use cause must be count-neutral (D73)')
@@ -1028,6 +1030,9 @@ def validate(rows,recording,rules_hash):
             if data['operation']=='use':
                 # D73: the receipt projection of a use row is its single optional receipt_ref.
                 same([] if refs is None else [refs],validate_causes(data['causes'],False))
+                # D93: an automatic attack discharge row resolves under its first cause's resolution.
+                first=data['causes'][0]['cause']
+                if first.startswith('shot_discharge:'):same(data['resolution_id'],first.split(':',1)[1])
             instance=integer(data['instance'],1)
             before,after=data['before'],data['after']
             if before==after or before is None and after is None:raise ValueError('ledger must contain actual change (D28)')

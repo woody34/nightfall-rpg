@@ -190,8 +190,8 @@ JSONL contract (schema version 1 of this sidecar):
   shot discharge (or any use that changes only the instance's `charges`). It
   carries `receipt_ref` (null for automatic discharges) AND a nonempty ordered
   `causes` list of `{cause,count_delta}` with every `count_delta` exactly 0 and
-  the same cause grammar as Consume (`auto_shot:<attack resolution_id>` for an
-  attack discharge). `receipt_ref` equals the single `receipt:` cause when one
+  the discharge cause grammar of D93 (`shot_discharge:<attack resolution_id>`,
+  `cast_discharge:<skill_id>`, or a `receipt:` cause). `receipt_ref` equals the single `receipt:` cause when one
   exists and is null otherwise. `use` rows are count-neutral retained rows, so
   under D69 they may precede a Consume aggregate on the same instance; several
   use rows on one instance in one tick take consecutive positional ordinals.
@@ -444,3 +444,11 @@ oracle equality on the producer's actual inputs.
   any fact of that intent (prepay Consume, draws, other formulas) on a later
   tick than the terminal fact. The tick of the effect itself is not otherwise
   observable in the sidecar.
+- D93 (Q-F7): the exporter attaches `causes` to `use` rows. Use causes are
+  `shot_discharge:<attack resolution_id>` (new family), `cast_discharge:<skill_id>`
+  (decimal skill id) or `receipt:<operation>:<key>`; Consume payment causes
+  (`auto_shot`, `arrow`, `item_cast`) refuse on use rows and discharge causes
+  refuse on Consume. An automatic attack discharge row's `resolution_id`
+  equals its first cause's resolution id. A `cast_discharge` cause names a
+  skill, not a resolution, so no resolution equality is derived from it
+  (harness-progress Q-F8).

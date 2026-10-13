@@ -71,7 +71,7 @@ class Evidence(unittest.TestCase):
                    operation_ordinal=0,resolution_id='transition:1')
         if operation=='consume':delta.update(receipt_refs=[],causes=[dict(cause='auto_shot:transition:1',count_delta=-1)])
         else:delta['receipt_ref']=None
-        if operation=='use':delta['causes']=[dict(cause='auto_shot:transition:1',count_delta=0)]
+        if operation=='use':delta['causes']=[dict(cause='shot_discharge:transition:1',count_delta=0)] # D93
         rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=0,sequence=0,data=delta))
         return self.repair(rows)
 
@@ -155,7 +155,7 @@ class Evidence(unittest.TestCase):
         for ordinal,(start,end) in enumerate(((3,1),(1,0)),1):
             row=copy.deepcopy(first);row['data'].update(operation_ordinal=ordinal,resolution_id=f'transition:{ordinal+1}',
                 before=first['data']['after']|{'charges':start},after=first['data']['after']|{'charges':end},
-                causes=[dict(cause=f'auto_shot:transition:{ordinal+1}',count_delta=0)])
+                causes=[dict(cause=f'shot_discharge:transition:{ordinal+1}',count_delta=0)])
             chain.insert(-1,row)
         self.repair(chain);gate.validate(chain,self.recording,HASH)
         mutations={
@@ -164,14 +164,24 @@ class Evidence(unittest.TestCase):
             'charges unchanged':lambda d:d['after'].update(charges=1),
             'causes missing':lambda d:d.pop('causes'),
             'causes empty':lambda d:d.update(causes=[]),
-            'negative cause':lambda d:d.update(causes=[dict(cause='auto_shot:transition:1',count_delta=-1)]),
-            'boolean cause':lambda d:d.update(causes=[dict(cause='auto_shot:transition:1',count_delta=False)]),
+            'negative cause':lambda d:d.update(causes=[dict(cause='shot_discharge:transition:1',count_delta=-1)]),
+            'boolean cause':lambda d:d.update(causes=[dict(cause='shot_discharge:transition:1',count_delta=False)]),
+            'payment cause on use (D93)':lambda d:d.update(causes=[dict(cause='auto_shot:transition:1',count_delta=0)]),
+            'discharge resolution mismatch (D93)':lambda d:d.update(resolution_id='transition:9'),
+            'malformed cast discharge (D93)':lambda d:d.update(causes=[dict(cause='cast_discharge:cast:4',count_delta=0)]),
+            'discharge cause on consume (D93)':None,
             'malformed cause':lambda d:d.update(causes=[dict(cause='discharge',count_delta=0)]),
             'receipt_ref without cause':lambda d:d.update(receipt_ref='receipt:use:k1'),
             'receipt cause without ref':lambda d:d.update(causes=[dict(cause='receipt:use:k1',count_delta=0)]),
             'receipt_refs list':lambda d:(d.pop('receipt_ref'),d.update(receipt_refs=[])),
             'charge off rhand':lambda d:d['before'].update(slot='lhand'),
         }
+        mutations.pop('discharge cause on consume (D93)')
+        consume=self.transition_rows('consume');consume[3]['data']['causes'][0]['cause']='shot_discharge:transition:1'
+        with self.assertRaises(ValueError):gate.validate(consume,self.recording,HASH)
+        # A cast discharge names the skill; it is not tied to a resolution id (cast:<id>).
+        cast=copy.deepcopy(rows);cast[3]['data']['causes']=[dict(cause='cast_discharge:1011',count_delta=0)]
+        gate.validate(cast,self.recording,HASH)
         for name,mutate in mutations.items():
             with self.subTest(mutation=name):
                 bad=copy.deepcopy(rows);mutate(bad[3]['data'])
