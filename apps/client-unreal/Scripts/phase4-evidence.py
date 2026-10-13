@@ -1150,6 +1150,10 @@ def inventory_history(rows,targets=None):
                 raise ValueError('per-instance tick count conservation mismatch')
         # D79: untouched instances keep their last-change revision.
         if current is not None:floor=max(floor,current)
+        else:
+            # A removal-only tick still took a step s >= max(before.revision)+1; later changed
+            # ticks must exceed it and later baselines must reach it (D79, review-2 P2-1).
+            floor=max(floor,max(d['before']['revision'] for d in deltas if d['before'] is not None)+1)
         owners[owner]=(current,states,complete,floor)
     return steps
 

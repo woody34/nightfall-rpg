@@ -237,6 +237,23 @@ class Evidence(unittest.TestCase):
         self.repair(rows);gate.validate(rows,self.recording,HASH)
         bad=copy.deepcopy(rows);bad[-3]['data']['instances'][0]['revision']=2
         with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
+        # Review-2 P2-1: a baseline-free removal-only tick still advances the owner step.
+        def removal_then(kind,revision):
+            rows=self.transition_rows('destroy')
+            del rows[1] # baseline-free slice: tick 0 destroys instance 100 (before revision 0)
+            if kind=='baseline':
+                rows.insert(-1,dict(kind='item_baseline',entity=OWNER,incarnation=1,tick=1,sequence=0,
+                    data=dict(inventory_revision=revision,instances=[],paperdoll={},auto_shots=[])))
+            else:
+                rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=1,sequence=0,
+                    data=dict(operation='grant',instance=300,before=None,after=item(300,3,1458)|{'revision':revision},
+                              count_delta=3,operation_ordinal=0,resolution_id='grant:300',receipt_ref=None)))
+            rows[0]['watermark'].update(records=2,last_tick=1);rows[-1].update(ticks=2,last_tick=1)
+            return self.repair(rows)
+        for kind,bad_revision,good_revision in (('baseline',0,1),('grant',1,2)):
+            with self.subTest(kind=kind):
+                gate.validate(removal_then(kind,good_revision),self.recording,HASH)
+                with self.assertRaises(ValueError):gate.validate(removal_then(kind,bad_revision),self.recording,HASH)
         print('D79: last-change revisions pass with and without baselines; re-stamped/ahead befores and wrong post steps reject',flush=True)
 
     def test_d83_positional_ordinals_for_every_chain(self):
