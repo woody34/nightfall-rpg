@@ -8258,52 +8258,92 @@ mod tests {
                 .attack_plans
                 .contains_key(&owner.entity));
         }
-        // A dead (or respawned) recipient discards the stored second result.
-        let mut dead = zone.clone();
-        let swing = arm_swing(&mut dead, owner, npc);
-        dead.phase4.as_mut().unwrap().canonical.attack_plans.insert(
-            owner.entity,
-            crate::domain::zone::phase4::ItemAttackPlan {
-                attacker: owner,
-                start: swing.start,
-                ready: swing.ready,
-                weapon: None,
-                shots: 0,
-                arrow: None,
-                hits: vec![
-                    crate::domain::zone::phase4::PlannedItemHit {
-                        target: npc,
-                        at: swing.impact,
-                        prepared: None,
+        // A dead recipient, a stunned attacker or a recipient inside the peace square at the
+        // deadline discards the stored second result without any further draw (P2-1).
+        for case in ["dead", "stunned", "peace"] {
+            let mut armed = zone.clone();
+            let swing = arm_swing(&mut armed, owner, npc);
+            armed
+                .phase4
+                .as_mut()
+                .unwrap()
+                .canonical
+                .attack_plans
+                .insert(
+                    owner.entity,
+                    crate::domain::zone::phase4::ItemAttackPlan {
+                        attacker: owner,
+                        start: swing.start,
+                        ready: swing.ready,
+                        weapon: None,
+                        shots: 0,
+                        arrow: None,
+                        hits: vec![
+                            crate::domain::zone::phase4::PlannedItemHit {
+                                target: npc,
+                                at: swing.impact,
+                                prepared: None,
+                            },
+                            crate::domain::zone::phase4::PlannedItemHit {
+                                target: npc,
+                                at: Tick(swing.impact.0 + 3),
+                                prepared: None,
+                            },
+                        ],
+                        next_hit: 0,
                     },
-                    crate::domain::zone::phase4::PlannedItemHit {
-                        target: npc,
-                        at: Tick(swing.impact.0 + 3),
-                        prepared: None,
-                    },
-                ],
-                next_hit: 0,
-            },
-        );
-        let mut trace = Vec::new();
-        dead.land_auto_v5(
-            swing.impact,
-            owner.entity,
-            swing,
-            &mut Vec::new(),
-            &mut forced(&[], &mut trace),
-        )
-        .unwrap();
-        dead.entities.get_mut(&npc.entity).unwrap().targeting.dead = true;
-        let mut events = Vec::new();
-        dead.land_dual_second_v6(
-            Tick(swing.impact.0 + 3),
-            owner.entity,
-            &mut events,
-            &mut forced(&[], &mut trace),
-        )
-        .unwrap();
-        assert!(events.is_empty());
+                );
+            let mut trace = Vec::new();
+            armed
+                .land_auto_v5(
+                    swing.impact,
+                    owner.entity,
+                    swing,
+                    &mut Vec::new(),
+                    &mut forced(&[], &mut trace),
+                )
+                .unwrap();
+            assert!(armed.phase4.as_ref().unwrap().canonical.attack_plans[&owner.entity].hits[1]
+                .prepared
+                .is_some());
+            match case {
+                "dead" => armed.entities.get_mut(&npc.entity).unwrap().targeting.dead = true,
+                "stunned" => add_stun(&mut armed, owner),
+                _ => {
+                    let centre = armed
+                        .phase3
+                        .as_ref()
+                        .unwrap()
+                        .canonical
+                        .rules
+                        .geometry()
+                        .center()
+                        .unwrap();
+                    place(&mut armed, npc.entity, centre);
+                },
+            }
+            let hp = armed.entities[&npc.entity].combat.as_ref().unwrap().hp;
+            let drawn = trace.len();
+            let mut events = Vec::new();
+            armed
+                .land_dual_second_v6(
+                    Tick(swing.impact.0 + 3),
+                    owner.entity,
+                    &mut events,
+                    &mut forced(&[], &mut trace),
+                )
+                .unwrap();
+            assert!(events.is_empty(), "{case}: {events:?}");
+            assert_eq!(trace.len(), drawn, "{case}");
+            assert_eq!(armed.entities[&npc.entity].combat.as_ref().unwrap().hp, hp);
+            assert!(!armed
+                .phase4
+                .as_ref()
+                .unwrap()
+                .canonical
+                .attack_plans
+                .contains_key(&owner.entity));
+        }
         // Live ticks: AttackStarted.impact is the first subhit (timeToHit/2), the second lands
         // at timeToHit, and cold replay from the boundary agrees.
         let mut live = zone.clone();
