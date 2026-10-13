@@ -60,11 +60,70 @@ lines = "5560-5572"
 symbol = "no weapon: template baseAtkType"
 
 [[sources]]
+repository = "https://bitbucket.org/l2jserver/l2j-server-game"
+revision = "abfde0490ac52a2106e884b7242c0276c44cdf76"
+file = "src/main/java/com/l2jserver/gameserver/model/actor/instance/L2PcInstance.java"
+lines = "2141-2183"
+symbol = "findFistsWeaponItem class ranges"
+
+[[sources]]
+repository = "https://bitbucket.org/l2jserver/l2j-server-game"
+revision = "abfde0490ac52a2106e884b7242c0276c44cdf76"
+file = "src/main/java/com/l2jserver/gameserver/model/actor/instance/L2PcInstance.java"
+lines = "4147-4155"
+symbol = "getActiveWeaponItem falls back to fists"
+
+[[sources]]
 repository = "https://bitbucket.org/l2jserver/l2j-server-datapack"
 revision = "3ca488dd2bd0bfaca43e378886a3c2e37968153a"
 file = "src/main/resources/data/stats/chars/classList.xml"
 lines = "1-112"
 symbol = "class lineage"
+
+[[fists]]
+class_min = 0
+class_max = 9
+template_id = 246
+
+[[fists]]
+class_min = 10
+class_max = 17
+template_id = 251
+
+[[fists]]
+class_min = 18
+class_max = 24
+template_id = 244
+
+[[fists]]
+class_min = 25
+class_max = 30
+template_id = 249
+
+[[fists]]
+class_min = 31
+class_max = 37
+template_id = 245
+
+[[fists]]
+class_min = 38
+class_max = 43
+template_id = 250
+
+[[fists]]
+class_min = 44
+class_max = 48
+template_id = 248
+
+[[fists]]
+class_min = 49
+class_max = 52
+template_id = 252
+
+[[fists]]
+class_min = 53
+class_max = 57
+template_id = 247
 
 [[classes]]
 base_class_id = 0

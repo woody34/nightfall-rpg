@@ -173,9 +173,10 @@ impl ZoneState {
             shield_rate_q: raw(self.damage_stat_v5(id, &stats, "rShld", 0)?)?,
             shield_angle_degrees: u32::try_from(angle).map_err(invariant)?,
             physical_reach_millitiles: i64::from(combat.attack_range.raw()),
-            physical_angle_degrees: self
-                .held_weapon_v6(id)
-                .map_or(120, |(_, definition)| definition.attack_angle),
+            physical_angle_degrees: match self.held_weapon_v6(id) {
+                Some((_, definition)) => definition.attack_angle,
+                None => self.unarmed_angle_v6(id)?,
+            },
         })
     }
 
@@ -8010,11 +8011,13 @@ mod tests {
         // The unarmed player FIST falls through to the dual handler; NPCs stay simple.
         assert_eq!(zone.attack_style_v6(other), AttackStyle::Dual);
         assert_eq!(zone.attack_style_v6(npc.entity), AttackStyle::Simple);
-        // D75: unarmed reach is the class baseAtkRange 20 (class_combat.toml), 20×1000/32.
+        // D84: an unarmed human mystic attacks with the class fists weapon 251 (range 40,
+        // random damage 5): 40×1000/32 milli-tiles, not the template baseAtkRange 20.
         assert_eq!(
             zone.entities[&other].combat.as_ref().unwrap().attack_range,
-            Fixed::from_raw(625)
+            Fixed::from_raw(1250)
         );
+        assert_eq!(zone.effective(other).unwrap().physical.random_damage(), 5);
         for misses in [&[][..], &[1][..], &[2][..], &[1, 2][..]] {
             let mut zone = zone.clone();
             let swing = arm_swing(&mut zone, owner, npc);

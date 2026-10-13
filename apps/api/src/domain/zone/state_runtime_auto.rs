@@ -599,7 +599,11 @@ impl ZoneState {
                     )
                 };
                 // D24: an unarmed player's radius is recomputed by the oracle from its level.
-                let template = self.held_weapon_v6(source.entity).map(|_| radius);
+                // The radius comes from a template (equipped or D84 fists weapon); only a
+                // fistless class leaves the oracle to recompute 5+isqrt(level).
+                let template = (self.held_weapon_v6(source.entity).is_some()
+                    || self.unarmed_fists_v6(source.entity)?.is_some())
+                .then_some(radius);
                 let offset = residue
                     .map(|value| value.checked_sub(i64::from(radius)).ok_or_else(missing))
                     .transpose()?;

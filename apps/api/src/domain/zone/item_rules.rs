@@ -154,6 +154,11 @@ record!(ClassSlotRule {
     m_def_slots_xml: BTreeMap<super::EquipSlot, u32>,
     m_def_slots: BTreeMap<super::EquipSlot, u32>
 });
+record!(FistsWeaponRule {
+    class_min: u32,
+    class_max: u32,
+    template_id: u32
+});
 record!(UnarmedCombatRule {
     attack_angle: u32,
     random_damage_radius_base: u32
@@ -169,6 +174,7 @@ record!(ItemRulesParts {
     augment_capabilities: Vec<AugmentCapability>, recipe_capabilities: BTreeMap<u64, RecipeCapability>,
     weapon_types: Vec<WeaponTypeRule>, grades: Vec<ItemGradeRule>, class_slots: Vec<ClassSlotRule>,
     class_combat: Vec<ClassCombatRule>, unarmed_combat: UnarmedCombatRule,
+    fists_weapons: Vec<FistsWeaponRule>,
     capacities: ItemCapacityRules, enchant_rates: Vec<EnchantRates>, enchant_bindings: Vec<EnchantBinding>,
     enchant_scrolls: BTreeMap<u32, EnchantScrollRule>, enchant_supports: BTreeMap<u32, EnchantScrollRule>,
     enchant_blacklist: Vec<u32>, enchant_options: BTreeMap<u32, Vec<EnchantOptionLevel>>,
@@ -381,7 +387,30 @@ impl ItemRulesParts {
         {
             return Err("invalid class unarmed combat bases".into());
         }
+        // D84: disjoint ascending class ranges, each naming an imported FIST weapon.
+        let mut previous: Option<u32> = None;
+        for fists in &self.fists_weapons {
+            if fists.class_min > fists.class_max
+                || previous.is_some_and(|max| max >= fists.class_min)
+                || !self
+                    .items
+                    .get(&fists.template_id)
+                    .is_some_and(|d| d.kind == "Weapon" && d.weapon_type == "FIST")
+            {
+                return Err("invalid class fists weapon".into());
+            }
+            previous = Some(fists.class_max);
+        }
         Ok(())
+    }
+
+    /// D84 (`findFistsWeaponItem`): the class fists weapon, absent for 3rd-class/Kamael ids.
+    #[must_use]
+    pub fn fists_weapon(&self, class_id: u32) -> Option<&ItemDefinition> {
+        self.fists_weapons
+            .iter()
+            .find(|row| (row.class_min..=row.class_max).contains(&class_id))
+            .and_then(|row| self.items.get(&row.template_id))
     }
 
     fn validate_class_slots(&self) -> Result<(), String> {
