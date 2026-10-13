@@ -1373,6 +1373,81 @@ async fn missing_birth_ledger_row_fences_lane_without_retry_or_ack() {
     assert!(h.repo.item_ledger_for_test().split_off(h.seeded).is_empty());
 }
 
+/// D77 through the real gated actor: the missing birth row fences the zone before output
+/// release, so subscribers observe no tick output at all.
+#[tokio::test]
+async fn missing_birth_ledger_row_withholds_actor_output() {
+    use crate::application::replay_log::{
+        start_epoch, DurableTickGate, GateConfig, NoReplayMetrics,
+    };
+    use crate::application::zone_actor::{manual_ticks, ZoneActor};
+    let h = Harness::new().await;
+    let character = CharacterId::from_uuid(h.entity.as_uuid());
+    let mut corrupt = h
+        .repo
+        .retained_inventory(character)
+        .await
+        .unwrap()
+        .unwrap()
+        .checkpoint
+        .unwrap();
+    let mut orphan = corrupt.instances[0].clone();
+    orphan.id = crate::domain::zone::ItemInstanceId::new(
+        corrupt
+            .instances
+            .iter()
+            .map(|item| item.id.get())
+            .max()
+            .unwrap()
+            + 1000,
+    )
+    .unwrap();
+    orphan.location = crate::domain::zone::ItemLocation::Inventory;
+    orphan.slot = None;
+    corrupt.instances.push(orphan);
+    h.repo
+        .insert_item_checkpoint_for_test(character, corrupt)
+        .unwrap();
+    let log: Arc<dyn EventLog> =
+        Arc::new(crate::infrastructure::eventlog::InMemoryEventLog::default());
+    let inputs = h.equipment_inputs();
+    let mut baseline = h.state.snapshot();
+    h.service.snapshot(&mut baseline);
+    let started = start_epoch(log.as_ref(), &baseline).await.unwrap();
+    let gate = DurableTickGate::new(
+        &started,
+        log.clone(),
+        Arc::new(NoReplayMetrics),
+        GateConfig::default(),
+        tokio_util::sync::CancellationToken::new(),
+    );
+    let (ticks, driver) = manual_ticks();
+    let handle = ZoneActor::spawn_gated(h.state, ticks, gate);
+    handle.checkpoints.install(h.service);
+    let mut outputs = handle.subscribe();
+    for input in inputs {
+        handle.send(input).unwrap();
+    }
+    let stepped = tokio::time::timeout(Duration::from_secs(10), driver.step())
+        .await
+        .unwrap();
+    assert!(
+        !matches!(stepped, Ok(crate::application::zone_actor::TickOutcome::Ran(_))),
+        "{stepped:?}"
+    );
+    assert!(outputs.try_recv().is_err(), "no tick output may be released");
+    assert!(handle.persistence_failed());
+    assert!(h
+        .audit
+        .frames(h.session)
+        .iter()
+        .all(|frame| !matches!(frame, AuditedFrame::Checkpoint(_))));
+    assert!(h.repo.item_ledger_for_test().split_off(h.seeded).is_empty());
+    drop(driver);
+    handle.stopped().await;
+    assert!(outputs.try_recv().is_err(), "no tick output after the actor stops");
+}
+
 /// An acknowledged real projection, its checkpoint and work context for outbox-order tests.
 async fn outbox_fixture() -> (CharacterCheckpoint, ItemCheckpointWork) {
     let mut h = Harness::new().await;
