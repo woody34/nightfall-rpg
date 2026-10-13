@@ -183,11 +183,14 @@ impl EventLog for JetStreamEventLog {
     }
 
     async fn append_applied(&self, record: &AppliedTickRecord) -> anyhow::Result<Seq> {
+        let started = Instant::now();
+        let encoded = record.encode();
+        crate::application::zone_actor::runtime_phase("record_encode", started);
         self.publish(
             "applied",
             applied_subject(record.zone, record.epoch),
             Some(applied_msg_id(record.zone, record.epoch, record.tick)),
-            record.encode(),
+            encoded,
         )
         .await
     }
