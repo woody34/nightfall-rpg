@@ -36,9 +36,12 @@ fn rules() -> Arc<Phase3Rules> {
     Arc::new(load_phase3_rules(&Phase3DataSource::embedded(), &[]).unwrap())
 }
 async fn seed<R: CharacterRepository>(repo: &R) -> Character {
+    seed_named(repo, "PaidLearner").await
+}
+async fn seed_named<R: CharacterRepository>(repo: &R, name: &str) -> Character {
     let mut c = Character::create(
         AccountId::from_uuid(Uuid::nil()),
-        CharacterName::new("PaidLearner").unwrap(),
+        CharacterName::new(name).unwrap(),
         Race::Human,
     );
     c.level = 10;
@@ -576,5 +579,77 @@ async fn typed_learning_lane_cannot_bypass_the_durable_log_requirement() {
         .await
         .unwrap(),
         LearnReceiptLookup::Unknown
+    );
+}
+
+#[tokio::test]
+async fn learning_mutations_remain_serial_across_actor_ticks() {
+    let repo = Arc::new(Probe {
+        inner: InMemoryCharacterRepository::default().with_phase3_rules(rules()),
+        hold: AtomicBool::new(true),
+        lose: AtomicBool::new(false),
+        reject: AtomicBool::new(false),
+        entered: Notify::new(),
+        release: Notify::new(),
+        requests: parking_lot::Mutex::default(),
+    });
+    let a = seed_named(repo.as_ref(), "LearnFirst").await;
+    let b = seed_named(repo.as_ref(), "LearnSecond").await;
+    let (zone, driver, _) = actor(repo.clone()).await;
+    let registry = SessionRegistry::with_characters(repo.clone());
+    for c in [&a, &b] {
+        registry
+            .admit(
+                &zone,
+                SessionId::new(),
+                SessionGeneration(1),
+                &PlayerSpawn {
+                    entity: EntityId::from_uuid(c.id.as_uuid()),
+                    name: c.name.to_string(),
+                    pos: Vec2Fixed::from_tiles(126, 128),
+                    speed: Speed::DEFAULT,
+                    load: None,
+                },
+            )
+            .await
+            .unwrap();
+    }
+    driver.step().await.unwrap();
+    let mut output = zone.subscribe();
+    let first = zone
+        .enqueue_learn_skill(input(&a, IdempotencyKey::new(), 1, 1))
+        .unwrap();
+    let mut second = zone
+        .enqueue_learn_skill(input(&b, IdempotencyKey::new(), 1, 1))
+        .unwrap();
+    let step_driver = driver.clone();
+    let step = tokio::spawn(async move { step_driver.step().await });
+    tokio::time::timeout(Duration::from_secs(10), repo.entered.notified())
+        .await
+        .unwrap();
+    assert_eq!(repo.requests.lock().len(), 1);
+    assert!(tokio::time::timeout(Duration::from_millis(50), repo.entered.notified())
+        .await
+        .is_err());
+    assert!(output.try_recv().is_err());
+    repo.release.notify_one();
+    assert_eq!(step.await.unwrap().unwrap(), TickOutcome::Ran(Tick(1)));
+    first.await.unwrap().unwrap();
+    assert!(second.try_recv().is_err());
+    let step = tokio::spawn(async move { driver.step().await });
+    tokio::time::timeout(Duration::from_secs(10), repo.entered.notified())
+        .await
+        .unwrap();
+    assert_eq!(repo.requests.lock().len(), 2);
+    repo.release.notify_one();
+    assert_eq!(step.await.unwrap().unwrap(), TickOutcome::Ran(Tick(2)));
+    second.await.unwrap().unwrap();
+    assert_eq!(
+        repo.inner
+            .staged_events()
+            .iter()
+            .filter(|e| matches!(e, DomainEvent::CharacterSkillLearned { .. }))
+            .count(),
+        2
     );
 }

@@ -22,8 +22,8 @@
 //! together with the unlogged tick, so the log and everything anyone observed always agree.
 //!
 //! The actor never reads a clock for anything that reaches state or output: tick numbers come
-//! from the state, `server_time_ms` from the zone's time origin. The one clock read is a
-//! monotonic `Instant` around the tick body that feeds [`TickStats::duration_micros`] only.
+//! from the state, `server_time_ms` from the zone's time origin. Monotonic timing feeds only
+//! [`TickStats::duration_micros`] and opt-in runtime phase tracing.
 
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::future::Future;
@@ -759,7 +759,9 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
                 },
             },
         };
+        runtime_phase("draft", started);
         let tick = record.tick;
+        let phase_started = Instant::now();
         if record
             .events
             .iter()
@@ -803,6 +805,8 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
             self.failed = true;
             return TickOutcome::Held(tick);
         }
+        runtime_phase("record_budget", phase_started);
+        let phase_started = Instant::now();
         if let Some(service) = self.checkpoints.service() {
             service
                 .lock()
@@ -810,6 +814,8 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
                 .recording(self.state.seed().zone, record.epoch, record.tick)
                 .await;
         }
+        runtime_phase("recording_index", phase_started);
+        let phase_started = Instant::now();
         if let Err(e) = self.gate.admit(&record).await {
             self.gate_holds = self.gate_holds.saturating_add(1);
             if self.gate.terminal_failure() {
@@ -823,19 +829,21 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
             self.publish_stats(tick, started, 0);
             return TickOutcome::Held(tick);
         }
+        runtime_phase("durable_gate", phase_started);
+        let phase_started = Instant::now();
         if let Some(service) = self.checkpoints.service() {
-            if let Err(error) = service
-                .lock()
-                .await
-                .admitted(&record, &self.state.snapshot())
-                .await
-            {
+            let snapshot_started = Instant::now();
+            let snapshot = self.state.snapshot();
+            runtime_phase("checkpoint_snapshot", snapshot_started);
+            if let Err(error) = service.lock().await.admitted(&record, &snapshot).await {
                 tracing::error!(%error,"checkpoint failure fences zone before output release");
                 self.failed = true;
                 self.fail_replies();
                 return TickOutcome::Held(tick);
             }
         }
+        runtime_phase("checkpoint", phase_started);
+        let phase_started = Instant::now();
         self.complete_replies(&record);
         if !record.is_idle() {
             // No subscribers is fine: nobody is connected yet.
@@ -847,6 +855,7 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
                 }
             }
         }
+        runtime_phase("fanout_telemetry", phase_started);
         self.publish_stats(tick, started, applied);
         TickOutcome::Ran(tick)
     }
@@ -987,7 +996,9 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
                 }
             }
         }
+        let domain_started = Instant::now();
         let record = self.state.run_tick(draft).map_err(|e| (tick, e))?;
+        runtime_phase("domain", domain_started);
         self.audit_next_tick.send_replace(self.state.next_tick());
         trace_applied(&record, &traces);
         Ok((Arc::new(record), applied))
@@ -1109,9 +1120,7 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
     fn select_admitted(&mut self) -> Vec<usize> {
         let mut recipients: BTreeSet<EntityId> = if self.admission_policy.is_some() {
             self.state
-                .snapshot()
-                .entities
-                .iter()
+                .entities()
                 .filter(|e| e.kind == crate::domain::zone::EntityKind::Player)
                 .map(|e| e.id)
                 .collect()
@@ -1420,4 +1429,9 @@ fn observer_count(state: &ZoneState) -> usize {
         .iter()
         .filter(|entity| entity.kind == crate::domain::zone::EntityKind::Player)
         .count()
+}
+
+/// Opt-in runtime timings; never used by simulation or admission decisions.
+pub(crate) fn runtime_phase(phase: &'static str, started: Instant) {
+    tracing::debug!(target: "nightfall_api::runtime_timing", phase, micros = u64::try_from(started.elapsed().as_micros()).unwrap_or(u64::MAX), "runtime phase");
 }

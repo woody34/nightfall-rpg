@@ -2,13 +2,13 @@
 //! has no repository. Requests are immutable until acknowledged, including after a lost commit
 //! response. The durable applied prefix is the recovery queue.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 use std::time::Duration;
 
+use futures_util::StreamExt as _;
 use sha2::{Digest, Sha256};
 use tokio::time::Instant;
-use tokio_stream::StreamExt as _;
 use uuid::Uuid;
 
 use super::ports::{
@@ -57,6 +57,9 @@ pub struct CheckpointService {
     last: Option<(u64, Tick)>,
     durability: Option<(Arc<dyn EventLog>, Arc<dyn super::replay_log::ZoneSnapshotStore>)>,
     refreshed: Instant,
+    wrote_since_index: bool,
+    internal_cadence: bool,
+    pending: parking_lot::Mutex<BTreeMap<IdempotencyKey, Instant>>,
 }
 
 impl CheckpointService {
@@ -76,6 +79,9 @@ impl CheckpointService {
             last: None,
             durability: None,
             refreshed: Instant::now(),
+            wrote_since_index: false,
+            internal_cadence: true,
+            pending: parking_lot::Mutex::default(),
         }
     }
 
@@ -209,6 +215,8 @@ impl CheckpointService {
 
     /// Captures every lane at a boundary after all in-flight requests have completed.
     pub fn snapshot(&self, snapshot: &mut ZoneSnapshot) {
+        snapshot.meta.checkpoint_internal_cadence =
+            snapshot.phase3.is_some() && self.internal_cadence;
         snapshot.checkpoints = self
             .players
             .iter()
@@ -239,6 +247,8 @@ impl CheckpointService {
 
     /// Restores revision fences, cadence and pending facts before accepting another tick.
     pub fn restore(&mut self, snapshot: &ZoneSnapshot) {
+        self.internal_cadence = snapshot.meta.checkpoint_internal_cadence;
+        self.wrote_since_index = false;
         self.players = snapshot
             .checkpoints
             .iter()
@@ -319,15 +329,18 @@ impl CheckpointService {
                 .latest
                 .as_ref()
                 .is_some_and(|cp| cp.phase3.is_some() && cp.revision_seen == player.revision);
+            let wrote = player.dirty;
             save(
                 self.repo.as_ref(),
                 self.learning_repo.as_deref(),
                 self.audit.as_ref(),
                 self.metrics.as_ref(),
+                &self.pending,
                 self.sessions.get(&entity).copied(),
                 player,
             )
             .await?;
+            self.wrote_since_index |= wrote;
         }
         Ok(())
     }
@@ -391,6 +404,7 @@ impl CheckpointService {
                 );
             }
         }
+        let mut due = BTreeSet::new();
         for entity in &snapshot.entities {
             if snapshot.phase3.is_some() && entity.kind == crate::domain::zone::EntityKind::Player {
                 anyhow::ensure!(
@@ -452,8 +466,13 @@ impl CheckpointService {
                 cp.alive = delta.alive;
                 cp.position = position(delta.pos);
             }
+            let retained_changed = if self.internal_cadence {
+                critical_phase3_changed(player.last_phase3.as_ref(), retained)
+            } else {
+                retained_phase3_changed(player.last_phase3.as_ref(), retained)
+            };
             let retained_critical = phase3.is_some()
-                && (retained_phase3_changed(player.last_phase3.as_ref(), retained)
+                && (retained_changed
                     || player
                         .latest
                         .as_ref()
@@ -467,7 +486,8 @@ impl CheckpointService {
                     || old.alive != cp.alive
                     || old.position != cp.position
             });
-            player.dirty |= changed || retained_critical;
+            player.dirty |=
+                changed || retained_phase3_changed(player.last_phase3.as_ref(), retained);
             player.latest = Some(cp);
             player.last_phase3 = retained.cloned();
             let mut immediate = retained_critical || tick.events.iter().any(|event| matches!(event,
@@ -636,18 +656,14 @@ impl CheckpointService {
                 player.events.extend(facts);
             }
             if immediate || tick.tick.0.saturating_sub(player.last_saved.0) >= 50 {
-                save(
-                    self.repo.as_ref(),
-                    self.learning_repo.as_deref(),
-                    self.audit.as_ref(),
-                    self.metrics.as_ref(),
-                    self.sessions.get(&entity.id).copied(),
-                    player,
-                )
-                .await?;
-                player.last_saved = tick.tick;
+                due.insert(entity.id);
             }
         }
+        let wrote = due
+            .iter()
+            .any(|id| self.players.get(id).is_some_and(|p| p.dirty));
+        self.save_due(&due, tick.tick).await?;
+        self.wrote_since_index |= wrote;
         self.players.retain(|id, _| {
             let present = snapshot.entities.iter().any(|e| e.id == *id);
             if !present {
@@ -656,10 +672,57 @@ impl CheckpointService {
             present
         });
         self.last = Some((tick.epoch, tick.tick));
-        self.index_tick(snapshot.seed.zone, tick.epoch, tick.tick, true)
-            .await;
+        let index_started = std::time::Instant::now();
+        if self.wrote_since_index {
+            self.index_tick(snapshot.seed.zone, tick.epoch, tick.tick, true)
+                .await;
+            self.wrote_since_index = false;
+        }
+        super::zone_actor::runtime_phase("checkpoint_index", index_started);
         self.refresh_if_due(snapshot).await;
         Ok(())
+    }
+
+    async fn save_due(&mut self, due: &BTreeSet<EntityId>, tick: Tick) -> anyhow::Result<()> {
+        // Account-scoped receipts and outbox facts retain entity order. Independent resource
+        // checkpoints may overlap, but the whole batch still gates index completion/output.
+        let concurrency = if due.iter().any(|id| {
+            self.players
+                .get(id)
+                .is_some_and(|p| !p.events.is_empty() || p.learning.is_some())
+        }) {
+            1
+        } else {
+            8
+        };
+        let repo = self.repo.as_ref();
+        let learning = self.learning_repo.as_deref();
+        let audit = self.audit.as_ref();
+        let metrics = self.metrics.as_ref();
+        let sessions = &self.sessions;
+        let pending = &self.pending;
+        let mut saves = Vec::new();
+        for (id, player) in &mut self.players {
+            if !due.contains(id) {
+                continue;
+            }
+            let session = sessions.get(id).copied();
+            saves.push(async move {
+                save(repo, learning, audit, metrics, pending, session, player).await?;
+                player.last_saved = tick;
+                Ok(())
+            });
+        }
+        let mut saves = futures_util::stream::iter(saves).buffered(concurrency);
+        if concurrency == 1 {
+            while let Some(result) = saves.next().await {
+                result?;
+            }
+            return Ok(());
+        }
+        // Settle every started transaction even on failure; never cancel an in-flight commit.
+        let results: Vec<anyhow::Result<()>> = saves.collect().await;
+        results.into_iter().collect()
     }
 
     async fn refresh_if_due(&mut self, snapshot: &ZoneSnapshot) {
@@ -746,8 +809,7 @@ impl CheckpointService {
             .players
             .iter()
             .filter(|(_, p)| {
-                !p.events.is_empty()
-                    || (p.dirty && p.latest.as_ref().is_some_and(|cp| cp.phase3.is_some()))
+                !p.events.is_empty() || p.latest.as_ref().is_some_and(|cp| cp.phase3.is_some())
             })
             .map(|(id, _)| *id)
             .collect();
@@ -758,6 +820,9 @@ impl CheckpointService {
         self.players.clear();
         self.sessions.clear();
         self.last = None;
+        // Historical policy belongs only to the settled epoch, never its successor.
+        self.internal_cadence = true;
+        self.wrote_since_index = false;
         Ok(())
     }
 }
@@ -810,11 +875,13 @@ async fn close_recovered_epoch(log: &dyn EventLog, zone: ZoneId, epoch: u64) -> 
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)] // Shared pending set aggregates every concurrent request.
 async fn save(
     repo: &dyn CharacterRepository,
     learning_repo: Option<&dyn super::ports::LearningCheckpointRepository>,
     audit: &dyn SessionAudit,
     metrics: &dyn CheckpointMetrics,
+    pending: &parking_lot::Mutex<BTreeMap<IdempotencyKey, Instant>>,
     session: Option<SessionId>,
     player: &mut Player,
 ) -> anyhow::Result<()> {
@@ -835,6 +902,13 @@ async fn save(
         .as_ref()
         .ok_or_else(|| anyhow::anyhow!("dirty checkpoint has no request"))?;
     let started = Instant::now();
+    let tracked = PendingSave {
+        metrics,
+        pending,
+        key: cp.idempotency.1,
+    };
+    pending.lock().insert(tracked.key, started);
+    let metrics: &dyn CheckpointMetrics = &tracked;
     let mut backoff = Duration::from_millis(100);
     loop {
         metrics.lag(started.elapsed());
@@ -913,6 +987,47 @@ async fn save(
                 backoff = backoff.saturating_mul(2).min(Duration::from_secs(5));
             },
         }
+    }
+}
+
+// Identities stay internal; the exported gauge is the oldest pending age, without labels.
+struct PendingSave<'a> {
+    metrics: &'a dyn CheckpointMetrics,
+    pending: &'a parking_lot::Mutex<BTreeMap<IdempotencyKey, Instant>>,
+    key: IdempotencyKey,
+}
+impl PendingSave<'_> {
+    fn publish(&self, remove: bool) {
+        let mut pending = self.pending.lock();
+        if remove {
+            pending.remove(&self.key);
+        }
+        self.metrics.lag(
+            pending
+                .values()
+                .map(Instant::elapsed)
+                .max()
+                .unwrap_or_default(),
+        );
+    }
+}
+impl Drop for PendingSave<'_> {
+    fn drop(&mut self) {
+        self.publish(true);
+    }
+}
+impl CheckpointMetrics for PendingSave<'_> {
+    fn failed(&self) {
+        self.metrics.failed();
+    }
+    fn lag(&self, _: Duration) {
+        self.publish(false);
+    }
+    fn skill_learned(&self) {
+        self.metrics.skill_learned();
+    }
+    fn token_granted(&self, tier: u8, source: crate::domain::character_progression::TokenSource) {
+        self.metrics.token_granted(tier, source);
     }
 }
 
@@ -1048,6 +1163,26 @@ impl CheckpointLane {
 #[cfg(test)]
 #[path = "checkpoint_tests.rs"]
 mod tests;
+
+// Only externally durable facts gate output; internal retained state stays dirty until cadence.
+fn critical_phase3_changed(before: Option<&Phase3Entity>, after: Option<&Phase3Entity>) -> bool {
+    let facts = |side: &Phase3Entity| {
+        side.player.as_ref().map(|p| {
+            (
+                p.pvp.karma,
+                p.pvp.pk_count,
+                p.pvp.pvp_count,
+                p.death_penalty_level,
+                p.last_death.clone(),
+            )
+        })
+    };
+    match (before, after) {
+        (Some(a), Some(b)) => facts(a) != facts(b),
+        (None, None) => false,
+        _ => true,
+    }
+}
 
 // Compare canonical retained mutations, never a projection's naturally decreasing remainder.
 // Casts, offers and regen deadlines are not persisted across a real disconnect.
