@@ -88,11 +88,22 @@ impl ZoneState {
         if suffix.iter().any(|row| row.entity != owner) {
             return Err(RejectReason::InvalidLoad);
         }
-        facts.extend(suffix.iter().cloned().map(|mut row| {
-            row.incarnation = 0;
-            row.origin = ItemEvidenceOrigin::Offline;
-            row
-        }));
+        // A paused core's private rebuild is not a live dirty-rebuild clamp (D91 facts are
+        // live-life observations), so its clamp_no_heal facts are not adopted.
+        facts.extend(
+            suffix
+                .iter()
+                .filter(|row| {
+                    !matches!(&row.fact, ItemEvidenceData::Formula(value)
+                        if value.get("formula").and_then(serde_json::Value::as_str) == Some("clamp_no_heal"))
+                })
+                .cloned()
+                .map(|mut row| {
+                    row.incarnation = 0;
+                    row.origin = ItemEvidenceOrigin::Offline;
+                    row
+                }),
+        );
         Ok(())
     }
 
@@ -496,7 +507,13 @@ impl ZoneState {
         &self,
         id: EntityId,
     ) -> Option<[(i128, i128); 3]> {
-        if !self.items_evidence_enabled() || !self.phase4_player_v6(id) {
+        // Live lives only: a paused (offline, incarnation 0) rebuild is not a clamp event.
+        if !self.items_evidence_enabled()
+            || !self.phase4_player_v6(id)
+            || self
+                .binding(id)
+                .is_none_or(|binding| binding.incarnation == 0)
+        {
             return None;
         }
         self.clamp_values_v6(id)
