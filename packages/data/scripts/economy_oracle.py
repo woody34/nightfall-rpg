@@ -261,6 +261,18 @@ def single_collapse(item_chance: str, group_chance: str) -> F:
     return fl(fl(cd(item_chance) * cd(group_chance)) / 100)
 
 
+def single_item_c(item_chance: str, group_chance: str, L: F, m: F = F(1)) -> F:
+    """Collapsed single-item group chance (getSingleItem, IGroupedItemDropCalculationStrategy:51-56):
+    c' = fl(fl(cd(item) x cd(group)) / 100) keeps the ITEM's chance strategy, so getChance(victim, killer)
+    = L x (c' x m): C = fl(L x fl(c' x m)). The multiplier applies after the collapse (§3.2)."""
+    return fl(L * fl(single_collapse(item_chance, group_chance) * m))
+
+
+def single_item_c_float(item_chance: str, group_chance: str, L: float, m: float) -> F:
+    c1 = (float(item_chance) * float(group_chance)) / 100
+    return ref(L * (c1 * m))
+
+
 def group_eval(group: dict, L: F, m: F = F(1)) -> dict:
     g = cd(group["chance"])
     w = [fl(cd(i["chance"]) * m) for i in group["items"]]
@@ -440,10 +452,9 @@ def drop_widths(g_str: str) -> int:
         for scope in ("death", "corpse"):
             for n in npc[scope]:
                 if n["kind"] == "item" or len(n["items"]) == 1:
-                    base = fl(cd(n["chance"]) * m) if n["kind"] == "item" else \
-                        fl(fl(fl(cd(n["items"][0]["chance"]) * m) * cd(n["chance"])) / 100)
                     for L in Ls:
-                        c = fl(L * base)
+                        c = fl(L * fl(cd(n["chance"]) * m)) if n["kind"] == "item" else \
+                            single_item_c(n["items"][0]["chance"], n["chance"], L, m)
                         widest = max(widest, _width_terms(c))
                         if c > 100:
                             widest = max(widest, _width_terms(remainder(c)))
@@ -540,8 +551,34 @@ def fam_dm(out: dict) -> str:
     a = fl(F(prop("rates.properties", "DeathDropAmountMultiplier")))
     require(a == 1, "amount multiplier")
     vec.append({"case": "surplus", "C": "120", "mult_base": 1, "remainder": "20", "amount_multiplier": "1"})
+    # Every single-item group x every L at G = "1.5" (the 5-drop-rate-multiplier fixture): the pinned
+    # collapse-then-multiply C = fl(L x fl(c' x m)) equals the binary64 reference; the former
+    # multiply-then-collapse form fl(L x fl(fl(fl(cd x m) x cd(g)) / 100)) differs (review-2 P1-1).
+    Ls = all_l_values()
+    singles, cells, regress = 0, 0, []
+    for npc in npc_rows():
+        for n in npc["death"]:
+            if n["kind"] != "group" or len(n["items"]) != 1:
+                continue
+            singles += 1
+            it = n["items"][0]
+            m = m_branch(it["id"], "death", npc["is_raid"], "1.5")[1]
+            for L in Ls:
+                pinned = single_item_c(it["chance"], n["chance"], L, m)
+                require(pinned == single_item_c_float(it["chance"], n["chance"], float(L), float(m)),
+                        f"single-item C vs binary64 {npc['id']}")
+                cells += 1
+                wrong = fl(L * fl(fl(fl(cd(it["chance"]) * m) * cd(n["chance"])) / 100))
+                if wrong != pinned:
+                    regress.append({"npc": npc["id"], "group": n["chance"], "item_chance": it["chance"],
+                                    "L_bits": bits(L), "C_bits": bits(pinned), "wrong_bits": bits(wrong)})
+    npcs = sorted({r["npc"] for r in regress})
+    require(singles == 3032, "3,032 single-item groups")
+    require(len(regress) == 35 and npcs == [29181], f"P1-1 regression cells {len(regress)} on {npcs}")
+    out["dm_single_item_g15"] = {"groups": singles, "cells": cells, "regression": regress}
     out["dm_vectors"] = vec
-    return "5 branches x G {1, 1.5, 0.333..., DR5 string}; DR5 double rounding reproduced; surplus->mult; amounts unchanged"
+    return (f"5 branches x G {{1, 1.5, 0.333..., DR5 string}}; DR5 double rounding reproduced; surplus->mult; amounts unchanged; "
+            f"{singles:,} single-item groups x {len(Ls)} L at G=1.5 = binary64 ({cells:,} cells; {len(regress)} cells on {npcs} differ from the multiply-first form)")
 
 
 def format_decimal(q: F, digits: int) -> str:
@@ -591,8 +628,7 @@ def roll_node(node: dict, scope: str, raid: bool, L_group: F, L_item, words: Wor
     if len(node["items"]) == 1:
         it = node["items"][0]
         m = m_branch(it["id"], scope, raid, "1")[1]
-        c1 = fl(fl(fl(cd(it["chance"]) * m) * cd(node["chance"])) / 100)
-        h = ungrouped(it, fl(L_group * c1), site)
+        h = ungrouped(it, single_item_c(it["chance"], node["chance"], L_group, m), site)
         return [h] if h else []
     ev = group_eval(node, L_group)
     G = ev["S"]

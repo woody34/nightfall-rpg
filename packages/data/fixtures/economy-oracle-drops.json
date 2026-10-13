@@ -2504,6 +2504,292 @@
   },
   "ungrouped_raid_uses_window": true
  },
+ "dm_single_item_g15": {
+  "cells": 57608,
+  "groups": 3032,
+  "regression": [
+   {
+    "C_bits": "3f8eb851eb851eba",
+    "L_bits": "3fb999999999999a",
+    "group": "0.1",
+    "item_chance": "100",
+    "npc": 29181,
+    "wrong_bits": "3f8eb851eb851eb8"
+   },
+   {
+    "C_bits": "3f8eb851eb851ec1",
+    "L_bits": "3fb99999999999a0",
+    "group": "0.1",
+    "item_chance": "100",
+    "npc": 29181,
+    "wrong_bits": "3f8eb851eb851ec0"
+   },
+   {
+    "C_bits": "3fa18de5ab277f45",
+    "L_bits": "3fcd41d41d41d41d",
+    "group": "0.1",
+    "item_chance": "100",
+    "npc": 29181,
+    "wrong_bits": "3fa18de5ab277f44"
+   },
+   {
+    "C_bits": "3fa3333333333334",
+    "L_bits": "3fd0000000000000",
+    "group": "0.1",
+    "item_chance": "100",
+    "npc": 29181,
+    "wrong_bits": "3fa3333333333333"
+   },
+   {
+    "C_bits": "3fa5810624dd2f1c",
+    "L_bits": "3fd1eb851eb851ec",
+    "group": "0.1",
+    "item_chance": "100",
+    "npc": 29181,
+    "wrong_bits": "3fa5810624dd2f1b"
+   },
+   {
+    "C_bits": "3fab6db6db6db6dd",
+    "L_bits": "3fd6db6db6db6db7",
+    "group": "0.1",
+    "item_chance": "100",
+    "npc": 29181,
+    "wrong_bits": "3fab6db6db6db6db"
+   },
+   {
+    "C_bits": "3faeb851eb851eba",
+    "L_bits": "3fd999999999999a",
+    "group": "0.1",
+    "item_chance": "100",
+    "npc": 29181,
+    "wrong_bits": "3faeb851eb851eb8"
+   },
+   {
+    "C_bits": "3fb1a9fbe76c8b45",
+    "L_bits": "3fdd70a3d70a3d71",
+    "group": "0.1",
+    "item_chance": "100",
+    "npc": 29181,
+    "wrong_bits": "3fb1a9fbe76c8b44"
+   },
+   {
+    "C_bits": "3fb2a6c405d9f73a",
+    "L_bits": "3fdf15f15f15f15f",
+    "group": "0.1",
+    "item_chance": "100",
+    "npc": 29181,
+    "wrong_bits": "3fb2a6c405d9f739"
+   },
+   {
+    "C_bits": "3fb51eb851eb8520",
+    "L_bits": "3fe199999999999a",
+    "group": "0.1",
+    "item_chance": "100",
+    "npc": 29181,
+    "wrong_bits": "3fb51eb851eb851f"
+   },
+   {
+    "C_bits": "3fb796ac9dfd1306",
+    "L_bits": "3fe3a83a83a83a84",
+    "group": "0.1",
+    "item_chance": "100",
+    "npc": 29181,
+    "wrong_bits": "3fb796ac9dfd1305"
+   },
+   {
+    "C_bits": "3fb89374bc6a7efb",
+    "L_bits": "3fe47ae147ae147b",
+    "group": "0.1",
+    "item_chance": "100",
+    "npc": 29181,
+    "wrong_bits": "3fb89374bc6a7efa"
+   },
+   {
+    "C_bits": "3fbae147ae147ae2",
+    "L_bits": "3fe6666666666666",
+    "group": "0.1",
+    "item_chance": "100",
+    "npc": 29181,
+    "wrong_bits": "3fbae147ae147ae1"
+   },
+   {
+    "C_bits": "3fbc869536202ed1",
+    "L_bits": "3fe7c57c57c57c58",
+    "group": "0.1",
+    "item_chance": "100",
+    "npc": 29181,
+    "wrong_bits": "3fbc869536202ed0"
+   },
+   {
+    "C_bits": "3fbf7ced916872b1",
+    "L_bits": "3fea3d70a3d70a3d",
+    "group": "0.1",
+    "item_chance": "100",
+    "npc": 29181,
+    "wrong_bits": "3fbf7ced916872af"
+   },
+   {
+    "C_bits": "3fc0bb3ee721a54e",
+    "L_bits": "3febe2be2be2be2c",
+    "group": "0.1",
+    "item_chance": "100",
+    "npc": 29181,
+    "wrong_bits": "3fc0bb3ee721a54d"
+   },
+   {
+    "C_bits": "3fc3333333333334",
+    "L_bits": "3ff0000000000000",
+    "group": "0.1",
+    "item_chance": "100",
+    "npc": 29181,
+    "wrong_bits": "3fc3333333333333"
+   },
+   {
+    "C_bits": "3fdbc5d63886594a",
+    "L_bits": "3fb999999999999a",
+    "group": "2.893",
+    "item_chance": "100",
+    "npc": 29181,
+    "wrong_bits": "3fdbc5d63886594c"
+   },
+   {
+    "C_bits": "3fdbc5d638865951",
+    "L_bits": "3fb99999999999a0",
+    "group": "2.893",
+    "item_chance": "100",
+    "npc": 29181,
+    "wrong_bits": "3fdbc5d638865952"
+   },
+   {
+    "C_bits": "3fefbd871c074178",
+    "L_bits": "3fcd41d41d41d41d",
+    "group": "2.893",
+    "item_chance": "100",
+    "npc": 29181,
+    "wrong_bits": "3fefbd871c07417a"
+   },
+   {
+    "C_bits": "3ff15ba5e353f7ce",
+    "L_bits": "3fd0000000000000",
+    "group": "2.893",
+    "item_chance": "100",
+    "npc": 29181,
+    "wrong_bits": "3ff15ba5e353f7cf"
+   },
+   {
+    "C_bits": "3ff370e2c12ad81a",
+    "L_bits": "3fd1eb851eb851ec",
+    "group": "2.893",
+    "item_chance": "100",
+    "npc": 29181,
+    "wrong_bits": "3ff370e2c12ad81c"
+   },
+   {
+    "C_bits": "3ff8cc118de5ab26",
+    "L_bits": "3fd6db6db6db6db7",
+    "group": "2.893",
+    "item_chance": "100",
+    "npc": 29181,
+    "wrong_bits": "3ff8cc118de5ab28"
+   },
+   {
+    "C_bits": "3ffbc5d63886594a",
+    "L_bits": "3fd999999999999a",
+    "group": "2.893",
+    "item_chance": "100",
+    "npc": 29181,
+    "wrong_bits": "3ffbc5d63886594c"
+   },
+   {
+    "C_bits": "3ffff04ff43419e2",
+    "L_bits": "3fdd70a3d70a3d71",
+    "group": "2.893",
+    "item_chance": "100",
+    "npc": 29181,
+    "wrong_bits": "3ffff04ff43419e4"
+   },
+   {
+    "C_bits": "4000dcafc6e3dac8",
+    "L_bits": "3fdf15f15f15f15f",
+    "group": "2.893",
+    "item_chance": "100",
+    "npc": 29181,
+    "wrong_bits": "4000dcafc6e3dac9"
+   },
+   {
+    "C_bits": "4003180346dc5d63",
+    "L_bits": "3fe199999999999a",
+    "group": "2.893",
+    "item_chance": "100",
+    "npc": 29181,
+    "wrong_bits": "4003180346dc5d64"
+   },
+   {
+    "C_bits": "40055356c6d4dffd",
+    "L_bits": "3fe3a83a83a83a84",
+    "group": "2.893",
+    "item_chance": "100",
+    "npc": 29181,
+    "wrong_bits": "40055356c6d4dfff"
+   },
+   {
+    "C_bits": "400637de939eadd5",
+    "L_bits": "3fe47ae147ae147b",
+    "group": "2.893",
+    "item_chance": "100",
+    "npc": 29181,
+    "wrong_bits": "400637de939eadd6"
+   },
+   {
+    "C_bits": "40084d1b71758e20",
+    "L_bits": "3fe6666666666666",
+    "group": "2.893",
+    "item_chance": "100",
+    "npc": 29181,
+    "wrong_bits": "40084d1b71758e21"
+   },
+   {
+    "C_bits": "4009c9fdc6c5e532",
+    "L_bits": "3fe7c57c57c57c58",
+    "group": "2.893",
+    "item_chance": "100",
+    "npc": 29181,
+    "wrong_bits": "4009c9fdc6c5e534"
+   },
+   {
+    "C_bits": "400c77952d234eb8",
+    "L_bits": "3fea3d70a3d70a3d",
+    "group": "2.893",
+    "item_chance": "100",
+    "npc": 29181,
+    "wrong_bits": "400c77952d234eb9"
+   },
+   {
+    "C_bits": "400d82339c0ebede",
+    "L_bits": "3feb333333333333",
+    "group": "2.893",
+    "item_chance": "100",
+    "npc": 29181,
+    "wrong_bits": "400d82339c0ebee0"
+   },
+   {
+    "C_bits": "400e40a4c6b6ea67",
+    "L_bits": "3febe2be2be2be2c",
+    "group": "2.893",
+    "item_chance": "100",
+    "npc": 29181,
+    "wrong_bits": "400e40a4c6b6ea69"
+   },
+   {
+    "C_bits": "40115ba5e353f7ce",
+    "L_bits": "3ff0000000000000",
+    "group": "2.893",
+    "item_chance": "100",
+    "npc": 29181,
+    "wrong_bits": "40115ba5e353f7cf"
+   }
+  ]
+ },
  "dm_vectors": [
   {
    "G": "1",
