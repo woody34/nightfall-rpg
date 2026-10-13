@@ -603,6 +603,9 @@ impl ZoneState {
             let resolution = format!("{:?}:{}", reference.operation, reference.key).to_lowercase();
             // D46 `set_shield_history` (D20): one fact per set-shield transition.
             let event = format!("{:?}", reference.operation).to_lowercase();
+            if matches!(event.as_str(), "equip" | "unequip" | "enchant") {
+                self.gear_stats_evidence_v6(id, &event, &resolution);
+            }
             // Same resolution as the command's ledger rows, so phases correlate the mutation.
             for observed in &set_observations {
                 self.item_formula_v6(

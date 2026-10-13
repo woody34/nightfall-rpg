@@ -10317,6 +10317,64 @@ mod tests {
     }
 
     #[test]
+    fn v6_gear_stats_recording_exports_engine_folds() {
+        use crate::domain::zone::{item_sources, EquipSlot, ItemCommandKind as K};
+        // D103(a): a light owner (only no-grade gear, so no grade/overload penalty) equips and
+        // unequips a weapon and a shirt; each rebuild exports gear_stats.
+        let (mut zone, owner, _, ids) = use_fixture(&[1, 21]);
+        {
+            let items = zone.phase4.as_mut().unwrap();
+            let rules = Arc::clone(&items.rules);
+            let player = items.canonical.players.get_mut(&owner.entity).unwrap();
+            player.inventory.retain(|id, _| ids.contains(id));
+            for item in player.inventory.values_mut() {
+                item.slot = None;
+                item.location = crate::domain::zone::ItemLocation::Inventory;
+                item.charges = 0;
+            }
+            player.paperdoll.clear();
+            player.auto_shots.clear();
+            player.active_sets = item_sources::reconcile_sets(player, &rules, None).unwrap();
+            let next = &mut zone
+                .phase3
+                .as_mut()
+                .unwrap()
+                .canonical
+                .next_install_sequence;
+            item_sources::reconcile_sources(player, &rules, next).unwrap();
+        }
+        zone.rebuild_v5(owner.entity).unwrap();
+        zone.run_tick(zone.draft(Vec::new())).unwrap();
+        let held = &zone.phase4.as_ref().unwrap().canonical.players[&owner.entity];
+        assert_eq!((held.weapon_penalty, held.armor_penalty, held.overload_level), (0, 0, 0));
+        let mut run = EvidenceRun::start(zone);
+        let mut request = 2000_u128;
+        let mut step = |run: &mut EvidenceRun, kind: K| {
+            request += 1;
+            let intent = item_intent(&run.zone, owner.entity, request, kind);
+            let applied = run.tick(owner.entity, vec![ZoneCommand::Item(Box::new(intent))]);
+            assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+        };
+        for id in &ids {
+            step(
+                &mut run,
+                K::Equip {
+                    instance: *id,
+                    preferred_slot: None,
+                },
+            );
+        }
+        step(
+            &mut run,
+            K::Unequip {
+                slot: EquipSlot::Rhand,
+            },
+        );
+        assert!(run.formulas().contains("gear_stats"), "{:?}", run.formulas());
+        run.write("NIGHTFALL_TEST_GEAR_STATS_RECORDING");
+    }
+
+    #[test]
     fn v6_fractional_hp_cold_replay_regen_and_last_fraction_death() {
         use crate::domain::zone::item_combat::half_hp;
         let (mut base, source, npc) = equipment_fixture();

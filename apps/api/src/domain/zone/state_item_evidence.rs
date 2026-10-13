@@ -667,6 +667,215 @@ impl ZoneState {
         }
     }
 
+    /// D46/D103(a) `gear_stats` after an equipment rebuild: the oracle inputs (pinned base
+    /// class file, level, worn equipment with install sequences, winning passive providers)
+    /// and the engine's q/getter folds of the 11 engine-folded stats plus base attributes.
+    /// Exported only where the oracle models every provider: a base-class player with no
+    /// timed effects, death penalty, grade/overload penalty, augment, enchant option or set
+    /// attribute delta.
+    #[allow(clippy::too_many_lines)] // One provider census and eleven folds.
+    pub(in crate::domain::zone) fn gear_stats_evidence_v6(
+        &mut self,
+        id: EntityId,
+        event: &str,
+        resolution: &str,
+    ) {
+        use crate::domain::zone::phase4_checkpoint::EquipmentSourceKey as K;
+        use crate::domain::zone::stat_functions::FunctionConditions;
+        use crate::domain::zone::RestoredModifierSource as R;
+        if !self.items_evidence_enabled() || !self.phase4_player_v6(id) {
+            return;
+        }
+        let (Some(items), Some(phase3), Some(stats), Some(classes)) = (
+            self.phase4.as_ref(),
+            self.phase3.as_ref(),
+            self.rules.as_ref(),
+            self.classes.as_ref(),
+        ) else {
+            return;
+        };
+        let (Some(player), Some(entity), Ok(side), Ok(effective)) = (
+            items.canonical.players.get(&id),
+            self.entities.get(&id),
+            self.sidecar(id),
+            self.effective(id),
+        ) else {
+            return;
+        };
+        let Some(combat) = entity.combat.as_ref() else {
+            return;
+        };
+        let CombatRole::Player {
+            progression: Some(progression),
+            ..
+        } = &combat.role
+        else {
+            return;
+        };
+        let class_id = progression.class_state.current_class_id;
+        let Some(slots) = items
+            .rules
+            .parts()
+            .class_slots
+            .iter()
+            .find(|row| row.base_class_id == class_id.0)
+        else {
+            return; // Transferred classes use other pinned class files.
+        };
+        if player.weapon_penalty != 0
+            || player.armor_penalty != 0
+            || player.overload_level != 0
+            || side
+                .modifier_install_order
+                .values()
+                .any(|source| !matches!(source, R::Passive(_)))
+        {
+            return;
+        }
+        let mut winners: std::collections::BTreeMap<u32, (u32, u64)> =
+            std::collections::BTreeMap::new();
+        for (sequence, source) in &side.modifier_install_order {
+            if let R::Passive(reference) = source {
+                winners.insert(reference.id.0, (reference.rank, *sequence));
+            }
+        }
+        let rules = &phase3.canonical.rules;
+        let mut equipment = Vec::new();
+        for (sequence, key) in &player.equipment_sources {
+            match key {
+                K::Item { instance } => {
+                    let Some(item) = player.inventory.get(instance) else {
+                        return;
+                    };
+                    if item.augment_id.is_some() {
+                        return;
+                    }
+                    equipment.push(json!([item.template_id, item.enchant, item.slot, sequence]));
+                    continue;
+                },
+                K::ArmorSet { set, .. } => {
+                    if items
+                        .rules
+                        .parts()
+                        .armor_sets
+                        .get(set)
+                        .is_none_or(|rule| rule.base_stats.values().any(|v| *v != 0))
+                    {
+                        return;
+                    }
+                },
+                K::ItemSkill { .. } | K::Enchant4 { .. } | K::Polearm => {},
+                K::EnchantOption { .. }
+                | K::Augment { .. }
+                | K::GradePenalty { .. }
+                | K::Overload => return,
+            }
+            let Ok(references) =
+                crate::domain::zone::item_sources::source_skills(player, &items.rules, key)
+            else {
+                return;
+            };
+            for reference in references {
+                let Some(skill) = rules.skills().get(reference.id) else {
+                    return;
+                };
+                if skill.operate_type != "P" {
+                    continue;
+                }
+                if winners
+                    .get(&reference.id.0)
+                    .is_none_or(|(rank, _)| reference.rank > *rank)
+                {
+                    winners.insert(reference.id.0, (reference.rank, *sequence));
+                }
+            }
+        }
+        let skill_refs: Vec<_> = winners
+            .iter()
+            .map(|(skill, (rank, sequence))| json!([skill, rank, sequence]))
+            .collect();
+        let class_file = format!(
+            "src/main/resources/data/stats/chars/baseStats/{}.xml",
+            slots
+                .key
+                .split('_')
+                .map(|part| {
+                    let mut chars = part.chars();
+                    chars.next().map_or_else(String::new, |first| {
+                        first.to_ascii_uppercase().to_string() + chars.as_str()
+                    })
+                })
+                .collect::<String>()
+        );
+        let level = combat.sheet.level();
+        let context = crate::domain::zone::effective_stats::EquipmentStatContext {
+            player,
+            rules: &items.rules,
+        };
+        let Ok(inputs) = crate::domain::zone::effective_stats::PlayerStatInputs::from_equipment(
+            stats, classes, rules, class_id, level, context,
+        ) else {
+            return;
+        };
+        let Ok(weapon_kind) = context.weapon_kind() else {
+            return;
+        };
+        let conditions = FunctionConditions {
+            weapon_kind,
+            can_resurrect: true,
+        };
+        let bases = &inputs.bases;
+        let mut q = serde_json::Map::new();
+        let mut getters = serde_json::Map::new();
+        for (stat, initial) in [
+            ("pAtk", bases.p_atk_q),
+            ("mAtk", bases.m_atk_q),
+            ("pDef", bases.p_def_q),
+            ("mDef", bases.m_def_q),
+            ("critRate", bases.crit_q),
+            ("pAtkSpd", bases.attack_speed_q),
+            ("maxHp", bases.max_hp_q),
+            ("maxMp", bases.max_mp_q),
+            ("maxCp", bases.max_cp_q),
+            ("mAtkSpd", bases.cast_speed_q),
+            ("runSpd", bases.run_speed_q),
+        ] {
+            let Ok(value) = effective.calculator.fold(stat, initial, conditions) else {
+                return;
+            };
+            q.insert(stat.into(), json!(value));
+            getters.insert(stat.into(), json!(value.div_euclid(Q)));
+        }
+        let Some(class) = classes.get(class_id) else {
+            return;
+        };
+        let mut base_stats = serde_json::Map::new();
+        for (name, value) in [
+            ("STR", class.base_stats.str),
+            ("DEX", class.base_stats.dex),
+            ("CON", class.base_stats.con),
+            ("INT", class.base_stats.int),
+            ("WIT", class.base_stats.wit),
+            ("MEN", class.base_stats.men),
+        ] {
+            let Ok(folded) = crate::domain::zone::scaled::Scaled::from_int(i64::from(value))
+                .and_then(|initial| effective.calculator.fold(name, initial.raw(), conditions))
+            else {
+                return;
+            };
+            base_stats.insert(name.into(), json!(folded.div_euclid(Q)));
+        }
+        self.item_formula_v6(
+            id,
+            "gear_stats",
+            json!({"class_file": class_file, "level": level, "equipment": equipment,
+                "skill_refs": skill_refs, "base_deltas": null, "base_delta_sequence": -1}),
+            json!({"q": q, "getters": getters, "base_stats": base_stats}),
+            resolution,
+            Some(json!({"event": event})),
+        );
+    }
+
     pub(in crate::domain::zone) fn attack_context_v6(
         &self,
         attacker: EntityId,
