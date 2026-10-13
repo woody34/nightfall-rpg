@@ -702,68 +702,122 @@ def fam_do(out: dict) -> str:
     return f"{len(traces)} whole-death traces (corpse -> death -> positions -> jitter), draw counts per node"
 
 
+def template_flags(template: int) -> dict:
+    """Pinned per-template item flags (L2Item / L2EtcItem / L2ItemInstance)."""
+    sets = items_xml()[template]["sets"]
+    return {
+        "shadow": int(sets.get("duration", "-1")) >= 0,        # isShadowItem: _mana = duration >= 0
+        "time_limited": int(sets.get("time", "-1")) != -1,     # isTimeLimitedItem: _time > 0 iff time != -1
+        "droppable": sets.get("is_droppable", "true") == "true",
+        "quest": items_xml()[template]["type"] == "EtcItem" and sets.get("is_questitem", "false") == "true",
+        "depositable": sets.get("is_depositable", "true") == "true",
+        "tradeable": sets.get("is_tradable", "true") == "true",
+    }
+
+
+def pk_excluded(inst: dict) -> bool:
+    """L2PcInstance.onDieDropItem exclusions (:4524-4531): shadow, time-limited, !isDroppable (incl.
+    augmented), adena, QUEST type2, active pet control item, NonDroppableItems, PetItems (E53)."""
+    pk = table("ground.toml")["pk"]
+    f = template_flags(inst["template"])
+    return (f["shadow"] or f["time_limited"] or not f["droppable"] or inst.get("augmented", False)
+            or inst["template"] == 57 or f["quest"] or inst.get("pet_control", False)
+            or inst["template"] in pk["non_droppable_items"] or inst["template"] in pk["pet_items"])
+
+
+def freight_depositable(inst: dict) -> bool:
+    """L2ItemInstance.isDepositable(false) (:700-711): not equipped, template depositable, tradeable
+    (not augmented) and not a shadow item (E53)."""
+    f = template_flags(inst["template"])
+    if inst.get("equipped", False) or not f["depositable"]:
+        return False
+    return f["tradeable"] and not inst.get("augmented", False) and not f["shadow"]
+
+
+def pk_drop(inv: list[dict], karma: int, pk_count: int, killer_is_player: bool, words: Words) -> tuple[list, list]:
+    """§3.9 pk_drop_v7 over a scripted word stream; mutates `equipped` like the pinned unequip."""
+    g = table("ground.toml")["pk"]
+    trace: list = []
+    dropped: list = []
+    if not killer_is_player:
+        return trace, dropped  # NPC killer: PlayerRateDrop = 0, no draw
+    if not (karma > 0 and pk_count >= g["minimum_pk_required_to_drop"]):
+        return trace, dropped
+    r = words.u64()
+    ok = chance_bound(r, g["karma_rate_drop"], 100)
+    trace.append(["gate", ok])
+    if not ok:
+        return trace, dropped
+    for inst in sorted(inv, key=lambda i: i["id"]):  # X4: ascending ItemInstanceId
+        if pk_excluded(inst):
+            continue
+        if inst.get("equipped"):
+            p = g["karma_rate_drop_equip_weapon"] if inst.get("weapon") else g["karma_rate_drop_equip"]
+            inst["equipped"] = False
+            trace.append(["unequip", inst["id"]])
+        else:
+            p = g["karma_rate_drop_item"]
+        r = words.u64()
+        ok = chance_bound(r, p, 100)
+        trace.append(["item", inst["id"], p, ok])
+        if ok:
+            dx, dy = words.roll_below(50) - 25, words.roll_below(50) - 25
+            dropped.append([inst["id"], dx, dy])
+            if len(dropped) >= g["karma_drop_limit"]:
+                break
+    return trace, dropped
+
+
 @family("D-P", "1.5")
 def fam_dp(out: dict) -> str:
     g = table("ground.toml")["pk"]
-    non_drop = set(g["non_droppable_items"]) | set(g["pet_items"])
     require(len(g["non_droppable_items"]) == 30 and len(set(g["non_droppable_items"])) == 29, "NonDroppable 30/29")
     require(len(g["pet_items"]) == 11, "PetItems 11")
     require(g["player_rate_drop"] == 0, "PlayerRateDrop 0: NPC-killer branch never draws")
-
-    def excluded(inst) -> bool:
-        return (inst["template"] == 57 or inst["template"] in non_drop or inst.get("quest")
-                or inst.get("augmented") or not inst.get("droppable", True))
-
-    def pk_drop(inv, karma, pk_count, killer_is_player, words):
-        trace, dropped = [], []
-        if not killer_is_player:
-            return trace, dropped, inv  # PlayerRateDrop = 0: no draw
-        if not (karma > 0 and pk_count >= g["minimum_pk_required_to_drop"]):
-            return trace, dropped, inv
-        r = words.u64()
-        trace.append(("gate", chance_bound(r, g["karma_rate_drop"], 100)))
-        if not chance_bound(r, g["karma_rate_drop"], 100):
-            return trace, dropped, inv
-        for inst in sorted(inv, key=lambda i: i["id"]):
-            if excluded(inst):
-                continue
-            p = (g["karma_rate_drop_equip_weapon"] if inst.get("weapon") else g["karma_rate_drop_equip"]) \
-                if inst.get("equipped") else g["karma_rate_drop_item"]
-            if inst.get("equipped"):
-                inst["equipped"] = False
-                trace.append(("unequip", inst["id"]))
-            r = words.u64()
-            ok = chance_bound(r, p, 100)
-            trace.append(("item", inst["id"], p, ok))
-            if ok:
-                dx, dy = words.roll_below(50) - 25, words.roll_below(50) - 25
-                require(-25 <= dx <= 24 and -25 <= dy <= 24, "offsets")
-                dropped.append((inst["id"], dx, dy))
-                if len(dropped) >= g["karma_drop_limit"]:
-                    break
-        return trace, dropped, inv
-
-    # Gate threshold: chance_bound(40, 100) passes for exactly ceil(40 * 2^64 / 100) draws
+    require("itemDrop.isShadowItem() || itemDrop.isTimeLimitedItem() || !itemDrop.isDroppable()"
+            in game_text(GJ + "model/actor/instance/L2PcInstance.java"), "pinned exclusion line")
+    require("return isTradeable() && !isShadowItem();" in game_text(GJ + "model/items/instance/L2ItemInstance.java"),
+            "pinned freight depositable line")
+    cat = table("catalogue.toml")["templates"]
+    shadow = next(t["id"] for t in cat if "lifetime_deferred" in t["tags"] and template_flags(t["id"])["shadow"])
+    timed = next(t["id"] for t in cat if "lifetime_deferred" in t["tags"] and template_flags(t["id"])["time_limited"])
+    plain = [t["id"] for t in cat if not t["tags"] and t["id"] not in g["non_droppable_items"] + g["pet_items"] + [57]
+             and not any(template_flags(t["id"])[k] for k in ("quest", "shadow", "time_limited"))
+             and template_flags(t["id"])["droppable"] and template_flags(t["id"])["depositable"]
+             and template_flags(t["id"])["tradeable"]][:24]
+    require(pk_excluded({"template": shadow}) and pk_excluded({"template": timed}), "shadow / time-limited excluded (E53)")
+    tf = template_flags(timed)
+    require(not freight_depositable({"template": shadow}), "freight refuses shadow items")
+    require(freight_depositable({"template": timed}) == (tf["depositable"] and tf["tradeable"]),
+            "time-limited items follow only the template flags at freight")
+    require(not freight_depositable({"template": plain[0], "augmented": True}) and
+            not freight_depositable({"template": plain[0], "equipped": True}) and freight_depositable({"template": plain[0]}),
+            "freight: augmented / equipped refused")
     require(chance_threshold(F(40)) == -(-(40 * TWO64) // 100), "gate threshold")
     vec = []
-    for seed in range(1, 200):
-        inv = [{"id": i, "template": 100 + i, "equipped": i % 3 == 0, "weapon": i % 6 == 0} for i in range(1, 25)]
+    for seed in range(1, 400):
+        inv = [{"id": i + 1, "template": t, "equipped": i % 3 == 2, "weapon": i % 6 == 5} for i, t in enumerate(plain)]
         inv += [{"id": 50, "template": 57}, {"id": 51, "template": 7694}, {"id": 52, "template": 2375},
-                {"id": 53, "template": 999, "quest": True}, {"id": 54, "template": 998, "augmented": True}]
-        tr, dropped, inv2 = pk_drop(inv, 10, 6, True, Words(seed))
+                {"id": 53, "template": plain[0], "augmented": True}, {"id": 54, "template": shadow, "equipped": True},
+                {"id": 55, "template": timed}]
+        tr, dropped = pk_drop(inv, 10, 6, True, Words(seed))
         if len(dropped) == 10:
             last = dropped[-1][0]
-            later_equipped = [i["id"] for i in inv2 if i["id"] > last and i.get("equipped") and not excluded(i)]
-            require(all(i.get("equipped") for i in inv2 if i["id"] > last and i["id"] % 3 == 0 and i["id"] < 25), "later equipped stay")
-            vec.append({"seed": seed, "trace": tr, "dropped": dropped, "later_equipped": later_equipped})
+            require(all(i["equipped"] for i in inv if i["id"] > last and i["id"] <= 24 and i["id"] % 3 == 0),
+                    "items after the 10th drop stay equipped")
+            require(next(i for i in inv if i["id"] == 54)["equipped"], "excluded shadow item is not unequipped")
+            require(all(-25 <= d[1] <= 24 and -25 <= d[2] <= 24 for d in dropped), "offsets")
+            vec.append({"seed": seed, "inventory_templates": plain, "shadow": shadow, "time_limited": timed,
+                        "trace": tr, "dropped": dropped})
             break
     require(vec, "a vector reaching the 10-drop break")
-    tr, dropped, _ = pk_drop([{"id": 1, "template": 100}], 10, 5, True, Words(9))
-    require(tr == [] and dropped == [], "pk_count < 6 draws nothing")
-    tr, dropped, _ = pk_drop([{"id": 1, "template": 100}], 10, 9, False, Words(9))
-    require(tr == [], "NPC killer draws nothing")
-    out["dp_vectors"] = vec
-    return "exclusions (adena, NonDroppable, PetItems, quest, augmented); unequip-before-roll; break at 10; gate 40; offsets [-25, 24]; NPC killer no draw"
+    require(pk_drop([{"id": 1, "template": plain[0]}], 10, 5, True, Words(9)) == ([], []), "pk_count < 6 draws nothing")
+    require(pk_drop([{"id": 1, "template": plain[0]}], 10, 9, False, Words(9)) == ([], []), "NPC killer draws nothing")
+    out["dp_vectors"] = {"break_at_10": vec, "shadow_template": shadow, "time_limited_template": timed,
+                         "freight": {"shadow": False, "time_limited": freight_depositable({"template": timed}),
+                                     "augmented": False, "equipped": False}}
+    return ("exclusions (adena, NonDroppable, PetItems, quest, augmented, shadow, time-limited); unequip-before-roll; "
+            "break at 10; gate 40; offsets [-25, 24]; NPC killer no draw; freight refuses shadow")
 
 
 @family("D-T", "1.5")
