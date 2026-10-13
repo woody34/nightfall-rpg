@@ -172,7 +172,7 @@ class SourceContractTests(unittest.TestCase):
         for row in caps['items']:
             if not row['admitted']:self.assertTrue(row['blockers'])
         for row in caps['items']:
-            if set(row['blockers']) & {'context:common','context:shadow','context:time_limited','context:npc_only','context:pet'}:self.assertFalse(row['storable'])
+            if set(row['blockers']) & {'context:common','context:shadow','context:time_limited','context:pet'}:self.assertFalse(row['storable'])
         by_id={r['template_id']:r for r in caps['items']}
         for sid in [5588,10650,12753]:self.assertTrue(by_id[sid]['storable'])
         for sid in [729,955,6569,12362,72,79,4682,4717]:self.assertTrue(by_id[sid]['admitted'],sid)

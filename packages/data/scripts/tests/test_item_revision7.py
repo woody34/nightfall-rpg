@@ -8,14 +8,16 @@ from packages.data.scripts import gen_items as gen
 
 
 class ConsumableClosureTests(unittest.TestCase):
-    def capabilities(self, costs, npc=(), deferred=(), deleted=()):
+    def capabilities(self, costs, nonstorable=(), deferred=(), deleted=(), for_npc=()):
         with tempfile.TemporaryDirectory() as temp:
             path=Path(temp)/'items.xml'
             path.write_text('<list>'+''.join(
                 f'<item id="{sid}" name="Item {sid}" type="EtcItem">'
                 '<set name="handler" val="ItemSkills"/>'
                 f'<set name="item_skill" val="{sid}-{rank}"/>'
-                f'<set name="for_npc" val="{str(sid in npc).lower()}"/>'
+                # Non-storable via a shadow duration; D97: for_npc alone never blocks.
+                + (f'<set name="duration" val="10"/>' if sid in nonstorable else '')
+                + f'<set name="for_npc" val="{str(sid in for_npc).lower()}"/>'
                 '</item>' for sid,rank in [(1,1),(2,1),(3,1),(4,2),(5,1),(6,1)])+'</list>')
             items={int(gen.attrs(n)['id']):gen.project_item(n,'items.xml',{'none':0})
                    for n in gen.children(gen.xml(path),'item') if int(gen.attrs(n)['id']) not in deleted}
@@ -33,7 +35,7 @@ class ConsumableClosureTests(unittest.TestCase):
 
     def test_consumable_closure_propagates_and_uses_resolved_rank(self):
         costs={1:(2,1),2:(3,1),3:(3,1),4:([3,5],[1,1]),5:(5,1),6:(3,0)}
-        rows,recipes=self.capabilities(costs,npc={3})
+        rows,recipes=self.capabilities(costs,nonstorable={3})
         for sid,target in [(1,2),(2,3),(3,3)]:
             self.assertFalse(rows[sid]['admitted'])
             blocker=f'consumable:skill:{sid}:1:item:{target}'
@@ -45,13 +47,15 @@ class ConsumableClosureTests(unittest.TestCase):
         self.assertEqual(recipes,[{'recipe_id':1,'admitted':False,'blockers':['item:2']}])
         rows,recipes=self.capabilities(costs)
         self.assertTrue(all(r['admitted'] for r in rows.values()))
+        rows,_=self.capabilities(costs,for_npc={1,2,3,4,5,6})
+        self.assertTrue(all(r['admitted'] and r['storable'] for r in rows.values()))
         self.assertTrue(recipes[0]['admitted'])
         rows,_=self.capabilities(costs,deferred={3})
         self.assertTrue(rows[3]['storable'])
         self.assertFalse(rows[1]['admitted'])
 
     def test_deleting_consumable_fails_closed_like_non_storable_consumable(self):
-        for kwargs in [{'npc':{2}},{'deleted':{2}}]:
+        for kwargs in [{'nonstorable':{2}},{'deleted':{2}}]:
             with self.subTest(**kwargs):
                 rows,recipes=self.capabilities({1:(2,1)},**kwargs)
                 self.assertFalse(rows[1]['admitted'])
@@ -70,9 +74,9 @@ class ConsumableClosureTests(unittest.TestCase):
         directory=gen.ROOT/'tables-phase4'
         caps=tomllib.loads((directory/'capabilities.toml').read_text())
         by_id={r['template_id']:r for r in caps['items']}
-        self.assertFalse(by_id[14701]['storable'])
-        self.assertFalse(by_id[21040]['admitted'])
-        self.assertIn('consumable:skill:2864:1:item:14701',by_id[21040]['blockers'])
+        # D97: for_npc is a pet-use flag only, so 14701 is storable and 21040 admitted.
+        self.assertTrue(by_id[14701]['storable'])
+        self.assertTrue(by_id[21040]['admitted'])
         # Independent admitted-item audit catches deletion of the deferral result.
         items={r['template_id']:r for name in ['weapons','armors','etc_items']
                for r in tomllib.loads((directory/(name+'.toml')).read_text())['items']}
@@ -89,9 +93,7 @@ class ConsumableClosureTests(unittest.TestCase):
                             self.assertTrue(by_id[target]['storable'],(sid,target))
                             self.assertTrue(by_id[target]['admitted'],(sid,target))
         audit()
-        by_id[21040]['admitted']=True
-        by_id[21040]['blockers']=[]
-        by_id[21040]['use_blockers']=[]
+        by_id[14701]['storable']=False
         with self.assertRaises(AssertionError):audit()
 
 

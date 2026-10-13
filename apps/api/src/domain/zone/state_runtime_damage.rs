@@ -6525,14 +6525,15 @@ mod tests {
     }
     #[test]
     fn v6_hp_potion_uses_source_cost_alias_and_plain_hp_without_heal_rng() {
-        // 21040's source cost14701 is NPC-only/non-storable. It must refuse, not
-        // silently substitute the selected item; accepted D54 defers it before payment.
+        // 21040's source cost is item 14701 (itemConsumeId). D97: for_npc no longer defers
+        // either template, so without 14701 the use refuses as InsufficientItems before any
+        // draw, never substituting the selected item.
         let (mut missing, owner, _, ids) = use_fixture(&[21040]);
         let cursor = missing.rng.get_word_pos();
         let rejected = missing
             .run_tick(missing.draft(vec![use_input(&missing, owner, 960, 1, ids[0], None)]))
             .unwrap();
-        assert_eq!(rejected.dispositions[0].reason, RejectReason::ItemCapabilityDeferred);
+        assert_eq!(rejected.dispositions[0].reason, RejectReason::InsufficientItems);
         assert_eq!(missing.sidecar(owner.entity).unwrap().cast, CastState::Idle);
         assert_eq!(
             missing.phase4.as_ref().unwrap().canonical.players[&owner.entity].inventory[&ids[0]]
@@ -10413,7 +10414,8 @@ mod tests {
         let revision = player.inventory_revision;
         // Retained toggles may outlive their stack or a previous charge/weapon.
         player.auto_shots.extend([1464, 2511, 3949, 1465]);
-        for invalid in [1835, 57, u32::MAX] {
+        // D97 admits Soulshot: No Grade 1835 itself; a potion is still not a shot.
+        for invalid in [1060, 57, u32::MAX] {
             let mut corrupt = zone.snapshot();
             corrupt
                 .phase4

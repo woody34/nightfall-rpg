@@ -4724,9 +4724,9 @@ use_blockers = ["use:no_handler"]
 [[items]]
 template_id = 726
 admitted = false
-storable = false
-blockers = ["configuration:mana_potions_disabled", "consumable:skill:10000:1:item:726", "context:npc_only"]
-use_blockers = ["configuration:mana_potions_disabled", "consumable:skill:10000:1:item:726", "context:npc_only"]
+storable = true
+blockers = ["configuration:mana_potions_disabled", "consumable:skill:10000:1:item:726"]
+use_blockers = ["configuration:mana_potions_disabled", "consumable:skill:10000:1:item:726"]
 
 [[items]]
 template_id = 727
@@ -4738,9 +4738,9 @@ use_blockers = ["use:no_handler"]
 [[items]]
 template_id = 728
 admitted = false
-storable = false
-blockers = ["configuration:mana_potions_disabled", "consumable:skill:10001:1:item:728", "context:npc_only"]
-use_blockers = ["configuration:mana_potions_disabled", "consumable:skill:10001:1:item:728", "context:npc_only"]
+storable = true
+blockers = ["configuration:mana_potions_disabled", "consumable:skill:10001:1:item:728"]
+use_blockers = ["configuration:mana_potions_disabled", "consumable:skill:10001:1:item:728"]
 
 [[items]]
 template_id = 729
@@ -4765,17 +4765,17 @@ use_blockers = ["use:no_handler"]
 
 [[items]]
 template_id = 734
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 735
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 736
@@ -5654,31 +5654,31 @@ use_blockers = []
 
 [[items]]
 template_id = 1060
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 1061
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 1062
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only", "use:no_handler"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = ["use:no_handler"]
 
 [[items]]
 template_id = 1073
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 1100
@@ -6165,17 +6165,17 @@ use_blockers = []
 
 [[items]]
 template_id = 1374
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 1375
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 1376
@@ -6319,17 +6319,17 @@ use_blockers = []
 
 [[items]]
 template_id = 1539
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 1540
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 1660
@@ -6368,38 +6368,38 @@ use_blockers = ["consumable:skill:2041:1:item:1830", "skill:2041:1"]
 
 [[items]]
 template_id = 1831
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 1832
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 1833
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 1834
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 1835
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 2130
@@ -7391,16 +7391,16 @@ use_blockers = []
 [[items]]
 template_id = 2505
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 2506
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 2507
@@ -8273,9 +8273,9 @@ use_blockers = ["use:no_handler"]
 [[items]]
 template_id = 3439
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 3471
@@ -8294,247 +8294,247 @@ use_blockers = ["skill:2060:1"]
 [[items]]
 template_id = 3891
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 3892
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 3893
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 3894
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 3895
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 3896
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 3897
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 3898
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 3899
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 3900
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 3901
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 3902
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 3903
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 3904
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 3905
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 3906
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 3907
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 3908
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 3909
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 3910
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 3911
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 3912
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 3913
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 3914
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 3915
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 3916
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 3917
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 3918
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 3919
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 3920
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 3921
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 3922
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 3923
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 3924
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 3925
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 3936
@@ -8545,24 +8545,24 @@ use_blockers = []
 
 [[items]]
 template_id = 3937
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 3938
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 3939
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 3947
@@ -8629,10 +8629,10 @@ use_blockers = []
 
 [[items]]
 template_id = 4028
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 4202
@@ -8742,37 +8742,37 @@ use_blockers = []
 [[items]]
 template_id = 4234
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 4235
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 4236
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 4237
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 4238
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 4629
@@ -9015,30 +9015,30 @@ use_blockers = []
 [[items]]
 template_id = 4677
 admitted = false
-storable = false
-blockers = ["context:npc_only", "skill:2074:1"]
-use_blockers = ["context:npc_only", "skill:2074:1"]
+storable = true
+blockers = ["skill:2074:1"]
+use_blockers = ["skill:2074:1"]
 
 [[items]]
 template_id = 4678
 admitted = false
-storable = false
-blockers = ["context:npc_only", "skill:2075:1"]
-use_blockers = ["context:npc_only", "skill:2075:1"]
+storable = true
+blockers = ["skill:2075:1"]
+use_blockers = ["skill:2075:1"]
 
 [[items]]
 template_id = 4679
 admitted = false
-storable = false
-blockers = ["context:npc_only", "skill:2076:1"]
-use_blockers = ["context:npc_only", "skill:2076:1"]
+storable = true
+blockers = ["skill:2076:1"]
+use_blockers = ["skill:2076:1"]
 
 [[items]]
 template_id = 4680
 admitted = false
-storable = false
-blockers = ["context:npc_only", "skill:2077:1"]
-use_blockers = ["context:npc_only", "skill:2077:1"]
+storable = true
+blockers = ["skill:2077:1"]
+use_blockers = ["skill:2077:1"]
 
 [[items]]
 template_id = 4681
@@ -10617,45 +10617,45 @@ use_blockers = ["property:onmagic_skill"]
 
 [[items]]
 template_id = 5127
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 5128
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 5129
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 5130
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 5131
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 5132
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 5133
@@ -10667,170 +10667,170 @@ use_blockers = []
 [[items]]
 template_id = 5170
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 5171
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 5172
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 5173
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 5174
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 5175
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 5176
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 5177
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 5178
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 5179
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 5180
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 5181
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 5182
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 5183
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 5184
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 5185
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 5186
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 5187
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 5188
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 5189
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 5190
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 5191
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 5216
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 5217
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 5233
@@ -12199,87 +12199,87 @@ use_blockers = []
 
 [[items]]
 template_id = 5791
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 5792
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 5793
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 5794
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 5795
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 5796
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 5797
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 5798
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 5799
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 5800
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 5801
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 5802
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 5808
@@ -12332,17 +12332,17 @@ use_blockers = []
 
 [[items]]
 template_id = 6035
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 6036
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 6307
@@ -12703,10 +12703,10 @@ use_blockers = []
 
 [[items]]
 template_id = 6410
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 6529
@@ -13124,23 +13124,23 @@ use_blockers = ["condition:player:isHero", "property:oncrit_skill", "skill:3591:
 [[items]]
 template_id = 6645
 admitted = false
-storable = false
-blockers = ["context:npc_only", "handler:BeastSoulShot"]
-use_blockers = ["context:npc_only", "handler:BeastSoulShot"]
+storable = true
+blockers = ["handler:BeastSoulShot"]
+use_blockers = ["handler:BeastSoulShot"]
 
 [[items]]
 template_id = 6646
 admitted = false
-storable = false
-blockers = ["context:npc_only", "handler:BeastSpiritShot"]
-use_blockers = ["context:npc_only", "handler:BeastSpiritShot"]
+storable = true
+blockers = ["handler:BeastSpiritShot"]
+use_blockers = ["handler:BeastSpiritShot"]
 
 [[items]]
 template_id = 6647
 admitted = false
-storable = false
-blockers = ["context:npc_only", "handler:BeastSpiritShot"]
-use_blockers = ["context:npc_only", "handler:BeastSpiritShot"]
+storable = true
+blockers = ["handler:BeastSpiritShot"]
+use_blockers = ["handler:BeastSpiritShot"]
 
 [[items]]
 template_id = 6656
@@ -13305,66 +13305,66 @@ use_blockers = []
 
 [[items]]
 template_id = 6715
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 6716
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 6717
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 6718
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 6719
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 6720
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 6721
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 6722
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 6723
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 6724
@@ -13487,24 +13487,24 @@ use_blockers = ["condition:player:clanHall"]
 
 [[items]]
 template_id = 6917
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 6918
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 6919
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 7014
@@ -13544,9 +13544,9 @@ use_blockers = ["slot:hair"]
 [[items]]
 template_id = 7560
 admitted = false
-storable = false
-blockers = ["context:npc_only", "weapon_kind:FISHINGROD"]
-use_blockers = ["context:npc_only", "weapon_kind:FISHINGROD"]
+storable = true
+blockers = ["weapon_kind:FISHINGROD"]
+use_blockers = ["weapon_kind:FISHINGROD"]
 
 [[items]]
 template_id = 7575
@@ -13949,10 +13949,10 @@ use_blockers = ["condition:player:pkCount"]
 
 [[items]]
 template_id = 7834
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 7836
@@ -14887,143 +14887,143 @@ use_blockers = ["skill:3604:1"]
 
 [[items]]
 template_id = 8203
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 8204
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 8205
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 8206
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 8207
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 8208
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 8209
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 8210
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 8211
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 8212
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 8213
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 8214
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 8215
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 8216
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 8217
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 8218
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 8219
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 8220
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 8221
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 8222
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 8350
@@ -15034,59 +15034,59 @@ use_blockers = []
 
 [[items]]
 template_id = 8527
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 8528
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 8529
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 8530
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 8531
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 8532
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 8533
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 8541
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 8552
@@ -17680,17 +17680,17 @@ use_blockers = ["context:shadow"]
 
 [[items]]
 template_id = 9136
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 9137
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 9138
@@ -17953,17 +17953,17 @@ use_blockers = ["context:shadow"]
 
 [[items]]
 template_id = 9206
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 9207
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 9208
@@ -20270,150 +20270,150 @@ use_blockers = []
 
 [[items]]
 template_id = 9638
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 9639
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 9640
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 9641
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 9642
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 9643
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 9644
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 9645
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 9646
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 9656
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 9657
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 9658
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 9659
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 9660
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 9661
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 9662
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 9663
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 9664
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 9665
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 9666
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 9667
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 9669
@@ -20453,16 +20453,16 @@ use_blockers = ["condition:player:SiegeZone", "consumable:skill:2342:1:item:9688
 [[items]]
 template_id = 9689
 admitted = false
-storable = false
-blockers = ["consumable:skill:2368:1:item:9689", "context:npc_only", "skill:2368:1"]
-use_blockers = ["consumable:skill:2368:1:item:9689", "context:npc_only", "skill:2368:1"]
+storable = true
+blockers = ["consumable:skill:2368:1:item:9689", "skill:2368:1"]
+use_blockers = ["consumable:skill:2368:1:item:9689", "skill:2368:1"]
 
 [[items]]
 template_id = 9702
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 9713
@@ -20480,10 +20480,10 @@ use_blockers = ["skill:3426:1"]
 
 [[items]]
 template_id = 9813
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 9819
@@ -21670,10 +21670,10 @@ use_blockers = ["condition:player:categoryType", "skill:3415:1"]
 
 [[items]]
 template_id = 10128
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 10129
@@ -21846,16 +21846,16 @@ use_blockers = ["slot:hair"]
 [[items]]
 template_id = 10178
 admitted = false
-storable = false
-blockers = ["context:npc_only", "skill:2413:1"]
-use_blockers = ["context:npc_only", "skill:2413:1"]
+storable = true
+blockers = ["skill:2413:1"]
+use_blockers = ["skill:2413:1"]
 
 [[items]]
 template_id = 10179
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 10207
@@ -21894,10 +21894,10 @@ use_blockers = ["context:shadow"]
 
 [[items]]
 template_id = 10212
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 10214
@@ -22188,17 +22188,17 @@ use_blockers = ["context:shadow", "property:unequip_skill", "skill:3421:1", "ski
 
 [[items]]
 template_id = 10277
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 10278
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 10314
@@ -23056,10 +23056,10 @@ use_blockers = ["context:shadow", "slot:deco1"]
 
 [[items]]
 template_id = 10548
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 10606
@@ -23218,9 +23218,9 @@ use_blockers = []
 [[items]]
 template_id = 10658
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 10659
@@ -34957,93 +34957,93 @@ use_blockers = []
 [[items]]
 template_id = 12740
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 12741
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 12742
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 12743
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 12744
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 12745
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 12746
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 12747
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 12748
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 12749
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 12750
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 12751
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 12752
 admitted = false
-storable = false
-blockers = ["condition:player:categoryType", "context:npc_only"]
-use_blockers = ["condition:player:categoryType", "context:npc_only"]
+storable = true
+blockers = ["condition:player:categoryType"]
+use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 12753
@@ -36644,16 +36644,16 @@ use_blockers = ["context:time_limited", "skill:2606:1"]
 [[items]]
 template_id = 13032
 admitted = false
-storable = false
-blockers = ["condition:player:instanceId", "context:npc_only", "skill:2577:1"]
-use_blockers = ["condition:player:instanceId", "context:npc_only", "skill:2577:1"]
+storable = true
+blockers = ["condition:player:instanceId", "skill:2577:1"]
+use_blockers = ["condition:player:instanceId", "skill:2577:1"]
 
 [[items]]
 template_id = 13033
 admitted = false
-storable = false
-blockers = ["condition:player:instanceId", "context:npc_only"]
-use_blockers = ["condition:player:instanceId", "context:npc_only"]
+storable = true
+blockers = ["condition:player:instanceId"]
+use_blockers = ["condition:player:instanceId"]
 
 [[items]]
 template_id = 13034
@@ -36728,9 +36728,9 @@ use_blockers = ["condition:player:instanceId"]
 [[items]]
 template_id = 13050
 admitted = false
-storable = false
-blockers = ["condition:player:instanceId", "context:npc_only"]
-use_blockers = ["condition:player:instanceId", "context:npc_only"]
+storable = true
+blockers = ["condition:player:instanceId"]
+use_blockers = ["condition:player:instanceId"]
 
 [[items]]
 template_id = 13052
@@ -36770,9 +36770,9 @@ use_blockers = []
 [[items]]
 template_id = 13059
 admitted = false
-storable = false
-blockers = ["condition:player:instanceId", "context:npc_only"]
-use_blockers = ["condition:player:instanceId", "context:npc_only"]
+storable = true
+blockers = ["condition:player:instanceId"]
+use_blockers = ["condition:player:instanceId"]
 
 [[items]]
 template_id = 13061
@@ -36931,16 +36931,16 @@ use_blockers = []
 [[items]]
 template_id = 13151
 admitted = false
-storable = false
-blockers = ["condition:player:instanceId", "context:npc_only", "skill:2586:2"]
-use_blockers = ["condition:player:instanceId", "context:npc_only", "skill:2586:2"]
+storable = true
+blockers = ["condition:player:instanceId", "skill:2586:2"]
+use_blockers = ["condition:player:instanceId", "skill:2586:2"]
 
 [[items]]
 template_id = 13152
 admitted = false
-storable = false
-blockers = ["condition:player:instanceId", "context:npc_only", "skill:2586:1"]
-use_blockers = ["condition:player:instanceId", "context:npc_only", "skill:2586:1"]
+storable = true
+blockers = ["condition:player:instanceId", "skill:2586:1"]
+use_blockers = ["condition:player:instanceId", "skill:2586:1"]
 
 [[items]]
 template_id = 13153
@@ -39009,10 +39009,10 @@ use_blockers = []
 
 [[items]]
 template_id = 13750
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 13751
@@ -39066,16 +39066,16 @@ use_blockers = ["condition:player:categoryType", "condition:player:instanceId", 
 [[items]]
 template_id = 13771
 admitted = false
-storable = false
-blockers = ["condition:player:instanceId", "context:npc_only", "skill:2623:1"]
-use_blockers = ["condition:player:instanceId", "context:npc_only", "skill:2623:1"]
+storable = true
+blockers = ["condition:player:instanceId", "skill:2623:1"]
+use_blockers = ["condition:player:instanceId", "skill:2623:1"]
 
 [[items]]
 template_id = 13772
 admitted = false
-storable = false
-blockers = ["condition:player:instanceId", "context:npc_only", "skill:2624:1"]
-use_blockers = ["condition:player:instanceId", "context:npc_only", "skill:2624:1"]
+storable = true
+blockers = ["condition:player:instanceId", "skill:2624:1"]
+use_blockers = ["condition:player:instanceId", "skill:2624:1"]
 
 [[items]]
 template_id = 13773
@@ -39695,129 +39695,129 @@ use_blockers = ["use:no_handler"]
 
 [[items]]
 template_id = 14009
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only", "use:no_handler"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = ["use:no_handler"]
 
 [[items]]
 template_id = 14010
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only", "use:no_handler"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = ["use:no_handler"]
 
 [[items]]
 template_id = 14011
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only", "use:no_handler"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = ["use:no_handler"]
 
 [[items]]
 template_id = 14012
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only", "use:no_handler"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = ["use:no_handler"]
 
 [[items]]
 template_id = 14013
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only", "use:no_handler"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = ["use:no_handler"]
 
 [[items]]
 template_id = 14014
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only", "use:no_handler"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = ["use:no_handler"]
 
 [[items]]
 template_id = 14015
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only", "use:no_handler"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = ["use:no_handler"]
 
 [[items]]
 template_id = 14016
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only", "use:no_handler"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = ["use:no_handler"]
 
 [[items]]
 template_id = 14017
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only", "use:no_handler"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = ["use:no_handler"]
 
 [[items]]
 template_id = 14018
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only", "use:no_handler"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = ["use:no_handler"]
 
 [[items]]
 template_id = 14019
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only", "use:no_handler"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = ["use:no_handler"]
 
 [[items]]
 template_id = 14020
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only", "use:no_handler"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = ["use:no_handler"]
 
 [[items]]
 template_id = 14021
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only", "use:no_handler"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = ["use:no_handler"]
 
 [[items]]
 template_id = 14022
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only", "use:no_handler"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = ["use:no_handler"]
 
 [[items]]
 template_id = 14023
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only", "use:no_handler"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = ["use:no_handler"]
 
 [[items]]
 template_id = 14024
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only", "use:no_handler"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = ["use:no_handler"]
 
 [[items]]
 template_id = 14025
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only", "use:no_handler"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = ["use:no_handler"]
 
 [[items]]
 template_id = 14026
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only", "use:no_handler"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = ["use:no_handler"]
 
 [[items]]
 template_id = 14027
@@ -39828,101 +39828,101 @@ use_blockers = ["property:unequip_skill", "skill:3267:1", "skill:5780:3", "skill
 
 [[items]]
 template_id = 14038
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 14039
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 14040
 admitted = false
-storable = false
-blockers = ["context:npc_only", "skill:2793:1"]
-use_blockers = ["context:npc_only", "skill:2793:1"]
+storable = true
+blockers = ["skill:2793:1"]
+use_blockers = ["skill:2793:1"]
 
 [[items]]
 template_id = 14041
 admitted = false
-storable = false
-blockers = ["context:npc_only", "skill:2793:2"]
-use_blockers = ["context:npc_only", "skill:2793:2"]
+storable = true
+blockers = ["skill:2793:2"]
+use_blockers = ["skill:2793:2"]
 
 [[items]]
 template_id = 14042
 admitted = false
-storable = false
-blockers = ["context:npc_only", "skill:2794:1"]
-use_blockers = ["context:npc_only", "skill:2794:1"]
+storable = true
+blockers = ["skill:2794:1"]
+use_blockers = ["skill:2794:1"]
 
 [[items]]
 template_id = 14043
 admitted = false
-storable = false
-blockers = ["context:npc_only", "skill:2794:2"]
-use_blockers = ["context:npc_only", "skill:2794:2"]
+storable = true
+blockers = ["skill:2794:2"]
+use_blockers = ["skill:2794:2"]
 
 [[items]]
 template_id = 14044
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 14045
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 14046
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 14047
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 14048
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 14049
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 14050
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 14051
 admitted = false
-storable = false
-blockers = ["context:npc_only", "skill:2802:1"]
-use_blockers = ["context:npc_only", "skill:2802:1"]
+storable = true
+blockers = ["skill:2802:1"]
+use_blockers = ["skill:2802:1"]
 
 [[items]]
 template_id = 14053
@@ -42166,17 +42166,17 @@ use_blockers = []
 
 [[items]]
 template_id = 14614
-admitted = false
-storable = false
-blockers = ["consumable:skill:2856:1:item:14614", "context:npc_only"]
-use_blockers = ["consumable:skill:2856:1:item:14614", "context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 14615
-admitted = false
-storable = false
-blockers = ["consumable:skill:2857:1:item:14615", "context:npc_only"]
-use_blockers = ["consumable:skill:2857:1:item:14615", "context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 14617
@@ -42488,17 +42488,17 @@ use_blockers = []
 
 [[items]]
 template_id = 14700
-admitted = false
-storable = false
-blockers = ["consumable:skill:2863:1:item:14700", "context:npc_only"]
-use_blockers = ["consumable:skill:2863:1:item:14700", "context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 14701
-admitted = false
-storable = false
-blockers = ["consumable:skill:2864:1:item:14701", "context:npc_only"]
-use_blockers = ["consumable:skill:2864:1:item:14701", "context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 14702
@@ -42601,9 +42601,9 @@ use_blockers = ["context:time_limited", "skill:2510:1"]
 [[items]]
 template_id = 14739
 admitted = false
-storable = false
-blockers = ["context:npc_only", "skill:2876:1", "skill:2891:6"]
-use_blockers = ["context:npc_only", "skill:2876:1", "skill:2891:6"]
+storable = true
+blockers = ["skill:2876:1", "skill:2891:6"]
+use_blockers = ["skill:2876:1", "skill:2891:6"]
 
 [[items]]
 template_id = 14741
@@ -42957,24 +42957,24 @@ use_blockers = ["condition:player:categoryType"]
 
 [[items]]
 template_id = 14798
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 14799
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 14800
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 14801
@@ -45387,16 +45387,16 @@ use_blockers = ["property:unequip_skill", "skill:3267:1", "skill:8358:1", "slot:
 [[items]]
 template_id = 15356
 admitted = false
-storable = false
-blockers = ["context:npc_only", "skill:9020:1"]
-use_blockers = ["context:npc_only", "skill:9020:1"]
+storable = true
+blockers = ["skill:9020:1"]
+use_blockers = ["skill:9020:1"]
 
 [[items]]
 template_id = 15357
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 15379
@@ -49992,10 +49992,10 @@ use_blockers = ["consumable:skill:9084:1:item:16406", "skill:9084:1"]
 
 [[items]]
 template_id = 16408
-admitted = false
-storable = false
-blockers = ["consumable:skill:9079:1:item:16408", "context:npc_only"]
-use_blockers = ["consumable:skill:9079:1:item:16408", "context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 16837
@@ -51497,10 +51497,10 @@ use_blockers = []
 
 [[items]]
 template_id = 17163
-admitted = false
-storable = false
-blockers = ["consumable:skill:9165:1:item:17163", "context:npc_only"]
-use_blockers = ["consumable:skill:9165:1:item:17163", "context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 17170
@@ -53143,23 +53143,23 @@ use_blockers = []
 [[items]]
 template_id = 20332
 admitted = false
-storable = false
-blockers = ["context:npc_only", "handler:BeastSoulShot"]
-use_blockers = ["context:npc_only", "handler:BeastSoulShot"]
+storable = true
+blockers = ["handler:BeastSoulShot"]
+use_blockers = ["handler:BeastSoulShot"]
 
 [[items]]
 template_id = 20333
 admitted = false
-storable = false
-blockers = ["context:npc_only", "handler:BeastSpiritShot"]
-use_blockers = ["context:npc_only", "handler:BeastSpiritShot"]
+storable = true
+blockers = ["handler:BeastSpiritShot"]
+use_blockers = ["handler:BeastSpiritShot"]
 
 [[items]]
 template_id = 20334
 admitted = false
-storable = false
-blockers = ["context:npc_only", "handler:BeastSpiritShot"]
-use_blockers = ["context:npc_only", "handler:BeastSpiritShot"]
+storable = true
+blockers = ["handler:BeastSpiritShot"]
+use_blockers = ["handler:BeastSpiritShot"]
 
 [[items]]
 template_id = 20353
@@ -55165,17 +55165,17 @@ use_blockers = []
 
 [[items]]
 template_id = 21039
-admitted = false
+admitted = true
 storable = true
-blockers = ["consumable:skill:2863:1:item:14700"]
-use_blockers = ["consumable:skill:2863:1:item:14700"]
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 21040
-admitted = false
+admitted = true
 storable = true
-blockers = ["consumable:skill:2864:1:item:14701"]
-use_blockers = ["consumable:skill:2864:1:item:14701"]
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 21042
@@ -58140,122 +58140,122 @@ use_blockers = []
 
 [[items]]
 template_id = 22022
-admitted = false
-storable = false
-blockers = ["consumable:skill:26022:1:item:22022", "context:npc_only"]
-use_blockers = ["consumable:skill:26022:1:item:22022", "context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 22023
-admitted = false
-storable = false
-blockers = ["consumable:skill:26023:1:item:22023", "context:npc_only"]
-use_blockers = ["consumable:skill:26023:1:item:22023", "context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 22024
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 22025
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 22026
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 22027
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 22028
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 22029
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 22030
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 22031
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 22032
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 22033
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 22034
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 22035
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 22036
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 22037
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 22038
-admitted = false
-storable = false
-blockers = ["context:npc_only"]
-use_blockers = ["context:npc_only"]
+admitted = true
+storable = true
+blockers = []
+use_blockers = []
 
 [[items]]
 template_id = 22067

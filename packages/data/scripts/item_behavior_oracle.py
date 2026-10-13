@@ -1,5 +1,6 @@
 """Source-derived §12.1 state transitions; no engine or recorded expectations."""
 from fractions import Fraction as F
+import re
 import xml.etree.ElementTree as ET
 
 D = 'src/main/resources/data/'
@@ -23,8 +24,25 @@ def arrow_stack(src, sid, count, instance_id=1):
                 kind=p.get('etcitem_type', 'NONE'), count=count)
 
 
-def bow_launch(weapon, inventory, lhand, mp, mp_modifier, reduction_residue, miss, reuse_remaining=0,
-               hit_chance=800, hit_residue=None):
+def exact_text(value):
+    """D98: a decimal-point source literal is exported as its canonical reduced `n/d`."""
+    if isinstance(value, str) and re.fullmatch(r'-?[0-9]+\.[0-9]+', value):
+        exact = F(value)
+        return f'{exact.numerator}/{exact.denominator}'
+    return value
+
+
+def residue_in(residue, bound):
+    if type(residue) is not int or not 0 <= residue < bound:
+        raise ValueError(f'residue {residue!r} outside [0, {bound})')
+    return residue
+
+
+def bow_launch(weapon, inventory, lhand, mp, mp_modifier, reduction_residue, miss, critical_residue,
+               spread_residue, reuse_remaining=0, hit_chance=800, hit_residue=None):
+    # D87: the critical and spread residues are caller inputs, null iff that draw is not
+    # taken (a miss; no spread draw for a zero-radius bow). D88: reuse_remaining is in ticks
+    # and the hit test is the pinned strict Rnd.get(1000) < chance.
     # checkAndEquipArrows trusts occupied LHAND; grade matching is a search rule.
     inventory = [dict(item) for item in inventory]
     splus = lambda grade: 'S' if grade in {'S80', 'S84'} else grade
@@ -53,16 +71,21 @@ def bow_launch(weapon, inventory, lhand, mp, mp_modifier, reduction_residue, mis
         result['reason'] = 'mp'
         return result
     if hit_residue is None:
-        hit_residue = hit_chance+1 if miss else hit_chance
-    if not 0 <= hit_residue < 1000 or miss != (hit_residue > hit_chance):
+        hit_residue = hit_chance if miss else hit_chance-1
+    if not 0 <= hit_residue < 1000 or miss != (hit_residue >= hit_chance):
         raise ValueError('inconsistent bow hit residue')
     result['draws'].append(dict(site='hit', bound=1000, residue=hit_residue))
-    if not miss:
-        # These launch-cost vectors isolate a shieldless, noncritical, neutral-spread caller.
-        result['draws'].append(dict(site='critical', bound=1000, residue=999))
-        radius = weapon['spread_radius']
+    radius = weapon['spread_radius']
+    if miss:
+        if critical_residue is not None or spread_residue is not None:
+            raise ValueError('a missed bow shot draws no critical or spread residue')
+    else:
+        result['draws'].append(dict(site='critical', bound=1000, residue=residue_in(critical_residue, 1000)))
         if radius > 0:
-            result['draws'].append(dict(site='spread', bound=2*radius+1, residue=radius))
+            result['draws'].append(dict(site='spread', bound=2*radius+1,
+                                        residue=residue_in(spread_residue, 2*radius+1)))
+        elif spread_residue is not None:
+            raise ValueError('a zero-radius bow draws no spread residue')
     result.update(accepted=True, reason='launched', mp=F(mp)-cost, mp_q=int((F(mp)-cost)*Q),
                   mp_paid=cost, arrows_consumed=1, hit=not miss)
     arrow['count'] -= 1
@@ -79,7 +102,9 @@ def bow_refill(weapon, arrow, mp):
     for step in range(4):
         if step == 2:
             inventory = [dict(arrow)]  # externally granted replacement stack
-        result = bow_launch(weapon, inventory, lhand, mp, F(1), 0, step != 0)
+        miss = step != 0
+        result = bow_launch(weapon, inventory, lhand, mp, F(1), 0, miss, None if miss else 999,
+                            None if miss or weapon['spread_radius'] == 0 else weapon['spread_radius'])
         trace.append(result)
         inventory, lhand, mp = result['inventory'], result['lhand'], result['mp']
     return dict(trace=trace, consumed=sum(r['arrows_consumed'] for r in trace),
@@ -191,15 +216,22 @@ def escape_timing(definition, start_tick, casting_speed, available, resources, i
                 movement_canceled=True, auto_canceled=True, town_respawn=False, draws=[])
 
 
-def dual_plan(hits, formulas, second_valid, hit_residues, hit_chance, spread_radius):
-    if hits != [r <= hit_chance for r in hit_residues]:
+def dual_plan(hits, formulas, second_valid, hit_residues, hit_chance, spread_radius, critical_residues,
+              spread_residues):
+    # D87: per-subhit critical/spread residues are inputs, null iff that subhit missed (D89).
+    # D88: a subhit lands iff its residue is strictly below the chance.
+    if hits != [r < hit_chance for r in hit_residues]:
         raise ValueError('inconsistent dual hit residues')
     draws = [dict(site='hit'+str(i+1), bound=1000, residue=r) for i, r in enumerate(hit_residues)]
     damage = []
-    for index, (hit, formula) in enumerate(zip(hits, formulas), 1):
+    for index, (hit, formula, critical, spread) in enumerate(
+            zip(hits, formulas, critical_residues, spread_residues, strict=True), 1):
         if hit:
-            draws += [dict(site=f'critical{index}', bound=1000, residue=999),
-                      dict(site=f'spread{index}', bound=2*spread_radius+1, residue=spread_radius)]
+            draws += [dict(site=f'critical{index}', bound=1000, residue=residue_in(critical, 1000)),
+                      dict(site=f'spread{index}', bound=2*spread_radius+1,
+                           residue=residue_in(spread, 2*spread_radius+1))]
+        elif critical is not None or spread is not None:
+            raise ValueError('a missed subhit draws no critical or spread residue')
         damage.append(int(F(formula))//2 if hit else 0)
     return dict(plan=damage, stored_second=damage[1], applied=[damage[0], damage[1] if second_valid else None],
                 second_recomputed=False, draws=draws, refunded_draws=[])
@@ -227,7 +259,8 @@ def augmentation_provider(option_id, option_xml, event, other_provider, hp, maxi
     node = ET.fromstring(option_xml)
     install = event in {'install', 'death', 'dead_admission', 'resurrection'}
     funcs = [ET.tostring(n, encoding='unicode') for n in node.findall('for/*')]
-    skills = [dict(n.attrib, kind=n.tag) for n in node if n.tag in {'active_skill', 'passive_skill', 'attack_skill', 'critical_skill', 'magic_skill'}]
+    skills = [dict({k: exact_text(v) for k, v in n.attrib.items()}, kind=n.tag) for n in node
+              if n.tag in {'active_skill', 'passive_skill', 'attack_skill', 'critical_skill', 'magic_skill'}]
     stats = {k: F(v) for k, v in stat_baseline.items()}
     if install:
         for function in node.findall('for/*'):
@@ -292,7 +325,11 @@ def add_behavior_vectors(src, add, o):
                                                         1 if state == 'exhausted' else 2)]
             for miss in [False, True]:
                 inputs = dict(weapon=weapon, inventory=inv, lhand=1 if state in {'equipped', 'wrong-equipped'} else None,
-                              mp=F(10), mp_modifier=F(1), reduction_residue=None, miss=miss, reuse_remaining=0, hit_chance=800, hit_residue=801 if miss else 800)
+                              mp=F(10), mp_modifier=F(1), reduction_residue=None, miss=miss,
+                              critical_residue=None if miss else (0 if state == 'equipped' else 999),
+                              spread_residue=None if miss or weapon['spread_radius'] == 0 else (
+                                  0 if state == 'equipped' else weapon['spread_radius']),
+                              reuse_remaining=0, hit_chance=800, hit_residue=800 if miss else 799)
                 result = bow_launch(**inputs)
                 add('F10', f'bow-launch-{grade}-{state}-{miss}', inputs, result,
                     [src.citation(sid), src.citation(aid), src.citation(wrong), *bow_sources], result['draws'])
@@ -308,14 +345,17 @@ def add_behavior_vectors(src, add, o):
                 for modifier in [F(1), F(3, 2), F(0)]:
                     mp = max(F(0), int(F(cost)*modifier)+delta)
                     inputs = dict(weapon=weapon, inventory=[arrow_stack(src, aid, 2)], lhand=None,
-                                  mp=mp, mp_modifier=modifier, reduction_residue=residue, miss=True, reuse_remaining=0, hit_chance=800, hit_residue=801)
+                                  mp=mp, mp_modifier=modifier, reduction_residue=residue, miss=True,
+                                  critical_residue=None, spread_residue=None, reuse_remaining=0, hit_chance=800,
+                                  hit_residue=800)
                     result = bow_launch(**inputs)
                     add('F10', f'bow-mp-{sid}-{residue}-{cost}-{delta}-{modifier}', inputs, result,
                         [src.citation(sid), src.citation(aid), *bow_sources], result['draws'])
     for state in ['empty', 'reuse']:
         inputs = dict(weapon=weapon, inventory=[] if state == 'empty' else [arrow_stack(src, aid, 2)],
                       lhand=None, mp=F(10), mp_modifier=F(1), reduction_residue=0, miss=False,
-                      reuse_remaining=1 if state == 'reuse' else 0, hit_chance=800, hit_residue=800)
+                      critical_residue=999, spread_residue=weapon['spread_radius'] or None,
+                      reuse_remaining=1 if state == 'reuse' else 0, hit_chance=800, hit_residue=799)
         result = bow_launch(**inputs)
         add('F10', 'bow-mp-skip-'+state, inputs, result, [src.citation(sid), *bow_sources], result['draws'])
     definition = o.consumable_definition(src, 737)
@@ -407,11 +447,13 @@ def add_audit_vectors(src, add, o):
     for hits in [[False, False], [True, False], [False, True], [True, True]]:
         for valid in [False, True]:
             inputs = dict(hits=hits, formulas=[F(499, 10), F(10199, 100)], second_valid=valid,
-                          hit_residues=[800 if h else 801 for h in hits], hit_chance=800, spread_radius=6)
+                          hit_residues=[799 if h else 800 for h in hits], hit_chance=800, spread_radius=6,
+                          critical_residues=[(0 if valid else 999) if h else None for h in hits],
+                          spread_residues=[(12 if valid else 6) if h else None for h in hits])
             result = dual_plan(**inputs)
             add('F10', f'dual-plan-{hits}-{valid}', inputs, result,
                 ['G/model/actor/L2Character.java:1137-1182,5034-5044', 'G/model/stats/Formulas.java:1054-1063',
-                 'design/2.2 I3 stored second resolution; shieldless/noncritical/neutral-spread caller'], result['draws'])
+                 'design/2.2 I3 stored second resolution; shieldless caller; residues are inputs (D87); strict hit (D88)'], result['draws'])
     for count in [0, 1, 2]:
         candidates = [dict(eligible=True, hit=True, formula=F(499, 10)) for _ in range(4)]
         add('F10', f'pole-count-{count}', dict(candidates=candidates, maximum=count), o.pole_sequence(candidates, count),

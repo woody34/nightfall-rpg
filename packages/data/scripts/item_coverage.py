@@ -372,7 +372,7 @@ def _revision_requirements(src, need, o, human):
         'over-fraction-positive': dict(current_hp=1001, recoverable_hp=1000, remainder_q=500000),
         'over-fraction-zero': dict(static=True, power=0, current_hp=1001, recoverable_hp=1000, remainder_q=500000),
         'at-cap-fraction': dict(current_hp=1000, recoverable_hp=1000, remainder_q=500000),
-        'static': dict(static=True, power='1.25', heal_effect=9, critical=True, current_hp=9, recoverable_hp=10),
+        'static': dict(static=True, power='5/4', heal_effect=9, critical=True, current_hp=9, recoverable_hp=10),
         'negative-static': dict(static=True, power=-1)}.items():
         need('F8', 'heal-clamp-'+name, **dict(dict(power=100, m_atk=121), **branch))
     for kind, toggle in product(['soul', 'spirit', 'blessed'], [False, True]):
@@ -432,7 +432,12 @@ def _behavior_requirements(src, need, o):
                                                                 1 if state == 'exhausted' else 2)]
             need('F10', f'bow-launch-{grade}-{state}-{miss}', weapon=weapon, inventory=inventory,
                  lhand=1 if state in {'equipped', 'wrong-equipped'} else None, mp=F(10), mp_modifier=F(1),
-                 reduction_residue=None, miss=miss, reuse_remaining=0, hit_chance=800, hit_residue=801 if miss else 800)
+                 reduction_residue=None, miss=miss,
+                 # D87: live residues are inputs (non-neutral on the equipped case); D88 strict hit.
+                 critical_residue=None if miss else (0 if state == 'equipped' else 999),
+                 spread_residue=None if miss or weapon['spread_radius'] == 0 else (
+                     0 if state == 'equipped' else weapon['spread_radius']),
+                 reuse_remaining=0, hit_chance=800, hit_residue=800 if miss else 799)
         need('F10', 'bow-refill-history-'+grade, weapon=weapon, arrow=b.arrow_stack(src, aid, 1), mp=F(20))
     sid = min(s for s in bows if int(src.properties(s).get('reduced_mp_consume', '0,0').split(',')[1]) > 0)
     weapon = b.bow_definition(src, sid)
@@ -441,11 +446,14 @@ def _behavior_requirements(src, need, o):
             sorted({weapon['mp_cost'], weapon['reduced_cost']}), [F(-1, 1000000), F(0), F(1, 1000000)], [F(1), F(3, 2), F(0)]):
         need('F10', f'bow-mp-{sid}-{residue}-{cost}-{delta}-{modifier}', weapon=weapon,
              inventory=[b.arrow_stack(src, aid, 2)], lhand=None, mp=max(F(0), int(F(cost)*modifier)+delta),
-             mp_modifier=modifier, reduction_residue=residue, miss=True, reuse_remaining=0, hit_chance=800, hit_residue=801)
+             mp_modifier=modifier, reduction_residue=residue, miss=True, critical_residue=None, spread_residue=None,
+             reuse_remaining=0, hit_chance=800, hit_residue=800)
     for state in ['empty', 'reuse']:
         need('F10', 'bow-mp-skip-'+state, weapon=weapon,
              inventory=[] if state == 'empty' else [b.arrow_stack(src, aid, 2)], lhand=None,
-             mp=F(10), mp_modifier=F(1), reduction_residue=0, miss=False, reuse_remaining=int(state == 'reuse'), hit_chance=800, hit_residue=800)
+             mp=F(10), mp_modifier=F(1), reduction_residue=0, miss=False, critical_residue=999,
+             spread_residue=weapon['spread_radius'] or None, reuse_remaining=int(state == 'reuse'), hit_chance=800,
+             hit_residue=799)
     definition = o.consumable_definition(src, 737)
     effect = src.skills[2014][1].find('effects/effect')
     power = F(next((n.get('power') for n in effect.findall('param') if n.get('power') is not None), '0'))
@@ -494,7 +502,9 @@ def _behavior_requirements(src, need, o):
         need('F10', f'bow-reuse-speed-{speed}', reuse_delay=1500, attack_speed=speed, weapon_reuse_modifier=F(3, 2))
     for hits, valid in product([[False, False], [True, False], [False, True], [True, True]], [False, True]):
         need('F10', f'dual-plan-{hits}-{valid}', hits=hits, formulas=[F(499, 10), F(10199, 100)], second_valid=valid,
-             hit_residues=[800 if h else 801 for h in hits], hit_chance=800, spread_radius=6)
+             hit_residues=[799 if h else 800 for h in hits], hit_chance=800, spread_radius=6,
+             critical_residues=[(0 if valid else 999) if h else None for h in hits],
+             spread_residues=[(12 if valid else 6) if h else None for h in hits])
     for count in [0, 1, 2]:
         need('F10', f'pole-count-{count}', candidates=[dict(eligible=True, hit=True, formula=F(499, 10)) for _ in range(4)], maximum=count)
     for chance, residue in product([F(0), F(999, 10), F(100), F(101)], [998, 999]):
