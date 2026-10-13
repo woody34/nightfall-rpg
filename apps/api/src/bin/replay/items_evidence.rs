@@ -471,17 +471,106 @@ fn normalize_d66(
     Ok(())
 }
 
+/// D93/D96 use-row causes: automatic attack discharges name their attack resolution, cast
+/// discharges name the cast's skill (from the recording's `SkillCastStarted` events), and a
+/// receipt-bound use (manual shot charge) names its receipt. Every count delta is 0.
+fn attach_use_causes(
+    row: &mut Value,
+    delta: &ItemDeltaPlan,
+    casts: &std::collections::BTreeMap<u64, u32>,
+) -> anyhow::Result<()> {
+    for (key, expected) in [
+        ("instance", serde_json::to_value(delta.instance)?),
+        ("before", serde_json::to_value(&delta.before)?),
+        ("after", serde_json::to_value(&delta.after)?),
+        ("count_delta", json!(delta.count_delta)),
+    ] {
+        if row.get(key) != Some(&expected) {
+            bail!("observed use {key} differs from verified checkpoint");
+        }
+    }
+    if delta.operation != ItemOperation::Use || delta.count_delta != 0 {
+        bail!("use checkpoint identity mismatch");
+    }
+    let mut causes = Vec::new();
+    for cause in &delta.causes {
+        if cause.family != "shot_discharge" {
+            bail!("unsupported use cause {}", cause.family);
+        }
+        let identity = if let Some(ItemEvidenceValue::Unsigned(cast)) = cause.fields.get("cast") {
+            let skill = casts
+                .get(cast)
+                .context("cast discharge without a recorded cast start")?;
+            format!("cast_discharge:{skill}")
+        } else {
+            let Some(ItemEvidenceValue::Text(resolution)) = cause.fields.get("resolution_id")
+            else {
+                bail!("shot discharge lacks its attack resolution");
+            };
+            if resolution.is_empty() || resolution.chars().any(char::is_whitespace) {
+                bail!("invalid shot discharge resolution");
+            }
+            format!("shot_discharge:{resolution}")
+        };
+        causes.push(json!({"cause": identity, "count_delta": 0}));
+    }
+    if let Some(receipt) = delta.receipt {
+        causes.push(
+            json!({"cause": receipt_text(serde_json::to_value(receipt)?)?, "count_delta": 0}),
+        );
+    }
+    if causes.is_empty() {
+        bail!("use row without a discharge or receipt cause");
+    }
+    let row = row.as_object_mut().context("use object")?;
+    row.insert("causes".into(), json!(causes));
+    Ok(())
+}
+
+type EntityKey = (nightfall_api::domain::zone::EntityId, u64);
+
 fn export_tick(
     facts: Vec<ItemEvidenceFact>,
     events: &[ZoneEvent],
+    casts: &std::collections::BTreeMap<u64, u32>,
 ) -> anyhow::Result<Vec<ItemEvidenceFact>> {
     let bounds = chain_bounds(&facts)?;
     let mut facts = group_tick(facts)?;
     normalize_d66(&mut facts, &bounds)?;
+    // Use rows pair with the checkpoint's Use deltas of the same instance, in order.
+    let mut used = std::collections::BTreeMap::<(EntityKey, u64), usize>::new();
     for fact in &mut facts {
         let ItemEvidenceData::Delta(row) = &mut fact.fact else {
             continue;
         };
+        if row.get("operation").and_then(Value::as_str) == Some("use") {
+            let instance = row
+                .get("instance")
+                .and_then(Value::as_u64)
+                .context("use instance")?;
+            let index = used
+                .entry(((fact.entity, fact.tick.0), instance))
+                .or_insert(0);
+            let delta = events
+                .iter()
+                .filter_map(|event| {
+                    if let ZoneEvent::ItemCheckpoint(projection) = event {
+                        (projection.entity == fact.entity && projection.tick == fact.tick)
+                            .then_some(projection)
+                    } else {
+                        None
+                    }
+                })
+                .flat_map(|projection| &projection.ledger)
+                .filter(|delta| {
+                    delta.operation == ItemOperation::Use && delta.instance.get() == instance
+                })
+                .nth(*index)
+                .context("use lacks a verified checkpoint row")?;
+            *index = index.checked_add(1).context("use index overflow")?;
+            attach_use_causes(row, delta, casts)?;
+            continue;
+        }
         if row.get("operation").and_then(Value::as_str) != Some("consume") {
             continue;
         }
@@ -565,6 +654,16 @@ pub(super) fn collect(rec: &Recording, recording_bytes: &[u8]) -> anyhow::Result
     )?;
     let mut sequence = 0_u64;
     let mut cursor = rec.snapshot.rng.word_pos;
+    // Casts in flight at the boundary come from the snapshot sidecars; later starts from
+    // SkillCastStarted events.
+    let mut casts = std::collections::BTreeMap::<u64, u32>::new();
+    if let Some(phase3) = rec.snapshot.phase3.as_ref() {
+        for entity in phase3.entities.values() {
+            if let nightfall_api::domain::zone::CastState::Casting(cast) = &entity.cast {
+                casts.insert(cast.id.0, cast.skill.id.0);
+            }
+        }
+    }
     for record in &rec.records {
         if record.zone != seed.zone
             || record.epoch != seed.epoch
@@ -580,7 +679,12 @@ pub(super) fn collect(rec: &Recording, recording_bytes: &[u8]) -> anyhow::Result
         if !record.reproduced_by(&AppliedTickRecord::from_applied(seed.zone, &applied)) {
             bail!("item evidence replay divergence at tick {}", record.tick.0);
         }
-        for fact in export_tick(state.take_items_replay_evidence(), &applied.events)? {
+        for event in &applied.events {
+            if let ZoneEvent::SkillCastStarted { cast_id, skill, .. } = event {
+                casts.insert(cast_id.0, skill.id.0);
+            }
+        }
+        for fact in export_tick(state.take_items_replay_evidence(), &applied.events, &casts)? {
             if let nightfall_api::domain::zone::evidence::ItemEvidenceData::Rng {
                 word_before,
                 word_after,
@@ -853,7 +957,7 @@ mod tests {
             object.remove("causes");
             object.insert("receipt".into(), Value::Null);
         }
-        assert!(export_tick(vec![fact], &[]).is_err());
+        assert!(export_tick(vec![fact], &[], &std::collections::BTreeMap::new()).is_err());
         Ok(())
     }
 

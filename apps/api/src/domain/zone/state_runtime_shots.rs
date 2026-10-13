@@ -285,6 +285,13 @@ impl ZoneState {
             None,
             &resolution,
         );
+        self.charge_transition_evidence_v6(
+            work.caster,
+            context.shots,
+            (spirit, soul, used),
+            &resolution,
+            "cast",
+        );
         events
             .retain(|event| !matches!(event,ZoneEvent::ItemCheckpoint(p) if p.entity==work.caster));
         events.push(ZoneEvent::ItemCheckpoint(Box::new(projection)));
@@ -643,6 +650,7 @@ impl ZoneState {
             return Err(missing());
         }
         let before = item.clone();
+        let before_charges = item.charges;
         item.charges &= !ShotKind::Soul.bit();
         item.revision = revision;
         let change = InventoryChange {
@@ -681,6 +689,13 @@ impl ZoneState {
             None,
             &resolution,
         );
+        self.charge_transition_evidence_v6(
+            attacker,
+            before_charges,
+            (false, true, true),
+            &resolution,
+            "attack",
+        );
         self.publish_attack_projection_v6(
             tick,
             attacker,
@@ -689,5 +704,49 @@ impl ZoneState {
             original_revision,
             events,
         )
+    }
+}
+
+impl ZoneState {
+    /// D46 `charge_transition`: the charge set before a discharge, the caller's shot kinds and
+    /// landing, and the sorted set after (it correlates with the D73 use row). Evidence-only.
+    fn charge_transition_evidence_v6(
+        &mut self,
+        owner: EntityId,
+        before: u8,
+        (use_spirit, use_soul, landed): (bool, bool, bool),
+        resolution: &str,
+        event: &str,
+    ) {
+        if !self.items_evidence_enabled() {
+            return;
+        }
+        let Ok(after) =
+            crate::domain::zone::item_shots::discharge(before, landed, use_spirit, use_soul)
+        else {
+            return;
+        };
+        let names = |bits: u8| {
+            let mut names: Vec<&str> = [
+                (ShotKind::Soul.bit(), "soul"),
+                (ShotKind::Spirit.bit(), "spirit"),
+                (ShotKind::BlessedSpirit.bit(), "blessed"),
+            ]
+            .into_iter()
+            .filter(|(bit, _)| bits & bit != 0)
+            .map(|(_, name)| name)
+            .collect();
+            names.sort_unstable();
+            names
+        };
+        self.item_formula_v6(
+            owner,
+            "charge_transition",
+            serde_json::json!({"charges": names(before), "use_spirit": use_spirit,
+                "use_soul": use_soul, "landed": landed, "unequip": false}),
+            serde_json::json!(names(after)),
+            resolution,
+            Some(serde_json::json!({"event": event})),
+        );
     }
 }
