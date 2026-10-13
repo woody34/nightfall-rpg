@@ -504,3 +504,11 @@ verified by exact oracle equality on the producer's actual inputs.
   reduced_mp_consume bows) is accepted. Callsites with pinned bounds are
   checked (`enchant` 100000, `bow_reduced_mp` 100); other callsites remain
   accepted as before.
+- D104 at the zone final head (82e1ef6): `resurrection_scroll.inputs.offer_id`
+  is REQUIRED (nullable positive integer): the id of the actual offer, which
+  the E1 oracle now takes. The oracle encodes the engine revive: whole HP =
+  max(1, floor(max_hp × restore_hp)) with the Q remainder cleared (this
+  supersedes the "Q-resolution floor" wording above), XP refund rounded half
+  up and capped by the loss, MP/CP unchanged. The consumer passes oracles that
+  take `offer_id` straight through and applies the same rule over older
+  oracles (rev 7/8). The MP respawn-floor deviation acceptance is unchanged.

@@ -219,7 +219,7 @@ INPUT_SCHEMAS={
         response=enum('offer','accept','decline','expire'),response_tick=NONNEG_INT,response_offer_id=nullable(IDENTITY),
         existing_offer=nullable(OFFER),repeat=BOOL,hp=NONNEG_NUMERIC,max_hp=NONNEG_NUMERIC,mp=NONNEG_NUMERIC,
         cp=NONNEG_NUMERIC,recoverable_xp=NONNEG_INT,restore_percent=NONNEG_NUMERIC,restore_hp=('exact-numeric',0,1),
-        max_mp=NONNEG_NUMERIC,restore_mp=('exact-numeric',0,1)),
+        max_mp=NONNEG_NUMERIC,restore_mp=('exact-numeric',0,1),offer_id=nullable(IDENTITY)),
     'dormant_use':dict(template_id=TEMPLATE,properties=map_of(TEXT,TEXT),inventory=list_of(ITEM),
         selected_instance=IDENTITY,paperdoll=map_of(SLOT,IDENTITY),allocator_next=IDENTITY,reuse=COUNT_MAP),
     'learned_item_cost':dict(skill_id=TEMPLATE,rank=TEMPLATE,consume_id=U32,consume_count=NONNEG_INT,
@@ -544,12 +544,12 @@ CALLSITE_BOUNDS={'enchant':100000,'bow_reduced_mp':100}
 
 
 # D104: optional harness inputs beyond the E1 signature (engine MP respawn floor operands).
-EXTRA_INPUTS={'resurrection_scroll':('max_mp','restore_mp')}
+EXTRA_INPUTS={'resurrection_scroll':('max_mp','restore_mp','offer_id')}
 
 
 # Review-2 P3-4 (D89): always-evaluated booleans the producer must emit even though the
 # oracle has a default for them.
-REQUIRED_INPUTS={'magic_damage':('is_pvp',)}
+REQUIRED_INPUTS={'magic_damage':('is_pvp',),'resurrection_scroll':('offer_id',)}
 
 
 def input_domains(name,inputs):
@@ -735,36 +735,40 @@ def gear_fact(calculated):
 
 
 def resurrection_expected(inputs,actual):
-    """D104: the accepted Phase 3 resurrection semantics over the E1 oracle.
+    """D104: the accepted Phase 3 resurrection semantics.
 
-    * offer_id comes from the recording (the actual `offered` event), never the oracle's
-      hard-coded 1; the response is matched against that recorded id.
-    * HP on acceptance = max(current, floor_Q(max_hp × restore_hp)) at Q resolution.
-    * MP: the Phase 3 zone design §1.2 (pinned doRevive, RespawnRestoreMP default 0) preserves
-      current MP. The engine raises MP to its respawn floor; that is a recorded Phase 3
-      deviation, accepted only as max(mp, floor(max_mp × restore_mp)) when those operands are
-      given, otherwise as any raise above the current MP — never a decrease.
+    * `offer_id` is a required fact input: the id of the actual offer (never a constant).
+      From the zone's final E1 oracle (82e1ef6) the oracle takes it and encodes the engine
+      revive itself (HP = max(1, floor(max_hp x restore_hp)), Q remainder cleared; XP
+      refund half-up, capped); the consumer passes everything through. Older oracles (local
+      rev 7/8 data) hard-code offer id 1, so the consumer relabels and applies the same rule.
+    * MP: Phase 3 zone design 1.2 (pinned doRevive, RespawnRestoreMP 0) preserves current MP.
+      An engine respawn-floor MP is a recorded Phase 3 deviation: accepted only as
+      max(mp, floor(max_mp x restore_mp)) when those operands are given, otherwise as any
+      raise; never a decrease.
     """
-    decoded=oracle.decode_rationals({k:v for k,v in inputs.items() if k not in EXTRA_INPUTS['resurrection_scroll']})
-    recorded=None
-    if isinstance(actual,dict) and isinstance(actual.get('trace'),list):
-        offered=[e for e in actual['trace'] if isinstance(e,dict) and e.get('event')=='offered']
-        if offered:
-            recorded=offered[0].get('offer',{}).get('offer_id') if isinstance(offered[0].get('offer'),dict) else None
-            if type(recorded) is not int or recorded<1:raise ValueError('resurrection offer_id must come from the recording (D104)')
-    call=dict(decoded)
-    if recorded is not None and decoded['existing_offer'] is None:
-        response=decoded['response_offer_id']
-        call['response_offer_id']=1 if response==recorded else (2**63-1 if response==1 else response)
-    result=oracle.behavior.resurrection_scroll(**call)
-    if recorded is not None and decoded['existing_offer'] is None:
-        def relabel(offer):
-            if isinstance(offer,dict) and offer.get('offer_id')==1:offer['offer_id']=recorded
-        relabel(result['offer'])
-        for event in result['trace']:relabel(event.get('offer'))
+    decoded=oracle.decode_rationals({k:v for k,v in inputs.items() if k not in ('max_mp','restore_mp')})
+    function=oracle.behavior.resurrection_scroll
+    if 'offer_id' in inspect.signature(function).parameters:result=function(**decoded)
+    else:
+        recorded=decoded.pop('offer_id')
+        call=dict(decoded)
+        if recorded is not None and decoded['existing_offer'] is None:
+            response=decoded['response_offer_id']
+            call['response_offer_id']=1 if response==recorded else (2**63-1 if response==1 else response)
+        result=function(**call)
+        if recorded is not None and decoded['existing_offer'] is None:
+            def relabel(offer):
+                if isinstance(offer,dict) and offer.get('offer_id')==1:offer['offer_id']=recorded
+            relabel(result['offer'])
+            for event in result['trace']:relabel(event.get('offer'))
+        accepted=[event for event in result.get('trace',()) if event['event']=='accepted']
+        if accepted:
+            result['hp']=oracle.F(max(1,int(oracle.F(decoded['max_hp'])*oracle.F(decoded['restore_hp']))));result['hp_q']=int(result['hp']*oracle.Q)
+            offer_xp=decoded['existing_offer']['recoverable_xp'] if decoded['existing_offer'] else decoded['recoverable_xp']
+            refund=min(int(oracle.F(offer_xp)*oracle.F(decoded['restore_percent'])/100+oracle.F(1,2)),offer_xp)
+            result['xp_refund']=refund;accepted[0]['refund']=refund
     if any(event['event']=='accepted' for event in result.get('trace',())):
-        floor_q=oracle.F(decoded['max_hp'])*oracle.F(decoded['restore_hp'])*oracle.Q//1
-        result['hp']=max(oracle.F(decoded['hp']),oracle.F(int(floor_q),oracle.Q));result['hp_q']=int(result['hp']*oracle.Q)
         mp=oracle.F(decoded['mp']);seen=actual.get('mp') if isinstance(actual,dict) else None
         seen=oracle.exact(oracle.decode_rationals(seen)) if seen is not None else mp
         if seen!=mp:
