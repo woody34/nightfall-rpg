@@ -8702,8 +8702,15 @@ mod tests {
             )]))
             .unwrap();
         assert!(tick.dispositions.is_empty(), "{:?}", tick.dispositions);
+        // Non-degenerate facing (review-3 P2-10): the attacker stands one mirror step in
+        // front of the bearer, opposite the "behind" probe point used below.
         let pos = shield.entities[&owner.entity].pos;
-        place(&mut shield, npc.entity, pos);
+        let back = Vec2Fixed::from_tiles(9, 10);
+        let front = Vec2Fixed::new(
+            Fixed::from_raw(2 * pos.x.raw() - back.x.raw()),
+            Fixed::from_raw(2 * pos.y.raw() - back.y.raw()),
+        );
+        place(&mut shield, npc.entity, front);
         let skills = shield
             .phase3
             .as_ref()
@@ -8729,80 +8736,98 @@ mod tests {
         };
         let physical = pick("PhysicalAttack");
         let magical = pick("MagicalAttack");
-        // perfect: ShieldPerfect 99 (> 100 − 10); normal: 90 then ShieldNormal 0 < rate.
-        let run =
-            |zone: &ZoneState, skill: &crate::domain::zone::skill::SkillDef, perfect: bool| {
-                let mut zone = zone.clone();
-                let mut sites = Vec::new();
-                let mut draw = |zone: &mut ZoneState,
-                                site: R,
-                                _: TargetBinding,
-                                bound: u32|
-                 -> Result<u32, StatError> {
-                    zone.roll_below(bound);
-                    sites.push(site);
-                    Ok(match site {
-                        R::ShieldPerfect => {
-                            if perfect {
-                                99
-                            } else {
-                                90
-                            }
-                        },
-                        R::ShieldNormal | R::MagicSuccess => 0,
-                        R::PhysicalEvasion => 99,
-                        R::MagicCritical => 999,
-                        R::Spread => bound / 2,
-                        _ => bound - 1,
-                    })
-                };
-                let handler = skill
-                    .effects
-                    .iter()
-                    .find(|h| h.name == "PhysicalAttack" || h.name == "MagicalAttack")
-                    .unwrap();
-                let result = if handler.name == "PhysicalAttack" {
-                    zone.physical_handler_rolled_v5(
-                        zone.next_tick,
-                        npc,
-                        owner,
-                        skill,
-                        1,
-                        handler,
-                        0,
-                        &mut Vec::new(),
-                        &mut draw,
-                    )
-                } else {
-                    zone.magic_handler_rolled_v5(
-                        zone.next_tick,
-                        npc,
-                        owner,
-                        skill,
-                        1,
-                        handler,
-                        0,
-                        &mut Vec::new(),
-                        &mut draw,
-                    )
-                }
-                .unwrap();
-                (result.rolled, sites)
+        // Literal skills from the pinned XML: 1 (ignoreShieldDefence=true) and Wind Strike
+        // 1177 (MagicalAttackRange shieldDefensePercent=40).
+        let ignoring = skills[&crate::domain::zone::skill::SkillId(1)].clone();
+        let percent = skills[&crate::domain::zone::skill::SkillId(1177)].clone();
+        // Block modes: Some(true) perfect (ShieldPerfect 99 > 100 − 10); Some(false) normal
+        // (90, then ShieldNormal 0 < rShld 20); None unblocked (90, then 99 ≥ 20).
+        let run = |zone: &ZoneState,
+                   skill: &crate::domain::zone::skill::SkillDef,
+                   block: Option<bool>| {
+            let mut zone = zone.clone();
+            let mut sites = Vec::new();
+            let mut draw = |zone: &mut ZoneState,
+                            site: R,
+                            _: TargetBinding,
+                            bound: u32|
+             -> Result<u32, StatError> {
+                zone.roll_below(bound);
+                sites.push(site);
+                Ok(match site {
+                    R::ShieldPerfect => {
+                        if block == Some(true) {
+                            99
+                        } else {
+                            90
+                        }
+                    },
+                    R::ShieldNormal => {
+                        if block.is_none() {
+                            99
+                        } else {
+                            0
+                        }
+                    },
+                    R::MagicSuccess => 0,
+                    R::PhysicalEvasion => 99,
+                    R::MagicCritical => 999,
+                    R::Spread => bound / 2,
+                    _ => bound - 1,
+                })
             };
+            let handler = skill
+                .effects
+                .iter()
+                .find(|h| {
+                    matches!(
+                        h.name.as_str(),
+                        "PhysicalAttack" | "MagicalAttack" | "MagicalAttackRange"
+                    )
+                })
+                .unwrap();
+            let result = if handler.name == "PhysicalAttack" {
+                zone.physical_handler_rolled_v5(
+                    zone.next_tick,
+                    npc,
+                    owner,
+                    skill,
+                    1,
+                    handler,
+                    0,
+                    &mut Vec::new(),
+                    &mut draw,
+                )
+            } else {
+                zone.magic_handler_rolled_v5(
+                    zone.next_tick,
+                    npc,
+                    owner,
+                    skill,
+                    1,
+                    handler,
+                    0,
+                    &mut Vec::new(),
+                    &mut draw,
+                )
+            }
+            .unwrap();
+            (result.rolled, sites)
+        };
         // PhysicalAttack: evasion → shield → (critical) → formula; perfect returns 1, no spread.
-        let (perfect, sites) = run(&shield, &physical, true);
+        let (perfect, sites) = run(&shield, &physical, Some(true));
         assert_eq!(perfect, 1);
         assert_eq!(sites[..2], [R::PhysicalEvasion, R::ShieldPerfect]);
         assert!(!sites.contains(&R::Spread));
-        let (normal, sites) = run(&shield, &physical, false);
+        let (normal, sites) = run(&shield, &physical, Some(false));
         assert_eq!(sites[..3], [R::PhysicalEvasion, R::ShieldPerfect, R::ShieldNormal]);
         assert!(sites.contains(&R::Spread));
         // MagicalAttack: critical → shield; perfect returns 1 before success and spread draws.
-        let (magic_perfect, sites) = run(&shield, &magical, true);
+        let (magic_perfect, sites) = run(&shield, &magical, Some(true));
         assert_eq!(magic_perfect, 1);
         assert_eq!(sites[..2], [R::MagicCritical, R::ShieldPerfect]);
         assert!(!sites.contains(&R::MagicSuccess) && !sites.contains(&R::Spread));
-        let (magic_normal, sites) = run(&shield, &magical, false);
+        let (magic_normal, sites) = run(&shield, &magical, Some(false));
         assert_eq!(
             sites[..4],
             [
@@ -8812,13 +8837,41 @@ mod tests {
                 R::MagicSuccess
             ]
         );
+        // Exact source terms: with every other draw equal, damage is floor(K / defence), so a
+        // block must be consistent with defence + sDef 128 (Hoplon 628, XML literal) for
+        // physical and magical callers, and + 128 × 40 / 100 for Wind Strike.
+        let b = shield.effective(owner.entity).unwrap();
+        let (p_def, m_def) = (i128::from(b.physical.p_def().raw()), i128::from(b.m_def_q));
+        let q = i128::from(Q);
+        let consistent = |open: u32, blocked: u32, defence: i128, added: i128| {
+            // K·Q ∈ [open·d, (open+1)·d) ∩ [blocked·(d+a), (blocked+1)·(d+a)), all ×Q.
+            let (open, blocked) = (i128::from(open), i128::from(blocked));
+            let with = defence + added;
+            (open * defence).max(blocked * with) < ((open + 1) * defence).min((blocked + 1) * with)
+        };
+        let (unblocked, sites) = run(&shield, &physical, None);
+        assert_eq!(sites[..3], [R::PhysicalEvasion, R::ShieldPerfect, R::ShieldNormal]);
+        assert!(normal < unblocked);
+        assert!(consistent(unblocked, normal, p_def, 128 * q), "{unblocked} {normal}");
+        assert!(!consistent(unblocked, normal, p_def, 0));
+        let (magic_unblocked, _) = run(&shield, &magical, None);
+        assert!(consistent(magic_unblocked, magic_normal, m_def, 128 * q));
+        let (wind_unblocked, _) = run(&shield, &percent, None);
+        let (wind_blocked, sites) = run(&shield, &percent, Some(false));
+        assert!(sites.contains(&R::ShieldNormal));
+        assert!(consistent(wind_unblocked, wind_blocked, m_def, 128 * q * 40 / 100));
+        assert!(!consistent(wind_unblocked, wind_blocked, m_def, 128 * q));
+        // ignoreShieldDefence skips both shield draws and the defence term.
+        let (ignored, sites) = run(&shield, &ignoring, Some(false));
+        assert!(!sites.contains(&R::ShieldPerfect) && !sites.contains(&R::ShieldNormal));
+        assert_eq!(ignored, run(&shield, &ignoring, None).0);
         // Behind the shield bearer: no eligible block, no shield draws, larger damage.
         let mut behind = shield.clone();
         place(&mut behind, npc.entity, Vec2Fixed::from_tiles(9, 10));
-        let (open, sites) = run(&behind, &physical, false);
+        let (open, sites) = run(&behind, &physical, Some(false));
         assert!(!sites.contains(&R::ShieldPerfect));
         assert!(open > normal, "{open} > {normal}");
-        let (magic_open, sites) = run(&behind, &magical, false);
+        let (magic_open, sites) = run(&behind, &magical, Some(false));
         assert!(!sites.contains(&R::ShieldPerfect));
         assert!(magic_open > magic_normal, "{magic_open} > {magic_normal}");
     }
