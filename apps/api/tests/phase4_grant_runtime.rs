@@ -186,6 +186,7 @@ where
         template_id: 57,
         count: 10,
         idempotency_key: Uuid::now_v7().to_string(),
+        enchant_level: None,
     };
     assert_eq!(
         app.anon_grpc()

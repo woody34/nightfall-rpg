@@ -40,6 +40,7 @@ impl ItemGrantRuntime for SessionContext {
             paused: None,
             known: None,
             conflict: None,
+            enchant: request.enchant,
         };
         command
             .validate()

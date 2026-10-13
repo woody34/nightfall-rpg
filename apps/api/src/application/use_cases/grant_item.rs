@@ -27,6 +27,9 @@ pub struct GrantItemInput {
     pub template_id: u32,
     pub count: u64,
     pub idempotency_key: String,
+    /// D113: optional birth enchant level (dev fixtures); validated against the template's
+    /// enchant rules and part of the idempotent body.
+    pub enchant_level: Option<u32>,
 }
 
 /// Dev gate and immutable receipt routing; only the zone may materialize ownership.
@@ -89,7 +92,9 @@ impl GrantItem {
                     .into(),
             ));
         }
-        let fingerprint = grant_item_fingerprint(character, input.template_id, input.count);
+        let enchant = input.enchant_level.unwrap_or(0);
+        let fingerprint =
+            grant_item_fingerprint(character, input.template_id, input.count, enchant);
         match receipts
             .item_receipt_lookup(input.caller, ItemMutationOperation::GrantItem, &key, &fingerprint)
             .await?
@@ -127,10 +132,24 @@ impl GrantItem {
                 capability.blockers.join(", ")
             )));
         }
+        if enchant != 0
+            && (input.count != 1
+                || enchant
+                    > crate::domain::zone::item_grant::grant_enchant_limit(
+                        &rules,
+                        input.template_id,
+                    ))
+        {
+            return Err(AppError::InvalidArgument(
+                "enchant_level needs count 1 of an enchantable template, within its scroll rules"
+                    .into(),
+            ));
+        }
         let request = ItemGrantRequest {
             key,
             template_id: input.template_id,
             count: input.count,
+            enchant,
             fingerprint: fingerprint.clone(),
             rules_hash: rules.hash(),
         };
