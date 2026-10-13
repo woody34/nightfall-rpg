@@ -726,3 +726,14 @@ round-to-nearest-even (`fl`, `fl32`) and written as bit patterns.
 - `auction.toml`: Item auction instances 32320, 32321, 32322 (82 items each, initial bid 100,000, length 300 minutes), `ItemAuctionExpiredAfter` / `ItemAuctionTimeExtendsOnBid`, the START/FINISH time spaces, and the B4/E48 fixture schedule: what pinned `ItemAuctionInstance` creates from a first start at the fixture anchor (2026-10-12T00:00Z, UTC DB time), two rounds per instance, auction ids in pinned creation order, items drawn at `AuctionCreate`.
 - `manor.toml`: 258 crops from `seeds.xml` (129 alternative), the Sow/Harvest skills read from the seed and Harvester templates, the `setSeeded` strong-type multipliers, and the E48-ratified Gludio-only fixture seed production and crop procurement lists (32 crops).
 - `catalogue.toml` / `catalogue_counts.json` (story 1.4): every template referenced by a Phase 5 table with its roles, Phase 4 catalogue membership, D5 storability (the Phase 4 `gen_items.local_blockers` contexts, cross-checked against all 8,423 Phase 4 rows), and its Phase 5 executability (herb pickup effect under the Phase 4 skill rules, cross-checked against all 2,705 Phase 4 skill rows; Sow/Harvest/RegisterRecipe as Phase 5 engine paths; storage only otherwise). E51: storability is independent of executability, so common, shadow and time-limited templates are storable (shadow/time-limited tagged `lifetime_deferred`) and `for_npc` is not a blocker (flagged `pending_d97` until Phase 4 D97, data rev 9, is integrated; the manifest is regenerated then and the non-storable set must stay 0). E52: multisell entries with Fame (−300) or Clan Reputation (−200) are kept, their lists admitted, and executing them refuses ItemCapabilityDeferred. It names the non-executable herbs and the templates the Phase 4 EtcItem closure must add at integration. No row of any table is dropped for a capability.
+
+### Economy oracle (`scripts/economy_oracle.py`, stories 1.5–1.7)
+
+The oracle implements the 22 families of design §14.1 independently of the Rust engine and of
+`gen_economy.py`'s arithmetic. It has its own exact `fl`/`fl32` over Fractions, and it uses CPython
+`float` only as the binary64 reference. It reads the E1 tables and the pinned clones directly (and
+checks their revisions). Vectors go to `fixtures/economy-oracle-{drops,party,vendor}.json`, and
+`--check` (wired into `check_all.py`) regenerates them in memory and asserts every Done-When number.
+The pinned `(long)(P * 0.05)` manor fee equals `P div 20` for every P below 6,755,399,441,055,759.
+That is the first P where they differ. Every reachable P (at most the 99,900,000,000 adena cap) is
+far below it, so the design's "every P < 2^53" claim is too strong, but the fee is not affected.
