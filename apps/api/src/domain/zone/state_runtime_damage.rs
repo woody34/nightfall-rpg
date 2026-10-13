@@ -9729,6 +9729,16 @@ mod tests {
             .dispositions
             .is_empty());
         let mut population = live.snapshot();
+        // Review-5 P2-3: before the pools are injected, the 1,000-combatant envelope with the
+        // worst-case owners encodes, decodes and restores into a runnable V6 zone.
+        {
+            let encoded = encode_snapshot(&population).unwrap();
+            let decoded = decode_snapshot(&encoded).unwrap();
+            assert_eq!(decoded, population);
+            let mut cold =
+                ZoneState::from_snapshot_with_items(decoded, Some(Arc::clone(&rules))).unwrap();
+            cold.run_tick(cold.draft(Vec::new())).unwrap();
+        }
         // D106: full effect pools (24 buffs, 12 songs, 8 debuffs = 44 each) on every NPC, as
         // benches/support/snapshot_capacity.rs builds them, combined with the worst-case
         // owners: 44 synthetic, independently stackable periodic skills join the epoch rules.

@@ -678,7 +678,7 @@ impl ZoneState {
         target: EntityId,
         mark: usize,
         chance: i128,
-        hit: bool,
+        (hit, blocked): (bool, bool),
     ) {
         let residue = |site: &str| {
             self.evidence_draws(mark)
@@ -708,16 +708,8 @@ impl ZoneState {
         // D89: null iff the draw was not taken.
         inputs_map.insert("critical_residue".into(), json!(critical.map(|(v, _)| v)));
         inputs_map.insert("spread_residue".into(), json!(spread.map(|(v, _)| v)));
-        // D108: a landed shot with a spread radius but no spread draw was perfectly blocked.
-        let radius = inputs_map
-            .get("weapon")
-            .and_then(|w| w.get("spread_radius"))
-            .and_then(Value::as_u64)
-            .unwrap_or(0);
-        inputs_map.insert(
-            "blocked".into(),
-            json!(hit && critical.is_some() && spread.is_none() && radius > 0),
-        );
+        // D108: read from the resolver's shield outcome (exact for zero-radius bows too).
+        inputs_map.insert("blocked".into(), json!(hit && blocked));
         if let Some(draws) = actual_map.get_mut("draws").and_then(Value::as_array_mut) {
             draws.push(json!({"site": "hit", "bound": 1000, "residue": hit_residue}));
             if let Some((value, bound)) = critical {
@@ -755,7 +747,7 @@ impl ZoneState {
         resolution: &str,
         mark: usize,
         chance: i128,
-        observed: &[(usize, Option<ExactRatio>)],
+        observed: &[(usize, Option<ExactRatio>, bool)],
         damages: [u32; 2],
     ) {
         use crate::domain::zone::state::item_evidence_hooks::ratio_json as r;
@@ -787,11 +779,13 @@ impl ZoneState {
                 json!({"site": format!("hit{}", index.saturating_add(1)), "bound": 1000, "residue": residue})
             })
             .collect();
-        for (index, ((start, exact), residue)) in observed.iter().zip(&hit_residues).enumerate() {
+        for (index, ((start, exact, perfect), residue)) in
+            observed.iter().zip(&hit_residues).enumerate()
+        {
             let hit = i128::from(*residue) <= chance;
             let end = observed
                 .get(index.saturating_add(1))
-                .map_or(usize::MAX, |(next, _)| *next);
+                .map_or(usize::MAX, |(next, ..)| *next);
             let window: Vec<_> = self
                 .evidence_draws(*start)
                 .iter()
@@ -810,12 +804,13 @@ impl ZoneState {
                 (None, None)
             };
             if hit {
-                let Some((c, cb)) = critical else {
-                    return;
-                };
-                draws.push(
-                    json!({"site": format!("critical{}", index.saturating_add(1)), "bound": cb, "residue": c}),
-                );
+                // D89/D108: a missing draw is null, never a dropped fact (unreachable today: a
+                // landed subhit always draws its critical).
+                if let Some((c, cb)) = critical {
+                    draws.push(
+                        json!({"site": format!("critical{}", index.saturating_add(1)), "bound": cb, "residue": c}),
+                    );
+                }
                 // D108: a perfectly blocked subhit takes no spread draw; the fact is kept.
                 if let Some((s, sb)) = spread {
                     draws.push(
@@ -823,7 +818,7 @@ impl ZoneState {
                     );
                 }
             }
-            blocked.push(hit && spread.is_none());
+            blocked.push(hit && *perfect);
             hits.push(hit);
             formulas.push(exact.map_or(json!(0), r));
             criticals.push(critical.map(|(value, _)| value));

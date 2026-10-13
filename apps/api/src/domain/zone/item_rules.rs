@@ -848,9 +848,10 @@ mod tests {
                 "{class}"
             );
         }
-        // 3rd-class ids (88+) have no fists template: D84 re-resolves per class, so such a
-        // transfer falls back to the class baseAtkRange (recorded A8 deviation: pinned keeps
-        // the login fists until relog).
+        // 3rd-class ids (88+) have no fists template: D84 re-resolves per class, so after such
+        // a transfer an unarmed player falls back to the class_combat range, 5+isqrt(level)
+        // random damage and angle 120 until relog (Phase 4 deviation PD1,
+        // phase-4-architecture-decisions.md §6; pinned keeps the login fists).
         assert!(parts.fists_weapon(88).is_none());
     }
 
