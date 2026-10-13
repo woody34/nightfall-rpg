@@ -113,9 +113,14 @@ JSONL contract (schema version 1 of this sidecar):
   `backfill`) AND count-neutral retained rows (`equip`, `unequip`, `enchant`,
   `refine`, `cancel_refine`) — with the same endpoint continuity; the single
   Consume stays last. Equip-then-shoot on an arrow stack in one tick exports
-  Equip `10→10` (inventory→lhand) then Consume `10→7`. Removal rows
-  (`destroy`, `crystallize`) never precede Consume, and a Consume followed by
-  any row on the same instance and tick refuses.
+  Equip `10→10` (inventory→lhand) then Consume `10→7`.
+  D94 amends the tail: the chain shape is [non-terminal rows in position
+  order…, Consume aggregate, at most ONE terminal row]. Terminal rows are
+  `destroy`/`crystallize` (Phase 5: whole transfer-out); a terminal row is
+  always last and, with a Consume aggregate present, immediately follows it
+  (refine payment then Crystallize; Consume then Destroy of the remainder).
+  A terminal row before Consume, a non-terminal row after Consume, a second
+  Consume or two terminal rows refuse.
   A positive row may increase an existing stack; it preserves all canonical
   fields except count/revision. Fresh Exchange products still require null
   before and a new product instance (D37/D52).

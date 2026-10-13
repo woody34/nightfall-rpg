@@ -735,6 +735,7 @@ ITEM_TRANSITIONS={
 }
 
 
+TERMINAL=frozenset(('destroy','crystallize'))
 PRE_CONSUME=frozenset(('grant','starter','backfill','equip','unequip','enchant','refine','cancel_refine','use'))
 CAUSE=re.compile(r'(?:auto_shot|arrow|item_cast):\S+|receipt:[^:\s]+:\S+')
 # D93: discharges (use rows) name their own family; payment causes stay Consume-only.
@@ -1064,13 +1065,18 @@ def validate(rows,recording,rules_hash):
         # (owner, incarnation, tick, instance) chain, Consume or not.
         for ordinal,delta in enumerate(deltas):
             if delta['operation_ordinal']!=ordinal:raise ValueError('operation_ordinal is not the chain row position (D76/D83)')
-        consumes=[d for d in deltas if d['operation']=='consume']
+        # D94 (amends D69/D76): [non-terminal rows..., Consume aggregate, <=1 terminal row].
+        # Terminal rows (Destroy/Crystallize; Phase 5 whole transfer-out) end the chain.
+        terminals=[index for index,delta in enumerate(deltas) if delta['operation'] in TERMINAL]
+        if len(terminals)>1 or terminals and terminals[0]!=len(deltas)-1:raise ValueError('at most one terminal row, last in its chain (D94)')
+        body=deltas[:-1] if terminals else deltas
+        consumes=[delta for delta in body if delta['operation']=='consume']
+        if len(consumes)!=len([d for d in deltas if d['operation']=='consume']):raise ValueError('Consume aggregate must precede the terminal row (D94)')
         if not consumes:continue
-        if len(consumes)!=1 or deltas[-1] is not consumes[0]:raise ValueError('Consume aggregate must be last for its instance')
-        # D69 (amends D66): positive AND count-neutral retained rows precede the Consume
-        # aggregate in cause order; continuity is checked by inventory_history. Removal
-        # rows end the instance, so they can never precede it.
-        if any(d['operation'] not in PRE_CONSUME for d in deltas[:-1]):raise ValueError('only positive or count-neutral rows may precede Consume')
+        if len(consumes)!=1 or body[-1] is not consumes[0]:raise ValueError('Consume aggregate must be last before any terminal row (D94)')
+        # D69: positive AND count-neutral retained rows precede the Consume aggregate in cause
+        # order; continuity is checked by inventory_history.
+        if any(d['operation'] not in PRE_CONSUME for d in body[:-1]):raise ValueError('only positive or count-neutral rows may precede Consume')
     validate_terminal_facts(rows)
     validate_exchanges(rows)
     validate_instance_history(rows)

@@ -281,6 +281,44 @@ class Evidence(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'chain row position'):gate.validate(later,self.recording,HASH)
         print('D83: positional ordinals hold for Consume-free and single-row chains and restart per tick',flush=True)
 
+    def d94_rows(self,operations,count=5):
+        """One stack (instance 100, template 2509) with the given ordered operations in one tick."""
+        rows=self.transition_rows('consume',count=count);rows.pop(3)
+        state=copy.deepcopy(rows[1]['data']['instances'][0])
+        for ordinal,operation in enumerate(operations):
+            before=copy.deepcopy(state)
+            if operation=='consume':
+                after=before|{'count':before['count']-2,'revision':1}
+                data=dict(receipt_refs=[],causes=[dict(cause='auto_shot:attack:1',count_delta=-2)],resolution_id='attack:1')
+            elif operation=='grant':
+                after=before|{'count':before['count']+1,'revision':1};data=dict(receipt_ref='receipt:grant:1',resolution_id='grant:1')
+            else:
+                after=None;data=dict(receipt_ref=f'receipt:{operation}:1',resolution_id=f'{operation}:1')
+            data.update(operation=operation,instance=100,before=before,after=after,
+                        count_delta=(after['count'] if after else 0)-before['count'],operation_ordinal=ordinal)
+            rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=0,sequence=0,data=data))
+            # After a terminal row the mutations reuse the last live state, so the D94 shape
+            # rule (not only continuity) is what must refuse them.
+            state=after if after is not None else before
+        return self.repair(rows)
+
+    def test_d94_consume_then_one_terminal_row(self):
+        controls=(['consume','destroy'],['consume','crystallize'],['grant','consume','destroy'],['grant','destroy'],
+                  ['destroy'],['grant','consume'])
+        for operations in controls:
+            with self.subTest(control=operations):
+                rows=self.d94_rows(operations);gate.validate(rows,self.recording,HASH)
+                self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['pole_damage'],HASH)['passed'])
+        mutations=(['destroy','consume'],['consume','grant'],['consume','destroy','destroy'],['destroy','destroy'],
+                   ['consume','consume','destroy'],['consume','crystallize','consume'])
+        for operations in mutations:
+            with self.subTest(mutation=operations):
+                with self.assertRaises(ValueError):gate.validate(self.d94_rows(operations,count=9),self.recording,HASH)
+        bad=self.d94_rows(['consume','destroy'])
+        bad[3]['data']['operation_ordinal'],bad[4]['data']['operation_ordinal']=1,0
+        with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
+        print(f'D94: {len(controls)} [non-terminal..., Consume, terminal] controls pass; {len(mutations)+1} shape/order mutations reject',flush=True)
+
     def test_system_shot_review11_field_drift_without_enchant_correlation(self):
         rows=self.transition_rows('consume',enchant=0)
         # Exercise the shared transition rule without baseline/history comparisons.
