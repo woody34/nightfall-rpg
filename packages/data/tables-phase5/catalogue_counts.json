@@ -9,8 +9,17 @@
   "imported": 9338,
   "in_phase4_catalogue": 5074,
   "phase4_closure_additions": 4264,
-  "storable": 8429,
-  "not_storable": 909,
+  "storable": 9338,
+  "not_storable": 0,
+  "storable_pending_d97": 182,
+  "lifetime_deferred": 109,
+  "phase4_contexts": {
+    "context:common": 618,
+    "context:shadow": 106,
+    "context:time_limited": 3,
+    "context:npc_only": 182,
+    "context:pet": 0
+  },
   "executable": {
     "yes": 1301,
     "no": 25,
@@ -48,14 +57,18 @@
       "lists": 3,
       "entries": 634,
       "ingredient_rows": 633,
-      "product_rows": 1
+      "product_rows": 1,
+      "lists_admitted": true,
+      "entry_capability": "deferred:ItemCapabilityDeferred"
     },
     "CLAN_REPUTATION": {
       "id": -200,
       "lists": 2,
       "entries": 30,
       "ingredient_rows": 30,
-      "product_rows": 0
+      "product_rows": 0,
+      "lists_admitted": true,
+      "entry_capability": "deferred:ItemCapabilityDeferred"
     }
   }
 }

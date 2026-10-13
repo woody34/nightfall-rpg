@@ -1565,11 +1565,27 @@ def gen_catalogue(tables: dict[str, str], dp_root: Path) -> tuple[str, str]:
             paths = [phase5_paths[r] for r in roles if r in phase5_paths]
             exec_b = []
             executable, capability = ("yes", "; ".join(paths)) if paths else ("not_required", "storage_only")
+        # E51: storability is independent of executability. common/shadow/time-limited are storable
+        # (shadow/time-limited lifetime decay deferred); for_npc is never a blocker (Phase 4 D97 removes
+        # it in Phase 4 data rev 9, so it is flagged pending until the integration regeneration, N3).
+        unknown = [b for b in store_b if b not in STORABILITY_CONTEXTS]
+        if unknown:
+            raise SourceError(f"item {iid}: unknown storability context {unknown}")
+        if "context:pet" in store_b:
+            status = "not_storable"
+        elif "context:npc_only" in store_b:
+            status = "pending_d97"
+        else:
+            status = "storable"
+        tags = ["lifetime_deferred"] if {"context:shadow", "context:time_limited"} & set(store_b) else []
         rows.append({"id": iid, "name": items[iid]["name"], "type": items[iid]["type"], "roles": roles,
-                     "in_phase4": iid in p4_items, "storable": not store_b, "storable_blockers": store_b,
+                     "in_phase4": iid in p4_items, "storable": status != "not_storable", "storable_status": status,
+                     "phase4_contexts": store_b, "tags": tags,
                      "executable": executable, "capability": capability, "blockers": exec_b})
 
     non_storable = [r for r in rows if not r["storable"]]
+    pending_d97 = [r for r in rows if r["storable_status"] == "pending_d97"]
+    lifetime_deferred = [r for r in rows if "lifetime_deferred" in r["tags"]]
     non_exec_herbs = [r for r in rows if r["capability"] == "herb_pickup_effect" and r["executable"] == "no"]
     additions = [r["id"] for r in rows if not r["in_phase4"]]
     role_counts = {}
@@ -1585,6 +1601,9 @@ def gen_catalogue(tables: dict[str, str], dp_root: Path) -> tuple[str, str]:
         "phase4_closure_additions": len(additions),
         "storable": len(rows) - len(non_storable),
         "not_storable": len(non_storable),
+        "storable_pending_d97": len(pending_d97),
+        "lifetime_deferred": len(lifetime_deferred),
+        "phase4_contexts": {c: sum(c in r["phase4_contexts"] for r in rows) for c in STORABILITY_CONTEXTS},
         "executable": {"yes": sum(r["executable"] == "yes" for r in rows),
                        "no": sum(r["executable"] == "no" for r in rows),
                        "not_required": sum(r["executable"] == "not_required" for r in rows)},
@@ -1594,13 +1613,16 @@ def gen_catalogue(tables: dict[str, str], dp_root: Path) -> tuple[str, str]:
     }
     counts["special_multisell_ingredients"] = {
         special_ids[k]: {"id": k, "lists": len(v["lists"]), "entries": len(v["entries"]),
-                         "ingredient_rows": v["ingredient"], "product_rows": v["product"]}
+                         "ingredient_rows": v["ingredient"], "product_rows": v["product"],
+                         "lists_admitted": True, "entry_capability": "deferred:ItemCapabilityDeferred"}
         for k, v in sorted(special_use.items())}
 
     lines = [
         HEADER,
         "# Story 1.4: catalogue admission closure. Every template referenced by a Phase 5 table is",
         "# imported and must be storable (D5); executability is a separate capability (D §1.10 item 5).",
+        "# E51: common/shadow/time-limited are storable (shadow/time-limited tagged lifetime_deferred);",
+        "# for_npc is not a blocker and is flagged pending_d97 until the Phase 4 D97 integration regeneration.",
         "# No row of any Phase 5 table is dropped for a capability.",
         "schema_version = 1",
         "",
@@ -1614,18 +1636,23 @@ def gen_catalogue(tables: dict[str, str], dp_root: Path) -> tuple[str, str]:
         lines.append(f"  {{ id = {r['id']}, name = {json.dumps(r['name'])}, blockers = {json.dumps(r['blockers'])} }},")
     lines.append("]")
     lines.append("")
-    lines.append("# Referenced templates that are NOT storable (Phase5Rules admission fails on any).")
+    lines.append("# Referenced templates that are NOT storable (Phase5Rules admission fails on any; must be empty).")
     lines.append("not_storable = [")
     for r in non_storable:
         lines.append(f"  {{ id = {r['id']}, name = {json.dumps(r['name'])}, roles = {json.dumps(r['roles'])}, "
-                     f"blockers = {json.dumps(r['storable_blockers'])} }},")
+                     f"phase4_contexts = {json.dumps(r['phase4_contexts'])} }},")
     lines.append("]")
     lines.append("")
+    lines.append("# for_npc templates: storable under E51, still non-storable in Phase 4 data until D97 (rev 9).")
+    lines.append(f"pending_d97 = {toml_list([r['id'] for r in pending_d97])}")
+    lines.append("")
     lines.append("# Multisell special ids (MultisellData.java:57-59): clan reputation / fame, not item templates.")
+    lines.append("# E52: rows kept, lists admitted; executing such an entry refuses ItemCapabilityDeferred.")
     lines.append("special_multisell_ingredients = [")
     for k, v in sorted(special_use.items()):
         lines.append(f'  {{ id = {k}, name = "{special_ids[k]}", lists = {toml_list(sorted(v["lists"]))}, '
-                     f'entries = {len(v["entries"])}, ingredient_rows = {v["ingredient"]}, product_rows = {v["product"]} }},')
+                     f'entries = {len(v["entries"])}, ingredient_rows = {v["ingredient"]}, product_rows = {v["product"]}, '
+                     f'lists_admitted = true, entry_capability = "deferred:ItemCapabilityDeferred" }},')
     lines.append("]")
     lines.append("")
     lines.append("templates = [")
@@ -1633,7 +1660,8 @@ def gen_catalogue(tables: dict[str, str], dp_root: Path) -> tuple[str, str]:
         lines.append(
             f'  {{ id = {r["id"]}, name = {json.dumps(r["name"])}, type = "{r["type"]}", roles = {json.dumps(r["roles"])}, '
             f'in_phase4 = {toml_bool(r["in_phase4"])}, storable = {toml_bool(r["storable"])}, '
-            f'storable_blockers = {json.dumps(r["storable_blockers"])}, executable = "{r["executable"]}", '
+            f'storable_status = "{r["storable_status"]}", phase4_contexts = {json.dumps(r["phase4_contexts"])}, '
+            f'tags = {json.dumps(r["tags"])}, executable = "{r["executable"]}", '
             f'capability = {json.dumps(r["capability"])}, blockers = {json.dumps(r["blockers"])} }},')
     lines.append("]")
     lines.append("")
@@ -1645,6 +1673,8 @@ def gen_catalogue(tables: dict[str, str], dp_root: Path) -> tuple[str, str]:
         f"phase4_closure_additions = {counts['phase4_closure_additions']}",
         f"storable = {counts['storable']}",
         f"not_storable = {counts['not_storable']}",
+        f"storable_pending_d97 = {counts['storable_pending_d97']}",
+        f"lifetime_deferred = {counts['lifetime_deferred']}",
         f"executable_yes = {counts['executable']['yes']}",
         f"executable_no = {counts['executable']['no']}",
         f"executable_not_required = {counts['executable']['not_required']}",
