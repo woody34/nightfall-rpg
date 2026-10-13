@@ -1,0 +1,441 @@
+{
+ "datapack_revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+ "description": "Residues where Java binary32 refine selection differs from exact decimals; each entry is [residue, java_option, exact_decimal_option].",
+ "generator": "packages/data/scripts/refine_binary32_oracle.py",
+ "source_lines": [
+  "datatables/AugmentationData.java:334,409 (Float.parseFloat)",
+  "datatables/AugmentationData.java:464-468,497-503,518-522,550-555,705-709,729-734"
+ ],
+ "sources": [
+  {
+   "path": "src/main/resources/data/stats/augmentation/retailchances.xml",
+   "sha256": "e5c41d5eb6a66761b9c39e30869ceb9aae4a5b493486b3f3ed08c9a0c9f6a9b4"
+  },
+  {
+   "path": "src/main/resources/data/stats/augmentation/retailchances_accessory.xml",
+   "sha256": "fa473e9bd949f523d40149b02d97cf45df11c80ac680f8a9845055b647f9ff15"
+  }
+ ],
+ "tables": [
+  {
+   "kind": "weapon",
+   "residues": [
+    [
+     105,
+     16344,
+     16343
+    ]
+   ],
+   "rows": 95,
+   "selector": "option12",
+   "stone": 8753,
+   "weapon_type": "warrior"
+  },
+  {
+   "kind": "weapon",
+   "residues": [
+    [
+     105,
+     16348,
+     16347
+    ]
+   ],
+   "rows": 95,
+   "selector": "option12",
+   "stone": 8754,
+   "weapon_type": "warrior"
+  },
+  {
+   "kind": "weapon",
+   "residues": [
+    [
+     105,
+     16352,
+     16351
+    ]
+   ],
+   "rows": 95,
+   "selector": "option12",
+   "stone": 8755,
+   "weapon_type": "warrior"
+  },
+  {
+   "kind": "weapon",
+   "residues": [
+    [
+     105,
+     16356,
+     16355
+    ]
+   ],
+   "rows": 95,
+   "selector": "option12",
+   "stone": 8756,
+   "weapon_type": "warrior"
+  },
+  {
+   "kind": "weapon",
+   "residues": [
+    [
+     105,
+     16360,
+     16359
+    ]
+   ],
+   "rows": 95,
+   "selector": "option12",
+   "stone": 8757,
+   "weapon_type": "warrior"
+  },
+  {
+   "kind": "weapon",
+   "residues": [
+    [
+     105,
+     16364,
+     16363
+    ]
+   ],
+   "rows": 95,
+   "selector": "option12",
+   "stone": 8758,
+   "weapon_type": "warrior"
+  },
+  {
+   "kind": "weapon",
+   "residues": [
+    [
+     105,
+     16368,
+     16367
+    ]
+   ],
+   "rows": 95,
+   "selector": "option12",
+   "stone": 8759,
+   "weapon_type": "warrior"
+  },
+  {
+   "kind": "weapon",
+   "residues": [
+    [
+     105,
+     16372,
+     16371
+    ]
+   ],
+   "rows": 95,
+   "selector": "option12",
+   "stone": 8760,
+   "weapon_type": "warrior"
+  },
+  {
+   "kind": "weapon",
+   "residues": [
+    [
+     105,
+     16376,
+     16375
+    ]
+   ],
+   "rows": 95,
+   "selector": "option12",
+   "stone": 8761,
+   "weapon_type": "warrior"
+  },
+  {
+   "kind": "weapon",
+   "residues": [
+    [
+     105,
+     16380,
+     16379
+    ]
+   ],
+   "rows": 95,
+   "selector": "option12",
+   "stone": 8762,
+   "weapon_type": "warrior"
+  },
+  {
+   "kind": "weapon",
+   "residues": [
+    [
+     105,
+     21426,
+     21425
+    ]
+   ],
+   "rows": 95,
+   "selector": "option12",
+   "stone": 9576,
+   "weapon_type": "warrior"
+  },
+  {
+   "kind": "weapon",
+   "residues": [
+    [
+     105,
+     23064,
+     23063
+    ]
+   ],
+   "rows": 95,
+   "selector": "option12",
+   "stone": 10486,
+   "weapon_type": "warrior"
+  },
+  {
+   "kind": "weapon",
+   "residues": [
+    [
+     105,
+     24702,
+     24701
+    ]
+   ],
+   "rows": 95,
+   "selector": "option12",
+   "stone": 14169,
+   "weapon_type": "warrior"
+  },
+  {
+   "kind": "weapon",
+   "residues": [
+    [
+     105,
+     24702,
+     24701
+    ]
+   ],
+   "rows": 95,
+   "selector": "option12",
+   "stone": 16163,
+   "weapon_type": "warrior"
+  },
+  {
+   "kind": "weapon",
+   "residues": [
+    [
+     105,
+     24702,
+     24701
+    ]
+   ],
+   "rows": 95,
+   "selector": "option12",
+   "stone": 16167,
+   "weapon_type": "warrior"
+  },
+  {
+   "kind": "weapon",
+   "residues": [
+    [
+     105,
+     16344,
+     16343
+    ]
+   ],
+   "rows": 95,
+   "selector": "option12",
+   "stone": 8753,
+   "weapon_type": "mage"
+  },
+  {
+   "kind": "weapon",
+   "residues": [
+    [
+     105,
+     16348,
+     16347
+    ]
+   ],
+   "rows": 95,
+   "selector": "option12",
+   "stone": 8754,
+   "weapon_type": "mage"
+  },
+  {
+   "kind": "weapon",
+   "residues": [
+    [
+     105,
+     16352,
+     16351
+    ]
+   ],
+   "rows": 95,
+   "selector": "option12",
+   "stone": 8755,
+   "weapon_type": "mage"
+  },
+  {
+   "kind": "weapon",
+   "residues": [
+    [
+     105,
+     16356,
+     16355
+    ]
+   ],
+   "rows": 95,
+   "selector": "option12",
+   "stone": 8756,
+   "weapon_type": "mage"
+  },
+  {
+   "kind": "weapon",
+   "residues": [
+    [
+     105,
+     16360,
+     16359
+    ]
+   ],
+   "rows": 95,
+   "selector": "option12",
+   "stone": 8757,
+   "weapon_type": "mage"
+  },
+  {
+   "kind": "weapon",
+   "residues": [
+    [
+     105,
+     16364,
+     16363
+    ]
+   ],
+   "rows": 95,
+   "selector": "option12",
+   "stone": 8758,
+   "weapon_type": "mage"
+  },
+  {
+   "kind": "weapon",
+   "residues": [
+    [
+     105,
+     16368,
+     16367
+    ]
+   ],
+   "rows": 95,
+   "selector": "option12",
+   "stone": 8759,
+   "weapon_type": "mage"
+  },
+  {
+   "kind": "weapon",
+   "residues": [
+    [
+     105,
+     16372,
+     16371
+    ]
+   ],
+   "rows": 95,
+   "selector": "option12",
+   "stone": 8760,
+   "weapon_type": "mage"
+  },
+  {
+   "kind": "weapon",
+   "residues": [
+    [
+     105,
+     16376,
+     16375
+    ]
+   ],
+   "rows": 95,
+   "selector": "option12",
+   "stone": 8761,
+   "weapon_type": "mage"
+  },
+  {
+   "kind": "weapon",
+   "residues": [
+    [
+     105,
+     16380,
+     16379
+    ]
+   ],
+   "rows": 95,
+   "selector": "option12",
+   "stone": 8762,
+   "weapon_type": "mage"
+  },
+  {
+   "kind": "weapon",
+   "residues": [
+    [
+     105,
+     21426,
+     21425
+    ]
+   ],
+   "rows": 95,
+   "selector": "option12",
+   "stone": 9576,
+   "weapon_type": "mage"
+  },
+  {
+   "kind": "weapon",
+   "residues": [
+    [
+     105,
+     23064,
+     23063
+    ]
+   ],
+   "rows": 95,
+   "selector": "option12",
+   "stone": 10486,
+   "weapon_type": "mage"
+  },
+  {
+   "kind": "weapon",
+   "residues": [
+    [
+     105,
+     24702,
+     24701
+    ]
+   ],
+   "rows": 95,
+   "selector": "option12",
+   "stone": 14169,
+   "weapon_type": "mage"
+  },
+  {
+   "kind": "weapon",
+   "residues": [
+    [
+     105,
+     24702,
+     24701
+    ]
+   ],
+   "rows": 95,
+   "selector": "option12",
+   "stone": 16163,
+   "weapon_type": "mage"
+  },
+  {
+   "kind": "weapon",
+   "residues": [
+    [
+     105,
+     24702,
+     24701
+    ]
+   ],
+   "rows": 95,
+   "selector": "option12",
+   "stone": 16167,
+   "weapon_type": "mage"
+  }
+ ]
+}
