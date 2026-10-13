@@ -232,6 +232,7 @@ impl ZoneState {
         let account = progression.identity.account_id;
         let mut projection = previous.unwrap_or_else(|| Phase4Projection {
             exchanges: Vec::new(),
+            refines: Vec::new(),
             enchant_attempts: Vec::new(),
             paused_core: None,
             tick,
@@ -388,6 +389,7 @@ impl ZoneState {
         let phase = &self.phase3.as_ref().ok_or_else(missing)?.canonical;
         Ok(Phase4Projection {
             exchanges: Vec::new(),
+            refines: Vec::new(),
             enchant_attempts: Vec::new(),
             paused_core: None,
             tick,

@@ -370,6 +370,7 @@ impl ZoneState {
         let mut projection = previous.unwrap_or_else(|| Phase4Projection {
             enchant_attempts: Vec::new(),
             exchanges: Vec::new(),
+            refines: Vec::new(),
             paused_core: None,
             tick,
             entity: id,

@@ -307,6 +307,7 @@ impl ZoneState {
         let projection = Phase4Projection {
             enchant_attempts: Vec::new(),
             exchanges: Vec::new(),
+            refines: Vec::new(),
             paused_core: None,
             tick,
             entity: id,

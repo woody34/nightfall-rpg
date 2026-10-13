@@ -74,6 +74,8 @@ impl ItemAuditEvidence {
         let operation = match self.family.as_str() {
             "enchant_payment" => ItemOperation::Enchant,
             "exchange_payment" => ItemOperation::Exchange,
+            "refine_payment" => ItemOperation::Refine,
+            "cancel_refine_payment" => ItemOperation::CancelRefine,
             "item_cast_payment" | "manual_shot_payment" => ItemOperation::Use,
             "toggle_shot_payment" => ItemOperation::ToggleAutoShot,
             _ => return Ok(None),
@@ -288,6 +290,9 @@ pub struct Phase4Projection {
     /// Resolution-time receipt-bound exchange plans, before tick consumption aggregation.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub exchanges: Vec<super::ExchangeAudit>,
+    /// Resolution-time Refine/CancelRefine audits in operation order (draws, fee, target).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub refines: Vec<super::RefineAudit>,
     /// Every accepted attempt, including unchanged safe/bonus-only outcomes, in operation order.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub enchant_attempts: Vec<super::EnchantAttempt>,
@@ -519,6 +524,7 @@ impl Phase4Projection {
             return Err(ItemError("enchant receipt lacks its captured attempt"));
         }
         self.validate_exchanges()?;
+        self.validate_refines()?;
         let mut pending = BTreeSet::new();
         for result in &self.materializations {
             if result.manifest_version != 1
@@ -533,6 +539,43 @@ impl Phase4Projection {
             {
                 return Err(ItemError("invalid pending item completion"));
             }
+        }
+        Ok(())
+    }
+    fn validate_refines(&self) -> Result<(), ItemError> {
+        let mut refines = BTreeSet::new();
+        let mut previous_ordinal = 0;
+        for refine in &self.refines {
+            let receipt = self
+                .receipts
+                .iter()
+                .find(|r| r.reference() == refine.receipt)
+                .ok_or(ItemError("refine receipt is absent"))?;
+            refine.validate(receipt)?;
+            let operation = refine.receipt.operation;
+            // The target row is backed by the physical ledger; payments by Consume aggregates.
+            if !self.ledger.iter().any(|delta| {
+                delta.operation == operation
+                    && delta.instance == refine.after.id
+                    && delta.receipt == Some(refine.receipt)
+                    && delta.after.as_ref() == Some(&refine.after)
+            }) || !self.ledger.iter().any(|delta| {
+                delta.operation == ItemOperation::Consume
+                    && (delta.receipt_refs.contains(&refine.receipt)
+                        || delta.receipt == Some(refine.receipt))
+            }) {
+                return Err(ItemError("refine audit is not backed by physical ledger"));
+            }
+            if refine.operation_ordinal <= previous_ordinal || !refines.insert(refine.receipt) {
+                return Err(ItemError("duplicate or unordered refine audit"));
+            }
+            previous_ordinal = refine.operation_ordinal;
+        }
+        if self.receipts.iter().any(|r| {
+            matches!(r.reference().operation, ItemOperation::Refine | ItemOperation::CancelRefine)
+                && !refines.contains(&r.reference())
+        }) {
+            return Err(ItemError("refine receipt lacks its captured audit"));
         }
         Ok(())
     }
@@ -750,6 +793,7 @@ pub(crate) mod tests {
         Phase4Projection {
             enchant_attempts: Vec::new(),
             exchanges: Vec::new(),
+            refines: Vec::new(),
             paused_core: None,
             tick: Tick(10),
             entity,

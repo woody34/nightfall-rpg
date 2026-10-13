@@ -250,6 +250,85 @@ impl ZoneState {
         Ok(())
     }
 
+    /// Retail draws (three `item_rng` facts), both selectors, the category and packing for
+    /// Refine; the instance-crystal fee for `CancelRefine`. Inputs are the actual filtered rows.
+    pub(super) fn item_evidence_refine(
+        &mut self,
+        subject: TargetBinding,
+        audit: &crate::domain::zone::RefineAudit,
+        draws: Option<&(crate::domain::zone::item_refine::RetailSelectors, Vec<(u128, u128, u32)>)>,
+        resolution: &str,
+    ) -> Result<(), RejectReason> {
+        use crate::domain::zone::item_refine::{RetailRow, RETAIL_RESIDUES};
+        if !self.items_evidence_enabled() {
+            return Ok(());
+        }
+        let invalid = || RejectReason::InvalidLoad;
+        let Some(selection) = audit.selection else {
+            let items = self.phase4.as_ref().ok_or_else(invalid)?;
+            let definition = items
+                .rules
+                .parts()
+                .items
+                .get(&audit.before.template_id)
+                .ok_or_else(invalid)?;
+            let crystals = crate::domain::zone::item_enchant::crystal_count(
+                definition,
+                audit.before.enchant,
+                &items.rules,
+            )
+            .map_err(|_| invalid())?;
+            let fee = audit.payments.first().ok_or_else(invalid)?.count;
+            self.item_evidence(
+                subject,
+                ItemEvidenceData::Formula(json!({
+                "formula":"cancel_fee","inputs":{"grade":definition.grade,"crystals":crystals},
+                "actual":fee,"resolution_id":resolution,"baseline":false})),
+            );
+            return Ok(());
+        };
+        let (selectors, words) = draws.ok_or_else(invalid)?;
+        let rows = |rows: &[RetailRow]| {
+            rows.iter()
+                .map(|row| json!([row.option, {"numerator": row.hundredths, "denominator": 100}]))
+                .collect::<Vec<_>>()
+        };
+        let sites = ["augment_option12", "augment_category", "augment_option34"];
+        if words.len() != sites.len() {
+            return Err(invalid());
+        }
+        for (site, (before, after, raw)) in sites.iter().zip(words) {
+            self.item_evidence(
+                subject,
+                ItemEvidenceData::Rng {
+                    callsite: (*site).into(),
+                    word_before: *before,
+                    word_after: *after,
+                    bound: RETAIL_RESIDUES,
+                    value: raw % RETAIL_RESIDUES,
+                    resolution_id: format!("{resolution}:{site}"),
+                },
+            );
+        }
+        let facts = [
+            json!({"formula":"retail_select","inputs":{"rows":rows(&selectors.first),
+                "residue":selection.first_raw % RETAIL_RESIDUES},"actual":selection.option12,
+                "resolution_id":format!("{resolution}:{}", sites[0]),"baseline":false}),
+            json!({"formula":"category","inputs":{"residue":selection.category_raw % RETAIL_RESIDUES,
+                "accessory":selectors.accessory},"actual":selection.category,
+                "resolution_id":format!("{resolution}:{}", sites[1]),"baseline":false}),
+            json!({"formula":"retail_select","inputs":{"rows":rows(&selectors.category_rows(selection.category)),
+                "residue":selection.second_raw % RETAIL_RESIDUES},"actual":selection.option34,
+                "resolution_id":format!("{resolution}:{}", sites[2]),"baseline":false}),
+            json!({"formula":"pack_options","inputs":{"first":selection.option12,"second":selection.option34},
+                "actual":selection.packed().map_err(|_| invalid())?,"resolution_id":resolution,"baseline":false}),
+        ];
+        for fact in facts {
+            self.item_evidence(subject, ItemEvidenceData::Formula(fact));
+        }
+        Ok(())
+    }
+
     pub(super) fn item_evidence_npc_roll(&mut self, npc: EntityId, site: &str, bound: u32) -> u32 {
         let before = self.rng.get_word_pos();
         let value = self.roll_below(bound);

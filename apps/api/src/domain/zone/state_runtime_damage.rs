@@ -7021,6 +7021,665 @@ mod tests {
             assert!(events.is_empty());
         }
     }
+    /// Blacksmith fixture: level-46 owner beside the NPC with an unaugmented C-grade necklace
+    /// (916, 80 crystals), two accessory stones 12754, D gemstones 2130 and Adena.
+    #[allow(clippy::arithmetic_side_effects)]
+    fn refine_fixture() -> (ZoneState, TargetBinding, TargetBinding) {
+        use crate::domain::zone::{ItemInstanceId, ItemLocation};
+        let (mut zone, owner, npc) = exchange_fixture_base();
+        let rules = zone.rules.clone().unwrap();
+        let xp = rules.xp_to_level(46).unwrap();
+        {
+            let CombatRole::Player { xp: current, .. } = &mut zone
+                .entities
+                .get_mut(&owner.entity)
+                .unwrap()
+                .combat
+                .as_mut()
+                .unwrap()
+                .role
+            else {
+                panic!("player")
+            };
+            *current = xp;
+        }
+        zone.relevel(owner.entity).unwrap();
+        zone.sync_passives_v5(owner.entity).unwrap();
+        let items = zone.phase4.as_mut().unwrap();
+        let player = items.canonical.players.get_mut(&owner.entity).unwrap();
+        let mut seed = player
+            .inventory
+            .remove(&ItemInstanceId::new(900).unwrap())
+            .unwrap();
+        seed.location = ItemLocation::Inventory;
+        seed.slot = None;
+        seed.augment_id = None;
+        seed.enchant = 0;
+        for (id, template, count) in [
+            (930, 916, 1),
+            (931, 12754, 2),
+            (932, 2130, 450),
+            (933, 57, 500_000),
+        ] {
+            seed.id = ItemInstanceId::new(id).unwrap();
+            seed.template_id = template;
+            seed.count = count;
+            player.inventory.insert(seed.id, seed.clone());
+        }
+        zone.rebuild_v5(owner.entity).unwrap();
+        zone.validate_runtime_v5().unwrap();
+        (zone, owner, npc)
+    }
+
+    /// `exchange_fixture` without the SA ingredients: owner moved beside a live blacksmith.
+    fn exchange_fixture_base() -> (ZoneState, TargetBinding, TargetBinding) {
+        let (mut zone, owner, _) = equipment_fixture();
+        let from = zone.entities[&owner.entity].pos;
+        let to = Vec2Fixed::from_tiles(126, 126);
+        zone.entities.get_mut(&owner.entity).unwrap().pos = to;
+        zone.aoi.relocate(owner.entity, from, to);
+        zone.rebuild_v5(owner.entity).unwrap();
+        let applied = zone
+            .run_tick(zone.draft(vec![ZoneInput::system(ZoneCommand::SpawnNpc {
+                name: "blacksmith".into(),
+                pos: Vec2Fixed::from_tiles(124, 128),
+                speed: Speed::from_milli_tiles_per_tick(0),
+                combat: None,
+            })]))
+            .unwrap();
+        assert!(applied.dispositions.is_empty());
+        let npc = TargetBinding {
+            entity: zone
+                .entities
+                .values()
+                .find(|e| e.name == "blacksmith")
+                .unwrap()
+                .id,
+            incarnation: 0,
+        };
+        (zone, owner, npc)
+    }
+
+    #[allow(clippy::arithmetic_side_effects)]
+    fn session_tick(
+        zone: &ZoneState,
+        owner: EntityId,
+        commands: Vec<crate::domain::zone::ItemCommand>,
+    ) -> AppliedTickDraft {
+        zone.draft(
+            commands
+                .into_iter()
+                .enumerate()
+                .map(|(index, command)| {
+                    ZoneInput::session(
+                        owner,
+                        SessionGeneration(1),
+                        u32::try_from(index + 1).unwrap(),
+                        ZoneCommand::Item(Box::new(command)),
+                    )
+                })
+                .collect(),
+        )
+    }
+
+    #[test]
+    #[allow(clippy::too_many_lines, clippy::arithmetic_side_effects)]
+    fn v6_refine_cancel_refine_pay_exact_inputs_draw_retail_options_and_cold_replay() {
+        use crate::domain::zone::evidence::ItemEvidenceData;
+        use crate::domain::zone::item_refine::{select, RetailSelectors, RETAIL_RESIDUES};
+        use crate::domain::zone::phase4_checkpoint::EquipmentSourceKey;
+        use crate::domain::zone::phase4_projection::{ItemOperation, ItemRefineOutcome};
+        use crate::domain::zone::{EquipSlot, ItemCommandKind as K, ItemInstanceId};
+        let (mut zone, owner, npc) = refine_fixture();
+        let necklace = ItemInstanceId::new(930).unwrap();
+        let stone = ItemInstanceId::new(931).unwrap();
+        let rules = Arc::clone(&zone.phase4.as_ref().unwrap().rules);
+        let boundary = zone.snapshot();
+        let mut cold =
+            ZoneState::from_snapshot_with_items(boundary.clone(), Some(Arc::clone(&rules)))
+                .unwrap();
+        let old = zone.phase4.as_ref().unwrap().canonical.players[&owner.entity].clone();
+        let draft = session_tick(
+            &zone,
+            owner.entity,
+            vec![
+                item_intent(
+                    &zone,
+                    owner.entity,
+                    801,
+                    K::Equip {
+                        instance: necklace,
+                        preferred_slot: None,
+                    },
+                ),
+                item_intent(
+                    &zone,
+                    owner.entity,
+                    802,
+                    K::Refine {
+                        npc,
+                        target: necklace,
+                        stone,
+                    },
+                ),
+                item_intent(
+                    &zone,
+                    owner.entity,
+                    803,
+                    K::CancelRefine {
+                        npc,
+                        target: necklace,
+                    },
+                ),
+                item_intent(
+                    &zone,
+                    owner.entity,
+                    804,
+                    K::Refine {
+                        npc,
+                        target: necklace,
+                        stone,
+                    },
+                ),
+                item_intent(
+                    &zone,
+                    owner.entity,
+                    805,
+                    K::Equip {
+                        instance: necklace,
+                        preferred_slot: None,
+                    },
+                ),
+            ],
+        );
+        zone.enable_items_replay_evidence().unwrap();
+        let cursor = zone.rng.get_word_pos();
+        let applied = zone.run_tick(draft.clone()).unwrap();
+        assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+        assert_eq!(applied, cold.run_tick(draft).unwrap());
+        // Exactly three retail draws per Refine, none for CancelRefine or Equip.
+        assert_eq!(zone.rng.get_word_pos(), cursor + 6);
+        let projection = applied
+            .events
+            .iter()
+            .find_map(|event| match event {
+                ZoneEvent::ItemCheckpoint(p) => Some(p),
+                _ => None,
+            })
+            .unwrap();
+        assert_eq!(
+            projection
+                .refines
+                .iter()
+                .map(|r| r.outcome)
+                .collect::<Vec<_>>(),
+            vec![
+                ItemRefineOutcome::Applied,
+                ItemRefineOutcome::Removed,
+                ItemRefineOutcome::Applied
+            ]
+        );
+        let selectors = RetailSelectors::new(&rules, true, false, 12754).unwrap();
+        for audit in projection
+            .refines
+            .iter()
+            .filter(|r| r.outcome == ItemRefineOutcome::Applied)
+        {
+            let selection = audit.selection.unwrap();
+            assert_eq!(
+                select(&selectors.first, selection.first_raw % RETAIL_RESIDUES).unwrap(),
+                selection.option12
+            );
+            assert_eq!(
+                selectors
+                    .category(selection.category_raw % RETAIL_RESIDUES)
+                    .unwrap(),
+                selection.category
+            );
+            assert_eq!(
+                select(
+                    &selectors.category_rows(selection.category),
+                    selection.second_raw % RETAIL_RESIDUES
+                )
+                .unwrap(),
+                selection.option34
+            );
+            assert_eq!(
+                audit.after.augment_id,
+                Some((selection.option34 << 16) | selection.option12)
+            );
+            assert_eq!(audit.after.id, necklace);
+            assert!(audit.after.slot.is_none());
+            assert_eq!(
+                audit
+                    .payments
+                    .iter()
+                    .map(|p| (p.template_id, p.count))
+                    .collect::<Vec<_>>(),
+                vec![(12754, 1), (2130, 200)]
+            );
+        }
+        assert_eq!(projection.refines[0].before.slot, Some(EquipSlot::Neck));
+        assert_eq!(projection.refines[1].payments[0].count, 95_000);
+        assert!(projection.refines[1].after.augment_id.is_none());
+        let player = &zone.phase4.as_ref().unwrap().canonical.players[&owner.entity];
+        let after = &player.inventory[&necklace];
+        assert_eq!(after.augment_id, projection.refines[2].after.augment_id);
+        assert_eq!(after.slot, Some(EquipSlot::Neck));
+        assert!(!player.inventory.contains_key(&stone));
+        assert_eq!(player.inventory[&ItemInstanceId::new(932).unwrap()].count, 50);
+        assert_eq!(player.inventory[&ItemInstanceId::new(933).unwrap()].count, 405_000);
+        assert_eq!(player.inventory_revision, old.inventory_revision + 1);
+        for half in [0, 1] {
+            assert!(player.equipment_sources.values().any(|key| key
+                == &EquipmentSourceKey::Augment {
+                    instance: necklace,
+                    half
+                }));
+        }
+        // One aggregate per paid stack, causes in receipt order (D57/D62); target rows in order.
+        for (id, delta, causes) in [(931, -2, 2), (932, -400, 2), (933, -95_000, 1)] {
+            let rows: Vec<_> = projection
+                .ledger
+                .iter()
+                .filter(|r| r.instance == ItemInstanceId::new(id).unwrap())
+                .collect();
+            assert_eq!(rows.len(), 1, "{id}");
+            assert_eq!(rows[0].operation, ItemOperation::Consume);
+            assert_eq!((rows[0].count_delta, rows[0].causes.len()), (delta, causes));
+        }
+        let operations: Vec<_> = projection
+            .ledger
+            .iter()
+            .filter(|r| r.instance == necklace)
+            .map(|r| r.operation)
+            .collect();
+        assert_eq!(
+            operations,
+            vec![
+                ItemOperation::Equip,
+                ItemOperation::Unequip,
+                ItemOperation::Refine,
+                ItemOperation::CancelRefine,
+                ItemOperation::Refine,
+                ItemOperation::Equip
+            ]
+        );
+        let results: Vec<_> = applied
+            .events
+            .iter()
+            .filter_map(|e| match e {
+                ZoneEvent::ItemResult(r) => Some(r.detail.clone()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(results.len(), 5);
+        // D46 evidence: six contiguous draws, two selections + category + packing per Refine,
+        // one instance-crystal fee for the cancel.
+        let facts = zone.take_items_replay_evidence();
+        let draws: Vec<_> = facts
+            .iter()
+            .filter_map(|f| match &f.fact {
+                ItemEvidenceData::Rng {
+                    word_before,
+                    word_after,
+                    bound,
+                    callsite,
+                    ..
+                } => Some((*word_before, *word_after, *bound, callsite.clone())),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(draws.len(), 6);
+        for pair in draws.windows(2) {
+            assert_eq!(pair[0].1, pair[1].0);
+        }
+        assert!(draws
+            .iter()
+            .all(|d| d.2 == RETAIL_RESIDUES && d.1 == d.0 + 1));
+        let formulas: Vec<_> = facts
+            .iter()
+            .filter_map(|f| match &f.fact {
+                ItemEvidenceData::Formula(v) => Some(v["formula"].as_str().unwrap().to_owned()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(
+            formulas,
+            [
+                "retail_select",
+                "category",
+                "retail_select",
+                "pack_options",
+                "cancel_fee",
+                "retail_select",
+                "category",
+                "retail_select",
+                "pack_options"
+            ]
+        );
+        let record = crate::application::replay_log::AppliedTickRecord::from_applied(
+            zone.seed.zone,
+            &applied,
+        );
+        assert_eq!(
+            crate::application::replay_log::AppliedTickRecord::decode(&record.encode()).unwrap(),
+            record
+        );
+        assert_eq!(
+            zone.snapshot(),
+            ZoneState::from_snapshot_with_items(zone.snapshot(), Some(Arc::clone(&rules)))
+                .unwrap()
+                .snapshot()
+        );
+        let sources = zone
+            .sidecar(owner.entity)
+            .unwrap()
+            .modifier_install_order
+            .len();
+        projection.validate_structure(sources).unwrap();
+        for case in 0..7 {
+            let mut invalid = projection.as_ref().clone();
+            match case {
+                0 => invalid.refines.clear(),
+                1 => invalid.refines[0].after.augment_id = Some(1 << 16 | 1),
+                2 => invalid.refines[0].payments.clear(),
+                3 => invalid.refines.swap(0, 1),
+                4 => invalid.refines[1].selection = invalid.refines[0].selection,
+                5 => invalid.refines[0].after.enchant += 1,
+                _ => invalid.refines.push(invalid.refines[0].clone()),
+            }
+            assert!(invalid.validate_structure(sources).is_err(), "case {case}");
+        }
+        // Manual CLI/consumer probe uses this exact generated recording, never a synthetic verdict.
+        if let Ok(path) = std::env::var("NIGHTFALL_TEST_REFINE_RECORDING") {
+            use crate::application::replay_log::{Watermark, WatermarkReason};
+            let recording = crate::infrastructure::eventlog::Recording {
+                watermark: Watermark {
+                    zone: boundary.seed.zone,
+                    epoch: boundary.seed.epoch,
+                    records: 1,
+                    last_tick: Some(applied.tick),
+                    reason: WatermarkReason::Shutdown,
+                },
+                records: vec![record],
+                snapshot: boundary,
+            };
+            std::fs::write(path, recording.to_bytes().unwrap()).unwrap();
+        }
+    }
+
+    #[test]
+    #[allow(clippy::too_many_lines)]
+    fn v6_refine_invalid_inputs_and_blockers_do_not_mutate_or_draw() {
+        use crate::domain::zone::{EquipSlot, ItemCommandKind as K, ItemInstanceId};
+        let (zone, owner, npc) = refine_fixture();
+        let necklace = ItemInstanceId::new(930).unwrap();
+        let stone = ItemInstanceId::new(931).unwrap();
+        let weapon = zone.phase4.as_ref().unwrap().canonical.players[&owner.entity].paperdoll
+            [&EquipSlot::Rhand];
+        let chest = zone.phase4.as_ref().unwrap().canonical.players[&owner.entity].paperdoll
+            [&EquipSlot::Chest];
+        for case in 0..12 {
+            let mut zone = zone.clone();
+            let mut kind = K::Refine {
+                npc,
+                target: necklace,
+                stone,
+            };
+            let expected = match case {
+                0 => {
+                    // Accessory stone on a weapon: AbstractRefinePacket.java:251–254.
+                    kind = K::Refine {
+                        npc,
+                        target: weapon,
+                        stone,
+                    };
+                    RejectReason::InvalidRefinement
+                },
+                1 => {
+                    kind = K::Refine {
+                        npc,
+                        target: chest,
+                        stone,
+                    };
+                    RejectReason::InvalidRefinement
+                },
+                2 => {
+                    let player = zone
+                        .phase4
+                        .as_mut()
+                        .unwrap()
+                        .canonical
+                        .players
+                        .get_mut(&owner.entity)
+                        .unwrap();
+                    player
+                        .inventory
+                        .get_mut(&ItemInstanceId::new(932).unwrap())
+                        .unwrap()
+                        .count = 199;
+                    RejectReason::InsufficientItems
+                },
+                3 => {
+                    let player = zone
+                        .phase4
+                        .as_mut()
+                        .unwrap()
+                        .canonical
+                        .players
+                        .get_mut(&owner.entity)
+                        .unwrap();
+                    player.inventory.get_mut(&necklace).unwrap().augment_id = Some((2 << 16) | 1);
+                    RejectReason::InvalidRefinement
+                },
+                4 => {
+                    let mut wrong = npc;
+                    wrong.incarnation = 1;
+                    kind = K::Refine {
+                        npc: wrong,
+                        target: necklace,
+                        stone,
+                    };
+                    RejectReason::NotPermitted
+                },
+                5 => {
+                    zone.entities.get_mut(&owner.entity).unwrap().pos =
+                        Vec2Fixed::from_tiles(127, 129);
+                    RejectReason::OutOfRange
+                },
+                6 => {
+                    // D-grade target (AbstractRefinePacket.java:290–292).
+                    let player = zone
+                        .phase4
+                        .as_mut()
+                        .unwrap()
+                        .canonical
+                        .players
+                        .get_mut(&owner.entity)
+                        .unwrap();
+                    player.inventory.get_mut(&necklace).unwrap().template_id = 118;
+                    RejectReason::InvalidRefinement
+                },
+                7 => {
+                    kind = K::CancelRefine {
+                        npc,
+                        target: necklace,
+                    };
+                    RejectReason::InvalidRefinement
+                },
+                8 => {
+                    let player = zone
+                        .phase4
+                        .as_mut()
+                        .unwrap()
+                        .canonical
+                        .players
+                        .get_mut(&owner.entity)
+                        .unwrap();
+                    player.inventory.get_mut(&necklace).unwrap().augment_id = Some((2 << 16) | 1);
+                    player
+                        .inventory
+                        .get_mut(&ItemInstanceId::new(933).unwrap())
+                        .unwrap()
+                        .count = 94_999;
+                    kind = K::CancelRefine {
+                        npc,
+                        target: necklace,
+                    };
+                    RejectReason::InsufficientItems
+                },
+                9 => {
+                    // A weapon life stone whose options are not all executable stays deferred (D5/D32).
+                    let player = zone
+                        .phase4
+                        .as_mut()
+                        .unwrap()
+                        .canonical
+                        .players
+                        .get_mut(&owner.entity)
+                        .unwrap();
+                    player.inventory.get_mut(&stone).unwrap().template_id = 8723;
+                    kind = K::Refine {
+                        npc,
+                        target: weapon,
+                        stone,
+                    };
+                    RejectReason::ItemCapabilityDeferred
+                },
+                10 => {
+                    kind = K::Refine {
+                        npc,
+                        target: ItemInstanceId::new(999).unwrap(),
+                        stone,
+                    };
+                    RejectReason::ItemNotOwned
+                },
+                _ => {
+                    // Level below the stone's player level (AbstractRefinePacket.java:259–260).
+                    let player = zone
+                        .phase4
+                        .as_mut()
+                        .unwrap()
+                        .canonical
+                        .players
+                        .get_mut(&owner.entity)
+                        .unwrap();
+                    player.inventory.get_mut(&stone).unwrap().template_id = 12755;
+                    RejectReason::InvalidRefinement
+                },
+            };
+            let snapshot = zone.snapshot();
+            let command = item_intent(&zone, owner.entity, 810, kind);
+            let mut events = Vec::new();
+            assert_eq!(
+                zone.item_command_v6(zone.next_tick, &command, &mut events, &mut BTreeMap::new())
+                    .err(),
+                Some(expected),
+                "case {case}"
+            );
+            assert_eq!(zone.snapshot(), snapshot, "case {case}");
+            assert!(events.is_empty());
+        }
+    }
+
+    #[test]
+    #[allow(clippy::too_many_lines)]
+    fn v6_cancel_refine_on_equipped_accessory_disarms_weapon_and_removes_providers_once() {
+        use crate::domain::zone::phase4_checkpoint::EquipmentSourceKey;
+        use crate::domain::zone::phase4_projection::ItemOperation;
+        use crate::domain::zone::{EquipSlot, ItemCommandKind as K, ItemInstanceId};
+        let (mut zone, owner, npc) = refine_fixture();
+        let necklace = ItemInstanceId::new(930).unwrap();
+        let stone = ItemInstanceId::new(931).unwrap();
+        let draft = session_tick(
+            &zone,
+            owner.entity,
+            vec![
+                item_intent(
+                    &zone,
+                    owner.entity,
+                    820,
+                    K::Refine {
+                        npc,
+                        target: necklace,
+                        stone,
+                    },
+                ),
+                item_intent(
+                    &zone,
+                    owner.entity,
+                    821,
+                    K::Equip {
+                        instance: necklace,
+                        preferred_slot: None,
+                    },
+                ),
+            ],
+        );
+        assert!(zone.run_tick(draft).unwrap().dispositions.is_empty());
+        let before = zone.phase4.as_ref().unwrap().canonical.players[&owner.entity].clone();
+        let weapon = before.paperdoll[&EquipSlot::Rhand];
+        let hp = zone.entities[&owner.entity].combat.as_ref().unwrap().hp;
+        let rules = Arc::clone(&zone.phase4.as_ref().unwrap().rules);
+        let mut cold =
+            ZoneState::from_snapshot_with_items(zone.snapshot(), Some(Arc::clone(&rules))).unwrap();
+        let draft = session_tick(
+            &zone,
+            owner.entity,
+            vec![item_intent(
+                &zone,
+                owner.entity,
+                822,
+                K::CancelRefine {
+                    npc,
+                    target: necklace,
+                },
+            )],
+        );
+        let cursor = zone.rng.get_word_pos();
+        let applied = zone.run_tick(draft.clone()).unwrap();
+        assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+        assert_eq!(applied, cold.run_tick(draft).unwrap());
+        assert_eq!(zone.rng.get_word_pos(), cursor);
+        let player = &zone.phase4.as_ref().unwrap().canonical.players[&owner.entity];
+        // RequestRefineCancel.java:108–110 disarms the RHAND weapon even for an accessory.
+        assert!(!player.paperdoll.contains_key(&EquipSlot::Rhand));
+        assert_eq!(player.paperdoll[&EquipSlot::Neck], necklace);
+        assert!(player.inventory[&necklace].augment_id.is_none());
+        assert!(player.inventory[&weapon].slot.is_none());
+        for half in [0, 1] {
+            assert!(!player.equipment_sources.values().any(|key| key
+                == &EquipmentSourceKey::Augment {
+                    instance: necklace,
+                    half
+                }));
+        }
+        assert!(zone.entities[&owner.entity].combat.as_ref().unwrap().hp <= hp);
+        let projection = applied
+            .events
+            .iter()
+            .find_map(|event| match event {
+                ZoneEvent::ItemCheckpoint(p) => Some(p),
+                _ => None,
+            })
+            .unwrap();
+        let mut operations: Vec<_> = projection
+            .ledger
+            .iter()
+            .map(|r| (r.instance, r.operation))
+            .collect();
+        operations.sort();
+        let mut expected = vec![
+            (ItemInstanceId::new(933).unwrap(), ItemOperation::Consume),
+            (weapon, ItemOperation::Unequip),
+            (necklace, ItemOperation::CancelRefine),
+        ];
+        expected.sort();
+        assert_eq!(operations, expected);
+        assert_eq!(projection.refines[0].payments[0].count, 95_000);
+    }
+
     #[test]
     fn v6_fractional_hp_cold_replay_regen_and_last_fraction_death() {
         use crate::domain::zone::item_combat::half_hp;

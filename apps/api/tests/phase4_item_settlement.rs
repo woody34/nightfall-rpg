@@ -123,6 +123,7 @@ async fn fixture<R: CharacterRepository + ItemAdmissionRepository>(
         projection: Phase4Projection {
             enchant_attempts: Vec::new(),
             exchanges: Vec::new(),
+            refines: Vec::new(),
             paused_core: None,
             tick: Tick(73),
             entity: EntityId::from_uuid(character.id.as_uuid()),
