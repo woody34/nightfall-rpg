@@ -456,7 +456,7 @@ impl ItemCheckpointWork {
             .collect();
         for id in &changed_ids {
             let mut endpoint = old.get(id).copied();
-            let (mut consumed, mut debited) = (false, false);
+            let (mut consumed, mut debited, mut ended) = (false, false, false);
             for (position, delta) in self
                 .projection
                 .ledger
@@ -467,11 +467,14 @@ impl ItemCheckpointWork {
                 if delta.before.as_ref() != endpoint {
                     return Err(invalid("item_ledger_scalar_continuity"));
                 }
-                // D66: positive rows first in cause order, then the single Consume aggregate as
-                // the instance's last row; no credit follows a debit.
-                if consumed || (debited && delta.count_delta > 0) {
+                // D66/D94: [non-terminal rows in cause order..., the single Consume aggregate, at
+                // most one terminal row (after = None: whole transfer-out, Destroy, Crystallize)];
+                // nothing follows a terminal row and no credit follows a debit.
+                let terminal = delta.operation != ItemOperation::Consume && delta.after.is_none();
+                if ended || (consumed && !terminal) || (debited && delta.count_delta > 0) {
                     return Err(invalid("item_ledger_row_order"));
                 }
+                ended = terminal;
                 // D76/D55: the ordinal is this row's canonical position 0..n-1 among the
                 // instance's rows this tick, so it strictly increases, every row of one logical
                 // operation (implicit Unequip + Destroy) takes its own ordinal and the Consume
