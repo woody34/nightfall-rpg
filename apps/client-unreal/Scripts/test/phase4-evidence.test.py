@@ -1734,6 +1734,25 @@ class Evidence(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'repeated formula resolution'):gate.validate(bad,self.recording,HASH)
         print('D91: hp/mp/cp clamps of one rebuild pass with distinct suffixes; missing/unknown suffixes and reuse reject',flush=True)
 
+    def test_d92_multi_tick_families_one_terminal_fact(self):
+        vectors=json.loads((gate.REPO/'packages/data/fixtures/item-oracle.json').read_text())['vectors']
+        vector=next(v for v in vectors if v['id'].startswith('consumable-escape-timing-'))
+        rows=self.formula_rows('escape_timing',copy.deepcopy(vector['inputs']))
+        rows[1].update(tick=2);rows[1]['data']['resolution_id']='receipt:use:k1'
+        # The intent's start-tick draw (prepay/cast start) precedes the terminal teleport fact.
+        rows.insert(1,dict(kind='item_rng',entity=OWNER,incarnation=1,tick=1,sequence=0,data=dict(resolution_id='receipt:use:k1',
+            callsite='cast_start',word_before=0,word_after=1,bound=100,value=3)))
+        rows[0]['watermark'].update(records=3,last_tick=2);rows[-1].update(ticks=3,last_tick=2);self.repair(rows)
+        self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['escape_timing'],HASH)['passed'])
+        bad=copy.deepcopy(rows);bad[1].update(tick=2);bad[2].update(tick=1);bad[1],bad[2]=bad[2],bad[1];self.repair(bad)
+        with self.assertRaisesRegex(ValueError,'D92'):gate.validate(bad,self.recording,HASH)
+        bad=copy.deepcopy(rows);extra=copy.deepcopy(bad[2]);extra['data']['formula']='consumable_use';bad.insert(-1,extra);self.repair(bad)
+        with self.assertRaisesRegex(ValueError,'more than one terminal fact'):gate.validate(bad,self.recording,HASH)
+        # Another intent's later facts are unaffected.
+        ok=copy.deepcopy(rows);later=copy.deepcopy(ok[1]);later.update(tick=2);later['data'].update(resolution_id='receipt:use:k2',word_before=1,word_after=2)
+        ok.insert(-1,later);self.repair(ok);gate.validate(ok,self.recording,HASH)
+        print('D92: one terminal fact per intent on or after every correlated fact; earlier or duplicate terminal facts reject',flush=True)
+
     def test_item_record_scalar_substitutions_through_evaluate(self):
         vectors=gate.oracle.make_vectors(gate.source())
         learned=next(v for v in vectors if v['id']=='learned-item-consume-complete-1')

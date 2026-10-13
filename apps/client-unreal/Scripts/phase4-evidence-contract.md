@@ -435,3 +435,12 @@ oracle equality on the producer's actual inputs.
 - D91 (Q-F5): every `clamp_no_heal` fact's `resolution_id` is
   `<rebuild resolution>:hp|:mp|:cp` (lowercase, nonempty prefix), so the HP,
   MP and CP clamps of one rebuild are distinct formula identities.
+- D92 (Q-F6): `consumable_use`, `escape_timing`, `resurrection_scroll` and
+  `learned_item_cost` carry exactly ONE fact per intent, on the tick where the
+  terminal effect applies (effect application / teleport landing /
+  resurrection applied / learn committed), with `resolution_id` = the
+  originating intent's receipt or resolution id. The consumer refuses a
+  second terminal fact for the same `(entity,incarnation,resolution_id)` and
+  any fact of that intent (prepay Consume, draws, other formulas) on a later
+  tick than the terminal fact. The tick of the effect itself is not otherwise
+  observable in the sidecar.

@@ -791,6 +791,25 @@ def validate_chain_caps(deltas):
         if after['count']-later>count_cap(after['template_id']):raise ValueError('item count above pinned template cap (D68/D74)')
 
 
+# D92: multi-tick families carry ONE fact, on the tick the terminal effect applies, under
+# the originating intent's resolution id; no correlated fact of that intent may follow it.
+TERMINAL_FAMILIES=frozenset(('consumable_use','escape_timing','resurrection_scroll','learned_item_cost'))
+
+
+def validate_terminal_facts(rows):
+    terminal={}
+    for row in rows[1:-1]:
+        if row['kind']=='item_formula' and row['data']['formula'] in TERMINAL_FAMILIES:
+            key=(row['entity'],row['incarnation'],row['data']['resolution_id'])
+            if key in terminal:raise ValueError('multi-tick intent carries more than one terminal fact (D92)')
+            terminal[key]=row
+    for row in rows[1:-1]:
+        key=(row['entity'],row['incarnation'],row['data'].get('resolution_id'))
+        fact=terminal.get(key)
+        if fact is not None and row is not fact and row['tick']>fact['tick']:
+            raise ValueError('terminal fact precedes a later fact of its intent (D92)')
+
+
 def validate_exchanges(rows):
     """D11/D22/D52: bind every receipt's constituents to its source recipe."""
     exchanges={};resolutions={};bound=set()
@@ -1042,6 +1061,7 @@ def validate(rows,recording,rules_hash):
         # aggregate in cause order; continuity is checked by inventory_history. Removal
         # rows end the instance, so they can never precede it.
         if any(d['operation'] not in PRE_CONSUME for d in deltas[:-1]):raise ValueError('only positive or count-neutral rows may precede Consume')
+    validate_terminal_facts(rows)
     validate_exchanges(rows)
     validate_instance_history(rows)
     inventory_history(rows)
