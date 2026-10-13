@@ -512,13 +512,18 @@ def source_data_sha256():
     return table('rules_manifest')['data_sha256']
 
 
+# Review-2 P3-4 (D89): always-evaluated booleans the producer must emit even though the
+# oracle has a default for them.
+REQUIRED_INPUTS={'magic_damage':('is_pvp',)}
+
+
 def input_domains(name,inputs):
     if name not in INPUT_SCHEMAS or type(inputs) is not dict:raise ValueError('unknown formula input schema')
     function=getattr(oracle,name,None) or getattr(oracle.behavior,name,None)
     if function:
         parameters=inspect.signature(function).parameters
         required={key for key,p in parameters.items() if key!='src' and p.default is inspect.Parameter.empty}
-        required|=set(RESIDUE_INPUTS.get(name,()))
+        required|=set(RESIDUE_INPUTS.get(name,()))|set(REQUIRED_INPUTS.get(name,()))
     else:required=set(INPUT_SCHEMAS[name])
     schema=record({k:INPUT_SCHEMAS[name][k] for k in required},
                   {k:v for k,v in INPUT_SCHEMAS[name].items() if k not in required})

@@ -443,7 +443,8 @@ oracle equality on the producer's actual inputs.
   `magic_damage.first_success` (taken iff not perfect and magic failures
   enabled) / `second_success` (taken iff the first failed for a player
   attacker). Booleans that are always evaluated are never null:
-  `magic_damage.is_pvp` is a plain boolean.
+  `magic_damage.is_pvp` is a plain boolean and REQUIRED (review-2 P3-4), even
+  though the oracle has a default for it.
 - D90 (Q-F4): the `gear_stats` producer emits the oracle's FULL dictionary
   (`exact, root_expressions, q, getters, trace, base_stats, weapon_type,
   random_damage, spread_bound, enchant_hp, traits, weight`), with `trace` rows

@@ -1767,6 +1767,8 @@ class Evidence(unittest.TestCase):
                 self.assertFalse(gate.evaluate(rows,self.recording,OWNER,[name],HASH)['passed'])
                 with self.assertRaises(ValueError):gate.formula(name,inputs,rows[1]['data']['actual'])
         with self.assertRaises(ValueError):gate.input_domains('magic_damage',magic|dict(is_pvp=None))
+        # Review-2 P3-4: is_pvp is required, not merely non-null.
+        with self.assertRaises(ValueError):gate.input_domains('magic_damage',{k:v for k,v in magic.items() if k!='is_pvp'})
         print(f'D89: {len(controls)} draw-derived controls pass; {len(mutations)} null/present mismatches and a null is_pvp reject',flush=True)
 
     def test_d90_gear_stats_full_dictionary_with_ordered_trace(self):
@@ -1950,6 +1952,9 @@ class Evidence(unittest.TestCase):
                 number=gate.oracle.F(value);return f'{number.numerator}/{number.denominator}'
             return value
         inputs=canonical(copy.deepcopy(inputs))
+        if name=='magic_damage' and 'is_pvp' not in inputs:
+            # Review-2 P3-4: is_pvp is required; E1 vectors leave it to the oracle default.
+            inputs['is_pvp']=inputs.get('attacker_player',True) and inputs.get('target_player',False)
         if name not in gate.RESIDUE_INPUTS:return inputs
         function=getattr(gate.oracle.behavior,name)
         try:draws={d['site']:d['residue'] for d in function(**gate.oracle.decode_rationals(inputs))['draws']}
@@ -2054,7 +2059,7 @@ class Evidence(unittest.TestCase):
                 'lethal':dict(full=10,half=20,full_residue=500,half_residue=150),
                 'bow_damage':dict(formula=100,dx_milli=12499,dy_milli=7),
                 'pole_sequence':dict(candidates=[dict(eligible=True,hit=True,formula='499/10'),dict(eligible=True,hit=False,formula=0)],maximum=3),
-                'magic_damage':dict(power=10,m_atk=100,m_def=50,spirit=True),
+                'magic_damage':dict(power=10,m_atk=100,m_def=50,spirit=True,is_pvp=False),
                 'heal':dict(power=100,m_atk=200,current_hp=10,recoverable_hp=500)}
         for name,inputs in direct.items():
             with self.subTest(formula=name,direct=True):
@@ -2076,7 +2081,7 @@ class Evidence(unittest.TestCase):
     def test_scalar_shape_mutations_on_perfect_block_branches(self):
         # Recompute output: these oracle branches deliberately never read operands.
         for name,inputs in [('physical_damage',dict(p_atk=10,defence=10,perfect=True)),
-                            ('magic_damage',dict(power=10,m_atk=10,m_def=10,perfect=True))]:
+                            ('magic_damage',dict(power=10,m_atk=10,m_def=10,perfect=True,is_pvp=False))]:
             control=self.formula_rows(name,inputs)
             self.assertTrue(gate.evaluate(control,self.recording,OWNER,[name],HASH)['passed'])
             for key,kind in gate.INPUT_SCHEMAS[name].items():
@@ -2171,7 +2176,7 @@ class Evidence(unittest.TestCase):
                     self.assertFalse(result['passed'])
                     self.assertTrue(any('invalid formula input '+name+'.charges' in e for r in result['gates'] for e in r['errors']),result)
         for name,inputs in [('physical_damage',dict(p_atk=10,defence=10,perfect=True)),
-                            ('magic_damage',dict(power=10,m_atk=10,m_def=10,perfect=True)),
+                            ('magic_damage',dict(power=10,m_atk=10,m_def=10,perfect=True,is_pvp=False)),
                             ('charge_transition',dict(charges=[]))]:
             control=self.formula_rows(name,inputs)
             for key in ('unknown','src'):
