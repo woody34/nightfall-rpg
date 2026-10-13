@@ -362,6 +362,160 @@
       "source": {
         "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
         "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/AbyssWalker.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "5827a47c49f5a3beb1709fbe16ff420128e8ed9f2f9c1c8a851dd1f626db6c2c",
+      "bytes": 16316
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/Adventurer.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "ab8791a81a91af42bee4f5c032f9f200b0ea846cb30a7bfbe192b0b000de77cb",
+      "bytes": 16349
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/Arbalester.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "841d17289036ae4d55fc9e9efb58d7f61498be8a47330019f6bcf30ded0f811c",
+      "bytes": 16322
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/ArcanaLord.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "6d6eedadd0062d267c08ae596b8f65f8556c45d40f0931d8ac2433bbee3d840d",
+      "bytes": 16284
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/Archmage.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "fde3b1516a718d68e7edda6ec1ef8f7400615efd8a58af41751b8f2bda24b56d",
+      "bytes": 16244
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/Artisan.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "13032782285c35cb6e7e1f8d49ee31ea2d7996c05ab360d0c63198b94dd98800",
+      "bytes": 16218
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/Assassin.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "11071b6cc0119ca51d8cd460a8aaf59189838d4c3999b2ec383b2c080b515576",
+      "bytes": 16183
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/Berserker.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "a3d50401b1985fafa81b878f2c74c3a5aae1b738de31d944618a5d71e2661245",
+      "bytes": 16393
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/Bishop.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "ec7610e395644585ebd0f3c44e819e822766d5520a1bd8a28da787476e58966d",
+      "bytes": 16341
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/Bladedancer.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "a2487f7b08bdb1bdb165c8ed3368e55727e8947de6aeff6da9116f680847eccd",
+      "bytes": 16265
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/BountyHunter.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "ba9ebc01eb082a1b9e3a3deb0f574e6c3ba846eff704ba53bbf6fc95d9703807",
+      "bytes": 16319
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/Cardinal.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "b00f7ed3b163e9b34f7c5d8a56f6188652c41cb57858cce4b375391577b54290",
+      "bytes": 16341
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/Cleric.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "635c250568368adc9652e1091a54007f62d6409fb530aad7b7d1a283ad19b45d",
+      "bytes": 16317
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/DarkAvenger.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "e91c320a43dd81748d9d6e34bf55f72760be33979864777779291a08366eabee",
+      "bytes": 16313
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
         "file": "src/main/resources/data/stats/chars/baseStats/DarkFighter.xml",
         "lines": "1-740",
         "symbol": "source file"
@@ -384,12 +538,122 @@
       "source": {
         "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
         "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/DarkWizard.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "4467ab450a7769c1847cd37589a5803fbc4623bed1c10a01ef1de7a574280a34",
+      "bytes": 16309
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/Destroyer.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "088733dc43f9fdac68aa83b70772ae0b4d2e4f229d63717e05c0f4c5878be71a",
+      "bytes": 16316
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/Dominator.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "5035c4d3f4c1f6132c75db31d5929f62e17c4908d06306823283f5704e70a726",
+      "bytes": 16352
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/Doombringer.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "adb897c262e0dde94e6df7a0f3248d09f79e2e6d860a3b30fca550c627c41e2a",
+      "bytes": 16395
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/Doomcryer.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "cc6ddf92af6ced44ed9fbb9ee3f326a7c24c0c68a42882371701f6c0284e43aa",
+      "bytes": 16286
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/Dreadnought.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "daa3c3a9616110214bdd91a16a4eed768ad82c28bc9c54b34863be6a7f5b28fa",
+      "bytes": 16294
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/Duelist.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "b3e3b130289a9276d442405d7bc5f1d85bf769b69bd6373f3e51bf2963fa55f7",
+      "bytes": 16305
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
         "file": "src/main/resources/data/stats/chars/baseStats/DwarvenFighter.xml",
         "lines": "1-740",
         "symbol": "source file"
       },
       "sha256": "d3a0fd7b4edd90fe383545a1f9b01fb4a9a13b39635a5f8fc7781f78e8247298",
       "bytes": 16259
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/ElementalMaster.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "ed559dd2d9f186acbcdb9418939368de4a98d4e4e8745deee923c7dc4457c5d2",
+      "bytes": 16315
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/ElementalSummoner.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "6cae227496fd444909768ed44b5a458dd69726f27f57cbb2f6b31057722003cf",
+      "bytes": 16316
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/ElvenElder.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "4923597f062503bc4d3f536efdd54133f0a135d32db60d96f1be04b8ea87542e",
+      "bytes": 16330
     },
     {
       "source": {
@@ -406,12 +670,199 @@
       "source": {
         "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
         "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/ElvenKnight.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "fd35966dbfca6082a6ebd645685a6a294141942b11bb71bf3689b25efe93766f",
+      "bytes": 16172
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
         "file": "src/main/resources/data/stats/chars/baseStats/ElvenMystic.xml",
         "lines": "1-740",
         "symbol": "source file"
       },
       "sha256": "c1f99abba61575c373d30da830896216d9859a65e19e4e07b4fd4f2619e5ff6b",
       "bytes": 16260
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/ElvenOracle.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "369c274f5be6c9693b586cd9d29235e69c917cc1f048e0ab2d993f6375d54a8c",
+      "bytes": 16251
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/ElvenScout.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "d65ee007a8fae150331a0a605d00d39849b167ee840ade7003faca39d16c246e",
+      "bytes": 16215
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/ElvenWizard.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "14f7b5b9de8951f9ff48d3360858679eaed538cb95e67f0014c9b7b43003e678",
+      "bytes": 16253
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/Eva'sSaint.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "6c19e816e569addb32190bbcb965c315bdc269239f541433a5e260b5ea5b2a8a",
+      "bytes": 16333
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/Eva'sTemplar.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "4ad3e1da1af1cf8d06c0cf12b413ac57311a13a03497c1626a6921183e910c05",
+      "bytes": 16210
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/FemaleKamaelSoldier.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "9c611bd04ec4f27c96efddd77806f7a50cfda8dcba65965132735bdaa26714c7",
+      "bytes": 16204
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/FemaleSoulBraker.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "56b4b1b7fffaec9c58d877c1a56282783be2b23396dc74bd65f097bc99e4f682",
+      "bytes": 16329
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/FemaleSoulHound.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "b52762f3986bb3a62ffbda921cb93e9748a3a814b887217bf0918958ea7260b4",
+      "bytes": 16329
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/FortuneSeeker.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "62acda737919a0aef0b4bb48d94d8b9ef044330be4475339547df0998a3cb461",
+      "bytes": 16320
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/GhostHunter.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "df9e38ce11f6a4b89387041b579cd7016c815b8709acb39a71e6b23c5ea61ca0",
+      "bytes": 16317
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/GhostSentinel.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "9ea58092a97532fa0aa99e06d1abf3c487546fda6d890918e40072f09344f868",
+      "bytes": 16172
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/Gladiator.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "eb8a2123449b2f7e28347d95df4322210664ac4d19cc064fdac64d16ad97a445",
+      "bytes": 16304
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/GrandKhavatari.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "1a9fac00712385af563b04e1810e93f523ee1617654d9d726cecc24cbb6065da",
+      "bytes": 16220
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/HawkEye.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "36e56ae87b20d181349d450a7fe8cff16e4b7f8c9579d656c613b1a5412d55b8",
+      "bytes": 16312
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/HellKnight.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "d7a088d87b1255ef93b822002135aa9c74c829e27880812b58bd81588ee47406",
+      "bytes": 16312
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/Hierophant.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "605eb2485c0a6484be4105c67c64e9589f14309c71fb2659ba3da0ba1152e57b",
+      "bytes": 16307
     },
     {
       "source": {
@@ -428,12 +879,144 @@
       "source": {
         "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
         "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/HumanKnight.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "9c28917a705263ec91f67772faab5463cfa7331567afe021f5b3d85cfd0a8d98",
+      "bytes": 16316
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
         "file": "src/main/resources/data/stats/chars/baseStats/HumanMystic.xml",
         "lines": "1-740",
         "symbol": "source file"
       },
       "sha256": "e7e98ce26ed492c92b59725bf1d95211435f94070f373a7329a2716835ae0ba7",
       "bytes": 16264
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/HumanWizard.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "3015cdb804cdb63503348ee4c022644201a4530d789eb6bc19d1ec45cdaa22bc",
+      "bytes": 16279
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/Inspector.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "e600c442d0c9cb10a74053f6438537d4940134ccb4de4e729c6a9deabd81b875",
+      "bytes": 16343
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/Judicator.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "652e3beea2926b38690f13d6b92ce84323d48bba3eea62a8ceb7e6c91fb2c069",
+      "bytes": 16339
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/Maestro.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "bf39c24753c5b9742c894ef7719d961d4f2c97863fbda55fc2af5d3cea45f553",
+      "bytes": 16292
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/MaleKamaelSoldier.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "81a9d725eb4932002be457dd6f68fbed4716b3bf5134235622662d16aba39e1c",
+      "bytes": 16216
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/MaleSoulBraker.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "bab2320e3d7dba64077a93d7c9066c945b7170b1d8d1cabbbc372a4e1b39ebcc",
+      "bytes": 16398
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/MaleSoulHound.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "39368cc21713c99832fd35aa8768731bf23f7cf5b15709e0593815671d3af80f",
+      "bytes": 16398
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/Monk.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "b14af38d48f2e5a726f5ce0d7908e3715cf664680b9704b25fcc4178974e6fba",
+      "bytes": 16170
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/MoonlightSentinel.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "bc517c81fb4680724ab87d2639a34702bc5ae6d6189d66ada536f748bf23a88e",
+      "bytes": 16235
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/MysticMuse.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "8747e4471056a3a3f62d99f39203934f2542b0fce4a8e2f498e0802e2cc1ee21",
+      "bytes": 16315
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/Necromancer.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "48208d972c6adfd86ea7f3128e25ca2af35b4aa11b95e9dd2f6027ac4113de1c",
+      "bytes": 16271
     },
     {
       "source": {
@@ -456,6 +1039,468 @@
       },
       "sha256": "6446fe92a11686d542701a555ce166aadf8ce439ca107b02ea9dc43e0db00e9e",
       "bytes": 16262
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/OrcRaider.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "af93b3003b1d8be30b49d07d55af0ae972b6300e34770651dbef662bbc13d1dc",
+      "bytes": 16313
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/OrcShaman.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "242846fcfa96d82d927039673149366bcb8060e36281625ccc257d67ed834215",
+      "bytes": 16253
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/Overlord.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "efe3e8fbb5fc47102aaa6100760f63d1efa21bd5bcfee581c3beb5d4c9f78af2",
+      "bytes": 16349
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/Paladin.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "b2799cf67e4c85f8dc2f1efd0589663f95bc1538b869eebdb7f7cb75b261c254",
+      "bytes": 16313
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/PallusKnight.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "0e68e704e5d5af4e1b305cc01530c116a79c20e6e33c2c52bc9f71c2e18a5d73",
+      "bytes": 16232
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/PhantomRanger.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "4bf531e5fd7828d169f6d38d6140389973a12109e3940d8e4d8ffe360350177d",
+      "bytes": 16169
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/PhantomSummoner.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "f9906d54b4a9765dd7d3a3ecb46c50dc03b29a6a716f9b1856dda84ef5c57007",
+      "bytes": 16255
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/PhoenixKnight.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "4791855a8a9c2677eed42e0a50a9843a96bacdf07576d0cb407cb22fae604339",
+      "bytes": 16312
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/PlainsWalker.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "43962f509dda56af69adea8e9cdec417cde42131fa2328a82b6465490ef01523",
+      "bytes": 16311
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/Prophet.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "2b7d824e394a80e25672cfe8e82e486ee7223718bd2bf950dced8019429c7ccd",
+      "bytes": 16307
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/Rogue.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "ebb48ce511eeae7ccc1d114cddfdbec6c5cfdddfd2ac7d09c7018de2037c4a97",
+      "bytes": 16259
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/Sagittarius.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "458f884dfc1a3d8d47f4437502a6e2268bcafe9a761e53f811d61378eaa0d9ac",
+      "bytes": 16313
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/Scavenger.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "f71a21ededf60b1d0e3610214ce88b6b64ba3965eb3d47761e5e82469463c48c",
+      "bytes": 16314
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/ShillienElder.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "40aa72e26ec05ad9e8215806a8f7d5a88b78336d57587ab9c01495dd05ca07e7",
+      "bytes": 16345
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/ShillienKnight.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "c8c7862d91e23ff507c7b67a6e91776842a5f5d29215b60b0a9a409a5efec3da",
+      "bytes": 16301
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/ShillienOracle.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "bb53f5d6cbb3feca0d83453a7d3775cc4a898037d8ebc635a6c7b9e774a0b5dc",
+      "bytes": 16319
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/ShillienSaint.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "65c0697f601ba8c690f3c25333df2800fa08e7bf570717fad37310872e48fb7e",
+      "bytes": 16348
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/ShillienTemplar.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "7221a66f00f693a9f3f78583aeb2c5b753a4092055f4f8372ba29984793060e2",
+      "bytes": 16300
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/SilverRanger.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "8dcaa3422f3c621c1adb1bceb3c2887b0bd549ce41a17607b3d764f6cd6e7440",
+      "bytes": 16232
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/Sorcerer.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "87d241b1eb79be6db0aea6bc9b1127461b84c782a50f8bc04f9903af960006cb",
+      "bytes": 16246
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/Soultaker.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "5fcca041498a90dd5173d39bbc84455a23d76fbac53852be0baa3206cf73d107",
+      "bytes": 16269
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/SpectralDancer.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "c08ec7d98f25f6576d4103e7063351f2854937ff35bc4a150a31feb3a3f7d01e",
+      "bytes": 16266
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/SpectralMaster.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "c3045f37feb3776a5667427621f3ae59874c30aea4d03c84eca6647c470e95be",
+      "bytes": 16256
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/Spellhowler.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "f5d1a82b271994098e825e85246797e0289d85677bd67edaed6e82515c871215",
+      "bytes": 16323
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/Spellsinger.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "161168ecd19c2622602073635bba1907ebaabd0a7ef79f78fc9d5437171a4db7",
+      "bytes": 16314
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/StormScreamer.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "3070b6fae9a27e30ec1a98d273f2697a6e0505bbb6f9a5daa162d14647643e38",
+      "bytes": 16326
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/SwordMuse.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "c21b02a014026a109c2b0e34fd55613a89ab818cfffd649a3aab43ff29793b34",
+      "bytes": 16224
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/SwordSinger.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "7ebd4ad83c8a076bd629b32a1e45dfb740e2f9606c4e47174b4af37c51d5a381",
+      "bytes": 16221
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/TempleKnight.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "f24a87763202abe20a5dada02d71a3f9176be8a352ec7d828e84e2f3a221e42e",
+      "bytes": 16210
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/Titan.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "39e911760a4d04ebbd70ff7525aaea9db6f5ac9a7fe46624c6e56ebc8f098017",
+      "bytes": 16317
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/TreasureHunter.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "c946a46e50a769fb11a2358dd1b8f0bed574646847c10cb5a78fc5180f45cf19",
+      "bytes": 16348
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/Trickster.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "e071526f63ef86e9cb150fd4bdbd349b81c138956d809b2b5930553e5b9ff290",
+      "bytes": 16322
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/Trooper.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "c4061076e47ea754897089223a78a0f4c6c56a54a9f7c013e590fd6f59ce4965",
+      "bytes": 16372
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/Tyrant.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "b6c5fea1e5c8fb73229cc9955a56c1b1061845ffc94b35f7e42265cf39e6a989",
+      "bytes": 16219
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/Warcryer.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "dab887121ad0723bed9aae5c8e55174ae54c0ad86b0c299413ae52aa7ccbbc87",
+      "bytes": 16285
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/Warder.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "c76e6860090bae778640d39a9161719a88a5a32ab6277ef2085e060d2f1d8ead",
+      "bytes": 16290
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/Warlock.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "c26de65211f4eb5e538791eef2632a2d117fde08ce252a32abb81045e7d63826",
+      "bytes": 16286
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/Warlord.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "6673232e29defc69c59a1d7a83d9dc91de8d6ea4ad10188c4b67c4ad5a316ab1",
+      "bytes": 16293
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/Warrior.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "9c8479e235c303e82afaf11582a949018c3ccb2f1c2bfadb26da54a394ef2724",
+      "bytes": 16219
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/Warsmith.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "01df5e92ccc96666a8c1c777ba230e56d0e359bea006cff145cff47240ccc84e",
+      "bytes": 16291
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/baseStats/WindRider.xml",
+        "lines": "1-740",
+        "symbol": "source file"
+      },
+      "sha256": "f6ce6828a8bbec867ef5b6d78f787ddbf8f9593c1e86e57b71a4000bb48b7dab",
+      "bytes": 16310
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+        "file": "src/main/resources/data/stats/chars/classList.xml",
+        "lines": "1-113",
+        "symbol": "source file"
+      },
+      "sha256": "aae2c15ccef19dfe221453539898433e1328967832730c07c2268492765382ed",
+      "bytes": 6739
     },
     {
       "source": {
@@ -6192,12 +7237,45 @@
       "source": {
         "repository": "https://bitbucket.org/l2jserver/l2j-server-game",
         "revision": "abfde0490ac52a2106e884b7242c0276c44cdf76",
+        "file": "src/main/java/com/l2jserver/gameserver/model/actor/L2Character.java",
+        "lines": "1-5735",
+        "symbol": "source file"
+      },
+      "sha256": "8134006d8e7f31b3a90ad7c307b41397f64e97e6c7c2898bceda05997636d28d",
+      "bytes": 190921
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-game",
+        "revision": "abfde0490ac52a2106e884b7242c0276c44cdf76",
         "file": "src/main/java/com/l2jserver/gameserver/model/actor/instance/L2PcInstance.java",
         "lines": "1-10944",
         "symbol": "source file"
       },
       "sha256": "a30f766fb14b270d4f284bb6365ed64a9ea8a874e3ec0fad89e8f89d25091a8a",
       "bytes": 336575
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-game",
+        "revision": "abfde0490ac52a2106e884b7242c0276c44cdf76",
+        "file": "src/main/java/com/l2jserver/gameserver/model/actor/stat/CharStat.java",
+        "lines": "1-629",
+        "symbol": "source file"
+      },
+      "sha256": "6d9953ff42d6e7acc73b51f01c81d7f8a91bc97e9f99d47f343692f000c9a0ff",
+      "bytes": 21302
+    },
+    {
+      "source": {
+        "repository": "https://bitbucket.org/l2jserver/l2j-server-game",
+        "revision": "abfde0490ac52a2106e884b7242c0276c44cdf76",
+        "file": "src/main/java/com/l2jserver/gameserver/model/actor/templates/L2CharTemplate.java",
+        "lines": "1-585",
+        "symbol": "source file"
+      },
+      "sha256": "ad63b90411e246a80893b39e78ddc1ff24fcb620d518ff89ddd044457ae4e30d",
+      "bytes": 12683
     },
     {
       "source": {

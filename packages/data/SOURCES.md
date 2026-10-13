@@ -715,7 +715,7 @@ skill2864-1 to item21040; `data/stats/skills/02800-02899.xml:1560-1574`
 consumes14701×1 (`:1563-1564`); `data/stats/items/14700-14799.xml:20-36`
 marks14701 NPC-only (`:32`). Item21040 remains storable but is deferred with
 `consumable:skill:2864:1:item:14701`. This is an admission rule, without an engine
-special case. D34/D47/D50 promotion remains pending executable closure from Z.
+special case. (D34/D47 promotion: see "Phase 4 capability promotions" below.)
 The same rule newly defers21039 (`stats/items/21000-21099.xml:699-717`,
 skill2863 consume14700 at `stats/skills/02800-02899.xml:1539-1559`, NPC-only
 at `stats/items/14700-14799.xml:3-19`) and20973 (item skill21197 at
@@ -889,7 +889,7 @@ Data review revision 2 (same pinned DP/game revisions):
 | 4 | `data/stats/skills/08400-08499.xml:1906-1916` skill8498 +2STR; `game/model/stats/BaseStats.java:80-85` effective STR; `game/model/stats/functions/formulas/FuncPAtkMod.java:42-43` derived bonus; `FuncArmorSet.java:46-67` priority1 set attributes. The complete set interaction uses `data/stats/armorsets/a_grade.xml:37-52` (set41, STR+1/CON−1 plus both full-set skills). Attribute functions retain priority, install sequence and XML order before dependent stats. Unsupported stats/conditions fail closed. |
 | 5 | Phase4 D21/§5.3: independent pi identity `pi/4=2atan(1/3)+atan(1/7)`, rational Taylor enclosures, nine exact squared boundaries and bounded-denominator separation; generated angles are validation inputs only. Mutations of exact values, certificates, enclosures, separation and coordinate bounds reject. |
 | 6 | Player pole15 `data/stats/items/00000-00099.xml:322-343` with skill3599 `stats/skills/03500-03599.xml:1695-1705`; NPC8205 `08200-08299.xml:76-94` rejects. Scrolls/groups `data/enchantItemData.xml:4-136`, `enchantItemGroups.xml:4-99`, `game/model/items/enchant/EnchantScroll.java:49-56,102-157`; payment/reduction `datapack/handlers/itemhandlers/SoulShots.java:61-98`, `SpiritShot.java:60-92`, `BlessedSpiritShot.java:63-95`; consumable costs/lane `ItemSkillsTemplate.java:81-149`, `game/model/actor/L2Character.java:1560-1566`. §12.1 coverage gate requires the lifecycle/overlap, payment/shared-bundle, consume-once/reuse/lane vectors and contiguous coverage of every scroll/group/current level. Live §12.2/12.4 gates remain integration-owned. |
-| 7 | Elixir2287–2289 `data/stats/skills/02200-02299.xml:2027-2082`, greater2860–2862 `02800-02899.xml:1473-1540`; `game/model/conditions/ConditionPlayerLevelRange.java:41-43` inclusive effector-level comparison. One expanded range per rank, tested below/at both endpoints/above. D34 keeps all36 elixirs deferred until Z publishes execution; capability_counts.required_condition_closure records IDs/counts and pending status. |
+| 7 | Elixir2287–2289 `data/stats/skills/02200-02299.xml:2027-2082`, greater2860–2862 `02800-02899.xml:1473-1540`; `game/model/conditions/ConditionPlayerLevelRange.java:41-43` inclusive effector-level comparison. One expanded range per rank, tested below/at both endpoints/above. D34 promoted after Z published execution (4f9ac8c/c5229d4/f6d882b): all36 elixirs admitted; capability_counts.required_condition_closure records IDs/counts (36/36/0) and the publishing SHAs. |
 | 8 | `datapack/handlers/itemhandlers/ManaPotion.java:30-32` disabled-support guard; `game/src/main/resources/config/customs.properties:234` remains False. |
 
 Paths beginning `game/` above are under the game's `src/main/java/com/l2jserver/gameserver/`,
@@ -909,6 +909,52 @@ inventory ledger hashes every new source file. No historical class input changes
 Two explicitly synthetic unequal-finger oracle vectors (RFINGER=7, LFINGER=999)
 distinguish the getter duplication even though all nine pinned XML pairs match;
 they preserve the complete overridden XML as inputs and are coverage-mandatory.
+
+Phase 4 D75 class unarmed combat bases: `gen_items.py` reads every
+`data/stats/chars/baseStats/*.xml` and `data/stats/chars/classList.xml`, emits
+`tables-phase4/class_combat.toml` for the nine starting classes (`baseAtkType`,
+`baseAtkRange`, `basePAtk`, `basePAtkSpd`, `baseCritRate`; lines 11-14,33 of each
+base XML) and fails closed unless every descendant shares its base's values
+(89 classes census). Unarmed reach is 20 except both orc lineages (25,
+`OrcFighter.xml:33`, `OrcMystic.xml:33`). Game citations:
+`CharStat.java:424-435` (no-weapon range), `:438-447` (no-weapon angle 120),
+`:145,399,410`, `L2Character.java:5034-5044` (radius 5+isqrt(level)) and
+`:5560-5572`, `L2CharTemplate.java:107-118` defaults, `PlayerTemplateData.java:98-103`,
+`L2PcInstance.java:1018-1019,7668-7674`. The generator regex-verifies the 120 and
+5 literals in the pinned Java. `item_oracle.py` adds 90 independent F1 vectors
+(`class-combat-<classId>-unarmed` for all 89 lineage classes, selected from the
+class graph, plus `class-combat-44-armed-2369` showing the weapon's 40 overrides
+the orc 25); `item_coverage.py` requires each.
+
+Phase 4 capability promotions (V6 only; V5/historical allow-lists unchanged;
+regenerated with the documented `gen_items.py` command, never hand-edited):
+
+- D34 PvP: `gen_skills.PHASE4_STATS` adds `pvpPhysDmg`, `pvpPhysSkillsDmg`,
+  `pvpMagicalDmg` (`data/stats/skills/03500-03599.xml:679-695`, skill3552 muls
+  691-693; Z callers 4f9ac8c, FatalBlow bfc00a7). Admitted deltas: Weapon +629,
+  Armor +16, skills +47, options +39, recipes +755.
+- D34 levelRange: V6 `is_cond_allowed` admits a `player` leaf whose only attribute
+  is `levelRange` (`#table` or `min;max`; ranks validated by `parse_cond_node`;
+  `ConditionPlayerLevelRange.java:41-43`; Z 4f9ac8c/c5229d4/f6d882b). Deltas:
+  EtcItem +46 (the 36 required elixirs 8622-8639/14682-14699 plus 20354-20363
+  "Secret medicine of Will/Life", whose only blocker was the same leaf), skills +21.
+- D47: `PHASE4_STATS` adds `enlargeAbnormalSlot` (skill1405
+  `data/stats/skills/01400-01499.xml:264-277`, stat at 274; Z 402e554). Skills +1
+  (1405). Books 8618-8621 (`data/stats/items/08600-08699.xml:170-200`; learn costs
+  `data/skillTrees/classSkillTree.xml:172-183`) were already admitted learn inputs
+  and keep `use:no_handler`; item counts unchanged.
+
+- D50: `PHASE4_EFFECT_PARAMS["FatalBlow"]` adds `blowChance: int`
+  (`datapack/handlers/effecthandlers/instant/FatalBlow.java:43-46`: double power,
+  int blowChance/criticalChance; Lethal.java:42-43 params and the `blowRate` stat
+  were already represented; Z runtime bfc00a7). The parameter value was already
+  emitted in each skill's `params`; the change types/validates it. Skills +2
+  (16 Mortal Blow, 263 Deadly Blow); item/option/recipe counts unchanged (no item
+  was blocked only by these). 409 keeps `section:selfEffects`, 30 keeps
+  `effect:Backstab`.
+
+Every delta equals the revision-7 read-only preview, item and skill identities
+included (691 items, 71 skills; no demotions).
 
 Data review revision 4: `scripts/item_coverage.py` independently enumerates
 §12.1 requirements from the design boundaries and pinned source domains;
