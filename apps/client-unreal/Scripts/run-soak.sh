@@ -56,7 +56,8 @@ if ((CASTING)); then SOAK_DB="nf_phase3_fixture_soak_$$_$(date +%s)"; DB_ARGS+=(
 TMPFS_ARGS=()
 if [[ -n "${SOAK_TMPFS_VOLUMES:-}" ]]; then TMPFS_ARGS=(--tmpfs-volumes "$SOAK_TMPFS_VOLUMES"); fi
 python3 "$HERE/soak-compose.py" "$OUT/compose-source.json" "$OUT/compose.json" "$OFFSET" "${DB_ARGS[@]}" "${TMPFS_ARGS[@]}"
-printf 'volumes=%s\n' "${SOAK_TMPFS_VOLUMES:+tmpfs:$SOAK_TMPFS_VOLUMES}${SOAK_TMPFS_VOLUMES:-docker-local}" >"$OUT/storage.txt"
+if [[ -n "${SOAK_TMPFS_VOLUMES:-}" ]]; then STORAGE="tmpfs:$SOAK_TMPFS_VOLUMES"; else STORAGE=docker-local; fi
+printf 'volumes=%s\n' "$STORAGE" >"$OUT/storage.txt"
 COMPOSE=(docker compose --env-file "$OUT/empty.env" -p "$COMPOSE_PROJECT" -f "$OUT/compose.json")
 API_PID=""
 stop_api() {
