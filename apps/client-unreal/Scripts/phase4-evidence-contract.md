@@ -384,11 +384,11 @@ design `docs/plans/phase-4-zone-design.md` §12.1 and the producer in
 
 | Family | Producer caller / `context.event` | `inputs` (beyond the oracle signature) | `actual` |
 |---|---|---|---|
-| `bow_launch` | bow attack start, `attack` (+`weapon_template`, `target_entity`) | `weapon` = E1 bow_definition record; `inventory` = ITEM records of candidate arrows; `lhand` occupied arrow id or null; `mp`, `mp_modifier` exact; `reduction_residue` null iff no reduced-MP draw; `miss`; `reuse_remaining` TICKS (D88); `hit_chance` per-mille, hit iff `hit_residue < hit_chance` (D88); `hit_residue`, `critical_residue`, `spread_residue` (D87, required, null iff the draw was not taken, D89) | `{accepted, reason∈arrows/reuse/mp/launched, inventory, lhand, equipped_lhand, mp, mp_q, mp_paid, arrows_consumed∈0..1, draws, hit, mp_cost?}`; the launch's arrow debit is an `arrow:<resolution_id>` Consume cause |
+| `bow_launch` | bow attack start, `attack` (+`weapon_template`, `target_entity`) | `weapon` = E1 bow_definition record; `inventory` = ITEM records of candidate arrows; `lhand` occupied arrow id or null; `mp`, `mp_modifier` exact; `reduction_residue` null iff no reduced-MP draw; `miss`; `reuse_remaining` TICKS (D88); `hit_chance` per-mille clamped to [200, 980], hit iff `hit_residue <= hit_chance` (calcHitMiss; D88's `<` revoked); `hit_residue`, `critical_residue`, `spread_residue` (D87, required, null iff the draw was not taken, D89) | `{accepted, reason∈arrows/reuse/mp/launched, inventory, lhand, equipped_lhand, mp, mp_q, mp_paid, arrows_consumed∈0..1, draws, hit, mp_cost?}`; the launch's arrow debit is an `arrow:<resolution_id>` Consume cause |
 | `bow_reuse` | bow attack accepted, `attack` | `reuse_delay` (template ms), `attack_speed` exact P.Atk.Spd, `weapon_reuse_modifier` | whole ms `trunc(reuse·333/speed)` (D17) |
 | `bow_damage` | bow hit, `attack` | `formula` exact calcPhysDam, `dx_milli`, `dy_milli` signed milli-tiles | `{base, distance_l2_lower, distance_l2_upper, damage}`; bounds are certified 2^-bits rationals, D80 strings |
 | `pole_sequence` | pole swing, `attack` | `candidates` in attempt order `{eligible, hit, formula}`, `maximum` secondary count | per eligible attempt `{percent, hit, draws, base?, damage?}` (D25 85% ÷23/20) |
-| `dual_plan` | dual swing, `attack` | `hits` pair (hit iff residue < `hit_chance`, D88), `formulas` pair, `second_valid`, `hit_residues` pair, `hit_chance`, `spread_radius`, `critical_residues` pair and `spread_residues` pair (D87, required, entry null iff that subhit's draw was not taken, D89) | `{plan, stored_second, applied=[first, second|null], second_recomputed, draws, refunded_draws}` |
+| `dual_plan` | dual swing, `attack` | `hits` pair (hit iff residue <= `hit_chance`, chance in [200, 980], calcHitMiss), `formulas` pair, `second_valid`, `hit_residues` pair, `hit_chance`, `spread_radius`, `critical_residues` pair and `spread_residues` pair (D87, required, entry null iff that subhit's draw was not taken, D89) | `{plan, stored_second, applied=[first, second|null], second_recomputed, draws, refunded_draws}` |
 | `magic_damage` | magic skill hit, `cast` (+`skill_id`, `target_entity`) | exact stats + shot flags + branch inputs; `first_success`/`second_success` null iff their draw was not taken; `is_pvp` required boolean (D89) | `{lower, upper, damage, damage_q, branch}` |
 | `heal` | heal effect, `cast` | power/m_atk/shot/grade inputs; `current_hp`, `remainder_q` before; `recoverable_hp` null = uncapped | `{amount, restoration_q, applied_q, current_hp, remainder_q, whole_credit, coefficient, static_bonus, root_lower, root_upper}` |
 | `gear_stats` | dirty rebuild, `equip`/`unequip`/`enchant`/`admission` (+`set_id`) | `class_file` pinned path, `level`, `equipment` `[template, enchant, slot, install_seq]`, `skill_refs` `[skill, rank, seq]` winning providers, `base_deltas`, `base_delta_sequence` | `{exact, root_expressions, q, getters, trace, base_stats, weapon_type, random_damage, spread_bound, enchant_hp, traits, weight}`, full dictionary, `trace` in oracle order (D90) |
@@ -418,20 +418,21 @@ verified by exact oracle equality on the producer's actual inputs.
   residues into `draws` by site (`critical`/`spread`, `critical1/2`/`spread1/2`),
   checking each against its draw bound; neither residue alters any other
   output. When E1 adds these parameters the consumer passes them through.
-- D88 (Q-F2): every duration in evidence is in TICKS (`bow_launch.reuse_remaining`
-  included). A bow/dual hit happens iff `residue < hit_chance` (pinned
-  `Rnd.get(n) < chance`); residue == chance is a miss. The E1 rev 8 oracle
-  still tests `<=`; the consumer probes that once and then passes
-  `hit_chance − 1`, which selects exactly the residues below the chance. E1
-  vectors at the `residue == chance` boundary no longer verify (E1 follow-up:
-  adopt the strict inequality; the probe then disables the adapter).
-  Rev 9 import path (D96, review-2 P3-1): when the E1 oracle signature takes
-  the D87 residue parameters, the consumer passes them through and applies
-  neither adapter (no substitution, no `hit_chance − 1`, no probe). The
-  adapters run only on the pre-D87 data revisions (rules_manifest
-  `data_sha256` rev 7 `5b77911e…` or rev 8 `8e27de15…`); newer data with an
-  old-shaped oracle, or a probe that cannot classify the oracle, is a
-  ValueError gate verdict, never a crash.
+- D88 (Q-F2), as corrected: every duration in evidence is in TICKS
+  (`bow_launch.reuse_remaining` included). D88's strict inequality is
+  REVOKED (architect-verified GAME@abfde049 `Formulas.calcHitMiss`: miss iff
+  `chance < Rnd.get(1000)`): a bow/dual/pole hit happens iff
+  `residue <= hit_chance`, with the chance clamped to [200, 980], which is the
+  `hit_chance` input domain. The consumer checks this rule itself
+  (`hit_rule`) before the oracle; there is no inequality adapter or probe.
+  Rev 9 import path (D96): when the E1 oracle signature takes the D87 residue
+  parameters, the consumer passes them through; the residue-substitution
+  adapter runs only on the pre-D87 data revisions (rules_manifest
+  `data_sha256` rev 7 `5b77911e…` or rev 8 `8e27de15…`), and newer data with
+  an old-shaped oracle is a ValueError gate verdict. Zone rev 9 (dd3c1be,
+  still at codex/phase4-zone-engine 2dc9176) tests hits with `<`; until its
+  follow-up restores `<=`, a fact with residue == chance passes the
+  consumer's rule but is refused by that oracle (fail closed).
 - D89 (Q-F3): D81's rule generalises to every draw-derived field whose draw may
   not occur: the field is null (or absent) iff its draw was not taken, and a
   value for an untaken draw (any sentinel) or a null for a taken draw refuses.

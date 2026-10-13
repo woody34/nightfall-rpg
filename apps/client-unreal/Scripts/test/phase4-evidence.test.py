@@ -1716,26 +1716,48 @@ class Evidence(unittest.TestCase):
                 with self.assertRaises(ValueError):gate.input_domains(name,{k:v for k,v in inputs.items() if k!=key})
         print(f'D87: live critical/spread residues verified for bow_launch/dual_plan; {len(mutations)} residue mutations and missing fields reject',flush=True)
 
-    def test_d88_hit_iff_residue_below_chance(self):
-        # E1 rev 7/8 decides hits with <= (the consumer adapts); rev 9 is strict (D88, no adapter).
-        self.assertEqual(gate.oracle_hit_inclusive(),not gate.oracle_adopted_d87('dual_plan'))
+    @staticmethod
+    def oracle_hit_strict():
+        """Test-only observation: zone rev 9 (dd3c1be) still decides hits with `<`; the E1
+        follow-up returns it to the pinned `<=`. The consumer applies `<=` itself either way."""
+        function=gate.oracle.behavior.dual_plan
+        extra=dict(critical_residues=[None,None],spread_residues=[None,None]) if gate.oracle_adopted_d87('dual_plan') else {}
+        try:function([True,True],[0,0],True,[500,500],500,0,**({k:[0,0] for k in extra} if extra else {}))
+        except ValueError:return True
+        return False
+
+    def test_calc_hit_miss_residue_at_or_below_chance(self):
+        """Pinned Formulas.calcHitMiss (abfde049): miss iff chance < Rnd.get(1000); chance in [200, 980].
+        D88's strict `<` is revoked; the ticks unit stands."""
         bow=dict(weapon=gate.oracle.behavior.bow_definition(gate.source(),13),
                  inventory=[gate.oracle.behavior.arrow_stack(gate.source(),17,2)],lhand=None,mp=10,mp_modifier=1,
                  reduction_residue=None,miss=False,hit_chance=800,hit_residue=799,critical_residue=17,spread_residue=3)
         miss=bow|dict(miss=True,critical_residue=None,spread_residue=None)
-        for inputs,hit in ((bow,True),(miss|dict(hit_residue=800),False),(miss|dict(hit_residue=999),False),
-                           (bow|dict(hit_chance=1,hit_residue=0),True),(miss|dict(hit_chance=0,hit_residue=0),False)):
+        strict=self.oracle_hit_strict()
+        for inputs,hit,boundary in ((bow,True,False),(bow|dict(hit_residue=800),True,True),(miss|dict(hit_residue=801),False,False),
+                                    (miss|dict(hit_residue=999),False,False),(bow|dict(hit_chance=200,hit_residue=200),True,True),
+                                    (miss|dict(hit_chance=980,hit_residue=981),False,False)):
             with self.subTest(inputs=(inputs['hit_chance'],inputs['hit_residue'],hit)):
+                gate.hit_rule('bow_launch',inputs) # the consumer's own rule accepts
+                if boundary and strict:
+                    # Pending the E1 follow-up, the strict rev 9 oracle still refuses the pinned boundary hit.
+                    with self.assertRaisesRegex(ValueError,'inconsistent'):gate.residue_family('bow_launch',inputs)
+                    continue
                 actual=gate.oracle.rational(gate.residue_family('bow_launch',inputs))
                 self.assertEqual(actual['hit'],hit);gate.formula('bow_launch',inputs,actual)
-        # The boundary residue == chance is a miss: claiming a hit there rejects, as does a miss below it.
-        for inputs in (bow|dict(hit_residue=800),miss|dict(hit_residue=799)):
-            with self.assertRaises(ValueError):gate.formula('bow_launch',inputs,None)
-        dual=dict(hits=[True,False],formulas=[10,10],second_valid=True,hit_residues=[799,800],hit_chance=800,
+        # A miss at or below the chance, or a hit above it, rejects through the consumer's own rule.
+        for inputs in (bow|dict(hit_residue=801),miss|dict(hit_residue=800),miss|dict(hit_residue=200,hit_chance=200)):
+            with self.assertRaisesRegex(ValueError,'calcHitMiss'):gate.formula('bow_launch',inputs,None)
+        for chance in (199,981,0,1000):
+            with self.assertRaises(ValueError):gate.input_domains('bow_launch',bow|dict(hit_chance=chance))
+        dual=dict(hits=[True,False],formulas=[10,10],second_valid=True,hit_residues=[800,801],hit_chance=800,
                   spread_radius=0,critical_residues=[5,None],spread_residues=[0,None])
-        gate.formula('dual_plan',dual,gate.oracle.rational(gate.residue_family('dual_plan',dual)))
-        with self.assertRaises(ValueError):gate.formula('dual_plan',dual|dict(hits=[True,True],critical_residues=[5,5],spread_residues=[0,0]),None)
-        print('D88: hit iff residue < hit_chance at the boundary for bow_launch and dual_plan',flush=True)
+        gate.hit_rule('dual_plan',dual)
+        if not strict:gate.formula('dual_plan',dual,gate.oracle.rational(gate.residue_family('dual_plan',dual)))
+        for bad in (dual|dict(hits=[False,False],critical_residues=[None,None],spread_residues=[None,None]),
+                    dual|dict(hits=[True,True],critical_residues=[5,5],spread_residues=[0,0])):
+            with self.assertRaisesRegex(ValueError,'calcHitMiss'):gate.formula('dual_plan',bad,None)
+        print(f'calcHitMiss: hit iff residue <= chance in [200,980] (oracle strict={strict}); misses at/below and hits above the chance reject',flush=True)
 
     def test_d89_draw_derived_fields_null_iff_draw_not_taken(self):
         magic=dict(power=10,m_atk=100,m_def=50,is_pvp=False)
@@ -1842,21 +1864,21 @@ class Evidence(unittest.TestCase):
     def test_rev9_import_path_and_probe_verdicts(self):
         """Review-2 P3-1 / D96: adapters only on pre-D87 data; rev 9 oracles pass residues through."""
         from unittest.mock import patch
-        dual=dict(hits=[True,False],formulas=[10,10],second_valid=True,hit_residues=[799,800],hit_chance=800,
+        dual=dict(hits=[True,False],formulas=[10,10],second_valid=True,hit_residues=[799,801],hit_chance=800,
                   spread_radius=2,critical_residues=[5,None],spread_residues=[1,None])
         expected=gate.oracle.rational(gate.residue_family('dual_plan',dual))
         real=gate.oracle.behavior.dual_plan;adopted=gate.oracle_adopted_d87('dual_plan')
         def rev9(hits,formulas,second_valid,hit_residues,hit_chance,spread_radius,critical_residues,spread_residues):
-            # A rev 9-shaped oracle: strict `<` and the residues as parameters (the real one on rev 9 data).
+            # A rev 9-shaped oracle: the residues as parameters (the real one on rev 9 data).
             if adopted:return real(hits,formulas,second_valid,hit_residues,hit_chance,spread_radius,critical_residues,spread_residues)
-            result=real(hits,formulas,second_valid,hit_residues,hit_chance-1,spread_radius)
+            result=real(hits,formulas,second_valid,hit_residues,hit_chance,spread_radius)
             for draw in result['draws']:
                 if draw['site'][:-1] in ('critical','spread'):
                     draw['residue']=(critical_residues if draw['site'].startswith('critical') else spread_residues)[int(draw['site'][-1])-1]
             return result
         def rev8(hits,formulas,second_valid,hit_residues,hit_chance,spread_radius):
             raise AssertionError('the adapter must refuse before calling an old-shaped oracle on unknown data')
-        with patch.object(gate.oracle.behavior,'dual_plan',rev9),patch.object(gate,'oracle_hit_inclusive',side_effect=AssertionError('probe used')):
+        with patch.object(gate.oracle.behavior,'dual_plan',rev9):
             self.assertTrue(gate.oracle_adopted_d87('dual_plan'))
             gate.formula('dual_plan',dual,expected) # no adjustment, no probe, any data hash
             with patch.object(gate,'source_data_sha256',return_value='f'*64):gate.formula('dual_plan',dual,expected)
@@ -1867,15 +1889,7 @@ class Evidence(unittest.TestCase):
             rows[1]['data'].update(formula='dual_plan',inputs=dual,actual=expected)
             result=gate.evaluate(rows,self.recording,OWNER,['dual_plan'],HASH)
             self.assertFalse(result['passed']);self.assertTrue(any('D96' in e for g in result['gates'] for e in g['errors']))
-        # A probe that cannot classify the oracle is a ValueError verdict, not a TypeError crash.
-        def odd(*args,critical_residues=None,**kwargs):raise TypeError('unexpected signature')
-        gate.oracle_hit_inclusive.cache_clear()
-        try:
-            with patch.object(gate.oracle.behavior,'dual_plan',odd):
-                with self.assertRaisesRegex(ValueError,'D88'):gate.oracle_hit_inclusive()
-        finally:gate.oracle_hit_inclusive.cache_clear()
-        self.assertEqual(gate.oracle_hit_inclusive(),not adopted)
-        print('Rev 9 path: residue parameters detected by signature remove both adapters; unknown data or an unclassifiable probe is a verdict',flush=True)
+        print('Rev 9 path: residue parameters detected by signature pass through; an old oracle on unknown data is a verdict',flush=True)
 
     def test_item_record_scalar_substitutions_through_evaluate(self):
         vectors=gate.oracle.make_vectors(gate.source())
@@ -2155,7 +2169,7 @@ class Evidence(unittest.TestCase):
             ('shot_payment',dict(charges=[],kind='soul',count=1,available=0,weapon_grade='D',shot_grade='D',reduction=[]),
              'reduction',(None,1,{},[1],[0,1,2],[None,1],[1,-1],[1,2**63],[101,1])),
             ('dual_plan',dict(hits=[True,False],formulas=[10,'3/2'],second_valid=True,
-                             hit_residues=[799,800],hit_chance=800,spread_radius=6,
+                             hit_residues=[799,801],hit_chance=800,spread_radius=6,
                              critical_residues=[999,None],spread_residues=[6,None]),'formulas',
              (None,1,{},[],[1],[1,2,3],[True,1],[None,1],[[],1],[2**63,1])),
             ('winning_providers',dict(providers=[dict(key='item:1',skill_id=1,rank=1,sequence=0)]),'providers',
@@ -2226,7 +2240,8 @@ class Evidence(unittest.TestCase):
             vector=next(v for v in vectors if v['id'].startswith(prefix))
             inputs=copy.deepcopy(vector['inputs'])
             if name=='resurrection_scroll':inputs['repeat']=bool(inputs['repeat'])
-            # D88: E1's boundary hit (residue == chance) is a miss now; take the residue just below.
+            # calcHitMiss boundary hit (residue == chance): keep it off the boundary while the rev 9
+            # oracle is still strict (E1 follow-up); `<=` itself is covered by the calcHitMiss test.
             if name=='bow_launch' and not inputs['miss'] and inputs['hit_residue']==inputs['hit_chance']:inputs['hit_residue']-=1
             cases.append((name,self.with_residues(name,inputs)))
         for name,inputs in cases:
