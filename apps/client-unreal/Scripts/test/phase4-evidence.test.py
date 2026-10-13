@@ -1889,6 +1889,73 @@ class Evidence(unittest.TestCase):
         bad=copy.deepcopy(self.rows);bad[1]['data']['actual']['damage']=42
         self.assertFalse(gate.evaluate(bad,self.recording,OWNER,['pole_damage'],HASH)['passed'])
 
+    def test_d80_wide_integers_parse_as_decimal_strings(self):
+        def stringify(value):
+            # D80 producer encoding: integers outside ±2^53 become decimal strings.
+            if isinstance(value,dict):return {k:stringify(v) for k,v in value.items()}
+            if isinstance(value,list):return [stringify(v) for v in value]
+            if type(value) is int and abs(value)>2**53:return str(value)
+            return value
+        # RNG word positions are u128 cursors.
+        rows=copy.deepcopy(self.rows)
+        rows.insert(2,dict(kind='item_rng',entity=OWNER,incarnation=1,tick=0,sequence=1,data=dict(resolution_id='npc:shield:1',
+            callsite='shield_perfect',word_before=str(2**64),word_after=str(2**64+1),bound=100,value=7)))
+        self.repair(rows);gate.validate(rows,self.recording,HASH)
+        self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['pole_damage'],HASH)['passed'])
+        numeric=copy.deepcopy(rows);numeric[2]['data'].update(word_before=2**64,word_after=2**64+1)
+        gate.validate(numeric,self.recording,HASH) # the consumer parses both forms
+        for value in ('5','0','-1',str(2**53-1),str(-(2**53-1))):
+            bad=copy.deepcopy(rows);bad[2]['data']['word_before']=value
+            with self.assertRaisesRegex(ValueError,'inside ±2\\^53',msg=value):gate.validate(bad,self.recording,HASH)
+        for value in ('0x10',' 18446744073709551616','+18446744073709551616','018446744073709551616','1e30','1.0'):
+            bad=copy.deepcopy(rows);bad[2]['data']['word_before']=value
+            with self.assertRaises(ValueError,msg=value):gate.validate(bad,self.recording,HASH)
+        bad=copy.deepcopy(rows);bad[2]['data']['word_after']=str(2**64-1)
+        with self.assertRaisesRegex(ValueError,'RNG cursor'):gate.validate(bad,self.recording,HASH)
+        # Canonical instance ids beyond 2^53 (allocator ranges reach 2^63): baseline, delta, causes.
+        wide=2**60+100;rows=self.transition_rows('consume')
+        for row in rows[1:-1]:
+            data=row['data']
+            if row['kind']=='item_baseline':data['instances'][0]['id']=wide
+            elif row['kind']=='item_delta':
+                data['instance']=wide
+                for key in ('before','after'):
+                    if data[key]:data[key]['id']=wide
+        encoded=stringify(rows)
+        self.assertEqual(encoded[3]['data']['instance'],str(wide))
+        gate.validate(encoded,self.recording,HASH);gate.validate(rows,self.recording,HASH)
+        self.assertTrue(gate.evaluate(encoded,self.recording,OWNER,['pole_damage'],HASH)['passed'])
+        bad=copy.deepcopy(encoded);bad[3]['data']['instance']=str(wide+1)
+        with self.assertRaisesRegex(ValueError,'identity mismatch'):gate.validate(bad,self.recording,HASH)
+        bad=copy.deepcopy(encoded);bad[3]['data']['before']['id']=str(2**63)
+        with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
+        bad=copy.deepcopy(encoded);bad[3]['data']['count_delta']='-1'
+        with self.assertRaisesRegex(ValueError,'inside ±2\\^53'):gate.validate(bad,self.recording,HASH)
+        bad=copy.deepcopy(encoded);bad[3]['data']['causes'][0]['count_delta']='-1'
+        with self.assertRaisesRegex(ValueError,'inside ±2\\^53'):gate.validate(bad,self.recording,HASH)
+        # Text fields never convert: a decimal resolution identity stays text.
+        digits=copy.deepcopy(rows);digits[2]['data']['resolution_id']=str(2**64)
+        self.assertTrue(gate.evaluate(digits,self.recording,OWNER,['pole_damage'],HASH)['passed'])
+        # bow_damage: certified 2^-bits sqrt bounds carry > i64 numerators in `actual`.
+        inputs=dict(formula='100',dx_milli=12499,dy_milli=7)
+        actual=gate.oracle.rational(gate.oracle.bow_damage(**inputs))
+        self.assertGreater(actual['distance_l2_lower']['denominator'],2**63)
+        encoded_actual=stringify(actual)
+        self.assertIsInstance(encoded_actual['distance_l2_lower']['denominator'],str)
+        gate.formula('bow_damage',inputs,encoded_actual)
+        rows=copy.deepcopy(self.rows);rows[1]['data'].update(formula='bow_damage',inputs=inputs,actual=encoded_actual)
+        self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['bow_damage'],HASH)['passed'])
+        bad=copy.deepcopy(encoded_actual);bad['distance_l2_lower']['numerator']=str(int(bad['distance_l2_lower']['numerator'])+1)
+        with self.assertRaises(ValueError):gate.formula('bow_damage',inputs,bad)
+        # Wide inputs decode, then the signed-bigint input domain still applies.
+        gate.formula('bow_damage',dict(formula='100',dx_milli=str(2**60),dy_milli=0),
+                     stringify(gate.oracle.rational(gate.oracle.bow_damage('100',2**60,0))))
+        for value in (str(2**63),'5'):
+            with self.assertRaises(ValueError,msg=value):gate.formula('bow_damage',dict(formula='100',dx_milli=value,dy_milli=0),actual)
+        with self.assertRaises(ValueError):
+            gate.formula('pole_damage',dict(formula={'numerator':str(2**64),'denominator':'1'},percent=85,primary=False),None)
+        print('D80: wide RNG cursors, instance ids, bow bounds and inputs parse as decimal strings; in-range strings and malformed decimals reject',flush=True)
+
     def test_missing_foreign_owner_unknown_baseline_and_repeated_fail(self):
         self.assertFalse(gate.evaluate(self.rows,self.recording,OTHER,['pole_damage'],HASH)['passed'])
         self.assertFalse(gate.evaluate(self.rows,self.recording,OWNER,['bow_damage'],HASH)['passed'])

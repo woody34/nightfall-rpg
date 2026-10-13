@@ -244,6 +244,105 @@ INPUT_SCHEMAS={
 }
 
 
+# D80: evidence JSON encodes every integer outside ±2^53 as a canonical decimal
+# string; integers inside that range stay JSON numbers. The consumer parses both
+# forms for out-of-range integers, schema-directed, so text fields never convert.
+SAFE_INTEGER=2**53
+DECIMAL=re.compile(r'-?(?:0|[1-9][0-9]*)')
+INSTANCE_INTEGERS=frozenset(('id','template_id','count','enchant','augment_id','charges','created_tick','revision'))
+
+
+def wide(value):
+    """One integer position: a decimal string must lie outside ±2^53 (D80)."""
+    if type(value) is str and DECIMAL.fullmatch(value):
+        number=int(value)
+        if -SAFE_INTEGER<number<SAFE_INTEGER:raise ValueError('integer inside ±2^53 must be a JSON number (D80)')
+        return number
+    return value
+
+
+def wide_any(value):
+    """Schema-free formula outputs: only out-of-range canonical decimal strings convert."""
+    if isinstance(value,dict):return {key:wide_any(child) for key,child in value.items()}
+    if isinstance(value,list):return [wide_any(child) for child in value]
+    if type(value) is str and DECIMAL.fullmatch(value) and not -SAFE_INTEGER<int(value)<SAFE_INTEGER:return int(value)
+    return value
+
+
+def wide_input(value,schema):
+    """Schema-directed D80 decode; shapes that do not fit, including in-range decimal
+    strings, are left unchanged so the input schema refuses them per formula gate."""
+    kind=schema[0]
+    if kind=='nullable':return value if value is None else wide_input(value,schema[1])
+    if kind=='list' and type(value) is list:return [wide_input(child,schema[1]) for child in value]
+    if kind=='list-tuple' and type(value) is list and value:return wide_input(value,schema[1])
+    if kind=='tuple' and type(value) is list and len(value)==len(schema[1]):
+        return [wide_input(child,child_schema) for child,child_schema in zip(value,schema[1])]
+    if kind=='record' and type(value) is dict:
+        kinds=schema[1]|schema[2]
+        return {key:wide_input(child,kinds[key]) if key in kinds else child for key,child in value.items()}
+    if kind=='map' and type(value) is dict:return {key:wide_input(child,schema[2]) for key,child in value.items()}
+    if kind in ('int','nonneg-int','u32'):return wide_any(value)
+    if kind=='exact-numeric' and type(value) is dict and set(value)=={'numerator','denominator'}:
+        return {key:wide_any(child) for key,child in value.items()}
+    if kind=='any':return wide_any(value)
+    return value
+
+
+def wide_instance(state):
+    if not isinstance(state,dict):return state
+    return {key:wide(child) if key in INSTANCE_INTEGERS else child for key,child in state.items()}
+
+
+def wide_fields(mapping,keys):
+    return {key:wide(child) if key in keys else child for key,child in mapping.items()}
+
+
+def decode_rows(rows):
+    """D80 decode of a whole export into a fresh list; malformed shapes pass through unchanged."""
+    if not isinstance(rows,list):return rows
+    result=[]
+    for row in rows:
+        if not isinstance(row,dict):result.append(row);continue
+        kind=row.get('kind')
+        if kind=='manifest':
+            row=wide_fields(row,{'schema_version','zone','epoch','snapshot_tick','snapshot_schema','record_schema'})
+            if isinstance(row.get('watermark'),dict):row['watermark']=wide_fields(row['watermark'],{'zone','epoch','records','last_tick'})
+        elif kind=='complete':row=wide_fields(row,{'facts','ticks','last_tick'})
+        else:
+            row=wide_fields(row,{'incarnation','tick','sequence'});data=row.get('data')
+            if isinstance(data,dict):row['data']=decode_data(kind,data)
+        result.append(row)
+    return result
+
+
+def decode_data(kind,data):
+    data=dict(data)
+    if kind=='item_rng':return wide_fields(data,{'word_before','word_after','bound','value'})
+    if kind=='item_delta':
+        data=wide_fields(data,{'instance','count_delta','operation_ordinal'})
+        for key in ('before','after'):
+            if key in data:data[key]=wide_instance(data[key])
+        if isinstance(data.get('causes'),list):
+            data['causes']=[wide_fields(cause,{'count_delta'}) if isinstance(cause,dict) else cause for cause in data['causes']]
+        return data
+    if kind=='item_baseline':
+        data=wide_fields(data,{'inventory_revision'})
+        if isinstance(data.get('instances'),list):data['instances']=[wide_instance(state) for state in data['instances']]
+        if isinstance(data.get('paperdoll'),dict):data['paperdoll']={slot:wide(identity) for slot,identity in data['paperdoll'].items()}
+        if isinstance(data.get('auto_shots'),list):data['auto_shots']=[wide(template) for template in data['auto_shots']]
+        return data
+    if kind=='item_formula':
+        name=data.get('formula')
+        if name in INPUT_SCHEMAS and isinstance(data.get('inputs'),dict):
+            data['inputs']=wide_input(data['inputs'],record({},INPUT_SCHEMAS[name]))
+        if 'actual' in data:data['actual']=wide_any(data['actual'])
+        if isinstance(data.get('context'),dict):data['context']=wide_fields(data['context'],{'weapon_template','skill_id','set_id'})
+        if isinstance(data.get('operation'),dict):
+            data['operation']={key:wide_instance(child) if key.endswith('_before') else child for key,child in data['operation'].items()}
+    return data
+
+
 def validate_input(value,schema,path,bounds=False):
     kind=schema[0]
     def invalid():raise ValueError('invalid formula input '+path+' ('+kind+')')
@@ -268,6 +367,7 @@ def validate_input(value,schema,path,bounds=False):
         for key,child in value.items():
             validate_input(key,schema[1],path+'.key',bounds)
             validate_input(child,schema[2],path+'['+str(key)+']',bounds)
+    elif kind=='any':pass # Structure is pinned by exact oracle equality.
     elif kind=='bool':
         if type(value) is not bool:invalid()
     elif kind=='string':
@@ -384,6 +484,8 @@ def enchant_source_inputs(target,scroll,support):
 
 def formula(name,inputs,actual):
     if name not in FORMULAS:raise ValueError('unknown item formula')
+    if name in INPUT_SCHEMAS and isinstance(inputs,dict):inputs=wide_input(inputs,record({},INPUT_SCHEMAS[name])) # D80
+    actual=wide_any(actual)
     input_domains(name,inputs)
     # Match E1's finite function registry on arbitrary resolution inputs.
     if name=='gear_stats':
@@ -692,6 +794,7 @@ def validate_instance_history(rows):
 
 def validate(rows,recording,rules_hash):
     if not isinstance(rows,list) or len(rows)<3:raise ValueError('manifest, facts and complete trailer required')
+    rows=decode_rows(rows) # D80
     manifest,complete=rows[0],rows[-1]
     fields={'kind','schema_version','scope','recording_sha256','zone','epoch','snapshot_tick','watermark','phase4_rules_hash','snapshot_schema','record_schema','digest_version'}
     if set(manifest)!=fields:raise ValueError('unknown/missing Phase4 manifest fields')
@@ -1033,6 +1136,7 @@ def enchant_evidence(row, rows, steps=None,targets=None):
 
 
 def evaluate(rows,recording,entity,gates,rules_hash,phase_specs=()):
+    rows=decode_rows(rows) # D80: wide integers arrive as decimal strings.
     manifest=validate(rows,recording,rules_hash)
     targets={};enchant_errors=[]
     try:steps=inventory_history(rows,targets)
@@ -1120,6 +1224,7 @@ def run(scenario,recording,report,out,replay,rules_hash):
 
 
 def soak(rows,recording,roles,rules_hash):
+    rows=decode_rows(rows) # D80
     validate(rows,recording,rules_hash)
     if roles.get('items') is not True or roles.get('casting') is not True or len(roles.get('roles',[]))!=8:
         raise ValueError('acceptance soak requires all eight item/casting clients')

@@ -10,6 +10,25 @@ builds a binary or accepts producer PASS flags. `SIM_PHASE4_RULES_HASH` and
 
 JSONL contract (schema version 1 of this sidecar):
 
+- Integers (D80): every integer whose value lies outside ±2^53 is encoded as
+  a canonical decimal string (`-?(0|[1-9][0-9]*)`, no sign `+`, no leading
+  zeros, no exponent); integers inside (−2^53, 2^53) stay JSON numbers, and a
+  decimal string for such a value refuses. Exactly ±2^53 may use either form.
+  The consumer parses both forms for out-of-range values in EVERY numeric
+  field — manifest/watermark/trailer counters, fact `incarnation/tick/sequence`,
+  RNG `word_before/word_after/bound/value`, delta `instance/count_delta/
+  operation_ordinal` and per-cause `count_delta`, every canonical ItemInstance
+  integer (`id,template_id,count,enchant,augment_id,charges,created_tick,
+  revision`) in baselines, deltas and enchant bindings, baseline
+  `inventory_revision`, paperdoll ids and `auto_shots`, context ids, formula
+  `inputs` integer and `{numerator,denominator}` positions (schema-directed by
+  the input schema) and formula `actual` values (schema-free: only
+  out-of-range decimal strings convert, so text such as an outcome name never
+  does). Text fields (`resolution_id`, receipts, causes, UUIDs) are never
+  converted. Domain bounds apply after decoding (formula inputs stay
+  signed-bigint; instance ids < 2^63).
+  `bow_damage.actual.distance_l2_lower/upper` (certified 2^-bits √ bounds) is
+  the motivating case.
 - First row: `kind=manifest`, `schema_version=1`, `scope=whole_recording`,
   `recording_sha256`, `zone`, `epoch`, `snapshot_tick`,
   `watermark={zone,epoch,records,last_tick,reason}`, `phase4_rules_hash`,
