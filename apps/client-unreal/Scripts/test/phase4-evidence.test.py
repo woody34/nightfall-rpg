@@ -610,6 +610,43 @@ class Evidence(unittest.TestCase):
                 cases+=1
         print(f'D71: charges/auto-shots cleared on re-admission pass; {cases} slot/field/same-incarnation charge drifts reject',flush=True)
 
+    def d72_rows(self,start,seen,auto_shots=(),baseline=True):
+        """D72: inc1 weapon with `start` charges re-observed at inc2 with `seen` charges."""
+        rows=self.readmission_rows('control' if baseline else 'no-baseline')
+        first=next(r for r in rows if r['kind']=='item_baseline')
+        first['data']['instances'][0]['charges']=start
+        for row in rows[1:-1]:
+            if row['incarnation']!=2:continue
+            if row['kind']=='item_baseline':
+                row['data']['instances'][0]['charges']=seen;row['data']['auto_shots']=list(auto_shots)
+            elif row['kind']=='item_delta':row['data']['before']['charges']=seen
+        if seen and baseline:
+            # A still-charged weapon stays equipped: the inc2 baseline alone observes it.
+            rows=self.repair([r for r in rows if r['kind']!='item_delta'])
+        return rows
+
+    def test_d72_readmission_charges_only_clear_and_toggles_reset(self):
+        # Controls: cleared (1 -> 0), unchanged (1 -> 1), absent (0 -> 0), with and without the inc2 baseline.
+        for start,seen,baseline in ((1,0,True),(1,0,False),(1,1,True),(4,4,True),(0,0,True)):
+            with self.subTest(start=start,seen=seen,baseline=baseline):
+                rows=self.d72_rows(start,seen,baseline=baseline);gate.validate_instance_history(rows)
+                self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['pole_damage'],HASH)['passed'])
+        cases=0
+        # Mutations: a charge appears (0 -> 1, 0 -> 4) or changes kind (1 -> 2, 2 -> 6) at the boundary.
+        for start,seen,baseline in ((0,1,True),(0,1,False),(0,4,True),(1,2,True),(2,6,False)):
+            with self.subTest(start=start,seen=seen,baseline=baseline):
+                bad=self.d72_rows(start,seen,baseline=baseline);self.assert_rejected(bad,('pole_damage',))
+                with self.assertRaisesRegex(ValueError,'charges appeared at re-admission'):gate.validate_instance_history(bad)
+                cases+=1
+        # The owner's first baseline of a later incarnation must carry no auto-shot toggles.
+        bad=self.d72_rows(1,0,auto_shots=[5789]);self.assert_rejected(bad,('pole_damage',))
+        with self.assertRaisesRegex(ValueError,'auto-shot toggles survived'):gate.validate_instance_history(bad)
+        cases+=1
+        # A recording that starts at incarnation 2 (no earlier live life observed) keeps its toggles.
+        rows=self.repair([r for r in self.d72_rows(0,0,auto_shots=[5789]) if r['kind'] in ('manifest','complete') or r['incarnation']==2])
+        gate.validate_instance_history(rows)
+        print(f'D72: cleared/unchanged charges pass; {cases} appearing charges / surviving toggles reject',flush=True)
+
     def foreign_binding_rows(self,mutation,identity=8,first=False):
         """Review15 F1: OTHER's malformed enchant binding names OWNER's live instance."""
         rows=copy.deepcopy(self.rows)

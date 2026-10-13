@@ -598,10 +598,13 @@ def validate_instance_history(rows):
     count/revision unchanged. D71: at an incarnation boundary (the first
     observation of an instance under a later incarnation of its owner) exactly
     the transient `charges` field is exempt; slot/location and every other
-    canonical field must still match. The stored record advances from `after`
+    canonical field must still match. D72: at that boundary `charges` may only
+    CLEAR (become 0 or stay unchanged), never appear, and the owner's first
+    baseline of a later incarnation (after a live earlier incarnation was
+    observed) carries `auto_shots=[]`. The stored record advances from `after`
     only once its `before` has matched.
     """
-    canonical={};owners={};incarnations={};exhausted=set()
+    canonical={};owners={};incarnations={};exhausted=set();lives={};baselines=set()
     def strip(state,boundary):
         transient={'count','revision'}|({'charges'} if boundary else set())
         return {k:v for k,v in state.items() if k not in transient}
@@ -613,11 +616,20 @@ def validate_instance_history(rows):
     def observe(state,row):
         identity=state['id'];bind(identity,row['entity'])
         if identity in canonical:
+            previous=canonical[identity]
             boundary=row['incarnation']>incarnations[identity]
-            if strip(state,boundary)!=strip(canonical[identity],boundary):raise ValueError('instance identity drifted between observations')
+            if strip(state,boundary)!=strip(previous,boundary):raise ValueError('instance identity drifted between observations')
+            if boundary and state['charges'] not in (0,previous['charges']):
+                raise ValueError('shot charges appeared at re-admission (D72)')
         canonical[identity]=state;incarnations[identity]=row['incarnation']
     for row in rows[1:-1]:
-        data=row['data']
+        data=row['data'];life=(row['entity'],row['incarnation'])
+        if row['kind']=='item_baseline':
+            earlier=any(0<incarnation<row['incarnation'] for incarnation in lives.get(row['entity'],()))
+            if life not in baselines and earlier and data['auto_shots']!=[]:
+                raise ValueError('auto-shot toggles survived re-admission (D72)')
+            baselines.add(life)
+        lives.setdefault(row['entity'],set()).add(row['incarnation'])
         if row['kind']=='item_baseline':
             for state in data['instances']:observe(state,row)
         elif row['kind']=='item_formula' and data['formula']=='enchant_outcome':

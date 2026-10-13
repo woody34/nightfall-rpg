@@ -116,6 +116,12 @@ JSONL contract (schema version 1 of this sidecar):
   incarnations (toggles are off after relog). Slot/location (the paperdoll is
   retained, D16) and every other canonical field must still match, and within
   one incarnation `charges` is compared like any other field.
+  D72 narrows D71: at that boundary `charges` may only CLEAR — the new value
+  is 0 or unchanged; a charge that appears or changes kind refuses. The
+  owner's first `item_baseline` of a later incarnation, once an earlier live
+  incarnation (≥1) of that entity was observed in the recording, carries
+  `auto_shots=[]`. A recording whose first observation of the owner is
+  already a later incarnation (snapshot start) is not a re-admission.
   Owner binding and the D68 cap also apply to a malformed (non-canonical)
   enchant before binding whose `id` is a positive integer, whichever owner is
   being evaluated.
