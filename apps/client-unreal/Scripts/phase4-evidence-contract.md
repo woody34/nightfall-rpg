@@ -384,20 +384,20 @@ design `docs/plans/phase-4-zone-design.md` §12.1 and the producer in
 
 | Family | Producer caller / `context.event` | `inputs` (beyond the oracle signature) | `actual` |
 |---|---|---|---|
-| `bow_launch` | bow attack start, `attack` (+`weapon_template`, `target_entity`) | `weapon` = E1 bow_definition record; `inventory` = ITEM records of candidate arrows; `lhand` occupied arrow id or null; `mp`, `mp_modifier` exact; `reduction_residue` null iff no reduced-MP draw; `miss`; `reuse_remaining` TICKS (D88); `hit_chance` per-mille clamped to [200, 980], hit iff `hit_residue <= hit_chance` (calcHitMiss; D88's `<` revoked); `hit_residue`, `critical_residue`, `spread_residue` (D87, required, null iff the draw was not taken, D89) | `{accepted, reason∈arrows/reuse/mp/launched, inventory, lhand, equipped_lhand, mp, mp_q, mp_paid, arrows_consumed∈0..1, draws, hit, mp_cost?}`; the launch's arrow debit is an `arrow:<resolution_id>` Consume cause |
+| `bow_launch` | bow attack start, `attack` (+`weapon_template`, `target_entity`) | `weapon` = E1 bow_definition record; `inventory` = ITEM records of candidate arrows; `lhand` occupied arrow id or null; `mp`, `mp_modifier` exact; `reduction_residue` null iff no reduced-MP draw; `miss`; `reuse_remaining` TICKS (D88); `hit_chance` per-mille clamped to [200, 980], hit iff `hit_residue <= hit_chance` (calcHitMiss; D88's `<` revoked); `hit_residue`, `critical_residue`, `spread_residue` (D87, required, null iff the draw was not taken, D89); `blocked` required boolean, true iff perfect shield block, then `spread_residue` is null (D108); RNG callsite `bow_reduced_mp` bound 100 for reduced_mp_consume bows (D109) | `{accepted, reason∈arrows/reuse/mp/launched, inventory, lhand, equipped_lhand, mp, mp_q, mp_paid, arrows_consumed∈0..1, draws, hit, mp_cost?}`; the launch's arrow debit is an `arrow:<resolution_id>` Consume cause |
 | `bow_reuse` | bow attack accepted, `attack` | `reuse_delay` (template ms), `attack_speed` exact P.Atk.Spd, `weapon_reuse_modifier` | whole ms `trunc(reuse·333/speed)` (D17) |
 | `bow_damage` | bow hit, `attack` | `formula` exact calcPhysDam, `dx_milli`, `dy_milli` signed milli-tiles | `{base, distance_l2_lower, distance_l2_upper, damage}`; bounds are certified 2^-bits rationals, D80 strings |
 | `pole_sequence` | pole swing, `attack` | `candidates` in attempt order `{eligible, hit, formula}`, `maximum` secondary count | per eligible attempt `{percent, hit, draws, base?, damage?}` (D25 85% ÷23/20) |
-| `dual_plan` | dual swing, `attack` | `hits` pair (hit iff residue <= `hit_chance`, chance in [200, 980], calcHitMiss), `formulas` pair, `second_valid`, `hit_residues` pair, `hit_chance`, `spread_radius`, `critical_residues` pair and `spread_residues` pair (D87, required, entry null iff that subhit's draw was not taken, D89) | `{plan, stored_second, applied=[first, second|null], second_recomputed, draws, refunded_draws}` |
+| `dual_plan` | dual swing, `attack` | `hits` pair (hit iff residue <= `hit_chance`, chance in [200, 980], calcHitMiss), `formulas` pair, `second_valid`, `hit_residues` pair, `hit_chance`, `spread_radius`, `critical_residues` pair and `spread_residues` pair (D87, required, entry null iff that subhit's draw was not taken, D89); `blocked` pair of booleans per subhit, true iff perfect block, then that subhit's spread entry is null (D108) | `{plan, stored_second, applied=[first, second|null], second_recomputed, draws, refunded_draws}` |
 | `magic_damage` | magic skill hit, `cast` (+`skill_id`, `target_entity`) | exact stats + shot flags + branch inputs; `first_success`/`second_success` null iff their draw was not taken; `is_pvp` required boolean (D89) | `{lower, upper, damage, damage_q, branch}` |
 | `heal` | heal effect, `cast` | power/m_atk/shot/grade inputs; `current_hp`, `remainder_q` before; `recoverable_hp` null = uncapped | `{amount, restoration_q, applied_q, current_hp, remainder_q, whole_credit, coefficient, static_bonus, root_lower, root_upper}` |
-| `gear_stats` | dirty rebuild, `equip`/`unequip`/`enchant`/`admission` (+`set_id`) | `class_file` pinned path, `level`, `equipment` `[template, enchant, slot, install_seq]`, `skill_refs` `[skill, rank, seq]` winning providers, `base_deltas`, `base_delta_sequence` | `{exact, root_expressions, q, getters, trace, base_stats, weapon_type, random_damage, spread_bound, enchant_hp, traits, weight}`, full dictionary, `trace` in oracle order (D90) |
+| `gear_stats` | dirty rebuild, `equip`/`unequip`/`enchant`/`admission` (+`set_id`) | `class_file` pinned path, `level`, `equipment` `[template, enchant, slot, install_seq]`, `skill_refs` `[skill, rank, seq]` winning providers, `base_deltas`, `base_delta_sequence` | `{q, getters, base_stats}`: q/getters = exactly the 11 folded stats (pAtk, mAtk, pDef, mDef, critRate, pAtkSpd, maxHp, maxMp, maxCp, mAtkSpd, runSpd), getters = trunc(q/Q); base_stats STR..MEN after deltas (D103) |
 | `set_shield_history` | set listener on slot mutation, `equip`/`unequip` + `set_id` | `previous`, `mutation∈remove/equip_shield/equip_chest`, `chest_present`, `matching_shield`, `complete`, `required_part` | boolean `shield_skill_active` after the mutation (D20) |
 | `clamp_no_heal` | dirty-rebuild clamp, event of the rebuild | `current`, `new_max` exact | `min(current,new_max)`; one fact per resource, `resolution_id` suffix `:hp|:mp|:cp` (D91) |
 | `charge_transition` | discharge/unequip, `attack`/`cast`/`unequip` | `charges` set before, `use_spirit`, `use_soul`, `landed`, `unequip` | sorted charges after; correlates with the D73 `use` row on the weapon |
 | `consumable_use` | UseItem acceptance, `cast` | `definition` (E1 item definition + skills), `tick`, `available` count map, reuse deadline maps, `main_casting`, `condition_context` | `{accepted, consumed, lanes, reason?, item_deadlines?, skill_deadlines?, main_cast_preserved?}`; accepted costs appear as Consume causes `receipt:use:<key>` |
 | `escape_timing` | Escape/Blessed Escape cast start, `cast` | `definition`, `start_tick`, `casting_speed`, `available`, `resources`, `incarnation` | `{accepted, inventory, consumed, draws, animation_ms?, launch_ms?, launch_tick?, completion_tick?, interrupt_cutoff_tick?, completion_consumed?, destination?, resources?, incarnation?, movement_canceled?, auto_canceled?, town_respawn?}` |
-| `resurrection_scroll` | scroll 737 cast + offer response, `cast` | `definition`, `start_tick`, `available`, death/current incarnation, `dead`, `response∈offer/accept/decline/expire`, `response_tick`, `response_offer_id`, `existing_offer`, `repeat`, resources, `restore_percent`, `restore_hp` ratio | `{accepted, consumed, inventory, draws, reason?, completion_consumed?, offer?, trace?, dead?, incarnation?, hp?, hp_q?, mp?, cp?, xp_refund?, recoverable_xp?}`; one fact on the resurrection-applied tick under the intent's resolution id (D92) |
+| `resurrection_scroll` | scroll 737 cast + offer response, `cast` | `definition`, `start_tick`, `available`, death/current incarnation, `dead`, `response∈offer/accept/decline/expire`, `response_tick`, `response_offer_id`, `existing_offer`, `repeat`, resources, `restore_percent`, `restore_hp` ratio | `{accepted, consumed, inventory, draws, reason?, completion_consumed?, offer?, trace?, dead?, incarnation?, hp?, hp_q?, mp?, cp?, xp_refund?, recoverable_xp?}`; one fact on the resurrection-applied tick under the intent's resolution id (D92); HP Q-floor, recorded offer_id, MP preserved or the engine respawn floor as a recorded deviation, optional `max_mp`/`restore_mp` inputs (D104) |
 | `learned_item_cost` | learned skill with itemConsume, `cast` | `skill_id`, `rank`, `consume_id`, `consume_count`, `inventory` ITEM records, `phase∈complete/cancel`, `repeat` | `{accepted, inventory, consumed, draws, completion_consumed?, repeated_consumed?, phase?}`; debits are `item_cast:cast:<id>` Consume causes |
 | `lethal` | blow skill, `cast` | D81 nullable residues | `{outcome∈none/full/half, draws}` |
 
@@ -445,12 +445,13 @@ verified by exact oracle equality on the producer's actual inputs.
   attacker). Booleans that are always evaluated are never null:
   `magic_damage.is_pvp` is a plain boolean and REQUIRED (review-2 P3-4), even
   though the oracle has a default for it.
-- D90 (Q-F4): the `gear_stats` producer emits the oracle's FULL dictionary
-  (`exact, root_expressions, q, getters, trace, base_stats, weapon_type,
-  random_damage, spread_bound, enchant_hp, traits, weight`), with `trace` rows
-  in oracle order (function order, then install sequence, then
-  (effect, child) ordinal). Missing/extra keys refuse by schema; reordered or
-  dropped trace rows refuse by exact oracle equality.
+- D90 (Q-F4), amended by D103: a `gear_stats` fact's `actual` is exactly
+  `{q, getters, base_stats}`. `q` and `getters` (trunc q/Q) each carry exactly
+  the 11 engine-folded stats `pAtk, mAtk, pDef, mDef, critRate, pAtkSpd,
+  maxHp, maxMp, maxCp, mAtkSpd, runSpd`; `base_stats` carries `STR, DEX, CON,
+  INT, WIT, MEN` after set/skill deltas. The consumer compares exactly these
+  keys with the oracle's `q`/`getters`/`base_stats`. `exact`, the fold `trace`
+  and every other oracle key are not part of the fact and refuse if present.
 - D91 (Q-F5): every `clamp_no_heal` fact's `resolution_id` is
   `<rebuild resolution>:hp|:mp|:cp` (lowercase, nonempty prefix), so the HP,
   MP and CP clamps of one rebuild are distinct formula identities.
@@ -479,3 +480,27 @@ verified by exact oracle equality on the producer's actual inputs.
   A use row with any discharge cause may only CLEAR charge bits
   (`after.charges & ~before.charges == 0`); only a receipt-bound use (manual
   shot charge) may add them.
+- D104 (Q-Z8-2): `resurrection_scroll` follows the engine's accepted Phase 3
+  resurrection semantics. On acceptance HP = max(current, floor at Q resolution
+  of `max_hp × restore_hp`); the exact rational and any ceiling refuse.
+  `offer_id` comes from the recording (the `offered` trace event; a positive
+  integer) and the response is matched against it, never against a
+  hard-coded 1. MP: the Phase 3 zone design §1.2 (pinned
+  `L2PcInstance.doRevive`, `RespawnRestoreMP` default 0) specifies NO MP
+  restore — current MP is preserved. The engine raises MP to its respawn
+  floor; that is recorded as a KNOWN Phase 3 DEVIATION (to be re-examined, not
+  changed in Phase 4) and accepted as exactly `max(mp, floor(max_mp ×
+  restore_mp))` when the optional inputs `max_mp`/`restore_mp` are emitted,
+  otherwise as any raise; an MP decrease refuses.
+- D108 (engine-review-4): on a perfect shield block the spread draw is not
+  taken. `bow_launch.inputs.blocked` (boolean) and `dual_plan.inputs.blocked`
+  (one boolean per subhit — harness reading of D108 for the two-subhit
+  family) are REQUIRED; blocked is true iff that hit was perfectly blocked,
+  requires a landed hit, and then the corresponding spread residue is null
+  (D89). The consumer passes `blocked` to the oracle when its signature takes
+  it; otherwise it gives the oracle a placeholder spread residue and drops the
+  blocked spread draw from the expected `draws`.
+- D109: item_rng callsite `bow_reduced_mp` (pinned `Rnd.get(100)` of the 21
+  reduced_mp_consume bows) is accepted. Callsites with pinned bounds are
+  checked (`enchant` 100000, `bow_reduced_mp` 100); other callsites remain
+  accepted as before.

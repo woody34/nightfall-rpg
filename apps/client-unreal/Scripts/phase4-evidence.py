@@ -212,13 +212,14 @@ INPUT_SCHEMAS={
     'bow_launch':dict(weapon=WEAPON,inventory=list_of(ITEM),lhand=nullable(IDENTITY),mp=NONNEG_NUMERIC,
         mp_modifier=NONNEG_NUMERIC,reduction_residue=nullable(int_range(0,99)),miss=BOOL,
         reuse_remaining=NONNEG_INT,hit_chance=int_range(200,980),hit_residue=nullable(int_range(0,999)),
-        critical_residue=nullable(int_range(0,999)),spread_residue=nullable(NONNEG_INT)),
+        critical_residue=nullable(int_range(0,999)),spread_residue=nullable(NONNEG_INT),blocked=BOOL),
     'bow_refill':dict(weapon=WEAPON,arrow=ITEM,mp=NONNEG_NUMERIC),
     'resurrection_scroll':dict(definition=DEFINITION,start_tick=NONNEG_INT,available=NONNEG_INT,
         death_incarnation=IDENTITY,current_incarnation=IDENTITY,dead=BOOL,
         response=enum('offer','accept','decline','expire'),response_tick=NONNEG_INT,response_offer_id=nullable(IDENTITY),
         existing_offer=nullable(OFFER),repeat=BOOL,hp=NONNEG_NUMERIC,max_hp=NONNEG_NUMERIC,mp=NONNEG_NUMERIC,
-        cp=NONNEG_NUMERIC,recoverable_xp=NONNEG_INT,restore_percent=NONNEG_NUMERIC,restore_hp=('exact-numeric',0,1)),
+        cp=NONNEG_NUMERIC,recoverable_xp=NONNEG_INT,restore_percent=NONNEG_NUMERIC,restore_hp=('exact-numeric',0,1),
+        max_mp=NONNEG_NUMERIC,restore_mp=('exact-numeric',0,1)),
     'dormant_use':dict(template_id=TEMPLATE,properties=map_of(TEXT,TEXT),inventory=list_of(ITEM),
         selected_instance=IDENTITY,paperdoll=map_of(SLOT,IDENTITY),allocator_next=IDENTITY,reuse=COUNT_MAP),
     'learned_item_cost':dict(skill_id=TEMPLATE,rank=TEMPLATE,consume_id=U32,consume_count=NONNEG_INT,
@@ -228,7 +229,7 @@ INPUT_SCHEMAS={
     'dual_plan':dict(hits=tuple_of(BOOL,BOOL),formulas=tuple_of(NUMERIC,NUMERIC),second_valid=BOOL,
         hit_residues=tuple_of(int_range(0,999),int_range(0,999)),hit_chance=int_range(200,980),spread_radius=NONNEG_INT,
         critical_residues=tuple_of(nullable(int_range(0,999)),nullable(int_range(0,999))),
-        spread_residues=tuple_of(nullable(NONNEG_INT),nullable(NONNEG_INT))),
+        spread_residues=tuple_of(nullable(NONNEG_INT),nullable(NONNEG_INT)),blocked=tuple_of(BOOL,BOOL)),
     'enchant_safe':dict(current=U32,fullarmor=BOOL,safe_enchant=U32,safe_fullarmor=U32,
         base=NONNEG_NUMERIC,residue=int_range(0,99999)),
     'quantized_enchant':dict(base=NONNEG_NUMERIC,bonus=NONNEG_NUMERIC,support=NONNEG_NUMERIC),
@@ -357,6 +358,8 @@ def decode_data(kind,data):
 ANY=('any',)
 SIGNED=('int',-2**63,I64_MAX)
 DRAW=record(dict(site=TEXT,bound=IDENTITY,residue=NONNEG_INT))
+GEAR_STATS=('pAtk','mAtk','pDef','mDef','critRate','pAtkSpd','maxHp','maxMp','maxCp','mAtkSpd','runSpd')
+GEAR_BASE_STATS=('STR','DEX','CON','INT','WIT','MEN')
 ACTUAL_SCHEMAS={
     'pole_sequence':list_of(record(dict(percent=NONNEG_NUMERIC,hit=BOOL,draws=list_of(enum('shield','critical','spread'))),
         dict(base=SIGNED,damage=SIGNED))),
@@ -368,9 +371,11 @@ ACTUAL_SCHEMAS={
     'heal':record(dict(amount=NONNEG_NUMERIC,restoration_q=NONNEG_INT,applied_q=NONNEG_INT,current_hp=NONNEG_INT,
         remainder_q=int_range(0,oracle.Q-1),whole_credit=NONNEG_INT,coefficient=NONNEG_NUMERIC,static_bonus=NONNEG_NUMERIC,
         root_lower=NONNEG_NUMERIC,root_upper=NONNEG_NUMERIC)),
-    'gear_stats':record(dict(exact=map_of(TEXT,NUMERIC),root_expressions=map_of(TEXT,ANY),q=map_of(TEXT,SIGNED),
-        getters=map_of(TEXT,SIGNED),trace=list_of(ANY),base_stats=map_of(TEXT,NONNEG_INT),weapon_type=WEAPON_TYPE,
-        random_damage=NONNEG_INT,spread_bound=IDENTITY,enchant_hp=NONNEG_NUMERIC,traits=list_of(ANY),weight=NONNEG_INT)),
+    # D103 (amends D90): only the 11 engine-folded stats as q and getters (trunc q/Q) plus the
+    # six base stats after set/skill deltas; `exact`, the fold trace and other oracle keys are
+    # not part of the fact.
+    'gear_stats':record(dict(q=record({k:SIGNED for k in GEAR_STATS}),getters=record({k:SIGNED for k in GEAR_STATS}),
+        base_stats=record({k:NONNEG_INT for k in GEAR_BASE_STATS}))),
     'set_shield_history':BOOL,
     'clamp_no_heal':NONNEG_NUMERIC,
     'charge_transition':list_of(CHARGE),
@@ -455,6 +460,8 @@ def validate_input(value,schema,path,bounds=False):
 # parameters the consumer runs the oracle and substitutes the actual residues by draw site;
 # neither residue changes any other output (damage enters through `formulas`).
 RESIDUE_INPUTS={'bow_launch':('critical_residue','spread_residue'),'dual_plan':('critical_residues','spread_residues')}
+# D108: a perfect shield block takes no spread draw; `blocked` (bow) / per-subhit pair (dual).
+BLOCK_INPUTS={'bow_launch':('blocked',),'dual_plan':('blocked',)}
 
 
 # E1 data revisions whose oracle predates D87/D88 (rules_manifest data_sha256: rev 7, rev 8).
@@ -484,15 +491,34 @@ def residue_family(name,inputs):
     hit_rule(name,inputs)
     decoded=oracle.decode_rationals(inputs)
     extra={key:decoded.pop(key) for key in RESIDUE_INPUTS[name]}
+    blocked=decoded.pop('blocked')
+    # D108: blocked spread sites; a perfect block needs a landed hit and leaves its spread null.
+    if name=='bow_launch':
+        if blocked and decoded['miss']:raise ValueError('a missed bow shot cannot be perfectly blocked (D108)')
+        blocked_sites={'spread'} if blocked else set()
+        if blocked and extra['spread_residue'] is not None:raise ValueError('a perfectly blocked hit takes no spread draw (D108/D89)')
+    else:
+        if any(b and not h for b,h in zip(blocked,decoded['hits'])):raise ValueError('a missed subhit cannot be perfectly blocked (D108)')
+        blocked_sites={f'spread{i}' for i,b in enumerate(blocked,1) if b}
+        if any(b and v is not None for b,v in zip(blocked,extra['spread_residues'])):raise ValueError('a perfectly blocked subhit takes no spread draw (D108/D89)')
     function=getattr(oracle.behavior,name)
+    parameters=inspect.signature(function).parameters
+    def unblocked(result):
+        result['draws']=[d for d in result['draws'] if d['site'] not in blocked_sites]
+        return result
     if oracle_adopted_d87(name):
         # Rev 9 path (D96): E1 takes the residues as parameters; pass straight through.
-        result=function(**decoded,**extra)
+        if 'blocked' in parameters:result=function(**decoded,**extra,blocked=blocked)
+        else:
+            # Oracle without D108: give the blocked spread draw a placeholder, then drop that draw.
+            if name=='bow_launch' and blocked and decoded['weapon']['spread_radius']>0:extra['spread_residue']=0
+            if name=='dual_plan':extra['spread_residues']=[0 if b else v for b,v in zip(blocked,extra['spread_residues'])]
+            result=unblocked(function(**decoded,**extra))
         if name in DRAW_FIELDS:draw_fields(name,inputs,result)
         return result
     if source_data_sha256() not in PRE_D87_DATA:
         raise ValueError('E1 data is newer than rev 8 but its oracle lacks the D87 residue parameters (D96)')
-    result=function(**decoded)
+    result=unblocked(function(**decoded))
     if name=='bow_launch':sites={'critical':extra['critical_residue'],'spread':extra['spread_residue']}
     else:
         sites={f'{kind}{index}':extra[kind+'_residues'][index-1] for kind in ('critical','spread') for index in (1,2)}
@@ -512,6 +538,15 @@ def source_data_sha256():
     return table('rules_manifest')['data_sha256']
 
 
+# Item RNG callsites with pinned bounds. D109: `bow_reduced_mp` (Rnd.get(100), the
+# reduced_mp_consume roll of the 21 such bows) appears in bow recordings.
+CALLSITE_BOUNDS={'enchant':100000,'bow_reduced_mp':100}
+
+
+# D104: optional harness inputs beyond the E1 signature (engine MP respawn floor operands).
+EXTRA_INPUTS={'resurrection_scroll':('max_mp','restore_mp')}
+
+
 # Review-2 P3-4 (D89): always-evaluated booleans the producer must emit even though the
 # oracle has a default for them.
 REQUIRED_INPUTS={'magic_damage':('is_pvp',)}
@@ -523,7 +558,7 @@ def input_domains(name,inputs):
     if function:
         parameters=inspect.signature(function).parameters
         required={key for key,p in parameters.items() if key!='src' and p.default is inspect.Parameter.empty}
-        required|=set(RESIDUE_INPUTS.get(name,()))|set(REQUIRED_INPUTS.get(name,()))
+        required|=set(RESIDUE_INPUTS.get(name,()))|set(REQUIRED_INPUTS.get(name,()))|set(BLOCK_INPUTS.get(name,()))
     else:required=set(INPUT_SCHEMAS[name])
     schema=record({k:INPUT_SCHEMAS[name][k] for k in required},
                   {k:v for k,v in INPUT_SCHEMAS[name].items() if k not in required})
@@ -618,7 +653,7 @@ def formula(name,inputs,actual):
         class_file=inputs['class_file']
         if not re.fullmatch(r'src/main/resources/data/stats/chars/baseStats/[A-Za-z]+\.xml',class_file):raise ValueError('invalid pinned class file')
         calculated=oracle.rational(oracle.gear_stats(source(),**oracle.decode_rationals(inputs)))
-        same(actual,calculated)
+        same(actual,gear_fact(calculated))
     elif name=='sa_exchange':
         required={'recipe_id','before_instance','after_instance','ingredients_before','ingredients_after','tax_rate'}
         if set(inputs)!=required:raise ValueError('incomplete SA inputs')
@@ -653,6 +688,8 @@ def formula(name,inputs,actual):
         same(actual,{'unchanged':True})
     elif name in RESIDUE_INPUTS:
         same(actual,oracle.rational(residue_family(name,inputs)))
+    elif name=='resurrection_scroll':
+        same(actual,oracle.rational(resurrection_expected(inputs,actual)))
     else:
         function=getattr(oracle,name,None) or getattr(oracle.behavior,name,None)
         if name=='magic_damage':magic_draws(inputs)
@@ -689,6 +726,54 @@ def magic_draws(inputs):
     second=first and inputs.get('first_success') is False and inputs.get('attacker_player',True)
     for key,taken in (('first_success',first),('second_success',second)):
         if (inputs.get(key) is None)==taken:raise ValueError('magic_damage '+key+' must be null iff its draw was not taken (D89)')
+
+
+def gear_fact(calculated):
+    """D103: the compared projection of the oracle's gear_stats dictionary."""
+    return dict(q={k:calculated['q'][k] for k in GEAR_STATS},getters={k:calculated['getters'][k] for k in GEAR_STATS},
+                base_stats={k:calculated['base_stats'][k] for k in GEAR_BASE_STATS})
+
+
+def resurrection_expected(inputs,actual):
+    """D104: the accepted Phase 3 resurrection semantics over the E1 oracle.
+
+    * offer_id comes from the recording (the actual `offered` event), never the oracle's
+      hard-coded 1; the response is matched against that recorded id.
+    * HP on acceptance = max(current, floor_Q(max_hp × restore_hp)) at Q resolution.
+    * MP: the Phase 3 zone design §1.2 (pinned doRevive, RespawnRestoreMP default 0) preserves
+      current MP. The engine raises MP to its respawn floor; that is a recorded Phase 3
+      deviation, accepted only as max(mp, floor(max_mp × restore_mp)) when those operands are
+      given, otherwise as any raise above the current MP — never a decrease.
+    """
+    decoded=oracle.decode_rationals({k:v for k,v in inputs.items() if k not in EXTRA_INPUTS['resurrection_scroll']})
+    recorded=None
+    if isinstance(actual,dict) and isinstance(actual.get('trace'),list):
+        offered=[e for e in actual['trace'] if isinstance(e,dict) and e.get('event')=='offered']
+        if offered:
+            recorded=offered[0].get('offer',{}).get('offer_id') if isinstance(offered[0].get('offer'),dict) else None
+            if type(recorded) is not int or recorded<1:raise ValueError('resurrection offer_id must come from the recording (D104)')
+    call=dict(decoded)
+    if recorded is not None and decoded['existing_offer'] is None:
+        response=decoded['response_offer_id']
+        call['response_offer_id']=1 if response==recorded else (2**63-1 if response==1 else response)
+    result=oracle.behavior.resurrection_scroll(**call)
+    if recorded is not None and decoded['existing_offer'] is None:
+        def relabel(offer):
+            if isinstance(offer,dict) and offer.get('offer_id')==1:offer['offer_id']=recorded
+        relabel(result['offer'])
+        for event in result['trace']:relabel(event.get('offer'))
+    if any(event['event']=='accepted' for event in result.get('trace',())):
+        floor_q=oracle.F(decoded['max_hp'])*oracle.F(decoded['restore_hp'])*oracle.Q//1
+        result['hp']=max(oracle.F(decoded['hp']),oracle.F(int(floor_q),oracle.Q));result['hp_q']=int(result['hp']*oracle.Q)
+        mp=oracle.F(decoded['mp']);seen=actual.get('mp') if isinstance(actual,dict) else None
+        seen=oracle.exact(oracle.decode_rationals(seen)) if seen is not None else mp
+        if seen!=mp:
+            if 'max_mp' in inputs and 'restore_mp' in inputs:
+                floor_mp=int(oracle.exact(oracle.decode_rationals(inputs['max_mp']))*oracle.exact(oracle.decode_rationals(inputs['restore_mp'])))
+                if seen!=max(mp,oracle.F(floor_mp)):raise ValueError('resurrection MP is neither preserved nor the engine respawn floor (D104)')
+            elif seen<mp:raise ValueError('resurrection may not lower MP (D104)')
+            result['mp']=seen # recorded Phase 3 deviation (engine respawn-floor MP)
+    return result
 
 
 @lru_cache(maxsize=None)
@@ -1050,6 +1135,8 @@ def validate(rows,recording,rules_hash):
             if after<=before or cursor is not None and before!=cursor or value>=bound:raise ValueError('invalid RNG cursor/residue')
             cursor=after
             if not isinstance(data['callsite'],str) or not data['callsite']:raise ValueError('RNG callsite required')
+            # Known callsites have pinned bounds; other callsites stay accepted (draw table, D46).
+            if data['callsite'] in CALLSITE_BOUNDS and bound!=CALLSITE_BOUNDS[data['callsite']]:raise ValueError('RNG callsite bound mismatch: '+data['callsite'])
         elif row['kind']=='item_delta':
             receipt_field='receipt_refs' if data.get('operation')=='consume' else 'receipt_ref'
             fields={'operation','instance','before','after','count_delta','operation_ordinal',receipt_field,'resolution_id'}
