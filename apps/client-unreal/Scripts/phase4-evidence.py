@@ -849,7 +849,8 @@ ITEM_TRANSITIONS={
     'cancel_refine':('retain',frozenset({'augment_id'})),
     # D73: a shot discharge (or any use that changes only `charges`) is count-neutral.
     'use':('retain',frozenset({'charges'})),
-    'destroy':('remove',frozenset()),
+    # D100: a Destroy may be partial (a non-terminal count debit); a whole Destroy removes.
+    'destroy':('debit',frozenset({'count'})),
     'crystallize':('remove',frozenset()),
     'grant':('positive',frozenset({'count'})),
     'starter':('create',frozenset()),
@@ -858,7 +859,6 @@ ITEM_TRANSITIONS={
 
 
 TERMINAL=frozenset(('destroy','crystallize'))
-PRE_CONSUME=frozenset(('grant','starter','backfill','equip','unequip','enchant','refine','cancel_refine','use'))
 CAUSE=re.compile(r'(?:auto_shot|arrow|item_cast):\S+|receipt:[^:\s]+:\S+')
 # D93: discharges (use rows) name their own family; payment causes stay Consume-only.
 USE_CAUSE=re.compile(r'shot_discharge:\S+|cast_discharge:[1-9][0-9]*|receipt:[^:\s]+:\S+')
@@ -888,6 +888,9 @@ def validate_transition(data):
         if after is None or delta<=0:raise ValueError('grant must add a positive count to a canonical instance')
     elif shape=='remove':
         if before is None or after is not None:raise ValueError(operation+' must remove the instance')
+    elif shape=='debit':
+        if before is None or delta>=0:raise ValueError(operation+' must debit an existing instance')
+        if after is not None and after['count']<=0:raise ValueError(operation+' partial debit must leave a positive count')
     elif shape=='consume':
         if before is None or delta>=0:raise ValueError('consume must debit an existing instance')
         remaining=before['count']+delta
@@ -1200,16 +1203,16 @@ def validate(rows,recording,rules_hash):
             if delta['operation_ordinal']!=ordinal:raise ValueError('operation_ordinal is not the chain row position (D76/D83)')
         # D94 (amends D69/D76): [non-terminal rows..., Consume aggregate, <=1 terminal row].
         # Terminal rows (Destroy/Crystallize; Phase 5 whole transfer-out) end the chain.
-        terminals=[index for index,delta in enumerate(deltas) if delta['operation'] in TERMINAL]
+        terminals=[index for index,delta in enumerate(deltas) if delta['operation'] in TERMINAL and delta['after'] is None]
         if len(terminals)>1 or terminals and terminals[0]!=len(deltas)-1:raise ValueError('at most one terminal row, last in its chain (D94)')
         body=deltas[:-1] if terminals else deltas
         consumes=[delta for delta in body if delta['operation']=='consume']
         if len(consumes)!=len([d for d in deltas if d['operation']=='consume']):raise ValueError('Consume aggregate must precede the terminal row (D94)')
         if not consumes:continue
         if len(consumes)!=1 or body[-1] is not consumes[0]:raise ValueError('Consume aggregate must be last before any terminal row (D94)')
-        # D69: positive AND count-neutral retained rows precede the Consume aggregate in cause
-        # order; continuity is checked by inventory_history.
-        if any(d['operation'] not in PRE_CONSUME for d in body[:-1]):raise ValueError('only positive or count-neutral rows may precede Consume')
+        # D69/D100: any non-terminal rows (credits, count-neutral rows and non-Consume debits such
+        # as a partial Destroy, in either order) precede the Consume aggregate; only the D94 shape
+        # and the D74 caps constrain order, continuity is checked by inventory_history.
     validate_terminal_facts(rows)
     validate_exchanges(rows)
     validate_instance_history(rows)

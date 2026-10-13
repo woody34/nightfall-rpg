@@ -300,6 +300,9 @@ class Evidence(unittest.TestCase):
                 data=dict(receipt_refs=[],causes=[dict(cause='auto_shot:attack:1',count_delta=-2)],resolution_id='attack:1')
             elif operation=='grant':
                 after=before|{'count':before['count']+1,'revision':1};data=dict(receipt_ref='receipt:grant:1',resolution_id='grant:1')
+            elif operation=='dp': # D100 partial Destroy
+                after=before|{'count':before['count']-1,'revision':1};data=dict(receipt_ref='receipt:destroy:p',resolution_id='destroy:p')
+                operation='destroy'
             else:
                 after=None;data=dict(receipt_ref=f'receipt:{operation}:1',resolution_id=f'{operation}:1')
             data.update(operation=operation,instance=100,before=before,after=after,
@@ -309,6 +312,25 @@ class Evidence(unittest.TestCase):
             # rule (not only continuity) is what must refuse them.
             state=after if after is not None else before
         return self.repair(rows)
+
+    def test_d100_non_consume_debits_in_any_order_before_consume(self):
+        # The zone's real tick shapes (1b50975): [Dp, C], [C, T], [E/G, C, T], plus [Dp, Crystallize].
+        controls=(['dp','consume'],['dp','grant','consume'],['grant','dp','consume'],['dp','grant'],['dp','destroy'],
+                  ['dp','crystallize'],['dp','consume','destroy'],['dp','dp','consume'],['dp'])
+        for operations in controls:
+            with self.subTest(control=operations):
+                rows=self.d94_rows(operations,count=9);gate.validate(rows,self.recording,HASH)
+                self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['pole_damage'],HASH)['passed'])
+        mutations=(['consume','dp'],['dp','destroy','dp'],['destroy','dp'])
+        for operations in mutations:
+            with self.subTest(mutation=operations):
+                with self.assertRaises(ValueError):gate.validate(self.d94_rows(operations,count=9),self.recording,HASH)
+        # A partial Destroy debits only the count, to a positive remainder.
+        bad=self.d94_rows(['dp','consume'],count=9);bad[3]['data']['after']['enchant']=1
+        with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
+        bad=self.d94_rows(['dp'],count=9);bad[3]['data'].update(count_delta=1);bad[3]['data']['after']['count']=10
+        with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
+        print(f'D100: {len(controls)} non-Consume debit/credit orders pass (incl. [Dp, C], [Dp, Crystallize]); {len(mutations)+2} shape/field mutations reject',flush=True)
 
     def test_d94_consume_then_one_terminal_row(self):
         controls=(['consume','destroy'],['consume','crystallize'],['grant','consume','destroy'],['grant','destroy'],
