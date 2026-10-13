@@ -9834,15 +9834,29 @@ mod tests {
             instance,
             preferred_slot: None,
         };
+        // The fixture wears the full set; break it (legs) and take the chest off first so the
+        // 4-armor-set phases see an incomplete set.
+        step(
+            &mut run,
+            K::Unequip {
+                slot: EquipSlot::Legs,
+            },
+        ); // remove of a required part
+        step(
+            &mut run,
+            K::Unequip {
+                slot: EquipSlot::Chest,
+            },
+        ); // no chest: no set transition
         step(&mut run, equip(ids[1])); // shield first: no chest, no set transition
-        step(&mut run, equip(ids[0])); // shield-then-chest: equip_chest, history false
+        step(&mut run, equip(ids[0])); // shield-then-chest: equip_chest, incomplete, false
         step(
             &mut run,
             K::Unequip {
                 slot: EquipSlot::Lhand,
             },
         ); // remove
-        step(&mut run, equip(ids[1])); // chest-then-shield: equip_shield, history true
+        step(&mut run, equip(ids[1])); // chest-then-shield: equip_shield, incomplete, true
         step(&mut run, equip(ids[2])); // maxMp +26: clamp_no_heal (no heal)
         step(
             &mut run,
