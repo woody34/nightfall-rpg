@@ -52,12 +52,14 @@ def casting_scenario(waypoints):
 
 def item_scenario(scenario, seed, key):
     # Same explicit key repeats the frozen success on BotLoop; never spends a second scroll.
-    c_weapon = next(r for r in seed['inventory'] if r['template_id'] == 71)
+    if sum(r['template_id'] == 71 for r in seed['inventory']) != 1:
+        raise ValueError('soak item role needs exactly one C sword 71 (template-addressed enchant)')
     lines = [
         '# Phase4 equipment test inputs: phase4-packs.json; admitted min NG sword1 and C sword71.',
         '# Added waits are owner delivery10ticks*100ms*3=3s each (A1); sum+30s grace below.',
         'nf.WaitFor item_baseline 3',
-        f'nf.Enchant 951 instance:{c_weapon["instance_id"]} {key}',
+        # D112: server-allocated instance ids; the C sword 71 is unique in every soak role.
+        f'nf.Enchant 951 template:71 {key}',
         'nf.WaitFor enchant_result_consistent 3', 'nf.Expect inventory_has 951 == 0',
         'nf.Equip 1', 'nf.WaitFor equipped rhand == 1 3',
         'nf.AutoShot 5789 on', 'nf.WaitFor autoshot_on 5789 3',

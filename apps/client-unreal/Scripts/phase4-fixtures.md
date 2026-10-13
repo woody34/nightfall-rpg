@@ -173,12 +173,19 @@ results but preserves a scoped first-receipt comparison history for explicit ret
 Fixtures: `phase4-packs.json` publishes exact role inputs and source citations;
 counts/enchant/level/SP/position are declared test inputs, not production constants.
 All kit extras/equipped flags come from starter_kits.toml; capacity/blacksmith
-policy comes from capacities.toml. Item identity uses fixture low block [1,2^32),
-per-role disjoint slices and next=max(seed ID)+1; production item_id_ranges starts
-at 2^32 (D8). SQL never inserts that low block into the production range table.
-Pending E2 admission interface must record the seed allocator and runtime rules
-hash; data_sha256 is not the runtime hash. Missing admission support refuses live
-execution. Blacksmith is at (124,128), design §7; tax0 is hashed fixture policy.
+policy comes from capacities.toml. Pack `instance_id`s are pack-local labels.
+Provisioning (D112, `infra/scripts/seed-phase4-fixture.py`): before API startup the
+Phase 3 character seed plus a re-run of the frozen pending-kit backfill
+(m20261012_000011); no item, ledger or allocator rows. After the owned API is
+healthy and before any login (`phase2-fixture.py grant`, inside the startup
+allowance): one dev GrantItem gRPC per (role, item) via `buf curl`, deterministic
+UUIDv5 keys, serial per character; the first grant materializes the kit. Admission
+is confirmed from the offline GetInventory baseline (every template/count/enchant/
+slot must equal the pack) and the server-allocated ids are recorded as
+`instance_map`; the bot runs a scenario copy whose `instance:N` labels are mapped
+(`phase2-fixture.py scenario`). Pack rows with enchant/charges/augment, or items
+equipped beyond the kit, have no GrantItem transport and refuse before any write.
+Blacksmith is at (124,128), design §7; tax0 is hashed fixture policy.
 
 Live grammar compatibility is separately checked by sim-parser-check.py against
 C++ registration. Publication/parser tests cannot attest that E5 has landed.

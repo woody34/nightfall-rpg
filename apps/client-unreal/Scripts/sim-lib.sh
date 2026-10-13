@@ -217,6 +217,11 @@ sim_expand_scenarios() {
 # Echoes NUL-free, space-safe args via the SIM_BOT_CMD array.
 sim_bot_cmd() {
   local scenario="$1"; shift
+  if [[ -n "${SIM_FIXTURE_DIR:-}" ]]; then
+    # Phase 4 packs: run the copy whose pack instance ids map to the granted server ids.
+    scenario="$(python3 "$SIM_HERE/phase2-fixture.py" scenario --folder "$SIM_FIXTURE_DIR" "$scenario")" \
+      || sim_die "invalid Phase4 scenario instance mapping"
+  fi
   SIM_BOT_CMD=()
   local bin; bin="$(sim_bot_bin)"
   SIM_BOT_CMD+=("$bin")
@@ -535,6 +540,13 @@ sim_unit_prepare() {
       sim_api_endpoint_probe owned || sim_die "fixture API ownership verification failed"
       SIM_API_URL="${endpoints[2]}" sim_api_endpoint_probe owned || sim_die "fixture gRPC ownership verification failed"
       kill -0 "$SIM_STARTED_API_PID" 2>/dev/null || sim_die "fixture API exited during startup"
+      if [[ "$selected" == phase4-* ]]; then
+        # D112: grant the pack through the dev GrantItem gRPC before any client logs in, within
+        # the same startup allowance; any refusal fails provisioning loudly.
+        local remaining=$((deadline - SECONDS)); ((remaining > 0)) || sim_die "no startup budget left for the Phase4 grant"
+        timeout --kill-after=5 "$remaining" python3 "$SIM_HERE/phase2-fixture.py" grant --folder "$SIM_FIXTURE_DIR" \
+          || sim_die "Phase4 fixture grant failed (see $SIM_FIXTURE_DIR/grant.log)"
+      fi
       return 0
     fi
     sleep 1

@@ -127,6 +127,15 @@ for ((i=0; i<180; i++)); do
   sleep 1
 done
 curl -fsS -m 2 "http://localhost:$HTTP_PORT/health" >/dev/null || sim_die "API startup timed out"
+if ((ITEMS)); then
+  # D112: grant every role's pack items through the dev GrantItem gRPC (after the pre-API
+  # characters + pending-kit seed), confirming admission offline, before the clients start.
+  DATABASE_URL="postgres://nightfall:nightfall@localhost:$((5432 + OFFSET))/$SOAK_DB" \
+    AUTH_DEV_TOKENS=1 NIGHTFALL_PHASE4_FIXTURE=1 \
+    timeout --kill-after=5 300 python3 "$SIM_REPO/infra/scripts/seed-phase4-soak.py" --manifest "$OUT/fixtures/roles.json" \
+    --grant --grpc "127.0.0.1:$GRPC_PORT" >"$OUT/grant.log" 2>&1 \
+    || sim_die "Phase4 soak grant failed; see $OUT/grant.log"
+fi
 ROLE_ARGS=(); if ((CASTING)); then
   ROLE_ARGS+=("-SoakRoleManifest=$OUT/fixtures/roles.json")
   if ((ITEMS)); then ROLE_ARGS+=("-SoakScenarioSeconds=600"); else ROLE_ARGS+=("-SoakScenarioSeconds=360"); fi

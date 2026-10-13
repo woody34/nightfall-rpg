@@ -383,7 +383,7 @@ def validate_seed(folder, selected, owner, observer):
         raise ValueError('seeder did not publish its fixture manifest')
     seed = records[-1]
     if selected in PHASE4:
-        phase4.validate_seed_manifest(seed, selected, owner, observer, REPO, 'observer' in state(folder)['seed_inputs'])
+        phase4.validate_seed_manifest(seed, selected, owner, observer, REPO, 'observer' in state(folder)['seed_inputs'], 'pre-admission')
         if seed.get('data_sha256') != state(folder)['data_sha256']:
             raise ValueError('Phase4 seed data hashes changed')
     elif selected in PHASE3:
@@ -393,6 +393,55 @@ def validate_seed(folder, selected, owner, observer):
     else:
         token_fixtures.validate_seed_manifest(seed, selected, owner, observer)
     (folder / 'seed-manifest.json').write_text(json.dumps(seed, indent=2) + '\n')
+
+
+def grant(folder):
+    """D112: after the owned API is healthy and before any client login, grant every pack item
+    through the dev GrantItem gRPC and confirm admission from the offline baseline."""
+    value = state(folder)
+    if value['fixture'] not in PHASE4:
+        return
+    if not (folder / 'seed-complete').is_file():
+        raise ValueError('grant requires the completed pre-admission seed')
+    roles = value['roles']
+    owner = next(r['account_id'] for r in roles.values() if r['character_id'] == phase4.OWNER)
+    observer = next((r['account_id'] for r in roles.values() if r['character_id'] == phase4.OBSERVER), None)
+    command = [sys.executable, value['seeder'], '--fixture', value['fixture'], '--owner-account', owner,
+               '--grant', '--grpc', f"127.0.0.1:{value['ports']['grpc']}"]
+    if observer is not None and observer != owner:
+        command += ['--observer-account', observer]
+    if digest(value['seeder']) != value['sha256']['seeder']:
+        raise ValueError('seeder changed after fixture provisioning')
+    logged(command, folder, 'grant.log', value['env'] | {'PATH': os.environ.get('PATH', os.defpath)})
+    records = [json.loads(line) for line in (folder / 'grant.log').read_text().splitlines() if line.startswith('{')]
+    if not records:
+        raise ValueError('seeder did not publish its grant manifest')
+    phase4.validate_seed_manifest(records[-1], value['fixture'], owner, observer, REPO, 'observer' in value['seed_inputs'])
+    (folder / 'grant-manifest.json').write_text(json.dumps(records[-1], indent=2) + '\n')
+    (folder / 'grant-complete').touch()
+
+
+def scenario_copy(folder, scenario):
+    """Phase 4 scenarios name pack instance ids (`instance:N`); the server allocates its own ids,
+    so the bot runs a copy whose ids are mapped through the confirmed grant manifest."""
+    value = state(folder)
+    if value['fixture'] not in PHASE4:
+        return scenario
+    manifest = folder / 'grant-manifest.json'
+    if not (folder / 'grant-complete').is_file() or not manifest.is_file():
+        raise ValueError('Phase4 scenario requires the confirmed grant stage')
+    role = 'observer' if value['roles'][scenario.stem]['character_id'] == phase4.OBSERVER else 'owner'
+    mapping = json.loads(manifest.read_text())['granted'][role]['instance_map']
+    def mapped(match):
+        identity = match[1]
+        if identity not in mapping:
+            raise ValueError(f'{scenario.name} names pack instance {identity}, which was not provisioned')
+        return f'instance:{mapping[identity]}'
+    text = re.sub(r'instance:([0-9]+)', mapped, scenario.read_text())
+    target = folder / 'scenarios' / scenario.name
+    target.parent.mkdir(mode=0o700, exist_ok=True)
+    target.write_text(text)
+    return target
 
 
 def digest(path):
@@ -418,7 +467,7 @@ def cleanup(folder):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('command', choices=('detect', 'budget', 'provision', 'exec-api', 'endpoint', 'args', 'cleanup'))
+    parser.add_argument('command', choices=('detect', 'budget', 'provision', 'exec-api', 'endpoint', 'args', 'cleanup', 'grant', 'scenario'))
     parser.add_argument('--folder', type=Path)
     parser.add_argument('scenarios', type=Path, nargs='*')
     args = parser.parse_intermixed_args()
@@ -433,6 +482,10 @@ def main():
         provision(folder, args.scenarios)
     elif args.command == 'cleanup':
         cleanup(folder)
+    elif args.command == 'grant':
+        grant(folder)
+    elif args.command == 'scenario':
+        print(scenario_copy(folder, args.scenarios[0].resolve()))
     else:
         value = state(folder)
         if args.command == 'exec-api':
