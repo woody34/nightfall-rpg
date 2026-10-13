@@ -1,0 +1,3740 @@
+{
+ "dc_inner_sum_not_100": [
+  {
+   "S_bits": "4028d096c1581062",
+   "inner_sum": "503/5",
+   "npc": 18874,
+   "shares_bits": [
+    "4055a46702bf9141",
+    "40183d46f2764775",
+    "400302f3aef9ca75",
+    "3ff984054b04c8bc",
+    "4000d5258f6bcb7a",
+    "3fe0d559ad24bef5",
+    "3faaec5acbc83831",
+    "3fbefead3ecdd162",
+    "3fdfcf24229bbcd2",
+    "3fb972834ee2fd76"
+   ]
+  },
+  {
+   "S_bits": "4034ae3d70a3d70b",
+   "inner_sum": "203/2",
+   "npc": 18876,
+   "shares_bits": [
+    "4048540d1d826563",
+    "40385409e30ba704",
+    "4002516a6290f964",
+    "3ff895b742bc8ea7",
+    "3ff44ee4b5cc3ebf",
+    "400f23dd7f2aed62",
+    "4011d4036e1e2a45",
+    "4021b182990b8d30",
+    "3fdf2478756e9f4c",
+    "3fade9b43bed3c2d",
+    "40003817cf2bbbff",
+    "3fe037b08053f00f",
+    "3fa9ed89a8ef4da1",
+    "3fbd95c42c978825",
+    "3fdf86ef9b1d0142",
+    "3fef86ef9b1d0142"
+   ]
+  },
+  {
+   "S_bits": "4028d096c1581062",
+   "inner_sum": "503/5",
+   "npc": 18881,
+   "shares_bits": [
+    "4055a46702bf9141",
+    "40183d46f2764775",
+    "400302f3aef9ca75",
+    "3ff984054b04c8bc",
+    "4000d5258f6bcb7a",
+    "3fe0d559ad24bef5",
+    "3faaec5acbc83831",
+    "3fbefead3ecdd162",
+    "3fdfcf24229bbcd2",
+    "3fb972834ee2fd76"
+   ]
+  },
+  {
+   "S_bits": "4034acb503ffffff",
+   "inner_sum": "203/2",
+   "npc": 18883,
+   "shares_bits": [
+    "404855de004d7b23",
+    "403855e13ac43983",
+    "400252d3f6844332",
+    "3ff897547e1bbe6e",
+    "3ff45081f12b6e86",
+    "400f26495839b50c",
+    "4011d56d02117413",
+    "4021b2d25948e402",
+    "3fdf2615b0cdcf13",
+    "3fade9b43bed3c2f",
+    "4000394dbbb31fd4",
+    "3fe0394dbbb31fd4",
+    "3fa9fa7383e8cbcb",
+    "3fb62b7b6f5416ce",
+    "3fdf86ef9b1d0144",
+    "3fef86ef9b1d0144"
+   ]
+  },
+  {
+   "S_bits": "402097837a3126eb",
+   "inner_sum": "2003/20",
+   "npc": 18888,
+   "shares_bits": [
+    "40554d76f03a7c2b",
+    "4017dbe82d316920",
+    "4002b67588520074",
+    "3ff91d44a20f97b3",
+    "40009199653fee00",
+    "3fe09130b1e8bd27",
+    "3faa8872b8810904",
+    "3fd6ac5631a40775",
+    "3fd6ac5631a40775",
+    "3fd6ac5631a40775",
+    "3fd6ac5631a40775",
+    "3fd6ac5631a40775",
+    "3fd6adf8ff00cad9",
+    "3fb98fc8c96d053b",
+    "3fa98fc8c96d053b"
+   ]
+  },
+  {
+   "S_bits": "403622f40a793dd9",
+   "inner_sum": "50583/500",
+   "npc": 18890,
+   "shares_bits": [
+    "4048689cf8bccb8e",
+    "40386899bb8b895b",
+    "400260e5cf33b2b1",
+    "3ff8aa7e9da65983",
+    "3ff4600ebcd353a0",
+    "400f3e2f32e363e6",
+    "4011e314ddd02218",
+    "4021c076df5c973e",
+    "3fdf3ecaac1fcda3",
+    "3fae02fc696907dc",
+    "400045cd18b911fb",
+    "3fe045657290cb7e",
+    "3faa03739bb0f286",
+    "3fbdaec568afc20f",
+    "3fa94e10d5359740",
+    "3ff1a6736bc0e64c"
+   ]
+  },
+  {
+   "S_bits": "4020aa9948c49ba7",
+   "inner_sum": "503/5",
+   "npc": 18895,
+   "shares_bits": [
+    "405535120446702a",
+    "4017c095d573bbff",
+    "4002a107d678509c",
+    "3ff900824a4e60b2",
+    "40007ea0375f9481",
+    "3fe07e37fbedad8c",
+    "3faa6a107d678508",
+    "3fd6925f7a73d60f",
+    "3fd6925f7a73d60f",
+    "3fd6925f7a73d60f",
+    "3fd6925f7a73d60f",
+    "3fd6925f7a73d60f",
+    "3fd69400683b71e5",
+    "3fb972834ee2fd73",
+    "3fdfcf24229bbcd0"
+   ]
+  },
+  {
+   "S_bits": "40361ec8c3ba9d1e",
+   "inner_sum": "101191/1000",
+   "npc": 18897,
+   "shares_bits": [
+    "40486d344f6325ec",
+    "40386d344f6325ec",
+    "40026463e8db545e",
+    "3ff8af0198aa3ad8",
+    "3ff46407f19c2fc2",
+    "400f4419ff373ac7",
+    "4011e68104ad7f9b",
+    "4021c3cb4ed16d7b",
+    "3fdf44e93e6b6204",
+    "3fae01167cee14ba",
+    "400048d1db932f6f",
+    "3fe0486a3bf91bd1",
+    "3faa0ec25eaed1ad",
+    "3f935404fd28b166",
+    "3fa94c771dca09b5",
+    "3ff20a87813e517b"
+   ]
+  },
+  {
+   "S_bits": "4022888a761ccb7d",
+   "inner_sum": "679829/10000",
+   "npc": 20060,
+   "shares_bits": [
+    "40478c43a06941ed",
+    "40478c43a06941ed",
+    "3ffe244647d7e806",
+    "400f6568ceebce53"
+   ]
+  },
+  {
+   "S_bits": "401f8e8ad455ffe8",
+   "inner_sum": "633849/10000",
+   "npc": 20061,
+   "shares_bits": [
+    "404341603c8cc8fb",
+    "404ce2158643b029",
+    "3ff698e0cb48f312",
+    "40027c336d53f423"
+   ]
+  },
+  {
+   "S_bits": "40293d1f7655c0fc",
+   "inner_sum": "184631/2500",
+   "npc": 20062,
+   "shares_bits": [
+    "40479a7a6df6310a",
+    "40479a7a6df6310a",
+    "4012e1ed5869cf74",
+    "3febb35e4198ffb2"
+   ]
+  },
+  {
+   "S_bits": "4027eca50e4d9839",
+   "inner_sum": "747049/10000",
+   "npc": 20063,
+   "shares_bits": [
+    "404692c7317d32f8",
+    "404692c7317d32f8",
+    "401e18fde4ebad07",
+    "3ff5ab9ae41e4ee2",
+    "3fea7d4251cc7e2d"
+   ]
+  },
+  {
+   "S_bits": "401dae7d007485e3",
+   "inner_sum": "653843/10000",
+   "npc": 20072,
+   "shares_bits": [
+    "4041a5b4179e655d",
+    "404a7890a4e9b94c",
+    "4000f0e9f5d6fab2",
+    "4011a5a50eb59dd2",
+    "3fea4e569f214c08",
+    "4011a5f53e39c609"
+   ]
+  },
+  {
+   "S_bits": "402c6d67a314013d",
+   "inner_sum": "233083/2500",
+   "npc": 20137,
+   "shares_bits": [
+    "403f3592a3e168db",
+    "404f358f2022c27b",
+    "4008f79204bcf7e8",
+    "3fdaa260c4c8b50e",
+    "3ff0a50c0328a545",
+    "3fd9ac5aa34ab3cd",
+    "3fd8d7b814f93a07",
+    "3fca74b01655e0b5",
+    "3fe3f8e7a3ecf004",
+    "3fc3f9c8939687ca",
+    "3f8fd9efc3bde070",
+    "3f6a5c15dfc946fb"
+   ]
+  },
+  {
+   "S_bits": "402eacd30c13b5bf",
+   "inner_sum": "865057/10000",
+   "npc": 20144,
+   "shares_bits": [
+    "3ffa9f7bfaece1bc",
+    "4010a3ad7cd40d15",
+    "4000a38f2f16dff5",
+    "3fd54cc427e7ab63",
+    "4003f79cfc31a94d",
+    "400abab5d2e36c77",
+    "3fc6d1082fb9d533",
+    "40046aac2678febe",
+    "4054cc8d7ee21f6e"
+   ]
+  },
+  {
+   "S_bits": "402878e537d230ba",
+   "inner_sum": "353991/5000",
+   "npc": 20147,
+   "shares_bits": [
+    "40307fa327ac4d41",
+    "40549f8bf1976092",
+    "3ff022d11f63076a"
+   ]
+  },
+  {
+   "S_bits": "40253ee033ae0c18",
+   "inner_sum": "382721/5000",
+   "npc": 20155,
+   "shares_bits": [
+    "403ea4ba89e48280",
+    "404ea4ba89e48280",
+    "400883d6213f81c1",
+    "3ff39c7482100262",
+    "3ff39c7482100262",
+    "40046e386f443fd3"
+   ]
+  },
+  {
+   "S_bits": "4028b0e19f1f0e4d",
+   "inner_sum": "929993/10000",
+   "npc": 20161,
+   "shares_bits": [
+    "4045944d264d992c",
+    "4045944d264d992c",
+    "401cc5b2cdb79361",
+    "3ff22bdb996a5445",
+    "3fe1434f182b477a",
+    "3fb0924135c400a4",
+    "3fb0924135c400a4",
+    "400cc5cefdc73dee",
+    "3fb0924135c400a4",
+    "3fb0924135c400a4",
+    "3fe7f9e153519778",
+    "3fc7f9e153519778",
+    "3f9328aaa5ebf689",
+    "3f6ed491228a6c5c"
+   ]
+  },
+  {
+   "S_bits": "40101c4d65696a27",
+   "inner_sum": "488471/10000",
+   "npc": 20171,
+   "shares_bits": [
+    "401becedfb856bbe",
+    "40317414bd336356",
+    "4024f1b27ca410cf",
+    "3ffa047ba7078343",
+    "404fbbc76594608f"
+   ]
+  },
+  {
+   "S_bits": "402a36c6e281fd9b",
+   "inner_sum": "104027/1250",
+   "npc": 20191,
+   "shares_bits": [
+    "40458153179f46dd",
+    "40458153179f46dd",
+    "401cac7e8a19cb90",
+    "4019664fd8aa3c36",
+    "3fcd80023478a72b",
+    "3fcd80023478a72b"
+   ]
+  },
+  {
+   "S_bits": "403648d2fbe6a550",
+   "inner_sum": "173857/2000",
+   "npc": 20192,
+   "shares_bits": [
+    "40480f2f24eb5abc",
+    "40380f2f24eb5abc",
+    "40233f5ef2563fac",
+    "402d9c88cafa484b",
+    "4009c436ef61537e",
+    "3fc5fbea54c0b022"
+   ]
+  },
+  {
+   "S_bits": "4015ed46df451fc5",
+   "inner_sum": "360587/5000",
+   "npc": 20200,
+   "shares_bits": [
+    "40107ef203617c03",
+    "40249ec9c75a51cf",
+    "40149ec9c75a51cf",
+    "3fea647c43016297",
+    "4018be7d31d28937",
+    "3fcfa9f709f9be13",
+    "4011acacf404461f",
+    "40512efa74008c4f"
+   ]
+  },
+  {
+   "S_bits": "402e09ac79f2f987",
+   "inner_sum": "152607/2000",
+   "npc": 20206,
+   "shares_bits": [
+    "403f0e32602bf6d8",
+    "404f0e32602bf6d8",
+    "4008d80cd0f1b224",
+    "400dd33a2aef29af"
+   ]
+  },
+  {
+   "S_bits": "402df4f12db352a9",
+   "inner_sum": "650983/10000",
+   "npc": 20208,
+   "shares_bits": [
+    "4041df0c42760869",
+    "404ace9263b10c9c",
+    "400128258a96404b",
+    "4011df1653ac765f",
+    "40101fe1b5cfc150"
+   ]
+  },
+  {
+   "S_bits": "40467875cbf123c5",
+   "inner_sum": "899187/10000",
+   "npc": 20221,
+   "shares_bits": [
+    "4044eda109f61ff5",
+    "4044eda109f61ff5",
+    "4010be2043068d6a",
+    "4000be031bbe4a2b",
+    "3fd1793b5fce2374",
+    "3fb2ad2a4b146e0e",
+    "3fb0d36bf4cfac83",
+    "3ff480136c696ccc",
+    "3ff0be031bbe4a2b",
+    "3fd0bd8e7e9d3d2e",
+    "3f9ac30f55baeede",
+    "3f7568d9116258b2",
+    "401be7bbb12e066e"
+   ]
+  },
+  {
+   "S_bits": "4024f9b2bfc23749",
+   "inner_sum": "833097/10000",
+   "npc": 20238,
+   "shares_bits": [
+    "404c0c31c317b596",
+    "4042b2cbd76523ba",
+    "4001f34b7eef8ac0",
+    "3fdf386a6fd8333c",
+    "3ff1f38a6da1cef9",
+    "3fc0b3786efad5de",
+    "3fc0b3786efad5de",
+    "3ffdeb121796d623",
+    "3fddea165ccdc541",
+    "3fa7e82d386a981d",
+    "3f832cba50c951dc"
+   ]
+  },
+  {
+   "S_bits": "402df7ab1ab5f5f3",
+   "inner_sum": "926603/10000",
+   "npc": 20242,
+   "shares_bits": [
+    "4046b4ffc4a8eff5",
+    "4046b4ffc4a8eff5",
+    "40122a6bdf6b91f8",
+    "40022a4f94f577f2",
+    "3fd2f3e21e6ee135",
+    "3fb16ee246891194",
+    "3fb16ee246891194",
+    "3fe50025fb011c87",
+    "3fd0c52381eceed4",
+    "3fe93b2874154a3a",
+    "3fc93963ccb3a9de",
+    "3f94393a6c9a23cf",
+    "3f6fd3c4dd4683e5"
+   ]
+  },
+  {
+   "S_bits": "404378eb55c5197a",
+   "inner_sum": "174447/2000",
+   "npc": 20249,
+   "shares_bits": [
+    "40476fd6169eb5a3",
+    "4022bfe179e2bc37",
+    "4002bfc36bfd0f24",
+    "3ff8ffaf3aa6beda",
+    "3fe9154937bb2529",
+    "404387e2b574a7d1"
+   ]
+  },
+  {
+   "S_bits": "402565c2d0b95810",
+   "inner_sum": "151401/2000",
+   "npc": 20252,
+   "shares_bits": [
+    "404566547abcb631",
+    "404566547abcb631",
+    "40111e9c21c5277a",
+    "40011ebec2d1b12a",
+    "4019468040b68f6f",
+    "3fcd5a83a0b58840",
+    "3ff6eda1cd2984f9"
+   ]
+  },
+  {
+   "S_bits": "3fff72e34299e0e7",
+   "inner_sum": "414629/10000",
+   "npc": 20269,
+   "shares_bits": [
+    "402e1e5574ff7604",
+    "4042d2ed81f6b535",
+    "4032d2f5691fa9c2",
+    "400818445d992b35",
+    "403696b0496daf68",
+    "3ff9d0db88daf771",
+    "3ff413e4ac4ac8c9"
+   ]
+  },
+  {
+   "S_bits": "40008a9119a84381",
+   "inner_sum": "58007/2000",
+   "npc": 20438,
+   "shares_bits": [
+    "403051ae3d6c7b7c",
+    "4044661426a47b73",
+    "40387a7a0fdc7b69",
+    "403267af656e1235"
+   ]
+  },
+  {
+   "S_bits": "402675b6ec14b59b",
+   "inner_sum": "190539/2500",
+   "npc": 20458,
+   "shares_bits": [
+    "403f34e3f5684b29",
+    "404f34e3f5684b29",
+    "4008f708213eb693",
+    "3ff3f90a56030743",
+    "3fe86a3a1bdcd8df",
+    "3ff3f90a56030743"
+   ]
+  },
+  {
+   "S_bits": "400d11c60380a9de",
+   "inner_sum": "114769/2500",
+   "npc": 20495,
+   "shares_bits": [
+    "402923135f5ac273",
+    "403f6bd113e98aec",
+    "402f6bc2cd59baa2",
+    "40041c2656c84f36",
+    "4032da47643c29b2",
+    "3fe821c79b56c575",
+    "3ff58bbf4dfb9d5d",
+    "4030d52d74ec92f1"
+   ]
+  },
+  {
+   "S_bits": "40145d86a4dbf488",
+   "inner_sum": "16623/400",
+   "npc": 20496,
+   "shares_bits": [
+    "403c20477526842a",
+    "402c20573a426fe6",
+    "401680392a853688",
+    "4032c02a61bb0988",
+    "403f404be4965e78",
+    "40017842e62c7206"
+   ]
+  },
+  {
+   "S_bits": "4044fe9166b9b23e",
+   "inner_sum": "210991/2500",
+   "npc": 20549,
+   "shares_bits": [
+    "403d94e3503cfa09",
+    "4033b89a21760385",
+    "3ff2ee7e33d4a7c1",
+    "3fcb0ababa51f47c",
+    "4048a6c29acd8a05"
+   ]
+  },
+  {
+   "S_bits": "402a78cc54382a12",
+   "inner_sum": "416977/5000",
+   "npc": 20557,
+   "shares_bits": [
+    "404bdff6bf24c9c0",
+    "4042954ddacd1c14",
+    "4001d6ff49d73a63",
+    "3fcf285811a0a568",
+    "3fc7ca4fdb041e74",
+    "4011b2c64c200e21"
+   ]
+  },
+  {
+   "S_bits": "403af47632d7689d",
+   "inner_sum": "186569/2000",
+   "npc": 20561,
+   "shares_bits": [
+    "402ae053a563912b",
+    "4034283b38cab188",
+    "3fe9ccbeadd0b68c",
+    "3ffae07dcc635951",
+    "3fc66f41a2462f6f",
+    "4044283ebc0aace1",
+    "3fe9ccbeadd0b68c",
+    "3fc9cbddddd1e06d",
+    "3f94a317e4a7e6be",
+    "3f70af6fe9e45883",
+    "4036659fb8d2f2c5"
+   ]
+  },
+  {
+   "S_bits": "402985f8e068e822",
+   "inner_sum": "416977/5000",
+   "npc": 20564,
+   "shares_bits": [
+    "404bdff6bf24c9be",
+    "4042954ddacd1c13",
+    "4001d6ff49d73a61",
+    "3fcf285811a0a566",
+    "3fc7ca4fdb041e72",
+    "4011b2c64c200e20"
+   ]
+  },
+  {
+   "S_bits": "402baf5185aa044a",
+   "inner_sum": "441187/5000",
+   "npc": 20571,
+   "shares_bits": [
+    "4038e246cbf10365",
+    "4042a9b33d9cec96",
+    "3ff7e366871c0b51",
+    "4008e23f5e91ab90",
+    "3fd4c5e6a9a56d10",
+    "3fb6394348ccddcc",
+    "403f1ad6a3956e49",
+    "3fb3fd5d9b620c59",
+    "3ff3e80329458a59",
+    "3fd3e8f0d53084df",
+    "3f9fcc4030045f70",
+    "3f7987f7bde959b4"
+   ]
+  },
+  {
+   "S_bits": "402f3fbe2edaf8e0",
+   "inner_sum": "880983/10000",
+   "npc": 20579,
+   "shares_bits": [
+    "4052e9ca9faa92a3",
+    "402e42ddcc441dd3",
+    "400e42fb8dc3a69d",
+    "40042c80072db8b0",
+    "40059d6d1a67b61b",
+    "3fcae4c2a441edd1"
+   ]
+  },
+  {
+   "S_bits": "4030225ec2548ece",
+   "inner_sum": "416977/5000",
+   "npc": 20584,
+   "shares_bits": [
+    "404bdff6bf24c9be",
+    "4042954ddacd1c13",
+    "4001d6ff49d73a61",
+    "3fcf285811a0a566",
+    "3fc7ca4fdb041e72",
+    "4011b2c64c200e20"
+   ]
+  },
+  {
+   "S_bits": "4039cd9124c73040",
+   "inner_sum": "185589/2000",
+   "npc": 20594,
+   "shares_bits": [
+    "40464279c51d1ed0",
+    "40464279c51d1ed0",
+    "401dade9917dcb2e",
+    "3ff2be84d52bd75a",
+    "3fe1ced5f0e2768c",
+    "3fdfd9a4513c3368",
+    "3fb3020dcd5ccddb",
+    "3fabdd1cc73bdf5e",
+    "3fedae5a9170ba63",
+    "3fcdaf3c915698cc",
+    "3f97b9bd41b95133",
+    "3f7289fddb3ea5d9"
+   ]
+  },
+  {
+   "S_bits": "403a836b8a84cf08",
+   "inner_sum": "464007/5000",
+   "npc": 20596,
+   "shares_bits": [
+    "402aaf2e00f3c768",
+    "4050ad7938a9fa1e",
+    "401aaf1fe13a3d5b",
+    "40230f5fea050741",
+    "3fe1ca1540d17e3d",
+    "3fb2faa15182434a",
+    "3fedd03744c87038",
+    "3fb1135ad0676e67",
+    "3fedd03744c87038",
+    "3feda5d8182a4772",
+    "3fcda79c0f5b8924",
+    "3f97b949a5e2d41d",
+    "3f73dc9cea231cbf"
+   ]
+  },
+  {
+   "S_bits": "4036f27b598e5c4f",
+   "inner_sum": "222997/2500",
+   "npc": 20603,
+   "shares_bits": [
+    "40469a8d9d5b6f3f",
+    "40469a8d9d5b6f3f",
+    "4012154cc93e745a",
+    "4002152f65ba3da4",
+    "40058713ab2c1338",
+    "3fbcedf625dbd142"
+   ]
+  },
+  {
+   "S_bits": "403a59e835ecedd5",
+   "inner_sum": "222997/2500",
+   "npc": 20604,
+   "shares_bits": [
+    "40469a8d9d5b6f3e",
+    "40469a8d9d5b6f3e",
+    "4012154cc93e745a",
+    "4002152f65ba3da4",
+    "40058713ab2c1337",
+    "3fbcedf625dbd142"
+   ]
+  },
+  {
+   "S_bits": "402ccdde7f809d4a",
+   "inner_sum": "29789/400",
+   "npc": 20609,
+   "shares_bits": [
+    "40424811419d0d1f",
+    "404b6c19e26b93ae",
+    "40018cf6b5caf128",
+    "4012481a0e6b9c7c",
+    "3ffd4045d9a791ed"
+   ]
+  },
+  {
+   "S_bits": "4033a404b6671045",
+   "inner_sum": "832561/10000",
+   "npc": 20616,
+   "shares_bits": [
+    "404573c620acd9d0",
+    "404573c620acd9d0",
+    "40112977e58dc7f1",
+    "40012958690507b8",
+    "4009be049d878b93",
+    "3fcd6d22cda534d9",
+    "40113b0e75f127be"
+   ]
+  },
+  {
+   "S_bits": "4046441018efe501",
+   "inner_sum": "946803/10000",
+   "npc": 20622,
+   "shares_bits": [
+    "40467973b54e5568",
+    "40467973b54e5568",
+    "401df752c9b693ca",
+    "3ff2ecd767ecea4c",
+    "3fe1fb02a5b72499",
+    "3fcc945d2258fee3",
+    "3fb1401f06ed4d13",
+    "3fdcc4d10925075b",
+    "3fbcc4d10925075b",
+    "3f86edb412d64b28",
+    "3f6308f6194c785b"
+   ]
+  },
+  {
+   "S_bits": "404664ef62c3b2dc",
+   "inner_sum": "913573/10000",
+   "npc": 20627,
+   "shares_bits": [
+    "404c618bb44d422c",
+    "4042ebb0140dff11",
+    "40022a0e8eae5a3d",
+    "3fdf966e7f0d35b6",
+    "3ff229d52b2a2124",
+    "3fe3a8465a4e9f3d",
+    "3fb35cf3bcc3aeeb",
+    "3fe42ec7983470f4",
+    "3fc42cfc7c12a82e",
+    "3f9023fd300eecf2",
+    "3f6ae6a5fac38ae9"
+   ]
+  },
+  {
+   "S_bits": "4038b52db53ca31e",
+   "inner_sum": "224561/2500",
+   "npc": 20632,
+   "shares_bits": [
+    "403fb8179343155b",
+    "404fb813ed5f536a",
+    "40095ff5ad179b25",
+    "3fdb1163718a70d3",
+    "3fc1ba1ec270e74e",
+    "3ff00f4daacd971b",
+    "3fbb1336636b6982"
+   ]
+  },
+  {
+   "S_bits": "4031693f39301648",
+   "inner_sum": "905391/10000",
+   "npc": 20637,
+   "shares_bits": [
+    "403d422e51415609",
+    "404d4231efc5def8",
+    "4007680de4173eda",
+    "3fd8f78648a1541c",
+    "3fef3567dac9a923",
+    "3fc7696955ca9882",
+    "3fef3567dac9a923",
+    "3fcf37371d0e20ae",
+    "3f98fec351b33249",
+    "3f73e7d8f122fadf",
+    "401a01e0325ecf70"
+   ]
+  },
+  {
+   "S_bits": "403e080b8626fe70",
+   "inner_sum": "882553/10000",
+   "npc": 20639,
+   "shares_bits": [
+    "4052a1717538c8d5",
+    "402dcf18f65c3511",
+    "400dcf18f65c3511",
+    "4003df522c467c3a",
+    "3ff3df8d942b71ac",
+    "3ff71b859b483ba1",
+    "3fb630aee62dfc9b",
+    "3ff3df8d942b71ac",
+    "3fd3de9ff4979beb",
+    "3f9fca998758f978",
+    "3f7986a46176279a"
+   ]
+  },
+  {
+   "S_bits": "4025e0c40e892ee8",
+   "inner_sum": "455177/5000",
+   "npc": 20640,
+   "shares_bits": [
+    "40452bfc526056c4",
+    "40452bfc526056c4",
+    "401c3aa0f68bdab9",
+    "4006953688a69d8a",
+    "3feb19fedc4c58e3",
+    "3fd9547611d500cb",
+    "3ff2ece60933c975",
+    "3ff80628dc15ec50",
+    "3ff2d1e70957598c",
+    "3fd2d1e70957598c",
+    "3f9e254860d24cb0",
+    "3f77d8b7580d8542"
+   ]
+  },
+  {
+   "S_bits": "3feb89387441dd1b",
+   "inner_sum": "408459/10000",
+   "npc": 20643,
+   "shares_bits": [
+    "4035d9b5032a18bd",
+    "4034c20d9586f398",
+    "4015a8f23d632305",
+    "4034c20d9586f398",
+    "40248d680a5a9565",
+    "3ff3ed35cced2d9e",
+    "3ff3ed35cced2d9e",
+    "402cd48f42f6a21e",
+    "400cd48f42f6a21e",
+    "3fd710729bf881b1",
+    "3fb27d2f5a3f8eec"
+   ]
+  },
+  {
+   "S_bits": "4036e1bd71faebc4",
+   "inner_sum": "115891/1250",
+   "npc": 20648,
+   "shares_bits": [
+    "402b09d080af9638",
+    "4050e6208c07fa93",
+    "401b09d080af9638",
+    "4023501f233e80bc",
+    "3fe20619e7043aed",
+    "3fe3d8a2d86e4114",
+    "3fdae6b11a25c964",
+    "3fe5a1739a2611c7",
+    "3fc5a255cd07b98b",
+    "3f9157268c7c789e",
+    "3f6b64295350d89f"
+   ]
+  },
+  {
+   "S_bits": "40435a9a25770de9",
+   "inner_sum": "945163/10000",
+   "npc": 20655,
+   "shares_bits": [
+    "404167d3620a2d98",
+    "404167d3620a2d98",
+    "400290ec91bd4710",
+    "3ff290b519412c40",
+    "3ff290b519412c40",
+    "3fcd8268858358b7",
+    "3fa7c7e7347e86b2",
+    "3fddb4adb5fba4e7",
+    "3fbdb66979dc7b64",
+    "3f87d5c553853a9c",
+    "3f63116aa9376217",
+    "4038dd791980afcf"
+   ]
+  },
+  {
+   "S_bits": "4019b739b8472c0e",
+   "inner_sum": "86963/1250",
+   "npc": 20656,
+   "shares_bits": [
+    "4052bed4e9711a5f",
+    "4014fec1394ffdca",
+    "40117ef65a6d537d",
+    "40217ee3835636ea",
+    "400159dee4ed118d",
+    "400bfe56f7155263",
+    "3febfe56f7155263",
+    "3fb668d6fd7d2c2a",
+    "3f91a9a5aaca1127"
+   ]
+  },
+  {
+   "S_bits": "403599fad0ec636c",
+   "inner_sum": "926053/10000",
+   "npc": 20661,
+   "shares_bits": [
+    "4021e30aa5886f9f",
+    "40465bc63b39ba5e",
+    "4011e2fc7e26cd4c",
+    "40198d80f7ba3b8e",
+    "3fd7d99c24e71e23",
+    "3febbb08399854da",
+    "3fdbbbeaafb27a0e",
+    "3fed33e0c11a3ebf",
+    "3fe7d99c24e71e23",
+    "3fc7d7d738b2d3b8",
+    "3f932139f5649647",
+    "3f6ef625931638c6",
+    "403ff0c4e6e585cb"
+   ]
+  },
+  {
+   "S_bits": "402bf2f676599cbe",
+   "inner_sum": "932587/10000",
+   "npc": 20664,
+   "shares_bits": [
+    "4044b8dac479dc06",
+    "4044b8dac479dc06",
+    "401ba11f014d9669",
+    "3ff173302aeebff4",
+    "3fe093a190012e75",
+    "3fdda58534a0dfd5",
+    "3fb1ad9a556d33ee",
+    "3fa9f7db8d63320c",
+    "3feba102e5503cb0",
+    "3fcba102e5503cb0",
+    "3f9611f9eb7212b8",
+    "3f71917e58137b29",
+    "401ba157394849dc"
+   ]
+  },
+  {
+   "S_bits": "40241e390113404e",
+   "inner_sum": "176789/2000",
+   "npc": 20669,
+   "shares_bits": [
+    "404c3a56d58103ad",
+    "4042d18f3900ad1f",
+    "400210f7e23767cc",
+    "3fdf6a601fed3bb5",
+    "3ff210f7e23767cc",
+    "3fb0a712172d73f6",
+    "3fb0a712172d73f6",
+    "3fbce73536eb9b69",
+    "3fbce73536eb9b69",
+    "3ff4e8ef1750ab6e",
+    "3fd4e8ef1750ab6e",
+    "3fa0bd5011f4b3c9",
+    "3f7ae039b0c274cd"
+   ]
+  },
+  {
+   "S_bits": "4028c0398ad91688",
+   "inner_sum": "16973/200",
+   "npc": 20684,
+   "shares_bits": [
+    "4048f7c3ca1fd31c",
+    "4040a52be7ed89e6",
+    "3ffff561b8a890ac",
+    "3fdbca3eb6d55c69",
+    "3feff5dd4789a15e",
+    "3fbdbe44eda4ee1f",
+    "3ffaa1e6070750ae",
+    "3fdaa0eee9452f48",
+    "3fa54c008b00bd32",
+    "3f81225035d0bb06",
+    "4026318fdfe76288"
+   ]
+  },
+  {
+   "S_bits": "400214ed70af0bf1",
+   "inner_sum": "217651/5000",
+   "npc": 20781,
+   "shares_bits": [
+    "402bacb1457a063b",
+    "40414bf652802b83",
+    "40314bf652802b83",
+    "400623d91b07b6f5",
+    "4034c194024353e8",
+    "4022884cc0f76f0c",
+    "3ff7b8edfa2780f2"
+   ]
+  },
+  {
+   "S_bits": "4020947a1184d552",
+   "inner_sum": "867381/10000",
+   "npc": 20785,
+   "shares_bits": [
+    "3ffa181c7caedca0",
+    "40104f11cded49e3",
+    "40004f3006e15da5",
+    "3fd4dfb613e53e13",
+    "400392155d832578",
+    "40134338c09f97f2",
+    "4008f66688f97987",
+    "405462ddcfa5a14d"
+   ]
+  },
+  {
+   "S_bits": "403896d263322f27",
+   "inner_sum": "882657/10000",
+   "npc": 20790,
+   "shares_bits": [
+    "3ff6b08e81940603",
+    "4021043e549b5739",
+    "402a2deae1aa9133",
+    "3ff6b08e81940603",
+    "3feb3a15169ca3b6",
+    "3ff84f6ba0d1b4ac",
+    "400166377d616c9b",
+    "3fbe401f9c7f6703",
+    "4051b9c2c8a7f76a"
+   ]
+  },
+  {
+   "S_bits": "403777e68e36f198",
+   "inner_sum": "885151/10000",
+   "npc": 20796,
+   "shares_bits": [
+    "40522a4738304a35",
+    "402d106efd56c396",
+    "400d107dcc27434b",
+    "400360679bdad721",
+    "4005da5dda362ad5",
+    "400d107dcc27434b",
+    "3fc298bad860d4f8",
+    "3fbf01048b615651",
+    "3fbf01048b615651"
+   ]
+  },
+  {
+   "S_bits": "40380c738d1eafee",
+   "inner_sum": "449783/5000",
+   "npc": 20801,
+   "shares_bits": [
+    "4029024a77466715",
+    "404f42d970939745",
+    "4019024a77466715",
+    "4021dd0e8978e8ba",
+    "3fe0ac45124677d7",
+    "3fb29c948b785625",
+    "3fb0bbc04507339e",
+    "3feb2f462df6e914",
+    "3ff0ac45124677d7",
+    "3fd0ab5bf12c1271",
+    "3f9aa3084415e9ae",
+    "3f756689ec4edebf",
+    "401bc9a198f10c2a"
+   ]
+  },
+  {
+   "S_bits": "401ceefa1d227d03",
+   "inner_sum": "95297/2000",
+   "npc": 20805,
+   "shares_bits": [
+    "4055f9572f63c337",
+    "3ff57e7b1aa972e9",
+    "402378728623be92",
+    "3ff06824db47cada"
+   ]
+  },
+  {
+   "S_bits": "400166df3d6ab150",
+   "inner_sum": "316181/10000",
+   "npc": 20808,
+   "shares_bits": [
+    "40353f7a0ca45f0a",
+    "40342f82d1d4a200",
+    "40151007cfc6c78d",
+    "40342f82d1d4a200",
+    "4000e1022f6e81bf",
+    "4038390bacade142",
+    "4018390bacade142",
+    "3fe3619d1f52cc02",
+    "3fbf0294feeae004"
+   ]
+  },
+  {
+   "S_bits": "403e67c63fde19fc",
+   "inner_sum": "932171/10000",
+   "npc": 20811,
+   "shares_bits": [
+    "4045d454b59fdef7",
+    "4045d454b59fdef7",
+    "401d1b16ecf74072",
+    "400748f5a3555e01",
+    "3febf180c1718100",
+    "3faed02fe1c3bbea",
+    "3fb65acd678e00ce",
+    "3fe160879be5a817",
+    "3fe748f5a3555e01",
+    "3fc749d69cf1067f",
+    "3f92acb82bbc71e4",
+    "3f6de126ac60b639"
+   ]
+  },
+  {
+   "S_bits": "4045bb532c129025",
+   "inner_sum": "464047/5000",
+   "npc": 20815,
+   "shares_bits": [
+    "40473e44289ae0a8",
+    "40473e44289ae0a8",
+    "4008cb0dbb487925",
+    "3ff8cad53da1770b",
+    "3ff8cad53da1770b",
+    "3fa2265ee86c60e8",
+    "3fe3d5fef8786445",
+    "3fc3d51d01dc5be3",
+    "3f8fc6adf12dcb1e",
+    "3f6998efacf31c84"
+   ]
+  },
+  {
+   "S_bits": "404061e7f843f5fa",
+   "inner_sum": "226677/2500",
+   "npc": 20822,
+   "shares_bits": [
+    "404ede1033a95536",
+    "4038b1a68fbaaa93",
+    "4018b1981b0a995a",
+    "4010766f0a7c71b7",
+    "40007652211c4f46",
+    "3fa81ca1acb925b6",
+    "3fbf9f4125ab78cd",
+    "3fea56bb8c6047bb",
+    "3fca57a2d7615b41",
+    "3f951e793928762a",
+    "3f712a9114730710"
+   ]
+  },
+  {
+   "S_bits": "404693b47cfd9fd4",
+   "inner_sum": "186127/2000",
+   "npc": 20826,
+   "shares_bits": [
+    "403dd065b1231467",
+    "404dd0622bc06af3",
+    "4017d9eaf41c1053",
+    "4007d9eaf41c1053",
+    "3fd8e350e0c08e84",
+    "3fe0ef46c57e90ee",
+    "3fae88b39578ddcf",
+    "3fdfcca30a5e8272",
+    "3fbfcca30a5e8272",
+    "3f89870b4c881ac4",
+    "3f643ef74e5a4a32"
+   ]
+  },
+  {
+   "S_bits": "4040bde0b8cca70d",
+   "inner_sum": "880149/10000",
+   "npc": 20829,
+   "shares_bits": [
+    "404ea37c8b4d5588",
+    "403b3bff68feb043",
+    "40139be450e2c37f",
+    "3ff10d397a6fc399",
+    "40039bc6882b660c",
+    "3ff538cbe6ed3d66",
+    "3ff5c98741f754f0",
+    "3fd5c9101f19df27",
+    "3fa1739b70c0fc96",
+    "3f7bec2be79b2dbe"
+   ]
+  },
+  {
+   "S_bits": "40416785adf9378e",
+   "inner_sum": "56048/625",
+   "npc": 20834,
+   "shares_bits": [
+    "40401dc37d552372",
+    "40401dc37d552372",
+    "4029c9418d8e6ef0",
+    "4033d5e0487ede05",
+    "3fc2035c97b6eb78",
+    "3fbb84eed37e807b",
+    "4004772a9b13832e"
+   ]
+  },
+  {
+   "S_bits": "402b4ccffd4f2cfa",
+   "inner_sum": "894081/10000",
+   "npc": 20839,
+   "shares_bits": [
+    "40461d23942a65f2",
+    "40461d23942a65f2",
+    "401d7c2a8d3c9d80",
+    "3ff29f3d1f89c218",
+    "3fe1b103a6a576a9",
+    "3fe492980e2d38d4",
+    "3fbd93dfc76bf34a",
+    "3ff53ab9b9a6f5f2",
+    "3fd53b2f0144f02f",
+    "3fa10202c8ea0ffc",
+    "3f7a9239cab1c47f"
+   ]
+  },
+  {
+   "S_bits": "402fbd6c59356da0",
+   "inner_sum": "464007/5000",
+   "npc": 20845,
+   "shares_bits": [
+    "402aaf2e00f3c769",
+    "4050ad7938a9fa1e",
+    "401aaf1fe13a3d5c",
+    "40230f5fea050741",
+    "3fe1ca1540d17e3e",
+    "3fb2faa15182434b",
+    "3fedd03744c87038",
+    "3fb1135ad0676e68",
+    "3fedd03744c87038",
+    "3feda5d8182a4773",
+    "3fcda79c0f5b8925",
+    "3f97b949a5e2d41d",
+    "3f73dc9cea231cbf"
+   ]
+  },
+  {
+   "S_bits": "3ff12c6f842efd44",
+   "inner_sum": "41419/1250",
+   "npc": 20921,
+   "shares_bits": [
+    "40342df036e28c7d",
+    "403ae7e45c17cee6",
+    "40466be5ab88b635",
+    "402024c02be87064"
+   ]
+  },
+  {
+   "S_bits": "3ffd1cbb2b4bb1b0",
+   "inner_sum": "110297/2000",
+   "npc": 20924,
+   "shares_bits": [
+    "403a0672a00d4b71",
+    "402a0666bddce939",
+    "4014d1f54cd76f8e",
+    "4031599dc9f8bc39",
+    "403ceab59c04051d",
+    "40211f2c6605aafb",
+    "3fedbe6299d9a6fe"
+   ]
+  },
+  {
+   "S_bits": "4045ea60fbf2170a",
+   "inner_sum": "1000059/10000",
+   "npc": 20980,
+   "shares_bits": [
+    "40236371db943817",
+    "401f05787cbaecde",
+    "4043636b4df4d40b",
+    "4039d9e697263c12",
+    "40313bece039b15e",
+    "3fbc21fb4279d7d9",
+    "3f95b51ffb635f81",
+    "3fdb9372f7b9ef97",
+    "3fbb91cf8fe0ecec",
+    "3f861df9f1a40a5e",
+    "3f6133c2669c080f",
+    "3f782a3bc0e760a8"
+   ]
+  },
+  {
+   "S_bits": "402ebd18875d3566",
+   "inner_sum": "231371/2500",
+   "npc": 20998,
+   "shares_bits": [
+    "40414f9d724af2d5",
+    "403714d1edb943c7",
+    "3ff62889bd507ace",
+    "3fd3441a5d4c4430",
+    "3fe62818707111f5",
+    "3fc3199d8984f28e",
+    "3fb1bb17b6589116",
+    "3feec6cba7b131c0",
+    "3fcec5e90df2600d",
+    "3f98ac7da715680d",
+    "3f73ea83456e43e9",
+    "40433bff8d91141e"
+   ]
+  },
+  {
+   "S_bits": "402f6048651d041d",
+   "inner_sum": "470209/5000",
+   "npc": 21010,
+   "shares_bits": [
+    "405301ce3dd732dc",
+    "402e694f8fc22d8a",
+    "400e69419fb98721",
+    "4004463e5531e2a2",
+    "3ff44606950f48fd",
+    "3fda54965760816e",
+    "3faad740a8789bc1",
+    "3fa9f8401e12086c",
+    "3fe0388b112c118a",
+    "3fc0396a11b6781d",
+    "3f89ea50156b9f37",
+    "3f64090c6f373cb4"
+   ]
+  },
+  {
+   "S_bits": "403e7cb6d7c358b0",
+   "inner_sum": "435271/5000",
+   "npc": 21035,
+   "shares_bits": [
+    "4044d1bbc218df56",
+    "4044d1bbc218df56",
+    "401bc25ebbe49385",
+    "400634f473aeab74",
+    "3fc7468eac096130",
+    "3ff5153cb420d5ab",
+    "40019ff843c95dd6",
+    "400a6fd648d1e3f5"
+   ]
+  },
+  {
+   "S_bits": "403dc501baf21b3c",
+   "inner_sum": "894959/10000",
+   "npc": 21066,
+   "shares_bits": [
+    "40419afe5653756c",
+    "40452065de84ab8d",
+    "40252065de84ab8d",
+    "401c2b3c4189b111",
+    "400c2b1ef6ff4c12",
+    "3fc2a6761e4de9f8",
+    "3f88072586d899cd",
+    "3fef4c0d2f38d56f",
+    "3fcf4b22dae5ad7c",
+    "3f990ec464658a73",
+    "3f7498694f02ccf8"
+   ]
+  },
+  {
+   "S_bits": "4048dd7485cac082",
+   "inner_sum": "5003/50",
+   "npc": 21069,
+   "shares_bits": [
+    "4043fe429f575893",
+    "404aa858d474761b",
+    "4009974ebfe286c9",
+    "3fe640935e19afdf",
+    "3ff9974ebfe286c9",
+    "3fbc3ed5fd710873",
+    "3fb3e117ff97348e",
+    "3f82375d7c7eb1f8",
+    "3fe7b1d035375064",
+    "3fc7b0fe9e515bf5",
+    "3f92eec185b49393",
+    "3f6f1c6622488edf",
+    "3faeb39aaf4e5718"
+   ]
+  },
+  {
+   "S_bits": "403a9befdb8826aa",
+   "inner_sum": "86649/1000",
+   "npc": 21087,
+   "shares_bits": [
+    "40415589854d3ffe",
+    "403bbc12422c79ee",
+    "402bbc12422c79ee",
+    "3ffd95509b30f6ce",
+    "40127d618172fbf4",
+    "3fc87a44531745ae",
+    "402ed0f7d7bfa3eb",
+    "3f8fabf3ac8df798",
+    "3ff48b64107044e1",
+    "3fd48a72092a29b6",
+    "3fa06d3e6217f5e9",
+    "3f7a78cbaaf891cf"
+   ]
+  },
+  {
+   "S_bits": "40240a2b931df762",
+   "inner_sum": "679829/10000",
+   "npc": 21101,
+   "shares_bits": [
+    "40478c43a06941ed",
+    "40478c43a06941ed",
+    "3ffe244647d7e805",
+    "400f6568ceebce52"
+   ]
+  },
+  {
+   "S_bits": "400f046f5719d66b",
+   "inner_sum": "66299/1250",
+   "npc": 21104,
+   "shares_bits": [
+    "403c55338f53d12f",
+    "402c552734278e1b",
+    "4016aa8fa5dca759",
+    "4032e373967e7519",
+    "403f7b1a1936d985",
+    "3ff77073d6bef4dc"
+   ]
+  },
+  {
+   "S_bits": "40412bae72e410b6",
+   "inner_sum": "48069/500",
+   "npc": 21109,
+   "shares_bits": [
+    "40381a5484bcb881",
+    "40381a5484bcb881",
+    "3ff9b5af7c850912",
+    "3fe9b5af7c850912",
+    "3fe9b5af7c850912",
+    "3fa074d2f5f35072",
+    "40481a5484bcb881",
+    "3fd1245bc032c922",
+    "3fb1261007c11261",
+    "3f7b4478e493fd6d",
+    "3f54735aab6efe11"
+   ]
+  },
+  {
+   "S_bits": "40308b8595bd512d",
+   "inner_sum": "47111/500",
+   "npc": 21115,
+   "shares_bits": [
+    "404265a74360382d",
+    "404b987ae5105442",
+    "4001a948dd3a5dc9",
+    "401265a04ec559e4",
+    "3fdeb72de69a0281",
+    "3fb2d4273bb98dd2",
+    "3fe05a559b5a1704",
+    "3fc05b342eb5e00b",
+    "3f8a1544c18ee5b5",
+    "3f65bc63f6a1bf6c"
+   ]
+  },
+  {
+   "S_bits": "4041bb67b9fc0d2d",
+   "inner_sum": "459087/5000",
+   "npc": 21185,
+   "shares_bits": [
+    "40400a924f385553",
+    "403abc46cd9efd45",
+    "40300a924f385553",
+    "4036ea87dee2c309",
+    "3ff563774346b57e",
+    "3fa23c0510c46fd9",
+    "3fe563774346b57e",
+    "3fc56292dbb05c07",
+    "3f91103d1b6f03ac"
+   ]
+  },
+  {
+   "S_bits": "40434e7f3c8958da",
+   "inner_sum": "459087/5000",
+   "npc": 21206,
+   "shares_bits": [
+    "40400a924f385553",
+    "403abc46cd9efd47",
+    "40300a924f385553",
+    "4036ea87dee2c309",
+    "3ff563774346b57f",
+    "3fa23c0510c46fd9",
+    "3fe563774346b57f",
+    "3fc56292dbb05c08",
+    "3f91103d1b6f03ad"
+   ]
+  },
+  {
+   "S_bits": "4041cf8099888723",
+   "inner_sum": "459087/5000",
+   "npc": 21255,
+   "shares_bits": [
+    "40400a924f385553",
+    "403abc46cd9efd46",
+    "40300a924f385553",
+    "4036ea87dee2c309",
+    "3ff563774346b57e",
+    "3fa23c0510c46fd9",
+    "3fe563774346b57e",
+    "3fc56292dbb05c07",
+    "3f91103d1b6f03ac"
+   ]
+  },
+  {
+   "S_bits": "4045db29d2fff36c",
+   "inner_sum": "477243/5000",
+   "npc": 21328,
+   "shares_bits": [
+    "40312aa0d91f951c",
+    "404575490f677a63",
+    "40212aa0d91f951c",
+    "40288608648a8d31",
+    "3fe6e35c82fa34c7",
+    "3f9386860add5243",
+    "3fd6e4383a19a0f7",
+    "3fb6e0c95d9bf036",
+    "3f823cf35bbb0952",
+    "4031e1c29af06224"
+   ]
+  },
+  {
+   "S_bits": "4041ab308d791819",
+   "inner_sum": "117787/1250",
+   "npc": 21334,
+   "shares_bits": [
+    "402d64d9cd5f5ab0",
+    "40287eae8c040672",
+    "4024fee8b0ac2b53",
+    "40187ebc74f03b5e",
+    "40405477d7931187",
+    "3f9e1a0f2a84bd38",
+    "3fe3983dbe0ba99d",
+    "3fc399fadb924701",
+    "3f8f4c137710f119",
+    "4036f6c2c4b502bd"
+   ]
+  },
+  {
+   "S_bits": "4041f0b16db341e1",
+   "inner_sum": "950807/10000",
+   "npc": 21340,
+   "shares_bits": [
+    "404f0b0560890d5b",
+    "4038d5a0a8a347eb",
+    "4018d5a0a8a347eb",
+    "40108e744bca5165",
+    "40008e58b9b1ed0c",
+    "3f64ad924b428845",
+    "3fe08e219581245b",
+    "3fc08efe26444720",
+    "3f8a7e63706d3e9a"
+   ]
+  },
+  {
+   "S_bits": "403df83c75d145d7",
+   "inner_sum": "459999/5000",
+   "npc": 21354,
+   "shares_bits": [
+    "403390d87debcdc6",
+    "403f4e2e4f7cf8e5",
+    "401f4e272fdfafa2",
+    "4014debb4b18be12",
+    "4004ded7c98de321",
+    "3fa1cf0937289de1",
+    "3fe4de9ecca39904",
+    "3fc4de9ecca39904",
+    "3f90b218a3b61404",
+    "40404e0fadf23ddd"
+   ]
+  },
+  {
+   "S_bits": "40476ece0543dab5",
+   "inner_sum": "954257/10000",
+   "npc": 21361,
+   "shares_bits": [
+    "402cc2ed5b87e023",
+    "40270254bd2ab6c5",
+    "40232c9e3d054017",
+    "40432c9acdf2c46a",
+    "403990ce67ee5b38",
+    "3f62e2e5a8361b6f",
+    "3fdead461edc3fd5",
+    "3fbeb0b53157ec94",
+    "3f887763b12ed215"
+   ]
+  },
+  {
+   "S_bits": "4042feb1bb561d42",
+   "inner_sum": "919071/10000",
+   "npc": 21368,
+   "shares_bits": [
+    "402522117638f41a",
+    "40419c69d3baed59",
+    "4035221897ad1cd1",
+    "403e30b56af74dbc",
+    "3ffc2d92a5621e9b",
+    "3f71618b233ccec6",
+    "3fec2d92a5621e9b",
+    "3fcc2cae76dd07cc",
+    "3f968196a07ff80e"
+   ]
+  },
+  {
+   "S_bits": "40441125c544cdfb",
+   "inner_sum": "890789/10000",
+   "npc": 21424,
+   "shares_bits": [
+    "402d6c9bc729c4d7",
+    "40239db847d5bd93",
+    "403d6c946bc09c5b",
+    "4045046b97694180",
+    "40039da991036c99",
+    "3f77e915c395d033",
+    "3ff39da991036c99",
+    "3fd39d33da70e4ca",
+    "3f9f9cc7d9f88831"
+   ]
+  },
+  {
+   "S_bits": "400f7e6189b1422e",
+   "inner_sum": "364301/5000",
+   "npc": 21508,
+   "shares_bits": [
+    "402dcc9c43a79706",
+    "40429fe3e9f2e383",
+    "40329fe3e9f2e383",
+    "4007d6f1cd93ccd0",
+    "40365979b211fb83",
+    "3fb52fd715c8361e",
+    "4007d6f1cd93ccd0",
+    "3fe7d6f1cd93ccd0",
+    "3fb3142792fa56f1",
+    "3f8ea36e39d222f5"
+   ]
+  },
+  {
+   "S_bits": "40445312459a2c66",
+   "inner_sum": "480771/5000",
+   "npc": 21515,
+   "shares_bits": [
+    "402332c5b658b8fb",
+    "4047ff70531bf2bc",
+    "401332c5b658b8fb",
+    "401b6d0ade0a4725",
+    "3fd9995051407bcf",
+    "3f85f02702efc618",
+    "3fd110e0362afd35",
+    "3fb110e0362afd35",
+    "3f7b434bd1f0ce68",
+    "3f5626ad9a93a7b5",
+    "403dff43e2db3dd0"
+   ]
+  },
+  {
+   "S_bits": "4047776e672b1704",
+   "inner_sum": "97383/1000",
+   "npc": 21523,
+   "shares_bits": [
+    "40301fbc1d2dfc4c",
+    "40301fbc1d2dfc4c",
+    "40257fa57c3d5065",
+    "4019cc602eaffa13",
+    "40401fbc1d2dfc4c",
+    "3fa76572a65039c0",
+    "3fd132eac9caa6b7",
+    "3fb1313c161d09a6",
+    "3f7b56e7c5385a7f",
+    "3f55df1fd0f9e1ff",
+    "4031ea6835f160ef"
+   ]
+  },
+  {
+   "S_bits": "402525d9b49888f9",
+   "inner_sum": "87957/1000",
+   "npc": 21530,
+   "shares_bits": [
+    "4015e8359f9024a5",
+    "40406e247df492c5",
+    "4049470080e69b14",
+    "4015e8359f9024a5",
+    "400a49ce06c81016",
+    "3fee2e98e99c0320",
+    "3ff186619cdfadc3",
+    "3fd187500ac1db8e",
+    "3f9c0eae3da38b6d",
+    "3f765a4d344b0e6a"
+   ]
+  },
+  {
+   "S_bits": "3ff702e85f7381d7",
+   "inner_sum": "443167/10000",
+   "npc": 21536,
+   "shares_bits": [
+    "403a73cbf05e56c1",
+    "4039213adb73b6cb",
+    "401a38e012777619",
+    "4039213adb73b6cb",
+    "400eeda4c8b20437",
+    "40241a9b66a9dd04",
+    "40041ab8fa2c52ea",
+    "3fd0167cb6a17af8",
+    "3fa9a5eb223da62b"
+   ]
+  },
+  {
+   "S_bits": "40385f1c17979e16",
+   "inner_sum": "960473/10000",
+   "npc": 21548,
+   "shares_bits": [
+    "4048b1380455be07",
+    "4023c0f99d1164d2",
+    "4003c0ebf78930fc",
+    "3ffa56b458cccb8d",
+    "3fea56472c8b2cd8",
+    "3fa0d8541ffcc8d7",
+    "3fb234513126a6d2",
+    "3fd511d28a08f0ad",
+    "3fb5153bec15e64e",
+    "3f80d8541ffcc8d7",
+    "3f5b4b1067ad049a",
+    "4041a32979674426"
+   ]
+  },
+  {
+   "S_bits": "403e68d44885319a",
+   "inner_sum": "956857/10000",
+   "npc": 21561,
+   "shares_bits": [
+    "403b0d794536cd54",
+    "403b0d794536cd54",
+    "401209093635d50d",
+    "3ffcdb2c058fc9f3",
+    "3fe15037b22987d7",
+    "3f848c19f23f6e3a",
+    "3fd33c7ef5200cdd",
+    "3fb33c7ef5200cdd",
+    "3f7ed226eb5f2558",
+    "3f57f8c8eff4ab44",
+    "404352c4d340249f"
+   ]
+  },
+  {
+   "S_bits": "403289660da4f441",
+   "inner_sum": "894081/10000",
+   "npc": 21611,
+   "shares_bits": [
+    "40461d23942a65f3",
+    "40461d23942a65f3",
+    "401d7c2a8d3c9d81",
+    "3ff29f3d1f89c218",
+    "3fe1b103a6a576a9",
+    "3fe492980e2d38d4",
+    "3fbd93dfc76bf34a",
+    "3ff53ab9b9a6f5f1",
+    "3fd53b2f0144f02f",
+    "3fa10202c8ea0ffc",
+    "3f7a9239cab1c47f"
+   ]
+  },
+  {
+   "S_bits": "403a3fbc4d192a76",
+   "inner_sum": "894081/10000",
+   "npc": 21612,
+   "shares_bits": [
+    "40461d23942a65f1",
+    "40461d23942a65f1",
+    "401d7c2a8d3c9d7e",
+    "3ff29f3d1f89c216",
+    "3fe1b103a6a576a8",
+    "3fe492980e2d38d3",
+    "3fbd93dfc76bf347",
+    "3ff53ab9b9a6f5f0",
+    "3fd53b2f0144f02d",
+    "3fa10202c8ea0ffb",
+    "3f7a9239cab1c47e"
+   ]
+  },
+  {
+   "S_bits": "40358d2c209be4cc",
+   "inner_sum": "464007/5000",
+   "npc": 21629,
+   "shares_bits": [
+    "402aaf2e00f3c76b",
+    "4050ad7938a9fa1f",
+    "401aaf1fe13a3d5d",
+    "40230f5fea050742",
+    "3fe1ca1540d17e3e",
+    "3fb2faa15182434d",
+    "3fedd03744c8703b",
+    "3fb1135ad0676e69",
+    "3fedd03744c8703b",
+    "3feda5d8182a4775",
+    "3fcda79c0f5b8927",
+    "3f97b949a5e2d41f",
+    "3f73dc9cea231cc1"
+   ]
+  },
+  {
+   "S_bits": "403e849cdc42c7fd",
+   "inner_sum": "464007/5000",
+   "npc": 21630,
+   "shares_bits": [
+    "402aaf2e00f3c768",
+    "4050ad7938a9fa1d",
+    "401aaf1fe13a3d5a",
+    "40230f5fea050740",
+    "3fe1ca1540d17e3c",
+    "3fb2faa15182434a",
+    "3fedd03744c87037",
+    "3fb1135ad0676e66",
+    "3fedd03744c87037",
+    "3feda5d8182a4771",
+    "3fcda79c0f5b8924",
+    "3f97b949a5e2d41c",
+    "3f73dc9cea231cbe"
+   ]
+  },
+  {
+   "S_bits": "400e4640a0ac8606",
+   "inner_sum": "127349/2000",
+   "npc": 21671,
+   "shares_bits": [
+    "40324172e911c2a4",
+    "40224172e911c2a4",
+    "400d3563b89ef7f0",
+    "40285736284e13bc",
+    "403448b08fde21ba",
+    "4042416dc3a628b9"
+   ]
+  },
+  {
+   "S_bits": "400e37b8b7fbacb4",
+   "inner_sum": "129321/2500",
+   "npc": 21694,
+   "shares_bits": [
+    "4052a9da82ca4ad3",
+    "401abafa7386150d",
+    "4032a9d757f54f71"
+   ]
+  },
+  {
+   "S_bits": "402d5ed6aa0307f2",
+   "inner_sum": "471197/5000",
+   "npc": 21717,
+   "shares_bits": [
+    "403a48e605f91721",
+    "403185f3517fdd06",
+    "3ff0d26407e1d4f1",
+    "3fcd41ad74f4c4b7",
+    "3fe0d26407e1d4f1",
+    "3fd912baec6ee310",
+    "3fdf61d811993621",
+    "3fe75d7c0ee01f3e",
+    "3fc75c9d86099261",
+    "3f92b07e04d4751b",
+    "3f6d8e2c7eb53043",
+    "404a48ecfa3fcb89"
+   ]
+  },
+  {
+   "S_bits": "401d644d2810f94c",
+   "inner_sum": "234173/10000",
+   "npc": 21723,
+   "shares_bits": [
+    "4053880267b1fad9",
+    "4033880267b1fad9",
+    "3fff408a2e7d638d",
+    "3fd8fad5a790e2e1"
+   ]
+  },
+  {
+   "S_bits": "401adbf2d855da26",
+   "inner_sum": "20307/1000",
+   "npc": 21724,
+   "shares_bits": [
+    "405387fc785de4a5",
+    "403387fc785de4a5",
+    "3fff3f931475d872",
+    "3fd9061d38cad030"
+   ]
+  },
+  {
+   "S_bits": "3fffeecc431d2e0f",
+   "inner_sum": "695207/10000",
+   "npc": 21740,
+   "shares_bits": [
+    "4052ca18b83b931a",
+    "40150b499b63d1ca",
+    "40118961b8a53fda",
+    "40218974932f0cc2",
+    "3fea23df6e883d94",
+    "40118961b8a53fda",
+    "3ff189876db8d9aa",
+    "3fbc0f3f15f48f75",
+    "3f966383a352ecc1"
+   ]
+  },
+  {
+   "S_bits": "4017eac8c27ae9ab",
+   "inner_sum": "101911/5000",
+   "npc": 21746,
+   "shares_bits": [
+    "40538800809d3b18",
+    "40338800809d3b18",
+    "3fff40343fe001da",
+    "3fd8fe8e3bf61a4d"
+   ]
+  },
+  {
+   "S_bits": "40154097f81fafc8",
+   "inner_sum": "169987/10000",
+   "npc": 21747,
+   "shares_bits": [
+    "405387fcafd27b95",
+    "4033880ff6acc3d9",
+    "3fff3fdbdb26b882",
+    "3fd8ffe315b8939a"
+   ]
+  },
+  {
+   "S_bits": "403ad1da7d2e44b7",
+   "inner_sum": "975281/10000",
+   "npc": 21763,
+   "shares_bits": [
+    "403e6a38a0afe13f",
+    "403e6a38a0afe13f",
+    "401446dddb9d02eb",
+    "3fe99cc06503929e",
+    "3fd8552a7be8a21f",
+    "3f8138204602cba6",
+    "3fd038c6fd45c16a",
+    "3fb038c6fd45c16a",
+    "3f7a09f25d61e2c8",
+    "3f5428bba3227e06",
+    "40404b3438c8def1"
+   ]
+  },
+  {
+   "S_bits": "40164bfd9a7381d7",
+   "inner_sum": "4539/400",
+   "npc": 21769,
+   "shares_bits": [
+    "405387fb096b3771",
+    "403387fb096b3771",
+    "3fff3ee2d755e5b8",
+    "3fd90aa8dca31bec"
+   ]
+  },
+  {
+   "S_bits": "40145dfa45058dde",
+   "inner_sum": "10989/625",
+   "npc": 21770,
+   "shares_bits": [
+    "40538804a8c1a2f5",
+    "4033880dfa44e8de",
+    "3fff3fdab9f2e85b",
+    "3fd8f86dc557326f"
+   ]
+  },
+  {
+   "S_bits": "4033c3a90792a306",
+   "inner_sum": "95597/1000",
+   "npc": 21786,
+   "shares_bits": [
+    "40426c51972bac8b",
+    "404ba27c19812045",
+    "4001af97d70f6532",
+    "40126c5504aae772",
+    "3fdec17a978af6f5",
+    "3fdd7a21a1117252",
+    "3fbd7bd860aee647",
+    "3f8790cab4fa7858"
+   ]
+  },
+  {
+   "S_bits": "401be21373ac6046",
+   "inner_sum": "203187/10000",
+   "npc": 21792,
+   "shares_bits": [
+    "40539ba0d34de1d4",
+    "40339ba8e38ff144",
+    "3fff5d3cf38876a9"
+   ]
+  },
+  {
+   "S_bits": "401e22be979a176e",
+   "inner_sum": "203187/10000",
+   "npc": 21793,
+   "shares_bits": [
+    "40539ba0d34de1d5",
+    "40339ba8e38ff143",
+    "3fff5d3cf38876aa"
+   ]
+  },
+  {
+   "S_bits": "403807783fb7a5f4",
+   "inner_sum": "118873/1250",
+   "npc": 21798,
+   "shares_bits": [
+    "4031abfb26728e70",
+    "3ff3cae4ab4fb144",
+    "3ff07e44786249d6",
+    "40007e44786249d6",
+    "3f9c1a9bffdeebdd",
+    "3fe07eb2bb82a77e",
+    "3fc07cf9af0130e0",
+    "3f8a7d20467fb80e",
+    "40535418f900ca55"
+   ]
+  },
+  {
+   "S_bits": "3f061f76f4c63e7e",
+   "inner_sum": "509/10000",
+   "npc": 22650,
+   "shares_bits": [
+    "3ffc4a6fa77b38d4",
+    "40588ed64162131c"
+   ]
+  },
+  {
+   "S_bits": "4035428d6f620a21",
+   "inner_sum": "1004753/10000",
+   "npc": 22650,
+   "shares_bits": [
+    "4053f5dcfbfe524c",
+    "40165b11fbb7078b",
+    "4012a13e00492efe",
+    "4022a130f4b734e0",
+    "3fdfd93f63a31392",
+    "3fb97a991c82760e"
+   ]
+  },
+  {
+   "S_bits": "3f20e9942532e1cc",
+   "inner_sum": "1527/10000",
+   "npc": 22651,
+   "shares_bits": [
+    "3fe2dc4a6fa77b39",
+    "3fe2dc4a6fa77b39",
+    "3fe2dc4a6fa77b39",
+    "40405f3980ec0cbe",
+    "40405f3980ec0cbe",
+    "40405f3980ec0cbe"
+   ]
+  },
+  {
+   "S_bits": "402b91095db0610e",
+   "inner_sum": "1004341/10000",
+   "npc": 22651,
+   "shares_bits": [
+    "404ef8cb3d66aab4",
+    "403ef8cb3d66aab4",
+    "400752038672036e",
+    "3fff4c387600e2b2",
+    "3ff9daaab14768e4",
+    "3fdfdc979c96e906",
+    "3fb97d4616df20d3"
+   ]
+  },
+  {
+   "S_bits": "3f5013b73b16e1ab",
+   "inner_sum": "15027/10000",
+   "npc": 22652,
+   "shares_bits": [
+    "3faeaa308d778aa9",
+    "3faeaa308d778aa9",
+    "3faeaa308d778aa9",
+    "4040a3001e874cc9",
+    "4040a3001e874cc9",
+    "4040a3001e874cc9"
+   ]
+  },
+  {
+   "S_bits": "4012454c80bfb697",
+   "inner_sum": "502163/5000",
+   "npc": 22652,
+   "shares_bits": [
+    "403d3c10c6bd03b8",
+    "403bc5d9cd1422a8",
+    "401cfaf073ea419a",
+    "403bc5d9cd1422a8",
+    "401724d54abd9025",
+    "3ff725097eb366df",
+    "3fc284aea53bce39",
+    "3fdfdcb6cc4ef04b",
+    "3fb97d5f09d8c03d"
+   ]
+  },
+  {
+   "S_bits": "3f5013b73b16e1ab",
+   "inner_sum": "15027/10000",
+   "npc": 22653,
+   "shares_bits": [
+    "3faeaa308d778aa9",
+    "3faeaa308d778aa9",
+    "3faeaa308d778aa9",
+    "4040a3001e874cc9",
+    "4040a3001e874cc9",
+    "4040a3001e874cc9"
+   ]
+  },
+  {
+   "S_bits": "4012454c80bfb697",
+   "inner_sum": "502163/5000",
+   "npc": 22653,
+   "shares_bits": [
+    "403d3c10c6bd03b8",
+    "403bc5d9cd1422a8",
+    "401cfaf073ea419a",
+    "403bc5d9cd1422a8",
+    "401724d54abd9025",
+    "3ff725097eb366df",
+    "3fc284aea53bce39",
+    "3fdfdcb6cc4ef04b",
+    "3fb97d5f09d8c03d"
+   ]
+  },
+  {
+   "S_bits": "3ef0030268e5f28e",
+   "inner_sum": "509/10000",
+   "npc": 22654,
+   "shares_bits": [
+    "3ffc4a6fa77b38d4",
+    "40588ed64162131c"
+   ]
+  },
+  {
+   "S_bits": "4024802c93dcc137",
+   "inner_sum": "1001/10",
+   "npc": 22654,
+   "shares_bits": [
+    "40318225f3d39a50",
+    "4021821f67c7f0dc",
+    "3fea5d3176001a2f",
+    "3fe1b0ec8325499a",
+    "3fdd3b4811985f56",
+    "3fe757d2946f1865",
+    "3fc7597597597598",
+    "3f92b8715889e5b6",
+    "3feae439e68722a0",
+    "40518225f3d39a50",
+    "3fa9930d8df024d4",
+    "3fa9930d8df024d4"
+   ]
+  },
+  {
+   "S_bits": "3f72fb28aac40e62",
+   "inner_sum": "603/200",
+   "npc": 22655,
+   "shares_bits": [
+    "3fc53a299af562ec",
+    "3fc53a299af562ec",
+    "3fc53a299af562ec",
+    "40409570810fb548",
+    "40409570810fb548",
+    "40409570810fb548"
+   ]
+  },
+  {
+   "S_bits": "4021a12a30553260",
+   "inner_sum": "101",
+   "npc": 22655,
+   "shares_bits": [
+    "403b4a0987c18bd2",
+    "4039ecbc9406154d",
+    "401b0d4815e63f79",
+    "4039ecbc9406154d",
+    "40159a9d260511bf",
+    "3ff59ad10ee75cfa",
+    "3fc1494d5b8d3b1c",
+    "4018e334d27a458e",
+    "3fdfaee41e6a749a",
+    "3fdfaee41e6a749a"
+   ]
+  },
+  {
+   "S_bits": "3f719a7cf6ff2dfb",
+   "inner_sum": "5009/5000",
+   "npc": 22656,
+   "shares_bits": [
+    "3fb6ffa46a19a7ff",
+    "3fb6ffa46a19a7ff",
+    "4048f4802dcaf32d",
+    "4048f4802dcaf32d"
+   ]
+  },
+  {
+   "S_bits": "4022e1552779c18f",
+   "inner_sum": "503/5",
+   "npc": 22656,
+   "shares_bits": [
+    "404d22d65e41c17e",
+    "403d22d65e41c17e",
+    "4005f01ef1a5d090",
+    "3ffd714a9c8d4891",
+    "3ff852a7235224d7",
+    "40036c9bf0ef6888",
+    "3fe36c33b57d8193",
+    "3faf18bc1b478ecd",
+    "4006604aeab9ddff",
+    "3fdfcf24229bbccf",
+    "3fb972834ee2fd73"
+   ]
+  },
+  {
+   "S_bits": "3f74cab2bf7b17b2",
+   "inner_sum": "15027/10000",
+   "npc": 22657,
+   "shares_bits": [
+    "3faeaa308d778aa9",
+    "3faeaa308d778aa9",
+    "3faeaa308d778aa9",
+    "4040a3001e874cc9",
+    "4040a3001e874cc9",
+    "4040a3001e874cc9"
+   ]
+  },
+  {
+   "S_bits": "402359dc06fc7382",
+   "inner_sum": "503/5",
+   "npc": 22657,
+   "shares_bits": [
+    "404d22d65e41c184",
+    "403d22d65e41c184",
+    "4005f01ef1a5d093",
+    "3ffd714a9c8d4896",
+    "3ff852a7235224dc",
+    "40036c9bf0ef688c",
+    "3fe36c33b57d8196",
+    "3faf18bc1b478ed3",
+    "4006604aeab9de03",
+    "3fdfcf24229bbcd5",
+    "3fb972834ee2fd77"
+   ]
+  },
+  {
+   "S_bits": "3f7c130b757f081e",
+   "inner_sum": "201/100",
+   "npc": 22658,
+   "shares_bits": [
+    "3fcfd73e68701461",
+    "3fcfd73e68701461",
+    "4048e028c1978fec",
+    "4048e028c1978fec"
+   ]
+  },
+  {
+   "S_bits": "4013ae898db2db8a",
+   "inner_sum": "503/5",
+   "npc": 22658,
+   "shares_bits": [
+    "403b65d090f2aa65",
+    "403a0720104949cc",
+    "401b28d1475ab1b8",
+    "403a0720104949cc",
+    "4015b09ab83d12d4",
+    "3ff5b0ced5f6064f",
+    "3fc15ae5d714a9c8",
+    "3fdfcf24229bbcd1",
+    "3fb972834ee2fd74",
+    "4018fc8a06b7d4d6"
+   ]
+  },
+  {
+   "S_bits": "3f7041efa6a5f876",
+   "inner_sum": "5009/5000",
+   "npc": 22659,
+   "shares_bits": [
+    "3fb6ffa46a19a7fe",
+    "3fb6ffa46a19a7fe",
+    "4048f4802dcaf32c",
+    "4048f4802dcaf32c"
+   ]
+  },
+  {
+   "S_bits": "402405e4be5b1a02",
+   "inner_sum": "503/5",
+   "npc": 22659,
+   "shares_bits": [
+    "404d22d65e41c181",
+    "403d22d65e41c181",
+    "4005f01ef1a5d092",
+    "3ffd714a9c8d4894",
+    "3ff852a7235224da",
+    "40036c9bf0ef688a",
+    "3fe36c33b57d8194",
+    "3faf18bc1b478ed0",
+    "4006604aeab9de01",
+    "3fdfcf24229bbcd2",
+    "3fb972834ee2fd75"
+   ]
+  },
+  {
+   "S_bits": "404206f3df645a1d",
+   "inner_sum": "1001/10",
+   "npc": 22800,
+   "shares_bits": [
+    "40457f696af3c682",
+    "40457f696af3c682",
+    "40102fc5e5188014",
+    "4005b94ff2166738",
+    "4001f23097668dae",
+    "4003f0a7c4aad651",
+    "3fe3ea8479bbf8d6",
+    "3fafdda0c2c65af1",
+    "3fd2de169b984526",
+    "3fd2de169b984526",
+    "3fd2de169b984526",
+    "3fdaf49803aec68e",
+    "3fdaf49803aec68e",
+    "3fa9930d8df024d4",
+    "3fa9930d8df024d4"
+   ]
+  },
+  {
+   "S_bits": "4048ff5c28f5c291",
+   "inner_sum": "9999/100",
+   "npc": 29028,
+   "shares_bits": [
+    "40222e8ba2e8ba2d",
+    "40222e8ba2e8ba2d",
+    "40222e8ba2e8ba2d",
+    "40222e8ba2e8ba2d",
+    "40222e8ba2e8ba2d",
+    "40222e8ba2e8ba2d",
+    "40222e8ba2e8ba2d",
+    "40222e8ba2e8ba2d",
+    "40222e8ba2e8ba2d",
+    "40222e8ba2e8ba2d",
+    "40222e8ba2e8ba2d"
+   ]
+  },
+  {
+   "S_bits": "404b9ed747220619",
+   "inner_sum": "999999/10000",
+   "npc": 29179,
+   "shares_bits": [
+    "401647c9c12b7bc1",
+    "4015620095076d64",
+    "40155e36a5fbe185",
+    "40153b1719a59982",
+    "401535754e869928",
+    "40152e15de38c73e",
+    "40151f3cc6b8807f",
+    "401517dd566aae95",
+    "40151413675f22b4",
+    "4015018a97b7f301",
+    "4014fa2b276a2116",
+    "4014eb520fe9da57",
+    "4014e5ca7baf7ce7",
+    "4014d519881bc1ae",
+    "4014c8184caeef69",
+    "4014c640709b7aef",
+    "4014b767591b3430",
+    "4014a4de8974047b",
+    "401481a4c639198d"
+   ]
+  },
+  {
+   "S_bits": "4026b11800ea0ba2",
+   "inner_sum": "99999/1000",
+   "npc": 35803,
+   "shares_bits": [
+    "4046ba2b91072baf",
+    "404b45d46ef8d452"
+   ]
+  },
+  {
+   "S_bits": "402b458fe0848bec",
+   "inner_sum": "99999/1000",
+   "npc": 35834,
+   "shares_bits": [
+    "4046ba2b91072bae",
+    "404b45d46ef8d451"
+   ]
+  }
+ ],
+ "dc_vectors": [
+  {
+   "C_bits": "4058ffffffffffff",
+   "case": "below_100",
+   "draws_on_pass": [
+    "chance",
+    "quantity"
+   ],
+   "pass_threshold": "18446744073709548995",
+   "precise_branch": false
+  },
+  {
+   "C_bits": "4059000000000000",
+   "case": "exactly_100",
+   "draws_on_pass": [
+    "chance",
+    "quantity"
+   ],
+   "pass_threshold": "18446744073709551616",
+   "precise_branch": false
+  },
+  {
+   "C_bits": "4059000000000001",
+   "case": "above_100",
+   "draws_on_pass": [
+    "chance",
+    "remainder",
+    "quantity"
+   ],
+   "pass_threshold": "18446744073709551616",
+   "precise_branch": true
+  },
+  {
+   "C_bits": "40679b5c20000000",
+   "case": "synthetic_ungrouped_188.85499572753906",
+   "mult_base": 1,
+   "pass_threshold": "18446744073709551616",
+   "remainder_bits": "405636b840000000",
+   "remainder_draw": true,
+   "remainder_threshold": "16390853658564687299"
+  },
+  {
+   "C_bits": "3f33a92a40000000",
+   "case": "synthetic_ungrouped_0.0003000000142492354",
+   "mult_base": 0,
+   "pass_threshold": "55340234849649",
+   "remainder_bits": "3f33a92a40000000",
+   "remainder_draw": false,
+   "remainder_threshold": "55340234849649"
+  },
+  {
+   "case": "group_G_exactly_100",
+   "count_at_L1": 114,
+   "draws_on_pass": [
+    "group",
+    "selection",
+    "remainder(0)",
+    "quantity"
+   ],
+   "examples": [
+    18478
+   ]
+  },
+  {
+   "case": "min_equals_max",
+   "quantity_draw": "roll_below(1), always taken (P3)",
+   "rows": 56117
+  }
+ ],
+ "de_summary": {
+  "L_values": [
+   "0000000000000000",
+   "3fb999999999999a",
+   "3fb99999999999a0",
+   "3fcd41d41d41d41d",
+   "3fd0000000000000",
+   "3fd1eb851eb851ec",
+   "3fd6db6db6db6db7",
+   "3fd999999999999a",
+   "3fdd70a3d70a3d71",
+   "3fdf15f15f15f15f",
+   "3fe199999999999a",
+   "3fe3a83a83a83a84",
+   "3fe47ae147ae147b",
+   "3fe6666666666666",
+   "3fe7c57c57c57c58",
+   "3fea3d70a3d70a3d",
+   "3feb333333333333",
+   "3febe2be2be2be2c",
+   "3ff0000000000000"
+  ],
+  "above_100_npcs": [
+   29028,
+   29068,
+   29118,
+   29163
+  ],
+  "below_100_npcs": [
+   29068,
+   29150,
+   29186
+  ],
+  "exact_100": 121,
+  "falloff_L1": 1127,
+  "groups": 11557
+ },
+ "dl_vectors": {
+  "adena_window": {
+   "-10": "3fe7c57c57c57c58",
+   "-11": "3fe3a83a83a83a84",
+   "-12": "3fdf15f15f15f15f",
+   "-13": "3fd6db6db6db6db7",
+   "-14": "3fcd41d41d41d41d",
+   "-15": "3fb999999999999a",
+   "-16": "3fb999999999999a",
+   "-8": "3ff0000000000000",
+   "-9": "3febe2be2be2be2c"
+  },
+  "item_window": {
+   "-10": "3fb999999999999a",
+   "-11": "3fb999999999999a",
+   "-4": "3ff0000000000000",
+   "-5": "3ff0000000000000",
+   "-6": "3fea3d70a3d70a3d",
+   "-7": "3fe47ae147ae147b",
+   "-8": "3fdd70a3d70a3d71",
+   "-9": "3fd1eb851eb851ec"
+  },
+  "raid_clamp": {
+   "-1": "3feb333333333333",
+   "-2": "3fe6666666666666",
+   "-3": "3fe199999999999a",
+   "-4": "3fd999999999999a",
+   "-5": "3fd0000000000000",
+   "-6": "3fb99999999999a0",
+   "-7": "0000000000000000",
+   "0": "3ff0000000000000"
+  },
+  "ungrouped_raid_uses_window": true
+ },
+ "dm_vectors": [
+  {
+   "G": "1",
+   "branch": "override",
+   "item": 57,
+   "m_bits": "3ff0000000000000"
+  },
+  {
+   "G": "1",
+   "branch": "herb",
+   "item": 8600,
+   "m_bits": "3ff0000000000000"
+  },
+  {
+   "G": "1",
+   "branch": "raid",
+   "item": 6656,
+   "m_bits": "3ff0000000000000"
+  },
+  {
+   "G": "1",
+   "branch": "death",
+   "item": 1864,
+   "m_bits": "3ff0000000000000"
+  },
+  {
+   "G": "1",
+   "branch": "corpse",
+   "item": 1864,
+   "m_bits": "3ff0000000000000"
+  },
+  {
+   "G": "1.5",
+   "branch": "override",
+   "item": 57,
+   "m_bits": "3ff8000000000000"
+  },
+  {
+   "G": "1.5",
+   "branch": "herb",
+   "item": 8600,
+   "m_bits": "3ff8000000000000"
+  },
+  {
+   "G": "1.5",
+   "branch": "raid",
+   "item": 6656,
+   "m_bits": "3ff8000000000000"
+  },
+  {
+   "G": "1.5",
+   "branch": "death",
+   "item": 1864,
+   "m_bits": "3ff8000000000000"
+  },
+  {
+   "G": "1.5",
+   "branch": "corpse",
+   "item": 1864,
+   "m_bits": "3ff8000000000000"
+  },
+  {
+   "G": "0.3333333333333333",
+   "branch": "override",
+   "item": 57,
+   "m_bits": "3fd5555560000000"
+  },
+  {
+   "G": "0.3333333333333333",
+   "branch": "herb",
+   "item": 8600,
+   "m_bits": "3fd5555560000000"
+  },
+  {
+   "G": "0.3333333333333333",
+   "branch": "raid",
+   "item": 6656,
+   "m_bits": "3fd5555560000000"
+  },
+  {
+   "G": "0.3333333333333333",
+   "branch": "death",
+   "item": 1864,
+   "m_bits": "3fd5555560000000"
+  },
+  {
+   "G": "0.3333333333333333",
+   "branch": "corpse",
+   "item": 1864,
+   "m_bits": "3fd5555560000000"
+  },
+  {
+   "G": "1.000000059604644802931041127457656198443",
+   "branch": "override",
+   "item": 57,
+   "m_bits": "3ff0000000000000"
+  },
+  {
+   "G": "1.000000059604644802931041127457656198443",
+   "branch": "herb",
+   "item": 8600,
+   "m_bits": "3ff0000000000000"
+  },
+  {
+   "G": "1.000000059604644802931041127457656198443",
+   "branch": "raid",
+   "item": 6656,
+   "m_bits": "3ff0000000000000"
+  },
+  {
+   "G": "1.000000059604644802931041127457656198443",
+   "branch": "death",
+   "item": 1864,
+   "m_bits": "3ff0000000000000"
+  },
+  {
+   "G": "1.000000059604644802931041127457656198443",
+   "branch": "corpse",
+   "item": 1864,
+   "m_bits": "3ff0000000000000"
+  },
+  {
+   "C": "120",
+   "amount_multiplier": "1",
+   "case": "surplus",
+   "mult_base": 1,
+   "remainder": "20"
+  }
+ ],
+ "do_traces": [
+  {
+   "holders": [
+    [
+     9599,
+     1
+    ],
+    [
+     57,
+     19708
+    ]
+   ],
+   "killer_level": 81,
+   "npc": 22320,
+   "respawn_random": 0,
+   "seed": 1,
+   "spoiled": true,
+   "sweep": [
+    [
+     1895,
+     16
+    ]
+   ],
+   "trace": [
+    {
+     "C": "3ff1fc504816f007",
+     "draw": "chance",
+     "pass": false,
+     "site": 2
+    },
+    {
+     "C": "40564ddb22d0e560",
+     "draw": "chance",
+     "pass": true,
+     "site": 2
+    },
+    {
+     "draw": "quantity",
+     "n": 17,
+     "site": 2,
+     "words": 1
+    },
+    {
+     "C": "404c1a6b50b0f27c",
+     "draw": "chance",
+     "pass": false,
+     "site": 2
+    },
+    {
+     "C": "4052066666666666",
+     "draw": "chance",
+     "pass": true,
+     "site": 3
+    },
+    {
+     "draw": "quantity",
+     "n": 3,
+     "site": 3,
+     "words": 1
+    },
+    {
+     "C": "4051800000000000",
+     "draw": "chance",
+     "pass": true,
+     "site": 3
+    },
+    {
+     "draw": "quantity",
+     "n": 16542,
+     "site": 3,
+     "words": 1
+    },
+    {
+     "G": "4002fc5040000000",
+     "draw": "group",
+     "pass": false,
+     "site": 3
+    },
+    {
+     "G": "40426e3f20000000",
+     "draw": "group",
+     "pass": false,
+     "site": 3
+    },
+    {
+     "draw": "position",
+     "dx": -50,
+     "dy": -47,
+     "item": 9599,
+     "site": 4
+    },
+    {
+     "draw": "position",
+     "dx": -44,
+     "dy": 69,
+     "item": 57,
+     "site": 4
+    }
+   ],
+   "words": [
+    1206177355,
+    2882512552,
+    3117485455,
+    1303648416,
+    241277360,
+    3362212811,
+    3495080664,
+    2893122808,
+    1454551330,
+    3220877880,
+    2142451825,
+    760440431,
+    665239793,
+    3161796080,
+    3757164872,
+    2716416507,
+    790472196,
+    369385334,
+    2163090470,
+    3809788301,
+    2046803938
+   ]
+  },
+  {
+   "holders": [
+    [
+     9599,
+     2
+    ],
+    [
+     57,
+     31050
+    ]
+   ],
+   "killer_level": 72,
+   "npc": 22320,
+   "respawn_random": 30,
+   "seed": 2,
+   "spoiled": false,
+   "sweep": [],
+   "trace": [
+    {
+     "C": "4052066666666666",
+     "draw": "chance",
+     "pass": true,
+     "site": 3
+    },
+    {
+     "draw": "quantity",
+     "n": 3,
+     "site": 3,
+     "words": 1
+    },
+    {
+     "C": "4051800000000000",
+     "draw": "chance",
+     "pass": true,
+     "site": 3
+    },
+    {
+     "draw": "quantity",
+     "n": 16542,
+     "site": 3,
+     "words": 1
+    },
+    {
+     "G": "4002fc5040000000",
+     "draw": "group",
+     "pass": false,
+     "site": 3
+    },
+    {
+     "G": "40426e3f20000000",
+     "draw": "group",
+     "pass": false,
+     "site": 3
+    },
+    {
+     "draw": "position",
+     "dx": -36,
+     "dy": 26,
+     "item": 9599,
+     "site": 4
+    },
+    {
+     "draw": "position",
+     "dx": 3,
+     "dy": -24,
+     "item": 57,
+     "site": 4
+    },
+    {
+     "draw": "jitter",
+     "site": 5,
+     "value": 4
+    }
+   ],
+   "words": [
+    2412354711,
+    1470057809,
+    1984509430,
+    2494164444,
+    240993988,
+    2726516671,
+    2096236591,
+    608601878,
+    3156691665,
+    2369203691,
+    850365817,
+    3193746,
+    3138555874,
+    3154019458,
+    3421653276
+   ]
+  },
+  {
+   "holders": [
+    [
+     57,
+     1221
+    ],
+    [
+     1864,
+     1
+    ]
+   ],
+   "killer_level": 1,
+   "npc": 18001,
+   "respawn_random": 0,
+   "seed": 3,
+   "spoiled": true,
+   "sweep": [],
+   "trace": [
+    {
+     "C": "3ff163886594af4f",
+     "draw": "chance",
+     "pass": false,
+     "site": 2
+    },
+    {
+     "C": "4051800000000000",
+     "draw": "chance",
+     "pass": true,
+     "site": 3
+    },
+    {
+     "draw": "quantity",
+     "n": 764,
+     "site": 3,
+     "words": 1
+    },
+    {
+     "G": "3fe63a29c0000000",
+     "draw": "group",
+     "pass": false,
+     "site": 3
+    },
+    {
+     "G": "403cb0f280000001",
+     "draw": "group",
+     "pass": true,
+     "site": 3
+    },
+    {
+     "draw": "selection",
+     "picked": 0,
+     "site": 3
+    },
+    {
+     "draw": "quantity",
+     "n": 1,
+     "site": 3,
+     "words": 1
+    },
+    {
+     "C": "4034000000000000",
+     "draw": "chance",
+     "pass": false,
+     "site": 3
+    },
+    {
+     "draw": "position",
+     "dx": 10,
+     "dy": 17,
+     "item": 57,
+     "site": 4
+    },
+    {
+     "draw": "position",
+     "dx": 32,
+     "dy": 42,
+     "item": 1864,
+     "site": 4
+    }
+   ],
+   "words": [
+    3618532066,
+    57603066,
+    2124843038,
+    4089025246,
+    2066137608,
+    3574924933,
+    1213948227,
+    1018192061,
+    3177074374,
+    1527398645,
+    2451821739,
+    4031179542,
+    1056260317,
+    2620127217,
+    323034182,
+    2664963255,
+    1944367119,
+    2330090254
+   ]
+  },
+  {
+   "holders": [],
+   "killer_level": 70,
+   "npc": 25001,
+   "respawn_random": 0,
+   "seed": 4,
+   "spoiled": false,
+   "sweep": [],
+   "trace": [
+    {
+     "G": "0",
+     "draw": "group",
+     "pass": false,
+     "site": 3
+    },
+    {
+     "G": "0",
+     "draw": "group",
+     "pass": false,
+     "site": 3
+    },
+    {
+     "G": "0",
+     "draw": "group",
+     "pass": false,
+     "site": 3
+    }
+   ],
+   "words": [
+    1155083711,
+    2984621434,
+    2076204365,
+    1648690350,
+    2839067024,
+    1613090963
+   ]
+  },
+  {
+   "holders": [
+    [
+     8620,
+     27
+    ],
+    [
+     13893,
+     2
+    ],
+    [
+     15567,
+     1
+    ],
+    [
+     15544,
+     1
+    ],
+    [
+     15758,
+     1
+    ],
+    [
+     15750,
+     1
+    ],
+    [
+     15764,
+     1
+    ],
+    [
+     959,
+     11
+    ],
+    [
+     1538,
+     36
+    ],
+    [
+     3936,
+     28
+    ],
+    [
+     57,
+     16486447
+    ],
+    [
+     57,
+     5037650
+    ],
+    [
+     16166,
+     4
+    ],
+    [
+     6656,
+     1
+    ],
+    [
+     10549,
+     1
+    ]
+   ],
+   "killer_level": 80,
+   "npc": 29068,
+   "respawn_random": 0,
+   "seed": 5,
+   "spoiled": false,
+   "sweep": [],
+   "trace": [
+    {
+     "C": "4049000000000000",
+     "draw": "chance",
+     "pass": true,
+     "site": 3
+    },
+    {
+     "draw": "quantity",
+     "n": 21,
+     "site": 3,
+     "words": 1
+    },
+    {
+     "C": "4049000000000000",
+     "draw": "chance",
+     "pass": true,
+     "site": 3
+    },
+    {
+     "draw": "quantity",
+     "n": 2,
+     "site": 3,
+     "words": 1
+    },
+    {
+     "G": "4051800000000000",
+     "draw": "group",
+     "pass": true,
+     "site": 3
+    },
+    {
+     "draw": "selection",
+     "picked": 7,
+     "site": 3
+    },
+    {
+     "draw": "quantity",
+     "n": 1,
+     "site": 3,
+     "words": 1
+    },
+    {
+     "G": "4049000000000001",
+     "draw": "group",
+     "pass": true,
+     "site": 3
+    },
+    {
+     "draw": "selection",
+     "picked": 0,
+     "site": 3
+    },
+    {
+     "draw": "quantity",
+     "n": 1,
+     "site": 3,
+     "words": 1
+    },
+    {
+     "G": "4059000000000001",
+     "draw": "group",
+     "pass": true,
+     "site": 3
+    },
+    {
+     "draw": "selection",
+     "picked": 9,
+     "site": 3
+    },
+    {
+     "C": "3d10000000000000",
+     "draw": "remainder",
+     "pass": false,
+     "site": 3
+    },
+    {
+     "draw": "quantity",
+     "n": 1,
+     "site": 3,
+     "words": 1
+    },
+    {
+     "G": "4058ffffffffffff",
+     "draw": "group",
+     "pass": true,
+     "site": 3
+    },
+    {
+     "draw": "selection",
+     "picked": 4,
+     "site": 3
+    },
+    {
+     "draw": "quantity",
+     "n": 1,
+     "site": 3,
+     "words": 1
+    },
+    {
+     "G": "4048ffffffffffff",
+     "draw": "group",
+     "pass": true,
+     "site": 3
+    },
+    {
+     "draw": "selection",
+     "picked": 1,
+     "site": 3
+    },
+    {
+     "draw": "quantity",
+     "n": 1,
+     "site": 3,
+     "words": 1
+    },
+    {
+     "C": "4059000000000000",
+     "draw": "chance",
+     "pass": true,
+     "site": 3
+    },
+    {
+     "draw": "quantity",
+     "n": 19,
+     "site": 3,
+     "words": 1
+    },
+    {
+     "C": "404e000000000000",
+     "draw": "chance",
+     "pass": true,
+     "site": 3
+    },
+    {
+     "draw": "quantity",
+     "n": 59,
+     "site": 3,
+     "words": 1
+    },
+    {
+     "C": "404e000000000000",
+     "draw": "chance",
+     "pass": true,
+     "site": 3
+    },
+    {
+     "draw": "quantity",
+     "n": 39,
+     "site": 3,
+     "words": 1
+    },
+    {
+     "C": "4059000000000000",
+     "draw": "chance",
+     "pass": true,
+     "site": 3
+    },
+    {
+     "draw": "quantity",
+     "n": 4000001,
+     "site": 3,
+     "words": 1
+    },
+    {
+     "C": "4059000000000000",
+     "draw": "chance",
+     "pass": true,
+     "site": 3
+    },
+    {
+     "draw": "quantity",
+     "n": 4000001,
+     "site": 3,
+     "words": 1
+    },
+    {
+     "G": "4059000000000000",
+     "draw": "group",
+     "pass": true,
+     "site": 3
+    },
+    {
+     "draw": "selection",
+     "picked": 1,
+     "site": 3
+    },
+    {
+     "C": "0000000000000000",
+     "draw": "remainder",
+     "pass": false,
+     "site": 3
+    },
+    {
+     "draw": "quantity",
+     "n": 3,
+     "site": 3,
+     "words": 1
+    },
+    {
+     "C": "4059000000000000",
+     "draw": "chance",
+     "pass": true,
+     "site": 3
+    },
+    {
+     "draw": "quantity",
+     "n": 1,
+     "site": 3,
+     "words": 1
+    },
+    {
+     "G": "4059000000000000",
+     "draw": "group",
+     "pass": true,
+     "site": 3
+    },
+    {
+     "draw": "selection",
+     "picked": 0,
+     "site": 3
+    },
+    {
+     "C": "0000000000000000",
+     "draw": "remainder",
+     "pass": false,
+     "site": 3
+    },
+    {
+     "draw": "quantity",
+     "n": 1,
+     "site": 3,
+     "words": 1
+    },
+    {
+     "draw": "position",
+     "dx": -23,
+     "dy": -2,
+     "item": 8620,
+     "site": 4
+    },
+    {
+     "draw": "position",
+     "dx": -6,
+     "dy": 45,
+     "item": 13893,
+     "site": 4
+    },
+    {
+     "draw": "position",
+     "dx": -34,
+     "dy": -36,
+     "item": 13893,
+     "site": 4
+    },
+    {
+     "draw": "position",
+     "dx": 59,
+     "dy": -40,
+     "item": 15567,
+     "site": 4
+    },
+    {
+     "draw": "position",
+     "dx": 3,
+     "dy": 46,
+     "item": 15544,
+     "site": 4
+    },
+    {
+     "draw": "position",
+     "dx": -26,
+     "dy": 2,
+     "item": 15758,
+     "site": 4
+    },
+    {
+     "draw": "position",
+     "dx": -46,
+     "dy": -40,
+     "item": 15750,
+     "site": 4
+    },
+    {
+     "draw": "position",
+     "dx": -56,
+     "dy": 24,
+     "item": 15764,
+     "site": 4
+    },
+    {
+     "draw": "position",
+     "dx": 45,
+     "dy": 68,
+     "item": 959,
+     "site": 4
+    },
+    {
+     "draw": "position",
+     "dx": 17,
+     "dy": 57,
+     "item": 1538,
+     "site": 4
+    },
+    {
+     "draw": "position",
+     "dx": 33,
+     "dy": -25,
+     "item": 3936,
+     "site": 4
+    },
+    {
+     "draw": "position",
+     "dx": 69,
+     "dy": 36,
+     "item": 57,
+     "site": 4
+    },
+    {
+     "draw": "position",
+     "dx": 2,
+     "dy": -33,
+     "item": 57,
+     "site": 4
+    },
+    {
+     "draw": "position",
+     "dx": -52,
+     "dy": 48,
+     "item": 16166,
+     "site": 4
+    },
+    {
+     "draw": "position",
+     "dx": -62,
+     "dy": 18,
+     "item": 6656,
+     "site": 4
+    },
+    {
+     "draw": "position",
+     "dx": -48,
+     "dy": 24,
+     "item": 10549,
+     "site": 4
+    }
+   ],
+   "words": [
+    1110577896,
+    2516918053,
+    2327967008,
+    1971846743,
+    562923482,
+    1300128189,
+    403385984,
+    843148113,
+    2880002784,
+    3870701551,
+    3190393370,
+    631603508,
+    2883668091,
+    108560322,
+    2179790323,
+    1403833908,
+    3912522257,
+    3656881830,
+    3820313844,
+    2174977711,
+    1892062658,
+    1401308875,
+    1493261999,
+    789625642,
+    2648043752,
+    3041017686,
+    2602120177,
+    3588354655,
+    1220679253,
+    4292388564,
+    2561051944,
+    2006436724,
+    113150140,
+    81271222,
+    3839499731,
+    3686292097,
+    349470285,
+    1472652869,
+    3141461348,
+    2207188440,
+    3874798416,
+    2317024308,
+    4151822217,
+    2661012312,
+    1278486766,
+    871459302,
+    4240130984,
+    2615038303,
+    4122470353,
+    2040719266,
+    3489835571,
+    2987764517,
+    2469650674,
+    3462062103,
+    698808170,
+    2963425370,
+    863305925,
+    1967114118,
+    3168739824,
+    4284782496,
+    717259516,
+    1412191949,
+    348246845,
+    1191044255,
+    3153328119,
+    2598976484,
+    252378365,
+    612379702,
+    1479129454,
+    3656400474,
+    3521810050,
+    3852197679,
+    4132086528,
+    4224762064,
+    47912480,
+    3257805044,
+    2938654392,
+    3978839262,
+    3707719110,
+    518140046,
+    1708802641,
+    1599570949,
+    3906036141,
+    3312045954,
+    2519266867,
+    1351732699,
+    3504741870,
+    732346807,
+    4232355088,
+    2180735400,
+    3290165806,
+    856373670,
+    3696668041,
+    2152872326,
+    3079023151,
+    2383310755,
+    3262542835
+   ]
+  }
+ ],
+ "dp_vectors": [
+  {
+   "dropped": [
+    [
+     3,
+     12,
+     -8
+    ],
+    [
+     7,
+     -7,
+     -23
+    ],
+    [
+     8,
+     24,
+     0
+    ],
+    [
+     10,
+     18,
+     15
+    ],
+    [
+     11,
+     13,
+     0
+    ],
+    [
+     13,
+     20,
+     23
+    ],
+    [
+     14,
+     20,
+     -3
+    ],
+    [
+     15,
+     9,
+     22
+    ],
+    [
+     16,
+     -4,
+     24
+    ],
+    [
+     19,
+     -16,
+     16
+    ]
+   ],
+   "later_equipped": [
+    21,
+    24
+   ],
+   "seed": 17,
+   "trace": [
+    [
+     "gate",
+     true
+    ],
+    [
+     "item",
+     1,
+     50,
+     false
+    ],
+    [
+     "item",
+     2,
+     50,
+     false
+    ],
+    [
+     "unequip",
+     3
+    ],
+    [
+     "item",
+     3,
+     40,
+     true
+    ],
+    [
+     "item",
+     4,
+     50,
+     false
+    ],
+    [
+     "item",
+     5,
+     50,
+     false
+    ],
+    [
+     "unequip",
+     6
+    ],
+    [
+     "item",
+     6,
+     10,
+     false
+    ],
+    [
+     "item",
+     7,
+     50,
+     true
+    ],
+    [
+     "item",
+     8,
+     50,
+     true
+    ],
+    [
+     "unequip",
+     9
+    ],
+    [
+     "item",
+     9,
+     40,
+     false
+    ],
+    [
+     "item",
+     10,
+     50,
+     true
+    ],
+    [
+     "item",
+     11,
+     50,
+     true
+    ],
+    [
+     "unequip",
+     12
+    ],
+    [
+     "item",
+     12,
+     10,
+     false
+    ],
+    [
+     "item",
+     13,
+     50,
+     true
+    ],
+    [
+     "item",
+     14,
+     50,
+     true
+    ],
+    [
+     "unequip",
+     15
+    ],
+    [
+     "item",
+     15,
+     40,
+     true
+    ],
+    [
+     "item",
+     16,
+     50,
+     true
+    ],
+    [
+     "item",
+     17,
+     50,
+     false
+    ],
+    [
+     "unequip",
+     18
+    ],
+    [
+     "item",
+     18,
+     10,
+     false
+    ],
+    [
+     "item",
+     19,
+     50,
+     true
+    ]
+   ]
+  }
+ ],
+ "dt_vectors": {
+  "auto_destroy_9849": {
+   "0": 150,
+   "1": 150,
+   "49": 150,
+   "50": 200,
+   "51": 200
+  },
+  "herb": {
+   "0": 650,
+   "1": 650,
+   "49": 650,
+   "50": 700,
+   "51": 700
+  },
+  "loot": {
+   "0": 6050,
+   "1": 6050,
+   "49": 6050,
+   "50": 6100,
+   "51": 6100
+  },
+  "pk_drop": null
+ },
+ "dw_widths": {
+  "G=1": 141,
+  "G=2^-32": 173,
+  "G=2^32": 131
+ }
+}

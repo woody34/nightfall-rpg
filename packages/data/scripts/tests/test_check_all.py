@@ -16,19 +16,19 @@ class CompleteCheckTests(unittest.TestCase):
                 check_all, "check_phase3_zone", side_effect=ValueError("invalid geometry")), patch.object(
                 check_all.subprocess, "run", return_value=SimpleNamespace(returncode=0)) as run:
             self.assertEqual(check_all.main(), 1)
-            self.assertEqual(run.call_count, 10)
+            self.assertEqual(run.call_count, 11)
 
     def test_every_check_runs_and_any_failure_fails_the_gate(self):
-        for failed in range(10):
+        for failed in range(11):
             with self.subTest(failed=failed), patch.object(
                     check_all.sys, "argv", ["check_all", "--datapack", "/dp", "--game", "/game"]), patch.object(
                     check_all.subprocess, "run", side_effect=[
-                        SimpleNamespace(returncode=int(i == failed)) for i in range(10)]) as run:
+                        SimpleNamespace(returncode=int(i == failed)) for i in range(11)]) as run:
                 self.assertEqual(check_all.main(), 1)
                 commands = [call.args[0] for call in run.call_args_list]
                 self.assertEqual([Path(c[2]).name for c in commands], [
                     "gen_tables.py", "gen_classes.py", "gen_class_phase3.py", "gen_skills.py",
-                    "gen_economy.py", "skill_oracle.py", "skill_oracle.py", "starter_weapon_oracle.py", "skill_oracle.py", "oracle.py"])
+                    "gen_economy.py", "skill_oracle.py", "skill_oracle.py", "starter_weapon_oracle.py", "skill_oracle.py", "oracle.py", "economy_oracle.py"])
                 self.assertTrue(all(c[-1] == "--check" for c in commands))
                 self.assertIn("--class-phase3", commands[6])
 
@@ -36,7 +36,7 @@ class CompleteCheckTests(unittest.TestCase):
         with patch.object(check_all.sys, "argv", ["check_all", "--datapack", "/dp", "--game", "/game"]), patch.object(
                 check_all.subprocess, "run", return_value=SimpleNamespace(returncode=0)) as run:
             self.assertEqual(check_all.main(), 0)
-            self.assertEqual(run.call_count, 10)
+            self.assertEqual(run.call_count, 11)
 
     def test_class_generator_outputs_preserve_bytes_and_exclude_catalogue(self):
         data = Path(gen_classes.__file__).resolve().parent.parent
