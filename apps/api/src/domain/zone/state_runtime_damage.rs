@@ -7799,7 +7799,7 @@ mod tests {
             };
             let expected = match case {
                 0 => {
-                    // Accessory stone on a weapon: AbstractRefinePacket.java:251–254.
+                    // Accessory stone on a weapon: AbstractRefinePacket.java:253-256.
                     kind = K::Refine {
                         npc,
                         target: weapon,
@@ -7859,7 +7859,7 @@ mod tests {
                     RejectReason::OutOfRange
                 },
                 6 => {
-                    // D-grade target (AbstractRefinePacket.java:290–292).
+                    // D-grade target (AbstractRefinePacket.java:301-303).
                     let player = zone
                         .phase4
                         .as_mut()
@@ -7926,7 +7926,7 @@ mod tests {
                     RejectReason::ItemNotOwned
                 },
                 _ => {
-                    // Level below the stone's player level (AbstractRefinePacket.java:259–260).
+                    // Level below the stone's player level (AbstractRefinePacket.java:261-264).
                     let player = zone
                         .phase4
                         .as_mut()
@@ -8013,7 +8013,7 @@ mod tests {
         assert_eq!(applied, cold.run_tick(draft).unwrap());
         assert_eq!(zone.rng.get_word_pos(), cursor);
         let player = &zone.phase4.as_ref().unwrap().canonical.players[&owner.entity];
-        // RequestRefineCancel.java:108–110 disarms the RHAND weapon even for an accessory.
+        // RequestRefineCancel.java:112-115 disarms the RHAND weapon even for an accessory.
         assert!(!player.paperdoll.contains_key(&EquipSlot::Rhand));
         assert_eq!(player.paperdoll[&EquipSlot::Neck], necklace);
         assert!(player.inventory[&necklace].augment_id.is_none());
@@ -8025,7 +8025,9 @@ mod tests {
                     half
                 }));
         }
-        assert!(zone.entities[&owner.entity].combat.as_ref().unwrap().hp <= hp);
+        // Removing the augment re-folds max HP; current HP is clamped to it, never raised.
+        let combat = zone.entities[&owner.entity].combat.as_ref().unwrap();
+        assert_eq!(combat.hp, hp.min(combat.sheet.max_hp()));
         let projection = applied
             .events
             .iter()

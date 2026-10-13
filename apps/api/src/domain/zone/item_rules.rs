@@ -387,6 +387,16 @@ impl ItemRulesParts {
         {
             return Err("invalid class unarmed combat bases".into());
         }
+        // Review-3 nit: lineages are disjoint (unarmed lookups take the first match).
+        let mut lineage = std::collections::BTreeSet::new();
+        if self
+            .class_combat
+            .iter()
+            .flat_map(|row| &row.lineage_class_ids)
+            .any(|class| !lineage.insert(*class))
+        {
+            return Err("overlapping class combat lineages".into());
+        }
         // D84: disjoint ascending class ranges, each naming an imported FIST weapon.
         let mut previous: Option<u32> = None;
         for fists in &self.fists_weapons {
