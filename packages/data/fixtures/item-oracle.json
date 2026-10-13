@@ -221039,8 +221039,8 @@
           "2821": 105,
           "16341": 105,
           "16342": 105,
-          "16343": 105,
-          "16344": 105
+          "16343": 104,
+          "16344": 106
         },
         "samples": {
           "0": 16344,
@@ -221059,7 +221059,7 @@
         "G/datatables/AugmentationData.java:447-559,689-737"
       ],
       "draws": [],
-      "vector_sha256": "cc60faead01b153fb7676064564723dff6cce027fb9737c2050eff3545d07b3d"
+      "vector_sha256": "79f574f8b8407100c0509e00b07a33c0161437ef52ef1a699f11645117a13f36"
     },
     {
       "id": "retail-weapon-warrior-8753-2-55",
@@ -223497,8 +223497,8 @@
           "2912": 105,
           "16345": 105,
           "16346": 105,
-          "16347": 105,
-          "16348": 105
+          "16347": 104,
+          "16348": 106
         },
         "samples": {
           "0": 16348,
@@ -223517,7 +223517,7 @@
         "G/datatables/AugmentationData.java:447-559,689-737"
       ],
       "draws": [],
-      "vector_sha256": "ca71dcfea3ba38d0454ce69184f8f22951890fb4e0546b1ac7652d0f88259ee4"
+      "vector_sha256": "ba028e0b14545794e5dcd9822f81101e2b138956a60ebfcbdd9b2b40dbfe3a29"
     },
     {
       "id": "retail-weapon-warrior-8754-2-55",
@@ -225955,8 +225955,8 @@
           "3003": 105,
           "16349": 105,
           "16350": 105,
-          "16351": 105,
-          "16352": 105
+          "16351": 104,
+          "16352": 106
         },
         "samples": {
           "0": 16352,
@@ -225975,7 +225975,7 @@
         "G/datatables/AugmentationData.java:447-559,689-737"
       ],
       "draws": [],
-      "vector_sha256": "253c3e0863466445e77e22a1a6e93505ddd4af4cc01fe577524ac29f42c2f279"
+      "vector_sha256": "0bc15d1867e07e057b178204a13e72f4aa7bcec2dc12ac935dd3028d937ef51b"
     },
     {
       "id": "retail-weapon-warrior-8755-2-55",
@@ -228413,8 +228413,8 @@
           "3094": 105,
           "16353": 105,
           "16354": 105,
-          "16355": 105,
-          "16356": 105
+          "16355": 104,
+          "16356": 106
         },
         "samples": {
           "0": 16356,
@@ -228433,7 +228433,7 @@
         "G/datatables/AugmentationData.java:447-559,689-737"
       ],
       "draws": [],
-      "vector_sha256": "6e3410bf371aa4f64d5c71435c614e046709bdd64c35c67ad1f8790444a9c6f0"
+      "vector_sha256": "d7d5a7fa39a7bef00f2218fef3cc3de73ec4fab7fc07172ba22a8bc1a614c5b3"
     },
     {
       "id": "retail-weapon-warrior-8756-2-55",
@@ -230871,8 +230871,8 @@
           "3185": 105,
           "16357": 105,
           "16358": 105,
-          "16359": 105,
-          "16360": 105
+          "16359": 104,
+          "16360": 106
         },
         "samples": {
           "0": 16360,
@@ -230891,7 +230891,7 @@
         "G/datatables/AugmentationData.java:447-559,689-737"
       ],
       "draws": [],
-      "vector_sha256": "c5605bb774cb843a4c7e01e1e8ac9303d99ee714010724a2871be6ce8fe377f6"
+      "vector_sha256": "4cd65133b3ace438b45ccb0c2078e4b28274183c1dbd131b08c1a921bf75499e"
     },
     {
       "id": "retail-weapon-warrior-8757-2-55",
@@ -233329,8 +233329,8 @@
           "3276": 105,
           "16361": 105,
           "16362": 105,
-          "16363": 105,
-          "16364": 105
+          "16363": 104,
+          "16364": 106
         },
         "samples": {
           "0": 16364,
@@ -233349,7 +233349,7 @@
         "G/datatables/AugmentationData.java:447-559,689-737"
       ],
       "draws": [],
-      "vector_sha256": "6ff2a944b488893de7a4657e622b0dada9b3e5a2a12989c37e36965252f9fa09"
+      "vector_sha256": "3047acf0b33c6f758ea7ce005b2e1b5deff88c6ed7d732883662901c9bbed9c4"
     },
     {
       "id": "retail-weapon-warrior-8758-2-55",
@@ -235787,8 +235787,8 @@
           "3367": 105,
           "16365": 105,
           "16366": 105,
-          "16367": 105,
-          "16368": 105
+          "16367": 104,
+          "16368": 106
         },
         "samples": {
           "0": 16368,
@@ -235807,7 +235807,7 @@
         "G/datatables/AugmentationData.java:447-559,689-737"
       ],
       "draws": [],
-      "vector_sha256": "709d8851d9155baaa01a1ad3c045ee87a8504b48927527833cd60b31f54b85ed"
+      "vector_sha256": "2435e35c427da25faf957f3af62f3e998b8414418903a5fefd95b8035ddb151c"
     },
     {
       "id": "retail-weapon-warrior-8759-2-55",
@@ -238245,8 +238245,8 @@
           "3458": 105,
           "16369": 105,
           "16370": 105,
-          "16371": 105,
-          "16372": 105
+          "16371": 104,
+          "16372": 106
         },
         "samples": {
           "0": 16372,
@@ -238265,7 +238265,7 @@
         "G/datatables/AugmentationData.java:447-559,689-737"
       ],
       "draws": [],
-      "vector_sha256": "a5e7203a17c22b3dd16a642f6863de705d825d0edd07f9739b22d2dab86965ef"
+      "vector_sha256": "a112a4041b228db12af414b86c3188718c6eb955cc171c7dadcf241a1b47baf0"
     },
     {
       "id": "retail-weapon-warrior-8760-2-55",
@@ -240703,8 +240703,8 @@
           "3549": 105,
           "16373": 105,
           "16374": 105,
-          "16375": 105,
-          "16376": 105
+          "16375": 104,
+          "16376": 106
         },
         "samples": {
           "0": 16376,
@@ -240723,7 +240723,7 @@
         "G/datatables/AugmentationData.java:447-559,689-737"
       ],
       "draws": [],
-      "vector_sha256": "e8df494902ff922a471f148a8a99fbe3a4a44b1333e8076e86671b625a3807c1"
+      "vector_sha256": "fcfbc117a8df069e9b6514b249e60b9ff9392cbbfbf1c7cbfc63e1bc679cf0cc"
     },
     {
       "id": "retail-weapon-warrior-8761-2-55",
@@ -243161,8 +243161,8 @@
           "3640": 105,
           "16377": 105,
           "16378": 105,
-          "16379": 105,
-          "16380": 105
+          "16379": 104,
+          "16380": 106
         },
         "samples": {
           "0": 16380,
@@ -243181,7 +243181,7 @@
         "G/datatables/AugmentationData.java:447-559,689-737"
       ],
       "draws": [],
-      "vector_sha256": "49b074e3c59556a901c76c83a3dc02b2cf5fa493d577d5cb1a2cf1d3bc05d4c2"
+      "vector_sha256": "1955e65d1a12204bb5e0a8ae3a661626e3139e75cabc6dc27b1c105f1c1d290c"
     },
     {
       "id": "retail-weapon-warrior-8762-2-55",
@@ -252897,8 +252897,8 @@
           "20152": 105,
           "21423": 105,
           "21424": 105,
-          "21425": 105,
-          "21426": 105
+          "21425": 104,
+          "21426": 106
         },
         "samples": {
           "0": 21426,
@@ -252917,7 +252917,7 @@
         "G/datatables/AugmentationData.java:447-559,689-737"
       ],
       "draws": [],
-      "vector_sha256": "57cfe0574fd53b2e67cf26f84f7184adc93070752cc278d32d7accd9da198ed3"
+      "vector_sha256": "f4786b8bc1d29112f7fbfdcd4f1fb66693e2cb9156e6af6a0820000216d375f3"
     },
     {
       "id": "retail-weapon-warrior-9576-2-55",
@@ -262633,8 +262633,8 @@
           "21790": 105,
           "23061": 105,
           "23062": 105,
-          "23063": 105,
-          "23064": 105
+          "23063": 104,
+          "23064": 106
         },
         "samples": {
           "0": 23064,
@@ -262653,7 +262653,7 @@
         "G/datatables/AugmentationData.java:447-559,689-737"
       ],
       "draws": [],
-      "vector_sha256": "2869121c811df7430fa0296c7ff5d413862b62659ea1c453e58dd0c71f4ec1a1"
+      "vector_sha256": "465a792c5440693e7f54b15ee8fdbbe4bf38be4f969bb8f3f0eb7beaec9d2805"
     },
     {
       "id": "retail-weapon-warrior-10486-2-55",
@@ -272369,8 +272369,8 @@
           "23428": 105,
           "24699": 105,
           "24700": 105,
-          "24701": 105,
-          "24702": 105
+          "24701": 104,
+          "24702": 106
         },
         "samples": {
           "0": 24702,
@@ -272389,7 +272389,7 @@
         "G/datatables/AugmentationData.java:447-559,689-737"
       ],
       "draws": [],
-      "vector_sha256": "da535406db331666e1d67a447da706fb0f518d6a18d898dd31db56344e22f89b"
+      "vector_sha256": "b2b45b046719cb34df4f9d0699167ea23f37a77cccef4ec980e5d0691ba02494"
     },
     {
       "id": "retail-weapon-warrior-14169-2-55",
@@ -282105,8 +282105,8 @@
           "23428": 105,
           "24699": 105,
           "24700": 105,
-          "24701": 105,
-          "24702": 105
+          "24701": 104,
+          "24702": 106
         },
         "samples": {
           "0": 24702,
@@ -282125,7 +282125,7 @@
         "G/datatables/AugmentationData.java:447-559,689-737"
       ],
       "draws": [],
-      "vector_sha256": "7b716eb6b4edf73d98e75dd9e2e493d402e2213b21c2262927c7e1930fe03521"
+      "vector_sha256": "2fbf5be13e4bf37322c8afe442d8ac0a1294b4949d5dc54abd354c1366985aea"
     },
     {
       "id": "retail-weapon-warrior-16163-2-55",
@@ -291841,8 +291841,8 @@
           "23428": 105,
           "24699": 105,
           "24700": 105,
-          "24701": 105,
-          "24702": 105
+          "24701": 104,
+          "24702": 106
         },
         "samples": {
           "0": 24702,
@@ -291861,7 +291861,7 @@
         "G/datatables/AugmentationData.java:447-559,689-737"
       ],
       "draws": [],
-      "vector_sha256": "08226a3efde609fd130599a2da2444ad7d35e13955239c7a584a465dc1066c60"
+      "vector_sha256": "278f5dbb069f0869541bbf41a8d4b2f128f9d89115bb7afd5e12be7c8f9631b1"
     },
     {
       "id": "retail-weapon-warrior-16167-2-55",
@@ -367079,8 +367079,8 @@
           "6461": 105,
           "16341": 105,
           "16342": 105,
-          "16343": 105,
-          "16344": 105
+          "16343": 104,
+          "16344": 106
         },
         "samples": {
           "0": 16344,
@@ -367099,7 +367099,7 @@
         "G/datatables/AugmentationData.java:447-559,689-737"
       ],
       "draws": [],
-      "vector_sha256": "f7345e5033861ef0401d2a3484ed0525ddb1b4ef370e40e6660e5a1ac792987e"
+      "vector_sha256": "872690e92b6293347b08eafae9327132e0089159c9751cc424a39d7503c64ebd"
     },
     {
       "id": "retail-weapon-mage-8753-2-55",
@@ -369537,8 +369537,8 @@
           "6552": 105,
           "16345": 105,
           "16346": 105,
-          "16347": 105,
-          "16348": 105
+          "16347": 104,
+          "16348": 106
         },
         "samples": {
           "0": 16348,
@@ -369557,7 +369557,7 @@
         "G/datatables/AugmentationData.java:447-559,689-737"
       ],
       "draws": [],
-      "vector_sha256": "6edf950283b39178da15086507299b75da8fd20a2436a10d2cf9477885b53beb"
+      "vector_sha256": "f0444d04c39fdc002bd5e2ff8cc45cf9716f595379674aad938be4900e8da103"
     },
     {
       "id": "retail-weapon-mage-8754-2-55",
@@ -371995,8 +371995,8 @@
           "6643": 105,
           "16349": 105,
           "16350": 105,
-          "16351": 105,
-          "16352": 105
+          "16351": 104,
+          "16352": 106
         },
         "samples": {
           "0": 16352,
@@ -372015,7 +372015,7 @@
         "G/datatables/AugmentationData.java:447-559,689-737"
       ],
       "draws": [],
-      "vector_sha256": "c12c3d3e966429d44dee5d7594249926db79baf00fea1e405cbb152db6a4d28a"
+      "vector_sha256": "9e5a5a0e423e3096e7dcff5f5649f6d2eb197965556b954f0ac6c85a1cb6257a"
     },
     {
       "id": "retail-weapon-mage-8755-2-55",
@@ -374453,8 +374453,8 @@
           "6734": 105,
           "16353": 105,
           "16354": 105,
-          "16355": 105,
-          "16356": 105
+          "16355": 104,
+          "16356": 106
         },
         "samples": {
           "0": 16356,
@@ -374473,7 +374473,7 @@
         "G/datatables/AugmentationData.java:447-559,689-737"
       ],
       "draws": [],
-      "vector_sha256": "8e50b911e00c22c9b29930a67f7c6f82fe49d3e9b6fe926107fcdca178bdea49"
+      "vector_sha256": "48434142e191952bf14537a481e1188c1848c48c2138549c5be1fc350e80552a"
     },
     {
       "id": "retail-weapon-mage-8756-2-55",
@@ -376911,8 +376911,8 @@
           "6825": 105,
           "16357": 105,
           "16358": 105,
-          "16359": 105,
-          "16360": 105
+          "16359": 104,
+          "16360": 106
         },
         "samples": {
           "0": 16360,
@@ -376931,7 +376931,7 @@
         "G/datatables/AugmentationData.java:447-559,689-737"
       ],
       "draws": [],
-      "vector_sha256": "b386a32c8788e589b9278df7c1ecca3e87f7075138ae3a2f30fe0a8ac87b37bd"
+      "vector_sha256": "945b3d0d88260b7ab8cb5cfc196c6bd179c249cec06289f14f98620560d0ded3"
     },
     {
       "id": "retail-weapon-mage-8757-2-55",
@@ -379369,8 +379369,8 @@
           "6916": 105,
           "16361": 105,
           "16362": 105,
-          "16363": 105,
-          "16364": 105
+          "16363": 104,
+          "16364": 106
         },
         "samples": {
           "0": 16364,
@@ -379389,7 +379389,7 @@
         "G/datatables/AugmentationData.java:447-559,689-737"
       ],
       "draws": [],
-      "vector_sha256": "dddb450aa6d0271335020dc59ad5000d3377d86c3559724327162fdc1e09ae4c"
+      "vector_sha256": "bad8257919d1557d52f34d56afab70c72244ad42a34e60bab16168f2e501da64"
     },
     {
       "id": "retail-weapon-mage-8758-2-55",
@@ -381827,8 +381827,8 @@
           "7007": 105,
           "16365": 105,
           "16366": 105,
-          "16367": 105,
-          "16368": 105
+          "16367": 104,
+          "16368": 106
         },
         "samples": {
           "0": 16368,
@@ -381847,7 +381847,7 @@
         "G/datatables/AugmentationData.java:447-559,689-737"
       ],
       "draws": [],
-      "vector_sha256": "2f5fcf75b43bce271400701462cd930b8ee73e86cb3af0dd8036c8136d0b3bd3"
+      "vector_sha256": "9a1e76dbdfe056e123eaac06876466a67b6457cc62cc087eaddb2fc67ba2dda8"
     },
     {
       "id": "retail-weapon-mage-8759-2-55",
@@ -384285,8 +384285,8 @@
           "7098": 105,
           "16369": 105,
           "16370": 105,
-          "16371": 105,
-          "16372": 105
+          "16371": 104,
+          "16372": 106
         },
         "samples": {
           "0": 16372,
@@ -384305,7 +384305,7 @@
         "G/datatables/AugmentationData.java:447-559,689-737"
       ],
       "draws": [],
-      "vector_sha256": "4f37fc64caeea1b11e66f688d09fb4084680f2c393f9b06ff8667e8aeff3b6a6"
+      "vector_sha256": "96af26bfc24e0315a84aee38f398a3c6c85e6b43169b7e5a5b022aa9eecc798a"
     },
     {
       "id": "retail-weapon-mage-8760-2-55",
@@ -386743,8 +386743,8 @@
           "7189": 105,
           "16373": 105,
           "16374": 105,
-          "16375": 105,
-          "16376": 105
+          "16375": 104,
+          "16376": 106
         },
         "samples": {
           "0": 16376,
@@ -386763,7 +386763,7 @@
         "G/datatables/AugmentationData.java:447-559,689-737"
       ],
       "draws": [],
-      "vector_sha256": "6f91b381ab7107a7d94e6b5054a177248f5f6e52db9cc5b14bfac85d70e5acd8"
+      "vector_sha256": "ba06ff0040897c02b7a59b0a9771a1db9cc8b07b18d4f53d89881677e5debd67"
     },
     {
       "id": "retail-weapon-mage-8761-2-55",
@@ -389201,8 +389201,8 @@
           "7280": 105,
           "16377": 105,
           "16378": 105,
-          "16379": 105,
-          "16380": 105
+          "16379": 104,
+          "16380": 106
         },
         "samples": {
           "0": 16380,
@@ -389221,7 +389221,7 @@
         "G/datatables/AugmentationData.java:447-559,689-737"
       ],
       "draws": [],
-      "vector_sha256": "a1fc85e3ea3628bab6db76537a13f24d7d1df66a7ce019c68129eb6b5d0fe74c"
+      "vector_sha256": "c8c4327804beab6e5eefd8cff66dbb00929a6452e5424dd371ba137b2d598007"
     },
     {
       "id": "retail-weapon-mage-8762-2-55",
@@ -398937,8 +398937,8 @@
           "20516": 105,
           "21423": 105,
           "21424": 105,
-          "21425": 105,
-          "21426": 105
+          "21425": 104,
+          "21426": 106
         },
         "samples": {
           "0": 21426,
@@ -398957,7 +398957,7 @@
         "G/datatables/AugmentationData.java:447-559,689-737"
       ],
       "draws": [],
-      "vector_sha256": "b765b7b063925352a4457341b2c912320153e6c6232a234b305d7c46f6277057"
+      "vector_sha256": "3a3583278b762f77801ab34b92ea3dd8259249b38e41980164f6ecd0264db563"
     },
     {
       "id": "retail-weapon-mage-9576-2-55",
@@ -408673,8 +408673,8 @@
           "22154": 105,
           "23061": 105,
           "23062": 105,
-          "23063": 105,
-          "23064": 105
+          "23063": 104,
+          "23064": 106
         },
         "samples": {
           "0": 23064,
@@ -408693,7 +408693,7 @@
         "G/datatables/AugmentationData.java:447-559,689-737"
       ],
       "draws": [],
-      "vector_sha256": "3983d0e4a361d582bd119642c4a88a3fb69e63f4d4f96a9e8a48e6f72a567a9e"
+      "vector_sha256": "901b720db83653ddb189b03ec55fe1dd785cdc43be0be50ac2192e5619d091e3"
     },
     {
       "id": "retail-weapon-mage-10486-2-55",
@@ -418409,8 +418409,8 @@
           "23792": 105,
           "24699": 105,
           "24700": 105,
-          "24701": 105,
-          "24702": 105
+          "24701": 104,
+          "24702": 106
         },
         "samples": {
           "0": 24702,
@@ -418429,7 +418429,7 @@
         "G/datatables/AugmentationData.java:447-559,689-737"
       ],
       "draws": [],
-      "vector_sha256": "e4a37e0583f7857f13895362699ed8fee3c9aa535154d430dbd77619b2220006"
+      "vector_sha256": "549fc255d02e5c36b07c320bc425dfe60efb29c0f80a315e15bc5f07d8004696"
     },
     {
       "id": "retail-weapon-mage-14169-2-55",
@@ -428145,8 +428145,8 @@
           "23792": 105,
           "24699": 105,
           "24700": 105,
-          "24701": 105,
-          "24702": 105
+          "24701": 104,
+          "24702": 106
         },
         "samples": {
           "0": 24702,
@@ -428165,7 +428165,7 @@
         "G/datatables/AugmentationData.java:447-559,689-737"
       ],
       "draws": [],
-      "vector_sha256": "a7bf36ac7763d643665b188afe78c29e69f7eeeffaee7140a5272c79ca735700"
+      "vector_sha256": "f5c30d2e086eb984193fe46c08d502696f427cdac0aeaf8521bff356d76347f8"
     },
     {
       "id": "retail-weapon-mage-16163-2-55",
@@ -437881,8 +437881,8 @@
           "23792": 105,
           "24699": 105,
           "24700": 105,
-          "24701": 105,
-          "24702": 105
+          "24701": 104,
+          "24702": 106
         },
         "samples": {
           "0": 24702,
@@ -437901,7 +437901,7 @@
         "G/datatables/AugmentationData.java:447-559,689-737"
       ],
       "draws": [],
-      "vector_sha256": "49438c513a2522186ec46c4db7759d033501627f7c8c37cb07c2416bc49f2e9f"
+      "vector_sha256": "f577bcf7d467fe446662097f0e2faba3af5e84a5edd874da97b9c3d5fa4fa2b7"
     },
     {
       "id": "retail-weapon-mage-16167-2-55",
@@ -695555,5 +695555,5 @@
       }
     }
   ],
-  "vector_set_sha256": "66f3928a85aece7937f79b4d420770e844e2d349bcb5705f2469bc9d2a5da7ba"
+  "vector_set_sha256": "fd6b5104eed67561e6cf67cee568cd729e1dd5fee2c36f7f3f282bf69badba39"
 }

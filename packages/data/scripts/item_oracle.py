@@ -15,6 +15,8 @@ import json
 from math import isqrt, factorial
 from pathlib import Path
 import re
+import math
+import struct
 import subprocess
 import sys
 import tomllib
@@ -354,23 +356,37 @@ def lethal(full,half,full_residue,half_residue,eligible=True,attribute=1,trait=1
     return {'outcome':'half' if half_residue<exact(half)*scale else 'none','draws':draws}
 
 
+def binary32(value):
+    """Round a Python float (an exact binary64 here) to the nearest binary32."""
+    return struct.unpack('<f',struct.pack('<f',value))[0]
+
+
+def retail_thresholds(rows):
+    """D86/D105: AugmentationData's `float s=10000; s -= getAugmentChance()*100` (chance from
+    Float.parseFloat). Each step's operands are binary32, so the binary64 product/difference is
+    exact and one struct round trip is the Java float result. `s` before each row."""
+    s=binary32(10000.0);out=[]
+    for option,chance in rows:
+        out.append(s)
+        s=binary32(s-binary32(binary32(float(exact(chance)))*100.0))
+    return out
+
+
 def retail_select(rows,residue):
     if not 0<=residue<10000:raise ValueError('invalid retail residue')
-    threshold=F(10000);selected=0
-    for option,chance in rows:
-        if threshold>residue:
-            threshold-=exact(chance)*100;selected=option
+    selected=0
+    for (option,chance),threshold in zip(rows,retail_thresholds(rows)):
+        if threshold>residue:selected=option
     if selected==0:raise ValueError('retail table leaves option zero')
     return selected
 
 
 def retail_distribution(rows):
-    # Exact interval enumeration equivalent to exhaustive residues, without O(N*10000).
-    threshold=F(10000);counts=Counter()
+    # Interval enumeration over the binary32 thresholds, equivalent to exhaustive residues.
+    thresholds=retail_thresholds(rows);counts=Counter()
     for index,(option,chance) in enumerate(rows):
-        previous=threshold;threshold-=exact(chance)*100
-        lower=0 if index==len(rows)-1 else max(0,-((-threshold.numerator)//threshold.denominator))
-        upper=min(9999,-((-previous.numerator)//previous.denominator)-1)
+        lower=0 if index==len(rows)-1 else max(0,math.ceil(thresholds[index+1]))
+        upper=min(9999,math.ceil(thresholds[index])-1)
         if upper>=lower:counts[option]+=upper-lower+1
     if sum(counts.values())!=10000:raise ValueError('retail row selector does not cover 10000 residues')
     return dict(sorted(counts.items()))
