@@ -297,6 +297,16 @@ def _revision_requirements(src, need, o, human):
                                   [('all', physical+magical, 'none'), ('fullarmor', ['chest'], 'fullarmor'),
                                    ('onepiece', ['chest'], 'onepiece'), ('fullarmor-legs', ['chest', 'legs'], 'fullarmor')]):
             need('F1', f'class-slots-{cid}-{name}', class_file=file, level=84, occupied_slots=slots, chest_bodypart=body)
+    # D75: every supported-lineage class's unarmed reach plus one weapon override.
+    graph = {int(n.get('classId')): n.get('parentClassId') for n in src.xml(D+'stats/chars/classList.xml').findall('class')}
+    for path in sorted((src.dp/(D+'stats/chars/baseStats')).glob('*.xml')):
+        file = path.relative_to(src.dp).as_posix(); cid = top = int(src.xml(file).findtext('classId'))
+        while graph.get(top) is not None:
+            top = int(graph[top])
+        if top in base:
+            need('F1', f'class-combat-{cid}-unarmed', class_file=file, base_class_id=top)
+    need('F1', 'class-combat-44-armed-2369', class_file=D+'stats/chars/baseStats/OrcFighter.xml', base_class_id=44, weapon=2369,
+         sources=['G/model/actor/stat/CharStat.java:424-435', 'G/model/items/L2Weapon.java:92'])
     for slot in ['rfinger', 'lfinger']:
         root = src.xml(human); root.find('staticData/baseMDef/rfinger').text = '7'; root.find('staticData/baseMDef/lfinger').text = '999'
         need('F1', 'class-slots-unequal-'+slot, class_file=human, level=84, occupied_slots=[slot], chest_bodypart='none',

@@ -790,6 +790,33 @@ def defence_slot_stats(src,class_file,level,occupied_slots,chest_bodypart='none'
             'p_def':pdef,'m_def':mdef,'p_def_q':q(pdef),'m_def_q':q(mdef)}
 
 
+def unarmed_reach(src,class_file,weapon=None):
+    """Independent CharStat.getPhysicalAttackRange/getAttackType base (no transform, no pAtkRange mods)."""
+    static=src.xml(class_file).find('staticData')
+    if weapon is None:
+        # L2CharTemplate loader defaults: baseAtkRange 40, baseAtkType FIST, when a node is absent.
+        return {'weapon':None,'attack_type':static.findtext('baseAtkType','FIST'),
+                'base_attack_range':int(static.findtext('baseAtkRange','40')),'attack_angle':120}
+    p=src.properties(weapon)
+    angle=p.get('damage_range','').split(';')
+    return {'weapon':weapon,'attack_type':p.get('weapon_type','NONE'),'base_attack_range':int(p.get('attack_range','40')),
+            'attack_angle':int(angle[3]) if len(angle)>=4 and angle[3].isdigit() else 120}
+
+
+def class_combat_cases(src):
+    """Every class whose classList root is a supported base class, selected from the graph."""
+    graph={int(n.get('classId')):(int(n.get('parentClassId')) if n.get('parentClassId') is not None else None)
+           for n in src.xml(D+'stats/chars/classList.xml').findall('class')}
+    base_ids={cid for cid,parent in graph.items() if parent is None and src.races.get(cid) in {'HUMAN','ELF','DARK_ELF','ORC','DWARF'}}
+    if len(base_ids)!=9:raise ValueError('unexpected supported base classes')
+    def root(cid):
+        while graph.get(cid) is not None:cid=graph[cid]
+        return cid
+    for path in sorted((src.dp/(D+'stats/chars/baseStats')).glob('*.xml')):
+        file=path.relative_to(src.dp).as_posix();cid=int(src.xml(file).findtext('classId'))
+        if root(cid) in base_ids:yield f'class-combat-{cid}-unarmed',{'class_file':file,'base_class_id':root(cid)}
+
+
 def class_slot_cases(src):
     # Select base classes independently from the pinned class graph (parent absent).
     graph=src.xml(D+'stats/chars/classList.xml')
@@ -962,6 +989,15 @@ def make_vectors(src):
              'G/model/stats/functions/formulas/FuncPDefMod.java:44-70',
              'G/model/stats/functions/formulas/FuncMDefMod.java:44-66','G/model/stats/BaseStats.java:115-120',
              'G/datatables/ItemTable.java:79,104 fullarmor/onepiece share SLOT_FULL_ARMOR'])
+    # D75: unarmed reach per class (template baseAtkRange) and a weapon-override contrast.
+    reach_sources=['G/model/actor/stat/CharStat.java:424-435','G/model/actor/stat/CharStat.java:438-447',
+                   'G/model/actor/L2Character.java:5560-5572','G/model/actor/templates/L2CharTemplate.java:114,116',
+                   'G/model/actor/instance/L2PcInstance.java:1018-1019']
+    for name,inputs in class_combat_cases(src):
+        add('F1',name,inputs,unarmed_reach(src,inputs['class_file']),[inputs['class_file']]+reach_sources)
+    orc=D+'stats/chars/baseStats/OrcFighter.xml'
+    add('F1','class-combat-44-armed-2369',{'class_file':orc,'base_class_id':44,'weapon':2369},unarmed_reach(src,orc,2369),
+        [orc,src.citation(2369),'G/model/items/L2Weapon.java:92']+reach_sources)
     # Pinned fingers are equal; unequal synthetic XML distinguishes the getter quirk.
     root=src.xml(human)
     root.find('staticData/baseMDef/rfinger').text='7'

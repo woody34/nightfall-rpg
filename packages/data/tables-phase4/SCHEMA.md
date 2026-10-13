@@ -156,3 +156,27 @@ subtract their bases; fullarmor/onepiece CHEST also subtracts LEGS once. Occupie
 magical slots subtract their effective bases. Existing V5 inputs are unchanged.
 The table participates in `rules_manifest.files` and `data_sha256`; source byte
 hashes remain in `source_inventory.json`.
+
+D75 `class_combat.toml` adds hash-bound unarmed (no active weapon) combat bases for
+the nine supported base classes (ascending `base_class_id`): `schema:int=1`,
+`sources:Source[]`, `unarmed:{attack_angle:int,random_damage_radius_base:int}`,
+`classes:ClassCombat[]`. ClassCombat is `{base_class_id:int,key:string,
+attack_type:string,attack_range:int,p_atk:int,p_atk_spd:int,crit_rate:int,
+lineage_class_ids:int[],source:Source}`, read from the class XML `staticData`
+leaves `baseAtkType/baseAtkRange/basePAtk/basePAtkSpd/baseCritRate`.
+`attack_range` is the base of `CharStat.getPhysicalAttackRange()` when no weapon is
+active (`CharStat.java:424-435`; template follows the CURRENT class,
+`L2PcInstance.java:1018-1019,7668-7674`): 20 for human/elf/dark elf/dwarf lineages
+and **25 for both orc lineages** (`OrcFighter.xml:33`, `OrcMystic.xml:33`); the
+loader default 40 (`L2CharTemplate.java:114`) is never reached for players.
+`lineage_class_ids` is the generator's census of every `classList.xml` descendant
+with a baseStats file; generation fails if any descendant's five values differ
+from its base class, so consumers may key by base class. `unarmed.attack_angle`
+is the hardcoded no-weapon angle 120 (`CharStat.java:438-447`, no per-class value);
+`unarmed.random_damage_radius_base` is the 5 of the no-weapon spread radius
+`5 + isqrt(level)` (`L2Character.java:5034-5044`; template `baseRndDam` is NOT used
+for unarmed players). `p_atk/p_atk_spd/crit_rate` are template bases that a
+weapon's `set` functions replace (`CharStat.java:145,399,410`). Transformations
+are out of scope. Phase 3 class data/hashes are untouched; the table participates
+in `rules_manifest.files` and `data_sha256`, and every cited source is byte-hashed
+in `source_inventory.json`.

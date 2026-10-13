@@ -910,6 +910,22 @@ Two explicitly synthetic unequal-finger oracle vectors (RFINGER=7, LFINGER=999)
 distinguish the getter duplication even though all nine pinned XML pairs match;
 they preserve the complete overridden XML as inputs and are coverage-mandatory.
 
+Phase 4 D75 class unarmed combat bases: `gen_items.py` reads every
+`data/stats/chars/baseStats/*.xml` and `data/stats/chars/classList.xml`, emits
+`tables-phase4/class_combat.toml` for the nine starting classes (`baseAtkType`,
+`baseAtkRange`, `basePAtk`, `basePAtkSpd`, `baseCritRate`; lines 11-14,33 of each
+base XML) and fails closed unless every descendant shares its base's values
+(89 classes census). Unarmed reach is 20 except both orc lineages (25,
+`OrcFighter.xml:33`, `OrcMystic.xml:33`). Game citations:
+`CharStat.java:424-435` (no-weapon range), `:438-447` (no-weapon angle 120),
+`:145,399,410`, `L2Character.java:5034-5044` (radius 5+isqrt(level)) and
+`:5560-5572`, `L2CharTemplate.java:107-118` defaults, `PlayerTemplateData.java:98-103`,
+`L2PcInstance.java:1018-1019,7668-7674`. The generator regex-verifies the 120 and
+5 literals in the pinned Java. `item_oracle.py` adds 90 independent F1 vectors
+(`class-combat-<classId>-unarmed` for all 89 lineage classes, selected from the
+class graph, plus `class-combat-44-armed-2369` showing the weapon's 40 overrides
+the orc 25); `item_coverage.py` requires each.
+
 Data review revision 4: `scripts/item_coverage.py` independently enumerates
 §12.1 requirements from the design boundaries and pinned source domains;
 `make_vectors`, generated fixtures and their counts are never requirement inputs.
