@@ -110,6 +110,8 @@ struct Harness {
     entity: EntityId,
     account: AccountId,
     session: SessionId,
+    /// Fixture birth rows (D77) seeded before any settlement; assertions skip them.
+    seeded: usize,
 }
 impl Harness {
     async fn new() -> Self {
@@ -122,8 +124,8 @@ impl Harness {
         );
         let (mut state, target, _) = ZoneState::item_checkpoint_fixture();
         state.run_tick(state.draft(Vec::new())).unwrap();
-        // Admission hydrates retained provenance from the birth ledger (D65); this fixture has
-        // no ledger, so give its retained items their explicit origin as admission would.
+        // Admission hydrates retained provenance from the birth ledger (D65); give the retained
+        // items their explicit origin here and seed the matching birth rows below (D77).
         let mut seeded = state.snapshot();
         let origin = crate::domain::zone::ItemCreationOrigin {
             zone: seeded.seed.zone,
@@ -190,6 +192,7 @@ impl Harness {
             );
             repo.insert_item_checkpoint_for_test(c.id, cp.phase4.clone().unwrap())
                 .unwrap();
+            repo.seed_item_birth_ledger_for_test(c.id).unwrap();
             cp.revision_seen = 1;
             service.players.insert(
                 entity.id,
@@ -211,7 +214,9 @@ impl Harness {
         }
         let session = SessionId::new();
         service.bind_session(target.entity, session);
+        let seeded = repo.item_ledger_for_test().len();
         Self {
+            seeded,
             repo,
             audit,
             service,
@@ -355,6 +360,7 @@ async fn item_batch_ack_waits_for_atomic_write_and_retries_exact_work() {
         let snapshot = h.state.snapshot();
         let audit = h.audit.clone();
         let session = h.session;
+        let seeded = h.seeded;
         let task = tokio::spawn(async move {
             h.service.admitted(&tick, &snapshot).await.unwrap();
             (h, tick)
@@ -366,7 +372,7 @@ async fn item_batch_ack_waits_for_atomic_write_and_retries_exact_work() {
             .frames(session)
             .iter()
             .all(|frame| !matches!(frame, AuditedFrame::Checkpoint(_))));
-        assert!(writer.inner.item_ledger_for_test().is_empty());
+        assert_eq!(writer.inner.item_ledger_for_test().len(), seeded);
         writer.released.notify_one();
         let (mut h, tick) = task.await.unwrap();
         let attempts = writer.attempts.lock().clone();
@@ -375,7 +381,7 @@ async fn item_batch_ack_waits_for_atomic_write_and_retries_exact_work() {
         assert_eq!(attempts[0].2.projection.receipts.len(), 2);
         assert_eq!(attempts[0].2.projection.ledger.len(), 2);
         assert_eq!(h.acknowledgements(), 1);
-        assert_eq!(h.repo.item_ledger_for_test().len(), 2);
+        assert_eq!(h.repo.item_ledger_for_test().split_off(h.seeded).len(), 2);
         let stored = h
             .repo
             .retained_inventory(h.entity.as_uuid().into())
@@ -415,7 +421,7 @@ async fn pending_item_snapshot_roundtrip_restores_exact_transaction_without_simu
         .is_err());
     assert!(h.service.players[&h.entity].fenced);
     assert_eq!(h.acknowledgements(), 0);
-    assert!(h.repo.item_ledger_for_test().is_empty());
+    assert!(h.repo.item_ledger_for_test().split_off(h.seeded).is_empty());
     // The captured immutable request is exactly the pending state at a process interruption
     // before dispatch; the injected permanent response above also separately proves fencing.
     h.service.players.get_mut(&h.entity).unwrap().fenced = false;
@@ -439,7 +445,7 @@ async fn pending_item_snapshot_roundtrip_restores_exact_transaction_without_simu
     assert_eq!(player.events, attempt.1);
     assert_eq!(player.items.as_ref().unwrap(), &attempt.2);
     recovery.flush(h.entity).await.unwrap();
-    assert_eq!(h.repo.item_ledger_for_test().len(), 2);
+    assert_eq!(h.repo.item_ledger_for_test().split_off(h.seeded).len(), 2);
     assert_eq!(h.acknowledgements(), 1);
     recovery.flush(h.entity).await.unwrap();
     assert_eq!(h.acknowledgements(), 1);
@@ -488,7 +494,7 @@ async fn item_checkpoint_missing_writer_or_projection_refuses_before_ack() {
             .await
             .is_err());
         assert_eq!(h.acknowledgements(), 0);
-        assert!(h.repo.item_ledger_for_test().is_empty());
+        assert!(h.repo.item_ledger_for_test().split_off(h.seeded).is_empty());
         assert!(tick.outputs.values().flatten().all(|output| !matches!(
             output,
             ObserverOutput::Event(crate::domain::zone::ZoneEvent::ItemCheckpoint(_))
@@ -541,7 +547,7 @@ async fn actor_log_then_checkpoint_then_output(log: Arc<dyn EventLog>) {
         outputs.try_recv(),
         Err(tokio::sync::broadcast::error::TryRecvError::Empty)
     ));
-    assert!(h.repo.item_ledger_for_test().is_empty());
+    assert!(h.repo.item_ledger_for_test().split_off(h.seeded).is_empty());
     assert!(h
         .audit
         .frames(h.session)
@@ -561,7 +567,7 @@ async fn actor_log_then_checkpoint_then_output(log: Arc<dyn EventLog>) {
     assert_eq!(outcome, TickOutcome::Ran(first.tick));
     let applied = outputs.recv().await.unwrap();
     assert!(first.reproduced_by(&AppliedTickRecord::from_applied(baseline.seed.zone, &applied)));
-    assert_eq!(h.repo.item_ledger_for_test().len(), 2);
+    assert_eq!(h.repo.item_ledger_for_test().split_off(h.seeded).len(), 2);
     assert_eq!(writer.attempts.lock().len(), 2);
     let acks = h
         .audit
@@ -583,7 +589,7 @@ async fn actor_log_then_checkpoint_then_output(log: Arc<dyn EventLog>) {
         .recover(log.as_ref(), baseline.seed.zone, baseline.seed.epoch)
         .await
         .unwrap();
-    assert_eq!(h.repo.item_ledger_for_test().len(), 2);
+    assert_eq!(h.repo.item_ledger_for_test().split_off(h.seeded).len(), 2);
     assert_eq!(h.repo.staged_events(), before);
 }
 
@@ -699,7 +705,7 @@ async fn unified_learning_context_survives_pending_item_snapshot_and_settles_onc
         expected
     );
     recovery.flush(h.entity).await.unwrap();
-    assert_eq!(h.repo.item_ledger_for_test().len(), 2);
+    assert_eq!(h.repo.item_ledger_for_test().split_off(h.seeded).len(), 2);
     assert_eq!(h.repo.staged_events().len(), 3);
     assert_eq!(
         h.repo
@@ -753,7 +759,7 @@ async fn refuses_item_actor_without_durable_gate_before_database_and_visibility(
     assert_eq!(driver.step().await.unwrap(), TickOutcome::Held(tick));
     handle.stopped().await;
     assert!(handle.persistence_failed());
-    assert!(h.repo.item_ledger_for_test().is_empty());
+    assert!(h.repo.item_ledger_for_test().split_off(h.seeded).is_empty());
     assert!(h.repo.staged_events().is_empty());
     assert!(h
         .audit
@@ -843,7 +849,7 @@ async fn item_receipt_preflight_records_frozen_known_and_conflict_without_reexec
         .await
         .unwrap();
     let before = h.state.snapshot();
-    let rows = h.repo.item_ledger_for_test();
+    let rows = h.repo.item_ledger_for_test().split_off(h.seeded);
     let events = h.repo.staged_events();
     let writer = Arc::new(FlakyItems::new(h.repo.clone(), false, false));
     h.service.item_repo = Some(writer.clone());
@@ -901,7 +907,7 @@ async fn item_receipt_preflight_records_frozen_known_and_conflict_without_reexec
         .events
         .iter()
         .any(|event| matches!(event, ZoneEvent::ItemCheckpoint(_))));
-    assert_eq!(h.repo.item_ledger_for_test(), rows);
+    assert_eq!(h.repo.item_ledger_for_test().split_off(h.seeded), rows);
     assert_eq!(h.repo.staged_events(), events);
     assert!(writer.attempts.lock().is_empty());
     assert_eq!(writer.lookup_calls.load(Ordering::SeqCst), 6);
@@ -949,7 +955,7 @@ async fn item_receipt_preflight_remeasures_enriched_known_before_drafting() {
         .unwrap()
         .max_command_bytes = u64::try_from(limit).unwrap();
     h.state = crate::application::replay_log::restore_snapshot(snapshot).unwrap();
-    let rows = h.repo.item_ledger_for_test();
+    let rows = h.repo.item_ledger_for_test().split_off(h.seeded);
     let events = h.repo.staged_events();
     let writer = Arc::new(FlakyItems::new(h.repo.clone(), false, false));
     h.service.item_repo = Some(writer.clone());
@@ -966,7 +972,7 @@ async fn item_receipt_preflight_remeasures_enriched_known_before_drafting() {
     assert_eq!(handle.stats().borrow().commands_applied, 0);
     assert_eq!(writer.lookup_calls.load(Ordering::SeqCst), 1);
     assert!(writer.attempts.lock().is_empty());
-    assert_eq!(h.repo.item_ledger_for_test(), rows);
+    assert_eq!(h.repo.item_ledger_for_test().split_off(h.seeded), rows);
     assert_eq!(h.repo.staged_events(), events);
     drop(driver);
     handle.stopped().await;
@@ -997,7 +1003,7 @@ async fn item_receipt_preflight_lookup_failure_fences_before_log_database_or_out
         .is_none());
     assert_eq!(writer.lookup_calls.load(Ordering::SeqCst), 1);
     assert!(writer.attempts.lock().is_empty());
-    assert!(h.repo.item_ledger_for_test().is_empty());
+    assert!(h.repo.item_ledger_for_test().split_off(h.seeded).is_empty());
     assert!(h.repo.staged_events().is_empty());
     assert!(outputs.try_recv().is_err());
 }
@@ -1194,7 +1200,7 @@ async fn recorded_grant_reply_waits_for_log_checkpoint_and_returns_original_base
         Err(tokio::sync::oneshot::error::TryRecvError::Empty)
     ));
     assert!(outputs.try_recv().is_err());
-    assert!(h.repo.item_ledger_for_test().is_empty());
+    assert!(h.repo.item_ledger_for_test().split_off(h.seeded).is_empty());
     let mut records = log
         .read_epoch(baseline.seed.zone, baseline.seed.epoch)
         .await
@@ -1226,7 +1232,7 @@ async fn recorded_grant_reply_waits_for_log_checkpoint_and_returns_original_base
         assert_eq!(attempts.len(), 2);
         assert_eq!(attempts[0], attempts[1]);
     }
-    assert_eq!(h.repo.item_ledger_for_test().len(), 1);
+    assert_eq!(h.repo.item_ledger_for_test().split_off(h.seeded).len(), 1);
     let mut next = command.clone();
     next.request_id = Uuid::from_u128(5002);
     next.count = 3;
@@ -1282,7 +1288,7 @@ async fn recorded_grant_reply_waits_for_log_checkpoint_and_returns_original_base
         unreachable!()
     };
     assert_eq!(conflict.conflict.as_ref(), Some(&original.fingerprint));
-    assert_eq!(h.repo.item_ledger_for_test().len(), 2);
+    assert_eq!(h.repo.item_ledger_for_test().split_off(h.seeded).len(), 2);
     drop(driver);
     handle.stopped().await;
     assert!(!handle.persistence_failed());
@@ -1302,10 +1308,58 @@ async fn recorded_grant_unavailable_before_receipt_reads_without_durable_gate() 
         Err(crate::application::AppError::Unavailable(_))
     ));
     assert_eq!(writer.lookup_calls.load(Ordering::SeqCst), 0);
-    assert!(h.repo.item_ledger_for_test().is_empty());
+    assert!(h.repo.item_ledger_for_test().split_off(h.seeded).is_empty());
     drop(driver);
     handle.stopped().await;
 }
 
 #[path = "checkpoint_paused_tests.rs"]
 mod paused_tests;
+
+/// D77: a retained item whose birth ledger row is missing fences the lane permanently with the
+/// named constraint; no retry loop, no acknowledgement, no ledger write.
+#[tokio::test]
+async fn missing_birth_ledger_row_fences_lane_without_retry_or_ack() {
+    let mut h = Harness::new().await;
+    let character = CharacterId::from_uuid(h.entity.as_uuid());
+    let mut corrupt = h
+        .repo
+        .retained_inventory(character)
+        .await
+        .unwrap()
+        .unwrap()
+        .checkpoint
+        .unwrap();
+    let mut orphan = corrupt.instances[0].clone();
+    orphan.id = crate::domain::zone::ItemInstanceId::new(
+        corrupt
+            .instances
+            .iter()
+            .map(|item| item.id.get())
+            .max()
+            .unwrap()
+            + 1000,
+    )
+    .unwrap();
+    orphan.location = crate::domain::zone::ItemLocation::Inventory;
+    orphan.slot = None;
+    corrupt.instances.push(orphan);
+    h.repo
+        .insert_item_checkpoint_for_test(character, corrupt)
+        .unwrap();
+    let tick = h.equipment_tick();
+    let error = tokio::time::timeout(
+        Duration::from_secs(10),
+        h.service.admitted(&tick, &h.state.snapshot()),
+    )
+    .await
+    .unwrap()
+    .unwrap_err();
+    assert!(
+        matches!(error.downcast_ref::<CheckpointError>(), Some(CheckpointError::Constraint(name)) if name == "item_creation_ledger_missing"),
+        "{error:?}"
+    );
+    assert!(h.service.players[&h.entity].fenced);
+    assert_eq!(h.acknowledgements(), 0);
+    assert!(h.repo.item_ledger_for_test().split_off(h.seeded).is_empty());
+}
