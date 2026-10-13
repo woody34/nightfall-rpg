@@ -1778,7 +1778,17 @@ class Evidence(unittest.TestCase):
         # Another intent's later facts are unaffected.
         ok=copy.deepcopy(rows);later=copy.deepcopy(ok[1]);later.update(tick=2);later['data'].update(resolution_id='receipt:use:k2',word_before=1,word_after=2)
         ok.insert(-1,later);self.repair(ok);gate.validate(ok,self.recording,HASH)
-        print('D92: one terminal fact per intent on or after every correlated fact; earlier or duplicate terminal facts reject',flush=True)
+        # Review-2 P2-2: a prepay Consume correlates by its receipt cause even under another resolution_id.
+        def with_consume(tick):
+            out=self.transition_rows('consume');delta=out[3]
+            delta.update(tick=tick);delta['data'].update(resolution_id='other:9',receipt_refs=['receipt:use:k1'],
+                causes=[dict(cause='receipt:use:k1',count_delta=-1)])
+            fact=copy.deepcopy(rows[2]);fact.update(tick=1);out.insert(-1,fact)
+            out[0]['watermark'].update(records=3,last_tick=2);out[-1].update(ticks=3,last_tick=2)
+            out[1:-1]=sorted(out[1:-1],key=lambda r:r['tick']);return self.repair(out)
+        gate.validate(with_consume(0),self.recording,HASH)
+        with self.assertRaisesRegex(ValueError,'D92'):gate.validate(with_consume(2),self.recording,HASH)
+        print('D92: one terminal fact per intent on or after every correlated fact; earlier/duplicate terminal facts and a later prepay Consume (by receipt) reject',flush=True)
 
     def test_item_record_scalar_substitutions_through_evaluate(self):
         vectors=gate.oracle.make_vectors(gate.source())

@@ -442,8 +442,13 @@ oracle equality on the producer's actual inputs.
   originating intent's receipt or resolution id. The consumer refuses a
   second terminal fact for the same `(entity,incarnation,resolution_id)` and
   any fact of that intent (prepay Consume, draws, other formulas) on a later
-  tick than the terminal fact. The tick of the effect itself is not otherwise
-  observable in the sidecar.
+  tick than the terminal fact. A fact belongs to the intent when its
+  `resolution_id`, or (for ledger rows) its `receipt_ref` / any `receipt_refs`
+  entry, equals the terminal fact's `resolution_id`: a receipt-first prepay
+  Consume is bound by its receipt cause, not its resolution (D62). Facts are
+  correlated within one entity; the entity carrying the resurrection_scroll
+  terminal fact (caster vs resurrected target) is to be pinned with Z. The
+  tick of the effect itself is not otherwise observable in the sidecar.
 - D93 (Q-F7): the exporter attaches `causes` to `use` rows. Use causes are
   `shot_discharge:<attack resolution_id>` (new family), `cast_discharge:<skill_id>`
   (decimal skill id) or `receipt:<operation>:<key>`; Consume payment causes

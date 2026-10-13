@@ -806,10 +806,15 @@ def validate_terminal_facts(rows):
             if key in terminal:raise ValueError('multi-tick intent carries more than one terminal fact (D92)')
             terminal[key]=row
     for row in rows[1:-1]:
-        key=(row['entity'],row['incarnation'],row['data'].get('resolution_id'))
-        fact=terminal.get(key)
-        if fact is not None and row is not fact and row['tick']>fact['tick']:
-            raise ValueError('terminal fact precedes a later fact of its intent (D92)')
+        data=row['data'];identities={data.get('resolution_id')}
+        if row['kind']=='item_delta':
+            # Review-2 P2-2: a receipt-first prepay Consume binds the intent by its receipt cause,
+            # not by resolution_id (D62), so receipt references correlate as well.
+            identities|={ref for ref in [data.get('receipt_ref')]+list(data.get('receipt_refs') or ()) if isinstance(ref,str)}
+        for identity in identities:
+            fact=terminal.get((row['entity'],row['incarnation'],identity))
+            if fact is not None and row is not fact and row['tick']>fact['tick']:
+                raise ValueError('terminal fact precedes a later fact of its intent (D92)')
 
 
 def validate_exchanges(rows):
