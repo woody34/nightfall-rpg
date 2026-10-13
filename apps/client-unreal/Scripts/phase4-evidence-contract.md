@@ -469,3 +469,6 @@ oracle equality on the producer's actual inputs.
   equals its first cause's resolution id. A `cast_discharge` cause names a
   skill, not a resolution; D96: such a row's `resolution_id` is
   `cast:<cast_id>` and the consumer checks the `cast:` prefix only.
+  A use row with any discharge cause may only CLEAR charge bits
+  (`after.charges & ~before.charges == 0`); only a receipt-bound use (manual
+  shot charge) may add them.

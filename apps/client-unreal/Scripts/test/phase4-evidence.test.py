@@ -168,6 +168,8 @@ class Evidence(unittest.TestCase):
             'boolean cause':lambda d:d.update(causes=[dict(cause='shot_discharge:transition:1',count_delta=False)]),
             'payment cause on use (D93)':lambda d:d.update(causes=[dict(cause='auto_shot:transition:1',count_delta=0)]),
             'discharge resolution mismatch (D93)':lambda d:d.update(resolution_id='transition:9'),
+            'discharge adds charges (review-2 P3-2)':lambda d:(d['before'].update(charges=1),d['after'].update(charges=3)),
+            'discharge swaps charge kind':lambda d:(d['before'].update(charges=1),d['after'].update(charges=2)),
             'malformed cast discharge (D93)':lambda d:d.update(causes=[dict(cause='cast_discharge:cast:4',count_delta=0)]),
             'discharge cause on consume (D93)':None,
             'malformed cause':lambda d:d.update(causes=[dict(cause='discharge',count_delta=0)]),

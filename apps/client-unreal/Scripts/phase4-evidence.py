@@ -1062,6 +1062,12 @@ def validate(rows,recording,rules_hash):
                 # D93: an automatic attack discharge row resolves under its first cause's resolution.
                 first=data['causes'][0]['cause']
                 if first.startswith('shot_discharge:'):same(data['resolution_id'],first.split(':',1)[1])
+                # Review-2 P3-2: a discharge only clears charge bits; a receipt-bound use may charge.
+                if any(not c['cause'].startswith('receipt:') for c in data['causes']):
+                    before,after=data['before'],data['after']
+                    if isinstance(before,dict) and isinstance(after,dict) and type(before.get('charges')) is int and type(after.get('charges')) is int \
+                            and after['charges']&~before['charges']:
+                        raise ValueError('a discharge use row cannot add charges')
                 # D96: a cast discharge resolves under its cast (`cast:<cast_id>`); prefix only.
                 if first.startswith('cast_discharge:') and not re.fullmatch(r'cast:\S+',data['resolution_id']):
                     raise ValueError('cast-discharge use row needs a cast: resolution_id (D96)')
