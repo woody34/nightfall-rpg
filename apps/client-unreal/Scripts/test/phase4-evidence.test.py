@@ -300,6 +300,9 @@ class Evidence(unittest.TestCase):
                 data=dict(receipt_refs=[],causes=[dict(cause='auto_shot:attack:1',count_delta=-2)],resolution_id='attack:1')
             elif operation=='grant':
                 after=before|{'count':before['count']+1,'revision':1};data=dict(receipt_ref='receipt:grant:1',resolution_id='grant:1')
+            elif operation=='dp': # D100 partial Destroy
+                after=before|{'count':before['count']-1,'revision':1};data=dict(receipt_ref='receipt:destroy:p',resolution_id='destroy:p')
+                operation='destroy'
             else:
                 after=None;data=dict(receipt_ref=f'receipt:{operation}:1',resolution_id=f'{operation}:1')
             data.update(operation=operation,instance=100,before=before,after=after,
@@ -309,6 +312,25 @@ class Evidence(unittest.TestCase):
             # rule (not only continuity) is what must refuse them.
             state=after if after is not None else before
         return self.repair(rows)
+
+    def test_d100_non_consume_debits_in_any_order_before_consume(self):
+        # The zone's real tick shapes (1b50975): [Dp, C], [C, T], [E/G, C, T], plus [Dp, Crystallize].
+        controls=(['dp','consume'],['dp','grant','consume'],['grant','dp','consume'],['dp','grant'],['dp','destroy'],
+                  ['dp','crystallize'],['dp','consume','destroy'],['dp','dp','consume'],['dp'])
+        for operations in controls:
+            with self.subTest(control=operations):
+                rows=self.d94_rows(operations,count=9);gate.validate(rows,self.recording,HASH)
+                self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['pole_damage'],HASH)['passed'])
+        mutations=(['consume','dp'],['dp','destroy','dp'],['destroy','dp'])
+        for operations in mutations:
+            with self.subTest(mutation=operations):
+                with self.assertRaises(ValueError):gate.validate(self.d94_rows(operations,count=9),self.recording,HASH)
+        # A partial Destroy debits only the count, to a positive remainder.
+        bad=self.d94_rows(['dp','consume'],count=9);bad[3]['data']['after']['enchant']=1
+        with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
+        bad=self.d94_rows(['dp'],count=9);bad[3]['data'].update(count_delta=1);bad[3]['data']['after']['count']=10
+        with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
+        print(f'D100: {len(controls)} non-Consume debit/credit orders pass (incl. [Dp, C], [Dp, Crystallize]); {len(mutations)+2} shape/field mutations reject',flush=True)
 
     def test_d94_consume_then_one_terminal_row(self):
         controls=(['consume','destroy'],['consume','crystallize'],['grant','consume','destroy'],['grant','destroy'],
@@ -1974,9 +1996,10 @@ class Evidence(unittest.TestCase):
         inputs=dict(definition=definition,start_tick=10,available=2,death_incarnation=7,
                     current_incarnation=7,dead=True,response='accept',response_tick=160,
                     response_offer_id=1,existing_offer=None,repeat=False,hp=0,max_hp=101,
-                    mp=13,cp=17,recoverable_xp=101,restore_percent=0,restore_hp=ratio)
-        actual=gate.oracle.behavior.resurrection_scroll(**inputs)
-        self.assertEqual(actual['hp'],gate.oracle.F(1313,20))
+                    mp=13,cp=17,recoverable_xp=101,restore_percent=0,restore_hp=ratio,offer_id=1)
+        actual=gate.resurrection_expected(inputs,None)
+        # D104 (engine revive, zone oracle 82e1ef6): whole HP max(1, floor(101 x 13/20)) = 65.
+        self.assertEqual((actual['hp'],actual['hp_q']),(gate.oracle.F(65),65*gate.oracle.Q))
         rows=copy.deepcopy(self.rows)
         rows[1]['data'].update(formula='resurrection_scroll',inputs=gate.oracle.rational(inputs),actual=gate.oracle.rational(actual))
         self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['resurrection_scroll'],HASH)['passed'])
@@ -1984,36 +2007,35 @@ class Evidence(unittest.TestCase):
             bad=copy.deepcopy(rows);bad[1]['data']['inputs']['restore_hp']=value
             self.assertFalse(gate.evaluate(bad,self.recording,OWNER,['resurrection_scroll'],HASH)['passed'])
 
-    def test_d104_resurrection_q_floor_hp_recorded_offer_and_mp_deviation(self):
+    def test_d104_resurrection_engine_revive_offer_id_and_mp_deviation(self):
         F=gate.oracle.F;Q=gate.oracle.Q
         definition=gate.oracle.consumable_definition(gate.source(),737)
         inputs=dict(definition=definition,start_tick=10,available=2,death_incarnation=7,current_incarnation=7,dead=True,
                     response='accept',response_tick=160,response_offer_id=41,existing_offer=None,repeat=False,hp=0,max_hp=100,
-                    mp=13,cp=17,recoverable_xp=101,restore_percent=0,restore_hp=F(2,3))
-        # Independent expectation: the oracle run with its own id 1, relabelled to the recorded 41,
-        # HP as the Q-resolution floor of 100 x 2/3 (66.666666), MP preserved (Phase 3 design §1.2).
-        base=gate.oracle.behavior.resurrection_scroll(**inputs|dict(response_offer_id=1))
-        for event in base['trace']:
-            if isinstance(event.get('offer'),dict):event['offer']['offer_id']=41
-        base['hp']=F(66666666,Q);base['hp_q']=66666666
-        control=gate.oracle.rational(base)
+                    mp=13,cp=17,recoverable_xp=101,restore_percent=50,restore_hp=F(2,3),offer_id=41)
+        control=gate.oracle.rational(gate.resurrection_expected(inputs,None))
+        # Independent expectations: offer 41 from the fact, whole HP max(1, floor(100 x 2/3)) = 66,
+        # Q remainder cleared, XP refund round-half-up(101 x 50%) = 51, MP preserved.
+        self.assertEqual(control['trace'][2]['offer']['offer_id'],41)
+        self.assertEqual((control['hp'],control['hp_q'],control['xp_refund'],control['mp']),
+                         ({'numerator':66,'denominator':1},66*Q,51,{'numerator':13,'denominator':1}))
         rows=copy.deepcopy(self.rows);rows[1]['data'].update(formula='resurrection_scroll',inputs=gate.oracle.rational(inputs),actual=control)
         self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['resurrection_scroll'],HASH)['passed'])
         def rejected(actual,extra=None):
             with self.assertRaises(ValueError):gate.formula('resurrection_scroll',gate.oracle.rational(inputs|(extra or {})),actual)
-        exact=copy.deepcopy(control);exact.update(hp={'numerator':200,'denominator':3},hp_q=66666666);rejected(exact)
-        ceiling=copy.deepcopy(control);ceiling.update(hp={'numerator':66666667,'denominator':Q},hp_q=66666667);rejected(ceiling)
-        hard=gate.oracle.rational(gate.oracle.behavior.resurrection_scroll(**inputs|dict(response_offer_id=1)))
-        rejected(hard) # oracle-hard-coded id 1 with the recorded response 41: not the recorded offer
-        zero=copy.deepcopy(control);zero['trace'][2]['offer']['offer_id']=0;rejected(zero)
+        qfloor=copy.deepcopy(control);qfloor.update(hp={'numerator':33333333,'denominator':500000},hp_q=66666666);rejected(qfloor)
+        exact=copy.deepcopy(control);exact.update(hp={'numerator':200,'denominator':3});rejected(exact)
+        constant=copy.deepcopy(control);constant['trace'][2]['offer']['offer_id']=1;rejected(constant) # never a constant id
+        rejected(control,dict(offer_id=42))
+        with self.assertRaises(ValueError):gate.input_domains('resurrection_scroll',{k:v for k,v in inputs.items() if k!='offer_id'})
         # MP: the engine's respawn floor is an accepted, recorded deviation; anything else rejects.
         floor=copy.deepcopy(control);floor['mp']={'numerator':35,'denominator':1}
         gate.formula('resurrection_scroll',gate.oracle.rational(inputs|dict(max_mp=50,restore_mp=F(7,10))),floor)
-        gate.formula('resurrection_scroll',gate.oracle.rational(inputs),floor) # operands absent: a raise is accepted
+        gate.formula('resurrection_scroll',gate.oracle.rational(inputs),floor)
         for mp in (36,34):
             bad=copy.deepcopy(control);bad['mp']={'numerator':mp,'denominator':1};rejected(bad,dict(max_mp=50,restore_mp=F(7,10)))
         lower=copy.deepcopy(control);lower['mp']={'numerator':12,'denominator':1};rejected(lower)
-        print('D104: Q-floor HP, recorded offer_id and the engine MP respawn floor (recorded deviation) pass; exact/ceil HP, id 1 and other MP reject',flush=True)
+        print('D104: offer_id input, engine whole-HP revive, half-up refund and the MP respawn-floor deviation pass; Q-floor/exact HP, constant or other ids, lower MP reject',flush=True)
 
     def test_signed_formula_controls(self):
         for name,inputs in [('grade_penalties',dict(equipped=[],expertise=0,bonus=-2)),
@@ -2044,6 +2066,7 @@ class Evidence(unittest.TestCase):
             return value
         inputs=copy.deepcopy(inputs)
         if gate.source_data_sha256() in gate.PRE_D87_DATA:inputs=canonical(inputs)
+        if name=='resurrection_scroll' and 'offer_id' not in inputs:inputs['offer_id']=1 # pre-D104 vectors used id 1
         if name=='magic_damage' and 'is_pvp' not in inputs:
             # Review-2 P3-4: is_pvp is required; E1 vectors leave it to the oracle default.
             inputs['is_pvp']=inputs.get('attacker_player',True) and inputs.get('target_player',False)
@@ -2082,6 +2105,7 @@ class Evidence(unittest.TestCase):
         rows=copy.deepcopy(self.rows)
         function=getattr(gate.oracle,name,None) or getattr(gate.oracle.behavior,name,None)
         if name in gate.RESIDUE_INPUTS:function=lambda **_:gate.residue_family(name,inputs)
+        if name=='resurrection_scroll':function=lambda **_:gate.resurrection_expected(inputs,None)
         try:actual=gate.oracle.rational(function(**gate.oracle.decode_rationals(inputs)))
         except (TypeError,ValueError,KeyError,IndexError,ZeroDivisionError,AttributeError):actual=None
         rows[1]['data'].update(formula=name,inputs=inputs,actual=actual)
@@ -2157,6 +2181,7 @@ class Evidence(unittest.TestCase):
                     gate.input_domains(name,inputs)
                     decoded=gate.oracle.decode_rationals(inputs)
                     if name in gate.RESIDUE_INPUTS:output=gate.residue_family(name,inputs)
+                    elif name=='resurrection_scroll':output=gate.resurrection_expected(inputs,None)
                     else:output=function(src,**decoded) if 'src' in parameters else function(**decoded)
                 except (ValueError,TypeError,KeyError,IndexError,ZeroDivisionError):continue
                 actual=gate.oracle.rational(output)

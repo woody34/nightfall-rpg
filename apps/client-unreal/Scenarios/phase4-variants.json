@@ -6,7 +6,7 @@
       "layer": "actor-adapter-replay",
       "owner": "E2/E3",
       "source_input": "packages/data/fixtures/item-oracle.json",
-      "source_sha256": "2ac890db69590279be97df6985d9a6b6d8a7b0d10b03bbee3c1d3fcbcbdc4649",
+      "source_sha256": "9a433dfbdaab78702dc7f6a0e791d653bed697fbb9602ba879dba39ccb369279",
       "vector_ids": [
         "gear-01-SWORD",
         "gear-02-BLUNT",
@@ -336,7 +336,7 @@
       "layer": "actor-adapter-replay",
       "owner": "E2/E3",
       "source_input": "packages/data/fixtures/item-oracle.json",
-      "source_sha256": "2ac890db69590279be97df6985d9a6b6d8a7b0d10b03bbee3c1d3fcbcbdc4649",
+      "source_sha256": "9a433dfbdaab78702dc7f6a0e791d653bed697fbb9602ba879dba39ccb369279",
       "vector_ids": [
         "fist-1-unequip-0",
         "fist-1-unequip-12",
@@ -623,6 +623,7 @@
         "dual-plan-[False, True]-False",
         "dual-plan-[False, True]-True",
         "dual-plan-[True, True]-False",
+        "dual-plan-blocked",
         "dual-plan-[True, True]-True",
         "pole-count-0",
         "pole-count-1",
@@ -655,7 +656,7 @@
       "layer": "actor-adapter-replay",
       "owner": "E2/E3",
       "source_input": "packages/data/fixtures/item-oracle.json",
-      "source_sha256": "2ac890db69590279be97df6985d9a6b6d8a7b0d10b03bbee3c1d3fcbcbdc4649",
+      "source_sha256": "9a433dfbdaab78702dc7f6a0e791d653bed697fbb9602ba879dba39ccb369279",
       "vector_ids": [
         "retail-weapon-warrior-8723-1-100",
         "retail-weapon-warrior-8723-2-55",
@@ -1465,7 +1466,7 @@
       "layer": "actor-adapter-replay",
       "owner": "E2/E3",
       "source_input": "packages/data/fixtures/item-oracle.json",
-      "source_sha256": "2ac890db69590279be97df6985d9a6b6d8a7b0d10b03bbee3c1d3fcbcbdc4649",
+      "source_sha256": "9a433dfbdaab78702dc7f6a0e791d653bed697fbb9602ba879dba39ccb369279",
       "vector_ids": [
         "gear-19-HEAVY-set",
         "set-HEAVY-missing-piece",
@@ -3652,7 +3653,7 @@
       "layer": "actor-adapter-replay",
       "owner": "E2/E3",
       "source_input": "packages/data/fixtures/item-oracle.json",
-      "source_sha256": "2ac890db69590279be97df6985d9a6b6d8a7b0d10b03bbee3c1d3fcbcbdc4649",
+      "source_sha256": "9a433dfbdaab78702dc7f6a0e791d653bed697fbb9602ba879dba39ccb369279",
       "vector_ids": [
         "gear-09-D-e4",
         "gear-10-C-e4",
@@ -5629,7 +5630,7 @@
       "layer": "actor-adapter-replay",
       "owner": "E2/E3",
       "source_input": "packages/data/fixtures/item-oracle.json",
-      "source_sha256": "2ac890db69590279be97df6985d9a6b6d8a7b0d10b03bbee3c1d3fcbcbdc4649",
+      "source_sha256": "9a433dfbdaab78702dc7f6a0e791d653bed697fbb9602ba879dba39ccb369279",
       "vector_ids": [
         "gear-16-chest-e4",
         "gear-17-lhand-e6",
@@ -5726,7 +5727,7 @@
       "layer": "actor-adapter-replay",
       "owner": "E2/E3",
       "source_input": "packages/data/fixtures/item-oracle.json",
-      "source_sha256": "2ac890db69590279be97df6985d9a6b6d8a7b0d10b03bbee3c1d3fcbcbdc4649",
+      "source_sha256": "9a433dfbdaab78702dc7f6a0e791d653bed697fbb9602ba879dba39ccb369279",
       "vector_ids": [
         "chance-ARMOR_GROUP-0-0",
         "chance-ARMOR_GROUP-0-99999",
@@ -7542,7 +7543,7 @@
       "layer": "actor-adapter-replay",
       "owner": "E2/E3",
       "source_input": "packages/data/fixtures/item-oracle.json",
-      "source_sha256": "2ac890db69590279be97df6985d9a6b6d8a7b0d10b03bbee3c1d3fcbcbdc4649",
+      "source_sha256": "9a433dfbdaab78702dc7f6a0e791d653bed697fbb9602ba879dba39ccb369279",
       "vector_ids": [
         "crystals-NONE-False-0",
         "crystals-NONE-False-3",
@@ -7632,7 +7633,7 @@
       "layer": "actor-adapter-replay",
       "owner": "E2/E3",
       "source_input": "packages/data/fixtures/item-oracle.json",
-      "source_sha256": "2ac890db69590279be97df6985d9a6b6d8a7b0d10b03bbee3c1d3fcbcbdc4649",
+      "source_sha256": "9a433dfbdaab78702dc7f6a0e791d653bed697fbb9602ba879dba39ccb369279",
       "vector_ids": [
         "grade-0-0-branch",
         "grade-0-1-branch",
@@ -7906,7 +7907,7 @@
       "layer": "actor-adapter-replay",
       "owner": "E2/E3",
       "source_input": "packages/data/fixtures/item-oracle.json",
-      "source_sha256": "2ac890db69590279be97df6985d9a6b6d8a7b0d10b03bbee3c1d3fcbcbdc4649",
+      "source_sha256": "9a433dfbdaab78702dc7f6a0e791d653bed697fbb9602ba879dba39ccb369279",
       "vector_ids": [
         "load-CON-0",
         "load-CON-1",
@@ -8235,7 +8236,7 @@
       "layer": "actor-adapter-replay",
       "owner": "E2/E3",
       "source_input": "packages/data/fixtures/item-oracle.json",
-      "source_sha256": "2ac890db69590279be97df6985d9a6b6d8a7b0d10b03bbee3c1d3fcbcbdc4649",
+      "source_sha256": "9a433dfbdaab78702dc7f6a0e791d653bed697fbb9602ba879dba39ccb369279",
       "vector_ids": [
         "skill-post-critical-perfect-False",
         "skill-post-critical-perfect-True",
@@ -8487,7 +8488,7 @@
       "layer": "actor-adapter-replay",
       "owner": "E2/E3",
       "source_input": "packages/data/fixtures/item-oracle.json",
-      "source_sha256": "2ac890db69590279be97df6985d9a6b6d8a7b0d10b03bbee3c1d3fcbcbdc4649",
+      "source_sha256": "9a433dfbdaab78702dc7f6a0e791d653bed697fbb9602ba879dba39ccb369279",
       "vector_ids": [
         "shield-90-19",
         "shield-90-20",

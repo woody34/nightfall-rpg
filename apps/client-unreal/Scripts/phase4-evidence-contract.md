@@ -174,7 +174,8 @@ JSONL contract (schema version 1 of this sidecar):
   | equip / unequip | Both endpoints; only slot/location change. Equip enters paperdoll; unequip leaves it for inventory. |
   | enchant | Both endpoints; only enchant changes. Outcome correlation requires the exact source result; unchanged outcomes have no row. Destruction/refund uses separate destroy/grant rows. |
   | refine / cancel_refine | Both endpoints; only augment_id changes. Refine installs a packed option pair; cancel removes it. |
-  | destroy / crystallize | Existing before; after is null. Refunds are separate grant rows. |
+  | destroy | Existing before; strictly negative count_delta. After is null (whole, terminal) or, D100, a partial Destroy: only count changes, to a positive remainder (non-terminal debit). Refunds are separate grant rows. |
+  | crystallize | Existing before; after is null. Refunds are separate grant rows. |
   | grant | Canonical after; strictly positive count_delta. Before is null for creation, or canonical for a retained stack with only count changing. |
   | starter / backfill | Before is null; after is canonical. |
   | use (D73) | Both endpoints; only `charges` changes; count unchanged (count_delta 0). |
@@ -504,3 +505,19 @@ verified by exact oracle equality on the producer's actual inputs.
   reduced_mp_consume bows) is accepted. Callsites with pinned bounds are
   checked (`enchant` 100000, `bow_reduced_mp` 100); other callsites remain
   accepted as before.
+- D104 at the zone final head (82e1ef6): `resurrection_scroll.inputs.offer_id`
+  is REQUIRED (nullable positive integer): the id of the actual offer, which
+  the E1 oracle now takes. The oracle encodes the engine revive: whole HP =
+  max(1, floor(max_hp × restore_hp)) with the Q remainder cleared (this
+  supersedes the "Q-resolution floor" wording above), XP refund rounded half
+  up and capped by the loss, MP/CP unchanged. The consumer passes oracles that
+  take `offer_id` straight through and applies the same rule over older
+  oracles (rev 7/8). The MP respawn-floor deviation acceptance is unchanged.
+- D100: non-Consume debits are not ordered against credits. Before the
+  Consume aggregate a chain may hold any non-terminal rows — credits,
+  count-neutral rows and non-Consume debits such as a partial Destroy — in
+  either order (e.g. the zone's [partial Destroy, Consume] and [partial
+  Destroy, Grant] ticks); only the D94 shape (Consume last before at most one
+  terminal row, terminal = a whole Destroy/Crystallize with after null) and
+  the D74 per-chain caps constrain order, with endpoint continuity and
+  conservation as before.
