@@ -64,6 +64,7 @@ def main() -> int:
         ("gen_classes.py", sources[:2]),
         ("gen_class_phase3.py", sources),
         ("gen_skills.py", sources[:2]),
+        ("gen_economy.py", sources),
         ("skill_oracle.py", []),
         ("skill_oracle.py", ["--class-phase3"]),
         ("starter_weapon_oracle.py", []),
