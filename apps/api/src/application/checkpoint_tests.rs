@@ -206,6 +206,7 @@ struct Flaky {
     inner: Arc<InMemoryCharacterRepository>,
     attempts: AtomicUsize,
     after_commit: bool,
+    gate: Option<(Arc<tokio::sync::Semaphore>, Arc<tokio::sync::Semaphore>)>,
 }
 #[async_trait::async_trait]
 impl CharacterRepository for Flaky {
@@ -234,6 +235,10 @@ impl CharacterRepository for Flaky {
         cp: &CharacterCheckpoint,
         events: &[DomainEvent],
     ) -> Result<CheckpointOutcome, CheckpointError> {
+        if let Some((entered, release)) = &self.gate {
+            entered.add_permits(1);
+            release.acquire().await.unwrap().forget();
+        }
         let first = self.attempts.fetch_add(1, Ordering::SeqCst) == 0;
         if first && !self.after_commit {
             return Err(anyhow::anyhow!("before transaction").into());
@@ -254,6 +259,7 @@ async fn failures_before_and_after_commit_retry_identical_body_once_and_count() 
             inner: h.repo.clone(),
             attempts: AtomicUsize::new(0),
             after_commit,
+            gate: None,
         });
         let metrics = Metrics::detached();
         h.service.repo = repo.clone();
@@ -678,4 +684,287 @@ async fn recovery_refuses_to_close_an_epoch_without_its_original_prefix() {
             .unwrap(),
         crate::application::replay_log::EpochStatus::Complete(_)
     ));
+}
+
+#[tokio::test]
+async fn independent_saves_overlap_but_the_entire_batch_still_gates_output() {
+    use crate::application::zone_actor::{manual_ticks, TickOutcome, ZoneActor};
+    let mut h = Harness::new().await;
+    let c = Character::create(
+        AccountId::from_uuid(Uuid::nil()),
+        CharacterName::new("Second").unwrap(),
+        Race::Human,
+    );
+    h.repo.insert_for_test(c.clone());
+    let second = EntityId::from_uuid(c.id.as_uuid());
+    let record = h
+        .state
+        .run_tick(
+            h.state
+                .draft(vec![ZoneInput::system(ZoneCommand::SpawnPlayer {
+                    entity: second,
+                    name: "Second".into(),
+                    pos: Vec2Fixed::from_tiles(10, 10),
+                    speed: Speed::DEFAULT,
+                    generation: SessionGeneration(1),
+                    load: Some(Box::new(PlayerLoad {
+                        checkpoint_revision: Some(0),
+                        ..PlayerLoad::fresh("human_fighter")
+                    })),
+                })]),
+        )
+        .unwrap();
+    h.service
+        .admitted(&record, &h.state.snapshot())
+        .await
+        .unwrap();
+    h.service.players.get_mut(&second).unwrap().last_saved = Tick(0);
+    while h.state.next_tick() < Tick(50) {
+        h.step().await;
+    }
+    let entered = Arc::new(tokio::sync::Semaphore::new(0));
+    let release = Arc::new(tokio::sync::Semaphore::new(0));
+    h.service.repo = Arc::new(Flaky {
+        inner: h.repo.clone(),
+        attempts: AtomicUsize::new(1),
+        after_commit: false,
+        gate: Some((entered.clone(), release.clone())),
+    });
+    let (ticks, driver) = manual_ticks();
+    let zone = ZoneActor::spawn(h.state, ticks);
+    zone.checkpoints.install(h.service);
+    let mut outputs = zone.subscribe();
+    for entity in [h.id, second] {
+        zone.send(ZoneInput::system(ZoneCommand::MoveTo {
+            entity,
+            dest: Vec2Fixed::from_tiles(11, 10),
+        }))
+        .unwrap();
+    }
+    let step = tokio::spawn(async move { driver.step().await });
+    tokio::time::timeout(Duration::from_secs(5), entered.acquire_many(2))
+        .await
+        .unwrap()
+        .unwrap()
+        .forget();
+    assert!(outputs.try_recv().is_err());
+    release.add_permits(1);
+    tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            let first = h
+                .repo
+                .load_for_admission(h.id.as_uuid().into())
+                .await
+                .unwrap()
+                .unwrap();
+            let other = h.repo.load_for_admission(c.id).await.unwrap().unwrap();
+            if first.revision + other.revision == 1 {
+                break;
+            }
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .unwrap();
+    assert!(outputs.try_recv().is_err(), "one commit cannot release the tick");
+    release.add_permits(1);
+    assert_eq!(step.await.unwrap().unwrap(), TickOutcome::Ran(Tick(50)));
+    assert_eq!(outputs.try_recv().unwrap().tick, Tick(50));
+    for id in [h.id, second] {
+        assert_eq!(
+            h.repo
+                .load_for_admission(id.as_uuid().into())
+                .await
+                .unwrap()
+                .unwrap()
+                .revision,
+            1
+        );
+    }
+}
+
+// This adapter records immutable requests, including exact replays, without inventing DB retries.
+#[derive(Default)]
+struct CountCheckpoints {
+    requests: parking_lot::Mutex<Vec<CharacterCheckpoint>>,
+    keys: parking_lot::Mutex<BTreeMap<Uuid, (String, u64)>>,
+}
+#[async_trait::async_trait]
+impl CharacterRepository for CountCheckpoints {
+    async fn load_for_admission(&self, _: CharacterId) -> anyhow::Result<Option<ProgressionState>> {
+        anyhow::bail!("analysis only")
+    }
+    async fn get(&self, _: CharacterId) -> anyhow::Result<Option<Character>> {
+        anyhow::bail!("analysis only")
+    }
+    async fn list_by_account(&self, _: AccountId) -> anyhow::Result<Vec<Character>> {
+        anyhow::bail!("analysis only")
+    }
+    async fn create_idempotent(
+        &self,
+        _: &IdempotencyKey,
+        _: &str,
+        _: &Character,
+    ) -> Result<CreateOutcome, RepositoryError> {
+        Err(RepositoryError::Other(anyhow::anyhow!("analysis only")))
+    }
+    async fn checkpoint(
+        &self,
+        cp: &CharacterCheckpoint,
+        events: &[DomainEvent],
+    ) -> Result<CheckpointOutcome, CheckpointError> {
+        self.requests.lock().push(cp.clone());
+        let mut keys = self.keys.lock();
+        let fp = cp.fingerprint(events);
+        if let Some((prior, rev)) = keys.get(&cp.idempotency.1.as_uuid()) {
+            assert_eq!(prior, &fp);
+            return Ok(CheckpointOutcome::Replayed(*rev));
+        }
+        let rev = cp.revision_seen + 1;
+        keys.insert(cp.idempotency.1.as_uuid(), (fp, rev));
+        Ok(CheckpointOutcome::Applied(rev))
+    }
+}
+
+#[tokio::test]
+#[ignore = "offline full checkpoint accounting; requires PERF_RECORDING"]
+#[allow(clippy::print_stderr)] // Manual evidence report.
+async fn recorded_checkpoint_accounting() {
+    use crate::infrastructure::eventlog::Recording;
+    let recording =
+        Recording::read(std::path::Path::new(&std::env::var("PERF_RECORDING").unwrap())).unwrap();
+    let mut state = ZoneState::from_snapshot(recording.snapshot.clone()).unwrap();
+    let old_repo = Arc::new(CountCheckpoints::default());
+    let new_repo = Arc::new(CountCheckpoints::default());
+    let mut lanes: Vec<_> = [old_repo.clone(), new_repo.clone()]
+        .into_iter()
+        .map(|repo| {
+            let mut lane = CheckpointService::new(
+                repo,
+                Arc::new(InMemorySessionAudit::default()),
+                Arc::new(Metrics::detached()),
+            );
+            lane.restore(&recording.snapshot);
+            lane.internal_cadence = true;
+            lane
+        })
+        .collect();
+    let mut counts = [BTreeMap::<&str, usize>::new(), BTreeMap::new()];
+    for record in recording.records {
+        let applied = state
+            .run_tick(AppliedTickDraft {
+                epoch: record.epoch,
+                tick: record.tick,
+                commands: record.commands.clone(),
+            })
+            .unwrap();
+        assert!(record.reproduced_by(&AppliedTickRecord::from_applied(record.zone, &applied)));
+        let snapshot = state.snapshot();
+        for (index, (lane, repo)) in lanes.iter_mut().zip([&old_repo, &new_repo]).enumerate() {
+            let start = repo.requests.lock().len();
+            for cmd in &applied.commands {
+                if let ZoneCommand::Despawn { entity }
+                | ZoneCommand::ReplaceSession { entity, .. } = cmd.command
+                {
+                    lane.flush(entity).await.unwrap();
+                }
+            }
+            let after_flush = repo.requests.lock().len();
+            *counts[index].entry("lifecycle").or_default() += after_flush - start;
+            let mut reasons = BTreeMap::new();
+            for entity in &snapshot.entities {
+                let side = snapshot
+                    .phase3
+                    .as_ref()
+                    .and_then(|p| p.entities.get(&entity.id));
+                let Some(player) = lane.players.get_mut(&entity.id) else {
+                    reasons.insert(entity.id, "admission");
+                    continue;
+                };
+                let retained = retained_phase3_changed(player.last_phase3.as_ref(), side);
+                let class = match entity.combat.as_ref().map(|c| &c.role) {
+                    Some(CombatRole::Player {
+                        progression: Some(p),
+                        ..
+                    }) => {
+                        player.latest.as_ref().and_then(|c| c.class_state.as_ref())
+                            != Some(&p.class_state)
+                    },
+                    _ => false,
+                };
+                let progression = applied.progression().any(|d| {
+                    d.entity == entity.id
+                        && (d.died.is_some() || d.level_before != d.level || d.respawned)
+                });
+                reasons.insert(
+                    entity.id,
+                    if retained {
+                        "retained"
+                    } else if class {
+                        "class_sp_cp"
+                    } else if progression {
+                        "death_level_respawn"
+                    } else {
+                        "cadence"
+                    },
+                );
+                // Reproduce 995195c's exact old trigger using the real lane's bookkeeping.
+                if index == 0 && retained {
+                    player.last_phase3 = None;
+                }
+            }
+            lane.admitted(&applied, &snapshot).await.unwrap();
+            for cp in &repo.requests.lock()[after_flush..] {
+                let id = EntityId::from_uuid(cp.character_id.as_uuid());
+                *counts[index].entry(reasons[&id]).or_default() += 1;
+            }
+        }
+    }
+    for (index, repo) in [old_repo, new_repo].into_iter().enumerate() {
+        let requests = repo.requests.lock().len();
+        let distinct = repo.keys.lock().len();
+        assert_eq!(counts[index].values().sum::<usize>(), requests);
+        eprintln!("ACCOUNTING historical={} requests={requests} distinct={distinct} repeats={} causes={:?}", index == 0, requests - distinct, counts[index]);
+    }
+}
+
+#[tokio::test]
+async fn pending_lag_never_publishes_zero_while_a_peer_remains() {
+    #[derive(Default)]
+    struct LagHistory(parking_lot::Mutex<Vec<Duration>>);
+    impl CheckpointMetrics for LagHistory {
+        fn failed(&self) {}
+        fn lag(&self, age: Duration) {
+            self.0.lock().push(age);
+        }
+    }
+    let metrics = LagHistory::default();
+    let young = IdempotencyKey::from_uuid(Uuid::from_u128(1));
+    let old = IdempotencyKey::from_uuid(Uuid::from_u128(2));
+    let now = Instant::now();
+    let pending = parking_lot::Mutex::new(BTreeMap::from([
+        (young, now.checked_sub(Duration::from_secs(1)).unwrap()),
+        (old, now.checked_sub(Duration::from_secs(2)).unwrap()),
+    ]));
+    let young_save = PendingSave {
+        metrics: &metrics,
+        pending: &pending,
+        key: young,
+    };
+    let old_save = PendingSave {
+        metrics: &metrics,
+        pending: &pending,
+        key: old,
+    };
+    young_save.lag(Duration::ZERO);
+    assert!(metrics.0.lock().last().unwrap() >= &Duration::from_secs(2));
+    // Even an explicit per-request zero and the oldest request's completion cannot
+    // transiently publish "drained" before the remaining peer settles.
+    old_save.lag(Duration::ZERO);
+    drop(old_save);
+    assert_eq!(pending.lock().len(), 1);
+    assert!(metrics.0.lock().iter().all(|age| !age.is_zero()));
+    drop(young_save);
+    assert!(pending.lock().is_empty());
+    assert!(metrics.0.lock().last().unwrap().is_zero());
 }

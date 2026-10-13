@@ -548,7 +548,6 @@ async fn actor_log_then_checkpoint_then_output(log: Arc<dyn EventLog>) {
         start_epoch, DurableTickGate, GateConfig, NoReplayMetrics,
     };
     use crate::application::zone_actor::{manual_ticks, TickOutcome, ZoneActor};
-    use tokio_stream::StreamExt as _;
     let _ = tracing_subscriber::fmt()
         .with_test_writer()
         .with_max_level(tracing::Level::ERROR)
@@ -1022,7 +1021,6 @@ async fn item_receipt_preflight_remeasures_enriched_known_before_drafting() {
 #[tokio::test]
 async fn item_receipt_preflight_lookup_failure_fences_before_log_database_or_output() {
     use crate::application::zone_actor::TickOutcome;
-    use tokio_stream::StreamExt as _;
     let mut h = Harness::new().await;
     let input = h.equipment_inputs().remove(0);
     let writer = Arc::new(FlakyItems::new(h.repo.clone(), false, false));

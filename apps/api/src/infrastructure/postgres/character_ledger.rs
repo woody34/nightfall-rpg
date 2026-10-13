@@ -95,7 +95,8 @@ async fn persist_skills(
     id: CharacterId,
     skills: &[LearnedSkill],
 ) -> Result<(), CheckpointError> {
-    for known in learned_skills(tx, id).await? {
+    let persisted = learned_skills(tx, id).await?;
+    for known in &persisted {
         if !skills
             .iter()
             .any(|skill| skill.key == known.key && skill.level >= known.level)
@@ -104,6 +105,10 @@ async fn persist_skills(
         }
     }
     for skill in skills {
+        // The parent row lock makes the validated read stable through this transaction.
+        if persisted.iter().any(|known| known == skill) {
+            continue;
+        }
         tx.execute_raw(Statement::from_sql_and_values(DbBackend::Postgres,
             "INSERT INTO character_learned_skills(character_id,slot,skill_key,skill_level) VALUES($1,0,$2,$3) \
              ON CONFLICT(character_id,slot,skill_key) DO UPDATE SET skill_level=EXCLUDED.skill_level,updated_at=now()",

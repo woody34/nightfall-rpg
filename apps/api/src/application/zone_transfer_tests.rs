@@ -713,3 +713,49 @@ async fn recovery_permanent_failure_and_missing_log_leave_epoch_unresolved_then_
 
 #[path = "zone_actor_token_tests.rs"]
 mod token_tests;
+
+#[tokio::test]
+async fn class_checkpoint_batch_stays_serial_in_entity_order() {
+    let h = Harness::new().await;
+    let mut other = h.character.clone();
+    other.id = CharacterId::from_uuid(Uuid::from_u128(123));
+    other.name = CharacterName::new("SerialSecond").unwrap();
+    h.repo.inner.insert_for_test(other.clone());
+    h.spawn_character(&other, 1).await;
+    for _ in 2..51 {
+        h.driver.step().await.unwrap();
+    }
+    h.repo.requests.lock().clear();
+    // Consume any admission notification before arming the two-transfer batch.
+    while tokio::time::timeout(Duration::from_millis(1), h.repo.entered.notified())
+        .await
+        .is_ok()
+    {}
+    h.repo.hold.store(true, Ordering::Release);
+    h.zone
+        .send(ZoneInput::system(ZoneCommand::MoveTo {
+            entity: EntityId::from_uuid(other.id.as_uuid()),
+            dest: Vec2Fixed::from_tiles(127, 126),
+        }))
+        .unwrap();
+    let mut a = h.request(201, 1);
+    let mut output = h.zone.subscribe();
+    let driver = h.driver.clone();
+    let step = tokio::spawn(async move { driver.step().await });
+    tokio::time::timeout(Duration::from_secs(10), h.repo.entered.notified())
+        .await
+        .unwrap();
+    assert_eq!(h.repo.requests.lock().len(), 1);
+    assert!(tokio::time::timeout(Duration::from_millis(50), h.repo.entered.notified())
+        .await
+        .is_err());
+    assert!(a.try_recv().is_err() && output.try_recv().is_err());
+    h.repo.hold.store(false, Ordering::Release);
+    h.repo.release.notify_one();
+    step.await.unwrap().unwrap();
+    a.await.unwrap().unwrap();
+    let requests = h.repo.requests.lock();
+    assert_eq!(requests.len(), 2);
+    assert!(requests[0].0.character_id < requests[1].0.character_id);
+    assert_eq!(h.event_count(), 1);
+}

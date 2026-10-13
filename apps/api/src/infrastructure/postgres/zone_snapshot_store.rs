@@ -46,6 +46,32 @@ impl PgZoneSnapshotStore {
             None => fut.await,
         }
     }
+
+    async fn progress(
+        &self,
+        phase: &'static str,
+        sql: &'static str,
+        zone: ZoneId,
+        epoch: u64,
+        tick: crate::domain::zone::Tick,
+    ) -> anyhow::Result<()> {
+        use super::storage_timing::timed;
+        let mut connection =
+            timed(phase, "pool", self.db.get_postgres_connection_pool().acquire()).await?;
+        // A single-statement transaction includes implicit COMMIT in its response.
+        // Do not add transaction round trips or pretend buffered rows isolate COMMIT.
+        timed(
+            phase,
+            "sql_commit",
+            sqlx::query(sql)
+                .bind(zone_col(zone)?)
+                .bind(epoch_col(epoch)?)
+                .bind(i64::try_from(tick.0)?)
+                .execute(&mut *connection),
+        )
+        .await?;
+        Ok(())
+    }
 }
 
 fn zone_col(zone: ZoneId) -> anyhow::Result<i32> {
@@ -184,10 +210,7 @@ impl ZoneSnapshotStore for PgZoneSnapshotStore {
         epoch: u64,
         tick: crate::domain::zone::Tick,
     ) -> anyhow::Result<()> {
-        self.db.execute_raw(Statement::from_sql_and_values(DbBackend::Postgres,
-            "UPDATE zone_epochs SET last_recorded_tick = GREATEST(last_recorded_tick, $3) WHERE zone_id = $1 AND epoch = $2",
-            [zone_col(zone)?.into(), epoch_col(epoch)?.into(), i64::try_from(tick.0)?.into()])).await?;
-        Ok(())
+        self.progress("recording_index", "UPDATE zone_epochs SET last_recorded_tick = GREATEST(last_recorded_tick, $3) WHERE zone_id = $1 AND epoch = $2", zone, epoch, tick).await
     }
 
     async fn checkpointed(
@@ -196,10 +219,7 @@ impl ZoneSnapshotStore for PgZoneSnapshotStore {
         epoch: u64,
         tick: crate::domain::zone::Tick,
     ) -> anyhow::Result<()> {
-        self.db.execute_raw(Statement::from_sql_and_values(DbBackend::Postgres,
-            "UPDATE zone_epochs SET last_checkpointed_tick = GREATEST(last_checkpointed_tick, $3) WHERE zone_id = $1 AND epoch = $2",
-            [zone_col(zone)?.into(), epoch_col(epoch)?.into(), i64::try_from(tick.0)?.into()])).await?;
-        Ok(())
+        self.progress("checkpoint_index", "UPDATE zone_epochs SET last_checkpointed_tick = GREATEST(last_checkpointed_tick, $3) WHERE zone_id = $1 AND epoch = $2", zone, epoch, tick).await
     }
 
     async fn close(&self, zone: ZoneId, epoch: u64) -> anyhow::Result<()> {

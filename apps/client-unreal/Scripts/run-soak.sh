@@ -4,6 +4,8 @@
 # Each run owns a fresh Compose project on dedicated ports and deletes only its own volumes.
 # SOAK_PORT_OFFSET (default 10000) offsets normal stack ports; API 13000, gRPC 15051 by default.
 # Set SOAK_API_BIN to an already-built API to avoid a redundant Rust build.
+# SOAK_TMPFS_VOLUMES=<size> (e.g. 8g) backs the stack's Postgres/NATS volumes with tmpfs so host
+# filesystem fsync stalls cannot leak into tick latency; the run records storage.txt either way.
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 . "$HERE/sim-lib.sh"
@@ -54,7 +56,11 @@ docker compose --env-file "$OUT/empty.env" -f "$SIM_REPO/docker-compose.yml" \
   config --format json >"$OUT/compose-source.json"
 SOAK_DB=nightfall; DB_ARGS=(); SEED_PHASE=3; if ((ITEMS)); then SEED_PHASE=4; fi
 if ((CASTING)); then SOAK_DB="nf_phase${SEED_PHASE}_fixture_soak_$$_$(date +%s)"; DB_ARGS+=(--database "$SOAK_DB"); fi
-python3 "$HERE/soak-compose.py" "$OUT/compose-source.json" "$OUT/compose.json" "$OFFSET" "${DB_ARGS[@]}"
+TMPFS_ARGS=()
+if [[ -n "${SOAK_TMPFS_VOLUMES:-}" ]]; then TMPFS_ARGS=(--tmpfs-volumes "$SOAK_TMPFS_VOLUMES"); fi
+python3 "$HERE/soak-compose.py" "$OUT/compose-source.json" "$OUT/compose.json" "$OFFSET" "${DB_ARGS[@]}" "${TMPFS_ARGS[@]}"
+if [[ -n "${SOAK_TMPFS_VOLUMES:-}" ]]; then STORAGE="tmpfs:$SOAK_TMPFS_VOLUMES"; else STORAGE=docker-local; fi
+printf 'volumes=%s\n' "$STORAGE" >"$OUT/storage.txt"
 COMPOSE=(docker compose --env-file "$OUT/empty.env" -p "$COMPOSE_PROJECT" -f "$OUT/compose.json")
 API_PID=""
 stop_api() {

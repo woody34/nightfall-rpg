@@ -23,14 +23,31 @@ def isolate(config: dict, offset: int) -> dict:
     return config
 
 
+TMPFS_VOLUMES = ('pgdata', 'natsdata')
+
+
+def tmpfs_volumes(config: dict, size: str) -> dict:
+    """Back the soak's Postgres/NATS volumes with tmpfs (storage isolation, not production)."""
+    if not re.fullmatch(r'[0-9]+[kmgKMG]', size):
+        raise ValueError('tmpfs size must look like 8g')
+    for name in TMPFS_VOLUMES:
+        volume = config.setdefault('volumes', {}).setdefault(name, {}) or {}
+        volume.update({'driver': 'local', 'driver_opts': {'type': 'tmpfs', 'device': 'tmpfs', 'o': 'size=' + size}})
+        config['volumes'][name] = volume
+    return config
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('source', type=Path)
     parser.add_argument('output', type=Path)
     parser.add_argument('offset', type=int)
     parser.add_argument('--database')
+    parser.add_argument('--tmpfs-volumes', metavar='SIZE', help='back pgdata/natsdata with tmpfs of SIZE (e.g. 8g)')
     args = parser.parse_args()
     config = isolate(json.loads(args.source.read_text()), args.offset)
+    if args.tmpfs_volumes:
+        config = tmpfs_volumes(config, args.tmpfs_volumes)
     if args.database:
         if not re.fullmatch(r'nf_phase3_fixture_[a-z0-9_]+', args.database):
             parser.error('casting soak requires an isolated Phase3 fixture database')
