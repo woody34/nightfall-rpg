@@ -313,6 +313,7 @@ impl ZoneState {
                 .insert(id);
         }
         let attack_range = self.attack_range_v6(id, &effective)?;
+        let clamp_before = self.clamp_snapshot_v6(id);
         let e = self.entities.get_mut(&id).ok_or_else(missing)?;
         let c = e.combat.as_mut().ok_or_else(missing)?;
         if let Some(range) = attack_range {
@@ -343,6 +344,9 @@ impl ZoneState {
         }
         if combat_points_full {
             fractions.cp = 0;
+        }
+        if let Some(clamp_before) = clamp_before {
+            self.clamp_no_heal_evidence_v6(id, &clamp_before);
         }
         if let Some(before) = before {
             self.evidence_fact(

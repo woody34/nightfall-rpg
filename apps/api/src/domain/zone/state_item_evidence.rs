@@ -4,6 +4,8 @@ use crate::domain::zone::effects::TargetBinding;
 use crate::domain::zone::evidence::{ItemEvidenceData, ItemEvidenceFact, ItemEvidenceOrigin};
 use crate::domain::zone::item_inventory::InventoryChange;
 use crate::domain::zone::phase4_projection::{ItemOperation, ItemReceiptRef};
+use crate::domain::zone::skill_math::ExactRatio;
+use crate::domain::zone::Q;
 use serde_json::json;
 
 impl ZoneState {
@@ -489,6 +491,107 @@ impl ZoneState {
     }
 
     /// Captured caller identity for scenario phases: weapon (0 = unarmed), recipient, event.
+    /// Exact (whole + Q remainder) HP/MP/CP and their maxima before a dirty rebuild clamp.
+    pub(in crate::domain::zone) fn clamp_snapshot_v6(
+        &self,
+        id: EntityId,
+    ) -> Option<[(i128, i128); 3]> {
+        if !self.items_evidence_enabled() || !self.phase4_player_v6(id) {
+            return None;
+        }
+        self.clamp_values_v6(id)
+    }
+
+    fn clamp_values_v6(&self, id: EntityId) -> Option<[(i128, i128); 3]> {
+        let combat = self.entities.get(&id)?.combat.as_ref()?;
+        let fractions = &self.sidecar(id).ok()?.fractions;
+        let CombatRole::Player {
+            progression: Some(progression),
+            ..
+        } = &combat.role
+        else {
+            return None;
+        };
+        let q = i128::from(Q);
+        let exact = |whole: u32, remainder: i64| {
+            i128::from(whole)
+                .checked_mul(q)
+                .and_then(|v| v.checked_add(i128::from(remainder)))
+        };
+        Some([
+            (
+                exact(combat.hp, fractions.hp)?,
+                i128::from(combat.sheet.max_hp()).checked_mul(q)?,
+            ),
+            (
+                exact(combat.mp, fractions.mp)?,
+                i128::from(combat.sheet.max_mp()).checked_mul(q)?,
+            ),
+            (
+                exact(progression.class_state.cp, fractions.cp)?,
+                i128::from(progression.max_cp).checked_mul(q)?,
+            ),
+        ])
+    }
+
+    /// D46/D91 `clamp_no_heal`: whenever a rebuild changes a maximum, current = min(current,
+    /// new maximum) — a raised maximum never heals. One fact per resource, `:hp|:mp|:cp`.
+    pub(in crate::domain::zone) fn clamp_no_heal_evidence_v6(
+        &mut self,
+        id: EntityId,
+        before: &[(i128, i128); 3],
+    ) {
+        let Some(after) = self.clamp_values_v6(id) else {
+            return;
+        };
+        let q = i128::from(Q);
+        let ratio = |value: i128| ExactRatio::new(value, q).ok().map(ratio_json);
+        let word = self.rng.get_word_pos();
+        let prefix = format!("rebuild:{id}:{}:{word}:", self.next_tick.0);
+        let sequence = self
+            .evidence
+            .as_ref()
+            .and_then(|buffer| buffer.items.as_ref())
+            .map_or(0, |facts| {
+                facts
+                    .iter()
+                    .filter_map(|fact| {
+                        if let ItemEvidenceData::Formula(value) = &fact.fact {
+                            value
+                                .get("resolution_id")
+                                .and_then(serde_json::Value::as_str)
+                                .filter(|resolution| resolution.starts_with(&prefix))
+                                .and_then(|resolution| resolution.rsplit_once(':'))
+                                .map(|(stem, _)| stem.to_owned())
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<std::collections::BTreeSet<_>>()
+                    .len()
+            });
+        for ((name, (current, old_max)), (current_after, new_max)) in
+            ["hp", "mp", "cp"].iter().zip(before).zip(after)
+        {
+            if *old_max == new_max {
+                continue;
+            }
+            let (Some(current), Some(new_max_json), Some(result)) =
+                (ratio(*current), ratio(new_max), ratio(current_after))
+            else {
+                continue;
+            };
+            self.item_formula_v6(
+                id,
+                "clamp_no_heal",
+                json!({"current": current, "new_max": new_max_json}),
+                result,
+                &format!("{prefix}{sequence}:{name}"),
+                None,
+            );
+        }
+    }
+
     pub(in crate::domain::zone) fn attack_context_v6(
         &self,
         attacker: EntityId,

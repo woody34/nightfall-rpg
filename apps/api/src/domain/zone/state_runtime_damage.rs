@@ -9671,6 +9671,46 @@ mod tests {
     }
 
     #[test]
+    fn v6_gear_evidence_recording_exports_set_shield_history_and_clamps() {
+        use crate::domain::zone::{EquipSlot, ItemCommandKind as K};
+        // Chest 58 and Hoplon 628 belong to set 3; Phoenix Necklace 933 adds maxMp 26.
+        let (zone, owner, _, ids) = use_fixture(&[58, 628, 933]);
+        let mut run = EvidenceRun::start(zone);
+        let mut request = 1400_u128;
+        let mut step = |run: &mut EvidenceRun, kind: K| {
+            request += 1;
+            let intent = item_intent(&run.zone, owner.entity, request, kind);
+            let applied = run.tick(owner.entity, vec![ZoneCommand::Item(Box::new(intent))]);
+            assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+        };
+        let equip = |instance| K::Equip {
+            instance,
+            preferred_slot: None,
+        };
+        step(&mut run, equip(ids[1])); // shield first: no chest, no set transition
+        step(&mut run, equip(ids[0])); // shield-then-chest: equip_chest, history false
+        step(
+            &mut run,
+            K::Unequip {
+                slot: EquipSlot::Lhand,
+            },
+        ); // remove
+        step(&mut run, equip(ids[1])); // chest-then-shield: equip_shield, history true
+        step(&mut run, equip(ids[2])); // maxMp +26: clamp_no_heal (no heal)
+        step(
+            &mut run,
+            K::Unequip {
+                slot: EquipSlot::Neck,
+            },
+        ); // maxMp −26: a lowered maximum clamps
+        let names = run.formulas();
+        for required in ["set_shield_history", "clamp_no_heal"] {
+            assert!(names.contains(required), "{required}: {names:?}");
+        }
+        run.write("NIGHTFALL_TEST_GEAR_RECORDING");
+    }
+
+    #[test]
     fn v6_fractional_hp_cold_replay_regen_and_last_fraction_death() {
         use crate::domain::zone::item_combat::half_hp;
         let (mut base, source, npc) = equipment_fixture();
