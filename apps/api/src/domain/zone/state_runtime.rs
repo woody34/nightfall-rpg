@@ -279,6 +279,9 @@ impl ZoneState {
                 .map_err(invariant)?
         });
         let speed = effective.movement_speed().map_err(invariant)?;
+        if let Some(refreshed) = &refreshed {
+            self.load_evidence_v6(id, refreshed)?;
+        }
         if let Some(refreshed) = refreshed {
             self.phase4
                 .as_mut()

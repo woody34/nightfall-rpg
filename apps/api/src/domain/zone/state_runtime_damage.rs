@@ -6853,7 +6853,7 @@ mod tests {
         let formulas: Vec<_> = facts
             .iter()
             .filter_map(|f| match &f.fact {
-                ItemEvidenceData::Formula(data) => Some(data),
+                ItemEvidenceData::Formula(data) if !load_family(data) => Some(data),
                 _ => None,
             })
             .collect();
@@ -7020,7 +7020,7 @@ mod tests {
             .filter_map(|fact| {
                 if let crate::domain::zone::evidence::ItemEvidenceData::Formula(value) = &fact.fact
                 {
-                    Some(value)
+                    (!load_family(value)).then_some(value)
                 } else {
                     None
                 }
@@ -7564,7 +7564,9 @@ mod tests {
         let formulas: Vec<_> = facts
             .iter()
             .filter_map(|f| match &f.fact {
-                ItemEvidenceData::Formula(v) => Some(v["formula"].as_str().unwrap().to_owned()),
+                ItemEvidenceData::Formula(v) if !load_family(v) => {
+                    Some(v["formula"].as_str().unwrap().to_owned())
+                },
                 _ => None,
             })
             .collect();
@@ -7574,11 +7576,13 @@ mod tests {
                 "retail_select",
                 "category",
                 "retail_select",
+                "retail_draw_contract",
                 "pack_options",
                 "cancel_fee",
                 "retail_select",
                 "category",
                 "retail_select",
+                "retail_draw_contract",
                 "pack_options"
             ]
         );
@@ -8034,7 +8038,7 @@ mod tests {
                 },
             );
             let mut probe_trace = Vec::new();
-            let (_, full, _) = zone
+            let (_, full, _, _) = zone
                 .clone()
                 .auto_resolve_v5(owner, npc, &mut forced(&[], &mut probe_trace))
                 .unwrap();
@@ -8300,7 +8304,7 @@ mod tests {
         }
         let maximum = 5; // 1 + skill 3599 atkCountMax add 4 (03500-03599.xml).
         let mut probe = Vec::new();
-        let (_, base, _) = zone
+        let (_, base, _, _) = zone
             .clone()
             .auto_resolve_v5(owner, npc, &mut forced(&[], &mut probe))
             .unwrap();
@@ -8746,6 +8750,304 @@ mod tests {
             crate::application::replay_log::AppliedTickRecord::decode(&record.encode()).unwrap(),
             record
         );
+    }
+
+    /// Recorded dual then pole auto attacks with D46 evidence enabled; the facts must be
+    /// reproduced by an independent cold replay. `NIGHTFALL_TEST_COMBAT_RECORDING` writes the
+    /// exact recording for the CLI exporter and the frozen harness consumer.
+    #[test]
+    #[allow(clippy::too_many_lines)]
+    fn v6_combat_kind_evidence_recording_replays_cold() {
+        use crate::application::replay_log::{AppliedTickRecord, Watermark, WatermarkReason};
+        use crate::domain::zone::evidence::ItemEvidenceData;
+        use crate::domain::zone::ItemCommandKind as K;
+        let (mut zone, owner, npc, ids) = use_fixture(&[253, 15]);
+        let stats = load_rules(&RulesSource::embedded()).unwrap().rules;
+        let template = parse_zone(TEST_ZONE_TOML).unwrap().npc_templates[0].clone();
+        // Two more Keltirs inside the later pole cone; NPC spawn draws precede the boundary.
+        let spawns = [(10_800, 10_400), (11_000, 9_600)]
+            .into_iter()
+            .map(|(x, y)| {
+                ZoneInput::system(ZoneCommand::SpawnNpc {
+                    name: "Keltir".into(),
+                    pos: Vec2Fixed::new(Fixed::from_raw(x), Fixed::from_raw(y)),
+                    speed: template.move_speed,
+                    combat: Some(Box::new(NpcCombat::from_template(&stats, &template).unwrap())),
+                })
+            })
+            .collect();
+        assert!(zone
+            .run_tick(zone.draft(spawns))
+            .unwrap()
+            .dispositions
+            .is_empty());
+        let boundary = zone.snapshot();
+        let rules = Arc::clone(&zone.phase4.as_ref().unwrap().rules);
+        let mut cold =
+            ZoneState::from_snapshot_with_items(boundary.clone(), Some(Arc::clone(&rules)))
+                .unwrap();
+        zone.enable_items_replay_evidence().unwrap();
+        let mut records = Vec::new();
+        let mut facts = Vec::new();
+        let mut seq = 0_u32;
+        let mut next = |zone: &ZoneState, commands: Vec<ZoneCommand>| {
+            zone.draft(
+                commands
+                    .into_iter()
+                    .map(|command| {
+                        seq += 1;
+                        ZoneInput::session(owner.entity, SessionGeneration(1), seq, command)
+                    })
+                    .collect(),
+            )
+        };
+        let mut phases = vec![
+            vec![ZoneCommand::Item(Box::new(item_intent(
+                &zone,
+                owner.entity,
+                1201,
+                K::Equip {
+                    instance: ids[0],
+                    preferred_slot: None,
+                },
+            )))],
+            vec![
+                ZoneCommand::SetTarget {
+                    entity: owner.entity,
+                    target: Some(npc.entity),
+                },
+                ZoneCommand::Attack {
+                    entity: owner.entity,
+                },
+            ],
+        ];
+        let mut landings = 0;
+        for step in 0..60 {
+            let commands = if phases.is_empty() {
+                Vec::new()
+            } else {
+                phases.remove(0)
+            };
+            let draft = next(&zone, commands);
+            if step == 20 {
+                phases.push(vec![ZoneCommand::Item(Box::new(item_intent(
+                    &zone,
+                    owner.entity,
+                    1202,
+                    K::Equip {
+                        instance: ids[1],
+                        preferred_slot: None,
+                    },
+                )))]);
+                phases.push(vec![
+                    ZoneCommand::SetTarget {
+                        entity: owner.entity,
+                        target: Some(npc.entity),
+                    },
+                    ZoneCommand::Attack {
+                        entity: owner.entity,
+                    },
+                ]);
+            }
+            let applied = zone.run_tick(draft.clone()).unwrap();
+            assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+            assert_eq!(applied, cold.run_tick(draft).unwrap());
+            landings += applied
+                .events
+                .iter()
+                .filter(|e| matches!(e, ZoneEvent::AttackResult { attacker, .. } if *attacker == owner.entity))
+                .count();
+            records.push(AppliedTickRecord::from_applied(zone.seed.zone, &applied));
+            let tick_facts = zone.take_items_replay_evidence();
+            facts.extend(tick_facts);
+        }
+        assert!(landings >= 3);
+        let names: std::collections::BTreeSet<_> = facts
+            .iter()
+            .filter_map(|f| match &f.fact {
+                ItemEvidenceData::Formula(v) => v["formula"].as_str().map(str::to_owned),
+                _ => None,
+            })
+            .collect();
+        for required in [
+            "dual_timing",
+            "dual_damage",
+            "physical_damage",
+            "fist_spread",
+            "position",
+        ] {
+            assert!(names.contains(required), "{required}: {names:?}");
+        }
+        if let Ok(path) = std::env::var("NIGHTFALL_TEST_COMBAT_RECORDING") {
+            let recording = crate::infrastructure::eventlog::Recording {
+                watermark: Watermark {
+                    zone: boundary.seed.zone,
+                    epoch: boundary.seed.epoch,
+                    records: u64::try_from(records.len()).unwrap(),
+                    last_tick: records.last().map(|r| r.tick),
+                    reason: WatermarkReason::Shutdown,
+                },
+                records,
+                snapshot: boundary,
+            };
+            std::fs::write(path, recording.to_bytes().unwrap()).unwrap();
+        }
+    }
+
+    /// Rebuild-time load/penalty facts accompany any weight change; operation-focused tests
+    /// count only their own formula families.
+    fn load_family(value: &serde_json::Value) -> bool {
+        matches!(value["formula"].as_str(), Some("max_load" | "overload" | "grade_penalties"))
+    }
+
+    /// D4/C10 measurement gate: the V6 snapshot envelope with eight fully loaded owners
+    /// (100 ordinary + 100 quest instances each, full paperdoll, high-entropy maximal-width
+    /// scalars) must stay inside the broker (1 MiB − 1 KiB) and decoded (32 MiB) budgets.
+    /// Rules are hash-referenced (D27) and are not part of the envelope.
+    #[test]
+    #[allow(
+        clippy::print_stderr,
+        clippy::arithmetic_side_effects,
+        clippy::cast_possible_truncation,
+        clippy::too_many_lines
+    )]
+    fn v6_c10_snapshot_envelope_with_eight_full_inventories_fits_budgets() {
+        use crate::application::replay_log::{decode_snapshot, encode_snapshot};
+        use crate::domain::zone::{ItemInstance, ItemInstanceId, ItemLocation};
+        let (zone, owner, _) = equipment_fixture();
+        let baseline = encode_snapshot(&zone.snapshot()).unwrap();
+        let mut snapshot = zone.snapshot();
+        let template = snapshot.phase4.as_ref().unwrap().players[&owner.entity].clone();
+        let rules = Arc::clone(&zone.phase4.as_ref().unwrap().rules);
+        // Distinct storable stackable templates (no quest items are admitted, so the D4
+        // 100-ordinary + 100-quest owner is measured as 200 ordinary instances).
+        let templates: Vec<u32> = rules
+            .parts()
+            .items
+            .values()
+            .filter(|d| {
+                d.stackable
+                    && rules
+                        .parts()
+                        .capabilities
+                        .get(&d.template_id)
+                        .is_some_and(|c| c.storable)
+            })
+            .map(|d| d.template_id)
+            .take(200)
+            .collect();
+        assert_eq!(templates.len(), 200);
+        let mut state = 0x9e37_79b9_7f4a_7c15_u64;
+        let mut next = || {
+            state = state
+                .wrapping_mul(6_364_136_223_846_793_005)
+                .wrapping_add(1_442_695_040_888_963_407);
+            state
+        };
+        // Maximal-width identities: a reserved block just below 2^62 (D8/D19 bound 2^63).
+        let top = 1_u64 << 62;
+        snapshot.phase4.as_mut().unwrap().allocator =
+            crate::domain::zone::ItemInstanceRange::new(1, top, top + (1 << 32)).unwrap();
+        let mut allocated = 0_u64;
+        for n in 0..8_u128 {
+            let items = snapshot.phase4.as_mut().unwrap();
+            let mut player = template.clone();
+            player.inventory.clear();
+            player.paperdoll.clear();
+            player.equipment_sources.clear();
+            player.active_sets.clear();
+            player.auto_shots.clear();
+            player.item_reuse.clear();
+            for template_id in &templates {
+                allocated += 1;
+                let id = ItemInstanceId::new(top - allocated).unwrap();
+                let cap = if *template_id == 57 {
+                    99_900_000_000
+                } else {
+                    i32::MAX as u64
+                };
+                player.inventory.insert(
+                    id,
+                    ItemInstance {
+                        creation_origin: template
+                            .inventory
+                            .values()
+                            .next()
+                            .and_then(|i| i.creation_origin),
+                        id,
+                        template_id: *template_id,
+                        count: (next() % cap).max(1),
+                        location: ItemLocation::Inventory,
+                        slot: None,
+                        enchant: 0,
+                        augment_id: None,
+                        charges: 0,
+                        created_tick: Tick(next() % 1_000_000),
+                        revision: template.inventory_revision,
+                    },
+                );
+            }
+            // Each synthetic owner is a complete clone of the fixture player (entity, Phase3
+            // sidecar) so the envelope encoder's cross-section validation still holds.
+            let id = EntityId::from_uuid(Uuid::from_u128(0xC10_0000 + n));
+            items.players.insert(id, player);
+            if let Some(facing) = items.facing.get(&owner.entity).copied() {
+                items.facing.insert(id, facing);
+            }
+            let mut entity = snapshot
+                .entities
+                .iter()
+                .find(|e| e.id == owner.entity)
+                .unwrap()
+                .clone();
+            entity.id = id;
+            entity.name = format!("Owner{n}");
+            if let Some(CombatRole::Player {
+                progression: Some(p),
+                ..
+            }) = entity.combat.as_mut().map(|c| &mut c.role)
+            {
+                p.identity.account_id =
+                    crate::domain::AccountId::from_uuid(Uuid::from_u128(0xACC0 + n));
+            }
+            snapshot.entities.push(entity);
+            if let Some(cell) = snapshot
+                .aoi
+                .iter_mut()
+                .find(|cell| cell.entities.contains(&owner.entity))
+            {
+                cell.entities.push(id);
+                cell.entities.sort();
+            }
+            let phase3 = snapshot.phase3.as_mut().unwrap();
+            let mut sidecar = phase3.entities[&owner.entity].clone();
+            sidecar.ordinal = crate::domain::zone::EntityOrdinal(phase3.next_entity_ordinal);
+            phase3.next_entity_ordinal += 1;
+            phase3.entities.insert(id, sidecar);
+        }
+        let encoded = encode_snapshot(&snapshot).unwrap();
+        let decoded_len = u32::from_le_bytes(encoded[8..12].try_into().unwrap()) as usize;
+        let instances: usize = snapshot
+            .phase4
+            .as_ref()
+            .unwrap()
+            .players
+            .values()
+            .map(|p| p.inventory.len())
+            .sum();
+        eprintln!(
+            "PHASE4_C10 baseline_encoded={} worst_encoded={} worst_decoded={} owners={} instances={} budget_encoded={} budget_decoded={}",
+            baseline.len(),
+            encoded.len(),
+            decoded_len,
+            snapshot.phase4.as_ref().unwrap().players.len(),
+            instances,
+            1024 * 1024 - 1024,
+            32 * 1024 * 1024
+        );
+        assert!(encoded.len() <= 1024 * 1024 - 1024);
+        assert!(decoded_len <= 32 * 1024 * 1024);
+        assert!(decode_snapshot(&baseline).is_ok());
     }
 
     #[test]
@@ -9930,7 +10232,7 @@ mod tests {
             .into_iter()
             .filter_map(|fact| {
                 if let crate::domain::zone::evidence::ItemEvidenceData::Formula(value) = fact.fact {
-                    Some(value)
+                    (!load_family(&value)).then_some(value)
                 } else {
                     None
                 }
@@ -10074,7 +10376,7 @@ mod tests {
             .filter_map(|fact| {
                 if let crate::domain::zone::evidence::ItemEvidenceData::Formula(value) = &fact.fact
                 {
-                    Some(value)
+                    (!load_family(value)).then_some(value)
                 } else {
                     None
                 }
@@ -10652,7 +10954,7 @@ mod tests {
             .find_map(|fact| {
                 if let crate::domain::zone::evidence::ItemEvidenceData::Formula(value) = &fact.fact
                 {
-                    Some(value)
+                    (!load_family(value)).then_some(value)
                 } else {
                     None
                 }
@@ -10821,7 +11123,8 @@ mod tests {
         handler
             .params
             .insert("criticalChance".into(), RankValue::Scalar("0".into()));
-        for (shots, expected) in [(0, 115), (1, 193)] {
+        // Formulas.java:760: V6 applies the actual position (owner behind the NPC: ×6/5).
+        for (shots, expected) in [(0, 138), (1, 232)] {
             let mut zone = original.clone();
             let mut trace = Vec::new();
             let result = zone

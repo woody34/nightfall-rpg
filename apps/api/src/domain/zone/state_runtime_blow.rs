@@ -78,32 +78,75 @@ impl ZoneState {
             .map_err(invariant)?
             .checked_add(120)
             .ok_or_else(missing)?;
-        if angle < 360 {
+        let facing_ok = if angle < 360 {
             if angle < 0 {
-                return Ok(ShieldOutcome::None);
+                false
+            } else {
+                let certificate = items
+                    .rules
+                    .parts()
+                    .angles
+                    .get(usize::try_from(angle).map_err(invariant)?)
+                    .ok_or_else(missing)?;
+                let facing = items
+                    .canonical
+                    .facing
+                    .get(&target.entity)
+                    .ok_or_else(missing)?;
+                let (dx, dy) = self.relative_position_v6(caster.entity, target.entity)?;
+                facing
+                    .within(dx, dy, certificate, items.rules.parts().coordinate_bound_millitiles)
+                    .map_err(invariant)?
             }
-            let certificate = items
-                .rules
-                .parts()
-                .angles
-                .get(usize::try_from(angle).map_err(invariant)?)
-                .ok_or_else(missing)?;
-            let facing = items
-                .canonical
-                .facing
-                .get(&target.entity)
-                .ok_or_else(missing)?;
-            let (dx, dy) = self.relative_position_v6(caster.entity, target.entity)?;
-            if !facing
-                .within(dx, dy, certificate, items.rules.parts().coordinate_bound_millitiles)
-                .map_err(invariant)?
-            {
-                return Ok(ShieldOutcome::None);
-            }
-        }
+        } else {
+            true
+        };
         let bow = self.item_weapon_kind(caster.entity, "NONE")? == "BOW";
-        item_combat::shield(true, rate, bow, |site, bound| draw(self, site, target, bound))
-            .map_err(invariant)
+        let raw_rate = self.damage_stat_v5(target.entity, &b, "rShld", 0)?;
+        let word = self.rng.get_word_pos();
+        let mut residues = Vec::new();
+        let outcome = if facing_ok {
+            item_combat::shield(true, rate, bow, |site, bound| {
+                let value = draw(self, site, target, bound)?;
+                residues.push(value);
+                Ok(value)
+            })
+            .map_err(invariant)?
+        } else {
+            ShieldOutcome::None
+        };
+        // D46 `shield`: subject is whichever V6 player is involved (attacker first).
+        let owner = if self.phase4_player_v6(caster.entity) {
+            caster.entity
+        } else {
+            target.entity
+        };
+        if self.items_evidence_enabled() && self.phase4_player_v6(owner) {
+            use crate::domain::zone::state::item_evidence_hooks::ratio_json as r;
+            let sites = ["shield_perfect", "shield_normal"];
+            let draws: Vec<_> = residues
+                .iter()
+                .zip(sites)
+                .map(|(residue, site)| serde_json::json!({"site": site, "bound": 100, "residue": residue}))
+                .collect();
+            let name = match outcome {
+                ShieldOutcome::Perfect => "perfect",
+                ShieldOutcome::Normal => "normal",
+                ShieldOutcome::None => "none",
+            };
+            let context = self.attack_context_v6(caster.entity, target.entity);
+            self.item_formula_v6(
+                owner,
+                "shield",
+                serde_json::json!({"rate": r(raw_rate), "dex_bonus": r(dex), "bow": bow,
+                    "eligible": true, "facing": facing_ok, "sigil": false,
+                    "perfect_residue": residues.first(), "normal_residue": residues.get(1)}),
+                serde_json::json!({"outcome": name, "draws": draws}),
+                &format!("shield:{}:{}:{word}", caster.entity, target.entity),
+                Some(context),
+            );
+        }
+        Ok(outcome)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -189,14 +232,39 @@ impl ZoneState {
         };
         let proximity = self.proximity_v6(caster.entity, target.entity)?;
         let (_, dex) = self.base_property_v5(caster.entity, "DEX")?;
-        let rate = proximity
+        let initial = proximity
             .blow_rate(parameter("blowChance")?, dex)
-            .map_err(invariant)?
-            .to_q()
             .map_err(invariant)?;
-        let rate = self.damage_stat_v5(caster.entity, &a, "blowRate", rate)?;
+        let rate =
+            self.damage_stat_v5(caster.entity, &a, "blowRate", initial.to_q().map_err(invariant)?)?;
+        let word = self.rng.get_word_pos();
         let residue = draw(self, DamageRollSite::BlowSuccess, target, 1000).map_err(invariant)?;
-        if !item_combat::blow_lands(rate, residue).map_err(invariant)?
+        let lands = item_combat::blow_lands(rate, residue).map_err(invariant)?;
+        if self.items_evidence_enabled()
+            && initial
+                .checked_cmp(ExactRatio::whole(0))
+                .map_err(invariant)?
+                .is_gt()
+        {
+            use crate::domain::zone::state::item_evidence_hooks::ratio_json as r;
+            // blowRate folds multiplicatively over the source rate: modifier = final / initial.
+            let modifier = rate.checked_div(initial).map_err(invariant)?;
+            let position = match proximity {
+                Proximity::Front => "front",
+                Proximity::Side => "side",
+                Proximity::Back => "back",
+            };
+            self.item_formula_v6(
+                caster.entity,
+                "blow_success",
+                serde_json::json!({"chance": r(parameter("blowChance")?), "dex": r(dex),
+                    "proximity": position, "residue": residue, "modifier": r(modifier)}),
+                serde_json::json!(lands),
+                &format!("blow:{}:{}:{word}", caster.entity, target.entity),
+                Some(serde_json::json!({"skill_id": skill.id, "target_entity": target.entity.to_string(), "event": "cast"})),
+            );
+        }
+        if !lands
             || self
                 .entities
                 .get(&caster.entity)
@@ -429,10 +497,41 @@ impl ZoneState {
         } else {
             ExactRatio::whole(1)
         };
+        let mut residues = Vec::new();
+        let word = self.rng.get_word_pos();
         let outcome = item_combat::lethal(eligible, full, half, multiplier, |site, bound| {
-            draw(self, site, target, bound)
+            let value = draw(self, site, target, bound)?;
+            residues.push(value);
+            Ok(value)
         })
         .map_err(invariant)?;
+        if self.items_evidence_enabled() {
+            use crate::domain::zone::state::item_evidence_hooks::ratio_json as r;
+            let sites = ["lethal_full", "lethal_half"];
+            let draws: Vec<_> = residues
+                .iter()
+                .zip(sites)
+                .map(|(residue, site)| serde_json::json!({"site": site, "bound": 1000, "residue": residue}))
+                .collect();
+            let name = match outcome {
+                LethalOutcome::Full => "full",
+                LethalOutcome::Half => "half",
+                LethalOutcome::None => "none",
+            };
+            // The frozen schema requires both residues; an undrawn one is reported as the
+            // out-of-branch value 999 and never appears in `draws` (QUESTION in zone-progress).
+            self.item_formula_v6(
+                caster.entity,
+                "lethal",
+                serde_json::json!({"full": r(full), "half": r(half),
+                    "full_residue": residues.first().copied().unwrap_or(999),
+                    "half_residue": residues.get(1).copied().unwrap_or(999),
+                    "eligible": eligible, "attribute": 1, "trait": r(if eligible { multiplier } else { ExactRatio::whole(1) })}),
+                serde_json::json!({"outcome": name, "draws": draws}),
+                &format!("lethal:{}:{}:{word}", caster.entity, target.entity),
+                Some(serde_json::json!({"skill_id": skill.id, "target_entity": target.entity.to_string(), "event": "cast"})),
+            );
+        }
         let next_hp = match outcome {
             LethalOutcome::Full => (1, 0),
             LethalOutcome::Half if !player => {

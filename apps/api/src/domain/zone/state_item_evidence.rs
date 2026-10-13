@@ -320,6 +320,11 @@ impl ZoneState {
             json!({"formula":"retail_select","inputs":{"rows":rows(&selectors.category_rows(selection.category)),
                 "residue":selection.second_raw % RETAIL_RESIDUES},"actual":selection.option34,
                 "resolution_id":format!("{resolution}:{}", sites[2]),"baseline":false}),
+            json!({"formula":"retail_draw_contract","inputs":{"accessory":selectors.accessory},
+                "actual":{"draw_sites":[{"site":"option12","bound":RETAIL_RESIDUES},
+                    {"site":"category","bound":RETAIL_RESIDUES},{"site":"option34","bound":RETAIL_RESIDUES}],
+                    "category_weights":selectors.weights,"non_retail_draws":[]},
+                "resolution_id":format!("{resolution}:contract"),"baseline":false}),
             json!({"formula":"pack_options","inputs":{"first":selection.option12,"second":selection.option34},
                 "actual":selection.packed().map_err(|_| invalid())?,"resolution_id":resolution,"baseline":false}),
         ];
@@ -327,6 +332,157 @@ impl ZoneState {
             self.item_evidence(subject, ItemEvidenceData::Formula(fact));
         }
         Ok(())
+    }
+
+    /// D46 `max_load`/`overload`/`grade_penalties` when a dirty rebuild changes them.
+    pub(super) fn load_evidence_v6(
+        &mut self,
+        id: EntityId,
+        refreshed: &crate::domain::zone::item_refresh::RefreshedEquipment,
+    ) -> Result<(), TickError> {
+        if !self.items_evidence_enabled() {
+            return Ok(());
+        }
+        let Some(rules) = self
+            .phase4
+            .as_ref()
+            .map(|items| std::sync::Arc::clone(&items.rules))
+        else {
+            return Ok(());
+        };
+        let Some(old) = self
+            .phase4
+            .as_ref()
+            .and_then(|items| items.canonical.players.get(&id))
+            .cloned()
+        else {
+            return Ok(());
+        };
+        let new = &refreshed.player;
+        let word = self.rng.get_word_pos();
+        let resolution = format!("load:{id}:{}:{word}", self.next_tick.0);
+        if (old.max_load, old.weight, old.overload_level, old.overloaded)
+            != (new.max_load, new.weight, new.overload_level, new.overloaded)
+        {
+            let load = &refreshed.load;
+            self.item_formula_v6(
+                id,
+                "max_load",
+                json!({"con_bonus": ratio_json(load.con_bonus), "weight_limit": ratio_json(load.weight_limit),
+                    "multiplier": ratio_json(load.multiplier), "add": ratio_json(load.add)}),
+                json!(new.max_load),
+                &resolution,
+                None,
+            );
+            let per_mille = if new.max_load > 0 {
+                Some(
+                    i128::from(new.weight)
+                        .checked_sub(i128::from(new.weight_penalty_bonus))
+                        .and_then(|v| v.checked_mul(1000))
+                        .and_then(|v| v.checked_div(i128::from(new.max_load)))
+                        .and_then(|v| i64::try_from(v).ok())
+                        .ok_or(TickError::Phase3Invariant)?,
+                )
+            } else {
+                None
+            };
+            self.item_formula_v6(
+                id,
+                "overload",
+                json!({"weight": new.weight, "maximum": new.max_load, "bonus": new.weight_penalty_bonus,
+                    "previous_level": old.overload_level, "previous_overloaded": old.overloaded}),
+                json!({"per_mille": per_mille, "level": new.overload_level,
+                    "overloaded": new.overloaded, "changed": new.overload_level != old.overload_level}),
+                &resolution,
+                None,
+            );
+        }
+        if (old.weapon_penalty, old.armor_penalty, old.expertise, &old.paperdoll)
+            != (new.weapon_penalty, new.armor_penalty, new.expertise, &new.paperdoll)
+        {
+            let mut equipped = Vec::new();
+            for item in new.inventory.values().filter(|item| item.slot.is_some()) {
+                let definition = rules
+                    .parts()
+                    .items
+                    .get(&item.template_id)
+                    .ok_or(TickError::Phase3Invariant)?;
+                let grade = rules
+                    .parts()
+                    .grades
+                    .iter()
+                    .find(|row| row.grade == definition.grade)
+                    .ok_or(TickError::Phase3Invariant)?
+                    .id;
+                equipped.push(json!({"instance_id": item.id, "grade": grade,
+                    "weapon": definition.kind == "Weapon",
+                    "arrow": matches!(definition.etcitem_type.as_str(), "ARROW" | "BOLT")}));
+            }
+            self.item_formula_v6(
+                id,
+                "grade_penalties",
+                json!({"equipped": equipped, "expertise": new.expertise, "bonus": 0}),
+                json!({"weapon": new.weapon_penalty, "armor": new.armor_penalty}),
+                &resolution,
+                None,
+            );
+        }
+        Ok(())
+    }
+
+    /// A live V6 owner with an item sidecar (combat evidence subjects).
+    pub(in crate::domain::zone) fn phase4_player_v6(&self, id: EntityId) -> bool {
+        self.phase4
+            .as_ref()
+            .is_some_and(|items| items.canonical.players.contains_key(&id))
+    }
+
+    /// One `item_formula` fact for a V6 owner; resolution identities are caller-unique.
+    #[allow(clippy::too_many_arguments)] // The frozen fact fields plus its owner.
+    pub(in crate::domain::zone) fn item_formula_v6(
+        &mut self,
+        owner: EntityId,
+        formula: &str,
+        inputs: serde_json::Value,
+        actual: serde_json::Value,
+        resolution: &str,
+        context: Option<serde_json::Value>,
+    ) {
+        if !self.items_evidence_enabled() || !self.phase4_player_v6(owner) {
+            return;
+        }
+        if let Some(subject) = self.binding(owner) {
+            let mut fact = serde_json::Map::new();
+            fact.insert("formula".into(), json!(formula));
+            fact.insert("inputs".into(), inputs);
+            fact.insert("actual".into(), actual);
+            fact.insert("resolution_id".into(), json!(resolution));
+            fact.insert("baseline".into(), json!(false));
+            if let Some(context) = context {
+                fact.insert("context".into(), context);
+            }
+            self.item_evidence(subject, ItemEvidenceData::Formula(serde_json::Value::Object(fact)));
+        }
+    }
+
+    /// Captured caller identity for scenario phases: weapon (0 = unarmed), recipient, event.
+    pub(in crate::domain::zone) fn attack_context_v6(
+        &self,
+        attacker: EntityId,
+        target: EntityId,
+    ) -> serde_json::Value {
+        let weapon = self
+            .phase4
+            .as_ref()
+            .and_then(|items| items.canonical.players.get(&attacker))
+            .and_then(|player| {
+                player
+                    .paperdoll
+                    .get(&crate::domain::zone::EquipSlot::Rhand)
+                    .and_then(|id| player.inventory.get(id))
+            })
+            .map_or(0, |item| item.template_id);
+        json!({"weapon_template": weapon, "target_entity": target.to_string(), "event": "attack"})
     }
 
     pub(super) fn item_evidence_npc_roll(&mut self, npc: EntityId, site: &str, bound: u32) -> u32 {
@@ -348,5 +504,17 @@ impl ZoneState {
             }
         }
         value
+    }
+}
+
+/// Exact reduced ratio in the frozen `{numerator, denominator}` evidence shape.
+pub(in crate::domain::zone) fn ratio_json(
+    value: crate::domain::zone::skill_math::ExactRatio,
+) -> serde_json::Value {
+    let (numerator, denominator) = value.parts();
+    match (i64::try_from(numerator), i64::try_from(denominator)) {
+        (Ok(n), Ok(d)) => json!({"numerator": n, "denominator": d}),
+        // Out of the contract's signed-bigint range: refused visibly by the consumer.
+        _ => json!({"numerator": numerator.to_string(), "denominator": denominator.to_string()}),
     }
 }

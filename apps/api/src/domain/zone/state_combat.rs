@@ -1073,6 +1073,7 @@ impl ZoneState {
                 continue;
             }
             let mut second = None;
+            let mut dual_speed = None;
             let (impact_ticks, cycle_ticks) = if let BowStart::Fire {
                 impact_ticks,
                 cycle_ticks,
@@ -1103,6 +1104,13 @@ impl ZoneState {
                     )
                     .map_err(|_| invariant)?;
                     second = Some(timing.impact_ticks);
+                    dual_speed = Some(
+                        crate::domain::zone::scaled::round_div(
+                            i128::from(c.sheet.attack_speed().raw()),
+                            i128::from(crate::domain::zone::Q),
+                        )
+                        .map_err(|_| invariant)?,
+                    );
                     (first, timing.cycle_ticks)
                 } else {
                     (timing.impact_ticks, timing.cycle_ticks)
@@ -1133,6 +1141,27 @@ impl ZoneState {
                 impact: swing.impact,
                 ready: swing.ready,
             });
+            if let (Some(speed), true) = (dual_speed, self.items_evidence_enabled()) {
+                // D46 `dual_timing`: the rounded speed's source deadlines and their ticks.
+                let attack_ms = 500_000_i128.checked_div(speed).unwrap_or(0);
+                let to_hit = attack_ms.checked_div(2).unwrap_or(0);
+                let first_ms = to_hit.checked_div(2).unwrap_or(0);
+                let ceil = |ms: i128| ms.saturating_add(99).checked_div(100).unwrap_or(0);
+                let target = g.target;
+                self.item_formula_v6(
+                    id,
+                    "dual_timing",
+                    serde_json::json!({"attack_speed": i64::try_from(speed).unwrap_or(0)}),
+                    serde_json::json!({"attack_ms": i64::try_from(attack_ms).unwrap_or(0),
+                        "time_to_hit_ms": i64::try_from(to_hit).unwrap_or(0),
+                        "first_ms": i64::try_from(first_ms).unwrap_or(0),
+                        "second_ms": i64::try_from(to_hit).unwrap_or(0),
+                        "first_ticks": i64::try_from(ceil(first_ms)).unwrap_or(0),
+                        "second_ticks": i64::try_from(ceil(to_hit)).unwrap_or(0)}),
+                    &format!("dual_timing:{id}:{}", tick.0),
+                    Some(self.attack_context_v6(id, target)),
+                );
+            }
             if let Some(second) = second {
                 // I3 plan: both subhits are fixed at the accepted start; results are prepared
                 // when the first becomes due.

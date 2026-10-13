@@ -149,7 +149,30 @@ impl ZoneState {
         if style == AttackStyle::Dual {
             return self.land_dual_first_v6(tick, id, swing, source, target, events, draw);
         }
-        let (outcome, rolled) = self.auto_damage_v5(source, target, draw)?;
+        let (outcome, rolled) = if style == AttackStyle::Pole {
+            // doAttackHitByPole primary: doAttackHitSimple at 100%, D25 base = trunc(formula).
+            if self.auto_hit_v5(source, target, draw)? {
+                let word = self.rng.get_word_pos();
+                let (outcome, damage, _, exact) = self.auto_resolve_v5(source, target, draw)?;
+                if let Some(exact) = exact {
+                    use crate::domain::zone::state::item_evidence_hooks::ratio_json as r;
+                    let percent = ExactRatio::whole(100);
+                    self.item_formula_v6(
+                        id,
+                        "pole_damage",
+                        serde_json::json!({"formula": r(exact), "percent": r(percent), "primary": true}),
+                        serde_json::json!({"base": damage, "percent": r(percent), "damage": damage}),
+                        &format!("pole:{id}:{word}"),
+                        Some(self.attack_context_v6(id, target.entity)),
+                    );
+                }
+                (outcome, damage)
+            } else {
+                (AttackOutcome::Miss, 0)
+            }
+        } else {
+            self.auto_damage_v5(source, target, draw)?
+        };
         self.apply_auto_hit_v5(tick, id, source, target, outcome, rolled, events, draw)?;
         if style == AttackStyle::Pole {
             self.land_pole_secondaries_v6(tick, id, source, target, events, draw)?;
@@ -253,7 +276,7 @@ impl ZoneState {
             return Ok((AttackOutcome::Miss, 0));
         }
         self.auto_resolve_v5(source, target, draw)
-            .map(|(outcome, damage, _)| (outcome, damage))
+            .map(|(outcome, damage, _, _)| (outcome, damage))
     }
 
     /// Formulas.calcHitMiss: one hit draw; `true` when the hit lands.
@@ -317,7 +340,7 @@ impl ZoneState {
         source: TargetBinding,
         target: TargetBinding,
         draw: &mut DamageRoll<'_>,
-    ) -> Result<(AttackOutcome, u32, crate::domain::zone::phase4::ShieldOutcome), TickError> {
+    ) -> Result<AutoResolution, TickError> {
         use crate::domain::zone::skill_npc::NpcPenaltyPath;
         let a = self.effective(source.entity)?;
         let b = self.effective(target.entity)?;
@@ -327,6 +350,9 @@ impl ZoneState {
         } else {
             crate::domain::zone::item_combat::Proximity::Front
         };
+        if v6 && self.items_evidence_enabled() && self.phase4_player_v6(source.entity) {
+            self.position_evidence_v6(source.entity, target.entity, proximity)?;
+        }
         let shield = if v6 {
             self.shield_v6(source, target, draw)?
         } else {
@@ -340,14 +366,14 @@ impl ZoneState {
             AttackOutcome::Hit
         };
         if v6 {
-            let damage =
+            let (damage, exact) =
                 self.auto_damage_v6(source, target, &a, &b, proximity, shield, critical, draw)?;
             let damage = if self.bow_attacker_v6(source.entity) {
                 self.bow_distance_v6(source.entity, target.entity, damage)?
             } else {
                 damage
             };
-            return Ok((outcome, damage, shield));
+            return Ok((outcome, damage, shield, Some(exact)));
         }
         let mut damage = q(a.physical.p_atk().raw())
             .map_err(invariant)?
@@ -412,14 +438,16 @@ impl ZoneState {
             },
             u32::try_from(damage.trunc().map_err(invariant)?.max(1)).map_err(invariant)?,
             shield,
+            None,
         ))
     }
 
     /// Formulas.java:667-733 ordinary auto (design §5.2 "Ordinary auto"): shield defence and
     /// `PvP` defence on `D'`, `P'=P×(charged?2:1)`, position `B`, H5 critical terms, then
     /// trait→spread→PvP damage→attribute→NPC penalty and max(1). A perfect block returns 1
-    /// before the formula's spread draw.
-    #[allow(clippy::too_many_arguments)] // Frozen caller inputs drawn in source order.
+    /// before the formula's spread draw. Returns the caller's integer and the exact formula
+    /// value (after its max(1)) for the dual/pole/bow caller truncations.
+    #[allow(clippy::too_many_arguments, clippy::too_many_lines)] // Frozen caller inputs drawn in source order.
     fn auto_damage_v6(
         &mut self,
         source: TargetBinding,
@@ -430,12 +458,18 @@ impl ZoneState {
         shield: crate::domain::zone::phase4::ShieldOutcome,
         critical: bool,
         draw: &mut DamageRoll<'_>,
-    ) -> Result<u32, TickError> {
+    ) -> Result<(u32, ExactRatio), TickError> {
+        use crate::domain::zone::item_combat::Proximity;
         use crate::domain::zone::phase4::ShieldOutcome;
         use crate::domain::zone::skill_npc::NpcPenaltyPath;
-        if shield == ShieldOutcome::Perfect {
-            return Ok(1);
-        }
+        let word = self.rng.get_word_pos();
+        let one = ExactRatio::whole(1);
+        let shot = self.attack_soulshot_v6(source.entity);
+        let pvp_defence =
+            self.item_pvp_damage_bonus(target.entity, source.entity, b, "pvpPhysDef")?;
+        let p_def = q(b.physical.p_def().raw()).map_err(invariant)?;
+        let p_atk = q(a.physical.p_atk().raw()).map_err(invariant)?;
+        let perfect = shield == ShieldOutcome::Perfect;
         let shield_defence = if shield == ShieldOutcome::Normal {
             self.damage_stat_v5(target.entity, b, "sDef", 0)?
                 .trunc()
@@ -443,96 +477,147 @@ impl ZoneState {
         } else {
             0
         };
-        let defence = q(b.physical.p_def().raw())
-            .map_err(invariant)?
-            .checked_add(ExactRatio::new(shield_defence, 1).map_err(invariant)?)
-            .and_then(|d| {
-                d.checked_mul(
-                    self.item_pvp_damage_bonus(target.entity, source.entity, b, "pvpPhysDef")
-                        .map_err(|_| StatError::Overflow)?,
-                )
-            })
-            .map_err(invariant)?;
-        let attack = q(a.physical.p_atk().raw())
-            .map_err(invariant)?
-            .checked_mul(ExactRatio::whole(if self.attack_soulshot_v6(source.entity) {
-                2
-            } else {
-                1
-            }))
-            .map_err(invariant)?;
-        let base = attack
-            .checked_mul(ExactRatio::whole(76))
-            .and_then(|v| v.checked_mul(proximity.blow_damage()?))
-            .and_then(|v| v.checked_div(defence))
-            .map_err(invariant)?;
-        let mut damage = if critical {
-            let race_q = if self.entities.get(&source.entity).and_then(|e| e.combat.as_ref()).is_some_and(|c| matches!(&c.role, CombatRole::Player { progression: Some(p), .. } if p.identity.race == crate::domain::Race::DarkElf)) { 1_050_000 } else { Q };
-            ExactRatio::whole(2)
-                .checked_mul(self.damage_stat_v5(source.entity, a, "critDmg", race_q)?)
-                .and_then(|v| {
-                    v.checked_mul(
-                        self.damage_stat_v5(source.entity, a, "critDmgPos", Q)
-                            .map_err(|_| StatError::Overflow)?,
-                    )
-                })
-                .and_then(|v| {
-                    v.checked_mul(
-                        self.damage_stat_v5(target.entity, b, "defCritDamage", Q)
-                            .map_err(|_| StatError::Overflow)?,
-                    )
-                })
-                .and_then(|v| v.checked_mul(base))
-                .and_then(|v| {
-                    v.checked_add(
-                        self.damage_stat_v5(source.entity, a, "critDmgAdd", 0)
-                            .map_err(|_| StatError::Overflow)?
-                            .checked_mul(ExactRatio::whole(77))?
-                            .checked_div(defence)?,
-                    )
-                })
-                .and_then(|v| {
-                    v.checked_add(
-                        self.damage_stat_v5(target.entity, b, "defCritDamageAdd", 0)
-                            .map_err(|_| StatError::Overflow)?,
-                    )
-                })
-                .map_err(invariant)?
-        } else {
-            base
-        };
-        damage = damage
-            .checked_mul(Self::attack_traits_v5(
-                a,
-                b,
-                self.item_weapon_kind(
-                    source.entity,
-                    if self.sidecar(source.entity)?.player.is_some() {
-                        "SWORD"
-                    } else {
-                        "NONE"
-                    },
-                )?,
-            )?)
-            .map_err(invariant)?;
-        damage = damage
-            .checked_mul(self.spread_v5(a.physical.random_damage(), target, draw)?)
-            .and_then(|v| {
-                v.checked_mul(
-                    self.item_pvp_damage_bonus(source.entity, target.entity, a, "pvpPhysDmg")
-                        .map_err(|_| StatError::Overflow)?,
-                )
-            })
-            .and_then(|v| v.checked_mul(skill_math::attribute_bonus(0, 0, false, false)?))
-            .map_err(invariant)?;
-        damage = damage
-            .checked_mul(self.npc_penalty_v5(
+        let shield_defence = ExactRatio::new(shield_defence, 1).map_err(invariant)?;
+        let race_q = if self.entities.get(&source.entity).and_then(|e| e.combat.as_ref()).is_some_and(|c| matches!(&c.role, CombatRole::Player { progression: Some(p), .. } if p.identity.race == crate::domain::Race::DarkElf)) { 1_050_000 } else { Q };
+        let crit_dmg = self.damage_stat_v5(source.entity, a, "critDmg", race_q)?;
+        let crit_pos = self.damage_stat_v5(source.entity, a, "critDmgPos", Q)?;
+        let def_crit_dmg = self.damage_stat_v5(target.entity, b, "defCritDamage", Q)?;
+        let crit_add = self.damage_stat_v5(source.entity, a, "critDmgAdd", 0)?;
+        let def_crit_add = self.damage_stat_v5(target.entity, b, "defCritDamageAdd", 0)?;
+        let traits = Self::attack_traits_v5(
+            a,
+            b,
+            self.item_weapon_kind(
                 source.entity,
-                target.entity,
-                NpcPenaltyPath::Physical { critical },
-            )?)
-            .map_err(invariant)?;
-        u32::try_from(damage.trunc().map_err(invariant)?.max(1)).map_err(invariant)
+                if self.sidecar(source.entity)?.player.is_some() {
+                    "SWORD"
+                } else {
+                    "NONE"
+                },
+            )?,
+        )?;
+        let pvp = self.item_pvp_damage_bonus(source.entity, target.entity, a, "pvpPhysDmg")?;
+        let attribute = skill_math::attribute_bonus(0, 0, false, false).map_err(invariant)?;
+        let npc = self.npc_penalty_v5(
+            source.entity,
+            target.entity,
+            NpcPenaltyPath::Physical { critical },
+        )?;
+        let radius = a.physical.random_damage();
+        let (exact, spread) = if perfect {
+            (one, None)
+        } else {
+            let defence = p_def
+                .checked_add(shield_defence)
+                .and_then(|d| d.checked_mul(pvp_defence))
+                .map_err(invariant)?;
+            let attack = p_atk
+                .checked_mul(ExactRatio::whole(if shot { 2 } else { 1 }))
+                .map_err(invariant)?;
+            let base = attack
+                .checked_mul(ExactRatio::whole(76))
+                .and_then(|v| v.checked_mul(proximity.blow_damage()?))
+                .and_then(|v| v.checked_div(defence))
+                .map_err(invariant)?;
+            let mut damage = if critical {
+                ExactRatio::whole(2)
+                    .checked_mul(crit_dmg)
+                    .and_then(|v| v.checked_mul(crit_pos))
+                    .and_then(|v| v.checked_mul(def_crit_dmg))
+                    .and_then(|v| v.checked_mul(base))
+                    .and_then(|v| {
+                        v.checked_add(
+                            crit_add
+                                .checked_mul(ExactRatio::whole(77))?
+                                .checked_div(defence)?,
+                        )
+                    })
+                    .and_then(|v| v.checked_add(def_crit_add))
+                    .map_err(invariant)?
+            } else {
+                base
+            };
+            damage = damage.checked_mul(traits).map_err(invariant)?;
+            let spread = self.spread_v5(radius, target, draw)?;
+            damage = damage
+                .checked_mul(spread)
+                .and_then(|v| v.checked_mul(pvp))
+                .and_then(|v| v.checked_mul(attribute))
+                .and_then(|v| v.checked_mul(npc))
+                .map_err(invariant)?;
+            let exact = if damage.checked_cmp(one).map_err(invariant)?.is_lt() {
+                one
+            } else {
+                damage
+            };
+            (exact, Some(spread))
+        };
+        if self.items_evidence_enabled() && self.phase4_player_v6(source.entity) {
+            use crate::domain::zone::state::item_evidence_hooks::ratio_json as r;
+            let resolution = format!("auto:{}:{word}", source.entity);
+            let proximity = match proximity {
+                Proximity::Front => "front",
+                Proximity::Side => "side",
+                Proximity::Back => "back",
+            };
+            // PvP defence multiplies both defence terms: (P.Def + sDef)·k = P.Def·k + sDef·k.
+            let scaled = |v: ExactRatio| v.checked_mul(pvp_defence).map_err(invariant);
+            let inputs = serde_json::json!({
+                "p_atk": r(p_atk), "defence": r(scaled(p_def)?), "power": 0, "caller": "auto",
+                "shot": shot, "proximity": proximity, "shield_def": r(scaled(shield_defence)?),
+                "perfect": perfect, "critical": critical, "crit_dmg": r(crit_dmg),
+                "crit_pos": r(crit_pos), "def_crit_dmg": r(def_crit_dmg), "crit_add": r(crit_add),
+                "def_crit_add": r(def_crit_add), "trait": r(traits),
+                "spread": r(spread.unwrap_or(one)), "pvp": r(pvp), "attribute": r(attribute),
+                "npc": r(npc)});
+            let context = self.attack_context_v6(source.entity, target.entity);
+            self.item_formula_v6(
+                source.entity,
+                "physical_damage",
+                inputs,
+                r(exact),
+                &resolution,
+                Some(context),
+            );
+            if let Some(spread) = spread {
+                let level = a.physical.level();
+                let residue = if radius == 0 {
+                    None
+                } else {
+                    let percent = spread
+                        .checked_mul(ExactRatio::whole(100))
+                        .and_then(ExactRatio::trunc)
+                        .map_err(invariant)?;
+                    Some(
+                        i64::try_from(percent)
+                            .ok()
+                            .and_then(|p| p.checked_sub(100))
+                            .and_then(|p| p.checked_add(i64::from(radius)))
+                            .ok_or_else(missing)?,
+                    )
+                };
+                // D24: an unarmed player's radius is recomputed by the oracle from its level.
+                let template = self.held_weapon_v6(source.entity).map(|_| radius);
+                let offset = residue
+                    .map(|value| value.checked_sub(i64::from(radius)).ok_or_else(missing))
+                    .transpose()?;
+                let bound = u64::from(radius)
+                    .checked_mul(2)
+                    .and_then(|v| v.checked_add(1))
+                    .ok_or_else(missing)?;
+                let actual = serde_json::json!({"radius": radius, "bound": bound,
+                    "offset": offset, "multiplier": residue.map(|_| r(spread))});
+                self.item_formula_v6(
+                    source.entity,
+                    "fist_spread",
+                    serde_json::json!({"level": level, "residue": residue, "template_radius": template}),
+                    actual,
+                    &resolution,
+                    Some(self.attack_context_v6(source.entity, target.entity)),
+                );
+            }
+        }
+        Ok((u32::try_from(exact.trunc().map_err(invariant)?).map_err(invariant)?, exact))
     }
 }
 
@@ -585,11 +670,30 @@ impl ZoneState {
         let hit1 = self.auto_hit_v5(source, target, draw)?;
         let hit2 = self.auto_hit_v5(source, target, draw)?;
         let mut halves = Vec::with_capacity(2);
-        for hit in [hit1, hit2] {
+        for (index, hit) in [hit1, hit2].into_iter().enumerate() {
             halves.push(if hit {
-                let (outcome, damage, shield) = self.auto_resolve_v5(source, target, draw)?;
+                let word = self.rng.get_word_pos();
+                let (outcome, damage, shield, exact) =
+                    self.auto_resolve_v5(source, target, draw)?;
+                // L2Character.java:1155-1171: (int)calcPhysDam then integer /2.
+                self.subhit_evidence_v6(
+                    id,
+                    target.entity,
+                    "dual_damage",
+                    exact,
+                    false,
+                    &format!("dual:{id}:{word}:{index}"),
+                )?;
                 (outcome, damage / 2, shield)
             } else {
+                self.subhit_evidence_v6(
+                    id,
+                    target.entity,
+                    "dual_damage",
+                    None,
+                    true,
+                    &format!("dual:{id}:miss:{}:{index}", swing.start.0),
+                )?;
                 (AttackOutcome::Miss, 0, crate::domain::zone::phase4::ShieldOutcome::None)
             });
         }
@@ -770,13 +874,26 @@ impl ZoneState {
                 continue;
             }
             let (outcome, damage) = if self.auto_hit_v5(source, target, draw)? {
-                let (outcome, base, _) = self.auto_resolve_v5(source, target, draw)?;
+                let word = self.rng.get_word_pos();
+                let (outcome, base, _, exact) = self.auto_resolve_v5(source, target, draw)?;
                 let scaled = ExactRatio::whole(i64::from(base))
                     .checked_mul(percent)
                     .and_then(|v| v.checked_div(ExactRatio::whole(100)))
                     .and_then(ExactRatio::trunc)
                     .map_err(invariant)?;
-                (outcome, u32::try_from(scaled).map_err(invariant)?)
+                let scaled = u32::try_from(scaled).map_err(invariant)?;
+                if let Some(exact) = exact {
+                    use crate::domain::zone::state::item_evidence_hooks::ratio_json as r;
+                    self.item_formula_v6(
+                        id,
+                        "pole_damage",
+                        serde_json::json!({"formula": r(exact), "percent": r(percent), "primary": false}),
+                        serde_json::json!({"base": base, "percent": r(percent), "damage": scaled}),
+                        &format!("pole:{id}:{word}"),
+                        Some(self.attack_context_v6(id, target.entity)),
+                    );
+                }
+                (outcome, scaled)
             } else {
                 (AttackOutcome::Miss, 0)
             };
@@ -789,6 +906,91 @@ impl ZoneState {
                 break;
             }
         }
+        Ok(())
+    }
+}
+
+/// Landed V6 subhit: outcome, caller integer, shield outcome and the exact formula value.
+pub(super) type AutoResolution = (
+    AttackOutcome,
+    u32,
+    crate::domain::zone::phase4::ShieldOutcome,
+    Option<ExactRatio>,
+);
+
+impl ZoneState {
+    /// D46 `position`: victim facing and victim→attacker vector (design §5.3).
+    fn position_evidence_v6(
+        &mut self,
+        attacker: EntityId,
+        target: EntityId,
+        proximity: crate::domain::zone::item_combat::Proximity,
+    ) -> Result<(), TickError> {
+        use crate::domain::zone::item_combat::Proximity;
+        let facing = self
+            .phase4
+            .as_ref()
+            .and_then(|items| items.canonical.facing.get(&target))
+            .ok_or_else(missing)?
+            .components();
+        let a = self.entities.get(&attacker).ok_or_else(missing)?.pos;
+        let b = self.entities.get(&target).ok_or_else(missing)?.pos;
+        let relative = (
+            i64::from(a.x.raw())
+                .checked_sub(i64::from(b.x.raw()))
+                .ok_or_else(missing)?,
+            i64::from(a.y.raw())
+                .checked_sub(i64::from(b.y.raw()))
+                .ok_or_else(missing)?,
+        );
+        let actual = match proximity {
+            Proximity::Front => "front",
+            Proximity::Side => "side",
+            Proximity::Back => "back",
+        };
+        let word = self.rng.get_word_pos();
+        self.item_formula_v6(
+            attacker,
+            "position",
+            serde_json::json!({"facing": [facing.0, facing.1], "relative": [relative.0, relative.1]}),
+            serde_json::json!(actual),
+            &format!("position:{attacker}:{target}:{word}"),
+            Some(self.attack_context_v6(attacker, target)),
+        );
+        Ok(())
+    }
+
+    /// D46 `dual_damage` per subhit (L2Character.java:1137-1179).
+    #[allow(clippy::too_many_arguments)] // Subhit identity and its formula value.
+    fn subhit_evidence_v6(
+        &mut self,
+        attacker: EntityId,
+        target: EntityId,
+        formula: &str,
+        exact: Option<ExactRatio>,
+        miss: bool,
+        resolution: &str,
+    ) -> Result<(), TickError> {
+        use crate::domain::zone::state::item_evidence_hooks::ratio_json as r;
+        if !self.items_evidence_enabled() {
+            return Ok(());
+        }
+        let value = exact.unwrap_or(ExactRatio::whole(0));
+        let base = if miss {
+            0
+        } else {
+            u32::try_from(value.trunc().map_err(invariant)?).map_err(invariant)?
+        };
+        let actual = serde_json::json!({"base": base, "damage": base / 2,
+            "draws": if miss { serde_json::json!([]) } else { serde_json::json!(["shield", "critical", "spread"]) }});
+        self.item_formula_v6(
+            attacker,
+            formula,
+            serde_json::json!({"formula": r(value), "miss": miss}),
+            actual,
+            resolution,
+            Some(self.attack_context_v6(attacker, target)),
+        );
         Ok(())
     }
 }
