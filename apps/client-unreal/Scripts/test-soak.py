@@ -26,6 +26,29 @@ fixtures, reporting, compose = load('soak-fixtures'), load('soak-report'), load(
 
 
 class SoakTests(unittest.TestCase):
+    def test_compose_accepts_phase3_and_phase4_fixture_databases_only(self):
+        import json as _json, subprocess as _subprocess, sys as _sys, tempfile as _tempfile
+        script = Path(__file__).with_name('soak-compose.py')
+        for name in ('nf_phase3_fixture_soak_123_1760000000', 'nf_phase4_fixture_soak_123_1760000000'):
+            self.assertTrue(compose.fixture_database(name), name)
+        for name in ('nf_phase5_fixture_soak_1', 'nightfall', 'nf_phase4_fixture_', 'nf_phase4_fixture_Soak',
+                     'nf_phase4_fixture_soak;drop', 'x_nf_phase4_fixture_soak', 'nf_phase34_fixture_soak'):
+            self.assertFalse(compose.fixture_database(name), name)
+        with _tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp) / 'compose.json'
+            source.write_text(_json.dumps({'services': {'postgres': {'environment': {'POSTGRES_DB': 'nightfall'},
+                                                                      'ports': [{'published': '5432', 'target': 5432}]}}}))
+            out = Path(tmp) / 'out.json'
+            for name in ('nf_phase3_fixture_soak_1_2', 'nf_phase4_fixture_soak_1_2'):
+                run = _subprocess.run([_sys.executable, str(script), str(source), str(out), '10000', '--database', name],
+                                      capture_output=True, text=True)
+                self.assertEqual(run.returncode, 0, run.stderr)
+                self.assertEqual(_json.loads(out.read_text())['services']['postgres']['environment']['POSTGRES_DB'], name)
+            run = _subprocess.run([_sys.executable, str(script), str(source), str(out), '10000', '--database', 'nf_phase5_fixture_soak_1'],
+                                  capture_output=True, text=True)
+            self.assertEqual(run.returncode, 2)
+            self.assertIn('isolated Phase3/Phase4 fixture database', run.stderr)
+
     def test_compose_does_not_join_development_network_or_volumes(self):
         original = {'name': 'dev', 'services': {'db': {'ports': [{'published': '5432', 'target': 5432}]}},
                     'networks': {'default': {'name': 'dev_default'}},

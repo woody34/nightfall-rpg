@@ -23,6 +23,15 @@ def isolate(config: dict, offset: int) -> dict:
     return config
 
 
+# run-soak.sh names the isolated fixture database nf_phase${SEED_PHASE}_fixture_soak_...;
+# Phase 3 (casting) and Phase 4 (items) seeders are the only owners of such databases.
+FIXTURE_DATABASE = re.compile(r'nf_phase[34]_fixture_[a-z0-9_]+')
+
+
+def fixture_database(name: str) -> bool:
+    return bool(FIXTURE_DATABASE.fullmatch(name))
+
+
 TMPFS_VOLUMES = ('pgdata', 'natsdata')
 
 
@@ -49,7 +58,7 @@ if __name__ == '__main__':
     if args.tmpfs_volumes:
         config = tmpfs_volumes(config, args.tmpfs_volumes)
     if args.database:
-        if not re.fullmatch(r'nf_phase3_fixture_[a-z0-9_]+', args.database):
-            parser.error('casting soak requires an isolated Phase3 fixture database')
+        if not fixture_database(args.database):
+            parser.error('casting/items soak requires an isolated Phase3/Phase4 fixture database')
         config['services']['postgres']['environment']['POSTGRES_DB'] = args.database
     args.output.write_text(json.dumps(config, indent=2) + '\n')
