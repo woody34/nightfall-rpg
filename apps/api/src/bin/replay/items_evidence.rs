@@ -367,6 +367,7 @@ fn same_identity(left: &Value, right: &Value) -> bool {
 /// D66: per (owner, life, tick, instance) export every positive row first in cause order, then
 /// the single Consume aggregate last. Rows are rebuilt from the observed tick-start state and
 /// the actual net deltas only; the engine ledger and record bytes are untouched.
+#[allow(clippy::too_many_lines)] // One chain pass: split, rebase, aggregate, terminal.
 fn normalize_d66(
     facts: &mut [ItemEvidenceFact],
     bounds: &std::collections::BTreeMap<ChainKey, (Value, Value)>,
@@ -391,15 +392,29 @@ fn normalize_d66(
         };
         // Positive rows and count-neutral rows (e.g. an automatic arrow equip) keep their
         // observed order ahead of the aggregate, exactly as the engine ledger does.
+        // D94: at most one terminal row (after = null, not the aggregate), the chain's last
+        // observed row; it stays last, with the aggregate immediately before it.
         let mut positives = Vec::new();
         let mut consumes = Vec::new();
+        let mut terminals = Vec::new();
         for &index in &slots {
+            let ended = facts
+                .get(index)
+                .and_then(chain_key)
+                .is_some_and(|(_, row)| row.get("after").is_some_and(Value::is_null));
             if operation(index)? == "consume" {
                 consumes.push(index);
+            } else if ended {
+                terminals.push(index);
             } else {
                 positives.push(index);
             }
         }
+        let terminal = match terminals.as_slice() {
+            [] => None,
+            [index] if slots.last() == Some(index) => Some(*index),
+            _ => bail!("D94 terminal row is not the chain's single last row"),
+        };
         let [consume] = consumes.as_slice() else {
             if consumes.is_empty() {
                 // D83: every chain carries the D76 row position, Consume or not.
@@ -422,22 +437,22 @@ fn normalize_d66(
             let ItemEvidenceData::Delta(row) = &mut fact.fact else {
                 bail!("positive slot is not a delta");
             };
+            // D100: non-terminal rows of either sign rebase in observed order.
             let delta = row
                 .get("count_delta")
                 .and_then(Value::as_i64)
-                .filter(|delta| *delta >= 0)
-                .context("D66 chain row before the Consume aggregate removes count")?;
-            let observed = row.get("after").context("positive after")?;
+                .context("D66 chain row count delta")?;
+            let observed = row.get("after").context("non-terminal after")?;
             if observed.is_null()
-                || (state.is_null() && delta == 0)
-                || (delta > 0 && !state.is_null() && !same_identity(&state, observed))
+                || (state.is_null() && delta <= 0)
+                || (delta != 0 && !state.is_null() && !same_identity(&state, observed))
             {
-                bail!("D66 positive row changes instance identity");
+                bail!("D66 non-terminal row changes instance identity");
             }
             let count = json_count(&state)?
                 .checked_add(i128::from(delta))
                 .and_then(|count| u64::try_from(count).ok())
-                .context("D66 positive count overflow")?;
+                .context("D66 non-terminal row count is negative or overflows")?;
             let mut after = observed.clone();
             set(&mut after, "count", json!(count))?;
             set(row, "before", state.clone())?;
@@ -454,17 +469,42 @@ fn normalize_d66(
             .get("count_delta")
             .and_then(Value::as_i64)
             .context("consume count delta")?;
+        // With a terminal row the aggregate ends at its observed before-state (D94).
+        let end = match terminal {
+            Some(index) => {
+                let Some((_, row)) = facts.get(index).and_then(chain_key) else {
+                    bail!("terminal slot is not a delta");
+                };
+                row.get("before").context("terminal before")?.clone()
+            },
+            None => end.clone(),
+        };
         if state.is_null()
-            || json_count(end)?.checked_sub(json_count(&state)?) != Some(i128::from(delta))
-            || (!end.is_null() && !same_identity(&state, end))
+            || json_count(&end)?.checked_sub(json_count(&state)?) != Some(i128::from(delta))
+            || (!end.is_null() && !same_identity(&state, &end))
         {
             bail!("D66 Consume aggregate does not conserve the post-positive state");
         }
         set(row, "before", state)?;
-        set(row, "after", end.clone())?;
+        set(row, "after", end)?;
         set(row, "operation_ordinal", json!(positives.len()))?;
         rows.push(fact);
-        for (slot, row) in slots.iter().zip(rows) {
+        if let Some(index) = terminal {
+            let mut fact = facts.get(index).context("terminal slot")?.clone();
+            let ItemEvidenceData::Delta(row) = &mut fact.fact else {
+                bail!("terminal slot is not a delta");
+            };
+            set(
+                row,
+                "operation_ordinal",
+                json!(positives.len().checked_add(1).context("ordinal overflow")?),
+            )?;
+            rows.push(fact);
+        }
+        // Rows are written back to the chain's slots in canonical order.
+        let mut ordered = slots.clone();
+        ordered.sort_unstable();
+        for (slot, row) in ordered.iter().zip(rows) {
             *facts.get_mut(*slot).context("chain slot")? = row;
         }
     }
@@ -1099,10 +1139,45 @@ mod tests {
                 json!({"operation":"consume","ordinal":1,"before":3,"after":2,"delta":-1}),
             ]
         );
-        // A non-Consume count decrease cannot precede the aggregate.
+        // D100: a partial Destroy precedes the aggregate, rebased in observed order.
+        assert_eq!(
+            d66(vec![
+                observed("destroy", Some(3), Some(2)),
+                observed("consume", Some(2), Some(1))
+            ])?,
+            vec![
+                json!({"operation":"destroy","ordinal":0,"before":3,"after":2,"delta":-1}),
+                json!({"operation":"consume","ordinal":1,"before":2,"after":1,"delta":-1}),
+            ]
+        );
+        // D94 [C, T]: the terminal Destroy stays last; the aggregate ends at its before.
+        assert_eq!(
+            d66(vec![
+                observed("consume", Some(3), Some(2)),
+                observed("destroy", Some(2), None)
+            ])?,
+            vec![
+                json!({"operation":"consume","ordinal":0,"before":3,"after":2,"delta":-1}),
+                json!({"operation":"destroy","ordinal":1,"before":2,"after":null,"delta":-2}),
+            ]
+        );
+        // D94 [E/G, C, T]: Consume 3->2, Grant 2->5, Destroy 5->None rebases the grant first.
+        assert_eq!(
+            d66(vec![
+                observed("consume", Some(3), Some(2)),
+                observed("grant", Some(2), Some(5)),
+                observed("destroy", Some(5), None)
+            ])?,
+            vec![
+                json!({"operation":"grant","ordinal":0,"before":3,"after":6,"delta":3}),
+                json!({"operation":"consume","ordinal":1,"before":6,"after":5,"delta":-1}),
+                json!({"operation":"destroy","ordinal":2,"before":5,"after":null,"delta":-5}),
+            ]
+        );
+        // A terminal row that is not last (or two of them) is refused.
         assert!(d66(vec![
-            observed("destroy", Some(3), Some(1)),
-            observed("consume", Some(1), Some(0))
+            observed("destroy", Some(3), None),
+            observed("consume", Some(3), Some(2))
         ])
         .is_err());
         let mut relabelled = observed("grant", Some(2), Some(5));

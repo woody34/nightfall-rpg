@@ -10260,6 +10260,63 @@ mod tests {
     }
 
     #[test]
+    fn v6_d94_shapes_recording_exports_through_the_evidence_exporter() {
+        use crate::domain::zone::{EquipSlot, ItemCommandKind as K};
+        // Review-4 P1: [C, T] (Enchant then Destroy the scroll stack) and [Dp, C] (partial
+        // Destroy then Enchant on one scroll stack) in real ticks.
+        let (mut zone, owner, target, scroll) = enchant_fixture(956, EquipSlot::Chest, 0);
+        zone.phase4
+            .as_mut()
+            .unwrap()
+            .canonical
+            .players
+            .get_mut(&owner.entity)
+            .unwrap()
+            .inventory
+            .get_mut(&scroll)
+            .unwrap()
+            .count = 6;
+        zone.rebuild_v5(owner.entity).unwrap();
+        zone.run_tick(zone.draft(Vec::new())).unwrap();
+        let mut run = EvidenceRun::start(zone);
+        let mut request = 1900_u128;
+        let mut intent = |run: &EvidenceRun, kind: K| {
+            request += 1;
+            ZoneCommand::Item(Box::new(item_intent(&run.zone, owner.entity, request, kind)))
+        };
+        let enchant = K::Enchant {
+            target,
+            scroll,
+            support: None,
+        };
+        let first = vec![
+            intent(
+                &run,
+                K::Destroy {
+                    instance: scroll,
+                    count: 1,
+                },
+            ),
+            intent(&run, enchant.clone()),
+        ];
+        let applied = run.tick(owner.entity, first);
+        assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+        let second = vec![
+            intent(&run, enchant),
+            intent(
+                &run,
+                K::Destroy {
+                    instance: scroll,
+                    count: 3,
+                },
+            ),
+        ];
+        let applied = run.tick(owner.entity, second);
+        assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+        run.write("NIGHTFALL_TEST_D94_RECORDING");
+    }
+
+    #[test]
     fn v6_fractional_hp_cold_replay_regen_and_last_fraction_death() {
         use crate::domain::zone::item_combat::half_hp;
         let (mut base, source, npc) = equipment_fixture();
