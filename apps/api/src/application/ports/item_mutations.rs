@@ -280,11 +280,8 @@ impl ItemCheckpointWork {
             {
                 return Err(invalid("item_checkpoint_stackability"));
             }
-            // D68: every retained, endpoint and intermediate row state stays within the cap.
-            if i128::from(item.count) > pinned_count_cap(item.template_id, definition.stackable) {
-                return Err(invalid("item_count_cap"));
-            }
         }
+        self.validate_count_caps(rules)?;
         // Retained creation ticks belong to their origin epoch, whose clock may be ahead.
         for item in self
             .projection
@@ -299,6 +296,69 @@ impl ItemCheckpointWork {
                     .is_some_and(|origin| origin.zone != self.zone || origin.epoch != self.epoch)
             {
                 return Err(invalid("item_checkpoint_creation_tick"));
+            }
+        }
+        Ok(())
+    }
+
+    /// D68/D70 caps under D74: retained (tick-end), tick-start, enchant/exchange and Consume
+    /// `after` states are capped directly. The canonical export (positive rows first) may show a
+    /// row `after` above the cap only when the instance's later same-tick consumption brings it
+    /// back: `after.count - later consumption <= cap`, all in i128.
+    fn validate_count_caps(
+        &self,
+        rules: &crate::domain::zone::Phase4Rules,
+    ) -> Result<(), CheckpointError> {
+        let capped = |item: &crate::domain::zone::ItemInstance, consumed_later: i128| {
+            let stackable = rules
+                .parts()
+                .items
+                .get(&item.template_id)
+                .ok_or_else(|| invalid("item_checkpoint_template"))?
+                .stackable;
+            if i128::from(item.count)
+                .checked_sub(consumed_later)
+                .is_none_or(|count| count > pinned_count_cap(item.template_id, stackable))
+            {
+                return Err(invalid("item_count_cap"));
+            }
+            Ok(())
+        };
+        for item in
+            self.projection
+                .checkpoint
+                .instances
+                .iter()
+                .chain(self.projection.enchant_attempts.iter().flat_map(|attempt| {
+                    std::iter::once(&attempt.before).chain(attempt.after.iter())
+                }))
+                .chain(self.projection.exchanges.iter().flat_map(|exchange| {
+                    exchange
+                        .rows
+                        .iter()
+                        .flat_map(|row| row.before.iter().chain(row.after.iter()))
+                }))
+        {
+            capped(item, 0)?;
+        }
+        let ledger = &self.projection.ledger;
+        for (index, delta) in ledger.iter().enumerate() {
+            let (earlier, later) = ledger.split_at(index);
+            if let Some(start) = delta.before.as_ref() {
+                if !earlier.iter().any(|row| row.instance == delta.instance) {
+                    capped(start, 0)?;
+                }
+            }
+            if let Some(after) = delta.after.as_ref() {
+                let mut consumed_later = 0_i128;
+                for row in later.iter().skip(1).filter(|row| {
+                    row.instance == delta.instance && row.operation == ItemOperation::Consume
+                }) {
+                    consumed_later = consumed_later
+                        .checked_add(i128::from(row.count_delta).abs())
+                        .ok_or_else(|| invalid("item_ledger_count_overflow"))?;
+                }
+                capped(after, consumed_later)?;
             }
         }
         Ok(())
