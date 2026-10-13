@@ -1550,6 +1550,9 @@ def gen_catalogue(tables: dict[str, str], dp_root: Path) -> tuple[str, str]:
     unhandled = {h["id"] for h in t["herbs.toml"]["unhandled"]}
     phase5_paths = {"seed": "phase5:sow (Seed handler, story 3.6)", "harvester": "phase5:harvest (Harvester handler, story 3.6)",
                     "recipe_item": "phase5:register_recipe (Recipes handler, story 3.8)"}
+    # The pinned use path runs only through the template's handler (ItemHandler.getHandler(etcItem)):
+    # a role whose required handler is absent is not executable (E55; e.g. recipe item 14854).
+    path_handler = {"seed": "Seed", "harvester": "Harvester", "recipe_item": "Recipes"}
     rows = []
     for iid in sorted(refs):
         roles = sorted(refs[iid])
@@ -1562,9 +1565,14 @@ def gen_catalogue(tables: dict[str, str], dp_root: Path) -> tuple[str, str]:
         elif iid in unhandled:
             exec_b, executable, capability = [], "yes", "herb_destroy_no_effect"
         else:
-            paths = [phase5_paths[r] for r in roles if r in phase5_paths]
-            exec_b = []
-            executable, capability = ("yes", "; ".join(paths)) if paths else ("not_required", "storage_only")
+            roles_p = [r for r in roles if r in phase5_paths]
+            paths = [phase5_paths[r] for r in roles_p]
+            handler = items[iid]["sets"].get("handler")
+            exec_b = [f"handler:{path_handler[r]}:missing" for r in roles_p if handler != path_handler[r]]
+            if not paths:
+                executable, capability = "not_required", "storage_only"
+            else:
+                executable, capability = ("no" if exec_b else "yes"), "; ".join(paths)
         # E51: storability is independent of executability. common/shadow/time-limited are storable
         # (shadow/time-limited lifetime decay deferred); for_npc is never a blocker (Phase 4 D97 removes
         # it in Phase 4 data rev 9, so it is flagged pending until the integration regeneration, N3).
@@ -1583,6 +1591,11 @@ def gen_catalogue(tables: dict[str, str], dp_root: Path) -> tuple[str, str]:
                      "phase4_contexts": store_b, "tags": tags,
                      "executable": executable, "capability": capability, "blockers": exec_b})
 
+    by_recipe_item: dict[int, list[int]] = {}
+    for rec in t["recipes.toml"]["recipe"]:
+        by_recipe_item.setdefault(rec["recipe_id"], []).append(rec["id"])
+    shared_recipe_items = {k: v for k, v in sorted(by_recipe_item.items()) if len(v) > 1}
+    non_exec_recipe_items = [r for r in rows if "recipe_item" in r["roles"] and r["executable"] == "no"]
     non_storable = [r for r in rows if not r["storable"]]
     pending_d97 = [r for r in rows if r["storable_status"] == "pending_d97"]
     lifetime_deferred = [r for r in rows if "lifetime_deferred" in r["tags"]]
@@ -1607,6 +1620,9 @@ def gen_catalogue(tables: dict[str, str], dp_root: Path) -> tuple[str, str]:
         "executable": {"yes": sum(r["executable"] == "yes" for r in rows),
                        "no": sum(r["executable"] == "no" for r in rows),
                        "not_required": sum(r["executable"] == "not_required" for r in rows)},
+        "recipe_items": {"register_executable": sum(1 for r in rows if "recipe_item" in r["roles"] and r["executable"] == "yes"),
+                         "not_executable": len(non_exec_recipe_items),
+                         "shared": {str(k): v for k, v in shared_recipe_items.items()}},
         "herbs": {"total": len(herbs) + len(unhandled), "pickup_effect_executable": len(herbs) - len(non_exec_herbs),
                   "pickup_effect_deferred": len(non_exec_herbs), "destroy_no_effect": len(unhandled)},
         "roles": dict(sorted(role_counts.items())),
@@ -1645,6 +1661,19 @@ def gen_catalogue(tables: dict[str, str], dp_root: Path) -> tuple[str, str]:
     lines.append("")
     lines.append("# for_npc templates: storable under E51, still non-storable in Phase 4 data until D97 (rev 9).")
     lines.append(f"pending_d97 = {toml_list([r['id'] for r in pending_d97])}")
+    lines.append("")
+    lines.append("# E55: recipe items with no Recipes handler cannot be registered (use does nothing, pinned).")
+    lines.append("non_executable_recipe_items = [")
+    for r in non_exec_recipe_items:
+        lines.append(f"  {{ id = {r['id']}, name = {json.dumps(r['name'])}, blockers = {json.dumps(r['blockers'])} }},")
+    lines.append("]")
+    lines.append("")
+    lines.append("# E55 note (pinned data): one recipe item maps to several recipes; RecipeData.getRecipeByItemId")
+    lines.append("# returns the first in _recipes iteration order, so only one of them can be registered.")
+    lines.append("shared_recipe_items = [")
+    for item, recs in shared_recipe_items.items():
+        lines.append(f"  {{ recipe_item = {item}, recipes = {toml_list(recs)} }},")
+    lines.append("]")
     lines.append("")
     lines.append("# Multisell special ids (MultisellData.java:57-59): clan reputation / fame, not item templates.")
     lines.append("# E52: rows kept, lists admitted; executing such an entry refuses ItemCapabilityDeferred.")

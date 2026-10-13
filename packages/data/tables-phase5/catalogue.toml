@@ -57,6 +57,17 @@ not_storable = [
 # for_npc templates: storable under E51, still non-storable in Phase 4 data until D97 (rev 9).
 pending_d97 = [734, 735, 1060, 1061, 1374, 1375, 1539, 1540, 1831, 1832, 1833, 1834, 1835, 2505, 2506, 2515, 3439, 3891, 3892, 3893, 3894, 3895, 3896, 3897, 3898, 3899, 3900, 3901, 3902, 3903, 3904, 3905, 3906, 3907, 3908, 3909, 3910, 3911, 3912, 3913, 3914, 3915, 3916, 3917, 3918, 3919, 3920, 3921, 3922, 3923, 3924, 3925, 4038, 4679, 5168, 5169, 5170, 5171, 5172, 5173, 5174, 5175, 5176, 5177, 5178, 5179, 5180, 5181, 5182, 5183, 5184, 5185, 5186, 5187, 5188, 5189, 5190, 5191, 6035, 6036, 6316, 6645, 6646, 6647, 7582, 8154, 8155, 8156, 8157, 8541, 8600, 8601, 8602, 8603, 8604, 8605, 8606, 8607, 8608, 8609, 8610, 8611, 8612, 8613, 8614, 8952, 8953, 9656, 9657, 9658, 9659, 9660, 9661, 9662, 9663, 9664, 9665, 9666, 9667, 9668, 9702, 10425, 10432, 10433, 10655, 10656, 10657, 12740, 12741, 12742, 12743, 12744, 12745, 12746, 12747, 12748, 12749, 12750, 12751, 12752, 13750, 13771, 13772, 14009, 14010, 14011, 14015, 14016, 14017, 14018, 14019, 14020, 14038, 14039, 14040, 14041, 14042, 14043, 14044, 14045, 14046, 14047, 14048, 14049, 14050, 14051, 14052, 14798, 14799, 14800, 14818, 14820, 14821, 14822, 14823, 14824, 14825, 14826, 14827, 17158, 17159, 17160]
 
+# E55: recipe items with no Recipes handler cannot be registered (use does nothing, pinned).
+non_executable_recipe_items = [
+  { id = 14854, name = "Recipe - Spiteful Soul Energy", blockers = ["handler:Recipes:missing"] },
+]
+
+# E55 note (pinned data): one recipe item maps to several recipes; RecipeData.getRecipeByItemId
+# returns the first in _recipes iteration order, so only one of them can be registered.
+shared_recipe_items = [
+  { recipe_item = 5008, recipes = [138, 436] },
+]
+
 # Multisell special ids (MultisellData.java:57-59): clan reputation / fame, not item templates.
 # E52: rows kept, lists admitted; executing such an entry refuses ItemCapabilityDeferred.
 special_multisell_ingredients = [
@@ -8356,7 +8367,7 @@ templates = [
   { id = 14851, name = "Cave Exploration Text 1 Sheet", type = "EtcItem", roles = ["death"], in_phase4 = false, storable = true, storable_status = "storable", phase4_contexts = [], tags = [], executable = "not_required", capability = "storage_only", blockers = [] },
   { id = 14852, name = "Cave Exploration Text 2 Sheet", type = "EtcItem", roles = ["death"], in_phase4 = false, storable = true, storable_status = "storable", phase4_contexts = [], tags = [], executable = "not_required", capability = "storage_only", blockers = [] },
   { id = 14853, name = "Cave Exploration Text 3 Sheet", type = "EtcItem", roles = ["death"], in_phase4 = false, storable = true, storable_status = "storable", phase4_contexts = [], tags = [], executable = "not_required", capability = "storage_only", blockers = [] },
-  { id = 14854, name = "Recipe - Spiteful Soul Energy", type = "EtcItem", roles = ["recipe_item"], in_phase4 = false, storable = true, storable_status = "storable", phase4_contexts = [], tags = [], executable = "yes", capability = "phase5:register_recipe (Recipes handler, story 3.8)", blockers = [] },
+  { id = 14854, name = "Recipe - Spiteful Soul Energy", type = "EtcItem", roles = ["recipe_item"], in_phase4 = false, storable = true, storable_status = "storable", phase4_contexts = [], tags = [], executable = "no", capability = "phase5:register_recipe (Recipes handler, story 3.8)", blockers = ["handler:Recipes:missing"] },
   { id = 14855, name = "Spiteful Soul Energy", type = "EtcItem", roles = ["recipe_product"], in_phase4 = false, storable = true, storable_status = "storable", phase4_contexts = [], tags = [], executable = "not_required", capability = "storage_only", blockers = [] },
   { id = 14856, name = "Spiteful Soul Vengeance", type = "EtcItem", roles = ["recipe_ingredient"], in_phase4 = false, storable = true, storable_status = "storable", phase4_contexts = [], tags = [], executable = "not_required", capability = "storage_only", blockers = [] },
   { id = 14861, name = "Cursed Burial Items", type = "EtcItem", roles = ["multisell_ingredient"], in_phase4 = false, storable = true, storable_status = "storable", phase4_contexts = [], tags = [], executable = "not_required", capability = "storage_only", blockers = [] },
@@ -9414,6 +9425,6 @@ storable = 9338
 not_storable = 0
 storable_pending_d97 = 182
 lifetime_deferred = 109
-executable_yes = 1301
-executable_no = 25
+executable_yes = 1300
+executable_no = 26
 executable_not_required = 8012

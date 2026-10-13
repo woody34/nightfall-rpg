@@ -21,9 +21,19 @@
     "context:pet": 0
   },
   "executable": {
-    "yes": 1301,
-    "no": 25,
+    "yes": 1300,
+    "no": 26,
     "not_required": 8012
+  },
+  "recipe_items": {
+    "register_executable": 998,
+    "not_executable": 1,
+    "shared": {
+      "5008": [
+        138,
+        436
+      ]
+    }
   },
   "herbs": {
     "total": 68,
