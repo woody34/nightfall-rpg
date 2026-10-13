@@ -1105,9 +1105,11 @@ async fn captured_enchant_outbox_preserves_all_outcomes_before_later_destruction
         // D76 ledger: the attempt's Enchant row (when it changed the target) at position 0,
         // then the later Destroy at the next position.
         if outcome == ItemEnchantOutcome::Destroyed {
+            // The producer records a destroying attempt as a Destroy row carrying the enchant
+            // receipt (count_delta -1), not as an Enchant row.
             work.projection.ledger.push(ItemDeltaPlan {
                 receipt_refs: Vec::new(),
-                operation: ItemOperation::Enchant,
+                operation: ItemOperation::Destroy,
                 operation_ordinal: 0,
                 instance: before.id,
                 before: Some(before.clone()),
