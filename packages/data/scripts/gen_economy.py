@@ -1105,7 +1105,7 @@ def main() -> int:
     parser.add_argument(
         "--stories",
         type=str,
-        default="1.1",
+        default="1.1,1.2",
         help="comma-separated list of stories to generate (1.1, 1.2, 1.3)",
     )
     args = parser.parse_args()
