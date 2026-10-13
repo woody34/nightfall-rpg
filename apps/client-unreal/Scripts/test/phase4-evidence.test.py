@@ -1699,7 +1699,8 @@ class Evidence(unittest.TestCase):
                 rows=copy.deepcopy(self.rows);rows[1]['data'].update(formula=name,inputs=inputs,actual=actual)
                 self.assertTrue(gate.evaluate(rows,self.recording,OWNER,[name],HASH)['passed'])
                 # The E1 neutral-caller output (critical 999, spread = radius) no longer matches live residues.
-                neutral=gate.oracle.rational(getattr(gate.oracle.behavior,name)(**{k:v for k,v in gate.oracle.decode_rationals(inputs).items() if k not in gate.RESIDUE_INPUTS[name]}))
+                neutral_residues=dict(critical_residue=999,spread_residue=5) if name=='bow_launch' else dict(critical_residues=[999,None],spread_residues=[6,None])
+                neutral=gate.oracle.rational(gate.residue_family(name,inputs|neutral_residues))
                 with self.assertRaises(ValueError):gate.formula(name,inputs,neutral)
         mutations=[('bow_launch',dict(critical_residue=None)),('bow_launch',dict(spread_residue=None)),
                    ('bow_launch',dict(spread_residue=11)),('bow_launch',dict(critical_residue=1000)),
@@ -1716,7 +1717,8 @@ class Evidence(unittest.TestCase):
         print(f'D87: live critical/spread residues verified for bow_launch/dual_plan; {len(mutations)} residue mutations and missing fields reject',flush=True)
 
     def test_d88_hit_iff_residue_below_chance(self):
-        self.assertTrue(gate.oracle_hit_inclusive()) # E1 rev 8 still uses <=; the consumer adapts.
+        # E1 rev 7/8 decides hits with <= (the consumer adapts); rev 9 is strict (D88, no adapter).
+        self.assertEqual(gate.oracle_hit_inclusive(),not gate.oracle_adopted_d87('dual_plan'))
         bow=dict(weapon=gate.oracle.behavior.bow_definition(gate.source(),13),
                  inventory=[gate.oracle.behavior.arrow_stack(gate.source(),17,2)],lhand=None,mp=10,mp_modifier=1,
                  reduction_residue=None,miss=False,hit_chance=800,hit_residue=799,critical_residue=17,spread_residue=3)
@@ -1843,20 +1845,23 @@ class Evidence(unittest.TestCase):
         dual=dict(hits=[True,False],formulas=[10,10],second_valid=True,hit_residues=[799,800],hit_chance=800,
                   spread_radius=2,critical_residues=[5,None],spread_residues=[1,None])
         expected=gate.oracle.rational(gate.residue_family('dual_plan',dual))
-        rev8=gate.oracle.behavior.dual_plan
+        real=gate.oracle.behavior.dual_plan;adopted=gate.oracle_adopted_d87('dual_plan')
         def rev9(hits,formulas,second_valid,hit_residues,hit_chance,spread_radius,critical_residues,spread_residues):
-            # A rev 9-shaped oracle: strict `<` and the residues as parameters.
-            result=rev8(hits,formulas,second_valid,hit_residues,hit_chance-1,spread_radius)
+            # A rev 9-shaped oracle: strict `<` and the residues as parameters (the real one on rev 9 data).
+            if adopted:return real(hits,formulas,second_valid,hit_residues,hit_chance,spread_radius,critical_residues,spread_residues)
+            result=real(hits,formulas,second_valid,hit_residues,hit_chance-1,spread_radius)
             for draw in result['draws']:
                 if draw['site'][:-1] in ('critical','spread'):
                     draw['residue']=(critical_residues if draw['site'].startswith('critical') else spread_residues)[int(draw['site'][-1])-1]
             return result
+        def rev8(hits,formulas,second_valid,hit_residues,hit_chance,spread_radius):
+            raise AssertionError('the adapter must refuse before calling an old-shaped oracle on unknown data')
         with patch.object(gate.oracle.behavior,'dual_plan',rev9),patch.object(gate,'oracle_hit_inclusive',side_effect=AssertionError('probe used')):
             self.assertTrue(gate.oracle_adopted_d87('dual_plan'))
             gate.formula('dual_plan',dual,expected) # no adjustment, no probe, any data hash
             with patch.object(gate,'source_data_sha256',return_value='f'*64):gate.formula('dual_plan',dual,expected)
         # Rev 8-shaped oracle on unknown (newer) data: the adapter refuses as a verdict.
-        with patch.object(gate,'source_data_sha256',return_value='f'*64):
+        with patch.object(gate,'source_data_sha256',return_value='f'*64),patch.object(gate.oracle.behavior,'dual_plan',rev8):
             with self.assertRaisesRegex(ValueError,'D96'):gate.formula('dual_plan',dual,expected)
             rows=copy.deepcopy(self.rows)
             rows[1]['data'].update(formula='dual_plan',inputs=dual,actual=expected)
@@ -1869,7 +1874,7 @@ class Evidence(unittest.TestCase):
             with patch.object(gate.oracle.behavior,'dual_plan',odd):
                 with self.assertRaisesRegex(ValueError,'D88'):gate.oracle_hit_inclusive()
         finally:gate.oracle_hit_inclusive.cache_clear()
-        self.assertTrue(gate.oracle_hit_inclusive())
+        self.assertEqual(gate.oracle_hit_inclusive(),not adopted)
         print('Rev 9 path: residue parameters detected by signature remove both adapters; unknown data or an unclassifiable probe is a verdict',flush=True)
 
     def test_item_record_scalar_substitutions_through_evaluate(self):
@@ -1943,20 +1948,38 @@ class Evidence(unittest.TestCase):
 
     @staticmethod
     def with_residues(name,inputs):
-        """D87: read the oracle's own critical/spread residues back as fact inputs."""
+        """D87: give bow_launch/dual_plan facts their residue inputs (vectors and fixtures)."""
         def canonical(value):
-            # Review-2 P3-3: E1 decimal-point strings ('1.25') become canonical n/d rationals.
+            # Pre-D98 E1 data (rev 7/8) writes '1.25'; D98 (rev 9) exports canonical n/d already.
             if isinstance(value,dict):return {k:canonical(v) for k,v in value.items()}
             if isinstance(value,list):return [canonical(v) for v in value]
             if isinstance(value,str) and re.fullmatch(r'-?[0-9]+\.[0-9]+',value):
                 number=gate.oracle.F(value);return f'{number.numerator}/{number.denominator}'
             return value
-        inputs=canonical(copy.deepcopy(inputs))
+        inputs=copy.deepcopy(inputs)
+        if gate.source_data_sha256() in gate.PRE_D87_DATA:inputs=canonical(inputs)
         if name=='magic_damage' and 'is_pvp' not in inputs:
             # Review-2 P3-4: is_pvp is required; E1 vectors leave it to the oracle default.
             inputs['is_pvp']=inputs.get('attacker_player',True) and inputs.get('target_player',False)
         if name not in gate.RESIDUE_INPUTS:return inputs
         function=getattr(gate.oracle.behavior,name)
+        if gate.oracle_adopted_d87(name):
+            # Rev 9: vectors already carry the residues; fixtures get 0 for taken draws, null otherwise.
+            if set(gate.RESIDUE_INPUTS[name])<=set(inputs):return inputs
+            options=[(c,s) for c in (0,None) for s in (0,None)]
+            if name=='dual_plan':
+                import itertools
+                options=[([c1,c2],[s1,s2]) for c1,c2,s1,s2 in itertools.product((0,None),repeat=4)]
+            for critical,spread in options:
+                trial=dict(zip(gate.RESIDUE_INPUTS[name],(critical,spread)))
+                try:result=function(**gate.oracle.decode_rationals(inputs|trial))
+                except (ValueError,TypeError,KeyError):continue
+                inputs=inputs|trial
+                if name=='bow_launch':
+                    draws={d['site']:d['residue'] for d in result['draws']}
+                    inputs.update(reduction_residue=draws.get('bow_mp_reduction'),hit_residue=draws.get('hit'))
+                return inputs
+            return inputs|dict.fromkeys(gate.RESIDUE_INPUTS[name])
         try:draws={d['site']:d['residue'] for d in function(**gate.oracle.decode_rationals(inputs))['draws']}
         except (ValueError,TypeError,KeyError):draws={}
         if name=='bow_launch':
