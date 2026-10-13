@@ -220,7 +220,8 @@
         "karma": 0,
         "learned_ranks": {
           "1068": 1,
-          "1177": 1
+          "1177": 1,
+          "239": 1
         },
         "ledger": [
           {
@@ -384,7 +385,7 @@
             "op": "grant"
           }
         ],
-        "level": 14,
+        "level": 20,
         "modifier_install_order": [],
         "mp": null,
         "mp_fraction_q": 0,
@@ -406,7 +407,7 @@
         "recoverable_death_xp_loss": 0,
         "reuse_remainders": [],
         "sp": 100000,
-        "xp": 191454
+        "xp": 835862
       }
     },
     "phase4-armor-enchant4": {
@@ -645,7 +646,8 @@
         "karma": 0,
         "learned_ranks": {
           "1068": 1,
-          "1177": 1
+          "1177": 1,
+          "239": 1
         },
         "ledger": [
           {
@@ -825,7 +827,7 @@
             "op": "grant"
           }
         ],
-        "level": 14,
+        "level": 20,
         "modifier_install_order": [],
         "mp": null,
         "mp_fraction_q": 0,
@@ -847,7 +849,7 @@
         "recoverable_death_xp_loss": 0,
         "reuse_remainders": [],
         "sp": 100000,
-        "xp": 191454
+        "xp": 835862
       }
     },
     "phase4-armor-enchant6": {
@@ -1068,7 +1070,8 @@
         "karma": 0,
         "learned_ranks": {
           "1068": 1,
-          "1177": 1
+          "1177": 1,
+          "239": 1
         },
         "ledger": [
           {
@@ -1232,7 +1235,7 @@
             "op": "grant"
           }
         ],
-        "level": 14,
+        "level": 20,
         "modifier_install_order": [],
         "mp": null,
         "mp_fraction_q": 0,
@@ -1254,7 +1257,7 @@
         "recoverable_death_xp_loss": 0,
         "reuse_remainders": [],
         "sp": 100000,
-        "xp": 191454
+        "xp": 835862
       }
     },
     "phase4-blacksmith": {

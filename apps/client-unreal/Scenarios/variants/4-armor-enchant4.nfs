@@ -13,10 +13,10 @@
 # item-gate: clamp_no_heal
 # item-phase: {"name":"chest-then-shield","formula":"set_shield_history","context":{"set_id":3},"inputs":{"mutation":"equip_shield","complete":false},"actual":true,"mutation":{"operation":"equip","template":628,"slot":"lhand"}}
 # item-phase: {"name":"shield-then-chest","formula":"set_shield_history","context":{"set_id":3},"inputs":{"mutation":"equip_chest","complete":false},"actual":false,"mutation":{"operation":"equip","template":58,"slot":"chest"}}
-# item-phase: {"name":"inactive-history-reconnect","formula":"gear_stats","context":{"set_id":3,"event":"admission"},"absent_providers":[3543]}
-# item-phase: {"name":"active-incomplete-history-reconnect","formula":"gear_stats","context":{"set_id":3,"event":"admission"},"providers":[3543],"equipment":{"legs":461,"head":null,"chest":58,"lhand":628}}
-# item-phase: {"name":"active-shield-provider","formula":"gear_stats","context":{"set_id":3},"providers":[3543],"mutation":{"operation":"equip","template":628,"slot":"lhand"}}
-# item-phase: {"name":"removed-shield-provider","formula":"gear_stats","context":{"set_id":3},"absent_providers":[3543],"mutation":{"operation":"unequip","template":628,"slot":"lhand"}}
+# item-phase: {"name":"inactive-history-reconnect","formula":"gear_stats","context":{"event":"equip"},"absent_providers":[3543],"equipment":{"chest":58,"lhand":628},"mutation":{"operation":"equip","template":58,"slot":"chest"}}
+# item-phase: {"name":"active-incomplete-history-reconnect","formula":"gear_stats","context":{"event":"equip"},"providers":[3543],"equipment":{"legs":461,"head":null,"chest":58,"lhand":628},"mutation":{"operation":"equip","template":628,"slot":"lhand"}}
+# item-phase: {"name":"active-shield-provider","formula":"gear_stats","context":{"event":"equip"},"providers":[3543],"mutation":{"operation":"equip","template":628,"slot":"lhand"}}
+# item-phase: {"name":"removed-shield-provider","formula":"gear_stats","context":{"event":"unequip"},"absent_providers":[3543],"mutation":{"operation":"unequip","template":628,"slot":"lhand"}}
 # item-phase: {"name":"enchant4-installed","formula":"gear_stats","providers":[3439],"mutation":{"operation":"equip","template":10491,"slot":"under"}}
 # item-phase: {"name":"enchant4-removed","formula":"gear_stats","absent_providers":[3439],"mutation":{"operation":"unequip","template":10491,"slot":"under"}}
 nf.Login

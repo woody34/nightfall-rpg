@@ -2373,13 +2373,19 @@ class Evidence(unittest.TestCase):
 
     def test_incomplete_armour_admission_rejects_stateless_history_mutation(self):
         phase=next(p for p in gate.phases(SCRIPTS.parent/'Scenarios/4-armor-set.nfs') if p['name']=='active-incomplete-history-reconnect')
-        inputs=dict(class_file=gate.oracle.D+'stats/chars/baseStats/HumanMystic.xml',level=14,
+        inputs=dict(class_file=gate.oracle.D+'stats/chars/baseStats/HumanMystic.xml',level=20,
                     equipment=[[58,0,'chest',1],[628,0,'lhand',2],[461,0,'legs',0]],skill_refs=[[3543,1,3]],base_deltas={},base_delta_sequence=0)
         rows=copy.deepcopy(self.rows)
         def fact(values):
+            # D111: the producer's gear fact carries context {event} under the command's resolution.
             return dict(formula='gear_stats',inputs=values,actual=gate.gear_fact(gate.oracle.rational(gate.oracle.gear_stats(gate.source(),**values))),
-                        context={'set_id':3,'event':'admission'},baseline=False,resolution_id='admission:1')
+                        context={'event':'equip'},baseline=False,resolution_id='equip:k1')
         rows[1]['data']=fact(inputs)
+        shield=item(628,1,628)
+        rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=0,sequence=0,data=dict(operation='equip',instance=628,
+            before=shield,after=shield|{'slot':'lhand','location':'paperdoll','revision':1},count_delta=0,operation_ordinal=0,
+            resolution_id='equip:k1',receipt_ref='receipt:equip:k1')))
+        self.repair(rows)
         self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['gear_stats'],HASH,[phase])['passed'])
         # Rebuild with full_set&&shield and recompute the sheet, so generic formula
         # correctness still passes but the required retained provider gate fails.
