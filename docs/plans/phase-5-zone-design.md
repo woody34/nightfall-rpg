@@ -1,4 +1,8 @@
-> **BINDING RECORD — Phase 5 zone engine and economy design (Claude author per AD5 E23).** This is the implementation contract for new Snapshot 11 / Record 9 / Binary V7 epochs. It incorporates owner decisions P1–P4 and the approved defaults, architect decisions A1–A20, dispositions B1–B21, and errata E1–E42 (incl. the §10 answers E24–E29 to this design's former Q1–Q6, E30 binary64 fidelity, E31 single-writer containers, the §11 review-4 dispositions E32–E36, the §12 review-5 dispositions E37–E40, and the §13 review-6 dispositions E41–E42). It replaces the two rejected agy drafts (e602c25 and 43c02a6) in full. Revision 4 applied design-review-3 to dc2a625, revision 5 applied design-review-4 to d429ab7, and revision 6 applied design-review-5 to 587a2f4, and revision 7 applies design-review-6 (accept with bounded fixes) to 53597de; per B21 revision 7 is **FROZEN** on commit. Every finding of design-review-1 (F1–F36), design-review-2 (R1–R44), design-review-3 (P1-1…P1-5, P2-1…P2-14, nits 1–16) design-review-4 (P1-A, P2-1…P2-5, nits 1–11), design-review-5 (P1-1, P2-1…P2-5, nits 1–15) and design-review-6 (P2-1, P2-2, nits 1–11) is answered in §16. It does not claim that any implementation or acceptance gate passes.
+> **BINDING RECORD — Phase 5 zone engine and economy design (Claude author per AD5 E23).** This is the implementation contract for new Snapshot 11 / Record 9 / Binary V7 epochs. It incorporates owner decisions P1–P4 and the approved defaults, architect decisions A1–A20, dispositions B1–B26, and errata E1–E55 (incl. the §10 answers E24–E29 to this design's former Q1–Q6, E30 binary64 fidelity, E31 single-writer containers, the §11 review-4 dispositions E32–E36, the §12 review-5 dispositions E37–E40, the §13 review-6 dispositions E41–E42, and the §14–§15 data-review dispositions E47–E55). It replaces the two rejected agy drafts (e602c25 and 43c02a6) in full. Revision 4 applied design-review-3 to dc2a625, revision 5 applied design-review-4 to d429ab7, and revision 6 applied design-review-5 to 587a2f4, and revision 7 applies design-review-6 (accept with bounded fixes) to 53597de; per B21 revision 7 is **FROZEN** on commit. Every finding of design-review-1 (F1–F36), design-review-2 (R1–R44), design-review-3 (P1-1…P1-5, P2-1…P2-14, nits 1–16), design-review-4 (P1-A, P2-1…P2-5, nits 1–11), design-review-5 (P1-1, P2-1…P2-5, nits 1–15) and design-review-6 (P2-1, P2-2, nits 1–11) is answered in §16. It does not claim that any implementation or acceptance gate passes.
+>
+> **Revision 8 (B26).** This revision is the implementation-time design edit (B22) pulled forward. It changes text only as the architect listed: §3.9 (E53), §7 adena-ingredient merge, §10.6/§14.1 manor-fee bound, the normative `roll_below`, the herb Armor note, the E51/E52/E55 data facts, the E49 deviation in §16, design-review-7 nits A–D and the domain-vs-wire `ItemLocation` note. There is no other semantic change; the design stays FROZEN.
+>
+> **Data provenance.** The generated tables come from `codex/phase5-data` @ **ac021b3** (accepted, B26): `gen_economy --check` (15 files), `economy_oracle --check` (22 families).
 >
 > **Tag source of truth (E20).** The wire, codec, reject-reason and RPC allocations in §12–§13 are normative. The plan (`docs/plans/phase-5-economy-and-crafting.md`, `codex/phase5-plan`) syncs to them.
 >
@@ -229,13 +233,13 @@ pub struct VendorStock { pub count: i64, pub max: u64, pub restock_ticks: u64, p
 2. **Rate chain** (§3.4). The pinned multipliers are Death/Corpse/Herb/Raid chance and amount 1, the per-item overrides `57,1` (`GC/rates.properties:16-37`), RateXp/RateSp/RatePartyXp/RatePartySp 1 (`:46-52`), RateDropManor 1 (`:53`) and RateSiegeGuardsPrice 1 (`:58`). Champion: `ChampionEnable = False` (`GC/customs.properties:10`), so no champion value is executable. Also hashed: the **global multiplier `G`** (P2; default "1"; see below), and the deep-blue windows (`GC/npc.properties:187-218`). Pinned config kinds differ (`GJ/config/RatesConfiguration.java`): Death/Corpse/Herb/Raid chance and amount multipliers are `double` (`:49-70`), RateSiegeGuardsPrice is `double` (`:103`), and RateXp/RateSp/RatePartyXp/RatePartySp (`:81-90`) and the by-item override maps (`Float`) are `float`. **Where G enters (E21/E29/E37/E42):** the owner's global-multiplier **decimal string** is what Phase5Rules hashes (E42). `G = fl(G_string)` is its derived binary64 value (Java `parseDouble` semantics), constrained to `2^-32 ≤ G ≤ 2^32`. Every G-multiplied rate is `rate' = fl32(fl(rate × G))`: a double product, then the narrowing that the pinned float chain `float multiplier *= …` (or the float config) applies. This holds for double and float configs alike (E37; DR5 P2-1). `rate'` is computed once at load and hashed (§3.4). Amount multipliers and RateSiegeGuardsPrice are not G-multiplied.
 3. **Ground constants.** Loot owner 15,000 ms (`GJ/datatables/ItemTable.java:212-216`). DropProtection 15,000 ms (`GJ/model/DropProtection.java:35`). Raid loot rights 900 s (`GC/character.properties:689`), with CC size 45 (`:693`, vacuous). AutoLoot/AutoLootRaids/AutoLootHerbs are all False (`:677,683,80`). Decay: 600 s (`GC/general.properties:258`), herbs 60 s (`:262`, seconds→ms via `GJ/config/GeneralConfiguration.java:216-218`), the per-template `auto_destroy_time` (one row, item 9849 = 10 s, `DP/stats/items/09800-09899.xml:923`; ×1000 at `GJ/model/items/L2Item.java:167`), an empty `ProtectedItems` (`:269`), `DestroyPlayerDroppedItem = False` and `DestroyEquipableItem = False` (`:306,312`), `SaveDroppedItem = False` (`:316`), `MultipleItemDrop = True` (`:354`), and the 5 s scanner (`GJ/ItemsAutoDestroy.java:35`). Offsets 70 (`GJ/model/actor/L2Npc.java:116`) and 25 (`L2PcInstance.java:3178`). The PK policy is `KarmaRateDrop 40`, Item 50, Equip 40, Weapon 10, limit 10 (`GC/rates.properties:115-127`), `MinimumPKRequiredToDrop = 6` (`GC/pvp.properties:27`), `NonDroppableItems` (30 entries, 29 distinct ids: 7694 is listed twice, `:24`) and `PetItems` (11 ids, `:20`), plus the policy flag `pk_drop_protection`, fixed to `None` by **E24**.
 4. **Party constants.** Size cap 9 (`GJ/network/clientpackets/RequestJoinParty.java:149`), PartyRange 1,600 and PartyRange2 1,400 (`GC/character.properties:605,610`), even-distribute flags (`:616,624,631`), `LeavePartyLeader = False` (`:636`), `ExponentXp = 0` and `ExponentSp = 0` (`:758-759`; nonzero fails closed, E42; DR6 nit 7), the vote timeout of 15 s (`L2Party.java:88`), the BONUS_EXP_SP table (`:81-84`), and the cutoff `highfive` with gaps `0,9;10,14;15,99` and percents `100,30,0` (`GC/character.properties:769,785,793`).
-5. **Herbs and catalogue closure.** There are 68 `ex_immediate_effect` EtcItems (`GJ/model/items/L2Item.java:188,743-745`). Of these, 59 carry handler `ItemSkills` with an `item_skill` list (56 have one skill; 8612 = `2280-1;2282-1;2284-1`, 8613 = `2281-1;2283-1`, 8614 = `2278-3;2279-3` have several; E36), and 9 carry no handler (10213, 10648, 13009, 13029–13031, 14798–14800). On pickup these 9 are destroyed with no effect and the handler-absent log (`L2PcInstance.java:3860-3868`). The 59 handled herbs use 48 distinct item-skill ids, generated with their levels into `tables-phase5/herbs.toml`: 2244–2247, 2278–2285, 2357, 2485, 2486, 2512–2514, 2580, 2897–2903, 9161–9163, 22000–22005, 22029–22031, 22097, 22098, 22128, 22158–22164. Several herbs share a skill: 2278 ×5, 2279 ×5, 22128 ×3, and 2280, 2281, 2282, 2283, 2284 ×2 each (DR3 nit 4). Every template referenced by any drop, corpse, merchant, multisell, recipe, seed or auction row must be **storable** in the extended catalogue (D5 storability; R31). Its executability is a separate D5/D54 capability:
+5. **Herbs and catalogue closure.** There are 68 templates with `ex_immediate_effect` (`GJ/model/items/L2Item.java:188,743-745`): 65 EtcItems plus the three **Armor** templates 14798–14800 (Afro Perm Wigs; data-review-1 D15). Of these, 59 carry handler `ItemSkills` with an `item_skill` list (56 have one skill; 8612 = `2280-1;2282-1;2284-1`, 8613 = `2281-1;2283-1`, 8614 = `2278-3;2279-3` have several; E36), and 9 carry no handler (10213, 10648, 13009, 13029–13031, 14798–14800). On pickup these 9 are destroyed with no effect and the handler-absent log (`L2PcInstance.java:3860-3868`). The 59 handled herbs use 48 distinct item-skill ids, generated with their levels into `tables-phase5/herbs.toml`: 2244–2247, 2278–2285, 2357, 2485, 2486, 2512–2514, 2580, 2897–2903, 9161–9163, 22000–22005, 22029–22031, 22097, 22098, 22128, 22158–22164. Several herbs share a skill: 2278 ×5, 2279 ×5, 22128 ×3, and 2280, 2281, 2282, 2283, 2284 ×2 each (DR3 nit 4). Every template referenced by any drop, corpse, merchant, multisell, recipe, seed or auction row must be **storable** in the extended catalogue (D5 storability; R31). **E51:** storability is independent of executability. Common, shadow and time-limited templates are storable (inventory, warehouse, ledger rows) and usable per the Phase 4 executability rules. Their lifetime decay (mana/duration) is **not** implemented in Phase 5; that deviation carries the capability tag `lifetime_deferred`. `for_npc` never blocks storability or use (Phase 4 D97). After D97 the non-storable set is 0, and the manifest is regenerated at the final Phase 4 integration SHA. Its executability is a separate D5/D54 capability:
    - a herb whose skill is not executable makes pickup refuse `ITEM_CAPABILITY_DEFERRED` (W 36), and the herb stays on the ground until decay;
    - a non-executable recipe product is still a storable grant.
    No row is ever dropped from a table because of a capability.
 6. **Merchants.** 274 AI scripts with 20,236 entries (`DPJ/ai/npc/**`, `AbstractNpcAI.buildBuySellList` at `DPJ/ai/npc/AbstractNpcAI.java:208-233`, record `BuySellList(int itemId, double tax, double delay, int count, int type)` at `:269`). Each entry carries its buylist id, NPC id, template, reference price (`getReferencePrice`), the exact `tax` literal, the `delay` literal and the count. The tax histogram is 20 % ×10,546, 10 % ×4,103, 15 % ×2,623, 100 % ×1,527, 50 % ×827, 30 % ×582, 60 % ×27 and 0 % ×1 (Harvester 5125). That gives 5,803 distinct (template, tax) pairs and 2,145 limited entries. There is one zero-price entry (8187), which is refused at purchase (§6.3). Castle tax percent is 0 (`DPS/castle.sql:17-26`, E3). The Strife ceilings 15/25/5 (`GJ/instancemanager/CastleManager.java:165-176`) are hashed as data for later phases.
-7. **Multisell.** 196 lists. Hashed per list: `maintainEnchantment` (31 lists), `applyTaxes` (14), and NPC allow-lists. Hashed per entry: ingredients (incl. `isTaxIngredient`, which no pinned row sets, and `maintainIngredient`, set on 21 ingredients) and products (`GJ/model/multisell/*`, `GJ/data/xml/impl/MultisellData.java`).
-8. **Recipes.** 1,000 recipes, 830 Dwarven and 170 Common. Hashed: id, recipeId, craftLevel, type, successRate, ingredients, production, productionRare (582, rarity 1 % ×31, 4 % ×315, 20 % ×236), statUse (MP/HP) and altStatChange (`DP/recipes.xml`; `GJ/data/xml/impl/RecipeData.java:61-171`). Also: Create Item 172 / Create Common Item 1320 rank tables, `CraftMasterwork = True` (`GC/character.properties:484`), recipe limits 50/50 (`:488-489`), and `AlternativeCrafting = False` (`:495`).
+7. **Multisell.** 196 files / 195 list ids: `001.xml` and `1.xml` both map to id 1, differ in content, and id 1 = `1.xml` (E49; deviation recorded in §16). Hashed per list: `maintainEnchantment` (31 lists), `applyTaxes` (14), and NPC allow-lists. Hashed per entry: ingredients (incl. `isTaxIngredient`, which no pinned row sets, and `maintainIngredient`, set on 21 ingredients) and products (`GJ/model/multisell/*`, `GJ/data/xml/impl/MultisellData.java`). **E52:** entries whose ingredient or product id is Fame (−300) or Clan Reputation (−200) stay in the tables, and their lists are admitted. Executing such an entry refuses `ITEM_CAPABILITY_DEFERRED`, because fame and clan reputation arrive with Phase 7.
+8. **Recipes.** 1,000 recipes, 830 Dwarven and 170 Common. **E55:** recipe item 14854 has no `handler` in the pinned XML, so it is **not executable** (RegisterRecipe: 998 executable + 1 not; executable recipe-item count per the ac021b3 manifest). Recipe item 5008 is shared by recipes 138 and 436 (pinned-data note; the first registration wins, as pinned). Hashed: id, recipeId, craftLevel, type, successRate, ingredients, production, productionRare (582, rarity 1 % ×31, 4 % ×315, 20 % ×236), statUse (MP/HP) and altStatChange (`DP/recipes.xml`; `GJ/data/xml/impl/RecipeData.java:61-171`). Also: Create Item 172 / Create Common Item 1320 rank tables, `CraftMasterwork = True` (`GC/character.properties:484`), recipe limits 50/50 (`:488-489`), and `AlternativeCrafting = False` (`:495`).
 9. **Storage and mail.** Warehouse 100/120 (`GC/character.properties:325-326`), deposit fee 30 per entry (`GJ/network/clientpackets/SendWareHouseDepositList.java:118`), freight 200 (`:332`) at 1,000 per entry (`:335`), and `KarmaPlayerCanUseWareHouse = True` (`:443`). Mail constants: `RequestSendPost.java:60-68`, `Message.java:39-40`, and every flood interval used by a Phase 5 intent, in game ticks of 100 ms (`GC/floodprotector.properties:5`): MultiSellInterval 1 (`:78`), TransactionInterval 10 (`:85`), ManufactureInterval 3 (`:92`), ManorInterval 30 (`:99`), SendMailInterval 100 (`:106`). ServerBypassInterval 5 (`:71`; gates ItemAuctionCancelBid, E35). ItemAuctionInterval 9 (`:120`) gates only the pinned info request, which is an RPC read here, and is hashed but unused.
 10. **Item auction and manor.** The ItemAuctions data with its 3 instances (32320, 32321, 32322; 82 items each, all `auctionInitBid = 100000`, `auctionLength = 300`; `DP/ItemAuctions.xml:13,187,361`), the auction constants (§10.5), seeds.xml (258 crops, 129 alternative; `DP/seeds.xml`), the Sow/Harvesting skills 2097/2098 (`DP/stats/skills/02000-02099.xml:1537-1575`), and the **fixture manor schedule** (B1): seed production and crop procurement lists for **Gludio (castle id 1) only** (E28), for one approved period. Also hashed: each fixture zone's `castle_area` (the Phase 5 test zone = **1, Gludio**; E28), used by the Seed handler check (§10.6). Without castles, pinned ownerless castles have empty lists (`GJ/instancemanager/CastleManorManager.java:253-255,578-603`), so Phase 5 manor content exists **only** through the hashed fixture lists.
 11. **Policy versions and adaptation set** X1–X14, P1–P21 and T1 (§14.2). Also the frozen tables of §6.2: the 22-row killer-modifier `L` table (E36) and the OpenJDK 21 `pow56` (79) / `pow13` (241, d = −120..120) raw-bits oracle table, sha256 `4386eed8…` (E32, B20). Then the V7 formula revision, and the Phase 3 and Phase 4 rules hashes this epoch is bound to.
@@ -395,7 +399,15 @@ Consequences, stated as required by R2:
 ### 2.3 Normative per-callsite RNG draw order
 
 Draw primitives, defined once:
-- **`roll_below(n)`** is the existing primitive. It consumes ≥ 1 `next_u32` word.
+- **`roll_below(n)`** is the existing Phase 3 primitive (`Z/state.rs:1102-1112`), normative here (B26):
+  ```text
+  roll_below(n: u32) -> u32:
+     n' := max(n, 1); span := 2^32
+     limit := span − (span mod n')          // largest multiple of n' not above 2^32
+     loop: v := next_u32()
+           if v < limit: return v mod n'    // unbiased rejection; otherwise draw again
+  ```
+  It consumes ≥ 1 `next_u32` word: exactly 1 when `n'` divides 2^32 (including `n' = 1`), and otherwise 1 plus one more word per rejected value. Evidence records `word_before`/`word_after`.
 - **`draw_u64()`** is new: `hi = next_u32(); lo = next_u32(); (hi << 32) | lo` (high word first). It is used **only** for E15 chance tests.
 - **`chance(num, den)`**: given a non-negative chance in percent as an exact rational (for drops, the binary64 value pinned Java computes, which is a dyadic rational; §3.2, E30), `r = draw_u64()`; success iff `r · (100·den) < num · 2^64`, evaluated in U256. This reproduces `chance > nextDouble()·100` with the double chance exactly, up to the 2^-64 resolution of the draw (E15). Exactly one `draw_u64` per call, even when the chance is 0 or ≥ 100 (rule P3).
 - **`chance_bound(k, n)`**: the integer comparisons `Rnd.get(n) < k` and `Rnd.nextInt(n) < k`, converted under E15 to `chance(k·100, n)`. For example, `Rnd.nextInt(99) < 90` becomes success iff `r·99 < 90·2^64`.
@@ -633,7 +645,7 @@ pk_drop_v7(victim, blow):
 ```
 
 `excluded(item)`:
-- shadow or time-limited: excluded from the catalogue, so vacuous;
+- shadow or time-limited (`L2PcInstance.java:4524-4527`). Under E51 these templates are storable, so this exclusion is **live**: they never drop on a PK death (E53);
 - `!isDroppable`, which also excludes augmented items (`L2ItemInstance.java:667-671`);
 - adena;
 - `type2 == QUEST`;
@@ -986,6 +998,12 @@ Capacity and weight are evaluated after inputs are paid (Phase 4 `InventoryMutat
 - **Elemental attributes:** the copy is a **no-op** (B10; `:358-361`), because Phase 4 `ItemInstance` has no attribute field (`Z/item.rs:192-205`).
 - **Non-maintained lists:** the lowest-enchant instances are consumed (`:276-300`).
 
+**Adena-ingredient merge (pinned `PreparedEntry`, `GJ/model/multisell/PreparedEntry.java:33-71`; B26).** When an entry is prepared, every adena ingredient is held back, and non-tax adena counts are summed. A tax ingredient contributes `Math.round(count × taxRate)` only if `applyTaxes`. The total (adena + tax) is then appended as **one** adena ingredient **after** all other ingredients. Then:
+- **Possession check.** `MultiSellChoose` merges duplicate ingredients (same item id and enchant) into one row (`:168-198`).
+- **Consumption.** Consumption walks the prepared, unmerged list in its order (`:226`).
+- **Data effect.** 275 real pinned entries are reordered by this aggregation (data-review-1 Addendum 3; family M `multisell_prepared_ingredients`/`multisell_check_list`).
+- **Ledger order.** Within one choose, the adena payment is the **last** consumption contribution. Each instance's Consume aggregate lists its causes in this prepared order, and per (owner, tick, instance) the rows follow T1.
+
 **Ledger.** One Exchange operation per choose (D37/D52/D57 pattern). Each consume carries the cause `receipt:multisell_choose:<key>`. Each product is a fresh `exchange` grant, or a merge into an existing stack. One `ItemExchanged` outbox fact is emitted per choose. Phase 4 SA exchanges keep their own path.
 
 ## 8. Crafting (P3, A10; F7/F27)
@@ -1164,7 +1182,7 @@ Because every write to a leased row is made by the lease holder, a CAS miss unde
      - `auction` (auction id; covers the auction row **and** all its bid rows and escrow);
      - `manor` (castle id; covers that castle's production and procure rows).
 
-     The key's `owner_id` is the canonical text of the id.
+     The key's `owner_id` is the canonical 39-digit text defined under **Key order** below (design-review-7 nit C).
 
      **Mailbox counts (E34).** Every command that changes a character's inbox or outbox count must lease that character's `mailbox` key. Under the receiver's lease, MailSend freezes the receiver's inbox count, so racing zones cannot push an inbox past 240. The full per-command sets are in the table below (E38);
    - **Key order (E42; DR6 P2-2).** Each key has a canonical string `<owner_kind>:<owner_id>`. For a UUID id, `owner_id` is the UUID's u128 value as fixed-width zero-padded decimal (39 digits); for integer ids (castle, auction), it is the same 39-digit form. Keys are compared **bytewise** on that string (Rust `str` ordering). The Postgres `economy_leases` key columns use `COLLATE "C"`, so the database orders them identically. The kinds therefore sort `auction` < `delivery` < `freight` < `mail` < `mailbox` < `manor` < `warehouse`, since `mail:` < `mailbox:` because `:` (0x3A) < `b`. Within a kind, keys sort by numeric id. **Roles never decide order**: sender versus receiver is ordered by their ids.
@@ -1178,7 +1196,7 @@ Because every write to a leased row is made by the lease holder, a CAS miss unde
    | ItemAuctionBid | `auction:a` (current auction of the instance) | bid row, under `auction:a` |
    | ItemAuctionCancelBid | `auction:a` for **each** non-CREATED auction of the instance with the actor's bid, as frozen, in id order | — |
    | AuctionSchedule Create / Start / Purge (system) | `auction:a` | auction row (Create), under `auction:a` |
-   | AuctionSchedule Finish (system) | `auction:a`, `delivery:d` | delivery `d` and its row, under `delivery:d` |
+   | AuctionSchedule Finish (system) | `auction:a`, `delivery:d` | delivery `d` and its award item row, under `delivery:d` (design-review-7 nit D) |
    | DeliverPending (system) | `delivery:d`, then `warehouse:c_target` for `mail_expiry_return` / `auction_award` | — |
    | FreightSend | `freight:c_target` | — |
    | FreightWithdraw | `freight:c_actor` | — |
@@ -1265,7 +1283,7 @@ There is no fee. Moves are transfer pairs.
 4. no active trade (`:99`);
 5. karma: vacuous (`:104`);
 6. **fee** = `entries.len() × 1,000` (`:109`);
-7. per entry: `checkItemManipulation`; `isFreightable` (template flag, default false, `GJ/model/items/L2Item.java:182`; `L2ItemInstance.java:1665-1667`). Any non-freightable entry aborts the whole request (`:114-125`), with `ITEM_NOT_FREIGHTABLE`. Augmented freightable items are allowed (E17);
+7. per entry: `checkItemManipulation`; `isFreightable` (template flag, default false, `GJ/model/items/L2Item.java:182`; `L2ItemInstance.java:1665-1667`). Any non-freightable entry aborts the whole request (`:114-125`), with `ITEM_NOT_FREIGHTABLE`. Augmented freightable items are allowed (E17). **E53:** shadow items are refused, following the non-private-container depositability rule `isDepositable(false)` → `isTradeable() && !isShadowItem()` (`L2ItemInstance.java:700-711`). The pinned `RequestPackageSend` path itself calls only `isFreightable` (`:114-125`); the shadow refusal is the architect's binding reading (E53);
 8. slots: the adena entry adds **no** slot; a non-stackable entry adds its count; a stackable entry adds 1 unless the target freight holds the template (`:126-134`);
 9. capacity ≤ **200**: the target's `FREIGHT_LIM` is ignored because `_owner = null` (`:113,137`; `PcFreight.java:34-38,66-68`) → `FREIGHT_FULL`;
 10. adena ≥ fee (`:144`).
@@ -1377,7 +1395,7 @@ The mechanism:
   - `auction_award`: a **fresh** item, op `auction_award`, merged into the winner's existing warehouse stack when the template is stackable (30 of the 246 auction rows are stackable templates, e.g. 9575, 9576, 10485), otherwise inserted. This follows pinned online `getWarehouse().addItem` (`ItemAuctionInstance.java:400`). The pinned offline path writes a raw row instead (`:404-407`); Nightfall always delivers through the merge path, recorded as part of X12.
 - **Cap failure:** an adena cap (D68) failure on `cod_payment` leaves the delivery `pending` and emits the outbox fact `nightfall.item.delivery_blocked`. It is retried at the target's next admission. Warehouse capacity is **not** checked by pinned `returnToWh`/`addItem`; Nightfall follows pinned and does not check it (rule P20).
 
-Observable deviation **X12** (accepted by E27): an online sender in another zone is credited later than in the same server call: within one checkpoint cadence after the delivery reaches the head of the sender's delivery queue (E41). An offline sender's COD credit lands in the **inventory**, as pinned.
+Observable deviation **X12** (accepted by E27): an online sender in another zone is credited later than in the same server call: within one checkpoint cadence after the delivery reaches the head of the sender's delivery queue (E41) (a `CONTAINER_BUSY` re-queue keeps it at the head, and the bound counts from its executing tick, §10.4). An offline sender's COD credit lands in the **inventory**, as pinned.
 
 **Result shape (DR3 P2-12).** `DeliverPending` is a system command with no client request. It emits **no** `EconomyResult`: it has a system `request_key` for lease bookkeeping (§11.4), but no client receipt or fingerprint (DR6 nit 10). The target sees only the ordinary owner deltas (`InventoryChanged` for COD; nothing for warehouse arrivals, which `GetWarehouse` shows). Its durable trace is the ledger rows plus the outbox fact `nightfall.item.delivered`.
 
@@ -1487,7 +1505,7 @@ The period never changes in Phase 5: there is no maintenance or modifiable cycle
     - `P = count × price` (a `long`; `CropHolder.getPrice`, `:191-193`);
     - `rewardRef = 0` → skip (`:133-136`);
     - `rewardCount = P div rewardRef`; if it is < 1, skip;
-    - `fee = 0` if `manor_id` equals the manager's castle, else `⌊fl(fl(P) × fl(0.05))⌋`. This is the pinned `(long)(i.getPrice() * 0.05)`, with the double literal 0.05 (DR3 nit 11), and it coincides with ⌊P/20⌋ for every P < 2^53 tested by family S;
+    - `fee = 0` if `manor_id` equals the manager's castle, else `⌊fl(fl(P) × fl(0.05))⌋`. This is the pinned `(long)(i.getPrice() * 0.05)`, with the double literal 0.05 (DR3 nit 11), and it coincides with ⌊P/20⌋ for every P < 6,755,399,441,055,759, which covers every reachable P. Above that bound the binary64 product can round up; the `fl` form stays normative (B26);
     - if the actor's adena is below the fee, skip.
 
     Pinned then decrements the amount, pays the fee and destroys the crop, each able to fail independently with partial effects (`:162-165`). Nightfall pre-validates all three for the entry, so an accepted entry applies them atomically (rule P13 analogue).
@@ -1529,7 +1547,10 @@ An item moving between owners follows pinned `ItemContainer.transferItem` (`GJ/m
 - Both rows carry `transfer = {link: UUIDv5(NS_XFER, resolution_id ‖ ordinal), mode, peer_owner_kind, peer_owner_id, peer_instance}` and the same receipt or cause.
 - In identity mode the canonical fields are identical across the pair.
 - A `transfer_in` with before = None is exempt from D67's "never seen earlier" rule **only** when its link points to a matching identity `transfer_out` (B13).
-- An instance's location field changes with the owner kind. `ItemLocation` gains the V7 values `Ground`, `Refund`, `Warehouse`, `Freight`, `Mail`, `Delivery` and `AuctionBid` (V7 only; V5/V6 decoding rejects them).
+- An instance's location field changes with the owner kind. `ItemLocation` gains the V7 values `Ground`, `Refund`, `Warehouse`, `Freight`, `Mail`, `Delivery` and `AuctionBid` (V7 only; V5/V6 decoding rejects them). **Domain vs wire (B26):**
+  - The **domain** enum has these seven values plus INVENTORY/PAPERDOLL.
+  - The **wire** `ItemLocation` gains only the six container values 3..8 (§13.4). `Ground` never goes on the wire, because ground items travel as `GroundItemDetail`.
+  - `Ground` and `Refund` are never persisted to `item_instances`: ground items are snapshot-only (E17), and the refund tab is zone-only (B6).
 
 **Rule T1 (terminal rows; amends D69/D76 for V7).** Per `(owner, tick, instance)`, rows are ordered as follows:
 1. all non-consume, non-terminal rows (positive grants, merges, `transfer_in`, equip/unequip, split-mode `transfer_out` that leaves count > 0), in cause order;
@@ -2188,7 +2209,7 @@ Every family reads the pinned XML, Java and properties directly, or the E1 table
 | **V-S sell/refund** | Odd p, c = 1…5: sell `c·⌊p/2⌋`, refund `⌊c·p/2⌋`, difference `⌊c/2⌋` (p = 3, c = 4 → 4, 6, 2); 12-entry overflow destroys the oldest; merge into an existing refund stack does not grow the entry count |
 | **M multisell** | amount 1 and 5,000; non-stackable with amount > 1 rejected; maintainEnchantment exact-match consumption and enchant/augment copy; synthetic `isTaxIngredient` half-up at .5; `BlacksmithUseRecipes = True` consumes maintainIngredient rows |
 | **C craft** | `chance_bound` mapping for successRate 10/25/60/70/95/100; masterwork 1/4/20 and the non-rare draw (rarity 0); order MP → fee → materials → roll; fee kept on failure |
-| **S manor** | Sow basic 90/20 with every penalty branch and **no floor** (negative basic → never succeeds); harvest floor 1; harvest count with strong-type multipliers 4303–4310 and the level bonus; crop sale reward (skip at rewardRef 0 and count < 1), weight/slots from the crop count, and the fee `⌊fl(fl(P) × fl(0.05))⌋` vs ⌊P/20⌋ over P < 2^53 (castle 1 fixtures only, E28) |
+| **S manor** | Sow basic 90/20 with every penalty branch and **no floor** (negative basic → never succeeds); harvest floor 1; harvest count with strong-type multipliers 4303–4310 and the level bonus; crop sale reward (skip at rewardRef 0 and count < 1), weight/slots from the crop count, and the fee `⌊fl(fl(P) × fl(0.05))⌋` vs ⌊P/20⌋, equal for P < 6,755,399,441,055,759 (all reachable P), with a vector at and above the bound (castle 1 fixtures only, E28) |
 | **A auction** | Bid equal to highest accepted but not leading; increment-only payment; cancel matrix (leader, finished, 14-day, cancelled); extension 5 → 3 → stop; random item index |
 | **F fees** | Warehouse 30 × entries (adena entry counted); freight 1,000 × entries (adena entry adds no slot); mail 100 + 1,000 × n |
 | **PW pow/round (E32)** | The emulated `pow56(k)`, k = 1..79, and `pow13(d)`, d = −120..120, equal all 320 raw-bits entries of the frozen OpenJDK 21 table (`evidence/jvm-pow-tables.txt`, sha256 `4386eed8…`, hashed into Phase5Rules); k = 0 and k = 80 fail closed; negative controls: per-step multiplication with base `fl(5/6)` differs at 44/79 k, and with exact base 5/6 at 78/79; `Math.round` half cases for multisell tax |
@@ -2211,7 +2232,7 @@ Every family reads the pinned XML, Java and properties directly, or the E1 table
 | X9 | Even-split recipient order = member order | §4.2 |
 | X10 | *(narrowed in rev 4)* XP/SP double and float math is emulated (E30); only `Math.round` is defined as `⌊v + 1/2⌋` on the exact double, which is Java 7+ semantics | §4.5 |
 | X11 | Trade cancelled at death and departure (B7) | §9.2 |
-| X12 | Cross-zone credits arrive by delivery: one delivery per target per tick, in id order, each within one checkpoint cadence after reaching the head of the target's queue (E41 amends E27) | §10.4 |
+| X12 | Cross-zone credits arrive by delivery: one delivery per target per tick, in id order, each within one checkpoint cadence after reaching the head of the target's queue (a `CONTAINER_BUSY` re-queue keeps it at the head, and the bound counts from its executing tick, §10.4) (E41 amends E27) | §10.4 |
 | X13 | Pickup range adds the engine player radius 0, not the template collision radius | §4.1 |
 | X14 | *(closed by E32)* `Math.pow` sites are emulated as the exact power of the binary64 base rounded once, checked against the captured OpenJDK 21 table. The residual: the Java spec's 1-ulp latitude cannot be proved; it is mitigated by the capture | §4.5 |
 | P1 | Ground EntityId derivation | §1.2 |
@@ -2279,7 +2300,7 @@ This additively extends the Phase 4 D46 sidecar contract (`apps/client-unreal/Sc
 
   Rev 7 adds (E41/E42):
   - lease recovery for system jobs: a crash after a system job's leases are taken but before its marker commits releases the leases and re-enqueues the job; a job whose marker committed is not re-run (DR6 nit 10);
-  - the delivery queue bound: three deliveries for one target complete one per tick in id order, each within one cadence of reaching the head (E41);
+  - the delivery queue bound: three deliveries for one target complete one per tick in id order, each within one cadence of reaching the head (a `CONTAINER_BUSY` re-queue keeps it at the head, and the bound counts from its executing tick, §10.4) (E41);
   - opposite-role MailSend A→B and B→A acquire `mailbox` keys in the same bytewise order (E42).
 
   Run against memory and Postgres adapters; Postgres needs owned containers on non-default ports, per worker-common.
@@ -2482,4 +2503,23 @@ Each design-review-1 (F) and design-review-2 (R) finding maps to the section tha
 | Nit 9 §14.4 label | §14.4 |
 | Nit 10 system-job keys and lease recovery | §10.0 step 4 markers, §10.4 result shape, §14.4 test |
 | Nit 11 Purge prose | §10.5 |
+
+**Pinned-data deviation (E49, A8 style).** The pinned datapack holds both `multisell/001.xml` and `multisell/1.xml`. Both map to list id 1, and their contents differ. The loader keeps `1.xml` (canonical id form) as list 1, so `001.xml`'s list is **not** available in Phase 5. The tables record 196 files and 195 list ids, and the outcome document repeats this deviation.
+
+**Revision 8 (B26) → edits**, with the data-review dispositions E47–E55 and design-review-7 nits A–D:
+
+| Item | Where |
+|---|---|
+| E53 shadow/time-limited PK exclusion is live; freight refuses shadow items | §3.9 `excluded(item)`; §10.2 step 7 |
+| E49 `001.xml` deviation; 196 files / 195 ids | §1.10 item 7; this section |
+| Multisell adena-ingredient merge (275 entries reordered) and ledger row order | §7 |
+| Manor-fee equality bound P < 6,755,399,441,055,759 | §10.6; §14.1 S |
+| Normative `roll_below` | §2.3 |
+| Herbs 14798–14800 are Armor templates | §1.10 item 5 |
+| E51 storability vs executability (`lifetime_deferred`; D97 `for_npc`) | §1.10 item 5 |
+| E52 Fame/Clan Reputation entries kept, executing refuses `ITEM_CAPABILITY_DEFERRED` | §1.10 item 7 |
+| E55 recipe 14854 not executable; 5008 shared by 138/436 | §1.10 item 8 |
+| Domain `ItemLocation` (incl. `Ground`) vs six wire values | §11.2 |
+| Design-review-7 nit A (comma), B (busy caveat on the short bound forms), C (owner_id points to the 39-digit definition), D (Finish row "award item row") | header; §10.4, §14.2 X12, §14.4; §10.0 |
+| Data provenance `codex/phase5-data` ac021b3 | header |
 
