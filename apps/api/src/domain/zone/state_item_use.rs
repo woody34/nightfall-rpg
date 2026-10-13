@@ -940,6 +940,10 @@ impl ZoneState {
             "item_deadlines": item_deadlines, "skill_deadlines": skill_deadlines,
             "main_cast_preserved": lanes.iter().all(|lane| *lane == "item")});
         let escape = self.escape_timing_stage_v6(id, tick, &inputs, &skill_ids);
+        if self.resurrection_stage_v6(id, tick, resolution, &inputs, &skill_ids) {
+            // D92/D99: the scroll's single terminal fact is resurrection_scroll, on the target.
+            return;
+        }
         if let Some(buffer) = self.evidence.as_mut() {
             // D92: one terminal fact per intent; an Escape scroll's is escape_timing.
             let pending = buffer.pending_cast.entry(last_cast).or_default();
@@ -955,6 +959,57 @@ impl ZoneState {
                 pending.push((id, "consumable_use".into(), resolution.to_owned(), inputs, actual));
             }
         }
+    }
+
+    /// D99/D104: an item whose single skill has the Resurrection handler records its start
+    /// for the `resurrection_scroll` fact emitted when the target answers the offer.
+    fn resurrection_stage_v6(
+        &mut self,
+        id: EntityId,
+        tick: Tick,
+        resolution: &str,
+        consumable: &serde_json::Value,
+        skill_ids: &[u32],
+    ) -> bool {
+        let [skill_id] = skill_ids else {
+            return false;
+        };
+        let Some(phase) = self.phase3.as_ref() else {
+            return false;
+        };
+        if !phase
+            .canonical
+            .rules
+            .skills()
+            .get(SkillId(*skill_id))
+            .is_some_and(|skill| skill.effects.iter().any(|h| h.name == "Resurrection"))
+        {
+            return false;
+        }
+        let Some(definition) = consumable.get("definition").cloned() else {
+            return false;
+        };
+        let template = definition
+            .get("template_id")
+            .and_then(serde_json::Value::as_u64)
+            .unwrap_or(0);
+        let cost = definition
+            .get("skills")
+            .and_then(|s| s.get(0))
+            .and_then(|s| s.get("item_consume_count"))
+            .and_then(serde_json::Value::as_u64)
+            .unwrap_or(0);
+        let available = consumable
+            .get("available")
+            .and_then(|a| a.get(template.to_string()))
+            .and_then(serde_json::Value::as_u64)
+            .unwrap_or(0);
+        if let Some(buffer) = self.evidence.as_mut() {
+            buffer
+                .pending_resurrect
+                .insert(id, (resolution.to_owned(), definition, tick.0, available, cost));
+        }
+        true
     }
 
     /// D46/D92 `escape_timing` for an item whose single skill is Escape: the definition

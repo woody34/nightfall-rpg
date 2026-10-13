@@ -114,8 +114,9 @@ def bow_refill(weapon, arrow, mp):
 
 def resurrection_scroll(definition, start_tick, available, death_incarnation, current_incarnation,
                         dead, response, response_tick, response_offer_id, existing_offer,
-                        repeat, hp, max_hp, mp, cp, recoverable_xp, restore_percent, restore_hp):
-    # I5 prepays at accepted start. Offers are created only at cast completion.
+                        repeat, hp, max_hp, mp, cp, recoverable_xp, restore_percent, restore_hp, offer_id):
+    # I5 prepays at accepted start. Offers are created only at cast completion; D104: the
+    # created offer's id is the actual offer's (`offer_id`), never a constant.
     skill = definition['skills'][0]
     cost = skill['item_consume_count']
     if available < cost:
@@ -128,7 +129,7 @@ def resurrection_scroll(definition, start_tick, available, death_incarnation, cu
     if offer is not None and completion >= offer['expires_at']:
         offer = None
     if dead and current_incarnation == death_incarnation and offer is None:
-        offer = dict(offer_id=1, target_incarnation=death_incarnation, created_at=completion,
+        offer = dict(offer_id=offer_id, target_incarnation=death_incarnation, created_at=completion,
                      expires_at=completion+600, restore_percent=F(restore_percent), recoverable_xp=recoverable_xp)
         trace.append(dict(event='offered', tick=completion, offer=dict(offer), inventory=inventory))
     elif offer is not None:
@@ -149,9 +150,15 @@ def resurrection_scroll(definition, start_tick, available, death_incarnation, cu
             trace.append(dict(event='NO_RESURRECT_OFFER', tick=response_tick, attempt=attempt, inventory=inventory))
             continue
         if response == 'accept':
-            refund = int(F(offer['recoverable_xp'])*F(offer['restore_percent'])/100)
+            # Math.round (half up), capped by the loss: phase-3-zone-design.md:414.
+            refund = min(int(F(offer['recoverable_xp'])*F(offer['restore_percent'])/100+F(1, 2)),
+                         offer['recoverable_xp'])
             recoverable_xp = 0
-            hp = max(F(hp), F(max_hp)*F(restore_hp))
+            # D104: the accepted Phase 3 revive (combat_math town_respawn_vitals): whole HP =
+            # max(1, floor(max_hp x RespawnRestoreHP)), Q remainder cleared. Pinned
+            # L2Character.doRevive (2098-2124) also raises CP/MP to RespawnRestoreCP/MP, both
+            # 0.00 in pinned character.properties:40,42, so MP and CP are unchanged.
+            hp = F(max(1, int(F(max_hp)*F(restore_hp))))
             dead = False
             current_incarnation += 1
             trace.append(dict(event='accepted', tick=response_tick, refund=refund, inventory=inventory))
@@ -375,7 +382,8 @@ def add_behavior_vectors(src, add, o):
     base = dict(definition=definition, start_tick=10, available=2, death_incarnation=7,
                 current_incarnation=7, dead=True, response='offer', response_tick=160,
                 response_offer_id=1, existing_offer=None, repeat=0, hp=F(0), max_hp=101,
-                mp=F(13, 2), cp=F(17, 2), recoverable_xp=101, restore_percent=power, restore_hp=restore_hp)
+                mp=F(13, 2), cp=F(17, 2), recoverable_xp=101, restore_percent=power, restore_hp=restore_hp,
+                offer_id=1)
     branches = [('offer', {}), ('decline', dict(response='decline')), ('accept', dict(response='accept', repeat=1)),
                 ('stale-id', dict(response='accept', response_offer_id=2)),
                 ('stale-death', dict(current_incarnation=8, response='accept')),

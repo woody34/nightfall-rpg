@@ -462,7 +462,7 @@ def _behavior_requirements(src, need, o):
     base = dict(definition=definition, start_tick=10, available=2, death_incarnation=7,
                 current_incarnation=7, dead=True, response='offer', response_tick=160, response_offer_id=1,
                 existing_offer=None, repeat=0, hp=F(0), max_hp=101, mp=F(13, 2), cp=F(17, 2),
-                recoverable_xp=101, restore_percent=power, restore_hp=hp_restore)
+                recoverable_xp=101, restore_percent=power, restore_hp=hp_restore, offer_id=1)
     for name, changes in [('offer', {}), ('decline', {'response': 'decline'}),
             ('accept', {'response': 'accept', 'repeat': 1}), ('stale-id', {'response': 'accept', 'response_offer_id': 2}),
             ('stale-death', {'current_incarnation': 8, 'response': 'accept'}),

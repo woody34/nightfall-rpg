@@ -10179,6 +10179,87 @@ mod tests {
     }
 
     #[test]
+    fn v6_resurrection_evidence_recording_exports_resurrection_scroll() {
+        use crate::domain::zone::ItemCommandKind as K;
+        // D99/D104: Scroll of Resurrection 737 on a dead peer; one fact on the target when it
+        // accepts, under the caster's use receipt.
+        let (mut zone, owner, npc, ids) = use_fixture(&[737]);
+        let dead = zone
+            .phase4
+            .as_ref()
+            .unwrap()
+            .canonical
+            .players
+            .keys()
+            .copied()
+            .find(|id| *id != owner.entity)
+            .unwrap();
+        let target = zone.binding(dead).unwrap();
+        zone.apply_damage_v5(
+            zone.next_tick,
+            DamageRequest {
+                source: zone.damage_source_v5(npc).unwrap(),
+                target,
+                cause: DamageCause::Direct,
+                rolled_damage: u32::MAX,
+            },
+            &mut Vec::new(),
+        )
+        .unwrap();
+        zone.run_tick(zone.draft(Vec::new())).unwrap();
+        let mut run = EvidenceRun::start(zone);
+        let intent = item_intent(
+            &run.zone,
+            owner.entity,
+            1801,
+            K::Use {
+                instance: ids[0],
+                target: None,
+            },
+        );
+        let applied = run.tick(
+            owner.entity,
+            vec![
+                ZoneCommand::SetTarget {
+                    entity: owner.entity,
+                    target: Some(dead),
+                },
+                ZoneCommand::Item(Box::new(intent)),
+            ],
+        );
+        assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+        let mut offer = None;
+        for _ in 0..200 {
+            run.tick(owner.entity, Vec::new());
+            offer = run
+                .zone
+                .sidecar(dead)
+                .unwrap()
+                .player
+                .as_ref()
+                .unwrap()
+                .resurrect_offer
+                .as_ref()
+                .map(|o| o.id);
+            if offer.is_some() {
+                break;
+            }
+        }
+        let applied = run.tick(
+            dead,
+            vec![ZoneCommand::AcceptResurrect {
+                entity: dead,
+                offer_id: offer.unwrap(),
+                accept: true,
+            }],
+        );
+        assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+        assert!(!run.zone.entities[&dead].targeting.dead);
+        assert!(run.formulas().contains("resurrection_scroll"), "{:?}", run.formulas());
+        run.write("NIGHTFALL_TEST_RESURRECTION_RECORDING");
+    }
+
+    #[test]
     fn v6_fractional_hp_cold_replay_regen_and_last_fraction_death() {
         use crate::domain::zone::item_combat::half_hp;
         let (mut base, source, npc) = equipment_fixture();

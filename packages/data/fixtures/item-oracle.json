@@ -668382,7 +668382,8 @@
         "restore_hp": {
           "numerator": 13,
           "denominator": 20
-        }
+        },
+        "offer_id": 1
       },
       "expected": {
         "accepted": true,
@@ -668460,7 +668461,7 @@
         "design/phase-3-zone-design.md:132 first-valid/id/death incarnation/600-tick lifetime"
       ],
       "draws": [],
-      "vector_sha256": "6d8b1cc46f7116e3b6e1ed0b2e25fcb66be082e5dc0d73b1ce8856c4ea961112"
+      "vector_sha256": "eaef813727ab5bece9411a81982b09a65f2e9a86c3bbcc116a5ad9e0b6e8230d"
     },
     {
       "id": "resurrection-scroll-decline",
@@ -668529,7 +668530,8 @@
         "restore_hp": {
           "numerator": 13,
           "denominator": 20
-        }
+        },
+        "offer_id": 1
       },
       "expected": {
         "accepted": true,
@@ -668602,7 +668604,7 @@
         "design/phase-3-zone-design.md:132 first-valid/id/death incarnation/600-tick lifetime"
       ],
       "draws": [],
-      "vector_sha256": "9396a87ce4249528250cff32550be7b1e71b93d4196bdb0d07e4aef35860d458"
+      "vector_sha256": "e68692e9b77fac6e386366118a7fc63472480eb6e8714aa4c44ad3e018545bfa"
     },
     {
       "id": "resurrection-scroll-accept",
@@ -668671,7 +668673,8 @@
         "restore_hp": {
           "numerator": 13,
           "denominator": 20
-        }
+        },
+        "offer_id": 1
       },
       "expected": {
         "accepted": true,
@@ -668724,10 +668727,10 @@
         "dead": false,
         "incarnation": 8,
         "hp": {
-          "numerator": 1313,
-          "denominator": 20
+          "numerator": 65,
+          "denominator": 1
         },
-        "hp_q": 65650000,
+        "hp_q": 65000000,
         "mp": {
           "numerator": 13,
           "denominator": 2
@@ -668751,7 +668754,7 @@
         "design/phase-3-zone-design.md:132 first-valid/id/death incarnation/600-tick lifetime"
       ],
       "draws": [],
-      "vector_sha256": "35f06c832e5c7b32e18884b0493370830cab3ee73365fc5d636ccd09702a1b3b"
+      "vector_sha256": "efcafd5bab6328cc6204ca07e24e4a84269ba1e56825ad4d2e081ad0cf6ad6c1"
     },
     {
       "id": "resurrection-scroll-stale-id",
@@ -668820,7 +668823,8 @@
         "restore_hp": {
           "numerator": 13,
           "denominator": 20
-        }
+        },
+        "offer_id": 1
       },
       "expected": {
         "accepted": true,
@@ -668904,7 +668908,7 @@
         "design/phase-3-zone-design.md:132 first-valid/id/death incarnation/600-tick lifetime"
       ],
       "draws": [],
-      "vector_sha256": "070edffa9f74239aa565e8d8fcb7bd6a368f103d7d950942bb76c4d1c143b538"
+      "vector_sha256": "b7830861559e5ff3b31420c1a638740d259269277b80e87e63cb73e969d57950"
     },
     {
       "id": "resurrection-scroll-stale-death",
@@ -668973,7 +668977,8 @@
         "restore_hp": {
           "numerator": 13,
           "denominator": 20
-        }
+        },
+        "offer_id": 1
       },
       "expected": {
         "accepted": true,
@@ -669036,7 +669041,7 @@
         "design/phase-3-zone-design.md:132 first-valid/id/death incarnation/600-tick lifetime"
       ],
       "draws": [],
-      "vector_sha256": "80e99b602b85087b132dfe61d57c5394ccdaf1fb8f65eaa9c5631db25fec593f"
+      "vector_sha256": "59b746386df9eeeb65905369e08bd4e2e651190c38e6ae1de6584871feffa158"
     },
     {
       "id": "resurrection-scroll-alive",
@@ -669105,7 +669110,8 @@
         "restore_hp": {
           "numerator": 13,
           "denominator": 20
-        }
+        },
+        "offer_id": 1
       },
       "expected": {
         "accepted": true,
@@ -669168,7 +669174,7 @@
         "design/phase-3-zone-design.md:132 first-valid/id/death incarnation/600-tick lifetime"
       ],
       "draws": [],
-      "vector_sha256": "210f8c09252df91cafce16996017700c2b043d655fb1f050d1f063548961ecdb"
+      "vector_sha256": "3aa0cea169efa4e4eaeab513b0516ce15138a1cae0aeff800e4230c019f79089"
     },
     {
       "id": "resurrection-scroll-empty",
@@ -669237,7 +669243,8 @@
         "restore_hp": {
           "numerator": 13,
           "denominator": 20
-        }
+        },
+        "offer_id": 1
       },
       "expected": {
         "accepted": false,
@@ -669257,7 +669264,7 @@
         "design/phase-3-zone-design.md:132 first-valid/id/death incarnation/600-tick lifetime"
       ],
       "draws": [],
-      "vector_sha256": "37b12f2036e6e469e413a0afbc87145a325be3da14f3f7b57af38a7f437038a5"
+      "vector_sha256": "c2d28face4a8910c031126959f2efa4848a5ef82a54f9160072b710b199156bd"
     },
     {
       "id": "resurrection-scroll-accept-expiry--1",
@@ -669326,7 +669333,8 @@
         "restore_hp": {
           "numerator": 13,
           "denominator": 20
-        }
+        },
+        "offer_id": 1
       },
       "expected": {
         "accepted": true,
@@ -669373,10 +669381,10 @@
         "dead": false,
         "incarnation": 8,
         "hp": {
-          "numerator": 1313,
-          "denominator": 20
+          "numerator": 65,
+          "denominator": 1
         },
-        "hp_q": 65650000,
+        "hp_q": 65000000,
         "mp": {
           "numerator": 13,
           "denominator": 2
@@ -669400,7 +669408,7 @@
         "design/phase-3-zone-design.md:132 first-valid/id/death incarnation/600-tick lifetime"
       ],
       "draws": [],
-      "vector_sha256": "9006351ce7918ce48a5f9798c5d7e55f6aef4278fa8b7a127de79d0e08a7cc30"
+      "vector_sha256": "0a0d2912272f0895c212c540994ab2ecfdbfe75298962bff1d38a18541c2fa94"
     },
     {
       "id": "resurrection-scroll-accept-expiry-0",
@@ -669469,7 +669477,8 @@
         "restore_hp": {
           "numerator": 13,
           "denominator": 20
-        }
+        },
+        "offer_id": 1
       },
       "expected": {
         "accepted": true,
@@ -669548,7 +669557,7 @@
         "design/phase-3-zone-design.md:132 first-valid/id/death incarnation/600-tick lifetime"
       ],
       "draws": [],
-      "vector_sha256": "b890ba2412c9f35c78600baa9b86bd92d473b8644c838df95ad6ce17bcf3dfe7"
+      "vector_sha256": "478ec22c008676f3b46886057a839427e3e3fad38017f5ea2b00a7d489fdd963"
     },
     {
       "id": "resurrection-scroll-accept-expiry-1",
@@ -669617,7 +669626,8 @@
         "restore_hp": {
           "numerator": 13,
           "denominator": 20
-        }
+        },
+        "offer_id": 1
       },
       "expected": {
         "accepted": true,
@@ -669696,7 +669706,7 @@
         "design/phase-3-zone-design.md:132 first-valid/id/death incarnation/600-tick lifetime"
       ],
       "draws": [],
-      "vector_sha256": "e529e6d75319b06cf1c3e3d8ee6bd93a113c6a3cf0582d96521edd82e64031e2"
+      "vector_sha256": "66cbb5c9a67e3f3689104450e50c89ec4351f554110bff0f7bf9cedcd4ce21b8"
     },
     {
       "id": "resurrection-scroll-decline-expiry--1",
@@ -669765,7 +669775,8 @@
         "restore_hp": {
           "numerator": 13,
           "denominator": 20
-        }
+        },
+        "offer_id": 1
       },
       "expected": {
         "accepted": true,
@@ -669838,7 +669849,7 @@
         "design/phase-3-zone-design.md:132 first-valid/id/death incarnation/600-tick lifetime"
       ],
       "draws": [],
-      "vector_sha256": "b03f59f4a77baf6a0fc2d56c3ea7c710d2694dd828591c0807987d89ff04ff36"
+      "vector_sha256": "b12d056357977e1b2a29650e97e33488521cf1b3b31d79132480bfbe29379be9"
     },
     {
       "id": "resurrection-scroll-decline-expiry-0",
@@ -669907,7 +669918,8 @@
         "restore_hp": {
           "numerator": 13,
           "denominator": 20
-        }
+        },
+        "offer_id": 1
       },
       "expected": {
         "accepted": true,
@@ -669986,7 +669998,7 @@
         "design/phase-3-zone-design.md:132 first-valid/id/death incarnation/600-tick lifetime"
       ],
       "draws": [],
-      "vector_sha256": "a5b32df4ffc6a4a3f1bd7bfc8369c2bd73e531b0bece2b357a050df9e2750d53"
+      "vector_sha256": "55a5ef79654d9bb5e50ee21669c4fa78e2c07934a07a1f6869ceb0b669142e5c"
     },
     {
       "id": "resurrection-scroll-decline-expiry-1",
@@ -670055,7 +670067,8 @@
         "restore_hp": {
           "numerator": 13,
           "denominator": 20
-        }
+        },
+        "offer_id": 1
       },
       "expected": {
         "accepted": true,
@@ -670134,7 +670147,7 @@
         "design/phase-3-zone-design.md:132 first-valid/id/death incarnation/600-tick lifetime"
       ],
       "draws": [],
-      "vector_sha256": "906e7ee015c22b5db1cbcd2549b8e17866522eef21639afecf985520ab7bfcaa"
+      "vector_sha256": "ed06bc86bc9c269102584757c17b7471b881262131b59227773201b02825ec67"
     },
     {
       "id": "resurrection-scroll-expire-expiry--1",
@@ -670203,7 +670216,8 @@
         "restore_hp": {
           "numerator": 13,
           "denominator": 20
-        }
+        },
+        "offer_id": 1
       },
       "expected": {
         "accepted": true,
@@ -670281,7 +670295,7 @@
         "design/phase-3-zone-design.md:132 first-valid/id/death incarnation/600-tick lifetime"
       ],
       "draws": [],
-      "vector_sha256": "9d256dbf20d8c37da492cb82b95eca4753fc1720541a8500d4a11395500bad62"
+      "vector_sha256": "0451af32b51fa3582250beab19806b1fb4d497c92de8c02d53bd4d1bacbced84"
     },
     {
       "id": "resurrection-scroll-expire-expiry-0",
@@ -670350,7 +670364,8 @@
         "restore_hp": {
           "numerator": 13,
           "denominator": 20
-        }
+        },
+        "offer_id": 1
       },
       "expected": {
         "accepted": true,
@@ -670423,7 +670438,7 @@
         "design/phase-3-zone-design.md:132 first-valid/id/death incarnation/600-tick lifetime"
       ],
       "draws": [],
-      "vector_sha256": "3bb6044382b2b48ea30b7a1649d0efecf39f8926fa6f6b2514a3c46ea6d26db2"
+      "vector_sha256": "6a4ff4be498de407245bb06673017462eec7270b9d1c5d8a0aa74b3c49bca26a"
     },
     {
       "id": "resurrection-scroll-expire-expiry-1",
@@ -670492,7 +670507,8 @@
         "restore_hp": {
           "numerator": 13,
           "denominator": 20
-        }
+        },
+        "offer_id": 1
       },
       "expected": {
         "accepted": true,
@@ -670565,7 +670581,7 @@
         "design/phase-3-zone-design.md:132 first-valid/id/death incarnation/600-tick lifetime"
       ],
       "draws": [],
-      "vector_sha256": "3cd89aa88441493d5aadaf9da23317557d33d14d86e333b70b149d5fc6180799"
+      "vector_sha256": "9037587f5c98005d4cbf74753d7c71caa1da2e7d6ece83a51c36ac33dc643434"
     },
     {
       "id": "resurrection-scroll-first-valid",
@@ -670644,7 +670660,8 @@
         "restore_hp": {
           "numerator": 13,
           "denominator": 20
-        }
+        },
+        "offer_id": 1
       },
       "expected": {
         "accepted": true,
@@ -670684,7 +670701,7 @@
           {
             "event": "accepted",
             "tick": 160,
-            "refund": 50,
+            "refund": 51,
             "inventory": 1
           },
           {
@@ -670697,10 +670714,10 @@
         "dead": false,
         "incarnation": 8,
         "hp": {
-          "numerator": 1313,
-          "denominator": 20
+          "numerator": 65,
+          "denominator": 1
         },
-        "hp_q": 65650000,
+        "hp_q": 65000000,
         "mp": {
           "numerator": 13,
           "denominator": 2
@@ -670709,7 +670726,7 @@
           "numerator": 17,
           "denominator": 2
         },
-        "xp_refund": 50,
+        "xp_refund": 51,
         "recoverable_xp": 0,
         "draws": []
       },
@@ -670724,7 +670741,7 @@
         "design/phase-3-zone-design.md:132 first-valid/id/death incarnation/600-tick lifetime"
       ],
       "draws": [],
-      "vector_sha256": "f71f1941497256920436f434f86f82c61ce3d5fb2ace78fd59525441de966e6c"
+      "vector_sha256": "d97a9d235e9b85f6a8cb8c828e5e323cfc702a6bdb54d654c51a569907bf6e49"
     },
     {
       "id": "consumable-escape-timing-736-333",
@@ -695426,5 +695443,5 @@
       }
     }
   ],
-  "vector_set_sha256": "3c44d2e5e8f270e92200fdd435ec1df72b237c8f46ee8d70ea6d17b4e28550dd"
+  "vector_set_sha256": "a576014f135820bfcf54d6b1ea71596b7e263334fde0671e367ad211e1e7bb31"
 }

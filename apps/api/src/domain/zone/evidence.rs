@@ -50,6 +50,9 @@ pub(crate) struct EvidenceBuffer {
     #[allow(clippy::type_complexity)] // Evidence-only staging, never canonical.
     pub pending_cast:
         std::collections::BTreeMap<u64, Vec<(EntityId, String, String, Value, Value)>>,
+    /// D99/D104 `resurrection_scroll` starts by caster, awaiting the offer response:
+    /// (resolution id, definition record, start tick, scroll count before, cost).
+    pub pending_resurrect: std::collections::BTreeMap<EntityId, (String, Value, u64, u64, u64)>,
 }
 
 /// D46 observations captured at their operation boundary, never persisted as state.
