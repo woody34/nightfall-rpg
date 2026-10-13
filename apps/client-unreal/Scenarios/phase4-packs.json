@@ -1,5 +1,5 @@
 {
-  "data_sha256": "8e27de155b2682db3bec34d485316f425678634ddd74b000a8849548a91110c0",
+  "data_sha256": "f0e8dc63a0aa8d013b5c4ecf2c0698d64438f914a2a9bc099b48651af9923b5e",
   "inputs_are_test_policy": true,
   "packs": {
     "phase4-armor": {
@@ -8024,8 +8024,8 @@
           "wit": 11
         },
         "character_id": "01970000-0000-7000-8000-000000000040",
-        "class_id": 0,
-        "class_profile": "human_fighter",
+        "class_id": 8,
+        "class_profile": "treasure_hunter",
         "combat_capability_dependencies": [
           {
             "admitted": false,
@@ -8331,7 +8331,10 @@
           }
         ],
         "karma": 0,
-        "learned_ranks": {},
+        "learned_ranks": {
+          "16": 24,
+          "263": 3
+        },
         "ledger": [
           {
             "after": {
@@ -8510,7 +8513,7 @@
             "op": "grant"
           }
         ],
-        "level": 14,
+        "level": 40,
         "modifier_install_order": [],
         "mp": null,
         "mp_fraction_q": 0,
@@ -8526,13 +8529,13 @@
           100
         ],
         "pre_death_xp": null,
-        "profession": "human_fighter",
+        "profession": "treasure_hunter",
         "pvp_count": 0,
         "race": "human",
         "recoverable_death_xp_loss": 0,
         "reuse_remainders": [],
         "sp": 100000,
-        "xp": 191454
+        "xp": 15422929
       }
     },
     "phase4-learn": {
@@ -10795,13 +10798,13 @@
             "revision": 0,
             "slot": null,
             "source": {
-              "file": "src/main/resources/data/stats/items/05700-05799.xml",
-              "lines": "1367",
+              "file": "src/main/resources/data/stats/items/01800-01899.xml",
+              "lines": "407",
               "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
               "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-              "symbol": "item 5789"
+              "symbol": "item 1835"
             },
-            "template_id": 5789
+            "template_id": 1835
           },
           {
             "augment_id": null,
@@ -10952,7 +10955,7 @@
               "location": "inventory",
               "revision": 0,
               "slot": null,
-              "template_id": 5789
+              "template_id": 1835
             },
             "before": null,
             "instance_id": 7,
@@ -13897,7 +13900,7 @@
     "safe_scroll": 22227,
     "scroll": 951,
     "shield": 18,
-    "soulshot": 5789,
+    "soulshot": 1835,
     "spiritshot": 2509,
     "sword": 1,
     "twohand": 981

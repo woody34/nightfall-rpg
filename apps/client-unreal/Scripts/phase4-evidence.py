@@ -472,7 +472,8 @@ def oracle_adopted_d87(name):
 def oracle_hit_inclusive():
     """True while E1 still decides a hit as residue <= hit_chance (rev 8): probed, not assumed.
     Any unexpected probe failure is a ValueError, i.e. a gate verdict, never a crash."""
-    try:oracle.behavior.dual_plan([False,False],[0,0],True,[5,5],5,0)
+    extra=dict(critical_residues=[None,None],spread_residues=[None,None]) if oracle_adopted_d87('dual_plan') else {}
+    try:oracle.behavior.dual_plan([False,False],[0,0],True,[5,5],5,0,**extra)
     except ValueError:return True
     except TypeError as error:raise ValueError('cannot classify the E1 dual_plan hit inequality (D88)') from error
     return False

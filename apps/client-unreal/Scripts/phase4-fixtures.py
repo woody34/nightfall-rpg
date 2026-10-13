@@ -108,6 +108,20 @@ def enchant4_item(repo=REPO):
                 and r['enchant4_skills'] and all(skills[s['id']]['admitted'] for s in r['enchant4_skills']))
 
 
+BLOW_SKILLS=frozenset((16,263))
+
+
+def blow_ranks(repo,chain,level):
+    """Highest learnable rank of each blow skill over the profession chain (source skill trees)."""
+    ranks={}
+    for profession in chain:
+        for row in tomllib.loads((repo/f'packages/data/professions/{profession}.toml').read_text()).get('skill_tree',[]):
+            if row['skill_id'] in BLOW_SKILLS and row['required_level']<=level:
+                ranks[str(row['skill_id'])]=max(ranks.get(str(row['skill_id']),0),row['skill_level'])
+    if set(ranks)!={str(i) for i in BLOW_SKILLS}:raise ValueError('blow skills not learnable on this chain/level')
+    return ranks
+
+
 def combat_skill_candidates(repo=REPO):
     """Do not seed a skill until E1 admits its full source closure (D5)."""
     caps={r['id']:r for r in table('capabilities',repo)['skills']};result=[]
@@ -205,8 +219,15 @@ def profiles(pack, repo=REPO, paired=False):
         owner = role(repo, level=stone['level'], position=(126, 128))
     elif pack == 'phase4-kinds':
         extras=[(s[k],1,0) for k in ('dual','dualfist','pole','dagger')]
-        owner=role(repo,profession='human_fighter',level=14)
-        owner['combat_capability_dependencies']=combat_skill_candidates(repo)
+        candidates=combat_skill_candidates(repo)
+        if BLOW_SKILLS<={c['skill_id'] for c in candidates if c['admitted']}:
+            # D50 promotion (E1 rev 8+): Mortal Blow 16 (FatalBlow) and Deadly Blow 263
+            # (FatalBlow + Lethal) are executable, so the role is a level-40 Treasure Hunter
+            # holding the highest source ranks its class chain allows at that level.
+            owner=role(repo,profession='treasure_hunter',level=40)
+            owner['learned_ranks']=blow_ranks(repo,('human_fighter','rogue','treasure_hunter'),40)
+        else:owner=role(repo,profession='human_fighter',level=14)
+        owner['combat_capability_dependencies']=candidates
     result = {'owner': owner}
     if paired:
         result['observer'] = role(repo, OBSERVER, position=(112, 100))
