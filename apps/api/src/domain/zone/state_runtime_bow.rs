@@ -159,20 +159,21 @@ impl ZoneState {
             .is_some_and(|(_, definition)| definition.weapon_type == "BOW")
     }
 
-    /// canUseRangeWeapon ammunition: arrows for a bow, bolts for a crossbow
-    /// (L2Character.java:897-916, Inventory.java:688-713).
+    /// canUseRangeWeapon gate: BOW and CROSSBOW are range weapons. The attack-time refill
+    /// `checkAndEquipArrows` (L2PcInstance.java:5334-5352) always uses `findArrowForBow`
+    /// (Inventory.java:679-694), which matches same-S-grade ARROWs only, for both kinds
+    /// (D85); bolts are selected only on the equip/pickup paths (`findBoltForCrossBow`,
+    /// Inventory.java:702-713).
     fn ranged_ammo_v6(&self, id: EntityId) -> Option<&'static str> {
         self.held_weapon_v6(id)
             .and_then(|(_, definition)| match definition.weapon_type.as_str() {
-                "BOW" => Some("ARROW"),
-                "CROSSBOW" => Some("BOLT"),
+                "BOW" | "CROSSBOW" => Some("ARROW"),
                 _ => None,
             })
     }
 
-    /// canUseRangeWeapon + doAttackHitByBow/CrossBow at an accepted start: ammunition is
-    /// auto-selected
-    /// when the left hand is empty, the optional reduced-MP draw happens before the MP check,
+    /// canUseRangeWeapon + doAttackHitByBow/CrossBow at an accepted start: arrows are
+    /// auto-selected when the left hand is empty (D85), the optional reduced-MP draw happens before the MP check,
     /// MP and one arrow are paid before the hit (an arrow is spent even on a miss), and bow
     /// timing replaces the melee half-interval impact.
     #[allow(clippy::too_many_lines)] // Source guard order and one owner settlement.
@@ -292,18 +293,32 @@ impl ZoneState {
             .ok_or_else(missing)?
             .clone();
         let mut changes = Vec::new();
+        let mut next_sequence = None;
         let arrow = if let Some(candidate) = candidate {
-            let equip = PaperdollMutation::equip(
+            let equip = PaperdollMutation::install_ammunition(
                 &player.inventory,
                 &player.paperdoll,
                 candidate,
-                Some(EquipSlot::Lhand),
                 &items.rules,
                 revision,
             )
             .map_err(invariant)?;
-            player.inventory = equip.inventory;
-            player.paperdoll = equip.paperdoll;
+            // The installed arrow becomes an equipment provider like any equip (D85).
+            let sequence = self
+                .phase3
+                .as_ref()
+                .ok_or_else(missing)?
+                .canonical
+                .next_install_sequence;
+            let (staged, next) = crate::domain::zone::item_sources::apply_paperdoll(
+                &player,
+                &equip,
+                &items.rules,
+                sequence,
+            )
+            .map_err(invariant)?;
+            player = staged;
+            next_sequence = Some(next);
             for change in equip.changes {
                 let ordinal = projection.next_operation_ordinal().map_err(invariant)?;
                 let instance = change
@@ -343,8 +358,26 @@ impl ZoneState {
         .map_err(invariant)?;
         player.inventory = payment.inventory;
         if !player.inventory.contains_key(&arrow) {
-            // Exhausted arrows leave the left hand before the weight/penalty rebuild.
+            // Exhausted arrows leave the left hand (and the provider list) before the
+            // weight/penalty rebuild.
             player.paperdoll.remove(&EquipSlot::Lhand);
+            let mut sequence = match next_sequence {
+                Some(next) => next,
+                None => {
+                    self.phase3
+                        .as_ref()
+                        .ok_or_else(missing)?
+                        .canonical
+                        .next_install_sequence
+                },
+            };
+            crate::domain::zone::item_sources::reconcile_sources(
+                &mut player,
+                &items.rules,
+                &mut sequence,
+            )
+            .map_err(invariant)?;
+            next_sequence = Some(sequence);
         }
         player.inventory_revision = revision;
         let template = definition.template_id;
@@ -372,6 +405,13 @@ impl ZoneState {
             .and_then(|entity| entity.combat.as_mut())
             .ok_or_else(missing)?;
         combat.mp = combat.mp.checked_sub(cost).ok_or_else(missing)?;
+        if let Some(next) = next_sequence {
+            self.phase3
+                .as_mut()
+                .ok_or_else(missing)?
+                .canonical
+                .next_install_sequence = next;
+        }
         self.phase4
             .as_mut()
             .ok_or_else(missing)?

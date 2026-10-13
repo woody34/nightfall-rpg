@@ -8507,88 +8507,118 @@ mod tests {
     }
 
     #[test]
-    fn v6_crossbow_selects_and_pays_a_bolt_without_bow_distance_terms() {
+    #[allow(clippy::too_many_lines)]
+    fn v6_crossbow_refills_arrows_not_bolts_at_attack_time() {
         use crate::domain::zone::item_equipment::PaperdollMutation;
         use crate::domain::zone::EquipSlot;
-        // Hand Crossbow 9217 (D) and Bone Bolt 9633 (D). Crossbows are KAMAEL-conditioned,
-        // so the fixture installs the paperdoll directly; the ranged start is under test.
-        let (mut zone, owner, npc, ids) = use_fixture(&[9217, 9633]);
-        let rules = Arc::clone(&zone.phase4.as_ref().unwrap().rules);
-        let player = zone.phase4.as_ref().unwrap().canonical.players[&owner.entity].clone();
-        let mutation = PaperdollMutation::equip(
-            &player.inventory,
-            &player.paperdoll,
-            ids[0],
-            None,
-            &rules,
-            player.inventory_revision,
-        )
-        .unwrap();
-        let next = zone
-            .phase3
-            .as_ref()
-            .unwrap()
-            .canonical
-            .next_install_sequence;
-        let (staged, next) =
-            crate::domain::zone::item_sources::apply_paperdoll(&player, &mutation, &rules, next)
-                .unwrap();
-        zone.phase4
-            .as_mut()
-            .unwrap()
-            .canonical
-            .players
-            .insert(owner.entity, staged);
-        zone.phase3
-            .as_mut()
-            .unwrap()
-            .canonical
-            .next_install_sequence = next;
-        zone.rebuild_v5(owner.entity).unwrap();
-        assert!(!zone.bow_attacker_v6(owner.entity));
-        assert_eq!(
-            zone.attack_style_v6(owner.entity),
-            crate::domain::zone::state::runtime::AttackStyle::Simple
-        );
-        let start = zone.entities[&owner.entity].pos;
-        place(
-            &mut zone,
-            npc.entity,
-            Vec2Fixed::new(Fixed::from_raw(start.x.raw() + 8_000), start.y),
-        );
-        let mut started = false;
-        for step in 0..10 {
-            let inputs = if step == 0 {
-                vec![
-                    review_input(
-                        owner.entity,
-                        2,
-                        ZoneCommand::SetTarget {
-                            entity: owner.entity,
-                            target: Some(npc.entity),
-                        },
-                    ),
-                    review_input(
-                        owner.entity,
-                        3,
-                        ZoneCommand::Attack {
-                            entity: owner.entity,
-                        },
-                    ),
-                ]
+        // Hand Crossbow 9217 (D), Bone Bolt 9633 (D), Bone Arrow 1341 (D). Crossbows are
+        // KAMAEL-conditioned, so the fixture installs the paperdoll directly. D85: the
+        // attack-time refill is findArrowForBow (ARROW only), never a bolt.
+        for with_arrow in [true, false] {
+            let (mut zone, owner, npc, ids) = use_fixture(&[9217, 9633, 1341]);
+            let rules = Arc::clone(&zone.phase4.as_ref().unwrap().rules);
+            let mut player = zone.phase4.as_ref().unwrap().canonical.players[&owner.entity].clone();
+            if !with_arrow {
+                player.inventory.remove(&ids[2]);
+            }
+            let mutation = PaperdollMutation::equip(
+                &player.inventory,
+                &player.paperdoll,
+                ids[0],
+                None,
+                &rules,
+                player.inventory_revision,
+            )
+            .unwrap();
+            let next = zone
+                .phase3
+                .as_ref()
+                .unwrap()
+                .canonical
+                .next_install_sequence;
+            let (staged, next) = crate::domain::zone::item_sources::apply_paperdoll(
+                &player, &mutation, &rules, next,
+            )
+            .unwrap();
+            // Equipping a crossbow auto-equips a bolt (findBoltForCrossBow); take it off so the
+            // left hand is empty when the attack starts.
+            assert_eq!(staged.paperdoll[&EquipSlot::Lhand], ids[1]);
+            let mutation = PaperdollMutation::unequip(
+                &staged.inventory,
+                &staged.paperdoll,
+                EquipSlot::Lhand,
+                &rules,
+                staged.inventory_revision,
+            )
+            .unwrap();
+            let (staged, next) = crate::domain::zone::item_sources::apply_paperdoll(
+                &staged, &mutation, &rules, next,
+            )
+            .unwrap();
+            zone.phase4
+                .as_mut()
+                .unwrap()
+                .canonical
+                .players
+                .insert(owner.entity, staged);
+            zone.phase3
+                .as_mut()
+                .unwrap()
+                .canonical
+                .next_install_sequence = next;
+            zone.rebuild_v5(owner.entity).unwrap();
+            assert!(!zone.bow_attacker_v6(owner.entity));
+            assert!(!zone.phase4.as_ref().unwrap().canonical.players[&owner.entity]
+                .paperdoll
+                .contains_key(&EquipSlot::Lhand));
+            let start = zone.entities[&owner.entity].pos;
+            place(
+                &mut zone,
+                npc.entity,
+                Vec2Fixed::new(Fixed::from_raw(start.x.raw() + 8_000), start.y),
+            );
+            let mut started = false;
+            for step in 0..10 {
+                let inputs = if step == 0 {
+                    vec![
+                        review_input(
+                            owner.entity,
+                            2,
+                            ZoneCommand::SetTarget {
+                                entity: owner.entity,
+                                target: Some(npc.entity),
+                            },
+                        ),
+                        review_input(
+                            owner.entity,
+                            3,
+                            ZoneCommand::Attack {
+                                entity: owner.entity,
+                            },
+                        ),
+                    ]
+                } else {
+                    Vec::new()
+                };
+                let applied = zone.run_tick(zone.draft(inputs)).unwrap();
+                if applied.events.iter().any(|e| matches!(e, ZoneEvent::AttackStarted { attacker, .. } if *attacker == owner.entity)) {
+                    started = true;
+                    break;
+                }
+            }
+            let player = &zone.phase4.as_ref().unwrap().canonical.players[&owner.entity];
+            // Bolts are never taken at attack time.
+            assert_eq!(player.inventory[&ids[1]].count, 3);
+            if with_arrow {
+                assert!(started);
+                assert_eq!(player.paperdoll[&EquipSlot::Lhand], ids[2]);
+                assert_eq!(player.inventory[&ids[2]].count, 2);
             } else {
-                Vec::new()
-            };
-            let applied = zone.run_tick(zone.draft(inputs)).unwrap();
-            if applied.events.iter().any(|e| matches!(e, ZoneEvent::AttackStarted { attacker, .. } if *attacker == owner.entity)) {
-                started = true;
-                break;
+                // Only bolts: checkAndEquipArrows fails and the attack intention ends.
+                assert!(!started);
+                assert!(!player.paperdoll.contains_key(&EquipSlot::Lhand));
             }
         }
-        assert!(started);
-        let player = &zone.phase4.as_ref().unwrap().canonical.players[&owner.entity];
-        assert_eq!(player.paperdoll[&EquipSlot::Lhand], ids[1]);
-        assert_eq!(player.inventory[&ids[1]].count, 2);
     }
 
     #[test]
