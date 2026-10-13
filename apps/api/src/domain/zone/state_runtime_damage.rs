@@ -10558,6 +10558,64 @@ mod tests {
         run.write("NIGHTFALL_TEST_REDUCED_BOW_RECORDING");
     }
 
+    /// E4.6 scenario support: 4-combat-kinds `unarmed` (`fist_spread` on weapon 0) and
+    /// `pole-primary` (`pole_damage` primary) phases from real swings.
+    #[test]
+    fn v6_scenario_unarmed_and_pole_primary_recording() {
+        use crate::domain::zone::{EquipSlot, ItemCommandKind as K};
+        let (zone, owner, npc, ids) = use_fixture(&[15]);
+        let mut run = EvidenceRun::start(zone);
+        let mut request = 2200_u128;
+        let mut item = |run: &mut EvidenceRun, kind: K| {
+            request += 1;
+            let intent = item_intent(&run.zone, owner.entity, request, kind);
+            let applied = run.tick(owner.entity, vec![ZoneCommand::Item(Box::new(intent))]);
+            assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+        };
+        if run.zone.phase4.as_ref().unwrap().canonical.players[&owner.entity]
+            .paperdoll
+            .contains_key(&EquipSlot::Rhand)
+        {
+            item(
+                &mut run,
+                K::Unequip {
+                    slot: EquipSlot::Rhand,
+                },
+            );
+        }
+        let attack = |run: &mut EvidenceRun| {
+            run.tick(
+                owner.entity,
+                vec![
+                    ZoneCommand::SetTarget {
+                        entity: owner.entity,
+                        target: Some(npc.entity),
+                    },
+                    ZoneCommand::Attack {
+                        entity: owner.entity,
+                    },
+                ],
+            );
+            for _ in 0..40 {
+                run.tick(owner.entity, Vec::new());
+            }
+        };
+        attack(&mut run);
+        item(
+            &mut run,
+            K::Equip {
+                instance: ids[0],
+                preferred_slot: None,
+            },
+        );
+        attack(&mut run);
+        let names = run.formulas();
+        for required in ["fist_spread", "pole_damage"] {
+            assert!(names.contains(required), "{required}: {names:?}");
+        }
+        run.write("NIGHTFALL_TEST_SCENARIO_KINDS_RECORDING");
+    }
+
     #[test]
     fn v6_fractional_hp_cold_replay_regen_and_last_fraction_death() {
         use crate::domain::zone::item_combat::half_hp;
