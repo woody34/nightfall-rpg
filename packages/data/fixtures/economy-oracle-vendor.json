@@ -306,32 +306,96 @@
    }
   }
  },
- "f_vectors": [
-  {
-   "adena_entry": false,
-   "entries": 1,
-   "freight_fee": 1000,
-   "freight_slots": 1,
-   "mail_fee": 1100,
-   "warehouse_fee": 30
+ "f_vectors": {
+  "adena_freightable": false,
+  "admission": {
+   "augmented": {
+    "clan_warehouse": false,
+    "freight": false,
+    "private_warehouse": true,
+    "template": 1
+   },
+   "equipped": {
+    "clan_warehouse": false,
+    "freight": false,
+    "private_warehouse": false,
+    "template": 1
+   },
+   "freightable": {
+    "clan_warehouse": false,
+    "freight": true,
+    "private_warehouse": false,
+    "template": 20678
+   },
+   "non_depositable": {
+    "clan_warehouse": false,
+    "freight": false,
+    "private_warehouse": false,
+    "template": 3023
+   },
+   "non_tradeable": {
+    "clan_warehouse": false,
+    "freight": false,
+    "private_warehouse": true,
+    "template": 6834
+   },
+   "not_freightable": {
+    "clan_warehouse": true,
+    "freight": false,
+    "private_warehouse": true,
+    "template": 1
+   },
+   "plain": {
+    "clan_warehouse": true,
+    "freight": false,
+    "private_warehouse": true,
+    "template": 1
+   },
+   "shadow": {
+    "clan_warehouse": false,
+    "freight": false,
+    "private_warehouse": true,
+    "template": 8821
+   },
+   "time_limited": {
+    "clan_warehouse": false,
+    "freight": false,
+    "private_warehouse": true,
+    "template": 13752
+   }
   },
-  {
-   "adena_entry": true,
-   "entries": 3,
-   "freight_fee": 3000,
-   "freight_slots": 2,
-   "mail_fee": 3100,
-   "warehouse_fee": 90
-  },
-  {
-   "adena_entry": true,
-   "entries": 8,
-   "freight_fee": 8000,
-   "freight_slots": 7,
-   "mail_fee": 8100,
-   "warehouse_fee": 240
-  }
- ],
+  "fees": [
+   {
+    "adena_entry": false,
+    "entries": 1,
+    "freight_fee": 1000,
+    "freight_slots": 1,
+    "mail_fee": 1100,
+    "warehouse_fee": 30
+   },
+   {
+    "adena_entry": true,
+    "entries": 3,
+    "freight_fee": 3000,
+    "freight_slots": 2,
+    "mail_fee": 3100,
+    "warehouse_fee": 90
+   },
+   {
+    "adena_entry": true,
+    "entries": 8,
+    "freight_fee": 8000,
+    "freight_slots": 7,
+    "mail_fee": 8100,
+    "warehouse_fee": 240
+   }
+  ],
+  "freightable_datapack_templates": 1041,
+  "freightable_referenced_templates": [
+   20678,
+   20725
+  ]
+ },
  "fl_vectors": {
   "e35": {
    "after": [

@@ -771,13 +771,22 @@ def pk_excluded(inst: dict) -> bool:
             or inst["template"] in pk["non_droppable_items"] or inst["template"] in pk["pet_items"])
 
 
-def freight_depositable(inst: dict) -> bool:
-    """L2ItemInstance.isDepositable(false) (:700-711): not equipped, template depositable, tradeable
-    (not augmented) and not a shadow item (E53)."""
+def freightable(inst: dict) -> bool:
+    """RequestPackageSend :121: freight checks only L2Item.isFreightable() (is_freightable, default
+    false), after the generic checkItemManipulation(..., "freight") (E53 correction)."""
+    return items_xml()[inst["template"]]["sets"].get("is_freightable", "false") == "true"
+
+
+def warehouse_depositable(inst: dict, private: bool) -> bool:
+    """L2ItemInstance.isDepositable(isPrivateWareHouse) (:700-711), the warehouse deposit check
+    (SendWareHouseDepositList :167): equipped or non-depositable templates are refused; a
+    non-private (clan) warehouse also refuses non-tradeable (incl. augmented) and shadow items."""
     f = template_flags(inst["template"])
     if inst.get("equipped", False) or not f["depositable"]:
         return False
-    return f["tradeable"] and not inst.get("augmented", False) and not f["shadow"]
+    if not private:
+        return f["tradeable"] and not inst.get("augmented", False) and not f["shadow"]
+    return True
 
 
 def pk_drop(inv: list[dict], karma: int, pk_count: int, killer_is_player: bool, words: Words) -> tuple[list, list]:
@@ -822,8 +831,6 @@ def fam_dp(out: dict) -> str:
     require(g["player_rate_drop"] == 0, "PlayerRateDrop 0: NPC-killer branch never draws")
     require("itemDrop.isShadowItem() || itemDrop.isTimeLimitedItem() || !itemDrop.isDroppable()"
             in game_text(GJ + "model/actor/instance/L2PcInstance.java"), "pinned exclusion line")
-    require("return isTradeable() && !isShadowItem();" in game_text(GJ + "model/items/instance/L2ItemInstance.java"),
-            "pinned freight depositable line")
     cat = table("catalogue.toml")["templates"]
     shadow = next(t["id"] for t in cat if "lifetime_deferred" in t["tags"] and template_flags(t["id"])["shadow"])
     timed = next(t["id"] for t in cat if "lifetime_deferred" in t["tags"] and template_flags(t["id"])["time_limited"])
@@ -832,13 +839,6 @@ def fam_dp(out: dict) -> str:
              and template_flags(t["id"])["droppable"] and template_flags(t["id"])["depositable"]
              and template_flags(t["id"])["tradeable"]][:24]
     require(pk_excluded({"template": shadow}) and pk_excluded({"template": timed}), "shadow / time-limited excluded (E53)")
-    tf = template_flags(timed)
-    require(not freight_depositable({"template": shadow}), "freight refuses shadow items")
-    require(freight_depositable({"template": timed}) == (tf["depositable"] and tf["tradeable"]),
-            "time-limited items follow only the template flags at freight")
-    require(not freight_depositable({"template": plain[0], "augmented": True}) and
-            not freight_depositable({"template": plain[0], "equipped": True}) and freight_depositable({"template": plain[0]}),
-            "freight: augmented / equipped refused")
     require(chance_threshold(F(40)) == -(-(40 * TWO64) // 100), "gate threshold")
     vec = []
     for seed in range(1, 400):
@@ -859,11 +859,9 @@ def fam_dp(out: dict) -> str:
     require(vec, "a vector reaching the 10-drop break")
     require(pk_drop([{"id": 1, "template": plain[0]}], 10, 5, True, Words(9)) == ([], []), "pk_count < 6 draws nothing")
     require(pk_drop([{"id": 1, "template": plain[0]}], 10, 9, False, Words(9)) == ([], []), "NPC killer draws nothing")
-    out["dp_vectors"] = {"break_at_10": vec, "shadow_template": shadow, "time_limited_template": timed,
-                         "freight": {"shadow": False, "time_limited": freight_depositable({"template": timed}),
-                                     "augmented": False, "equipped": False}}
+    out["dp_vectors"] = {"break_at_10": vec, "shadow_template": shadow, "time_limited_template": timed}
     return ("exclusions (adena, NonDroppable, PetItems, quest, augmented, shadow, time-limited); unequip-before-roll; "
-            "break at 10; gate 40; offsets [-25, 24]; NPC killer no draw; freight refuses shadow")
+            "break at 10; gate 40; offsets [-25, 24]; NPC killer no draw")
 
 
 def decay_due(dropped: int, limit: int) -> int:
@@ -1804,8 +1802,53 @@ def fam_f(out: dict) -> str:
         vec.append({"entries": entries, "adena_entry": has_adena, "warehouse_fee": wh * entries,
                     "freight_fee": fr * entries, "freight_slots": entries - (1 if has_adena else 0),
                     "mail_fee": ml["message_fee"] + ml["message_fee_per_slot"] * entries})
-    out["f_vectors"] = vec
-    return "warehouse 30 x entries (adena counted); freight 1,000 x entries (adena adds no slot); mail 100 + 1,000 x n"
+    # Container admission predicates (E53 as corrected): freight = isFreightable only; warehouse =
+    # isDepositable(private) for the private and the non-private warehouse.
+    require("} else if (!item.isFreightable()) {" in game_text(GJ + "network/clientpackets/RequestPackageSend.java"),
+            "pinned freight check")
+    require("if (!oldItem.isDepositable(isPrivate) || !oldItem.isAvailable(player, true, isPrivate)) {"
+            in game_text(GJ + "network/clientpackets/SendWareHouseDepositList.java"), "pinned warehouse check")
+    require("return isTradeable() && !isShadowItem();" in game_text(GJ + "model/items/instance/L2ItemInstance.java"),
+            "pinned isDepositable(false)")
+    cat = [{"id": i, "tags": t["tags"]} for i, t in ((t["id"], t) for t in table("catalogue.toml")["templates"])]
+    tf = template_flags
+    pool = sorted(items_xml())
+    # Pinned data has no shadow template that is both depositable and tradeable (452 depositable but
+    # non-tradeable, 31 neither), so the clan-warehouse shadow clause is reached only through a
+    # template whose is_tradable is already false; the vector uses a depositable shadow template.
+    shadow_flags = {(tf(i)["depositable"], tf(i)["tradeable"]) for i in pool if tf(i)["shadow"]}
+    require(shadow_flags == {(True, False), (False, False)}, f"shadow template flags {shadow_flags}")
+    shadow = next(i for i in pool if tf(i)["shadow"] and tf(i)["depositable"])
+    timed = next(t["id"] for t in cat if tf(t["id"])["time_limited"])
+    plain = next(t["id"] for t in cat if not t["tags"] and tf(t["id"])["depositable"] and tf(t["id"])["tradeable"]
+                 and not tf(t["id"])["shadow"])
+    no_trade = next(t["id"] for t in cat if tf(t["id"])["depositable"] and not tf(t["id"])["tradeable"] and not tf(t["id"])["shadow"])
+    no_dep = next(t["id"] for t in cat if not tf(t["id"])["depositable"])
+    fr_yes = next(t["id"] for t in cat if freightable({"template": t["id"]}))
+    fr_no = next(t["id"] for t in cat if not freightable({"template": t["id"]}) and tf(t["id"])["depositable"])
+    cases = {"plain": {"template": plain}, "augmented": {"template": plain, "augmented": True},
+             "equipped": {"template": plain, "equipped": True}, "shadow": {"template": shadow},
+             "time_limited": {"template": timed}, "non_tradeable": {"template": no_trade},
+             "non_depositable": {"template": no_dep}, "freightable": {"template": fr_yes},
+             "not_freightable": {"template": fr_no}}
+    table_ = {k: {"template": v["template"], "private_warehouse": warehouse_depositable(v, True),
+                  "clan_warehouse": warehouse_depositable(v, False), "freight": freightable(v)} for k, v in cases.items()}
+    require(table_["plain"]["private_warehouse"] and table_["plain"]["clan_warehouse"], "plain deposits")
+    require(table_["augmented"]["private_warehouse"] and not table_["augmented"]["clan_warehouse"], "augmented: private only")
+    require(not table_["equipped"]["private_warehouse"] and not table_["equipped"]["clan_warehouse"], "equipped refused")
+    require(table_["shadow"]["private_warehouse"] and not table_["shadow"]["clan_warehouse"], "shadow: private only")
+    require(table_["non_tradeable"]["private_warehouse"] and not table_["non_tradeable"]["clan_warehouse"], "non-tradeable: private only")
+    require(not table_["non_depositable"]["private_warehouse"], "non-depositable refused")
+    require(table_["freightable"]["freight"] and not table_["not_freightable"]["freight"], "freight follows is_freightable only")
+    freight_ref = sorted(t["id"] for t in cat if freightable({"template": t["id"]}))
+    freight_all = sum(1 for i in pool if freightable({"template": i}))
+    adena_freightable = freightable({"template": 57})
+    require(not adena_freightable, "pinned adena (57) is not freightable")
+    out["f_vectors"] = {"fees": vec, "admission": table_, "freightable_referenced_templates": freight_ref,
+                        "freightable_datapack_templates": freight_all, "adena_freightable": adena_freightable}
+    return ("warehouse 30 x entries (adena counted); freight 1,000 x entries; mail 100 + 1,000 x n; admission: freight = "
+            f"isFreightable ({freight_all:,} datapack / {len(freight_ref)} referenced templates; adena NOT freightable), "
+            "warehouse = isDepositable(private)")
 
 
 def pow_table() -> dict[str, dict[int, str]]:

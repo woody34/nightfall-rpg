@@ -4049,12 +4049,6 @@
     ]
    }
   ],
-  "freight": {
-   "augmented": false,
-   "equipped": false,
-   "shadow": false,
-   "time_limited": false
-  },
   "shadow_template": 8821,
   "time_limited_template": 13752
  },
