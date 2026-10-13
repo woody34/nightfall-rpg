@@ -45,6 +45,9 @@ pub(crate) struct EvidenceBuffer {
     /// D46 `dual_plan` facts planned at the first subhit and completed when the stored
     /// second is applied or discarded: (resolution id, inputs, actual). Evidence only.
     pub pending_dual: std::collections::BTreeMap<EntityId, (String, Value, Value)>,
+    /// D92 cast-bound families awaiting their terminal tick, by cast id:
+    /// (owner, formula, resolution id, inputs, actual). Evidence only.
+    pub pending_cast: std::collections::BTreeMap<u64, (EntityId, String, String, Value, Value)>,
 }
 
 /// D46 observations captured at their operation boundary, never persisted as state.

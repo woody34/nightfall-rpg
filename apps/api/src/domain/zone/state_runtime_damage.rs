@@ -6845,18 +6845,28 @@ mod tests {
         assert!(started.dispositions.is_empty(), "{:?}", started.dispositions);
         if let Ok(path) = std::env::var("NIGHTFALL_TEST_CAST_COST_EVIDENCE_RECORDING") {
             use crate::application::replay_log::{AppliedTickRecord, Watermark, WatermarkReason};
+            // Through the cast's completion, so D92's terminal learned_item_cost fact exists.
+            let mut records = vec![AppliedTickRecord::from_applied(
+                snapshot.seed.zone,
+                &started,
+            )];
+            let mut tail = zone.clone();
+            for _ in 0..80 {
+                let applied = tail.run_tick(tail.draft(Vec::new())).unwrap();
+                records.push(AppliedTickRecord::from_applied(snapshot.seed.zone, &applied));
+                if matches!(tail.sidecar(owner.entity).unwrap().cast, CastState::Idle) {
+                    break;
+                }
+            }
             let recording = crate::infrastructure::eventlog::Recording {
                 watermark: Watermark {
                     zone: snapshot.seed.zone,
                     epoch: snapshot.seed.epoch,
-                    records: 1,
-                    last_tick: Some(started.tick),
+                    records: u64::try_from(records.len()).unwrap(),
+                    last_tick: records.last().map(|r| r.tick),
                     reason: WatermarkReason::Shutdown,
                 },
-                records: vec![AppliedTickRecord::from_applied(
-                    snapshot.seed.zone,
-                    &started,
-                )],
+                records,
                 snapshot,
             };
             let bytes = recording.to_bytes().unwrap();

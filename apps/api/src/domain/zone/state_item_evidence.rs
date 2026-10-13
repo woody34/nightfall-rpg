@@ -592,6 +592,46 @@ impl ZoneState {
         }
     }
 
+    /// D92: cast-bound families carry one fact on the terminal tick of their cast (completion
+    /// result or cancellation), under the originating intent's resolution id.
+    pub(in crate::domain::zone) fn finish_cast_evidence_v6(&mut self, events: &[ZoneEvent]) {
+        if !self.items_evidence_enabled() {
+            return;
+        }
+        for event in events {
+            let (cast, phase) = if let ZoneEvent::SkillCastResult { cast_id, .. } = event {
+                (cast_id.0, "complete")
+            } else if let ZoneEvent::SkillCastCancelled { cast_id, .. } = event {
+                (cast_id.0, "cancel")
+            } else {
+                continue;
+            };
+            let Some((owner, formula, resolution, mut inputs, mut actual)) = self
+                .evidence
+                .as_mut()
+                .and_then(|buffer| buffer.pending_cast.remove(&cast))
+            else {
+                continue;
+            };
+            if formula == "learned_item_cost" {
+                if let (Some(inputs), Some(actual)) =
+                    (inputs.as_object_mut(), actual.as_object_mut())
+                {
+                    inputs.insert("phase".into(), json!(phase));
+                    actual.insert("phase".into(), json!(phase));
+                }
+            }
+            self.item_formula_v6(
+                owner,
+                &formula,
+                inputs,
+                actual,
+                &resolution,
+                Some(json!({"event": "cast"})),
+            );
+        }
+    }
+
     pub(in crate::domain::zone) fn attack_context_v6(
         &self,
         attacker: EntityId,

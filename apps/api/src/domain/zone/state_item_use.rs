@@ -556,6 +556,56 @@ impl ZoneState {
                 .canonical
                 .next_cast_id,
         );
+        // D46/D92 `learned_item_cost`: opened at the prepaid start, emitted at completion or
+        // cancellation with its phase (evidence only; one cost template per learned skill).
+        if let ([cost], true) = (skill.item_consume.as_slice(), candidate.items_evidence_enabled())
+        {
+            if let (Some(template), Some(count)) = (
+                cost.item_id.at(reference.rank, skill.max_level).copied(),
+                cost.count.at(reference.rank, skill.max_level).copied(),
+            ) {
+                let records = |inventory: &std::collections::BTreeMap<
+                    crate::domain::zone::ItemInstanceId,
+                    crate::domain::zone::ItemInstance,
+                >| {
+                    inventory
+                        .values()
+                        .filter(|item| item.template_id == template && item.count > 0)
+                        .map(|item| {
+                            serde_json::json!({"instance_id": item.id.get(),
+                                "template_id": item.template_id, "count": item.count})
+                        })
+                        .collect::<Vec<_>>()
+                };
+                let mut consumed = serde_json::Map::new();
+                for change in &payments.changes {
+                    if let Some(before) = &change.before {
+                        let take = before
+                            .count
+                            .saturating_sub(change.after.as_ref().map_or(0, |i| i.count));
+                        consumed.insert(before.id.get().to_string(), serde_json::json!(take));
+                    }
+                }
+                let inputs = serde_json::json!({"skill_id": reference.id.0, "rank": reference.rank,
+                    "consume_id": template, "consume_count": count,
+                    "inventory": records(&player.inventory), "repeat": false});
+                let actual = serde_json::json!({"accepted": true,
+                    "inventory": records(&payments.inventory), "consumed": consumed,
+                    "completion_consumed": {}, "repeated_consumed": {}, "draws": []});
+                if let Some(buffer) = candidate.evidence.as_mut() {
+                    buffer.pending_cast.insert(
+                        cast_id.0,
+                        (
+                            id,
+                            "learned_item_cost".into(),
+                            format!("cast:{}", cast_id.0),
+                            inputs,
+                            actual,
+                        ),
+                    );
+                }
+            }
+        }
         let items = candidate.phase4.as_mut().ok_or(RejectReason::InvalidLoad)?;
         let player = items
             .canonical
