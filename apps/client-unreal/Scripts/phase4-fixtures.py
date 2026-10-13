@@ -100,8 +100,11 @@ def armor_set(repo=REPO):
 
 
 def enchant4_item(repo=REPO):
+    # The armour-enchant4 variant equips this item into the `under` slot, so the selector is
+    # bound to underwear: E1 rev 8 admits weapons with enchant4 skills (e.g. 52) that sort lower.
     skills={r['id']:r for r in table('capabilities',repo)['skills']}
     return next(r for i,r in sorted(catalogue(repo).items()) if capabilities(repo)[i]['admitted']
+                and r['bodypart']=='underwear'
                 and r['enchant4_skills'] and all(skills[s['id']]['admitted'] for s in r['enchant4_skills']))
 
 
