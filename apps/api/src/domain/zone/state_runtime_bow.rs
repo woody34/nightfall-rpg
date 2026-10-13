@@ -235,7 +235,24 @@ impl ZoneState {
         let mut reduction_residue = None;
         if let [chance, reduced] = definition.reduced_mp_consume.as_slice() {
             if *reduced > 0 {
+                // D109: tabulated as an item_rng fact so the exported cursor stays gap-free.
+                let before = self.rng.get_word_pos();
                 let residue = self.roll_below(100);
+                if self.items_evidence_enabled() {
+                    if let Some(subject) = self.binding(id) {
+                        self.item_evidence(
+                            subject,
+                            crate::domain::zone::evidence::ItemEvidenceData::Rng {
+                                callsite: "bow_reduced_mp".into(),
+                                word_before: before,
+                                word_after: self.rng.get_word_pos(),
+                                bound: 100,
+                                value: residue,
+                                resolution_id: format!("attack:{id}:{}", tick.0),
+                            },
+                        );
+                    }
+                }
                 reduction_residue = Some(residue);
                 if residue < *chance {
                     cost = *reduced;

@@ -10375,6 +10375,50 @@ mod tests {
     }
 
     #[test]
+    fn v6_reduced_mp_bow_recording_tabulates_the_reduction_draw() {
+        use crate::domain::zone::ItemCommandKind as K;
+        // D109: bow 4818 (reduced_mp_consume 47,1) with Steel Arrows 1342; the reduced-MP draw
+        // is an item_rng fact, so the export's gap-free cursor holds.
+        let (mut zone, owner, npc, ids) = use_fixture(&[4818, 1342]);
+        let start = zone.entities[&owner.entity].pos;
+        place(
+            &mut zone,
+            npc.entity,
+            Vec2Fixed::new(Fixed::from_raw(start.x.raw() + 6_000), start.y),
+        );
+        let mut run = EvidenceRun::start(zone);
+        let equip = item_intent(
+            &run.zone,
+            owner.entity,
+            2101,
+            K::Equip {
+                instance: ids[0],
+                preferred_slot: None,
+            },
+        );
+        run.tick(owner.entity, vec![ZoneCommand::Item(Box::new(equip))]);
+        run.tick(
+            owner.entity,
+            vec![
+                ZoneCommand::SetTarget {
+                    entity: owner.entity,
+                    target: Some(npc.entity),
+                },
+                ZoneCommand::Attack {
+                    entity: owner.entity,
+                },
+            ],
+        );
+        for _ in 0..40 {
+            run.tick(owner.entity, Vec::new());
+        }
+        assert!(run.facts.iter().any(|f| matches!(&f.fact,
+            crate::domain::zone::evidence::ItemEvidenceData::Rng { callsite, .. }
+                if callsite == "bow_reduced_mp")));
+        run.write("NIGHTFALL_TEST_REDUCED_BOW_RECORDING");
+    }
+
+    #[test]
     fn v6_fractional_hp_cold_replay_regen_and_last_fraction_death() {
         use crate::domain::zone::item_combat::half_hp;
         let (mut base, source, npc) = equipment_fixture();
