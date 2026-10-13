@@ -1888,9 +1888,42 @@ async fn refine_audits_are_rederived_and_published_once_each() {
         }
         refused(bad.validate_catalogue(rules), "item_refine_draws");
     }
+    // D86 at the trust boundary: weapon stone 8753's 95-row option12 table (1.05 each) at
+    // residue 105 selects the LAST row under Java binary32 accumulation; the decimal reading
+    // would stop one row earlier. The API re-derivation shares the zone's selector.
+    let mut float = work.clone();
+    let mut words = [105_u32, 40_009, 9_999_999].into_iter();
+    let selection = RetailSelectors::new(rules, false, false, 8753)
+        .unwrap()
+        .select(|| words.next().unwrap())
+        .unwrap();
+    assert_eq!(selection.option12, 16344);
+    let audit = &mut float.projection.refines[0];
+    audit.stone = Some(8753);
+    audit.accessory = false;
+    audit.selection = Some(selection);
+    audit.payments[0].template_id = 8753;
+    let stone_row = &mut float.projection.ledger[2];
+    for state in stone_row
+        .before
+        .iter_mut()
+        .chain(stone_row.after.iter_mut())
+    {
+        state.template_id = 8753;
+    }
+    float.validate_catalogue(rules).unwrap();
+    float.projection.refines[0]
+        .selection
+        .as_mut()
+        .unwrap()
+        .option12 = 16343;
+    refused(float.validate_catalogue(rules), "item_refine_draws");
     let mut bad = work.clone();
     bad.projection.refines[1].payments[0].count += 1;
     refused(bad.validate_catalogue(rules), "item_refine_cancel_fee");
+    let mut bad = work.clone();
+    bad.projection.refines.truncate(1);
+    refused(bad.validate_catalogue(rules), "item_refine_audit_missing");
     let mut bad = work.clone();
     bad.projection.ledger[3].causes =
         vec![bad.projection.refines[0].payment_cause(1 - i64::try_from(gems).unwrap())];
