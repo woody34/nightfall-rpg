@@ -107,17 +107,18 @@ class RevisionSourceTests(unittest.TestCase):
         stat.set('stat','STR');stat.append(ET.fromstring('<player castle="1"/>'))
         with self.assertRaisesRegex(ValueError,'unsupported oracle fold condition'):oracle.gear_stats(proxy,self.human,1,[],[(8498,1,2)])
 
-    def test_elixir_rank_expansion_boundaries_and_d34_deferral(self):
+    def test_elixir_rank_expansion_boundaries_and_d34_promotion(self):
         caps=tomllib.loads((gen.ROOT/'tables-phase4/capabilities.toml').read_text())
         by_id={row['template_id']:row for row in caps['items']}
         elixirs=[]
         for sid in [2287,2288,2289,2860,2861,2862]:
             file,skill=self.src.skills[sid];table=skills.parse_tables(skill)
-            parsed=tomllib.loads(skills.generate_skill_toml(sid,file,skill,{'cond:player:levelRange'},phase4=True))
+            self.assertTrue(next(r for r in caps['skills'] if r['id']==sid)['admitted'])
+            parsed=tomllib.loads(skills.generate_skill_toml(sid,file,skill,set(),phase4=True))
             condition=parsed['conditions'][0]
             self.assertEqual(condition['kind'],'player_level_range')
             self.assertEqual(len(condition['ranges']),6)
-            self.assertEqual(parsed['runtime_status'],'deferred')
+            self.assertEqual(parsed['runtime_status'],'executable')
             for rank,bounds in enumerate(condition['ranges'],1):
                 lo,hi=bounds['minimum'],bounds['maximum']
                 node=ET.fromstring(f'<player levelRange="{lo};{hi}"/>')
@@ -128,7 +129,7 @@ class RevisionSourceTests(unittest.TestCase):
                 with self.assertRaises(ValueError):oracle.player_level_range(condition,bad_rank,1)
             for item in self.src.items:
                 if any(ref.split('-')[0]==str(sid) for ref in self.src.properties(item).get('item_skill','').split(';')):
-                    elixirs.append(item);self.assertFalse(by_id[item]['admitted'])
+                    elixirs.append(item);self.assertTrue(by_id[item]['admitted'])
         self.assertEqual(len(elixirs),36)
         with self.assertRaises(skills.SourceError):skills.parse_cond_node(ET.fromstring('<player levelRange="20;1"/>'),True)
 

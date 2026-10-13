@@ -145,6 +145,10 @@ def is_cond_allowed(elem: ET.Element, phase4: bool = False) -> bool:
             return elem.attrib["slot"] in {"chest", "lhand", "rhand", "lrhand", "head", "legs", "feet", "gloves"}
         if elem.tag == "player" and set(elem.attrib) in ({"weight"}, {"invSize"}):
             return param_allowed(next(iter(elem.attrib.values())), "int")
+        # D34: rank-expanded inclusive levelRange is executable at cast start
+        # (Z 4f9ac8c/c5229d4/f6d882b); parse_cond_node validates each expanded rank.
+        if elem.tag == "player" and set(elem.attrib) == {"levelRange"}:
+            return re.fullmatch(r"#\w+|\d+;\d+", elem.attrib["levelRange"]) is not None
     if elem.tag == "using":
         return (set(elem.attrib) == {"kind"}
                 and all(k.strip() in (ALLOWED_WEAPON_KINDS | ({"LIGHT", "MAGIC", "HEAVY", "SIGIL", "SHIELD"} if phase4 else set())) for k in elem.attrib["kind"].split(",")))
@@ -204,7 +208,7 @@ def parse_cond_node(elem: ET.Element, phase4: bool = False, tables=None, levels=
             if minimum > maximum:
                 raise SourceError("inverted player levelRange")
             ranges.append({"minimum": minimum, "maximum": maximum})
-        # D34: publish the contract; keep the capability blocker until Z support.
+        # D34: inclusive min<=level<=max per resolved rank (ConditionPlayerLevelRange.java:41-43).
         return {"kind": "player_level_range", "ranges": ranges}
     if phase4 and is_cond_allowed(elem, phase4):
         if elem.tag == "player" and set(elem.attrib) == {"insideZoneId"}:
@@ -312,7 +316,12 @@ EFFECT_PARAMS = {
 # V6 contract only. Historical generation uses the defaults above unchanged.
 PHASE4_STATS = {"sDef", "rShld", "shieldDefAngle", "blowRate", "weightLimit", "weightPenalty",
                 "atkCountMax", "pAtkAngle", "pAtkRange", "STR", "DEX", "CON", "INT", "MEN", "WIT",
-                "mCritRate", "physicalSkillPower", "mpConsume"}
+                "mCritRate", "physicalSkillPower", "mpConsume",
+                # D34: Z executes the three PvP multipliers at every implemented caller
+                # (4f9ac8c auto/PhysicalAttack/MagicalAttack, bfc00a7 FatalBlow).
+                "pvpPhysDmg", "pvpPhysSkillsDmg", "pvpMagicalDmg",
+                # D47: Z folds the abnormal-slot capacity at live admission (402e554).
+                "enlargeAbnormalSlot"}
 PHASE4_EFFECT_PARAMS = {
     "FatalBlow": {"power": "number", "criticalChance": "int"},
     "Lethal": {"fullLethal": "number", "halfLethal": "number"},

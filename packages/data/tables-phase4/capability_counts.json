@@ -12,8 +12,8 @@
     },
     "phase4": {
       "imported": 2705,
-      "admitted": 1491,
-      "deferred": 1214
+      "admitted": 1560,
+      "deferred": 1145
     },
     "changed_definitions": [
       {
@@ -359,6 +359,14 @@
         "id": 293,
         "before": [
           "cond:using:slot"
+        ],
+        "after": []
+      },
+      {
+        "id": 297,
+        "before": [
+          "stat:pvpPhysDmg",
+          "stat:pvpPhysSkillsDmg"
         ],
         "after": []
       },
@@ -726,6 +734,16 @@
         ]
       },
       {
+        "id": 1231,
+        "before": [
+          "section:selfEffects",
+          "stat:pvpMagicalDmg"
+        ],
+        "after": [
+          "section:selfEffects"
+        ]
+      },
+      {
         "id": 1243,
         "before": [
           "stat:rShld"
@@ -826,6 +844,13 @@
           "scope:PARTY",
           "scope_filter:FRIEND"
         ]
+      },
+      {
+        "id": 1405,
+        "before": [
+          "stat:enlargeAbnormalSlot"
+        ],
+        "after": []
       },
       {
         "id": 1417,
@@ -1533,27 +1558,21 @@
         "before": [
           "not_imported"
         ],
-        "after": [
-          "cond:player:levelRange"
-        ]
+        "after": []
       },
       {
         "id": 2288,
         "before": [
           "not_imported"
         ],
-        "after": [
-          "cond:player:levelRange"
-        ]
+        "after": []
       },
       {
         "id": 2289,
         "before": [
           "not_imported"
         ],
-        "after": [
-          "cond:player:levelRange"
-        ]
+        "after": []
       },
       {
         "id": 2291,
@@ -2393,27 +2412,21 @@
         "before": [
           "not_imported"
         ],
-        "after": [
-          "cond:player:levelRange"
-        ]
+        "after": []
       },
       {
         "id": 2861,
         "before": [
           "not_imported"
         ],
-        "after": [
-          "cond:player:levelRange"
-        ]
+        "after": []
       },
       {
         "id": 2862,
         "before": [
           "not_imported"
         ],
-        "after": [
-          "cond:player:levelRange"
-        ]
+        "after": []
       },
       {
         "id": 2863,
@@ -2593,27 +2606,21 @@
         "before": [
           "not_imported"
         ],
-        "after": [
-          "cond:player:levelRange"
-        ]
+        "after": []
       },
       {
         "id": 2908,
         "before": [
           "not_imported"
         ],
-        "after": [
-          "cond:player:levelRange"
-        ]
+        "after": []
       },
       {
         "id": 2909,
         "before": [
           "not_imported"
         ],
-        "after": [
-          "cond:player:levelRange"
-        ]
+        "after": []
       },
       {
         "id": 2994,
@@ -2723,22 +2730,14 @@
         "before": [
           "not_imported"
         ],
-        "after": [
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg"
-        ]
+        "after": []
       },
       {
         "id": 3014,
         "before": [
           "not_imported"
         ],
-        "after": [
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg"
-        ]
+        "after": []
       },
       {
         "id": 3016,
@@ -2827,10 +2826,7 @@
           "not_imported"
         ],
         "after": [
-          "cond:player:hp",
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg"
+          "cond:player:hp"
         ]
       },
       {
@@ -2884,10 +2880,7 @@
           "not_imported"
         ],
         "after": [
-          "cond:player:hp",
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg"
+          "cond:player:hp"
         ]
       },
       {
@@ -2939,11 +2932,7 @@
         "before": [
           "not_imported"
         ],
-        "after": [
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg"
-        ]
+        "after": []
       },
       {
         "id": 3043,
@@ -2957,55 +2946,35 @@
         "before": [
           "not_imported"
         ],
-        "after": [
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg"
-        ]
+        "after": []
       },
       {
         "id": 3045,
         "before": [
           "not_imported"
         ],
-        "after": [
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg"
-        ]
+        "after": []
       },
       {
         "id": 3046,
         "before": [
           "not_imported"
         ],
-        "after": [
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg"
-        ]
+        "after": []
       },
       {
         "id": 3047,
         "before": [
           "not_imported"
         ],
-        "after": [
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg"
-        ]
+        "after": []
       },
       {
         "id": 3048,
         "before": [
           "not_imported"
         ],
-        "after": [
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg"
-        ]
+        "after": []
       },
       {
         "id": 3049,
@@ -3021,22 +2990,14 @@
         "before": [
           "not_imported"
         ],
-        "after": [
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg"
-        ]
+        "after": []
       },
       {
         "id": 3051,
         "before": [
           "not_imported"
         ],
-        "after": [
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg"
-        ]
+        "after": []
       },
       {
         "id": 3052,
@@ -3080,10 +3041,7 @@
           "not_imported"
         ],
         "after": [
-          "cond:player:hp",
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg"
+          "cond:player:hp"
         ]
       },
       {
@@ -3091,22 +3049,14 @@
         "before": [
           "not_imported"
         ],
-        "after": [
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg"
-        ]
+        "after": []
       },
       {
         "id": 3058,
         "before": [
           "not_imported"
         ],
-        "after": [
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg"
-        ]
+        "after": []
       },
       {
         "id": 3059,
@@ -3147,10 +3097,7 @@
         ],
         "after": [
           "cond:player:behind",
-          "stat:critRatePos",
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg"
+          "stat:critRatePos"
         ]
       },
       {
@@ -3158,55 +3105,35 @@
         "before": [
           "not_imported"
         ],
-        "after": [
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg"
-        ]
+        "after": []
       },
       {
         "id": 3065,
         "before": [
           "not_imported"
         ],
-        "after": [
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg"
-        ]
+        "after": []
       },
       {
         "id": 3066,
         "before": [
           "not_imported"
         ],
-        "after": [
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg"
-        ]
+        "after": []
       },
       {
         "id": 3067,
         "before": [
           "not_imported"
         ],
-        "after": [
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg"
-        ]
+        "after": []
       },
       {
         "id": 3068,
         "before": [
           "not_imported"
         ],
-        "after": [
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg"
-        ]
+        "after": []
       },
       {
         "id": 3069,
@@ -3230,10 +3157,7 @@
           "not_imported"
         ],
         "after": [
-          "cond:player:hp",
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg"
+          "cond:player:hp"
         ]
       },
       {
@@ -3241,22 +3165,14 @@
         "before": [
           "not_imported"
         ],
-        "after": [
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg"
-        ]
+        "after": []
       },
       {
         "id": 3073,
         "before": [
           "not_imported"
         ],
-        "after": [
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg"
-        ]
+        "after": []
       },
       {
         "id": 3074,
@@ -3754,10 +3670,7 @@
         "before": [
           "not_imported"
         ],
-        "after": [
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg"
-        ]
+        "after": []
       },
       {
         "id": 3135,
@@ -3778,10 +3691,7 @@
         "before": [
           "not_imported"
         ],
-        "after": [
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg"
-        ]
+        "after": []
       },
       {
         "id": 3138,
@@ -4410,8 +4320,7 @@
           "not_imported"
         ],
         "after": [
-          "effect:TriggerSkillByDamage",
-          "ref:5157"
+          "effect:TriggerSkillByDamage"
         ]
       },
       {
@@ -4438,8 +4347,7 @@
           "not_imported"
         ],
         "after": [
-          "effect:TriggerSkillByDamage",
-          "ref:5160"
+          "effect:TriggerSkillByDamage"
         ]
       },
       {
@@ -4636,10 +4544,7 @@
         "before": [
           "not_imported"
         ],
-        "after": [
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg"
-        ]
+        "after": []
       },
       {
         "id": 3244,
@@ -5660,11 +5565,7 @@
         "before": [
           "not_imported"
         ],
-        "after": [
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg"
-        ]
+        "after": []
       },
       {
         "id": 3412,
@@ -5810,9 +5711,6 @@
           "effect:MaxCp",
           "effect:TriggerSkillByAttack",
           "ref:5547",
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg",
           "stat:reflectDam"
         ]
       },
@@ -6559,11 +6457,7 @@
         "before": [
           "not_imported"
         ],
-        "after": [
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg"
-        ]
+        "after": []
       },
       {
         "id": 3553,
@@ -6659,44 +6553,28 @@
         "before": [
           "not_imported"
         ],
-        "after": [
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg"
-        ]
+        "after": []
       },
       {
         "id": 3565,
         "before": [
           "not_imported"
         ],
-        "after": [
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg"
-        ]
+        "after": []
       },
       {
         "id": 3566,
         "before": [
           "not_imported"
         ],
-        "after": [
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg"
-        ]
+        "after": []
       },
       {
         "id": 3567,
         "before": [
           "not_imported"
         ],
-        "after": [
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg"
-        ]
+        "after": []
       },
       {
         "id": 3568,
@@ -6704,10 +6582,7 @@
           "not_imported"
         ],
         "after": [
-          "stat:absorbDam",
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg"
+          "stat:absorbDam"
         ]
       },
       {
@@ -6715,11 +6590,7 @@
         "before": [
           "not_imported"
         ],
-        "after": [
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg"
-        ]
+        "after": []
       },
       {
         "id": 3570,
@@ -6727,10 +6598,7 @@
           "not_imported"
         ],
         "after": [
-          "effect:MaxCp",
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg"
+          "effect:MaxCp"
         ]
       },
       {
@@ -6745,22 +6613,14 @@
         "before": [
           "not_imported"
         ],
-        "after": [
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg"
-        ]
+        "after": []
       },
       {
         "id": 3573,
         "before": [
           "not_imported"
         ],
-        "after": [
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg"
-        ]
+        "after": []
       },
       {
         "id": 3574,
@@ -6774,22 +6634,14 @@
         "before": [
           "not_imported"
         ],
-        "after": [
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg"
-        ]
+        "after": []
       },
       {
         "id": 3576,
         "before": [
           "not_imported"
         ],
-        "after": [
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg"
-        ]
+        "after": []
       },
       {
         "id": 3577,
@@ -6805,9 +6657,6 @@
         ],
         "after": [
           "effect:MaxCp",
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg",
           "stat:reflectDam"
         ]
       },
@@ -6825,9 +6674,6 @@
         ],
         "after": [
           "effect:MaxCp",
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg",
           "stat:reflectDam"
         ]
       },
@@ -6847,9 +6693,6 @@
         ],
         "after": [
           "effect:MaxCp",
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg",
           "stat:reflectSkillMagic",
           "stat:reflectSkillPhysic"
         ]
@@ -6861,9 +6704,6 @@
         ],
         "after": [
           "effect:MaxCp",
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg",
           "stat:reflectSkillMagic",
           "stat:reflectSkillPhysic"
         ]
@@ -6882,9 +6722,6 @@
         ],
         "after": [
           "effect:MaxCp",
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg",
           "stat:reflectSkillMagic",
           "stat:reflectSkillPhysic"
         ]
@@ -6905,9 +6742,6 @@
         ],
         "after": [
           "effect:MaxCp",
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg",
           "stat:reflectSkillMagic",
           "stat:reflectSkillPhysic"
         ]
@@ -6928,10 +6762,7 @@
           "cond:player:behind",
           "effect:MaxCp",
           "stat:absorbDam",
-          "stat:critRatePos",
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg"
+          "stat:critRatePos"
         ]
       },
       {
@@ -6950,9 +6781,6 @@
         ],
         "after": [
           "effect:MaxCp",
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg",
           "stat:reflectSkillMagic",
           "stat:reflectSkillPhysic"
         ]
@@ -6970,10 +6798,7 @@
           "not_imported"
         ],
         "after": [
-          "effect:MaxCp",
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg"
+          "effect:MaxCp"
         ]
       },
       {
@@ -6990,10 +6815,7 @@
         ],
         "after": [
           "effect:MaxCp",
-          "stat:cancel",
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg"
+          "stat:cancel"
         ]
       },
       {
@@ -7011,10 +6833,7 @@
           "not_imported"
         ],
         "after": [
-          "effect:MaxCp",
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg"
+          "effect:MaxCp"
         ]
       },
       {
@@ -7038,32 +6857,21 @@
         "before": [
           "not_imported"
         ],
-        "after": [
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg"
-        ]
+        "after": []
       },
       {
         "id": 3601,
         "before": [
           "not_imported"
         ],
-        "after": [
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg"
-        ]
+        "after": []
       },
       {
         "id": 3602,
         "before": [
           "not_imported"
         ],
-        "after": [
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg"
-        ]
+        "after": []
       },
       {
         "id": 3603,
@@ -7310,9 +7118,6 @@
         ],
         "after": [
           "effect:MaxCp",
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg",
           "stat:reflectSkillMagic",
           "stat:reflectSkillPhysic"
         ]
@@ -7323,10 +7128,7 @@
           "not_imported"
         ],
         "after": [
-          "effect:MaxCp",
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg"
+          "effect:MaxCp"
         ]
       },
       {
@@ -10037,10 +9839,7 @@
         "before": [
           "not_imported"
         ],
-        "after": [
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg"
-        ]
+        "after": []
       },
       {
         "id": 5158,
@@ -10061,10 +9860,7 @@
         "before": [
           "not_imported"
         ],
-        "after": [
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg"
-        ]
+        "after": []
       },
       {
         "id": 5161,
@@ -13007,11 +12803,7 @@
         "before": [
           "not_imported"
         ],
-        "after": [
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg"
-        ]
+        "after": []
       },
       {
         "id": 8290,
@@ -13059,33 +12851,21 @@
         "before": [
           "not_imported"
         ],
-        "after": [
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg"
-        ]
+        "after": []
       },
       {
         "id": 8296,
         "before": [
           "not_imported"
         ],
-        "after": [
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg"
-        ]
+        "after": []
       },
       {
         "id": 8298,
         "before": [
           "not_imported"
         ],
-        "after": [
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysDmg",
-          "stat:pvpPhysSkillsDmg"
-        ]
+        "after": []
       },
       {
         "id": 8301,
@@ -13236,72 +13016,56 @@
         "before": [
           "not_imported"
         ],
-        "after": [
-          "cond:player:levelRange"
-        ]
+        "after": []
       },
       {
         "id": 8316,
         "before": [
           "not_imported"
         ],
-        "after": [
-          "cond:player:levelRange"
-        ]
+        "after": []
       },
       {
         "id": 8317,
         "before": [
           "not_imported"
         ],
-        "after": [
-          "cond:player:levelRange"
-        ]
+        "after": []
       },
       {
         "id": 8318,
         "before": [
           "not_imported"
         ],
-        "after": [
-          "cond:player:levelRange"
-        ]
+        "after": []
       },
       {
         "id": 8319,
         "before": [
           "not_imported"
         ],
-        "after": [
-          "cond:player:levelRange"
-        ]
+        "after": []
       },
       {
         "id": 8320,
         "before": [
           "not_imported"
         ],
-        "after": [
-          "cond:player:levelRange"
-        ]
+        "after": []
       },
       {
         "id": 8321,
         "before": [
           "not_imported"
         ],
-        "after": [
-          "cond:player:levelRange"
-        ]
+        "after": []
       },
       {
         "id": 8322,
         "before": [
           "not_imported"
         ],
-        "after": [
-          "cond:player:levelRange"
-        ]
+        "after": []
       },
       {
         "id": 8323,
@@ -13445,19 +13209,14 @@
         "before": [
           "not_imported"
         ],
-        "after": [
-          "stat:pvpPhysDmg"
-        ]
+        "after": []
       },
       {
         "id": 8343,
         "before": [
           "not_imported"
         ],
-        "after": [
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysSkillsDmg"
-        ]
+        "after": []
       },
       {
         "id": 8344,
@@ -13475,19 +13234,14 @@
         "before": [
           "not_imported"
         ],
-        "after": [
-          "stat:pvpPhysDmg"
-        ]
+        "after": []
       },
       {
         "id": 8346,
         "before": [
           "not_imported"
         ],
-        "after": [
-          "stat:pvpMagicalDmg",
-          "stat:pvpPhysSkillsDmg"
-        ]
+        "after": []
       },
       {
         "id": 8347,
@@ -17471,18 +17225,14 @@
         "before": [
           "not_imported"
         ],
-        "after": [
-          "cond:player:levelRange"
-        ]
+        "after": []
       },
       {
         "id": 22044,
         "before": [
           "not_imported"
         ],
-        "after": [
-          "cond:player:levelRange"
-        ]
+        "after": []
       },
       {
         "id": 22054,
@@ -19748,18 +19498,14 @@
         "before": [
           "not_imported"
         ],
-        "after": [
-          "cond:player:levelRange"
-        ]
+        "after": []
       },
       {
         "id": 26028,
         "before": [
           "not_imported"
         ],
-        "after": [
-          "cond:player:levelRange"
-        ]
+        "after": []
       },
       {
         "id": 26029,
@@ -19900,15 +19646,15 @@
         "class": "bishop",
         "imported": 39,
         "phase3_admitted": 16,
-        "phase4_admitted": 19,
-        "phase4_deferred": 20
+        "phase4_admitted": 20,
+        "phase4_deferred": 19
       },
       {
         "class": "bounty_hunter",
         "imported": 21,
         "phase3_admitted": 7,
-        "phase4_admitted": 13,
-        "phase4_deferred": 8
+        "phase4_admitted": 14,
+        "phase4_deferred": 7
       },
       {
         "class": "cleric",
@@ -19942,8 +19688,8 @@
         "class": "destroyer",
         "imported": 25,
         "phase3_admitted": 10,
-        "phase4_admitted": 18,
-        "phase4_deferred": 7
+        "phase4_admitted": 19,
+        "phase4_deferred": 6
       },
       {
         "class": "dwarven_fighter",
@@ -19998,15 +19744,15 @@
         "class": "gladiator",
         "imported": 26,
         "phase3_admitted": 12,
-        "phase4_admitted": 14,
-        "phase4_deferred": 12
+        "phase4_admitted": 16,
+        "phase4_deferred": 10
       },
       {
         "class": "hawkeye",
         "imported": 23,
         "phase3_admitted": 10,
-        "phase4_admitted": 16,
-        "phase4_deferred": 7
+        "phase4_admitted": 17,
+        "phase4_deferred": 6
       },
       {
         "class": "human_fighter",
@@ -20075,8 +19821,8 @@
         "class": "paladin",
         "imported": 32,
         "phase3_admitted": 12,
-        "phase4_admitted": 14,
-        "phase4_deferred": 18
+        "phase4_admitted": 15,
+        "phase4_deferred": 17
       },
       {
         "class": "palus_knight",
@@ -20089,15 +19835,15 @@
         "class": "prophet",
         "imported": 43,
         "phase3_admitted": 27,
-        "phase4_admitted": 34,
-        "phase4_deferred": 9
+        "phase4_admitted": 35,
+        "phase4_deferred": 8
       },
       {
         "class": "rogue",
         "imported": 25,
         "phase3_admitted": 11,
-        "phase4_admitted": 15,
-        "phase4_deferred": 10
+        "phase4_admitted": 16,
+        "phase4_deferred": 9
       },
       {
         "class": "scavenger",
@@ -20110,8 +19856,8 @@
         "class": "shillien_knight",
         "imported": 35,
         "phase3_admitted": 11,
-        "phase4_admitted": 12,
-        "phase4_deferred": 23
+        "phase4_admitted": 13,
+        "phase4_deferred": 22
       },
       {
         "class": "shillien_oracle",
@@ -20124,15 +19870,15 @@
         "class": "sorcerer",
         "imported": 31,
         "phase3_admitted": 21,
-        "phase4_admitted": 23,
-        "phase4_deferred": 8
+        "phase4_admitted": 24,
+        "phase4_deferred": 7
       },
       {
         "class": "spellsinger",
         "imported": 35,
         "phase3_admitted": 24,
-        "phase4_admitted": 28,
-        "phase4_deferred": 7
+        "phase4_admitted": 29,
+        "phase4_deferred": 6
       },
       {
         "class": "treasure_hunter",
@@ -20145,8 +19891,8 @@
         "class": "warcryer",
         "imported": 36,
         "phase3_admitted": 11,
-        "phase4_admitted": 14,
-        "phase4_deferred": 22
+        "phase4_admitted": 15,
+        "phase4_deferred": 21
       },
       {
         "class": "warrior",
@@ -20161,29 +19907,29 @@
     "Weapon": {
       "source_total": 3893,
       "imported": 3893,
-      "admitted": 907,
-      "deferred": 2986,
+      "admitted": 1536,
+      "deferred": 2357,
       "not_imported": 0
     },
     "Armor": {
       "source_total": 3825,
       "imported": 3825,
-      "admitted": 1818,
-      "deferred": 2007,
+      "admitted": 1834,
+      "deferred": 1991,
       "not_imported": 0
     },
     "EtcItem": {
       "source_total": 11481,
       "imported": 705,
-      "admitted": 370,
-      "deferred": 335,
+      "admitted": 416,
+      "deferred": 289,
       "not_imported": 10776
     }
   },
   "options": {
     "imported": 24985,
-    "admitted": 23725,
-    "deferred": 1260
+    "admitted": 23764,
+    "deferred": 1221
   },
   "augmentation": {
     "imported": 147,
@@ -20290,24 +20036,6 @@
     "consumable:skill:2649:9:item:13739": 1,
     "consumable:skill:2856:1:item:14614": 1,
     "consumable:skill:2857:1:item:14615": 1,
-    "consumable:skill:2860:1:item:14682": 1,
-    "consumable:skill:2860:2:item:14683": 1,
-    "consumable:skill:2860:3:item:14684": 1,
-    "consumable:skill:2860:4:item:14685": 1,
-    "consumable:skill:2860:5:item:14686": 1,
-    "consumable:skill:2860:6:item:14687": 1,
-    "consumable:skill:2861:1:item:14688": 1,
-    "consumable:skill:2861:2:item:14689": 1,
-    "consumable:skill:2861:3:item:14690": 1,
-    "consumable:skill:2861:4:item:14691": 1,
-    "consumable:skill:2861:5:item:14692": 1,
-    "consumable:skill:2861:6:item:14693": 1,
-    "consumable:skill:2862:1:item:14694": 1,
-    "consumable:skill:2862:2:item:14695": 1,
-    "consumable:skill:2862:3:item:14696": 1,
-    "consumable:skill:2862:4:item:14697": 1,
-    "consumable:skill:2862:5:item:14698": 1,
-    "consumable:skill:2862:6:item:14699": 1,
     "consumable:skill:2863:1:item:14700": 2,
     "consumable:skill:2864:1:item:14701": 2,
     "consumable:skill:2883:1:item:14742": 1,
@@ -20587,16 +20315,6 @@
     "skill:22006:1": 1,
     "skill:22028:1": 1,
     "skill:22034:1": 1,
-    "skill:22043:2": 1,
-    "skill:22043:3": 1,
-    "skill:22043:4": 1,
-    "skill:22043:5": 1,
-    "skill:22043:6": 1,
-    "skill:22044:2": 1,
-    "skill:22044:3": 1,
-    "skill:22044:4": 1,
-    "skill:22044:5": 1,
-    "skill:22044:6": 1,
     "skill:22054:1": 1,
     "skill:22055:1": 1,
     "skill:22064:1": 2,
@@ -20622,24 +20340,6 @@
     "skill:22298:1": 1,
     "skill:22299:1": 1,
     "skill:22312:1": 1,
-    "skill:2287:1": 1,
-    "skill:2287:2": 1,
-    "skill:2287:3": 1,
-    "skill:2287:4": 1,
-    "skill:2287:5": 1,
-    "skill:2287:6": 1,
-    "skill:2288:1": 1,
-    "skill:2288:2": 1,
-    "skill:2288:3": 1,
-    "skill:2288:4": 1,
-    "skill:2288:5": 1,
-    "skill:2288:6": 1,
-    "skill:2289:1": 1,
-    "skill:2289:2": 1,
-    "skill:2289:3": 1,
-    "skill:2289:4": 1,
-    "skill:2289:5": 1,
-    "skill:2289:6": 1,
     "skill:2291:1": 1,
     "skill:2292:1": 1,
     "skill:2293:1": 1,
@@ -20829,16 +20529,6 @@
     "skill:2577:1": 1,
     "skill:2586:1": 1,
     "skill:2586:2": 3,
-    "skill:26027:2": 1,
-    "skill:26027:3": 1,
-    "skill:26027:4": 1,
-    "skill:26027:5": 1,
-    "skill:26027:6": 1,
-    "skill:26028:2": 1,
-    "skill:26028:3": 1,
-    "skill:26028:4": 1,
-    "skill:26028:5": 1,
-    "skill:26028:6": 1,
     "skill:2606:1": 2,
     "skill:2616:1": 1,
     "skill:2617:1": 1,
@@ -20867,41 +20557,13 @@
     "skill:2794:1": 1,
     "skill:2794:2": 1,
     "skill:2802:1": 1,
-    "skill:2860:1": 1,
-    "skill:2860:2": 1,
-    "skill:2860:3": 1,
-    "skill:2860:4": 1,
-    "skill:2860:5": 1,
-    "skill:2860:6": 1,
-    "skill:2861:1": 1,
-    "skill:2861:2": 1,
-    "skill:2861:3": 1,
-    "skill:2861:4": 1,
-    "skill:2861:5": 1,
-    "skill:2861:6": 1,
-    "skill:2862:1": 1,
-    "skill:2862:2": 1,
-    "skill:2862:3": 1,
-    "skill:2862:4": 1,
-    "skill:2862:5": 1,
-    "skill:2862:6": 1,
     "skill:2876:1": 3,
     "skill:2883:1": 1,
     "skill:2884:1": 1,
     "skill:2891:6": 3,
     "skill:2894:1": 1,
     "skill:2905:1": 1,
-    "skill:2907:5": 1,
-    "skill:2908:5": 1,
-    "skill:2909:5": 1,
     "skill:2994:1": 2,
-    "skill:3013:1": 79,
-    "skill:3013:3": 163,
-    "skill:3013:4": 15,
-    "skill:3013:5": 28,
-    "skill:3014:1": 10,
-    "skill:3014:2": 43,
-    "skill:3014:3": 21,
     "skill:3018:2": 2,
     "skill:3018:5": 4,
     "skill:3019:1": 1,
@@ -20928,71 +20590,11 @@
     "skill:3034:4": 5,
     "skill:3034:5": 2,
     "skill:3034:6": 6,
-    "skill:3042:10": 8,
-    "skill:3042:11": 9,
-    "skill:3042:12": 3,
-    "skill:3042:13": 3,
-    "skill:3042:2": 2,
-    "skill:3042:7": 2,
-    "skill:3042:8": 4,
-    "skill:3042:9": 2,
-    "skill:3044:10": 8,
-    "skill:3044:11": 12,
-    "skill:3044:12": 3,
-    "skill:3044:13": 3,
-    "skill:3044:3": 2,
-    "skill:3044:7": 2,
-    "skill:3044:8": 7,
-    "skill:3044:9": 2,
-    "skill:3045:10": 8,
-    "skill:3045:11": 9,
-    "skill:3045:13": 3,
-    "skill:3045:14": 10,
-    "skill:3045:17": 13,
-    "skill:3045:4": 2,
-    "skill:3045:7": 2,
-    "skill:3045:8": 5,
-    "skill:3045:9": 2,
-    "skill:3046:10": 8,
-    "skill:3046:11": 12,
-    "skill:3046:12": 3,
-    "skill:3046:13": 3,
-    "skill:3046:2": 2,
-    "skill:3046:20": 4,
-    "skill:3046:6": 2,
-    "skill:3046:8": 5,
-    "skill:3046:9": 2,
-    "skill:3047:1": 20,
-    "skill:3047:2": 48,
-    "skill:3047:3": 13,
-    "skill:3048:1": 7,
-    "skill:3048:2": 24,
-    "skill:3048:3": 5,
-    "skill:3050:1": 8,
-    "skill:3050:2": 45,
-    "skill:3051:1": 2,
-    "skill:3051:2": 8,
     "skill:3056:2": 6,
     "skill:3056:3": 4,
-    "skill:3057:1": 4,
-    "skill:3057:2": 4,
-    "skill:3057:3": 4,
-    "skill:3057:4": 12,
-    "skill:3058:1": 2,
     "skill:3063:1": 6,
-    "skill:3064:1": 2,
-    "skill:3065:1": 2,
-    "skill:3066:2": 6,
-    "skill:3066:4": 8,
-    "skill:3067:1": 4,
-    "skill:3067:2": 4,
-    "skill:3068:2": 12,
-    "skill:3068:3": 32,
     "skill:3069:1": 10,
     "skill:3071:2": 4,
-    "skill:3072:1": 2,
-    "skill:3073:1": 2,
-    "skill:3073:2": 6,
     "skill:3260:1": 1,
     "skill:3262:1": 1,
     "skill:3267:1": 256,
@@ -21036,7 +20638,6 @@
     "skill:3404:1": 7,
     "skill:3407:1": 1,
     "skill:3410:1": 1,
-    "skill:3411:1": 20,
     "skill:3412:1": 2,
     "skill:3413:1": 2,
     "skill:3414:1": 1,
@@ -21070,53 +20671,15 @@
     "skill:3535:1": 4,
     "skill:3538:1": 1,
     "skill:3551:1": 5,
-    "skill:3552:1": 598,
-    "skill:3552:2": 24,
-    "skill:3552:3": 200,
-    "skill:3552:4": 20,
     "skill:3556:1": 2,
     "skill:3557:1": 2,
     "skill:3558:1": 2,
     "skill:3559:1": 6,
     "skill:3559:2": 2,
     "skill:3560:1": 1,
-    "skill:3564:1": 21,
-    "skill:3564:2": 8,
-    "skill:3564:3": 44,
-    "skill:3565:1": 5,
-    "skill:3565:2": 8,
-    "skill:3565:3": 4,
-    "skill:3565:4": 2,
-    "skill:3565:5": 2,
-    "skill:3566:1": 19,
-    "skill:3566:2": 36,
-    "skill:3566:3": 15,
-    "skill:3566:4": 6,
-    "skill:3566:5": 6,
-    "skill:3567:1": 10,
-    "skill:3567:2": 24,
-    "skill:3567:3": 4,
-    "skill:3567:4": 2,
-    "skill:3567:5": 2,
     "skill:3568:1": 12,
     "skill:3568:2": 28,
-    "skill:3569:1": 9,
-    "skill:3569:2": 11,
-    "skill:3569:3": 4,
-    "skill:3569:4": 4,
     "skill:3570:1": 7,
-    "skill:3572:1": 5,
-    "skill:3572:2": 4,
-    "skill:3572:3": 4,
-    "skill:3573:2": 16,
-    "skill:3575:1": 4,
-    "skill:3575:2": 4,
-    "skill:3575:3": 2,
-    "skill:3575:4": 2,
-    "skill:3576:1": 9,
-    "skill:3576:2": 8,
-    "skill:3576:3": 4,
-    "skill:3576:4": 4,
     "skill:3578:1": 1,
     "skill:3580:1": 1,
     "skill:3582:1": 1,
@@ -21128,17 +20691,6 @@
     "skill:3593:1": 1,
     "skill:3595:1": 1,
     "skill:3597:1": 1,
-    "skill:3600:1": 2,
-    "skill:3600:10": 8,
-    "skill:3600:3": 1,
-    "skill:3600:5": 2,
-    "skill:3600:6": 2,
-    "skill:3601:10": 8,
-    "skill:3601:7": 2,
-    "skill:3601:9": 4,
-    "skill:3602:10": 8,
-    "skill:3602:8": 2,
-    "skill:3602:9": 4,
     "skill:3603:1": 1,
     "skill:3604:1": 1,
     "skill:3608:1": 1,
@@ -21336,9 +20888,6 @@
     "skill:8286:1": 1,
     "skill:8287:1": 1,
     "skill:8288:1": 1,
-    "skill:8289:1": 8,
-    "skill:8289:2": 4,
-    "skill:8289:3": 4,
     "skill:8290:10": 2,
     "skill:8290:11": 1,
     "skill:8290:12": 1,
@@ -21351,9 +20900,6 @@
     "skill:8290:9": 2,
     "skill:8293:1": 1,
     "skill:8294:1": 1,
-    "skill:8295:1": 4,
-    "skill:8296:1": 8,
-    "skill:8298:1": 8,
     "skill:8301:1": 1,
     "skill:8302:1": 1,
     "skill:8303:1": 1,
@@ -21366,14 +20912,6 @@
     "skill:8310:1": 1,
     "skill:8311:1": 1,
     "skill:8314:1": 2,
-    "skill:8315:1": 15,
-    "skill:8316:1": 15,
-    "skill:8317:1": 15,
-    "skill:8318:1": 15,
-    "skill:8319:1": 15,
-    "skill:8320:1": 15,
-    "skill:8321:1": 15,
-    "skill:8322:1": 15,
     "skill:8324:1": 1,
     "skill:8327:1": 1,
     "skill:8328:1": 1,
@@ -21381,26 +20919,10 @@
     "skill:8332:1": 1,
     "skill:8333:1": 1,
     "skill:8334:1": 1,
-    "skill:8342:1": 1,
-    "skill:8342:2": 1,
-    "skill:8342:3": 1,
-    "skill:8342:4": 1,
-    "skill:8343:1": 1,
-    "skill:8343:2": 1,
-    "skill:8343:3": 1,
-    "skill:8343:4": 1,
     "skill:8344:1": 1,
     "skill:8344:2": 1,
     "skill:8344:3": 1,
     "skill:8344:4": 1,
-    "skill:8345:1": 1,
-    "skill:8345:2": 1,
-    "skill:8345:3": 1,
-    "skill:8345:4": 1,
-    "skill:8346:1": 1,
-    "skill:8346:2": 1,
-    "skill:8346:3": 1,
-    "skill:8346:4": 1,
     "skill:8347:1": 1,
     "skill:8347:2": 1,
     "skill:8347:3": 1,
@@ -21541,13 +21063,13 @@
   },
   "recipes": {
     "imported": 1464,
-    "admitted": 170,
-    "deferred": 1294
+    "admitted": 925,
+    "deferred": 539
   },
   "required_condition_closure": {
     "condition": "player_level_range",
     "architect": "D34",
-    "runtime_support": "pending_zone_publication",
+    "runtime_support": "zone_published:4f9ac8c,c5229d4,f6d882b",
     "skill_ids": [
       2287,
       2288,
@@ -21595,7 +21117,7 @@
       14699
     ],
     "imported": 36,
-    "admitted": 0,
-    "deferred": 36
+    "admitted": 36,
+    "deferred": 0
   }
 }

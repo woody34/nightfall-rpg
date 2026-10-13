@@ -747,7 +747,7 @@ def generate(dp=DEFAULT_DP,game=DEFAULT_GAME):
     elixir_ids=sorted(sid for sid,row in items.items() if any(ref['id'] in elixir_skills for ref in row['skills']))
     admitted_ids={row['template_id'] for row in caps['items'] if row['admitted']}
     counts['required_condition_closure']={'condition':'player_level_range','architect':'D34',
-        'runtime_support':'pending_zone_publication','skill_ids':sorted(elixir_skills),'template_ids':elixir_ids,
+        'runtime_support':'zone_published:4f9ac8c,c5229d4,f6d882b','skill_ids':sorted(elixir_skills),'template_ids':elixir_ids,
         'imported':len(elixir_ids),'admitted':sum(sid in admitted_ids for sid in elixir_ids),
         'deferred':sum(sid not in admitted_ids for sid in elixir_ids)}
     inventory={'schema':1,'counts':dict(Counter(r['kind'] for r in all_items.values())),

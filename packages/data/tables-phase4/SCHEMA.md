@@ -132,9 +132,11 @@ V6 conditions additionally encode `player_level_range {ranges:{minimum:int,
 maximum:int}[]}` with one inclusive range per skill rank, expanded from literal
 or table values. Rank is one-based; the evaluator rejects missing/out-of-range
 ranks, then tests `minimum <= player.level <= maximum`
-(`ConditionPlayerLevelRange.java:41-43`). D34 keeps `cond:player:levelRange`
-blocked until Z publishes executable support; representation alone does not
-promote skills/items. Existing fields and V5 condition representations retain
+(`ConditionPlayerLevelRange.java:41-43`). D34 promotion: Z published the
+executable rank/level evaluator (4f9ac8c/c5229d4/f6d882b), so V6 no longer emits
+`cond:player:levelRange` for a `player` leaf whose only attribute is `levelRange`
+with a `#table` or `min;max` value; V5/historical generation still blocks it.
+`required_condition_closure.runtime_support` is `zone_published:<SHAs>`. Existing fields and V5 condition representations retain
 their meaning. D27 per-file hash fields and ordering are unchanged.
 
 Diagnostic `capability_counts.json.required_condition_closure` records
@@ -180,3 +182,8 @@ weapon's `set` functions replace (`CharStat.java:145,399,410`). Transformations
 are out of scope. Phase 3 class data/hashes are untouched; the table participates
 in `rules_manifest.files` and `data_sha256`, and every cited source is byte-hashed
 in `source_inventory.json`.
+
+D34/D47/D50 promotions (V6 only; historical allow-lists unchanged): PHASE4_STATS
+adds `pvpPhysDmg`, `pvpPhysSkillsDmg`, `pvpMagicalDmg` (Z 4f9ac8c, bfc00a7) and
+`enlargeAbnormalSlot` (Z 402e554). Exact admitted deltas and identities are
+recorded in `packages/data/SOURCES.md` (Phase 4 promotions).
