@@ -1,10 +1,12 @@
-> **BINDING RECORD — Phase 5 zone engine and economy design (Claude author per AD5 E23).** This is the implementation contract for new Snapshot 11 / Record 9 / Binary V7 epochs. It incorporates owner decisions P1–P4 and the approved defaults, architect decisions A1–A20, dispositions B1–B26, and errata E1–E55 (incl. the §10 answers E24–E29 to this design's former Q1–Q6, E30 binary64 fidelity, E31 single-writer containers, the §11 review-4 dispositions E32–E36, the §12 review-5 dispositions E37–E40, the §13 review-6 dispositions E41–E42, and the §14–§15 data-review dispositions E47–E55). It replaces the two rejected agy drafts (e602c25 and 43c02a6) in full. Revision 4 applied design-review-3 to dc2a625, revision 5 applied design-review-4 to d429ab7, and revision 6 applied design-review-5 to 587a2f4, and revision 7 applies design-review-6 (accept with bounded fixes) to 53597de; per B21 revision 7 is **FROZEN** on commit. Every finding of design-review-1 (F1–F36), design-review-2 (R1–R44), design-review-3 (P1-1…P1-5, P2-1…P2-14, nits 1–16), design-review-4 (P1-A, P2-1…P2-5, nits 1–11), design-review-5 (P1-1, P2-1…P2-5, nits 1–15) and design-review-6 (P2-1, P2-2, nits 1–11) is answered in §16. It does not claim that any implementation or acceptance gate passes.
+> **BINDING RECORD — Phase 5 zone engine and economy design (Claude author per AD5 E23).** This is the implementation contract for new Snapshot 11 / Record 9 / Binary V7 epochs. It incorporates owner decisions P1–P4 and the approved defaults, architect decisions A1–A20, dispositions B1–B26, and errata E1–E56 (incl. the §10 answers E24–E29 to this design's former Q1–Q6, E30 binary64 fidelity, E31 single-writer containers, the §11 review-4 dispositions E32–E36, the §12 review-5 dispositions E37–E40, the §13 review-6 dispositions E41–E42, the §14–§15 data-review dispositions E47–E55, and E56). It replaces the two rejected agy drafts (e602c25 and 43c02a6) in full. Revision 4 applied design-review-3 to dc2a625, revision 5 applied design-review-4 to d429ab7, and revision 6 applied design-review-5 to 587a2f4, and revision 7 applies design-review-6 (accept with bounded fixes) to 53597de; per B21 revision 7 is **FROZEN** on commit. Every finding of design-review-1 (F1–F36), design-review-2 (R1–R44), design-review-3 (P1-1…P1-5, P2-1…P2-14, nits 1–16), design-review-4 (P1-A, P2-1…P2-5, nits 1–11), design-review-5 (P1-1, P2-1…P2-5, nits 1–15) and design-review-6 (P2-1, P2-2, nits 1–11) is answered in §16. It does not claim that any implementation or acceptance gate passes.
+>
+> **Revision 10 (E56).** Pinned data marks adena (57) as **not freightable**, so a freight request containing adena is refused. §10.2, family F and the `5-freight` scenario note are corrected. The data provenance moves to `codex/phase5-data` @ 3410877. This is text only; the design stays FROZEN.
 >
 > **Revision 9.** It corrects rev 8's freight sentence. Freight refuses only non-freightable items, as pinned. The `isDepositable` rule belongs to the warehouse deposit path (§10.1), per E53 as corrected by the architect. This is text only; the design stays FROZEN.
 >
 > **Revision 8 (B26).** This revision is the implementation-time design edit (B22) pulled forward. It changes text only as the architect listed: §3.9 (E53), §7 adena-ingredient merge, §10.6/§14.1 manor-fee bound, the normative `roll_below`, the herb Armor note, the E51/E52/E55 data facts, the E49 deviation in §16, design-review-7 nits A–D and the domain-vs-wire `ItemLocation` note. There is no other semantic change; the design stays FROZEN.
 >
-> **Data provenance.** The generated tables come from `codex/phase5-data` @ **ac021b3** (accepted, B26): `gen_economy --check` (15 files), `economy_oracle --check` (22 families).
+> **Data provenance.** The generated tables come from `codex/phase5-data` @ **3410877** (Epic 1 final, E56; previously ac021b3, B26): `gen_economy --check` (15 files), `economy_oracle --check` (22 families).
 >
 > **Tag source of truth (E20).** The wire, codec, reject-reason and RPC allocations in §12–§13 are normative. The plan (`docs/plans/phase-5-economy-and-crafting.md`, `codex/phase5-plan`) syncs to them.
 >
@@ -1259,7 +1261,7 @@ The pre-image and decision fields are encoded with deterministic canonical JSON 
 9. `adena − deposited adena ≥ fee`, else `INSUFFICIENT_ADENA` (`:147`);
 10. no active trade.
 
-Pinned charges the fee before steps 6–10 and then silently skips non-depositable entries without a refund (`:147-167`). Nightfall rule **P17**: every entry is validated with the pinned warehouse depositability rule `isDepositable(isPrivate)` (`L2ItemInstance.java:701-709`). For **any** warehouse it refuses an equipped item or a template that is not depositable. For a **non-private** warehouse (clan/castle, Phase 7) it additionally requires `isTradeable()` (no augment) and `!isShadowItem()`. For the private warehouse it is `isDepositable(true)`, so **augmented and shadow items are allowed** (E17, E53 as corrected; rev 9) and `isAvailable(player, true, true)` (`:751-762`) **before** anything is charged. Any failure refuses the request with `ITEM_NOT_DEPOSITABLE`. There is no weight check (`ItemContainer.java:603-605`).
+Pinned charges the fee before steps 6–10 and then silently skips non-depositable entries without a refund (`:147-167`). Nightfall rule **P17**: every entry is validated with the pinned warehouse depositability rule `isDepositable(isPrivate)` (`L2ItemInstance.java:701-709`). For **any** warehouse it refuses an equipped item or a template that is not depositable. For a **non-private** warehouse (clan/castle, Phase 7) it additionally requires `isTradeable()` (no augment) and `!isShadowItem()`. This shadow clause is kept as pinned, but it is **vacuous today**: no shadow template is both depositable and tradeable (E56). For the private warehouse it is `isDepositable(true)`, so **augmented and shadow items are allowed** (E17, E53 as corrected; rev 9) and `isAvailable(player, true, true)` (`:751-762`) **before** anything is charged. Any failure refuses the request with `ITEM_NOT_DEPOSITABLE`. There is no weight check (`ItemContainer.java:603-605`).
 
 Commit:
 - the fee is a consume, with cause `receipt:warehouse_deposit:<key>`;
@@ -1286,7 +1288,7 @@ There is no fee. Moves are transfer pairs.
 5. karma: vacuous (`:104`);
 6. **fee** = `entries.len() × 1,000` (`:109`);
 7. per entry: `checkItemManipulation`; `isFreightable` (template flag, default false, `GJ/model/items/L2Item.java:182`; `L2ItemInstance.java:1665-1667`). Any non-freightable entry aborts the whole request (`:114-125`), with `ITEM_NOT_FREIGHTABLE`. Augmented freightable items are allowed (E17). Freight refuses **only** non-freightable items, as pinned: `RequestPackageSend.java:121` checks `isFreightable()` alone and never calls `isDepositable`. Shadow items whose template is freightable are therefore accepted (E53 as corrected; rev 9);
-8. slots: the adena entry adds **no** slot; a non-stackable entry adds its count; a stackable entry adds 1 unless the target freight holds the template (`:126-134`);
+8. slots: a non-stackable entry adds its count; a stackable entry adds 1 unless the target freight holds the template (`:126-134`). The pinned slot code also has an adena branch (`:126-127`, adena adds no slot, only `currentAdena` is reduced). That branch is **unreachable**: adena (57) is not freightable in pinned data, so step 7 already refuses any request that contains adena (E56). Only non-adena freightable templates reach this step;
 9. capacity ≤ **200**: the target's `FREIGHT_LIM` is ignored because `_owner = null` (`:113,137`; `PcFreight.java:34-38,66-68`) → `FREIGHT_FULL`;
 10. adena ≥ fee (`:144`).
 
@@ -2213,7 +2215,7 @@ Every family reads the pinned XML, Java and properties directly, or the E1 table
 | **C craft** | `chance_bound` mapping for successRate 10/25/60/70/95/100; masterwork 1/4/20 and the non-rare draw (rarity 0); order MP → fee → materials → roll; fee kept on failure |
 | **S manor** | Sow basic 90/20 with every penalty branch and **no floor** (negative basic → never succeeds); harvest floor 1; harvest count with strong-type multipliers 4303–4310 and the level bonus; crop sale reward (skip at rewardRef 0 and count < 1), weight/slots from the crop count, and the fee `⌊fl(fl(P) × fl(0.05))⌋` vs ⌊P/20⌋, equal for P < 6,755,399,441,055,759 (all reachable P), with a vector at and above the bound (castle 1 fixtures only, E28) |
 | **A auction** | Bid equal to highest accepted but not leading; increment-only payment; cancel matrix (leader, finished, 14-day, cancelled); extension 5 → 3 → stop; random item index |
-| **F fees** | Warehouse 30 × entries (adena entry counted); freight 1,000 × entries (adena entry adds no slot); mail 100 + 1,000 × n |
+| **F fees** | Warehouse 30 × entries (adena entry counted); freight 1,000 × entries, where every entry is a non-adena freightable template (adena is not freightable, so a request with adena is refused; E56); mail 100 + 1,000 × n |
 | **PW pow/round (E32)** | The emulated `pow56(k)`, k = 1..79, and `pow13(d)`, d = −120..120, equal all 320 raw-bits entries of the frozen OpenJDK 21 table (`evidence/jvm-pow-tables.txt`, sha256 `4386eed8…`, hashed into Phase5Rules); k = 0 and k = 80 fail closed; negative controls: per-step multiplication with base `fl(5/6)` differs at 44/79 k, and with exact base 5/6 at 78/79; `Math.round` half cases for multisell tax |
 | **LT L table (E36)** | Every row of the §6.2 L table recomputed from the §3.3 Java expressions = frozen bits |
 | **FL flood** | For each FloodKind of §2.4, incl. ServerBypass 5 on ItemAuctionCancelBid: refuse at `tick < next`, accept at `tick = next`, `next := tick + interval`; gate at its pinned step (an earlier failing check leaves `next` unchanged; a later failing check keeps the updated `next`, E35); Manufacture 3 on CraftItem and PrivateManufactureOrder; MultiSell 1; Transaction is shared across its intents (one `next` per kind) |
@@ -2338,7 +2340,7 @@ The plan owns the stories. The design requires at least these scenarios. Each sc
 - `5-store-sell-package`
 - `5-store-buy`
 - `5-warehouse`
-- `5-freight`
+- `5-freight` (E56: its fixture uses freightable templates. Only 2 templates referenced by Phase 5 tables are freightable, 20678 Gatekeeper Hat and 20725 Red Flame of Valakas, out of 1,041 datapack-wide, and the pack may add other freightable templates. A refusal vector covers adena in a freight request.)
 - `5-mail-cod`
 - `5-mail-reject-cancel-expiry`
 - `5-auction-bid-cancel-award`
@@ -2524,5 +2526,15 @@ Each design-review-1 (F) and design-review-2 (R) finding maps to the section tha
 | E55 recipe 14854 not executable; 5008 shared by 138/436 | §1.10 item 8 |
 | Domain `ItemLocation` (incl. `Ground`) vs six wire values | §11.2 |
 | Design-review-7 nit A (comma), B (busy caveat on the short bound forms), C (owner_id points to the 39-digit definition), D (Finish row "award item row") | header; §10.4, §14.2 X12, §14.4; §10.0 |
-| Data provenance `codex/phase5-data` ac021b3 | header |
+| Data provenance `codex/phase5-data` ac021b3 (superseded by 3410877 in rev 10) | header |
+
+**Revision 10 (E56) → edits.**
+
+| Item | Where |
+|---|---|
+| Adena (57) is not freightable; a freight request with adena is refused; the pinned adena slot branch is unreachable | §10.2 step 8 |
+| Family F freight vector uses non-adena freightable entries plus an adena refusal | §14.1 F |
+| `5-freight` fixture uses freightable templates (20678, 20725 or other freightable ones; 2 referenced / 1,041 datapack-wide) | §14.5 |
+| Clan-warehouse shadow clause kept as pinned, vacuous today | §10.1 P17 |
+| Data provenance `codex/phase5-data` 3410877 | header |
 
