@@ -131,7 +131,8 @@ async fn shared_uuid_is_legal_across_accounts_and_operations_and_owner_scope_is_
     let error=sqlx::query("UPDATE pending_item_requests SET kind='grant',operation='grant_item' WHERE character_id=$1").bind(a.id.as_uuid()).execute(&pool).await.unwrap_err();
     assert_eq!(code(&error), "23514");
     let db = connection_from_pool(&pool);
-    assert!(Migrator::down(&db, Some(1)).await.is_err());
+    // 000013 (D76 row ordinals) rolls back first; 000012 then refuses.
+    assert!(Migrator::down(&db, Some(2)).await.is_err());
     assert_eq!(repo.pending_item_requests(a.id).await.unwrap()[0].request_id, key);
     let version: i64 =
         sqlx::query_scalar("SELECT count(*) FROM seaql_migrations WHERE version LIKE '%000012%'")

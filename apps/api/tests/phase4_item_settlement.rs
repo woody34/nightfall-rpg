@@ -2320,7 +2320,8 @@ async fn missing_birth_contract<R>(
         &repo.load_for_admission(character.id).await.unwrap_err(),
         "item_creation_ledger_missing",
     );
-    let (next, next_work, next_facts) = interleaved(cp, work);
+    // A single Grant row: refused on provenance before any D76 multi-row question arises.
+    let (next, next_work, next_facts) = grant_then_consume(cp, work, 74, 3, 0);
     let result = tokio::time::timeout(
         std::time::Duration::from_secs(10),
         repo.checkpoint_items(&next, &next_facts, &next_work, None),

@@ -161,9 +161,12 @@ fn invalid_bounds_fabricated_rows_identity_and_batch_ordinal_are_rejected() {
     let mut bad = base.clone();
     bad.zone_id = ZoneId(u32::MAX);
     assert!(bad.validate().is_err());
-    let mut bad = base.clone();
-    bad.operation_ordinal = 1;
-    assert!(bad.validate().is_err());
+    // D76: a Consume aggregate holds its row position (the highest of its instance's rows),
+    // not ordinal 0; the position itself is checked per tick by settlement and the
+    // item_ledger_row_ordinal trigger, not by a single entry.
+    let mut positioned = base.clone();
+    positioned.operation_ordinal = 1;
+    positioned.validate().unwrap();
     let mut bad = base.clone();
     bad.delta.before = None;
     bad.delta.after = None;
