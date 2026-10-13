@@ -1,5 +1,5 @@
 {
-  "data_sha256": "8e27de155b2682db3bec34d485316f425678634ddd74b000a8849548a91110c0",
+  "data_sha256": "f0e8dc63a0aa8d013b5c4ecf2c0698d64438f914a2a9bc099b48651af9923b5e",
   "inputs_are_test_policy": true,
   "packs": {
     "phase4-armor": {
@@ -10795,13 +10795,13 @@
             "revision": 0,
             "slot": null,
             "source": {
-              "file": "src/main/resources/data/stats/items/05700-05799.xml",
-              "lines": "1367",
+              "file": "src/main/resources/data/stats/items/01800-01899.xml",
+              "lines": "407",
               "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
               "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-              "symbol": "item 5789"
+              "symbol": "item 1835"
             },
-            "template_id": 5789
+            "template_id": 1835
           },
           {
             "augment_id": null,
@@ -10952,7 +10952,7 @@
               "location": "inventory",
               "revision": 0,
               "slot": null,
-              "template_id": 5789
+              "template_id": 1835
             },
             "before": null,
             "instance_id": 7,
@@ -13897,7 +13897,7 @@
     "safe_scroll": 22227,
     "scroll": 951,
     "shield": 18,
-    "soulshot": 5789,
+    "soulshot": 1835,
     "spiritshot": 2509,
     "sword": 1,
     "twohand": 981

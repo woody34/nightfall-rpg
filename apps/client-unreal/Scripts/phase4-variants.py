@@ -120,7 +120,7 @@ def generate(directory=DIRECTORY):
     for name,canonical in [('manual-soulshot','4-soulshot.nfs'),('blessed-escape','4-escape-scroll.nfs')]:
         text=(directory/canonical).read_text();pack='phase4-shots' if name=='manual-soulshot' else 'phase4-scrolls'
         text=text.replace('# fixture: '+pack,'# fixture: '+pack+'\n# variant: 4-'+name)
-        if name=='manual-soulshot':text=text.replace('nf.AutoShot 5789 on','nf.UseItem 5789').replace('nf.WaitFor autoshot_on 5789 3','nf.WaitFor inventory_has 5789 == 99 3')
+        if name=='manual-soulshot':text=text.replace('nf.AutoShot 1835 on','nf.UseItem 1835').replace('nf.WaitFor autoshot_on 1835 3','nf.WaitFor inventory_has 1835 == 99 3')
         else:text=text.replace('nf.UseItem 736','nf.UseItem 1538').replace('inventory_has 736','inventory_has 1538')
         path=variants/f'4-{name}.nfs';path.write_text(text)
         rows.append(dict(id='4-'+name,fixture=pack,canonical=canonical,scenarios=[str(path.relative_to(directory))],assertions=[l for l in text.splitlines() if l.startswith(('nf.Expect ','# item-gate:'))],execution='pending E2/E3/E5'))

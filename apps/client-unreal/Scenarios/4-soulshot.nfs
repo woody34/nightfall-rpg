@@ -17,15 +17,15 @@ nf.WaitFor in_world 15
 nf.WaitFor item_baseline 3
 nf.ItemCatalog
 nf.WaitFor item_catalog_ready 15
-nf.AutoShot 5789 on
-nf.WaitFor autoshot_on 5789 3
+nf.AutoShot 1835 on
+nf.WaitFor autoshot_on 1835 3
 nf.Target template:skill_target
 nf.WaitFor target != none 3
 nf.Attack
 nf.WaitFor damage_numbers >= 1 30
 nf.StopAttack
-nf.WaitFor inventory_has 5789 < 100 3
-nf.AutoShot 5789 off
+nf.WaitFor inventory_has 1835 < 100 3
+nf.AutoShot 1835 off
 nf.WaitFor item_operation == toggle_auto_shot 3
 # Total budget: sum of declared conservative waits +30s exit grace.
 nf.Within 120
