@@ -180,8 +180,12 @@ class Evidence(unittest.TestCase):
         consume=self.transition_rows('consume');consume[3]['data']['causes'][0]['cause']='shot_discharge:transition:1'
         with self.assertRaises(ValueError):gate.validate(consume,self.recording,HASH)
         # A cast discharge names the skill; it is not tied to a resolution id (cast:<id>).
-        cast=copy.deepcopy(rows);cast[3]['data']['causes']=[dict(cause='cast_discharge:1011',count_delta=0)]
+        cast=copy.deepcopy(rows);cast[3]['data'].update(causes=[dict(cause='cast_discharge:1011',count_delta=0)],resolution_id='cast:7')
         gate.validate(cast,self.recording,HASH)
+        # D96: its resolution_id carries the cast: prefix.
+        for resolution in ('banana','transition:1','cast:','attack:7'):
+            bad=copy.deepcopy(cast);bad[3]['data']['resolution_id']=resolution
+            with self.assertRaisesRegex(ValueError,'D96',msg=resolution):gate.validate(bad,self.recording,HASH)
         for name,mutate in mutations.items():
             with self.subTest(mutation=name):
                 bad=copy.deepcopy(rows);mutate(bad[3]['data'])

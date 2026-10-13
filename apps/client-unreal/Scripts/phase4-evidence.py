@@ -1039,6 +1039,9 @@ def validate(rows,recording,rules_hash):
                 # D93: an automatic attack discharge row resolves under its first cause's resolution.
                 first=data['causes'][0]['cause']
                 if first.startswith('shot_discharge:'):same(data['resolution_id'],first.split(':',1)[1])
+                # D96: a cast discharge resolves under its cast (`cast:<cast_id>`); prefix only.
+                if first.startswith('cast_discharge:') and not re.fullmatch(r'cast:\S+',data['resolution_id']):
+                    raise ValueError('cast-discharge use row needs a cast: resolution_id (D96)')
             instance=integer(data['instance'],1)
             before,after=data['before'],data['after']
             if before==after or before is None and after is None:raise ValueError('ledger must contain actual change (D28)')

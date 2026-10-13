@@ -460,5 +460,5 @@ oracle equality on the producer's actual inputs.
   (`auto_shot`, `arrow`, `item_cast`) refuse on use rows and discharge causes
   refuse on Consume. An automatic attack discharge row's `resolution_id`
   equals its first cause's resolution id. A `cast_discharge` cause names a
-  skill, not a resolution, so no resolution equality is derived from it
-  (harness-progress Q-F8).
+  skill, not a resolution; D96: such a row's `resolution_id` is
+  `cast:<cast_id>` and the consumer checks the `cast:` prefix only.
