@@ -9898,6 +9898,31 @@ mod tests {
     }
 
     #[test]
+    fn v6_consumable_evidence_recording_exports_consumable_use() {
+        use crate::domain::zone::ItemCommandKind as K;
+        // Lesser Healing Potion 1060 (admitted under D97) used by a wounded owner.
+        let (mut zone, owner, _, ids) = use_fixture(&[1060]);
+        set_resources(&mut zone, owner, 10, 0);
+        let mut run = EvidenceRun::start(zone);
+        let intent = item_intent(
+            &run.zone,
+            owner.entity,
+            1501,
+            K::Use {
+                instance: ids[0],
+                target: None,
+            },
+        );
+        let applied = run.tick(owner.entity, vec![ZoneCommand::Item(Box::new(intent))]);
+        assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+        for _ in 0..30 {
+            run.tick(owner.entity, Vec::new());
+        }
+        assert!(run.formulas().contains("consumable_use"), "{:?}", run.formulas());
+        run.write("NIGHTFALL_TEST_CONSUMABLE_RECORDING");
+    }
+
+    #[test]
     fn v6_fractional_hp_cold_replay_regen_and_last_fraction_death() {
         use crate::domain::zone::item_combat::half_hp;
         let (mut base, source, npc) = equipment_fixture();

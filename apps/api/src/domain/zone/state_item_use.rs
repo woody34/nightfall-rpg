@@ -283,6 +283,7 @@ impl ZoneState {
                 change.before.as_ref().ok_or(RejectReason::InvalidLoad)?,
             )?;
         }
+        let consumable = self.consumable_use_open_v6(id, tick, &plan);
         let rules = Arc::clone(
             &self
                 .phase3
@@ -417,6 +418,9 @@ impl ZoneState {
             )?;
         }
         self.rebuild_v5(id).map_err(|_| RejectReason::InvalidLoad)?;
+        if let Some(inputs) = consumable {
+            self.consumable_use_stage_v6(id, tick, &format!("use:{}", reference.key), inputs);
+        }
         let phase = &self
             .phase3
             .as_ref()
@@ -755,5 +759,178 @@ impl ZoneState {
             events.push(ZoneEvent::ItemCheckpoint(Box::new(projection)));
         }
         Ok(())
+    }
+}
+
+/// Pre-payment `consumable_use` record: inputs, first cast id, item skill ids, debits, lanes.
+struct ConsumableOpen {
+    inputs: serde_json::Value,
+    first_cast: u64,
+    skill_ids: Vec<u32>,
+    consumed: serde_json::Map<String, serde_json::Value>,
+    lanes: Vec<&'static str>,
+}
+
+/// D46/D92 `consumable_use` evidence: opened before payment with the oracle's definition
+/// record and the reuse/inventory state, staged after the casts start, emitted when the last
+/// started cast reaches its terminal event. Evidence-only; skipped for conditioned skills.
+impl ZoneState {
+    fn reuse_key_number(key: ItemReuseKey) -> u32 {
+        match key {
+            ItemReuseKey::SharedGroup(group) => group,
+            ItemReuseKey::Template(template) => template,
+        }
+    }
+
+    fn consumable_use_open_v6(
+        &self,
+        id: EntityId,
+        tick: Tick,
+        plan: &PreparedItemUse,
+    ) -> Option<ConsumableOpen> {
+        if !self.items_evidence_enabled() || !self.phase4_player_v6(id) {
+            return None;
+        }
+        let rules = &self.phase3.as_ref()?.canonical.rules;
+        let definition = &plan.definition;
+        let mut skills = Vec::new();
+        let mut skill_ids = Vec::new();
+        for (reference, _, simultaneous) in &plan.skills {
+            let skill = rules.skills().get(reference.id)?;
+            if !skill.raw_conditions.is_empty() || !skill.conditions.is_empty() {
+                return None;
+            }
+            let rank = reference.rank;
+            let (consume_id, consume_count) = match skill.item_consume.as_slice() {
+                [] => (0, 0),
+                [cost] => (
+                    *cost.item_id.at(rank, skill.max_level)?,
+                    *cost.count.at(rank, skill.max_level)?,
+                ),
+                _ => return None,
+            };
+            skill_ids.push(reference.id.0);
+            skills.push(serde_json::json!({"id": reference.id.0, "rank": rank,
+                "hit_time_ms": *skill.hit_time_ms.at(rank, skill.max_level)?,
+                "static": skill.is_magic == 2, "simultaneous": simultaneous,
+                "reuse_delay_ms": *skill.reuse_ms.at(rank, skill.max_level)?,
+                "item_consume_id": consume_id, "item_consume_count": consume_count,
+                "conditions": [], "effects": [], "blockers": []}));
+        }
+        let player = self.phase4.as_ref()?.canonical.players.get(&id)?;
+        let mut available = serde_json::Map::new();
+        for item in player.inventory.values() {
+            if item.location == ItemLocation::Inventory {
+                let entry = available
+                    .entry(item.template_id.to_string())
+                    .or_insert(serde_json::json!(0));
+                *entry = serde_json::json!(entry.as_u64()?.checked_add(item.count)?);
+            }
+        }
+        let item_deadlines: serde_json::Map<_, _> = player
+            .item_reuse
+            .iter()
+            .filter(|reuse| reuse.until > tick)
+            .map(|reuse| {
+                (Self::reuse_key_number(reuse.key).to_string(), serde_json::json!(reuse.until.0))
+            })
+            .collect();
+        let side = self.sidecar(id).ok()?;
+        let skill_deadlines: serde_json::Map<_, _> = side
+            .reuse
+            .iter()
+            .filter(|(skill, until)| skill_ids.contains(&skill.0) && **until > tick)
+            .map(|(skill, until)| (skill.0.to_string(), serde_json::json!(until.0)))
+            .collect();
+        let main_casting = matches!(side.cast, crate::domain::zone::CastState::Casting(_));
+        let inputs = serde_json::json!({
+            "definition": {"template_id": definition.template_id, "handler": definition.handler,
+                "default_action": definition.properties.get("default_action").map_or("NONE", String::as_str),
+                "etcitem_type": definition.etcitem_type, "reuse_delay_ms": definition.reuse_delay,
+                "reuse_group": definition.shared_reuse_group.max(0),
+                "immediate": definition.flags.get("immediate_effect") == Some(&true),
+                "ex_immediate": definition.flags.get("ex_immediate_effect") == Some(&true),
+                "skills": skills},
+            "tick": tick.0, "available": available,
+            "item_deadlines": item_deadlines, "skill_deadlines": skill_deadlines,
+            "main_casting": main_casting, "condition_context": null});
+        let first_cast = self.phase3.as_ref()?.canonical.next_cast_id;
+        let mut consumed = serde_json::Map::new();
+        for change in &plan.payments.changes {
+            let before = change.before.as_ref()?;
+            let take = before
+                .count
+                .checked_sub(change.after.as_ref().map_or(0, |i| i.count))?;
+            let entry = consumed
+                .entry(before.template_id.to_string())
+                .or_insert(serde_json::json!(0));
+            *entry = serde_json::json!(entry.as_u64()?.checked_add(take)?);
+        }
+        let lanes = plan
+            .skills
+            .iter()
+            .map(|(_, _, simultaneous)| if *simultaneous { "item" } else { "main" })
+            .collect();
+        Some(ConsumableOpen {
+            inputs,
+            first_cast,
+            skill_ids,
+            consumed,
+            lanes,
+        })
+    }
+
+    fn consumable_use_stage_v6(
+        &mut self,
+        id: EntityId,
+        tick: Tick,
+        resolution: &str,
+        open: ConsumableOpen,
+    ) {
+        let ConsumableOpen {
+            inputs,
+            first_cast,
+            skill_ids,
+            consumed,
+            lanes,
+        } = open;
+        let Some(next_cast) = self.phase3.as_ref().map(|p| p.canonical.next_cast_id) else {
+            return;
+        };
+        let Some(last_cast) = next_cast.checked_sub(1).filter(|last| *last >= first_cast) else {
+            return;
+        };
+        let Some(items) = self.phase4.as_ref() else {
+            return;
+        };
+        let Some(player) = items.canonical.players.get(&id) else {
+            return;
+        };
+        let item_deadlines: serde_json::Map<_, _> = player
+            .item_reuse
+            .iter()
+            .filter(|reuse| reuse.until > tick)
+            .map(|reuse| {
+                (Self::reuse_key_number(reuse.key).to_string(), serde_json::json!(reuse.until.0))
+            })
+            .collect();
+        let Ok(side) = self.sidecar(id) else {
+            return;
+        };
+        let skill_deadlines: serde_json::Map<_, _> = side
+            .reuse
+            .iter()
+            .filter(|(skill, until)| skill_ids.contains(&skill.0) && **until > tick)
+            .map(|(skill, until)| (skill.0.to_string(), serde_json::json!(until.0)))
+            .collect();
+        let actual = serde_json::json!({"accepted": true, "consumed": consumed, "lanes": lanes,
+            "item_deadlines": item_deadlines, "skill_deadlines": skill_deadlines,
+            "main_cast_preserved": lanes.iter().all(|lane| *lane == "item")});
+        if let Some(buffer) = self.evidence.as_mut() {
+            buffer.pending_cast.insert(
+                last_cast,
+                (id, "consumable_use".into(), resolution.to_owned(), inputs, actual),
+            );
+        }
     }
 }
