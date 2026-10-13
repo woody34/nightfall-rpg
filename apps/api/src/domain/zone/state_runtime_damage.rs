@@ -9693,6 +9693,57 @@ mod tests {
         // The worst envelope itself decodes and restores a runnable V6 zone.
         let decoded = decode_snapshot(&encoded).unwrap();
         assert_eq!(decoded, snapshot);
+        ZoneState::from_snapshot_with_items(decoded, Some(Arc::clone(&rules))).unwrap();
+        // Session-8 C10 population: the same worst-case owners in a 1,000-combatant zone
+        // (the remaining combatants are template NPCs spread over the zone), one live tick.
+        let npc_rules = load_rules(&RulesSource::embedded()).unwrap().rules;
+        let template = parse_zone(TEST_ZONE_TOML).unwrap().npc_templates[0].clone();
+        let combatants = live
+            .entities
+            .values()
+            .filter(|e| e.combat.is_some())
+            .count();
+        let spawns: Vec<_> = (0..1000_usize.saturating_sub(combatants))
+            .map(|n| {
+                let n = i32::try_from(n).unwrap();
+                ZoneInput::system(ZoneCommand::SpawnNpc {
+                    name: "Keltir".into(),
+                    pos: Vec2Fixed::from_tiles(20 + (n % 200), 20 + (n / 200) * 40),
+                    speed: template.move_speed,
+                    combat: Some(Box::new(
+                        NpcCombat::from_template(&npc_rules, &template).unwrap(),
+                    )),
+                })
+            })
+            .collect();
+        assert!(live
+            .run_tick(live.draft(spawns))
+            .unwrap()
+            .dispositions
+            .is_empty());
+        let population = live.snapshot();
+        assert_eq!(
+            population
+                .entities
+                .iter()
+                .filter(|e| e.combat.is_some())
+                .count(),
+            1000
+        );
+        let encoded = encode_snapshot(&population).unwrap();
+        let decoded_len = u32::from_le_bytes(encoded[8..12].try_into().unwrap()) as usize;
+        eprintln!(
+            "PHASE4_C10_POPULATION combatants=1000 item_owners={} encoded={} decoded={} budget_encoded={} budget_decoded={}",
+            population.phase4.as_ref().unwrap().players.len(),
+            encoded.len(),
+            decoded_len,
+            MAX_SNAPSHOT_ENCODED,
+            MAX_SNAPSHOT_JSON
+        );
+        assert!(encoded.len() <= MAX_SNAPSHOT_ENCODED);
+        assert!(decoded_len <= MAX_SNAPSHOT_JSON);
+        let decoded = decode_snapshot(&encoded).unwrap();
+        assert_eq!(decoded, population);
         ZoneState::from_snapshot_with_items(decoded, Some(rules)).unwrap();
     }
 
