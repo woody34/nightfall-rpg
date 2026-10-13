@@ -374,6 +374,17 @@ impl ZoneState {
             .checked_mul(333)
             .and_then(|v| v.checked_div(speed))
             .ok_or_else(missing)?;
+        // D46 `bow_reuse` (D17): ordinary-weapon reuse from the rounded speed; the weapon
+        // reuse modifier does not participate (L2Character.java:4353-4357).
+        self.item_formula_v6(
+            id,
+            "bow_reuse",
+            serde_json::json!({"reuse_delay": definition.reuse_delay,
+                "attack_speed": i64::try_from(speed).map_err(invariant)?, "weapon_reuse_modifier": 1}),
+            serde_json::json!(i64::try_from(reuse_ms).map_err(invariant)?),
+            &format!("bow_reuse:{id}:{}", tick.0),
+            Some(serde_json::json!({"weapon_template": definition.template_id, "event": "attack"})),
+        );
         let tick_ms = i128::from(crate::domain::zone::TICK_MS);
         let ceil = |ms: i128| -> Result<u64, TickError> {
             let ticks = ms

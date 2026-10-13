@@ -518,14 +518,13 @@ impl ZoneState {
                 LethalOutcome::Half => "half",
                 LethalOutcome::None => "none",
             };
-            // The frozen schema requires both residues; an undrawn one is reported as the
-            // out-of-branch value 999 and never appears in `draws` (QUESTION in zone-progress).
+            // D81: a residue is null iff its draw was not taken.
             self.item_formula_v6(
                 caster.entity,
                 "lethal",
                 serde_json::json!({"full": r(full), "half": r(half),
-                    "full_residue": residues.first().copied().unwrap_or(999),
-                    "half_residue": residues.get(1).copied().unwrap_or(999),
+                    "full_residue": residues.first().copied(),
+                    "half_residue": residues.get(1).copied(),
                     "eligible": eligible, "attribute": 1, "trait": r(if eligible { multiplier } else { ExactRatio::whole(1) })}),
                 serde_json::json!({"outcome": name, "draws": draws}),
                 &format!("lethal:{}:{}:{word}", caster.entity, target.entity),

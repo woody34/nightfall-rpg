@@ -12,9 +12,65 @@ use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 
 fn line(out: &mut Vec<u8>, value: &impl Serialize) -> anyhow::Result<()> {
-    serde_json::to_writer(&mut *out, value)?;
+    let text = serde_json::to_vec(value)?;
+    out.extend(quote_wide_integers(&text)?);
     out.push(b'\n');
     Ok(())
+}
+
+/// D80: every JSON integer outside ±2^53 is emitted as its exact decimal string. Works on
+/// the canonical serialized text (no float round trip), skipping string contents.
+#[allow(clippy::arithmetic_side_effects)] // Byte cursor bounded by the input length.
+fn quote_wide_integers(text: &[u8]) -> anyhow::Result<Vec<u8>> {
+    const LIMIT: u128 = 1 << 53;
+    let mut out = Vec::with_capacity(text.len());
+    let mut index = 0;
+    let mut in_string = false;
+    while let Some(&byte) = text.get(index) {
+        if in_string {
+            out.push(byte);
+            if byte == b'\\' {
+                out.push(*text.get(index + 1).context("truncated JSON escape")?);
+                index += 2;
+                continue;
+            }
+            in_string = byte != b'"';
+            index += 1;
+            continue;
+        }
+        if byte == b'"' {
+            in_string = true;
+            out.push(byte);
+            index += 1;
+            continue;
+        }
+        if byte == b'-' || byte.is_ascii_digit() {
+            let start = index;
+            index += 1;
+            while text.get(index).is_some_and(|b| {
+                b.is_ascii_digit() || matches!(b, b'.' | b'e' | b'E' | b'+' | b'-')
+            }) {
+                index += 1;
+            }
+            let token = text.get(start..index).context("JSON number")?;
+            let digits = token.strip_prefix(b"-").unwrap_or(token);
+            if !digits.iter().all(u8::is_ascii_digit) {
+                bail!("non-integer evidence number");
+            }
+            let magnitude: u128 = std::str::from_utf8(digits)?.parse()?;
+            if magnitude > LIMIT {
+                out.push(b'"');
+                out.extend_from_slice(token);
+                out.push(b'"');
+            } else {
+                out.extend_from_slice(token);
+            }
+            continue;
+        }
+        out.push(byte);
+        index += 1;
+    }
+    Ok(out)
 }
 
 #[derive(Serialize)]
@@ -1000,8 +1056,18 @@ mod tests {
             },
         )?;
         let text = String::from_utf8(out)?;
-        assert!(text.contains("\"word_before\":18446744073709551616"));
-        assert!(text.contains("\"word_after\":18446744073709551617"));
+        // D80: integers outside ±2^53 are exact decimal strings.
+        assert!(text.contains("\"word_before\":\"18446744073709551616\""));
+        assert!(text.contains("\"word_after\":\"18446744073709551617\""));
+        let mut small = Vec::new();
+        line(
+            &mut small,
+            &json!({"a": 9_007_199_254_740_992_u64, "b": -9_007_199_254_740_993_i64, "c": "12345678901234567890", "d": [1, 2]}),
+        )?;
+        assert_eq!(
+            String::from_utf8(small)?,
+            "{\"a\":9007199254740992,\"b\":\"-9007199254740993\",\"c\":\"12345678901234567890\",\"d\":[1,2]}\n"
+        );
         assert!(text.contains("\"kind\":\"item_rng\""));
         Ok(())
     }

@@ -369,7 +369,9 @@ impl ZoneState {
             let (damage, exact) =
                 self.auto_damage_v6(source, target, &a, &b, proximity, shield, critical, draw)?;
             let damage = if self.bow_attacker_v6(source.entity) {
-                self.bow_distance_v6(source.entity, target.entity, damage)?
+                let scaled = self.bow_distance_v6(source.entity, target.entity, damage)?;
+                self.bow_damage_evidence_v6(source.entity, target.entity, exact, damage, scaled)?;
+                scaled
             } else {
                 damage
             };
@@ -989,6 +991,45 @@ impl ZoneState {
             serde_json::json!({"formula": r(value), "miss": miss}),
             actual,
             resolution,
+            Some(self.attack_context_v6(attacker, target)),
+        );
+        Ok(())
+    }
+
+    /// D46/D80 `bow_damage` (D17): inputs are the exact caller formula and the milli-tile
+    /// displacement; the actual reproduces the frozen root certificate exactly.
+    fn bow_damage_evidence_v6(
+        &mut self,
+        attacker: EntityId,
+        target: EntityId,
+        exact: ExactRatio,
+        base: u32,
+        damage: u32,
+    ) -> Result<(), TickError> {
+        use crate::domain::zone::state::item_evidence_hooks::{bow_damage_actual, ratio_json as r};
+        if !self.items_evidence_enabled() || !self.phase4_player_v6(attacker) {
+            return Ok(());
+        }
+        let a = self.entities.get(&attacker).ok_or_else(missing)?.pos;
+        let b = self.entities.get(&target).ok_or_else(missing)?.pos;
+        let dx = i64::from(a.x.raw())
+            .checked_sub(i64::from(b.x.raw()))
+            .ok_or_else(missing)?;
+        let dy = i64::from(a.y.raw())
+            .checked_sub(i64::from(b.y.raw()))
+            .ok_or_else(missing)?;
+        let actual = bow_damage_actual(u64::from(base), dx, dy).ok_or_else(missing)?;
+        // The engine's isqrt formula and the certificate must agree on the caller integer.
+        if actual.get("damage") != Some(&serde_json::json!(damage)) {
+            return Err(missing());
+        }
+        let word = self.rng.get_word_pos();
+        self.item_formula_v6(
+            attacker,
+            "bow_damage",
+            serde_json::json!({"formula": r(exact), "dx_milli": dx, "dy_milli": dy}),
+            actual,
+            &format!("bow:{attacker}:{word}"),
             Some(self.attack_context_v6(attacker, target)),
         );
         Ok(())

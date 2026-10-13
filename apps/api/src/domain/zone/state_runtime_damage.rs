@@ -9050,6 +9050,127 @@ mod tests {
         assert!(decode_snapshot(&baseline).is_ok());
     }
 
+    /// Recorded evidence run: every tick is cold-replayed from the boundary, its record kept
+    /// and its D46 facts collected; `write` emits the exact recording for the CLI exporter.
+    struct EvidenceRun {
+        zone: ZoneState,
+        cold: ZoneState,
+        boundary: crate::domain::zone::ZoneSnapshot,
+        records: Vec<crate::application::replay_log::AppliedTickRecord>,
+        facts: Vec<crate::domain::zone::evidence::ItemEvidenceFact>,
+        seq: u32,
+    }
+    impl EvidenceRun {
+        fn start(mut zone: ZoneState) -> Self {
+            let boundary = zone.snapshot();
+            let cold = ZoneState::from_snapshot_with_items(
+                boundary.clone(),
+                Some(Arc::clone(&zone.phase4.as_ref().unwrap().rules)),
+            )
+            .unwrap();
+            zone.enable_items_replay_evidence().unwrap();
+            Self {
+                zone,
+                cold,
+                boundary,
+                records: Vec::new(),
+                facts: Vec::new(),
+                seq: 100,
+            }
+        }
+        /// Session commands from `owner`, in order.
+        fn tick(&mut self, owner: EntityId, commands: Vec<ZoneCommand>) -> AppliedTick {
+            let inputs = commands
+                .into_iter()
+                .map(|command| {
+                    self.seq = self.seq.checked_add(1).unwrap();
+                    ZoneInput::session(owner, SessionGeneration(1), self.seq, command)
+                })
+                .collect();
+            let draft = self.zone.draft(inputs);
+            let applied = self.zone.run_tick(draft.clone()).unwrap();
+            assert_eq!(applied, self.cold.run_tick(draft).unwrap());
+            self.records
+                .push(crate::application::replay_log::AppliedTickRecord::from_applied(
+                    self.zone.seed.zone,
+                    &applied,
+                ));
+            self.facts.extend(self.zone.take_items_replay_evidence());
+            applied
+        }
+        fn formulas(&self) -> std::collections::BTreeSet<String> {
+            self.facts
+                .iter()
+                .filter_map(|f| match &f.fact {
+                    crate::domain::zone::evidence::ItemEvidenceData::Formula(v) => {
+                        v["formula"].as_str().map(str::to_owned)
+                    },
+                    _ => None,
+                })
+                .collect()
+        }
+        fn write(self, variable: &str) {
+            use crate::application::replay_log::{Watermark, WatermarkReason};
+            if let Ok(path) = std::env::var(variable) {
+                let recording = crate::infrastructure::eventlog::Recording {
+                    watermark: Watermark {
+                        zone: self.boundary.seed.zone,
+                        epoch: self.boundary.seed.epoch,
+                        records: u64::try_from(self.records.len()).unwrap(),
+                        last_tick: self.records.last().map(|r| r.tick),
+                        reason: WatermarkReason::Shutdown,
+                    },
+                    records: self.records,
+                    snapshot: self.boundary,
+                };
+                std::fs::write(path, recording.to_bytes().unwrap()).unwrap();
+            }
+        }
+    }
+
+    #[test]
+    fn v6_bow_evidence_recording_exports_damage_reuse_and_launch() {
+        use crate::domain::zone::ItemCommandKind as K;
+        let (mut zone, owner, npc, ids) = use_fixture(&[13]);
+        let start = zone.entities[&owner.entity].pos;
+        place(
+            &mut zone,
+            npc.entity,
+            Vec2Fixed::new(Fixed::from_raw(start.x.raw() + 6_000), start.y),
+        );
+        let mut run = EvidenceRun::start(zone);
+        let equip = item_intent(
+            &run.zone,
+            owner.entity,
+            1301,
+            K::Equip {
+                instance: ids[0],
+                preferred_slot: None,
+            },
+        );
+        run.tick(owner.entity, vec![ZoneCommand::Item(Box::new(equip))]);
+        run.tick(
+            owner.entity,
+            vec![
+                ZoneCommand::SetTarget {
+                    entity: owner.entity,
+                    target: Some(npc.entity),
+                },
+                ZoneCommand::Attack {
+                    entity: owner.entity,
+                },
+            ],
+        );
+        for _ in 0..60 {
+            run.tick(owner.entity, Vec::new());
+        }
+        let names = run.formulas();
+        for required in ["bow_reuse", "bow_damage", "physical_damage"] {
+            assert!(names.contains(required), "{required}: {names:?}");
+        }
+        run.write("NIGHTFALL_TEST_BOW_RECORDING");
+    }
+
     #[test]
     fn v6_fractional_hp_cold_replay_regen_and_last_fraction_death() {
         use crate::domain::zone::item_combat::half_hp;
