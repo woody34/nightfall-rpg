@@ -18,6 +18,19 @@ pub struct RefreshedEquipment {
     pub next_sequence: u64,
     /// Final getters; callers clamp resources without healing.
     pub effective: EffectiveStats,
+    /// D46 `max_load` inputs: CON bonus, source base `floor(bonus·multiplier·limit)` and the
+    /// affine `weightLimit` fold (`f(x) = m·x + a`, read at 0 and at the base).
+    pub load: LoadInputs,
+}
+
+/// Exact load-getter inputs, never a persisted scalar.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(missing_docs)]
+pub struct LoadInputs {
+    pub con_bonus: ExactRatio,
+    pub weight_limit: ExactRatio,
+    pub multiplier: ExactRatio,
+    pub add: ExactRatio,
 }
 
 /// Refresh after equipment, learned skills, attributes, inventory or ordinary effects change.
@@ -48,6 +61,13 @@ pub fn refresh_player(
         can_resurrect: true,
     };
     let mut player = equipment.player.clone();
+    let load = load_inputs(
+        stats,
+        class.base_stats.con,
+        &equipment.rules.parts().capacities,
+        &before.calculator,
+        conditions,
+    )?;
     (player.max_load, player.weight_penalty_bonus) = load_getters(
         stats,
         class.base_stats.con,
@@ -137,6 +157,48 @@ pub fn refresh_player(
         player,
         next_sequence: next,
         effective,
+        load,
+    })
+}
+
+fn load_inputs(
+    stats: &StatRules,
+    base_con: u32,
+    policy: &super::item_rules::ItemCapacityRules,
+    calculator: &super::stat_functions::StatCalculator,
+    conditions: FunctionConditions<'_>,
+) -> Result<LoadInputs, StatError> {
+    let con = u32::try_from(
+        calculator.fold("CON", super::Scaled::from_int(i64::from(base_con))?.raw(), conditions)?
+            / Q,
+    )
+    .map_err(|_| StatError::Overflow)?;
+    let con_bonus =
+        ExactRatio::new(i128::from(stats.bonus().bonus(StatKind::Con, con)?.raw()), i128::from(Q))?;
+    let base = con_bonus
+        .checked_mul(ExactRatio::whole(i64::from(policy.load_multiplier)))?
+        .checked_mul(policy.weight_limit.value())?
+        .floor()?;
+    let at = |x: i128| -> Result<ExactRatio, StatError> {
+        let raw = x
+            .checked_mul(i128::from(Q))
+            .and_then(|v| i64::try_from(v).ok())
+            .ok_or(StatError::Overflow)?;
+        ExactRatio::new(i128::from(calculator.fold("weightLimit", raw, conditions)?), i128::from(Q))
+    };
+    let add = at(0)?;
+    let multiplier = if base == 0 {
+        ExactRatio::whole(1)
+    } else {
+        at(base)?
+            .checked_sub(add)?
+            .checked_div(ExactRatio::new(base, 1)?)?
+    };
+    Ok(LoadInputs {
+        con_bonus,
+        weight_limit: policy.weight_limit.value(),
+        multiplier,
+        add,
     })
 }
 

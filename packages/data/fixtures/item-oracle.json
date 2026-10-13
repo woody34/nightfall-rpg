@@ -733,7 +733,7 @@
   },
   "policy": "Independent pinned-source exact-rational oracle; injected random residues; V6 integer adaptations, not Java binary64 identity.",
   "coverage": {
-    "F1": 230,
+    "F1": 320,
     "F10": 309,
     "F11": 800,
     "F12": 2177,
@@ -748,7 +748,7 @@
   },
   "coverage_gate": {
     "design": "12.1",
-    "required_cases": 8303,
+    "required_cases": 8393,
     "scroll_group_bindings": 126,
     "covered_scroll_group_levels": 8257536,
     "level_encoding": "contiguous inclusive source-rate intervals",
@@ -80166,6 +80166,2169 @@
       ],
       "draws": [],
       "vector_sha256": "f411ec7f0d2742b9913e748d2e949b416080407931ecb7860ced95641ea4e61a"
+    },
+    {
+      "id": "class-combat-36-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/AbyssWalker.xml",
+        "base_class_id": 31
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/AbyssWalker.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "a34b3f5e737bd9bc75f20bf991db27b23af16405256c85dd8633b1d2c16e6799"
+    },
+    {
+      "id": "class-combat-93-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/Adventurer.xml",
+        "base_class_id": 0
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/Adventurer.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "377e90c546d3b34fce182f363bf890a877b4b0437a14f88d372593c5798dc269"
+    },
+    {
+      "id": "class-combat-96-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/ArcanaLord.xml",
+        "base_class_id": 10
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/ArcanaLord.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "b471a55a21dcf41fac51e4c5d8c83df4e45ff6e5ec1fcccf1741a3013787d2ae"
+    },
+    {
+      "id": "class-combat-94-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/Archmage.xml",
+        "base_class_id": 10
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/Archmage.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "2243aa401b78bef3b6d9d2dc0a6077d7c3e7a968197c420c23d38e7b8238f047"
+    },
+    {
+      "id": "class-combat-56-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/Artisan.xml",
+        "base_class_id": 53
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/Artisan.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "a5620add8d576a7368005f21e1ab4c813ff64dde7e0361eb04e036403588fe0f"
+    },
+    {
+      "id": "class-combat-35-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/Assassin.xml",
+        "base_class_id": 31
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/Assassin.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "49a6651bc203165d01fa1fa61874b1936b09c47d2bfb13159ac1abeb8c04b5a7"
+    },
+    {
+      "id": "class-combat-16-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/Bishop.xml",
+        "base_class_id": 10
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/Bishop.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "3faff5461863d6f1bc6682588b8b175dcb74c7801e08c2ba8e57977706be07b9"
+    },
+    {
+      "id": "class-combat-34-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/Bladedancer.xml",
+        "base_class_id": 31
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/Bladedancer.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "7a2bfa8395b72e274730e17c6869d3208cd937fcf16e24cae6b2223482869566"
+    },
+    {
+      "id": "class-combat-55-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/BountyHunter.xml",
+        "base_class_id": 53
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/BountyHunter.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "7632f8abd96cd2ce1fbf28bcca46c0cccbf94a55cad306ebe007740b92465f07"
+    },
+    {
+      "id": "class-combat-97-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/Cardinal.xml",
+        "base_class_id": 10
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/Cardinal.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "45ade82ea4394182404fc1d35b53fa91c6398a405906ae19c0c067f31ce12f11"
+    },
+    {
+      "id": "class-combat-15-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/Cleric.xml",
+        "base_class_id": 10
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/Cleric.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "c356a99830b6029af8098ce9c95f6a81175edbb8905e24681b5e9ee8013c7695"
+    },
+    {
+      "id": "class-combat-6-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/DarkAvenger.xml",
+        "base_class_id": 0
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/DarkAvenger.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "4feb80a0c5759e11b23f13b3fb4ca2965932750174626b0b159f61a521071dfa"
+    },
+    {
+      "id": "class-combat-31-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/DarkFighter.xml",
+        "base_class_id": 31
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/DarkFighter.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "52ad7c65e1ffb63bece5e8daa0de02d00d82e53d57d96daf214dab85cc2e7858"
+    },
+    {
+      "id": "class-combat-38-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/DarkMystic.xml",
+        "base_class_id": 38
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/DarkMystic.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "8d9c93e37e3fb3aaf836f475d0a11f59318948d8a0133f1857c550ca6c445160"
+    },
+    {
+      "id": "class-combat-39-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/DarkWizard.xml",
+        "base_class_id": 38
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/DarkWizard.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "efdb69b735f885379692a992c5ab64daa545f0fcbad939a91f85bff7b040c1ec"
+    },
+    {
+      "id": "class-combat-46-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/Destroyer.xml",
+        "base_class_id": 44
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 25,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/Destroyer.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "87b03cbcfa363cbfbb030a82362b21d638f5ad5fb570f23cd72e293378def2d0"
+    },
+    {
+      "id": "class-combat-115-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/Dominator.xml",
+        "base_class_id": 49
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 25,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/Dominator.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "b41122f4533aa79ec39a0d0af958ce14efe6abf171964d2faadf23c60bc98efe"
+    },
+    {
+      "id": "class-combat-116-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/Doomcryer.xml",
+        "base_class_id": 49
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 25,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/Doomcryer.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "1e9fc0b81908258a5513cb4997d7c8f58c58680212244209a02c8d1a44441f69"
+    },
+    {
+      "id": "class-combat-89-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/Dreadnought.xml",
+        "base_class_id": 0
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/Dreadnought.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "ab1ce4b4d5e48c7304c44ddb425bdcc25bdb4b35385713d6056557457b463cc1"
+    },
+    {
+      "id": "class-combat-88-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/Duelist.xml",
+        "base_class_id": 0
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/Duelist.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "c828dd8817d6e8dcf44ed4e2eb621e4d360ecc2b664a46e59bba51767b74190f"
+    },
+    {
+      "id": "class-combat-53-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/DwarvenFighter.xml",
+        "base_class_id": 53
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/DwarvenFighter.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "1e5dffe664078b967f739639e94eec623b09de7ece758c383895157c9b1e8079"
+    },
+    {
+      "id": "class-combat-104-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/ElementalMaster.xml",
+        "base_class_id": 25
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/ElementalMaster.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "393a8692e6e42d825ef984f9a6fc0b7b4b8758976a751bd2cb3d5d9988e2d662"
+    },
+    {
+      "id": "class-combat-28-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/ElementalSummoner.xml",
+        "base_class_id": 25
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/ElementalSummoner.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "7a8964c59154bb662ea0041d5b9d7413b0269afaf75d4e8420c92f308fde328b"
+    },
+    {
+      "id": "class-combat-30-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/ElvenElder.xml",
+        "base_class_id": 25
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/ElvenElder.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "bdf4c620640a90fefa6c1a3444dca60d54f13dada37b61ec5d88856de576cf4e"
+    },
+    {
+      "id": "class-combat-18-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/ElvenFighter.xml",
+        "base_class_id": 18
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/ElvenFighter.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "2aa574e631162e450bfd0f4fc213a1fb3ed0e314f4ccdcf3e42e5bd155c84587"
+    },
+    {
+      "id": "class-combat-19-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/ElvenKnight.xml",
+        "base_class_id": 18
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/ElvenKnight.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "691433f634e2f0c4012f31f14c60cd31c152321a4c8373e6cc794d499f8ae44a"
+    },
+    {
+      "id": "class-combat-25-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/ElvenMystic.xml",
+        "base_class_id": 25
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/ElvenMystic.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "712560c3524c64ecfd12ea6bc1b15461d6b779e061605a610329c6adf5e0a903"
+    },
+    {
+      "id": "class-combat-29-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/ElvenOracle.xml",
+        "base_class_id": 25
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/ElvenOracle.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "7ee5601b0985f31feb81e27cf5da9fa62f04fb7ec6da81232549393ddacf6b2a"
+    },
+    {
+      "id": "class-combat-22-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/ElvenScout.xml",
+        "base_class_id": 18
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/ElvenScout.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "66eb0a5ad923cb45eb65878bddc09ff941d22b8407cf59720b8d9b9f464f9a9c"
+    },
+    {
+      "id": "class-combat-26-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/ElvenWizard.xml",
+        "base_class_id": 25
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/ElvenWizard.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "629018d2f6d62eb6e3bcb782cc74421a553a9704a36bca9e36557f8908093614"
+    },
+    {
+      "id": "class-combat-105-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/Eva'sSaint.xml",
+        "base_class_id": 25
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/Eva'sSaint.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "d22346e4f6239d1d7fd6af04bd2a366b9ae1c2459e10112d58c55847437ae8d8"
+    },
+    {
+      "id": "class-combat-99-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/Eva'sTemplar.xml",
+        "base_class_id": 18
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/Eva'sTemplar.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "60a1cb1552a9797542f8538fef608d5ffc21007dc7f8e37195486c5cf24ccf38"
+    },
+    {
+      "id": "class-combat-117-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/FortuneSeeker.xml",
+        "base_class_id": 53
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/FortuneSeeker.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "bc1292711cf40e1af4e4914de67cd0527c4a1244d22331fa86d75d8b727e6998"
+    },
+    {
+      "id": "class-combat-108-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/GhostHunter.xml",
+        "base_class_id": 31
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/GhostHunter.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "ab7b89bca426e6a3a7f3cda6c050fe315501706997a54e3ff302f3856becb9cc"
+    },
+    {
+      "id": "class-combat-109-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/GhostSentinel.xml",
+        "base_class_id": 31
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/GhostSentinel.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "3b96d2622538335ab37e9f92f78f9fc74ad5e31b11be00fe08d2d1a9b1eaca68"
+    },
+    {
+      "id": "class-combat-2-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/Gladiator.xml",
+        "base_class_id": 0
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/Gladiator.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "38041b257dadfcc8504b1244a76a1d6a888b5e488afa0782bfb0dc29d83e551f"
+    },
+    {
+      "id": "class-combat-114-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/GrandKhavatari.xml",
+        "base_class_id": 44
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 25,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/GrandKhavatari.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "dde8b2293c48896f7e9aefd7bb732d3c9c0fc44d199e0929786c6310ab061ade"
+    },
+    {
+      "id": "class-combat-9-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/HawkEye.xml",
+        "base_class_id": 0
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/HawkEye.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "1964a3992554768afad0c2da0107a9f8b8919ec774adde038f987c75ccff34db"
+    },
+    {
+      "id": "class-combat-91-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/HellKnight.xml",
+        "base_class_id": 0
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/HellKnight.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "e06537c2a5df8c6f36953bf8d9da813a7881dc78ece2d286679be15b8fdcdf75"
+    },
+    {
+      "id": "class-combat-98-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/Hierophant.xml",
+        "base_class_id": 10
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/Hierophant.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "85ce96388e4779666f058785f973aa6225e2356e4091c85918598f3d0a78831a"
+    },
+    {
+      "id": "class-combat-0-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/HumanFighter.xml",
+        "base_class_id": 0
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/HumanFighter.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "c14c2ff61e034c7908b9480a3db4e9489e3c2ecbd9e3d638a99eaaeb6cfbc6f0"
+    },
+    {
+      "id": "class-combat-4-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/HumanKnight.xml",
+        "base_class_id": 0
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/HumanKnight.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "5b7d3243ab33d491da09e76b00cb1c3f7fada50b3f89c63c33acf765bfd7b261"
+    },
+    {
+      "id": "class-combat-10-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/HumanMystic.xml",
+        "base_class_id": 10
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/HumanMystic.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "8479f1bd77a469bd96ad0a3be2532cbd177a999cab29db46b4710a1468031e0c"
+    },
+    {
+      "id": "class-combat-11-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/HumanWizard.xml",
+        "base_class_id": 10
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/HumanWizard.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "f51177b331dc926929d808d4ff9b8212756cd79b32a03e420cb72a6b8a4ad645"
+    },
+    {
+      "id": "class-combat-118-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/Maestro.xml",
+        "base_class_id": 53
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/Maestro.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "885431100b6ddb0d5a9ef4d461789afafaa5db18414a0024e44ad1aa0da8e00c"
+    },
+    {
+      "id": "class-combat-47-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/Monk.xml",
+        "base_class_id": 44
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 25,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/Monk.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "d7d3d774654e954b76ff15b980316c9a28fd87cc788a5038edbb136c53e90b91"
+    },
+    {
+      "id": "class-combat-102-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/MoonlightSentinel.xml",
+        "base_class_id": 18
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/MoonlightSentinel.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "bfbcd8f5cc15a1ee1b07b0d599abc6127aead9c47a5acac2b81ac177a4a726ff"
+    },
+    {
+      "id": "class-combat-103-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/MysticMuse.xml",
+        "base_class_id": 25
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/MysticMuse.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "7e0eb9f4b67bbe74a8705d213db2e540fadf2e95fc59400876def161f4b87a27"
+    },
+    {
+      "id": "class-combat-13-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/Necromancer.xml",
+        "base_class_id": 10
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/Necromancer.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "3d7aaf3705f5a72674f8f8a5fb67f3de09c0f2825aea442e384af9eb73a7a861"
+    },
+    {
+      "id": "class-combat-44-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/OrcFighter.xml",
+        "base_class_id": 44
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 25,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/OrcFighter.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "9fd4be6f9db41e7d66ac022fe45b1796a5fcd5581cf1d60cc086147de31bee74"
+    },
+    {
+      "id": "class-combat-49-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/OrcMystic.xml",
+        "base_class_id": 49
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 25,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/OrcMystic.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "730017a82ee1836725b8fdab48531ff773257169b0092b92e59a9a342b324228"
+    },
+    {
+      "id": "class-combat-45-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/OrcRaider.xml",
+        "base_class_id": 44
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 25,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/OrcRaider.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "5536befc1b45dd37b270937abcaa253208c7a0767a206523dbab92ed17e27fac"
+    },
+    {
+      "id": "class-combat-50-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/OrcShaman.xml",
+        "base_class_id": 49
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 25,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/OrcShaman.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "da4e724f2f1e458ee91ef2ef1ed27854557d37fdd985e64a209104c3896818bb"
+    },
+    {
+      "id": "class-combat-51-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/Overlord.xml",
+        "base_class_id": 49
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 25,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/Overlord.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "e692c90b4fe5fad4726712cc951502c6e1b4706c2aca67b2cf2540b48d4c0011"
+    },
+    {
+      "id": "class-combat-5-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/Paladin.xml",
+        "base_class_id": 0
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/Paladin.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "0d843c3ca459f52ff0fa206cbe19306673fcb58c639550ce24cd4d90c4172095"
+    },
+    {
+      "id": "class-combat-32-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/PallusKnight.xml",
+        "base_class_id": 31
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/PallusKnight.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "be6279f16847726c4853aae29a0773caa142d25232ae51d772e9cac4340e3054"
+    },
+    {
+      "id": "class-combat-37-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/PhantomRanger.xml",
+        "base_class_id": 31
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/PhantomRanger.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "526906afdb7f6a00a46aca15a3657cf65bc7e15b27ade48a2f005a21624cbdd6"
+    },
+    {
+      "id": "class-combat-41-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/PhantomSummoner.xml",
+        "base_class_id": 38
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/PhantomSummoner.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "4664eb2b3fabd74fdae4d4379e0a549a90b27299d6e0cb3ed7136653ae1fdbe8"
+    },
+    {
+      "id": "class-combat-90-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/PhoenixKnight.xml",
+        "base_class_id": 0
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/PhoenixKnight.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "19a581b0a77cec6fe5defd861e7f51bc1e81c7737af7aa9a2df3a3d9e4ea3cff"
+    },
+    {
+      "id": "class-combat-23-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/PlainsWalker.xml",
+        "base_class_id": 18
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/PlainsWalker.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "a5c5db41a288b6ce8010dbd0d7f5e14a1264591ab9aad55414f1b16bc16c55e4"
+    },
+    {
+      "id": "class-combat-17-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/Prophet.xml",
+        "base_class_id": 10
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/Prophet.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "a9fd59549a577eced0424401587069101898d1e03896697c910c31e68e12d81f"
+    },
+    {
+      "id": "class-combat-7-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/Rogue.xml",
+        "base_class_id": 0
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/Rogue.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "d2b7d16f126e4d70e5b2c42ef75a7c651c63483326b5afd355cd38380c5e2a1c"
+    },
+    {
+      "id": "class-combat-92-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/Sagittarius.xml",
+        "base_class_id": 0
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/Sagittarius.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "570231dfffa3022bd43b9db9afc39b9e1d8b99c4a1a81e036ff5e8affc627f5c"
+    },
+    {
+      "id": "class-combat-54-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/Scavenger.xml",
+        "base_class_id": 53
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/Scavenger.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "7aebb2614ded154b9a2679c6bc0cea99ef162b5b1f67c8bb549befeb4c2c639a"
+    },
+    {
+      "id": "class-combat-43-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/ShillienElder.xml",
+        "base_class_id": 38
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/ShillienElder.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "3ac318b513049879570de93430c2a84d14a79a1ed15268bc7ebdbe461ff41a76"
+    },
+    {
+      "id": "class-combat-33-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/ShillienKnight.xml",
+        "base_class_id": 31
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/ShillienKnight.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "c9416c81ec58e23565c5bf2d236612e2822f0257c971f77ac729fb03a836a365"
+    },
+    {
+      "id": "class-combat-42-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/ShillienOracle.xml",
+        "base_class_id": 38
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/ShillienOracle.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "5ff869ff08eafe5ad72f9f690269e5458d7f1415f863fbeae6ada8f24ded33ca"
+    },
+    {
+      "id": "class-combat-112-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/ShillienSaint.xml",
+        "base_class_id": 38
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/ShillienSaint.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "cf2638ac8cefb3fd1873068de35dbf971050fed53b042b9071597b488f316216"
+    },
+    {
+      "id": "class-combat-106-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/ShillienTemplar.xml",
+        "base_class_id": 31
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/ShillienTemplar.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "6f9d724e7d15b80804459403a4d0a2e809d04c8bf7e6b95108dc5d5c15c32059"
+    },
+    {
+      "id": "class-combat-24-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/SilverRanger.xml",
+        "base_class_id": 18
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/SilverRanger.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "c3570f5c08a4942f6a05a2b3b20d9fd0e08b0070a451ace7ecda66b36aac0d18"
+    },
+    {
+      "id": "class-combat-12-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/Sorcerer.xml",
+        "base_class_id": 10
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/Sorcerer.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "d4f52b7c84758b365b4fe9cd969b0f644437e212c29c7565f203a0285c2c5518"
+    },
+    {
+      "id": "class-combat-95-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/Soultaker.xml",
+        "base_class_id": 10
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/Soultaker.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "02eb62d7ace5ecdccede18e99acc99f90fa0c4df00ae38908c33c15c10a9848e"
+    },
+    {
+      "id": "class-combat-107-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/SpectralDancer.xml",
+        "base_class_id": 31
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/SpectralDancer.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "4490b76c53212003c10e891f1621c201a692caa3e81a6f78181a53a5364797d7"
+    },
+    {
+      "id": "class-combat-111-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/SpectralMaster.xml",
+        "base_class_id": 38
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/SpectralMaster.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "5e6014e31bb3b22d305af22ecdd126c44b37d43b97dfb9516a1e457efa709f39"
+    },
+    {
+      "id": "class-combat-40-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/Spellhowler.xml",
+        "base_class_id": 38
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/Spellhowler.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "743af42b7973a1f196153cde3bf92d6eb6c506377d5576098e020a353250d0bb"
+    },
+    {
+      "id": "class-combat-27-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/Spellsinger.xml",
+        "base_class_id": 25
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/Spellsinger.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "048241ba2f11b1bf1ef87f1b065e9d419e1587d77d55591fed3e007ea61a7a76"
+    },
+    {
+      "id": "class-combat-110-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/StormScreamer.xml",
+        "base_class_id": 38
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/StormScreamer.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "6126bae137f178c1948a07dfe2f797c0b31e949e5da64d5e9418dd5be3f2ed89"
+    },
+    {
+      "id": "class-combat-100-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/SwordMuse.xml",
+        "base_class_id": 18
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/SwordMuse.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "a3c91cb3ff631a4b74261ceba594153c6d78c2466419a67fd5f10bba292cb75e"
+    },
+    {
+      "id": "class-combat-21-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/SwordSinger.xml",
+        "base_class_id": 18
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/SwordSinger.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "43ec71ddbc45884233eea1856bdbe0b34a72f377c88dfdf9170d1b6db04e6a32"
+    },
+    {
+      "id": "class-combat-20-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/TempleKnight.xml",
+        "base_class_id": 18
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/TempleKnight.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "c490b2c53c08c8d2af67a83736b0bc08eb820e8ae3c4be3ecf3e3f0eca0a5335"
+    },
+    {
+      "id": "class-combat-113-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/Titan.xml",
+        "base_class_id": 44
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 25,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/Titan.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "8d9db8da2bf8f6154aceaeb9b79acfbf180d22af1c728d2f5b104d775cf09ffb"
+    },
+    {
+      "id": "class-combat-8-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/TreasureHunter.xml",
+        "base_class_id": 0
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/TreasureHunter.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "eda7065dc5efb86c70dc7638f2cab0e82444acd455446a481ea0badfb6763c2c"
+    },
+    {
+      "id": "class-combat-48-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/Tyrant.xml",
+        "base_class_id": 44
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 25,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/Tyrant.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "7d39b9dcb49864ef001d03c8e3a103c4f3c3fcc55f0700c9ede7317d8c3dce6d"
+    },
+    {
+      "id": "class-combat-52-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/Warcryer.xml",
+        "base_class_id": 49
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 25,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/Warcryer.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "b913a6353a27f9aae8ac169e16d0f286b1aef62a773f46bf8ec83256e3f86a28"
+    },
+    {
+      "id": "class-combat-14-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/Warlock.xml",
+        "base_class_id": 10
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/Warlock.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "1aeba909c8a606bba80af751b276e011de8bd088a837e542fb6f153549b45dc7"
+    },
+    {
+      "id": "class-combat-3-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/Warlord.xml",
+        "base_class_id": 0
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/Warlord.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "187d1299e338648014ed2e71703a73369d04af98a7ab60606e46601fd67489c2"
+    },
+    {
+      "id": "class-combat-1-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/Warrior.xml",
+        "base_class_id": 0
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/Warrior.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "97d0cc0b764bcad66c91c9af2f6faeb05d86434fba5b4838a312132cc7f03dec"
+    },
+    {
+      "id": "class-combat-57-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/Warsmith.xml",
+        "base_class_id": 53
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/Warsmith.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "f0f5a20590963d3ec0d96c992c9f7905c4104542dac4ea5bedead4512d5f3357"
+    },
+    {
+      "id": "class-combat-101-unarmed",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/WindRider.xml",
+        "base_class_id": 18
+      },
+      "expected": {
+        "weapon": null,
+        "attack_type": "FIST",
+        "base_attack_range": 20,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/WindRider.xml",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "31a619131fa89fa684bf223aaaca5fee2eae3fa10bf2340bc24c423ce47bdc50"
+    },
+    {
+      "id": "class-combat-44-armed-2369",
+      "family": "F1",
+      "inputs": {
+        "class_file": "src/main/resources/data/stats/chars/baseStats/OrcFighter.xml",
+        "base_class_id": 44,
+        "weapon": 2369
+      },
+      "expected": {
+        "weapon": 2369,
+        "attack_type": "SWORD",
+        "base_attack_range": 40,
+        "attack_angle": 120
+      },
+      "sources": [
+        "src/main/resources/data/stats/chars/baseStats/OrcFighter.xml",
+        "src/main/resources/data/stats/items/02300-02399.xml:844",
+        "G/model/items/L2Weapon.java:92",
+        "G/model/actor/stat/CharStat.java:424-435",
+        "G/model/actor/stat/CharStat.java:438-447",
+        "G/model/actor/L2Character.java:5560-5572",
+        "G/model/actor/templates/L2CharTemplate.java:114,116",
+        "G/model/actor/instance/L2PcInstance.java:1018-1019"
+      ],
+      "draws": [],
+      "vector_sha256": "2a0a71d74d020ac856b5d76c4df5ac0f4a067cbf6cfbc2cd0c87cacbaddbe886"
     },
     {
       "id": "class-slots-unequal-rfinger",
@@ -692859,5 +695022,5 @@
       }
     }
   ],
-  "vector_set_sha256": "cad824c0e19842a81c84d8e3a8d30440771982c50028fc127e8e46430c6fb059"
+  "vector_set_sha256": "f73ebaebfb56eb4fbb356244cbbddc8e56235e8d21ba12c961f79bbfaa4b6b82"
 }

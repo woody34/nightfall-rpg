@@ -2,8 +2,10 @@
 use anyhow::{bail, Context as _};
 use nightfall_api::application::replay_log::{AppliedTickRecord, WatermarkReason};
 use nightfall_api::domain::zone::evidence::{ItemEvidenceData, ItemEvidenceFact};
-use nightfall_api::domain::zone::phase4_projection::ItemReceiptRef;
-use nightfall_api::domain::zone::{AppliedTickDraft, StateDigestVersion};
+use nightfall_api::domain::zone::phase4_projection::{
+    ItemAuditEvidence, ItemDeltaPlan, ItemEvidenceValue, ItemOperation, ItemReceiptRef,
+};
+use nightfall_api::domain::zone::{AppliedTickDraft, StateDigestVersion, ZoneEvent};
 use nightfall_api::infrastructure::eventlog::Recording;
 use serde::Serialize;
 use serde_json::{json, Value};
@@ -31,7 +33,7 @@ fn receipt_text(value: Value) -> anyhow::Result<Value> {
     reference.validate()?;
     let operation = serde_json::to_value(reference.operation)?;
     Ok(json!(format!(
-        "{}:{}",
+        "receipt:{}:{}",
         operation.as_str().context("receipt operation")?,
         reference.key
     )))
@@ -71,7 +73,7 @@ fn export_fact(mut fact: ItemEvidenceFact) -> anyhow::Result<ItemEvidenceFact> {
 }
 
 /// Fold real contributions at the verified tick boundary, retaining first resolution identity.
-fn export_tick(facts: Vec<ItemEvidenceFact>) -> anyhow::Result<Vec<ItemEvidenceFact>> {
+fn group_tick(facts: Vec<ItemEvidenceFact>) -> anyhow::Result<Vec<ItemEvidenceFact>> {
     let mut out: Vec<ItemEvidenceFact> = Vec::new();
     for fact in facts {
         let fact = export_fact(fact)?;
@@ -120,6 +122,331 @@ fn export_tick(facts: Vec<ItemEvidenceFact>) -> anyhow::Result<Vec<ItemEvidenceF
         out.push(fact);
     }
     Ok(out)
+}
+
+// D63 identities come from the verified durable causes, never inferred from receipts alone.
+fn export_cause(cause: &ItemAuditEvidence) -> anyhow::Result<Value> {
+    let Some(ItemEvidenceValue::Signed(count)) = cause.fields.get("count_delta") else {
+        bail!("consume cause lacks signed count delta");
+    };
+    if *count >= 0 {
+        bail!("consume cause is not a debit");
+    }
+    let identity = if let Some(receipt) = cause.contributing_receipt()? {
+        receipt_text(serde_json::to_value(receipt)?)?
+    } else if cause.family == "arrow_payment" {
+        let Some(ItemEvidenceValue::Text(resolution)) = cause.fields.get("resolution_id") else {
+            bail!("arrow payment lacks attack resolution identity");
+        };
+        if resolution.is_empty() || resolution.chars().any(char::is_whitespace) {
+            bail!("invalid arrow resolution identity");
+        }
+        json!(format!("arrow:{resolution}"))
+    } else if cause.family == "auto_shot_payment" {
+        let Some(ItemEvidenceValue::Text(resolution)) = cause.fields.get("resolution_id") else {
+            bail!("automatic shot payment lacks resolution identity");
+        };
+        if resolution.is_empty() || resolution.chars().any(char::is_whitespace) {
+            bail!("invalid automatic shot resolution identity");
+        }
+        json!(format!("auto_shot:{resolution}"))
+    } else if cause.family == "skill_cast_payment" {
+        let Some(ItemEvidenceValue::Unsigned(id)) = cause.fields.get("cast_id") else {
+            bail!("skill payment lacks cast identity");
+        };
+        // Keep the captured cast resolution namespace, including its actual numeric ID.
+        json!(format!("item_cast:cast:{id}"))
+    } else {
+        bail!("unsupported consume cause {}", cause.family);
+    };
+    Ok(json!({"cause":identity,"count_delta":count}))
+}
+
+fn attach_consume_causes(row: &mut Value, delta: &ItemDeltaPlan) -> anyhow::Result<()> {
+    // Both sides are D66-normalized; ordinals differ only in namespace (the sidecar chain is
+    // zero-based, the engine keeps tick-local logical ordinals).
+    for (key, expected) in [
+        ("instance", serde_json::to_value(delta.instance)?),
+        ("before", serde_json::to_value(&delta.before)?),
+        ("after", serde_json::to_value(&delta.after)?),
+        ("count_delta", json!(delta.count_delta)),
+    ] {
+        if row.get(key) != Some(&expected) {
+            bail!("observed consume {key} differs from verified checkpoint");
+        }
+    }
+    if delta.operation != ItemOperation::Consume {
+        bail!("consume checkpoint identity mismatch");
+    }
+    let causes = delta
+        .causes
+        .iter()
+        .map(export_cause)
+        .collect::<anyhow::Result<Vec<_>>>()?;
+    let mut refs = Vec::new();
+    let mut unique = Vec::new();
+    let mut total = 0_i64;
+    for cause in &causes {
+        let count = cause
+            .get("count_delta")
+            .and_then(Value::as_i64)
+            .context("cause count")?;
+        total = total.checked_add(count).context("cause count overflow")?;
+        let identity = cause
+            .get("cause")
+            .and_then(Value::as_str)
+            .context("cause identity")?;
+        if identity.starts_with("receipt:") {
+            let reference = json!(identity);
+            if !unique.contains(&reference) {
+                unique.push(reference.clone());
+            }
+            refs.push(reference);
+        }
+    }
+    let canonical_refs = if delta.receipt_refs.is_empty() {
+        delta.receipt.iter().copied().collect::<Vec<_>>()
+    } else {
+        delta.receipt_refs.clone()
+    }
+    .into_iter()
+    .map(|reference| receipt_text(serde_json::to_value(reference)?))
+    .collect::<anyhow::Result<Vec<_>>>()?;
+    if causes.is_empty()
+        || total != delta.count_delta
+        || canonical_refs != unique
+        || row.get("receipt_refs") != Some(&json!(unique))
+    {
+        bail!("consume causes do not match observed and durable contributions");
+    }
+    // Endpoint conservation is enforced on the D66-normalized chain, where any intervening
+    // positive rows have been moved ahead of this aggregate.
+    let first = causes
+        .first()
+        .and_then(|cause| cause.get("cause"))
+        .and_then(Value::as_str)
+        .context("first consume cause")?;
+    if !first.starts_with("receipt:") {
+        let (_, resolution) = first.split_once(':').context("automatic cause identity")?;
+        if row.get("resolution_id").and_then(Value::as_str) != Some(resolution) {
+            bail!("automatic consume resolution differs from verified cause");
+        }
+    }
+    let row = row.as_object_mut().context("consume object")?;
+    row.insert("receipt_refs".into(), json!(refs));
+    row.insert("causes".into(), json!(causes));
+    Ok(())
+}
+
+type ChainKey = (nightfall_api::domain::zone::EntityId, u32, bool, u64, u64);
+
+fn chain_key(fact: &ItemEvidenceFact) -> Option<(ChainKey, &Value)> {
+    let ItemEvidenceData::Delta(row) = &fact.fact else {
+        return None;
+    };
+    let instance = row.get("instance").and_then(Value::as_u64)?;
+    Some((
+        (
+            fact.entity,
+            fact.incarnation,
+            fact.origin == nightfall_api::domain::zone::evidence::ItemEvidenceOrigin::Offline,
+            fact.tick.0,
+            instance,
+        ),
+        row,
+    ))
+}
+
+/// Observed tick-start (first before) and tick-end (last after) per instance chain.
+fn chain_bounds(
+    facts: &[ItemEvidenceFact],
+) -> anyhow::Result<std::collections::BTreeMap<ChainKey, (Value, Value)>> {
+    let mut bounds = std::collections::BTreeMap::new();
+    for fact in facts {
+        let Some((key, row)) = chain_key(fact) else {
+            continue;
+        };
+        let before = row.get("before").context("delta before")?.clone();
+        let after = row.get("after").context("delta after")?.clone();
+        bounds
+            .entry(key)
+            .and_modify(|(_, end): &mut (Value, Value)| *end = after.clone())
+            .or_insert((before, after));
+    }
+    Ok(bounds)
+}
+
+fn json_count(state: &Value) -> anyhow::Result<i128> {
+    if state.is_null() {
+        return Ok(0);
+    }
+    Ok(i128::from(
+        state
+            .get("count")
+            .and_then(Value::as_u64)
+            .context("canonical state count")?,
+    ))
+}
+
+fn set(row: &mut Value, key: &str, value: Value) -> anyhow::Result<()> {
+    row.as_object_mut()
+        .context("canonical object")?
+        .insert(key.into(), value);
+    Ok(())
+}
+
+/// Canonical fields other than count/revision must survive a positive or Consume row (D67).
+fn same_identity(left: &Value, right: &Value) -> bool {
+    let strip = |value: &Value| {
+        let mut value = value.clone();
+        if let Some(object) = value.as_object_mut() {
+            object.remove("count");
+            object.remove("revision");
+        }
+        value
+    };
+    strip(left) == strip(right)
+}
+
+/// D66: per (owner, life, tick, instance) export every positive row first in cause order, then
+/// the single Consume aggregate last. Rows are rebuilt from the observed tick-start state and
+/// the actual net deltas only; the engine ledger and record bytes are untouched.
+fn normalize_d66(
+    facts: &mut [ItemEvidenceFact],
+    bounds: &std::collections::BTreeMap<ChainKey, (Value, Value)>,
+) -> anyhow::Result<()> {
+    let mut chains: std::collections::BTreeMap<ChainKey, Vec<usize>> =
+        std::collections::BTreeMap::new();
+    for (index, fact) in facts.iter().enumerate() {
+        if let Some((key, _)) = chain_key(fact) {
+            chains.entry(key).or_default().push(index);
+        }
+    }
+    for (key, slots) in chains {
+        let operation = |index: usize| -> anyhow::Result<String> {
+            let Some((_, row)) = facts.get(index).and_then(chain_key) else {
+                bail!("chain slot is not a delta");
+            };
+            Ok(row
+                .get("operation")
+                .and_then(Value::as_str)
+                .context("delta operation")?
+                .to_owned())
+        };
+        // Positive rows and count-neutral rows (e.g. an automatic arrow equip) keep their
+        // observed order ahead of the aggregate, exactly as the engine ledger does.
+        let mut positives = Vec::new();
+        let mut consumes = Vec::new();
+        for &index in &slots {
+            if operation(index)? == "consume" {
+                consumes.push(index);
+            } else {
+                positives.push(index);
+            }
+        }
+        let [consume] = consumes.as_slice() else {
+            if consumes.is_empty() {
+                continue;
+            }
+            bail!("D66 chain has more than one Consume aggregate");
+        };
+        let (start, end) = bounds.get(&key).context("D66 chain bounds")?;
+        let mut rows = Vec::with_capacity(slots.len());
+        let mut state = start.clone();
+        for (ordinal, &index) in positives.iter().enumerate() {
+            let mut fact = facts.get(index).context("positive slot")?.clone();
+            let ItemEvidenceData::Delta(row) = &mut fact.fact else {
+                bail!("positive slot is not a delta");
+            };
+            let delta = row
+                .get("count_delta")
+                .and_then(Value::as_i64)
+                .filter(|delta| *delta >= 0)
+                .context("D66 chain row before the Consume aggregate removes count")?;
+            let observed = row.get("after").context("positive after")?;
+            if observed.is_null()
+                || (state.is_null() && delta == 0)
+                || (delta > 0 && !state.is_null() && !same_identity(&state, observed))
+            {
+                bail!("D66 positive row changes instance identity");
+            }
+            let count = json_count(&state)?
+                .checked_add(i128::from(delta))
+                .and_then(|count| u64::try_from(count).ok())
+                .context("D66 positive count overflow")?;
+            let mut after = observed.clone();
+            set(&mut after, "count", json!(count))?;
+            set(row, "before", state.clone())?;
+            set(row, "after", after.clone())?;
+            set(row, "operation_ordinal", json!(ordinal))?;
+            state = after;
+            rows.push(fact);
+        }
+        let mut fact = facts.get(*consume).context("consume slot")?.clone();
+        let ItemEvidenceData::Delta(row) = &mut fact.fact else {
+            bail!("consume slot is not a delta");
+        };
+        let delta = row
+            .get("count_delta")
+            .and_then(Value::as_i64)
+            .context("consume count delta")?;
+        if state.is_null()
+            || json_count(end)?.checked_sub(json_count(&state)?) != Some(i128::from(delta))
+            || (!end.is_null() && !same_identity(&state, end))
+        {
+            bail!("D66 Consume aggregate does not conserve the post-positive state");
+        }
+        set(row, "before", state)?;
+        set(row, "after", end.clone())?;
+        set(row, "operation_ordinal", json!(positives.len()))?;
+        rows.push(fact);
+        for (slot, row) in slots.iter().zip(rows) {
+            *facts.get_mut(*slot).context("chain slot")? = row;
+        }
+    }
+    Ok(())
+}
+
+fn export_tick(
+    facts: Vec<ItemEvidenceFact>,
+    events: &[ZoneEvent],
+) -> anyhow::Result<Vec<ItemEvidenceFact>> {
+    let bounds = chain_bounds(&facts)?;
+    let mut facts = group_tick(facts)?;
+    normalize_d66(&mut facts, &bounds)?;
+    for fact in &mut facts {
+        let ItemEvidenceData::Delta(row) = &mut fact.fact else {
+            continue;
+        };
+        if row.get("operation").and_then(Value::as_str) != Some("consume") {
+            continue;
+        }
+        let mut matches =
+            events
+                .iter()
+                .filter_map(|event| {
+                    let ZoneEvent::ItemCheckpoint(projection) = event else {
+                        return None;
+                    };
+                    (projection.entity == fact.entity && projection.tick == fact.tick &&
+                projection.paused_core.is_some() == (fact.origin ==
+                    nightfall_api::domain::zone::evidence::ItemEvidenceOrigin::Offline))
+                .then_some(projection)
+                })
+                .flat_map(|projection| &projection.ledger)
+                .filter(|delta| {
+                    delta.operation == ItemOperation::Consume
+                        && row.get("instance").and_then(Value::as_u64) == Some(delta.instance.get())
+                });
+        let delta = matches
+            .next()
+            .context("consume lacks verified checkpoint aggregate")?;
+        if matches.next().is_some() {
+            bail!("consume has duplicate checkpoint aggregates");
+        }
+        attach_consume_causes(row, delta)?;
+    }
+    Ok(facts)
 }
 
 #[allow(clippy::too_many_lines)] // Whole-recording validation precedes any artifact publication.
@@ -189,7 +516,7 @@ pub(super) fn collect(rec: &Recording, recording_bytes: &[u8]) -> anyhow::Result
         if !record.reproduced_by(&AppliedTickRecord::from_applied(seed.zone, &applied)) {
             bail!("item evidence replay divergence at tick {}", record.tick.0);
         }
-        for fact in export_tick(state.take_items_replay_evidence())? {
+        for fact in export_tick(state.take_items_replay_evidence(), &applied.events)? {
             if let nightfall_api::domain::zone::evidence::ItemEvidenceData::Rng {
                 word_before,
                 word_after,
@@ -269,7 +596,7 @@ mod tests {
             delta(2, &second, 8),
         ];
         let saved = original.clone();
-        let mapped = export_tick(original.clone())?;
+        let mapped = group_tick(original.clone())?;
         assert_eq!(original, saved);
         assert_eq!(mapped.len(), 2);
         let ItemEvidenceData::Delta(row) = &mapped.first().context("first delta")?.fact else {
@@ -282,8 +609,8 @@ mod tests {
         assert_eq!(
             row.get("receipt_refs"),
             Some(&json!([
-                "enchant:00000000-0000-0000-0000-000000000001",
-                "enchant:00000000-0000-0000-0000-000000000002"
+                "receipt:enchant:00000000-0000-0000-0000-000000000001",
+                "receipt:enchant:00000000-0000-0000-0000-000000000002"
             ]))
         );
         assert!(row.get("receipt").is_none());
@@ -297,7 +624,7 @@ mod tests {
         };
         assert_eq!(
             row.get("receipt_ref"),
-            Some(&json!("enchant:00000000-0000-0000-0000-000000000001"))
+            Some(&json!("receipt:enchant:00000000-0000-0000-0000-000000000001"))
         );
         assert!(row.get("receipt_refs").is_none());
         Ok(())
@@ -315,7 +642,7 @@ mod tests {
         };
         assert_eq!(
             row.pointer("/operation/receipt_ref"),
-            Some(&json!("enchant:00000000-0000-0000-0000-000000000007"))
+            Some(&json!("receipt:enchant:00000000-0000-0000-0000-000000000007"))
         );
         assert!(row.pointer("/operation/receipt").is_none());
         let mapped = export_fact(delta(1, &Value::Null, 2))?;
@@ -328,6 +655,269 @@ mod tests {
             &json!({"operation":"consume","key":uuid::Uuid::from_u128(7)}),
             2
         ))
+        .is_err());
+        Ok(())
+    }
+
+    fn consume_plan() -> anyhow::Result<ItemDeltaPlan> {
+        let item = |count| {
+            json!({"id":1,"template_id":3031,"count":count,
+            "location":"inventory","slot":null,"enchant":0,"augment_id":null,
+            "charges":0,"created_tick":0,"revision":1})
+        };
+        let receipt = ItemReceiptRef {
+            operation: ItemOperation::Use,
+            key: uuid::Uuid::from_u128(1),
+        };
+        let client = ItemAuditEvidence {
+            family: "item_cast_payment".into(),
+            fields: [
+                ("receipt".into(), ItemEvidenceValue::Text(receipt.key.to_string())),
+                ("count_delta".into(), ItemEvidenceValue::Signed(-1)),
+            ]
+            .into_iter()
+            .collect(),
+        };
+        let automatic = ItemAuditEvidence {
+            family: "skill_cast_payment".into(),
+            fields: [
+                ("cast_id".into(), ItemEvidenceValue::Unsigned(7)),
+                ("count_delta".into(), ItemEvidenceValue::Signed(-2)),
+            ]
+            .into_iter()
+            .collect(),
+        };
+        Ok(ItemDeltaPlan {
+            operation: ItemOperation::Consume,
+            operation_ordinal: 0,
+            instance: nightfall_api::domain::zone::ItemInstanceId::new(1)?,
+            before: Some(serde_json::from_value(item(5))?),
+            after: Some(serde_json::from_value(item(1))?),
+            count_delta: -4,
+            receipt: Some(receipt),
+            receipt_refs: vec![receipt],
+            causes: vec![client.clone(), automatic, client],
+        })
+    }
+
+    fn consume_observation(plan: &ItemDeltaPlan) -> anyhow::Result<Value> {
+        Ok(json!({"operation":"consume","instance":plan.instance,"before":plan.before,
+            "after":plan.after,"count_delta":plan.count_delta,"operation_ordinal":0,
+            "receipt_refs":plan.receipt_refs.iter().map(|reference|
+                receipt_text(serde_json::to_value(reference)?)).collect::<anyhow::Result<Vec<_>>>()?,
+            "resolution_id":"resolution:1"}))
+    }
+
+    #[test]
+    fn consume_causes_use_verified_order_preserve_duplicate_references_and_refuse_corruption(
+    ) -> anyhow::Result<()> {
+        let plan = consume_plan()?;
+        plan.validate(1)?;
+        let mut row = consume_observation(&plan)?;
+        attach_consume_causes(&mut row, &plan)?;
+        let reference = "receipt:use:00000000-0000-0000-0000-000000000001";
+        assert_eq!(row.get("receipt_refs"), Some(&json!([reference, reference])));
+        assert_eq!(
+            row.get("causes"),
+            Some(&json!([
+            {"cause":reference,"count_delta":-1},
+            {"cause":"item_cast:cast:7","count_delta":-2},
+            {"cause":reference,"count_delta":-1}]))
+        );
+        for key in ["instance", "before", "after", "count_delta", "receipt_refs"] {
+            let mut corrupt = consume_observation(&plan)?;
+            corrupt
+                .as_object_mut()
+                .context("observation")?
+                .insert(key.into(), Value::Null);
+            assert!(attach_consume_causes(&mut corrupt, &plan).is_err(), "{key}");
+        }
+        let mut corrupt = plan.clone();
+        corrupt.causes.clear();
+        assert!(attach_consume_causes(&mut consume_observation(&corrupt)?, &corrupt).is_err());
+        let mut corrupt = plan.clone();
+        corrupt
+            .causes
+            .first_mut()
+            .context("cause")?
+            .fields
+            .insert("count_delta".into(), ItemEvidenceValue::Signed(1));
+        assert!(attach_consume_causes(&mut consume_observation(&corrupt)?, &corrupt).is_err());
+        let mut corrupt = plan.clone();
+        corrupt.causes.first_mut().context("cause")?.family = "unknown_payment".into();
+        assert!(attach_consume_causes(&mut consume_observation(&corrupt)?, &corrupt).is_err());
+        // Endpoint conservation moved to the D66 chain: causes attach, the chain refuses.
+        let mut corrupt = plan;
+        corrupt.after.as_mut().context("after")?.count = 4;
+        let mut row = consume_observation(&corrupt)?;
+        attach_consume_causes(&mut row, &corrupt)?;
+        let mut fact = delta(1, &Value::Null, 5);
+        fact.fact = ItemEvidenceData::Delta(row);
+        let mut facts = vec![fact];
+        let bounds = chain_bounds(&facts)?;
+        assert!(normalize_d66(&mut facts, &bounds).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn consume_automatic_cost_has_no_receipt_and_requires_actual_cast_identity(
+    ) -> anyhow::Result<()> {
+        let mut plan = consume_plan()?;
+        let automatic = plan.causes.get(1).context("automatic cause")?.clone();
+        plan.causes = vec![automatic];
+        plan.receipt = None;
+        plan.receipt_refs.clear();
+        plan.count_delta = -2;
+        plan.after.as_mut().context("after")?.count = 3;
+        let mut row = consume_observation(&plan)?;
+        assert!(attach_consume_causes(&mut row, &plan).is_err());
+        row.as_object_mut()
+            .context("row")?
+            .insert("resolution_id".into(), json!("cast:7"));
+        attach_consume_causes(&mut row, &plan)?;
+        assert_eq!(row.get("receipt_refs"), Some(&json!([])));
+        assert_eq!(
+            row.get("causes"),
+            Some(&json!([{"cause":"item_cast:cast:7","count_delta":-2}]))
+        );
+        let mut fact = delta(1, &Value::Null, 5);
+        fact.fact = ItemEvidenceData::Delta(row);
+        // Restore the capture-side receipt field before exercising missing checkpoint refusal.
+        if let ItemEvidenceData::Delta(row) = &mut fact.fact {
+            let object = row.as_object_mut().context("row")?;
+            object.remove("receipt_refs");
+            object.remove("causes");
+            object.insert("receipt".into(), Value::Null);
+        }
+        assert!(export_tick(vec![fact], &[]).is_err());
+        Ok(())
+    }
+
+    fn stack(count: u64, revision: u64) -> Value {
+        json!({"id":1,"template_id":1835,"count":count,"location":"inventory","slot":null,
+            "enchant":0,"augment_id":null,"charges":0,"created_tick":0,"revision":revision})
+    }
+
+    fn observed(operation: &str, before: Option<u64>, after: Option<u64>) -> ItemEvidenceFact {
+        let state =
+            |count: Option<u64>, revision| count.map_or(Value::Null, |c| stack(c, revision));
+        let mut fact = delta(1, &Value::Null, 1);
+        let change = i128::from(after.unwrap_or(0)).saturating_sub(i128::from(before.unwrap_or(0)));
+        fact.fact = ItemEvidenceData::Delta(json!({
+            "operation":operation, "instance":1, "operation_ordinal":0,
+            "before":state(before, 1), "after":state(after, 2), "count_delta":change,
+            "receipt":null, "resolution_id":format!("{operation}:{before:?}")
+        }));
+        fact
+    }
+
+    fn d66(observations: Vec<ItemEvidenceFact>) -> anyhow::Result<Vec<Value>> {
+        let bounds = chain_bounds(&observations)?;
+        let mut facts = group_tick(observations)?;
+        normalize_d66(&mut facts, &bounds)?;
+        let mut rows = Vec::new();
+        for fact in facts {
+            let ItemEvidenceData::Delta(row) = fact.fact else {
+                bail!("delta");
+            };
+            rows.push(json!({
+                "operation":row.get("operation"), "ordinal":row.get("operation_ordinal"),
+                "before":row.pointer("/before/count"), "after":row.pointer("/after/count"),
+                "delta":row.get("count_delta")}));
+        }
+        Ok(rows)
+    }
+
+    #[test]
+    fn d66_exports_positive_rows_first_then_the_final_consume_aggregate() -> anyhow::Result<()> {
+        // 3 -> 2 -> 5 -> 4 exports grant(3->6, +3) then consume(6->4, -2).
+        let interleaved = d66(vec![
+            observed("consume", Some(3), Some(2)),
+            observed("grant", Some(2), Some(5)),
+            observed("consume", Some(5), Some(4)),
+        ])?;
+        assert_eq!(
+            interleaved,
+            vec![
+                json!({"operation":"grant","ordinal":0,"before":3,"after":6,"delta":3}),
+                json!({"operation":"consume","ordinal":1,"before":6,"after":4,"delta":-2}),
+            ]
+        );
+        // Start 1, grant +3, consume 2 exports grant(1->4) then consume(4->2).
+        let restock = d66(vec![
+            observed("grant", Some(1), Some(4)),
+            observed("consume", Some(4), Some(2)),
+        ])?;
+        assert_eq!(
+            restock,
+            vec![
+                json!({"operation":"grant","ordinal":0,"before":1,"after":4,"delta":3}),
+                json!({"operation":"consume","ordinal":1,"before":4,"after":2,"delta":-2}),
+            ]
+        );
+        // Start absent, grant 3, consume 1 exports grant(None->3) then consume(3->2).
+        let fresh = d66(vec![
+            observed("grant", None, Some(3)),
+            observed("consume", Some(3), Some(2)),
+        ])?;
+        assert_eq!(
+            fresh,
+            vec![
+                json!({"operation":"grant","ordinal":0,"before":null,"after":3,"delta":3}),
+                json!({"operation":"consume","ordinal":1,"before":3,"after":2,"delta":-1}),
+            ]
+        );
+        // A plain aggregate keeps ordinal 0 and its own endpoints.
+        let plain = d66(vec![
+            observed("consume", Some(3), Some(2)),
+            observed("consume", Some(2), None),
+        ])?;
+        assert_eq!(
+            plain,
+            vec![json!({"operation":"consume","ordinal":0,"before":3,"after":null,"delta":-3})]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn d66_refuses_unconserved_or_unorderable_consume_chains() -> anyhow::Result<()> {
+        let mut broken = observed("consume", Some(5), Some(4));
+        if let ItemEvidenceData::Delta(row) = &mut broken.fact {
+            row["count_delta"] = json!(-2);
+        }
+        assert!(d66(vec![observed("grant", Some(2), Some(5)), broken]).is_err());
+        let mut equip = observed("equip", Some(3), Some(3));
+        if let ItemEvidenceData::Delta(row) = &mut equip.fact {
+            *row.pointer_mut("/after/location").context("location")? = json!("paperdoll");
+        }
+        // A count-neutral automatic equip stays ahead of the aggregate (bow arrow auto-select).
+        let mut equipped = observed("consume", Some(3), Some(2));
+        if let ItemEvidenceData::Delta(row) = &mut equipped.fact {
+            *row.pointer_mut("/before/location").context("location")? = json!("paperdoll");
+            *row.pointer_mut("/after/location").context("location")? = json!("paperdoll");
+        }
+        assert_eq!(
+            d66(vec![equip, equipped])?,
+            vec![
+                json!({"operation":"equip","ordinal":0,"before":3,"after":3,"delta":0}),
+                json!({"operation":"consume","ordinal":1,"before":3,"after":2,"delta":-1}),
+            ]
+        );
+        // A non-Consume count decrease cannot precede the aggregate.
+        assert!(d66(vec![
+            observed("destroy", Some(3), Some(1)),
+            observed("consume", Some(1), Some(0))
+        ])
+        .is_err());
+        let mut relabelled = observed("grant", Some(2), Some(5));
+        if let ItemEvidenceData::Delta(row) = &mut relabelled.fact {
+            *row.pointer_mut("/after/template_id").context("template")? = json!(1463);
+        }
+        assert!(d66(vec![
+            observed("consume", Some(3), Some(2)),
+            relabelled,
+            observed("consume", Some(5), Some(4)),
+        ])
         .is_err());
         Ok(())
     }

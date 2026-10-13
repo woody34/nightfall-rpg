@@ -132,9 +132,11 @@ V6 conditions additionally encode `player_level_range {ranges:{minimum:int,
 maximum:int}[]}` with one inclusive range per skill rank, expanded from literal
 or table values. Rank is one-based; the evaluator rejects missing/out-of-range
 ranks, then tests `minimum <= player.level <= maximum`
-(`ConditionPlayerLevelRange.java:41-43`). D34 keeps `cond:player:levelRange`
-blocked until Z publishes executable support; representation alone does not
-promote skills/items. Existing fields and V5 condition representations retain
+(`ConditionPlayerLevelRange.java:41-43`). D34 promotion: Z published the
+executable rank/level evaluator (4f9ac8c/c5229d4/f6d882b), so V6 no longer emits
+`cond:player:levelRange` for a `player` leaf whose only attribute is `levelRange`
+with a `#table` or `min;max` value; V5/historical generation still blocks it.
+`required_condition_closure.runtime_support` is `zone_published:<SHAs>`. Existing fields and V5 condition representations retain
 their meaning. D27 per-file hash fields and ordering are unchanged.
 
 Diagnostic `capability_counts.json.required_condition_closure` records
@@ -156,3 +158,33 @@ subtract their bases; fullarmor/onepiece CHEST also subtracts LEGS once. Occupie
 magical slots subtract their effective bases. Existing V5 inputs are unchanged.
 The table participates in `rules_manifest.files` and `data_sha256`; source byte
 hashes remain in `source_inventory.json`.
+
+D75 `class_combat.toml` adds hash-bound unarmed (no active weapon) combat bases for
+the nine supported base classes (ascending `base_class_id`): `schema:int=1`,
+`sources:Source[]`, `unarmed:{attack_angle:int,random_damage_radius_base:int}`,
+`classes:ClassCombat[]`. ClassCombat is `{base_class_id:int,key:string,
+attack_type:string,attack_range:int,p_atk:int,p_atk_spd:int,crit_rate:int,
+lineage_class_ids:int[],source:Source}`, read from the class XML `staticData`
+leaves `baseAtkType/baseAtkRange/basePAtk/basePAtkSpd/baseCritRate`.
+`attack_range` is the base of `CharStat.getPhysicalAttackRange()` when no weapon is
+active (`CharStat.java:424-435`; template follows the CURRENT class,
+`L2PcInstance.java:1018-1019,7668-7674`): 20 for human/elf/dark elf/dwarf lineages
+and **25 for both orc lineages** (`OrcFighter.xml:33`, `OrcMystic.xml:33`); the
+loader default 40 (`L2CharTemplate.java:114`) is never reached for players.
+`lineage_class_ids` is the generator's census of every `classList.xml` descendant
+with a baseStats file; generation fails if any descendant's five values differ
+from its base class, so consumers may key by base class. `unarmed.attack_angle`
+is the hardcoded no-weapon angle 120 (`CharStat.java:438-447`, no per-class value);
+`unarmed.random_damage_radius_base` is the 5 of the no-weapon spread radius
+`5 + isqrt(level)` (`L2Character.java:5034-5044`; template `baseRndDam` is NOT used
+for unarmed players). `p_atk/p_atk_spd/crit_rate` are template bases that a
+weapon's `set` functions replace (`CharStat.java:145,399,410`). Transformations
+are out of scope. Phase 3 class data/hashes are untouched; the table participates
+in `rules_manifest.files` and `data_sha256`, and every cited source is byte-hashed
+in `source_inventory.json`.
+
+D34/D47/D50 promotions (V6 only; historical allow-lists unchanged): PHASE4_STATS
+adds `pvpPhysDmg`, `pvpPhysSkillsDmg`, `pvpMagicalDmg` (Z 4f9ac8c, bfc00a7) and
+`enlargeAbnormalSlot` (Z 402e554); D50 types the FatalBlow effect parameter
+`blowChance:int` (`FatalBlow.java:43-46`; Z bfc00a7) alongside `power`/`criticalChance`. Exact admitted deltas and identities are
+recorded in `packages/data/SOURCES.md` (Phase 4 promotions).

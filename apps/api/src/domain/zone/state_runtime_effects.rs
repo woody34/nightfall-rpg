@@ -771,6 +771,7 @@ impl ZoneState {
         skill: &SkillDef,
         rank: u32,
         handler: &crate::domain::zone::skill::SkillHandler,
+        shots: u8,
         events: &mut Vec<ZoneEvent>,
     ) -> Result<SkillTargetResult, TickError> {
         let a = self.effective(caster.entity)?;
@@ -824,10 +825,16 @@ impl ZoneState {
                 .map_err(invariant)?;
             let amount = if handler.name == "Heal" {
                 let power = ExactRatio::parse_literal(&param("power", "0")).map_err(invariant)?;
+                let (multiplier, bonus) =
+                    self.heal_shot_terms_v6(caster.entity, skill, rank, shots)?;
                 let mut amount = skill_math::heal_base(
-                    power,
+                    if skill.is_magic == 2 {
+                        power
+                    } else {
+                        power.checked_add(bonus).map_err(invariant)?
+                    },
                     q(a.m_atk_q).map_err(invariant)?,
-                    2,
+                    multiplier,
                     skill.is_magic == 2,
                 )
                 .map_err(invariant)?;

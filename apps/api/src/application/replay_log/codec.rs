@@ -470,7 +470,7 @@ struct PbOutputs {
 struct PbOutput {
     #[prost(
         oneof = "PbOutputItem",
-        tags = "1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40"
+        tags = "1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41"
     )]
     item: Option<PbOutputItem>,
 }
@@ -495,6 +495,9 @@ enum PbOutputItem {
     ItemOperationResult(Vec<u8>),
     #[prost(bytes, tag = "40")]
     ItemCheckpoint(Vec<u8>),
+    /// D26 V6-only enriched EntitySpawn/StatsChanged (canonical integer-only JSON).
+    #[prost(bytes, tag = "41")]
+    Phase4Enriched(Vec<u8>),
     #[prost(bytes, tag = "26")]
     PvpStateChanged(Vec<u8>),
     #[prost(bytes, tag = "27")]
@@ -1259,6 +1262,10 @@ fn cancel_from_pb(v: i32) -> Result<SwingCancel, CodecError> {
 
 #[allow(clippy::too_many_lines)] // exhaustive one-to-one durable event mapping
 fn event_to_pb(e: &ZoneEvent) -> PbOutputItem {
+    // D26: select the enriched carrier before every older event-carrier dispatch.
+    if phase4_enriched(e) {
+        return PbOutputItem::Phase4Enriched(canonical_json(e));
+    }
     if phase3_carrier(e) {
         return PbOutputItem::Phase3Projection(canonical_json(e));
     }
@@ -1413,6 +1420,7 @@ fn event_to_pb(e: &ZoneEvent) -> PbOutputItem {
         }),
         ZoneEvent::StatsChanged {
             class: _,
+            phase4: _,
             entity,
             hp,
             max_hp,
@@ -1463,6 +1471,7 @@ fn event_to_pb(e: &ZoneEvent) -> PbOutputItem {
         }),
         ZoneEvent::EntitySpawn {
             identity: _,
+            phase4: _,
             tick,
             entity,
             kind,
@@ -1956,8 +1965,12 @@ fn event_from_pb(item: PbOutputItem) -> Result<ZoneEvent, CodecError> {
             }
             event
         },
+        PbOutputItem::Phase4Enriched(bytes) => enriched_from_json(&bytes)?,
         PbOutputItem::Phase3Projection(bytes) => {
             let event: ZoneEvent = phase3_event_from_json(&bytes)?;
+            if phase4_enriched(&event) {
+                return Err(err("Phase4 enrichment in an older carrier"));
+            }
             if !matches!(event, ZoneEvent::VitalsChanged { .. } | ZoneEvent::SkillStateSync { .. })
                 && !phase3_carrier(&event)
             {
@@ -1977,6 +1990,9 @@ fn event_from_pb(item: PbOutputItem) -> Result<ZoneEvent, CodecError> {
         },
         PbOutputItem::Phase2(bytes) => {
             let event: ZoneEvent = serde_json::from_slice(&bytes).map_err(err)?;
+            if phase4_enriched(&event) {
+                return Err(err("Phase4 enrichment in an older carrier"));
+            }
             if !matches!(
                 event,
                 ZoneEvent::ClassChanged { .. }
@@ -2076,6 +2092,7 @@ fn event_from_pb(item: PbOutputItem) -> Result<ZoneEvent, CodecError> {
             respawned: d.respawned,
         }),
         PbOutputItem::StatsChanged(e) => ZoneEvent::StatsChanged {
+            phase4: None,
             class: None,
             entity: entity_from(&e.entity)?,
             hp: e.hp,
@@ -2104,6 +2121,7 @@ fn event_from_pb(item: PbOutputItem) -> Result<ZoneEvent, CodecError> {
             tick: Tick(e.tick),
         },
         PbOutputItem::Spawn(s) => ZoneEvent::EntitySpawn {
+            phase4: None,
             identity: None,
             tick: Tick(s.tick),
             entity: entity_from(&s.entity)?,
@@ -2162,6 +2180,49 @@ fn phase3_carrier(event: &ZoneEvent) -> bool {
         }
     ) || matches!(event, ZoneEvent::EntitySpawn { combat: Some(c), .. } if c.phase3.is_some())
         || matches!(event, ZoneEvent::StatsChanged { class: Some(c), .. } if c.phase3.is_some())
+}
+
+/// D26: exactly EntitySpawn/StatsChanged carrying their Phase4 sidecar.
+fn phase4_enriched(event: &ZoneEvent) -> bool {
+    matches!(
+        event,
+        ZoneEvent::EntitySpawn {
+            phase4: Some(_),
+            ..
+        } | ZoneEvent::StatsChanged {
+            phase4: Some(_),
+            ..
+        }
+    )
+}
+
+/// Strict tag41 grammar: canonical bytes, permitted variants, complete sidecars. A spawn
+/// needs its public combat Phase3 policy; owner stats need the owner Phase3 sheet whose
+/// nested effective projection the Phase4 extension completes.
+pub(super) fn enriched_from_json(bytes: &[u8]) -> Result<ZoneEvent, CodecError> {
+    let event = phase3_event_from_json(bytes)?;
+    let valid = if let ZoneEvent::EntitySpawn {
+        phase4: Some(items),
+        combat: Some(combat),
+        identity: Some(_),
+        ..
+    } = &event
+    {
+        combat.phase3.is_some() && items.validate().is_ok()
+    } else if let ZoneEvent::StatsChanged {
+        phase4: Some(items),
+        class: Some(class),
+        ..
+    } = &event
+    {
+        class.phase3.is_some() && items.validate().is_ok()
+    } else {
+        false
+    };
+    if !valid {
+        return Err(err("invalid Phase4 enriched event"));
+    }
+    Ok(event)
 }
 
 fn phase3_event_from_json(bytes: &[u8]) -> Result<ZoneEvent, CodecError> {
@@ -2271,6 +2332,7 @@ mod combat_tests {
     #[test]
     fn stats_changed_durable_round_trip() {
         let event = ObserverOutput::Event(ZoneEvent::StatsChanged {
+            phase4: None,
             class: None,
             tick: Tick(31),
             entity: id(1),
@@ -2283,6 +2345,198 @@ mod combat_tests {
         });
         let encoded = output_to_pb(&event).encode_to_vec();
         assert_eq!(output_from_pb(PbOutput::decode(encoded.as_slice()).unwrap()).unwrap(), event);
+    }
+
+    fn enriched_events() -> (ZoneEvent, ZoneEvent, ZoneEvent) {
+        use crate::domain::zone::item_views::{
+            ItemPenaltyView, ItemWeightView, Phase4EffectiveView, Phase4SpawnView, Phase4StatsView,
+            VisibleEquipment,
+        };
+        let combat = crate::domain::zone::CombatView {
+            phase3: Some(crate::domain::zone::CombatViewPhase3 {
+                status_flags: crate::domain::zone::effects::StatusFlags::default(),
+                flag_until: None,
+                karma: 0,
+            }),
+            template: None,
+            incarnation: 2,
+            dead: false,
+            attackable: false,
+            hp: 40,
+            max_hp: 50,
+            level: 3,
+            swing: None,
+        };
+        let spawn = |visible: Vec<VisibleEquipment>| ZoneEvent::EntitySpawn {
+            identity: Some(crate::domain::zone::PlayerIdentityView {
+                race: crate::domain::Race::Human,
+                class_id: crate::domain::class::ClassId(10),
+                appearance: crate::domain::character_progression::CharacterAppearance::default(),
+            }),
+            phase4: Some(Box::new(Phase4SpawnView { visible })),
+            tick: Tick(31),
+            entity: id(1),
+            kind: crate::domain::zone::EntityKind::Player,
+            name: "Owner".into(),
+            pos: Vec2Fixed::from_tiles(3, 4),
+            dest: None,
+            speed: crate::domain::zone::Speed::DEFAULT,
+            generation: crate::domain::zone::SessionGeneration(1),
+            combat: Some(combat.clone()),
+        };
+        let stats = ZoneEvent::StatsChanged {
+            class: Some(crate::domain::zone::ClassStatsView {
+                phase3: Some(Box::new(crate::domain::zone::OwnerPhase3View {
+                    incarnation: 2,
+                    baseline: Some(Tick(31)),
+                    pvp: crate::domain::zone::PvpState {
+                        flag_until: None,
+                        karma: 0,
+                        pk_count: 0,
+                        pvp_count: 0,
+                    },
+                    death_penalty_level: 0,
+                    effective: crate::domain::zone::LearnedEffectiveStats {
+                        p_atk_q: 1,
+                        p_def_q: 2,
+                        m_atk_q: 3,
+                        m_def_q: 4,
+                        attack_speed: 300,
+                        cast_speed: 333,
+                        speed_q: 5,
+                        accuracy_q: 6,
+                        evasion_q: 7,
+                        crit_permille: 8,
+                    },
+                })),
+                class_id: crate::domain::class::ClassId(10),
+                sp: 0,
+                cp: 0,
+                max_cp: 0,
+                token_tier_1_count: 0,
+                token_tier_2_count: 0,
+            }),
+            phase4: Some(Box::new(Phase4StatsView {
+                weight: ItemWeightView::new(700, 1000, 1).unwrap(),
+                penalties: ItemPenaltyView {
+                    expertise: 0,
+                    weapon_level: 1,
+                    armor_level: 0,
+                    overload_level: 2,
+                    overloaded: true,
+                },
+                inventory_revision: 9,
+                // Nondefault shield/reach/angle values and an explicit zero.
+                effective: Phase4EffectiveView {
+                    shield_def_q: 230_000_000,
+                    shield_rate_q: 20_000_000,
+                    shield_angle_degrees: 120,
+                    physical_reach_millitiles: 2_500,
+                    physical_angle_degrees: 0,
+                },
+            })),
+            tick: Tick(31),
+            entity: id(1),
+            hp: 40,
+            max_hp: 50,
+            mp: 6,
+            max_mp: 7,
+            level: 3,
+            xp: 99,
+        };
+        let visible = VisibleEquipment {
+            slot: crate::domain::zone::EquipSlot::Rhand,
+            template_id: 71,
+            glow_tier: 1,
+        };
+        (spawn(vec![visible]), spawn(Vec::new()), stats)
+    }
+
+    #[test]
+    #[allow(
+        clippy::too_many_lines,
+        clippy::indexing_slicing,
+        clippy::wildcard_enum_match_arm,
+        clippy::unreachable
+    )]
+    fn d26_enriched_events_use_tag41_round_trip_and_reject_partial_or_smuggled_sidecars() {
+        use super::phase3_boundary_tests::{empty, nested};
+        let (equipped, empty_gear, stats) = enriched_events();
+        for event in [&equipped, &empty_gear, &stats] {
+            let output = ObserverOutput::Event(event.clone());
+            let pb = output_to_pb(&output);
+            assert!(matches!(pb.item, Some(PbOutputItem::Phase4Enriched(_))), "{event:?}");
+            let encoded = pb.encode_to_vec();
+            let decoded = output_from_pb(PbOutput::decode(encoded.as_slice()).unwrap()).unwrap();
+            assert_eq!(decoded, output);
+            assert_eq!(output_to_pb(&decoded).encode_to_vec(), encoded);
+            // Record8 grammar accepts it; Record7 has no tag41.
+            let outputs = encode_outputs(std::slice::from_ref(&output));
+            let mut record = empty(8).encode_to_vec();
+            record.extend(nested(7, &nested(2, &outputs)));
+            assert!(super::super::codec_validation::record(&record, 8, false).is_ok());
+            let mut legacy = empty(7).encode_to_vec();
+            legacy.extend(nested(7, &nested(2, &outputs)));
+            assert!(super::super::codec_validation::record(&legacy, 7, false).is_err());
+        }
+        // Phase4-absent events keep their exact older carriers.
+        for event in [&equipped, &stats] {
+            let mut legacy = event.clone();
+            match &mut legacy {
+                ZoneEvent::EntitySpawn { phase4, .. } => *phase4 = None,
+                ZoneEvent::StatsChanged { phase4, .. } => *phase4 = None,
+                _ => unreachable!(),
+            }
+            let item = output_to_pb(&ObserverOutput::Event(legacy)).item.unwrap();
+            assert!(matches!(item, PbOutputItem::Phase3Projection(_)));
+        }
+        // Partial sidecars, wrong variants, noncanonical bytes and older carriers reject.
+        let mut no_policy = equipped.clone();
+        if let ZoneEvent::EntitySpawn {
+            combat: Some(c), ..
+        } = &mut no_policy
+        {
+            c.phase3 = None;
+        }
+        let mut no_sheet = stats.clone();
+        if let ZoneEvent::StatsChanged { class: Some(c), .. } = &mut no_sheet {
+            c.phase3 = None;
+        }
+        let mut tombstone = equipped.clone();
+        if let ZoneEvent::EntitySpawn {
+            phase4: Some(p), ..
+        } = &mut tombstone
+        {
+            p.visible[0].template_id = 0;
+        }
+        let mut weight = stats.clone();
+        if let ZoneEvent::StatsChanged {
+            phase4: Some(p), ..
+        } = &mut weight
+        {
+            p.weight.per_mille += 1;
+        }
+        let vitals = ZoneEvent::VitalsChanged {
+            tick: Tick(31),
+            entity: id(1),
+            incarnation: 2,
+            hp: 1,
+            max_hp: 2,
+            baseline: None,
+        };
+        for invalid in [&no_policy, &no_sheet, &tombstone, &weight, &vitals] {
+            assert!(enriched_from_json(&canonical_json(invalid)).is_err(), "{invalid:?}");
+        }
+        let mut spaced = canonical_json(&equipped);
+        spaced.insert(1, b' ');
+        assert!(enriched_from_json(&spaced).is_err());
+        let mut unknown = serde_json::to_value(&stats).unwrap();
+        unknown["phase4"]["extra"] = serde_json::json!(1);
+        assert!(enriched_from_json(&serde_json::to_vec(&unknown).unwrap()).is_err());
+        for event in [&equipped, &stats] {
+            assert!(event_from_pb(PbOutputItem::Phase2(canonical_json(event))).is_err());
+            assert!(event_from_pb(PbOutputItem::Phase3Projection(canonical_json(event))).is_err());
+        }
     }
 
     #[test]
@@ -2368,14 +2622,14 @@ mod combat_tests {
 mod phase3_boundary_tests {
     use super::*;
 
-    fn empty(schema: u32) -> PbRecord {
+    pub(super) fn empty(schema: u32) -> PbRecord {
         PbRecord {
             schema,
             state_digest: Bytes::from(vec![0; 32]),
             ..PbRecord::default()
         }
     }
-    fn nested(tag: u32, value: &[u8]) -> Vec<u8> {
+    pub(super) fn nested(tag: u32, value: &[u8]) -> Vec<u8> {
         let mut bytes = Vec::new();
         prost::encoding::encode_key(tag, prost::encoding::WireType::LengthDelimited, &mut bytes);
         prost::encoding::encode_varint(value.len() as u64, &mut bytes);
@@ -2453,6 +2707,7 @@ mod phase3_boundary_tests {
                 }),
             },
             ZoneEvent::EntitySpawn {
+                phase4: None,
                 tick: Tick(1),
                 entity: id,
                 kind: EntityKind::Player,

@@ -135,7 +135,7 @@ fn message(mut bytes: &[u8], node: &str, schema: u32, digested: bool) -> Result<
         let (expected, mut child, json) = if schema >= 8
             && ((node == "PbCommand" && (20..=31).contains(&tag))
                 || (node == "PbPlayerLoad" && tag == 10)
-                || (node == "PbOutput" && (32..=40).contains(&tag)))
+                || (node == "PbOutput" && (32..=41).contains(&tag)))
         {
             (2, None, false)
         } else if schema >= 7 {
@@ -200,6 +200,9 @@ fn message(mut bytes: &[u8], node: &str, schema: u32, digested: bool) -> Result<
             }
             if schema >= 8 && node == "PbOutput" && tag == 40 {
                 super::codec::phase4_projection_from_json(payload)?;
+            }
+            if schema >= 8 && node == "PbOutput" && tag == 41 {
+                super::codec::enriched_from_json(payload)?;
             }
             if schema >= 8 && node == "PbCommand" && tag == 30 {
                 super::codec::grant_from_json(payload)?;

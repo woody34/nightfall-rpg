@@ -46,8 +46,10 @@ pub mod item_functions;
 pub mod item_grant;
 pub mod item_inventory;
 pub mod item_modifiers;
+pub mod item_refine;
 pub mod item_refresh;
 pub mod item_rules;
+pub mod item_shots;
 pub mod item_sources;
 pub mod item_views;
 mod npc_template;
@@ -109,6 +111,7 @@ pub use item::{
 pub use item_enchant::EnchantAttempt;
 pub use item_exchange::ExchangeAudit;
 pub use item_grant::{ItemGrantCommand, ItemPausedCore};
+pub use item_refine::RefineAudit;
 pub use item_rules::Phase4Rules;
 pub use npc_template::{NpcTemplate, NpcTemplateId, SpawnSlot};
 pub use phase2::{
@@ -153,7 +156,7 @@ mod tests {
     /// Every source file in this module, embedded at compile time so the scan cannot miss a
     /// file that exists but is not listed: adding a module without adding it here fails
     /// `every_zone_source_is_scanned`.
-    const SOURCES: [(&str, &str); 81] = [
+    const SOURCES: [(&str, &str); 87] = [
         ("mod.rs", include_str!("mod.rs")),
         ("item.rs", include_str!("item.rs")),
         ("item_rules.rs", include_str!("item_rules.rs")),
@@ -161,6 +164,9 @@ mod tests {
         ("item_angles.rs", include_str!("item_angles.rs")),
         ("item_cast.rs", include_str!("item_cast.rs")),
         ("item_combat.rs", include_str!("item_combat.rs")),
+        ("item_shots.rs", include_str!("item_shots.rs")),
+        ("state_runtime_shots.rs", include_str!("state_runtime_shots.rs")),
+        ("state_item_shots.rs", include_str!("state_item_shots.rs")),
         ("phase4.rs", include_str!("phase4.rs")),
         ("phase4_projection.rs", include_str!("phase4_projection.rs")),
         ("item_inventory.rs", include_str!("item_inventory.rs")),
@@ -193,6 +199,8 @@ mod tests {
         ("state_runtime_life.rs", include_str!("state_runtime_life.rs")),
         ("state_runtime_observe.rs", include_str!("state_runtime_observe.rs")),
         ("state_runtime_auto.rs", include_str!("state_runtime_auto.rs")),
+        ("state_runtime_blow.rs", include_str!("state_runtime_blow.rs")),
+        ("state_runtime_bow.rs", include_str!("state_runtime_bow.rs")),
         ("state_runtime_damage.rs", include_str!("state_runtime_damage.rs")),
         ("state_damage.rs", include_str!("state_damage.rs")),
         ("phase2.rs", include_str!("phase2.rs")),
@@ -231,6 +239,7 @@ mod tests {
         ("item_grant.rs", include_str!("item_grant.rs")),
         ("item_enchant.rs", include_str!("item_enchant.rs")),
         ("item_exchange.rs", include_str!("item_exchange.rs")),
+        ("item_refine.rs", include_str!("item_refine.rs")),
         ("state_item_grant.rs", include_str!("state_item_grant.rs")),
         ("state_item_views.rs", include_str!("state_item_views.rs")),
         ("state_combat.rs", include_str!("state_combat.rs")),

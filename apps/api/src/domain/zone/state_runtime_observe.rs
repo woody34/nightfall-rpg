@@ -97,8 +97,24 @@ impl ZoneState {
                     ObserverOutput::Event(ZoneEvent::EntitySpawn {
                         entity,
                         combat: Some(combat),
+                        phase4,
                         ..
                     }) => {
+                        // D26: a V6 player's public paperdoll subset (possibly empty).
+                        if let Some(items) = self.phase4.as_ref() {
+                            if let Some(player) = items.canonical.players.get(entity) {
+                                *phase4 = Some(Box::new(
+                                    crate::domain::zone::item_views::Phase4SpawnView {
+                                        visible:
+                                            crate::domain::zone::item_views::visible_equipment(
+                                                player,
+                                                &items.rules,
+                                            )
+                                            .map_err(|_| TickError::Phase3Invariant)?,
+                                    },
+                                ));
+                            }
+                        }
                         let pvp = self
                             .sidecar(*entity)
                             .ok()

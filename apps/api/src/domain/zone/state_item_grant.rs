@@ -127,7 +127,7 @@ impl ZoneState {
                 receipt.result.incarnation = 0;
             }
             projection
-                .validate_structure(
+                .validate_staged(
                     projection
                         .paused_core
                         .as_ref()
@@ -338,10 +338,10 @@ impl ZoneState {
             operation: ItemOperation::Grant,
             key: command.request_id,
         };
-        let ordinal = u32::try_from(previous.as_ref().map_or(0, |p| p.receipts.len()))
-            .ok()
-            .and_then(|n| n.checked_add(1))
-            .ok_or(RejectReason::InvalidLoad)?;
+        let ordinal = previous
+            .as_ref()
+            .map_or(Ok(1), Phase4Projection::next_operation_ordinal)
+            .map_err(|_| RejectReason::InvalidLoad)?;
         if self.items_evidence_enabled() {
             let subject = self.binding(id).ok_or(RejectReason::InvalidLoad)?;
             for change in &mutation.changes {
@@ -370,6 +370,7 @@ impl ZoneState {
         let mut projection = previous.unwrap_or_else(|| Phase4Projection {
             enchant_attempts: Vec::new(),
             exchanges: Vec::new(),
+            refines: Vec::new(),
             paused_core: None,
             tick,
             entity: id,
@@ -424,7 +425,7 @@ impl ZoneState {
             },
         });
         projection
-            .validate_structure(
+            .validate_staged(
                 phase
                     .checkpoint(id, tick)
                     .map_err(invalid)?

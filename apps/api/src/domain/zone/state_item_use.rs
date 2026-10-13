@@ -5,7 +5,7 @@ use crate::domain::zone::item_rules::ItemDefinition;
 use crate::domain::zone::phase4::ItemReuse;
 use crate::domain::zone::phase4_checkpoint::ItemReuseKey;
 use crate::domain::zone::skill::{SkillId, SkillRef};
-use crate::domain::zone::{CastState, ItemInstanceId, ItemLocation};
+use crate::domain::zone::{ItemInstanceId, ItemLocation};
 use std::collections::BTreeSet;
 
 struct PreparedItemUse {
@@ -291,37 +291,6 @@ impl ZoneState {
                 .canonical
                 .rules,
         );
-        // Keep the pre-payment weight/effective sheet through every start in this item.
-        for (skill, ordinal, simultaneous) in &plan.skills {
-            let definition = rules
-                .skills()
-                .get(skill.id)
-                .ok_or(RejectReason::InvalidLoad)?
-                .clone();
-            self.start_defined_cast_v6(
-                tick,
-                &StagedCast {
-                    ordinal: timing.ordinal,
-                    caster,
-                    skill_id: skill.id,
-                    target: timing.target,
-                    canceled: None,
-                },
-                &definition,
-                *skill,
-                Some((
-                    crate::domain::zone::phase4::ItemCastOrigin {
-                        instance,
-                        template: plan.definition.template_id,
-                        count: plan.clicked_count,
-                        skill_ordinal: *ordinal,
-                        receipt: reference,
-                    },
-                    *simultaneous,
-                )),
-                events,
-            )?;
-        }
         let items = self.phase4.as_mut().ok_or(RejectReason::InvalidLoad)?;
         let player = items
             .canonical
@@ -334,7 +303,6 @@ impl ZoneState {
         player.inventory = plan.payments.inventory;
         player.item_reuse = plan.reuse;
         items.canonical.allocator = plan.payments.allocator;
-        self.rebuild_v5(id).map_err(|_| RejectReason::InvalidLoad)?;
         if self.items_evidence_enabled() {
             for change in &plan.payments.changes {
                 self.item_evidence_delta(
@@ -362,6 +330,7 @@ impl ZoneState {
         let mut projection = previous.unwrap_or_else(|| Phase4Projection {
             enchant_attempts: Vec::new(),
             exchanges: Vec::new(),
+            refines: Vec::new(),
             paused_core: None,
             tick,
             entity: id,
@@ -373,10 +342,9 @@ impl ZoneState {
             evidence: Vec::new(),
         });
         projection.checkpoint = checkpoint;
-        let operation_ordinal = u32::try_from(projection.receipts.len())
-            .ok()
-            .and_then(|n| n.checked_add(1))
-            .ok_or(RejectReason::InvalidLoad)?;
+        let operation_ordinal = projection
+            .next_operation_ordinal()
+            .map_err(|_| RejectReason::InvalidLoad)?;
         let mut affected = BTreeSet::new();
         for change in plan.payments.changes {
             let before = change.before.as_ref().ok_or(RejectReason::InvalidLoad)?;
@@ -406,6 +374,61 @@ impl ZoneState {
                 cause,
             )?;
         }
+        // Keep the pre-payment weight/effective sheet through every start in this item.
+        for (skill, ordinal, simultaneous) in &plan.skills {
+            let definition = rules
+                .skills()
+                .get(skill.id)
+                .ok_or(RejectReason::InvalidLoad)?
+                .clone();
+            self.start_defined_cast_v6(
+                tick,
+                &StagedCast {
+                    ordinal: timing.ordinal,
+                    caster,
+                    skill_id: skill.id,
+                    target: timing.target,
+                    canceled: None,
+                },
+                &definition,
+                *skill,
+                Some((
+                    crate::domain::zone::phase4::ItemCastOrigin {
+                        instance,
+                        template: plan.definition.template_id,
+                        count: plan.clicked_count,
+                        skill_ordinal: *ordinal,
+                        receipt: reference,
+                    },
+                    *simultaneous,
+                )),
+                Some((
+                    &mut projection,
+                    InventoryBoundary {
+                        tick,
+                        revision,
+                        origin: crate::domain::zone::ItemCreationOrigin {
+                            zone: self.seed.zone,
+                            epoch: self.seed.epoch,
+                        },
+                    },
+                )),
+                events,
+            )?;
+        }
+        self.rebuild_v5(id).map_err(|_| RejectReason::InvalidLoad)?;
+        let phase = &self
+            .phase3
+            .as_ref()
+            .ok_or(RejectReason::InvalidLoad)?
+            .canonical;
+        projection.checkpoint = self
+            .phase4
+            .as_ref()
+            .ok_or(RejectReason::InvalidLoad)?
+            .canonical
+            .checkpoint(id, tick, phase)
+            .map_err(|_| RejectReason::InvalidLoad)?;
         let result = FrozenItemResult {
             accepted_sequence: timing.accepted_sequence,
             entity: id,
@@ -426,7 +449,7 @@ impl ZoneState {
             result: result.clone(),
         });
         projection
-            .validate_structure(
+            .validate_staged(
                 phase
                     .checkpoint(id, tick)
                     .map_err(|_| RejectReason::InvalidLoad)?
@@ -468,6 +491,8 @@ impl ZoneState {
             .players
             .get(&id)
             .ok_or(RejectReason::InvalidLoad)?;
+        let original_revision = player.inventory_revision;
+        let had_previous = previous.is_some();
         let changed = initial_revision.map_or_else(
             || previous.as_ref().is_some_and(|p| !p.ledger.is_empty()),
             |initial| initial != player.inventory_revision,
@@ -523,16 +548,14 @@ impl ZoneState {
             )?;
         }
         let mut candidate = self.clone();
-        let mut local = Vec::new();
-        candidate.start_defined_cast_v6(tick, entry, skill, reference, None, &mut local)?;
-        let CastState::Casting(cast) = &candidate
-            .sidecar(id)
-            .map_err(|_| RejectReason::InvalidLoad)?
-            .cast
-        else {
-            return Err(RejectReason::InvalidLoad);
-        };
-        let cast_id = cast.id;
+        let cast_id = crate::domain::zone::CastId(
+            candidate
+                .phase3
+                .as_ref()
+                .ok_or(RejectReason::InvalidLoad)?
+                .canonical
+                .next_cast_id,
+        );
         let items = candidate.phase4.as_mut().ok_or(RejectReason::InvalidLoad)?;
         let player = items
             .canonical
@@ -540,11 +563,10 @@ impl ZoneState {
             .get_mut(&id)
             .ok_or(RejectReason::InvalidLoad)?;
         player.inventory = payments.inventory;
-        player.inventory_revision = revision;
+        if !payments.changes.is_empty() {
+            player.inventory_revision = revision;
+        }
         items.canonical.allocator = payments.allocator;
-        candidate
-            .rebuild_v5(id)
-            .map_err(|_| RejectReason::InvalidLoad)?;
         if candidate.items_evidence_enabled() {
             for change in &payments.changes {
                 candidate.item_evidence_delta(
@@ -588,6 +610,7 @@ impl ZoneState {
         let mut projection = previous.unwrap_or_else(|| Phase4Projection {
             enchant_attempts: Vec::new(),
             exchanges: Vec::new(),
+            refines: Vec::new(),
             paused_core: None,
             tick,
             entity: id,
@@ -627,8 +650,47 @@ impl ZoneState {
                 cause,
             )?;
         }
+        let mut local = Vec::new();
+        candidate.start_defined_cast_v6(
+            tick,
+            entry,
+            skill,
+            reference,
+            None,
+            Some((
+                &mut projection,
+                InventoryBoundary {
+                    tick,
+                    revision,
+                    origin: crate::domain::zone::ItemCreationOrigin {
+                        zone: candidate.seed.zone,
+                        epoch: candidate.seed.epoch,
+                    },
+                },
+            )),
+            &mut local,
+        )?;
+        candidate
+            .rebuild_v5(id)
+            .map_err(|_| RejectReason::InvalidLoad)?;
+        let phase = &candidate
+            .phase3
+            .as_ref()
+            .ok_or(RejectReason::InvalidLoad)?
+            .canonical;
+        projection.checkpoint = candidate
+            .phase4
+            .as_ref()
+            .ok_or(RejectReason::InvalidLoad)?
+            .canonical
+            .checkpoint(id, tick, phase)
+            .map_err(|_| RejectReason::InvalidLoad)?;
+        let publish = had_previous
+            || !projection.ledger.is_empty()
+            || !projection.evidence.is_empty()
+            || projection.checkpoint.inventory_revision != original_revision;
         projection
-            .validate_structure(
+            .validate_staged(
                 phase
                     .checkpoint(id, tick)
                     .map_err(|_| RejectReason::InvalidLoad)?
@@ -639,7 +701,9 @@ impl ZoneState {
         *self = candidate;
         events.retain(|event| !matches!(event, ZoneEvent::ItemCheckpoint(p) if p.entity == id));
         events.extend(local);
-        events.push(ZoneEvent::ItemCheckpoint(Box::new(projection)));
+        if publish {
+            events.push(ZoneEvent::ItemCheckpoint(Box::new(projection)));
+        }
         Ok(())
     }
 }

@@ -307,6 +307,7 @@ impl ZoneState {
         let projection = Phase4Projection {
             enchant_attempts: Vec::new(),
             exchanges: Vec::new(),
+            refines: Vec::new(),
             paused_core: None,
             tick,
             entity: id,
@@ -333,7 +334,7 @@ impl ZoneState {
             evidence: Vec::new(),
         };
         projection
-            .validate_structure(
+            .validate_staged(
                 phase
                     .checkpoint(id, tick)
                     .map_err(|_| TickError::Phase3Invariant)?

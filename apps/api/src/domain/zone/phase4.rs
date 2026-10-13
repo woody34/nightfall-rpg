@@ -236,6 +236,24 @@ impl Phase4Snapshot {
             {
                 return Err(ItemError("Phase4 player without Phase3 player"));
             }
+            if player.auto_shots.iter().any(|template| {
+                rules
+                    .parts()
+                    .capabilities
+                    .get(template)
+                    .is_none_or(|capability| {
+                        !capability.admitted || !capability.use_blockers.is_empty()
+                    })
+                    || rules.parts().items.get(template).is_none_or(|item| {
+                        item.etcitem_type != "SHOT"
+                            || !matches!(
+                                item.handler.as_str(),
+                                "SoulShots" | "SpiritShot" | "BlessedSpiritShot"
+                            )
+                    })
+            }) {
+                return Err(ItemError("unsupported automatic shot template"));
+            }
             for (key, item) in &player.inventory {
                 item.validate()?;
                 if *key != item.id

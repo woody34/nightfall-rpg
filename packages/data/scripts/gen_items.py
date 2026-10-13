@@ -618,6 +618,62 @@ def class_slots(inputs):
     return {'schema':1,'sources':game_sources,'classes':sorted(rows,key=lambda r:r['base_class_id'])}
 
 
+COMBAT_FIELDS=[('baseAtkType','attack_type',str),('baseAtkRange','attack_range',int),('basePAtk','p_atk',int),
+               ('basePAtkSpd','p_atk_spd',int),('baseCritRate','crit_rate',int)]
+
+
+def class_combat(inputs):
+    """D75: per base class unarmed (no active weapon) combat bases, with a lineage census."""
+    game_sources=[source(G+'model/actor/templates/L2CharTemplate.java','107,111,114,116,118','template loader defaults',True),
+                  source(G+'data/xml/impl/PlayerTemplateData.java','98-103','staticData leaf names',True),
+                  source(G+'model/actor/instance/L2PcInstance.java','1018-1019,7668-7674','template follows current class',True),
+                  source(G+'model/actor/stat/CharStat.java','424-435','no weapon: template baseAtkRange',True),
+                  source(G+'model/actor/stat/CharStat.java','438-447','no weapon: attack angle 120',True),
+                  source(G+'model/actor/stat/CharStat.java','145,399,410','template crit/pAtk/pAtkSpd bases',True),
+                  source(G+'model/actor/L2Character.java','5034-5044','no weapon: random 5+(int)sqrt(level)',True),
+                  source(G+'model/actor/L2Character.java','5560-5572','no weapon: template baseAtkType',True)]
+    text={citation['file']:inputs.read(citation['file'],True) for citation in game_sources}
+    angle=re.search(r'baseAttackAngle = (\d+);',text[G+'model/actor/stat/CharStat.java'])
+    radius=re.search(r'random = (\d+) \+ \(int\) Math\.sqrt\(getLevel\(\)\);',text[G+'model/actor/L2Character.java'])
+    if angle is None or radius is None:raise SourceError('missing unarmed angle/random-damage source')
+    graph_file=D+'stats/chars/classList.xml'
+    parents={int(attrs(n)['classId']):(int(attrs(n)['parentClassId']) if 'parentClassId' in attrs(n) else None)
+             for n in children(inputs.xml(graph_file),'class')}
+    def root_of(cid):
+        seen=set()
+        while parents.get(cid) is not None:
+            if cid in seen:raise SourceError('cyclic class graph')
+            seen.add(cid);cid=parents[cid]
+        return cid
+    def values(root,file):
+        static=children(root,'staticData')[0];row={};lines=[]
+        for tag,key,kind in COMBAT_FIELDS:
+            found=children(static,tag)
+            if len(found)!=1 or found[0]['children']:raise SourceError(f'{file}: missing/complex {tag}')
+            text=found[0]['text'].strip();row[key]=text if kind is str else int(text);lines.append(found[0]['line'])
+        if row['attack_type']!='FIST':raise SourceError(f'{file}: unexpected baseAtkType')
+        return row,lines
+    census={}
+    for path in sorted((inputs.dp/(D+'stats/chars/baseStats')).glob('*.xml')):
+        file=path.relative_to(inputs.dp).as_posix();root=inputs.xml(file)
+        cid=int(children(root,'classId')[0]['text']);census[cid]=(file,)+values(root,file)
+    rows=[]
+    for stem,key,name,race,archetype in STARTER_CLASSES:
+        file=D+'stats/chars/baseStats/'+stem+'.xml';root=inputs.xml(file)
+        base_id=int(children(root,'classId')[0]['text'])
+        if parents.get(base_id,0) is not None:raise SourceError('starter class is not a graph root: '+file)
+        row,lines=values(root,file)
+        lineage=sorted(cid for cid in census if root_of(cid)==base_id)
+        for cid in lineage:
+            if census[cid][1]!=row:raise SourceError(f'{census[cid][0]}: unarmed bases differ from base class {base_id}')
+        rows.append(dict({'base_class_id':base_id,'key':key},**row,lineage_class_ids=lineage,
+                         source=source(file,','.join(map(str,sorted(lines))),'baseAtkType/baseAtkRange/basePAtk/basePAtkSpd/baseCritRate')))
+    if len({r['base_class_id'] for r in rows})!=len(STARTER_CLASSES):raise SourceError('duplicate base class')
+    return {'schema':1,'sources':game_sources+[source(graph_file,'1-'+str(max(n['line'] for n in walk(inputs.xml(graph_file)))),'class lineage')],
+            'unarmed':{'attack_angle':int(angle[1]),'random_damage_radius_base':int(radius[1])},
+            'classes':sorted(rows,key=lambda r:r['base_class_id'])}
+
+
 def generate(dp=DEFAULT_DP,game=DEFAULT_GAME):
     inputs=Inputs(dp,game);slots=java_slots(inputs);classifications=java_classifications(inputs);all_items={};ledger=[]
     for rel in ['model/items/L2Weapon.java','model/items/L2Armor.java','model/items/L2EtcItem.java','enums/StatFunction.java','model/actor/instance/L2PcInstance.java','network/clientpackets/RequestEnchantItem.java','model/items/enchant/AbstractEnchantItem.java','model/items/enchant/EnchantScroll.java','model/items/enchant/EnchantSupportItem.java','data/xml/impl/EnchantItemHPBonusData.java','datatables/AugmentationData.java']:
@@ -631,6 +687,7 @@ def generate(dp=DEFAULT_DP,game=DEFAULT_GAME):
             ledger.append({'template_id':sid,'kind':r['kind'],'source':r['source'],'node_sha256':digest(n)})
     tables=side_tables(inputs,all_items);tables.update(constants(inputs))
     tables['class_slots.toml']=class_slots(inputs)
+    tables['class_combat.toml']=class_combat(inputs)
     blacklist=re.search(r'^EnchantBlacklist\s*=\s*([^\r\n]+)',inputs.read(provenance.CONFIG,True),re.M)
     if blacklist is None:raise SourceError('missing enchant blacklist')
     tables['enchant_scrolls.toml']['blacklist']=[int(x.strip()) for x in blacklist[1].split(',')]
@@ -690,7 +747,7 @@ def generate(dp=DEFAULT_DP,game=DEFAULT_GAME):
     elixir_ids=sorted(sid for sid,row in items.items() if any(ref['id'] in elixir_skills for ref in row['skills']))
     admitted_ids={row['template_id'] for row in caps['items'] if row['admitted']}
     counts['required_condition_closure']={'condition':'player_level_range','architect':'D34',
-        'runtime_support':'pending_zone_publication','skill_ids':sorted(elixir_skills),'template_ids':elixir_ids,
+        'runtime_support':'zone_published:4f9ac8c,c5229d4,f6d882b','skill_ids':sorted(elixir_skills),'template_ids':elixir_ids,
         'imported':len(elixir_ids),'admitted':sum(sid in admitted_ids for sid in elixir_ids),
         'deferred':sum(sid not in admitted_ids for sid in elixir_ids)}
     inventory={'schema':1,'counts':dict(Counter(r['kind'] for r in all_items.values())),

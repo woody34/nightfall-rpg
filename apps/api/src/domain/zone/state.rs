@@ -17,6 +17,8 @@ mod item_evidence_hooks;
 mod item_grant;
 #[path = "state_item_materialize.rs"]
 mod item_materialize;
+#[path = "state_item_shots.rs"]
+mod item_shots;
 #[path = "state_item_use.rs"]
 mod item_use;
 #[path = "state_item_views.rs"]
@@ -501,19 +503,20 @@ impl ZoneSnapshot {
                         })
                 },
                 (9, BinaryV5, true) => {
-                    self.checkpoints.iter().all(|lane| {
-                        lane.events.iter().all(|event| {
-                            matches!(
-                                event.subject(),
-                                "nightfall.character.created"
-                                    | "nightfall.character.leveled"
-                                    | "nightfall.character.class_changed"
-                                    | "nightfall.character.died"
-                                    | "nightfall.character.token_granted"
-                                    | "nightfall.character.skill_learned"
-                            )
+                    self.validate_skill_boundary(2, 1)
+                        && self.checkpoints.iter().all(|lane| {
+                            lane.events.iter().all(|event| {
+                                matches!(
+                                    event.subject(),
+                                    "nightfall.character.created"
+                                        | "nightfall.character.leveled"
+                                        | "nightfall.character.class_changed"
+                                        | "nightfall.character.died"
+                                        | "nightfall.character.token_granted"
+                                        | "nightfall.character.skill_learned"
+                                )
+                            })
                         })
-                    }) && self.validate_skill_boundary(2, 1)
                 },
                 (10, BinaryV6, true) => {
                     self.validate_skill_boundary(3, 2)
@@ -1202,7 +1205,7 @@ impl ZoneState {
         let impacts = events.len();
         self.land_impacts(tick, &mut events);
         self.note_hits(tick, events.get(impacts..).unwrap_or_default());
-        self.start_swings(tick, &mut events);
+        self.start_swings(tick, None, &mut events)?;
         self.flush_progression(tick, &mut events);
         let responses = responses(tick, &draft.commands, &dispositions);
         let outputs = self.observe(tick, responses, &events);
@@ -2103,6 +2106,7 @@ fn diff_into(
 /// The spawn an observer receives when `e` enters its AOI: full current movement state.
 fn spawn_event(tick: Tick, e: &Entity) -> ZoneEvent {
     ZoneEvent::EntitySpawn {
+        phase4: None,
         identity: e.combat.as_ref().and_then(|c| match &c.role {
             CombatRole::Player { progression, .. } => progression.as_ref().map(|p| p.public()),
             CombatRole::Npc { .. } => None,
@@ -2196,6 +2200,7 @@ fn npc_combat(spec: &NpcCombat) -> Result<CombatState, RejectReason> {
 /// The owner-only resource fact.
 pub(super) fn stats_changed(tick: Tick, entity: EntityId, c: &CombatState) -> ZoneEvent {
     ZoneEvent::StatsChanged {
+        phase4: None,
         class: match &c.role {
             CombatRole::Player { progression, .. } => progression.as_ref().map(|p| p.stats()),
             CombatRole::Npc { .. } => None,

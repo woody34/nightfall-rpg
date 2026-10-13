@@ -147,7 +147,7 @@ impl ZoneState {
         }
         let mut candidate = self.clone();
         let mut local = Vec::new();
-        let projection = candidate.resolve_item_command_v6(
+        let (projection, refusal) = candidate.resolve_item_command_v6(
             tick,
             command,
             timing,
@@ -160,16 +160,20 @@ impl ZoneState {
             .receipts
             .iter()
             .find(|r| r.reference() == reference)
-            .ok_or(RejectReason::InvalidLoad)?
-            .clone();
+            .cloned();
+        if refusal.is_none() && receipt.is_none() {
+            return Err(RejectReason::InvalidLoad);
+        }
         *self = candidate;
-        receipts.insert((account, reference), ItemReceiptState::Known(receipt));
+        if let Some(receipt) = receipt {
+            receipts.insert((account, reference), ItemReceiptState::Known(receipt));
+        }
         events.retain(
             |event| !matches!(event, ZoneEvent::ItemCheckpoint(p) if p.entity == command.entity),
         );
         events.extend(local);
         events.push(ZoneEvent::ItemCheckpoint(Box::new(projection)));
-        Ok(())
+        refusal.map_or(Ok(()), Err)
     }
 
     #[allow(clippy::too_many_lines, clippy::too_many_arguments)] // Explicit staged operation and receipt inputs.
@@ -182,7 +186,7 @@ impl ZoneState {
         reference: ItemReceiptRef,
         fingerprint: String,
         events: &mut Vec<ZoneEvent>,
-    ) -> Result<Phase4Projection, RejectReason> {
+    ) -> Result<(Phase4Projection, Option<RejectReason>), RejectReason> {
         let id = command.entity;
         let entity = self.entities.get(&id).ok_or(RejectReason::UnknownEntity)?;
         let combat = entity.combat.as_ref().ok_or(RejectReason::NotAPlayer)?;
@@ -208,8 +212,8 @@ impl ZoneState {
         ) {
             return Err(RejectReason::Incapacitated);
         }
-        if matches!(command.kind, ItemCommandKind::Use { .. }) {
-            return self.resolve_item_use_v6(
+        if self.is_shot_command_v6(command)? {
+            return self.resolve_shot_command_v6(
                 tick,
                 command,
                 timing,
@@ -218,6 +222,19 @@ impl ZoneState {
                 fingerprint,
                 events,
             );
+        }
+        if matches!(command.kind, ItemCommandKind::Use { .. }) {
+            return self
+                .resolve_item_use_v6(
+                    tick,
+                    command,
+                    timing,
+                    previous,
+                    reference,
+                    fingerprint,
+                    events,
+                )
+                .map(|projection| (projection, None));
         }
         let items = self
             .phase4
@@ -241,13 +258,18 @@ impl ZoneState {
                 .filter(|r| i64::try_from(*r).is_ok())
                 .ok_or(RejectReason::InvalidLoad)?
         };
-        let operation_ordinal = u32::try_from(previous.as_ref().map_or(0, |p| p.receipts.len()))
-            .ok()
-            .and_then(|n| n.checked_add(1))
-            .ok_or(RejectReason::InvalidLoad)?;
+        let operation_ordinal = previous
+            .as_ref()
+            .map_or(Ok(1), Phase4Projection::next_operation_ordinal)
+            .map_err(|_| RejectReason::InvalidLoad)?;
         let mut enchant = None;
         let mut exchange = None;
         let mut exchange_formula = None;
+        let mut refine: Option<(
+            crate::domain::zone::RefineAudit,
+            Vec<crate::domain::zone::ItemInstanceId>,
+        )> = None;
+        let mut refine_evidence = None;
         let mut allocator = items.canonical.allocator;
         let mutation = match command.kind {
             ItemCommandKind::Equip {
@@ -426,10 +448,97 @@ impl ZoneState {
                 exchange = Some(plan.audit);
                 plan.mutation
             },
-            ItemCommandKind::Use { .. }
-            | ItemCommandKind::ToggleAutoShot { .. }
-            | ItemCommandKind::Refine { .. }
-            | ItemCommandKind::CancelRefine { .. } => return Err(RejectReason::NotYetImplemented),
+            ItemCommandKind::Refine { npc, target, stone } => {
+                self.guard_blacksmith_v6(id, npc)?;
+                let prepared = crate::domain::zone::item_refine::prepare_refine(
+                    player,
+                    &items.rules,
+                    allocator,
+                    combat.sheet.level(),
+                    target,
+                    stone,
+                    crate::domain::zone::item_inventory::InventoryBoundary {
+                        tick,
+                        revision,
+                        origin: crate::domain::zone::ItemCreationOrigin {
+                            zone: self.seed.zone,
+                            epoch: self.seed.epoch,
+                        },
+                    },
+                    reference,
+                    operation_ordinal,
+                )?;
+                self.guard_refine_v6(id, &prepared)?;
+                let selectors = prepared
+                    .selectors
+                    .clone()
+                    .ok_or(RejectReason::InvalidLoad)?;
+                let mut words = Vec::new();
+                let rng = &mut self.rng;
+                // Complete preflight precedes the three source draws (§3 phase 0).
+                let selection = selectors
+                    .select(|| {
+                        let before = rng.get_word_pos();
+                        let raw = rng.next_u32();
+                        words.push((before, rng.get_word_pos(), raw));
+                        raw
+                    })
+                    .map_err(invalid)?;
+                let (mutation, next, audit, payments) =
+                    prepared.finish(Some(selection), revision)?;
+                allocator = next;
+                refine_evidence = Some((selectors, words));
+                refine = Some((audit, payments));
+                mutation
+            },
+            ItemCommandKind::CancelRefine { npc, target } => {
+                self.guard_blacksmith_v6(id, npc)?;
+                let prepared = crate::domain::zone::item_refine::prepare_cancel(
+                    player,
+                    &items.rules,
+                    allocator,
+                    target,
+                    crate::domain::zone::item_inventory::InventoryBoundary {
+                        tick,
+                        revision,
+                        origin: crate::domain::zone::ItemCreationOrigin {
+                            zone: self.seed.zone,
+                            epoch: self.seed.epoch,
+                        },
+                    },
+                    reference,
+                    operation_ordinal,
+                )?;
+                self.guard_refine_v6(id, &prepared)?;
+                let (mutation, next, audit, payments) = prepared.finish(None, revision)?;
+                allocator = next;
+                refine = Some((audit, payments));
+                mutation
+            },
+            ItemCommandKind::Use { .. } | ItemCommandKind::ToggleAutoShot { .. } => {
+                return Err(RejectReason::NotYetImplemented)
+            },
+        };
+        // D55/D66: rows of one logical operation on the same instance (displacement then the
+        // operation itself) take strictly increasing ordinals from the operation's ordinal.
+        let row_ordinals = {
+            let mut next = std::collections::BTreeMap::new();
+            mutation
+                .changes
+                .iter()
+                .map(|change| {
+                    let instance = change
+                        .after
+                        .as_ref()
+                        .or(change.before.as_ref())
+                        .ok_or(RejectReason::InvalidLoad)?
+                        .id;
+                    let slot = next.entry(instance).or_insert(operation_ordinal);
+                    let ordinal = *slot;
+                    *slot = slot.checked_add(1).ok_or(RejectReason::InvalidLoad)?;
+                    Ok(ordinal)
+                })
+                .collect::<Result<Vec<u32>, RejectReason>>()?
         };
         let weapon_changed = mutation.changes.iter().any(|change| {
             change
@@ -491,7 +600,10 @@ impl ZoneState {
             if let Some((detail, attempt, _)) = &enchant {
                 self.item_evidence_enchant(subject, attempt, detail)?;
             }
-            for change in &mutation.changes {
+            if let Some((audit, _)) = &refine {
+                self.item_evidence_refine(subject, audit, refine_evidence.as_ref(), &resolution)?;
+            }
+            for (change, row_ordinal) in mutation.changes.iter().zip(&row_ordinals) {
                 let instance = change
                     .after
                     .as_ref()
@@ -500,11 +612,23 @@ impl ZoneState {
                     .id;
                 let before_count = change.before.as_ref().map_or(0, |i| i.count);
                 let after_count = change.after.as_ref().map_or(0, |i| i.count);
-                let operation = if exchange.as_ref().is_some_and(|audit| {
-                    audit.rows.iter().any(|row| {
-                        row.instance == instance && row.operation == ItemOperation::Consume
-                    })
-                }) && after_count < before_count
+                let refine_target = refine.as_ref().is_some_and(|(audit, _)| {
+                    audit.after.id == instance
+                        && change.before.as_ref().map(|i| i.augment_id)
+                            != change.after.as_ref().map(|i| i.augment_id)
+                });
+                let refine_payment = refine
+                    .as_ref()
+                    .is_some_and(|(_, payments)| payments.contains(&instance))
+                    && after_count < before_count;
+                let operation = if refine_target {
+                    reference.operation
+                } else if refine_payment
+                    || exchange.as_ref().is_some_and(|audit| {
+                        audit.rows.iter().any(|row| {
+                            row.instance == instance && row.operation == ItemOperation::Consume
+                        })
+                    }) && after_count < before_count
                     || enchant
                         .as_ref()
                         .is_some_and(|(_, _, payments)| payments.contains(&instance))
@@ -534,7 +658,7 @@ impl ZoneState {
                     if operation == ItemOperation::Consume {
                         0
                     } else {
-                        operation_ordinal
+                        *row_ordinal
                     },
                     Some(reference),
                     &resolution,
@@ -552,6 +676,7 @@ impl ZoneState {
         let mut projection = previous.unwrap_or_else(|| Phase4Projection {
             enchant_attempts: Vec::new(),
             exchanges: Vec::new(),
+            refines: Vec::new(),
             paused_core: None,
             tick,
             entity: id,
@@ -564,7 +689,7 @@ impl ZoneState {
         });
         projection.checkpoint = checkpoint;
         let mut affected = std::collections::BTreeSet::new();
-        for change in mutation.changes {
+        for (change, row_ordinal) in mutation.changes.into_iter().zip(row_ordinals) {
             let instance = change
                 .after
                 .as_ref()
@@ -584,6 +709,13 @@ impl ZoneState {
                     continue;
                 }
             }
+            if let Some((audit, payments)) = &refine {
+                if payments.contains(&instance) && count_delta < 0 {
+                    let cause = audit.payment_cause(count_delta);
+                    append_item_consumption(&mut projection, change, count_delta, cause)?;
+                    continue;
+                }
+            }
             if let Some(row) = exchange.as_ref().and_then(|audit| {
                 audit.rows.iter().find(|row| {
                     row.instance == instance
@@ -595,9 +727,16 @@ impl ZoneState {
                 append_item_consumption(&mut projection, change, count_delta, cause)?;
                 continue;
             }
+            let refine_target = refine.as_ref().is_some_and(|(audit, _)| {
+                audit.after.id == instance
+                    && change.before.as_ref().map(|i| i.augment_id)
+                        != change.after.as_ref().map(|i| i.augment_id)
+            });
             projection.ledger.push(ItemDeltaPlan {
                 receipt_refs: Vec::new(),
-                operation: if enchant
+                operation: if refine_target {
+                    reference.operation
+                } else if enchant
                     .as_ref()
                     .is_some_and(|(_, attempt, _)| attempt.target == instance)
                     && change.before.as_ref().and_then(|i| i.slot)
@@ -618,7 +757,7 @@ impl ZoneState {
                 } else {
                     ItemOperation::Unequip
                 },
-                operation_ordinal,
+                operation_ordinal: row_ordinal,
                 instance,
                 count_delta,
                 before: change.before,
@@ -635,6 +774,14 @@ impl ZoneState {
                 affected: affected.into_iter().collect(),
                 recipe: Some(recipe),
             }
+        } else if let Some((audit, _)) = refine {
+            let detail = ItemResultDetail::Refine {
+                target: audit.after.id,
+                augment: audit.after.augment_id,
+                outcome: audit.outcome,
+            };
+            projection.refines.push(audit);
+            detail
         } else if let Some((detail, attempt, _)) = enchant {
             projection.evidence.push(attempt.cause.clone());
             projection.enchant_attempts.push(attempt);
@@ -662,7 +809,7 @@ impl ZoneState {
             result: result.clone(),
         });
         projection
-            .validate_structure(
+            .validate_staged(
                 phase
                     .canonical
                     .checkpoint(id, tick)
@@ -672,7 +819,25 @@ impl ZoneState {
             )
             .map_err(invalid)?;
         events.push(ZoneEvent::ItemResult(Box::new(result)));
-        Ok(projection)
+        Ok((projection, None))
+    }
+
+    /// Refine/cancel displacement and payments obey the same cast guards as removal.
+    fn guard_refine_v6(
+        &self,
+        owner: EntityId,
+        prepared: &crate::domain::zone::item_refine::RefinePrepared,
+    ) -> Result<(), RejectReason> {
+        self.guard_item_removal_v6(owner, &prepared.audit.before)?;
+        for change in &prepared.mutation.changes {
+            if let Some(before) = &change.before {
+                self.guard_item_removal_v6(owner, before)?;
+            }
+        }
+        if prepared.changes_weapon() {
+            self.guard_equipment_cast_v6(owner)?;
+        }
+        Ok(())
     }
 
     fn guard_blacksmith_v6(
@@ -805,7 +970,7 @@ impl ZoneState {
             if let ZoneEvent::ItemCheckpoint(projection) = event {
                 if let Some(core) = &projection.paused_core {
                     projection
-                        .validate_structure(
+                        .validate_staged(
                             core.load
                                 .phase3
                                 .as_ref()
@@ -821,7 +986,7 @@ impl ZoneState {
                     .checkpoint(projection.entity, tick, &phase.canonical)
                     .map_err(|_| TickError::Phase3Invariant)?;
                 projection
-                    .validate_structure(
+                    .validate_staged(
                         phase
                             .canonical
                             .checkpoint(projection.entity, tick)

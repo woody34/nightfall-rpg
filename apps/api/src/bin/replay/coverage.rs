@@ -569,6 +569,7 @@ mod tests {
                     generation: SessionGeneration(u64::MAX),
                 },
                 ZoneEvent::StatsChanged {
+                    phase4: None,
                     entity,
                     tick: Tick(1),
                     class: None,
