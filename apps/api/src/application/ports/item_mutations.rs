@@ -303,7 +303,9 @@ impl ItemCheckpointWork {
     }
 
     /// D95: each captured refine audit is re-derived at the trust boundary. A Refine's three
-    /// retail draws reproduce its selection (and so its packed augment) from the hashed tables;
+    /// retail draws reproduce its selection (and so its packed augment) from the hashed tables
+    /// (raw-word/selection consistency only; that the words came from the RNG stream is
+    /// replay's job);
     /// a `CancelRefine` has no draw and pays exactly the hashed Adena fee. The audit's payments
     /// equal, per template, the Consume causes of its family carrying its receipt, and no such
     /// cause is left unaccounted.
@@ -313,6 +315,16 @@ impl ItemCheckpointWork {
     ) -> Result<(), CheckpointError> {
         use crate::domain::zone::item_refine::{cancel_fee, RetailSelectors, ADENA};
         use crate::domain::zone::phase4_projection::ItemEvidenceValue;
+        // Every Refine/CancelRefine target row is backed by its captured audit: the outbox
+        // publishes the audit in place of the row, so a row without one would go unaudited.
+        if self.projection.ledger.iter().any(|delta| {
+            matches!(delta.operation, ItemOperation::Refine | ItemOperation::CancelRefine)
+                && !self.projection.refines.iter().any(|refine| {
+                    delta.receipt == Some(refine.receipt) && delta.instance == refine.after.id
+                })
+        }) {
+            return Err(invalid("item_refine_audit_missing"));
+        }
         for refine in &self.projection.refines {
             let applied = refine.outcome == ItemRefineOutcome::Applied;
             match (&refine.selection, refine.stone) {

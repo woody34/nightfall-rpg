@@ -1,15 +1,16 @@
 -- D76: operation_ordinal is the canonical row position 0..n-1 of the owner's rows for one
--- instance in one tick (D69 order), so the Consume aggregate is not ordinal 0. D94: the shape is
+-- instance in one tick (D69 order), no longer a fixed Consume ordinal 0. D94: the shape is
 -- [non-terminal rows..., Consume aggregate, at most one terminal row (after = null)], so the
 -- aggregate holds n-1, or n-2 when the n-1 row is terminal.
 ALTER TABLE item_ledger DROP CONSTRAINT item_ledger_consume_ordinal;
--- Still exactly one Consume aggregate per character/instance/tick; it is that group's last row.
+-- Still exactly one Consume aggregate per character/instance/tick; it is that group's last row,
+-- or the last but one when a single terminal row follows it (D94).
 COMMENT ON INDEX item_ledger_consume_batch_key IS
-    'One Consume aggregate per (zone, epoch, tick, character, instance); D76: it holds the group''s highest operation_ordinal.';
+    'One Consume aggregate per (zone, epoch, tick, character, instance); D76/D94: it holds the group''s operation_ordinal n-1, or n-2 when the n-1 row is terminal.';
 -- Checked at commit (or SET CONSTRAINTS ... IMMEDIATE) once the whole tick's rows are appended:
 -- per (zone, epoch, tick, character, instance) the ordinals are unique and exactly 0..n-1, and a
--- Consume row holds n-1, or n-2 followed by a terminal row (D94). It fires on INSERT only, so append-only pre-D76 history is never
--- re-validated or rewritten.
+-- Consume row holds n-1, or n-2 followed by a terminal row (D94). It fires on INSERT only, so
+-- append-only pre-D76 history is never re-validated or rewritten.
 CREATE FUNCTION item_ledger_row_ordinal() RETURNS trigger LANGUAGE plpgsql AS $$
 DECLARE
     total bigint;
