@@ -134,6 +134,7 @@ async fn eight_session_casting_runtime() {
         .with_learning(repo.clone())
         .with_durability(log.clone(), store),
     );
+    let sampler = pg_wait_sampler().await;
     let registry = SessionRegistry::with_characters(repo.clone());
     let mut players = Vec::new();
     let mut outputs = zone.subscribe();
@@ -232,8 +233,11 @@ async fn eight_session_casting_runtime() {
                 .unwrap();
             }
         }
+        let stepped_at = unix_ms();
         assert_eq!(driver.step().await.unwrap(), TickOutcome::Ran(Tick(tick)));
-        durations.push(zone.stats().borrow().duration_micros);
+        let micros = zone.stats().borrow().duration_micros;
+        println!("TICK n={tick} unix_ms={stepped_at} micros={micros}");
+        durations.push(micros);
         let mapping = Instant::now();
         while let Ok(record) = outputs.try_recv() {
             for event in &record.events {
@@ -336,6 +340,10 @@ async fn eight_session_casting_runtime() {
                 > 1
         );
     }
+    if let Some((stop, task)) = sampler {
+        stop.send(()).ok();
+        task.await.unwrap();
+    }
     println!("{}", metrics.render().unwrap());
     running
         .shutdown(api::application::replay_log::WatermarkReason::Shutdown)
@@ -403,6 +411,124 @@ fn recorded_checkpoint_causes() {
         previous = snapshot;
     }
     println!("PERF recording checkpoint causes: {counts:?}");
+}
+
+/// With `PERF_PG_SAMPLE_MS`, samples every non-idle backend of this database (wait event,
+/// statement age, abbreviated statement) and every ungranted lock, on a dedicated
+/// connection outside the actor's pool. Read-only; it never takes a lock that the actor needs.
+async fn pg_wait_sampler() -> Option<(tokio::sync::oneshot::Sender<()>, tokio::task::JoinHandle<()>)>
+{
+    use sqlx::Connection as _;
+    let every = std::env::var("PERF_PG_SAMPLE_MS")
+        .ok()?
+        .parse::<u64>()
+        .unwrap();
+    let mut conn = sqlx::PgConnection::connect(&std::env::var("DATABASE_URL").unwrap())
+        .await
+        .unwrap();
+    let (stop, mut stopped) = tokio::sync::oneshot::channel();
+    let task = tokio::spawn(async move {
+        let started = Instant::now();
+        loop {
+            let at = started.elapsed().as_millis();
+            let unix_ms = unix_ms();
+            for row in sqlx::query(
+                "SELECT pid, state, COALESCE(wait_event_type,'-') AS wt, COALESCE(wait_event,'-') AS we, \
+                 (EXTRACT(EPOCH FROM clock_timestamp() - query_start) * 1000)::bigint AS age_ms, \
+                 left(regexp_replace(query, '\\s+', ' ', 'g'), 48) AS q \
+                 FROM pg_stat_activity WHERE datname = current_database() AND pid <> pg_backend_pid() \
+                 AND state NOT IN ('idle')",
+            )
+            .fetch_all(&mut conn)
+            .await
+            .unwrap()
+            {
+                println!(
+                    "PGSAMPLE t_ms={at} unix_ms={unix_ms} pid={} state={} wait={}:{} age_ms={} q={}",
+                    row.get::<i32, _>("pid"),
+                    row.get::<String, _>("state"),
+                    row.get::<String, _>("wt"),
+                    row.get::<String, _>("we"),
+                    row.get::<Option<i64>, _>("age_ms").unwrap_or(-1),
+                    row.get::<String, _>("q"),
+                );
+            }
+            for row in sqlx::query(
+                "SELECT l.pid, l.locktype, l.mode, COALESCE(c.relname, '-') AS rel \
+                 FROM pg_locks l LEFT JOIN pg_class c ON c.oid = l.relation WHERE NOT l.granted",
+            )
+            .fetch_all(&mut conn)
+            .await
+            .unwrap()
+            {
+                println!(
+                    "PGLOCKWAIT t_ms={at} unix_ms={unix_ms} pid={} type={} mode={} rel={}",
+                    row.get::<i32, _>("pid"),
+                    row.get::<String, _>("locktype"),
+                    row.get::<String, _>("mode"),
+                    row.get::<String, _>("rel"),
+                );
+            }
+            tokio::select! {
+                _ = &mut stopped => break,
+                () = tokio::time::sleep(Duration::from_millis(every)) => {},
+            }
+        }
+    });
+    Some((stop, task))
+}
+
+fn unix_ms() -> u128 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis()
+}
+
+/// Isolates the pre-log epoch fence: the production `recording` UPDATE every
+/// `PERF_INTERVAL_MS`, alone on a fresh migrated schema, with no actor, log, checkpoint
+/// transaction or other writer. Any stall here cannot come from row-lock contention.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+#[ignore = "manual storage probe; requires owned DATABASE_URL"]
+async fn fence_only_latency() {
+    use api::application::replay_log::ZoneSnapshotStore as _;
+    let pool = pg::migrated_pool().await.expect("DATABASE_URL required");
+    sqlx::query("INSERT INTO zone_epochs (zone_id, epoch) VALUES (2147483001, 1)")
+        .execute(&pool)
+        .await
+        .unwrap();
+    let store = PgZoneSnapshotStore::new(pool.clone());
+    let sampler = pg_wait_sampler().await;
+    let ticks = std::env::var("PERF_TICKS").map_or(600, |s| s.parse::<u64>().unwrap());
+    let interval = std::env::var("PERF_INTERVAL_MS").map_or(100, |s| s.parse::<u64>().unwrap());
+    let mut durations = Vec::new();
+    for tick in 1..=ticks {
+        let started = Instant::now();
+        let at = unix_ms();
+        store
+            .recording(ZoneId(2_147_483_001), 1, Tick(tick))
+            .await
+            .unwrap();
+        let micros = u64::try_from(started.elapsed().as_micros()).unwrap();
+        println!("FENCE unix_ms={at} micros={micros}");
+        durations.push(micros);
+        tokio::time::sleep(Duration::from_millis(interval).saturating_sub(started.elapsed())).await;
+    }
+    if let Some((stop, task)) = sampler {
+        stop.send(()).ok();
+        task.await.unwrap();
+    }
+    durations.sort_unstable();
+    println!(
+        "FENCE_ONLY n={} mean_us={} p50_us={} p99_us={} max_us={}",
+        ticks,
+        durations.iter().sum::<u64>() / ticks,
+        durations.get(durations.len() / 2).unwrap(),
+        durations
+            .get(durations.len().saturating_mul(99) / 100)
+            .unwrap(),
+        durations.last().unwrap()
+    );
 }
 
 fn def_zone() -> ZoneId {
