@@ -801,11 +801,13 @@ impl ZoneState {
         // first subhit does. Pinned onHitTimer cancels on isStunned/isSleeping/isAfraid/
         // isPhysicalAttackMuted (fear is not admitted); the auto-action gate also covers
         // paralysis and casting. Peace/hostility use the same classifier. A failure discards
-        // the stored result; planning draws are never refunded (I3).
-        let muted = self.effective(id).is_ok_and(|s| {
-            s.flags
-                .intersects(crate::domain::zone::effects::StatusFlags::PHYSICAL_MUTE)
-        });
+        // the stored result; planning draws are never refunded (I3). D107: range is NOT
+        // revalidated (pinned onHitTimer has no range check; design §6 row 6 amended), and an
+        // effective-stats failure is an invariant error, never "not muted".
+        let muted = self
+            .effective(id)?
+            .flags
+            .intersects(crate::domain::zone::effects::StatusFlags::PHYSICAL_MUTE);
         if !self.auto_action_v5(id) || muted || self.hostility_v5(tick, source, hit.target).is_err()
         {
             self.dual_plan_complete_v6(id, hit.target.entity, false);
