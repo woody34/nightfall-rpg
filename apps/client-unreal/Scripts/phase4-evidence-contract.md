@@ -97,7 +97,10 @@ JSONL contract (schema version 1 of this sidecar):
   D66 amends D64: canonical order per `(entity,incarnation,tick,instance)` is
   ALL positive rows (`grant`, including refunds/Exchange products, `starter`,
   `backfill`) FIRST in cause order, then the single Consume aggregate LAST.
-  Ordinals are zero-based in this chain. The first before equals tick-start
+  D76/D83: `operation_ordinal` is the row POSITION 0..n−1 in this chain, for
+  EVERY chain (with or without a Consume aggregate; the aggregate therefore
+  has the highest ordinal). One logical operation producing two rows on one
+  instance takes consecutive ordinals. The first before equals tick-start
   state (null for a fresh allocation); each next before equals the preceding
   after. Consume's before is the post-positive state and its after is tick-end.
   Validate `tick_end_count = tick_start_count + sum(count_delta)` across all rows.
@@ -194,7 +197,10 @@ JSONL contract (schema version 1 of this sidecar):
   use rows on one instance in one tick take consecutive positional ordinals.
   Pure toggles still have no row (D28).
   Under D55, correlate deltas by `(resolution_id,instance,operation_ordinal)`
-  within the owner/incarnation scope, independent of operation name. Derive ONE
+  within the owner/incarnation scope, independent of operation name, where the
+  ordinal is the D83 chain position of the row within its tick (so the join is
+  `(entity,incarnation,tick,instance,position)` with the resolution identity
+  binding it to its formula/RNG facts). Derive ONE
   revision step per `(entity,incarnation,tick)` from the owner's baseline or
   previous changed tick: previous revision → previous revision + 1. Every retained
   post-state written in that tick, across ALL changed instances, must use that
@@ -207,8 +213,8 @@ JSONL contract (schema version 1 of this sidecar):
   carry revisions ≤ `inventory_revision`; enchant bindings never exceed the
   tick's step. A baseline-free slice binds its step from the tick's
   post-states (befores cannot bind it). Subsequent changed ticks strictly advance the owner
-  step even when every changed instance is removed. Per-instance ordinals strictly
-  increase within a tick and may reset on a new tick. Removed instances have no
+  step even when every changed instance is removed. Per-instance ordinals are
+  exactly 0,1,…,n−1 within a tick (D83) and restart at 0 on every tick. Removed instances have no
   fabricated post-state. Never fabricate intermediate revisions.
   Carry complete canonical states forward per owner/incarnation/instance, including
   counts, templates, locations, enchantments and removal. Each next mutation or

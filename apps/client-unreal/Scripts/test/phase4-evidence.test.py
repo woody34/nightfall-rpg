@@ -229,6 +229,31 @@ class Evidence(unittest.TestCase):
         with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
         print('D79: last-change revisions pass with and without baselines; re-stamped/ahead befores and wrong post steps reject',flush=True)
 
+    def test_d83_positional_ordinals_for_every_chain(self):
+        # A Consume-free chain: equip then unequip of one weapon in one tick (positions 0, 1).
+        rows=self.transition_rows('equip');equip=rows[3]
+        unequip=copy.deepcopy(equip);unequip['data'].update(operation='unequip',operation_ordinal=1,resolution_id='transition:2',
+            before=copy.deepcopy(equip['data']['after']),after=equip['data']['before']|{'revision':1})
+        rows.insert(-1,unequip);self.repair(rows);gate.validate(rows,self.recording,HASH)
+        for ordinals in ((0,0),(1,2),(0,2),(1,0),(2,1)):
+            with self.subTest(ordinals=ordinals):
+                bad=copy.deepcopy(rows);bad[3]['data']['operation_ordinal'],bad[4]['data']['operation_ordinal']=ordinals
+                with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
+        # Single-row chains are position 0 for every operation, with or without Consume.
+        for operation in ALLOWED_CHANGES:
+            with self.subTest(operation=operation):
+                bad=self.transition_rows(operation);bad[3]['data']['operation_ordinal']=1
+                with self.assertRaisesRegex(ValueError,'chain row position'):gate.validate(bad,self.recording,HASH)
+        # Positions restart per tick: the same instance at tick 1 starts again at 0.
+        later=copy.deepcopy(rows)
+        again=copy.deepcopy(later[3]);again.update(tick=1);again['data'].update(resolution_id='transition:3',
+            before=copy.deepcopy(later[4]['data']['after']),after=later[3]['data']['after']|{'revision':2})
+        later.insert(-1,again);later[0]['watermark'].update(records=2,last_tick=1);later[-1].update(ticks=2,last_tick=1)
+        self.repair(later);gate.validate(later,self.recording,HASH)
+        later[-2]['data']['operation_ordinal']=2
+        with self.assertRaisesRegex(ValueError,'chain row position'):gate.validate(later,self.recording,HASH)
+        print('D83: positional ordinals hold for Consume-free and single-row chains and restart per tick',flush=True)
+
     def test_system_shot_review11_field_drift_without_enchant_correlation(self):
         rows=self.transition_rows('consume',enchant=0)
         # Exercise the shared transition rule without baseline/history comparisons.
@@ -1055,7 +1080,8 @@ class Evidence(unittest.TestCase):
         target_revisions={identity:initial for identity in levels}
         for tick,plan in enumerate(plans):
             # D79: revisions are last-change revisions; untouched stacks keep theirs.
-            contributions={};ordinals={identity:rng.randint(0,4) for identity in levels};changed=set()
+            # D83: target rows take their positional chain ordinal (0..n-1 per instance and tick).
+            contributions={};ordinals={identity:0 for identity in levels};changed=set()
             def automatic(identity,amount):
                 if not amount:return
                 resolution=f'cast:{cursor}:cost'
@@ -1093,7 +1119,7 @@ class Evidence(unittest.TestCase):
                         data.update(receipt_ref=receipt,operation_ordinal=ordinals[target_id])
                         data['after']['revision']=initial+tick+1
                     rows.append(copy.deepcopy(row))
-                ordinals[target_id]+=rng.randint(1,3);cursor+=1
+                ordinals[target_id]+=int(not no_change);cursor+=1
                 if not no_change:changed.add(target_id);levels[target_id]+=1;target_revisions[target_id]=initial+tick+1
             for identity,parts in contributions.items():
                 resolution,_,before,_=parts[0]
@@ -1177,7 +1203,7 @@ class Evidence(unittest.TestCase):
                dict(operation='grant',before=None,after=first|{'id':71},count_delta=2)]
         for ordinal,data in enumerate(facts):
             rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=0,sequence=0,
-                data=data|dict(instance=71 if ordinal==3 else 70,operation_ordinal=ordinal,resolution_id=f'change:{ordinal}',receipt_ref=None)))
+                data=data|dict(instance=71 if ordinal==3 else 70,operation_ordinal=0 if ordinal==3 else ordinal,resolution_id=f'change:{ordinal}',receipt_ref=None)))
         self.repair(rows);gate.validate(rows,self.recording,HASH)
         for key in ('count','enchant','revision','template_id'):
             bad=copy.deepcopy(rows);bad[3]['data']['before']=bad[3]['data']['before']|{key:4 if key=='count' else 2 if key!='template_id' else 952}
@@ -1187,6 +1213,7 @@ class Evidence(unittest.TestCase):
         # D79: inc2's first touch of 70 sees its inc1 last-change revision 1; inc2 writes step 2.
         for row in rows[3:-1]:
             row['incarnation']=2;data=row['data']
+            if data['instance']==70:data['operation_ordinal']-=1 # D83: positions restart in the inc2 chain.
             if data['after'] is not None:data['after']['revision']=2
             if data['operation']=='destroy':data['before']['revision']=2
         gate.validate(rows,self.recording,HASH)

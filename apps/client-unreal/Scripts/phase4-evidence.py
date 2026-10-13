@@ -917,6 +917,10 @@ def validate(rows,recording,rules_hash):
         else:raise ValueError('unknown item raw fact kind')
     for deltas in instance_rows.values():
         validate_chain_caps(deltas)
+        # D76/D83: operation_ordinal is the row POSITION 0..n-1 within EVERY
+        # (owner, incarnation, tick, instance) chain, Consume or not.
+        for ordinal,delta in enumerate(deltas):
+            if delta['operation_ordinal']!=ordinal:raise ValueError('operation_ordinal is not the chain row position (D76/D83)')
         consumes=[d for d in deltas if d['operation']=='consume']
         if not consumes:continue
         if len(consumes)!=1 or deltas[-1] is not consumes[0]:raise ValueError('Consume aggregate must be last for its instance')
@@ -924,7 +928,6 @@ def validate(rows,recording,rules_hash):
         # aggregate in cause order; continuity is checked by inventory_history. Removal
         # rows end the instance, so they can never precede it.
         if any(d['operation'] not in PRE_CONSUME for d in deltas[:-1]):raise ValueError('only positive or count-neutral rows may precede Consume')
-        for ordinal,delta in enumerate(deltas):same(delta['operation_ordinal'],ordinal)
     validate_exchanges(rows)
     validate_instance_history(rows)
     inventory_history(rows)
