@@ -52,43 +52,46 @@ impl State {
         view
     }
 
+    /// D77: like the Postgres adapter, every retained item needs its append-only birth row;
+    /// provenance corruption is a permanent named constraint that fences the lane.
     fn item_checkpoint(
         &self,
         character: CharacterId,
-    ) -> anyhow::Result<Option<crate::domain::zone::Phase4Checkpoint>> {
+    ) -> Result<Option<crate::domain::zone::Phase4Checkpoint>, CheckpointError> {
         let Some(mut checkpoint) = self.item_inventories.get(&character).cloned() else {
             return Ok(None);
         };
+        let named = |name: &str| CheckpointError::Constraint(name.into());
         for item in &mut checkpoint.instances {
-            let birth = self.item_ledger.iter().find(|row| {
-                row.character_id == character
-                    && row.instance_id == item.id
-                    && row.delta.before.is_none()
-            });
-            if let Some(birth) = birth {
-                anyhow::ensure!(
-                    birth
-                        .delta
-                        .after
-                        .as_ref()
-                        .is_some_and(|born| born.created_tick == item.created_tick),
-                    "item creation tick disagrees with ledger"
-                );
+            let birth = self
+                .item_ledger
+                .iter()
+                .find(|row| {
+                    row.character_id == character
+                        && row.instance_id == item.id
+                        && row.delta.before.is_none()
+                })
+                .ok_or_else(|| named("item_creation_ledger_missing"))?;
+            if birth
+                .delta
+                .after
+                .as_ref()
+                .is_none_or(|born| born.created_tick != item.created_tick)
+            {
+                return Err(named("item_creation_ledger_tick"));
             }
-            let recorded = birth.map(|row| crate::domain::zone::ItemCreationOrigin {
-                zone: row.zone_id,
-                epoch: row.epoch,
-            });
-            if item.creation_origin.is_none() {
-                item.creation_origin =
-                    Some(recorded.ok_or_else(|| anyhow::anyhow!("item creation ledger missing"))?);
-            } else if let Some(recorded) = recorded {
-                anyhow::ensure!(
-                    item.creation_origin == Some(recorded),
-                    "item creation provenance disagrees with ledger"
-                );
+            let recorded = crate::domain::zone::ItemCreationOrigin {
+                zone: birth.zone_id,
+                epoch: birth.epoch,
+            };
+            if item
+                .creation_origin
+                .is_some_and(|origin| origin != recorded)
+            {
+                return Err(named("item_creation_ledger_origin"));
             }
-            item.validate()?;
+            item.creation_origin = Some(recorded);
+            item.validate().map_err(anyhow::Error::from)?;
         }
         Ok(Some(checkpoint))
     }
@@ -980,6 +983,50 @@ impl InMemoryCharacterRepository {
             .ok_or_else(|| anyhow::anyhow!("Phase4 fixture requires Phase3 state"))?;
         checkpoint.validate_structure(phase3.modifier_install_order.len())?;
         state.item_inventories.insert(character, checkpoint);
+        Ok(())
+    }
+
+    /// Fixture seed only: append the append-only birth row (D65/D77) that a real settlement
+    /// would have written for each retained item that lacks one, at the item's own provenance.
+    pub fn seed_item_birth_ledger_for_test(&self, character: CharacterId) -> anyhow::Result<()> {
+        use crate::application::ports::{ItemLedgerDelta, ItemLedgerEntry, ItemLedgerOperation};
+        let mut state = self.state.lock();
+        let checkpoint = state
+            .item_inventories
+            .get(&character)
+            .cloned()
+            .ok_or_else(|| anyhow::anyhow!("fixture item checkpoint missing"))?;
+        for item in checkpoint.instances {
+            if state.item_ledger.iter().any(|row| {
+                row.character_id == character
+                    && row.instance_id == item.id
+                    && row.delta.before.is_none()
+            }) {
+                continue;
+            }
+            let origin = item
+                .creation_origin
+                .ok_or_else(|| anyhow::anyhow!("fixture birth row needs explicit provenance"))?;
+            state.item_ledger.push(ItemLedgerEntry {
+                character_id: character,
+                zone_id: origin.zone,
+                epoch: origin.epoch,
+                tick: item.created_tick,
+                revision: item.revision,
+                operation: ItemLedgerOperation::Grant,
+                instance_id: item.id,
+                operation_ordinal: 0,
+                delta: ItemLedgerDelta {
+                    before: None,
+                    count_delta: i64::try_from(item.count)?,
+                    after: Some(item),
+                    causes: Vec::new(),
+                    receipt: None,
+                    receipt_refs: Vec::new(),
+                },
+                receipt_ref: None,
+            });
+        }
         Ok(())
     }
 }

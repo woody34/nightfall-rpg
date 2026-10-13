@@ -1,6 +1,7 @@
 //! Strict retained item projections, always read under the parent character lock.
 use super::{entities::characters, PgCharacterRepository};
 use crate::application::ports::{ItemInventoryRepository, RetainedInventory};
+use crate::application::CheckpointError;
 use crate::domain::{
     zone::{
         EquipSlot, ItemCreationOrigin, ItemInstance, ItemInstanceId, ItemLocation,
@@ -38,7 +39,24 @@ impl ItemInventoryRepository for PgCharacterRepository {
     }
 }
 
+/// D77: retained provenance corruption is a permanent named constraint that fences the lane.
+fn provenance(name: &str) -> anyhow::Error {
+    CheckpointError::Constraint(name.into()).into()
+}
+
 pub(super) async fn load<C: ConnectionTrait>(
+    db: &C,
+    parent: &characters::Model,
+    phase3: Option<&crate::domain::zone::Phase3Checkpoint>,
+) -> Result<Option<Phase4Checkpoint>, CheckpointError> {
+    load_inner(db, parent, phase3).await.map_err(|error| {
+        error
+            .downcast::<CheckpointError>()
+            .unwrap_or_else(CheckpointError::Other)
+    })
+}
+
+async fn load_inner<C: ConnectionTrait>(
     db: &C,
     parent: &characters::Model,
     phase3: Option<&crate::domain::zone::Phase3Checkpoint>,
@@ -66,6 +84,8 @@ pub(super) async fn load<C: ConnectionTrait>(
         // Pre-D65 JSON omits provenance; the append-only creation row owns that clock.
         if item.creation_origin.is_none() {
             item.creation_origin = scalar.creation_origin;
+        } else if item.creation_origin != scalar.creation_origin {
+            return Err(provenance("item_creation_ledger_origin"));
         }
     }
     anyhow::ensure!(
@@ -86,11 +106,11 @@ fn decode_item(row: &sea_orm::QueryResult) -> anyhow::Result<ItemInstance> {
         creation_origin: Some(ItemCreationOrigin {
             zone: ZoneId(u32::try_from(
                 row.try_get::<Option<i32>>("", "origin_zone")?
-                    .ok_or_else(|| anyhow::anyhow!("item creation ledger missing"))?,
+                    .ok_or_else(|| provenance("item_creation_ledger_missing"))?,
             )?),
             epoch: u64::try_from(
                 row.try_get::<Option<i64>>("", "origin_epoch")?
-                    .ok_or_else(|| anyhow::anyhow!("item creation ledger missing"))?,
+                    .ok_or_else(|| provenance("item_creation_ledger_missing"))?,
             )?,
         }),
         id: ItemInstanceId::new(u64::try_from(row.try_get::<i64>("", "id")?)?)?,
@@ -111,11 +131,9 @@ fn decode_item(row: &sea_orm::QueryResult) -> anyhow::Result<ItemInstance> {
         revision: u64::try_from(row.try_get::<i64>("", "revision")?)?,
     };
     item.validate()?;
-    anyhow::ensure!(
-        Some(i64::try_from(item.created_tick.0)?)
-            == row.try_get::<Option<i64>>("", "origin_tick")?,
-        "item creation tick disagrees with ledger"
-    );
+    if Some(i64::try_from(item.created_tick.0)?) != row.try_get::<Option<i64>>("", "origin_tick")? {
+        return Err(provenance("item_creation_ledger_tick"));
+    }
     Ok(item)
 }
 
