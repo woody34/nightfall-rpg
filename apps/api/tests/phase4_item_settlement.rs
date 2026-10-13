@@ -1272,15 +1272,17 @@ async fn rejected_contract<
     // refuses non-positional ordinals as item_checkpoint_projection; the API validator behind it
     // refuses the same shapes as item_ledger_row_ordinal (D76 defence in depth).
     for (mode, (expected, validator)) in [
-        ("item_ledger_row_order", None), // pre-D66 Consume-first export
+        // Pre-D66 Consume-first export: the zone D94 shape check (b158ce5) refuses it first.
+        ("item_checkpoint_projection", Some("item_ledger_row_order")),
         ("item_ledger_scalar_continuity", None), // overlapping row endpoints
         ("item_checkpoint_projection", Some("item_ledger_row_ordinal")), // D76 duplicate ordinal
         ("item_ledger_count_or_revision", None), // fabricated intermediate revision step
         ("item_checkpoint_revision_step", None), // stale receipt revision
-        ("item_consume_cause_order", None), // reversed causes
-        ("item_consume_contribution", None), // fabricated debit
+        ("item_consume_cause_order", None),      // reversed causes
+        ("item_consume_contribution", None),     // fabricated debit
         ("item_instance_creation_immutable", None), // altered provenance
-        ("item_ledger_row_order", None), // a non-terminal row after the Consume (D94)
+        // A non-terminal row after the Consume: zone D94 shape check first, then the API.
+        ("item_checkpoint_projection", Some("item_ledger_row_order")),
         ("item_ledger_row_order", None), // positive row after a non-Consume debit
         ("item_checkpoint_projection", None), // split Consume aggregate (domain batch key)
         ("item_checkpoint_projection", Some("item_ledger_row_ordinal")), // D76 ordinal gap
@@ -1645,19 +1647,19 @@ async fn terminal_after_consume_contract<
         (
             vec![(ItemOperation::Destroy, false)],
             // A non-terminal (partial) removal after the aggregate.
-            Some(("item_ledger_row_order", "item_ledger_row_order")),
+            Some(("item_ledger_row_order", "item_checkpoint_projection")),
         ),
         (
             vec![(ItemOperation::Destroy, true), (ItemOperation::Grant, true)],
             // Any row after the terminal row (here a continuous re-creation).
-            Some(("item_ledger_row_order", "item_ledger_row_order")),
+            Some(("item_ledger_row_order", "item_checkpoint_projection")),
         ),
         (
             vec![
                 (ItemOperation::Destroy, true),
                 (ItemOperation::Crystallize, true),
             ],
-            // Two terminal rows; the zone domain gate already refuses the empty second row.
+            // Two terminal rows (the empty second row is also refused by the zone gate).
             Some(("item_ledger_row_order", "item_checkpoint_projection")),
         ),
     ]
