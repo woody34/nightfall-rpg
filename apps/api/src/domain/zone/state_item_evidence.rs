@@ -606,29 +606,47 @@ impl ZoneState {
             } else {
                 continue;
             };
-            let Some((owner, formula, resolution, mut inputs, mut actual)) = self
+            let Some(pending) = self
                 .evidence
                 .as_mut()
                 .and_then(|buffer| buffer.pending_cast.remove(&cast))
             else {
                 continue;
             };
-            if formula == "learned_item_cost" {
-                if let (Some(inputs), Some(actual)) =
-                    (inputs.as_object_mut(), actual.as_object_mut())
-                {
-                    inputs.insert("phase".into(), json!(phase));
-                    actual.insert("phase".into(), json!(phase));
+            for (owner, formula, resolution, mut inputs, mut actual) in pending {
+                if formula == "learned_item_cost" {
+                    if let (Some(inputs), Some(actual)) =
+                        (inputs.as_object_mut(), actual.as_object_mut())
+                    {
+                        inputs.insert("phase".into(), json!(phase));
+                        actual.insert("phase".into(), json!(phase));
+                    }
                 }
+                if formula == "escape_timing" {
+                    // D92: the teleport landing tick carries the fact; a cancelled escape
+                    // has no landing and no terminal fact.
+                    if phase != "complete" {
+                        continue;
+                    }
+                    let Some(pos) = self.entities.get(&owner).map(|e| e.pos) else {
+                        continue;
+                    };
+                    if let Some(actual) = actual.as_object_mut() {
+                        actual.insert(
+                            "destination".into(),
+                            json!([pos.x.raw().div_euclid(1000), pos.y.raw().div_euclid(1000)]),
+                        );
+                    }
+                }
+                self.item_formula_v6(
+                    owner,
+                    &formula,
+                    inputs,
+                    actual,
+                    &resolution,
+                    Some(json!({"event": "cast"})),
+                );
             }
-            self.item_formula_v6(
-                owner,
-                &formula,
-                inputs,
-                actual,
-                &resolution,
-                Some(json!({"event": "cast"})),
-            );
         }
     }
 

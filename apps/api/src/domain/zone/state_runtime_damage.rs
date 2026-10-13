@@ -9923,6 +9923,36 @@ mod tests {
     }
 
     #[test]
+    fn v6_escape_evidence_recording_exports_escape_timing() {
+        use crate::domain::zone::ItemCommandKind as K;
+        // Scroll of Escape 736: prepaid at start, one fact on the teleport landing tick.
+        let (zone, owner, _, ids) = use_fixture(&[736]);
+        let zone = zone.with_safe_point(Vec2Fixed::from_tiles(126, 126));
+        let mut run = EvidenceRun::start(zone);
+        let intent = item_intent(
+            &run.zone,
+            owner.entity,
+            1601,
+            K::Use {
+                instance: ids[0],
+                target: None,
+            },
+        );
+        let applied = run.tick(owner.entity, vec![ZoneCommand::Item(Box::new(intent))]);
+        assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+        for _ in 0..260 {
+            run.tick(owner.entity, Vec::new());
+            if matches!(run.zone.sidecar(owner.entity).unwrap().cast, CastState::Idle) {
+                break;
+            }
+        }
+        run.tick(owner.entity, Vec::new());
+        let names = run.formulas();
+        assert!(names.contains("escape_timing"), "{names:?}");
+        run.write("NIGHTFALL_TEST_ESCAPE_RECORDING");
+    }
+
+    #[test]
     fn v6_fractional_hp_cold_replay_regen_and_last_fraction_death() {
         use crate::domain::zone::item_combat::half_hp;
         let (mut base, source, npc) = equipment_fixture();

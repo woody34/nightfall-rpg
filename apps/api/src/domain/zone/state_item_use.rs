@@ -5,7 +5,8 @@ use crate::domain::zone::item_rules::ItemDefinition;
 use crate::domain::zone::phase4::ItemReuse;
 use crate::domain::zone::phase4_checkpoint::ItemReuseKey;
 use crate::domain::zone::skill::{SkillId, SkillRef};
-use crate::domain::zone::{ItemInstanceId, ItemLocation};
+use crate::domain::zone::skill_math::ExactRatio;
+use crate::domain::zone::{ItemInstanceId, ItemLocation, Q};
 use std::collections::BTreeSet;
 
 struct PreparedItemUse {
@@ -597,16 +598,13 @@ impl ZoneState {
                     "inventory": records(&payments.inventory), "consumed": consumed,
                     "completion_consumed": {}, "repeated_consumed": {}, "draws": []});
                 if let Some(buffer) = candidate.evidence.as_mut() {
-                    buffer.pending_cast.insert(
-                        cast_id.0,
-                        (
-                            id,
-                            "learned_item_cost".into(),
-                            format!("cast:{}", cast_id.0),
-                            inputs,
-                            actual,
-                        ),
-                    );
+                    buffer.pending_cast.entry(cast_id.0).or_default().push((
+                        id,
+                        "learned_item_cost".into(),
+                        format!("cast:{}", cast_id.0),
+                        inputs,
+                        actual,
+                    ));
                 }
             }
         }
@@ -795,11 +793,21 @@ impl ZoneState {
         let definition = &plan.definition;
         let mut skills = Vec::new();
         let mut skill_ids = Vec::new();
+        let mut conditioned = false;
         for (reference, _, simultaneous) in &plan.skills {
             let skill = rules.skills().get(reference.id)?;
-            if !skill.raw_conditions.is_empty() || !skill.conditions.is_empty() {
+            // Conditions export as their pinned XML; only canEscape and zone membership are
+            // given a context (the accepted engine use already satisfied them).
+            if skill.raw_conditions.iter().any(|raw| {
+                [
+                    "races", "race", "classId", "level", "weight", "invSize", "sex", "kind", "slot",
+                ]
+                .iter()
+                .any(|key| raw.contains(&format!("{key}=")))
+            }) {
                 return None;
             }
+            conditioned |= !skill.raw_conditions.is_empty();
             let rank = reference.rank;
             let (consume_id, consume_count) = match skill.item_consume.as_slice() {
                 [] => (0, 0),
@@ -815,7 +823,7 @@ impl ZoneState {
                 "static": skill.is_magic == 2, "simultaneous": simultaneous,
                 "reuse_delay_ms": *skill.reuse_ms.at(rank, skill.max_level)?,
                 "item_consume_id": consume_id, "item_consume_count": consume_count,
-                "conditions": [], "effects": [], "blockers": []}));
+                "conditions": skill.raw_conditions, "effects": [], "blockers": []}));
         }
         let player = self.phase4.as_ref()?.canonical.players.get(&id)?;
         let mut available = serde_json::Map::new();
@@ -844,16 +852,21 @@ impl ZoneState {
             .collect();
         let main_casting = matches!(side.cast, crate::domain::zone::CastState::Casting(_));
         let inputs = serde_json::json!({
-            "definition": {"template_id": definition.template_id, "handler": definition.handler,
-                "default_action": definition.properties.get("default_action").map_or("NONE", String::as_str),
-                "etcitem_type": definition.etcitem_type, "reuse_delay_ms": definition.reuse_delay,
-                "reuse_group": definition.shared_reuse_group.max(0),
-                "immediate": definition.flags.get("immediate_effect") == Some(&true),
-                "ex_immediate": definition.flags.get("ex_immediate_effect") == Some(&true),
-                "skills": skills},
-            "tick": tick.0, "available": available,
-            "item_deadlines": item_deadlines, "skill_deadlines": skill_deadlines,
-            "main_casting": main_casting, "condition_context": null});
+        "definition": {"template_id": definition.template_id, "handler": definition.handler,
+            "default_action": definition.properties.get("default_action").map_or("NONE", String::as_str),
+            "etcitem_type": definition.etcitem_type, "reuse_delay_ms": definition.reuse_delay,
+            "reuse_group": definition.shared_reuse_group.max(0),
+            "immediate": definition.flags.get("immediate_effect") == Some(&true),
+            "ex_immediate": definition.flags.get("ex_immediate_effect") == Some(&true),
+            "skills": skills},
+        "tick": tick.0, "available": available,
+        "item_deadlines": item_deadlines, "skill_deadlines": skill_deadlines,
+        "main_casting": main_casting,
+        "condition_context": if conditioned {
+            serde_json::json!({"canEscape": true, "inside_zone_ids": []})
+        } else {
+            serde_json::Value::Null
+        }});
         let first_cast = self.phase3.as_ref()?.canonical.next_cast_id;
         let mut consumed = serde_json::Map::new();
         for change in &plan.payments.changes {
@@ -926,11 +939,94 @@ impl ZoneState {
         let actual = serde_json::json!({"accepted": true, "consumed": consumed, "lanes": lanes,
             "item_deadlines": item_deadlines, "skill_deadlines": skill_deadlines,
             "main_cast_preserved": lanes.iter().all(|lane| *lane == "item")});
+        let escape = self.escape_timing_stage_v6(id, tick, &inputs, &skill_ids);
         if let Some(buffer) = self.evidence.as_mut() {
-            buffer.pending_cast.insert(
-                last_cast,
-                (id, "consumable_use".into(), resolution.to_owned(), inputs, actual),
-            );
+            // D92: one terminal fact per intent; an Escape scroll's is escape_timing.
+            let pending = buffer.pending_cast.entry(last_cast).or_default();
+            if let Some((escape_inputs, escape_actual)) = escape {
+                pending.push((
+                    id,
+                    "escape_timing".into(),
+                    resolution.to_owned(),
+                    escape_inputs,
+                    escape_actual,
+                ));
+            } else {
+                pending.push((id, "consumable_use".into(), resolution.to_owned(), inputs, actual));
+            }
         }
+    }
+
+    /// D46/D92 `escape_timing` for an item whose single skill is Escape: the definition
+    /// record, start tick, casting speed, scroll availability, resources and incarnation at
+    /// start; the actual is the engine's frozen cast schedule (D88 ticks) and debit.
+    fn escape_timing_stage_v6(
+        &self,
+        id: EntityId,
+        tick: Tick,
+        consumable: &serde_json::Value,
+        skill_ids: &[u32],
+    ) -> Option<(serde_json::Value, serde_json::Value)> {
+        use crate::domain::zone::state::item_evidence_hooks::ratio_json as r;
+        let [skill_id] = skill_ids else {
+            return None;
+        };
+        let rules = &self.phase3.as_ref()?.canonical.rules;
+        let skill = rules.skills().get(SkillId(*skill_id))?;
+        if !skill.effects.iter().any(|handler| handler.name == "Escape") {
+            return None;
+        }
+        let definition = consumable.get("definition")?.clone();
+        let template = definition.get("template_id")?.as_u64()?;
+        let scroll_cost = definition
+            .get("skills")?
+            .get(0)?
+            .get("item_consume_count")?
+            .as_u64()?;
+        let available = consumable
+            .get("available")?
+            .get(template.to_string())
+            .and_then(serde_json::Value::as_u64)
+            .unwrap_or(0);
+        let side = self.sidecar(id).ok()?;
+        let crate::domain::zone::CastState::Casting(cast) = &side.cast else {
+            return None;
+        };
+        let entity = self.entities.get(&id)?;
+        let combat = entity.combat.as_ref()?;
+        let CombatRole::Player {
+            xp,
+            progression: Some(progression),
+            ..
+        } = &combat.role
+        else {
+            return None;
+        };
+        let effective = self.effective(id).ok()?;
+        let exact = |whole: u32, remainder: i64| {
+            ExactRatio::new(
+                i128::from(whole)
+                    .checked_mul(i128::from(Q))?
+                    .checked_add(i128::from(remainder))?,
+                i128::from(Q),
+            )
+            .ok()
+        };
+        let fractions = &side.fractions;
+        let resources = serde_json::json!({"hp": r(exact(combat.hp, fractions.hp)?),
+            "mp": r(exact(combat.mp, fractions.mp)?),
+            "cp": r(exact(progression.class_state.cp, fractions.cp)?), "xp": xp});
+        let animation = cast.animation.value().trunc().ok()?;
+        let inputs = serde_json::json!({"definition": definition, "start_tick": tick.0,
+            "casting_speed": effective.cast_speed, "available": available,
+            "resources": resources, "incarnation": combat.incarnation});
+        let actual = serde_json::json!({"accepted": true, "animation_ms": animation,
+            "launch_ms": animation.saturating_sub(400).max(0), "launch_tick": cast.launch_at.0,
+            "completion_tick": cast.complete_at.0, "interrupt_cutoff_tick": cast.interrupt_until.0,
+            "consumed": scroll_cost, "completion_consumed": 0,
+            "inventory": available.saturating_sub(scroll_cost), "resources": resources,
+            "incarnation": combat.incarnation, "movement_canceled": true, "auto_canceled": true,
+            "town_respawn": false, "draws": []});
+        Some((inputs, actual))
     }
 }
