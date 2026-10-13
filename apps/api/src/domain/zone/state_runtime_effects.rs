@@ -811,6 +811,8 @@ impl ZoneState {
         };
         let mut outcome = SkillOutcome::Hit;
         let mut granted = 0;
+        // D46 `heal` evidence: (unclamped amount, coefficient, static bonus, power, critical).
+        let mut heal_detail = None;
         if self
             .entities
             .get(&target.entity)
@@ -839,6 +841,7 @@ impl ZoneState {
                 )
                 .map_err(invariant)?;
                 // HEAL_EFFECT is absent from the executable Func manifest; coefficient stays1.
+                let mut critical = false;
                 if skill.is_magic == 1
                     && self.evidence_roll("HealCritical", Some(target), 1000) < a.magic_crit
                 {
@@ -846,6 +849,10 @@ impl ZoneState {
                         .checked_mul(ExactRatio::whole(3))
                         .map_err(invariant)?;
                     outcome = SkillOutcome::Crit;
+                    critical = true;
+                }
+                if hp_handler {
+                    heal_detail = Some((amount, multiplier, bonus, power, critical));
                 }
                 amount
                     .clamp(
@@ -901,6 +908,18 @@ impl ZoneState {
                 )
                 .map_err(invariant)?;
                 granted = restored.granted;
+                if let Some(detail) = heal_detail {
+                    self.heal_evidence_v6(
+                        caster,
+                        target,
+                        skill,
+                        rank,
+                        shots,
+                        detail,
+                        (current, fraction, recoverable),
+                        (amount, restored.current, restored.remainder_q),
+                    );
+                }
                 (restored.current, i64::from(restored.remainder_q))
             } else {
                 let drain = u32::try_from(
@@ -959,6 +978,80 @@ impl ZoneState {
             applied_effect_ids: Vec::new(),
         })
     }
+    /// D46 `heal`: the oracle's raw inputs (power, M.Atk, MP cost, mage/npc, weapon grade, shot
+    /// flags, static, critical, current HP state, recoverable cap) and the observed restoration,
+    /// with the floor certificate of the engine's own expression. Evidence-only.
+    #[allow(clippy::too_many_arguments, clippy::type_complexity)] // One heal's frozen inputs.
+    fn heal_evidence_v6(
+        &mut self,
+        caster: TargetBinding,
+        target: TargetBinding,
+        skill: &SkillDef,
+        rank: u32,
+        shots: u8,
+        (amount, coefficient, bonus, power, critical): (
+            skill_math::RootExpression,
+            u32,
+            ExactRatio,
+            ExactRatio,
+            bool,
+        ),
+        (current, fraction, recoverable): (u32, i64, u32),
+        (applied_q, new_hp, new_remainder): (i64, u32, u32),
+    ) {
+        use crate::domain::zone::state::item_evidence_hooks::{ratio_json as r, root_floor_bounds};
+        if !self.items_evidence_enabled() || !self.phase4_player_v6(caster.entity) {
+            return;
+        }
+        let Ok(a) = self.effective(caster.entity) else {
+            return;
+        };
+        let (offset, multiplier, radicand) = amount.parts();
+        let scale = ExactRatio::whole(Q);
+        let (Ok(offset_q), Ok(multiplier_q), Ok(m_atk)) =
+            (offset.checked_mul(scale), multiplier.checked_mul(scale), q(a.m_atk_q))
+        else {
+            return;
+        };
+        let Some((floor_q, _, _, root_lower, root_upper)) =
+            root_floor_bounds(offset_q, multiplier_q, radicand)
+        else {
+            return;
+        };
+        let restoration_q = floor_q.as_i64().map_or(0, |v| v.max(0));
+        let is_static = skill.is_magic == 2;
+        let is_magic = skill.is_magic == 1;
+        let Some(mp_consume2) = usize::try_from(rank.saturating_sub(1))
+            .ok()
+            .and_then(|index| skill.mp_consume_end.get(index))
+        else {
+            return;
+        };
+        let Some((mage, npc, grade)) = self.heal_caster_terms_v6(caster.entity) else {
+            return;
+        };
+        let whole_credit = i64::from(new_hp).saturating_sub(i64::from(current));
+        let Ok(applied) = ExactRatio::new(i128::from(applied_q), i128::from(Q)) else {
+            return;
+        };
+        self.item_formula_v6(
+            caster.entity,
+            "heal",
+            serde_json::json!({"power": r(power), "m_atk": r(m_atk), "mp_consume2": mp_consume2,
+                "mage": mage, "npc": npc, "grade": grade, "spirit": is_magic && shots & 2 != 0,
+                "blessed": is_magic && shots & 4 != 0, "static": is_static, "heal_effect": 1,
+                "critical": critical, "is_magic": is_magic, "current_hp": current,
+                "recoverable_hp": recoverable, "remainder_q": fraction}),
+            serde_json::json!({"amount": r(applied), "restoration_q": restoration_q,
+                "applied_q": applied_q, "current_hp": new_hp, "remainder_q": new_remainder,
+                "whole_credit": whole_credit, "coefficient": r(ExactRatio::whole(if is_static { 0 } else { i64::from(coefficient) })),
+                "static_bonus": r(if is_static { ExactRatio::whole(0) } else { bonus }),
+                "root_lower": root_lower, "root_upper": root_upper}),
+            &format!("heal:{}:{}:{}", caster.entity, target.entity, self.rng.get_word_pos()),
+            Some(serde_json::json!({"skill_id": skill.id.0, "target_entity": target.entity.to_string(), "event": "cast"})),
+        );
+    }
+
     fn heal_hate_v5(
         &mut self,
         tick: Tick,

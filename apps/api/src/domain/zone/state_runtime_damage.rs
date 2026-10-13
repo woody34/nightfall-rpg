@@ -9848,6 +9848,46 @@ mod tests {
     }
 
     #[test]
+    fn v6_heal_evidence_recording_exports_heal() {
+        // Heal 1011 rank 1 on the wounded caster (TARGET), from a real learned skill.
+        let (mut zone, owner, _, _) = use_fixture(&[]);
+        let CombatRole::Player {
+            progression: Some(p),
+            ..
+        } = &mut zone
+            .entities
+            .get_mut(&owner.entity)
+            .unwrap()
+            .combat
+            .as_mut()
+            .unwrap()
+            .role
+        else {
+            panic!("player")
+        };
+        p.class_state.learned_skills = vec![crate::domain::subclass::LearnedSkill {
+            key: "l2.skill.1011".into(),
+            level: 1,
+        }];
+        zone.rebuild_v5(owner.entity).unwrap();
+        set_resources(&mut zone, owner, 10, 0);
+        let mut run = EvidenceRun::start(zone);
+        run.tick(
+            owner.entity,
+            vec![ZoneCommand::CastSkill {
+                entity: owner.entity,
+                skill_id: crate::domain::zone::skill::SkillId(1011),
+                target: Some(owner.entity),
+            }],
+        );
+        for _ in 0..70 {
+            run.tick(owner.entity, Vec::new());
+        }
+        assert!(run.formulas().contains("heal"), "{:?}", run.formulas());
+        run.write("NIGHTFALL_TEST_HEAL_RECORDING");
+    }
+
+    #[test]
     fn v6_fractional_hp_cold_replay_regen_and_last_fraction_death() {
         use crate::domain::zone::item_combat::half_hp;
         let (mut base, source, npc) = equipment_fixture();

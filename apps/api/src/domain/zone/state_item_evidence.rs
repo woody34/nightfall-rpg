@@ -660,6 +660,22 @@ pub(in crate::domain::zone) fn root_floor_certificate(
     b: ExactRatio,
     r: ExactRatio,
 ) -> Option<(serde_json::Value, serde_json::Value, serde_json::Value)> {
+    root_floor_bounds(a, b, r).map(|(floor, lower, upper, _, _)| (floor, lower, upper))
+}
+
+/// [`root_floor_certificate`] plus the certified square-root bounds themselves.
+#[allow(clippy::arithmetic_side_effects, clippy::type_complexity)] // Arbitrary precision.
+pub(in crate::domain::zone) fn root_floor_bounds(
+    a: ExactRatio,
+    b: ExactRatio,
+    r: ExactRatio,
+) -> Option<(
+    serde_json::Value,
+    serde_json::Value,
+    serde_json::Value,
+    serde_json::Value,
+    serde_json::Value,
+)> {
     use num_bigint::BigUint;
     let big = |value: i128| u128::try_from(value).ok().map(BigUint::from);
     let ((an, ad), (bn, bd), (rn, rd)) = (a.parts(), b.parts(), r.parts());
@@ -694,6 +710,8 @@ pub(in crate::domain::zone) fn root_floor_certificate(
                 big_json(&hi),
                 big_ratio(&low, &denominator),
                 big_ratio(&high, &denominator),
+                big_ratio(&lower, &scale),
+                big_ratio(&upper, &scale),
             ));
         }
     }

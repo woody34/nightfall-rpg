@@ -9,6 +9,42 @@ use crate::domain::zone::state_effects::CastWork;
 use crate::domain::zone::{EquipSlot, ItemInstanceId, Phase4Projection};
 
 impl ZoneState {
+    /// Heal caster classification for evidence: (mage, npc, RHAND weapon grade or NONE).
+    pub(super) fn heal_caster_terms_v6(&self, caster: EntityId) -> Option<(bool, bool, String)> {
+        let items = self.phase4.as_ref()?;
+        let combat = self.entities.get(&caster)?.combat.as_ref()?;
+        let (mage, npc) = match &combat.role {
+            CombatRole::Player {
+                progression: Some(player),
+                ..
+            } => (
+                self.classes
+                    .as_ref()?
+                    .get(player.class_state.current_class_id)?
+                    .archetype
+                    == crate::domain::zone::Archetype::Mystic,
+                false,
+            ),
+            CombatRole::Npc { .. } => (false, true),
+            CombatRole::Player {
+                progression: None, ..
+            } => return None,
+        };
+        let grade = items
+            .canonical
+            .players
+            .get(&caster)
+            .and_then(|player| {
+                player
+                    .paperdoll
+                    .get(&EquipSlot::Rhand)
+                    .and_then(|id| player.inventory.get(id))
+            })
+            .and_then(|item| items.rules.parts().items.get(&item.template_id))
+            .map_or_else(|| "NONE".to_owned(), |item| item.grade.clone());
+        Some((mage, npc, grade))
+    }
+
     pub(super) fn heal_shot_terms_v6(
         &self,
         caster: EntityId,
