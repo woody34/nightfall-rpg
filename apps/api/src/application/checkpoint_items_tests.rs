@@ -349,6 +349,47 @@ impl ItemCheckpointRepository for FlakyItems {
     }
 }
 
+/// Delegates to the memory adapter and records every settlement result.
+struct RecordingItems {
+    inner: Arc<InMemoryCharacterRepository>,
+    results: parking_lot::Mutex<Vec<Result<CheckpointOutcome, String>>>,
+}
+#[async_trait::async_trait]
+impl ItemReceiptRepository for RecordingItems {
+    async fn item_receipt_lookup(
+        &self,
+        account: AccountId,
+        operation: ItemMutationOperation,
+        key: &IdempotencyKey,
+        fingerprint: &str,
+    ) -> anyhow::Result<ItemReceiptLookup> {
+        self.inner
+            .item_receipt_lookup(account, operation, key, fingerprint)
+            .await
+    }
+}
+#[async_trait::async_trait]
+impl ItemCheckpointRepository for RecordingItems {
+    async fn checkpoint_items(
+        &self,
+        cp: &CharacterCheckpoint,
+        events: &[DomainEvent],
+        work: &ItemCheckpointWork,
+        learning: Option<&SuccessfulLearnReceipt>,
+    ) -> Result<CheckpointOutcome, CheckpointError> {
+        let result = self
+            .inner
+            .checkpoint_items(cp, events, work, learning)
+            .await;
+        self.results.lock().push(match &result {
+            Ok(outcome) => Ok(*outcome),
+            Err(CheckpointError::Constraint(name)) => Err(name.clone()),
+            Err(other) => Err(format!("non-constraint: {other}")),
+        });
+        result
+    }
+}
+
 #[tokio::test]
 async fn item_batch_ack_waits_for_atomic_write_and_retries_exact_work() {
     for after_commit in [false, true] {
@@ -1383,7 +1424,7 @@ async fn missing_birth_ledger_row_withholds_actor_output() {
         start_epoch, DurableTickGate, GateConfig, NoReplayMetrics,
     };
     use crate::application::zone_actor::{manual_ticks, ZoneActor};
-    let h = Harness::new().await;
+    let mut h = Harness::new().await;
     let character = CharacterId::from_uuid(h.entity.as_uuid());
     let mut corrupt = h
         .repo
@@ -1423,6 +1464,11 @@ async fn missing_birth_ledger_row_withholds_actor_output() {
         GateConfig::default(),
         tokio_util::sync::CancellationToken::new(),
     );
+    let writer = Arc::new(RecordingItems {
+        inner: h.repo.clone(),
+        results: parking_lot::Mutex::new(Vec::new()),
+    });
+    h.service.item_repo = Some(writer.clone());
     let (ticks, driver) = manual_ticks();
     let handle = ZoneActor::spawn_gated(h.state, ticks, gate);
     handle.checkpoints.install(h.service);
@@ -1437,8 +1483,14 @@ async fn missing_birth_ledger_row_withholds_actor_output() {
         !matches!(stepped, Ok(crate::application::zone_actor::TickOutcome::Ran(_))),
         "{stepped:?}"
     );
-    assert!(outputs.try_recv().is_err(), "no tick output may be released");
+    // Empty, not Lagged: nothing was ever broadcast.
+    assert!(
+        matches!(outputs.try_recv(), Err(tokio::sync::broadcast::error::TryRecvError::Empty)),
+        "no tick output may be released"
+    );
     assert!(handle.persistence_failed());
+    // The lane was fenced by exactly one settlement refused with the D77 constraint.
+    assert_eq!(*writer.results.lock(), vec![Err("item_creation_ledger_missing".to_owned())]);
     assert!(h
         .audit
         .frames(h.session)
@@ -1447,7 +1499,12 @@ async fn missing_birth_ledger_row_withholds_actor_output() {
     assert!(h.repo.item_ledger_for_test().split_off(h.seeded).is_empty());
     drop(driver);
     handle.stopped().await;
-    assert!(outputs.try_recv().is_err(), "no tick output after the actor stops");
+    drop(handle);
+    assert!(
+        matches!(outputs.try_recv(), Err(tokio::sync::broadcast::error::TryRecvError::Closed)),
+        "no tick output after the actor stops"
+    );
+    assert_eq!(writer.results.lock().len(), 1, "no retry");
 }
 
 /// An acknowledged real projection, its checkpoint and work context for outbox-order tests.
