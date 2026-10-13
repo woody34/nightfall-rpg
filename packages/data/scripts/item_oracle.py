@@ -540,6 +540,13 @@ class Source:
         for path in sorted((dp/(D+'stats/armorsets')).glob('*.xml')):
             file=path.relative_to(dp).as_posix();text=self.read(file)
             for row in ET.fromstring(text).findall('set'):self.sets.append((file,row))
+        # D84: pinned L2PcInstance.findFistsWeaponItem class ranges -> fists template.
+        pc=self.read(G+'model/actor/instance/L2PcInstance.java',True)
+        body=re.search(r'public L2Weapon findFistsWeaponItem\(int classId\) \{(.*?)\n\t\treturn weaponItem;',pc,re.S)
+        if body is None:raise ValueError('missing findFistsWeaponItem')
+        self.fists=[(int(lo,16),int(hi,16),int(tid)) for lo,hi,tid in re.findall(
+            r'\(classId >= 0x([0-9a-f]+)\) && \(classId <= 0x([0-9a-f]+)\)\) \{[^{}]*?getTemplate\((\d+)\)',body[1])]
+        if len(self.fists)!=9:raise ValueError('unexpected fists ranges')
         class_ids=self.read(G+'model/base/ClassId.java',True)
         self.races={int(sid,16):race for sid,race in re.findall(r'\w+\((0x[0-9a-fA-F]+), (?:true|false), (?:true, )?Race\.(\w+),',class_ids)}
         self.bonuses={s.tag:{int(r.get('value')):F(r.get('bonus')) for r in s.findall('stat')}
@@ -639,6 +646,15 @@ def gear_stats(src,class_file,level,equipment,skill_refs=(),base_deltas=None,bas
         'atkCountMax':F(1),'pAtkAngle':F(static.findtext('baseDamRange/width')),'pAtkRange':F(static.findtext('baseAtkRange')),
         'critDmg':F(1),'critDmgAdd':F(0),'sDef':F(0),'rShld':F(0),'shieldDefAngle':F(0),'rEvas':F(0),'weightLimit':F(69000)}
     slots={row[2] for row in equipment};weapon_type='FIST';armor_type='NONE'
+    fists=None
+    if not any(slot=='rhand' for sid,enchant,slot,seq in equipment):
+        # D84: an unarmed player's active weapon is the class fists template
+        # (L2PcInstance.findFistsWeaponItem / getActiveWeaponItem): its reach, angle and radius.
+        fists=fists_template(src,int(root.findtext('classId')))
+        fp=src.properties(fists)
+        values['pAtkRange']=F(fp.get('attack_range','40'))
+        damage_parts=fp.get('damage_range','').split(';')
+        values['pAtkAngle']=F(damage_parts[3]) if len(damage_parts)>=4 and damage_parts[3].isdigit() else F(120)
     for sid,enchant,slot,seq in equipment:
         p=src.properties(sid)
         if slot=='rhand':
@@ -760,13 +776,20 @@ def gear_stats(src,class_file,level,equipment,skill_refs=(),base_deltas=None,bas
         else:raise ValueError('unknown fold operation')
         values[stat]=new;trace.append({'order':order,'sequence':seq,'handler_ordinal':ordinal[0],'ordinal':ordinal[1],'stat':stat,'operation':op,'before':old,'operand':value,'after':new})
     weapon=next((sid for sid,e,slot,seq in equipment if slot=='rhand'),None)
-    radius=fist_spread(level)['radius'] if weapon is None else int(src.properties(weapon).get('random_damage','0'))
+    radius=int(src.properties(weapon if weapon is not None else fists).get('random_damage','0'))
     qvalues={k:q(v) for k,v in values.items()};getters={k:trunc(v) for k,v in values.items()}
     qvalues['accCombat']=floor_a_plus_b_root(accuracy_a*Q,accuracy_b*Q,base['DEX'])[0]
     getters['accCombat']=floor_a_plus_b_root(accuracy_a,accuracy_b,base['DEX'])[0]
     return {'exact':values,'root_expressions':{'accCombat':{'rational':accuracy_a,'root_coefficient':accuracy_b,'radicand':base['DEX']}},'q':qvalues,'getters':getters,
             'trace':trace,'base_stats':base,'weapon_type':weapon_type,'random_damage':radius,'spread_bound':2*radius+1,
             'enchant_hp':hp_bonus,'traits':traits,'weight':sum(int(src.properties(sid).get('weight','0')) for sid,e,slot,seq in equipment)}
+
+
+def fists_template(src,class_id):
+    """The class fists template from the pinned findFistsWeaponItem ranges (D84)."""
+    for lo,hi,tid in src.fists:
+        if lo<=class_id<=hi:return tid
+    raise ValueError('class without a fists template')
 
 
 def defence_slot_stats(src,class_file,level,occupied_slots,chest_bodypart='none'):
@@ -973,7 +996,7 @@ def make_vectors(src):
     injected=ET.fromstring(src.read(human))
     injected.find('staticData/baseMDef/lfinger').text='999'
     injected.find('staticData/baseMDef/rfinger').text='7'
-    proxy=SimpleNamespace(xml=lambda file:injected,bonuses=src.bonuses,items=src.items,skills=src.skills,hp=src.hp,properties=src.properties,races=src.races)
+    proxy=SimpleNamespace(xml=lambda file:injected,bonuses=src.bonuses,items=src.items,skills=src.skills,hp=src.hp,properties=src.properties,races=src.races,fists=src.fists)
     add('F1','RFINGER-duplication-unequal-injected-bases',{'class_file':human,'level':84,'injected_lfinger':999,'injected_rfinger':7},
         gear_stats(proxy,human,84,[]),[human,'G/model/actor/templates/L2PcTemplate.java:71-75','design/12.1 injected unequal finger bases'])
     for sid in [4270,6209,6213,3599]:

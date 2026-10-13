@@ -5104,7 +5104,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -5163,7 +5163,7 @@
           "regCp": 2844000,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 1000000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -5190,7 +5190,7 @@
           "regCp": 2,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 1,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -5505,8 +5505,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 6,
-        "spread_bound": 13,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -5519,7 +5519,7 @@
         "G/model/actor/L2Character.java:5034-5044"
       ],
       "draws": [],
-      "vector_sha256": "9d51c27f6cd5d45a3735b07cf67b9960bda94f08662c6c354261245e3f7b45fc"
+      "vector_sha256": "7b977a640c4ac993873644afcfd717d05d6ffa304a496a0ec1c06131da1f1b63"
     },
     {
       "id": "gear-09-D-e4",
@@ -10014,7 +10014,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -10073,7 +10073,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 1000000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -10100,7 +10100,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 1,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -10455,8 +10455,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 18,
         "traits": [],
         "weight": 10980
@@ -10470,7 +10470,7 @@
         "D/stats/enchantHPBonus.xml:3-94"
       ],
       "draws": [],
-      "vector_sha256": "bfc82b0fc1f37578422d0692a1392e427b28882d27f5d6f8d66606c2e8fdeec9"
+      "vector_sha256": "2085b24ba4056b41e5ae0b12be5cf3614c699f736a7464086751e72a13af2499"
     },
     {
       "id": "gear-17-lhand-e6",
@@ -10553,7 +10553,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -10612,7 +10612,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 1000000,
           "critDmgAdd": 0,
           "sDef": 190000000,
@@ -10639,7 +10639,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 1,
           "critDmgAdd": 0,
           "sDef": 190,
@@ -11034,8 +11034,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 71,
         "traits": [],
         "weight": 1240
@@ -11049,7 +11049,7 @@
         "D/stats/enchantHPBonus.xml:3-94"
       ],
       "draws": [],
-      "vector_sha256": "8ed055726c2970670a3af6b63bc6f94eafa277f622d0e80099165e8c0978e50a"
+      "vector_sha256": "216dd04b8f2cdf13058a141fe0c19672ea2571cafdf4728a60cfbfc7c2355822"
     },
     {
       "id": "gear-18-lfinger-e6",
@@ -11132,7 +11132,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -11191,7 +11191,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 1000000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -11218,7 +11218,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 1,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -11573,8 +11573,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 150
@@ -11588,7 +11588,7 @@
         "D/stats/enchantHPBonus.xml:3-94"
       ],
       "draws": [],
-      "vector_sha256": "0286ea793fef23b990e9cf47398ea32cfe3795a27c915f88a66f289c3aba6e16"
+      "vector_sha256": "c3599d64e14f007e14d69ff481676bd5995a02721c878c764af10239d80ad1e6"
     },
     {
       "id": "gear-19-HEAVY-set",
@@ -11702,7 +11702,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -11761,7 +11761,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 1000000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -11788,7 +11788,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 1,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -12243,8 +12243,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 156,
         "traits": [
           {
@@ -12270,7 +12270,7 @@
         "G/model/actor/templates/L2PcTemplate.java:71-75"
       ],
       "draws": [],
-      "vector_sha256": "0efc4341ae500e289a1e2839f455f6cecb5b851ee5b5d3ccbda89a32bb00610d"
+      "vector_sha256": "b687e14a0a9a9c9aceba68ccbb5131ee944a4441eec25c46269e9a119f244aed"
     },
     {
       "id": "set-HEAVY-missing-piece",
@@ -12360,7 +12360,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -12419,7 +12419,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 1000000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -12446,7 +12446,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 1,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -12841,8 +12841,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 104,
         "traits": [],
         "weight": 12500
@@ -12855,7 +12855,7 @@
         "G/model/actor/templates/L2PcTemplate.java:71-75"
       ],
       "draws": [],
-      "vector_sha256": "362e5952c05aa6019cc49191a2b8b1376e344cb991607b34fe9c3c07d9fb763d"
+      "vector_sha256": "3acb8c69657e59b9d888f5340b78a0b7654c983e165f8b58fa0e8a5ad19dfc9e"
     },
     {
       "id": "gear-20-LIGHT-set",
@@ -12964,7 +12964,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -13023,7 +13023,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 1000000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -13050,7 +13050,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 1,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -13465,8 +13465,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 7150
@@ -13479,7 +13479,7 @@
         "G/model/actor/templates/L2PcTemplate.java:71-75"
       ],
       "draws": [],
-      "vector_sha256": "8e2fc2ae4feb41f02c098aa929146faae4b70336ee3b9439f8b2d53995dc20bf"
+      "vector_sha256": "3230470263a8aeca2cdce1445d5f17f4f6b5c1598ea9e30b4d88381f20e2d811"
     },
     {
       "id": "set-LIGHT-missing-piece",
@@ -13569,7 +13569,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -13628,7 +13628,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 1000000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -13655,7 +13655,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 1,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -14010,8 +14010,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 6490
@@ -14024,7 +14024,7 @@
         "G/model/actor/templates/L2PcTemplate.java:71-75"
       ],
       "draws": [],
-      "vector_sha256": "8e2927eec702ea718329915dc1a92d268a4238b261b64005631bf611b6071fc5"
+      "vector_sha256": "5dad11192b9ac140e1ac4c77aeb076ef49cd3ec741ba02bc3b76275e8019fb61"
     },
     {
       "id": "gear-21-MAGIC-set",
@@ -14133,7 +14133,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -14192,7 +14192,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 1000000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -14219,7 +14219,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 1,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -14654,8 +14654,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 3780
@@ -14668,7 +14668,7 @@
         "G/model/actor/templates/L2PcTemplate.java:71-75"
       ],
       "draws": [],
-      "vector_sha256": "0c8f24f45f275cd5a7dbbdcceb47008ca8d1fc13d0a7da7abfd8491dee5f6ad4"
+      "vector_sha256": "f44e0a18237ddd82e08a9bd73a28c37e8ac5067b06dd9af53da0901e9628e3f8"
     },
     {
       "id": "set-MAGIC-missing-piece",
@@ -14758,7 +14758,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -14817,7 +14817,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 1000000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -14844,7 +14844,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 1,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -15239,8 +15239,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 3130
@@ -15253,7 +15253,7 @@
         "G/model/actor/templates/L2PcTemplate.java:71-75"
       ],
       "draws": [],
-      "vector_sha256": "892fe60254be4d0b2a8c8cc9f6277060c96b38cbbacd5c797f23374c5dd19452"
+      "vector_sha256": "9a6f278b99ebd23cac5484c5ebf7e941dd41abf5d6a4f85ff405b54bfb0fbdac"
     },
     {
       "id": "starter-kit-source-0",
@@ -41910,7 +41910,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -41969,7 +41969,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 1000000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -41996,7 +41996,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 1,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -42311,8 +42311,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -42323,7 +42323,7 @@
         "design/12.1 injected unequal finger bases"
       ],
       "draws": [],
-      "vector_sha256": "1bc744356b7f06d1278ae06e66c368eae56b5e2c5e419b0ea8e43625777e6a09"
+      "vector_sha256": "23ab3d34fec2e764b9e97e0bad1317467ef4dd54cb4f1a25a465128e40d0af54"
     },
     {
       "id": "system-4270-1-living",
@@ -42405,7 +42405,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -42464,7 +42464,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 1000000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -42491,7 +42491,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 1,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -42866,8 +42866,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -42877,7 +42877,7 @@
         "design/D16 retained System providers"
       ],
       "draws": [],
-      "vector_sha256": "379d9a5f9f4dd3c582ede6aa9016c276eab9a8c1283d8683707d92d82ed067ca"
+      "vector_sha256": "8305b69d6e4cb4c9e09767cb0f73cdbe79f56788479dee8cbd0fe5c30a035196"
     },
     {
       "id": "system-4270-1-death",
@@ -42959,7 +42959,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -43018,7 +43018,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 1000000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -43045,7 +43045,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 1,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -43420,8 +43420,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -43431,7 +43431,7 @@
         "design/D16 retained System providers"
       ],
       "draws": [],
-      "vector_sha256": "dc6a45a7f621614aae4afa2cec57e12b198d41d9ca64e020d6713e906ac445cf"
+      "vector_sha256": "07ae41d86e00aa2eebdb2099fc6af1471d8204af7bdbfc5ddb2cff0516507306"
     },
     {
       "id": "system-4270-1-dead_admission",
@@ -43513,7 +43513,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -43572,7 +43572,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 1000000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -43599,7 +43599,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 1,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -43974,8 +43974,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -43985,7 +43985,7 @@
         "design/D16 retained System providers"
       ],
       "draws": [],
-      "vector_sha256": "beae4a0a8dbea8e5b20e5d1f9221b17fed24ba9173a9b34603733fb00c343057"
+      "vector_sha256": "29762aa1fc7888c49239f7aee177ea2faba38a737d47ca456838aca80bb65d4c"
     },
     {
       "id": "system-4270-1-resurrection",
@@ -44067,7 +44067,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -44126,7 +44126,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 1000000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -44153,7 +44153,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 1,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -44528,8 +44528,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -44539,7 +44539,7 @@
         "design/D16 retained System providers"
       ],
       "draws": [],
-      "vector_sha256": "a1bc2f4733832c3308844c4133387f739f2578967abdc7fa3c6f057c67bc369e"
+      "vector_sha256": "71e4953b0353b76538b8149627c3a770db73e577ae7d272b372d72b28e107f57"
     },
     {
       "id": "system-4270-2-living",
@@ -44621,7 +44621,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -44680,7 +44680,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 1000000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -44707,7 +44707,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 1,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -45082,8 +45082,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -45093,7 +45093,7 @@
         "design/D16 retained System providers"
       ],
       "draws": [],
-      "vector_sha256": "5b68bcdff4d211efa5603e6a0683de6b934a1867982045a67447fc3957f8d29a"
+      "vector_sha256": "749579068a29b481b0b6f5575a58c74b1b946a2401d962dc1533e8dbed0c7faf"
     },
     {
       "id": "system-4270-2-death",
@@ -45175,7 +45175,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -45234,7 +45234,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 1000000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -45261,7 +45261,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 1,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -45636,8 +45636,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -45647,7 +45647,7 @@
         "design/D16 retained System providers"
       ],
       "draws": [],
-      "vector_sha256": "d0142b8aa258293c4f41fe67da4d9ac9dffbb55ebefda2b7528101e904911ea8"
+      "vector_sha256": "062a4343f1aca0c382642f5c64e47dde47f3da2b24a753bb75f178e8b301e424"
     },
     {
       "id": "system-4270-2-dead_admission",
@@ -45729,7 +45729,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -45788,7 +45788,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 1000000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -45815,7 +45815,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 1,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -46190,8 +46190,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -46201,7 +46201,7 @@
         "design/D16 retained System providers"
       ],
       "draws": [],
-      "vector_sha256": "406d7f0f62d7505aadad2131c5261feadead09803272c01202b747ecfbc02b4e"
+      "vector_sha256": "f3985a6cca0ca7716e51cee055bd79b9a9e1840aed373698c33ca832285421c0"
     },
     {
       "id": "system-4270-2-resurrection",
@@ -46283,7 +46283,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -46342,7 +46342,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 1000000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -46369,7 +46369,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 1,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -46744,8 +46744,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -46755,7 +46755,7 @@
         "design/D16 retained System providers"
       ],
       "draws": [],
-      "vector_sha256": "4356cd14d27f39de5865599675124d4259ce311455eb699e7e77b3ec24bc1314"
+      "vector_sha256": "0e00cda7cec49de90d2b0d25635fa8696e3cda8818ec36304f0fd21364673104"
     },
     {
       "id": "system-4270-3-living",
@@ -46837,7 +46837,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -46896,7 +46896,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 1000000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -46923,7 +46923,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 1,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -47298,8 +47298,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -47309,7 +47309,7 @@
         "design/D16 retained System providers"
       ],
       "draws": [],
-      "vector_sha256": "958b3e2fc103abe5f4793d77d40aaab58066c1b763dbd3f6673b2402d524314a"
+      "vector_sha256": "6cad8054b1fba4482e46439eb8dd78500452ac110fd13c21a8feb5381aa84ff9"
     },
     {
       "id": "system-4270-3-death",
@@ -47391,7 +47391,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -47450,7 +47450,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 1000000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -47477,7 +47477,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 1,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -47852,8 +47852,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -47863,7 +47863,7 @@
         "design/D16 retained System providers"
       ],
       "draws": [],
-      "vector_sha256": "6e3468109746c3edb326bfdc726f0d3420d82d4e6e9141bd9e8e7d200a29a698"
+      "vector_sha256": "c8bbe68f00cfe42ca215ed715488cd7afe3f632fa72ae139ca923848dc3c965f"
     },
     {
       "id": "system-4270-3-dead_admission",
@@ -47945,7 +47945,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -48004,7 +48004,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 1000000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -48031,7 +48031,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 1,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -48406,8 +48406,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -48417,7 +48417,7 @@
         "design/D16 retained System providers"
       ],
       "draws": [],
-      "vector_sha256": "36339e75e9b98705af54f45bfbee0cf4c6176536e842f0528f7b2ff4b3df3c0a"
+      "vector_sha256": "b5a5c4658463d503e3b5b4bb0e21e049c4ee6ee5b23959b60689f7dc3bb35f55"
     },
     {
       "id": "system-4270-3-resurrection",
@@ -48499,7 +48499,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -48558,7 +48558,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 1000000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -48585,7 +48585,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 1,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -48960,8 +48960,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -48971,7 +48971,7 @@
         "design/D16 retained System providers"
       ],
       "draws": [],
-      "vector_sha256": "a6b28d4cc29c1deebf7e574f3cabef754c0c3d444e5bb9525e48bc1ecd4b365e"
+      "vector_sha256": "9e04e2eff2239df78edbc2cd3ce7508c5e63338bc845a24239e5efcd4498949c"
     },
     {
       "id": "system-4270-4-living",
@@ -49053,7 +49053,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -49112,7 +49112,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 1000000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -49139,7 +49139,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 1,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -49514,8 +49514,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -49525,7 +49525,7 @@
         "design/D16 retained System providers"
       ],
       "draws": [],
-      "vector_sha256": "aefc350a47c52e0fe25d11558f3231aca3ac901aafc26ece27b2c2f0ec6096db"
+      "vector_sha256": "8f4514cc7c17c5f6f52ac1bcdb685bfa1548d195070e05987b4a4a869265b559"
     },
     {
       "id": "system-4270-4-death",
@@ -49607,7 +49607,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -49666,7 +49666,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 1000000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -49693,7 +49693,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 1,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -50068,8 +50068,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -50079,7 +50079,7 @@
         "design/D16 retained System providers"
       ],
       "draws": [],
-      "vector_sha256": "5cf682b8608f39aaf5ae1217dc2da070cb149a5d01bc6507d8e635242ae7a4c6"
+      "vector_sha256": "9d0ba169247d1bf14febc3964652906e626db0d2cd668ccd0e3c292269e1e2b7"
     },
     {
       "id": "system-4270-4-dead_admission",
@@ -50161,7 +50161,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -50220,7 +50220,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 1000000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -50247,7 +50247,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 1,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -50622,8 +50622,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -50633,7 +50633,7 @@
         "design/D16 retained System providers"
       ],
       "draws": [],
-      "vector_sha256": "0daf038b46488c550895f5d8eba52775c998e9aafbe182620d75172670b68651"
+      "vector_sha256": "2ac7b78caddd8e231f6a7f68c34e56fc1388a4e41c14b7730947830416697f68"
     },
     {
       "id": "system-4270-4-resurrection",
@@ -50715,7 +50715,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -50774,7 +50774,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 1000000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -50801,7 +50801,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 1,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -51176,8 +51176,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -51187,7 +51187,7 @@
         "design/D16 retained System providers"
       ],
       "draws": [],
-      "vector_sha256": "9c41d88cc05c7b0b9cb16b4fca3929cdfab58d99e14b3aafd910e5d364f49ebc"
+      "vector_sha256": "984127c82f4489b7690c98b7f9eec29fba072cab08d7f33881311f22b991de67"
     },
     {
       "id": "system-6209-1-living",
@@ -51269,7 +51269,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -51328,7 +51328,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 900000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -51355,7 +51355,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 0,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -51784,8 +51784,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -51795,7 +51795,7 @@
         "design/D16 retained System providers"
       ],
       "draws": [],
-      "vector_sha256": "0841ba2cd9e8d6316390cc80faba58078bd73a7747946eec13212e7678252434"
+      "vector_sha256": "809f3e839ee21975c3566fdcc74a64b962bdb8274dad2b2ee4fffd251db3ba56"
     },
     {
       "id": "system-6209-1-death",
@@ -51877,7 +51877,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -51936,7 +51936,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 900000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -51963,7 +51963,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 0,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -52392,8 +52392,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -52403,7 +52403,7 @@
         "design/D16 retained System providers"
       ],
       "draws": [],
-      "vector_sha256": "779a87718248df9de70535516528e8709a7a87a1f5b38aa8fefb368b79a043e3"
+      "vector_sha256": "a967e66626f6a8bdf7ed67eff34dde2b0212f5b72f0b5742c52c4f6604ddde35"
     },
     {
       "id": "system-6209-1-dead_admission",
@@ -52485,7 +52485,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -52544,7 +52544,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 900000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -52571,7 +52571,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 0,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -53000,8 +53000,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -53011,7 +53011,7 @@
         "design/D16 retained System providers"
       ],
       "draws": [],
-      "vector_sha256": "f12acc1511bef142fe0c5221c3b8602b7264711f79d48d9c3a46bbbdc5e7ac19"
+      "vector_sha256": "b510780d6334ca0709c2b5253a00aab52ed7ac370c405cbfcb05647d2ff72381"
     },
     {
       "id": "system-6209-1-resurrection",
@@ -53093,7 +53093,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -53152,7 +53152,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 900000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -53179,7 +53179,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 0,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -53608,8 +53608,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -53619,7 +53619,7 @@
         "design/D16 retained System providers"
       ],
       "draws": [],
-      "vector_sha256": "65aa733a182a6975aee47ddf8fb7d86c879d2263a94d8024658debcca814ab48"
+      "vector_sha256": "06c6b246b778f8de1b22562527a727efa474d53afd1c6abadcf368d19a3ade70"
     },
     {
       "id": "system-6209-2-living",
@@ -53701,7 +53701,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -53760,7 +53760,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 800000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -53787,7 +53787,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 0,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -54216,8 +54216,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -54227,7 +54227,7 @@
         "design/D16 retained System providers"
       ],
       "draws": [],
-      "vector_sha256": "dc2912f767bf01cc96f4d787732ed9fba1517a82c00491b981e302729971b81a"
+      "vector_sha256": "cbaf25154661fb2db748f83fc4838bb5afc7a8fd4d3a59e82b63e96a896819f5"
     },
     {
       "id": "system-6209-2-death",
@@ -54309,7 +54309,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -54368,7 +54368,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 800000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -54395,7 +54395,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 0,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -54824,8 +54824,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -54835,7 +54835,7 @@
         "design/D16 retained System providers"
       ],
       "draws": [],
-      "vector_sha256": "5ca13a97d69e5a1ba3af9e7cf8a7b33a3edf93c581a209b48ffcbec19b8819e1"
+      "vector_sha256": "832bbf3f4957145d67514c79e3cc99d635f6b94862a6c78bdf399ba604e8b5b6"
     },
     {
       "id": "system-6209-2-dead_admission",
@@ -54917,7 +54917,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -54976,7 +54976,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 800000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -55003,7 +55003,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 0,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -55432,8 +55432,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -55443,7 +55443,7 @@
         "design/D16 retained System providers"
       ],
       "draws": [],
-      "vector_sha256": "7de4a73424720837decee4d4ca85da36eb050fd417a39db16d71f22e4e38eb91"
+      "vector_sha256": "bc4823eef62c7fcda4663d36877f8630f7fd18e2925164b027bddf39e7446420"
     },
     {
       "id": "system-6209-2-resurrection",
@@ -55525,7 +55525,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -55584,7 +55584,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 800000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -55611,7 +55611,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 0,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -56040,8 +56040,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -56051,7 +56051,7 @@
         "design/D16 retained System providers"
       ],
       "draws": [],
-      "vector_sha256": "60a7fea1316a90b65305c3040ee8c843921492c5e4bb6e2d379596ac373c6cf7"
+      "vector_sha256": "08e9a43f5f68e1458e2a9fe1a04a53d3c63c512f09f2a6f4c735bf45476be139"
     },
     {
       "id": "system-6209-3-living",
@@ -56133,7 +56133,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -56192,7 +56192,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 700000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -56219,7 +56219,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 0,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -56648,8 +56648,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -56659,7 +56659,7 @@
         "design/D16 retained System providers"
       ],
       "draws": [],
-      "vector_sha256": "373d6f1c111f1c06b6d3126e5e2268f6514b8ca908603337db1451692385d40b"
+      "vector_sha256": "54ec9955b5de9ae055bbc531d66c1674d3f1ab0cc969a3c5f7f743ed0ec21c6e"
     },
     {
       "id": "system-6209-3-death",
@@ -56741,7 +56741,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -56800,7 +56800,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 700000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -56827,7 +56827,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 0,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -57256,8 +57256,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -57267,7 +57267,7 @@
         "design/D16 retained System providers"
       ],
       "draws": [],
-      "vector_sha256": "3e1ea9d57831498de52dafca87d3be0f66e89d55c0397fa3f9535df51757f756"
+      "vector_sha256": "7e45f0b7d09f264b4e33d48fff2748ac5c438de7278daf7bc4c73dc32f37be8c"
     },
     {
       "id": "system-6209-3-dead_admission",
@@ -57349,7 +57349,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -57408,7 +57408,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 700000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -57435,7 +57435,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 0,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -57864,8 +57864,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -57875,7 +57875,7 @@
         "design/D16 retained System providers"
       ],
       "draws": [],
-      "vector_sha256": "01872e1afdd3847a8019c4cb6863b6b72a20aef3f3380190707b4ea192878ab6"
+      "vector_sha256": "7e3e9df69ecb3a86ebcfb894bd16b10d512f9a76b54f54eea3425095d52652c6"
     },
     {
       "id": "system-6209-3-resurrection",
@@ -57957,7 +57957,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -58016,7 +58016,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 700000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -58043,7 +58043,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 0,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -58472,8 +58472,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -58483,7 +58483,7 @@
         "design/D16 retained System providers"
       ],
       "draws": [],
-      "vector_sha256": "c19dbb7c3b1a5581fa7834993700322f0d69206a5e879d450b3f2f1be2d9ac96"
+      "vector_sha256": "095cbe16497ecca5d2368c2c1f13ee9b75d890f00c0dad45397bea734273a9e9"
     },
     {
       "id": "system-6209-4-living",
@@ -58565,7 +58565,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -58624,7 +58624,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 600000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -58651,7 +58651,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 0,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -59080,8 +59080,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -59091,7 +59091,7 @@
         "design/D16 retained System providers"
       ],
       "draws": [],
-      "vector_sha256": "f1782c99c6e602647ba41d69a042cc38220057f27912a8c9d22970244b37a0dd"
+      "vector_sha256": "f14c64f0a379663719bfdf6d5c8621af46d2462d02334513be4fce3b7bbbdc02"
     },
     {
       "id": "system-6209-4-death",
@@ -59173,7 +59173,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -59232,7 +59232,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 600000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -59259,7 +59259,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 0,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -59688,8 +59688,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -59699,7 +59699,7 @@
         "design/D16 retained System providers"
       ],
       "draws": [],
-      "vector_sha256": "6a5bc79619121c6ad828be50b0a9da3831a114c9e0ccc21785cb2e6284902a88"
+      "vector_sha256": "87ea7247a3cff54f1881464ec0847e3cf3652eecd2f379182b3b9600ebf08a83"
     },
     {
       "id": "system-6209-4-dead_admission",
@@ -59781,7 +59781,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -59840,7 +59840,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 600000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -59867,7 +59867,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 0,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -60296,8 +60296,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -60307,7 +60307,7 @@
         "design/D16 retained System providers"
       ],
       "draws": [],
-      "vector_sha256": "77d598f6b35de3e3f723cee76aa80e36cb2ffcb15c7ea84a4262893f0da8fa70"
+      "vector_sha256": "233e94792ffe2ce346b8a164279d500e474ac7aacac1f722d44c09aad0ed03c2"
     },
     {
       "id": "system-6209-4-resurrection",
@@ -60389,7 +60389,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -60448,7 +60448,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 600000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -60475,7 +60475,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 0,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -60904,8 +60904,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -60915,7 +60915,7 @@
         "design/D16 retained System providers"
       ],
       "draws": [],
-      "vector_sha256": "98cb822f9ba90f719c6a27ac0bb1133076c8e3fee48d1596d3d7d6da7715e836"
+      "vector_sha256": "c782c353018d3a861ab8395d85f413bc1a54b7f99793995d52038b7d1236eabd"
     },
     {
       "id": "system-6213-1-living",
@@ -60997,7 +60997,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -61056,7 +61056,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 1000000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -61083,7 +61083,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 1,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -61478,8 +61478,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -61489,7 +61489,7 @@
         "design/D16 retained System providers"
       ],
       "draws": [],
-      "vector_sha256": "c7b80500df24b63b630e3c19e05b05289b1a481f7fc42a0170b66086e033a5b6"
+      "vector_sha256": "528ef5f7c9b3c7b61696a142bfab666fdcc425057191f5679ff9cf64854f06ae"
     },
     {
       "id": "system-6213-1-death",
@@ -61571,7 +61571,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -61630,7 +61630,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 1000000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -61657,7 +61657,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 1,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -62052,8 +62052,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -62063,7 +62063,7 @@
         "design/D16 retained System providers"
       ],
       "draws": [],
-      "vector_sha256": "89f758da0eca4494d408f38db592a33402b693a22285ea044e4b4d99edcb4658"
+      "vector_sha256": "5549dc526caad08118d56c73ea329c779fb6141d934624dd640fd653b783bda7"
     },
     {
       "id": "system-6213-1-dead_admission",
@@ -62145,7 +62145,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -62204,7 +62204,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 1000000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -62231,7 +62231,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 1,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -62626,8 +62626,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -62637,7 +62637,7 @@
         "design/D16 retained System providers"
       ],
       "draws": [],
-      "vector_sha256": "b7e680bdd8d819e080a16866ccc6ab13880aba5f6113037c7de086761748139b"
+      "vector_sha256": "ef2184664b8bfd667bebd0db0c7acbe3570d09ec360c84cab2c616cac60dd0e0"
     },
     {
       "id": "system-6213-1-resurrection",
@@ -62719,7 +62719,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -62778,7 +62778,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 1000000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -62805,7 +62805,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 1,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -63200,8 +63200,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -63211,7 +63211,7 @@
         "design/D16 retained System providers"
       ],
       "draws": [],
-      "vector_sha256": "f2f03559d6f38d10e15033fbcaa9ebc5c216e8710f172f72c38ec7762c255fb7"
+      "vector_sha256": "e66a701a383de7a6f60911f35befede452f3d32a4cb75d8fab033be5f3492fe8"
     },
     {
       "id": "system-6213-2-living",
@@ -63293,7 +63293,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -63352,7 +63352,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 1000000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -63379,7 +63379,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 1,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -63774,8 +63774,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -63785,7 +63785,7 @@
         "design/D16 retained System providers"
       ],
       "draws": [],
-      "vector_sha256": "9c8ecf36a0538abeceb459c7eaca330777d11de854b4d2b5e94e8f8655d022dc"
+      "vector_sha256": "4af05e22cf4f155e426411b06c488c6a9f423c9a4b7512dd6e2569721cab3aac"
     },
     {
       "id": "system-6213-2-death",
@@ -63867,7 +63867,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -63926,7 +63926,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 1000000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -63953,7 +63953,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 1,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -64348,8 +64348,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -64359,7 +64359,7 @@
         "design/D16 retained System providers"
       ],
       "draws": [],
-      "vector_sha256": "36b66ff9c9a26eea05bb49ac8f763afe5bcd725646dbe0a871918e2758500aad"
+      "vector_sha256": "c3f49cebf9223c9757d5e2dd96c5407626d3dba9221954dbc937a42e92bd203a"
     },
     {
       "id": "system-6213-2-dead_admission",
@@ -64441,7 +64441,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -64500,7 +64500,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 1000000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -64527,7 +64527,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 1,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -64922,8 +64922,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -64933,7 +64933,7 @@
         "design/D16 retained System providers"
       ],
       "draws": [],
-      "vector_sha256": "c64862bcf27a38f5d4f1bbe049c9d8cd5c78c8feb4873f916c2ff503db3e87d5"
+      "vector_sha256": "f3e24ac2cb484197ea92e7928778a488ca340d34f33328b47cf8920271bd250d"
     },
     {
       "id": "system-6213-2-resurrection",
@@ -65015,7 +65015,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -65074,7 +65074,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 1000000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -65101,7 +65101,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 1,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -65496,8 +65496,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -65507,7 +65507,7 @@
         "design/D16 retained System providers"
       ],
       "draws": [],
-      "vector_sha256": "8ca79faac1bde3c9d5ed06dfd33a2f077c7c42ecde9ede72666284aa8f7f217b"
+      "vector_sha256": "3bde9a7dc3635aa8effaf3b1a6531a2d17111f66810a3d5a7f7415f3e196eae1"
     },
     {
       "id": "system-6213-3-living",
@@ -65589,7 +65589,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -65648,7 +65648,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 1000000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -65675,7 +65675,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 1,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -66070,8 +66070,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -66081,7 +66081,7 @@
         "design/D16 retained System providers"
       ],
       "draws": [],
-      "vector_sha256": "a523d7aa7cc093b64caeeee24fd9224e02fbb2612357b80bf2c34f17a583e275"
+      "vector_sha256": "269e10100ca188f5b270e8af0a5eabf2c866461db61f06b4df8299441ce686fc"
     },
     {
       "id": "system-6213-3-death",
@@ -66163,7 +66163,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -66222,7 +66222,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 1000000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -66249,7 +66249,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 1,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -66644,8 +66644,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -66655,7 +66655,7 @@
         "design/D16 retained System providers"
       ],
       "draws": [],
-      "vector_sha256": "6c27d9f77a37d7bc98223348936a22f3373452d930b867e2c85aa14c2aa31f15"
+      "vector_sha256": "64f5e2c2a947d72ea891ea788d2736c48ba3775cfb2fbf952f01b3c847fcb7fc"
     },
     {
       "id": "system-6213-3-dead_admission",
@@ -66737,7 +66737,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -66796,7 +66796,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 1000000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -66823,7 +66823,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 1,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -67218,8 +67218,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -67229,7 +67229,7 @@
         "design/D16 retained System providers"
       ],
       "draws": [],
-      "vector_sha256": "75b8dc7ce88c545230a1d46fa804723131c4699d6c77a3e995d2203ad23759e2"
+      "vector_sha256": "4ff63188e5e7157979f5abe4af3690c25d89f351631f674445060aa6cbbcd163"
     },
     {
       "id": "system-6213-3-resurrection",
@@ -67311,7 +67311,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -67370,7 +67370,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 1000000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -67397,7 +67397,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 1,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -67792,8 +67792,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -67803,7 +67803,7 @@
         "design/D16 retained System providers"
       ],
       "draws": [],
-      "vector_sha256": "cc77ef13201472e842027fb72b6fe98ce6d71e512b122fd909256f96f148431a"
+      "vector_sha256": "f05641a5fd53f98fccf31cb29b90c05b862bc2481a362cefdb94724b129d57cf"
     },
     {
       "id": "system-6213-4-living",
@@ -67885,7 +67885,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -67944,7 +67944,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 1000000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -67971,7 +67971,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 1,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -68366,8 +68366,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -68377,7 +68377,7 @@
         "design/D16 retained System providers"
       ],
       "draws": [],
-      "vector_sha256": "b463816e57385056e27a1cfe06d97eee06ee5467b2cf9663ad0d8a81b28873a0"
+      "vector_sha256": "6ae389ff582bf79662d1329d192b67d4d56c0c64a65fd55e1a620e5661530ec5"
     },
     {
       "id": "system-6213-4-death",
@@ -68459,7 +68459,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -68518,7 +68518,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 1000000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -68545,7 +68545,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 1,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -68940,8 +68940,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -68951,7 +68951,7 @@
         "design/D16 retained System providers"
       ],
       "draws": [],
-      "vector_sha256": "d6fc7f05630279899e27449229bf19bff6bd12238a034ae23dc155522beb3041"
+      "vector_sha256": "0e9ef2a8b00c7b8ddab907239da022f0a88250ac500e51ca15a178c98ac31365"
     },
     {
       "id": "system-6213-4-dead_admission",
@@ -69033,7 +69033,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -69092,7 +69092,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 1000000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -69119,7 +69119,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 1,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -69514,8 +69514,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -69525,7 +69525,7 @@
         "design/D16 retained System providers"
       ],
       "draws": [],
-      "vector_sha256": "b9c26c2f481d11f6a554da6e43de7f4b49ec76c1d2b88522df2930676f1889bc"
+      "vector_sha256": "bd58b745ae92c43db4bcf102b2e5e2fd338f756b6172667fa34eb24c45af7af8"
     },
     {
       "id": "system-6213-4-resurrection",
@@ -69607,7 +69607,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -69666,7 +69666,7 @@
           "regCp": 23233900,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 1000000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -69693,7 +69693,7 @@
           "regCp": 23,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 1,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -70088,8 +70088,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -70099,7 +70099,7 @@
         "design/D16 retained System providers"
       ],
       "draws": [],
-      "vector_sha256": "661f9c0386b2504c05e2b1a113c12ac03d4e99d7a11329e9a2abfa8ce4de4d45"
+      "vector_sha256": "5e5b261e5dda417926333fb09c171a7e03cb1653e264a1134a3b181bc30d279b"
     },
     {
       "id": "system-3599-1-living",
@@ -70181,7 +70181,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -70240,7 +70240,7 @@
           "regCp": 23233900,
           "atkCountMax": 5000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 1000000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -70267,7 +70267,7 @@
           "regCp": 23,
           "atkCountMax": 5,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 1,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -70602,8 +70602,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -70613,7 +70613,7 @@
         "design/D16 retained System providers"
       ],
       "draws": [],
-      "vector_sha256": "1c92ec6bb598843a9e1c74d2e7497d57fbaae7316d973ee6d77cba922bf191c8"
+      "vector_sha256": "aa0151b7280da81d5f558a19b6bb20386ab17e6be5da7937479052c0aa33159f"
     },
     {
       "id": "system-3599-1-death",
@@ -70695,7 +70695,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -70754,7 +70754,7 @@
           "regCp": 23233900,
           "atkCountMax": 5000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 1000000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -70781,7 +70781,7 @@
           "regCp": 23,
           "atkCountMax": 5,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 1,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -71116,8 +71116,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -71127,7 +71127,7 @@
         "design/D16 retained System providers"
       ],
       "draws": [],
-      "vector_sha256": "177c118dca16d3f85faafbaa888c908d0361f63fdb5103e99885c82c84fb61ff"
+      "vector_sha256": "db17d7b3acfab666cdb250ecf9ac57722e43d8430a8b85a9ff29addf6978c0df"
     },
     {
       "id": "system-3599-1-dead_admission",
@@ -71209,7 +71209,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -71268,7 +71268,7 @@
           "regCp": 23233900,
           "atkCountMax": 5000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 1000000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -71295,7 +71295,7 @@
           "regCp": 23,
           "atkCountMax": 5,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 1,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -71630,8 +71630,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -71641,7 +71641,7 @@
         "design/D16 retained System providers"
       ],
       "draws": [],
-      "vector_sha256": "6eec16d3f2fe0b0a42bf538e8d3dd92b744492000e06ecacbb0a7481726e63be"
+      "vector_sha256": "e21ec706fe9099386382f360c0f71d163da6ba218cadd27baadae04766a85989"
     },
     {
       "id": "system-3599-1-resurrection",
@@ -71723,7 +71723,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -71782,7 +71782,7 @@
           "regCp": 23233900,
           "atkCountMax": 5000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 1000000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -71809,7 +71809,7 @@
           "regCp": 23,
           "atkCountMax": 5,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 1,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -72144,8 +72144,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 14,
-        "spread_bound": 29,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -72155,7 +72155,7 @@
         "design/D16 retained System providers"
       ],
       "draws": [],
-      "vector_sha256": "1f7e0aa016d998b49aa11857d9599c01f3d73d94a52a7b1d4587e5b9541b62e2"
+      "vector_sha256": "aa7d7962844386d22249e390625040c8b223a3ec8eed864e0eb5458b394eff7a"
     },
     {
       "id": "class-slots-31-empty",
@@ -569203,7 +569203,7 @@
             "denominator": 1
           },
           "pAtkRange": {
-            "numerator": 20,
+            "numerator": 40,
             "denominator": 1
           },
           "critDmg": {
@@ -569262,7 +569262,7 @@
           "regCp": 2844000,
           "atkCountMax": 1000000,
           "pAtkAngle": 120000000,
-          "pAtkRange": 20000000,
+          "pAtkRange": 40000000,
           "critDmg": 1000000,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -569289,7 +569289,7 @@
           "regCp": 2,
           "atkCountMax": 1,
           "pAtkAngle": 120,
-          "pAtkRange": 20,
+          "pAtkRange": 40,
           "critDmg": 1,
           "critDmgAdd": 0,
           "sDef": 0,
@@ -569604,8 +569604,8 @@
           "MEN": 25
         },
         "weapon_type": "FIST",
-        "random_damage": 6,
-        "spread_bound": 13,
+        "random_damage": 5,
+        "spread_bound": 11,
         "enchant_hp": 0,
         "traits": [],
         "weight": 0
@@ -569615,7 +569615,7 @@
         "design/3.2 retained sequence and no onStart"
       ],
       "draws": [],
-      "vector_sha256": "b6ff2d1111fc673f68c5a480360dc3af1ab65ec72619a481c574c25d6836dea0"
+      "vector_sha256": "3481c11859cc711774e22f35f4b9315cb3c5c2821cbeff232d79d081c3c96b4e"
     },
     {
       "id": "provider-install-remove-reinstall-2",
@@ -695426,5 +695426,5 @@
       }
     }
   ],
-  "vector_set_sha256": "f01d371ebe79dc8189369b0bab8a75c2e6a1944deaf445291f89ca6c88beb42b"
+  "vector_set_sha256": "3c44d2e5e8f270e92200fdd435ec1df72b237c8f46ee8d70ea6d17b4e28550dd"
 }
