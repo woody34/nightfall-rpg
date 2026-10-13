@@ -9952,6 +9952,164 @@ mod tests {
         run.write("NIGHTFALL_TEST_ESCAPE_RECORDING");
     }
 
+    /// E4.6 scenario support (4-combat-kinds blow/lethal phases): a level-40 Treasure Hunter
+    /// with Mortal Blow 16:24 and Deadly Blow 263:3 casts from behind a stationary target
+    /// facing east with dagger 10; the export carries `blow_success` and `lethal` facts with the
+    /// scenario's skill contexts.
+    #[test]
+    #[allow(clippy::too_many_lines)] // Class/level fixture, equip, two casts and the export.
+    fn v6_scenario_blow_and_lethal_from_behind_with_a_dagger() {
+        use crate::domain::subclass::LearnedSkill;
+        use crate::domain::zone::skill::SkillId;
+        use crate::domain::zone::ItemCommandKind as K;
+        let (mut zone, owner, npc, ids) = use_fixture(&[10]);
+        let xp_at_40 = zone.rules.as_ref().unwrap().xp_to_level(40).unwrap();
+        let base_stats = zone
+            .classes
+            .as_ref()
+            .unwrap()
+            .get(ClassId(0))
+            .unwrap()
+            .base_stats;
+        let combat = zone
+            .entities
+            .get_mut(&owner.entity)
+            .unwrap()
+            .combat
+            .as_mut()
+            .unwrap();
+        let CombatRole::Player {
+            class,
+            xp,
+            progression: Some(player),
+        } = &mut combat.role
+        else {
+            unreachable!()
+        };
+        // The shared fixture spawns Human Mystics; this owner is re-based as a Human Fighter.
+        *class = "human_fighter".into();
+        player.identity.base_class_id = ClassId(0);
+        player.class_state = ClassState::new(ClassId(0));
+        *xp = xp_at_40;
+        player.class_state.current_class_id = ClassId(8);
+        // Human Fighter → Rogue (20) → Treasure Hunter (40), with both transfer receipts.
+        for (target_class, level) in [(7, 20), (8, 40)] {
+            player.class_state.successful_transfer_receipts.push(
+                crate::domain::character_progression::SuccessfulTransferReceipt {
+                    key: Uuid::from_u128(u128::from(target_class) + 0xB10),
+                    target_class_id: ClassId(target_class),
+                    result: crate::domain::character_progression::FrozenTransferResult {
+                        character_id: crate::domain::CharacterId::from_uuid(owner.entity.as_uuid()),
+                        identity: player.identity.clone(),
+                        name: crate::domain::CharacterName::new("First").unwrap(),
+                        current_class_id: ClassId(target_class),
+                        level,
+                        xp: 0,
+                        sp: 0,
+                        stats: base_stats,
+                        position_millitiles: [10000, 10000],
+                        hp: 1,
+                        mp: 1,
+                        cp: 0,
+                        max_hp: 1,
+                        max_mp: 1,
+                        max_cp: 0,
+                        token_tier_1_count: 0,
+                        token_tier_2_count: 0,
+                        granted_skill_keys: Vec::new(),
+                    },
+                },
+            );
+        }
+        player.class_state.merge_learned_skills(vec![
+            LearnedSkill {
+                key: "l2.skill.16".into(),
+                level: 24,
+            },
+            LearnedSkill {
+                key: "l2.skill.263".into(),
+                level: 3,
+            },
+        ]);
+        zone.relevel(owner.entity).unwrap();
+        // The fighter line's collision radius follows the re-based profession.
+        let radius = {
+            let c = zone.entities[&owner.entity].combat.as_ref().unwrap();
+            let CombatRole::Player {
+                progression: Some(p),
+                ..
+            } = &c.role
+            else {
+                unreachable!()
+            };
+            crate::domain::zone::profession_stats(
+                zone.rules.as_ref().unwrap(),
+                zone.classes.as_ref().unwrap(),
+                &p.identity,
+                &p.class_state,
+                c.sheet.level(),
+            )
+            .unwrap()
+            .3
+        };
+        zone.entities
+            .get_mut(&owner.entity)
+            .unwrap()
+            .combat
+            .as_mut()
+            .unwrap()
+            .collision_radius = radius;
+        zone.sync_passives_v5(owner.entity).unwrap();
+        zone.rebuild_v5(owner.entity).unwrap();
+        let max = zone.effective(owner.entity).unwrap();
+        set_resources(&mut zone, owner, max.physical.max_hp(), max.max_cp);
+        zone.entities
+            .get_mut(&owner.entity)
+            .unwrap()
+            .combat
+            .as_mut()
+            .unwrap()
+            .mp = max.physical.max_mp();
+        // Target at (108,100) facing east; the owner one tile west is behind it.
+        place(&mut zone, npc.entity, Vec2Fixed::from_tiles(108, 100));
+        place(&mut zone, owner.entity, Vec2Fixed::from_tiles(107, 100));
+        zone.run_tick(zone.draft(Vec::new())).unwrap();
+        let mut run = EvidenceRun::start(zone);
+        let equip = item_intent(
+            &run.zone,
+            owner.entity,
+            1701,
+            K::Equip {
+                instance: ids[0],
+                preferred_slot: None,
+            },
+        );
+        let applied = run.tick(owner.entity, vec![ZoneCommand::Item(Box::new(equip))]);
+        assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+        for skill in [16, 263] {
+            let applied = run.tick(
+                owner.entity,
+                vec![ZoneCommand::CastSkill {
+                    entity: owner.entity,
+                    skill_id: SkillId(skill),
+                    target: Some(npc.entity),
+                }],
+            );
+            assert!(applied.dispositions.is_empty(), "{skill}: {:?}", applied.dispositions);
+            for _ in 0..40 {
+                run.tick(owner.entity, Vec::new());
+                if matches!(run.zone.sidecar(owner.entity).unwrap().cast, CastState::Idle) {
+                    break;
+                }
+            }
+        }
+        let names = run.formulas();
+        for required in ["blow_success", "lethal"] {
+            assert!(names.contains(required), "{required}: {names:?}");
+        }
+        run.write("NIGHTFALL_TEST_SCENARIO_BLOW_RECORDING");
+    }
+
     #[test]
     fn v6_fractional_hp_cold_replay_regen_and_last_fraction_death() {
         use crate::domain::zone::item_combat::half_hp;
