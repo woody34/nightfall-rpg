@@ -7249,6 +7249,146 @@ mod tests {
     /// Blacksmith fixture: level-46 owner beside the NPC with an unaugmented C-grade necklace
     /// (916, 80 crystals), two accessory stones 12754, D gemstones 2130 and Adena.
     #[allow(clippy::arithmetic_side_effects)]
+    /// D94 rows for one instance in the tick's frozen projection.
+    fn d94_rows(
+        events: &[ZoneEvent],
+        instance: crate::domain::zone::ItemInstanceId,
+    ) -> Vec<(
+        crate::domain::zone::phase4_projection::ItemOperation,
+        u32,
+        Option<u64>,
+        Option<u64>,
+    )> {
+        let projection = events
+            .iter()
+            .find_map(|event| match event {
+                ZoneEvent::ItemCheckpoint(p) => Some(p),
+                _ => None,
+            })
+            .unwrap();
+        projection
+            .ledger
+            .iter()
+            .filter(|row| row.instance == instance)
+            .map(|row| {
+                (
+                    row.operation,
+                    row.operation_ordinal,
+                    row.before.as_ref().map(|i| i.count),
+                    row.after.as_ref().map(|i| i.count),
+                )
+            })
+            .collect()
+    }
+
+    #[test]
+    fn d94_enchant_then_destroy_freezes_consume_then_terminal_and_replays() {
+        use crate::domain::zone::phase4_projection::ItemOperation as Op;
+        use crate::domain::zone::{EquipSlot, ItemCommandKind as K};
+        // api-review-4 poison tick: Enchant{target, scroll} then Destroy{scroll, 2} on 3.
+        let (mut zone, owner, target, scroll) = enchant_fixture(956, EquipSlot::Chest, 0);
+        let rules = Arc::clone(&zone.phase4.as_ref().unwrap().rules);
+        let mut cold =
+            ZoneState::from_snapshot_with_items(zone.snapshot(), Some(Arc::clone(&rules))).unwrap();
+        let draft = session_tick(
+            &zone,
+            owner.entity,
+            vec![
+                item_intent(
+                    &zone,
+                    owner.entity,
+                    941,
+                    K::Enchant {
+                        target,
+                        scroll,
+                        support: None,
+                    },
+                ),
+                item_intent(
+                    &zone,
+                    owner.entity,
+                    942,
+                    K::Destroy {
+                        instance: scroll,
+                        count: 2,
+                    },
+                ),
+            ],
+        );
+        let applied = zone.run_tick(draft.clone()).unwrap();
+        assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+        assert_eq!(
+            d94_rows(&applied.events, scroll),
+            vec![
+                (Op::Consume, 0, Some(3), Some(2)),
+                (Op::Destroy, 1, Some(2), None)
+            ]
+        );
+        assert_eq!(applied, cold.run_tick(draft).unwrap());
+        ZoneState::from_snapshot_with_items(zone.snapshot(), Some(rules)).unwrap();
+    }
+
+    #[test]
+    fn d94_refine_payment_then_destroy_freezes_consume_then_terminal_and_replays() {
+        use crate::domain::zone::phase4_projection::ItemOperation as Op;
+        use crate::domain::zone::{ItemCommandKind as K, ItemInstanceId};
+        // A life stone debited by Refine, then the remaining stack destroyed in the same tick
+        // (stones cannot be crystallized; Destroy is the reachable terminal for a payment).
+        let (mut zone, owner, npc) = refine_fixture();
+        let necklace = ItemInstanceId::new(930).unwrap();
+        let stone = ItemInstanceId::new(931).unwrap();
+        // Settle the fixture's vitals baseline so live and cold start from one boundary.
+        zone.run_tick(zone.draft(Vec::new())).unwrap();
+        let rules = Arc::clone(&zone.phase4.as_ref().unwrap().rules);
+        let mut cold =
+            ZoneState::from_snapshot_with_items(zone.snapshot(), Some(Arc::clone(&rules))).unwrap();
+        let draft = session_tick(
+            &zone,
+            owner.entity,
+            vec![
+                item_intent(
+                    &zone,
+                    owner.entity,
+                    943,
+                    K::Equip {
+                        instance: necklace,
+                        preferred_slot: None,
+                    },
+                ),
+                item_intent(
+                    &zone,
+                    owner.entity,
+                    944,
+                    K::Refine {
+                        npc,
+                        target: necklace,
+                        stone,
+                    },
+                ),
+                item_intent(
+                    &zone,
+                    owner.entity,
+                    945,
+                    K::Destroy {
+                        instance: stone,
+                        count: 1,
+                    },
+                ),
+            ],
+        );
+        let applied = zone.run_tick(draft.clone()).unwrap();
+        assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+        assert_eq!(
+            d94_rows(&applied.events, stone),
+            vec![
+                (Op::Consume, 0, Some(2), Some(1)),
+                (Op::Destroy, 1, Some(1), None)
+            ]
+        );
+        assert_eq!(applied, cold.run_tick(draft).unwrap());
+        ZoneState::from_snapshot_with_items(zone.snapshot(), Some(rules)).unwrap();
+    }
+
     fn refine_fixture() -> (ZoneState, TargetBinding, TargetBinding) {
         use crate::domain::zone::{ItemInstanceId, ItemLocation};
         let (mut zone, owner, npc) = exchange_fixture_base();

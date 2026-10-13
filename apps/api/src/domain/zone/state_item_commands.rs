@@ -970,7 +970,7 @@ impl ZoneState {
             if let ZoneEvent::ItemCheckpoint(projection) = event {
                 if let Some(core) = &projection.paused_core {
                     projection
-                        .validate_staged(
+                        .validate_structure(
                             core.load
                                 .phase3
                                 .as_ref()
@@ -985,8 +985,10 @@ impl ZoneState {
                     .canonical
                     .checkpoint(projection.entity, tick, &phase.canonical)
                     .map_err(|_| TickError::Phase3Invariant)?;
+                // D94/P2-6: the frozen tick is normalized and renumbered, so the positional
+                // validator (the one snapshots, decode and the API apply) runs here.
                 projection
-                    .validate_staged(
+                    .validate_structure(
                         phase
                             .canonical
                             .checkpoint(projection.entity, tick)
