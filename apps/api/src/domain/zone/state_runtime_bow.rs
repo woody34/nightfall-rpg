@@ -708,6 +708,16 @@ impl ZoneState {
         // D89: null iff the draw was not taken.
         inputs_map.insert("critical_residue".into(), json!(critical.map(|(v, _)| v)));
         inputs_map.insert("spread_residue".into(), json!(spread.map(|(v, _)| v)));
+        // D108: a landed shot with a spread radius but no spread draw was perfectly blocked.
+        let radius = inputs_map
+            .get("weapon")
+            .and_then(|w| w.get("spread_radius"))
+            .and_then(Value::as_u64)
+            .unwrap_or(0);
+        inputs_map.insert(
+            "blocked".into(),
+            json!(hit && critical.is_some() && spread.is_none() && radius > 0),
+        );
         if let Some(draws) = actual_map.get_mut("draws").and_then(Value::as_array_mut) {
             draws.push(json!({"site": "hit", "bound": 1000, "residue": hit_residue}));
             if let Some((value, bound)) = critical {
@@ -769,6 +779,7 @@ impl ZoneState {
         let mut formulas = Vec::new();
         let mut criticals = Vec::new();
         let mut spreads = Vec::new();
+        let mut blocked = Vec::new();
         let mut draws: Vec<Value> = hit_residues
             .iter()
             .enumerate()
@@ -798,17 +809,21 @@ impl ZoneState {
             } else {
                 (None, None)
             };
-            if let (Some((c, cb)), Some((s, sb))) = (critical, spread) {
+            if hit {
+                let Some((c, cb)) = critical else {
+                    return;
+                };
                 draws.push(
                     json!({"site": format!("critical{}", index.saturating_add(1)), "bound": cb, "residue": c}),
                 );
-                draws.push(
-                    json!({"site": format!("spread{}", index.saturating_add(1)), "bound": sb, "residue": s}),
-                );
-            } else if hit {
-                // A landed subhit without both draws (e.g. a perfect block) has no oracle shape.
-                return;
+                // D108: a perfectly blocked subhit takes no spread draw; the fact is kept.
+                if let Some((s, sb)) = spread {
+                    draws.push(
+                        json!({"site": format!("spread{}", index.saturating_add(1)), "bound": sb, "residue": s}),
+                    );
+                }
             }
+            blocked.push(hit && spread.is_none());
             hits.push(hit);
             formulas.push(exact.map_or(json!(0), r));
             criticals.push(critical.map(|(value, _)| value));
@@ -816,7 +831,7 @@ impl ZoneState {
         }
         let inputs = json!({"hits": hits, "formulas": formulas, "hit_residues": hit_residues,
             "hit_chance": chance, "spread_radius": radius, "critical_residues": criticals,
-            "spread_residues": spreads});
+            "spread_residues": spreads, "blocked": blocked});
         let actual = json!({"plan": damages, "stored_second": damages[1],
             "second_recomputed": false, "draws": draws, "refunded_draws": []});
         if let Some(buffer) = self.evidence.as_mut() {

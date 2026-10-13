@@ -500,6 +500,9 @@ def _behavior_requirements(src, need, o):
         need('F6', f'grade-slot-{slot}-{expertise}', equipped=[dict(instance_id=1, slot=slot, grade=7, weapon=slot == 5)], expertise=expertise)
     for speed in [379, 400, 1500]:
         need('F10', f'bow-reuse-speed-{speed}', reuse_delay=1500, attack_speed=speed, weapon_reuse_modifier=F(3, 2))
+    need('F10', 'dual-plan-blocked', hits=[True, True], formulas=[F(499, 10), F(10199, 100)], second_valid=True,
+         hit_residues=[800, 800], hit_chance=800, spread_radius=6, critical_residues=[0, 0],
+         spread_residues=[12, None], blocked=[False, True])
     for hits, valid in product([[False, False], [True, False], [False, True], [True, True]], [False, True]):
         need('F10', f'dual-plan-{hits}-{valid}', hits=hits, formulas=[F(499, 10), F(10199, 100)], second_valid=valid,
              hit_residues=[800 if h else 801 for h in hits], hit_chance=800, spread_radius=6,

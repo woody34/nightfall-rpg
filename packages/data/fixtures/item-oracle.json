@@ -734,7 +734,7 @@
   "policy": "Independent pinned-source exact-rational oracle; injected random residues; V6 integer adaptations, not Java binary64 identity.",
   "coverage": {
     "F1": 320,
-    "F10": 309,
+    "F10": 310,
     "F11": 800,
     "F12": 2177,
     "F2": 1967,
@@ -748,7 +748,7 @@
   },
   "coverage_gate": {
     "design": "12.1",
-    "required_cases": 8393,
+    "required_cases": 8394,
     "scroll_group_bindings": 126,
     "covered_scroll_group_levels": 8257536,
     "level_encoding": "contiguous inclusive source-rate intervals",
@@ -685590,6 +685590,118 @@
       "vector_sha256": "32ddb9727710ec4f53dacf71f3faebd34da3680604c597a5eea05767ca58efad"
     },
     {
+      "id": "dual-plan-blocked",
+      "family": "F10",
+      "inputs": {
+        "hits": [
+          true,
+          true
+        ],
+        "formulas": [
+          {
+            "numerator": 499,
+            "denominator": 10
+          },
+          {
+            "numerator": 10199,
+            "denominator": 100
+          }
+        ],
+        "second_valid": true,
+        "hit_residues": [
+          800,
+          800
+        ],
+        "hit_chance": 800,
+        "spread_radius": 6,
+        "critical_residues": [
+          0,
+          0
+        ],
+        "spread_residues": [
+          12,
+          null
+        ],
+        "blocked": [
+          false,
+          true
+        ]
+      },
+      "expected": {
+        "plan": [
+          24,
+          50
+        ],
+        "stored_second": 50,
+        "applied": [
+          24,
+          50
+        ],
+        "second_recomputed": false,
+        "draws": [
+          {
+            "site": "hit1",
+            "bound": 1000,
+            "residue": 800
+          },
+          {
+            "site": "hit2",
+            "bound": 1000,
+            "residue": 800
+          },
+          {
+            "site": "critical1",
+            "bound": 1000,
+            "residue": 0
+          },
+          {
+            "site": "spread1",
+            "bound": 13,
+            "residue": 12
+          },
+          {
+            "site": "critical2",
+            "bound": 1000,
+            "residue": 0
+          }
+        ],
+        "refunded_draws": []
+      },
+      "sources": [
+        "G/model/actor/L2Character.java:1137-1182",
+        "G/model/stats/Formulas.java:1077-1116",
+        "D108 perfect block takes no spread draw"
+      ],
+      "draws": [
+        {
+          "site": "hit1",
+          "bound": 1000,
+          "residue": 800
+        },
+        {
+          "site": "hit2",
+          "bound": 1000,
+          "residue": 800
+        },
+        {
+          "site": "critical1",
+          "bound": 1000,
+          "residue": 0
+        },
+        {
+          "site": "spread1",
+          "bound": 13,
+          "residue": 12
+        },
+        {
+          "site": "critical2",
+          "bound": 1000,
+          "residue": 0
+        }
+      ],
+      "vector_sha256": "c2470c65226af5bd43dbf9a1d738b461a6de28e927068131bb1c1fd8d1999a56"
+    },
+    {
       "id": "dual-plan-[True, True]-True",
       "family": "F10",
       "inputs": {
@@ -695443,5 +695555,5 @@
       }
     }
   ],
-  "vector_set_sha256": "a576014f135820bfcf54d6b1ea71596b7e263334fde0671e367ad211e1e7bb31"
+  "vector_set_sha256": "66f3928a85aece7937f79b4d420770e844e2d349bcb5705f2469bc9d2a5da7ba"
 }

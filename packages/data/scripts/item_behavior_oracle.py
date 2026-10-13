@@ -39,7 +39,8 @@ def residue_in(residue, bound):
 
 
 def bow_launch(weapon, inventory, lhand, mp, mp_modifier, reduction_residue, miss, critical_residue,
-               spread_residue, reuse_remaining=0, hit_chance=800, hit_residue=None):
+               spread_residue, reuse_remaining=0, hit_chance=800, hit_residue=None, blocked=False):
+    # D108: a perfect shield block takes the critical draw but no spread draw.
     # D87: the critical and spread residues are caller inputs, null iff that draw is not
     # taken (a miss; no spread draw for a zero-radius bow). D88: reuse_remaining is in ticks.
     # Hit iff residue <= chance (Formulas.calcHitMiss: miss iff chance < Rnd.get(1000); the
@@ -82,11 +83,11 @@ def bow_launch(weapon, inventory, lhand, mp, mp_modifier, reduction_residue, mis
             raise ValueError('a missed bow shot draws no critical or spread residue')
     else:
         result['draws'].append(dict(site='critical', bound=1000, residue=residue_in(critical_residue, 1000)))
-        if radius > 0:
+        if radius > 0 and not blocked:
             result['draws'].append(dict(site='spread', bound=2*radius+1,
                                         residue=residue_in(spread_residue, 2*radius+1)))
         elif spread_residue is not None:
-            raise ValueError('a zero-radius bow draws no spread residue')
+            raise ValueError('a zero-radius bow or a perfect block draws no spread residue')
     result.update(accepted=True, reason='launched', mp=F(mp)-cost, mp_q=int((F(mp)-cost)*Q),
                   mp_paid=cost, arrows_consumed=1, hit=not miss)
     arrow['count'] -= 1
@@ -225,19 +226,24 @@ def escape_timing(definition, start_tick, casting_speed, available, resources, i
 
 
 def dual_plan(hits, formulas, second_valid, hit_residues, hit_chance, spread_radius, critical_residues,
-              spread_residues):
+              spread_residues, blocked=(False, False)):
+    # D108: a perfectly blocked subhit draws its critical but no spread residue.
     # D87: per-subhit critical/spread residues are inputs, null iff that subhit missed (D89).
     # A subhit lands iff its residue is <= the chance (calcHitMiss; D88 strictness revoked).
     if hits != [r <= hit_chance for r in hit_residues]:
         raise ValueError('inconsistent dual hit residues')
     draws = [dict(site='hit'+str(i+1), bound=1000, residue=r) for i, r in enumerate(hit_residues)]
     damage = []
-    for index, (hit, formula, critical, spread) in enumerate(
-            zip(hits, formulas, critical_residues, spread_residues, strict=True), 1):
+    for index, (hit, formula, critical, spread, block) in enumerate(
+            zip(hits, formulas, critical_residues, spread_residues, blocked, strict=True), 1):
         if hit:
-            draws += [dict(site=f'critical{index}', bound=1000, residue=residue_in(critical, 1000)),
-                      dict(site=f'spread{index}', bound=2*spread_radius+1,
-                           residue=residue_in(spread, 2*spread_radius+1))]
+            draws.append(dict(site=f'critical{index}', bound=1000, residue=residue_in(critical, 1000)))
+            if block:
+                if spread is not None:
+                    raise ValueError('a perfectly blocked subhit draws no spread residue')
+            else:
+                draws.append(dict(site=f'spread{index}', bound=2*spread_radius+1,
+                                  residue=residue_in(spread, 2*spread_radius+1)))
         elif critical is not None or spread is not None:
             raise ValueError('a missed subhit draws no critical or spread residue')
         damage.append(int(F(formula))//2 if hit else 0)
@@ -460,6 +466,13 @@ def add_audit_vectors(src, add, o):
                           critical_residues=[(0 if valid else 999) if h else None for h in hits],
                           spread_residues=[(12 if valid else 6) if h else None for h in hits])
             result = dual_plan(**inputs)
+            if hits == [True, True] and valid:
+                # D108: the second subhit perfectly blocked (critical drawn, no spread).
+                blocked_inputs = dict(inputs, blocked=[False, True], spread_residues=[12, None])
+                blocked_result = dual_plan(**blocked_inputs)
+                add('F10', 'dual-plan-blocked', blocked_inputs, blocked_result,
+                    ['G/model/actor/L2Character.java:1137-1182', 'G/model/stats/Formulas.java:1077-1116',
+                     'D108 perfect block takes no spread draw'], blocked_result['draws'])
             add('F10', f'dual-plan-{hits}-{valid}', inputs, result,
                 ['G/model/actor/L2Character.java:1137-1182,5034-5044', 'G/model/stats/Formulas.java:1054-1063',
                  'design/2.2 I3 stored second resolution; shieldless caller; residues are inputs (D87)'], result['draws'])
