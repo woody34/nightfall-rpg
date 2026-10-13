@@ -27,6 +27,12 @@ class ClassCombatTests(unittest.TestCase):
         self.assertTrue(all(v==20 for k,v in ranges.items() if not k.startswith('orc_')))
         self.assertEqual(self.table['unarmed'],{'attack_angle':120,'random_damage_radius_base':5})
 
+    def test_fists_ranges_match_pinned_find_fists_weapon_item(self):
+        # D84: L2PcInstance.findFistsWeaponItem (GAME@abfde049 2141-2183).
+        self.assertEqual([(f['class_min'],f['class_max'],f['template_id']) for f in self.table['fists']],
+                         [(0,9,246),(10,17,251),(18,24,244),(25,30,249),(31,37,245),(38,43,250),
+                          (44,48,248),(49,52,252),(53,57,247)])
+
     def test_lineage_census_is_complete_and_uniform(self):
         cases=dict(oracle.class_combat_cases(self.src))
         by_base={}

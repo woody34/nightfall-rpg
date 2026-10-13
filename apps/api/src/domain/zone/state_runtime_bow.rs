@@ -1,0 +1,895 @@
+//! V6 bow callers: equipped reach, accepted-start arrow/MP payment and bow timing
+//! (design §5.4; L2Character.java:711-758,1007-1045,4335-4357).
+use super::*;
+use crate::domain::zone::item_equipment::PaperdollMutation;
+use crate::domain::zone::item_inventory::{
+    InventoryBoundary, InventoryEdit, InventoryLimits, InventoryMutation,
+};
+use crate::domain::zone::phase4_projection::{
+    ItemAuditEvidence, ItemDeltaPlan, ItemEvidenceValue as V, ItemOperation,
+};
+use crate::domain::zone::{EquipSlot, ItemInstanceId, ItemLocation};
+use serde_json::{json, Value};
+
+/// Outcome of the bow guard at an accepted swing start.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::domain::zone) enum BowStart {
+    /// Not a bow attack: ordinary melee timing.
+    Melee,
+    /// Paid; the swing lands at `impact_ticks` and the next may start after `cycle_ticks`.
+    Fire { impact_ticks: u64, cycle_ticks: u64 },
+    /// Not enough MP: retry on a later tick (`NotifyAITask` after 100ms).
+    Wait,
+    /// No usable arrows: the attack intention ends (`AI_INTENTION_IDLE`).
+    Stop,
+}
+
+fn l2_reach(range: i128) -> Result<Fixed, TickError> {
+    let units = range
+        .checked_mul(i128::from(crate::domain::zone::fixed::UNITS_PER_TILE))
+        .and_then(|v| v.checked_div(i128::from(crate::domain::zone::combat::L2_UNITS_PER_TILE)))
+        .ok_or_else(missing)?;
+    i32::try_from(units).map(Fixed::from_raw).map_err(invariant)
+}
+
+/// Integer square root (floor) for the exact bow distance multiplier.
+fn isqrt(value: u128) -> u128 {
+    if value < 2 {
+        return value;
+    }
+    let mut x = value;
+    let mut y = x.div_ceil(2);
+    while y < x {
+        x = y;
+        y = x.saturating_add(value.checked_div(x).unwrap_or(0)) >> 1;
+    }
+    x
+}
+
+impl ZoneState {
+    pub(super) fn held_weapon_v6(
+        &self,
+        id: EntityId,
+    ) -> Option<(ItemInstanceId, &crate::domain::zone::item_rules::ItemDefinition)> {
+        let items = self.phase4.as_ref()?;
+        let player = items.canonical.players.get(&id)?;
+        let weapon = *player.paperdoll.get(&EquipSlot::Rhand)?;
+        let held = player.inventory.get(&weapon)?;
+        Some((weapon, items.rules.parts().items.get(&held.template_id)?))
+    }
+
+    /// CharStat.java:424-436 physical attack range: the active weapon's base range — the
+    /// equipped weapon, else the class fists weapon (D84, 40) — else the current class
+    /// template's `baseAtkRange` (D75: 20, orcs 25), then the integer `pAtkRange` getter.
+    pub(in crate::domain::zone) fn attack_range_v6(
+        &self,
+        id: EntityId,
+        effective: &EffectiveStats,
+    ) -> Result<Option<Fixed>, TickError> {
+        if self
+            .phase4
+            .as_ref()
+            .is_none_or(|items| !items.canonical.players.contains_key(&id))
+        {
+            return Ok(None);
+        }
+        let base = match self.held_weapon_v6(id) {
+            Some((_, definition)) => definition.attack_range,
+            None => self.unarmed_range_v6(id)?,
+        };
+        let range = self
+            .damage_stat_v5(
+                id,
+                effective,
+                "pAtkRange",
+                i64::from(base).checked_mul(Q).ok_or_else(missing)?,
+            )?
+            .trunc()
+            .map_err(invariant)?;
+        Ok(Some(l2_reach(range.max(0))?))
+    }
+
+    /// D75: the player's current-class unarmed range. Every descendant shares its base
+    /// class value (E1 generation census), so the row is found by lineage membership.
+    fn unarmed_range_v6(&self, id: EntityId) -> Result<u32, TickError> {
+        let combat = self
+            .entities
+            .get(&id)
+            .and_then(|e| e.combat.as_ref())
+            .ok_or_else(missing)?;
+        let CombatRole::Player {
+            progression: Some(progression),
+            ..
+        } = &combat.role
+        else {
+            return Err(missing());
+        };
+        let current = progression.class_state.current_class_id.0;
+        let parts = self.phase4.as_ref().ok_or_else(missing)?.rules.parts();
+        // D84: getActiveWeaponItem() falls back to the class fists weapon (range 40); the
+        // template baseAtkRange is reached only for classes without one (3rd class/Kamael).
+        if let Some(fists) = parts.fists_weapon(current) {
+            return Ok(fists.attack_range);
+        }
+        parts
+            .class_combat
+            .iter()
+            .find(|row| row.lineage_class_ids.contains(&current))
+            .map(|row| row.attack_range)
+            .ok_or_else(missing)
+    }
+
+    /// D84/CharStat.java:438-447: the fists weapon's base angle, else the unarmed 120.
+    pub(super) fn unarmed_angle_v6(&self, id: EntityId) -> Result<u32, TickError> {
+        let parts = self.phase4.as_ref().ok_or_else(missing)?.rules.parts();
+        Ok(self
+            .unarmed_fists_v6(id)?
+            .map_or(parts.unarmed_combat.attack_angle, |fists| fists.attack_angle))
+    }
+
+    /// The current class fists weapon (D84), if the class has one.
+    pub(super) fn unarmed_fists_v6(
+        &self,
+        id: EntityId,
+    ) -> Result<Option<&crate::domain::zone::item_rules::ItemDefinition>, TickError> {
+        let combat = self
+            .entities
+            .get(&id)
+            .and_then(|e| e.combat.as_ref())
+            .ok_or_else(missing)?;
+        let CombatRole::Player {
+            progression: Some(progression),
+            ..
+        } = &combat.role
+        else {
+            return Ok(None);
+        };
+        Ok(self
+            .phase4
+            .as_ref()
+            .ok_or_else(missing)?
+            .rules
+            .parts()
+            .fists_weapon(progression.class_state.current_class_id.0))
+    }
+
+    /// Whether the attacker's equipped weapon is a bow (distance falloff and the shield
+    /// ×1.3 apply to BOW only; crossbows share the ranged start but not those terms).
+    pub(in crate::domain::zone) fn bow_attacker_v6(&self, id: EntityId) -> bool {
+        self.held_weapon_v6(id)
+            .is_some_and(|(_, definition)| definition.weapon_type == "BOW")
+    }
+
+    /// canUseRangeWeapon gate: BOW and CROSSBOW are range weapons. The attack-time refill
+    /// `checkAndEquipArrows` (L2PcInstance.java:5334-5352) always uses `findArrowForBow`
+    /// (Inventory.java:679-694), which matches same-S-grade ARROWs only, for both kinds
+    /// (D85); bolts are selected only on the equip/pickup paths (`findBoltForCrossBow`,
+    /// Inventory.java:702-713).
+    fn ranged_ammo_v6(&self, id: EntityId) -> Option<&'static str> {
+        self.held_weapon_v6(id)
+            .and_then(|(_, definition)| match definition.weapon_type.as_str() {
+                "BOW" | "CROSSBOW" => Some("ARROW"),
+                _ => None,
+            })
+    }
+
+    /// canUseRangeWeapon + doAttackHitByBow/CrossBow at an accepted start: arrows are
+    /// auto-selected when the left hand is empty (D85), the optional reduced-MP draw happens before the MP check,
+    /// MP and one arrow are paid before the hit (an arrow is spent even on a miss), and bow
+    /// timing replaces the melee half-interval impact.
+    #[allow(clippy::too_many_lines)] // Source guard order and one owner settlement.
+    pub(in crate::domain::zone) fn bow_start_v6(
+        &mut self,
+        tick: Tick,
+        id: EntityId,
+        initial_revision: Option<u64>,
+        events: &mut Vec<ZoneEvent>,
+    ) -> Result<BowStart, TickError> {
+        let Some(ammo_type) = self.ranged_ammo_v6(id) else {
+            return Ok(BowStart::Melee);
+        };
+        let (_, definition) = self.held_weapon_v6(id).ok_or_else(missing)?;
+        let definition = definition.clone();
+        let items = self.phase4.as_ref().ok_or_else(missing)?;
+        let player = items.canonical.players.get(&id).ok_or_else(missing)?;
+        // checkAndEquipArrows: keep a held arrow, else the lowest matching inventory arrow.
+        let held_arrow = player.paperdoll.get(&EquipSlot::Lhand).copied();
+        let candidate = if held_arrow.is_some() {
+            None
+        } else {
+            let grade = items
+                .rules
+                .parts()
+                .grades
+                .iter()
+                .find(|grade| grade.grade == definition.grade)
+                .ok_or_else(missing)?;
+            player
+                .inventory
+                .values()
+                .find(|item| {
+                    item.location == ItemLocation::Inventory
+                        && items
+                            .rules
+                            .parts()
+                            .items
+                            .get(&item.template_id)
+                            .is_some_and(|ammo| {
+                                ammo.etcitem_type == ammo_type
+                                    && items
+                                        .rules
+                                        .parts()
+                                        .grades
+                                        .iter()
+                                        .find(|g| g.grade == ammo.grade)
+                                        .is_some_and(|g| g.shot_grade == grade.shot_grade)
+                            })
+                })
+                .map(|item| item.id)
+        };
+        if held_arrow.is_none() && candidate.is_none() {
+            return Ok(BowStart::Stop);
+        }
+        // Reduced MP: Rnd.get(100) < chance only when a reduced cost exists.
+        let mut cost = definition.mp_consume;
+        let mut reduction_residue = None;
+        if let [chance, reduced] = definition.reduced_mp_consume.as_slice() {
+            if *reduced > 0 {
+                // D109: tabulated as an item_rng fact so the exported cursor stays gap-free.
+                let before = self.rng.get_word_pos();
+                let residue = self.roll_below(100);
+                if self.items_evidence_enabled() {
+                    if let Some(subject) = self.binding(id) {
+                        self.item_evidence(
+                            subject,
+                            crate::domain::zone::evidence::ItemEvidenceData::Rng {
+                                callsite: "bow_reduced_mp".into(),
+                                word_before: before,
+                                word_after: self.rng.get_word_pos(),
+                                bound: 100,
+                                value: residue,
+                                resolution_id: format!("attack:{id}:{}", tick.0),
+                            },
+                        );
+                    }
+                }
+                reduction_residue = Some(residue);
+                if residue < *chance {
+                    cost = *reduced;
+                }
+            }
+        }
+        let launch_inputs = self.bow_launch_open_v6(id, &definition, held_arrow, reduction_residue);
+        let effective = self.effective(id)?;
+        let cost = self
+            .damage_stat_v5(
+                id,
+                &effective,
+                "bowMpConsumeRate",
+                i64::from(cost).checked_mul(Q).ok_or_else(missing)?,
+            )?
+            .trunc()
+            .map_err(invariant)?;
+        let cost = u32::try_from(cost.max(0)).map_err(invariant)?;
+        let combat = self
+            .entities
+            .get(&id)
+            .and_then(|entity| entity.combat.as_ref())
+            .ok_or_else(missing)?;
+        let remainder = self.sidecar(id)?.fractions.mp;
+        let available = i128::from(combat.mp)
+            .checked_mul(i128::from(Q))
+            .and_then(|mp| mp.checked_add(i128::from(remainder)))
+            .ok_or_else(missing)?;
+        if available
+            < i128::from(cost)
+                .checked_mul(i128::from(Q))
+                .ok_or_else(missing)?
+        {
+            return Ok(BowStart::Wait);
+        }
+        let (previous, revision) = self.attack_projection_v6(tick, id, initial_revision, events)?;
+        let original_revision = self
+            .phase4
+            .as_ref()
+            .and_then(|items| items.canonical.players.get(&id))
+            .ok_or_else(missing)?
+            .inventory_revision;
+        let mut projection = match previous.clone() {
+            Some(projection) => projection,
+            None => self.empty_projection_v6(tick, id)?,
+        };
+        let subject = self.binding(id).ok_or_else(missing)?;
+        let resolution = format!("attack:{id}:{}", tick.0);
+        let boundary = InventoryBoundary {
+            tick,
+            revision,
+            origin: crate::domain::zone::ItemCreationOrigin {
+                zone: self.seed.zone,
+                epoch: self.seed.epoch,
+            },
+        };
+        let items = self.phase4.as_ref().ok_or_else(missing)?;
+        let mut player = items
+            .canonical
+            .players
+            .get(&id)
+            .ok_or_else(missing)?
+            .clone();
+        let mut changes = Vec::new();
+        let mut next_sequence = None;
+        let arrow = if let Some(candidate) = candidate {
+            let equip = PaperdollMutation::install_ammunition(
+                &player.inventory,
+                &player.paperdoll,
+                candidate,
+                &items.rules,
+                revision,
+            )
+            .map_err(invariant)?;
+            // The installed arrow becomes an equipment provider like any equip (D85).
+            let sequence = self
+                .phase3
+                .as_ref()
+                .ok_or_else(missing)?
+                .canonical
+                .next_install_sequence;
+            let (staged, next) = crate::domain::zone::item_sources::apply_paperdoll(
+                &player,
+                &equip,
+                &items.rules,
+                sequence,
+            )
+            .map_err(invariant)?;
+            player = staged;
+            next_sequence = Some(next);
+            for change in equip.changes {
+                let ordinal = projection.next_operation_ordinal().map_err(invariant)?;
+                let instance = change
+                    .after
+                    .as_ref()
+                    .or(change.before.as_ref())
+                    .ok_or_else(missing)?
+                    .id;
+                projection.ledger.push(ItemDeltaPlan {
+                    operation: ItemOperation::Equip,
+                    operation_ordinal: ordinal,
+                    instance,
+                    before: change.before.clone(),
+                    after: change.after.clone(),
+                    count_delta: 0,
+                    receipt: None,
+                    receipt_refs: Vec::new(),
+                    causes: Vec::new(),
+                });
+                changes.push((change, ItemOperation::Equip, ordinal));
+            }
+            candidate
+        } else {
+            held_arrow.ok_or_else(missing)?
+        };
+        let payment = InventoryMutation::prepare(
+            &player.inventory,
+            items.canonical.allocator,
+            &[InventoryEdit::TakeInstance {
+                instance: arrow,
+                count: 1,
+            }],
+            &items.rules,
+            InventoryLimits::from_player(&player),
+            boundary,
+        )
+        .map_err(invariant)?;
+        player.inventory = payment.inventory;
+        if !player.inventory.contains_key(&arrow) {
+            // Exhausted arrows leave the left hand (and the provider list) before the
+            // weight/penalty rebuild.
+            player.paperdoll.remove(&EquipSlot::Lhand);
+            let mut sequence = match next_sequence {
+                Some(next) => next,
+                None => {
+                    self.phase3
+                        .as_ref()
+                        .ok_or_else(missing)?
+                        .canonical
+                        .next_install_sequence
+                },
+            };
+            crate::domain::zone::item_sources::reconcile_sources(
+                &mut player,
+                &items.rules,
+                &mut sequence,
+            )
+            .map_err(invariant)?;
+            next_sequence = Some(sequence);
+        }
+        player.inventory_revision = revision;
+        let template = definition.template_id;
+        for change in payment.changes {
+            let cause = ItemAuditEvidence {
+                family: "arrow_payment".into(),
+                fields: BTreeMap::from([
+                    ("count_delta".into(), V::Signed(-1)),
+                    ("resolution_id".into(), V::Text(resolution.clone())),
+                    ("weapon".into(), V::Unsigned(u64::from(template))),
+                ]),
+            };
+            changes.push((change.clone(), ItemOperation::Consume, 0));
+            super::super::super::item_commands::append_item_consumption(
+                &mut projection,
+                change,
+                -1,
+                cause,
+            )
+            .map_err(invariant)?;
+        }
+        let combat = self
+            .entities
+            .get_mut(&id)
+            .and_then(|entity| entity.combat.as_mut())
+            .ok_or_else(missing)?;
+        combat.mp = combat.mp.checked_sub(cost).ok_or_else(missing)?;
+        if let Some(inputs) = launch_inputs {
+            self.bow_launch_stage_v6(id, &resolution, inputs, &player, arrow, cost);
+        }
+        if let Some(next) = next_sequence {
+            self.phase3
+                .as_mut()
+                .ok_or_else(missing)?
+                .canonical
+                .next_install_sequence = next;
+        }
+        self.phase4
+            .as_mut()
+            .ok_or_else(missing)?
+            .canonical
+            .players
+            .insert(id, player);
+        for (change, operation, ordinal) in &changes {
+            self.item_evidence_delta(subject, change, *operation, *ordinal, None, &resolution);
+        }
+        self.publish_attack_projection_v6(
+            tick,
+            id,
+            previous.is_some(),
+            projection,
+            original_revision,
+            events,
+        )?;
+        // Timing: attack = trunc(500000/pAtkSpd) (rounded speed, as the melee path), impact at
+        // the full interval, next start after attack + trunc(reuse_delay×333/pAtkSpd).
+        let speed = i128::from(
+            self.entities
+                .get(&id)
+                .and_then(|entity| entity.combat.as_ref())
+                .ok_or_else(missing)?
+                .sheet
+                .attack_speed()
+                .raw(),
+        );
+        let speed =
+            crate::domain::zone::scaled::round_div(speed, i128::from(Q)).map_err(invariant)?;
+        if speed <= 0 {
+            return Err(missing());
+        }
+        let attack_ms = 500_000_i128.checked_div(speed).ok_or_else(missing)?;
+        let reuse_ms = i128::from(definition.reuse_delay)
+            .checked_mul(333)
+            .and_then(|v| v.checked_div(speed))
+            .ok_or_else(missing)?;
+        // D46 `bow_reuse` (D17): ordinary-weapon reuse from the rounded speed; the weapon
+        // reuse modifier does not participate (L2Character.java:4353-4357).
+        self.item_formula_v6(
+            id,
+            "bow_reuse",
+            serde_json::json!({"reuse_delay": definition.reuse_delay,
+                "attack_speed": i64::try_from(speed).map_err(invariant)?, "weapon_reuse_modifier": 1}),
+            serde_json::json!(i64::try_from(reuse_ms).map_err(invariant)?),
+            &format!("bow_reuse:{id}:{}", tick.0),
+            Some(serde_json::json!({"weapon_template": definition.template_id, "event": "attack"})),
+        );
+        let tick_ms = i128::from(crate::domain::zone::TICK_MS);
+        let ceil = |ms: i128| -> Result<u64, TickError> {
+            let ticks = ms
+                .checked_add(tick_ms.checked_sub(1).ok_or_else(missing)?)
+                .and_then(|v| v.checked_div(tick_ms))
+                .ok_or_else(missing)?;
+            u64::try_from(ticks)
+                .map(|ticks| ticks.max(1))
+                .map_err(invariant)
+        };
+        Ok(BowStart::Fire {
+            impact_ticks: ceil(attack_ms)?,
+            cycle_ticks: ceil(attack_ms.checked_add(reuse_ms).ok_or_else(missing)?)?,
+        })
+    }
+
+    /// L2Character.java:1029-1033: the caller truncates ordinary damage, then truncates its
+    /// product with `distance/4000 + 4/5` (distance in L2 units, exact root, flat Z).
+    pub(in crate::domain::zone) fn bow_distance_v6(
+        &self,
+        attacker: EntityId,
+        target: EntityId,
+        damage: u32,
+    ) -> Result<u32, TickError> {
+        let from = self.entities.get(&attacker).ok_or_else(missing)?.pos;
+        let to = self.entities.get(&target).ok_or_else(missing)?.pos;
+        let dx = i128::from(from.x.raw())
+            .checked_sub(i128::from(to.x.raw()))
+            .ok_or_else(missing)?;
+        let dy = i128::from(from.y.raw())
+            .checked_sub(i128::from(to.y.raw()))
+            .ok_or_else(missing)?;
+        let squared = u128::try_from(
+            dx.checked_mul(dx)
+                .and_then(|x| dy.checked_mul(dy).and_then(|y| x.checked_add(y)))
+                .ok_or_else(missing)?,
+        )
+        .map_err(invariant)?;
+        // distance_L2 = sqrt(S)×32/1000; result = floor(D×(sqrt(S)×32/4,000,000 + 4/5))
+        //             = floor((4×D×M + isqrt(25×N²×S)) / (5×M)), N = 32×D, M = 4,000,000.
+        let whole = u128::from(damage);
+        let scale = 4_000_000_u128;
+        let scaled = whole.checked_mul(32).ok_or_else(missing)?;
+        let root = isqrt(
+            scaled
+                .checked_mul(scaled)
+                .and_then(|v| v.checked_mul(25))
+                .and_then(|v| v.checked_mul(squared))
+                .ok_or_else(missing)?,
+        );
+        let numerator = whole
+            .checked_mul(4)
+            .and_then(|v| v.checked_mul(scale))
+            .and_then(|v| v.checked_add(root))
+            .ok_or_else(missing)?;
+        let denominator = scale.checked_mul(5).ok_or_else(missing)?;
+        u32::try_from(numerator.checked_div(denominator).ok_or_else(missing)?).map_err(invariant)
+    }
+}
+
+/// D46 `bow_launch` evidence (D87/D89): opened at the accepted start with the oracle's
+/// launch inputs, staged with the observed payment, completed at impact with the hit,
+/// critical and spread residues. Evidence-only: no canonical effect, no tick failure.
+impl ZoneState {
+    /// Ammunition records in instance order: the oracle's candidate search input.
+    fn bow_ammo_records_v6(&self, player: &crate::domain::zone::Phase4Player) -> Value {
+        let Some(items) = self.phase4.as_ref() else {
+            return json!([]);
+        };
+        Value::Array(
+            player
+                .inventory
+                .values()
+                .filter_map(|item| {
+                    let definition = items.rules.parts().items.get(&item.template_id)?;
+                    matches!(definition.etcitem_type.as_str(), "ARROW" | "BOLT").then(|| {
+                        json!({"instance_id": item.id.get(), "template_id": item.template_id,
+                            "count": item.count, "grade": definition.grade,
+                            "kind": definition.etcitem_type})
+                    })
+                })
+                .collect(),
+        )
+    }
+
+    /// Exact MP (whole points plus the Q remainder) as an oracle rational.
+    fn bow_exact_mp_v6(&self, id: EntityId) -> Option<ExactRatio> {
+        let mp = self.entities.get(&id)?.combat.as_ref()?.mp;
+        let remainder = self.sidecar(id).ok()?.fractions.mp;
+        let scaled = i64::from(mp).checked_mul(Q)?.checked_add(remainder)?;
+        ExactRatio::new(i128::from(scaled), i128::from(Q)).ok()
+    }
+
+    pub(super) fn bow_launch_open_v6(
+        &self,
+        id: EntityId,
+        definition: &crate::domain::zone::item_rules::ItemDefinition,
+        held: Option<ItemInstanceId>,
+        reduction_residue: Option<u32>,
+    ) -> Option<Value> {
+        use crate::domain::zone::state::item_evidence_hooks::ratio_json as r;
+        if !self.items_evidence_enabled() || !self.phase4_player_v6(id) {
+            return None;
+        }
+        let player = self.phase4.as_ref()?.canonical.players.get(&id)?;
+        let (reduced_chance, reduced_cost) = match definition.reduced_mp_consume.as_slice() {
+            [chance, cost] => (*chance, *cost),
+            _ => (0, 0),
+        };
+        let effective = self.effective(id).ok()?;
+        let modifier = self
+            .damage_stat_v5(id, &effective, "bowMpConsumeRate", Q)
+            .ok()?;
+        Some(json!({
+            "weapon": {"template_id": definition.template_id, "grade": definition.grade,
+                "mp_cost": definition.mp_consume, "reduced_chance": reduced_chance,
+                "reduced_cost": reduced_cost, "spread_radius": definition.random_damage},
+            "inventory": self.bow_ammo_records_v6(player),
+            "lhand": held.map(ItemInstanceId::get),
+            "mp": r(self.bow_exact_mp_v6(id)?),
+            "mp_modifier": r(modifier),
+            "reduction_residue": reduction_residue,
+            "reuse_remaining": 0,
+        }))
+    }
+
+    #[allow(clippy::too_many_arguments)] // The staged payment fields of one launch.
+    pub(super) fn bow_launch_stage_v6(
+        &mut self,
+        id: EntityId,
+        resolution: &str,
+        inputs: Value,
+        player: &crate::domain::zone::Phase4Player,
+        arrow: ItemInstanceId,
+        cost: u32,
+    ) {
+        use crate::domain::zone::state::item_evidence_hooks::ratio_json as r;
+        let Some(mp) = self.bow_exact_mp_v6(id) else {
+            return;
+        };
+        let Some(mp_q) = mp
+            .checked_mul(ExactRatio::whole(Q))
+            .ok()
+            .and_then(|v| v.trunc().ok())
+        else {
+            return;
+        };
+        let mut draws = Vec::new();
+        if let Some(residue) = inputs.get("reduction_residue").and_then(Value::as_u64) {
+            draws.push(json!({"site": "bow_mp_reduction", "bound": 100, "residue": residue}));
+        }
+        let actual = json!({
+            "accepted": true, "reason": "launched",
+            "inventory": self.bow_ammo_records_v6(player),
+            "lhand": player.paperdoll.get(&EquipSlot::Lhand).map(|item| item.get()),
+            "equipped_lhand": arrow.get(), "mp": r(mp), "mp_q": mp_q, "mp_paid": cost,
+            "arrows_consumed": 1, "mp_cost": cost, "draws": draws, "hit": null,
+        });
+        if let Some(buffer) = self.evidence.as_mut() {
+            buffer
+                .pending_launch
+                .insert(id, (resolution.to_owned(), inputs, actual));
+        }
+    }
+
+    /// Before the impact draws: the evidence draw mark and the hit chance.
+    pub(super) fn bow_launch_mark_v6(
+        &self,
+        source: TargetBinding,
+        target: TargetBinding,
+    ) -> Option<(usize, i128)> {
+        let pending = self
+            .evidence
+            .as_ref()?
+            .pending_launch
+            .contains_key(&source.entity);
+        if !pending || !self.bow_attacker_v6(source.entity) {
+            return None;
+        }
+        let chance = self.hit_chance_v5(source, target).ok()?;
+        Some((self.evidence_mark(), chance))
+    }
+
+    /// After the impact draws: emit the completed launch fact once.
+    pub(super) fn bow_launch_complete_v6(
+        &mut self,
+        id: EntityId,
+        target: EntityId,
+        mark: usize,
+        chance: i128,
+        hit: bool,
+    ) {
+        let residue = |site: &str| {
+            self.evidence_draws(mark)
+                .iter()
+                .find(|draw| draw.callsite == site)
+                .map(|draw| (draw.value, draw.bound))
+        };
+        let (hit_draw, critical, spread) =
+            (residue("AutoHit"), residue("AutoCritical"), residue("Spread"));
+        let Some((resolution, mut inputs, mut actual)) = self
+            .evidence
+            .as_mut()
+            .and_then(|buffer| buffer.pending_launch.remove(&id))
+        else {
+            return;
+        };
+        let Some((hit_residue, _)) = hit_draw else {
+            return;
+        };
+        let (Some(inputs_map), Some(actual_map)) = (inputs.as_object_mut(), actual.as_object_mut())
+        else {
+            return;
+        };
+        inputs_map.insert("miss".into(), json!(!hit));
+        inputs_map.insert("hit_chance".into(), json!(chance));
+        inputs_map.insert("hit_residue".into(), json!(hit_residue));
+        // D89: null iff the draw was not taken.
+        inputs_map.insert("critical_residue".into(), json!(critical.map(|(v, _)| v)));
+        inputs_map.insert("spread_residue".into(), json!(spread.map(|(v, _)| v)));
+        // D108: a landed shot with a spread radius but no spread draw was perfectly blocked.
+        let radius = inputs_map
+            .get("weapon")
+            .and_then(|w| w.get("spread_radius"))
+            .and_then(Value::as_u64)
+            .unwrap_or(0);
+        inputs_map.insert(
+            "blocked".into(),
+            json!(hit && critical.is_some() && spread.is_none() && radius > 0),
+        );
+        if let Some(draws) = actual_map.get_mut("draws").and_then(Value::as_array_mut) {
+            draws.push(json!({"site": "hit", "bound": 1000, "residue": hit_residue}));
+            if let Some((value, bound)) = critical {
+                draws.push(json!({"site": "critical", "bound": bound, "residue": value}));
+            }
+            if let Some((value, bound)) = spread {
+                draws.push(json!({"site": "spread", "bound": bound, "residue": value}));
+            }
+        }
+        actual_map.insert("hit".into(), json!(hit));
+        let context = Some(self.attack_context_v6(id, target));
+        self.item_formula_v6(id, "bow_launch", inputs, actual, &resolution, context);
+    }
+}
+
+/// D46 `dual_plan` evidence (D87/D89): planned at the first subhit, completed when the
+/// stored second is applied or discarded at its deadline. Evidence-only.
+impl ZoneState {
+    pub(super) fn dual_plan_mark_v6(
+        &self,
+        source: TargetBinding,
+        target: TargetBinding,
+    ) -> Option<(usize, i128)> {
+        if !self.items_evidence_enabled() || !self.phase4_player_v6(source.entity) {
+            return None;
+        }
+        let chance = self.hit_chance_v5(source, target).ok()?;
+        Some((self.evidence_mark(), chance))
+    }
+
+    #[allow(clippy::too_many_arguments)] // The observed halves of one dual plan.
+    pub(super) fn dual_plan_stage_v6(
+        &mut self,
+        id: EntityId,
+        resolution: &str,
+        mark: usize,
+        chance: i128,
+        observed: &[(usize, Option<ExactRatio>)],
+        damages: [u32; 2],
+    ) {
+        use crate::domain::zone::state::item_evidence_hooks::ratio_json as r;
+        let hit_residues: Vec<u32> = self
+            .evidence_draws(mark)
+            .iter()
+            .filter(|draw| draw.callsite == "AutoHit")
+            .map(|draw| draw.value)
+            .take(2)
+            .collect();
+        let Ok(radius) = self
+            .effective(id)
+            .map(|stats| stats.physical.random_damage())
+        else {
+            return;
+        };
+        if hit_residues.len() != 2 || observed.len() != 2 {
+            return;
+        }
+        let mut hits = Vec::new();
+        let mut formulas = Vec::new();
+        let mut criticals = Vec::new();
+        let mut spreads = Vec::new();
+        let mut blocked = Vec::new();
+        let mut draws: Vec<Value> = hit_residues
+            .iter()
+            .enumerate()
+            .map(|(index, residue)| {
+                json!({"site": format!("hit{}", index.saturating_add(1)), "bound": 1000, "residue": residue})
+            })
+            .collect();
+        for (index, ((start, exact), residue)) in observed.iter().zip(&hit_residues).enumerate() {
+            let hit = i128::from(*residue) <= chance;
+            let end = observed
+                .get(index.saturating_add(1))
+                .map_or(usize::MAX, |(next, _)| *next);
+            let window: Vec<_> = self
+                .evidence_draws(*start)
+                .iter()
+                .take(end.saturating_sub(*start))
+                .map(|draw| (draw.callsite.clone(), draw.value, draw.bound))
+                .collect();
+            let find = |site: &str| {
+                window
+                    .iter()
+                    .find(|(name, ..)| name == site)
+                    .map(|(_, value, bound)| (*value, *bound))
+            };
+            let (critical, spread) = if hit {
+                (find("AutoCritical"), find("Spread"))
+            } else {
+                (None, None)
+            };
+            if hit {
+                let Some((c, cb)) = critical else {
+                    return;
+                };
+                draws.push(
+                    json!({"site": format!("critical{}", index.saturating_add(1)), "bound": cb, "residue": c}),
+                );
+                // D108: a perfectly blocked subhit takes no spread draw; the fact is kept.
+                if let Some((s, sb)) = spread {
+                    draws.push(
+                        json!({"site": format!("spread{}", index.saturating_add(1)), "bound": sb, "residue": s}),
+                    );
+                }
+            }
+            blocked.push(hit && spread.is_none());
+            hits.push(hit);
+            formulas.push(exact.map_or(json!(0), r));
+            criticals.push(critical.map(|(value, _)| value));
+            spreads.push(spread.map(|(value, _)| value));
+        }
+        let inputs = json!({"hits": hits, "formulas": formulas, "hit_residues": hit_residues,
+            "hit_chance": chance, "spread_radius": radius, "critical_residues": criticals,
+            "spread_residues": spreads, "blocked": blocked});
+        let actual = json!({"plan": damages, "stored_second": damages[1],
+            "second_recomputed": false, "draws": draws, "refunded_draws": []});
+        if let Some(buffer) = self.evidence.as_mut() {
+            buffer
+                .pending_dual
+                .insert(id, (resolution.to_owned(), inputs, actual));
+        }
+    }
+
+    pub(super) fn dual_plan_complete_v6(&mut self, id: EntityId, target: EntityId, valid: bool) {
+        let Some((resolution, mut inputs, mut actual)) = self
+            .evidence
+            .as_mut()
+            .and_then(|buffer| buffer.pending_dual.remove(&id))
+        else {
+            return;
+        };
+        let (Some(inputs_map), Some(actual_map)) = (inputs.as_object_mut(), actual.as_object_mut())
+        else {
+            return;
+        };
+        inputs_map.insert("second_valid".into(), json!(valid));
+        let plan = actual_map.get("plan").cloned().unwrap_or(Value::Null);
+        let first = plan.get(0).cloned().unwrap_or(Value::Null);
+        let second = if valid {
+            plan.get(1).cloned().unwrap_or(Value::Null)
+        } else {
+            Value::Null
+        };
+        actual_map.insert("applied".into(), json!([first, second]));
+        let context = Some(self.attack_context_v6(id, target));
+        self.item_formula_v6(id, "dual_plan", inputs, actual, &resolution, context);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::isqrt;
+
+    #[test]
+    fn integer_square_root_is_the_exact_floor() {
+        for value in [
+            0_u128,
+            1,
+            2,
+            3,
+            4,
+            15,
+            16,
+            17,
+            24,
+            25,
+            26,
+            1 << 64,
+            (1 << 100) + 7,
+        ] {
+            let root = isqrt(value);
+            assert!(root * root <= value && (root + 1) * (root + 1) > value, "{value}");
+        }
+    }
+}

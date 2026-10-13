@@ -5,8 +5,13 @@ use sea_orm::entity::prelude::*;
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel)]
 #[sea_orm(table_name = "characters")]
 pub struct Model {
-    #[sea_orm(primary_key, auto_increment = false)]
+    #[sea_orm(
+        primary_key,
+        auto_increment = false,
+        unique_key = "characters_item_owner_key"
+    )]
     pub id: Uuid,
+    #[sea_orm(unique_key = "characters_item_owner_key")]
     pub account_id: Uuid,
     #[sea_orm(column_type = "Text")]
     pub name: String,
@@ -61,6 +66,8 @@ pub struct Model {
     pub cp_fraction_q: i64,
     #[sea_orm(column_type = "JsonBinary")]
     pub modifier_install_order: Json,
+    #[sea_orm(column_type = "JsonBinary", nullable)]
+    pub phase4_checkpoint: Option<Json>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -73,6 +80,12 @@ pub enum Relation {
     CharacterSkillReuse,
     #[sea_orm(has_many = "super::character_transfer_receipts::Entity")]
     CharacterTransferReceipts,
+    #[sea_orm(has_many = "super::item_instances::Entity")]
+    ItemInstances,
+    #[sea_orm(has_many = "super::item_ledger::Entity")]
+    ItemLedger,
+    #[sea_orm(has_many = "super::item_mutation_receipts::Entity")]
+    ItemMutationReceipts,
     #[sea_orm(has_many = "super::play_tickets::Entity")]
     PlayTickets,
 }
@@ -98,6 +111,24 @@ impl Related<super::character_skill_reuse::Entity> for Entity {
 impl Related<super::character_transfer_receipts::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::CharacterTransferReceipts.def()
+    }
+}
+
+impl Related<super::item_instances::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::ItemInstances.def()
+    }
+}
+
+impl Related<super::item_ledger::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::ItemLedger.def()
+    }
+}
+
+impl Related<super::item_mutation_receipts::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::ItemMutationReceipts.def()
     }
 }
 

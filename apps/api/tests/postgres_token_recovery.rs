@@ -68,6 +68,7 @@ fn spawn(id: nightfall_api::domain::CharacterId, p: ProgressionState) -> ZoneInp
         speed: Speed::DEFAULT,
         generation: SessionGeneration(1),
         load: Some(Box::new(PlayerLoad {
+            phase4: None,
             phase3: None,
             progression: Some(Box::new(PlayerProgression {
                 identity: p.identity,

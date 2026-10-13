@@ -249,6 +249,24 @@ pub struct Position {
     pub y: f32,
 }
 
+/// Read-only retained item header. The zone remains authoritative for owned item state.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CharacterItemMetadata {
+    /// Exact inventory revision of the retained checkpoint.
+    pub inventory_revision: u64,
+    /// Immutable rules hash of that same checkpoint.
+    pub rules_hash: [u8; 32],
+}
+impl From<&super::zone::Phase4Checkpoint> for CharacterItemMetadata {
+    fn from(checkpoint: &super::zone::Phase4Checkpoint) -> Self {
+        Self {
+            inventory_revision: checkpoint.inventory_revision,
+            rules_hash: checkpoint.rules_hash,
+        }
+    }
+}
+
 /// The character aggregate root.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Character {
@@ -272,6 +290,9 @@ pub struct Character {
     pub class_state: ClassState,
     /// Cumulative experience of the active main class.
     pub xp: u64,
+    /// Derived by repository reads, absent from legacy serialized aggregates.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub item_metadata: Option<CharacterItemMetadata>,
 }
 
 impl Character {
@@ -303,6 +324,7 @@ impl Character {
             appearance: CharacterAppearance::default(),
             class_state: ClassState::new(race.starting_class_id()),
             xp: 0,
+            item_metadata: None,
         }
     }
 }

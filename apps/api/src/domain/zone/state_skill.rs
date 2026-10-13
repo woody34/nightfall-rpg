@@ -2,7 +2,7 @@
 //! responses: the tick driver settles staged dispositions at the new-intent phase.
 //! Pinned L2Character.java:1495-1543,1664-1675,4617-4642 and CharStat.java:482-514.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -119,11 +119,32 @@ pub struct StagedCast {
     pub canceled: Option<CastCancelReason>,
 }
 
+/// Item intents retain their original fingerprint body while capturing cast timing separately.
+#[derive(Debug, Clone, Copy)]
+#[allow(missing_docs)]
+pub struct ItemCommandTiming {
+    pub accepted_sequence: Option<u32>,
+    pub ordinal: Ordinal,
+    pub target: Option<CapturedTarget>,
+    pub initial_inventory_revision: Option<u64>,
+}
+
+/// Item-granted skills use the same phase-eight start barrier as learned skills.
+#[derive(Debug, Clone)]
+#[allow(missing_docs)]
+pub struct StagedItemUse {
+    pub caster: TargetBinding,
+    pub command: Box<super::ItemCommand>,
+    pub timing: ItemCommandTiming,
+    pub canceled: bool,
+}
+
 /// Receive-ordered actions with command-time identity bindings and phase-eight guards.
 #[derive(Debug, Clone)]
 #[allow(missing_docs)]
 pub enum StagedAction {
     Cast(StagedCast),
+    Use(Box<StagedItemUse>),
     Attack {
         ordinal: Ordinal,
         caster: TargetBinding,
@@ -143,6 +164,7 @@ impl StagedAction {
     pub const fn ordinal(&self) -> Ordinal {
         match self {
             Self::Cast(cast) => cast.ordinal,
+            Self::Use(item) => item.timing.ordinal,
             Self::Attack { ordinal, .. } | Self::AcceptResurrect { ordinal, .. } => *ordinal,
         }
     }
@@ -152,6 +174,17 @@ impl StagedAction {
 #[derive(Debug, Default)]
 pub struct StagedActions {
     entries: Vec<StagedAction>,
+    /// Accepted and recorded Known receipts share the same tick-local deduplication scope.
+    pub(crate) item_receipts: BTreeMap<
+        (crate::domain::account::AccountId, super::phase4_projection::ItemReceiptRef),
+        ItemReceiptState,
+    >,
+}
+/// Tick-local receipt knowledge; a recorded conflict must not be bypassed by a later fresh intent.
+#[derive(Debug)]
+pub(crate) enum ItemReceiptState {
+    Known(super::phase4_projection::ItemReceiptFact),
+    Conflict(String),
 }
 impl StagedActions {
     /// Called only after source/generation authorization. Target is captured at this
@@ -179,10 +212,17 @@ impl StagedActions {
     pub fn cancel(&mut self, caster: EntityId, cast_id: Option<CastId>, reason: CastCancelReason) {
         if cast_id.is_none() {
             for entry in &mut self.entries {
-                if let StagedAction::Cast(entry) = entry {
-                    if entry.caster.entity == caster && entry.canceled.is_none() {
-                        entry.canceled = Some(reason);
-                    }
+                match entry {
+                    StagedAction::Cast(entry) if entry.caster.entity == caster => {
+                        entry.canceled.get_or_insert(reason);
+                    },
+                    StagedAction::Use(entry) if entry.caster.entity == caster => {
+                        entry.canceled = true;
+                    },
+                    StagedAction::Cast(_)
+                    | StagedAction::Use(_)
+                    | StagedAction::Attack { .. }
+                    | StagedAction::AcceptResurrect { .. } => {},
                 }
             }
         }
@@ -192,6 +232,7 @@ impl StagedActions {
         self.entries.iter().filter_map(|entry| match entry {
             StagedAction::Cast(cast) if cast.canceled.is_none() => Some(cast),
             StagedAction::Cast(_)
+            | StagedAction::Use(_)
             | StagedAction::Attack { .. }
             | StagedAction::AcceptResurrect { .. } => None,
         })
@@ -221,10 +262,21 @@ impl StagedActions {
                 ..
             } => Some((*caster, *target)),
             StagedAction::Cast(_)
+            | StagedAction::Use(_)
             | StagedAction::Attack { .. }
             | StagedAction::AcceptResurrect { .. } => None,
         })
     }
+    pub(crate) fn pending_item_uses(&self) -> impl Iterator<Item = &StagedItemUse> {
+        self.entries.iter().filter_map(|entry| match entry {
+            StagedAction::Use(entry) if !entry.canceled => Some(entry.as_ref()),
+            StagedAction::Cast(_)
+            | StagedAction::Use(_)
+            | StagedAction::Attack { .. }
+            | StagedAction::AcceptResurrect { .. } => None,
+        })
+    }
+
     /// Consume once at phase8, retaining cross-actor receive order and canceled entries.
     pub fn drain(&mut self) -> impl Iterator<Item = StagedAction> + '_ {
         self.entries.drain(..)
@@ -236,11 +288,74 @@ impl StagedActions {
 #[derive(Debug, Clone, Copy)]
 #[allow(missing_docs)]
 pub struct CastStatContext<'a> {
+    pub player_level: Option<u32>,
+    pub world: Option<CastWorldConditions<'a>>,
     pub calculator: &'a StatCalculator,
     pub conditions: FunctionConditions<'a>,
     pub attack_speed: u32,
     pub cast_speed: u32,
     pub flags: StatusFlags,
+}
+
+/// Authoritative V6 cast conditions; absent in historical cast callers.
+#[derive(Debug, Clone, Copy)]
+#[allow(missing_docs)]
+pub struct CastWorldConditions<'a> {
+    pub can_escape: bool,
+    pub inside_zone_ids: &'a [u32],
+}
+
+impl CastStatContext<'_> {
+    fn matches(
+        self,
+        condition: &super::skill::SkillCondition,
+        rank: u32,
+    ) -> Result<bool, StatError> {
+        use super::skill::SkillCondition as C;
+        let Some(world) = self.world else {
+            return self
+                .conditions
+                .matches_at_rank(condition, self.player_level, rank);
+        };
+        match condition {
+            C::PlayerCanEscape { value } => Ok(*value == world.can_escape),
+            C::PlayerInsideZoneIds { zone_ids } => {
+                Ok(zone_ids.iter().any(|id| world.inside_zone_ids.contains(id)))
+            },
+            C::And { conditions, .. } | C::Or { conditions, .. } => {
+                let and = matches!(condition, C::And { .. });
+                let mut matched = and;
+                for child in conditions {
+                    let value = self.matches(child, rank)?;
+                    if and {
+                        matched &= value;
+                    } else {
+                        matched |= value;
+                    }
+                }
+                Ok(matched)
+            },
+            C::Not { conditions, .. } if conditions.len() == 1 => self
+                .matches(conditions.first().ok_or(StatError::Overflow)?, rank)
+                .map(|v| !v),
+            C::PlayerLevelRange { .. }
+            | C::PlayerResting { .. }
+            | C::PlayerStanding { .. }
+            | C::PlayerMoving { .. }
+            | C::PlayerRunning { .. }
+            | C::PlayerFlyMounted { .. }
+            | C::UsingSlot { .. }
+            | C::PlayerWeight { .. }
+            | C::PlayerInventorySize { .. }
+            | C::UsingKind { .. }
+            | C::PlayerCanResurrect { .. }
+            | C::Not { .. }
+            | C::Unsupported { .. } => {
+                self.conditions
+                    .matches_at_rank(condition, self.player_level, rank)
+            },
+        }
+    }
 }
 
 /// Source getters before start validation. Completion recomputes MP2 from the current
@@ -338,7 +453,7 @@ pub fn cast_terms(
         return Err(CastError::Silenced);
     }
     for condition in &skill.conditions {
-        if !context.conditions.matches(condition)? {
+        if !context.matches(condition, rank)? {
             return Err(CastError::Condition);
         }
     }
@@ -447,9 +562,13 @@ impl Phase3Entity {
         next_cast_id: &mut u64,
         mp: &mut u32,
         hp: u32,
+        hp_remainder_q: i64,
         start: CastStart,
     ) -> Result<CastInFlight, CastError> {
-        if hp == 0 {
+        if !(0..super::Q).contains(&hp_remainder_q) {
+            return Err(CastError::InvalidState);
+        }
+        if hp == 0 && hp_remainder_q == 0 {
             return Err(CastError::DeadActor);
         }
         if self.cast != CastState::Idle {
@@ -467,7 +586,7 @@ impl Phase3Entity {
         {
             return Err(CastError::InsufficientMp);
         }
-        if hp <= start.terms.hp_end {
+        if hp < start.terms.hp_end || (hp == start.terms.hp_end && hp_remainder_q == 0) {
             return Err(CastError::InsufficientHp);
         }
         let next_id = next_cast_id.checked_add(1).ok_or(CastError::InvalidState)?;
@@ -546,12 +665,7 @@ impl Phase3Entity {
         let CastState::Casting(cast) = &mut self.cast else {
             return false;
         };
-        if cast.id != id || cast.launched || cast.launch_at > now {
-            return false;
-        }
-        cast.targets.retain(|target| valid(*target));
-        cast.launched = true;
-        true
+        cast.id == id && cast.launch(now, &mut valid)
     }
 
     /// Cancel exactly this live cast (or any live cast when unguarded). Costs/reuse persist.
@@ -613,25 +727,58 @@ impl Phase3Entity {
         let CastState::Casting(cast) = &self.cast else {
             return Ok(None);
         };
-        if cast.id != id || !cast.launched || cast.complete_at > now {
+        if cast.id != id {
             return Ok(None);
         }
-        if *hp == 0 {
+        let result = cast.pay_impact(now, mp, hp, mp_end, hp_end, 0);
+        if result.is_err() {
             self.cancel_cast(Some(id));
+        }
+        result
+    }
+}
+
+impl CastInFlight {
+    /// Shared main/item-lane launch; the canonical target list can only shrink.
+    pub fn launch(&mut self, now: Tick, mut valid: impl FnMut(TargetBinding) -> bool) -> bool {
+        if self.launched || self.launch_at > now {
+            return false;
+        }
+        self.targets.retain(|target| valid(*target));
+        self.launched = true;
+        true
+    }
+
+    /// Source MP2-before-HP payment shared by both lanes. The owner removes this exact
+    /// cast on error and keeps it visible through successful handlers, then finalizes it.
+    #[allow(clippy::too_many_arguments)] // Separate resource references include the V6 HP remainder.
+    pub fn pay_impact(
+        &self,
+        now: Tick,
+        mp: &mut u32,
+        hp: &mut u32,
+        mp_end: u32,
+        hp_end: u32,
+        hp_remainder_q: i64,
+    ) -> Result<Option<Self>, CastCancelReason> {
+        if !self.launched || self.complete_at > now {
+            return Ok(None);
+        }
+        if !(0..super::Q).contains(&hp_remainder_q) {
+            return Err(CastCancelReason::Resources);
+        }
+        if *hp == 0 && hp_remainder_q == 0 {
             return Err(CastCancelReason::CasterDied);
         }
         let Some(remaining_mp) = mp.checked_sub(mp_end) else {
-            self.cancel_cast(Some(id));
             return Err(CastCancelReason::Resources);
         };
         *mp = remaining_mp;
-        if *hp <= hp_end {
-            self.cancel_cast(Some(id));
+        if *hp < hp_end || (*hp == hp_end && hp_remainder_q == 0) {
             return Err(CastCancelReason::Resources);
         }
-        *hp = hp.saturating_sub(hp_end); // Proven hp > hp_end above; fractions remain unchanged.
-                                         // Remain Casting through effect handlers; finish_cast runs after source finalization.
-        Ok(Some(cast.clone()))
+        *hp = hp.saturating_sub(hp_end);
+        Ok(Some(self.clone()))
     }
 }
 
@@ -652,8 +799,67 @@ mod tests {
             incarnation: 1,
         }
     }
+
+    #[test]
+    fn v6_cast_level_range_uses_resolved_rank_and_inclusive_bounds() {
+        use super::super::skill::{PlayerLevelRange, SkillCondition};
+        let rules = load_phase3_rules(&Phase3DataSource::embedded(), &[]).unwrap();
+        let mut skill = rules.skills().get(SkillId(3)).unwrap().clone();
+        let mut ranges = vec![
+            PlayerLevelRange {
+                minimum: 10,
+                maximum: 20
+            };
+            usize::try_from(skill.max_level).unwrap()
+        ];
+        ranges[1] = PlayerLevelRange {
+            minimum: 30,
+            maximum: 40,
+        };
+        let negate = |condition| SkillCondition::Not {
+            conditions: vec![condition],
+            attrs: BTreeMap::new(),
+        };
+        skill.conditions = vec![SkillCondition::And {
+            conditions: vec![
+                SkillCondition::UsingKind {
+                    weapon_kinds: vec!["SWORD".into()],
+                },
+                negate(negate(SkillCondition::PlayerLevelRange { ranges })),
+            ],
+            attrs: BTreeMap::new(),
+        }];
+        let calculator = StatCalculator::default();
+        for (rank, level, allowed) in [
+            (1, 9, false),
+            (1, 10, true),
+            (1, 20, true),
+            (1, 21, false),
+            (2, 29, false),
+            (2, 30, true),
+            (2, 40, true),
+            (2, 41, false),
+        ] {
+            let mut inputs = context(&calculator);
+            inputs.player_level = Some(level);
+            let outcome = cast_terms(&skill, rank, inputs);
+            if allowed {
+                assert!(outcome.is_ok(), "{rank}:{level}: {outcome:?}");
+            } else {
+                assert_eq!(outcome, Err(CastError::Condition));
+            }
+        }
+        assert!(cast_terms(&skill, 1, context(&calculator)).is_err());
+        let mut inputs = context(&calculator);
+        inputs.player_level = Some(15);
+        assert!(cast_terms(&skill, 0, inputs).is_err());
+        inputs.conditions.weapon_kind = "FIST";
+        assert_eq!(cast_terms(&skill, 1, inputs), Err(CastError::Condition));
+    }
     fn context(calc: &StatCalculator) -> CastStatContext<'_> {
         CastStatContext {
+            world: None,
+            player_level: None,
             calculator: calc,
             conditions: FunctionConditions {
                 weapon_kind: "SWORD",
@@ -752,7 +958,7 @@ mod tests {
         let mut sidecar = blank();
         let (mut next, mut mp) = (1, 10);
         let cast = sidecar
-            .begin_cast(&mut next, &mut mp, 100, start(terms(550, false), 10))
+            .begin_cast(&mut next, &mut mp, 100, 0, start(terms(550, false), 10))
             .unwrap();
         assert_eq!(
             (
@@ -772,16 +978,41 @@ mod tests {
         mp = 20;
         let before = sidecar.clone();
         assert_eq!(
-            sidecar.begin_cast(&mut next, &mut mp, 100, start(terms(550, false), 24)),
+            sidecar.begin_cast(&mut next, &mut mp, 100, 0, start(terms(550, false), 24)),
             Err(CastError::SkillCooldown)
         );
         assert_eq!(sidecar, before);
         assert_eq!((mp, next), (20, 2));
         let cast = sidecar
-            .begin_cast(&mut next, &mut mp, 100, start(terms(550, false), 25))
+            .begin_cast(&mut next, &mut mp, 100, 0, start(terms(550, false), 25))
             .unwrap();
         assert_eq!(cast.id, CastId(2));
         assert_eq!(mp, 17);
+    }
+
+    #[test]
+    fn v6_fractional_hp_allows_zero_whole_cast_and_pays_to_a_living_remainder() {
+        for hp_start in [0, 1] {
+            let mut side = blank();
+            let mut next = 1;
+            let mut mp = 100;
+            let mut terms = terms(550, false);
+            terms.hp_end = hp_start;
+            let mut cast = side
+                .begin_cast(&mut next, &mut mp, hp_start, super::super::Q / 2, start(terms, 10))
+                .unwrap();
+            assert!(cast.launch(cast.launch_at, |_| true));
+            let mut hp = hp_start;
+            assert!(cast
+                .pay_impact(cast.complete_at, &mut mp, &mut hp, 1, hp_start, super::super::Q / 2)
+                .unwrap()
+                .is_some());
+            assert_eq!(hp, 0);
+            assert_eq!(
+                cast.pay_impact(cast.complete_at, &mut mp, &mut hp, 0, 0, 0),
+                Err(CastCancelReason::CasterDied)
+            );
+        }
     }
 
     #[test]
@@ -798,7 +1029,7 @@ mod tests {
             let before = sidecar.clone();
             let (mut next, mut mp) = (next_id, initial_mp);
             assert_eq!(
-                sidecar.begin_cast(&mut next, &mut mp, hp, start(terms(550, false), at)),
+                sidecar.begin_cast(&mut next, &mut mp, hp, 0, start(terms(550, false), at)),
                 Err(expected)
             );
             assert_eq!((sidecar, next, mp), (before, next_id, initial_mp));
@@ -820,7 +1051,7 @@ mod tests {
             let mut sidecar = blank();
             let (mut next, mut mp) = (1, 20);
             let cast = sidecar
-                .begin_cast(&mut next, &mut mp, 100, start(terms(animation, continuous), 10))
+                .begin_cast(&mut next, &mut mp, 100, 0, start(terms(animation, continuous), 10))
                 .unwrap();
             assert_eq!(
                 (cast.launch_at.0, cast.complete_at.0, cast.interrupt_until.0),
@@ -866,7 +1097,7 @@ mod tests {
             let mut sidecar = blank();
             let (mut next, mut mp, mut hp) = (1, 20, hp);
             let cast = sidecar
-                .begin_cast(&mut next, &mut mp, 100, start(terms(0, false), 10))
+                .begin_cast(&mut next, &mut mp, 100, 0, start(terms(0, false), 10))
                 .unwrap();
             assert!(sidecar.launch_cast(Tick(10), cast.id, |_| true));
             mp = available_mp;
@@ -981,9 +1212,33 @@ mod tests {
             let mut sidecar = blank();
             let (mut next, mut mp) = (1, 20);
             sidecar
-                .begin_cast(&mut next, &mut mp, 100, start(terms(550, false), 10))
+                .begin_cast(&mut next, &mut mp, 100, 0, start(terms(550, false), 10))
                 .unwrap();
             assert_eq!(sidecar.interrupt_cast(Tick(at), success, skill).is_some(), expected);
         }
+    }
+    #[test]
+    fn v6_escape_conditions_use_world_context_and_fail_closed_in_legacy() {
+        let bundle = crate::infrastructure::item_data::embedded_phase4_bundle().unwrap();
+        let skill = bundle.skills.skills().get(SkillId(2013)).unwrap();
+        let calc = StatCalculator::default();
+        let mut input = context(&calc);
+        assert!(cast_terms(skill, 1, input).is_err());
+        input.player_level = Some(1);
+        input.world = Some(CastWorldConditions {
+            can_escape: true,
+            inside_zone_ids: &[],
+        });
+        assert!(cast_terms(skill, 1, input).is_ok());
+        input.world = Some(CastWorldConditions {
+            can_escape: false,
+            inside_zone_ids: &[],
+        });
+        assert!(matches!(cast_terms(skill, 1, input), Err(CastError::Condition)));
+        input.world = Some(CastWorldConditions {
+            can_escape: true,
+            inside_zone_ids: &[10501],
+        });
+        assert!(matches!(cast_terms(skill, 1, input), Err(CastError::Condition)));
     }
 }

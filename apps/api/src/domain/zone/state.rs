@@ -7,6 +7,24 @@
 mod digest;
 #[path = "state_evidence.rs"]
 mod evidence_hooks;
+#[path = "state_item_commands.rs"]
+mod item_commands;
+#[path = "state_item_enchant.rs"]
+mod item_enchant;
+#[path = "state_item_evidence.rs"]
+mod item_evidence_hooks;
+#[path = "state_item_grant.rs"]
+mod item_grant;
+#[path = "state_item_materialize.rs"]
+mod item_materialize;
+#[path = "state_item_shots.rs"]
+mod item_shots;
+#[path = "state_item_use.rs"]
+mod item_use;
+#[path = "state_item_views.rs"]
+mod item_views;
+#[path = "state_items.rs"]
+mod items;
 #[path = "state_runtime.rs"]
 mod runtime;
 
@@ -47,7 +65,7 @@ pub const MAX_MOVE_DISTANCE_TILES: i32 = 64;
 /// 7: resolved class registry, verified immutable hash, player identity and transfer ledger.
 /// 8: `BinaryV4` once-ever token policy; older epochs keep supply disabled.
 /// 9: isolated Phase 3 skills/effects/player-combat policy with `BinaryV5`.
-pub const SNAPSHOT_SCHEMA_VERSION: u32 = 9;
+pub const SNAPSHOT_SCHEMA_VERSION: u32 = 10;
 
 /// Canonical state encoding hashed with SHA-256. Fixed for an epoch, including on restore.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -63,6 +81,8 @@ pub enum StateDigestVersion {
     BinaryV4,
     /// Phase 3 skills, effects, regeneration and player combat.
     BinaryV5,
+    /// Item/equipment epochs with hash-resolved immutable rules.
+    BinaryV6,
 }
 
 /// Identity of a zone.
@@ -222,6 +242,9 @@ impl SnapshotMeta {
 /// [`AppliedTick`]s, which replay (Story 3.3) relies on.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ZoneSnapshot {
+    /// V6 item state; never synthesized for historical epochs.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub phase4: Option<super::Phase4Snapshot>,
     /// Phase 3 canonical state; absent for every legacy epoch.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub phase3: Option<super::Phase3Snapshot>,
@@ -270,9 +293,36 @@ pub struct ZoneSnapshot {
     pub safe_point: Option<Vec2Fixed>,
 }
 
+/// Exact acknowledged private item work retained until its fenced transaction succeeds.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ItemCheckpointWorkSnapshot {
+    /// Final allocator from the acknowledged tick, never reconstructed from a later boundary.
+    pub allocation: super::ItemInstanceRange,
+    /// Frozen instance facts, receipts and audit evidence.
+    pub projection: super::Phase4Projection,
+}
+
+/// Frozen paid-learning context for the same pending V6 transaction as item costs.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(missing_docs)]
+pub struct CheckpointLearnReceiptSnapshot {
+    pub account: crate::domain::AccountId,
+    pub key: uuid::Uuid,
+    pub fingerprint: String,
+    pub result: super::FrozenLearnResult,
+}
+
 /// Persistence metadata owned by the application; it never participates in simulation hashes.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CheckpointSnapshot {
+    /// Optional unified paid-learning context, omitted from every historical snapshot.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub learning: Option<CheckpointLearnReceiptSnapshot>,
+    /// Immutable critical item transaction awaiting acknowledgement.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub item_work: Option<ItemCheckpointWorkSnapshot>,
     /// Player identity.
     pub entity: EntityId,
     /// Last acknowledged repository revision.
@@ -292,6 +342,9 @@ pub struct CheckpointSnapshot {
 /// Integer-only representation of an application checkpoint request.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CheckpointRequestSnapshot {
+    /// Paused item state, omitted from every historical request.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub phase4: Option<super::Phase4Checkpoint>,
     /// Frozen paused timers and policy, absent from all legacy request fingerprints.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub phase3: Option<super::Phase3Checkpoint>,
@@ -365,6 +418,12 @@ pub enum TickError {
     /// A new-policy command cannot enter a historical epoch, even through direct callers.
     #[error("Phase 3 command in a legacy epoch")]
     Phase3CommandInLegacy,
+    /// Item intents require an explicitly admitted V6 epoch.
+    #[error("Phase 4 command in a historical epoch")]
+    Phase4CommandInLegacy,
+    /// Only normalized authenticated item envelopes can become replay inputs.
+    #[error("invalid Phase 4 command envelope")]
+    Phase4CommandMalformed,
     /// The Phase 3 boundary exists, but gameplay installation is not complete.
     #[error("Phase 3 gameplay is not installed")]
     Phase3NotReady,
@@ -405,7 +464,20 @@ impl ZoneSnapshot {
     /// All decoding and encoding boundaries share this check; old epochs never normalize
     /// an unsupported digest into an accepted one.
     pub fn validate_version(&self) -> Result<(), SnapshotError> {
-        use StateDigestVersion::{BinaryV2, BinaryV3, BinaryV4, BinaryV5, JsonV1};
+        use StateDigestVersion::{BinaryV2, BinaryV3, BinaryV4, BinaryV5, BinaryV6, JsonV1};
+        if self.meta.schema_version < 10
+            && (self.phase4.is_some()
+                || self.checkpoints.iter().any(|lane| {
+                    lane.item_work.is_some()
+                        || lane.learning.is_some()
+                        || lane
+                            .latest
+                            .as_ref()
+                            .is_some_and(|request| request.phase4.is_some())
+                }))
+        {
+            return Err(SnapshotError::CombatMismatch);
+        }
         let valid =
             match (self.meta.schema_version, self.meta.digest_version, self.classes.is_some()) {
                 (4 | 5, JsonV1, false)
@@ -431,38 +503,172 @@ impl ZoneSnapshot {
                         })
                 },
                 (9, BinaryV5, true) => {
-                    self.meta
-                        .phase3_admission_policy
-                        .is_some_and(super::Phase3AdmissionPolicy::is_valid)
-                        && self.rules.as_ref().zip(self.phase3.as_ref()).is_some_and(
-                            |(stats, phase3)| {
-                                phase3
-                                    .rules
-                                    .profiles()
-                                    .starter_weapon
-                                    .validate_physical(&stats.starter_weapon)
-                                    .is_ok()
-                            },
-                        )
-                        && self
-                            .phase3
-                            .as_ref()
-                            .is_some_and(super::Phase3Snapshot::validate)
-                        && self
-                            .phase3
-                            .as_ref()
-                            .is_some_and(|p| p.rules.geometry().peace_square(self.bounds).is_ok())
-                        && self
-                            .classes
-                            .as_deref()
-                            .zip(self.phase3.as_ref())
-                            .is_some_and(|(classes, phase3)| {
-                                phase3.rules.validate_catalogue(classes).is_ok()
+                    self.validate_skill_boundary(2, 1)
+                        && self.checkpoints.iter().all(|lane| {
+                            lane.events.iter().all(|event| {
+                                matches!(
+                                    event.subject(),
+                                    "nightfall.character.created"
+                                        | "nightfall.character.leveled"
+                                        | "nightfall.character.class_changed"
+                                        | "nightfall.character.died"
+                                        | "nightfall.character.token_granted"
+                                        | "nightfall.character.skill_learned"
+                                )
                             })
+                        })
                 },
-                (4..=9, _, _) => false,
+                (10, BinaryV6, true) => {
+                    self.validate_skill_boundary(3, 2)
+                        && self
+                            .phase3
+                            .as_ref()
+                            .is_some_and(|p| p.rules.runtime_revision() == 3)
+                        && self
+                            .phase4
+                            .as_ref()
+                            .is_some_and(|p| p.formula_revision == 1 && p.timer_policy_version == 1)
+                },
+                (4..=10, _, _) => false,
                 (version, _, _) => return Err(SnapshotError::Schema(version)),
             };
+        if valid {
+            self.validate_item_checkpoints()?;
+            Ok(())
+        } else {
+            Err(SnapshotError::CombatMismatch)
+        }
+    }
+    fn validate_item_checkpoints(&self) -> Result<(), SnapshotError> {
+        for lane in &self.checkpoints {
+            self.validate_learning_checkpoint(lane)?;
+            let items = lane
+                .latest
+                .as_ref()
+                .and_then(|request| request.phase4.as_ref());
+            if let Some(checkpoint) = items {
+                let sources = lane
+                    .latest
+                    .as_ref()
+                    .and_then(|request| request.phase3.as_ref())
+                    .ok_or(SnapshotError::CombatMismatch)?
+                    .modifier_install_order
+                    .len();
+                checkpoint
+                    .validate_structure(sources)
+                    .map_err(|_| SnapshotError::CombatMismatch)?;
+                if self
+                    .phase4
+                    .as_ref()
+                    .is_none_or(|phase| phase.rules_hash != checkpoint.rules_hash)
+                {
+                    return Err(SnapshotError::CombatMismatch);
+                }
+            }
+            if let Some(work) = &lane.item_work {
+                let request = lane.latest.as_ref().ok_or(SnapshotError::CombatMismatch)?;
+                let sources = request
+                    .phase3
+                    .as_ref()
+                    .ok_or(SnapshotError::CombatMismatch)?
+                    .modifier_install_order
+                    .len();
+                work.projection
+                    .validate_structure(sources)
+                    .map_err(|_| SnapshotError::CombatMismatch)?;
+                if work.projection.entity != lane.entity
+                    || items != Some(&work.projection.checkpoint)
+                    || work.projection.tick >= self.tick
+                {
+                    return Err(SnapshotError::CombatMismatch);
+                }
+                if let Some(core) = &work.projection.paused_core {
+                    if self.entities.iter().any(|entity| entity.id == lane.entity)
+                        || core.load.checkpoint_revision != Some(lane.revision)
+                        || core.load.checkpoint_revision != Some(request.revision_seen)
+                        || core.load.hp != Some(request.hp)
+                        || core.load.mp != Some(request.mp)
+                        || core.load.level != request.level
+                        || core.load.xp != request.xp
+                        || core.load.alive != request.alive
+                        || core.load.phase3 != request.phase3
+                        || core.load.progression.as_ref().map(|p| &p.class_state)
+                            != request.class_state.as_ref()
+                    {
+                        return Err(SnapshotError::CombatMismatch);
+                    }
+                } else if self.checkpoint_owner(lane.entity) != Some(work.projection.account) {
+                    return Err(SnapshotError::CombatMismatch);
+                }
+                let allocation = self
+                    .phase4
+                    .as_ref()
+                    .ok_or(SnapshotError::CombatMismatch)?
+                    .allocator
+                    .bounds();
+                let stored = work.allocation.bounds();
+                if stored.0 != allocation.0 || stored.2 != allocation.2 || stored.1 > allocation.1 {
+                    return Err(SnapshotError::CombatMismatch);
+                }
+            }
+        }
+        Ok(())
+    }
+    fn checkpoint_owner(&self, entity: EntityId) -> Option<crate::domain::AccountId> {
+        self.entities
+            .iter()
+            .find(|owner| owner.id == entity)
+            .and_then(|owner| owner.combat.as_ref())
+            .and_then(|combat| {
+                if let CombatRole::Player {
+                    progression: Some(progression),
+                    ..
+                } = &combat.role
+                {
+                    Some(progression.identity.account_id)
+                } else {
+                    None
+                }
+            })
+    }
+    fn validate_learning_checkpoint(&self, lane: &CheckpointSnapshot) -> Result<(), SnapshotError> {
+        use crate::domain::DomainEvent;
+        let learned: Vec<_> = lane
+            .events
+            .iter()
+            .filter(|event| matches!(event, DomainEvent::CharacterSkillLearned { .. }))
+            .collect();
+        let Some(receipt) = &lane.learning else {
+            if self.meta.schema_version >= 10 && !learned.is_empty() {
+                return Err(SnapshotError::CombatMismatch);
+            }
+            return Ok(());
+        };
+        let request = lane.latest.as_ref().ok_or(SnapshotError::CombatMismatch)?;
+        let result = &receipt.result;
+        let valid = self.checkpoint_owner(lane.entity) == Some(receipt.account)
+            && result.character_id.as_uuid() == lane.entity.as_uuid()
+            && result.skill.id.0 > 0
+            && result.skill.rank > 0
+            && result.tick < self.tick
+            && receipt.fingerprint
+                == format!(
+                    "v1|{}|{}|{}",
+                    result.character_id, result.skill.id.0, result.skill.rank
+                )
+            && request.phase3.is_some()
+            && request.phase4.is_some()
+            && request.class_state.as_ref().is_some_and(|ledger| {
+                ledger.learned_skills.iter().any(|skill| {
+                    skill.key == format!("l2.skill.{}", result.skill.id.0)
+                        && skill.level >= result.skill.rank
+                })
+            })
+            && matches!(learned.as_slice(), [DomainEvent::CharacterSkillLearned {character_id, skill_id, skill_level, sp_spent, sp_remaining, tick, request_key, metadata}]
+                if *character_id == result.character_id && *skill_id == result.skill.id.0
+                    && *skill_level == result.skill.rank && *sp_spent == result.sp_spent
+                    && *sp_remaining == result.sp_remaining && *tick == result.tick.0
+                    && *request_key == receipt.key && request.revision_seen.checked_add(1) == Some(metadata.sequence.0));
         if valid {
             Ok(())
         } else {
@@ -478,6 +684,7 @@ pub struct ZoneState {
     // Opt-in replay diagnostics only: never snapshot, hash, encode or send these facts.
     evidence: Option<super::evidence::EvidenceBuffer>,
     phase3: Option<super::phase3::Phase3Zone>,
+    phase4: Option<super::phase4::Phase4Zone>,
     classes: Option<Arc<crate::domain::class::ClassRegistry>>,
     seed: ZoneSeed,
     checkpoints: Vec<CheckpointSnapshot>,
@@ -528,6 +735,7 @@ impl ZoneState {
             seed,
             classes: None,
             phase3: None,
+            phase4: None,
             evidence: None,
             checkpoints: Vec::new(),
             meta: SnapshotMeta::legacy(),
@@ -559,6 +767,22 @@ impl ZoneState {
         classes: Arc<crate::domain::class::ClassRegistry>,
         phase3_rules: super::Phase3Rules,
     ) -> Result<Self, SnapshotError> {
+        if phase3_rules.runtime_revision() > 2 {
+            return Err(SnapshotError::Rules(
+                "V6 skill bundle requires an explicit V6 epoch".into(),
+            ));
+        }
+        Self::new_skill_epoch(seed, bounds, time_origin_ms, rules, classes, phase3_rules)
+    }
+
+    fn new_skill_epoch(
+        seed: ZoneSeed,
+        bounds: ZoneBounds,
+        time_origin_ms: i64,
+        rules: Arc<StatRules>,
+        classes: Arc<crate::domain::class::ClassRegistry>,
+        phase3_rules: super::Phase3Rules,
+    ) -> Result<Self, SnapshotError> {
         Self::validate_damage_profiles_v5(&phase3_rules)?;
         phase3_rules
             .validate_catalogue(&classes)
@@ -583,7 +807,7 @@ impl ZoneState {
             super::phase3::Phase3Zone::from_canonical(canonical)
                 .map_err(|error| SnapshotError::Rules(error.to_string()))?,
         );
-        state.meta.schema_version = SNAPSHOT_SCHEMA_VERSION;
+        state.meta.schema_version = 9;
         state.meta.digest_version = StateDigestVersion::BinaryV5;
         state.meta.phase3_admission_policy = Some(super::Phase3AdmissionPolicy::version_one());
         Ok(state)
@@ -624,7 +848,34 @@ impl ZoneState {
 
     /// Rebuilds a zone from a snapshot, validating it.
     pub fn from_snapshot(snapshot: ZoneSnapshot) -> Result<Self, SnapshotError> {
+        Self::from_snapshot_with_items(snapshot, None)
+    }
+
+    /// Restore V6 with explicitly resolved immutable item rules. Historical snapshots must
+    /// pass None; neither restoration path upgrades a recorded epoch.
+    pub fn from_snapshot_with_items(
+        snapshot: ZoneSnapshot,
+        rules: Option<Arc<super::Phase4Rules>>,
+    ) -> Result<Self, SnapshotError> {
         snapshot.validate_version()?;
+        let phase4 = match (snapshot.phase4.clone(), rules) {
+            (None, None) => None,
+            (Some(canonical), Some(rules)) => {
+                canonical
+                    .validate_allocations(
+                        &rules,
+                        snapshot
+                            .phase3
+                            .as_ref()
+                            .ok_or(SnapshotError::CombatMismatch)?,
+                    )
+                    .map_err(|e| SnapshotError::Rules(e.to_string()))?;
+                Some(super::phase4::Phase4Zone { canonical, rules })
+            },
+            _ => {
+                return Err(SnapshotError::Rules("explicit matching V6 item rules required".into()))
+            },
+        };
         if snapshot.rng.key != snapshot.seed.key() {
             return Err(SnapshotError::SeedMismatch);
         }
@@ -647,6 +898,7 @@ impl ZoneState {
         {
             return Err(SnapshotError::SafePointOutOfBounds);
         }
+        state.phase4 = phase4;
         state.meta = snapshot.meta;
         state.classes = snapshot.classes;
         state.phase3 = snapshot
@@ -718,6 +970,7 @@ impl ZoneState {
     #[must_use]
     pub fn snapshot(&self) -> ZoneSnapshot {
         ZoneSnapshot {
+            phase4: self.phase4.as_ref().map(|p| p.canonical.clone()),
             phase3: self.phase3.as_ref().map(|p| p.canonical.clone()),
             classes: self.classes.clone(),
             checkpoints: self.checkpoints.clone(),
@@ -887,6 +1140,22 @@ impl ZoneState {
     /// AI phases, advances movement and combat, then diffs every player's AOI. The result is a pure function of the state and the
     /// draft. A draft that does not continue this zone is refused and nothing changes.
     pub fn run_tick(&mut self, draft: AppliedTickDraft) -> Result<AppliedTick, TickError> {
+        if !self.phase4_enabled() && draft.commands.iter().any(|c| c.command.requires_phase4()) {
+            return Err(TickError::Phase4CommandInLegacy);
+        }
+        for command in &draft.commands {
+            if let ZoneCommand::SpawnPlayer {
+                load: Some(load), ..
+            } = &command.command
+            {
+                load.validate_phase4()
+                    .map_err(|_| TickError::Phase4CommandMalformed)?;
+            }
+            if let ZoneCommand::Item(item) = &command.command {
+                item.authenticated_account()
+                    .map_err(|_| TickError::Phase4CommandMalformed)?;
+            }
+        }
         if self.phase3_enabled() {
             self.run_tick_v5(draft)
         } else {
@@ -905,7 +1174,10 @@ impl ZoneState {
 
     /// Policy is selected only by the validated epoch version, never registry presence.
     pub fn phase3_enabled(&self) -> bool {
-        self.meta.schema_version == 9 && self.meta.digest_version == StateDigestVersion::BinaryV5
+        matches!(
+            (self.meta.schema_version, self.meta.digest_version),
+            (9, StateDigestVersion::BinaryV5) | (10, StateDigestVersion::BinaryV6)
+        )
     }
 
     fn run_tick_legacy(&mut self, draft: AppliedTickDraft) -> Result<AppliedTick, TickError> {
@@ -933,7 +1205,7 @@ impl ZoneState {
         let impacts = events.len();
         self.land_impacts(tick, &mut events);
         self.note_hits(tick, events.get(impacts..).unwrap_or_default());
-        self.start_swings(tick, &mut events);
+        self.start_swings(tick, None, &mut events)?;
         self.flush_progression(tick, &mut events);
         let responses = responses(tick, &draft.commands, &dispositions);
         let outputs = self.observe(tick, responses, &events);
@@ -962,6 +1234,7 @@ impl ZoneState {
             StateDigestVersion::BinaryV3 => self.phase2_state_digest(),
             StateDigestVersion::BinaryV4 => self.token_state_digest(),
             StateDigestVersion::BinaryV5 => self.phase3_state_digest(),
+            StateDigestVersion::BinaryV6 => self.phase4_state_digest(),
         }
     }
 
@@ -1019,7 +1292,11 @@ impl ZoneState {
     /// entity, and only while their generation is current; everything else is system-only.
     fn authorize(&self, source: CommandSource, cmd: &ZoneCommand) -> Result<(), RejectReason> {
         if (matches!(cmd, ZoneCommand::ChangeClass { .. })
-            || (cmd.requires_phase3() && !matches!(cmd, ZoneCommand::SpawnPlayer { .. })))
+            || (cmd.requires_phase3()
+                && !matches!(
+                    cmd,
+                    ZoneCommand::SpawnPlayer { .. } | ZoneCommand::MaterializePendingItems(_)
+                )))
             && source == CommandSource::System
         {
             return Err(RejectReason::NotPermitted);
@@ -1028,6 +1305,13 @@ impl ZoneState {
             return Ok(());
         };
         match cmd {
+            ZoneCommand::Item(command) if command.entity == entity => {
+                match self.entities.get(&entity) {
+                    Some(e) if e.generation != generation => Err(RejectReason::StaleSession),
+                    Some(_) | None => Ok(()),
+                }
+            },
+
             ZoneCommand::CastSkill { entity: target, .. }
             | ZoneCommand::CancelCast { entity: target, .. }
             | ZoneCommand::AcceptResurrect { entity: target, .. }
@@ -1048,7 +1332,10 @@ impl ZoneState {
                     Some(_) | None => Ok(()),
                 }
             },
-            ZoneCommand::CastSkill { .. }
+            ZoneCommand::MaterializePendingItems(_)
+            | ZoneCommand::ExtendItemRange { .. }
+            | ZoneCommand::Item(_)
+            | ZoneCommand::CastSkill { .. }
             | ZoneCommand::CancelCast { .. }
             | ZoneCommand::AcceptResurrect { .. }
             | ZoneCommand::LearnSkill { .. }
@@ -1075,7 +1362,10 @@ impl ZoneState {
         match &c.command {
             // Only the V5 dispatcher may execute these; legacy run_tick rejects the entire
             // draft before mutation. Keep this dispatcher exhaustive while rollout is fenced.
-            ZoneCommand::CastSkill { .. }
+            ZoneCommand::MaterializePendingItems(_)
+            | ZoneCommand::ExtendItemRange { .. }
+            | ZoneCommand::Item(_)
+            | ZoneCommand::CastSkill { .. }
             | ZoneCommand::CancelCast { .. }
             | ZoneCommand::AcceptResurrect { .. }
             | ZoneCommand::LearnSkill { .. } => Err(RejectReason::NotYetImplemented),
@@ -1213,6 +1503,17 @@ impl ZoneState {
             return Ok(());
         }
         match cmd {
+            ZoneCommand::Item(command) => {
+                if self
+                    .entities
+                    .get(&command.entity)
+                    .is_some_and(|e| e.targeting.dead)
+                {
+                    Err(RejectReason::DeadActor)
+                } else {
+                    Ok(())
+                }
+            },
             ZoneCommand::CastSkill { entity, .. }
             | ZoneCommand::LearnSkill { entity, .. }
             | ZoneCommand::MoveTo { entity, .. }
@@ -1234,7 +1535,9 @@ impl ZoneState {
             | ZoneCommand::SpawnPlayer { .. }
             | ZoneCommand::SpawnNpc { .. }
             | ZoneCommand::ReplaceSession { .. }
-            | ZoneCommand::AddAggro { .. } => Ok(()),
+            | ZoneCommand::AddAggro { .. }
+            | ZoneCommand::MaterializePendingItems(_)
+            | ZoneCommand::ExtendItemRange { .. } => Ok(()),
         }
     }
 
@@ -1511,6 +1814,14 @@ impl ZoneState {
 fn fact_visible(event: &ZoneEvent, observer: EntityId, known: &[EntityId]) -> bool {
     let sees = |id: &EntityId| *id == observer || known.binary_search(id).is_ok();
     match event {
+        ZoneEvent::ItemResult(result) => result.entity == observer,
+        ZoneEvent::ItemView(view) => {
+            if view.owner_only() {
+                view.entity == observer
+            } else {
+                sees(&view.entity)
+            }
+        },
         ZoneEvent::TargetChanged { entity, target, .. } => {
             *entity == observer && target.as_ref().is_none_or(sees)
         },
@@ -1545,6 +1856,7 @@ fn fact_visible(event: &ZoneEvent, observer: EntityId, known: &[EntityId]) -> bo
         | ZoneEvent::ClassTransfer { .. }
         | ZoneEvent::HateChanged { .. }
         | ZoneEvent::NpcIntentionChanged { .. }
+        | ZoneEvent::ItemCheckpoint(_)
         | ZoneEvent::Progression(_)
         | ZoneEvent::EntitySpawn { .. }
         | ZoneEvent::EntityMove { .. }
@@ -1599,6 +1911,8 @@ impl<'a> CellFacts<'a> {
             .collect();
         for (index, event) in events.iter().enumerate() {
             let (entity, other, private) = match event {
+                ZoneEvent::ItemResult(result) => (result.entity, None, true),
+                ZoneEvent::ItemView(view) => (view.entity, None, view.owner_only()),
                 ZoneEvent::TargetChanged { entity, target, .. } => (*entity, *target, true),
                 ZoneEvent::StatsChanged { entity, .. }
                 | ZoneEvent::XpGained { entity, .. }
@@ -1631,6 +1945,7 @@ impl<'a> CellFacts<'a> {
                 | ZoneEvent::ClassTransfer { .. }
                 | ZoneEvent::HateChanged { .. }
                 | ZoneEvent::NpcIntentionChanged { .. }
+                | ZoneEvent::ItemCheckpoint(_)
                 | ZoneEvent::Progression(_)
                 | ZoneEvent::EntitySpawn { .. }
                 | ZoneEvent::EntityMove { .. }
@@ -1791,6 +2106,7 @@ fn diff_into(
 /// The spawn an observer receives when `e` enters its AOI: full current movement state.
 fn spawn_event(tick: Tick, e: &Entity) -> ZoneEvent {
     ZoneEvent::EntitySpawn {
+        phase4: None,
         identity: e.combat.as_ref().and_then(|c| match &c.role {
             CombatRole::Player { progression, .. } => progression.as_ref().map(|p| p.public()),
             CombatRole::Npc { .. } => None,
@@ -1884,6 +2200,7 @@ fn npc_combat(spec: &NpcCombat) -> Result<CombatState, RejectReason> {
 /// The owner-only resource fact.
 pub(super) fn stats_changed(tick: Tick, entity: EntityId, c: &CombatState) -> ZoneEvent {
     ZoneEvent::StatsChanged {
+        phase4: None,
         class: match &c.role {
             CombatRole::Player { progression, .. } => progression.as_ref().map(|p| p.stats()),
             CombatRole::Npc { .. } => None,
@@ -1980,4 +2297,36 @@ fn registry_hash(
     // Resolved integer rules and ordered collections; computed only at bootstrap/restore.
     let bytes = serde_json::to_vec(registry).map_err(|e| SnapshotError::Rules(e.to_string()))?;
     Ok(Sha256::digest(bytes).into())
+}
+
+impl ZoneSnapshot {
+    fn validate_skill_boundary(&self, runtime: u32, policy: u32) -> bool {
+        self.meta
+            .phase3_admission_policy
+            .is_some_and(|p| p.version == policy && p.is_valid())
+            && self
+                .phase3
+                .as_ref()
+                .is_some_and(|p| p.rules.runtime_revision() <= runtime && p.validate())
+            && self
+                .rules
+                .as_ref()
+                .zip(self.phase3.as_ref())
+                .is_some_and(|(stats, p)| {
+                    p.rules
+                        .profiles()
+                        .starter_weapon
+                        .validate_physical(&stats.starter_weapon)
+                        .is_ok()
+                })
+            && self
+                .phase3
+                .as_ref()
+                .is_some_and(|p| p.rules.geometry().peace_square(self.bounds).is_ok())
+            && self
+                .classes
+                .as_deref()
+                .zip(self.phase3.as_ref())
+                .is_some_and(|(classes, p)| p.rules.validate_catalogue(classes).is_ok())
+    }
 }

@@ -90,11 +90,14 @@ class Revision5Tests(unittest.TestCase):
                     if launched:
                         reason = 'launched'
                         draws.append(dict(site='hit', bound=1000, residue=x['hit_residue']))
+                        # calcHitMiss: miss iff chance < residue (D88 strictness revoked).
+                        self.assertEqual(x['miss'], x['hit_residue'] > x['hit_chance'], name)
                         if not x['miss']:
-                            draws.append(dict(site='critical', bound=1000, residue=999))
+                            # D87: the caller's live residues, not a neutral 999 / radius.
+                            draws.append(dict(site='critical', bound=1000, residue=x['critical_residue']))
                             radius = int(props.get('random_damage', '0'))
                             if radius:
-                                draws.append(dict(site='spread', bound=2*radius+1, residue=radius))
+                                draws.append(dict(site='spread', bound=2*radius+1, residue=x['spread_residue']))
             self.assertEqual(y['accepted'], launched, name)
             self.assertEqual(y['reason'], reason, name)
             self.assertEqual(y['mp_paid'], cost if launched else 0, name)
@@ -137,7 +140,8 @@ class Revision5Tests(unittest.TestCase):
             events = [r['event'] for r in y['trace']]
             if 'accepted' in events:
                 self.assertFalse(y['dead']); self.assertEqual(y['incarnation'], 8)
-                self.assertEqual(y['hp_q'], int(F(101)*F(65, 100)*1000000))
+                # D104: whole floor of max_hp x 0.65 (65.65 -> 65), remainder cleared.
+                self.assertEqual(y['hp_q'], 65*1000000)
                 self.assertEqual(y['recoverable_xp'], 0)
                 self.assertIsNone(y['offer'])
             else:
@@ -150,7 +154,7 @@ class Revision5Tests(unittest.TestCase):
         at = o.decode_rationals(self.by_id['resurrection-scroll-accept-expiry-0']['expected'])
         self.assertFalse(before['dead']); self.assertTrue(at['dead'])
         retained = o.decode_rationals(self.by_id['resurrection-scroll-first-valid']['expected'])
-        self.assertEqual(retained['xp_refund'], 50)
+        self.assertEqual(retained['xp_refund'], 51)  # Math.round(101 x 50 / 100 = 50.5)
         self.assertEqual([r['event'] for r in retained['trace']][-2:], ['accepted', 'NO_RESURRECT_OFFER'])
 
     def test_dormant_starter_rejection_preserves_every_state_dimension(self):
@@ -187,7 +191,8 @@ class Revision5Tests(unittest.TestCase):
             self.assertEqual(y['stats_q'], {k: int(v*1000000) for k, v in values.items()})
             for field, tags in [('granted_active', ['active_skill']), ('system_passive', ['passive_skill']),
                                 ('triggers', ['attack_skill', 'critical_skill', 'magic_skill'])]:
-                self.assertEqual(y[field], [dict(n.attrib, kind=n.tag) for n in node if n.tag in tags] if install else [])
+                self.assertEqual(y[field], [dict({k: f'{F(v).numerator}/{F(v).denominator}' if '.' in v else v  # D98 n/d
+                                    for k, v in n.attrib.items()}, kind=n.tag) for n in node if n.tag in tags] if install else [])
             self.assertEqual(y['other_provider'], 99); self.assertEqual(y['hp'], 75)
             self.assertFalse(y['on_start_replayed']); self.assertEqual(y['draws'], [])
         self.assertEqual(kinds, {'active_skill', 'passive_skill', 'attack_skill', 'critical_skill', 'magic_skill'})

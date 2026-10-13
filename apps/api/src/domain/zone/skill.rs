@@ -118,11 +118,56 @@ pub struct SkillHandler {
     pub section_raw_conditions: Vec<String>,
 }
 
+/// Rank-expanded inclusive source level interval (ConditionPlayerLevelRange.java:41–43).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(missing_docs)]
+pub struct PlayerLevelRange {
+    pub minimum: u32,
+    pub maximum: u32,
+}
+
 /// Recursive source conditions. Unsupported leaves remain inspectable deferred metadata.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 #[allow(missing_docs)]
 pub enum SkillCondition {
+    PlayerLevelRange {
+        ranges: Vec<PlayerLevelRange>,
+    },
+    PlayerInsideZoneIds {
+        zone_ids: Vec<u32>,
+    },
+    PlayerResting {
+        value: bool,
+    },
+    PlayerStanding {
+        value: bool,
+    },
+    PlayerMoving {
+        value: bool,
+    },
+    PlayerRunning {
+        value: bool,
+    },
+    #[serde(rename = "player_canEscape")]
+    PlayerCanEscape {
+        value: bool,
+    },
+    #[serde(rename = "player_flyMounted")]
+    PlayerFlyMounted {
+        value: bool,
+    },
+    UsingSlot {
+        slot: String,
+    },
+    PlayerWeight {
+        value: i32,
+    },
+    #[serde(rename = "player_invSize")]
+    PlayerInventorySize {
+        value: i32,
+    },
     UsingKind {
         weapon_kinds: Vec<String>,
     },
@@ -148,6 +193,75 @@ pub enum SkillCondition {
         tag: String,
         attrs: BTreeMap<String, String>,
     },
+}
+
+impl SkillCondition {
+    fn valid_level_ranges(&self, ranks: u32) -> bool {
+        match self {
+            Self::PlayerLevelRange { ranges } => {
+                usize::try_from(ranks).ok() == Some(ranges.len())
+                    && ranges.iter().all(|range| range.minimum <= range.maximum)
+            },
+            Self::And { conditions, .. }
+            | Self::Or { conditions, .. }
+            | Self::Not { conditions, .. } => conditions
+                .iter()
+                .all(|child| child.valid_level_ranges(ranks)),
+            Self::PlayerInsideZoneIds { .. }
+            | Self::PlayerResting { .. }
+            | Self::PlayerStanding { .. }
+            | Self::PlayerMoving { .. }
+            | Self::PlayerRunning { .. }
+            | Self::PlayerCanEscape { .. }
+            | Self::PlayerFlyMounted { .. }
+            | Self::UsingSlot { .. }
+            | Self::PlayerWeight { .. }
+            | Self::PlayerInventorySize { .. }
+            | Self::UsingKind { .. }
+            | Self::PlayerCanResurrect { .. }
+            | Self::Unsupported { .. } => true,
+        }
+    }
+
+    fn has_phase4(&self) -> bool {
+        match self {
+            Self::And { conditions, .. }
+            | Self::Or { conditions, .. }
+            | Self::Not { conditions, .. } => conditions.iter().any(Self::has_phase4),
+            Self::UsingKind { .. } | Self::PlayerCanResurrect { .. } | Self::Unsupported { .. } => {
+                false
+            },
+            Self::PlayerLevelRange { .. }
+            | Self::PlayerInsideZoneIds { .. }
+            | Self::PlayerResting { .. }
+            | Self::PlayerStanding { .. }
+            | Self::PlayerMoving { .. }
+            | Self::PlayerRunning { .. }
+            | Self::PlayerCanEscape { .. }
+            | Self::PlayerFlyMounted { .. }
+            | Self::UsingSlot { .. }
+            | Self::PlayerWeight { .. }
+            | Self::PlayerInventorySize { .. } => true,
+        }
+    }
+}
+
+fn all_conditions(skill: &SkillDef) -> impl Iterator<Item = &SkillCondition> {
+    skill
+        .conditions
+        .iter()
+        .chain(skill.effects.iter().flat_map(|handler| {
+            handler
+                .conditions
+                .iter()
+                .chain(&handler.section_conditions)
+                .chain(
+                    handler
+                        .stat_children
+                        .iter()
+                        .flat_map(|modifier| &modifier.conditions),
+                )
+        }))
 }
 
 /// Source elemental attack data.
@@ -213,7 +327,7 @@ pub struct SkillDef {
     pub hp_consume: Vec<i64>,
     pub magic_level: Vec<i64>,
     pub effect_point: Vec<i64>,
-    pub activate_rate: i64,
+    pub activate_rate: RankValue<i64>,
     pub basic_property: String,
     pub level_bonus_rate: i64,
     pub r#trait: String,
@@ -284,6 +398,8 @@ pub(crate) const PRIVILEGED_SKILL_RANGES: &[(u32, u32)] = &[
 /// An immutable, capability-validated registry; source-only samples are excluded.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct SkillRegistry {
+    #[serde(skip_serializing_if = "is_legacy_capability")]
+    capability_revision: u32,
     skills: BTreeMap<SkillId, SkillDef>,
     hash: [u8; 32],
 }
@@ -292,10 +408,31 @@ impl SkillRegistry {
     /// Validate immutable definitions for both file admission and snapshot restoration.
     /// Runtime labels never bypass independent per-capability checks.
     pub fn try_new(skills: BTreeMap<SkillId, SkillDef>) -> Result<Self, Vec<String>> {
+        Self::try_new_revision(skills, 1)
+    }
+
+    /// V6 skill closure. Its distinct capability policy cannot enter a V5 rules bundle.
+    pub fn try_new_phase4(skills: BTreeMap<SkillId, SkillDef>) -> Result<Self, Vec<String>> {
+        Self::try_new_revision(skills, 2)
+    }
+
+    fn try_new_revision(
+        skills: BTreeMap<SkillId, SkillDef>,
+        capability_revision: u32,
+    ) -> Result<Self, Vec<String>> {
+        if !matches!(capability_revision, 1 | 2) {
+            return Err(vec!["unsupported skill capability revision".into()]);
+        }
+        let phase4 = capability_revision == 2;
         let mut errors = Vec::new();
         let mut blockers = BTreeMap::new();
         for (id, skill) in &skills {
-            validate_skill_shape(skill, &mut errors);
+            validate_skill_shape_revision(skill, &mut errors, phase4);
+            for condition in all_conditions(skill) {
+                if !condition.valid_level_ranges(skill.max_level) {
+                    errors.push(format!("skill {}: invalid rank level ranges", id.0));
+                }
+            }
             if *id != skill.id
                 || id.0 == 0
                 || skill.sample_only
@@ -307,7 +444,10 @@ impl SkillRegistry {
             {
                 errors.push(format!("skill {}: identity/provenance/sample mismatch", id.0));
             }
-            blockers.insert(*id, capabilities(skill));
+            if !phase4 && all_conditions(skill).any(SkillCondition::has_phase4) {
+                errors.push(format!("skill {}: V6 condition in legacy registry", id.0));
+            }
+            blockers.insert(*id, capabilities(skill, phase4));
         }
         loop {
             let previous = blockers.clone();
@@ -346,7 +486,11 @@ impl SkillRegistry {
         let mut hash = Sha256::new();
         hash.update(b"nightfall.skills.1\0");
         hash.update(bytes);
+        if phase4 {
+            hash.update(b"nightfall.skills.capabilities.2\0");
+        }
         Ok(Self {
+            capability_revision,
             skills,
             hash: hash.finalize().into(),
         })
@@ -363,6 +507,21 @@ impl SkillRegistry {
     pub const fn hash(&self) -> [u8; 32] {
         self.hash
     }
+    /// Separately validated capability grammar; revision one preserves V5 bytes.
+    pub const fn capability_revision(&self) -> u32 {
+        self.capability_revision
+    }
+}
+
+#[allow(clippy::trivially_copy_pass_by_ref)]
+const fn is_legacy_capability(value: &u32) -> bool {
+    *value == 1
+}
+
+fn present_capability<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<u32>, D::Error> {
+    u32::deserialize(deserializer).map(Some)
 }
 
 impl<'de> Deserialize<'de> for SkillRegistry {
@@ -370,11 +529,20 @@ impl<'de> Deserialize<'de> for SkillRegistry {
         #[derive(Deserialize)]
         #[serde(deny_unknown_fields)]
         struct Snapshot {
+            #[serde(default, deserialize_with = "present_capability")]
+            capability_revision: Option<u32>,
             skills: BTreeMap<SkillId, SkillDef>,
             hash: [u8; 32],
         }
         let snapshot = Snapshot::deserialize(deserializer)?;
-        let registry = Self::try_new(snapshot.skills)
+        let revision = match snapshot.capability_revision {
+            None => 1,
+            Some(2) => 2,
+            Some(_) => {
+                return Err(serde::de::Error::custom("noncanonical skill capability marker"))
+            },
+        };
+        let registry = Self::try_new_revision(snapshot.skills, revision)
             .map_err(|errors| serde::de::Error::custom(errors.join("; ")))?;
         if registry.hash != snapshot.hash {
             return Err(serde::de::Error::custom("skill registry hash mismatch"));
@@ -384,7 +552,20 @@ impl<'de> Deserialize<'de> for SkillRegistry {
 }
 
 pub(crate) fn validate_skill_shape(skill: &SkillDef, errors: &mut Vec<String>) {
-    validate_skill_numeric_shape(skill, errors);
+    validate_skill_shape_revision(skill, errors, false);
+}
+
+pub(crate) fn validate_skill_shape_revision(
+    skill: &SkillDef,
+    errors: &mut Vec<String>,
+    phase4: bool,
+) {
+    validate_skill_numeric_shape(skill, errors, phase4);
+    if !skill.activate_rate.valid_length(skill.max_level)
+        || (!phase4 && matches!(skill.activate_rate, RankValue::Levels(_)))
+    {
+        errors.push(format!("skill {}: invalid/versioned activation rate table", skill.id.0));
+    }
     let mut error = |message: &str| errors.push(format!("skill {}: {message}", skill.id.0));
     if skill.max_level == 0 || skill.is_magic > 4 {
         error("invalid rank count or magic classification");
@@ -495,7 +676,12 @@ pub(crate) fn validate_skill_shape(skill: &SkillDef, errors: &mut Vec<String>) {
     }
 }
 
-fn validate_skill_numeric_shape(skill: &SkillDef, errors: &mut Vec<String>) {
+fn validate_skill_numeric_shape(skill: &SkillDef, errors: &mut Vec<String>, phase4: bool) {
+    // V6 also imports blocked source modes (e.g. CallPc's -2 ranges). Retain those
+    // signed source integers as metadata; executable and historical bounds stay strict.
+    let deferred = phase4 && skill.runtime_status == RuntimeSkillStatus::Deferred;
+    let minimum_time = if deferred { i64::from(i32::MIN) } else { 0 };
+    let minimum_range = if deferred { i64::from(i32::MIN) } else { -1 };
     let mut error = |message: &str| errors.push(format!("skill {}: {message}", skill.id.0));
     if [
         &skill.hit_time_ms,
@@ -505,11 +691,11 @@ fn validate_skill_numeric_shape(skill: &SkillDef, errors: &mut Vec<String>) {
     ]
     .iter()
     .flat_map(|value| value.values())
-    .any(|value| !(0..=i64::from(i32::MAX)).contains(value))
+    .any(|value| !(minimum_time..=i64::from(i32::MAX)).contains(value))
         || [&skill.cast_range, &skill.effect_range]
             .iter()
             .flat_map(|value| value.values())
-            .any(|value| !(-1..=i64::from(i32::MAX)).contains(value))
+            .any(|value| !(minimum_range..=i64::from(i32::MAX)).contains(value))
     {
         error("source timing/range outside signed integer bounds");
     }
@@ -524,38 +710,42 @@ fn validate_skill_numeric_shape(skill: &SkillDef, errors: &mut Vec<String>) {
     }
 }
 
-fn capabilities(skill: &SkillDef) -> BTreeSet<String> {
+fn capabilities(skill: &SkillDef, phase4: bool) -> BTreeSet<String> {
     let mut missing = BTreeSet::new();
     if !["A1", "A2", "A3", "P"].contains(&skill.operate_type.as_str()) {
         missing.insert(format!("operate:{}", skill.operate_type));
     }
     for target in skill.target_type.values() {
-        if !["SELF", "TARGET", "ENEMY", "ENEMY_ONLY", "PC_BODY"].contains(&target.as_str()) {
+        if !(["SELF", "TARGET", "ENEMY", "ENEMY_ONLY", "PC_BODY"].contains(&target.as_str())
+            || (phase4 && target == "NONE" && skill.is_magic == 2 && skill.effects.is_empty()))
+        {
             missing.insert(format!("target:{target}"));
         }
     }
     for scope in skill.affect_scope.values() {
-        if !["SINGLE", "POINT_BLANK", "RANGE", "unset"].contains(&scope.as_str()) {
+        if !(["SINGLE", "POINT_BLANK", "RANGE", "unset"].contains(&scope.as_str())
+            || (phase4 && scope == "FAN"))
+        {
             missing.insert(format!("scope:{scope}"));
         }
     }
     if !["", "ALL", "NOT_FRIEND"].contains(&skill.affect_object.as_str()) {
         missing.insert(format!("scope_filter:{}", skill.affect_object));
     }
-    if !skill.item_consume.is_empty() {
+    if !phase4 && !skill.item_consume.is_empty() {
         missing.insert("item_consume".into());
     }
     for condition in &skill.conditions {
-        condition_capabilities(condition, &mut missing);
+        condition_capabilities(condition, &mut missing, phase4);
     }
     for handler in &skill.effects {
         if handler.section != "effects" {
             missing.insert(format!("section:{}", handler.section));
         }
         for condition in handler.conditions.iter().chain(&handler.section_conditions) {
-            condition_capabilities(condition, &mut missing);
+            condition_capabilities(condition, &mut missing, phase4);
         }
-        handler_capabilities(handler, &mut missing);
+        handler_capabilities(handler, &mut missing, phase4);
         for modifier in &handler.stat_children {
             for attribute in modifier.raw_attributes.keys() {
                 if !["stat", "val", "order"].contains(&attribute.as_str()) {
@@ -563,12 +753,14 @@ fn capabilities(skill: &SkillDef) -> BTreeSet<String> {
                 }
             }
             for condition in &modifier.conditions {
-                condition_capabilities(condition, &mut missing);
+                condition_capabilities(condition, &mut missing, phase4);
             }
             if !["mul", "add", "sub"].contains(&modifier.op.as_str()) {
                 missing.insert(format!("stat_op:{}", modifier.op));
             }
-            if !STATS.contains(&modifier.stat.as_str()) {
+            if !(STATS.contains(&modifier.stat.as_str())
+                || (phase4 && PHASE4_STATS.contains(&modifier.stat.as_str())))
+            {
                 missing.insert(format!("stat:{}", modifier.stat));
             }
             if modifier.value.iter().any(|v| !numeric(v)) {
@@ -579,18 +771,58 @@ fn capabilities(skill: &SkillDef) -> BTreeSet<String> {
     missing
 }
 
-fn condition_capabilities(condition: &SkillCondition, missing: &mut BTreeSet<String>) {
+fn condition_capabilities(
+    condition: &SkillCondition,
+    missing: &mut BTreeSet<String>,
+    phase4: bool,
+) {
     match condition {
+        SkillCondition::PlayerLevelRange { .. } => {
+            // D34: the rank-expanded inclusive range is executed at V6 cast start only.
+            if !phase4 {
+                missing.insert("cond:player:levelRange".into());
+            }
+        },
         SkillCondition::UsingKind { weapon_kinds } => {
             if weapon_kinds.is_empty()
-                || weapon_kinds
-                    .iter()
-                    .any(|kind| !WEAPONS.contains(&kind.as_str()))
+                || weapon_kinds.iter().any(|kind| {
+                    !(WEAPONS.contains(&kind.as_str())
+                        || (phase4
+                            && ["LIGHT", "MAGIC", "HEAVY", "SIGIL", "SHIELD"]
+                                .contains(&kind.as_str())))
+                })
             {
                 missing.insert("condition:weapon_kind".into());
             }
         },
         SkillCondition::PlayerCanResurrect { .. } => {},
+        SkillCondition::PlayerInsideZoneIds { zone_ids } => {
+            if !phase4 || zone_ids.is_empty() || zone_ids.contains(&0) {
+                missing.insert("condition:zone_ids".into());
+            }
+        },
+        SkillCondition::UsingSlot { slot } => {
+            if !phase4
+                || ![
+                    "chest", "lhand", "rhand", "lrhand", "head", "legs", "feet", "gloves",
+                ]
+                .contains(&slot.as_str())
+            {
+                missing.insert("condition:using_slot".into());
+            }
+        },
+        SkillCondition::PlayerResting { .. }
+        | SkillCondition::PlayerStanding { .. }
+        | SkillCondition::PlayerMoving { .. }
+        | SkillCondition::PlayerRunning { .. }
+        | SkillCondition::PlayerCanEscape { .. }
+        | SkillCondition::PlayerFlyMounted { .. }
+        | SkillCondition::PlayerWeight { .. }
+        | SkillCondition::PlayerInventorySize { .. } => {
+            if !phase4 {
+                missing.insert("condition:phase4".into());
+            }
+        },
         SkillCondition::And { conditions, attrs }
         | SkillCondition::Or { conditions, attrs }
         | SkillCondition::Not { conditions, attrs } => {
@@ -603,7 +835,7 @@ fn condition_capabilities(condition: &SkillCondition, missing: &mut BTreeSet<Str
                 missing.insert("condition:arity".into());
             }
             for child in conditions {
-                condition_capabilities(child, missing);
+                condition_capabilities(child, missing, phase4);
             }
         },
         SkillCondition::Unsupported { tag, attrs } => {
@@ -617,8 +849,13 @@ fn condition_capabilities(condition: &SkillCondition, missing: &mut BTreeSet<Str
     }
 }
 
-fn handler_capabilities(handler: &SkillHandler, missing: &mut BTreeSet<String>) {
+fn handler_capabilities(handler: &SkillHandler, missing: &mut BTreeSet<String>, phase4: bool) {
     let allowed: &[&str] = match handler.name.as_str() {
+        // D50: FatalBlow.java:43-46 int blowChance, executed by the V6 blow caller.
+        "FatalBlow" if phase4 => &["power", "blowChance", "criticalChance"],
+        "Lethal" if phase4 => &["fullLethal", "halfLethal"],
+        "Hp" if phase4 => &["amount", "mode"],
+        "Escape" if phase4 => &["escapeType"],
         "PhysicalAttack" => &["power", "criticalChance", "ignoreShieldDefence"],
         "MagicalAttack" | "Heal" | "HpPerMax" | "Resurrection" | "AddHate" => &["power"],
         "MagicalAttackRange" => &["power", "shieldDefensePercent"],
@@ -639,16 +876,23 @@ fn handler_capabilities(handler: &SkillHandler, missing: &mut BTreeSet<String>) 
         missing.insert(format!("param_missing:{}:ticks", handler.name));
     }
     for (key, values) in &handler.params {
-        if !allowed.contains(&key.as_str()) {
+        // TraitType.GUST uses the existing name-indexed exact trait fold; V5's
+        // admitted trait vocabulary remains unchanged.
+        if !(allowed.contains(&key.as_str())
+            || (phase4
+                && matches!(handler.name.as_str(), "DefenceTrait" | "AttackTrait")
+                && key == "GUST"))
+        {
             missing.insert(format!("param:{}:{key}", handler.name));
             continue;
         }
         for value in values.values() {
             let valid = match key.as_str() {
+                "escapeType" if phase4 => value == "TOWN",
                 "mode" | "type" => ["DIFF", "PER"].contains(&value.as_str()),
                 "ignoreShieldDefence" | "heal" => ["true", "false"].contains(&value.as_str()),
                 "slot" => ["ALL", "BUFF", "DEBUFF"].contains(&value.as_str()),
-                "criticalChance" | "max" | "rate" => value.parse::<i32>().is_ok(),
+                "criticalChance" | "blowChance" | "max" | "rate" => value.parse::<i32>().is_ok(),
                 "ticks" => value
                     .parse::<u32>()
                     .is_ok_and(|v| periodic_interval(v, 666).is_ok()),
@@ -773,4 +1017,31 @@ const TRAITS: &[&str] = &[
     "BUG_WEAKNESS",
     "DRAGON_WEAKNESS",
     "ANIMAL_WEAKNESS",
+];
+
+const PHASE4_STATS: &[&str] = &[
+    "sDef",
+    "rShld",
+    "shieldDefAngle",
+    "blowRate",
+    "weightLimit",
+    "weightPenalty",
+    "atkCountMax",
+    "pAtkAngle",
+    "pAtkRange",
+    "STR",
+    "DEX",
+    "CON",
+    "INT",
+    "MEN",
+    "WIT",
+    "mCritRate",
+    "physicalSkillPower",
+    "mpConsume",
+    // D34: executed at every implemented PvP caller (auto, PhysicalAttack, MagicalAttack,
+    // FatalBlow); D47: abnormal-slot capacity folded at live admission.
+    "pvpPhysDmg",
+    "pvpPhysSkillsDmg",
+    "pvpMagicalDmg",
+    "enlargeAbnormalSlot",
 ];

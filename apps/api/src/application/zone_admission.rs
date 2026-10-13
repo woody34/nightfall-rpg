@@ -1,4 +1,4 @@
-//! Deterministic, pre-draft V5 record admission. The codec supplies all byte arithmetic.
+//! Deterministic, pre-draft V5/V6 record admission. The codec supplies all byte arithmetic.
 
 use std::collections::BTreeSet;
 
@@ -10,7 +10,7 @@ use super::replay_log::{
 };
 use crate::domain::zone::{CommandSource, EntityId, SessionGeneration, ZoneCommand, ZoneInput};
 
-/// Checked platform representation of the V5 policy recorded in epoch metadata.
+/// Checked platform representation of the policy recorded in epoch metadata.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RecordAdmissionPolicy {
     /// Version of this byte-admission algorithm.
@@ -54,7 +54,10 @@ impl TryFrom<crate::domain::zone::Phase3AdmissionPolicy> for RecordAdmissionPoli
 impl RecordAdmissionPolicy {
     /// Refuse an epoch that cannot fit one maximum legal input with the full reserve.
     pub fn validate(self, gate_ceiling: usize) -> Result<(), AdmissionSizingError> {
-        if self.version != 1 || self.max_command_bytes > 262_144 || self.max_observers == 0 {
+        if !matches!(self.version, 1 | 2)
+            || self.max_command_bytes > 262_144
+            || self.max_observers == 0
+        {
             return Err(AdmissionSizingError::InvalidBudget);
         }
         validate_record_budget(
@@ -80,6 +83,41 @@ impl RecordAdmissionPolicy {
         recipients <= self.max_observers
             && digest_record_upper_bound(sizes, recipients)
                 .is_ok_and(|bytes| bytes <= self.record_budget)
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::expect_used)]
+mod policy_tests {
+    #[test]
+    fn v6_policy_retains_exact_byte_ceiling_proof_and_refuses_unknown_versions() {
+        use super::*;
+        let original = RecordAdmissionPolicy::default();
+        let v6 = RecordAdmissionPolicy::try_from(
+            crate::domain::zone::Phase3AdmissionPolicy::version_two(),
+        )
+        .expect("recorded V6 policy");
+        assert_eq!(
+            v6,
+            RecordAdmissionPolicy {
+                version: 2,
+                ..original
+            }
+        );
+        assert!(original.validate(1_044_480).is_ok());
+        assert!(v6.validate(1_044_480).is_ok());
+        assert!(v6.validate(1_044_479).is_err());
+        assert!(RecordAdmissionPolicy {
+            max_command_bytes: 262_145,
+            ..v6
+        }
+        .validate(1_044_480)
+        .is_err());
+        for version in [0, 3, u32::MAX] {
+            assert!(RecordAdmissionPolicy { version, ..v6 }
+                .validate(1_044_480)
+                .is_err());
+        }
     }
 }
 
@@ -127,6 +165,9 @@ pub(super) fn reserve_recipients(recipients: &mut BTreeSet<EntityId>, input: &Zo
         | ZoneCommand::CancelCast { .. }
         | ZoneCommand::AcceptResurrect { .. }
         | ZoneCommand::LearnSkill { .. }
+        | ZoneCommand::MaterializePendingItems(_)
+        | ZoneCommand::ExtendItemRange { .. }
+        | ZoneCommand::Item(_)
         | ZoneCommand::ChangeClass { .. }
         | ZoneCommand::SpawnNpc { .. }
         | ZoneCommand::Despawn { .. }
@@ -154,6 +195,9 @@ pub(super) fn failure(
             | ZoneCommand::CancelCast { .. }
             | ZoneCommand::AcceptResurrect { .. }
             | ZoneCommand::LearnSkill { .. }
+            | ZoneCommand::MaterializePendingItems(_)
+            | ZoneCommand::ExtendItemRange { .. }
+            | ZoneCommand::Item(_)
             | ZoneCommand::ChangeClass { .. }
             | ZoneCommand::SpawnNpc { .. }
             | ZoneCommand::Despawn { .. }

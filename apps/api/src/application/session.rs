@@ -34,6 +34,9 @@
 //!   the zone refuses it if a newer session owns the entity, so a stale socket can never remove
 //!   its replacement.
 
+#[path = "session_item_grants.rs"]
+mod item_grants;
+
 use std::collections::BTreeMap;
 use std::future::Future;
 use std::sync::Arc;
@@ -382,12 +385,14 @@ impl SessionRegistry {
                 .await
                 .map_err(|_| AdmitError::LoadFailed)?
                 .ok_or(AdmitError::LoadFailed)?;
-            if loaded.phase3.is_some() && !zone.phase3_enabled() {
+            // Remove this rollout fence when the V6 command codec carries the canonical load.
+            if loaded.phase4.is_some() || (loaded.phase3.is_some() && !zone.phase3_enabled()) {
                 return Err(AdmitError::LoadFailed);
             }
             loaded.name.as_str().clone_into(&mut spawn.name);
             spawn.pos = saved_position(loaded.position).ok_or(AdmitError::LoadFailed)?;
             spawn.load = Some(Box::new(PlayerLoad {
+                phase4: None,
                 phase3: loaded.phase3,
                 progression: zone.has_classes().then(|| {
                     Box::new(crate::domain::zone::PlayerProgression {
@@ -914,6 +919,9 @@ impl<'a> Actor<'a> {
                     | ZoneCommand::CancelCast { .. }
                     | ZoneCommand::AcceptResurrect { .. }
                     | ZoneCommand::LearnSkill { .. }
+                    | ZoneCommand::MaterializePendingItems(_)
+                    | ZoneCommand::ExtendItemRange { .. }
+                    | ZoneCommand::Item(_)
                     | ZoneCommand::ChangeClass { .. }
                     | ZoneCommand::SpawnNpc { .. }
                     | ZoneCommand::Despawn { .. }
@@ -1254,5 +1262,29 @@ impl super::ports::LearnReceiptRepository for SessionContext {
             .ok_or_else(|| anyhow::anyhow!("learning persistence unavailable"))?;
         let service = lane.lock().await;
         service.learn_receipt_lookup(caller, key, fingerprint).await
+    }
+}
+
+#[async_trait::async_trait]
+impl super::ports::ItemInventoryRuntime for SessionContext {
+    async fn detached_inventory(
+        &self,
+        character: crate::domain::CharacterId,
+        repository: &dyn super::ports::ItemInventoryRepository,
+    ) -> Result<Option<super::ports::RetainedInventory>, super::AppError> {
+        let live = self.registry.live.lock().await;
+        self.zone
+            .snapshot()
+            .await
+            .map_err(|_| super::AppError::Unavailable("inventory zone is unavailable".into()))?;
+        super::use_cases::get_inventory::require_out_of_world(
+            true,
+            true,
+            live.contains_key(&EntityId::from_uuid(character.as_uuid())),
+        )?;
+        // Keep admission and final-save/departure behind this parent-locked retained read.
+        let result = repository.retained_inventory(character).await?;
+        drop(live);
+        Ok(result)
     }
 }

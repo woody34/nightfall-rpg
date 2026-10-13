@@ -101,7 +101,8 @@ class RevisionSourceTests(unittest.TestCase):
         before=oracle.gear_stats(proxy,self.human,1,[(1,0,'rhand',1)],[(8498,1,2)],{'str':2},base_delta_sequence=1)
         after=oracle.gear_stats(proxy,self.human,1,[(1,0,'rhand',1)],[(8498,1,2)],{'str':2},base_delta_sequence=3)
         self.assertEqual((before['base_stats']['STR'],after['base_stats']['STR']),(40,42))
-        with self.assertRaises(ValueError):oracle.gear_stats(self.src,self.human,1,[(8205,0,'rhand',1)])
+        # D97: an NPC-flagged template (8205) is ordinary equipment for the stat fold.
+        oracle.gear_stats(self.src,self.human,1,[(8205,0,'rhand',1)])
         stat.set('stat','unknown_stat')
         with self.assertRaisesRegex(ValueError,'unsupported oracle stat'):oracle.gear_stats(proxy,self.human,1,[],[(8498,1,2)])
         stat.set('stat','STR');stat.append(ET.fromstring('<player castle="1"/>'))

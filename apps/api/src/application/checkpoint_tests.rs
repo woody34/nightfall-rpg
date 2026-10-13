@@ -8,7 +8,7 @@ use crate::application::ports::{CheckpointError, RepositoryError};
 use crate::application::{CreateOutcome, ProgressionState};
 use crate::domain::zone::{
     DeathFact, PlayerLoad, SessionGeneration, Speed, Vec2Fixed, ZoneBounds, ZoneEvent, ZoneInput,
-    ZoneSeed,
+    ZoneSeed, ZoneState,
 };
 use crate::domain::{AccountId, Character, CharacterName, Race};
 use crate::infrastructure::memory::{
@@ -61,6 +61,7 @@ impl Harness {
                 speed: Speed::DEFAULT,
                 generation: SessionGeneration(1),
                 load: Some(Box::new(PlayerLoad {
+                    phase4: None,
                     phase3: None,
                     checkpoint_revision: Some(0),
                     ..PlayerLoad::fresh("human_fighter")
@@ -302,6 +303,14 @@ fn multiple_levels_and_death_keep_stable_ids_order_and_penalty() {
         .map(|e| match e {
             DomainEvent::CharacterLeveled { metadata, .. }
             | DomainEvent::CharacterDied { metadata, .. } => metadata,
+            DomainEvent::ItemGranted { fact }
+            | DomainEvent::ItemEquipped { fact }
+            | DomainEvent::ItemUnequipped { fact }
+            | DomainEvent::ItemConsumed { fact }
+            | DomainEvent::ItemEnchanted { fact }
+            | DomainEvent::ItemDestroyed { fact }
+            | DomainEvent::ItemRefined { fact }
+            | DomainEvent::ItemExchanged { fact } => &fact.metadata,
             DomainEvent::CharacterCreated { .. }
             | DomainEvent::CharacterClassChanged { .. }
             | DomainEvent::CharacterTokenGranted { .. }

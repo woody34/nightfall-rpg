@@ -23,6 +23,8 @@
 mod coverage;
 #[path = "replay/evidence.rs"]
 mod evidence;
+#[path = "replay/items_evidence.rs"]
+mod items_evidence;
 #[path = "replay/trace.rs"]
 mod trace;
 
@@ -43,7 +45,7 @@ const USAGE: &str = "usage:
   nightfall-replay [verify] --zone ID (--epoch N | --latest) [--session ENTITY] [--out DIR] [--nats URL]
   nightfall-replay [verify] --source file --file PATH [--session ENTITY] [--out DIR]
   nightfall-replay export --zone ID (--epoch N | --latest) [--live] [--session ENTITY] --out FILE [--evidence-out FILE] [--nats URL]
-  nightfall-replay export --file PATH --evidence-out FILE
+  nightfall-replay export --file PATH (--evidence-out FILE | --items-evidence-out FILE)
   nightfall-replay check --file PATH [--session ENTITY] [--out DIR]
   nightfall-replay coverage --file PATH [--out coverage.transitions.json]
   nightfall-replay trace --file PATH [--session ENTITY] [--fail-tick N] --out trace.html
@@ -82,6 +84,7 @@ struct Args {
     nats: String,
     fail_tick: Option<u64>,
     evidence_out: Option<PathBuf>,
+    items_evidence_out: Option<PathBuf>,
 }
 
 fn parse_args(args: impl IntoIterator<Item = String>) -> anyhow::Result<Args> {
@@ -109,6 +112,7 @@ fn parse_args(args: impl IntoIterator<Item = String>) -> anyhow::Result<Args> {
         command,
         fail_tick: None,
         evidence_out: None,
+        items_evidence_out: None,
         source: Source::JetStream,
         zone: None,
         epoch: None,
@@ -143,6 +147,7 @@ fn parse_args(args: impl IntoIterator<Item = String>) -> anyhow::Result<Args> {
             },
             "--file" => a.file = Some(value.into()),
             "--evidence-out" => a.evidence_out = Some(value.into()),
+            "--items-evidence-out" => a.items_evidence_out = Some(value.into()),
             "--out" => a.out = Some(value.into()),
             "--nats" => a.nats = value,
             other => bail!("unknown flag {other}"),
@@ -166,18 +171,21 @@ fn parse_args(args: impl IntoIterator<Item = String>) -> anyhow::Result<Args> {
     if a.command == Command::Trace && (a.file.is_none() || a.out.is_none()) {
         bail!("trace requires --file PATH and --out FILE");
     }
-    if a.evidence_out.is_some() && a.command != Command::Export {
+    if a.evidence_out.is_some() && a.items_evidence_out.is_some() {
+        bail!("choose one evidence format per export");
+    }
+    let evidence_path = a.evidence_out.as_ref().or(a.items_evidence_out.as_ref());
+    if evidence_path.is_some() && a.command != Command::Export {
         bail!("--evidence-out is only valid for export");
     }
-    if a.evidence_out
-        .as_ref()
+    if evidence_path
         .is_some_and(|path| Some(path) == a.out.as_ref() || Some(path) == a.file.as_ref())
     {
         bail!("evidence destination must differ from recording paths");
     }
     match (a.command, a.source) {
-        (Command::Export, Source::File) if a.evidence_out.is_none() => {
-            bail!("file export requires --evidence-out FILE");
+        (Command::Export, Source::File) if evidence_path.is_none() => {
+            bail!("file export requires --evidence-out FILE or --items-evidence-out FILE");
         },
         (Command::Export, Source::JetStream) if a.out.is_none() => bail!("export needs --out FILE"),
         (_, Source::File) if a.file.is_none() => bail!("--source file needs --file PATH"),
@@ -313,7 +321,7 @@ async fn verify(a: &Args) -> anyhow::Result<u8> {
 }
 
 async fn export(a: &Args) -> anyhow::Result<u8> {
-    if let Some(path) = &a.evidence_out {
+    if let Some(path) = a.evidence_out.as_ref().or(a.items_evidence_out.as_ref()) {
         if path.exists() {
             bail!("evidence destination must be fresh: {}", path.display());
         }
@@ -360,6 +368,11 @@ async fn export(a: &Args) -> anyhow::Result<u8> {
         .as_ref()
         .map(|_| evidence::collect(&rec, &bytes))
         .transpose()?;
+    let item_evidence = a
+        .items_evidence_out
+        .as_ref()
+        .map(|_| items_evidence::collect(&rec, &bytes))
+        .transpose()?;
     if let Some(out) = &a.out {
         std::fs::write(out, &bytes)?;
         println!(
@@ -373,6 +386,10 @@ async fn export(a: &Args) -> anyhow::Result<u8> {
     if let (Some(path), Some(bytes)) = (&a.evidence_out, evidence) {
         evidence::write(path, &bytes)?;
         println!("verified evidence written to {}", path.display());
+    }
+    if let (Some(path), Some(bytes)) = (&a.items_evidence_out, item_evidence) {
+        evidence::write(path, &bytes)?;
+        println!("verified item evidence written to {}", path.display());
     }
     Ok(MATCH)
 }

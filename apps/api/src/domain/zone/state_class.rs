@@ -110,7 +110,9 @@ impl ZoneState {
     ) {
         if !matches!(
             self.meta.digest_version,
-            StateDigestVersion::BinaryV4 | StateDigestVersion::BinaryV5
+            StateDigestVersion::BinaryV4
+                | StateDigestVersion::BinaryV5
+                | StateDigestVersion::BinaryV6
         ) {
             return;
         }
@@ -138,11 +140,15 @@ impl ZoneState {
         // The entire ledger was validated at admission/restore and every mutation preserves
         // it. Validation here fails closed by retaining an unchanged ledger.
         let adjustment = if phase3 {
+            let Some(skill_rules) = self.phase3.as_ref().map(|phase| &phase.canonical.rules) else {
+                return;
+            };
             if p.class_state
-                .validate_for_phase3(
+                .validate_for_skill_rules(
                     registry,
                     &p.identity,
                     CharacterId::from_uuid(entity.as_uuid()),
+                    skill_rules,
                 )
                 .is_err()
             {
@@ -205,10 +211,16 @@ impl ZoneState {
             (None, None) => {},
             (Some(registry), Some(p)) => {
                 if self.phase3_enabled() {
-                    p.class_state.validate_for_phase3(
+                    p.class_state.validate_for_skill_rules(
                         registry,
                         &p.identity,
                         CharacterId::from_uuid(entity.as_uuid()),
+                        &self
+                            .phase3
+                            .as_ref()
+                            .ok_or(RejectReason::InvalidLoad)?
+                            .canonical
+                            .rules,
                     )
                 } else {
                     p.class_state.validate_for(
@@ -232,7 +244,15 @@ impl ZoneState {
                 if !self.phase3_enabled() {
                     p.class_state.cp = p.class_state.cp.min(max_cp);
                 }
-                combat.hp = if self.phase3_enabled() && load.alive {
+                combat.hp = if self.phase4.is_some()
+                    && load.alive
+                    && load
+                        .phase3
+                        .as_ref()
+                        .is_some_and(|checkpoint| checkpoint.resource_fractions.hp > 0)
+                {
+                    load.hp.unwrap_or(sheet.max_hp())
+                } else if self.phase3_enabled() && load.alive {
                     load.hp.unwrap_or(sheet.max_hp()).max(1)
                 } else if load.alive {
                     load.hp.unwrap_or(sheet.max_hp()).clamp(1, sheet.max_hp())
@@ -304,7 +324,7 @@ impl ZoneState {
         let Some(class) = registry.get(target) else {
             return vec![RejectReason::TransferIneligible];
         };
-        if e.targeting.dead || c.hp == 0 {
+        if e.targeting.dead {
             unmet.push(RejectReason::DeadActor);
         }
         if !(1..=2).contains(&class.tier)
@@ -578,10 +598,16 @@ impl ZoneState {
             .record_success(receipt.clone())
             .map_err(|_| RejectReason::TransferConflict)?;
         if self.complete_runtime_v5() {
-            p.class_state.validate_for_phase3(
+            p.class_state.validate_for_skill_rules(
                 registry,
                 &p.identity,
                 CharacterId::from_uuid(entity.as_uuid()),
+                &self
+                    .phase3
+                    .as_ref()
+                    .ok_or(RejectReason::InvalidLoad)?
+                    .canonical
+                    .rules,
             )
         } else {
             p.class_state.validate_for(
@@ -683,6 +709,7 @@ mod tests {
             max_cp: 0,
         };
         let load = PlayerLoad {
+            phase4: None,
             phase3: None,
             progression: Some(Box::new(progression)),
             level,
@@ -1309,6 +1336,7 @@ mod tests {
                 speed: Speed::DEFAULT,
                 generation: SessionGeneration(1),
                 load: Some(Box::new(PlayerLoad {
+                    phase4: None,
                     phase3: None,
                     progression: Some(Box::new(PlayerProgression {
                         identity: identity.clone(),
@@ -1371,6 +1399,7 @@ mod tests {
             assert_eq!(encode_snapshot(&decode_snapshot(&encoded).unwrap()).unwrap(), encoded);
             let mut replay = ZoneState::from_snapshot(decode_snapshot(&encoded).unwrap()).unwrap();
             let load = PlayerLoad {
+                phase4: None,
                 phase3: None,
                 progression: Some(Box::new(PlayerProgression {
                     identity: p.identity.clone(),

@@ -52,6 +52,10 @@ pub struct GameServiceImpl {
     change_class: ChangeClass,
     transfer_options: TransferOptions,
     phase3: Option<Phase3UseCases>,
+    get_item_catalog: crate::application::use_cases::GetItemCatalog,
+    get_inventory: Option<crate::application::use_cases::GetInventory>,
+    dev_item_grants: bool,
+    grant_item: Option<crate::application::use_cases::GrantItem>,
 }
 
 /// Phase 3 use cases shared by live composition and transport tests.
@@ -88,6 +92,10 @@ impl GameServiceImpl {
             change_class,
             transfer_options,
             phase3: None,
+            get_item_catalog: crate::application::use_cases::GetItemCatalog::new(None),
+            get_inventory: None,
+            dev_item_grants: false,
+            grant_item: None,
         }
     }
 
@@ -95,6 +103,40 @@ impl GameServiceImpl {
     #[must_use]
     pub fn with_phase3(mut self, use_cases: Phase3UseCases) -> Self {
         self.phase3 = Some(use_cases);
+        self
+    }
+
+    /// Installs a startup-validated catalogue without enabling live item mutations.
+    #[must_use]
+    pub fn with_item_catalogue(
+        mut self,
+        use_case: crate::application::use_cases::GetItemCatalog,
+    ) -> Self {
+        self.get_item_catalog = use_case;
+        self
+    }
+
+    /// Installs retained reads through the same lifecycle barrier used by live sessions.
+    #[must_use]
+    pub fn with_get_inventory(
+        mut self,
+        use_case: crate::application::use_cases::GetInventory,
+    ) -> Self {
+        self.get_inventory = Some(use_case);
+        self
+    }
+
+    /// Installs the typed authenticated actor materialization use case.
+    #[must_use]
+    pub fn with_grant_item(mut self, use_case: crate::application::use_cases::GrantItem) -> Self {
+        self.grant_item = Some(use_case);
+        self
+    }
+
+    /// Shares the exact startup auth setting; a missing grant runtime still fails closed.
+    #[must_use]
+    pub fn with_dev_item_grants(mut self, enabled: bool) -> Self {
+        self.dev_item_grants = enabled;
         self
     }
 
@@ -112,25 +154,50 @@ impl GameService for GameServiceImpl {
         req: Request<pb::GetItemCatalogRequest>,
     ) -> Result<Response<pb::GetItemCatalogResponse>, Status> {
         auth::caller(&req)?;
-        Err(to_status(AppError::Unavailable("item catalogue is not yet available".into())))
+        let rules = self.get_item_catalog.execute().map_err(to_status)?;
+        let response = mapping::item_catalogue_to_pb(&rules).map_err(to_status)?;
+        Ok(Response::new(response))
     }
 
     async fn get_inventory(
         &self,
         req: Request<pb::GetInventoryRequest>,
     ) -> Result<Response<pb::GetInventoryResponse>, Status> {
-        auth::caller(&req)?;
-        crate::application::use_cases::get_inventory::require_out_of_world(false, false, false)
+        let caller = auth::caller(&req)?;
+        let use_case = self.get_inventory.as_ref().ok_or_else(|| {
+            to_status(AppError::Unavailable("inventory zone is unavailable".into()))
+        })?;
+        let result = use_case
+            .execute(caller, &req.get_ref().character_id)
+            .await
             .map_err(to_status)?;
-        Err(to_status(AppError::Unavailable("item runtime is not yet available".into())))
+        Ok(Response::new(pb::GetInventoryResponse {
+            inventory: Some(mapping::detached_inventory_to_pb(&result).map_err(to_status)?),
+        }))
     }
 
     async fn grant_item(
         &self,
         req: Request<pb::GrantItemRequest>,
     ) -> Result<Response<pb::GrantItemResponse>, Status> {
-        auth::caller(&req)?;
-        Err(to_status(AppError::Unavailable("item runtime is not yet available".into())))
+        let caller = auth::caller(&req)?;
+        crate::application::use_cases::grant_item::require_dev_grants(self.dev_item_grants)
+            .map_err(to_status)?;
+        let use_case = self.grant_item.as_ref().ok_or_else(|| {
+            to_status(AppError::Unavailable("item runtime is unavailable".into()))
+        })?;
+        let body = req.into_inner();
+        let receipt = use_case
+            .execute(crate::application::use_cases::GrantItemInput {
+                caller,
+                character_id: body.character_id,
+                template_id: body.template_id,
+                count: body.count,
+                idempotency_key: body.idempotency_key,
+            })
+            .await
+            .map_err(to_status)?;
+        Ok(Response::new(mapping::grant_receipt_to_pb(&receipt).map_err(to_status)?))
     }
 
     async fn list_learnable_skills(
@@ -347,9 +414,9 @@ impl Phase3UseCases {
             .as_ref()
             .ok_or_else(|| anyhow::anyhow!("class registry missing"))?;
         let catalogue = Arc::new(
-            crate::application::use_cases::get_skill_catalog::RegistrySkillCatalogue::new(
+            crate::application::use_cases::get_skill_catalog::RegistrySkillCatalogue::for_rules(
                 classes,
-                phase.rules.skills(),
+                &phase.rules,
             )?,
         );
         Ok(Self {

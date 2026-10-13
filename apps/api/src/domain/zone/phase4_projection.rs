@@ -1,0 +1,1528 @@
+//! Private durable item facts. These are settlement/audit inputs, never client authority.
+use super::{EntityId, ItemError, ItemInstance, ItemInstanceId, Phase4Checkpoint, Tick};
+use serde::{Deserialize, Serialize};
+use std::collections::{BTreeMap, BTreeSet};
+
+/// Shared logical operations. Consume is automatic; toggle has no per-instance ledger row.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+#[allow(missing_docs)]
+pub enum ItemOperation {
+    Grant,
+    Starter,
+    Backfill,
+    Equip,
+    Unequip,
+    Consume,
+    Enchant,
+    Destroy,
+    Crystallize,
+    Refine,
+    CancelRefine,
+    Exchange,
+    Use,
+    ToggleAutoShot,
+}
+
+/// Account is supplied by the enclosing projection; the request operation may differ
+/// from a ledger operation (for example, Use pays a Consume or Equip removes a slot).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(missing_docs)]
+pub struct ItemReceiptRef {
+    pub operation: ItemOperation,
+    pub key: uuid::Uuid,
+}
+impl ItemReceiptRef {
+    /// Automatic consumption is never an independently idempotent request.
+    pub fn validate(self) -> Result<(), ItemError> {
+        if self.key.is_nil() || self.operation == ItemOperation::Consume {
+            return Err(ItemError("invalid item receipt scope"));
+        }
+        Ok(())
+    }
+}
+
+/// Exact audit values cannot deserialize a fractional numeric literal into domain state.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(
+    tag = "kind",
+    content = "value",
+    rename_all = "snake_case",
+    deny_unknown_fields
+)]
+#[allow(missing_docs)]
+pub enum ItemEvidenceValue {
+    Signed(i64),
+    Unsigned(u64),
+    Ratio(super::effects::FrozenRatio),
+    Boolean(bool),
+    Text(String),
+    Values(Vec<ItemEvidenceValue>),
+}
+/// Named formula/draw/cause facts preserve exact inputs and evaluation order.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(missing_docs)]
+pub struct ItemAuditEvidence {
+    pub family: String,
+    pub fields: BTreeMap<String, ItemEvidenceValue>,
+}
+impl ItemAuditEvidence {
+    /// Payment families with an owner receipt; learned casts have no item intent receipt.
+    pub fn contributing_receipt(&self) -> Result<Option<ItemReceiptRef>, ItemError> {
+        let operation = match self.family.as_str() {
+            "enchant_payment" => ItemOperation::Enchant,
+            "exchange_payment" => ItemOperation::Exchange,
+            "refine_payment" => ItemOperation::Refine,
+            "cancel_refine_payment" => ItemOperation::CancelRefine,
+            "item_cast_payment" | "manual_shot_payment" => ItemOperation::Use,
+            "toggle_shot_payment" => ItemOperation::ToggleAutoShot,
+            _ => return Ok(None),
+        };
+        let Some(ItemEvidenceValue::Text(key)) = self.fields.get("receipt") else {
+            return Err(ItemError("payment cause lacks its receipt"));
+        };
+        let receipt = ItemReceiptRef {
+            operation,
+            key: key
+                .parse()
+                .map_err(|_| ItemError("invalid payment receipt"))?,
+        };
+        receipt.validate()?;
+        Ok(Some(receipt))
+    }
+}
+
+/// One real instance change; aggregate consumption carries explicit net count and ordered
+/// causes, even when another logical mutation intervened between two consumptions.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(missing_docs)]
+pub struct ItemDeltaPlan {
+    pub operation: ItemOperation,
+    pub operation_ordinal: u32,
+    pub instance: ItemInstanceId,
+    pub before: Option<ItemInstance>,
+    pub after: Option<ItemInstance>,
+    pub count_delta: i64,
+    pub receipt: Option<ItemReceiptRef>,
+    /// D57 first-contribution order for a physical per-instance Consume aggregate.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub receipt_refs: Vec<ItemReceiptRef>,
+    pub causes: Vec<ItemAuditEvidence>,
+}
+impl ItemDeltaPlan {
+    /// The top-level event template follows the resulting scalar, or the consumed scalar.
+    pub fn template(&self) -> Result<u32, ItemError> {
+        self.after
+            .as_ref()
+            .or(self.before.as_ref())
+            .map(|i| i.template_id)
+            .ok_or(ItemError("item delta has no state"))
+    }
+    /// Projection validation does not rerun gameplay; it rejects impossible audit identity.
+    pub fn validate(&self, revision: u64) -> Result<(), ItemError> {
+        if let Some(receipt) = self.receipt {
+            receipt.validate()?;
+        }
+        let mut references = BTreeSet::new();
+        for receipt in &self.receipt_refs {
+            receipt.validate()?;
+            if self.operation != ItemOperation::Consume || !references.insert(*receipt) {
+                return Err(ItemError("invalid aggregate receipt references"));
+            }
+        }
+        if self.operation == ItemOperation::ToggleAutoShot
+            || (self.before.is_none() && self.after.is_none())
+            || (self.before == self.after && self.count_delta == 0)
+        {
+            return Err(ItemError("item ledger requires a real instance change"));
+        }
+        for item in self.before.iter().chain(self.after.iter()) {
+            item.validate()?;
+            if item.id != self.instance || item.revision > revision {
+                return Err(ItemError("item delta identity/revision mismatch"));
+            }
+        }
+        let before_count = self.before.as_ref().map_or(0, |item| item.count);
+        let after_count = self.after.as_ref().map_or(0, |item| item.count);
+        let difference = i128::from(after_count)
+            .checked_sub(i128::from(before_count))
+            .ok_or(ItemError("item count delta overflow"))?;
+        if self.operation == ItemOperation::Consume {
+            if self.count_delta > 0 || self.causes.is_empty() {
+                return Err(ItemError("consume aggregate lacks ordered causes"));
+            }
+            let mut expected = Vec::new();
+            for cause in &self.causes {
+                if let Some(receipt) = cause.contributing_receipt()? {
+                    if !expected.contains(&receipt) {
+                        expected.push(receipt);
+                    }
+                }
+            }
+            let legacy_single =
+                self.receipt_refs.is_empty() && expected.as_slice() == self.receipt.as_slice();
+            if (!legacy_single && self.receipt_refs != expected)
+                || self
+                    .receipt
+                    .is_some_and(|receipt| !expected.is_empty() && expected.as_slice() != [receipt])
+            {
+                return Err(ItemError("consume aggregate receipt order differs from causes"));
+            }
+        } else if difference != i128::from(self.count_delta) {
+            return Err(ItemError("item count delta mismatch"));
+        }
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+#[allow(missing_docs)]
+pub enum ItemEnchantOutcome {
+    Success,
+    SafeFailed,
+    BlessedReset,
+    Destroyed,
+    SuccessNoIncrement,
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+#[allow(missing_docs)]
+pub enum ItemRefineOutcome {
+    Applied,
+    Removed,
+}
+
+/// Frozen refund identities/counts survive merging into an existing stack.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(missing_docs)]
+pub struct ItemRefund {
+    pub instance: ItemInstanceId,
+    pub template: u32,
+    pub count: u64,
+}
+
+/// Exact owner result; the API maps these to the pinned result messages and freezes bytes.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+#[allow(missing_docs)]
+pub enum ItemResultDetail {
+    Operation {
+        operation: ItemOperation,
+        affected: Vec<ItemInstanceId>,
+        recipe: Option<u64>,
+    },
+    Enchant {
+        target: ItemInstanceId,
+        old_enchant: u32,
+        new_enchant: u32,
+        outcome: ItemEnchantOutcome,
+        refunds: Vec<ItemRefund>,
+        announcement_tier: u32,
+    },
+    Refine {
+        target: ItemInstanceId,
+        augment: Option<u32>,
+        outcome: ItemRefineOutcome,
+    },
+}
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(missing_docs)]
+pub struct FrozenItemResult {
+    pub entity: EntityId,
+    pub incarnation: u32,
+    pub tick: Tick,
+    pub inventory_revision: u64,
+    pub receipt: uuid::Uuid,
+    /// Exact committed request identity, retained in Known payloads (D53).
+    pub request_fingerprint: String,
+    /// Original owner-intent sequence when supplied; RPC/system origins have none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub accepted_sequence: Option<u32>,
+    pub detail: ItemResultDetail,
+}
+
+/// Account-scoped request settlement. Pending starter/backfill fingerprints retain the
+/// exact admitted repository string; normalized WS commands use their canonical body hash.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(missing_docs)]
+pub struct ItemReceiptFact {
+    pub request_id: uuid::Uuid,
+    pub fingerprint: String,
+    #[serde(with = "result_payload")]
+    pub result: FrozenItemResult,
+}
+impl ItemReceiptFact {
+    /// Scope is derived from the frozen typed outcome, never the last ledger operation.
+    #[must_use]
+    pub const fn reference(&self) -> ItemReceiptRef {
+        ItemReceiptRef {
+            operation: self.result.operation(),
+            key: self.request_id,
+        }
+    }
+}
+
+/// Pending input completion is in the same transaction as ownership and the frozen result.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(missing_docs)]
+pub struct ItemMaterializationFact {
+    pub request_id: uuid::Uuid,
+    pub manifest_version: u32,
+    pub manifest_hash: [u8; 32],
+    pub inventory_revision: u64,
+    pub receipt: ItemReceiptRef,
+}
+
+/// Private `PbOutput40` payload. The actor supplies the ordinary character checkpoint at
+/// this same boundary and commits scalars/items/ledger/receipts/outbox under one revision.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(missing_docs)]
+pub struct Phase4Projection {
+    /// Resolution-time receipt-bound exchange plans, before tick consumption aggregation.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub exchanges: Vec<super::ExchangeAudit>,
+    /// Resolution-time Refine/CancelRefine audits in operation order (draws, fee, target).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub refines: Vec<super::RefineAudit>,
+    /// Every accepted attempt, including unchanged safe/bonus-only outcomes, in operation order.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub enchant_attempts: Vec<super::EnchantAttempt>,
+    /// Complete final paused owner for direct offline settlement; absent for live owners.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub paused_core: Option<Box<super::ItemPausedCore>>,
+    pub tick: Tick,
+    pub entity: EntityId,
+    pub account: crate::domain::AccountId,
+    pub checkpoint: Phase4Checkpoint,
+    pub ledger: Vec<ItemDeltaPlan>,
+    pub receipts: Vec<ItemReceiptFact>,
+    pub materializations: Vec<ItemMaterializationFact>,
+    pub evidence: Vec<ItemAuditEvidence>,
+}
+impl Phase4Projection {
+    /// Logical rows share one tick-local ordinal space with receipt-free charge changes.
+    pub(crate) fn next_operation_ordinal(&self) -> Result<u32, ItemError> {
+        let receipts = u32::try_from(self.receipts.len())
+            .map_err(|_| ItemError("item operation ordinal overflow"))?;
+        self.ledger
+            .iter()
+            .map(|row| row.operation_ordinal)
+            .max()
+            .unwrap_or(0)
+            .max(receipts)
+            .checked_add(1)
+            .ok_or(ItemError("item operation ordinal overflow"))
+    }
+    /// D66 canonical per-instance order at the end of the tick: every other row (positive
+    /// rows in cause order) first, rebased onto the tick-start state, then the single Consume
+    /// aggregate last at a strictly greater ordinal, before = the post-positive state and
+    /// after = the tick-end checkpoint state. Only endpoints and net deltas are canonical (A3);
+    /// counts are rebased, never invented. D94: a terminal row (`after = None`: Destroy,
+    /// Crystallize or a whole transfer-out) stays the instance's final row, observed
+    /// unchanged, with the Consume aggregate immediately before it ending at its `before`.
+    pub fn normalize_d66(&mut self) -> Result<(), ItemError> {
+        let consumed: Vec<ItemInstanceId> = self
+            .ledger
+            .iter()
+            .filter(|row| row.operation == ItemOperation::Consume)
+            .map(|row| row.instance)
+            .collect();
+        for id in consumed {
+            let others: Vec<usize> = (0..self.ledger.len())
+                .filter(|index| {
+                    self.ledger.get(*index).is_some_and(|row| {
+                        row.instance == id && row.operation != ItemOperation::Consume
+                    })
+                })
+                .collect();
+            // D94: at most one terminal row, and it is the instance's last observed row.
+            let terminals: Vec<usize> = others
+                .iter()
+                .copied()
+                .filter(|index| {
+                    self.ledger
+                        .get(*index)
+                        .is_none_or(|row| row.after.is_none())
+                })
+                .collect();
+            let terminal_index = match terminals.as_slice() {
+                [] => None,
+                [index] if others.last() == Some(index) => Some(*index),
+                _ => return Err(ItemError("D94 terminal row is not the instance's last row")),
+            };
+            let position = self
+                .ledger
+                .iter()
+                .position(|row| row.instance == id && row.operation == ItemOperation::Consume)
+                .ok_or(ItemError("missing consume aggregate"))?;
+            if terminal_index.is_some_and(|index| index < position) {
+                return Err(ItemError("D94 consume follows the terminal row"));
+            }
+            let mut consume = self.ledger.remove(position);
+            let terminal = terminal_index
+                .map(|index| self.ledger.remove(index.saturating_sub(1)))
+                .filter(|row| row.instance == id && row.after.is_none());
+            if terminal.is_some() != terminal_index.is_some() {
+                return Err(ItemError("missing D94 terminal row"));
+            }
+            let others: Vec<usize> = others
+                .into_iter()
+                .filter(|index| Some(*index) != terminal_index)
+                .map(|index| {
+                    if index > position {
+                        index.saturating_sub(1)
+                    } else {
+                        index
+                    }
+                })
+                .collect();
+            // With a terminal row the aggregate ends at the observed pre-removal state.
+            let end = match &terminal {
+                Some(row) => row.before.clone(),
+                None => self
+                    .checkpoint
+                    .instances
+                    .iter()
+                    .find(|item| item.id == id)
+                    .cloned(),
+            };
+            let count =
+                |item: &Option<ItemInstance>| i128::from(item.as_ref().map_or(0, |i| i.count));
+            let total = others
+                .iter()
+                .filter_map(|index| self.ledger.get(*index))
+                .map(|row| i128::from(row.count_delta))
+                .chain(std::iter::once(i128::from(consume.count_delta)))
+                .try_fold(0_i128, i128::checked_add)
+                .ok_or(ItemError("item count delta overflow"))?;
+            let start_count = count(&end)
+                .checked_sub(total)
+                .ok_or(ItemError("item count delta overflow"))?;
+            // A row observed before the first debit still holds the tick-start count; every
+            // debit is strictly negative, so a later row cannot (D62 causes).
+            let mut state = match others.first().and_then(|index| self.ledger.get(*index)) {
+                Some(first) if first.before.is_none() || count(&first.before) == start_count => {
+                    first.before.clone()
+                },
+                _ => consume.before.clone(),
+            };
+            if count(&state) != start_count {
+                return Err(ItemError("D66 chain does not conserve the tick-start count"));
+            }
+            let mut last_ordinal = 0_u32;
+            for index in &others {
+                let row = self
+                    .ledger
+                    .get_mut(*index)
+                    .ok_or(ItemError("missing item ledger row"))?;
+                let mut after = row.after.clone().ok_or(ItemError("missing row after"))?;
+                after.count = u64::try_from(
+                    count(&state)
+                        .checked_add(i128::from(row.count_delta))
+                        .ok_or(ItemError("item count delta overflow"))?,
+                )
+                .map_err(|_| ItemError("D66 chain count is negative"))?;
+                row.before = state;
+                row.after = Some(after.clone());
+                last_ordinal = last_ordinal.max(row.operation_ordinal);
+                state = Some(after);
+            }
+            if count(&end).checked_sub(count(&state)) != Some(i128::from(consume.count_delta))
+                || state.is_none()
+            {
+                return Err(ItemError("D66 Consume does not conserve the post-positive state"));
+            }
+            consume.before = state;
+            consume.after = end;
+            consume.operation_ordinal = last_ordinal
+                .checked_add(1)
+                .ok_or(ItemError("item operation ordinal overflow"))?;
+            self.ledger.push(consume);
+            if let Some(terminal) = terminal {
+                self.ledger.push(terminal);
+            }
+        }
+        self.renumber_positions()
+    }
+
+    /// D76: each row's `operation_ordinal` becomes its canonical position 0..n−1 among the
+    /// same instance's rows this tick (ledger order, Consume aggregate last). Logical
+    /// operation ordinals survive in causes and the captured audits; the mirrored Exchange
+    /// grant rows are renumbered with their ledger rows.
+    fn renumber_positions(&mut self) -> Result<(), ItemError> {
+        let mut positions = BTreeMap::<ItemInstanceId, u32>::new();
+        let mut renumbered = Vec::with_capacity(self.ledger.len());
+        for row in &mut self.ledger {
+            let position = positions.entry(row.instance).or_insert(0);
+            renumbered.push((
+                row.instance,
+                row.operation,
+                row.receipt,
+                row.operation_ordinal,
+                *position,
+            ));
+            row.operation_ordinal = *position;
+            *position = position
+                .checked_add(1)
+                .ok_or(ItemError("item ledger ordinal overflow"))?;
+        }
+        for exchange in &mut self.exchanges {
+            for row in exchange
+                .rows
+                .iter_mut()
+                .filter(|row| row.operation != ItemOperation::Consume)
+            {
+                if let Some((.., position)) = renumbered.iter().find(|(id, op, receipt, old, _)| {
+                    *id == row.instance
+                        && *op == row.operation
+                        && *receipt == row.receipt
+                        && *old == row.operation_ordinal
+                }) {
+                    row.operation_ordinal = *position;
+                }
+            }
+        }
+        Ok(())
+    }
+    /// Enforce identity/version/order before the application can stage this private fact.
+    pub fn validate_structure(&self, phase3_sources: usize) -> Result<(), ItemError> {
+        self.validate_inner(phase3_sources, true)
+    }
+
+    /// Mid-tick producer check before the tick-boundary D66/D76 normalization: logical
+    /// operation ordinals are still unique per (ordinal, instance, operation).
+    pub(crate) fn validate_staged(&self, phase3_sources: usize) -> Result<(), ItemError> {
+        self.validate_inner(phase3_sources, false)
+    }
+
+    /// Ledger rows: per-row validity, D76 ordinals, D94 shape and the checkpoint endpoint.
+    fn validate_ledger(&self, positional: bool) -> Result<(), ItemError> {
+        let mut final_items = BTreeMap::new();
+        let mut rows = BTreeSet::new();
+        // D76: per instance, ordinals are the canonical row positions 0..n-1 (strictly
+        // increasing, one per row) with at most one Consume aggregate. D94 shape (positional
+        // only): [non-terminal rows…, Consume aggregate, at most one terminal row]; nothing
+        // follows a row that ends the instance, and only a terminal row follows the aggregate.
+        let mut positions = BTreeMap::<_, u32>::new();
+        let mut consume = BTreeSet::new();
+        let mut ended = BTreeSet::new();
+        for delta in &self.ledger {
+            delta.validate(self.checkpoint.inventory_revision)?;
+            if positional
+                && (ended.contains(&delta.instance)
+                    || (consume.contains(&delta.instance) && delta.after.is_some()))
+            {
+                return Err(ItemError("D94 item ledger shape"));
+            }
+            if delta.after.is_none() {
+                ended.insert(delta.instance);
+            }
+            final_items.insert(delta.instance, delta.after.as_ref());
+            let position = positions.entry(delta.instance).or_insert(0);
+            if (positional && delta.operation_ordinal != *position)
+                || (!positional
+                    && !rows.insert((delta.operation_ordinal, delta.instance, delta.operation)))
+                || (delta.operation == ItemOperation::Consume && !consume.insert(delta.instance))
+            {
+                return Err(ItemError("duplicate item ledger plan"));
+            }
+            *position = position
+                .checked_add(1)
+                .ok_or(ItemError("item ledger ordinal overflow"))?;
+        }
+        for (id, after) in final_items {
+            if self.checkpoint.instances.iter().find(|item| item.id == id) != after {
+                return Err(ItemError("ledger does not end at checkpoint inventory"));
+            }
+        }
+        Ok(())
+    }
+    fn validate_inner(&self, phase3_sources: usize, positional: bool) -> Result<(), ItemError> {
+        if self.entity.as_uuid().is_nil()
+            || self.account.as_uuid().is_nil()
+            || i64::try_from(self.tick.0).is_err()
+        {
+            return Err(ItemError("invalid item projection owner or tick"));
+        }
+        self.checkpoint.validate_structure(phase3_sources)?;
+        if let Some(core) = &self.paused_core {
+            core.validate(self.account)?;
+            if core.load.phase4.as_ref().is_none_or(|items| {
+                !items.pending.is_empty() || items.checkpoint.as_ref() != Some(&self.checkpoint)
+            }) || core
+                .load
+                .phase3
+                .as_ref()
+                .is_none_or(|skills| skills.modifier_install_order.len() != phase3_sources)
+                || core.load.hp.is_none()
+                || core.load.mp.is_none()
+            {
+                return Err(ItemError("paused final core differs from item projection"));
+            }
+        }
+        if self.checkpoint.starter_kit_receipt.is_none() {
+            return Err(ItemError("projection precedes kit materialization"));
+        }
+        self.validate_ledger(positional)?;
+        let mut receipts = BTreeSet::new();
+        for receipt in &self.receipts {
+            receipt.result.validate()?;
+            if receipt.request_id.is_nil()
+                || receipt.fingerprint.is_empty()
+                || receipt.result.request_fingerprint != receipt.fingerprint
+                || !receipts.insert(receipt.reference())
+                || receipt.result.entity != self.entity
+                || receipt.result.receipt != receipt.request_id
+                || receipt.result.tick != self.tick
+                || receipt.result.inventory_revision > self.checkpoint.inventory_revision
+            {
+                return Err(ItemError("invalid item receipt projection"));
+            }
+        }
+        if self
+            .ledger
+            .iter()
+            .flat_map(|delta| {
+                delta
+                    .receipt
+                    .into_iter()
+                    .chain(delta.receipt_refs.iter().copied())
+            })
+            .any(|id| !receipts.contains(&id))
+        {
+            return Err(ItemError("item ledger receipt is absent"));
+        }
+        let mut attempts = BTreeSet::new();
+        let mut previous_ordinal = 0;
+        for attempt in &self.enchant_attempts {
+            let receipt = self
+                .receipts
+                .iter()
+                .find(|r| r.reference() == attempt.receipt)
+                .ok_or(ItemError("enchant attempt receipt is absent"))?;
+            attempt.validate(receipt)?;
+            if attempt.operation_ordinal <= previous_ordinal || !attempts.insert(attempt.receipt) {
+                return Err(ItemError("duplicate or unordered enchant attempt"));
+            }
+            previous_ordinal = attempt.operation_ordinal;
+        }
+        if self.receipts.iter().any(|r| {
+            r.reference().operation == ItemOperation::Enchant && !attempts.contains(&r.reference())
+        }) {
+            return Err(ItemError("enchant receipt lacks its captured attempt"));
+        }
+        self.validate_exchanges()?;
+        self.validate_refines()?;
+        let mut pending = BTreeSet::new();
+        for result in &self.materializations {
+            if result.manifest_version != 1
+                || !pending.insert(result.receipt)
+                || result.receipt.key != result.request_id
+                || !matches!(
+                    result.receipt.operation,
+                    ItemOperation::Starter | ItemOperation::Backfill
+                )
+                || !receipts.contains(&result.receipt)
+                || result.inventory_revision > self.checkpoint.inventory_revision
+            {
+                return Err(ItemError("invalid pending item completion"));
+            }
+        }
+        Ok(())
+    }
+    fn validate_refines(&self) -> Result<(), ItemError> {
+        let mut refines = BTreeSet::new();
+        let mut previous_ordinal = 0;
+        for refine in &self.refines {
+            let receipt = self
+                .receipts
+                .iter()
+                .find(|r| r.reference() == refine.receipt)
+                .ok_or(ItemError("refine receipt is absent"))?;
+            refine.validate(receipt)?;
+            let operation = refine.receipt.operation;
+            // The target row is backed by the physical ledger; payments by Consume aggregates.
+            if !self.ledger.iter().any(|delta| {
+                delta.operation == operation
+                    && delta.instance == refine.after.id
+                    && delta.receipt == Some(refine.receipt)
+                    && delta.after.as_ref() == Some(&refine.after)
+            }) || !self.ledger.iter().any(|delta| {
+                delta.operation == ItemOperation::Consume
+                    && (delta.receipt_refs.contains(&refine.receipt)
+                        || delta.receipt == Some(refine.receipt))
+            }) {
+                return Err(ItemError("refine audit is not backed by physical ledger"));
+            }
+            if refine.operation_ordinal <= previous_ordinal || !refines.insert(refine.receipt) {
+                return Err(ItemError("duplicate or unordered refine audit"));
+            }
+            previous_ordinal = refine.operation_ordinal;
+        }
+        if self.receipts.iter().any(|r| {
+            matches!(r.reference().operation, ItemOperation::Refine | ItemOperation::CancelRefine)
+                && !refines.contains(&r.reference())
+        }) {
+            return Err(ItemError("refine receipt lacks its captured audit"));
+        }
+        Ok(())
+    }
+    fn validate_exchanges(&self) -> Result<(), ItemError> {
+        let mut exchanges = BTreeSet::new();
+        let mut previous_ordinal = 0;
+        for exchange in &self.exchanges {
+            let receipt = self
+                .receipts
+                .iter()
+                .find(|r| r.reference() == exchange.receipt)
+                .ok_or(ItemError("SA exchange receipt is absent"))?;
+            exchange.validate(receipt)?;
+            for row in &exchange.rows {
+                let linked = if row.operation == ItemOperation::Consume {
+                    self.ledger.iter().any(|delta| {
+                        delta.operation == ItemOperation::Consume
+                            && delta.instance == row.instance
+                            && delta.count_delta <= row.count_delta
+                            && row.causes.iter().all(|cause| delta.causes.contains(cause))
+                    })
+                } else {
+                    self.ledger.contains(row)
+                };
+                if !linked {
+                    return Err(ItemError("SA audit is not backed by physical ledger"));
+                }
+            }
+
+            if exchange.operation_ordinal <= previous_ordinal || !exchanges.insert(exchange.receipt)
+            {
+                return Err(ItemError("duplicate or unordered SA exchange"));
+            }
+            previous_ordinal = exchange.operation_ordinal;
+        }
+        if self.receipts.iter().any(|r| {
+            r.reference().operation == ItemOperation::Exchange
+                && !exchanges.contains(&r.reference())
+        }) {
+            return Err(ItemError("SA exchange receipt lacks its captured audit"));
+        }
+        Ok(())
+    }
+}
+
+/// Canonical frozen result bytes shared by private receipts and recorded actor preflight.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(try_from = "Vec<u8>", into = "Vec<u8>")]
+pub struct ItemResultPayload(Vec<u8>);
+impl ItemResultPayload {
+    /// Exact original bytes; decoding never accepts whitespace, unknown fields or aliases.
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.0
+    }
+    /// Recover the validated typed result without consulting mutable state.
+    pub fn result(&self) -> Result<FrozenItemResult, ItemError> {
+        FrozenItemResult::from_payload(&self.0)
+    }
+}
+impl TryFrom<Vec<u8>> for ItemResultPayload {
+    type Error = ItemError;
+    fn try_from(bytes: Vec<u8>) -> Result<Self, Self::Error> {
+        FrozenItemResult::from_payload(&bytes)?;
+        Ok(Self(bytes))
+    }
+}
+impl From<ItemResultPayload> for Vec<u8> {
+    fn from(payload: ItemResultPayload) -> Self {
+        payload.0
+    }
+}
+
+/// Receipts persist canonical payload bytes. Strict decoding proves that re-encoding the
+/// immutable typed value reproduces those bytes exactly; no duplicated mutable result copy.
+pub mod result_payload {
+    use super::{FrozenItemResult, ItemResultPayload};
+    use serde::{Deserialize as _, Serialize as _};
+    /// Serialize receipt payload bytes, rather than a second editable JSON object.
+    pub fn serialize<S: serde::Serializer>(
+        result: &FrozenItemResult,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error> {
+        result
+            .payload()
+            .map_err(serde::ser::Error::custom)?
+            .serialize(serializer)
+    }
+    /// Reject noncanonical/malformed stored bytes at the repository/replay boundary.
+    pub fn deserialize<'de, D: serde::Deserializer<'de>>(
+        deserializer: D,
+    ) -> Result<FrozenItemResult, D::Error> {
+        ItemResultPayload::deserialize(deserializer)?
+            .result()
+            .map_err(serde::de::Error::custom)
+    }
+}
+
+impl FrozenItemResult {
+    /// Canonical payload used verbatim by replay result tags37–39 and receipt storage.
+    pub fn payload(&self) -> Result<ItemResultPayload, ItemError> {
+        self.validate()?;
+        serde_json::to_vec(self)
+            .map(ItemResultPayload)
+            .map_err(|_| ItemError("item result encoding failed"))
+    }
+    /// Accept exactly one validated canonical representation.
+    pub fn from_payload(bytes: &[u8]) -> Result<Self, ItemError> {
+        let result: Self =
+            serde_json::from_slice(bytes).map_err(|_| ItemError("invalid item result payload"))?;
+        if result.payload()?.as_bytes() != bytes {
+            return Err(ItemError("noncanonical item result payload"));
+        }
+        Ok(result)
+    }
+
+    /// Stable idempotency operation, including the two distinct refine requests.
+    #[must_use]
+    pub const fn operation(&self) -> ItemOperation {
+        match &self.detail {
+            ItemResultDetail::Operation { operation, .. } => *operation,
+            ItemResultDetail::Enchant { .. } => ItemOperation::Enchant,
+            ItemResultDetail::Refine {
+                outcome: ItemRefineOutcome::Applied,
+                ..
+            } => ItemOperation::Refine,
+            ItemResultDetail::Refine {
+                outcome: ItemRefineOutcome::Removed,
+                ..
+            } => ItemOperation::CancelRefine,
+        }
+    }
+
+    /// Frozen result shapes are checked before persistence or replay projection.
+    pub fn validate(&self) -> Result<(), ItemError> {
+        if self.request_fingerprint.is_empty()
+            || self.receipt.is_nil()
+            || self.entity.as_uuid().is_nil()
+            || i64::try_from(self.tick.0).is_err()
+            || i64::try_from(self.inventory_revision).is_err()
+        {
+            return Err(ItemError("invalid frozen item result identity"));
+        }
+        match &self.detail {
+            ItemResultDetail::Operation {
+                operation,
+                affected,
+                recipe,
+            } => {
+                if matches!(
+                    operation,
+                    ItemOperation::Consume
+                        | ItemOperation::Enchant
+                        | ItemOperation::Refine
+                        | ItemOperation::CancelRefine
+                ) || affected.windows(2).any(|ids| ids.first() >= ids.get(1))
+                    || ((*operation == ItemOperation::Exchange) != recipe.is_some())
+                    || recipe.is_some_and(|id| id == 0 || i64::try_from(id).is_err())
+                {
+                    return Err(ItemError("invalid frozen operation result"));
+                }
+            },
+            ItemResultDetail::Enchant {
+                old_enchant,
+                new_enchant,
+                outcome,
+                refunds,
+                ..
+            } => {
+                let valid = match outcome {
+                    ItemEnchantOutcome::Success => old_enchant.checked_add(1) == Some(*new_enchant),
+                    ItemEnchantOutcome::SafeFailed | ItemEnchantOutcome::SuccessNoIncrement => {
+                        old_enchant == new_enchant
+                    },
+                    ItemEnchantOutcome::BlessedReset | ItemEnchantOutcome::Destroyed => {
+                        *new_enchant == 0
+                    },
+                };
+                let mut seen = BTreeSet::new();
+                if !valid
+                    || refunds.iter().any(|r| {
+                        !seen.insert(r.instance)
+                            || r.template == 0
+                            || i32::try_from(r.template).is_err()
+                            || r.count == 0
+                            || i64::try_from(r.count).is_err()
+                    })
+                {
+                    return Err(ItemError("invalid frozen enchant result"));
+                }
+            },
+            ItemResultDetail::Refine {
+                augment, outcome, ..
+            } => {
+                if !matches!(
+                    (outcome, augment),
+                    (ItemRefineOutcome::Applied, Some(1..=u32::MAX))
+                        | (ItemRefineOutcome::Removed, None)
+                ) {
+                    return Err(ItemError("invalid frozen refine result"));
+                }
+            },
+        }
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+pub(crate) mod tests {
+    use super::super::{phase4_checkpoint::StarterKitReceipt, ItemLocation};
+    use super::*;
+    pub(crate) fn projection() -> Phase4Projection {
+        let key = uuid::Uuid::from_u128(3);
+        let entity = EntityId::from_uuid(uuid::Uuid::from_u128(1));
+        Phase4Projection {
+            enchant_attempts: Vec::new(),
+            exchanges: Vec::new(),
+            refines: Vec::new(),
+            paused_core: None,
+            tick: Tick(10),
+            entity,
+            account: crate::domain::AccountId::from_uuid(uuid::Uuid::from_u128(2)),
+            checkpoint: Phase4Checkpoint {
+                schema_version: 1,
+                timer_policy_version: 1,
+                rules_hash: [1; 32],
+                inventory_revision: 2,
+                instances: Vec::new(),
+                paperdoll: BTreeMap::new(),
+                auto_shots: BTreeSet::from([1835]),
+                item_reuse_remainders: Vec::new(),
+                equipment_install_order: Vec::new(),
+                active_sets: BTreeMap::new(),
+                weight: 0,
+                max_load: 1000,
+                ordinary_capacity: 80,
+                quest_capacity: 100,
+                weight_penalty_bonus: 1,
+                overload_level: 0,
+                overloaded: false,
+                expertise: 0,
+                weapon_penalty: 0,
+                armor_penalty: 0,
+                starter_kit_receipt: Some(StarterKitReceipt {
+                    manifest_version: 1,
+                    manifest_hash: [2; 32],
+                    source_class: crate::domain::class::ClassId(0),
+                    request_id: uuid::Uuid::from_u128(4),
+                    materialized_revision: 1,
+                }),
+            },
+            ledger: Vec::new(),
+            receipts: vec![ItemReceiptFact {
+                request_id: key,
+                fingerprint: "body".into(),
+                result: FrozenItemResult {
+                    accepted_sequence: None,
+                    request_fingerprint: "body".into(),
+                    entity,
+                    incarnation: 1,
+                    tick: Tick(10),
+                    inventory_revision: 2,
+                    receipt: key,
+                    detail: ItemResultDetail::Operation {
+                        operation: ItemOperation::ToggleAutoShot,
+                        affected: Vec::new(),
+                        recipe: None,
+                    },
+                },
+            }],
+            materializations: Vec::new(),
+            evidence: Vec::new(),
+        }
+    }
+    #[test]
+    fn receipt_json_persists_exact_canonical_result_bytes_and_rejects_aliases() {
+        let fact = projection().receipts.remove(0);
+        let payload = fact.result.payload().unwrap();
+        assert_eq!(payload.result().unwrap(), fact.result);
+        let json = serde_json::to_value(&fact).unwrap();
+        assert_eq!(json.get("result").unwrap(), &serde_json::to_value(payload.as_bytes()).unwrap());
+        let roundtrip: ItemReceiptFact = serde_json::from_value(json.clone()).unwrap();
+        assert_eq!(roundtrip.result.payload().unwrap().as_bytes(), payload.as_bytes());
+        let mut bytes = payload.as_bytes().to_vec();
+        bytes.push(b' ');
+        assert!(ItemResultPayload::try_from(bytes.clone()).is_err());
+        let mut invalid = json;
+        *invalid.get_mut("result").unwrap() = serde_json::to_value(bytes).unwrap();
+        assert!(serde_json::from_value::<ItemReceiptFact>(invalid).is_err());
+    }
+
+    #[test]
+    fn frozen_fingerprint_is_required_and_must_match_receipt_envelope() {
+        let mut state = projection();
+        let receipt = state.receipts.first_mut().unwrap();
+        assert_eq!(receipt.result.request_fingerprint, receipt.fingerprint);
+        let mut json = serde_json::to_value(&receipt.result).unwrap();
+        json.as_object_mut().unwrap().remove("request_fingerprint");
+        assert!(serde_json::from_value::<FrozenItemResult>(json).is_err());
+        receipt.result.request_fingerprint.clear();
+        assert!(receipt.result.payload().is_err());
+        receipt.result.request_fingerprint = "another-body".into();
+        assert!(state.validate_structure(0).is_err());
+        state.receipts.first_mut().unwrap().fingerprint = "another-body".into();
+        state.validate_structure(0).unwrap();
+    }
+
+    fn item(template_id: u32) -> ItemInstance {
+        ItemInstance {
+            creation_origin: None,
+            id: ItemInstanceId::new(7).unwrap(),
+            template_id,
+            count: 1,
+            location: ItemLocation::Inventory,
+            slot: None,
+            enchant: 0,
+            augment_id: None,
+            charges: 0,
+            created_tick: Tick(0),
+            revision: 2,
+        }
+    }
+    fn d66_chain(
+        rows: &[(ItemOperation, Option<u64>, Option<u64>)],
+        end: Option<u64>,
+    ) -> Vec<(ItemOperation, u32, Option<u64>, Option<u64>, i64)> {
+        let stack = |count: Option<u64>, revision| {
+            count.map(|count| ItemInstance {
+                count,
+                revision,
+                ..item(3031)
+            })
+        };
+        let mut state = projection();
+        state.checkpoint.instances = stack(end, 2).into_iter().collect();
+        for (ordinal, (operation, before, after)) in rows.iter().enumerate() {
+            let delta = i64::try_from(after.unwrap_or(0))
+                .unwrap()
+                .checked_sub(i64::try_from(before.unwrap_or(0)).unwrap())
+                .unwrap();
+            let cause = ItemAuditEvidence {
+                family: "skill_cast_payment".into(),
+                fields: BTreeMap::from([
+                    ("cast_id".into(), ItemEvidenceValue::Unsigned(9)),
+                    ("count_delta".into(), ItemEvidenceValue::Signed(delta)),
+                ]),
+            };
+            // Mirror append_item_consumption: one aggregate, moved last on each contribution.
+            if *operation == ItemOperation::Consume {
+                if let Some(index) = state
+                    .ledger
+                    .iter()
+                    .position(|row| row.operation == ItemOperation::Consume)
+                {
+                    let mut aggregate = state.ledger.remove(index);
+                    aggregate.count_delta = aggregate.count_delta.checked_add(delta).unwrap();
+                    aggregate.after = stack(*after, 2);
+                    aggregate.causes.push(cause);
+                    state.ledger.push(aggregate);
+                    continue;
+                }
+            }
+            state.ledger.push(ItemDeltaPlan {
+                operation: *operation,
+                operation_ordinal: if *operation == ItemOperation::Consume {
+                    0
+                } else {
+                    u32::try_from(ordinal).unwrap().checked_add(1).unwrap()
+                },
+                instance: item(3031).id,
+                before: stack(*before, if ordinal == 0 { 1 } else { 2 }),
+                after: stack(*after, 2),
+                count_delta: delta,
+                receipt: None,
+                receipt_refs: Vec::new(),
+                causes: if *operation == ItemOperation::Consume {
+                    vec![cause]
+                } else {
+                    Vec::new()
+                },
+            });
+        }
+        state.normalize_d66().unwrap();
+        for row in &state.ledger {
+            row.validate(2).unwrap();
+        }
+        state
+            .ledger
+            .iter()
+            .map(|row| {
+                (
+                    row.operation,
+                    row.operation_ordinal,
+                    row.before.as_ref().map(|i| i.count),
+                    row.after.as_ref().map(|i| i.count),
+                    row.count_delta,
+                )
+            })
+            .collect()
+    }
+
+    #[test]
+    fn d94_terminal_row_stays_last_after_the_rebased_consume_aggregate() {
+        use ItemOperation::{Consume, Destroy, Grant};
+        // Consume 3->2 then Destroy 2->None is already the D94 shape.
+        assert_eq!(
+            d66_chain(&[(Consume, Some(3), Some(2)), (Destroy, Some(2), None)], None),
+            vec![
+                (Consume, 0, Some(3), Some(2), -1),
+                (Destroy, 1, Some(2), None, -2)
+            ]
+        );
+        // Consume, Grant, Destroy: the grant rebases first, the aggregate ends at the
+        // observed pre-removal state, and the terminal row is unchanged and last.
+        assert_eq!(
+            d66_chain(
+                &[
+                    (Consume, Some(3), Some(2)),
+                    (Grant, Some(2), Some(5)),
+                    (Destroy, Some(5), None)
+                ],
+                None
+            ),
+            vec![
+                (Grant, 0, Some(3), Some(6), 3),
+                (Consume, 1, Some(6), Some(5), -1),
+                (Destroy, 2, Some(5), None, -5)
+            ]
+        );
+    }
+
+    #[test]
+    fn d94_positional_validator_enforces_consume_then_one_terminal_row() {
+        use ItemOperation::{Consume, Destroy, Grant};
+        let row = |operation, ordinal, before: Option<u64>, after: Option<u64>| {
+            let stack = |count: Option<u64>| {
+                count.map(|count| ItemInstance {
+                    count,
+                    revision: 2,
+                    ..item(3031)
+                })
+            };
+            let delta = i64::try_from(after.unwrap_or(0)).unwrap()
+                - i64::try_from(before.unwrap_or(0)).unwrap();
+            ItemDeltaPlan {
+                operation,
+                operation_ordinal: ordinal,
+                instance: item(3031).id,
+                before: stack(before),
+                after: stack(after),
+                count_delta: delta,
+                receipt: None,
+                receipt_refs: Vec::new(),
+                causes: if operation == Consume {
+                    vec![ItemAuditEvidence {
+                        family: "skill_cast_payment".into(),
+                        fields: BTreeMap::from([
+                            ("cast_id".into(), ItemEvidenceValue::Unsigned(9)),
+                            ("count_delta".into(), ItemEvidenceValue::Signed(delta)),
+                        ]),
+                    }]
+                } else {
+                    Vec::new()
+                },
+            }
+        };
+        let check = |rows: Vec<ItemDeltaPlan>, end: Option<u64>| {
+            let mut state = projection();
+            state.checkpoint.instances = end
+                .map(|count| ItemInstance {
+                    count,
+                    revision: 2,
+                    ..item(3031)
+                })
+                .into_iter()
+                .collect();
+            state.ledger = rows;
+            state.validate_structure(0)
+        };
+        check(
+            vec![
+                row(Consume, 0, Some(3), Some(2)),
+                row(Destroy, 1, Some(2), None),
+            ],
+            None,
+        )
+        .unwrap();
+        check(
+            vec![
+                row(Grant, 0, Some(3), Some(5)),
+                row(Consume, 1, Some(5), Some(4)),
+            ],
+            Some(4),
+        )
+        .unwrap();
+        // A non-terminal row after the aggregate, or anything after a terminal row, is refused.
+        assert!(check(
+            vec![
+                row(Consume, 0, Some(3), Some(2)),
+                row(Grant, 1, Some(2), Some(4))
+            ],
+            Some(4)
+        )
+        .is_err());
+        assert!(
+            check(vec![row(Destroy, 0, Some(3), None), row(Grant, 1, None, Some(2))], Some(2))
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn d66_engine_ledger_puts_positive_rows_first_and_the_consume_aggregate_last() {
+        use ItemOperation::{Consume, Grant};
+        // 3 -> 2 -> 5 -> 4 is canonical grant(3->6, +3) then consume(6->4, -2).
+        assert_eq!(
+            d66_chain(
+                &[
+                    (Consume, Some(3), Some(2)),
+                    (Grant, Some(2), Some(5)),
+                    (Consume, Some(5), Some(4)),
+                ],
+                Some(4)
+            ),
+            vec![
+                (Grant, 0, Some(3), Some(6), 3),
+                (Consume, 1, Some(6), Some(4), -2)
+            ]
+        );
+        // Start 1, grant +3, consume 2: grant(1->4) then consume(4->2).
+        assert_eq!(
+            d66_chain(&[(Grant, Some(1), Some(4)), (Consume, Some(4), Some(2))], Some(2)),
+            vec![
+                (Grant, 0, Some(1), Some(4), 3),
+                (Consume, 1, Some(4), Some(2), -2)
+            ]
+        );
+        // Start absent, grant 3, consume 1: grant(None->3) then consume(3->2).
+        assert_eq!(
+            d66_chain(&[(Grant, None, Some(3)), (Consume, Some(3), Some(2))], Some(2)),
+            vec![
+                (Grant, 0, None, Some(3), 3),
+                (Consume, 1, Some(3), Some(2), -1)
+            ]
+        );
+        // A lone aggregate keeps ordinal 0 and its observed endpoints.
+        assert_eq!(
+            d66_chain(&[(Consume, Some(3), Some(2)), (Consume, Some(2), None)], None),
+            vec![(Consume, 0, Some(3), None, -3)]
+        );
+    }
+
+    #[test]
+    fn toggle_is_critical_without_fabricated_ledger_and_exchange_keeps_both_templates() {
+        let mut state = projection();
+        state.validate_structure(0).unwrap();
+        let before = item(1);
+        let mut after = item(2);
+        after.id = ItemInstanceId::new(8).unwrap();
+        state.ledger.push(ItemDeltaPlan {
+            receipt_refs: Vec::new(),
+            operation: ItemOperation::Exchange,
+            operation_ordinal: 0,
+            instance: before.id,
+            before: Some(before),
+            after: None,
+            count_delta: -1,
+            receipt: None,
+            causes: Vec::new(),
+        });
+        let delta = ItemDeltaPlan {
+            receipt_refs: Vec::new(),
+            operation: ItemOperation::Exchange,
+            operation_ordinal: 0,
+            instance: after.id,
+            before: None,
+            after: Some(after.clone()),
+            count_delta: 1,
+            receipt: None,
+            causes: Vec::new(),
+        };
+        assert_eq!(delta.template().unwrap(), 2);
+        state.ledger.push(delta);
+        state.checkpoint.instances.push(after);
+        state.validate_structure(0).unwrap();
+        let roundtrip: Phase4Projection =
+            serde_json::from_slice(&serde_json::to_vec(&state).unwrap()).unwrap();
+        assert_eq!(roundtrip, state);
+        state.ledger.first_mut().unwrap().operation = ItemOperation::ToggleAutoShot;
+        assert!(state.validate_structure(0).is_err());
+    }
+    #[test]
+    fn reused_uuid_keeps_each_operation_scope_and_implicit_ledger_reference() {
+        let mut state = projection();
+        let mut equip = state.receipts.first().unwrap().clone();
+        equip.result.detail = ItemResultDetail::Operation {
+            operation: ItemOperation::Equip,
+            affected: vec![item(1).id],
+            recipe: None,
+        };
+        equip.fingerprint = "equip-body".into();
+        equip
+            .result
+            .request_fingerprint
+            .clone_from(&equip.fingerprint);
+        let mut unequip = equip.clone();
+        unequip.result.detail = ItemResultDetail::Operation {
+            operation: ItemOperation::Unequip,
+            affected: vec![item(1).id],
+            recipe: None,
+        };
+        unequip.fingerprint = "unequip-body".into();
+        unequip
+            .result
+            .request_fingerprint
+            .clone_from(&unequip.fingerprint);
+        let reference = equip.reference();
+        state.receipts.extend([equip, unequip]);
+        let after = item(1);
+        let mut before = after.clone();
+        before.location = ItemLocation::Paperdoll;
+        before.slot = Some(super::super::EquipSlot::Rhand);
+        state.checkpoint.instances.push(after.clone());
+        state.ledger.push(ItemDeltaPlan {
+            receipt_refs: Vec::new(),
+            operation: ItemOperation::Unequip,
+            operation_ordinal: 0,
+            instance: after.id,
+            before: Some(before),
+            after: Some(after),
+            count_delta: 0,
+            receipt: Some(reference),
+            causes: Vec::new(),
+        });
+        state.validate_structure(0).unwrap();
+        let bytes = serde_json::to_vec(&state).unwrap();
+        let restored: Phase4Projection = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(restored, state);
+        let mut absent = state.clone();
+        absent
+            .ledger
+            .first_mut()
+            .unwrap()
+            .receipt
+            .as_mut()
+            .unwrap()
+            .operation = ItemOperation::Use;
+        assert!(absent.validate_structure(0).is_err());
+        let mut automatic = state.clone();
+        automatic
+            .ledger
+            .first_mut()
+            .unwrap()
+            .receipt
+            .as_mut()
+            .unwrap()
+            .operation = ItemOperation::Consume;
+        assert!(automatic.validate_structure(0).is_err());
+        let mut duplicate = state.receipts.last().unwrap().clone();
+        duplicate.fingerprint = "conflicting-body".into();
+        state.receipts.push(duplicate);
+        assert!(state.validate_structure(0).is_err());
+    }
+
+    #[test]
+    fn pending_completion_requires_the_exact_kit_receipt_scope() {
+        let mut state = projection();
+        let mut receipt = state.receipts.first().unwrap().clone();
+        receipt.result.detail = ItemResultDetail::Operation {
+            operation: ItemOperation::Starter,
+            affected: Vec::new(),
+            recipe: None,
+        };
+        state.materializations.push(ItemMaterializationFact {
+            request_id: receipt.request_id,
+            manifest_version: 1,
+            manifest_hash: [2; 32],
+            inventory_revision: 2,
+            receipt: receipt.reference(),
+        });
+        state.receipts.push(receipt);
+        state.validate_structure(0).unwrap();
+        state
+            .materializations
+            .first_mut()
+            .unwrap()
+            .receipt
+            .operation = ItemOperation::Backfill;
+        assert!(state.validate_structure(0).is_err());
+        state
+            .materializations
+            .first_mut()
+            .unwrap()
+            .receipt
+            .operation = ItemOperation::ToggleAutoShot;
+        assert!(state.validate_structure(0).is_err());
+    }
+
+    fn attempted(outcome: ItemEnchantOutcome) -> Phase4Projection {
+        let mut state = projection();
+        let mut before = item(71);
+        before.enchant = 6;
+        let new_enchant = match outcome {
+            ItemEnchantOutcome::Success => 7,
+            ItemEnchantOutcome::SafeFailed | ItemEnchantOutcome::SuccessNoIncrement => 6,
+            ItemEnchantOutcome::BlessedReset | ItemEnchantOutcome::Destroyed => 0,
+        };
+        let mut after = before.clone();
+        after.enchant = new_enchant;
+        let receipt = state.receipts.first_mut().unwrap();
+        receipt.result.detail = ItemResultDetail::Enchant {
+            target: before.id,
+            old_enchant: 6,
+            new_enchant,
+            outcome,
+            refunds: Vec::new(),
+            announcement_tier: 0,
+        };
+        let success =
+            matches!(outcome, ItemEnchantOutcome::Success | ItemEnchantOutcome::SuccessNoIncrement);
+        state.enchant_attempts.push(super::super::EnchantAttempt {
+            operation_ordinal: 1,
+            receipt: receipt.reference(),
+            target: before.id,
+            template: before.template_id,
+            old_enchant: 6,
+            new_enchant,
+            outcome,
+            before,
+            after: (outcome != ItemEnchantOutcome::Destroyed).then_some(after),
+            scroll: ItemInstanceId::new(20).unwrap(),
+            scroll_template: 951,
+            chance_1e5: if success { 100_000 } else { 0 },
+            raw_draw: 199_999,
+            draw: 99_999,
+            cause: ItemAuditEvidence {
+                family: "enchant".into(),
+                fields: BTreeMap::new(),
+            },
+        });
+        state
+    }
+
+    #[test]
+    fn captured_enchant_attempt_survives_later_target_destruction() {
+        for outcome in [
+            ItemEnchantOutcome::Success,
+            ItemEnchantOutcome::SafeFailed,
+            ItemEnchantOutcome::BlessedReset,
+            ItemEnchantOutcome::Destroyed,
+            ItemEnchantOutcome::SuccessNoIncrement,
+        ] {
+            let mut state = attempted(outcome);
+            let attempt = state.enchant_attempts.first().unwrap().clone();
+            // Final inventory contains no target: audit still retains the exact attempt.
+            if let Some(after) = &attempt.after {
+                state.ledger.push(ItemDeltaPlan {
+                    receipt_refs: Vec::new(),
+                    operation: ItemOperation::Destroy,
+                    operation_ordinal: 0,
+                    instance: attempt.target,
+                    before: Some(after.clone()),
+                    after: None,
+                    count_delta: -1,
+                    receipt: None,
+                    causes: Vec::new(),
+                });
+            }
+            state.validate_structure(0).unwrap();
+            assert!(state.checkpoint.instances.is_empty());
+            let bytes = serde_json::to_vec(&state).unwrap();
+            assert_eq!(serde_json::from_slice::<Phase4Projection>(&bytes).unwrap(), state);
+            let event = super::super::ZoneEvent::ItemCheckpoint(Box::new(state));
+            let record = crate::application::replay_log::AppliedTickRecord::from_applied(
+                super::super::ZoneId(1),
+                &super::super::AppliedTick {
+                    epoch: 1,
+                    tick: Tick(10),
+                    server_time_ms: 1000,
+                    commands: Vec::new(),
+                    dispositions: Vec::new(),
+                    events: vec![event],
+                    outputs: BTreeMap::new(),
+                    state_digest: [0; 32],
+                    digest_version: super::super::StateDigestVersion::BinaryV6,
+                },
+            );
+            assert_eq!(
+                crate::application::replay_log::AppliedTickRecord::decode(&record.encode())
+                    .unwrap(),
+                record
+            );
+        }
+    }
+
+    #[test]
+    fn enchant_attempt_requires_receipt_scalar_and_quantized_draw_identity() {
+        let state = attempted(ItemEnchantOutcome::SuccessNoIncrement);
+        for case in 0..10 {
+            let mut invalid = state.clone();
+            let attempt = invalid.enchant_attempts.first_mut().unwrap();
+            match case {
+                0 => attempt.draw = 100_000,
+                1 => attempt.chance_1e5 = 100_001,
+                2 => attempt.raw_draw = 0,
+                3 => attempt.after = None,
+                4 => attempt.before.template_id = 72,
+                5 => attempt.scroll = attempt.target,
+                6 => attempt.old_enchant = 5,
+                7 => attempt.receipt.key = uuid::Uuid::from_u128(99),
+                8 => attempt.cause.family.clear(),
+                _ => attempt.operation_ordinal = 0,
+            }
+            assert!(invalid.validate_structure(0).is_err(), "case {case}");
+        }
+        let mut absent = state.clone();
+        absent.enchant_attempts.clear();
+        assert!(absent.validate_structure(0).is_err());
+        let mut duplicate = state.clone();
+        duplicate
+            .enchant_attempts
+            .push(state.enchant_attempts.first().unwrap().clone());
+        assert!(duplicate.validate_structure(0).is_err());
+        let mut json = serde_json::to_value(state.enchant_attempts.first().unwrap()).unwrap();
+        *json.get_mut("draw").unwrap() = serde_json::from_str("0.5").unwrap();
+        assert!(serde_json::from_value::<super::super::EnchantAttempt>(json).is_err());
+    }
+
+    #[test]
+    fn duplicate_receipts_unbacked_deltas_and_fractional_audit_values_are_refused() {
+        let mut state = projection();
+        state.receipts.push(state.receipts.first().unwrap().clone());
+        assert!(state.validate_structure(0).is_err());
+        let mut state = projection();
+        state.ledger.push(ItemDeltaPlan {
+            receipt_refs: Vec::new(),
+            operation: ItemOperation::Grant,
+            operation_ordinal: 0,
+            instance: item(1).id,
+            before: None,
+            after: Some(item(1)),
+            count_delta: 1,
+            receipt: None,
+            causes: Vec::new(),
+        });
+        assert!(state.validate_structure(0).is_err());
+        assert!(serde_json::from_str::<ItemEvidenceValue>(r#"{"kind":"unsigned","value":1.5}"#)
+            .is_err());
+        let mut state = projection();
+        state.receipts.first_mut().unwrap().result.entity =
+            EntityId::from_uuid(uuid::Uuid::from_u128(99));
+        assert!(state.validate_structure(0).is_err());
+    }
+}

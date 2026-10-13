@@ -9,6 +9,28 @@ use super::*;
 
 const GEN1: SessionGeneration = SessionGeneration(1);
 
+#[test]
+fn phase4_load_is_rejected_before_a_legacy_tick_mutates() {
+    let mut state = zone();
+    let before = state.snapshot();
+    let mut load = PlayerLoad::fresh("human_fighter");
+    load.phase3 = Some(crate::domain::zone::Phase3Checkpoint::new());
+    load.phase4 = Some(crate::domain::zone::Phase4PlayerLoad {
+        checkpoint: Some(crate::domain::zone::phase4_projection::tests::projection().checkpoint),
+        pending: Vec::new(),
+    });
+    let draft = state.draft(vec![ZoneInput::system(ZoneCommand::SpawnPlayer {
+        entity: id(1),
+        name: "Owner".into(),
+        pos: Vec2Fixed::from_tiles(1, 1),
+        speed: Speed::DEFAULT,
+        generation: GEN1,
+        load: Some(Box::new(load)),
+    })]);
+    assert_eq!(state.run_tick(draft), Err(TickError::Phase4CommandInLegacy));
+    assert_eq!(state.snapshot(), before);
+}
+
 fn zone() -> ZoneState {
     let bounds =
         ZoneBounds::new(Vec2Fixed::from_tiles(0, 0), Vec2Fixed::from_tiles(256, 256)).unwrap();
@@ -96,6 +118,9 @@ pub(crate) fn assert_output_order(t: &AppliedTick) {
                 | ZoneEvent::AttackCancelled { .. }
                 | ZoneEvent::HateChanged { .. }
                 | ZoneEvent::NpcIntentionChanged { .. }
+                | ZoneEvent::ItemView(_)
+                | ZoneEvent::ItemResult(_)
+                | ZoneEvent::ItemCheckpoint(_)
                 | ZoneEvent::Progression(_)),
             ) => (4, 0, None),
         };
@@ -1039,4 +1064,68 @@ fn phase3_inputs_cannot_partially_mutate_any_legacy_draft() {
         assert_eq!(zone.run_tick(draft), Err(TickError::Phase3CommandInLegacy));
         assert_eq!(zone.snapshot(), before);
     }
+}
+
+#[test]
+fn item_intent_never_mutates_a_historical_epoch() {
+    use crate::domain::zone::{ItemCommand, ItemCommandKind};
+    let mut state = zone();
+    run(&mut state, vec![spawn_player(1, 10, 10)]);
+    let item = ItemCommand::new(
+        id(1),
+        Uuid::from_u128(2),
+        ItemCommandKind::ToggleAutoShot {
+            template: 1835,
+            enabled: true,
+        },
+    )
+    .unwrap()
+    .with_account(crate::domain::AccountId::from_uuid(Uuid::from_u128(3)))
+    .unwrap();
+    let before = state.snapshot();
+    let input = ZoneInput::session(id(1), GEN1, 9, ZoneCommand::Item(Box::new(item)));
+    let draft = state.draft(vec![input]);
+    assert_eq!(state.run_tick(draft), Err(TickError::Phase4CommandInLegacy));
+    assert_eq!(state.snapshot(), before);
+    let range = crate::domain::zone::ItemInstanceRange::new(100, 100, 200).unwrap();
+    let draft = state.draft(vec![ZoneInput::system(ZoneCommand::ExtendItemRange { range })]);
+    assert_eq!(state.run_tick(draft), Err(TickError::Phase4CommandInLegacy));
+    assert_eq!(state.snapshot(), before);
+}
+
+#[test]
+fn private_item_checkpoint_is_never_sent_to_owner_or_peer() {
+    let mut state = zone();
+    run(&mut state, vec![spawn_player(1, 10, 10), spawn_player(2, 10, 10)]);
+    let event = ZoneEvent::ItemCheckpoint(Box::new(
+        crate::domain::zone::phase4_projection::tests::projection(),
+    ));
+    for observer in [id(1), id(2)] {
+        assert!(!fact_visible(&event, observer, &[id(1), id(2)]));
+    }
+    let outputs = state.observe(Tick(10), BTreeMap::new(), std::slice::from_ref(&event));
+    assert!(outputs
+        .values()
+        .all(|events| !events.contains(&ObserverOutput::Event(event.clone()))));
+}
+
+#[test]
+fn frozen_item_result_is_sent_only_to_its_owner() {
+    let mut state = zone();
+    run(&mut state, vec![spawn_player(1, 10, 10), spawn_player(2, 10, 10)]);
+    let result = crate::domain::zone::phase4_projection::tests::projection()
+        .receipts
+        .remove(0)
+        .result;
+    let event = ZoneEvent::ItemResult(Box::new(result));
+    assert!(fact_visible(&event, id(1), &[id(1), id(2)]));
+    assert!(!fact_visible(&event, id(2), &[id(1), id(2)]));
+    let outputs = state.observe(Tick(20), BTreeMap::new(), std::slice::from_ref(&event));
+    assert!(outputs
+        .get(&id(1))
+        .unwrap()
+        .contains(&ObserverOutput::Event(event.clone())));
+    assert!(outputs
+        .get(&id(2))
+        .is_none_or(|events| !events.contains(&ObserverOutput::Event(event))));
 }

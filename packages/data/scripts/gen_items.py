@@ -417,7 +417,7 @@ def local_blockers(item):
     if item['flags'].get('is_common',False) or name.startswith('common item -'):blockers.add('context:common')
     if int(p.get('duration','-1'))!=-1:blockers.add('context:shadow')
     if int(p.get('time','-1'))!=-1:blockers.add('context:time_limited')
-    if item['flags']['for_npc']:blockers.add('context:npc_only')
+    # D97: for_npc (L2Item.isForNpc, L2Item.java:725) is read only by RequestPetUseItem.java:65.
     if item['weapon_type'] not in gen_skills.ALLOWED_WEAPON_KINDS: blockers.add('weapon_kind:'+item['weapon_type'])
     if item['bodypart_mask']<0:blockers.add('context:pet')
     if item['bodypart'] in {'hair','hair2','dhair','alldress','rbracelet','lbracelet','deco1'}:blockers.add('slot:'+item['bodypart'])
@@ -549,7 +549,7 @@ def capabilities(items,tables,skills,skill_files):
             use.add('use:no_handler')
         if row['kind']=='EtcItem' and use and row['skills']:b.update(use)
         rows.append({'template_id':sid,'admitted':not b,
-                     'storable':not bool(b & {'context:common','context:shadow','context:time_limited','context:npc_only','context:pet'}),'blockers':sorted(b),'use_blockers':sorted(b|use)})
+                     'storable':not bool(b & {'context:common','context:shadow','context:time_limited','context:pet'}),'blockers':sorted(b),'use_blockers':sorted(b|use)})
     item_index={r['template_id']:r for r in rows}
     consumables={}
     for sid,item in sorted(items.items()):
@@ -631,11 +631,20 @@ def class_combat(inputs):
                   source(G+'model/actor/stat/CharStat.java','438-447','no weapon: attack angle 120',True),
                   source(G+'model/actor/stat/CharStat.java','145,399,410','template crit/pAtk/pAtkSpd bases',True),
                   source(G+'model/actor/L2Character.java','5034-5044','no weapon: random 5+(int)sqrt(level)',True),
-                  source(G+'model/actor/L2Character.java','5560-5572','no weapon: template baseAtkType',True)]
+                  source(G+'model/actor/L2Character.java','5560-5572','no weapon: template baseAtkType',True),
+                  # D84: an unarmed player's active weapon is the class fists template.
+                  source(G+'model/actor/instance/L2PcInstance.java','2141-2183','findFistsWeaponItem class ranges',True),
+                  source(G+'model/actor/instance/L2PcInstance.java','4147-4155','getActiveWeaponItem falls back to fists',True)]
     text={citation['file']:inputs.read(citation['file'],True) for citation in game_sources}
     angle=re.search(r'baseAttackAngle = (\d+);',text[G+'model/actor/stat/CharStat.java'])
     radius=re.search(r'random = (\d+) \+ \(int\) Math\.sqrt\(getLevel\(\)\);',text[G+'model/actor/L2Character.java'])
     if angle is None or radius is None:raise SourceError('missing unarmed angle/random-damage source')
+    pc=text[G+'model/actor/instance/L2PcInstance.java']
+    body=re.search(r'public L2Weapon findFistsWeaponItem\(int classId\) \{(.*?)\n\t\treturn weaponItem;',pc,re.S)
+    if body is None:raise SourceError('missing findFistsWeaponItem')
+    fists=[{'class_min':int(lo,16),'class_max':int(hi,16),'template_id':int(tid)} for lo,hi,tid in re.findall(
+        r'\(classId >= 0x([0-9a-f]+)\) && \(classId <= 0x([0-9a-f]+)\)\) \{[^{}]*?getTemplate\((\d+)\)',body[1])]
+    if len(fists)!=9 or any(f['class_min']>f['class_max'] for f in fists):raise SourceError('unexpected fists ranges')
     graph_file=D+'stats/chars/classList.xml'
     parents={int(attrs(n)['classId']):(int(attrs(n)['parentClassId']) if 'parentClassId' in attrs(n) else None)
              for n in children(inputs.xml(graph_file),'class')}
@@ -671,6 +680,7 @@ def class_combat(inputs):
     if len({r['base_class_id'] for r in rows})!=len(STARTER_CLASSES):raise SourceError('duplicate base class')
     return {'schema':1,'sources':game_sources+[source(graph_file,'1-'+str(max(n['line'] for n in walk(inputs.xml(graph_file)))),'class lineage')],
             'unarmed':{'attack_angle':int(angle[1]),'random_damage_radius_base':int(radius[1])},
+            'fists':fists,
             'classes':sorted(rows,key=lambda r:r['base_class_id'])}
 
 

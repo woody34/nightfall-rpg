@@ -851,10 +851,11 @@ impl ZoneState {
                 let mut ledger = p.class_state.clone();
                 ledger.merge_learned_skills(grants);
                 ledger
-                    .validate_for_phase3(
+                    .validate_for_skill_rules(
                         self.classes.as_deref()?,
                         &p.identity,
                         crate::domain::CharacterId::from_uuid(player.as_uuid()),
+                        &self.phase3.as_ref()?.canonical.rules,
                     )
                     .ok()?;
                 p.class_state = ledger;
@@ -999,9 +1000,16 @@ impl ZoneState {
 
     /// After impacts: every idle auto-attacker whose cooldown is over and whose target is in
     /// reach stops and starts a swing; one out of reach keeps chasing.
-    pub(super) fn start_swings(&mut self, tick: Tick, events: &mut Vec<ZoneEvent>) {
+    #[allow(clippy::too_many_lines)] // One start: guards, ranged/dual timing and the I3 plan.
+    pub(super) fn start_swings(
+        &mut self,
+        tick: Tick,
+        before_items: Option<&crate::domain::zone::Phase4Snapshot>,
+        events: &mut Vec<ZoneEvent>,
+    ) -> Result<(), super::TickError> {
+        use super::runtime::BowStart;
         let Some(rules) = self.rules.clone() else {
-            return;
+            return Ok(());
         };
         for id in self.idle_attackers() {
             let Some(attacker) = self.entities.get(&id) else {
@@ -1024,21 +1032,96 @@ impl ZoneState {
                 continue;
             }
             self.halt(tick, id, events);
+            let ready = self
+                .entities
+                .get(&id)
+                .and_then(|e| e.combat.as_ref())
+                .is_some_and(|c| tick >= c.ready_at);
+            // V6 bow guard (design §5.4): arrows/MP are paid at the accepted start.
+            let bow = if ready && self.phase4.is_some() {
+                let initial = before_items
+                    .and_then(|items| items.players.get(&id))
+                    .map(|player| player.inventory_revision);
+                self.bow_start_v6(tick, id, initial, events)?
+            } else {
+                BowStart::Melee
+            };
+            match bow {
+                BowStart::Wait => continue,
+                BowStart::Stop => {
+                    self.disengage(tick, id, SwingCancel::Stopped, events);
+                    continue;
+                },
+                BowStart::Melee | BowStart::Fire { .. } => {},
+            }
+            let dual = matches!(bow, BowStart::Melee)
+                && self.attack_style_v6(id) == super::runtime::AttackStyle::Dual;
+            let weapon = self
+                .phase4
+                .as_ref()
+                .and_then(|items| items.canonical.players.get(&id))
+                .and_then(|player| {
+                    player
+                        .paperdoll
+                        .get(&crate::domain::zone::EquipSlot::Rhand)
+                        .copied()
+                });
             let Some(c) = self.entities.get_mut(&id).and_then(|e| e.combat.as_mut()) else {
                 continue;
             };
             if tick < c.ready_at {
                 continue;
             }
-            let Ok(timing) = attack_timing(rules.constants(), c.sheet.attack_speed()) else {
-                continue;
+            let mut second = None;
+            let mut dual_speed = None;
+            let (impact_ticks, cycle_ticks) = if let BowStart::Fire {
+                impact_ticks,
+                cycle_ticks,
+            } = bow
+            {
+                (impact_ticks, cycle_ticks)
+            } else {
+                let Ok(timing) = attack_timing(rules.constants(), c.sheet.attack_speed()) else {
+                    continue;
+                };
+                if dual {
+                    // L2Character.java:1173-1176: hit1 at timeToHit/2, hit2 at timeToHit,
+                    // timeToHit being the source integer half-interval.
+                    let invariant = super::TickError::Phase3Invariant;
+                    let tick_ms = i128::from(crate::domain::zone::TICK_MS);
+                    let time_to_hit = timing
+                        .interval_ms
+                        .0
+                        .checked_div(i128::from(rules.constants().impact_divisor))
+                        .ok_or(invariant)?;
+                    let first_ms = time_to_hit.checked_div(2).ok_or(invariant)?;
+                    let first = u64::try_from(
+                        first_ms
+                            .checked_add(tick_ms.checked_sub(1).ok_or(invariant)?)
+                            .and_then(|v| v.checked_div(tick_ms))
+                            .ok_or(invariant)?
+                            .max(1),
+                    )
+                    .map_err(|_| invariant)?;
+                    second = Some(timing.impact_ticks);
+                    dual_speed = Some(
+                        crate::domain::zone::scaled::round_div(
+                            i128::from(c.sheet.attack_speed().raw()),
+                            i128::from(crate::domain::zone::Q),
+                        )
+                        .map_err(|_| invariant)?,
+                    );
+                    (first, timing.cycle_ticks)
+                } else {
+                    (timing.impact_ticks, timing.cycle_ticks)
+                }
             };
             let swing = Swing {
                 target: g.target,
                 target_incarnation: g.incarnation,
                 start: tick,
-                impact: Tick(tick.0.saturating_add(timing.impact_ticks)),
-                ready: Tick(tick.0.saturating_add(timing.cycle_ticks)),
+                impact: Tick(tick.0.saturating_add(impact_ticks)),
+                ready: Tick(tick.0.saturating_add(cycle_ticks)),
             };
             c.swing = Some(swing);
             c.ready_at = swing.ready;
@@ -1058,7 +1141,61 @@ impl ZoneState {
                 impact: swing.impact,
                 ready: swing.ready,
             });
+            if let (Some(speed), true) = (dual_speed, self.items_evidence_enabled()) {
+                // D46 `dual_timing`: the rounded speed's source deadlines and their ticks.
+                let attack_ms = 500_000_i128.checked_div(speed).unwrap_or(0);
+                let to_hit = attack_ms.checked_div(2).unwrap_or(0);
+                let first_ms = to_hit.checked_div(2).unwrap_or(0);
+                let ceil = |ms: i128| ms.saturating_add(99).checked_div(100).unwrap_or(0);
+                let target = g.target;
+                self.item_formula_v6(
+                    id,
+                    "dual_timing",
+                    serde_json::json!({"attack_speed": i64::try_from(speed).unwrap_or(0)}),
+                    serde_json::json!({"attack_ms": i64::try_from(attack_ms).unwrap_or(0),
+                        "time_to_hit_ms": i64::try_from(to_hit).unwrap_or(0),
+                        "first_ms": i64::try_from(first_ms).unwrap_or(0),
+                        "second_ms": i64::try_from(to_hit).unwrap_or(0),
+                        "first_ticks": i64::try_from(ceil(first_ms)).unwrap_or(0),
+                        "second_ticks": i64::try_from(ceil(to_hit)).unwrap_or(0)}),
+                    &format!("dual_timing:{id}:{}", tick.0),
+                    Some(self.attack_context_v6(id, target)),
+                );
+            }
+            if let Some(second) = second {
+                // I3 plan: both subhits are fixed at the accepted start; results are prepared
+                // when the first becomes due.
+                let attacker = self.binding(id).ok_or(super::TickError::Phase3Invariant)?;
+                let target = super::super::effects::TargetBinding {
+                    entity: g.target,
+                    incarnation: g.incarnation,
+                };
+                let hit = |at| crate::domain::zone::phase4::PlannedItemHit {
+                    target,
+                    at,
+                    prepared: None,
+                };
+                self.phase4
+                    .as_mut()
+                    .ok_or(super::TickError::Phase3Invariant)?
+                    .canonical
+                    .attack_plans
+                    .insert(
+                        id,
+                        crate::domain::zone::phase4::ItemAttackPlan {
+                            attacker,
+                            start: tick,
+                            ready: swing.ready,
+                            weapon,
+                            shots: 0,
+                            arrow: None,
+                            hits: vec![hit(swing.impact), hit(Tick(tick.0.saturating_add(second)))],
+                            next_hit: 0,
+                        },
+                    );
+            }
         }
+        Ok(())
     }
 }
 

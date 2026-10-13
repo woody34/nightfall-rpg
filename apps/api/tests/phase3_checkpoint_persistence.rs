@@ -136,6 +136,7 @@ async fn seed(repo: &dyn CharacterRepository) -> Character {
 }
 fn checkpoint(c: &Character, phase3: Phase3Checkpoint) -> CharacterCheckpoint {
     CharacterCheckpoint {
+        phase4: None,
         character_id: c.id,
         revision_seen: 0,
         level: c.level,
@@ -412,10 +413,16 @@ async fn migration_preserves_existing_rows_and_refuses_lossy_rollback() {
     };
     let db = connection_from_pool(&pool);
     Migrator::up(&db, Some(8)).await.unwrap();
-    let repo = PgCharacterRepository::new(pool.clone());
-    let c = seed(&repo).await;
+    let c = Character::create(
+        AccountId::from_uuid(Uuid::nil()),
+        CharacterName::new("PausedState").unwrap(),
+        Race::Human,
+    );
+    // Version8 fixture: current creation requires the version10 pending-request table.
+    sqlx::query("INSERT INTO characters(id,account_id,name,name_normalized,race,str,dex,con,\"int\",wit,men,class_profile,base_class_id,current_class_id) VALUES($1,$2,'PausedState','pausedstate','human',1,1,1,1,1,1,'human_fighter',0,0)")
+        .bind(c.id.as_uuid()).bind(c.account_id.as_uuid()).execute(&pool).await.unwrap();
     sqlx::query("INSERT INTO character_effects(character_id,retained_ordinal,skill_id,level,remaining_ticks,caster_kind,pool,abnormal_type,abnormal_level,stay_after_death,stay_on_subclass_change,handlers) VALUES($1,0,110,1,101,'system','buff','NONE',0,true,true,'[]')").bind(c.id.as_uuid()).execute(&pool).await.unwrap();
-    Migrator::up(&db, None).await.unwrap();
+    Migrator::up(&db, Some(1)).await.unwrap();
     let row: (i64, bool, bool, bool, bool, bool) = sqlx::query_as("SELECT target_incarnation,removed_on_damage,removed_on_action_except_move,irreplaceable,stay_after_death,stay_on_subclass_change FROM character_effects WHERE character_id=$1").bind(c.id.as_uuid()).fetch_one(&pool).await.unwrap();
     assert_eq!(row, (0, false, false, false, true, true));
     assert!(Migrator::down(&db, Some(1))

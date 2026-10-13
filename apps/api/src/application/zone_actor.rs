@@ -25,6 +25,9 @@
 //! from the state, `server_time_ms` from the zone's time origin. The one clock read is a
 //! monotonic `Instant` around the tick body that feeds [`TickStats::duration_micros`] only.
 
+#[path = "zone_actor_grants.rs"]
+mod grants;
+
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::future::Future;
 use std::sync::Arc;
@@ -287,6 +290,7 @@ struct Queued {
 
 #[derive(Debug)]
 enum MutationReply {
+    Grant(oneshot::Sender<Result<super::ports::ItemMutationReceipt, super::AppError>>),
     Transfer(
         oneshot::Sender<
             Result<crate::domain::character_progression::FrozenTransferResult, super::AppError>,
@@ -304,6 +308,9 @@ impl MutationReply {
             Self::Learn(reply) => {
                 let _ = reply.send(Err(error));
             },
+            Self::Grant(reply) => {
+                let _ = reply.send(Err(error));
+            },
         }
     }
 }
@@ -311,6 +318,7 @@ impl MutationReply {
 /// Cheap, cloneable access to a running zone.
 #[derive(Debug, Clone)]
 pub struct ZoneHandle {
+    phase4_durable: bool,
     phase2: bool,
     phase3: bool,
     admission_policy: Option<RecordAdmissionPolicy>,
@@ -633,6 +641,7 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
         let (out_tx, _) = broadcast::channel(BROADCAST_TICKS);
         let (stats_tx, stats_rx) = watch::channel(TickStats::default());
         let paused = gate.paused();
+        let phase4_durable = !invalid_policy && state.phase4_enabled() && gate.durable();
         let phase2 = state.has_classes();
         let phase3 = state.phase3_enabled();
         let audit_seed = state.seed();
@@ -665,6 +674,7 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
         };
         tokio::spawn(actor.run());
         ZoneHandle {
+            phase4_durable,
             phase2,
             phase3,
             admission_policy,
@@ -742,6 +752,7 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
         }
     }
 
+    #[allow(clippy::too_many_lines)] // Keep durability, persistence and release in one ordered barrier.
     async fn tick(&mut self) -> TickOutcome {
         // Metrics only (see module docs).
         let started = Instant::now();
@@ -760,6 +771,29 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
             },
         };
         let tick = record.tick;
+        if record.commands.iter().any(|command| {
+            matches!(
+                command.command,
+                crate::domain::zone::ZoneCommand::Item(_)
+                    | crate::domain::zone::ZoneCommand::MaterializePendingItems(_)
+            )
+        }) || record
+            .events
+            .iter()
+            .any(|event| matches!(event, crate::domain::zone::ZoneEvent::ItemCheckpoint(_)))
+        {
+            let enabled = match self.checkpoints.service() {
+                Some(service) => service.lock().await.items_enabled(),
+                None => false,
+            };
+            if !self.gate.durable() || !enabled {
+                tracing::error!("item work requires durable log and typed receipt lane");
+                self.failed = true;
+                self.fail_replies();
+                self.publish_stats(tick, started, 0);
+                return TickOutcome::Held(tick);
+            }
+        }
         if record
             .events
             .iter()
@@ -836,7 +870,7 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
                 return TickOutcome::Held(tick);
             }
         }
-        self.complete_replies(&record);
+        self.complete_replies(&record).await;
         if !record.is_idle() {
             // No subscribers is fine: nobody is connected yet.
             let _ = self.out.send(record);
@@ -856,6 +890,12 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
     async fn run_next(&mut self) -> Result<(Arc<AppliedTick>, usize), (Tick, TickError)> {
         let admitted = loop {
             let selected = self.select_admitted();
+            if self.preflight_grants(&selected).await? {
+                continue;
+            }
+            if self.preflight_items(&selected).await? {
+                continue;
+            }
             if self.preflight_learning(&selected).await? {
                 continue;
             }
@@ -929,10 +969,10 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
                             MutationReply::Transfer(reply) => {
                                 let _ = reply.send(result);
                             },
-                            MutationReply::Learn(reply) => {
-                                let _ = reply.send(Err(super::AppError::Unavailable(
+                            other @ (MutationReply::Learn(_) | MutationReply::Grant(_)) => {
+                                other.fail(super::AppError::Unavailable(
                                     "invalid RPC envelope".into(),
-                                )));
+                                ));
                             },
                         }
                     }
@@ -991,6 +1031,103 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
         self.audit_next_tick.send_replace(self.state.next_tick());
         trace_applied(&record, &traces);
         Ok((Arc::new(record), applied))
+    }
+
+    // Enrich before drafting, then let selection remeasure the complete recorded command.
+    async fn preflight_items(&mut self, selected: &[usize]) -> Result<bool, (Tick, TickError)> {
+        use super::ports::{ItemMutationOperation, ItemReceiptLookup};
+        use crate::domain::zone::{CombatRole, ZoneCommand};
+        let fence = (self.state.next_tick(), TickError::PersistenceFence);
+        let mut changed = false;
+        for index in selected {
+            let queued = self.pending.get(*index).ok_or(fence)?;
+            let ZoneCommand::Item(command) = &queued.input.command else {
+                continue;
+            };
+            let CommandSource::Session { entity, generation } = queued.input.source else {
+                return Err(fence);
+            };
+            if entity != command.entity {
+                return Err(fence);
+            }
+            let owner = self
+                .state
+                .entity(entity)
+                .and_then(|entity| entity.combat.as_ref())
+                .and_then(|combat| match &combat.role {
+                    CombatRole::Player {
+                        progression: Some(player),
+                        ..
+                    } => Some(player.identity.account_id),
+                    CombatRole::Player {
+                        progression: None, ..
+                    }
+                    | CombatRole::Npc { .. } => None,
+                })
+                .ok_or(fence)?;
+            let mut normalized = command
+                .as_ref()
+                .clone()
+                .with_account(owner)
+                .map_err(|_| fence)?;
+            let Some(service) = self.checkpoints.service() else {
+                return Err(fence);
+            };
+            let lane = service.lock().await;
+            if !self.gate.durable() || !lane.items_enabled() {
+                return Err(fence);
+            }
+            // Stale generations are recorded refusals and cannot access owner receipts.
+            if self.state.class_player(entity, owner, generation).is_ok() {
+                if !lane.transfer_ready(entity) {
+                    return Err(fence);
+                }
+                let operation = ItemMutationOperation::from_command_kind(&normalized.kind);
+                let key = super::IdempotencyKey::from_uuid(normalized.request_id);
+                let fingerprint = normalized.fingerprint_hex().map_err(|_| fence)?;
+                normalized = match lane
+                    .item_receipt_lookup(owner, operation, &key, &fingerprint)
+                    .await
+                    .map_err(|_| fence)?
+                {
+                    ItemReceiptLookup::Unknown => {
+                        if normalized.has_known_receipt()
+                            || normalized.receipt_conflict().map_err(|_| fence)?.is_some()
+                        {
+                            return Err(fence);
+                        }
+                        normalized
+                    },
+                    ItemReceiptLookup::Conflict { stored_fingerprint } => normalized
+                        .with_receipt_conflict(stored_fingerprint)
+                        .map_err(|_| fence)?,
+                    ItemReceiptLookup::Known(receipt) => {
+                        receipt.validate().map_err(|_| fence)?;
+                        if receipt.account_id != owner
+                            || receipt.operation != operation
+                            || receipt.key != key.as_uuid()
+                            || receipt.character_id.as_uuid() != entity.as_uuid()
+                            || receipt.fingerprint != fingerprint
+                        {
+                            return Err(fence);
+                        }
+                        normalized
+                            .with_known_receipt(
+                                receipt.fingerprint,
+                                receipt.result.payload().map_err(|_| fence)?,
+                            )
+                            .map_err(|_| fence)?
+                    },
+                };
+            }
+            drop(lane);
+            if normalized != **command {
+                self.pending.get_mut(*index).ok_or(fence)?.input.command =
+                    ZoneCommand::Item(Box::new(normalized));
+                changed = true;
+            }
+        }
+        Ok(changed)
     }
 
     // Recheck account-wide receipt before any generation or eligibility check. One purchase
@@ -1078,10 +1215,8 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
                         MutationReply::Learn(reply) => {
                             let _ = reply.send(result);
                         },
-                        MutationReply::Transfer(reply) => {
-                            let _ = reply.send(Err(super::AppError::Unavailable(
-                                "invalid RPC envelope".into(),
-                            )));
+                        other @ (MutationReply::Transfer(_) | MutationReply::Grant(_)) => {
+                            other.fail(super::AppError::Unavailable("invalid RPC envelope".into()));
                         },
                     }
                 }
@@ -1144,7 +1279,8 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
             // same player's final save. Otherwise Respawn + disconnect in one draft could
             // remove the entity before its progression delta is emitted.
             if checkpoints {
-                if let crate::domain::zone::ZoneCommand::Despawn { entity }
+                if let crate::domain::zone::ZoneCommand::SpawnPlayer { entity, .. }
+                | crate::domain::zone::ZoneCommand::Despawn { entity }
                 | crate::domain::zone::ZoneCommand::ReplaceSession { entity, .. } =
                     queued.input.command
                 {
@@ -1229,11 +1365,15 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
     }
 
     #[allow(clippy::wildcard_enum_match_arm)] // Search only this private success fact; other facts do not settle RPC replies.
-    fn complete_replies(&mut self, record: &AppliedTick) {
+    async fn complete_replies(&mut self, record: &AppliedTick) {
         for command in &record.commands {
             let Some(reply) = self.replies.remove(&command.ordinal) else {
                 continue;
             };
+            if let MutationReply::Grant(reply) = reply {
+                let _ = reply.send(self.committed_grant(record, command).await);
+                continue;
+            }
             if let MutationReply::Learn(reply) = reply {
                 let result = if let Some(d) = record
                     .dispositions
@@ -1356,9 +1496,23 @@ mod tests;
 pub(crate) fn class_error(reason: crate::domain::zone::RejectReason) -> super::AppError {
     use crate::domain::zone::RejectReason;
     match reason {
-        RejectReason::TransferConflict => super::AppError::IdempotencyConflict,
+        RejectReason::TransferConflict | RejectReason::ItemOperationConflict => {
+            super::AppError::IdempotencyConflict
+        },
         RejectReason::NotPermitted => super::AppError::PermissionDenied(reason.detail().to_owned()),
-        RejectReason::SkillNotLearnable
+        RejectReason::ItemNotOwned
+        | RejectReason::ItemNotUsable
+        | RejectReason::InvalidEquipSlot
+        | RejectReason::InsufficientItems
+        | RejectReason::InventoryFull
+        | RejectReason::ItemGradeMismatch
+        | RejectReason::ItemReuse
+        | RejectReason::InvalidEnchant
+        | RejectReason::InvalidRefinement
+        | RejectReason::InvalidRecipe
+        | RejectReason::ItemCapabilityDeferred
+        | RejectReason::CrystallizeLevelTooLow
+        | RejectReason::SkillNotLearnable
         | RejectReason::SkillWrongRank
         | RejectReason::SkillLevelRequired
         | RejectReason::SkillItemRequired

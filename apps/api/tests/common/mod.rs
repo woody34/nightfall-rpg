@@ -125,7 +125,7 @@ impl TestApp {
         customize: impl FnOnce(&mut Dependencies),
         zone: ZoneHandle,
     ) -> Self {
-        Self::spawn_with_handle_config(customize, zone, None).await
+        Self::spawn_with_handle_config(customize, zone, None, None).await
     }
 
     /// Installs test use cases through the real service without changing production startup.
@@ -137,8 +137,13 @@ impl TestApp {
             crate::common::fixture_zone(),
             IntervalTicks::new(),
         );
-        Self::spawn_with_handle_config(move |deps| deps.characters = repo, zone, Some(use_cases))
-            .await
+        Self::spawn_with_handle_config(
+            move |deps| deps.characters = repo,
+            zone,
+            Some(use_cases),
+            None,
+        )
+        .await
     }
 
     /// Real V5 endpoints using normal production service composition and the preinstalled lane.
@@ -154,6 +159,29 @@ impl TestApp {
             },
             zone,
             None,
+            None,
+        )
+        .await
+    }
+
+    /// Explicit endpoint fixture for independently absent inventory runtime ports.
+    pub async fn spawn_with_get_inventory(
+        repo: Arc<dyn CharacterRepository>,
+        catalogue: Option<Arc<dyn nightfall_api::application::ports::ItemCataloguePort>>,
+        use_case: nightfall_api::application::use_cases::GetInventory,
+    ) -> Self {
+        let zone = nightfall_api::application::zone_actor::ZoneActor::spawn(
+            crate::common::fixture_zone(),
+            IntervalTicks::new(),
+        );
+        Self::spawn_with_handle_config(
+            move |deps| {
+                deps.characters = repo;
+                deps.item_catalogue = catalogue;
+            },
+            zone,
+            None,
+            Some(use_case),
         )
         .await
     }
@@ -162,6 +190,7 @@ impl TestApp {
         customize: impl FnOnce(&mut Dependencies),
         zone: ZoneHandle,
         phase3: Option<nightfall_api::interface::grpc::Phase3UseCases>,
+        inventory: Option<nightfall_api::application::use_cases::GetInventory>,
     ) -> Self {
         let characters = Arc::new(InMemoryCharacterRepository::default());
         let accounts = Arc::new(InMemoryAccountRepository::default());
@@ -171,6 +200,7 @@ impl TestApp {
         let metrics = Metrics::detached();
         let mut deps = Dependencies::in_memory();
         deps.characters = characters.clone();
+        deps.item_inventory = Some(characters.clone());
         deps.accounts = accounts.clone();
         deps.sessions = sessions.clone();
         deps.bus = bus.clone();
@@ -189,6 +219,9 @@ impl TestApp {
         let mut services = build_live_grpc_services(&deps, &realtime).await.unwrap();
         if let Some(use_cases) = phase3 {
             services.game = services.game.with_phase3(use_cases);
+        }
+        if let Some(use_case) = inventory {
+            services.game = services.game.with_get_inventory(use_case);
         }
         let router = build_http_router(&deps, &realtime);
 

@@ -523,6 +523,8 @@ async fn recovery_snapshots_dedupe_only_identical_payloads_at_the_same_boundary(
     snapshot
         .checkpoints
         .push(nightfall_api::domain::zone::CheckpointSnapshot {
+            learning: None,
+            item_work: None,
             entity: EntityId::from_uuid(Uuid::from_u128(1)),
             revision: 1,
             last_saved: Tick(0),

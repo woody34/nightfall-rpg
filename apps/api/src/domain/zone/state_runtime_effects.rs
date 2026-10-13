@@ -2,8 +2,8 @@
 //! BuffInfo.java:260-278: success/duration precede instant handlers; installation follows.
 use super::*;
 use crate::domain::zone::effects::{
-    self, ActiveEffect, ActiveHandler, ActivePeriodic, EffectAdmission, EffectCapacities,
-    EffectFlags, EffectId, EffectPool, EffectRemoveReason, EffectSource, PulseSchedule,
+    self, ActiveEffect, ActiveHandler, ActivePeriodic, EffectAdmission, EffectFlags, EffectId,
+    EffectPool, EffectRemoveReason, EffectSource, PulseSchedule,
 };
 use crate::domain::zone::skill::SkillRef;
 
@@ -168,10 +168,11 @@ impl ZoneState {
         effect
             .validate_source(phase.canonical.rules.skills())
             .map_err(invariant)?;
+        let capacities = self.effect_capacities_v6(target.entity)?;
         let admitted = self
             .sidecar_mut(target.entity)?
             .effects
-            .admit(effect.clone(), EffectCapacities::for_enlarge(0))
+            .admit(effect.clone(), capacities)
             .map_err(invariant)?;
         let mut applied_effect_ids = Vec::new();
         if let EffectAdmission::Applied { removed } = admitted {
@@ -337,6 +338,26 @@ impl ZoneState {
             } => return Err(missing()),
         };
         let value = kind.of(&base);
+        // CharStat's six attribute getters fold before their integer cast and bonus lookup.
+        let value = if self.phase4.is_some() {
+            let effective = self.effective(id)?;
+            let folded = effective
+                .calculator
+                .fold(
+                    name,
+                    i64::from(value).checked_mul(Q).ok_or_else(missing)?,
+                    FunctionConditions {
+                        weapon_kind: self.item_weapon_kind(id, "NONE")?,
+                        can_resurrect: !effective.flags.intersects(
+                            crate::domain::zone::effects::StatusFlags::RESURRECTION_BLOCK,
+                        ),
+                    },
+                )
+                .map_err(invariant)?;
+            u32::try_from(folded / Q).map_err(invariant)?
+        } else {
+            value
+        };
         Ok((
             value,
             q(self
@@ -427,7 +448,11 @@ impl ZoneState {
         let mut chance_evidence = None;
         let a = self.effective(caster.entity)?;
         let b = self.effective(target.entity)?;
-        if abnormal.is_debuff && skill.activate_rate != -1 {
+        let activate_rate = *skill
+            .activate_rate
+            .at(rank, skill.max_level)
+            .ok_or_else(missing)?;
+        if abnormal.is_debuff && activate_rate != -1 {
             self.evidence_roll("EffectReflection", Some(target), 100);
         }
         let trait_modifier = Self::trait_modifier_v5(&a, &b, &skill.r#trait)?;
@@ -436,13 +461,13 @@ impl ZoneState {
         let index = usize::try_from(rank.checked_sub(1).ok_or_else(missing)?).map_err(invariant)?;
         let magic_level =
             i32::try_from(*skill.magic_level.get(index).ok_or_else(missing)?).map_err(invariant)?;
-        let success = if skill.activate_rate == -1 || skill.basic_property == "NONE" {
+        let success = if activate_rate == -1 || skill.basic_property == "NONE" {
             true
         } else {
             let inputs = skill_math::EffectSuccessInputs {
                 magic_level,
                 target_level: b.physical.level(),
-                activate_rate: i32::try_from(skill.activate_rate).map_err(invariant)?,
+                activate_rate: i32::try_from(activate_rate).map_err(invariant)?,
                 level_bonus_rate: i32::try_from(skill.level_bonus_rate).map_err(invariant)?,
                 target_base_stat,
                 basic_property_none: false,
@@ -463,11 +488,14 @@ impl ZoneState {
                                 },
                                 Q,
                                 FunctionConditions {
-                                    weapon_kind: if self.sidecar(target.entity)?.player.is_some() {
-                                        "SWORD"
-                                    } else {
-                                        "NONE"
-                                    },
+                                    weapon_kind: self.item_weapon_kind(
+                                        target.entity,
+                                        if self.sidecar(target.entity)?.player.is_some() {
+                                            "SWORD"
+                                        } else {
+                                            "NONE"
+                                        },
+                                    )?,
                                     can_resurrect: true,
                                 },
                             )
@@ -606,7 +634,12 @@ impl ZoneState {
                 .get(&work.target)
                 .and_then(|e| e.combat.as_ref())
                 .ok_or_else(missing)?;
-            if c.hp == 0 || target.incarnation != effect.target_incarnation {
+            if self
+                .entities
+                .get(&work.target)
+                .is_none_or(|e| e.targeting.dead)
+                || target.incarnation != effect.target_incarnation
+            {
                 continue;
             }
             let fractions = self.sidecar(work.target)?.fractions;
@@ -738,6 +771,7 @@ impl ZoneState {
         skill: &SkillDef,
         rank: u32,
         handler: &crate::domain::zone::skill::SkillHandler,
+        shots: u8,
         events: &mut Vec<ZoneEvent>,
     ) -> Result<SkillTargetResult, TickError> {
         let a = self.effective(caster.entity)?;
@@ -749,7 +783,8 @@ impl ZoneState {
                 .and_then(|v| v.at(rank, skill.max_level))
                 .map_or_else(|| default.to_owned(), Clone::clone)
         };
-        let hp_handler = matches!(handler.name.as_str(), "Heal" | "HpPerMax");
+        // Hp.java:68–81 uses amount/mode, without Heal's M.Atk or critical draw.
+        let hp_handler = matches!(handler.name.as_str(), "Heal" | "Hp" | "HpPerMax");
         let cp_handler = handler.name == "Cp";
         let fractions = self.sidecar(target.entity)?.fractions;
         let c = self
@@ -776,7 +811,14 @@ impl ZoneState {
         };
         let mut outcome = SkillOutcome::Hit;
         let mut granted = 0;
-        if c.hp != 0 && (!cp_handler || cp.is_some()) {
+        // D46 `heal` evidence: (unclamped amount, coefficient, static bonus, power, critical).
+        let mut heal_detail = None;
+        if self
+            .entities
+            .get(&target.entity)
+            .is_some_and(|e| !e.targeting.dead)
+            && (!cp_handler || cp.is_some())
+        {
             let current_exact = ExactRatio::whole(i64::from(current))
                 .checked_add(q(fraction).map_err(invariant)?)
                 .map_err(invariant)?;
@@ -785,14 +827,21 @@ impl ZoneState {
                 .map_err(invariant)?;
             let amount = if handler.name == "Heal" {
                 let power = ExactRatio::parse_literal(&param("power", "0")).map_err(invariant)?;
+                let (multiplier, bonus) =
+                    self.heal_shot_terms_v6(caster.entity, skill, rank, shots)?;
                 let mut amount = skill_math::heal_base(
-                    power,
+                    if skill.is_magic == 2 {
+                        power
+                    } else {
+                        power.checked_add(bonus).map_err(invariant)?
+                    },
                     q(a.m_atk_q).map_err(invariant)?,
-                    2,
+                    multiplier,
                     skill.is_magic == 2,
                 )
                 .map_err(invariant)?;
                 // HEAL_EFFECT is absent from the executable Func manifest; coefficient stays1.
+                let mut critical = false;
                 if skill.is_magic == 1
                     && self.evidence_roll("HealCritical", Some(target), 1000) < a.magic_crit
                 {
@@ -800,6 +849,10 @@ impl ZoneState {
                         .checked_mul(ExactRatio::whole(3))
                         .map_err(invariant)?;
                     outcome = SkillOutcome::Crit;
+                    critical = true;
+                }
+                if hp_handler {
+                    heal_detail = Some((amount, multiplier, bonus, power, critical));
                 }
                 amount
                     .clamp(
@@ -838,7 +891,8 @@ impl ZoneState {
                 } else {
                     input
                 };
-                if (cp_handler && param("mode", "DIFF") == "DIFF" || input.parts().0 >= 0)
+                if ((cp_handler || handler.name == "Hp") && param("mode", "DIFF") == "DIFF"
+                    || input.parts().0 >= 0)
                     && amount.checked_cmp(gap).map_err(invariant)? == std::cmp::Ordering::Greater
                 {
                     amount = gap;
@@ -854,6 +908,18 @@ impl ZoneState {
                 )
                 .map_err(invariant)?;
                 granted = restored.granted;
+                if let Some(detail) = heal_detail {
+                    self.heal_evidence_v6(
+                        caster,
+                        target,
+                        skill,
+                        rank,
+                        shots,
+                        detail,
+                        (current, fraction, recoverable),
+                        (amount, restored.current, restored.remainder_q),
+                    );
+                }
                 (restored.current, i64::from(restored.remainder_q))
             } else {
                 let drain = u32::try_from(
@@ -912,6 +978,80 @@ impl ZoneState {
             applied_effect_ids: Vec::new(),
         })
     }
+    /// D46 `heal`: the oracle's raw inputs (power, M.Atk, MP cost, mage/npc, weapon grade, shot
+    /// flags, static, critical, current HP state, recoverable cap) and the observed restoration,
+    /// with the floor certificate of the engine's own expression. Evidence-only.
+    #[allow(clippy::too_many_arguments, clippy::type_complexity)] // One heal's frozen inputs.
+    fn heal_evidence_v6(
+        &mut self,
+        caster: TargetBinding,
+        target: TargetBinding,
+        skill: &SkillDef,
+        rank: u32,
+        shots: u8,
+        (amount, coefficient, bonus, power, critical): (
+            skill_math::RootExpression,
+            u32,
+            ExactRatio,
+            ExactRatio,
+            bool,
+        ),
+        (current, fraction, recoverable): (u32, i64, u32),
+        (applied_q, new_hp, new_remainder): (i64, u32, u32),
+    ) {
+        use crate::domain::zone::state::item_evidence_hooks::{ratio_json as r, root_floor_bounds};
+        if !self.items_evidence_enabled() || !self.phase4_player_v6(caster.entity) {
+            return;
+        }
+        let Ok(a) = self.effective(caster.entity) else {
+            return;
+        };
+        let (offset, multiplier, radicand) = amount.parts();
+        let scale = ExactRatio::whole(Q);
+        let (Ok(offset_q), Ok(multiplier_q), Ok(m_atk)) =
+            (offset.checked_mul(scale), multiplier.checked_mul(scale), q(a.m_atk_q))
+        else {
+            return;
+        };
+        let Some((floor_q, _, _, root_lower, root_upper)) =
+            root_floor_bounds(offset_q, multiplier_q, radicand)
+        else {
+            return;
+        };
+        let restoration_q = floor_q.as_i64().map_or(0, |v| v.max(0));
+        let is_static = skill.is_magic == 2;
+        let is_magic = skill.is_magic == 1;
+        let Some(mp_consume2) = usize::try_from(rank.saturating_sub(1))
+            .ok()
+            .and_then(|index| skill.mp_consume_end.get(index))
+        else {
+            return;
+        };
+        let Some((mage, npc, grade)) = self.heal_caster_terms_v6(caster.entity) else {
+            return;
+        };
+        let whole_credit = i64::from(new_hp).saturating_sub(i64::from(current));
+        let Ok(applied) = ExactRatio::new(i128::from(applied_q), i128::from(Q)) else {
+            return;
+        };
+        self.item_formula_v6(
+            caster.entity,
+            "heal",
+            serde_json::json!({"power": r(power), "m_atk": r(m_atk), "mp_consume2": mp_consume2,
+                "mage": mage, "npc": npc, "grade": grade, "spirit": is_magic && shots & 2 != 0,
+                "blessed": is_magic && shots & 4 != 0, "static": is_static, "heal_effect": 1,
+                "critical": critical, "is_magic": is_magic, "current_hp": current,
+                "recoverable_hp": recoverable, "remainder_q": fraction}),
+            serde_json::json!({"amount": r(applied), "restoration_q": restoration_q,
+                "applied_q": applied_q, "current_hp": new_hp, "remainder_q": new_remainder,
+                "whole_credit": whole_credit, "coefficient": r(ExactRatio::whole(if is_static { 0 } else { i64::from(coefficient) })),
+                "static_bonus": r(if is_static { ExactRatio::whole(0) } else { bonus }),
+                "root_lower": root_lower, "root_upper": root_upper}),
+            &format!("heal:{}:{}:{}", caster.entity, target.entity, self.rng.get_word_pos()),
+            Some(serde_json::json!({"skill_id": skill.id.0, "target_entity": target.entity.to_string(), "event": "cast"})),
+        );
+    }
+
     fn heal_hate_v5(
         &mut self,
         tick: Tick,
@@ -926,7 +1066,7 @@ impl ZoneState {
             .filter_map(|(id, e)| {
                 let c = e.combat.as_ref()?;
                 (e.kind == EntityKind::Npc
-                    && c.hp > 0
+                    && !e.targeting.dead
                     && self
                         .hate
                         .get(id)
@@ -1043,17 +1183,21 @@ impl ZoneState {
         let rate = if buff {
             let a = self.effective(caster.entity)?;
             let b = self.effective(target.entity)?;
-            let conditions = FunctionConditions {
-                weapon_kind: "SWORD",
+            let target_conditions = FunctionConditions {
+                weapon_kind: self.item_weapon_kind(target.entity, "SWORD")?,
+                can_resurrect: true,
+            };
+            let caster_conditions = FunctionConditions {
+                weapon_kind: self.item_weapon_kind(caster.entity, "SWORD")?,
                 can_resurrect: true,
             };
             skill_math::cancel_base_rate(
                 rate,
                 b.calculator
-                    .fold("cancelVuln", 0, conditions)
+                    .fold("cancelVuln", 0, target_conditions)
                     .map_err(invariant)?,
                 a.calculator
-                    .fold("cancelProf", 0, conditions)
+                    .fold("cancelProf", 0, caster_conditions)
                     .map_err(invariant)?,
             )
             .map_err(invariant)?
@@ -1124,5 +1268,207 @@ impl ZoneState {
             }
         }
         Ok(removals)
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::indexing_slicing)]
+mod item_attribute_tests {
+    use super::*;
+    use crate::domain::zone::stat_functions::{
+        FunctionKey, FunctionOp, StatCalculator, StatFunction,
+    };
+    use crate::domain::zone::{skill::SkillCondition, StatKind};
+
+    #[test]
+    fn v6_attribute_callers_fold_current_weapon_before_bonus_and_keep_legacy_bases() {
+        let (mut zone, owner, npc) = ZoneState::item_checkpoint_fixture();
+        for id in [owner.entity, npc.entity] {
+            let stats = [
+                ("STR", StatKind::Str),
+                ("DEX", StatKind::Dex),
+                ("CON", StatKind::Con),
+                ("INT", StatKind::Int),
+                ("WIT", StatKind::Wit),
+                ("MEN", StatKind::Men),
+            ];
+            let phase4 = zone.phase4.take();
+            let bases: Vec<_> = stats
+                .iter()
+                .map(|(name, _)| zone.base_property_v5(id, name).unwrap())
+                .collect();
+            zone.phase4 = phase4;
+            let mut effective = (*zone.effective(id).unwrap()).clone();
+            let weapon = if id == owner.entity { "SWORD" } else { "NONE" };
+            effective.calculator =
+                StatCalculator::try_new(stats.iter().map(|(name, _)| StatFunction {
+                    key: FunctionKey {
+                        stat: (*name).into(),
+                        priority: 48,
+                        install_sequence: 1,
+                        handler_ordinal: 0,
+                        function_ordinal: 0,
+                    },
+                    operation: FunctionOp::Add(3 * Q + Q / 2),
+                    conditions: vec![SkillCondition::UsingKind {
+                        weapon_kinds: vec![weapon.into()],
+                    }],
+                }))
+                .unwrap();
+            zone.phase3
+                .as_mut()
+                .unwrap()
+                .effective
+                .insert(id, Arc::new(effective));
+            for ((name, kind), original) in stats.iter().zip(&bases) {
+                let expected = original.0 + 3;
+                let (value, bonus) = zone.base_property_v5(id, name).unwrap();
+                assert_eq!(value, expected);
+                assert_eq!(
+                    bonus,
+                    q(zone
+                        .rules
+                        .as_ref()
+                        .unwrap()
+                        .bonus()
+                        .bonus(*kind, expected)
+                        .unwrap()
+                        .raw())
+                    .unwrap()
+                );
+            }
+            if id == owner.entity {
+                let items = zone.phase4.as_mut().unwrap();
+                let player = items.canonical.players.get_mut(&id).unwrap();
+                let weapon = player
+                    .paperdoll
+                    .remove(&crate::domain::zone::EquipSlot::Rhand)
+                    .unwrap();
+                // Keep the synthetic calculator: the getter itself must select FIST now.
+                let removed = player.inventory.remove(&weapon).unwrap();
+                for ((name, _), original) in stats.iter().zip(&bases) {
+                    assert_eq!(zone.base_property_v5(id, name).unwrap(), *original);
+                }
+                let player = zone
+                    .phase4
+                    .as_mut()
+                    .unwrap()
+                    .canonical
+                    .players
+                    .get_mut(&id)
+                    .unwrap();
+                player.inventory.insert(weapon, removed);
+                player
+                    .paperdoll
+                    .insert(crate::domain::zone::EquipSlot::Rhand, weapon);
+            }
+            let phase4 = zone.phase4.take();
+            for ((name, _), original) in stats.iter().zip(&bases) {
+                assert_eq!(zone.base_property_v5(id, name).unwrap(), *original);
+            }
+            zone.phase4 = phase4;
+        }
+        assert_eq!(zone.base_property_v5(owner.entity, "NONE").unwrap(), (0, ExactRatio::whole(1)));
+    }
+    #[test]
+    fn v6_regeneration_uses_folded_con_and_men_with_current_weapon() {
+        let (mut zone, owner, _) = ZoneState::item_checkpoint_fixture();
+        let tick = zone.sidecar(owner.entity).unwrap().regen.next_at.unwrap();
+        let combat = zone
+            .entities
+            .get_mut(&owner.entity)
+            .unwrap()
+            .combat
+            .as_mut()
+            .unwrap();
+        combat.hp = 1;
+        combat.mp = 0;
+        let CombatRole::Player {
+            progression: Some(player),
+            ..
+        } = &mut combat.role
+        else {
+            unreachable!()
+        };
+        player.class_state.cp = 0;
+        zone.sidecar_mut(owner.entity).unwrap().fractions = ResourceFractions::default();
+        let credit = |zone: &ZoneState| {
+            let combat = zone.entities[&owner.entity].combat.as_ref().unwrap();
+            let CombatRole::Player {
+                progression: Some(player),
+                ..
+            } = &combat.role
+            else {
+                unreachable!()
+            };
+            let fractions = zone.sidecar(owner.entity).unwrap().fractions;
+            [
+                i64::from(combat.hp) * Q + fractions.hp,
+                i64::from(combat.mp) * Q + fractions.mp,
+                i64::from(player.class_state.cp) * Q + fractions.cp,
+            ]
+        };
+        let mut effective = (*zone.effective(owner.entity).unwrap()).clone();
+        effective.calculator = StatCalculator::default();
+        zone.phase3
+            .as_mut()
+            .unwrap()
+            .effective
+            .insert(owner.entity, Arc::new(effective));
+        let mut baseline = zone.clone();
+        baseline.regen_v5(tick).unwrap();
+        let original = credit(&baseline);
+        for (stat, changed) in [("CON", [true, false, true]), ("MEN", [false, true, false])] {
+            let mut current = zone.clone();
+            let mut effective = (*current.effective(owner.entity).unwrap()).clone();
+            let functions = [StatFunction {
+                key: FunctionKey {
+                    stat: stat.into(),
+                    priority: 48,
+                    install_sequence: 999,
+                    handler_ordinal: 0,
+                    function_ordinal: 0,
+                },
+                operation: FunctionOp::Add(40 * Q),
+                conditions: vec![SkillCondition::UsingKind {
+                    weapon_kinds: vec!["SWORD".into()],
+                }],
+            }];
+            effective.calculator = StatCalculator::try_new(functions).unwrap();
+            current
+                .phase3
+                .as_mut()
+                .unwrap()
+                .effective
+                .insert(owner.entity, Arc::new(effective));
+            let mut legacy = current.clone();
+            legacy.phase4 = None;
+            legacy.regen_v5(tick).unwrap();
+            assert_eq!(credit(&legacy), original);
+            let mut unarmed = current.clone();
+            unarmed
+                .phase4
+                .as_mut()
+                .unwrap()
+                .canonical
+                .players
+                .get_mut(&owner.entity)
+                .unwrap()
+                .paperdoll
+                .remove(&crate::domain::zone::EquipSlot::Rhand);
+            unarmed.regen_v5(tick).unwrap();
+            // Synthetic calculator is held fixed to isolate the getter's weapon predicate.
+            assert_eq!(credit(&unarmed), original);
+            current.regen_v5(tick).unwrap();
+            for ((after, before), changed) in
+                credit(&current).into_iter().zip(original).zip(changed)
+            {
+                if changed {
+                    assert!(after > before, "{stat}: {after} <= {before}");
+                } else {
+                    assert_eq!(after, before, "{stat}");
+                }
+            }
+        }
     }
 }

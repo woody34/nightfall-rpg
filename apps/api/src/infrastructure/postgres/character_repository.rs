@@ -33,10 +33,11 @@ use crate::infrastructure::telemetry::Metrics;
 /// Character persistence in Postgres.
 #[derive(Clone)]
 pub struct PgCharacterRepository {
-    db: DatabaseConnection,
+    pub(super) db: DatabaseConnection,
     metrics: Option<Metrics>,
     classes: Option<Arc<ClassRegistry>>,
     phase3_rules: Option<Arc<Phase3Rules>>,
+    phase4_rules: Option<Arc<crate::domain::zone::Phase4Rules>>,
 }
 
 impl PgCharacterRepository {
@@ -48,6 +49,7 @@ impl PgCharacterRepository {
             metrics: None,
             classes: None,
             phase3_rules: None,
+            phase4_rules: None,
         }
     }
 
@@ -63,6 +65,18 @@ impl PgCharacterRepository {
     pub fn with_phase3_rules(mut self, rules: Arc<Phase3Rules>) -> Self {
         self.phase3_rules = Some(rules);
         self
+    }
+
+    /// Install the exact item/skill pair selected for this V6 epoch, never a mixed catalogue.
+    pub fn with_phase4_rules(
+        mut self,
+        items: Arc<crate::domain::zone::Phase4Rules>,
+        skills: Arc<Phase3Rules>,
+    ) -> anyhow::Result<Self> {
+        items.validate_phase3(&skills).map_err(anyhow::Error::msg)?;
+        self.phase3_rules = Some(skills);
+        self.phase4_rules = Some(items);
+        Ok(self)
     }
 
     fn phase3_rules(&self) -> anyhow::Result<Arc<Phase3Rules>> {
@@ -121,7 +135,7 @@ impl PgCharacterRepository {
     }
 
     /// Runs `fut`, timing it when metrics are attached.
-    async fn timed<T>(&self, op: &'static str, fut: impl Future<Output = T>) -> T {
+    pub(super) async fn timed<T>(&self, op: &'static str, fut: impl Future<Output = T>) -> T {
         match &self.metrics {
             Some(m) => m.time_db("character", op, fut).await,
             None => fut.await,
@@ -133,7 +147,23 @@ fn model_to_character(m: characters::Model) -> anyhow::Result<Character> {
     let race = Race::parse(&m.race)
         .ok_or_else(|| anyhow::anyhow!("unknown race in database: {}", m.race))?;
     let stat = |v: i16| -> anyhow::Result<u32> { Ok(u32::try_from(v)?) };
+    let item_metadata = m
+        .phase4_checkpoint
+        .as_ref()
+        .map(|value| -> anyhow::Result<_> {
+            let checkpoint: crate::domain::zone::Phase4Checkpoint =
+                serde_json::from_value(value.clone())?;
+            let sources = m
+                .modifier_install_order
+                .as_array()
+                .ok_or_else(|| anyhow::anyhow!("invalid retained source order"))?
+                .len();
+            checkpoint.validate_structure(sources)?;
+            Ok(crate::domain::CharacterItemMetadata::from(&checkpoint))
+        })
+        .transpose()?;
     Ok(Character {
+        item_metadata,
         appearance: character_ledger::appearance(&m)?,
         class_state: character_ledger::state(&m)?,
         xp: u64::try_from(m.xp)?,
@@ -321,10 +351,31 @@ impl CharacterRepository for PgCharacterRepository {
                 let class_profile = m.class_profile.clone();
                 let revision = u64::try_from(m.revision)?;
                 let phase3 = phase3_checkpoint::load(&tx, &m).await?;
+                let phase4 = super::phase4_checkpoint::load(&tx, &m, phase3.as_ref()).await?;
+                // Legacy readers must never silently drop retained V6 inventory.
+                anyhow::ensure!(
+                    self.phase4_rules.is_some() || phase4.is_none(),
+                    "Phase4 admission requires its matching runtime bundle"
+                );
                 let mut c = model_to_character(m)?;
                 character_ledger::hydrate(&tx, &mut c).await?;
                 self.validate_versioned(&c, &c.class_state, phase3.as_ref(), alive)?;
+                let phase4 = if let Some(rules) = &self.phase4_rules {
+                    let requests = super::item_admission::load_pending(&tx, c.id).await?;
+                    Some(crate::infrastructure::item_manifests::admission_load(
+                        &c,
+                        phase4,
+                        &requests,
+                        phase3
+                            .as_ref()
+                            .map_or(0, |p| p.modifier_install_order.len()),
+                        rules,
+                    )?)
+                } else {
+                    None
+                };
                 Some(ProgressionState {
+                    phase4,
                     phase3,
                     position: c.position,
                     level: c.level,
@@ -361,7 +412,7 @@ impl CharacterRepository for PgCharacterRepository {
         events: &[DomainEvent],
     ) -> Result<CheckpointOutcome, CheckpointError> {
         match self
-            .timed("checkpoint", Box::pin(self.checkpoint_tx(checkpoint, events, None)))
+            .timed("checkpoint", Box::pin(self.checkpoint_tx(checkpoint, events, None, None)))
             .await?
         {
             LearningCheckpointOutcome::Checkpoint(outcome) => Ok(outcome),
@@ -418,7 +469,7 @@ impl LearningCheckpointRepository for PgCharacterRepository {
     ) -> Result<LearningCheckpointOutcome, CheckpointError> {
         self.timed(
             "checkpoint_learning",
-            Box::pin(self.checkpoint_tx(checkpoint, events, Some(receipt))),
+            Box::pin(self.checkpoint_tx(checkpoint, events, Some(receipt), None)),
         )
         .await
     }
@@ -494,22 +545,31 @@ async fn claim_learning(
 
 impl PgCharacterRepository {
     #[allow(clippy::too_many_lines)] // Keep receipt/key/fence/ledger/outbox ordering visible in one transaction.
-    async fn checkpoint_tx(
+    pub(super) async fn checkpoint_tx(
         &self,
         cp: &CharacterCheckpoint,
         events: &[DomainEvent],
         receipt: Option<&SuccessfulLearnReceipt>,
+        items: Option<&crate::application::ports::ItemCheckpointWork>,
     ) -> Result<LearningCheckpointOutcome, CheckpointError> {
         let other = checkpoint_db_error;
+        // Item audit facts require the atomic inventory/ledger/receipt projection lane.
+        if items.is_none() && events.iter().any(DomainEvent::is_item) {
+            return Err(CheckpointError::Constraint("item_projection_required".into()));
+        }
         if receipt.is_none() {
             if let Some(name) = cp.violated_constraint() {
                 return Err(CheckpointError::Constraint(name.to_owned()));
             }
         }
-        let fingerprint = receipt.map_or_else(
-            || Ok(cp.fingerprint(events)),
-            |receipt| receipt.checkpoint_fingerprint(cp, events),
-        )?;
+        let fingerprint = if let Some(work) = items {
+            work.fingerprint(cp, events, receipt)?
+        } else {
+            receipt.map_or_else(
+                || Ok(cp.fingerprint(events)),
+                |receipt| receipt.checkpoint_fingerprint(cp, events),
+            )?
+        };
         let tx = self.db.begin().await.map_err(other)?;
 
         let original = characters::Entity::find_by_id(cp.character_id.as_uuid())
@@ -519,11 +579,12 @@ impl PgCharacterRepository {
             .map_err(other)?
             .ok_or(CheckpointError::NotFound)?;
         let phase3_seen = original.phase3_timer_policy_version.is_some();
+        let original_model = original.clone();
         let original = model_to_character(original)?;
         let account = original.account_id.as_uuid();
         // An exact immutable checkpoint retry proves this draft committed, even after
         // another revision. A receipt alone proves only that some purchase won the key.
-        if receipt.is_some() {
+        if receipt.is_some() || items.is_some() {
             if let Some(stored) = super::entities::idempotency_keys::Entity::find_by_id((
                 cp.idempotency.1.as_uuid(),
                 account,
@@ -542,6 +603,22 @@ impl PgCharacterRepository {
                 return Ok(LearningCheckpointOutcome::Checkpoint(CheckpointOutcome::Replayed(
                     result.revision,
                 )));
+            }
+        }
+        if let Some(work) = items {
+            let rules = self
+                .phase4_rules
+                .as_ref()
+                .ok_or_else(|| CheckpointError::Constraint("item_checkpoint_rules".into()))?;
+            if work.projection.checkpoint.rules_hash != rules.hash() {
+                return Err(CheckpointError::Constraint("item_checkpoint_rules".into()));
+            }
+            work.validate(cp, original.account_id)?;
+            work.validate_catalogue(rules)?;
+            work.validate_events(cp, events)?;
+            if super::item_settlement::claim_receipts(&tx, cp, work).await? {
+                tx.rollback().await.map_err(other)?;
+                return Ok(LearningCheckpointOutcome::Checkpoint(CheckpointOutcome::Stale));
             }
         }
         if let Some(receipt) = receipt {
@@ -638,6 +715,17 @@ impl PgCharacterRepository {
             return Ok(LearningCheckpointOutcome::Checkpoint(CheckpointOutcome::Stale));
         }
 
+        let phase3_original = phase3_checkpoint::load(&tx, &original_model).await?;
+        let phase4_original =
+            super::phase4_checkpoint::load(&tx, &original_model, phase3_original.as_ref()).await?;
+        if let Some(work) = items {
+            work.validate_before(phase4_original.as_ref())?;
+        } else {
+            crate::application::ports::validate_item_retention(
+                phase4_original.as_ref(),
+                cp.phase4.as_ref(),
+            )?;
+        }
         if phase3_seen && cp.phase3.is_none() {
             return Err(CheckpointError::Constraint("characters_phase3_downgrade".into()));
         }
@@ -648,6 +736,12 @@ impl PgCharacterRepository {
         character_ledger::persist(&tx, cp, &original).await?;
         if let Some(phase3) = &cp.phase3 {
             phase3_checkpoint::persist(&tx, cp.character_id, phase3).await?;
+        }
+
+        if let Some(work) = items {
+            super::item_settlement::persist(&tx, cp, work, phase4_original.as_ref()).await?;
+        } else if let Some(phase4) = &cp.phase4 {
+            super::phase4_checkpoint::persist_retained(&tx, cp.character_id, phase4).await?;
         }
 
         for event in events {
@@ -745,6 +839,7 @@ impl PgCharacterRepository {
         }
 
         character_ledger::create_main_slot(&tx, character).await?;
+        super::item_admission::create_starter(&tx, character).await?;
         let event = DomainEvent::CharacterCreated {
             character_id: character.id,
             account_id: character.account_id,

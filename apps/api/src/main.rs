@@ -130,6 +130,7 @@ async fn shutdown_signal() {
     }
 }
 
+#[allow(clippy::too_many_lines)] // Keep all views of each persistence adapter wired together at startup.
 async fn build_dependencies(
     cfg: &Config,
     zone_cfg: &ZoneRuntimeConfig,
@@ -143,6 +144,7 @@ async fn build_dependencies(
 )> {
     use infrastructure::class_data::{load_classes, ClassSource};
     let mut deps = Dependencies::in_memory();
+    deps.dev_item_grants = cfg.auth_dev_tokens;
     let class_source = match std::env::var_os("CLASS_DATA_DIR") {
         Some(path) => ClassSource::from_dir(std::path::Path::new(&path))?,
         None => ClassSource::embedded(),
@@ -168,6 +170,9 @@ async fn build_dependencies(
     }
     let characters = Arc::new(memory);
     deps.characters = characters.clone();
+    deps.item_inventory = Some(characters.clone());
+    deps.item_receipts = Some(characters.clone());
+    deps.item_checkpoints = Some(characters.clone());
     deps.learning = Some(characters);
     if let Some(path) = std::env::var_os("CHARACTER_NAME_BLOCKLIST_PATH") {
         let raw = std::fs::read_to_string(path)?;
@@ -197,6 +202,9 @@ async fn build_dependencies(
         }
         let characters = Arc::new(characters);
         deps.characters = characters.clone();
+        deps.item_inventory = Some(characters.clone());
+        deps.item_receipts = Some(characters.clone());
+        deps.item_checkpoints = Some(characters.clone());
         deps.learning = Some(characters);
         deps.accounts = Arc::new(
             infrastructure::postgres::PgAccountRepository::new(conn.clone())

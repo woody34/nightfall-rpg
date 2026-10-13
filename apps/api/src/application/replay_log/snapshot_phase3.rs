@@ -210,15 +210,29 @@ pub(super) fn encode(snapshot: &ZoneSnapshot) -> Result<Vec<u8>, CodecError> {
         .phase3
         .as_ref()
         .ok_or_else(|| error("missing phase3"))?;
+    if let Some(items) = &snapshot.phase4 {
+        let bundle = crate::infrastructure::item_data::resolve_phase4_bundle(
+            items.rules_hash,
+            phase3.rules_hash,
+        )
+        .map_err(error)?;
+        items
+            .validate_allocations(&bundle.items, phase3)
+            .map_err(error)?;
+    }
     let mut base = snapshot.clone();
     base.phase3 = None;
     base.entities.clear();
     base.aoi.clear();
     let mut message = Snapshot {
-        format: 1,
+        format: if snapshot.phase4.is_some() { 2 } else { 1 },
         base_json: super::record::bounded_snapshot_json(&base)?,
         rules_hash: phase3.rules_hash.to_vec(),
-        rules: Some(super::snapshot_registry::Registry::pack(phase3.rules.as_ref())?),
+        rules: if snapshot.phase4.is_some() {
+            None
+        } else {
+            Some(super::snapshot_registry::Registry::pack(phase3.rules.as_ref())?)
+        },
         counters: vec![
             phase3.next_entity_ordinal,
             phase3.next_cast_id,
@@ -370,7 +384,7 @@ fn validate_expansion(message: &Snapshot) -> Result<(), CodecError> {
 pub(super) fn decode(bytes: &[u8]) -> Result<ZoneSnapshot, CodecError> {
     let message = Snapshot::decode(bytes).map_err(error)?;
     // Unknown/duplicate fields, alternate integer encodings and field order are refused.
-    if message.encode_to_vec() != bytes || message.format != 1 {
+    if message.encode_to_vec() != bytes || !matches!(message.format, 1 | 2) {
         return Err(error("noncanonical body or unsupported format"));
     }
     validate_expansion(&message)?;
@@ -378,17 +392,39 @@ pub(super) fn decode(bytes: &[u8]) -> Result<ZoneSnapshot, CodecError> {
     if snapshot.phase3.is_some()
         || !snapshot.entities.is_empty()
         || !snapshot.aoi.is_empty()
-        || snapshot.meta.schema_version != 9
-        || snapshot.meta.digest_version != crate::domain::zone::StateDigestVersion::BinaryV5
+        || !matches!(
+            (
+                message.format,
+                snapshot.meta.schema_version,
+                snapshot.meta.digest_version,
+                snapshot.phase4.is_some()
+            ),
+            (1, 9, crate::domain::zone::StateDigestVersion::BinaryV5, false)
+                | (2, 10, crate::domain::zone::StateDigestVersion::BinaryV6, true)
+        )
     {
         return Err(error("invalid base policy or duplicated phase3"));
     }
-    let rules: Phase3Rules = required(message.rules)?.unpack()?;
     (snapshot.entities, snapshot.aoi) = unpack(required(message.base_entities)?)?;
     let rules_hash: [u8; 32] = message
         .rules_hash
         .try_into()
         .map_err(|_| error("rules hash length"))?;
+    let rules = if message.format == 1 {
+        Arc::new(required(message.rules)?.unpack::<Phase3Rules>()?)
+    } else {
+        if message.rules.is_some() {
+            return Err(error("V6 must not embed immutable rules"));
+        }
+        let item_hash = snapshot
+            .phase4
+            .as_ref()
+            .ok_or_else(|| error("missing V6 items"))?
+            .rules_hash;
+        crate::infrastructure::item_data::resolve_phase4_bundle(item_hash, rules_hash)
+            .map_err(error)?
+            .skills
+    };
     if rules.hash() != rules_hash {
         return Err(error("rules hash mismatch"));
     }
@@ -486,7 +522,7 @@ pub(super) fn decode(bytes: &[u8]) -> Result<ZoneSnapshot, CodecError> {
         return Err(error("unused source UUID"));
     }
     snapshot.phase3 = Some(Phase3Snapshot {
-        rules: Arc::new(rules),
+        rules,
         rules_hash,
         next_entity_ordinal,
         next_cast_id,

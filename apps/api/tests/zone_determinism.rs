@@ -168,6 +168,9 @@ fn assert_output_order(t: &AppliedTick) {
                 | ZoneEvent::AttackCancelled { .. }
                 | ZoneEvent::HateChanged { .. }
                 | ZoneEvent::NpcIntentionChanged { .. }
+                | ZoneEvent::ItemView(_)
+                | ZoneEvent::ItemResult(_)
+                | ZoneEvent::ItemCheckpoint(_)
                 | ZoneEvent::Progression(_)),
             ) => (4, 0, None),
         };
@@ -343,6 +346,7 @@ fn arena(epoch: u64) -> (ZoneState, Vec<EntityId>) {
                 generation: SessionGeneration(1),
                 load: Some(Box::new(if n == 0 {
                     PlayerLoad {
+                        phase4: None,
                         phase3: None,
                         level: 2,
                         xp: 70,

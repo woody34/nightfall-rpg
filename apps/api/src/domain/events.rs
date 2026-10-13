@@ -11,6 +11,46 @@ use serde::{Deserialize, Serialize};
 #[non_exhaustive]
 #[allow(clippy::enum_variant_names)]
 pub enum DomainEvent {
+    /// Granted, starter or backfilled item ownership.
+    ItemGranted {
+        /// Stable audit identity and exact scalar/cause projection.
+        fact: ItemEventFact,
+    },
+    /// An item entered a stored paperdoll slot.
+    ItemEquipped {
+        /// Stable audit identity and exact scalar/cause projection.
+        fact: ItemEventFact,
+    },
+    /// An item left a stored paperdoll slot, including displacement.
+    ItemUnequipped {
+        /// Stable audit identity and exact scalar/cause projection.
+        fact: ItemEventFact,
+    },
+    /// Net item consumption/charge changes, coalesced per instance and tick.
+    ItemConsumed {
+        /// Stable audit identity and exact scalar/cause projection.
+        fact: ItemEventFact,
+    },
+    /// A committed enchant attempt, including failure consequences.
+    ItemEnchanted {
+        /// Stable audit identity and exact scalar/cause projection.
+        fact: ItemEventFact,
+    },
+    /// An item was destroyed or crystallized; refunds have granted facts.
+    ItemDestroyed {
+        /// Stable audit identity and exact scalar/cause projection.
+        fact: ItemEventFact,
+    },
+    /// Augmentation applied or removed.
+    ItemRefined {
+        /// Stable audit identity and exact scalar/cause projection.
+        fact: ItemEventFact,
+    },
+    /// A special-ability exchange consumed an old instance.
+    ItemExchanged {
+        /// Stable audit identity and exact scalar/cause projection.
+        fact: ItemEventFact,
+    },
     /// A character was created.
     CharacterCreated {
         /// The new character.
@@ -101,11 +141,74 @@ pub struct EventMetadata {
     pub sequence: (u64, u64),
 }
 
+/// API-owned item outbox payload. Ownership scalars are typed; ordered evidence objects
+/// come from the verified immutable draft and are audit data, never command authority.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(missing_docs)]
+pub struct ItemEventFact {
+    pub metadata: EventMetadata,
+    pub character_id: CharacterId,
+    pub instance_id: super::zone::ItemInstanceId,
+    pub template_id: u32,
+    pub count_delta: i64,
+    pub before: Option<super::zone::ItemInstance>,
+    pub after: Option<super::zone::ItemInstance>,
+    pub causes: Vec<serde_json::Value>,
+}
+
+impl ItemEventFact {
+    /// Reject synthetic identities and malformed scalars before staging audit payloads.
+    pub fn validate(&self) -> anyhow::Result<()> {
+        anyhow::ensure!(
+            self.before.is_some() || self.after.is_some(),
+            "item fact has no scalar state"
+        );
+        for item in self.before.iter().chain(self.after.iter()) {
+            item.validate()?;
+            anyhow::ensure!(item.id == self.instance_id, "item audit identity mismatch");
+        }
+        let current = self
+            .after
+            .as_ref()
+            .or(self.before.as_ref())
+            .ok_or_else(|| anyhow::anyhow!("item audit scalar state is missing"))?;
+        anyhow::ensure!(
+            current.template_id == self.template_id,
+            "item audit template projection mismatch"
+        );
+        Ok(())
+    }
+}
+
 impl DomainEvent {
+    /// Whether this fact requires the atomic item projection writer.
+    pub const fn is_item(&self) -> bool {
+        matches!(
+            self,
+            Self::ItemGranted { .. }
+                | Self::ItemEquipped { .. }
+                | Self::ItemUnequipped { .. }
+                | Self::ItemConsumed { .. }
+                | Self::ItemEnchanted { .. }
+                | Self::ItemDestroyed { .. }
+                | Self::ItemRefined { .. }
+                | Self::ItemExchanged { .. }
+        )
+    }
+
     /// NATS subject for the event. Shape: `nightfall.<aggregate>.<event>`.
     #[must_use]
     pub const fn subject(&self) -> &'static str {
         match self {
+            DomainEvent::ItemExchanged { .. } => "nightfall.item.exchanged",
+            DomainEvent::ItemRefined { .. } => "nightfall.item.refined",
+            DomainEvent::ItemDestroyed { .. } => "nightfall.item.destroyed",
+            DomainEvent::ItemEnchanted { .. } => "nightfall.item.enchanted",
+            DomainEvent::ItemConsumed { .. } => "nightfall.item.consumed",
+            DomainEvent::ItemUnequipped { .. } => "nightfall.item.unequipped",
+            DomainEvent::ItemEquipped { .. } => "nightfall.item.equipped",
+            DomainEvent::ItemGranted { .. } => "nightfall.item.granted",
             DomainEvent::CharacterSkillLearned { .. } => "nightfall.character.skill_learned",
             DomainEvent::CharacterTokenGranted { .. } => "nightfall.character.token_granted",
             DomainEvent::CharacterCreated { .. } => "nightfall.character.created",

@@ -38,4 +38,67 @@ pub struct EvidenceDraw {
 pub(crate) struct EvidenceBuffer {
     pub facts: Vec<EvidenceFact>,
     pub draws: Vec<EvidenceDraw>,
+    pub items: Option<Vec<ItemEvidenceFact>>,
+    /// D46 `bow_launch` facts opened at an accepted bow start and completed with the hit,
+    /// critical and spread residues at impact: (resolution id, inputs, actual). Evidence only.
+    pub pending_launch: std::collections::BTreeMap<EntityId, (String, Value, Value)>,
+    /// D46 `dual_plan` facts planned at the first subhit and completed when the stored
+    /// second is applied or discarded: (resolution id, inputs, actual). Evidence only.
+    pub pending_dual: std::collections::BTreeMap<EntityId, (String, Value, Value)>,
+    /// D92 cast-bound families awaiting their terminal tick, by cast id:
+    /// (owner, formula, resolution id, inputs, actual). Evidence only.
+    #[allow(clippy::type_complexity)] // Evidence-only staging, never canonical.
+    pub pending_cast:
+        std::collections::BTreeMap<u64, Vec<(EntityId, String, String, Value, Value)>>,
+    /// D99/D104 `resurrection_scroll` starts by caster, awaiting the offer response:
+    /// (resolution id, definition record, start tick, scroll count before, cost).
+    pub pending_resurrect: std::collections::BTreeMap<EntityId, (String, Value, u64, u64, u64)>,
+}
+
+/// D46 observations captured at their operation boundary, never persisted as state.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct ItemEvidenceFact {
+    /// Actual subject and life at resolution time.
+    pub entity: EntityId,
+    /// Incarnation is captured before later death, departure or respawn.
+    pub incarnation: u32,
+    /// D56 distinguishes private paused work from a live combatant life.
+    pub origin: ItemEvidenceOrigin,
+    /// Tick containing this observation.
+    pub tick: Tick,
+    /// Frozen D46 fact kind and payload.
+    #[serde(flatten)]
+    pub fact: ItemEvidenceData,
+}
+
+/// Owner context at the operation boundary; never inferred from later entity state.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ItemEvidenceOrigin {
+    /// An admitted combatant with a positive incarnation.
+    Live,
+    /// A paused character, identified by its character UUID and incarnation zero.
+    Offline,
+}
+
+/// Typed RNG cursors serialize as full-width JSON integers, including values above u64.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(tag = "kind", content = "data", rename_all = "snake_case")]
+#[allow(missing_docs)]
+pub enum ItemEvidenceData {
+    #[serde(rename = "item_baseline")]
+    Baseline(Value),
+    #[serde(rename = "item_formula")]
+    Formula(Value),
+    #[serde(rename = "item_delta")]
+    Delta(Value),
+    #[serde(rename = "item_rng")]
+    Rng {
+        callsite: String,
+        word_before: u128,
+        word_after: u128,
+        bound: u32,
+        value: u32,
+        resolution_id: String,
+    },
 }

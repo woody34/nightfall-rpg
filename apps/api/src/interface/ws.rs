@@ -232,7 +232,8 @@ impl SessionCodec for ProstCodec {
                     SessionReject::NotYetImplemented
                 },
                 MappingError::InvalidCoordinate => SessionReject::OutOfBounds,
-                MappingError::InvalidTarget
+                MappingError::InvalidItem
+                | MappingError::InvalidTarget
                 | MappingError::MissingIntent
                 | MappingError::MissingDestination => SessionReject::Invalid,
             };
@@ -271,6 +272,7 @@ const fn mapping_detail(e: MappingError) -> &'static str {
     match e {
         MappingError::Phase3Unavailable => "phase 3 runtime is not yet available",
         MappingError::Phase4Unavailable => "phase 4 runtime is not yet available",
+        MappingError::InvalidItem => "invalid item request",
         MappingError::InvalidTarget => "target must be a UUID or empty",
         MappingError::MissingIntent => "intent is required",
         MappingError::MissingDestination => "destination is required",

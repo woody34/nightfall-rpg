@@ -159,6 +159,10 @@ magical slots subtract their effective bases. Existing V5 inputs are unchanged.
 The table participates in `rules_manifest.files` and `data_sha256`; source byte
 hashes remain in `source_inventory.json`.
 
+D84 adds `fists:{class_min:int,class_max:int,template_id:int}[]` (ascending, disjoint) parsed from
+`L2PcInstance.findFistsWeaponItem` (GAME@abfde049 2141-2183): an unarmed player's active weapon
+is that template (range 40, random damage 5, Orc Shaman 10); classes outside every range use
+the template bases below.
 D75 `class_combat.toml` adds hash-bound unarmed (no active weapon) combat bases for
 the nine supported base classes (ascending `base_class_id`): `schema:int=1`,
 `sources:Source[]`, `unarmed:{attack_angle:int,random_damage_radius_base:int}`,

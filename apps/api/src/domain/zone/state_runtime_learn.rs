@@ -129,7 +129,7 @@ impl ZoneState {
                 classes: self.classes.as_deref().ok_or(RejectReason::InvalidLoad)?,
                 rules: &phase.canonical.rules,
                 level: c.sheet.level(),
-                alive: !e.targeting.dead && c.hp != 0,
+                alive: !e.targeting.dead,
                 engaged: self.engaged_for_learning(id),
                 position: e.pos,
             },
@@ -317,6 +317,40 @@ impl ZoneState {
                                 .binding(entity)
                                 .is_some_and(|b| t.incarnation == Some(b.incarnation))
                     }))
+        }) || staged.pending_item_uses().any(|entry| {
+            if self.binding(entry.caster.entity) != Some(entry.caster) {
+                return false;
+            }
+            if entry.caster.entity == entity {
+                return true;
+            }
+            let crate::domain::zone::ItemCommandKind::Use { instance, .. } = entry.command.kind
+            else {
+                return false;
+            };
+            let hostile = self
+                .phase4
+                .as_ref()
+                .and_then(|items| {
+                    items
+                        .canonical
+                        .players
+                        .get(&entry.caster.entity)
+                        .and_then(|player| player.inventory.get(&instance))
+                        .and_then(|item| items.rules.parts().items.get(&item.template_id))
+                })
+                .is_some_and(|item| {
+                    item.skills.iter().any(|skill| {
+                        self.hostile_skill_v5(crate::domain::zone::skill::SkillId(skill.id))
+                    })
+                });
+            hostile
+                && entry.timing.target.is_some_and(|target| {
+                    target.entity == entity
+                        && self
+                            .binding(entity)
+                            .is_some_and(|binding| target.incarnation == Some(binding.incarnation))
+                })
         })
     }
 

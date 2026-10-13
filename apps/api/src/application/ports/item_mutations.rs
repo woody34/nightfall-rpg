@@ -1,0 +1,680 @@
+//! Atomic, account-scoped settlement of already acknowledged private zone facts.
+use super::{CharacterCheckpoint, ItemLedgerDelta, ItemLedgerEntry, ItemLedgerOperation};
+use crate::application::{CheckpointError, CheckpointOutcome, IdempotencyKey};
+use crate::domain::zone::phase4_projection::{
+    FrozenItemResult, ItemOperation, ItemRefineOutcome, ItemResultDetail,
+};
+use crate::domain::zone::{ItemInstanceRange, Phase4Checkpoint, Phase4Projection, ZoneId};
+use crate::domain::{AccountId, CharacterId, DomainEvent};
+use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
+use std::collections::{BTreeMap, BTreeSet};
+
+/// Exactly the account/operation scope of the SQL request keys and frozen receipts.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+#[allow(missing_docs)]
+pub enum ItemMutationOperation {
+    EquipItem,
+    UnequipItem,
+    UseItem,
+    DestroyItem,
+    EnchantItem,
+    ToggleAutoShot,
+    RefineItem,
+    CancelRefine,
+    ExchangeSpecialAbility,
+    CrystallizeItem,
+    GrantItem,
+    Starter,
+    Backfill,
+}
+impl ItemMutationOperation {
+    /// Stable request operation names, independent of the per-instance ledger vocabulary.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::EquipItem => "equip_item",
+            Self::UnequipItem => "unequip_item",
+            Self::UseItem => "use_item",
+            Self::DestroyItem => "destroy_item",
+            Self::EnchantItem => "enchant_item",
+            Self::ToggleAutoShot => "toggle_auto_shot",
+            Self::RefineItem => "refine_item",
+            Self::CancelRefine => "cancel_refine",
+            Self::ExchangeSpecialAbility => "exchange_special_ability",
+            Self::CrystallizeItem => "crystallize_item",
+            Self::GrantItem => "grant_item",
+            Self::Starter => "starter",
+            Self::Backfill => "backfill",
+        }
+    }
+    /// Canonical command scope, independent of any resulting per-instance ledger operation.
+    pub const fn from_command_kind(kind: &crate::domain::zone::ItemCommandKind) -> Self {
+        use crate::domain::zone::ItemCommandKind as K;
+        match kind {
+            K::Equip { .. } => Self::EquipItem,
+            K::Unequip { .. } => Self::UnequipItem,
+            K::Use { .. } => Self::UseItem,
+            K::Destroy { .. } => Self::DestroyItem,
+            K::Enchant { .. } => Self::EnchantItem,
+            K::ToggleAutoShot { .. } => Self::ToggleAutoShot,
+            K::Refine { .. } => Self::RefineItem,
+            K::CancelRefine { .. } => Self::CancelRefine,
+            K::ExchangeSpecialAbility { .. } => Self::ExchangeSpecialAbility,
+            K::Crystallize { .. } => Self::CrystallizeItem,
+        }
+    }
+    /// The typed frozen result binds its operation; automatic consumption has no request.
+    pub fn from_result(result: &FrozenItemResult) -> Result<Self, CheckpointError> {
+        Ok(match result.detail {
+            ItemResultDetail::Enchant { .. } => Self::EnchantItem,
+            ItemResultDetail::Refine {
+                outcome: ItemRefineOutcome::Applied,
+                ..
+            } => Self::RefineItem,
+            ItemResultDetail::Refine {
+                outcome: ItemRefineOutcome::Removed,
+                ..
+            } => Self::CancelRefine,
+            ItemResultDetail::Operation { operation, .. } => match operation {
+                ItemOperation::Equip => Self::EquipItem,
+                ItemOperation::Unequip => Self::UnequipItem,
+                ItemOperation::Use => Self::UseItem,
+                ItemOperation::Destroy => Self::DestroyItem,
+                ItemOperation::Crystallize => Self::CrystallizeItem,
+                ItemOperation::ToggleAutoShot => Self::ToggleAutoShot,
+                ItemOperation::Exchange => Self::ExchangeSpecialAbility,
+                ItemOperation::Grant => Self::GrantItem,
+                ItemOperation::Starter => Self::Starter,
+                ItemOperation::Backfill => Self::Backfill,
+                ItemOperation::Consume
+                | ItemOperation::Enchant
+                | ItemOperation::Refine
+                | ItemOperation::CancelRefine => return Err(invalid("item_receipt_operation")),
+            },
+        })
+    }
+}
+
+/// `GrantItem` includes a frozen baseline; retries must never reread a later inventory.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(missing_docs)]
+pub struct FrozenItemInventory {
+    pub character_revision: u64,
+    pub phase3_source_count: u32,
+    pub checkpoint: Phase4Checkpoint,
+    pub ordinary_capacity: u32,
+    pub quest_capacity: u32,
+}
+
+/// API-owned immutable success, bound to the authenticated account before simulation.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(missing_docs)]
+pub struct ItemMutationReceipt {
+    pub account_id: AccountId,
+    pub character_id: CharacterId,
+    pub operation: ItemMutationOperation,
+    pub key: uuid::Uuid,
+    pub fingerprint: String,
+    #[serde(with = "crate::domain::zone::phase4_projection::result_payload")]
+    pub result: FrozenItemResult,
+    pub inventory: Option<FrozenItemInventory>,
+}
+impl ItemMutationReceipt {
+    /// Verify duplicate identities and the entire response without querying mutable state.
+    pub fn validate(&self) -> Result<(), CheckpointError> {
+        self.result
+            .validate()
+            .map_err(|_| invalid("item_receipt_result"))?;
+        if i64::try_from(self.result.tick.0).is_err()
+            || self.key.is_nil()
+            || self.result.receipt != self.key
+            || self.result.entity.as_uuid() != self.character_id.as_uuid()
+            || self.fingerprint.is_empty()
+            || self.result.request_fingerprint != self.fingerprint
+            || ItemMutationOperation::from_result(&self.result)? != self.operation
+            || (self.operation == ItemMutationOperation::GrantItem) != self.inventory.is_some()
+        {
+            return Err(invalid("item_receipt_identity"));
+        }
+        if let Some(inventory) = &self.inventory {
+            inventory
+                .checkpoint
+                .validate_structure(
+                    usize::try_from(inventory.phase3_source_count).map_err(anyhow::Error::from)?,
+                )
+                .map_err(|_| invalid("item_receipt_inventory"))?;
+            if i64::try_from(inventory.character_revision).is_err()
+                || inventory.checkpoint.inventory_revision < self.result.inventory_revision
+                || inventory.checkpoint.starter_kit_receipt.is_none()
+                || inventory.ordinary_capacity != inventory.checkpoint.ordinary_capacity
+                || inventory.quest_capacity != inventory.checkpoint.quest_capacity
+            {
+                return Err(invalid("item_receipt_inventory"));
+            }
+        }
+        Ok(())
+    }
+}
+
+/// Exact immutable response, independent of current session/eligibility/inventory.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ItemReceiptLookup {
+    /// No successful request in this account/operation scope.
+    Unknown,
+    /// Same key names a different normalized body.
+    Conflict {
+        /// Immutable repository fingerprint, recorded before gameplay.
+        stored_fingerprint: String,
+    },
+    /// Frozen original result, including the Grant baseline when applicable.
+    Known(Box<ItemMutationReceipt>),
+}
+
+/// Receipts are checked in authenticated actor preflight, before drafting or consuming RNG.
+#[async_trait]
+pub trait ItemReceiptRepository: Send + Sync {
+    /// Account and operation are trusted normalized context, never client-supplied ownership.
+    async fn item_receipt_lookup(
+        &self,
+        account: AccountId,
+        operation: ItemMutationOperation,
+        key: &IdempotencyKey,
+        fingerprint: &str,
+    ) -> anyhow::Result<ItemReceiptLookup>;
+}
+
+/// The actor supplies enclosing epoch/range context from the acknowledged tick snapshot.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(missing_docs)]
+pub struct ItemCheckpointWork {
+    pub zone: ZoneId,
+    pub epoch: u64,
+    pub allocation: ItemInstanceRange,
+    pub projection: Phase4Projection,
+}
+impl ItemCheckpointWork {
+    /// Structural agreement with the ordinary checkpoint; contextual fold validation is zone-owned.
+    pub fn validate(
+        &self,
+        cp: &CharacterCheckpoint,
+        owner: AccountId,
+    ) -> Result<(), CheckpointError> {
+        let phase3 = cp
+            .phase3
+            .as_ref()
+            .ok_or_else(|| invalid("item_checkpoint_skills"))?;
+        self.projection
+            .validate_structure(phase3.modifier_install_order.len())
+            .map_err(|_| invalid("item_checkpoint_projection"))?;
+        if let Some(core) = &self.projection.paused_core {
+            let expected = crate::application::checkpoint::paused::paused_checkpoint(
+                core,
+                &self.projection,
+                self.zone,
+                self.epoch,
+            )
+            .map_err(CheckpointError::from)?;
+            if &expected != cp {
+                return Err(invalid("item_checkpoint_paused_core"));
+            }
+        }
+        if self.projection.entity.as_uuid() != cp.character_id.as_uuid()
+            || self.projection.account != owner
+            || cp.phase4.as_ref() != Some(&self.projection.checkpoint)
+            || i32::try_from(self.zone.0).is_err()
+            || i64::try_from(self.epoch).is_err()
+            || i64::try_from(self.projection.tick.0).is_err()
+        {
+            return Err(invalid("item_checkpoint_identity"));
+        }
+        for row in self.ledger_entries()? {
+            row.validate()?;
+        }
+        for receipt in self.receipts(cp)? {
+            receipt.validate()?;
+        }
+        Ok(())
+    }
+
+    /// Immutable catalogue invariants are checked at the storage trust boundary as well.
+    pub fn validate_catalogue(
+        &self,
+        rules: &crate::domain::zone::Phase4Rules,
+    ) -> Result<(), CheckpointError> {
+        for item in
+            self.projection
+                .checkpoint
+                .instances
+                .iter()
+                .chain(
+                    self.projection
+                        .ledger
+                        .iter()
+                        .flat_map(|delta| delta.before.iter().chain(delta.after.iter())),
+                )
+                .chain(self.projection.enchant_attempts.iter().flat_map(|attempt| {
+                    std::iter::once(&attempt.before).chain(attempt.after.iter())
+                }))
+        {
+            let definition = rules
+                .parts()
+                .items
+                .get(&item.template_id)
+                .ok_or_else(|| invalid("item_checkpoint_template"))?;
+            if !rules
+                .parts()
+                .capabilities
+                .get(&item.template_id)
+                .is_some_and(|capability| capability.storable)
+                || (!definition.stackable && item.count != 1)
+            {
+                return Err(invalid("item_checkpoint_stackability"));
+            }
+            if item.created_tick > self.projection.tick {
+                return Err(invalid("item_checkpoint_creation_tick"));
+            }
+        }
+        Ok(())
+    }
+
+    /// Every changed scalar needs a real ledger fact. Sidecar-only changes need no fake ID.
+    #[allow(clippy::too_many_lines)] // One ordered scalar/count/identity gate for atomic settlement.
+    pub fn validate_before(
+        &self,
+        before: Option<&Phase4Checkpoint>,
+    ) -> Result<(), CheckpointError> {
+        let kit = self
+            .projection
+            .checkpoint
+            .starter_kit_receipt
+            .as_ref()
+            .ok_or_else(|| invalid("pending_kit_receipt"))?;
+        if let Some(retained) = before.and_then(|cp| cp.starter_kit_receipt.as_ref()) {
+            if retained != kit {
+                return Err(invalid("item_starter_receipt_immutable"));
+            }
+        } else if !self
+            .projection
+            .materializations
+            .iter()
+            .any(|fact| fact.request_id == kit.request_id)
+        {
+            return Err(invalid("pending_kit_materialization_required"));
+        }
+        if before.is_some_and(|cp| cp.auto_shots != self.projection.checkpoint.auto_shots)
+            && !self.projection.receipts.iter().any(|receipt| {
+                matches!(
+                    receipt.result.detail,
+                    ItemResultDetail::Operation {
+                        operation: ItemOperation::ToggleAutoShot,
+                        ..
+                    }
+                )
+            })
+        {
+            return Err(invalid("item_toggle_receipt_required"));
+        }
+        let old: BTreeMap<_, _> = before
+            .into_iter()
+            .flat_map(|cp| &cp.instances)
+            .map(|i| (i.id, i))
+            .collect();
+        let new: BTreeMap<_, _> = self
+            .projection
+            .checkpoint
+            .instances
+            .iter()
+            .map(|i| (i.id, i))
+            .collect();
+        let (start, next, _) = self.allocation.bounds();
+        for id in old.keys().chain(new.keys()) {
+            if old.get(id) != new.get(id)
+                && !self
+                    .projection
+                    .ledger
+                    .iter()
+                    .any(|delta| delta.instance == *id)
+            {
+                return Err(invalid("item_checkpoint_unledgered_scalar"));
+            }
+        }
+        // Aggregate consumption may overlap intervening operations, but all signed deltas
+        // together must conserve the committed count of each actual instance.
+        let changed_ids: BTreeSet<_> = old
+            .keys()
+            .chain(new.keys())
+            .chain(self.projection.ledger.iter().map(|delta| &delta.instance))
+            .copied()
+            .collect();
+        for id in &changed_ids {
+            let deltas: Vec<_> = self
+                .projection
+                .ledger
+                .iter()
+                .filter(|delta| delta.instance == *id)
+                .collect();
+            if deltas.is_empty() {
+                continue;
+            }
+            if let Some(initial) = old.get(id) {
+                if !deltas
+                    .iter()
+                    .any(|delta| delta.before.as_ref() == Some(*initial))
+                {
+                    return Err(invalid("item_ledger_initial_scalar"));
+                }
+            }
+            let total_delta = deltas.iter().try_fold(0_i128, |total, delta| {
+                total
+                    .checked_add(i128::from(delta.count_delta))
+                    .ok_or_else(|| invalid("item_ledger_count_overflow"))
+            })?;
+            let expected = i128::from(new.get(id).map_or(0, |item| item.count))
+                .checked_sub(i128::from(old.get(id).map_or(0, |item| item.count)))
+                .ok_or_else(|| invalid("item_ledger_count_overflow"))?;
+            if total_delta != expected {
+                return Err(invalid("item_ledger_count_conservation"));
+            }
+        }
+        let mut created = BTreeSet::new();
+        for delta in &self.projection.ledger {
+            if delta.before.is_none()
+                && (old.contains_key(&delta.instance) || !created.insert(delta.instance))
+            {
+                return Err(invalid("item_instance_identity_reused"));
+            }
+            if let Some(original) = old.get(&delta.instance) {
+                if delta
+                    .before
+                    .iter()
+                    .chain(delta.after.iter())
+                    .any(|item| item.created_tick != original.created_tick)
+                {
+                    return Err(invalid("item_instance_creation_immutable"));
+                }
+            }
+            if delta.before.is_none()
+                && !old.contains_key(&delta.instance)
+                && !(start <= delta.instance.get() && delta.instance.get() < next)
+            {
+                return Err(invalid("item_checkpoint_allocator"));
+            }
+        }
+        if before.is_some_and(|cp| {
+            cp.rules_hash != self.projection.checkpoint.rules_hash
+                || cp.inventory_revision > self.projection.checkpoint.inventory_revision
+        }) {
+            return Err(invalid("item_checkpoint_downgrade"));
+        }
+        Ok(())
+    }
+
+    /// Audit events belong to this owner and this same committed parent revision.
+    #[allow(clippy::manual_let_else)] // Exhaustive non-item arms force review for new event variants.
+    pub fn validate_events(
+        &self,
+        cp: &CharacterCheckpoint,
+        events: &[DomainEvent],
+    ) -> Result<(), CheckpointError> {
+        let revision = cp
+            .revision_seen
+            .checked_add(1)
+            .ok_or_else(|| invalid("characters_revision"))?;
+        let enchant_facts: Vec<_> = events
+            .iter()
+            .filter_map(|event| {
+                if let DomainEvent::ItemEnchanted { fact } = event {
+                    Some(fact)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        if enchant_facts.len() != self.projection.enchant_attempts.len() {
+            return Err(invalid("item_enchant_outbox_count"));
+        }
+        for attempt in &self.projection.enchant_attempts {
+            let causes = vec![serde_json::to_value(attempt).map_err(anyhow::Error::from)?];
+            if enchant_facts
+                .iter()
+                .filter(|fact| {
+                    fact.instance_id == attempt.target
+                        && fact.template_id == attempt.template
+                        && fact.before.as_ref() == Some(&attempt.before)
+                        && fact.after == attempt.after
+                        && fact.count_delta == if attempt.after.is_none() { -1 } else { 0 }
+                        && fact.causes == causes
+                })
+                .count()
+                != 1
+            {
+                return Err(invalid("item_enchant_outbox_attempt"));
+            }
+        }
+        for event in events {
+            let fact = match event {
+                DomainEvent::ItemGranted { fact }
+                | DomainEvent::ItemEquipped { fact }
+                | DomainEvent::ItemUnequipped { fact }
+                | DomainEvent::ItemConsumed { fact }
+                | DomainEvent::ItemEnchanted { fact }
+                | DomainEvent::ItemDestroyed { fact }
+                | DomainEvent::ItemRefined { fact }
+                | DomainEvent::ItemExchanged { fact } => fact,
+                DomainEvent::CharacterCreated { .. }
+                | DomainEvent::CharacterLeveled { .. }
+                | DomainEvent::CharacterClassChanged { .. }
+                | DomainEvent::CharacterSkillLearned { .. }
+                | DomainEvent::CharacterDied { .. }
+                | DomainEvent::CharacterTokenGranted { .. } => continue,
+            };
+            fact.validate().map_err(|_| invalid("item_outbox_fact"))?;
+            if fact.character_id != cp.character_id
+                || fact.metadata.sequence.0 != revision
+                || fact.metadata.event_id.is_nil()
+                || !self.projection.ledger.iter().any(|delta| delta.instance == fact.instance_id)
+                    && !self.projection.receipts.iter().any(|receipt| matches!(receipt.result.detail, ItemResultDetail::Enchant { target, .. } if target == fact.instance_id))
+            {
+                return Err(invalid("item_outbox_identity"));
+            }
+        }
+        Ok(())
+    }
+
+    /// Validate completion against the frozen pending request, including kit lineage.
+    pub fn validate_pending(
+        &self,
+        requests: &[super::PendingItemRequest],
+    ) -> Result<(), CheckpointError> {
+        use super::{PendingItemKind, PendingItemManifest, PendingItemStatus};
+        for completion in &self.projection.materializations {
+            let pending = requests
+                .iter()
+                .find(|request| {
+                    request.request_id == completion.request_id
+                        && match request.kind {
+                            PendingItemKind::Starter => ItemOperation::Starter,
+                            PendingItemKind::Backfill => ItemOperation::Backfill,
+                        } == completion.receipt.operation
+                })
+                .ok_or_else(|| invalid("pending_item_completion_missing"))?;
+            let receipt = self
+                .projection
+                .receipts
+                .iter()
+                .find(|fact| fact.reference() == completion.receipt)
+                .ok_or_else(|| invalid("pending_item_completion_receipt"))?;
+            let expected = match pending.kind {
+                PendingItemKind::Starter => ItemMutationOperation::Starter,
+                PendingItemKind::Backfill => ItemMutationOperation::Backfill,
+            };
+            if pending.character_id.as_uuid() != self.projection.entity.as_uuid()
+                || pending.account_id != self.projection.account
+                || pending.operation != expected
+                || pending.status != PendingItemStatus::Pending
+                || pending.manifest_version != completion.manifest_version
+                || pending.manifest_hash != completion.manifest_hash
+                || pending.fingerprint != receipt.fingerprint
+                || ItemMutationOperation::from_result(&receipt.result)? != expected
+                || receipt.result.inventory_revision != completion.inventory_revision
+            {
+                return Err(invalid("pending_item_completion_identity"));
+            }
+            let PendingItemManifest::Kit(manifest) = &pending.manifest;
+            {
+                let kit = self
+                    .projection
+                    .checkpoint
+                    .starter_kit_receipt
+                    .as_ref()
+                    .ok_or_else(|| invalid("pending_kit_receipt"))?;
+                if kit.request_id != completion.receipt.key
+                    || kit.manifest_hash != completion.manifest_hash
+                    || kit.manifest_version != completion.manifest_version
+                    || kit.source_class != manifest.source_class_id
+                    || kit.materialized_revision != completion.inventory_revision
+                {
+                    return Err(invalid("pending_kit_receipt"));
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Ordered SQL rows preserve explicit consumption count and exact typed audit causes.
+    pub fn ledger_entries(&self) -> Result<Vec<ItemLedgerEntry>, CheckpointError> {
+        self.projection
+            .ledger
+            .iter()
+            .map(|delta| {
+                Ok(ItemLedgerEntry {
+                    character_id: CharacterId::from_uuid(self.projection.entity.as_uuid()),
+                    zone_id: self.zone,
+                    epoch: self.epoch,
+                    tick: self.projection.tick,
+                    revision: self.projection.checkpoint.inventory_revision,
+                    operation: ledger_operation(delta.operation)?,
+                    instance_id: delta.instance,
+                    operation_ordinal: delta.operation_ordinal,
+                    delta: ItemLedgerDelta {
+                        receipt: delta.receipt,
+                        before: delta.before.clone(),
+                        after: delta.after.clone(),
+                        count_delta: delta.count_delta,
+                        causes: delta
+                            .causes
+                            .iter()
+                            .map(serde_json::to_value)
+                            .collect::<Result<_, _>>()
+                            .map_err(anyhow::Error::from)?,
+                    },
+                    receipt_ref: delta.receipt.map(|receipt| receipt.key),
+                })
+            })
+            .collect()
+    }
+
+    /// Freeze Grant's complete final tick baseline alongside its exact operation result.
+    pub fn receipts(
+        &self,
+        cp: &CharacterCheckpoint,
+    ) -> Result<Vec<ItemMutationReceipt>, CheckpointError> {
+        self.projection
+            .receipts
+            .iter()
+            .map(|fact| {
+                let operation = ItemMutationOperation::from_result(&fact.result)?;
+                let inventory = if operation == ItemMutationOperation::GrantItem {
+                    let ordinary_capacity = self.projection.checkpoint.ordinary_capacity;
+                    let quest_capacity = self.projection.checkpoint.quest_capacity;
+                    Some(FrozenItemInventory {
+                        phase3_source_count: u32::try_from(
+                            cp.phase3
+                                .as_ref()
+                                .ok_or_else(|| invalid("item_checkpoint_skills"))?
+                                .modifier_install_order
+                                .len(),
+                        )
+                        .map_err(anyhow::Error::from)?,
+                        character_revision: cp
+                            .revision_seen
+                            .checked_add(1)
+                            .ok_or_else(|| invalid("characters_revision"))?,
+                        checkpoint: self.projection.checkpoint.clone(),
+                        ordinary_capacity,
+                        quest_capacity,
+                    })
+                } else {
+                    None
+                };
+                Ok(ItemMutationReceipt {
+                    account_id: self.projection.account,
+                    character_id: cp.character_id,
+                    operation,
+                    key: fact.request_id,
+                    fingerprint: fact.fingerprint.clone(),
+                    result: fact.result.clone(),
+                    inventory,
+                })
+            })
+            .collect()
+    }
+
+    /// Include private work in checkpoint idempotency, never in legacy fingerprint bytes.
+    pub fn fingerprint(
+        &self,
+        cp: &CharacterCheckpoint,
+        events: &[DomainEvent],
+        learning: Option<&super::SuccessfulLearnReceipt>,
+    ) -> Result<String, CheckpointError> {
+        use sha2::{Digest, Sha256};
+        let checkpoint = learning.map_or_else(
+            || Ok(cp.fingerprint(events)),
+            |receipt| receipt.checkpoint_fingerprint(cp, events),
+        )?;
+        let value = serde_json::json!({"checkpoint":checkpoint,"items":self});
+        Ok(format!(
+            "{:x}",
+            Sha256::digest(serde_json::to_vec(&value).map_err(anyhow::Error::from)?)
+        ))
+    }
+}
+
+/// Same transaction as character progression, learning costs, rows, ledger, receipts and outbox.
+#[async_trait]
+pub trait ItemCheckpointRepository: ItemReceiptRepository + Send + Sync {
+    /// Called only after durable log acknowledgement; retries retain the original immutable work.
+    async fn checkpoint_items(
+        &self,
+        checkpoint: &CharacterCheckpoint,
+        events: &[DomainEvent],
+        work: &ItemCheckpointWork,
+        learning: Option<&super::SuccessfulLearnReceipt>,
+    ) -> Result<CheckpointOutcome, CheckpointError>;
+}
+
+fn ledger_operation(operation: ItemOperation) -> Result<ItemLedgerOperation, CheckpointError> {
+    Ok(match operation {
+        ItemOperation::Grant => ItemLedgerOperation::Grant,
+        ItemOperation::Starter => ItemLedgerOperation::Starter,
+        ItemOperation::Backfill => ItemLedgerOperation::Backfill,
+        ItemOperation::Equip => ItemLedgerOperation::Equip,
+        ItemOperation::Unequip => ItemLedgerOperation::Unequip,
+        ItemOperation::Consume => ItemLedgerOperation::Consume,
+        ItemOperation::Enchant => ItemLedgerOperation::Enchant,
+        ItemOperation::Destroy => ItemLedgerOperation::Destroy,
+        ItemOperation::Crystallize => ItemLedgerOperation::Crystallize,
+        ItemOperation::Refine => ItemLedgerOperation::Refine,
+        ItemOperation::CancelRefine => ItemLedgerOperation::CancelRefine,
+        ItemOperation::Exchange => ItemLedgerOperation::Exchange,
+        ItemOperation::Use => ItemLedgerOperation::Use,
+        ItemOperation::ToggleAutoShot => return Err(invalid("item_ledger_owner_sidecar")),
+    })
+}
+fn invalid(name: &str) -> CheckpointError {
+    CheckpointError::Constraint(name.into())
+}

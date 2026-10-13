@@ -90,3 +90,32 @@ closed. Do not count a draw twice because it also appears in a resolution slice.
 harness proposal using `trace --evidence-out`, one JSON document and gate-named rows needs an
 adapter to this binding C14 export/JSONL schema; this producer deliberately does not manufacture
 oracle-vector matches or acceptance flags.
+
+## Phase 4 item evidence (D46)
+
+```sh
+nightfall-replay export --file epoch.nfr --items-evidence-out /tmp/items.jsonl
+```
+
+This separate JSONL format follows the [frozen E6 contract](../../apps/client-unreal/Scripts/phase4-evidence-contract.md).
+It verifies every recorded output and state digest before creating a fresh destination.
+`--session` checks that the owner occurs in the recording; facts still cover the whole
+recording. Partial/live captures, historical schemas, inconsistent completion watermarks,
+RNG gaps (including an omitted first or final draw), and replay divergence refuse export.
+RNG cursors are full-width JSON integers. The old `--evidence-out` format remains separate.
+
+The current producer captures initial/admission inventories, accepted item operation
+changes before consume aggregation, live grants and starter/backfill materialization,
+item/learned-cast payments, exact enchanting inputs/outcomes/refunds, and intervening
+combat/effect/NPC randomness. Other formula families remain required work; the consumer
+rejects a gate whose formula observations are absent. Successful file creation alone is
+not Phase 4 acceptance. Offline grants currently refuse this export because their canonical
+incarnation is zero and D46 requires a positive incarnation. Same-tick enchant revisions
+also require consumer review: multiple accepted operations share one inventory revision.
+
+The real engine probe can emit a disposable recording for CLI/consumer verification:
+
+```sh
+NIGHTFALL_TEST_ITEM_EVIDENCE_RECORDING=/tmp/items-probe.nfr \
+  cargo test -p nightfall-api --lib v6_item_evidence_captures -- --test-threads=2
+```
