@@ -396,28 +396,30 @@ impl ItemCheckpointWork {
             .collect();
         for id in &changed_ids {
             let mut endpoint = old.get(id).copied();
-            let mut ordinal = None;
             let (mut consumed, mut debited) = (false, false);
-            for delta in self
+            for (position, delta) in self
                 .projection
                 .ledger
                 .iter()
                 .filter(|delta| delta.instance == *id)
+                .enumerate()
             {
                 if delta.before.as_ref() != endpoint {
                     return Err(invalid("item_ledger_scalar_continuity"));
                 }
                 // D66: positive rows first in cause order, then the single Consume aggregate as
-                // the instance's last row. The aggregate keeps the schema/domain ordinal-0 batch
-                // marker (item_ledger_consume_ordinal), so its position, not ordinal, orders it.
-                // One logical operation may emit several rows (implicit Unequip + Destroy) that
-                // share its ordinal; the domain keeps (ordinal, instance, operation) unique.
-                if consumed
-                    || (delta.operation != ItemOperation::Consume
-                        && ordinal.is_some_and(|previous| delta.operation_ordinal < previous))
-                    || (debited && delta.count_delta > 0)
-                {
+                // the instance's last row; no credit follows a debit.
+                if consumed || (debited && delta.count_delta > 0) {
                     return Err(invalid("item_ledger_row_order"));
+                }
+                // D76/D55: the ordinal is this row's canonical position 0..n-1 among the
+                // instance's rows this tick, so it strictly increases, every row of one logical
+                // operation (implicit Unequip + Destroy) takes its own ordinal and the Consume
+                // aggregate holds the highest one.
+                if u64::from(delta.operation_ordinal)
+                    != u64::try_from(position).map_err(anyhow::Error::from)?
+                {
+                    return Err(invalid("item_ledger_row_ordinal"));
                 }
                 if delta
                     .after
@@ -438,9 +440,6 @@ impl ItemCheckpointWork {
                 }
                 debited |= delta.count_delta < 0;
                 endpoint = delta.after.as_ref();
-                if delta.operation != ItemOperation::Consume {
-                    ordinal = Some(delta.operation_ordinal);
-                }
             }
             if endpoint != new.get(id).copied() {
                 return Err(invalid("item_ledger_final_scalar"));

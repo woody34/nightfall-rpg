@@ -1259,7 +1259,7 @@ fn item_events(
 ) -> anyhow::Result<Vec<DomainEvent>> {
     use crate::domain::zone::phase4_projection::ItemOperation;
     let mut facts = Vec::new();
-    for delta in &work.projection.ledger {
+    for (position, delta) in work.projection.ledger.iter().enumerate() {
         // D49: enchant attempts have their own captured audit, including unchanged results.
         if delta.operation == ItemOperation::Enchant && delta.after.is_some() {
             continue;
@@ -1301,14 +1301,15 @@ fn item_events(
                 anyhow::bail!("pure owner toggle cannot fabricate an item audit row")
             },
         };
-        facts.push((delta.operation_ordinal, 1_u8, event));
+        facts.push(((position, 1_u8, delta.operation_ordinal), event));
     }
     facts.extend(captured_item_events(cp, work)?);
-    facts.sort_by_key(|(operation, kind, _)| (*operation, *kind));
+    // Canonical ledger row order (D66/D69/D76), not operation_ordinal (a per-instance position).
+    facts.sort_by_key(|(key, _)| *key);
     facts
         .into_iter()
         .enumerate()
-        .map(|(index, (_, _, mut event))| {
+        .map(|(index, (_, mut event))| {
             let ordinal = u64::try_from(
                 offset
                     .checked_add(index)
@@ -1356,12 +1357,20 @@ fn item_events(
 fn captured_item_events(
     cp: &CharacterCheckpoint,
     work: &super::ports::ItemCheckpointWork,
-) -> anyhow::Result<Vec<(u32, u8, DomainEvent)>> {
+) -> anyhow::Result<Vec<((usize, u8, u32), DomainEvent)>> {
+    // A captured enchant/exchange audit precedes its target's first ledger row this tick; one
+    // whose target has no row (unchanged enchant) follows every row, in operation order.
+    let ledger = &work.projection.ledger;
+    let position = |target: crate::domain::zone::ItemInstanceId| {
+        ledger
+            .iter()
+            .position(|delta| delta.instance == target)
+            .unwrap_or(ledger.len())
+    };
     let mut facts = Vec::new();
     for attempt in &work.projection.enchant_attempts {
         facts.push((
-            attempt.operation_ordinal,
-            0,
+            (position(attempt.target), 0, attempt.operation_ordinal),
             DomainEvent::ItemEnchanted {
                 fact: crate::domain::ItemEventFact {
                     metadata: EventMetadata {
@@ -1381,8 +1390,7 @@ fn captured_item_events(
     }
     for exchange in &work.projection.exchanges {
         facts.push((
-            exchange.operation_ordinal,
-            0,
+            (position(exchange.before.id), 0, exchange.operation_ordinal),
             DomainEvent::ItemExchanged {
                 fact: crate::domain::ItemEventFact {
                     metadata: EventMetadata {

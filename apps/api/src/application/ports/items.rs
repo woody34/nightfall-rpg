@@ -302,7 +302,6 @@ impl ItemLedgerEntry {
             || i64::try_from(self.tick.0).is_err()
             || i64::try_from(self.revision).is_err()
             || i32::try_from(self.operation_ordinal).is_err()
-            || (self.operation == ItemLedgerOperation::Consume && self.operation_ordinal != 0)
             || (self.delta.before.is_none() && self.delta.after.is_none())
         {
             return Err(CheckpointError::Constraint("item_ledger_projection".into()));
