@@ -5,6 +5,11 @@
 schema_version = 1
 total_instances = 3
 
+# general.properties:659,665
+[config]
+expired_after_days = 14
+time_extends_on_bid = 0
+
 [[instance]]
 id = 32320
 day_of_week = 5

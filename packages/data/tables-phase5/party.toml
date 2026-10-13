@@ -20,6 +20,12 @@ bonus_exp_sp_bits = [
 ]
 
 [party.even_distribute]
+# character.properties:616,624,631
+all_stackable_items = false
+all_other_items = false
+items = [57]
+
+[party.xp_cutoff]
 party_xp_cutoff_method = "highfive"
 cutoff_gaps = [
   { min = 0, max = 9, percent = 100 },

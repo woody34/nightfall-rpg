@@ -98,8 +98,19 @@ def gen_sources_table(dp_root: Path, game_root: Path, data_root: Path) -> str:
 # ---------------------------------------------------------------------------
 
 
-def gen_drops_table(dp_root: Path) -> str:
+def sepulcher_raid_ids(game_root: Path) -> set[int]:
+    """NPC ids that L2SepulcherMonsterInstance's constructor marks setIsRaid(true)."""
+    src = (game_root / "src/main/java/com/l2jserver/gameserver/model/actor/instance/"
+           "L2SepulcherMonsterInstance.java").read_text(encoding="utf-8")
+    match = re.search(r"case\s+([0-9,\s]+)->\s*setIsRaid\(true\);", src)
+    if not match:
+        raise SourceError("L2SepulcherMonsterInstance: setIsRaid case not found")
+    return {int(x) for x in match.group(1).split(",")}
+
+
+def gen_drops_table(dp_root: Path, game_root: Path) -> str:
     npc_dir = dp_root / "src/main/resources/data/stats/npcs"
+    sepulcher_raids = sepulcher_raid_ids(game_root)
     
     # Global overrides & SP-only templates across all NPC files
     global_ct_overrides = []
@@ -152,7 +163,8 @@ def gen_drops_table(dp_root: Path) -> str:
             npc_id = int(npc.get("id"))
             level = int(npc.get("level", 70))
             npc_type = npc.get("type", "L2Npc")
-            is_raid = npc_type in ("L2RaidBoss", "L2GrandBoss")
+            is_raid = npc_type in ("L2RaidBoss", "L2GrandBoss") or (
+                npc_type == "L2SepulcherMonster" and npc_id in sepulcher_raids)
             
             ct_elem = npc.find("corpseTime")
             corpse_time = int(ct_elem.text.strip()) if ct_elem is not None and ct_elem.text else 7
@@ -180,48 +192,47 @@ def gen_drops_table(dp_root: Path) -> str:
                 if acq.get("sp") is not None:
                     sp_val = acq.get("sp")
                     
-            coll_radius = 5
+            coll_radius = 0  # L2CharTemplate collisionRadius default
             coll = npc.find("collision")
             if coll is not None:
                 r = coll.find("radius")
                 if r is not None and r.get("normal"):
                     coll_radius = int(float(r.get("normal")))
                     
-            death_groups = []
-            death_items = []
-            if death_elem is not None:
-                for child in death_elem:
+            def item_row(it) -> str:
+                ic = it.get("chance")
+                return (f'{{ kind = "item", id = {int(it.get("id"))}, min = {int(it.get("min"))}, '
+                        f'max = {int(it.get("max"))}, chance = "{ic}", chance_bits = "{fl_bits(ic)}" }}')
+
+            def scope_nodes(scope) -> list[str]:
+                # One list per scope in document order, <group> and <item> nodes mixed
+                # (NpcData.parseDropList; L2NpcTemplate.calculateDrops walks it in order).
+                nodes = []
+                if scope is None:
+                    return nodes
+                for child in scope:
                     if child.tag == "group":
                         gc = child.get("chance")
-                        gb = fl_bits(gc)
-                        it_strs = []
-                        for it in child.findall("item"):
-                            iid = int(it.get("id"))
-                            imn = int(it.get("min"))
-                            imx = int(it.get("max"))
-                            ic = it.get("chance")
-                            ib = fl_bits(ic)
-                            it_strs.append(f'{{ id = {iid}, min = {imn}, max = {imx}, chance = "{ic}", chance_bits = "{ib}" }}')
-                        death_groups.append((gc, gb, it_strs))
+                        inner = []
+                        for it in child:
+                            if it.tag != "item":
+                                raise SourceError(f"NPC {npc_id}: unexpected <{it.tag}> inside <group>")
+                            inner.append(item_row(it).replace('kind = "item", ', ""))
+                        items_joined = ",\n      ".join(inner)
+                        nodes.append(f'{{ kind = "group", chance = "{gc}", chance_bits = "{fl_bits(gc)}", items = [\n      {items_joined}\n    ] }}')
                     elif child.tag == "item":
-                        iid = int(child.get("id"))
-                        imn = int(child.get("min"))
-                        imx = int(child.get("max"))
-                        ic = child.get("chance")
-                        ib = fl_bits(ic)
-                        death_items.append(f'{{ id = {iid}, min = {imn}, max = {imx}, chance = "{ic}", chance_bits = "{ib}" }}')
-                        
-            corpse_items = []
-            if corpse_elem is not None:
-                for it in corpse_elem.findall("item"):
-                    iid = int(it.get("id"))
-                    imn = int(it.get("min"))
-                    imx = int(it.get("max"))
-                    ic = it.get("chance")
-                    ib = fl_bits(ic)
-                    corpse_items.append(f'{{ id = {iid}, min = {imn}, max = {imx}, chance = "{ic}", chance_bits = "{ib}" }}')
-                    
-            if death_groups or death_items or corpse_items:
+                        nodes.append(item_row(child))
+                    else:
+                        raise SourceError(f"NPC {npc_id}: unexpected drop node <{child.tag}>")
+                return nodes
+
+            for scope_el in dl:
+                if scope_el.tag not in ("death", "corpse"):
+                    raise SourceError(f"NPC {npc_id}: unexpected drop scope <{scope_el.tag}>")
+            death_nodes = scope_nodes(death_elem)
+            corpse_nodes = scope_nodes(corpse_elem)
+
+            if death_nodes or corpse_nodes:
                 lines.append("[[npc]]")
                 lines.append(f"id = {npc_id}")
                 lines.append(f"level = {level}")
@@ -232,28 +243,12 @@ def gen_drops_table(dp_root: Path) -> str:
                 lines.append(f'exp_rate = "{exp_rate}"')
                 lines.append(f'sp = "{sp_val}"')
                 lines.append(f"collision_radius = {coll_radius}")
-                
-                if death_groups:
-                    g_strs = []
-                    for gc, gb, it_strs in death_groups:
-                        items_joined = ",\n      ".join(it_strs)
-                        g_strs.append(f'{{ chance = "{gc}", chance_bits = "{gb}", items = [\n      {items_joined}\n    ] }}')
-                    groups_joined = ",\n    ".join(g_strs)
-                    lines.append(f"death_groups = [\n    {groups_joined}\n  ]")
-                else:
-                    lines.append("death_groups = []")
-                    
-                if death_items:
-                    items_joined = ",\n    ".join(death_items)
-                    lines.append(f"death_items = [\n    {items_joined}\n  ]")
-                else:
-                    lines.append("death_items = []")
-                    
-                if corpse_items:
-                    items_joined = ",\n    ".join(corpse_items)
-                    lines.append(f"corpse_items = [\n    {items_joined}\n  ]")
-                else:
-                    lines.append("corpse_items = []")
+                for key, nodes in (("death", death_nodes), ("corpse", corpse_nodes)):
+                    if nodes:
+                        joined = ",\n    ".join(nodes)
+                        lines.append(f"{key} = [\n    {joined}\n  ]")
+                    else:
+                        lines.append(f"{key} = []")
                 lines.append("")
 
     return "\n".join(lines)
@@ -357,7 +352,22 @@ def gen_ground_table(game_root: Path) -> str:
     return "\n".join(lines)
 
 
+def config_value(game_root: Path, name: str, key: str) -> str:
+    """Value of `key` in the pinned config/<name>.properties (fails if absent)."""
+    text = (game_root / "src/main/resources/config" / name).read_text(encoding="utf-8")
+    match = re.search(rf"^{key}\s*=\s*(.*?)\s*$", text, re.M)
+    if not match:
+        raise SourceError(f"config/{name}: {key} not set")
+    return match.group(1)
+
+
 def gen_party_table(game_root: Path) -> str:
+    stackable = config_value(game_root, "character.properties", "PartyEvenlyDistributeAllStackableItems")
+    other = config_value(game_root, "character.properties", "PartyEvenlyDistributeAllOtherItems")
+    even_items = config_value(game_root, "character.properties", "PartyEvenlyDistributeItems")
+    for flag in (stackable, other):
+        if flag not in ("True", "False"):
+            raise SourceError(f"unexpected boolean {flag!r}")
     lines = [
         HEADER,
         "# D §1.10 item 4: Party constants, XP/SP cutoff, ExponentXp/Sp.",
@@ -379,6 +389,12 @@ def gen_party_table(game_root: Path) -> str:
         ']',
         "",
         "[party.even_distribute]",
+        "# character.properties:616,624,631",
+        f"all_stackable_items = {stackable.lower()}",
+        f"all_other_items = {other.lower()}",
+        f"items = [{', '.join(str(int(x)) for x in even_items.split(',') if x)}]",
+        "",
+        "[party.xp_cutoff]",
         "party_xp_cutoff_method = \"highfive\"",
         "cutoff_gaps = [",
         "  { min = 0, max = 9, percent = 100 },",
@@ -630,44 +646,93 @@ def gen_merchants_table(dp_root: Path) -> str:
     entry_pattern = re.compile(
         r"new\s+BuySellList\s*\(\s*([0-9]+)\s*,\s*([0-9.]+)\s*,\s*([0-9.]+)\s*,\s*([0-9]+)(?:\s*,\s*([0-9]+))?\s*\)"
     )
-    
+    array_pattern = re.compile(r"(\w+)\s*=\s*new\s+BuySellList\s*\[\s*\]\s*\{(.*?)\};", re.S)
+    call_pattern = re.compile(r"buildBuySellList\s*\(\s*(\w+)\s*,\s*(\w+)\s*,\s*([0-9]+)\s*\)")
+    const_pattern = re.compile(r"\bint\s+(\w+)\s*=\s*([0-9]+)\s*;")
+
+    def strip_comments(text: str) -> str:
+        return re.sub(r"//[^\n]*", "", text)
+
+    codes = {f: strip_comments(f.read_text(encoding="utf-8")) for f in merchant_files}
+
+    def subclass_npc_ids(cls: str) -> list[int]:
+        # A constructor parameter npcId (CastleMerchant): every concrete subclass passes
+        # its own `int npcId = N` constant through super(npcId).
+        found = []
+        for f, code in codes.items():
+            if re.search(rf"\bextends\s+{cls}\b", code):
+                sup = re.search(r"\bsuper\s*\(\s*(\w+)\s*\)", code)
+                consts = dict(const_pattern.findall(code))
+                if not sup or sup.group(1) not in consts:
+                    raise SourceError(f"{f}: cannot resolve super(npcId) of {cls} subclass")
+                found.append(int(consts[sup.group(1)]))
+        if not found:
+            raise SourceError(f"no subclass binds the npcId parameter of {cls}")
+        return sorted(found)
+
     entries = []
     pairs = set()
-    
+    buylists = []
+
     for f in merchant_files:
+        code = codes[f]
+        total = len(entry_pattern.findall(code))
+        if total == 0:
+            continue
         rel_path = str(f.relative_to(dp_root))
-        text = f.read_text()
-        
-        npc_match = re.search(r"super\s*\([^;]*?,\s*([0-9]+)\s*\)", text)
-        default_npc_id = int(npc_match.group(1)) if npc_match else 0
-        
-        for m in entry_pattern.findall(text):
-            item_id = int(m[0])
-            tax_str = m[1]
-            delay_str = m[2]
-            count = int(m[3])
-            t_type = int(m[4]) if m[4] else 0
-            
-            ref_price = reference_prices.get(item_id, 0)
-            
-            restock_min = -1
-            fl_delay = float(delay_str)
-            if fl_delay > 0.0:
-                restock_min = int(60.0 / fl_delay)
-                
-            entries.append({
-                "script": rel_path,
-                "npc_id": default_npc_id,
-                "item_id": item_id,
-                "ref_price": ref_price,
-                "tax": tax_str,
-                "delay": delay_str,
-                "count": count,
-                "restock_minutes": restock_min,
-                "is_limited": count > 0,
-                "is_zero_price": ref_price == 0,
-            })
-            pairs.add((item_id, tax_str))
+        arrays = {m.group(1): m.group(2) for m in array_pattern.finditer(code)}
+        if sum(len(entry_pattern.findall(body)) for body in arrays.values()) != total:
+            raise SourceError(f"{rel_path}: BuySellList entries outside a BuySellList[] array")
+        consts = dict(const_pattern.findall(code))
+        binds: dict[str, list[tuple[int, int]]] = {}
+        for arr, npc_expr, index in call_pattern.findall(code):
+            if npc_expr.isdigit():
+                npcs = [int(npc_expr)]
+            elif npc_expr in consts:
+                npcs = [int(consts[npc_expr])]
+            else:
+                npcs = subclass_npc_ids(f.stem)
+            for npc_id in npcs:
+                # L2BuyList id = Integer.valueOf(npcId + "" + index) (AbstractNpcAI.java:208)
+                binds.setdefault(arr, []).append((int(f"{npc_id}{index}"), npc_id))
+        for arr, body in arrays.items():
+            if arr not in binds:
+                raise SourceError(f"{rel_path}: {arr} is never passed to buildBuySellList")
+            rows = entry_pattern.findall(body)
+            for list_id, npc_id in binds[arr]:
+                buylists.append((list_id, npc_id, rel_path, arr, len(rows)))
+            for m in rows:
+                item_id = int(m[0])
+                tax_str = m[1]
+                delay_str = m[2]
+                count = int(m[3])
+                if item_id not in reference_prices:
+                    raise SourceError(f"{rel_path}: item {item_id} has no template")
+                ref_price = reference_prices[item_id]
+
+                restock_min = -1
+                fl_delay = float(delay_str)
+                if fl_delay > 0.0:
+                    restock_min = int(60.0 / fl_delay)
+
+                entries.append({
+                    "script": rel_path,
+                    "array": arr,
+                    "list_ids": [lid for lid, _ in binds[arr]],
+                    "npc_ids": [nid for _, nid in binds[arr]],
+                    "item_id": item_id,
+                    "ref_price": ref_price,
+                    "tax": tax_str,
+                    "delay": delay_str,
+                    "count": count,
+                    "restock_minutes": restock_min,
+                    "is_limited": count > 0,
+                    "is_zero_price": ref_price == 0,
+                })
+                pairs.add((item_id, tax_str))
+    list_ids = [b[0] for b in buylists]
+    if len(set(list_ids)) != len(list_ids):
+        raise SourceError("duplicate merchant buylist ids")
 
     def calc_unit_price(p: int, tax_lit: str, castle_pct: int) -> int:
         t = float(tax_lit) / 100.0
@@ -696,7 +761,8 @@ def gen_merchants_table(dp_root: Path) -> str:
         f"total_entries = {len(entries)}",
         f"total_pairs = {len(pairs)}",
         f"limited_entries = {sum(1 for e in entries if e['is_limited'])}",
-        'zero_price_items = [ 8187 ]',
+        f"buylists_count = {len(buylists)}",
+        f"zero_price_items = {sorted({e['item_id'] for e in entries if e['is_zero_price']})}",
         "",
         "# Precomputed unit-price table for all 5,803 (template, tax) pairs",
         "unit_prices = [",
@@ -710,8 +776,14 @@ def gen_merchants_table(dp_root: Path) -> str:
         lim = str(e["is_limited"]).lower()
         zp = str(e["is_zero_price"]).lower()
         lines.append(
-            f'  {{ script = "{e["script"]}", npc = {e["npc_id"]}, item = {e["item_id"]}, ref_price = {e["ref_price"]}, tax = "{e["tax"]}", delay = "{e["delay"]}", count = {e["count"]}, restock_min = {e["restock_minutes"]}, limited = {lim}, zero_price = {zp} }},'
+            f'  {{ script = "{e["script"]}", array = "{e["array"]}", list_ids = {e["list_ids"]}, npcs = {e["npc_ids"]}, item = {e["item_id"]}, ref_price = {e["ref_price"]}, tax = "{e["tax"]}", delay = "{e["delay"]}", count = {e["count"]}, restock_min = {e["restock_minutes"]}, limited = {lim}, zero_price = {zp} }},'
         )
+    lines.append("]")
+    lines.append("")
+    lines.append("# Buylists: id = Integer.valueOf(npcId + \"\" + index) (AbstractNpcAI.buildBuySellList)")
+    lines.append("buylists = [")
+    for list_id, npc_id, script, arr, n in buylists:
+        lines.append(f'  {{ list_id = {list_id}, npc = {npc_id}, script = "{script}", array = "{arr}", entries = {n} }},')
     lines.append("]")
     lines.append("")
     lines.append("# Castle tax rates")
@@ -923,7 +995,9 @@ def gen_storage_mail_table(game_root: Path) -> str:
     return "\n".join(lines)
 
 
-def gen_auction_table(dp_root: Path) -> str:
+def gen_auction_table(dp_root: Path, game_root: Path) -> str:
+    expired_after = int(config_value(game_root, "general.properties", "ItemAuctionExpiredAfter"))
+    extends_on_bid = int(config_value(game_root, "general.properties", "ItemAuctionTimeExtendsOnBid"))
     tree = ET.parse(dp_root / "src/main/resources/data/ItemAuctions.xml")
     root = tree.getroot()
     instances = []
@@ -956,6 +1030,11 @@ def gen_auction_table(dp_root: Path) -> str:
         "# D §1.10 item 10a: Item Auctions (3 instances, 82 items each = 246 total items).",
         "schema_version = 1",
         f"total_instances = {len(instances)}",
+        "",
+        "# general.properties:659,665",
+        "[config]",
+        f"expired_after_days = {expired_after}",
+        f"time_extends_on_bid = {extends_on_bid}",
         "",
     ]
     for inst in instances:
@@ -1078,7 +1157,7 @@ def generate(dp_root: Path, game_root: Path, data_root: Path, stories: list[str]
         files["tables-phase5/sources.toml"] = gen_sources_table(dp_root, game_root, data_root)
         
     if "1.2" in stories:
-        files["tables-phase5/drops.toml"] = gen_drops_table(dp_root)
+        files["tables-phase5/drops.toml"] = gen_drops_table(dp_root, game_root)
         files["tables-phase5/rates.toml"] = gen_rates_table(game_root)
         files["tables-phase5/ground.toml"] = gen_ground_table(game_root)
         files["tables-phase5/party.toml"] = gen_party_table(game_root)
@@ -1090,7 +1169,7 @@ def generate(dp_root: Path, game_root: Path, data_root: Path, stories: list[str]
         files["tables-phase5/multisell.toml"] = gen_multisell_table(dp_root)
         files["tables-phase5/recipes.toml"] = gen_recipes_table(dp_root, game_root)
         files["tables-phase5/storage_mail.toml"] = gen_storage_mail_table(game_root)
-        files["tables-phase5/auction.toml"] = gen_auction_table(dp_root)
+        files["tables-phase5/auction.toml"] = gen_auction_table(dp_root, game_root)
         files["tables-phase5/manor.toml"] = gen_manor_table(dp_root)
         
     return files
