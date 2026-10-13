@@ -1102,34 +1102,43 @@ async fn captured_enchant_outbox_preserves_all_outcomes_before_later_destruction
         work.projection.enchant_attempts = vec![attempt.clone()];
         // The final inventory is intentionally different from the captured attempt.
         work.projection.checkpoint.instances.clear();
-        work.projection.ledger.push(ItemDeltaPlan {
-            receipt_refs: Vec::new(),
-            operation: if outcome == ItemEnchantOutcome::Destroyed {
-                ItemOperation::Enchant
-            } else {
-                ItemOperation::Destroy
-            },
-            operation_ordinal: if outcome == ItemEnchantOutcome::Destroyed {
-                1
-            } else {
-                2
-            },
-            instance: before.id,
-            before: Some(after),
-            after: None,
-            count_delta: -1,
-            receipt: Some(attempt.receipt),
-            causes: Vec::new(),
-        });
-        if outcome == ItemEnchantOutcome::Success {
+        // D76 ledger: the attempt's Enchant row (when it changed the target) at position 0,
+        // then the later Destroy at the next position.
+        if outcome == ItemEnchantOutcome::Destroyed {
             work.projection.ledger.push(ItemDeltaPlan {
                 receipt_refs: Vec::new(),
                 operation: ItemOperation::Enchant,
-                operation_ordinal: 1,
+                operation_ordinal: 0,
                 instance: before.id,
                 before: Some(before.clone()),
-                after: attempt.after.clone(),
-                count_delta: 0,
+                after: None,
+                count_delta: -1,
+                receipt: Some(attempt.receipt),
+                causes: Vec::new(),
+            });
+        } else {
+            let changed = after != before;
+            if changed {
+                work.projection.ledger.push(ItemDeltaPlan {
+                    receipt_refs: Vec::new(),
+                    operation: ItemOperation::Enchant,
+                    operation_ordinal: 0,
+                    instance: before.id,
+                    before: Some(before.clone()),
+                    after: Some(after.clone()),
+                    count_delta: 0,
+                    receipt: Some(attempt.receipt),
+                    causes: Vec::new(),
+                });
+            }
+            work.projection.ledger.push(ItemDeltaPlan {
+                receipt_refs: Vec::new(),
+                operation: ItemOperation::Destroy,
+                operation_ordinal: u32::from(changed),
+                instance: before.id,
+                before: Some(after),
+                after: None,
+                count_delta: -1,
                 receipt: Some(attempt.receipt),
                 causes: Vec::new(),
             });
@@ -1362,4 +1371,148 @@ async fn missing_birth_ledger_row_fences_lane_without_retry_or_ack() {
     assert!(h.service.players[&h.entity].fenced);
     assert_eq!(h.acknowledgements(), 0);
     assert!(h.repo.item_ledger_for_test().split_off(h.seeded).is_empty());
+}
+
+/// An acknowledged real projection, its checkpoint and work context for outbox-order tests.
+async fn outbox_fixture() -> (CharacterCheckpoint, ItemCheckpointWork) {
+    let mut h = Harness::new().await;
+    let tick = h.equipment_tick();
+    let projection = tick
+        .events
+        .iter()
+        .find_map(|event| {
+            if let crate::domain::zone::ZoneEvent::ItemCheckpoint(p) = event {
+                Some(p.as_ref().clone())
+            } else {
+                None
+            }
+        })
+        .unwrap();
+    let mut cp = h
+        .service
+        .players
+        .get(&h.entity)
+        .unwrap()
+        .latest
+        .clone()
+        .unwrap();
+    cp.phase4 = Some(projection.checkpoint.clone());
+    let mut work = ItemCheckpointWork {
+        zone: h.state.snapshot().seed.zone,
+        epoch: tick.epoch,
+        allocation: h.state.snapshot().phase4.unwrap().allocator,
+        projection,
+    };
+    work.projection.ledger.clear();
+    work.projection.enchant_attempts.clear();
+    work.projection.exchanges.clear();
+    (cp, work)
+}
+
+fn event_kinds(events: &[DomainEvent]) -> Vec<(&'static str, u64)> {
+    events
+        .iter()
+        .map(|event| match event {
+            DomainEvent::ItemGranted { fact } => ("granted", fact.metadata.sequence.1),
+            DomainEvent::ItemEquipped { fact } => ("equipped", fact.metadata.sequence.1),
+            DomainEvent::ItemUnequipped { fact } => ("unequipped", fact.metadata.sequence.1),
+            DomainEvent::ItemConsumed { fact } => ("consumed", fact.metadata.sequence.1),
+            DomainEvent::ItemEnchanted { fact } => ("enchanted", fact.metadata.sequence.1),
+            DomainEvent::ItemDestroyed { fact } => ("destroyed", fact.metadata.sequence.1),
+            DomainEvent::ItemRefined { fact } => ("refined", fact.metadata.sequence.1),
+            DomainEvent::ItemExchanged { fact } => ("exchanged", fact.metadata.sequence.1),
+            DomainEvent::CharacterCreated { .. }
+            | DomainEvent::CharacterLeveled { .. }
+            | DomainEvent::CharacterClassChanged { .. }
+            | DomainEvent::CharacterSkillLearned { .. }
+            | DomainEvent::CharacterDied { .. }
+            | DomainEvent::CharacterTokenGranted { .. } => ("other", 0),
+        })
+        .collect()
+}
+
+/// D78: a captured enchant attempt anchors to its own Enchant row, so an earlier same-tick
+/// Equip of the target is emitted first (`ItemEquipped` before `ItemEnchanted`).
+#[tokio::test]
+async fn captured_enchant_anchors_to_its_own_row_after_same_tick_equip() {
+    use crate::domain::zone::phase4_projection::{
+        ItemAuditEvidence, ItemDeltaPlan, ItemEnchantOutcome, ItemOperation, ItemReceiptRef,
+        ItemResultDetail,
+    };
+    use crate::domain::zone::{EnchantAttempt, ItemInstanceId};
+    let (cp, mut work) = outbox_fixture().await;
+    work.projection.receipts.truncate(1);
+    let target = work
+        .projection
+        .checkpoint
+        .instances
+        .iter()
+        .find(|item| item.count == 1)
+        .unwrap()
+        .clone();
+    let mut unequipped = target.clone();
+    unequipped.location = crate::domain::zone::ItemLocation::Inventory;
+    unequipped.slot = None;
+    let mut enchanted = target.clone();
+    enchanted.enchant += 1;
+    let receipt = work.projection.receipts.first_mut().unwrap();
+    receipt.result.detail = ItemResultDetail::Enchant {
+        target: target.id,
+        old_enchant: target.enchant,
+        new_enchant: enchanted.enchant,
+        outcome: ItemEnchantOutcome::Success,
+        refunds: Vec::new(),
+        announcement_tier: 0,
+    };
+    let attempt = EnchantAttempt {
+        operation_ordinal: 2,
+        receipt: receipt.reference(),
+        target: target.id,
+        template: target.template_id,
+        old_enchant: target.enchant,
+        new_enchant: enchanted.enchant,
+        outcome: ItemEnchantOutcome::Success,
+        before: target.clone(),
+        after: Some(enchanted.clone()),
+        scroll: ItemInstanceId::new(9_999_999).unwrap(),
+        scroll_template: 951,
+        chance_1e5: 100_000,
+        raw_draw: 199_999,
+        draw: 99_999,
+        cause: ItemAuditEvidence {
+            family: "enchant".into(),
+            fields: BTreeMap::new(),
+        },
+    };
+    work.projection.enchant_attempts = vec![attempt.clone()];
+    let equip = ItemReceiptRef {
+        operation: ItemOperation::Equip,
+        key: Uuid::from_u128(77),
+    };
+    work.projection.ledger = vec![
+        ItemDeltaPlan {
+            receipt_refs: Vec::new(),
+            operation: ItemOperation::Equip,
+            operation_ordinal: 0,
+            instance: target.id,
+            before: Some(unequipped),
+            after: Some(target.clone()),
+            count_delta: 0,
+            receipt: Some(equip),
+            causes: Vec::new(),
+        },
+        ItemDeltaPlan {
+            receipt_refs: Vec::new(),
+            operation: ItemOperation::Enchant,
+            operation_ordinal: 1,
+            instance: target.id,
+            before: Some(target),
+            after: Some(enchanted),
+            count_delta: 0,
+            receipt: Some(attempt.receipt),
+            causes: Vec::new(),
+        },
+    ];
+    let events = item_events(&cp, &work, 4).unwrap();
+    assert_eq!(event_kinds(&events), vec![("equipped", 4), ("enchanted", 5)]);
 }

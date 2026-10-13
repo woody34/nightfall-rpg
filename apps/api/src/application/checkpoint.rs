@@ -1358,19 +1358,50 @@ fn captured_item_events(
     cp: &CharacterCheckpoint,
     work: &super::ports::ItemCheckpointWork,
 ) -> anyhow::Result<Vec<((usize, u8, u32), DomainEvent)>> {
-    // A captured enchant/exchange audit precedes its target's first ledger row this tick; one
-    // whose target has no row (unchanged enchant) follows every row, in operation order.
+    // D78: a captured enchant/exchange audit precedes the attempt's OWN ledger row (the
+    // target's row of that operation carrying its receipt), so earlier same-tick rows on the
+    // target (Equip, then Enchant) stay first. Without such a row it precedes the target's
+    // first row carrying the receipt, else the target's first row of a later command; with
+    // none of these (an unchanged attempt) it follows every row, in operation order.
+    use crate::domain::zone::phase4_projection::{ItemOperation, ItemReceiptRef};
     let ledger = &work.projection.ledger;
-    let position = |target: crate::domain::zone::ItemInstanceId| {
+    let command = |receipt: ItemReceiptRef| {
+        work.projection
+            .receipts
+            .iter()
+            .position(|fact| fact.reference() == receipt)
+    };
+    let position = |target: crate::domain::zone::ItemInstanceId,
+                    receipt: ItemReceiptRef,
+                    own: ItemOperation| {
+        let carries = |delta: &crate::domain::zone::phase4_projection::ItemDeltaPlan| {
+            delta.instance == target
+                && (delta.receipt == Some(receipt) || delta.receipt_refs.contains(&receipt))
+        };
         ledger
             .iter()
-            .position(|delta| delta.instance == target)
+            .position(|delta| carries(delta) && delta.operation == own)
+            .or_else(|| ledger.iter().position(carries))
+            .or_else(|| {
+                let mine = command(receipt)?;
+                ledger.iter().position(|delta| {
+                    delta.instance == target
+                        && delta
+                            .receipt
+                            .and_then(command)
+                            .is_some_and(|later| later > mine)
+                })
+            })
             .unwrap_or(ledger.len())
     };
     let mut facts = Vec::new();
     for attempt in &work.projection.enchant_attempts {
         facts.push((
-            (position(attempt.target), 0, attempt.operation_ordinal),
+            (
+                position(attempt.target, attempt.receipt, ItemOperation::Enchant),
+                0,
+                attempt.operation_ordinal,
+            ),
             DomainEvent::ItemEnchanted {
                 fact: crate::domain::ItemEventFact {
                     metadata: EventMetadata {
@@ -1390,7 +1421,11 @@ fn captured_item_events(
     }
     for exchange in &work.projection.exchanges {
         facts.push((
-            (position(exchange.before.id), 0, exchange.operation_ordinal),
+            (
+                position(exchange.before.id, exchange.receipt, ItemOperation::Consume),
+                0,
+                exchange.operation_ordinal,
+            ),
             DomainEvent::ItemExchanged {
                 fact: crate::domain::ItemEventFact {
                     metadata: EventMetadata {
