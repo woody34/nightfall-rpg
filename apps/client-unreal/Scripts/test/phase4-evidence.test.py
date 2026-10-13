@@ -1800,7 +1800,7 @@ class Evidence(unittest.TestCase):
             rows.insert(-1,row)
         self.repair(rows)
         self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['clamp_no_heal'],HASH)['passed'])
-        for resolution in ('load:rebuild:7',':hp','load:rebuild:7:HP','load:rebuild:7:sp','load:rebuild:7:hp:x','hp'):
+        for resolution in ('load:rebuild:7',':hp','load:rebuild:7:HP','load:rebuild:7:sp','load:rebuild:7:hp:x','hp','x::hp'):
             with self.subTest(resolution=resolution):
                 bad=copy.deepcopy(rows);bad[2]['data']['resolution_id']=resolution
                 with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
