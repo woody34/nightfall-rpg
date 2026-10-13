@@ -7850,12 +7850,16 @@ mod tests {
         assert!(draws
             .iter()
             .all(|d| d.2 == RETAIL_RESIDUES && d.1 == d.0 + 1));
-        // Rebuild-family facts (load, and the D91 clamps of the augment's maxima) aside.
+        // Rebuild-family facts (load, D91 clamps, D103 gear_stats of the equips) aside.
         let formulas: Vec<_> = facts
             .iter()
             .filter_map(|f| match &f.fact {
                 ItemEvidenceData::Formula(v)
-                    if !load_family(v) && v["formula"].as_str() != Some("clamp_no_heal") =>
+                    if !load_family(v)
+                        && !matches!(
+                            v["formula"].as_str(),
+                            Some("clamp_no_heal" | "gear_stats")
+                        ) =>
                 {
                     Some(v["formula"].as_str().unwrap().to_owned())
                 },
