@@ -2,14 +2,14 @@
 
 **Status:** Planning. No implementation, story or gate has run; nothing in this document attests a pass.
 
-**Authorship.** Plan rev 6 is a full rewrite by the Claude design author (AD5 B23). It replaces agy rev 5 (9d54c2a), which plan-review-3 rejected. Architect: Claude. Independent review: a fresh Claude reviewer (author ≠ reviewer, A20).
+**Authorship.** Plan rev 6 was a full rewrite by the Claude design author (AD5 B23), replacing agy rev 5 (9d54c2a), which plan-review-3 rejected. Rev 7 applies plan-review-4 (accept with bounded fixes; E43–E46, B24). Architect: Claude. Independent review: a fresh Claude reviewer (author ≠ reviewer, A20).
 
 **Sources and precedence.**
 
 | Source | Role |
 |---|---|
-| [`phase-5-zone-design.md`](phase-5-zone-design.md) @ **0d525c7** | The **frozen** design (`codex/phase5-design`, AD5 B22). Cited as **D §n**. Every contract, number and formula is normative there. This plan never restates a formula differently: where it summarises, the design wins. |
-| [`phase-5-architecture-decisions.md`](phase-5-architecture-decisions.md) | Binding decisions P1–P4, A1–A20, B1–B23 and E1–E42. Re-synced verbatim from the architect notes in this commit (B12). |
+| [`phase-5-zone-design.md`](phase-5-zone-design.md) @ **0d525c7** | The **frozen** design (`codex/phase5-design`, AD5 B22). The file lives on that branch until integration merges it, so this link resolves only after the merge. Cited as **D §n**. Every contract, number and formula is normative there. This plan never restates a formula differently: where it summarises, the design wins. |
+| [`phase-5-architecture-decisions.md`](phase-5-architecture-decisions.md) | Binding decisions P1–P4, A1–A20, B1–B24 and E1–E46. Re-synced from the architect notes in this commit: verbatim body plus a banner (B12). |
 | [`05-economy-and-crafting.md`](../planning/05-economy-and-crafting.md) | Owner scope (P1). It is unpinned research. Its numbers never override the pinned sources or the design. |
 
 Pinned sources: l2j-game `abfde0490ac52a2106e884b7242c0276c44cdf76` and l2j-dp `3ca488dd2bd0bfaca43e378886a3c2e37968153a`, under `/home/matt-woodruff/.cache/nightfall/l2j/`. They are build-time provenance, never a runtime or replay dependency.
@@ -41,6 +41,8 @@ Deliver the complete owner scope P1 as server-authoritative, replay-exact V7 zon
 | Version boundary (A4) | V7: Snapshot 11 / Record 9 / BinaryV7; `PHASE5_ENABLED` | D §12 |
 | Wire (E20) | Additive only; the design is the tag source | D §13 |
 
+**Defaults stated by the design (B12):** AutoLoot/AutoLootRaids/AutoLootHerbs = False and the per-template `auto_destroy_time` (one row, item 9849) are hash inputs (D §1.10 item 3). The clan-war exemption is vacuous until Phase 7 (D §3.9).
+
 Closed architect answers that bind this plan: E24 (no PK protection), E25 (no cap, gauge only), E26 (T1 ratified), E27 as amended by E41 (per-delivery queue bound), E28 (Gludio, castle id 1) and E29 (G not applied to party bonus rates). There are no open QUESTIONs.
 
 ## 2. Canonical contracts this plan implements
@@ -58,7 +60,7 @@ New message types live in `packages/proto/nightfall/v1/economy.proto`. There are
 | ItemOperation | 14..42: the 29 receipt scopes of D §11.3, same order |
 | ItemLocation | 3..8: WAREHOUSE, FREIGHT, MAIL, AUCTION_BID, REFUND, DELIVERY |
 | StatsChanged | no new field |
-| GameService RPCs | 9 reads, appended after GrantItem: ListBuylist, GetMultisellList, GetRecipeBook, GetWarehouse, GetFreight, ListMail, ReadMail, ListItemAuctions, GetManorData. Messages as in D §13.4. ReadMail writes nothing (E31). `ListBuylist` returns `unit_price` from the §6.2 table at castle 0, `limited`/`stock`/`max_stock`, and the caller's `refund_tab` (D §13.4). |
+| GameService RPCs | 9 reads, appended after GrantItem: ListBuylist, GetMultisellList, GetRecipeBook, GetWarehouse, GetFreight, ListMail, ReadMail, ListItemAuctions, GetManorData. Messages as in D §13.4. ReadMail writes nothing (E31). `ListBuylist` returns `unit_price` from the D §6.2 table at castle 0, `limited`/`stock`/`max_stock`, and the caller's `refund_tab`; because stock and the tab come from the zone read port, it refuses `FAILED_PRECONDITION` unless the caller is admitted and `UNAVAILABLE` without a zone. Per-RPC statuses are D §13.4's table. |
 | PbCommandKind | 32..72 = client tag + 3 (41 intents); system kinds 73 DeliverPending, 74 AuctionSchedule, 75 EpochReconcile, 76 MailExpire |
 | PbOutput | 42 `Phase5Enriched` (V7-only EntitySpawn ground-item enrichment, D26 pattern); 43..54 carry WorldEvents 34..45, except 51, which is reserved and never emitted (MailNotification is API-only); 55 `EconomyCheckpoint` (the durable non-character ledger rows, container deltas, lease releases and delivery changes of a tick) |
 | PbPlayerLoad | 11 carries `Phase5Checkpoint` bytes |
@@ -83,7 +85,7 @@ Rows 1–6 are copied verbatim from the Phase 4 plan §2.2.
 - **`PHASE5_ENABLED`:** unset selects V7 (except historical simulation-fixture selection); `"0"` selects V6 behaviour; `"1"` selects V7; any other value refuses boot. The recorded version wins on replay.
 - **Legacy rejection.** Every Phase 5 field, kind, tag, entity kind, V7 `ItemLocation` and ledger op is rejected recursively under Record ≤ 8 before permissive decoding.
 - **Historical bytes.** `apps/api/fixtures/sessions/*.nfr` stay byte-exact (`replay-check.sh`).
-- **All live suites**, including earlier phases, run production V7 with the reviewed bundles (C16; §5.4 story 6.3).
+- **All live suites**, including earlier phases, run production V7 with the reviewed bundles (C16; §4 story 6.3).
 
 **Phase5Rules (D §1.10)** is validated and hash-referenced like Phase4Rules (D27/D31), never embedded. Its hash inputs are D §1.10 items 1–11, including:
 - the G **decimal string**, `ExponentXp/Sp` (nonzero fails closed), and every flood interval including ServerBypass 5;
@@ -142,7 +144,7 @@ The existing `npc_respawn_jitter` draw then follows **after** all drop and posit
 **Ranges** (D "Source authority and conventions"): `m(L) = trunc0(L·1000/32)`, with 2D tests (X1).
 - Pickup: `dx²+dy² ≤ (1,125 + 0)²`, where 0 is the engine's player collision radius (X13).
 - Vendor, keeper and store: `m(150) = 4,687`, non-strict.
-- Trade: a reject iff `> 4,687` at request **and** at confirm only.
+- Trade: `> 4,687` rejects at request and **cancels the whole trade** at confirm; there is no other distance check.
 - PartyRange2: `4·dist² ≤ (2·43,750 + rad)²`, where `rad` is the origin radius (the NPC for sweep, 0 for the picker) plus the member's 0.
 - Sweeper: `m(20) = 625` plus the Phase 3 range rule.
 
@@ -175,7 +177,8 @@ Every other intent has no pinned gate. The rules:
 - PK drop;
 - pickup that is not a split;
 - vendor sell into the refund tab, and refund back;
-- trade, store sale and purchase;
+- trade, and both legs (items and adena) of store sales and purchases;
+- the craft fee (customer → crafter);
 - warehouse, freight and mail moves;
 - deliveries of existing items;
 - auction bids and cancels.
@@ -263,7 +266,7 @@ Lease sets per command, verbatim from D §10.0:
 
 | Rule | Design |
 |---|---|
-| Pickup checks in order: alive (`DEAD_ACTOR`) → target (`GROUND_ITEM_NOT_FOUND`) → range (`OUT_OF_RANGE`) → DropProtection → capacity **slots only and only solo/FINDERS_KEEPERS** (P7; herbs exempt) → loot owner. A non-executable herb refuses `ITEM_CAPABILITY_DEFERRED` **before** removal. | D §4.1, §3.7 |
+| Pickup checks in order: alive (`DEAD_ACTOR`) → target (`GROUND_ITEM_NOT_FOUND`) → range (`OUT_OF_RANGE`) → DropProtection → capacity **slots only and only solo/FINDERS_KEEPERS** (P7; herbs exempt) → loot owner. A non-executable herb refuses `ITEM_CAPABILITY_DEFERRED` **before** removal. A receiver count cap (D68/D70) refuses `ITEM_COUNT_CAP` before any change, for pickup, trade (P15) and store buys alike. | D §4.1, §3.7 |
 | The two protections are separate. **Loot owner:** online owner, `isInLooterParty`. **DropProtection:** owner or same party, no online requirement. Command channels do not exist before Phase 7, so the raid first-CC 900 s rights are vacuous and raid loot carries DropProtection only. | D §3.7 |
 | The raid clamp and all killer modifiers are binary64 values from the frozen 22-row L table (d = −6 raid → `0.10000000000000009`). | D §3.3, §6.2 |
 | G fold: `rate' = fl32(fl(rate × G))` for every G-multiplied rate (E37); G is the owner's decimal string. G does not touch amount multipliers, the party bonus rates or the siege price. | D §3.4 |
@@ -284,46 +287,46 @@ The normative ledger is **D §14.2**: X1–X14 (X5/X6 withdrawn, X14 closed by E
 
 ### 2.8 Canonical scenario matrix (D §14.5, verbatim names; 36 files)
 
-All files live under `apps/client-unreal/Scenarios/`. Every file's header lists **exactly** the stories in its row. Expected values come from the E1 oracle sidecars (story 1.8), never typed by hand. RNG-dependent outcomes are asserted on received state; exact outcomes go through the C14 export and C15 oracle gates (story 6.2). Every file is named by 1.8 (oracle expectations), 3.15 (server assertion sections), 5.7 (UI subscope) and 6.6 (live run); the six container files are also named by 4.9. Live execution of every file is owned by story **6.6** alone. Packs are §5.3 `phase5-*`.
+All files live under `apps/client-unreal/Scenarios/`. **Header syntax (E45, as Phase 4 plan §2.8):** each file starts with the exact `# covers: 5 E<story>, …` line given in its row, then `# fixture: <pack>`. `sim-traceability.py` parses these lines, and every `[client-visible]` story (1.8, 2.1, 3.3–3.9, 3.11, 3.15, 4.6, 4.9, 5.1–5.7, 6.6) appears in at least one header. A header alone never satisfies a story. Expected values come from the E1 oracle sidecars (story 1.8), never typed by hand. RNG-dependent outcomes are asserted on received state; exact outcomes go through the C14 export and C15 oracle gates (story 6.2). Every file is named by 1.8 (oracle expectations), 3.15 (server assertion sections), 5.7 (UI subscope) and 6.6 (live run); the seven container files (warehouse, freight, the two mail files, auction, manor, epoch reconcile) are also named by 4.9. Live execution of every file is owned by story **6.6** alone. Packs are §5.3 `phase5-*`.
 
-| File | Stories (header list) | Pack | Received assertions (minimum) |
+| File | Exact `# covers:` header | Pack (`# fixture:`) | Received assertions (minimum) |
 |---|---|---|---|
-| `5-drop-basic.nfs` | 1.2, 1.5, 1.8, 3.3, 3.12, 3.15, 5.7, 6.6 | phase5-drops | Ground `EntitySpawn` kind 3 with GroundItemDetail; the NPC loot `loot` row; maxDealer is the lowest-EntityId max-damage player |
-| `5-drop-precise-over-100.nfs` | 1.2, 1.5, 1.8, 3.3, 3.15, 5.7, 6.6 | phase5-drops-precise | `> 100` ungrouped vs `≥ 100` group branches; quantity × mult |
-| `5-drop-level-gap.nfs` | 1.2, 1.5, 1.8, 3.3, 3.15, 5.7, 6.6 | phase5-drops-gap | Drops at d = −6…−10 using L-table chances (C15 checks draws) |
-| `5-drop-rate-multiplier.nfs` | 1.2, 1.5, 1.8, 2.3, 3.3, 3.15, 5.7, 6.6 | phase5-rates | G string `"1.5"`: base and multiplied expectations both asserted (P2) |
-| `5-pickup-protection.nfs` | 1.8, 3.3, 3.5, 3.15, 5.7, 6.6 | phase5-protection | Loot owner and DropProtection asserted separately (offline owner, party member, stranger, expiry) |
-| `5-herb.nfs` | 1.2, 1.4, 1.8, 3.5, 3.15, 5.7, 6.6 | phase5-herbs | Single and multi-skill (8612) herb; early abort under reuse; no inventory row |
-| `5-decay.nfs` | 1.5, 1.8, 3.3, 3.15, 5.7, 6.6 | phase5-decay | Despawn on the 50-tick grid after the strict limit; PK drop never decays; gauge sample |
-| `5-party-loot-finders.nfs` | 1.6, 1.8, 3.5, 3.15, 5.7, 6.6 | phase5-party | Picker receives; slot-only capacity check |
-| `5-party-loot-random.nfs` | 1.6, 1.8, 3.5, 3.15, 5.7, 6.6 | phase5-party | Recipient in range; `LootDistributed` to the others |
-| `5-party-loot-random-spoil.nfs` | 1.6, 1.8, 3.5, 3.6, 3.15, 5.7, 6.6 | phase5-party-spoil | Sweep routed through RANDOM |
-| `5-party-loot-by-turn.nfs` | 1.6, 1.8, 3.5, 3.15, 5.7, 6.6 | phase5-party | Cursor pre-increment and skip |
-| `5-party-loot-by-turn-spoil.nfs` | 1.6, 1.8, 3.5, 3.6, 3.15, 5.7, 6.6 | phase5-party-spoil | Sweep routed through BY_TURN |
-| `5-party-adena-split.nfs` | 1.6, 1.8, 3.5, 3.12, 3.15, 5.7, 6.6 | phase5-party | Even split with remainder; **no** `LootDistributed`; `party_split` rows |
-| `5-party-vote.nfs` | 1.8, 3.5, 3.15, 5.7, 6.6 | phase5-party | Request, accept to threshold, single decline, timeout, join cancels |
-| `5-party-xp.nfs` | 1.6, 1.8, 3.4, 3.15, 5.7, 6.6 | phase5-party-xp | BONUS table, `Math.round` shares, highfive gaps |
-| `5-solo-xp-damage-share.nfs` | 1.6, 1.8, 3.4, 3.15, 5.7, 6.6 | phase5-solo-xp | B16 damage share between two solo players; SP-only NPC awards 0/0 |
-| `5-spoil-sweep.nfs` | 1.5, 1.8, 3.6, 3.15, 5.7, 6.6 | phase5-spoil | Spoil, corpse +10 s, Sweeper, ConsumeBody, despawn next tick |
-| `5-sweep-party.nfs` | 1.6, 1.8, 3.5, 3.6, 3.15, 5.7, 6.6 | phase5-party-spoil | Spoiler's party member sweeps; adena split from the NPC origin |
-| `5-pk-drop.nfs` | 1.5, 1.8, 3.3, 3.12, 3.15, 5.7, 6.6 | phase5-pk-drop | Unequip-before-roll; exclusions; break at 10; **no** protection (E24) |
-| `5-vendor-buy-sell-refund.nfs` | 1.3, 1.7, 1.8, 3.7, 3.15, 5.7, 6.6 | phase5-vendors | Unit price from the table; sell `⌊ref/2⌋·c`; refund `⌊c·ref/2⌋`; 13th entry destroyed |
-| `5-vendor-restock.nfs` | 1.3, 1.7, 1.8, 3.7, 3.15, 5.7, 6.6 | phase5-vendor-restock | Out of stock, then refill at the due tick |
-| `5-multisell.nfs` | 1.3, 1.7, 1.8, 3.7, 3.15, 5.7, 6.6 | phase5-multisell | maintainEnchantment copy; amount; one ItemExchanged |
-| `5-craft-dwarf.nfs` | 1.3, 1.7, 1.8, 3.8, 3.15, 5.7, 6.6 | phase5-craft | Register, craft, failure loss, missing-material reject with nothing spent |
-| `5-craft-common-masterwork.nfs` | 1.3, 1.7, 1.8, 3.8, 3.15, 5.7, 6.6 | phase5-craft-common | Common book; masterwork outcome via EconomyResult.craft |
-| `5-private-manufacture.nfs` | 1.7, 1.8, 3.8, 3.9, 3.15, 5.7, 6.6 | phase5-manufacture | Fee before roll and kept on failure; Manufacture 3-tick gate |
-| `5-trade.nfs` | 1.8, 3.9, 3.12, 3.15, 5.7, 6.6 | phase5-trade | Add invalidates the adder only; both confirm; transfer pairs |
-| `5-trade-cancel-disconnect.nfs` | 1.8, 3.9, 3.15, 5.7, 6.6 | phase5-trade | Departure cancels; UseItem cancels; too far at confirm cancels |
-| `5-store-sell-package.nfs` | 1.8, 3.9, 3.15, 5.7, 6.6 | phase5-stores | Package must be bought whole; store closes when empty |
-| `5-store-buy.nfs` | 1.8, 3.9, 3.15, 5.7, 6.6 | phase5-stores | No escrow; entries beyond the owner's adena skipped |
-| `5-warehouse.nfs` | 1.7, 1.8, 3.11, 3.15, 4.3, 4.4, 4.9, 5.7, 6.6 | phase5-warehouse | 30 per entry; merge; augmented allowed; CONTAINER_BUSY under a held lease |
-| `5-freight.nfs` | 1.7, 1.8, 3.11, 3.15, 4.3, 4.4, 4.9, 5.7, 6.6 | phase5-freight | Same account; capacity 200; adena entry adds no slot |
-| `5-mail-cod.nfs` | 1.7, 1.8, 3.11, 3.15, 4.3, 4.4, 4.5, 4.9, 5.7, 6.6 | phase5-mail | COD consume and `cod_credit` delivery; MailNotification |
-| `5-mail-reject-cancel-expiry.nfs` | 1.8, 3.11, 3.15, 4.3, 4.4, 4.5, 4.9, 5.7, 6.6 | phase5-mail | Reject return message; cancel; MailExpire → warehouse delivery |
-| `5-auction-bid-cancel-award.nfs` | 1.7, 1.8, 3.11, 3.15, 4.3, 4.5, 4.9, 5.7, 6.6 | phase5-auction | Equal bid accepted; difference payment; cancel; award to warehouse |
-| `5-manor-sow-harvest-sell.nfs` | 1.3, 1.7, 1.8, 3.6, 3.11, 3.15, 5.7, 6.6 | phase5-manor | Gludio seed sown (castle_area 1); harvest; crop sale reward and fee |
-| `5-epoch-reconcile.nfs` | 1.8, 3.11, 3.12, 3.15, 4.7, 4.9, 5.7, 6.6 | phase5-epoch | Graceful close and abandoned-epoch destroy rows before admission |
+| `5-drop-basic.nfs` | `# covers: 5 E1.2, 5 E1.5, 5 E1.8, 5 E2.1, 5 E3.3, 5 E3.12, 5 E3.15, 5 E5.1, 5 E5.6, 5 E5.7, 5 E6.6` | phase5-drops | Ground `EntitySpawn` kind 3 with GroundItemDetail; the NPC loot `loot` row; maxDealer is the lowest-EntityId max-damage player |
+| `5-drop-precise-over-100.nfs` | `# covers: 5 E1.2, 5 E1.5, 5 E1.8, 5 E2.1, 5 E3.3, 5 E3.15, 5 E5.1, 5 E5.6, 5 E5.7, 5 E6.6` | phase5-drops-precise | `> 100` ungrouped vs `≥ 100` group branches; quantity × mult |
+| `5-drop-level-gap.nfs` | `# covers: 5 E1.2, 5 E1.5, 5 E1.8, 5 E2.1, 5 E3.3, 5 E3.15, 5 E5.1, 5 E5.6, 5 E5.7, 5 E6.6` | phase5-drops-gap | Drops at d = −6…−10 using L-table chances (C15 checks draws) |
+| `5-drop-rate-multiplier.nfs` | `# covers: 5 E1.2, 5 E1.5, 5 E1.8, 5 E2.1, 5 E2.3, 5 E3.3, 5 E3.15, 5 E5.1, 5 E5.6, 5 E5.7, 5 E6.6` | phase5-rates | G string `"1.5"`: base and multiplied expectations both asserted (P2) |
+| `5-pickup-protection.nfs` | `# covers: 5 E1.8, 5 E2.1, 5 E3.3, 5 E3.5, 5 E3.15, 5 E5.1, 5 E5.6, 5 E5.7, 5 E6.6` | phase5-protection | Loot owner and DropProtection asserted separately (offline owner, party member, stranger, expiry) |
+| `5-herb.nfs` | `# covers: 5 E1.2, 5 E1.4, 5 E1.8, 5 E2.1, 5 E3.5, 5 E3.15, 5 E5.1, 5 E5.6, 5 E5.7, 5 E6.6` | phase5-herbs | Single and multi-skill (8612) herb; early abort under reuse; no inventory row |
+| `5-decay.nfs` | `# covers: 5 E1.5, 5 E1.8, 5 E2.1, 5 E3.3, 5 E3.15, 5 E5.1, 5 E5.6, 5 E5.7, 5 E6.6` | phase5-decay | Despawn on the 50-tick grid after the strict limit; PK drop never decays (the ground-item gauge is verified by 7.1's scrapes, not here) |
+| `5-party-loot-finders.nfs` | `# covers: 5 E1.6, 5 E1.8, 5 E2.1, 5 E3.5, 5 E3.15, 5 E5.1, 5 E5.2, 5 E5.6, 5 E5.7, 5 E6.6` | phase5-party | Picker receives; slot-only capacity check |
+| `5-party-loot-random.nfs` | `# covers: 5 E1.6, 5 E1.8, 5 E2.1, 5 E3.5, 5 E3.15, 5 E5.1, 5 E5.2, 5 E5.6, 5 E5.7, 5 E6.6` | phase5-party | Recipient in range; `LootDistributed` to the others |
+| `5-party-loot-random-spoil.nfs` | `# covers: 5 E1.6, 5 E1.8, 5 E2.1, 5 E3.5, 5 E3.6, 5 E3.15, 5 E5.1, 5 E5.2, 5 E5.6, 5 E5.7, 5 E6.6` | phase5-party-spoil | Sweep routed through RANDOM |
+| `5-party-loot-by-turn.nfs` | `# covers: 5 E1.6, 5 E1.8, 5 E2.1, 5 E3.5, 5 E3.15, 5 E5.1, 5 E5.2, 5 E5.6, 5 E5.7, 5 E6.6` | phase5-party | Cursor pre-increment and skip |
+| `5-party-loot-by-turn-spoil.nfs` | `# covers: 5 E1.6, 5 E1.8, 5 E2.1, 5 E3.5, 5 E3.6, 5 E3.15, 5 E5.1, 5 E5.2, 5 E5.6, 5 E5.7, 5 E6.6` | phase5-party-spoil | Sweep routed through BY_TURN |
+| `5-party-adena-split.nfs` | `# covers: 5 E1.6, 5 E1.8, 5 E2.1, 5 E3.5, 5 E3.12, 5 E3.15, 5 E5.1, 5 E5.2, 5 E5.6, 5 E5.7, 5 E6.6` | phase5-party | Even split with remainder; **no** `LootDistributed`; `party_split` rows |
+| `5-party-vote.nfs` | `# covers: 5 E1.8, 5 E2.1, 5 E3.5, 5 E3.15, 5 E5.2, 5 E5.6, 5 E5.7, 5 E6.6` | phase5-party | Request, accept to threshold, single decline, timeout, join cancels |
+| `5-party-xp.nfs` | `# covers: 5 E1.6, 5 E1.8, 5 E2.1, 5 E3.4, 5 E3.15, 5 E5.2, 5 E5.6, 5 E5.7, 5 E6.6` | phase5-party-xp | BONUS table, `Math.round` shares, highfive gaps |
+| `5-solo-xp-damage-share.nfs` | `# covers: 5 E1.6, 5 E1.8, 5 E2.1, 5 E3.4, 5 E3.15, 5 E5.6, 5 E5.7, 5 E6.6` | phase5-solo-xp | B16 damage share between two solo players; SP-only NPC awards 0/0 |
+| `5-spoil-sweep.nfs` | `# covers: 5 E1.5, 5 E1.8, 5 E2.1, 5 E3.6, 5 E3.15, 5 E5.1, 5 E5.6, 5 E5.7, 5 E6.6` | phase5-spoil | Spoil, corpse +10 s, Sweeper, ConsumeBody, despawn next tick |
+| `5-sweep-party.nfs` | `# covers: 5 E1.6, 5 E1.8, 5 E2.1, 5 E3.5, 5 E3.6, 5 E3.15, 5 E5.1, 5 E5.2, 5 E5.6, 5 E5.7, 5 E6.6` | phase5-party-spoil | Spoiler's party member sweeps; adena split from the NPC origin |
+| `5-pk-drop.nfs` | `# covers: 5 E1.5, 5 E1.8, 5 E2.1, 5 E3.3, 5 E3.12, 5 E3.15, 5 E5.1, 5 E5.6, 5 E5.7, 5 E6.6` | phase5-pk-drop | Unequip-before-roll; exclusions; break at 10; **no** protection (E24) |
+| `5-vendor-buy-sell-refund.nfs` | `# covers: 5 E1.3, 5 E1.7, 5 E1.8, 5 E2.1, 5 E3.7, 5 E3.15, 5 E4.6, 5 E5.3, 5 E5.6, 5 E5.7, 5 E6.6` | phase5-vendors | Unit price from the table; sell `⌊ref/2⌋·c`; refund `⌊c·ref/2⌋`; 13th entry destroyed |
+| `5-vendor-restock.nfs` | `# covers: 5 E1.3, 5 E1.7, 5 E1.8, 5 E2.1, 5 E3.7, 5 E3.15, 5 E4.6, 5 E5.3, 5 E5.6, 5 E5.7, 5 E6.6` | phase5-vendor-restock | Out-of-stock reject; the restock due tick and refill arithmetic asserted through the export + V-R oracle (E43). The live refill after 36,000 ticks (the shortest pinned restock, 60 min) runs only in the soak lane (6.7), unless 6.1 finds an existing harness tick fast-forward facility, in which case the ordinary run uses it |
+| `5-multisell.nfs` | `# covers: 5 E1.3, 5 E1.7, 5 E1.8, 5 E2.1, 5 E3.7, 5 E3.15, 5 E4.6, 5 E5.3, 5 E5.6, 5 E5.7, 5 E6.6` | phase5-multisell | maintainEnchantment copy; amount; one ItemExchanged |
+| `5-craft-dwarf.nfs` | `# covers: 5 E1.3, 5 E1.7, 5 E1.8, 5 E2.1, 5 E3.8, 5 E3.15, 5 E4.6, 5 E5.3, 5 E5.6, 5 E5.7, 5 E6.6` | phase5-craft | Register, craft, failure loss, missing-material reject with nothing spent |
+| `5-craft-common-masterwork.nfs` | `# covers: 5 E1.3, 5 E1.7, 5 E1.8, 5 E2.1, 5 E3.8, 5 E3.15, 5 E4.6, 5 E5.3, 5 E5.6, 5 E5.7, 5 E6.6` | phase5-craft-common | Common book; masterwork outcome via EconomyResult.craft |
+| `5-private-manufacture.nfs` | `# covers: 5 E1.7, 5 E1.8, 5 E2.1, 5 E3.8, 5 E3.9, 5 E3.15, 5 E4.6, 5 E5.3, 5 E5.4, 5 E5.6, 5 E5.7, 5 E6.6` | phase5-manufacture | Fee before roll and kept on failure; Manufacture 3-tick gate |
+| `5-trade.nfs` | `# covers: 5 E1.8, 5 E2.1, 5 E3.9, 5 E3.12, 5 E3.15, 5 E5.4, 5 E5.6, 5 E5.7, 5 E6.6` | phase5-trade | Add invalidates the adder only; both confirm; transfer pairs |
+| `5-trade-cancel-disconnect.nfs` | `# covers: 5 E1.8, 5 E2.1, 5 E3.9, 5 E3.15, 5 E5.4, 5 E5.6, 5 E5.7, 5 E6.6` | phase5-trade | Departure cancels; UseItem cancels; too far at confirm cancels |
+| `5-store-sell-package.nfs` | `# covers: 5 E1.8, 5 E2.1, 5 E3.9, 5 E3.15, 5 E5.4, 5 E5.6, 5 E5.7, 5 E6.6` | phase5-stores | Package must be bought whole; store closes when empty |
+| `5-store-buy.nfs` | `# covers: 5 E1.8, 5 E2.1, 5 E3.9, 5 E3.15, 5 E5.4, 5 E5.6, 5 E5.7, 5 E6.6` | phase5-stores | No escrow; entries beyond the owner's adena skipped |
+| `5-warehouse.nfs` | `# covers: 5 E1.7, 5 E1.8, 5 E2.1, 5 E3.11, 5 E3.15, 5 E4.3, 5 E4.4, 5 E4.6, 5 E4.9, 5 E5.5, 5 E5.6, 5 E5.7, 5 E6.6` | phase5-warehouse | 30 per entry; merge; augmented allowed; CONTAINER_BUSY under a held lease |
+| `5-freight.nfs` | `# covers: 5 E1.7, 5 E1.8, 5 E2.1, 5 E3.11, 5 E3.15, 5 E4.3, 5 E4.4, 5 E4.6, 5 E4.9, 5 E5.5, 5 E5.6, 5 E5.7, 5 E6.6` | phase5-freight | Same account; capacity 200; adena entry adds no slot |
+| `5-mail-cod.nfs` | `# covers: 5 E1.7, 5 E1.8, 5 E2.1, 5 E3.11, 5 E3.15, 5 E4.3, 5 E4.4, 5 E4.5, 5 E4.6, 5 E4.9, 5 E5.5, 5 E5.6, 5 E5.7, 5 E6.6` | phase5-mail | COD consume and `cod_credit` delivery; MailNotification |
+| `5-mail-reject-cancel-expiry.nfs` | `# covers: 5 E1.8, 5 E2.1, 5 E3.11, 5 E3.15, 5 E4.3, 5 E4.4, 5 E4.5, 5 E4.6, 5 E4.9, 5 E5.5, 5 E5.6, 5 E5.7, 5 E6.6` | phase5-mail | Reject return message; cancel; MailExpire → warehouse delivery |
+| `5-auction-bid-cancel-award.nfs` | `# covers: 5 E1.7, 5 E1.8, 5 E2.1, 5 E3.11, 5 E3.15, 5 E4.3, 5 E4.4, 5 E4.5, 5 E4.6, 5 E4.9, 5 E5.5, 5 E5.6, 5 E5.7, 5 E6.6` | phase5-auction | Equal bid accepted; difference payment; cancel; award to warehouse |
+| `5-manor-sow-harvest-sell.nfs` | `# covers: 5 E1.3, 5 E1.7, 5 E1.8, 5 E2.1, 5 E3.6, 5 E3.11, 5 E3.15, 5 E4.3, 5 E4.4, 5 E4.6, 5 E4.9, 5 E5.5, 5 E5.6, 5 E5.7, 5 E6.6` | phase5-manor | Gludio seed sown (castle_area 1); harvest; crop sale reward and fee |
+| `5-epoch-reconcile.nfs` | `# covers: 5 E1.8, 5 E2.1, 5 E3.11, 5 E3.12, 5 E3.15, 5 E4.4, 5 E4.7, 5 E4.9, 5 E5.6, 5 E5.7, 5 E6.6` | phase5-epoch | Graceful close and abandoned-epoch destroy rows before admission |
 
 The matrix count is 36, and story 6.6 asserts `files == 36` against this table.
 
@@ -359,31 +362,32 @@ Each design §14 test family or item has exactly one owner:
 | §14.1 families V-P, V-R, V-S, M, C, S, A, F, PW, LT, FL | 1.7 |
 | §14.3 evidence contract v2: producer | 3.13 |
 | §14.3 evidence contract v2: consumer and gates | 6.2 |
-| §14.4 "Engine units" | the implementing engine story (3.1–3.12), each for its own section |
+| §14.4 "Engine units" | the implementing engine story (3.1–3.12), each for its own section; except the `PHASE5_ENABLED` matrix (2.2), lease CAS (4.4) and V5/V6 historical byte-exact replay (3.14) |
 | §14.4 "Properties" | 3.14 |
-| §14.4 "Crash windows" and "Migrations" | 4.8 |
+| §14.4 "Crash windows" | 4.8 |
+| §14.4 "Migrations" | 4.1 |
 | §14.5 scenario matrix (live) | 6.6 |
 
 ### Epic 1: Data generation and independent oracle (D drafts, C verifies and owns the oracle; Z review)
 
 | Story | Model | Work / Done When |
 |---|---|---|
-| 1.1 Source ledger and `gen_economy.py` scaffold [required] | D | `packages/data/scripts/gen_economy.py` with `--check`, the provenance header, the DATAPACK_REVISION check, exact decimal strings, a SOURCES.md section and `check_all.py` integration. **Done When:** C verifies the pinned paths/revisions and `--check` against a clean regeneration; the Rust and Python parsers agree on the emitted TOML. |
+| 1.1 Source ledger and `gen_economy.py` scaffold [required] | D | `packages/data/scripts/gen_economy.py` with `--check`, the provenance header, the DATAPACK_REVISION check, exact decimal strings, a SOURCES.md section and `check_all.py` integration. **Done When:** C verifies the pinned paths/revisions and `--check` against a clean regeneration. (Rust-parser agreement on the emitted TOML is 2.3's Done When, E46.) |
 | 1.2 Drop, corpse, herb, ground and rate tables [required] | D | `tables-phase5/` for D §1.10 items 1–5 and 11: drop/corpse lists in document order (decimal string **and** `fl` value), herb table with item-skill lists, ground constants, rate configs with **double/float kinds**, G as a decimal string, `ExponentXp/Sp`, the 22-row L table, and the pow table. **Done When:** C re-counts against D §1.10 (14,589/3,032/744; 35/2,260/7,335; 234 corpseTime; 68/59/48/9 herbs; 30/29 NonDroppable, 11 PetItems; 36 SP-only templates). The L-table bits and the pow-table sha256 `4386eed8…` (320 entries) match. |
 | 1.3 Merchant, multisell, recipe, storage, mail, flood, auction and manor tables [required] | D | D §1.10 items 6–10: 274 scripts / 20,236 entries with tax/delay/count literals; the precomputed unit-price table for castle {0, 5, 15, 25}; restock minutes; 196 multisell lists; 1,000 recipes with 582 rare; storage/mail/flood constants; the auction data and fixture schedule; seeds.xml; the **Gludio-only** fixture manor lists (E28). **Done When:** C re-counts (5,803 pairs, 2,145 limited, 14 applyTaxes / 31 maintainEnchantment / 21 maintainIngredient, 258 crops / 129 alternative / 32 Gludio). Zero-price 8187 is flagged. |
 | 1.4 Catalogue admission closure [required] | D | Extend the D5/D54 closure: every template referenced by a Phase 5 table is **storable**; executability is a separate capability (D §1.10 item 5). **Done When:** the imported/storable/executable counts manifest is regenerated and reviewed. No row is dropped for a capability. Non-executable herbs are named. |
 | 1.5 Oracle: drop families [required] | C | `economy_oracle.py` families D-C, D-E, D-W, D-L, D-M, D-O, D-P, D-T exactly as D §14.1. **Done When:** all vectors pass against the pinned sources. D-E reproduces the 3/4 threshold groups and the 1,127 fall-offs. D-W reports 141 bits at G = 1 and ≤ 255 at G = 2^±32. No Rust-authored expectations. |
 | 1.6 Oracle: party, XP and ledger families [required] | C | Families L-P, X and G (D §14.1). **Done When:** vectors pass, including X for n = 5 with all e < 2·10⁶ (74,892 differences, e = 45 → 62), the 36 SP-only templates, and T1 orders. |
 | 1.7 Oracle: vendor, craft, multisell, manor, auction, fee, pow, L-table and flood families [required] | C | Families V-P, V-R, V-S, M, C, S, A, F, PW, LT, FL (D §14.1). **Done When:** vectors pass. V-P equals binary64 over all 5,803 pairs × 4 castle percents (362 naive-truncation differences at castle 0). PW matches all 320 captured entries; its negative controls give 44/79 and 78/79. |
-| 1.8 Simulation scenario(s) [client-visible] [required] | C | Generate oracle expectation sidecars for all 36 §2.8 files: `5-drop-basic`, `5-drop-precise-over-100`, `5-drop-level-gap`, `5-drop-rate-multiplier`, `5-pickup-protection`, `5-herb`, `5-decay`, `5-party-loot-finders`, `5-party-loot-random`, `5-party-loot-random-spoil`, `5-party-loot-by-turn`, `5-party-loot-by-turn-spoil`, `5-party-adena-split`, `5-party-vote`, `5-party-xp`, `5-solo-xp-damage-share`, `5-spoil-sweep`, `5-sweep-party`, `5-pk-drop`, `5-vendor-buy-sell-refund`, `5-vendor-restock`, `5-multisell`, `5-craft-dwarf`, `5-craft-common-masterwork`, `5-private-manufacture`, `5-trade`, `5-trade-cancel-disconnect`, `5-store-sell-package`, `5-store-buy`, `5-warehouse`, `5-freight`, `5-mail-cod`, `5-mail-reject-cancel-expiry`, `5-auction-bid-cancel-award`, `5-manor-sow-harvest-sell`, `5-epoch-reconcile` (`.nfs`). **Done When:** each sidecar is derived from 1.5–1.7 functions over the §5.3 pack inputs and reviewed by Z. **No live run is required** (that is 6.6). |
+| 1.8 Simulation scenario(s) [client-visible] [required] | C | Generate oracle expectation sidecars for all 36 §2.8 files: `5-drop-basic`, `5-drop-precise-over-100`, `5-drop-level-gap`, `5-drop-rate-multiplier`, `5-pickup-protection`, `5-herb`, `5-decay`, `5-party-loot-finders`, `5-party-loot-random`, `5-party-loot-random-spoil`, `5-party-loot-by-turn`, `5-party-loot-by-turn-spoil`, `5-party-adena-split`, `5-party-vote`, `5-party-xp`, `5-solo-xp-damage-share`, `5-spoil-sweep`, `5-sweep-party`, `5-pk-drop`, `5-vendor-buy-sell-refund`, `5-vendor-restock`, `5-multisell`, `5-craft-dwarf`, `5-craft-common-masterwork`, `5-private-manufacture`, `5-trade`, `5-trade-cancel-disconnect`, `5-store-sell-package`, `5-store-buy`, `5-warehouse`, `5-freight`, `5-mail-cod`, `5-mail-reject-cancel-expiry`, `5-auction-bid-cancel-award`, `5-manor-sow-harvest-sell`, `5-epoch-reconcile` (`.nfs`). 1.8 also owns the **pack declarations** (E46): the oracle-relevant inputs of every §5.3 pack (roles, classes, levels, positions, inventories, recipes, party, container rows and the fixture schedule) as data files under `apps/client-unreal/Scenarios/fixtures/`. 6.1 implements the seeders that consume them and extends them with harness-only fields. **Done When:** each sidecar is derived from 1.5–1.7 functions over those declarations and reviewed by Z. **No live run is required** (that is 6.6). |
 
 ### Epic 2: Contracts, version boundary and rules (C proto; Z codec/rules)
 
 | Story | Model | Work / Done When |
 |---|---|---|
 | 2.1 Additive proto contract [client-visible] [required] | C | `economy.proto` plus the `world`/`items`/`game` appends exactly as D §13.1–13.4 (all oneof lines, message bodies, enums, the 9 RPC messages, ItemLocation 3..8). C is the only proto editor. **Done When:** `buf lint` passes; `buf breaking` against the final Phase 4 integration SHA reports additive-only; generated Rust and Unreal C++ compile; a tag-table test asserts every number in §2.1 equal to D §13. Z reviews. |
-| 2.2 Replay codec and V7 version boundary [required] | Z | **The single owner of codec tag allocation:** PbCommandKind 32..76, PbPlayerLoad 11, PbOutput 42..55 (51 reserved), `RECORD_SCHEMA_VERSION = 9`, `NFSNAP11`, `StateDigestVersion::BinaryV7`, the `PHASE5_ENABLED` parser (D §12). **Done When:** round-trip units pass for every new kind/tag. Recursive rejection holds under Record ≤ 8 (including present-but-empty fields). `bash apps/api/fixtures/sessions/replay-check.sh` is byte-exact. C reviews. |
-| 2.3 Phase5Rules loader and hash [required] | Z | `Phase5Rules::try_new` over the 1.2/1.3 tables. It validates every cross-reference, cross-checks the L table, unit-price table and pow table, fails closed on nonzero Exponent or an out-of-range G, and computes the hash (D §1.10). **Done When:** hash-stability, any-field-mutation and mismatch-refusal units pass; the hash is referenced (never embedded) in the snapshot and in admission policy `version_three` (D27 pattern). |
+| 2.2 Replay codec and V7 version boundary [required] | Z | **The single owner of codec tag allocation:** PbCommandKind 32..76, PbPlayerLoad 11, PbOutput 42..55 (51 reserved), `RECORD_SCHEMA_VERSION = 9`, `NFSNAP11`, `StateDigestVersion::BinaryV7`, the `PHASE5_ENABLED` parser (D §12). **Done When:** round-trip units pass for every new kind/tag. Recursive rejection holds under Record ≤ 8 (including present-but-empty fields). The `PHASE5_ENABLED` matrix (unset/`"0"`/`"1"`/other → boot refusal; recorded version wins) passes (§14.4 owner). C reviews. Historical replay byte-exactness is owned by 3.14. |
+| 2.3 Phase5Rules loader and hash [required] | Z | `Phase5Rules::try_new` over the 1.2/1.3 tables. It validates every cross-reference, cross-checks the L table, unit-price table and pow table, fails closed on nonzero Exponent or an out-of-range G, and computes the hash (D §1.10). **Done When:** the Rust loader and the Python generator agree on every emitted TOML table (moved from 1.1, E46); hash-stability, any-field-mutation and mismatch-refusal units pass; the hash is referenced (never embedded) in the snapshot and in admission policy `version_three` (D27 pattern). |
 
 ### Epic 3: Zone engine (Z; C review)
 
@@ -396,14 +400,14 @@ Every story ends on unit, property, replay and oracle evidence. None runs `.nfs`
 | 3.3 `death_v7`: drops, ground items, protections, decay and PK drops [client-visible] [required] | Z | Implement D §2.2, §3 and §1.2–1.3: reward snapshot, maxDealer (X7), corpse then death lists with binary64 chances, positions, loot owner + DropProtection, the 5 s-grid decay, V7 corpse time, and the PK loop with no protection (E24). The jitter follows the drops. **Done When:** D-C/D-E/D-L/D-M/D-O/D-P/D-T actual-input oracle units pass. The draw-order trace equals D §2.3 rows 2–6. V5/V6 `kill()` is byte-identical. |
 | 3.4 B16 XP/SP distribution [client-visible] [required] | Z | Replace `award_xp(credit)` in V7 `kill()` step 7 with the D §4.5 solo and party distribution (binary64/32 emulation, `pow56` with k ∈ [1, 79] fail-closed, `x ≤ 0 ⇒ sp = 0`, the dead-member second pass). V5/V6 keep killing-blow XP. **Done When:** family X vectors pass on actual inputs; level-up events are unchanged in shape; V6 replay is byte-exact. |
 | 3.5 Pickup, herbs, party substrate and distribution [client-visible] [required] | Z | D §1.4, §1.5 (shared request slot), §4.1–4.4, §4.6: P7 pickup order, herbs with E40 early abort and id+level reuse, all five modes, even split without `LootDistributed`, the vote, party departure. **Done When:** L-P and pickup-order units pass, including `DEAD_ACTOR`, `ITEM_CAPABILITY_DEFERRED` and slot-only capacity; vote timeout and join-cancel units pass. |
-| 3.6 Spoil, Sweeper, Sow and Harvesting effects [client-visible] [required] | Z | D §5 and §10.6 skills through the cast pipeline (B11): NPC_BODY, `canSweep`, Sweeper + ConsumeBody (holders cleared, despawn next tick), Sow/Harvest, and V7 `magic_success_rate` with base `fl(1.3)` per E32 (V5/V6 unchanged). **Done When:** units pass. The Phase 3 full-domain magic-success oracle is **re-run with the V7 factor** and agrees. Spoil uses `roll_below(100)`. |
+| 3.6 Spoil, Sweeper, Sow and Harvesting effects [client-visible] [required] | Z | D §5 and §10.6 skills through the cast pipeline (B11): NPC_BODY, `canSweep`, Sweeper + ConsumeBody (holders cleared, despawn next tick), Sow/Harvest, and V7 `magic_success_rate` with base `fl(1.3)` per E32 (V5/V6 unchanged). **Done When:** units pass and agree with family **S** (Sow/Harvest success and harvest counts) on actual inputs. The Phase 3 full-domain magic-success oracle is **re-run with the V7 factor** and agrees. Spoil uses `roll_below(100)`. |
 | 3.7 Vendors, refund tab, restock and multisell [client-visible] [required] | Z | D §6–7: unit-price table lookups, all VendorBuy/Sell/Refund checks, refund-tab overflow and departure destroy, phase-2 restock, multisell with amount, maintainEnchantment and `BlacksmithUseRecipes` consumption. **Done When:** V-P/V-R/V-S/M units pass on actual inputs. |
 | 3.8 Crafting and recipe book [client-visible] [required] | Z | D §8: register/delete, and the craft order **all checks before any payment**, then MP → fee → materials → success → masterwork; manufacture for a customer. **Done When:** family C units pass, including "missing material rejects with nothing spent" and the fee kept on failure. |
 | 3.9 Trade and private stores [client-visible] [required] | Z | D §9: shared request slot, TradeList semantics, P14 cancel, UseItem cancel, store open/close/buy/sell/package, **no escrow**, departure hooks (D §9.4). **Done When:** units pass for every check order and cancel path. |
 | 3.10 Flood gates [required] | Z | D §2.4 (E35): per-kind `next` in `Phase5Player.flood` at the pinned step; set even on a later reject. **Done When:** FL units pass. The flood field is digested and survives snapshot round-trip. |
-| 3.11 Container commands, system jobs and EpochReconcile (zone side) [client-visible] [required] | Z | D §10.1–10.6 and §11.6. The zone consumes frozen pre-images, emits `ContainerDelta`s and the whole-set `LeaseRelease`, and runs the system kinds 73–76 and the epoch-close destroy rows. It never reads the DB. **Done When:** units over frozen inputs pass for every container command, incl. DeliverPending merge/insert and AuctionSchedule Finish/Purge; a rejected command emits only the release (plus any flood update). |
-| 3.12 Ledger planner and EconomyCheckpoint [required] | Z | D §11.1–11.3: owner kinds, identity/merge/split pairs, T1 ordinals, the D §11.3 table rows and the op vocabulary of §2.5; PbOutput 55. **Done When:** family G units pass; D67/D68/D74 cap and freshness checks pass on every receiving row. |
-| 3.13 Evidence producer v2 [required] | Z | `nightfall-replay export --economy-evidence-out` with the D §14.3 shapes (`item_rng`, `econ_chance`, `econ_select`, `econ_formula`, extended `item_delta`, `econ_container`). **Done When:** the export of recorded V7 fixtures is deterministic and complete. Missing or corrupt facts fail. The old exports are unchanged. |
+| 3.11 Container commands, system jobs and EpochReconcile (zone side) [client-visible] [required] | Z | D §10.1–10.6 and §11.6. The zone consumes frozen pre-images, emits `ContainerDelta`s and the whole-set `LeaseRelease`, and executes the system commands (using 2.2's kinds 73–76) and the epoch-close destroy rows. It never reads the DB. **Done When:** units over frozen inputs pass for every container command, incl. DeliverPending merge/insert and AuctionSchedule Finish/Purge; a rejected command emits only the release (plus any flood update); results agree with families **S** (crop sale reward and fee), **A** (auction) and **F** (warehouse/freight/mail fees) on actual inputs. |
+| 3.12 Ledger planner and EconomyCheckpoint [required] | Z | D §11.1–11.3: owner kinds, identity/merge/split pairs, T1 ordinals, the D §11.3 table rows and the op vocabulary of §2.5; emits `EconomyCheckpoint` on 2.2's PbOutput 55. **Done When:** family G units pass; D67/D68/D74 cap and freshness checks pass on every receiving row. |
+| 3.13 Evidence producer v2 [required] | Z | `nightfall-replay export --economy-evidence-out` with the D §14.3 shapes (`item_rng`, `econ_chance`, `econ_select`, `econ_formula`, extended `item_delta`, `econ_container`). **Done When:** the export of V7 sessions recorded **in-test by 3.13's own engine replay harness** (synthetic sessions covering every fact kind; E46) is deterministic and complete; 6.4 later re-runs the export over its verified fixtures. Missing or corrupt facts fail. The old exports are unchanged. |
 | 3.14 Cross-cutting properties and legacy isolation [required] | Z | D §14.4 "Properties": count conservation, no negatives, endpoint caps, unique ground ids, party invariants; V5/V6 code paths and bytes untouched. **Done When:** property suites pass. Every historical fixture replays byte-exact. |
 | 3.15 Simulation scenario(s) [client-visible] [required] | Z | Author the server-side assertion sections (export/oracle gate bindings) of every §2.8 file whose row lists an E3 story. **Done When:** sections are reviewed by C against the 1.8 sidecars and the D §14.3 evidence shapes. **No live run** (6.6 owns it). |
 
@@ -411,15 +415,21 @@ Every story ends on unit, property, replay and oracle evidence. None runs `.nfs`
 
 | Story | Model | Work / Done When |
 |---|---|---|
-| 4.1 Migrations and entities [required] | C | The §2.5 migrations, provisionally 000014..000018 (re-verify the numbers against the final Phase 4 integration SHA first), with `.sql`/`_down.sql`/`.rs` and the `entities.sh` regeneration. **Done When:** up/down on an empty DB and on a seeded Phase 4 DB pass. The T1 trigger accepts the legacy D76 shape and the T1 shape and rejects others. `entities.sh --check` is clean. |
+| 4.1 Migrations and entities [required] | C | The §2.5 migrations, provisionally 000014..000018 (re-verify the numbers against the final Phase 4 integration SHA first), with `.sql`/`_down.sql`/`.rs` and the `entities.sh` regeneration. **Done When:** 4.1 owns the D §14.4 "Migrations" item: up/down on an empty DB and on a seeded Phase 4 DB pass; the T1 trigger accepts the legacy D76 shape and the T1 shape and rejects others. `entities.sh --check` is clean. |
 | 4.2 Checkpoint and admission adapter [required] | C | `characters.phase5_checkpoint` (the only durable recipe-book home), the PbPlayerLoad 11 producer, memory/Postgres parity. **Done When:** fingerprint parity and fail-closed unknown-field/version units pass on both adapters. No `character_recipes` table exists. |
 | 4.3 Lease manager, preflight and frozen inputs [required] | C | D §10.0: per-command lease sets, canonical keys with bytewise order and `COLLATE "C"`, all-or-nothing acquisition, no data-row locks, pre-images and DB-time decisions per the D §12.2 frozen table, and the system-job `request_key` derivation. **Done When:** units pass for every lease set; opposite-role MailSend acquires in the same order; a held key gives `CONTAINER_BUSY` with nothing inserted. |
-| 4.4 Economy checkpoint writer and outbox [required] | C | D §11.5: container CAS in key order, lease deletes in the same order, owner-kind ledger rows, delivery rows, `expires_at` computed in the insert, outbox subjects, `40P01`/`40001` transient, `economy_lease_violation` permanent. **Done When:** memory/Postgres adapter units pass, including forced 40P01 retry and a CAS-miss fence. |
+| 4.4 Economy checkpoint writer and outbox [required] | C | D §11.5: container CAS in key order, lease deletes in the same order, owner-kind ledger rows, delivery rows, `expires_at` computed in the insert, outbox subjects, `40P01`/`40001` transient, `economy_lease_violation` permanent. **Done When:** memory/Postgres adapter units pass, including forced 40P01 retry and a CAS-miss fence (4.4 owns the D §14.4 "lease CAS" engine-unit item). |
 | 4.5 Schedulers and system-job injection [required] | C | D §10.3–10.5: delivery queue (E41; lowest id in the D7 slot), MailExpire detection, AuctionSchedule from the fixture schedule, economy host zone, busy re-queue to the next tick, and the API-only MailNotification gateway. **Done When:** queue-bound, re-queue and commit-marker units pass against a stub zone port. No API code path writes a lease-governed row (source-scan test, E31). |
-| 4.6 Read RPCs [client-visible] [required] | C | The 9 RPCs of D §13.4 with Phase 4 RPC conventions and errors. **Done When:** the full status matrix (auth, ownership, malformed, `FAILED_PRECONDITION` while admitted, `UNAVAILABLE` without a zone) passes on TestApp gRPC and both adapters. `ReadMail` writes nothing. |
+| 4.6 Read RPCs [client-visible] [required] | C | The 9 RPCs of D §13.4 with Phase 4 RPC conventions and errors. **Done When:** D §13.4's per-RPC contract table passes on TestApp gRPC and both adapters, with auth/ownership/malformed cases for every RPC and these specific statuses:
+- `GetRecipeBook`: `FAILED_PRECONDITION` while admitted;
+- `ListBuylist`: `FAILED_PRECONDITION` unless admitted, and `UNAVAILABLE` without a zone;
+- `ReadMail`: omits attachments and returns `FAILED_PRECONDITION` for a mail with attachments unless the zone read port confirms a peace square;
+- `GetManorData`: empty for non-Gludio castles.
+
+`ReadMail` writes nothing. |
 | 4.7 Epoch close and EpochReconcile (API side) [required] | C | D §11.6: the graceful-close final tick, the abandoned-epoch manifest from the last fenced snapshot, `EpochReconcile` before admission, and lease release. **Done When:** units over an abandoned-epoch fixture produce exactly one terminal row per live ground/refund instance and release all its leases. |
-| 4.8 Crash-window and migration durability suite [required] | C | D §14.4 "Crash windows" (all rows, incl. the rev 5–7 additions: delivery merge/insert with a concurrent deposit refused busy, Finish escrow destroy around log ack, racing MailSend → `CONTAINER_BUSY` then `MAILBOX_FULL`, flood update on a later reject, system-job lease recovery, forced 40P01) and "Migrations". **Done When:** every row passes on memory and Postgres (owned containers on non-default ports, worker-common). A skipped adapter test is not a pass. |
-| 4.9 Simulation scenario(s) [client-visible] [required] | C | Author the API/container sections of `5-warehouse`, `5-freight`, `5-mail-cod`, `5-mail-reject-cancel-expiry`, `5-auction-bid-cancel-award`, `5-epoch-reconcile` (`.nfs`). **Done When:** sections reviewed by Z; live passes are 6.6. |
+| 4.8 Crash-window and migration durability suite [required] | C | D §14.4 "Crash windows" (all rows, incl. the rev 5–7 additions: delivery merge/insert with a concurrent deposit refused busy, Finish escrow destroy around log ack, racing MailSend → `CONTAINER_BUSY` then `MAILBOX_FULL`, flood update on a later reject, system-job lease recovery, forced 40P01) (migrations are 4.1's). **Done When:** every row passes on memory and Postgres (owned containers on non-default ports, worker-common). A skipped adapter test is not a pass. |
+| 4.9 Simulation scenario(s) [client-visible] [required] | C | Author the API/container sections of `5-warehouse`, `5-freight`, `5-mail-cod`, `5-mail-reject-cancel-expiry`, `5-auction-bid-cancel-award`, `5-manor-sow-harvest-sell`, `5-epoch-reconcile` (`.nfs`). **Done When:** sections reviewed by Z; live passes are 6.6. |
 
 ### Epic 5: Unreal client and bot (C; Z review; root Unreal lock)
 
@@ -437,20 +447,20 @@ Every story ends on unit, property, replay and oracle evidence. None runs `.nfs`
 
 | Story | Model | Work / Done When |
 |---|---|---|
-| 6.1 Predicate map, fixture dispatcher and packs [required] | C | First deliverable: the parser-tested §5.3 command/predicate → carrier map. Then `phase5-fixtures.py` and `infra/scripts/seed-phase5-*.py` for every §5.3 pack, seeded pre-admission via owned-container exec (no host psql). **Done When:** parser/stub/UNKNOWN/reset tests and seed idempotency tests pass before any scenario work. |
+| 6.1 Predicate map, fixture dispatcher and packs [required] | C | First deliverable: the parser-tested §5.3 command/predicate → carrier map. Then `phase5-fixtures.py` and `infra/scripts/seed-phase5-*.py` for every §5.3 pack, consuming 1.8's pack declarations and extending them with harness-only fields (E46), seeded pre-admission via owned-container exec (no host psql). 6.1 also checks whether the harness has a tick fast-forward/injection facility for `5-vendor-restock` (E43) and records the answer. **Done When:** parser/stub/UNKNOWN/reset tests and seed idempotency tests pass before any scenario work. |
 | 6.2 Evidence contract v2 consumer and oracle gates [required] | C | Strict consumer of the 3.13 export (D §14.3), with C14/C15 actual-input gates calling the 1.5–1.7 oracle functions. **Done When:** missing/corrupt/repeated/foreign-owner fact tests and every `econ_chance` exact recomputation pass. UNKNOWN is never allow-listed. Z reviews. |
 | 6.3 Earlier-phase suites re-derived under production V7 [required] | C | C16: every Phase 0b–4 live scenario runs production V7. A machine-readable before/after report covers every scenario and variant, with the reasons for each changed value: B16 damage-share XP, the respawn-jitter reorder after the drop draws, and V7 corpse time. Changed expectations are re-derived with the oracle and re-cited in the header. **Done When:** the report is reviewed; no assertion is relaxed, quarantined or allow-listed; historical `.nfr` files stay byte-exact. |
-| 6.4 V7 replay fixtures and digest coverage [required] | Z | Verified V7 `.nfr` fixtures with drops, pickups, party, vendor, craft, trade, containers and system jobs. Each canonical Phase 5 field is mutated to show digest divergence. Snapshot mid-action recovery. **Done When:** replay byte-exact; mutation and recovery tests pass; C reviews. |
-| 6.5 C10 measurement gate and benchmarks [required] | Z | D §1.12. Encode the real worst-case snapshot for the Phase 4 reference workload of **8 players**, with the stated soak assumption of 1,000 live NPC loot items plus 100 PK drops. Trades ≤ 4 and parties ≤ 4 at 8 players. Report the encoded/decoded bytes and the largest contributors against 1,047,552 / 33,554,432. Also the death-with-drops 1,000-NPC benchmark. **Done When:** C reviews the measured receipts. Any overflow is reported, never truncated, and no limit is raised. |
+| 6.4 V7 replay fixtures and digest coverage [required] | Z | Verified V7 `.nfr` fixtures with drops, pickups, party, vendor, craft, trade, containers and system jobs. Each canonical Phase 5 field is mutated to show digest divergence. Snapshot mid-action recovery. **Done When:** replay byte-exact; mutation and recovery tests pass; the 3.13 export over these fixtures is deterministic; C reviews. |
+| 6.5 C10 measurement gate and benchmarks [required] | Z | D §1.12. Encode the real worst-case snapshot for the Phase 4 reference workload of **8 players**, with the stated soak assumption of 1,000 live NPC loot items plus 100 PK drops. Trades ≤ 4 and parties ≤ 4 at 8 players. Report the encoded/decoded bytes and the largest contributors against 1,047,552 / 33,554,432. Also the death-with-drops 1,000-NPC benchmark. **Done When:** the measured encoded/decoded bytes are within the limits; the gate **fails on overflow** (E44; D §1.12). An overflow is reported with the largest contributors, never truncated, and no limit is raised. C reviews the receipts. |
 | 6.6 Simulation scenario suite [client-visible] [required] | C | Run every §2.8 file live: `5-drop-basic`, `5-drop-precise-over-100`, `5-drop-level-gap`, `5-drop-rate-multiplier`, `5-pickup-protection`, `5-herb`, `5-decay`, `5-party-loot-finders`, `5-party-loot-random`, `5-party-loot-random-spoil`, `5-party-loot-by-turn`, `5-party-loot-by-turn-spoil`, `5-party-adena-split`, `5-party-vote`, `5-party-xp`, `5-solo-xp-damage-share`, `5-spoil-sweep`, `5-sweep-party`, `5-pk-drop`, `5-vendor-buy-sell-refund`, `5-vendor-restock`, `5-multisell`, `5-craft-dwarf`, `5-craft-common-masterwork`, `5-private-manufacture`, `5-trade`, `5-trade-cancel-disconnect`, `5-store-sell-package`, `5-store-buy`, `5-warehouse`, `5-freight`, `5-mail-cod`, `5-mail-reject-cancel-expiry`, `5-auction-bid-cancel-award`, `5-manor-sow-harvest-sell`, `5-epoch-reconcile` (`.nfs`). **Done When:** every role/variant has nonvacuous assertions, JUnit, record, byte replay, the 6.2 export/oracle verdict, trace/contract/coverage and cleanup; the file count equals 36; zero required-live skips. |
-| 6.7 Eight-client packaged soak [required] | C | Packaged soak with 8 clients exercising drops/pickups, vendor traffic, a craft and a trade per client, on top of the Phase 3/4 soak load. PostgreSQL and NATS volumes are on **tmpfs** (`SOAK_TMPFS_VOLUMES`, Phase 3 P6), and the storage backing is recorded with each run (`storage.txt`). **Done When:** tick p99 < 20 ms; no client errors; replay byte-exact; API and cleanup exit 0; storage record present. Root holds the lock. |
+| 6.7 Eight-client packaged soak [required] | C | Packaged soak with 8 clients exercising drops/pickups, vendor traffic, a craft and a trade per client, on top of the Phase 3/4 soak load. The soak lane also runs the live `5-vendor-restock` refill after 36,000 ticks (E43) unless 6.1 found a fast-forward facility. PostgreSQL and NATS volumes are on **tmpfs** (`SOAK_TMPFS_VOLUMES`, Phase 3 P6), and the storage backing is recorded with each run (`storage.txt`). **Done When:** tick p99 < 20 ms; no client errors; replay byte-exact; API and cleanup exit 0; storage record present. Root holds the lock. |
 
 ### Epic 7: Telemetry, documentation and outcome (C/D; independent review)
 
 | Story | Model | Work / Done When |
 |---|---|---|
 | 7.1 Metrics and observability [required] | C | Bounded op/outcome/item-class/grade counters (A19) and the **only** new gauge, `nightfall_zone_ground_items{kind}` (E25); `infra/scripts/verify-observability.sh` updated. No alerts or thresholds are invented. **Done When:** pre/active/post scrapes agree with committed export facts; no identifier labels. |
-| 7.2 Diagrams and operational docs [required] | D | Final implemented flows, runbooks (lease and delivery queue, epoch reconcile), and the four cosmetic design nits A–D from design-review-7 folded into the first implementation-time design touch (B22). **Done When:** Claude review approves them against the implemented contracts. |
+| 7.2 Diagrams and operational docs [required] | D + Claude | D drafts the implemented flows and runbooks (lease and delivery queue, epoch reconcile). **Claude** (the design author, E23/B23) makes the first implementation-time design touch: the four cosmetic design-review-7 nits A–D (B22), and aligning the domain `ItemLocation` list (which includes `Ground`) with the six wire values in D §13.4. **Done When:** Claude review approves them against the implemented contracts. |
 | 7.3 Outcome and limitations [required] | D | Fill §9 only after root acceptance. **Done When:** Claude review verifies the evidence links, measured sizes and residuals. |
 
 ## 5. Required acceptance evidence and fixtures
@@ -488,13 +498,15 @@ Every story ends on unit, property, replay and oracle evidence. None runs `.nfs`
 | `nf.PickUp <ground>`; `ground_item_exists <template>` | EntitySpawn kind 3 / EntityDespawn |
 | `inventory_has <template> >= <n>` | Owner InventorySync / InventoryChanged |
 | `nf.Buy` / `nf.Sell` / `nf.Refund` / `nf.Multisell` | EconomyResult (vendor / multisell) plus inventory deltas |
-| `nf.RegisterRecipe` / `nf.Craft`; `recipe_registered <id>` | RecipeBookSync / EconomyResult (recipe, craft) |
+| `nf.RegisterRecipe` / `nf.DeleteRecipe` / `nf.Craft`; `recipe_registered <id>`, `craft_result == <success\|fail\|masterwork>` | RecipeBookSync / EconomyResult (recipe, craft) |
+| `nf.ManufactureOrder <owner> <recipe>` (PrivateManufactureOrder, E45); `craft_result == …` | EconomyResult (craft) for the customer and the crafter |
 | `nf.TradeRequest/Answer/Add/Confirm/Cancel`; `trade_state == <phase>` | TradeRequestReceived / TradeSessionChanged |
 | `nf.StoreSell/StoreBuy/StoreManufacture/StoreClose/StoreBuyFrom/StoreSellTo`; `store_state == <kind>` | PrivateStoreChanged / EconomyResult (store) |
 | `nf.PartyInvite/Answer/Leave/Kick/Leader/LootVote/LootAnswer`; `party_member_count == <n>`, `loot_mode == <mode>` | PartyStateChanged / PartyLootVote / PartyInviteReceived |
 | `nf.Deposit/Withdraw/FreightSend/FreightWithdraw` | EconomyResult (container) |
 | `nf.MailSend/MailTake/MailReject/MailCancel/MailDelete/MailRead`; `mail_received <subject>` | MailNotification / EconomyResult (mail) |
 | `nf.AuctionBid/AuctionCancel`; `auction_state == <state>` | ItemAuctionStatusChanged / EconomyResult (auction) |
+| `nf.ManorBuySeed <manager> <manor_id> <seed> <n>` / `nf.ManorSellCrop <manager> <instance> <crop> <manor_id> <n>` (E45); `manor_result granted <template> >= <n>` | EconomyResult (manor) plus inventory deltas |
 | `nf.UseItem` (Sow, Harvest, herbs) | Existing UseItem carriers plus CorpseStateChanged |
 
 **C11 rules.**
@@ -508,7 +520,7 @@ Every story ends on unit, property, replay and oracle evidence. None runs `.nfs`
 
 - **Replay fixtures (6.4):** V7 `.nfr` fixtures with digest mutation and recovery. Historical fixtures stay byte-exact.
 - **Pre-run limits:** the 256 KiB / 1,024 / 8 / B±1 / FIFO / oversize / no-rerun gates (Phase 3 design §4.5/§8.1) are preserved for `version_three`.
-- **C10 gate (6.5):** as stated in §4. The 8-player workload is the stated assumption, not a bound.
+- **C10 gate (6.5):** as stated in §4. The workload is the Phase 4 reference of 8 players, with the design's stated assumption of 1,000 live NPC loot items plus 100 PK drops (an assumption, not a bound). The gate fails on overflow (E44).
 - **Budgets (A18, unchanged):** 1,000 NPC mean < 2 ms; 1,000 players/observers mean < 10 ms; eight packaged clients tick p99 < 20 ms. The death-with-drops bench is added.
 - **Soak (6.7):** tmpfs storage (`SOAK_TMPFS_VOLUMES`) and the storage record, per Phase 3 P6.
 - **Telemetry (7.1):** bounded labels only.
@@ -521,11 +533,12 @@ Phases 1–4 acceptance remains required. There is no whole-epic circular gate:
    - E1.1–1.4 data → E1.5–1.7 oracle → E1.8 expectations.
    - E2.1 proto (reviewed by Z) and E2.2 codec (reviewed by C) in parallel with E1.
    - E2.3 rules after E1.2/E1.3.
-   - E6.1 predicate map and packs after E2.1.
+   - E6.1 predicate map and seeders after E2.1 and 1.8 (it consumes 1.8's pack declarations, E46).
 2. **Engine:** E3 after E2. Stories 3.1–3.2 come first. 3.3–3.12 can run in parallel behind Z's serialization of shared files. Then 3.13 and 3.14, then 3.15.
 3. **Adapters:** E4.1–4.4 after E2.1/E2.2 (4.2 also after 3.1); E4.5/4.7 after 3.11; E4.6 after 4.1–4.2; E4.8 after 4.1–4.7.
 4. **Client and harness:** E5 skeleton after E2.1; live after E3/E4. E6.2 after 3.13; E6.3/6.4/6.5 after E3/E4. E6.6 after E4, E5.6 and E6.1/6.2. E6.7 after 6.5 and 6.6.
 5. **Close (root).** Every item is required implementation evidence. Docs-only authoring is never a gate pass. Root integrates independently reviewed commits and runs, on the merged tree:
+   - `moon ci`;
    - `cargo fmt --check`;
    - strict `cargo clippy --all-targets -- -D warnings`;
    - the SOURCES/denial source scan;
@@ -555,6 +568,8 @@ Phases 1–4 acceptance remains required. There is no whole-epic circular gate:
 
 - **Phase 6:** castles, Seven Signs, sieges, castle-owner manor cycles and tax changes (only hashed ceilings exist now); raids beyond pinned drop rules; pets/servitors.
 - **Phase 7:** clan warehouse, command channels (raid first-CC rights stay vacuous), cross-zone parties, block lists, clan war (the PK clan-war exemption stays vacuous).
+- **Phase 6 sinks from 05:** teleport fees (travel) and Ancient Adena / Mammon (Seven Signs).
+- **05's "Giran luxury shop":** it has no pinned buylist. The pinned NPC Alexandria (30098) uses an item-exchange AI script (`DPJ/ai/npc/Alexandria/Alexandria.java`), not a `BuySellList`, and is out of Phase 5 scope.
 - **Never:** offline stores (`OfflineTradeEnable = False`); cursed weapons; elemental attributes (B10); champions (`ChampionEnable = False`); alternative crafting; floats, hot-reloaded rules or client-authoritative economy math.
 
 ## 9. Outcome

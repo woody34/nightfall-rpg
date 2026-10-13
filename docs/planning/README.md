@@ -11,7 +11,7 @@ all derive from the stat formulas defined there.
 | 2 | [02-race-and-class.md](02-race-and-class.md) | Races, class tree, transfers, subclasses | Complete |
 | 3 | [03-combat-and-skills.md](03-combat-and-skills.md) | Combat core, skills, buffs, status, elements, aggro, death, PvP, pets | Integration |
 | 4 | [04-items-and-equipment.md](04-items-and-equipment.md) · [Executable plan](../plans/phase-4-items-and-equipment.md) | Weapons, armor, grades, consumables, enchant, augment, inventory | Planning |
-| 5 | [05-economy-and-crafting.md](05-economy-and-crafting.md) · [Executable plan](../plans/phase-5-economy-and-crafting.md) · [Zone design](../plans/phase-5-zone-design.md) (frozen, `codex/phase5-design` 0d525c7) | Drops, crafting, currency sinks, vendors, player trade, storage, mail, auction, manor | Planning |
+| 5 | [05-economy-and-crafting.md](05-economy-and-crafting.md) · [Executable plan](../plans/phase-5-economy-and-crafting.md) · [Zone design](../plans/phase-5-zone-design.md) (frozen at 0d525c7; on `codex/phase5-design` until integration) | Drops, crafting, currency sinks, vendors, player trade, storage, mail, auction, manor | Planning |
 | 6 | [06-world-and-content.md](06-world-and-content.md) | Zones, monsters and AI, travel, quests, raids, instances | Planned |
 | 7 | [07-social-systems.md](07-social-systems.md) | Party, clan, alliance, sieges, Olympiad | Planned |
 | 8 | [08-client-presentation.md](08-client-presentation.md) | Camera, UI, animation, audio, localization | Planned |
