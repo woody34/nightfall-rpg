@@ -478,7 +478,8 @@ fn events(cp: &CharacterCheckpoint, work: &ItemCheckpointWork) -> Vec<DomainEven
                 },
                 character_id: cp.character_id,
                 instance_id: delta.instance,
-                template_id: delta.template().unwrap(),
+                // A deliberately stateless (refused) row has no template.
+                template_id: delta.template().unwrap_or_default(),
                 count_delta: delta.count_delta,
                 before: delta.before.clone(),
                 after: delta.after.clone(),
@@ -1279,7 +1280,7 @@ async fn rejected_contract<
         ("item_consume_cause_order", None), // reversed causes
         ("item_consume_contribution", None), // fabricated debit
         ("item_instance_creation_immutable", None), // altered provenance
-        ("item_ledger_row_order", None), // any row after the Consume aggregate
+        ("item_ledger_row_order", None), // a non-terminal row after the Consume (D94)
         ("item_ledger_row_order", None), // positive row after a non-Consume debit
         ("item_checkpoint_projection", None), // split Consume aggregate (domain batch key)
         ("item_checkpoint_projection", Some("item_ledger_row_ordinal")), // D76 ordinal gap
@@ -1364,21 +1365,27 @@ async fn rejected_contract<
                 bad_cp.phase4 = Some(bad.projection.checkpoint.clone());
             },
             8 => {
+                // D94: only one terminal (after = None) row may follow the aggregate; a partial
+                // Destroy leaves the stack and is refused.
+                let mut left = end.clone();
+                left.count = end.count.checked_sub(1).unwrap();
                 bad.projection.ledger.push(ItemDeltaPlan {
                     operation: ItemOperation::Destroy,
                     operation_ordinal: 2,
                     instance: target,
-                    count_delta: i64::try_from(end.count).unwrap().checked_neg().unwrap(),
+                    count_delta: -1,
                     before: Some(end),
-                    after: None,
+                    after: Some(left.clone()),
                     receipt: bad.projection.ledger[0].receipt,
                     receipt_refs: vec![],
                     causes: vec![],
                 });
-                bad.projection
+                *bad.projection
                     .checkpoint
                     .instances
-                    .retain(|item| item.id != target);
+                    .iter_mut()
+                    .find(|item| item.id == target)
+                    .unwrap() = left;
                 bad_cp.phase4 = Some(bad.projection.checkpoint.clone());
             },
             9 => {
@@ -1476,6 +1483,264 @@ async fn postgres_rejects_unconserved_counts_wrong_initial_scalar_owner_and_stal
         .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
         .unwrap();
     rejected_contract(&repo, &bundle).await;
+}
+
+/// D94 tick on the largest stack: a command-time payment (Consume of 1, cause `family`
+/// contributed by a `paid` receipt), then one row per `rest` entry: `(operation, true)` removes
+/// the whole remaining stack (terminal), `(operation, false)` removes one more (non-terminal).
+/// A row after a terminal one: `Grant` re-creates one item (continuous), any other operation
+/// writes a second removal row (`before = after = None`).
+fn payment_then(
+    first: &CharacterCheckpoint,
+    first_work: &ItemCheckpointWork,
+    family: &str,
+    paid: ItemOperation,
+    rest: &[(ItemOperation, bool)],
+) -> (CharacterCheckpoint, ItemCheckpointWork, Vec<DomainEvent>) {
+    let mut cp = first.clone();
+    cp.revision_seen = first.revision_seen.checked_add(1).unwrap();
+    cp.idempotency.1 = IdempotencyKey::new();
+    let retained = cp.phase4.as_mut().unwrap();
+    retained.inventory_revision = retained.inventory_revision.checked_add(1).unwrap();
+    let revision = retained.inventory_revision;
+    let index = retained
+        .instances
+        .iter()
+        .enumerate()
+        .max_by_key(|(_, item)| item.count)
+        .unwrap()
+        .0;
+    let stack = retained.instances[index].clone();
+    assert!(stack.count > 3);
+    let key = Uuid::now_v7();
+    let mut paid_after = stack.clone();
+    paid_after.count = stack.count.checked_sub(1).unwrap();
+    paid_after.revision = revision;
+    let mut ledger = vec![ItemDeltaPlan {
+        receipt_refs: Vec::new(),
+        operation: ItemOperation::Consume,
+        operation_ordinal: 0,
+        instance: stack.id,
+        before: Some(stack.clone()),
+        after: Some(paid_after.clone()),
+        count_delta: -1,
+        receipt: Some(ItemReceiptRef {
+            operation: paid,
+            key,
+        }),
+        causes: vec![ItemAuditEvidence {
+            family: family.into(),
+            fields: BTreeMap::from([
+                ("operation_ordinal".into(), ItemEvidenceValue::Unsigned(1)),
+                ("count_delta".into(), ItemEvidenceValue::Signed(-1)),
+                ("receipt".into(), ItemEvidenceValue::Text(key.to_string())),
+            ]),
+        }],
+    }];
+    let mut endpoint = Some(paid_after);
+    for (operation, terminal) in rest {
+        let Some(before) = endpoint.clone() else {
+            let regrant = *operation == ItemOperation::Grant;
+            let mut item = ledger.last().unwrap().before.clone().unwrap();
+            item.count = 1;
+            ledger.push(ItemDeltaPlan {
+                receipt_refs: Vec::new(),
+                operation: *operation,
+                operation_ordinal: u32::try_from(ledger.len()).unwrap(),
+                instance: stack.id,
+                count_delta: i64::from(regrant),
+                before: None,
+                after: regrant.then(|| item.clone()),
+                receipt: None,
+                causes: Vec::new(),
+            });
+            endpoint = regrant.then_some(item);
+            continue;
+        };
+        let after = (!terminal).then(|| {
+            let mut item = before.clone();
+            item.count = before.count.checked_sub(1).unwrap();
+            item
+        });
+        ledger.push(ItemDeltaPlan {
+            receipt_refs: Vec::new(),
+            operation: *operation,
+            operation_ordinal: u32::try_from(ledger.len()).unwrap(),
+            instance: stack.id,
+            count_delta: i64::try_from(after.as_ref().map_or(0, |item| item.count))
+                .unwrap()
+                .checked_sub(i64::try_from(before.count).unwrap())
+                .unwrap(),
+            before: Some(before),
+            after: after.clone(),
+            receipt: None,
+            causes: Vec::new(),
+        });
+        endpoint = after;
+    }
+    match endpoint {
+        Some(item) => retained.instances[index] = item,
+        None => {
+            retained.instances.remove(index);
+        },
+    }
+    let mut work = first_work.clone();
+    // A Use payment is backed by its frozen receipt; Enchant/Refine receipts would also need
+    // their captured audits, so those shapes are exercised on the API validator alone.
+    let mut receipt = work.projection.receipts.first().unwrap().clone();
+    receipt.request_id = key;
+    receipt.fingerprint = "terminal-use".into();
+    receipt.result.request_fingerprint = "terminal-use".into();
+    receipt.result.receipt = key;
+    receipt.result.tick = Tick(74);
+    receipt.result.inventory_revision = revision;
+    receipt.result.detail = ItemResultDetail::Operation {
+        operation: ItemOperation::Use,
+        affected: vec![stack.id],
+        recipe: None,
+    };
+    work.projection.tick = Tick(74);
+    work.projection.checkpoint = retained.clone();
+    work.projection.ledger = ledger;
+    work.projection.receipts = if paid == ItemOperation::Use {
+        vec![receipt]
+    } else {
+        Vec::new()
+    };
+    work.projection.materializations.clear();
+    let facts = events(&cp, &work);
+    (cp, work, facts)
+}
+
+/// D94: [non-terminal rows..., Consume aggregate, at most one terminal row]. The
+/// Enchant-then-Destroy and refine-payment-then-Crystallize ticks settle; a non-terminal row
+/// after the aggregate, or a second row after the terminal one, is refused. Each case runs on
+/// its own fresh character.
+async fn terminal_after_consume_contract<
+    R: CharacterRepository
+        + ItemAdmissionRepository
+        + ItemCheckpointRepository
+        + ItemInventoryRepository,
+>(
+    repo: &R,
+    bundle: &Phase4RuleBundle,
+) {
+    // The command-time payment shapes themselves (D94 regression ticks) on the API validator;
+    // settling them would also need the Enchant/Refine captured audits.
+    {
+        let (_, cp, work, _) = fixture(repo, bundle, "ItemTailShapes").await;
+        for (family, paid, terminal) in [
+            ("enchant_payment", ItemOperation::Enchant, ItemOperation::Destroy),
+            ("refine_payment", ItemOperation::Refine, ItemOperation::Crystallize),
+        ] {
+            let (_, tick, _) = payment_then(&cp, &work, family, paid, &[(terminal, true)]);
+            tick.validate_before(cp.phase4.as_ref()).unwrap();
+        }
+    }
+    // (rows after a Use payment aggregate, (API validator, settlement)) on both adapters.
+    let (family, paid) = ("item_cast_payment", ItemOperation::Use);
+    for (case, (rest, expected)) in [
+        (vec![(ItemOperation::Destroy, true)], None),
+        (vec![(ItemOperation::Crystallize, true)], None),
+        (
+            vec![(ItemOperation::Destroy, false)],
+            // A non-terminal (partial) removal after the aggregate.
+            Some(("item_ledger_row_order", "item_ledger_row_order")),
+        ),
+        (
+            vec![(ItemOperation::Destroy, true), (ItemOperation::Grant, true)],
+            // Any row after the terminal row (here a continuous re-creation).
+            Some(("item_ledger_row_order", "item_ledger_row_order")),
+        ),
+        (
+            vec![
+                (ItemOperation::Destroy, true),
+                (ItemOperation::Crystallize, true),
+            ],
+            // Two terminal rows; the zone domain gate already refuses the empty second row.
+            Some(("item_ledger_row_order", "item_checkpoint_projection")),
+        ),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let (character, cp, work, facts) = fixture(
+            repo,
+            bundle,
+            &format!(
+                "ItemTerminal{}",
+                char::from(b'A'.checked_add(u8::try_from(case).unwrap()).unwrap())
+            ),
+        )
+        .await;
+        assert_eq!(
+            repo.checkpoint_items(&cp, &facts, &work, None)
+                .await
+                .unwrap(),
+            CheckpointOutcome::Applied(1)
+        );
+        let before = repo.retained_inventory(character.id).await.unwrap();
+        let (next, tick, outbox) = payment_then(&cp, &work, family, paid, &rest);
+        let validated = tick.validate_before(cp.phase4.as_ref());
+        let settled = repo.checkpoint_items(&next, &outbox, &tick, None).await;
+        if let Some((validator, settlement)) = expected {
+            assert!(
+                matches!(&validated, Err(CheckpointError::Constraint(n)) if n == validator),
+                "case {case}: {validated:?}"
+            );
+            assert!(
+                matches!(&settled, Err(CheckpointError::Constraint(n)) if n == settlement),
+                "case {case}: {settled:?}"
+            );
+            assert_eq!(repo.retained_inventory(character.id).await.unwrap(), before);
+        } else {
+            validated.unwrap();
+            assert_eq!(settled.unwrap(), CheckpointOutcome::Applied(2), "case {case}");
+            let retained = repo
+                .retained_inventory(character.id)
+                .await
+                .unwrap()
+                .unwrap()
+                .checkpoint;
+            assert_eq!(retained, next.phase4);
+        }
+    }
+}
+
+#[tokio::test]
+async fn memory_d94_consume_then_one_terminal_row_settles_and_other_tails_refuse() {
+    let bundle = embedded_phase4_bundle().unwrap();
+    let repo = InMemoryCharacterRepository::default()
+        .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
+        .unwrap();
+    terminal_after_consume_contract(&repo, &bundle).await;
+}
+
+#[tokio::test]
+async fn postgres_d94_consume_then_one_terminal_row_settles_and_other_tails_refuse() {
+    let Some(pool) = common::pg::migrated_pool().await else {
+        return;
+    };
+    common::pg::insert_account(&pool, Uuid::from_u128(1)).await;
+    let bundle = embedded_phase4_bundle().unwrap();
+    let repo = PgCharacterRepository::new(pool.clone())
+        .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
+        .unwrap();
+    terminal_after_consume_contract(&repo, &bundle).await;
+    let rows: Vec<(String, i32)> =
+        sqlx::query_as("SELECT op,operation_ordinal FROM item_ledger WHERE tick=74 ORDER BY id")
+            .fetch_all(&pool)
+            .await
+            .unwrap();
+    assert_eq!(
+        rows,
+        vec![
+            ("consume".to_owned(), 0),
+            ("destroy".to_owned(), 1),
+            ("consume".to_owned(), 0),
+            ("crystallize".to_owned(), 1),
+        ]
+    );
 }
 
 fn pinned_cap(item: &ItemInstance) -> u64 {
@@ -2423,9 +2688,13 @@ async fn postgres_item_ledger_row_ordinal_trigger_enforces_row_positions() {
             .unwrap(),
         CheckpointOutcome::Applied(1)
     );
-    let row = "INSERT INTO item_ledger(character_id,zone_id,epoch,tick,revision,op,instance_id,operation_ordinal,delta) VALUES($1,9,1,500,2,$2,7,$3,'{}'::jsonb)";
+    // A `!` suffix marks a terminal row (`delta.after = null`, D94).
+    let row = "INSERT INTO item_ledger(character_id,zone_id,epoch,tick,revision,op,instance_id,operation_ordinal,delta) VALUES($1,9,1,500,2,$2,7,$3,$4::jsonb)";
     for (rows, refused) in [
         (vec![("grant", 0), ("consume", 1)], false),
+        (vec![("grant", 0), ("consume", 1), ("destroy!", 2)], false), // D94 terminal tail
+        (vec![("consume", 0), ("equip", 1)], true),                   // non-terminal after Consume
+        (vec![("consume", 0), ("destroy!", 1), ("crystallize!", 2)], true), // Consume at n-3
         (vec![("unequip", 0), ("destroy", 0)], true), // duplicate (the e6d37ec shape)
         (vec![("equip", 0), ("unequip", 2)], true),   // gap
         (vec![("grant", 1), ("consume", 0)], true),   // Consume at 0 after a positive row
@@ -2433,10 +2702,12 @@ async fn postgres_item_ledger_row_ordinal_trigger_enforces_row_positions() {
     ] {
         let mut tx = pool.begin().await.unwrap();
         for (op, ordinal) in &rows {
+            let terminal = op.ends_with('!');
             sqlx::query(row)
                 .bind(character.id.as_uuid())
-                .bind(*op)
+                .bind(op.trim_end_matches('!'))
                 .bind(*ordinal)
+                .bind(if terminal { r#"{"after":null}"# } else { "{}" })
                 .execute(&mut *tx)
                 .await
                 .unwrap();
@@ -2464,6 +2735,7 @@ async fn postgres_item_ledger_row_ordinal_trigger_enforces_row_positions() {
         .bind(character.id.as_uuid())
         .bind("equip")
         .bind(1)
+        .bind("{}")
         .execute(&mut *tx)
         .await
         .unwrap();
