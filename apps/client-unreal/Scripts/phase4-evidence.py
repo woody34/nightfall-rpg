@@ -254,6 +254,7 @@ INPUT_SCHEMAS={
 # forms for out-of-range integers, schema-directed, so text fields never convert.
 SAFE_INTEGER=2**53
 DECIMAL=re.compile(r'-?(?:0|[1-9][0-9]*)')
+RATIONAL=re.compile(r'-?(?:0|[1-9][0-9]*)/[1-9][0-9]*')
 INSTANCE_INTEGERS=frozenset(('id','template_id','count','enchant','augment_id','charges','created_tick','revision'))
 
 
@@ -437,6 +438,9 @@ def validate_input(value,schema,path,bounds=False):
             if bounds and (not -2**63<=value['numerator']<=I64_MAX or value['denominator']>I64_MAX):invalid()
             number=oracle.F(value['numerator'],value['denominator'])
         elif type(value) in (int,str,oracle.F):
+            # D80 / review-2 P3-3: a string is a canonical rational n/d or a wide (>= 2^53)
+            # decimal integer; in-range integer strings, decimal points and exponents refuse.
+            if type(value) is str and not (RATIONAL.fullmatch(value) or DECIMAL.fullmatch(value) and abs(int(value))>=SAFE_INTEGER):invalid()
             try:number=oracle.exact(value)
             except (ValueError,TypeError,ZeroDivisionError):invalid()
         else:invalid()

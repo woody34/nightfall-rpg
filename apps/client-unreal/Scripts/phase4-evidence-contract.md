@@ -27,6 +27,12 @@ JSONL contract (schema version 1 of this sidecar):
   does). Text fields (`resolution_id`, receipts, causes, UUIDs) are never
   converted. Domain bounds apply after decoding (formula inputs stay
   signed-bigint; instance ids < 2^63).
+  Exact-numeric formula inputs (rationals) follow the same rule: a JSON
+  integer, a `{numerator,denominator}` object, a canonical rational string
+  `-?(0|[1-9][0-9]*)/[1-9][0-9]*`, or a wide decimal string (|n| ≥ 2^53). An
+  in-range integer string (`"100"`), decimal-point or exponent forms
+  (`"1.25"`, `"1e2"`), signs `+`, leading zeros and zero denominators refuse
+  (review-2 P3-3); E1 decimal-point vectors are exported as `n/d`.
   `bow_damage.actual.distance_l2_lower/upper` (certified 2^-bits √ bounds) is
   the motivating case.
 - First row: `kind=manifest`, `schema_version=1`, `scope=whole_recording`,

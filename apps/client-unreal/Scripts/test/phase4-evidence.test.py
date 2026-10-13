@@ -4,6 +4,7 @@ import copy
 import importlib.util
 import json
 import random
+import re
 from pathlib import Path
 import tempfile
 import unittest
@@ -1924,7 +1925,7 @@ class Evidence(unittest.TestCase):
     def test_signed_formula_controls(self):
         for name,inputs in [('grade_penalties',dict(equipped=[],expertise=0,bonus=-2)),
                             ('max_load',dict(con_bonus=1,add=-10)),
-                            ('bow_damage',dict(formula='100',dx_milli=-12500,dy_milli=0))]:
+                            ('bow_damage',dict(formula=100,dx_milli=-12500,dy_milli=0))]:
             actual=gate.oracle.rational(getattr(gate.oracle,name)(**inputs))
             rows=copy.deepcopy(self.rows);rows[1]['data'].update(formula=name,inputs=inputs,actual=actual)
             self.assertTrue(gate.evaluate(rows,self.recording,OWNER,[name],HASH)['passed'],name)
@@ -1933,15 +1934,22 @@ class Evidence(unittest.TestCase):
         for inputs in ({'base':True},{'base':{'numerator':True,'denominator':1}},{'base':100,'bonus':False}):
             with self.assertRaises(ValueError):gate.formula('enchant_chance',inputs,1000)
         with self.assertRaises(ValueError):gate.formula('enchant_outcome',dict(base=100,bonus=0,support=True,residue=0,enchant=0),{})
-        with self.assertRaises(ValueError):gate.formula('pole_damage',dict(formula='100',primary=1),{})
+        with self.assertRaises(ValueError):gate.formula('pole_damage',dict(formula=100,primary=1),{})
         for residue in ('0',{'numerator':0,'denominator':1},True):
             with self.assertRaises(ValueError):gate.formula('fist_spread',dict(level=14,residue=residue),{})
-        gate.formula('pole_damage',dict(formula='100',primary=True),gate.oracle.rational(gate.oracle.pole_damage('100',primary=True)))
+        gate.formula('pole_damage',dict(formula=100,primary=True),gate.oracle.rational(gate.oracle.pole_damage('100',primary=True)))
 
     @staticmethod
     def with_residues(name,inputs):
         """D87: read the oracle's own critical/spread residues back as fact inputs."""
-        inputs=copy.deepcopy(inputs)
+        def canonical(value):
+            # Review-2 P3-3: E1 decimal-point strings ('1.25') become canonical n/d rationals.
+            if isinstance(value,dict):return {k:canonical(v) for k,v in value.items()}
+            if isinstance(value,list):return [canonical(v) for v in value]
+            if isinstance(value,str) and re.fullmatch(r'-?[0-9]+\.[0-9]+',value):
+                number=gate.oracle.F(value);return f'{number.numerator}/{number.denominator}'
+            return value
+        inputs=canonical(copy.deepcopy(inputs))
         if name not in gate.RESIDUE_INPUTS:return inputs
         function=getattr(gate.oracle.behavior,name)
         try:draws={d['site']:d['residue'] for d in function(**gate.oracle.decode_rationals(inputs))['draws']}
@@ -2044,7 +2052,7 @@ class Evidence(unittest.TestCase):
                 'set_shield_history':dict(previous=False,mutation='equip_shield',chest_present=True,matching_shield=True),
                 'charge_transition':dict(charges=['soul','blessed'],use_spirit=True),
                 'lethal':dict(full=10,half=20,full_residue=500,half_residue=150),
-                'bow_damage':dict(formula='100',dx_milli=12499,dy_milli=7),
+                'bow_damage':dict(formula=100,dx_milli=12499,dy_milli=7),
                 'pole_sequence':dict(candidates=[dict(eligible=True,hit=True,formula='499/10'),dict(eligible=True,hit=False,formula=0)],maximum=3),
                 'magic_damage':dict(power=10,m_atk=100,m_def=50,spirit=True),
                 'heal':dict(power=100,m_atk=200,current_hp=10,recoverable_hp=500)}
@@ -2058,7 +2066,7 @@ class Evidence(unittest.TestCase):
         for mutate in (lambda a:a.update(damage=True),lambda a:a.update(damage='90'),lambda a:a.pop('base'),
                        lambda a:a.update(extra=1),lambda a:a.update(distance_l2_lower=1.5)):
             bad=copy.deepcopy(actual);mutate(bad)
-            with self.assertRaises(ValueError):gate.formula('bow_damage',dict(formula='100',dx_milli=12499,dy_milli=7),bad)
+            with self.assertRaises(ValueError):gate.formula('bow_damage',dict(formula=100,dx_milli=12499,dy_milli=7),bad)
         with self.assertRaisesRegex(ValueError,'set_shield_history.actual'):
             gate.formula('set_shield_history',direct['set_shield_history'],1)
         with self.assertRaisesRegex(ValueError,'charge_transition.actual'):
@@ -2247,7 +2255,7 @@ class Evidence(unittest.TestCase):
         for dx,damage in [(12499,89),(12500,90),(12501,90)]:
             expected=gate.oracle.rational(gate.oracle.bow_damage('100',dx,0))
             self.assertEqual(expected['damage'],damage)
-            gate.formula('bow_damage',dict(formula='100',dx_milli=dx,dy_milli=0),expected)
+            gate.formula('bow_damage',dict(formula=100,dx_milli=dx,dy_milli=0),expected)
         gate.formula('bow_reuse',dict(reuse_delay=1500,attack_speed=400,weapon_reuse_modifier=2),1248)
         bad=copy.deepcopy(self.rows);bad[1]['data']['actual']['damage']=42
         self.assertFalse(gate.evaluate(bad,self.recording,OWNER,['pole_damage'],HASH)['passed'])
@@ -2300,7 +2308,7 @@ class Evidence(unittest.TestCase):
         digits=copy.deepcopy(rows);digits[2]['data']['resolution_id']=str(2**64)
         self.assertTrue(gate.evaluate(digits,self.recording,OWNER,['pole_damage'],HASH)['passed'])
         # bow_damage: certified 2^-bits sqrt bounds carry > i64 numerators in `actual`.
-        inputs=dict(formula='100',dx_milli=12499,dy_milli=7)
+        inputs=dict(formula=100,dx_milli=12499,dy_milli=7)
         actual=gate.oracle.rational(gate.oracle.bow_damage(**inputs))
         self.assertGreater(actual['distance_l2_lower']['denominator'],2**63)
         encoded_actual=stringify(actual)
@@ -2311,10 +2319,10 @@ class Evidence(unittest.TestCase):
         bad=copy.deepcopy(encoded_actual);bad['distance_l2_lower']['numerator']=str(int(bad['distance_l2_lower']['numerator'])+1)
         with self.assertRaises(ValueError):gate.formula('bow_damage',inputs,bad)
         # Wide inputs decode, then the signed-bigint input domain still applies.
-        gate.formula('bow_damage',dict(formula='100',dx_milli=str(2**60),dy_milli=0),
+        gate.formula('bow_damage',dict(formula=100,dx_milli=str(2**60),dy_milli=0),
                      stringify(gate.oracle.rational(gate.oracle.bow_damage('100',2**60,0))))
         for value in (str(2**63),'5'):
-            with self.assertRaises(ValueError,msg=value):gate.formula('bow_damage',dict(formula='100',dx_milli=value,dy_milli=0),actual)
+            with self.assertRaises(ValueError,msg=value):gate.formula('bow_damage',dict(formula=100,dx_milli=value,dy_milli=0),actual)
         with self.assertRaises(ValueError):
             gate.formula('pole_damage',dict(formula={'numerator':str(2**64),'denominator':'1'},percent=85,primary=False),None)
         print('D80: wide RNG cursors, instance ids, bow bounds and inputs parse as decimal strings; in-range strings and malformed decimals reject',flush=True)
@@ -2343,6 +2351,19 @@ class Evidence(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'D81'):
             gate.formula('lethal',base|dict(full_residue=50,half_residue=999),gate.oracle.rational(gate.oracle.lethal(**base|dict(full_residue=50,half_residue=999))))
         print(f'D81: {len(controls)} lethal residue controls pass; {len(mutations)} sentinel/null mismatches reject',flush=True)
+
+    def test_exact_numeric_strings_are_rationals_or_wide_decimals(self):
+        """Review-2 P3-3 (D80): exact-numeric inputs accept n/d rationals and wide decimals only."""
+        def run(formula,good=True):
+            inputs=dict(formula=formula,percent=85,primary=False)
+            actual=gate.oracle.rational(gate.oracle.pole_damage(**gate.oracle.decode_rationals(inputs))) if good else None
+            gate.formula('pole_damage',inputs,actual)
+        for good in (100,'499/10','-3/2','0/1',str(2**60),{'numerator':499,'denominator':10}):
+            with self.subTest(good=good):run(good)
+        for bad in ('100','1.25','1e2','+3/2','03/2','3/02','3/0',' 3/2','0x10','-0'):
+            with self.subTest(bad=bad):
+                with self.assertRaisesRegex(ValueError,'invalid formula input'):run(bad,False)
+        print('Exact-numeric strings: n/d rationals and wide decimals pass; in-range integer, decimal-point and exponent strings reject',flush=True)
 
     def test_missing_foreign_owner_unknown_baseline_and_repeated_fail(self):
         self.assertFalse(gate.evaluate(self.rows,self.recording,OTHER,['pole_damage'],HASH)['passed'])
