@@ -703,13 +703,6 @@ def gen_merchants_table(dp_root: Path) -> str:
         "  " + ",\n  ".join(unit_prices),
         "]",
         "",
-        "# Castle tax rates",
-        "[castle_taxes]",
-        "default_tax_percent = 0",
-        "no_owner_ceiling = 15",
-        "dawn_ceiling = 25",
-        "dusk_ceiling = 5",
-        "",
         "# Merchant entries",
         "entries = [",
     ]
@@ -720,6 +713,13 @@ def gen_merchants_table(dp_root: Path) -> str:
             f'  {{ script = "{e["script"]}", npc = {e["npc_id"]}, item = {e["item_id"]}, ref_price = {e["ref_price"]}, tax = "{e["tax"]}", delay = "{e["delay"]}", count = {e["count"]}, restock_min = {e["restock_minutes"]}, limited = {lim}, zero_price = {zp} }},'
         )
     lines.append("]")
+    lines.append("")
+    lines.append("# Castle tax rates")
+    lines.append("[castle_taxes]")
+    lines.append("default_tax_percent = 0")
+    lines.append("no_owner_ceiling = 15")
+    lines.append("dawn_ceiling = 25")
+    lines.append("dusk_ceiling = 5")
     lines.append("")
     return "\n".join(lines)
 
@@ -1038,21 +1038,6 @@ def gen_manor_table(dp_root: Path) -> str:
         f"total_alternative_crops = {sum(1 for c in all_crops if c['is_alternative'])}",
         f"gludio_crops_count = {len(gludio_crops)}",
         "",
-        "[skills]",
-        "sow_skill_id = 2097",
-        "sow_skill_levels = 3",
-        "harvest_skill_id = 2098",
-        "harvest_skill_levels = 1",
-        "",
-        "[fixture_gludio]",
-        "castle_id = 1",
-        "seed_production = [",
-        "  " + ",\n  ".join(gludio_production),
-        "]",
-        "crop_procurement = [",
-        "  " + ",\n  ".join(gludio_procurement),
-        "]",
-        "",
         "# All 258 crops from seeds.xml",
         "crops = [",
     ]
@@ -1061,6 +1046,21 @@ def gen_manor_table(dp_root: Path) -> str:
         lines.append(
             f'  {{ castle = {c["castle_id"]}, crop = {c["crop_id"]}, seed = {c["seed_id"]}, mature = {c["mature_id"]}, rew1 = {c["reward1"]}, rew2 = {c["reward2"]}, alternative = {alt_str}, level = {c["level"]}, limit_seed = {c["limit_seed"]}, limit_crops = {c["limit_crops"]} }},'
         )
+    lines.append("]")
+    lines.append("")
+    lines.append("[skills]")
+    lines.append("sow_skill_id = 2097")
+    lines.append("sow_skill_levels = 3")
+    lines.append("harvest_skill_id = 2098")
+    lines.append("harvest_skill_levels = 1")
+    lines.append("")
+    lines.append("[fixture_gludio]")
+    lines.append("castle_id = 1")
+    lines.append("seed_production = [")
+    lines.append("  " + ",\n  ".join(gludio_production))
+    lines.append("]")
+    lines.append("crop_procurement = [")
+    lines.append("  " + ",\n  ".join(gludio_procurement))
     lines.append("]")
     lines.append("")
     return "\n".join(lines)
@@ -1105,7 +1105,7 @@ def main() -> int:
     parser.add_argument(
         "--stories",
         type=str,
-        default="1.1,1.2",
+        default="1.1,1.2,1.3",
         help="comma-separated list of stories to generate (1.1, 1.2, 1.3)",
     )
     args = parser.parse_args()
