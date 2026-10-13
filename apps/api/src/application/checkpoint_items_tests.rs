@@ -1431,6 +1431,61 @@ fn event_kinds(events: &[DomainEvent]) -> Vec<(&'static str, u64)> {
         .collect()
 }
 
+/// D76 knock-on: the outbox follows canonical ledger row order, not `operation_ordinal` (now a
+/// per-instance position), so grant(0) -> consume(1) on one stack emits Granted before Consumed
+/// and a later row on another instance (ordinal 0) still follows them.
+#[tokio::test]
+async fn item_outbox_follows_ledger_row_order_not_per_instance_ordinals() {
+    use crate::domain::zone::phase4_projection::{
+        ItemAuditEvidence, ItemDeltaPlan, ItemEvidenceValue, ItemOperation,
+    };
+    let (cp, mut work) = outbox_fixture().await;
+    let instances = &work.projection.checkpoint.instances;
+    let stack = instances
+        .iter()
+        .max_by_key(|item| item.count)
+        .unwrap()
+        .clone();
+    let other = instances
+        .iter()
+        .find(|item| item.id != stack.id)
+        .unwrap()
+        .clone();
+    let mut granted = stack.clone();
+    granted.count += 3;
+    let mut ended = granted.clone();
+    ended.count -= 2;
+    let mut moved = other.clone();
+    moved.location = crate::domain::zone::ItemLocation::Inventory;
+    moved.slot = None;
+    let row = |operation, ordinal, instance, before, after, count_delta, causes| ItemDeltaPlan {
+        receipt_refs: Vec::new(),
+        operation,
+        operation_ordinal: ordinal,
+        instance,
+        before: Some(before),
+        after: Some(after),
+        count_delta,
+        receipt: None,
+        causes,
+    };
+    let payment = ItemAuditEvidence {
+        family: "skill_cast_payment".into(),
+        fields: BTreeMap::from([
+            ("cast_id".into(), ItemEvidenceValue::Unsigned(1)),
+            ("count_delta".into(), ItemEvidenceValue::Signed(-2)),
+        ]),
+    };
+    work.projection.ledger = vec![
+        row(ItemOperation::Grant, 0, stack.id, stack.clone(), granted.clone(), 3, vec![]),
+        row(ItemOperation::Consume, 1, stack.id, granted, ended, -2, vec![payment]),
+        row(ItemOperation::Unequip, 0, other.id, other, moved, 0, vec![]),
+    ];
+    let events = item_events(&cp, &work, 4).unwrap();
+    // Sorting by operation_ordinal would put the Unequip (0) before the Consume (1).
+    assert_eq!(event_kinds(&events), vec![("granted", 4), ("consumed", 5), ("unequipped", 6)]);
+}
+
 /// D78: a captured enchant attempt anchors to its own Enchant row, so an earlier same-tick
 /// Equip of the target is emitted first (`ItemEquipped` before `ItemEnchanted`).
 #[tokio::test]
