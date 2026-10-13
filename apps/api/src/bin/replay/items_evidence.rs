@@ -402,6 +402,14 @@ fn normalize_d66(
         }
         let [consume] = consumes.as_slice() else {
             if consumes.is_empty() {
+                // D83: every chain carries the D76 row position, Consume or not.
+                for (ordinal, &index) in slots.iter().enumerate() {
+                    let fact = facts.get_mut(index).context("chain slot")?;
+                    let ItemEvidenceData::Delta(row) = &mut fact.fact else {
+                        bail!("chain slot is not a delta");
+                    };
+                    set(row, "operation_ordinal", json!(ordinal))?;
+                }
                 continue;
             }
             bail!("D66 chain has more than one Consume aggregate");
@@ -882,6 +890,34 @@ mod tests {
                 "delta":row.get("count_delta")}));
         }
         Ok(rows)
+    }
+
+    #[test]
+    fn d83_consume_free_chains_export_row_positions() -> anyhow::Result<()> {
+        let logical = |operation: &str, before, after, ordinal: u32| {
+            let mut fact = observed(operation, before, after);
+            if let ItemEvidenceData::Delta(row) = &mut fact.fact {
+                set(row, "operation_ordinal", json!(ordinal)).ok();
+                set(row, "resolution_id", json!(format!("{operation}:{ordinal}"))).ok();
+            }
+            fact
+        };
+        // A lone Equip keeps no logical ordinal: position 0.
+        let equip = d66(vec![logical("equip", Some(1), Some(1), 3)])?;
+        assert_eq!(equip.first().and_then(|row| row.get("ordinal")), Some(&json!(0)));
+        // Unequip then Destroy of one instance in one operation: positions 0 and 1.
+        let removal = d66(vec![
+            logical("unequip", Some(1), Some(1), 5),
+            logical("destroy", Some(1), None, 5),
+        ])?;
+        assert_eq!(
+            removal
+                .iter()
+                .map(|row| row.get("ordinal").cloned())
+                .collect::<Vec<_>>(),
+            vec![Some(json!(0)), Some(json!(1))]
+        );
+        Ok(())
     }
 
     #[test]
