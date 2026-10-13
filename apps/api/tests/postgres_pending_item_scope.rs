@@ -34,6 +34,13 @@ async fn current_character(repo: &PgCharacterRepository, account: Uuid, name: &s
         .unwrap();
     c
 }
+async fn applied(pool: &PgPool, migration: &str) -> i64 {
+    sqlx::query_scalar("SELECT count(*) FROM seaql_migrations WHERE version LIKE $1")
+        .bind(format!("%{migration}%"))
+        .fetch_one(pool)
+        .await
+        .unwrap()
+}
 fn code(error: &sqlx::Error) -> String {
     error
         .as_database_error()
@@ -69,8 +76,11 @@ async fn upgrade_preserves_every_manifest_byte_and_legacy_backfill_reruns() {
     .await
     .unwrap();
     assert_eq!(repo.pending_item_requests(c.id).await.unwrap(), pending);
-    Migrator::down(&db, Some(1)).await.unwrap();
+    // Round-trip 000012 (pending scope) itself; 000013 (D76 row ordinals) steps back first.
+    Migrator::down(&db, Some(2)).await.unwrap();
+    assert_eq!((applied(&pool, "000012").await, applied(&pool, "000013").await), (0, 0));
     Migrator::up(&db, None).await.unwrap();
+    assert_eq!((applied(&pool, "000012").await, applied(&pool, "000013").await), (1, 1));
     assert_eq!(repo.pending_item_requests(c.id).await.unwrap(), pending);
 }
 #[tokio::test]
@@ -131,7 +141,15 @@ async fn shared_uuid_is_legal_across_accounts_and_operations_and_owner_scope_is_
     let error=sqlx::query("UPDATE pending_item_requests SET kind='grant',operation='grant_item' WHERE character_id=$1").bind(a.id.as_uuid()).execute(&pool).await.unwrap_err();
     assert_eq!(code(&error), "23514");
     let db = connection_from_pool(&pool);
-    assert!(Migrator::down(&db, Some(1)).await.is_err());
+    // 000013 (D76 row ordinals) rolls back first; 000012 then refuses on the shared key.
+    let error = Migrator::down(&db, Some(2)).await.unwrap_err();
+    assert!(
+        error
+            .to_string()
+            .contains("pending scope rollback would lose legal account/operation key identities"),
+        "{error}"
+    );
+    assert_eq!(applied(&pool, "000013").await, 0);
     assert_eq!(repo.pending_item_requests(a.id).await.unwrap()[0].request_id, key);
     let version: i64 =
         sqlx::query_scalar("SELECT count(*) FROM seaql_migrations WHERE version LIKE '%000012%'")
@@ -190,4 +208,48 @@ async fn invalid_legacy_grant_pending_row_aborts_upgrade_without_losing_data() {
     assert_eq!(rows, 1);
     let columns: i64=sqlx::query_scalar("SELECT count(*) FROM information_schema.columns WHERE table_schema=current_schema() AND table_name='pending_item_requests' AND column_name='account_id'").fetch_one(&pool).await.unwrap();
     assert_eq!(columns, 0);
+}
+
+#[tokio::test]
+async fn row_ordinal_rollback_refuses_while_a_consume_holds_a_positional_ordinal() {
+    let Some(pool) = common::pg::migrated_pool().await else {
+        return;
+    };
+    let repo = PgCharacterRepository::new(pool.clone());
+    let c = current_character(&repo, Uuid::from_u128(1), "OrdinalRollback").await;
+    let insert = "INSERT INTO item_ledger(character_id,zone_id,epoch,tick,revision,op,instance_id,operation_ordinal,delta) VALUES($1,1,1,10,1,$2,77,$3,'{}')";
+    let mut tx = pool.begin().await.unwrap();
+    for (op, ordinal) in [("grant", 0_i32), ("consume", 1_i32)] {
+        sqlx::query(insert)
+            .bind(c.id.as_uuid())
+            .bind(op)
+            .bind(ordinal)
+            .execute(&mut *tx)
+            .await
+            .unwrap();
+    }
+    tx.commit().await.unwrap();
+    let db = connection_from_pool(&pool);
+    let error = Migrator::down(&db, Some(1)).await.unwrap_err();
+    assert!(
+        error
+            .to_string()
+            .contains("row-ordinal rollback would invalidate D76 Consume aggregate ordinals"),
+        "{error}"
+    );
+    assert_eq!(applied(&pool, "000013").await, 1);
+    let triggers: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM pg_trigger WHERE tgrelid='item_ledger'::regclass AND tgname='item_ledger_row_ordinal'",
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(triggers, 1);
+    let check: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM pg_constraint WHERE conrelid='item_ledger'::regclass AND conname='item_ledger_consume_ordinal'",
+    )
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(check, 0);
 }

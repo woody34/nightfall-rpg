@@ -329,7 +329,7 @@ void UInventoryStateSubsystem::FinishSend(uint32 Seq,const FString& Key,EGrpcNig
 }
 FString UInventoryStateSubsystem::Blacksmith() const
 {
- FString Id; for (const auto& P:Fence.Identities) if (P.Value.Kind==2 && !P.Value.bCombatant && P.Value.Name==TEXT("Blacksmith")) { if (!Id.IsEmpty()) return {}; Id=P.Key; } return Id;
+ FString Id; for (const auto& P:Fence.Identities) if (P.Value.Kind==2 && !P.Value.bCombatant && P.Value.Name==TEXT("blacksmith")) { if (!Id.IsEmpty()) return {}; Id=P.Key; } return Id;
 }
 TOptional<FGrpcNightfallV1ItemTarget> UInventoryStateSubsystem::Target(const FString& Selector,bool bNpc) const
 {

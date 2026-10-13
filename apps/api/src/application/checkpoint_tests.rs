@@ -310,6 +310,7 @@ fn multiple_levels_and_death_keep_stable_ids_order_and_penalty() {
             | DomainEvent::ItemEnchanted { fact }
             | DomainEvent::ItemDestroyed { fact }
             | DomainEvent::ItemRefined { fact }
+            | DomainEvent::ItemRefineCancelled { fact }
             | DomainEvent::ItemExchanged { fact } => &fact.metadata,
             DomainEvent::CharacterCreated { .. }
             | DomainEvent::CharacterClassChanged { .. }

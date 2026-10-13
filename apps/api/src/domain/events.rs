@@ -41,8 +41,13 @@ pub enum DomainEvent {
         /// Stable audit identity and exact scalar/cause projection.
         fact: ItemEventFact,
     },
-    /// Augmentation applied or removed.
+    /// Augmentation applied (D95: one fact per captured Refine audit).
     ItemRefined {
+        /// Stable audit identity and exact scalar/cause projection.
+        fact: ItemEventFact,
+    },
+    /// Augmentation removed for its Adena fee (D95: one fact per captured `CancelRefine`).
+    ItemRefineCancelled {
         /// Stable audit identity and exact scalar/cause projection.
         fact: ItemEventFact,
     },
@@ -193,6 +198,7 @@ impl DomainEvent {
                 | Self::ItemEnchanted { .. }
                 | Self::ItemDestroyed { .. }
                 | Self::ItemRefined { .. }
+                | Self::ItemRefineCancelled { .. }
                 | Self::ItemExchanged { .. }
         )
     }
@@ -203,6 +209,7 @@ impl DomainEvent {
         match self {
             DomainEvent::ItemExchanged { .. } => "nightfall.item.exchanged",
             DomainEvent::ItemRefined { .. } => "nightfall.item.refined",
+            DomainEvent::ItemRefineCancelled { .. } => "nightfall.item.refine_cancelled",
             DomainEvent::ItemDestroyed { .. } => "nightfall.item.destroyed",
             DomainEvent::ItemEnchanted { .. } => "nightfall.item.enchanted",
             DomainEvent::ItemConsumed { .. } => "nightfall.item.consumed",

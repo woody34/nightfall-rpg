@@ -24,4 +24,3 @@ namespace v1 {
 
 }  // namespace nightfall
 }  // namespace v1
-

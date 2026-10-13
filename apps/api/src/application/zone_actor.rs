@@ -363,6 +363,13 @@ impl ZoneHandle {
             .load(std::sync::atomic::Ordering::Acquire)
     }
 
+    pub(crate) fn inventory_available(&self) -> Result<(), super::AppError> {
+        if self.is_paused() || self.commands.is_closed() || self.persistence_failed() {
+            return Err(super::AppError::Unavailable("inventory zone is unavailable".into()));
+        }
+        Ok(())
+    }
+
     pub(crate) fn final_snapshot(&self) -> Option<ZoneSnapshot> {
         self.final_snapshot.read().clone()
     }
@@ -896,6 +903,9 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
             if self.preflight_items(&selected).await? {
                 continue;
             }
+            if self.preflight_item_allocation(&selected).await? {
+                continue;
+            }
             if self.preflight_learning(&selected).await? {
                 continue;
             }
@@ -1228,7 +1238,13 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
 
     /// Moves queued inputs into `pending`, up to [`PENDING_LIMIT`].
     fn collect(&mut self) {
-        while self.pending.len() < PENDING_LIMIT {
+        // Leave room for the recorded control command; it shares all ordinary byte budgets.
+        let limit = if self.item_range_exhausted() {
+            PENDING_LIMIT.saturating_sub(1)
+        } else {
+            PENDING_LIMIT
+        };
+        while self.pending.len() < limit {
             match self.commands.try_recv() {
                 Ok(queued) => self.pending.push_back(queued),
                 Err(mpsc::error::TryRecvError::Empty) => break,
@@ -1238,6 +1254,96 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
                 },
             }
         }
+    }
+
+    fn item_range_exhausted(&self) -> bool {
+        self.state.item_instance_range().is_some_and(|range| {
+            let (_, next, end) = range.bounds();
+            next == end
+        })
+    }
+
+    async fn preflight_item_allocation(
+        &mut self,
+        selected: &[usize],
+    ) -> Result<bool, (Tick, TickError)> {
+        use crate::domain::zone::{ItemInstanceRange, ZoneCommand};
+        if !self.item_range_exhausted()
+            || self
+                .pending
+                .iter()
+                .any(|queued| matches!(queued.input.command, ZoneCommand::ExtendItemRange { .. }))
+        {
+            return Ok(false);
+        }
+        let fence = (self.state.next_tick(), TickError::PersistenceFence);
+        let mut required = false;
+        for index in selected {
+            let queued = self.pending.get(*index).ok_or(fence)?;
+            if let ZoneCommand::MaterializePendingItems(grant) = &queued.input.command {
+                required |= grant.known.is_none() && grant.conflict.is_none();
+            } else if let ZoneCommand::SpawnPlayer {
+                load: Some(load), ..
+            } = &queued.input.command
+            {
+                required |= load
+                    .phase4
+                    .as_ref()
+                    .is_some_and(|items| !items.pending.is_empty());
+            } else if let ZoneCommand::Item(command) = &queued.input.command {
+                let CommandSource::Session { entity, generation } = queued.input.source else {
+                    return Err(fence);
+                };
+                let account = command.authenticated_account().map_err(|_| fence)?;
+                required |= self.state.class_player(entity, account, generation).is_ok()
+                    && command.known_result().map_err(|_| fence)?.is_none()
+                    && command.receipt_conflict().map_err(|_| fence)?.is_none()
+                    && matches!(
+                        command.kind,
+                        crate::domain::zone::ItemCommandKind::Enchant { .. }
+                            | crate::domain::zone::ItemCommandKind::Crystallize { .. }
+                            | crate::domain::zone::ItemCommandKind::ExchangeSpecialAbility { .. }
+                    );
+            }
+        }
+        if !required {
+            return Ok(false);
+        }
+        if !self.gate.durable() || self.pending.len() >= PENDING_LIMIT {
+            return Err(fence);
+        }
+        let old = self.state.item_instance_range().ok_or(fence)?;
+        let service = self.checkpoints.service().ok_or(fence)?;
+        let lane = service.lock().await;
+        if !lane.items_enabled() {
+            return Err(fence);
+        }
+        let reserved = lane
+            .extend_item_range(self.state.seed(), old.bounds().0)
+            .await
+            .map_err(|_| fence)?;
+        reserved.validate().map_err(|_| fence)?;
+        if reserved.zone_id != self.state.seed().zone
+            || reserved.epoch != self.state.seed().epoch
+            || reserved.next_reserved != reserved.range_start
+        {
+            return Err(fence);
+        }
+        let range = ItemInstanceRange::new(
+            reserved.range_start,
+            reserved.next_reserved,
+            reserved.range_end_exclusive,
+        )
+        .map_err(|_| fence)?;
+        let mut checked = old;
+        checked.extend(range).map_err(|_| fence)?;
+        drop(lane);
+        self.pending.push_front(Queued {
+            input: ZoneInput::system(ZoneCommand::ExtendItemRange { range }),
+            trace: None,
+            reply: None,
+        });
+        Ok(true)
     }
 
     /// Indices into `pending`, ascending, of the inputs that fit this tick's budgets.
@@ -1491,6 +1597,10 @@ fn trace_applied(record: &AppliedTick, traces: &[(Ordinal, TraceCarrier)]) {
 #[cfg(test)]
 #[path = "zone_actor_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "zone_actor_allocator_tests.rs"]
+mod allocator_tests;
 
 /// Maps deterministic refusals at the application boundary.
 pub(crate) fn class_error(reason: crate::domain::zone::RejectReason) -> super::AppError {

@@ -1,5 +1,5 @@
 //! Retained projection consistency and D19/D20 scalar/history storage, before live integration.
-#![allow(missing_docs, clippy::unwrap_used)]
+#![allow(missing_docs, clippy::unwrap_used, clippy::indexing_slicing)]
 mod common;
 use nightfall_api::application::ports::ItemInventoryRepository;
 use nightfall_api::application::{CharacterCheckpoint, CharacterRepository, IdempotencyKey};
@@ -26,7 +26,10 @@ fn retained() -> Phase4Checkpoint {
         rules_hash: [1; 32],
         inventory_revision: 1,
         instances: vec![ItemInstance {
-            creation_origin: None,
+            creation_origin: Some(nightfall_api::domain::zone::ItemCreationOrigin {
+                zone: nightfall_api::domain::zone::ZoneId(1),
+                epoch: 1,
+            }),
             id,
             template_id: 1146,
             count: 1,
@@ -118,6 +121,7 @@ async fn memory_retains_exact_history_and_legacy_none_without_synthesizing_items
         .is_none());
     repo.insert_item_checkpoint_for_test(c.id, retained())
         .unwrap();
+    repo.seed_item_birth_ledger_for_test(c.id).unwrap();
     let view = repo.retained_inventory(c.id).await.unwrap().unwrap();
     assert_eq!(view.character_revision, 1);
     assert_eq!(view.checkpoint, Some(retained()));
@@ -170,6 +174,7 @@ async fn postgres_retains_full_u32_widths_history_and_rejects_projection_corrupt
         .await
         .unwrap();
     sqlx::query("INSERT INTO item_instances(id,character_id,location,slot,template_id,count,enchant,augment_id,created_tick,revision) VALUES(1,$1,'paperdoll',6,1146,1,4294967295,4294967295,0,1)").bind(c.id.as_uuid()).execute(&mut *tx).await.unwrap();
+    common::pg::seed_item_creation(&mut tx, c.id, &retained().instances[0]).await;
     tx.commit().await.unwrap();
     let view = repo.retained_inventory(c.id).await.unwrap().unwrap();
     assert_eq!(view.character_revision, 1);
@@ -294,6 +299,7 @@ async fn memory_periodic_checkpoint_preserves_items_retries_and_refuses_unledger
     let c = seed(&repo).await;
     repo.insert_item_checkpoint_for_test(c.id, retained())
         .unwrap();
+    repo.seed_item_birth_ledger_for_test(c.id).unwrap();
     periodic_contract(&repo, &c).await;
 }
 
@@ -312,6 +318,9 @@ async fn postgres_periodic_checkpoint_is_atomic_and_fingerprint_compatible() {
         .unwrap();
     sqlx::query("INSERT INTO item_instances(id,character_id,location,slot,template_id,count,enchant,augment_id,created_tick,revision) VALUES(1,$1,'paperdoll',6,1146,1,4294967295,4294967295,0,1)")
         .bind(c.id.as_uuid()).execute(&pool).await.unwrap();
+    let mut tx = pool.begin().await.unwrap();
+    common::pg::seed_item_creation(&mut tx, c.id, &retained().instances[0]).await;
+    tx.commit().await.unwrap();
     periodic_contract(&repo, &c).await;
     let claims: i64 = sqlx::query_scalar(
         "SELECT count(*) FROM idempotency_keys WHERE operation='save_checkpoint'",

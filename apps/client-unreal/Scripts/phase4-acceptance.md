@@ -28,5 +28,5 @@ without pretending their live Done When has passed.
 
 `phase4-fixtures.md` and `phase4-evidence-contract.md` are the current E5/E2/E3
 contracts. Blacksmith intents resolve the unique received noncombat entity named
-Blacksmith by default (`blacksmith_known`), because legacy nf.Target template
+`blacksmith` by default (`blacksmith_known`), because legacy nf.Target template
 resolution excludes nonattackable NPCs.

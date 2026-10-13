@@ -21,58 +21,16 @@ impl ItemAdmissionRepository for PgCharacterRepository {
         zone: ZoneId,
         epoch: u64,
     ) -> Result<ItemIdRange, CheckpointError> {
-        let signed_zone = i32::try_from(zone.0)
-            .map_err(|_| CheckpointError::Constraint("item_id_ranges_zone".into()))?;
-        let signed_epoch = i64::try_from(epoch)
-            .map_err(|_| CheckpointError::Constraint("item_id_ranges_epoch".into()))?;
-        let tx = self.db.begin().await.map_err(checkpoint_db_error)?;
-        tx.execute_raw(Statement::from_sql_and_values(
-            DbBackend::Postgres,
-            "SELECT pg_advisory_xact_lock($1)",
-            [RANGE_LOCK.into()],
-        ))
-        .await
-        .map_err(checkpoint_db_error)?;
-        if let Some(row) = tx.query_one_raw(Statement::from_sql_and_values(DbBackend::Postgres,
-            "SELECT range_start,range_end_exclusive,next_reserved FROM item_id_ranges WHERE zone_id=$1 AND epoch=$2 ORDER BY range_start DESC LIMIT 1 FOR UPDATE",
-            [signed_zone.into(),signed_epoch.into()])).await.map_err(checkpoint_db_error)? {
-            let range=decode_range(zone,epoch,&row)?;
-            tx.commit().await.map_err(checkpoint_db_error)?;
-            return Ok(range);
-        }
-        let maximum = tx
-            .query_one_raw(Statement::from_string(
-                DbBackend::Postgres,
-                "SELECT max(range_end_exclusive) AS end FROM item_id_ranges",
-            ))
-            .await
-            .map_err(checkpoint_db_error)?
-            .ok_or_else(|| anyhow::anyhow!("allocator aggregate missing"))?;
-        let start = maximum
-            .try_get::<Option<i64>>("", "end")
-            .map_err(anyhow::Error::from)?
-            .map(u64::try_from)
-            .transpose()
-            .map_err(anyhow::Error::from)?
-            .unwrap_or(RANGE_WIDTH);
-        let end = start
-            .checked_add(RANGE_WIDTH)
-            .filter(|end| i64::try_from(*end).is_ok())
-            .ok_or_else(|| CheckpointError::Constraint("item_id_ranges_exhausted".into()))?;
-        let range = ItemIdRange {
-            zone_id: zone,
-            epoch,
-            range_start: start,
-            range_end_exclusive: end,
-            next_reserved: start,
-        };
-        range.validate()?;
-        tx.execute_raw(Statement::from_sql_and_values(DbBackend::Postgres,
-            "INSERT INTO item_id_ranges(zone_id,epoch,range_start,range_end_exclusive,next_reserved) VALUES($1,$2,$3,$4,$3)",
-            [signed_zone.into(),signed_epoch.into(),i64::try_from(start).map_err(anyhow::Error::from)?.into(),i64::try_from(end).map_err(anyhow::Error::from)?.into()]))
-            .await.map_err(checkpoint_db_error)?;
-        tx.commit().await.map_err(checkpoint_db_error)?;
-        Ok(range)
+        reserve(&self.db, zone, epoch, None).await
+    }
+
+    async fn reserve_item_range_extension(
+        &self,
+        zone: ZoneId,
+        epoch: u64,
+        exhausted_range_start: u64,
+    ) -> Result<ItemIdRange, CheckpointError> {
+        reserve(&self.db, zone, epoch, Some(exhausted_range_start)).await
     }
 
     async fn pending_item_requests(
@@ -85,6 +43,91 @@ impl ItemAdmissionRepository for PgCharacterRepository {
         tx.commit().await?;
         Ok(requests)
     }
+}
+
+async fn reserve(
+    db: &sea_orm::DatabaseConnection,
+    zone: ZoneId,
+    epoch: u64,
+    exhausted: Option<u64>,
+) -> Result<ItemIdRange, CheckpointError> {
+    let signed_zone = i32::try_from(zone.0)
+        .map_err(|_| CheckpointError::Constraint("item_id_ranges_zone".into()))?;
+    let signed_epoch = i64::try_from(epoch)
+        .map_err(|_| CheckpointError::Constraint("item_id_ranges_epoch".into()))?;
+    let tx = db.begin().await.map_err(checkpoint_db_error)?;
+    tx.execute_raw(Statement::from_sql_and_values(
+        DbBackend::Postgres,
+        "SELECT pg_advisory_xact_lock($1)",
+        [RANGE_LOCK.into()],
+    ))
+    .await
+    .map_err(checkpoint_db_error)?;
+    if let Some(previous) = exhausted {
+        let signed_start = i64::try_from(previous)
+            .map_err(|_| CheckpointError::Constraint("item_id_ranges_bounds".into()))?;
+        let row = tx.query_one_raw(Statement::from_sql_and_values(
+            DbBackend::Postgres,
+            "SELECT range_start,range_end_exclusive,next_reserved FROM item_id_ranges WHERE zone_id=$1 AND epoch=$2 AND range_start=$3 FOR UPDATE",
+            [signed_zone.into(), signed_epoch.into(), signed_start.into()],
+        )).await.map_err(checkpoint_db_error)?
+            .ok_or_else(|| CheckpointError::Constraint("item_id_ranges_missing".into()))?;
+        let old = decode_range(zone, epoch, &row)?;
+        if old.next_reserved != old.range_end_exclusive {
+            return Err(CheckpointError::Constraint("item_id_ranges_not_exhausted".into()));
+        }
+        if let Some(row) = tx.query_one_raw(Statement::from_sql_and_values(
+            DbBackend::Postgres,
+            "SELECT range_start,range_end_exclusive,next_reserved FROM item_id_ranges WHERE zone_id=$1 AND epoch=$2 AND range_start>$3 ORDER BY range_start ASC LIMIT 1 FOR UPDATE",
+            [signed_zone.into(), signed_epoch.into(), signed_start.into()],
+        )).await.map_err(checkpoint_db_error)? {
+            let mut range = decode_range(zone, epoch, &row)?;
+            range.next_reserved = range.range_start;
+            tx.commit().await.map_err(checkpoint_db_error)?;
+            return Ok(range);
+        }
+    } else if let Some(row) = tx.query_one_raw(Statement::from_sql_and_values(
+        DbBackend::Postgres,
+        "SELECT range_start,range_end_exclusive,next_reserved FROM item_id_ranges WHERE zone_id=$1 AND epoch=$2 ORDER BY range_start DESC LIMIT 1 FOR UPDATE",
+        [signed_zone.into(), signed_epoch.into()],
+    )).await.map_err(checkpoint_db_error)? {
+        let range = decode_range(zone, epoch, &row)?;
+        tx.commit().await.map_err(checkpoint_db_error)?;
+        return Ok(range);
+    }
+    let maximum = tx
+        .query_one_raw(Statement::from_string(
+            DbBackend::Postgres,
+            "SELECT max(range_end_exclusive) AS end FROM item_id_ranges",
+        ))
+        .await
+        .map_err(checkpoint_db_error)?
+        .ok_or_else(|| anyhow::anyhow!("allocator aggregate missing"))?;
+    let start = maximum
+        .try_get::<Option<i64>>("", "end")
+        .map_err(anyhow::Error::from)?
+        .map(u64::try_from)
+        .transpose()
+        .map_err(anyhow::Error::from)?
+        .unwrap_or(RANGE_WIDTH);
+    let end = start
+        .checked_add(RANGE_WIDTH)
+        .filter(|end| i64::try_from(*end).is_ok())
+        .ok_or_else(|| CheckpointError::Constraint("item_id_ranges_exhausted".into()))?;
+    let range = ItemIdRange {
+        zone_id: zone,
+        epoch,
+        range_start: start,
+        range_end_exclusive: end,
+        next_reserved: start,
+    };
+    range.validate()?;
+    tx.execute_raw(Statement::from_sql_and_values(DbBackend::Postgres,
+            "INSERT INTO item_id_ranges(zone_id,epoch,range_start,range_end_exclusive,next_reserved) VALUES($1,$2,$3,$4,$3)",
+            [signed_zone.into(),signed_epoch.into(),i64::try_from(start).map_err(anyhow::Error::from)?.into(),i64::try_from(end).map_err(anyhow::Error::from)?.into()]))
+            .await.map_err(checkpoint_db_error)?;
+    tx.commit().await.map_err(checkpoint_db_error)?;
+    Ok(range)
 }
 
 fn decode_range(

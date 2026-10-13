@@ -193,4 +193,3 @@ void UGrpcNightfallV1GetItemCatalogRequest_known_rules_hashHelperLibrary::Break_
     _known_rules_hashCase = _known_rules_hash._known_rules_hashCase;
     KnownRulesHash = _known_rules_hash.KnownRulesHash;
 }
-

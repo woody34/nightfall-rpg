@@ -18,6 +18,7 @@ mod m20261010_000009_phase3_effect_identity;
 mod m20261012_000010_items;
 mod m20261012_000011_pending_item_backfill;
 mod m20261012_000012_pending_item_scope;
+mod m20261012_000013_item_ledger_row_ordinal;
 
 /// All migrations in application order.
 #[derive(Debug, Clone, Copy)]
@@ -39,6 +40,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20261012_000010_items::Migration),
             Box::new(m20261012_000011_pending_item_backfill::Migration),
             Box::new(m20261012_000012_pending_item_scope::Migration),
+            Box::new(m20261012_000013_item_ledger_row_ordinal::Migration),
         ]
     }
 }

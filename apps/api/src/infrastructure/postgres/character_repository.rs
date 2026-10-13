@@ -113,7 +113,7 @@ impl PgCharacterRepository {
                 .validate_catalogue(&registry)
                 .map_err(anyhow::Error::msg)?;
             phase3.validate(&rules, &ledger.learned_skills, alive)?;
-            ledger.validate_for_phase3(&registry, &c.identity(), c.id)?;
+            ledger.validate_for_skill_rules(&registry, &c.identity(), c.id, &rules)?;
         } else {
             ledger.validate_for(&registry, &c.identity(), c.id)?;
         }

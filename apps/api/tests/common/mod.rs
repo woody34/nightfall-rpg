@@ -84,6 +84,7 @@ pub struct TestApp {
     pub audit: Arc<InMemorySessionAudit>,
     /// The fixture zone `/ws` sessions play in (real 100 ms ticks).
     pub zone: ZoneHandle,
+    pub lifecycle: nightfall_api::application::session::SessionRegistry,
     /// `ws://127.0.0.1:<port>/ws`.
     pub ws_url: String,
     /// Closes every session (1001) when cancelled; cancelled on drop.
@@ -245,6 +246,7 @@ impl TestApp {
             http_base: format!("http://{http_addr}"),
             ws_url: format!("ws://{http_addr}/ws"),
             audit,
+            lifecycle: realtime.sessions.registry.clone(),
             zone,
             sessions_shutdown,
             grpc_base: format!("http://{grpc_addr}"),

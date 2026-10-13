@@ -315,4 +315,4 @@ def create_overlay(destination, repo):
         (destination/('npcs/'+name+'.toml')).write_text(template)
         with zone.open('a') as out:
             out.write(f'\n[[spawn_slots]]\nid = "{name}"\ntemplate = "{name}"\nhome = [{position[0]}, {position[1]}]\ncount = 1\n')
-    zone.write_text(zone.read_text() + '\n[[npcs]]\nname = "Blacksmith"\nattackable = false\npos = [' + str(blacksmith['x']) + ', ' + str(blacksmith['y']) + ']\nspeed = 0\n')
+    zone.write_text(zone.read_text() + '\n[[npcs]]\nname = ' + json.dumps(blacksmith['template']) + '\nattackable = false\npos = [' + str(blacksmith['x']) + ', ' + str(blacksmith['y']) + ']\nspeed = 0\n')

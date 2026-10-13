@@ -233,8 +233,9 @@ impl CharacterCheckpoint {
     pub fn violated_constraint(&self) -> Option<&'static str> {
         if self.phase4.as_ref().is_some_and(|p| {
             self.phase3.as_ref().is_none_or(|phase3| {
-                p.validate_structure(phase3.modifier_install_order.len())
-                    .is_err()
+                self.alive != (self.hp > 0 || phase3.resource_fractions.hp > 0)
+                    || p.validate_structure(phase3.modifier_install_order.len())
+                        .is_err()
             })
         }) {
             Some("characters_phase4_state_valid")

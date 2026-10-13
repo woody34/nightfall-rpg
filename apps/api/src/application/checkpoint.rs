@@ -52,6 +52,7 @@ pub struct CheckpointService {
     repo: Arc<dyn CharacterRepository>,
     learning_repo: Option<Arc<dyn super::ports::LearningCheckpointRepository>>,
     item_repo: Option<Arc<dyn super::ports::ItemCheckpointRepository>>,
+    item_admission: Option<Arc<dyn super::ports::ItemAdmissionRepository>>,
     audit: Arc<dyn SessionAudit>,
     metrics: Arc<dyn CheckpointMetrics>,
     players: BTreeMap<EntityId, Player>,
@@ -72,6 +73,7 @@ impl CheckpointService {
             repo,
             learning_repo: None,
             item_repo: None,
+            item_admission: None,
             audit,
             metrics,
             players: BTreeMap::new(),
@@ -97,6 +99,26 @@ impl CheckpointService {
     pub fn with_items(mut self, repo: Arc<dyn super::ports::ItemCheckpointRepository>) -> Self {
         self.item_repo = Some(repo);
         self
+    }
+    /// Installs durable range reservations before an exhausted V6 actor resumes.
+    #[must_use]
+    pub fn with_item_admission(
+        mut self,
+        repo: Arc<dyn super::ports::ItemAdmissionRepository>,
+    ) -> Self {
+        self.item_admission = Some(repo);
+        self
+    }
+    pub(crate) async fn extend_item_range(
+        &self,
+        seed: crate::domain::zone::ZoneSeed,
+        exhausted_start: u64,
+    ) -> Result<super::ports::ItemIdRange, super::CheckpointError> {
+        self.item_admission
+            .as_ref()
+            .ok_or_else(|| super::CheckpointError::Constraint("item_admission_required".into()))?
+            .reserve_item_range_extension(seed.zone, seed.epoch, exhausted_start)
+            .await
     }
     /// Item simulation cannot activate without a typed durable receipt lane.
     pub fn items_enabled(&self) -> bool {
@@ -765,6 +787,7 @@ impl CheckpointService {
                             | DomainEvent::ItemEnchanted { fact }
                             | DomainEvent::ItemDestroyed { fact }
                             | DomainEvent::ItemRefined { fact }
+                            | DomainEvent::ItemRefineCancelled { fact }
                             | DomainEvent::ItemExchanged { fact } => &mut fact.metadata,
                             DomainEvent::CharacterCreated { .. } => continue,
                         };
@@ -1227,7 +1250,7 @@ mod phase3_tests;
 
 #[cfg(test)]
 #[path = "checkpoint_items_tests.rs"]
-mod item_tests;
+pub(crate) mod item_tests;
 
 #[allow(clippy::manual_let_else)] // Exhaustive item/non-item metadata match.
 fn item_events(
@@ -1237,9 +1260,12 @@ fn item_events(
 ) -> anyhow::Result<Vec<DomainEvent>> {
     use crate::domain::zone::phase4_projection::ItemOperation;
     let mut facts = Vec::new();
-    for delta in &work.projection.ledger {
-        // D49: enchant attempts have their own captured audit, including unchanged results.
-        if delta.operation == ItemOperation::Enchant && delta.after.is_some() {
+    for (position, delta) in work.projection.ledger.iter().enumerate() {
+        // D49: enchant attempts have their own captured audit, including unchanged results;
+        // D95: so do Refine/CancelRefine, whose target rows are always retained.
+        if (delta.operation == ItemOperation::Enchant && delta.after.is_some())
+            || matches!(delta.operation, ItemOperation::Refine | ItemOperation::CancelRefine)
+        {
             continue;
         }
         let fact = crate::domain::ItemEventFact {
@@ -1270,41 +1296,24 @@ fn item_events(
                 DomainEvent::ItemDestroyed { fact }
             },
             ItemOperation::Refine | ItemOperation::CancelRefine => {
-                DomainEvent::ItemRefined { fact }
+                anyhow::bail!("refine audit must come from its captured operation")
             },
-            ItemOperation::Exchange => DomainEvent::ItemExchanged { fact },
+            ItemOperation::Exchange => {
+                anyhow::bail!("exchange audit must come from its captured operation")
+            },
             ItemOperation::ToggleAutoShot => {
                 anyhow::bail!("pure owner toggle cannot fabricate an item audit row")
             },
         };
-        facts.push((delta.operation_ordinal, 1_u8, event));
+        facts.push(((position, 1_u8, delta.operation_ordinal), event));
     }
-    for attempt in &work.projection.enchant_attempts {
-        facts.push((
-            attempt.operation_ordinal,
-            0,
-            DomainEvent::ItemEnchanted {
-                fact: crate::domain::ItemEventFact {
-                    metadata: EventMetadata {
-                        event_id: Uuid::nil(),
-                        sequence: (0, 0),
-                    },
-                    character_id: cp.character_id,
-                    instance_id: attempt.target,
-                    template_id: attempt.template,
-                    count_delta: if attempt.after.is_none() { -1 } else { 0 },
-                    before: Some(attempt.before.clone()),
-                    after: attempt.after.clone(),
-                    causes: vec![serde_json::to_value(attempt)?],
-                },
-            },
-        ));
-    }
-    facts.sort_by_key(|(operation, kind, _)| (*operation, *kind));
+    facts.extend(captured_item_events(cp, work)?);
+    // Canonical ledger row order (D66/D69/D76), not operation_ordinal (a per-instance position).
+    facts.sort_by_key(|(key, _)| *key);
     facts
         .into_iter()
         .enumerate()
-        .map(|(index, (_, _, mut event))| {
+        .map(|(index, (_, mut event))| {
             let ordinal = u64::try_from(
                 offset
                     .checked_add(index)
@@ -1318,6 +1327,7 @@ fn item_events(
                 | DomainEvent::ItemEnchanted { fact }
                 | DomainEvent::ItemDestroyed { fact }
                 | DomainEvent::ItemRefined { fact }
+                | DomainEvent::ItemRefineCancelled { fact }
                 | DomainEvent::ItemExchanged { fact } => fact,
                 DomainEvent::CharacterCreated { .. }
                 | DomainEvent::CharacterLeveled { .. }
@@ -1347,6 +1357,130 @@ fn item_events(
             Ok(event)
         })
         .collect()
+}
+
+fn captured_item_events(
+    cp: &CharacterCheckpoint,
+    work: &super::ports::ItemCheckpointWork,
+) -> anyhow::Result<Vec<((usize, u8, u32), DomainEvent)>> {
+    // D78: a captured enchant/exchange audit precedes the attempt's OWN ledger row (the
+    // target's row of that operation carrying its receipt), so earlier same-tick rows on the
+    // target (Equip, then Enchant) stay first. Without such a row it precedes the target's
+    // first row carrying the receipt, else the target's first row of a later command (its
+    // receipt or any Consume aggregate contributor); with none of these (an unchanged attempt
+    // and nothing later on the target) it follows every row, in operation order.
+    use crate::domain::zone::phase4_projection::{ItemOperation, ItemReceiptRef};
+    let ledger = &work.projection.ledger;
+    let command = |receipt: ItemReceiptRef| {
+        work.projection
+            .receipts
+            .iter()
+            .position(|fact| fact.reference() == receipt)
+    };
+    let position = |target: crate::domain::zone::ItemInstanceId,
+                    receipt: ItemReceiptRef,
+                    own: ItemOperation| {
+        let carries = |delta: &crate::domain::zone::phase4_projection::ItemDeltaPlan| {
+            delta.instance == target
+                && (delta.receipt == Some(receipt) || delta.receipt_refs.contains(&receipt))
+        };
+        ledger
+            .iter()
+            .position(|delta| carries(delta) && delta.operation == own)
+            .or_else(|| ledger.iter().position(carries))
+            .or_else(|| {
+                let mine = command(receipt)?;
+                ledger.iter().position(|delta| {
+                    delta.instance == target
+                        && delta
+                            .receipt
+                            .iter()
+                            .chain(&delta.receipt_refs)
+                            .filter_map(|receipt| command(*receipt))
+                            .any(|later| later > mine)
+                })
+            })
+            .unwrap_or(ledger.len())
+    };
+    let mut facts = Vec::new();
+    for attempt in &work.projection.enchant_attempts {
+        facts.push((
+            (
+                position(attempt.target, attempt.receipt, ItemOperation::Enchant),
+                0,
+                attempt.operation_ordinal,
+            ),
+            DomainEvent::ItemEnchanted {
+                fact: crate::domain::ItemEventFact {
+                    metadata: EventMetadata {
+                        event_id: Uuid::nil(),
+                        sequence: (0, 0),
+                    },
+                    character_id: cp.character_id,
+                    instance_id: attempt.target,
+                    template_id: attempt.template,
+                    count_delta: if attempt.after.is_none() { -1 } else { 0 },
+                    before: Some(attempt.before.clone()),
+                    after: attempt.after.clone(),
+                    causes: vec![serde_json::to_value(attempt)?],
+                },
+            },
+        ));
+    }
+    for refine in &work.projection.refines {
+        let applied =
+            refine.outcome == crate::domain::zone::phase4_projection::ItemRefineOutcome::Applied;
+        let fact = crate::domain::ItemEventFact {
+            metadata: EventMetadata {
+                event_id: Uuid::nil(),
+                sequence: (0, 0),
+            },
+            character_id: cp.character_id,
+            instance_id: refine.after.id,
+            template_id: refine.before.template_id,
+            count_delta: 0,
+            before: Some(refine.before.clone()),
+            after: Some(refine.after.clone()),
+            causes: vec![serde_json::to_value(refine)?],
+        };
+        facts.push((
+            (
+                position(refine.after.id, refine.receipt, refine.receipt.operation),
+                0,
+                refine.operation_ordinal,
+            ),
+            if applied {
+                DomainEvent::ItemRefined { fact }
+            } else {
+                DomainEvent::ItemRefineCancelled { fact }
+            },
+        ));
+    }
+    for exchange in &work.projection.exchanges {
+        facts.push((
+            (
+                position(exchange.before.id, exchange.receipt, ItemOperation::Consume),
+                0,
+                exchange.operation_ordinal,
+            ),
+            DomainEvent::ItemExchanged {
+                fact: crate::domain::ItemEventFact {
+                    metadata: EventMetadata {
+                        event_id: Uuid::nil(),
+                        sequence: (0, 0),
+                    },
+                    character_id: cp.character_id,
+                    instance_id: exchange.before.id,
+                    template_id: exchange.before.template_id,
+                    count_delta: -1,
+                    before: Some(exchange.before.clone()),
+                    after: None,
+                    causes: vec![serde_json::to_value(exchange)?],
+                },
+            },
+        ));
+    }
+    Ok(facts)
 }
 
 #[path = "checkpoint_paused.rs"]
