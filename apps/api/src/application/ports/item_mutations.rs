@@ -410,9 +410,11 @@ impl ItemCheckpointWork {
                 // D66: positive rows first in cause order, then the single Consume aggregate as
                 // the instance's last row. The aggregate keeps the schema/domain ordinal-0 batch
                 // marker (item_ledger_consume_ordinal), so its position, not ordinal, orders it.
+                // One logical operation may emit several rows (implicit Unequip + Destroy) that
+                // share its ordinal; the domain keeps (ordinal, instance, operation) unique.
                 if consumed
                     || (delta.operation != ItemOperation::Consume
-                        && ordinal.is_some_and(|previous| delta.operation_ordinal <= previous))
+                        && ordinal.is_some_and(|previous| delta.operation_ordinal < previous))
                     || (debited && delta.count_delta > 0)
                 {
                     return Err(invalid("item_ledger_row_order"));
