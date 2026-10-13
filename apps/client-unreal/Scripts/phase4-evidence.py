@@ -175,8 +175,9 @@ INPUT_SCHEMAS={
         spread=NONNEG_NUMERIC,pvp=NONNEG_NUMERIC,attribute=NONNEG_NUMERIC,npc=NONNEG_NUMERIC),
     'magic_damage':dict(power=NONNEG_NUMERIC,m_atk=NONNEG_NUMERIC,m_def=NONNEG_NUMERIC,spirit=BOOL,
         blessed=BOOL,shield_def=NONNEG_NUMERIC,perfect=BOOL,critical=BOOL,attacker_player=BOOL,
-        target_player=BOOL,is_pvp=nullable(BOOL),skill_is_magic=BOOL,pvp_magic_def=NONNEG_NUMERIC,
-        pvp_skill_def=NONNEG_NUMERIC,magic_failures=BOOL,first_success=BOOL,second_success=nullable(BOOL),
+        # D89: is_pvp is always evaluated (never null); the success flags are draw-derived.
+        target_player=BOOL,is_pvp=BOOL,skill_is_magic=BOOL,pvp_magic_def=NONNEG_NUMERIC,
+        pvp_skill_def=NONNEG_NUMERIC,magic_failures=BOOL,first_success=nullable(BOOL),second_success=nullable(BOOL),
         level_difference=SIGNED_INT,magic_crit_damage=NONNEG_NUMERIC,spread=NONNEG_NUMERIC,
         pvp_magic_damage=NONNEG_NUMERIC,pvp_skill_damage=NONNEG_NUMERIC,attribute=NONNEG_NUMERIC,npc=NONNEG_NUMERIC),
     'cast_time':dict(hit_time=NONNEG_INT,casting_speed=POSITIVE_NUMERIC,spirit=BOOL,blessed=BOOL,static=BOOL,is_magic=BOOL),
@@ -480,6 +481,7 @@ def residue_family(name,inputs):
         draw['residue']=value
     if any(value is not None and site not in taken for site,value in sites.items()):
         raise ValueError(name+' residue present for a draw that was not taken (D87/D89)')
+    if name in DRAW_FIELDS:draw_fields(name,inputs,result)
     return result
 
 
@@ -619,22 +621,41 @@ def formula(name,inputs,actual):
     elif name in RESIDUE_INPUTS:
         same(actual,oracle.rational(residue_family(name,inputs)))
     else:
-        if name=='lethal':lethal_residues(inputs)
-        oracle.verify_facts([dict(formula=name,inputs=inputs,expected=actual)])
         function=getattr(oracle,name,None) or getattr(oracle.behavior,name,None)
+        if name=='magic_damage':magic_draws(inputs)
+        if name in DRAW_FIELDS:
+            try:result=function(**oracle.decode_rationals(inputs))
+            except TypeError as error:raise ValueError(name+' draw-derived field is null although its draw was taken (D81/D89)') from error
+            draw_fields(name,inputs,result)
+        oracle.verify_facts([dict(formula=name,inputs=inputs,expected=actual)])
         same(actual,oracle.rational(function(**oracle.decode_rationals(inputs))))
 
 
-def lethal_residues(inputs):
-    """D81: each residue is null iff the corresponding draw was not taken (Formulas.java
-    lethal: the full draw only when eligible, the half draw only after a missed full)."""
-    probe=dict(oracle.decode_rationals(inputs))
-    for key in ('full_residue','half_residue'):
-        if probe.get(key) is None:probe[key]=0 # placeholder: only decides which draws occur
-    sites={draw['site'] for draw in oracle.lethal(**probe)['draws']}
-    for key,site in (('full_residue','lethal_full'),('half_residue','lethal_half')):
+# D81/D89: draw-derived residue fields, by the oracle draw site that consumes them.
+DRAW_FIELDS={
+    'lethal':{'full_residue':'lethal_full','half_residue':'lethal_half'},
+    'shield':{'perfect_residue':'shield_perfect','normal_residue':'shield_normal'},
+    'shot_payment':{'residue':'soulshot_reduction'},
+    'bow_launch':{'reduction_residue':'bow_mp_reduction','hit_residue':'hit'},
+}
+
+
+def draw_fields(name,inputs,result):
+    """D81/D89: a draw-derived field is null (or absent) iff its draw was not taken."""
+    sites={draw['site'] for draw in result['draws']}
+    for key,site in DRAW_FIELDS[name].items():
         if (inputs.get(key) is None)!=(site not in sites):
-            raise ValueError('lethal '+key+' must be null iff its draw was not taken (D81)')
+            raise ValueError(name+' '+key+' must be null iff its draw was not taken (D81/D89)')
+
+
+def magic_draws(inputs):
+    """D89 (Formulas.java:815-897): perfect block precedes every draw; the first magic-success
+    draw exists only with magic failures enabled, the second only for a player attacker
+    after a failed first draw."""
+    first=not inputs.get('perfect',False) and inputs.get('magic_failures',False)
+    second=first and inputs.get('first_success') is False and inputs.get('attacker_player',True)
+    for key,taken in (('first_success',first),('second_success',second)):
+        if (inputs.get(key) is None)==taken:raise ValueError('magic_damage '+key+' must be null iff its draw was not taken (D89)')
 
 
 @lru_cache(maxsize=None)

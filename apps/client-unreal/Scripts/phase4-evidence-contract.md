@@ -415,3 +415,14 @@ oracle equality on the producer's actual inputs.
   `hit_chance − 1`, which selects exactly the residues below the chance. E1
   vectors at the `residue == chance` boundary no longer verify (E1 follow-up:
   adopt the strict inequality; the probe then disables the adapter).
+- D89 (Q-F3): D81's rule generalises to every draw-derived field whose draw may
+  not occur: the field is null (or absent) iff its draw was not taken, and a
+  value for an untaken draw (any sentinel) or a null for a taken draw refuses.
+  Covered fields: `lethal.full_residue/half_residue`, `shield.perfect_residue/
+  normal_residue`, `shot_payment.residue` (soulshot reduction),
+  `bow_launch.reduction_residue/hit_residue/critical_residue/spread_residue`,
+  `dual_plan.critical_residues[i]/spread_residues[i]`, and
+  `magic_damage.first_success` (taken iff not perfect and magic failures
+  enabled) / `second_success` (taken iff the first failed for a player
+  attacker). Booleans that are always evaluated are never null:
+  `magic_damage.is_pvp` is a plain boolean.

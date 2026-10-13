@@ -1600,7 +1600,7 @@ class Evidence(unittest.TestCase):
     def test_source_bow_launch_inventory_records_and_count_maps(self):
         inputs=dict(weapon=gate.oracle.behavior.bow_definition(gate.source(),13),
                     inventory=[gate.oracle.behavior.arrow_stack(gate.source(),17,2)],
-                    lhand=None,mp=10,mp_modifier=1,reduction_residue=0,miss=False,
+                    lhand=None,mp=10,mp_modifier=1,reduction_residue=None,miss=False,
                     hit_chance=800,hit_residue=799,critical_residue=17,spread_residue=3)
         actual=gate.residue_family('bow_launch',inputs)
         self.assertEqual((actual['arrows_consumed'],actual['inventory'][0]['count'],actual['mp']),(1,1,9))
@@ -1617,7 +1617,7 @@ class Evidence(unittest.TestCase):
     def test_d87_bow_and_dual_residues_are_fact_inputs(self):
         bow=dict(weapon=gate.oracle.behavior.bow_definition(gate.source(),13),
                  inventory=[gate.oracle.behavior.arrow_stack(gate.source(),17,2)],lhand=None,mp=10,mp_modifier=1,
-                 reduction_residue=0,miss=False,hit_chance=800,hit_residue=100,critical_residue=17,spread_residue=3)
+                 reduction_residue=None,miss=False,hit_chance=800,hit_residue=100,critical_residue=17,spread_residue=3)
         dual=dict(hits=[True,False],formulas=[10,'3/2'],second_valid=True,hit_residues=[100,900],hit_chance=800,
                   spread_radius=6,critical_residues=[4,None],spread_residues=[0,None])
         for name,inputs,sites in (('bow_launch',bow,{'critical':17,'spread':3}),('dual_plan',dual,{'critical1':4,'spread1':0})):
@@ -1647,7 +1647,7 @@ class Evidence(unittest.TestCase):
         self.assertTrue(gate.oracle_hit_inclusive()) # E1 rev 8 still uses <=; the consumer adapts.
         bow=dict(weapon=gate.oracle.behavior.bow_definition(gate.source(),13),
                  inventory=[gate.oracle.behavior.arrow_stack(gate.source(),17,2)],lhand=None,mp=10,mp_modifier=1,
-                 reduction_residue=0,miss=False,hit_chance=800,hit_residue=799,critical_residue=17,spread_residue=3)
+                 reduction_residue=None,miss=False,hit_chance=800,hit_residue=799,critical_residue=17,spread_residue=3)
         miss=bow|dict(miss=True,critical_residue=None,spread_residue=None)
         for inputs,hit in ((bow,True),(miss|dict(hit_residue=800),False),(miss|dict(hit_residue=999),False),
                            (bow|dict(hit_chance=1,hit_residue=0),True),(miss|dict(hit_chance=0,hit_residue=0),False)):
@@ -1662,6 +1662,40 @@ class Evidence(unittest.TestCase):
         gate.formula('dual_plan',dual,gate.oracle.rational(gate.residue_family('dual_plan',dual)))
         with self.assertRaises(ValueError):gate.formula('dual_plan',dual|dict(hits=[True,True],critical_residues=[5,5],spread_residues=[0,0]),None)
         print('D88: hit iff residue < hit_chance at the boundary for bow_launch and dual_plan',flush=True)
+
+    def test_d89_draw_derived_fields_null_iff_draw_not_taken(self):
+        magic=dict(power=10,m_atk=100,m_def=50,is_pvp=False)
+        controls=[('magic_damage',magic),('magic_damage',magic|dict(magic_failures=True,first_success=True)),
+                  ('magic_damage',magic|dict(magic_failures=True,first_success=False,second_success=True)),
+                  ('magic_damage',magic|dict(magic_failures=True,first_success=False,attacker_player=False)),
+                  ('magic_damage',magic|dict(perfect=True,magic_failures=True)),
+                  ('shield',dict(rate=50,eligible=True,perfect_residue=95,normal_residue=None)),
+                  ('shield',dict(rate=50,eligible=True,perfect_residue=10,normal_residue=20)),
+                  ('shield',dict(rate=50,eligible=False)),
+                  ('shot_payment',dict(charges=[],kind='soul',count=2,available=5,weapon_grade='D',shot_grade='D',reduction=[10,1],residue=50)),
+                  ('shot_payment',dict(charges=[],kind='soul',count=2,available=5,weapon_grade='D',shot_grade='D'))]
+        for name,inputs in controls:
+            with self.subTest(control=(name,inputs)):
+                rows=self.formula_rows(name,inputs);result=gate.evaluate(rows,self.recording,OWNER,[name],HASH)
+                self.assertTrue(result['passed'],result)
+        mutations=[('magic_damage',magic|dict(first_success=True)),          # no failure draw without magic_failures
+                   ('magic_damage',magic|dict(second_success=False)),
+                   ('magic_damage',magic|dict(magic_failures=True)),          # first draw taken but null
+                   ('magic_damage',magic|dict(magic_failures=True,first_success=True,second_success=False)),
+                   ('magic_damage',magic|dict(magic_failures=True,first_success=False,attacker_player=False,second_success=True)),
+                   ('magic_damage',magic|dict(perfect=True,magic_failures=True,first_success=True)),
+                   ('shield',dict(rate=50,eligible=True,perfect_residue=95,normal_residue=50)),
+                   ('shield',dict(rate=50,eligible=False,perfect_residue=0)),
+                   ('shield',dict(rate=50,eligible=True,perfect_residue=None)),
+                   ('shot_payment',dict(charges=[],kind='soul',count=2,available=5,weapon_grade='D',shot_grade='D',residue=0))]
+        for name,inputs in mutations:
+            with self.subTest(mutation=(name,inputs)):
+                rows=self.formula_rows(name,inputs)
+                if rows[1]['data']['actual'] is None:rows[1]['data']['actual']={}
+                self.assertFalse(gate.evaluate(rows,self.recording,OWNER,[name],HASH)['passed'])
+                with self.assertRaises(ValueError):gate.formula(name,inputs,rows[1]['data']['actual'])
+        with self.assertRaises(ValueError):gate.input_domains('magic_damage',magic|dict(is_pvp=None))
+        print(f'D89: {len(controls)} draw-derived controls pass; {len(mutations)} null/present mismatches and a null is_pvp reject',flush=True)
 
     def test_item_record_scalar_substitutions_through_evaluate(self):
         vectors=gate.oracle.make_vectors(gate.source())
@@ -1740,7 +1774,10 @@ class Evidence(unittest.TestCase):
         function=getattr(gate.oracle.behavior,name)
         try:draws={d['site']:d['residue'] for d in function(**gate.oracle.decode_rationals(inputs))['draws']}
         except (ValueError,TypeError,KeyError):draws={}
-        if name=='bow_launch':inputs.update(critical_residue=draws.get('critical'),spread_residue=draws.get('spread'))
+        if name=='bow_launch':
+            # D89: E1 vectors give untaken draws a placeholder; facts carry null instead.
+            inputs.update(critical_residue=draws.get('critical'),spread_residue=draws.get('spread'),
+                          reduction_residue=draws.get('bow_mp_reduction'),hit_residue=draws.get('hit'))
         else:inputs.update(critical_residues=[draws.get('critical1'),draws.get('critical2')],
                            spread_residues=[draws.get('spread1'),draws.get('spread2')])
         return inputs
@@ -1775,7 +1812,10 @@ class Evidence(unittest.TestCase):
                 # D87 adds the critical/spread residues the E1 rev 8 oracle still hard-codes.
                 self.assertEqual(set(gate.INPUT_SCHEMAS[name]),set(parameters)|set(gate.RESIDUE_INPUTS.get(name,())))
                 for key,param in parameters.items():
-                    if param.default is None:self.assertEqual(gate.INPUT_SCHEMAS[name][key][0],'nullable')
+                    # D89: always-evaluated booleans are never null; draw-derived flags may be.
+                    if (name,key)==('magic_damage','is_pvp'):self.assertEqual(gate.INPUT_SCHEMAS[name][key],gate.BOOL)
+                    elif (name,key)==('magic_damage','first_success'):self.assertEqual(gate.INPUT_SCHEMAS[name][key],gate.nullable(gate.BOOL))
+                    elif param.default is None:self.assertEqual(gate.INPUT_SCHEMAS[name][key][0],'nullable')
                     elif type(param.default) is bool:self.assertEqual(gate.INPUT_SCHEMAS[name][key],gate.BOOL)
 
     def test_signature_compatible_e1_vector_inputs_preserve_shapes(self):
@@ -1900,8 +1940,8 @@ class Evidence(unittest.TestCase):
              (None,True,1,{},[None],[1],['bad'],[[]])),
             ('heal',dict(power=0,m_atk=0,recoverable_hp=None),'recoverable_hp',
              ([],[1],{},True,'bad',-1,2**63)),
-            ('magic_damage',dict(power=10,m_atk=10,m_def=10,perfect=True,is_pvp=None),'is_pvp',
-             ([],[True],{},0,1,'bad')),
+            ('magic_damage',dict(power=10,m_atk=10,m_def=10,perfect=True,is_pvp=True),'is_pvp',
+             ([],[True],{},0,1,'bad',None)),
             ('shot_payment',dict(charges=[],kind='soul',count=1,available=0,weapon_grade=None,shot_grade='D'),
              'weapon_grade',([],['D'],{},True,1,'bad')),
             ('shot_payment',dict(charges=[],kind='soul',count=1,available=0,weapon_grade='D',shot_grade='D',reduction=[]),
@@ -1967,7 +2007,7 @@ class Evidence(unittest.TestCase):
                ('physical_damage',dict(p_atk=0,defence=80,power=-1,caller='blow')),
                ('position',dict(facing=[1,0],relative=[-1,0])),
                ('grade_penalties',dict(equipped=[dict(instance_id=1,slot=0,grade=7,weapon=False)],expertise=0)),
-               ('magic_damage',dict(power=1,m_atk=1,m_def=1,is_pvp=True,second_success=False)),
+               ('magic_damage',dict(power=1,m_atk=1,m_def=1,is_pvp=True,second_success=None)),
                ('overload',dict(weight=0,maximum=-1)),
                ('player_level_range',dict(condition={'kind':'player_level_range','ranges':[{'minimum':1,'maximum':84}]},rank=1,level=84))]
         # E1 vectors supply genuine definition, map, and nullable offer operands.
@@ -1978,6 +2018,8 @@ class Evidence(unittest.TestCase):
             vector=next(v for v in vectors if v['id'].startswith(prefix))
             inputs=copy.deepcopy(vector['inputs'])
             if name=='resurrection_scroll':inputs['repeat']=bool(inputs['repeat'])
+            # D88: E1's boundary hit (residue == chance) is a miss now; take the residue just below.
+            if name=='bow_launch' and not inputs['miss'] and inputs['hit_residue']==inputs['hit_chance']:inputs['hit_residue']-=1
             cases.append((name,self.with_residues(name,inputs)))
         for name,inputs in cases:
             with self.subTest(formula=name):
