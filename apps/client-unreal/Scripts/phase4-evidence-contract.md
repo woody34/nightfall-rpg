@@ -420,6 +420,13 @@ oracle equality on the producer's actual inputs.
   `hit_chance − 1`, which selects exactly the residues below the chance. E1
   vectors at the `residue == chance` boundary no longer verify (E1 follow-up:
   adopt the strict inequality; the probe then disables the adapter).
+  Rev 9 import path (D96, review-2 P3-1): when the E1 oracle signature takes
+  the D87 residue parameters, the consumer passes them through and applies
+  neither adapter (no substitution, no `hit_chance − 1`, no probe). The
+  adapters run only on the pre-D87 data revisions (rules_manifest
+  `data_sha256` rev 7 `5b77911e…` or rev 8 `8e27de15…`); newer data with an
+  old-shaped oracle, or a probe that cannot classify the oracle, is a
+  ValueError gate verdict, never a crash.
 - D89 (Q-F3): D81's rule generalises to every draw-derived field whose draw may
   not occur: the field is null (or absent) iff its draw was not taken, and a
   value for an untaken draw (any sentinel) or a null for a taken draw refuses.

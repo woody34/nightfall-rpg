@@ -453,22 +453,41 @@ def validate_input(value,schema,path,bounds=False):
 RESIDUE_INPUTS={'bow_launch':('critical_residue','spread_residue'),'dual_plan':('critical_residues','spread_residues')}
 
 
+# E1 data revisions whose oracle predates D87/D88 (rules_manifest data_sha256: rev 7, rev 8).
+# The temporary adapters below are legal ONLY on these; the rev 9 import (D96: residue
+# parameters + strict `<`) is detected by the oracle signature and removes both adapters.
+PRE_D87_DATA=frozenset(('5b77911ec6bba0b186b9de16d63ea832726943475152a82ea40a5ebd203c4656',
+                        '8e27de155b2682db3bec34d485316f425678634ddd74b000a8849548a91110c0'))
+
+
+def oracle_adopted_d87(name):
+    return set(RESIDUE_INPUTS[name])<=set(inspect.signature(getattr(oracle.behavior,name)).parameters)
+
+
 @lru_cache(maxsize=1)
 def oracle_hit_inclusive():
-    """True while E1 still decides a hit as residue <= hit_chance (rev 8): probed, not assumed."""
+    """True while E1 still decides a hit as residue <= hit_chance (rev 8): probed, not assumed.
+    Any unexpected probe failure is a ValueError, i.e. a gate verdict, never a crash."""
     try:oracle.behavior.dual_plan([False,False],[0,0],True,[5,5],5,0)
     except ValueError:return True
+    except TypeError as error:raise ValueError('cannot classify the E1 dual_plan hit inequality (D88)') from error
     return False
 
 
 def residue_family(name,inputs):
     decoded=oracle.decode_rationals(inputs)
     extra={key:decoded.pop(key) for key in RESIDUE_INPUTS[name]}
+    function=getattr(oracle.behavior,name)
+    if oracle_adopted_d87(name):
+        # Rev 9 path (D96): E1 takes the residues and uses the strict inequality itself.
+        result=function(**decoded,**extra)
+        if name in DRAW_FIELDS:draw_fields(name,inputs,result)
+        return result
+    if source_data_sha256() not in PRE_D87_DATA:
+        raise ValueError('E1 data is newer than rev 8 but its oracle lacks the D87 residue parameters (D96)')
     # D88: a hit iff residue < hit_chance (pinned Rnd.get(n) < chance). The rev 8 oracle tests
     # residue <= chance, so it is given chance-1, which selects exactly the residues below chance.
     if oracle_hit_inclusive():decoded['hit_chance']-=1
-    function=getattr(oracle.behavior,name)
-    if set(extra)<=set(inspect.signature(function).parameters):return function(**decoded,**extra) # E1 adopted D87
     result=function(**decoded)
     if name=='bow_launch':sites={'critical':extra['critical_residue'],'spread':extra['spread_residue']}
     else:
@@ -483,6 +502,10 @@ def residue_family(name,inputs):
         raise ValueError(name+' residue present for a draw that was not taken (D87/D89)')
     if name in DRAW_FIELDS:draw_fields(name,inputs,result)
     return result
+
+
+def source_data_sha256():
+    return table('rules_manifest')['data_sha256']
 
 
 def input_domains(name,inputs):

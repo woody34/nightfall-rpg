@@ -1832,6 +1832,41 @@ class Evidence(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'D92'):gate.validate(with_consume(2),self.recording,HASH)
         print('D92: one terminal fact per intent on or after every correlated fact; earlier/duplicate terminal facts and a later prepay Consume (by receipt) reject',flush=True)
 
+    def test_rev9_import_path_and_probe_verdicts(self):
+        """Review-2 P3-1 / D96: adapters only on pre-D87 data; rev 9 oracles pass residues through."""
+        from unittest.mock import patch
+        dual=dict(hits=[True,False],formulas=[10,10],second_valid=True,hit_residues=[799,800],hit_chance=800,
+                  spread_radius=2,critical_residues=[5,None],spread_residues=[1,None])
+        expected=gate.oracle.rational(gate.residue_family('dual_plan',dual))
+        rev8=gate.oracle.behavior.dual_plan
+        def rev9(hits,formulas,second_valid,hit_residues,hit_chance,spread_radius,critical_residues,spread_residues):
+            # A rev 9-shaped oracle: strict `<` and the residues as parameters.
+            result=rev8(hits,formulas,second_valid,hit_residues,hit_chance-1,spread_radius)
+            for draw in result['draws']:
+                if draw['site'][:-1] in ('critical','spread'):
+                    draw['residue']=(critical_residues if draw['site'].startswith('critical') else spread_residues)[int(draw['site'][-1])-1]
+            return result
+        with patch.object(gate.oracle.behavior,'dual_plan',rev9),patch.object(gate,'oracle_hit_inclusive',side_effect=AssertionError('probe used')):
+            self.assertTrue(gate.oracle_adopted_d87('dual_plan'))
+            gate.formula('dual_plan',dual,expected) # no adjustment, no probe, any data hash
+            with patch.object(gate,'source_data_sha256',return_value='f'*64):gate.formula('dual_plan',dual,expected)
+        # Rev 8-shaped oracle on unknown (newer) data: the adapter refuses as a verdict.
+        with patch.object(gate,'source_data_sha256',return_value='f'*64):
+            with self.assertRaisesRegex(ValueError,'D96'):gate.formula('dual_plan',dual,expected)
+            rows=copy.deepcopy(self.rows)
+            rows[1]['data'].update(formula='dual_plan',inputs=dual,actual=expected)
+            result=gate.evaluate(rows,self.recording,OWNER,['dual_plan'],HASH)
+            self.assertFalse(result['passed']);self.assertTrue(any('D96' in e for g in result['gates'] for e in g['errors']))
+        # A probe that cannot classify the oracle is a ValueError verdict, not a TypeError crash.
+        def odd(*args,critical_residues=None,**kwargs):raise TypeError('unexpected signature')
+        gate.oracle_hit_inclusive.cache_clear()
+        try:
+            with patch.object(gate.oracle.behavior,'dual_plan',odd):
+                with self.assertRaisesRegex(ValueError,'D88'):gate.oracle_hit_inclusive()
+        finally:gate.oracle_hit_inclusive.cache_clear()
+        self.assertTrue(gate.oracle_hit_inclusive())
+        print('Rev 9 path: residue parameters detected by signature remove both adapters; unknown data or an unclassifiable probe is a verdict',flush=True)
+
     def test_item_record_scalar_substitutions_through_evaluate(self):
         vectors=gate.oracle.make_vectors(gate.source())
         learned=next(v for v in vectors if v['id']=='learned-item-consume-complete-1')
