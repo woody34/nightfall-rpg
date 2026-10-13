@@ -17,6 +17,10 @@ import struct
 import subprocess
 import sys
 import xml.etree.ElementTree as ET
+from fractions import Fraction
+import importlib.util
+import json
+import tempfile
 
 GAME_REVISION = "abfde0490ac52a2106e884b7242c0276c44cdf76"
 DATAPACK_REVISION = "3ca488dd2bd0bfaca43e378886a3c2e37968153a"
@@ -54,17 +58,263 @@ def fl_bits(val: str | float) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Pinned-source access (E47): every constant is parsed out of a pinned source
+# line, and every file read is recorded in the table's `sources` block (E50).
+# ---------------------------------------------------------------------------
+
+GJ = "src/main/java/com/l2jserver/gameserver/"
+GC = "src/main/resources/config/"
+DPD = "src/main/resources/data/"
+DPJ = "src/main/java/com/l2jserver/datapack/"
+NIGHTFALL_REPOSITORY = "nightfall-rpg"
+# Frozen Phase 5 design (codex/phase5-design, AD5 B22): §14.2 adaptation ledger.
+DESIGN_REVISION = "0d525c7"
+DESIGN_PATH = "docs/plans/phase-5-zone-design.md"
+# Phase 4 data layer (codex/phase4-data; packages/data identical at codex/phase4-integration
+# 96f1e82): item capability manifest and the Phase 4 skill admission rules (story 1.4).
+PHASE4_DATA_REVISION = "95754e0f837295ff55130ba7aee322692c476896"
+
+_ROOTS: dict[str, tuple[Path, str, str]] = {}
+_USED: list[tuple[str, str]] = []
+_TEXT_CACHE: dict[tuple[str, str], str] = {}
+
+
+def set_roots(dp_root: Path, game_root: Path) -> None:
+    _ROOTS["datapack"] = (dp_root, DATAPACK_REPOSITORY, DATAPACK_REVISION)
+    _ROOTS["game"] = (game_root, GAME_REPOSITORY, GAME_REVISION)
+
+
+def use(label: str, rel: str) -> None:
+    if (label, rel) not in _USED:
+        _USED.append((label, rel))
+
+
+def src_text(label: str, rel: str) -> str:
+    use(label, rel)
+    key = (label, rel)
+    if key not in _TEXT_CACHE:
+        _TEXT_CACHE[key] = (_ROOTS[label][0] / rel).read_text(encoding="utf-8")
+    return _TEXT_CACHE[key]
+
+
+def src_find(label: str, rel: str, pattern: str, flags: int = re.M) -> re.Match:
+    """The single match of `pattern` in a pinned file (fails on none or several)."""
+    found = list(re.finditer(pattern, src_text(label, rel), flags))
+    if len(found) != 1:
+        raise SourceError(f"{rel}: expected one match of {pattern!r}, found {len(found)}")
+    return found[0]
+
+
+def src_int(label: str, rel: str, pattern: str) -> int:
+    return int(src_find(label, rel, pattern).group(1))
+
+
+def prop(name: str, key: str) -> str:
+    """Value of `key` in the pinned game config/<name> (exactly one line)."""
+    return src_find("game", GC + name, rf"^{re.escape(key)}\s*=[ \t]*(.*?)[ \t]*$").group(1)
+
+
+def prop_int(name: str, key: str) -> int:
+    value = prop(name, key)
+    if not re.fullmatch(r"-?[0-9]+", value):
+        raise SourceError(f"{name}: {key} = {value!r} is not an integer")
+    return int(value)
+
+
+def prop_bool(name: str, key: str) -> bool:
+    value = prop(name, key)
+    if value not in ("True", "False"):
+        raise SourceError(f"{name}: {key} = {value!r} is not a boolean")
+    return value == "True"
+
+
+def prop_ints(name: str, key: str) -> list[int]:
+    value = prop(name, key)
+    return [int(x) for x in value.split(",") if x.strip()]
+
+
+def dp_xml(rel: str) -> ET.Element:
+    use("datapack", rel)
+    return ET.parse(_ROOTS["datapack"][0] / rel).getroot()
+
+
+def dp_glob(rel_dir: str, pattern: str = "*.xml", recursive: bool = False) -> list[Path]:
+    use("datapack", rel_dir + ("**/" if recursive else "") + pattern)
+    base = _ROOTS["datapack"][0] / rel_dir
+    return sorted(base.rglob(pattern) if recursive else base.glob(pattern))
+
+
+def repo_root() -> Path:
+    return Path(__file__).resolve().parents[3]
+
+
+def git_object(revision: str, path: str) -> str:
+    """A file of this repository at a pinned commit (fails if the object is absent)."""
+    res = subprocess.run(["git", "-C", str(repo_root()), "show", f"{revision}:{path}"],
+                         capture_output=True, text=True)
+    if res.returncode != 0:
+        raise SourceError(f"cannot read {path} at {revision}: {res.stderr.strip()}")
+    use("nightfall@" + revision, path)
+    return res.stdout
+
+
+def sources_block() -> str:
+    rows = []
+    for label, rel in _USED:
+        if label in _ROOTS:
+            _, repo, rev = _ROOTS[label]
+        else:
+            repo, rev = NIGHTFALL_REPOSITORY, label.split("@", 1)[1]
+        rows.append(f'  {{ repository = "{repo}", revision = "{rev}", file = "{rel}" }},')
+    return "sources = [\n" + "\n".join(rows) + "\n]\n"
+
+
+def fl(x: Fraction) -> Fraction:
+    """binary64 round-to-nearest-even of an exact rational (normal range only)."""
+    return _round_p(Fraction(x), 53, -1022, 1023)
+
+
+def fl32(x: Fraction) -> Fraction:
+    return _round_p(Fraction(x), 24, -126, 127)
+
+
+def _round_p(x: Fraction, p: int, emin: int, emax: int) -> Fraction:
+    if x == 0:
+        return Fraction(0)
+    sign = -1 if x < 0 else 1
+    x = abs(x)
+    e = x.numerator.bit_length() - x.denominator.bit_length()
+    if Fraction(2) ** e > x:
+        e -= 1
+    if Fraction(2) ** (e + 1) <= x:
+        e += 1
+    if e < emin or e > emax:
+        raise SourceError(f"{x} outside the normal binary range")
+    y = x * Fraction(2) ** (p - 1 - e)
+    m, r = divmod(y.numerator, y.denominator)
+    rem = Fraction(r, y.denominator)
+    if rem > Fraction(1, 2) or (rem == Fraction(1, 2) and m % 2 == 1):
+        m += 1
+    if m == 2 ** p:
+        m //= 2
+        e += 1
+    return sign * Fraction(m) * Fraction(2) ** (e - p + 1)
+
+
+def bits64(x: Fraction) -> str:
+    return struct.pack(">d", float(x)).hex() if x == fl(x) else _not_binary64(x)
+
+
+def _not_binary64(x: Fraction) -> str:
+    raise SourceError(f"{x} is not a binary64 value")
+
+
+def exact_decimal(x: Fraction) -> str:
+    """Exact decimal string of a rational with a power-of-2/5 denominator."""
+    d = x.denominator
+    k = 0
+    while (x * 10 ** k).denominator != 1:
+        k += 1
+        if k > 1100:
+            raise SourceError(f"{x} has no finite decimal form")
+    n = x * 10 ** k
+    digits = str(abs(n.numerator)).rjust(k + 1, "0")
+    sign = "-" if x < 0 else ""
+    return sign + (digits[:-k] + "." + digits[-k:] if k else digits)
+
+
+
+
+# ---------------------------------------------------------------------------
+# Shared datapack indexes
+# ---------------------------------------------------------------------------
+
+_ITEMS: dict[int, dict] | None = None
+_SKILLS: dict[int, ET.Element] | None = None
+
+
+def item_index() -> dict[int, dict]:
+    """Every item template: type, name and its <set> values (StatsSet last-write wins)."""
+    global _ITEMS
+    if _ITEMS is None:
+        _ITEMS = {}
+        for f in dp_glob(DPD + "stats/items/"):
+            for item in ET.parse(f).getroot().findall("item"):
+                sets = {}
+                for s in item.findall("set"):
+                    sets[s.get("name")] = s.get("val")
+                _ITEMS[int(item.get("id"))] = {"type": item.get("type"), "name": item.get("name"), "sets": sets}
+    else:
+        use("datapack", DPD + "stats/items/*.xml")
+    return _ITEMS
+
+
+def reference_price(item_id: int) -> int:
+    # L2Item._referencePrice = set.getInt("price", 0) (L2Item.java:169)
+    src_find("game", GJ + "model/items/L2Item.java", r'_referencePrice = set\.getInt\("price", 0\);')
+    return int(item_index()[item_id]["sets"].get("price", "0"))
+
+
+def skill_element(skill_id: int) -> ET.Element:
+    global _SKILLS
+    if _SKILLS is None:
+        _SKILLS = {}
+        for f in dp_glob(DPD + "stats/skills/"):
+            for sk in ET.parse(f).getroot().findall("skill"):
+                _SKILLS[int(sk.get("id"))] = sk
+    else:
+        use("datapack", DPD + "stats/skills/*.xml")
+    if skill_id not in _SKILLS:
+        raise SourceError(f"skill {skill_id} not in the datapack")
+    return _SKILLS[skill_id]
+
+
+def skill_levels(skill_id: int) -> int:
+    return int(skill_element(skill_id).get("levels"))
+
+
+def item_skill_refs(item_id: int) -> list[tuple[int, int]]:
+    raw = item_index()[item_id]["sets"].get("item_skill")
+    if not raw:
+        return []
+    out = []
+    for part in raw.split(";"):
+        if part.strip():
+            sid, lvl = part.strip().split("-")
+            out.append((int(sid), int(lvl)))
+    return out
+
+
+def toml_list(values) -> str:
+    return "[" + ", ".join(str(v) for v in values) + "]"
+
+
+def toml_bool(value: bool) -> str:
+    return "true" if value else "false"
+
+
+# ---------------------------------------------------------------------------
 # Story 1.1: Source Ledger
 # ---------------------------------------------------------------------------
 
 
-def gen_sources_table(dp_root: Path, game_root: Path, data_root: Path) -> str:
+def gen_sources_table(data_root: Path) -> str:
     pow_file = data_root / "jvm-pow-tables.txt"
     if not pow_file.exists():
         raise SourceError(f"Missing pow oracle table at {pow_file}")
-    digest = hashlib.sha256(pow_file.read_bytes()).hexdigest()
+    raw = pow_file.read_bytes()
+    digest = hashlib.sha256(raw).hexdigest()
     if digest != POW_TABLE_SHA256:
         raise SourceError(f"pow table sha256 mismatch: {digest} != {POW_TABLE_SHA256}")
+    use("nightfall@in-tree", "packages/data/jvm-pow-tables.txt")
+    text = raw.decode("utf-8").splitlines()
+    version = re.fullmatch(r"java\.version=(\S+)", text[0])
+    if not version:
+        raise SourceError("pow table: missing java.version header")
+    pow56 = sum(1 for ln in text[1:] if re.fullmatch(r"pow56 k=\d+ bits=[0-9a-f]{16}", ln))
+    pow13 = sum(1 for ln in text[1:] if re.fullmatch(r"pow13 d=-?\d+ bits=[0-9a-f]{16}", ln))
+    if pow56 + pow13 != len(text) - 1:
+        raise SourceError("pow table: unrecognised lines")
 
     lines = [
         HEADER,
@@ -81,13 +331,20 @@ def gen_sources_table(dp_root: Path, game_root: Path, data_root: Path) -> str:
         f'revision = "{DATAPACK_REVISION}"',
         'branch = "develop"',
         '',
+        '[repositories.design]',
+        f'revision = "{DESIGN_REVISION}"',
+        f'path = "{DESIGN_PATH}"',
+        '',
+        '[repositories.phase4_data]',
+        f'revision = "{PHASE4_DATA_REVISION}"',
+        '',
         '[oracle_tables.jvm_pow_tables]',
         'path = "packages/data/jvm-pow-tables.txt"',
         f'sha256 = "{POW_TABLE_SHA256}"',
-        'pow56_entries = 79',
-        'pow13_entries = 241',
-        'total_entries = 320',
-        'java_version = "21.0.12.1"',
+        f'pow56_entries = {pow56}',
+        f'pow13_entries = {pow13}',
+        f'total_entries = {pow56 + pow13}',
+        f'java_version = "{version.group(1)}"',
         '',
     ]
     return "\n".join(lines)
@@ -98,27 +355,52 @@ def gen_sources_table(dp_root: Path, game_root: Path, data_root: Path) -> str:
 # ---------------------------------------------------------------------------
 
 
-def sepulcher_raid_ids(game_root: Path) -> set[int]:
+def sepulcher_raid_ids() -> set[int]:
     """NPC ids that L2SepulcherMonsterInstance's constructor marks setIsRaid(true)."""
-    src = (game_root / "src/main/java/com/l2jserver/gameserver/model/actor/instance/"
-           "L2SepulcherMonsterInstance.java").read_text(encoding="utf-8")
-    match = re.search(r"case\s+([0-9,\s]+)->\s*setIsRaid\(true\);", src)
-    if not match:
-        raise SourceError("L2SepulcherMonsterInstance: setIsRaid case not found")
-    return {int(x) for x in match.group(1).split(",")}
+    m = src_find("game", GJ + "model/actor/instance/L2SepulcherMonsterInstance.java",
+                 r"case\s+([0-9,\s]+)->\s*setIsRaid\(true\);")
+    return {int(x) for x in m.group(1).split(",")}
 
 
-def gen_drops_table(dp_root: Path, game_root: Path) -> str:
-    npc_dir = dp_root / "src/main/resources/data/stats/npcs"
-    sepulcher_raids = sepulcher_raid_ids(game_root)
-    
-    # Global overrides & SP-only templates across all NPC files
+def raid_types() -> set[str]:
+    """Template types whose instance constructor calls setIsRaid(true)."""
+    out = set()
+    for cls in ("L2RaidBossInstance", "L2GrandBossInstance"):
+        src_find("game", GJ + f"model/actor/instance/{cls}.java", r"^\s*setIsRaid\(true\);")
+        out.add(cls.removesuffix("Instance"))
+    return out
+
+
+def harvest_multipliers() -> dict[int, int]:
+    """Strong-type skill → harvest multiplier (L2Attackable.setSeeded)."""
+    text = src_find("game", GJ + "model/actor/L2Attackable.java",
+                    r"public final void setSeeded\(L2PcInstance seeder\) \{(.*?)\n\t\}", re.S).group(1)
+    pairs = re.findall(r"case (\d+) -> count \*= (\d+);", text)
+    if not pairs:
+        raise SourceError("L2Attackable.setSeeded: no strong-type cases")
+    return {int(a): int(b) for a, b in pairs}
+
+
+def gen_drops_table() -> str:
+    npc_rel = DPD + "stats/npcs/"
+    sepulcher_raids = sepulcher_raid_ids()
+    raids = raid_types()
+    harvest_ids = sorted(harvest_multipliers())
+    tmpl = GJ + "model/actor/templates/L2NpcTemplate.java"
+    default_level = src_int("game", tmpl, r'_level = set\.getByte\("level", \(byte\) (\d+)\);')
+    src_find("game", tmpl, r'_type = set\.getString\("type", "L2Npc"\);')
+    src_find("game", tmpl, r'_corpseTime = set\.getInt\("corpseTime", npc\(\)\.getDefaultCorpseTime\(\)\);')
+    default_corpse = prop_int("npc.properties", "DefaultCorpseTime")
+    default_radius = src_int("game", GJ + "model/actor/templates/L2CharTemplate.java",
+                             r'_fCollisionRadius = set\.getDouble\("collisionRadius", (\d+)\);')
+    src_find("game", tmpl, r'_expRate = set\.getDouble\("expRate", 0\);')
+    src_find("game", tmpl, r'_sp = set\.getDouble\("sp", 0\);')
+    files = dp_glob(npc_rel)
+
     global_ct_overrides = []
     global_sp_only = []
-    
-    for f in sorted(npc_dir.glob("*.xml")):
-        tree = ET.parse(f)
-        for npc in tree.getroot().findall("npc"):
+    for f in files:
+        for npc in ET.parse(f).getroot().findall("npc"):
             nid = int(npc.get("id"))
             ct = npc.find("corpseTime")
             if ct is not None and ct.text and ct.text.strip():
@@ -127,7 +409,7 @@ def gen_drops_table(dp_root: Path, game_root: Path) -> str:
             if acq is not None:
                 sp_s = acq.get("sp")
                 exp_s = acq.get("expRate")
-                if sp_s is not None and float(sp_s) > 0 and (exp_s is None or float(exp_s) == 0):
+                if sp_s is not None and Fraction(sp_s) > 0 and exp_s is None:
                     global_sp_only.append(nid)
 
     lines = [
@@ -137,21 +419,19 @@ def gen_drops_table(dp_root: Path, game_root: Path) -> str:
         f"corpse_time_overrides_count = {len(global_ct_overrides)}",
         f"sp_only_templates_count = {len(global_sp_only)}",
         "",
-        "# 234 corpseTime overrides across all NPC templates",
+        "# corpseTime overrides across all NPC templates",
         "corpse_time_overrides = [",
     ]
     for nid, ct in global_ct_overrides:
         lines.append(f"  {{ id = {nid}, corpse_time = {ct} }},")
     lines.append("]")
     lines.append("")
-    lines.append("# 36 SP-only templates across all NPC templates (sp > 0 and no expRate)")
+    lines.append("# SP-only templates across all NPC templates (sp > 0 and expRate absent)")
     lines.append(f"sp_only_templates = {global_sp_only}")
     lines.append("")
-    
-    for f in sorted(npc_dir.glob("*.xml")):
-        tree = ET.parse(f)
-        root = tree.getroot()
-        for npc in root.findall("npc"):
+
+    for f in files:
+        for npc in ET.parse(f).getroot().findall("npc"):
             dl = npc.find("dropLists")
             if dl is None:
                 continue
@@ -159,30 +439,27 @@ def gen_drops_table(dp_root: Path, game_root: Path) -> str:
             corpse_elem = dl.find("corpse")
             if death_elem is None and corpse_elem is None:
                 continue
-                
+
             npc_id = int(npc.get("id"))
-            level = int(npc.get("level", 70))
+            level = int(npc.get("level", default_level))
             npc_type = npc.get("type", "L2Npc")
-            is_raid = npc_type in ("L2RaidBoss", "L2GrandBoss") or (
-                npc_type == "L2SepulcherMonster" and npc_id in sepulcher_raids)
-            
+            is_raid = npc_type in raids or (npc_type == "L2SepulcherMonster" and npc_id in sepulcher_raids)
+
             ct_elem = npc.find("corpseTime")
-            corpse_time = int(ct_elem.text.strip()) if ct_elem is not None and ct_elem.text else 7
-            
+            corpse_time = int(ct_elem.text.strip()) if ct_elem is not None and ct_elem.text else default_corpse
+
             status_elem = npc.find("status")
-            can_be_sown = False
-            if status_elem is not None and status_elem.get("canBeSown", "").lower() == "true":
-                can_be_sown = True
-                
+            can_be_sown = status_elem is not None and status_elem.get("canBeSown", "").lower() == "true"
+
             harvest_skills = []
             skill_list = npc.find("skillList")
             if skill_list is not None:
                 for sk in skill_list.findall("skill"):
                     sid = int(sk.get("id"))
-                    if 4303 <= sid <= 4310:
+                    if sid in harvest_ids:
                         harvest_skills.append(sid)
             harvest_skills.sort()
-            
+
             acq = npc.find("acquire")
             exp_rate = "0"
             sp_val = "0"
@@ -191,18 +468,18 @@ def gen_drops_table(dp_root: Path, game_root: Path) -> str:
                     exp_rate = acq.get("expRate")
                 if acq.get("sp") is not None:
                     sp_val = acq.get("sp")
-                    
-            coll_radius = 0  # L2CharTemplate collisionRadius default
+
+            coll_radius = default_radius
             coll = npc.find("collision")
             if coll is not None:
                 r = coll.find("radius")
                 if r is not None and r.get("normal"):
-                    coll_radius = int(float(r.get("normal")))
-                    
+                    coll_radius = int(Fraction(r.get("normal")))
+
             def item_row(it) -> str:
                 ic = it.get("chance")
                 return (f'{{ kind = "item", id = {int(it.get("id"))}, min = {int(it.get("min"))}, '
-                        f'max = {int(it.get("max"))}, chance = "{ic}", chance_bits = "{fl_bits(ic)}" }}')
+                        f'max = {int(it.get("max"))}, chance = "{ic}", chance_bits = "{bits64(fl(Fraction(ic)))}" }}')
 
             def scope_nodes(scope) -> list[str]:
                 # One list per scope in document order, <group> and <item> nodes mixed
@@ -219,7 +496,8 @@ def gen_drops_table(dp_root: Path, game_root: Path) -> str:
                                 raise SourceError(f"NPC {npc_id}: unexpected <{it.tag}> inside <group>")
                             inner.append(item_row(it).replace('kind = "item", ', ""))
                         items_joined = ",\n      ".join(inner)
-                        nodes.append(f'{{ kind = "group", chance = "{gc}", chance_bits = "{fl_bits(gc)}", items = [\n      {items_joined}\n    ] }}')
+                        nodes.append(f'{{ kind = "group", chance = "{gc}", chance_bits = "{bits64(fl(Fraction(gc)))}", '
+                                     f'items = [\n      {items_joined}\n    ] }}')
                     elif child.tag == "item":
                         nodes.append(item_row(child))
                     else:
@@ -236,9 +514,9 @@ def gen_drops_table(dp_root: Path, game_root: Path) -> str:
                 lines.append("[[npc]]")
                 lines.append(f"id = {npc_id}")
                 lines.append(f"level = {level}")
-                lines.append(f"is_raid = {str(is_raid).lower()}")
+                lines.append(f"is_raid = {toml_bool(is_raid)}")
                 lines.append(f"corpse_time = {corpse_time}")
-                lines.append(f"can_be_sown = {str(can_be_sown).lower()}")
+                lines.append(f"can_be_sown = {toml_bool(can_be_sown)}")
                 lines.append(f"harvest_skills = {harvest_skills}")
                 lines.append(f'exp_rate = "{exp_rate}"')
                 lines.append(f'sp = "{sp_val}"')
@@ -254,369 +532,316 @@ def gen_drops_table(dp_root: Path, game_root: Path) -> str:
     return "\n".join(lines)
 
 
-def gen_rates_table(game_root: Path) -> str:
+# The owner's global rate multiplier (P2) is Nightfall configuration, not a pinned value.
+GLOBAL_MULTIPLIER_G = "1"
+# Rates the global multiplier folds into (E21, E29, E37; rule P5 keeps party rates out).
+G_MULTIPLIED = {"DeathDropChanceMultiplier", "CorpseDropChanceMultiplier", "HerbDropChanceMultiplier",
+                "RaidDropChanceMultiplier", "RateXp", "RateSp", "DropChanceMultiplierByItemId"}
+
+
+def rate_kind(key: str) -> str:
+    m = src_find("game", GJ + "config/RatesConfiguration.java",
+                 rf'@Key\("{key}"\)\s*(?:@\w+\([^)]*\)\s*)*([\w<>, ]+?)\s+get\w+\(\);')
+    java = m.group(1).replace(" ", "")
+    kinds = {"double": "double", "float": "float", "int": "int", "Map<Integer,Float>": "float"}
+    if java not in kinds:
+        raise SourceError(f"RatesConfiguration: unsupported type {java} for {key}")
+    return kinds[java]
+
+
+def rate_row(key: str, value: str, kind: str, g: Fraction, extra: str = "") -> str:
+    if not re.fullmatch(r"[0-9]+(\.[0-9]+)?", value):
+        raise SourceError(f"rate {key} = {value!r} is not a plain decimal")
+    fields = f'{extra}kind = "{kind}", value = "{value}"'
+    if key in G_MULTIPLIED:
+        prime = fl32(fl(fl(Fraction(value)) * g))
+        fields += f', rate_prime = "{exact_decimal(prime)}", rate_prime_bits = "{bits64(prime)}"'
+    return fields
+
+
+def gen_rates_table() -> str:
+    g = fl(Fraction(GLOBAL_MULTIPLIER_G))
+    if not (Fraction(1, 2 ** 32) <= g <= 2 ** 32):
+        raise SourceError("G outside [2^-32, 2^32]")
     lines = [
         HEADER,
         "# D §1.10 item 2: Rate chain configs with double/float kinds, G decimal string.",
         "schema_version = 1",
         "",
-        'global_multiplier_g = "1"',
-        'global_multiplier_g_bits = "3ff0000000000000"',
-        "",
-        "# Pinned double configs (RatesConfiguration.java:49-70, 103)",
-        "[double_rates]",
-        'DeathDropChanceMultiplier = { kind = "double", value = "1", rate_prime = "1.0", rate_prime_bits = "3ff0000000000000" }',
-        'CorpseDropChanceMultiplier = { kind = "double", value = "1", rate_prime = "1.0", rate_prime_bits = "3ff0000000000000" }',
-        'HerbDropChanceMultiplier = { kind = "double", value = "1", rate_prime = "1.0", rate_prime_bits = "3ff0000000000000" }',
-        'RaidDropChanceMultiplier = { kind = "double", value = "1", rate_prime = "1.0", rate_prime_bits = "3ff0000000000000" }',
-        'DeathDropAmountMultiplier = { kind = "double", value = "1" }',
-        'CorpseDropAmountMultiplier = { kind = "double", value = "1" }',
-        'HerbDropAmountMultiplier = { kind = "double", value = "1" }',
-        'RaidDropAmountMultiplier = { kind = "double", value = "1" }',
-        'RateSiegeGuardsPrice = { kind = "double", value = "1" }',
-        "",
-        "# Pinned float configs (RatesConfiguration.java:81-90)",
-        "[float_rates]",
-        'RateXp = { kind = "float", value = "1", rate_prime = "1.0", rate_prime_bits = "3ff0000000000000" }',
-        'RateSp = { kind = "float", value = "1", rate_prime = "1.0", rate_prime_bits = "3ff0000000000000" }',
-        'RatePartyXp = { kind = "float", value = "1" }',
-        'RatePartySp = { kind = "float", value = "1" }',
-        "",
-        "# Pinned item overrides (rates.properties:36-37)",
-        "[item_overrides]",
-        'DropChanceMultiplier_57 = { item_id = 57, kind = "float", value = "1", rate_prime = "1.0", rate_prime_bits = "3ff0000000000000" }',
-        'DropAmountMultiplier_57 = { item_id = 57, kind = "float", value = "1" }',
-        "",
-        "# Manor rate (rates.properties:53)",
-        "[manor_rate]",
-        'RateDropManor = 1',
-        "",
-        "# Deep-blue windows (npc.properties:187-218) and champion (customs.properties:10)",
-        "[deep_blue]",
-        "UseDeepBlueDropRules = true",
-        "UseDeepBlueDropRulesRaid = true",
-        "DropAdenaMinLevelDifference = 8",
-        "DropAdenaMaxLevelDifference = 15",
-        "DropAdenaMinLevelGapChance = 10",
-        "DropItemMinLevelDifference = 5",
-        "DropItemMaxLevelDifference = 10",
-        "DropItemMinLevelGapChance = 10",
-        "ChampionEnable = false",
+        "# Nightfall owner setting (P2), not a pinned value; rate' = fl32(fl(rate x G)) (E37).",
+        f'global_multiplier_g = "{GLOBAL_MULTIPLIER_G}"',
+        f'global_multiplier_g_bits = "{bits64(g)}"',
         "",
     ]
+    groups = {"double_rates": [], "float_rates": [], "int_rates": []}
+    for key in ["DeathDropChanceMultiplier", "CorpseDropChanceMultiplier", "HerbDropChanceMultiplier",
+                "RaidDropChanceMultiplier", "DeathDropAmountMultiplier", "CorpseDropAmountMultiplier",
+                "HerbDropAmountMultiplier", "RaidDropAmountMultiplier", "RateSiegeGuardsPrice",
+                "RateXp", "RateSp", "RatePartyXp", "RatePartySp", "RateDropManor"]:
+        kind = rate_kind(key)
+        value = prop("rates.properties", key)
+        groups[f"{kind}_rates"].append(f"{key} = {{ {rate_row(key, value, kind, g)} }}")
+    for name, rows in groups.items():
+        lines.append(f"[{name}]")
+        lines.extend(rows)
+        lines.append("")
+    lines.append("# By-item maps (Map<Integer, Float>)")
+    lines.append("[item_overrides]")
+    for key in ["DropChanceMultiplierByItemId", "DropAmountMultiplierByItemId"]:
+        kind = rate_kind(key)
+        for pair in prop("rates.properties", key).split(";"):
+            if not pair.strip():
+                continue
+            item, value = pair.split(",")
+            row = rate_row(key, value.strip(), kind, g, f"item_id = {int(item)}, ")
+            lines.append(f"{key.removesuffix('ByItemId')}_{int(item)} = {{ {row} }}")
+    lines.append("")
+    lines.append("[drop_strategy]")
+    for key in ["PreciseDropCalculation", "PreciseDropMultipleGroupRolls", "PreciseDropMultipleRollsAggregateDrops"]:
+        lines.append(f"{key} = {toml_bool(prop_bool('general.properties', key))}")
+    lines.append("")
+    lines.append("[deep_blue]")
+    for key in ["UseDeepBlueDropRules", "UseDeepBlueDropRulesRaid"]:
+        lines.append(f"{key} = {toml_bool(prop_bool('npc.properties', key))}")
+    for key in ["DropAdenaMinLevelDifference", "DropAdenaMaxLevelDifference", "DropAdenaMinLevelGapChance",
+                "DropItemMinLevelDifference", "DropItemMaxLevelDifference", "DropItemMinLevelGapChance"]:
+        lines.append(f"{key} = {prop_int('npc.properties', key)}")
+    lines.append(f"ChampionEnable = {toml_bool(prop_bool('customs.properties', 'ChampionEnable'))}")
+    lines.append("")
     return "\n".join(lines)
 
 
-def gen_ground_table(game_root: Path) -> str:
+def gen_ground_table() -> str:
+    auto_destroy = sorted((iid, int(row["sets"]["auto_destroy_time"]))
+                          for iid, row in item_index().items() if "auto_destroy_time" in row["sets"])
+    src_find("game", GJ + "model/items/L2Item.java", r'_autoDestroyTime = set\.getInt\("auto_destroy_time", -1\) \* 1000;')
+    protected = prop_ints("general.properties", "ProtectedItems")
+    scanner_ms = src_find("game", GJ + "ItemsAutoDestroy.java",
+                          r"scheduleGeneralAtFixedRate\(this::removeItems, (\d+), (\d+)\);")
+    if scanner_ms.group(1) != scanner_ms.group(2):
+        raise SourceError("ItemsAutoDestroy: initial delay differs from period")
+    player_offset = src_find("game", GJ + "model/actor/instance/L2PcInstance.java",
+                             r"item\.dropMe\(this, \(getX\(\) \+ Rnd\.get\((\d+)\)\) - (\d+), \(getY\(\) \+ Rnd\.get\(\1\)\) - \2,")
     lines = [
         HEADER,
         "# D §1.10 item 3: Ground constants, decay, PK drop policy, NonDroppable and PetItems.",
         "schema_version = 1",
         "",
         "[ground]",
-        "loot_owner_ms = 15000",
-        "drop_protection_ms = 15000",
-        "raid_loot_rights_seconds = 900",
-        "raid_loot_rights_cc_size = 45",
-        "auto_loot = false",
-        "auto_loot_raids = false",
-        "auto_loot_herbs = false",
-        "decay_seconds = 600",
-        "herb_decay_seconds = 60",
-        "auto_destroy_time = [ { item_id = 9849, seconds = 10 } ]",
-        "protected_items = []",
-        "destroy_player_dropped_item = false",
-        "destroy_equipable_item = false",
-        "save_dropped_item = false",
-        "multiple_item_drop = true",
-        "scanner_seconds = 5",
-        "offset_npc = 70",
-        "offset_player = 25",
+        f"loot_owner_ms = {src_int('game', GJ + 'datatables/ItemTable.java', r'new ResetOwner\(item\), (\d+)\);')}",
+        f"drop_protection_ms = {src_int('game', GJ + 'model/DropProtection.java', r'PROTECTED_MILLIS_TIME = (\d+);')}",
+        f"raid_loot_rights_seconds = {prop_int('character.properties', 'RaidLootRightsInterval')}",
+        f"raid_loot_rights_cc_size = {prop_int('character.properties', 'RaidLootRightsCCSize')}",
+        f"auto_loot = {toml_bool(prop_bool('character.properties', 'AutoLoot'))}",
+        f"auto_loot_raids = {toml_bool(prop_bool('character.properties', 'AutoLootRaids'))}",
+        f"auto_loot_herbs = {toml_bool(prop_bool('character.properties', 'AutoLootHerbs'))}",
+        f"decay_seconds = {prop_int('general.properties', 'AutoDestroyDroppedItemAfter')}",
+        f"herb_decay_seconds = {prop_int('general.properties', 'AutoDestroyHerbTime')}",
+        "auto_destroy_time = [ " + ", ".join(f"{{ item_id = {i}, seconds = {t} }}" for i, t in auto_destroy) + " ]",
+        f"protected_items = {toml_list(protected)}",
+        f"destroy_player_dropped_item = {toml_bool(prop_bool('general.properties', 'DestroyPlayerDroppedItem'))}",
+        f"destroy_equipable_item = {toml_bool(prop_bool('general.properties', 'DestroyEquipableItem'))}",
+        f"save_dropped_item = {toml_bool(prop_bool('general.properties', 'SaveDroppedItem'))}",
+        f"multiple_item_drop = {toml_bool(prop_bool('general.properties', 'MultipleItemDrop'))}",
+        f"scanner_ms = {int(scanner_ms.group(1))}",
+        f"offset_npc = {src_int('game', GJ + 'model/actor/L2Npc.java', r'RANDOM_ITEM_DROP_LIMIT = (\d+);')}",
+        f"offset_player = {int(player_offset.group(2))}",
+        f"offset_player_range = {int(player_offset.group(1))}",
         "",
         "[pk]",
-        "karma_rate_drop = 40",
-        "karma_rate_drop_item = 50",
-        "karma_rate_drop_equip = 40",
-        "karma_rate_drop_equip_weapon = 10",
-        "karma_drop_limit = 10",
-        "minimum_pk_required_to_drop = 6",
+        f"karma_rate_drop = {prop_int('rates.properties', 'KarmaRateDrop')}",
+        f"karma_rate_drop_item = {prop_int('rates.properties', 'KarmaRateDropItem')}",
+        f"karma_rate_drop_equip = {prop_int('rates.properties', 'KarmaRateDropEquip')}",
+        f"karma_rate_drop_equip_weapon = {prop_int('rates.properties', 'KarmaRateDropEquipWeapon')}",
+        f"karma_drop_limit = {prop_int('rates.properties', 'KarmaDropLimit')}",
+        f"player_rate_drop = {prop_int('rates.properties', 'PlayerRateDrop')}",
+        f"minimum_pk_required_to_drop = {prop_int('pvp.properties', 'MinimumPKRequiredToDrop')}",
+        "# Nightfall policy E24 (pinned PK drops carry no protection), not a pinned value.",
         'pk_drop_protection = "None"',
-        "non_droppable_items = [",
-        "  57, 1147, 425, 1146, 461, 10, 2368, 7, 6, 2370,",
-        "  2369, 6842, 6611, 6612, 6613, 6614, 6615, 6616, 6617, 6618,",
-        "  6619, 6620, 6621, 7694, 8181, 5575, 7694, 9388, 9389, 9390",
-        "]",
-        "pet_items = [ 2375, 3500, 3501, 3502, 4422, 4423, 4424, 4425, 6648, 6649, 6650 ]",
+        f"non_droppable_items = {toml_list(prop_ints('pvp.properties', 'NonDroppableItems'))}",
+        f"pet_items = {toml_list(prop_ints('pvp.properties', 'PetItems'))}",
         "",
     ]
     return "\n".join(lines)
 
 
-def config_value(game_root: Path, name: str, key: str) -> str:
-    """Value of `key` in the pinned config/<name>.properties (fails if absent)."""
-    text = (game_root / "src/main/resources/config" / name).read_text(encoding="utf-8")
-    match = re.search(rf"^{key}\s*=\s*(.*?)\s*$", text, re.M)
-    if not match:
-        raise SourceError(f"config/{name}: {key} not set")
-    return match.group(1)
-
-
-def gen_party_table(game_root: Path) -> str:
-    stackable = config_value(game_root, "character.properties", "PartyEvenlyDistributeAllStackableItems")
-    other = config_value(game_root, "character.properties", "PartyEvenlyDistributeAllOtherItems")
-    even_items = config_value(game_root, "character.properties", "PartyEvenlyDistributeItems")
-    for flag in (stackable, other):
-        if flag not in ("True", "False"):
-            raise SourceError(f"unexpected boolean {flag!r}")
+def gen_party_table() -> str:
+    party_src = GJ + "model/L2Party.java"
+    bonus = src_find("game", party_src, r"BONUS_EXP_SP =\s*\{\s*([0-9., ]+?)\s*\};", re.M | re.S).group(1)
+    bonus = [b.strip() for b in bonus.split(",")]
+    gaps = prop("character.properties", "PartyXpCutoffGaps").split(";")
+    percents = prop_ints("character.properties", "PartyXpCutoffGapPercent")
+    if len(gaps) != len(percents):
+        raise SourceError("PartyXpCutoffGaps and PartyXpCutoffGapPercent differ in length")
+    exp_xp = prop_int("character.properties", "ExponentXp")
+    exp_sp = prop_int("character.properties", "ExponentSp")
     lines = [
         HEADER,
         "# D §1.10 item 4: Party constants, XP/SP cutoff, ExponentXp/Sp.",
         "schema_version = 1",
         "",
         "[party]",
-        "size_cap = 9",
-        "party_range = 1600",
-        "party_range2 = 1400",
-        "leave_party_leader = false",
-        "exponent_xp = 0",
-        "exponent_sp = 0",
-        "vote_timeout_seconds = 15",
-        'bonus_exp_sp = [ "1.0", "1.10", "1.20", "1.30", "1.40", "1.50", "2.0", "2.10", "2.20" ]',
-        'bonus_exp_sp_bits = [',
-        '  "3ff0000000000000", "3ff199999999999a", "3ff3333333333333",',
-        '  "3ff4cccccccccccd", "3ff6666666666666", "3ff8000000000000",',
-        '  "4000000000000000", "4000cccccccccccd", "400199999999999a"',
-        ']',
+        f"size_cap = {src_int('game', GJ + 'network/clientpackets/RequestJoinParty.java', r'party\.getMemberCount\(\) >= (\d+)')}",
+        f"party_range = {prop_int('character.properties', 'PartyRange')}",
+        f"party_range2 = {prop_int('character.properties', 'PartyRange2')}",
+        f"leave_party_leader = {toml_bool(prop_bool('character.properties', 'LeavePartyLeader'))}",
+        f"exponent_xp = {exp_xp}",
+        f"exponent_sp = {exp_sp}",
+        f"vote_timeout_seconds = {src_int('game', party_src, r'PARTY_DISTRIBUTION_TYPE_REQUEST_TIMEOUT = Duration\.ofSeconds\((\d+)\);')}",
+        "bonus_exp_sp = [ " + ", ".join(f'"{b}"' for b in bonus) + " ]",
+        "bonus_exp_sp_bits = [ " + ", ".join(f'"{bits64(fl(Fraction(b)))}"' for b in bonus) + " ]",
         "",
         "[party.even_distribute]",
-        "# character.properties:616,624,631",
-        f"all_stackable_items = {stackable.lower()}",
-        f"all_other_items = {other.lower()}",
-        f"items = [{', '.join(str(int(x)) for x in even_items.split(',') if x)}]",
+        f"all_stackable_items = {toml_bool(prop_bool('character.properties', 'PartyEvenlyDistributeAllStackableItems'))}",
+        f"all_other_items = {toml_bool(prop_bool('character.properties', 'PartyEvenlyDistributeAllOtherItems'))}",
+        f"items = {toml_list(prop_ints('character.properties', 'PartyEvenlyDistributeItems'))}",
         "",
         "[party.xp_cutoff]",
-        "party_xp_cutoff_method = \"highfive\"",
+        f'party_xp_cutoff_method = "{prop("character.properties", "PartyXpCutoffMethod")}"',
+        f'party_xp_cutoff_percent = "{prop("character.properties", "PartyXpCutoffPercent")}"',
+        f"party_xp_cutoff_level = {prop_int('character.properties', 'PartyXpCutoffLevel')}",
         "cutoff_gaps = [",
-        "  { min = 0, max = 9, percent = 100 },",
-        "  { min = 10, max = 14, percent = 30 },",
-        "  { min = 15, max = 99, percent = 0 }",
-        "]",
-        "",
     ]
+    for gap, pct in zip(gaps, percents):
+        lo, hi = (int(x) for x in gap.split(","))
+        lines.append(f"  {{ min = {lo}, max = {hi}, percent = {pct} }},")
+    lines.append("]")
+    lines.append("")
     return "\n".join(lines)
 
 
-def gen_herbs_table(dp_root: Path) -> str:
-    items_dir = dp_root / "src/main/resources/data/stats/items"
+def gen_herbs_table() -> str:
+    src_find("game", GJ + "model/items/L2Item.java", r'_ex_immediate_effect = set\.getBoolean\("ex_immediate_effect", false\);')
     handled_herbs = []
     unhandled_herbs = []
-    
-    for f in sorted(items_dir.glob("*.xml")):
-        tree = ET.parse(f)
-        root = tree.getroot()
-        for item in root.findall("item"):
-            item_id = int(item.get("id"))
-            name = item.get("name", "")
-            is_immediate = False
-            handler = None
-            item_skills = []
-            for s in item.findall("set"):
-                sname = s.get("name")
-                val = s.get("val") or s.get("value")
-                if sname == "ex_immediate_effect" and str(val).lower() == "true":
-                    is_immediate = True
-                elif sname == "handler":
-                    handler = val
-                elif sname == "item_skill":
-                    item_skills.append(val)
-                    
-            if is_immediate:
-                if handler == "ItemSkills":
-                    parsed = []
-                    for raw in item_skills:
-                        for part in raw.split(";"):
-                            if part.strip():
-                                sid, lvl = part.strip().split("-")
-                                parsed.append((int(sid), int(lvl)))
-                    handled_herbs.append((item_id, name, parsed))
-                else:
-                    unhandled_herbs.append((item_id, name))
-                    
-    handled_herbs.sort(key=lambda x: x[0])
-    unhandled_herbs.sort(key=lambda x: x[0])
-    
+    for item_id, row in sorted(item_index().items()):
+        sets = row["sets"]
+        if str(sets.get("ex_immediate_effect", "")).lower() != "true":
+            continue
+        if sets.get("handler") == "ItemSkills":
+            refs = item_skill_refs(item_id)
+            if not refs:
+                raise SourceError(f"herb {item_id}: ItemSkills without item_skill")
+            handled_herbs.append((item_id, row["name"], row["type"], refs))
+        elif sets.get("handler") is None:
+            unhandled_herbs.append((item_id, row["name"], row["type"]))
+        else:
+            raise SourceError(f"herb {item_id}: unexpected handler {sets.get('handler')}")
+    distinct = sorted({sid for _, _, _, refs in handled_herbs for sid, _ in refs})
     lines = [
         HEADER,
-        "# D §1.10 item 5: Herbs (68 total: 59 handled, 9 unhandled, 48 distinct skill ids).",
+        "# D §1.10 item 5: Herbs (ex_immediate_effect templates; handled = ItemSkills handler).",
         "schema_version = 1",
         "",
         f"total_herbs = {len(handled_herbs) + len(unhandled_herbs)}",
         f"handled_herbs_count = {len(handled_herbs)}",
         f"unhandled_herbs_count = {len(unhandled_herbs)}",
+        f"distinct_skill_ids = {toml_list(distinct)}",
         "",
-        "# 59 handled herbs with ItemSkills handler",
+        "# Handled herbs (ItemSkills handler)",
         "handled = [",
     ]
-    for iid, name, skills in handled_herbs:
-        sk_strs = [f"{{ id = {sid}, level = {lvl} }}" for sid, lvl in skills]
-        sk_joined = ", ".join(sk_strs)
-        lines.append(f'  {{ id = {iid}, name = "{name}", skills = [ {sk_joined} ] }},')
+    for iid, name, kind, skills in handled_herbs:
+        sk = ", ".join(f"{{ id = {sid}, level = {lvl} }}" for sid, lvl in skills)
+        lines.append(f'  {{ id = {iid}, name = {json.dumps(name)}, type = "{kind}", skills = [ {sk} ] }},')
     lines.append("]")
     lines.append("")
-    lines.append("# 9 unhandled herbs (destroyed on pickup with no effect)")
+    lines.append("# Unhandled herbs (destroyed on pickup with no effect, L2PcInstance.java:3860-3868)")
     lines.append("unhandled = [")
-    for iid, name in unhandled_herbs:
-        lines.append(f'  {{ id = {iid}, name = "{name}" }},')
+    for iid, name, kind in unhandled_herbs:
+        lines.append(f'  {{ id = {iid}, name = {json.dumps(name)}, type = "{kind}" }},')
     lines.append("]")
     lines.append("")
     return "\n".join(lines)
 
 
+def _umap(value: int, in_min: int, in_max: int, out_min: Fraction, out_max: Fraction) -> Fraction:
+    # Util.map in double, left to right (Util.java:785-788); constrain then one fl per operation.
+    x = Fraction(min(max(value, in_min), in_max))
+    return fl(fl(fl(fl(x - in_min) * fl(out_max - out_min)) / fl(Fraction(in_max - in_min))) + out_min)
+
+
+def l_table() -> list[tuple[str, str, Fraction]]:
+    strat = GJ + "model/drops/strategy/IKillerChanceModifierStrategy.java"
+    raid_factor = Fraction(src_find("game", strat, r"Math\.max\(0, Math\.min\(1, \(levelDifference \* ([0-9.]+)\) \+ 1\)\)").group(1))
+    item_line = (r"return Util\.map\(levelDifference, -npc\(\)\.getDropItemMaxLevelDifference\(\), "
+                 r"-npc\(\)\.getDropItemMinLevelDifference\(\), npc\(\)\.getDropItemMinLevelGapChance\(\), ([0-9.]+)\) / ([0-9]+);")
+    found = list(re.finditer(item_line, src_text("game", strat)))
+    if len(found) != 2 or {(m.group(1), m.group(2)) for m in found} != {("100.0", "100")}:
+        raise SourceError("IKillerChanceModifierStrategy: item window lines changed")
+    adena = src_find("game", strat, r"return Util\.map\(levelDifference, -npc\(\)\.getDropAdenaMaxLevelDifference\(\), "
+                     r"-npc\(\)\.getDropAdenaMinLevelDifference\(\), npc\(\)\.getDropAdenaMinLevelGapChance\(\), ([0-9.]+)\) / ([0-9]+);")
+    src_find("game", GJ + "util/Util.java",
+             r"public static double map\(double input, double inputMin, double inputMax, double outputMin, double outputMax\) \{\s*"
+             r"input = constrain\(input, inputMin, inputMax\);\s*"
+             r"return \(\(\(input - inputMin\) \* \(outputMax - outputMin\)\) / \(inputMax - inputMin\)\) \+ outputMin;", re.S)
+    rows = []
+
+    def window(name: str, lo: int, hi: int, gap: int, out_max: str, div: str) -> None:
+        for d in range(-lo, -hi - 1, -1):
+            value = fl(_umap(d, -hi, -lo, Fraction(gap), Fraction(out_max)) / Fraction(div))
+            cond = f">= {d}" if d == -lo else (f"<= {d}" if d == -hi else f"{d}")
+            rows.append((name, cond, value))
+
+    window("item_window", prop_int("npc.properties", "DropItemMinLevelDifference"),
+           prop_int("npc.properties", "DropItemMaxLevelDifference"),
+           prop_int("npc.properties", "DropItemMinLevelGapChance"), "100.0", "100")
+    d = 0
+    while True:
+        raw = fl(fl(d * fl(raid_factor)) + 1)
+        value = max(Fraction(0), min(Fraction(1), raw))
+        if value == 0:
+            rows.append(("raid_clamp", f"<= {d}", value))
+            break
+        rows.append(("raid_clamp", ">= 0" if d == 0 else f"{d}", value))
+        d -= 1
+    window("adena_window", prop_int("npc.properties", "DropAdenaMinLevelDifference"),
+           prop_int("npc.properties", "DropAdenaMaxLevelDifference"),
+           prop_int("npc.properties", "DropAdenaMinLevelGapChance"), adena.group(1), adena.group(2))
+    # Item window is listed first, then the raid clamp, then the adena window (D §6.2).
+    return rows
+
+
+def design_adaptations() -> list[tuple[str, bool, str]]:
+    """The §14.2 adaptation ledger of the frozen design: (label, withdrawn, section)."""
+    text = git_object(DESIGN_REVISION, DESIGN_PATH)
+    block = re.search(r"### 14\.2 Formula, rounding and adaptation ledger\n(.*?)\n### 14\.3", text, re.S)
+    if not block:
+        raise SourceError("design §14.2 not found")
+    rows = []
+    for ln in block.group(1).splitlines():
+        m = re.match(r"\| ([XPT]\d+b?) \| (.*) \| (.*?) \|$", ln)
+        if m:
+            rows.append((m.group(1), m.group(2).startswith("*(withdrawn"), m.group(3)))
+    labels = [r[0] for r in rows]
+    expected = ([f"X{i}" for i in range(1, 15)] + [f"P{i}" for i in range(1, 8)] + ["P7b"]
+                + [f"P{i}" for i in range(8, 22)] + ["T1"])
+    if labels != expected:
+        raise SourceError(f"design §14.2 labels changed: {labels}")
+    return rows
+
+
 def gen_adaptations_table(data_root: Path) -> str:
+    rows = l_table()
     lines = [
         HEADER,
-        "# D §1.10 item 11: Policy adaptations X1-X14, P1-P21, T1; L table (22 rows); pow oracle table.",
+        "# D §1.10 item 11: Policy adaptations X1-X14, P1-P21, T1 (design §14.2); L table; pow oracle table.",
         "schema_version = 1",
+        f"l_table_rows = {len(rows)}",
+        f"l_table_distinct_bits = {len({bits64(v) for _, _, v in rows})}",
         "",
-        "[oracle_table]",
-        'path = "packages/data/jvm-pow-tables.txt"',
-        f'sha256 = "{POW_TABLE_SHA256}"',
-        'entries = 320',
-        "",
-        "# §6.2 22-row killer-modifier L table (19 distinct bit patterns)",
-        "[[l_table]]",
-        'strategy = "item_window"',
-        'd_condition = ">= -5"',
-        'value = "1.0"',
-        'bits = "3ff0000000000000"',
-        "",
-        "[[l_table]]",
-        'strategy = "item_window"',
-        'd_condition = "-6"',
-        'value = "0.82"',
-        'bits = "3fea3d70a3d70a3d"',
-        "",
-        "[[l_table]]",
-        'strategy = "item_window"',
-        'd_condition = "-7"',
-        'value = "0.64"',
-        'bits = "3fe47ae147ae147b"',
-        "",
-        "[[l_table]]",
-        'strategy = "item_window"',
-        'd_condition = "-8"',
-        'value = "0.46"',
-        'bits = "3fdd70a3d70a3d71"',
-        "",
-        "[[l_table]]",
-        'strategy = "item_window"',
-        'd_condition = "-9"',
-        'value = "0.28"',
-        'bits = "3fd1eb851eb851ec"',
-        "",
-        "[[l_table]]",
-        'strategy = "item_window"',
-        'd_condition = "<= -10"',
-        'value = "0.1"',
-        'bits = "3fb999999999999a"',
-        "",
-        "[[l_table]]",
-        'strategy = "raid_clamp"',
-        'd_condition = ">= 0"',
-        'value = "1.0"',
-        'bits = "3ff0000000000000"',
-        "",
-        "[[l_table]]",
-        'strategy = "raid_clamp"',
-        'd_condition = "-1"',
-        'value = "0.85"',
-        'bits = "3feb333333333333"',
-        "",
-        "[[l_table]]",
-        'strategy = "raid_clamp"',
-        'd_condition = "-2"',
-        'value = "0.7"',
-        'bits = "3fe6666666666666"',
-        "",
-        "[[l_table]]",
-        'strategy = "raid_clamp"',
-        'd_condition = "-3"',
-        'value = "0.55"',
-        'bits = "3fe199999999999a"',
-        "",
-        "[[l_table]]",
-        'strategy = "raid_clamp"',
-        'd_condition = "-4"',
-        'value = "0.4"',
-        'bits = "3fd999999999999a"',
-        "",
-        "[[l_table]]",
-        'strategy = "raid_clamp"',
-        'd_condition = "-5"',
-        'value = "0.25"',
-        'bits = "3fd0000000000000"',
-        "",
-        "[[l_table]]",
-        'strategy = "raid_clamp"',
-        'd_condition = "-6"',
-        'value = "0.10000000000000009"',
-        'bits = "3fb99999999999a0"',
-        "",
-        "[[l_table]]",
-        'strategy = "raid_clamp"',
-        'd_condition = "<= -7"',
-        'value = "0.0"',
-        'bits = "0000000000000000"',
-        "",
-        "[[l_table]]",
-        'strategy = "adena_window"',
-        'd_condition = ">= -8"',
-        'value = "1.0"',
-        'bits = "3ff0000000000000"',
-        "",
-        "[[l_table]]",
-        'strategy = "adena_window"',
-        'd_condition = "-9"',
-        'value = "0.8714285714285714"',
-        'bits = "3febe2be2be2be2c"',
-        "",
-        "[[l_table]]",
-        'strategy = "adena_window"',
-        'd_condition = "-10"',
-        'value = "0.7428571428571429"',
-        'bits = "3fe7c57c57c57c58"',
-        "",
-        "[[l_table]]",
-        'strategy = "adena_window"',
-        'd_condition = "-11"',
-        'value = "0.6142857142857143"',
-        'bits = "3fe3a83a83a83a84"',
-        "",
-        "[[l_table]]",
-        'strategy = "adena_window"',
-        'd_condition = "-12"',
-        'value = "0.4857142857142857"',
-        'bits = "3fdf15f15f15f15f"',
-        "",
-        "[[l_table]]",
-        'strategy = "adena_window"',
-        'd_condition = "-13"',
-        'value = "0.35714285714285715"',
-        'bits = "3fd6db6db6db6db7"',
-        "",
-        "[[l_table]]",
-        'strategy = "adena_window"',
-        'd_condition = "-14"',
-        'value = "0.22857142857142856"',
-        'bits = "3fcd41d41d41d41d"',
-        "",
-        "[[l_table]]",
-        'strategy = "adena_window"',
-        'd_condition = "<= -15"',
-        'value = "0.1"',
-        'bits = "3fb999999999999a"',
-        "",
+        "# Adaptation ledger (frozen design §14.2)",
+        "adaptations = [",
     ]
+    for label, withdrawn, section in design_adaptations():
+        lines.append(f'  {{ label = "{label}", withdrawn = {toml_bool(withdrawn)}, section = {json.dumps(section)} }},')
+    lines.append("]")
+    lines.append("")
+    lines.extend(["[oracle_table]", 'path = "packages/data/jvm-pow-tables.txt"', f'sha256 = "{POW_TABLE_SHA256}"', ""])
+    lines.append("# §6.2 killer-modifier L table, recomputed from IKillerChanceModifierStrategy and npc.properties")
+    for strategy, cond, value in rows:
+        lines.extend(["[[l_table]]", f'strategy = "{strategy}"', f'd_condition = "{cond}"',
+                      f'value = "{repr(float(value))}"', f'bits = "{bits64(value)}"', ""])
     return "\n".join(lines)
 
 
@@ -625,24 +850,16 @@ def gen_adaptations_table(data_root: Path) -> str:
 # ---------------------------------------------------------------------------
 
 
-def gen_merchants_table(dp_root: Path) -> str:
-    ai_dir = dp_root / "src/main/java/com/l2jserver/datapack/ai/npc"
-    items_dir = dp_root / "src/main/resources/data/stats/items"
-    
-    reference_prices = {}
-    for f in items_dir.glob("*.xml"):
-        tree = ET.parse(f)
-        for item in tree.getroot().findall("item"):
-            iid = int(item.get("id"))
-            p = 0
-            for s in item.findall("set"):
-                name = s.get("name")
-                val = s.get("val") or s.get("value")
-                if name == "price":
-                    p = int(val)
-            reference_prices[iid] = p
-            
-    merchant_files = [f for f in sorted(ai_dir.rglob("*.java")) if f.name != "AbstractNpcAI.java"]
+def gen_merchants_table() -> str:
+    ai_rel = DPJ + "ai/npc/"
+    root = _ROOTS["datapack"][0]
+    merchant_files = [f for f in dp_glob(ai_rel, "*.java", recursive=True) if f.name != "AbstractNpcAI.java"]
+    abstract = DPJ + "ai/npc/AbstractNpcAI.java"
+    src_find("datapack", abstract, r'new L2BuyList\(Integer\.valueOf\(npcId \+ "" \+ index\)\)')
+    src_find("datapack", abstract, r"double baseTax = \(list\.tax\(\) / 100\);")
+    src_find("datapack", abstract, r"delay = \(long\) \(60 / list\.delay\(\)\);")
+    src_find("game", GJ + "network/clientpackets/RequestBuyItem.java",
+             r"price \* \(1 \+ \(baseTaxRate \+ castleTaxRate\)\)")
     entry_pattern = re.compile(
         r"new\s+BuySellList\s*\(\s*([0-9]+)\s*,\s*([0-9.]+)\s*,\s*([0-9.]+)\s*,\s*([0-9]+)(?:\s*,\s*([0-9]+))?\s*\)"
     )
@@ -650,10 +867,8 @@ def gen_merchants_table(dp_root: Path) -> str:
     call_pattern = re.compile(r"buildBuySellList\s*\(\s*(\w+)\s*,\s*(\w+)\s*,\s*([0-9]+)\s*\)")
     const_pattern = re.compile(r"\bint\s+(\w+)\s*=\s*([0-9]+)\s*;")
 
-    def strip_comments(text: str) -> str:
-        return re.sub(r"//[^\n]*", "", text)
-
-    codes = {f: strip_comments(f.read_text(encoding="utf-8")) for f in merchant_files}
+    codes = {f: re.sub(r"//[^\n]*", "", f.read_text(encoding="utf-8")) for f in merchant_files}
+    items = item_index()
 
     def subclass_npc_ids(cls: str) -> list[int]:
         # A constructor parameter npcId (CastleMerchant): every concrete subclass passes
@@ -673,13 +888,12 @@ def gen_merchants_table(dp_root: Path) -> str:
     entries = []
     pairs = set()
     buylists = []
-
     for f in merchant_files:
         code = codes[f]
         total = len(entry_pattern.findall(code))
         if total == 0:
             continue
-        rel_path = str(f.relative_to(dp_root))
+        rel_path = str(f.relative_to(root))
         arrays = {m.group(1): m.group(2) for m in array_pattern.finditer(code)}
         if sum(len(entry_pattern.findall(body)) for body in arrays.values()) != total:
             raise SourceError(f"{rel_path}: BuySellList entries outside a BuySellList[] array")
@@ -693,7 +907,6 @@ def gen_merchants_table(dp_root: Path) -> str:
             else:
                 npcs = subclass_npc_ids(f.stem)
             for npc_id in npcs:
-                # L2BuyList id = Integer.valueOf(npcId + "" + index) (AbstractNpcAI.java:208)
                 binds.setdefault(arr, []).append((int(f"{npc_id}{index}"), npc_id))
         for arr, body in arrays.items():
             if arr not in binds:
@@ -703,59 +916,49 @@ def gen_merchants_table(dp_root: Path) -> str:
                 buylists.append((list_id, npc_id, rel_path, arr, len(rows)))
             for m in rows:
                 item_id = int(m[0])
-                tax_str = m[1]
-                delay_str = m[2]
-                count = int(m[3])
-                if item_id not in reference_prices:
+                tax_str, delay_str, count = m[1], m[2], int(m[3])
+                if item_id not in items:
                     raise SourceError(f"{rel_path}: item {item_id} has no template")
-                ref_price = reference_prices[item_id]
-
-                restock_min = -1
-                fl_delay = float(delay_str)
-                if fl_delay > 0.0:
-                    restock_min = int(60.0 / fl_delay)
-
+                ref_price = reference_price(item_id)
+                delay = fl(Fraction(delay_str))
+                restock_min = int(fl(Fraction(60) / delay)) if delay > 0 else -1
                 entries.append({
-                    "script": rel_path,
-                    "array": arr,
-                    "list_ids": [lid for lid, _ in binds[arr]],
-                    "npc_ids": [nid for _, nid in binds[arr]],
-                    "item_id": item_id,
-                    "ref_price": ref_price,
-                    "tax": tax_str,
-                    "delay": delay_str,
-                    "count": count,
-                    "restock_minutes": restock_min,
-                    "is_limited": count > 0,
-                    "is_zero_price": ref_price == 0,
+                    "script": rel_path, "array": arr,
+                    "list_ids": [lid for lid, _ in binds[arr]], "npc_ids": [nid for _, nid in binds[arr]],
+                    "item_id": item_id, "ref_price": ref_price, "tax": tax_str, "delay": delay_str,
+                    "count": count, "restock_minutes": restock_min,
+                    "is_limited": count > 0, "is_zero_price": ref_price == 0,
                 })
                 pairs.add((item_id, tax_str))
     list_ids = [b[0] for b in buylists]
     if len(set(list_ids)) != len(list_ids):
         raise SourceError("duplicate merchant buylist ids")
 
-    def calc_unit_price(p: int, tax_lit: str, castle_pct: int) -> int:
-        t = float(tax_lit) / 100.0
-        c = float(castle_pct) / 100.0
-        s = t + c
-        u = 1.0 + s
-        v = float(p) * u
-        return int(v)
+    castle_rows = re.findall(r"\((\d+),'(\w+)',(\d+),", src_find(
+        "datapack", "src/main/resources/sql/castle.sql", r"INSERT IGNORE INTO `castle` VALUES\n(.*?);", re.S).group(1))
+    validate = src_find("game", GJ + "instancemanager/CastleManager.java",
+                        r"case SevenSigns\.CABAL_DUSK -> (\d+);\s*case SevenSigns\.CABAL_DAWN -> (\d+);\s*default -> (\d+); // no owner",
+                        re.S)
+    castle_percents = sorted({0, int(validate.group(1)), int(validate.group(2)), int(validate.group(3))}
+                             | {int(r[2]) for r in castle_rows})
+
+    def unit_price(p: int, tax_lit: str, castle_pct: int) -> int:
+        t = fl(fl(Fraction(tax_lit)) / 100)
+        c = fl(Fraction(castle_pct) / 100)
+        return int(fl(Fraction(p) * fl(1 + fl(t + c))))
 
     unit_prices = []
+    naive_diff = 0
     for item_id, tax_str in sorted(pairs):
-        p = reference_prices.get(item_id, 0)
-        p0 = calc_unit_price(p, tax_str, 0)
-        p5 = calc_unit_price(p, tax_str, 5)
-        p15 = calc_unit_price(p, tax_str, 15)
-        p25 = calc_unit_price(p, tax_str, 25)
-        unit_prices.append(
-            f'{{ item = {item_id}, tax = "{tax_str}", castle_0 = {p0}, castle_5 = {p5}, castle_15 = {p15}, castle_25 = {p25} }}'
-        )
+        p = reference_price(item_id)
+        cells = ", ".join(f"castle_{c} = {unit_price(p, tax_str, c)}" for c in castle_percents)
+        unit_prices.append(f'{{ item = {item_id}, tax = "{tax_str}", {cells} }}')
+        if unit_price(p, tax_str, 0) != (p * (100 + Fraction(tax_str))) // 100:
+            naive_diff += 1
 
     lines = [
         HEADER,
-        "# D §1.10 item 6: Merchants (274 scripts, 20,236 entries, 5,803 pairs, 2,145 limited, item 8187 zero-price).",
+        "# D §1.10 item 6: Merchants (AI-script buylists, unit-price table, restock).",
         "schema_version = 1",
         "",
         f"total_entries = {len(entries)}",
@@ -763,386 +966,691 @@ def gen_merchants_table(dp_root: Path) -> str:
         f"limited_entries = {sum(1 for e in entries if e['is_limited'])}",
         f"buylists_count = {len(buylists)}",
         f"zero_price_items = {sorted({e['item_id'] for e in entries if e['is_zero_price']})}",
+        f"naive_truncation_differences_castle_0 = {naive_diff}",
+        f"castle_percents = {toml_list(castle_percents)}",
         "",
-        "# Precomputed unit-price table for all 5,803 (template, tax) pairs",
+        "# Unit price = (long) fl(P * fl(1 + fl(fl(tax/100) + fl(castle/100)))) (RequestBuyItem.java:182)",
         "unit_prices = [",
         "  " + ",\n  ".join(unit_prices),
         "]",
         "",
-        "# Merchant entries",
+        "# Merchant entries (source order)",
         "entries = [",
     ]
     for e in entries:
-        lim = str(e["is_limited"]).lower()
-        zp = str(e["is_zero_price"]).lower()
         lines.append(
-            f'  {{ script = "{e["script"]}", array = "{e["array"]}", list_ids = {e["list_ids"]}, npcs = {e["npc_ids"]}, item = {e["item_id"]}, ref_price = {e["ref_price"]}, tax = "{e["tax"]}", delay = "{e["delay"]}", count = {e["count"]}, restock_min = {e["restock_minutes"]}, limited = {lim}, zero_price = {zp} }},'
+            f'  {{ script = "{e["script"]}", array = "{e["array"]}", list_ids = {e["list_ids"]}, npcs = {e["npc_ids"]}, '
+            f'item = {e["item_id"]}, ref_price = {e["ref_price"]}, tax = "{e["tax"]}", delay = "{e["delay"]}", '
+            f'count = {e["count"]}, restock_min = {e["restock_minutes"]}, limited = {toml_bool(e["is_limited"])}, '
+            f'zero_price = {toml_bool(e["is_zero_price"])} }},'
         )
     lines.append("]")
     lines.append("")
-    lines.append("# Buylists: id = Integer.valueOf(npcId + \"\" + index) (AbstractNpcAI.buildBuySellList)")
+    lines.append('# Buylists: id = Integer.valueOf(npcId + "" + index) (AbstractNpcAI.buildBuySellList)')
     lines.append("buylists = [")
     for list_id, npc_id, script, arr, n in buylists:
         lines.append(f'  {{ list_id = {list_id}, npc = {npc_id}, script = "{script}", array = "{arr}", entries = {n} }},')
     lines.append("]")
     lines.append("")
-    lines.append("# Castle tax rates")
+    lines.append("# Castle tax percents (castle.sql) and Seven Signs ceilings (CastleManager.validateTaxes)")
     lines.append("[castle_taxes]")
-    lines.append("default_tax_percent = 0")
-    lines.append("no_owner_ceiling = 15")
-    lines.append("dawn_ceiling = 25")
-    lines.append("dusk_ceiling = 5")
+    lines.append("castles = [ " + ", ".join(f'{{ id = {int(r[0])}, name = "{r[1]}", tax_percent = {int(r[2])} }}'
+                                            for r in castle_rows) + " ]")
+    lines.append(f"no_owner_ceiling = {int(validate.group(3))}")
+    lines.append(f"dawn_ceiling = {int(validate.group(2))}")
+    lines.append(f"dusk_ceiling = {int(validate.group(1))}")
     lines.append("")
     return "\n".join(lines)
 
 
-def gen_multisell_table(dp_root: Path) -> str:
-    ms_dir = dp_root / "src/main/resources/data/multisell"
-    files = sorted(ms_dir.glob("*.xml"))
-    
-    lists = []
+def gen_multisell_table() -> str:
+    ms_rel = DPD + "multisell/"
+    src_find("game", GJ + "data/xml/impl/MultisellData.java",
+             r'int id = Integer\.parseInt\(f\.getName\(\)\.replaceAll\("\.xml", ""\)\);')
+    src_find("game", GJ + "data/xml/impl/MultisellData.java", r"_entries\.put\(id, list\);")
+    by_id: dict[int, list[tuple[str, dict]]] = {}
+    files = dp_glob(ms_rel)
     for f in files:
-        tree = ET.parse(f)
-        root = tree.getroot()
-        list_id = f.stem
-        apply_taxes = root.get("applyTaxes", "").lower() == "true"
-        maintain_enchantment = root.get("maintainEnchantment", "").lower() == "true"
-        
-        npcs = []
-        for npc in root.findall("npcs/npc"):
-            if npc.text and npc.text.strip():
-                npcs.append(int(npc.text.strip()))
-                
+        if not f.stem.isdigit():
+            raise SourceError(f"non-numeric multisell file {f.name}")
+        root = ET.parse(f).getroot()
+        if root.get("useRate") is not None:
+            raise SourceError(f"{f.name}: useRate is not modelled")
+        npcs = [int(n.text.strip()) for n in root.findall("npcs/npc") if n.text and n.text.strip().isdigit()]
         entries = []
         for item in root.findall("item"):
             ingrs = []
             for ing in item.findall("ingredient"):
-                iid = int(ing.get("id"))
-                cnt = int(ing.get("count"))
-                ti = ing.get("isTaxIngredient", "").lower() == "true"
-                mi = ing.get("maintainIngredient", "").lower() == "true"
-                ingrs.append(f'{{ id = {iid}, count = {cnt}, is_tax = {str(ti).lower()}, maintain = {str(mi).lower()} }}')
+                extra = set(ing.attrib) - {"id", "count", "isTaxIngredient", "maintainIngredient"}
+                if extra:
+                    raise SourceError(f"{f.name}: unmodelled ingredient attributes {extra}")
+                ingrs.append(f'{{ id = {int(ing.get("id"))}, count = {int(ing.get("count"))}, '
+                             f'is_tax = {toml_bool(ing.get("isTaxIngredient", "").lower() == "true")}, '
+                             f'maintain = {toml_bool(ing.get("maintainIngredient", "").lower() == "true")} }}')
             prods = []
             for pr in item.findall("production"):
-                iid = int(pr.get("id"))
-                cnt = int(pr.get("count"))
-                prods.append(f'{{ id = {iid}, count = {cnt} }}')
-            ing_joined = ", ".join(ingrs)
-            pr_joined = ", ".join(prods)
-            entries.append(f'{{ ingredients = [ {ing_joined} ], products = [ {pr_joined} ] }}')
-            
-        lists.append({
-            "id": list_id,
-            "apply_taxes": apply_taxes,
-            "maintain_enchantment": maintain_enchantment,
-            "npcs": npcs,
-            "entries": entries,
-        })
-        
+                extra = set(pr.attrib) - {"id", "count"}
+                if extra:
+                    raise SourceError(f"{f.name}: unmodelled production attributes {extra}")
+                prods.append(f'{{ id = {int(pr.get("id"))}, count = {int(pr.get("count"))} }}')
+            entries.append(f'{{ ingredients = [ {", ".join(ingrs)} ], products = [ {", ".join(prods)} ] }}')
+        body = {"apply_taxes": root.get("applyTaxes", "").lower() == "true",
+                "maintain_enchantment": root.get("maintainEnchantment", "").lower() == "true",
+                "npcs": npcs, "entries": entries}
+        by_id.setdefault(int(f.stem), []).append((f.name, body))
+
+    lists = []
+    deviations = []
+    for list_id in sorted(by_id):
+        variants = by_id[list_id]
+        names = [n for n, _ in variants]
+        if len(variants) == 1:
+            lists.append((list_id, names, variants[0][1]))
+        elif all(body == variants[0][1] for _, body in variants):
+            lists.append((list_id, names, variants[0][1]))  # E49: content-identical, collision moot
+        else:
+            canonical = [(n, b) for n, b in variants if n == f"{list_id}.xml"]
+            if len(canonical) != 1:
+                raise SourceError(f"multisell id {list_id}: no canonical file among {names}")
+            lists.append((list_id, [canonical[0][0]], canonical[0][1]))
+            for n, b in variants:
+                if n != canonical[0][0]:
+                    deviations.append((list_id, canonical[0][0], n, len(b["entries"]), len(canonical[0][1]["entries"])))
+
     lines = [
         HEADER,
-        "# D §1.10 item 7: Multisell (196 lists, 14 applyTaxes, 31 maintainEnchantment, 21 maintainIngredient).",
+        "# D §1.10 item 7: Multisell lists keyed by Java list id (MultisellData.java:84).",
         "schema_version = 1",
+        f"total_files = {len(files)}",
         f"total_lists = {len(lists)}",
+        f"apply_taxes_lists = {sum(1 for _, _, b in lists if b['apply_taxes'])}",
+        f"maintain_enchantment_lists = {sum(1 for _, _, b in lists if b['maintain_enchantment'])}",
+        f"maintain_ingredient_ingredients = {sum(e.count('maintain = true') for _, _, b in lists for e in b['entries'])}",
         "",
+        "# E49: content-differing files that collide on one Java id. Pinned keeps whichever file",
+        "# File.listFiles() returns last (unspecified order); Nightfall keeps <id>.xml.",
+        "deviations = [",
     ]
-    for lst in lists:
-        at = str(lst["apply_taxes"]).lower()
-        me = str(lst["maintain_enchantment"]).lower()
+    for list_id, kept, dropped, n_dropped, n_kept in deviations:
+        lines.append(f'  {{ list_id = {list_id}, kept = "{kept}", kept_entries = {n_kept}, '
+                     f'dropped = "{dropped}", dropped_entries = {n_dropped} }},')
+    lines.append("]")
+    lines.append("")
+    for list_id, names, body in lists:
         lines.append("[[list]]")
-        lines.append(f'id = "{lst["id"]}"')
-        lines.append(f"apply_taxes = {at}")
-        lines.append(f"maintain_enchantment = {me}")
-        lines.append(f"npcs = {lst['npcs']}")
-        ent_joined = ",\n    ".join(lst["entries"])
-        lines.append(f"entries = [\n    {ent_joined}\n  ]")
+        lines.append(f"id = {list_id}")
+        lines.append("source_files = [ " + ", ".join(f'"{n}"' for n in names) + " ]")
+        lines.append(f"apply_taxes = {toml_bool(body['apply_taxes'])}")
+        lines.append(f"maintain_enchantment = {toml_bool(body['maintain_enchantment'])}")
+        lines.append(f"npcs = {body['npcs']}")
+        joined = ",\n    ".join(body["entries"])
+        lines.append(f"entries = [\n    {joined}\n  ]" if body["entries"] else "entries = []")
         lines.append("")
     return "\n".join(lines)
 
 
-def gen_recipes_table(dp_root: Path, game_root: Path) -> str:
-    recipe_file = dp_root / "src/main/resources/data/recipes.xml"
-    tree = ET.parse(recipe_file)
-    root = tree.getroot()
-    
+def rank_table(enum_name: str) -> tuple[int, list[tuple[int, int]]]:
+    m = src_find("game", GJ + "model/skills/CommonSkill.java", rf"\b{enum_name}\((\d+), (\d+)\)")
+    sid = int(m.group(1))
+    sk = skill_element(sid)
+    levels = int(sk.get("levels"))
+    table = {t.get("name"): t.text.split() for t in sk.findall("table")}
+    magic = next((s.get("val") for s in sk.findall("set") if s.get("name") == "magicLvl"), None)
+    if magic is None:
+        raise SourceError(f"skill {sid}: no magicLvl")
+    values = table[magic] if magic.startswith("#") else [magic] * levels
+    if len(values) != levels:
+        raise SourceError(f"skill {sid}: magicLvl table length")
+    return sid, [(lvl, int(values[lvl - 1])) for lvl in range(1, levels + 1)]
+
+
+def gen_recipes_table() -> str:
+    root = dp_xml(DPD + "recipes.xml")
+    # Rank gates: craftLevel > rank refuses (Recipes.java:62,66; RecipeController.java:216).
+    src_find("game", GJ + "RecipeController.java", r"if \(_recipeList\.getLevel\(\) > _skillLevel\) \{")
+    src_find("datapack", DPJ + "handlers/itemhandlers/Recipes.java", r"recipeLevel = \(rp\.getLevel\(\) > activeChar\.getDwarvenCraft\(\)\);")
+    src_find("datapack", DPJ + "handlers/itemhandlers/Recipes.java", r"recipeLevel = \(rp\.getLevel\(\) > activeChar\.getCommonCraft\(\)\);")
     recipes = []
-    rare_count = 0
-    
     for r in root.findall("item"):
-        rid = int(r.get("id"))
-        recipe_id = int(r.get("recipeId"))
-        craft_level = int(r.get("craftLevel"))
-        rtype = r.get("type")
-        success_rate = int(r.get("successRate"))
-        
-        stat_use_name = "mp"
-        stat_use_value = 0
-        stat_elem = r.find("statUse")
-        if stat_elem is not None:
-            stat_use_name = stat_elem.get("name", "mp")
-            stat_use_value = int(stat_elem.get("value", 0))
-            
-        alt_stat_name = "none"
-        alt_stat_value = 0
-        alt_elem = r.find("altStatChange")
-        if alt_elem is not None:
-            alt_stat_name = alt_elem.get("name", "none")
-            alt_stat_value = int(alt_elem.get("value", 0))
-            
-        ingrs = []
-        for ing in r.findall("ingredient"):
-            iid = int(ing.get("id"))
-            cnt = int(ing.get("count"))
-            ingrs.append(f'{{ id = {iid}, count = {cnt} }}')
-            
-        prod = r.find("production")
-        prod_id = int(prod.get("id")) if prod is not None else 0
-        prod_count = int(prod.get("count")) if prod is not None else 0
-        
-        prod_rare = r.find("productionRare")
-        has_rare = prod_rare is not None
-        rare_id = int(prod_rare.get("id")) if has_rare else 0
-        rare_count_val = int(prod_rare.get("count")) if has_rare else 0
-        rare_rarity = int(prod_rare.get("rarity")) if has_rare else 0
-        if has_rare:
-            rare_count += 1
-            
+        stat_use = [f'{{ name = "{s.get("name")}", value = {int(s.get("value"))} }}' for s in r.findall("statUse")]
+        alt = [f'{{ name = "{s.get("name")}", value = {int(s.get("value"))} }}' for s in r.findall("altStatChange")]
+        prods = r.findall("production")
+        rares = r.findall("productionRare")
+        if len(prods) != 1 or len(rares) > 1:
+            raise SourceError(f"recipe {r.get('id')}: production shape")
         recipes.append({
-            "id": rid,
-            "recipe_id": recipe_id,
-            "craft_level": craft_level,
-            "type": rtype,
-            "success_rate": success_rate,
-            "stat_use": f'{{ name = "{stat_use_name}", value = {stat_use_value} }}',
-            "alt_stat": f'{{ name = "{alt_stat_name}", value = {alt_stat_value} }}',
-            "ingredients": ingrs,
-            "production": f'{{ id = {prod_id}, count = {prod_count} }}',
-            "production_rare": f'{{ id = {rare_id}, count = {rare_count_val}, rarity = {rare_rarity} }}' if has_rare else 'none',
+            "id": int(r.get("id")), "recipe_id": int(r.get("recipeId")), "name": r.get("name"),
+            "craft_level": int(r.get("craftLevel")), "type": r.get("type"), "success_rate": int(r.get("successRate")),
+            "stat_use": stat_use, "alt": alt,
+            "ingredients": [f'{{ id = {int(i.get("id"))}, count = {int(i.get("count"))} }}' for i in r.findall("ingredient")],
+            "production": f'{{ id = {int(prods[0].get("id"))}, count = {int(prods[0].get("count"))} }}',
+            "rare": (f'{{ id = {int(rares[0].get("id"))}, count = {int(rares[0].get("count"))}, '
+                     f'rarity = {int(rares[0].get("rarity"))} }}') if rares else None,
         })
-        
     lines = [
         HEADER,
-        "# D §1.10 item 8: Recipes (1,000 total: 830 dwarven, 170 common; 582 rare).",
+        "# D §1.10 item 8: Recipes (recipes.xml), crafting config and the Create Item rank tables.",
         "schema_version = 1",
         f"total_recipes = {len(recipes)}",
-        f"total_rare_recipes = {rare_count}",
+        f"total_rare_recipes = {sum(1 for r in recipes if r['rare'])}",
         "",
         "[config]",
-        "craft_masterwork = true",
-        "dwarf_recipe_limit = 50",
-        "common_recipe_limit = 50",
-        "alternative_crafting = false",
-        "create_item_ranks = 10",
-        "create_common_item_ranks = 9",
+        f"craft_masterwork = {toml_bool(prop_bool('character.properties', 'CraftMasterwork'))}",
+        f"dwarf_recipe_limit = {prop_int('character.properties', 'DwarfRecipeLimit')}",
+        f"common_recipe_limit = {prop_int('character.properties', 'CommonRecipeLimit')}",
+        f"alternative_crafting = {toml_bool(prop_bool('character.properties', 'AlternativeCrafting'))}",
         "",
     ]
+    for key, enum_name in (("create_item", "CREATE_DWARVEN"), ("create_common_item", "CREATE_COMMON")):
+        sid, ranks = rank_table(enum_name)
+        lines.append(f"[{key}]")
+        lines.append(f"skill_id = {sid}")
+        lines.append("# rank = learned skill level; a recipe needs craftLevel <= rank")
+        lines.append("ranks = [ " + ", ".join(f"{{ rank = {lvl}, max_craft_level = {lvl}, magic_level = {ml} }}"
+                                             for lvl, ml in ranks) + " ]")
+        lines.append("")
     for rec in recipes:
         lines.append("[[recipe]]")
         lines.append(f"id = {rec['id']}")
         lines.append(f"recipe_id = {rec['recipe_id']}")
+        lines.append(f"name = {json.dumps(rec['name'])}")
         lines.append(f"craft_level = {rec['craft_level']}")
         lines.append(f'type = "{rec["type"]}"')
         lines.append(f"success_rate = {rec['success_rate']}")
-        lines.append(f"stat_use = {rec['stat_use']}")
-        lines.append(f"alt_stat_change = {rec['alt_stat']}")
-        ing_joined = ", ".join(rec["ingredients"])
-        lines.append(f"ingredients = [ {ing_joined} ]")
+        lines.append(f"stat_use = [ {', '.join(rec['stat_use'])} ]")
+        lines.append(f"alt_stat_change = [ {', '.join(rec['alt'])} ]")
+        lines.append(f"ingredients = [ {', '.join(rec['ingredients'])} ]")
         lines.append(f"production = {rec['production']}")
-        if rec["production_rare"] != "none":
-            lines.append(f"production_rare = {rec['production_rare']}")
+        if rec["rare"]:
+            lines.append(f"production_rare = {rec['rare']}")
         lines.append("")
     return "\n".join(lines)
 
 
-def gen_storage_mail_table(game_root: Path) -> str:
+def gen_storage_mail_table() -> str:
+    post = GJ + "network/clientpackets/RequestSendPost.java"
+    message = GJ + "model/entity/Message.java"
     lines = [
         HEADER,
         "# D §1.10 item 9: Storage, Mail and Flood Protector constants.",
         "schema_version = 1",
         "",
         "[warehouse]",
-        "slots_dwarf = 120",
-        "slots_no_dwarf = 100",
-        "deposit_fee_per_entry = 30",
-        "karma_player_can_use = true",
+        f"slots_dwarf = {prop_int('character.properties', 'MaximumWarehouseSlotsForDwarf')}",
+        f"slots_no_dwarf = {prop_int('character.properties', 'MaximumWarehouseSlotsForNoDwarf')}",
+        f"deposit_fee_per_entry = {src_int('game', GJ + 'network/clientpackets/SendWareHouseDepositList.java', r'final long fee = _items\.size\(\) \* (\d+)L;')}",
+        f"karma_player_can_use = {toml_bool(prop_bool('character.properties', 'KarmaPlayerCanUseWareHouse'))}",
         "",
         "[freight]",
-        "slots = 200",
-        "fee_per_entry = 1000",
+        f"slots = {prop_int('character.properties', 'MaximumFreightSlots')}",
+        f"fee_per_entry = {prop_int('character.properties', 'FreightPrice')}",
         "",
         "[mail]",
-        "max_recv_length = 16",
-        "max_subj_length = 128",
-        "max_text_length = 512",
-        "max_attachments = 8",
-        "inbox_size = 240",
-        "outbox_size = 240",
-        "message_fee = 100",
-        "message_fee_per_slot = 1000",
-        "expiration_hours = 360",
-        "cod_expiration_hours = 12",
-        "",
-        "[flood_intervals_ticks]",
-        "multisell = 1",
-        "transaction = 10",
-        "manufacture = 3",
-        "manor = 30",
-        "send_mail = 100",
-        "server_bypass = 5",
-        "item_auction = 9",
-        "",
     ]
+    for key in ["MAX_RECV_LENGTH", "MAX_SUBJ_LENGTH", "MAX_TEXT_LENGTH", "MAX_ATTACHMENTS", "INBOX_SIZE",
+                "OUTBOX_SIZE", "MESSAGE_FEE", "MESSAGE_FEE_PER_SLOT"]:
+        lines.append(f"{key.lower()} = {src_int('game', post, rf'private static final int {key} = (\d+);')}")
+    lines.append(f"expiration_hours = {src_int('game', message, r'private static final int EXPIRATION = (\d+);')}")
+    lines.append(f"cod_expiration_hours = {src_int('game', message, r'private static final int COD_EXPIRATION = (\d+);')}")
+    lines.append("")
+    lines.append("# floodprotector.properties: 1 tick = 100 ms")
+    lines.append("[flood_intervals_ticks]")
+    for name, key in [("multisell", "MultiSellInterval"), ("transaction", "TransactionInterval"),
+                      ("manufacture", "ManufactureInterval"), ("manor", "ManorInterval"),
+                      ("send_mail", "SendMailInterval"), ("server_bypass", "ServerBypassInterval"),
+                      ("item_auction", "ItemAuctionInterval")]:
+        lines.append(f"{name} = {prop_int('floodprotector.properties', key)}")
+    lines.append("")
     return "\n".join(lines)
 
 
-def gen_auction_table(dp_root: Path, game_root: Path) -> str:
-    expired_after = int(config_value(game_root, "general.properties", "ItemAuctionExpiredAfter"))
-    extends_on_bid = int(config_value(game_root, "general.properties", "ItemAuctionTimeExtendsOnBid"))
-    tree = ET.parse(dp_root / "src/main/resources/data/ItemAuctions.xml")
-    root = tree.getroot()
+# B4 fixture schedule anchor (Nightfall fixture parameter, not a pinned value): the schedule
+# is what pinned ItemAuctionInstance would create on a first start at this DB time (UTC).
+AUCTION_FIXTURE_ANCHOR = "2026-10-12T00:00:00Z"
+AUCTION_FIXTURE_ROUNDS = 2
+
+
+def gen_auction_table() -> str:
+    import datetime as dt
+    inst_src = GJ + "model/itemauction/ItemAuctionInstance.java"
+    gen_src = GJ + "model/itemauction/AuctionDateGenerator.java"
+    start_space = src_int("game", inst_src, r"START_TIME_SPACE = MILLISECONDS\.convert\((\d+), MINUTES\);")
+    finish_space = src_int("game", inst_src, r"FINISH_TIME_SPACE = MILLISECONDS\.convert\((\d+), MINUTES\);")
+    src_find("game", inst_src, r"case 0 -> nextAuction = createAuction\(System\.currentTimeMillis\(\) \+ START_TIME_SPACE\);")
+    src_find("game", inst_src, r"nextAuction = createAuction\(Math\.max\(currentAuction\.getEndingTime\(\) \+ FINISH_TIME_SPACE, "
+                               r"System\.currentTimeMillis\(\) \+ START_TIME_SPACE\)\);")
+    src_find("game", inst_src, r"final AuctionItem auctionItem = _items\.get\(Rnd\.get\(_items\.size\(\)\)\);")
+    src_find("game", gen_src, r"final int fixedDayWeek = config\.getInt\(FIELD_DAY_OF_WEEK, -1\) \+ 1;")
+    src_find("game", gen_src, r"_day_of_week = \(fixedDayWeek > 7\) \? 1 : fixedDayWeek;")
+    minute_default = src_int("game", gen_src, r"checkMinuteOfHour\((\d+)\);")
+    src_find("game", GJ + "instancemanager/ItemAuctionManager.java", r"_auctionIds = new AtomicInteger\(1\);")
+    expired_after = prop_int("general.properties", "ItemAuctionExpiredAfter")
+    extends_on_bid = prop_int("general.properties", "ItemAuctionTimeExtendsOnBid")
+    root = dp_xml(DPD + "ItemAuctions.xml")
     instances = []
-    
     for inst in root.findall("instance"):
-        iid = int(inst.get("id"))
-        dow = int(inst.get("day_of_week")) if inst.get("day_of_week") else -1
-        interval = int(inst.get("interval")) if inst.get("interval") else -1
-        hod = int(inst.get("hour_of_day")) if inst.get("hour_of_day") else -1
-        
+        if inst.get("interval") is not None:
+            raise SourceError("interval-based auction instances are not modelled")
         items = []
         for it in inst.findall("item"):
-            aid = int(it.get("auctionItemId"))
-            item_id = int(it.get("itemId"))
-            count = int(it.get("itemCount"))
-            init_bid = int(it.get("auctionInitBid"))
-            length = int(it.get("auctionLength"))
-            items.append(f'{{ auction_id = {aid}, item_id = {item_id}, count = {count}, init_bid = {init_bid}, length_minutes = {length} }}')
-            
-        instances.append({
-            "id": iid,
-            "day_of_week": dow,
-            "interval": interval,
-            "hour_of_day": hod,
-            "items": items,
-        })
-        
+            if it.find("extra") is not None:
+                raise SourceError("auction <extra> is not modelled")
+            items.append((int(it.get("auctionItemId")), int(it.get("itemId")), int(it.get("itemCount")),
+                          int(it.get("auctionInitBid")), int(it.get("auctionLength"))))
+        minute = int(inst.get("minute_of_hour")) if inst.get("minute_of_hour") else minute_default
+        instances.append({"id": int(inst.get("id")), "day_of_week": int(inst.get("day_of_week")),
+                          "hour_of_day": int(inst.get("hour_of_day")), "minute_of_hour": minute, "items": items})
+
+    def next_date(inst: dict, after: dt.datetime) -> dt.datetime:
+        # AuctionDateGenerator.nextDate: the first weekly slot >= `after` (seconds/ms cleared).
+        cal = inst["day_of_week"] + 1
+        cal = 1 if cal > 7 else cal                       # java.util.Calendar: SUNDAY = 1 ... SATURDAY = 7
+        weekday = (cal - 2) % 7                           # Python: Monday = 0
+        base = after.replace(hour=inst["hour_of_day"], minute=inst["minute_of_hour"], second=0, microsecond=0)
+        t = base + dt.timedelta(days=(weekday - base.weekday()) % 7)
+        while t < after:
+            t += dt.timedelta(days=7)
+        while t - dt.timedelta(days=7) >= after:
+            t -= dt.timedelta(days=7)
+        return t
+
+    anchor = dt.datetime.fromisoformat(AUCTION_FIXTURE_ANCHOR.replace("Z", "+00:00"))
+    for inst in instances:
+        if len({i[4] for i in inst["items"]}) != 1:
+            raise SourceError(f"instance {inst['id']}: item lengths differ; end time depends on the draw")
+    created = []
+    auction_id = 1
+    # Round 0: at load every instance (XML order) creates its first auction after now + START_TIME_SPACE.
+    # Round k: when an instance's round k-1 auction starts, it creates the next one after
+    # max(end + FINISH_TIME_SPACE, start + START_TIME_SPACE); creations are ordered by that start time.
+    previous = [(anchor, idx, anchor + dt.timedelta(minutes=start_space)) for idx in range(len(instances))]
+    for k in range(AUCTION_FIXTURE_ROUNDS):
+        current = []
+        for created_at, idx, after in sorted(previous, key=lambda e: (e[0], e[1])):
+            inst = instances[idx]
+            start = next_date(inst, after)
+            end = start + dt.timedelta(minutes=inst["items"][0][4])
+            created.append((auction_id, inst, k, start, end))
+            auction_id += 1
+            current.append((start, idx, max(end + dt.timedelta(minutes=finish_space),
+                                            start + dt.timedelta(minutes=start_space))))
+        previous = current
     lines = [
         HEADER,
-        "# D §1.10 item 10a: Item Auctions (3 instances, 82 items each = 246 total items).",
+        "# D §1.10 item 10a: Item auctions (ItemAuctions.xml), config and the B4 fixture schedule.",
         "schema_version = 1",
         f"total_instances = {len(instances)}",
         "",
-        "# general.properties:659,665",
         "[config]",
         f"expired_after_days = {expired_after}",
         f"time_extends_on_bid = {extends_on_bid}",
+        f"start_time_space_minutes = {start_space}",
+        f"finish_time_space_minutes = {finish_space}",
         "",
+        "# B4/E48 fixture schedule: replaces the wall-clock date generator. Times are UTC DB time;",
+        "# the item is drawn at AuctionCreate (draw #14, roll_below(item count)) unless pinned here.",
+        "[fixture_schedule]",
+        f'anchor = "{AUCTION_FIXTURE_ANCHOR}"',
+        f"rounds_per_instance = {AUCTION_FIXTURE_ROUNDS}",
+        "auctions = [",
     ]
+    for aid, inst, k, start, end in created:
+        lines.append(f'  {{ auction_id = {aid}, instance = {inst["id"]}, round = {k}, '
+                     f'start = "{start.strftime("%Y-%m-%dT%H:%M:%SZ")}", end = "{end.strftime("%Y-%m-%dT%H:%M:%SZ")}", '
+                     f'start_epoch_ms = {int(start.timestamp()) * 1000}, end_epoch_ms = {int(end.timestamp()) * 1000}, '
+                     f'item = "draw" }},')
+    lines.append("]")
+    lines.append("")
     for inst in instances:
         lines.append("[[instance]]")
         lines.append(f"id = {inst['id']}")
         lines.append(f"day_of_week = {inst['day_of_week']}")
-        lines.append(f"interval = {inst['interval']}")
         lines.append(f"hour_of_day = {inst['hour_of_day']}")
-        it_joined = ",\n    ".join(inst["items"])
-        lines.append(f"items = [\n    {it_joined}\n  ]")
+        lines.append(f"minute_of_hour = {inst['minute_of_hour']}")
+        rows = [f"{{ auction_id = {a}, item_id = {i}, count = {c}, init_bid = {b}, length_minutes = {ln} }}"
+                for a, i, c, b, ln in inst["items"]]
+        joined = ",\n    ".join(rows)
+        lines.append(f"items = [\n    {joined}\n  ]")
         lines.append("")
     return "\n".join(lines)
 
 
-def gen_manor_table(dp_root: Path) -> str:
-    tree = ET.parse(dp_root / "src/main/resources/data/seeds.xml")
-    root = tree.getroot()
-    
+def gen_manor_table() -> str:
+    root = dp_xml(DPD + "seeds.xml")
+    items = item_index()
     all_crops = []
-    gludio_crops = []
-    
     for castle in root.findall("castle"):
         cid = int(castle.get("id"))
         for c in castle.findall("crop"):
-            crop_id = int(c.get("id"))
-            seed_id = int(c.get("seedId"))
-            mature_id = int(c.get("mature_Id"))
-            rew1 = int(c.get("reward1"))
-            rew2 = int(c.get("reward2"))
-            is_alt = c.get("alternative", "").lower() == "true"
-            lvl = int(c.get("level"))
-            lim_seed = int(c.get("limit_seed"))
-            lim_crops = int(c.get("limit_crops"))
-            entry = {
-                "castle_id": cid,
-                "crop_id": crop_id,
-                "seed_id": seed_id,
-                "mature_id": mature_id,
-                "reward1": rew1,
-                "reward2": rew2,
-                "is_alternative": is_alt,
-                "level": lvl,
-                "limit_seed": lim_seed,
-                "limit_crops": lim_crops,
-            }
-            all_crops.append(entry)
-            if cid == 1:
-                gludio_crops.append(entry)
-                
-    items_dir = dp_root / "src/main/resources/data/stats/items"
-    ref_prices = {}
-    for f in items_dir.glob("*.xml"):
-        it_tree = ET.parse(f)
-        for item in it_tree.getroot().findall("item"):
-            iid = int(item.get("id"))
-            p = 0
-            for s in item.findall("set"):
-                if s.get("name") == "price":
-                    p = int(s.get("val") or s.get("value") or 0)
-            ref_prices[iid] = p
+            all_crops.append({
+                "castle": cid, "crop": int(c.get("id")), "seed": int(c.get("seedId")),
+                "mature": int(c.get("mature_Id")), "rew1": int(c.get("reward1")), "rew2": int(c.get("reward2")),
+                "alternative": c.get("alternative", "").lower() == "true", "level": int(c.get("level")),
+                "limit_seed": int(c.get("limit_seed")), "limit_crops": int(c.get("limit_crops")),
+            })
+    rate_manor = prop_int("rates.properties", "RateDropManor")
+    seed_src = GJ + "model/L2Seed.java"
+    src_find("game", seed_src, r"return \(int\) \(_seedReferencePrice \* 0\.6\);")
+    src_find("game", seed_src, r"return _seedReferencePrice \* 10;")
+    src_find("game", seed_src, r"return _limitSeeds \* rates\(\)\.getRateDropManor\(\);")
+    src_find("game", seed_src, r"return _limitCrops \* rates\(\)\.getRateDropManor\(\);")
+    sow_skills = sorted({ref for c in all_crops for ref in item_skill_refs(c["seed"])})
+    for c in all_crops:
+        if items[c["seed"]]["sets"].get("handler") != "Seed":
+            raise SourceError(f"seed {c['seed']}: handler is not Seed")
+    harvesters = sorted(i for i, r in items.items() if r["sets"].get("handler") == "Harvester")
+    harvest_skills = sorted({ref for i in harvesters for ref in item_skill_refs(i)})
+    multipliers = harvest_multipliers()
 
-    gludio_production = []
-    gludio_procurement = []
-    for c in gludio_crops:
-        seed_id = c["seed_id"]
-        seed_price = ref_prices.get(seed_id, 1)
-        seed_amount = c["limit_seed"]
-        gludio_production.append(f'{{ seed_id = {seed_id}, price = {seed_price}, amount = {seed_amount} }}')
-        
-        crop_id = c["crop_id"]
-        crop_price = ref_prices.get(crop_id, 1)
-        crop_amount = c["limit_crops"]
-        gludio_procurement.append(f'{{ crop_id = {crop_id}, price = {crop_price}, amount = {crop_amount}, reward_type = 1 }}')
+    gludio = [c for c in all_crops if c["castle"] == 1]
+    production, procurement = [], []
+    for c in gludio:
+        # E48-ratified fixture: price = reference price, amount = full period limit, reward type 1.
+        seed_price, crop_price = reference_price(c["seed"]), reference_price(c["crop"])
+        for price in (seed_price, crop_price):
+            if not int(fl(Fraction(price) * fl(Fraction(6, 10)))) <= price <= price * 10:
+                raise SourceError("fixture price outside the pinned limits")
+        production.append(f'{{ seed_id = {c["seed"]}, price = {seed_price}, amount = {c["limit_seed"] * rate_manor} }}')
+        procurement.append(f'{{ crop_id = {c["crop"]}, price = {crop_price}, amount = {c["limit_crops"] * rate_manor}, reward_type = 1 }}')
 
     lines = [
         HEADER,
-        "# D §1.10 item 10b: Manor seeds and Gludio fixture manor lists (258 crops, 129 alternative, 32 Gludio).",
+        "# D §1.10 item 10b: Manor seeds (seeds.xml), Sow/Harvest skills and the Gludio fixture lists.",
         "schema_version = 1",
         f"total_crops = {len(all_crops)}",
-        f"total_alternative_crops = {sum(1 for c in all_crops if c['is_alternative'])}",
-        f"gludio_crops_count = {len(gludio_crops)}",
+        f"total_alternative_crops = {sum(1 for c in all_crops if c['alternative'])}",
+        f"gludio_crops_count = {len(gludio)}",
         "",
-        "# All 258 crops from seeds.xml",
         "crops = [",
     ]
     for c in all_crops:
-        alt_str = str(c["is_alternative"]).lower()
         lines.append(
-            f'  {{ castle = {c["castle_id"]}, crop = {c["crop_id"]}, seed = {c["seed_id"]}, mature = {c["mature_id"]}, rew1 = {c["reward1"]}, rew2 = {c["reward2"]}, alternative = {alt_str}, level = {c["level"]}, limit_seed = {c["limit_seed"]}, limit_crops = {c["limit_crops"]} }},'
+            f'  {{ castle = {c["castle"]}, crop = {c["crop"]}, seed = {c["seed"]}, mature = {c["mature"]}, '
+            f'rew1 = {c["rew1"]}, rew2 = {c["rew2"]}, alternative = {toml_bool(c["alternative"])}, level = {c["level"]}, '
+            f'limit_seed = {c["limit_seed"]}, limit_crops = {c["limit_crops"]} }},'
         )
     lines.append("]")
     lines.append("")
     lines.append("[skills]")
-    lines.append("sow_skill_id = 2097")
-    lines.append("sow_skill_levels = 3")
-    lines.append("harvest_skill_id = 2098")
-    lines.append("harvest_skill_levels = 1")
+    lines.append("sow = [ " + ", ".join(f"{{ id = {s}, level = {l}, levels = {skill_levels(s)} }}" for s, l in sow_skills) + " ]")
+    lines.append(f"harvester_items = {toml_list(harvesters)}")
+    lines.append("harvest = [ " + ", ".join(f"{{ id = {s}, level = {l}, levels = {skill_levels(s)} }}" for s, l in harvest_skills) + " ]")
+    lines.append("# L2Attackable.setSeeded strong-type multipliers")
+    lines.append("strong_type_multipliers = [ " + ", ".join(f"{{ skill = {k}, multiplier = {v}}}" for k, v in multipliers.items()) + " ]")
+    lines.append(f"rate_drop_manor = {rate_manor}")
     lines.append("")
     lines.append("[fixture_gludio]")
     lines.append("castle_id = 1")
+    lines.append("castle_area = 1")
     lines.append("seed_production = [")
-    lines.append("  " + ",\n  ".join(gludio_production))
+    lines.append("  " + ",\n  ".join(production))
     lines.append("]")
     lines.append("crop_procurement = [")
-    lines.append("  " + ",\n  ".join(gludio_procurement))
+    lines.append("  " + ",\n  ".join(procurement))
     lines.append("]")
     lines.append("")
     return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Story 1.4: Catalogue admission closure (D5/D54 extended to Phase 5 references)
+# ---------------------------------------------------------------------------
+
+# MultisellData special ingredient ids are not item templates (MultisellData.java:57-59).
+SPECIAL_INGREDIENTS = ("PC_BANG_POINTS", "CLAN_REPUTATION", "FAME")
+# Phase 4 storability contexts (gen_items.local_blockers at PHASE4_DATA_REVISION): an item
+# carrying any of these is not storable (D5).
+STORABILITY_CONTEXTS = ("context:common", "context:shadow", "context:time_limited", "context:npc_only", "context:pet")
+
+
+def load_phase4_gen_skills():
+    text = git_object(PHASE4_DATA_REVISION, "packages/data/scripts/gen_skills.py")
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "phase4_gen_skills.py"
+        path.write_text(text, encoding="utf-8")
+        spec = importlib.util.spec_from_file_location("phase4_gen_skills", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+    return module
+
+
+def item_storability() -> dict[int, list[str]]:
+    """D5 storability blockers of every datapack item (the Phase 4 local_blockers contexts)."""
+    l2item = src_text("game", GJ + "model/items/L2Item.java")
+    slots_const = {name: int(val, 0) for name, val in
+                   re.findall(r"public static final int (SLOT_\w+) = (-?0x[0-9A-Fa-f]+|-?\d+);", l2item)}
+    slots = {}
+    for name, expr in re.findall(r'SLOTS\.put\("([^"]+)", (.+?)\);', src_text("game", GJ + "datatables/ItemTable.java")):
+        value = 0
+        for part in expr.split("|"):
+            value |= slots_const[part.strip().removeprefix("L2Item.")]
+        slots[name] = value
+    common = src_find("game", GJ + "model/items/L2Item.java", r"_common = (.*?);", re.S).group(1)
+    ranges = [(int(a), int(b)) for a, b in re.findall(r"_itemId >= (\d+)\) && \(_itemId <= (\d+)", common)]
+    singles = [int(a) for a in re.findall(r"_itemId == (\d+)", common)]
+    if common.count("_itemId") != 2 * len(ranges) + len(singles):
+        raise SourceError("unsupported L2Item._common expression")
+    out = {}
+    for iid, row in item_index().items():
+        p = row["sets"]
+        b = []
+        if iid in singles or any(lo <= iid <= hi for lo, hi in ranges) or row["name"].lower().startswith("common item -"):
+            b.append("context:common")
+        if int(p.get("duration", "-1")) != -1:
+            b.append("context:shadow")
+        if int(p.get("time", "-1")) != -1:
+            b.append("context:time_limited")
+        if p.get("for_npc", "false") == "true":
+            b.append("context:npc_only")
+        body = p.get("bodypart", "none")
+        if body not in slots:
+            raise SourceError(f"item {iid}: unknown bodypart {body}")
+        if slots[body] < 0:
+            b.append("context:pet")
+        out[iid] = b
+    return out
+
+
+def gen_catalogue(tables: dict[str, str], dp_root: Path) -> tuple[str, str]:
+    import tomllib
+
+    t = {name.split("/")[-1]: tomllib.loads(content) for name, content in tables.items()}
+    items = item_index()
+    refs: dict[int, set[str]] = {}
+
+    def ref(iid: int, role: str) -> None:
+        refs.setdefault(iid, set()).add(role)
+
+    for npc in t["drops.toml"]["npc"]:
+        for scope in ("death", "corpse"):
+            for node in npc[scope]:
+                for row in node["items"] if node["kind"] == "group" else [node]:
+                    ref(row["id"], scope)
+    for herb in t["herbs.toml"]["handled"] + t["herbs.toml"]["unhandled"]:
+        ref(herb["id"], "herb")
+    for row in t["ground.toml"]["ground"]["auto_destroy_time"]:
+        ref(row["item_id"], "ground_auto_destroy")
+    for e in t["merchants.toml"]["entries"]:
+        ref(e["item"], "merchant")
+    special_ids = {src_int("game", GJ + "data/xml/impl/MultisellData.java", rf"public static final int {k} = (-?\d+);"): k
+                   for k in SPECIAL_INGREDIENTS}
+    special_use: dict[int, dict] = {}
+    for lst in t["multisell.toml"]["list"]:
+        for idx, entry in enumerate(lst["entries"], start=1):
+            for kind, rows in (("ingredient", entry["ingredients"]), ("product", entry["products"])):
+                for row in rows:
+                    if row["id"] < 0:
+                        if row["id"] not in special_ids:
+                            raise SourceError(f"multisell {lst['id']}: unknown special id {row['id']}")
+                        s = special_use.setdefault(row["id"], {"lists": set(), "ingredient": 0, "product": 0, "entries": set()})
+                        s["lists"].add(lst["id"])
+                        s["entries"].add((lst["id"], idx))
+                        s[kind] += 1
+                    else:
+                        ref(row["id"], f"multisell_{kind}")
+    for rec in t["recipes.toml"]["recipe"]:
+        ref(rec["recipe_id"], "recipe_item")
+        for ing in rec["ingredients"]:
+            ref(ing["id"], "recipe_ingredient")
+        ref(rec["production"]["id"], "recipe_product")
+        if "production_rare" in rec:
+            ref(rec["production_rare"]["id"], "recipe_rare_product")
+    for c in t["manor.toml"]["crops"]:
+        ref(c["seed"], "seed")
+        ref(c["crop"], "crop")
+        ref(c["mature"], "mature_crop")
+        ref(c["rew1"], "crop_reward")
+        ref(c["rew2"], "crop_reward")
+    for iid in t["manor.toml"]["skills"]["harvester_items"]:
+        ref(iid, "harvester")
+    for row in t["manor.toml"]["fixture_gludio"]["seed_production"]:
+        ref(row["seed_id"], "manor_fixture")
+    for row in t["manor.toml"]["fixture_gludio"]["crop_procurement"]:
+        ref(row["crop_id"], "manor_fixture")
+    for inst in t["auction.toml"]["instance"]:
+        for row in inst["items"]:
+            ref(row["item_id"], "auction")
+
+    missing = sorted(i for i in refs if i not in items)
+    if missing:
+        raise SourceError(f"referenced templates missing from the datapack: {missing}")
+
+    # Phase 4 catalogue (pinned) and its storability rule, re-derived and cross-checked.
+    caps = tomllib.loads(git_object(PHASE4_DATA_REVISION, "packages/data/tables-phase4/capabilities.toml"))
+    p4_items = {r["template_id"]: r for r in caps["items"]}
+    p4_skills = {r["id"]: r for r in caps["skills"]}
+    storability = item_storability()
+    mismatch = [i for i, r in p4_items.items() if r["storable"] != (not storability[i])]
+    if mismatch:
+        raise SourceError(f"storability rule disagrees with the Phase 4 catalogue on {len(mismatch)} items")
+
+    # Skill executability under the Phase 4 engine rules (gen_skills.compute_all_blockers, phase4=True).
+    gs = load_phase4_gen_skills()
+    all_skills = gs.load_all_datapack_skills(gs.Datapack(dp_root), phase4=True)
+    herb_skill_ids = {s["id"] for h in t["herbs.toml"]["handled"] for s in h["skills"]}
+    _, blockers = gs.compute_all_blockers(all_skills, set(p4_skills) | herb_skill_ids, phase4=True)
+    disagree = [sid for sid, r in p4_skills.items()
+                if sid != 286 and sid in blockers and r["admitted"] != (not blockers[sid])]
+    if disagree:
+        raise SourceError(f"Phase 4 skill rules disagree with the pinned manifest on {disagree[:10]}")
+
+    def skill_ok(sid: int, level: int) -> list[str]:
+        if sid in p4_skills:
+            row = p4_skills[sid]
+            out = list(row["blockers"]) if not row["admitted"] else []
+            if not 1 <= level <= row["max_level"]:
+                out.append(f"level:{level}")
+            return out
+        out = sorted(blockers.get(sid, {f"ref:{sid}"}))
+        if not 1 <= level <= skill_levels(sid):
+            out.append(f"level:{level}")
+        return out
+
+    herbs = {h["id"]: h for h in t["herbs.toml"]["handled"]}
+    unhandled = {h["id"] for h in t["herbs.toml"]["unhandled"]}
+    phase5_paths = {"seed": "phase5:sow (Seed handler, story 3.6)", "harvester": "phase5:harvest (Harvester handler, story 3.6)",
+                    "recipe_item": "phase5:register_recipe (Recipes handler, story 3.8)"}
+    rows = []
+    for iid in sorted(refs):
+        roles = sorted(refs[iid])
+        store_b = storability[iid]
+        if iid in herbs:
+            exec_b = []
+            for s in herbs[iid]["skills"]:
+                exec_b += [f"skill:{s['id']}:{s['level']}:{b}" for b in skill_ok(s["id"], s["level"])]
+            executable, capability = ("no" if exec_b else "yes"), "herb_pickup_effect"
+        elif iid in unhandled:
+            exec_b, executable, capability = [], "yes", "herb_destroy_no_effect"
+        else:
+            paths = [phase5_paths[r] for r in roles if r in phase5_paths]
+            exec_b = []
+            executable, capability = ("yes", "; ".join(paths)) if paths else ("not_required", "storage_only")
+        rows.append({"id": iid, "name": items[iid]["name"], "type": items[iid]["type"], "roles": roles,
+                     "in_phase4": iid in p4_items, "storable": not store_b, "storable_blockers": store_b,
+                     "executable": executable, "capability": capability, "blockers": exec_b})
+
+    non_storable = [r for r in rows if not r["storable"]]
+    non_exec_herbs = [r for r in rows if r["capability"] == "herb_pickup_effect" and r["executable"] == "no"]
+    additions = [r["id"] for r in rows if not r["in_phase4"]]
+    role_counts = {}
+    for r in rows:
+        for role in r["roles"]:
+            role_counts[role] = role_counts.get(role, 0) + 1
+    counts = {
+        "schema": 1,
+        "source_revisions": {"datapack": DATAPACK_REVISION, "game": GAME_REVISION, "phase4_data": PHASE4_DATA_REVISION},
+        "referenced_templates": len(rows),
+        "imported": len(rows),
+        "in_phase4_catalogue": len(rows) - len(additions),
+        "phase4_closure_additions": len(additions),
+        "storable": len(rows) - len(non_storable),
+        "not_storable": len(non_storable),
+        "executable": {"yes": sum(r["executable"] == "yes" for r in rows),
+                       "no": sum(r["executable"] == "no" for r in rows),
+                       "not_required": sum(r["executable"] == "not_required" for r in rows)},
+        "herbs": {"total": len(herbs) + len(unhandled), "pickup_effect_executable": len(herbs) - len(non_exec_herbs),
+                  "pickup_effect_deferred": len(non_exec_herbs), "destroy_no_effect": len(unhandled)},
+        "roles": dict(sorted(role_counts.items())),
+    }
+    counts["special_multisell_ingredients"] = {
+        special_ids[k]: {"id": k, "lists": len(v["lists"]), "entries": len(v["entries"]),
+                         "ingredient_rows": v["ingredient"], "product_rows": v["product"]}
+        for k, v in sorted(special_use.items())}
+
+    lines = [
+        HEADER,
+        "# Story 1.4: catalogue admission closure. Every template referenced by a Phase 5 table is",
+        "# imported and must be storable (D5); executability is a separate capability (D §1.10 item 5).",
+        "# No row of any Phase 5 table is dropped for a capability.",
+        "schema_version = 1",
+        "",
+        "# Templates the Phase 4 EtcItem closure (gen_items.py) must import at Phase 4/5 integration.",
+        f"phase4_closure_additions = {toml_list(additions)}",
+        "",
+        "# Herbs whose pickup effect is not executable: pickup refuses ITEM_CAPABILITY_DEFERRED (D §1.10 item 5).",
+        "non_executable_herbs = [",
+    ]
+    for r in non_exec_herbs:
+        lines.append(f"  {{ id = {r['id']}, name = {json.dumps(r['name'])}, blockers = {json.dumps(r['blockers'])} }},")
+    lines.append("]")
+    lines.append("")
+    lines.append("# Referenced templates that are NOT storable (Phase5Rules admission fails on any).")
+    lines.append("not_storable = [")
+    for r in non_storable:
+        lines.append(f"  {{ id = {r['id']}, name = {json.dumps(r['name'])}, roles = {json.dumps(r['roles'])}, "
+                     f"blockers = {json.dumps(r['storable_blockers'])} }},")
+    lines.append("]")
+    lines.append("")
+    lines.append("# Multisell special ids (MultisellData.java:57-59): clan reputation / fame, not item templates.")
+    lines.append("special_multisell_ingredients = [")
+    for k, v in sorted(special_use.items()):
+        lines.append(f'  {{ id = {k}, name = "{special_ids[k]}", lists = {toml_list(sorted(v["lists"]))}, '
+                     f'entries = {len(v["entries"])}, ingredient_rows = {v["ingredient"]}, product_rows = {v["product"]} }},')
+    lines.append("]")
+    lines.append("")
+    lines.append("templates = [")
+    for r in rows:
+        lines.append(
+            f'  {{ id = {r["id"]}, name = {json.dumps(r["name"])}, type = "{r["type"]}", roles = {json.dumps(r["roles"])}, '
+            f'in_phase4 = {toml_bool(r["in_phase4"])}, storable = {toml_bool(r["storable"])}, '
+            f'storable_blockers = {json.dumps(r["storable_blockers"])}, executable = "{r["executable"]}", '
+            f'capability = {json.dumps(r["capability"])}, blockers = {json.dumps(r["blockers"])} }},')
+    lines.append("]")
+    lines.append("")
+    lines.extend([
+        "[counts]",
+        f"referenced_templates = {counts['referenced_templates']}",
+        f"imported = {counts['imported']}",
+        f"in_phase4_catalogue = {counts['in_phase4_catalogue']}",
+        f"phase4_closure_additions = {counts['phase4_closure_additions']}",
+        f"storable = {counts['storable']}",
+        f"not_storable = {counts['not_storable']}",
+        f"executable_yes = {counts['executable']['yes']}",
+        f"executable_no = {counts['executable']['no']}",
+        f"executable_not_required = {counts['executable']['not_required']}",
+        "",
+    ])
+    return "\n".join(lines), json.dumps(counts, indent=2, sort_keys=False) + "\n"
 
 
 # ---------------------------------------------------------------------------
@@ -1150,28 +1658,46 @@ def gen_manor_table(dp_root: Path) -> str:
 # ---------------------------------------------------------------------------
 
 
+def with_sources(content: str) -> str:
+    if not content.startswith(HEADER):
+        raise SourceError("table without the generated header")
+    block = sources_block()
+    _USED.clear()
+    return HEADER + "\n" + block + content[len(HEADER):]
+
+
 def generate(dp_root: Path, game_root: Path, data_root: Path, stories: list[str]) -> dict[str, str]:
+    set_roots(dp_root, game_root)
     files: dict[str, str] = {}
-    
+    plan = []
     if "1.1" in stories:
-        files["tables-phase5/sources.toml"] = gen_sources_table(dp_root, game_root, data_root)
-        
-    if "1.2" in stories:
-        files["tables-phase5/drops.toml"] = gen_drops_table(dp_root, game_root)
-        files["tables-phase5/rates.toml"] = gen_rates_table(game_root)
-        files["tables-phase5/ground.toml"] = gen_ground_table(game_root)
-        files["tables-phase5/party.toml"] = gen_party_table(game_root)
-        files["tables-phase5/herbs.toml"] = gen_herbs_table(dp_root)
-        files["tables-phase5/adaptations.toml"] = gen_adaptations_table(data_root)
-        
-    if "1.3" in stories:
-        files["tables-phase5/merchants.toml"] = gen_merchants_table(dp_root)
-        files["tables-phase5/multisell.toml"] = gen_multisell_table(dp_root)
-        files["tables-phase5/recipes.toml"] = gen_recipes_table(dp_root, game_root)
-        files["tables-phase5/storage_mail.toml"] = gen_storage_mail_table(game_root)
-        files["tables-phase5/auction.toml"] = gen_auction_table(dp_root, game_root)
-        files["tables-phase5/manor.toml"] = gen_manor_table(dp_root)
-        
+        plan.append(("tables-phase5/sources.toml", lambda: gen_sources_table(data_root)))
+    if "1.2" in stories or "1.4" in stories:
+        plan += [
+            ("tables-phase5/drops.toml", gen_drops_table),
+            ("tables-phase5/rates.toml", gen_rates_table),
+            ("tables-phase5/ground.toml", gen_ground_table),
+            ("tables-phase5/party.toml", gen_party_table),
+            ("tables-phase5/herbs.toml", gen_herbs_table),
+            ("tables-phase5/adaptations.toml", lambda: gen_adaptations_table(data_root)),
+        ]
+    if "1.3" in stories or "1.4" in stories:
+        plan += [
+            ("tables-phase5/merchants.toml", gen_merchants_table),
+            ("tables-phase5/multisell.toml", gen_multisell_table),
+            ("tables-phase5/recipes.toml", gen_recipes_table),
+            ("tables-phase5/storage_mail.toml", gen_storage_mail_table),
+            ("tables-phase5/auction.toml", gen_auction_table),
+            ("tables-phase5/manor.toml", gen_manor_table),
+        ]
+    for name, fn in plan:
+        _USED.clear()
+        files[name] = with_sources(fn())
+    if "1.4" in stories:
+        _USED.clear()
+        catalogue, counts = gen_catalogue(files, dp_root)
+        files["tables-phase5/catalogue.toml"] = with_sources(catalogue)
+        files["tables-phase5/catalogue_counts.json"] = counts
     return files
 
 
@@ -1185,7 +1711,7 @@ def main() -> int:
         "--stories",
         type=str,
         default="1.1,1.2,1.3",
-        help="comma-separated list of stories to generate (1.1, 1.2, 1.3)",
+        help="comma-separated list of stories to generate (1.1, 1.2, 1.3, 1.4)",
     )
     args = parser.parse_args()
 
@@ -1197,7 +1723,6 @@ def main() -> int:
         return 2
 
     stories = [s.strip() for s in args.stories.split(",") if s.strip()]
-    
     data_dir = Path(__file__).resolve().parent.parent
     try:
         files = generate(args.datapack, args.game, data_dir, stories)
