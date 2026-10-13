@@ -1697,6 +1697,27 @@ class Evidence(unittest.TestCase):
         with self.assertRaises(ValueError):gate.input_domains('magic_damage',magic|dict(is_pvp=None))
         print(f'D89: {len(controls)} draw-derived controls pass; {len(mutations)} null/present mismatches and a null is_pvp reject',flush=True)
 
+    def test_d90_gear_stats_full_dictionary_with_ordered_trace(self):
+        vectors=json.loads((gate.REPO/'packages/data/fixtures/item-oracle.json').read_text())['vectors']
+        controls=0
+        for vector in vectors:
+            if not {'class_file','level','equipment'}<=set(vector['inputs'])<=set(gate.INPUT_SCHEMAS['gear_stats']):continue
+            inputs=dict(skill_refs=[],base_deltas=None,base_delta_sequence=-1)|copy.deepcopy(vector['inputs'])
+            actual=gate.oracle.rational(gate.oracle.gear_stats(gate.source(),**gate.oracle.decode_rationals(inputs)))
+            try:gate.formula('gear_stats',inputs,actual)
+            except ValueError:continue
+            controls+=1
+            if len(actual['trace'])<2:continue
+            mutations={'reversed trace':lambda a:a['trace'].reverse(),'dropped trace row':lambda a:a['trace'].pop(),
+                       'missing trace':lambda a:a.pop('trace'),'missing traits':lambda a:a.pop('traits'),
+                       'missing root_expressions':lambda a:a.pop('root_expressions'),'extra key':lambda a:a.update(note=1)}
+            for label,mutate in mutations.items():
+                with self.subTest(vector=vector['id'],mutation=label):
+                    bad=copy.deepcopy(actual);mutate(bad)
+                    with self.assertRaises(ValueError):gate.formula('gear_stats',inputs,bad)
+        self.assertGreaterEqual(controls,1)
+        print(f'D90: {controls} full gear_stats dictionaries pass; reordered/dropped trace rows and missing keys reject',flush=True)
+
     def test_item_record_scalar_substitutions_through_evaluate(self):
         vectors=gate.oracle.make_vectors(gate.source())
         learned=next(v for v in vectors if v['id']=='learned-item-consume-complete-1')
