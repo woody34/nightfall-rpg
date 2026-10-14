@@ -230,6 +230,8 @@ class Fixtures(unittest.TestCase):
         self.assertIn('zone-flags.json',lib)
         self.assertIn('ZONE_FLAGS=(env PHASE3_ENABLED=1 PHASE4_ENABLED=1)',soak);self.assertNotIn('PHASE3_ENABLED="$CASTING"',soak)
         self.assertNotIn('env -u PHASE4_ENABLED',soak)
+        # Review-3 P1-2: the soak seeder writes pending kits for the V6 soak API in every mode.
+        self.assertRegex(soak,r'NIGHTFALL_PHASE4_FIXTURE="\$ITEMS" PHASE4_ENABLED=1 \\\n\s+python3 "\$SIM_REPO/infra/scripts/seed-phase\$\{SEED_PHASE\}-soak.py"')
 
     def test_stage_manifests_are_validated(self):
         roles={name:r|{'account_id':'owner'} for name,r in fixture.phase4.profiles('phase4-equip').items()}

@@ -105,8 +105,10 @@ if ((CASTING)); then
   [[ -x "$SOAK_MIGRATE_BIN" ]] || sim_die "casting soak needs candidate nightfall-migrate"
   DATABASE_URL="postgres://nightfall:nightfall@localhost:$((5432 + OFFSET))/$SOAK_DB" \
     "$SOAK_MIGRATE_BIN" up >"$OUT/migrate.log" 2>&1
+  # D114/review-3 P1-2: the soak API always boots V6, so DB-seeded characters need their
+  # pending-kit rows before first admission (seed-phase3-fixture adds them with PHASE4_ENABLED=1).
   DATABASE_URL="postgres://nightfall:nightfall@localhost:$((5432 + OFFSET))/$SOAK_DB" \
-    AUTH_DEV_TOKENS=1 NIGHTFALL_PHASE3_FIXTURE=1 NIGHTFALL_PHASE4_FIXTURE="$ITEMS" \
+    AUTH_DEV_TOKENS=1 NIGHTFALL_PHASE3_FIXTURE=1 NIGHTFALL_PHASE4_FIXTURE="$ITEMS" PHASE4_ENABLED=1 \
     python3 "$SIM_REPO/infra/scripts/seed-phase${SEED_PHASE}-soak.py" --manifest "$OUT/fixtures/roles.json" \
     --compose-project "$COMPOSE_PROJECT" --compose-file "$OUT/compose.json" \
     >"$OUT/seed.log" 2>&1
