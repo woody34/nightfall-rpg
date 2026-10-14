@@ -155,6 +155,12 @@ pub fn prepare_learn(
             Ok((template, requirement.count))
         })
         .collect::<Result<Vec<_>, _>>()?;
+    // D118: every paid learn carries one learned_item_cost fact, and its frozen shape names a
+    // single template. A rank costing several templates (none in the pinned data: 144 rows,
+    // all one book) is refused fail-closed until that shape exists, never paid without a fact.
+    if required_items.len() > 1 {
+        return Err(LearnError::DeferredSkill);
+    }
     if skill.runtime_status != RuntimeSkillStatus::Executable {
         return Err(LearnError::DeferredSkill);
     }
@@ -366,6 +372,7 @@ mod tests {
         assert_eq!(input.derive(&restored, &rules, false).unwrap(), learned);
     }
     #[test]
+    #[allow(clippy::too_many_lines)] // One shared fixture across the ordered guard chain.
     fn command_phase_guards_reject_without_consuming_sp_or_install_order() {
         let classes = load_classes(&ClassSource::embedded()).unwrap().registry;
         let rules = load_phase3_rules(&Phase3DataSource::embedded(), &[]).unwrap();
@@ -476,6 +483,38 @@ mod tests {
             true,
         )
         .unwrap();
-        assert!(!payable.required_items.is_empty());
+        assert_eq!(payable.required_items, vec![(1, 1)]);
+        // D118: a rank costing more than one template refuses fail-closed, on V5 and V6.
+        let mut encoded = serde_json::to_value(&with_items).unwrap();
+        let row = encoded["classes"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|c| c["id"] == 0)
+            .unwrap()["skill_tree"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|r| r["skill_id"] == 3 && r["skill_level"] == 1)
+            .unwrap();
+        row["required_items"] = serde_json::json!([
+            { "item":"l2.item.1", "count":1 },
+            { "item":"l2.item.2", "count":1 }
+        ]);
+        let two_books: ClassRegistry = serde_json::from_value(encoded).unwrap();
+        assert_eq!(
+            prepare_learn(
+                &ledger,
+                &state,
+                LearnContext {
+                    classes: &two_books,
+                    ..ctx
+                },
+                skill(3, 1),
+                1,
+                true,
+            ),
+            Err(LearnError::DeferredSkill)
+        );
     }
 }

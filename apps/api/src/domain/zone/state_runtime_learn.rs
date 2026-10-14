@@ -672,7 +672,11 @@ impl ZoneState {
             )?;
         }
         let resolution = format!("learn:{request_key}");
-        if let ([(template, count)], true) = (required, self.items_evidence_enabled()) {
+        // D118: prepare_learn refuses multi-template ranks, so every payment has its fact.
+        let [(template, count)] = required else {
+            return Err(RejectReason::SkillDeferred);
+        };
+        if self.items_evidence_enabled() {
             let records = |inventory: &BTreeMap<
                 crate::domain::zone::ItemInstanceId,
                 crate::domain::zone::ItemInstance,
