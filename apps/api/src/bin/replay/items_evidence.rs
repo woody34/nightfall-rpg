@@ -229,6 +229,13 @@ fn export_cause(cause: &ItemAuditEvidence) -> anyhow::Result<Value> {
         };
         // Keep the captured cast resolution namespace, including its actual numeric ID.
         json!(format!("item_cast:cast:{id}"))
+    } else if cause.family == "skill_learn_payment" {
+        // E3.4/D47 skill-book payment: the learn receipt key is the resolution identity.
+        let Some(ItemEvidenceValue::Text(key)) = cause.fields.get("receipt") else {
+            bail!("learn payment lacks its learn receipt");
+        };
+        let key: uuid::Uuid = key.parse().context("invalid learn receipt key")?;
+        json!(format!("item_cast:learn:{key}"))
     } else {
         bail!("unsupported consume cause {}", cause.family);
     };

@@ -6710,6 +6710,254 @@ mod tests {
             .item_casts
             .is_empty());
     }
+    /// E3.4/D47 (B4): a level-52 Bishop learns Divine Inspiration rank 1 by consuming its
+    /// book through the ledger (Consume aggregate caused by the learn receipt); without the
+    /// book the learn refuses with no effect, and V5 (no inventory) still refuses.
+    #[test]
+    #[allow(clippy::too_many_lines)] // Fixture-seeded Bishop, refusal, success and V5 parity.
+    fn v6_skill_book_learning_consumes_the_book_through_the_ledger() {
+        use crate::domain::zone::phase4_projection::{ItemEvidenceValue, ItemOperation};
+        use crate::domain::zone::skill::{SkillId, SkillRef};
+        let (mut zone, owner, _, ids) = use_fixture(&[8618]);
+        let book = ids[0];
+        let xp_at_52 = zone.rules.as_ref().unwrap().xp_to_level(52).unwrap();
+        let base_stats = zone
+            .classes
+            .as_ref()
+            .unwrap()
+            .get(ClassId(10))
+            .unwrap()
+            .base_stats;
+        let trainer = Vec2Fixed::from_tiles(126, 128);
+        let from = zone.entities[&owner.entity].pos;
+        zone.aoi.relocate(owner.entity, from, trainer);
+        let entity = zone.entities.get_mut(&owner.entity).unwrap();
+        entity.pos = trainer;
+        entity.dest = None;
+        let CombatRole::Player {
+            xp,
+            progression: Some(player),
+            ..
+        } = &mut entity.combat.as_mut().unwrap().role
+        else {
+            unreachable!()
+        };
+        *xp = xp_at_52;
+        player.class_state.current_class_id = ClassId(16);
+        // A fixture-seeded Bishop with both required historical transfer receipts.
+        for (target_class, level) in [(15, 20), (16, 40)] {
+            player.class_state.successful_transfer_receipts.push(
+                crate::domain::character_progression::SuccessfulTransferReceipt {
+                    key: Uuid::from_u128(u128::from(target_class)),
+                    target_class_id: ClassId(target_class),
+                    result: crate::domain::character_progression::FrozenTransferResult {
+                        character_id: crate::domain::CharacterId::from_uuid(owner.entity.as_uuid()),
+                        identity: player.identity.clone(),
+                        name: crate::domain::CharacterName::new("First").unwrap(),
+                        current_class_id: ClassId(target_class),
+                        level,
+                        xp: 0,
+                        sp: 0,
+                        stats: base_stats,
+                        position_millitiles: [126_000, 128_000],
+                        hp: 1,
+                        mp: 1,
+                        cp: 0,
+                        max_hp: 1,
+                        max_mp: 1,
+                        max_cp: 0,
+                        token_tier_1_count: 0,
+                        token_tier_2_count: 0,
+                        granted_skill_keys: Vec::new(),
+                    },
+                },
+            );
+        }
+        zone.phase4
+            .as_mut()
+            .unwrap()
+            .canonical
+            .players
+            .get_mut(&owner.entity)
+            .unwrap()
+            .inventory
+            .get_mut(&book)
+            .unwrap()
+            .count = 1;
+        zone.relevel(owner.entity).unwrap();
+        zone.sync_passives_v5(owner.entity).unwrap();
+        zone.rebuild_v5(owner.entity).unwrap();
+        zone.run_tick(zone.draft(Vec::new())).unwrap();
+        let CombatRole::Player {
+            progression: Some(player),
+            ..
+        } = &zone.entities[&owner.entity].combat.as_ref().unwrap().role
+        else {
+            unreachable!()
+        };
+        let account = player.identity.account_id;
+        let key = Uuid::from_u128(0x0197_0000_0000_7000_8000_0000_0000_0042);
+        let learn = |seq| {
+            ZoneInput::session(
+                owner.entity,
+                SessionGeneration(1),
+                seq,
+                ZoneCommand::LearnSkill {
+                    entity: owner.entity,
+                    account,
+                    request_key: key,
+                    skill_id: SkillId(1405),
+                    skill_level: 1,
+                },
+            )
+        };
+        let rank = |zone: &ZoneState| {
+            let CombatRole::Player {
+                progression: Some(player),
+                ..
+            } = &zone.entities[&owner.entity].combat.as_ref().unwrap().role
+            else {
+                unreachable!()
+            };
+            player
+                .class_state
+                .learned_skills
+                .iter()
+                .find(|skill| skill.key == "l2.skill.1405")
+                .map_or(0, |skill| skill.level)
+        };
+        // Without the book: the read-only query and the command refuse, with no effect.
+        let mut missing = zone.clone();
+        missing
+            .phase4
+            .as_mut()
+            .unwrap()
+            .canonical
+            .players
+            .get_mut(&owner.entity)
+            .unwrap()
+            .inventory
+            .remove(&book);
+        let generation = SessionGeneration(1);
+        assert_eq!(
+            missing.validate_learn_skill(
+                owner.entity,
+                account,
+                generation,
+                SkillRef {
+                    id: SkillId(1405),
+                    rank: 1
+                }
+            ),
+            Err(RejectReason::SkillItemRequired)
+        );
+        let before = missing.snapshot();
+        let refused = missing.run_tick(missing.draft(vec![learn(1)])).unwrap();
+        assert_eq!(refused.dispositions[0].reason, RejectReason::SkillItemRequired);
+        assert!(!refused
+            .events
+            .iter()
+            .any(|e| matches!(e, ZoneEvent::SkillLearned { .. } | ZoneEvent::ItemCheckpoint(_))));
+        assert_eq!(rank(&missing), 0);
+        assert_eq!(
+            missing.snapshot().phase4,
+            before.phase4,
+            "a refused learn leaves the inventory untouched"
+        );
+        // V5 (no inventory) keeps refusing a book-gated row.
+        let mut legacy = zone.clone();
+        legacy.phase4 = None;
+        assert_eq!(
+            legacy.validate_learn_skill(
+                owner.entity,
+                account,
+                generation,
+                SkillRef {
+                    id: SkillId(1405),
+                    rank: 1
+                }
+            ),
+            Err(RejectReason::SkillItemRequired)
+        );
+        // With the book: one tick learns the rank and consumes the book atomically.
+        let revision =
+            zone.phase4.as_ref().unwrap().canonical.players[&owner.entity].inventory_revision;
+        let snapshot = zone.snapshot();
+        let mut cold = ZoneState::from_snapshot_with_items(
+            snapshot.clone(),
+            Some(Arc::clone(&zone.phase4.as_ref().unwrap().rules)),
+        )
+        .unwrap();
+        let draft = zone.draft(vec![learn(1)]);
+        let learned = zone.run_tick(draft.clone()).unwrap();
+        assert_eq!(learned, cold.run_tick(draft).unwrap());
+        assert!(learned.dispositions.is_empty(), "{:?}", learned.dispositions);
+        assert_eq!(rank(&zone), 1);
+        let items = &zone.phase4.as_ref().unwrap().canonical.players[&owner.entity];
+        assert!(!items.inventory.contains_key(&book));
+        assert!(items
+            .inventory
+            .values()
+            .all(|item| item.template_id != 8618));
+        assert_eq!(items.inventory_revision, revision.checked_add(1).unwrap());
+        let learned_at = learned
+            .events
+            .iter()
+            .position(|e| matches!(e, ZoneEvent::SkillLearned { .. }))
+            .unwrap();
+        let (at, projection) = learned
+            .events
+            .iter()
+            .enumerate()
+            .find_map(|(at, e)| match e {
+                ZoneEvent::ItemCheckpoint(p) => Some((at, p)),
+                _ => None,
+            })
+            .unwrap();
+        assert!(at > learned_at);
+        assert!(projection.receipts.is_empty());
+        assert_eq!(projection.ledger.len(), 1);
+        let row = &projection.ledger[0];
+        assert_eq!(row.operation, ItemOperation::Consume);
+        assert_eq!(row.instance, book);
+        assert_eq!(row.count_delta, -1);
+        assert!(row.after.is_none());
+        assert_eq!(row.causes.len(), 1);
+        assert_eq!(row.causes[0].family, "skill_learn_payment");
+        assert_eq!(
+            row.causes[0].fields.get("receipt"),
+            Some(&ItemEvidenceValue::Text(key.to_string()))
+        );
+        assert_eq!(row.causes[0].contributing_receipt(), Ok(None));
+        assert_eq!(projection.checkpoint.inventory_revision, items.inventory_revision);
+        assert!(projection
+            .checkpoint
+            .instances
+            .iter()
+            .all(|item| item.template_id != 8618));
+        // The same rank cannot be bought twice; the command refuses before any payment.
+        let again = zone.run_tick(zone.draft(vec![learn(2)])).unwrap();
+        assert_eq!(again.dispositions[0].reason, RejectReason::SkillWrongRank);
+        if let Ok(path) = std::env::var("NIGHTFALL_TEST_SKILL_BOOK_LEARN_RECORDING") {
+            use crate::application::replay_log::{AppliedTickRecord, Watermark, WatermarkReason};
+            let records = vec![AppliedTickRecord::from_applied(
+                snapshot.seed.zone,
+                &learned,
+            )];
+            let recording = crate::infrastructure::eventlog::Recording {
+                watermark: Watermark {
+                    zone: snapshot.seed.zone,
+                    epoch: snapshot.seed.epoch,
+                    records: 1,
+                    last_tick: Some(learned.tick),
+                    reason: WatermarkReason::Shutdown,
+                },
+                records,
+                snapshot,
+            };
+            std::fs::write(path, recording.to_bytes().unwrap()).unwrap();
+        }
+    }
     #[test]
     #[allow(clippy::too_many_lines)] // Fixture-seeded learned rank, real skill/cost definitions and critical projection.
     fn v6_learned_item_cost_is_atomic_paid_once_and_not_refunded_on_cancel() {
