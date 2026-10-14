@@ -574,5 +574,19 @@ mod tests {
                 "{phase3:?} {phase4:?}"
             );
         }
+        // A simulation fixture defaults to legacy epochs; the refusal names that default.
+        let error = ZoneRuntimeConfig {
+            simulation_fixture: Some("phase1a-social-aggro".into()),
+            auth_dev_tokens: true,
+            phase4_enabled: Some("1".into()),
+            ..ZoneRuntimeConfig::default()
+        }
+        .validate_production_selection()
+        .unwrap_err()
+        .to_string();
+        assert!(
+            error.contains("ZONE_SIM_FIXTURE") && error.contains("PHASE3_ENABLED=1"),
+            "{error}"
+        );
     }
 }

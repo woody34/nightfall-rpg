@@ -168,6 +168,33 @@ mod tests {
         let mut value = serde_json::to_value(&grant).unwrap();
         value["unknown"] = serde_json::Value::Null;
         assert!(grant_from_json(&serde_json::to_vec(&value).unwrap()).is_err());
+        // D113: a zero-enchant grant's canonical bytes carry no "enchant" key (exactly the
+        // pre-D113 bytes); an explicit `"enchant":0` is noncanonical and refused.
+        let canonical = canonical_json(&grant);
+        assert!(!String::from_utf8(canonical.clone())
+            .unwrap()
+            .contains("\"enchant\""));
+        let mut explicit = serde_json::to_value(&grant).unwrap();
+        explicit["enchant"] = serde_json::json!(0);
+        assert!(grant_from_json(&serde_json::to_vec(&explicit).unwrap()).is_err());
+        // A non-zero level is part of the body and its canonical bytes round-trip.
+        let mut enchanted = grant.clone();
+        enchanted.count = 1;
+        enchanted.enchant = 3;
+        enchanted.fingerprint = crate::domain::zone::item_grant::grant_fingerprint_with_enchant(
+            crate::domain::CharacterId::from_uuid(entity.as_uuid()),
+            57,
+            1,
+            3,
+        );
+        let bytes = canonical_json(&enchanted);
+        assert!(String::from_utf8(bytes.clone())
+            .unwrap()
+            .contains("\"enchant\":3"));
+        assert_eq!(
+            grant_from_json(&bytes).unwrap(),
+            ZoneCommand::MaterializePendingItems(Box::new(enchanted))
+        );
     }
 
     #[test]

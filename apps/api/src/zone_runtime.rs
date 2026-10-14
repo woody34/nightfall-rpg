@@ -19,6 +19,13 @@ use crate::infrastructure::eventlog::{InMemoryEventLog, JetStreamEventLog};
 use crate::infrastructure::postgres::PgZoneSnapshotStore;
 use crate::infrastructure::{rules_data, zone_data};
 
+/// (`RULES_DIR`, `ZONE_FILE`, `ZONE_SIM_FIXTURE`, classes hash) of one prepared V6 bundle.
+type PreparedKey = (Option<PathBuf>, Option<PathBuf>, Option<String>, String);
+/// V6 bundles composed and validated by `prepare_phase4`, once per configured source.
+static PREPARED: parking_lot::Mutex<
+    std::collections::BTreeMap<PreparedKey, crate::infrastructure::item_data::Phase4RuleBundle>,
+> = parking_lot::Mutex::new(std::collections::BTreeMap::new());
+
 /// Where the zone comes from.
 #[derive(Debug, Clone, Default)]
 pub struct ZoneRuntimeConfig {
@@ -81,10 +88,17 @@ impl ZoneRuntimeConfig {
         match self.phase4_enabled.as_deref() {
             None | Some("0") => Ok(false),
             Some("1") => {
-                anyhow::ensure!(
-                    self.phase3_requested()?,
-                    "PHASE4_ENABLED=1 extends the V5 bundle; PHASE3_ENABLED must be unset or 1"
-                );
+                if !self.phase3_requested()? {
+                    if self.phase3_enabled.is_none() {
+                        anyhow::bail!(
+                            "PHASE4_ENABLED=1 extends the V5 bundle, but ZONE_SIM_FIXTURE keeps \
+                             legacy epochs by default; set PHASE3_ENABLED=1 to select V5"
+                        );
+                    }
+                    anyhow::bail!(
+                        "PHASE4_ENABLED=1 extends the V5 bundle; PHASE3_ENABLED must be unset or 1"
+                    );
+                }
                 Ok(true)
             },
             Some(_) => anyhow::bail!("PHASE4_ENABLED must be unset, 0 or 1"),
@@ -108,19 +122,30 @@ impl ZoneRuntimeConfig {
         if !self.phase4_requested()? {
             return Ok(None);
         }
-        let bundle = crate::infrastructure::item_data::embedded_phase4_bundle()
-            .map_err(anyhow::Error::msg)?;
+        // Composed and validated once per configured source; the composition root and the
+        // zone start ask for the same bundle.
+        let key = (
+            self.rules_dir.clone(),
+            self.zone_file.clone(),
+            self.simulation_fixture.clone(),
+            classes.config_hash.clone(),
+        );
+        if let Some(bundle) = PREPARED.lock().get(&key) {
+            return Ok(Some(bundle.clone()));
+        }
+        // Same Phase 3 source as the V5 path (RULES_DIR overlay, simulation-fixture NPC
+        // overrides); the embedded default resolves to the embedded D27 bundle itself.
+        let bundle =
+            crate::infrastructure::item_data::configured_phase4_bundle(&self.phase3_source()?)
+                .map_err(anyhow::Error::msg)?;
         let rules = match &self.rules_dir {
             Some(dir) => rules_data::load_rules_dir(dir)?,
             None => rules_data::load_rules(&rules_data::RulesSource::embedded())?,
         };
         let zone = self.load_zone()?;
-        // The V6 skills pass every V5 bootstrap check against this installation.
+        // The V6 skills pass every V5 bootstrap check against this installation; the item
+        // and skill agreement was validated when the bundle was composed.
         phase3::validate_phase3_rules(&bundle.skills, &rules, classes, &zone)?;
-        bundle
-            .items
-            .validate_phase3(&bundle.skills)
-            .map_err(anyhow::Error::msg)?;
         let blacksmith = &bundle.items.parts().capacities.blacksmith;
         anyhow::ensure!(
             zone.bounds
@@ -140,6 +165,7 @@ impl ZoneRuntimeConfig {
             classes_hash = %classes.config_hash,
             zone_config_hash = %zone.config_hash,
             "Phase3 bootstrap bundle validated with the Phase4 (V6) item extension");
+        PREPARED.lock().insert(key, bundle.clone());
         Ok(Some(bundle))
     }
 

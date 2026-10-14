@@ -46,17 +46,63 @@ pub fn embedded_phase4_bundle() -> Result<Phase4RuleBundle, String> {
         .clone()
 }
 
+/// V6 bundles composed at startup over a configured Phase 3 data source (`RULES_DIR`
+/// overlays, simulation fixtures), keyed by their exact (item, skill) hashes.
+static INSTALLED: parking_lot::Mutex<Vec<Phase4RuleBundle>> = parking_lot::Mutex::new(Vec::new());
+
+/// Compose the V6 bundle over `source` exactly as [`embedded_phase4_bundle`] composes it over
+/// the embedded Phase 3 data: the configured Phase 3 tables (skills, profiles incl. NPC
+/// profiles, PvP/regen/constants, geometry, NPC skills) take the embedded Phase 4 skill closure
+/// (D31) and the embedded item tables (D27). The skill hash is the Phase 3 rules hash of that
+/// composition (V5 hashes an overlay the same way) and the item hash binds it through the
+/// manifest's `phase3_hash`; with the embedded source both equal the embedded bundle's.
+/// A non-embedded composition is installed so this process can record and recover it.
+pub fn configured_phase4_bundle(
+    source: &super::skill_data::Phase3DataSource,
+) -> Result<Phase4RuleBundle, String> {
+    use super::skill_data::{load_phase3_rules, load_phase4_skills, SkillSource};
+    let base = load_phase3_rules(source, &[]).map_err(|error| error.to_string())?;
+    let skills = load_phase4_skills(&SkillSource::phase4_embedded(), &[])
+        .map_err(|error| error.to_string())?;
+    let skills = base
+        .with_phase4_skills(skills)
+        .map_err(|errors| errors.join("; "))?;
+    let embedded = embedded_phase4_bundle()?;
+    if skills.hash() == embedded.skills.hash() {
+        return Ok(embedded);
+    }
+    let items = load_embedded_phase4_rules(skills.hash())?;
+    items.validate_phase3(&skills)?;
+    let bundle = Phase4RuleBundle {
+        items: Arc::new(items),
+        skills: Arc::new(skills),
+    };
+    let mut installed = INSTALLED.lock();
+    if !installed.iter().any(|known| {
+        known.items.hash() == bundle.items.hash() && known.skills.hash() == bundle.skills.hash()
+    }) {
+        installed.push(bundle.clone());
+    }
+    Ok(bundle)
+}
+
 /// Resolve both exact recorded hashes before constructing a V6 zone or decoding its
-/// dynamic sidecars. A later build must never substitute a different capability closure.
+/// dynamic sidecars: the embedded bundle, or one this process composed at startup from its
+/// configured data. A later build must never substitute a different capability closure.
 pub fn resolve_phase4_bundle(
     item_hash: [u8; 32],
     skill_hash: [u8; 32],
 ) -> Result<Phase4RuleBundle, String> {
     let bundle = embedded_phase4_bundle()?;
-    if bundle.items.hash() != item_hash || bundle.skills.hash() != skill_hash {
-        return Err("recorded V6 rules are unavailable in this build".into());
+    if bundle.items.hash() == item_hash && bundle.skills.hash() == skill_hash {
+        return Ok(bundle);
     }
-    Ok(bundle)
+    INSTALLED
+        .lock()
+        .iter()
+        .find(|known| known.items.hash() == item_hash && known.skills.hash() == skill_hash)
+        .cloned()
+        .ok_or_else(|| "recorded V6 rules are unavailable in this build".into())
 }
 
 /// Read one immutable generated bundle. This path is not enabled by legacy bootstrap.

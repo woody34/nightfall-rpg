@@ -148,47 +148,11 @@ pub fn grant_fingerprint_with_enchant(
 /// Ceiling for a template whose matching scroll has no maximum (`max_enchant = 0`).
 pub const MAX_GRANT_ENCHANT: u32 = 65_535;
 
-/// D113: the highest birth enchant level a dev grant may carry for `template`, i.e. the
-/// level the template's enchant rules can reach with some matching scroll: an admitted,
-/// enchantable, non-stackable weapon or armor outside the blacklist, at most one past the
-/// highest matching scroll's `max_enchant` (or [`MAX_GRANT_ENCHANT`] when one is unbounded).
+/// D113: the highest birth enchant level a dev grant may carry for `template`: the level its
+/// enchant rules can reach in play with some matching scroll (the zone's own scroll matching
+/// and chance groups), capped by the scroll maximum and by the first 0%-chance level.
 /// Zero means the template cannot carry an enchant level.
 #[must_use]
 pub fn grant_enchant_limit(rules: &super::Phase4Rules, template: u32) -> u32 {
-    let parts = rules.parts();
-    let Some(definition) = parts.items.get(&template) else {
-        return 0;
-    };
-    if definition.stackable
-        || !matches!(definition.kind.as_str(), "Weapon" | "Armor")
-        || definition.enchant_enabled == 0
-        || parts.enchant_blacklist.contains(&template)
-        || !parts
-            .capabilities
-            .get(&template)
-            .is_some_and(|c| c.admitted && c.storable)
-    {
-        return 0;
-    }
-    let grade = match definition.grade.as_str() {
-        "S80" | "S84" => "S",
-        grade => grade,
-    };
-    parts
-        .enchant_scrolls
-        .values()
-        .filter(|rule| {
-            rule.target_grade == grade
-                && rule.weapon == (definition.kind == "Weapon")
-                && (rule.allowed_items.is_empty() || rule.allowed_items.contains(&template))
-        })
-        .map(|rule| {
-            if rule.max_enchant == 0 {
-                MAX_GRANT_ENCHANT
-            } else {
-                rule.max_enchant.saturating_add(1).min(MAX_GRANT_ENCHANT)
-            }
-        })
-        .max()
-        .unwrap_or(0)
+    super::state::scroll_reachable_enchant(rules, template)
 }
