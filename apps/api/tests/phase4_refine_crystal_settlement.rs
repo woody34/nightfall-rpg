@@ -16,9 +16,7 @@ use api::application::ports::*;
 use api::application::replay_log::{restore_snapshot, start_epoch, AppliedTickRecord, EventLog};
 use api::domain::character_progression::{FrozenTransferResult, SuccessfulTransferReceipt};
 use api::domain::subclass::LearnedSkill;
-use api::domain::zone::item_grant::{
-    grant_enchant_limit, grant_fingerprint, grant_fingerprint_with_enchant,
-};
+use api::domain::zone::item_grant::{grant_enchant_limit, grant_fingerprint_with_enchant};
 use api::domain::zone::phase4_projection::{ItemOperation, ItemRefineOutcome};
 use api::domain::zone::*;
 use api::domain::{AccountId, Character, CharacterId, CharacterName, Race};
@@ -78,7 +76,7 @@ where
         level: u32,
         class: Option<u32>,
         skills: Vec<LearnedSkill>,
-        grants: &[(u32, u64)],
+        grants: &[(u32, u64, u32)],
     ) -> Self {
         let bundle = item_data::embedded_phase4_bundle().unwrap();
         let rules = rules_data::load_rules(&rules_data::RulesSource::embedded())
@@ -204,7 +202,7 @@ where
         let entity = EntityId::from_uuid(c.id.as_uuid());
         let grants = grants
             .iter()
-            .map(|(template, count)| {
+            .map(|(template, count, enchant)| {
                 ZoneInput::system(ZoneCommand::MaterializePendingItems(Box::new(
                     ItemGrantCommand {
                         entity,
@@ -212,12 +210,14 @@ where
                         request_id: Uuid::now_v7(),
                         template_id: *template,
                         count: *count,
-                        fingerprint: grant_fingerprint(c.id, *template, *count),
+                        fingerprint: grant_fingerprint_with_enchant(
+                            c.id, *template, *count, *enchant,
+                        ),
                         rules_hash: bundle.items.hash(),
                         paused: Some(Box::new(core.clone())),
                         known: None,
                         conflict: None,
-                        enchant: 0,
+                        enchant: *enchant,
                     },
                 )))
             })
@@ -418,10 +418,10 @@ where
         None,
         Vec::new(),
         &[
-            (necklace, 1),
-            (stone, 2),
-            (cost.gemstone_id, gems * 2),
-            (57, 5_000_000),
+            (necklace, 1, 0),
+            (stone, 2, 0),
+            (cost.gemstone_id, gems * 2, 0),
+            (57, 5_000_000, 0),
         ],
     )
     .await;
@@ -507,7 +507,7 @@ where
             key: "l2.skill.248".into(),
             level: 1,
         }],
-        &[(weapon, 1), (weapon, 1)],
+        &[(weapon, 1, 0), (weapon, 1, 0)],
     )
     .await;
     let weapons: Vec<_> = scene
@@ -631,9 +631,45 @@ async fn postgres_real_partial_destroy_then_crystallize_refund_settles() {
     assert!(rows[1].1 > 0);
 }
 
-/// D113: a dev grant born at +3 on an enchantable weapon settles; the retained instance and
-/// its append-only birth ledger row carry the enchant level; a level beyond the template's
-/// scroll rules is refused by the zone without mutation.
+/// One refused live grant tick: returns its single disposition reason; nothing changes.
+fn refused_grant(
+    state: &mut ZoneState,
+    entity: EntityId,
+    account: api::domain::AccountId,
+    template_id: u32,
+    count: u64,
+    enchant: u32,
+) -> RejectReason {
+    let character = CharacterId::from_uuid(entity.as_uuid());
+    let before = state.snapshot();
+    let draft = state.draft(vec![ZoneInput::system(ZoneCommand::MaterializePendingItems(
+        Box::new(ItemGrantCommand {
+            entity,
+            account,
+            request_id: Uuid::now_v7(),
+            template_id,
+            count,
+            fingerprint: grant_fingerprint_with_enchant(character, template_id, count, enchant),
+            rules_hash: item_data::embedded_phase4_bundle().unwrap().items.hash(),
+            paused: None,
+            known: None,
+            conflict: None,
+            enchant,
+        }),
+    ))]);
+    let applied = state.run_tick(draft).unwrap();
+    assert_eq!(applied.dispositions.len(), 1, "{:?}", applied.dispositions);
+    assert_eq!(state.snapshot().phase4, before.phase4);
+    applied.dispositions[0].reason
+}
+
+/// D113: birth enchant levels are bounded by the template's enchant rules in play: the
+/// highest matching scroll's maximum + 1 (NONE-grade weapon 13539: 24) and the first 0%-chance
+/// level of its chance group (D-grade armor 40: `ARMOR_GROUP` is 0% from +20, so 20). An
+/// offline (paused) owner and an admitted owner both receive the item at its level; the
+/// retained row and the append-only birth row carry it. An over-limit level is `InvalidEnchant`
+/// even into a full inventory, where a valid level is `InventoryFull`.
+#[allow(clippy::too_many_lines)] // One shared memory/Pg D113 contract.
 async fn enchanted_grant_contract<R>(repo: Arc<R>) -> (CharacterId, ItemInstanceId)
 where
     R: CharacterRepository
@@ -643,18 +679,30 @@ where
         + 'static,
 {
     let bundle = item_data::embedded_phase4_bundle().unwrap();
-    let (weapon, limit) = bundle
-        .items
-        .parts()
-        .items
-        .iter()
-        .filter(|(_, definition)| definition.kind == "Weapon")
-        .map(|(template, _)| (*template, grant_enchant_limit(&bundle.items, *template)))
-        .find(|(_, limit)| *limit >= 4)
+    let (armor, weapon) = (40, 13539);
+    assert_eq!(grant_enchant_limit(&bundle.items, armor), 20, "rate-bound");
+    assert_eq!(grant_enchant_limit(&bundle.items, weapon), 24, "scroll-bound");
+    assert_eq!(grant_enchant_limit(&bundle.items, 69), 65_535, "unbounded D weapon");
+    assert_eq!(grant_enchant_limit(&bundle.items, 57), 0, "stackable");
+    // Offline: the paused-owner grant materializes the kit and the +20 armor before login.
+    let mut scene = Scene::new(
+        repo,
+        "EnchantedGrant",
+        Race::Human,
+        20,
+        None,
+        Vec::new(),
+        &[(57, 1, 0), (armor, 1, 20)],
+    )
+    .await;
+    let offline = scene
+        .instances()
+        .into_iter()
+        .find(|item| item.template_id == armor)
         .unwrap();
-    let mut scene =
-        Scene::new(repo, "EnchantedGrant", Race::Human, 20, None, Vec::new(), &[(57, 1)]).await;
-    let projection = scene.grant_live(weapon, 1, 3).await;
+    assert_eq!(offline.enchant, 20);
+    // Live: +24 on the scroll-bound weapon.
+    let projection = scene.grant_live(weapon, 1, 24).await;
     let born = projection
         .ledger
         .iter()
@@ -665,7 +713,7 @@ where
         })
         .unwrap();
     assert!(born.before.is_none());
-    assert_eq!(born.after.as_ref().unwrap().enchant, 3);
+    assert_eq!(born.after.as_ref().unwrap().enchant, 24);
     let id = born.instance;
     let retained = scene
         .repo
@@ -675,39 +723,49 @@ where
         .unwrap()
         .checkpoint
         .unwrap();
-    assert_eq!(
+    let level = |id| {
         retained
             .instances
             .iter()
             .find(|item| item.id == id)
             .unwrap()
-            .enchant,
-        3
+            .enchant
+    };
+    assert_eq!((level(id), level(offline.id)), (24, 20));
+    let (entity, account) = (scene.entity, scene.character.account_id);
+    for (template, enchant) in [(weapon, 25), (armor, 21)] {
+        assert_eq!(
+            refused_grant(&mut scene.state, entity, account, template, 1, enchant),
+            RejectReason::InvalidEnchant
+        );
+    }
+    // Fill the ordinary inventory with the lightest storable non-stackable item.
+    let parts = bundle.items.parts();
+    let filler = parts
+        .items
+        .iter()
+        .filter(|(template, definition)| {
+            !definition.stackable
+                && definition.flags.get("is_questitem") == Some(&false)
+                && parts.capabilities.get(template).is_some_and(|c| c.storable)
+        })
+        .min_by_key(|(template, definition)| (definition.weight, **template))
+        .map(|(template, _)| *template)
+        .unwrap();
+    let capacity = u64::from(retained.ordinary_capacity);
+    let used = u64::try_from(retained.instances.len()).unwrap();
+    scene
+        .grant_live(filler, capacity.checked_sub(used).unwrap(), 0)
+        .await;
+    assert_eq!(
+        refused_grant(&mut scene.state, entity, account, armor, 1, 21),
+        RejectReason::InvalidEnchant,
+        "the level is checked before placement"
     );
-    // Beyond the template's scroll rules: refused as InvalidEnchant, no mutation.
-    let before = scene.state.snapshot();
-    let beyond = limit.checked_add(1).unwrap();
-    let character = CharacterId::from_uuid(scene.entity.as_uuid());
-    let draft = scene
-        .state
-        .draft(vec![ZoneInput::system(ZoneCommand::MaterializePendingItems(
-            Box::new(ItemGrantCommand {
-                entity: scene.entity,
-                account: scene.character.account_id,
-                request_id: Uuid::now_v7(),
-                template_id: weapon,
-                count: 1,
-                fingerprint: grant_fingerprint_with_enchant(character, weapon, 1, beyond),
-                rules_hash: bundle.items.hash(),
-                paused: None,
-                known: None,
-                conflict: None,
-                enchant: beyond,
-            }),
-        ))]);
-    let refused = scene.state.run_tick(draft).unwrap();
-    assert_eq!(refused.dispositions.len(), 1, "{:?}", refused.dispositions);
-    assert_eq!(scene.state.snapshot().phase4, before.phase4);
+    assert_eq!(
+        refused_grant(&mut scene.state, entity, account, armor, 1, 3),
+        RejectReason::InventoryFull
+    );
     (scene.character.id, id)
 }
 
@@ -720,7 +778,7 @@ async fn memory_enchanted_dev_grant_is_born_at_its_level() {
         .into_iter()
         .find(|row| row.instance_id == id && row.delta.before.is_none())
         .unwrap();
-    assert_eq!(birth.delta.after.unwrap().enchant, 3);
+    assert_eq!(birth.delta.after.unwrap().enchant, 24);
 }
 
 #[tokio::test]
@@ -737,11 +795,11 @@ async fn postgres_enchanted_dev_grant_is_born_at_its_level() {
     .fetch_one(&pool)
     .await
     .unwrap();
-    assert_eq!(enchant, 3);
+    assert_eq!(enchant, 24);
     let stored: i64 = sqlx::query_scalar("SELECT enchant FROM item_instances WHERE id=$1")
         .bind(i64::try_from(id.get()).unwrap())
         .fetch_one(&pool)
         .await
         .unwrap();
-    assert_eq!(stored, 3);
+    assert_eq!(stored, 24);
 }

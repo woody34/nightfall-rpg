@@ -301,6 +301,18 @@ impl ZoneState {
                 .filter(|r| i64::try_from(*r).is_ok())
                 .ok_or(RejectReason::InvalidLoad)?
         };
+        // D113 is checked before placement, so an invalid level is InvalidEnchant even when
+        // the inventory is also full.
+        if command.enchant != 0
+            && (command.count != 1
+                || command.enchant
+                    > crate::domain::zone::item_grant::grant_enchant_limit(
+                        &items.rules,
+                        command.template_id,
+                    ))
+        {
+            return Err(RejectReason::InvalidEnchant);
+        }
         let mut mutation = InventoryMutation::prepare(
             &player.inventory,
             items.canonical.allocator,
@@ -323,15 +335,11 @@ impl ZoneState {
         if command.enchant != 0 {
             // D113: a dev fixture's single new equipment instance is born at its enchant
             // level (no RNG, no scroll); the birth ledger row carries that state.
-            let limit = crate::domain::zone::item_grant::grant_enchant_limit(
-                &items.rules,
-                command.template_id,
-            );
             let [change] = mutation.changes.as_mut_slice() else {
                 return Err(RejectReason::InvalidEnchant);
             };
             let born = change.after.as_mut().ok_or(RejectReason::InvalidLoad)?;
-            if command.count != 1 || command.enchant > limit || change.before.is_some() {
+            if change.before.is_some() {
                 return Err(RejectReason::InvalidEnchant);
             }
             born.enchant = command.enchant;
