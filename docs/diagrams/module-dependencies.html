@@ -76,7 +76,7 @@
     <div class="diagram-container">
       <svg viewBox="0 0 960 600" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="module-dependencies-title module-dependencies-desc">
         <title id="module-dependencies-title">Clean architecture: actual dependencies</title>
-        <desc id="module-dependencies-desc">Interface and infrastructure share application and domain dependencies, with production telemetry imports crossing from interface to infrastructure and composition wiring the adapters.</desc>
+        <desc id="module-dependencies-desc">The interface layer and the infrastructure layer have the same application and domain dependencies. Production telemetry imports go from interface to infrastructure, and composition connects the adapters.</desc>
         <defs>
           <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
 <polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/>
@@ -140,12 +140,12 @@
     </div>
     <div class="notes">
 <p>
-<strong>Composition:</strong> <code>main.rs</code>, <code>lib.rs</code>, <code>config.rs</code>, <code>zone_runtime.rs</code>. Direct imports into inner layers are folded into composition wiring. Tests and third-party crates are omitted.</p>
+<strong>Composition:</strong> <code>main.rs</code>, <code>lib.rs</code>, <code>config.rs</code>, <code>zone_runtime.rs</code>. The graph shows direct imports into the inner layers as part of the composition wiring. The graph does not show tests and third-party crates.</p>
 <p>
 <strong>Interface:</strong> <code>grpc, http, ws, zone_mapping</code>. <strong>Application:</strong> <code>use_cases, ports, error, replay_log, session, trace, zone_actor, zone_bootstrap, zone_registry</code>. <strong>Domain:</strong> <code>account, character, events, ids, session, zone</code>.</p>
 <p>
-<strong>Infrastructure:</strong> <code>auth, eventlog, memory, nats, outbox, postgres, secrets, telemetry, zone_data</code>. Adapters implement application ports; domain has no runtime, transport or database imports. Application orchestration uses Tokio and tracing.</p>
-<p>The intended dependency direction is inward. The graph also shows the current exception: <code>interface::http</code> and <code>interface::grpc::auth</code> import <code>infrastructure::telemetry</code>. There is no module-level production cycle in this view.</p>
+<strong>Infrastructure:</strong> <code>auth, eventlog, memory, nats, outbox, postgres, secrets, telemetry, zone_data</code>. The adapters implement the application ports. The domain has no runtime, transport or database imports. The application orchestration uses Tokio and tracing.</p>
+<p>The dependencies must point inward. The graph also shows the exception that exists now: <code>interface::http</code> and <code>interface::grpc::auth</code> import <code>infrastructure::telemetry</code>. There is no module-level production cycle in this view.</p>
 <p>Source: <a href="../../apps/api/src/lib.rs">lib.rs</a> · <a href="../../apps/api/src/zone_runtime.rs">zone_runtime.rs</a> · <a href="../../apps/api/src/interface/http/mod.rs">mod.rs</a> · <a href="../../apps/api/src/interface/grpc/auth.rs">auth.rs</a>.</p>
 </div>
   </div>

@@ -49,7 +49,7 @@
     <div class="diagram-container">
       <svg viewBox="0 0 840 436" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="stat-derivation-data-flow-title stat-derivation-data-flow-desc">
         <title id="stat-derivation-data-flow-title">Stat derivation: source to combat</title>
-        <desc id="stat-derivation-data-flow-desc">Pinned L2J High Five files are turned into exact TOML tables by a decimal generator, parsed and checked at startup, validated as immutable rules and derived into stat sheets that the combat and progression functions read.</desc>
+        <desc id="stat-derivation-data-flow-desc">A decimal generator changes pinned L2J High Five files into exact TOML tables. At startup, the server parses and examines the tables, validates them as immutable rules and derives stat sheets from them. The combat and progression functions read these stat sheets.</desc>
         <defs>
           <pattern id="dots" width="22" height="22" patternUnits="userSpaceOnUse"><circle cx="11" cy="11" r="0.8" fill="rgba(45,49,66,0.10)"/></pattern>
           <marker id="arr-muted" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto"><path d="M0 0 L6 3 L0 6 Z" fill="#4f5d75"/></marker>
@@ -157,18 +157,11 @@
       </svg>
     </div>
     <div class="notes">
-      <p><strong>Build time.</strong> <code>gen_tables.py</code> refuses any revision but the pinned
-      <code>l2j-server-game</code> and <code>l2j-server-datapack</code> commits, parses every constant
-      from a literal source line, and writes each decimal as its literal string plus its exact
-      integer at Q = 1,000,000. <code>--check</code> fails on drift.</p>
-      <p><strong>Startup.</strong> <code>rules_data</code> parses decimals without floating point and
-      checks literals, coverage, references and provenance; <code>StatRules::new</code> checks
-      invariants and derives every class at every level. Any failure aborts startup listing every
-      error. <code>ResolvedRules</code> (rules plus canonical <code>config_hash</code>) is injected with
+      <p><strong>Build time.</strong> <code>gen_tables.py</code> refuses all revisions other than the pinned
+      <code>l2j-server-game</code> and <code>l2j-server-datapack</code> commits. It parses each constant from a literal source line. It writes each decimal as its literal string and also as its exact integer at Q = 1,000,000. <code>--check</code> fails if the tables drift from the source.</p>
+      <p><strong>Startup.</strong> <code>rules_data</code> parses decimals without floating point. It examines the literals, coverage, references and provenance; <code>StatRules::new</code> examines the invariants and derives each class at each level. If there is a failure, startup stops and lists all the errors. <code>ResolvedRules</code> (rules plus canonical <code>config_hash</code>) goes into the zone through
       <code>ZoneBootstrap::with_rules</code>.</p>
-      <p><strong>Runtime.</strong> <code>StatSheet</code> holds unrounded Q values; the combat and
-      progression functions take the caller's random draws, so they never touch the zone RNG.
-      NPC templates enter as final values through <code>StatSheet::from_final</code> (not shown).</p>
+      <p><strong>Runtime.</strong> <code>StatSheet</code> keeps Q values that are not rounded. The combat and progression functions use the random draws of the caller, thus they do not use the zone RNG. NPC templates go in as final values through <code>StatSheet::from_final</code> (the diagram does not show this).</p>
       <p>Source: <a href="../../packages/data/scripts/gen_tables.py">gen_tables.py</a> ·
       <a href="../../packages/data/SOURCES.md">SOURCES.md</a> ·
       <a href="../../apps/api/src/infrastructure/rules_data.rs">rules_data.rs</a> ·

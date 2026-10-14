@@ -73,7 +73,7 @@
     <div class="diagram-container">
       <svg viewBox="0 0 720 700" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="replay-tool-title replay-tool-desc">
         <title id="replay-tool-title">Record, export, replay, compare</title>
-        <desc id="replay-tool-desc">The replay tool reads a recorded zone epoch from JetStream or an exported file, refuses it without a watermark, re-runs every tick from the snapshot and compares each player's output, ending in a match or a divergence report.</desc>
+        <desc id="replay-tool-desc">The replay tool reads a recorded zone epoch from JetStream or from an exported file. If there is no watermark, it refuses the epoch. It runs each tick again from the snapshot and compares the output of each player. The result is a match or a divergence report.</desc>
         <defs>
           <pattern id="dots" width="22" height="22" patternUnits="userSpaceOnUse">
             <circle cx="1" cy="1" r="0.9" fill="rgba(45,49,66,0.10)"/>
@@ -203,8 +203,8 @@
       </svg>
     </div>
     <div class="notes">
-<p><code>nightfall-replay --zone 1 --epoch N</code> (or <code>--latest</code>) reads JetStream; <code>export … --out FILE</code> writes a <code>.nfr</code> (magic <code>NFREPLAY</code>, format version, zlib protobuf of snapshot + records + watermark); <code>--source file --file FILE</code> replays one. <code>--session ENTITY</code> selects whose outputs are compared; every command is still applied. A gap or truncated log exits 2.</p>
-<p>The first mismatch stops the run: <code>server_time_ms</code>, dispositions, which players got output, then each player's output (digest-only records compare digests). The checked-in fixture is <code>apps/api/fixtures/sessions/two-players-v4.nfr</code>, replayed by <code>moon run api:replay-check</code> in CI.</p>
+<p><code>nightfall-replay --zone 1 --epoch N</code> (or <code>--latest</code>) reads from JetStream; <code>export … --out FILE</code> writes a <code>.nfr</code> (magic <code>NFREPLAY</code>, format version, zlib protobuf of snapshot + records + watermark); <code>--source file --file FILE</code> replays a file. <code>--session ENTITY</code> selects the player whose outputs the tool compares. The tool still applies all the commands. If there is a gap or a truncated log, the tool exits with 2.</p>
+<p>The first mismatch stops the run. The tool compares in this sequence: <code>server_time_ms</code>, the dispositions, the players that got output, then the output of each player (for digest-only records, the tool compares the digests). The checked-in fixture is <code>apps/api/fixtures/sessions/two-players-v4.nfr</code>. In CI, <code>moon run api:replay-check</code> replays this fixture.</p>
 <p>Source: <a href="../../apps/api/src/bin/nightfall-replay.rs">nightfall-replay.rs</a> · <a href="../../apps/api/src/application/replay/mod.rs">replay/mod.rs</a> · <a href="../../apps/api/src/infrastructure/eventlog/recording.rs">recording.rs</a> · <a href="../../apps/api/tests/replay_fixture.rs">replay_fixture.rs</a>.</p>
 </div>
   </div>
