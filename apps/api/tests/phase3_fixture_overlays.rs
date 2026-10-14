@@ -1,4 +1,5 @@
 //! Harness-owned bridge into the production bootstrap and admission validators.
+mod common;
 use std::collections::BTreeMap;
 use std::path::Path;
 
@@ -1327,6 +1328,116 @@ async fn phase4_startup_composes_the_v6_bundle_over_a_rules_dir_overlay() -> any
         let restored = restore_snapshot(snapshot)?;
         ensure!(restored.snapshot().phase4.is_some(), "overlay V6 snapshot restores");
         running.shutdown(WatermarkReason::Shutdown).await?;
+        Ok(())
+    }
+    .await;
+    std::fs::remove_dir_all(&temporary)?;
+    result
+}
+
+/// T8 with the production adapters: `PHASE4_ENABLED=1` on a `RULES_DIR` overlay boots V6 with
+/// the Postgres character adapter (V6 overlay rules, item checkpoint lane and range admission),
+/// the `JetStream` replay log and the Postgres snapshot index; a restart recovers the
+/// overlay-recorded V6 epoch, resolving its bundle through `resolve_phase4_bundle` by hash.
+#[tokio::test]
+async fn phase4_overlay_boots_and_recovers_on_postgres_and_jetstream() -> anyhow::Result<()> {
+    use nightfall_api::application::replay_log::WatermarkReason;
+    use nightfall_api::infrastructure::item_data::configured_phase4_bundle;
+    use nightfall_api::infrastructure::postgres::{connection_from_pool, PgCharacterRepository};
+    use std::sync::Arc;
+    let Ok(nats) = std::env::var("NATS_URL") else {
+        return Ok(());
+    };
+    let Some(pool) = common::pg::migrated_pool().await else {
+        return Ok(());
+    };
+    let repo = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(Path::parent)
+        .context("repository root")?;
+    let temporary =
+        std::env::temp_dir().join(format!("nightfall-phase4-overlay-pg-{}", uuid::Uuid::now_v7()));
+    std::fs::create_dir(&temporary)?;
+    let result = async {
+        let generated = std::process::Command::new("python3")
+            .arg(repo.join("apps/client-unreal/Scripts/phase3-validation-inputs.py"))
+            .arg(&temporary)
+            .status()?;
+        ensure!(generated.success(), "fixture input generation failed");
+        let root = temporary.join("data");
+        let classes = load_classes(&ClassSource::from_dir(&root)?)?;
+        let overlay = configured_phase4_bundle(&Phase3DataSource::from_dir(&root)?)
+            .map_err(anyhow::Error::msg)?;
+        let characters = Arc::new(
+            PgCharacterRepository::new(connection_from_pool(&pool))
+                .with_classes(classes.registry.clone())
+                .with_phase4_rules(overlay.items.clone(), overlay.skills.clone())?,
+        );
+        let mut deps = nightfall_api::Dependencies::in_memory();
+        deps.classes = Some(classes);
+        deps.characters = characters.clone();
+        deps.item_inventory = Some(characters.clone());
+        deps.item_receipts = Some(characters.clone());
+        deps.item_checkpoints = Some(characters.clone());
+        deps.item_admission = Some(characters.clone());
+        deps.learning = Some(characters);
+        let config = nightfall_api::zone_runtime::ZoneRuntimeConfig {
+            rules_dir: Some(root.clone()),
+            zone_file: Some(root.join("zones/test_zone.toml")),
+            simulation_fixture: None,
+            auth_dev_tokens: true,
+            phase3_enabled: Some("1".into()),
+            phase4_enabled: Some("1".into()),
+        };
+        let mut epochs = Vec::new();
+        for _ in 0..2 {
+            let running = nightfall_api::zone_runtime::start(
+                &config,
+                Some(&nats),
+                Some(connection_from_pool(&pool)),
+                &deps,
+            )
+            .await?;
+            running
+                .handle()
+                .item_grants_available()
+                .await
+                .map_err(|error| anyhow::anyhow!("{error}"))?;
+            tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+            let snapshot = running
+                .handle()
+                .snapshot()
+                .await
+                .map_err(|_| anyhow::anyhow!("zone stopped"))?;
+            ensure!(
+                snapshot
+                    .phase4
+                    .as_ref()
+                    .context("V6 epoch expected")?
+                    .rules_hash
+                    == overlay.items.hash()
+            );
+            epochs.push(snapshot.seed.epoch);
+            running.shutdown(WatermarkReason::Shutdown).await?;
+        }
+        let [first, second] = epochs[..] else {
+            anyhow::bail!("two boots expected");
+        };
+        ensure!(second > first, "the restart opened a new epoch after recovery");
+        let indexed: i64 = sqlx::query_scalar("SELECT count(*) FROM zone_snapshots")
+            .fetch_one(&pool)
+            .await?;
+        ensure!(indexed >= 2, "both V6 epochs are indexed");
+        // The overlay-recorded V6 snapshot decodes and restores by hash (D27 resolution).
+        let stored: Vec<u8> =
+            sqlx::query_scalar("SELECT snapshot FROM zone_snapshots WHERE epoch=$1")
+                .bind(i64::try_from(first)?)
+                .fetch_one(&pool)
+                .await?;
+        let decoded = nightfall_api::application::replay_log::decode_snapshot(&stored)?;
+        ensure!(decoded.phase4.as_ref().context("V6 sidecar")?.rules_hash == overlay.items.hash());
+        ensure!(decoded.phase3.as_ref().context("V5 sidecar")?.rules_hash == overlay.skills.hash());
+        nightfall_api::application::replay_log::restore_snapshot(decoded)?;
         Ok(())
     }
     .await;
