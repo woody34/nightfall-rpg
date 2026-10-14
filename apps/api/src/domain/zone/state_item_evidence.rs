@@ -53,6 +53,11 @@ impl ZoneState {
 
     pub(super) fn item_evidence(&mut self, subject: TargetBinding, fact: ItemEvidenceData) {
         // B3: earlier untabulated draws precede this fact; the draws it covers are its own.
+        // Absorption rule (engine-review-6 N1): a caller tabulating its own draws must emit
+        // its item_rng fact before any LATER draw is tabulated by another fact. The deferred
+        // emitters (enchant, refine, shots) hold that today because nothing draws between
+        // their draw and their fact. A future interleaving fails closed at the exporter
+        // (duplicate or out-of-order cursor), never silently.
         if let ItemEvidenceData::Rng {
             word_before,
             word_after,
@@ -104,6 +109,13 @@ impl ZoneState {
 
     /// Name the pending raw draw starting at `before` (a caller that cannot tabulate it).
     pub(super) fn label_raw_draw(&mut self, before: u128, callsite: &str) {
+        // Word positions are unique within a tick buffer, so `find` names exactly one draw;
+        // callers label the draw they just made, which is the last one pushed (N2).
+        debug_assert!(self
+            .evidence
+            .as_ref()
+            .and_then(|b| b.raw_draws.last())
+            .is_none_or(|last| last.word_before == before));
         if let Some(draw) = self
             .evidence
             .as_mut()
