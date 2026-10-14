@@ -7,6 +7,7 @@ pub mod accounts;
 pub mod character_certifications;
 pub mod character_class_slots;
 pub mod character_effects;
+pub mod character_lane_quarantines;
 pub mod character_learned_skills;
 pub mod character_skill_reuse;
 pub mod character_transfer_receipts;

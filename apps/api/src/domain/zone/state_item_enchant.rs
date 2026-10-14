@@ -117,7 +117,8 @@ fn valid_scroll(
 /// Per scroll: one past its `max_enchant` (an absent maximum is `MAX_GRANT_ENCHANT`), and no
 /// further than the first level whose effective chance is 0%: the chance-group base (the same
 /// range lookup the attempt uses) plus the scroll's bonus plus the best support scroll still
-/// valid at that level (an attempt from that level can never succeed). The template must be
+/// valid at that level (an attempt from that level can never succeed); only admitted scroll
+/// and support templates count. The template must be
 /// an admitted, storable, non-stackable, enchantable weapon or armor outside the blacklist;
 /// otherwise zero.
 pub(in crate::domain::zone) fn grant_enchant_limit(rules: &Phase4Rules, template: u32) -> u32 {
@@ -137,10 +138,17 @@ pub(in crate::domain::zone) fn grant_enchant_limit(rules: &Phase4Rules, template
     {
         return 0;
     }
+    // Only scrolls and supports a player can actually hold count (admitted capability).
+    let admitted = |template: u32| {
+        parts
+            .capabilities
+            .get(&template)
+            .is_some_and(|c| c.admitted)
+    };
     parts
         .enchant_scrolls
         .values()
-        .filter(|rule| scroll_matches(rule, definition))
+        .filter(|rule| admitted(rule.template_id) && scroll_matches(rule, definition))
         .filter_map(|rule| {
             let scroll_cap = if rule.max_enchant == 0 {
                 MAX_GRANT_ENCHANT
@@ -157,7 +165,9 @@ pub(in crate::domain::zone) fn grant_enchant_limit(rules: &Phase4Rules, template
                 parts
                     .enchant_supports
                     .values()
-                    .filter(|support| scroll_matches(support, definition))
+                    .filter(|support| {
+                        admitted(support.template_id) && scroll_matches(support, definition)
+                    })
                     .filter_map(|support| Some((support.max_enchant, bonus_units(support).ok()?)))
                     .collect()
             };

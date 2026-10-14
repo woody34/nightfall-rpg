@@ -76,6 +76,8 @@ pub enum Relation {
     CharacterClassSlots,
     #[sea_orm(has_many = "super::character_effects::Entity")]
     CharacterEffects,
+    #[sea_orm(has_one = "super::character_lane_quarantines::Entity")]
+    CharacterLaneQuarantines,
     #[sea_orm(has_many = "super::character_skill_reuse::Entity")]
     CharacterSkillReuse,
     #[sea_orm(has_many = "super::character_transfer_receipts::Entity")]
@@ -99,6 +101,12 @@ impl Related<super::character_class_slots::Entity> for Entity {
 impl Related<super::character_effects::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::CharacterEffects.def()
+    }
+}
+
+impl Related<super::character_lane_quarantines::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::CharacterLaneQuarantines.def()
     }
 }
 

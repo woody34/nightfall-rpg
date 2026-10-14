@@ -16,6 +16,7 @@ use crate::domain::{AccountId, Character, CharacterId, DomainEvent};
 
 #[derive(Default, Clone)]
 struct State {
+    lane_quarantines: BTreeMap<CharacterId, crate::application::ports::LaneQuarantine>,
     characters: HashMap<CharacterId, Character>,
     item_receipts: BTreeMap<
         (AccountId, crate::application::ports::ItemMutationOperation, IdempotencyKey),
@@ -774,11 +775,30 @@ impl CharacterRepository for InMemoryCharacterRepository {
         Ok(CreateOutcome::Created(character.clone()))
     }
 
+    async fn quarantine_lane(
+        &self,
+        quarantine: &crate::application::ports::LaneQuarantine,
+    ) -> anyhow::Result<()> {
+        let mut state = self.state.lock();
+        anyhow::ensure!(
+            state.characters.contains_key(&quarantine.character_id),
+            "quarantined character missing"
+        );
+        state
+            .lane_quarantines
+            .entry(quarantine.character_id)
+            .or_insert_with(|| quarantine.clone());
+        Ok(())
+    }
+
     async fn load_for_admission(
         &self,
         character_id: CharacterId,
     ) -> anyhow::Result<Option<ProgressionState>> {
         let state = self.state.lock();
+        if let Some(quarantine) = state.lane_quarantines.get(&character_id) {
+            anyhow::bail!("{}: {}", crate::application::ports::LANE_QUARANTINED, quarantine.reason);
+        }
         // Legacy readers must never silently drop retained V6 inventory.
         anyhow::ensure!(
             self.phase4_rules.is_some() || !state.item_inventories.contains_key(&character_id),

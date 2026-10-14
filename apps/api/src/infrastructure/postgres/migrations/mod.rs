@@ -19,6 +19,7 @@ mod m20261012_000010_items;
 mod m20261012_000011_pending_item_backfill;
 mod m20261012_000012_pending_item_scope;
 mod m20261012_000013_item_ledger_row_ordinal;
+mod m20261014_000014_lane_quarantine;
 
 /// All migrations in application order.
 #[derive(Debug, Clone, Copy)]
@@ -41,6 +42,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20261012_000011_pending_item_backfill::Migration),
             Box::new(m20261012_000012_pending_item_scope::Migration),
             Box::new(m20261012_000013_item_ledger_row_ordinal::Migration),
+            Box::new(m20261014_000014_lane_quarantine::Migration),
         ]
     }
 }

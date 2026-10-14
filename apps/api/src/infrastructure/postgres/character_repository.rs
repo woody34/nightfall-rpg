@@ -353,6 +353,27 @@ impl CharacterRepository for PgCharacterRepository {
             .await
     }
 
+    async fn quarantine_lane(
+        &self,
+        quarantine: &crate::application::ports::LaneQuarantine,
+    ) -> anyhow::Result<()> {
+        self.db
+            .execute_raw(Statement::from_sql_and_values(
+                DbBackend::Postgres,
+                "INSERT INTO character_lane_quarantines (character_id, zone_id, epoch, tick, reason) \
+                 VALUES ($1,$2,$3,$4,$5) ON CONFLICT (character_id) DO NOTHING",
+                [
+                    quarantine.character_id.as_uuid().into(),
+                    i32::try_from(quarantine.zone.0)?.into(),
+                    i64::try_from(quarantine.epoch)?.into(),
+                    i64::try_from(quarantine.tick.0)?.into(),
+                    quarantine.reason.clone().into(),
+                ],
+            ))
+            .await?;
+        Ok(())
+    }
+
     async fn load_for_admission(
         &self,
         character_id: CharacterId,
@@ -364,6 +385,18 @@ impl CharacterRepository for PgCharacterRepository {
                 .one(&tx)
                 .await?;
             let progression = if let Some(m) = model {
+                // T11: a recovery-quarantined owner is never admitted.
+                let quarantined = tx
+                    .query_one_raw(Statement::from_sql_and_values(
+                        DbBackend::Postgres,
+                        "SELECT reason FROM character_lane_quarantines WHERE character_id = $1",
+                        [character_id.as_uuid().into()],
+                    ))
+                    .await?;
+                if let Some(row) = quarantined {
+                    let reason: String = row.try_get("", "reason")?;
+                    anyhow::bail!("{}: {reason}", crate::application::ports::LANE_QUARANTINED);
+                }
                 let hp = m.hp.map(u32::try_from).transpose()?;
                 let mp = m.mp.map(u32::try_from).transpose()?;
                 let alive = m.alive;

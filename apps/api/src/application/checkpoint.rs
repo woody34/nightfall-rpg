@@ -63,6 +63,11 @@ pub struct CheckpointService {
     wrote_since_index: bool,
     internal_cadence: bool,
     pending: parking_lot::Mutex<BTreeMap<IdempotencyKey, Instant>>,
+    /// Set only while an unresolved epoch is replayed into the database before boot.
+    recovering: Option<(ZoneId, u64)>,
+    /// Owners whose lane failed permanently during recovery (T11): their later recorded facts
+    /// are dropped, the quarantine is persisted, and the zone still boots.
+    quarantined: BTreeMap<EntityId, super::ports::LaneQuarantine>,
 }
 
 impl CheckpointService {
@@ -87,6 +92,8 @@ impl CheckpointService {
             wrote_since_index: false,
             internal_cadence: true,
             pending: parking_lot::Mutex::default(),
+            recovering: None,
+            quarantined: BTreeMap::new(),
         }
     }
 
@@ -263,6 +270,35 @@ impl CheckpointService {
         Ok(())
     }
 
+    /// Outside recovery a lane failure stays fatal (the actor fences the zone before output
+    /// release, A20). During recovery the owner's lane is quarantined instead: its pending work
+    /// and later recorded facts are dropped (no output was ever released for them) and the
+    /// named permanent quarantine is persisted before the zone boots.
+    fn quarantine_or_fail(
+        &mut self,
+        entity: EntityId,
+        tick: Tick,
+        error: anyhow::Error,
+    ) -> anyhow::Result<()> {
+        let Some((zone, epoch)) = self.recovering else {
+            return Err(error);
+        };
+        tracing::error!(zone = zone.0, epoch, entity = %entity.as_uuid(), tick = tick.0, error = %error,
+            "checkpoint recovery quarantines the owner's lane");
+        self.players.remove(&entity);
+        self.sessions.remove(&entity);
+        self.quarantined
+            .entry(entity)
+            .or_insert_with(|| super::ports::LaneQuarantine {
+                character_id: CharacterId::from_uuid(entity.as_uuid()),
+                zone,
+                epoch,
+                tick,
+                reason: format!("{error:#}"),
+            });
+        Ok(())
+    }
+
     /// Captures every lane at a boundary after all in-flight requests have completed.
     pub fn snapshot(&self, snapshot: &mut ZoneSnapshot) {
         snapshot.meta.checkpoint_internal_cadence =
@@ -405,6 +441,17 @@ impl CheckpointService {
 
     /// Saves the previous admitted state before a lifecycle command removes or replaces it.
     pub async fn flush(&mut self, entity: EntityId) -> anyhow::Result<()> {
+        let result = self.flush_lane(entity).await;
+        match result {
+            Err(error) if self.recovering.is_some() => {
+                let tick = self.last.map_or(Tick(0), |(_, tick)| tick);
+                self.quarantine_or_fail(entity, tick, error)
+            },
+            other => other,
+        }
+    }
+
+    async fn flush_lane(&mut self, entity: EntityId) -> anyhow::Result<()> {
         if let Some(player) = self.players.get_mut(&entity) {
             // Idle boundaries refresh the template with the current revision and paused
             // timers. A just-acknowledged template still names the previous revision: that
@@ -457,7 +504,10 @@ impl CheckpointService {
                 ..
             } = &command.command
             {
-                if let Some(revision) = load.checkpoint_revision {
+                if let Some(revision) = load
+                    .checkpoint_revision
+                    .filter(|_| !self.quarantined.contains_key(entity))
+                {
                     self.players.insert(
                         *entity,
                         Player {
@@ -481,6 +531,9 @@ impl CheckpointService {
             | crate::domain::zone::ZoneEvent::TokensReconciled { entity, .. }
             | crate::domain::zone::ZoneEvent::SkillLearned { entity, .. } = event
             {
+                if self.quarantined.contains_key(entity) {
+                    continue;
+                }
                 anyhow::ensure!(
                     self.players.get(entity).is_some_and(|p| !p.fenced),
                     "class transfer checkpoint lane missing or fenced"
@@ -493,344 +546,355 @@ impl CheckpointService {
         }
         let mut due = BTreeSet::new();
         for entity in &snapshot.entities {
-            if snapshot.phase3.is_some() && entity.kind == crate::domain::zone::EntityKind::Player {
+            if self.quarantined.contains_key(&entity.id) {
+                continue;
+            }
+            let observed = (|| -> anyhow::Result<()> {
+                if snapshot.phase3.is_some()
+                    && entity.kind == crate::domain::zone::EntityKind::Player
+                {
+                    anyhow::ensure!(
+                        self.players.get(&entity.id).is_some_and(|p| !p.fenced),
+                        "Phase3 player checkpoint lane missing or fenced"
+                    );
+                }
+                let Some(player) = self.players.get_mut(&entity.id) else {
+                    return Ok(());
+                };
+                let Some(combat) = &entity.combat else {
+                    return Ok(());
+                };
+                let CombatRole::Player { xp, .. } = combat.role else {
+                    return Ok(());
+                };
+                let phase3 = snapshot.phase3.as_ref();
+                let retained = phase3.and_then(|phase| phase.entities.get(&entity.id));
                 anyhow::ensure!(
-                    self.players.get(&entity.id).is_some_and(|p| !p.fenced),
-                    "Phase3 player checkpoint lane missing or fenced"
+                    phase3.is_none() || retained.is_some(),
+                    "player checkpoint sidecar missing"
                 );
-            }
-            let Some(player) = self.players.get_mut(&entity.id) else {
-                continue;
-            };
-            let Some(combat) = &entity.combat else {
-                continue;
-            };
-            let CombatRole::Player { xp, .. } = combat.role else {
-                continue;
-            };
-            let phase3 = snapshot.phase3.as_ref();
-            let retained = phase3.and_then(|phase| phase.entities.get(&entity.id));
-            anyhow::ensure!(
-                phase3.is_none() || retained.is_some(),
-                "player checkpoint sidecar missing"
-            );
-            let mut cp = CharacterCheckpoint {
-                phase4: snapshot
-                    .phase4
-                    .as_ref()
-                    .map(|phase| {
-                        let skills = snapshot
-                            .phase3
-                            .as_ref()
-                            .ok_or_else(|| anyhow::anyhow!("item checkpoint needs skill state"))?;
-                        phase
-                            .checkpoint(entity.id, tick.tick, skills)
-                            .map_err(anyhow::Error::from)
-                    })
-                    .transpose()?,
-                phase3: phase3
-                    .map(|phase| phase.checkpoint(entity.id, tick.tick))
-                    .transpose()?,
-                class_state: match &combat.role {
-                    CombatRole::Player { progression, .. } => {
-                        progression.as_ref().map(|p| p.class_state.clone())
-                    },
-                    CombatRole::Npc { .. } => None,
-                },
-                character_id: CharacterId::from_uuid(entity.id.as_uuid()),
-                revision_seen: player.revision,
-                level: combat.sheet.level(),
-                xp,
-                hp: combat.hp,
-                mp: combat.mp,
-                alive: !entity.targeting.dead,
-                position: position(entity.pos),
-                idempotency: (
-                    "save_checkpoint".to_owned(),
-                    IdempotencyKey::from_uuid(stable_id(
-                        entity.id,
-                        snapshot.seed.zone,
-                        tick.epoch,
-                        tick.tick,
-                        None,
-                    )),
-                ),
-            };
-            // ProgressionDelta is the authoritative persistence fact; the boundary also
-            // supplies movement and resource-only changes on ticks without a delta.
-            if let Some(delta) = tick.progression().find(|d| d.entity == entity.id) {
-                cp.level = delta.level;
-                cp.xp = delta.xp;
-                cp.hp = delta.hp;
-                cp.mp = delta.mp;
-                cp.alive = delta.alive;
-                cp.position = position(delta.pos);
-            }
-            let projections: Vec<_> = tick
-                .events
-                .iter()
-                .filter_map(|event| {
-                    if let crate::domain::zone::ZoneEvent::ItemCheckpoint(projection) = event {
-                        (projection.entity == entity.id).then_some(projection.as_ref())
-                    } else {
-                        None
-                    }
-                })
-                .collect();
-            anyhow::ensure!(
-                projections.len() <= 1,
-                "multiple final item checkpoints for one tick/owner"
-            );
-            if projections.is_empty() {
-                if let Some(before) = player.latest.as_ref().and_then(|cp| cp.phase4.as_ref()) {
-                    let mut before = before.clone();
-                    let mut after = cp
-                        .phase4
-                        .clone()
-                        .ok_or_else(|| anyhow::anyhow!("item sidecar removed"))?;
-                    // Paused remainders fall with time; every other retained change needs its frozen work.
-                    before.item_reuse_remainders.clear();
-                    after.item_reuse_remainders.clear();
-                    anyhow::ensure!(
-                        before == after,
-                        "retained item mutation without private checkpoint"
-                    );
-                }
-            }
-            if let Some(projection) = projections.first() {
-                anyhow::ensure!(self.item_repo.is_some(), "item checkpoint repository missing");
-                let account = match &combat.role {
-                    CombatRole::Player {
-                        progression: Some(progression),
-                        ..
-                    } => progression.identity.account_id,
-                    CombatRole::Player {
-                        progression: None, ..
-                    }
-                    | CombatRole::Npc { .. } => {
-                        anyhow::bail!("item checkpoint owner context missing")
-                    },
-                };
-                let work = super::ports::ItemCheckpointWork {
-                    zone: snapshot.seed.zone,
-                    epoch: tick.epoch,
-                    allocation: snapshot
+                let mut cp = CharacterCheckpoint {
+                    phase4: snapshot
                         .phase4
                         .as_ref()
-                        .ok_or_else(|| anyhow::anyhow!("item allocation missing"))?
-                        .allocator,
-                    projection: (*projection).clone(),
-                };
-                work.validate(&cp, account)?;
-                anyhow::ensure!(projection.tick == tick.tick, "item projection tick mismatch");
-                player.items = Some(work);
-                player.dirty = true;
-            }
-            let retained_changed = if self.internal_cadence {
-                critical_phase3_changed(player.last_phase3.as_ref(), retained)
-            } else {
-                retained_phase3_changed(player.last_phase3.as_ref(), retained)
-            };
-            let retained_critical = phase3.is_some()
-                && (retained_changed
-                    || player
-                        .latest
-                        .as_ref()
-                        .is_none_or(|old| old.class_state != cp.class_state));
-            let changed = player.latest.as_ref().is_none_or(|old| {
-                old.class_state != cp.class_state
-                    || old.level != cp.level
-                    || old.xp != cp.xp
-                    || old.hp != cp.hp
-                    || old.mp != cp.mp
-                    || old.alive != cp.alive
-                    || old.position != cp.position
-            });
-            player.dirty |=
-                changed || retained_phase3_changed(player.last_phase3.as_ref(), retained);
-            player.latest = Some(cp.clone());
-            player.last_phase3 = retained.cloned();
-            let mut immediate = player.items.is_some() || retained_critical || tick.events.iter().any(|event| matches!(event,
-                crate::domain::zone::ZoneEvent::TokensReconciled { entity: who, .. } if *who == entity.id));
-            for event in &tick.events {
-                if let crate::domain::zone::ZoneEvent::TokensReconciled {
-                    entity: who,
-                    tick: at,
-                    adjustment,
-                    source,
-                } = event
-                {
-                    if *who == entity.id {
-                        for (tier, bit) in [(1_u8, 1), (2, 2)] {
-                            if adjustment.granted_mask & bit != 0 {
-                                let ordinal = player.events.len() as u64;
-                                player.events.push(DomainEvent::CharacterTokenGranted {
-                                    metadata: EventMetadata {
-                                        event_id: stable_id(
-                                            entity.id,
-                                            snapshot.seed.zone,
-                                            tick.epoch,
-                                            *at,
-                                            Some(ordinal),
-                                        ),
-                                        sequence: (player.revision.saturating_add(1), ordinal),
-                                    },
-                                    character_id: CharacterId::from_uuid(entity.id.as_uuid()),
-                                    tier,
-                                    source: *source,
-                                });
-                            }
-                        }
-                    }
-                }
-                if let crate::domain::zone::ZoneEvent::ClassTransfer {
-                    tick: at,
-                    entity: who,
-                    old_class_id,
-                    receipt,
-                } = event
-                {
-                    if *who != entity.id {
-                        continue;
-                    }
-                    anyhow::ensure!(
-                        player
-                            .latest
-                            .as_ref()
-                            .and_then(|cp| cp.class_state.as_ref())
-                            .and_then(|s| s.receipt(receipt.key))
-                            == Some(receipt.as_ref()),
-                        "class transfer receipt missing from checkpoint"
-                    );
-                    immediate = true;
-                    let ordinal = player.events.len() as u64;
-                    player.events.push(DomainEvent::CharacterClassChanged {
-                        metadata: EventMetadata {
-                            event_id: stable_id(
-                                entity.id,
-                                snapshot.seed.zone,
-                                tick.epoch,
-                                *at,
-                                Some(ordinal),
-                            ),
-                            sequence: (player.revision.saturating_add(1), ordinal),
+                        .map(|phase| {
+                            let skills = snapshot.phase3.as_ref().ok_or_else(|| {
+                                anyhow::anyhow!("item checkpoint needs skill state")
+                            })?;
+                            phase
+                                .checkpoint(entity.id, tick.tick, skills)
+                                .map_err(anyhow::Error::from)
+                        })
+                        .transpose()?,
+                    phase3: phase3
+                        .map(|phase| phase.checkpoint(entity.id, tick.tick))
+                        .transpose()?,
+                    class_state: match &combat.role {
+                        CombatRole::Player { progression, .. } => {
+                            progression.as_ref().map(|p| p.class_state.clone())
                         },
-                        character_id: CharacterId::from_uuid(entity.id.as_uuid()),
-                        old_class_id: *old_class_id,
-                        new_class_id: receipt.target_class_id,
-                        tick: at.0,
-                        request_key: receipt.key,
-                    });
-                }
-            }
-            for event in &tick.events {
-                if let crate::domain::zone::ZoneEvent::SkillLearned {
-                    tick: at,
-                    entity: who,
-                    account,
-                    request_key,
-                    result,
-                } = event
-                {
-                    if *who != entity.id {
-                        continue;
-                    }
-                    anyhow::ensure!(
-                        self.learning_repo.is_some(),
-                        "learning persistence unavailable"
-                    );
-                    anyhow::ensure!(
-                        player.learning.is_none(),
-                        "multiple learning facts in one tick"
-                    );
-                    let receipt = super::ports::SuccessfulLearnReceipt {
-                        account_id: *account,
-                        key: IdempotencyKey::from_uuid(*request_key),
-                        request_fingerprint: super::ports::learn_skill_fingerprint(
-                            result.character_id,
-                            result.skill,
-                        ),
-                        result: result.as_ref().clone(),
-                    };
-                    let cp = player
-                        .latest
-                        .as_ref()
-                        .ok_or_else(|| anyhow::anyhow!("learning checkpoint missing"))?;
-                    receipt.validate(cp, *account)?;
-                    let ordinal = player.events.len() as u64;
-                    player.events.push(DomainEvent::CharacterSkillLearned {
-                        metadata: EventMetadata {
-                            event_id: stable_id(
-                                entity.id,
-                                snapshot.seed.zone,
-                                tick.epoch,
-                                *at,
-                                Some(ordinal),
-                            ),
-                            sequence: (player.revision.saturating_add(1), ordinal),
-                        },
-                        character_id: result.character_id,
-                        skill_id: result.skill.id.0,
-                        skill_level: result.skill.rank,
-                        sp_spent: result.sp_spent,
-                        sp_remaining: result.sp_remaining,
-                        tick: at.0,
-                        request_key: *request_key,
-                    });
-                    player.learning = Some(receipt);
-                    player.dirty = true;
-                    immediate = true;
-                }
-            }
-            for delta in tick.progression().filter(|d| d.entity == entity.id) {
-                immediate |=
-                    delta.died.is_some() || delta.level_before != delta.level || delta.respawned;
-                let mut facts = domain_events(
-                    snapshot.seed.zone,
-                    tick.epoch,
-                    player.revision.saturating_add(1),
-                    delta,
-                );
-                if snapshot.classes.is_some() {
-                    let offset = player.events.len() as u64;
-                    for (n, event) in facts.iter_mut().enumerate() {
-                        let metadata = match event {
-                            DomainEvent::CharacterLeveled { metadata, .. }
-                            | DomainEvent::CharacterDied { metadata, .. }
-                            | DomainEvent::CharacterClassChanged { metadata, .. }
-                            | DomainEvent::CharacterTokenGranted { metadata, .. }
-                            | DomainEvent::CharacterSkillLearned { metadata, .. } => metadata,
-                            DomainEvent::ItemGranted { fact }
-                            | DomainEvent::ItemEquipped { fact }
-                            | DomainEvent::ItemUnequipped { fact }
-                            | DomainEvent::ItemConsumed { fact }
-                            | DomainEvent::ItemEnchanted { fact }
-                            | DomainEvent::ItemDestroyed { fact }
-                            | DomainEvent::ItemRefined { fact }
-                            | DomainEvent::ItemRefineCancelled { fact }
-                            | DomainEvent::ItemExchanged { fact } => &mut fact.metadata,
-                            DomainEvent::CharacterCreated { .. } => continue,
-                        };
-                        let ordinal = offset.saturating_add(n as u64);
-                        metadata.event_id = stable_id(
+                        CombatRole::Npc { .. } => None,
+                    },
+                    character_id: CharacterId::from_uuid(entity.id.as_uuid()),
+                    revision_seen: player.revision,
+                    level: combat.sheet.level(),
+                    xp,
+                    hp: combat.hp,
+                    mp: combat.mp,
+                    alive: !entity.targeting.dead,
+                    position: position(entity.pos),
+                    idempotency: (
+                        "save_checkpoint".to_owned(),
+                        IdempotencyKey::from_uuid(stable_id(
                             entity.id,
                             snapshot.seed.zone,
                             tick.epoch,
-                            delta.tick,
-                            Some(ordinal),
+                            tick.tick,
+                            None,
+                        )),
+                    ),
+                };
+                // ProgressionDelta is the authoritative persistence fact; the boundary also
+                // supplies movement and resource-only changes on ticks without a delta.
+                if let Some(delta) = tick.progression().find(|d| d.entity == entity.id) {
+                    cp.level = delta.level;
+                    cp.xp = delta.xp;
+                    cp.hp = delta.hp;
+                    cp.mp = delta.mp;
+                    cp.alive = delta.alive;
+                    cp.position = position(delta.pos);
+                }
+                let projections: Vec<_> = tick
+                    .events
+                    .iter()
+                    .filter_map(|event| {
+                        if let crate::domain::zone::ZoneEvent::ItemCheckpoint(projection) = event {
+                            (projection.entity == entity.id).then_some(projection.as_ref())
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+                anyhow::ensure!(
+                    projections.len() <= 1,
+                    "multiple final item checkpoints for one tick/owner"
+                );
+                if projections.is_empty() {
+                    if let Some(before) = player.latest.as_ref().and_then(|cp| cp.phase4.as_ref()) {
+                        let after = cp
+                            .phase4
+                            .as_ref()
+                            .ok_or_else(|| anyhow::anyhow!("item sidecar removed"))?;
+                        // Only ledger-owned state needs frozen work (the same rule the adapters
+                        // enforce). Derived state moves with the skill lane: an item skill's effect
+                        // lands after its paid use tick and extends the shared install order (T11).
+                        anyhow::ensure!(
+                            !super::ports::item_ledger_state_changed(before, after),
+                            "retained item mutation without private checkpoint"
                         );
-                        metadata.sequence.1 = ordinal;
                     }
                 }
-                player.events.extend(facts);
-            }
-            if let Some(work) = &player.items {
-                player
-                    .events
-                    .extend(item_events(&cp, work, player.events.len())?);
-            }
-            if immediate || tick.tick.0.saturating_sub(player.last_saved.0) >= 50 {
-                due.insert(entity.id);
+                if let Some(projection) = projections.first() {
+                    anyhow::ensure!(self.item_repo.is_some(), "item checkpoint repository missing");
+                    let account = match &combat.role {
+                        CombatRole::Player {
+                            progression: Some(progression),
+                            ..
+                        } => progression.identity.account_id,
+                        CombatRole::Player {
+                            progression: None, ..
+                        }
+                        | CombatRole::Npc { .. } => {
+                            anyhow::bail!("item checkpoint owner context missing")
+                        },
+                    };
+                    let work = super::ports::ItemCheckpointWork {
+                        zone: snapshot.seed.zone,
+                        epoch: tick.epoch,
+                        allocation: snapshot
+                            .phase4
+                            .as_ref()
+                            .ok_or_else(|| anyhow::anyhow!("item allocation missing"))?
+                            .allocator,
+                        projection: (*projection).clone(),
+                    };
+                    work.validate(&cp, account)?;
+                    anyhow::ensure!(projection.tick == tick.tick, "item projection tick mismatch");
+                    player.items = Some(work);
+                    player.dirty = true;
+                }
+                let retained_changed = if self.internal_cadence {
+                    critical_phase3_changed(player.last_phase3.as_ref(), retained)
+                } else {
+                    retained_phase3_changed(player.last_phase3.as_ref(), retained)
+                };
+                let retained_critical = phase3.is_some()
+                    && (retained_changed
+                        || player
+                            .latest
+                            .as_ref()
+                            .is_none_or(|old| old.class_state != cp.class_state));
+                let changed = player.latest.as_ref().is_none_or(|old| {
+                    old.class_state != cp.class_state
+                        || old.level != cp.level
+                        || old.xp != cp.xp
+                        || old.hp != cp.hp
+                        || old.mp != cp.mp
+                        || old.alive != cp.alive
+                        || old.position != cp.position
+                });
+                player.dirty |=
+                    changed || retained_phase3_changed(player.last_phase3.as_ref(), retained);
+                player.latest = Some(cp.clone());
+                player.last_phase3 = retained.cloned();
+                let mut immediate = player.items.is_some() || retained_critical || tick.events.iter().any(|event| matches!(event,
+                    crate::domain::zone::ZoneEvent::TokensReconciled { entity: who, .. } if *who == entity.id));
+                for event in &tick.events {
+                    if let crate::domain::zone::ZoneEvent::TokensReconciled {
+                        entity: who,
+                        tick: at,
+                        adjustment,
+                        source,
+                    } = event
+                    {
+                        if *who == entity.id {
+                            for (tier, bit) in [(1_u8, 1), (2, 2)] {
+                                if adjustment.granted_mask & bit != 0 {
+                                    let ordinal = player.events.len() as u64;
+                                    player.events.push(DomainEvent::CharacterTokenGranted {
+                                        metadata: EventMetadata {
+                                            event_id: stable_id(
+                                                entity.id,
+                                                snapshot.seed.zone,
+                                                tick.epoch,
+                                                *at,
+                                                Some(ordinal),
+                                            ),
+                                            sequence: (player.revision.saturating_add(1), ordinal),
+                                        },
+                                        character_id: CharacterId::from_uuid(entity.id.as_uuid()),
+                                        tier,
+                                        source: *source,
+                                    });
+                                }
+                            }
+                        }
+                    }
+                    if let crate::domain::zone::ZoneEvent::ClassTransfer {
+                        tick: at,
+                        entity: who,
+                        old_class_id,
+                        receipt,
+                    } = event
+                    {
+                        if *who != entity.id {
+                            continue;
+                        }
+                        anyhow::ensure!(
+                            player
+                                .latest
+                                .as_ref()
+                                .and_then(|cp| cp.class_state.as_ref())
+                                .and_then(|s| s.receipt(receipt.key))
+                                == Some(receipt.as_ref()),
+                            "class transfer receipt missing from checkpoint"
+                        );
+                        immediate = true;
+                        let ordinal = player.events.len() as u64;
+                        player.events.push(DomainEvent::CharacterClassChanged {
+                            metadata: EventMetadata {
+                                event_id: stable_id(
+                                    entity.id,
+                                    snapshot.seed.zone,
+                                    tick.epoch,
+                                    *at,
+                                    Some(ordinal),
+                                ),
+                                sequence: (player.revision.saturating_add(1), ordinal),
+                            },
+                            character_id: CharacterId::from_uuid(entity.id.as_uuid()),
+                            old_class_id: *old_class_id,
+                            new_class_id: receipt.target_class_id,
+                            tick: at.0,
+                            request_key: receipt.key,
+                        });
+                    }
+                }
+                for event in &tick.events {
+                    if let crate::domain::zone::ZoneEvent::SkillLearned {
+                        tick: at,
+                        entity: who,
+                        account,
+                        request_key,
+                        result,
+                    } = event
+                    {
+                        if *who != entity.id {
+                            continue;
+                        }
+                        anyhow::ensure!(
+                            self.learning_repo.is_some(),
+                            "learning persistence unavailable"
+                        );
+                        anyhow::ensure!(
+                            player.learning.is_none(),
+                            "multiple learning facts in one tick"
+                        );
+                        let receipt = super::ports::SuccessfulLearnReceipt {
+                            account_id: *account,
+                            key: IdempotencyKey::from_uuid(*request_key),
+                            request_fingerprint: super::ports::learn_skill_fingerprint(
+                                result.character_id,
+                                result.skill,
+                            ),
+                            result: result.as_ref().clone(),
+                        };
+                        let cp = player
+                            .latest
+                            .as_ref()
+                            .ok_or_else(|| anyhow::anyhow!("learning checkpoint missing"))?;
+                        receipt.validate(cp, *account)?;
+                        let ordinal = player.events.len() as u64;
+                        player.events.push(DomainEvent::CharacterSkillLearned {
+                            metadata: EventMetadata {
+                                event_id: stable_id(
+                                    entity.id,
+                                    snapshot.seed.zone,
+                                    tick.epoch,
+                                    *at,
+                                    Some(ordinal),
+                                ),
+                                sequence: (player.revision.saturating_add(1), ordinal),
+                            },
+                            character_id: result.character_id,
+                            skill_id: result.skill.id.0,
+                            skill_level: result.skill.rank,
+                            sp_spent: result.sp_spent,
+                            sp_remaining: result.sp_remaining,
+                            tick: at.0,
+                            request_key: *request_key,
+                        });
+                        player.learning = Some(receipt);
+                        player.dirty = true;
+                        immediate = true;
+                    }
+                }
+                for delta in tick.progression().filter(|d| d.entity == entity.id) {
+                    immediate |= delta.died.is_some()
+                        || delta.level_before != delta.level
+                        || delta.respawned;
+                    let mut facts = domain_events(
+                        snapshot.seed.zone,
+                        tick.epoch,
+                        player.revision.saturating_add(1),
+                        delta,
+                    );
+                    if snapshot.classes.is_some() {
+                        let offset = player.events.len() as u64;
+                        for (n, event) in facts.iter_mut().enumerate() {
+                            let metadata = match event {
+                                DomainEvent::CharacterLeveled { metadata, .. }
+                                | DomainEvent::CharacterDied { metadata, .. }
+                                | DomainEvent::CharacterClassChanged { metadata, .. }
+                                | DomainEvent::CharacterTokenGranted { metadata, .. }
+                                | DomainEvent::CharacterSkillLearned { metadata, .. } => metadata,
+                                DomainEvent::ItemGranted { fact }
+                                | DomainEvent::ItemEquipped { fact }
+                                | DomainEvent::ItemUnequipped { fact }
+                                | DomainEvent::ItemConsumed { fact }
+                                | DomainEvent::ItemEnchanted { fact }
+                                | DomainEvent::ItemDestroyed { fact }
+                                | DomainEvent::ItemRefined { fact }
+                                | DomainEvent::ItemRefineCancelled { fact }
+                                | DomainEvent::ItemExchanged { fact } => &mut fact.metadata,
+                                DomainEvent::CharacterCreated { .. } => continue,
+                            };
+                            let ordinal = offset.saturating_add(n as u64);
+                            metadata.event_id = stable_id(
+                                entity.id,
+                                snapshot.seed.zone,
+                                tick.epoch,
+                                delta.tick,
+                                Some(ordinal),
+                            );
+                            metadata.sequence.1 = ordinal;
+                        }
+                    }
+                    player.events.extend(facts);
+                }
+                if let Some(work) = &player.items {
+                    player
+                        .events
+                        .extend(item_events(&cp, work, player.events.len())?);
+                }
+                if immediate || tick.tick.0.saturating_sub(player.last_saved.0) >= 50 {
+                    due.insert(entity.id);
+                }
+                Ok(())
+            })();
+            if let Err(error) = observed {
+                self.quarantine_or_fail(entity.id, tick.tick, error)?;
+                due.remove(&entity.id);
             }
         }
         let wrote = due
@@ -858,6 +922,31 @@ impl CheckpointService {
     }
 
     async fn save_due(&mut self, due: &BTreeSet<EntityId>, tick: Tick) -> anyhow::Result<()> {
+        if self.recovering.is_some() {
+            // Recovery settles owners one by one; a permanent failure quarantines that owner.
+            for id in due {
+                let Some(player) = self.players.get_mut(id) else {
+                    continue;
+                };
+                let session = self.sessions.get(id).copied();
+                let saved = save(
+                    self.repo.as_ref(),
+                    self.learning_repo.as_deref(),
+                    self.item_repo.as_deref(),
+                    self.audit.as_ref(),
+                    self.metrics.as_ref(),
+                    &self.pending,
+                    session,
+                    player,
+                )
+                .await;
+                match saved {
+                    Ok(()) => player.last_saved = tick,
+                    Err(error) => self.quarantine_or_fail(*id, tick, error)?,
+                }
+            }
+            return Ok(());
+        }
         // Account-scoped receipts and outbox facts retain entity order. Independent resource
         // checkpoints may overlap, but the whole batch still gates index completion/output.
         let concurrency = if due.iter().any(|id| {
@@ -943,8 +1032,36 @@ impl CheckpointService {
             "legacy mid-fight snapshot lacks checkpoint lanes"
         );
         self.restore(&stored.snapshot);
-        let first_tick = stored.snapshot.tick;
-        let mut state = super::replay_log::restore_snapshot(stored.snapshot)?;
+        self.recovering = Some((zone, epoch));
+        let replayed = self
+            .replay_recovery(log, zone, epoch, required, stored.snapshot)
+            .await;
+        self.recovering = None;
+        replayed?;
+        for quarantine in std::mem::take(&mut self.quarantined).into_values() {
+            self.repo.quarantine_lane(&quarantine).await?;
+        }
+        // Ordinary progress may roll back; critical facts have already been checkpointed.
+        self.players.clear();
+        self.sessions.clear();
+        self.last = None;
+        // Historical policy belongs only to the settled epoch, never its successor.
+        self.internal_cadence = true;
+        self.wrote_since_index = false;
+        Ok(())
+    }
+
+    async fn replay_recovery(
+        &mut self,
+        log: &dyn EventLog,
+        zone: ZoneId,
+        epoch: u64,
+        required: Option<Tick>,
+        snapshot: ZoneSnapshot,
+    ) -> anyhow::Result<()> {
+        let stored_snapshot = snapshot;
+        let first_tick = stored_snapshot.tick;
+        let mut state = super::replay_log::restore_snapshot(stored_snapshot)?;
         self.recover_pending(false).await?;
         let mut records = log.read_epoch(zone, epoch).await?;
         while let Some(record) = records.next().await {
@@ -983,13 +1100,6 @@ impl CheckpointService {
         // A baseline can itself carry pending critical facts, even without a later record;
         // under the internal-state cadence every retained Phase 3 lane is settled here.
         self.recover_pending(true).await?;
-        // Ordinary progress may roll back; critical facts have already been checkpointed.
-        self.players.clear();
-        self.sessions.clear();
-        self.last = None;
-        // Historical policy belongs only to the settled epoch, never its successor.
-        self.internal_cadence = true;
-        self.wrote_since_index = false;
         Ok(())
     }
 }

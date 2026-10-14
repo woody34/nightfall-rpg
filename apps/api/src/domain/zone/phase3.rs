@@ -54,6 +54,9 @@ impl Phase3AdmissionPolicy {
     }
 }
 
+/// The recorded runtime revision of a V6 (Phase 4) skill composition.
+pub(super) const V6_RUNTIME_REVISION: u32 = 3;
+
 /// Immutable Phase 3 policy, separately hashed from historical stat/class registries.
 /// Construction validates every registry capability and policy table; snapshot decoding
 /// performs the same checks without loading any external files.
@@ -110,8 +113,13 @@ impl Phase3Rules {
             self.profiles,
             self.geometry,
             self.npc,
-            3,
+            V6_RUNTIME_REVISION,
         )
+    }
+
+    /// Whether these rules are the V6 composition (the Phase 4 skill closure).
+    pub const fn is_v6(&self) -> bool {
+        self.runtime_revision == V6_RUNTIME_REVISION
     }
 
     #[allow(clippy::too_many_arguments)]
