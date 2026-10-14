@@ -864,6 +864,13 @@ impl<'a> Actor<'a> {
             Ok(c) => c,
             Err((reason, detail)) => return self.reject(intent.seq, reason, detail).await,
         };
+        // T12: item intents need this session's admitted player (the actor resolves its account
+        // authority from it); before admission they are refused here, never queued.
+        if !self.admitted && matches!(command, ZoneCommand::Item(_)) {
+            return self
+                .reject(intent.seq, SessionReject::Invalid, "player not admitted yet")
+                .await;
+        }
         self.forward(intent.seq, command).await
     }
 
