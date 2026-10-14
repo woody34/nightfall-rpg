@@ -76,8 +76,9 @@ async fn upgrade_preserves_every_manifest_byte_and_legacy_backfill_reruns() {
     .await
     .unwrap();
     assert_eq!(repo.pending_item_requests(c.id).await.unwrap(), pending);
-    // Round-trip 000012 (pending scope) itself; 000013 (D76 row ordinals) steps back first.
-    Migrator::down(&db, Some(2)).await.unwrap();
+    // Round-trip 000012 (pending scope) itself; 000014 (T11 quarantine) and 000013 (D76 row
+    // ordinals) step back first.
+    Migrator::down(&db, Some(3)).await.unwrap();
     assert_eq!((applied(&pool, "000012").await, applied(&pool, "000013").await), (0, 0));
     Migrator::up(&db, None).await.unwrap();
     assert_eq!((applied(&pool, "000012").await, applied(&pool, "000013").await), (1, 1));
@@ -141,8 +142,8 @@ async fn shared_uuid_is_legal_across_accounts_and_operations_and_owner_scope_is_
     let error=sqlx::query("UPDATE pending_item_requests SET kind='grant',operation='grant_item' WHERE character_id=$1").bind(a.id.as_uuid()).execute(&pool).await.unwrap_err();
     assert_eq!(code(&error), "23514");
     let db = connection_from_pool(&pool);
-    // 000013 (D76 row ordinals) rolls back first; 000012 then refuses on the shared key.
-    let error = Migrator::down(&db, Some(2)).await.unwrap_err();
+    // 000014 and 000013 (D76 row ordinals) roll back first; 000012 then refuses on the shared key.
+    let error = Migrator::down(&db, Some(3)).await.unwrap_err();
     assert!(
         error
             .to_string()
@@ -230,7 +231,8 @@ async fn row_ordinal_rollback_refuses_while_a_consume_holds_a_positional_ordinal
     }
     tx.commit().await.unwrap();
     let db = connection_from_pool(&pool);
-    let error = Migrator::down(&db, Some(1)).await.unwrap_err();
+    // 000014 (T11 quarantine) rolls back first; 000013 then refuses.
+    let error = Migrator::down(&db, Some(2)).await.unwrap_err();
     assert!(
         error
             .to_string()
