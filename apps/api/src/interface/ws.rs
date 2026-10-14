@@ -368,6 +368,36 @@ mod tests {
     }
 }
 
+/// Phase 4 input adapter, selected by a durable V6 epoch: the ten item intents decode to
+/// session item commands (the actor adds account authority and receipt preflight); every
+/// other intent is decoded exactly as V5 does.
+#[derive(Debug, Clone, Copy)]
+pub struct Phase4Codec;
+
+impl SessionCodec for Phase4Codec {
+    fn decode(&self, entity: EntityId, frame: &[u8]) -> Result<DecodedIntent, Undecodable> {
+        let msg = pb::ClientMessage::decode(frame).map_err(|_| Undecodable)?;
+        let Some(intent) = msg.intent.as_ref() else {
+            return Phase3Codec.decode(entity, frame);
+        };
+        let command = match crate::interface::zone_mapping::item_command_from_pb(entity, intent) {
+            Ok(None) => return Phase3Codec.decode(entity, frame),
+            Ok(Some(command)) => Ok(crate::domain::zone::ZoneCommand::Item(Box::new(command))),
+            Err(error) => Err((SessionReject::Invalid, mapping_detail(error))),
+        };
+        Ok(DecodedIntent {
+            seq: msg.seq,
+            command,
+        })
+    }
+    fn rejected(&self, seq: u32, reason: SessionReject, detail: &str) -> Bytes {
+        ProstCodec.rejected(seq, reason, detail)
+    }
+    fn outputs(&self, outputs: &[ObserverOutput], server_time_ms: i64) -> Vec<Bytes> {
+        ProstCodec.outputs(outputs, server_time_ms)
+    }
+}
+
 /// Phase 3 input adapter, selected by the active epoch's V5 policy.
 #[derive(Debug, Clone, Copy)]
 pub struct Phase3Codec;
