@@ -583,16 +583,15 @@ impl CheckpointService {
             );
             if projections.is_empty() {
                 if let Some(before) = player.latest.as_ref().and_then(|cp| cp.phase4.as_ref()) {
-                    let mut before = before.clone();
-                    let mut after = cp
+                    let after = cp
                         .phase4
-                        .clone()
+                        .as_ref()
                         .ok_or_else(|| anyhow::anyhow!("item sidecar removed"))?;
-                    // Paused remainders fall with time; every other retained change needs its frozen work.
-                    before.item_reuse_remainders.clear();
-                    after.item_reuse_remainders.clear();
+                    // Only ledger-owned state needs frozen work (the same rule the adapters
+                    // enforce). Derived state moves with the skill lane: an item skill's effect
+                    // lands after its paid use tick and extends the shared install order (T11).
                     anyhow::ensure!(
-                        before == after,
+                        !super::ports::item_ledger_state_changed(before, after),
                         "retained item mutation without private checkpoint"
                     );
                 }
