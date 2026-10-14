@@ -15,6 +15,11 @@
 # Also on when CI=true in the environment. The suite is ProductFilter-only, so "Nightfall" selects
 # just our tests.
 #
+# Phase 4 item live tests (Nightfall.Item.*.EndToEnd / .LiveAdmission, D115) need the API started with
+# PHASE4_ENABLED=1 AUTH_DEV_TOKENS=1; under --require-live-api a V5 API is a failure. The D26
+# Nightfall.Item.Enrichment.EndToEnd also runs nightfall-replay (NIGHTFALL_REPLAY_BIN, default
+# <repo>/target/release/nightfall-replay) against the API's JetStream (NATS_URL, NIGHTFALL_ZONE_ID=1).
+#
 # $RUN_TESTS_EXTRA_ARGS (word-split) is appended to the editor command line, e.g. an -ini: override.
 #
 # offline / --offline selects all local tests and does not acquire auth credentials.

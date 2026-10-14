@@ -39,6 +39,12 @@ public:
  UButton* EnchantControl() const { return EnchantButton; }
  UProgressBar* WeightControl() const { return Weight; }
  UUniformGridPanel* GridControl() const { return Grid; }
+ UVerticalBox* PaperdollControl() const { return Paperdoll; }
+ UComboBoxString* HotbarSlotControl() const { return SlotPicker; }
+ UComboBoxString* HotbarModeControl() const { return ModePicker; }
+ UButton* AssignControl() const { return AssignButton; }
+ /** The paperdoll row's text for a slot name (e.g. "rhand"), as rendered. */
+ FString PaperdollLabel(const FString& Slot) const;
  const FString& RetryKey() const { return Key; }
 protected:
  virtual void NativeOnInitialized() override;
@@ -66,6 +72,7 @@ private:
  UPROPERTY() TObjectPtr<UButton> UseButton;
  UPROPERTY() TObjectPtr<UButton> EnchantButton;
  UPROPERTY() TObjectPtr<UButton> BlacksmithButton;
+ UPROPERTY() TObjectPtr<UButton> AssignButton;
  UPROPERTY() TObjectPtr<UComboBoxString> SlotPicker;
  UPROPERTY() TObjectPtr<UComboBoxString> ModePicker;
  UPROPERTY() TArray<TObjectPtr<UNightfallItemChoice>> Choices;
