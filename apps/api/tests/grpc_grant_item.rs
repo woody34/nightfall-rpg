@@ -292,6 +292,7 @@ fn request(character: &Character) -> pb::GrantItemRequest {
         template_id: 10,
         count: 2,
         idempotency_key: IdempotencyKey::new().to_string(),
+        enchant_level: None,
     }
 }
 #[tokio::test]
@@ -321,7 +322,12 @@ async fn typed_grant_routing_full_response_frozen_retry_later_grant_and_concurre
                 .as_uuid()
                 .as_bytes()
                 .to_vec(),
-            request_fingerprint: grant_item_fingerprint(character.id, body.template_id, body.count),
+            request_fingerprint: grant_item_fingerprint(
+                character.id,
+                body.template_id,
+                body.count,
+                0
+            ),
             accepted_client_seq: None,
         }
     );
@@ -467,6 +473,7 @@ async fn typed_grant_auth_validation_ownership_capability_and_runtime_status_mat
             template_id: template,
             count,
             idempotency_key: key,
+            enchant_level: None,
         };
         assert_eq!(
             app.game_as(common::account())
@@ -568,4 +575,56 @@ async fn every_required_grant_port_absent_or_zone_stopped_is_unavailable_without
         assert_eq!(actor.calls.load(Ordering::SeqCst), 0);
         assert!(app.characters.staged_events().is_empty());
     }
+}
+
+/// D113: `enchant_level` (`GrantItemRequest` field 5) is validated against the template's
+/// enchant rules before any queued work, is part of the idempotent body (fingerprint), and an
+/// absent or zero level keeps the original body hash.
+#[tokio::test]
+async fn enchant_level_is_validated_against_enchant_rules_and_bound_into_the_body() {
+    use nightfall_api::domain::zone::item_grant::grant_enchant_limit;
+    let (app, actor, character) = configured().await;
+    let rules = rules();
+    let (weapon, limit) = rules
+        .parts()
+        .items
+        .keys()
+        .map(|template| (*template, grant_enchant_limit(&rules, *template)))
+        .find(|(template, limit)| *limit >= 4 && rules.parts().items[template].kind == "Weapon")
+        .unwrap();
+    // Stackable/unenchantable templates (10 is not within any scroll rule) carry no level.
+    assert_eq!(grant_enchant_limit(&rules, 57), 0);
+    let mut client = app.game_as(common::account());
+    let enchanted = |template, count, level: Option<u32>| pb::GrantItemRequest {
+        character_id: character.id.as_uuid().as_bytes().to_vec(),
+        template_id: template,
+        count,
+        idempotency_key: IdempotencyKey::new().to_string(),
+        enchant_level: level,
+    };
+    for invalid in [
+        enchanted(57, 1, Some(1)),
+        enchanted(weapon, 2, Some(3)),
+        enchanted(weapon, 1, Some(limit.checked_add(1).unwrap())),
+    ] {
+        let calls = actor.calls.load(Ordering::SeqCst);
+        assert_eq!(client.grant_item(invalid).await.unwrap_err().code(), Code::InvalidArgument);
+        assert_eq!(actor.calls.load(Ordering::SeqCst), calls, "refused before queueing");
+    }
+    let body = enchanted(weapon, 1, Some(3));
+    let reply = client.grant_item(body.clone()).await.unwrap().into_inner();
+    let expected = grant_item_fingerprint(character.id, weapon, 1, 3);
+    assert_ne!(expected, grant_item_fingerprint(character.id, weapon, 1, 0));
+    assert_eq!(reply.result.unwrap().request_fingerprint, expected);
+    // Same key, different level: a different body.
+    let mut changed = body.clone();
+    changed.enchant_level = Some(2);
+    assert_eq!(client.grant_item(changed).await.unwrap_err().code(), Code::FailedPrecondition);
+    // Absent and explicit zero are the same, original body.
+    let plain = enchanted(weapon, 1, Some(0));
+    let reply = client.grant_item(plain).await.unwrap().into_inner();
+    assert_eq!(
+        reply.result.unwrap().request_fingerprint,
+        grant_item_fingerprint(character.id, weapon, 1, 0)
+    );
 }

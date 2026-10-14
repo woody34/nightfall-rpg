@@ -163,9 +163,21 @@ async fn build_dependencies(
         .prepare_phase3(classes.clone())?
         .map(|bundle| Arc::new(bundle.phase3));
     zone_cfg.validate_production_selection()?;
+    // PHASE4_ENABLED=1: every persistence validator and the item catalogue use the same
+    // embedded V6 bundle the zone boots with (D27).
+    let phase4 = zone_cfg.prepare_phase4(&classes)?;
+    if let Some(bundle) = &phase4 {
+        deps.item_catalogue =
+            Some(Arc::new(nightfall_api::application::use_cases::RegistryItemCatalogue::new(
+                bundle.items.clone(),
+                &bundle.skills,
+            )?));
+    }
     let mut memory = infrastructure::memory::InMemoryCharacterRepository::default()
         .with_classes(classes.registry.clone());
-    if let Some(rules) = &phase3 {
+    if let Some(bundle) = &phase4 {
+        memory = memory.with_phase4_rules(bundle.items.clone(), bundle.skills.clone())?;
+    } else if let Some(rules) = &phase3 {
         memory = memory.with_phase3_rules(rules.clone());
     }
     let characters = Arc::new(memory);
@@ -198,7 +210,10 @@ async fn build_dependencies(
         let mut characters = infrastructure::postgres::PgCharacterRepository::new(conn.clone())
             .with_classes(classes.registry.clone())
             .with_metrics(metrics.clone());
-        if let Some(rules) = &phase3 {
+        if let Some(bundle) = &phase4 {
+            characters =
+                characters.with_phase4_rules(bundle.items.clone(), bundle.skills.clone())?;
+        } else if let Some(rules) = &phase3 {
             characters = characters.with_phase3_rules(rules.clone());
         }
         let characters = Arc::new(characters);
@@ -429,5 +444,135 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(serde_json::from_slice::<CheckpointAck>(&checkpoint.payload).unwrap(), ack);
+    }
+
+    /// The real composition root (`build_dependencies` → `zone_runtime::start` →
+    /// `start_realtime` → `build_live_grpc_services`) for one selection.
+    async fn compose(
+        zone_cfg: &ZoneRuntimeConfig,
+    ) -> (
+        Dependencies,
+        nightfall_api::application::zone_bootstrap::RunningZone,
+        nightfall_api::Realtime,
+    ) {
+        let (mut deps, _, db, _) = build_dependencies(
+            &config(None),
+            zone_cfg,
+            telemetry::Metrics::detached(),
+            &CancellationToken::new(),
+        )
+        .await
+        .unwrap();
+        let zone = zone_runtime::start(zone_cfg, None, db, &deps)
+            .await
+            .unwrap();
+        let realtime = start_realtime(
+            &deps,
+            ZoneRegistry::from_handle(zone.handle().clone()),
+            CancellationToken::new(),
+        );
+        deps.class_transfers = Some(realtime.sessions.clone());
+        build_live_grpc_services(&deps, &realtime).await.unwrap();
+        (deps, zone, realtime)
+    }
+
+    #[tokio::test]
+    async fn default_startup_keeps_v5_epochs_and_refuses_dev_grants_unavailable() {
+        let (deps, zone, realtime) = compose(&ZoneRuntimeConfig::default()).await;
+        let snapshot = zone.handle().snapshot().await.unwrap();
+        assert!(snapshot.phase3.is_some());
+        assert!(snapshot.phase4.is_none());
+        assert!(deps.item_catalogue.is_none());
+        let refused = realtime
+            .sessions
+            .zone
+            .item_grants_available()
+            .await
+            .unwrap_err();
+        assert!(refused.to_string().contains("durable V6 zone unavailable"), "{refused}");
+        zone.shutdown(WatermarkReason::Shutdown).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn phase4_enabled_startup_boots_v6_epochs_and_serves_the_dev_grant() {
+        use nightfall_api::application::use_cases::{GrantItem, GrantItemInput};
+        use nightfall_api::application::IdempotencyKey;
+        use nightfall_api::domain::{AccountId, Character, CharacterName, Race};
+        let zone_cfg = ZoneRuntimeConfig {
+            phase4_enabled: Some("1".into()),
+            ..ZoneRuntimeConfig::default()
+        };
+        let (deps, zone, realtime) = compose(&zone_cfg).await;
+        let snapshot = zone.handle().snapshot().await.unwrap();
+        let bundle = infrastructure::item_data::embedded_phase4_bundle().unwrap();
+        assert!(snapshot.phase3.is_some());
+        assert!(snapshot.phase4.is_some(), "a V6 epoch carries the item sidecar");
+        assert!(deps.item_catalogue.is_some());
+        realtime
+            .sessions
+            .zone
+            .item_grants_available()
+            .await
+            .unwrap();
+        let character = Character::create(
+            AccountId::from_uuid(Uuid::from_u128(7)),
+            CharacterName::new("StartupGrant").unwrap(),
+            Race::Human,
+        );
+        deps.characters
+            .create_idempotent(&IdempotencyKey::new(), "startup-grant", &character)
+            .await
+            .unwrap();
+        let grant = GrantItem::new(
+            deps.dev_item_grants,
+            deps.characters.clone(),
+            deps.item_receipts.clone(),
+            deps.item_catalogue.clone(),
+            Some(realtime.sessions.clone()),
+        );
+        let receipt = grant
+            .execute(GrantItemInput {
+                caller: character.account_id,
+                character_id: character.id.as_uuid().as_bytes().to_vec(),
+                template_id: 57,
+                count: 10,
+                idempotency_key: Uuid::now_v7().to_string(),
+                enchant_level: None,
+            })
+            .await
+            .unwrap();
+        let inventory = receipt.inventory.unwrap();
+        assert_eq!(inventory.checkpoint.rules_hash, bundle.items.hash());
+        assert!(inventory
+            .checkpoint
+            .instances
+            .iter()
+            .any(|item| item.template_id == 57 && item.count == 10));
+        zone.shutdown(WatermarkReason::Shutdown).await.unwrap();
+    }
+
+    #[test]
+    fn phase4_selection_is_exact_and_extends_v5() {
+        for (phase3, phase4, accepted) in [
+            (None, None, true),
+            (None, Some("0"), true),
+            (None, Some("1"), true),
+            (Some("1"), Some("1"), true),
+            (Some("0"), Some("1"), false),
+            (None, Some("true"), false),
+            (None, Some(""), false),
+            (None, Some("1 "), false),
+        ] {
+            let zone_cfg = ZoneRuntimeConfig {
+                phase3_enabled: phase3.map(Into::into),
+                phase4_enabled: phase4.map(Into::into),
+                ..ZoneRuntimeConfig::default()
+            };
+            assert_eq!(
+                zone_cfg.validate_production_selection().is_ok(),
+                accepted,
+                "{phase3:?} {phase4:?}"
+            );
+        }
     }
 }

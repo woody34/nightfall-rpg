@@ -301,7 +301,7 @@ impl ZoneState {
                 .filter(|r| i64::try_from(*r).is_ok())
                 .ok_or(RejectReason::InvalidLoad)?
         };
-        let mutation = InventoryMutation::prepare(
+        let mut mutation = InventoryMutation::prepare(
             &player.inventory,
             items.canonical.allocator,
             &[InventoryEdit::Add {
@@ -320,6 +320,27 @@ impl ZoneState {
             },
         )
         .map_err(|_| RejectReason::InventoryFull)?;
+        if command.enchant != 0 {
+            // D113: a dev fixture's single new equipment instance is born at its enchant
+            // level (no RNG, no scroll); the birth ledger row carries that state.
+            let limit = crate::domain::zone::item_grant::grant_enchant_limit(
+                &items.rules,
+                command.template_id,
+            );
+            let [change] = mutation.changes.as_mut_slice() else {
+                return Err(RejectReason::InvalidEnchant);
+            };
+            let born = change.after.as_mut().ok_or(RejectReason::InvalidLoad)?;
+            if command.count != 1 || command.enchant > limit || change.before.is_some() {
+                return Err(RejectReason::InvalidEnchant);
+            }
+            born.enchant = command.enchant;
+            let stored = mutation
+                .inventory
+                .get_mut(&born.id)
+                .ok_or(RejectReason::InvalidLoad)?;
+            stored.enchant = command.enchant;
+        }
         let items = &mut self
             .phase4
             .as_mut()
@@ -463,6 +484,7 @@ mod tests {
             paused: None,
             known: None,
             conflict: None,
+            enchant: 0,
         }
     }
     fn input(command: &ItemGrantCommand) -> ZoneInput {

@@ -1,6 +1,6 @@
-//! Real zone ticks settled on both adapters: D95 Refine + `CancelRefine` at the blacksmith and
+//! Real zone ticks settled on both adapters: D95 Refine + `CancelRefine` at the blacksmith,
 //! D100 credit after a plain debit (partial Destroy of a crystal stack, then a Crystallize
-//! refund into it).
+//! refund into it) and the D113 enchanted dev grant (birth enchant level, no RNG).
 #![allow(
     missing_docs,
     clippy::unwrap_used,
@@ -16,7 +16,9 @@ use api::application::ports::*;
 use api::application::replay_log::{restore_snapshot, start_epoch, AppliedTickRecord, EventLog};
 use api::domain::character_progression::{FrozenTransferResult, SuccessfulTransferReceipt};
 use api::domain::subclass::LearnedSkill;
-use api::domain::zone::item_grant::grant_fingerprint;
+use api::domain::zone::item_grant::{
+    grant_enchant_limit, grant_fingerprint, grant_fingerprint_with_enchant,
+};
 use api::domain::zone::phase4_projection::{ItemOperation, ItemRefineOutcome};
 use api::domain::zone::*;
 use api::domain::{AccountId, Character, CharacterId, CharacterName, Race};
@@ -215,6 +217,7 @@ where
                         paused: Some(Box::new(core.clone())),
                         known: None,
                         conflict: None,
+                        enchant: 0,
                     },
                 )))
             })
@@ -284,6 +287,52 @@ where
             .checkpoint(self.entity, snapshot.tick, snapshot.phase3.as_ref().unwrap())
             .unwrap()
             .instances
+    }
+
+    /// A live server grant (the `GrantItem` command) for the admitted owner, cold-replayed,
+    /// logged and settled; returns the tick's private projection.
+    async fn grant_live(&mut self, template_id: u32, count: u64, enchant: u32) -> Phase4Projection {
+        let character = CharacterId::from_uuid(self.entity.as_uuid());
+        let command = ItemGrantCommand {
+            entity: self.entity,
+            account: self.character.account_id,
+            request_id: Uuid::now_v7(),
+            template_id,
+            count,
+            fingerprint: grant_fingerprint_with_enchant(character, template_id, count, enchant),
+            rules_hash: item_data::embedded_phase4_bundle().unwrap().items.hash(),
+            paused: None,
+            known: None,
+            conflict: None,
+            enchant,
+        };
+        let draft =
+            self.state
+                .draft(vec![ZoneInput::system(ZoneCommand::MaterializePendingItems(
+                    Box::new(command),
+                ))]);
+        let mut cold = restore_snapshot(self.state.snapshot()).unwrap();
+        let applied = self.state.run_tick(draft.clone()).unwrap();
+        assert_eq!(applied, cold.run_tick(draft).unwrap());
+        assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+        let record = AppliedTickRecord::from_applied(self.zone, &applied);
+        assert_eq!(AppliedTickRecord::decode(&record.encode()).unwrap(), record);
+        self.log.append_applied(&record).await.unwrap();
+        self.service
+            .admitted(&applied, &self.state.snapshot())
+            .await
+            .unwrap();
+        applied
+            .events
+            .iter()
+            .find_map(|event| {
+                if let ZoneEvent::ItemCheckpoint(p) = event {
+                    Some(p.as_ref().clone())
+                } else {
+                    None
+                }
+            })
+            .unwrap()
     }
 
     /// One session tick of `commands`, cold-replayed, logged and settled through the service.
@@ -580,4 +629,119 @@ async fn postgres_real_partial_destroy_then_crystallize_refund_settles() {
     assert_eq!(rows.len(), 2);
     assert_eq!((rows[0], rows[1].0), ((0, -1), 1));
     assert!(rows[1].1 > 0);
+}
+
+/// D113: a dev grant born at +3 on an enchantable weapon settles; the retained instance and
+/// its append-only birth ledger row carry the enchant level; a level beyond the template's
+/// scroll rules is refused by the zone without mutation.
+async fn enchanted_grant_contract<R>(repo: Arc<R>) -> (CharacterId, ItemInstanceId)
+where
+    R: CharacterRepository
+        + ItemAdmissionRepository
+        + ItemCheckpointRepository
+        + ItemInventoryRepository
+        + 'static,
+{
+    let bundle = item_data::embedded_phase4_bundle().unwrap();
+    let (weapon, limit) = bundle
+        .items
+        .parts()
+        .items
+        .iter()
+        .filter(|(_, definition)| definition.kind == "Weapon")
+        .map(|(template, _)| (*template, grant_enchant_limit(&bundle.items, *template)))
+        .find(|(_, limit)| *limit >= 4)
+        .unwrap();
+    let mut scene =
+        Scene::new(repo, "EnchantedGrant", Race::Human, 20, None, Vec::new(), &[(57, 1)]).await;
+    let projection = scene.grant_live(weapon, 1, 3).await;
+    let born = projection
+        .ledger
+        .iter()
+        .find(|row| {
+            row.after
+                .as_ref()
+                .is_some_and(|item| item.template_id == weapon)
+        })
+        .unwrap();
+    assert!(born.before.is_none());
+    assert_eq!(born.after.as_ref().unwrap().enchant, 3);
+    let id = born.instance;
+    let retained = scene
+        .repo
+        .retained_inventory(scene.character.id)
+        .await
+        .unwrap()
+        .unwrap()
+        .checkpoint
+        .unwrap();
+    assert_eq!(
+        retained
+            .instances
+            .iter()
+            .find(|item| item.id == id)
+            .unwrap()
+            .enchant,
+        3
+    );
+    // Beyond the template's scroll rules: refused as InvalidEnchant, no mutation.
+    let before = scene.state.snapshot();
+    let beyond = limit.checked_add(1).unwrap();
+    let character = CharacterId::from_uuid(scene.entity.as_uuid());
+    let draft = scene
+        .state
+        .draft(vec![ZoneInput::system(ZoneCommand::MaterializePendingItems(
+            Box::new(ItemGrantCommand {
+                entity: scene.entity,
+                account: scene.character.account_id,
+                request_id: Uuid::now_v7(),
+                template_id: weapon,
+                count: 1,
+                fingerprint: grant_fingerprint_with_enchant(character, weapon, 1, beyond),
+                rules_hash: bundle.items.hash(),
+                paused: None,
+                known: None,
+                conflict: None,
+                enchant: beyond,
+            }),
+        ))]);
+    let refused = scene.state.run_tick(draft).unwrap();
+    assert_eq!(refused.dispositions.len(), 1, "{:?}", refused.dispositions);
+    assert_eq!(scene.state.snapshot().phase4, before.phase4);
+    (scene.character.id, id)
+}
+
+#[tokio::test]
+async fn memory_enchanted_dev_grant_is_born_at_its_level() {
+    let repo = memory_repo();
+    let (_, id) = enchanted_grant_contract(repo.clone()).await;
+    let birth = repo
+        .item_ledger_for_test()
+        .into_iter()
+        .find(|row| row.instance_id == id && row.delta.before.is_none())
+        .unwrap();
+    assert_eq!(birth.delta.after.unwrap().enchant, 3);
+}
+
+#[tokio::test]
+async fn postgres_enchanted_dev_grant_is_born_at_its_level() {
+    let Some((pool, repo)) = pg_repo().await else {
+        return;
+    };
+    let (character, id) = enchanted_grant_contract(repo).await;
+    let enchant: i64 = sqlx::query_scalar(
+        "SELECT (delta->'after'->>'enchant')::bigint FROM item_ledger WHERE character_id=$1 AND instance_id=$2 AND delta->'before'='null'::jsonb",
+    )
+    .bind(character.as_uuid())
+    .bind(i64::try_from(id.get()).unwrap())
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(enchant, 3);
+    let stored: i64 = sqlx::query_scalar("SELECT enchant FROM item_instances WHERE id=$1")
+        .bind(i64::try_from(id.get()).unwrap())
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(stored, 3);
 }

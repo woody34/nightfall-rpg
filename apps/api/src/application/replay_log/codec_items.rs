@@ -132,6 +132,7 @@ mod tests {
             paused: None,
             known: None,
             conflict: None,
+            enchant: 0,
         };
         let applied = AppliedCommand {
             ordinal: Ordinal(1),
