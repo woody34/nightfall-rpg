@@ -571,3 +571,126 @@ async fn postgres_jetstream_client_sequence_create_grant_login_use_equip() {
     );
     client_sequence(repo, log).await;
 }
+
+/// T12: an item intent that reaches the zone before its session's player is admitted is
+/// refused for that session and never fences the zone. Covers both the session guard (an
+/// intent sent right after the handshake) and the actor pre-check (an item input for an entity
+/// with no admitted player); afterwards the same owner logs in and equips normally.
+async fn early_intent<R>(repo: Arc<R>, log: Arc<dyn EventLog>)
+where
+    R: CharacterRepository
+        + ItemAdmissionRepository
+        + ItemCheckpointRepository
+        + ItemInventoryRepository
+        + ItemReceiptRepository
+        + LearningCheckpointRepository
+        + 'static,
+{
+    let account = common::account();
+    let (app, baseline, zone) = v6_app(repo.clone(), log.clone()).await;
+    let character = Character::create(
+        AccountId::from_uuid(account),
+        CharacterName::new("EarlyIntent").unwrap(),
+        Race::Human,
+    );
+    repo.create_idempotent(&IdempotencyKey::new(), "early-intent", &character)
+        .await
+        .unwrap();
+    let unequip = |seq| pb::ClientMessage {
+        seq,
+        intent: Some(pb::client_message::Intent::UnequipItem(pb::UnequipItemRequest {
+            idempotency_key: Uuid::now_v7().to_string(),
+            slot: pb::EquipSlot::Rhand as i32,
+        })),
+    };
+    // Actor pre-check: an item input for an entity with no admitted player.
+    let entity = api::domain::zone::EntityId::from_uuid(character.id.as_uuid());
+    let command = api::interface::zone_mapping::item_command_from_pb(
+        entity,
+        unequip(1).intent.as_ref().unwrap(),
+    )
+    .unwrap()
+    .unwrap();
+    app.zone
+        .send(ZoneInput::session(
+            entity,
+            SessionGeneration(1),
+            1,
+            ZoneCommand::Item(Box::new(command)),
+        ))
+        .unwrap();
+    // Session guard: the intent right after the handshake, before the admission tick.
+    let player = ws::Player {
+        account,
+        character: character.id,
+        name: "EarlyIntent".into(),
+    };
+    let mut socket = ws::join(&app, &player).await;
+    socket.send(&unequip(2)).await;
+    let seen = socket
+        .until(|m| inventory_sync(m).is_some_and(|sync| sync.baseline))
+        .await;
+    assert!(!app.zone.persistence_failed(), "no zone fence");
+    for m in &seen {
+        if let Some(rejected) = ws::rejected(m) {
+            assert_eq!(rejected.seq, 2);
+            assert_eq!(rejected.detail, "player not admitted yet");
+        }
+    }
+    // Once admitted, item intents work on the same session.
+    socket.send(&unequip(3)).await;
+    let results = socket
+        .until(|m| item_result(m).is_some() || ws::rejected(m).is_some_and(|r| r.seq == 3))
+        .await;
+    assert!(item_result(results.last().unwrap()).is_some(), "{results:?}");
+    socket.close().await;
+    // The zone kept running and the epoch replays byte-exact.
+    let after = app.zone.stats().borrow().tick;
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    assert!(app.zone.stats().borrow().tick > after);
+    let mut replay = restore_snapshot(baseline).unwrap();
+    let mut records = log.read_epoch(zone, 1).await.unwrap();
+    while let Some(record) = records.next().await {
+        let record = record.unwrap();
+        let tick = replay
+            .run_tick(AppliedTickDraft {
+                epoch: 1,
+                tick: record.tick,
+                commands: record.commands.clone(),
+            })
+            .unwrap();
+        assert!(record.reproduced_by(&AppliedTickRecord::from_applied(zone, &tick)));
+    }
+}
+
+#[tokio::test]
+async fn memory_item_intent_before_admission_is_refused_without_a_fence() {
+    let bundle = item_data::embedded_phase4_bundle().unwrap();
+    let repo = Arc::new(
+        InMemoryCharacterRepository::default()
+            .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
+            .unwrap(),
+    );
+    early_intent(repo, Arc::new(InMemoryEventLog::default())).await;
+}
+
+#[tokio::test]
+async fn postgres_jetstream_item_intent_before_admission_is_refused_without_a_fence() {
+    let pool = common::pg::migrated_pool()
+        .await
+        .expect("owned DATABASE_URL required");
+    let url = std::env::var("NATS_URL").expect("owned NATS_URL required");
+    common::pg::insert_account(&pool, common::account()).await;
+    let bundle = item_data::embedded_phase4_bundle().unwrap();
+    let repo = Arc::new(
+        PgCharacterRepository::new(pool)
+            .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
+            .unwrap(),
+    );
+    let log = Arc::new(
+        JetStreamEventLog::connect(async_nats::connect(&url).await.unwrap(), Metrics::detached())
+            .await
+            .unwrap(),
+    );
+    early_intent(repo, log).await;
+}
