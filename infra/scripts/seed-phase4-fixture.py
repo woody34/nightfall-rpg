@@ -25,6 +25,7 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
+import time
 from urllib.parse import urlparse
 import uuid
 from uuid import UUID
@@ -37,6 +38,7 @@ SERVICE = 'nightfall.v1.GameService'
 # accepts the proto name as well as its lowerCamel json_name).
 ENCHANT_FIELD = 'enchant_level'
 GRANT_ATTEMPTS = 3
+GRANT_BACKOFF_SECONDS = (1, 2)  # before the 2nd and 3rd attempt
 
 
 def load(name, path):
@@ -137,6 +139,22 @@ def grant_plan(fixture, name, role, repo=REPO):
     return grants, blockers
 
 
+class GrpcError(ValueError):
+    """A refused unary call; `code` is the gRPC status from buf curl's JSON error ('' if absent)."""
+    def __init__(self, message, code):
+        super().__init__(message)
+        self.code = code
+
+
+def grpc_code(text):
+    """buf curl prints a failed call's status as JSON `{"code": "unavailable", ...}` on stderr."""
+    try:
+        value = json.loads(text)
+    except ValueError:
+        return ''
+    return value.get('code', '') if isinstance(value, dict) and isinstance(value.get('code'), str) else ''
+
+
 def call(method, body, account, grpc, runner=subprocess.run):
     """One unary call through `buf curl` (gRPC over h2c); returns the decoded JSON reply."""
     buf = shutil.which('buf')
@@ -146,7 +164,8 @@ def call(method, body, account, grpc, runner=subprocess.run):
                '-d', json.dumps(body), f'http://{grpc}/{SERVICE}/{method}']
     result = runner(command, capture_output=True, text=True, timeout=30)
     if result.returncode != 0:
-        raise ValueError(f'{method} refused: {(result.stderr or result.stdout).strip()}')
+        text = (result.stderr or result.stdout).strip()
+        raise GrpcError(f'{method} refused: {text}', grpc_code(text))
     return json.loads(result.stdout)
 
 
@@ -159,7 +178,7 @@ def number(value):
     return int(value) if value not in (None, '') else 0
 
 
-def grant_role(fixture, name, role, grpc, runner=subprocess.run):
+def grant_role(fixture, name, role, grpc, runner=subprocess.run, sleep=None):
     grants, blockers = grant_plan(fixture, name, role)
     if blockers:
         raise ValueError(f'pack {fixture}/{name} cannot be provisioned by GrantItem: {json.dumps(blockers)}')
@@ -171,24 +190,35 @@ def grant_role(fixture, name, role, grpc, runner=subprocess.run):
         if grant['enchant']:
             body[ENCHANT_FIELD] = grant['enchant']
         for attempt in range(GRANT_ATTEMPTS):
+            if attempt:
+                (sleep or time.sleep)(GRANT_BACKOFF_SECONDS[attempt - 1])
             try:
                 reply = call('GrantItem', body, account, grpc, runner)
                 break
-            except ValueError as error:
-                # UNAVAILABLE "retry the same key": the same key replays, never grants twice.
-                if 'unavailable' not in str(error).lower() or attempt == GRANT_ATTEMPTS - 1: raise
+            except GrpcError as error:
+                # Only gRPC UNAVAILABLE means "retry the same key" (the key replays, never grants
+                # twice); any other status, e.g. FAILED_PRECONDITION "... unavailable", refuses.
+                if error.code != 'unavailable' or attempt == GRANT_ATTEMPTS - 1: raise
         result = reply.get('result', {})
         if result.get('receiptId') != grant['key'] or result.get('operation') != 'ITEM_OPERATION_GRANT':
             raise ValueError(f'GrantItem receipt mismatch for {fixture}/{name} {grant}')
         if not any(number(item.get('templateId')) == grant['template_id'] for item in reply.get('inventory', {}).get('items', [])):
             raise ValueError(f'GrantItem baseline lacks template {grant["template_id"]}')
-        receipts.append(dict(grant, inventory_revision=number(result.get('inventoryRevision'))))
+        revision = number(result.get('inventoryRevision'))
+        if receipts and revision <= receipts[-1]['inventory_revision']:
+            raise ValueError(f'GrantItem receipt revisions must strictly increase for {fixture}/{name}')
+        receipts.append(dict(grant, inventory_revision=revision))
     if not grants:
         # Nothing to grant: the kit materializes at first login; there is no offline baseline yet.
         return dict(receipts=[], instance_map={}, inventory_revision=None, confirmed='kit-at-login')
     inventory = call('GetInventory', dict(characterId=b64(character)), account, grpc, runner)['inventory']
+    revision = number(inventory.get('inventoryRevision'))
+    # T5: while the character is offline the final baseline is exactly the last receipt's state.
+    if revision != receipts[-1]['inventory_revision']:
+        raise ValueError(f'GetInventory revision {revision} differs from the last GrantItem receipt '
+                         f'revision {receipts[-1]["inventory_revision"]} for {fixture}/{name}')
     return dict(receipts=receipts, instance_map=confirm(fixture, name, role, inventory),
-                inventory_revision=number(inventory.get('inventoryRevision')), confirmed='GetInventory')
+                inventory_revision=revision, confirmed='GetInventory')
 
 
 def confirm(fixture, name, role, inventory):

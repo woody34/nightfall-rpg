@@ -168,14 +168,16 @@ class Fixtures(unittest.TestCase):
                 identity=4294967296+index
                 items.append(dict(instanceId=str(identity),templateId=row['template_id'],count=str(row['count']),enchant=row['enchant']))
                 if row['slot']:paperdoll.append(dict(slot='EQUIP_SLOT_'+row['slot'].upper(),instanceId=str(identity)))
-            return dict(inventoryRevision='3',items=items,paperdoll=paperdoll)
+            return dict(inventoryRevision=str(1+len(grants)),items=items,paperdoll=paperdoll)
         class Done:
             def __init__(self,body):self.returncode=0;self.stdout=json.dumps(body);self.stderr=''
         def runner(command,**kwargs):
             calls.append(command);body=json.loads(command[command.index('-d')+1]);method=command[-1].rsplit('/',1)[1]
             self.assertIn('authorization: Bearer test:01970000-0000-7000-8000-000000000042',command)
             if method=='GrantItem':
-                return Done(dict(result=dict(receiptId=body['idempotencyKey'],operation='ITEM_OPERATION_GRANT',inventoryRevision='2'),
+                # Receipt revisions advance per grant; a replayed key returns its original revision.
+                index=next(g['index'] for g in grants if g['key']==body['idempotencyKey'])
+                return Done(dict(result=dict(receiptId=body['idempotencyKey'],operation='ITEM_OPERATION_GRANT',inventoryRevision=str(2+index)),
                                  inventory=server_inventory()))
             return Done(dict(inventory=server_inventory()))
         with patch.object(seed.shutil,'which',return_value='/usr/bin/buf'):
@@ -201,9 +203,9 @@ class Fixtures(unittest.TestCase):
             paperdoll=[dict(slot='EQUIP_SLOT_'+r['slot'].upper(),instanceId=str(4294967296+i)) for i,r in enumerate(enchanted['inventory']) if r['slot']]
             if method=='GrantItem':
                 bodies.append(body)
-                return Done(dict(result=dict(receiptId=body['idempotencyKey'],operation='ITEM_OPERATION_GRANT',inventoryRevision='2'),
+                return Done(dict(result=dict(receiptId=body['idempotencyKey'],operation='ITEM_OPERATION_GRANT',inventoryRevision=str(1+len(bodies))),
                                  inventory=dict(items=items,paperdoll=paperdoll)))
-            return Done(dict(inventory=dict(inventoryRevision='9',items=items,paperdoll=paperdoll)))
+            return Done(dict(inventory=dict(inventoryRevision=str(1+len(bodies)),items=items,paperdoll=paperdoll)))
         with patch.object(seed.shutil,'which',return_value='/usr/bin/buf'):
             result=seed.grant_role('phase4-enchant','owner',enchanted,'127.0.0.1:15051',enchant_runner)
         self.assertEqual([b.get(seed.ENCHANT_FIELD) for b in bodies if b['templateId']==71],[None,3])
@@ -218,6 +220,80 @@ class Fixtures(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'admission mismatch'):seed.grant_role('phase4-enchant','owner',enchanted,'127.0.0.1:15051',wrong)
         for address in ('127.0.0.1:50051','10.0.0.1:15051','127.0.0.1','localhost:80'):
             with self.assertRaises(ValueError):seed.guarded_grpc(address)
+
+    def grant_fixture(self,failures):
+        """A one-grant pack (phase4-equip owner) whose GrantItem fails with `failures` first."""
+        role=fixture.phase4.profiles('phase4-equip')['owner']|{'account_id':'01970000-0000-7000-8000-000000000042'}
+        grants,_=seed.grant_plan('phase4-equip','owner',role)
+        log=[];pending=list(failures)
+        items=[dict(instanceId=str(4294967296+i),templateId=r['template_id'],count=str(r['count']),enchant=r['enchant']) for i,r in enumerate(role['inventory'])]
+        paperdoll=[dict(slot='EQUIP_SLOT_'+r['slot'].upper(),instanceId=str(4294967296+i)) for i,r in enumerate(role['inventory']) if r['slot']]
+        class Reply:
+            def __init__(self,code,out,err):self.returncode=code;self.stdout=out;self.stderr=err
+        def runner(command,**kwargs):
+            body=json.loads(command[command.index('-d')+1]);method=command[-1].rsplit('/',1)[1]
+            log.append((method,body.get('idempotencyKey')))
+            if method=='GrantItem' and body['idempotencyKey']==grants[0]['key'] and pending:
+                code,message=pending.pop(0)
+                return Reply(1,'',json.dumps(dict(code=code,message=message)))
+            if method=='GrantItem':
+                index=next(g['index'] for g in grants if g['key']==body['idempotencyKey'])
+                return Reply(0,json.dumps(dict(result=dict(receiptId=body['idempotencyKey'],operation='ITEM_OPERATION_GRANT',
+                    inventoryRevision=str(2+index)),inventory=dict(items=items,paperdoll=paperdoll))),'')
+            return Reply(0,json.dumps(dict(inventory=dict(inventoryRevision=str(1+len(grants)),items=items,paperdoll=paperdoll))),'')
+        return role,grants,log,runner
+
+    def test_grant_retries_only_grpc_unavailable_with_backoff_and_the_same_key(self):
+        role,grants,log,runner=self.grant_fixture([('unavailable','zone paused'),('unavailable','zone paused')])
+        slept=[]
+        with patch.object(seed.shutil,'which',return_value='/usr/bin/buf'):
+            result=seed.grant_role('phase4-equip','owner',role,'127.0.0.1:15051',runner,sleep=slept.append)
+        self.assertEqual([k for m,k in log if m=='GrantItem'][:3],[grants[0]['key']]*3)
+        self.assertEqual(slept,list(seed.GRANT_BACKOFF_SECONDS));self.assertEqual(result['confirmed'],'GetInventory')
+        # Exhausted retries refuse; FAILED_PRECONDITION whose text says "unavailable" is not retried.
+        for failures,attempts in (([('unavailable','x')]*3,3),([('failed_precondition','paused skill checkpoint unavailable')],1)):
+            role,grants,log,runner=self.grant_fixture(failures);slept=[]
+            with patch.object(seed.shutil,'which',return_value='/usr/bin/buf'):
+                with self.assertRaises(seed.GrpcError) as caught:
+                    seed.grant_role('phase4-equip','owner',role,'127.0.0.1:15051',runner,sleep=slept.append)
+            self.assertEqual(len(log),attempts);self.assertEqual(len(slept),attempts-1)
+            self.assertEqual(caught.exception.code,failures[0][0])
+        self.assertEqual(seed.grpc_code('not json'),'')
+
+    def test_final_inventory_revision_must_equal_the_last_receipt(self):
+        role,grants,log,runner=self.grant_fixture([])
+        def drift(command,**kwargs):
+            reply=runner(command,**kwargs)
+            if command[-1].endswith('/GetInventory'):
+                body=json.loads(reply.stdout);body['inventory']['inventoryRevision']='99';reply.stdout=json.dumps(body)
+            return reply
+        def flat(command,**kwargs):
+            reply=runner(command,**kwargs)
+            if command[-1].endswith('/GrantItem') and reply.returncode==0:
+                body=json.loads(reply.stdout);body['result']['inventoryRevision']='2';reply.stdout=json.dumps(body)
+            return reply
+        with patch.object(seed.shutil,'which',return_value='/usr/bin/buf'):
+            with self.assertRaisesRegex(ValueError,'differs from the last GrantItem receipt'):
+                seed.grant_role('phase4-equip','owner',role,'127.0.0.1:15051',drift)
+            self.assertGreater(len(grants),1)
+            with self.assertRaisesRegex(ValueError,'strictly increase'):
+                seed.grant_role('phase4-equip','owner',role,'127.0.0.1:15051',flat)
+
+    def test_scenario_copy_maps_pack_instances_per_role(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder=Path(tmp);scenarios=folder/'src';scenarios.mkdir()
+            owner=scenarios/'4-x-a.nfs';owner.write_text('nf.Equip instance:7\nnf.Expect equipped instance:7 == 1\n')
+            observer=scenarios/'4-x-b.nfs';observer.write_text('nf.Use instance:3\n')
+            (folder/'state.json').write_text(json.dumps(dict(project='nightfall-phase4-harness-'+'0'*32,fixture='phase4-equip',
+                roles={'4-x-a':dict(character_id=fixture.phase4.OWNER),'4-x-b':dict(character_id=fixture.phase4.OBSERVER)})))
+            with self.assertRaisesRegex(ValueError,'confirmed grant stage'):fixture.scenario_copy(folder,owner)
+            (folder/'grant-manifest.json').write_text(json.dumps(dict(granted=dict(owner=dict(instance_map={'7':4294967301}),
+                                                                                  observer=dict(instance_map={'3':4294967400})))))
+            (folder/'grant-complete').write_text('')
+            self.assertEqual(fixture.scenario_copy(folder,owner).read_text(),'nf.Equip instance:4294967301\nnf.Expect equipped instance:4294967301 == 1\n')
+            self.assertEqual(fixture.scenario_copy(folder,observer).read_text(),'nf.Use instance:4294967400\n')
+            observer.write_text('nf.Use instance:7\n') # owner's id is not the observer's
+            with self.assertRaisesRegex(ValueError,'was not provisioned'):fixture.scenario_copy(folder,observer)
 
     def test_zone_flags_are_per_unit(self):
         # D114: every unit boots V6; the per-unit manifest field and exec-api check remain.
