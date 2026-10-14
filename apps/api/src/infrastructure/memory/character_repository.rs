@@ -174,6 +174,22 @@ impl InMemoryCharacterRepository {
             .map_err(anyhow::Error::msg)
     }
 
+    /// D116 read-side upgrade of a retained V5 skill checkpoint under V6 rules.
+    fn read_phase3(
+        &self,
+        phase3: Option<Phase3Checkpoint>,
+        c: &Character,
+    ) -> anyhow::Result<Option<Phase3Checkpoint>> {
+        if phase3.is_none() {
+            return Ok(None);
+        }
+        Ok(crate::infrastructure::character_validation::upgrade_v6_skill_checkpoint(
+            phase3,
+            &*self.phase3_rules()?,
+            &c.class_state.learned_skills,
+        ))
+    }
+
     fn validate_versioned(
         &self,
         c: &Character,
@@ -673,7 +689,7 @@ impl CharacterRepository for InMemoryCharacterRepository {
             self.validate_versioned(
                 c,
                 &c.class_state,
-                progression.phase3.as_ref(),
+                self.read_phase3(progression.phase3.clone(), c)?.as_ref(),
                 progression.alive,
             )?;
         }
@@ -698,7 +714,7 @@ impl CharacterRepository for InMemoryCharacterRepository {
             self.validate_versioned(
                 c,
                 &c.class_state,
-                progression.phase3.as_ref(),
+                self.read_phase3(progression.phase3.clone(), c)?.as_ref(),
                 progression.alive,
             )?;
             out.push(state.character_view(c));
@@ -776,11 +792,14 @@ impl CharacterRepository for InMemoryCharacterRepository {
             self.validate_versioned(
                 c,
                 &c.class_state,
-                progression.phase3.as_ref(),
+                self.read_phase3(progression.phase3.clone(), c)?.as_ref(),
                 progression.alive,
             )?;
         }
         let mut loaded = state.progression.get(&character_id).cloned();
+        if let (Some(loaded), Some(c)) = (&mut loaded, state.characters.get(&character_id)) {
+            loaded.phase3 = self.read_phase3(loaded.phase3.take(), c)?;
+        }
         if let (Some(loaded), Some(rules)) = (&mut loaded, &self.phase4_rules) {
             let character = state
                 .characters
