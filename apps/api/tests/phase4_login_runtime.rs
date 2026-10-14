@@ -242,21 +242,30 @@ where
     socket.close().await;
     // A fresh, never-granted character: its pending starter kit rides the V6 load with no
     // retained checkpoint and materializes at admission, before the inventory baseline.
-    let fresh = Character::create(
-        AccountId::from_uuid(account),
-        CharacterName::new("LoginFresh").unwrap(),
-        Race::Human,
-    );
-    repo.create_idempotent(&IdempotencyKey::new(), "login-fresh", &fresh)
+    // Created through the production CreateCharacter RPC: a Human Mystic whose level-1
+    // auto-get and racial skills are learned metadata, with no retained skill checkpoint.
+    let created = app
+        .grpc
+        .clone()
+        .create_character(pb::CreateCharacterRequest {
+            idempotency_key: Uuid::now_v7().to_string(),
+            name: "LoginFresh".into(),
+            race: pb::Race::Human.into(),
+            base_class_id: Some(10),
+            ..Default::default()
+        })
         .await
+        .unwrap()
+        .into_inner();
+    let fresh = repo
+        .get(api::domain::CharacterId::from_uuid(Uuid::parse_str(&created.id).unwrap()))
+        .await
+        .unwrap()
         .unwrap();
-    assert!(repo
-        .retained_inventory(fresh.id)
-        .await
-        .unwrap()
-        .unwrap()
-        .checkpoint
-        .is_none());
+    assert!(!fresh.class_state.learned_skills.is_empty());
+    let admission = repo.load_for_admission(fresh.id).await.unwrap().unwrap();
+    assert!(admission.phase3.is_none());
+    assert!(admission.phase4.as_ref().unwrap().checkpoint.is_none());
     let newcomer = ws::Player {
         account,
         character: fresh.id,

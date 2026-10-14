@@ -315,24 +315,36 @@ pub struct PlayerSpawn {
     pub load: Option<Box<PlayerLoad>>,
 }
 
-/// The skill sidecar a load carries into its epoch. A V6 item load always references a
-/// retained skill provider order; an owner whose kit is still pending and who has no learned
-/// providers has the canonical empty origin, exactly as an offline grant pauses it. A V6
-/// owner with learned providers but no retained skill checkpoint is refused.
+/// The skill sidecar a load carries into its epoch. A retained V6 item checkpoint always
+/// travels with its retained skill checkpoint. A pending first materialization (no retained
+/// item checkpoint) without a retained skill checkpoint carries none: the zone installs the
+/// learned providers exactly as a V5 fresh admission does.
 pub(crate) fn v6_skill_origin(
     loaded: &crate::application::ProgressionState,
 ) -> Result<Option<crate::domain::zone::Phase3Checkpoint>, &'static str> {
     match (&loaded.phase3, &loaded.phase4) {
         (Some(checkpoint), _) => Ok(Some(checkpoint.clone())),
         (None, None) => Ok(None),
+        (None, Some(items)) if items.checkpoint.is_none() => Ok(None),
+        (None, Some(_)) => Err("retained item checkpoint without its skill checkpoint"),
+    }
+}
+
+/// The paused-owner skill origin of an offline grant: the retained skill checkpoint, or the
+/// canonical empty origin for a pending owner with no learned providers.
+pub(crate) fn paused_skill_origin(
+    loaded: &crate::application::ProgressionState,
+) -> Option<crate::domain::zone::Phase3Checkpoint> {
+    match (&loaded.phase3, &loaded.phase4) {
+        (Some(checkpoint), _) => Some(checkpoint.clone()),
         (None, Some(items))
             if loaded.class_state.learned_skills.is_empty()
                 && items.checkpoint.is_none()
                 && !items.pending.is_empty() =>
         {
-            Ok(Some(crate::domain::zone::Phase3Checkpoint::new()))
+            Some(crate::domain::zone::Phase3Checkpoint::new())
         },
-        (None, Some(_)) => Err("paused skill checkpoint unavailable"),
+        (None, _) => None,
     }
 }
 

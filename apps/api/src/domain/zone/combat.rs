@@ -236,11 +236,14 @@ impl PlayerLoad {
     /// Item admission references the same retained skill provider order in this envelope.
     pub fn validate_phase4(&self) -> Result<(), super::ItemError> {
         if let Some(items) = &self.phase4 {
-            let skills = self
-                .phase3
-                .as_ref()
-                .ok_or(super::ItemError("item load requires skills"))?;
-            items.validate_structure(skills.modifier_install_order.len())?;
+            let sources = match (&self.phase3, &items.checkpoint) {
+                (Some(skills), _) => skills.modifier_install_order.len(),
+                // A pending first materialization has no retained provider order yet: the
+                // spawn installs the learned providers as a V5 fresh admission does (B1).
+                (None, None) => 0,
+                (None, Some(_)) => return Err(super::ItemError("item load requires skills")),
+            };
+            items.validate_structure(sources)?;
         }
         Ok(())
     }

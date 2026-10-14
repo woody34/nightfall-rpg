@@ -107,15 +107,9 @@ impl ItemGrantRuntime for SessionContext {
                         AppError::FailedPrecondition("invalid saved position".into())
                     })?;
                     // A pending owner with no learned providers has the canonical empty paused origin.
-                    let phase3 =
-                        super::v6_skill_origin(&loaded)
-                            .ok()
-                            .flatten()
-                            .ok_or_else(|| {
-                                AppError::FailedPrecondition(
-                                    "paused skill checkpoint unavailable".into(),
-                                )
-                            })?;
+                    let phase3 = super::paused_skill_origin(&loaded).ok_or_else(|| {
+                        AppError::FailedPrecondition("paused skill checkpoint unavailable".into())
+                    })?;
                     command.paused = Some(Box::new(ItemPausedCore {
                         name: loaded.name.as_str().to_owned(),
                         position,
