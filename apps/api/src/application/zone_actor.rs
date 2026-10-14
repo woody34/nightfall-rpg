@@ -347,6 +347,11 @@ impl ZoneHandle {
         self.phase3
     }
 
+    /// Whether this actor runs a durable V6 (items) epoch: item loads, intents and grants.
+    pub fn phase4_enabled(&self) -> bool {
+        self.phase4_durable
+    }
+
     /// Current zone position for best-effort session audit. The next tick follows state
     /// advancement, including idle ticks and ticks waiting for durable admission.
     pub fn audit_context(&self) -> super::SessionAuditContext {

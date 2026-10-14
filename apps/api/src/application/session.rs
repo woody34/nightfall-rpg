@@ -388,14 +388,18 @@ impl SessionRegistry {
                 .await
                 .map_err(|_| AdmitError::LoadFailed)?
                 .ok_or(AdmitError::LoadFailed)?;
-            // Remove this rollout fence when the V6 command codec carries the canonical load.
-            if loaded.phase4.is_some() || (loaded.phase3.is_some() && !zone.phase3_enabled()) {
+            // A load carries exactly the policy sidecars its epoch executes: retained V5 skills
+            // need a V5 zone and the V6 item load (retained checkpoint and pending kit) a V6
+            // zone. The recorded SpawnPlayer carries the canonical load (PbPlayerLoad.phase4).
+            if (loaded.phase4.is_some() && !zone.phase4_enabled())
+                || (loaded.phase3.is_some() && !zone.phase3_enabled())
+            {
                 return Err(AdmitError::LoadFailed);
             }
             loaded.name.as_str().clone_into(&mut spawn.name);
             spawn.pos = saved_position(loaded.position).ok_or(AdmitError::LoadFailed)?;
             spawn.load = Some(Box::new(PlayerLoad {
-                phase4: None,
+                phase4: loaded.phase4,
                 phase3: loaded.phase3,
                 progression: zone.has_classes().then(|| {
                     Box::new(crate::domain::zone::PlayerProgression {
