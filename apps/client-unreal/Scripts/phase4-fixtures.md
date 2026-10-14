@@ -173,12 +173,84 @@ results but preserves a scoped first-receipt comparison history for explicit ret
 Fixtures: `phase4-packs.json` publishes exact role inputs and source citations;
 counts/enchant/level/SP/position are declared test inputs, not production constants.
 All kit extras/equipped flags come from starter_kits.toml; capacity/blacksmith
-policy comes from capacities.toml. Item identity uses fixture low block [1,2^32),
-per-role disjoint slices and next=max(seed ID)+1; production item_id_ranges starts
-at 2^32 (D8). SQL never inserts that low block into the production range table.
-Pending E2 admission interface must record the seed allocator and runtime rules
-hash; data_sha256 is not the runtime hash. Missing admission support refuses live
-execution. Blacksmith is at (124,128), design §7; tax0 is hashed fixture policy.
+policy comes from capacities.toml. Pack `instance_id`s are pack-local labels.
+Provisioning (D112, `infra/scripts/seed-phase4-fixture.py`): before API startup the
+Phase 3 character seed plus a re-run of the frozen pending-kit backfill
+(m20261012_000011); no item, ledger or allocator rows. After the owned API is
+healthy and before any login (`phase2-fixture.py grant`, inside the startup
+allowance): one dev GrantItem gRPC per (role, item) via `buf curl`, deterministic
+UUIDv5 keys, serial per character; the first grant materializes the kit. Admission
+is confirmed from the offline GetInventory baseline (every template/count/enchant/
+slot must equal the pack) and the server-allocated ids are recorded as
+`instance_map`; the bot runs a scenario copy whose `instance:N` labels are mapped
+(`phase2-fixture.py scenario`). D113: enchanted pack instances are granted at their
+level through the optional GrantItem `enchant_level` (one constant, ENCHANT_FIELD) and
+the level is confirmed from GetInventory; all 39 packs provision. Charges/augment, or
+items equipped beyond the kit, still have no transport and refuse before any write.
+Zone flags are per unit (`zone_flags` in the unit manifest, checked again by
+`phase2-fixture.py exec-api`). D114: every unit runs on V6, so the value is
+PHASE3_ENABLED=1 and PHASE4_ENABLED=1 for all Phase 2, 3 and 4 packs. Shared-stack units
+(Phase 0b/1, `sim-lib.sh --api start`) start the API with the same two flags. After
+health, sim-lib records what the API ATTESTS (review-3 P2-3): `phase2-fixture.py zone-flags`
+reads the API's own V6 bootstrap log line ("Phase3 bootstrap bundle validated with the
+Phase4 (V6) item extension") and writes the flags with its `phase4_item_rules_hash` and
+`phase4_skill_rules_hash` to `<unit>/zone-flags.json` (shared stack) or
+`<unit>/<first scenario>/fixture/zone-flags.json` (owned fixture). Without that line nothing
+is written. An attached API (`--api attach`) records nothing either, so its units cannot
+verify E6.3.
+Blacksmith is at (124,128), design §7; tax0 is hashed fixture policy.
 
 Live grammar compatibility is separately checked by sim-parser-check.py against
 C++ registration. Publication/parser tests cannot attest that E5 has landed.
+
+## V6 everywhere (D114)
+
+All live runs use a V6 zone (PHASE3_ENABLED=1, PHASE4_ENABLED=1; V6 refuses PHASE3_ENABLED=0):
+
+- The scenario suite (`run-sim-ci.py --fresh-stack`): owned fixture units and shared-stack
+  units, as above.
+- Required-live UE automation (`run-tests.sh --require-live-api`): it attaches to an API
+  that the operator or CI starts. Start that API with `PHASE3_ENABLED=1 PHASE4_ENABLED=1`
+  (and `AUTH_DEV_TOKENS=1`).
+- The soak (`run-soak.sh`, all modes including `--legacy-attacks`): the API is always
+  started with `PHASE3_ENABLED=1 PHASE4_ENABLED=1`. The role manifest's `items` flag still
+  needs `--items`.
+
+E6.3 regression (`phase4-regression.py`). The committed files
+`Scenarios/phase4-regression.pending.json` and `Scenarios/phase4-backfill.pending.json` are
+inventories only (every Phase 0b-3 expectation; every profession x alive/dead/never_admitted
+backfill case). They hold no verdict. Regenerate them with
+`phase4-regression.py --publish Scenarios/phase4-regression.pending.json --backfill
+Scenarios/phase4-backfill.pending.json`. The verdict:
+
+    phase4-regression.py --suite <run-sim-ci artifacts> --backfill-results <api results.json> \
+        --out verdict.json --require-live
+
+A Phase 0b-3 scenario is verified only when its unit is PASS in `summary.json` (QUARANTINED
+does not verify), the unit `pipeline-verdict.json` and the scenario `pipeline-state.json`
+are clean, every recording of the scenario (its own and the unit's shared ones) has a
+`.replay.log` that reports `match.`, and the unit's API attested V6 (`zone-flags.json` with both
+rules hashes; a fixture unit has exactly one `*/fixture/manifest.json`, shared by its paired
+scenarios, and its intended `zone_flags` must agree with the attested record). A backfill case is verified only when the API's
+`phase4_backfill` results name it (same `class_id` and `state`) with every required gate
+`true`. Unknown or duplicate result ids and other schema versions are refused.
+D119: third-class (tier 3) professions are not admissible characters (ClassState
+refuses tier > 2). The inventory holds 58 professions x alive/dead/never_admitted =
+174 cases. A result for a tier-3 id is out of scope (listed as `out_of_scope` in the
+verdict) whether it is all-false with a note, marked `not_applicable`, or absent.
+`not_applicable` on an admissible case is not verified. Reference results: API
+session 17 (`phase4_backfill`, file commit 40ecdab) verify 174/174 with 93 out of scope
+(`test/fixtures/phase4-backfill/api-s17-results.json`).
+`--require-live` exits 1 unless everything is verified. A scenario that fails is a
+zone-lane finding: do not change its expectations to make it pass.
+
+Backfill results shape (agreed in api-inbox.md; written by `apps/api/tests/phase4_backfill.rs`
+when `PHASE4_BACKFILL_RESULTS=<path>` is set; extra keys such as `note` or
+`before_commit_failure` are ignored):
+
+    {"schema_version": 1, "source": "apps/api/tests/phase4_backfill.rs", "commit": "<sha>",
+     "cases": [{"id": "<profession key>-<alive|dead|never_admitted>", "class_id": <int>,
+                "state": "<alive|dead|never_admitted>",
+                "gates": {"migration_rerun": true, "first_v6_admission": true,
+                          "crash_resume": true, "kit_once": true,
+                          "allocator_no_collision": true}}]}

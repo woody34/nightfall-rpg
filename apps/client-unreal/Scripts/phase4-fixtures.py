@@ -290,10 +290,17 @@ def publish(repo=REPO):
                 packs={p: profiles(p, repo, p in PAIRED) for p in sorted(PHASE4)})
 
 
-def validate_seed_manifest(seed, selected, owner, observer, repo, paired):
+def validate_seed_manifest(seed, selected, owner, observer, repo, paired, stage='granted'):
+    """D112: `pre-admission` (characters + pending kit, before API startup) or `granted`
+    (GrantItem stage after startup, admission confirmed from the offline baseline)."""
     expected = {name:r | {'account_id': owner if name == 'owner' else observer} for name,r in profiles(selected, repo, paired).items()}
-    if seed.get('schema_version') != 1 or seed.get('fixture') != selected or seed.get('roles') != expected or seed.get('dry_run') is not False or seed.get('admission_ready') is not True:
-        raise ValueError('Phase4 seed manifest does not match pre-admission contract')
+    if (seed.get('schema_version') != 1 or seed.get('fixture') != selected or seed.get('roles') != expected
+            or seed.get('dry_run') is not False or seed.get('stage') != stage
+            or seed.get('admission_ready') is not (stage == 'granted')
+            or any(plan.get('blockers') for plan in seed.get('grant_plan', {}).values())):
+        raise ValueError('Phase4 seed manifest does not match the ' + stage + ' contract')
+    if stage == 'granted' and set(seed.get('granted', {})) != set(expected):
+        raise ValueError('Phase4 grant manifest lacks a role')
 
 
 if __name__ == '__main__':
@@ -323,7 +330,11 @@ def create_overlay(destination, repo):
     blacksmith = table('capacities', repo)['blacksmith']
     # Stationary fixture targets preserve initial east facing (design §2.1/§6.2).
     target=destination/'npcs/skill_target.toml'
-    target.write_text(target.read_text().replace('move_speed = 400','move_speed = 0'))
+    # The API rejects move_speed 0 (npc_data.rs: must be positive), so the slowest legal speed
+    # is 1 milli-tile/tick. V6 facing is set at spawn and not updated by movement, so side/back
+    # phases are unaffected; the target can still creep 1 milli-tile per tick while chasing an
+    # attacker beyond its 1.5-tile attack range (bow scenarios), i.e. it is not strictly fixed.
+    target.write_text(target.read_text().replace('move_speed = 400','move_speed = 1'))
     # Eligible passive secondary recipients are fixture inputs, not source stats.
     for name,position in [('pole_secondary_a',(108,101)),('pole_secondary_b',(108,99))]:
         template=(destination/'npcs/skill_target.toml').read_text().replace('skill_target',name)

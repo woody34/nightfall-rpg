@@ -105,12 +105,20 @@ if ((CASTING)); then
   [[ -x "$SOAK_MIGRATE_BIN" ]] || sim_die "casting soak needs candidate nightfall-migrate"
   DATABASE_URL="postgres://nightfall:nightfall@localhost:$((5432 + OFFSET))/$SOAK_DB" \
     "$SOAK_MIGRATE_BIN" up >"$OUT/migrate.log" 2>&1
+  # D114/review-3 P1-2: the soak API always boots V6, so DB-seeded characters need their
+  # pending-kit rows before first admission (seed-phase3-fixture adds them with PHASE4_ENABLED=1).
   DATABASE_URL="postgres://nightfall:nightfall@localhost:$((5432 + OFFSET))/$SOAK_DB" \
-    AUTH_DEV_TOKENS=1 NIGHTFALL_PHASE3_FIXTURE=1 NIGHTFALL_PHASE4_FIXTURE="$ITEMS" \
+    AUTH_DEV_TOKENS=1 NIGHTFALL_PHASE3_FIXTURE=1 NIGHTFALL_PHASE4_FIXTURE="$ITEMS" PHASE4_ENABLED=1 \
     python3 "$SIM_REPO/infra/scripts/seed-phase${SEED_PHASE}-soak.py" --manifest "$OUT/fixtures/roles.json" \
     --compose-project "$COMPOSE_PROJECT" --compose-file "$OUT/compose.json" \
     >"$OUT/seed.log" 2>&1
 fi
+# D114: every soak (items, casting and --legacy-attacks) boots a V6 zone. V6 requires
+# PHASE3_ENABLED=1, so casting rules are on even when the legacy bots do not cast.
+if [[ "$(python3 -c 'import json,sys; print(int(json.load(open(sys.argv[1])).get("items") is True))' "$OUT/fixtures/roles.json" 2>/dev/null || echo 0)" == 1 ]]; then
+  ((ITEMS)) || sim_die "role manifest declares items but --items was not requested"
+fi
+ZONE_FLAGS=(env PHASE3_ENABLED=1 PHASE4_ENABLED=1)
 DATABASE_URL="postgres://nightfall:nightfall@localhost:$((5432 + OFFSET))/$SOAK_DB" \
 NATS_URL="nats://localhost:$((4222 + OFFSET))" \
 HTTP_ADDR="127.0.0.1:$HTTP_PORT" GRPC_ADDR="127.0.0.1:$GRPC_PORT" \
@@ -118,7 +126,7 @@ WS_PUBLIC_URL="ws://localhost:$HTTP_PORT/ws" AUTH_DEV_TOKENS=1 WS_MAX_SESSIONS_P
 OIDC_ISSUER="http://localhost:$((8080 + OFFSET))/realms/nightfall" OIDC_AUDIENCE=nightfall-api \
 OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:$((4317 + OFFSET))" OTEL_SERVICE_NAME=nightfall-api \
 ZONE_FILE="$OUT/fixtures/data/zones/test_zone.toml" RULES_DIR="$OUT/fixtures/data" \
-PHASE3_ENABLED="$CASTING" PHASE4_ENABLED="$ITEMS" \
+"${ZONE_FLAGS[@]}" \
 "$SOAK_API_BIN" >"$OUT/api.log" 2>&1 &
 API_PID=$!
 for ((i=0; i<180; i++)); do
@@ -127,6 +135,15 @@ for ((i=0; i<180; i++)); do
   sleep 1
 done
 curl -fsS -m 2 "http://localhost:$HTTP_PORT/health" >/dev/null || sim_die "API startup timed out"
+if ((ITEMS)); then
+  # D112: grant every role's pack items through the dev GrantItem gRPC (after the pre-API
+  # characters + pending-kit seed), confirming admission offline, before the clients start.
+  DATABASE_URL="postgres://nightfall:nightfall@localhost:$((5432 + OFFSET))/$SOAK_DB" \
+    AUTH_DEV_TOKENS=1 NIGHTFALL_PHASE4_FIXTURE=1 \
+    timeout --kill-after=5 300 python3 "$SIM_REPO/infra/scripts/seed-phase4-soak.py" --manifest "$OUT/fixtures/roles.json" \
+    --grant --grpc "127.0.0.1:$GRPC_PORT" >"$OUT/grant.log" 2>&1 \
+    || sim_die "Phase4 soak grant failed; see $OUT/grant.log"
+fi
 ROLE_ARGS=(); if ((CASTING)); then
   ROLE_ARGS+=("-SoakRoleManifest=$OUT/fixtures/roles.json")
   if ((ITEMS)); then ROLE_ARGS+=("-SoakScenarioSeconds=600"); else ROLE_ARGS+=("-SoakScenarioSeconds=360"); fi
@@ -146,6 +163,9 @@ END=$(date +%s)
 stop_api || printf '%s\n' 'API shutdown failed or exceeded its grace period; final metrics may be incomplete' >>"$OUT/runner-errors.txt"
 # A fresh Postgres/NATS namespace deterministically starts zone 1 at epoch 1. Exporting
 # that exact epoch both records the seed and requires the graceful-shutdown watermark.
+# Review-3 P1-3: the V6 epoch references the overlay bundle by hash, so every replay step
+# (export, check, coverage, items evidence) composes the RULES_DIR the soak API ran with.
+export RULES_DIR="$OUT/fixtures/data"
 if ! "$SOAK_REPLAY_BIN" export --zone 1 --epoch 1 --nats "nats://localhost:$((4222 + OFFSET))" \
   --out "$OUT/soak.nfr" >"$OUT/replay-export.log" 2>&1; then
   printf '%s\n' 'Could not export complete zone 1 epoch 1 recording' >>"$OUT/runner-errors.txt"

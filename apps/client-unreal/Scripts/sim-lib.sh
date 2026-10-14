@@ -150,6 +150,8 @@ sim_api_prepare() {
       (
         cd "$SIM_REPO"
         if [[ -f .env ]]; then set -a; . ./.env; set +a; fi
+        # D114: shared-stack units (Phase 0b/1) boot V6 like every owned fixture unit
+        # (phase2-fixture.py zone_flags); explicit values override any .env setting.
         if [[ -n "${SIM_API_BIN:-}" ]]; then
           AUTH_DEV_TOKENS=1 PHASE3_ENABLED=1 PHASE4_ENABLED=1 exec "$SIM_API_BIN"
         fi
@@ -165,6 +167,7 @@ sim_api_prepare() {
             sim_api_endpoint_probe owned || sim_die "API ownership verification failed"
             kill -0 "$SIM_STARTED_API_PID" 2>/dev/null || sim_die "owned API exited during startup"
           fi
+          sim_record_zone_flags "${SIM_API_LOG:-}" "${ARTIFACTS:+$ARTIFACTS/zone-flags.json}"
           return 0
         fi
         sleep 1
@@ -173,6 +176,16 @@ sim_api_prepare() {
       ;;
     *) sim_die "--api must be attach or start" ;;
   esac
+}
+
+# Review-3 P2-3: after health, record the zone flags the API attests in its own V6 startup
+# line (with its rules hashes) for phase4-regression.py. Without that line nothing is written,
+# so the unit cannot verify E6.3; the run itself continues (fail closed at verification).
+sim_record_zone_flags() {
+  local log="$1" out="$2"
+  [[ -n "$log" && -n "$out" && -f "$log" ]] || return 0
+  python3 "$SIM_HERE/phase2-fixture.py" zone-flags --log "$log" --out "$out" \
+    || sim_log "API log does not attest a V6 zone; $out not written"
 }
 
 sim_api_cleanup() {
@@ -217,6 +230,11 @@ sim_expand_scenarios() {
 # Echoes NUL-free, space-safe args via the SIM_BOT_CMD array.
 sim_bot_cmd() {
   local scenario="$1"; shift
+  if [[ -n "${SIM_FIXTURE_DIR:-}" ]]; then
+    # Phase 4 packs: run the copy whose pack instance ids map to the granted server ids.
+    scenario="$(python3 "$SIM_HERE/phase2-fixture.py" scenario --folder "$SIM_FIXTURE_DIR" "$scenario")" \
+      || sim_die "invalid Phase4 scenario instance mapping"
+  fi
   SIM_BOT_CMD=()
   local bin; bin="$(sim_bot_bin)"
   SIM_BOT_CMD+=("$bin")
@@ -487,6 +505,7 @@ sim_fixture_finish() {
   SIM_FIXTURE_DIR=""
   SIM_API_URL="$SIM_PRE_FIXTURE_API_URL"
   if [[ "$SIM_PRE_FIXTURE_NATS_SET" == x ]]; then export NATS_URL="$SIM_PRE_FIXTURE_NATS"; else unset NATS_URL; fi
+  if [[ "${SIM_PRE_FIXTURE_RULES_SET:-}" == x ]]; then export RULES_DIR="$SIM_PRE_FIXTURE_RULES"; else unset RULES_DIR; fi
 }
 
 sim_unit_prepare() {
@@ -524,6 +543,12 @@ sim_unit_prepare() {
   local -a endpoints=()
   mapfile -t endpoints <"$endpoints_file"; rm -f "$endpoints_file"
   SIM_API_URL="${endpoints[0]}"; export NATS_URL="${endpoints[1]}"
+  # nightfall-replay (export/check/evidence) must compose the same RULES_DIR bundle the
+  # fixture API ran with: V6 epochs over an overlay reference that bundle by hash.
+  SIM_PRE_FIXTURE_RULES_SET="${RULES_DIR+x}"; SIM_PRE_FIXTURE_RULES="${RULES_DIR:-}"
+  RULES_DIR="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["data_sources"]["rules_dir"])' "$SIM_FIXTURE_DIR/state.json")" \
+    || sim_die "fixture manifest lacks its rules directory"
+  export RULES_DIR
   sim_api_endpoint_probe free || sim_die "fixture API endpoint occupied"
   SIM_API_URL="${endpoints[2]}" sim_api_endpoint_probe free || sim_die "fixture gRPC endpoint occupied"
   python3 "$SIM_HERE/phase2-fixture.py" exec-api --folder "$SIM_FIXTURE_DIR" >"$SIM_FIXTURE_DIR/api.log" 2>&1 &
@@ -535,6 +560,14 @@ sim_unit_prepare() {
       sim_api_endpoint_probe owned || sim_die "fixture API ownership verification failed"
       SIM_API_URL="${endpoints[2]}" sim_api_endpoint_probe owned || sim_die "fixture gRPC ownership verification failed"
       kill -0 "$SIM_STARTED_API_PID" 2>/dev/null || sim_die "fixture API exited during startup"
+      sim_record_zone_flags "$SIM_FIXTURE_DIR/api.log" "$SIM_FIXTURE_DIR/zone-flags.json"
+      if [[ "$selected" == phase4-* ]]; then
+        # D112: grant the pack through the dev GrantItem gRPC before any client logs in, within
+        # the same startup allowance; any refusal fails provisioning loudly.
+        local remaining=$((deadline - SECONDS)); ((remaining > 0)) || sim_die "no startup budget left for the Phase4 grant"
+        timeout --kill-after=5 "$remaining" python3 "$SIM_HERE/phase2-fixture.py" grant --folder "$SIM_FIXTURE_DIR" \
+          || sim_die "Phase4 fixture grant failed (see $SIM_FIXTURE_DIR/grant.log)"
+      fi
       return 0
     fi
     sleep 1

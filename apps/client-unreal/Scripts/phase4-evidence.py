@@ -541,6 +541,26 @@ def source_data_sha256():
 # Item RNG callsites with pinned bounds. D109: `bow_reduced_mp` (Rnd.get(100), the
 # reduced_mp_consume roll of the 21 such bows) appears in bow recordings.
 CALLSITE_BOUNDS={'enchant':100000,'bow_reduced_mp':100}
+# T10/B3 (zone 844e541): with item evidence on, every generator call is an item_rng fact.
+# Draws no caller tabulates are zone facts: nil subject, live incarnation 1, callsite
+# `zone_roll`, `entity_id` or the caller's own site, resolution `zone:<callsite>:<word_before>`.
+# An entity id fills 16 bytes from the generator: 4 words, recorded as bound 1 / value 0.
+ZONE_SUBJECT='00000000-0000-0000-0000-000000000000'
+ZONE_CALLSITES=('zone_roll','entity_id')
+ENTITY_ID_WORDS=4
+
+
+def zone_draw(row,data,before,after,bound,value):
+    """Validate the zone-draw grammar; non-zone facts may not use it."""
+    if row['entity']!=ZONE_SUBJECT:
+        if data['callsite'] in ZONE_CALLSITES or data['resolution_id'].startswith('zone:'):
+            raise ValueError('zone RNG grammar requires the nil zone subject (T10)')
+        return
+    if row.get('origin','live')!='live' or row['incarnation']!=1:raise ValueError('zone RNG draw must be live incarnation 1 (T10)')
+    if not re.fullmatch(r'[a-z][a-z0-9_]*',data['callsite']):raise ValueError('malformed zone RNG callsite')
+    if data['resolution_id']!=f"zone:{data['callsite']}:{before}":raise ValueError('zone RNG resolution must be zone:<callsite>:<word_before> (T10)')
+    if data['callsite']=='entity_id' and (bound,value,after-before)!=(1,0,ENTITY_ID_WORDS):
+        raise ValueError('entity-id zone draw must consume one 128-bit id (4 words, bound 1, value 0)')
 
 
 # D104: optional harness inputs beyond the E1 signature (engine MP respawn floor operands).
@@ -943,6 +963,49 @@ def validate_terminal_facts(rows):
                 raise ValueError('terminal fact precedes a later fact of its intent (D92)')
 
 
+# B4 (E3.4/D47, zone b63f0ec): a V6 skill-book learn pays through the item ledger. Each paid
+# instance is one Consume aggregate whose payment cause is `item_cast:learn:<request key>`
+# (API family skill_learn_payment; no item receipt), the rows resolve as `learn:<key>`, and
+# ONE learned_item_cost fact (phase complete) on the same tick carries the payment.
+LEARN_KEY=r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+
+
+def validate_learn_payments(rows):
+    payments={};facts={}
+    for row in rows[1:-1]:
+        data=row['data']
+        if row['kind']=='item_formula' and data['resolution_id'].startswith('learn:'):
+            if data['formula']!='learned_item_cost' or not re.fullmatch('learn:'+LEARN_KEY,data['resolution_id']):
+                raise ValueError('learn: resolution is a learned_item_cost fact over the canonical request key (B4)')
+            facts[(row['entity'],row['incarnation'],data['resolution_id'])]=row
+        if row['kind']!='item_delta':continue
+        learn=[c for c in data.get('causes') or () if c['cause'].startswith('item_cast:learn:')]
+        if data['resolution_id'].startswith('learn:') or learn:
+            if data['operation']!='consume':raise ValueError('a learn payment is a Consume aggregate (B4)')
+            if not re.fullmatch('learn:'+LEARN_KEY,data['resolution_id']):raise ValueError('learn payment needs a learn:<request key> resolution (B4)')
+            if not learn or any(c['cause']!='item_cast:'+data['resolution_id'] for c in learn):
+                raise ValueError('learn payment cause must be item_cast:<its learn: resolution> (B4)')
+            key=(row['entity'],row['incarnation'],data['resolution_id'])
+            paid=payments.setdefault(key,dict(tick=row['tick'],consumed={},template=set()))
+            if paid['tick']!=row['tick']:raise ValueError('a learn pays in one tick (B4)')
+            identity=str(data['instance'])
+            paid['consumed'][identity]=paid['consumed'].get(identity,0)-sum(c['count_delta'] for c in learn)
+            paid['template'].add(data['before']['template_id'])
+    for key,row in facts.items():
+        data=row['data'];inputs,actual=data['inputs'],data['actual']
+        if inputs.get('phase')!='complete' or actual.get('phase')!='complete' or inputs.get('repeat') is not False:
+            raise ValueError('a skill-book learn fact is one completed, non-repeated payment (B4)')
+        paid=payments.pop(key,None)
+        if actual.get('accepted') is not True:
+            if paid:raise ValueError('a refused learn may not pay (B4)')
+            continue
+        if paid is None or paid['tick']!=row['tick']:raise ValueError('learned_item_cost learn fact needs its same-tick Consume payment (B4)')
+        if actual.get('consumed')!=paid['consumed'] or paid['template']!={inputs.get('consume_id')} \
+                or sum(paid['consumed'].values())!=inputs.get('consume_count'):
+            raise ValueError('learn payment differs from its learned_item_cost fact (B4)')
+    if payments:raise ValueError('learn payment without its learned_item_cost fact (B4)')
+
+
 def validate_exchanges(rows):
     """D11/D22/D52: bind every receipt's constituents to its source recipe."""
     exchanges={};resolutions={};bound=set()
@@ -1084,7 +1147,7 @@ def validate(rows,recording,rules_hash):
     for key,value in {'zone':zone,'epoch':epoch,'last_tick':last}.items():same(watermark[key],value)
     if watermark['reason'] not in ('shutdown','epoch_closed'):raise ValueError('incomplete watermark')
     same(complete,dict(kind='complete',facts=len(rows)-2,ticks=ticks,last_tick=last))
-    previous=start;seen=set();cursor=None;instance_steps={};instance_rows={}
+    previous=start;seen=set();cursor=None;instance_steps={};instance_rows={};baselined=set();changed=set()
     for sequence,row in enumerate(rows[1:-1]):
         if set(row)-{'origin'}!= {'kind','entity','incarnation','tick','sequence','data'}:raise ValueError('missing/unknown raw item fields')
         if 'origin' in row and row['origin'] not in ('live','offline'):raise ValueError('unknown item fact origin')
@@ -1093,6 +1156,14 @@ def validate(rows,recording,rules_hash):
         tick=integer(row['tick'])
         if not previous<=tick<=last:raise ValueError('unordered/out-of-scope fact')
         previous=tick;data=row['data']
+        if row['entity']==ZONE_SUBJECT and row['kind']!='item_rng':raise ValueError('the nil zone subject carries only item_rng draws (T10)')
+        # D117(2): exactly one pre-tick baseline per owner-tick, never after that owner-tick's deltas.
+        scope=(row['entity'],row['incarnation'],tick)
+        if row['kind']=='item_baseline':
+            if scope in baselined:raise ValueError('more than one baseline in an owner tick (D117)')
+            if scope in changed:raise ValueError('baseline after a delta of its owner tick (D117)')
+            baselined.add(scope)
+        elif row['kind']=='item_delta':changed.add(scope)
         if row['kind'] in ('item_rng','item_delta'):
             if not isinstance(data.get('resolution_id'),str) or not data['resolution_id']:raise ValueError('operation resolution identity required')
         if row['kind']=='item_formula':
@@ -1144,6 +1215,7 @@ def validate(rows,recording,rules_hash):
             if not isinstance(data['callsite'],str) or not data['callsite']:raise ValueError('RNG callsite required')
             # Known callsites have pinned bounds; other callsites stay accepted (draw table, D46).
             if data['callsite'] in CALLSITE_BOUNDS and bound!=CALLSITE_BOUNDS[data['callsite']]:raise ValueError('RNG callsite bound mismatch: '+data['callsite'])
+            zone_draw(row,data,before,after,bound,value)
         elif row['kind']=='item_delta':
             receipt_field='receipt_refs' if data.get('operation')=='consume' else 'receipt_ref'
             fields={'operation','instance','before','after','count_delta','operation_ordinal',receipt_field,'resolution_id'}
@@ -1214,6 +1286,7 @@ def validate(rows,recording,rules_hash):
         # as a partial Destroy, in either order) precede the Consume aggregate; only the D94 shape
         # and the D74 caps constrain order, continuity is checked by inventory_history.
     validate_terminal_facts(rows)
+    validate_learn_payments(rows)
     validate_exchanges(rows)
     validate_instance_history(rows)
     inventory_history(rows)

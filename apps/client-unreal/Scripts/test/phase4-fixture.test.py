@@ -84,19 +84,16 @@ class Fixtures(unittest.TestCase):
             self.assertIn(fixture.fixture([paths[0].parent/a,paths[0].parent/b]),fixture.PHASE4)
         self.assertEqual(scenarios.client.validate(paths), []) # E5 must register every canonical scenario.
 
-    def test_sql_one_transaction_and_no_production_low_range(self):
+    def test_pre_admission_sql_seeds_characters_and_pending_kit_only(self):
+        # D112: no item, ledger or allocator rows; the frozen 000011 backfill in its own transaction.
         roles=fixture.phase4.profiles('phase4-shield',paired=True)
         roles={name:r|{'account_id':'01970000-0000-7000-8000-00000000004'+str(i+2)} for i,(name,r) in enumerate(roles.items())}
         sql=seed.seed_sql(roles)
-        self.assertEqual(sql.count('BEGIN;'),1);self.assertEqual(sql.count('COMMIT;'),1)
-        self.assertEqual(sql.count('INSERT INTO item_instances('),sum(len(r['inventory']) for r in roles.values()))
-        self.assertEqual(sql.count('INSERT INTO item_ledger('),sum(len(r['inventory']) for r in roles.values()))
-        self.assertNotIn('INSERT INTO item_id_ranges',sql)
-        self.assertIn('pg_stat_activity',sql);self.assertIn('ACCESS EXCLUSIVE',sql)
-        bad=copy.deepcopy(roles);bad['observer']['inventory'][0]['instance_id']=1
-        with self.assertRaises(ValueError):seed.seed_sql(bad)
-        bad=copy.deepcopy(roles);bad['owner']['inventory'][0]['count']=0
-        with self.assertRaises(ValueError):seed.seed_sql(bad)
+        self.assertEqual(sql.count('BEGIN;'),2);self.assertEqual(sql.count('COMMIT;'),2)
+        for table in ('item_instances','item_ledger','item_id_ranges'):self.assertNotIn('INSERT INTO '+table,sql)
+        self.assertIn('INSERT INTO pending_item_requests',sql);self.assertIn(seed.BACKFILL.read_text(),sql)
+        self.assertLess(sql.index('INSERT INTO characters'),sql.index('INSERT INTO pending_item_requests'))
+        self.assertIn('pg_stat_activity',sql)
 
     def test_owned_database_and_real_auth_guards(self):
         seed.guarded_database('postgres://u:p@127.0.0.1:15432/nf_phase4_fixture_test')
@@ -126,15 +123,206 @@ class Fixtures(unittest.TestCase):
                 with self.assertRaises(ValueError):seed.seed_container('SQL','nightfall-other-project',path)
                 self.assertEqual(call.call_count,1)
 
-    def test_seed_verdict_refuses_admission_pending(self):
-        roles=fixture.phase4.profiles('phase4-equip')
-        supplied=seed.manifest('phase4-equip',roles,False)
+    def test_dry_run_grant_plan_over_every_pack(self):
+        """D112/D113 dry run over all packs: deterministic GrantItem plans; every pack provisions."""
+        blocked_packs=set();planned=0
         for pack in sorted(fixture.PHASE4):
-            selected=fixture.phase4.profiles(pack,paired=pack in fixture.phase4.PAIRED)
-            selected={name:r|{'account_id':'01970000-0000-7000-8000-00000000004'+str(i+2)} for i,(name,r) in enumerate(selected.items())}
-            self.assertNotIn('VALUES ;',seed.seed_sql(selected),pack)
-        self.assertFalse(supplied['admission_ready'])
-        with self.assertRaises(ValueError):fixture.phase4.validate_seed_manifest(supplied,'phase4-equip','owner','observer',REPO,False)
+            paired=pack in fixture.phase4.PAIRED
+            roles=fixture.phase4.profiles(pack,paired=paired)
+            roles={name:r|{'account_id':'01970000-0000-7000-8000-00000000004'+str(i+2)} for i,(name,r) in enumerate(roles.items())}
+            sql=seed.seed_sql(roles);self.assertNotIn('INSERT INTO item_instances',sql,pack)
+            plans=seed.plans_for(pack,roles)
+            self.assertEqual(plans,seed.plans_for(pack,roles),pack) # deterministic keys
+            for name,plan in plans.items():
+                keys=[g['key'] for g in plan['grants']];self.assertEqual(len(set(keys)),len(keys),pack)
+                for grant in plan['grants']:
+                    self.assertGreater(grant['count'],0)
+                    if not fixture.phase4.catalogue()[grant['template_id']]['stackable']:self.assertEqual(grant['count'],1)
+                planned+=len(plan['grants'])
+                if plan['blockers']:blocked_packs.add(pack)
+            # Kit + grants reproduce every pack template total and every enchant level (D113).
+            for name,role in roles.items():
+                kit=next(k for k in fixture.phase4.table('starter_kits')['kits'] if k['class_id']==role['base_class_id'])
+                totals={}
+                for row in kit['items']:totals[row['template_id']]=totals.get(row['template_id'],0)+row['count']
+                for grant in plans[name]['grants']:totals[grant['template_id']]=totals.get(grant['template_id'],0)+grant['count']
+                expected={}
+                for row in role['inventory']:expected[row['template_id']]=expected.get(row['template_id'],0)+row['count']
+                self.assertEqual(totals,expected,(pack,name))
+                self.assertEqual(sorted(g['enchant'] for g in plans[name]['grants'] if g['enchant']),
+                                 sorted(r['enchant'] for r in role['inventory'] if r['enchant']),(pack,name))
+        enchanted={p for p in fixture.PHASE4 if any(r['enchant'] for role in fixture.phase4.profiles(p,paired=p in fixture.phase4.PAIRED).values() for r in role['inventory'])}
+        self.assertEqual(enchanted,{'phase4-enchant','phase4-blacksmith','phase4-equip-onepiece','phase4-armor-enchant4','phase4-armor-enchant6'})
+        self.assertEqual(blocked_packs,set()) # all 39 packs provision
+        self.assertEqual(len(fixture.PHASE4),39);self.assertGreater(planned,0)
+        print(f'D112/D113 dry run: all {len(fixture.PHASE4)} packs provision, {planned} grants planned (enchanted: {sorted(enchanted)})',flush=True)
+
+    def test_grant_stage_calls_grantitem_then_confirms_offline(self):
+        roles=fixture.phase4.profiles('phase4-equip')
+        role=roles['owner']|{'account_id':'01970000-0000-7000-8000-000000000042'}
+        grants,blockers=seed.grant_plan('phase4-equip','owner',role);self.assertFalse(blockers)
+        calls=[]
+        def server_inventory():
+            items=[];paperdoll=[]
+            for index,row in enumerate(role['inventory']):
+                identity=4294967296+index
+                items.append(dict(instanceId=str(identity),templateId=row['template_id'],count=str(row['count']),enchant=row['enchant']))
+                if row['slot']:paperdoll.append(dict(slot='EQUIP_SLOT_'+row['slot'].upper(),instanceId=str(identity)))
+            return dict(inventoryRevision=str(1+len(grants)),items=items,paperdoll=paperdoll)
+        class Done:
+            def __init__(self,body):self.returncode=0;self.stdout=json.dumps(body);self.stderr=''
+        def runner(command,**kwargs):
+            calls.append(command);body=json.loads(command[command.index('-d')+1]);method=command[-1].rsplit('/',1)[1]
+            self.assertIn('authorization: Bearer test:01970000-0000-7000-8000-000000000042',command)
+            if method=='GrantItem':
+                # Receipt revisions advance per grant; a replayed key returns its original revision.
+                index=next(g['index'] for g in grants if g['key']==body['idempotencyKey'])
+                return Done(dict(result=dict(receiptId=body['idempotencyKey'],operation='ITEM_OPERATION_GRANT',inventoryRevision=str(2+index)),
+                                 inventory=server_inventory()))
+            return Done(dict(inventory=server_inventory()))
+        with patch.object(seed.shutil,'which',return_value='/usr/bin/buf'):
+            result=seed.grant_role('phase4-equip','owner',role,'127.0.0.1:15051',runner)
+        self.assertEqual(len(calls),len(grants)+1);self.assertEqual(calls[-1][-1].rsplit('/',1)[1],'GetInventory')
+        self.assertEqual(set(result['instance_map']),{str(r['instance_id']) for r in role['inventory']})
+        # A baseline that differs from the pack (one item missing) refuses loudly.
+        def short(command,**kwargs):
+            reply=runner(command,**kwargs);body=json.loads(reply.stdout)
+            body['inventory']['items']=body['inventory']['items'][1:];reply.stdout=json.dumps(body);return reply
+        with patch.object(seed.shutil,'which',return_value='/usr/bin/buf'):
+            with self.assertRaisesRegex(ValueError,'admission mismatch'):seed.grant_role('phase4-equip','owner',role,'127.0.0.1:15051',short)
+            class Refused:
+                returncode=1;stdout='';stderr='failed_precondition: GrantItem requires AUTH_DEV_TOKENS=1'
+            with self.assertRaisesRegex(ValueError,'GrantItem refused'):seed.grant_role('phase4-equip','owner',role,'127.0.0.1:15051',lambda c,**k:Refused())
+        # D113: an enchanted pack grants its +3 sword through ENCHANT_FIELD and confirms the level.
+        enchanted=fixture.phase4.profiles('phase4-enchant')['owner']|{'account_id':'01970000-0000-7000-8000-000000000042'}
+        bodies=[]
+        def enchant_runner(command,**kwargs):
+            body=json.loads(command[command.index('-d')+1]);method=command[-1].rsplit('/',1)[1]
+            items=[dict(instanceId=str(4294967296+i),templateId=r['template_id'],count=str(r['count']),enchant=r['enchant'])
+                   for i,r in enumerate(enchanted['inventory'])]
+            paperdoll=[dict(slot='EQUIP_SLOT_'+r['slot'].upper(),instanceId=str(4294967296+i)) for i,r in enumerate(enchanted['inventory']) if r['slot']]
+            if method=='GrantItem':
+                bodies.append(body)
+                return Done(dict(result=dict(receiptId=body['idempotencyKey'],operation='ITEM_OPERATION_GRANT',inventoryRevision=str(1+len(bodies))),
+                                 inventory=dict(items=items,paperdoll=paperdoll)))
+            return Done(dict(inventory=dict(inventoryRevision=str(1+len(bodies)),items=items,paperdoll=paperdoll)))
+        with patch.object(seed.shutil,'which',return_value='/usr/bin/buf'):
+            result=seed.grant_role('phase4-enchant','owner',enchanted,'127.0.0.1:15051',enchant_runner)
+        self.assertEqual([b.get(seed.ENCHANT_FIELD) for b in bodies if b['templateId']==71],[None,3])
+        self.assertEqual(seed.ENCHANT_FIELD,'enchant_level')
+        self.assertEqual(set(result['instance_map']),{str(r['instance_id']) for r in enchanted['inventory']})
+        # The server reporting +0 where the pack needs +3 refuses.
+        def wrong(command,**kwargs):
+            reply=enchant_runner(command,**kwargs);body=json.loads(reply.stdout)
+            for item in body['inventory']['items']:item['enchant']=0
+            reply.stdout=json.dumps(body);return reply
+        with patch.object(seed.shutil,'which',return_value='/usr/bin/buf'):
+            with self.assertRaisesRegex(ValueError,'admission mismatch'):seed.grant_role('phase4-enchant','owner',enchanted,'127.0.0.1:15051',wrong)
+        for address in ('127.0.0.1:50051','10.0.0.1:15051','127.0.0.1','localhost:80'):
+            with self.assertRaises(ValueError):seed.guarded_grpc(address)
+
+    def grant_fixture(self,failures):
+        """A one-grant pack (phase4-equip owner) whose GrantItem fails with `failures` first."""
+        role=fixture.phase4.profiles('phase4-equip')['owner']|{'account_id':'01970000-0000-7000-8000-000000000042'}
+        grants,_=seed.grant_plan('phase4-equip','owner',role)
+        log=[];pending=list(failures)
+        items=[dict(instanceId=str(4294967296+i),templateId=r['template_id'],count=str(r['count']),enchant=r['enchant']) for i,r in enumerate(role['inventory'])]
+        paperdoll=[dict(slot='EQUIP_SLOT_'+r['slot'].upper(),instanceId=str(4294967296+i)) for i,r in enumerate(role['inventory']) if r['slot']]
+        class Reply:
+            def __init__(self,code,out,err):self.returncode=code;self.stdout=out;self.stderr=err
+        def runner(command,**kwargs):
+            body=json.loads(command[command.index('-d')+1]);method=command[-1].rsplit('/',1)[1]
+            log.append((method,body.get('idempotencyKey')))
+            if method=='GrantItem' and body['idempotencyKey']==grants[0]['key'] and pending:
+                code,message=pending.pop(0)
+                return Reply(1,'',json.dumps(dict(code=code,message=message)))
+            if method=='GrantItem':
+                index=next(g['index'] for g in grants if g['key']==body['idempotencyKey'])
+                return Reply(0,json.dumps(dict(result=dict(receiptId=body['idempotencyKey'],operation='ITEM_OPERATION_GRANT',
+                    inventoryRevision=str(2+index)),inventory=dict(items=items,paperdoll=paperdoll))),'')
+            return Reply(0,json.dumps(dict(inventory=dict(inventoryRevision=str(1+len(grants)),items=items,paperdoll=paperdoll))),'')
+        return role,grants,log,runner
+
+    def test_grant_retries_only_grpc_unavailable_with_backoff_and_the_same_key(self):
+        role,grants,log,runner=self.grant_fixture([('unavailable','zone paused'),('unavailable','zone paused')])
+        slept=[]
+        with patch.object(seed.shutil,'which',return_value='/usr/bin/buf'):
+            result=seed.grant_role('phase4-equip','owner',role,'127.0.0.1:15051',runner,sleep=slept.append)
+        self.assertEqual([k for m,k in log if m=='GrantItem'][:3],[grants[0]['key']]*3)
+        self.assertEqual(slept,list(seed.GRANT_BACKOFF_SECONDS));self.assertEqual(result['confirmed'],'GetInventory')
+        # Exhausted retries refuse; FAILED_PRECONDITION whose text says "unavailable" is not retried.
+        for failures,attempts in (([('unavailable','x')]*3,3),([('failed_precondition','paused skill checkpoint unavailable')],1)):
+            role,grants,log,runner=self.grant_fixture(failures);slept=[]
+            with patch.object(seed.shutil,'which',return_value='/usr/bin/buf'):
+                with self.assertRaises(seed.GrpcError) as caught:
+                    seed.grant_role('phase4-equip','owner',role,'127.0.0.1:15051',runner,sleep=slept.append)
+            self.assertEqual(len(log),attempts);self.assertEqual(len(slept),attempts-1)
+            self.assertEqual(caught.exception.code,failures[0][0])
+        self.assertEqual(seed.grpc_code('not json'),'')
+
+    def test_final_inventory_revision_must_equal_the_last_receipt(self):
+        role,grants,log,runner=self.grant_fixture([])
+        def drift(command,**kwargs):
+            reply=runner(command,**kwargs)
+            if command[-1].endswith('/GetInventory'):
+                body=json.loads(reply.stdout);body['inventory']['inventoryRevision']='99';reply.stdout=json.dumps(body)
+            return reply
+        def flat(command,**kwargs):
+            reply=runner(command,**kwargs)
+            if command[-1].endswith('/GrantItem') and reply.returncode==0:
+                body=json.loads(reply.stdout);body['result']['inventoryRevision']='2';reply.stdout=json.dumps(body)
+            return reply
+        with patch.object(seed.shutil,'which',return_value='/usr/bin/buf'):
+            with self.assertRaisesRegex(ValueError,'differs from the last GrantItem receipt'):
+                seed.grant_role('phase4-equip','owner',role,'127.0.0.1:15051',drift)
+            self.assertGreater(len(grants),1)
+            with self.assertRaisesRegex(ValueError,'strictly increase'):
+                seed.grant_role('phase4-equip','owner',role,'127.0.0.1:15051',flat)
+
+    def test_scenario_copy_maps_pack_instances_per_role(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder=Path(tmp);scenarios=folder/'src';scenarios.mkdir()
+            owner=scenarios/'4-x-a.nfs';owner.write_text('nf.Equip instance:7\nnf.Expect equipped instance:7 == 1\n')
+            observer=scenarios/'4-x-b.nfs';observer.write_text('nf.Use instance:3\n')
+            (folder/'state.json').write_text(json.dumps(dict(project='nightfall-phase4-harness-'+'0'*32,fixture='phase4-equip',
+                roles={'4-x-a':dict(character_id=fixture.phase4.OWNER),'4-x-b':dict(character_id=fixture.phase4.OBSERVER)})))
+            with self.assertRaisesRegex(ValueError,'confirmed grant stage'):fixture.scenario_copy(folder,owner)
+            (folder/'grant-manifest.json').write_text(json.dumps(dict(granted=dict(owner=dict(instance_map={'7':4294967301}),
+                                                                                  observer=dict(instance_map={'3':4294967400})))))
+            (folder/'grant-complete').write_text('')
+            self.assertEqual(fixture.scenario_copy(folder,owner).read_text(),'nf.Equip instance:4294967301\nnf.Expect equipped instance:4294967301 == 1\n')
+            self.assertEqual(fixture.scenario_copy(folder,observer).read_text(),'nf.Use instance:4294967400\n')
+            observer.write_text('nf.Use instance:7\n') # owner's id is not the observer's
+            with self.assertRaisesRegex(ValueError,'was not provisioned'):fixture.scenario_copy(folder,observer)
+
+    def test_zone_flags_are_per_unit(self):
+        # D114: every unit boots V6; the per-unit manifest field and exec-api check remain.
+        for pack in fixture.PHASE4|fixture.PHASE3|fixture.PHASE2:
+            self.assertEqual(fixture.zone_flags(pack),{'PHASE3_ENABLED':'1','PHASE4_ENABLED':'1'},pack)
+        source=(SCRIPTS/'phase2-fixture.py').read_text()
+        self.assertIn("'zone_flags': zone_flags(selected)",source);self.assertIn("!= zone_flags(value['fixture'])",source)
+        lib=(SCRIPTS/'sim-lib.sh').read_text();soak=(SCRIPTS/'run-soak.sh').read_text()
+        self.assertEqual(lib.count('PHASE3_ENABLED=1 PHASE4_ENABLED=1 exec'),2);self.assertNotIn('unset PHASE4_ENABLED',lib)
+        self.assertIn('zone-flags.json',lib)
+        self.assertIn('ZONE_FLAGS=(env PHASE3_ENABLED=1 PHASE4_ENABLED=1)',soak);self.assertNotIn('PHASE3_ENABLED="$CASTING"',soak)
+        self.assertNotIn('env -u PHASE4_ENABLED',soak)
+        # Review-3 P1-3: soak replay steps run with the API's overlay RULES_DIR.
+        rules=soak.index('export RULES_DIR="$OUT/fixtures/data"')
+        for step in ('export --zone 1 --epoch 1','check --file "$OUT/soak.nfr"','sim-gates.py" coverage','--items-evidence-out'):
+            self.assertGreater(soak.index(step),rules,step)
+        # Review-3 P1-2: the soak seeder writes pending kits for the V6 soak API in every mode.
+        self.assertRegex(soak,r'NIGHTFALL_PHASE4_FIXTURE="\$ITEMS" PHASE4_ENABLED=1 \\\n\s+python3 "\$SIM_REPO/infra/scripts/seed-phase\$\{SEED_PHASE\}-soak.py"')
+
+    def test_stage_manifests_are_validated(self):
+        roles={name:r|{'account_id':'owner'} for name,r in fixture.phase4.profiles('phase4-equip').items()}
+        plans=seed.plans_for('phase4-equip',roles)
+        pre=seed.manifest('phase4-equip',roles,False,plans=plans)
+        fixture.phase4.validate_seed_manifest(pre,'phase4-equip','owner','observer',REPO,False,'pre-admission')
+        with self.assertRaises(ValueError):fixture.phase4.validate_seed_manifest(pre,'phase4-equip','owner','observer',REPO,False)
+        granted=seed.manifest('phase4-equip',roles,False,'granted',plans,{'owner':{}})
+        fixture.phase4.validate_seed_manifest(granted,'phase4-equip','owner','observer',REPO,False)
+        with self.assertRaises(ValueError):fixture.phase4.validate_seed_manifest(granted|{'granted':{}},'phase4-equip','owner','observer',REPO,False)
+        with self.assertRaises(ValueError):fixture.phase4.validate_seed_manifest(seed.manifest('phase4-equip',roles,True,plans=plans),'phase4-equip','owner','observer',REPO,False,'pre-admission')
 
 
 if __name__=='__main__':unittest.main()

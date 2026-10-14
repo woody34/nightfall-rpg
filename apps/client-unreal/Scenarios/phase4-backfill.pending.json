@@ -3,7 +3,6 @@
     {
       "base_class_id": 31,
       "class_id": 36,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "abyss_walker-alive",
       "kit": {
@@ -64,7 +63,6 @@
     {
       "base_class_id": 31,
       "class_id": 36,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "abyss_walker-dead",
       "kit": {
@@ -125,7 +123,6 @@
     {
       "base_class_id": 31,
       "class_id": 36,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "abyss_walker-never_admitted",
       "kit": {
@@ -184,528 +181,8 @@
       "state": "never_admitted"
     },
     {
-      "base_class_id": 0,
-      "class_id": 93,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "adventurer-alive",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2369
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 10
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 0
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/Adventurer.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "alive"
-    },
-    {
-      "base_class_id": 0,
-      "class_id": 93,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "adventurer-dead",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2369
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 10
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 0
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/Adventurer.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "dead"
-    },
-    {
-      "base_class_id": 0,
-      "class_id": 93,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "adventurer-never_admitted",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2369
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 10
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 0
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/Adventurer.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "never_admitted"
-    },
-    {
-      "base_class_id": 10,
-      "class_id": 96,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "arcana_lord-alive",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 6
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 425
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 461
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 10
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/ArcanaLord.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "alive"
-    },
-    {
-      "base_class_id": 10,
-      "class_id": 96,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "arcana_lord-dead",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 6
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 425
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 461
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 10
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/ArcanaLord.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "dead"
-    },
-    {
-      "base_class_id": 10,
-      "class_id": 96,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "arcana_lord-never_admitted",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 6
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 425
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 461
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 10
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/ArcanaLord.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "never_admitted"
-    },
-    {
-      "base_class_id": 10,
-      "class_id": 94,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "archmage-alive",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 6
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 425
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 461
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 10
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/Archmage.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "alive"
-    },
-    {
-      "base_class_id": 10,
-      "class_id": 94,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "archmage-dead",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 6
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 425
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 461
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 10
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/Archmage.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "dead"
-    },
-    {
-      "base_class_id": 10,
-      "class_id": 94,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "archmage-never_admitted",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 6
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 425
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 461
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 10
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/Archmage.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "never_admitted"
-    },
-    {
       "base_class_id": 53,
       "class_id": 56,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "artisan-alive",
       "kit": {
@@ -766,7 +243,6 @@
     {
       "base_class_id": 53,
       "class_id": 56,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "artisan-dead",
       "kit": {
@@ -827,7 +303,6 @@
     {
       "base_class_id": 53,
       "class_id": 56,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "artisan-never_admitted",
       "kit": {
@@ -888,7 +363,6 @@
     {
       "base_class_id": 31,
       "class_id": 35,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "assassin-alive",
       "kit": {
@@ -949,7 +423,6 @@
     {
       "base_class_id": 31,
       "class_id": 35,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "assassin-dead",
       "kit": {
@@ -1010,7 +483,6 @@
     {
       "base_class_id": 31,
       "class_id": 35,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "assassin-never_admitted",
       "kit": {
@@ -1071,7 +543,6 @@
     {
       "base_class_id": 10,
       "class_id": 16,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "bishop-alive",
       "kit": {
@@ -1127,7 +598,6 @@
     {
       "base_class_id": 10,
       "class_id": 16,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "bishop-dead",
       "kit": {
@@ -1183,7 +653,6 @@
     {
       "base_class_id": 10,
       "class_id": 16,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "bishop-never_admitted",
       "kit": {
@@ -1239,7 +708,6 @@
     {
       "base_class_id": 31,
       "class_id": 34,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "bladedancer-alive",
       "kit": {
@@ -1300,7 +768,6 @@
     {
       "base_class_id": 31,
       "class_id": 34,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "bladedancer-dead",
       "kit": {
@@ -1361,7 +828,6 @@
     {
       "base_class_id": 31,
       "class_id": 34,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "bladedancer-never_admitted",
       "kit": {
@@ -1422,7 +888,6 @@
     {
       "base_class_id": 53,
       "class_id": 55,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "bounty_hunter-alive",
       "kit": {
@@ -1483,7 +948,6 @@
     {
       "base_class_id": 53,
       "class_id": 55,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "bounty_hunter-dead",
       "kit": {
@@ -1544,7 +1008,6 @@
     {
       "base_class_id": 53,
       "class_id": 55,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "bounty_hunter-never_admitted",
       "kit": {
@@ -1604,176 +1067,7 @@
     },
     {
       "base_class_id": 10,
-      "class_id": 97,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "cardinal-alive",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 6
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 425
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 461
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 10
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/Cardinal.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "alive"
-    },
-    {
-      "base_class_id": 10,
-      "class_id": 97,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "cardinal-dead",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 6
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 425
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 461
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 10
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/Cardinal.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "dead"
-    },
-    {
-      "base_class_id": 10,
-      "class_id": 97,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "cardinal-never_admitted",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 6
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 425
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 461
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 10
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/Cardinal.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "never_admitted"
-    },
-    {
-      "base_class_id": 10,
       "class_id": 15,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "cleric-alive",
       "kit": {
@@ -1829,7 +1123,6 @@
     {
       "base_class_id": 10,
       "class_id": 15,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "cleric-dead",
       "kit": {
@@ -1885,7 +1178,6 @@
     {
       "base_class_id": 10,
       "class_id": 15,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "cleric-never_admitted",
       "kit": {
@@ -1941,7 +1233,6 @@
     {
       "base_class_id": 0,
       "class_id": 6,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "dark_avenger-alive",
       "kit": {
@@ -2002,7 +1293,6 @@
     {
       "base_class_id": 0,
       "class_id": 6,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "dark_avenger-dead",
       "kit": {
@@ -2063,7 +1353,6 @@
     {
       "base_class_id": 0,
       "class_id": 6,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "dark_avenger-never_admitted",
       "kit": {
@@ -2124,7 +1413,6 @@
     {
       "base_class_id": 31,
       "class_id": 31,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": false,
       "id": "dark_fighter-alive",
       "kit": {
@@ -2185,7 +1473,6 @@
     {
       "base_class_id": 31,
       "class_id": 31,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": false,
       "id": "dark_fighter-dead",
       "kit": {
@@ -2246,7 +1533,6 @@
     {
       "base_class_id": 31,
       "class_id": 31,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": false,
       "id": "dark_fighter-never_admitted",
       "kit": {
@@ -2307,7 +1593,6 @@
     {
       "base_class_id": 38,
       "class_id": 38,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": false,
       "id": "dark_mystic-alive",
       "kit": {
@@ -2363,7 +1648,6 @@
     {
       "base_class_id": 38,
       "class_id": 38,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": false,
       "id": "dark_mystic-dead",
       "kit": {
@@ -2419,7 +1703,6 @@
     {
       "base_class_id": 38,
       "class_id": 38,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": false,
       "id": "dark_mystic-never_admitted",
       "kit": {
@@ -2475,7 +1758,6 @@
     {
       "base_class_id": 38,
       "class_id": 39,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "dark_wizard-alive",
       "kit": {
@@ -2531,7 +1813,6 @@
     {
       "base_class_id": 38,
       "class_id": 39,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "dark_wizard-dead",
       "kit": {
@@ -2587,7 +1868,6 @@
     {
       "base_class_id": 38,
       "class_id": 39,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "dark_wizard-never_admitted",
       "kit": {
@@ -2643,7 +1923,6 @@
     {
       "base_class_id": 44,
       "class_id": 46,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "destroyer-alive",
       "kit": {
@@ -2704,7 +1983,6 @@
     {
       "base_class_id": 44,
       "class_id": 46,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "destroyer-dead",
       "kit": {
@@ -2765,7 +2043,6 @@
     {
       "base_class_id": 44,
       "class_id": 46,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "destroyer-never_admitted",
       "kit": {
@@ -2824,711 +2101,8 @@
       "state": "never_admitted"
     },
     {
-      "base_class_id": 49,
-      "class_id": 115,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "dominator-alive",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2368
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 425
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 461
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 49
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/Dominator.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "alive"
-    },
-    {
-      "base_class_id": 49,
-      "class_id": 115,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "dominator-dead",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2368
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 425
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 461
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 49
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/Dominator.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "dead"
-    },
-    {
-      "base_class_id": 49,
-      "class_id": 115,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "dominator-never_admitted",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2368
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 425
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 461
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 49
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/Dominator.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "never_admitted"
-    },
-    {
-      "base_class_id": 49,
-      "class_id": 116,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "doom_cryer-alive",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2368
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 425
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 461
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 49
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/Doomcryer.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "alive"
-    },
-    {
-      "base_class_id": 49,
-      "class_id": 116,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "doom_cryer-dead",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2368
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 425
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 461
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 49
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/Doomcryer.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "dead"
-    },
-    {
-      "base_class_id": 49,
-      "class_id": 116,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "doom_cryer-never_admitted",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2368
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 425
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 461
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 49
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/Doomcryer.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "never_admitted"
-    },
-    {
-      "base_class_id": 0,
-      "class_id": 89,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "dreadnought-alive",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2369
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 10
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 0
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/Dreadnought.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "alive"
-    },
-    {
-      "base_class_id": 0,
-      "class_id": 89,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "dreadnought-dead",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2369
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 10
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 0
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/Dreadnought.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "dead"
-    },
-    {
-      "base_class_id": 0,
-      "class_id": 89,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "dreadnought-never_admitted",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2369
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 10
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 0
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/Dreadnought.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "never_admitted"
-    },
-    {
-      "base_class_id": 0,
-      "class_id": 88,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "duelist-alive",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2369
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 10
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 0
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/Duelist.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "alive"
-    },
-    {
-      "base_class_id": 0,
-      "class_id": 88,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "duelist-dead",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2369
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 10
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 0
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/Duelist.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "dead"
-    },
-    {
-      "base_class_id": 0,
-      "class_id": 88,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "duelist-never_admitted",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2369
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 10
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 0
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/Duelist.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "never_admitted"
-    },
-    {
       "base_class_id": 53,
       "class_id": 53,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": false,
       "id": "dwarven_fighter-alive",
       "kit": {
@@ -3589,7 +2163,6 @@
     {
       "base_class_id": 53,
       "class_id": 53,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": false,
       "id": "dwarven_fighter-dead",
       "kit": {
@@ -3650,7 +2223,6 @@
     {
       "base_class_id": 53,
       "class_id": 53,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": false,
       "id": "dwarven_fighter-never_admitted",
       "kit": {
@@ -3710,176 +2282,7 @@
     },
     {
       "base_class_id": 25,
-      "class_id": 104,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "elemental_master-alive",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 6
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 425
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 461
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 25
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/ElementalMaster.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "alive"
-    },
-    {
-      "base_class_id": 25,
-      "class_id": 104,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "elemental_master-dead",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 6
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 425
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 461
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 25
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/ElementalMaster.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "dead"
-    },
-    {
-      "base_class_id": 25,
-      "class_id": 104,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "elemental_master-never_admitted",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 6
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 425
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 461
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 25
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/ElementalMaster.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "never_admitted"
-    },
-    {
-      "base_class_id": 25,
       "class_id": 28,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "elemental_summoner-alive",
       "kit": {
@@ -3935,7 +2338,6 @@
     {
       "base_class_id": 25,
       "class_id": 28,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "elemental_summoner-dead",
       "kit": {
@@ -3991,7 +2393,6 @@
     {
       "base_class_id": 25,
       "class_id": 28,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "elemental_summoner-never_admitted",
       "kit": {
@@ -4047,7 +2448,6 @@
     {
       "base_class_id": 25,
       "class_id": 30,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "elven_elder-alive",
       "kit": {
@@ -4103,7 +2503,6 @@
     {
       "base_class_id": 25,
       "class_id": 30,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "elven_elder-dead",
       "kit": {
@@ -4159,7 +2558,6 @@
     {
       "base_class_id": 25,
       "class_id": 30,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "elven_elder-never_admitted",
       "kit": {
@@ -4215,7 +2613,6 @@
     {
       "base_class_id": 18,
       "class_id": 18,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": false,
       "id": "elven_fighter-alive",
       "kit": {
@@ -4276,7 +2673,6 @@
     {
       "base_class_id": 18,
       "class_id": 18,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": false,
       "id": "elven_fighter-dead",
       "kit": {
@@ -4337,7 +2733,6 @@
     {
       "base_class_id": 18,
       "class_id": 18,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": false,
       "id": "elven_fighter-never_admitted",
       "kit": {
@@ -4398,7 +2793,6 @@
     {
       "base_class_id": 18,
       "class_id": 19,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "elven_knight-alive",
       "kit": {
@@ -4459,7 +2853,6 @@
     {
       "base_class_id": 18,
       "class_id": 19,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "elven_knight-dead",
       "kit": {
@@ -4520,7 +2913,6 @@
     {
       "base_class_id": 18,
       "class_id": 19,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "elven_knight-never_admitted",
       "kit": {
@@ -4581,7 +2973,6 @@
     {
       "base_class_id": 25,
       "class_id": 25,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": false,
       "id": "elven_mystic-alive",
       "kit": {
@@ -4637,7 +3028,6 @@
     {
       "base_class_id": 25,
       "class_id": 25,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": false,
       "id": "elven_mystic-dead",
       "kit": {
@@ -4693,7 +3083,6 @@
     {
       "base_class_id": 25,
       "class_id": 25,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": false,
       "id": "elven_mystic-never_admitted",
       "kit": {
@@ -4749,7 +3138,6 @@
     {
       "base_class_id": 25,
       "class_id": 29,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "elven_oracle-alive",
       "kit": {
@@ -4805,7 +3193,6 @@
     {
       "base_class_id": 25,
       "class_id": 29,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "elven_oracle-dead",
       "kit": {
@@ -4861,7 +3248,6 @@
     {
       "base_class_id": 25,
       "class_id": 29,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "elven_oracle-never_admitted",
       "kit": {
@@ -4917,7 +3303,6 @@
     {
       "base_class_id": 18,
       "class_id": 22,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "elven_scout-alive",
       "kit": {
@@ -4978,7 +3363,6 @@
     {
       "base_class_id": 18,
       "class_id": 22,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "elven_scout-dead",
       "kit": {
@@ -5039,7 +3423,6 @@
     {
       "base_class_id": 18,
       "class_id": 22,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "elven_scout-never_admitted",
       "kit": {
@@ -5100,7 +3483,6 @@
     {
       "base_class_id": 25,
       "class_id": 26,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "elven_wizard-alive",
       "kit": {
@@ -5156,7 +3538,6 @@
     {
       "base_class_id": 25,
       "class_id": 26,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "elven_wizard-dead",
       "kit": {
@@ -5212,7 +3593,6 @@
     {
       "base_class_id": 25,
       "class_id": 26,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "elven_wizard-never_admitted",
       "kit": {
@@ -5266,909 +3646,8 @@
       "state": "never_admitted"
     },
     {
-      "base_class_id": 25,
-      "class_id": 105,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "evas_saint-alive",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 6
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 425
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 461
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 25
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/Eva'sSaint.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "alive"
-    },
-    {
-      "base_class_id": 25,
-      "class_id": 105,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "evas_saint-dead",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 6
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 425
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 461
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 25
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/Eva'sSaint.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "dead"
-    },
-    {
-      "base_class_id": 25,
-      "class_id": 105,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "evas_saint-never_admitted",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 6
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 425
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 461
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 25
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/Eva'sSaint.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "never_admitted"
-    },
-    {
-      "base_class_id": 18,
-      "class_id": 99,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "evas_templar-alive",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2369
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 10
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 18
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/Eva'sTemplar.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "alive"
-    },
-    {
-      "base_class_id": 18,
-      "class_id": 99,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "evas_templar-dead",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2369
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 10
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 18
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/Eva'sTemplar.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "dead"
-    },
-    {
-      "base_class_id": 18,
-      "class_id": 99,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "evas_templar-never_admitted",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2369
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 10
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 18
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/Eva'sTemplar.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "never_admitted"
-    },
-    {
-      "base_class_id": 53,
-      "class_id": 117,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "fortune_seeker-alive",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2370
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 10
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 53
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/FortuneSeeker.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "alive"
-    },
-    {
-      "base_class_id": 53,
-      "class_id": 117,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "fortune_seeker-dead",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2370
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 10
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 53
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/FortuneSeeker.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "dead"
-    },
-    {
-      "base_class_id": 53,
-      "class_id": 117,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "fortune_seeker-never_admitted",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2370
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 10
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 53
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/FortuneSeeker.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "never_admitted"
-    },
-    {
-      "base_class_id": 31,
-      "class_id": 108,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "ghost_hunter-alive",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2369
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 10
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 31
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/GhostHunter.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "alive"
-    },
-    {
-      "base_class_id": 31,
-      "class_id": 108,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "ghost_hunter-dead",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2369
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 10
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 31
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/GhostHunter.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "dead"
-    },
-    {
-      "base_class_id": 31,
-      "class_id": 108,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "ghost_hunter-never_admitted",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2369
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 10
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 31
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/GhostHunter.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "never_admitted"
-    },
-    {
-      "base_class_id": 31,
-      "class_id": 109,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "ghost_sentinel-alive",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2369
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 10
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 31
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/GhostSentinel.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "alive"
-    },
-    {
-      "base_class_id": 31,
-      "class_id": 109,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "ghost_sentinel-dead",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2369
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 10
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 31
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/GhostSentinel.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "dead"
-    },
-    {
-      "base_class_id": 31,
-      "class_id": 109,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "ghost_sentinel-never_admitted",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2369
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 10
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 31
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/GhostSentinel.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "never_admitted"
-    },
-    {
       "base_class_id": 0,
       "class_id": 2,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "gladiator-alive",
       "kit": {
@@ -6229,7 +3708,6 @@
     {
       "base_class_id": 0,
       "class_id": 2,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "gladiator-dead",
       "kit": {
@@ -6290,7 +3768,6 @@
     {
       "base_class_id": 0,
       "class_id": 2,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "gladiator-never_admitted",
       "kit": {
@@ -6349,192 +3826,8 @@
       "state": "never_admitted"
     },
     {
-      "base_class_id": 44,
-      "class_id": 114,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "grand_khavatari-alive",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 2369
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2368
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 44
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/GrandKhavatari.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "alive"
-    },
-    {
-      "base_class_id": 44,
-      "class_id": 114,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "grand_khavatari-dead",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 2369
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2368
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 44
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/GrandKhavatari.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "dead"
-    },
-    {
-      "base_class_id": 44,
-      "class_id": 114,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "grand_khavatari-never_admitted",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 2369
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2368
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 44
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/GrandKhavatari.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "never_admitted"
-    },
-    {
       "base_class_id": 0,
       "class_id": 9,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "hawkeye-alive",
       "kit": {
@@ -6595,7 +3888,6 @@
     {
       "base_class_id": 0,
       "class_id": 9,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "hawkeye-dead",
       "kit": {
@@ -6656,7 +3948,6 @@
     {
       "base_class_id": 0,
       "class_id": 9,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "hawkeye-never_admitted",
       "kit": {
@@ -6716,359 +4007,7 @@
     },
     {
       "base_class_id": 0,
-      "class_id": 91,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "hell_knight-alive",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2369
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 10
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 0
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/HellKnight.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "alive"
-    },
-    {
-      "base_class_id": 0,
-      "class_id": 91,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "hell_knight-dead",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2369
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 10
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 0
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/HellKnight.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "dead"
-    },
-    {
-      "base_class_id": 0,
-      "class_id": 91,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "hell_knight-never_admitted",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2369
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 10
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 0
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/HellKnight.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "never_admitted"
-    },
-    {
-      "base_class_id": 10,
-      "class_id": 98,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "hierophant-alive",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 6
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 425
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 461
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 10
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/Hierophant.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "alive"
-    },
-    {
-      "base_class_id": 10,
-      "class_id": 98,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "hierophant-dead",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 6
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 425
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 461
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 10
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/Hierophant.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "dead"
-    },
-    {
-      "base_class_id": 10,
-      "class_id": 98,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "hierophant-never_admitted",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 6
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 425
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 461
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 10
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/Hierophant.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "never_admitted"
-    },
-    {
-      "base_class_id": 0,
       "class_id": 0,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": false,
       "id": "human_fighter-alive",
       "kit": {
@@ -7129,7 +4068,6 @@
     {
       "base_class_id": 0,
       "class_id": 0,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": false,
       "id": "human_fighter-dead",
       "kit": {
@@ -7190,7 +4128,6 @@
     {
       "base_class_id": 0,
       "class_id": 0,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": false,
       "id": "human_fighter-never_admitted",
       "kit": {
@@ -7251,7 +4188,6 @@
     {
       "base_class_id": 0,
       "class_id": 4,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "human_knight-alive",
       "kit": {
@@ -7312,7 +4248,6 @@
     {
       "base_class_id": 0,
       "class_id": 4,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "human_knight-dead",
       "kit": {
@@ -7373,7 +4308,6 @@
     {
       "base_class_id": 0,
       "class_id": 4,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "human_knight-never_admitted",
       "kit": {
@@ -7434,7 +4368,6 @@
     {
       "base_class_id": 10,
       "class_id": 10,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": false,
       "id": "human_mystic-alive",
       "kit": {
@@ -7490,7 +4423,6 @@
     {
       "base_class_id": 10,
       "class_id": 10,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": false,
       "id": "human_mystic-dead",
       "kit": {
@@ -7546,7 +4478,6 @@
     {
       "base_class_id": 10,
       "class_id": 10,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": false,
       "id": "human_mystic-never_admitted",
       "kit": {
@@ -7602,7 +4533,6 @@
     {
       "base_class_id": 10,
       "class_id": 11,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "human_wizard-alive",
       "kit": {
@@ -7658,7 +4588,6 @@
     {
       "base_class_id": 10,
       "class_id": 11,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "human_wizard-dead",
       "kit": {
@@ -7714,7 +4643,6 @@
     {
       "base_class_id": 10,
       "class_id": 11,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "human_wizard-never_admitted",
       "kit": {
@@ -7768,192 +4696,8 @@
       "state": "never_admitted"
     },
     {
-      "base_class_id": 53,
-      "class_id": 118,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "maestro-alive",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2370
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 10
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 53
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/Maestro.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "alive"
-    },
-    {
-      "base_class_id": 53,
-      "class_id": 118,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "maestro-dead",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2370
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 10
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 53
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/Maestro.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "dead"
-    },
-    {
-      "base_class_id": 53,
-      "class_id": 118,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "maestro-never_admitted",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2370
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 10
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 53
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/Maestro.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "never_admitted"
-    },
-    {
       "base_class_id": 44,
       "class_id": 47,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "monk-alive",
       "kit": {
@@ -8014,7 +4758,6 @@
     {
       "base_class_id": 44,
       "class_id": 47,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "monk-dead",
       "kit": {
@@ -8075,7 +4818,6 @@
     {
       "base_class_id": 44,
       "class_id": 47,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "monk-never_admitted",
       "kit": {
@@ -8134,360 +4876,8 @@
       "state": "never_admitted"
     },
     {
-      "base_class_id": 18,
-      "class_id": 102,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "moonlight_sentinel-alive",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2369
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 10
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 18
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/MoonlightSentinel.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "alive"
-    },
-    {
-      "base_class_id": 18,
-      "class_id": 102,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "moonlight_sentinel-dead",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2369
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 10
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 18
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/MoonlightSentinel.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "dead"
-    },
-    {
-      "base_class_id": 18,
-      "class_id": 102,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "moonlight_sentinel-never_admitted",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2369
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 10
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 18
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/MoonlightSentinel.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "never_admitted"
-    },
-    {
-      "base_class_id": 25,
-      "class_id": 103,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "mystic_muse-alive",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 6
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 425
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 461
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 25
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/MysticMuse.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "alive"
-    },
-    {
-      "base_class_id": 25,
-      "class_id": 103,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "mystic_muse-dead",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 6
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 425
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 461
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 25
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/MysticMuse.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "dead"
-    },
-    {
-      "base_class_id": 25,
-      "class_id": 103,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "mystic_muse-never_admitted",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 6
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 425
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 461
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 25
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/MysticMuse.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "never_admitted"
-    },
-    {
       "base_class_id": 10,
       "class_id": 13,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "necromancer-alive",
       "kit": {
@@ -8543,7 +4933,6 @@
     {
       "base_class_id": 10,
       "class_id": 13,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "necromancer-dead",
       "kit": {
@@ -8599,7 +4988,6 @@
     {
       "base_class_id": 10,
       "class_id": 13,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "necromancer-never_admitted",
       "kit": {
@@ -8655,7 +5043,6 @@
     {
       "base_class_id": 44,
       "class_id": 44,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": false,
       "id": "orc_fighter-alive",
       "kit": {
@@ -8716,7 +5103,6 @@
     {
       "base_class_id": 44,
       "class_id": 44,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": false,
       "id": "orc_fighter-dead",
       "kit": {
@@ -8777,7 +5163,6 @@
     {
       "base_class_id": 44,
       "class_id": 44,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": false,
       "id": "orc_fighter-never_admitted",
       "kit": {
@@ -8838,7 +5223,6 @@
     {
       "base_class_id": 49,
       "class_id": 49,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": false,
       "id": "orc_mystic-alive",
       "kit": {
@@ -8894,7 +5278,6 @@
     {
       "base_class_id": 49,
       "class_id": 49,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": false,
       "id": "orc_mystic-dead",
       "kit": {
@@ -8950,7 +5333,6 @@
     {
       "base_class_id": 49,
       "class_id": 49,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": false,
       "id": "orc_mystic-never_admitted",
       "kit": {
@@ -9006,7 +5388,6 @@
     {
       "base_class_id": 44,
       "class_id": 45,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "orc_raider-alive",
       "kit": {
@@ -9067,7 +5448,6 @@
     {
       "base_class_id": 44,
       "class_id": 45,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "orc_raider-dead",
       "kit": {
@@ -9128,7 +5508,6 @@
     {
       "base_class_id": 44,
       "class_id": 45,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "orc_raider-never_admitted",
       "kit": {
@@ -9189,7 +5568,6 @@
     {
       "base_class_id": 49,
       "class_id": 50,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "orc_shaman-alive",
       "kit": {
@@ -9245,7 +5623,6 @@
     {
       "base_class_id": 49,
       "class_id": 50,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "orc_shaman-dead",
       "kit": {
@@ -9301,7 +5678,6 @@
     {
       "base_class_id": 49,
       "class_id": 50,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "orc_shaman-never_admitted",
       "kit": {
@@ -9357,7 +5733,6 @@
     {
       "base_class_id": 49,
       "class_id": 51,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "overlord-alive",
       "kit": {
@@ -9413,7 +5788,6 @@
     {
       "base_class_id": 49,
       "class_id": 51,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "overlord-dead",
       "kit": {
@@ -9469,7 +5843,6 @@
     {
       "base_class_id": 49,
       "class_id": 51,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "overlord-never_admitted",
       "kit": {
@@ -9525,7 +5898,6 @@
     {
       "base_class_id": 0,
       "class_id": 5,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "paladin-alive",
       "kit": {
@@ -9586,7 +5958,6 @@
     {
       "base_class_id": 0,
       "class_id": 5,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "paladin-dead",
       "kit": {
@@ -9647,7 +6018,6 @@
     {
       "base_class_id": 0,
       "class_id": 5,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "paladin-never_admitted",
       "kit": {
@@ -9708,7 +6078,6 @@
     {
       "base_class_id": 31,
       "class_id": 32,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "palus_knight-alive",
       "kit": {
@@ -9769,7 +6138,6 @@
     {
       "base_class_id": 31,
       "class_id": 32,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "palus_knight-dead",
       "kit": {
@@ -9830,7 +6198,6 @@
     {
       "base_class_id": 31,
       "class_id": 32,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "palus_knight-never_admitted",
       "kit": {
@@ -9891,7 +6258,6 @@
     {
       "base_class_id": 31,
       "class_id": 37,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "phantom_ranger-alive",
       "kit": {
@@ -9952,7 +6318,6 @@
     {
       "base_class_id": 31,
       "class_id": 37,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "phantom_ranger-dead",
       "kit": {
@@ -10013,7 +6378,6 @@
     {
       "base_class_id": 31,
       "class_id": 37,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "phantom_ranger-never_admitted",
       "kit": {
@@ -10074,7 +6438,6 @@
     {
       "base_class_id": 38,
       "class_id": 41,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "phantom_summoner-alive",
       "kit": {
@@ -10130,7 +6493,6 @@
     {
       "base_class_id": 38,
       "class_id": 41,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "phantom_summoner-dead",
       "kit": {
@@ -10186,7 +6548,6 @@
     {
       "base_class_id": 38,
       "class_id": 41,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "phantom_summoner-never_admitted",
       "kit": {
@@ -10240,192 +6601,8 @@
       "state": "never_admitted"
     },
     {
-      "base_class_id": 0,
-      "class_id": 90,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "phoenix_knight-alive",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2369
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 10
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 0
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/PhoenixKnight.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "alive"
-    },
-    {
-      "base_class_id": 0,
-      "class_id": 90,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "phoenix_knight-dead",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2369
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 10
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 0
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/PhoenixKnight.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "dead"
-    },
-    {
-      "base_class_id": 0,
-      "class_id": 90,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "phoenix_knight-never_admitted",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2369
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 10
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 0
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/PhoenixKnight.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "never_admitted"
-    },
-    {
       "base_class_id": 18,
       "class_id": 23,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "plains_walker-alive",
       "kit": {
@@ -10486,7 +6663,6 @@
     {
       "base_class_id": 18,
       "class_id": 23,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "plains_walker-dead",
       "kit": {
@@ -10547,7 +6723,6 @@
     {
       "base_class_id": 18,
       "class_id": 23,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "plains_walker-never_admitted",
       "kit": {
@@ -10608,7 +6783,6 @@
     {
       "base_class_id": 10,
       "class_id": 17,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "prophet-alive",
       "kit": {
@@ -10664,7 +6838,6 @@
     {
       "base_class_id": 10,
       "class_id": 17,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "prophet-dead",
       "kit": {
@@ -10720,7 +6893,6 @@
     {
       "base_class_id": 10,
       "class_id": 17,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "prophet-never_admitted",
       "kit": {
@@ -10776,7 +6948,6 @@
     {
       "base_class_id": 0,
       "class_id": 7,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "rogue-alive",
       "kit": {
@@ -10837,7 +7008,6 @@
     {
       "base_class_id": 0,
       "class_id": 7,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "rogue-dead",
       "kit": {
@@ -10898,7 +7068,6 @@
     {
       "base_class_id": 0,
       "class_id": 7,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "rogue-never_admitted",
       "kit": {
@@ -10957,192 +7126,8 @@
       "state": "never_admitted"
     },
     {
-      "base_class_id": 0,
-      "class_id": 92,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "sagittarius-alive",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2369
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 10
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 0
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/Sagittarius.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "alive"
-    },
-    {
-      "base_class_id": 0,
-      "class_id": 92,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "sagittarius-dead",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2369
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 10
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 0
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/Sagittarius.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "dead"
-    },
-    {
-      "base_class_id": 0,
-      "class_id": 92,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "sagittarius-never_admitted",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2369
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 10
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 0
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/Sagittarius.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "never_admitted"
-    },
-    {
       "base_class_id": 53,
       "class_id": 54,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "scavenger-alive",
       "kit": {
@@ -11203,7 +7188,6 @@
     {
       "base_class_id": 53,
       "class_id": 54,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "scavenger-dead",
       "kit": {
@@ -11264,7 +7248,6 @@
     {
       "base_class_id": 53,
       "class_id": 54,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "scavenger-never_admitted",
       "kit": {
@@ -11325,7 +7308,6 @@
     {
       "base_class_id": 38,
       "class_id": 43,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "shillien_elder-alive",
       "kit": {
@@ -11381,7 +7363,6 @@
     {
       "base_class_id": 38,
       "class_id": 43,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "shillien_elder-dead",
       "kit": {
@@ -11437,7 +7418,6 @@
     {
       "base_class_id": 38,
       "class_id": 43,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "shillien_elder-never_admitted",
       "kit": {
@@ -11493,7 +7473,6 @@
     {
       "base_class_id": 31,
       "class_id": 33,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "shillien_knight-alive",
       "kit": {
@@ -11554,7 +7533,6 @@
     {
       "base_class_id": 31,
       "class_id": 33,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "shillien_knight-dead",
       "kit": {
@@ -11615,7 +7593,6 @@
     {
       "base_class_id": 31,
       "class_id": 33,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "shillien_knight-never_admitted",
       "kit": {
@@ -11676,7 +7653,6 @@
     {
       "base_class_id": 38,
       "class_id": 42,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "shillien_oracle-alive",
       "kit": {
@@ -11732,7 +7708,6 @@
     {
       "base_class_id": 38,
       "class_id": 42,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "shillien_oracle-dead",
       "kit": {
@@ -11788,7 +7763,6 @@
     {
       "base_class_id": 38,
       "class_id": 42,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "shillien_oracle-never_admitted",
       "kit": {
@@ -11842,360 +7816,8 @@
       "state": "never_admitted"
     },
     {
-      "base_class_id": 38,
-      "class_id": 112,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "shillien_saint-alive",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 6
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 425
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 461
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 38
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/ShillienSaint.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "alive"
-    },
-    {
-      "base_class_id": 38,
-      "class_id": 112,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "shillien_saint-dead",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 6
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 425
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 461
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 38
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/ShillienSaint.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "dead"
-    },
-    {
-      "base_class_id": 38,
-      "class_id": 112,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "shillien_saint-never_admitted",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 6
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 425
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 461
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 38
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/ShillienSaint.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "never_admitted"
-    },
-    {
-      "base_class_id": 31,
-      "class_id": 106,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "shillien_templar-alive",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2369
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 10
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 31
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/ShillienTemplar.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "alive"
-    },
-    {
-      "base_class_id": 31,
-      "class_id": 106,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "shillien_templar-dead",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2369
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 10
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 31
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/ShillienTemplar.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "dead"
-    },
-    {
-      "base_class_id": 31,
-      "class_id": 106,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "shillien_templar-never_admitted",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2369
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 10
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 31
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/ShillienTemplar.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "never_admitted"
-    },
-    {
       "base_class_id": 18,
       "class_id": 24,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "silver_ranger-alive",
       "kit": {
@@ -12256,7 +7878,6 @@
     {
       "base_class_id": 18,
       "class_id": 24,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "silver_ranger-dead",
       "kit": {
@@ -12317,7 +7938,6 @@
     {
       "base_class_id": 18,
       "class_id": 24,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "silver_ranger-never_admitted",
       "kit": {
@@ -12378,7 +7998,6 @@
     {
       "base_class_id": 10,
       "class_id": 12,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "sorcerer-alive",
       "kit": {
@@ -12434,7 +8053,6 @@
     {
       "base_class_id": 10,
       "class_id": 12,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "sorcerer-dead",
       "kit": {
@@ -12490,7 +8108,6 @@
     {
       "base_class_id": 10,
       "class_id": 12,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "sorcerer-never_admitted",
       "kit": {
@@ -12544,528 +8161,8 @@
       "state": "never_admitted"
     },
     {
-      "base_class_id": 10,
-      "class_id": 95,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "soultaker-alive",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 6
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 425
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 461
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 10
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/Soultaker.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "alive"
-    },
-    {
-      "base_class_id": 10,
-      "class_id": 95,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "soultaker-dead",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 6
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 425
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 461
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 10
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/Soultaker.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "dead"
-    },
-    {
-      "base_class_id": 10,
-      "class_id": 95,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "soultaker-never_admitted",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 6
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 425
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 461
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 10
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/Soultaker.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "never_admitted"
-    },
-    {
-      "base_class_id": 31,
-      "class_id": 107,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "spectral_dancer-alive",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2369
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 10
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 31
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/SpectralDancer.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "alive"
-    },
-    {
-      "base_class_id": 31,
-      "class_id": 107,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "spectral_dancer-dead",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2369
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 10
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 31
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/SpectralDancer.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "dead"
-    },
-    {
-      "base_class_id": 31,
-      "class_id": 107,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "spectral_dancer-never_admitted",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2369
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 10
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 31
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/SpectralDancer.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "never_admitted"
-    },
-    {
-      "base_class_id": 38,
-      "class_id": 111,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "spectral_master-alive",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 6
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 425
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 461
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 38
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/SpectralMaster.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "alive"
-    },
-    {
-      "base_class_id": 38,
-      "class_id": 111,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "spectral_master-dead",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 6
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 425
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 461
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 38
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/SpectralMaster.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "dead"
-    },
-    {
-      "base_class_id": 38,
-      "class_id": 111,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "spectral_master-never_admitted",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 6
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 425
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 461
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 38
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/SpectralMaster.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "never_admitted"
-    },
-    {
       "base_class_id": 38,
       "class_id": 40,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "spellhowler-alive",
       "kit": {
@@ -13121,7 +8218,6 @@
     {
       "base_class_id": 38,
       "class_id": 40,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "spellhowler-dead",
       "kit": {
@@ -13177,7 +8273,6 @@
     {
       "base_class_id": 38,
       "class_id": 40,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "spellhowler-never_admitted",
       "kit": {
@@ -13233,7 +8328,6 @@
     {
       "base_class_id": 25,
       "class_id": 27,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "spellsinger-alive",
       "kit": {
@@ -13289,7 +8383,6 @@
     {
       "base_class_id": 25,
       "class_id": 27,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "spellsinger-dead",
       "kit": {
@@ -13345,7 +8438,6 @@
     {
       "base_class_id": 25,
       "class_id": 27,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "spellsinger-never_admitted",
       "kit": {
@@ -13399,360 +8491,8 @@
       "state": "never_admitted"
     },
     {
-      "base_class_id": 38,
-      "class_id": 110,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "storm_screamer-alive",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 6
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 425
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 461
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 38
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/StormScreamer.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "alive"
-    },
-    {
-      "base_class_id": 38,
-      "class_id": 110,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "storm_screamer-dead",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 6
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 425
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 461
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 38
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/StormScreamer.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "dead"
-    },
-    {
-      "base_class_id": 38,
-      "class_id": 110,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "storm_screamer-never_admitted",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 6
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 425
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 461
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 38
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/StormScreamer.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "never_admitted"
-    },
-    {
-      "base_class_id": 18,
-      "class_id": 100,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "sword_muse-alive",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2369
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 10
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 18
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/SwordMuse.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "alive"
-    },
-    {
-      "base_class_id": 18,
-      "class_id": 100,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "sword_muse-dead",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2369
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 10
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 18
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/SwordMuse.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "dead"
-    },
-    {
-      "base_class_id": 18,
-      "class_id": 100,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "sword_muse-never_admitted",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2369
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 10
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 18
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/SwordMuse.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "never_admitted"
-    },
-    {
       "base_class_id": 18,
       "class_id": 21,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "sword_singer-alive",
       "kit": {
@@ -13813,7 +8553,6 @@
     {
       "base_class_id": 18,
       "class_id": 21,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "sword_singer-dead",
       "kit": {
@@ -13874,7 +8613,6 @@
     {
       "base_class_id": 18,
       "class_id": 21,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "sword_singer-never_admitted",
       "kit": {
@@ -13935,7 +8673,6 @@
     {
       "base_class_id": 18,
       "class_id": 20,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "temple_knight-alive",
       "kit": {
@@ -13996,7 +8733,6 @@
     {
       "base_class_id": 18,
       "class_id": 20,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "temple_knight-dead",
       "kit": {
@@ -14057,7 +8793,6 @@
     {
       "base_class_id": 18,
       "class_id": 20,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "temple_knight-never_admitted",
       "kit": {
@@ -14116,192 +8851,8 @@
       "state": "never_admitted"
     },
     {
-      "base_class_id": 44,
-      "class_id": 113,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "titan-alive",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 2369
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2368
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 44
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/Titan.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "alive"
-    },
-    {
-      "base_class_id": 44,
-      "class_id": 113,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "titan-dead",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 2369
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2368
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 44
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/Titan.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "dead"
-    },
-    {
-      "base_class_id": 44,
-      "class_id": 113,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "titan-never_admitted",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 2369
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2368
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 44
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/Titan.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "never_admitted"
-    },
-    {
       "base_class_id": 0,
       "class_id": 8,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "treasure_hunter-alive",
       "kit": {
@@ -14362,7 +8913,6 @@
     {
       "base_class_id": 0,
       "class_id": 8,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "treasure_hunter-dead",
       "kit": {
@@ -14423,7 +8973,6 @@
     {
       "base_class_id": 0,
       "class_id": 8,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "treasure_hunter-never_admitted",
       "kit": {
@@ -14484,7 +9033,6 @@
     {
       "base_class_id": 44,
       "class_id": 48,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "tyrant-alive",
       "kit": {
@@ -14545,7 +9093,6 @@
     {
       "base_class_id": 44,
       "class_id": 48,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "tyrant-dead",
       "kit": {
@@ -14606,7 +9153,6 @@
     {
       "base_class_id": 44,
       "class_id": 48,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "tyrant-never_admitted",
       "kit": {
@@ -14667,7 +9213,6 @@
     {
       "base_class_id": 49,
       "class_id": 52,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "warcryer-alive",
       "kit": {
@@ -14723,7 +9268,6 @@
     {
       "base_class_id": 49,
       "class_id": 52,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "warcryer-dead",
       "kit": {
@@ -14779,7 +9323,6 @@
     {
       "base_class_id": 49,
       "class_id": 52,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "warcryer-never_admitted",
       "kit": {
@@ -14835,7 +9378,6 @@
     {
       "base_class_id": 10,
       "class_id": 14,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "warlock-alive",
       "kit": {
@@ -14891,7 +9433,6 @@
     {
       "base_class_id": 10,
       "class_id": 14,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "warlock-dead",
       "kit": {
@@ -14947,7 +9488,6 @@
     {
       "base_class_id": 10,
       "class_id": 14,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "warlock-never_admitted",
       "kit": {
@@ -15003,7 +9543,6 @@
     {
       "base_class_id": 0,
       "class_id": 3,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "warlord-alive",
       "kit": {
@@ -15064,7 +9603,6 @@
     {
       "base_class_id": 0,
       "class_id": 3,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "warlord-dead",
       "kit": {
@@ -15125,7 +9663,6 @@
     {
       "base_class_id": 0,
       "class_id": 3,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "warlord-never_admitted",
       "kit": {
@@ -15186,7 +9723,6 @@
     {
       "base_class_id": 0,
       "class_id": 1,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "warrior-alive",
       "kit": {
@@ -15247,7 +9783,6 @@
     {
       "base_class_id": 0,
       "class_id": 1,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "warrior-dead",
       "kit": {
@@ -15308,7 +9843,6 @@
     {
       "base_class_id": 0,
       "class_id": 1,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "warrior-never_admitted",
       "kit": {
@@ -15369,7 +9903,6 @@
     {
       "base_class_id": 53,
       "class_id": 57,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "warsmith-alive",
       "kit": {
@@ -15430,7 +9963,6 @@
     {
       "base_class_id": 53,
       "class_id": 57,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "warsmith-dead",
       "kit": {
@@ -15491,7 +10023,6 @@
     {
       "base_class_id": 53,
       "class_id": 57,
-      "execution": "pending E3 adapter/live fixtures",
       "history_required": true,
       "id": "warsmith-never_admitted",
       "kit": {
@@ -15548,191 +10079,7 @@
         "symbol": "PlayerTemplateData"
       },
       "state": "never_admitted"
-    },
-    {
-      "base_class_id": 18,
-      "class_id": 101,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "wind_rider-alive",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2369
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 10
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 18
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/WindRider.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "alive"
-    },
-    {
-      "base_class_id": 18,
-      "class_id": 101,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "wind_rider-dead",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2369
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 10
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 18
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/WindRider.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "dead"
-    },
-    {
-      "base_class_id": 18,
-      "class_id": 101,
-      "execution": "pending E3 adapter/live fixtures",
-      "history_required": true,
-      "id": "wind_rider-never_admitted",
-      "kit": {
-        "items": [
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 2369
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 10
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1146
-          },
-          {
-            "count": 1,
-            "equipped": true,
-            "template_id": 1147
-          },
-          {
-            "count": 1,
-            "equipped": false,
-            "template_id": 5588
-          },
-          {
-            "count": 5,
-            "equipped": false,
-            "template_id": 10650
-          },
-          {
-            "count": 10,
-            "equipped": false,
-            "template_id": 12753
-          }
-        ],
-        "source_class_id": 18
-      },
-      "required_gates": [
-        "migration_rerun",
-        "first_v6_admission",
-        "crash_resume",
-        "kit_once",
-        "allocator_no_collision"
-      ],
-      "source": {
-        "file": "src/main/resources/data/stats/chars/baseStats/WindRider.xml",
-        "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
-        "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-        "symbol": "PlayerTemplateData"
-      },
-      "state": "never_admitted"
     }
   ],
-  "execution": "not executed",
   "schema_version": 1
 }

@@ -65,6 +65,36 @@ JSONL contract (schema version 1 of this sidecar):
   continuity. Draw-free branches have no fabricated draw. Enchant always requires one bound100000
   draw at callsite `enchant`, including guaranteed success (GAME@abfde049
   EnchantScroll.java:149-155). Its residue must equal the outcome input.
+  T10/B3 (zone 844e541): with item evidence on, EVERY generator call is an
+  `item_rng` fact, so the cursor is gap-free from the first fact to the last
+  (each `word_before` equals the previous fact's `word_after`; the rule is
+  unchanged). A caller's own fact covers the draws it tabulates. Every other
+  draw is a zone fact: `entity` = the nil UUID, `origin=live`, `incarnation=1`,
+  `callsite` = `zone_roll`, `entity_id` or the caller's own site
+  (`[a-z][a-z0-9_]*`), `resolution_id` = `zone:<callsite>:<word_before>`
+  (decimal). An `entity_id` draw is one 128-bit id: exactly 4 words, `bound=1`,
+  `value=0`. A `zone_roll` or caller-site draw has `value < bound`, may span
+  several words (rejection resampling), and a caller site with a pinned bound
+  (D109 list) keeps that bound. The nil subject carries no other fact kind,
+  and a non-nil subject may not use the `zone_roll`/`entity_id` callsites or a
+  `zone:` resolution. Zone facts never correlate with an owner's resolution.
+  The exporter drops D65 `creation_origin` from published instance rows; the
+  canonical instance scalars are unchanged.
+  B4 (E3.4/D47, zone b63f0ec): a V6 skill-book learn pays through the item
+  ledger. The API payment family `skill_learn_payment {receipt, skill_id,
+  skill_level, count_delta}` exports as the Consume cause
+  `item_cast:learn:<request key>` (canonical lowercase UUID). Each paid instance is one
+  Consume aggregate (D66/D94 shape) with `resolution_id = learn:<key>` and no
+  item receipt (`receipt_refs` lists only other receipt-bearing causes). On the
+  same tick, exactly one `learned_item_cost` fact resolves as `learn:<key>`, with
+  `inputs.phase = actual.phase = complete` and `repeat=false`. When accepted,
+  `actual.consumed` (instance id → count) equals the summed learn-cause debits,
+  every paid instance has template `consume_id`, and the total is
+  `consume_count`. A refused learn pays nothing. A `learn:` resolution belongs
+  only to that family and key; a learn payment without its fact, a fact without
+  its payment, another key, or another tick all refuse. Book use (8618
+  `use:no_handler`) stays D12 fail-closed. `4-item-skill-learn.nfs` selects the
+  fact with the phase `book-learn` (inputs plus the Consume of 8618).
 - `item_delta`: `operation,instance,before,after,count_delta,operation_ordinal,resolution_id`,
   plus `receipt_refs,causes` for `operation=consume`, otherwise `receipt_ref`.
   Consume is one aggregate row per instance per tick at the final ordinal. Under D62,
@@ -400,6 +430,7 @@ design `docs/plans/phase-4-zone-design.md` §12.1 and the producer in
 | `escape_timing` | Escape/Blessed Escape cast start, `cast` | `definition`, `start_tick`, `casting_speed`, `available`, `resources`, `incarnation` | `{accepted, inventory, consumed, draws, animation_ms?, launch_ms?, launch_tick?, completion_tick?, interrupt_cutoff_tick?, completion_consumed?, destination?, resources?, incarnation?, movement_canceled?, auto_canceled?, town_respawn?}` |
 | `resurrection_scroll` | scroll 737 cast + offer response, `cast` | `definition`, `start_tick`, `available`, death/current incarnation, `dead`, `response∈offer/accept/decline/expire`, `response_tick`, `response_offer_id`, `existing_offer`, `repeat`, resources, `restore_percent`, `restore_hp` ratio | `{accepted, consumed, inventory, draws, reason?, completion_consumed?, offer?, trace?, dead?, incarnation?, hp?, hp_q?, mp?, cp?, xp_refund?, recoverable_xp?}`; one fact on the resurrection-applied tick under the intent's resolution id (D92); HP Q-floor, recorded offer_id, MP preserved or the engine respawn floor as a recorded deviation, optional `max_mp`/`restore_mp` inputs (D104) |
 | `learned_item_cost` | learned skill with itemConsume, `cast` | `skill_id`, `rank`, `consume_id`, `consume_count`, `inventory` ITEM records, `phase∈complete/cancel`, `repeat` | `{accepted, inventory, consumed, draws, completion_consumed?, repeated_consumed?, phase?}`; debits are `item_cast:cast:<id>` Consume causes |
+| `learned_item_cost` (B4 skill-book learn) | V6 LearnSkill of a rank with `required_items` | same inputs, `phase=complete`, `repeat=false`, `consume_id`/`consume_count` = the book | `{accepted, inventory, consumed, completion_consumed:{}, repeated_consumed:{}, phase:complete, draws:[]}`; resolution `learn:<request key>`; debits are `item_cast:learn:<request key>` Consume causes |
 | `lethal` | blow skill, `cast` | D81 nullable residues | `{outcome∈none/full/half, draws}` |
 
 Draw lists in `actual` name `{site,bound,residue}`; when the family also has

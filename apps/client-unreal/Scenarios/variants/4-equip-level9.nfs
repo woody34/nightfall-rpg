@@ -1,7 +1,7 @@
 # covers: 4 E1.3, 4 E1.6, 4 E2.2, 4 E2.6, 4 E2.9, 4 E5.1, 4 E5.5, 4 E6.5
 # fixture: phase4-equip-level9
 # variant: 4-equip-level9
-# Pending E2/E3/E5 live integration; syntax/traceability is not execution evidence.
+# Execution evidence is the live gate run (run-sim-ci.py + phase4-evidence.py), not syntax/traceability.
 # Exact inventory/paperdoll/enchant/count source operands: phase4-packs.json.
 # Waits: delivery 10ticks*100ms*3=3s (A1); RPC/login policy5s*3=15s.
 # Combat fixture allowance30s; death90s; offer180s (inherited phase3 fixtures).

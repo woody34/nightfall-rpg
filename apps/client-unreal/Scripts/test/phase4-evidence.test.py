@@ -2601,4 +2601,157 @@ class Evidence(unittest.TestCase):
             self.assertTrue(gate.requirements(path),path.name)
 
 
+
+# T10/B3 (zone 844e541): the zone's two fixtures, exported by nightfall-replay at 844e541.
+T10=SCRIPTS/'test/fixtures/phase4-t10'
+T10_RECORDINGS={'offline-grant-only':'f9c0c0b9fcf388ba96b08b22abb048fde100172247d30c4e36cde589cd6da2d4',
+                'draw-free-grant':'0a2d41c5be6e4a46df1ff0ff24d6ad729c9101b46d30aaf623829c647efc5ec9'}
+ZONE=gate.ZONE_SUBJECT
+
+
+class ZoneDraws(unittest.TestCase):
+    """Zone RNG facts: nil subject, zone_roll/entity_id/caller site, zone:<site>:<word>."""
+    def export(self,name):
+        rows=gate.read_jsonl(T10/f'{name}.jsonl')
+        self.assertEqual(rows[0]['recording_sha256'],T10_RECORDINGS[name])
+        recording=SCRIPTS.parents[2]/f'apps/api/fixtures/items/{name}.nfr'
+        if recording.is_file():self.assertEqual(gate.digest(recording),T10_RECORDINGS[name])
+        return rows
+
+    def validate(self,rows):
+        # The recording digest is pinned above; the .nfr itself lives on the zone branch.
+        original=gate.digest;gate.digest=lambda path:rows[0]['recording_sha256']
+        try:return gate.validate(copy.deepcopy(rows),Path('pinned.nfr'),rows[0]['phase4_rules_hash'])
+        finally:gate.digest=original
+
+    def mutate(self,rows,change):
+        rows=copy.deepcopy(rows);change(rows);return rows
+
+    def test_zone_fixtures_validate(self):
+        spawn=self.export('offline-grant-only');free=self.export('draw-free-grant')
+        self.validate(spawn);self.validate(free)
+        draws=[r for r in spawn if r.get('kind')=='item_rng']
+        self.assertEqual([(r['entity'],r['data']['callsite'],r['data']['resolution_id']) for r in draws],[(ZONE,'entity_id','zone:entity_id:4')])
+        self.assertFalse([r for r in free if r.get('kind')=='item_rng'])
+
+    def zone_rows(self,callsite='zone_roll',before=4,after=5,bound=100,value=7,**extra):
+        rows=self.export('offline-grant-only')
+        rows[2]['data']=dict(callsite=callsite,word_before=before,word_after=after,bound=bound,value=value,
+                             resolution_id=f'zone:{callsite}:{before}')
+        rows[2].update(extra)
+        return rows
+
+    def test_one_pre_tick_baseline_per_owner_tick(self):
+        rows=self.export('draw-free-grant') # [baseline 0001, baseline 0002, delta 0002]
+        self.validate(rows)
+        def renumber(r):
+            for index,row in enumerate(r[1:-1]):row['sequence']=index
+            r[-1]['facts']=len(r)-2
+            return r
+        twice=copy.deepcopy(rows);twice.insert(3,copy.deepcopy(rows[2]));renumber(twice)
+        with self.assertRaisesRegex(ValueError,'more than one baseline'):self.validate(twice)
+        late=copy.deepcopy(rows);late[2],late[3]=late[3],late[2];renumber(late)
+        with self.assertRaisesRegex(ValueError,'baseline after a delta'):self.validate(late)
+
+    def test_zone_roll_and_caller_sites_are_accepted_with_their_bounds(self):
+        self.validate(self.zone_rows())
+        self.validate(self.zone_rows(callsite='bow_reduced_mp',bound=100,value=99,after=7)) # rejection resampling
+        with self.assertRaisesRegex(ValueError,'bound mismatch'):self.validate(self.zone_rows(callsite='bow_reduced_mp',bound=99))
+        with self.assertRaisesRegex(ValueError,'cursor/residue'):self.validate(self.zone_rows(value=100))
+
+    def test_zone_grammar_is_enforced(self):
+        rows=self.export('offline-grant-only')
+        cases={
+            'resolution':lambda r:r[2]['data'].update(resolution_id='zone:entity_id:5'),
+            'site':lambda r:r[2]['data'].update(resolution_id='zone:zone_roll:4'),
+            'id words':lambda r:r[2]['data'].update(word_after=7),
+            'id bound':lambda r:r[2]['data'].update(bound=2),
+            'incarnation':lambda r:r[2].update(incarnation=2),
+            'offline':lambda r:r[2].update(origin='offline',incarnation=0),
+            'callsite':lambda r:r[2]['data'].update(callsite='Zone Roll',resolution_id='zone:Zone Roll:4'),
+            'non-rng':lambda r:r[1].update(entity=ZONE),
+            'owner uses zone grammar':lambda r:r[2].update(entity=r[1]['entity']),
+        }
+        for name,change in cases.items():
+            with self.subTest(name),self.assertRaises(ValueError):self.validate(self.mutate(rows,change))
+        owner=self.zone_rows(callsite='bow_reduced_mp',after=5)
+        owner[2]['entity']=owner[1]['entity'];owner[2]['data']['resolution_id']='attack:1'
+        self.validate(owner)
+
+    def test_gap_free_cursor_spans_zone_and_owner_draws(self):
+        rows=self.zone_rows() # zone_roll 4..5
+        follow=copy.deepcopy(rows[2]);follow['entity']=rows[1]['entity']
+        follow['data'].update(callsite='bow_reduced_mp',word_before=6,word_after=7,resolution_id='attack:1')
+        rows.insert(3,follow)
+        for index,row in enumerate(rows[1:-1]):row['sequence']=index
+        rows[-1]['facts']=len(rows)-2
+        with self.assertRaisesRegex(ValueError,'cursor'):self.validate(rows) # word 5 untabulated
+        follow['data'].update(word_before=5,word_after=6)
+        self.validate(rows)
+
+
+
+# B4 (zone b63f0ec): the zone's skill-book learn recording (Bishop 1405 r1, book 8618),
+# written by its lib test and exported by nightfall-replay at 1cebefa.
+B4=SCRIPTS/'test/fixtures/phase4-b4/skill-learn.jsonl'
+B4_RECORDING='a9fb071a0be8820b2e88d891777e2701077366b974420bb85353a3a954f1fa31'
+B4_OWNER='00000000-0000-0000-0000-000000000002'
+B4_KEY='01970000-0000-7000-8000-000000000042'
+
+
+class SkillLearnPayment(unittest.TestCase):
+    def rows(self):
+        rows=gate.read_jsonl(B4);self.assertEqual(rows[0]['recording_sha256'],B4_RECORDING);return rows
+
+    def pinned(self,call,rows,*args):
+        original=gate.digest;gate.digest=lambda path:B4_RECORDING
+        try:return call(copy.deepcopy(rows),Path('pinned.nfr'),*args)
+        finally:gate.digest=original
+
+    def test_producer_export_validates_and_scenario_phases_select_it(self):
+        rows=self.rows();self.pinned(gate.validate,rows,rows[0]['phase4_rules_hash'])
+        scenario=SCRIPTS.parent/'Scenarios/4-item-skill-learn.nfs'
+        result=self.pinned(gate.evaluate,rows,B4_OWNER,gate.requirements(scenario),rows[0]['phase4_rules_hash'],gate.phases(scenario))
+        self.assertTrue(result['passed'],result)
+        self.assertEqual([(g['formula'],g.get('phase'),g['sequences']) for g in result['gates']],
+                         [('learned_item_cost',None,[2]),('learned_item_cost','book-learn',[2])])
+
+    def test_learn_payment_grammar_and_correlation_fail_closed(self):
+        rows=self.rows()
+        other='01970000-0000-7000-8000-000000000043'
+        def cause(value):return lambda r:r[4]['data']['causes'][0].update(cause=value)
+        def drop(index):
+            def change(r):
+                del r[index]
+                for i,row in enumerate(r[1:-1]):row['sequence']=i
+                r[-1]['facts']=len(r)-2
+            return change
+        cases={
+            'other key cause':cause('item_cast:learn:'+other),
+            'cast cause':cause('item_cast:cast:7'),
+            'non-uuid key':lambda r:[r[3]['data'].update(resolution_id='learn:abc'),r[4]['data'].update(resolution_id='learn:abc'),
+                                     r[4]['data']['causes'][0].update(cause='item_cast:learn:abc')],
+            'missing fact':drop(3),
+            'missing payment':drop(4),
+            'consumed differs':lambda r:r[3]['data']['actual'].update(consumed={'901':2}),
+            'count differs':lambda r:r[3]['data']['inputs'].update(consume_count=2),
+            'template differs':lambda r:r[3]['data']['inputs'].update(consume_id=8619),
+            'repeat':lambda r:r[3]['data']['inputs'].update(repeat=True),
+            'cancel phase':lambda r:[r[3]['data']['inputs'].update(phase='cancel'),r[3]['data']['actual'].update(phase='cancel')],
+            'other formula':lambda r:r[3]['data'].update(formula='escape_timing'),
+        }
+        # Review-3 nit: pinned with their exact refusal.
+        refused=copy.deepcopy(rows);refused[3]['data']['actual'].update(accepted=False)
+        with self.assertRaisesRegex(ValueError,'a refused learn may not pay'):self.pinned(gate.validate,refused,rows[0]['phase4_rules_hash'])
+        # The payment (and the owners' baselines) move to the tick before the learn fact.
+        later=copy.deepcopy(rows);later[3],later[4]=later[4],later[3]
+        later[0]['snapshot_tick']=2;later[0]['watermark'].update(records=2);later[-1].update(ticks=2)
+        for row in later[1:4]:row['tick']=2
+        for index,row in enumerate(later[1:-1]):row['sequence']=index
+        with self.assertRaisesRegex(ValueError,'same-tick Consume payment'):self.pinned(gate.validate,later,rows[0]['phase4_rules_hash'])
+        for name,change in cases.items():
+            mutated=copy.deepcopy(rows);change(mutated)
+            with self.subTest(name),self.assertRaises(ValueError):self.pinned(gate.validate,mutated,rows[0]['phase4_rules_hash'])
+
+
 if __name__=='__main__':unittest.main()

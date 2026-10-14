@@ -106,6 +106,15 @@ def clean_env():
     return {key: os.environ[key] for key in ('PATH', 'HOME', 'LANG', 'LC_ALL', 'LD_LIBRARY_PATH') if key in os.environ}
 
 
+def zone_flags(selected):
+    """Per-unit zone version flags, recorded in the unit manifest and checked at exec-api.
+
+    D114: every unit (Phase 2, 3 and 4 packs alike) boots a V6 zone, so Phase 0b-3
+    behaviour is regression-tested on the production rules (E6.3). The per-unit mechanism
+    stays so a future zone version is again one decision away."""
+    return {'PHASE3_ENABLED': '1', 'PHASE4_ENABLED': '1'}
+
+
 def candidate_binaries(folder):
     keys = ('SIM_API_BIN', 'SIM_MIGRATE_BIN')
     missing = [key for key in keys if not os.environ.get(key)]
@@ -312,8 +321,7 @@ def provision(folder, batch):
             'NATS_URL': f'nats://127.0.0.1:{nats}', 'HTTP_ADDR': f'127.0.0.1:{http}',
             'GRPC_ADDR': f'127.0.0.1:{grpc}', 'WS_PUBLIC_URL': f'ws://127.0.0.1:{http}/ws',
             'AUTH_DEV_TOKENS': '1', f'NIGHTFALL_PHASE{version}_FIXTURE': '1',
-            'PHASE3_ENABLED': '1',
-            'PHASE4_ENABLED': '1',
+            **zone_flags(selected),
             'ZONE_FILE': str(zone_file),
             'RULES_DIR': str(rules_dir)}
         if selected == 'phase4-grant-denied':
@@ -330,6 +338,7 @@ def provision(folder, batch):
         else:
             role_token_files(folder, roles, owner)
         manifest = {'schema_version': 1, 'fixture': selected, 'project': project, 'database': db,
+                    'zone_flags': zone_flags(selected),
                     'ports': dict(postgres=pg, nats=nats, http=http, grpc=grpc), 'roles': roles,
                     'api_binary': api, 'migrate_binary': migrate, 'seeder': str(seeder),
                     'data_sources': {'rules_dir': str(rules_dir), 'zone_file': str(zone_file),
@@ -383,7 +392,7 @@ def validate_seed(folder, selected, owner, observer):
         raise ValueError('seeder did not publish its fixture manifest')
     seed = records[-1]
     if selected in PHASE4:
-        phase4.validate_seed_manifest(seed, selected, owner, observer, REPO, 'observer' in state(folder)['seed_inputs'])
+        phase4.validate_seed_manifest(seed, selected, owner, observer, REPO, 'observer' in state(folder)['seed_inputs'], 'pre-admission')
         if seed.get('data_sha256') != state(folder)['data_sha256']:
             raise ValueError('Phase4 seed data hashes changed')
     elif selected in PHASE3:
@@ -393,6 +402,55 @@ def validate_seed(folder, selected, owner, observer):
     else:
         token_fixtures.validate_seed_manifest(seed, selected, owner, observer)
     (folder / 'seed-manifest.json').write_text(json.dumps(seed, indent=2) + '\n')
+
+
+def grant(folder):
+    """D112: after the owned API is healthy and before any client login, grant every pack item
+    through the dev GrantItem gRPC and confirm admission from the offline baseline."""
+    value = state(folder)
+    if value['fixture'] not in PHASE4:
+        return
+    if not (folder / 'seed-complete').is_file():
+        raise ValueError('grant requires the completed pre-admission seed')
+    roles = value['roles']
+    owner = next(r['account_id'] for r in roles.values() if r['character_id'] == phase4.OWNER)
+    observer = next((r['account_id'] for r in roles.values() if r['character_id'] == phase4.OBSERVER), None)
+    command = [sys.executable, value['seeder'], '--fixture', value['fixture'], '--owner-account', owner,
+               '--grant', '--grpc', f"127.0.0.1:{value['ports']['grpc']}"]
+    if observer is not None and observer != owner:
+        command += ['--observer-account', observer]
+    if digest(value['seeder']) != value['sha256']['seeder']:
+        raise ValueError('seeder changed after fixture provisioning')
+    logged(command, folder, 'grant.log', value['env'] | {'PATH': os.environ.get('PATH', os.defpath)})
+    records = [json.loads(line) for line in (folder / 'grant.log').read_text().splitlines() if line.startswith('{')]
+    if not records:
+        raise ValueError('seeder did not publish its grant manifest')
+    phase4.validate_seed_manifest(records[-1], value['fixture'], owner, observer, REPO, 'observer' in value['seed_inputs'])
+    (folder / 'grant-manifest.json').write_text(json.dumps(records[-1], indent=2) + '\n')
+    (folder / 'grant-complete').touch()
+
+
+def scenario_copy(folder, scenario):
+    """Phase 4 scenarios name pack instance ids (`instance:N`); the server allocates its own ids,
+    so the bot runs a copy whose ids are mapped through the confirmed grant manifest."""
+    value = state(folder)
+    if value['fixture'] not in PHASE4:
+        return scenario
+    manifest = folder / 'grant-manifest.json'
+    if not (folder / 'grant-complete').is_file() or not manifest.is_file():
+        raise ValueError('Phase4 scenario requires the confirmed grant stage')
+    role = 'observer' if value['roles'][scenario.stem]['character_id'] == phase4.OBSERVER else 'owner'
+    mapping = json.loads(manifest.read_text())['granted'][role]['instance_map']
+    def mapped(match):
+        identity = match[1]
+        if identity not in mapping:
+            raise ValueError(f'{scenario.name} names pack instance {identity}, which was not provisioned')
+        return f'instance:{mapping[identity]}'
+    text = re.sub(r'instance:([0-9]+)', mapped, scenario.read_text())
+    target = folder / 'scenarios' / scenario.name
+    target.parent.mkdir(mode=0o700, exist_ok=True)
+    target.write_text(text)
+    return target
 
 
 def digest(path):
@@ -416,10 +474,34 @@ def cleanup(folder):
         (folder / 'cleanup-status.json').write_text('{"completed": true}\n')
 
 
+V6_STARTUP = 'Phase3 bootstrap bundle validated with the Phase4 (V6) item extension'
+V6_HASHES = ('phase4_item_rules_hash', 'phase4_skill_rules_hash')
+
+
+def api_zone_flags(log):
+    """Review-3 P2-3: the zone flags a unit's API actually booted with, from its startup log.
+
+    Only the API's own V6 bootstrap line attests V6; the record carries the rules hashes that
+    line names. Accepts the JSON and the plain tracing formats. Returns None without it."""
+    for line in log.read_text(errors='replace').splitlines():
+        if V6_STARTUP not in line:
+            continue
+        hashes = {}
+        for name in V6_HASHES:
+            match = re.search(name + r'\W+(sha256:[0-9a-f]{64})', line)
+            if not match:
+                return None
+            hashes[name] = match[1]
+        return {'PHASE3_ENABLED': '1', 'PHASE4_ENABLED': '1', **hashes, 'evidence': 'api startup log'}
+    return None
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('command', choices=('detect', 'budget', 'provision', 'exec-api', 'endpoint', 'args', 'cleanup'))
+    parser.add_argument('command', choices=('detect', 'budget', 'provision', 'exec-api', 'endpoint', 'args', 'cleanup', 'grant', 'scenario', 'zone-flags'))
     parser.add_argument('--folder', type=Path)
+    parser.add_argument('--log', type=Path, help='zone-flags: the API log to read')
+    parser.add_argument('--out', type=Path, help='zone-flags: the record to write')
     parser.add_argument('scenarios', type=Path, nargs='*')
     args = parser.parse_intermixed_args()
     if args.command == 'budget':
@@ -428,11 +510,21 @@ def main():
     if args.command == 'detect':
         print(fixture(args.scenarios))
         return
+    if args.command == 'zone-flags':
+        record = api_zone_flags(args.log)
+        if record is None:
+            raise ValueError(f'API log {args.log} has no V6 bootstrap line; zone flags not attested')
+        args.out.write_text(json.dumps(record, sort_keys=True) + '\n')
+        return
     folder = args.folder.resolve()
     if args.command == 'provision':
         provision(folder, args.scenarios)
     elif args.command == 'cleanup':
         cleanup(folder)
+    elif args.command == 'grant':
+        grant(folder)
+    elif args.command == 'scenario':
+        print(scenario_copy(folder, args.scenarios[0].resolve()))
     else:
         value = state(folder)
         if args.command == 'exec-api':
@@ -440,6 +532,8 @@ def main():
                 raise ValueError('API binary changed after fixture provisioning')
             if not (folder / 'seed-complete').is_file():
                 raise ValueError('API startup requires completed before-admission seed')
+            if {k: value['env'][k] for k in ('PHASE3_ENABLED', 'PHASE4_ENABLED') if k in value['env']} != zone_flags(value['fixture']):
+                raise ValueError('API zone flags differ from the unit manifest')
             # Running outside the repo also prevents a binary's dotenv lookup from finding root .env.
             os.chdir(folder)
             os.execve(value['api_binary'], [value['api_binary']], value['env'])
