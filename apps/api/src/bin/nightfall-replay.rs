@@ -430,17 +430,16 @@ async fn main() -> ExitCode {
     };
     // V6 epochs recorded over a RULES_DIR overlay reference its composed bundle by hash;
     // the same overlay must be supplied to resolve them (the embedded bundle needs nothing).
+    // It is composed lazily, only when a recorded hash misses the embedded bundle.
     if let Some(dir) = std::env::var_os("RULES_DIR").filter(|dir| !dir.is_empty()) {
-        let installed = nightfall_api::infrastructure::skill_data::Phase3DataSource::from_dir(
+        match nightfall_api::infrastructure::skill_data::Phase3DataSource::from_dir(
             std::path::Path::new(&dir),
-        )
-        .map_err(|error| error.to_string())
-        .and_then(|source| {
-            nightfall_api::infrastructure::item_data::configured_phase4_bundle(&source)
-        });
-        if let Err(error) = installed {
-            eprintln!("error: RULES_DIR V6 bundle: {error}");
-            return ExitCode::from(ERROR);
+        ) {
+            Ok(source) => nightfall_api::infrastructure::item_data::register_phase4_source(source),
+            Err(error) => {
+                eprintln!("error: RULES_DIR V6 bundle: {error}");
+                return ExitCode::from(ERROR);
+            },
         }
     }
     let result = match args.command {
