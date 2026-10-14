@@ -495,6 +495,7 @@ sim_fixture_finish() {
   SIM_FIXTURE_DIR=""
   SIM_API_URL="$SIM_PRE_FIXTURE_API_URL"
   if [[ "$SIM_PRE_FIXTURE_NATS_SET" == x ]]; then export NATS_URL="$SIM_PRE_FIXTURE_NATS"; else unset NATS_URL; fi
+  if [[ "${SIM_PRE_FIXTURE_RULES_SET:-}" == x ]]; then export RULES_DIR="$SIM_PRE_FIXTURE_RULES"; else unset RULES_DIR; fi
 }
 
 sim_unit_prepare() {
@@ -532,6 +533,12 @@ sim_unit_prepare() {
   local -a endpoints=()
   mapfile -t endpoints <"$endpoints_file"; rm -f "$endpoints_file"
   SIM_API_URL="${endpoints[0]}"; export NATS_URL="${endpoints[1]}"
+  # nightfall-replay (export/check/evidence) must compose the same RULES_DIR bundle the
+  # fixture API ran with: V6 epochs over an overlay reference that bundle by hash.
+  SIM_PRE_FIXTURE_RULES_SET="${RULES_DIR+x}"; SIM_PRE_FIXTURE_RULES="${RULES_DIR:-}"
+  RULES_DIR="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["data_sources"]["rules_dir"])' "$SIM_FIXTURE_DIR/state.json")" \
+    || sim_die "fixture manifest lacks its rules directory"
+  export RULES_DIR
   sim_api_endpoint_probe free || sim_die "fixture API endpoint occupied"
   SIM_API_URL="${endpoints[2]}" sim_api_endpoint_probe free || sim_die "fixture gRPC endpoint occupied"
   python3 "$SIM_HERE/phase2-fixture.py" exec-api --folder "$SIM_FIXTURE_DIR" >"$SIM_FIXTURE_DIR/api.log" 2>&1 &
