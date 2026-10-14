@@ -76,7 +76,7 @@
     <div class="diagram-container">
       <svg viewBox="0 0 1280 670" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="click-move-title click-move-desc">
 <title id="click-move-title">Click to move</title>
-<desc id="click-move-desc">A click previews the move on the pawn and sends a MoveTo in tile units; the server answers with an Ack or IntentRejected, and EntityMove events for the own entity reconcile the pawn.</desc>
+<desc id="click-move-desc">A click shows a preview of the move on the pawn and sends a MoveTo in tile units. The server replies with an Ack or an IntentRejected. EntityMove events for the own entity reconcile the pawn.</desc>
 <defs>
 <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/></marker>
 <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#eb6c36"/></marker>
@@ -138,9 +138,9 @@
     </div>
 
     <div class="notes">
-<p><strong>01–03:</strong> <code>OnClickMove</code> raycasts the ground (falling back to the Z=ground plane when nothing is hit) and calls <code>MoveToWorldLocation</code>: <code>SimpleMoveToLocation</code> starts the local preview at once, and the destination goes out as tiles (<code>cm / 100</code>, <code>UnitsPerTile</code>) in <code>MoveTo</code> with a new <code>seq</code>. Logged at Verbose (<code>LogNightfall</code>).</p>
-<p><strong>04–06:</strong> Exactly one <code>Ack{seq, tick}</code> or <code>IntentRejected{seq, reason}</code> comes back (<code>OUT_OF_BOUNDS</code>, <code>TOO_FAR</code> beyond 64 tiles, <code>RATE_LIMITED</code>, ...). A rejection for the pending seq stops the preview, puts the pawn back on the last server position and shows the reason in the status line.</p>
-<p><strong>07–08:</strong> <code>EntityMove</code> for the own entity (the character id) reaches <code>UOwnEntityComponent</code>, never a proxy. The pawn snaps to the server position when more than 3 tiles away (this is also how it lands on its <code>EntitySpawn</code> tile), re-issues the local move if the server destination differs from the clicked one by more than 1 tile, and walks at the server speed (tiles/s), nudged to stay level with the server. Speed 0 means stopped.</p>
+<p><strong>01–03:</strong> <code>OnClickMove</code> does a raycast to the ground (if the raycast hits nothing, it uses the Z=ground plane) and calls <code>MoveToWorldLocation</code>: <code>SimpleMoveToLocation</code> starts the local preview immediately. The destination goes out as tiles (<code>cm / 100</code>, <code>UnitsPerTile</code>) in <code>MoveTo</code> with a new <code>seq</code>. The client logs this at Verbose (<code>LogNightfall</code>).</p>
+<p><strong>04–06:</strong> The server returns exactly one <code>Ack{seq, tick}</code> or <code>IntentRejected{seq, reason}</code> (<code>OUT_OF_BOUNDS</code>, <code>TOO_FAR</code> beyond 64 tiles, <code>RATE_LIMITED</code>, ...). If the server rejects the pending seq, the client stops the preview, puts the pawn back at the last server position and shows the reason in the status line.</p>
+<p><strong>07–08:</strong> <code>EntityMove</code> for the own entity (the character id) goes to <code>UOwnEntityComponent</code>, and not to a proxy. If the pawn is more than 3 tiles from the server position, it moves to that position immediately (this is also how it gets to its <code>EntitySpawn</code> tile). If the server destination is more than 1 tile from the clicked destination, the pawn sends the local move again. The pawn walks at the server speed (tiles/s), with small corrections to stay level with the server. Speed 0 means that the pawn stopped.</p>
 <p>Source: <a href="../../apps/client-unreal/Source/Nightfall/NightfallPlayerController.cpp">NightfallPlayerController.cpp</a> · <a href="../../apps/client-unreal/Source/Nightfall/Game/OwnEntityComponent.cpp">OwnEntityComponent.cpp</a> · <a href="../../apps/client-unreal/Source/Nightfall/Net/NetClientSubsystem.cpp">NetClientSubsystem.cpp</a> · <a href="../../packages/proto/nightfall/v1/world.proto">world.proto</a>.</p>
 </div>
   </div>

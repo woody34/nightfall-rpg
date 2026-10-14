@@ -1,20 +1,20 @@
 # Nightfall Unreal Client
 
-Unreal Engine 5 thin client for the Rust server. Decision and reasoning:
+This is the Unreal Engine 5 thin client for the Rust server. For the decision and the reasons, see
 `docs/research/engine-comparison.md` §0.
 
 ## Principles
 
-1. **The server owns the game.** The client renders state and sends intents. No UE replication,
+1. **The server controls the game.** The client renders the state and sends intents. No UE replication,
    no GAS, no dedicated server, no `NetDriver`. `OnlineSubsystem` and `GameplayAbilities` are
    disabled in the `.uproject`, and `DefaultEngine.ini` clears the net driver definitions.
-2. **One place touches bytes.** `UNetClientSubsystem` owns the WebSocket, `USessionClient` owns the
-   gRPC channel, and all protobuf bytes are produced by generated code. Everything else uses typed
+2. **Only one place touches bytes.** `UNetClientSubsystem` controls the WebSocket, and `USessionClient` controls the
+   gRPC channel. Generated code makes all protobuf bytes. All other code uses typed
    structs and delegates.
 3. **Interpolate, never extrapolate.** Remote entities render 150 ms behind server time from
-   `FSnapshotBuffer`. The local pawn previews its own moves and is corrected by the server.
-4. **Same contract as the server.** Client code is generated from `packages/proto` (`moon run
-   client-unreal:gen-proto`). Change the proto first, regenerate, then both sides.
+   `FSnapshotBuffer`. The local pawn shows a preview of its own moves, and the server corrects it.
+4. **The client has the same contract as the server.** Client code is generated from `packages/proto` (`moon run
+   client-unreal:gen-proto`). Change the proto first, then generate the code again, then change the two sides.
 5. **Warnings are errors** (`bWarningsAsErrors` in `Nightfall.Build.cs`), as on the Rust side.
 
 ## Layout
@@ -73,67 +73,73 @@ Scripts/
 
 ## Race and class (Phase 2)
 
-The creation screen loads the authenticated `ListClasses` catalogue before enabling Create.
-Its race cards, base-class choices, six base-stat bars, passive descriptions, and appearance bounds
+The creation screen loads the authenticated `ListClasses` catalogue before it enables Create.
+The race cards, base-class options, six base-stat bars, passive descriptions and appearance limits
 come from that response. The preview only adds the six server values to show their 170-point budget.
-Sex and appearance are persisted by the server. The available prototype has one hair, color, and
-face option (index 0); shared prototype/placeholder bodies are used. No additional art
-is required to exercise identity, class trees, or transfer rules (distinct racial and sex art is an
-explicit prototype limitation).
+The server keeps the sex and the appearance. The available prototype has one hair, color and
+face option (index 0). The prototype uses shared prototype/placeholder bodies. No more art
+is necessary to test identity, class trees or transfer rules. (Different art for each race and sex is an
+explicit limit of the prototype.)
 
-The HUD's **Class path / Master** button opens the catalogue tree, highlights the current lineage,
-and shows the master location and radius. Clicking the noncombat Class Master NPC at
-`(126,128)` opens the same dialog; its interaction radius is 3 tiles. Its authoritative name
-appears as a gold screen-space label without an HP bar or extra actor. Each option displays
-the server's unmet requirements. Selecting an eligible class offers a
-separate confirmation before calling authenticated, idempotent `ChangeClass`. The server checks
-position, level, branch, availability, and tokens again. Class names and availability
-come from the catalogue. The level cap is 85; transfers stop at tier 2, and third classes remain
-metadata only. Movement follows authoritative `EntityMove` rather than race preview data.
+The **Class path / Master** button on the HUD opens the catalogue tree. It highlights the current lineage
+and shows the master location and radius. A click on the noncombat Class Master NPC at
+`(126,128)` opens the same dialog. Its interaction radius is 3 tiles. Its authoritative name
+shows as a gold screen-space label, without an HP bar or an extra actor. Each option shows
+the requirements that the server says are not met. If you select an eligible class, the client shows a
+separate confirmation before it calls the authenticated, idempotent `ChangeClass`. The server examines the
+position, level, branch, availability and tokens again. Class names and availability
+come from the catalogue. The level cap is 85. Transfers stop at tier 2, and third classes are only
+metadata. Movement follows the authoritative `EntityMove`, not the race preview data.
 
 `ClassChanged` updates only an admitted entity in the same session generation, at or after its
-latest class-state tick. Owner CP, SP, token counts, and class id arrive in `StatsChanged`; older
-resource ticks and other owners' private data are ignored. CP is reserved and does not absorb damage.
-Disconnect clears world identity and resources; admission spawns and owner stats rebuild them. The catalogue survives reconnect.
+latest class-state tick. Owner CP, SP, token counts and class id come in `StatsChanged`. The client ignores older
+resource ticks and the private data of other owners. CP is reserved and does not absorb damage.
+Disconnect clears the world identity and the resources. Admission spawns and owner stats make them again. The catalogue stays after a reconnect.
 
-`Scripts/fix-proto-optionals.py` repairs TurboLink 1.4.2's synthetic proto3 optional scalar handling
-as part of generation. A default creation request omits `base_class_id` (resolving to the race fighter); explicit class 0 remains
-present (Human Fighter, rejected for other races). `Nightfall.Class.Creation.OptionalPresence` checks the real protobuf bytes for omission,
-zero, and a nonzero id. The other class automation tests exercise wire decoding, stale-session
-fences, owner privacy, reconnect, catalogue paths, bounded malformed cycles, and native layouts.
+`Scripts/fix-proto-optionals.py` repairs how TurboLink 1.4.2 does the synthetic proto3 optional scalars.
+This occurs during generation. A default creation request omits `base_class_id` (this gives the race fighter). An explicit class 0 stays
+present (Human Fighter, rejected for other races). `Nightfall.Class.Creation.OptionalPresence` examines the real protobuf bytes for omission,
+zero and a nonzero id. The other class automation tests test wire decoding, stale-session
+fences, owner privacy, reconnect, catalogue paths, bounded malformed cycles and native layouts.
 
-Race, sex, and index-zero appearance controls are functional metadata. The current staged world uses shared
-prototype/placeholder bodies: `SKM_Manny_Simple` is not imported or cooked in this checkout, and remote-player
-fallbacks render cylinders. Distinct racial/sex 3D art is unavailable.
+The race, sex and index-zero appearance controls are functional metadata. The staged world now uses shared
+prototype/placeholder bodies. `SKM_Manny_Simple` is not imported or cooked in this checkout, and the fallbacks for remote players
+render cylinders. Different 3D art for each race and sex is not available.
 
-The table records authored coverage. Required-live automation passed 62/62 with zero skips at `6820c62`
-against API `7ceb323`. The full ordinary native suite passed 30 scenario files / 25 logical units (19 Phase 1a +
-11 Phase 2 files; 25 PASS, 0 FAIL, 0 quarantine in 1,193.284 s / ~19m 53s) under root coordinator execution
-at client `92b34d2` (incorporating `1a9c5cb` and API `7ceb323`). Historical retry verification was delivered
-by extending `2-class-transfer-reconnect.nfs` to replay historical keyA after keyB + reconnect, proving an old
-frozen receipt cannot roll back live world state or replay newer progression (no 12th Phase 2 scenario file was
-introduced). Current Game BuildCookRun staging passed in 49.25 s with matching binary hash `3af752926c8ca3a384c736509bf18217d66fbb3cf27555b7fe002bc47b7eff99`
-at client `4f61f0a` (identical native/production/API/data to tested `92b34d2`). Packaged coordinator combat soak
-(`/tmp/phase2-client-final-soak-01/report.json`, exit code 0) passed: 8 clients requested 1,200 s across 23 cycles each
-(184 total cycles; observed per client 1,231.441–1,250.215 s), combat tick p99
-16.087356 ms (< 20 ms budget), observed histogram ticks 12,612 equaled recorded 12,612 ticks, and replay matched 96,281 outputs
-(22,662,346 bytes compared, 0 digest-only). Main `00b9ac1` merged and pushed; root Game (42.11 s), Editor
-(32.70 s), and focused class smoke (6/6, zero skips) passed with exit 0. The user trace was preserved.
-Required token milestone crossing and admission backfill scenarios are authored and validated; whole Phase 2 completion is not claimed.
+The table records the authored coverage. These are the results:
+
+- Required-live automation passed 62/62 with zero skips at `6820c62`
+  against API `7ceb323`.
+- The full ordinary native suite passed 30 scenario files / 25 logical units (19 Phase 1a +
+  11 Phase 2 files; 25 PASS, 0 FAIL, 0 quarantine in 1,193.284 s / ~19m 53s). The root coordinator ran it
+  at client `92b34d2` (this includes `1a9c5cb` and API `7ceb323`).
+- The historical retry verification extended `2-class-transfer-reconnect.nfs`. The scenario now replays the historical keyA after keyB + reconnect. This proves that an old
+  frozen receipt cannot roll back the live world state or replay a newer progression. (The team did not add a 12th Phase 2 scenario file.)
+- The Game BuildCookRun staging now passed in 49.25 s with the matching binary hash `3af752926c8ca3a384c736509bf18217d66fbb3cf27555b7fe002bc47b7eff99`
+  at client `4f61f0a` (the native/production/API/data is identical to the tested `92b34d2`).
+- The packaged coordinator combat soak
+  (`/tmp/phase2-client-final-soak-01/report.json`, exit code 0) passed. 8 clients requested 1,200 s across 23 cycles each
+  (184 total cycles; observed for each client 1,231.441–1,250.215 s). The combat tick p99 was
+  16.087356 ms (< 20 ms budget). The observed histogram ticks 12,612 were equal to the recorded 12,612 ticks. The replay matched 96,281 outputs
+  (22,662,346 bytes compared, 0 digest-only).
+- Main `00b9ac1` was merged and pushed. The root Game (42.11 s), Editor
+  (32.70 s) and focused class smoke (6/6, zero skips) passed with exit 0. The user trace was kept.
+- The required token milestone crossing and admission backfill scenarios are authored and validated. This document does not claim that all of Phase 2 is complete.
+
 See the [verification outcome](../../docs/plans/phase-2-race-and-class-outcome.md),
 [class transfer observability](../../docs/engineering/class-transfer-observability.md), and
 [class tree diagram](../../docs/diagrams/phase-2-class-tree.html).
 
 | Scope | Authored scenario / automation coverage |
 |---|---|
-| Five races, nine starting classes, sex, appearance, exact stat preview | `2-create-each-race-class-01.nfs`, `2-create-each-race-class-02.nfs`, `2-create-each-race-class-03.nfs` (three fresh accounts; 01 also fills seven slots and rejects the eighth) |
-| Invalid race/class, transfer-class creation, sex, appearance | `2-create-invalid.nfs` |
+| Five races, nine starting classes, sex, appearance, exact stat preview | `2-create-each-race-class-01.nfs`, `2-create-each-race-class-02.nfs`, `2-create-each-race-class-03.nfs` (three new accounts; 01 also fills seven slots and rejects the eighth) |
+| Race/class that is not valid, transfer-class creation, sex, appearance | `2-create-invalid.nfs` |
 | Current lineage, unmet level/range, permanent transfer confirmation | `Nightfall.Class.UI.CatalogueAndLayouts`, `2-class-transfer-rejected.nfs` |
 | Two transfers, token consumption, no downgrade, persisted lineage, reconnect | `2-class-transfer.nfs` |
 | Exact Elf movement/Human XP and source learning availability | `2-racial-traits.nfs` |
 | Public observer class/title and owner resource privacy | `2-class-transfer-observer-a.nfs`, `2-class-transfer-observer-b.nfs` (paired) |
-| Reconstruct class/token state between successive transfers and historical retry | `2-class-transfer-reconnect.nfs` (reconstructs state and replays historical keyA after keyB + reconnect) |
-| Late callbacks after logout/account switch and pending-mutation exclusion | `Nightfall.Class.State.AccountAndRequestLifetimes` |
+| Make the class/token state again between successive transfers, and historical retry | `2-class-transfer-reconnect.nfs` (makes the state again and replays historical keyA after keyB + reconnect) |
+| Late callbacks after logout/account switch, and pending-mutation exclusion | `Nightfall.Class.State.AccountAndRequestLifetimes` |
 | Missing claimed token and reconnect preservation, wire admission claimed-zero verification | `2-class-transfer-missing-token.nfs` |
 | Level 20 token milestone, combat overlay, delevel/relevel preservation, single transfer consumption, post-consumption re-crossing zero verification | `2-token-milestone20.nfs` |
 | Level 40 token milestone, combat overlay, delevel/relevel preservation, dual transfer consumption, post-consumption re-crossing zero verification | `2-token-milestone40.nfs` |
@@ -141,121 +147,151 @@ See the [verification outcome](../../docs/plans/phase-2-race-and-class-outcome.m
 | Legacy level 40 admission backfill, shipped zone, durable claim, auto-get skill catch-up, dual transfer consumption | `2-token-backfill.nfs` |
 | Additive optional wire contract / typed identity and resource projection | `Nightfall.Class.Creation.OptionalPresence`, `Nightfall.Class.State.WireAndFences` |
 
-The transfer, reconnect, observer-pair, missing-token, and token milestone / backfill scenarios require the Phase 2 harness to seed their disposable account **before
-admission**: positive is a level-40 Human base class 0 with tokens 1/1 at `(126,126)`, and missing-token
-is level 20 with its tier-1 milestone claimed and token count 0 at that position. The four approved
-once-only token milestone and admission backfill profiles exercise live token grants, delevel/relevel stability,
-idempotency, and backfill:
-- `phase2-token-level20` (`2-token-milestone20.nfs`): seeded at level 19 (XP 835,861; 0/0 tokens). Asserts initial admission tokens 0/0, kills the temporary overlay oracle to cross level 20 (XP 846,607; 1/0 tokens) followed by unarmed combat cooldown (StopAttack and bounded Sleep 2) and fresh transfer options, survives reconnect (asserting initial admission balance 1/0), dies to the sentinel (XP 832,278 level 19; tokens unchanged), respawns, relevels to 20 on a second oracle kill (XP 843,024; tokens remain 1/0 without duplicate grant), and consumes the token at the Class Master with idempotency retry before and after reconnect (asserting admission 0/0). A post-consumption spent-token re-crossing check (second death to XP 828,695 at level 19, respawn, and third kill to XP 839,441 at level 20) proves claimed zero never refills on real crossing with class 1 and options 0/0 retained.
-- `phase2-token-level40` (`2-token-milestone40.nfs`): seeded at level 39 (XP 15,422,928; 1/0 tokens). Asserts initial admission tokens 1/0, kills the overlay oracle to cross level 40 (XP 15,488,816; 1/1 tokens) followed by unarmed combat cooldown and fresh transfer options, survives reconnect (asserting initial admission balance 1/1), dies to the sentinel (XP 15,400,965 level 39; tokens unchanged), respawns, relevels to 40 on a second oracle kill (XP 15,466,853; tokens remain 1/1 without duplicate grant), and completes two successive transfers (0 -> 1 -> 2) consuming both tokens with idempotency retry before and after reconnect (asserting admission 0/0). A post-consumption spent-token re-crossing check (second death to XP 15,379,002 at level 39, respawn, and third kill to XP 15,444,890 at level 40) proves claimed zero never refills on real crossing with class 2 and options 0/0 retained.
-- `phase2-token-jump19-40` (`2-token-jump19-40.nfs`): seeded at level 19 (XP 835,861; 0/0 tokens). Asserts initial admission tokens 0/0, kills the high-yield overlay oracle to jump directly to level 40 (XP 15,422,929; 1/1 tokens awarded across both thresholds) followed by unarmed combat cooldown and fresh options, reconnects (asserting initial admission balance 1/1), completes two transfers, and verifies historical retry after reconnect (asserting admission 0/0).
-- `phase2-token-backfill` (`2-token-backfill.nfs`): legacy level 40 Human base class 0 character admitted with 0/0 tokens; authoritative admission automatically backfills both tokens (1/1) immediately (verified via first-frame initial token predicates on entry and repeated reconnects), catches up 4 auto-get skills on first transfer, and consumes both tokens across two transfers (reconnect asserting admission 0/0).
+For the transfer, reconnect, observer-pair, missing-token, and token milestone / backfill scenarios, the Phase 2 harness must seed their disposable account **before
+admission**:
 
-Fixtures are provisioned before admission and never modify a live character. The three combat crossing profiles (`phase2-token-level20`, `phase2-token-level40`, `phase2-token-jump19-40`) generate an isolated, temporary test overlay derived from `packages/data` before API startup, modifying only `zones/test_zone.toml` (safe spawn at `126,126`, Class Master at `126,128`, oracle at `126,125`, sentinel at `130,126`) and introducing two standard NPC templates (`token_oracle` and `token_sentinel`) without modifying shipped packages. `phase2-token-backfill` uses the shipped test zone without combat overlay.
-The consumption fixture provisions a sparse learned ledger containing only
-`racial.adaptable 1` without L2 auto-get entries. Direct pinned XML oracle verification of inherited Human 0/1/2
-at level 40 confirms identical baseline ranks (1320 rank 4, 1322 rank 1, 194 rank 1, 239 rank 2); the first
-transfer catches up four omitted metadata keys and the second catches up zero (not class-specific new unlocks),
-whereas a fully learned class 0 ledger at 40 would show zero delta on both transfers. The ordinary runners
-read `# fixture:` declarations (`phase2-transfer`, `phase2-transfer-observer`, `phase2-transfer-missing-token`, `phase2-token-level20`, `phase2-token-level40`, `phase2-token-jump19-40`, `phase2-token-backfill`)
-and provision before admission; the observer pair uses different accounts. Independent creation matrices use
-numeric suffixes (`-01`, `-02`, `-03`) and token scenarios use distinct solo filenames (`2-token-*.nfs`) to avoid accidental runner pairing. Ordinary creation starts at `(0,0)`. The
-range-denial scenario travels around monster homes in segments below the server's 64-tile move limit.
+- The positive account is a level-40 Human base class 0 with tokens 1/1 at `(126,126)`.
+- The missing-token account is level 20, with its tier-1 milestone claimed and token count 0 at that position.
 
-Run a seeded transfer through the ordinary wrapper, choosing a fresh artifact directory:
+There are four approved
+once-only token milestone and admission backfill profiles. They test live token grants, delevel/relevel stability,
+idempotency and backfill:
+- `phase2-token-level20` (`2-token-milestone20.nfs`): seeded at level 19 (XP 835,861; 0/0 tokens). The scenario does these steps:
+  - It asserts the initial admission tokens 0/0.
+  - It kills the temporary overlay oracle to go above level 20 (XP 846,607; 1/0 tokens). Then it does the unarmed combat cooldown (StopAttack and bounded Sleep 2) and gets new transfer options.
+  - It does a reconnect (and asserts the initial admission balance 1/0).
+  - It dies to the sentinel (XP 832,278 level 19; the tokens do not change), and respawns.
+  - It goes to level 20 again on a second oracle kill (XP 843,024; the tokens stay 1/0 without a duplicate grant).
+  - It consumes the token at the Class Master, with an idempotency retry before and after reconnect (and asserts admission 0/0).
+  - A post-consumption spent-token re-crossing check follows: a second death (to XP 828,695 at level 19), a respawn, and a third kill (to XP 839,441 at level 20). This check proves that a claimed zero never refills on a real crossing. Class 1 and options 0/0 stay.
+- `phase2-token-level40` (`2-token-milestone40.nfs`): seeded at level 39 (XP 15,422,928; 1/0 tokens). The scenario does these steps:
+  - It asserts the initial admission tokens 1/0.
+  - It kills the overlay oracle to go above level 40 (XP 15,488,816; 1/1 tokens). Then it does the unarmed combat cooldown and gets new transfer options.
+  - It does a reconnect (and asserts the initial admission balance 1/1).
+  - It dies to the sentinel (XP 15,400,965 level 39; the tokens do not change), and respawns.
+  - It goes to level 40 again on a second oracle kill (XP 15,466,853; the tokens stay 1/1 without a duplicate grant).
+  - It completes two successive transfers (0 -> 1 -> 2) that consume the two tokens. It does an idempotency retry before and after reconnect (and asserts admission 0/0).
+  - A post-consumption spent-token re-crossing check follows: a second death (to XP 15,379,002 at level 39), a respawn, and a third kill (to XP 15,444,890 at level 40). This check proves that a claimed zero never refills on a real crossing. Class 2 and options 0/0 stay.
+- `phase2-token-jump19-40` (`2-token-jump19-40.nfs`): seeded at level 19 (XP 835,861; 0/0 tokens). The scenario does these steps:
+  - It asserts the initial admission tokens 0/0.
+  - It kills the high-yield overlay oracle to go directly to level 40 (XP 15,422,929; 1/1 tokens for the two thresholds). Then it does the unarmed combat cooldown and gets new options.
+  - It does a reconnect (and asserts the initial admission balance 1/1).
+  - It completes two transfers, and it examines the historical retry after reconnect (and asserts admission 0/0).
+- `phase2-token-backfill` (`2-token-backfill.nfs`): a legacy level 40 Human base class 0 character is admitted with 0/0 tokens. The scenario shows these results:
+  - The authoritative admission immediately backfills the two tokens (1/1) automatically. The first-frame initial token predicates examine this on entry and on repeated reconnects.
+  - The first transfer catches up 4 auto-get skills.
+  - Two transfers consume the two tokens (the reconnect asserts admission 0/0).
+
+The fixtures are provisioned before admission, and they never change a live character. The three combat crossing profiles (`phase2-token-level20`, `phase2-token-level40`, `phase2-token-jump19-40`) make an isolated, temporary test overlay from `packages/data` before API startup. The overlay changes only `zones/test_zone.toml` (safe spawn at `126,126`, Class Master at `126,128`, oracle at `126,125`, sentinel at `130,126`). It adds two standard NPC templates (`token_oracle` and `token_sentinel`) and does not change the shipped packages. `phase2-token-backfill` uses the shipped test zone without a combat overlay.
+The consumption fixture provisions a sparse learned ledger that has only
+`racial.adaptable 1`, without L2 auto-get entries. We did a direct verification against the pinned XML oracle.
+For the inherited Human 0/1/2 at level 40, it shows identical baseline ranks (1320 rank 4, 1322 rank 1, 194 rank 1, 239 rank 2). The first
+transfer catches up four omitted metadata keys, and the second catches up zero (these are not new class-specific unlocks).
+For comparison, a class 0 ledger that is fully learned at 40 shows zero delta on the two transfers. The ordinary runners
+read the `# fixture:` declarations (`phase2-transfer`, `phase2-transfer-observer`, `phase2-transfer-missing-token`, `phase2-token-level20`, `phase2-token-level40`, `phase2-token-jump19-40`, `phase2-token-backfill`)
+and provision before admission. The observer pair uses different accounts. Independent creation matrices use
+numeric suffixes (`-01`, `-02`, `-03`), and the token scenarios use different solo file names (`2-token-*.nfs`). This prevents an accidental pairing by the runner. Ordinary creation starts at `(0,0)`. The
+range-denial scenario moves around monster homes in segments that are shorter than the 64-tile move limit of the server.
+
+Run a seeded transfer through the ordinary wrapper. Select a new artifact directory:
 
 ```bash
 bash Scripts/run-sim.sh --api start --artifacts Saved/Phase2TransferAttempt \
   Scenarios/2-class-transfer.nfs
 ```
 
-The wrapper provisions isolated dynamic ports, runs the migration and guarded seeder before
-API startup, and supplies the supported `GrpcEndpoint` configuration override. Each role gets a
-private mode-0600 `DevTokenFile`; complete tokens stay out of bot command-line arguments.
-Phase 2 CI uses `--fresh-stack`. Host `psql` is unnecessary. Use the generated configuration;
-custom endpoint or token overrides are refused. See the [fixture guide](Scripts/phase2-fixtures.md)
-for ownership, cleanup, and paired scenarios. Harness endpoint and private-token fixes landed at `758e43f`.
-An initial diagnostic run (`diagnostic-01`) failed because the test mistakenly expected a nonzero grant on the
-second transfer and the coverage reader accepted schema 1 only instead of emitted schema 2; corrected `retry-02` passed (65 steps in 2.94 s, wrapper
-12 s), and full ordinary native acceptance passed across all 30 scenario files / 25 logical units.
+Before the API starts, the wrapper provisions isolated dynamic ports, and runs the migration and the guarded seeder.
+It also supplies the supported `GrpcEndpoint` configuration override. Each role gets a
+private mode-0600 `DevTokenFile`. Complete tokens are not in the bot command-line arguments.
+Phase 2 CI uses `--fresh-stack`. Host `psql` is not necessary. Use the generated configuration.
+The wrapper refuses custom endpoint or token overrides. See the [fixture guide](Scripts/phase2-fixtures.md)
+for ownership, cleanup and paired scenarios. The harness endpoint and private-token fixes were merged at `758e43f`.
+An initial diagnostic run (`diagnostic-01`) failed for two reasons. The test incorrectly expected a nonzero grant on the
+second transfer. The coverage reader accepted only schema 1, but the harness emitted schema 2. The corrected `retry-02` passed (65 steps in 2.94 s, wrapper
+12 s). The full ordinary native acceptance passed across all 30 scenario files / 25 logical units.
 
-Development commands `nf.ClassCatalogue`, `nf.CreateClass <race> <base class> <sex> [hair] [color]
+The development commands `nf.ClassCatalogue`, `nf.CreateClass <race> <base class> <sex> [hair] [color]
 [face]`, `nf.EnterCreated`, `nf.TransferOptions`, `nf.ChangeClass <target>`, `nf.Character`, and
-`nf.MoveMaster` are compiled only outside shipping. They call the same authenticated flow as the
-widgets. For local authentication, use `-DevTokenFile=<path>` as documented below.
-Class predicates are listed by the existing predicate registry and report server results;
-`class_rpc_error` never matches an outstanding operation. Negative scenarios have narrow reasoned
-allow-list entries for their asserted canonical gRPC failures. See the
+`nf.MoveMaster` are compiled only outside shipping builds. They call the same authenticated flow as the
+widgets. For local authentication, use `-DevTokenFile=<path>` as the text below tells you.
+The existing predicate registry lists the class predicates, and they report server results.
+`class_rpc_error` never matches an operation that has not completed. Negative scenarios have narrow allow-list entries, with reasons,
+for their asserted canonical gRPC failures. See the
 [fixture guide](Scripts/phase2-fixtures.md) for isolated seeding and wrapper options.
 
 ## Movement
 
 Diagram: [click to move](../../docs/diagrams/click-to-move-sequence.html).
 
-- **Click:** left mouse (`IMC_Default` maps it to `IA_ClickMove`, both set on `BP_NightfallPC`).
-  `OnClickMove` raycasts the ground, or intersects the ground plane if nothing with collision is hit,
-  then `MoveToWorldLocation` starts `SimpleMoveToLocation` (needs the nav mesh built from
-  `L_TestZone`'s `NavMeshBoundsVolume`; a warning says so when there is none) and sends `MoveTo`.
-- **Units:** the server speaks tiles, the client centimetres: `tile = cm / 100`, `cm = tile * 100`
-  (`UnitsPerTile`, 256x256 tiles = 25600 cm). The server rejects destinations farther than 64 tiles.
-- **Own entity:** the player's entity id is the character id; `ULoginFlowSubsystem` hands it to
-  `UNetClientSubsystem::SetOwnEntityId` when `IssuePlayTicket` succeeds. `UWorldProxySubsystem`
-  spawns no proxy for it. `UOwnEntityComponent` on `ANightfallCharacter` snaps the pawn to the
-  server position when it is more than 3 tiles off (this also places it on its `EntitySpawn` tile,
-  wherever `PlayerStart` is), re-issues the local move when the server destination differs from the
-  click by more than 1 tile, and walks at the server's speed.
-- **Rejections:** `IntentRejected` for the pending `seq` cancels the preview and writes the reason
-  to the on-screen status line.
+- **Click:** the left mouse button. `IMC_Default` maps it to `IA_ClickMove`, and `BP_NightfallPC` sets the two.
+  `OnClickMove` raycasts the ground. If the ray hits nothing with collision, it intersects the ground plane.
+  Then `MoveToWorldLocation` starts `SimpleMoveToLocation` and sends `MoveTo`.
+  This move must have the nav mesh built from
+  the `NavMeshBoundsVolume` of `L_TestZone`. If there is no nav mesh, a warning tells you.
+- **Units:** the server uses tiles, and the client uses centimetres: `tile = cm / 100`, `cm = tile * 100`
+  (`UnitsPerTile`, 256x256 tiles = 25600 cm). The server rejects destinations that are more than 64 tiles away.
+- **Own entity:** the entity id of the player is the character id. When `IssuePlayTicket` is successful, `ULoginFlowSubsystem` gives it to
+  `UNetClientSubsystem::SetOwnEntityId`. `UWorldProxySubsystem`
+  spawns no proxy for it. `UOwnEntityComponent` on `ANightfallCharacter` does these steps:
+  - When the pawn is more than 3 tiles from the server position, it snaps the pawn to the
+    server position. (This also puts the pawn on its `EntitySpawn` tile, at all positions of `PlayerStart`.)
+  - When the server destination is more than 1 tile from the click, it sends the local move again.
+  - It walks at the speed of the server.
+- **Rejections:** `IntentRejected` for the pending `seq` cancels the preview. It writes the reason
+  to the status line on the screen.
 - **Logs:** `LogNightfall` at Verbose prints each `MoveTo` (tile), `Ack`, `IntentRejected` and own
   `EntityMove` (`-ExecCmds="Log LogNightfall Verbose"`).
-- **Headless:** `nf.ClickMove <tileX> <tileY> [delaySeconds]` runs the click path without a mouse, e.g.
+- **Headless:** `nf.ClickMove <tileX> <tileY> [delaySeconds]` runs the click path without a mouse. For example:
   `-game -nullrhi -DevTokenFile=<file> -ExecCmds="nf.Login, nf.EnterWorld, nf.ClickMove 20 20 10"`.
-- Tests: `Nightfall.Movement.ClickToMove` (no server) and `Nightfall.Movement.EndToEnd` (API running).
-- Building while another editor is open for this engine: add `-NoHotReload` to `Build.sh`, or UBT
+- Tests: `Nightfall.Movement.ClickToMove` (no server) and `Nightfall.Movement.EndToEnd` (the API must run).
+- If you build while a different editor is open for this engine, add `-NoHotReload` to `Build.sh`. If you do not, UBT
   names the modules `...-0001.so` and the link fails.
 
 ## Combat UI (Stories 5.2 and 5.3)
 
 Diagram: [combat sequence](../../docs/diagrams/combat-sequence.html) (client lane).
 
-The client shows what the server says and computes nothing: no damage, hit chance, cooldown or
-range check exists in C++. Contract: `packages/proto/nightfall/v1/world.proto`.
+The client shows what the server says, and it calculates nothing. There is no damage, hit chance, cooldown or
+range check in C++. Contract: `packages/proto/nightfall/v1/world.proto`.
 
-- **Typed events:** `UNetClientSubsystem::DispatchServerMessage` fans a decoded frame out to
+- **Typed events:** `UNetClientSubsystem::DispatchServerMessage` sends a decoded frame to
   `OnAttackResult`, `OnEntityDied`, `OnEntityRespawned`, `OnStatsChanged`, `OnXpGained`,
-  `OnLevelUp`, `OnTargetChanged` (plus spawn/move/despawn/ack/rejected). `FEntitySpawn` carries
+  `OnLevelUp`, `OnTargetChanged` (and spawn/move/despawn/ack/rejected). `FEntitySpawn` has
   the AOI-entry combat state (`bCombatant`, `bDead`, `bAttackable`, `Hp`, `MaxHp`, `Level`,
-  `LifeIncarnation`). `AttackStarted` / `AttackCancelled` are not consumed: the animation (E5.4) places each swing from the `AttackResult` impact tick (see "Art and animation").
+  `LifeIncarnation`). The client does not consume `AttackStarted` / `AttackCancelled`. The animation (E5.4) puts each swing from the `AttackResult` impact tick (see "Art and animation").
   Sends: `SendSetTarget`, `SendAttack`, `SendStopAttack`, `SendRespawn`.
-- **Projection:** `UCombatStateSubsystem` (game-instance subsystem, so it already listens when the
-  socket connects before the map loads) holds per-entity HP / max HP / level / life and the
-  owner's MP, XP and target. Rules:
-  - a spawn with a lower session generation, or lower life incarnation, than held is dropped
-    (`NightfallProto::IsStaleSpawn`, applied in the net cache and the projection);
-  - `AttackResult` / `EntityDied` for an earlier incarnation, or older than the newest fact applied
-    to that entity, are dropped; a repeated `AttackResult` (same tick + attacker + target) changes
-    nothing and shows no second number;
-  - `StatsChanged`, `XpGained`, `TargetChanged` apply only to the own entity (MP and XP are private);
-  - `EntityDied` of the target, or its despawn, clears the target and the attack; own death clears both;
-  - connect and disconnect drop everything; the server's spawn stream and `StatsChanged` rebuild it.
-    XP shows `XP --` until the first `XpGained`, because no event carries the XP total on reconnect.
+- **Projection:** `UCombatStateSubsystem` keeps the HP / max HP / level / life of each entity, and the
+  MP, XP and target of the owner. It is a game-instance subsystem. Thus, it already listens when the
+  socket connects before the map loads. Rules:
+  - The projection ignores a spawn that has a lower session generation, or a lower life incarnation, than the held value
+    (`NightfallProto::IsStaleSpawn`, applied in the net cache and in the projection).
+  - The projection ignores `AttackResult` / `EntityDied` for an earlier incarnation, or older than the newest fact applied
+    to that entity. A repeated `AttackResult` (same tick + attacker + target) changes
+    nothing and shows no second number.
+  - `StatsChanged`, `XpGained` and `TargetChanged` apply only to the own entity (MP and XP are private).
+  - `EntityDied` of the target, or its despawn, clears the target and the attack. Own death clears the two.
+  - Connect and disconnect remove all data. The spawn stream of the server and `StatsChanged` make it again.
+    XP shows `XP --` until the first `XpGained`, because no event has the XP total on reconnect.
 - **HUD:** `UNightfallHud` (CommonUI `UCommonUserWidget`, built in code, added by
-  `ANightfallPlayerController::BeginPlay`) binds to `UCombatStateSubsystem::BuildHudModel()`: own
-  name / level / HP / MP / XP, target frame, attack state ("Attacking..." while the `Attack` is
-  unacked), status line (the login-flow status; `IntentRejected` reasons land here), floating HP
-  bars over combatant proxies, one floating number per deduped `AttackResult` (miss grey, crit
-  large and gold, damage to you red) and the dead overlay with a Respawn button.
-- **Click:** `OnClickMove` ray-traces the Visibility channel; `ARemoteEntityActor::ClickVolume`
-  (query-only capsule) is what a proxy exposes. An attackable NPC under the cursor goes to
-  `UCombatStateSubsystem::ClickEntity`: `SetTarget` (skipped if already selected or pending) then
-  `Attack` (skipped while one is pending or acked), so repeated clicks cannot speed attacks up. Any
-  other click is a ground click: `StopAttack` if attacking, then `MoveTo` as before.
-- **Respawn:** the button sends one `Respawn` until it is answered; only `EntityRespawned` (or a
+  `ANightfallPlayerController::BeginPlay`) binds to `UCombatStateSubsystem::BuildHudModel()`. It shows these items:
+  - The own name / level / HP / MP / XP.
+  - The target frame.
+  - The attack state ("Attacking..." while the `Attack` has no ack).
+  - The status line (the login-flow status; the `IntentRejected` reasons show here).
+  - Floating HP bars over combatant proxies.
+  - One floating number for each deduped `AttackResult` (miss grey, crit large and gold, damage to you red).
+  - The dead overlay with a Respawn button.
+- **Click:** `OnClickMove` ray-traces the Visibility channel. A proxy shows `ARemoteEntityActor::ClickVolume`
+  (query-only capsule) to the trace. An attackable NPC under the cursor goes to
+  `UCombatStateSubsystem::ClickEntity`. This sends `SetTarget` (not sent if the NPC is already selected or pending), then
+  `Attack` (not sent while one is pending or acked). Thus, repeated clicks cannot make attacks faster. All
+  other clicks are ground clicks: `StopAttack` if the player attacks, then `MoveTo` as before.
+- **Respawn:** the button sends one `Respawn` until the server answers. Only `EntityRespawned` (or a
   live spawn) clears the overlay.
 - **Tests:** `Nightfall.Combat.*`, see the table in "Tests".
-- **Server dependent:** until the server's combat behaviour lands, `Attack` and `Respawn` answer
-  `NOT_YET_IMPLEMENTED` (shown as "not available yet") and no `AttackResult` ever arrives, so
-  numbers, HP changes and death are exercised by synthetic events only.
+- **Server dependent:** until the combat behaviour of the server is merged, `Attack` and `Respawn` answer
+  `NOT_YET_IMPLEMENTED` (shown as "not available yet"), and no `AttackResult` comes. Thus,
+  only synthetic events test numbers, HP changes and death.
 
 ## Art and animation (Stories 5.1 import and 5.4)
 
@@ -269,26 +305,34 @@ Licences and credits: [THIRD_PARTY_ASSETS.md](THIRD_PARTY_ASSETS.md) (the cockat
 moon run client-unreal:import-vendor      # or: bash Scripts/import-vendor.sh
 ```
 
-Inputs are the owner's one-time Fab downloads in `Vendor/Downloads/{Cockatrice,NatureLite}` (in a
-git worktree without its own `Vendor/`, the main checkout's is used; `NIGHTFALL_VENDOR_DIR`
-overrides) and Epic's template Manny from the installed engine. `Scripts/import_vendor.py` runs in
-the full editor headless (`-nullrhi`), like `create-content`, and is repeatable: the wrapper first
-deletes `Content/Vendor/{Cockatrice,NatureLite,Mannequins}`, so a rerun reproduces the same
-packages. It ends by loading every role asset and printing its clip length; the last log line is
+The inputs are:
+
+- The one-time Fab downloads of the owner in `Vendor/Downloads/{Cockatrice,NatureLite}`. (In a
+  git worktree without its own `Vendor/`, the importer uses the directory of the main checkout. `NIGHTFALL_VENDOR_DIR`
+  overrides this.)
+- The Epic template Manny from the installed engine.
+
+`Scripts/import_vendor.py` runs headless in
+the full editor (`-nullrhi`), as `create-content` does. You can run it again with the same result: the wrapper first
+deletes `Content/Vendor/{Cockatrice,NatureLite,Mannequins}`, so a new run makes the same
+packages. At the end, it loads each role asset and prints its clip length. The last log line is
 `import_vendor: done`.
 
-- **Cockatrice** (`cockatrice.fbx`): legacy FBX importer (`Interchange.FeatureFlags.Import.FBX 0`,
-  so the take names and options are exact), skeletal mesh with its own skeleton, every FBX take as
-  an AnimSequence (frame-snapped), role takes renamed `AS_Cockatrice_<Role>` with root lock,
-  textures from `coctrice.textures.zip`, one material rebuilt from them. The FBX holds one take per
-  Blender action, so no Blender or frame-range split is needed; take inventory and the choice per
-  role are in THIRD_PARTY_ASSETS.md.
-- **Manny**: the needed template packages are copied to `/Game/Characters/Mannequins` and renamed
-  in the editor to `/Game/Vendor/Mannequins` (references rewritten, redirectors fixed up).
-- **Nature Lite** (optional): six static meshes, two materials plus a masked two-sided leaf
+- **Cockatrice** (`cockatrice.fbx`):
+  - The legacy FBX importer (`Interchange.FeatureFlags.Import.FBX 0`), so the take names and options are exact.
+  - A skeletal mesh with its own skeleton.
+  - Each FBX take as an AnimSequence (frame-snapped). The role takes have the new names `AS_Cockatrice_<Role>`, with root lock.
+  - Textures from `coctrice.textures.zip`, and one material made again from them.
+
+  The FBX has one take for each
+  Blender action. Thus, a Blender split or a frame-range split is not necessary. THIRD_PARTY_ASSETS.md has the take inventory and the take selected for each
+  role.
+- **Manny**: the importer copies the necessary template packages to `/Game/Characters/Mannequins`. Then it renames them
+  in the editor to `/Game/Vendor/Mannequins` (the editor writes the references again and fixes up the redirectors).
+- **Nature Lite** (optional): six static meshes, two materials, and a masked two-sided leaf
   material from the `UE/` textures.
 
-Layout (all git-ignored; nothing in `Content/Vendor` is ever committed):
+Layout (git ignores all of it; do not commit anything in `Content/Vendor`):
 
 ```
 Vendor/Downloads/...            owner's original files (immutable)
@@ -298,43 +342,43 @@ Content/Vendor/Mannequins/      Meshes/SKM_Manny_Simple, SK_Mannequin, Anims/...
 Content/Vendor/NatureLite/      SM_*, M_NatureLite_*, Textures/
 ```
 
-Tracked content refers to these only by **soft path** (`FEntityAnimSet`, `VendorPropScatter`), so a
-clone without the art still builds, loads and plays with the cylinder placeholders;
-`Nightfall.Content.VendorArt` reports a skip there.
+Tracked content refers to these only by **soft path** (`FEntityAnimSet`, `VendorPropScatter`). Thus, a
+clone without the art still builds, loads and plays with the cylinder placeholders.
+In that clone, `Nightfall.Content.VendorArt` reports a skip.
 
 ### Animated bodies
 
-No Animation Blueprint: `UEntityAnimInstance` is a native anim instance whose proxy samples one
-clip (crossfading 0.15 s from the previous one), and `UEntityAnimationComponent` decides which clip
-and where in it from server facts through `FProxyAnimStateMachine` (pure, unit-tested):
+There is no Animation Blueprint. `UEntityAnimInstance` is a native anim instance, and its proxy samples one
+clip (with a 0.15 s crossfade from the previous clip). `UEntityAnimationComponent` uses server facts to find which clip
+to use, and which position in it. It does this through `FProxyAnimStateMachine` (pure, unit-tested):
 
 | State | From | Clip |
 |---|---|---|
-| Idle / Walk / Run | `EntityMove` speed valid at render time (0 / > 0 / ≥ `RunSpeedTilesPerSecond`); own pawn: its preview velocity | loops phased on render time |
-| Attack | `AttackResult` with this body as attacker: starts `AttackImpactSeconds / AttackPlayRate` before the impact tick, so the blow lands on it | one-shot |
+| Idle / Walk / Run | The `EntityMove` speed that is valid at render time (0 / > 0 / ≥ `RunSpeedTilesPerSecond`); own pawn: its preview velocity | loops phased on render time |
+| Attack | `AttackResult` with this body as attacker: starts `AttackImpactSeconds / AttackPlayRate` before the impact tick, so the blow occurs on that tick | one-shot |
 | Flinch | `AttackResult` HIT/CRIT on this body, from the impact for `FlinchSeconds` | start of the death clip (see below) |
-| Dying → Corpse | `EntityDied` at its tick; held on the last frame until `EntityDespawn` | one-shot, frozen |
+| Dying → Corpse | `EntityDied` at its tick; stays on the last frame until `EntityDespawn` | one-shot, frozen |
 | Corpse | `EntitySpawn` with `dead` (late AOI entry) | last frame |
 | back to Idle | `EntityRespawned` at its tick, or a live spawn | |
 
-Priority is dead > attack > flinch > locomotion. Remote proxies evaluate at server time − 150 ms,
-the same delay as their position (`FSnapshotBuffer`); an `AttackResult` normally arrives before its
-impact is rendered, so the clip starts on time or is joined mid wind-up with the impact still on the
-tick. The own pawn evaluates at server time (it is not interpolated), so its own swings are joined
-part-way through. Ticks become server time through the origin learned from `EntityMove`
-(`UNetClientSubsystem::TickToServerTimeMs`, reset per connection). Facts of an earlier NPC life
-(lower incarnation) or an older death/respawn tick are ignored. Nothing here computes combat.
+The priority is dead > attack > flinch > locomotion. Remote proxies evaluate at server time − 150 ms.
+This is the same delay as their position (`FSnapshotBuffer`). In most conditions, an `AttackResult` comes before the client renders its
+impact. Thus, the clip starts on time, or it starts during the wind-up, and the impact stays on the
+tick. The own pawn evaluates at server time (it is not interpolated). Thus, its own swings start
+part-way through. Ticks become server time through the origin that the client learns from `EntityMove`
+(`UNetClientSubsystem::TickToServerTimeMs`, reset for each connection). The client ignores facts of an earlier NPC life
+(lower incarnation) or an older death/respawn tick. Nothing here calculates combat.
 
 | Body | Class | Clips (measured timing) |
 |---|---|---|
-| Keltir (`template_id` `keltir`) | `BP_Keltir`, via `BP_NightfallGameMode.TemplateClasses` | cockatrice, 0.8 scale: idle `Idle1.001`, walk `Walk.001`, attack `Attack` (impact 1.58 s, played 1.6x: 0.99 s wind-up for the keltir's ~1.0 s server impact), death `Dead` (3.0 s), flinch = first 0.35 s of `Dead` (both `Damage` takes have no bone motion) |
+| Keltir (`template_id` `keltir`) | `BP_Keltir`, through `BP_NightfallGameMode.TemplateClasses` | cockatrice, 0.8 scale: idle `Idle1.001`, walk `Walk.001`, attack `Attack` (impact 1.58 s, played 1.6x: 0.99 s wind-up for the approximately 1.0 s server impact of the keltir), death `Dead` (3.0 s), flinch = first 0.35 s of `Dead` (the two `Damage` takes have no bone motion) |
 | Other players | `BP_RemotePlayer` (`PlayerClass`) | Manny: `MM_Idle`, `MF_Unarmed_Walk_Fwd`, run = `MF_Unarmed_Jog_Fwd` at ≥ 3.5 tiles/s (players move at 5), `MM_Attack_01` (impact 0.40 s), `MM_Death_Front_01`, flinch = first 0.2 s of the death clip |
-| Own pawn | `ANightfallCharacter::GetMesh()` | same Manny set |
-| Anything else | `BP_RemoteEntity` | cylinder placeholder |
+| Own pawn | `ANightfallCharacter::GetMesh()` | the same Manny set |
+| All other bodies | `BP_RemoteEntity` | cylinder placeholder |
 
-The legacy UE4 `ThirdPersonRun` that the asset manifest named needs an IK retarget; the native UE5
-jog is used instead. `L_TestZone` gets 15 Nature Lite props around the keltir meadow and the town,
-without collision or navigation effect.
+The legacy UE4 `ThirdPersonRun` in the asset manifest must have an IK retarget. Thus, the client uses the native UE5
+jog. `L_TestZone` gets 15 Nature Lite props around the keltir meadow and the town.
+They have no collision and no effect on navigation.
 
 ### Scripted two-client playtest
 
@@ -342,58 +386,72 @@ without collision or navigation effect.
 GRPC=localhost:50051 moon run client-unreal:playtest   # or: bash Scripts/playtest.sh [kills=3]
 ```
 
-Needs an API that accepts `test:<uuid>` dev tokens (`AUTH_DEV_TOKENS=1`, see "Developer bypass"):
-the script creates two fresh accounts and characters, then runs two `-game` clients (offscreen GPU
-rendering for screenshots; `NULLRHI=1` without a GPU) driven by the non-shipping `nf.Playtest`
-command (`Game/PlaytestCommands.cpp`; `nf.Status` and `nf.Respawn` are there too). Both walk from
-tile (0, 0) to the keltir meadow in hops (one `MoveTo` covers at most 64 tiles); the **hunter**
-attacks the nearest live keltir through the click path until 3 kills; the **victim** never fights
-back, dies, waits 4 s on the dead overlay and presses Respawn. Every animation state change of the
-pawn and of every proxy is logged (`playtest: anim ...`), with screenshots at each kill, death and
-respawn. Pass = both clients log `playtest: RESULT PASS`.
+This script must have an API that accepts `test:<uuid>` dev tokens (`AUTH_DEV_TOKENS=1`, see "Developer bypass").
+The script does these steps:
 
-**Recorded run (2026-10-09, UE 5.8.3, RTX 4060 Ti offscreen).** API: this branch's
-`nightfall-api` with in-memory adapters, `AUTH_DEV_TOKENS=1`, `HTTP_ADDR=127.0.0.1:3100`,
-`GRPC_ADDR=127.0.0.1:50151` (`GRPC=localhost:50151`), so the shared dev server on :50051 (Keycloak
-only, one test user) was not touched. `playtest.sh` exited 0:
+1. It makes two new accounts and characters.
+2. It runs two `-game` clients (offscreen GPU
+   rendering for screenshots; `NULLRHI=1` without a GPU). The non-shipping `nf.Playtest`
+   command controls them (`Game/PlaytestCommands.cpp`; `nf.Status` and `nf.Respawn` are there also).
+3. The two clients walk from
+   tile (0, 0) to the keltir meadow in hops (one `MoveTo` goes a maximum of 64 tiles).
+4. The **hunter** attacks the nearest live keltir through the click path until 3 kills.
+5. The **victim** never attacks back. It dies, waits 4 s on the dead overlay and pushes Respawn.
 
-- **hunter:** walked (0,0) → meadow (own pawn Idle → Run → Idle), attacked the nearest keltir;
-  pawn Idle → Attack → Idle per swing; `KILL 1..3` at ticks 31624 / 31664 / 31725, `XP +28` each
-  (28 → 56 → 84), `LEVEL UP -> 2`; HUD Lv 2, target frame back to empty between kills. `RESULT PASS`.
-- **victim:** walked in, never fought back; pawn Idle → Flinch → Idle on each keltir hit, then
-  `OWN DEATH` at tick 31404 → Dying → Corpse with the "You have died" overlay; Respawn pressed once
-  (seq 4) → `OWN RESPAWN hp 81 at (126, 126)` → Corpse → Idle, overlay gone, no target, HP
+The script logs each animation state change of the
+pawn and of each proxy (`playtest: anim ...`). It makes screenshots at each kill, death and
+respawn. The test passes when the two clients log `playtest: RESULT PASS`.
+
+**Recorded run (2026-10-09, UE 5.8.3, RTX 4060 Ti offscreen).** API: the
+`nightfall-api` of this branch with in-memory adapters, `AUTH_DEV_TOKENS=1`, `HTTP_ADDR=127.0.0.1:3100`,
+`GRPC_ADDR=127.0.0.1:50151` (`GRPC=localhost:50151`). Thus, the run did not touch the shared dev server on :50051 (Keycloak
+only, one test user). `playtest.sh` exited 0:
+
+- **hunter:** walked (0,0) → meadow (own pawn Idle → Run → Idle), and attacked the nearest keltir.
+  The pawn went Idle → Attack → Idle for each swing. `KILL 1..3` at ticks 31624 / 31664 / 31725, `XP +28` each
+  (28 → 56 → 84), `LEVEL UP -> 2`. HUD Lv 2, and the target frame went back to empty between kills. `RESULT PASS`.
+- **victim:** walked in, and never attacked back. The pawn went Idle → Flinch → Idle on each keltir hit. Then
+  `OWN DEATH` at tick 31404 → Dying → Corpse with the "You have died" overlay. Respawn was pushed one time
+  (seq 4) → `OWN RESPAWN hp 81 at (126, 126)` → Corpse → Idle. The overlay went away, there was no target, and HP was
   81 / 126. `RESULT PASS`.
-- **proxies (both clients):** `BP_Keltir` proxies went Idle ↔ Walk (12 / 13 transitions,
-  chasing), Idle → Attack 12 times (each swing), Flinch when hit between swings, and Dying → Corpse
-  on all three kills (2 from Attack, 1 from Idle); the other player
-  appeared as `BP_RemotePlayer` (Manny) running, attacking and flinching, including entering the
-  victim's view late (late AOI entry). Earlier runs also showed a player proxy Dying → Corpse when
+- **proxies (the two clients):** `BP_Keltir` proxies went Idle ↔ Walk (12 / 13 transitions,
+  during the chase) and Idle → Attack 12 times (each swing). They went to Flinch when hit between swings. They went Dying → Corpse
+  on all three kills (2 from Attack, 1 from Idle). The other player
+  showed as `BP_RemotePlayer` (Manny). It ran, attacked and flinched. It also went into the
+  view of the victim late (late AOI entry). Earlier runs also showed a player proxy Dying → Corpse when
   the keltirs killed a player whose client had already quit.
 - Screenshots: [hunter crit on a keltir](../../docs/images/e5.4-playtest-hunter-crit.jpg),
-  [victim dead overlay](../../docs/images/e5.4-playtest-victim-dead.jpg) (rendered images may be
-  shared under Fab EULA §4(b)).
+  [victim dead overlay](../../docs/images/e5.4-playtest-victim-dead.jpg) (you can share rendered images
+  under Fab EULA §4(b)).
 
-Also checked: `Automation RunTests` for `Nightfall.Anim`, `Nightfall.Content`, the offline
-`Nightfall.Combat.*`, `Nightfall.Movement.ClickToMove` and `Nightfall.Net.*` codec/client tests:
-22/22 pass; `import-vendor` run twice gives the same packages and clip lengths; a Linux cook
-(`-run=cook -targetplatform=Linux`) finishes with 0 errors / 0 warnings and its asset registry
-contains the meshes, all role clips and the props (soft references are followed).
+Also examined:
 
-**Still manual / not verified:** watching the animation quality by eye in a windowed client (foot
-sliding of the 14.6 s cockatrice walk at 4 tiles/s, blend pops, camera framing); a packaged
-(staged) build's runtime; the legacy UE4 run retarget; the cockatrice's real hit-reaction clip
-(the FBX's `Damage` takes are empty).
+- `Automation RunTests` for `Nightfall.Anim`, `Nightfall.Content`, the offline
+  `Nightfall.Combat.*`, `Nightfall.Movement.ClickToMove` and the `Nightfall.Net.*` codec/client tests:
+  22/22 pass.
+- Two runs of `import-vendor` give the same packages and clip lengths.
+- A Linux cook
+  (`-run=cook -targetplatform=Linux`) completes with 0 errors / 0 warnings. Its asset registry
+  has the meshes, all role clips and the props (the cook follows soft references).
+
+**Not verified, or manual only:**
+
+- A visual examination of the animation quality in a windowed client (foot
+  sliding of the 14.6 s cockatrice walk at 4 tiles/s, blend pops, camera framing).
+- The runtime of a packaged (staged) build.
+- The legacy UE4 run retarget.
+- A real hit-reaction clip for the cockatrice
+  (the `Damage` takes of the FBX are empty).
 
 ## Simulation (Phase 1a)
 
 Plan: [phase-1a-simulation-testing.md](../../docs/plans/phase-1a-simulation-testing.md).
 Diagram: [bot runner lifecycle](../../docs/diagrams/bot-runner-lifecycle.html).
 
-The real client, headless, drives itself from a scenario file and exits with a verdict. There is no
-separate bot: `UBotScenarioRunner` (game-instance subsystem, `Source/Nightfall/Bot/`) runs the same
-login, net, combat and world code a player's client runs, and asserts on the same projections the
-HUD reads. Without `-BotScenario` it does nothing (shipping builds ignore the flag).
+The real client runs headless. It controls itself from a scenario file and exits with a verdict. There is no
+separate bot. `UBotScenarioRunner` (game-instance subsystem, `Source/Nightfall/Bot/`) runs the same
+login, net, combat and world code that the client of a player runs. It asserts on the same projections that the
+HUD reads. Without `-BotScenario`, it does nothing (shipping builds ignore the flag).
 
 ### Run one locally
 
@@ -407,143 +465,143 @@ cd $UE_ROOT/Engine/Binaries/Linux                     # this engine build needs 
 echo $?                                               # 0 passed, 1 failed
 ```
 
-`Scripts/run-sim.sh` / `moon run client-unreal:sim` (E1.5) wrap this. The client reaches the API
-at `GrpcEndpoint` from `Config/DefaultGame.ini` (`localhost:50051`); the WebSocket URL comes from
-the play ticket (`WS_PUBLIC_URL`). To point at an API on other ports, add
+`Scripts/run-sim.sh` / `moon run client-unreal:sim` (E1.5) wrap this. The client connects to the API
+at `GrpcEndpoint` from `Config/DefaultGame.ini` (`localhost:50051`). The WebSocket URL comes from
+the play ticket (`WS_PUBLIC_URL`). To use an API on other ports, add
 `-ini:Game:[/Script/Nightfall.NetSettings]:GrpcEndpoint=localhost:<port>`.
 
 ### Command-line contract
 
-Scripts (`run-sim.sh`, `run-sim-multi.sh`, CI) rely on exactly this:
+The scripts (`run-sim.sh`, `run-sim-multi.sh`, CI) use exactly this contract:
 
 | Flag | Meaning |
 |---|---|
-| `-BotScenario=<path>` | Scenario to run. Absolute, else relative to the launch directory, else to the project directory. Its base name (`1-kill-one-monster`) names the artifacts. |
-| `-BotOutDir=<dir>` | Artifact directory. Default `<project>/Saved/Sim`. Give each parallel process its own, or distinct scenario names. |
-| `-BotDataDir=<dir>` | Server fixture data directory (`tables/*.toml`, `zones/*.toml`). Default `<project>/../../packages/data`. |
-| `-DevToken=<token>` / `-DevTokenFile=<path>` | As for any run. When neither is given, `nf.Login` uses a fresh `test:<uuid>` account (the API must run with `AUTH_DEV_TOKENS=1`); the account is recorded in the JUnit `account` property. |
-| `-game -nullrhi -nosound -unattended` | The headless client (plan D1). `-unattended` keeps ensures and dialogs from blocking. |
+| `-BotScenario=<path>` | The scenario to run. An absolute path, or else relative to the launch directory, or else relative to the project directory. Its base name (`1-kill-one-monster`) names the artifacts. |
+| `-BotOutDir=<dir>` | The artifact directory. Default `<project>/Saved/Sim`. Give each parallel process its own directory, or use different scenario names. |
+| `-BotDataDir=<dir>` | The server fixture data directory (`tables/*.toml`, `zones/*.toml`). Default `<project>/../../packages/data`. |
+| `-DevToken=<token>` / `-DevTokenFile=<path>` | The same as for all runs. If you give neither, `nf.Login` uses a new `test:<uuid>` account (the API must run with `AUTH_DEV_TOKENS=1`). The JUnit `account` property records the account. |
+| `-game -nullrhi -nosound -unattended` | The headless client (plan D1). `-unattended` prevents ensures and dialogs from blocking. |
 
 | Exit code | Meaning |
 |---|---|
-| `0` | Every step passed, `nf.Within` held, and the sentinel saw no unallowed error or ensure. |
-| `1` | Anything else: a parse error (bad predicate, unknown `nf.*` command, missing timeout, bad allow-list), a failed or timed-out step, the budget exceeded, an unallowed error line or ensure, or the engine shutting down mid-run. |
-| other | The process crashed or was killed before the runner finished; treat as failed. |
+| `0` | All steps passed, `nf.Within` held, and the sentinel saw no unallowed error or ensure. |
+| `1` | All other results: a parse error (bad predicate, unknown `nf.*` command, missing timeout, bad allow-list), a failed or timed-out step, the budget exceeded, an unallowed error line or ensure, or an engine shutdown during the run. |
+| other | The process crashed or was killed before the runner completed. Treat this as failed. |
 
 | Artifact | Contents |
 |---|---|
-| `<out>/<scenario>.xml` | JUnit. One `<testsuite name="<scenario>">`; one `<testcase>` per `nf.WaitFor` / `nf.Expect` (named `L<line> <step>`), plus `nf.Within` (when present), a failed command line (when one fails), and `log and ensure sentinel`; a parse failure is a single `parse scenario` testcase. Properties: `scenario_file`, `exit_code`, `budget_seconds`, `sentinel_unallowed`, `sentinel_allowed`, `allow.<line>`, `account`, `own_entity_id`. |
-| `<artifacts>/<scenario>/<recording>.trace.html` | Offline zone paths, event glyphs, tick scrubber and decoded ±20-tick failure window. Generated by `run-sim.sh`; JUnit links the artifact. Regenerate with `nightfall-replay trace --file run.nfr --session <entity> --fail-tick N --out trace.html`. |
-| `<out>/<scenario>.log` | Run log: every UE log line from start-up to exit, including the step trace (`LogNightfallBot: bot: [  12.345] L14 > nf.WaitFor ...`). |
+| `<out>/<scenario>.xml` | JUnit. One `<testsuite name="<scenario>">`. One `<testcase>` for each `nf.WaitFor` / `nf.Expect` (named `L<line> <step>`), and also `nf.Within` (if present), a failed command line (if one fails), and `log and ensure sentinel`. A parse failure is one `parse scenario` testcase. Properties: `scenario_file`, `exit_code`, `budget_seconds`, `sentinel_unallowed`, `sentinel_allowed`, `allow.<line>`, `account`, `own_entity_id`. |
+| `<artifacts>/<scenario>/<recording>.trace.html` | Offline zone paths, event glyphs, a tick scrubber and the decoded ±20-tick failure window. `run-sim.sh` makes it, and JUnit links the artifact. To make it again, use `nightfall-replay trace --file run.nfr --session <entity> --fail-tick N --out trace.html`. |
+| `<out>/<scenario>.log` | Run log: all UE log lines from start-up to exit, including the step trace (`LogNightfallBot: bot: [  12.345] L14 > nf.WaitFor ...`). |
 
-The report is always written before the process exits, also on parse errors and on shutdown
-mid-run.
+The runner always writes the report before the process exits. This is also true for parse errors and for a shutdown
+during the run.
 
 ### Writing a scenario
 
-A scenario is `Scenarios/<phase>-<what>.nfs`: one step per line, `#` starts a comment (to the end
-of the line), blank lines are ignored. Start with a `# covers: <phase> <story>, ...` line (E5.1).
-Steps run in order on the game-thread tick; the first failing step ends the run and every later
-assertion is reported as skipped.
+A scenario is `Scenarios/<phase>-<what>.nfs`. It has one step on each line. `#` starts a comment (to the end
+of the line). The parser ignores blank lines. Start with a `# covers: <phase> <story>, ...` line (E5.1).
+The steps run in sequence on the game-thread tick. The first step that fails stops the run, and the report shows all
+assertions after it as skipped.
 
 | Step | Meaning |
 |---|---|
-| `nf.WaitFor <predicate> <timeoutSeconds>` | Polls the predicate every tick until it holds (pass) or the timeout passes (fail, with the last observed value). The step after a passed wait runs on the next tick. Every wait has a timeout: derive it from server constants with a 3x margin (plan R1). |
+| `nf.WaitFor <predicate> <timeoutSeconds>` | Polls the predicate at each tick until it holds (pass) or the timeout expires (fail, with the last observed value). The step after a passed wait runs on the next tick. Each wait has a timeout. Calculate it from server constants with a 3x margin (plan R1). |
 | `nf.Expect <predicate>` | Must hold when the step runs. |
-| `nf.Sleep <seconds>` | Pause. Prefer a `WaitFor`. |
-| `nf.Within <seconds>` | Wall-clock budget of the whole scenario: enforced on every tick, reported at exit. At most one. |
-| any other line | A console command, run as typed in the console. `nf.*` names must exist when the scenario is parsed. |
+| `nf.Sleep <seconds>` | Pause. Use a `WaitFor` if possible. |
+| `nf.Within <seconds>` | The wall-clock budget of the full scenario. The runner applies it at each tick and reports it at exit. A maximum of one. |
+| all other lines | A console command, run as if you typed it in the console. The `nf.*` names must exist when the parser reads the scenario. |
 
-Commands (all also work typed into a running client's console):
+Commands (you can also type all of them into the console of a running client):
 
 | Command | Does |
 |---|---|
 | `nf.Login` | `UAuthSubsystem::StartLogin` (dev token, stored login, or device flow) |
-| `nf.EnterWorld [name]` | Lists characters, enters the named one or the first; on an account with none, creates a human with a random letters-only name first |
-| `nf.ClickMove <tileX> <tileY> [delay]` | Runs the whole ground click (`ClickGroundLocation`: StopAttack first when attacking, then MoveTo), like a mouse click on the ground; one move covers at most 64 tiles |
-| `nf.Target <id\|nearest_attackable\|attacker\|last\|none>` | `SetTarget` without attacking (`UCombatStateSubsystem::SelectTarget`); `nearest_attackable` picks the closest attackable entity in view; `attacker` = the nearest living NPC that swung at the player since its newest respawn/reconnect (also one whose spawn said not attackable because it was walking home; the server makes it attackable again without an event); `last` = the newest selection, also after it cleared; any id is sent as given |
-| `nf.Attack` | `Attack` on the selection, once while idle (`AttackSelection`, same rules as clicking the NPC) |
-| `nf.StopAttack` | `StopAttack` while attacking (what a ground click sends) |
-| `nf.Mark` | Remembers the landed-hit count per target: the baseline of `target_hits_since_mark` and `target_hit_from_full` |
-| `nf.Respawn` | `Respawn` while dead, once until answered |
+| `nf.EnterWorld [name]` | Lists the characters, and enters the named character or the first. If the account has no character, it first makes a human with a random name of letters only |
+| `nf.ClickMove <tileX> <tileY> [delay]` | Runs the full ground click (`ClickGroundLocation`: StopAttack first if the player attacks, then MoveTo), as a mouse click on the ground does. One move goes a maximum of 64 tiles |
+| `nf.Target <id\|nearest_attackable\|attacker\|last\|none>` | `SetTarget` without an attack (`UCombatStateSubsystem::SelectTarget`). `nearest_attackable` selects the nearest attackable entity in view. `attacker` = the nearest living NPC that swung at the player after its newest respawn/reconnect. (This includes an NPC whose spawn said not attackable because it walked home; the server makes it attackable again without an event.) `last` = the newest selection, also after it was cleared. The command sends all ids as given |
+| `nf.Attack` | `Attack` on the selection, one time while idle (`AttackSelection`, the same rules as a click on the NPC) |
+| `nf.StopAttack` | `StopAttack` while the player attacks (this is what a ground click sends) |
+| `nf.Mark` | Records the count of landed hits for each target: the baseline of `target_hits_since_mark` and `target_hit_from_full` |
+| `nf.Respawn` | `Respawn` while dead, one time until the server answers |
 | `nf.Logout` | Disconnects and forgets the tokens (the server despawns the entity) |
-| `nf.LoginGroup` | Test only (like `nf.DropSocket`): logs in as the `test:<uuid>` account derived from `-SimGroup`, so every process of one `run-sim-multi.sh` group is the same account (and enters the same character) |
-| `nf.DropSocket` | Test only: closes the WebSocket as a network failure would; the client reconnects with a fresh ticket. Registered only in non-shipping builds and only when `-BotScenario` is given (plan R5) |
+| `nf.LoginGroup` | Test only (as `nf.DropSocket`): logs in as the `test:<uuid>` account made from `-SimGroup`. Thus, each process of one `run-sim-multi.sh` group is the same account (and enters the same character) |
+| `nf.DropSocket` | Test only: closes the WebSocket as a network failure does. The client reconnects with a new ticket. Registered only in non-shipping builds, and only when `-BotScenario` is given (plan R5) |
 
-Predicates (`FBotPredicateRegistry`, `Bot/BotPredicates.cpp`). Numbers take `<op> <n>` with op in
-`< <= == != >= >`; "unknown" values (nothing heard yet) are false:
+Predicates (`FBotPredicateRegistry`, `Bot/BotPredicates.cpp`). Numbers take `<op> <n>`, with op in
+`< <= == != >= >`. "unknown" values (nothing received until now) are false:
 
 | Predicate | True when | Reads |
 |---|---|---|
-| `connected` | logged in: the access token is held, gRPC calls carry it | `UAuthSubsystem` |
+| `connected` | logged in: the client has the access token, and gRPC calls send it | `UAuthSubsystem` |
 | `ws_connected` | the WebSocket is open | net |
 | `in_world` | WebSocket open, own `EntitySpawn` in the cache, world map (`ANightfallGameMode`) loaded | net, world |
-| `own_at <x> <y> <tol>` | newest server position of the own entity within `tol` tiles | net snapshots |
-| `acks <op> <n>` | intent Acks received (rejections excluded) | observations |
-| `own_spawns <op> <n>` | `EntitySpawn`s of the own entity received: one per admission, a reconnect adds one | observations |
-| `own_entity_unchanged` | the own entity id equals the one of the first own spawn | observations, net |
-| `ticket_refreshed` | at least two play tickets were presented and the newest differs from the one before | net |
+| `own_at <x> <y> <tol>` | the newest server position of the own entity is in `tol` tiles | net snapshots |
+| `acks <op> <n>` | intent Acks received (rejections not included) | observations |
+| `own_spawns <op> <n>` | `EntitySpawn`s of the own entity received: one for each admission; a reconnect adds one | observations |
+| `own_entity_unchanged` | the own entity id is equal to the id of the first own spawn | observations, net |
+| `ticket_refreshed` | the client presented a minimum of two play tickets, and the newest is different from the one before | net |
 | `close_code <op> <n>` | WebSocket close code of the newest close (4409 = replaced by a newer session; the client then does not reconnect, api-guidelines "Close codes") | net |
 | `ws_closed` | the client is not connected | net |
-| `other_players <op> <n>` | other players in view (NPCs excluded, unlike `proxies`) | net cache |
-| `proxy_at <x> <y> <tol>` | some entity other than the player has its newest server sample within `tol` tiles | net snapshots |
+| `other_players <op> <n>` | other players in view (NPCs not included, different from `proxies`) | net cache |
+| `proxy_at <x> <y> <tol>` | an entity other than the player has its newest server sample in `tol` tiles | net snapshots |
 | `proxy_actors <op> <n>` | live proxy actors | `UWorldProxySubsystem` |
 | `proxy_actors_in_sync` | the proxy actors are exactly the entities in view other than the player (none leaked, none missing) | net cache, world |
-| `proxies <op> <n>` | entities in view other than the own one | net cache |
+| `proxies <op> <n>` | entities in view other than the own entity | net cache |
 | `target == <name\|id\|none>` / `!=` | confirmed selection (after `TargetChanged`), by name or id | projection |
-| `target_hp <op> <n>` | HP of the selection; once it clears, of the last selection (0 when it died) | projection |
-| `own_hp <op> <n>`, `own_level <op> <n>`, `own_xp <op> <n>` | the player's HP, level, XP total | projection |
+| `target_hp <op> <n>` | HP of the selection; after it clears, HP of the last selection (0 if it died) | projection |
+| `own_hp <op> <n>`, `own_level <op> <n>`, `own_xp <op> <n>` | the HP, level and XP total of the player | projection |
 | `own_dead` | the dead overlay shows | HUD model |
 | `xp_known` | the XP total is known (not `XP --`) | projection |
 | `attack_state == <idle\|pending\|active>` | the HUD attack state (pending = `Attack` not yet Acked) | HUD model |
-| `damage_numbers <op> <n>` | floating numbers shown (one per distinct `AttackResult`) | `OnDamageNumber` |
+| `damage_numbers <op> <n>` | floating numbers shown (one for each different `AttackResult`) | `OnDamageNumber` |
 | `rejected == <reason\|none>` / `!=` | newest `IntentRejected` reason: `TOO_FAR`, `REJECT_REASON_TOO_FAR` or `2`; `none` = none seen | `OnIntentRejected` |
 | `last_ack_seq <op> <n>` | highest acked intent seq | `OnIntentAck` |
 | `hud_target_visible` | the HUD target frame shows the selection | HUD model |
-| `acks <op> <n>` | Acks received (one per accepted intent; keep-alives are refused, never Acked) | `OnIntentAck` |
-| `own_mp <op> <n>` | the player's MP | projection |
+| `acks <op> <n>` | Acks received (one for each accepted intent; the server refuses keep-alives and never Acks them) | `OnIntentAck` |
+| `own_mp <op> <n>` | the MP of the player | projection |
 | `own_hp_is_respawn_hp`, `own_mp_is_respawn_mp` | own HP == max(1, floor(maxHP * restore_hp_q / 1e6)), MP == floor(maxMP * restore_mp_q / 1e6) (65 %, 0) | projection, `tables/formulas.toml` |
-| `protection_active` | inferred from the server rule (no flag on the wire): an `EntityRespawned` for the player, no Attack accepted since, fewer than spawn_protection_seconds * 10 ticks elapsed | events, `tables/formulas.toml` |
-| `own_level_matches_xp` | own level == the highest `experience.toml` level the XP total reaches | projection, `tables/experience.toml` |
-| `death_xp_loss <op> <n>`, `death_xp_loss_matches_table` | XP the newest death took; equals min(XP, round((X[L+1] - X[L]) * fraction_q[L] / 1e6)) for the level L died on | `StatsChanged`, `tables/penalties.toml` |
-| `attack_results <op> <n>`, `damage_numbers_match_results` | distinct AttackResults received; one floating number per distinct AttackResult | `OnAttackResult`, `OnDamageNumber` |
-| `target_distance <op> <n>` | tiles from the player to the selection (after it clears, the last one) | net snapshots |
-| `npc_home_distance <op> <n>` | tiles from where the (last) selection stands to the nearest spawn-slot home of its template; unknown while it walks | net snapshots, `zones/test_zone.toml` |
+| `protection_active` | inferred from the server rule (no flag on the wire): an `EntityRespawned` for the player, no Attack accepted after it, and fewer than spawn_protection_seconds * 10 ticks elapsed | events, `tables/formulas.toml` |
+| `own_level_matches_xp` | own level == the highest `experience.toml` level that the XP total gets to | projection, `tables/experience.toml` |
+| `death_xp_loss <op> <n>`, `death_xp_loss_matches_table` | the XP that the newest death took; it is equal to min(XP, round((X[L+1] - X[L]) * fraction_q[L] / 1e6)) for the level L at the death | `StatsChanged`, `tables/penalties.toml` |
+| `attack_results <op> <n>`, `damage_numbers_match_results` | different AttackResults received; one floating number for each different AttackResult | `OnAttackResult`, `OnDamageNumber` |
+| `target_distance <op> <n>` | tiles from the player to the selection (after it clears, to the last selection) | net snapshots |
+| `npc_home_distance <op> <n>` | tiles from the position of the (last) selection to the nearest spawn-slot home of its template; unknown while it walks | net snapshots, `zones/test_zone.toml` |
 | `target_wounded`, `target_hp_full` | the (last) selection is alive below / at its max HP in the projection | projection |
-| `target_hits <op> <n>`, `target_hits_since_mark <op> <n>`, `target_hit_from_full` | landed hits on the (last) selection, in all or since the newest `nf.Mark`; the newest hit (after the mark, when there is one) started from max HP (hp_after + damage == max), which shows a heal the wire does not report | `OnAttackResult` |
+| `target_hits <op> <n>`, `target_hits_since_mark <op> <n>`, `target_hit_from_full` | landed hits on the (last) selection, in total or after the newest `nf.Mark`; the newest hit (after the mark, if there is one) started from max HP (hp_after + damage == max). This shows a heal that the wire does not report | `OnAttackResult` |
 | `target_engaged_me` | the (last) selection swung at the player | `OnAttackResult` |
-| `attacked_by <op> <n>` | distinct NPCs that swung at the player since its newest respawn or reconnect | `OnAttackResult` |
-| `npcs_fighting <op> <n>` | distinct NPCs seen swinging at any player | `OnAttackResult` |
+| `attacked_by <op> <n>` | different NPCs that swung at the player after its newest respawn or reconnect | `OnAttackResult` |
+| `npcs_fighting <op> <n>` | different NPCs seen when they swing at a player | `OnAttackResult` |
 | `players_in_view <op> <n>` | other players in view | net cache |
 | `reconnects <op> <n>` | WebSocket connections after the first | net (polled) |
-| `xp_unknown_after_reconnect`, `xp_known_before_stats <op> <n>`, `xp_restored` | after a disconnect the HUD showed `XP --` until StatsChanged/XpGained; ticks it showed a total before one (must stay 0); the total equals the pre-drop total plus XpGained since | projection, events |
-| `spawns_mid_fight <op> <n>`, `late_spawn_hp_ok <op> <n>`, `late_spawn_hp_bad <op> <n>`, `late_spawn_projection_ok <op> <n>`, `late_spawn_projection_bad <op> <n>` | NPC spawns that arrived wounded, dead or in a later life; wounded spawns whose next hit continued from the spawn's HP (hp_after == spawn HP - damage), or did not; wounded spawns the combat projection showed with the spawn HP and life before any hit, or did not | `OnEntitySpawn`, `OnAttackResult` |
+| `xp_unknown_after_reconnect`, `xp_known_before_stats <op> <n>`, `xp_restored` | after a disconnect, the HUD showed `XP --` until StatsChanged/XpGained; the ticks in which it showed a total before that (must stay 0); the total is equal to the total before the drop plus the XpGained after it | projection, events |
+| `spawns_mid_fight <op> <n>`, `late_spawn_hp_ok <op> <n>`, `late_spawn_hp_bad <op> <n>`, `late_spawn_projection_ok <op> <n>`, `late_spawn_projection_bad <op> <n>` | NPC spawns that came wounded, dead or in a later life; wounded spawns whose next hit continued from the HP of the spawn (hp_after == spawn HP - damage), or did not; wounded spawns that the combat projection showed with the spawn HP and life before a hit, or did not | `OnEntitySpawn`, `OnAttackResult` |
 
 ### Scenario catalogue (Phase 0b back-fill)
 
 | Scenario | Run with | Covers | Typical run |
 |---|---|---|---|
-| `0b-login-enter-world` | `run-sim.sh` | dev-token login, character created on a fresh account, play ticket, WebSocket, own spawn at the origin | 11 s |
-| `0b-click-move` | `run-sim.sh` | three click moves, each Acked, own position reconciles within 1 tile | 21 s |
-| `0b-move-rejected` | `run-sim.sh` | a destination over 64 tiles away: `IntentRejected` `TOO_FAR`, no Ack, position unchanged | 13 s |
-| `0b-reconnect` | `run-sim.sh` | `nf.DropSocket`: fresh play ticket, second own spawn, same entity id | 11 s |
-| `0b-two-clients-a` / `-b` | `run-sim-multi.sh` | A walks to (12, 9) and logs out; B sees A's proxy within 2 tiles, then its despawn, with no leaked proxy actor | 20 s |
-| `0b-login-replaces-a` / `-b` | `run-sim-multi.sh` | both enter as the same account and character (`nf.LoginGroup`); B's login closes A with 4409, A does not reconnect, B stays `in_world` | 31 s |
+| `0b-login-enter-world` | `run-sim.sh` | dev-token login, a character made on a new account, play ticket, WebSocket, own spawn at the origin | 11 s |
+| `0b-click-move` | `run-sim.sh` | three click moves, each Acked; the own position reconciles in 1 tile | 21 s |
+| `0b-move-rejected` | `run-sim.sh` | a destination more than 64 tiles away: `IntentRejected` `TOO_FAR`, no Ack, the position does not change | 13 s |
+| `0b-reconnect` | `run-sim.sh` | `nf.DropSocket`: new play ticket, second own spawn, same entity id | 11 s |
+| `0b-two-clients-a` / `-b` | `run-sim-multi.sh` | A walks to (12, 9) and logs out. B sees the proxy of A in 2 tiles, then its despawn, with no leaked proxy actor | 20 s |
+| `0b-login-replaces-a` / `-b` | `run-sim-multi.sh` | the two enter as the same account and character (`nf.LoginGroup`). The login of B closes A with 4409, A does not reconnect, and B stays `in_world` | 31 s |
 
 The pairs run together: `Scripts/run-sim-multi.sh Scenarios/0b-two-clients-a.nfs Scenarios/0b-two-clients-b.nfs`.
 
-A new predicate is one `Register*` call in `FBotPredicateRegistry::RegisterBuiltins` (or from a
-later phase's module): `RegisterFlag`, `RegisterNumber`, `RegisterEquality` or `Register` for
-custom arguments. Its argument parsing runs at scenario parse time, so a typo fails before the
-client logs in. Add a row here and a transition test in `Nightfall.Bot.Predicates.Transitions`.
+A new predicate is one `Register*` call in `FBotPredicateRegistry::RegisterBuiltins` (or from the module of a
+later phase): `RegisterFlag`, `RegisterNumber`, `RegisterEquality`, or `Register` for
+custom arguments. Its argument parse runs when the parser reads the scenario. Thus, a typo fails before the
+client logs in. Add a row here, and add a transition test in `Nightfall.Bot.Predicates.Transitions`.
 
-Fixture data: predicates that compare with server tables read them through `FBotFixtureData`
+Fixture data: predicates that compare with server tables read the tables through `FBotFixtureData`
 (`Bot/BotFixtureData.{h,cpp}`) from `packages/data` (`tables/experience.toml`, `penalties.toml`,
-`formulas.toml`, `zones/test_zone.toml`), by default `<project>/../../packages/data`, overridable with
-`-BotDataDir=<dir>`; a missing or unparsable table makes those predicates false with the reason as
+`formulas.toml`, `zones/test_zone.toml`). The default is `<project>/../../packages/data`, and you can override it with
+`-BotDataDir=<dir>`. If a table is missing or the parser cannot read it, those predicates are false, and the reason is
 the observed value.
 
-Example (`Scenarios/0b-login-enter-world.nfs`, abridged):
+Example (`Scenarios/0b-login-enter-world.nfs`, shortened):
 
 ```
 # covers: 0b 1.5, 0b 6.2, 1a 2.1
@@ -560,24 +618,24 @@ nf.Within 45
 | Scenario | Covers | What it checks | Runs with | Pass time (local) |
 |---|---|---|---|---|
 | `0b-login-enter-world` | 0b 1.5, 6.2; 1a 2.1 | dev-token login, character, play ticket, WebSocket, own spawn at (0, 0) | run-sim.sh | - |
-| `1-target-attack` | 1 E2.2, E5.3; 1a 3.1 | `nf.Target nearest_attackable` -> TargetChanged and target frame; `nf.Attack` -> one Ack, active; a second `nf.Attack` sends nothing (no Ack); `nf.StopAttack` -> idle, selection kept | run-sim.sh | ~29 s |
-| `1-kill-one-monster` | 1 E2.2, E2.3, E2.5, E5.2, E5.3; 1a 3.2 | kill a keltir: one damage number per AttackResult, HP 0, target clears, XP known, level matches experience.toml | run-sim.sh | ~31 s |
-| `1-chase-leash` | 1 E3.2, E3.3; 1a 3.3 | wounded keltir follows the player 8 tiles, leashes 15 tiles from home, stands at its home again (npc_home_distance <= 0.1) and the next hit (after nf.Mark) starts from full HP | run-sim.sh | ~46 s |
-| `1-die-respawn` | 1 E2.4, E3.2, E5.2, E5.3; 1a 3.4 | die to keltirs without fighting back; dead overlay; respawn HP/MP from formulas.toml at the safe point (126, 126), no target, idle, protection on; protected player is not aggroed; an accepted Attack ends protection | run-sim.sh | 48-64 s |
-| `1-delevel` | 1 E2.4, E2.6; 1a 3.5 | three kills reach level 2, a death takes the penalties.toml loss and the level returns to 1 | run-sim.sh | 73-95 s |
-| `1-late-entry-a` / `-b` | 1 E5.2, E6.1; 1a 3.6 | A wounds a keltir, B walks into view: its spawn is wounded, the projection shows that HP and life, and the next hit continues from it; A drops its socket mid-fight: XP -- until StatsChanged, then the pre-drop total | run-sim-multi.sh | ~44 s |
-| `1-social-aggro-a` / `-b` | 1 E3.2; 1a 3.7 | A attacks one keltir and all three swing at A, keltir_b (9.2 tiles away, aggro range 6) by the clan call; B, out of every keltir reach, sees three keltirs fighting and is never attacked | run-sim-multi.sh | ~48 s |
+| `1-target-attack` | 1 E2.2, E5.3; 1a 3.1 | `nf.Target nearest_attackable` -> TargetChanged and target frame; `nf.Attack` -> one Ack, active; a second `nf.Attack` sends nothing (no Ack); `nf.StopAttack` -> idle, the selection stays | run-sim.sh | ~29 s |
+| `1-kill-one-monster` | 1 E2.2, E2.3, E2.5, E5.2, E5.3; 1a 3.2 | kill a keltir: one damage number for each AttackResult, HP 0, the target clears, XP known, the level agrees with experience.toml | run-sim.sh | ~31 s |
+| `1-chase-leash` | 1 E3.2, E3.3; 1a 3.3 | a wounded keltir follows the player 8 tiles, leashes 15 tiles from home, and stands at its home again (npc_home_distance <= 0.1). The next hit (after nf.Mark) starts from full HP | run-sim.sh | ~46 s |
+| `1-die-respawn` | 1 E2.4, E3.2, E5.2, E5.3; 1a 3.4 | die to keltirs without an attack back; dead overlay; respawn HP/MP from formulas.toml at the safe point (126, 126), no target, idle, protection on; the protected player gets no aggro; an accepted Attack stops the protection | run-sim.sh | 48-64 s |
+| `1-delevel` | 1 E2.4, E2.6; 1a 3.5 | three kills get to level 2. A death takes the penalties.toml loss, and the level goes back to 1 | run-sim.sh | 73-95 s |
+| `1-late-entry-a` / `-b` | 1 E5.2, E6.1; 1a 3.6 | A wounds a keltir, and B walks into view: its spawn is wounded, the projection shows that HP and life, and the next hit continues from it. A drops its socket during the fight: XP -- until StatsChanged, then the total before the drop | run-sim-multi.sh | ~44 s |
+| `1-social-aggro-a` / `-b` | 1 E3.2; 1a 3.7 | A attacks one keltir, and all three swing at A (keltir_b, 9.2 tiles away with aggro range 6, because of the clan call). B, out of the reach of all keltirs, sees three keltirs that fight, and B is never attacked | run-sim-multi.sh | ~48 s |
 
-- Two-client pairs coordinate through the server: one waits until the other leaves or enters its view (`players_in_view`); `1-late-entry-b` also waits a fixed 12 s derived from A's measured schedule (see the file header). That 12 s is a timing window, not a handshake: B must enter view after A wounded the third keltir and before A falls (~16 s of margin measured); a slow kill or a client stall can fail the pair.
-- Deviation in `1-social-aggro`: the plan says B asserts the other keltir engages B; the server's clan call adds hate for the caller's target (A), so B observes the helpers engage A and asserts it is never attacked itself. A keltir_b that wandered within 6 tiles of A (drift up to 9.4 tiles per axis) would also engage A without the call, so the scenario cannot tell the two apart in every run.
-- Not on the wire (found by these scenarios): an NPC that walks home heals and becomes attackable again without any event, so a client keeps its old HP and the `attackable = false` its spawn carried until it re-enters view. A dropped socket despawns the player server-side (`SessionRegistry::leave`): the reconnect is a new admission, the selection is not re-sent and NPCs fighting it walk home.
+- Two-client pairs coordinate through the server. One client waits until the other leaves or enters its view (`players_in_view`). `1-late-entry-b` also waits a fixed 12 s, calculated from the measured schedule of A (see the file header). That 12 s is a timing window, not a handshake. B must go into view after A wounded the third keltir and before A falls (approximately 16 s of margin measured). A slow kill or a client stall can cause the pair to fail.
+- Deviation in `1-social-aggro`: the plan says that B asserts that the other keltir engages B. But the clan call of the server adds hate for the target of the caller (A). Thus, B observes the helpers engage A, and asserts that B itself is never attacked. If keltir_b wandered into 6 tiles of A (drift up to 9.4 tiles per axis), it also engages A without the call. Thus, the scenario cannot find the difference between the two in all runs.
+- Not on the wire (these scenarios found it): an NPC that walks home heals and becomes attackable again without an event. Thus, a client keeps the old HP and the `attackable = false` from its spawn until the NPC comes into view again. A dropped socket despawns the player on the server side (`SessionRegistry::leave`). The reconnect is a new admission, the client does not send the selection again, and the NPCs that fight it walk home.
 
 ### Log and ensure sentinel (D6)
 
-From start-up to exit an `FOutputDevice` counts `Error` and `Fatal` lines in `LogNightfall`,
-`LogTurboLink` and `LogNet*`, and `FCoreDelegates::OnEnsureFailed` counts ensures. Any of them
-fails the run even when every step passed: the `log and ensure sentinel` testcase names each line.
-Known noise goes in `Scenarios/<scenario>.allow`, one entry per line, each with a reason:
+From start-up to exit, an `FOutputDevice` counts `Error` and `Fatal` lines in `LogNightfall`,
+`LogTurboLink` and `LogNet*`, and `FCoreDelegates::OnEnsureFailed` counts ensures. Each of them
+fails the run, also when all steps passed. The `log and ensure sentinel` testcase names each line.
+Put known noise in `Scenarios/<scenario>.allow`, with one entry on each line and a reason for each entry:
 
 ```
 # <category> | <substring of the message> | <reason>
@@ -585,25 +643,25 @@ LogNet | Connection refused | the API restarts between scenarios in run-sim-mult
 ensure | NavMesh | no nav mesh is built in -nullrhi runs
 ```
 
-`*` matches any watched category; `ensure` matches ensures. Hits per entry are reported as JUnit
-`allow.<line>` properties. Other categories (e.g. `LogPlayerController`'s UI focus error under
-`-nullrhi`) are not counted.
+`*` matches all watched categories, and `ensure` matches ensures. The runner reports the hits for each entry as JUnit
+`allow.<line>` properties. It does not count other categories (for example, the UI focus error of `LogPlayerController` with
+`-nullrhi`).
 
 ### Reading the JUnit
 
-A failed testcase's `message` is one line (`timed out after 15.00 s waiting for 'in_world'; last
-observed false`, `expected 'target == none', observed Keltir (<id>)`); the body repeats the
-predicate, timeout and last value. Steps after the failure are `<skipped message="not reached:
+The `message` of a failed testcase is one line (`timed out after 15.00 s waiting for 'in_world'; last
+observed false`, `expected 'target == none', observed Keltir (<id>)`). The body repeats the
+predicate, the timeout and the last value. The steps after the failure are `<skipped message="not reached:
 line N failed">`. Timings: a `WaitFor`'s `time` is how long it waited, `nf.Within`'s is the
-scenario's wall clock. Correlate with the server through `own_entity_id` and the run log's step
-trace.
+wall clock of the scenario. To correlate with the server, use `own_entity_id` and the step
+trace of the run log.
 
 ### Simulation CI
 
-Headless scenario suites execute in CI via [.github/workflows/sim.yml](../../.github/workflows/sim.yml)
-on a dedicated self-hosted Linux runner. Full runner provisioning, per-unit Compose isolation,
-paired multi-client roles, quarantine JSON schema, and PR gating policy are documented in
-[docs/engineering/sim-runner.md](../../docs/engineering/sim-runner.md).
+The headless scenario suites run in CI through [.github/workflows/sim.yml](../../.github/workflows/sim.yml)
+on a dedicated self-hosted Linux runner. [docs/engineering/sim-runner.md](../../docs/engineering/sim-runner.md) documents these items:
+the full runner provisioning, the Compose isolation for each unit,
+the paired multi-client roles, the quarantine JSON schema and the PR gate policy.
 
 - **Runner prerequisite check:**
   ```bash
@@ -624,14 +682,14 @@ paired multi-client roles, quarantine JSON schema, and PR gating policy are docu
   # Full CI suite with per-unit fresh Compose stacks and paired roles:
   COMPOSE_PROJECT_NAME=nightfall-sim-local python3 apps/client-unreal/Scripts/run-sim-ci.py --fresh-stack --artifacts apps/client-unreal/Saved/SimCI
   ```
-- **PR gating and quarantine:** Simulation CI is non-blocking on PRs until two consecutive weeks
-  of zero unquarantined failures pass on `main`. Trusted same-repository PRs opt in with the `sim`
-  label. Fork PRs never run on the persistent runner. Known flakes are recorded in
-  `Scenarios/quarantine.json`; entries past their `expires` date fail the suite immediately.
+- **PR gate and quarantine:** Simulation CI does not block PRs until `main` has two consecutive weeks
+  with zero unquarantined failures. Trusted PRs from the same repository opt in with the `sim`
+  label. Fork PRs never run on the persistent runner. `Scenarios/quarantine.json` records the known flakes.
+  If an entry is past its `expires` date, the suite fails immediately.
 
 ### Nightly Gauntlet soak
 
-Multi-client endurance simulation driven by Unreal's Gauntlet automation framework (`Build/Scripts/NightfallSoak.cs`) and `Scripts/run-soak.sh`.
+This is a multi-client endurance simulation. The Gauntlet automation framework of Unreal (`Build/Scripts/NightfallSoak.cs`) and `Scripts/run-soak.sh` control it.
 
 ```bash
 # Quick local run (2 clients, 120 seconds)
@@ -642,72 +700,78 @@ bash Scripts/run-soak.sh
 # or explicitly: bash Scripts/run-soak.sh --clients 8 --seconds 1200
 ```
 
-- **Staged build:** `Scripts/stage-linux.sh` cooks and stages a Development Linux standalone client into `Saved/StagedBuilds/Linux` via RunUAT `BuildCookRun` (`-clientconfig=Development -build -cook -stage -nullrhi -nosound`). Development configuration is required because `AUTH_DEV_TOKENS` and `BotScenario` are disabled in Shipping builds. Staging uses unsigned loose content (`-skipiostore`, `bUsePakFile=False`, `bUseIoStore=False`), so no pak signing keys or release certs are required. Pass `--skip-stage` to `run-soak.sh` to reuse an already staged build.
-- **Disposable stack:** Each run creates a fresh, disposable Docker Compose project (`nightfall-soak-<pid>-<timestamp>`) with dedicated ports offset by `SOAK_PORT_OFFSET` (default `+10000`, placing gRPC at `15051`, HTTP at `13000`, Postgres at `15432`, and Prometheus/Grafana at `13300`). The default API build uses Cargo release mode, matching Phase 1 performance validation. `SOAK_API_BIN` may override it with a prebuilt release API and sibling replay binary. On script exit, a cleanup trap shuts the compose stack down and deletes all isolated volumes (`docker compose down -v`), preventing port conflicts or database contamination with normal local dev stacks. A failed or timed-out teardown changes the final JSON/JUnit verdict and shell exit to failure.
-- **Auth and radial lanes:** The API server runs with `AUTH_DEV_TOKENS=1` dev tokens. The 1..8 client cap accounts for both NPC maximum drift (9.375 tiles per axis) plus 8-tile clan help: `Scripts/soak-fixtures.py` provisions a single zone (`test_zone.toml`) with radial spokes spaced >= 35 tiles apart at home (accounting for both NPCs' maximum drift plus clan help), and generates per-client scenarios from the canonical `Scenarios/1-kill-one-monster.nfs`. Per-client respawn is 5 seconds with 0 jitter, while original template combat stats and XP rewards remain unchanged. Movement waypoints (`nf.ClickMove`) and wait budgets (`nf.WaitFor own_at ... 1 40`) are adapted to each lane, while every combat expectation and assertion is left untouched.
-- **Looping and account rotation:** Headless clients (`-nullrhi -nosound -unattended`) run under Gauntlet with `-BotLoop=<seconds>`. When an iteration passes, `UBotScenarioRunner::AdvanceLoop` resets the session via `nf.Logout`, clears observations, rotates the generated disposable `test:<uuid>` account (preserving explicit dev tokens if provided), and returns to the login map. The scenario's `nf.Login` and `nf.EnterWorld` then log in as a fresh character, preventing position, HP, or XP leakage across iterations.
-- **Whole-iteration completion and process timeouts:** The runner always completes its final whole scenario iteration even if it runs beyond the requested duration—an unfinished step is never cut short or converted into a passing timeout. Gauntlet enforces an upper process timeout bound (`MaxDuration = Seconds + 180`, tick budget check at `Seconds + 150`) and fails if any role crashes, exceeds its process budget, or exits non-zero.
-- **Metrics flush and API shutdown:** Cumulative metrics are flushed by stopping the API before the final Prometheus scrape. `run-soak.sh` gracefully shuts down the API via SIGTERM (with a 15-second grace period) so that final combat histograms are fully exported without adding idle ticks. Any forced (SIGKILL) or non-zero API shutdown is treated as a runner failure (`runner-errors.txt`), ensuring incomplete metrics or hung processes fail the run.
-- **Artifacts and reporting:** Per-client JUnit XML (`1-kill-one-monster.xml` with `iteration N:` testcases, `loop_iterations`, and `loop_seconds`), engine logs, and isolated `UserDir` directories land in `Saved/Soak/<timestamp>-<pid>/client-XX/` (or `--artifacts <dir>`). `run-soak.sh` now automatically exports the complete `soak.nfr` (zone 1 epoch 1) and checks replay with `nightfall-replay check`. `Scripts/soak-report.py` aggregates these into:
-  - `soak.xml`: unified JUnit testsuite combining all client runs and a `soak-gates` suite;
-  - `report.json`: machine-readable summary of iterations, elapsed time, tick metrics, gate results, and recorded zone seed (`zone_seed: {"zone": 1, "epoch": 1}`);
-  - `combat-telemetry.json`: raw Prometheus combat metrics queried via the Grafana proxy, preserving evidence after stack cleanup;
-  - `dashboard URL`: Grafana dashboard URL scoped to the exact run window (`from=<start>&to=<end>`), pointing at the ephemeral local Grafana instance;
-  - `summary.txt`: console and CI step summary.
-- **Replay verification and seed:** A fresh, isolated Postgres+NATS stack yields the deterministic zone 1 epoch 1 RNG seed; clock origin, accounts, and arrival timings are naturally variable (the seed does not derive from the live clock). Replay verification confirms determinism across the soak recording.
-- **Performance gate:** `soak-report.py` queries Prometheus through Grafana for the combat tick duration 99th percentile over all ticks in the fresh isolated stack (`histogram_quantile(0.99, sum by (le) (nightfall_combat_tick_duration_seconds_bucket))`). The run requires combat tick p99 <20ms, matching Phase 1 E6.2 acceptance; the separate operational alert at 50ms is not the acceptance budget. Missing telemetry, an incomplete final histogram, or p99 >=20ms fails. The cumulative histogram count must equal the number of ticks in the complete byte-identical recording.
-- **Nightly CI workflow:** `.github/workflows/soak.yml` runs nightly (`cron: '17 8 * * *'`) and via manual dispatch on `[self-hosted, linux, unreal]`. The workflow is nonblocking (`continue-on-error: true`). Real self-hosted runner registration on the host is still needed: there is currently no registered CI runner, no CI or nightly run success is claimed, and the two-week zero-flake PR gate remains pending runner availability.
-- **Historical validation:** Debug two/eight-client runs passed their scenario assertions and replay, but the original 50ms/`increase()` performance gate was incorrect. The debug eight-client cumulative p99 was approximately 35.136ms and fails the actual <20ms budget. Historical results remain in `Saved/Soak/final-2x120` and `smoke-8x120`; they do not establish release performance acceptance.
-- **Intermediate release validation (2026-10-09):** These measured runs precede final session audit/diagnostics integration. Both passed all assertions, sentinel, complete replay, histogram count, and API/Compose cleanup gates:
+- **Staged build:** `Scripts/stage-linux.sh` cooks and stages a Development Linux standalone client into `Saved/StagedBuilds/Linux`. It uses RunUAT `BuildCookRun` (`-clientconfig=Development -build -cook -stage -nullrhi -nosound`). The Development configuration is necessary because Shipping builds disable `AUTH_DEV_TOKENS` and `BotScenario`. The staging uses unsigned loose content (`-skipiostore`, `bUsePakFile=False`, `bUseIoStore=False`). Thus, pak signing keys and release certs are not necessary. To use an already staged build again, give `--skip-stage` to `run-soak.sh`.
+- **Disposable stack:** Each run makes a new, disposable Docker Compose project (`nightfall-soak-<pid>-<timestamp>`). Its dedicated ports have the offset `SOAK_PORT_OFFSET` (default `+10000`: gRPC at `15051`, HTTP at `13000`, Postgres at `15432`, and Prometheus/Grafana at `13300`). The default API build uses the Cargo release mode, the same as the Phase 1 performance validation. `SOAK_API_BIN` can override it with a prebuilt release API and its sibling replay binary. When the script exits, a cleanup trap stops the compose stack and deletes all isolated volumes (`docker compose down -v`). This prevents port conflicts, and it prevents database contamination with normal local dev stacks. If the teardown fails or times out, the final JSON/JUnit verdict and the shell exit change to failure.
+- **Auth and radial lanes:** The API server runs with `AUTH_DEV_TOKENS=1` dev tokens. The 1..8 client cap includes the NPC maximum drift (9.375 tiles per axis) plus the 8-tile clan help. `Scripts/soak-fixtures.py` provisions one zone (`test_zone.toml`) with radial spokes. At home, the spokes are >= 35 tiles apart (this includes the maximum drift of the two NPCs plus clan help). The script makes a scenario for each client from the canonical `Scenarios/1-kill-one-monster.nfs`. The respawn for each client is 5 seconds with 0 jitter. The original template combat stats and XP rewards do not change. The script changes the movement waypoints (`nf.ClickMove`) and the wait budgets (`nf.WaitFor own_at ... 1 40`) for each lane. It does not change the combat expectations and assertions.
+- **Loops and account rotation:** Headless clients (`-nullrhi -nosound -unattended`) run under Gauntlet with `-BotLoop=<seconds>`. When an iteration passes, `UBotScenarioRunner::AdvanceLoop` does these steps:
+  - It resets the session through `nf.Logout`.
+  - It clears the observations.
+  - It rotates the generated disposable `test:<uuid>` account (it keeps explicit dev tokens, if you give them).
+  - It goes back to the login map.
+
+  Then the `nf.Login` and `nf.EnterWorld` of the scenario log in as a new character. This prevents a leak of position, HP or XP between iterations.
+- **Whole-iteration completion and process timeouts:** The runner always completes its final whole scenario iteration, also if it runs longer than the requested duration. The runner never stops an unfinished step early, and it never changes it into a passing timeout. Gauntlet applies a maximum process timeout (`MaxDuration = Seconds + 180`, tick budget check at `Seconds + 150`). It fails if a role crashes, goes above its process budget, or exits with a value that is not zero.
+- **Metrics flush and API shutdown:** To flush the cumulative metrics, the script stops the API before the final Prometheus scrape. `run-soak.sh` stops the API correctly through SIGTERM (with a 15-second grace period). Thus, the final combat histograms are fully exported without more idle ticks. The runner records a forced (SIGKILL) API shutdown, or an API shutdown that is not zero, as a runner failure (`runner-errors.txt`). This makes sure that incomplete metrics or hung processes fail the run.
+- **Artifacts and reports:** The JUnit XML of each client (`1-kill-one-monster.xml` with `iteration N:` testcases, `loop_iterations` and `loop_seconds`), the engine logs and the isolated `UserDir` directories go in `Saved/Soak/<timestamp>-<pid>/client-XX/` (or `--artifacts <dir>`). `run-soak.sh` now automatically exports the complete `soak.nfr` (zone 1 epoch 1) and examines the replay with `nightfall-replay check`. `Scripts/soak-report.py` collects these into:
+  - `soak.xml`: one JUnit testsuite that has all client runs and a `soak-gates` suite.
+  - `report.json`: a machine-readable summary of iterations, elapsed time, tick metrics, gate results, and the recorded zone seed (`zone_seed: {"zone": 1, "epoch": 1}`).
+  - `combat-telemetry.json`: the raw Prometheus combat metrics, queried through the Grafana proxy. This keeps the evidence after the stack cleanup.
+  - `dashboard URL`: the Grafana dashboard URL for the exact run window (`from=<start>&to=<end>`). It points to the ephemeral local Grafana instance.
+  - `summary.txt`: the console and CI step summary.
+- **Replay verification and seed:** A new, isolated Postgres+NATS stack gives the deterministic zone 1 epoch 1 RNG seed. The clock origin, accounts and arrival timings change from run to run (the seed does not come from the live clock). The replay verification shows determinism across the soak recording.
+- **Performance gate:** `soak-report.py` queries Prometheus through Grafana for the 99th percentile of the combat tick duration, over all ticks in the new isolated stack (`histogram_quantile(0.99, sum by (le) (nightfall_combat_tick_duration_seconds_bucket))`). The run must have a combat tick p99 <20ms, the same as the Phase 1 E6.2 acceptance. The separate operational alert at 50ms is not the acceptance budget. Missing telemetry, an incomplete final histogram, or p99 >=20ms fails. The cumulative histogram count must be equal to the number of ticks in the complete byte-identical recording.
+- **Nightly CI workflow:** `.github/workflows/soak.yml` runs nightly (`cron: '17 8 * * *'`) and through manual dispatch on `[self-hosted, linux, unreal]`. The workflow does not block (`continue-on-error: true`). It is still necessary to register a real self-hosted runner on the host. Now there is no registered CI runner, and this document does not claim a successful CI or nightly run. The two-week zero-flake PR gate waits until a runner is available.
+- **Historical validation:** The debug two/eight-client runs passed their scenario assertions and replay. But the original 50ms/`increase()` performance gate was not correct. The cumulative p99 of the debug eight-client run was approximately 35.136ms, and it fails the actual <20ms budget. The historical results are in `Saved/Soak/final-2x120` and `smoke-8x120`. They do not prove release performance acceptance.
+- **Intermediate release validation (2026-10-09):** These measured runs came before the final session audit/diagnostics integration. The two runs passed all gates: assertions, sentinel, complete replay, histogram count, and API/Compose cleanup:
 
   | Artifacts under `Saved/Soak` | Clients×requested seconds | Iterations | Client elapsed range | Combat p99 | Recorded/observed ticks |
   |---|---|---:|---|---:|---:|
   | `release-2x120` | 2×120 | 7 | 120.562–156.072s | 4.983ms | 1,668 |
   | `release-8x120-fixed` | 8×120 | 30 | 120.926–158.977s | 19.343ms | 1,697 |
 
-  Replay compared 161,652 bytes and 2,797,183 bytes respectively with no divergence or digest-only records; each report links the measured Grafana time range. These are intermediate smoke tests, not final integrated-source acceptance.
-- **Final integrated-source builds:** Audited/diagnostic API and client at `2e85d3f` built successfully (release API 52.31s; editor/game BuildCookRun 85.43s). Full 8×1200 final-source soak remains pending the serial full-suite run.
+  The replay compared 161,652 bytes and 2,797,183 bytes, with no divergence and no digest-only records. Each report links the measured Grafana time range. These are intermediate smoke tests, not the final integrated-source acceptance.
+- **Final integrated-source builds:** The audited/diagnostic API and client at `2e85d3f` built successfully (release API 52.31s; editor/game BuildCookRun 85.43s). The full 8×1200 final-source soak waits for the serial full-suite run.
 
 ### Diagnostics and wire audit (E1.6/E1.7)
 
-Bot scenarios generate schema 1 failure bundles (`<out>/<scenario>.failure.json`) and descriptor-backed wire coverage reports (`<out>/<scenario>.coverage.contract.json`):
+Bot scenarios make schema 1 failure bundles (`<out>/<scenario>.failure.json`) and descriptor-backed wire coverage reports (`<out>/<scenario>.coverage.contract.json`):
 
-- **Failure bundle:** On step failure, retains first-failed evaluation, captures the last 50 typed events with exact uint64 decimal ticks (null for unticked events, with `nearest_preceding_tick`), combat projections, and move position history without auth credentials.
-- **Coverage & regression gate:** `sim-contract.py` aggregates descriptor-backed wire counts into `coverage.contract.json`, gates on baseline presence regressions, and preserves historical coverage upon explicit promotion.
-- **Server audit:** `sim-contract-audit.py` cross-checks client observations against JetStream `NF_SESSIONS` (isolated fresh stack only; close codes excluded; session out queue precedes delivery so disconnect tails are reported).
+- **Failure bundle:** If a step fails, the bundle keeps the first failed evaluation. It captures the last 50 typed events with exact uint64 decimal ticks (null for unticked events, with `nearest_preceding_tick`), the combat projections and the move position history. It does not include auth credentials.
+- **Coverage & regression gate:** `sim-contract.py` collects the descriptor-backed wire counts into `coverage.contract.json`. It fails on baseline presence regressions, and it keeps the historical coverage after an explicit promotion.
+- **Server audit:** `sim-contract-audit.py` compares the client observations with JetStream `NF_SESSIONS` (only on an isolated new stack; close codes are not included). The session out queue comes before the delivery, so the audit reports disconnect tails.
 
-Complete schema, privacy rules, and delivery semantics: [docs/engineering/sim-diagnostics.md](../../docs/engineering/sim-diagnostics.md).
+For the complete schema, the privacy rules and the delivery semantics, see [docs/engineering/sim-diagnostics.md](../../docs/engineering/sim-diagnostics.md).
 
 ## Installing Unreal on Linux
 
-Epic requires an account. Two routes:
+You must have an Epic account. There are two routes:
 
-- **Prebuilt binaries (fastest):** sign in at <https://www.unrealengine.com/linux>, download
-  `Linux_Unreal_Engine_5.8.x.zip`, unzip to `~/UnrealEngine`, run
-  `~/UnrealEngine/Engine/Binaries/Linux/UnrealEditor` once to let it finish setup.
+- **Prebuilt binaries (fastest):** sign in at <https://www.unrealengine.com/linux>. Download
+  `Linux_Unreal_Engine_5.8.x.zip`, and unzip it to `~/UnrealEngine`. Run
+  `~/UnrealEngine/Engine/Binaries/Linux/UnrealEditor` one time to let it complete the setup.
 - **From source:** link your GitHub account to Epic
-  (<https://www.unrealengine.com/ue-on-github>), clone `EpicGames/UnrealEngine` at the `5.8`
-  branch, then `./Setup.sh && ./GenerateProjectFiles.sh && make`. Budget 1-3 hours and ~200 GB.
+  (<https://www.unrealengine.com/ue-on-github>). Clone `EpicGames/UnrealEngine` at the `5.8`
+  branch. Then run `./Setup.sh && ./GenerateProjectFiles.sh && make`. This takes 1-3 hours and approximately 200 GB.
 
-The prebuilt zip does **not** include Epic's Linux compiler toolchain, and Unreal Build Tool
-will refuse to compile without it ("Platform Linux is not a valid platform to build. SDK
-validation failed"). Download the native toolchain the engine asks for (5.8 wants
-`v26_clang-20.1.8-rockylinux8`, 1.5 GB) and point `LINUX_MULTIARCH_ROOT` at it:
+The prebuilt zip does **not** include the Epic Linux compiler toolchain. Unreal Build Tool
+refuses to compile without it ("Platform Linux is not a valid platform to build. SDK
+validation failed"). Download the native toolchain that the engine asks for (5.8 asks for
+`v26_clang-20.1.8-rockylinux8`, 1.5 GB). Then set `LINUX_MULTIARCH_ROOT` to it:
 
 ```bash
 mkdir -p ~/UnrealToolchains
 curl -L https://cdn.unrealengine.com/Toolchain_Linux/native-linux-v26_clang-20.1.8-rockylinux8.tar.gz | tar -xz -C ~/UnrealToolchains
 ```
 
-Then in `~/.bashrc`:
+Then add this to `~/.bashrc`:
 
 ```bash
 export UE_ROOT="$HOME/Linux_Unreal_Engine_5.8.3"
 export LINUX_MULTIARCH_ROOT="$HOME/UnrealToolchains/v26_clang-20.1.8-rockylinux8"
 ```
 
-Launch the bare editor from inside its binaries directory the first time; this build resolves
-`Engine/Content` relative to the working directory and crashes on ICU data otherwise:
+The first time, start the bare editor from its binaries directory. This build finds
+`Engine/Content` relative to the working directory. If you start it from a different directory, it crashes on ICU data:
 
 ```bash
 cd $UE_ROOT/Engine/Binaries/Linux && ./UnrealEditor
@@ -722,19 +786,19 @@ moon run client-unreal:build-editor         # compiles TurboLink, the generated 
 moon run client-unreal:editor               # opens the project
 ```
 
-`setup` is idempotent and `build-editor` depends on it. It never modifies tracked files in the
-submodule: the libraries and links it adds are untracked, and `.gitmodules` sets
-`ignore = untracked` so the submodule does not show as dirty.
+`setup` is idempotent, and `build-editor` depends on it. It never changes tracked files in the
+submodule. The libraries and links that it adds are untracked, and `.gitmodules` sets
+`ignore = untracked`. Thus, the submodule does not show as dirty.
 
-If another Unreal Editor using the same engine is running (even on a different checkout), UBT
-switches to hot-reload naming (`libUnrealEditor-*-0001.so`) and the link fails with
-`unable to find library -lUnrealEditor-TurboLinkGrpc`. Close it, or add `-NoHotReloadFromIDE` to
+A different Unreal Editor that uses the same engine can be open (also on a different checkout). If this occurs, UBT
+changes to hot-reload names (`libUnrealEditor-*-0001.so`), and the link fails with
+`unable to find library -lUnrealEditor-TurboLinkGrpc`. Close that editor, or add `-NoHotReloadFromIDE` to
 the Build.sh command.
 
 ## gRPC (TurboLink)
 
-The client calls the API's tonic `GameService` with [TurboLink](https://github.com/thejinchao/turbolink)
-(plan decision D3), which wraps gRPC C++ 1.57 and protobuf 23.4 in UObjects.
+The client calls the tonic `GameService` of the API with [TurboLink](https://github.com/thejinchao/turbolink)
+(plan decision D3). TurboLink puts gRPC C++ 1.57 and protobuf 23.4 in UObjects.
 
 ```cpp
 USessionClient* Session = GetGameInstance()->GetSubsystem<USessionClient>();
@@ -745,32 +809,31 @@ Session->Ping([](const FNetResult& Result, const FGrpcNightfallV1PingResponse& R
 });
 ```
 
-`UAuthSubsystem` sets the bearer token on `USessionClient` at login and on every refresh; it is
-sent as `authorization: Bearer ...` on every call except `Ping`. Blueprints get the same calls as
-`Ping`, `Get Character`, `Create Character`, `List My Characters` and `Issue Play Ticket` nodes with
-typed delegates. Every call carries the deadline from `[/Script/Nightfall.NetSettings]`
-(`CallTimeoutSeconds`, default 5 s); `GrpcEndpoint` defaults to `localhost:50051`. Callbacks run on
-the game thread from TurboLink's manager tick.
+`UAuthSubsystem` sets the bearer token on `USessionClient` at login and at each refresh. The client
+sends it as `authorization: Bearer ...` on all calls except `Ping`. Blueprints get the same calls as
+`Ping`, `Get Character`, `Create Character`, `List My Characters` and `Issue Play Ticket` nodes, with
+typed delegates. Each call has the deadline from `[/Script/Nightfall.NetSettings]`
+(`CallTimeoutSeconds`, default 5 s). The default of `GrpcEndpoint` is `localhost:50051`. Callbacks run on
+the game thread from the manager tick of TurboLink.
 
 ### Where generated code lives, and why
 
-TurboLink's generated classes have to compile **inside its `TurboLinkGrpc` module**: they include
-its private headers, use its private protobuf/gRPC include paths, and hard-code reflection paths
-such as `/Script/TurboLinkGrpc.…`. The protobuf and gRPC static libraries must also exist exactly
-once in the process; if the Nightfall module linked them too, it would get its own copy of gRPC's
-global state.
+The generated classes of TurboLink must compile **in its `TurboLinkGrpc` module**. They include
+its private headers, they use its private protobuf/gRPC include paths, and they hard-code reflection paths
+such as `/Script/TurboLinkGrpc.…`. Also, the protobuf and gRPC static libraries must exist exactly
+one time in the process. If the Nightfall module also linked them, it gets its own copy of the global state of gRPC.
 
-So the code is committed under `Source/Nightfall/Generated` (and the hand-written
-`Source/Nightfall/GrpcBridge`), each with a `.ubtignore` so UBT does not compile it as part of
-Nightfall, and `Scripts/setup-turbolink.sh` symlinks their entries into
-`Plugins/TurboLink/Source/TurboLinkGrpc/{Public,Private}`. Nightfall depends on `TurboLinkGrpc`
-and only uses the generated USTRUCTs (`FGrpcNightfallV1*`) and UObjects (`UGameService`,
+Thus, the code is committed under `Source/Nightfall/Generated` (and the hand-written
+`Source/Nightfall/GrpcBridge`). Each directory has a `.ubtignore`, so UBT does not compile it as part of
+Nightfall. `Scripts/setup-turbolink.sh` makes symlinks of their entries in
+`Plugins/TurboLink/Source/TurboLinkGrpc/{Public,Private}`. Nightfall depends on `TurboLinkGrpc`,
+and it uses only the generated USTRUCTs (`FGrpcNightfallV1*`) and UObjects (`UGameService`,
 `UGameServiceClient`).
 
-The WebSocket envelopes (`ClientMessage`/`ServerMessage`) are not gRPC calls but use the same
-generated classes: `ProtoCodec` maps the client-facing `FNet*` structs to `FGrpcNightfallV1*`, and
-`NightfallWire` (in GrpcBridge, exported from TurboLinkGrpc) turns those into bytes with
-protoc's C++ code.
+The WebSocket envelopes (`ClientMessage`/`ServerMessage`) are not gRPC calls, but they use the same
+generated classes. `ProtoCodec` maps the client-facing `FNet*` structs to `FGrpcNightfallV1*`.
+`NightfallWire` (in GrpcBridge, exported from TurboLinkGrpc) changes them into bytes with
+the C++ code of protoc.
 
 ### Regenerating after a .proto change
 
@@ -778,20 +841,20 @@ protoc's C++ code.
 moon run client-unreal:gen-proto
 ```
 
-TurboLink only ships Windows `.exe` generators. On first use, `Scripts/install-proto-tools.sh`
-builds Linux ones into `~/.cache/nightfall/proto-tools` (about 10 minutes, once):
+TurboLink releases only Windows `.exe` generators. On the first use, `Scripts/install-proto-tools.sh`
+builds Linux generators into `~/.cache/nightfall/proto-tools` (approximately 10 minutes, one time):
 
-- `protoc` 23.4 and `grpc_cpp_plugin` from grpc v1.57.0, the exact versions TurboLink's prebuilt
-  libraries were compiled from. Protobuf's generated code refuses to compile against any other
-  runtime version, so do **not** use a distro `protoc` (`apt install protobuf-compiler` is 3.x).
-  Needs `git`, a C++ compiler and `python3-venv` (`sudo apt install build-essential git
-  python3-venv`); CMake and Ninja come from PyPI into a private venv, pinned below CMake 4,
-  which rejects grpc 1.57's build files.
-- `protoc-gen-turbolink` v2.7.0 (the one shipped in TurboLink v1.4.2), built from source with the
-  .NET SDK bundled in Unreal. Upstream is a Visual Studio .NET Framework project with T4
-  templates; the script preprocesses them with `dotnet-t4` and builds an SDK-style project.
+- `protoc` 23.4 and `grpc_cpp_plugin` from grpc v1.57.0. These are the exact versions that the prebuilt
+  libraries of TurboLink were compiled from. The generated code of Protobuf refuses to compile against a different
+  runtime version. Thus, do **not** use a distro `protoc` (`apt install protobuf-compiler` is 3.x).
+  This step must have `git`, a C++ compiler and `python3-venv` (`sudo apt install build-essential git
+  python3-venv`). CMake and Ninja come from PyPI into a private venv. CMake is pinned below version 4,
+  because CMake 4 rejects the build files of grpc 1.57.
+- `protoc-gen-turbolink` v2.7.0 (the version in TurboLink v1.4.2), built from source with the
+  .NET SDK that is bundled in Unreal. Upstream is a Visual Studio .NET Framework project with T4
+  templates. The script preprocesses them with `dotnet-t4` and builds an SDK-style project.
 
-Output is deterministic: regenerating unchanged protos produces no diff.
+The output is deterministic: if you generate unchanged protos again, there is no diff.
 
 ## Login and connect (Stories 1.5 and 6.2)
 
@@ -799,145 +862,149 @@ Output is deterministic: regenerating unchanged protos produces no diff.
 shows the client/server exchange.
 
 Plan decision D1: Keycloak, OAuth 2.0 **device authorization grant** (RFC 8628) with PKCE S256.
-The game never sees a password and needs no embedded browser.
+The game never sees a password, and an embedded browser is not necessary.
 
-1. `L_Login` (default map) uses `ANightfallLoginGameMode`; its player controller shows `WBP_Login`.
-2. **Login** calls `UAuthSubsystem::StartLogin()`: `-DevToken` if given, else the stored refresh
-   token, else the device flow. The device flow POSTs to `{OidcIssuer}/protocol/openid-connect/auth/device`
-   and fires `OnLoginRequired(UserCode, VerificationUriComplete)`; the screen shows the code in large
+1. `L_Login` (default map) uses `ANightfallLoginGameMode`. Its player controller shows `WBP_Login`.
+2. **Login** calls `UAuthSubsystem::StartLogin()`. It uses `-DevToken` if given, or else the stored refresh
+   token, or else the device flow. The device flow POSTs to `{OidcIssuer}/protocol/openid-connect/auth/device`
+   and fires `OnLoginRequired(UserCode, VerificationUriComplete)`. The screen shows the code in large
    text with **Copy verification URL** and **Open in browser**.
-3. It polls `{OidcIssuer}/protocol/openid-connect/token` every `interval` seconds:
-   `authorization_pending` keeps the interval, `slow_down` adds 5 s, `expired_token` /
-   `access_denied` / local expiry of the device code fail with a reason (`OnLoginFailed`), 5xx and
-   no-response keep polling. On success it checks the access token's `aud` contains `OidcAudience`,
-   pushes it to `USessionClient`, and fires `OnLoggedIn`.
-4. The screen lists `ListMyCharacters` and offers **Create** (name + race, `CreateCharacter` with a
-   fresh idempotency key per attempt).
-5. Picking a character: `ULoginFlowSubsystem::EnterWorld` refreshes the token if needed, calls
-   `IssuePlayTicket` with a fresh key, then `UNetClientSubsystem::Connect(ws_url, ticket)`. The ticket
-   goes in the upgrade request's `Authorization: Bearer` header, never in the URL (plan §8 #7).
-6. On `OnConnected` the flow opens `WorldMap` (`L_TestZone`). Spawns that arrived before the map
-   loaded are replayed from `UNetClientSubsystem::GetKnownEntities()`.
-7. Reconnects (0.5 s doubling to 10 s) ask the flow's ticket provider for a **new** ticket with a new
-   key every attempt (plan §8 #9). Unauthenticated / permission / not-found errors stop reconnecting;
-   without a provider the client does not retry a consumed ticket.
-8. Keep-alive: the server closes a session with no inbound frame for 60 s (4408). While connected,
-   every 20 s with nothing sent since the last check the client sends a `ClientMessage` with a fresh
-   `seq` and no intent (world.proto); the server's `IntentRejected{INVALID}` for it is swallowed.
-   UE's `IWebSocket` cannot send ping frames, and libwebsockets' `PingPongInterval` is reset by
-   inbound traffic, so it would stay quiet while the server streams events (e.g. while attacked).
+3. It polls `{OidcIssuer}/protocol/openid-connect/token` each `interval` seconds:
+   - `authorization_pending` keeps the interval.
+   - `slow_down` adds 5 s.
+   - `expired_token` / `access_denied` / local expiry of the device code fail with a reason (`OnLoginFailed`).
+   - 5xx and no response continue the polls.
 
-Tokens: `RefreshIfNeeded()` refreshes when less than 60 s remain; the subsystem also schedules a
+   If the poll is successful, it makes sure that the `aud` of the access token has `OidcAudience`.
+   Then it pushes the token to `USessionClient`, and fires `OnLoggedIn`.
+4. The screen lists `ListMyCharacters` and shows **Create** (name + race, `CreateCharacter` with a
+   new idempotency key for each attempt).
+5. When you select a character, `ULoginFlowSubsystem::EnterWorld` refreshes the token if necessary. It calls
+   `IssuePlayTicket` with a new key, then `UNetClientSubsystem::Connect(ws_url, ticket)`. The ticket
+   goes in the `Authorization: Bearer` header of the upgrade request, never in the URL (plan §8 #7).
+6. On `OnConnected`, the flow opens `WorldMap` (`L_TestZone`). The client replays the spawns that came before the map
+   loaded. It gets them from `UNetClientSubsystem::GetKnownEntities()`.
+7. Reconnects start at 0.5 s, and the delay doubles each time, to 10 s. At each attempt, a reconnect asks the ticket provider of the flow for a **new** ticket with a new
+   key (plan §8 #9). Unauthenticated / permission / not-found errors stop the reconnects.
+   Without a provider, the client does not try a consumed ticket again.
+8. Keep-alive: the server closes a session that has no inbound frame for 60 s (4408). The client examines this every 20 s while it is connected.
+   If it sent nothing after the last check, it sends a `ClientMessage` with a new
+   `seq` and no intent (world.proto). The client ignores the `IntentRejected{INVALID}` that the server sends for it.
+   The `IWebSocket` of UE cannot send ping frames. Inbound traffic resets the `PingPongInterval` of libwebsockets.
+   Thus, it stays quiet while the server streams events (for example, while the player is attacked).
+
+Tokens: `RefreshIfNeeded()` refreshes when less than 60 s remain. The subsystem also schedules a
 refresh 59 s before expiry. Keycloak rotates refresh tokens. An `invalid_grant` logs out (memory
-and disk) and fires `OnLoginFailed`. Tokens and the user code are logged at `Verbose` only.
+and disk) and fires `OnLoginFailed`. The client logs the tokens and the user code only at `Verbose`.
 
 ### Config keys (`Config/DefaultGame.ini`)
 
 | Section / key | Default | Meaning |
 |---|---|---|
-| `[/Script/Nightfall.NetSettings] OidcIssuer` | `http://localhost:8080/realms/nightfall` | Realm URL; endpoints derived with Keycloak's paths |
+| `[/Script/Nightfall.NetSettings] OidcIssuer` | `http://localhost:8080/realms/nightfall` | Realm URL; the endpoints come from the Keycloak paths |
 | `OidcClientId` | `nightfall-client` | Public client with device grant and PKCE S256 |
-| `OidcAudience` | `nightfall-api` | Must be in the access token's `aud`; empty disables the check |
-| `OidcScope` | `openid offline_access` | `offline_access`: the stored refresh token outlives the SSO session |
-| `WorldMap` | `/Game/Maps/L_TestZone.L_TestZone` | Opened once the WebSocket connects |
-| `GrpcEndpoint`, `CallTimeoutSeconds` | `localhost:50051`, `5.0` | gRPC (unchanged) |
+| `OidcAudience` | `nightfall-api` | Must be in the `aud` of the access token; if empty, there is no check |
+| `OidcScope` | `openid offline_access` | `offline_access`: the stored refresh token stays valid after the SSO session |
+| `WorldMap` | `/Game/Maps/L_TestZone.L_TestZone` | Opened when the WebSocket connects |
+| `GrpcEndpoint`, `CallTimeoutSeconds` | `localhost:50051`, `5.0` | gRPC (not changed) |
 | `[/Script/Nightfall.NightfallLoginPlayerController] LoginScreenClass` | `/Game/UI/WBP_Login.WBP_Login_C` | Screen class; the C++ screen if missing |
 
 ### Stored login: obfuscation, not a keychain
 
-The refresh token is saved in `Saved/SaveGames/NightfallAuth.sav` (`UNightfallAuthSaveGame`),
-encrypted with AES-256-CBC (`FAES` per block, random IV) under
+The refresh token is in `Saved/SaveGames/NightfallAuth.sav` (`UNightfallAuthSaveGame`).
+It is encrypted with AES-256-CBC (`FAES` for each block, random IV) under
 `SHA-256("nightfall-refresh-token-v1|" + FPlatformMisc::GetDeviceId() + "|" + GetLoginId() + "|" + random salt)`.
-On Linux `GetDeviceId()` is empty and `GetLoginId()` is `/etc/machine-id` plus the uid, so a copied
-save file does not open on another machine or for another user. Anything running as this user on
-this machine can derive the same key: this is **obfuscation, not secure storage**. There is no MAC;
-tampering only yields a refresh token Keycloak rejects. **Production follow-up:** store the refresh
-token in the platform credential store (libsecret / Secret Service on Linux, DPAPI or Credential
-Manager on Windows, Keychain on macOS) behind the same Load/Save functions, and add a "Log out"
+On Linux, `GetDeviceId()` is empty, and `GetLoginId()` is `/etc/machine-id` plus the uid. Thus, a copied
+save file does not open on a different machine or for a different user. All programs that run as this user on
+this machine can calculate the same key. This is **obfuscation, not secure storage**. There is no MAC.
+If a person changes the file, the result is only a refresh token that Keycloak rejects. **Production follow-up:** store the refresh
+token in the platform credential store, behind the same Load/Save functions. The stores are libsecret / Secret Service on Linux, DPAPI or Credential
+Manager on Windows, and Keychain on macOS. Add a "Log out"
 that also revokes the token at Keycloak.
 
 ### Developer bypass: `-DevToken=<token>` / `-DevTokenFile=<path>`
 
-Non-shipping builds only (`#if !UE_BUILD_SHIPPING`), off unless a switch is given. `StartLogin()`
-then uses the token as the access token without talking to Keycloak, never persists it, and never
-refreshes it. `-DevTokenFile` reads the token from a file instead: UE writes its whole command line
-to the log at startup, so prefer the file for real Keycloak tokens. Two ways to get one:
+This is only for non-shipping builds (`#if !UE_BUILD_SHIPPING`), and it is off if you do not give a switch. Then `StartLogin()`
+uses the token as the access token, and it does not connect to Keycloak. It never keeps the token, and it never
+refreshes it. `-DevTokenFile` reads the token from a file. UE writes its full command line
+to the log at startup. Thus, use the file for real Keycloak tokens. There are two ways to get a token:
 
 - A real Keycloak token: `OUTPUT=access_token infra/keycloak/device-flow-demo.sh` (15 min lifetime).
-- With the API started with `AUTH_DEV_TOKENS=1` (and then no Keycloak validation at all):
+- If the API started with `AUTH_DEV_TOKENS=1` (and then there is no Keycloak validation):
   `test:<any uuid>`, which authenticates as that account id.
 
-`-DevToken` is visible in the process list and the log; dev machines only.
+`-DevToken` is visible in the process list and in the log. Use it only on dev machines.
 
 ### Console commands (non-shipping)
 
-`nf.Login`, `nf.Logout`, `nf.Characters`, `nf.CreateCharacter <Name> [race 1-5]`,
-`nf.EnterWorld [Name]` (default: the first character; on an account with none, a new human)
-drive the same flow as the screen, for
+`nf.Login`, `nf.Logout`, `nf.Characters`, `nf.CreateCharacter <Name> [race 1-5]` and
+`nf.EnterWorld [Name]` (default: the first character; on an account with no character, a new human)
+control the same flow as the screen. Use them for
 headless runs: `-ExecCmds="nf.Login, nf.EnterWorld"` with a dev token, or with a stored login
-(`nf.EnterWorld` waits for the refresh). Add `-LogCmds="LogNightfall Verbose"` to see the user code
-in the log.
+(`nf.EnterWorld` waits for the refresh). To see the user code in the log, add `-LogCmds="LogNightfall Verbose"`.
 
 ### Manual test (Matt)
 
-Prereqs: `docker compose up -d` (Postgres, NATS, Keycloak on :8080), `moon run api:dev` with
+Prerequisites: `docker compose up -d` (Postgres, NATS, Keycloak on :8080), `moon run api:dev` with
 `OIDC_ISSUER`/`OIDC_AUDIENCE` from `.env.example` (not `AUTH_DEV_TOKENS`), and
 `moon run client-unreal:build-editor`.
 
-1. `moon run client-unreal:editor`; the editor opens `L_Login`. Press Play (Selected Viewport or
+1. Run `moon run client-unreal:editor`. The editor opens `L_Login`. Push Play (Selected Viewport or
    Standalone). Or run the game directly:
    `cd $UE_ROOT/Engine/Binaries/Linux && ./UnrealEditor $REPO/apps/client-unreal/Nightfall.uproject -game -windowed -ResX=1280 -ResY=720`.
-2. Click **Login**. A code like `ABCD-EFGH` appears in large text with the verification URL.
-3. Click **Open in browser** (or **Copy verification URL** and paste it), sign in as
-   `testplayer` / `testplayer`, click **Yes**. Within ~5 s the screen switches to the character list.
-4. Type a name (3-16 letters), pick a race, **Create**. It appears in the list.
-5. Click the character. Status shows "Requesting a play ticket...", "Connecting...". Until Epic 4's
-   `/ws` is merged, the API answers 404 and the status cycles "Reconnecting..." with a new ticket
-   each time (API log: one `play ticket issued` per attempt, increasing `generation`). Once `/ws`
-   exists: "Connected" and the client opens `L_TestZone` (grey 256 x 256 tile floor, sky, your
-   cylinder pawn under a top-down camera; left click moves).
-6. Quit and start again, click **Login**: no code this time (stored login, refresh at Keycloak).
-   `nf.Logout` in the console (or deleting `Saved/SaveGames/NightfallAuth.sav`) forgets it.
-7. Failure paths worth a look: wait 10 min without approving (code expires: "The login code
-   expired"), click **No** on the Keycloak consent page ("The login was declined"), stop Keycloak
-   before step 2 ("Could not reach the login server").
+2. Click **Login**. A code such as `ABCD-EFGH` shows in large text with the verification URL.
+3. Click **Open in browser** (or click **Copy verification URL** and paste it). Sign in as
+   `testplayer` / `testplayer`, and click **Yes**. In approximately 5 s, the screen changes to the character list.
+4. Type a name (3-16 letters), select a race, and click **Create**. The character shows in the list.
+5. Click the character. The status shows "Requesting a play ticket...", "Connecting...". Until the `/ws` of Epic 4
+   is merged, the API answers 404. The status cycles "Reconnecting..." with a new ticket
+   each time (API log: one `play ticket issued` for each attempt, with an increasing `generation`). When `/ws`
+   exists: "Connected", and the client opens `L_TestZone` (grey 256 x 256 tile floor, sky, your
+   cylinder pawn under a top-down camera; a left click moves).
+6. Quit and start again. Click **Login**. This time there is no code (stored login, refresh at Keycloak).
+   `nf.Logout` in the console (or a deletion of `Saved/SaveGames/NightfallAuth.sav`) forgets it.
+7. Examine these failure paths:
+   - Wait 10 min and do not approve (the code expires: "The login code
+     expired").
+   - Click **No** on the Keycloak consent page ("The login was declined").
+   - Stop Keycloak before step 2 ("Could not reach the login server").
 
 ## Content
 
-The assets are generated, not hand-made, so they can be reviewed as code and rebuilt after a C++
-change: `moon run client-unreal:create-content` (or `bash Scripts/create-content.sh`) deletes and
-recreates `Content/{Input,Blueprints,UI,Maps}` headless (full editor with `-nullrhi`; the
-pythonscript commandlet cannot spawn level actors). Once someone edits these by hand, stop
-regenerating them. `Nightfall.Content.Wiring` checks the wiring below.
+The assets are generated, not made by hand. Thus, you can examine them as code and build them again after a C++
+change. `moon run client-unreal:create-content` (or `bash Scripts/create-content.sh`) deletes and
+makes again `Content/{Input,Blueprints,UI,Maps}` headless (full editor with `-nullrhi`; the
+pythonscript commandlet cannot spawn level actors). If a person changes these assets by hand, stop
+generating them. `Nightfall.Content.Wiring` examines the wiring below.
 
 | Asset | What |
 |---|---|
 | `Input/IA_ClickMove` | Bool input action |
 | `Input/IMC_Default` | Left mouse -> `IA_ClickMove` |
 | `Blueprints/BP_RemoteEntity` | `RemoteEntityActor`, engine cylinder as the placeholder `Body` |
-| `Blueprints/BP_Keltir` | `RemoteEntityActor` with the cockatrice anim set (soft paths); cylinder until the art is imported |
+| `Blueprints/BP_Keltir` | `RemoteEntityActor` with the cockatrice anim set (soft paths); a cylinder until the art is imported |
 | `Blueprints/BP_RemotePlayer` | `RemoteEntityActor` with the Manny anim set, for other players |
 | `Blueprints/BP_NightfallPC` | `NightfallPlayerController` with `IMC_Default` and `IA_ClickMove` |
-| `Blueprints/BP_NightfallGameMode` | `NightfallGameMode`: `BP_NightfallPC`, `EntityClass = BP_RemoteEntity`, `TemplateClasses = {keltir: BP_Keltir}`, `PlayerClass = BP_RemotePlayer` (all handed to `UWorldProxySubsystem` in `InitGame`), pawn `NightfallCharacter` |
+| `Blueprints/BP_NightfallGameMode` | `NightfallGameMode`: `BP_NightfallPC`, `EntityClass = BP_RemoteEntity`, `TemplateClasses = {keltir: BP_Keltir}`, `PlayerClass = BP_RemotePlayer` (all given to `UWorldProxySubsystem` in `InitGame`), pawn `NightfallCharacter` |
 | `UI/WBP_Login` | `NightfallLoginScreen` subclass with an empty tree (default layout from C++) |
 | `Maps/L_Login` | Default map, `NightfallLoginGameMode` |
 | `Maps/L_TestZone` | 256 x 256 tiles = 25600 cm square ground from (0, 0) (server tile `t` is `t * 100` cm), `NavMeshBoundsVolume` (nav mesh generated at runtime, `RuntimeGeneration=Dynamic`), directional light, sky atmosphere, sky light, height fog, `PlayerStart` at the centre, `NatureLiteProps` (`VendorPropScatter`, 15 props); game mode `BP_NightfallGameMode` |
 
 `DefaultEngine.ini` also sets `GameViewportClientClassName=/Script/CommonUI.CommonGameViewportClient`
-(CommonUI input routing) and makes `L_Login` the game and editor startup map.
+(CommonUI input routing). It makes `L_Login` the startup map for the game and for the editor.
 
 ## First vertical slice (in order)
 
 1. **Connect.** Done on the client (Story 6.2): login screen -> `IssuePlayTicket` -> `Connect` with
-   the ticket in the upgrade header. Needs the server's `/ws` endpoint (Epic 4, in progress); until
-   then the upgrade fails and the client retries with fresh tickets.
-2. **See others move.** Server emits `EntitySpawn`/`EntityMove`; `WorldProxySubsystem` spawns
+   the ticket in the upgrade header. This must have the `/ws` endpoint of the server (Epic 4, in progress). Until
+   then, the upgrade fails, and the client tries again with new tickets.
+2. **See others move.** The server emits `EntitySpawn`/`EntityMove`. `WorldProxySubsystem` spawns
    proxies that interpolate.
-3. **Click to move.** `NightfallPlayerController` sends `MoveTo`; the server echoes our own
-   entity's `EntityMove`.
+3. **Click to move.** `NightfallPlayerController` sends `MoveTo`. The server sends back the `EntityMove` of our own
+   entity.
 4. **Login over gRPC.** Done: `GameService` (Story 6.1), device-flow login and
    `SessionService.IssuePlayTicket` (Stories 1.5, 6.2).
-5. **HUD.** CommonUI + MVVM: target frame, HP/MP/CP bars, chat log fed by `SystemMessage` ids.
+5. **HUD.** CommonUI + MVVM: target frame, HP/MP/CP bars, and a chat log that `SystemMessage` ids supply.
 6. ~~Replace the hand-written codec~~ Done in Story 6.1: the WebSocket codec uses the generated
    classes.
 
@@ -949,60 +1016,60 @@ moon run api:dev                         # in another terminal; Ping and EndToEn
 moon run client-unreal:test-editor       # or: bash Scripts/run-tests.sh [filter]
 ```
 
-`run-tests.sh` gets a real Keycloak access token for `testplayer` (via
-`infra/keycloak/device-flow-demo.sh`) and hands it to the editor with `-DevTokenFile` for EndToEnd;
-set `NIGHTFALL_DEV_TOKEN` to use another token. Without Keycloak, run the API with
-`AUTH_DEV_TOKENS=1` and EndToEnd uses a fresh `test:<uuid>` account.
+`run-tests.sh` gets a real Keycloak access token for `testplayer` (through
+`infra/keycloak/device-flow-demo.sh`). It gives the token to the editor with `-DevTokenFile` for EndToEnd.
+To use a different token, set `NIGHTFALL_DEV_TOKEN`. Without Keycloak, run the API with
+`AUTH_DEV_TOKENS=1`, and EndToEnd uses a new `test:<uuid>` account.
 
 | Test | Needs server | Checks |
 |---|---|---|
-| `Nightfall.Auth.Crypto` | no | SHA-256 (FIPS 180-4 vectors), PKCE S256 (RFC 7636 B), seal/open round trip, wrong device or salt fails, random IV |
-| `Nightfall.Auth.DeviceFlow.Polling` | no | Mock IdP: device request form (client, scope, S256), code/URI via `OnLoginRequired`, poll at `interval`, `authorization_pending`, `slow_down` (+5 s), 5xx retry, verifier matches challenge, tokens -> `OnLoggedIn`, bearer on gRPC metadata but not on Ping, proactive refresh timer |
-| `Nightfall.Auth.DeviceFlow.Failures` | no | `expired_token`, local device-code expiry, `access_denied`, wrong `aud`, cancel, unreachable IdP |
+| `Nightfall.Auth.Crypto` | no | SHA-256 (FIPS 180-4 vectors), PKCE S256 (RFC 7636 B), seal/open round trip, a wrong device or salt fails, random IV |
+| `Nightfall.Auth.DeviceFlow.Polling` | no | Mock IdP: device request form (client, scope, S256), code/URI through `OnLoginRequired`, poll at `interval`, `authorization_pending`, `slow_down` (+5 s), 5xx retry, the verifier agrees with the challenge, tokens -> `OnLoggedIn`, bearer on gRPC metadata but not on Ping, proactive refresh timer |
+| `Nightfall.Auth.DeviceFlow.Failures` | no | `expired_token`, local device-code expiry, `access_denied`, wrong `aud`, cancel, IdP that the client cannot connect to |
 | `Nightfall.Auth.Refresh` | no | No refresh with > 60 s left; refresh with < 60 s, coalesced callers, rotated refresh token; `invalid_grant` logs out and deletes the stored login |
-| `Nightfall.Auth.Persistence` | no | Save file holds no plaintext token; next launch resumes via refresh without a code; rejected stored token falls back to the device flow; `Logout` deletes it |
-| `Nightfall.Auth.DevToken` | no | Bypass: logged in without HTTP, bearer set, never persisted or refreshed |
-| `Nightfall.Net.NetClient.TicketInUpgradeHeader` | no | Upgrade request: URL as given, `Authorization: Bearer <ticket>`, ticket nowhere in the URL; no provider -> no retry |
-| `Nightfall.Net.NetClient.ReconnectUsesFreshTicket` | no | Backoff 0.5/1/2/4 s, reset on connect; provider asked per attempt; no ticket presented twice; provider failure retries; `Disconnect` cancels |
-| `Nightfall.Net.NetClient.KeepAliveWhenIdle` | no | Idle 20 s -> one no-intent `ClientMessage` with a fresh seq, its rejection swallowed; any send postpones it; close, reconnect and `Disconnect` cancel it; one timer per connection |
-| `Nightfall.Content.Wiring` | no | Generated assets wired as in "Content"; default map; ini values (issuer) parsed intact |
-| `Nightfall.Net.ProtoCodec.Encode` | no | `ClientMessage` bytes match hand-assembled protobuf |
+| `Nightfall.Auth.Persistence` | no | The save file has no plaintext token; the next launch continues through refresh without a code; a rejected stored token falls back to the device flow; `Logout` deletes it |
+| `Nightfall.Auth.DevToken` | no | Bypass: logged in without HTTP, bearer set, never kept or refreshed |
+| `Nightfall.Net.NetClient.TicketInUpgradeHeader` | no | Upgrade request: URL as given, `Authorization: Bearer <ticket>`, the ticket is not in the URL; no provider -> no retry |
+| `Nightfall.Net.NetClient.ReconnectUsesFreshTicket` | no | Backoff 0.5/1/2/4 s, reset on connect; the client asks the provider at each attempt; no ticket presented two times; a provider failure causes a retry; `Disconnect` cancels |
+| `Nightfall.Net.NetClient.KeepAliveWhenIdle` | no | Idle 20 s -> one no-intent `ClientMessage` with a new seq, and the client ignores its rejection; each send delays it; close, reconnect and `Disconnect` cancel it; one timer for each connection |
+| `Nightfall.Content.Wiring` | no | Generated assets wired as in "Content"; default map; ini values (issuer) parsed correctly |
+| `Nightfall.Net.ProtoCodec.Encode` | no | `ClientMessage` bytes agree with hand-assembled protobuf |
 | `Nightfall.Net.ProtoCodec.Decode` | no | `Ack`, `IntentRejected`, `EntitySpawn`, empty and truncated frames |
 | `Nightfall.Combat.Codec.EncodeIntents` | no | `SetTarget`, `Attack`, `StopAttack`, `Respawn` bytes |
 | `Nightfall.Combat.Codec.DecodeEvents` | no | All seven combat events and the `EntitySpawn` combat fields from hand-assembled protobuf |
-| `Nightfall.Combat.State.HudFields` | no | Every HUD model field through a hit, miss, crit, kill, XP, level-up, own death and respawn; replayed events add no number |
-| `Nightfall.Combat.State.OwnerPrivacy` | no | Others' `StatsChanged` / `XpGained` / `TargetChanged` ignored; own XP accepted |
-| `Nightfall.Combat.State.AoiAndStale` | no | Despawn clears the target; re-entry from the spawn; stale incarnation / generation / older tick ignored |
-| `Nightfall.Combat.State.Reconnect` | no | Projection dropped on disconnect and rebuilt from spawns + `StatsChanged`; dead on reconnect shows the overlay |
-| `Nightfall.Combat.Click.SetTargetAttackOnce` | no | `SetTarget` + `Attack` exactly once per target; repeats send nothing; ground click sends `StopAttack` before `MoveTo` |
-| `Nightfall.Combat.Click.RejectionsAndDeath` | no | Rejection reasons in the status line and state reset; dead target clears; one `Respawn` until answered |
+| `Nightfall.Combat.State.HudFields` | no | All HUD model fields through a hit, miss, crit, kill, XP, level-up, own death and respawn; replayed events add no number |
+| `Nightfall.Combat.State.OwnerPrivacy` | no | The client ignores the `StatsChanged` / `XpGained` / `TargetChanged` of others; own XP accepted |
+| `Nightfall.Combat.State.AoiAndStale` | no | Despawn clears the target; re-entry from the spawn; the client ignores a stale incarnation / generation / older tick |
+| `Nightfall.Combat.State.Reconnect` | no | The projection is removed on disconnect and made again from spawns + `StatsChanged`; dead on reconnect shows the overlay |
+| `Nightfall.Combat.Click.SetTargetAttackOnce` | no | `SetTarget` + `Attack` exactly one time for each target; repeats send nothing; a ground click sends `StopAttack` before `MoveTo` |
+| `Nightfall.Combat.Click.RejectionsAndDeath` | no | Rejection reasons in the status line, and state reset; a dead target clears; one `Respawn` until the server answers |
 | `Nightfall.Combat.Hud.WidgetBuilds` | no | The HUD builds its layout in code |
 | `Nightfall.Anim.State.Locomotion` | no | Idle / walk / run from timestamped move speeds at render time, out-of-order samples, pruning, own-pawn speed override |
-| `Nightfall.Anim.State.AttackTiming` | no | Attack clip starts impact − lead, impact frame on the impact tick, rate, replay dedupe, joining mid wind-up 150 ms behind, next swing restarts; flinch window, attack beats flinch, no flinch clip |
-| `Nightfall.Anim.State.DeathAndRespawn` | no | Dying from the death tick, corpse frozen on the last frame, death beats swings, repeated `EntityDied`, respawn to idle, late AOI entry as a corpse |
+| `Nightfall.Anim.State.AttackTiming` | no | The attack clip starts at impact − lead, impact frame on the impact tick, rate, replay dedupe, start during the wind-up 150 ms behind, the next swing starts again; flinch window, attack has priority over flinch, no flinch clip |
+| `Nightfall.Anim.State.DeathAndRespawn` | no | Dying from the death tick, corpse frozen on the last frame, death has priority over swings, repeated `EntityDied`, respawn to idle, late AOI entry as a corpse |
 | `Nightfall.Anim.Component.ServerEvents` | no | The component through `DispatchServerMessage`: spawn seeding, tick→time from `EntityMove`, other entities ignored, swing / crit flinch / miss, death, render delay, respawn, dead spawn |
 | `Nightfall.Anim.Component.OwnDeathRespawnHud` | no | Own pawn and HUD through death and respawn: overlay, target cleared, HP from `EntityRespawned`, dying → corpse → idle |
-| `Nightfall.Anim.ProxyClassByTemplate` | no | Game mode maps `keltir` → `BP_Keltir`, players → `BP_RemotePlayer`, others → `BP_RemoteEntity`; Blueprints carry the presets and keep the placeholder |
-| `Nightfall.Content.VendorArt` | no (skips without `Content/Vendor`) | Every imported mesh and role clip loads with its length, impact inside the attack clip, the anim set applies to a registered mesh with the native anim instance, `L_TestZone` props resolve |
-| `Nightfall.Bot.Parser` | no | Scenario lines, comments, line numbers, timeouts; every parse error (unknown predicate or command, bad operator/number/value, missing timeout, second `nf.Within`, empty file) found at parse time with its line |
-| `Nightfall.Bot.Executor.StepOrder` | no | Fake clock: commands in order, a wait polls until true, the next step runs on the next tick, sleep, one passed testcase per WaitFor / Expect, exit code 0 |
-| `Nightfall.Bot.Executor.TimeoutStopsTheRun` | no | A wait fails at its timeout with the last observed value; nothing after it runs; later assertions skipped; failed Expect and refused command stop the run; exit code 1 |
-| `Nightfall.Bot.Executor.WithinBudget` | no | `nf.Within` reported when held; an over-budget run is cut off at the budget; abort from outside fails the running step |
-| `Nightfall.Bot.JUnit.Shape` | no | Report parses as XML: suite name/counts/time, properties in order, `classname`, `<failure>`, `<skipped>`, `nf.Within` and sentinel testcases, escaping |
-| `Nightfall.Bot.Sentinel.Counting` | no | Synthetic Error/Fatal lines counted only in the watched categories, ensures counted, allow-list (reason required) suppresses and counts hits, one unallowed line fails a passing run (exit 1) and is named in JUnit, the GLog hookup |
-| `Nightfall.Bot.Predicates.Transitions` | no | Every built-in predicate false -> true from typed events (Story 5.2 fixture shapes), `nf.Target` / `nf.Attack` / `nf.StopAttack` / `nf.Respawn` through the console send the right intents |
-| `Nightfall.Bot.Commands.SelectAfterClear` | no | `SelectTarget` sends once per selection; a re-selection right after a clear is still sent; no `Attack` on a pending clear |
-| `Nightfall.Bot.Runner.InertWithoutFlag` | no | No `-BotScenario`: runner inactive, `nf.DropSocket` not registered, interactive commands present |
-| `Nightfall.Combat.EndToEnd` | yes (skips if down) | Real server: `SetTarget` on a live NPC yields `TargetChanged`; `Attack` answered by whichever the server does (see test comment) |
-| `Nightfall.Net.SessionClient.Ping` | yes | Ping round trip; `server_version` equals the Cargo workspace version |
-| `Nightfall.Login.EndToEnd` | yes (skips if down) | Dev-token login, `ListMyCharacters`, `CreateCharacter` (fresh key), listed, two `IssuePlayTicket` calls give two distinct tickets and a `ws://` URL without the ticket |
+| `Nightfall.Anim.ProxyClassByTemplate` | no | The game mode maps `keltir` → `BP_Keltir`, players → `BP_RemotePlayer`, others → `BP_RemoteEntity`; the Blueprints have the presets and keep the placeholder |
+| `Nightfall.Content.VendorArt` | no (skips without `Content/Vendor`) | Each imported mesh and role clip loads with its length, the impact is in the attack clip, the anim set applies to a registered mesh with the native anim instance, the `L_TestZone` props resolve |
+| `Nightfall.Bot.Parser` | no | Scenario lines, comments, line numbers, timeouts; the parser finds each parse error (unknown predicate or command, bad operator/number/value, missing timeout, second `nf.Within`, empty file) at parse time, with its line |
+| `Nightfall.Bot.Executor.StepOrder` | no | Fake clock: commands in sequence, a wait polls until true, the next step runs on the next tick, sleep, one passed testcase for each WaitFor / Expect, exit code 0 |
+| `Nightfall.Bot.Executor.TimeoutStopsTheRun` | no | A wait fails at its timeout with the last observed value; nothing after it runs; later assertions skipped; a failed Expect and a refused command stop the run; exit code 1 |
+| `Nightfall.Bot.Executor.WithinBudget` | no | `nf.Within` reported when held; a run that goes above the budget stops at the budget; an abort from outside fails the running step |
+| `Nightfall.Bot.JUnit.Shape` | no | The report parses as XML: suite name/counts/time, properties in sequence, `classname`, `<failure>`, `<skipped>`, `nf.Within` and sentinel testcases, escaping |
+| `Nightfall.Bot.Sentinel.Counting` | no | Synthetic Error/Fatal lines counted only in the watched categories, ensures counted, the allow-list (reason necessary) suppresses and counts hits, one unallowed line fails a passing run (exit 1) and is named in JUnit, the GLog hookup |
+| `Nightfall.Bot.Predicates.Transitions` | no | Each built-in predicate goes false -> true from typed events (Story 5.2 fixture shapes); `nf.Target` / `nf.Attack` / `nf.StopAttack` / `nf.Respawn` through the console send the correct intents |
+| `Nightfall.Bot.Commands.SelectAfterClear` | no | `SelectTarget` sends one time for each selection; a new selection immediately after a clear is still sent; no `Attack` on a pending clear |
+| `Nightfall.Bot.Runner.InertWithoutFlag` | no | No `-BotScenario`: the runner is not active, `nf.DropSocket` is not registered, the interactive commands are present |
+| `Nightfall.Combat.EndToEnd` | yes (skips if down) | Real server: `SetTarget` on a live NPC gives `TargetChanged`; `Attack` gets the answer that the server gives (see the test comment) |
+| `Nightfall.Net.SessionClient.Ping` | yes | Ping round trip; `server_version` is equal to the Cargo workspace version |
+| `Nightfall.Login.EndToEnd` | yes (skips if down) | Dev-token login, `ListMyCharacters`, `CreateCharacter` (new key), listed; two `IssuePlayTicket` calls give two different tickets and a `ws://` URL without the ticket |
 
 ### Tests are ProductFilter, and live tests have a CI mode
 
-Every Nightfall automation test is `ProductFilter`, so `Automation RunTests Nightfall` selects only
-ours (no engine tests). The live tests (`Nightfall.Login.EndToEnd`, `Nightfall.Movement.EndToEnd`,
-`Nightfall.Combat.EndToEnd`, `Nightfall.Net.SessionClient.Ping`) need the API. Without it they warn
-and skip. With `-RequireLiveApi` the same condition is an error, so a down server cannot show green:
+All Nightfall automation tests are `ProductFilter`. Thus, `Automation RunTests Nightfall` selects only
+our tests (no engine tests). The live tests (`Nightfall.Login.EndToEnd`, `Nightfall.Movement.EndToEnd`,
+`Nightfall.Combat.EndToEnd`, `Nightfall.Net.SessionClient.Ping`) must have the API. Without the API, they warn
+and skip. With `-RequireLiveApi`, the same condition is an error. Thus, a server that is down cannot show green:
 
 ```bash
 Scripts/run-tests.sh offline              # local tests only; no authentication credentials
@@ -1011,14 +1078,13 @@ Scripts/run-tests.sh                      # local: live tests skip with a warnin
 Scripts/run-tests.sh --require-live-api   # CI: a down API fails them (also on when CI=true)
 ```
 
-Phase 4 offline checks and pending integration gates are listed in
-[phase4-client-offline.md](Scripts/phase4-client-offline.md).
+[phase4-client-offline.md](Scripts/phase4-client-offline.md) lists the Phase 4 offline checks and the open integration gates.
 
 ### Running simulations
 
-A scenario (`Scenarios/*.nfs`) is run by the editor binary in game mode (the `Nightfall` game target needs cooked content and
-crashes loading engine packages): `$UE_ROOT/Engine/Binaries/Linux/UnrealEditor Nightfall.uproject -game -nullrhi -nosound -unattended -BotScenario=<path.nfs>`. It exits 0 on pass and 1
-on fail and writes `Saved/Sim/<scenario>.xml` (JUnit), `<scenario>.log` and the session recording
+The editor binary runs a scenario (`Scenarios/*.nfs`) in game mode. (The `Nightfall` game target must have cooked content, and
+it crashes when it loads engine packages.) The command is `$UE_ROOT/Engine/Binaries/Linux/UnrealEditor Nightfall.uproject -game -nullrhi -nosound -unattended -BotScenario=<path.nfs>`. It exits 0 on pass and 1
+on fail. It writes `Saved/Sim/<scenario>.xml` (JUnit), `<scenario>.log` and the session recording
 (`.nfr`). Plan: [phase-1a-simulation-testing.md](../../docs/plans/phase-1a-simulation-testing.md).
 
 ```bash
@@ -1028,29 +1094,29 @@ moon run client-unreal:sim -- 'Scenarios/1-*.nfs' --api start --artifacts /tmp/s
 moon run client-unreal:sim-all            # every Scenarios/*.nfs; extra args after -- are appended
 ```
 
-- The bot writes no recording. After the run the scripts export the session from the live event log (`nightfall-replay export --zone $SIM_ZONE_ID --latest --session <own_entity_id from the JUnit> --live --out <scenario>.nfr`, default zone 1, NATS from `NATS_URL`) and check it (`nightfall-replay check --file <scenario>.nfr`); the API under test must use that NATS.
-- `UE_ROOT` and `LINUX_MULTIARCH_ROOT` come from the environment, else from `~/.bashrc`.
-- The `Nightfall` game target is built (`Build.sh`) when the binary is missing or older than any
+- The bot writes no recording. After the run, the scripts export the session from the live event log (`nightfall-replay export --zone $SIM_ZONE_ID --latest --session <own_entity_id from the JUnit> --live --out <scenario>.nfr`, default zone 1, NATS from `NATS_URL`). Then they examine it (`nightfall-replay check --file <scenario>.nfr`). The API under test must use that NATS.
+- `UE_ROOT` and `LINUX_MULTIARCH_ROOT` come from the environment, or else from `~/.bashrc`.
+- The scripts build the `Nightfall` game target (`Build.sh`) if the binary is missing or older than a
   file under `Source/`.
-- `--api attach` (default) needs an API answering `:3000/health` (`moon run api:dev` with
+- `--api attach` (default) must have an API that answers `:3000/health` (`moon run api:dev` with
   `AUTH_DEV_TOKENS=1`). `--api start` runs `docker compose up -d --wait`, starts the API with
-  `AUTH_DEV_TOKENS=1` and stops it on exit; a healthy API already on `:3000` is reused.
-- Scenarios run sequentially. Each recording is replayed with `nightfall-replay` and must match
-  byte for byte (`--no-replay` skips this). One line per scenario is printed, for example
-  `PASS 1-kill-one-monster (41s, replay=ok)`; the exit status is non-zero if any scenario failed
+  `AUTH_DEV_TOKENS=1` and stops it on exit. If a healthy API is already on `:3000`, the script uses it.
+- Scenarios run one after the other. The scripts replay each recording with `nightfall-replay`, and the replay must agree
+  byte for byte (`--no-replay` skips this). The scripts print one line for each scenario, for example
+  `PASS 1-kill-one-monster (41s, replay=ok)`. The exit status is not zero if a scenario failed
   (bot exit code, timeout, no JUnit report, no recording, replay divergence). Exit 2 is a usage or
   setup error (no match, no API, build failed).
 
-Several clients at once (the two-client scenarios) use `Scripts/run-sim-multi.sh`:
+For more than one client at the same time (the two-client scenarios), use `Scripts/run-sim-multi.sh`:
 
 ```bash
 Scripts/run-sim-multi.sh [--api ...] [--artifacts DIR] [--group ID] [--timeout SECS] [--no-replay] A.nfs B.nfs...
 ```
 
-Each argument is one process, all started together with `-SimGroup=<ID>` and coordinating only
-through the server. `--timeout` bounds the whole group; survivors are killed and count as failed.
-The per-process JUnit files are merged into `DIR/group.xml` (a missing report becomes a failed
-testcase). Exit 0 only if every process passed and every recording replays.
+Each argument is one process. All processes start together with `-SimGroup=<ID>`, and they coordinate only
+through the server. `--timeout` is the limit for the full group. The script kills the processes that are still alive, and they count as failed.
+The script merges the JUnit files of each process into `DIR/group.xml` (a missing report becomes a failed
+testcase). The exit is 0 only if all processes passed and all recordings replay.
 
 Artifact layout (default `Saved/SimArtifacts/<timestamp>`, or `<group>` for multi):
 
@@ -1060,100 +1126,103 @@ DIR/api.log                    only with --api start
 DIR/group.xml                  multi only: merged JUnit
 ```
 
-CI mode: `run-tests.sh --require-live-api` as above; the sim scripts already fail on any problem.
+CI mode: `run-tests.sh --require-live-api`, as above. The sim scripts already fail on all problems.
 
-Test overrides (used by `Scripts/test/sim.test.sh`, which drives the scripts with a stub bot and
-needs no engine, API or Docker): `SIM_BOT_BIN` (bot executable instead of `UnrealEditor`),
+Test overrides: `Scripts/test/sim.test.sh` uses them. It controls the scripts with a stub bot, and it does
+not need an engine, an API or Docker. The overrides are `SIM_BOT_BIN` (bot executable instead of `UnrealEditor`),
 `SIM_TRACE_CMD` (trace tool prefix, default `cargo run --quiet --bin nightfall-replay --`),
 `SIM_SKIP_BUILD=1`, `SIM_SAVED_DIR`, `SIM_REPLAY_CMD` (run as `$SIM_REPLAY_CMD file.nfr`),
-`SIM_API_URL`, `SIM_TIMEOUT` (seconds, default 600).
+`SIM_API_URL` and `SIM_TIMEOUT` (seconds, default 600).
 
 ## Build status
 
 2026-10-08, UE 5.8.3 Linux, clang 20.1.8 (`v26_clang-20.1.8-rockylinux8`), TurboLink v1.4.2:
 
-- `NightfallEditor Linux Development` builds clean from scratch; the `Nightfall Linux Development`
-  game target builds as well. The Nightfall module keeps
-  `bWarningsAsErrors`; no relaxation was needed because TurboLink's headers are warning-free
-  under clang 20 and generated code does not compile in the Nightfall module.
-- Warnings that remain are all in plugin-compiled code, where warnings are not errors:
+- `NightfallEditor Linux Development` builds with no errors from the start. The `Nightfall Linux Development`
+  game target also builds. The Nightfall module keeps
+  `bWarningsAsErrors`. It was not necessary to relax it, because the TurboLink headers have no warnings
+  under clang 20, and the generated code does not compile in the Nightfall module.
+- All remaining warnings are in plugin-compiled code, where warnings are not errors.
   `TurboLinkEditorModule.cpp` uses `FCoreDelegates::OnPostEngineInit` (deprecated in 5.8;
-  breaks on the next engine upgrade, see the spike log) and the generated marshaling touches
+  it breaks on the next engine upgrade, see the spike log). The generated marshaling touches
   the `[deprecated = true]` `CreateCharacterRequest.account_id`.
-- `Automation RunTests Nightfall` against `nightfall-api` with in-memory adapters: 3/3 pass;
-  Ping returned `server_version=0.1.0` in ~50 ms. With the API stopped the Ping test fails with
-  `ENetError::Unavailable` (connection refused), as it should.
+- `Automation RunTests Nightfall` against `nightfall-api` with in-memory adapters: 3/3 pass.
+  Ping returned `server_version=0.1.0` in approximately 50 ms. When the API is stopped, the Ping test fails with
+  `ENetError::Unavailable` (connection refused), and this is the correct result.
 - Stories 1.5/6.2 (2026-10-08): 13/13 pass against `nightfall-api` with Postgres, NATS and
-  Keycloak JWT verification (EndToEnd with a real `testplayer` token). Headless `-game` runs:
-  the device flow against Keycloak (approved by a curl "browser") logged in and stored the sealed
-  refresh token; the next launch resumed from it, refreshed, listed characters, got a ticket and
-  connected with the ticket in the header; the API (no `/ws` yet) answered 404 and every reconnect
-  got a new ticket (8 attempts, 8 tickets). `L_TestZone` loads with `BP_NightfallGameMode`, the pawn
-  possessed by `BP_NightfallPC`, a dynamic nav mesh and `EntityClass = BP_RemoteEntity`.
-- WebSocket traffic after the upgrade (spawn/move) is still unverified until the server's `/ws`
-  endpoint exists.
+  Keycloak JWT verification (EndToEnd with a real `testplayer` token). The headless `-game` runs gave these results:
+  - The device flow against Keycloak (approved by a curl "browser") logged in and stored the sealed
+    refresh token.
+  - The next launch continued from that token. It refreshed, listed characters, got a ticket and
+    connected with the ticket in the header.
+  - The API (no `/ws` yet) answered 404, and each reconnect
+    got a new ticket (8 attempts, 8 tickets).
+  - `L_TestZone` loads with `BP_NightfallGameMode`, the pawn
+    possessed by `BP_NightfallPC`, a dynamic nav mesh and `EntityClass = BP_RemoteEntity`.
+- The WebSocket traffic after the upgrade (spawn/move) is not verified until the `/ws`
+  endpoint of the server exists.
 
-- Phase 1a E1.1-E1.3 (2026-10-09): editor and game targets build with warnings as errors;
+- Phase 1a E1.1-E1.3 (2026-10-09): the editor and game targets build with warnings as errors.
   `Automation RunTests Nightfall` 43/43 against an API with `AUTH_DEV_TOKENS=1` (the 9
-  `Nightfall.Bot.*` tests need no server). `0b-login-enter-world` passes in 0.1 s and
-  `1-kill-one-monster` in 31 s (walk 28 s, kill 3 s) headless against that API; a broken
-  scenario, a timed-out wait and a SIGTERM mid-run each exit 1 with a JUnit report.
+  `Nightfall.Bot.*` tests do not need a server). Headless against that API, `0b-login-enter-world` passes in 0.1 s, and
+  `1-kill-one-monster` passes in 31 s (walk 28 s, kill 3 s). A broken
+  scenario, a timed-out wait and a SIGTERM during the run each exit 1 with a JUnit report.
 
 ## Spike log: TurboLink on UE 5.8.3 / Linux (Story 6.1, risk R1)
 
-Time-box was one working day; the plugin built within the first hour. Outcome: **TurboLink works on UE
-5.8.3 Linux with clang 20. Fallbacks B (vendored grpc++) and C (HTTP/JSON) are not needed.**
+The time-box was one working day. The plugin built in the first hour. Outcome: **TurboLink works on UE
+5.8.3 Linux with clang 20. Fallbacks B (vendored grpc++) and C (HTTP/JSON) are not necessary.**
 
 | # | Step | Problem | Fix |
 |---|---|---|---|
-| 1 | Add submodule at `v1.4.2` (`32cc00b`), enable in `.uproject` | The git repo has no third-party libraries (`Source/ThirdParty` holds only `.gitkeep`); TurboLink's README points at turbolink-libraries v1.3.1, which predates the v1.4.2 sources | Take `Source/ThirdParty` from the v1.4.2 release asset `TurboLink.UE56.zip` (912 MB, sha256 `9ad1ecd9…eaf39`): gRPC 1.57.0, protobuf 23.4, abseil, re2 with prebuilt `lib/linux/{Debug,Release}` static libs. Scripted in `setup-turbolink.sh`, pinned by sha256 |
-| 2 | First `Build.sh NightfallEditor` | All TurboLink sources compiled with clang 20 on the first try. Link failed: `ld.lld: error: unable to find library -lUnrealEditor-TurboLinkGrpc` | Not a TurboLink bug: a user's editor (same engine, other checkout) was running, so UBT used hot-reload names (`-0001.so`) and a new module has no un-suffixed library to link against. `-NoHotReloadFromIDE` → **build succeeded** |
-| 3 | Warnings in the plugin | `TurboLinkEditorModule.cpp:33` `FCoreDelegates::OnPostEngineInit` is deprecated in 5.8; TurboLink's Build.cs warns that `Private/pb` does not exist; UBT notes `no UE_OpenSSL.ver ... linking bundled OpenSSL without symbol isolation` | Left alone (plugin is pinned upstream and its warnings are not errors). `Private/pb` exists once code is generated. The OnPostEngineInit API is removed in the next engine release: patch or update TurboLink before moving past 5.8 |
-| 4 | Code generation on Linux | TurboLink ships `protoc.exe`, `grpc_cpp_plugin.exe`, `protoc-gen-turbolink.exe` and a `.cmd` script only | `install-proto-tools.sh`: build protoc + grpc_cpp_plugin from grpc v1.57.0 (matches the libraries); build protoc-gen-turbolink from source with UE's bundled .NET 10 SDK |
+| 1 | Add submodule at `v1.4.2` (`32cc00b`), enable in `.uproject` | The git repo has no third-party libraries (`Source/ThirdParty` has only `.gitkeep`). The TurboLink README points to turbolink-libraries v1.3.1, which is older than the v1.4.2 sources | Take `Source/ThirdParty` from the v1.4.2 release asset `TurboLink.UE56.zip` (912 MB, sha256 `9ad1ecd9…eaf39`): gRPC 1.57.0, protobuf 23.4, abseil, re2 with prebuilt `lib/linux/{Debug,Release}` static libs. Scripted in `setup-turbolink.sh`, pinned by sha256 |
+| 2 | First `Build.sh NightfallEditor` | All TurboLink sources compiled with clang 20 on the first try. The link failed: `ld.lld: error: unable to find library -lUnrealEditor-TurboLinkGrpc` | This is not a TurboLink bug. The editor of a user (same engine, different checkout) was open. Thus, UBT used hot-reload names (`-0001.so`), and a new module has no library without a suffix to link against. `-NoHotReloadFromIDE` → **build succeeded** |
+| 3 | Warnings in the plugin | `TurboLinkEditorModule.cpp:33` `FCoreDelegates::OnPostEngineInit` is deprecated in 5.8. The TurboLink Build.cs warns that `Private/pb` does not exist. UBT notes `no UE_OpenSSL.ver ... linking bundled OpenSSL without symbol isolation` | Not changed (the plugin is pinned upstream, and its warnings are not errors). `Private/pb` exists after the code is generated. The next engine release removes the OnPostEngineInit API: patch or update TurboLink before you go past 5.8 |
+| 4 | Code generation on Linux | TurboLink releases only `protoc.exe`, `grpc_cpp_plugin.exe`, `protoc-gen-turbolink.exe` and a `.cmd` script | `install-proto-tools.sh`: build protoc + grpc_cpp_plugin from grpc v1.57.0 (the same as the libraries); build protoc-gen-turbolink from source with the bundled .NET 10 SDK of UE |
 | 5 | grpc 1.57 CMake configure | CMake 4.x: `Compatibility with CMake < 3.5 has been removed` | Pin `cmake<4` from PyPI |
-| 6 | protoc-gen-turbolink build | Upstream csproj is .NET Framework 4.6.2 and its T4-preprocessed `.cs` files are not committed. First attempt: `CS0103: The name 's' does not exist` | Preprocess with `dotnet-t4` using class names `protoc_gen_turbolink.Template.<Name>` and drop `public` so they merge with the internal halves in `TemplateModel.cs`; SDK-style csproj targeting the bundled net10.0 |
-| 7 | Where generated code compiles | TurboLink expects generated files copied into its own module; this repo wants them committed in our tree, and the submodule must stay pristine | Commit under `Source/Nightfall/{Generated,GrpcBridge}` with `.ubtignore`; symlink into `TurboLinkGrpc`. UBT and UHT follow the directory symlinks without complaint |
-| 8 | Name clash after Story 0.1 | `session.proto` makes TurboLink generate `SNightfallV1/SessionClient.h` (`USessionServiceClient`), whose `SessionClient.generated.h` would be on Nightfall's include path next to ours | Our class stays `USessionClient`; its files are `Net/SessionClientSubsystem.{h,cpp}` |
-| 9 | Oneofs in TurboLink's generated structs | No "not set" case: the case enum defaults to the first member, and `TURBOLINK_TO_GRPC` dereferences the active member's `TSharedPtr` unchecked | `NightfallWire` only marshals an intent whose pointer is valid; `ProtoCodec` checks the pointer, not just the case, when decoding |
-| 10 | Editor automation tests | No game world ticks a test's game instance, so TurboLink never drains its completion queue | The Ping test pumps `UTurboLinkGrpcManager::Tick` itself while waiting |
+| 6 | protoc-gen-turbolink build | The upstream csproj is .NET Framework 4.6.2, and its T4-preprocessed `.cs` files are not committed. First attempt: `CS0103: The name 's' does not exist` | Preprocess with `dotnet-t4` with the class names `protoc_gen_turbolink.Template.<Name>`, and remove `public` so that they merge with the internal halves in `TemplateModel.cs`. Use an SDK-style csproj that targets the bundled net10.0 |
+| 7 | Where generated code compiles | TurboLink expects the generated files to be copied into its own module. This repo must have them committed in our tree, and the submodule must stay pristine | Commit under `Source/Nightfall/{Generated,GrpcBridge}` with `.ubtignore`, and make symlinks into `TurboLinkGrpc`. UBT and UHT follow the directory symlinks with no problem |
+| 8 | Name clash after Story 0.1 | `session.proto` causes TurboLink to generate `SNightfallV1/SessionClient.h` (`USessionServiceClient`). Its `SessionClient.generated.h` is then on the include path of Nightfall, next to ours | Our class stays `USessionClient`. Its files are `Net/SessionClientSubsystem.{h,cpp}` |
+| 9 | Oneofs in the generated structs of TurboLink | There is no "not set" case: the case enum default is the first member, and `TURBOLINK_TO_GRPC` dereferences the `TSharedPtr` of the active member without a check | `NightfallWire` marshals only an intent whose pointer is valid. During decode, `ProtoCodec` examines the pointer, not only the case |
+| 10 | Editor automation tests | No game world ticks the game instance of a test. Thus, TurboLink never drains its completion queue | The Ping test pumps `UTurboLinkGrpcManager::Tick` itself while it waits |
 
-Other notes: TurboLink's lambda API (`UGameService::CallPing`) keeps its callback in an
-unrooted `NewObject` that the garbage collector may collect mid-call; `USessionClient` uses the
-client-object API with its own handle-to-callback map instead.
+Other notes: the lambda API of TurboLink (`UGameService::CallPing`) keeps its callback in an
+unrooted `NewObject`. The garbage collector can collect it during the call. Thus, `USessionClient` uses the
+client-object API with its own handle-to-callback map.
 
-`Nightfall.Combat.EndToEnd` walks a new character to the fixture keltir slot, fights it and checks
-the click/attack/StopAttack timing. Without a reachable API it is skipped with a `SKIPPED (no combat
+`Nightfall.Combat.EndToEnd` walks a new character to the fixture keltir slot, attacks it and examines
+the click/attack/StopAttack timing. If the API is not available, the test is skipped with a `SKIPPED (no combat
 coverage)` warning; pass `-RequireCombatServer` to the editor to make that skip a failure.
 
 ### Phase 3 skills and PvP presentation
 
-The native HUD renders received ranks in nine stable, configurable key slots.
-The Skill trainer dialog includes an all-skills picker for assigning learned active
-skills, including choices beyond nine; assigning a skill moves its previous binding.
-Maps persist per character in Saved/Config/NightfallHotbar.ini and survive reconnects
-and rank changes. Slot eligibility requires the authoritative catalogue operate
-type as well as effect_implemented and the received learned rank. GetSkillCatalog's
-ACTIVE_INSTANT, ACTIVE_INSTANT_CONTINUOUS and ACTIVE_CONTINUOUS entries can be
-assigned and cast. Passive, toggle, other, absent and unknown types stay out of
-cast slots. Trainer rows show that received classification; eligible passive ranks
-can still be learned. The console Cast command remains subject to server validation.
-Cooldowns use a linear sweep from received ready ticks; cast bars retain original
-start/complete ticks. Buff, song/dance and debuff summaries show rank and remaining
+The native HUD renders the received ranks in nine stable, configurable key slots.
+The Skill trainer dialog has an all-skills picker to assign learned active
+skills, including more than nine. When you assign a skill, its previous binding moves.
+The maps are kept for each character in Saved/Config/NightfallHotbar.ini. They stay after reconnects
+and rank changes. Slot eligibility must have the authoritative catalogue operate
+type, and also effect_implemented and the received learned rank. You can assign and cast the
+ACTIVE_INSTANT, ACTIVE_INSTANT_CONTINUOUS and ACTIVE_CONTINUOUS entries of GetSkillCatalog.
+Passive, toggle, other, absent and unknown types cannot go in
+cast slots. Trainer rows show that received classification. You can still learn eligible passive ranks.
+The server continues to validate the console Cast command.
+Cooldowns use a linear sweep from the received ready ticks. Cast bars keep the original
+start/complete ticks. Buff, song/dance and debuff summaries show the rank and the remaining
 authoritative ticks. Own CP, SP, death penalty, target karma and white/purple/red
-flags come from server facts. The Skill trainer button opens server learning
-choices and errors. Learning retries preserve the selected rank's UUID; successful
-frozen receipts never replace current world resources. Death offers provide
-accept/decline actions. Existing floating damage/flinch cues provide placeholder
-feedback; there is no new art, skill-specific animation, particle or sound asset.
+flags come from server facts. The Skill trainer button opens the learning
+options and errors from the server. Learning retries keep the UUID of the selected rank. Successful
+frozen receipts never replace the current world resources. Death offers have
+accept/decline actions. The existing floating damage/flinch cues give temporary
+feedback. There is no new art, skill-specific animation, particle or sound asset.
 
 Development bot commands: `nf.Cast <id> [target|self|UUID]`, `nf.CancelCast`,
 `nf.Learn <id> <rank> [UUID-key]`, `nf.LearnableSkills`, `nf.SkillCatalog`,
-`nf.AcceptResurrect [offer_id|latest] [accept|decline]`. Omitted cast target and
-`target` leave target binding to the server's selection at command execution.
-Explicit UUID targets support corpses without changing selection. `latest` uses the last received offer ID in the current admission, retained after
-consumption for duplicate-consent rejection tests; explicit IDs support server rejection/retry tests.
+`nf.AcceptResurrect [offer_id|latest] [accept|decline]`. If the cast target is omitted, or if it is
+`target`, the server binds the target to its selection when the command runs.
+Explicit UUID targets make corpses possible as targets, without a change to the selection. `latest` uses the last received offer ID in the current admission. It is kept after
+consumption, for duplicate-consent rejection tests. Explicit IDs are for server rejection/retry tests.
 Numeric comparisons accept exact unsigned integers and `== != < <= > >=`.
-Unknown evidence evaluates false and is printed as unknown where applicable.
+Unknown evidence evaluates false, and the output shows it as unknown where applicable.
 
 | Predicate | Authoritative message / fields |
 |---|---|
@@ -1162,99 +1231,100 @@ Unknown evidence evaluates false and is printed as unknown where applicable.
 | `buff_active/inactive <id>`, `debuff_active <id>`, `effect_count op n` | Identity baseline plus EffectApplied.pool/end_tick and EffectRemoved.effect_id |
 | `entity_effect_active/inactive <own|self|target|UUID> <id>` | Visible identity/incarnation, EffectApplied/Removed stable IDs and deadlines |
 | `cast_state == idle|casting` | Identity baseline, SkillCastStarted original deadlines, SkillCastCancelled/Result, life changes |
-| `cast_starts/results/cancellations op n`, `cast_damage_results op n`, `observed_cast_results op n` | Accepted scoped cast IDs; hydration is excluded; damage kind is received result row; observer results counted once |
+| `cast_starts/results/cancellations op n`, `cast_damage_results op n`, `observed_cast_results op n` | Accepted scoped cast IDs; hydration is not included; the damage kind is the received result row; observer results are counted one time |
 | `own_flag`, `target_flag == none|pvp|chaotic` | Public EntitySpawn/PvpStateChanged, owner StatsChanged/SkillStateSync karma and flag_until_tick |
-| `own_karma/own_pk/own_pvp op n` | Received owner PvP values from same messages |
-| `own_sp op n`, `own_death_penalty op n` | Owner StatsChanged/SkillStateSync; SP also SkillLearned and SpGained |
-| `sp_gained_total/events op n`, `skill_learned_events op n` | Deduplicated owner SpGained / SkillLearned facts in current admission scope |
-| `own_mp_cost_matches <id>` | Exact received C6 catalogue rank MP1/MP2 costs versus owner StatsChanged stage deltas around matched SkillCastStarted/Result; missing metadata or samples is UNKNOWN |
-| `learnable_contains <id> <rank>` | Successful ListLearnableSkills exact received row |
+| `own_karma/own_pk/own_pvp op n` | Received owner PvP values from the same messages |
+| `own_sp op n`, `own_death_penalty op n` | Owner StatsChanged/SkillStateSync; SP also from SkillLearned and SpGained |
+| `sp_gained_total/events op n`, `skill_learned_events op n` | Deduplicated owner SpGained / SkillLearned facts in the current admission scope |
+| `own_mp_cost_matches <id>` | Exact received C6 catalogue rank MP1/MP2 costs, compared with the owner StatsChanged stage deltas around the matched SkillCastStarted/Result; missing metadata or samples give UNKNOWN |
+| `learnable_contains <id> <rank>` | The exact received row of a successful ListLearnableSkills |
 | `learn_rpc_error == none|<canonical gRPC code>` | Completed LearnSkill status; underscore names or numeric codes 0–16 |
-| `learn_receipt_matches_first` | Entire successful frozen LearnSkill reply compared with first reply for same retry key |
-| `skill_rpc_done` | Completion of newest skill RPC, including failed calls |
+| `learn_receipt_matches_first` | The full successful frozen LearnSkill reply, compared with the first reply for the same retry key |
+| `skill_rpc_done` | Completion of the newest skill RPC, including failed calls |
 | `resurrect_offer_pending` | Owner ResurrectOffer ID/state/expiry, current death incarnation |
-| `vitals_max_hp <own|self|target|UUID> op n` | EntitySpawn.max_hp, StatsChanged.max_hp (owner), VitalsChanged.max_hp including final revival baseline |
+| `vitals_max_hp <own|self|target|UUID> op n` | EntitySpawn.max_hp, StatsChanged.max_hp (owner), VitalsChanged.max_hp including the final revival baseline |
 | `catalogue_skill_status <id> == executable|deferred` | GetSkillCatalog.effect_implemented |
-| `entity_alive/dead/in_view <own|self|target|UUID>` | Known EntitySpawn identity, EntityDied/Respawned and accepted public absolute HP; absent identity stays unknown |
-| `entity_at <entity> <x> <y> <tol>` | Newest received EntitySpawn/EntityMove position sample, gated by current known identity |
-| `entity_casting <entity> <id>` | Current SkillCastStarted skill ID, including identity hydration; terminal Result/Cancelled clears it |
-| `initial_hp/mp/cp op n` | First owner EntitySpawn HP and first accepted StatsChanged MP/CP in the current admission; later updates do not rewrite these samples |
-| `target_flag_remaining op n` | Received PvpStateChanged.flag_until_tick minus newest received tick, clamped at zero |
-| `cast_cancel_reason/observed_cast_cancel_reason == <reason>` | Last accepted SkillCastCancelled.reason with caster life/cast ID fences; observed includes the owner |
-| `buff_replacements op n`, `replacement_remove_before_apply` | Known buff EffectRemoved(reason=REPLACED) followed by same target/skill/pool EffectApplied with a new effect ID; duplicates/baselines excluded |
-| `effect_remove_reason == <reason>` | Last accepted EffectRemoved.reason for a previously known stable effect ID |
+| `entity_alive/dead/in_view <own|self|target|UUID>` | Known EntitySpawn identity, EntityDied/Respawned and accepted public absolute HP; an absent identity stays unknown |
+| `entity_at <entity> <x> <y> <tol>` | The newest received EntitySpawn/EntityMove position sample, only for the current known identity |
+| `entity_casting <entity> <id>` | The current SkillCastStarted skill ID, including identity hydration; a terminal Result/Cancelled clears it |
+| `initial_hp/mp/cp op n` | The first owner EntitySpawn HP and the first accepted StatsChanged MP/CP in the current admission; later updates do not change these samples |
+| `target_flag_remaining op n` | Received PvpStateChanged.flag_until_tick minus the newest received tick, with zero as the minimum |
+| `cast_cancel_reason/observed_cast_cancel_reason == <reason>` | The last accepted SkillCastCancelled.reason, with caster life/cast ID fences; observed includes the owner |
+| `buff_replacements op n`, `replacement_remove_before_apply` | Known buff EffectRemoved(reason=REPLACED), then an EffectApplied for the same target/skill/pool with a new effect ID; duplicates/baselines not included |
+| `effect_remove_reason == <reason>` | The last accepted EffectRemoved.reason for a stable effect ID that was known before |
 
-Identity baselines reset projections; ordinary deltas at/before them are rejected.
-Explicit hydration must match the identity tick and incarnation. Hidden reference
+Identity baselines reset the projections. The client rejects ordinary deltas at or before them.
+Explicit hydration must agree with the identity tick and incarnation. Hidden reference
 pairs are omitted together. Transport/generation/life fences prevent stale state
-and historical receipts from becoming live facts. Expiry uses received ticks,
-never client wall time or gameplay formulas.
+and historical receipts from becoming live facts. Expiry uses received ticks. It
+never uses client wall time or gameplay formulas.
 
-`Nightfall.Skill.*`, `Nightfall.Pvp.*`, `Nightfall.Effect.*` include offline wire,
-fence, bot and UI tests and live admission smoke tests. Live tests skip only when
-Ping reports an unavailable API; reachable auth/runtime/admission failures fail.
-`Scripts/run-tests.sh --require-live-api` makes unavailable API tests fail too.
-Use `-Phase3LiveCharacter=<UUID>` for a prepared fixture character; otherwise live
-admission tests create a fresh character. Live gameplay scenarios and server
-oracle verification are architect/harness work. All canonical and nested Phase 3 scenario command/predicate names now bind in the native registry. Received-history checks and exact frozen E1 karma/revival input lookups are documented in [PHASE3_PREDICATES.md](PHASE3_PREDICATES.md). Twelve predicates requiring regen causes, full death records, ordered modifiers, hate ledgers or RNG/credit traces remain **evidence-blocked**: they parse but always evaluate false with an explicit UNKNOWN reason. The strict harness source audit still rejects their uses. The peace no-damage check additionally needs the victim owner's private CP, and frozen lookups need a matching input vector. Parsing and authored offline dispatch fixtures do not attest live gameplay or server precision. The client never selects an arbitrary vector with a matching output or infers regeneration from an HP increase.
+`Nightfall.Skill.*`, `Nightfall.Pvp.*` and `Nightfall.Effect.*` include offline wire,
+fence, bot and UI tests, and live admission smoke tests. Live tests skip only when
+Ping reports that the API is not available. Auth/runtime/admission failures on an API that is available fail.
+`Scripts/run-tests.sh --require-live-api` also makes the tests fail when the API is not available.
+Use `-Phase3LiveCharacter=<UUID>` for a prepared fixture character. If you do not, the live
+admission tests make a new character. Live gameplay scenarios and server
+oracle verification are the work of the architect/harness. All canonical and nested Phase 3 scenario command/predicate names now bind in the native registry. [PHASE3_PREDICATES.md](PHASE3_PREDICATES.md) documents the received-history checks and the exact frozen E1 karma/revival input lookups. Twelve predicates are **evidence-blocked**, because they must have regen causes, full death records, ordered modifiers, hate ledgers or RNG/credit traces. They parse, but they always evaluate false with an explicit UNKNOWN reason. The strict harness source audit still rejects their uses. The peace no-damage check also must have the private CP of the victim owner, and the frozen lookups must have a matching input vector. A parse and the authored offline dispatch fixtures do not prove live gameplay or server precision. The client never selects a vector only because it has a matching output, and it never infers regeneration from an HP increase.
 
-Casting soak uses `-SoakRoleManifest=<roles.json>` and
-`-SoakScenarioSeconds=360`. Each role's process allowance is `SoakSeconds +
-SoakScenarioSeconds + 60` for boot and a final complete scenario; Gauntlet adds
-30 seconds for collection. Both process and Gauntlet deadlines use this allowance.
-Manifest paths, casting mode, role order/count and private token permissions are
-validated before launching. A manifest/build pass does not prove a casting soak.
+The casting soak uses `-SoakRoleManifest=<roles.json>` and
+`-SoakScenarioSeconds=360`. The process allowance of each role is `SoakSeconds +
+SoakScenarioSeconds + 60`, for the boot and a final complete scenario. Gauntlet adds
+30 seconds for collection. The process deadline and the Gauntlet deadline use this allowance.
+The soak validates the manifest paths, the casting mode, the role order/count and the private token permissions before
+it starts the processes. A manifest/build pass does not prove a casting soak.
 
-Round 3 UI corrections: clicking a visible player corpse selects its received identity locally; a hotbar click or number key sends that corpse explicitly in CastSkill. Despawn, replacement generation, revival/new incarnation, a live selection, ground click, or transport reset clears it. This selection does not issue auto-attack. Catalogue replies survive owner admission and use an independent request lifetime; a transport reset still discards outdated callbacks. Native automation exercises the production mouse-hit resolver and key delegate, HUD cast progress/terminal state, effect countdown/pool/expiry, PvP colours and the actual accept/decline button delegates. These are headless state/input checks, not rendered screenshots or live gameplay proof.
+Round 3 UI corrections:
 
-Phase 4 items use the existing WebSocket and authenticated GameService. The
-owner inventory reducer requires identity followed by InventorySync, accepts
-all same-revision summary siblings, and reconnects with a fresh ticket when it
-misses a revision. Detached GetInventory responses (`tick/baseline_tick/incarnation
-= 0`) are shown separately through each character row's **View inventory** button.
-They never establish a world baseline or overwrite live inventory.
+- A click on a visible player corpse selects its received identity locally. A hotbar click or a number key then sends that corpse explicitly in CastSkill.
+- Despawn, a replacement generation, a revival/new incarnation, a live selection, a ground click or a transport reset clears it. This selection does not start an auto-attack.
+- Catalogue replies stay after owner admission, and they use an independent request lifetime. A transport reset still discards outdated callbacks.
+- Native automation tests the production mouse-hit resolver and the key delegate. It also tests the HUD cast progress/terminal state, the effect countdown/pool/expiry, the PvP colours and the actual accept/decline button delegates.
 
-**Inventory (I)** opens the code-built grid, exact counts/enchant/augment badges,
-paperdoll, weight/penalty view and received catalogue tooltips. Select an item
-for equip/manual use or select a paperdoll slot for unequip. Enchant/crystallize
-and blacksmith forms select received item instances and SA recipes. Confirming
-again retains the UUID and originally resolved body, including after a scroll
-or base weapon was consumed. A changed body with the same key reaches the
-server's conflict path. Pending requests finish only on their matching receipt
-or seq rejection; no widget predicts item counts, stats or random results.
+These are headless state/input checks. They are not rendered screenshots, and they do not prove live gameplay.
 
-The inventory form assigns nine per-character item hotbar slots. **F1–F9** or
-the second HUD hotbar row uses those slots; each slot is explicitly manual use
-or an auto-shot toggle. Toggle labels read the received auto-shot set. Number
-keys continue to use the skill hotbar. Item bindings persist in
-`GeneratedConfig/NightfallItems.ini`.
+Phase 4 items:
 
-E6's command/predicate authority is
-[phase4-fixtures.md](Scripts/phase4-fixtures.md) and
-[phase4-grammar.py](Scripts/phase4-grammar.py). The client additionally registers
-the architect's `refine_outcome == applied|removed` amendment. `weight_pct`
-compares raw received weight/max-load against exact decimal/rational literals,
-including large literals, and remains UNKNOWN for nonpositive max-load. Arrow
-classification is generated from pinned E1 ARROW metadata, checked against the
-received catalogue name/kind; regenerate with
-`python3 Scripts/gen-item-client-metadata.py` after an E1 catalogue update.
-`nf.GrantItem` uses the authenticated RPC; AUTH_DEV_TOKENS is enforced by the
-server, and refusal is observable through `item_rpc_error`.
+- Phase 4 items use the existing WebSocket and the authenticated GameService.
+- The owner inventory reducer must have the identity first, and then InventorySync. It accepts all summary siblings that have the same revision.
+- When the reducer does not get a revision, it connects again with a new ticket.
+- Detached GetInventory responses have `tick/baseline_tick/incarnation = 0`. The **View inventory** button on each character row shows them separately.
+- Detached responses never set a world baseline, and they never overwrite the live inventory.
 
-`Scripts/create_content.py` now imports a deterministic three-kind placeholder
-icon atlas and creates `/Game/Items/M_ItemGlow`. Pawn and proxy weapon meshes
-consume only public VisibleEquipment. Alternating cube/cylinder shapes are
-cosmetic template placeholders, not weapon-kind models. Glow colours consume
-the server's tier, with the design §1.5/I6 placeholder policy (weapon +7/+15,
-armour +6); this is not retail client material evidence. Empty gear baselines
-and slot tombstones hide meshes. Content generation and pixel/cook checks are
-integration gates; the native component guards absent optional generated art.
+**Inventory (I)** opens these code-built parts:
 
-`Scripts/run-tests.sh --offline` selects `Nightfall.Item` and avoids obtaining
-credentials. Tests cover wire fields/presence, identity/revision/privacy/reset,
-received predicates and exact comparisons, catalogue failure/lifetime, sticky
-outcome coherence, actual widget delegates, frozen retry, hotbar keys and public
-gear projection. Headless input/state tests do not certify rendered pixels or
-live gameplay. Use `--require-live-api` and the canonical Phase 4 scenarios at
-integration. E5 story Done When remains open until those gates and independent
-review pass.
+- The grid, with the exact count, enchant and augment badges.
+- The paperdoll and the weight/penalty view.
+- The tooltips from the received catalogue.
+
+To equip or to manually use an item, select the item. To unequip an item, select a paperdoll slot. The enchant/crystallize forms and the blacksmith forms select received item instances and SA recipes.
+
+When you confirm a request again, the client keeps the UUID and the body that it resolved first. This is also true after the server consumed a scroll or a base weapon. A changed body with the same key goes to the conflict path of the server. A pending request stops only when its matching receipt or a seq rejection arrives. No widget predicts item counts, stats or random results.
+
+The inventory form assigns nine item hotbar slots for each character. **F1–F9** or the second HUD hotbar row use these slots. Each slot is explicitly a manual use or an auto-shot toggle. The toggle labels read the received auto-shot set. The number keys continue to use the skill hotbar. The item bindings stay in `GeneratedConfig/NightfallItems.ini`.
+
+The E6 command/predicate authority is [phase4-fixtures.md](Scripts/phase4-fixtures.md) and [phase4-grammar.py](Scripts/phase4-grammar.py). The client also registers the architect amendment `refine_outcome == applied|removed`.
+
+- `weight_pct` compares the raw received weight/max-load with exact decimal/rational literals. Large literals are also correct.
+- When the max-load is zero or less, `weight_pct` stays UNKNOWN.
+- The arrow classification comes from pinned E1 ARROW metadata. The client compares it with the name/kind of the received catalogue.
+- After an E1 catalogue update, run `python3 Scripts/gen-item-client-metadata.py` to make the arrow metadata again.
+- `nf.GrantItem` uses the authenticated RPC. The server enforces AUTH_DEV_TOKENS. When the server refuses, `item_rpc_error` shows the refusal.
+
+Item content:
+
+- `Scripts/create_content.py` imports a deterministic placeholder icon atlas with three kinds. It also makes `/Game/Items/M_ItemGlow`.
+- The weapon meshes on the pawn and on the proxies use only the public VisibleEquipment.
+- The alternating cube/cylinder shapes are cosmetic template placeholders. They are not models for the weapon kinds.
+- The glow colours use the tier from the server, with the placeholder policy of design §1.5/I6 (weapon +7/+15, armour +6). This is not evidence of the retail client material.
+- Empty gear baselines and slot tombstones hide the meshes.
+- Content generation and the pixel/cook checks are integration gates. The native component is safe when optional generated art is not present.
+
+`Scripts/run-tests.sh --offline` selects `Nightfall.Item`, and it does not get credentials. The tests cover these items:
+
+- Wire fields/presence, and identity/revision/privacy/reset.
+- Received predicates and exact comparisons.
+- Catalogue failure/lifetime, and sticky outcome coherence.
+- The actual widget delegates, the frozen retry, the hotbar keys and the public gear projection.
+
+Headless input/state tests do not certify rendered pixels or live gameplay. At integration, use `--require-live-api` and the canonical Phase 4 scenarios. The E5 story Done When stays open until these gates and an independent review pass.

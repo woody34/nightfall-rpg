@@ -1,7 +1,7 @@
 # Phase 1 — Stat Formulas
 
-Base stats, derived stats, and experience curves. Everything combat-related in Phases 2–4 calls the
-functions defined in section 3 of this document.
+This document gives the base stats, the derived stats, and the experience curves. All combat
+systems in Phases 2–4 call the functions in section 3 of this document.
 
 ---
 
@@ -9,40 +9,45 @@ functions defined in section 3 of this document.
 
 **Delivers**
 
-- The six base stats (STR, DEX, CON, INT, WIT, MEN), what each governs, and the multiplier curve
-  that converts a stat value into a bonus.
+- The six base stats (STR, DEX, CON, INT, WIT, MEN) and the values that each stat controls. Also the
+  multiplier curve that changes a stat value into a bonus.
 - Derived stats: P.Atk, M.Atk, P.Def, M.Def, max HP/MP/CP, HP/MP/CP regeneration, accuracy, evasion,
   physical and magic critical rate, attack speed, cast speed, run speed, weight limit, hit chance.
-- Leveling: the XP-to-level table, XP loss on death, party XP sharing (per-member bonus and level-gap
-  cutoff), and XP/damage penalties for fighting monsters far above or below your level.
-- Nightfall's chosen formulas as Rust signatures, a `Stats` struct, data-file schema, and proto changes.
+- Leveling: the XP-to-level table, XP loss on death, and party XP sharing (per-member bonus and
+  level-gap cutoff). Also the XP/damage penalties when you fight monsters far above or below your level.
+- The Nightfall formulas as Rust signatures, a `Stats` struct, the data-file schema, and the proto changes.
 
 **Excludes**
 
-- Per-class stat values beyond the nine starting classes (Phase 2), skill/buff modifiers and the
-  damage pipeline that consumes these stats (Phase 3), item stats (Phase 4), SP/skill cost curves
-  (Phase 3). Attribute (fire/water/...) math is Phase 3.
+- These items are not in this phase:
+  - Per-class stat values for classes other than the nine starting classes (Phase 2).
+  - Skill/buff modifiers, and the damage pipeline that uses these stats (Phase 3).
+  - Item stats (Phase 4).
+  - SP/skill cost curves (Phase 3).
+  - Attribute (fire/water/...) math (Phase 3).
 
 ---
 
 ## 2. Reference: how Lineage 2 does it
 
-Numbers below come from the L2J server emulator (Interlude/C6 branch and the High Five branch),
-whose data files were reverse-engineered from retail. Where the two differ, both are quoted.
+The numbers in this section come from the L2J server emulator (Interlude/C6 branch and the High Five
+branch). The L2J team reverse-engineered the data files from retail. If the two branches are different,
+this section quotes both.
 
 ### 2.1 The six base stats
 
 | Stat | Governs (multiplier applied to) | Also affects |
 |------|---------------------------------|--------------|
-| **STR** | P.Atk | (HF) nothing else; weight limit is CON in L2, not STR |
-| **DEX** | P.Atk speed, physical critical rate, run speed, accuracy and evasion (via √DEX) | shield block rate (Phase 3) |
+| **STR** | P.Atk | (HF) no other value; in L2, CON sets the weight limit, not STR |
+| **DEX** | P.Atk speed, physical critical rate, run speed, accuracy and evasion (through √DEX) | shield block rate (Phase 3) |
 | **CON** | Max HP, Max CP, HP regen, CP regen, weight limit | stun/bleed resistance in retail ("shock resistance"), breath |
 | **INT** | M.Atk (squared) | debuff land rate in later chronicles |
 | **WIT** | Casting speed, magic critical rate | magic resist / hold resistance |
 | **MEN** | M.Def, Max MP, MP regen | mental debuff resistance, magic cancel resistance |
 
-Every bonus is a dimensionless multiplier around 1.0 at a "neutral" value. L2J Interlude ships them
-as 100-entry arrays in `stats/statBonus.xml`; the XML comments give the generating formulas:
+Each bonus is a multiplier with no dimension. It is approximately 1.0 at a "neutral" value. L2J
+Interlude supplies the bonuses as 100-entry arrays in `stats/statBonus.xml`. The XML comments give the
+formulas that make the arrays:
 
 ```
 STR:  1.036 ^ (STR − 34.845)
@@ -53,9 +58,9 @@ DEX:  1.009 ^ (DEX − 19.360)
 WIT:  1.050 ^ (WIT − 20.000)
 ```
 
-Values are capped at `MAX_STAT_VALUE = 100` (index clamp). Rounded to two decimals, the table every 5
-points (this reproduces the XML to within rounding; e.g. the XML has STR 40 → 1.20, 60 → 2.43,
-99 → 9.67; WIT 50 → 4.32; CON 43 → 1.57):
+The maximum value is `MAX_STAT_VALUE = 100` (index clamp). The table below gives the values at each
+5 points, rounded to two decimals. The table is the same as the XML, with only rounding differences.
+For example, the XML has STR 40 → 1.20, 60 → 2.43, 99 → 9.67; WIT 50 → 4.32; CON 43 → 1.57:
 
 | stat | 5 | 10 | 15 | 20 | 25 | 30 | 35 | 40 | 45 | 50 | 55 | 60 | 65 | 70 | 75 | 80 | 85 | 90 | 95 |
 |------|---|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|
@@ -66,15 +71,19 @@ points (this reproduces the XML to within rounding; e.g. the XML has STR 40 → 
 | DEX | 0.88 | 0.92 | 0.96 | 1.01 | 1.05 | 1.10 | 1.15 | 1.20 | 1.26 | 1.32 | 1.38 | 1.44 | 1.51 | 1.57 | 1.65 | 1.72 | 1.80 | 1.88 | 1.97 |
 | WIT | 0.48 | 0.61 | 0.78 | 1.00 | 1.28 | 1.63 | 2.08 | 2.65 | 3.39 | 4.32 | 5.52 | 7.04 | 8.99 | 11.47 | 14.64 | 18.68 | 23.84 | 30.43 | 38.83 |
 
-Observations that matter for tuning: WIT is by far the steepest curve (×5 between 20 and 55), which is
-why L2 mages feel "fast" at ~40 WIT; MEN is nearly linear and never below 1.0; DEX is the flattest
-(a +10 DEX buff is only ~+9% attack speed).
+These observations are important for tuning:
 
-The High Five branch rebased the stats (every class got ~+45 to its values, e.g. Human Fighter STR 88
-instead of 40) and replaced the arrays with closed forms, e.g. `STR: 1.009^(STR−49)`,
-`INT: 1.01^(INT−49.4)`, `DEX: 1.00456^(DEX−19.27)`, `WIT: 1.01383^(WIT−64.57)`,
-`CON: 1.01169^(CON−34.80)`, `MEN: 1.00369^(MEN+30.45)`. Same shape, flatter slopes, shifted
-neutral points. We use the Interlude curves (steeper, more legible) with Interlude base values.
+- WIT has the steepest curve, by a large quantity (×5 between 20 and 55). This is the reason that L2
+  mages feel "fast" at approximately 40 WIT.
+- MEN is almost linear and is never below 1.0.
+- DEX has the flattest curve (a +10 DEX buff gives only approximately +9% attack speed).
+
+The High Five branch rebased the stats. Each class got approximately +45 on its values, for example
+Human Fighter STR 88 and not 40. The branch also replaced the arrays with closed forms, for example
+`STR: 1.009^(STR−49)`, `INT: 1.01^(INT−49.4)`, `DEX: 1.00456^(DEX−19.27)`, `WIT: 1.01383^(WIT−64.57)`,
+`CON: 1.01169^(CON−34.80)`, `MEN: 1.00369^(MEN+30.45)`. These curves have the same shape, but flatter
+slopes and moved neutral points. We use the Interlude curves (steeper and easier to read) with the
+Interlude base values.
 
 ### 2.2 Starting base stats per race/class (Interlude `playerTemplates.xml`)
 
@@ -90,13 +99,13 @@ neutral points. We use the Interlude curves (steeper, more legible) with Interlu
 | Orc Mystic (49) | 27 | 24 | 31 | 31 | 15 | 42 | 4 | 6 | 54 | 41 | 300 | 333 | 41 | 121 |
 | Dwarf Fighter (53) | 39 | 29 | 45 | 20 | 10 | 27 | 4 | 6 | 80 | 41 | 300 | 333 | 43 | 115 |
 
-Base stats in L2 are **fixed per class** (every Human Fighter has 40 STR for life); only dyes
-(henna), buffs, and later-chronicle items change them. The current `grpc.rs` stub already returns the
-Human Fighter row.
+In L2, the base stats are **fixed per class** (each Human Fighter has 40 STR for all its life). Only
+dyes (henna), buffs, and later-chronicle items change them. The `grpc.rs` stub now returns the Human
+Fighter row.
 
 ### 2.3 Level modifier
 
-Almost every derived stat scales with level through
+Almost all derived stats change with level through this formula:
 
 ```
 levelMod(level) = (level + 89) / 100          // L2J L2Character.getLevelMod()
@@ -118,9 +127,9 @@ Level 1 → 0.90, level 20 → 1.09, level 40 → 1.29, level 60 → 1.49, level
 | HP regen /tick | `classHpRegen(level) × levelMod × CONmod × posture` | `Formulas.calcHpRegen`; posture: sitting ×1.5, standing ×1.1, running ×0.7 |
 | MP regen | `classMpRegen(level) × levelMod × MENmod × posture` | `calcMpRegen` |
 | CP regen | `classCpRegen(level) × levelMod × CONmod × posture` | `calcCpRegen` |
-| Accuracy | `√DEX × 5 + level (+1 at 78+, +2 at 81+, +2 at 88+ …) + weapon accuracy` | `FuncAtkAccuracy` (comment says "[Square(DEX)] * 5 + lvl") |
+| Accuracy | `√DEX × 5 + level (+1 at 78+, +2 at 81+, +2 at 88+ …) + weapon accuracy` | `FuncAtkAccuracy` (the comment is "[Square(DEX)] * 5 + lvl") |
 | Evasion | `√DEX × 5 + level (+ (level−69) above 69 for players)` | `FuncAtkEvasion` |
-| P. critical rate | `baseCrit × DEXmod` (Interlude baseCrit 40–46) or `baseCrit × DEXmod × 10` (HF baseCrit 4) — both land at ≈ 40–50 per mille | `FuncAtkCritical`; cap `MaxPCritRate = 500` |
+| P. critical rate | `baseCrit × DEXmod` (Interlude baseCrit 40–46) or `baseCrit × DEXmod × 10` (HF baseCrit 4) — both give ≈ 40–50 per mille | `FuncAtkCritical`; cap `MaxPCritRate = 500` |
 | M. critical rate | `baseMCrit(5) × WITmod × 10` per mille | `FuncMAtkCritical`; cap `MaxMCritRate = 200` |
 | P. attack speed | `basePAtkSpd(300 fighter / 240 HF mystic) × DEXmod` | `FuncPAtkSpeed`; cap 1500 |
 | Casting speed | `baseMAtkSpd(333) × WITmod` | `FuncMAtkSpeed`; cap 1999 |
@@ -128,8 +137,8 @@ Level 1 → 0.90, level 20 → 1.09, level 40 → 1.29, level 60 → 1.49, level
 | Weight limit | `floor(CONmod × 69000)`, clamped: CON < 1 → 31000, CON > 59 → 176000 | Interlude `getMaxLoad()` |
 
 Crit and m-crit are **per mille**: `calcCrit` rolls `rate > Rnd.get(1000)`. A Human Fighter with
-DEX 30 has rate 44 × 1.10 = 48 → 4.8 % crit. Physical crits deal ×2 damage; magic crits ×3 vs
-monsters, ×2 vs players (HF).
+DEX 30 has rate 44 × 1.10 = 48 → 4.8 % crit. Physical crits cause ×2 damage. Magic crits cause ×3
+damage against monsters and ×2 against players (HF).
 
 **Hit chance** (`Formulas.calcHitMiss`):
 
@@ -138,9 +147,10 @@ chance‰ = clamp((80 + 2 × (attackerAccuracy − targetEvasion)) × 10 × cond
 miss    = chance < Rnd(1000)
 ```
 
-so equal accuracy/evasion gives 80 % to hit, each point of difference is ±2 %, floor 20 %, ceiling
-98 %. `hitConditionBonus.xml`: attacking from behind +10 %, from the side +5 %, from high ground +3 %,
-from low ground −3 %, at night −10 %, in rain −3 %.
+Thus, if accuracy and evasion are equal, the chance to hit is 80 %. Each point of difference
+changes the chance by ±2 %. The floor is 20 % and the ceiling is 98 %. `hitConditionBonus.xml` gives
+the bonuses that follow. Attack from behind +10 %, from the side +5 %, from high ground +3 %, from low ground −3 %,
+at night −10 %, in rain −3 %.
 
 **Attack interval** (`L2Character.calculateTimeBetweenAttacks` / `Formulas.calcPAtkSpd`):
 
@@ -153,14 +163,21 @@ cast_ms    = skillTime × 333 / mAtkSpd (physical skills: skillTime × 300 / pAt
 
 300 atk speed → 1567 ms per swing; 500 → 940 ms; 1500 (cap) → 313 ms.
 
-**Weight penalty** (`refreshOverloaded`): load fraction `w = currentLoad / maxLoad`; `w < 50 %` no
-penalty; 50–66.6 % level 1; 66.6–80 % level 2; 80–100 % level 3; ≥ 100 % level 4 (cannot move/attack
-in retail). Penalty levels map to skill 4270 which reduces speed and attack speed.
+**Weight penalty** (`refreshOverloaded`): the load fraction is `w = currentLoad / maxLoad`. The penalty
+levels are:
+
+- `w < 50 %`: no penalty.
+- 50–66.6 %: level 1.
+- 66.6–80 %: level 2.
+- 80–100 %: level 3.
+- ≥ 100 %: level 4 (in retail, the character cannot move or attack).
+
+Each penalty level is a level of skill 4270. This skill decreases the speed and the attack speed.
 
 ### 2.5 HP / MP / CP per level
 
-High Five ships an explicit per-level table per class (`lvlUpgainData`). Fitting
-`value(L) = base + a·(L−1) + b·(L−1)²` reproduces every one of the 99 entries with zero error, so the
+High Five supplies an explicit per-level table for each class (`lvlUpgainData`). A fit of
+`value(L) = base + a·(L−1) + b·(L−1)²` gives all of the 99 entries with zero error. Thus, the
 retail tables are quadratics:
 
 | Class | HP base | HP a | HP b | MP base | MP a | MP b | CP / HP |
@@ -175,21 +192,26 @@ retail tables are quadratics:
 | Orc Mystic | 95 | 15.385 | 0.085 | 40 | 7.240 | 0.040 | 0.50 |
 | Dwarf Fighter | 80 | 12.670 | 0.070 | 30 | 5.430 | 0.030 | 0.70 |
 
-Spot values (Human Fighter, before CON): L1 80 HP / 30 MP; L20 327 / 144; L40 637.7 / 287.4;
-L60 1000.4 / 454.8; L76 1328 / 606. Mystics have *more* raw HP than fighters; the gap comes from CON.
+Sample values (Human Fighter, before CON): L1 80 HP / 30 MP; L20 327 / 144; L40 637.7 / 287.4;
+L60 1000.4 / 454.8; L76 1328 / 606. Mystics have *more* raw HP than fighters. CON causes the difference.
 
-Regeneration per tick (same for all nine starters, HF table): HP 2.0 at L1, +0.05/level to 2.95 at
-L20, then `1.4 + 0.1 × L` (3.4 at 20, 5.4 at 40, 7.4 at 60, 9.0 at 76, 9.4 at 80). MP 0.9 through
-L10 then `0.9 + 0.03 × (L−10)` capped at 3.0 (1.2 at 20, 1.8 at 40, 2.4 at 60). CP 2.0 through L10,
-then `0.5 + 0.1 × L` (2.5 at 20, 4.5 at 40, 6.5 at 60) capped 8.5 at 76+. The Interlude branch instead
-stores `baseHpMax, levelHpAdd, levelHpMod` per class (Human Fighter 80.0 / 11.83 / 0.37) and derives
-the curve in code; the HF table is the cleaner source and is what we fit.
+Regeneration per tick (the same for all nine starting classes, HF table):
+
+- HP: 2.0 at L1, +0.05/level to 2.95 at L20, then `1.4 + 0.1 × L` (3.4 at 20, 5.4 at 40, 7.4 at 60,
+  9.0 at 76, 9.4 at 80).
+- MP: 0.9 through L10, then `0.9 + 0.03 × (L−10)` with a maximum of 3.0 (1.2 at 20, 1.8 at 40, 2.4 at 60).
+- CP: 2.0 through L10, then `0.5 + 0.1 × L` (2.5 at 20, 4.5 at 40, 6.5 at 60), with a maximum of 8.5 at 76+.
+
+The Interlude branch uses a different method. It stores `baseHpMax, levelHpAdd, levelHpMod` for each
+class (Human Fighter 80.0 / 11.83 / 0.37) and calculates the curve in code. The HF table is the
+better source, and we fit to it.
 
 ### 2.6 Experience table
 
-Cumulative XP required to **reach** each level (`experience.xml`, `tolevel`). Interlude (max 80) and
-High Five (max 85 for mains) agree to level 20 and diverge after (HF was re-tuned to be much steeper
-in the 40s and 70s). Both are reproduced; Nightfall uses the Interlude column.
+This table gives the cumulative XP that is necessary to **reach** each level (`experience.xml`,
+`tolevel`). Interlude (max 80) and High Five (max 85 for mains) are the same up to level 20, and
+different after level 20. (The HF values were re-tuned to be much steeper in the 40s and 70s.) The
+table shows both. Nightfall uses the Interlude column.
 
 | L | Interlude | High Five | L | Interlude | High Five |
 |---|-----------|-----------|---|-----------|-----------|
@@ -235,15 +257,14 @@ in the 40s and 70s). Both are reproduced; Nightfall uses the Interlude column.
 | 40 | 15,422,851 | 8,342,182 | 80 | 4,200,000,000 | 2,288,742,870 |
 
 HF continues: 81 → 2,703,488,268; 82 → 3,174,205,601; 83 → 3,708,727,539; 84 → 4,316,300,702;
-85 → 5,008,025,097 (then a ×2 jump per level to 99 for the Awakening content). The Interlude file lists
-81–87 as a geometric 1.5×/1.4×/1.3×… extension used only for the subclass/GM cap. Note the Interlude
-"wall": 76→77 costs 220 M, 77→78 360 M, 78→79 588 M, 79→80 2.1 B — level 80 was intended to be
-near-unreachable.
+85 → 5,008,025,097 (then a ×2 increase for each level to 99, for the Awakening content). The Interlude
+file lists 81–87 as a geometric 1.5×/1.4×/1.3×… extension. Only the subclass/GM cap uses it. Interlude has a "wall": 76→77 costs 220 M, 77→78 360 M, 78→79 588 M, 79→80 2.1 B. The designers
+wanted level 80 to be almost impossible to reach.
 
 ### 2.7 XP loss on death
 
-Interlude (`PlayerInstance.deathPenalty`): a flat percentage of the **span of the current level**
-(`expForLevel(L+1) − expForLevel(L)`), not of total XP:
+Interlude (`PlayerInstance.deathPenalty`) uses a flat percentage of the **span of the current level**
+(`expForLevel(L+1) − expForLevel(L)`). It does not use a percentage of the total XP:
 
 | Level | % of current level lost |
 |-------|-------------------------|
@@ -252,24 +273,34 @@ Interlude (`PlayerInstance.deathPenalty`): a flat percentage of the **span of th
 | 40–74 | 4 % |
 | 75–80 | 2 % |
 
-Modifiers: ÷4 if killed during clan war, siege, or festival; × `RateKarmaExpLost` (default 1) when the
-victim has karma; zero in peace zones and events. High Five replaced the brackets with a per-level
-table (`playerXpPercentLost.xml`): 10.0 % at L1 decreasing by 0.125 per level to 4.0 % at L49, flat
-4.0 % through L75, then 2.5 (76), 2.0 (77), 1.5 (78), 1.0 % at 79+. Classic (2015 relaunch) went the
-other way: a flat 10 % at all levels, level loss possible from level 10 up, with items droppable on
-PvE death; the 2016 Classic 1.5 notes list 4 %. Later chronicles (GoD+) remove level loss entirely and
-add the Shilen's Breath debuff instead. The losing-a-level rule in L2J: XP can drop below the level
-floor and the character de-levels (`AltGameDelevel`), down to level 1.
+Modifiers:
+
+- ÷4 if the character dies during a clan war, siege, or festival.
+- × `RateKarmaExpLost` (default 1) if the victim has karma.
+- Zero in peace zones and events.
+
+High Five replaced the brackets with a per-level table (`playerXpPercentLost.xml`). The loss is 10.0 %
+at L1, and decreases by 0.125 for each level to 4.0 % at L49. It is a flat 4.0 % through L75, then
+2.5 (76), 2.0 (77), 1.5 (78), 1.0 % at 79+.
+
+Classic (2015 relaunch) went in the opposite direction. It used a flat 10 % at all levels. Level loss
+was possible from level 10 and up, and a PvE death could drop items. The 2016 Classic 1.5 notes list 4 %.
+Later chronicles (GoD+) remove level loss fully, and add the Shilen's Breath debuff in its place.
+
+The L2J rule for level loss: XP can go below the level floor, and then the character de-levels
+(`AltGameDelevel`), down to level 1.
 
 ### 2.8 Party XP
 
 `L2Party.distributeXpAndSp`:
 
-1. Determine **valid members**: those within the level cutoff relative to the highest-level member
-   (`topLvl`). Methods: `level` (gap ≤ `PartyXpCutoffLevel` = 20), `percentage` (member's level² must
-   be ≥ 3 % of the sum of squares), `auto`, or the retail-accurate `highfive` gaps
-   `0–9 → 100 %`, `10–14 → 30 %`, `15+ → 0 %` of the member's computed share.
-2. Multiply the mob's XP/SP by the **party bonus** for the number of valid members:
+1. Find the **valid members**. These are the members in the level cutoff, relative to the
+   highest-level member (`topLvl`). The methods are:
+   - `level` (gap ≤ `PartyXpCutoffLevel` = 20).
+   - `percentage` (the level² of the member must be ≥ 3 % of the sum of squares).
+   - `auto`.
+   - The retail-accurate `highfive` gaps. These gaps give `0–9 → 100 %`, `10–14 → 30 %`, `15+ → 0 %` of the calculated share of the member.
+2. Multiply the XP/SP of the mob by the **party bonus** for the number of valid members:
 
 | Members | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 |
 |---------|---|---|---|---|---|---|---|---|---|
@@ -277,22 +308,25 @@ floor and the character de-levels (`AltGameDelevel`), down to level 1.
 | High Five | 1.00 | 1.10 | 1.20 | 1.30 | 1.40 | 1.50 | 2.00 | 2.10 | 2.20 |
 | Community (Classic) | 1.0 | 1.3 | 1.4 | 1.5 | 1.6 | 1.7 | 2.0 | — | — |
 
-3. Split by **level squared**: member share = `level² / Σ level²` of valid members. A level 40 next to
-   a level 20 takes 80 % of the pool. Dead members get nothing; a servitor with an XP penalty scales
-   its owner's share.
+3. Divide by **level squared**: the share of a member = `level² / Σ level²` of the valid members. If a
+   level 40 and a level 20 are in a party, the level 40 gets 80 % of the pool. Dead members get
+   nothing. If a servitor has an XP penalty, that penalty also applies to the share of its owner.
 
 ### 2.9 Level difference vs monsters
 
-In L2 a monster's XP reward is a fixed value on the NPC template; there is **no XP scaling by level
-difference** in Interlude/HF code — the gating is indirect, through damage and hit chance. HF
-(`NPC.properties`, Gracia Epilogue rule) applies penalties when a monster of level ≥ 78 is above you:
-damage ×0.7 / 0.6 / 0.6 / 0.55 for 2 / 3 / 4 / 5 levels below the mob (crits 0.75 / 0.65 / 0.6 / 0.58;
-skills 0.8 / 0.7 / 0.65 / 0.62), and magic land chance is divided by 2.5 / 3.0 / 3.25 / 3.5 at 3–6
-levels below. Magic success also includes `lvlModifier = 1.3^(targetLevel − casterLevel)` in
-`calcMagicSuccess`, so every level the target has over you cuts land rate by 30 %. Private servers and
-Classic-era community guides describe explicit XP tables (e.g. "|Δ| < 3 → 100 %, 3–10 → 70 %,
-11–14 → 10 %, 15+ → 0 %" or "0–5 → 100 %, 6–9 → 30 %, 10+ → 0 %"); treat those as fan rules, not
-retail.
+In L2, the XP reward of a monster is a fixed value on the NPC template. In Interlude/HF code, there
+is **no XP scaling by level difference**. The limit is indirect, through damage and hit chance.
+
+HF (`NPC.properties`, Gracia Epilogue rule) applies penalties if a monster of level ≥ 78 is above you:
+
+- Damage ×0.7 / 0.6 / 0.6 / 0.55 for 2 / 3 / 4 / 5 levels below the mob (crits 0.75 / 0.65 / 0.6 / 0.58;
+  skills 0.8 / 0.7 / 0.65 / 0.62).
+- Magic land chance is divided by 2.5 / 3.0 / 3.25 / 3.5 at 3–6 levels below.
+
+Magic success also includes `lvlModifier = 1.3^(targetLevel − casterLevel)` in `calcMagicSuccess`.
+Thus, each level that the target has above you decreases the land rate by 30 %. Private servers and
+Classic-era community guides describe explicit XP tables. For example: "|Δ| < 3 → 100 %, 3–10 → 70 %,
+11–14 → 10 %, 15+ → 0 %" or "0–5 → 100 %, 6–9 → 30 %, 10+ → 0 %". These are fan rules, not retail rules.
 
 ---
 
@@ -300,9 +334,13 @@ retail.
 
 ### 3.1 Keep the six stats and the Interlude multiplier curves
 
-Reasons: the curves are tiny closed forms, reproduce the retail tables, and give meaningful knobs
-(a +4 STR dye is visibly +15 % P.Atk). Stat values are `u8` clamped to `1..=99`. Nightfall's curves
-are the Interlude formulas verbatim:
+The reasons:
+
+- The curves are small closed forms.
+- The curves give the same values as the retail tables.
+- The curves give useful tuning controls (a +4 STR dye gives a visible +15 % P.Atk).
+
+Stat values are `u8`, clamped to `1..=99`. The Nightfall curves are exactly the Interlude formulas:
 
 ```rust
 pub fn stat_bonus(stat: Stat, value: u8) -> f32 {
@@ -318,21 +356,22 @@ pub fn stat_bonus(stat: Stat, value: u8) -> f32 {
 }
 ```
 
-Precompute into a `[[f32; 100]; 6]` table at boot so combat code does lookups, not `powf`.
+At boot, calculate the values into a `[[f32; 100]; 6]` table. Thus, the combat code does lookups, not `powf`.
 
 ### 3.2 Level modifier, caps, and starting values
 
 - `level_mod(L) = (L + 89) / 100`, level cap **80**, XP table = Interlude column (data file).
-- Starting base stats, base P/M.Atk, base P/M.Def, speeds, base crit = the Interlude table in §2.2,
-  stored in `classes/*.toml`. Base stats never change with level in Nightfall either; dyes/buffs add.
-- Hard caps (from HF `Character.properties`, kept): run speed 300, P.Atk speed 1500, cast speed 1999,
-  P.crit 500 ‰, M.crit 200 ‰, evasion 250. Hit chance floor 20 %, ceiling 98 %.
+- Starting base stats, base P/M.Atk, base P/M.Def, speeds, base crit = the Interlude table in §2.2.
+  These values are stored in `classes/*.toml`. In Nightfall also, base stats do not change with
+  level. Dyes and buffs add to them.
+- Hard caps (from HF `Character.properties`, and we keep them): run speed 300, P.Atk speed 1500,
+  cast speed 1999, P.crit 500 ‰, M.crit 200 ‰, evasion 250. Hit chance floor 20 %, ceiling 98 %.
 
 ### 3.3 Derived stat formulas (normative)
 
-Let `S(x) = stat_bonus(x, value)`, `LM = level_mod(level)`, `L = level`. Equipment contributions are
-summed into `gear` (Phase 4) and buffs into `mods` (Phase 3) as `(add, mul)` pairs applied as
-`(base_result + add) * mul` at the end.
+Let `S(x) = stat_bonus(x, value)`, `LM = level_mod(level)`, `L = level`. The equipment values are
+added into `gear` (Phase 4), and the buff values into `mods` (Phase 3). Both are `(add, mul)` pairs.
+At the end, the pairs apply as `(base_result + add) * mul`.
 
 ```
 p_atk       = (class.base_p_atk + gear.p_atk) * S(STR) * LM
@@ -358,8 +397,8 @@ cast_ms     = skill.cast_ms * 333 / m_atk_spd
 hit_chance‰ = clamp((80 + 2*(acc_attacker - eva_target)) * 10 * condition, 200, 980)
 ```
 
-Regen tables are the piecewise-linear HF curves from §2.5, shipped as data. Posture multipliers are
-applied per 3-second regen tick, matching L2's regen task period.
+The regen tables are the piecewise-linear HF curves from §2.5, supplied as data. The posture
+multipliers apply for each 3-second regen tick. This is the same as the regen task period of L2.
 
 **Worked example (Human Fighter, no gear, Interlude stats 40/30/43/21/11/25):**
 
@@ -370,14 +409,14 @@ applied per 3-second regen tick, matching L2's regen task period.
 | 40 | 1.29 | 1004 | 369 | 402 | 6.2 | 6.6 | 103 | 68 | 67 | 48 | 330 | 215 | 127 | 108,675 |
 | 76 | 1.65 | 2092 | 778 | 837 | 7.9 | 10.8 | 132 | 87 | 103 | 48 | 330 | 215 | 127 | 108,675 |
 
-Human Mystic at L1 for contrast: M.Atk 7.1 (INT 41 → 1.19² × 0.81), cast speed 333 (WIT 20 → 1.00),
-MP 59, HP 99. The "fists" P.Atk of ~4 is why L2 starting weapons (P.Atk 8–15) matter: weapon P.Atk
-dominates `p_atk` until level 40 gear.
+For comparison, the Human Mystic at L1: M.Atk 7.1 (INT 41 → 1.19² × 0.81), cast speed 333 (WIT 20 → 1.00),
+MP 59, HP 99. The "fists" P.Atk is approximately 4. This is the reason that L2 starting weapons
+(P.Atk 8–15) are important: the weapon P.Atk is the largest part of `p_atk` until level 40 gear.
 
 ### 3.4 Experience rules
 
-- **Gain**: `xp = npc.xp * level_gap_mult(player, npc) * rates.xp` where Nightfall **does** add an
-  explicit XP level-gap multiplier (L2 only penalises indirectly, which is opaque to players):
+- **Gain**: `xp = npc.xp * level_gap_mult(player, npc) * rates.xp`. Nightfall **does** add an
+  explicit XP level-gap multiplier. (L2 gives only indirect penalties, and players cannot see them.) The multipliers are:
 
 | `npc.level − player.level` | multiplier |
 |----------------------------|------------|
@@ -388,30 +427,36 @@ dominates `p_atk` until level 40 gear.
 | −11 … −14 | 0.10 |
 | ≤ −15 | 0.00 |
 
-- **Over-level penalties** (from HF, applied to all monsters, not just L78+): when `npc.level −
-  player.level ≥ 2`, outgoing damage ×0.7/0.6/0.6/0.55 at Δ 2/3/4/5+ (crits 0.75/0.65/0.6/0.58,
-  skills 0.8/0.7/0.65/0.62); magic land chance `× 1 / 1.3^Δ` for Δ ≥ 1 (the `calcMagicSuccess` term).
-- **Death**: Interlude brackets — 10 % (L1–19), 7 % (20–39), 4 % (40–74), 2 % (75–80) of the current
-  level's XP span; ÷4 in clan war and siege zones; 0 in peace zones and instanced events; de-leveling
-  allowed down to level 1 XP floor but never below level 10 for characters that reached 10 (a Classic
-  rule we adopt to protect newcomers). Death also spends the Shilen's Breath-style debuff system
-  (Phase 3), not XP, for repeat deaths.
-- **Party**: valid members by HF gaps (0–9 → 100 %, 10–14 → 30 %, 15+ → 0 %) measured from the
-  highest-level member; bonus by valid-member count = Interlude table (1.00, 1.30, 1.39, 1.50, 1.54,
-  1.58, 1.63, 1.67, 1.71); share by `level² / Σlevel²`. Members must be within the killer's 3 × 3
-  interest block (Phase 0 cell grid, ≈ 1500 units, close to L2's 1500-unit party-reward range).
-- All constants live in `tables/experience.toml` and `tables/penalties.toml` so they are tunable
+- **Over-level penalties** (from HF): these penalties apply to all monsters, not only L78+. If `npc.level −
+  player.level ≥ 2`, these penalties apply:
+  - Outgoing damage ×0.7/0.6/0.6/0.55 at Δ 2/3/4/5+ (crits 0.75/0.65/0.6/0.58, skills 0.8/0.7/0.65/0.62).
+  - Magic land chance `× 1 / 1.3^Δ` for Δ ≥ 1 (the `calcMagicSuccess` term).
+- **Death**: the Interlude brackets — 10 % (L1–19), 7 % (20–39), 4 % (40–74), 2 % (75–80) of the XP
+  span of the current level.
+  - ÷4 in clan war and siege zones. 0 in peace zones and instanced events.
+  - De-leveling is possible down to the level 1 XP floor. But if a character reached level 10, it
+    cannot go below level 10. (We use this Classic rule to protect new players.)
+  - For repeat deaths, death uses the Shilen's Breath-style debuff system (Phase 3), not XP.
+- **Party**: find the valid members by the HF gaps (0–9 → 100 %, 10–14 → 30 %, 15+ → 0 %), measured
+  from the highest-level member.
+  - The bonus for the valid-member count = the Interlude table (1.00, 1.30, 1.39, 1.50, 1.54,
+    1.58, 1.63, 1.67, 1.71).
+  - The share comes from `level² / Σlevel²`.
+  - Members must be in the 3 × 3 interest block of the killer (Phase 0 cell grid, ≈ 1500 units). This
+    is almost the same as the 1500-unit party-reward range of L2.
+- All constants are in `tables/experience.toml` and `tables/penalties.toml`. Thus, you can tune them
   without a rebuild.
 
 ### 3.5 Alternatives considered
 
-- *Linear stat bonuses* ("+1 STR = +1 % P.Atk") — simpler but makes dyes/buffs uninteresting and
-  breaks parity with L2 build intuition. Rejected.
-- *HF rebased stats* (STR 88 etc.) — flatter curves, bigger numbers, no benefit for a new game.
-- *XP scaling by formula instead of table* — the Interlude table is irregular on purpose (plateaus at
-  20/40/76 class-change levels); keep it as data.
-- *Percent-of-total XP death penalty* — punishes high levels far more than L2 intends; keep
-  percent-of-level-span.
+- *Linear stat bonuses* ("+1 STR = +1 % P.Atk") — this is simpler. But dyes/buffs become less
+  interesting, and the result is different from what L2 players expect from a build. Rejected.
+- *HF rebased stats* (STR 88 and other values) — flatter curves and larger numbers. These give no
+  advantage for a new game.
+- *XP scaling by formula and not by table* — the Interlude table is irregular intentionally (it has
+  plateaus at the 20/40/76 class-change levels). Keep it as data.
+- *Percent-of-total XP death penalty* — this gives much larger penalties at high levels than L2
+  intends. Keep percent-of-level-span.
 
 ---
 
@@ -479,7 +524,7 @@ pub fn party_bonus(valid_members: usize) -> f32;
 pub fn party_shares(members: &[(CharId, u8 /*level*/)], top_level: u8) -> Vec<(CharId, f32)>;
 ```
 
-`derive` is pure; tests pin the §3.3 worked-example rows to two decimals so refactors cannot drift.
+`derive` is pure. Tests lock the §3.3 worked-example rows to two decimals. Thus, a refactor cannot change the results.
 
 ### 4.2 Data files
 
@@ -535,54 +580,62 @@ message Character {
 }
 ```
 
-Derived stats are **sent, not computed on the client**: the client has no gear/effect data model yet
-and must never disagree with the server's numbers.
+The server **sends the derived stats. The client does not calculate them**. The client has no
+gear/effect data model now, and its numbers must always agree with the numbers of the server.
 
 ---
 
 ## 5. Interfaces
 
 - `GameService.GetCharacter` now fills `class_id`, `xp`, `xp_to_next`, `derived`, `vitals`.
-- New server-side events on the world bus: `StatsRecomputed{entity, Stats}` (emitted by the stats
-  system when level/base/gear/effects change; replication turns it into a `DerivedStats` delta for
-  the owner and an `EntityDelta{max_hp}` for observers), `XpChanged{char, xp, delta, reason}`,
-  `LevelChanged{char, from, to}`.
-- `WorldDelta.EntityDelta` gains optional `hp`, `max_hp`, `cp`, `max_cp` for all visible entities,
-  and `mp`, `max_mp`, `xp`, `level` for the owner only.
-- Admin: `POST /admin/stats/recompute` forces `derive` for all online characters after a data
-  hot-reload changes a curve.
+- New server-side events on the world bus:
+  - `StatsRecomputed{entity, Stats}`. The stats system emits this event if level/base/gear/effects
+    change. Replication changes it into a `DerivedStats` delta for the owner, and into an
+    `EntityDelta{max_hp}` for observers.
+  - `XpChanged{char, xp, delta, reason}`.
+  - `LevelChanged{char, from, to}`.
+- `WorldDelta.EntityDelta` gets optional `hp`, `max_hp`, `cp`, `max_cp` for all visible entities,
+  and `mp`, `max_mp`, `xp`, `level` only for the owner.
+- Admin: if a data hot-reload changes a curve, `POST /admin/stats/recompute` runs `derive` for all
+  online characters.
 
 ---
 
 ## 6. Rust implementation notes
 
-- Module `stats/` (see Phase 0 layout): `bonus.rs` (curves + cached `[[f32;100];6]`),
+- Module `stats/` (see the Phase 0 layout): `bonus.rs` (curves + cached `[[f32;100];6]`),
   `derive.rs` (`derive`, caps), `xp.rs` (`XpTable`, death/party/gap functions), `regen.rs`
-  (3-second regen task per active cell), `tests.rs`.
-- `Stats` is a plain `Copy` struct stored on the entity; recompute is event-driven, never per tick.
-  Recompute cost is ~30 multiplies — fine to do on every equip change for 5k entities.
-- All randomness in combat uses one `rand::rngs::SmallRng` per world thread seeded from config so
-  replays are deterministic; `hit_chance_permille` and crit rolls take `&mut impl Rng`.
-- XP is `u64`; the Interlude table tops out at 4.2 × 10⁹ which already overflows `i32` (L2J uses
-  `long`). Postgres column is `BIGINT`.
-- Floating point: use `f32` for stats, round to integer only at the API boundary (`as u32` after
-  `.round()`), and compare in tests with `approx::assert_relative_eq!(…, epsilon = 0.01)`.
-- Data validation at load: every `Curve` strictly increasing over 1..=80, `cp_ratio ∈ [0.3, 1.0]`,
-  XP table strictly increasing with `to_level[1] == 0`, all penalty tables sorted by key.
+  (3-second regen task for each active cell), `tests.rs`.
+- `Stats` is a plain `Copy` struct, stored on the entity. An event starts each recalculation. The
+  recalculation never occurs for each tick.
+- A recalculation costs approximately 30 multiplications. Thus, it is satisfactory to do it at each
+  equip change for 5k entities.
+- All randomness in combat uses one `rand::rngs::SmallRng` for each world thread. The seed comes from
+  config, so replays are deterministic. `hit_chance_permille` and crit rolls take `&mut impl Rng`.
+- XP is `u64`. The maximum of the Interlude table is 4.2 × 10⁹, which is already too large for `i32`
+  (L2J uses `long`). The Postgres column is `BIGINT`.
+- Floating point: use `f32` for stats. Round to integer only at the API boundary (`as u32` after
+  `.round()`). In tests, compare with `approx::assert_relative_eq!(…, epsilon = 0.01)`.
+- Data validation at load:
+  - Each `Curve` is strictly increasing over 1..=80.
+  - `cp_ratio ∈ [0.3, 1.0]`.
+  - The XP table is strictly increasing, with `to_level[1] == 0`.
+  - All penalty tables are sorted by key.
 
 ---
 
 ## 7. Client implications
 
-- Character sheet reads `DerivedStats` + `BaseStats` straight from the server; it shows base stats in
-  white and the dye/buff delta in green/red (L2 convention) using `base_stats` vs `stats`.
-- Movement uses `derived.run_speed` as units/second; the client's dead reckoning in Phase 0 relies on
-  this being the exact value the server integrates with.
-- Attack and cast bars are driven by server-sent `swing_ms`/`cast_ms` in the action start message
-  (Phase 3); the client does not recompute them from attack speed.
-- HP/CP bars for other entities come from `EntityDelta`; MP and XP are owner-only. The XP bar is
-  `(xp − table[level]) / xp_to_next_span`; the client receives both cumulative `xp` and
-  `xp_to_next` so it needs no table.
+- The character sheet reads `DerivedStats` + `BaseStats` directly from the server. It shows the base
+  stats in white, and the dye/buff delta in green/red (L2 convention). It uses `base_stats` vs `stats`
+  for this.
+- Movement uses `derived.run_speed` as units/second. The Phase 0 dead reckoning of the client must
+  have the exact value that the server uses for its integration.
+- The server-sent `swing_ms`/`cast_ms` in the action start message (Phase 3) control the attack and
+  cast bars. The client does not calculate them again from attack speed.
+- The HP/CP bars for other entities come from `EntityDelta`. Only the owner gets MP and XP. The XP bar
+  is `(xp − table[level]) / xp_to_next_span`. The client gets both the cumulative `xp` and
+  `xp_to_next`, so it does not have to have a table.
 - Weight: show the four penalty thresholds at 50 / 66.6 / 80 / 100 % of `weight_max`.
 
 ---
@@ -590,20 +643,20 @@ and must never disagree with the server's numbers.
 ## 8. Open questions
 
 1. **Crit base**: Interlude per-class `baseCritRate` (40–46) vs HF `4 × 10`. We use the Interlude
-   per-class value; confirm against feel once weapons add crit (Phase 4).
-2. **Mystic P.Atk speed**: Interlude lists 300 for mystics, HF 240. Using 300 (Interlude parity); HF
-   240 could become a class-tree knob in Phase 2.
-3. **Regen tick period**: 3 s per L2; a 1 s tick with a third of the value is smoother for the HP
-   bar. Decide in Phase 3 together with potion ticks.
-4. **Whether to expose "shock/mental resistance" from CON/MEN** as in retail — depends on the status
-   effect model (Phase 3).
-5. **De-level floor**: we picked level 10 as a floor for anyone who reached it; L2J allows de-level to
-   1. Revisit with the death-debuff design.
-6. **XP table beyond 80**: none planned; if a cap raise is needed later, extend with the Interlude
-   1.5× extension entries already in the file (81 → 6.3 B …).
-7. Interlude's parametric HP formula (`baseHpMax, levelHpAdd, levelHpMod`) was not reproduced; we
-   fit the HF per-level table instead. If an Interlude-exact curve is wanted, derive it from the C6
-   `FuncMaxHpAdd` source.
+   per-class value. When weapons add crit (Phase 4), make sure that the value feels correct.
+2. **Mystic P.Atk speed**: Interlude lists 300 for mystics, HF 240. We use 300 (Interlude parity). In
+   Phase 2, HF 240 can become a class-tree tuning control.
+3. **Regen tick period**: 3 s, as in L2. A 1 s tick with a third of the value gives a smoother HP
+   bar. Make the decision in Phase 3, together with the potion ticks.
+4. **Do we show "shock/mental resistance" from CON/MEN** as in retail? This decision is related to the
+   status effect model (Phase 3).
+5. **De-level floor**: we selected level 10 as a floor for all characters that reached it. L2J lets a
+   character de-level to 1. Examine this again with the death-debuff design.
+6. **XP table beyond 80**: we have no plan for this. If a cap increase becomes necessary, extend the
+   table with the Interlude 1.5× extension entries. These entries are already in the file (81 → 6.3 B …).
+7. We did not use the parametric HP formula of Interlude (`baseHpMax, levelHpAdd, levelHpMod`). We
+   fit the HF per-level table in its place. If an Interlude-exact curve is necessary, calculate it
+   from the C6 `FuncMaxHpAdd` source.
 
 ---
 
@@ -643,4 +696,4 @@ and must never disagree with the server's numbers.
   <https://wiki.ymirheim.org/en/EXP>.
 - Stat descriptions (DEX accuracy/evasion/atk speed/crit): <https://lineage2.fandom.com/wiki/DEX>;
   general stat roles: <https://www.mmoexp.com/News/lineage-2m-stats-guide-how-to-build-the-perfect-character.html>.
-- Lineage II Classic 1.5 patch notes (4 % XP loss on death) via <https://www.lineage2.com/news/lineage-ii-classic-launch-patch-notes>.
+- Lineage II Classic 1.5 patch notes (4 % XP loss on death) at <https://www.lineage2.com/news/lineage-ii-classic-launch-patch-notes>.

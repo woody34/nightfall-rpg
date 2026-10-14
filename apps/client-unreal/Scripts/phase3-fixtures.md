@@ -1,71 +1,81 @@
 Phase 3 uses the same isolated fixture lifecycle as [phase2-fixtures.md](phase2-fixtures.md).
-Fixtures migrate and seed **before API startup/admission**. They require `--api start`
-(`run-sim-ci.py --fresh-stack`), distinct role accounts, fresh DB/JetStream volumes,
-nondefault loopback ports, private token files, and owned teardown. The wrappers
-never modify admitted characters. `SIM_PHASE3_SEEDER` selects the published seeder;
-the default is `infra/scripts/seed-phase3-fixture.py`. Only explicit dev-token opt-in
-plus a loopback `nf_phase3_fixture_*` DB on a non-5432 port allows a seed.
+The fixtures migrate and seed the database **before API startup/admission**. They must have these items:
 
-**Integration fix status:** Every generated NPC now inherits `sp_reward` and the
-complete committed keltir Phase 3 suffix, including provenance. The capped penalty
+- `--api start` (`run-sim-ci.py --fresh-stack`)
+- different role accounts
+- new DB/JetStream volumes
+- nondefault loopback ports
+- private token files
+- a teardown that removes only the resources that the fixture owns.
+
+The wrappers never change admitted characters. `SIM_PHASE3_SEEDER` selects the published seeder.
+The default seeder is `infra/scripts/seed-phase3-fixture.py`. A seed is possible only if
+there is an explicit dev-token opt-in and a loopback `nf_phase3_fixture_*` DB on a port that is not 5432.
+
+**Integration fix status:** Now, each NPC that the generator makes gets `sp_reward` and the
+complete committed keltir Phase 3 suffix, with its provenance. The capped penalty
 pack stores the typed `{"kind":"death_penalty"}` installation source in
-`characters.modifier_install_order`; other fresh packs retain empty modifier order.
-`PHASE3_ENABLED=1` selects Phase 3 packs, and `0` explicitly selects older packs.
-The Rust regression `apps/api/tests/phase3_fixture_overlays.rs` invokes the Python
-generator, validates the complete overlay via `prepare_phase3_bootstrap`, and tests
-all packs/paired roles plus casting soak through actual `stage_restore`,
-`SpawnPlayer`, and cold snapshot restore. Missing profile/SP/penalty source are
-negative cases. Postgres-backed admission and live Unreal/soak remain unrun in this
-fix session because Docker access is unavailable.
+`characters.modifier_install_order`. The other new packs keep an empty modifier order.
+`PHASE3_ENABLED=1` selects Phase 3 packs, and `0` explicitly selects the older packs.
+The Rust regression `apps/api/tests/phase3_fixture_overlays.rs` starts the Python
+generator. It validates the complete overlay through `prepare_phase3_bootstrap`.
+It also tests all packs, the paired roles and the casting soak through the actual `stage_restore`,
+`SpawnPlayer`, and cold snapshot restore. A missing profile, SP or penalty source is a
+negative test case. Postgres-backed admission and the live Unreal/soak runs did not run in this
+fix session, because Docker access is not available.
 
 | Exact header | Roles and persisted inputs |
 |---|---|
 | `# fixture: phase3-trainer` | Human Mystic class10/base10, level14, SP10000, at126,128. Wind Strike1177 rank1, Ice Bolt1184/Might1068/Shield1040/Curse Weakness1164 rank1. **1177 rank2 is unlearned**, cost240/required level7 from professions/human_mystic.toml. Optional matching A/B observer pair. |
 | `# fixture: phase3-pvp` | Two distinct Human Mystic accounts level14 at110,100 and112,100, outside inclusive peace square116..136. Owner SP10000,1177 rank5/1184 rank4/1068 rank1. Peer SP0,1177 rank1,HP100,CP10. |
-| `# fixture: phase3-resurrect` | Human Mystic class10/base10 level30 at126,128 with1068/1216 rank1; caster performs real Cleric15 transfer and learns1016 rank1 before moving to110,100; distinct living peer level14 at112,100,HP100,CP10. Peer dies through ordinary sentinel retaliation; no precreated offer or fabricated death loss. |
+| `# fixture: phase3-resurrect` | Human Mystic class10/base10 level30 at126,128 with1068/1216 rank1; the caster does a real Cleric15 transfer, learns1016 rank1, and then moves to110,100; distinct living peer level14 at112,100,HP100,CP10. The peer dies when the sentinel hits back in the usual way. There is no offer made before the death and no false death loss. |
 | `# fixture: phase3-regen` | Human Mystic level14,SP0,HP/MP/CP1 at126,128;1177 rank1. |
 
-All unconfigured HP/MP are NULL (server derives maxima); CP defaults0. XP comes
-from shipped experience.toml at the seed level; active class-slot SP equals
-characters.sp. Learned ranks use existing `l2.skill.<id>` keys. The owner character
-is `01970000-0000-7000-8000-000000000030`, peer `...0031`. Accounts are random per
-unit. The manifest includes exact role inputs, account/character identifiers,
-binary/migrator/seeder hashes, every input data hash and the final overlay-zone
-hash. Generated overlay inputs stay under the private fixture directory.
+All HP/MP values that are not configured are NULL (the server calculates the maximum values).
+The CP default is 0. XP comes from the shipped experience.toml at the seed level. The SP of
+the active class slot is equal to characters.sp. Learned ranks use the existing `l2.skill.<id>` keys.
+The owner character is `01970000-0000-7000-8000-000000000030`, and the peer is `...0031`.
+Each unit has random accounts. The manifest includes the exact role inputs and
+the account and character identifiers. It also includes the binary/migrator/seeder hashes, the hash of each input data file
+and the final overlay-zone hash. The generated overlay inputs stay in the private fixture directory.
 
-The overlay copies shipped data and makes keltirs passive/no-clan-help while
-preserving XP/SP rewards. One keltir remains uniquely targetable. `skill_target`
-is a passive million-HP combat target; `skill_sentinel` is the Phase2 sentinel
-renamed. Template construction reuses token-fixtures.py's audited inputs; neither
-is a gameplay formula/oracle. Class Master stays126,128. Numeric fixture inputs
-are test choices, not claims about pinned gameplay. Source skill durations/costs
-remain unchanged. Oracle assertions require independent, hash-pinned E1 vectors;
-committed skill-oracle.json is available, but live replay formula inputs and ordered draw evidence are still a required producer handoff; no live oracle pass is claimed.
+The overlay copies the shipped data. It makes the keltirs passive with no clan help, but it
+keeps the XP/SP rewards. One keltir stays the only keltir that a scenario can target without ambiguity.
+`skill_target` is a passive combat target with one million HP. `skill_sentinel` is the Phase2 sentinel
+with a new name. The template construction uses the audited inputs of token-fixtures.py again.
+Neither of the two is a gameplay formula or an oracle. The Class Master stays at 126,128.
+The numeric fixture inputs are test selections. They are not claims about pinned gameplay.
+The source skill durations and costs do not change. The oracle assertions must have independent,
+hash-pinned E1 vectors. The committed skill-oracle.json is available.
+But the producer must still hand off the live replay formula inputs and the ordered draw evidence.
+This document does not claim a live oracle pass.
 
-The 17 matrix files retain their stable names. Two additional `-peer.nfs` files
-provide real cooperating clients for the solo-named karma/aggro stories.
-`Scenarios/phase3-roles.json` binds each primary to its companion; both reports
-have unique filenames/artifact folders and independent accounts. Missing roles,
-repeated paths, mismatched fixture headers and duplicate artifact names fail.
-Existing A/B units remain atomic. Coordination uses received server state only.
+The 17 matrix files keep their stable names. Two more `-peer.nfs` files
+give real clients that work together for the karma/aggro stories that have solo names.
+`Scenarios/phase3-roles.json` binds each primary role to its companion. The two reports
+have unique filenames, unique artifact folders and independent accounts. These conditions cause a failure:
+missing roles, repeated paths, fixture headers that do not agree, and duplicate artifact names.
+The existing A/B units stay atomic. Coordination uses only the server state that the client received.
 
 Run the first scenario with `Scripts/run-sim.sh --api start --artifacts <new-dir>
 Scenarios/3-cast-skill.nfs`. Run cooperating roles with `run-sim-multi.sh` and
-both paths. Source-duration waits remain full length: Might1200s →3600s timeout;
-regen30ticks×100ms×3→9s/pulse; flag1200ticks×100ms×3→360s. Each scenario's global
-budget contains the sum of its per-step waits plus exit grace. Wrappers/CI extend
-process budgets to at least `nf.Within +30s`, retaining all final evidence gates.
-Client waits use source budgets. Post-run replay oracle comparisons run only against authoritative entity/tick evidence.
+with the two paths. The waits for source durations keep their full length: Might1200s →3600s timeout;
+regen30ticks×100ms×3→9s/pulse; flag1200ticks×100ms×3→360s. The global budget of each
+scenario includes the sum of its per-step waits plus the exit grace. The wrappers and CI extend
+the process budgets to a minimum of `nf.Within +30s`, and they keep all final evidence gates.
+The client waits use the source budgets. After the run, the replay oracle comparisons run only
+against authoritative entity/tick evidence.
 
-**Final authoritative DSL handoff (merged client `3b21cd7`).** This single table
-covers every command and predicate used by the Phase3 scenarios. Names use the
-existing registry where semantics match: `rejected`, `private_stats_leaks`, and
-`own_hp > 0`. Numeric comparisons use `<op> <unsigned n>`; explicit skills use
-`<skill_id>` and entities use `<own|target|uuid>`. The twelve server-only names in C11 are replay-gate declarations, not client
-predicates. Unknown DSL names still fail parsing; no UNKNOWN allowlisting is used.
-All history is fenced by transport generation, entity incarnation, tick and the
-cast/effect/offer identity. Vector comparisons consume expected values from an
-independent, hash-pinned artifact; the replay consumer compares raw authoritative inputs/outcomes with independent source expectations.
+**Final authoritative DSL handoff (merged client `3b21cd7`).** This table
+includes each command and predicate that the Phase3 scenarios use. If the semantics are the same,
+the names use the existing registry: `rejected`, `private_stats_leaks`, and
+`own_hp > 0`. Numeric comparisons use `<op> <unsigned n>`. Explicit skills use
+`<skill_id>`, and entities use `<own|target|uuid>`. The twelve server-only names in C11 are
+replay-gate declarations. They are not client predicates. Unknown DSL names still cause a parse failure.
+The parser does not use an UNKNOWN allowlist. The transport generation, the entity incarnation, the tick
+and the cast/effect/offer identity fence all history. Vector comparisons get the expected values from an
+independent, hash-pinned artifact. The replay consumer compares the raw authoritative inputs and outcomes
+with independent source expectations.
 
 | Command or predicate | Merged registry status | Exact received message / action and required evidence |
 |---|---|---|
@@ -138,49 +148,50 @@ independent, hash-pinned artifact; the replay consumer compares raw authoritativ
 | `kill_xp_matches_fixture`, `own_level_matches_xp` (casting soak) | Registered legacy fixture predicates | Received XpGained/StatsChanged.xp/level and selected NPC EntitySpawn.template_id plus the existing BotFixtureData shipped XP/experience rule contract. No new Phase3 formula or Python/Bash gameplay calculation. |
 
 Run `python3 Scripts/sim-parser-check.py Scenarios/3-*.nfs` as the strict source
-compatibility gate. It reads BotPredicates/ClassBotPredicates/SkillBotPredicates
-and future predicate files from this merged tree; unknown names and known UNKNOWN
+compatibility gate. The gate reads BotPredicates/ClassBotPredicates/SkillBotPredicates
+and future predicate files from this merged tree. Unknown names and known UNKNOWN
 projections cause exit1. There is no allowlist for missing names. The host regression
-`Scripts/test/phase3-parser.test.py` verifies that rejection over **every** scenario,
-including unknown-name and malformed-command mutations. Its PASS attests validator
-behavior, not scenario compatibility or the native Unreal parser. The strict gate
-currently FAILS; client implementation and vector/wire handoffs are still required.
+`Scripts/test/phase3-parser.test.py` makes sure that this rejection occurs for **every** scenario,
+including unknown-name and malformed-command mutations. Its PASS shows only the behavior of the validator.
+It does not show scenario compatibility or the behavior of the native Unreal parser.
+Now, the strict gate FAILS. The client implementation and the vector/wire handoffs are still necessary.
 
-The canonical17 files and `Scenarios/variants/3-*.nfs` are source contracts,
-not execution attestations. `Scenarios/phase3-variants.json` maps named variants
-back to the canonical matrix row, exact required assertions, pre-admission pack,
-and mandatory actor/adapter precision reports. CI and traceability discover nested
-`.nfs` files. Orphan variants, missing assertions, changed fixture headers, and
-insufficient wait budgets fail validation. A covers header by itself cannot pass.
+The canonical17 files and `Scenarios/variants/3-*.nfs` are source contracts.
+They are not proof that a run occurred. `Scenarios/phase3-variants.json` maps each named variant
+back to its canonical matrix row and to the exact necessary assertions. It also maps the variant to the pre-admission pack
+and to the mandatory actor/adapter precision reports. CI and traceability find nested
+`.nfs` files. These conditions cause a validation failure: orphan variants, missing assertions,
+changed fixture headers, and wait budgets that are not sufficient. A covers header alone cannot pass.
 
-Additional seed packs: `phase3-trainer-low-sp` (SP0),
+More seed packs are: `phase3-trainer-low-sp` (SP0),
 `phase3-trainer-low-level` (level4), `phase3-trainer-low-mp` (MP0,110/100),
-`phase3-penalty-cap` (untimed penalty5,110/100), `phase3-sp-near-cap`
-(SP=i64MAX-1,110/100). They retain the original guarded pre-admission lifecycle.
-Low-MP asserts received MP<9 before Wind Strike; if login/regen erased the input,
-the scenario fails rather than pretending a resource rejection was exercised.
-The capped penalty scenario requires **exactly5** before death, after death and
-reconnect; an always-zero implementation cannot pass. Seed SQL writes declared
-penalty/PvP inputs rather than silently substituting zero.
+`phase3-penalty-cap` (untimed penalty5,110/100), and `phase3-sp-near-cap`
+(SP=i64MAX-1,110/100). They keep the original guarded pre-admission lifecycle.
+Low-MP asserts that the received MP is <9 before Wind Strike. If login or regen removed the input,
+the scenario fails. It does not falsely show that it tested a resource rejection.
+The capped penalty scenario must have **exactly5** before death, after death and after
+reconnect. As a result, an implementation that always gives zero cannot pass. Seed SQL writes the declared
+penalty/PvP inputs. It does not silently put zero in their place.
 
-Deterministic land/resist and penalty-success/failure fixture definitions are in
-`precision_cases[].deterministic_roll_fixture`: test-only actor draw-site injection0/99 with inclusive bounds0..99. For death
-penalty this follows binding design v3 §3 roll_below(100)<20; the fixture also
-records corresponding pinned source Rnd.get(1,100) values1/100
-(L2PcInstance.java:9363). Ineligible/capped deaths consume no draw per binding design, requiring the **complete ordered RNG trace**, including earlier
-success/reflection/duration draws. They are **actor fixture handoffs**, not supported
-live-server seed controls: no chosen wall-clock login or small cast sample proves
-an outcome. Engine owners must consume these fixtures and publish the named test
-and hash-linked actual trace. No test-only RNG override enters production WS/DB.
+The definitions of the deterministic land/resist fixtures and the penalty-success/failure fixtures are in
+`precision_cases[].deterministic_roll_fixture`: a test-only actor draw-site injection0/99 with inclusive bounds0..99.
+For the death penalty, this follows binding design v3 §3 roll_below(100)<20. The fixture also
+records the related pinned source Rnd.get(1,100) values1/100
+(L2PcInstance.java:9363). Per the binding design, ineligible or capped deaths use no draw.
+Thus the **complete ordered RNG trace** is necessary, including the earlier
+success/reflection/duration draws. These fixtures are **actor fixture handoffs**. They are not supported
+seed controls for the live server. A selected wall-clock login or a small cast sample does not prove
+an outcome. Engine owners must use these fixtures and publish the named test
+and the hash-linked actual trace. No test-only RNG override goes into production WS/DB.
 
-Run `python3 Scripts/phase3-variants.py` for source validation. Run it with
-`--evidence <precision-report-dir>` for required evidence completeness. Missing
+Run `python3 Scripts/phase3-variants.py` for source validation. To examine the completeness of the
+necessary evidence, run it with `--evidence <precision-report-dir>`. These conditions cause a failure: missing
 reports, missing expected assertions, wrong fixture hashes, missing retained test
-artifacts and missing actual injected-draw traces fail. Every `evidence: null`
-means **not tested**; source validation never changes that status. Reports name the
-requested test, canonical case hash, boolean verdict for every listed invariant,
-and relative artifact->SHA256 links. These reports supplement native recording,
-byte replay, pipeline and contract gates; they do not replace them.
+artifacts and missing actual injected-draw traces. Each `evidence: null`
+means **not tested**. Source validation never changes that status. Each report gives the name of the
+requested test and the canonical case hash. It also gives a boolean verdict for each listed invariant
+and relative artifact->SHA256 links. These reports add to the native recording,
+byte replay, pipeline and contract gates. They do not replace them.
 
 | Named runtime variant | Canonical matrix file | Fixture / required behavior |
 |---|---|---|
@@ -228,7 +239,7 @@ byte replay, pipeline and contract gates; they do not replace them.
 | `dot-nonlethal-break` | `3-debuff-status.nfs` | `phase3_dot_nonlethal_break`; TickHp on player/NPC atHP1 withCP0/positive and direct damage/DoT |
 | `regen-standing-moving-npc` | `3-regen.nfs` | `phase3_regen_standing_moving_npc`; 30tick player HP/MP/CP; moving and NPC HP/MP, multiple fractional pulses |
 | `regen-dead-full` | `3-regen.nfs` | `phase3_regen_dead_full`; dead and full player/NPC resources across multiple pulse boundaries |
-| `reconnect-reuse-50-51` | `3-cast-reconnect.nfs` | `phase3_reconnect_reuse_50_51`; freeze checkpoint at remaining50 then51 via actor scheduler |
+| `reconnect-reuse-50-51` | `3-cast-reconnect.nfs` | `phase3_reconnect_reuse_50_51`; freeze checkpoint at remaining50 then51 with the actor scheduler |
 | `reconnect-effects-100-101` | `3-cast-reconnect.nfs` | `phase3_reconnect_effects_100_101`; buff and debuff each at remaining100 then101, with periodic phase/install order |
 | `replacement-live-cast-offer` | `3-cast-reconnect.nfs` | `phase3_replacement_live_cast_offer`; replace session during pending cast and valid resurrection offer |
 | `death-penalty-roll-success` | `3-death-penalty.nfs` | `phase3_death_penalty_roll_success`; NPC or chaotic-player death; injected eligible roll0; old penalty0 |
@@ -239,7 +250,7 @@ byte replay, pipeline and contract gates; they do not replace them.
 | `resurrect-competing-offers` | `3-resurrect-a.nfs` | `phase3_resurrect_competing_offers`; two caster completions ordered same tick for same corpse |
 | `resurrect-town-race` | `3-resurrect-b.nfs` | `phase3_resurrect_town_race`; queued town respawn and accept in both ordinal orders |
 | `resurrect-disconnect-new-offer` | `3-resurrect-b.nfs` | `phase3_resurrect_disconnect_new_offer`; disconnect vs replacement while offered; reconnect then new offer |
-| `resurrect-crash-once` | `3-resurrect-b.nfs` | `phase3_resurrect_crash_once`; log/checkpoint/receipt/outbox lost-ack/crash stages via adapters |
+| `resurrect-crash-once` | `3-resurrect-b.nfs` | `phase3_resurrect_crash_once`; log/checkpoint/receipt/outbox lost-ack/crash stages with adapters |
 | `hate-effectpoint-addhate` | `3-aggro-skill-hate.nfs` | `phase3_hate_effectpoint_addhate`; multiple NPC ledgers, two owners; effectPoint and AddHate |
 | `hate-heal-overheal` | `3-aggro-skill-hate.nfs` | `phase3_hate_heal_overheal`; all NPCs hating healed target; actual heal and zero overheal |
 | `hate-tie-getagro` | `3-aggro-skill-hate.nfs` | `phase3_hate_tie_getagro`; tied ledgers current target versus none, GetAgro request ordinal interactions |
@@ -247,130 +258,130 @@ byte replay, pipeline and contract gates; they do not replace them.
 | `karma-no-decay-paths` | `3-pvp-karma-decay.nfs` | `phase3_karma_no_decay_paths`; chaotic-unflagged kill, healer, time, death vs monster XP pre-award level |
 
 Schema3 coverage consumers use `player_cast_states` and `effect_states` plus the
-maps listed in sim-gates.py. They retain every schema2 field, reject missing or
-unknown facts, validate Cartesian reachability, deduplicate canonical recordings,
-and reject mixed-schema merges. Schema2 remains readable without invented zero
+maps that sim-gates.py lists. They keep each schema2 field and reject missing or
+unknown facts. They validate Cartesian reachability, remove duplicate canonical recordings,
+and reject mixed-schema merges. Schema2 stays readable, and it does not get invented zero
 Phase3 observations. **TODO-RECONCILE producer field names** when Z publishes
 coverage.rs. Synthetic schema3 test fixtures are not native replay evidence.
 
 Host checks: `TMPDIR=/tmp python3 Scripts/test/phase3-fixture.test.py`,
 `python3 Scripts/test/proto-optionals.test.py`, `python3 Scripts/test/transition-v3.test.py`.
-These use command stubs and do not launch Unreal/API/Compose. While the plan owner
-reviews Phase 3, run `python3 Scripts/sim-traceability.py --extra-plan
+These checks use command stubs. They do not start Unreal/API/Compose. While the plan owner
+examines Phase 3, run `python3 Scripts/sim-traceability.py --extra-plan
 <phase3-plan-worktree>/docs/plans/phase-3-combat-and-skills.md`. The default checker
-still rejects unknown Phase3 tags until that plan is integrated; the regression
-test uses an explicit stable-title/matrix snapshot, without marking any row complete.
-Peace checks additionally require the engine's published inclusive square configuration;
-the current legacy zone loader has no peace fields. Reconcile that overlay when its
-schema lands. Resist/penalty branches require published seed/vector controls; they
-are not deterministic from a client login's wall-clock timing.
+still rejects unknown Phase3 tags until that plan is integrated. The regression
+test uses an explicit stable-title/matrix snapshot, and it does not mark a row as complete.
+Peace checks also must have the published inclusive square configuration of the engine.
+The legacy zone loader that is now in use has no peace fields. Reconcile that overlay when its
+schema merges. Resist/penalty branches must have published seed/vector controls. The wall-clock timing
+of a client login does not make them deterministic.
 
-Casting soak defaults to eight clients and1200s, all roles at fixture level7 casting
-Wind Strike and long Might buffs. The low-HP NPC keeps source XP/SP rewards; the
-role's received kill/XP/reuse/effect checks contain no gameplay formulas and do not
-require the currently absent MP-cost metadata. `soak-fixtures.py --casting` emits mode0600 tokens and an exact
-`roles.json` manifest; seed-phase3-soak.py validates canonical inputs/unique UUIDs
-and seeds all roles in one fresh transaction before API startup. The casting
-seeder requires `--compose-project` and `--compose-file` for that owned soak stack
-(except `--dry-run`); `run-soak.sh` supplies them. It executes container `psql`
-with separate libpq variables, so no host PostgreSQL client is required. The casting
-NPC overlay has HP1 as an explicit test input; its source rewards are unchanged.
-Gauntlet/report filenames stay `1-kill-one-monster` for existing artifact consumers.
+By default, the casting soak uses eight clients and1200s. All roles are at fixture level7, and they cast
+Wind Strike and long Might buffs. The low-HP NPC keeps the source XP/SP rewards. The
+received kill/XP/reuse/effect checks of each role have no gameplay formulas. They do not
+need the MP-cost metadata, which is not available now. `soak-fixtures.py --casting` emits mode0600 tokens and an exact
+`roles.json` manifest. seed-phase3-soak.py validates the canonical inputs and unique UUIDs.
+It seeds all roles in one new transaction before API startup. The casting
+seeder must have `--compose-project` and `--compose-file` for that soak stack, which the harness controls
+(but not with `--dry-run`). `run-soak.sh` supplies them. The seeder runs the container `psql`
+with separate libpq variables. Thus a host PostgreSQL client is not necessary. The casting
+NPC overlay has HP1 as an explicit test input. Its source rewards do not change.
+The Gauntlet/report filenames stay `1-kill-one-monster` for the existing artifact consumers.
 Each role must supply positive cast_skill, skill_cast_result and effect_applied
-runtime counts, plus verified native schema3 cast/effect transitions. Missing
-casting evidence fails, including a missing role manifest and a transition report
+runtime counts. Each role must also supply verified native schema3 cast/effect transitions.
+Missing casting evidence causes a failure. This includes a missing role manifest and a transition report
 whose SHA-256 does not identify the replay-verified recording. `--legacy-attacks`
-retains the old workload and cannot count as Phase3 acceptance. A shorter or smaller
-casting smoke run can pass its own checks but `phase3_acceptance` stays false until
-eight clients each run at least1200s with every evidence gate passing. Standalone
-seeders remove inherited libpq settings before supplying the guarded endpoint.
+keeps the old workload, and it cannot count as Phase3 acceptance. A shorter or smaller
+casting smoke run can pass its own checks. But `phase3_acceptance` stays false until
+eight clients each run for a minimum of1200s and each evidence gate passes. Standalone
+seeders remove inherited libpq settings before they supply the guarded endpoint.
 
-**Client-owned NightfallSoak.cs handoff:** consume `-SoakRoleManifest=<roles.json>`,
-validate schema_version1/casting/count/order, use each role's scenario and
-`-DevTokenFile=<token_file>` (never inline tokens), retain unique UserDir/BotOutDir,
-and allow the final360s casting scenario plus boot grace (replace the earlier120s
-request: the full sum of movement/cast/state waits now fits the scenario budget).
-Consume `-SoakScenarioSeconds=360` and include that final scenario allowance plus
-boot grace in both GetConfiguration.MaxDuration and TickTest's process deadline.
-Do not change client
-skill formulas. Harness run-soak.sh refuses casting before infrastructure if the
-client source lacks this hook. C# and its build are outside C-HARNESS ownership;
-no Gauntlet/packaged soak pass is claimed. Merged client M3 `3b21cd7` provides core DSL/manifest support; its C# still lacks
-the final SoakScenarioSeconds budget parameter. Commands/counts/inactive effects match the
-brief, but the added impact/initial-resource/causal predicates and oracle/death/
-retention/AI assertions remain handoffs. Integrate and reconcile the final client
-M3 commit before running scenarios; unsupported names must continue to fail parsing.
+**Client-owned NightfallSoak.cs handoff:** Use `-SoakRoleManifest=<roles.json>`.
+Validate schema_version1/casting/count/order. Use the scenario of each role and
+`-DevTokenFile=<token_file>` (never inline tokens). Keep a unique UserDir/BotOutDir.
+Give sufficient time for the final360s casting scenario plus the boot grace. This replaces the earlier120s
+request, because the full sum of movement/cast/state waits now fits in the scenario budget.
+Use `-SoakScenarioSeconds=360`. Include that final scenario allowance plus the
+boot grace in GetConfiguration.MaxDuration and in the process deadline of TickTest.
+Do not change the client
+skill formulas. If the client source does not have this hook, the harness run-soak.sh rejects casting before
+it starts the infrastructure. The C# and its build are outside C-HARNESS ownership.
+This document does not claim a Gauntlet/packaged soak pass. The merged client M3 `3b21cd7` gives core DSL/manifest support,
+but its C# still does not have the final SoakScenarioSeconds budget parameter. The commands, counts and inactive effects
+agree with the brief. But the added impact/initial-resource/causal predicates and the oracle/death/
+retention/AI assertions are still handoffs. Integrate and reconcile the final client
+M3 commit before you run scenarios. Unsupported names must continue to cause a parse failure.
 
 Late-entry swing coverage (triage review #4): `late_entry_hp_continuity
-keltir_durable` requires both the existing exact wounded-HP/regen/first-hit check
-and a received `AttackStarted` for that durable NPC in its same-life AOI re-entry
-batch. Hydration must follow **all** identity spawns, carry the batch's baseline
-tick, bind visible matching attacker/target incarnations, and preserve the native
+keltir_durable` must have two items. The first item is the existing exact wounded-HP/regen/first-hit check.
+The second item is a received `AttackStarted` for that durable NPC in its same-life AOI re-entry
+batch. The hydration must come after **all** identity spawns. It must carry the baseline
+tick of the batch and bind the visible matching attacker/target incarnations. It must also keep the native
 start/impact/ready ticks with `start < baseline < impact <= ready`. The native
 `auto_attack_resolution.inputs.swing` supplies the independent timing/life join
 (`apps/api/src/domain/zone/state_runtime_observe.rs:185-199`,
-`apps/api/src/domain/zone/state_combat.rs:1036-1060`). Ordinary starts, initial
-admission, unrelated NPCs or another observer's receipt cannot substitute.
+`apps/api/src/domain/zone/state_combat.rs:1036-1060`). Ordinary starts, the initial
+admission, unrelated NPCs or the receipt of a different observer cannot replace it.
 
-The offline fixture regression's phase offsets
-(`apps/api/tests/phase3_fixture_overlays.rs:944-948`) put epoch1's start on the
-entry tick: its HP check still passes, but the combined live gate **fails**.
-`late-entry-v5-oracle.py` verifies that expected negative explicitly; its returned
-report retains `passed:false`. Epochs2/3 are native positives for the combined
+The phase offsets of the offline fixture regression
+(`apps/api/tests/phase3_fixture_overlays.rs:944-948`) put the start of epoch1 on the
+entry tick. Its HP check still passes, but the combined live gate **fails**.
+`late-entry-v5-oracle.py` explicitly makes sure of that expected negative result. Its returned
+report keeps `passed:false`. Epochs2/3 are native positive cases for the combined
 gate. `Scripts/test/phase3-evidence.test.py` removes all observer AttackStarted
-carriers in every epoch and requires failure, then corrupts each timing/baseline,
-life, visibility, identity-batch order and native join from passing epochs.
-These are offline replay regressions; live packaged acceptance needs a rerun.
+carriers in each epoch, and the test must fail. Then it makes each timing/baseline,
+life, visibility, identity-batch order and native join incorrect in the epochs that pass.
+These are offline replay regressions. Live packaged acceptance must have a new run.
 
-Observer correlation correction: canonical A/B both wait for `cast_result_for`
-Wind Strike1177, then `cast_terminal_once_for` on the same received identity.
-A remains admitted until B's post-result Might1068 self-buff is received. The
-trainer peer is explicitly seeded with Might rank1; no unlearned handshake.
+Observer correlation correction: the canonical A and B both wait for `cast_result_for`
+Wind Strike1177. Then they wait for `cast_terminal_once_for` on the same received identity.
+A stays admitted until it receives the post-result Might1068 self-buff of B. The
+trainer peer is explicitly seeded with Might rank1, thus there is no unlearned handshake.
 `variants/3-cast-observer-late-a/b.nfs` use `phase3-observer-late`: A110/100,
-B65/100->63/100->65/100 across the32-tile AOI cell boundary. They must witness
-original pending-cast hydration strictly during the cast or fail; ordinary Start
-cannot stand in for mid-cast entry. Runtime frame scheduling can miss this window;
-`phase3_observer_mid_cast_entry` must additionally prove exact actor-tick ordering.
+B65/100->63/100->65/100 across the32-tile AOI cell boundary. They must see the
+original pending-cast hydration strictly during the cast. If they do not, they fail. An ordinary Start
+cannot replace a mid-cast entry. The runtime frame schedule can miss this window.
+Thus `phase3_observer_mid_cast_entry` must also prove the exact order of actor ticks.
 
-`Scenarios/fixtures/phase3-observer-mutual.json` is an **authored wire fixture**,
-not an engine-produced recording. It defines two mutually referencing newcomers,
-all identity spawns before either baseline cast, different incarnations/IDs,
-original deadlines, a misleading Might result and the two designated Wind Strike
+`Scenarios/fixtures/phase3-observer-mutual.json` is an **authored wire fixture**.
+It is not a recording that the engine made. It defines two newcomers that refer to each other.
+It also defines all identity spawns before the baseline cast of each newcomer, and different incarnations/IDs.
+In addition, it defines the original deadlines, a misleading Might result and the two designated Wind Strike
 terminal results. Its SHA is bound into the named `observer-mutual-reference`
-precision case. Engine/adapter/client owners must consume it and execute the
+precision case. Engine/adapter/client owners must use it and run the
 negative mutations (interleaved hydration, stale incarnation/wrong cast or skill,
 ordinary start, completed baseline). The companion mutual-swing/hidden-source
 precision case covers pending-swing hydration and absent-source pairs. These three
-precision cases are evidence:null; the source fixes do not claim native observer
-or full finding3 acceptance until the required client predicates and traces land.
+precision cases are evidence:null. Until the necessary client predicates and traces merge, the source fixes
+do not claim native observer acceptance or full finding3 acceptance.
 
 C11 post-run gate contract (integration fix)
 ------------------------------------------
 
 `# replay-gate: <name> [arguments]` moves server-only assertions out of the DSL.
-The wrappers run `phase3-evidence.py` after replay/coverage, bind facts to the
-current JUnit `own_entity_id` and the unit recording SHA, and classify missing or
-mismatched evidence as `phase3_replay_evidence` infrastructure failure. Gates are
-mandatory even with `--no-replay`; affected units require exactly one recording.
-Received cast/resource/effect/offer/target assertions remain in each scenario.
-Static registry audit passes all Phase 3 scenario files without an allowlist.
-That audit proves source compatibility only.
+The wrappers run `phase3-evidence.py` after replay/coverage. They bind the facts to the
+current JUnit `own_entity_id` and the unit recording SHA. They classify missing evidence or
+evidence that does not agree as a `phase3_replay_evidence` infrastructure failure. The gates are
+mandatory also with `--no-replay`. Each affected unit must have exactly one recording.
+The received cast/resource/effect/offer/target assertions stay in each scenario.
+The static registry audit passes all Phase 3 scenario files without an allowlist.
+That audit proves only source compatibility.
 
 The producer command is `nightfall-replay export --file <unit.nfr> --session
 <entity> --evidence-out <gate.raw.jsonl>` after an independent `check` on the same
-file. `SIM_PHASE3_EVIDENCE_CMD` overrides the CLI prefix. The exporter checks the
-whole recording before publishing a fresh destination. The binding JSONL schema,
-source anchors and private-data contract are in
+file. `SIM_PHASE3_EVIDENCE_CMD` overrides the CLI prefix. The exporter examines the
+whole recording before it publishes a new destination file. The binding JSONL schema,
+the source anchors and the private-data contract are in
 [replay-evidence.md](../../../docs/engineering/replay-evidence.md).
 
-The consumer requires a manifest bound to the exact recording SHA, consistent
+The consumer must have a manifest that is bound to the exact recording SHA. It must also have a consistent
 zone/epoch/snapshot tick/watermark, consecutive fact sequences in tick order and a
-complete trailer. Each fact has `{kind, entity, tick, sequence, data}`. Multiple
-facts of one kind/entity/tick are valid; sequence identifies them. Unknown fields
-or categories, duplicate JSON keys, non-exact numbers, invalid life bindings,
-producer acceptance flags and incomplete files fail closed. Standalone RNG draws
-are counted once; resolution slices must reference them in the same order without
-duplicates. A scheduled pulse cannot be counted twice at the same entity/tick.
+complete trailer. Each fact has `{kind, entity, tick, sequence, data}`. Many
+facts of one kind/entity/tick are valid, and the sequence identifies them. These items fail closed: unknown fields
+or categories, duplicate JSON keys, numbers that are not exact, invalid life bindings,
+producer acceptance flags and incomplete files. Standalone RNG draws
+are counted one time. Resolution slices must refer to them in the same order, without
+duplicates. A scheduled pulse cannot be counted two times at the same entity/tick.
 
 | Declaration | Actual C14 facts and independent check |
 | --- | --- |
@@ -385,35 +396,35 @@ duplicates. A scheduled pulse cannot be counted twice at the same entity/tick.
 | `stat_matches_oracle active\|removed` | Actual timed-effect presence/removal in `modifier_reconstruction`, then independent source formulas at the actual level and supported ordered folds, including canonical `pAtk`. Admission effect-ID rebasing is excluded from removal candidates. Unmodified bootstrap stats and unsupported affected stats cannot pass. |
 | `resurrect_refund_matches_oracle` | Unique preceding `resurrection_offer`, caster resolution/WIT source profile and accepted `resurrection_refund`; source percent quirk, independent Math.round refund, one-time death-record consumption and incarnation transition (game `Formulas.java:1372`; `L2PcInstance.java:4702`). Declines are checked but cannot replace an accepted refund. |
 
-The native regression builds `nightfall-replay`, exports both unchanged committed
-V5 fixtures, and exports temporary recordings created through production bootstrap,
+The native regression builds `nightfall-replay` and exports the two unchanged committed
+V5 fixtures. It also exports temporary recordings that it makes through production bootstrap,
 admission, paid learning, casts, real expiry, disconnect and restored admission.
-Actual scenario inputs include Wind Strike powers13/21, Ice Bolt8 and Might
-pAtk×1.08 (pinned datapack `01100-01199.xml:1634,1830`, `01000-01099.xml:1547`),
-with fixture level14 (`Scripts/phase3-fixtures.py:79,82,106`) and non-neutral
+The actual scenario inputs include Wind Strike powers13/21, Ice Bolt8 and Might
+pAtk×1.08 (pinned datapack `01100-01199.xml:1634,1830`, `01000-01099.xml:1547`).
+They also include the fixture level14 (`Scripts/phase3-fixtures.py:79,82,106`) and a non-neutral
 spread from the recorded RNG draws (game `Formulas.java:877`). Initial admissions
-are excluded from reconnect candidates; missing mutations/admissions fail.
+are not reconnect candidates. Missing mutations/admissions cause a failure.
 A real Regeneration cast installs canonical regHp (datapack
-`01000-01099.xml:1132,1162`); omitting its credit fails the complete regen evaluator.
-Native standing-regeneration/death/hate/refund/damage/effect/stat/restoration facts
-are checked. Missing moving transitions stay red. Both wrappers exercise real
-numeric exports per unit, including `--no-replay`, using stub bot/JUnit/health
-carriers. These are offline harness/recording checks, not Unreal scenario or
-live-service acceptance. Corrupted rows are negative tests only.
+`01000-01099.xml:1132,1162`). If its credit is not there, the complete regen evaluator fails.
+The native standing-regeneration/death/hate/refund/damage/effect/stat/restoration facts
+are examined. Missing moving transitions stay red. The two wrappers do real
+numeric exports per unit, also with `--no-replay`, and use stub bot/JUnit/health
+carriers. These are offline harness/recording checks. They are not Unreal scenario acceptance or
+live-service acceptance. Corrupted rows are only negative tests.
 
-The producer dependency is resolved. Full twelve-gate acceptance still requires
-recordings containing each scenario's actual transition and independently covered
-numeric inputs. Unsupported inputs never inherit a guessed oracle index or an
-acceptance flag; synthetic or corrupted test rows are not acceptance evidence.
+The producer dependency is resolved. Full twelve-gate acceptance still must have
+recordings that include the actual transition of each scenario and numeric inputs with independent coverage.
+Unsupported inputs never get a guessed oracle index or an
+acceptance flag. Synthetic or corrupted test rows are not acceptance evidence.
 
 ### Phase1a V5 overlays (C16)
 
-`sim_unit_prepare` generates a private `phase1a-data` rules tree before starting
-Phase1a clients. Every `apps/api/fixtures/phase1a-*/npcs/*.toml` retains its physical
-inputs and receives the generated Young Keltir profile copied from shipped data.
+`sim_unit_prepare` makes a private `phase1a-data` rules tree before it starts the
+Phase1a clients. Each `apps/api/fixtures/phase1a-*/npcs/*.toml` keeps its physical
+inputs. Each file also gets the generated Young Keltir profile, which is a copy of the shipped data.
 Provenance: pinned datapack `3ca488dd`, `20500-20599.xml:3648-3661`; template scalar
 conversion: pinned game `abfde049`, `NpcData.java:164-185`, `L2CharTemplate.java:105-112`,
 `StatsSet.java:241-247`. The existing `phase1a-social-aggro/fixture.toml:4` zero-speed
-override applies to both the zone and the validated V5 physical profile before hashing.
-It does not change the source template or production rules. The Rust bootstrap test
-starts both selected fixtures under V5 and checks the rooted social NPCs.
+override applies to the zone and to the validated V5 physical profile before the hash operation.
+It does not change the source template or the production rules. The Rust bootstrap test
+starts the two selected fixtures under V5 and examines the rooted social NPCs.

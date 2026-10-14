@@ -76,7 +76,7 @@
     <div class="diagram-container">
       <svg viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="system-architecture-title system-architecture-desc">
         <title id="system-architecture-title">System architecture</title>
-        <desc id="system-architecture-desc">The Unreal client authenticates with Keycloak and calls the layered Rust API, whose adapters persist to Postgres, append to JetStream and export telemetry to LGTM.</desc>
+        <desc id="system-architecture-desc">The Unreal client authenticates with Keycloak and calls the layered Rust API. The adapters of the API store data in Postgres, append to JetStream and export telemetry to LGTM.</desc>
         <defs>
           <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
 <polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/>
@@ -191,10 +191,10 @@
       </svg>
     </div>
     <div class="notes">
-<p>Development ports shown. The four server boxes group modules, not separate services. Zone commands use in-process <code>mpsc</code>; NATS carries the transactional outbox, replay log and best-effort session audit. The outbox relay waits for the publish ack before marking a row published.</p>
+<p>The diagram shows the development ports. The four server boxes are groups of modules, not separate services. Zone commands use in-process <code>mpsc</code>. NATS carries the transactional outbox, the replay log and the best-effort session audit. The outbox relay waits for the publish ack before it marks a row as published.</p>
 <p>
-<code>NF_EVENTS → nightfall.*.*</code> (currently <code>nightfall.character.created</code>); <code>NF_ZONES → nightfall.zone.*.*.*</code>; <code>NF_SESSIONS → nightfall.session.*.*</code>. These subject sets do not overlap.</p>
-<p>LGTM groups Grafana, Loki, Tempo and the metrics backend; the local <code>grafana/otel-lgtm</code> image uses Prometheus. Keycloak also stores its own database in the local Postgres service (edge omitted).</p>
+<code>NF_EVENTS → nightfall.*.*</code> (now <code>nightfall.character.created</code>); <code>NF_ZONES → nightfall.zone.*.*.*</code>; <code>NF_SESSIONS → nightfall.session.*.*</code>. These subject sets do not overlap.</p>
+<p>LGTM is a group of Grafana, Loki, Tempo and the metrics backend. The local <code>grafana/otel-lgtm</code> image uses Prometheus. Keycloak also keeps its own database in the local Postgres service (the diagram does not show this edge).</p>
 <p>Source: <a href="../../apps/api/src/config.rs">config.rs</a> · <a href="../../apps/api/src/lib.rs">lib.rs</a> · <a href="../../apps/api/src/main.rs">main.rs</a> · <a href="../../docker-compose.yml">docker-compose.yml</a>.</p>
 </div>
   </div>

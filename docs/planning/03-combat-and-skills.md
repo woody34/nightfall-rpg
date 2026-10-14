@@ -1,10 +1,10 @@
 # Phase 3: Combat and skills
 
-Status: planning reference. Depends on Phase 1 (derived stats: P.Atk, M.Atk, P.Def, M.Def, accuracy, evasion, crit rate, attack/cast speed, stat bonus tables) and Phase 2 (classes, skill trees). Feeds Phase 4 (weapons supply P.Atk, random damage, attack range/angle, reuse) and Phase 6 (monster AI consumes the aggro model).
+Status: planning reference. This phase uses Phase 1 (derived stats: P.Atk, M.Atk, P.Def, M.Def, accuracy, evasion, crit rate, attack/cast speed, stat bonus tables) and Phase 2 (classes, skill trees). Phase 4 uses this phase (weapons supply P.Atk, random damage, attack range/angle, reuse). Phase 6 also uses it (monster AI uses the aggro model).
 
 ## 1. Purpose and scope
 
-Delivers the authoritative server combat loop and the skill system:
+This phase gives the authoritative server combat loop and the skill system:
 
 - Combat core: auto-attack scheduling, hit/miss, critical, shield block, physical and magical damage, positional modifiers, weapon-type behaviour (bow reuse, polearm sweep, dual hits, dagger blows).
 - Skill system: data format, learning with SP, casting pipeline (cost, cast time, interruption, reuse), targeting, effect lists, enchant routes.
@@ -15,13 +15,13 @@ Delivers the authoritative server combat loop and the skill system:
 - Death, XP loss, resurrection.
 - PvP rules: flag, karma, PK counter, chaotic drops, zone types.
 - Pets and servitors (upkeep, XP share).
-- Nightfall's chosen formulas, the Rust tick/combat loop, the skill data format and combat proto events.
+- The Nightfall formulas, the Rust tick/combat loop, the skill data format, and the combat proto events.
 
-Excluded: item stats and enchant (Phase 4), monster AI decision-making beyond hate selection (Phase 6), Olympiad/siege rules (Phase 7), VFX/animation (Phase 8).
+Excluded: item stats and enchant (Phase 4), monster AI decisions other than hate selection (Phase 6), Olympiad/siege rules (Phase 7), VFX/animation (Phase 8).
 
 ## 2. Reference: how Lineage 2 does it
 
-Primary source: L2J High Five `Formulas.java` and related classes; Interlude differences from the L2J C6 fork. Where the two eras differ, both are given.
+Primary source: L2J High Five `Formulas.java` and related classes. The Interlude differences come from the L2J C6 fork. If the two eras are different, this section gives both.
 
 ### 2.1 Physical damage
 
@@ -45,7 +45,7 @@ damage *= npcLevelPenalty (if target NPC >= 2 levels higher)
 return max(damage, 1)
 ```
 
-Interlude L2J uses **70** instead of 76/77: `damage = 70 * damage / defence`, with soulshot `damage *= 2` applied before, crit as `damage *= 2` (plus CRITICAL_DAMAGE additive), and the random spread as `damage += rnd * damage / 10` (0..+10%, not symmetric). Both are "the L2 formula"; the retail constant changed between chronicles, which is why community write-ups quote 70, 76 or 77.
+Interlude L2J uses **70** in place of 76/77: `damage = 70 * damage / defence`. The soulshot `damage *= 2` applies before this. The crit is `damage *= 2` (plus the CRITICAL_DAMAGE additive). The random spread is `damage += rnd * damage / 10` (0..+10%, not symmetric). Both are "the L2 formula". The retail constant changed between chronicles. This is the reason that community write-ups quote 70, 76 or 77.
 
 **Physical skill (H5 `calcSkillPhysDam`):**
 
@@ -55,13 +55,13 @@ damage  = baseMod * proximity * pvpBonus * attackTraitBonus * attributeBonus * r
 damage  = PHYSICAL_SKILL_POWER stat applied (e.g. +x% skill power buffs)
 ```
 
-Note that in H5 the soulshot doubles pAtk but not skill power; in Interlude `ssBoost` was a per-skill multiplier applied to power. Skill crits are decided separately (`calcSkillCrit`: `STR_bonus * skill.critChance > rnd(100)`); when a physical skill crits the damage is doubled by the effect handler (`PhysicalAttack` effect), not by the formula above.
+In H5, the soulshot doubles pAtk but not skill power. In Interlude, `ssBoost` was a per-skill multiplier on power. Skill crits are a separate roll (`calcSkillCrit`: `STR_bonus * skill.critChance > rnd(100)`). When a physical skill crits, the effect handler (`PhysicalAttack` effect) doubles the damage, not the formula above.
 
-**Dagger blows (`calcBlowDamage`):** `77 * (power + pAtk * (ss ? 1.458 : 1)) / defence`, multiplied by `CRITICAL_DAMAGE` and position (`CRITICAL_DAMAGE_POS`), i.e. a blow is always a critical hit. Blow success (`calcBlowSuccess`): `rate = blowChance * DEX_bonus * sideMod` with `sideMod` 1.0 front / 1.5 side / 2.0 back; Mortal Blow has `blowChance = 20`. Backstab additionally requires being behind.
+**Dagger blows (`calcBlowDamage`):** `77 * (power + pAtk * (ss ? 1.458 : 1)) / defence`, multiplied by `CRITICAL_DAMAGE` and position (`CRITICAL_DAMAGE_POS`). Thus, a blow is always a critical hit. Blow success (`calcBlowSuccess`): `rate = blowChance * DEX_bonus * sideMod`, with `sideMod` 1.0 front / 1.5 side / 2.0 back. Mortal Blow has `blowChance = 20`. For Backstab, the attacker must also be behind the target.
 
-**Critical rate:** `critRate = baseCritRate(4) * DEX_bonus * 10` in permille, modified by `CRITICAL_RATE` and `CRITICAL_RATE_POS` (position buffs), capped at `MaxPCritRate = 500` (50%). Roll: `rate > rnd(1000)`. Critical damage multiplier is 2x base, further multiplied by `CRITICAL_DAMAGE` (Focus, dyes) and reduced by target `DEFENCE_CRITICAL_DAMAGE`.
+**Critical rate:** `critRate = baseCritRate(4) * DEX_bonus * 10` in permille. `CRITICAL_RATE` and `CRITICAL_RATE_POS` (position buffs) change it. The maximum is `MaxPCritRate = 500` (50%). Roll: `rate > rnd(1000)`. The critical damage multiplier is 2x base. `CRITICAL_DAMAGE` (Focus, dyes) multiplies it again, and the target `DEFENCE_CRITICAL_DAMAGE` decreases it.
 
-**Shield block (`calcShldUse`):** requires a shield in the left hand; `shldRate = SHIELD_RATE * DEX_bonus`; block only if attacker is within the shield angle (`SHIELD_DEFENCE_ANGLE + 120` degrees in front); bows get `shldRate *= 1.3`; `PerfectShieldBlockRate = 10` (%) of successful blocks become perfect blocks (damage 1). On normal block, `shldDef` is added to P.Def (or, with `ShieldBlocks = True`, subtracted from damage).
+**Shield block (`calcShldUse`):** the defender must have a shield in the left hand. `shldRate = SHIELD_RATE * DEX_bonus`. A block is possible only if the attacker is in the shield angle (`SHIELD_DEFENCE_ANGLE + 120` degrees in front). Bows get `shldRate *= 1.3`. `PerfectShieldBlockRate = 10` (%) of successful blocks become perfect blocks (damage 1). On a normal block, `shldDef` is added to P.Def (or, with `ShieldBlocks = True`, subtracted from damage).
 
 ### 2.2 Magic damage
 
@@ -82,9 +82,9 @@ damage *= attributeBonus
 damage *= npcLevelPenalty
 ```
 
-`sqrt(mAtk)` is why M.Atk is quadratic in INT (`mAtk = base * INT_bonus^2 * levelMod^2`): the two cancel to a linear INT scaling at the damage level. Interlude: same `91 * sqrt(mAtk) / mDef * power`, with `MAGIC_CRITICAL_POWER` config (default 3) for the crit multiplier and no PvP 2.5 distinction.
+`sqrt(mAtk)` is the reason that M.Atk is quadratic in INT (`mAtk = base * INT_bonus^2 * levelMod^2`). At the damage level, the two cancel, and the result is a linear INT scaling. Interlude: the same `91 * sqrt(mAtk) / mDef * power`, with the `MAGIC_CRITICAL_POWER` config (default 3) for the crit multiplier, and no PvP 2.5 distinction.
 
-**Magic critical rate:** `mCrit = 1 * WIT_bonus * 10` permille (base rate 1 == 10 permille at WIT bonus 1.0), modified by `MCRITICAL_RATE`, capped at `MaxMCritRate = 200` (20%).
+**Magic critical rate:** `mCrit = 1 * WIT_bonus * 10` permille (base rate 1 == 10 permille at WIT bonus 1.0). `MCRITICAL_RATE` changes it. The maximum is `MaxMCritRate = 200` (20%).
 
 **Magic success / "resisted" (`calcMagicSuccess`):**
 
@@ -95,7 +95,7 @@ rate          = 100 - round(lvlModifier * npcPenalty * MAGIC_SUCCESS_RES)
 success       = rnd(100) < rate
 ```
 
-So using a `magicLevel` 40 nuke on a level 50 target gives `1.3^10 = 13.8` -> 86% success; on a level 60 target `1.3^20 = 190` -> rate clamps negative -> always fails. The skill's `magicLvl` table (e.g. Wind Strike 1/4/7/11/14 for levels 1-5) is therefore the real "level" of a spell. Interlude used the same `1.3^diff` but rolled against 10000 with `rate = pow(1.3, diff) * 100`.
+Thus, a `magicLevel` 40 nuke on a level 50 target gives `1.3^10 = 13.8` -> 86% success. On a level 60 target, `1.3^20 = 190` -> the rate clamps negative -> the skill always fails. Thus, the `magicLvl` table of the skill (for example Wind Strike 1/4/7/11/14 for levels 1-5) is the real "level" of a spell. Interlude used the same `1.3^diff`, but rolled against 10000 with `rate = pow(1.3, diff) * 100`.
 
 **Mana damage (`calcManaDam`):** `sqrt(mAtk) * power * (target.maxMp / 97) / mDef`.
 
@@ -108,31 +108,31 @@ chance = clamp(chance, 200, 980)                                       // 20% ..
 hit = chance >= rnd(1000)
 ```
 
-Identical in Interlude and H5. Accuracy = `sqrt(DEX) * 6 + level` (+ extra per level above 69 and 77); evasion = `sqrt(DEX) * 6 + level` (+ (level - 69), x1.2 above 78), capped `MaxEvasion = 250`. So at equal DEX/level, base hit chance is 80%; each point of accuracy over evasion adds 2%. Physical skills use the same roll; debuff/magic skills do not miss, they "resist" (2.2 / 2.6).
+This is identical in Interlude and H5. Accuracy = `sqrt(DEX) * 6 + level` (+ extra for each level above 69 and 77). Evasion = `sqrt(DEX) * 6 + level` (+ (level - 69), x1.2 above 78), with the maximum `MaxEvasion = 250`. Thus, at equal DEX/level, the base hit chance is 80%. Each point of accuracy above evasion adds 2%. Physical skills use the same roll. Debuff/magic skills do not miss. They "resist" (2.2 / 2.6).
 
 ### 2.4 Attack speed, cast speed, reuse
 
-- **Attack interval:** `timeBetweenAttacks_ms = 500000 / pAtkSpd`. At 300 pAtkSpd (naked template) that is 1667 ms; at the cap `MaxPAtkSpeed = 1500` it is 333 ms. The hit lands at roughly half the interval (animation hit frame); the next attack can start at the full interval.
-- **Bow/crossbow reuse:** after a shot, additional `reuse_ms = weapon.reuseDelay * 333 / pAtkSpd` (retail bows have `reuseDelay` ~1500) during which no new shot can start; soulshot/MP consumption per shot (bows consume MP).
-- **Dual weapons:** two hit rolls per attack, each with its own miss/crit/shield roll, each at half the normal damage split (L2J `doAttackHitByDual`).
-- **Polearm:** `doAttackHitByPole` hits the primary target then up to `ATTACK_COUNT_MAX - 1` extra targets (base 1, Polearm Mastery raises it) inside `physicalAttackRange` and the weapon's `physicalAttackAngle` (polearm base angle 120 deg), excluding targets more than 650 z-units away; extra targets receive 85% ("attackpercent") damage, decreasing per target.
-- **Cast time:** `castTime_ms = skill.hitTime * 333 / (isMagic ? mAtkSpd : pAtkSpd)`; 333 is the baseline mAtkSpd, so Wind Strike's `hitTime = 4000` is 4.0 s at 333 casting speed and 2.0 s at 666. Spiritshots cut magic cast time to 60%. Minimum 500 ms if the base hitTime > 500. `MaxMAtkSpeed = 1999`.
-- **Reuse delay:** `skill.reuseDelay` ms, reduced by `REUSE_DELAY` stats (Interlude: cast speed reduced reuse for magic skills; H5 does not). Stored across logout (`StoreSkillCooltime = True`).
-- **Cast interruption (`calcAtkBreak`):** when a caster takes damage, `init = 15 (if casting) + sqrt(13 * dmg) - (MEN_bonus * 100 - 100)`, clamped 1..99, rolled against 100. Bow attacks can also be interrupted (`CancelByHit = cast`).
+- **Attack interval:** `timeBetweenAttacks_ms = 500000 / pAtkSpd`. At 300 pAtkSpd (naked template), this is 1667 ms. At the cap `MaxPAtkSpeed = 1500`, it is 333 ms. The hit lands at approximately half of the interval (animation hit frame). The next attack can start at the full interval.
+- **Bow/crossbow reuse:** after a shot, there is an extra delay of `reuse_ms = weapon.reuseDelay * 333 / pAtkSpd` (retail bows have `reuseDelay` ~1500). During this delay, no new shot can start. Each shot uses soulshots/MP (bows use MP).
+- **Dual weapons:** two hit rolls for each attack. Each roll has its own miss/crit/shield roll, and each is at half of the normal damage (L2J `doAttackHitByDual`).
+- **Polearm:** `doAttackHitByPole` hits the primary target, then a maximum of `ATTACK_COUNT_MAX - 1` extra targets (base 1, Polearm Mastery increases it). These targets must be in `physicalAttackRange` and in the `physicalAttackAngle` of the weapon (polearm base angle 120 deg). Targets more than 650 z-units away are excluded. Extra targets get 85% ("attackpercent") damage, which decreases for each target.
+- **Cast time:** `castTime_ms = skill.hitTime * 333 / (isMagic ? mAtkSpd : pAtkSpd)`. 333 is the baseline mAtkSpd. Thus, the Wind Strike `hitTime = 4000` is 4.0 s at 333 casting speed and 2.0 s at 666. Spiritshots decrease the magic cast time to 60%. The minimum is 500 ms if the base hitTime > 500. `MaxMAtkSpeed = 1999`.
+- **Reuse delay:** `skill.reuseDelay` ms, decreased by the `REUSE_DELAY` stats (Interlude: cast speed decreased the reuse for magic skills; H5 does not). The reuse is stored across logout (`StoreSkillCooltime = True`).
+- **Cast interruption (`calcAtkBreak`):** when a caster gets damage, `init = 15 (if casting) + sqrt(13 * dmg) - (MEN_bonus * 100 - 100)`, clamped 1..99, rolled against 100. Bow attacks can also be interrupted (`CancelByHit = cast`).
 
 ### 2.5 Skill system
 
-**Skill definition (L2J XML, `data/stats/skills/NNNNN-NNNNN.xml`).** One `<skill id levels name>` with per-level `<table>`s and `<set>` attributes. The important attributes:
+**Skill definition (L2J XML, `data/stats/skills/NNNNN-NNNNN.xml`).** One `<skill id levels name>` with per-level `<table>`s and `<set>` attributes. The important attributes are:
 
 | Attribute | Meaning | Example |
 |---|---|---|
 | `operateType` | A1 instant active, A2 instant + continuous (buff/debuff), A3/A4 continuous, CA1/CA5 channelled, DA1/DA2 directional/rush, P passive, T toggle | Power Strike A1, Stun Attack A2, Shield A2 |
 | `targetType` | SELF, TARGET, ENEMY, ENEMY_ONLY, PC_BODY (dead player), NPC_BODY, GROUND, NONE... | Sleep: ENEMY_ONLY |
 | `affectScope` | SINGLE, POINT_BLANK (around caster), RANGE (around target), FAN, SQUARE, PARTY, PLEDGE, DEAD_PARTY... with `affectRange`, `affectLimit` ("9-10" = 9 to 10 targets) and `affectObject` (NOT_FRIEND, FRIEND, ALL...) | Provoke: POINT_BLANK, range 500/700/900, limit 9-10 |
-| `castRange` / `effectRange` | max distance to start the cast / to still land at the end | Wind Strike 600 / 1100, melee 40 / 400 |
+| `castRange` / `effectRange` | maximum distance to start the cast / to land at the end | Wind Strike 600 / 1100, melee 40 / 400 |
 | `hitTime` / `coolTime` / `reuseDelay` | cast animation, post-cast lock, cooldown (ms) | Power Strike 1080 / 720 / 3000 |
 | `mpConsume1` / `mpConsume2` | MP at cast start / at completion | Sleep 5 / 17 |
-| `hpConsume`, `itemConsumeId/Count` | HP cost (Dark Elf skills), items (summons eat crystals) | Summon Kat the Cat: 1-12 D-crystals |
+| `hpConsume`, `itemConsumeId/Count` | HP cost (Dark Elf skills), items (summons use crystals) | Summon Kat the Cat: 1-12 D-crystals |
 | `magicLvl` | spell level for success/level-bonus formulas | Sleep lvl 1 = 23 |
 | `isMagic` | 1 = uses mAtkSpd/M.Def path | |
 | `isDebuff`, `abnormalType`, `abnormalLvl`, `abnormalTime` (s), `abnormalVisualEffect` | stacking group, stack order, duration | Shield: PD_UP, lvl 1/2/3, 1200 s |
@@ -142,34 +142,39 @@ Identical in Interlude and H5. Accuracy = `sqrt(DEX) * 6 + level` (+ extra per l
 | `nextActionAttack`, `overHit`, `hitCancelTime` | auto-attack after use; over-hit XP bonus; interruptible window | |
 | `<cond>` | usage conditions: weapon kinds, player state | `<using kind="DAGGER"/>` |
 | `<effects>` / `<enchant1Effects>` | effect list: `PhysicalAttack{power}`, `MagicalAttackRange{power, shieldDefensePercent}`, `FatalBlow{power, blowChance}`, `Stun`, `Sleep`, `Buff{mul/add stat}`, `DefenceTrait{SLEEP=100}`, `Summon{npcId, consumeItemId, lifeTime}`, `Resurrection{power}`... | |
-| `enchantGroup1..N` + `<enchantN name=... val=...>` | enchant routes overriding attributes per +level | Sleep: route 1 raises `activateRate` 80->100, route 2 raises `abnormalTime` 31->60 |
+| `enchantGroup1..N` + `<enchantN name=... val=...>` | enchant routes that override attributes for each +level | Sleep: route 1 raises `activateRate` 80->100, route 2 raises `abnormalTime` 31->60 |
 
-**Learning.** `classSkillTree.xml` entries (Phase 2) with `getLevel` and `levelUpSp`; some need a spellbook item. SP comes from kills (`SpReward` per monster, split by damage share). Costs scale steeply: Power Strike lvl 1 = 50 SP, lvl 4 = 370 SP; 2nd-class skills cost 10^4..10^5; 3rd-class 10^6+.
+**Learning.** `classSkillTree.xml` entries (Phase 2) with `getLevel` and `levelUpSp`. Some skills also must have a spellbook item. SP comes from kills (`SpReward` per monster, divided by damage share). Costs increase steeply: Power Strike lvl 1 = 50 SP, lvl 4 = 370 SP; 2nd-class skills cost 10^4..10^5; 3rd-class 10^6+.
 
-**Enchanting (76+).** `enchantSkillGroups.xml`: each route has 30 levels; each level has `adena`, `sp` and `chanceNN` by character level 76..85. Group 1 (2nd-class buffs/debuffs): +1 costs 74,250 adena and 575,980 SP with 82% at level 76 / 97% at 78+; +10 costs 189,000 / 680,020 with 20% at 76 but 79% at 81+; +30 costs 430,650 / 943,620 with 24% at 85 and 1% below. Group 2 (attack skills) costs ~1.8x the adena/SP. A failed enchant with a normal Giant's Codex resets to +0; with Codex Mastery the level is kept. Route change (e.g. Power -> Time) costs 20% of the next level's SP/adena plus Codex: Discipline and may drop 1-3 levels. Routes typically available: Power (+damage/+rate), Cost (-MP), Time (+duration), Chance (+activateRate), plus element routes for nukes.
+**Enchanting (76+).** `enchantSkillGroups.xml`: each route has 30 levels. Each level has `adena`, `sp` and `chanceNN` by character level 76..85.
+
+- Group 1 (2nd-class buffs/debuffs): +1 costs 74,250 adena and 575,980 SP, with 82% at level 76 / 97% at 78+. +10 costs 189,000 / 680,020, with 20% at 76 but 79% at 81+. +30 costs 430,650 / 943,620, with 24% at 85 and 1% below.
+- Group 2 (attack skills) costs ~1.8x the adena/SP.
+
+If an enchant fails with a normal Giant's Codex, the skill goes back to +0. With Codex Mastery, the level stays. A route change (for example Power -> Time) costs 20% of the SP/adena of the next level, plus Codex: Discipline, and can drop 1-3 levels. The routes that are frequently available are Power (+damage/+rate), Cost (-MP), Time (+duration), Chance (+activateRate), and element routes for nukes.
 
 ### 2.6 Buffs, debuffs, status effects
 
-**Slots (L2J `character.properties`):** `MaxBuffAmount = 20`, +4 from Divine Inspiration (`ENLARGE_ABNORMAL_SLOT`, max 24; `DivineInspirationSpBookNeeded = True`), `MaxDanceAmount = 12` (songs + dances share this separate pool since Gracia), `MaxTriggeredBuffAmount = 12`. Debuffs have no slot limit in L2J (retail shows 8 debuff icons). When the buff list is full, the *oldest* buff (first in queue) is removed to make room (`CharEffectList.add`). Toggles, 7-Signs, healing-potion effects and `SUMMON_CONDITION` do not count.
+**Slots (L2J `character.properties`):** `MaxBuffAmount = 20`, +4 from Divine Inspiration (`ENLARGE_ABNORMAL_SLOT`, max 24; `DivineInspirationSpBookNeeded = True`), `MaxDanceAmount = 12` (since Gracia, songs + dances share this separate pool), `MaxTriggeredBuffAmount = 12`. In L2J, debuffs have no slot limit (retail shows 8 debuff icons). When the buff list is full, the *oldest* buff (first in queue) is removed to make space (`CharEffectList.add`). Toggles, 7-Signs, healing-potion effects and `SUMMON_CONDITION` are not counted.
 
-**Stacking.** Each skill has an `abnormalType` (the stack group: PD_UP, MD_UP, SPEED_UP, ATTACK_TIME_DOWN, STUN, SLEEP, ROOT_PHYSICALLY, SILENCE, ...) and `abnormalLvl` (stack order). Adding an effect whose group already exists: if `new.abnormalLvl >= existing.abnormalLvl` the old one is replaced (and the timer restarts); otherwise the new one is **rejected** silently. `abnormalType = NONE` skills stack with everything but replace their own skill id. This is why Shield lvl 3 (PD_UP lvl 3) overrides Shield lvl 1 but a lvl 1 recast cannot overwrite a lvl 3.
+**Stacking.** Each skill has an `abnormalType` (the stack group: PD_UP, MD_UP, SPEED_UP, ATTACK_TIME_DOWN, STUN, SLEEP, ROOT_PHYSICALLY, SILENCE, ...) and an `abnormalLvl` (stack order). When you add an effect whose group already exists, this rule applies. If `new.abnormalLvl >= existing.abnormalLvl`, the new effect replaces the old one (and the timer starts again). If not, the new one is **rejected** silently. `abnormalType = NONE` skills stack with all effects, but replace their own skill id. This is the reason that Shield lvl 3 (PD_UP lvl 3) overrides Shield lvl 1, but a lvl 1 recast cannot overwrite a lvl 3.
 
-**Durations.** Standard 2nd-class buffs 1200 s (20 min), 1800 s with enchant +30 Time; songs/dances 120 s (300 s in later chronicles); debuffs 5-60 s. Debuff duration is reduced by the target's stat bonus (`time / basicPropertyBonus`), resistances and level difference, floored at 50%: `time = ceil(clamp(time * resMod * lvlBonusMod * elementMod / statMod, time * 0.5, time))`. Skill Mastery (crit cast) doubles buff duration.
+**Durations.** Standard 2nd-class buffs 1200 s (20 min), 1800 s with enchant +30 Time; songs/dances 120 s (300 s in later chronicles); debuffs 5-60 s. The stat bonus of the target (`time / basicPropertyBonus`), resistances, and level difference decrease the debuff duration, with a floor of 50%: `time = ceil(clamp(time * resMod * lvlBonusMod * elementMod / statMod, time * 0.5, time))`. Skill Mastery (crit cast) doubles the buff duration.
 
-**Dispel / cancel (`calcCancelEffects`).** Cancel-type skills remove up to `max` buffs scanning from the *newest* backwards, each with `rate / resMod` where `resMod = 1 - (CANCEL_VULN + CANCEL_PROF)/100`, and per-buff `rate *= 1 + (cancelMagicLvl - buffMagicLvl)/100`, clamped to the skill's min/max chance. Debuff cleansing (Cure skills) removes debuffs with plain `rnd(100) <= rate`. `canBeStolen`/`irreplaceableBuff` flags protect certain buffs. Death removes all effects except `isStayAfterDeath`; class switch removes all except `isStayOnSubclassChange`.
+**Dispel / cancel (`calcCancelEffects`).** Cancel-type skills remove a maximum of `max` buffs. They scan from the *newest* buff backwards. Each buff has a chance of `rate / resMod`, where `resMod = 1 - (CANCEL_VULN + CANCEL_PROF)/100`, and per-buff `rate *= 1 + (cancelMagicLvl - buffMagicLvl)/100`, clamped to the min/max chance of the skill. Debuff cleansing (Cure skills) removes debuffs with plain `rnd(100) <= rate`. The `canBeStolen`/`irreplaceableBuff` flags protect some buffs. Death removes all effects except `isStayAfterDeath`. A class switch removes all effects except `isStayOnSubclassChange`.
 
-**Status effects list (abnormal type -> trait -> what it does):**
+**Status effects list (abnormal type -> trait -> effect):**
 
 | Effect | Trait (resist) | Saving stat | Behaviour | Typical base rate / duration |
 |---|---|---|---|---|
-| Stun | SHOCK | CON | cannot move/act; broken by damage? No (retail stun is not broken by damage) | Stun Attack 50% / 9 s; Shield Stun 80% / 9 s |
-| Sleep | SLEEP | MEN | cannot act; **any damage breaks it** | Sleep 80% / 30 s (grants SLEEP defence 100 while active: no re-sleep) |
+| Stun | SHOCK | CON | cannot move/act; does damage break it? No (in retail, damage does not break stun) | Stun Attack 50% / 9 s; Shield Stun 80% / 9 s |
+| Sleep | SLEEP | MEN | cannot act; **any damage breaks it** | Sleep 80% / 30 s (gives SLEEP defence 100 while active: no re-sleep) |
 | Root (hold) | HOLD / ROOT_PHYSICALLY / ROOT_MAGICALLY | MEN | cannot move, can act | Entangle 80% / 15 s |
 | Silence | DERANGEMENT (magic) / PHYSICAL_BLOCKADE | MEN | cannot cast magic / cannot use physical skills | Silence 80% / 30 s |
-| Fear | DERANGEMENT | MEN | runs away from caster, cannot act | 30 s |
+| Fear | DERANGEMENT | MEN | runs away from the caster, cannot act | 30 s |
 | Paralysis | PARALYZE | CON | cannot move/act, not broken by damage | Medusa 60% / 20 s |
 | Poison / Bleed | POISON / BLEED | CON | DoT per tick, stackable by abnormal level | Poison 10 dmg/2 s for 30 s |
-| Slow | - (SPEED_DOWN) | DEX/MEN | movement speed x0.7 etc. | |
+| Slow | - (SPEED_DOWN) | DEX/MEN | movement speed x0.7 and other values | |
 | Petrify / Turn to stone | TURN_STONE | CON | paralysis + invulnerability | |
 | Mutation / Confusion | DERANGEMENT | MEN | random movement | |
 | Disarm | DISARM | - | weapon unequipped | |
@@ -189,31 +194,43 @@ finalRate  = traitMod > 0 ? clamp(rate, skill.minChance (default 1), skill.maxCh
 lands      = finalRate > rnd(100)
 ```
 
-Worked example: Stun Attack lvl 15 (`magicLvl` 36, `activateRate` 50, `lvlBonusRate` 1, CON) on a level 36 target with CON 43: `baseMod = (3*1 + 50 + 30) - 43 = 40` -> 40% before traits. Against CON 47 (Orc) 36%. Sleep lvl 12 (`magicLvl` 40, rate 80, `lvlBonusRate` 2, MEN) by a caster with mAtk 500 vs mDef 200 on a level 40 target with MEN 25: `baseMod = (3*2 + 80 + 30) - 25 = 91`, `mAtkMod = sqrt(500)/200*11 = 1.23` -> clamps to 99%. Versus a MEN 42 Orc Shaman with mDef 400: `baseMod 74 * 0.61 = 45%`.
+Worked example: Stun Attack lvl 15 (`magicLvl` 36, `activateRate` 50, `lvlBonusRate` 1, CON) on a level 36 target with CON 43: `baseMod = (3*1 + 50 + 30) - 43 = 40` -> 40% before traits. Against CON 47 (Orc), 36%. Sleep lvl 12 (`magicLvl` 40, rate 80, `lvlBonusRate` 2, MEN) by a caster with mAtk 500 vs mDef 200, on a level 40 target with MEN 25: `baseMod = (3*2 + 80 + 30) - 25 = 91`, `mAtkMod = sqrt(500)/200*11 = 1.23` -> clamps to 99%. Against a MEN 42 Orc Shaman with mDef 400: `baseMod 74 * 0.61 = 45%`.
 
-Interlude (L2J C6 `calcEffectSuccess`) is the formula most "classic" players remember: `rate = effectPower * (1 / saveVs_statBonus)`, then for magic `rate *= 14 * sqrt(ssMod * mAtk) / mDef`, then a resistance modifier clamped to 0.5..0.9 when the target has vulnerability data, then `rate += levelDelta` where `levelDelta` is the level gap `(attacker/magic level - target level)` rounded away from zero to a multiple of 5, then clamp to `[minChance, maxChance]` (defaults 1..99; many servers use 5..95 or 10..90).
+Interlude (L2J C6 `calcEffectSuccess`) is the formula that most "classic" players remember. The steps are:
+
+1. `rate = effectPower * (1 / saveVs_statBonus)`.
+2. For magic, `rate *= 14 * sqrt(ssMod * mAtk) / mDef`.
+3. If the target has vulnerability data, apply a resistance modifier, clamped to 0.5..0.9.
+4. `rate += levelDelta`. `levelDelta` is the level gap `(attacker/magic level - target level)`, rounded away from zero to a multiple of 5.
+5. Clamp to `[minChance, maxChance]` (defaults 1..99; many servers use 5..95 or 10..90).
 
 ### 2.7 Targeting and aggro
 
 L2J `L2Attackable` keeps `_aggroList: Map<attacker, AggroInfo{hate, damage}>`.
 
-- **Hate from damage:** `addDamageHate(attacker, damage, aggro = damage * 100 / (mobLevel + 7))`. A level-20 mob gains 3.7 hate per point of damage; a level-80 mob 1.15. Hate caps at 999,999,999.
-- **Hate from skills:** every skill has `effectPoint`; using a skill on/near a mob adds `|effectPoint|` hate (and for heals/buffs on the mob's target, heals add hate proportional to the heal to all mobs attacking the healed target). Aggression skills (Hate, Aggression, Provoke/"Challenge for Fate") add large flat hate (`Aggression` effect: `power` hate) and Provoke-style AoEs (POINT_BLANK, 500-900 range, up to 10 targets) also apply a short `REAL_TARGET` (target lock) abnormal for 10 s.
-- **Most hated:** the target with the highest `hate` (ties keep current); dead/invisible/unknown targets are dropped (`checkHate`). Taunt swaps are immediate because hate is compared each AI tick.
-- **Reduce hate:** `reduceHate(target, amount)`; `stopHating` on death/teleport. Agro decays only when the mob loses track.
-- **Social aggro (clan call):** a mob under attack looks for NPCs within `clanHelpRange + collision` whose template `clans` overlap its own and whose AI is idle/active and within 600 z; they receive `EVT_AGGRESSION` with 1 hate (players) or inherit the caller's hate for the caller's target (NPC vs NPC).
-- **Auto-aggro:** `autoAttackCondition`: target within `aggroRange` (template value, typically 300-1000), visible (geodata LOS), not in a peace zone, not in Silent Move unless the mob is a raid; mobs ignore players in fake death; guards aggro only players with karma > 0.
-- **Leash / give up:** `MAX_ATTACK_TIMEOUT = 120 s` of attacking without being able to hit resets to ACTIVE and drops hate; `returnHome` teleports a mob back when it drifts beyond `MAX_DRIFT_RANGE` from spawn (L2J default 300 while idle); random walk 1/30 chance per think tick when idle.
+- **Hate from damage:** `addDamageHate(attacker, damage, aggro = damage * 100 / (mobLevel + 7))`. A level-20 mob gets 3.7 hate for each point of damage. A level-80 mob gets 1.15. The maximum hate is 999,999,999.
+- **Hate from skills:** each skill has `effectPoint`. A skill used on or near a mob adds `|effectPoint|` hate. Heals and buffs on the target of a mob also add hate: all mobs that attack the healed target get hate proportional to the heal. Aggression skills (Hate, Aggression, Provoke/"Challenge for Fate") add large flat hate (`Aggression` effect: `power` hate). Provoke-style AoEs (POINT_BLANK, 500-900 range, up to 10 targets) also apply a short `REAL_TARGET` (target lock) abnormal for 10 s.
+- **Most hated:** the target with the highest `hate` (if there is a tie, the current target stays). Dead/invisible/unknown targets are removed (`checkHate`). Taunt swaps are immediate, because the AI compares hate at each AI tick.
+- **Reduce hate:** `reduceHate(target, amount)`. `stopHating` on death/teleport. Agro decreases only when the mob loses track of the target.
+- **Social aggro (clan call):** a mob that is under attack looks for NPCs in `clanHelpRange + collision`. The template `clans` of these NPCs must overlap its own. Their AI must be idle/active, and they must be in 600 z. They get `EVT_AGGRESSION` with 1 hate (players), or they get the hate of the caller for the target of the caller (NPC vs NPC).
+- **Auto-aggro:** `autoAttackCondition`: the target is in `aggroRange` (template value, frequently 300-1000), visible (geodata LOS), and not in a peace zone. The target is also not in Silent Move, but this condition does not apply if the mob is a raid. Mobs ignore players in fake death. Guards aggro only players with karma > 0.
+- **Leash / give up:** after `MAX_ATTACK_TIMEOUT = 120 s` of attacks with no possible hit, the mob goes back to ACTIVE and drops hate. `returnHome` teleports a mob back when it moves beyond `MAX_DRIFT_RANGE` from spawn (L2J default 300 while idle). When a mob is idle, it has a random walk chance of 1/30 for each think tick.
 
 ### 2.8 Death and resurrection
 
-**XP loss (`playerXpPercentLost.xml`, H5):** percentage of the XP *span of the current level* (`exp(lvl+1) - exp(lvl)`), not of total XP. 10.0% at level 1 falling by 0.125 per level to 4.0% at 49; 4.0% from 49 to 75; 2.5% at 76, 2.0% at 77, 1.5% at 78, 1.0% from 79 to 85. Interlude used brackets: <20: 10%, 20-39: 7%, 40-74: 4%, 75-80: 2%. Killed by a player during clan war or while a festival participant: loss / 4. Chaotic (karma > 0): `* RateKarmaExpLost` (1.0 default). Dying can de-level (`Delevel = True`). Dying to a monster (or to a player while chaotic) has `DeathPenaltyChance = 20` % to add a level of Death Penalty (skill 5076, max 15): lvl 1 is x0.9 P.Atk/M.Atk/atk speed/cast speed, x0.91 P.Def/M.Def, -5 accuracy/evasion, x0.95 speed; lvl 15 is x0.25 / x0.4 / -50 / x0.6. Not applied in PvP/siege zones, under level 10 with the Lucky passive, or after a Blessed resurrection.
+**XP loss (`playerXpPercentLost.xml`, H5):** a percentage of the XP *span of the current level* (`exp(lvl+1) - exp(lvl)`), not of total XP. 10.0% at level 1, decreasing by 0.125 for each level to 4.0% at 49; 4.0% from 49 to 75; 2.5% at 76, 2.0% at 77, 1.5% at 78, 1.0% from 79 to 85. Interlude used brackets: <20: 10%, 20-39: 7%, 40-74: 4%, 75-80: 2%.
 
-**Resurrection restore (`Resurrection{power}`, `calculateSkillResurrectRestorePercent`):** Resurrection skill lvl 1-9 restores 0 / 20 / 30 / 40 / 50 / 55 / 60 / 65 / 70 % of lost XP (magic level 20..74; Mass Resurrection same ladder); Scroll of Resurrection 0% (Interlude) / 10%; Blessed Scroll 100%. The restore percent is multiplied by the caster's WIT bonus, capped at +20 points over base and at 90% total (100% stays 100%). Respawn to town restores 65% HP, 0% MP/CP (`RespawnRestoreHP = 0.65`). Spawn protection 600 game ticks (60 s) after respawn.
+- If a player kills you during a clan war, or while you are a festival participant: loss / 4.
+- Chaotic (karma > 0): `* RateKarmaExpLost` (1.0 default).
+- A death can de-level (`Delevel = True`).
+- A death to a monster (or to a player while chaotic) has a `DeathPenaltyChance = 20` % chance to add a level of Death Penalty (skill 5076, max 15). Lvl 1 is x0.9 P.Atk/M.Atk/atk speed/cast speed, x0.91 P.Def/M.Def, -5 accuracy/evasion, x0.95 speed. Lvl 15 is x0.25 / x0.4 / -50 / x0.6.
+- The Death Penalty does not apply in PvP/siege zones, under level 10 with the Lucky passive, or after a Blessed resurrection.
+
+**Resurrection restore (`Resurrection{power}`, `calculateSkillResurrectRestorePercent`):** Resurrection skill lvl 1-9 restores 0 / 20 / 30 / 40 / 50 / 55 / 60 / 65 / 70 % of lost XP (magic level 20..74; Mass Resurrection has the same ladder). Scroll of Resurrection 0% (Interlude) / 10%. Blessed Scroll 100%. The WIT bonus of the caster multiplies the restore percent, with a maximum of +20 points above base and of 90% total (100% stays 100%). Respawn to town restores 65% HP, 0% MP/CP (`RespawnRestoreHP = 0.65`). Spawn protection is 600 game ticks (60 s) after respawn.
 
 ### 2.9 Elemental attributes
 
-Six attributes: fire, water, wind, earth, holy, dark (unholy); opposing pairs fire/water, wind/earth, holy/dark. Attack attribute comes from the weapon (or skill `attributeType` + `attributePower`, e.g. Wind Strike +20 wind) and is a single element; defence attribute is per element, summed from armor. Introduced in Gracia Final; Interlude only had "fire/water/wind/earth resistance %" via traits.
+Six attributes: fire, water, wind, earth, holy, dark (unholy). The opposite pairs are fire/water, wind/earth, holy/dark. The attack attribute comes from the weapon (or the skill `attributeType` + `attributePower`, for example Wind Strike +20 wind), and is one element. The defence attribute is per element, added from the armor. Gracia Final added attributes. Interlude had only "fire/water/wind/earth resistance %" through traits.
 
 `calcAttributeBonus` (H5) is a bracketed quadratic, not a simple ratio:
 
@@ -231,74 +248,111 @@ result = 1 + clamp(attackMod - defenceMod, min, max) / 100
 PvP: result = max(result, 1.0)
 ```
 
-Rule of thumb from the community: roughly +1% damage per 1 point of (attack - defence) up to ~+20% at the first bracket, with diminishing returns; a 150 attack vs 0 defence weapon gives about +20%, 300 vs 0 about +40%, and the hard cap is +100% (diff >= 300 and high attack). Defence over attack gives no penalty to the attacker in PvP and only damage reduction via the `min` caps in PvE.
+A community rule of thumb: approximately +1% damage for each 1 point of (attack - defence), up to ~+20% at the first bracket. After that, the returns decrease. A 150 attack vs 0 defence weapon gives approximately +20%, and 300 vs 0 approximately +40%. The hard cap is +100% (diff >= 300 and high attack). In PvP, defence above attack gives no penalty to the attacker. In PvE, it gives only damage reduction through the `min` caps.
 
 ### 2.10 PvP rules
 
-L2J `pvp.properties`: `PvPVsNormalTime = 120000` ms flag after attacking a non-flagged player (purple name), `PvPVsPvPTime = 60000` ms when both are flagged; the flag timer restarts on every hostile action and the flag drops when it expires. Retail Classic shortened the flag to 30 s. Attacking (not killing) a non-flagged player flags you; the victim does not flag unless they fight back.
+L2J `pvp.properties`: `PvPVsNormalTime = 120000` ms flag after you attack a non-flagged player (purple name). `PvPVsPvPTime = 60000` ms when both are flagged. The flag timer starts again at each hostile action, and the flag drops when it expires. Retail Classic decreased the flag to 30 s. If you attack (not kill) a non-flagged player, you get the flag. The victim does not get the flag, unless the victim fights back.
 
-**Karma (`calculateKarmaGain`):** killing a non-flagged, non-chaotic player gives `karma = ((pkCount * 0.5) + 1) * 60 * 12` for pkCount < 99 (720 for the first PK, 1080 for the second, ... 35,640 at 98), `((pkCount * 0.125) + 37.75) * 60 * 12` for 99..179, 43,200 flat from 180 PKs. Killing a summon gives at most 10,800. `pkCount` increments only for player kills. Karma > 0 = chaotic (red name); guards and friendly NPCs attack you; you cannot use gatekeepers (`KarmaPlayerCanUseGK = False`), can shop/trade/warehouse by default config, cannot enter peace zones safely only if `KarmaPlayerCanBeKilledInPeaceZone`.
+**Karma (`calculateKarmaGain`):** if you kill a non-flagged, non-chaotic player, you get this karma:
 
-**Karma decay (`calculateKarmaLost`):** every XP gain from monsters removes `karmaLost = |exp| / karmaMultiplier(level) / 30`, where `karmaMultiplier` is `pcKarmaIncrease.xml` (0.77 at level 1, 5.12 at 20, 13.16 at 40, 21.5 at 60, 31.4 at 76, 35.25 at 85). Dying also reduces karma (lost XP goes through the same function). There is no time-based decay.
+- `karma = ((pkCount * 0.5) + 1) * 60 * 12` for pkCount < 99 (720 for the first PK, 1080 for the second, ... 35,640 at 98).
+- `((pkCount * 0.125) + 37.75) * 60 * 12` for 99..179.
+- 43,200 flat from 180 PKs.
 
-**Chaotic item drop (`L2PcInstance.doDie` drop block):** a chaotic player with `pkKills >= MinimumPKRequiredToDrop (6)` who dies (in a non-PvP zone, killer may be NPC or player) has `KarmaRateDrop = 40` % to drop items: each equipped armor piece is rolled at `KarmaRateDropEquip = 40` %, equipped weapon at `KarmaRateDropEquipWeapon = 10` %, inventory items at `KarmaRateDropItem = 50` %, up to `KarmaDropLimit = 10` items; adena, quest items, shadow/time-limited, non-droppable and pet-control items are excluded. Normal players never drop to players; `PlayerRateDrop = 0` to NPCs by default. Retail thresholds varied (4+ PKs in some chronicles, 31+ in Classic).
+A summon kill gives a maximum of 10,800. `pkCount` increases only for player kills. Karma > 0 = chaotic (red name). Guards and friendly NPCs attack you. You cannot use gatekeepers (`KarmaPlayerCanUseGK = False`). With the default config, you can shop/trade/warehouse. You cannot enter peace zones safely only if `KarmaPlayerCanBeKilledInPeaceZone`.
 
-**Zones (L2J `ZoneId`):** PEACE (no attacks, no mob aggro unless configured), PVP (battle zone: free PvP, no flag/karma, no XP loss debuff), SIEGE (during siege: PvP rules by alliance, resurrection restrictions), TOWN, CLAN_HALL, CASTLE, FORT, MOTHER_TREE (Elf regen), NO_SUMMON_FRIEND, NO_STORE, NO_ITEM_DROP, JAIL, LANDING/NO_LANDING, WATER, SWAMP (slow), DANGER_AREA, HQ, SCRIPT.
+**Karma decay (`calculateKarmaLost`):** each XP gain from monsters removes `karmaLost = |exp| / karmaMultiplier(level) / 30`. `karmaMultiplier` is `pcKarmaIncrease.xml` (0.77 at level 1, 5.12 at 20, 13.16 at 40, 21.5 at 60, 31.4 at 76, 35.25 at 85). A death also decreases karma (the lost XP goes through the same function). There is no time-based decay.
+
+**Chaotic item drop (`L2PcInstance.doDie` drop block):** this rule applies to a chaotic player with `pkKills >= MinimumPKRequiredToDrop (6)`. If this player dies in a non-PvP zone (the killer can be an NPC or a player), the player has a `KarmaRateDrop = 40` % chance to drop items:
+
+- Each equipped armor piece is rolled at `KarmaRateDropEquip = 40` %.
+- The equipped weapon is rolled at `KarmaRateDropEquipWeapon = 10` %.
+- Inventory items are rolled at `KarmaRateDropItem = 50` %.
+- The maximum is `KarmaDropLimit = 10` items.
+- Adena, quest items, shadow/time-limited items, non-droppable items and pet-control items are excluded.
+
+Normal players never drop items to players. By default, `PlayerRateDrop = 0` to NPCs. Retail thresholds were different (4+ PKs in some chronicles, 31+ in Classic).
+
+**Zones (L2J `ZoneId`):** PEACE (no attacks, no mob aggro if not configured), PVP (battle zone: free PvP, no flag/karma, no XP loss debuff), SIEGE (during siege: PvP rules by alliance, resurrection restrictions), TOWN, CLAN_HALL, CASTLE, FORT, MOTHER_TREE (Elf regen), NO_SUMMON_FRIEND, NO_STORE, NO_ITEM_DROP, JAIL, LANDING/NO_LANDING, WATER, SWAMP (slow), DANGER_AREA, HQ, SCRIPT.
 
 ### 2.11 Pets and servitors
 
-- **Pets** (Wolf, Hatchling, Strider, Baby pets): spawned from a control item (collar), level independently with their own XP table and `PetLevelData` per level (HP, P.Atk, P.Def, `max_meal`, `consume_meal_in_normal`/`_in_battle`, `soulshot_count`). Feeding: a `FeedTask` runs every 10 s and subtracts the per-level consumption (Wolf: 2 normal / 2 battle at level 1 with `max_meal` 248); when `currentFed < hungry_limit(55%) * max_meal` the pet is hungry and auto-eats matching food from its inventory (Wolf food item 2515); at 0 it becomes uncontrollable and eventually leaves/dies. XP: a pet gets XP as `get_exp_type` percent of what it would earn alone (Wolf 73%) only from its own kills/damage share; the owner's XP is not reduced by a pet.
-- **Servitors** (summoner class summons: Kat the Cat, Shadow, Unicorn...): cast with `itemConsumeId` crystals (Summon Kat the Cat lvl 5+: 7..12 D-crystals up front, then `consumeItemCount` 1-2 crystals every 14 intervals over the summon's `lifeTime` of 3600 s; Interlude lifetime 1200 s), no feeding. The owner's XP from kills is multiplied by the servitor's `expMultiplier` penalty (Kat the Cat takes 30% at low levels falling to 18%; Mew/Silhouette 90%; Kai/Soulless 10% -> 5%; Feline Queen/Nightshade 5%). Summoner skills (Servitor Heal/Recharge/Haste/Shield) target the servitor; `Transfer Pain` moves part of the owner's damage to it. Interlude-era servitors also consumed owner MP over time on some servers (L2J "servitor MP consumption" is a config, not retail).
+- **Pets** (Wolf, Hatchling, Strider, Baby pets): a control item (collar) spawns them. They level independently, with their own XP table and `PetLevelData` for each level (HP, P.Atk, P.Def, `max_meal`, `consume_meal_in_normal`/`_in_battle`, `soulshot_count`).
+  - Feeding: a `FeedTask` runs each 10 s and subtracts the per-level consumption (Wolf: 2 normal / 2 battle at level 1, with `max_meal` 248). When `currentFed < hungry_limit(55%) * max_meal`, the pet is hungry and automatically eats applicable food from its inventory (Wolf food item 2515). At 0, the pet becomes uncontrollable, and then it leaves or dies.
+  - XP: a pet gets XP as `get_exp_type` percent of the XP that it would get alone (Wolf 73%), only from its own kills/damage share. A pet does not decrease the XP of the owner.
+- **Servitors** (summoner class summons: Kat the Cat, Shadow, Unicorn...): the summoner casts them with `itemConsumeId` crystals. (Summon Kat the Cat lvl 5+: 7..12 D-crystals at the start, then `consumeItemCount` 1-2 crystals each 14 intervals over the `lifeTime` of the summon, 3600 s; Interlude lifetime 1200 s.) Servitors do not have to be fed.
+  - The `expMultiplier` penalty of the servitor multiplies the XP that the owner gets from kills (Kat the Cat takes 30% at low levels, decreasing to 18%; Mew/Silhouette 90%; Kai/Soulless 10% -> 5%; Feline Queen/Nightshade 5%).
+  - Summoner skills (Servitor Heal/Recharge/Haste/Shield) target the servitor. `Transfer Pain` moves part of the damage of the owner to the servitor.
+  - On some servers, Interlude-era servitors also used owner MP over time (L2J "servitor MP consumption" is a config, not retail).
 
 ## 3. Design decisions for Nightfall
 
 ### 3.1 Chosen formulas
 
-Start from H5 L2J and simplify where the simplification removes an opaque constant without changing feel. Everything below is tunable in `data/combat.toml`.
+Start from H5 L2J. Simplify only where the simplification removes an opaque constant and does not change the feel. You can tune all values below in `data/combat.toml`.
 
 | Area | Nightfall formula | Why |
 |---|---|---|
-| Normal attack | `dmg = K_PHYS * pAtk * ss / pDef * prox * rnd(1 +/- weapon.rnd%)` with `K_PHYS = 76`; crit `*= 2 * critDmgMult`; shield: `pDef += shldDef` on block, `dmg = 1` on perfect block (10% of blocks) | Same as H5; the 70 vs 76 debate is a tuning knob. |
+| Normal attack | `dmg = K_PHYS * pAtk * ss / pDef * prox * rnd(1 +/- weapon.rnd%)` with `K_PHYS = 76`; crit `*= 2 * critDmgMult`; shield: `pDef += shldDef` on block, `dmg = 1` on perfect block (10% of blocks) | Same as H5; the 70 vs 76 choice is a tuning value. |
 | Physical skill | `dmg = K_SKILL * (power + pAtk * ss) / pDef * prox`, `K_SKILL = 77`; skill crit chance `= STR_bonus * skill.critChance`, crit `*= 2` | H5. Soulshots double pAtk only. |
 | Blow | as skill but always crit and `sideMod` 1 / 1.5 / 2 on blow chance | H5 |
 | Position | front 1.0, side 1.1, back 1.2 (damage); hit bonus 0 / +5% / +10% | H5 values, marked for tuning |
 | Hit chance | `clamp((80 + 2*(acc - eva)) * posBonus, 20, 98)%` | H5/Interlude identical |
 | Crit rate | `baseCrit * DEX_bonus * 10` permille, cap 50%; magic crit `WIT_bonus * 10` permille, cap 20% | H5 caps |
 | Magic damage | `K_MAG * sqrt(mAtk * sps) / mDef * power`, `K_MAG = 91`; mcrit `* 3` PvE, `* 2.5` PvP | H5 |
-| Magic resist | `success = 100 - 1.3^(targetLvl - magicLvl)`; on fail: half damage if gap <= 9 else 1 damage | H5; keep `magicLvl` on every skill |
+| Magic resist | `success = 100 - 1.3^(targetLvl - magicLvl)`; on fail: half damage if gap <= 9 else 1 damage | H5; keep `magicLvl` on each skill |
 | Attack interval | `500000 / pAtkSpd` ms, hit at 50% | H5 |
 | Cast time | `hitTime * 333 / castSpd`, min 500 ms; sps 0.6x | H5 |
-| Debuff land rate | H5 `calcEffectSuccess` verbatim, clamp 10..90 by default (per-skill override) | Deterministic given level/stat; 10..90 avoids the "never lands / always lands" extremes of 1..99 |
+| Debuff land rate | H5 `calcEffectSuccess` verbatim, clamp 10..90 by default (per-skill override) | Deterministic for a given level/stat; 10..90 prevents the "never lands / always lands" extremes of 1..99 |
 | Debuff duration | `clamp(base * traitMod * lvlMod / statMod, 0.5*base, base)` | H5 |
-| Elements | H5 bracketed quadratic, implemented as a lookup table generated at build time (attack -99..600 x defence -99..600 step 1 -> f32) | Exact, O(1), tunable by swapping the table |
-| Aggro | `hate += dmg * 100 / (mobLvl + 7)`, skill `effectPoint` adds flat hate; heals add `heal * 100 / (mobLvl + 7)` to all mobs hating the healed target | H5 |
+| Elements | H5 bracketed quadratic, implemented as a lookup table generated at build time (attack -99..600 x defence -99..600 step 1 -> f32) | Exact, O(1), you can tune it if you replace the table |
+| Aggro | `hate += dmg * 100 / (mobLvl + 7)`, skill `effectPoint` adds flat hate; heals add `heal * 100 / (mobLvl + 7)` to all mobs that hate the healed target | H5 |
 | XP loss | table copy of `playerXpPercentLost.xml` capped at our level cap; Death Penalty debuff 20% chance, max 5 levels in MVP | H5 |
 | Resurrection | per-skill `restorePercent`, WIT bonus, cap 90; Blessed 100 | H5 |
-| PvP flag | 60 s after hitting a non-flagged player, 30 s when both flagged, timer refreshes on each hostile act | Between Classic (30 s) and L2J (120 s) |
+| PvP flag | 60 s after a hit on a non-flagged player, 30 s when both are flagged, the timer starts again at each hostile act | Between Classic (30 s) and L2J (120 s) |
 | Karma | H5 `calculateKarmaGain` and `calculateKarmaLost` verbatim; drop rules with `MinimumPKRequiredToDrop = 5` and the same per-slot percentages | Proven numbers |
-| Buff slots | 20 (+4 via a passive), 12 song/dance, 8 debuff slots (oldest debuff replaced), replace oldest on overflow | H5 + retail debuff cap |
+| Buff slots | 20 (+4 through a passive), 12 song/dance, 8 debuff slots (oldest debuff replaced), replace oldest on overflow | H5 + retail debuff cap |
 
-Simplifications relative to L2: no over-hit, no cubics, no NPC level-gap damage penalty in MVP (replace with Phase 6 "grey mob" XP rules), no PvE-vs-PvP separate damage multipliers except the magic crit, no soulshot grades (a single "soulshot" item doubling pAtk, grades return in Phase 4).
+Simplifications relative to L2:
+
+- No over-hit.
+- No cubics.
+- No NPC level-gap damage penalty in MVP (the Phase 6 "grey mob" XP rules replace it).
+- No separate PvE-vs-PvP damage multipliers, except the magic crit.
+- No soulshot grades (one "soulshot" item doubles pAtk; grades come back in Phase 4).
 
 ### 3.2 Server tick and combat loop
 
-- **Tick:** 100 ms (`TICK_MS = 100`), matching L2J's 10 ticks/s. All combat timers (attack end, hit landing, cast end, reuse, effect ticks, flag expiry) are stored as absolute tick numbers (`u64`) in the zone's clock, never as wall time.
-- **Ownership:** each zone (Phase 0) is a single-threaded simulation task owning all entities inside it; intents arrive via an `mpsc` channel, events leave via a broadcast channel per zone. No locks on entity state. Cross-zone effects (teleport while flagged) are messages.
+- **Tick:** 100 ms (`TICK_MS = 100`), the same as the 10 ticks/s of L2J. The combat timers are attack end, hit landing, cast end, reuse, effect ticks, and flag expiry. All of them are stored as absolute tick numbers (`u64`) in the clock of the zone, never as wall time.
+- **Ownership:** each zone (Phase 0) is a single-threaded simulation task that controls all entities in it. Intents arrive through an `mpsc` channel. Events leave through a broadcast channel for each zone. There are no locks on entity state. Cross-zone effects (teleport while flagged) are messages.
 - **Attack pipeline:**
-  1. Client sends `AttackIntent{target_id}` (once; the server auto-repeats like L2's auto-attack).
-  2. Validate: target exists, alive, attackable (zone rules, flag/karma, party/clan, not self), in range `atkRange + collision_a + collision_t + 20` slack, LOS, attacker not stunned/sleeping/casting/dead, weapon equipped and allowed.
-  3. If out of range: switch intention to `MoveToThenAttack` (server pathing, Phase 6); client only renders.
-  4. Schedule: `attack_end = now + 500000 / pAtkSpd`; `hit_at = now + (attack_end - now) / 2` (dual: two hits at 25%/75%; polearm: one roll per target at 50%); bow adds `reuse` after `attack_end` and consumes MP on start.
-  5. At `hit_at`: re-validate target alive and within `range * 1.5` (L2 lets a hit land if the target walked out after the swing started), roll miss -> shield -> crit -> damage, apply, add hate, broadcast `AttackResult`.
-  6. At `attack_end`: if intent still `Attack` and target alive, go to 2.
-- **Cast pipeline:** `SkillCastIntent{skill_id, target_id?, ground?}` -> validate (learned, reuse ready, MP/HP/items for `mpConsume1`, conditions, range) -> consume `mpConsume1` -> broadcast `SkillCastStarted{cast_ms}` -> `cast_end = now + castTime` -> on damage during cast roll `calcAtkBreak`; on interrupt broadcast `SkillCastCancelled` -> at `cast_end`: re-check range vs `effectRange`, consume `mpConsume2` + items, resolve targets by `affectScope`, run effect list per target (hit roll for physical, resist roll for magic, land roll for debuffs), start reuse `reuse_until = cast_end + reuseDelay`, apply `coolTime` lock, broadcast `SkillCastResult`.
-- **Effect ticking:** continuous effects are entries in a per-entity `BinaryHeap<(next_tick, effect_id)>`; DoTs tick every `effect.tick_interval` (default 1 s); expiries are the same heap. Buff list changes emit `StatusApplied/StatusRemoved`.
-- **Client intent validation:** the client never sends damage, hit results, positions of others, or timings. Rate-limit intents (max 1 attack intent / 100 ms, 1 cast / 100 ms); reject intents referencing entities not in the client's known-list; range checks use server positions; a cast intent while a cast is in progress replaces it only if the current cast is interruptible (`hitCancelTime`). Movement intent during a cast cancels the cast (L2 behaviour) unless the skill is a toggle.
-- **RNG:** one `ChaCha8Rng` per zone, seeded from server seed + zone id + tick at spawn; all rolls go through `Rng::roll_permille()` so replays/tests are deterministic.
+  1. The client sends `AttackIntent{target_id}` (one time; the server repeats the attack automatically, as the L2 auto-attack does).
+  2. Validate: the target exists, is alive, and is attackable (zone rules, flag/karma, party/clan, not self). The target is in range `atkRange + collision_a + collision_t + 20` slack, with LOS. The attacker is not stunned/sleeping/casting/dead. A weapon is equipped and allowed.
+  3. If the target is out of range: change the intention to `MoveToThenAttack` (server pathing, Phase 6). The client only renders.
+  4. Schedule: `attack_end = now + 500000 / pAtkSpd`; `hit_at = now + (attack_end - now) / 2` (dual: two hits at 25%/75%; polearm: one roll for each target at 50%). A bow adds `reuse` after `attack_end`, and uses MP at the start.
+  5. At `hit_at`: validate again that the target is alive and in `range * 1.5`. (L2 lets a hit land if the target walked out after the swing started.) Roll miss -> shield -> crit -> damage, apply the damage, add hate, and send `AttackResult`.
+  6. At `attack_end`: if the intent is still `Attack` and the target is alive, go to step 2.
+- **Cast pipeline:**
+  1. `SkillCastIntent{skill_id, target_id?, ground?}` -> validate (learned, reuse ready, MP/HP/items for `mpConsume1`, conditions, range).
+  2. Use `mpConsume1`.
+  3. Send `SkillCastStarted{cast_ms}`. Set `cast_end = now + castTime`.
+  4. If damage occurs during the cast, roll `calcAtkBreak`. On an interrupt, send `SkillCastCancelled`.
+  5. At `cast_end`: examine the range again against `effectRange`, and use `mpConsume2` + items.
+  6. Find the targets by `affectScope`. Run the effect list for each target (hit roll for physical, resist roll for magic, land roll for debuffs).
+  7. Start the reuse `reuse_until = cast_end + reuseDelay`, apply the `coolTime` lock, and send `SkillCastResult`.
+- **Effect ticks:** continuous effects are entries in a per-entity `BinaryHeap<(next_tick, effect_id)>`. DoTs tick each `effect.tick_interval` (default 1 s). Expiries use the same heap. Buff list changes emit `StatusApplied/StatusRemoved`.
+- **Client intent validation:** the client never sends damage, hit results, positions of others, or timings.
+  - Rate-limit the intents (max 1 attack intent / 100 ms, 1 cast / 100 ms).
+  - Reject intents that refer to entities that are not in the known-list of the client.
+  - Range checks use server positions.
+  - If a cast intent arrives while a cast is in progress, it replaces the current cast only if the current cast is interruptible (`hitCancelTime`).
+  - A movement intent during a cast cancels the cast (L2 behaviour), but not if the skill is a toggle.
+- **RNG:** one `ChaCha8Rng` for each zone, seeded from server seed + zone id + tick at spawn. All rolls go through `Rng::roll_permille()`, so replays/tests are deterministic.
 
 ### 3.3 Skill data format
 
-TOML, one file per skill, mirroring L2J attributes but with explicit types and per-level arrays (`levels = N`, arrays of length N or scalars).
+TOML, one file for each skill. It copies the L2J attributes, but with explicit types and per-level arrays (`levels = N`, arrays of length N or scalars).
 
 ```toml
 # data/skills/stun_attack.toml
@@ -368,7 +422,7 @@ pub enum PerLevel<T> { Same(T), ByLevel(Vec<T>) }  // serde untagged
 
 ### 3.4 Proto messages for combat
 
-Realtime traffic rides the Phase 0 real-time channel: a WebSocket at `/ws` carrying one protobuf `ClientMessage` or `ServerEvent` per binary frame (see `00-foundations.md` §3.2; browsers cannot client-stream over gRPC-Web, so this is not a tonic bidi RPC). The oneof envelopes below are the frame payloads.
+Realtime traffic uses the Phase 0 real-time channel: a WebSocket at `/ws`. It carries one protobuf `ClientMessage` or `ServerEvent` for each binary frame (see `00-foundations.md` §3.2). Browsers cannot client-stream over gRPC-Web, so this is not a tonic bidi RPC. The oneof envelopes below are the frame payloads.
 
 ```proto
 message ClientMessage {
@@ -428,7 +482,7 @@ message SkillReuse { uint32 skill_id = 1; uint32 reuse_remaining_ms = 2; }
 
 ## 4. Data model
 
-Server-side entities (zone-owned, not persisted except where noted):
+Server-side entities (the zone controls them; they are not persisted, except where noted):
 
 ```rust
 pub struct Combatant {                 // component on players, NPCs, pets, servitors
@@ -449,14 +503,18 @@ pub struct PvpState { pub flag_until: Option<u64>, pub karma: i32, pub pk_count:
 pub struct LearnedSkill { pub id: SkillId, pub level: u8, pub enchant: Option<(RouteId, u8)> }                 // persisted
 ```
 
-Persistence (Phase 0 store): learned skills, SP, reuse timers > 5 s remaining, buffs with > 10 s remaining (restore on login like L2's `StoreSkillCooltime`), PvP state, death penalty level, pet level/XP/fed, servitor none.
+Persistence (Phase 0 store): learned skills, SP, reuse timers with > 5 s remaining, buffs with > 10 s remaining (restore on login, as the L2 `StoreSkillCooltime` does), PvP state, death penalty level, pet level/XP/fed. Servitors: none.
 
 ## 5. Interfaces
 
-- **Realtime stream** as in 3.4: the only path for combat. The server batches events per tick per client, in zone-visibility scope (Phase 0 interest management).
-- **gRPC unary** for out-of-combat skill management: `ListLearnableSkills(character_id)` (tree walk with level/SP checks), `LearnSkill(character_id, skill_id)` (consumes SP, item), `EnchantSkill(character_id, skill_id, route)` (consumes adena/SP/codex, rolls chance by character level from the route table), `GetSkillCatalog()` (static, versioned, cached by client).
-- **Server-internal events** (Rust channels, not proto): `DamageDealt`, `Killed`, `HateChanged`, `EffectApplied`, consumed by AI (Phase 6), quests (Phase 6), telemetry (Phase 9).
-- **Client needs:** the static skill catalog (icons, names, ranges, cast times for cast bars), its own `SkillReuse` timers, vitals of itself/party/target, and every event above for entities in view. Not needed: formulas, hidden stats of others.
+- **Realtime stream** as in 3.4: the only path for combat. The server batches events for each tick for each client, in zone-visibility scope (Phase 0 interest management).
+- **gRPC unary** for out-of-combat skill management:
+  - `ListLearnableSkills(character_id)` (tree walk with level/SP checks).
+  - `LearnSkill(character_id, skill_id)` (uses SP, item).
+  - `EnchantSkill(character_id, skill_id, route)` (uses adena/SP/codex, and rolls the chance by character level from the route table).
+  - `GetSkillCatalog()` (static, versioned, cached by the client).
+- **Server-internal events** (Rust channels, not proto): `DamageDealt`, `Killed`, `HateChanged`, `EffectApplied`. AI (Phase 6), quests (Phase 6), and telemetry (Phase 9) use them.
+- **Client needs:** the static skill catalog (icons, names, ranges, cast times for cast bars) and its own `SkillReuse` timers. It also needs the vitals of itself/party/target, and all events above for entities in view. The client does not need formulas or hidden stats of others.
 
 ## 6. Rust implementation notes
 
@@ -482,34 +540,34 @@ combat/
   validate.rs       // intent validation (range, LOS, state flags, rate limits)
 ```
 
-- `formulas.rs` is `#![no_std]`-style pure code with `&dyn Rng` injected; property tests (`proptest`) assert bounds (hit chance in 20..98, damage >= 1, land rate in min..max) and golden tests pin a handful of worked examples from section 2 so future tuning is visible in diffs.
-- Zone task loop: `loop { tick += 1; drain intents; combat.tick(); ai.tick(); flush events; sleep_until(next_tick) }` on a dedicated `tokio` task per zone; heavy zones can be moved to `std::thread` with `tokio::task::block_in_place` if the 100 ms budget is missed. Use `Instant`-based scheduling with drift correction, not `sleep(100ms)`.
-- Time ordering inside a tick: expiries -> DoT ticks -> cast completions -> attack hits -> new intents -> AI. This makes "stun landed on the same tick as the swing" deterministic (stun wins).
-- Hot data is `Vec<Combatant>` indexed by a generational `EntityId`; `EffectList` uses `SmallVec`/`VecDeque` to avoid per-buff allocations.
+- `formulas.rs` is `#![no_std]`-style pure code, with `&dyn Rng` injected. Property tests (`proptest`) make sure of the bounds (hit chance in 20..98, damage >= 1, land rate in min..max). Golden tests lock some worked examples from section 2, so that future tuning is visible in diffs.
+- Zone task loop: `loop { tick += 1; drain intents; combat.tick(); ai.tick(); flush events; sleep_until(next_tick) }` on a dedicated `tokio` task for each zone. If a heavy zone misses the 100 ms budget, you can move it to `std::thread` with `tokio::task::block_in_place`. Use `Instant`-based scheduling with drift correction, not `sleep(100ms)`.
+- Time sequence in a tick: expiries -> DoT ticks -> cast completions -> attack hits -> new intents -> AI. This makes "stun landed on the same tick as the swing" deterministic (stun wins).
+- Hot data is `Vec<Combatant>`, indexed by a generational `EntityId`. `EffectList` uses `SmallVec`/`VecDeque` to prevent per-buff allocations.
 - Crates: `rand` + `rand_chacha`, `smallvec`, `bitflags`, `serde`/`toml`, `proptest` (dev), `criterion` (bench the damage pipeline: target < 2 us per hit).
-- Ordering of float math matters for determinism across machines only if we ever lockstep; we do not, so plain `f32` is fine. Round damage with `floor` and clamp to `>= 1`.
+- The sequence of float math is important for determinism across machines only if we use lockstep. We do not, so plain `f32` is satisfactory. Round damage with `floor` and clamp to `>= 1`.
 
 ## 7. Client implications
 
-- Render from events only: play swing animation on `AttackResult` using `attack_ms`/`hit_at_ms` to time the impact; show floating numbers per `Hit` with miss/crit/block styling.
-- Cast bar from `SkillCastStarted.cast_ms`; cancel on `SkillCastCancelled`.
-- Buff bar: 20 (+4) buff slots, 12 song/dance, 8 debuff; sort by remaining time; show stack replacement via `REMOVE_REASON_REPLACED`.
-- Skill bar: grey-out on `SkillReuse`; local prediction allowed only for the *reuse* countdown.
-- Target frame: show flag/karma colour from `PvpStateChanged` (white, purple when flagged, red when chaotic); threat indicator from `AggroTargetChanged`.
-- Death screen: `EntityDied.exp_lost`, "To village" button (respawn RPC), accept-resurrection prompt when a `Resurrect` offer event arrives (add `ResurrectOffer{caster_id, restore_percent}` event in implementation).
-- Phaser: all hit timing is driven by server ms values so animation speed scales with attack speed (play the swing clip at `clip_ms / attack_ms` rate).
+- Render from events only: play the swing animation on `AttackResult`, and use `attack_ms`/`hit_at_ms` to time the impact. Show floating numbers for each `Hit`, with miss/crit/block styling.
+- Cast bar from `SkillCastStarted.cast_ms`. Cancel on `SkillCastCancelled`.
+- Buff bar: 20 (+4) buff slots, 12 song/dance, 8 debuff. Sort by remaining time. Show stack replacement through `REMOVE_REASON_REPLACED`.
+- Skill bar: grey-out on `SkillReuse`. Local prediction is allowed only for the *reuse* countdown.
+- Target frame: show the flag/karma colour from `PvpStateChanged` (white, purple when flagged, red when chaotic). Show the threat indicator from `AggroTargetChanged`.
+- Death screen: `EntityDied.exp_lost`, a "To village" button (respawn RPC), and an accept-resurrection prompt when a `Resurrect` offer event arrives. (Add a `ResurrectOffer{caster_id, restore_percent}` event during implementation.)
+- Phaser: server ms values control all hit timing, so the animation speed changes with attack speed (play the swing clip at `clip_ms / attack_ms` rate).
 
 ## 8. Open questions
 
-1. 70 vs 76/77: start with H5 constants, but whether we also keep the Interlude asymmetric `+0..10%` random spread or the symmetric weapon `rnd` needs a feel test.
-2. Debuff land-rate clamp 10..90 vs L2J 1..99 vs private-server 5..95: needs PvP playtesting with real buffs.
-3. Elemental attributes: ship the full bracketed H5 system, or the simpler Interlude-style flat resistance percentages until Phase 4 adds attribute stones? Leaning Interlude-style for MVP with the table ready.
-4. Sleep break-on-damage: L2 breaks sleep on any damage including DoT ticks; do DoTs applied before sleep break it on their next tick (retail yes)? Default yes.
-5. Debuff slot limit of 8: oldest-replaced or newest-rejected? Retail replaces oldest.
-6. Whether the PvP flag timer should differ for ranged/magic initiation (some servers do not flag healers who heal flagged players; L2 does flag them).
-7. Servitor upkeep: crystals every 14 intervals (L2) vs continuous owner MP drain (common private-server rule). Data model supports both (`item_cost` and `mp_upkeep`).
-8. Pet XP: L2 pets gain XP only from their own kills; a shared-XP model is friendlier but changes the summoner economy.
-9. Batching of events over the stream per tick vs per event; depends on Phase 0 transport.
+1. 70 vs 76/77: start with H5 constants. A feel test must decide whether we also keep the Interlude asymmetric `+0..10%` random spread or the symmetric weapon `rnd`.
+2. Debuff land-rate clamp 10..90 vs L2J 1..99 vs private-server 5..95: this needs PvP playtests with real buffs.
+3. Elemental attributes: do we release the full bracketed H5 system, or the simpler Interlude-style flat resistance percentages until Phase 4 adds attribute stones? Our preference for MVP is Interlude-style, with the table ready.
+4. Sleep break-on-damage: L2 breaks sleep on all damage, including DoT ticks. If a DoT was applied before the sleep, does it break the sleep on its next tick (retail: yes)? Default: yes.
+5. Debuff slot limit of 8: replace the oldest, or reject the newest? Retail replaces the oldest.
+6. Must the PvP flag timer be different for ranged/magic initiation? (Some servers do not flag healers who heal flagged players; L2 does flag them.)
+7. Servitor upkeep: crystals each 14 intervals (L2) vs continuous owner MP drain (a frequent private-server rule). The data model supports both (`item_cost` and `mp_upkeep`).
+8. Pet XP: L2 pets get XP only from their own kills. A shared-XP model is friendlier, but it changes the summoner economy.
+9. Event batches over the stream for each tick vs for each event: this decision is related to the Phase 0 transport.
 
 ## 9. Sources
 

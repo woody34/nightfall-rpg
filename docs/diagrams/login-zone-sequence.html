@@ -76,7 +76,7 @@
     <div class="diagram-container">
       <svg viewBox="0 0 1280 808" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="login-zone-sequence-title login-zone-sequence-desc">
         <title id="login-zone-sequence-title">From device login to zone admission</title>
-        <desc id="login-zone-sequence-desc">A player authorizes the device, the client exchanges its access token for a play ticket, and the upgraded WebSocket receives zone output only after admission is applied and logged.</desc>
+        <desc id="login-zone-sequence-desc">A player authorizes the device. The client exchanges its access token for a play ticket. The upgraded WebSocket gets zone output only after the server applies and logs the admission.</desc>
         <defs>
           <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
 <polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/>
@@ -167,11 +167,11 @@
     </div>
     <div class="notes">
 <p>
-<strong>01–05:</strong> <code>UAuthSubsystem</code> POSTs to <code>{OidcIssuer}/protocol/openid-connect/auth/device</code> with PKCE S256, displays <code>user_code</code> and the verification URL, then polls <code>/protocol/openid-connect/token</code> with the device-code grant. The player authorizes in a browser; polling continues until success or failure.</p>
+<strong>01–05:</strong> <code>UAuthSubsystem</code> POSTs to <code>{OidcIssuer}/protocol/openid-connect/auth/device</code> with PKCE S256. It shows <code>user_code</code> and the verification URL. Then it polls <code>/protocol/openid-connect/token</code> with the device-code grant. The player authorizes in a browser. The polls continue until success or failure.</p>
 <p>
-<strong>06–09:</strong> After character selection, <code>SessionService.IssuePlayTicket</code> sends the access-token bearer, <code>character_id</code> and a fresh <code>idempotency_key</code>. The response contains <code>ticket</code>, <code>expires_at</code> and <code>ws_url</code>. <code>UNetClientSubsystem</code> upgrades using <code>Authorization: Bearer &lt;ticket&gt;</code>. The API consumes the single-use, 60-second ticket and loads the owned character before HTTP 101.</p>
+<strong>06–09:</strong> After the player selects a character, <code>SessionService.IssuePlayTicket</code> sends the access-token bearer, <code>character_id</code> and a fresh <code>idempotency_key</code>. The response has <code>ticket</code>, <code>expires_at</code> and <code>ws_url</code>. <code>UNetClientSubsystem</code> upgrades the connection with <code>Authorization: Bearer &lt;ticket&gt;</code>. The API uses the single-use, 60-second ticket and loads the owned character before HTTP 101.</p>
 <p>
-<strong>10–12:</strong> Subscribe first; <code>SessionRegistry::admit</code> queues <code>SpawnPlayer</code> or <code>ReplaceSession</code>. Once its tick is applied and durably acknowledged, the session forwards per-player AOI output as protobuf binary frames. Happy path only: character-list RPCs, polling retries, JWKS and repository calls are folded into their actors.</p>
+<strong>10–12:</strong> The session subscribes first. Then <code>SessionRegistry::admit</code> puts <code>SpawnPlayer</code> or <code>ReplaceSession</code>in the queue. When the server applies its tick and the durable log acknowledges it, the session forwards the AOI output for each player as protobuf binary frames. The diagram shows only the happy path. The character-list RPCs, the poll retries, the JWKS calls and the repository calls are included in their actors.</p>
 <p>Source: <a href="../../apps/client-unreal/Source/Nightfall/Auth/AuthSubsystem.cpp">AuthSubsystem.cpp</a> · <a href="../../apps/client-unreal/Source/Nightfall/Net/NetClientSubsystem.cpp">NetClientSubsystem.cpp</a> · <a href="../../apps/api/src/interface/ws.rs">ws.rs</a> · <a href="../../apps/api/src/application/session.rs">session.rs</a>.</p>
 </div>
   </div>

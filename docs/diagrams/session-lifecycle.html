@@ -76,7 +76,7 @@
     <div class="diagram-container">
       <svg viewBox="0 0 1080 728" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="session-lifecycle-title session-lifecycle-desc">
         <title id="session-lifecycle-title">Session lifecycle</title>
-        <desc id="session-lifecycle-desc">The WebSocket progresses from HTTP admission to zone admission and active output; rate limiting is recoverable, while replacement, idle timeout and other session ends close the socket.</desc>
+        <desc id="session-lifecycle-desc">The WebSocket goes from HTTP admission to zone admission and active output. The session can recover from rate limits. Replacement, idle timeout and the other session ends close the socket.</desc>
         <defs>
           <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
 <polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/>
@@ -169,9 +169,9 @@
       </svg>
     </div>
     <div class="notes">
-<p>Conceptual states derived from <code>run_session</code> and <code>Actor::admitted</code>. <strong>END</strong> applies while awaiting admission or admitted: shutdown, stale/replaced generation, idle timeout, non-increasing <code>seq</code>, slow consumer, zone loss or client disconnect. Admission refusal is specific to the waiting state. Client close/read failure is <code>ClientGone</code> and sends no server close code.</p>
-<p>The bucket permits 30 frames/s, burst 30; exhaustion rejects the frame, not the connection. Rejections can themselves fill the outbound queue and lead to <code>4429</code>. All inbound frames, including ping/pong, reset the 60-second idle timer. The same checks run before zone admission; rate limiting is drawn once.</p>
-<p>Ticket generations are per account; the live <code>SessionRegistry</code> is keyed by player <code>EntityId</code>. It cancels the older socket when a newer generation takes over that entity. Stale commands and late despawns are fenced by generation. Reconnect requires a newly issued ticket.</p>
+<p>These are conceptual states, derived from <code>run_session</code> and <code>Actor::admitted</code>. <strong>END</strong> applies while the session waits for admission or is admitted: shutdown, stale/replaced generation, idle timeout, a <code>seq</code>that does not increase, slow consumer, zone loss or client disconnect. Admission refusal applies only to the waiting state. A client close or a read failure is <code>ClientGone</code> and the server sends no close code.</p>
+<p>The bucket lets 30 frames/s go through, with a burst of 30. When the bucket is empty, the server rejects the frame, not the connection. The rejections can also fill the outbound queue and cause <code>4429</code>. All inbound frames, also ping/pong, reset the 60-second idle timer. The same checks run before zone admission. The diagram shows the rate limit only one time.</p>
+<p>Ticket generations are for each account. The live <code>SessionRegistry</code> uses the player <code>EntityId</code>as its key. When a newer generation takes over that entity, the registry cancels the older socket. The generation fences stale commands and late despawns. To reconnect, a newly issued ticket is necessary.</p>
 <p>Source: <a href="../../apps/api/src/application/session.rs">session.rs</a> · <a href="../../apps/api/src/interface/ws.rs">ws.rs</a> · <a href="../../apps/api/src/infrastructure/postgres/session_repository.rs">session_repository.rs</a>.</p>
 </div>
   </div>

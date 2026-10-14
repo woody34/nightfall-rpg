@@ -1,12 +1,33 @@
 # Phase 3 Plan: Combat and Skills
 
-**Status:** final acceptance documentation (closed root receipts). Local Phase 3 implementation — server-authoritative skill combat over the 39 populated class trees, SP learning at the Class Master, casting lifecycle and reuse timers, effect scheduling and abnormal stacking, HP/MP/CP regeneration, PvP flagging, karma gain and decay, CP damage absorption, Death Penalty, skill resurrection with offer expiry and the peace square, on Snapshot 9 / Record 7 / Binary V5 with legacy formats replaying byte-exact — is VERIFIED by offline UE automation (103/0), required-live UE automation (103/0/0), the full ordinary scenario suite (59 units / 59 PASS), Game package staging (84.99 s), the packaged casting soak (attempt 12: 8 clients × 17 iterations, 1,200 s requested, 12,246 ticks observed, combat tick p99 10.776 ms < 20 ms budget, no client errors, API and cleanup exit 0, on tmpfs-backed Postgres/NATS volumes — see §2), and the final Rust gate on the merged tree (fmt/clippy PASS; 1018 passed / 0 failed / 7 ignored; release zone_step: 1000 moving NPCs mean 146.7 µs p99 173.3 µs vs 2 ms budget, 1000 moving players with all observers mean 9.54 ms p99 19.42 ms vs 10 ms mean budget). Main and origin/main merged and pushed `995ffa9e37b065f540c12e6012a94509658f8035` on 2026-10-13. Post-merge root Editor and Game builds exit 0 (04:35:42 / 04:37:06 UTC); root offline automation without an API ran 102 passed / 1 failed (`CatalogueRpcFailures` needs a reachable API), and the rerun with the API up passed 103/103, exit 0 (05:58:28 UTC). Local Phase 3 is proven complete once this final reviewed docs commit lands. External self-hosted Linux runner remains unregistered, and the two-week reliability programme remains a separate operational follow-up (not a local acceptance gate or fresh 14-day wait). Reconciled in outcome summary [`phase-3-combat-and-skills-outcome.md`](phase-3-combat-and-skills-outcome.md). **Author:** agy gemini-3.8-flash-high; bounded revision Codex gpt-6.1-sol / high. Architect: Claude. Independent plan review: Codex gpt-6-astra (Z).
+**Status:** final acceptance documentation (closed root receipts). The local Phase 3 implementation is VERIFIED. It includes these functions:
+
+- server-authoritative skill combat over the 39 populated class trees
+- SP learning at the Class Master
+- the casting lifecycle and reuse timers
+- effect scheduling and abnormal stacking
+- HP/MP/CP regeneration
+- PvP flags, karma gain and decay
+- CP damage absorption
+- Death Penalty
+- skill resurrection with offer expiry, and the peace square.
+
+It operates on Snapshot 9 / Record 7 / Binary V5, and the legacy formats replay byte-exact. This evidence verifies it:
+
+- offline UE automation (103/0)
+- required-live UE automation (103/0/0)
+- the full ordinary scenario suite (59 units / 59 PASS)
+- Game package staging (84.99 s)
+- the packaged casting soak (attempt 12: 8 clients × 17 iterations, 1,200 s requested, 12,246 ticks observed, combat tick p99 10.776 ms < 20 ms budget, no client errors, API and cleanup exit 0, on tmpfs-backed Postgres/NATS volumes — see §2)
+- the final Rust gate on the merged tree (fmt/clippy PASS; 1018 passed / 0 failed / 7 ignored; release zone_step: 1000 moving NPCs mean 146.7 µs p99 173.3 µs vs 2 ms budget, 1000 moving players with all observers mean 9.54 ms p99 19.42 ms vs 10 ms mean budget).
+
+Main and origin/main merged and pushed `995ffa9e37b065f540c12e6012a94509658f8035` on 2026-10-13. After the merge, the root Editor and Game builds exit 0 (04:35:42 / 04:37:06 UTC). The root offline automation without an API ran 102 passed / 1 failed (`CatalogueRpcFailures` must have an API that it can reach). The second run with the API up passed 103/103, exit 0 (05:58:28 UTC). Local Phase 3 is proven complete when this final reviewed docs commit merges. The external self-hosted Linux runner is still not registered. The two-week reliability programme is a separate operational follow-up (it is not a local acceptance gate or a new 14-day wait). The outcome summary [`phase-3-combat-and-skills-outcome.md`](phase-3-combat-and-skills-outcome.md) reconciles this status. **Author:** agy gemini-3.8-flash-high; bounded revision Codex gpt-6.1-sol / high. Architect: Claude. Independent plan review: Codex gpt-6-astra (Z).
 
 ## 1. Goal and locked decisions
 
-Deliver server-authoritative skill combat for 39 populated class trees: SP/learning, resource/reuse casting, effects/status/regen, skill/heal aggro, death penalty/resurrection, player CP/flags/karma and one peace zone. Unreal submits intent and renders authoritative messages; historic epochs retain their rules and bytes.
+The goal is server-authoritative skill combat for 39 populated class trees. The scope is SP/learning, resource/reuse casting, effects/status/regen, skill/heal aggro, death penalty/resurrection, player CP/flags/karma and one peace zone. Unreal sends intents and renders authoritative messages. Historic epochs keep their rules and bytes.
 
-**§2 is this plan's canonical contract section.** It points to the binding design instead of defining competing mechanics in stories. Latest architect corrections supersede older wording. Scope/authority:
+**§2 is this plan's canonical contract section.** It refers to the binding design, and it does not define competing mechanics in stories. The latest architect corrections replace older text. Scope/authority:
 
 | Decision | Authority | Plan reference |
 |---|---|---|
@@ -20,26 +41,32 @@ Deliver server-authoritative skill combat for 39 populated class trees: SP/learn
 | Unlimited width0, complete hydration, final resurrection vitals, private stats/u64 ticks | Architect §9 C1/C2/C2′/C4 | §2.1/§2.4 |
 | Independent review/serialized ownership | Architect R15 | §3/§6 |
 
-No day estimates; soak duration is a test-design choice. Measurements pending.
+There are no day estimates. The soak duration is a test-design choice. Measurements are pending.
 
 ## 2. Source authority and canonical contracts
 
-**Design** = [phase-3-zone-design.md](phase-3-zone-design.md). **Decisions** = [phase-3-architecture-decisions.md](phase-3-architecture-decisions.md), all sections including newest §9 C1–C5/C2′. Design now carries a binding **ARCHITECT ERRATA** header: architecture-decisions.md §9 C5 supersedes its obsolete 1/99 text and other conflicting defaults. **Design §3 schedule, §4 version/codec and §5 persistence/LearnSkill remain authoritative; the committed schema in §2.1 is authoritative for concrete wire field allocations.** Tables here are allocation/version summaries and one scenario matrix; story/test acceptance references them without alternative contracts.
+**Design** = [phase-3-zone-design.md](phase-3-zone-design.md). **Decisions** = [phase-3-architecture-decisions.md](phase-3-architecture-decisions.md), all sections, including the newest §9 C1–C5/C2′. The Design now has a binding **ARCHITECT ERRATA** header: architecture-decisions.md §9 C5 replaces its obsolete 1/99 text and the other defaults that conflict. **Design §3 schedule, §4 version/codec and §5 persistence/LearnSkill stay authoritative. The committed schema in §2.1 is authoritative for concrete wire field allocations.** The tables here are allocation/version summaries and one scenario matrix. Story/test acceptance refers to them, and it does not use alternative contracts.
 
-Inputs: preserved evidence: side-session-notes/phase3-codex-2026-10-10/data-review-1.md, preserved evidence: side-session-notes/phase3-codex-2026-10-10/plan-review-2.md, preserved evidence: side-session-notes/phase3-codex-2026-10-10/design-review-2.md, preserved evidence: side-session-notes/phase3-codex-2026-10-10/skill-inventory/report.md. [Planning template](../planning/README.md), [API guidelines](../engineering/api-guidelines.md) and engineering standards govern implementation. [Combat research](../planning/03-combat-and-skills.md) is context, not runtime authority.
+Inputs (all are preserved evidence): side-session-notes/phase3-codex-2026-10-10/data-review-1.md, side-session-notes/phase3-codex-2026-10-10/plan-review-2.md, side-session-notes/phase3-codex-2026-10-10/design-review-2.md and side-session-notes/phase3-codex-2026-10-10/skill-inventory/report.md. The [Planning template](../planning/README.md), the [API guidelines](../engineering/api-guidelines.md) and the engineering standards control the implementation. [Combat research](../planning/03-combat-and-skills.md) gives context. It is not runtime authority.
 
-Pinned revisions match [SOURCES.md](../../packages/data/SOURCES.md):
+The pinned revisions agree with [SOURCES.md](../../packages/data/SOURCES.md):
 
 - Game **abfde0490ac52a2106e884b7242c0276c44cdf76** — formulas/functions/caller behavior/config.
 - Datapack **3ca488dd2bd0bfaca43e378886a3c2e37968153a** — skill XML/handlers/templates/karma rows.
 
-Generator/oracle provenance must verify full hashes, source paths/literal lines and input/output/vector hashes. Cached clones are provenance, not runtime dependencies. Formula citations come from Design §6; count reports do not override its source ledger.
+The generator/oracle provenance must examine the full hashes, the source paths/literal lines and the input/output/vector hashes. Cached clones are provenance. They are not runtime dependencies. Formula citations come from Design §6. Count reports do not override its source ledger.
 
-**Canonical C5 (architecture-decisions.md §9 C5; Design ARCHITECT ERRATA):** Abnormal-success defaults are **10/90**, overridden by explicit per-skill min/maxChance; retain immunity/no-draw exceptions. **MaxMAtkSpeed=1999, MaxPAtkSpeed=1500, MaxEvasion=250**. Missing attributes retain **magicLvl=0, castRange/effectRange=-1** (unlimited/none according to source-specific usage), and **abnormalLvl=0**. Generator and independent oracle preserve these values and semantics; the engine loads clamps from **tables/formulas.toml**, never hard-codes them. §5.1 requires boundary/default regression vectors.
+**Canonical C5 (architecture-decisions.md §9 C5; Design ARCHITECT ERRATA):** The abnormal-success defaults are **10/90**. Explicit per-skill min/maxChance values override them. Keep the immunity/no-draw exceptions. **MaxMAtkSpeed=1999, MaxPAtkSpeed=1500, MaxEvasion=250**. Missing attributes keep **magicLvl=0, castRange/effectRange=-1** (unlimited/none, as the source-specific usage defines), and **abnormalLvl=0**. The generator and the independent oracle keep these values and semantics. The engine loads the clamps from **tables/formulas.toml**, and it never hard-codes them. §5.1 makes boundary/default regression vectors necessary.
 
 ### 2.1 Additive wire allocation and visibility
 
-Implement **Design §2 + C2/C2′/C4**. Committed contract **241293f** on **codex/phase3-server-api**, [world.proto](../../packages/proto/nightfall/v1/world.proto) and [game.proto](../../packages/proto/nightfall/v1/game.proto), is authoritative for concrete field allocations. Preserved evidence: side-session-notes/phase3-codex-2026-10-10/proto-review-1.md **APPROVE WITH REQUIRED CHANGES** retains three handoff conditions: append V5 **TargetChanged.tick**, document its relationship to baseline_tick and test baseline acceptance/stale-delta rejection/subsequent selection with unchanged zero/default legacy encoding; test all three RPCs for unauthenticated **UNAUTHENTICATED** and authenticated rollout **UNAVAILABLE**, and all three WS intents for exactly one sequence-preserving **NOT_YET_IMPLEMENTED** rejection without actor mutation (refused learning leaves SP/skills/receipts unchanged); document catalogue **UNAVAILABLE** consistently with the handler, including catalogue unavailability and the rollout stub. Preserve old envelopes/tags/bytes.
+Implement **Design §2 + C2/C2′/C4**. The committed contract **241293f** on **codex/phase3-server-api**, [world.proto](../../packages/proto/nightfall/v1/world.proto) and [game.proto](../../packages/proto/nightfall/v1/game.proto), is authoritative for concrete field allocations. The preserved evidence side-session-notes/phase3-codex-2026-10-10/proto-review-1.md (**APPROVE WITH REQUIRED CHANGES**) keeps three handoff conditions:
+
+1. Append V5 **TargetChanged.tick**. Document its relation to baseline_tick. Test the baseline acceptance, the stale-delta rejection and the subsequent selection, with the zero/default legacy encoding unchanged.
+2. Test all three RPCs for unauthenticated **UNAUTHENTICATED** and authenticated rollout **UNAVAILABLE**. Test all three WS intents for exactly one sequence-preserving **NOT_YET_IMPLEMENTED** rejection without actor mutation (a refused learn request leaves SP/skills/receipts unchanged).
+3. Document the catalogue **UNAVAILABLE** so that it agrees with the handler, including catalogue unavailability and the rollout stub.
+
+Keep the old envelopes/tags/bytes.
 
 | Tag space | Allocation summary | Audience / authority |
 |---|---|---|
@@ -54,22 +81,22 @@ Implement **Design §2 + C2/C2′/C4**. Committed contract **241293f** on **code
 | Replay commands/loads | PbCommand16–19; PbPlayerLoad.phase3=9; PbNpcCombat.phase3=6 | Design §4.4, separate numbering. |
 | Replay events/rejects | Events20–29/private30/projection31; rejects from21 | Design §4.4 allowlists; public24/25 use projection payload. |
 
-**All tick/deadline/remainder fields are uint64/Tick(u64)** with checked arithmetic. StatsChanged is WorldEvent **7**, AttackStarted **11**; StatsChanged **field11** is SP. Public PvP only through PvpStateChanged/EntitySpawn; MP/CP totals, SP/XP, learning/offers remain private.
+**All tick/deadline/remainder fields are uint64/Tick(u64)** with checked arithmetic. StatsChanged is WorldEvent **7**, and AttackStarted is **11**. StatsChanged **field11** is SP. Public PvP data goes only through PvpStateChanged/EntitySpawn. MP/CP totals, SP/XP and learning/offers stay private.
 
-V5 AttackResult.damage is HP removed; SkillCastResult distinguishes rolled/CP/HP amounts. **Legacy rolled-overkill output bytes stay unchanged** (Design §3). VitalsChanged covers HP **or effective maxHP**, including max-only changes; clients set absolutes, never subtract twice.
+V5 AttackResult.damage is the HP removed. SkillCastResult gives separate rolled/CP/HP amounts. **Legacy rolled-overkill output bytes stay unchanged** (Design §3). VitalsChanged covers HP **or effective maxHP**, including changes to the max only. Clients set absolute values, and they never subtract two times.
 
 Binding hydration corrections:
 
-- All V5 identities first, active_effects empty, pending_cast/pending_swing absent. Then baseline EffectApplied/**SkillCastStarted** hydration with stable IDs/incarnations/deadlines, plus **baseline AttackStarted for existing swings (C2)**. No separate PendingCast type. No animations/transition counts for baselines.
-- Filter every nested endpoint recursively against known visible incarnation after the batch; hidden entity/incarnation absent together. Preserve visible subject summary without leaking full source attribution.
-- Baseline exceptions include owner **StatsChanged/TargetChanged/SkillStateSync**, public **PvpStateChanged** bootstrap, effect/cast/swing hydration. Construct final observe values and accept at baseline tick, including idle reconnect; ordinary mutation suppression remains.
-- Same-ID resurrection in existing AOI emits final **VitalsChanged after EntityRespawned** with baseline exception (C2′). Suppress vitals only if that observer received final HP/maxHP pair.
+- First, all V5 identities, with active_effects empty and pending_cast/pending_swing absent. Then the baseline EffectApplied/**SkillCastStarted** hydration with stable IDs/incarnations/deadlines, plus **baseline AttackStarted for existing swings (C2)**. There is no separate PendingCast type. There are no animations/transition counts for baselines.
+- After the batch, filter every nested endpoint recursively against the known visible incarnation. A hidden entity and its incarnation are absent together. Keep the visible subject summary, but do not leak the full source attribution.
+- The baseline exceptions include owner **StatsChanged/TargetChanged/SkillStateSync**, the public **PvpStateChanged** bootstrap, and effect/cast/swing hydration. Make the final observe values and accept them at the baseline tick, including on an idle reconnect. The ordinary mutation suppression stays.
+- A same-ID resurrection in the existing AOI emits the final **VitalsChanged after EntityRespawned** with a baseline exception (C2′). Suppress the vitals only if that observer received the final HP/maxHP pair.
 
-E2.4/E5.5 evidence covers mutual cast/swing newcomers, hidden endpoints, empty reset, idle replacement/reconnect and resurrection maxHP change.
+The E2.4/E5.5 evidence covers mutual cast/swing newcomers, hidden endpoints, empty reset, idle replacement/reconnect and resurrection maxHP change.
 
 ### 2.2 Version matrix and legacy isolation
 
-Use **Design §4.1–§4.5** without widening current validation. This is the sole compatibility table.
+Use **Design §4.1–§4.5**, and do not make the current validation wider. This is the only compatibility table.
 
 | Snapshot | Digest | Classes | Record | Policy |
 |---|---|---|---|---|
@@ -79,53 +106,67 @@ Use **Design §4.1–§4.5** without widening current validation. This is the so
 | 8 | BinaryV4 | true | 6 | Phase2 tokens |
 | 9 | BinaryV5 | true + valid Phase3 block/rules/hash | 7 | Phase3 only |
 
-Reject illegal snapshot/digest/record pairs and **recursive Phase3 presence even empty/default** under legacy nested tags/loads/projections/receipts/outbox. Validate raw protobuf/JSON before defaults discard presence; encoder and digest-only reproduced outputs share context. Legacy policy gains no new combat/regen/SP/PvP/peace/draw/baseline behavior. Preserve old serializer/digest bytes and retain record3–6 decoding; .nfr container1 unchanged.
+Reject illegal snapshot/digest/record pairs. Also reject **recursive Phase3 presence even empty/default** under legacy nested tags/loads/projections/receipts/outbox. Validate the raw protobuf/JSON before the defaults discard the presence. The encoder and the digest-only reproduced outputs share context. The legacy policy gets no new combat/regen/SP/PvP/peace/draw/baseline behavior. Keep the old serializer/digest bytes, and keep record3–6 decoding. The .nfr container1 does not change.
 
-Design §4.2/§4.3 governs complete embedded rules/canonical state/hash/pending lanes and rebuilt indexes. Snapshot restore retains short/exact timers, unlike logout admission. NFSNAP9 envelope is magic + LE expanded length + zlib, no separate envelope hash. **Before freeze**, measure full registry +1,000 full-effect entities against ~1MiB encoded/32MiB decoded, without truncation or external replay fetch. Larger limit/bundle needs architect disposition after measurement.
+Design §4.2/§4.3 controls the complete embedded rules, the canonical state/hash/pending lanes and the rebuilt indexes. A snapshot restore keeps short/exact timers, but a logout admission does not. The NFSNAP9 envelope is magic + LE expanded length + zlib, with no separate envelope hash. **Before freeze**, measure the full registry +1,000 full-effect entities against ~1MiB encoded/32MiB decoded, without truncation or external replay fetch. A larger limit/bundle must have an architect disposition after the measurement.
 
-Design §4.5's **pre-run** byte admission bounds complete normalized loads/dispositions/recipients, FIFO prefix/suffix, oversize terminal failure, immutable gate retry and lost-ack recovery. Output digest fallback alone cannot bound retained commands (§5.6).
+The **pre-run** byte admission of Design §4.5 sets limits on complete normalized loads/dispositions/recipients, FIFO prefix/suffix, oversize terminal failure, immutable gate retry and lost-ack recovery. The output digest fallback alone cannot set a limit on retained commands (§5.6).
 
 ### 2.3 Engine state and scheduling
 
-**Design §1** defines module/state/identity/handler/Func/fraction contracts; **§3 is the complete V5 schedule/edge table**, not copied here. Preserve legacy run_tick; eight-command budget is per session in actor. Verify staged command order, separate launch/impact, cast ordinal versus auto-attacker EntityId order, expiry/pulse/completion/impact edges, immediate death, ordered AI requests and coalesced output.
+**Design §1** defines the module/state/identity/handler/Func/fraction contracts. **§3 is the complete V5 schedule/edge table**, and this plan does not copy it. Keep the legacy run_tick. The eight-command budget is per session in the actor. Examine these items: staged command order, separate launch/impact, cast ordinal versus auto-attacker EntityId order, expiry/pulse/completion/impact edges, immediate death, ordered AI requests and coalesced output.
 
-Design §1.2/§6.1 binds animation/continuous head start/launch/impact and **independent animation-derived interrupt deadline**; completion-minus-two is withdrawn. coolTime/hitCancelTime remain imported unused, Idle/Casting only. Design §1.3/§1.4 binds slots/stacking/status overlaps, player/NPC damage-break, periodic ideal-ms DIFF/PER and rebuild without one-time heals/RNG/cost. TickHp is nonlethal (HP1/CP); TickHpFatal deferred. Register every new zone file in SOURCES; production remains ordered/integer-only, no wall clock.
+Design §1.2/§6.1 binds the animation/continuous head start/launch/impact and the **independent animation-derived interrupt deadline**. The completion-minus-two rule is withdrawn. coolTime/hitCancelTime stay imported but not used, Idle/Casting only. Design §1.3/§1.4 binds slots/stacking/status overlaps, player/NPC damage-break, periodic ideal-ms DIFF/PER, and rebuild without one-time heals/RNG/cost. TickHp is nonlethal (HP1/CP). TickHpFatal is deferred. Register every new zone file in SOURCES. Production stays ordered and integer-only, with no wall clock.
 
 ### 2.4 Generated data and capability manifest
 
-**R13 + Design §1.1/§6**: generate every rank of 378 tree catalogue ids +5076/transitive closure, with source hashes/exact literals/computed status and blockers, reproduced by future gen_skills.py --check. Never hand-edit status.
+**R13 + Design §1.1/§6**: generate every rank of the 378 tree catalogue ids +5076/transitive closure. Include the source hashes, the exact literals, the computed status and the blockers. A future gen_skills.py --check must reproduce them. Never edit the status manually.
 
-E1.2's machine-readable **capability manifest** validates every effect **parameter**, individual stat/operation/priority, target/operate type, scope/**filter**, recursive and/or/not leaf, effect/self/start/end/channeling/pvp/pve section, item prerequisite and referenced dependency. Unknown defers whole skill with named blockers; handler-name/mul/add/sub recognition alone is insufficient. Runtime rejects manifest drift and enforces **using kind against actual equipped Squire's Sword** and canResurrect against state. Design §1.1's admitted set/types is authoritative; unsupported racial/mastery/trigger behavior cannot become partial execution. **C1: affectLimit width0 →0/no draw/unlimited**, bounded by population; positive width uses pinned sampling.
+The machine-readable **capability manifest** of E1.2 validates these items: each effect **parameter**, each individual stat/operation/priority, target/operate type, scope/**filter**, recursive and/or/not leaf, effect/self/start/end/channeling/pvp/pve section, item prerequisite and referenced dependency. An unknown item defers the whole skill with named blockers. Recognition of handler-name/mul/add/sub alone is not sufficient. The runtime rejects manifest drift. It applies **using kind against actual equipped Squire's Sword** and canResurrect against state. The admitted set/types of Design §1.1 is authoritative. Unsupported racial/mastery/trigger behavior cannot become partial execution. **C1: affectLimit width0 →0/no draw/unlimited**, and the population is the limit. A positive width uses pinned sampling.
 
-Inventory **241/379 is historical only, never a gate**. Data-branch generator report: **211 executable / 167 deferred of 378**, **389 including extras** (220/169 overall: 5076, nine referenced ids, sample-only 286) are **reported classifications from the rejected data revision**, pending fixes, regeneration and independent re-review under preserved evidence: side-session-notes/phase3-codex-2026-10-10/data-review-1.md. Passing generator **--check does not establish TOML validity, capability correctness or oracle correctness**. All eleven findings remain handoff blockers until reviewed closure: invalid generated TOML; lost stat conditions; zeroed per-level ranges; wrong short continuous-cast expectations; TickHp rounding; missing parameter/operation/filter admission; lost locked reuse semantics; wrong source defaults; false universal karma-equivalence claim; absent required adaptation coverage; wrong provenance symbols/lines. Regenerate exact totals/blocker histogram against reviewed capabilities and explain changes; counts are neither targets nor local validation.
+Inventory **241/379 is historical only, never a gate**. Data-branch generator report: **211 executable / 167 deferred of 378**, **389 including extras** (220/169 overall: 5076, nine referenced ids, sample-only 286). These are **reported classifications from the rejected data revision**. They wait for fixes, regeneration and an independent new review under the preserved evidence side-session-notes/phase3-codex-2026-10-10/data-review-1.md. A pass of generator **--check does not establish TOML validity, capability correctness or oracle correctness**. All eleven findings stay handoff blockers until a review closes them:
 
-Runtime [keltir.toml](../../packages/data/npcs/keltir.toml) **id keltir** gains **sp_reward=2**, provenance pinned Young Keltir **20545**; preserve tunable XP28/stats. Design §3/R6 governs living lethal-killer credit, actual saturation delta, no sharing/Human XP bonus on SP.
+- invalid generated TOML
+- lost stat conditions
+- zeroed per-level ranges
+- wrong short continuous-cast expectations
+- TickHp rounding
+- missing parameter/operation/filter admission
+- lost locked reuse semantics
+- wrong source defaults
+- false universal karma-equivalence claim
+- absent required adaptation coverage
+- wrong provenance symbols/lines.
+
+Generate the exact totals/blocker histogram again against the reviewed capabilities, and explain the changes. The counts are not targets, and they are not local validation.
+
+The runtime [keltir.toml](../../packages/data/npcs/keltir.toml) **id keltir** gets **sp_reward=2**, with the provenance pinned to Young Keltir **20545**. Keep the tunable XP28/stats. Design §3/R6 controls the credit rules. The living lethal killer gets the credit, and the credit is the actual saturation delta. There is no sharing and no Human XP bonus on SP.
 
 ### 2.5 Persistence, recovery, admission and learning
 
-**Design §5.1 is full persistence acceptance; §5.2 admission; §5.3 LearnSkill.** Extend memory/PostgreSQL DTOs/adapters/fingerprints/pending snapshots/recovery/outbox together; preserve old fingerprints. No new backend.
+**Design §5.1 is full persistence acceptance; §5.2 admission; §5.3 LearnSkill.** Extend the memory/PostgreSQL DTOs/adapters/fingerprints/pending snapshots/recovery/outbox together. Keep the old fingerprints. Do not add a new backend.
 
-[000007](../../apps/api/src/infrastructure/postgres/migrations/m20261009_000007_character_classes.sql) already owns characters.sp/cp, character_class_slots.sp and learned rows. **000008 adds no SP column**; retain ClassState/active-slot projection equality, no duplicate skill ledger. New Design §5.1 scalar defaults zero, karma/counters u32-bounded bigint, penalty0..5, fractions0..Q−1, checked nonnegative timer/XP/death bounds; optional death fields form consistent record. New reuse/effect child rows have deterministic keys/FK cascade and **atomic replacement in fenced final state+receipt+ordered outbox transaction**.
+[000007](../../apps/api/src/infrastructure/postgres/migrations/m20261009_000007_character_classes.sql) already controls characters.sp/cp, character_class_slots.sp and the learned rows. **000008 adds no SP column**. Keep the ClassState/active-slot projection equality, and do not add a duplicate skill ledger. The new Design §5.1 scalars default to zero. Karma/counters are u32-bounded bigint, the penalty is 0..5 and the fractions are 0..Q−1. The timer/XP/death bounds are checked and nonnegative. The optional death fields make a consistent record. The new reuse/effect child rows have deterministic keys/FK cascade and **atomic replacement in fenced final state+receipt+ordered outbox transaction**.
 
-Design §5.1 critical triggers include retained effect/reuse apply/refresh/remove/expiry, flag refresh/expiry, learning/SP/PvP/death/resurrection/class/passives and **new MP/CP/fraction mutations**. Freeze request/fingerprint/revision/remainders; one final character write/tick. Deadline countdown alone is not a per-tick write. Only old ordinary HP/XP cadence exception and existing outbox relay remain.
+The critical triggers of Design §5.1 include retained effect/reuse apply/refresh/remove/expiry, flag refresh/expiry, learning/SP/PvP/death/resurrection/class/passives and **new MP/CP/fraction mutations**. Freeze the request/fingerprint/revision/remainders. There is one final character write per tick. A deadline countdown alone is not a per-tick write. Only the old ordinary HP/XP cadence exception and the existing outbox relay stay.
 
-Retention is strict **50/51 reuse,100/101 effects**, flags without threshold, penalty untimed; preserve source/periodic ideal-ms phase/fractions/shared passive-effect relative order. Real logout drops short entries/offers but retains death loss; snapshot keeps exact timers; live replacement preserves cast/offer/deadlines without reload. Rebase at actual admission, no wall-time catch-up or hooks/RNG/cost replay.
+Retention is strict: **50/51 reuse,100/101 effects**, flags without threshold, and an untimed penalty. Keep the source/periodic ideal-ms phase/fractions and the relative order of shared passive effects. A real logout removes short entries/offers but keeps the death loss. A snapshot keeps exact timers. A live replacement keeps the cast/offer/deadlines without a reload. Rebase at the actual admission, with no wall-time catch-up and no hooks/RNG/cost replay.
 
-Learning authenticates ownership/current generation for new work, with receipt lookup before eligibility and exact-rank/fingerprint/frozen result under API §2/Design §5.3. Matching historical success survives later progression/class/disconnect. Failure consumes no key/SP. Duplicate queued keys settle once; different-key same-rank loser cannot buy next rank. Log ack → fenced checkpoint ack precedes output/success. **API §4 endpoint matrix (§5.2)** and full parity/ack/crash/fence acceptance (§5.4) are mandatory.
+For new work, the learn operation authenticates ownership and the current generation. It looks up the receipt before eligibility, and it uses the exact-rank/fingerprint/frozen result under API §2/Design §5.3. A matching historical success stays valid after later progression/class/disconnect. A failure uses no key/SP. Duplicate queued keys settle one time. A loser with a different key for the same rank cannot buy the next rank. The log ack → fenced checkpoint ack occurs before output/success. The **API §4 endpoint matrix (§5.2)** and the full parity/ack/crash/fence acceptance (§5.4) are mandatory.
 
 ### 2.6 Aggro, PvP, peace, death and resurrection
 
-**Design §3** binds damage/credit/aggro/PvP truth table/death; **§1.2** geometry/offers; **§6** math. most_hated stays **current target when tied, else lowest EntityId**. Skill `\|effectPoint\|` once per applicable skill/target, actual-heal ledger fanout, AddHate changes hate; **GetAgro enqueues forced NPC intention at AI with no hate increment**, not TargetMe/taunt lock.
+**Design §3** binds the damage/credit/aggro/PvP truth table/death. **§1.2** binds geometry/offers, and **§6** binds math. most_hated stays the **current target when tied, else lowest EntityId**. Skill `\|effectPoint\|` applies one time per applicable skill/target, with actual-heal ledger fanout. AddHate changes hate. **GetAgro enqueues forced NPC intention at AI with no hate increment**. It is not a TargetMe/taunt lock.
 
-PvP uses pre-impact victim flag/karma and pre-increment killer PK, D-R4 counter precedence. **1200/600 ticks =120s/60s**; actor-only **max(old_deadline,now+duration)**, including neutral attacker hitting flagged victim. Hit never flags/refreshes victim. No healer/time/death karma decay; player DoT routes CP first. Truth table stays in Design §3.
+PvP uses the pre-impact victim flag/karma and the pre-increment killer PK, with D-R4 counter precedence. **1200/600 ticks =120s/60s**. The rule is actor-only **max(old_deadline,now+duration)**, also when a neutral attacker hits a flagged victim. A hit never flags or refreshes the victim. There is no healer/time/death karma decay. Player DoT goes to CP first. The truth table stays in Design §3.
 
-Peace inclusive square center126,126/half-width10 tiles=10,000 milli-tiles/contains Class Master is **architect R7**, not owner/source. Both endpoints at acceptance/impact/AoE/pulse: **IntentRejected only pre-accept**, later cast/swing cancels or recipient/pulse blocks; suppressed pulses advance. NPC acquisition/leash/protection follow Design.
+The peace zone is an inclusive square with center126,126 and half-width10 tiles=10,000 milli-tiles, and it contains the Class Master. This is **architect R7**, not owner/source. The check uses both endpoints at acceptance/impact/AoE/pulse: **IntentRejected only pre-accept**. After acceptance, the cast/swing cancels or the recipient/pulse is blocked. Suppressed pulses advance. NPC acquisition/leash/protection follow the Design.
 
-Skill resurrection 1016 uses explicit **PC_BODY CastSkill target**, separate from client live-player SetTarget. Verified D-R5′: HP raised to 65% effective max if lower with Q restoration, **MP/CP unchanged**, corpse/no town protection/new incarnation then XP/level/passive/final vitals; town respawn unchanged. Offer **expires_at = created_at + 600** checked ticks; first valid retained. Decline/expiry/town/accept/real disconnect invalidates, replacement preserves; accept-at-expiry loses. Reconnect retains actual death-loss record, no offer; new offer may use record. Pinned refund rounding consumes loss once crash-safely (§5.5). Penalty5076 is private/untimed/cap5 with Design eligibility/no-draw rules.
+Skill resurrection 1016 uses an explicit **PC_BODY CastSkill target**, separate from the client live-player SetTarget. Verified D-R5′: if the HP is lower than 65% of the effective max, the HP goes up to 65% with Q restoration. **MP/CP unchanged**. The sequence is corpse, no town protection, new incarnation, then XP/level/passive/final vitals. Town respawn does not change. Offer **expires_at = created_at + 600** checked ticks. The first valid offer is kept. Decline/expiry/town/accept/real disconnect makes the offer invalid, but a replacement keeps it. An accept at expiry loses. A reconnect keeps the actual death-loss record, but no offer. A new offer can use the record. The pinned refund rounding uses the loss one time, and it is crash-safe (§5.5). Penalty5076 is private, untimed and cap5, with the Design eligibility/no-draw rules.
 
 ### 2.7 Enumerated formula/rounding ledger
 
-**Design §6/§6.1/§6.2** binds independent vectors for each family (no unsupported fixed formula-count claim):
+**Design §6/§6.1/§6.2** binds independent vectors for each family (there is no unsupported fixed formula-count claim):
 
 1. Cast timing/static/speed/floor, reuse/MP1/MP2 modifiers; **HP>cost, cannot self-kill**.
 2. Physical-skill evasion/damage/actual skill-crit caller; old auto-attack frozen.
@@ -140,21 +181,21 @@ Skill resurrection 1016 uses explicit **PC_BODY CastSkill target**, separate fro
 11. Karma exact literals/compound truncation/pre-increment PK/pre-award level.
 12. Death loss and resurrection quirk/**XP Math.round**, reduced actual loss, one-time refund/caps.
 
-Fraction/Decimal oracle reads pinned literals, not Rust/generated Q expectations; manifest records revisions/path/line/input/roll/intermediate/rounding/branch/output/hash. Sampling agreement is evidence, not universal proof. Design §6.2 requires checked sqrt bounds/refinement or proven bounded equivalent at straddling boundaries; unresolved precision rejects registry. Production remains integer-only; §5.1 tests, scenarios compare received outcomes to external oracle constants.
+The Fraction/Decimal oracle reads pinned literals, not Rust/generated Q expectations. The manifest records revisions/path/line/input/roll/intermediate/rounding/branch/output/hash. Sampling agreement is evidence, not universal proof. At straddling boundaries, Design §6.2 makes checked sqrt bounds/refinement, or a proven bounded equivalent, necessary. Unresolved precision rejects the registry. Production stays integer-only. The §5.1 tests and the scenarios compare received outcomes to external oracle constants.
 
 ### 2.8 Canonical scenario matrix
 
-One canonical story → file → authoritative assertion matrix. Files are proposed under apps/client-unreal/Scenarios; first nonempty header is `# covers: ` plus exact middle-column payload. Every epic's simulation story refers here. **First ship 3-cast-skill: learn → cast → MP/reuse**. Regen covers only regen stories; E1.2 status and real damage/debuff have dedicated assertions. §5.3/§5.6 supply role/record/replay evidence; E5 pixels/assets require separate automation/cooking, with explicit rendering subscopes.
+This is one canonical story → file → authoritative assertion matrix. The files are proposed under apps/client-unreal/Scenarios. The first nonempty header is `# covers: ` plus the exact payload of the middle column. The simulation story of each epic refers to this section. **First ship 3-cast-skill: learn → cast → MP/reuse**. Regen covers only regen stories. The E1.2 status and the real damage/debuff have dedicated assertions. §5.3/§5.6 supply role/record/replay evidence. The E5 pixels/assets must have separate automation/cooking, with explicit rendering subscopes.
 
 | Scenario file | Covered stories / exact covers payload | Authoritative assertions and fixture purpose |
 |---|---|---|
-| `3-cast-skill.nfs` | `3 E1.4, 3 E1.6, 3 E2.1, 3 E2.2, 3 E2.7, 3 E3.2, 3 E3.3, 3 E5.1, 3 E5.2, 3 E5.5, 3 E5.6, 3 E6.7` | Test rank initially unlearned: query/learn at trainer, receive receipt/SP/rank, leave peace, cast NPC, assert MP1/start reuse then MP2/result/ready boundary. Magic outcome/HP/None attribute matches oracle; full coefficient boundaries are oracle-only. UI via separate automation. |
+| `3-cast-skill.nfs` | `3 E1.4, 3 E1.6, 3 E2.1, 3 E2.2, 3 E2.7, 3 E3.2, 3 E3.3, 3 E5.1, 3 E5.2, 3 E5.5, 3 E5.6, 3 E6.7` | Test rank initially unlearned: query/learn at trainer, receive receipt/SP/rank, leave peace, cast NPC, assert MP1/start reuse then MP2/result/ready boundary. Magic outcome/HP/None attribute matches oracle; full coefficient boundaries are oracle-only. Separate automation examines the UI. |
 | `3-cast-rejected.nfs` | `3 E1.2, 3 E1.6, 3 E2.1, 3 E2.7, 3 E6.7` | Catalogue deferred status/blocker and runtime refusal; unknown/unlearned/reuse/MP/status/range/real-weapon guards. Accepted completion failure cancels, never second disposition; cancel/move/damage retains MP1/reuse. |
 | `3-learn-skill.nfs` | `3 E1.2, 3 E1.6, 3 E3.1, 3 E3.2, 3 E3.3, 3 E3.5, 3 E5.1, 3 E5.4, 3 E5.5, 3 E5.6, 3 E6.7` | Executable/deferred/blockers/costs match manifest. Runtime keltir earns one SP 2, exact-rank learn debits, same-key retry returns all frozen fields with no second event, including progression/reconnect. Competing/cap variants in PvP roles. |
 | `3-learn-rejected.nfs` | `3 E1.2, 3 E1.6, 3 E3.2, 3 E3.3, 3 E3.5, 3 E6.7` | Status/unlearnable reasons and SP/level/lineage/rank/distance/item/engaged/dead/casting/generation/key failures; state unchanged/no event/key. Failed key later usable; ownership/concurrency separately §5.2. |
 | `3-buff-expires.nfs` | `3 E2.2, 3 E2.3, 3 E2.7, 3 E5.3, 3 E5.6, 3 E6.7` | Stable IDs/deadlines, equal/higher replace/lower silent rejection, oldest overflow, removal-before-apply, expiry restores stats/maxHP/no phantom pulse. Include capped heal/dispel outcomes; HUD separate. |
 | `3-debuff-status.nfs` | `3 E1.5, 3 E1.6, 3 E2.2, 3 E2.3, 3 E2.7, 3 E6.7` | Actual physical damage/debuff status/duration oracle match; seeded resist/immune plus engine traces. Stun-before-swing/root/overlap, player/NPC direct/DoT break and HP1/CP nonlethal pulses. No probability inference from few casts. |
-| `3-regen.nfs` | `3 E1.3, 3 E1.6, 3 E6.7` | Natural regen only: 30-tick player HP/MP/CP standing/moving and NPC HP/MP oracle deltas, dead/full no-growth, multi-pulse fractions via whole outputs. Low-resource pre-admission seeds; no damage/debuff coverage. |
+| `3-regen.nfs` | `3 E1.3, 3 E1.6, 3 E6.7` | Natural regen only: 30-tick player HP/MP/CP standing/moving and NPC HP/MP oracle deltas, dead/full no-growth, multi-pulse fractions through whole outputs. Low-resource pre-admission seeds; no damage/debuff coverage. |
 | `3-cast-observer-a.nfs` | `3 E2.1, 3 E2.4, 3 E2.7, 3 E5.5, 3 E5.6, 3 E6.7` | Paired caster receives ordinary start/result/cancel and final/max-only vitals; AOI-filtered AoE. Mutual cast/swing newcomers participate; peer frames contain no owner stats. |
 | `3-cast-observer-b.nfs` | `3 E2.4, 3 E2.7, 3 E5.3, 3 E5.5, 3 E5.6, 3 E6.7` | Paired mid-cast/effect/swing entry: all identities then baseline effects/casts/AttackStarted, exact IDs/incarnations/deadlines, hidden endpoints absent, no animations/double application. Empty reset, public maxHP/PvP bootstrap. |
 | `3-cast-reconnect.nfs` | `3 E2.4, 3 E2.6, 3 E2.7, 3 E5.5, 3 E5.6, 3 E6.7` | 50/51 reuse,100/101 buff/debuff, flags/fractions/phase/install-order variants. Real logout restores only retained; replacement preserves live cast/offer. Idle stats/selection/sync/bootstrap accepted without later mutation/no repeated heal. |
@@ -168,17 +209,17 @@ One canonical story → file → authoritative assertion matrix. Files are propo
 
 ## 3. Engineering architecture, ownership and review gates
 
-Follow clean architecture and Design §1.1's module/hook table: domain immutable drafts/facts, application durable coordination/ports, infrastructure memory/PostgreSQL/JetStream, interface reviewed DTOs; Unreal renders only.
+Follow clean architecture and the module/hook table of Design §1.1. The domain has immutable drafts/facts, the application has durable coordination/ports, the infrastructure has memory/PostgreSQL/JetStream, and the interface has reviewed DTOs. Unreal only renders.
 
-- **Z: Codex gpt-6-astra/high** owns E2/E6.1/E6.2 and shared zone state.rs/state_combat.rs/command.rs/state_digest.rs, replay record/codec and snapshot codec. Publish typed damage/hostility/death/learn/stat/persistence hooks before C module integration; serialize shared-file edits.
-- **C: Codex gpt-6.1-sol/high** owns first additive proto/receipt/RPC contract, E3 schema/adapters/state_learn, E4 isolated state_pvp/state_death against Z hooks, E5/E6 harness/soak/metrics. **D: agy gemini-3.8-flash-high** owns E1 data/oracle/formula handoff and E6.6 docs/dashboard; current bounded revision is C-authored. D formula patches to shared modules go through Z.
-- Independent handoffs: C proto/E3/E4/E5/harness → Z; D data/oracle → Z/C; Z E2/runtime/admission and **Z-authored E6.1/E6.2 → C**; D docs/dashboard → Codex; this plan → Z. No sole self-review. Root integrates/merges/pushes later and serializes all Unreal activity.
+- **Z: Codex gpt-6-astra/high** is responsible for E2/E6.1/E6.2 and the shared zone state.rs/state_combat.rs/command.rs/state_digest.rs, the replay record/codec and the snapshot codec. Z publishes typed damage/hostility/death/learn/stat/persistence hooks before C module integration. Z serializes edits to shared files.
+- **C: Codex gpt-6.1-sol/high** is responsible for the first additive proto/receipt/RPC contract, the E3 schema/adapters/state_learn, the E4 isolated state_pvp/state_death against Z hooks, and the E5/E6 harness/soak/metrics. **D: agy gemini-3.8-flash-high** is responsible for the E1 data/oracle/formula handoff and the E6.6 docs/dashboard. C wrote the current bounded revision. D formula patches to shared modules go through Z.
+- Independent handoffs: C proto/E3/E4/E5/harness → Z; D data/oracle → Z/C; Z E2/runtime/admission and **Z-authored E6.1/E6.2 → C**; D docs/dashboard → Codex; this plan → Z. No author is the only reviewer of their own work. Later, root integrates/merges/pushes and serializes all Unreal activity.
 
-Runtime restore review precedes separate admission integration: E3 consumes published types/hooks, **E2.6 consumes E3.4 adapters/E3.3 receipts**. Foundation/live gates are separate (§6), no circular dependency. Proto has one editor at a time.
+The runtime restore review occurs before the separate admission integration. E3 uses the published types/hooks, and **E2.6 consumes E3.4 adapters/E3.3 receipts**. The foundation/live gates are separate (§6), and there is no circular dependency. Proto has one editor at a time.
 
 ## 4. Epics, stories, models and Done When
 
-Status: **implementation is underway in sibling worktrees; no story is marked complete; this plan revision performed no implementation or execution gates; phase acceptance remains pending**. Tags belong only in client-observable story titles. Future completion uses `| ✅ N.M Title … |` in this plan's first cell after evidence/review. Current parser reads tags from whole line; prose carries none. E6.5 title-cell hardening is future work, not needed to parse this plan.
+Status: **the implementation continues in sibling worktrees. No story is marked complete. This plan revision did not run implementation or execution gates. Phase acceptance is pending**. Tags are only in the titles of client-observable stories. After evidence/review, future completion uses `| ✅ N.M Title … |` in the first cell of this plan. The parser of this time reads tags from the whole line, thus the prose has no tags. E6.5 title-cell hardening is future work, and it is not necessary to parse this plan.
 
 ### Epic 1: Skill data and independent formula foundation (D; Z/C review)
 
@@ -210,7 +251,7 @@ Status: **implementation is underway in sibling worktrees; no story is marked co
 | 3.1 Runtime keltir SP and exactly-once lethal credit [client-visible] [required] | C | Add reward to runtime keltir.toml **id keltir**, source 20545 (§2.4); use Z kill hooks. **Done When:** §5.4 cap/recovery and §2.8 learn/PvP role-reversal prove living lethal killer gets one actual SP delta, others zero; XP/stats retained. |
 | 3.2 Skill catalogue and ListLearnableSkills RPC [client-visible] [required] | C | Implement authenticated catalogue/ListLearnableSkills (§2.5). **Done When:** §5.2 read matrix/no-write/ownership and §2.8 next-rank/cost/status/blocker assertions pass; eligibility is authoritative. |
 | 3.3 LearnSkill RPC and actor receipt lifecycle [client-visible] [required] | C | Implement Design §5.3/API §2/§4 exact-rank actor/receipt lifecycle. **Done When:** Full §5.2 unit/wire/adapter matrix and live learning pass, queued duplicates/races spend once, failures consume nothing, historical frozen responses remain exact. |
-| 3.4 Migration 000008, checkpoint adapters and recovery [required] | C | Extend 000007 via 000008/ports/adapters/recovery under Design §5.1 (§2.5). **Done When:** No duplicate SP; bounded defaulted state/atomic child+receipt+outbox replacement and §5.4 parity/ack/crash/fence pass; publish adapters to E2.6. |
+| 3.4 Migration 000008, checkpoint adapters and recovery [required] | C | Extend 000007 through 000008/ports/adapters/recovery under Design §5.1 (§2.5). **Done When:** No duplicate SP; bounded defaulted state/atomic child+receipt+outbox replacement and §5.4 parity/ack/crash/fence pass; publish adapters to E2.6. |
 | 3.5 Simulation scenario(s) [client-visible] [required] | C | Author §2.8 learn-skill/rejected and SP assertions in pvp-flag-a/b. **Done When:** Catalogue/frozen retry/failure/competing-SP runs pass with §5.2/§5.4 race/crash evidence; no solo-kill overclaim. |
 
 ### Epic 4: Aggro, PvP, peace, death and resurrection (C; Z review)
@@ -220,8 +261,8 @@ Status: **implementation is underway in sibling worktrees; no story is marked co
 | 4.1 HateLedger integration and forced NPC intention [client-visible] [required] | C | Integrate Design §3/§6 hate/AI hooks: `\|effectPoint\|`, actual-heal/AddHate and GetAgro intention. **Done When:** §5.1/§2.8 aggro cases preserve current-target else lowest EntityId tie and no GetAgro hate; TargetMe deferred. |
 | 4.2 PvP flags, counters, karma and CP [client-visible] [required] | C | Implement state_pvp using Design truth table/math and Z damage hooks (§2.6). **Done When:** §5.5 cross-product/expiry/cap plus §2.8 CP/actor-only max-deadline/counter/karma runs pass without duplicate persistent effects. |
 | 4.3 Architect R7 peace geometry and hostile boundaries [client-visible] [required] | C | Ship **architect R7** square/hostile enforcement (§2.6). **Done When:** §5.5 inclusive/both-endpoint/AI vectors and pvp-flag-a show pre-accept reject, later cancel/block and suppressed pulses advancing. |
-| 4.4 Death record, XP loss and untimed penalty [client-visible] [required] | C | Implement Design death/record/penalty via Z hooks. **Done When:** §5.5 eligibility/no-draw/cleanup/delevel and death-penalty scenario pass; actual loss/penalty reconnect, no double charge, town rule unchanged. |
-| 4.5 Resurrection offers, consent and crash-safe one-time revival [client-visible] [required] | C | Implement Design offer/consent/refund via explicit corpse cast (§2.6). **Done When:** Every §5.5 lifecycle/crash and §2.8 role variant passes, preserving MP/CP and one XP refund/final maxHP. |
+| 4.4 Death record, XP loss and untimed penalty [client-visible] [required] | C | Implement Design death/record/penalty through Z hooks. **Done When:** §5.5 eligibility/no-draw/cleanup/delevel and death-penalty scenario pass; actual loss/penalty reconnect, no double charge, town rule unchanged. |
+| 4.5 Resurrection offers, consent and crash-safe one-time revival [client-visible] [required] | C | Implement Design offer/consent/refund through an explicit corpse cast (§2.6). **Done When:** Every §5.5 lifecycle/crash and §2.8 role variant passes, preserving MP/CP and one XP refund/final maxHP. |
 | 4.6 Simulation scenario(s) [client-visible] [required] | C | Author §2.8 aggro/PvP/karma/death/resurrection files including `\|effectPoint\|`/tick evidence. **Done When:** All mapped variants and §5.5 precise actor/adapter cases pass recordings/gates, reviewed by Z. |
 
 ### Epic 5: Unreal presentation and authoritative projections (C; Z review)
@@ -249,11 +290,11 @@ Status: **implementation is underway in sibling worktrees; no story is marked co
 
 ## 5. Required acceptance evidence and fixtures
 
-**Planned, not executed.** Use existing module/test conventions; new filenames below are proposals. §2.8 is the only scenario matrix. Actor/adapter tests cover precise races/crashes that bots cannot force; final digest alone cannot replace record-byte evidence.
+**Planned, not executed.** Use the existing module/test conventions. The new filenames below are proposals. §2.8 is the only scenario matrix. Actor/adapter tests cover the precise races/crashes that bots cannot force. A final digest alone cannot replace record-byte evidence.
 
 ### 5.1 Data, formula, cast/effect and schedule evidence
 
-Implement **Design §8.1** and §2.7's enumerated ledger. E1 supplies independent expectations; Z integrates Rust/domain tests (proposed formula_oracle.rs, skill_classifier.rs, tick_ordering.rs and state_skill/effects/pvp tests):
+Implement **Design §8.1** and the enumerated ledger of §2.7. E1 supplies independent expectations. Z integrates the Rust/domain tests (proposed formula_oracle.rs, skill_classifier.rs, tick_ordering.rs and state_skill/effects/pvp tests):
 
 - Classifier every rank/parameter/stat/priority/filter/condition/section/item/reference, unknown/transitive blockers and manifest drift. Runtime Squire's Sword guard, catalogue status/blockers and reported counts; no forced count.
 - Oracle revisions/literal/input/vector hashes, exact intermediates, class/level/modifier orders, signed/Func/getter casts/caps, perfect/nonperfect sqrt/near-boundaries, all attribute coefficients, magic crit/both failure rolls/≥10 gap, binary32 conversion, exact karma compound truncation, actual-heal hate/zero/multiple ledgers, resurrection quirk/refund rounding/XP-floor loss. Precision unproved → registry rejection.
@@ -264,11 +305,11 @@ Implement **Design §8.1** and §2.7's enumerated ledger. E1 supplies independen
 - Periodic ticks1/3 cadence/binary32 amount/DIFF-PER/phase/expiry/suppressed advancement, HP1/CP nonlethal clamp, player/NPC direct/DoT/HP-consumption/zero/CP-only break/stun behavior. Natural player/NPC regen/fractions/dead/full boundaries separately.
 - All Design §3 tick edges, shuffled UUID-versus-ordinal order, event+state comparison including kill SP/karma/level/tokens. Aggro current-target/EntityId ties, effectPoint once/AddHate/actual-heal fanout, ordered GetAgro→hate/hate→GetAgro/two/no-op/stale-dead requests and reverse-index restore.
 
-Review oracle independently Z/C, preserve old sheet/outcome expectations and production SOURCES/integer-only checks. No Rust-authored expected answers or tolerance widening.
+Z/C review the oracle independently. Keep the old sheet/outcome expectations and the production SOURCES/integer-only checks. Do not use Rust-authored expected answers, and do not make tolerances wider.
 
 ### 5.2 LearnSkill and read endpoint matrix
 
-**API guidelines §4 + Design §5.3** bind ListLearnableSkills/catalogue and LearnSkill. Unit in-memory use cases, real TestApp wire suites (proposed grpc_learn_skill.rs) and DATABASE_URL-gated PostgreSQL adapters are required. C publishes RPC comments/typed mapping first: API §3 errors, documented state/prerequisite FAILED_PRECONDITION, oversize RESOURCE_EXHAUSTED, sanitized infrastructure INTERNAL. Trigger every reachable AppError and assert every documented tonic::Code.
+**API guidelines §4 + Design §5.3** bind ListLearnableSkills/catalogue and LearnSkill. These are necessary: unit in-memory use cases, real TestApp wire suites (proposed grpc_learn_skill.rs) and DATABASE_URL-gated PostgreSQL adapters. C first publishes the RPC comments and the typed mapping: API §3 errors, documented state/prerequisite FAILED_PRECONDITION, oversize RESOURCE_EXHAUSTED and sanitized infrastructure INTERNAL. Trigger every reachable AppError and assert every documented tonic::Code.
 
 | Case / layers | Required assertion |
 |---|---|
@@ -287,11 +328,11 @@ Review oracle independently Z/C, preserve old sheet/outcome expectations and pro
 | New repository methods — adapter | Round-trip, typed bounds/FK/uniqueness, concurrent retries exactly once, injected child/receipt/outbox failure atomic; memory/PostgreSQL parity. |
 | Durable failures — actor/wire | Paused log/checkpoint ack withholds success/output, immutable retry/fence and sanitized errors; §5.4 lost-ack/crash cases. |
 
-24-hour receipts follow API §2, not bounded transfer history. Historical replay tests operate within retention; exact-rank guards prevent a cleaned-up key buying another rank. Every new method meets API §4 round-trip/constraints/atomicity/concurrency.
+The 24-hour receipts follow API §2, not the bounded transfer history. Historical replay tests operate within retention. Exact-rank guards prevent a key that was cleaned up from buying another rank. Every new method meets the API §4 round-trip/constraints/atomicity/concurrency rules.
 
 ### 5.3 First harness task: predicate → authoritative message mapping
 
-**Publish/implement before dependent scenarios** (E6.5). UNKNOWN until received valid evidence; reset connection/entity/generation scope and fence tick/incarnation/IDs, with §2.1 baseline exceptions. No client formula/animation guess or live zone mutation. Publish actual DSL grammar/source/reset/error handling; unsupported syntax fails.
+**Publish/implement before dependent scenarios** (E6.5). A predicate is UNKNOWN until it receives valid evidence. Reset the connection/entity/generation scope, and fence the tick/incarnation/IDs, with the §2.1 baseline exceptions. Do not use client formulas, animation guesses or live zone mutations. Publish the actual DSL grammar/source/reset/error handling. Unsupported syntax fails.
 
 | Command/predicate | Authoritative source |
 |---|---|
@@ -311,15 +352,15 @@ Review oracle independently Z/C, preserve old sheet/outcome expectations and pro
 | Offer/death/revival | Owner offer/sync/stats+lifecycle, exact expiry/id/incarnation/loss/refund or frozen fixture evidence. |
 | NPC target/hate outcome | Received NPC target/move/attack or verified zone facts; numeric ledger/RNG remains engine oracle, no setter. |
 
-Extend contract audit preserving old rules/counters; command acceptance differs from successful effects. Mapping UNKNOWN/reset/parser stub evidence precedes live work. **run-sim.sh/run-sim-multi.sh/run-sim-ci.py** orchestrate scenarios/record/replay/trace/contract/JUnit. **run-tests.sh --require-live-api** runs named Unreal HUD/keybind/reducer/live UI automation; cooking/staging separately proves assets, .nfs cannot verify pixels.
+Extend the contract audit, and keep the old rules/counters. Command acceptance is different from successful effects. The UNKNOWN mapping, reset and parser stub evidence must exist before live work. **run-sim.sh/run-sim-multi.sh/run-sim-ci.py** orchestrate scenarios/record/replay/trace/contract/JUnit. **run-tests.sh --require-live-api** runs the named Unreal HUD/keybind/reducer/live UI automation. Cooking/staging separately proves the assets, because .nfs cannot examine pixels.
 
-Guarded Phase2-derived packs own fresh PostgreSQL/JetStream, migrate/seed **before API/admission**, record normalized loads and exact role/account/class/level/SP/rank/resources/position/data-binary-seeder-vector hashes. Private tokens/owned ports/cleanup/quarantine/old fixtures remain intact. First cast rank unlearned; low-resource/dead/other skills/overlays explicit, peace crossing via real movement.
+Guarded Phase2-derived packs control a new PostgreSQL/JetStream. They migrate/seed **before API/admission**. They record normalized loads and the exact role/account/class/level/SP/rank/resources/position/data-binary-seeder-vector hashes. Private tokens/owned ports/cleanup/quarantine/old fixtures stay intact. The first cast rank is unlearned. Low-resource/dead/other skills/overlays are explicit. The peace crossing uses real movement.
 
-Exact paired units cast-observer-a/b, pvp-flag-a/b, resurrect-a/b use distinct accounts/matching headers; orphan/mismatch fails. Include competing-keltir role reversal/near-cap variants. Solo-named karma/aggro needs explicit cooperating role manifest with unique artifact namespaces: **new E6.5 orchestration deliverable**, current runner refuses duplicate same-name processes. Publish before use or add named companions/reconcile §2.8 during implementation. Every role is a real client with retained report. Timer/offer/replacement/seed variants recorded; precise crashes/races are linked actor/adapter evidence, never live SQL/test setters.
+The exact paired units cast-observer-a/b, pvp-flag-a/b and resurrect-a/b use different accounts and matching headers. An orphan or a mismatch fails. Include the competing-keltir role reversal/near-cap variants. Solo-named karma/aggro must have an explicit cooperating role manifest with unique artifact namespaces. This is a **new E6.5 orchestration deliverable**, because the runner of this time refuses duplicate processes with the same name. Publish it before use, or add named companions and reconcile §2.8 during implementation. Every role is a real client with a retained report. Timer/offer/replacement/seed variants are recorded. Precise crashes/races are linked actor/adapter evidence, never live SQL/test setters.
 
 ### 5.4 Persistence and recovery acceptance
 
-All **Design §5.1/§5.2** fields/triggers/invariants required; memory/PostgreSQL parity, fake-ack actor/checkpoint and real adapter transaction evidence:
+All the fields/triggers/invariants of **Design §5.1/§5.2** are necessary, with memory/PostgreSQL parity, fake-ack actor/checkpoint evidence and real adapter transaction evidence:
 
 1. Complete SP/learned/progression equality, PvP/death/fractions, effect/reuse/source/periodic payload/shared install order; full fingerprint/frozen-request parity, old bytes preserved, invalid bounds rejected.
 2. **50/51 reuse,100/101 buff/debuff**, zero/positive flags/untimed penalty/actual loss; apply/refresh/remove/expiry atomic child replacement. Threshold crossing at real save; retries never recompute remainders/thresholds.
@@ -331,13 +372,13 @@ All **Design §5.1/§5.2** fields/triggers/invariants required; memory/PostgreSQ
 8. Disconnect drops offer/short timers but retains death record; replacement preserves live cast/offer/ordinal/deadlines without DB reload. Dead admission no cast/regen credit; idle owner bootstrap complete; new offer after reconnect refunds recorded loss once across recovery.
 9. Competing/repeated lethal/corpse hits credit living killer once; dead/departed source none. Human XP bonus does not affect SP; zero/i64::MAX reward/spend/actual saturation preserve active-slot equality. No replay/reconnect reaward.
 
-C adapters precede E2.6; Z reviews durability, C reviews Z restore/replay. Show withheld output, not eventual correct rows alone.
+C adapters come before E2.6. Z examines durability, and C examines the Z restore/replay. Show the withheld output, not only the correct rows at the end.
 
 ### 5.5 PvP, peace, death and resurrection evidence
 
-Design §3 truth table/§8.1 full cross-product including chaotic independent flags, actor-only nonshortening deadline/victim unchanged/exact impact expiry; CP-only/HP/overkill/player-DoT versus NPC, protection/no healer-time-death decay/caps. Peace inclusive/corner/both-endpoint crossing/AoE/pulse advancement/AI-leash: pre-accept rejection differs from later cancel/block. Death eligibility/20% seeded outcomes/cap/no-draw/XP-floor/delevel/grants/cleanup/private untimed penalty and actual loss recorded.
+The evidence includes the Design §3 truth table and the §8.1 full cross-product. This includes chaotic independent flags, the actor-only nonshortening deadline, victim unchanged and exact impact expiry. It also includes CP-only/HP/overkill/player-DoT versus NPC, protection, no healer-time-death decay and caps. The peace evidence covers inclusive/corner/both-endpoint crossing, AoE, pulse advancement and AI-leash. A pre-accept rejection is different from a later cancel/block. The death eligibility, the 20% seeded outcomes, the cap, no-draw, the XP floor, delevel, grants, cleanup, the private untimed penalty and the actual loss are recorded.
 
-Every resurrection case is mandatory, paired §2.8 runs plus precise actor/adapter evidence:
+Every resurrection case is mandatory. Each case has paired §2.8 runs plus precise actor/adapter evidence:
 
 - Explicit PC_BODY, private frozen offer/id/created/expiry/loss/percent, hidden source absent; no corpse SetTarget.
 - Competing offers retain first; post-invalidation new id; stale/wrong-incarnation/duplicate consent no refund.
@@ -350,34 +391,34 @@ Every resurrection case is mandatory, paired §2.8 runs plus precise actor/adapt
 
 ### 5.6 Replay, coverage, baselines and performance
 
-Implement **Design §8.2 coverage schema3**, preserving all prior NPC/attack/class-transfer/token/contract fields. Zone facts count once, baselines count no transitions. Idle→Casting accepted start; Casting→Idle bounded reason histogram; self-pairs unreachable. Effect stable-ID Absent→Active/Active→Removed; same-ID Removed→Active unreachable. Pulses/stack-reject separate; requests versus committed learns, offers/CP/PvP/karma/regen/revival counted. No Recovering/lethal TickHp. Merge equal schema/reachability, recompute totals; digest-only facts require verified replay first.
+Implement **Design §8.2 coverage schema3**, and keep all prior NPC/attack/class-transfer/token/contract fields. Zone facts count one time, and baselines count no transitions. Idle→Casting is an accepted start. Casting→Idle has a bounded reason histogram. Self-pairs are unreachable. Effect stable-ID Absent→Active/Active→Removed; same-ID Removed→Active is unreachable. Pulses and stack-reject are separate. Requests are counted separately from committed learns. Offers/CP/PvP/karma/regen/revival are counted. There is no Recovering/lethal TickHp. Merge equal schema/reachability, and calculate the totals again. Digest-only facts must have a verified replay first.
 
-**New V5 .nfr two players/NPCs** covers every Design §8.2 branch plus §2.1 corrections, with seed/rules/vector hashes. Old .nfr/V1–V4 digest/WS/record/compression and coverage/contract baselines untouched. Legal/illegal pairs/raw nested old-tag presence/empty fields/malformed state reject; canonical-field mutation changes V5 hash, derived indexes rebuild same. Arbitrary mid-cast/pulse/fraction/pending-checkpoint suffix equals uninterrupted **record bytes**; new-event byte corruption fails even with same final digest.
+**New V5 .nfr two players/NPCs** covers every Design §8.2 branch plus the §2.1 corrections, with seed/rules/vector hashes. Do not change the old .nfr/V1–V4 digest/WS/record/compression and coverage/contract baselines. Tests cover legal/illegal pairs. Raw nested old-tag presence, empty fields and malformed state are rejected. A canonical-field mutation changes the V5 hash, and the derived indexes rebuild the same. An arbitrary mid-cast/pulse/fraction/pending-checkpoint suffix is equal to the uninterrupted **record bytes**. A new-event byte corruption fails, also with the same final digest.
 
 Pre-run admission tests: command limit/B−1/B/B+1, worst disposition/recipient reserve,1024 loads/eight-session limits,FIFO suffix/oversize head/rebase/no-rerun retry/crash recovery. Post-run oversize fences; full-registry/full-effect snapshot measurement before freeze.
 
-Each file/role/variant retains manifests/logs/nonvacuous JUnit/export/byte-replay/trace/contract/coverage3/pipeline-verdict/cleanup; missing evidence fails. Preserve error/quarantine gates, no invented percentage. Traceability is structural only and refuses vacuous completion.
+Each file/role/variant keeps manifests/logs/nonvacuous JUnit/export/byte-replay/trace/contract/coverage3/pipeline-verdict/cleanup. Missing evidence fails. Keep the error/quarantine gates, and do not invent a percentage. Traceability is only structural, and it refuses vacuous completion.
 
-A20/Design §7: 1k NPC **mean<2ms**,1k players/observers **mean<10ms**, eight packaged clients casting/long effects **p99<20ms**. Reference hardware/build/data and simulation/digest/encoding/actor/log/DB measured separately; synchronized pulses/regen,0/8/full effects/hydration/critical writes before soak. Duration10,000 ticks test-design choice; no measured result or durability exemption here.
+A20/Design §7: 1k NPC **mean<2ms**,1k players/observers **mean<10ms**, eight packaged clients casting/long effects **p99<20ms**. Measure the reference hardware/build/data and the simulation/digest/encoding/actor/log/DB costs separately. Before the soak, measure the synchronized pulses/regen, 0/8/full effects, hydration and critical writes. The duration of 10,000 ticks is a test-design choice. This section gives no measured result and no durability exemption.
 
 ### 5.7 Telemetry and real validator
 
-C extends **infra/scripts/verify-observability.sh**, preserving trace/log/Prometheus-OTLP/scrape; D catalogue/dashboard reviewed independently. Proposed cast metric `zone_skill_casts_total{outcome}` uses bounded start/completed/rejected/cancelled, no Ack-as-impact. Effect apply/remove/pulse/stack-reject bounded kind/reason; active gauge rises in active phase/returns baseline including 0. Learn outcome versus committed counters: frozen retry no new commitment; PvP/SP committed once, no observer/recovery duplication. Histogram gains samples; log/checkpoint labels bounded phase/result/reason. **No skill/entity/account ids/UUIDs/arbitrary errors**, enumerate cardinality.
+C extends **infra/scripts/verify-observability.sh** and keeps the trace/log/Prometheus-OTLP/scrape checks. An independent reviewer examines the D catalogue/dashboard. The proposed cast metric `zone_skill_casts_total{outcome}` uses the bounded values start/completed/rejected/cancelled, and it does not count an Ack as an impact. Effect apply/remove/pulse/stack-reject use a bounded kind/reason. The active gauge increases in the active phase and goes back to the baseline, including 0. Learn outcome counters are separate from committed counters: a frozen retry makes no new commitment. PvP/SP are committed one time, with no observer/recovery duplication. The histogram gets samples. Log/checkpoint labels use a bounded phase/result/reason. **No skill/entity/account ids/UUIDs/arbitrary errors**, and enumerate the cardinality.
 
-Validator controlled fixture workload records pre/active/post scrapes and correlated committed facts, expected cast/effect/learn-new-retry/PvP/SP deltas and gauge values. Nonzero after soak insufficient; hydration/retry/replay does not inflate counters.
+For a controlled fixture workload, the validator records pre/active/post scrapes and correlated committed facts. It also records the expected cast/effect/learn-new-retry/PvP/SP deltas and gauge values. A nonzero value after the soak is not sufficient. Hydration/retry/replay does not make the counters larger.
 
 ## 6. Dependencies, order and integration gates
 
-Baseline: Phase1a harness, Phase2 progression/tokens, existing actor/checkpoint/outbox/codecs. Artifact order, no calendar estimates:
+Baseline: the Phase1a harness, the Phase2 progression/tokens, and the existing actor/checkpoint/outbox/codecs. The order is by artifact, with no calendar estimates:
 
-1. **Foundation:** C committed proto/error/receipt contract **241293f** on **codex/phase3-server-api** ([world.proto/game.proto and proto-review-1.md](#21-additive-wire-allocation-and-visibility)) → Z, with required handoff closure for TargetChanged.tick + baseline/stale/subsequent-selection tests preserving legacy encoding, all three RPC/WS fail-closed endpoint tests, and handler-consistent catalogue UNAVAILABLE documentation (§2.1); D generator/manifest/oracle → Z/C, with all eleven rejected data-review findings blocking handoff (§2.4); C E6.5 predicate/DSL/parser/role foundation → Z. Parser/stub/provenance evidence only; do not gate on whole E1/E6.5 live completion.
-2. **Runtime:** Reviewed definitions/proto → Z E2.1–E2.5/E6.1 → C. Publish hooks, measure snapshot/pre-run admission before freeze; no dependency on live E2.6.
-3. **Adapters/gameplay:** C E3/E4 consumes published hooks → Z. **E3.4 adapters/E3.3 receipts precede E2.6**, separately reviewed by C; serialize shared edits through Z, no circular entire-epic gate.
-4. **Client/harness:** Proto enables E5 skeleton; live requires engine/API/adapters. First 3-cast-skill then §2.8. C E5/harness/metrics → Z; D docs/dashboard → Codex; **Z E6.1/E6.2 → C**.
-5. **Live:** Scenario wrappers plus separate live automation/cooking, V5/legacy replay/coverage3/contract/trace and endpoint/actor/adapter concurrency/crash evidence complete live stories; declarations alone never mark done.
-6. **Close:** C reviews Z DB/log/CPU measurements before packaged soak/telemetry. Root serializes Unreal/integrates reviewed outputs; outcome cites evidence.
+1. **Foundation:** The C committed proto/error/receipt contract **241293f** on **codex/phase3-server-api** ([world.proto/game.proto and proto-review-1.md](#21-additive-wire-allocation-and-visibility)) goes to Z. The necessary handoffs must close first (§2.1). They are TargetChanged.tick + baseline/stale/subsequent-selection tests that keep the legacy encoding, and all three RPC/WS fail-closed endpoint tests. They also include catalogue UNAVAILABLE documentation that agrees with the handler. The D generator/manifest/oracle goes to Z/C, and all eleven rejected data-review findings block that handoff (§2.4). The C E6.5 predicate/DSL/parser/role foundation goes to Z. Use only parser/stub/provenance evidence. Do not wait for the whole E1/E6.5 live completion.
+2. **Runtime:** Reviewed definitions/proto → Z E2.1–E2.5/E6.1 → C. Publish hooks, and measure the snapshot/pre-run admission before freeze. There is no dependency on live E2.6.
+3. **Adapters/gameplay:** C E3/E4 uses the published hooks → Z. **E3.4 adapters/E3.3 receipts precede E2.6**, and C reviews them separately. Serialize shared edits through Z. There is no circular gate for an entire epic.
+4. **Client/harness:** Proto makes the E5 skeleton possible. Live work must have the engine/API/adapters. First 3-cast-skill, then §2.8. C E5/harness/metrics → Z; D docs/dashboard → Codex; **Z E6.1/E6.2 → C**.
+5. **Live:** These items complete the live stories: scenario wrappers plus separate live automation/cooking, V5/legacy replay/coverage3/contract/trace and endpoint/actor/adapter concurrency/crash evidence. Declarations alone never mark a story as done.
+6. **Close:** C examines the Z DB/log/CPU measurements before the packaged soak/telemetry. Root serializes Unreal and integrates the reviewed outputs. The outcome cites the evidence.
 
-000008 extends existing SP schema; fixtures migrate/seed before admission. Publish commits/types/manifests/evidence at handoff. Failed privacy/compatibility/durability/roles block completion without baseline changes. This revision runs no implementation gates.
+000008 extends the existing SP schema. Fixtures migrate/seed before admission. Publish the commits/types/manifests/evidence at handoff. Failed privacy/compatibility/durability/roles block completion, without baseline changes. This revision runs no implementation gates.
 
 ## 7. Risks and mitigations
 
@@ -391,20 +432,20 @@ Baseline: Phase1a harness, Phase2 progression/tokens, existing actor/checkpoint/
 
 ## 8. Out of scope
 
-Enforce exclusions through manifest/blockers and guards; unsupported portions cannot execute partially.
+Apply the exclusions through the manifest/blockers and guards. Unsupported parts cannot run partially.
 
-- Pets/servitors/summons: no runtime entities, feeding/collars/crystals/costs/XP sharing; reserve kinds/neutral penalty hook only. Summoner trees 14/28/41 excluded; Phase4 item dependency is owner-approved.
-- Item-consuming skills/arrows/soul or spirit ore/shots, inventory/equipment systems, weapon attributes, shields/blocking and high-grade branches. Supported conditions still enforce real Squire's Sword; unsupported weapon/slot prerequisites defer. No chaotic item drops.
-- Operate/target/scope capabilities outside Design §1.1: T/CA/DA/absent A4, PARTY/PLEDGE/PARTY_PLEDGE/DEAD_PLEDGE, GROUND/FAN/SQUARE, SUMMON/NPC_BODY/DOOR_TREASURE and unsupported scope filters. Proximity never substitutes for party membership.
-- Unknown parameter/stat/recursive condition/section/reference, Charges/energy/race/slot/item requirements, unsupported mastery/trigger behavior. Imported triggered definitions provide closure/provenance, not triggering runtime support.
-- **Fear is excluded** because it needs flee pathing; no phase assignment. TargetMe and TickHpFatal remain named blockers. Unsupported summon/cubic/transformation/lethal/fatal/blow/drain/spoil/sweep/escape/teleport/hate-delete/randomize/target-cancel/crafting handlers do not execute without later scope/manifest approval.
-- Sitting, Mother Tree/estate/siege regen bonuses, guards, extra world content/zone types/peace zones. Preserve existing NPC/leash behavior; one architect-configured town square is delivered.
-- Unpopulated trees, playable third transfers, Olympiad/Noblesse/live subclass-certification, party/clan/alliance/sieges and cap expansion. Preserve metadata hooks; cap 85, playable transfers through tier 2.
+- Pets/servitors/summons: no runtime entities, feeding/collars/crystals/costs/XP sharing. Only reserve kinds and a neutral penalty hook. Summoner trees 14/28/41 are excluded. The owner approved the Phase4 item dependency.
+- Item-consuming skills/arrows/soul or spirit ore/shots, inventory/equipment systems, weapon attributes, shields/blocking and high-grade branches. Supported conditions still apply the real Squire's Sword check. Unsupported weapon/slot prerequisites defer. No chaotic item drops.
+- Operate/target/scope capabilities outside Design §1.1: T/CA/DA/absent A4, PARTY/PLEDGE/PARTY_PLEDGE/DEAD_PLEDGE, GROUND/FAN/SQUARE, SUMMON/NPC_BODY/DOOR_TREASURE and unsupported scope filters. Proximity never replaces party membership.
+- Unknown parameter/stat/recursive condition/section/reference, Charges/energy/race/slot/item requirements, unsupported mastery/trigger behavior. Imported triggered definitions give closure/provenance, not runtime support for triggers.
+- **Fear is excluded** because it must have flee pathing. It has no phase assignment. TargetMe and TickHpFatal stay named blockers. Unsupported summon/cubic/transformation/lethal/fatal/blow/drain/spoil/sweep/escape/teleport/hate-delete/randomize/target-cancel/crafting handlers do not run without a later scope/manifest approval.
+- Sitting, Mother Tree/estate/siege regen bonuses, guards, extra world content/zone types/peace zones. Keep the existing NPC/leash behavior. The plan delivers one town square that the architect configures.
+- Unpopulated trees, playable third transfers, Olympiad/Noblesse/live subclass-certification, party/clan/alliance/sieges and cap expansion. Keep the metadata hooks. The cap is 85, and playable transfers go through tier 2.
 - Final combat animation/audio/art, prediction, replication/GAS, client-authoritative combat or UE server. Deliver thin-client placeholders/UI with cooking evidence.
 
 ## 9. Outcome and review disposition
 
-**Final acceptance documentation (closed root receipts): Phase 3 combat and skills implementation is complete and verified on final main SHA `995ffa9`.** All eighteen initial plan review findings and eleven handoff blockers are resolved and closed through independent reviews and five integration triage rounds (closure of all code reviews at integration r13 `dfd16cf` is logged in the preserved `architecture-notes.md`; review receipts: `plan-review-1..3`, `design-review-1..2`, `data-review-1..4`, `engine-review-1..2`, `api-review-1`, `client-review-1..2`, `harness-review-1`, `integration-review-1..3`, `triage-review-1..7`).
+**Final acceptance documentation (closed root receipts): Phase 3 combat and skills implementation is complete and verified on final main SHA `995ffa9`.** All eighteen initial plan review findings and eleven handoff blockers are resolved and closed. Independent reviews and five integration triage rounds closed them. The closure of all code reviews at integration r13 `dfd16cf` is logged in the preserved `architecture-notes.md`. The review receipts are `plan-review-1..3`, `design-review-1..2`, `data-review-1..4`, `engine-review-1..2`, `api-review-1`, `client-review-1..2`, `harness-review-1`, `integration-review-1..3` and `triage-review-1..7`.
 
 | Finding | Section map | Resolution / evidence |
 |---|---|---|
@@ -429,21 +470,28 @@ Enforce exclusions through manifest/blockers and guards; unsupported portions ca
 
 ### Outcome reconciliation checklist
 
-- [x] **Catalogue provenance & capability counts:** Pinned L2J Datapack `3ca488dd2bd0bfaca43e378886a3c2e37968153a` and Game `abfde0490ac52a2106e884b7242c0276c44cdf76` verified. Catalogue yields exactly 180 executable / 198 deferred of 378 core skills (188 executable / 200 deferred across all 388 retained skills; 286 sample-only excluded). Deferred skills enforce named blockers. `packages/data/scripts/check_all.py` PASS.
-- [x] **Wire allocation, versioning & legacy preservation:** Additive wire tags on ClientMessage (16–18), WorldEvent (14–25), StatsChanged (15–23), EntitySpawn (22–28), and AttackResult.cp_damage (8) verified. Snapshot 9 / Record 7 / Binary V5 verified; Snapshot 8 / Record 6 / Binary V4 and older replay under legacy rules. Replay check byte-exact on 4 fixtures: legacy `two-players-v4.nfr` (467 ticks) and `two-players-fight-v2.nfr` (908 ticks), V5 `phase3-casts-v5.nfr` (131 ticks) and `phase3-gameplay-v5.nfr` (769 ticks) (`r21-03-replay-check.log`).
-- [x] **Casting lifecycle & effect scheduling:** mpConsume1 at start, mpConsume2 at impact; interrupt cutoff `floor(trunc(animation_ms)/100) - 2` ticks; MoveTo cancels cast. Stacking rules enforce 20 buff / +4 extra / 12 song-dance / 8 debuff slots; death and class transfer removal policies verified.
-- [x] **Regeneration:** HP/MP/CP regeneration formulas verified every 30 ticks (3.0 s) with standing (1.1) and moving (0.7) multipliers; CP player-only; fractional Q remainders tracked and persisted.
-- [x] **PvP, karma, CP absorption & peace zone:** PvP flags (1,200 ticks after a hostile act against a non-flagged player / 600 ticks against a flagged player), PK/PvP counters, karma calculation and monster-XP decay verified. CP absorbs player damage before HP; NPC damage bypasses CP. Peace zone square (half-width 10 tiles around 126,126) rejects hostile intents with `PEACE_ZONE` and suppresses NPC auto-aggro.
-- [x] **Death penalty & resurrection:** 20% death penalty chance up to level 5; Resurrection 1016 on `PC_BODY` emits 600-tick `ResurrectOffer`, reviving at corpse with 65% HP, preserved MP/CP, and one-time recoverable XP refund.
-- [x] **SP & skill learning:** Young Keltir awards 2 SP on kill blow; LearnSkill executes as a revision-fenced critical actor mutation with frozen idempotency receipt at Class Master (126,128) radius 3.
-- [x] **Documented deviations:** C17 retained-selection across AOI departure/re-entry; C18 `players_attacking_me` received-evidence predicate semantics; R4 offline buff/reuse timer pause; 600-tick resurrect offer lifetime; peace square geometry R7; maximum level 5 death penalty; Phase 1 town respawn vitals (65% HP, 0 MP).
-- [x] **Server gates & static analysis:** Rust gates passed at r11 (1000 passed / 0 failed / 3 ignored, `r11-00-rust.log`) and r12 (1001 passed / 0 failed / 3 ignored, `r12-00-rust.log`). Clean fmt, clippy, entities, replay, data check, and Buf breaking.
-- [x] **Unreal client builds & automation:** Editor and Game builds exit 0 (`r13-01-ue-builds.log`). Offline automation 103 passed / 0 failed (`r13-02-ue-offline.log`). Required-live automation 103 passed / 0 failed / 0 skipped (`r13-03-ue-required-live.log`).
-- [x] **Full ordinary scenario suite:** 59 logical units verified (59 PASS, 0 FAIL, exit 0; `r13-04-sim-ci.log`, `r13-sim-ci-final/`).
-- [x] **Game package staging:** BuildCookRun stage completed in 84.99 s, exit 0, Linux Development (`r13-soak-attempt1/stage.log`).
-- [x] **Final Rust gate on merged main 995ffa9:** fmt/clippy exit 0 (`r22-00-summary.log`, run on code-identical `7e1740a`); 1018 passed / 0 failed / 7 ignored across the 62 test-harness targets of 64 run, the 2 criterion bench targets rejecting the `--test-threads` argument (`r22-05c-tests.log`; debug-profile `zone_step` budget panic in `r22-05d-benches-testmode.log` is the known unoptimized-profile artifact); release zone_step benchmark passed: 1000 NPCs mean 146.7 µs p99 173.3 µs < 2 ms budget; 1000 players all observers mean 9.54 ms p99 19.42 ms < 10 ms mean budget (`r22-05e-zone-step-release.log`).
-- [x] **Packaged combat soak (attempt 12):** 8 clients × 17 iterations, 1,200 s requested, 12,246 ticks observed, combat tick p99 10.776 ms < 20 ms budget, Phase 3 acceptance evidence passed, no client errors, API and cleanup exit 0 (`r22-soak/report.json`, `r22-soak/summary.txt`). Byte-exact replay match across 12,246 ticks in 796.9 ms (`r22-soak/replay-check.log`). Stack storage isolated on tmpfs (`SOAK_TMPFS_VOLUMES=8g`, `r22-soak/storage.txt`) because attempts 9–11 failed on host fsync stalls of the shared encrypted root filesystem (perf round 4; architecture decisions §10 P6); the attempt-12 fsync probe failed to start, so no concurrent host-fsync record exists.
-- [x] **Root main integration:** Merged and pushed to main / origin/main (`995ffa9e37b065f540c12e6012a94509658f8035`); post-merge root Editor and Game builds exit 0 at 04:35:42 / 04:37:06 UTC (`root-build-995ffa9.log`); root offline automation 102/1 without an API (`CatalogueRpcFailures` needs a reachable API; `root-smoke-995ffa9.log`), rerun with the API up 103/103, exit 0 (`root-smoke2-995ffa9.log`, `root-smoke2-995ffa9.summary`).
-- [ ] **External operational follow-ups:** External self-hosted Linux CI runner remains unregistered; two-week reliability programme remains pending as an independent operational follow-up (not a local acceptance gate).
+- [x] **Catalogue provenance & capability counts:** Pinned L2J Datapack `3ca488dd2bd0bfaca43e378886a3c2e37968153a` and Game `abfde0490ac52a2106e884b7242c0276c44cdf76` are verified. The catalogue gives exactly 180 executable / 198 deferred of 378 core skills (188 executable / 200 deferred across all 388 retained skills; 286 sample-only excluded). Deferred skills apply named blockers. `packages/data/scripts/check_all.py` PASS.
+- [x] **Wire allocation, versioning & legacy preservation:** Additive wire tags on ClientMessage (16–18), WorldEvent (14–25), StatsChanged (15–23), EntitySpawn (22–28), and AttackResult.cp_damage (8) are verified. Snapshot 9 / Record 7 / Binary V5 are verified. Snapshot 8 / Record 6 / Binary V4 and older replay under legacy rules. The replay check is byte-exact on 4 fixtures: legacy `two-players-v4.nfr` (467 ticks) and `two-players-fight-v2.nfr` (908 ticks), V5 `phase3-casts-v5.nfr` (131 ticks) and `phase3-gameplay-v5.nfr` (769 ticks) (`r21-03-replay-check.log`).
+- [x] **Casting lifecycle & effect scheduling:** mpConsume1 at start, mpConsume2 at impact. The interrupt cutoff is `floor(trunc(animation_ms)/100) - 2` ticks. MoveTo cancels the cast. The stacking rules apply 20 buff / +4 extra / 12 song-dance / 8 debuff slots. The death and class transfer removal policies are verified.
+- [x] **Regeneration:** The HP/MP/CP regeneration formulas are verified every 30 ticks (3.0 s), with standing (1.1) and moving (0.7) multipliers. CP is player-only. Fractional Q remainders are recorded and persisted.
+- [x] **PvP, karma, CP absorption & peace zone:** These items are verified: PvP flags (1,200 ticks after a hostile act against a non-flagged player / 600 ticks against a flagged player), PK/PvP counters, karma calculation and monster-XP decay. CP absorbs player damage before HP. NPC damage bypasses CP. The peace zone square (half-width 10 tiles around 126,126) rejects hostile intents with `PEACE_ZONE`, and it stops NPC auto-aggro.
+- [x] **Death penalty & resurrection:** There is a 20% death penalty chance, up to level 5. Resurrection 1016 on `PC_BODY` emits a 600-tick `ResurrectOffer`. It revives at the corpse with 65% HP, preserved MP/CP, and a one-time recoverable XP refund.
+- [x] **SP & skill learning:** Young Keltir gives 2 SP on the kill blow. LearnSkill runs as a revision-fenced critical actor mutation, with a frozen idempotency receipt, at the Class Master (126,128) radius 3.
+- [x] **Documented deviations:** These deviations are documented:
+  - C17 retained-selection across AOI departure/re-entry
+  - C18 `players_attacking_me` received-evidence predicate semantics
+  - R4 offline buff/reuse timer pause
+  - 600-tick resurrect offer lifetime
+  - peace square geometry R7
+  - maximum level 5 death penalty
+  - Phase 1 town respawn vitals (65% HP, 0 MP).
+- [x] **Server gates & static analysis:** The Rust gates passed at r11 (1000 passed / 0 failed / 3 ignored, `r11-00-rust.log`) and r12 (1001 passed / 0 failed / 3 ignored, `r12-00-rust.log`). Clean fmt, clippy, entities, replay, data check, and Buf breaking.
+- [x] **Unreal client builds & automation:** The Editor and Game builds exit 0 (`r13-01-ue-builds.log`). Offline automation: 103 passed / 0 failed (`r13-02-ue-offline.log`). Required-live automation: 103 passed / 0 failed / 0 skipped (`r13-03-ue-required-live.log`).
+- [x] **Full ordinary scenario suite:** 59 logical units are verified (59 PASS, 0 FAIL, exit 0; `r13-04-sim-ci.log`, `r13-sim-ci-final/`).
+- [x] **Game package staging:** The BuildCookRun stage completed in 84.99 s, exit 0, Linux Development (`r13-soak-attempt1/stage.log`).
+- [x] **Final Rust gate on merged main 995ffa9:** fmt/clippy exit 0 (`r22-00-summary.log`, run on code-identical `7e1740a`). The tests had 1018 passed / 0 failed / 7 ignored across the 62 test-harness targets of 64 run (`r22-05c-tests.log`). The 2 criterion bench targets rejected the `--test-threads` argument. The debug-profile `zone_step` budget panic in `r22-05d-benches-testmode.log` is the known artifact of the unoptimized profile. The release zone_step benchmark passed: 1000 NPCs mean 146.7 µs p99 173.3 µs < 2 ms budget; 1000 players all observers mean 9.54 ms p99 19.42 ms < 10 ms mean budget (`r22-05e-zone-step-release.log`).
+- [x] **Packaged combat soak (attempt 12):** 8 clients × 17 iterations, 1,200 s requested, 12,246 ticks observed, combat tick p99 10.776 ms < 20 ms budget. The Phase 3 acceptance evidence passed, there were no client errors, and the API and cleanup exit 0 (`r22-soak/report.json`, `r22-soak/summary.txt`). The replay agreed byte-exact across 12,246 ticks in 796.9 ms (`r22-soak/replay-check.log`). The stack storage was isolated on tmpfs (`SOAK_TMPFS_VOLUMES=8g`, `r22-soak/storage.txt`). The reason is that attempts 9–11 failed on host fsync stalls of the shared encrypted root filesystem (perf round 4; architecture decisions §10 P6). The attempt-12 fsync probe did not start, thus no concurrent host-fsync record exists.
+- [x] **Root main integration:** Merged and pushed to main / origin/main (`995ffa9e37b065f540c12e6012a94509658f8035`). After the merge, the root Editor and Game builds exit 0 at 04:35:42 / 04:37:06 UTC (`root-build-995ffa9.log`). The root offline automation was 102/1 without an API (`CatalogueRpcFailures` must have an API that it can reach; `root-smoke-995ffa9.log`). The second run with the API up was 103/103, exit 0 (`root-smoke2-995ffa9.log`, `root-smoke2-995ffa9.summary`).
+- [ ] **External operational follow-ups:** The external self-hosted Linux CI runner is still not registered. The two-week reliability programme is pending as an independent operational follow-up (it is not a local acceptance gate).
 
-Detailed verification metrics, evidence receipts, and closed gates are documented in [`phase-3-combat-and-skills-outcome.md`](phase-3-combat-and-skills-outcome.md).
+The outcome document [`phase-3-combat-and-skills-outcome.md`](phase-3-combat-and-skills-outcome.md) gives the detailed verification metrics, evidence receipts and closed gates.

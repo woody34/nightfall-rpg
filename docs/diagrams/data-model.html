@@ -76,7 +76,7 @@
     <div class="diagram-container">
       <svg viewBox="0 0 1200 848" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="data-model-title data-model-desc">
         <title id="data-model-title">Persistence data model</title>
-        <desc id="data-model-desc">Seven persisted entities show every current column, composite primary keys and the distinction between declared foreign keys and application-level account relationships.</desc>
+        <desc id="data-model-desc">The diagram shows seven persisted entities with all the columns that they have now, the composite primary keys, and the difference between declared foreign keys and application-level account relationships.</desc>
         <defs>
           <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
 <polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/>
@@ -200,9 +200,9 @@
       </svg>
     </div>
     <div class="notes">
-<p>Entity-level view of the final migrations, cross-checked against SeaORM models. Comma-separated names are separate columns. Only two foreign keys are declared: <code>account_sessions.account_id → accounts.id</code> and <code>play_tickets.character_id → characters.id</code>; both use <code>ON DELETE CASCADE</code>. Account links from <code>characters</code>, <code>idempotency_keys</code> and <code>play_tickets</code> are application-level associations. The last is field-only to avoid a crossing.</p>
+<p>This is an entity-level view of the final migrations. We compared it with the SeaORM models. Names that have commas between them are separate columns. Only two foreign keys are declared: <code>account_sessions.account_id → accounts.id</code> and <code>play_tickets.character_id → characters.id</code>; the two keys use <code>ON DELETE CASCADE</code>. The account links from <code>characters</code>, <code>idempotency_keys</code> and <code>play_tickets</code> are application-level associations. The diagram shows the last link only as a field, to prevent a line crossing.</p>
 <p>
-<code>idempotency_keys</code> has PK <code>(account_id, operation, key)</code>; the old <code>character_id</code> column was dropped. <code>zone_snapshots</code> has PK <code>(zone_id, epoch)</code>. <code>outbox</code> and <code>zone_snapshots</code> have no foreign keys. <code>characters.revision</code> is the checkpoint fence (each applied checkpoint bumps it); <code>hp</code>/<code>mp</code> NULL means full on load. SQL types, checks, defaults and indexes remain in the migrations.</p>
+<code>idempotency_keys</code> has PK <code>(account_id, operation, key)</code>; the old <code>character_id</code> column was removed. <code>zone_snapshots</code> has PK <code>(zone_id, epoch)</code>. <code>outbox</code> and <code>zone_snapshots</code> have no foreign keys. <code>characters.revision</code> is the checkpoint fence (each applied checkpoint increases it); <code>hp</code>/<code>mp</code> NULL means full at load. The SQL types, checks, defaults and indexes stay in the migrations.</p>
 <p>Source: <a href="../../apps/api/src/infrastructure/postgres/migrations/m20260101_000001_characters.sql">m20260101_000001_characters.sql</a> · <a href="../../apps/api/src/infrastructure/postgres/migrations/m20261007_000002_accounts.sql">m20261007_000002_accounts.sql</a> · <a href="../../apps/api/src/infrastructure/postgres/migrations/m20261007_000003_play_tickets.sql">m20261007_000003_play_tickets.sql</a> · <a href="../../apps/api/src/infrastructure/postgres/migrations/m20261007_000004_zone_snapshots.sql">m20261007_000004_zone_snapshots.sql</a> · <a href="../../apps/api/src/infrastructure/postgres/migrations/m20261008_000005_character_progression.sql">m20261008_000005_character_progression.sql</a>.</p>
 </div>
   </div>
