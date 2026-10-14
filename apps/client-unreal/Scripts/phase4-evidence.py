@@ -1147,7 +1147,7 @@ def validate(rows,recording,rules_hash):
     for key,value in {'zone':zone,'epoch':epoch,'last_tick':last}.items():same(watermark[key],value)
     if watermark['reason'] not in ('shutdown','epoch_closed'):raise ValueError('incomplete watermark')
     same(complete,dict(kind='complete',facts=len(rows)-2,ticks=ticks,last_tick=last))
-    previous=start;seen=set();cursor=None;instance_steps={};instance_rows={}
+    previous=start;seen=set();cursor=None;instance_steps={};instance_rows={};baselined=set();changed=set()
     for sequence,row in enumerate(rows[1:-1]):
         if set(row)-{'origin'}!= {'kind','entity','incarnation','tick','sequence','data'}:raise ValueError('missing/unknown raw item fields')
         if 'origin' in row and row['origin'] not in ('live','offline'):raise ValueError('unknown item fact origin')
@@ -1157,6 +1157,13 @@ def validate(rows,recording,rules_hash):
         if not previous<=tick<=last:raise ValueError('unordered/out-of-scope fact')
         previous=tick;data=row['data']
         if row['entity']==ZONE_SUBJECT and row['kind']!='item_rng':raise ValueError('the nil zone subject carries only item_rng draws (T10)')
+        # D117(2): exactly one pre-tick baseline per owner-tick, never after that owner-tick's deltas.
+        scope=(row['entity'],row['incarnation'],tick)
+        if row['kind']=='item_baseline':
+            if scope in baselined:raise ValueError('more than one baseline in an owner tick (D117)')
+            if scope in changed:raise ValueError('baseline after a delta of its owner tick (D117)')
+            baselined.add(scope)
+        elif row['kind']=='item_delta':changed.add(scope)
         if row['kind'] in ('item_rng','item_delta'):
             if not isinstance(data.get('resolution_id'),str) or not data['resolution_id']:raise ValueError('operation resolution identity required')
         if row['kind']=='item_formula':

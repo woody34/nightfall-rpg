@@ -2641,6 +2641,18 @@ class ZoneDraws(unittest.TestCase):
         rows[2].update(extra)
         return rows
 
+    def test_one_pre_tick_baseline_per_owner_tick(self):
+        rows=self.export('draw-free-grant') # [baseline 0001, baseline 0002, delta 0002]
+        self.validate(rows)
+        def renumber(r):
+            for index,row in enumerate(r[1:-1]):row['sequence']=index
+            r[-1]['facts']=len(r)-2
+            return r
+        twice=copy.deepcopy(rows);twice.insert(3,copy.deepcopy(rows[2]));renumber(twice)
+        with self.assertRaisesRegex(ValueError,'more than one baseline'):self.validate(twice)
+        late=copy.deepcopy(rows);late[2],late[3]=late[3],late[2];renumber(late)
+        with self.assertRaisesRegex(ValueError,'baseline after a delta'):self.validate(late)
+
     def test_zone_roll_and_caller_sites_are_accepted_with_their_bounds(self):
         self.validate(self.zone_rows())
         self.validate(self.zone_rows(callsite='bow_reduced_mp',bound=100,value=99,after=7)) # rejection resampling
