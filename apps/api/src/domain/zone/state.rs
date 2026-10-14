@@ -11,6 +11,7 @@ mod evidence_hooks;
 mod item_commands;
 #[path = "state_item_enchant.rs"]
 mod item_enchant;
+pub(super) use item_enchant::grant_enchant_limit as scroll_reachable_enchant;
 #[path = "state_item_evidence.rs"]
 mod item_evidence_hooks;
 #[path = "state_item_grant.rs"]

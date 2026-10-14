@@ -224,6 +224,7 @@ async fn fixture() -> Fixture {
             template_id: 10,
             count: 2,
             idempotency_key: IdempotencyKey::new().to_string(),
+            enchant_level: None,
         },
     }
 }

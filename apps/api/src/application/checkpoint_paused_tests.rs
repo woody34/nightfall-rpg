@@ -74,6 +74,7 @@ fn inputs(h: &Harness, core: &ItemPausedCore) -> Vec<ZoneInput> {
                 paused: Some(Box::new(core.clone())),
                 known: None,
                 conflict: None,
+                enchant: 0,
             })))
         })
         .collect()

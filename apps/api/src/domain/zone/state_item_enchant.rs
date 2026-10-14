@@ -92,19 +92,71 @@ fn admitted(rules: &Phase4Rules, item: &ItemInstance) -> Result<(), RejectReason
         Err(RejectReason::ItemCapabilityDeferred)
     }
 }
-fn valid_scroll(
-    rule: &EnchantScrollRule,
-    target: &ItemInstance,
-    definition: &ItemDefinition,
-) -> bool {
+/// Template-level scroll match (grade with S80/S84 as S, weapon/armor kind, allowed items),
+/// shared by enchanting and the D113 grant ceiling.
+fn scroll_matches(rule: &EnchantScrollRule, definition: &ItemDefinition) -> bool {
     let grade = match definition.grade.as_str() {
         "S80" | "S84" => "S",
         grade => grade,
     };
     rule.target_grade == grade
         && rule.weapon == (definition.kind == "Weapon")
+        && (rule.allowed_items.is_empty() || rule.allowed_items.contains(&definition.template_id))
+}
+fn valid_scroll(
+    rule: &EnchantScrollRule,
+    target: &ItemInstance,
+    definition: &ItemDefinition,
+) -> bool {
+    scroll_matches(rule, definition)
+        && target.template_id == definition.template_id
         && (rule.max_enchant == 0 || target.enchant <= rule.max_enchant)
-        && (rule.allowed_items.is_empty() || rule.allowed_items.contains(&target.template_id))
+}
+
+/// D113: the highest enchant level a template can reach in play with some matching scroll.
+/// Per scroll: one past its `max_enchant` (an absent maximum is `MAX_GRANT_ENCHANT`), and no
+/// further than the first level whose chance-group range has a 0% base chance (an attempt
+/// from that level can never succeed). The template must be an admitted, storable,
+/// non-stackable, enchantable weapon or armor outside the blacklist; otherwise zero.
+pub(in crate::domain::zone) fn grant_enchant_limit(rules: &Phase4Rules, template: u32) -> u32 {
+    use crate::domain::zone::item_grant::MAX_GRANT_ENCHANT;
+    let parts = rules.parts();
+    let Some(definition) = parts.items.get(&template) else {
+        return 0;
+    };
+    if definition.stackable
+        || !matches!(definition.kind.as_str(), "Weapon" | "Armor")
+        || definition.enchant_enabled == 0
+        || parts.enchant_blacklist.contains(&template)
+        || !parts
+            .capabilities
+            .get(&template)
+            .is_some_and(|c| c.admitted && c.storable)
+    {
+        return 0;
+    }
+    parts
+        .enchant_scrolls
+        .values()
+        .filter(|rule| scroll_matches(rule, definition))
+        .filter_map(|rule| {
+            let scroll_cap = if rule.max_enchant == 0 {
+                MAX_GRANT_ENCHANT
+            } else {
+                rule.max_enchant.saturating_add(1).min(MAX_GRANT_ENCHANT)
+            };
+            let group = chance_group(rules, definition, rule).ok()?;
+            let rate_cap = group
+                .ranges
+                .iter()
+                .filter(|range| range.chance_1e5 == 0)
+                .map(|range| range.min)
+                .min()
+                .unwrap_or(MAX_GRANT_ENCHANT);
+            Some(scroll_cap.min(rate_cap))
+        })
+        .max()
+        .unwrap_or(0)
 }
 fn bonus_units(rule: &EnchantScrollRule) -> Result<u32, RejectReason> {
     let value = rule

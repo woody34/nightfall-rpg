@@ -52,6 +52,15 @@ pub struct ItemGrantCommand {
     pub paused: Option<Box<ItemPausedCore>>,
     pub known: Option<ItemReceiptFact>,
     pub conflict: Option<String>,
+    /// D113: dev-fixture birth enchant level of the single granted equipment instance.
+    /// Zero is omitted, so every earlier recorded grant keeps its exact canonical bytes.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub enchant: u32,
+}
+
+#[allow(clippy::trivially_copy_pass_by_ref)] // serde's skip_serializing_if signature.
+const fn is_zero(value: &u32) -> bool {
+    *value == 0
 }
 impl ItemGrantCommand {
     /// Bind every normalized body and preflight identity before any allocation or mutation.
@@ -63,11 +72,13 @@ impl ItemGrantCommand {
             || self.template_id == 0
             || self.count == 0
             || i64::try_from(self.count).is_err()
+            || (self.enchant != 0 && self.count != 1)
             || self.fingerprint
-                != grant_fingerprint(
+                != grant_fingerprint_with_enchant(
                     CharacterId::from_uuid(self.entity.as_uuid()),
                     self.template_id,
                     self.count,
+                    self.enchant,
                 )
             || (self.known.is_some() && self.conflict.is_some())
         {
@@ -111,4 +122,37 @@ pub fn grant_fingerprint(character: CharacterId, template: u32, count: u64) -> S
     hash.update(template.to_be_bytes());
     hash.update(count.to_be_bytes());
     format!("{:x}", hash.finalize())
+}
+
+/// D113 body hash: identical to [`grant_fingerprint`] without an enchant level, so existing
+/// keys and recordings are unchanged; a birth enchant level is part of the body.
+#[must_use]
+pub fn grant_fingerprint_with_enchant(
+    character: CharacterId,
+    template: u32,
+    count: u64,
+    enchant: u32,
+) -> String {
+    if enchant == 0 {
+        return grant_fingerprint(character, template, count);
+    }
+    let mut hash = Sha256::new();
+    hash.update(b"nightfall.item.grant.2\0");
+    hash.update(character.as_uuid().as_bytes());
+    hash.update(template.to_be_bytes());
+    hash.update(count.to_be_bytes());
+    hash.update(enchant.to_be_bytes());
+    format!("{:x}", hash.finalize())
+}
+
+/// Ceiling for a template whose matching scroll has no maximum (`max_enchant = 0`).
+pub const MAX_GRANT_ENCHANT: u32 = 65_535;
+
+/// D113: the highest birth enchant level a dev grant may carry for `template`: the level its
+/// enchant rules can reach in play with some matching scroll (the zone's own scroll matching
+/// and chance groups), capped by the scroll maximum and by the first 0%-chance level.
+/// Zero means the template cannot carry an enchant level.
+#[must_use]
+pub fn grant_enchant_limit(rules: &super::Phase4Rules, template: u32) -> u32 {
+    super::state::scroll_reachable_enchant(rules, template)
 }
