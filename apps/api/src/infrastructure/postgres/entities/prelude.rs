@@ -5,6 +5,7 @@ pub use super::accounts::Entity as Accounts;
 pub use super::character_certifications::Entity as CharacterCertifications;
 pub use super::character_class_slots::Entity as CharacterClassSlots;
 pub use super::character_effects::Entity as CharacterEffects;
+pub use super::character_lane_quarantines::Entity as CharacterLaneQuarantines;
 pub use super::character_learned_skills::Entity as CharacterLearnedSkills;
 pub use super::character_skill_reuse::Entity as CharacterSkillReuse;
 pub use super::character_transfer_receipts::Entity as CharacterTransferReceipts;
