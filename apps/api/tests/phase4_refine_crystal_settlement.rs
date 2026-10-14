@@ -679,8 +679,11 @@ where
         + 'static,
 {
     let bundle = item_data::embedded_phase4_bundle().unwrap();
-    let (armor, weapon) = (40, 13539);
+    // Reachable-in-play (D113 amended): the ceiling counts the scroll and support bonuses,
+    // so an armor is rate-bound only where base plus every bonus is 0% (15397 at +20).
+    let (armor, weapon) = (15397, 13539);
     assert_eq!(grant_enchant_limit(&bundle.items, armor), 20, "rate-bound");
+    assert_eq!(grant_enchant_limit(&bundle.items, 40), 65_535, "bonus keeps +20 reachable");
     assert_eq!(grant_enchant_limit(&bundle.items, weapon), 24, "scroll-bound");
     assert_eq!(grant_enchant_limit(&bundle.items, 69), 65_535, "unbounded D weapon");
     assert_eq!(grant_enchant_limit(&bundle.items, 57), 0, "stackable");
