@@ -8,7 +8,8 @@
     missing_docs,
     clippy::unwrap_used,
     clippy::expect_used,
-    clippy::indexing_slicing
+    clippy::indexing_slicing,
+    clippy::wildcard_enum_match_arm
 )]
 use api::application::checkpoint::CheckpointService;
 use api::application::ports::*;
@@ -173,4 +174,55 @@ async fn checkpoint_recovery_settles_the_captured_t11_history() {
                     && after.equipment_install_order.len() > before.equipment_install_order.len()
             })
     }));
+}
+
+/// The adopted `nightfall-replay frames` subcommand (client lane, D26 evidence): on the
+/// captured V6 epoch it verifies the replay, writes the owner's live-equivalent frames, marks
+/// the tag-41 enriched spawn/stats frames, and refuses to overwrite its output.
+#[test]
+fn replay_frames_writes_the_sessions_verified_wire_frames() {
+    use prost::Message as _;
+    let recording = capture();
+    let session = recording
+        .records
+        .iter()
+        .flat_map(|record| &record.commands)
+        .find_map(|command| match &command.command {
+            ZoneCommand::SpawnPlayer { entity, .. } => Some(*entity),
+            _ => None,
+        })
+        .unwrap();
+    let out = std::env::temp_dir().join(format!("t11-frames-{}.jsonl", uuid::Uuid::now_v7()));
+    let run = || {
+        std::process::Command::new(env!("CARGO_BIN_EXE_nightfall-replay"))
+            .args(["frames", "--file", CAPTURE, "--session"])
+            .arg(session.as_uuid().to_string())
+            .arg("--out")
+            .arg(&out)
+            .output()
+            .unwrap()
+    };
+    let first = run();
+    assert_eq!(first.status.code(), Some(0), "{first:?}");
+    let text = std::fs::read_to_string(&out).unwrap();
+    let mut enriched = 0;
+    let mut frames = 0;
+    for line in text.lines() {
+        let value: serde_json::Value = serde_json::from_str(line).unwrap();
+        let hex = value["frame_hex"].as_str().unwrap();
+        let bytes: Vec<u8> = (0..hex.len())
+            .step_by(2)
+            .map(|i| u8::from_str_radix(&hex[i..i + 2], 16).unwrap())
+            .collect();
+        api::interface::grpc::pb::ServerMessage::decode(bytes.as_slice()).unwrap();
+        frames += 1;
+        if value["enriched"].as_bool().unwrap() {
+            enriched += 1;
+            assert!(matches!(value["kind"].as_str(), Some("spawn" | "stats")));
+        }
+    }
+    assert!(frames > 0 && enriched > 0, "{frames} frames, {enriched} enriched");
+    // A second run never overwrites evidence.
+    assert_eq!(run().status.code(), Some(2));
+    std::fs::remove_file(&out).unwrap();
 }
