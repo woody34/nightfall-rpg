@@ -43,10 +43,24 @@ def pending_kit(character,class_id):
                 request_fingerprint='v1|backfill|'+character+'|'+manifest_hash,payload=payload)
 
 
+# D119: third-class (tier 3) professions are not admissible characters (ClassState refuses
+# tier > 2), so their backfill cases are out of scope: 58 professions x 3 states remain.
+ADMISSIBLE_TIER=2
+
+
+def professions():
+    return [tomllib.loads(path.read_text()) for path in sorted((REPO/'packages/data/professions').glob('*.toml'))]
+
+
+def inapplicable_ids():
+    return {d['key']+'-'+life for d in professions() if d['tier']>ADMISSIBLE_TIER for life in ('alive','dead','never_admitted')}
+
+
 def backfill_matrix():
     cases=[]
-    for path in sorted((REPO/'packages/data/professions').glob('*.toml')):
-        definition=tomllib.loads(path.read_text());base=definition['base_class_id']
+    for definition in professions():
+        if definition['tier']>ADMISSIBLE_TIER:continue # D119
+        base=definition['base_class_id']
         for life in ('alive','dead','never_admitted'):
             # Pre-admission migration inputs; descendants require real retained class history.
             cases.append(dict(id=definition['key']+'-'+life,class_id=definition['id'],base_class_id=base,
@@ -176,7 +190,12 @@ def regression_verdict(inventory,suite):
 
 
 def backfill_verdict(matrix,results):
-    """API phase4_backfill results (agreed in api-inbox.md): every case, every required gate."""
+    """API phase4_backfill results (agreed in api-inbox.md): every case, every required gate.
+
+    D119: a result for a tier-3 id is out of scope whatever its gates (the API emits them
+    all-false with a note, or marks them not_applicable, or omits them); `not_applicable`
+    on an admissible case is not verification.
+    """
     if results is None:return dict(cases=[dict(id=c['id'],verified=False,problems=['backfill results not supplied']) for c in matrix['cases']],all_verified=False)
     if results.get('schema_version')!=1 or not isinstance(results.get('cases'),list):raise ValueError('unknown backfill results schema')
     by_id={}
@@ -189,12 +208,16 @@ def backfill_verdict(matrix,results):
         if result is None:problems.append('no result')
         else:
             gates=result.get('gates',{})
+            if result.get('not_applicable') is True:problems.append('admissible case marked not_applicable')
             for gate in case['required_gates']:
                 if gates.get(gate) is not True:problems.append('gate '+gate+' not passed')
             if result.get('class_id')!=case['class_id'] or result.get('state')!=case['state']:problems.append('case identity differs')
         rows.append(dict(id=case['id'],verified=not problems,problems=problems))
+    out_of_scope=sorted(set(by_id)&inapplicable_ids())
+    for identity in out_of_scope:by_id.pop(identity)
     if by_id:raise ValueError('backfill results name unknown cases: '+', '.join(sorted(map(str,by_id))))
-    return dict(cases=rows,all_verified=all(r['verified'] for r in rows),source=results.get('source'),commit=results.get('commit'))
+    return dict(cases=rows,all_verified=all(r['verified'] for r in rows),out_of_scope=out_of_scope,
+                source=results.get('source'),commit=results.get('commit'))
 
 
 if __name__=='__main__':

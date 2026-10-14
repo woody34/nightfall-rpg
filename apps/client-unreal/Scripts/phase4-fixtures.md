@@ -228,10 +228,19 @@ are clean, every recording of the scenario (its own and the unit's shared ones) 
 `zone_flags` or `zone-flags.json`). A backfill case is verified only when the API's
 `phase4_backfill` results name it (same `class_id` and `state`) with every required gate
 `true`. Unknown or duplicate result ids and other schema versions are refused.
+D119: third-class (tier 3) professions are not admissible characters (ClassState
+refuses tier > 2). The inventory holds 58 professions x alive/dead/never_admitted =
+174 cases. A result for a tier-3 id is out of scope (listed as `out_of_scope` in the
+verdict) whether it is all-false with a note, marked `not_applicable`, or absent.
+`not_applicable` on an admissible case is not verified. Reference results: API
+session 17 (`phase4_backfill`, file commit 40ecdab) verify 174/174 with 93 out of scope
+(`test/fixtures/phase4-backfill/api-s17-results.json`).
 `--require-live` exits 1 unless everything is verified. A scenario that fails is a
 zone-lane finding: do not change its expectations to make it pass.
 
-Backfill results shape (agreed in api-inbox.md):
+Backfill results shape (agreed in api-inbox.md; written by `apps/api/tests/phase4_backfill.rs`
+when `PHASE4_BACKFILL_RESULTS=<path>` is set; extra keys such as `note` or
+`before_commit_failure` are ignored):
 
     {"schema_version": 1, "source": "apps/api/tests/phase4_backfill.rs", "commit": "<sha>",
      "cases": [{"id": "<profession key>-<alive|dead|never_admitted>", "class_id": <int>,

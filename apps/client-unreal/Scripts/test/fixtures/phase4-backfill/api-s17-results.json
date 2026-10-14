@@ -1,0 +1,3478 @@
+{
+  "cases": [
+    {
+      "before_commit_failure": true,
+      "class_id": 36,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "abyss_walker-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 36,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "abyss_walker-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 36,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "abyss_walker-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 56,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "artisan-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 56,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "artisan-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 56,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "artisan-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 35,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "assassin-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 35,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "assassin-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 35,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "assassin-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 16,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "bishop-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 16,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "bishop-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 16,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "bishop-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 34,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "bladedancer-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 34,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "bladedancer-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 34,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "bladedancer-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 55,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "bounty_hunter-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 55,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "bounty_hunter-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 55,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "bounty_hunter-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 15,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "cleric-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 15,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "cleric-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 15,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "cleric-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 6,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "dark_avenger-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 6,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "dark_avenger-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 6,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "dark_avenger-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 31,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "dark_fighter-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 31,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "dark_fighter-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 31,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "dark_fighter-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 38,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "dark_mystic-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 38,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "dark_mystic-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 38,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "dark_mystic-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 39,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "dark_wizard-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 39,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "dark_wizard-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 39,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "dark_wizard-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 46,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "destroyer-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 46,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "destroyer-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 46,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "destroyer-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 53,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "dwarven_fighter-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 53,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "dwarven_fighter-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 53,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "dwarven_fighter-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 28,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "elemental_summoner-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 28,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "elemental_summoner-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 28,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "elemental_summoner-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 30,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "elven_elder-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 30,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "elven_elder-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 30,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "elven_elder-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 18,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "elven_fighter-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 18,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "elven_fighter-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 18,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "elven_fighter-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 19,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "elven_knight-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 19,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "elven_knight-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 19,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "elven_knight-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 25,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "elven_mystic-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 25,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "elven_mystic-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 25,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "elven_mystic-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 29,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "elven_oracle-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 29,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "elven_oracle-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 29,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "elven_oracle-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 22,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "elven_scout-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 22,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "elven_scout-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 22,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "elven_scout-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 26,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "elven_wizard-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 26,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "elven_wizard-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 26,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "elven_wizard-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 2,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "gladiator-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 2,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "gladiator-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 2,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "gladiator-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 9,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "hawkeye-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 9,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "hawkeye-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 9,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "hawkeye-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 0,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "human_fighter-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 0,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "human_fighter-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 0,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "human_fighter-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 4,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "human_knight-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 4,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "human_knight-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 4,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "human_knight-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 10,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "human_mystic-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 10,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "human_mystic-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 10,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "human_mystic-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 11,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "human_wizard-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 11,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "human_wizard-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 11,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "human_wizard-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 47,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "monk-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 47,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "monk-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 47,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "monk-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 13,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "necromancer-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 13,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "necromancer-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 13,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "necromancer-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 44,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "orc_fighter-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 44,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "orc_fighter-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 44,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "orc_fighter-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 49,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "orc_mystic-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 49,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "orc_mystic-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 49,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "orc_mystic-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 45,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "orc_raider-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 45,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "orc_raider-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 45,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "orc_raider-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 50,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "orc_shaman-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 50,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "orc_shaman-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 50,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "orc_shaman-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 51,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "overlord-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 51,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "overlord-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 51,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "overlord-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 5,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "paladin-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 5,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "paladin-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 5,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "paladin-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 32,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "palus_knight-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 32,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "palus_knight-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 32,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "palus_knight-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 37,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "phantom_ranger-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 37,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "phantom_ranger-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 37,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "phantom_ranger-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 41,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "phantom_summoner-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 41,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "phantom_summoner-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 41,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "phantom_summoner-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 23,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "plains_walker-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 23,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "plains_walker-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 23,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "plains_walker-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 17,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "prophet-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 17,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "prophet-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 17,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "prophet-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 7,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "rogue-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 7,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "rogue-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 7,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "rogue-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 54,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "scavenger-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 54,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "scavenger-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 54,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "scavenger-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 43,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "shillien_elder-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 43,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "shillien_elder-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 43,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "shillien_elder-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 33,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "shillien_knight-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 33,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "shillien_knight-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 33,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "shillien_knight-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 42,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "shillien_oracle-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 42,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "shillien_oracle-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 42,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "shillien_oracle-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 24,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "silver_ranger-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 24,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "silver_ranger-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 24,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "silver_ranger-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 12,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "sorcerer-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 12,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "sorcerer-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 12,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "sorcerer-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 40,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "spellhowler-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 40,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "spellhowler-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 40,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "spellhowler-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 27,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "spellsinger-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 27,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "spellsinger-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 27,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "spellsinger-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 21,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "sword_singer-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 21,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "sword_singer-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 21,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "sword_singer-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 20,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "temple_knight-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 20,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "temple_knight-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 20,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "temple_knight-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 8,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "treasure_hunter-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 8,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "treasure_hunter-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 8,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "treasure_hunter-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 48,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "tyrant-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 48,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "tyrant-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 48,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "tyrant-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 52,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "warcryer-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 52,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "warcryer-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 52,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "warcryer-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 14,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "warlock-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 14,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "warlock-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 14,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "warlock-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 3,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "warlord-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 3,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "warlord-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 3,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "warlord-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 1,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "warrior-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 1,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "warrior-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 1,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "warrior-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 57,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "warsmith-alive",
+      "state": "alive"
+    },
+    {
+      "before_commit_failure": false,
+      "class_id": 57,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "warsmith-dead",
+      "state": "dead"
+    },
+    {
+      "before_commit_failure": true,
+      "class_id": 57,
+      "gates": {
+        "allocator_no_collision": true,
+        "crash_resume": true,
+        "first_v6_admission": true,
+        "kit_once": true,
+        "migration_rerun": true
+      },
+      "id": "warsmith-never_admitted",
+      "state": "never_admitted"
+    },
+    {
+      "class_id": 93,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "adventurer-alive",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "alive"
+    },
+    {
+      "class_id": 93,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "adventurer-dead",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "dead"
+    },
+    {
+      "class_id": 93,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "adventurer-never_admitted",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "never_admitted"
+    },
+    {
+      "class_id": 96,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "arcana_lord-alive",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "alive"
+    },
+    {
+      "class_id": 96,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "arcana_lord-dead",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "dead"
+    },
+    {
+      "class_id": 96,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "arcana_lord-never_admitted",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "never_admitted"
+    },
+    {
+      "class_id": 94,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "archmage-alive",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "alive"
+    },
+    {
+      "class_id": 94,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "archmage-dead",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "dead"
+    },
+    {
+      "class_id": 94,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "archmage-never_admitted",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "never_admitted"
+    },
+    {
+      "class_id": 97,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "cardinal-alive",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "alive"
+    },
+    {
+      "class_id": 97,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "cardinal-dead",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "dead"
+    },
+    {
+      "class_id": 97,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "cardinal-never_admitted",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "never_admitted"
+    },
+    {
+      "class_id": 115,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "dominator-alive",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "alive"
+    },
+    {
+      "class_id": 115,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "dominator-dead",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "dead"
+    },
+    {
+      "class_id": 115,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "dominator-never_admitted",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "never_admitted"
+    },
+    {
+      "class_id": 116,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "doom_cryer-alive",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "alive"
+    },
+    {
+      "class_id": 116,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "doom_cryer-dead",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "dead"
+    },
+    {
+      "class_id": 116,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "doom_cryer-never_admitted",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "never_admitted"
+    },
+    {
+      "class_id": 89,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "dreadnought-alive",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "alive"
+    },
+    {
+      "class_id": 89,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "dreadnought-dead",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "dead"
+    },
+    {
+      "class_id": 89,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "dreadnought-never_admitted",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "never_admitted"
+    },
+    {
+      "class_id": 88,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "duelist-alive",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "alive"
+    },
+    {
+      "class_id": 88,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "duelist-dead",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "dead"
+    },
+    {
+      "class_id": 88,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "duelist-never_admitted",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "never_admitted"
+    },
+    {
+      "class_id": 104,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "elemental_master-alive",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "alive"
+    },
+    {
+      "class_id": 104,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "elemental_master-dead",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "dead"
+    },
+    {
+      "class_id": 104,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "elemental_master-never_admitted",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "never_admitted"
+    },
+    {
+      "class_id": 105,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "evas_saint-alive",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "alive"
+    },
+    {
+      "class_id": 105,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "evas_saint-dead",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "dead"
+    },
+    {
+      "class_id": 105,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "evas_saint-never_admitted",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "never_admitted"
+    },
+    {
+      "class_id": 99,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "evas_templar-alive",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "alive"
+    },
+    {
+      "class_id": 99,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "evas_templar-dead",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "dead"
+    },
+    {
+      "class_id": 99,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "evas_templar-never_admitted",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "never_admitted"
+    },
+    {
+      "class_id": 117,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "fortune_seeker-alive",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "alive"
+    },
+    {
+      "class_id": 117,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "fortune_seeker-dead",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "dead"
+    },
+    {
+      "class_id": 117,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "fortune_seeker-never_admitted",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "never_admitted"
+    },
+    {
+      "class_id": 108,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "ghost_hunter-alive",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "alive"
+    },
+    {
+      "class_id": 108,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "ghost_hunter-dead",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "dead"
+    },
+    {
+      "class_id": 108,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "ghost_hunter-never_admitted",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "never_admitted"
+    },
+    {
+      "class_id": 109,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "ghost_sentinel-alive",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "alive"
+    },
+    {
+      "class_id": 109,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "ghost_sentinel-dead",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "dead"
+    },
+    {
+      "class_id": 109,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "ghost_sentinel-never_admitted",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "never_admitted"
+    },
+    {
+      "class_id": 114,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "grand_khavatari-alive",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "alive"
+    },
+    {
+      "class_id": 114,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "grand_khavatari-dead",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "dead"
+    },
+    {
+      "class_id": 114,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "grand_khavatari-never_admitted",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "never_admitted"
+    },
+    {
+      "class_id": 91,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "hell_knight-alive",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "alive"
+    },
+    {
+      "class_id": 91,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "hell_knight-dead",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "dead"
+    },
+    {
+      "class_id": 91,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "hell_knight-never_admitted",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "never_admitted"
+    },
+    {
+      "class_id": 98,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "hierophant-alive",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "alive"
+    },
+    {
+      "class_id": 98,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "hierophant-dead",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "dead"
+    },
+    {
+      "class_id": 98,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "hierophant-never_admitted",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "never_admitted"
+    },
+    {
+      "class_id": 118,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "maestro-alive",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "alive"
+    },
+    {
+      "class_id": 118,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "maestro-dead",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "dead"
+    },
+    {
+      "class_id": 118,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "maestro-never_admitted",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "never_admitted"
+    },
+    {
+      "class_id": 102,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "moonlight_sentinel-alive",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "alive"
+    },
+    {
+      "class_id": 102,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "moonlight_sentinel-dead",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "dead"
+    },
+    {
+      "class_id": 102,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "moonlight_sentinel-never_admitted",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "never_admitted"
+    },
+    {
+      "class_id": 103,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "mystic_muse-alive",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "alive"
+    },
+    {
+      "class_id": 103,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "mystic_muse-dead",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "dead"
+    },
+    {
+      "class_id": 103,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "mystic_muse-never_admitted",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "never_admitted"
+    },
+    {
+      "class_id": 90,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "phoenix_knight-alive",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "alive"
+    },
+    {
+      "class_id": 90,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "phoenix_knight-dead",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "dead"
+    },
+    {
+      "class_id": 90,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "phoenix_knight-never_admitted",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "never_admitted"
+    },
+    {
+      "class_id": 92,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "sagittarius-alive",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "alive"
+    },
+    {
+      "class_id": 92,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "sagittarius-dead",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "dead"
+    },
+    {
+      "class_id": 92,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "sagittarius-never_admitted",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "never_admitted"
+    },
+    {
+      "class_id": 112,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "shillien_saint-alive",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "alive"
+    },
+    {
+      "class_id": 112,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "shillien_saint-dead",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "dead"
+    },
+    {
+      "class_id": 112,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "shillien_saint-never_admitted",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "never_admitted"
+    },
+    {
+      "class_id": 106,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "shillien_templar-alive",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "alive"
+    },
+    {
+      "class_id": 106,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "shillien_templar-dead",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "dead"
+    },
+    {
+      "class_id": 106,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "shillien_templar-never_admitted",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "never_admitted"
+    },
+    {
+      "class_id": 95,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "soultaker-alive",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "alive"
+    },
+    {
+      "class_id": 95,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "soultaker-dead",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "dead"
+    },
+    {
+      "class_id": 95,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "soultaker-never_admitted",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "never_admitted"
+    },
+    {
+      "class_id": 107,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "spectral_dancer-alive",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "alive"
+    },
+    {
+      "class_id": 107,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "spectral_dancer-dead",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "dead"
+    },
+    {
+      "class_id": 107,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "spectral_dancer-never_admitted",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "never_admitted"
+    },
+    {
+      "class_id": 111,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "spectral_master-alive",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "alive"
+    },
+    {
+      "class_id": 111,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "spectral_master-dead",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "dead"
+    },
+    {
+      "class_id": 111,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "spectral_master-never_admitted",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "never_admitted"
+    },
+    {
+      "class_id": 110,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "storm_screamer-alive",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "alive"
+    },
+    {
+      "class_id": 110,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "storm_screamer-dead",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "dead"
+    },
+    {
+      "class_id": 110,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "storm_screamer-never_admitted",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "never_admitted"
+    },
+    {
+      "class_id": 100,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "sword_muse-alive",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "alive"
+    },
+    {
+      "class_id": 100,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "sword_muse-dead",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "dead"
+    },
+    {
+      "class_id": 100,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "sword_muse-never_admitted",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "never_admitted"
+    },
+    {
+      "class_id": 113,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "titan-alive",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "alive"
+    },
+    {
+      "class_id": 113,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "titan-dead",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "dead"
+    },
+    {
+      "class_id": 113,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "titan-never_admitted",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "never_admitted"
+    },
+    {
+      "class_id": 101,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "wind_rider-alive",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "alive"
+    },
+    {
+      "class_id": 101,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "wind_rider-dead",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "dead"
+    },
+    {
+      "class_id": 101,
+      "gates": {
+        "allocator_no_collision": false,
+        "crash_resume": false,
+        "first_v6_admission": false,
+        "kit_once": false,
+        "migration_rerun": false
+      },
+      "id": "wind_rider-never_admitted",
+      "note": "third-class profession: not an admissible character (ClassState tier <= 2)",
+      "state": "never_admitted"
+    }
+  ],
+  "commit": "40ecdab06d504596f8296a9588784091e291bc9a",
+  "schema_version": 1,
+  "source": "apps/api/tests/phase4_backfill.rs"
+}

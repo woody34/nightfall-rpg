@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import copy
 import hashlib
 import importlib.util
 import json
@@ -53,6 +54,9 @@ class Regression(unittest.TestCase):
         cases=json.loads((SCRIPTS.parent/'Scenarios/phase4-backfill.pending.json').read_text())['cases']
         self.assertEqual({r['state'] for r in cases},{'alive','dead','never_admitted'})
         self.assertTrue(all('execution' not in r for r in cases))
+        # D119: 58 admissible professions x 3 states; no tier-3 case is inventoried.
+        self.assertEqual(len(cases),174);self.assertEqual(len({r['class_id'] for r in cases}),58)
+        self.assertFalse({r['id'] for r in cases}&regression.inapplicable_ids());self.assertEqual(len(regression.inapplicable_ids()),93)
         self.assertEqual(json.loads((SCRIPTS.parent/'Scenarios/phase4-backfill.pending.json').read_text()),regression.backfill_matrix())
 
 
@@ -153,6 +157,31 @@ class Backfill(unittest.TestCase):
         dup=self.results();dup['cases'].append(dup['cases'][0])
         with self.assertRaisesRegex(ValueError,'duplicate'):regression.backfill_verdict(self.MATRIX,dup)
         with self.assertRaisesRegex(ValueError,'schema'):regression.backfill_verdict(self.MATRIX,dict(schema_version=2,cases=[]))
+
+    def test_not_applicable_admissible_case_and_unknown_ids(self):
+        marked=self.results();marked['cases'][0]['not_applicable']=True
+        self.assertEqual(regression.backfill_verdict(self.MATRIX,marked)['cases'][0]['problems'],['admissible case marked not_applicable'])
+        tier3=sorted(regression.inapplicable_ids())[0]
+        extra=self.results();extra['cases'].append(dict(id=tier3,class_id=0,state='alive',gates={},note='third-class'))
+        result=regression.backfill_verdict(self.MATRIX,extra)
+        self.assertTrue(result['all_verified']);self.assertEqual(result['out_of_scope'],[tier3])
+
+    def test_api_session17_results_verify_every_admissible_case(self):
+        # Written by apps/api/tests/phase4_backfill.rs (PHASE4_BACKFILL_RESULTS); commit pinned.
+        results=json.loads((SCRIPTS/'test/fixtures/phase4-backfill/api-s17-results.json').read_text())
+        self.assertEqual((results['source'],results['commit']),('apps/api/tests/phase4_backfill.rs','40ecdab06d504596f8296a9588784091e291bc9a'))
+        result=regression.backfill_verdict(regression.backfill_matrix(),results)
+        self.assertTrue(result['all_verified'],[c for c in result['cases'] if not c['verified']][:3])
+        self.assertEqual((len(result['cases']),len(result['out_of_scope'])),(174,93))
+        self.assertEqual(set(result['out_of_scope']),regression.inapplicable_ids())
+        # A failed admissible gate still fails; dropping an admissible case is "no result".
+        broken=copy.deepcopy(results);broken['cases'][0]['gates']['kit_once']=False
+        self.assertFalse(regression.backfill_verdict(regression.backfill_matrix(),broken)['all_verified'])
+        missing=copy.deepcopy(results);missing['cases']=[c for c in missing['cases'] if c['id']!='abyss_walker-alive']
+        self.assertFalse(regression.backfill_verdict(regression.backfill_matrix(),missing)['all_verified'])
+        # Tier-3 ids may also be absent.
+        absent=copy.deepcopy(results);absent['cases']=[c for c in absent['cases'] if c['id'] not in regression.inapplicable_ids()]
+        self.assertTrue(regression.backfill_verdict(regression.backfill_matrix(),absent)['all_verified'])
 
     def test_runner_source_has_no_hard_coded_verdict(self):
         source=(SCRIPTS/'phase4-regression.py').read_text()
