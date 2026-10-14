@@ -108,8 +108,11 @@ impl ZoneRuntimeConfig {
         if !self.phase4_requested()? {
             return Ok(None);
         }
-        let bundle = crate::infrastructure::item_data::embedded_phase4_bundle()
-            .map_err(anyhow::Error::msg)?;
+        // Same Phase 3 source as the V5 path (RULES_DIR overlay, simulation-fixture NPC
+        // overrides); the embedded default resolves to the embedded D27 bundle itself.
+        let bundle =
+            crate::infrastructure::item_data::configured_phase4_bundle(&self.phase3_source()?)
+                .map_err(anyhow::Error::msg)?;
         let rules = match &self.rules_dir {
             Some(dir) => rules_data::load_rules_dir(dir)?,
             None => rules_data::load_rules(&rules_data::RulesSource::embedded())?,

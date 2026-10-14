@@ -1259,3 +1259,77 @@ fn late_entry_handshake_preserves_wounded_baseline_and_first_hit() -> anyhow::Re
     std::fs::remove_dir_all(&work)?;
     result
 }
+
+/// T8: `PHASE4_ENABLED=1` on a `RULES_DIR` overlay boots a V6 epoch whose Phase 3 data (incl.
+/// the fixture-only NPC profiles such as `skill_target`) comes from the overlay with the V5
+/// overlay semantics, while the default embedded source keeps the embedded D27 bundle.
+#[tokio::test]
+async fn phase4_startup_composes_the_v6_bundle_over_a_rules_dir_overlay() -> anyhow::Result<()> {
+    use nightfall_api::application::replay_log::{restore_snapshot, WatermarkReason};
+    use nightfall_api::infrastructure::item_data::{
+        configured_phase4_bundle, embedded_phase4_bundle, resolve_phase4_bundle,
+    };
+    let repo = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(Path::parent)
+        .context("repository root")?;
+    let temporary =
+        std::env::temp_dir().join(format!("nightfall-phase4-overlay-{}", uuid::Uuid::now_v7()));
+    std::fs::create_dir(&temporary)?;
+    let result = async {
+        let generated = std::process::Command::new("python3")
+            .arg(repo.join("apps/client-unreal/Scripts/phase3-validation-inputs.py"))
+            .arg(&temporary)
+            .status()?;
+        ensure!(generated.success(), "fixture input generation failed");
+        let root = temporary.join("data");
+        let zone = load_zone(&root.join("zones/test_zone.toml"))?;
+        ensure!(
+            zone.npc_templates
+                .iter()
+                .any(|template| template.id.0 == "skill_target"),
+            "overlay defines the fixture-only NPC"
+        );
+        let embedded = embedded_phase4_bundle().map_err(anyhow::Error::msg)?;
+        let overlay = configured_phase4_bundle(&Phase3DataSource::from_dir(&root)?)
+            .map_err(anyhow::Error::msg)?;
+        ensure!(overlay.skills.profiles().npcs.contains_key("skill_target"));
+        ensure!(!embedded.skills.profiles().npcs.contains_key("skill_target"));
+        // Profiles are Phase 3 data: the skill hash is the overlay's Phase 3 rules hash and the
+        // item hash binds it; both resolve in this process once composed.
+        ensure!(overlay.skills.hash() != embedded.skills.hash());
+        ensure!(overlay.items.hash() != embedded.items.hash());
+        ensure!(overlay.items.parts().items == embedded.items.parts().items);
+        let resolved = resolve_phase4_bundle(overlay.items.hash(), overlay.skills.hash())
+            .map_err(anyhow::Error::msg)?;
+        ensure!(resolved.skills.hash() == overlay.skills.hash());
+        let config = nightfall_api::zone_runtime::ZoneRuntimeConfig {
+            rules_dir: Some(root.clone()),
+            zone_file: Some(root.join("zones/test_zone.toml")),
+            simulation_fixture: None,
+            auth_dev_tokens: true,
+            phase3_enabled: Some("1".into()),
+            phase4_enabled: Some("1".into()),
+        };
+        let mut deps = nightfall_api::Dependencies::in_memory();
+        deps.classes = Some(load_classes(&ClassSource::from_dir(&root)?)?);
+        let running = nightfall_api::zone_runtime::start(&config, None, None, &deps).await?;
+        let snapshot = running
+            .handle()
+            .snapshot()
+            .await
+            .map_err(|_| anyhow::anyhow!("zone stopped"))?;
+        let items = snapshot.phase4.as_ref().context("V6 epoch expected")?;
+        ensure!(items.rules_hash == overlay.items.hash());
+        ensure!(
+            snapshot.phase3.as_ref().context("V5 sidecar")?.rules_hash == overlay.skills.hash()
+        );
+        let restored = restore_snapshot(snapshot)?;
+        ensure!(restored.snapshot().phase4.is_some(), "overlay V6 snapshot restores");
+        running.shutdown(WatermarkReason::Shutdown).await?;
+        Ok(())
+    }
+    .await;
+    std::fs::remove_dir_all(&temporary)?;
+    result
+}
