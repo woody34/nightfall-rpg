@@ -331,7 +331,9 @@ def create_overlay(destination, repo):
     # Stationary fixture targets preserve initial east facing (design §2.1/§6.2).
     target=destination/'npcs/skill_target.toml'
     # The API rejects move_speed 0 (npc_data.rs: must be positive), so the slowest legal speed
-    # (1 milli-tile/tick) keeps the in-range target effectively stationary.
+    # is 1 milli-tile/tick. V6 facing is set at spawn and not updated by movement, so side/back
+    # phases are unaffected; the target can still creep 1 milli-tile per tick while chasing an
+    # attacker beyond its 1.5-tile attack range (bow scenarios), i.e. it is not strictly fixed.
     target.write_text(target.read_text().replace('move_speed = 400','move_speed = 1'))
     # Eligible passive secondary recipients are fixture inputs, not source stats.
     for name,position in [('pole_secondary_a',(108,101)),('pole_secondary_b',(108,99))]:

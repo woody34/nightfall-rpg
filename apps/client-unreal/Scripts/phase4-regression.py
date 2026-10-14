@@ -121,6 +121,8 @@ def report():
                 historical_recordings={p.name:sha(p) for p in sorted((REPO/'apps/api/fixtures/sessions').glob('*.nfr'))})
 
 
+INVENTORY=SCRIPTS.parent/'Scenarios/phase4-regression.pending.json'
+BACKFILL_INVENTORY=SCRIPTS.parent/'Scenarios/phase4-backfill.pending.json'
 V6_FLAGS={'PHASE3_ENABLED':'1','PHASE4_ENABLED':'1'}
 
 
@@ -155,6 +157,12 @@ def is_v6(record):
 
 
 REPLAY_MATCH=re.compile(r'^zone \S+ epoch \d+: match\. ',re.M)
+EPOCH_LINE=re.compile(r'^zone \S+ epoch \d+: ',re.M)
+
+
+def replay_matched(text):
+    """At least one epoch line, and every epoch line is a match (no later divergence)."""
+    return bool(REPLAY_MATCH.search(text)) and len(EPOCH_LINE.findall(text))==len(REPLAY_MATCH.findall(text))
 
 
 def suite_units(suite):
@@ -191,7 +199,7 @@ def scenario_evidence(suite,units,scenario):
     if not recordings:problems.append('no recording')
     for nfr in recordings:
         log=nfr.with_suffix('.replay.log')
-        if not log.is_file() or not REPLAY_MATCH.search(log.read_text()):
+        if not log.is_file() or not replay_matched(log.read_text()):
             problems.append(f'replay check of {nfr.relative_to(suite)} did not report a match')
     try:flags=unit_flags(unit_dir,folder)
     except (OSError,ValueError) as error:flags=None;problems.append(f'zone flags unreadable: {error}')
@@ -209,6 +217,13 @@ def regression_verdict(inventory,suite):
         evidence=scenario_evidence(suite,units,entry['scenario']) if suite else dict(verified=False,problems=['suite not run'])
         rows.append(dict(scenario=entry['scenario'],expectations=len(entry['expectations']),**evidence))
     return dict(scenarios=rows,all_verified=bool(rows) and all(r['verified'] for r in rows))
+
+
+def check_committed(inventory,matrix,paths=None):
+    """The verdict is over the COMMITTED inventories; regenerating them must not change them."""
+    for path,current in zip(paths or (INVENTORY,BACKFILL_INVENTORY),(inventory,matrix)):
+        if json.loads(path.read_text())!=current:
+            raise ValueError(f'committed inventory {path.name} is stale; regenerate with --publish/--backfill')
 
 
 def backfill_verdict(matrix,results):
@@ -255,6 +270,7 @@ if __name__=='__main__':
     if args.publish:args.publish.write_text(json.dumps(inventory,indent=2,sort_keys=True)+'\n')
     if args.backfill:args.backfill.write_text(json.dumps(matrix,indent=2,sort_keys=True)+'\n')
     try:
+        check_committed(inventory,matrix)
         regression=regression_verdict(inventory,args.suite.resolve() if args.suite else None)
         backfill=backfill_verdict(matrix,json.loads(args.backfill_results.read_text()) if args.backfill_results else None)
     except (ValueError,KeyError,OSError) as error:

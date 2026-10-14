@@ -2740,6 +2740,15 @@ class SkillLearnPayment(unittest.TestCase):
             'cancel phase':lambda r:[r[3]['data']['inputs'].update(phase='cancel'),r[3]['data']['actual'].update(phase='cancel')],
             'other formula':lambda r:r[3]['data'].update(formula='escape_timing'),
         }
+        # Review-3 nit: pinned with their exact refusal.
+        refused=copy.deepcopy(rows);refused[3]['data']['actual'].update(accepted=False)
+        with self.assertRaisesRegex(ValueError,'a refused learn may not pay'):self.pinned(gate.validate,refused,rows[0]['phase4_rules_hash'])
+        # The payment (and the owners' baselines) move to the tick before the learn fact.
+        later=copy.deepcopy(rows);later[3],later[4]=later[4],later[3]
+        later[0]['snapshot_tick']=2;later[0]['watermark'].update(records=2);later[-1].update(ticks=2)
+        for row in later[1:4]:row['tick']=2
+        for index,row in enumerate(later[1:-1]):row['sequence']=index
+        with self.assertRaisesRegex(ValueError,'same-tick Consume payment'):self.pinned(gate.validate,later,rows[0]['phase4_rules_hash'])
         for name,change in cases.items():
             mutated=copy.deepcopy(rows);change(mutated)
             with self.subTest(name),self.assertRaises(ValueError):self.pinned(gate.validate,mutated,rows[0]['phase4_rules_hash'])

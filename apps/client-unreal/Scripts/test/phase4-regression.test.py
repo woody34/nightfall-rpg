@@ -165,6 +165,16 @@ class Runner(unittest.TestCase):
         self.assertIn('no recording',regression.regression_verdict(self.inventory,self.root/'suite')['scenarios'][0]['problems'])
         self.assertFalse(regression.regression_verdict(self.inventory,None)['all_verified'])
 
+    def test_committed_inventory_staleness_and_replay_divergence(self):
+        first=self.root/'a.json';second=self.root/'b.json'
+        first.write_text(json.dumps(dict(x=1)));second.write_text(json.dumps(dict(y=1)))
+        regression.check_committed(dict(x=1),dict(y=1),(first,second))
+        with self.assertRaisesRegex(ValueError,'a.json is stale'):regression.check_committed(dict(x=2),dict(y=1),(first,second))
+        self.assertTrue(regression.replay_matched(MATCH))
+        self.assertFalse(regression.replay_matched(MATCH+'zone 1 epoch 2: tick 4 output differs\n'))
+        self.assertFalse(regression.replay_matched('error: load failed\n'))
+        self.assertFalse(self.verdict(replay=MATCH+'zone 1 epoch 2: tick 4 output differs\n')['all_verified'])
+
     def test_stale_inventory_is_refused(self):
         write_suite(self.root/'suite',self.units)
         self.inventory['scenarios'][0]['scenario_sha256']='other'

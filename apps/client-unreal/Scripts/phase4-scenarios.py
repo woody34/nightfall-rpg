@@ -71,5 +71,5 @@ if __name__ == '__main__':
     parser.add_argument('paths', nargs='*', type=Path)
     args = parser.parse_args()
     failures = validate(args.paths or matrix())
-    print(json.dumps(dict(contract_valid=not failures, live_compatibility='pending E5 registration', failures=failures), indent=2))
+    print(json.dumps(dict(contract_valid=not failures, live_compatibility='checked separately by sim-parser-check.py against the C++ registry', failures=failures), indent=2))
     sys.exit(bool(failures))
