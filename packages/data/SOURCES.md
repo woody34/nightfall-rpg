@@ -1,30 +1,30 @@
 # Data sources
 
-Provenance for the generated stat tables (Phase 1 plan §2 fidelity gate, Story E1.1).
-`tables/*.toml` and `classes/*.toml` are generated; `zones/` and `npcs/` are hand-written.
+This file records the provenance of the generated stat tables (Phase 1 plan §2 fidelity gate, Story E1.1).
+The generator makes `tables/*.toml` and `classes/*.toml`. A person writes `zones/` and `npcs/` by hand.
 
 ## Phase 3 peace geometry (Nightfall configuration)
 
 `zones/test_zone_phase3.toml` is a hand-written, schema-1 additive input. Its
-`[provenance].kind = "Nightfall configuration"` distinguishes architect policy
-from pinned L2J values. Architecture decisions §6 R7 / §7 D-R11 set a configurable
-inclusive square with half-width **10,000 milli-tiles**, centred on the legacy
+`[provenance].kind = "Nightfall configuration"` shows that the values are architect policy
+and not pinned L2J values. Architecture decisions §6 R7 / §7 D-R11 set a configurable
+inclusive square. The half-width of the square is **10,000 milli-tiles**, and its centre is the legacy
 safe point **(126,126)** (`zones/test_zone.toml:33`). Its inclusive edges are
-**(116,116)..(136,136)** whole tiles and contain the Class Master **(126,128)**
-(`zones/test_zone.toml:28`); legacy bounds are **(0,0)..(256,256)** (`:9–10`).
+**(116,116)..(136,136)** whole tiles, and the square includes the Class Master **(126,128)**
+(`zones/test_zone.toml:28`). The legacy bounds are **(0,0)..(256,256)** (`:9–10`).
 
-Schema: top-level `schema_version = 1`, `id = "test_zone"`; `[peace_zone]`
-contains `shape = "square"`, `centre = [126,126]` in whole tiles,
-`half_width_millitiles = 10000`, `inclusive = true`; `[provenance]` contains
-`kind`, `decision`, and `safe_point` citations. Width is configurable, not a
-source-derived constant. `check_all.py` parses both files, requires centre to
-equal safe_point, validates integer units, bounds containment and inclusive
-Class Master containment, and prints SHA-256 of the new file's complete bytes.
+Schema: the top level has `schema_version = 1` and `id = "test_zone"`. `[peace_zone]`
+has `shape = "square"`, `centre = [126,126]` in whole tiles,
+`half_width_millitiles = 10000` and `inclusive = true`. `[provenance]` has the
+`kind`, `decision` and `safe_point` citations. The width is configurable. It is not a
+constant that comes from the source. `check_all.py` parses the two files and makes sure that the centre is
+equal to safe_point. It validates the integer units, the containment in the bounds and the inclusive
+containment of the Class Master. Then it prints the SHA-256 of all the bytes of the new file.
 
-The engine must include this separate input in Phase3Rules hashing and embed it
-in its Phase 3 input inventory. Do not include it in the legacy zone config hash
-or load it as a legacy zone file. `zones/test_zone.toml` bytes and historical
-oracle manifests stay unchanged. No generator owns this geometry file.
+The engine must include this separate input in the Phase3Rules hashing. The engine must also embed it
+in its Phase 3 input inventory. Do not include it in the legacy zone config hash.
+Do not load it as a legacy zone file. The bytes of `zones/test_zone.toml` and the historical
+oracle manifests do not change. No generator is responsible for this geometry file.
 
 ## Pinned High Five source
 
@@ -33,9 +33,9 @@ oracle manifests stay unchanged. No generator owns this geometry file.
 | <https://bitbucket.org/l2jserver/l2j-server-game> (`develop`; GitHub mirror `monkey1sai/l2j-server-game`) | `abfde0490ac52a2106e884b7242c0276c44cdf76` (2026-09-13) | Formulas, functions, config defaults |
 | <https://bitbucket.org/l2jserver/l2j-server-datapack> (`develop`) | `3ca488dd2bd0bfaca43e378886a3c2e37968153a` (2026-09-13) | Tables and templates |
 
-Both READMEs: "develop branch is the current High Five development" (client: High Five part 5).
+The two READMEs say: "develop branch is the current High Five development" (client: High Five part 5).
 
-Files read (game prefix `src/main/java/com/l2jserver/gameserver/`, datapack prefix
+We read these files (the game prefix is `src/main/java/com/l2jserver/gameserver/`, and the datapack prefix is
 `src/main/resources/data/`):
 
 - Game: `model/stats/Formulas.java` (`calcPhysDam`, `calcHitMiss`, `calcCrit`),
@@ -47,7 +47,7 @@ Files read (game prefix `src/main/java/com/l2jserver/gameserver/`, datapack pref
   `model/actor/instance/L2PcInstance.java` (`calculateDeathExpPenalty`),
   `data/xml/impl/PlayerTemplateData.java`, `src/main/resources/config/character.properties`.
 - Datapack: `stats/statBonus.xml`, `stats/expData.json`, `stats/chars/playerXpPercentLost.xml`,
-  `stats/chars/baseStats/{Human,Elven,Dark,Orc,Dwarven}{Fighter,Mystic}.xml` (no Dwarven mystic),
+  `stats/chars/baseStats/{Human,Elven,Dark,Orc,Dwarven}{Fighter,Mystic}.xml` (there is no Dwarven mystic),
   `stats/initialEquipment.xml`, `stats/items/02300-02399.xml` (item 2369).
 
 ## Regenerating
@@ -60,73 +60,72 @@ git -C /tmp/l2j-dp checkout 3ca488dd2bd0bfaca43e378886a3c2e37968153a
 python3 packages/data/scripts/gen_tables.py --game /tmp/l2j-game --datapack /tmp/l2j-dp --check
 ```
 
-The script refuses other revisions, uses `decimal`/`fractions` only, parses every constant
-from a literal source line that must exist verbatim, and proves each class HP/MP quadratic
-reproduces all 85 source rows. `--check` fails on any drift from the committed files.
+The script refuses other revisions. It uses only `decimal`/`fractions`. It parses each constant
+from a literal source line, and that line must exist exactly as written. It also proves that the HP/MP quadratic of each class
+makes all 85 source rows again. If the committed files are different from the output, `--check` fails.
 
 ## Fidelity ledger (resolved)
 
 | Item | Resolved value | Source |
 |---|---|---|
 | Normal-attack damage coefficient | **76**; crit ×2 | `Formulas.calcPhysDam`: `damage = (76 * damage * proximityBonus) / defence;` |
-| Attack interval | **500000 / pAtkSpd** ms, impact at half | `L2Character.calculateTimeBetweenAttacks`, `doAttack` (`timeAtk / 2`) |
+| Attack interval | **500000 / pAtkSpd** ms, the impact occurs at half | `L2Character.calculateTimeBetweenAttacks`, `doAttack` (`timeAtk / 2`) |
 | Accuracy | **`sqrt(DEX) * 6 + L`**, `+(L−69)` above 69, `+(L−76)` above 77 | `FuncAtkAccuracy` |
 | Evasion (player) | **`sqrt(DEX) * 6 + L`**, `+(L−69)` from 70, ×1.2 on that addition from 78; cap 250 | `FuncAtkEvasion`, `MaxEvasion` |
 | Stat bonuses | **`statBonus.xml` 2-decimal tables**, indices 0–99; comments `1.036^(STR−34.845)`, `1.020^(INT−31.375)`, `1.030^(CON−27.632)`, `1.010^(MEN+0.060)`, `1.009^(DEX−19.360)`, `1.050^(WIT−20.000)` | `BaseStats` static loader |
-| Class HP/MP | Per-level `lvlUpgainData` rows 1–85; exact quadratics (e.g. Human Fighter `80 + 11.765n + 0.065n²`, `30 + 5.43n + 0.03n²`) | `baseStats/*.xml` |
+| Class HP/MP | `lvlUpgainData` rows for each level, 1–85; exact quadratics (for example, Human Fighter `80 + 11.765n + 0.065n²`, `30 + 5.43n + 0.03n²`) | `baseStats/*.xml` |
 | XP table | `expData.json` levels 1–85, **sentinel L86 = 16,890,558,728**; cap `X[86] − 1` | `ExperienceData`, `PlayableStat.addExp` |
-| Death loss | 10.0 % at L1, −0.125/level to 4.0 % at L49, 4.0 % to L75, 2.5/2.0/1.5 % at L76/77/78, 1.0 % L79–85 | `playerXpPercentLost.xml` |
+| Death loss | 10.0 % at L1, −0.125 for each level to 4.0 % at L49, 4.0 % to L75, 2.5/2.0/1.5 % at L76/77/78, 1.0 % L79–85 | `playerXpPercentLost.xml` |
 | Starter weapon | Squire's Sword: P.Atk 6, crit 8, speed 379, random 10, range 40, accuracy 0 | item 2369 |
 | Caps / respawn | crit 500 ‰, speed 1500, hit 200–980 ‰, HP 0.65 / MP 0, protection 600 s, max level 85 | `character.properties` |
 
 ## Errata against the planning docs
 
-- **E-1 Stat curves.** `01-stat-formulas.md` §2.1 calls `1.009^(STR−49)` … `1.00369^(MEN+30.45)`
-  and Human Fighter STR 88 "High Five". They come from `andridgitalbox/l2j-mobius`
+- **E-1 Stat curves.** `01-stat-formulas.md` §2.1 gives the name "High Five" to `1.009^(STR−49)` … `1.00369^(MEN+30.45)`
+  and to Human Fighter STR 88. These values come from `andridgitalbox/l2j-mobius`
   (`d2a8c5d5`, an Ertheia-era tree: LUC/CHA, Ertheia classes). HF uses the tables whose
-  comments the doc labels "Interlude". Plan vector 1 is re-based on HF (STR 40 = 1.20).
-- **E-2 XP table.** The doc's "High Five" column (L41 8,718,976; L85 5,008,025,097) is the
-  Mobius/Ertheia table. HF `expData.json` matches the doc's "Interlude" column only to L10 and
-  L76–78 (e.g. L11 71,202 vs 71,201; L80 3,075,966,164; L85 13,180,481,103).
-- **E-3 Accuracy/evasion.** HF uses `* 6` and the level additions above, not stats §2.4's
-  `* 5` / "+1 at 78+, +2 at 81+". Combat §2.3's `* 6` is right; its additions are imprecise.
+  comments the doc gives the label "Interlude". We changed plan vector 1 to use HF as its base (STR 40 = 1.20).
+- **E-2 XP table.** The "High Five" column of the doc (L41 8,718,976; L85 5,008,025,097) is the
+  Mobius/Ertheia table. HF `expData.json` agrees with the "Interlude" column of the doc only to L10 and at
+  L76–78 (for example, L11 71,202 vs 71,201; L80 3,075,966,164; L85 13,180,481,103).
+- **E-3 Accuracy/evasion.** HF uses `* 6` and the level additions above. It does not use the `* 5` / "+1 at 78+, +2 at 81+"
+  of stats §2.4. The `* 6` of combat §2.3 is correct, but its additions are not precise.
 - **E-4 CON 43** is 1.58 in the HF table (the doc prints 1.57).
-- **E-5 Weapon stats replace, not add.** Item stats are `<set>` funcs (order 0), applied before
-  the STR/DEX/level multipliers (order 1), so P.Atk = `weapon × STR × LM`, not
-  `(fist + weapon) × …`; crit base and attack speed are likewise replaced (8, 379).
+- **E-5 Weapon stats replace, not add.** Item stats are `<set>` funcs (order 0). They apply before
+  the STR/DEX/level multipliers (order 1). Thus P.Atk = `weapon × STR × LM`, not
+  `(fist + weapon) × …`. The weapon also replaces the crit base and the attack speed (8, 379).
 - **E-6 Spawn protection** is `PlayerSpawnProtection = 600` **seconds** (6000 ticks), not
   600 ticks.
-- **E-7 Rounding (reviewed E1.4).** The earlier claim that every difference was ≤1 unit
-  was false for hit chance and attack milliseconds. Nightfall now reproduces source
-  `Math.round` at accuracy/evasion, attack speed and death loss using integer arithmetic,
-  and both integer millisecond casts in attack scheduling. HP/MP retain exact decimal
-  rows under D3. See the measured ledger below; crit's `(int)` **before** `+0.5` does
+- **E-7 Rounding (reviewed E1.4).** The earlier statement that each difference was ≤1 unit
+  was false for hit chance and attack milliseconds. Now, Nightfall makes the same source
+  `Math.round` results at accuracy/evasion, attack speed and death loss with integer arithmetic.
+  It also makes the two integer millisecond casts in the attack schedule. HP/MP keep the exact decimal
+  rows under D3. Refer to the measured ledger below. Because the `(int)` of crit occurs **before** `+0.5`, it does
   not round a fractional crit rate up.
-- **E-8 The "77".** HF's normal attack uses 76; 77 appears only in the crit additive term
-  (`CRITICAL_DAMAGE_ADD * 77 / defence`, zero without buffs) and in skill/blow damage.
-- **E-9 Interval.** Stats §2.4 prints 470000 as HF; HF is 500000. The 470000 value was not
-  verified against an Interlude source here.
-- **E-10 Misc, unused in Phase 1.** `MaxRunSpeed = 250` (doc: 300); `baseMDef` sums the right
-  ring twice (`PlayerTemplateData`); fists use random radius `5 + (int) sqrt(level)` (template
-  `baseRndDam` unused for players); an attack dealing 0 hate to a player-attacked mob adds 1.
-- **E-11 Table index 0.** CON[0] 0.45 and WIT[0] 0.39 differ from their comment expressions
-  (0.44, 0.38); the table is authoritative and index 0 is unreachable (base stats ≥ 1).
+- **E-8 The "77".** The HF normal attack uses 76. The value 77 occurs only in the crit additive term
+  (`CRITICAL_DAMAGE_ADD * 77 / defence`, which is zero without buffs) and in skill/blow damage.
+- **E-9 Interval.** Stats §2.4 prints 470000 as the HF value, but the HF value is 500000. We did not
+  compare the 470000 value with an Interlude source here.
+- **E-10 Misc, not used in Phase 1.** `MaxRunSpeed = 250` (the doc gives 300). `baseMDef` adds the right
+  ring two times (`PlayerTemplateData`). Fists use the random radius `5 + (int) sqrt(level)` (players do not use the template
+  `baseRndDam`). If an attack causes 0 hate to a mob that a player attacks, the attack adds 1.
+- **E-11 Table index 0.** CON[0] 0.45 and WIT[0] 0.39 are different from their comment expressions
+  (0.44, 0.38). The table is the authority, and the code cannot get to index 0 (base stats ≥ 1).
 
 ## Missing rows
 
-- Kamael starters (class 123/124) are omitted: Nightfall has no Kamael race.
-- XP row 87 exists in the source and is not used (only the L86 sentinel is).
-- Nothing in the E1.1 ledger was left unsourced.
-
+- The Kamael starters (class 123/124) are not included, because Nightfall has no Kamael race.
+- XP row 87 exists in the source, but Nightfall does not use it (Nightfall uses only the L86 sentinel).
+- All items in the E1.1 ledger have a source.
 ## E1.4 independent fidelity review
 
-The test-only [oracle](scripts/oracle.py) uses Python `Fraction`, integer square-root
-bounds and integer IEEE ties-even emulation for the resource-storage audit. It imports
-neither `gen_tables.py` nor Rust, reads literal `bonus`, HP/MP `levels`, weapon stats,
-XP and percentage rows, and never reads `_q` values or fitted quadratic coefficients.
-Its source expressions are transcribed independently and guarded against literal lines
-in `formulas.toml`. Static bonuses use the authoritative XML values, including E-11;
-they are not reinterpreted as exponential curves. Production has no new dependency.
+The [oracle](scripts/oracle.py) is only for tests. It uses Python `Fraction`, integer square-root
+bounds and an integer emulation of IEEE ties-even for the resource-storage audit. It does not import
+`gen_tables.py` or Rust. It reads the literal `bonus` rows, the HP/MP `levels` rows, the weapon stats,
+and the XP and percentage rows. It never reads the `_q` values or the fitted quadratic coefficients.
+We wrote its source expressions again independently, and the oracle compares them with the literal lines
+in `formulas.toml`. The static bonuses use the XML values, which are the authority (this includes E-11).
+The oracle does not change them into exponential curves. Production has no new dependency.
 
 ```bash
 python3 packages/data/scripts/oracle.py
@@ -134,96 +133,95 @@ python3 packages/data/scripts/oracle.py --check
 cargo test --test formula_fidelity
 ```
 
-The checked-in [golden](fixtures/oracle.json) stores independent per-axis results; Rust
-assembles expected sheets by lookup only. Input SHA-256 checks prevent stale fixtures
-when any table, class, NPC target or oracle script changes. The accompanying
-[rounding audit](fixtures/rounding-audit.json) has exact maximum differences and witnesses.
-It compares the pre-E1.4 contract with source semantics; it is not a tolerance file.
+The checked-in [golden](fixtures/oracle.json) file keeps the independent results for each axis. Rust
+makes the expected sheets only by lookup. If a table, a class, an NPC target or the oracle script changes, the input SHA-256 checks
+prevent out-of-date fixtures. The related
+[rounding audit](fixtures/rounding-audit.json) has the exact maximum differences and the witnesses.
+It compares the contract from before E1.4 with the source semantics. It is not a tolerance file.
 
 Coverage:
 
-- All **600** stat bonus rows (six tables, indices 0–99), all **85** LM and accuracy/evasion
-  addition rows, all **86** XP thresholds including the sentinel, every death-loss row.
-- All **765** original class/level profiles with sword and fists; each class/level also
-  uses the full Cartesian DEX/STR/CON grid **{1,9,25,30,43,64,99}³**, both armed and bare:
-  **524,790** grid sheets. Another **75,735** armed sheets exhaust all 99 legal values on
-  each attribute axis together. Total **602,055** deterministic sheet comparisons.
-- HP/MP quadratics checked against all **1,530 original resource rows**. DEX source
-  rounding checked at every index 0–99 and level 1–85; bounded square roots certify the
-  rounded result independently of production's Q approximation.
+- All **600** stat bonus rows (six tables, indices 0–99). All **85** LM and accuracy/evasion
+  addition rows. All **86** XP thresholds with the sentinel. Each death-loss row.
+- All **765** original class/level profiles, with the sword and with fists. Each class/level also
+  uses the full Cartesian DEX/STR/CON grid **{1,9,25,30,43,64,99}³**, armed and not armed. This gives
+  **524,790** grid sheets. A further **75,735** armed sheets use all 99 legal values on
+  each attribute axis together. The total is **602,055** deterministic sheet comparisons.
+- The HP/MP quadratics are examined against all **1,530 original resource rows**. The DEX source
+  rounding is examined at each index 0–99 and level 1–85. Bounded square roots make sure that the
+  rounded result is correct independently of the Q approximation of production.
 - **32,130** normal/critical damage vectors (nine profiles × 85 levels × 21 spreads × two
-  crit states) against the literal Keltir defence, with hate; **510** hate vectors across
-  all levels including zero and maximum `u32` damage; hate cap boundaries.
-- **700** speed/timing vectors including synthetic speed-cap inputs, **600** crit/cap
-  vectors, every roll 0–999 for fractional hit boundaries and all supported DEX crit rates.
-  Threshold ±1, each death/delevel boundary, XP saturation and sentinel are checked.
-- Two **1,024-case** property tests vary profiles, levels, all legal DEX/STR/CON values,
-  equipment, opponent levels/DEX, rolls, XP and rewards against those independent results.
-  Ertheia P.Atk, Interlude base-44 crit and the docs' CON=1.57 resource fixture remain
-  explicitly labelled legacy/fixture inputs, separate from production HF profiles.
+  crit states) against the literal Keltir defence, with hate. **510** hate vectors for
+  all levels, which include zero and the maximum `u32` damage. The hate cap boundaries.
+- **700** speed/timing vectors, which include synthetic inputs at the speed cap. **600** crit/cap
+  vectors. Each roll 0–999 for the fractional hit boundaries, and all the supported DEX crit rates.
+  The tests examine threshold ±1, each death/delevel boundary, the XP saturation and the sentinel.
+- Two **1,024-case** property tests change the profiles, levels, all legal DEX/STR/CON values,
+  equipment, opponent levels/DEX, rolls, XP and rewards. The tests compare the results with those independent results.
+  Ertheia P.Atk, the Interlude base-44 crit and the CON=1.57 resource fixture of the docs stay
+  as inputs with the explicit label legacy/fixture. They are separate from the production HF profiles.
 
-The rounding sites were re-read in pinned game revision `abfde0490ac52a2106e884b7242c0276c44cdf76`:
+We read the rounding sites again in the pinned game revision `abfde0490ac52a2106e884b7242c0276c44cdf76`:
 [CharStat.java](https://raw.githubusercontent.com/monkey1sai/l2j-server-game/abfde0490ac52a2106e884b7242c0276c44cdf76/src/main/java/com/l2jserver/gameserver/model/actor/stat/CharStat.java)
-`getAccuracy` and `getEvasionRate` use `(int) Math.round(calcStat(...))`;
-`getPAtkSpd` returns `Math.round(calcStat(...))`; `getCriticalHit` casts to int before
-adding `.5`. `PcStat.getPAtkSpd` caps the rounded result; `PcStat.getMaxHp/getMaxMp`
-cast the resource product to int. The interval and death-loss statements are retained
-verbatim in `formulas.toml` and `penalties.toml` respectively.
+`getAccuracy` and `getEvasionRate` use `(int) Math.round(calcStat(...))`.
+`getPAtkSpd` returns `Math.round(calcStat(...))`. `getCriticalHit` casts to int before
+it adds `.5`. `PcStat.getPAtkSpd` caps the rounded result. `PcStat.getMaxHp/getMaxMp`
+cast the resource product to int. `formulas.toml` keeps the interval statement exactly as written,
+and `penalties.toml` keeps the death-loss statement exactly as written.
 
 | Quantity/site | Maximum old-contract difference | Disposition / witness |
 |---|---|---|
-| Bonus lookups, LM, P.Atk/P.Def | 0 against exact literal expressions | All products for these source inputs are exactly representable at Q; unchanged. |
+| Bonus lookups, LM, P.Atk/P.Def | 0 against exact literal expressions | Q can show all products for these source inputs exactly. No change. |
 | Accuracy `Math.round` | 0.497188 stat units | Fixed: DEX 55, L1 was 45.497188, now 45. |
 | Evasion `Math.round` | 0.499884 stat units | Fixed: DEX 56, L82 was 142.499884, now 142. |
-| Hit chance after those getters | **19‰** (19 roll outcomes out of 1000) | Fixed: same-level DEX 26 attacker / DEX 21 target was 861‰, now 880‰. Source inclusive `roll <= chance` retained. The fractional rounding-error bound over all DEX pairs and all five evasion fractional additions is also 19‰, including differing levels. |
-| Crit `(int)` then `+0.5` | **0‰** | Unchanged floor; the integer cast makes the subsequent half ineffective. Rational binary64 emulation also finds no rate difference for sword/fists across all DEX indices. |
+| Hit chance after those getters | **19‰** (19 roll outcomes out of 1000) | Fixed: a same-level DEX 26 attacker against a DEX 21 target was 861‰, now 880‰. The source inclusive `roll <= chance` stays. The fractional rounding-error bound for all DEX pairs and all five evasion fractional additions is also 19‰, also with different levels. |
+| Crit `(int)` then `+0.5` | **0‰** | The floor does not change. Because of the integer cast, the half that follows has no effect. A rational binary64 emulation also finds no rate difference for sword/fists at all DEX indices. |
 | Attack speed `Math.round` | 0.49 speed units | Fixed: sword DEX 78 was 640.51, now 641. |
-| Attack interval integer cast, including speed rounding | **46261/19329 ms** (≈2.39335 ms) | Fixed: sword DEX 22, raw 25000000/19329 ms versus source 1291 ms. |
-| Half-interval integer division, including preceding operations | **32795/19329 ms** (≈1.69667 ms) | Fixed: same witness, source impact 645 ms. |
-| Impact/cycle tick deadlines | **1 tick** each | Fixed: fist DEX 39 impact was +8, now +7; fist DEX 17 cycle was +18, now +17. Tick ceiling is Nightfall's explicit 100 ms scheduling boundary. |
-| Death loss `Math.round` | **1 XP**, potentially **1 level** | Fixed: L5 loss 299→300; XP 3183 now becomes 2883/L4 instead of 2884/L5. L1 loss 6→7 cannot delevel below 1. |
-| HP from Java binary32 rows (then binary64 product and int cast) | **1 HP** on extended CON axis; **0** for all original profiles | Retain D3 exact-decimal floor: Dark Fighter L40, CON 79 gives 3363 versus Java 3362. No level/hit outcome changes. |
-| MP from Java binary32 rows (then binary64 product and int cast) | **1 MP** on extended MEN axis; **0** for all original profiles | Retain D3 exact-decimal floor: Dark Fighter L36, MEN 22 gives 321 versus Java 320. No level/hit outcome changes. |
-| Hate, XP thresholds/cap | **0** against rational source expressions | Unchanged; no rounding-site discrepancy. |
+| Attack interval integer cast, including speed rounding | **46261/19329 ms** (≈2.39335 ms) | Fixed: sword DEX 22, raw 25000000/19329 ms against source 1291 ms. |
+| Half-interval integer division, including preceding operations | **32795/19329 ms** (≈1.69667 ms) | Fixed: the same witness, source impact 645 ms. |
+| Impact/cycle tick deadlines | **1 tick** each | Fixed: the fist DEX 39 impact was +8, now +7. The fist DEX 17 cycle was +18, now +17. The tick ceiling is the explicit 100 ms schedule boundary of Nightfall. |
+| Death loss `Math.round` | **1 XP**, and possibly **1 level** | Fixed: L5 loss 299→300. XP 3183 now becomes 2883/L4 and not 2884/L5. The L1 loss 6→7 cannot delevel below 1. |
+| HP from Java binary32 rows (then binary64 product and int cast) | **1 HP** on the extended CON axis; **0** for all original profiles | Keep the D3 exact-decimal floor: Dark Fighter L40, CON 79 gives 3363, and Java gives 3362. No level/hit outcome changes. |
+| MP from Java binary32 rows (then binary64 product and int cast) | **1 MP** on the extended MEN axis; **0** for all original profiles | Keep the D3 exact-decimal floor: Dark Fighter L36, MEN 22 gives 321, and Java gives 320. No level/hit outcome changes. |
+| Hate, XP thresholds/cap | **0** against rational source expressions | No change. There is no difference at a rounding site. |
 
-The grid maxima are measured over all table indices (not just the seven-value Cartesian
-grid). Resource audit extends MEN as well as CON to all indices. The retained one-resource
-unit differences are explicitly permitted by the E1.4 gate; this is rational formula
-fidelity, not emulation of every Java binary64 intermediate in the combat pipeline.
+We measured the grid maxima over all table indices (not only the Cartesian grid of seven values).
+The resource audit extends MEN and CON to all indices. The E1.4 gate explicitly permits the differences of one resource
+unit that stay. This is fidelity to the rational formulas. It is not an emulation of each Java binary64 intermediate value in the combat pipeline.
 
-The decimal-parser consolidation also resolves two inconsistent admission rules: NPC
-strings ending in `.` now fail the shared plain-decimal grammar, and extra trailing zeros
-are accepted when the number is exactly representable at Q (e.g. `0.1234560`). Both loaders
-now accept the entire signed Q range including `-9223372036854.775808`; out-of-range
-neighbours still fail. NPC TOML float literals remain rejected. The shared module contains
-the union of both parser suites plus exact signed endpoint tests.
+The consolidation of the decimal parser also solves two admission rules that did not agree. NPC
+strings that end in `.` now fail the shared plain-decimal grammar. The parser accepts more trailing zeros
+when Q can show the number exactly (for example, `0.1234560`). The two loaders
+now accept the full signed Q range, which includes `-9223372036854.775808`. Neighbour values out of the range
+still fail. The loaders still reject NPC TOML float literals. The shared module has
+the union of the two parser suites, and also exact tests for the signed endpoints.
 
 ## Phase 2 class and race catalog provenance
 
-Provenance and reproduction for the Phase 2 race, profession, and growth catalogs. The catalog expands beyond Phase 1's 9 starting classes (`classes/*.toml`) to encompass all 89 classic professions across tiers 0..=3, 5 classic playable races, and 89 per-class growth tables, while preserving Phase 1 tables, starter classes, and fidelity oracles unchanged.
+This section gives the provenance and the reproduction steps for the Phase 2 race, profession and growth catalogs. The catalog extends past the 9 starting classes of Phase 1 (`classes/*.toml`). It includes all 89 classic professions in tiers 0..=3, 5 classic playable races, and 89 growth tables (one for each class). The Phase 1 tables, starter classes and fidelity oracles do not change.
 
 ### Pinned High Five source
 
 | Repository | Revision | Role |
 |---|---|---|
-| <https://bitbucket.org/l2jserver/l2j-server-datapack> (`develop`) | `3ca488dd2bd0bfaca43e378886a3c2e37968153a` (2026-09-13) | Class definitions, static attributes, skill trees, and per-level resource growth |
+| <https://bitbucket.org/l2jserver/l2j-server-datapack> (`develop`) | `3ca488dd2bd0bfaca43e378886a3c2e37968153a` (2026-09-13) | Class definitions, static attributes, skill trees, and the resource growth for each level |
 | <https://bitbucket.org/l2jserver/l2j-server-game> (`develop`) | `abfde0490ac52a2106e884b7242c0276c44cdf76` (2026-09-13) | CP CON-multiplier (`FuncMaxCpMul`) and integer floor (`PcStat.getMaxCp`) |
 
-Datapack files read (prefix `src/main/resources/data/stats/chars/`):
-- `classList.xml`: class IDs, parent links, and retail class names.
-- `src/main/resources/data/skillTrees/classSkillTree.xml`: level/SP gates, automatic grants, NPC learning flags, item requirements, Expertise and equipment mastery references.
-- `src/main/resources/data/stats/skills/*.xml`: targeted skill ID/name/level-range metadata for validating learning references, without copying skill effects.
-- `baseStats/*.xml`: 89 classic class XML templates containing `<staticData>` (base stats, movement speeds, collision boxes, environmental traits) and `<lvlUpgainData>` (85 per-level HP, MP, and CP rows).
-- Base fighter XML templates (`HumanFighter.xml`, `ElvenFighter.xml`, `DarkFighter.xml`, `OrcFighter.xml`, `DwarvenFighter.xml`) providing baseline race movement, collision, and traits.
+We read these datapack files (the prefix is `src/main/resources/data/stats/chars/`):
+- `classList.xml`: the class IDs, the parent links, and the retail class names.
+- `src/main/resources/data/skillTrees/classSkillTree.xml`: the level/SP gates, the automatic grants, the NPC learning flags, the item requirements, and the Expertise and equipment mastery references.
+- `src/main/resources/data/stats/skills/*.xml`: the skill ID/name/level-range metadata of the targeted skills. We use it to validate the learning references. We do not copy the skill effects.
+- `baseStats/*.xml`: 89 classic class XML templates. Each template has `<staticData>` (base stats, movement speeds, collision boxes, environmental traits) and `<lvlUpgainData>` (85 rows of HP, MP and CP, one for each level).
+- The base fighter XML templates (`HumanFighter.xml`, `ElvenFighter.xml`, `DarkFighter.xml`, `OrcFighter.xml`, `DwarvenFighter.xml`). They give the baseline race movement, collision and traits.
 
 ### Generated catalog directories
 
 | Directory | Count / Schema | Contents |
 |---|---|---|
-| `packages/data/races/*.toml` | 5 TOML files | 5 classic playable races (`human`, `elf`, `dark_elf`, `orc`, `dwarf`). Contains racial fighter-baseline movement speeds, decimal collision strings, environmental traits (`breath`, `safe_fall`), and racial passive skill descriptor keys. |
-| `packages/data/professions/*.toml` | 89 TOML files | 89 classic classes across tiers 0..=3 (tier distribution 9-18-31-31; IDs 0..=57 and 88..=118). Contains base stats summing to 170, class-specific movement, collision in integer world units at Q = 1,000,000, transfer token requirements, and subclass configuration. Reserved Kamael IDs 123..=136 are absent. |
-| `packages/data/skill_catalog.toml` | 378 targeted skill definitions | Source skill IDs, maximum levels, reference names and definition paths; runtime status is explicitly deferred. |
-| `packages/data/growth/*.csv` | 89 CSV files | Per-class resource growth for levels 1..=85. Each file contains header `level,hp,mp,cp` followed by 85 rows: 7,565 rows total, 22,695 exact HP/MP/CP plain decimal scalars (up to 6 decimal places, exact at Q = 1e-6). |
+| `packages/data/races/*.toml` | 5 TOML files | 5 classic playable races (`human`, `elf`, `dark_elf`, `orc`, `dwarf`). The files have the movement speeds of the racial fighter baseline, decimal collision strings, environmental traits (`breath`, `safe_fall`), and the descriptor keys of the racial passive skills. |
+| `packages/data/professions/*.toml` | 89 TOML files | 89 classic classes in tiers 0..=3 (tier distribution 9-18-31-31; IDs 0..=57 and 88..=118). The files have base stats with a sum of 170, the movement of each class, collision in integer world units at Q = 1,000,000, transfer token requirements, and subclass configuration. The reserved Kamael IDs 123..=136 are not there. |
+| `packages/data/skill_catalog.toml` | 378 targeted skill definitions | Source skill IDs, maximum levels, reference names and definition paths. The runtime status is explicitly deferred. |
+| `packages/data/growth/*.csv` | 89 CSV files | The resource growth of each class for levels 1..=85. Each file has the header `level,hp,mp,cp` and then 85 rows: 7,565 rows in total, 22,695 exact HP/MP/CP plain decimal scalars (up to 6 decimal places, exact at Q = 1e-6). |
 
 ### Regenerating and verifying
 
@@ -233,125 +231,136 @@ git -C /tmp/phase2-l2j-dp checkout 3ca488dd2bd0bfaca43e378886a3c2e37968153a
 python3 packages/data/scripts/gen_classes.py --datapack /tmp/phase2-l2j-dp --check
 ```
 
-The generation script `packages/data/scripts/gen_classes.py`:
-- Validates the exact pinned revision `3ca488dd2bd0bfaca43e378886a3c2e37968153a` and refuses modified, untracked, or ignored files in the character, skill-definition, and learning-tree source paths.
-- Extracts XML source strings verbatim, formatting plain decimals without floating-point conversion.
-- Generates all 5 race files, 89 profession files, 89 growth CSV files and the targeted skill reference catalog.
-- Refuses unknown skill IDs, source levels outside their definition range, duplicate learning/proficiency rows and unexpected files in generated directories during `--check`.
-- In `--check` mode, verifies that committed data files in `packages/data/` (`races/`, `professions/`, `growth/`) AND the compiled Rust inventory file at `apps/api/src/infrastructure/class_data_embedded.rs` match generated contents byte-for-byte.
+The generation script `packages/data/scripts/gen_classes.py` does these steps:
+- It validates the exact pinned revision `3ca488dd2bd0bfaca43e378886a3c2e37968153a`. It refuses changed, untracked or ignored files in the source paths for the character, the skill definitions and the learning tree.
+- It extracts the XML source strings exactly as written. It writes plain decimals without a floating-point conversion.
+- It makes all 5 race files, 89 profession files, 89 growth CSV files and the targeted skill reference catalog.
+- During `--check`, it refuses unknown skill IDs, source levels out of their definition range, duplicate learning/proficiency rows and unexpected files in the generated directories.
+- In `--check` mode, it compares the generated contents byte-for-byte with two sets of files. These are the committed data files in `packages/data/` (`races/`, `professions/`, `growth/`) AND the compiled Rust inventory file at `apps/api/src/infrastructure/class_data_embedded.rs`.
 
 ### Data extraction and lineage fidelity
 
-- **XML source exact strings**: Base stats, movement speeds, collision boxes, and `lvlUpgainData` values are transcribed directly as exact plain decimal strings (up to 6 fractional decimal digits, exact at Q = 1,000,000). Float literals are forbidden.
-- **Retail parent errata**: Retail `classList.xml` contains two defective parent links that break class lineage trees, corrected via `PARENT_ERRATA`:
-  - Class 34 (`Bladedancer` / `Edge Cantor`): retail lists `parentClassId="33"` (Shillien Knight). Corrected to `parentClassId="32"` (Palus Knight).
-  - Class 104 (`Elemental Master` / `Tide Sovereign`): retail lists `parentClassId="26"` (Elven Wizard). Corrected to `parentClassId="28"` (Elemental Summoner).
-- **Fixed 170 stat sum**: For all 89 classic classes, the six base stats (`STR + DEX + CON + INT + WIT + MEN`) sum to exactly 170.
-- **Lineage consistency**: For all non-root classes (tiers 1..=3), all combat-sourced static attributes match the lineage root class: `race`, `archetype`, `base_class_id`, and all six `base_stats` are identical to the root starter class.
+- **XML source exact strings**: The base stats, movement speeds, collision boxes and `lvlUpgainData` values are copied directly as exact plain decimal strings. These strings have up to 6 fractional decimal digits and are exact at Q = 1,000,000. Float literals are not permitted.
+- **Retail parent errata**: The retail `classList.xml` has two incorrect parent links that break the class lineage trees. `PARENT_ERRATA` corrects them:
+  - Class 34 (`Bladedancer` / `Edge Cantor`): retail gives `parentClassId="33"` (Shillien Knight). The correction is `parentClassId="32"` (Palus Knight).
+  - Class 104 (`Elemental Master` / `Tide Sovereign`): retail gives `parentClassId="26"` (Elven Wizard). The correction is `parentClassId="28"` (Elemental Summoner).
+- **Fixed 170 stat sum**: For all 89 classic classes, the sum of the six base stats (`STR + DEX + CON + INT + WIT + MEN`) is exactly 170.
+- **Lineage consistency**: All non-root classes (tiers 1..=3) have the same static attributes from combat sources as their lineage root class. Thus `race`, `archetype`, `base_class_id`, and all six `base_stats` are the same as in the root starter class.
 - **Source-explicit growth necessity (240 vs 27 curves)**:
-  - The 9 starter XML templates have 27 curves (9 classes × 3 resources HP/MP/CP), all of which are exact quadratics (`base + per_level*(L-1) + accel*(L-1)^2`).
-  - Across all 89 classes (267 curves total), 240 curves are non-quadratic due to transfer discontinuities and growth shifts around the level 20 and 40 transfer thresholds. Only the 27 base curves are quadratic.
-  - Storing explicit 85-row source tables (7,565 rows, 22,695 decimal scalars) is strictly necessary to maintain source fidelity across the entire catalog; single quadratic formulas cannot represent advancing professions.
+  - The 9 starter XML templates have 27 curves (9 classes × 3 resources HP/MP/CP). All of these curves are exact quadratics (`base + per_level*(L-1) + accel*(L-1)^2`).
+  - For all 89 classes (267 curves in total), 240 curves are not quadratic. This is because of the transfer discontinuities and the growth shifts near the level 20 and 40 transfer thresholds. Only the 27 base curves are quadratic.
+  - Thus it is necessary to store explicit source tables of 85 rows (7,565 rows, 22,695 decimal scalars) to keep source fidelity for the full catalog. One quadratic formula cannot show the professions that advance.
 
 ### Movement and collision semantics
 
 - **Racial baseline vs class-specific attributes**:
-  - `RaceDef` (and `RaceInfo`): Movement speeds (`walk`, `run`, `swim`) and collision dimensions (`radius_male`, `radius_female`, `height_male`, `height_female`) record the fighter baseline for that race (read from `HumanFighter.xml`, `ElvenFighter.xml`, etc.).
-  - `ClassDef`: Records the actual class movement and collision from each class's XML. Human Mystic (class ID 10) and Orc Mystic (class ID 49) differ from their racial fighter baselines (e.g. Human Mystic walk/run 78/120 vs Human Fighter 80/115; collision dimensions differ accordingly).
+  - `RaceDef` (and `RaceInfo`): The movement speeds (`walk`, `run`, `swim`) and the collision dimensions (`radius_male`, `radius_female`, `height_male`, `height_female`) record the fighter baseline for that race. The values come from `HumanFighter.xml`, `ElvenFighter.xml` and the other fighter files.
+  - `ClassDef`: Records the actual movement and collision of the class from the XML of each class. Human Mystic (class ID 10) and Orc Mystic (class ID 49) are different from their racial fighter baselines. For example, Human Mystic walk/run is 78/120, and Human Fighter is 80/115. The collision dimensions are also different.
 - **Unit representations**:
-  - In race files (`races/*.toml`): Collision dimensions are stored as exact decimal strings in reference world units (e.g. `radius_male = "9.0"`, `height_male = "23"`).
-  - In profession files (`professions/*.toml`): Collision dimensions are stored as integers at fixed-point Q = 1,000,000 world units (`Scaled`, e.g. `radius_male = 9000000`, `height_male = 23000000`).
-  - Movement speeds are whole integers in reference world units per second.
+  - In race files (`races/*.toml`): The collision dimensions are exact decimal strings in reference world units (for example, `radius_male = "9.0"`, `height_male = "23"`).
+  - In profession files (`professions/*.toml`): The collision dimensions are integers at fixed-point Q = 1,000,000 world units (`Scaled`, for example `radius_male = 9000000`, `height_male = 23000000`).
+  - The movement speeds are whole integers in reference world units per second.
 
 ### Start points, reference zones, and naming conventions
 
-- **Start points and fixture zones**: `start_points` in `races/*.toml` are set to fixture test coordinates `[[0, 0]]` within `test_zone` (with respawn safe point `[126, 126]`).
-- **Reference starting zones**: `reference_starting_zone` (`talking_island_village`, `elven_village`, `dark_elf_village`, `orc_village`, `dwarven_village`) is purely informational metadata pointing to classic starter villages; these are NOT implemented villages.
+- **Start points and fixture zones**: `start_points` in `races/*.toml` have the value of the fixture test coordinates `[[0, 0]]` in `test_zone` (with the respawn safe point `[126, 126]`).
+- **Reference starting zones**: `reference_starting_zone` (`talking_island_village`, `elven_village`, `dark_elf_village`, `orc_village`, `dwarven_village`) is only information metadata. It refers to the classic starter villages. These villages are NOT implemented.
 - **Naming identity**:
-  - `l2_ref`: Retains exact, unmodified retail names (e.g. "Human Fighter", "Warrior", "Gladiator", "Duelist").
-  - `display_name`: Curated original draft mutable metadata for Nightfall (e.g. "Human Armsbearer", "Steel Initiate", "Twinblade Champion", "Blade Paragon").
-  - The 89 original Nightfall labels and fixture starting positions are design metadata, separate from the cited retail values.
+  - `l2_ref`: Keeps the exact retail names without changes (for example, "Human Fighter", "Warrior", "Gladiator", "Duelist").
+  - `display_name`: The original draft metadata for Nightfall, which we selected and which can change (for example, "Human Armsbearer", "Steel Initiate", "Twinblade Champion", "Blade Paragon").
+  - The 89 original Nightfall labels and the fixture starting positions are design metadata. They are separate from the cited retail values.
 
 ### Deferred hooks and future phase boundaries
 
-- **Class skill tree and proficiencies**: `SkillLearnDef` (`skill_tree`) contains the complete source learning rows for all 9 base classes, 18 first classes, and the 12 second-class MVP professions (`[2, 5, 8, 9, 12, 16, 17, 27, 33, 46, 52, 55]`, 6,927 entries total). The 50 other direct trees are marked `deferred`, while ancestor entries remain queryable. `ProficiencyDef` records 3,521 source equipment mastery and Expertise unlock rows across all 89 classes. Source-exact learning level gates (`required_level` / `getLevel`) govern learning availability, not active class skill effects.
-- **Automatic metadata grants**: Sourced `autoGet` entries grant persisted metadata on character creation, transfer, or level-up (max level per key at zero SP charge). Manual learning flows, SP expenditures, and skill effects are Phase 3 excluded.
-- **Item requirement hooks**: 48 learning entries require items; keys use canonical `l2.item.<id>` with a positive unsigned 32-bit ID, pointing to future inventory item definitions.
-- **Known skill reference catalog**: `packages/data/skill_catalog.toml` defines 378 targeted skill entries with known IDs, maximum levels, and source XML paths; runtime status is strictly `Deferred` (runtime engine absent).
-- **Racial passive keys**: `passive_skill_keys` in `races/*.toml` (e.g. `racial.adaptable`, `racial.forest_step`, `racial.shadow_precision`, `racial.iron_constitution`, `racial.pack_mule`) are descriptor strings gated behind the future Phase 3 skill registry. Server runtime effects are defined by progression and combat rules.
-- **Reserved Kamael IDs**: Classic catalog IDs include 0..=57 and 88..=118; Kamael IDs 123..=136 are absent (Nightfall has no Kamael race).
+- **Class skill tree and proficiencies**: `SkillLearnDef` (`skill_tree`) has all the source learning rows for 9 base classes, 18 first classes and 12 second-class MVP professions. The MVP professions are `[2, 5, 8, 9, 12, 16, 17, 27, 33, 46, 52, 55]`, and there are 6,927 entries in total. The 50 other direct trees have the mark `deferred`, but it is possible to query the ancestor entries. `ProficiencyDef` records 3,521 source rows of equipment mastery and Expertise unlocks for all 89 classes. The source-exact learning level gates (`required_level` / `getLevel`) control when a skill is available to learn. They do not control the active class skill effects.
+- **Automatic metadata grants**: The sourced `autoGet` entries give metadata that is kept at character creation, transfer or level-up. The grant is the maximum level for each key, at a charge of zero SP. Phase 3 does not include manual learning flows, SP expenditures and skill effects.
+- **Item requirement hooks**: 48 learning entries must have items. The keys use the canonical `l2.item.<id>` with a positive unsigned 32-bit ID. They refer to future inventory item definitions.
+- **Known skill reference catalog**: `packages/data/skill_catalog.toml` defines 378 targeted skill entries with known IDs, maximum levels and source XML paths. The runtime status is always `Deferred` (there is no runtime engine).
+- **Racial passive keys**: `passive_skill_keys` in `races/*.toml` (for example, `racial.adaptable`, `racial.forest_step`, `racial.shadow_precision`, `racial.iron_constitution`, `racial.pack_mule`) are descriptor strings. They are not used until the future Phase 3 skill registry exists. The progression and combat rules define the server runtime effects.
+- **Reserved Kamael IDs**: The classic catalog IDs include 0..=57 and 88..=118. The Kamael IDs 123..=136 are not there (Nightfall has no Kamael race).
 
 ### Level progression, transfer gates, and subclass eligibility
 
-- **Level cap**: Authoritative source level cap and playable level cap remain 85, preserving Phase 1.
-- **Transfer gate**: Catalog files specify transfer token requirements across tiers 1..=3 (`class_transfer_token_1`, `class_transfer_token_2`, `class_transfer_token_3`). However, the application transfer gate is capped at transfer 2. Third-tier professions (tier 3, min level 76, IDs 88..=118) exist in catalog metadata and validation but are currently unreachable in gameplay under the transfer gate.
+- **Level cap**: The source level cap (which is the authority) and the playable level cap stay at 85, as in Phase 1.
+- **Transfer gate**: The catalog files specify transfer token requirements for tiers 1..=3 (`class_transfer_token_1`, `class_transfer_token_2`, `class_transfer_token_3`). But the application transfer gate has a cap at transfer 2. The third-tier professions (tier 3, min level 76, IDs 88..=118) exist in the catalog metadata and validation. But because of the transfer gate, a player cannot get to them in the game now.
 - **Subclass eligibility model** (`apps/api/src/domain/subclass.rs`):
-  - Pure eligibility verification model without mutating character state or learning skills; village-master dialogue and interaction flows are deferred.
+  - This is only a model that examines eligibility. It does not change the character state, and it does not learn skills. The village-master dialogue and interaction flows are deferred.
   - Subclasses start at level 40 (`SUBCLASS_START_LEVEL = 40`).
-  - Subclass level cap is authoritative main level cap minus 5 (`subclass_level_cap(85) = 80`).
-  - Up to 3 additional subclass slots per character (`MAX_SUBCLASSES = 3`).
-  - Certification limits: 4 certifications per subclass slot (`CERTIFICATIONS_PER_SUBCLASS = 4`), up to 12 total across all three slots (`MAX_CERTIFICATIONS = 12`).
+  - The subclass level cap is the main level cap (which is the authority) minus 5 (`subclass_level_cap(85) = 80`).
+  - Each character can have a maximum of 3 more subclass slots (`MAX_SUBCLASSES = 3`).
+  - Certification limits: 4 certifications for each subclass slot (`CERTIFICATIONS_PER_SUBCLASS = 4`), and a maximum of 12 in total for all three slots (`MAX_CERTIFICATIONS = 12`).
   - Subclass eligibility criteria:
-    - Main class must have completed the second transfer (tier ≥ 2).
-    - Main level must be at least 75.
-    - Subclass quest completed (`quest_completed = true`) or noble status (`noble = true`).
-    - Additional subclass slots not exhausted (< 3).
-    - Candidate profession must be tier 2 and permitted (`subclass_allowed = true`; Overlord ID 51 and Warsmith ID 57 are forbidden).
+    - The main class must have done the second transfer (tier ≥ 2).
+    - The main level must be a minimum of 75.
+    - The subclass quest is complete (`quest_completed = true`), or the character has noble status (`noble = true`).
+    - Not all of the more subclass slots are used (< 3).
+    - The candidate profession must be tier 2 and permitted (`subclass_allowed = true`; Overlord ID 51 and Warsmith ID 57 are not permitted).
     - Racial restriction: Elf and Dark Elf lineages cannot cross.
-    - Equivalence restriction: Candidate cannot match or share an equivalence set with any held profession (main or existing subclasses) via `subclass_equivalents`.
+    - Equivalence restriction: The candidate cannot be the same as a held profession (the main class or the subclasses that exist). Through `subclass_equivalents`, it also cannot be in the same equivalence set.
 
 ### Registry validation, canonical hashing, and Phase 1 preservation
 
-- **Startup loader and deserialization validation**: `infrastructure::class_data::load_classes` loads all catalog files at startup. `ClassRegistry` serde deserialization (`try_from = "RegistryParts"`) re-executes `validate()`, guaranteeing that deserializing saved snapshots revalidates all catalog invariants (IDs, stat totals, tier gates, parent links, non-decreasing growth, subclass configurations, collision positivity, strict nested fields, and known skill ID/level bounds).
-- **Canonical config hash**: `ResolvedClasses.config_hash` is a SHA-256 digest over the canonical JSON encoding of `(&registry, &provenance)`. It tracks all resolved metadata, source provenance, and growth tables, while remaining insensitive to TOML whitespace/comments and equivalent accepted decimal representations. CSV headers and contiguous four-column rows remain strict; comments and whitespace outside plain decimal cells are rejected.
-- **Phase 1 preservation**: Phase 1 stat tables (`tables/*.toml`), starter classes (`classes/*.toml`), formula tests (`formula_fidelity`), and independent verification fixtures (`oracle.py`, `oracle.json`, `rounding-audit.json`) remain completely intact and unchanged. The 89 original curated draft Nightfall display names are separate mutable design metadata, while retail names remain in `l2_ref`. Fixture start positions remain `[0, 0]`.
+- **Startup loader and deserialization validation**: `infrastructure::class_data::load_classes` loads all catalog files at startup. The `ClassRegistry` serde deserialization (`try_from = "RegistryParts"`) runs `validate()` again. Thus, when the code deserializes saved snapshots, it validates all catalog invariants again. The invariants are the IDs, stat totals, tier gates and parent links. They also include growth that does not decrease, subclass configurations, positive collision values, strict nested fields, and the ID/level bounds of known skills.
+- **Canonical config hash**: `ResolvedClasses.config_hash` is a SHA-256 digest of the canonical JSON encoding of `(&registry, &provenance)`. It includes all resolved metadata, the source provenance and the growth tables. TOML whitespace/comments and equivalent accepted decimal forms do not change it. The CSV headers and the contiguous rows of four columns stay strict. The parser rejects comments and whitespace out of the plain decimal cells.
+- **Phase 1 preservation**: The Phase 1 stat tables (`tables/*.toml`), starter classes (`classes/*.toml`), formula tests (`formula_fidelity`) and independent verification fixtures (`oracle.py`, `oracle.json`, `rounding-audit.json`) stay complete. They do not change. The 89 original draft Nightfall display names, which we selected, are separate design metadata that can change. The retail names stay in `l2_ref`. The fixture start positions stay `[0, 0]`.
 
 ### Independent reviews, verification boundaries, and catalog size
 
-- **Independent read-only review v1**: Review of `53be185` verified all 89 classes, 5 races, 7,565 rows and 22,695 exact resource values. It identified three admission bugs:
-  1. *Class collision dimensions*: `validate_class` checked movement but omitted positive collision dimensions.
-  2. *Nested unknown fields*: nested `BaseStats`, `RaceDef`, and `GrowthRow` lacked `deny_unknown_fields`.
-  3. *Generator `--check`*: verified expected files without comparing directory inventories (orphan file miss).
-  Commit `e02ee69` resolved all three (12 catalog tests, all-targets clippy `-D warnings`, fmt, tests, and gen check passing).
-- **Independent field-tuple audit v2**: Audited `e02ee69`, independently extracting and verifying all 6,927 learning rows (SP costs, default bools, NPC learning, 48 item requirements), 3,521 proficiency rows, 378 known source definitions (runtime status `Deferred`), 89 classes, and 7,565 growth rows (22,695 scalars).
-- **Review findings and disposition**: The second audit found two admission gaps: a pinned Git HEAD permitted modified source inputs, and nonempty item references could contain invalid retail IDs. Follow-up validation now rejects dirty source input paths and accepts only canonical positive `l2.item.<u32>` IDs for learning requirements. Tests cover source revision/working-tree admission and malformed learning references in both startup loading and snapshot deserialization. The follow-up passed 13 Rust catalog tests, 3 Python provenance tests, all-targets clippy with warnings denied, formatting, and source regeneration checks. The independent audit verified the shipped tuples before these fixes; the fixes have separate regression coverage.
-- **Catalog size and snapshot integration**: Independent Python compact JSON reconstruction across all resolved catalog fields yields 2,048,521 raw bytes (~2.05 MB; zlib fast 207,161 bytes, default 156,512 bytes). This is an independent approximate-equivalent measurement of the catalog encoding, rather than a full zone checkpoint, and motivates compressed checkpoint storage.
+- **Independent read-only review v1**: The review of `53be185` examined all 89 classes, 5 races, 7,565 rows and 22,695 exact resource values. It found three admission bugs:
+  1. *Class collision dimensions*: `validate_class` examined the movement, but it did not examine that the collision dimensions are positive.
+  2. *Nested unknown fields*: the nested `BaseStats`, `RaceDef` and `GrowthRow` did not have `deny_unknown_fields`.
+  3. *Generator `--check`*: it examined the expected files, but it did not compare the directory inventories (it did not find orphan files).
+  Commit `e02ee69` solved all three (12 catalog tests, all-targets clippy `-D warnings`, fmt, tests and the gen check passed).
+- **Independent field-tuple audit v2**: This audit examined `e02ee69`. It independently extracted and examined these items:
+  - All 6,927 learning rows (SP costs, default bools, NPC learning, 48 item requirements).
+  - 3,521 proficiency rows.
+  - 378 known source definitions (runtime status `Deferred`).
+  - 89 classes.
+  - 7,565 growth rows (22,695 scalars).
+- **Review findings and disposition**: The second audit found two admission gaps. A pinned Git HEAD permitted changed source inputs, and item references that were not empty could have incorrect retail IDs. The validation that followed now rejects source input paths that are not clean. For learning requirements, it accepts only canonical positive `l2.item.<u32>` IDs. Tests cover the admission of the source revision/working tree and incorrect learning references, at startup load and at snapshot deserialization. The follow-up passed 13 Rust catalog tests, 3 Python provenance tests, all-targets clippy with warnings denied, formatting and the source regeneration checks. The independent audit examined the released tuples before these fixes. The fixes have separate regression coverage.
+- **Catalog size and snapshot integration**: We made an independent Python compact JSON reconstruction of all resolved catalog fields. It gives 2,048,521 raw bytes (~2.05 MB; zlib fast 207,161 bytes, default 156,512 bytes). This is an independent measurement that is approximately equivalent to the catalog encoding. It is not a full zone checkpoint. This measurement is the reason for compressed checkpoint storage.
 
 
 ### CP maximum multiplier
 
 The pinned game source at `abfde0490ac52a2106e884b7242c0276c44cdf76` uses the same
-CON multiplier for CP as HP. `FuncMaxCpMul.calc` multiplies the template's CP row
-by `BaseStats.CON.calcBonus(effector)`; `PcStat.getMaxCp` casts the resulting
-positive value to an integer. Nightfall therefore floors the exact CP × CON product,
-using the existing Q arithmetic and no binary floating point. Sources:
+CON multiplier for CP as for HP. `FuncMaxCpMul.calc` multiplies the CP row of the template
+by `BaseStats.CON.calcBonus(effector)`. `PcStat.getMaxCp` casts the positive value that results
+to an integer. Thus Nightfall calculates the floor of the exact CP × CON product.
+It uses the Q arithmetic that exists and no binary floating point. Sources:
 [FuncMaxCpMul.java](https://raw.githubusercontent.com/monkey1sai/l2j-server-game/abfde0490ac52a2106e884b7242c0276c44cdf76/src/main/java/com/l2jserver/gameserver/model/stats/functions/formulas/FuncMaxCpMul.java)
 and [PcStat.java](https://raw.githubusercontent.com/monkey1sai/l2j-server-game/abfde0490ac52a2106e884b7242c0276c44cdf76/src/main/java/com/l2jserver/gameserver/model/actor/stat/PcStat.java).
-The Phase 2 catalog stores pre-multiplier CP, including fractional source rows; the
+The Phase 2 catalog stores the CP before the multiplier, with the fractional source rows. The
 server applies CON when it builds the active class sheet.
 
 ### Source learning and proficiency coverage
 
-The populated second-class IDs are **2, 5, 8, 9, 12, 16, 17, 27, 33, 46, 52, 55**,
-as specified by the Phase 2 MVP slice. Together with all bases and first transfers,
-these provide 39 direct learning trees and 6,927 source entries. Each entry retains
-`skillId`, `skillLvl`, `getLevel`, `levelUpSp` (zero when absent), `autoGet`,
-`learnedByNpc`, and optional item ID/count requirements. Stable keys are
-`l2.skill.<id>` and `l2.item.<id>`; source names remain `l2_ref`.
+The second-class IDs that have data are **2, 5, 8, 9, 12, 16, 17, 27, 33, 46, 52, 55**,
+as the Phase 2 MVP slice specifies. Together with all bases and first transfers,
+these give 39 direct learning trees and 6,927 source entries. Each entry keeps
+`skillId`, `skillLvl`, `getLevel`, `levelUpSp` (zero when it is not there), `autoGet`,
+`learnedByNpc`, and the optional item ID/count requirements. The stable keys are
+`l2.skill.<id>` and `l2.item.<id>`. The source names stay in `l2_ref`.
 
-All 89 classes carry their source equipment mastery and Expertise rows as proficiency
-metadata (3,521 entries), inherited through the corrected class graph. Expertise 239
-unlocks at 20/40/52/61/76/80/84 for levels 1..7. Equipment mastery names are explicitly
-selected; Cubic Mastery, Skill Mastery and Focus Skill Mastery are outside equipment
-proficiency scope. The 378 distinct referenced skills are cross-checked against the
-pinned skill-definition XML IDs and maximum levels and serialized with the registry.
-Every known skill's runtime status remains `deferred`: metadata grants do not claim
-that the Phase 3 effects engine exists. Automatic grants may persist progress at zero
-SP cost; manual learning and effect execution remain future work.
+All 89 classes have their source equipment mastery and Expertise rows as proficiency
+metadata (3,521 entries). They inherit these rows through the corrected class graph. Expertise 239
+unlocks at 20/40/52/61/76/80/84 for levels 1..7. We selected the equipment mastery names explicitly.
+Cubic Mastery, Skill Mastery and Focus Skill Mastery are not in the scope of equipment
+proficiency. The 378 different referenced skills are compared with the
+IDs and maximum levels of the pinned skill-definition XML, and are serialized with the registry.
+The runtime status of each known skill stays `deferred`. The metadata grants do not say
+that the Phase 3 effects engine exists. Automatic grants can keep progress at a cost of zero
+SP. Manual learning and the execution of effects are future work.
 
 ## Phase 3 skill data, pvp, regen, and keltir sp reward
 
-Provenance and reproduction for the Phase 3 skill definitions, capability executability classification, PvP/karma tables, resource regeneration rules, and starter NPC SP reward.
+This section gives the provenance and the reproduction steps for these Phase 3 items:
+
+- The skill definitions.
+- The classification of capability executability.
+- The PvP/karma tables.
+- The resource regeneration rules.
+- The SP reward of the starter NPC.
 
 ### Pinned High Five source
 
@@ -360,80 +369,80 @@ Provenance and reproduction for the Phase 3 skill definitions, capability execut
 | <https://bitbucket.org/l2jserver/l2j-server-datapack> (`develop`) | `3ca488dd2bd0bfaca43e378886a3c2e37968153a` (2026-09-13) | Skill definitions, NPC templates, karma increase multipliers |
 | <https://bitbucket.org/l2jserver/l2j-server-game> (`develop`) | `abfde0490ac52a2106e884b7242c0276c44cdf76` (2026-09-13) | Formulas for skill damage, success rates, traits, interruption, resurrection, regeneration, karma gain/lost |
 
-Files read:
+We read these files:
 - Datapack (`src/main/resources/data/`):
   - `stats/skills/*.xml`: All targeted skill definitions (378 catalog skills + 5076 + 9 transitive referenced skills + 286 sample).
-  - `stats/npcs/20500-20599.xml`: NPC 20545 (`Young Keltir`) SP reward (`sp="2"`).
-  - `stats/chars/pcKarmaIncrease.xml`: 85 per-level karma loss multipliers.
+  - `stats/npcs/20500-20599.xml`: The SP reward of NPC 20545 (`Young Keltir`) (`sp="2"`).
+  - `stats/chars/pcKarmaIncrease.xml`: 85 karma loss multipliers, one for each level.
 - Game (`src/main/java/com/l2jserver/gameserver/`):
   - `model/stats/Formulas.java`:
     - `calcSkillPhysDam`: Physical skill damage and critical hits (`lines 746-809`).
     - `calcMagicDam`: Magical skill damage and magic critical hits (`lines 815-898`).
-    - `calcMagicSuccess`: Success rate for magic attacks (`lines 1286-1314`).
-    - `calcEffectSuccess`: Success rate for debuffs and abnormal effects with traits and mAtkMod (`lines 1158-1232`).
-    - `calcAtkBreak`: Damage interruption rate for physical/magic casting (`lines 992-1025`).
-    - `calcAttributeBonus`: Elemental attribute power vs defence multiplier (`lines 1440-1560`).
-    - `calcHpRegen`, `calcMpRegen`, `calcCpRegen`: Resource regeneration rates and multipliers (`lines 263-460`).
+    - `calcMagicSuccess`: The success rate for magic attacks (`lines 1286-1314`).
+    - `calcEffectSuccess`: The success rate for debuffs and abnormal effects, with traits and mAtkMod (`lines 1158-1232`).
+    - `calcAtkBreak`: The damage interruption rate for physical/magic casting (`lines 992-1025`).
+    - `calcAttributeBonus`: The multiplier of elemental attribute power against defence (`lines 1440-1560`).
+    - `calcHpRegen`, `calcMpRegen`, `calcCpRegen`: The resource regeneration rates and multipliers (`lines 263-460`).
     - `HP_REGENERATE_PERIOD = 3000`: 3000 ms (30 ticks at 100 ms/tick), `line 109`.
-    - `calculateSkillResurrectRestorePercent`: Pinned resurrection XP restoration formula (`lines 1372-1386`).
-    - `calculateKarmaGain`, `calculateKarmaLost`: Karma gain upon player kill and karma loss upon XP gain (`lines 1814-1848`).
+    - `calculateSkillResurrectRestorePercent`: The pinned resurrection XP restoration formula (`lines 1372-1386`).
+    - `calculateKarmaGain`, `calculateKarmaLost`: The karma gain when a player kills a player, and the karma loss when XP increases (`lines 1814-1848`).
   - `model/actor/L2Character.java`:
-    - `doRevive()`: Base revival vitals (`lines 2098-2124`).
+    - `doRevive()`: The base revival vitals (`lines 2098-2124`).
   - `model/actor/instance/L2PcInstance.java`:
-    - `doRevive(double revivePower)`: Player revival calls doRevive() then restoreExp (`lines 7984-7986`); XP refund Math.round at `4700-4702`.
+    - `doRevive(double revivePower)`: The player revival calls doRevive() and then restoreExp (`lines 7984-7986`). The XP refund Math.round is at `4700-4702`.
 
 ### Generated skill definitions and catalogue
 
-- `packages/data/skills/*.toml`: 389 one-file-per-skill definitions generated by `packages/data/scripts/gen_skills.py`.
-  - 378 catalog skills referenced by the 39 populated class learning trees.
+- `packages/data/skills/*.toml`: 389 skill definitions, one file for each skill. `packages/data/scripts/gen_skills.py` makes them.
+  - 378 catalog skills that the 39 class learning trees with data refer to.
   - Skill 5076 (`Death Penalty`, passive).
-  - 9 transitive referenced skills discovered through effect parameters (`997, 5603, 5604, 5676, 5677, 5678, 6090, 6687, 6920`).
-  - Skill 286 (`Provoke`, sample-only reference, marked `sample_only = true`).
-  - Classification: **208 executable**, **181 deferred** overall (**199 executable**, **179 deferred** among the 378 catalogue skills).
-  - Executability evaluated per Tier B capability rules (zone-design-v3 §1.1). `TargetMe` is explicitly deferred with `effect:TargetMe`.
-- `packages/data/skill_catalog.toml`: Regenerated with computed `runtime_status` (`"executable"` or `"deferred"`) matching each skill's blocker analysis.
+  - 9 transitive referenced skills that we found through effect parameters (`997, 5603, 5604, 5676, 5677, 5678, 6090, 6687, 6920`).
+  - Skill 286 (`Provoke`, a reference only for the sample, with the mark `sample_only = true`).
+  - Classification: **208 executable** and **181 deferred** in total (**199 executable** and **179 deferred** in the 378 catalogue skills).
+  - The executability of each skill comes from the Tier B capability rules (zone-design-v3 §1.1). `TargetMe` is explicitly deferred with `effect:TargetMe`.
+- `packages/data/skill_catalog.toml`: Regenerated with the calculated `runtime_status` (`"executable"` or `"deferred"`). This value agrees with the blocker analysis of each skill.
 
 ### Tables and NPC updates
 
-- `packages/data/npcs/keltir.toml`: Added `sp_reward = 2` sourced from pinned Young Keltir NPC 20545 (`D/src/main/resources/data/stats/npcs/20500-20599.xml`). `xp_reward = 28` remains tunable.
+- `packages/data/npcs/keltir.toml`: We added `sp_reward = 2`. Its source is the pinned Young Keltir NPC 20545 (`D/src/main/resources/data/stats/npcs/20500-20599.xml`). `xp_reward = 28` stays tunable.
 - `packages/data/tables/pvp.toml`:
-  - Flag durations: `pvp_flag_ticks = 1200` (120 s normal), `pvp_flag_low_ticks = 600` (60 s when attacking purple).
-  - Karma gain constants from `Formulas.calculateKarmaGain` (lines 1830-1848).
-  - Karma lost divisor `30` and all 85 rows of `pcKarmaIncrease.xml` as exact decimal strings (levels 1..=85).
-  - Drop rules on chaotic death are explicitly omitted (not part of Phase 3).
+  - Flag durations: `pvp_flag_ticks = 1200` (120 s normal), `pvp_flag_low_ticks = 600` (60 s when the player attacks a purple player).
+  - The karma gain constants from `Formulas.calculateKarmaGain` (lines 1830-1848).
+  - The karma lost divisor `30` and all 85 rows of `pcKarmaIncrease.xml` as exact decimal strings (levels 1..=85).
+  - The item drop rules at a chaotic death are explicitly not included (they are not part of Phase 3).
 - `packages/data/tables/regen.toml`:
   - Period: `hp_regenerate_period_ms = 3000` (30 ticks).
   - Movement multipliers: `sitting = "1.5"`, `standing = "1.1"`, `moving = "0.7"`.
   - Stat dependencies: CON for HP/CP, MEN for MP.
-  - Base regen curve source: class templates (`packages/data/classes/*.toml`).
+  - The source of the base regen curve: the class templates (`packages/data/classes/*.toml`).
 
 
 ### DATA review 1 corrections and verification
 
-- All 389 definitions parse with `tomllib`, including deferred definitions. Serialization uses recursive arrays of tables for conditions and stat children and checks structural round-trip equality. All source sets and every referenced rank table are retained; unresolved, short, or malformed tables are errors.
-- Stat conditions are source apply conditions (`DocumentBase.java:246–247`), including bare `<using>`, `<player>` and boolean nodes. Unsupported leaves defer all affected skills; 94/148/171/225/290/291/293/294/1297 are deferred and 217 retains its SWORD/BLUNT condition. Full XML conditions and their unsupported attribute strings are retained at each site.
-- Parameter names/values, operations and scope filters are admitted explicitly. Supported stat operations are mul/add/sub; div/set/share defer. Scope filters ALL/default and NOT_FRIEND are admitted, with other filters including FRIEND deferred until implemented (`AffectObjectStaticImpl.java:32–38,58–63,84–99`).
-- Pinned defaults: missing magicLvl=0, ranges=-1, abnormalLvl=0 (`Skill.java:212–214,273`); abnormal clamp 10/90 (`character.properties:277–278`, `Skill.java:276–277`); cast-speed cap 1999 (`character.properties:268`, `CharStat.java:252`). Locked reuse is imported (`Skill.java:204`, `L2Character.java:1514–1524`). C5 resolves the earlier architecture/v3 default contradictions.
-- The independent oracle contains 24 formula sets / 1,203 vectors. Corrected continuous 500/550 ms staging launches immediately and impacts 400 ms later (`L2Character.java:1625–1643,4577–4581`). Zero/sub-ms and <=100-ms cases use the original task skillTime truncation, with minimum one Nightfall completion tick.
-- TickHp uses binary32 division before widening (`AbstractEffect.java:148–149`), then binary64 power/products (`TickHp.java:62–71`). Source fractional results are separate from D-R12 whole-damage/Q-restoration adaptations. Fixtures include CP absorption after HP-1 clamping (`TickHp.java:75–76`, `PcStatus.java:185–194`), dynamic PER reads, multi-pulse Q carry and full-clamp clearing; regen minimum standing traces yield cumulative 1/2/3 and Q remainder 100000/200000/300000.
-- Rational karma truncation is not universally Java-equivalent. Level 2, XP 6208133913, multiplier 2.069377971 yields rational 100000000 vs binary64 99,999,999. The oracle models literal/long conversion and each division's IEEE rounding separately (`Formulas.java:1814–1820`), with the pinned RateKarmaLost=1 input (`config/rates.properties:56`).
-- Additional source observations: skill 60 specifies `nextActionAttack="fake_death"` (`stats/skills/00000-00099.xml:1929`); the game reads a boolean (`Skill.java:279`, `StatsSet.java:112–121`), so the normalized value is false and the raw string is retained. `AbstractEffect.java:70–72` retains attachCond but comments out applyCond assignment, although `DocumentBase.java:270` parses it. DATA still preserves effect conditions and defers unsupported leaves per the binding capability rule; this observation does not silently change the execution contract.
+- All 389 definitions parse with `tomllib`, and this includes the deferred definitions. The serialization uses recursive arrays of tables for the conditions and the stat children. It also examines that the structure is equal after a round trip. All source sets and each referenced rank table stay. Unresolved, short or incorrect tables are errors.
+- The stat conditions are the source apply conditions (`DocumentBase.java:246–247`), with bare `<using>`, `<player>` and boolean nodes. If a leaf is not supported, all the skills that it affects are deferred. Skills 94/148/171/225/290/291/293/294/1297 are deferred, and skill 217 keeps its SWORD/BLUNT condition. The full XML conditions and their unsupported attribute strings stay at each site.
+- The parameter names/values, the operations and the scope filters are admitted explicitly. The supported stat operations are mul/add/sub. The operations div/set/share cause a deferral. The scope filters ALL/default and NOT_FRIEND are admitted. The other filters (FRIEND also) are deferred until they are implemented (`AffectObjectStaticImpl.java:32–38,58–63,84–99`).
+- Pinned defaults: when they are not there, magicLvl=0, ranges=-1 and abnormalLvl=0 (`Skill.java:212–214,273`). The abnormal clamp is 10/90 (`character.properties:277–278`, `Skill.java:276–277`). The cast-speed cap is 1999 (`character.properties:268`, `CharStat.java:252`). The locked reuse is imported (`Skill.java:204`, `L2Character.java:1514–1524`). C5 solves the earlier default contradictions between the architecture and v3.
+- The independent oracle has 24 formula sets / 1,203 vectors. The corrected continuous 500/550 ms staging starts immediately, and the impact occurs 400 ms later (`L2Character.java:1625–1643,4577–4581`). The zero/sub-ms cases and the <=100-ms cases use the original truncation of the task skillTime. The minimum is one Nightfall completion tick.
+- TickHp uses binary32 division before it widens the value (`AbstractEffect.java:148–149`). Then it uses binary64 power/products (`TickHp.java:62–71`). The source fractional results are separate from the D-R12 adaptations for whole damage and Q restoration. The fixtures include CP absorption after the HP-1 clamp (`TickHp.java:75–76`, `PcStatus.java:185–194`) and dynamic PER reads. They also include Q carry over many pulses and the clear operation after a full clamp. The minimum regen traces when standing give the cumulative values 1/2/3 and the Q remainders 100000/200000/300000.
+- Rational karma truncation is not always equivalent to Java. Level 2, XP 6208133913 and the multiplier 2.069377971 give the rational value 100000000, but binary64 gives 99,999,999. The oracle models the literal/long conversion and the IEEE rounding of each division separately (`Formulas.java:1814–1820`), with the pinned input RateKarmaLost=1 (`config/rates.properties:56`).
+- More source observations: skill 60 specifies `nextActionAttack="fake_death"` (`stats/skills/00000-00099.xml:1929`). The game reads a boolean (`Skill.java:279`, `StatsSet.java:112–121`). Thus the normalized value is false, and the raw string stays. `AbstractEffect.java:70–72` keeps attachCond but puts the applyCond assignment in a comment, but `DocumentBase.java:270` parses it. DATA still keeps the effect conditions and defers the unsupported leaves, as the binding capability rule specifies. This observation does not change the execution contract without a record.
 
 ## Additive Phase 3 class magical and regeneration templates
 
 `classes-phase3/<profession-key>.toml` is a separate schema-1 V5 input for all 89
-classic classes. It does not replace `classes/`, `professions/`, `growth/`, or any
-historical stat-rule input. The existing `tables/regen.toml` `base_regen_source`
-pointer predates these profiles: **use `classes-phase3/` for V5 regen bases**.
-Keep this registry and the NPC `[phase3]` section in the Phase3Rules hash, outside
-the legacy class/stat hash. The engine owner must consume the new fields through
-its Phase 3 loader; the existing strict NPC loader does not yet admit them
+classic classes. It does not replace `classes/`, `professions/`, `growth/` or a
+historical stat-rule input. The `base_regen_source` pointer in `tables/regen.toml`
+is older than these profiles: **use `classes-phase3/` for V5 regen bases**.
+Keep this registry and the NPC `[phase3]` section in the Phase3Rules hash, out of
+the legacy class/stat hash. The engine owner must read the new fields through
+its Phase 3 loader. The strict NPC loader that exists now does not admit them yet
 (`apps/api/src/infrastructure/npc_data.rs:59-84`).
 
-Generation reads only the pinned local datapack
+The generation reads only the pinned local datapack
 `3ca488dd2bd0bfaca43e378886a3c2e37968153a` and game
-`abfde0490ac52a2106e884b7242c0276c44cdf76`. Both revision and clean source inputs
-(including ignored/untracked inputs) are checked before writing. Reproduce:
+`abfde0490ac52a2106e884b7242c0276c44cdf76`. Before it writes, it examines the revision and makes sure that the source inputs are clean
+(this includes ignored/untracked inputs). To make the output again, run:
 
 ```bash
 python3 packages/data/scripts/gen_class_phase3.py \
@@ -447,33 +456,33 @@ python3 packages/data/scripts/skill_oracle.py --class-phase3 --check
 python3 -m unittest discover -s packages/data/scripts/tests
 ```
 
-`--check` compares exact contents, detects extra files in `classes-phase3/`, and
-verifies the generated NPC suffix without rewriting it. Generation only appends
-or replaces its delimited `[phase3]` suffix in `npcs/keltir.toml`; all bytes before
-that suffix are preserved. Existing generated data and historical oracle vectors
-are preserved. The separate new fixture is `fixtures/skill-oracle-class-phase3.json`.
+`--check` compares the exact contents and finds extra files in `classes-phase3/`. It also
+examines the generated NPC suffix and does not write it again. The generation only adds
+or replaces its delimited `[phase3]` suffix in `npcs/keltir.toml`. All bytes before
+that suffix stay the same. The generated data that exists and the historical oracle vectors
+stay the same. The separate new fixture is `fixtures/skill-oracle-class-phase3.json`.
 
 Class profile fields:
 
 | Table/key | Meaning and pinned source |
 |---|---|
-| `id`, `key`, `parent`, `base_class_id`, `tier`, `min_level` | Same catalog identity and corrected graph as `gen_classes.py`. Own XML is selected by `classId`; no ancestor curve is substituted. The existing classList errata (34→32 and 104→28) remain those documented in the Phase 2 provenance above. |
-| `base_stats` | Exact six static XML attributes for that class; no effects or racial hooks applied. `HumanFighter.xml:5-10` is an example. |
-| `magical.base_m_atk` | Class template's XML `staticData/baseMAtk`, not an equipped weapon override (`HumanFighter.xml:24`; game `L2CharTemplate.java:108,332-333`, `CharStat.java:237-246`). |
-| `magical.base_m_def` | Loaded template total: rear + lear + **rfinger twice** + neck, preserving `PlayerTemplateData.java:106-108`. Example XML slots are `HumanFighter.xml:25-31`. |
-| `magical.m_def_slots_xml`, `magical.m_def_slots` | Literal slots plus the actual `getBaseDefBySlot` mapping. `L2PcTemplate.java:71-75` also uses RFINGER for LFINGER. `FuncMDefMod.java:44-66` subtracts occupied-slot bases before MEN/level multipliers. |
-| `magical.base_m_atk_speed` | Cast-speed base; missing in all 89 XML staticData sections, so sourced from `L2CharTemplate.java:112` default **333**. This is distinct from the physical `basePAtkSpd`. Getter uses this base at `CharStat.java:258` and caps/truncates at `:259-262`; pinned cap **1999** is in `character.properties:268`. |
-| `magical.base_m_critical` | Missing XML `baseMCritRate` defaults to **0**, `L2CharTemplate.java:119`. The actual magic-crit stat getter instead starts at **1**, `CharStat.java:270-275`; do not substitute this template field for that getter input. |
-| `combat_getter_bases.accuracy`, `.evasion`, `.magic_critical` | Stat-getter initial values **0**, **0**, **1** (`CharStat.java:108-109,171-174,270-275`). Accuracy/evasion are not staticData bases; their built-in Funcs provide derived additions. |
-| `regen.kind`, `regen.levels` | `kind="per_level"`, exactly 85 rows, each with integer `level` and original decimal strings `hp_regen`, `mp_regen`, `cp_regen`. Each value has its class XML path:line comment. There are 7,565 rows / 22,695 scalars. |
+| `id`, `key`, `parent`, `base_class_id`, `tier`, `min_level` | The same catalog identity and corrected graph as `gen_classes.py`. The generator selects the XML of the class by `classId`. It does not use an ancestor curve in its place. The classList errata (34→32 and 104→28) stay as the Phase 2 provenance above records them. |
+| `base_stats` | The exact six static XML attributes for that class. No effects or racial hooks are applied. `HumanFighter.xml:5-10` is an example. |
+| `magical.base_m_atk` | The XML `staticData/baseMAtk` of the class template, not an override from an equipped weapon (`HumanFighter.xml:24`; game `L2CharTemplate.java:108,332-333`, `CharStat.java:237-246`). |
+| `magical.base_m_def` | The loaded template total: rear + lear + **rfinger two times** + neck, as in `PlayerTemplateData.java:106-108`. The example XML slots are `HumanFighter.xml:25-31`. |
+| `magical.m_def_slots_xml`, `magical.m_def_slots` | The literal slots and the actual `getBaseDefBySlot` mapping. `L2PcTemplate.java:71-75` also uses RFINGER for LFINGER. `FuncMDefMod.java:44-66` subtracts the bases of occupied slots before the MEN/level multipliers. |
+| `magical.base_m_atk_speed` | The cast-speed base. It is not in all 89 XML staticData sections, thus its source is the `L2CharTemplate.java:112` default **333**. This is different from the physical `basePAtkSpd`. The getter uses this base at `CharStat.java:258`, and it caps/truncates at `:259-262`. The pinned cap **1999** is in `character.properties:268`. |
+| `magical.base_m_critical` | When the XML `baseMCritRate` is not there, it is **0** by default, `L2CharTemplate.java:119`. But the actual magic-crit stat getter starts at **1**, `CharStat.java:270-275`. Do not use this template field as that getter input. |
+| `combat_getter_bases.accuracy`, `.evasion`, `.magic_critical` | The initial values of the stat getters are **0**, **0**, **1** (`CharStat.java:108-109,171-174,270-275`). Accuracy/evasion are not staticData bases. Their built-in Funcs give the derived additions. |
+| `regen.kind`, `regen.levels` | `kind="per_level"`, exactly 85 rows. Each row has an integer `level` and the original decimal strings `hp_regen`, `mp_regen`, `cp_regen`. Each value has a comment with its class XML path:line. There are 7,565 rows / 22,695 scalars. |
 
 **Player regen is per level, not a class scalar.** `PlayerTemplateData.java:111-123`
-loads every `lvlUpgainData/level/*Regen` node into `L2PcTemplate`'s three double
-arrays (`L2PcTemplate.java:41-43,59-61,96-103`). Its getters index those arrays by
+loads each `lvlUpgainData/level/*Regen` node into the three double arrays of `L2PcTemplate`
+(`L2PcTemplate.java:41-43,59-61,96-103`). Its getters index those arrays by
 the current level (`:135-152`), and Formulas selects these getters
-(`Formulas.java:264,358,444`). Every class has its own complete rows, just like the
-HP/MP/CP growth inputs in `gen_classes.py`; in this pinned revision all 89 regen
-curves happen to agree. They still vary with level:
+(`Formulas.java:264,358,444`). Each class has its own complete rows, as for the
+HP/MP/CP growth inputs in `gen_classes.py`. In this pinned revision, all 89 regen
+curves agree, but this is by chance. They still change with the level:
 
 | Level | HP base | MP base | CP base | Example `HumanFighter.xml` lines |
 |---|---|---|---|---|
@@ -482,156 +491,171 @@ curves happen to agree. They still vary with level:
 | 40 | `5.4` | `1.8` | `4.5` | 375-377 |
 | 85 | `9.9` | `3.0` | `8.5` | 735-737 |
 
-These are **pre-formula** values. Player HP/CP multiply by level modifier and CON,
-MP by level modifier and MEN; `Math.max(1,init)` is applied before regen-stat
-functions, followed by config and posture multipliers
-(`Formulas.java:334-349,419-434,442-453`). Level modifier is `(level+89)/100`
-(`L2Character.java:5007-5008`). Standing is 11/10, running 7/10, walking 1;
-sitting 3/2 is source behavior but outside Phase 3. Pinned character config
-multipliers are 1.00 (`character.properties:47-49`). No stat, posture, clamp, or
-bonus is pre-applied to the emitted class rows.
+These values are **pre-formula** values. Player HP/CP is multiplied by the level modifier and CON.
+MP is multiplied by the level modifier and MEN. `Math.max(1,init)` is applied before the regen-stat
+functions, and then the config and posture multipliers are applied
+(`Formulas.java:334-349,419-434,442-453`). The level modifier is `(level+89)/100`
+(`L2Character.java:5007-5008`). Standing is 11/10, running is 7/10 and walking is 1.
+Sitting 3/2 is source behavior, but it is not in Phase 3. The pinned character config
+multipliers are 1.00 (`character.properties:47-49`). No stat, posture, clamp or
+bonus is applied before to the emitted class rows.
 
 ### Young Keltir 20545 additive NPC inputs
 
-The new `npcs/keltir.toml` `[phase3]` section cites
-`stats/npcs/20500-20599.xml:3648-3661`. `[phase3.xml]` preserves **M.Atk 5.78704,
+The new `[phase3]` section in `npcs/keltir.toml` cites
+`stats/npcs/20500-20599.xml:3648-3661`. `[phase3.xml]` keeps **M.Atk 5.78704,
 M.Def 29.5916164000214, HP regen 2, MP regen 0.9, accuracy 4.75** as source
-decimal strings (`:3659-3661`); source attributes are at `:3658`.
+decimal strings (`:3659-3661`). The source attributes are at `:3658`.
 `NpcData.java:164-185` loads those values into StatsSet. The inherited template
-getters differ from the raw XML:
+getters are different from the raw XML:
 
 - `[phase3.template]` has **M.Atk 5 / M.Def 29**, because `L2CharTemplate.java:108,110`
   calls `getInt` on parsed Numbers and `StatsSet.java:241-247` uses `intValue()`.
-  Cast-speed base is **333** from the same `L2CharTemplate.java:112` default;
+  The cast-speed base is **333** from the same `L2CharTemplate.java:112` default.
   `hitTime=370` (`npc XML:3669`) is not a cast-speed base.
 - HP/MP regen are **scalar inherited getters**, not level arrays.
-  `L2NpcTemplate.java:100-101` calls the superclass constructor;
+  `L2NpcTemplate.java:100-101` calls the superclass constructor.
   `L2CharTemplate.java:105-106,311-319` stores/returns binary32 values.
-  The new template table preserves the exact getter rationals: HP `2`,
-  MP `7549747/8388608` (binary32 conversion of decimal 0.9).
-  Retain that rational until the formula clamp; do not silently truncate it to Q.
-- Formulas uses scalar NPC regen without player CON/MEN/level/posture bonuses
-  (`Formulas.java:264,358,343-349,428-434`). MP's initial value below 1 is clamped
-  to 1. CP regeneration is player-only (`:442-453`), so the section explicitly
-  records `cp_regen_kind="not_applicable"` and supplies no invented CP scalar.
-- XML accuracy is an unused TODO in `NpcData.java:174`; evasion is likewise a
+  The new template table keeps the exact getter rationals: HP `2`,
+  MP `7549747/8388608` (the binary32 conversion of decimal 0.9).
+  Keep that rational until the formula clamp. Do not truncate it to Q without a record.
+- Formulas uses the scalar NPC regen without the player CON/MEN/level/posture bonuses
+  (`Formulas.java:264,358,343-349,428-434`). If the initial value of MP is less than 1, it is clamped
+  to 1. CP regeneration is only for players (`:442-453`). Thus the section explicitly
+  records `cp_regen_kind="not_applicable"` and does not supply an invented CP scalar.
+- The XML accuracy is a TODO in `NpcData.java:174`, and the code does not use it. Evasion is also a
   TODO at `:185`. The real getter inputs are zero (`CharStat.java:108-109,171-174`).
-  The section preserves the XML accuracy separately and does not apply it twice.
-  Existing `sp_reward=2` (`npc XML:3657`) and tunable physical/HP/MP/XP values stay
-  unchanged.
+  The section keeps the XML accuracy separately and does not apply it two times.
+  The `sp_reward=2` that exists (`npc XML:3657`) and the tunable physical/HP/MP/XP values do
+  not change.
 
 ### Template-driven oracle and validation
 
 `skill_oracle.py --class-phase3` emits **6 formula groups / 290 vectors** in the
-new fixture. All six requested starters (Human Fighter/Mystic, Elven Mystic,
-Dark Elf Fighter, Orc Mystic, Dwarven Fighter) occur at **1/20/40/85** for
-FuncMAtkMod, FuncMDefMod, FuncMAtkSpeed and all three regen functions, with
-standing/running/walking regen and NPC HP/MP cases. The six class names map to
-the existing profession keys; Dark Elf Fighter is `dark_fighter`.
+new fixture. The fixture has all six requested starters (Human Fighter/Mystic, Elven Mystic,
+Dark Elf Fighter, Orc Mystic, Dwarven Fighter). They occur at **1/20/40/85** for
+FuncMAtkMod, FuncMDefMod, FuncMAtkSpeed and all three regen functions. They include
+regen when standing/running/walking and the NPC HP/MP cases. The six class names agree with
+the profession keys that exist. Dark Elf Fighter is `dark_fighter`.
 
-Expectations use independent Fraction arithmetic over emitted template values
-and literal stat-bonus tables. M.Atk uses base×INT²×levelMod²
-(`FuncMAtkMod.java:42-46`); M.Def uses the empty-jewelry base×MEN×levelMod
-(`FuncMDefMod.java:44-66`); speed uses base×WIT then getter cap/truncation
-(`FuncMAtkSpeed.java:42-43`, `CharStat.java:258-262`). Cases explicitly specify
-unarmed/empty jewelry, no modifiers, no injected RNG, config multipliers and
-no estate/zone bonus. The fixture records exact rationals, intermediates,
-rounding sites, Q values, three-pulse remainder traces, input SHA-256s and a
-canonical vector-set SHA-256. Q conversion floors only at the final formula
-boundary, as in the existing oracle; whole-resource transfer retains the
-remainder under D-R12. This is exact-decimal formula evidence, not a claim of
-universal Java binary64 equivalence. NPC binary32 getter conversion is modeled
-with the integer-only IEEE adapter and independently checked with `struct`.
+The expected values use independent Fraction arithmetic on the emitted template values
+and the literal stat-bonus tables. M.Atk uses base×INT²×levelMod²
+(`FuncMAtkMod.java:42-46`). M.Def uses the empty-jewelry base×MEN×levelMod
+(`FuncMDefMod.java:44-66`). Speed uses base×WIT and then the getter cap/truncation
+(`FuncMAtkSpeed.java:42-43`, `CharStat.java:258-262`). The cases explicitly specify
+no weapon/empty jewelry, no modifiers, no injected RNG, the config multipliers and
+no estate/zone bonus. The fixture records the exact rationals, the intermediate values, the
+rounding sites and the Q values. It also records the remainder traces of three pulses, the input SHA-256s and a
+canonical vector-set SHA-256. The Q conversion calculates the floor only at the final formula
+boundary, as in the oracle that exists. The transfer of whole resources keeps the
+remainder under D-R12. This is evidence for the exact-decimal formulas. It does not say that the result is
+equivalent to Java binary64 in all conditions. The NPC binary32 getter conversion is modeled
+with the integer-only IEEE adapter, and `struct` examines it independently.
 
-`test_gen_class_phase3.py` independently audits every class, graph mapping,
-static magic base/slot and every regen literal against pinned XML. It also tests
-missing levels/regen, source revision/dirty-input rejection, asymmetric rings
-(to catch accidental correction of the source's duplicated RFINGER), orphan
-and stale-file detection, NPC prefix preservation, getter conversions, requested
-oracle coverage, exact expectations and fractional carry.
+`test_gen_class_phase3.py` independently audits each class, the graph mapping, the
+static magic base/slot and each regen literal against the pinned XML. It also tests
+these conditions:
+
+- Levels/regen that are not there.
+- The rejection of a source revision or of dirty inputs.
+- Asymmetric rings (to find an accidental correction of the duplicated RFINGER of the source).
+- The detection of orphan and out-of-date files.
+- The preservation of the NPC prefix.
+- The getter conversions.
+- The requested oracle coverage.
+- The exact expected values and the fractional carry.
 
 ## Phase 3 equipped starter weapon and remaining caps
 
-`gen_class_phase3.py` also produces `tables-phase3/starter_weapon.toml` and
-`tables-phase3/constants.toml`. These are separate V5 inputs: include their complete
-contents in the Phase3Rules hash, never the legacy StatRules hash. The separate
-folder deliberately avoids `oracle.py`'s historical `tables/*.toml` scan;
-`tables/starter_weapon.toml`, all prior fixtures and their input hashes stay exact.
-The generator admits the pinned weapon XML as a clean source input, validates TOML
-before writing, and `--check` detects drift and orphan files in both Phase 3 folders.
+`gen_class_phase3.py` also makes `tables-phase3/starter_weapon.toml` and
+`tables-phase3/constants.toml`. These are separate V5 inputs. Include their complete
+contents in the Phase3Rules hash, and never in the legacy StatRules hash. The separate
+folder is intentionally out of the historical `tables/*.toml` scan of `oracle.py`.
+`tables/starter_weapon.toml`, all the earlier fixtures and their input hashes stay exactly the same.
+The generator admits the pinned weapon XML as a clean source input, and validates the TOML
+before it writes. `--check` finds differences and orphan files in the two Phase 3 folders.
 Use the same `gen_class_phase3.py --datapack ... --game ... [--check]` command above.
 
 The pinned datapack `src/main/resources/data/stats/items/02300-02399.xml:844-867`
 identifies Squire's Sword **2369**. Its type **SWORD** (`:847`) supports the equipped
-`using kind` condition; bodypart **rhand** (`:848`), random damage **10** (`:849`)
-and attack range **40 L2 units** (`:850`) are preserved. `[[functions]]` carries
+`using kind` condition. The bodypart **rhand** (`:848`), the random damage **10** (`:849`)
+and the attack range **40 L2 units** (`:850`) stay. `[[functions]]` has
 all four source SET Funcs in XML order: **pAtk 6** (`:862`), **mAtk 5** (`:863`),
-**critRate 8** (`:864`), **pAtkSpd 379** (`:865`). Each entry contains operation,
-resolved priority, XML ordinal, exact decimal string, Q value and file:line provenance.
-There are no extra weapon stat Funcs in that `for` block (`:861-866`).
+**critRate 8** (`:864`), **pAtkSpd 379** (`:865`). Each entry has the operation, the
+resolved priority, the XML ordinal, the exact decimal string, the Q value and the file:line provenance.
+There are no more weapon stat Funcs in that `for` block (`:861-866`).
 
-Weapon SET does **not add to the class M.Atk base**. The pinned game
-`engines/DocumentBase.java:230-247` supplies missing order as -1;
-`model/stats/functions/FuncTemplate.java:48-54` resolves it to the enum default;
-`enums/StatFunction.java:30` declares SET priority **0**. Then
-`model/stats/functions/FuncSet.java:36-40` returns the weapon value, replacing the
-getter's template initial value (`model/actor/stat/CharStat.java:237-246`).
-`model/stats/Calculator.java:110-127,183-188` folds in ascending priority, with
-insertion order for equal priorities. `FuncMAtkMod.java:37-46` runs at priority
-**1** and multiplies that replaced value by INT bonus squared and level modifier
-squared. `model/actor/L2Character.java:5007-5008` defines the level modifier.
-The new profile's `[ordering]` records the full pinned repository/revision/file/line
+The weapon SET does **not add to the class M.Atk base**. In the pinned game,
+`engines/DocumentBase.java:230-247` gives -1 when the order is not there.
+`model/stats/functions/FuncTemplate.java:48-54` changes it to the enum default.
+`enums/StatFunction.java:30` declares the SET priority **0**. Then
+`model/stats/functions/FuncSet.java:36-40` returns the weapon value. This value replaces the
+template initial value of the getter (`model/actor/stat/CharStat.java:237-246`).
+`model/stats/Calculator.java:110-127,183-188` applies the functions in ascending priority. For equal priorities, it uses the
+insertion order. `FuncMAtkMod.java:37-46` runs at priority
+**1**. It multiplies that replaced value by the square of the INT bonus and by the square of the level
+modifier. `model/actor/L2Character.java:5007-5008` defines the level modifier.
+The `[ordering]` of the new profile records the full pinned repository/revision/file/line
 provenance for these semantics.
 
-The separate `[constants]` entries preserve **MaxMCritRate 200**, **MaxRunSpeed
-250**, **RunSpeedBoost 0**, from the pinned game
+The separate `[constants]` entries keep **MaxMCritRate 200**, **MaxRunSpeed
+250** and **RunSpeedBoost 0** from the pinned game
 `src/main/resources/config/character.properties:260,252,31` respectively. Each
-entry carries integer value, original literal, file, line and symbol; the top-level
-source carries the pinned repository and revision. Existing `tables/formulas.toml`
-and its legacy hash remain unchanged.
+entry has the integer value, the original literal, the file, the line and the symbol. The top-level
+source has the pinned repository and revision. `tables/formulas.toml`
+and its legacy hash do not change.
 
-`starter_weapon_oracle.py` generates
-`fixtures/skill-oracle-starter-weapon-phase3.json`: **24 FuncMAtkMod vectors**,
-covering the same six reference classes at levels **1/20/40/85** as the unarmed
-class-profile fixture. Each vector records template initial value, order-0 weapon
-replacement, priority-1 result, unarmed result and an incorrect-addition comparator.
-The six class XML `staticData/baseMAtk` values are **6**, with each profile/vector
-citing its source file; the equipped base is **5** (`stats/items/02300-02399.xml:863`).
-Expectations use independent Fraction arithmetic: `5 * INT_bonus^2 * levelMod^2`,
-then floor once to Q; whole-number floor is display evidence only. This is exact
-rational evidence and the existing Q adaptation, not a Java binary64 equivalence
-claim. Input SHA-256s include the new weapon table, six profiles, stat-bonus table
-and oracle script; a separate canonical vector-set SHA-256 covers the expectations.
+`starter_weapon_oracle.py` makes
+`fixtures/skill-oracle-starter-weapon-phase3.json`: **24 FuncMAtkMod vectors**.
+They cover the same six reference classes at levels **1/20/40/85** as the class-profile fixture
+without a weapon. Each vector records the template initial value, the order-0 weapon
+replacement and the priority-1 result. It also records the result without a weapon and a comparator for an incorrect addition.
+The six class XML `staticData/baseMAtk` values are **6**, and each profile/vector
+cites its source file. The equipped base is **5** (`stats/items/02300-02399.xml:863`).
+The expected values use independent Fraction arithmetic: `5 * INT_bonus^2 * levelMod^2`,
+and then one floor operation to Q. The whole-number floor is only evidence for the display. This is exact
+rational evidence and the Q adaptation that exists. It does not say that the result is equivalent to Java binary64.
+The input SHA-256s include the new weapon table, the six profiles, the stat-bonus table
+and the oracle script. A separate canonical vector-set SHA-256 covers the expected values.
 
 ```sh
 python3 -B packages/data/scripts/starter_weapon_oracle.py
 python3 -B packages/data/scripts/starter_weapon_oracle.py --check
 ```
 
-`check_all.py` now runs this independent oracle check as well as the existing
-checks. `test_starter_weapon_phase3.py` audits all weapon functions against XML,
-SET defaults/semantics against Java, cap literals against exact config lines,
-missing/unsupported/invalid weapon functions, full requested coverage,
-replacement-versus-addition arithmetic and historical table/manifest preservation.
+`check_all.py` now runs this independent oracle check together with the checks that
+exist. `test_starter_weapon_phase3.py` audits these items:
+
+- All weapon functions against the XML.
+- The SET defaults/semantics against Java.
+- The cap literals against the exact config lines.
+- The weapon functions that are not there, not supported or not valid.
+- The full requested coverage.
+- The arithmetic of replacement against addition.
+- The preservation of the historical tables/manifests.
 
 ### Additive Phase 3 NPC penalties and hit conditions
 
-`gen_class_phase3.py` also owns `tables-phase3/npc_level_penalty.toml` and
-`tables-phase3/hit_condition_bonus.toml` (via `gen_npc_phase3.py`). Hash their
-complete bytes separately into Phase3Rules; historical tables, class profiles,
-fixtures and oracle script remain byte-exact. Run the existing generator command
-with `--game`, `--datapack` and `--check`; `check_all.py` checks both tables and
-`scripts/npc_phase3/skill_oracle.py --check`. This separate oracle path preserves
-`fixtures/skill-oracle.json`'s existing hash of `scripts/skill_oracle.py`.
+`gen_class_phase3.py` (through `gen_npc_phase3.py`) is also responsible for `tables-phase3/npc_level_penalty.toml` and
+`tables-phase3/hit_condition_bonus.toml`. Hash all their
+bytes separately into Phase3Rules. The historical tables, class profiles,
+fixtures and oracle script stay byte-exact. Run the generator command that exists
+with `--game`, `--datapack` and `--check`. `check_all.py` examines the two tables and
+`scripts/npc_phase3/skill_oracle.py --check`. This separate oracle path keeps
+the hash of `scripts/skill_oracle.py` that `fixtures/skill-oracle.json` has now.
 
-Pinned game `src/main/resources/config/npc.properties:54,61-63,70,74` contains
-minimum NPC levels **78/78**, normal damage **0.7,0.6,0.6,0.55**, critical damage
-**0.75,0.65,0.6,0.58**, skill damage **0.8,0.7,0.65,0.62**, and magic failure
-multipliers **2.5,3.0,3.25,3.5**. All source entries, including unreachable index
-zero entries, are preserved as exact decimal strings and Q integers with line
-provenance. The source has an indexing quirk: damage gates on target minus acting
-player level >= **2**, then indexes **gap-1**; chance gates on gap >= **3**, then
-indexes **gap-2**. Both saturate to the final entry. Thus the effective rows are:
+The pinned game `src/main/resources/config/npc.properties:54,61-63,70,74` has these values:
+
+- The minimum NPC levels **78/78**.
+- The normal damage **0.7,0.6,0.6,0.55**.
+- The critical damage **0.75,0.65,0.6,0.58**.
+- The skill damage **0.8,0.7,0.65,0.62**.
+- The magic failure multipliers **2.5,3.0,3.25,3.5**.
+
+All source entries stay as exact decimal strings and Q integers with line
+provenance. This includes the index zero entries that the code cannot get to. The source has an unusual index rule. The gap is the target level minus the acting
+player level. Damage starts when the gap is >= **2**, and then it uses the index **gap-1**. Chance starts when the gap is >= **3**, and then it uses the
+index **gap-2**. The two saturate at the final entry. Thus the effective rows are:
 
 | Target minus acting-player level | Auto normal | Auto critical | Magic damage | Physical skill normal | Physical skill critical | Magic failure factor |
 |---|---|---|---|---|---|---|
@@ -640,40 +664,44 @@ indexes **gap-2**. Both saturate to the final entry. Thus the effective rows are
 | 4 | 0.55 | 0.58 | 0.62 | 0.341 | 0.3596 | 3.25 |
 | 5 and above | 0.55 | 0.58 | 0.62 | 0.341 | 0.3596 | 3.5 |
 
-These rows follow pinned game `model/stats/Formulas.java:713-731` (auto),
-`:776-800` (physical skill, skill factor times normal/critical factor),
-`:887-898` (magic damage) and `:1286-1314` (magic success). Eligibility also
-requires an attackable non-raid, non-raid-minion target, target level at least the
-configured damage minimum and a non-null acting player. Physical skills use
-`instanceof L2Attackable`; other paths use `isAttackable`. Chance **also reads
-MinNPCLevelForDmgPenalty**, leaving MinNPCLevelForMagicPenalty unused here
-(`:1291`). Failed gates mean unity. Chance scales the **failure subtrahend**:
+These rows come from the pinned game `model/stats/Formulas.java:713-731` (auto),
+`:776-800` (physical skill, the skill factor times the normal/critical factor),
+`:887-898` (magic damage) and `:1286-1314` (magic success). For eligibility, these conditions are also necessary:
+
+- An attackable target that is not a raid and not a raid minion.
+- A target level that is a minimum of the configured damage minimum.
+- An acting player that is not null.
+
+Physical skills use
+`instanceof L2Attackable`. The other paths use `isAttackable`. Chance **also reads
+MinNPCLevelForDmgPenalty**, thus MinNPCLevelForMagicPenalty is not used here
+(`:1291`). If a gate fails, the factor is unity. Chance scales the **failure subtrahend**:
 `100 - Math.round((float)(1.3^lvlDifference * targetModifier * resModifier))`,
-with success strictly `Rnd.get(100) < rate` (`:1288-1301,1313`). Skill magic level
+and the success is strictly `Rnd.get(100) < rate` (`:1288-1301,1313`). The skill magic level
 controls the exponential difference, but the acting-player level controls the
-NPC penalty eligibility/index. No RNG is consumed by the table lookup itself.
+eligibility/index of the NPC penalty. The table lookup itself does not use RNG.
 
-Pinned datapack `src/main/resources/data/stats/hitConditionBonus.xml:3-9`
-contains back **10**, dark **-10**, front **0**, high **3**, low **-3**, rain **-3**,
-side **5** (percent additions). Game
-`data/xml/impl/HitConditionBonusData.java:75-81,92-118` loads all seven rows;
-starts at **100**, adds high iff source Z difference **>50**, low iff **<-50**,
-dark at night, then exactly one of back/front/side in that precedence. Returns
-`max(mod/100,0)`. Rain is loaded but unused (`:104-105`). Facing/height/night are
-source inputs, not permission to invent Phase 3 position/time mechanics; the
-engine must decide supported input capabilities explicitly.
+The pinned datapack `src/main/resources/data/stats/hitConditionBonus.xml:3-9`
+has back **10**, dark **-10**, front **0**, high **3**, low **-3**, rain **-3**,
+side **5** (percent additions). The game
+`data/xml/impl/HitConditionBonusData.java:75-81,92-118` loads all seven rows.
+It starts at **100**. It adds high only if the source Z difference is **>50**, and low only if it is **<-50**.
+It adds dark at night. Then it adds exactly one of back/front/side, in that order of precedence. It returns
+`max(mod/100,0)`. Rain is loaded, but the code does not use it (`:104-105`). Facing/height/night are
+source inputs. They do not give permission to invent Phase 3 position/time mechanics. The
+engine must explicitly decide which input capabilities it supports.
 
-The separate `fixtures/skill-oracle-npc-phase3.json` contains **42 vectors each**
+The separate `fixtures/skill-oracle-npc-phase3.json` has **42 vectors each**
 for the three damage penalty stages, **21** magic chance penalty vectors, and
-**60** hit-condition vectors. Coverage includes skipped index zero, saturation,
-all eligibility guards, threshold boundaries, normal/critical physical skills,
-strict chance-roll boundary, height boundaries **-51/-50/0/50/51**, day/night,
-all facing branches, and rain as a no-op. Counts and coverage are generated by
-`scripts/npc_phase3/skill_oracle.py`; expectations use independent Fraction
-arithmetic, including integer-only binary32 rounding for the isolated chance
-factor. Penalty-stage damage vectors expose exact incoming **1001** times the
-multiplier and whole truncation evidence; they do not claim equivalence for
-unmodeled earlier Java binary64 stages. Input byte hashes and a separate
-canonical vector-set hash are recorded; no previous fixture is rewritten.
-`test_npc_phase3.py` independently audits config/XML provenance, source branches,
-effective mappings, every vector, hashes, and all pre-task generated bytes.
+**60** hit-condition vectors. The coverage includes the skipped index zero, the saturation,
+all eligibility guards and the threshold boundaries. It also includes normal/critical physical skills and
+the strict boundary of the chance roll. It also includes the height boundaries **-51/-50/0/50/51**, day/night,
+all facing branches, and rain with no effect. `scripts/npc_phase3/skill_oracle.py` makes the counts and the coverage.
+The expected values use independent Fraction
+arithmetic, with integer-only binary32 rounding for the isolated chance
+factor. The damage vectors of the penalty stages show the exact incoming **1001** times the
+multiplier and the evidence of whole truncation. They do not say that they are equivalent for the
+earlier Java binary64 stages that are not modeled. The input byte hashes and a separate
+canonical vector-set hash are recorded. No earlier fixture is written again.
+`test_npc_phase3.py` independently audits the config/XML provenance, the source branches, the
+effective mappings, each vector, the hashes, and all the bytes that were generated before the task.
