@@ -2678,4 +2678,59 @@ class ZoneDraws(unittest.TestCase):
         self.validate(rows)
 
 
+
+# B4 (zone b63f0ec): the zone's skill-book learn recording (Bishop 1405 r1, book 8618),
+# written by its lib test and exported by nightfall-replay at 1cebefa.
+B4=SCRIPTS/'test/fixtures/phase4-b4/skill-learn.jsonl'
+B4_RECORDING='a9fb071a0be8820b2e88d891777e2701077366b974420bb85353a3a954f1fa31'
+B4_OWNER='00000000-0000-0000-0000-000000000002'
+B4_KEY='01970000-0000-7000-8000-000000000042'
+
+
+class SkillLearnPayment(unittest.TestCase):
+    def rows(self):
+        rows=gate.read_jsonl(B4);self.assertEqual(rows[0]['recording_sha256'],B4_RECORDING);return rows
+
+    def pinned(self,call,rows,*args):
+        original=gate.digest;gate.digest=lambda path:B4_RECORDING
+        try:return call(copy.deepcopy(rows),Path('pinned.nfr'),*args)
+        finally:gate.digest=original
+
+    def test_producer_export_validates_and_scenario_phases_select_it(self):
+        rows=self.rows();self.pinned(gate.validate,rows,rows[0]['phase4_rules_hash'])
+        scenario=SCRIPTS.parent/'Scenarios/4-item-skill-learn.nfs'
+        result=self.pinned(gate.evaluate,rows,B4_OWNER,gate.requirements(scenario),rows[0]['phase4_rules_hash'],gate.phases(scenario))
+        self.assertTrue(result['passed'],result)
+        self.assertEqual([(g['formula'],g.get('phase'),g['sequences']) for g in result['gates']],
+                         [('learned_item_cost',None,[2]),('learned_item_cost','book-learn',[2])])
+
+    def test_learn_payment_grammar_and_correlation_fail_closed(self):
+        rows=self.rows()
+        other='01970000-0000-7000-8000-000000000043'
+        def cause(value):return lambda r:r[4]['data']['causes'][0].update(cause=value)
+        def drop(index):
+            def change(r):
+                del r[index]
+                for i,row in enumerate(r[1:-1]):row['sequence']=i
+                r[-1]['facts']=len(r)-2
+            return change
+        cases={
+            'other key cause':cause('item_cast:learn:'+other),
+            'cast cause':cause('item_cast:cast:7'),
+            'non-uuid key':lambda r:[r[3]['data'].update(resolution_id='learn:abc'),r[4]['data'].update(resolution_id='learn:abc'),
+                                     r[4]['data']['causes'][0].update(cause='item_cast:learn:abc')],
+            'missing fact':drop(3),
+            'missing payment':drop(4),
+            'consumed differs':lambda r:r[3]['data']['actual'].update(consumed={'901':2}),
+            'count differs':lambda r:r[3]['data']['inputs'].update(consume_count=2),
+            'template differs':lambda r:r[3]['data']['inputs'].update(consume_id=8619),
+            'repeat':lambda r:r[3]['data']['inputs'].update(repeat=True),
+            'cancel phase':lambda r:[r[3]['data']['inputs'].update(phase='cancel'),r[3]['data']['actual'].update(phase='cancel')],
+            'other formula':lambda r:r[3]['data'].update(formula='escape_timing'),
+        }
+        for name,change in cases.items():
+            mutated=copy.deepcopy(rows);change(mutated)
+            with self.subTest(name),self.assertRaises(ValueError):self.pinned(gate.validate,mutated,rows[0]['phase4_rules_hash'])
+
+
 if __name__=='__main__':unittest.main()

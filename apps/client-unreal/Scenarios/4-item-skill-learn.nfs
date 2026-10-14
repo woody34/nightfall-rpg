@@ -8,6 +8,9 @@
 # Skill1177 hitTime4000ms*3=12s (pinned DP skills01100-01199.xml:1645).
 # Counts/enchant are fixture inputs; numeric formulas are checked by actual-input export oracle.
 # item-gate: learned_item_cost
+# B4 (zone b63f0ec): the learn pays book 8618 through one Consume aggregate (cause
+# item_cast:learn:<key>, resolution learn:<key>) with one completed learned_item_cost fact.
+# item-phase: {"name":"book-learn","formula":"learned_item_cost","inputs":{"skill_id":1405,"rank":1,"consume_id":8618,"consume_count":1,"phase":"complete","repeat":false},"mutation":{"operation":"consume","template":8618,"slot":null}}
 nf.Login
 nf.WaitFor connected 15
 nf.EnterWorld

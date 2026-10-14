@@ -963,6 +963,49 @@ def validate_terminal_facts(rows):
                 raise ValueError('terminal fact precedes a later fact of its intent (D92)')
 
 
+# B4 (E3.4/D47, zone b63f0ec): a V6 skill-book learn pays through the item ledger. Each paid
+# instance is one Consume aggregate whose payment cause is `item_cast:learn:<request key>`
+# (API family skill_learn_payment; no item receipt), the rows resolve as `learn:<key>`, and
+# ONE learned_item_cost fact (phase complete) on the same tick carries the payment.
+LEARN_KEY=r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+
+
+def validate_learn_payments(rows):
+    payments={};facts={}
+    for row in rows[1:-1]:
+        data=row['data']
+        if row['kind']=='item_formula' and data['resolution_id'].startswith('learn:'):
+            if data['formula']!='learned_item_cost' or not re.fullmatch('learn:'+LEARN_KEY,data['resolution_id']):
+                raise ValueError('learn: resolution is a learned_item_cost fact over the canonical request key (B4)')
+            facts[(row['entity'],row['incarnation'],data['resolution_id'])]=row
+        if row['kind']!='item_delta':continue
+        learn=[c for c in data.get('causes') or () if c['cause'].startswith('item_cast:learn:')]
+        if data['resolution_id'].startswith('learn:') or learn:
+            if data['operation']!='consume':raise ValueError('a learn payment is a Consume aggregate (B4)')
+            if not re.fullmatch('learn:'+LEARN_KEY,data['resolution_id']):raise ValueError('learn payment needs a learn:<request key> resolution (B4)')
+            if not learn or any(c['cause']!='item_cast:'+data['resolution_id'] for c in learn):
+                raise ValueError('learn payment cause must be item_cast:<its learn: resolution> (B4)')
+            key=(row['entity'],row['incarnation'],data['resolution_id'])
+            paid=payments.setdefault(key,dict(tick=row['tick'],consumed={},template=set()))
+            if paid['tick']!=row['tick']:raise ValueError('a learn pays in one tick (B4)')
+            identity=str(data['instance'])
+            paid['consumed'][identity]=paid['consumed'].get(identity,0)-sum(c['count_delta'] for c in learn)
+            paid['template'].add(data['before']['template_id'])
+    for key,row in facts.items():
+        data=row['data'];inputs,actual=data['inputs'],data['actual']
+        if inputs.get('phase')!='complete' or actual.get('phase')!='complete' or inputs.get('repeat') is not False:
+            raise ValueError('a skill-book learn fact is one completed, non-repeated payment (B4)')
+        paid=payments.pop(key,None)
+        if actual.get('accepted') is not True:
+            if paid:raise ValueError('a refused learn may not pay (B4)')
+            continue
+        if paid is None or paid['tick']!=row['tick']:raise ValueError('learned_item_cost learn fact needs its same-tick Consume payment (B4)')
+        if actual.get('consumed')!=paid['consumed'] or paid['template']!={inputs.get('consume_id')} \
+                or sum(paid['consumed'].values())!=inputs.get('consume_count'):
+            raise ValueError('learn payment differs from its learned_item_cost fact (B4)')
+    if payments:raise ValueError('learn payment without its learned_item_cost fact (B4)')
+
+
 def validate_exchanges(rows):
     """D11/D22/D52: bind every receipt's constituents to its source recipe."""
     exchanges={};resolutions={};bound=set()
@@ -1236,6 +1279,7 @@ def validate(rows,recording,rules_hash):
         # as a partial Destroy, in either order) precede the Consume aggregate; only the D94 shape
         # and the D74 caps constrain order, continuity is checked by inventory_history.
     validate_terminal_facts(rows)
+    validate_learn_payments(rows)
     validate_exchanges(rows)
     validate_instance_history(rows)
     inventory_history(rows)
