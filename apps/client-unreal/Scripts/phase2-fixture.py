@@ -474,10 +474,34 @@ def cleanup(folder):
         (folder / 'cleanup-status.json').write_text('{"completed": true}\n')
 
 
+V6_STARTUP = 'Phase3 bootstrap bundle validated with the Phase4 (V6) item extension'
+V6_HASHES = ('phase4_item_rules_hash', 'phase4_skill_rules_hash')
+
+
+def api_zone_flags(log):
+    """Review-3 P2-3: the zone flags a unit's API actually booted with, from its startup log.
+
+    Only the API's own V6 bootstrap line attests V6; the record carries the rules hashes that
+    line names. Accepts the JSON and the plain tracing formats. Returns None without it."""
+    for line in log.read_text(errors='replace').splitlines():
+        if V6_STARTUP not in line:
+            continue
+        hashes = {}
+        for name in V6_HASHES:
+            match = re.search(name + r'\W+(sha256:[0-9a-f]{64})', line)
+            if not match:
+                return None
+            hashes[name] = match[1]
+        return {'PHASE3_ENABLED': '1', 'PHASE4_ENABLED': '1', **hashes, 'evidence': 'api startup log'}
+    return None
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('command', choices=('detect', 'budget', 'provision', 'exec-api', 'endpoint', 'args', 'cleanup', 'grant', 'scenario'))
+    parser.add_argument('command', choices=('detect', 'budget', 'provision', 'exec-api', 'endpoint', 'args', 'cleanup', 'grant', 'scenario', 'zone-flags'))
     parser.add_argument('--folder', type=Path)
+    parser.add_argument('--log', type=Path, help='zone-flags: the API log to read')
+    parser.add_argument('--out', type=Path, help='zone-flags: the record to write')
     parser.add_argument('scenarios', type=Path, nargs='*')
     args = parser.parse_intermixed_args()
     if args.command == 'budget':
@@ -485,6 +509,12 @@ def main():
         return
     if args.command == 'detect':
         print(fixture(args.scenarios))
+        return
+    if args.command == 'zone-flags':
+        record = api_zone_flags(args.log)
+        if record is None:
+            raise ValueError(f'API log {args.log} has no V6 bootstrap line; zone flags not attested')
+        args.out.write_text(json.dumps(record, sort_keys=True) + '\n')
         return
     folder = args.folder.resolve()
     if args.command == 'provision':

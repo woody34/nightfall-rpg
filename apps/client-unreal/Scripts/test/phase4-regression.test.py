@@ -61,10 +61,12 @@ class Regression(unittest.TestCase):
 
 
 V6={'PHASE3_ENABLED':'1','PHASE4_ENABLED':'1'}
+# What sim-lib writes after health from the API's V6 bootstrap line (review-3 P2-3).
+ATTESTED=V6|dict(phase4_item_rules_hash='sha256:'+'b'*64,phase4_skill_rules_hash='sha256:'+'f'*64,evidence='api startup log')
 MATCH='zone 1 epoch 1: match. 10 ticks replayed (10 recorded), 1 players, 5 outputs, 9 bytes compared, 0 digest-only, in 1.0 ms\n'
 
 
-def write_suite(root,units,status='PASS',flags=V6,replay=MATCH,kinds=(),infra=(),fixture=True):
+def write_suite(root,units,status='PASS',flags=ATTESTED,replay=MATCH,kinds=(),infra=(),fixture=True):
     """A run-sim-ci.py artifact tree: summary.json, unit verdicts, scenario state, recordings."""
     rows=[]
     for unit,names in units.items():
@@ -72,7 +74,7 @@ def write_suite(root,units,status='PASS',flags=V6,replay=MATCH,kinds=(),infra=()
         rows.append(dict(unit=unit,scenarios=names,status=status))
         (folder/'pipeline-verdict.json').write_text(json.dumps(dict(schema_version=1,completed=True,exit_code=0 if not kinds and not infra else 1,
             infrastructure_failures=list(infra),scenarios=[dict(scenario=n,failure_kinds=list(kinds)) for n in names])))
-        if not fixture:(folder/'zone-flags.json').write_text(json.dumps(flags))
+        if not fixture and flags is not None:(folder/'zone-flags.json').write_text(json.dumps(flags))
         for name in names:
             (folder/name).mkdir()
             (folder/name/'pipeline-state.json').write_text(json.dumps(dict(scenario=name,failure_kinds=list(kinds),
@@ -82,7 +84,8 @@ def write_suite(root,units,status='PASS',flags=V6,replay=MATCH,kinds=(),infra=()
             if fixture and name==names[0]:
                 # Real layout: one owned fixture per unit, under its first scenario's folder.
                 (folder/name/'fixture').mkdir()
-                (folder/name/'fixture/manifest.json').write_text(json.dumps(dict(fixture='x',zone_flags=flags)))
+                (folder/name/'fixture/manifest.json').write_text(json.dumps(dict(fixture='x',zone_flags=V6)))
+                if flags is not None:(folder/name/'fixture/zone-flags.json').write_text(json.dumps(flags))
     (root/'summary.json').write_text(json.dumps(dict(schema_version=1,units=rows)))
 
 
@@ -105,12 +108,12 @@ class Runner(unittest.TestCase):
 
     def test_clean_v6_suite_verifies_every_scenario(self):
         result=self.verdict();self.assertTrue(result['all_verified'],result)
-        self.assertEqual(result['scenarios'][1]['zone_flags'],V6)
+        self.assertEqual(result['scenarios'][1]['zone_flags'],ATTESTED)
 
     def test_second_scenario_of_a_paired_fixture_unit_is_v6(self):
         result=self.verdict()
         pair=[r for r in result['scenarios'] if r['scenario'].startswith('multi/3-pair-')]
-        self.assertEqual([(r['verified'],r['zone_flags']) for r in pair],[(True,V6),(True,V6)])
+        self.assertEqual([(r['verified'],r['zone_flags']) for r in pair],[(True,ATTESTED),(True,ATTESTED)])
         self.assertFalse((self.root/'suite/3-pair/3-pair-b/fixture').exists())
         (self.root/'suite/3-pair/3-pair-b/fixture').mkdir()
         (self.root/'suite/3-pair/3-pair-b/fixture/manifest.json').write_text(json.dumps(dict(zone_flags=V6)))
@@ -118,11 +121,35 @@ class Runner(unittest.TestCase):
         self.assertFalse(result['all_verified'])
         self.assertTrue(any('more than one fixture manifest' in p for p in result['scenarios'][1]['problems']))
 
+    def test_api_startup_log_attests_v6(self):
+        fixture=load('regression4_fixture',SCRIPTS/'phase2-fixture.py')
+        log=SCRIPTS/'test/fixtures/phase4-v6-log/api-v6-startup.jsonl'
+        record=fixture.api_zone_flags(log)
+        self.assertEqual(record['phase4_item_rules_hash'],'sha256:b13bafb012d7c1cae7b503dbc8688b183f4d776b4f765f03951127d7ca10e411')
+        self.assertTrue(regression.is_v6(record))
+        plain=self.root/'plain.log'
+        plain.write_text('INFO nightfall_api::zone_runtime: Phase3 bootstrap bundle validated with the Phase4 (V6) item extension '
+                         'phase4_item_rules_hash=sha256:'+'1'*64+' phase4_skill_rules_hash=sha256:'+'2'*64+'\n')
+        self.assertTrue(regression.is_v6(fixture.api_zone_flags(plain)))
+        plain.write_text('INFO Phase3 bootstrap bundle validated phase3_rules_hash=sha256:'+'1'*64+'\n') # V5 boot
+        self.assertIsNone(fixture.api_zone_flags(plain))
+        lib=(SCRIPTS/'sim-lib.sh').read_text()
+        self.assertNotIn('printf \'{"PHASE3_ENABLED"',lib)
+        self.assertIn('sim_record_zone_flags "${SIM_API_LOG:-}"',lib);self.assertIn('sim_record_zone_flags "$SIM_FIXTURE_DIR/api.log"',lib)
+
+    def test_manifest_flags_must_agree_with_the_attested_record(self):
+        write_suite(self.root/'suite',self.units)
+        (self.root/'suite/2-a/2-a/fixture/manifest.json').write_text(json.dumps(dict(zone_flags={'PHASE3_ENABLED':'1'})))
+        (self.root/'suite/2-a/2-a/fixture/zone-flags.json').write_text(json.dumps(ATTESTED|dict(PHASE3_ENABLED='0')))
+        result=regression.regression_verdict(self.inventory,self.root/'suite')
+        self.assertTrue(any('differ from the API-attested' in p for p in result['scenarios'][0]['problems']))
+
     def test_shared_stack_units_prove_v6_by_their_zone_flags_record(self):
         self.assertTrue(self.verdict(fixture=False)['all_verified'])
 
     def test_non_v6_failed_quarantined_or_diverged_units_are_findings(self):
-        cases=[dict(flags={'PHASE3_ENABLED':'1'}),dict(status='QUARANTINED'),dict(kinds=['bot_expectation']),
+        cases=[dict(flags={'PHASE3_ENABLED':'1'}),dict(flags=V6),dict(flags=None),dict(flags=None,fixture=False),
+               dict(flags=ATTESTED|dict(phase4_item_rules_hash='b'*64)),dict(flags=ATTESTED|dict(PHASE4_ENABLED='0')),dict(status='QUARANTINED'),dict(kinds=['bot_expectation']),
                dict(infra=['replay_check']),dict(replay='zone 1 epoch 1: tick 4 output differs\n'),dict(replay='')]
         for i,case in enumerate(cases):
             self.root=Path(self.tmp.name)/str(i)

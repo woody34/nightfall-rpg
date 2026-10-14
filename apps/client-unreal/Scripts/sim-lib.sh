@@ -158,10 +158,6 @@ sim_api_prepare() {
         AUTH_DEV_TOKENS=1 PHASE3_ENABLED=1 PHASE4_ENABLED=1 exec cargo run --quiet -p nightfall-api
       ) >"${SIM_API_LOG:-/dev/null}" 2>&1 &
       SIM_STARTED_API_PID=$!
-      # Evidence for phase4-regression.py: the zone flags this unit's API was started with.
-      if [[ -n "${ARTIFACTS:-}" ]]; then
-        printf '{"PHASE3_ENABLED": "1", "PHASE4_ENABLED": "1"}\n' >"$ARTIFACTS/zone-flags.json"
-      fi
       trap sim_exit_cleanup EXIT
       local deadline=$((SECONDS + ${SIM_API_WAIT:-180}))
       while ((SECONDS < deadline)); do
@@ -171,6 +167,7 @@ sim_api_prepare() {
             sim_api_endpoint_probe owned || sim_die "API ownership verification failed"
             kill -0 "$SIM_STARTED_API_PID" 2>/dev/null || sim_die "owned API exited during startup"
           fi
+          sim_record_zone_flags "${SIM_API_LOG:-}" "${ARTIFACTS:+$ARTIFACTS/zone-flags.json}"
           return 0
         fi
         sleep 1
@@ -179,6 +176,16 @@ sim_api_prepare() {
       ;;
     *) sim_die "--api must be attach or start" ;;
   esac
+}
+
+# Review-3 P2-3: after health, record the zone flags the API attests in its own V6 startup
+# line (with its rules hashes) for phase4-regression.py. Without that line nothing is written,
+# so the unit cannot verify E6.3; the run itself continues (fail closed at verification).
+sim_record_zone_flags() {
+  local log="$1" out="$2"
+  [[ -n "$log" && -n "$out" && -f "$log" ]] || return 0
+  python3 "$SIM_HERE/phase2-fixture.py" zone-flags --log "$log" --out "$out" \
+    || sim_log "API log does not attest a V6 zone; $out not written"
 }
 
 sim_api_cleanup() {
@@ -553,6 +560,7 @@ sim_unit_prepare() {
       sim_api_endpoint_probe owned || sim_die "fixture API ownership verification failed"
       SIM_API_URL="${endpoints[2]}" sim_api_endpoint_probe owned || sim_die "fixture gRPC ownership verification failed"
       kill -0 "$SIM_STARTED_API_PID" 2>/dev/null || sim_die "fixture API exited during startup"
+      sim_record_zone_flags "$SIM_FIXTURE_DIR/api.log" "$SIM_FIXTURE_DIR/zone-flags.json"
       if [[ "$selected" == phase4-* ]]; then
         # D112: grant the pack through the dev GrantItem gRPC before any client logs in, within
         # the same startup allowance; any refusal fails provisioning loudly.

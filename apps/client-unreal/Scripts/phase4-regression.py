@@ -130,12 +130,28 @@ def unit_flags(unit_dir,scenario_dir):
     sim-lib provisions one owned fixture per unit under its FIRST scenario's folder
     (`$ARTIFACTS/<first scenario>/fixture`); run-sim-ci resolves it as `*/fixture`. Every
     scenario of the unit shares it, so resolve exactly one manifest per unit.
+
+    Review-3 P2-3: the flags are the API's ATTESTED ones, `zone-flags.json` written by sim-lib
+    after health from the API's own V6 bootstrap log line (with its rules hashes); a fixture
+    manifest's intended flags must agree with that record.
     """
     manifests=sorted(unit_dir.glob('*/fixture/manifest.json'))
     if len(manifests)>1:raise ValueError(f'unit {unit_dir.name} has more than one fixture manifest')
-    if manifests:return json.loads(manifests[0].read_text()).get('zone_flags')
-    record=unit_dir/'zone-flags.json'
-    return json.loads(record.read_text()) if record.is_file() else None
+    if manifests:
+        intended=json.loads(manifests[0].read_text()).get('zone_flags')
+        record=manifests[0].with_name('zone-flags.json')
+    else:intended=None;record=unit_dir/'zone-flags.json'
+    if not record.is_file():return None
+    attested=json.loads(record.read_text())
+    if intended is not None and intended!={k:attested.get(k) for k in intended}:
+        raise ValueError('fixture manifest zone flags differ from the API-attested flags')
+    return attested
+
+
+def is_v6(record):
+    return isinstance(record,dict) and {k:record.get(k) for k in V6_FLAGS}==V6_FLAGS and all(
+        isinstance(record.get(name),str) and re.fullmatch(r'sha256:[0-9a-f]{64}',record[name])
+        for name in ('phase4_item_rules_hash','phase4_skill_rules_hash'))
 
 
 REPLAY_MATCH=re.compile(r'^zone \S+ epoch \d+: match\. ',re.M)
@@ -179,7 +195,7 @@ def scenario_evidence(suite,units,scenario):
             problems.append(f'replay check of {nfr.relative_to(suite)} did not report a match')
     try:flags=unit_flags(unit_dir,folder)
     except (OSError,ValueError) as error:flags=None;problems.append(f'zone flags unreadable: {error}')
-    if flags!=V6_FLAGS:problems.append(f'not a V6 run (zone flags {flags})')
+    if not is_v6(flags):problems.append(f'not an attested V6 run (zone flags {flags})')
     return dict(verified=not problems,problems=problems,zone_flags=flags,
                 recordings={str(n.relative_to(suite)):sha(n) for n in recordings})
 

@@ -190,9 +190,14 @@ items equipped beyond the kit, still have no transport and refuse before any wri
 Zone flags are per unit (`zone_flags` in the unit manifest, checked again by
 `phase2-fixture.py exec-api`). D114: every unit runs on V6, so the value is
 PHASE3_ENABLED=1 and PHASE4_ENABLED=1 for all Phase 2, 3 and 4 packs. Shared-stack units
-(Phase 0b/1, `sim-lib.sh --api start`) start the API with the same two flags and record
-them in `<unit>/zone-flags.json`; an attached API (`--api attach`) records nothing, so its
-units cannot verify E6.3.
+(Phase 0b/1, `sim-lib.sh --api start`) start the API with the same two flags. After
+health, sim-lib records what the API ATTESTS (review-3 P2-3): `phase2-fixture.py zone-flags`
+reads the API's own V6 bootstrap log line ("Phase3 bootstrap bundle validated with the
+Phase4 (V6) item extension") and writes the flags with its `phase4_item_rules_hash` and
+`phase4_skill_rules_hash` to `<unit>/zone-flags.json` (shared stack) or
+`<unit>/<first scenario>/fixture/zone-flags.json` (owned fixture). Without that line nothing
+is written. An attached API (`--api attach`) records nothing either, so its units cannot
+verify E6.3.
 Blacksmith is at (124,128), design §7; tax0 is hashed fixture policy.
 
 Live grammar compatibility is separately checked by sim-parser-check.py against
@@ -224,8 +229,9 @@ Scenarios/phase4-backfill.pending.json`. The verdict:
 A Phase 0b-3 scenario is verified only when its unit is PASS in `summary.json` (QUARANTINED
 does not verify), the unit `pipeline-verdict.json` and the scenario `pipeline-state.json`
 are clean, every recording of the scenario (its own and the unit's shared ones) has a
-`.replay.log` that reports `match.`, and the unit ran with the V6 flags (fixture manifest
-`zone_flags` or `zone-flags.json`). A backfill case is verified only when the API's
+`.replay.log` that reports `match.`, and the unit's API attested V6 (`zone-flags.json` with both
+rules hashes; a fixture unit has exactly one `*/fixture/manifest.json`, shared by its paired
+scenarios, and its intended `zone_flags` must agree with the attested record). A backfill case is verified only when the API's
 `phase4_backfill` results name it (same `class_id` and `state`) with every required gate
 `true`. Unknown or duplicate result ids and other schema versions are refused.
 D119: third-class (tier 3) professions are not admissible characters (ClassState
