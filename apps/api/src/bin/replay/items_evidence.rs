@@ -73,6 +73,23 @@ fn quote_wide_integers(text: &[u8]) -> anyhow::Result<Vec<u8>> {
     Ok(out)
 }
 
+/// D46 canonical instance scalars exclude D65 creation provenance (checkpoint data the API
+/// verifies); granted instances carry it, so published rows drop it after every check
+/// against the checkpoint has run.
+fn strip_creation_origin(fact: &mut ItemEvidenceFact) {
+    fn strip(value: &mut Value) {
+        if let Value::Object(map) = value {
+            map.remove("creation_origin");
+            map.values_mut().for_each(strip);
+        } else if let Value::Array(items) = value {
+            items.iter_mut().for_each(strip);
+        }
+    }
+    if let ItemEvidenceData::Delta(row) | ItemEvidenceData::Baseline(row) = &mut fact.fact {
+        strip(row);
+    }
+}
+
 #[derive(Serialize)]
 struct SequencedFact<'a> {
     sequence: u64,
@@ -212,6 +229,13 @@ fn export_cause(cause: &ItemAuditEvidence) -> anyhow::Result<Value> {
         };
         // Keep the captured cast resolution namespace, including its actual numeric ID.
         json!(format!("item_cast:cast:{id}"))
+    } else if cause.family == "skill_learn_payment" {
+        // E3.4/D47 skill-book payment: the learn receipt key is the resolution identity.
+        let Some(ItemEvidenceValue::Text(key)) = cause.fields.get("receipt") else {
+            bail!("learn payment lacks its learn receipt");
+        };
+        let key: uuid::Uuid = key.parse().context("invalid learn receipt key")?;
+        json!(format!("item_cast:learn:{key}"))
     } else {
         bail!("unsupported consume cause {}", cause.family);
     };
@@ -749,6 +773,8 @@ pub(super) fn collect(rec: &Recording, recording_bytes: &[u8]) -> anyhow::Result
             {
                 bail!("invalid item evidence subject/tick");
             }
+            let mut fact = fact;
+            strip_creation_origin(&mut fact);
             line(
                 &mut out,
                 &SequencedFact {
@@ -1034,6 +1060,49 @@ mod tests {
                 "delta":row.get("count_delta")}));
         }
         Ok(rows)
+    }
+
+    /// T10/B3: an epoch whose only item activity is an offline grant exports, both when an
+    /// earlier tick drew non-item words (NPC spawn ids, now tabulated as zone draws) and when
+    /// the whole epoch is draw-free; the gap-free cursor still holds across all facts.
+    #[test]
+    fn offline_grant_only_epochs_export_with_a_gap_free_cursor() -> anyhow::Result<()> {
+        for (bytes, expect_zone_draws) in [
+            (&include_bytes!("../../../fixtures/items/offline-grant-only.nfr")[..], true),
+            (&include_bytes!("../../../fixtures/items/draw-free-grant.nfr")[..], false),
+        ] {
+            let recording = nightfall_api::infrastructure::eventlog::Recording::from_bytes(bytes)?;
+            let out = collect(&recording, bytes)?;
+            let rows: Vec<Value> = std::str::from_utf8(&out)?
+                .lines()
+                .map(serde_json::from_str)
+                .collect::<Result<_, _>>()?;
+            let mut cursor = recording.snapshot.rng.word_pos;
+            let mut zone_draws = 0;
+            for row in &rows {
+                if row.get("kind").and_then(Value::as_str) == Some("item_rng") {
+                    let data = row.get("data").context("rng data")?;
+                    let word = |key: &str| -> anyhow::Result<u128> {
+                        let value = data.get(key).context("rng word")?;
+                        value
+                            .as_u64()
+                            .map(u128::from)
+                            .or_else(|| value.as_str().and_then(|s| s.parse().ok()))
+                            .context("rng word value")
+                    };
+                    assert_eq!(word("word_before")?, cursor);
+                    cursor = word("word_after")?;
+                    zone_draws += usize::from(
+                        data.get("callsite").and_then(Value::as_str) == Some("entity_id"),
+                    );
+                }
+            }
+            assert_eq!(zone_draws > 0, expect_zone_draws);
+            assert!(rows
+                .iter()
+                .any(|row| row.get("kind").and_then(Value::as_str) == Some("item_delta")));
+        }
+        Ok(())
     }
 
     #[test]

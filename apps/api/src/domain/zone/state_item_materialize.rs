@@ -79,6 +79,9 @@ impl ZoneState {
     }
 
     /// Install a temporary empty owner before the first fold. It remains private to admission.
+    /// D79/D117: the pre-kit owner is revision 0; the materialization tick strictly advances
+    /// it to the kit's revision 1 (`materialized_revision`), so the admission baseline (the
+    /// one pre-tick baseline of the owner-tick) and the kit rows tell one consistent history.
     pub(super) fn begin_pending_kit_v6(
         &mut self,
         id: EntityId,
@@ -118,7 +121,7 @@ impl ZoneState {
                 expertise: 0,
                 weapon_penalty: 0,
                 armor_penalty: 0,
-                inventory_revision: 1,
+                inventory_revision: 0,
                 starter_kit_receipt: StarterKitReceipt {
                     manifest_version: request.manifest_version,
                     manifest_hash: request.manifest_hash,
@@ -241,6 +244,14 @@ impl ZoneState {
             }
             self.rebuild_v5(id)?;
         }
+        self.phase4
+            .as_mut()
+            .ok_or(TickError::Phase3Invariant)?
+            .canonical
+            .players
+            .get_mut(&id)
+            .ok_or(TickError::Phase3Invariant)?
+            .inventory_revision = 1;
         // Only unspecified fresh resources fill to the final equipped maximum. Backfill
         // preserves its explicitly loaded HP/MP and the ordinary clamp-without-healing rule.
         let combat = self
@@ -357,7 +368,7 @@ impl ZoneState {
                     &format!("materialize:{}", reference.key),
                 );
             }
-            self.item_evidence_baseline(id)?;
+            // D117: no mid-tick baseline; the admission baseline is the owner-tick's only one.
         }
         events.push(ZoneEvent::ItemCheckpoint(Box::new(projection)));
         Ok(())

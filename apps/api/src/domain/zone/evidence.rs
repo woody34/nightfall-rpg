@@ -34,8 +34,22 @@ pub struct EvidenceDraw {
     pub word_after: String,
 }
 
+/// One generator call not yet covered by an `item_rng` fact (B3/T10): every draw becomes a
+/// fact, tabulated by its caller or, failing that, as a zone draw at the next flush.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct RawDraw {
+    pub tick: Tick,
+    pub callsite: String,
+    pub word_before: u128,
+    pub word_after: u128,
+    pub bound: u32,
+    pub value: u32,
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct EvidenceBuffer {
+    /// Item-evidence mode only: generator calls awaiting their `item_rng` fact.
+    pub raw_draws: Vec<RawDraw>,
     pub facts: Vec<EvidenceFact>,
     pub draws: Vec<EvidenceDraw>,
     pub items: Option<Vec<ItemEvidenceFact>>,
