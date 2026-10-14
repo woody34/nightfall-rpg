@@ -315,6 +315,27 @@ pub struct PlayerSpawn {
     pub load: Option<Box<PlayerLoad>>,
 }
 
+/// The skill sidecar a load carries into its epoch. A V6 item load always references a
+/// retained skill provider order; an owner whose kit is still pending and who has no learned
+/// providers has the canonical empty origin, exactly as an offline grant pauses it. A V6
+/// owner with learned providers but no retained skill checkpoint is refused.
+pub(crate) fn v6_skill_origin(
+    loaded: &crate::application::ProgressionState,
+) -> Result<Option<crate::domain::zone::Phase3Checkpoint>, &'static str> {
+    match (&loaded.phase3, &loaded.phase4) {
+        (Some(checkpoint), _) => Ok(Some(checkpoint.clone())),
+        (None, None) => Ok(None),
+        (None, Some(items))
+            if loaded.class_state.learned_skills.is_empty()
+                && items.checkpoint.is_none()
+                && !items.pending.is_empty() =>
+        {
+            Ok(Some(crate::domain::zone::Phase3Checkpoint::new()))
+        },
+        (None, Some(_)) => Err("paused skill checkpoint unavailable"),
+    }
+}
+
 /// The zone generation for an account's session generation. Generations start at 1 and only
 /// grow, so the conversion is exact.
 #[must_use]
@@ -398,9 +419,10 @@ impl SessionRegistry {
             }
             loaded.name.as_str().clone_into(&mut spawn.name);
             spawn.pos = saved_position(loaded.position).ok_or(AdmitError::LoadFailed)?;
+            let phase3 = v6_skill_origin(&loaded).map_err(|_| AdmitError::LoadFailed)?;
             spawn.load = Some(Box::new(PlayerLoad {
                 phase4: loaded.phase4,
-                phase3: loaded.phase3,
+                phase3,
                 progression: zone.has_classes().then(|| {
                     Box::new(crate::domain::zone::PlayerProgression {
                         identity: loaded.identity,

@@ -1,7 +1,8 @@
 //! T9: a character provisioned by the dev `GrantItem` logs into a real V6 session. The canonical
 //! V6 load (retained checkpoint) rides `SpawnPlayer` into the zone, the owner observes its own
 //! spawn and its `InventorySync` baseline with the granted item, a WS item intent executes, and
-//! the recorded V6 epoch replays byte-exact.
+//! the recorded V6 epoch replays byte-exact. A fresh, never-granted character (pending starter kit,
+//! no retained checkpoint) logs in too, and an Equip intent publishes `EquipmentChanged`.
 #![allow(
     missing_docs,
     clippy::unwrap_used,
@@ -38,6 +39,15 @@ fn inventory_sync(m: &pb::ServerMessage) -> Option<&pb::InventorySync> {
         Some(server_message::Payload::Event(pb::WorldEvent {
             event: Some(world_event::Event::InventorySync(sync)),
         })) => Some(sync),
+        _ => None,
+    }
+}
+
+fn equipment_changed(m: &pb::ServerMessage) -> Option<&pb::EquipmentChanged> {
+    match &m.payload {
+        Some(server_message::Payload::Event(pb::WorldEvent {
+            event: Some(world_event::Event::EquipmentChanged(changed)),
+        })) => Some(changed),
         _ => None,
     }
 }
@@ -190,12 +200,93 @@ where
     assert!(results.iter().all(|m| ws::rejected(m).is_none()), "{results:?}");
     let result = item_result(results.last().unwrap()).unwrap();
     assert_eq!(result.receipt_id, key.to_string());
+    assert_eq!(result.operation, pb::ItemOperation::Unequip as i32);
     assert_eq!(result.affected_instance_ids, vec![weapon]);
+    // Equip it again: the owner gets the receipt and the public slot projection.
+    let key = Uuid::now_v7();
+    socket
+        .send(&pb::ClientMessage {
+            seq: 2,
+            intent: Some(pb::client_message::Intent::EquipItem(pb::EquipItemRequest {
+                idempotency_key: key.to_string(),
+                instance_id: weapon,
+                preferred_slot: pb::EquipSlot::Rhand as i32,
+            })),
+        })
+        .await;
+    let results = socket.until(|m| item_result(m).is_some()).await;
+    assert!(results.iter().all(|m| ws::rejected(m).is_none()), "{results:?}");
+    let result = item_result(results.last().unwrap()).unwrap();
+    assert_eq!(result.receipt_id, key.to_string());
+    assert_eq!(result.operation, pb::ItemOperation::Equip as i32);
+    assert_eq!(result.affected_instance_ids, vec![weapon]);
+    let mut seen = results;
+    if !seen.iter().any(|m| equipment_changed(m).is_some()) {
+        seen.extend(socket.until(|m| equipment_changed(m).is_some()).await);
+    }
+    let weapon_template = sync
+        .items
+        .iter()
+        .find(|item| item.instance_id == weapon)
+        .unwrap()
+        .template_id;
+    assert!(
+        seen.iter().filter_map(equipment_changed).any(|changed| {
+            changed.entity_id == character.id.as_uuid().as_bytes()
+                && changed.visible.iter().any(|v| {
+                    v.slot == pb::EquipSlot::Rhand as i32 && v.template_id == weapon_template
+                })
+        }),
+        "ItemEquipped: the RHAND slot shows the weapon again"
+    );
     socket.close().await;
+    // A fresh, never-granted character: its pending starter kit rides the V6 load with no
+    // retained checkpoint and materializes at admission, before the inventory baseline.
+    let fresh = Character::create(
+        AccountId::from_uuid(account),
+        CharacterName::new("LoginFresh").unwrap(),
+        Race::Human,
+    );
+    repo.create_idempotent(&IdempotencyKey::new(), "login-fresh", &fresh)
+        .await
+        .unwrap();
+    assert!(repo
+        .retained_inventory(fresh.id)
+        .await
+        .unwrap()
+        .unwrap()
+        .checkpoint
+        .is_none());
+    let newcomer = ws::Player {
+        account,
+        character: fresh.id,
+        name: fresh.name.as_str().to_owned(),
+    };
+    let mut socket = ws::join(&app, &newcomer).await;
+    let seen = socket
+        .until(|m| inventory_sync(m).is_some_and(|sync| sync.baseline))
+        .await;
+    assert!(seen
+        .iter()
+        .filter_map(ws::spawn_of)
+        .any(|spawn| spawn.entity_id == newcomer.entity_id()));
+    let kit = inventory_sync(seen.last().unwrap()).unwrap();
+    assert_eq!(kit.entity_id, fresh.id.as_uuid().as_bytes());
+    assert!(!kit.items.is_empty() && !kit.paperdoll.is_empty());
+    assert!(!kit.items.iter().any(|item| item.template_id == 57));
+    socket.close().await;
+    let retained = repo.retained_inventory(fresh.id).await.unwrap().unwrap();
+    assert_eq!(retained.checkpoint.unwrap().inventory_revision, kit.inventory_revision);
+    assert!(repo
+        .pending_item_requests(fresh.id)
+        .await
+        .unwrap()
+        .iter()
+        .all(|request| matches!(request.status, PendingItemStatus::Materialized { .. })));
     // The recorded V6 epoch, including SpawnPlayer with its V6 load, replays byte-exact.
     let mut replay = restore_snapshot(baseline).unwrap();
     let mut records = log.read_epoch(zone, 1).await.unwrap();
-    let mut spawned = false;
+    let (mut spawned, mut pending_spawned) = (false, false);
     while let Some(record) = records.next().await {
         let record = record.unwrap();
         let encoded = record.encode();
@@ -208,12 +299,22 @@ where
             })
             .unwrap();
         assert!(record.reproduced_by(&AppliedTickRecord::from_applied(zone, &tick)));
-        spawned |= record.commands.iter().any(|command| {
-            matches!(&command.command, ZoneCommand::SpawnPlayer { load: Some(load), .. }
-                if load.phase4.as_ref().is_some_and(|items| items.checkpoint.is_some()))
-        });
+        for command in &record.commands {
+            if let ZoneCommand::SpawnPlayer {
+                load: Some(load), ..
+            } = &command.command
+            {
+                let items = load
+                    .phase4
+                    .as_ref()
+                    .expect("every V6 spawn carries its item load");
+                spawned |= items.checkpoint.is_some();
+                pending_spawned |= items.checkpoint.is_none();
+            }
+        }
     }
     assert!(spawned, "the recorded SpawnPlayer carries the retained V6 checkpoint");
+    assert!(pending_spawned, "the fresh SpawnPlayer carries its pending kit");
 }
 
 #[tokio::test]
@@ -229,12 +330,10 @@ async fn memory_dev_granted_character_logs_into_v6_and_replays() {
 
 #[tokio::test]
 async fn postgres_jetstream_dev_granted_character_logs_into_v6_and_replays() {
-    let Some(pool) = common::pg::migrated_pool().await else {
-        return;
-    };
-    let Ok(url) = std::env::var("NATS_URL") else {
-        return;
-    };
+    let pool = common::pg::migrated_pool()
+        .await
+        .expect("owned DATABASE_URL required");
+    let url = std::env::var("NATS_URL").expect("owned NATS_URL required");
     common::pg::insert_account(&pool, common::account()).await;
     let bundle = item_data::embedded_phase4_bundle().unwrap();
     let repo = Arc::new(
