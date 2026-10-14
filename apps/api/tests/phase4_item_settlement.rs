@@ -175,6 +175,38 @@ async fn unified_learning_contract<R>(
         .checkpoint_items(&cp, &outbox, &invalid, Some(&receipt))
         .await
         .is_err());
+    // D47 learn payments on this adapter: a book payment bound to another learn key, or a
+    // payment for a rank that requires no item, never settles.
+    let learn_paid = |key: uuid::Uuid| {
+        let mut paid = work.clone();
+        paid.projection.ledger[0].causes = vec![ItemAuditEvidence {
+            family: "skill_learn_payment".into(),
+            fields: BTreeMap::from([
+                ("receipt".into(), ItemEvidenceValue::Text(key.to_string())),
+                ("skill_id".into(), ItemEvidenceValue::Unsigned(3)),
+                ("skill_level".into(), ItemEvidenceValue::Unsigned(1)),
+                ("count_delta".into(), ItemEvidenceValue::Signed(-1)),
+            ]),
+        }];
+        paid
+    };
+    for (key, constraint) in [
+        (uuid::Uuid::now_v7(), "item_learn_payment_receipt"),
+        (receipt.key.as_uuid(), "item_learn_payment"),
+    ] {
+        let refused = repo
+            .checkpoint_items(&cp, &outbox, &learn_paid(key), Some(&receipt))
+            .await;
+        assert!(
+            matches!(&refused, Err(CheckpointError::Constraint(name)) if name == constraint),
+            "{refused:?}"
+        );
+    }
+    assert!(matches!(
+        repo.checkpoint_items(&cp, &outbox, &learn_paid(receipt.key.as_uuid()), None)
+            .await,
+        Err(CheckpointError::Constraint(name)) if name == "item_learn_payment_receipt"
+    ));
     assert_eq!(lookup().await.unwrap(), LearnReceiptLookup::Unknown);
     assert_eq!(repo.load_for_admission(c.id).await.unwrap(), before);
     if let Some(pool) = pool {

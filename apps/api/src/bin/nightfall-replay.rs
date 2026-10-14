@@ -6,6 +6,7 @@
 //! nightfall-replay [verify] --source file --file PATH [--session ENTITY] [--out DIR]
 //! nightfall-replay export --zone ID (--epoch N | --latest) [--live] [--session ENTITY] --out FILE
 //! nightfall-replay trace --file PATH [--session ENTITY] [--fail-tick N] --out trace.html
+//! nightfall-replay frames --file PATH --session ENTITY --out FRAMES.jsonl
 //! ```
 //!
 //! `--source jetstream` (default) reads `NATS_URL` (or `--nats URL`). `--session` selects whose
@@ -23,6 +24,8 @@
 mod coverage;
 #[path = "replay/evidence.rs"]
 mod evidence;
+#[path = "replay/frames.rs"]
+mod frames;
 #[path = "replay/items_evidence.rs"]
 mod items_evidence;
 #[path = "replay/trace.rs"]
@@ -49,6 +52,7 @@ const USAGE: &str = "usage:
   nightfall-replay check --file PATH [--session ENTITY] [--out DIR]
   nightfall-replay coverage --file PATH [--out coverage.transitions.json]
   nightfall-replay trace --file PATH [--session ENTITY] [--fail-tick N] --out trace.html
+  nightfall-replay frames --file PATH --session ENTITY --out FRAMES.jsonl
 exit: 0 match, 1 divergence, 2 error, 3 epoch incomplete";
 
 const MATCH: u8 = 0;
@@ -62,6 +66,7 @@ enum Command {
     Export,
     Coverage,
     Trace,
+    Frames,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -101,6 +106,10 @@ fn parse_args(args: impl IntoIterator<Item = String>) -> anyhow::Result<Args> {
         Some("coverage") => {
             it.next();
             Command::Coverage
+        },
+        Some("frames") => {
+            it.next();
+            Command::Frames
         },
         Some("verify" | "check") => {
             it.next();
@@ -167,6 +176,11 @@ fn parse_args(args: impl IntoIterator<Item = String>) -> anyhow::Result<Args> {
     }
     if a.fail_tick.is_some() && a.command != Command::Trace {
         bail!("--fail-tick is only valid for trace");
+    }
+    if a.command == Command::Frames
+        && (a.source != Source::File || a.session.is_none() || a.out.is_none())
+    {
+        bail!("frames requires --file PATH, --session ENTITY and --out FILE");
     }
     if a.command == Command::Trace && (a.file.is_none() || a.out.is_none()) {
         bail!("trace requires --file PATH and --out FILE");
@@ -430,17 +444,16 @@ async fn main() -> ExitCode {
     };
     // V6 epochs recorded over a RULES_DIR overlay reference its composed bundle by hash;
     // the same overlay must be supplied to resolve them (the embedded bundle needs nothing).
+    // It is composed lazily, only when a recorded hash misses the embedded bundle.
     if let Some(dir) = std::env::var_os("RULES_DIR").filter(|dir| !dir.is_empty()) {
-        let installed = nightfall_api::infrastructure::skill_data::Phase3DataSource::from_dir(
+        match nightfall_api::infrastructure::skill_data::Phase3DataSource::from_dir(
             std::path::Path::new(&dir),
-        )
-        .map_err(|error| error.to_string())
-        .and_then(|source| {
-            nightfall_api::infrastructure::item_data::configured_phase4_bundle(&source)
-        });
-        if let Err(error) = installed {
-            eprintln!("error: RULES_DIR V6 bundle: {error}");
-            return ExitCode::from(ERROR);
+        ) {
+            Ok(source) => nightfall_api::infrastructure::item_data::register_phase4_source(source),
+            Err(error) => {
+                eprintln!("error: RULES_DIR V6 bundle: {error}");
+                return ExitCode::from(ERROR);
+            },
         }
     }
     let result = match args.command {
@@ -448,6 +461,10 @@ async fn main() -> ExitCode {
         Command::Export => export(&args).await,
         Command::Coverage => coverage(&args).await,
         Command::Trace => trace_page(&args).await,
+        Command::Frames => match (&args.file, args.session, &args.out) {
+            (Some(file), Some(session), Some(out)) => frames::write(file, session, out).await,
+            _ => Ok(ERROR),
+        },
     };
     match result {
         Ok(code) => ExitCode::from(code),

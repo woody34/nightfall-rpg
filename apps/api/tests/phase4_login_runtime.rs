@@ -1,7 +1,8 @@
 //! T9: a character provisioned by the dev `GrantItem` logs into a real V6 session. The canonical
 //! V6 load (retained checkpoint) rides `SpawnPlayer` into the zone, the owner observes its own
 //! spawn and its `InventorySync` baseline with the granted item, a WS item intent executes, and
-//! the recorded V6 epoch replays byte-exact.
+//! the recorded V6 epoch replays byte-exact. A fresh, never-granted character (pending starter kit,
+//! no retained checkpoint) logs in too, and an Equip intent publishes `EquipmentChanged`.
 #![allow(
     missing_docs,
     clippy::unwrap_used,
@@ -42,6 +43,39 @@ fn inventory_sync(m: &pb::ServerMessage) -> Option<&pb::InventorySync> {
     }
 }
 
+fn equipment_changed(m: &pb::ServerMessage) -> Option<&pb::EquipmentChanged> {
+    match &m.payload {
+        Some(server_message::Payload::Event(pb::WorldEvent {
+            event: Some(world_event::Event::EquipmentChanged(changed)),
+        })) => Some(changed),
+        _ => None,
+    }
+}
+
+/// The documented client contract: UNAVAILABLE after the bounded wait means "retry the same
+/// key"; the retry returns the original frozen receipt (slow shared Postgres under load).
+async fn grant(app: &common::TestApp, request: pb::GrantItemRequest) -> pb::GrantItemResponse {
+    let mut attempts = 0_u8;
+    loop {
+        let result = app.grpc.clone().grant_item(request.clone()).await;
+        match result {
+            Err(status) if status.code() == tonic::Code::Unavailable && attempts < 5 => {
+                attempts = attempts.saturating_add(1);
+            },
+            other => return other.expect("grant").into_inner(),
+        }
+    }
+}
+
+fn inventory_changed(m: &pb::ServerMessage) -> Option<&pb::InventoryChanged> {
+    match &m.payload {
+        Some(server_message::Payload::Event(pb::WorldEvent {
+            event: Some(world_event::Event::InventoryChanged(changed)),
+        })) => Some(changed),
+        _ => None,
+    }
+}
+
 fn item_result(m: &pb::ServerMessage) -> Option<&pb::ItemOperationResult> {
     match &m.payload {
         Some(server_message::Payload::Event(pb::WorldEvent {
@@ -51,7 +85,8 @@ fn item_result(m: &pb::ServerMessage) -> Option<&pb::ItemOperationResult> {
     }
 }
 
-async fn contract<R>(repo: Arc<R>, log: Arc<dyn EventLog>)
+/// A durable V6 zone (epoch 1) with every item port and the dev grant enabled.
+async fn v6_app<R>(repo: Arc<R>, log: Arc<dyn EventLog>) -> (common::TestApp, ZoneSnapshot, ZoneId)
 where
     R: CharacterRepository
         + ItemAdmissionRepository
@@ -62,15 +97,6 @@ where
         + 'static,
 {
     let bundle = item_data::embedded_phase4_bundle().unwrap();
-    let account = common::account();
-    let character = Character::create(
-        AccountId::from_uuid(account),
-        CharacterName::new("LoginGrant").unwrap(),
-        Race::Human,
-    );
-    repo.create_idempotent(&IdempotencyKey::new(), "login-grant", &character)
-        .await
-        .unwrap();
     let zone = ZoneId(u32::try_from(Uuid::now_v7().as_u128() & 0x7fff_ffff).unwrap());
     let reservation = repo.reserve_item_range(zone, 1).await.unwrap();
     let classes = class_data::load_classes(&class_data::ClassSource::embedded()).unwrap();
@@ -130,20 +156,41 @@ where
         handle,
     )
     .await;
+    (app, baseline, zone)
+}
+
+async fn contract<R>(repo: Arc<R>, log: Arc<dyn EventLog>)
+where
+    R: CharacterRepository
+        + ItemAdmissionRepository
+        + ItemCheckpointRepository
+        + ItemInventoryRepository
+        + ItemReceiptRepository
+        + LearningCheckpointRepository
+        + 'static,
+{
+    let account = common::account();
+    let character = Character::create(
+        AccountId::from_uuid(account),
+        CharacterName::new("LoginGrant").unwrap(),
+        Race::Human,
+    );
+    repo.create_idempotent(&IdempotencyKey::new(), "login-grant", &character)
+        .await
+        .unwrap();
+    let (app, baseline, zone) = v6_app(repo.clone(), log.clone()).await;
     // Offline dev grant: materializes the starter kit and 10 Adena before login.
-    let granted = app
-        .grpc
-        .clone()
-        .grant_item(pb::GrantItemRequest {
+    let granted = grant(
+        &app,
+        pb::GrantItemRequest {
             character_id: character.id.as_uuid().as_bytes().to_vec(),
             template_id: 57,
             count: 10,
             idempotency_key: Uuid::now_v7().to_string(),
             enchant_level: None,
-        })
-        .await
-        .unwrap()
-        .into_inner();
+        },
+    )
+    .await;
     let revision = granted.inventory.unwrap().inventory_revision;
     // Real session: ticket, WS, admission with the canonical V6 load.
     let player = ws::Player {
@@ -190,12 +237,102 @@ where
     assert!(results.iter().all(|m| ws::rejected(m).is_none()), "{results:?}");
     let result = item_result(results.last().unwrap()).unwrap();
     assert_eq!(result.receipt_id, key.to_string());
+    assert_eq!(result.operation, pb::ItemOperation::Unequip as i32);
     assert_eq!(result.affected_instance_ids, vec![weapon]);
+    // Equip it again: the owner gets the receipt and the public slot projection.
+    let key = Uuid::now_v7();
+    socket
+        .send(&pb::ClientMessage {
+            seq: 2,
+            intent: Some(pb::client_message::Intent::EquipItem(pb::EquipItemRequest {
+                idempotency_key: key.to_string(),
+                instance_id: weapon,
+                preferred_slot: pb::EquipSlot::Rhand as i32,
+            })),
+        })
+        .await;
+    let results = socket.until(|m| item_result(m).is_some()).await;
+    assert!(results.iter().all(|m| ws::rejected(m).is_none()), "{results:?}");
+    let result = item_result(results.last().unwrap()).unwrap();
+    assert_eq!(result.receipt_id, key.to_string());
+    assert_eq!(result.operation, pb::ItemOperation::Equip as i32);
+    assert_eq!(result.affected_instance_ids, vec![weapon]);
+    let mut seen = results;
+    if !seen.iter().any(|m| equipment_changed(m).is_some()) {
+        seen.extend(socket.until(|m| equipment_changed(m).is_some()).await);
+    }
+    let weapon_template = sync
+        .items
+        .iter()
+        .find(|item| item.instance_id == weapon)
+        .unwrap()
+        .template_id;
+    assert!(
+        seen.iter().filter_map(equipment_changed).any(|changed| {
+            changed.entity_id == character.id.as_uuid().as_bytes()
+                && changed.visible.iter().any(|v| {
+                    v.slot == pb::EquipSlot::Rhand as i32 && v.template_id == weapon_template
+                })
+        }),
+        "ItemEquipped: the RHAND slot shows the weapon again"
+    );
     socket.close().await;
+    // A fresh, never-granted character: its pending starter kit rides the V6 load with no
+    // retained checkpoint and materializes at admission, before the inventory baseline.
+    // Created through the production CreateCharacter RPC: a Human Mystic whose level-1
+    // auto-get and racial skills are learned metadata, with no retained skill checkpoint.
+    let created = app
+        .grpc
+        .clone()
+        .create_character(pb::CreateCharacterRequest {
+            idempotency_key: Uuid::now_v7().to_string(),
+            name: "LoginFresh".into(),
+            race: pb::Race::Human.into(),
+            base_class_id: Some(10),
+            ..Default::default()
+        })
+        .await
+        .unwrap()
+        .into_inner();
+    let fresh = repo
+        .get(api::domain::CharacterId::from_uuid(Uuid::parse_str(&created.id).unwrap()))
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(!fresh.class_state.learned_skills.is_empty());
+    let admission = repo.load_for_admission(fresh.id).await.unwrap().unwrap();
+    assert!(admission.phase3.is_none());
+    assert!(admission.phase4.as_ref().unwrap().checkpoint.is_none());
+    let newcomer = ws::Player {
+        account,
+        character: fresh.id,
+        name: fresh.name.as_str().to_owned(),
+    };
+    let mut socket = ws::join(&app, &newcomer).await;
+    let seen = socket
+        .until(|m| inventory_sync(m).is_some_and(|sync| sync.baseline))
+        .await;
+    assert!(seen
+        .iter()
+        .filter_map(ws::spawn_of)
+        .any(|spawn| spawn.entity_id == newcomer.entity_id()));
+    let kit = inventory_sync(seen.last().unwrap()).unwrap();
+    assert_eq!(kit.entity_id, fresh.id.as_uuid().as_bytes());
+    assert!(!kit.items.is_empty() && !kit.paperdoll.is_empty());
+    assert!(!kit.items.iter().any(|item| item.template_id == 57));
+    socket.close().await;
+    let retained = repo.retained_inventory(fresh.id).await.unwrap().unwrap();
+    assert_eq!(retained.checkpoint.unwrap().inventory_revision, kit.inventory_revision);
+    assert!(repo
+        .pending_item_requests(fresh.id)
+        .await
+        .unwrap()
+        .iter()
+        .all(|request| matches!(request.status, PendingItemStatus::Materialized { .. })));
     // The recorded V6 epoch, including SpawnPlayer with its V6 load, replays byte-exact.
     let mut replay = restore_snapshot(baseline).unwrap();
     let mut records = log.read_epoch(zone, 1).await.unwrap();
-    let mut spawned = false;
+    let (mut spawned, mut pending_spawned) = (false, false);
     while let Some(record) = records.next().await {
         let record = record.unwrap();
         let encoded = record.encode();
@@ -208,12 +345,22 @@ where
             })
             .unwrap();
         assert!(record.reproduced_by(&AppliedTickRecord::from_applied(zone, &tick)));
-        spawned |= record.commands.iter().any(|command| {
-            matches!(&command.command, ZoneCommand::SpawnPlayer { load: Some(load), .. }
-                if load.phase4.as_ref().is_some_and(|items| items.checkpoint.is_some()))
-        });
+        for command in &record.commands {
+            if let ZoneCommand::SpawnPlayer {
+                load: Some(load), ..
+            } = &command.command
+            {
+                let items = load
+                    .phase4
+                    .as_ref()
+                    .expect("every V6 spawn carries its item load");
+                spawned |= items.checkpoint.is_some();
+                pending_spawned |= items.checkpoint.is_none();
+            }
+        }
     }
     assert!(spawned, "the recorded SpawnPlayer carries the retained V6 checkpoint");
+    assert!(pending_spawned, "the fresh SpawnPlayer carries its pending kit");
 }
 
 #[tokio::test]
@@ -229,12 +376,10 @@ async fn memory_dev_granted_character_logs_into_v6_and_replays() {
 
 #[tokio::test]
 async fn postgres_jetstream_dev_granted_character_logs_into_v6_and_replays() {
-    let Some(pool) = common::pg::migrated_pool().await else {
-        return;
-    };
-    let Ok(url) = std::env::var("NATS_URL") else {
-        return;
-    };
+    let pool = common::pg::migrated_pool()
+        .await
+        .expect("owned DATABASE_URL required");
+    let url = std::env::var("NATS_URL").expect("owned NATS_URL required");
     common::pg::insert_account(&pool, common::account()).await;
     let bundle = item_data::embedded_phase4_bundle().unwrap();
     let repo = Arc::new(
@@ -248,4 +393,304 @@ async fn postgres_jetstream_dev_granted_character_logs_into_v6_and_replays() {
             .unwrap(),
     );
     contract(repo, log).await;
+}
+
+/// T11: the client's required-live sequence. `CreateCharacter`, first V6 login (the kit
+/// materializes at admission), dev grants while online (potions, soulshots), then `UseItem` on
+/// the potion and `Unequip`/`Equip`. The zone must
+/// keep ticking (no "retained item mutation without private checkpoint" fence) and the epoch
+/// replays byte-exact.
+async fn client_sequence<R>(repo: Arc<R>, log: Arc<dyn EventLog>)
+where
+    R: CharacterRepository
+        + ItemAdmissionRepository
+        + ItemCheckpointRepository
+        + ItemInventoryRepository
+        + ItemReceiptRepository
+        + LearningCheckpointRepository
+        + 'static,
+{
+    let account = common::account();
+    let (app, baseline, zone) = v6_app(repo.clone(), log.clone()).await;
+    let created = app
+        .grpc
+        .clone()
+        .create_character(pb::CreateCharacterRequest {
+            idempotency_key: Uuid::now_v7().to_string(),
+            name: "ClientSequence".into(),
+            race: pb::Race::Human.into(),
+            ..Default::default()
+        })
+        .await
+        .unwrap()
+        .into_inner();
+    let id = api::domain::CharacterId::from_uuid(Uuid::parse_str(&created.id).unwrap());
+    let player = ws::Player {
+        account,
+        character: id,
+        name: "ClientSequence".into(),
+    };
+    let mut socket = ws::join(&app, &player).await;
+    let seen = socket
+        .until(|m| inventory_sync(m).is_some_and(|sync| sync.baseline))
+        .await;
+    for (template, count) in [(1060, 5), (1835, 200)] {
+        grant(
+            &app,
+            pb::GrantItemRequest {
+                character_id: id.as_uuid().as_bytes().to_vec(),
+                template_id: template,
+                count,
+                idempotency_key: Uuid::now_v7().to_string(),
+                enchant_level: None,
+            },
+        )
+        .await;
+    }
+    // The grants land online (the owner is in the world): InventoryChanged per grant.
+    let changes = socket
+        .until(|m| {
+            inventory_changed(m)
+                .is_some_and(|c| c.added.iter().any(|item| item.template_id == 1835))
+        })
+        .await;
+    let sync = inventory_sync(seen.last().unwrap()).unwrap().clone();
+    let added: Vec<pb::OwnedItem> = changes
+        .iter()
+        .filter_map(inventory_changed)
+        .flat_map(|c| c.added.iter().copied())
+        .collect();
+    let instance = |template| {
+        sync.items
+            .iter()
+            .chain(added.iter())
+            .find(|item| item.template_id == template)
+            .unwrap()
+            .instance_id
+    };
+    let potion = instance(1060);
+    let weapon = sync
+        .paperdoll
+        .iter()
+        .find(|entry| entry.slot == pb::EquipSlot::Rhand as i32)
+        .unwrap()
+        .instance_id;
+    let intents = [
+        pb::client_message::Intent::UseItem(pb::UseItemRequest {
+            idempotency_key: Uuid::now_v7().to_string(),
+            instance_id: potion,
+            target: None,
+        }),
+        pb::client_message::Intent::UnequipItem(pb::UnequipItemRequest {
+            idempotency_key: Uuid::now_v7().to_string(),
+            slot: pb::EquipSlot::Rhand as i32,
+        }),
+        pb::client_message::Intent::EquipItem(pb::EquipItemRequest {
+            idempotency_key: Uuid::now_v7().to_string(),
+            instance_id: weapon,
+            preferred_slot: pb::EquipSlot::Rhand as i32,
+        }),
+    ];
+    for (seq, intent) in (1_u32..).zip(intents) {
+        socket
+            .send(&pb::ClientMessage {
+                seq,
+                intent: Some(intent),
+            })
+            .await;
+        let results = socket
+            .until(|m| item_result(m).is_some() || ws::rejected(m).is_some())
+            .await;
+        assert!(results.iter().all(|m| ws::rejected(m).is_none()), "{results:?}");
+        if seq == 1 {
+            // The potion is an item skill: its effect lands after the paid use tick and
+            // extends the provider install order without any item mutation (T11's trigger).
+            socket
+                .until(|m| {
+                    matches!(
+                        &m.payload,
+                        Some(server_message::Payload::Event(pb::WorldEvent {
+                            event: Some(world_event::Event::EffectApplied(_)),
+                        }))
+                    )
+                })
+                .await;
+        }
+    }
+    // Let the potion's effect and reuse run for a while: the zone must keep ticking.
+    let after = app.zone.stats().borrow().tick;
+    tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+    app.zone.snapshot().await.expect("zone stays up");
+    let later = app.zone.stats().borrow().tick;
+    assert!(later > after, "the zone keeps ticking after the item intents");
+    assert!(!app.zone.persistence_failed());
+    socket.close().await;
+    let mut replay = restore_snapshot(baseline).unwrap();
+    let mut records = log.read_epoch(zone, 1).await.unwrap();
+    while let Some(record) = records.next().await {
+        let record = record.unwrap();
+        let tick = replay
+            .run_tick(AppliedTickDraft {
+                epoch: 1,
+                tick: record.tick,
+                commands: record.commands.clone(),
+            })
+            .unwrap();
+        assert!(record.reproduced_by(&AppliedTickRecord::from_applied(zone, &tick)));
+    }
+}
+
+#[tokio::test]
+async fn memory_client_sequence_create_grant_login_use_equip() {
+    let bundle = item_data::embedded_phase4_bundle().unwrap();
+    let repo = Arc::new(
+        InMemoryCharacterRepository::default()
+            .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
+            .unwrap(),
+    );
+    client_sequence(repo, Arc::new(InMemoryEventLog::default())).await;
+}
+
+#[tokio::test]
+async fn postgres_jetstream_client_sequence_create_grant_login_use_equip() {
+    let pool = common::pg::migrated_pool()
+        .await
+        .expect("owned DATABASE_URL required");
+    let url = std::env::var("NATS_URL").expect("owned NATS_URL required");
+    common::pg::insert_account(&pool, common::account()).await;
+    let bundle = item_data::embedded_phase4_bundle().unwrap();
+    let repo = Arc::new(
+        PgCharacterRepository::new(pool)
+            .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
+            .unwrap(),
+    );
+    let log = Arc::new(
+        JetStreamEventLog::connect(async_nats::connect(&url).await.unwrap(), Metrics::detached())
+            .await
+            .unwrap(),
+    );
+    client_sequence(repo, log).await;
+}
+
+/// T12: an item intent that reaches the zone before its session's player is admitted is
+/// refused for that session and never fences the zone. Covers both the session guard (an
+/// intent sent right after the handshake) and the actor pre-check (an item input for an entity
+/// with no admitted player); afterwards the same owner logs in and equips normally.
+async fn early_intent<R>(repo: Arc<R>, log: Arc<dyn EventLog>)
+where
+    R: CharacterRepository
+        + ItemAdmissionRepository
+        + ItemCheckpointRepository
+        + ItemInventoryRepository
+        + ItemReceiptRepository
+        + LearningCheckpointRepository
+        + 'static,
+{
+    let account = common::account();
+    let (app, baseline, zone) = v6_app(repo.clone(), log.clone()).await;
+    let character = Character::create(
+        AccountId::from_uuid(account),
+        CharacterName::new("EarlyIntent").unwrap(),
+        Race::Human,
+    );
+    repo.create_idempotent(&IdempotencyKey::new(), "early-intent", &character)
+        .await
+        .unwrap();
+    let unequip = |seq| pb::ClientMessage {
+        seq,
+        intent: Some(pb::client_message::Intent::UnequipItem(pb::UnequipItemRequest {
+            idempotency_key: Uuid::now_v7().to_string(),
+            slot: pb::EquipSlot::Rhand as i32,
+        })),
+    };
+    // Actor pre-check: an item input for an entity with no admitted player.
+    let entity = api::domain::zone::EntityId::from_uuid(character.id.as_uuid());
+    let command = api::interface::zone_mapping::item_command_from_pb(
+        entity,
+        unequip(1).intent.as_ref().unwrap(),
+    )
+    .unwrap()
+    .unwrap();
+    app.zone
+        .send(ZoneInput::session(
+            entity,
+            SessionGeneration(1),
+            1,
+            ZoneCommand::Item(Box::new(command)),
+        ))
+        .unwrap();
+    // Session guard: the intent right after the handshake, before the admission tick.
+    let player = ws::Player {
+        account,
+        character: character.id,
+        name: "EarlyIntent".into(),
+    };
+    let mut socket = ws::join(&app, &player).await;
+    socket.send(&unequip(2)).await;
+    let seen = socket
+        .until(|m| inventory_sync(m).is_some_and(|sync| sync.baseline))
+        .await;
+    assert!(!app.zone.persistence_failed(), "no zone fence");
+    for m in &seen {
+        if let Some(rejected) = ws::rejected(m) {
+            assert_eq!(rejected.seq, 2);
+            assert_eq!(rejected.detail, "player not admitted yet");
+        }
+    }
+    // Once admitted, item intents work on the same session.
+    socket.send(&unequip(3)).await;
+    let results = socket
+        .until(|m| item_result(m).is_some() || ws::rejected(m).is_some_and(|r| r.seq == 3))
+        .await;
+    assert!(item_result(results.last().unwrap()).is_some(), "{results:?}");
+    socket.close().await;
+    // The zone kept running and the epoch replays byte-exact.
+    let after = app.zone.stats().borrow().tick;
+    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    assert!(app.zone.stats().borrow().tick > after);
+    let mut replay = restore_snapshot(baseline).unwrap();
+    let mut records = log.read_epoch(zone, 1).await.unwrap();
+    while let Some(record) = records.next().await {
+        let record = record.unwrap();
+        let tick = replay
+            .run_tick(AppliedTickDraft {
+                epoch: 1,
+                tick: record.tick,
+                commands: record.commands.clone(),
+            })
+            .unwrap();
+        assert!(record.reproduced_by(&AppliedTickRecord::from_applied(zone, &tick)));
+    }
+}
+
+#[tokio::test]
+async fn memory_item_intent_before_admission_is_refused_without_a_fence() {
+    let bundle = item_data::embedded_phase4_bundle().unwrap();
+    let repo = Arc::new(
+        InMemoryCharacterRepository::default()
+            .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
+            .unwrap(),
+    );
+    early_intent(repo, Arc::new(InMemoryEventLog::default())).await;
+}
+
+#[tokio::test]
+async fn postgres_jetstream_item_intent_before_admission_is_refused_without_a_fence() {
+    let pool = common::pg::migrated_pool()
+        .await
+        .expect("owned DATABASE_URL required");
+    let url = std::env::var("NATS_URL").expect("owned NATS_URL required");
+    common::pg::insert_account(&pool, common::account()).await;
+    let bundle = item_data::embedded_phase4_bundle().unwrap();
+    let repo = Arc::new(
+        PgCharacterRepository::new(pool)
+            .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
+            .unwrap(),
+    );
+    let log = Arc::new(
+        JetStreamEventLog::connect(async_nats::connect(&url).await.unwrap(), Metrics::detached())
+            .await
+            .unwrap(),
+    );
+    early_intent(repo, log).await;
 }

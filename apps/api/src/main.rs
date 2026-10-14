@@ -163,8 +163,9 @@ async fn build_dependencies(
         .prepare_phase3(classes.clone())?
         .map(|bundle| Arc::new(bundle.phase3));
     zone_cfg.validate_production_selection()?;
-    // PHASE4_ENABLED=1: every persistence validator and the item catalogue use the same
-    // embedded V6 bundle the zone boots with (D27).
+    // PHASE4_ENABLED=1: every persistence validator and the item catalogue use the same V6
+    // bundle the zone boots with: the embedded D27 item tables bound to the Phase 3 data of
+    // the configured source (RULES_DIR overlay, else embedded), composed once (T8).
     let phase4 = zone_cfg.prepare_phase4(&classes)?;
     if let Some(bundle) = &phase4 {
         deps.item_catalogue =
