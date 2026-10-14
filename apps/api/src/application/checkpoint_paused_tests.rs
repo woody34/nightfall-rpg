@@ -74,6 +74,7 @@ fn inputs(h: &Harness, core: &ItemPausedCore) -> Vec<ZoneInput> {
                 paused: Some(Box::new(core.clone())),
                 known: None,
                 conflict: None,
+                enchant: 0,
             })))
         })
         .collect()
@@ -149,12 +150,12 @@ async fn paused_item_grant_settles_complete_core_and_two_receipts_without_public
         assert_eq!(stored.result.incarnation, 0);
         assert_eq!(stored.inventory.unwrap().character_revision, 2);
     }
-    assert_eq!(h.repo.item_ledger_for_test().len(), 2);
+    assert_eq!(h.repo.item_ledger_for_test().split_off(h.seeded).len(), 2);
     h.service
         .admitted(&tick, &h.state.snapshot())
         .await
         .unwrap();
-    assert_eq!(h.repo.item_ledger_for_test().len(), 2);
+    assert_eq!(h.repo.item_ledger_for_test().split_off(h.seeded).len(), 2);
 }
 
 #[tokio::test]
@@ -170,7 +171,7 @@ async fn paused_item_pending_snapshot_recovers_exact_work_before_later_empty_tic
         .await
         .is_err());
     let attempt = writer.attempts.lock()[0].clone();
-    assert_eq!(h.repo.item_ledger_for_test().len(), 0);
+    assert_eq!(h.repo.item_ledger_for_test().split_off(h.seeded).len(), 0);
     h.service.players.get_mut(&h.entity).unwrap().fenced = false;
     let mut snapshot = h.state.snapshot();
     h.service.snapshot(&mut snapshot);
@@ -214,7 +215,7 @@ async fn paused_item_pending_snapshot_recovers_exact_work_before_later_empty_tic
         .recover(&log, snapshot.seed.zone, snapshot.seed.epoch)
         .await
         .unwrap();
-    assert_eq!(h.repo.item_ledger_for_test().len(), 2);
+    assert_eq!(h.repo.item_ledger_for_test().split_off(h.seeded).len(), 2);
     assert_eq!(
         h.repo
             .retained_inventory(attempt.0.character_id)
@@ -228,5 +229,5 @@ async fn paused_item_pending_snapshot_recovers_exact_work_before_later_empty_tic
         .recover(&log, snapshot.seed.zone, snapshot.seed.epoch)
         .await
         .unwrap();
-    assert_eq!(h.repo.item_ledger_for_test().len(), 2);
+    assert_eq!(h.repo.item_ledger_for_test().split_off(h.seeded).len(), 2);
 }

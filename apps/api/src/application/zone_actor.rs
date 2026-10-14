@@ -22,8 +22,8 @@
 //! together with the unlogged tick, so the log and everything anyone observed always agree.
 //!
 //! The actor never reads a clock for anything that reaches state or output: tick numbers come
-//! from the state, `server_time_ms` from the zone's time origin. The one clock read is a
-//! monotonic `Instant` around the tick body that feeds [`TickStats::duration_micros`] only.
+//! from the state, `server_time_ms` from the zone's time origin. Monotonic timing feeds only
+//! [`TickStats::duration_micros`] and opt-in runtime phase tracing.
 
 #[path = "zone_actor_grants.rs"]
 mod grants;
@@ -361,6 +361,13 @@ impl ZoneHandle {
     pub fn persistence_failed(&self) -> bool {
         self.persistence_failed
             .load(std::sync::atomic::Ordering::Acquire)
+    }
+
+    pub(crate) fn inventory_available(&self) -> Result<(), super::AppError> {
+        if self.is_paused() || self.commands.is_closed() || self.persistence_failed() {
+            return Err(super::AppError::Unavailable("inventory zone is unavailable".into()));
+        }
+        Ok(())
     }
 
     pub(crate) fn final_snapshot(&self) -> Option<ZoneSnapshot> {
@@ -770,6 +777,7 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
                 },
             },
         };
+        runtime_phase("draft", started);
         let tick = record.tick;
         if record.commands.iter().any(|command| {
             matches!(
@@ -794,6 +802,7 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
                 return TickOutcome::Held(tick);
             }
         }
+        let phase_started = Instant::now();
         if record
             .events
             .iter()
@@ -837,6 +846,8 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
             self.failed = true;
             return TickOutcome::Held(tick);
         }
+        runtime_phase("record_budget", phase_started);
+        let phase_started = Instant::now();
         if let Some(service) = self.checkpoints.service() {
             service
                 .lock()
@@ -844,6 +855,8 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
                 .recording(self.state.seed().zone, record.epoch, record.tick)
                 .await;
         }
+        runtime_phase("recording_index", phase_started);
+        let phase_started = Instant::now();
         if let Err(e) = self.gate.admit(&record).await {
             self.gate_holds = self.gate_holds.saturating_add(1);
             if self.gate.terminal_failure() {
@@ -857,19 +870,21 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
             self.publish_stats(tick, started, 0);
             return TickOutcome::Held(tick);
         }
+        runtime_phase("durable_gate", phase_started);
+        let phase_started = Instant::now();
         if let Some(service) = self.checkpoints.service() {
-            if let Err(error) = service
-                .lock()
-                .await
-                .admitted(&record, &self.state.snapshot())
-                .await
-            {
+            let snapshot_started = Instant::now();
+            let snapshot = self.state.snapshot();
+            runtime_phase("checkpoint_snapshot", snapshot_started);
+            if let Err(error) = service.lock().await.admitted(&record, &snapshot).await {
                 tracing::error!(%error,"checkpoint failure fences zone before output release");
                 self.failed = true;
                 self.fail_replies();
                 return TickOutcome::Held(tick);
             }
         }
+        runtime_phase("checkpoint", phase_started);
+        let phase_started = Instant::now();
         self.complete_replies(&record).await;
         if !record.is_idle() {
             // No subscribers is fine: nobody is connected yet.
@@ -881,6 +896,7 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
                 }
             }
         }
+        runtime_phase("fanout_telemetry", phase_started);
         self.publish_stats(tick, started, applied);
         TickOutcome::Ran(tick)
     }
@@ -894,6 +910,9 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
                 continue;
             }
             if self.preflight_items(&selected).await? {
+                continue;
+            }
+            if self.preflight_item_allocation(&selected).await? {
                 continue;
             }
             if self.preflight_learning(&selected).await? {
@@ -1027,7 +1046,9 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
                 }
             }
         }
+        let domain_started = Instant::now();
         let record = self.state.run_tick(draft).map_err(|e| (tick, e))?;
+        runtime_phase("domain", domain_started);
         self.audit_next_tick.send_replace(self.state.next_tick());
         trace_applied(&record, &traces);
         Ok((Arc::new(record), applied))
@@ -1228,7 +1249,13 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
 
     /// Moves queued inputs into `pending`, up to [`PENDING_LIMIT`].
     fn collect(&mut self) {
-        while self.pending.len() < PENDING_LIMIT {
+        // Leave room for the recorded control command; it shares all ordinary byte budgets.
+        let limit = if self.item_range_exhausted() {
+            PENDING_LIMIT.saturating_sub(1)
+        } else {
+            PENDING_LIMIT
+        };
+        while self.pending.len() < limit {
             match self.commands.try_recv() {
                 Ok(queued) => self.pending.push_back(queued),
                 Err(mpsc::error::TryRecvError::Empty) => break,
@@ -1240,13 +1267,101 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
         }
     }
 
+    fn item_range_exhausted(&self) -> bool {
+        self.state.item_instance_range().is_some_and(|range| {
+            let (_, next, end) = range.bounds();
+            next == end
+        })
+    }
+
+    async fn preflight_item_allocation(
+        &mut self,
+        selected: &[usize],
+    ) -> Result<bool, (Tick, TickError)> {
+        use crate::domain::zone::{ItemInstanceRange, ZoneCommand};
+        if !self.item_range_exhausted()
+            || self
+                .pending
+                .iter()
+                .any(|queued| matches!(queued.input.command, ZoneCommand::ExtendItemRange { .. }))
+        {
+            return Ok(false);
+        }
+        let fence = (self.state.next_tick(), TickError::PersistenceFence);
+        let mut required = false;
+        for index in selected {
+            let queued = self.pending.get(*index).ok_or(fence)?;
+            if let ZoneCommand::MaterializePendingItems(grant) = &queued.input.command {
+                required |= grant.known.is_none() && grant.conflict.is_none();
+            } else if let ZoneCommand::SpawnPlayer {
+                load: Some(load), ..
+            } = &queued.input.command
+            {
+                required |= load
+                    .phase4
+                    .as_ref()
+                    .is_some_and(|items| !items.pending.is_empty());
+            } else if let ZoneCommand::Item(command) = &queued.input.command {
+                let CommandSource::Session { entity, generation } = queued.input.source else {
+                    return Err(fence);
+                };
+                let account = command.authenticated_account().map_err(|_| fence)?;
+                required |= self.state.class_player(entity, account, generation).is_ok()
+                    && command.known_result().map_err(|_| fence)?.is_none()
+                    && command.receipt_conflict().map_err(|_| fence)?.is_none()
+                    && matches!(
+                        command.kind,
+                        crate::domain::zone::ItemCommandKind::Enchant { .. }
+                            | crate::domain::zone::ItemCommandKind::Crystallize { .. }
+                            | crate::domain::zone::ItemCommandKind::ExchangeSpecialAbility { .. }
+                    );
+            }
+        }
+        if !required {
+            return Ok(false);
+        }
+        if !self.gate.durable() || self.pending.len() >= PENDING_LIMIT {
+            return Err(fence);
+        }
+        let old = self.state.item_instance_range().ok_or(fence)?;
+        let service = self.checkpoints.service().ok_or(fence)?;
+        let lane = service.lock().await;
+        if !lane.items_enabled() {
+            return Err(fence);
+        }
+        let reserved = lane
+            .extend_item_range(self.state.seed(), old.bounds().0)
+            .await
+            .map_err(|_| fence)?;
+        reserved.validate().map_err(|_| fence)?;
+        if reserved.zone_id != self.state.seed().zone
+            || reserved.epoch != self.state.seed().epoch
+            || reserved.next_reserved != reserved.range_start
+        {
+            return Err(fence);
+        }
+        let range = ItemInstanceRange::new(
+            reserved.range_start,
+            reserved.next_reserved,
+            reserved.range_end_exclusive,
+        )
+        .map_err(|_| fence)?;
+        let mut checked = old;
+        checked.extend(range).map_err(|_| fence)?;
+        drop(lane);
+        self.pending.push_front(Queued {
+            input: ZoneInput::system(ZoneCommand::ExtendItemRange { range }),
+            trace: None,
+            reply: None,
+        });
+        Ok(true)
+    }
+
     /// Indices into `pending`, ascending, of the inputs that fit this tick's budgets.
     fn select_admitted(&mut self) -> Vec<usize> {
         let mut recipients: BTreeSet<EntityId> = if self.admission_policy.is_some() {
             self.state
-                .snapshot()
-                .entities
-                .iter()
+                .entities()
                 .filter(|e| e.kind == crate::domain::zone::EntityKind::Player)
                 .map(|e| e.id)
                 .collect()
@@ -1492,6 +1607,10 @@ fn trace_applied(record: &AppliedTick, traces: &[(Ordinal, TraceCarrier)]) {
 #[path = "zone_actor_tests.rs"]
 mod tests;
 
+#[cfg(test)]
+#[path = "zone_actor_allocator_tests.rs"]
+mod allocator_tests;
+
 /// Maps deterministic refusals at the application boundary.
 pub(crate) fn class_error(reason: crate::domain::zone::RejectReason) -> super::AppError {
     use crate::domain::zone::RejectReason;
@@ -1574,4 +1693,9 @@ fn observer_count(state: &ZoneState) -> usize {
         .iter()
         .filter(|entity| entity.kind == crate::domain::zone::EntityKind::Player)
         .count()
+}
+
+/// Opt-in runtime timings; never used by simulation or admission decisions.
+pub(crate) fn runtime_phase(phase: &'static str, started: Instant) {
+    tracing::debug!(target: "nightfall_api::runtime_timing", phase, micros = u64::try_from(started.elapsed().as_micros()).unwrap_or(u64::MAX), "runtime phase");
 }

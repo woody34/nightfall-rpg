@@ -427,6 +427,10 @@ message GrantItemRequest {
   uint32 template_id = 2;
   uint64 count = 3;
   string idempotency_key = 4;
+  // D113 dev fixtures: birth enchant level of the single granted equipment instance
+  // (count must be 1). Validated against the template's enchant rules; part of the
+  // idempotent body. Absent or 0 = ordinary grant. No RNG; charges/augment are not settable.
+  optional uint32 enchant_level = 5;
 }
 
 message GrantItemResponse {

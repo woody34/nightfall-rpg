@@ -24,17 +24,71 @@ use api::infrastructure::telemetry::Metrics;
 use api::infrastructure::{class_data, item_data, rules_data};
 use api::interface::grpc::pb;
 use nightfall_api as api;
+use parking_lot::Mutex;
 use std::fmt::Write as _;
-use std::sync::Arc;
+use std::sync::{
+    atomic::{AtomicUsize, Ordering},
+    Arc,
+};
+use std::time::Duration;
+use tokio::sync::Notify;
 use tokio_stream::StreamExt as _;
 use tokio_util::sync::CancellationToken;
 use tonic::Code;
 use uuid::Uuid;
 
+type Attempt = (CharacterCheckpoint, Vec<api::domain::DomainEvent>, ItemCheckpointWork);
+struct LostItemAck {
+    inner: Arc<PgCharacterRepository>,
+    entered: Notify,
+    released: Notify,
+    calls: AtomicUsize,
+    attempts: Mutex<Vec<Attempt>>,
+}
+#[async_trait::async_trait]
+impl ItemReceiptRepository for LostItemAck {
+    async fn item_receipt_lookup(
+        &self,
+        account: AccountId,
+        operation: ItemMutationOperation,
+        key: &IdempotencyKey,
+        fingerprint: &str,
+    ) -> anyhow::Result<ItemReceiptLookup> {
+        self.inner
+            .item_receipt_lookup(account, operation, key, fingerprint)
+            .await
+    }
+}
+#[async_trait::async_trait]
+impl ItemCheckpointRepository for LostItemAck {
+    async fn checkpoint_items(
+        &self,
+        cp: &CharacterCheckpoint,
+        events: &[api::domain::DomainEvent],
+        work: &ItemCheckpointWork,
+        learning: Option<&SuccessfulLearnReceipt>,
+    ) -> Result<CheckpointOutcome, CheckpointError> {
+        self.attempts
+            .lock()
+            .push((cp.clone(), events.to_vec(), work.clone()));
+        let outcome = self
+            .inner
+            .checkpoint_items(cp, events, work, learning)
+            .await?;
+        if self.calls.fetch_add(1, Ordering::SeqCst) == 0 {
+            self.entered.notify_one();
+            self.released.notified().await;
+            return Err(anyhow::anyhow!("lost actual PostgreSQL commit acknowledgement").into());
+        }
+        Ok(outcome)
+    }
+}
+
 async fn contract<R>(
     repo: Arc<R>,
     bundle: item_data::Phase4RuleBundle,
     log: Arc<dyn EventLog>,
+    probe: Option<Arc<LostItemAck>>,
 ) -> api::domain::CharacterId
 where
     R: CharacterRepository
@@ -90,13 +144,17 @@ where
         CancellationToken::new(),
     );
     let handle = ZoneActor::spawn_gated(state, IntervalTicks::new(), gate);
+    let writer: Arc<dyn ItemCheckpointRepository> = probe.as_ref().map_or_else(
+        || repo.clone() as Arc<dyn ItemCheckpointRepository>,
+        |probe| probe.clone() as Arc<dyn ItemCheckpointRepository>,
+    );
     handle.checkpoints.install(
         CheckpointService::new(
             repo.clone(),
             Arc::new(InMemorySessionAudit::default()),
             Arc::new(Metrics::detached()),
         )
-        .with_items(repo.clone())
+        .with_items(writer)
         .with_learning(repo.clone()),
     );
     let catalogue = Arc::new(RegistryItemCatalogue::new(bundle.items, &bundle.skills).unwrap());
@@ -128,6 +186,7 @@ where
         template_id: 57,
         count: 10,
         idempotency_key: Uuid::now_v7().to_string(),
+        enchant_level: None,
     };
     assert_eq!(
         app.anon_grpc()
@@ -162,11 +221,46 @@ where
         .unwrap()
         .checkpoint
         .is_none());
-    let first = client
-        .grant_item(request.clone())
-        .await
-        .unwrap()
-        .into_inner();
+    let first = if let Some(probe) = &probe {
+        let mut granting = client.clone();
+        let submitted = request.clone();
+        let reply =
+            tokio::spawn(async move { granting.grant_item(submitted).await.unwrap().into_inner() });
+        tokio::time::timeout(Duration::from_secs(10), probe.entered.notified())
+            .await
+            .unwrap();
+        assert!(!reply.is_finished());
+        // The real transaction committed, but neither the RPC nor the tick is released.
+        assert_eq!(
+            repo.retained_inventory(character.id)
+                .await
+                .unwrap()
+                .unwrap()
+                .character_revision,
+            1
+        );
+        let mut prefix = log.read_epoch(zone, 1).await.unwrap();
+        let mut recorded = false;
+        while let Some(record) = prefix.next().await {
+            recorded |= record.unwrap().commands.iter().any(|command| {
+                matches!(&command.command, ZoneCommand::MaterializePendingItems(grant) if grant.request_id.to_string() == request.idempotency_key)
+            });
+        }
+        assert!(recorded, "JetStream must acknowledge before the PostgreSQL commit");
+        assert!(!reply.is_finished());
+        probe.released.notify_one();
+        let first = reply.await.unwrap();
+        let attempts = probe.attempts.lock();
+        assert_eq!(attempts.len(), 2);
+        assert_eq!(attempts[0], attempts[1]);
+        first
+    } else {
+        client
+            .grant_item(request.clone())
+            .await
+            .unwrap()
+            .into_inner()
+    };
     let result = first.result.as_ref().unwrap();
     assert_eq!(result.entity_id, character.id.as_uuid().as_bytes());
     assert_eq!(result.receipt_id, request.idempotency_key);
@@ -304,7 +398,7 @@ async fn memory_actual_offline_grant_socket_retries_and_cold_replay() {
             .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
             .unwrap(),
     );
-    contract(repo.clone(), bundle, Arc::new(InMemoryEventLog::default())).await;
+    contract(repo.clone(), bundle, Arc::new(InMemoryEventLog::default()), None).await;
     assert_eq!(
         repo.staged_events()
             .iter()
@@ -332,7 +426,14 @@ async fn owned_postgres_jetstream_actual_offline_grant_socket_is_atomic() {
             .await
             .unwrap(),
     );
-    let id = contract(repo, bundle, log).await;
+    let probe = Arc::new(LostItemAck {
+        inner: repo.clone(),
+        entered: Notify::new(),
+        released: Notify::new(),
+        calls: AtomicUsize::new(0),
+        attempts: Mutex::new(Vec::new()),
+    });
+    let id = contract(repo, bundle, log, Some(probe)).await;
     let receipts: i64 = sqlx::query_scalar("SELECT count(*) FROM item_mutation_receipts WHERE character_id=$1 AND operation='grant_item'").bind(id.as_uuid()).fetch_one(&pool).await.unwrap();
     assert_eq!(receipts, 2);
     let grants: i64 =

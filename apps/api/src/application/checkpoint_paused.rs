@@ -96,14 +96,16 @@ impl CheckpointService {
         Ok(())
     }
 
-    pub(super) async fn recover_pending(&mut self) -> anyhow::Result<()> {
+    /// Settle pending critical facts and item work. At the end of historical recovery
+    /// (`all_retained`) every retained Phase 3 lane is flushed, since the internal-state
+    /// cadence leaves such state persisted only on cadence (Phase 3 §10 P2).
+    pub(super) async fn recover_pending(&mut self, all_retained: bool) -> anyhow::Result<()> {
         let pending: Vec<_> = self
             .players
             .iter()
             .filter(|(_, p)| {
-                !p.events.is_empty()
-                    || p.items.is_some()
-                    || (p.dirty && p.latest.as_ref().is_some_and(|cp| cp.phase3.is_some()))
+                let retained = p.latest.as_ref().is_some_and(|cp| cp.phase3.is_some());
+                !p.events.is_empty() || p.items.is_some() || (retained && (all_retained || p.dirty))
             })
             .map(|(id, _)| *id)
             .collect();

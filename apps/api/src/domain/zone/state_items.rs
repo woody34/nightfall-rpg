@@ -85,4 +85,8 @@ impl ZoneState {
     pub fn phase4_enabled(&self) -> bool {
         self.meta.schema_version == 10 && self.meta.digest_version == StateDigestVersion::BinaryV6
     }
+
+    pub(crate) fn item_instance_range(&self) -> Option<ItemInstanceRange> {
+        self.phase4.as_ref().map(|phase| phase.canonical.allocator)
+    }
 }

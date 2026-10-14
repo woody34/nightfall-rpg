@@ -881,4 +881,3 @@ void TURBOLINK_TO_GRPC(const FGrpcNightfallV1GrantItemResponse* in, ::nightfall:
     if (in->HasInventory) TURBOLINK_TO_GRPC(&(in->Inventory), out->mutable_inventory());
     else out->clear_inventory();
 }
-

@@ -2,13 +2,13 @@
 //! has no repository. Requests are immutable until acknowledged, including after a lost commit
 //! response. The durable applied prefix is the recovery queue.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 use std::time::Duration;
 
+use futures_util::StreamExt as _;
 use sha2::{Digest, Sha256};
 use tokio::time::Instant;
-use tokio_stream::StreamExt as _;
 use uuid::Uuid;
 
 use super::ports::{
@@ -52,6 +52,7 @@ pub struct CheckpointService {
     repo: Arc<dyn CharacterRepository>,
     learning_repo: Option<Arc<dyn super::ports::LearningCheckpointRepository>>,
     item_repo: Option<Arc<dyn super::ports::ItemCheckpointRepository>>,
+    item_admission: Option<Arc<dyn super::ports::ItemAdmissionRepository>>,
     audit: Arc<dyn SessionAudit>,
     metrics: Arc<dyn CheckpointMetrics>,
     players: BTreeMap<EntityId, Player>,
@@ -59,6 +60,9 @@ pub struct CheckpointService {
     last: Option<(u64, Tick)>,
     durability: Option<(Arc<dyn EventLog>, Arc<dyn super::replay_log::ZoneSnapshotStore>)>,
     refreshed: Instant,
+    wrote_since_index: bool,
+    internal_cadence: bool,
+    pending: parking_lot::Mutex<BTreeMap<IdempotencyKey, Instant>>,
 }
 
 impl CheckpointService {
@@ -72,6 +76,7 @@ impl CheckpointService {
             repo,
             learning_repo: None,
             item_repo: None,
+            item_admission: None,
             audit,
             metrics,
             players: BTreeMap::new(),
@@ -79,6 +84,9 @@ impl CheckpointService {
             last: None,
             durability: None,
             refreshed: Instant::now(),
+            wrote_since_index: false,
+            internal_cadence: true,
+            pending: parking_lot::Mutex::default(),
         }
     }
 
@@ -97,6 +105,26 @@ impl CheckpointService {
     pub fn with_items(mut self, repo: Arc<dyn super::ports::ItemCheckpointRepository>) -> Self {
         self.item_repo = Some(repo);
         self
+    }
+    /// Installs durable range reservations before an exhausted V6 actor resumes.
+    #[must_use]
+    pub fn with_item_admission(
+        mut self,
+        repo: Arc<dyn super::ports::ItemAdmissionRepository>,
+    ) -> Self {
+        self.item_admission = Some(repo);
+        self
+    }
+    pub(crate) async fn extend_item_range(
+        &self,
+        seed: crate::domain::zone::ZoneSeed,
+        exhausted_start: u64,
+    ) -> Result<super::ports::ItemIdRange, super::CheckpointError> {
+        self.item_admission
+            .as_ref()
+            .ok_or_else(|| super::CheckpointError::Constraint("item_admission_required".into()))?
+            .reserve_item_range_extension(seed.zone, seed.epoch, exhausted_start)
+            .await
     }
     /// Item simulation cannot activate without a typed durable receipt lane.
     pub fn items_enabled(&self) -> bool {
@@ -237,6 +265,8 @@ impl CheckpointService {
 
     /// Captures every lane at a boundary after all in-flight requests have completed.
     pub fn snapshot(&self, snapshot: &mut ZoneSnapshot) {
+        snapshot.meta.checkpoint_internal_cadence =
+            snapshot.phase3.is_some() && self.internal_cadence;
         snapshot.checkpoints = self
             .players
             .iter()
@@ -284,6 +314,8 @@ impl CheckpointService {
 
     /// Restores revision fences, cadence and pending facts before accepting another tick.
     pub fn restore(&mut self, snapshot: &ZoneSnapshot) {
+        self.internal_cadence = snapshot.meta.checkpoint_internal_cadence;
+        self.wrote_since_index = false;
         self.players = snapshot
             .checkpoints
             .iter()
@@ -381,16 +413,19 @@ impl CheckpointService {
                 .latest
                 .as_ref()
                 .is_some_and(|cp| cp.phase3.is_some() && cp.revision_seen == player.revision);
+            let wrote = player.dirty;
             save(
                 self.repo.as_ref(),
                 self.learning_repo.as_deref(),
                 self.item_repo.as_deref(),
                 self.audit.as_ref(),
                 self.metrics.as_ref(),
+                &self.pending,
                 self.sessions.get(&entity).copied(),
                 player,
             )
             .await?;
+            self.wrote_since_index |= wrote;
         }
         Ok(())
     }
@@ -456,6 +491,7 @@ impl CheckpointService {
                 );
             }
         }
+        let mut due = BTreeSet::new();
         for entity in &snapshot.entities {
             if snapshot.phase3.is_some() && entity.kind == crate::domain::zone::EntityKind::Player {
                 anyhow::ensure!(
@@ -590,8 +626,13 @@ impl CheckpointService {
                 player.items = Some(work);
                 player.dirty = true;
             }
+            let retained_changed = if self.internal_cadence {
+                critical_phase3_changed(player.last_phase3.as_ref(), retained)
+            } else {
+                retained_phase3_changed(player.last_phase3.as_ref(), retained)
+            };
             let retained_critical = phase3.is_some()
-                && (retained_phase3_changed(player.last_phase3.as_ref(), retained)
+                && (retained_changed
                     || player
                         .latest
                         .as_ref()
@@ -605,7 +646,8 @@ impl CheckpointService {
                     || old.alive != cp.alive
                     || old.position != cp.position
             });
-            player.dirty |= changed || retained_critical;
+            player.dirty |=
+                changed || retained_phase3_changed(player.last_phase3.as_ref(), retained);
             player.latest = Some(cp.clone());
             player.last_phase3 = retained.cloned();
             let mut immediate = player.items.is_some() || retained_critical || tick.events.iter().any(|event| matches!(event,
@@ -765,6 +807,7 @@ impl CheckpointService {
                             | DomainEvent::ItemEnchanted { fact }
                             | DomainEvent::ItemDestroyed { fact }
                             | DomainEvent::ItemRefined { fact }
+                            | DomainEvent::ItemRefineCancelled { fact }
                             | DomainEvent::ItemExchanged { fact } => &mut fact.metadata,
                             DomainEvent::CharacterCreated { .. } => continue,
                         };
@@ -787,19 +830,14 @@ impl CheckpointService {
                     .extend(item_events(&cp, work, player.events.len())?);
             }
             if immediate || tick.tick.0.saturating_sub(player.last_saved.0) >= 50 {
-                save(
-                    self.repo.as_ref(),
-                    self.learning_repo.as_deref(),
-                    self.item_repo.as_deref(),
-                    self.audit.as_ref(),
-                    self.metrics.as_ref(),
-                    self.sessions.get(&entity.id).copied(),
-                    player,
-                )
-                .await?;
-                player.last_saved = tick.tick;
+                due.insert(entity.id);
             }
         }
+        let wrote = due
+            .iter()
+            .any(|id| self.players.get(id).is_some_and(|p| p.dirty));
+        self.save_due(&due, tick.tick).await?;
+        self.wrote_since_index |= wrote;
         self.players.retain(|id, _| {
             let present = snapshot.entities.iter().any(|e| e.id == *id);
             if !present {
@@ -808,10 +846,58 @@ impl CheckpointService {
             present
         });
         self.last = Some((tick.epoch, tick.tick));
-        self.index_tick(snapshot.seed.zone, tick.epoch, tick.tick, true)
-            .await;
+        let index_started = std::time::Instant::now();
+        if self.wrote_since_index {
+            self.index_tick(snapshot.seed.zone, tick.epoch, tick.tick, true)
+                .await;
+            self.wrote_since_index = false;
+        }
+        super::zone_actor::runtime_phase("checkpoint_index", index_started);
         self.refresh_if_due(snapshot).await;
         Ok(())
+    }
+
+    async fn save_due(&mut self, due: &BTreeSet<EntityId>, tick: Tick) -> anyhow::Result<()> {
+        // Account-scoped receipts and outbox facts retain entity order. Independent resource
+        // checkpoints may overlap, but the whole batch still gates index completion/output.
+        let concurrency = if due.iter().any(|id| {
+            self.players
+                .get(id)
+                .is_some_and(|p| !p.events.is_empty() || p.learning.is_some() || p.items.is_some())
+        }) {
+            1
+        } else {
+            8
+        };
+        let repo = self.repo.as_ref();
+        let learning = self.learning_repo.as_deref();
+        let items = self.item_repo.as_deref();
+        let audit = self.audit.as_ref();
+        let metrics = self.metrics.as_ref();
+        let sessions = &self.sessions;
+        let pending = &self.pending;
+        let mut saves = Vec::new();
+        for (id, player) in &mut self.players {
+            if !due.contains(id) {
+                continue;
+            }
+            let session = sessions.get(id).copied();
+            saves.push(async move {
+                save(repo, learning, items, audit, metrics, pending, session, player).await?;
+                player.last_saved = tick;
+                Ok(())
+            });
+        }
+        let mut saves = futures_util::stream::iter(saves).buffered(concurrency);
+        if concurrency == 1 {
+            while let Some(result) = saves.next().await {
+                result?;
+            }
+            return Ok(());
+        }
+        // Settle every started transaction even on failure; never cancel an in-flight commit.
+        let results: Vec<anyhow::Result<()>> = saves.collect().await;
+        results.into_iter().collect()
     }
 
     async fn refresh_if_due(&mut self, snapshot: &ZoneSnapshot) {
@@ -859,7 +945,7 @@ impl CheckpointService {
         self.restore(&stored.snapshot);
         let first_tick = stored.snapshot.tick;
         let mut state = super::replay_log::restore_snapshot(stored.snapshot)?;
-        self.recover_pending().await?;
+        self.recover_pending(false).await?;
         let mut records = log.read_epoch(zone, epoch).await?;
         while let Some(record) = records.next().await {
             let record = record?;
@@ -894,11 +980,16 @@ impl CheckpointService {
             required.is_none_or(|tick| state.snapshot().tick > tick),
             "checkpoint recovery history ends before indexed tick {required:?}"
         );
-        self.recover_pending().await?;
+        // A baseline can itself carry pending critical facts, even without a later record;
+        // under the internal-state cadence every retained Phase 3 lane is settled here.
+        self.recover_pending(true).await?;
         // Ordinary progress may roll back; critical facts have already been checkpointed.
         self.players.clear();
         self.sessions.clear();
         self.last = None;
+        // Historical policy belongs only to the settled epoch, never its successor.
+        self.internal_cadence = true;
+        self.wrote_since_index = false;
         Ok(())
     }
 }
@@ -951,13 +1042,14 @@ async fn close_recovered_epoch(log: &dyn EventLog, zone: ZoneId, epoch: u64) -> 
     Ok(())
 }
 
-#[allow(clippy::too_many_arguments)] // Explicit writer/audit/metrics at the atomic save barrier.
+#[allow(clippy::too_many_arguments)] // Explicit writers/audit/metrics and the shared pending set.
 async fn save(
     repo: &dyn CharacterRepository,
     learning_repo: Option<&dyn super::ports::LearningCheckpointRepository>,
     item_repo: Option<&dyn super::ports::ItemCheckpointRepository>,
     audit: &dyn SessionAudit,
     metrics: &dyn CheckpointMetrics,
+    pending: &parking_lot::Mutex<BTreeMap<IdempotencyKey, Instant>>,
     session: Option<SessionId>,
     player: &mut Player,
 ) -> anyhow::Result<()> {
@@ -978,6 +1070,13 @@ async fn save(
         .as_ref()
         .ok_or_else(|| anyhow::anyhow!("dirty checkpoint has no request"))?;
     let started = Instant::now();
+    let tracked = PendingSave {
+        metrics,
+        pending,
+        key: cp.idempotency.1,
+    };
+    pending.lock().insert(tracked.key, started);
+    let metrics: &dyn CheckpointMetrics = &tracked;
     let mut backoff = Duration::from_millis(100);
     loop {
         metrics.lag(started.elapsed());
@@ -1064,6 +1163,47 @@ async fn save(
                 backoff = backoff.saturating_mul(2).min(Duration::from_secs(5));
             },
         }
+    }
+}
+
+// Identities stay internal; the exported gauge is the oldest pending age, without labels.
+struct PendingSave<'a> {
+    metrics: &'a dyn CheckpointMetrics,
+    pending: &'a parking_lot::Mutex<BTreeMap<IdempotencyKey, Instant>>,
+    key: IdempotencyKey,
+}
+impl PendingSave<'_> {
+    fn publish(&self, remove: bool) {
+        let mut pending = self.pending.lock();
+        if remove {
+            pending.remove(&self.key);
+        }
+        self.metrics.lag(
+            pending
+                .values()
+                .map(Instant::elapsed)
+                .max()
+                .unwrap_or_default(),
+        );
+    }
+}
+impl Drop for PendingSave<'_> {
+    fn drop(&mut self) {
+        self.publish(true);
+    }
+}
+impl CheckpointMetrics for PendingSave<'_> {
+    fn failed(&self) {
+        self.metrics.failed();
+    }
+    fn lag(&self, _: Duration) {
+        self.publish(false);
+    }
+    fn skill_learned(&self) {
+        self.metrics.skill_learned();
+    }
+    fn token_granted(&self, tier: u8, source: crate::domain::character_progression::TokenSource) {
+        self.metrics.token_granted(tier, source);
     }
 }
 
@@ -1200,6 +1340,26 @@ impl CheckpointLane {
 #[path = "checkpoint_tests.rs"]
 mod tests;
 
+// Only externally durable facts gate output; internal retained state stays dirty until cadence.
+fn critical_phase3_changed(before: Option<&Phase3Entity>, after: Option<&Phase3Entity>) -> bool {
+    let facts = |side: &Phase3Entity| {
+        side.player.as_ref().map(|p| {
+            (
+                p.pvp.karma,
+                p.pvp.pk_count,
+                p.pvp.pvp_count,
+                p.death_penalty_level,
+                p.last_death.clone(),
+            )
+        })
+    };
+    match (before, after) {
+        (Some(a), Some(b)) => facts(a) != facts(b),
+        (None, None) => false,
+        _ => true,
+    }
+}
+
 // Compare canonical retained mutations, never a projection's naturally decreasing remainder.
 // Casts, offers and regen deadlines are not persisted across a real disconnect.
 fn retained_phase3_changed(before: Option<&Phase3Entity>, after: Option<&Phase3Entity>) -> bool {
@@ -1227,7 +1387,7 @@ mod phase3_tests;
 
 #[cfg(test)]
 #[path = "checkpoint_items_tests.rs"]
-mod item_tests;
+pub(crate) mod item_tests;
 
 #[allow(clippy::manual_let_else)] // Exhaustive item/non-item metadata match.
 fn item_events(
@@ -1237,9 +1397,12 @@ fn item_events(
 ) -> anyhow::Result<Vec<DomainEvent>> {
     use crate::domain::zone::phase4_projection::ItemOperation;
     let mut facts = Vec::new();
-    for delta in &work.projection.ledger {
-        // D49: enchant attempts have their own captured audit, including unchanged results.
-        if delta.operation == ItemOperation::Enchant && delta.after.is_some() {
+    for (position, delta) in work.projection.ledger.iter().enumerate() {
+        // D49: enchant attempts have their own captured audit, including unchanged results;
+        // D95: so do Refine/CancelRefine, whose target rows are always retained.
+        if (delta.operation == ItemOperation::Enchant && delta.after.is_some())
+            || matches!(delta.operation, ItemOperation::Refine | ItemOperation::CancelRefine)
+        {
             continue;
         }
         let fact = crate::domain::ItemEventFact {
@@ -1270,41 +1433,24 @@ fn item_events(
                 DomainEvent::ItemDestroyed { fact }
             },
             ItemOperation::Refine | ItemOperation::CancelRefine => {
-                DomainEvent::ItemRefined { fact }
+                anyhow::bail!("refine audit must come from its captured operation")
             },
-            ItemOperation::Exchange => DomainEvent::ItemExchanged { fact },
+            ItemOperation::Exchange => {
+                anyhow::bail!("exchange audit must come from its captured operation")
+            },
             ItemOperation::ToggleAutoShot => {
                 anyhow::bail!("pure owner toggle cannot fabricate an item audit row")
             },
         };
-        facts.push((delta.operation_ordinal, 1_u8, event));
+        facts.push(((position, 1_u8, delta.operation_ordinal), event));
     }
-    for attempt in &work.projection.enchant_attempts {
-        facts.push((
-            attempt.operation_ordinal,
-            0,
-            DomainEvent::ItemEnchanted {
-                fact: crate::domain::ItemEventFact {
-                    metadata: EventMetadata {
-                        event_id: Uuid::nil(),
-                        sequence: (0, 0),
-                    },
-                    character_id: cp.character_id,
-                    instance_id: attempt.target,
-                    template_id: attempt.template,
-                    count_delta: if attempt.after.is_none() { -1 } else { 0 },
-                    before: Some(attempt.before.clone()),
-                    after: attempt.after.clone(),
-                    causes: vec![serde_json::to_value(attempt)?],
-                },
-            },
-        ));
-    }
-    facts.sort_by_key(|(operation, kind, _)| (*operation, *kind));
+    facts.extend(captured_item_events(cp, work)?);
+    // Canonical ledger row order (D66/D69/D76), not operation_ordinal (a per-instance position).
+    facts.sort_by_key(|(key, _)| *key);
     facts
         .into_iter()
         .enumerate()
-        .map(|(index, (_, _, mut event))| {
+        .map(|(index, (_, mut event))| {
             let ordinal = u64::try_from(
                 offset
                     .checked_add(index)
@@ -1318,6 +1464,7 @@ fn item_events(
                 | DomainEvent::ItemEnchanted { fact }
                 | DomainEvent::ItemDestroyed { fact }
                 | DomainEvent::ItemRefined { fact }
+                | DomainEvent::ItemRefineCancelled { fact }
                 | DomainEvent::ItemExchanged { fact } => fact,
                 DomainEvent::CharacterCreated { .. }
                 | DomainEvent::CharacterLeveled { .. }
@@ -1347,6 +1494,130 @@ fn item_events(
             Ok(event)
         })
         .collect()
+}
+
+fn captured_item_events(
+    cp: &CharacterCheckpoint,
+    work: &super::ports::ItemCheckpointWork,
+) -> anyhow::Result<Vec<((usize, u8, u32), DomainEvent)>> {
+    // D78: a captured enchant/exchange audit precedes the attempt's OWN ledger row (the
+    // target's row of that operation carrying its receipt), so earlier same-tick rows on the
+    // target (Equip, then Enchant) stay first. Without such a row it precedes the target's
+    // first row carrying the receipt, else the target's first row of a later command (its
+    // receipt or any Consume aggregate contributor); with none of these (an unchanged attempt
+    // and nothing later on the target) it follows every row, in operation order.
+    use crate::domain::zone::phase4_projection::{ItemOperation, ItemReceiptRef};
+    let ledger = &work.projection.ledger;
+    let command = |receipt: ItemReceiptRef| {
+        work.projection
+            .receipts
+            .iter()
+            .position(|fact| fact.reference() == receipt)
+    };
+    let position = |target: crate::domain::zone::ItemInstanceId,
+                    receipt: ItemReceiptRef,
+                    own: ItemOperation| {
+        let carries = |delta: &crate::domain::zone::phase4_projection::ItemDeltaPlan| {
+            delta.instance == target
+                && (delta.receipt == Some(receipt) || delta.receipt_refs.contains(&receipt))
+        };
+        ledger
+            .iter()
+            .position(|delta| carries(delta) && delta.operation == own)
+            .or_else(|| ledger.iter().position(carries))
+            .or_else(|| {
+                let mine = command(receipt)?;
+                ledger.iter().position(|delta| {
+                    delta.instance == target
+                        && delta
+                            .receipt
+                            .iter()
+                            .chain(&delta.receipt_refs)
+                            .filter_map(|receipt| command(*receipt))
+                            .any(|later| later > mine)
+                })
+            })
+            .unwrap_or(ledger.len())
+    };
+    let mut facts = Vec::new();
+    for attempt in &work.projection.enchant_attempts {
+        facts.push((
+            (
+                position(attempt.target, attempt.receipt, ItemOperation::Enchant),
+                0,
+                attempt.operation_ordinal,
+            ),
+            DomainEvent::ItemEnchanted {
+                fact: crate::domain::ItemEventFact {
+                    metadata: EventMetadata {
+                        event_id: Uuid::nil(),
+                        sequence: (0, 0),
+                    },
+                    character_id: cp.character_id,
+                    instance_id: attempt.target,
+                    template_id: attempt.template,
+                    count_delta: if attempt.after.is_none() { -1 } else { 0 },
+                    before: Some(attempt.before.clone()),
+                    after: attempt.after.clone(),
+                    causes: vec![serde_json::to_value(attempt)?],
+                },
+            },
+        ));
+    }
+    for refine in &work.projection.refines {
+        let applied =
+            refine.outcome == crate::domain::zone::phase4_projection::ItemRefineOutcome::Applied;
+        let fact = crate::domain::ItemEventFact {
+            metadata: EventMetadata {
+                event_id: Uuid::nil(),
+                sequence: (0, 0),
+            },
+            character_id: cp.character_id,
+            instance_id: refine.after.id,
+            template_id: refine.before.template_id,
+            count_delta: 0,
+            before: Some(refine.before.clone()),
+            after: Some(refine.after.clone()),
+            causes: vec![serde_json::to_value(refine)?],
+        };
+        facts.push((
+            (
+                position(refine.after.id, refine.receipt, refine.receipt.operation),
+                0,
+                refine.operation_ordinal,
+            ),
+            if applied {
+                DomainEvent::ItemRefined { fact }
+            } else {
+                DomainEvent::ItemRefineCancelled { fact }
+            },
+        ));
+    }
+    for exchange in &work.projection.exchanges {
+        facts.push((
+            (
+                position(exchange.before.id, exchange.receipt, ItemOperation::Consume),
+                0,
+                exchange.operation_ordinal,
+            ),
+            DomainEvent::ItemExchanged {
+                fact: crate::domain::ItemEventFact {
+                    metadata: EventMetadata {
+                        event_id: Uuid::nil(),
+                        sequence: (0, 0),
+                    },
+                    character_id: cp.character_id,
+                    instance_id: exchange.before.id,
+                    template_id: exchange.before.template_id,
+                    count_delta: -1,
+                    before: Some(exchange.before.clone()),
+                    after: None,
+                    causes: vec![serde_json::to_value(exchange)?],
+                },
+            },
+        ));
+    }
+    Ok(facts)
 }
 
 #[path = "checkpoint_paused.rs"]

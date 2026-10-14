@@ -23,6 +23,86 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use tokio::sync::Notify;
 
 type Attempt = (CharacterCheckpoint, Vec<DomainEvent>, ItemCheckpointWork);
+pub(crate) async fn allocator_fixture() -> (
+    Arc<InMemoryCharacterRepository>,
+    CheckpointService,
+    ZoneSnapshot,
+    EntityId,
+    ItemCommand,
+) {
+    let mut harness = Harness::new().await;
+    let applied = harness.equipment_tick();
+    harness
+        .service
+        .admitted(&applied, &harness.state.snapshot())
+        .await
+        .unwrap();
+    let grant = harness
+        .state
+        .run_tick(harness.state.draft(vec![ZoneInput::system(
+            ZoneCommand::MaterializePendingItems(Box::new(crate::domain::zone::ItemGrantCommand {
+                entity: harness.entity,
+                account: harness.account,
+                request_id: Uuid::now_v7(),
+                template_id: 22227,
+                count: 1,
+                fingerprint: crate::domain::zone::item_grant::grant_fingerprint(
+                    CharacterId::from_uuid(harness.entity.as_uuid()),
+                    22227,
+                    1,
+                ),
+                rules_hash: harness.state.snapshot().phase4.unwrap().rules_hash,
+                paused: None,
+                known: None,
+                conflict: None,
+                enchant: 0,
+            })),
+        )]))
+        .unwrap();
+    assert!(grant.dispositions.is_empty());
+    harness
+        .service
+        .admitted(&grant, &harness.state.snapshot())
+        .await
+        .unwrap();
+    let items = harness.state.snapshot().phase4.unwrap();
+    let player = &items.players[&harness.entity];
+    let command = ItemCommand::new(
+        harness.entity,
+        Uuid::now_v7(),
+        ItemCommandKind::Enchant {
+            target: player.paperdoll[&EquipSlot::Rhand],
+            scroll: player
+                .inventory
+                .values()
+                .find(|item| item.template_id == 22227)
+                .unwrap()
+                .id,
+            support: None,
+        },
+    )
+    .unwrap()
+    .with_account(harness.account)
+    .unwrap();
+    let enchanted = harness
+        .state
+        .run_tick(harness.state.draft(vec![ZoneInput::session(
+            harness.entity,
+            SessionGeneration(1),
+            4,
+            ZoneCommand::Item(Box::new(command.clone())),
+        )]))
+        .unwrap();
+    assert!(enchanted.dispositions.is_empty());
+    harness
+        .service
+        .admitted(&enchanted, &harness.state.snapshot())
+        .await
+        .unwrap();
+    let mut snapshot = harness.state.snapshot();
+    harness.service.snapshot(&mut snapshot);
+    (harness.repo, harness.service, snapshot, harness.entity, command)
+}
 struct Harness {
     repo: Arc<InMemoryCharacterRepository>,
     audit: Arc<InMemorySessionAudit>,
@@ -31,10 +111,13 @@ struct Harness {
     entity: EntityId,
     account: AccountId,
     session: SessionId,
+    /// Fixture birth rows (D77) seeded before any settlement; assertions skip them.
+    seeded: usize,
 }
 impl Harness {
     async fn new() -> Self {
         let bundle = item_data::embedded_phase4_bundle().unwrap();
+        let rules = bundle.items.clone();
         let repo = Arc::new(
             InMemoryCharacterRepository::default()
                 .with_phase4_rules(bundle.items, bundle.skills)
@@ -42,6 +125,19 @@ impl Harness {
         );
         let (mut state, target, _) = ZoneState::item_checkpoint_fixture();
         state.run_tick(state.draft(Vec::new())).unwrap();
+        // Admission hydrates retained provenance from the birth ledger (D65); give the retained
+        // items their explicit origin here and seed the matching birth rows below (D77).
+        let mut seeded = state.snapshot();
+        let origin = crate::domain::zone::ItemCreationOrigin {
+            zone: seeded.seed.zone,
+            epoch: seeded.seed.epoch,
+        };
+        for player in seeded.phase4.as_mut().unwrap().players.values_mut() {
+            for item in player.inventory.values_mut() {
+                item.creation_origin.get_or_insert(origin);
+            }
+        }
+        let state = ZoneState::from_snapshot_with_items(seeded, Some(rules)).unwrap();
         let snapshot = state.snapshot();
         let audit = Arc::new(InMemorySessionAudit::default());
         let mut service =
@@ -97,6 +193,7 @@ impl Harness {
             );
             repo.insert_item_checkpoint_for_test(c.id, cp.phase4.clone().unwrap())
                 .unwrap();
+            repo.seed_item_birth_ledger_for_test(c.id).unwrap();
             cp.revision_seen = 1;
             service.players.insert(
                 entity.id,
@@ -118,7 +215,9 @@ impl Harness {
         }
         let session = SessionId::new();
         service.bind_session(target.entity, session);
+        let seeded = repo.item_ledger_for_test().len();
         Self {
+            seeded,
             repo,
             audit,
             service,
@@ -251,6 +350,47 @@ impl ItemCheckpointRepository for FlakyItems {
     }
 }
 
+/// Delegates to the memory adapter and records every settlement result.
+struct RecordingItems {
+    inner: Arc<InMemoryCharacterRepository>,
+    results: parking_lot::Mutex<Vec<Result<CheckpointOutcome, String>>>,
+}
+#[async_trait::async_trait]
+impl ItemReceiptRepository for RecordingItems {
+    async fn item_receipt_lookup(
+        &self,
+        account: AccountId,
+        operation: ItemMutationOperation,
+        key: &IdempotencyKey,
+        fingerprint: &str,
+    ) -> anyhow::Result<ItemReceiptLookup> {
+        self.inner
+            .item_receipt_lookup(account, operation, key, fingerprint)
+            .await
+    }
+}
+#[async_trait::async_trait]
+impl ItemCheckpointRepository for RecordingItems {
+    async fn checkpoint_items(
+        &self,
+        cp: &CharacterCheckpoint,
+        events: &[DomainEvent],
+        work: &ItemCheckpointWork,
+        learning: Option<&SuccessfulLearnReceipt>,
+    ) -> Result<CheckpointOutcome, CheckpointError> {
+        let result = self
+            .inner
+            .checkpoint_items(cp, events, work, learning)
+            .await;
+        self.results.lock().push(match &result {
+            Ok(outcome) => Ok(*outcome),
+            Err(CheckpointError::Constraint(name)) => Err(name.clone()),
+            Err(other) => Err(format!("non-constraint: {other}")),
+        });
+        result
+    }
+}
+
 #[tokio::test]
 async fn item_batch_ack_waits_for_atomic_write_and_retries_exact_work() {
     for after_commit in [false, true] {
@@ -262,6 +402,7 @@ async fn item_batch_ack_waits_for_atomic_write_and_retries_exact_work() {
         let snapshot = h.state.snapshot();
         let audit = h.audit.clone();
         let session = h.session;
+        let seeded = h.seeded;
         let task = tokio::spawn(async move {
             h.service.admitted(&tick, &snapshot).await.unwrap();
             (h, tick)
@@ -273,7 +414,7 @@ async fn item_batch_ack_waits_for_atomic_write_and_retries_exact_work() {
             .frames(session)
             .iter()
             .all(|frame| !matches!(frame, AuditedFrame::Checkpoint(_))));
-        assert!(writer.inner.item_ledger_for_test().is_empty());
+        assert_eq!(writer.inner.item_ledger_for_test().len(), seeded);
         writer.released.notify_one();
         let (mut h, tick) = task.await.unwrap();
         let attempts = writer.attempts.lock().clone();
@@ -282,7 +423,7 @@ async fn item_batch_ack_waits_for_atomic_write_and_retries_exact_work() {
         assert_eq!(attempts[0].2.projection.receipts.len(), 2);
         assert_eq!(attempts[0].2.projection.ledger.len(), 2);
         assert_eq!(h.acknowledgements(), 1);
-        assert_eq!(h.repo.item_ledger_for_test().len(), 2);
+        assert_eq!(h.repo.item_ledger_for_test().split_off(h.seeded).len(), 2);
         let stored = h
             .repo
             .retained_inventory(h.entity.as_uuid().into())
@@ -322,7 +463,7 @@ async fn pending_item_snapshot_roundtrip_restores_exact_transaction_without_simu
         .is_err());
     assert!(h.service.players[&h.entity].fenced);
     assert_eq!(h.acknowledgements(), 0);
-    assert!(h.repo.item_ledger_for_test().is_empty());
+    assert!(h.repo.item_ledger_for_test().split_off(h.seeded).is_empty());
     // The captured immutable request is exactly the pending state at a process interruption
     // before dispatch; the injected permanent response above also separately proves fencing.
     h.service.players.get_mut(&h.entity).unwrap().fenced = false;
@@ -346,7 +487,7 @@ async fn pending_item_snapshot_roundtrip_restores_exact_transaction_without_simu
     assert_eq!(player.events, attempt.1);
     assert_eq!(player.items.as_ref().unwrap(), &attempt.2);
     recovery.flush(h.entity).await.unwrap();
-    assert_eq!(h.repo.item_ledger_for_test().len(), 2);
+    assert_eq!(h.repo.item_ledger_for_test().split_off(h.seeded).len(), 2);
     assert_eq!(h.acknowledgements(), 1);
     recovery.flush(h.entity).await.unwrap();
     assert_eq!(h.acknowledgements(), 1);
@@ -395,7 +536,7 @@ async fn item_checkpoint_missing_writer_or_projection_refuses_before_ack() {
             .await
             .is_err());
         assert_eq!(h.acknowledgements(), 0);
-        assert!(h.repo.item_ledger_for_test().is_empty());
+        assert!(h.repo.item_ledger_for_test().split_off(h.seeded).is_empty());
         assert!(tick.outputs.values().flatten().all(|output| !matches!(
             output,
             ObserverOutput::Event(crate::domain::zone::ZoneEvent::ItemCheckpoint(_))
@@ -408,7 +549,6 @@ async fn actor_log_then_checkpoint_then_output(log: Arc<dyn EventLog>) {
         start_epoch, DurableTickGate, GateConfig, NoReplayMetrics,
     };
     use crate::application::zone_actor::{manual_ticks, TickOutcome, ZoneActor};
-    use tokio_stream::StreamExt as _;
     let _ = tracing_subscriber::fmt()
         .with_test_writer()
         .with_max_level(tracing::Level::ERROR)
@@ -448,7 +588,7 @@ async fn actor_log_then_checkpoint_then_output(log: Arc<dyn EventLog>) {
         outputs.try_recv(),
         Err(tokio::sync::broadcast::error::TryRecvError::Empty)
     ));
-    assert!(h.repo.item_ledger_for_test().is_empty());
+    assert!(h.repo.item_ledger_for_test().split_off(h.seeded).is_empty());
     assert!(h
         .audit
         .frames(h.session)
@@ -468,7 +608,7 @@ async fn actor_log_then_checkpoint_then_output(log: Arc<dyn EventLog>) {
     assert_eq!(outcome, TickOutcome::Ran(first.tick));
     let applied = outputs.recv().await.unwrap();
     assert!(first.reproduced_by(&AppliedTickRecord::from_applied(baseline.seed.zone, &applied)));
-    assert_eq!(h.repo.item_ledger_for_test().len(), 2);
+    assert_eq!(h.repo.item_ledger_for_test().split_off(h.seeded).len(), 2);
     assert_eq!(writer.attempts.lock().len(), 2);
     let acks = h
         .audit
@@ -490,7 +630,7 @@ async fn actor_log_then_checkpoint_then_output(log: Arc<dyn EventLog>) {
         .recover(log.as_ref(), baseline.seed.zone, baseline.seed.epoch)
         .await
         .unwrap();
-    assert_eq!(h.repo.item_ledger_for_test().len(), 2);
+    assert_eq!(h.repo.item_ledger_for_test().split_off(h.seeded).len(), 2);
     assert_eq!(h.repo.staged_events(), before);
 }
 
@@ -507,10 +647,9 @@ async fn owned_jetstream_item_actor_acknowledges_log_before_item_checkpoint_and_
     let Ok(url) = std::env::var("NATS_URL") else {
         return;
     };
+    // D102(b): the event log creates the streams it needs; the outbox publisher is not part
+    // of this contract.
     let client = async_nats::connect(url).await.unwrap();
-    crate::infrastructure::outbox::JetStreamPublisher::connect(client.clone())
-        .await
-        .unwrap();
     let log =
         crate::infrastructure::eventlog::JetStreamEventLog::connect(client, Metrics::detached())
             .await
@@ -606,7 +745,7 @@ async fn unified_learning_context_survives_pending_item_snapshot_and_settles_onc
         expected
     );
     recovery.flush(h.entity).await.unwrap();
-    assert_eq!(h.repo.item_ledger_for_test().len(), 2);
+    assert_eq!(h.repo.item_ledger_for_test().split_off(h.seeded).len(), 2);
     assert_eq!(h.repo.staged_events().len(), 3);
     assert_eq!(
         h.repo
@@ -660,7 +799,7 @@ async fn refuses_item_actor_without_durable_gate_before_database_and_visibility(
     assert_eq!(driver.step().await.unwrap(), TickOutcome::Held(tick));
     handle.stopped().await;
     assert!(handle.persistence_failed());
-    assert!(h.repo.item_ledger_for_test().is_empty());
+    assert!(h.repo.item_ledger_for_test().split_off(h.seeded).is_empty());
     assert!(h.repo.staged_events().is_empty());
     assert!(h
         .audit
@@ -702,6 +841,7 @@ async fn receipt_actor(
 }
 
 #[tokio::test]
+#[allow(clippy::too_many_lines)] // Keep real log/DB/Known/cold-replay checks and original-sequence proof together.
 async fn item_receipt_preflight_records_frozen_known_and_conflict_without_reexecution() {
     use crate::application::zone_actor::TickOutcome;
     use crate::domain::zone::{AppliedTickDraft, ItemInstanceId, RejectReason, ZoneEvent};
@@ -723,6 +863,8 @@ async fn item_receipt_preflight_records_frozen_known_and_conflict_without_reexec
             }
         })
         .collect();
+    assert_eq!(original[0].accepted_sequence, Some(1));
+    assert_eq!(original[1].accepted_sequence, Some(2));
     // A later committed unequip makes replaying the old Equip command observably wrong.
     let later = ZoneInput::session(
         h.entity,
@@ -747,7 +889,7 @@ async fn item_receipt_preflight_records_frozen_known_and_conflict_without_reexec
         .await
         .unwrap();
     let before = h.state.snapshot();
-    let rows = h.repo.item_ledger_for_test();
+    let rows = h.repo.item_ledger_for_test().split_off(h.seeded);
     let events = h.repo.staged_events();
     let writer = Arc::new(FlakyItems::new(h.repo.clone(), false, false));
     h.service.item_repo = Some(writer.clone());
@@ -769,7 +911,7 @@ async fn item_receipt_preflight_records_frozen_known_and_conflict_without_reexec
             .send(ZoneInput::session(
                 h.entity,
                 SessionGeneration(1),
-                u32::try_from(index + 1).unwrap(),
+                u32::try_from(index + 11).unwrap(),
                 ZoneCommand::Item(Box::new(
                     ItemCommand::new(h.entity, command.request_id, kind).unwrap(),
                 )),
@@ -805,7 +947,7 @@ async fn item_receipt_preflight_records_frozen_known_and_conflict_without_reexec
         .events
         .iter()
         .any(|event| matches!(event, ZoneEvent::ItemCheckpoint(_))));
-    assert_eq!(h.repo.item_ledger_for_test(), rows);
+    assert_eq!(h.repo.item_ledger_for_test().split_off(h.seeded), rows);
     assert_eq!(h.repo.staged_events(), events);
     assert!(writer.attempts.lock().is_empty());
     assert_eq!(writer.lookup_calls.load(Ordering::SeqCst), 6);
@@ -853,7 +995,7 @@ async fn item_receipt_preflight_remeasures_enriched_known_before_drafting() {
         .unwrap()
         .max_command_bytes = u64::try_from(limit).unwrap();
     h.state = crate::application::replay_log::restore_snapshot(snapshot).unwrap();
-    let rows = h.repo.item_ledger_for_test();
+    let rows = h.repo.item_ledger_for_test().split_off(h.seeded);
     let events = h.repo.staged_events();
     let writer = Arc::new(FlakyItems::new(h.repo.clone(), false, false));
     h.service.item_repo = Some(writer.clone());
@@ -870,7 +1012,7 @@ async fn item_receipt_preflight_remeasures_enriched_known_before_drafting() {
     assert_eq!(handle.stats().borrow().commands_applied, 0);
     assert_eq!(writer.lookup_calls.load(Ordering::SeqCst), 1);
     assert!(writer.attempts.lock().is_empty());
-    assert_eq!(h.repo.item_ledger_for_test(), rows);
+    assert_eq!(h.repo.item_ledger_for_test().split_off(h.seeded), rows);
     assert_eq!(h.repo.staged_events(), events);
     drop(driver);
     handle.stopped().await;
@@ -880,7 +1022,6 @@ async fn item_receipt_preflight_remeasures_enriched_known_before_drafting() {
 #[tokio::test]
 async fn item_receipt_preflight_lookup_failure_fences_before_log_database_or_output() {
     use crate::application::zone_actor::TickOutcome;
-    use tokio_stream::StreamExt as _;
     let mut h = Harness::new().await;
     let input = h.equipment_inputs().remove(0);
     let writer = Arc::new(FlakyItems::new(h.repo.clone(), false, false));
@@ -901,163 +1042,9 @@ async fn item_receipt_preflight_lookup_failure_fences_before_log_database_or_out
         .is_none());
     assert_eq!(writer.lookup_calls.load(Ordering::SeqCst), 1);
     assert!(writer.attempts.lock().is_empty());
-    assert!(h.repo.item_ledger_for_test().is_empty());
+    assert!(h.repo.item_ledger_for_test().split_off(h.seeded).is_empty());
     assert!(h.repo.staged_events().is_empty());
     assert!(outputs.try_recv().is_err());
-}
-
-#[tokio::test]
-#[allow(clippy::too_many_lines)] // Real log/write barrier, lost acknowledgement, subsequent mutation and scoped retry.
-async fn recorded_grant_reply_waits_for_log_checkpoint_and_returns_original_baseline() {
-    use crate::application::zone_actor::TickOutcome;
-    use crate::domain::zone::{ItemGrantCommand, RejectReason, ZoneEvent};
-    let mut h = Harness::new().await;
-    let command = ItemGrantCommand {
-        entity: h.entity,
-        account: h.account,
-        request_id: Uuid::from_u128(5001),
-        template_id: 57,
-        count: 10,
-        fingerprint: crate::application::ports::grant_item_fingerprint(
-            CharacterId::from_uuid(h.entity.as_uuid()),
-            57,
-            10,
-        ),
-        rules_hash: h.state.snapshot().phase4.unwrap().rules_hash,
-        paused: None,
-        known: None,
-        conflict: None,
-    };
-    let writer = Arc::new(FlakyItems::new(h.repo.clone(), true, false));
-    h.service.item_repo = Some(writer.clone());
-    let (handle, driver, baseline, log) = receipt_actor(h.state, h.service).await;
-    let mut outputs = handle.subscribe();
-    let mut reply = handle.enqueue_grant_item(command.clone()).await.unwrap();
-    let mut duplicate = handle.enqueue_grant_item(command.clone()).await.unwrap();
-    let stepping = tokio::spawn(async move { (driver.step().await.unwrap(), driver) });
-    tokio::time::timeout(Duration::from_secs(10), writer.entered.notified())
-        .await
-        .unwrap();
-    assert!(matches!(
-        reply.try_recv(),
-        Err(tokio::sync::oneshot::error::TryRecvError::Empty)
-    ));
-    assert!(matches!(
-        duplicate.try_recv(),
-        Err(tokio::sync::oneshot::error::TryRecvError::Empty)
-    ));
-    assert!(outputs.try_recv().is_err());
-    assert!(h.repo.item_ledger_for_test().is_empty());
-    let mut records = log
-        .read_epoch(baseline.seed.zone, baseline.seed.epoch)
-        .await
-        .unwrap();
-    let first = records.next().await.unwrap().unwrap();
-    assert!(matches!(first.commands[0].command, ZoneCommand::MaterializePendingItems(_)));
-    writer.released.notify_one();
-    let (outcome, driver) = stepping.await.unwrap();
-    assert_eq!(outcome, TickOutcome::Ran(baseline.tick));
-    let original = reply.await.unwrap().unwrap();
-    assert_eq!(duplicate.await.unwrap().unwrap(), original);
-    assert_eq!(original.inventory.as_ref().unwrap().character_revision, 2);
-    assert_eq!(
-        original
-            .inventory
-            .as_ref()
-            .unwrap()
-            .checkpoint
-            .instances
-            .iter()
-            .find(|i| i.template_id == 57)
-            .unwrap()
-            .count,
-        10
-    );
-    outputs.recv().await.unwrap();
-    {
-        let attempts = writer.attempts.lock();
-        assert_eq!(attempts.len(), 2);
-        assert_eq!(attempts[0], attempts[1]);
-    }
-    assert_eq!(h.repo.item_ledger_for_test().len(), 1);
-    let mut next = command.clone();
-    next.request_id = Uuid::from_u128(5002);
-    next.count = 3;
-    next.fingerprint = crate::application::ports::grant_item_fingerprint(
-        CharacterId::from_uuid(h.entity.as_uuid()),
-        57,
-        3,
-    );
-    let later = handle.enqueue_grant_item(next).await.unwrap();
-    driver.step().await.unwrap();
-    let later = later.await.unwrap().unwrap();
-    assert_eq!(
-        later
-            .inventory
-            .unwrap()
-            .checkpoint
-            .instances
-            .iter()
-            .find(|i| i.template_id == 57)
-            .unwrap()
-            .count,
-        13
-    );
-    outputs.recv().await.unwrap();
-    let known = handle.enqueue_grant_item(command.clone()).await.unwrap();
-    driver.step().await.unwrap();
-    assert_eq!(known.await.unwrap().unwrap(), original);
-    let recorded = outputs.recv().await.unwrap();
-    let ZoneCommand::MaterializePendingItems(known) = &recorded.commands[0].command else {
-        unreachable!()
-    };
-    assert_eq!(known.known.as_ref().unwrap().result, original.result);
-    assert!(!recorded
-        .events
-        .iter()
-        .any(|event| matches!(event, ZoneEvent::ItemCheckpoint(_))));
-    let mut conflict = command;
-    conflict.count = 11;
-    conflict.fingerprint = crate::application::ports::grant_item_fingerprint(
-        CharacterId::from_uuid(h.entity.as_uuid()),
-        57,
-        11,
-    );
-    let refused = handle.enqueue_grant_item(conflict).await.unwrap();
-    driver.step().await.unwrap();
-    assert!(matches!(
-        refused.await.unwrap(),
-        Err(crate::application::AppError::IdempotencyConflict)
-    ));
-    let recorded = outputs.recv().await.unwrap();
-    assert_eq!(recorded.dispositions[0].reason, RejectReason::ItemOperationConflict);
-    let ZoneCommand::MaterializePendingItems(conflict) = &recorded.commands[0].command else {
-        unreachable!()
-    };
-    assert_eq!(conflict.conflict.as_ref(), Some(&original.fingerprint));
-    assert_eq!(h.repo.item_ledger_for_test().len(), 2);
-    drop(driver);
-    handle.stopped().await;
-    assert!(!handle.persistence_failed());
-}
-
-#[tokio::test]
-async fn recorded_grant_unavailable_before_receipt_reads_without_durable_gate() {
-    use crate::application::zone_actor::{manual_ticks, ZoneActor};
-    let mut h = Harness::new().await;
-    let writer = Arc::new(FlakyItems::new(h.repo.clone(), false, false));
-    h.service.item_repo = Some(writer.clone());
-    let (ticks, driver) = manual_ticks();
-    let handle = ZoneActor::spawn(h.state, ticks);
-    handle.checkpoints.install(h.service);
-    assert!(matches!(
-        handle.item_grants_available().await,
-        Err(crate::application::AppError::Unavailable(_))
-    ));
-    assert_eq!(writer.lookup_calls.load(Ordering::SeqCst), 0);
-    assert!(h.repo.item_ledger_for_test().is_empty());
-    drop(driver);
-    handle.stopped().await;
 }
 
 #[tokio::test]
@@ -1154,34 +1141,45 @@ async fn captured_enchant_outbox_preserves_all_outcomes_before_later_destruction
         work.projection.enchant_attempts = vec![attempt.clone()];
         // The final inventory is intentionally different from the captured attempt.
         work.projection.checkpoint.instances.clear();
-        work.projection.ledger.push(ItemDeltaPlan {
-            receipt_refs: Vec::new(),
-            operation: if outcome == ItemEnchantOutcome::Destroyed {
-                ItemOperation::Enchant
-            } else {
-                ItemOperation::Destroy
-            },
-            operation_ordinal: if outcome == ItemEnchantOutcome::Destroyed {
-                1
-            } else {
-                2
-            },
-            instance: before.id,
-            before: Some(after),
-            after: None,
-            count_delta: -1,
-            receipt: Some(attempt.receipt),
-            causes: Vec::new(),
-        });
-        if outcome == ItemEnchantOutcome::Success {
+        // D76 ledger: the attempt's Enchant row (when it changed the target) at position 0,
+        // then the later Destroy at the next position.
+        if outcome == ItemEnchantOutcome::Destroyed {
+            // The producer records a destroying attempt as a Destroy row carrying the enchant
+            // receipt (count_delta -1), not as an Enchant row.
             work.projection.ledger.push(ItemDeltaPlan {
                 receipt_refs: Vec::new(),
-                operation: ItemOperation::Enchant,
-                operation_ordinal: 1,
+                operation: ItemOperation::Destroy,
+                operation_ordinal: 0,
                 instance: before.id,
                 before: Some(before.clone()),
-                after: attempt.after.clone(),
-                count_delta: 0,
+                after: None,
+                count_delta: -1,
+                receipt: Some(attempt.receipt),
+                causes: Vec::new(),
+            });
+        } else {
+            let changed = after != before;
+            if changed {
+                work.projection.ledger.push(ItemDeltaPlan {
+                    receipt_refs: Vec::new(),
+                    operation: ItemOperation::Enchant,
+                    operation_ordinal: 0,
+                    instance: before.id,
+                    before: Some(before.clone()),
+                    after: Some(after.clone()),
+                    count_delta: 0,
+                    receipt: Some(attempt.receipt),
+                    causes: Vec::new(),
+                });
+            }
+            work.projection.ledger.push(ItemDeltaPlan {
+                receipt_refs: Vec::new(),
+                operation: ItemOperation::Destroy,
+                operation_ordinal: u32::from(changed),
+                instance: before.id,
+                before: Some(after),
+                after: None,
+                count_delta: -1,
                 receipt: Some(attempt.receipt),
                 causes: Vec::new(),
             });
@@ -1211,5 +1209,876 @@ async fn captured_enchant_outbox_preserves_all_outcomes_before_later_destruction
     }
 }
 
+#[tokio::test]
+#[allow(clippy::too_many_lines)] // Real log/write barrier, lost acknowledgement, subsequent mutation and scoped retry.
+async fn recorded_grant_reply_waits_for_log_checkpoint_and_returns_original_baseline() {
+    use crate::application::zone_actor::TickOutcome;
+    use crate::domain::zone::{ItemGrantCommand, RejectReason, ZoneEvent};
+    let mut h = Harness::new().await;
+    let command = ItemGrantCommand {
+        entity: h.entity,
+        account: h.account,
+        request_id: Uuid::from_u128(5001),
+        template_id: 57,
+        count: 10,
+        fingerprint: crate::application::ports::grant_item_fingerprint(
+            CharacterId::from_uuid(h.entity.as_uuid()),
+            57,
+            10,
+            0,
+        ),
+        rules_hash: h.state.snapshot().phase4.unwrap().rules_hash,
+        paused: None,
+        known: None,
+        conflict: None,
+        enchant: 0,
+    };
+    let writer = Arc::new(FlakyItems::new(h.repo.clone(), true, false));
+    h.service.item_repo = Some(writer.clone());
+    let (handle, driver, baseline, log) = receipt_actor(h.state, h.service).await;
+    let mut outputs = handle.subscribe();
+    let mut reply = handle.enqueue_grant_item(command.clone()).await.unwrap();
+    let mut duplicate = handle.enqueue_grant_item(command.clone()).await.unwrap();
+    let stepping = tokio::spawn(async move { (driver.step().await.unwrap(), driver) });
+    tokio::time::timeout(Duration::from_secs(10), writer.entered.notified())
+        .await
+        .unwrap();
+    assert!(matches!(
+        reply.try_recv(),
+        Err(tokio::sync::oneshot::error::TryRecvError::Empty)
+    ));
+    assert!(matches!(
+        duplicate.try_recv(),
+        Err(tokio::sync::oneshot::error::TryRecvError::Empty)
+    ));
+    assert!(outputs.try_recv().is_err());
+    assert!(h.repo.item_ledger_for_test().split_off(h.seeded).is_empty());
+    let mut records = log
+        .read_epoch(baseline.seed.zone, baseline.seed.epoch)
+        .await
+        .unwrap();
+    let first = records.next().await.unwrap().unwrap();
+    assert!(matches!(first.commands[0].command, ZoneCommand::MaterializePendingItems(_)));
+    writer.released.notify_one();
+    let (outcome, driver) = stepping.await.unwrap();
+    assert_eq!(outcome, TickOutcome::Ran(baseline.tick));
+    let original = reply.await.unwrap().unwrap();
+    assert_eq!(duplicate.await.unwrap().unwrap(), original);
+    assert_eq!(original.inventory.as_ref().unwrap().character_revision, 2);
+    assert_eq!(
+        original
+            .inventory
+            .as_ref()
+            .unwrap()
+            .checkpoint
+            .instances
+            .iter()
+            .find(|i| i.template_id == 57)
+            .unwrap()
+            .count,
+        10
+    );
+    outputs.recv().await.unwrap();
+    {
+        let attempts = writer.attempts.lock();
+        assert_eq!(attempts.len(), 2);
+        assert_eq!(attempts[0], attempts[1]);
+    }
+    assert_eq!(h.repo.item_ledger_for_test().split_off(h.seeded).len(), 1);
+    let mut next = command.clone();
+    next.request_id = Uuid::from_u128(5002);
+    next.count = 3;
+    next.fingerprint = crate::application::ports::grant_item_fingerprint(
+        CharacterId::from_uuid(h.entity.as_uuid()),
+        57,
+        3,
+        0,
+    );
+    let later = handle.enqueue_grant_item(next).await.unwrap();
+    driver.step().await.unwrap();
+    let later = later.await.unwrap().unwrap();
+    assert_eq!(
+        later
+            .inventory
+            .unwrap()
+            .checkpoint
+            .instances
+            .iter()
+            .find(|i| i.template_id == 57)
+            .unwrap()
+            .count,
+        13
+    );
+    outputs.recv().await.unwrap();
+    let known = handle.enqueue_grant_item(command.clone()).await.unwrap();
+    driver.step().await.unwrap();
+    assert_eq!(known.await.unwrap().unwrap(), original);
+    let recorded = outputs.recv().await.unwrap();
+    let ZoneCommand::MaterializePendingItems(known) = &recorded.commands[0].command else {
+        unreachable!()
+    };
+    assert_eq!(known.known.as_ref().unwrap().result, original.result);
+    assert!(!recorded
+        .events
+        .iter()
+        .any(|event| matches!(event, ZoneEvent::ItemCheckpoint(_))));
+    let mut conflict = command;
+    conflict.count = 11;
+    conflict.fingerprint = crate::application::ports::grant_item_fingerprint(
+        CharacterId::from_uuid(h.entity.as_uuid()),
+        57,
+        11,
+        0,
+    );
+    let refused = handle.enqueue_grant_item(conflict).await.unwrap();
+    driver.step().await.unwrap();
+    assert!(matches!(
+        refused.await.unwrap(),
+        Err(crate::application::AppError::IdempotencyConflict)
+    ));
+    let recorded = outputs.recv().await.unwrap();
+    assert_eq!(recorded.dispositions[0].reason, RejectReason::ItemOperationConflict);
+    let ZoneCommand::MaterializePendingItems(conflict) = &recorded.commands[0].command else {
+        unreachable!()
+    };
+    assert_eq!(conflict.conflict.as_ref(), Some(&original.fingerprint));
+    assert_eq!(h.repo.item_ledger_for_test().split_off(h.seeded).len(), 2);
+    drop(driver);
+    handle.stopped().await;
+    assert!(!handle.persistence_failed());
+}
+
+#[tokio::test]
+async fn recorded_grant_unavailable_before_receipt_reads_without_durable_gate() {
+    use crate::application::zone_actor::{manual_ticks, ZoneActor};
+    let mut h = Harness::new().await;
+    let writer = Arc::new(FlakyItems::new(h.repo.clone(), false, false));
+    h.service.item_repo = Some(writer.clone());
+    let (ticks, driver) = manual_ticks();
+    let handle = ZoneActor::spawn(h.state, ticks);
+    handle.checkpoints.install(h.service);
+    assert!(matches!(
+        handle.item_grants_available().await,
+        Err(crate::application::AppError::Unavailable(_))
+    ));
+    assert_eq!(writer.lookup_calls.load(Ordering::SeqCst), 0);
+    assert!(h.repo.item_ledger_for_test().split_off(h.seeded).is_empty());
+    drop(driver);
+    handle.stopped().await;
+}
+
 #[path = "checkpoint_paused_tests.rs"]
 mod paused_tests;
+
+/// D77: a retained item whose birth ledger row is missing fences the lane permanently with the
+/// named constraint; no retry loop, no acknowledgement, no ledger write.
+#[tokio::test]
+async fn missing_birth_ledger_row_fences_lane_without_retry_or_ack() {
+    let mut h = Harness::new().await;
+    let character = CharacterId::from_uuid(h.entity.as_uuid());
+    let mut corrupt = h
+        .repo
+        .retained_inventory(character)
+        .await
+        .unwrap()
+        .unwrap()
+        .checkpoint
+        .unwrap();
+    let mut orphan = corrupt.instances[0].clone();
+    orphan.id = crate::domain::zone::ItemInstanceId::new(
+        corrupt
+            .instances
+            .iter()
+            .map(|item| item.id.get())
+            .max()
+            .unwrap()
+            + 1000,
+    )
+    .unwrap();
+    orphan.location = crate::domain::zone::ItemLocation::Inventory;
+    orphan.slot = None;
+    corrupt.instances.push(orphan);
+    h.repo
+        .insert_item_checkpoint_for_test(character, corrupt)
+        .unwrap();
+    let tick = h.equipment_tick();
+    let error = tokio::time::timeout(
+        Duration::from_secs(10),
+        h.service.admitted(&tick, &h.state.snapshot()),
+    )
+    .await
+    .unwrap()
+    .unwrap_err();
+    assert!(
+        matches!(error.downcast_ref::<CheckpointError>(), Some(CheckpointError::Constraint(name)) if name == "item_creation_ledger_missing"),
+        "{error:?}"
+    );
+    assert!(h.service.players[&h.entity].fenced);
+    assert_eq!(h.acknowledgements(), 0);
+    assert!(h.repo.item_ledger_for_test().split_off(h.seeded).is_empty());
+}
+
+/// D77 through the real gated actor: the missing birth row fences the zone before output
+/// release, so subscribers observe no tick output at all.
+#[tokio::test]
+async fn missing_birth_ledger_row_withholds_actor_output() {
+    use crate::application::replay_log::{
+        start_epoch, DurableTickGate, GateConfig, NoReplayMetrics,
+    };
+    use crate::application::zone_actor::{manual_ticks, ZoneActor};
+    let mut h = Harness::new().await;
+    let character = CharacterId::from_uuid(h.entity.as_uuid());
+    let mut corrupt = h
+        .repo
+        .retained_inventory(character)
+        .await
+        .unwrap()
+        .unwrap()
+        .checkpoint
+        .unwrap();
+    let mut orphan = corrupt.instances[0].clone();
+    orphan.id = crate::domain::zone::ItemInstanceId::new(
+        corrupt
+            .instances
+            .iter()
+            .map(|item| item.id.get())
+            .max()
+            .unwrap()
+            + 1000,
+    )
+    .unwrap();
+    orphan.location = crate::domain::zone::ItemLocation::Inventory;
+    orphan.slot = None;
+    corrupt.instances.push(orphan);
+    h.repo
+        .insert_item_checkpoint_for_test(character, corrupt)
+        .unwrap();
+    let log: Arc<dyn EventLog> =
+        Arc::new(crate::infrastructure::eventlog::InMemoryEventLog::default());
+    let inputs = h.equipment_inputs();
+    let mut baseline = h.state.snapshot();
+    h.service.snapshot(&mut baseline);
+    let started = start_epoch(log.as_ref(), &baseline).await.unwrap();
+    let gate = DurableTickGate::new(
+        &started,
+        log.clone(),
+        Arc::new(NoReplayMetrics),
+        GateConfig::default(),
+        tokio_util::sync::CancellationToken::new(),
+    );
+    let writer = Arc::new(RecordingItems {
+        inner: h.repo.clone(),
+        results: parking_lot::Mutex::new(Vec::new()),
+    });
+    h.service.item_repo = Some(writer.clone());
+    let (ticks, driver) = manual_ticks();
+    let handle = ZoneActor::spawn_gated(h.state, ticks, gate);
+    handle.checkpoints.install(h.service);
+    let mut outputs = handle.subscribe();
+    for input in inputs {
+        handle.send(input).unwrap();
+    }
+    let stepped = tokio::time::timeout(Duration::from_secs(10), driver.step())
+        .await
+        .unwrap();
+    assert!(
+        !matches!(stepped, Ok(crate::application::zone_actor::TickOutcome::Ran(_))),
+        "{stepped:?}"
+    );
+    // Empty, not Lagged: nothing was ever broadcast.
+    assert!(
+        matches!(outputs.try_recv(), Err(tokio::sync::broadcast::error::TryRecvError::Empty)),
+        "no tick output may be released"
+    );
+    assert!(handle.persistence_failed());
+    // The lane was fenced by exactly one settlement refused with the D77 constraint.
+    assert_eq!(*writer.results.lock(), vec![Err("item_creation_ledger_missing".to_owned())]);
+    assert!(h
+        .audit
+        .frames(h.session)
+        .iter()
+        .all(|frame| !matches!(frame, AuditedFrame::Checkpoint(_))));
+    assert!(h.repo.item_ledger_for_test().split_off(h.seeded).is_empty());
+    drop(driver);
+    handle.stopped().await;
+    drop(handle);
+    assert!(
+        matches!(outputs.try_recv(), Err(tokio::sync::broadcast::error::TryRecvError::Closed)),
+        "no tick output after the actor stops"
+    );
+    assert_eq!(writer.results.lock().len(), 1, "no retry");
+}
+
+/// An acknowledged real projection, its checkpoint and work context for outbox-order tests.
+async fn outbox_fixture() -> (CharacterCheckpoint, ItemCheckpointWork) {
+    let mut h = Harness::new().await;
+    let tick = h.equipment_tick();
+    let projection = tick
+        .events
+        .iter()
+        .find_map(|event| {
+            if let crate::domain::zone::ZoneEvent::ItemCheckpoint(p) = event {
+                Some(p.as_ref().clone())
+            } else {
+                None
+            }
+        })
+        .unwrap();
+    let mut cp = h
+        .service
+        .players
+        .get(&h.entity)
+        .unwrap()
+        .latest
+        .clone()
+        .unwrap();
+    cp.phase4 = Some(projection.checkpoint.clone());
+    let mut work = ItemCheckpointWork {
+        zone: h.state.snapshot().seed.zone,
+        epoch: tick.epoch,
+        allocation: h.state.snapshot().phase4.unwrap().allocator,
+        projection,
+    };
+    work.projection.ledger.clear();
+    work.projection.enchant_attempts.clear();
+    work.projection.exchanges.clear();
+    (cp, work)
+}
+
+fn event_kinds(events: &[DomainEvent]) -> Vec<(&'static str, u64)> {
+    events
+        .iter()
+        .map(|event| match event {
+            DomainEvent::ItemGranted { fact } => ("granted", fact.metadata.sequence.1),
+            DomainEvent::ItemEquipped { fact } => ("equipped", fact.metadata.sequence.1),
+            DomainEvent::ItemUnequipped { fact } => ("unequipped", fact.metadata.sequence.1),
+            DomainEvent::ItemConsumed { fact } => ("consumed", fact.metadata.sequence.1),
+            DomainEvent::ItemEnchanted { fact } => ("enchanted", fact.metadata.sequence.1),
+            DomainEvent::ItemDestroyed { fact } => ("destroyed", fact.metadata.sequence.1),
+            DomainEvent::ItemRefined { fact } => ("refined", fact.metadata.sequence.1),
+            DomainEvent::ItemRefineCancelled { fact } => {
+                ("refine_cancelled", fact.metadata.sequence.1)
+            },
+            DomainEvent::ItemExchanged { fact } => ("exchanged", fact.metadata.sequence.1),
+            DomainEvent::CharacterCreated { .. }
+            | DomainEvent::CharacterLeveled { .. }
+            | DomainEvent::CharacterClassChanged { .. }
+            | DomainEvent::CharacterSkillLearned { .. }
+            | DomainEvent::CharacterDied { .. }
+            | DomainEvent::CharacterTokenGranted { .. } => ("other", 0),
+        })
+        .collect()
+}
+
+/// D76 knock-on: the outbox follows canonical ledger row order, not `operation_ordinal` (now a
+/// per-instance position), so grant(0) -> consume(1) on one stack emits Granted before Consumed
+/// and a later row on another instance (ordinal 0) still follows them.
+#[tokio::test]
+async fn item_outbox_follows_ledger_row_order_not_per_instance_ordinals() {
+    use crate::domain::zone::phase4_projection::{
+        ItemAuditEvidence, ItemDeltaPlan, ItemEvidenceValue, ItemOperation,
+    };
+    let (cp, mut work) = outbox_fixture().await;
+    let instances = &work.projection.checkpoint.instances;
+    let stack = instances
+        .iter()
+        .max_by_key(|item| item.count)
+        .unwrap()
+        .clone();
+    let other = instances
+        .iter()
+        .find(|item| item.id != stack.id)
+        .unwrap()
+        .clone();
+    let mut granted = stack.clone();
+    granted.count += 3;
+    let mut ended = granted.clone();
+    ended.count -= 2;
+    let mut moved = other.clone();
+    moved.location = crate::domain::zone::ItemLocation::Inventory;
+    moved.slot = None;
+    let row = |operation, ordinal, instance, before, after, count_delta, causes| ItemDeltaPlan {
+        receipt_refs: Vec::new(),
+        operation,
+        operation_ordinal: ordinal,
+        instance,
+        before: Some(before),
+        after: Some(after),
+        count_delta,
+        receipt: None,
+        causes,
+    };
+    let payment = ItemAuditEvidence {
+        family: "skill_cast_payment".into(),
+        fields: BTreeMap::from([
+            ("cast_id".into(), ItemEvidenceValue::Unsigned(1)),
+            ("count_delta".into(), ItemEvidenceValue::Signed(-2)),
+        ]),
+    };
+    work.projection.ledger = vec![
+        row(ItemOperation::Grant, 0, stack.id, stack.clone(), granted.clone(), 3, vec![]),
+        row(ItemOperation::Consume, 1, stack.id, granted, ended, -2, vec![payment]),
+        row(ItemOperation::Unequip, 0, other.id, other, moved, 0, vec![]),
+    ];
+    let events = item_events(&cp, &work, 4).unwrap();
+    // Sorting by operation_ordinal would put the Unequip (0) before the Consume (1).
+    assert_eq!(event_kinds(&events), vec![("granted", 4), ("consumed", 5), ("unequipped", 6)]);
+}
+
+/// D78: a captured enchant attempt anchors to its own Enchant row, so an earlier same-tick
+/// Equip of the target is emitted first (`ItemEquipped` before `ItemEnchanted`).
+#[tokio::test]
+async fn captured_enchant_anchors_to_its_own_row_after_same_tick_equip() {
+    use crate::domain::zone::phase4_projection::{
+        ItemAuditEvidence, ItemDeltaPlan, ItemEnchantOutcome, ItemOperation, ItemReceiptRef,
+        ItemResultDetail,
+    };
+    use crate::domain::zone::{EnchantAttempt, ItemInstanceId};
+    let (cp, mut work) = outbox_fixture().await;
+    work.projection.receipts.truncate(1);
+    let target = work
+        .projection
+        .checkpoint
+        .instances
+        .iter()
+        .find(|item| item.count == 1)
+        .unwrap()
+        .clone();
+    let mut unequipped = target.clone();
+    unequipped.location = crate::domain::zone::ItemLocation::Inventory;
+    unequipped.slot = None;
+    let mut enchanted = target.clone();
+    enchanted.enchant += 1;
+    let receipt = work.projection.receipts.first_mut().unwrap();
+    receipt.result.detail = ItemResultDetail::Enchant {
+        target: target.id,
+        old_enchant: target.enchant,
+        new_enchant: enchanted.enchant,
+        outcome: ItemEnchantOutcome::Success,
+        refunds: Vec::new(),
+        announcement_tier: 0,
+    };
+    let attempt = EnchantAttempt {
+        operation_ordinal: 2,
+        receipt: receipt.reference(),
+        target: target.id,
+        template: target.template_id,
+        old_enchant: target.enchant,
+        new_enchant: enchanted.enchant,
+        outcome: ItemEnchantOutcome::Success,
+        before: target.clone(),
+        after: Some(enchanted.clone()),
+        scroll: ItemInstanceId::new(9_999_999).unwrap(),
+        scroll_template: 951,
+        chance_1e5: 100_000,
+        raw_draw: 199_999,
+        draw: 99_999,
+        cause: ItemAuditEvidence {
+            family: "enchant".into(),
+            fields: BTreeMap::new(),
+        },
+    };
+    work.projection.enchant_attempts = vec![attempt.clone()];
+    let equip = ItemReceiptRef {
+        operation: ItemOperation::Equip,
+        key: Uuid::from_u128(77),
+    };
+    work.projection.ledger = vec![
+        ItemDeltaPlan {
+            receipt_refs: Vec::new(),
+            operation: ItemOperation::Equip,
+            operation_ordinal: 0,
+            instance: target.id,
+            before: Some(unequipped),
+            after: Some(target.clone()),
+            count_delta: 0,
+            receipt: Some(equip),
+            causes: Vec::new(),
+        },
+        ItemDeltaPlan {
+            receipt_refs: Vec::new(),
+            operation: ItemOperation::Enchant,
+            operation_ordinal: 1,
+            instance: target.id,
+            before: Some(target),
+            after: Some(enchanted),
+            count_delta: 0,
+            receipt: Some(attempt.receipt),
+            causes: Vec::new(),
+        },
+    ];
+    let events = item_events(&cp, &work, 4).unwrap();
+    assert_eq!(event_kinds(&events), vec![("equipped", 4), ("enchanted", 5)]);
+}
+
+/// D95: a Refine then `CancelRefine` of one necklace, paid by a life stone, gemstones and the
+/// Adena fee, built from the hashed retail tables. The API re-derives the three draws, the
+/// cancel fee and the per-template payments, and publishes one captured fact per audit
+/// (`ItemRefined`, `ItemRefineCancelled`) in place of the target rows' facts.
+#[tokio::test]
+#[allow(clippy::too_many_lines)] // One captured-audit contract with its refusals.
+async fn refine_audits_are_rederived_and_published_once_each() {
+    use crate::domain::zone::item_refine::{cancel_fee, RefinePayment, RetailSelectors, ADENA};
+    use crate::domain::zone::phase4_projection::{
+        ItemAuditEvidence, ItemDeltaPlan, ItemEvidenceValue, ItemOperation, ItemReceiptRef,
+        ItemRefineOutcome,
+    };
+    use crate::domain::zone::{ItemInstanceId, ItemLocation, RefineAudit};
+    let (cp, mut work) = outbox_fixture().await;
+    let bundle = item_data::embedded_phase4_bundle().unwrap();
+    let rules = &bundle.items;
+    let (necklace, life_stone) = (916, 12754);
+    let grade = rules.parts().items[&necklace].grade.clone();
+    let cost = rules
+        .parts()
+        .augment_costs
+        .iter()
+        .find(|cost| cost.grade == grade)
+        .unwrap()
+        .clone();
+    let gems = u64::from(cost.accessory_count);
+    let fee = cancel_fee(rules, &rules.parts().items[&necklace], 0).unwrap();
+    let revision = work.projection.checkpoint.inventory_revision;
+    let mut seed = work.projection.checkpoint.instances[0].clone();
+    seed.location = ItemLocation::Inventory;
+    seed.slot = None;
+    seed.enchant = 0;
+    seed.augment_id = None;
+    seed.revision = revision;
+    let item = |id: u64, template: u32, count: u64| {
+        let mut item = seed.clone();
+        item.id = ItemInstanceId::new(id).unwrap();
+        item.template_id = template;
+        item.count = count;
+        item
+    };
+    let target = item(930, necklace, 1);
+    let (stone, gem, adena) = (
+        item(931, life_stone, 2),
+        item(932, cost.gemstone_id, gems + 10),
+        item(933, ADENA, fee + 10),
+    );
+    let refine_key = ItemReceiptRef {
+        operation: ItemOperation::Refine,
+        key: Uuid::from_u128(0x0190_0000_0000_7000_8000_0000_0000_0951),
+    };
+    let cancel_key = ItemReceiptRef {
+        operation: ItemOperation::CancelRefine,
+        key: Uuid::from_u128(0x0190_0000_0000_7000_8000_0000_0000_0952),
+    };
+    let mut words = [17_u32, 40_009, 9_999_999].into_iter();
+    let selection = RetailSelectors::new(rules, true, false, life_stone)
+        .unwrap()
+        .select(|| words.next().unwrap())
+        .unwrap();
+    let mut refined = target.clone();
+    refined.augment_id = Some(selection.packed().unwrap());
+    let applied = RefineAudit {
+        operation_ordinal: 1,
+        receipt: refine_key,
+        outcome: ItemRefineOutcome::Applied,
+        before: target.clone(),
+        after: refined.clone(),
+        stone: Some(life_stone),
+        payments: vec![
+            RefinePayment {
+                template_id: life_stone,
+                count: 1,
+            },
+            RefinePayment {
+                template_id: cost.gemstone_id,
+                count: gems,
+            },
+        ],
+        accessory: true,
+        mage: false,
+        selection: Some(selection),
+    };
+    let removed = RefineAudit {
+        operation_ordinal: 2,
+        receipt: cancel_key,
+        outcome: ItemRefineOutcome::Removed,
+        before: refined.clone(),
+        after: target.clone(),
+        stone: None,
+        payments: vec![RefinePayment {
+            template_id: ADENA,
+            count: fee,
+        }],
+        accessory: true,
+        mage: false,
+        selection: None,
+    };
+    let row = |operation, ordinal, before: &crate::domain::zone::ItemInstance, after, receipt| {
+        ItemDeltaPlan {
+            receipt_refs: Vec::new(),
+            operation,
+            operation_ordinal: ordinal,
+            instance: before.id,
+            before: Some(before.clone()),
+            after: Some(after),
+            count_delta: 0,
+            receipt,
+            causes: Vec::new(),
+        }
+    };
+    let paid = |item: &crate::domain::zone::ItemInstance, count: u64, audit: &RefineAudit| {
+        let mut after = item.clone();
+        after.count -= count;
+        let debit = -i64::try_from(count).unwrap();
+        ItemDeltaPlan {
+            receipt_refs: Vec::new(),
+            operation: ItemOperation::Consume,
+            operation_ordinal: 0,
+            instance: item.id,
+            before: Some(item.clone()),
+            after: Some(after),
+            count_delta: debit,
+            receipt: Some(audit.receipt),
+            causes: vec![audit.payment_cause(debit)],
+        }
+    };
+    work.projection.ledger = vec![
+        row(ItemOperation::Refine, 0, &target, refined.clone(), Some(refine_key)),
+        row(ItemOperation::CancelRefine, 1, &refined, target.clone(), Some(cancel_key)),
+        paid(&stone, 1, &applied),
+        paid(&gem, gems, &applied),
+        paid(&adena, fee, &removed),
+    ];
+    work.projection.refines = vec![applied, removed];
+    work.validate_catalogue(rules).unwrap();
+    let events = item_events(&cp, &work, 4).unwrap();
+    assert_eq!(
+        event_kinds(&events),
+        vec![
+            ("refined", 4),
+            ("refine_cancelled", 5),
+            ("consumed", 6),
+            ("consumed", 7),
+            ("consumed", 8)
+        ]
+    );
+    let DomainEvent::ItemRefined { fact } = &events[0] else {
+        panic!("refine fact first");
+    };
+    assert_eq!(
+        (fact.before.as_ref(), fact.after.as_ref(), fact.count_delta),
+        (Some(&target), Some(&refined), 0)
+    );
+    assert_eq!(fact.causes, vec![serde_json::to_value(&work.projection.refines[0]).unwrap()]);
+    work.validate_events(&cp, &events).unwrap();
+    let refused = |result: Result<(), CheckpointError>, name: &str| {
+        assert!(
+            matches!(&result, Err(CheckpointError::Constraint(n)) if n == name),
+            "{name}: {result:?}"
+        );
+    };
+    refused(work.validate_events(&cp, &events[1..]), "item_refine_outbox_count");
+    let mut altered = events.clone();
+    if let DomainEvent::ItemRefineCancelled { fact } = &mut altered[1] {
+        fact.causes.clear();
+    }
+    refused(work.validate_events(&cp, &altered), "item_refine_outbox_attempt");
+    // Each of the three draws must reproduce its captured result from the raw word.
+    for draw in 0..3 {
+        let mut bad = work.clone();
+        let selection = bad.projection.refines[0].selection.as_mut().unwrap();
+        match draw {
+            0 => selection.option12 ^= 1,
+            1 => selection.category = if selection.category == 55 { 35 } else { 55 },
+            _ => selection.option34 ^= 1,
+        }
+        refused(bad.validate_catalogue(rules), "item_refine_draws");
+    }
+    // D86 at the trust boundary: weapon stone 8753's 95-row option12 table (1.05 each) at
+    // residue 105 selects the LAST row under Java binary32 accumulation; the decimal reading
+    // would stop one row earlier. The API re-derivation shares the zone's selector.
+    let mut float = work.clone();
+    let mut words = [105_u32, 40_009, 9_999_999].into_iter();
+    let selection = RetailSelectors::new(rules, false, false, 8753)
+        .unwrap()
+        .select(|| words.next().unwrap())
+        .unwrap();
+    assert_eq!(selection.option12, 16344);
+    let audit = &mut float.projection.refines[0];
+    audit.stone = Some(8753);
+    audit.accessory = false;
+    audit.selection = Some(selection);
+    audit.payments[0].template_id = 8753;
+    let stone_row = &mut float.projection.ledger[2];
+    for state in stone_row
+        .before
+        .iter_mut()
+        .chain(stone_row.after.iter_mut())
+    {
+        state.template_id = 8753;
+    }
+    float.validate_catalogue(rules).unwrap();
+    float.projection.refines[0]
+        .selection
+        .as_mut()
+        .unwrap()
+        .option12 = 16343;
+    refused(float.validate_catalogue(rules), "item_refine_draws");
+    let mut bad = work.clone();
+    bad.projection.refines[1].payments[0].count += 1;
+    refused(bad.validate_catalogue(rules), "item_refine_cancel_fee");
+    let mut bad = work.clone();
+    bad.projection.refines.truncate(1);
+    refused(bad.validate_catalogue(rules), "item_refine_audit_missing");
+    let mut bad = work.clone();
+    bad.projection.ledger[3].causes =
+        vec![bad.projection.refines[0].payment_cause(1 - i64::try_from(gems).unwrap())];
+    refused(bad.validate_catalogue(rules), "item_refine_payment");
+    let mut bad = work.clone();
+    bad.projection.ledger[2].causes.push(ItemAuditEvidence {
+        family: "refine_payment".into(),
+        fields: BTreeMap::from([
+            ("receipt".into(), ItemEvidenceValue::Text(refine_key.key.to_string())),
+            ("count_delta".into(), ItemEvidenceValue::Signed(-1)),
+        ]),
+    });
+    refused(bad.validate_catalogue(rules), "item_refine_payment");
+}
+
+/// D78 fallbacks for an attempt without its own row (an unchanged enchant): rule 3 anchors
+/// before the target's first row of a LATER command, including a Consume aggregate that names
+/// that command only in `receipt_refs`; rule 4 (nothing later on the target) puts the fact after
+/// every row. An exchange anchors to the base's Consume aggregate carrying its receipt.
+#[tokio::test]
+#[allow(clippy::too_many_lines)] // Four anchor shapes over one shared fixture.
+async fn captured_fact_fallback_anchors_and_exchange_anchor() {
+    use crate::domain::zone::phase4_projection::{
+        ItemAuditEvidence, ItemDeltaPlan, ItemEnchantOutcome, ItemOperation, ItemReceiptRef,
+        ItemResultDetail,
+    };
+    use crate::domain::zone::{EnchantAttempt, ExchangeAudit, ItemInstanceId, ItemLocation};
+    let (cp, mut work) = outbox_fixture().await;
+    let instances = work.projection.checkpoint.instances.clone();
+    let target = instances
+        .iter()
+        .find(|item| item.count == 1)
+        .unwrap()
+        .clone();
+    let other = instances
+        .iter()
+        .find(|item| item.id != target.id)
+        .unwrap()
+        .clone();
+    // Command order: the enchant (index 0), then a later Destroy (index 1).
+    let mut enchant = work.projection.receipts[0].clone();
+    enchant.request_id = Uuid::from_u128(0x0190_0000_0000_7000_8000_0000_0000_0a01);
+    enchant.result.receipt = enchant.request_id;
+    enchant.result.detail = ItemResultDetail::Enchant {
+        target: target.id,
+        old_enchant: target.enchant,
+        new_enchant: target.enchant,
+        outcome: ItemEnchantOutcome::SafeFailed,
+        refunds: Vec::new(),
+        announcement_tier: 0,
+    };
+    let mut later = work.projection.receipts[0].clone();
+    later.request_id = Uuid::from_u128(0x0190_0000_0000_7000_8000_0000_0000_0a02);
+    later.result.receipt = later.request_id;
+    later.result.detail = ItemResultDetail::Operation {
+        operation: ItemOperation::Destroy,
+        affected: vec![target.id],
+        recipe: None,
+    };
+    let later_ref = later.reference();
+    work.projection.receipts = vec![enchant.clone(), later];
+    work.projection.enchant_attempts = vec![EnchantAttempt {
+        operation_ordinal: 1,
+        receipt: enchant.reference(),
+        target: target.id,
+        template: target.template_id,
+        old_enchant: target.enchant,
+        new_enchant: target.enchant,
+        outcome: ItemEnchantOutcome::SafeFailed,
+        before: target.clone(),
+        after: Some(target.clone()),
+        scroll: ItemInstanceId::new(9_999_999).unwrap(),
+        scroll_template: 951,
+        chance_1e5: 0,
+        raw_draw: 199_999,
+        draw: 99_999,
+        cause: ItemAuditEvidence {
+            family: "enchant".into(),
+            fields: BTreeMap::new(),
+        },
+    }];
+    let mut moved = other.clone();
+    moved.location = ItemLocation::Inventory;
+    moved.slot = None;
+    let unequip = ItemDeltaPlan {
+        receipt_refs: Vec::new(),
+        operation: ItemOperation::Unequip,
+        operation_ordinal: 0,
+        instance: other.id,
+        before: Some(other.clone()),
+        after: Some(moved),
+        count_delta: 0,
+        receipt: None,
+        causes: Vec::new(),
+    };
+    let on_target = |operation, receipt, receipt_refs, count_delta| ItemDeltaPlan {
+        receipt_refs,
+        operation,
+        operation_ordinal: 0,
+        instance: target.id,
+        before: Some(target.clone()),
+        after: None,
+        count_delta,
+        receipt,
+        causes: Vec::new(),
+    };
+    // Rule 3: the later command's Destroy of the target.
+    work.projection.ledger = vec![
+        unequip.clone(),
+        on_target(ItemOperation::Destroy, Some(later_ref), Vec::new(), -1),
+    ];
+    assert_eq!(
+        event_kinds(&item_events(&cp, &work, 4).unwrap()),
+        vec![("unequipped", 4), ("enchanted", 5), ("destroyed", 6)]
+    );
+    // Rule 3 through a later Consume aggregate whose receipt is None (receipt_refs only).
+    work.projection.ledger = vec![
+        unequip.clone(),
+        on_target(ItemOperation::Consume, None, vec![later_ref], -1),
+    ];
+    assert_eq!(
+        event_kinds(&item_events(&cp, &work, 4).unwrap()),
+        vec![("unequipped", 4), ("enchanted", 5), ("consumed", 6)]
+    );
+    // Rule 4: nothing on the target this tick, so the audit follows every row.
+    work.projection.ledger = vec![unequip.clone()];
+    assert_eq!(
+        event_kinds(&item_events(&cp, &work, 4).unwrap()),
+        vec![("unequipped", 4), ("enchanted", 5)]
+    );
+    // Exchange: the base's Consume aggregate names the exchange receipt only in receipt_refs.
+    work.projection.enchant_attempts.clear();
+    let exchange_ref = ItemReceiptRef {
+        operation: ItemOperation::Exchange,
+        key: Uuid::from_u128(0x0190_0000_0000_7000_8000_0000_0000_0a03),
+    };
+    let mut product = target.clone();
+    product.id = ItemInstanceId::new(9_999_998).unwrap();
+    work.projection.exchanges = vec![ExchangeAudit {
+        operation_ordinal: 1,
+        receipt: exchange_ref,
+        recipe: 1,
+        maintain_enchantment: false,
+        before: target.clone(),
+        after: product,
+        rows: Vec::new(),
+    }];
+    work.projection.ledger = vec![
+        unequip,
+        on_target(ItemOperation::Consume, None, vec![exchange_ref], -1),
+    ];
+    assert_eq!(
+        event_kinds(&item_events(&cp, &work, 4).unwrap()),
+        vec![("unequipped", 4), ("exchanged", 5), ("consumed", 6)]
+    );
+}

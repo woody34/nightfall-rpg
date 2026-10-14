@@ -88,7 +88,7 @@ bool FItemOperationUiTest::RunTest(const FString&)
  N->DispatchServerMessage(Server);TestTrue(TEXT("frozen receipt matches first"),S->ReceiptMatchesFirst().IsSet() && *S->ReceiptMatchesFirst());
  D->ActionControl()->SetSelectedOption(TEXT("Crystallize"));TestTrue(TEXT("new action gets new key"),D->RetryKey()!=Key);
  auto* B=NewObject<UNightfallItemOperationDialog>(Scope.GameInstance);B->BindState(S,true,1);TestFalse(TEXT("blacksmith unknown prevents confirmation"),B->CanConfirm());
- FEntitySpawn Blacksmith;Blacksmith.EntityId=TEXT("22222222-2222-4222-8222-222222222222");Blacksmith.Kind=2;Blacksmith.Name=TEXT("Blacksmith");Blacksmith.StateTick=10;Blacksmith.LifeIncarnation=0;S->ApplySpawn(Blacksmith);B->ActionControl()->SetSelectedOption(TEXT("CancelRefine"));TestTrue(TEXT("received blacksmith authorizes request selection"),B->CanConfirm());S->ApplyDespawn({Blacksmith.EntityId});TestFalse(TEXT("despawn invalidates blacksmith"),B->CanConfirm());N->Disconnect();return true;
+ FEntitySpawn Blacksmith;Blacksmith.EntityId=TEXT("22222222-2222-4222-8222-222222222222");Blacksmith.Kind=2;Blacksmith.Name=TEXT("blacksmith");Blacksmith.StateTick=10;Blacksmith.LifeIncarnation=0;S->ApplySpawn(Blacksmith);B->ActionControl()->SetSelectedOption(TEXT("CancelRefine"));TestTrue(TEXT("received blacksmith authorizes request selection"),B->CanConfirm());S->ApplyDespawn({Blacksmith.EntityId});TestFalse(TEXT("despawn invalidates blacksmith"),B->CanConfirm());N->Disconnect();return true;
 }
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FItemHotbarUiTest,"Nightfall.Item.UI.HotbarKeyAndToggle",EAutomationTestFlags::EditorContext|EAutomationTestFlags::ProductFilter)
 bool FItemHotbarUiTest::RunTest(const FString&)

@@ -74,6 +74,14 @@ Uncomment `AUTH_DEV_TOKENS=1` in `.env` and restart `moon run api:dev`. The serv
 `test:<any-uuid>` bearer tokens, and each UUID is a separate account. Leave it commented out
 for the real login flow.
 
+### C. Items and equipment (Phase 4, V6 zone)
+
+Uncomment `PHASE4_ENABLED=1` in `.env` (with `PHASE3_ENABLED` unset or `1`) and restart. Every new
+zone epoch then boots V6 with the embedded Phase 4 item and skill bundle (D27); the log line
+"Phase3 bootstrap bundle validated with the Phase4 (V6) item extension" names its hashes. Unset or
+`0` keeps V5 epochs. With `AUTH_DEV_TOKENS=1` as well, the dev `GrantItem` RPC grants items to an
+offline or online character; without V6 it answers `UNAVAILABLE` "durable V6 zone unavailable".
+
 ## 3. Client
 
 ### Option 1: in the editor

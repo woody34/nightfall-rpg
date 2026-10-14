@@ -190,34 +190,27 @@ async fn consumption_is_one_append_only_row_per_instance_per_tick_even_after_des
     };
     let owner = seed(&pool, 1, ("human", 0, 0, "human_fighter"), true).await;
     let insert="INSERT INTO item_ledger(character_id,zone_id,epoch,tick,revision,op,instance_id,operation_ordinal,delta) VALUES($1,1,1,10,1,$2,77,$3,'{}')";
-    sqlx::query(insert)
-        .bind(owner)
-        .bind("consume")
-        .bind(0_i32)
-        .execute(&pool)
-        .await
-        .unwrap();
-    assert!(sqlx::query(insert)
-        .bind(owner)
-        .bind("consume")
-        .bind(0_i32)
-        .execute(&pool)
-        .await
-        .is_err());
-    assert!(sqlx::query(insert)
-        .bind(owner)
-        .bind("consume")
-        .bind(1_i32)
-        .execute(&pool)
-        .await
-        .is_err());
-    sqlx::query(insert)
-        .bind(owner)
-        .bind("destroy")
-        .bind(1_i32)
-        .execute(&pool)
-        .await
-        .unwrap();
+    // D76: the tick's rows are appended together; the Consume aggregate is the last position.
+    let mut tx = pool.begin().await.unwrap();
+    for (op, ordinal) in [("destroy", 0_i32), ("consume", 1_i32)] {
+        sqlx::query(insert)
+            .bind(owner)
+            .bind(op)
+            .bind(ordinal)
+            .execute(&mut *tx)
+            .await
+            .unwrap();
+    }
+    tx.commit().await.unwrap();
+    for ordinal in [1_i32, 2_i32] {
+        assert!(sqlx::query(insert)
+            .bind(owner)
+            .bind("consume")
+            .bind(ordinal)
+            .execute(&pool)
+            .await
+            .is_err());
+    }
     assert!(sqlx::query("UPDATE item_ledger SET delta='{}'")
         .execute(&pool)
         .await

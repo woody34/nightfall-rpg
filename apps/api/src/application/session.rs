@@ -81,6 +81,9 @@ const WRITE_BATCH: usize = 64;
 /// arrive within a tick or two, so this only bounds a misbehaving zone.
 const TRACES_IN_FLIGHT: usize = 64;
 
+// Bound lifecycle exclusion even when an actor is waiting for its log acknowledgement.
+const INVENTORY_WAIT: Duration = Duration::from_secs(2);
+
 /// Per-session resource limits. [`SessionLimits::default`] is the contract in world.proto;
 /// tests shorten the timeouts.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -1272,15 +1275,30 @@ impl super::ports::ItemInventoryRuntime for SessionContext {
         character: crate::domain::CharacterId,
         repository: &dyn super::ports::ItemInventoryRepository,
     ) -> Result<Option<super::ports::RetainedInventory>, super::AppError> {
-        let live = self.registry.live.lock().await;
-        self.zone
-            .snapshot()
+        self.zone.inventory_available()?;
+        let unavailable = || super::AppError::Unavailable("inventory zone is unavailable".into());
+        let deadline = Instant::now()
+            .checked_add(INVENTORY_WAIT)
+            .ok_or_else(unavailable)?;
+        let live = tokio::time::timeout_at(deadline, self.registry.live.lock())
             .await
-            .map_err(|_| super::AppError::Unavailable("inventory zone is unavailable".into()))?;
+            .map_err(|_| unavailable())?;
+        self.zone.inventory_available()?;
+        let entity = EntityId::from_uuid(character.as_uuid());
         super::use_cases::get_inventory::require_out_of_world(
             true,
             true,
-            live.contains_key(&EntityId::from_uuid(character.as_uuid())),
+            live.contains_key(&entity),
+        )?;
+        let snapshot = tokio::time::timeout_at(deadline, self.zone.snapshot())
+            .await
+            .map_err(|_| unavailable())?
+            .map_err(|_| unavailable())?;
+        self.zone.inventory_available()?;
+        super::use_cases::get_inventory::require_out_of_world(
+            true,
+            true,
+            snapshot.entities.iter().any(|owner| owner.id == entity),
         )?;
         // Keep admission and final-save/departure behind this parent-locked retained read.
         let result = repository.retained_inventory(character).await?;

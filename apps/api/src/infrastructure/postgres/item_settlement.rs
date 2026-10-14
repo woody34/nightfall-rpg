@@ -132,6 +132,9 @@ pub(super) async fn persist(
                 signed(row.instance_id.get())?.into(), i32::try_from(row.operation_ordinal).map_err(anyhow::Error::from)?.into(),
                 serde_json::to_value(&row.delta).map_err(anyhow::Error::from)?.into(), row.receipt_ref.into()]).await?;
     }
+    // D76: the whole tick is appended, so check row-position ordinals now; a violation is a
+    // permanent named constraint here rather than a retryable commit failure.
+    execute(tx, "SET CONSTRAINTS item_ledger_row_ordinal IMMEDIATE", Vec::new()).await?;
     for receipt in work.receipts(cp)? {
         execute(tx, "INSERT INTO item_mutation_receipts(account_id,operation,key,character_id,fingerprint,response) VALUES($1,$2,$3,$4,$5,$6)",
             vec![receipt.account_id.as_uuid().into(), receipt.operation.as_str().into(), receipt.key.into(),

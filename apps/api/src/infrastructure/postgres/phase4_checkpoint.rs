@@ -1,8 +1,12 @@
 //! Strict retained item projections, always read under the parent character lock.
 use super::{entities::characters, PgCharacterRepository};
 use crate::application::ports::{ItemInventoryRepository, RetainedInventory};
+use crate::application::CheckpointError;
 use crate::domain::{
-    zone::{EquipSlot, ItemInstance, ItemInstanceId, ItemLocation, Phase4Checkpoint, Tick},
+    zone::{
+        EquipSlot, ItemCreationOrigin, ItemInstance, ItemInstanceId, ItemLocation,
+        Phase4Checkpoint, Tick, ZoneId,
+    },
     CharacterId,
 };
 use sea_orm::{ConnectionTrait, DbBackend, Statement, TransactionTrait};
@@ -35,13 +39,30 @@ impl ItemInventoryRepository for PgCharacterRepository {
     }
 }
 
+/// D77: retained provenance corruption is a permanent named constraint that fences the lane.
+fn provenance(name: &str) -> anyhow::Error {
+    CheckpointError::Constraint(name.into()).into()
+}
+
 pub(super) async fn load<C: ConnectionTrait>(
+    db: &C,
+    parent: &characters::Model,
+    phase3: Option<&crate::domain::zone::Phase3Checkpoint>,
+) -> Result<Option<Phase4Checkpoint>, CheckpointError> {
+    load_inner(db, parent, phase3).await.map_err(|error| {
+        error
+            .downcast::<CheckpointError>()
+            .unwrap_or_else(CheckpointError::Other)
+    })
+}
+
+async fn load_inner<C: ConnectionTrait>(
     db: &C,
     parent: &characters::Model,
     phase3: Option<&crate::domain::zone::Phase3Checkpoint>,
 ) -> anyhow::Result<Option<Phase4Checkpoint>> {
     let rows=db.query_all_raw(Statement::from_sql_and_values(DbBackend::Postgres,
-        "SELECT id,template_id,count,location,slot,enchant,augment_id,charge_bits,bound,created_tick,revision FROM item_instances WHERE character_id=$1 ORDER BY id",
+        "SELECT i.id,i.template_id,i.count,i.location,i.slot,i.enchant,i.augment_id,i.charge_bits,i.bound,i.created_tick,i.revision,origin.zone_id AS origin_zone,origin.epoch AS origin_epoch,origin.created_tick AS origin_tick FROM item_instances i LEFT JOIN LATERAL (SELECT zone_id,epoch,(l.delta->'after'->>'created_tick')::bigint AS created_tick FROM item_ledger l WHERE l.instance_id=i.id AND l.character_id=i.character_id AND l.delta->'before'='null'::jsonb ORDER BY l.id LIMIT 1) origin ON true WHERE i.character_id=$1 ORDER BY i.id",
         [parent.id.into()])).await?;
     let Some(value) = &parent.phase4_checkpoint else {
         anyhow::ensure!(rows.is_empty(), "item rows exist without a Phase4 checkpoint");
@@ -49,12 +70,24 @@ pub(super) async fn load<C: ConnectionTrait>(
     };
     let phase3 =
         phase3.ok_or_else(|| anyhow::anyhow!("Phase4 checkpoint requires Phase3 state"))?;
-    let checkpoint: Phase4Checkpoint = serde_json::from_value(value.clone())?;
+    let mut checkpoint: Phase4Checkpoint = serde_json::from_value(value.clone())?;
     checkpoint.validate_structure(phase3.modifier_install_order.len())?;
     let instances = rows
         .iter()
         .map(decode_item)
         .collect::<anyhow::Result<Vec<_>>>()?;
+    for item in &mut checkpoint.instances {
+        let scalar = instances
+            .iter()
+            .find(|scalar| scalar.id == item.id)
+            .ok_or_else(|| anyhow::anyhow!("retained item row missing"))?;
+        // Pre-D65 JSON omits provenance; the append-only creation row owns that clock.
+        if item.creation_origin.is_none() {
+            item.creation_origin = scalar.creation_origin;
+        } else if item.creation_origin != scalar.creation_origin {
+            return Err(provenance("item_creation_ledger_origin"));
+        }
+    }
     anyhow::ensure!(
         instances == checkpoint.instances,
         "retained item rows disagree with Phase4 checkpoint"
@@ -70,7 +103,16 @@ fn decode_item(row: &sea_orm::QueryResult) -> anyhow::Result<ItemInstance> {
         _ => anyhow::bail!("unknown item location"),
     };
     let item = ItemInstance {
-        creation_origin: None,
+        creation_origin: Some(ItemCreationOrigin {
+            zone: ZoneId(u32::try_from(
+                row.try_get::<Option<i32>>("", "origin_zone")?
+                    .ok_or_else(|| provenance("item_creation_ledger_missing"))?,
+            )?),
+            epoch: u64::try_from(
+                row.try_get::<Option<i64>>("", "origin_epoch")?
+                    .ok_or_else(|| provenance("item_creation_ledger_missing"))?,
+            )?,
+        }),
         id: ItemInstanceId::new(u64::try_from(row.try_get::<i64>("", "id")?)?)?,
         template_id: u32::try_from(row.try_get::<i32>("", "template_id")?)?,
         count: u64::try_from(row.try_get::<i64>("", "count")?)?,
@@ -89,6 +131,9 @@ fn decode_item(row: &sea_orm::QueryResult) -> anyhow::Result<ItemInstance> {
         revision: u64::try_from(row.try_get::<i64>("", "revision")?)?,
     };
     item.validate()?;
+    if Some(i64::try_from(item.created_tick.0)?) != row.try_get::<Option<i64>>("", "origin_tick")? {
+        return Err(provenance("item_creation_ledger_tick"));
+    }
     Ok(item)
 }
 

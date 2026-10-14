@@ -74,6 +74,10 @@ pub struct ResolvedRules {
 
 /// Starts zones. Holds the ports every epoch needs.
 pub struct ZoneBootstrap {
+    phase4: Option<(
+        Arc<crate::domain::zone::Phase4Rules>,
+        Arc<dyn super::ports::ItemAdmissionRepository>,
+    )>,
     phase3: Option<crate::domain::zone::Phase3Rules>,
     classes: Option<(Arc<crate::domain::class::ClassRegistry>, String)>,
     rules: Option<ResolvedRules>,
@@ -95,6 +99,7 @@ impl ZoneBootstrap {
         metrics: Arc<dyn ReplayLogMetrics>,
     ) -> Self {
         Self {
+            phase4: None,
             phase3: None,
             classes: None,
             rules: None,
@@ -137,6 +142,18 @@ impl ZoneBootstrap {
         self
     }
 
+    /// Selects an explicit V6 epoch with durable disjoint instance reservations.
+    /// The matching compiled skill bundle must also be installed before startup.
+    #[must_use]
+    pub fn with_phase4_rules(
+        mut self,
+        rules: Arc<crate::domain::zone::Phase4Rules>,
+        reservations: Arc<dyn super::ports::ItemAdmissionRepository>,
+    ) -> Self {
+        self.phase4 = Some((rules, reservations));
+        self
+    }
+
     /// Installs immutable Phase 2 registry and its provenance for new epochs only.
     #[must_use]
     pub fn with_classes(
@@ -167,7 +184,54 @@ impl ZoneBootstrap {
             zone: def.zone,
             epoch,
         };
-        let mut state = if let Some(phase3) = &self.phase3 {
+        let mut state = if let Some((items, reservations)) = &self.phase4 {
+            let blacksmith = &items.parts().capacities.blacksmith;
+            let position = crate::domain::zone::Vec2Fixed::from_tiles(blacksmith.x, blacksmith.y);
+            anyhow::ensure!(
+                def.bounds.contains(position),
+                "Phase4 blacksmith is outside zone bounds"
+            );
+            let configured: Vec<_> = def
+                .npcs
+                .iter()
+                .filter(|npc| npc.name == blacksmith.template)
+                .collect();
+            anyhow::ensure!(
+                configured.len() <= 1
+                    && configured.iter().all(|npc| npc.pos == position
+                        && npc.speed == crate::domain::zone::Speed::from_milli_tiles_per_tick(0)),
+                "configured blacksmith differs from Phase4 rules"
+            );
+            let physical = self
+                .rules
+                .as_ref()
+                .ok_or_else(|| anyhow::anyhow!("Phase4 requires physical rules"))?;
+            let (classes, _) = self
+                .classes
+                .as_ref()
+                .ok_or_else(|| anyhow::anyhow!("Phase4 requires class rules"))?;
+            let skills = self
+                .phase3
+                .as_ref()
+                .ok_or_else(|| anyhow::anyhow!("Phase4 requires compiled skill rules"))?;
+            let range = reservations
+                .reserve_item_range(seed.zone, seed.epoch)
+                .await?;
+            crate::domain::zone::ZoneState::new_phase4(
+                seed,
+                def.bounds,
+                time_origin_ms,
+                physical.rules.clone(),
+                classes.clone(),
+                skills.clone(),
+                items.clone(),
+                crate::domain::zone::ItemInstanceRange::new(
+                    range.range_start,
+                    range.next_reserved,
+                    range.range_end_exclusive,
+                )?,
+            )?
+        } else if let Some(phase3) = &self.phase3 {
             let rules = self
                 .rules
                 .as_ref()
@@ -231,6 +295,7 @@ impl ZoneBootstrap {
             }
         }
         let mut snapshot = state.snapshot();
+        snapshot.meta.checkpoint_internal_cadence = snapshot.phase3.is_some();
         if let Some((_, hash)) = &self.classes {
             snapshot.meta.classes_hash = hash.clone();
         }
@@ -290,6 +355,19 @@ impl ZoneBootstrap {
                     combat: None,
                 }))
                 .map_err(|e| anyhow::anyhow!("queue starting NPC {}: {e}", npc.name))?;
+        }
+        if let Some((items, _)) = &self.phase4 {
+            let blacksmith = &items.parts().capacities.blacksmith;
+            if !def.npcs.iter().any(|npc| npc.name == blacksmith.template) {
+                handle
+                    .send(ZoneInput::system(ZoneCommand::SpawnNpc {
+                        name: blacksmith.template.clone(),
+                        pos: crate::domain::zone::Vec2Fixed::from_tiles(blacksmith.x, blacksmith.y),
+                        speed: crate::domain::zone::Speed::from_milli_tiles_per_tick(0),
+                        combat: None,
+                    }))
+                    .map_err(|e| anyhow::anyhow!("queue Phase4 blacksmith: {e}"))?;
+            }
         }
         if let Some(store) = &self.snapshots {
             tokio::spawn(record_first_seq(

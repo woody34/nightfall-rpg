@@ -259,6 +259,12 @@ impl ItemCheckpointWork {
                 .chain(self.projection.enchant_attempts.iter().flat_map(|attempt| {
                     std::iter::once(&attempt.before).chain(attempt.after.iter())
                 }))
+                .chain(self.projection.exchanges.iter().flat_map(|exchange| {
+                    exchange
+                        .rows
+                        .iter()
+                        .flat_map(|row| row.before.iter().chain(row.after.iter()))
+                }))
         {
             let definition = rules
                 .parts()
@@ -274,8 +280,198 @@ impl ItemCheckpointWork {
             {
                 return Err(invalid("item_checkpoint_stackability"));
             }
-            if item.created_tick > self.projection.tick {
+        }
+        self.validate_count_caps(rules)?;
+        self.validate_refines(rules)?;
+        // Retained creation ticks belong to their origin epoch, whose clock may be ahead.
+        for item in self
+            .projection
+            .ledger
+            .iter()
+            .filter(|delta| delta.before.is_none())
+            .flat_map(|delta| delta.after.iter())
+        {
+            if item.created_tick > self.projection.tick
+                || item
+                    .creation_origin
+                    .is_some_and(|origin| origin.zone != self.zone || origin.epoch != self.epoch)
+            {
                 return Err(invalid("item_checkpoint_creation_tick"));
+            }
+        }
+        Ok(())
+    }
+
+    /// D95: each captured refine audit is re-derived at the trust boundary. A Refine's three
+    /// retail draws reproduce its selection (and so its packed augment) from the hashed tables
+    /// (raw-word/selection consistency only; that the words came from the RNG stream is
+    /// replay's job);
+    /// a `CancelRefine` has no draw and pays exactly the hashed Adena fee. The audit's payments
+    /// equal, per template, the Consume causes of its family carrying its receipt, and no such
+    /// cause is left unaccounted.
+    fn validate_refines(
+        &self,
+        rules: &crate::domain::zone::Phase4Rules,
+    ) -> Result<(), CheckpointError> {
+        use crate::domain::zone::item_refine::{cancel_fee, RetailSelectors, ADENA};
+        use crate::domain::zone::phase4_projection::ItemEvidenceValue;
+        // Every Refine/CancelRefine target row is backed by its captured audit: the outbox
+        // publishes the audit in place of the row, so a row without one would go unaudited.
+        if self.projection.ledger.iter().any(|delta| {
+            matches!(delta.operation, ItemOperation::Refine | ItemOperation::CancelRefine)
+                && !self.projection.refines.iter().any(|refine| {
+                    delta.receipt == Some(refine.receipt) && delta.instance == refine.after.id
+                })
+        }) {
+            return Err(invalid("item_refine_audit_missing"));
+        }
+        for refine in &self.projection.refines {
+            let applied = refine.outcome == ItemRefineOutcome::Applied;
+            match (&refine.selection, refine.stone) {
+                (Some(selection), Some(stone)) if applied => {
+                    let selectors =
+                        RetailSelectors::new(rules, refine.accessory, refine.mage, stone)
+                            .map_err(|_| invalid("item_refine_draws"))?;
+                    let mut words = [
+                        selection.first_raw,
+                        selection.category_raw,
+                        selection.second_raw,
+                    ]
+                    .into_iter();
+                    let mut drawn = 0_u8;
+                    let recomputed = selectors
+                        .select(|| {
+                            drawn = drawn.saturating_add(1);
+                            words.next().unwrap_or(u32::MAX)
+                        })
+                        .map_err(|_| invalid("item_refine_draws"))?;
+                    if drawn != 3
+                        || &recomputed != selection
+                        || refine.payments.first().map(|payment| payment.template_id) != Some(stone)
+                    {
+                        return Err(invalid("item_refine_draws"));
+                    }
+                },
+                (None, None) if !applied => {
+                    let definition = rules
+                        .parts()
+                        .items
+                        .get(&refine.before.template_id)
+                        .ok_or_else(|| invalid("item_refine_cancel_fee"))?;
+                    let fee = cancel_fee(rules, definition, refine.before.enchant)
+                        .map_err(|_| invalid("item_refine_cancel_fee"))?;
+                    if refine.payments.len() != 1
+                        || refine.payments.first().map(|p| (p.template_id, p.count))
+                            != Some((ADENA, fee))
+                    {
+                        return Err(invalid("item_refine_cancel_fee"));
+                    }
+                },
+                _ => return Err(invalid("item_refine_draws")),
+            }
+            let family = if applied {
+                "refine_payment"
+            } else {
+                "cancel_refine_payment"
+            };
+            let key = refine.receipt.key.to_string();
+            let mut paid = BTreeMap::<u32, i128>::new();
+            for payment in &refine.payments {
+                let total = paid.entry(payment.template_id).or_insert(0);
+                *total = total
+                    .checked_add(i128::from(payment.count))
+                    .ok_or_else(|| invalid("item_refine_payment"))?;
+            }
+            let mut consumed = BTreeMap::<u32, i128>::new();
+            for delta in self
+                .projection
+                .ledger
+                .iter()
+                .filter(|delta| delta.operation == ItemOperation::Consume)
+            {
+                for cause in delta.causes.iter().filter(|cause| {
+                    cause.family == family
+                        && cause.fields.get("receipt")
+                            == Some(&ItemEvidenceValue::Text(key.clone()))
+                }) {
+                    let Some(ItemEvidenceValue::Signed(debit)) = cause.fields.get("count_delta")
+                    else {
+                        return Err(invalid("item_refine_payment"));
+                    };
+                    let template = delta
+                        .template()
+                        .map_err(|_| invalid("item_refine_payment"))?;
+                    let total = consumed.entry(template).or_insert(0);
+                    *total = total
+                        .checked_sub(i128::from(*debit))
+                        .ok_or_else(|| invalid("item_refine_payment"))?;
+                }
+            }
+            if paid != consumed {
+                return Err(invalid("item_refine_payment"));
+            }
+        }
+        Ok(())
+    }
+
+    /// D68/D70 caps under D74: retained (tick-end), tick-start, enchant/exchange and Consume
+    /// `after` states are capped directly. The canonical export (positive rows first) may show a
+    /// row `after` above the cap only when the instance's later same-tick consumption brings it
+    /// back: `after.count - later consumption <= cap`, all in i128.
+    fn validate_count_caps(
+        &self,
+        rules: &crate::domain::zone::Phase4Rules,
+    ) -> Result<(), CheckpointError> {
+        let capped = |item: &crate::domain::zone::ItemInstance, consumed_later: i128| {
+            let stackable = rules
+                .parts()
+                .items
+                .get(&item.template_id)
+                .ok_or_else(|| invalid("item_checkpoint_template"))?
+                .stackable;
+            if i128::from(item.count)
+                .checked_sub(consumed_later)
+                .is_none_or(|count| count > pinned_count_cap(item.template_id, stackable))
+            {
+                return Err(invalid("item_count_cap"));
+            }
+            Ok(())
+        };
+        for item in
+            self.projection
+                .checkpoint
+                .instances
+                .iter()
+                .chain(self.projection.enchant_attempts.iter().flat_map(|attempt| {
+                    std::iter::once(&attempt.before).chain(attempt.after.iter())
+                }))
+                .chain(self.projection.exchanges.iter().flat_map(|exchange| {
+                    exchange
+                        .rows
+                        .iter()
+                        .flat_map(|row| row.before.iter().chain(row.after.iter()))
+                }))
+        {
+            capped(item, 0)?;
+        }
+        let ledger = &self.projection.ledger;
+        for (index, delta) in ledger.iter().enumerate() {
+            let (earlier, later) = ledger.split_at(index);
+            if let Some(start) = delta.before.as_ref() {
+                if !earlier.iter().any(|row| row.instance == delta.instance) {
+                    capped(start, 0)?;
+                }
+            }
+            if let Some(after) = delta.after.as_ref() {
+                let mut consumed_later = 0_i128;
+                for row in later.iter().skip(1).filter(|row| {
+                    row.instance == delta.instance && row.operation == ItemOperation::Consume
+                }) {
+                    consumed_later = consumed_later
+                        .checked_add(i128::from(row.count_delta).abs())
+                        .ok_or_else(|| invalid("item_ledger_count_overflow"))?;
+                }
+                capped(after, consumed_later)?;
             }
         }
         Ok(())
@@ -342,8 +538,29 @@ impl ItemCheckpointWork {
                 return Err(invalid("item_checkpoint_unledgered_scalar"));
             }
         }
-        // Aggregate consumption may overlap intervening operations, but all signed deltas
-        // together must conserve the committed count of each actual instance.
+        let revision = self.projection.checkpoint.inventory_revision;
+        let unchanged = before.is_some_and(|cp| {
+            self.projection.ledger.is_empty()
+                && cp.instances == self.projection.checkpoint.instances
+                && cp.auto_shots == self.projection.checkpoint.auto_shots
+                && cp.inventory_revision == revision
+        });
+        // A fresh no-op receipt can retain the revision; actual mutations take one step.
+        if (!unchanged
+            && before.map_or(0, |cp| cp.inventory_revision).checked_add(1) != Some(revision))
+            || self
+                .projection
+                .receipts
+                .iter()
+                .any(|receipt| receipt.result.inventory_revision != revision)
+            || self
+                .projection
+                .materializations
+                .iter()
+                .any(|fact| fact.inventory_revision != revision)
+        {
+            return Err(invalid("item_checkpoint_revision_step"));
+        }
         let changed_ids: BTreeSet<_> = old
             .keys()
             .chain(new.keys())
@@ -351,33 +568,58 @@ impl ItemCheckpointWork {
             .copied()
             .collect();
         for id in &changed_ids {
-            let deltas: Vec<_> = self
+            let mut endpoint = old.get(id).copied();
+            let (mut consumed, mut ended) = (false, false);
+            for (position, delta) in self
                 .projection
                 .ledger
                 .iter()
                 .filter(|delta| delta.instance == *id)
-                .collect();
-            if deltas.is_empty() {
-                continue;
-            }
-            if let Some(initial) = old.get(id) {
-                if !deltas
-                    .iter()
-                    .any(|delta| delta.before.as_ref() == Some(*initial))
-                {
-                    return Err(invalid("item_ledger_initial_scalar"));
+                .enumerate()
+            {
+                if delta.before.as_ref() != endpoint {
+                    return Err(invalid("item_ledger_scalar_continuity"));
                 }
+                // D66/D94: [non-terminal rows in cause order..., the single Consume aggregate, at
+                // most one terminal row (after = None: whole transfer-out, Destroy, Crystallize)];
+                // nothing follows a terminal row. D100: non-terminal rows keep D69 cause order,
+                // so a credit may follow a non-Consume debit (partial Destroy, then a crystal
+                // refund); continuity, conservation and the D74 caps still bind every row.
+                let terminal = delta.operation != ItemOperation::Consume && delta.after.is_none();
+                if ended || (consumed && !terminal) {
+                    return Err(invalid("item_ledger_row_order"));
+                }
+                ended = terminal;
+                // D76/D55: the ordinal is this row's canonical position 0..n-1 among the
+                // instance's rows this tick, so it strictly increases and every row of one
+                // logical operation (implicit Unequip + Destroy) takes its own ordinal; under D94
+                // the Consume aggregate holds n-1, or n-2 when a terminal row follows it.
+                if u64::from(delta.operation_ordinal)
+                    != u64::try_from(position).map_err(anyhow::Error::from)?
+                {
+                    return Err(invalid("item_ledger_row_ordinal"));
+                }
+                if delta
+                    .after
+                    .as_ref()
+                    .is_some_and(|item| item.revision != revision)
+                {
+                    return Err(invalid("item_ledger_revision_step"));
+                }
+                let difference = i128::from(delta.after.as_ref().map_or(0, |item| item.count))
+                    .checked_sub(i128::from(delta.before.as_ref().map_or(0, |item| item.count)))
+                    .ok_or_else(|| invalid("item_ledger_count_overflow"))?;
+                if difference != i128::from(delta.count_delta) {
+                    return Err(invalid("item_ledger_count_conservation"));
+                }
+                if delta.operation == ItemOperation::Consume {
+                    validate_consumption(delta)?;
+                    consumed = true;
+                }
+                endpoint = delta.after.as_ref();
             }
-            let total_delta = deltas.iter().try_fold(0_i128, |total, delta| {
-                total
-                    .checked_add(i128::from(delta.count_delta))
-                    .ok_or_else(|| invalid("item_ledger_count_overflow"))
-            })?;
-            let expected = i128::from(new.get(id).map_or(0, |item| item.count))
-                .checked_sub(i128::from(old.get(id).map_or(0, |item| item.count)))
-                .ok_or_else(|| invalid("item_ledger_count_overflow"))?;
-            if total_delta != expected {
-                return Err(invalid("item_ledger_count_conservation"));
+            if endpoint != new.get(id).copied() {
+                return Err(invalid("item_ledger_final_scalar"));
             }
         }
         let mut created = BTreeSet::new();
@@ -388,12 +630,10 @@ impl ItemCheckpointWork {
                 return Err(invalid("item_instance_identity_reused"));
             }
             if let Some(original) = old.get(&delta.instance) {
-                if delta
-                    .before
-                    .iter()
-                    .chain(delta.after.iter())
-                    .any(|item| item.created_tick != original.created_tick)
-                {
+                if delta.before.iter().chain(delta.after.iter()).any(|item| {
+                    item.created_tick != original.created_tick
+                        || item.creation_origin != original.creation_origin
+                }) {
                     return Err(invalid("item_instance_creation_immutable"));
                 }
             }
@@ -409,6 +649,46 @@ impl ItemCheckpointWork {
                 || cp.inventory_revision > self.projection.checkpoint.inventory_revision
         }) {
             return Err(invalid("item_checkpoint_downgrade"));
+        }
+        Ok(())
+    }
+
+    /// D95: exactly one captured fact per Refine (`ItemRefined`) / `CancelRefine`
+    /// (`ItemRefineCancelled`), carrying the audit as its single cause.
+    fn validate_refine_events(&self, events: &[DomainEvent]) -> Result<(), CheckpointError> {
+        let refine_facts: Vec<_> = events
+            .iter()
+            .filter_map(|event| {
+                if let DomainEvent::ItemRefined { fact } = event {
+                    Some((ItemRefineOutcome::Applied, fact))
+                } else if let DomainEvent::ItemRefineCancelled { fact } = event {
+                    Some((ItemRefineOutcome::Removed, fact))
+                } else {
+                    None
+                }
+            })
+            .collect();
+        if refine_facts.len() != self.projection.refines.len() {
+            return Err(invalid("item_refine_outbox_count"));
+        }
+        for refine in &self.projection.refines {
+            let causes = vec![serde_json::to_value(refine).map_err(anyhow::Error::from)?];
+            if refine_facts
+                .iter()
+                .filter(|(outcome, fact)| {
+                    *outcome == refine.outcome
+                        && fact.instance_id == refine.after.id
+                        && fact.template_id == refine.before.template_id
+                        && fact.before.as_ref() == Some(&refine.before)
+                        && fact.after.as_ref() == Some(&refine.after)
+                        && fact.count_delta == 0
+                        && fact.causes == causes
+                })
+                .count()
+                != 1
+            {
+                return Err(invalid("item_refine_outbox_attempt"));
+            }
         }
         Ok(())
     }
@@ -455,6 +735,38 @@ impl ItemCheckpointWork {
                 return Err(invalid("item_enchant_outbox_attempt"));
             }
         }
+        self.validate_refine_events(events)?;
+        let exchange_facts: Vec<_> = events
+            .iter()
+            .filter_map(|event| {
+                if let DomainEvent::ItemExchanged { fact } = event {
+                    Some(fact)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        if exchange_facts.len() != self.projection.exchanges.len() {
+            return Err(invalid("item_exchange_outbox_count"));
+        }
+        for exchange in &self.projection.exchanges {
+            let causes = vec![serde_json::to_value(exchange).map_err(anyhow::Error::from)?];
+            if exchange_facts
+                .iter()
+                .filter(|fact| {
+                    fact.instance_id == exchange.before.id
+                        && fact.template_id == exchange.before.template_id
+                        && fact.before.as_ref() == Some(&exchange.before)
+                        && fact.after.is_none()
+                        && fact.count_delta == -1
+                        && fact.causes == causes
+                })
+                .count()
+                != 1
+            {
+                return Err(invalid("item_exchange_outbox_attempt"));
+            }
+        }
         for event in events {
             let fact = match event {
                 DomainEvent::ItemGranted { fact }
@@ -464,6 +776,7 @@ impl ItemCheckpointWork {
                 | DomainEvent::ItemEnchanted { fact }
                 | DomainEvent::ItemDestroyed { fact }
                 | DomainEvent::ItemRefined { fact }
+                | DomainEvent::ItemRefineCancelled { fact }
                 | DomainEvent::ItemExchanged { fact } => fact,
                 DomainEvent::CharacterCreated { .. }
                 | DomainEvent::CharacterLeveled { .. }
@@ -561,6 +874,7 @@ impl ItemCheckpointWork {
                     instance_id: delta.instance,
                     operation_ordinal: delta.operation_ordinal,
                     delta: ItemLedgerDelta {
+                        receipt_refs: delta.receipt_refs.clone(),
                         receipt: delta.receipt,
                         before: delta.before.clone(),
                         after: delta.after.clone(),
@@ -675,6 +989,69 @@ fn ledger_operation(operation: ItemOperation) -> Result<ItemLedgerOperation, Che
         ItemOperation::ToggleAutoShot => return Err(invalid("item_ledger_owner_sidecar")),
     })
 }
+/// D68 pinned stack maxima. L2ItemInstance.java:422 caps adena (template 57) at `MaxAdena`
+/// (character.properties:671 = 99,900,000,000) and every other stack at `Integer.MAX_VALUE`;
+/// non-stackable templates hold exactly one instance.
+fn pinned_count_cap(template_id: u32, stackable: bool) -> i128 {
+    const ADENA_TEMPLATE: u32 = 57;
+    const MAX_ADENA: i128 = 99_900_000_000;
+    match (stackable, template_id) {
+        (false, _) => 1,
+        (true, ADENA_TEMPLATE) => MAX_ADENA,
+        (true, _) => i128::from(i32::MAX),
+    }
+}
+
 fn invalid(name: &str) -> CheckpointError {
     CheckpointError::Constraint(name.into())
+}
+
+fn validate_consumption(
+    delta: &crate::domain::zone::phase4_projection::ItemDeltaPlan,
+) -> Result<(), CheckpointError> {
+    use crate::domain::zone::phase4_projection::ItemEvidenceValue;
+    let mut total = 0_i128;
+    let mut ordinal = None;
+    let mut references = Vec::new();
+    for cause in &delta.causes {
+        let Some(ItemEvidenceValue::Signed(debit)) = cause.fields.get("count_delta") else {
+            return Err(invalid("item_consume_contribution"));
+        };
+        if *debit >= 0 {
+            return Err(invalid("item_consume_contribution"));
+        }
+        let receipt = cause
+            .contributing_receipt()
+            .map_err(|_| invalid("item_consume_cause_identity"))?;
+        if let Some(receipt) = receipt {
+            if !references.contains(&receipt) {
+                references.push(receipt);
+            }
+        } else if cause.family != "skill_cast_payment"
+            || !matches!(cause.fields.get("cast_id"), Some(ItemEvidenceValue::Unsigned(id)) if *id > 0)
+        {
+            return Err(invalid("item_consume_cause_identity"));
+        }
+        if let Some(ItemEvidenceValue::Unsigned(current)) = cause.fields.get("operation_ordinal") {
+            if ordinal.is_some_and(|previous| *current < previous) {
+                return Err(invalid("item_consume_cause_order"));
+            }
+            ordinal = Some(*current);
+        }
+        total = total
+            .checked_add(i128::from(*debit))
+            .ok_or_else(|| invalid("item_ledger_count_overflow"))?;
+    }
+    if total != i128::from(delta.count_delta) || total >= 0 {
+        return Err(invalid("item_consume_contribution"));
+    }
+    let expected = if delta.receipt_refs.is_empty() {
+        delta.receipt.iter().copied().collect::<Vec<_>>()
+    } else {
+        delta.receipt_refs.clone()
+    };
+    if references != expected {
+        return Err(invalid("item_consume_receipt_order"));
+    }
+    Ok(())
 }

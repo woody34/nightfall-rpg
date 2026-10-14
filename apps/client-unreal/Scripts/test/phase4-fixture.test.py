@@ -56,6 +56,8 @@ class Fixtures(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             overlay=Path(tmp)/'data';fixture.phase4.create_overlay(overlay,REPO)
             zone=(overlay/'zones/test_zone.toml').read_text()
+            blacksmith=fixture.phase4.table('capacities')['blacksmith']
+            self.assertEqual(zone.count('name = '+json.dumps(blacksmith['template'])),1)
             for name,pos in [('pole_secondary_a','108, 101'),('pole_secondary_b','108, 99')]:
                 self.assertIn('template = "'+name+'"',zone);self.assertIn('home = ['+pos+']',zone)
                 self.assertIn('attackable = true',(overlay/('npcs/'+name+'.toml')).read_text())

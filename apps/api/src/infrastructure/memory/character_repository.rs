@@ -24,7 +24,7 @@ struct State {
     item_ledger: Vec<crate::application::ports::ItemLedgerEntry>,
     item_inventories: BTreeMap<CharacterId, crate::domain::zone::Phase4Checkpoint>,
     item_ranges:
-        BTreeMap<(crate::domain::zone::ZoneId, u64), crate::application::ports::ItemIdRange>,
+        BTreeMap<(crate::domain::zone::ZoneId, u64, u64), crate::application::ports::ItemIdRange>,
     pending_item_requests:
         BTreeMap<CharacterId, Vec<crate::application::ports::PendingItemRequest>>,
     names: HashMap<String, CharacterId>,
@@ -50,6 +50,50 @@ impl State {
             .get(&character.id)
             .map(crate::domain::CharacterItemMetadata::from);
         view
+    }
+
+    /// D77: like the Postgres adapter, every retained item needs its append-only birth row;
+    /// provenance corruption is a permanent named constraint that fences the lane.
+    fn item_checkpoint(
+        &self,
+        character: CharacterId,
+    ) -> Result<Option<crate::domain::zone::Phase4Checkpoint>, CheckpointError> {
+        let Some(mut checkpoint) = self.item_inventories.get(&character).cloned() else {
+            return Ok(None);
+        };
+        let named = |name: &str| CheckpointError::Constraint(name.into());
+        for item in &mut checkpoint.instances {
+            let birth = self
+                .item_ledger
+                .iter()
+                .find(|row| {
+                    row.character_id == character
+                        && row.instance_id == item.id
+                        && row.delta.before.is_none()
+                })
+                .ok_or_else(|| named("item_creation_ledger_missing"))?;
+            if birth
+                .delta
+                .after
+                .as_ref()
+                .is_none_or(|born| born.created_tick != item.created_tick)
+            {
+                return Err(named("item_creation_ledger_tick"));
+            }
+            let recorded = crate::domain::zone::ItemCreationOrigin {
+                zone: birth.zone_id,
+                epoch: birth.epoch,
+            };
+            if item
+                .creation_origin
+                .is_some_and(|origin| origin != recorded)
+            {
+                return Err(named("item_creation_ledger_origin"));
+            }
+            item.creation_origin = Some(recorded);
+            item.validate().map_err(anyhow::Error::from)?;
+        }
+        Ok(Some(checkpoint))
     }
 
     fn put(&mut self, c: &Character) {
@@ -145,7 +189,7 @@ impl InMemoryCharacterRepository {
                 .validate_catalogue(&registry)
                 .map_err(anyhow::Error::msg)?;
             phase3.validate(&rules, &ledger.learned_skills, alive)?;
-            ledger.validate_for_phase3(&registry, &c.identity(), c.id)?;
+            ledger.validate_for_skill_rules(&registry, &c.identity(), c.id, &rules)?;
         } else {
             ledger.validate_for(&registry, &c.identity(), c.id)?;
         }
@@ -232,6 +276,9 @@ impl InMemoryCharacterRepository {
             .ok_or(CheckpointError::NotFound)?;
         if current != checkpoint.revision_seen {
             return Ok(CheckpointOutcome::Stale);
+        }
+        if let Some(before) = s.item_checkpoint(checkpoint.character_id)? {
+            s.item_inventories.insert(checkpoint.character_id, before);
         }
         if let Some(name) = checkpoint.violated_constraint() {
             return Err(CheckpointError::Constraint(name.to_owned()));
@@ -493,7 +540,12 @@ impl crate::application::ports::ItemCheckpointRepository for InMemoryCharacterRe
             receipt.validate(cp, owner)?;
         }
         let mut staged = current.clone();
-        let before = staged.item_inventories.get(&cp.character_id).cloned();
+        let before = staged.item_checkpoint(cp.character_id)?;
+        if let Some(before) = &before {
+            staged
+                .item_inventories
+                .insert(cp.character_id, before.clone());
+        }
         let outcome = self.checkpoint_locked(&mut staged, cp, events, fingerprint, Some(work))?;
         if !matches!(outcome, CheckpointOutcome::Applied(_)) {
             return Ok(outcome);
@@ -508,7 +560,7 @@ impl crate::application::ports::ItemCheckpointRepository for InMemoryCharacterRe
         if end > 1_u64 << 32 {
             let range = staged
                 .item_ranges
-                .get_mut(&(work.zone, work.epoch))
+                .get_mut(&(work.zone, work.epoch, start))
                 .ok_or_else(|| CheckpointError::Constraint("item_checkpoint_reservation".into()))?;
             if range.range_start != start || range.range_end_exclusive != end {
                 return Err(CheckpointError::Constraint("item_checkpoint_reservation".into()));
@@ -550,6 +602,8 @@ impl crate::application::ports::ItemCheckpointRepository for InMemoryCharacterRe
             }
             staged.item_ledger.push(row);
         }
+        // D76 row positions are enforced by `validate_before` before any row is staged; the
+        // Postgres item_ledger_row_ordinal trigger is storage defence in depth with no memory copy.
         for item in &work.projection.checkpoint.instances {
             if staged.item_inventories.iter().any(|(id, inventory)| {
                 *id != cp.character_id
@@ -721,7 +775,7 @@ impl CharacterRepository for InMemoryCharacterRepository {
                 .ok_or_else(|| anyhow::anyhow!("progression character missing"))?;
             loaded.phase4 = Some(crate::infrastructure::item_manifests::admission_load(
                 character,
-                state.item_inventories.get(&character_id).cloned(),
+                state.item_checkpoint(character_id)?,
                 state
                     .pending_item_requests
                     .get(&character_id)
@@ -761,7 +815,11 @@ impl crate::application::ports::ItemAdmissionRepository for InMemoryCharacterRep
             return Err(CheckpointError::Constraint("item_id_ranges_epoch".into()));
         }
         let mut state = self.state.lock();
-        if let Some(range) = state.item_ranges.get(&(zone, epoch)) {
+        if let Some((_, range)) = state
+            .item_ranges
+            .range((zone, epoch, 0)..=(zone, epoch, u64::MAX))
+            .next_back()
+        {
             return Ok(*range);
         }
         let start = state
@@ -782,7 +840,63 @@ impl crate::application::ports::ItemAdmissionRepository for InMemoryCharacterRep
             next_reserved: start,
         };
         range.validate()?;
-        state.item_ranges.insert((zone, epoch), range);
+        state.item_ranges.insert((zone, epoch, start), range);
+        Ok(range)
+    }
+    async fn reserve_item_range_extension(
+        &self,
+        zone: crate::domain::zone::ZoneId,
+        epoch: u64,
+        exhausted_range_start: u64,
+    ) -> Result<crate::application::ports::ItemIdRange, CheckpointError> {
+        use crate::application::ports::ItemIdRange;
+        if i32::try_from(zone.0).is_err() {
+            return Err(CheckpointError::Constraint("item_id_ranges_zone".into()));
+        }
+        if i64::try_from(epoch).is_err() {
+            return Err(CheckpointError::Constraint("item_id_ranges_epoch".into()));
+        }
+        if i64::try_from(exhausted_range_start).is_err() {
+            return Err(CheckpointError::Constraint("item_id_ranges_bounds".into()));
+        }
+        let mut state = self.state.lock();
+        let old = state
+            .item_ranges
+            .get(&(zone, epoch, exhausted_range_start))
+            .ok_or_else(|| CheckpointError::Constraint("item_id_ranges_missing".into()))?;
+        old.validate()?;
+        if old.next_reserved != old.range_end_exclusive {
+            return Err(CheckpointError::Constraint("item_id_ranges_not_exhausted".into()));
+        }
+        if let Some((_, successor)) = state
+            .item_ranges
+            .range((zone, epoch, old.range_end_exclusive)..=(zone, epoch, u64::MAX))
+            .next()
+        {
+            return Ok(ItemIdRange {
+                next_reserved: successor.range_start,
+                ..*successor
+            });
+        }
+        let start = state
+            .item_ranges
+            .values()
+            .map(|range| range.range_end_exclusive)
+            .max()
+            .ok_or_else(|| CheckpointError::Constraint("item_id_ranges_missing".into()))?;
+        let end = start
+            .checked_add(1_u64 << 32)
+            .filter(|end| i64::try_from(*end).is_ok())
+            .ok_or_else(|| CheckpointError::Constraint("item_id_ranges_exhausted".into()))?;
+        let range = ItemIdRange {
+            zone_id: zone,
+            epoch,
+            range_start: start,
+            range_end_exclusive: end,
+            next_reserved: start,
+        };
+        range.validate()?;
+        state.item_ranges.insert((zone, epoch, start), range);
         Ok(range)
     }
     async fn pending_item_requests(
@@ -812,7 +926,7 @@ impl crate::application::ports::ItemInventoryRepository for InMemoryCharacterRep
         let Some(progression) = state.progression.get(&character) else {
             return Ok(None);
         };
-        let checkpoint = state.item_inventories.get(&character).cloned();
+        let checkpoint = state.item_checkpoint(character)?;
         if let Some(checkpoint) = &checkpoint {
             let phase3 = progression
                 .phase3
@@ -846,6 +960,50 @@ impl InMemoryCharacterRepository {
             .ok_or_else(|| anyhow::anyhow!("Phase4 fixture requires Phase3 state"))?;
         checkpoint.validate_structure(phase3.modifier_install_order.len())?;
         state.item_inventories.insert(character, checkpoint);
+        Ok(())
+    }
+
+    /// Fixture seed only: append the append-only birth row (D65/D77) that a real settlement
+    /// would have written for each retained item that lacks one, at the item's own provenance.
+    pub fn seed_item_birth_ledger_for_test(&self, character: CharacterId) -> anyhow::Result<()> {
+        use crate::application::ports::{ItemLedgerDelta, ItemLedgerEntry, ItemLedgerOperation};
+        let mut state = self.state.lock();
+        let checkpoint = state
+            .item_inventories
+            .get(&character)
+            .cloned()
+            .ok_or_else(|| anyhow::anyhow!("fixture item checkpoint missing"))?;
+        for item in checkpoint.instances {
+            if state.item_ledger.iter().any(|row| {
+                row.character_id == character
+                    && row.instance_id == item.id
+                    && row.delta.before.is_none()
+            }) {
+                continue;
+            }
+            let origin = item
+                .creation_origin
+                .ok_or_else(|| anyhow::anyhow!("fixture birth row needs explicit provenance"))?;
+            state.item_ledger.push(ItemLedgerEntry {
+                character_id: character,
+                zone_id: origin.zone,
+                epoch: origin.epoch,
+                tick: item.created_tick,
+                revision: item.revision,
+                operation: ItemLedgerOperation::Grant,
+                instance_id: item.id,
+                operation_ordinal: 0,
+                delta: ItemLedgerDelta {
+                    before: None,
+                    count_delta: i64::try_from(item.count)?,
+                    after: Some(item),
+                    causes: Vec::new(),
+                    receipt: None,
+                    receipt_refs: Vec::new(),
+                },
+                receipt_ref: None,
+            });
+        }
         Ok(())
     }
 }

@@ -2,6 +2,7 @@ use crate::domain::class::ClassRegistry;
 use crate::domain::zone::{Phase3Checkpoint, Phase3Rules};
 use std::future::Future;
 use std::sync::Arc;
+use tracing::Instrument as _;
 
 use async_trait::async_trait;
 use sea_orm::sea_query::Expr;
@@ -113,7 +114,7 @@ impl PgCharacterRepository {
                 .validate_catalogue(&registry)
                 .map_err(anyhow::Error::msg)?;
             phase3.validate(&rules, &ledger.learned_skills, alive)?;
-            ledger.validate_for_phase3(&registry, &c.identity(), c.id)?;
+            ledger.validate_for_skill_rules(&registry, &c.identity(), c.id, &rules)?;
         } else {
             ledger.validate_for(&registry, &c.identity(), c.id)?;
         }
@@ -545,6 +546,13 @@ async fn claim_learning(
 
 impl PgCharacterRepository {
     #[allow(clippy::too_many_lines)] // Keep receipt/key/fence/ledger/outbox ordering visible in one transaction.
+    #[tracing::instrument(
+        name = "storage",
+        target = "nightfall_api::runtime_timing",
+        level = "debug",
+        skip_all,
+        fields(phase = "checkpoint")
+    )]
     pub(super) async fn checkpoint_tx(
         &self,
         cp: &CharacterCheckpoint,
@@ -570,7 +578,17 @@ impl PgCharacterRepository {
                 |receipt| receipt.checkpoint_fingerprint(cp, events),
             )?
         };
-        let tx = self.db.begin().await.map_err(other)?;
+        let mut db = self.db.clone();
+        if tracing::enabled!(target: "nightfall_api::runtime_timing", tracing::Level::DEBUG) {
+            db.set_metric_callback(|info| {
+                let micros = u64::try_from(info.elapsed.as_micros()).unwrap_or(u64::MAX);
+                tracing::debug!(target: "nightfall_api::runtime_timing", phase = "checkpoint", subphase = "sql", micros, failed = info.failed, "storage subphase");
+            });
+        }
+        let begin = db.begin().instrument(tracing::debug_span!(
+            target: "nightfall_api::runtime_timing", "storage_subphase", subphase = "pool_and_begin"
+        ));
+        let tx = self.timed("checkpoint_begin", begin).await.map_err(other)?;
 
         let original = characters::Entity::find_by_id(cp.character_id.as_uuid())
             .lock(sea_orm::sea_query::LockType::Update)
@@ -599,7 +617,9 @@ impl PgCharacterRepository {
                 }
                 let result: StoredCheckpoint =
                     serde_json::from_value(stored.response).map_err(anyhow::Error::from)?;
-                tx.rollback().await.map_err(other)?;
+                super::storage_timing::timed("checkpoint", "rollback", tx.rollback())
+                    .await
+                    .map_err(other)?;
                 return Ok(LearningCheckpointOutcome::Checkpoint(CheckpointOutcome::Replayed(
                     result.revision,
                 )));
@@ -623,7 +643,9 @@ impl PgCharacterRepository {
         }
         if let Some(receipt) = receipt {
             if let Some(result) = claim_learning(&tx, cp, original.account_id, receipt).await? {
-                tx.rollback().await.map_err(other)?;
+                super::storage_timing::timed("checkpoint", "rollback", tx.rollback())
+                    .await
+                    .map_err(other)?;
                 return Ok(LearningCheckpointOutcome::ReceiptReplayed(result));
             }
         }
@@ -652,12 +674,19 @@ impl PgCharacterRepository {
         } = claim
         {
             if stored_fp != fingerprint {
-                tx.rollback().await.map_err(other)?;
+                super::storage_timing::timed("checkpoint", "rollback", tx.rollback())
+                    .await
+                    .map_err(other)?;
                 return Err(CheckpointError::KeyReused);
             }
             let stored: StoredCheckpoint =
                 serde_json::from_value(response).map_err(anyhow::Error::from)?;
-            tx.commit().await.map_err(other)?;
+            self.timed(
+                "checkpoint_commit",
+                super::storage_timing::timed("checkpoint", "commit", tx.commit()),
+            )
+            .await
+            .map_err(other)?;
             return Ok(LearningCheckpointOutcome::Checkpoint(CheckpointOutcome::Replayed(
                 stored.revision,
             )));
@@ -711,7 +740,9 @@ impl PgCharacterRepository {
         }
         let updated = update.exec(&tx).await.map_err(checkpoint_db_error)?;
         if updated.rows_affected == 0 {
-            tx.rollback().await.map_err(other)?;
+            super::storage_timing::timed("checkpoint", "rollback", tx.rollback())
+                .await
+                .map_err(other)?;
             return Ok(LearningCheckpointOutcome::Checkpoint(CheckpointOutcome::Stale));
         }
 
@@ -758,7 +789,12 @@ impl PgCharacterRepository {
                 .map_err(other)?;
         }
 
-        tx.commit().await.map_err(other)?;
+        self.timed(
+            "checkpoint_commit",
+            super::storage_timing::timed("checkpoint", "commit", tx.commit()),
+        )
+        .await
+        .map_err(other)?;
         Ok(LearningCheckpointOutcome::Checkpoint(CheckpointOutcome::Applied(produced)))
     }
 

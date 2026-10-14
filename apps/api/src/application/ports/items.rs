@@ -143,6 +143,14 @@ pub trait ItemAdmissionRepository: Send + Sync {
         zone: ZoneId,
         epoch: u64,
     ) -> Result<ItemIdRange, CheckpointError>;
+    /// Extend only an acknowledged exhausted block. Repeating the same old start returns
+    /// the original successor reservation (next=start), even after its cursor advances.
+    async fn reserve_item_range_extension(
+        &self,
+        zone: ZoneId,
+        epoch: u64,
+        exhausted_range_start: u64,
+    ) -> Result<ItemIdRange, CheckpointError>;
     /// Reads both pending and completed manifests; completed ones prevent a second kit.
     async fn pending_item_requests(
         &self,
@@ -243,6 +251,9 @@ pub struct ItemLedgerDelta {
     /// Full request scope; the SQL `receipt_ref` UUID alone is not unique across operations.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub receipt: Option<crate::domain::zone::phase4_projection::ItemReceiptRef>,
+    /// Ordered scoped contributors to a per-instance/tick Consume aggregate (D57).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub receipt_refs: Vec<crate::domain::zone::phase4_projection::ItemReceiptRef>,
 }
 
 /// One actual instance change in a single acknowledged zone tick. No live-row FK is needed.
@@ -264,6 +275,20 @@ pub struct ItemLedgerEntry {
 impl ItemLedgerEntry {
     /// Mirror SQL widths before any claim/write and reject fabricated pure-sidecar rows.
     pub fn validate(&self) -> Result<(), CheckpointError> {
+        let mut references = std::collections::BTreeSet::new();
+        if (!self.delta.receipt_refs.is_empty() && self.operation != ItemLedgerOperation::Consume)
+            || self
+                .delta
+                .receipt_refs
+                .iter()
+                .any(|receipt| receipt.validate().is_err() || !references.insert(*receipt))
+            || self.delta.receipt.is_some_and(|receipt| {
+                !self.delta.receipt_refs.is_empty()
+                    && self.delta.receipt_refs.as_slice() != [receipt]
+            })
+        {
+            return Err(CheckpointError::Constraint("item_ledger_receipt_scope".into()));
+        }
         if self.delta.receipt.map(|receipt| receipt.key) != self.receipt_ref
             || self
                 .delta
@@ -277,10 +302,23 @@ impl ItemLedgerEntry {
             || i64::try_from(self.tick.0).is_err()
             || i64::try_from(self.revision).is_err()
             || i32::try_from(self.operation_ordinal).is_err()
-            || (self.operation == ItemLedgerOperation::Consume && self.operation_ordinal != 0)
             || (self.delta.before.is_none() && self.delta.after.is_none())
         {
             return Err(CheckpointError::Constraint("item_ledger_projection".into()));
+        }
+        let difference = i128::from(self.delta.after.as_ref().map_or(0, |item| item.count))
+            .checked_sub(i128::from(self.delta.before.as_ref().map_or(0, |item| item.count)))
+            .ok_or_else(|| CheckpointError::Constraint("item_ledger_count_overflow".into()))?;
+        if difference != i128::from(self.delta.count_delta)
+            || (self.operation == ItemLedgerOperation::Consume
+                && (self.delta.count_delta >= 0 || self.delta.causes.is_empty()))
+            || self
+                .delta
+                .after
+                .as_ref()
+                .is_some_and(|item| item.revision != self.revision)
+        {
+            return Err(CheckpointError::Constraint("item_ledger_count_or_revision".into()));
         }
         for item in self.delta.before.iter().chain(self.delta.after.iter()) {
             item.validate()

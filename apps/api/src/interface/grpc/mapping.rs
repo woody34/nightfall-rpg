@@ -695,6 +695,34 @@ mod tests {
     }
 
     #[test]
+    fn detached_nonpositive_maximum_displays_zero_without_changing_penalty_history() {
+        use crate::application::use_cases::GetInventoryOutput;
+        let mut checkpoint = crate::domain::zone::phase4_projection::tests::projection().checkpoint;
+        checkpoint.weight = 500;
+        checkpoint.overload_level = 3;
+        checkpoint.overloaded = true;
+        for (maximum, per_mille) in [(-5, 0), (0, 0), (250, 2000)] {
+            checkpoint.max_load = maximum;
+            let output = GetInventoryOutput {
+                character_id: crate::domain::CharacterId::from_uuid(Uuid::from_u128(1)),
+                character_revision: 9,
+                ordinary_capacity: checkpoint.ordinary_capacity,
+                quest_capacity: checkpoint.quest_capacity,
+                checkpoint: checkpoint.clone(),
+            };
+            let wire = detached_inventory_to_pb(&output).unwrap();
+            let weight = wire.weight.unwrap();
+            assert_eq!(
+                (weight.weight, weight.max_load, weight.per_mille),
+                (500, maximum, per_mille)
+            );
+            let penalties = wire.penalties.unwrap();
+            assert_eq!((penalties.overload_level, penalties.overloaded), (3, true));
+            assert_eq!(output.checkpoint, checkpoint);
+        }
+    }
+
+    #[test]
     fn race_round_trips_and_rejects_unspecified() {
         for r in [
             Race::Human,
