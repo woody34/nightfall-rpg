@@ -797,7 +797,10 @@ impl CharacterRepository for InMemoryCharacterRepository {
     ) -> anyhow::Result<Option<ProgressionState>> {
         let state = self.state.lock();
         if let Some(quarantine) = state.lane_quarantines.get(&character_id) {
-            anyhow::bail!("{}: {}", crate::application::ports::LANE_QUARANTINED, quarantine.reason);
+            return Err(crate::application::ports::LaneQuarantined {
+                reason: quarantine.reason.clone(),
+            }
+            .into());
         }
         // Legacy readers must never silently drop retained V6 inventory.
         anyhow::ensure!(

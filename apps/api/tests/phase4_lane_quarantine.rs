@@ -230,14 +230,28 @@ async fn recovery_quarantines_a_permanently_failing_item_lane_and_boots_the_zone
     assert_eq!(again.inventory_revision, settled.inventory_revision);
     assert_eq!(again.items, settled.items);
     socket.close().await;
-    // The quarantined owner's login is refused; the zone keeps running.
+    // The quarantined owner's login is refused by name with the permanent 4423 close (never
+    // the retryable 1011 "zone unavailable"); the zone keeps running.
     let ticket = ws::ticket(&app, &poisoned).await;
-    if let Ok(mut refused) = ws::connect(&app, &ticket).await {
-        assert!(refused
-            .closed(std::time::Duration::from_secs(10))
-            .await
-            .is_some());
-    }
+    let mut refused = ws::connect(&app, &ticket)
+        .await
+        .expect("the refusal is a close after the upgrade");
+    let frame = tokio::time::timeout(std::time::Duration::from_secs(10), async {
+        use futures_util::StreamExt as _;
+        loop {
+            match refused.socket.next().await {
+                Some(Ok(tokio_tungstenite::tungstenite::Message::Close(frame))) => break frame,
+                Some(Ok(_)) => {},
+                // A socket that ends without a close frame fails the expect below.
+                Some(Err(_)) | None => break None,
+            }
+        }
+    })
+    .await
+    .expect("the quarantined login is closed at once")
+    .expect("the close carries a code and reason");
+    assert_eq!(u16::from(frame.code), 4423);
+    assert_eq!(frame.reason.as_str(), LANE_QUARANTINED);
     assert!(!second.handle().persistence_failed());
     second.shutdown(WatermarkReason::Shutdown).await.unwrap();
     let _ = std::fs::remove_file(path);

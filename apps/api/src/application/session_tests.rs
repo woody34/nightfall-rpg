@@ -447,6 +447,7 @@ fn close_codes_match_the_contract() {
         (SessionEnd::SlowConsumer, Some(4429)),
         (SessionEnd::AdmissionRefused, Some(1011)),
         (SessionEnd::ZoneUnavailable, Some(1011)),
+        (SessionEnd::LaneQuarantined, Some(4423)),
     ];
     for (end, code) in cases {
         assert_eq!(end.close_code(), code, "{end:?}");

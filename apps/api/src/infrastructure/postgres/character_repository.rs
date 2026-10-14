@@ -395,7 +395,7 @@ impl CharacterRepository for PgCharacterRepository {
                     .await?;
                 if let Some(row) = quarantined {
                     let reason: String = row.try_get("", "reason")?;
-                    anyhow::bail!("{}: {reason}", crate::application::ports::LANE_QUARANTINED);
+                    return Err(crate::application::ports::LaneQuarantined { reason }.into());
                 }
                 let hp = m.hp.map(u32::try_from).transpose()?;
                 let mp = m.mp.map(u32::try_from).transpose()?;
