@@ -230,6 +230,10 @@ class Fixtures(unittest.TestCase):
         self.assertIn('zone-flags.json',lib)
         self.assertIn('ZONE_FLAGS=(env PHASE3_ENABLED=1 PHASE4_ENABLED=1)',soak);self.assertNotIn('PHASE3_ENABLED="$CASTING"',soak)
         self.assertNotIn('env -u PHASE4_ENABLED',soak)
+        # Review-3 P1-3: soak replay steps run with the API's overlay RULES_DIR.
+        rules=soak.index('export RULES_DIR="$OUT/fixtures/data"')
+        for step in ('export --zone 1 --epoch 1','check --file "$OUT/soak.nfr"','sim-gates.py" coverage','--items-evidence-out'):
+            self.assertGreater(soak.index(step),rules,step)
         # Review-3 P1-2: the soak seeder writes pending kits for the V6 soak API in every mode.
         self.assertRegex(soak,r'NIGHTFALL_PHASE4_FIXTURE="\$ITEMS" PHASE4_ENABLED=1 \\\n\s+python3 "\$SIM_REPO/infra/scripts/seed-phase\$\{SEED_PHASE\}-soak.py"')
 

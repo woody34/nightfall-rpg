@@ -163,6 +163,9 @@ END=$(date +%s)
 stop_api || printf '%s\n' 'API shutdown failed or exceeded its grace period; final metrics may be incomplete' >>"$OUT/runner-errors.txt"
 # A fresh Postgres/NATS namespace deterministically starts zone 1 at epoch 1. Exporting
 # that exact epoch both records the seed and requires the graceful-shutdown watermark.
+# Review-3 P1-3: the V6 epoch references the overlay bundle by hash, so every replay step
+# (export, check, coverage, items evidence) composes the RULES_DIR the soak API ran with.
+export RULES_DIR="$OUT/fixtures/data"
 if ! "$SOAK_REPLAY_BIN" export --zone 1 --epoch 1 --nats "nats://localhost:$((4222 + OFFSET))" \
   --out "$OUT/soak.nfr" >"$OUT/replay-export.log" 2>&1; then
   printf '%s\n' 'Could not export complete zone 1 epoch 1 recording' >>"$OUT/runner-errors.txt"
