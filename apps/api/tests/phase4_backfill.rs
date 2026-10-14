@@ -688,6 +688,10 @@ async fn existing_characters_receive_their_base_kit_once_at_first_v6_admission()
     assert_eq!(ranges.len(), 2, "one reserved range per epoch");
     let disjoint = ranges[0].2 <= ranges[1].1 || ranges[1].2 <= ranges[0].1;
     let failed = writer.failed.lock().clone();
+    // Both injected kinds really happened: a failure before the commit and a lost
+    // acknowledgement after it.
+    assert!(failed.values().any(|before| *before), "no before-commit failure was injected");
+    assert!(failed.values().any(|before| !*before), "no after-commit lost ack was injected");
     let mut cases = Vec::new();
     for owner in &seeded {
         let id = owner.player.character;
@@ -818,13 +822,25 @@ async fn existing_characters_receive_their_base_kit_once_at_first_v6_admission()
         }));
     }
     if let Ok(path) = std::env::var("PHASE4_BACKFILL_RESULTS") {
-        let commit = std::process::Command::new("git")
-            .args(["rev-parse", "HEAD"])
-            .current_dir(env!("CARGO_MANIFEST_DIR"))
-            .output()
-            .ok()
-            .and_then(|out| String::from_utf8(out.stdout).ok())
-            .map_or_else(|| "unknown".into(), |sha| sha.trim().to_owned());
+        // The commit the results attest: HEAD, suffixed "-dirty" when the tree under test has
+        // uncommitted changes (the harness then knows the results are not for HEAD alone).
+        let git = |args: &[&str]| {
+            std::process::Command::new("git")
+                .args(args)
+                .current_dir(env!("CARGO_MANIFEST_DIR"))
+                .output()
+                .ok()
+                .filter(|out| out.status.success())
+                .and_then(|out| String::from_utf8(out.stdout).ok())
+        };
+        let commit = match (
+            git(&["rev-parse", "HEAD"]),
+            git(&["status", "--porcelain", "--untracked-files=no"]),
+        ) {
+            (Some(sha), Some(status)) if status.trim().is_empty() => sha.trim().to_owned(),
+            (Some(sha), Some(_)) => format!("{}-dirty", sha.trim()),
+            _ => "unknown".to_owned(),
+        };
         let results = serde_json::json!({
             "schema_version": 1,
             "source": "apps/api/tests/phase4_backfill.rs",

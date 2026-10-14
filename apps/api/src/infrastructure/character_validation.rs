@@ -36,7 +36,7 @@ pub(super) fn upgrade_v6_skill_checkpoint(
     use crate::domain::class::RuntimeSkillStatus;
     use crate::domain::zone::effects::RetainedModifierSource;
     let mut phase3 = phase3?;
-    if rules.runtime_revision() != 3 {
+    if !rules.is_v6() {
         return Some(phase3);
     }
     let installed: std::collections::BTreeSet<_> = phase3
