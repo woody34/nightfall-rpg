@@ -146,8 +146,9 @@ namespace ItemLiveTests
 					? EStart::Skipped : EStart::Failed;
 			}
 			if (!Result.IsOk()) { Test.AddError(TEXT("Reachable API Ping failed: ") + Result.Message); return EStart::Failed; }
-			if (!UAuthSubsystem::GetCommandLineDevToken().IsEmpty()) Auth->StartLogin();
-			else Auth->LoginWithDevToken(TEXT("test:") + FGuid::NewGuid().ToString(EGuidFormats::DigitsWithHyphensLower));
+			// A fresh dev account per test (GrantItem needs AUTH_DEV_TOKENS=1 anyway): the run-wide
+			// -DevTokenFile account has seven character slots shared by every live test.
+			Auth->LoginWithDevToken(TEXT("test:") + FGuid::NewGuid().ToString(EGuidFormats::DigitsWithHyphensLower));
 			if (!Auth->IsLoggedIn()) { Test.AddError(TEXT("Reachable API requires valid test authentication (AUTH_DEV_TOKENS=1)")); return EStart::Failed; }
 
 			const FString Hex = FGuid::NewGuid().ToString(EGuidFormats::Digits);
@@ -465,6 +466,7 @@ bool FItemEnrichmentLiveTest::RunTest(const FString& Parameters)
 		FString Out, Err;
 		FPlatformProcess::ExecProcess(*Binary, *Args, &Code, &Out, &Err, *RepoRoot());
 		AddInfo(FString::Printf(TEXT("%s: exit %d\n%s%s"), What, Code, *Out, *Err));
+		UE_LOG(LogTemp, Display, TEXT("ItemLive %s: exit %d: %s %s"), What, Code, *Out.TrimStartAndEnd(), *Err.TrimStartAndEnd());
 		return Code;
 	};
 	const FString Zone = EnvOr(TEXT("NIGHTFALL_ZONE_ID"), TEXT("1"));
@@ -525,8 +527,11 @@ bool FItemEnrichmentLiveTest::RunTest(const FString& Parameters)
 		++LiveStats;
 		if (!ReplayedStats.Contains(Lower(Frame))) AddError(TEXT("live enriched StatsChanged frame is absent from the replay: ") + Lower(Frame));
 	}
-	AddInfo(FString::Printf(TEXT("D26: %d replayed frames; enriched spawn %d, enriched stats %d (live enriched stats %d); %d missing live"), Total, Spawns, Stats, LiveStats, Missing));
+	const FString Summary = FString::Printf(TEXT("D26: %d replayed frames; enriched spawn %d, enriched stats %d (live enriched stats %d, live frames %d); %d missing live"), Total, Spawns, Stats, LiveStats, S.Received.Num(), Missing);
+	AddInfo(Summary);
+	UE_LOG(LogTemp, Display, TEXT("ItemLive %s"), *Summary);
 	TestTrue(TEXT("replay carries enriched owner StatsChanged for the equip changes"), Stats >= 2);
+	TestTrue(TEXT("replay carries the enriched own EntitySpawn (equipped spawn hydration)"), Spawns >= 1);
 	TestEqual(TEXT("every replayed enriched frame matched a live frame byte-for-byte"), Missing, 0);
 	IFileManager::Get().DeleteDirectory(*Dir, false, true);
 	return !HasAnyErrors();
