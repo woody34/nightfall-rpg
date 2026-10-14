@@ -1,30 +1,44 @@
 # Phase 2: Race and class
 
-Status: reference design. The [executable plan](../plans/phase-2-race-and-class.md) and [verification outcome](../plans/phase-2-race-and-class-outcome.md) define and record the verified contracts, token bridge policy, and closed verification receipts. Reference cap 60 is superseded by implemented Phase 1 cap 85; playable transfers stop at tier 2 (levels 20/40), with tier 3 metadata only. Production creation starts at (0,0); Class Master is at (126,128) radius 3. Local Phase 2 including E4 token provisioning is proven complete once this final reviewed docs commit lands: root main merged and pushed `cf9225db5cd49432e96de97ffb31e01ad0f3cf94` (tracked tree `3dcf6b9c8c832ebc2715bef9ec812784a097bd74` matches candidate `e568fd2`), root Game build (28.43 s, exit 0), root Editor build (19.03 s, exit 0), and separate root smoke suites (Nightfall.Class 8/8, TemplateTarget 1/1, total 9/9, zero failures/skips, both exit 0) passed with seven root-local dependency links and clean tracked checkout (only unchanged user trace untracked `d8a708831677fc5ffa0d72df9d66142bcefc4144f36d6cc043f33b4899824a32`). External self-hosted Linux runner remains unregistered and the existing two-week reliability programme remains a separate operational follow-up (not a local acceptance gate or fresh 14-day wait). Depends on Phase 1; feeds Phases 3 and 4.
+Status: reference design. The [executable plan](../plans/phase-2-race-and-class.md) and [verification outcome](../plans/phase-2-race-and-class-outcome.md) define and record the verified contracts, token bridge policy, and closed verification receipts. The implemented Phase 1 cap 85 replaces the reference cap 60. Playable transfers stop at tier 2 (levels 20/40), and tier 3 has metadata only. Production creation starts at (0,0). The Class Master is at (126,128), radius 3. Local Phase 2, with E4 token provisioning, is proven complete when this final reviewed docs commit merges. The evidence follows:
+
+- Root main merged and pushed `cf9225db5cd49432e96de97ffb31e01ad0f3cf94` (tracked tree `3dcf6b9c8c832ebc2715bef9ec812784a097bd74` matches candidate `e568fd2`).
+- The root Game build (28.43 s, exit 0) passed.
+- The root Editor build (19.03 s, exit 0) passed.
+- The separate root smoke suites (Nightfall.Class 8/8, TemplateTarget 1/1, total 9/9, zero failures/skips, both exit 0) passed.
+- These checks passed with seven root-local dependency links and a clean tracked checkout. The only untracked item was the unchanged user trace `d8a708831677fc5ffa0d72df9d66142bcefc4144f36d6cc043f33b4899824a32`.
+
+The external self-hosted Linux runner is still not registered. The existing two-week reliability programme is still a separate operational follow-up. It is not a local acceptance gate, and it is not a new 14-day wait. This phase depends on Phase 1, and it gives input to Phases 3 and 4.
 
 ## 1. Purpose and scope
 
-This phase delivers everything needed to create a character with a race and a class, level it, and move it through the class tree:
+This phase gives all the items that are necessary to make a character with a race and a class. It also gives the items to increase its level and move it through the class tree:
 
 - Race definitions: base stat arrays, movement speed, collision, racial traits, starting zone.
-- Class definitions: the class tree (base class, first/second/third transfer), per-class growth tables (HP/MP/CP by level), class-restricted skill trees, equipment proficiency unlocks.
-- Class transfer rules: level gates, cost/quest hooks, what changes on transfer.
-- Subclass rules: data model and eligibility rules (implementation deferred, see section 3).
-- Data-driven definition format (TOML), Rust data model under `apps/api/src/character/`, and proto additions.
+- Class definitions: the class tree (base class, first/second/third transfer), growth tables for each class (HP/MP/CP by level), skill trees that only the class can use, equipment proficiency unlocks.
+- Class transfer rules: level gates, cost/quest hooks, the changes that a transfer makes.
+- Subclass rules: data model and eligibility rules (the implementation is for a later phase, see section 3).
+- A data-driven definition format (TOML), a Rust data model in `apps/api/src/character/`, and proto additions.
 
-Explicitly excluded: the stat formulas themselves (Phase 1), the skills a class learns (Phase 3 defines skill data; this phase only defines the *tree* that says who learns what at which level and SP cost), item grades (Phase 4), quest scripting for transfers (Phase 6), dual class and Awakening (Goddess of Destruction era; out of reference scope).
+These items are not in the scope of this phase:
+
+- The stat formulas (Phase 1).
+- The skills that a class learns. Phase 3 defines the skill data. This phase only defines the *tree* that tells who learns what, at which level and SP cost.
+- Item grades (Phase 4).
+- Quest scripts for transfers (Phase 6).
+- Dual class and Awakening (Goddess of Destruction era; not in the reference scope).
 
 ## 2. Reference: how Lineage 2 does it
 
-All numbers below are Interlude-to-High Five era unless stated otherwise. The primary data source is the L2J High Five datapack (`data/stats/chars/`), which is a faithful dump of the client/server class templates, cross-checked against l2db.net class pages.
+All numbers below are from the Interlude to High Five era, if not stated differently. The primary data source is the L2J High Five datapack (`data/stats/chars/`). This datapack is an accurate dump of the client/server class templates. We compared it with the l2db.net class pages.
 
 ### 2.1 Races
 
-Five classic races plus Kamael (added in Chaotic Throne: The Kamael, 2007). Every race except Dwarf and Kamael has two starting paths: Fighter and Mystic. Dwarves are fighter-only; Kamael are fighter-only and gender-split (male and female Soldiers have different trees).
+There are five classic races, plus Kamael (added in Chaotic Throne: The Kamael, 2007). All races except Dwarf and Kamael have two start paths: Fighter and Mystic. Dwarves are fighter-only. Kamael are fighter-only and split by gender (male and female Soldiers have different trees).
 
 #### Base stat arrays per starting class
 
-Source: L2J `data/stats/chars/baseStats/*.xml` (`baseSTR`...`baseMEN`), matching l2db.net C1/C4/Interlude class pages. These are level-1 values and never change with level in classic L2; only equipment, buffs, tattoos (henna) and later dyes modify them.
+Source: L2J `data/stats/chars/baseStats/*.xml` (`baseSTR`...`baseMEN`). These values agree with the l2db.net C1/C4/Interlude class pages. These are level-1 values. In classic L2, they never change with level. Only equipment, buffs, tattoos (henna) and later dyes change them.
 
 | Starting class (classId) | STR | DEX | CON | INT | WIT | MEN | Sum |
 |---|---|---|---|---|---|---|---|
@@ -40,7 +54,7 @@ Source: L2J `data/stats/chars/baseStats/*.xml` (`baseSTR`...`baseMEN`), matching
 | Male Kamael Soldier (123) | 41 | 33 | 31 | 29 | 11 | 25 | 170 |
 | Female Kamael Soldier (124) | 39 | 35 | 30 | 28 | 11 | 27 | 170 |
 
-Every array sums to 170. That is the design budget: a race/class is a redistribution of 170 points across six stats. Nightfall should keep the fixed-budget rule because it makes balance arguments tractable.
+The sum of each array is 170. That is the design budget: a race/class is a distribution of 170 points across six stats. Nightfall must keep the fixed-budget rule, because it makes balance arguments easier to control.
 
 #### Other per-template static data (L2J `staticData`)
 
@@ -57,26 +71,32 @@ Every array sums to 170. That is the design budget: a race/class is a redistribu
 | Dwarven Fighter | 80 | 115 | 80 | 180 | 80 | 30 | 56 |
 | Kamael Soldier (M/F) | 87 | 122 | 100 | 500 | 95 / 97 | 30 / 40 | 47.5 / 48.5 |
 
-All templates share: `basePAtk` 4 (3 for Human Mystic), `baseMAtk` 6, `baseCritRate` 4, `basePAtkSpd` 300, `baseAtkRange` 20, `baseRndDam` 10, per-slot base P.Def (chest 31 / legs 18 / head 12 / feet 7 / gloves 8 / underwear 3 / cloak 1 for fighters; chest 15 / legs 8 for mystics) and base M.Def (ears 9 each, rings 5 each, necklace 13). The slot P.Def is the "naked" defence that gets replaced when armor is equipped (L2J `FuncPDefMod` subtracts the slot base when the slot is filled).
+All templates have the same values for these fields:
+
+- `basePAtk` 4 (3 for Human Mystic), `baseMAtk` 6, `baseCritRate` 4, `basePAtkSpd` 300, `baseAtkRange` 20, `baseRndDam` 10.
+- Base P.Def for each slot (chest 31 / legs 18 / head 12 / feet 7 / gloves 8 / underwear 3 / cloak 1 for fighters; chest 15 / legs 8 for mystics).
+- Base M.Def (ears 9 each, rings 5 each, necklace 13).
+
+The slot P.Def is the "naked" defence. When the character equips armor in the slot, the armor replaces it (L2J `FuncPDefMod` subtracts the slot base when the slot is filled).
 
 #### Racial traits
 
-L2 has almost no explicit racial passive skills in the classic era. Racial identity is produced by the stat array feeding the Phase 1 derived formulas, plus a few race-specific skill trees and zones:
+In the classic era, L2 has almost no explicit racial passive skills. The racial identity comes from the stat array, through the Phase 1 derived formulas. Some race-specific skill trees and zones also add to it:
 
 | Race | Where the trait actually comes from | Effect in play |
 |---|---|---|
-| Human | Balanced array; widest class tree (five fighter branches incl. two tanks, five mystic branches). | Jack of all trades; Human mystics have the best MEN/WIT balance for healers. |
-| Elf | DEX 35 (highest with female Kamael), run speed 125 (highest), breath 150, safe fall 350. Accuracy and evasion are `sqrt(DEX)*6 + level`; P.Atk speed is `base * DEX_bonus`; crit rate is `baseCrit * DEX_bonus * 10`. WIT 23 on mystics gives fastest casting (`mAtkSpd = base * WIT_bonus`). Also the only race that gets HP/MP regen bonus inside the Mother Tree zone (L2J `ZoneId.MOTHER_TREE`). | Fastest attack/cast speed, highest evasion, low damage (STR 36, INT 37). |
-| Dark Elf | STR 41 (highest fighter STR), DEX 34, INT 44 (highest INT), but CON 32 and MEN 37. STR drives P.Atk (`base * STR_bonus * levelMod`) and physical-skill crit chance (`STR_bonus * skillCritChance`); DEX drives crit rate. | Highest burst crit and nuke damage; lowest HP/M.Def ("glass cannon"). |
+| Human | Balanced array; widest class tree (five fighter branches, including two tanks, and five mystic branches). | Can do all roles; Human mystics have the best MEN/WIT balance for healers. |
+| Elf | DEX 35 (highest, the same as female Kamael), run speed 125 (highest), breath 150, safe fall 350. Accuracy and evasion are `sqrt(DEX)*6 + level`; P.Atk speed is `base * DEX_bonus`; crit rate is `baseCrit * DEX_bonus * 10`. WIT 23 on mystics gives the fastest casting (`mAtkSpd = base * WIT_bonus`). Elf is also the only race that gets an HP/MP regen bonus in the Mother Tree zone (L2J `ZoneId.MOTHER_TREE`). | Fastest attack/cast speed, highest evasion, low damage (STR 36, INT 37). |
+| Dark Elf | STR 41 (highest fighter STR), DEX 34, INT 44 (highest INT), but CON 32 and MEN 37. STR controls P.Atk (`base * STR_bonus * levelMod`) and physical-skill crit chance (`STR_bonus * skillCritChance`); DEX controls crit rate. | Highest burst crit and nuke damage; lowest HP/M.Def ("glass cannon"). |
 | Orc | CON 47 (highest; max HP = `base * CON_bonus`, HP regen scales with CON), MEN 42 on mystics (M.Def, debuff resistance). DEX 26 (lowest). Slow walk (70). Orc mystics are the only buffer line that uses fighter-style melee (Shaman -> Overlord/Warcryer). | Most HP and regen, slowest, worst evasion/crit. |
-| Dwarf | CON 45, DEX 29, WIT 10. Weight limit is `floor(CON_bonus * 69000)` (L2J `PcStat.getMaxLoad`), so Dwarves carry the most. Exclusive skills: Spoil (id 254), Sweeper (42), Create Item / Crystallize (172 / 248), Dwarven Craft; also exclusive access to crafting recipes at Create Item levels. | The economy race: spoil loot, craft, carry. Fighter only, two branches. |
-| Kamael | Light armor only (no heavy/robe mastery), Soul system (absorb souls on hit, consume for skills), racial transformations (wings) at 3rd class. Female Soldier DEX 35; male STR 41. Safe fall 500. No mystic path. Cannot subclass to/from other races. | Hybrid fighter/caster with unique resource; excluded from Nightfall MVP (see section 3). |
+| Dwarf | CON 45, DEX 29, WIT 10. Weight limit is `floor(CON_bonus * 69000)` (L2J `PcStat.getMaxLoad`), thus Dwarves can carry the most. Skills that only Dwarves have: Spoil (id 254), Sweeper (42), Create Item / Crystallize (172 / 248), Dwarven Craft. Only Dwarves have access to crafting recipes at Create Item levels. | The economy race: spoil loot, craft, carry. Fighter only, two branches. |
+| Kamael | Light armor only (no heavy/robe mastery). Soul system (absorb souls on hit, use them for skills). Racial transformations (wings) at 3rd class. Female Soldier DEX 35; male STR 41. Safe fall 500. No mystic path. Cannot subclass to/from other races. | Hybrid fighter/caster with a unique resource; not in the Nightfall MVP (see section 3). |
 
 #### Starting zones
 
-L2J `data/stats/chars/pcCreationPoints.xml` keys spawn point groups by class id. World coordinates (L2 units; ~16 units per metre):
+L2J `data/stats/chars/pcCreationPoints.xml` uses the class id as the key for spawn point groups. World coordinates (L2 units; ~16 units for each metre):
 
-| Race / path | Village | Representative spawn (x, y, z) |
+| Race / path | Village | Typical spawn (x, y, z) |
 |---|---|---|
 | Human Fighter | Talking Island Village | (-71338, 258271, -3104) |
 | Human Mystic | Talking Island, Einhasad temple area | (-90875, 248162, -3570) |
@@ -88,7 +108,7 @@ L2J `data/stats/chars/pcCreationPoints.xml` keys spawn point groups by class id.
 
 ### 2.2 The class tree
 
-Levels: base class at 1, first transfer at 20, second at 40, third at 76. Class ids are the retail ids used by the client and by L2J `classList.xml`; 3rd-class ids start at 88 because ids 58-87 were reserved. Ids 119-122 are internal NPC-class placeholders.
+Levels: base class at 1, first transfer at 20, second at 40, third at 76. The class ids are the retail ids that the client and L2J `classList.xml` use. 3rd-class ids start at 88, because ids 58-87 were reserved. Ids 119-122 are internal NPC-class placeholders.
 
 | Race | Base (lvl 1) | 1st class (lvl 20) | 2nd class (lvl 40) | 3rd class (lvl 76) |
 |---|---|---|---|---|
@@ -129,11 +149,16 @@ Levels: base class at 1, first transfer at 20, second at 40, third at 76. Class 
 | | | | Arbalester (130) | Trickster (134) |
 | Kamael (both, 3rd sub only) | | | Inspector (135) | Judicator (136) |
 
-Totals: 9 (or 11 with Kamael) base classes, 18 (22) first classes, 31 (36) second classes, 31 (36) third classes. Note the oddities L2J encodes: Elemental Master's parent is Elven Wizard (26) not Elemental Summoner (28) in `classList.xml`, which is a data bug to avoid copying; Bladedancer's parent is Shillien Knight (33) not Palus Knight (32), also a data bug (Bladedancer is a 2nd class from Palus Knight). Inspector is only reachable as a Kamael's third subclass after two other Kamael subclasses reach 75.
+Totals: 9 (or 11 with Kamael) base classes, 18 (22) first classes, 31 (36) second classes, 31 (36) third classes. The L2J data has these errors:
+
+- In `classList.xml`, the parent of Elemental Master is Elven Wizard (26), not Elemental Summoner (28). This is a data bug. Do not copy it.
+- The parent of Bladedancer is Shillien Knight (33), not Palus Knight (32). This is also a data bug (Bladedancer is a 2nd class from Palus Knight).
+
+Inspector is available only as the third subclass of a Kamael, after two other Kamael subclasses get to 75.
 
 ### 2.3 What a class transfer changes
 
-1. **Growth template.** Each class id has its own `baseStats/<Class>.xml` with a `lvlUpgainData` table of HP/MP/CP per level. The STR..MEN array does *not* change on transfer (Gladiator and Duelist both carry Human Fighter's 40/30/43/21/11/25). What differs is the HP/MP/CP curve. Example (Gladiator = Duelist file, both identical, so the 3rd transfer does not change growth):
+1. **Growth template.** Each class id has its own `baseStats/<Class>.xml` with a `lvlUpgainData` table of HP/MP/CP for each level. The STR..MEN array does *not* change on transfer (Gladiator and Duelist both have the 40/30/43/21/11/25 of Human Fighter). The difference is the HP/MP/CP curve. Example (the Gladiator file and the Duelist file are the same, thus the 3rd transfer does not change growth):
 
    | Level | HP | MP | CP |
    |---|---|---|---|
@@ -143,34 +168,34 @@ Totals: 9 (or 11 with Kamael) base classes, 18 (22) first classes, 31 (36) secon
    | 76 | 3061.8 | 1155.6 | 2755.62 |
    | 85 | 3643.2 | 1385.1 | 3278.88 |
 
-   Human Fighter level 1 CP is 32 vs Gladiator's 72: L2J's file for the 2nd class simply restates the full 1..85 curve and the server swaps curves on transfer (max HP/CP jump immediately).
+   Human Fighter level 1 CP is 32, and Gladiator level 1 CP is 72. The L2J file for the 2nd class gives the full 1..85 curve again, and the server swaps curves on transfer (max HP/CP increase immediately).
 
-2. **Skill tree.** `skillTrees/classSkillTree.xml` has one `<skillTree classId=N>` per class. A class inherits every ancestor's tree (L2J walks `parentClassId`). Each entry: `skillId`, `skillLvl`, `getLevel` (character level gate), `levelUpSp` (SP cost), optional `autoGet` (free on level-up), `learnedByNpc`, optional item requirements (spellbooks). Human Fighter examples: Power Strike 1-3 at level 5 for 50 SP each, Weapon Mastery 1 at level 5 for 160 SP, Power Strike 4-6 at level 10 for 370 SP each. Transfer unlocks the new class's tree immediately.
+2. **Skill tree.** `skillTrees/classSkillTree.xml` has one `<skillTree classId=N>` for each class. A class inherits the tree of each ancestor (L2J walks `parentClassId`). Each entry has these fields: `skillId`, `skillLvl`, `getLevel` (character level gate), `levelUpSp` (SP cost), optional `autoGet` (free on level-up), `learnedByNpc`, and optional item requirements (spellbooks). Human Fighter examples: Power Strike 1-3 at level 5 for 50 SP each, Weapon Mastery 1 at level 5 for 160 SP, Power Strike 4-6 at level 10 for 370 SP each. The transfer unlocks the tree of the new class immediately.
 
-3. **Equipment proficiency.** Expertise is a level-gated auto skill (id 239), not class-gated: D at 20, C at 40, B at 52, A at 61, S at 76, S80 at 80, S84 at 84. Using a grade above expertise applies a penalty (Phase 4). Class *does* gate weapon/armor *masteries* (passive bonuses) and which weapons skills require (`<using kind="SWORD,BLUNT"/>` conditions on skills). Kamael additionally cannot wear heavy/robe at all.
+3. **Equipment proficiency.** Expertise is an auto skill (id 239). The level controls it, not the class. The grades are: D at 20, C at 40, B at 52, A at 61, S at 76, S80 at 80, S84 at 84. If a character uses a grade above its expertise, a penalty applies (Phase 4). The class *does* control the weapon/armor *masteries* (passive bonuses). It also controls the weapons that skills require (`<using kind="SWORD,BLUNT"/>` conditions on skills). Also, Kamael cannot wear heavy/robe armor at all.
 
-4. **Identity.** Class name, title eligibility, Olympiad bracket, and (at 3rd class) the "class mark" visual. Subclass and certification eligibility (2.4) also depend on the class level.
+4. **Identity.** Class name, title eligibility, Olympiad bracket, and (at 3rd class) the visual "class mark". Subclass and certification eligibility (2.4) also depend on the class level.
 
 #### Class transfer gating (quests)
 
-- **1st transfer (20).** Three quests per branch in the classic game, startable at 18-19 and completed at 20, each granting a "Mark" exchanged with a class master. E.g. Human Fighter -> Warrior: "Trial of the Warrior" (Master Auron, Mark of the Warrior, finalized by Grand Master Bitz). Knight: "Trial of the Human Knight" (Grand Master Ramos). Rogue: "Trial of the Human Rogue" (Master Terry).
-- **2nd transfer (40).** Three quests, each giving a Mark (e.g. Mark of Challenger, Mark of Duelist, Mark of Trust for Gladiator), all required by the class master. Startable at 35-39.
-- **3rd transfer (76).** A "Saga of the <class>" quest chain per 3rd class (Interlude+), partly instanced, awarding the 3rd class and a Hero-style skill.
-- **Classic / private-server shortcut.** Later official Classic servers and nearly all private servers let you buy the transfer for adena or a token; L2J exposes `SubclassWithoutQuests`-style toggles and sells Marks via multisell. The L2J village master checks for subclass eligibility only `isNoble() || Q234 Fate's Whisper || Q235 Mimir's Elixir`.
+- **1st transfer (20).** In the classic game, there are three quests for each branch. A character can start them at 18-19, and completes them at 20. Each quest gives a "Mark", and the character exchanges the Marks with a class master. For example, Human Fighter -> Warrior: "Trial of the Warrior" (Master Auron, Mark of the Warrior, completed with Grand Master Bitz). Knight: "Trial of the Human Knight" (Grand Master Ramos). Rogue: "Trial of the Human Rogue" (Master Terry).
+- **2nd transfer (40).** Three quests. Each quest gives a Mark (for example Mark of Challenger, Mark of Duelist, Mark of Trust for Gladiator). The class master requires all the Marks. A character can start the quests at 35-39.
+- **3rd transfer (76).** A "Saga of the <class>" quest chain for each 3rd class (Interlude+). Some parts of the chain are instanced. The chain gives the 3rd class and a Hero-style skill.
+- **Classic / private-server shortcut.** Later official Classic servers and almost all private servers let a player buy the transfer for adena or a token. L2J has `SubclassWithoutQuests`-style toggles, and sells Marks through multisell. For subclass eligibility, the L2J village master examines only `isNoble() || Q234 Fate's Whisper || Q235 Mimir's Elixir`.
 
 ### 2.4 Subclass system
 
 L2J defaults (`character.properties`): `MaxSubclass = 3`, `BaseSubclassLevel = 40`, `MaxSubclassLevel = 80` (75 in Interlude; 80 from Gracia Final/High Five), `SubclassWithoutQuests = False`, `SubclassEverywhere = False`.
 
-Rules encoded in L2J `PlayerClass.getAvailableSubclasses` and `L2VillageMasterInstance`:
+These rules are in L2J `PlayerClass.getAvailableSubclasses` and `L2VillageMasterInstance`:
 
-1. The main class must have completed the 2nd transfer and reached level 75, and have completed Fate's Whisper (Q234) or Mimir's Elixir (Q235) or be Noble.
-2. A new subclass starts at level 40 as a *2nd-class* profession (you pick e.g. "Gladiator", not "Warrior"), with its own XP/SP, skills, and level. Switching is done at a village master and swaps the whole skill set and stats; buffs are removed on switch unless flagged `isStayOnSubclassChange`.
-3. Never allowed as subclass: Overlord, Warsmith.
-4. An Elf main cannot take any Dark Elf class and vice versa. Non-Kamael cannot take Kamael classes; Kamael can *only* take Kamael classes (and gender-matched Soul Breaker). Inspector requires two other Kamael subclasses at 75.
-5. You cannot take the "equivalent" class of your own: the five equivalence sets are {Dark Avenger, Paladin, Temple Knight, Shillien Knight}, {Treasure Hunter, Abyss Walker, Plains Walker}, {Hawkeye, Silver Ranger, Phantom Ranger}, {Warlock, Elemental Summoner, Phantom Summoner}, {Sorcerer, Spellsinger, Spellhowler}. You also cannot take your own base class, or a class already held as another subclass (checked via `equalsOrChildOf`).
-6. Certification ("stacking") skills (`skillTrees/subClassSkillTree.xml`): raising a subclass to 65 / 70 / 75 / 80 grants a certificate item; certificates are spent on main-class passives: Emergent Ability (Attack / Defense / Casting, at 65), Master Ability (at 70), transformation and class-group skills (at 75/80). Max 4 certified skills per subclass, 12 total with three subclasses. Certificates can be cancelled (refunded) for adena at the village master.
-7. Dual class (Goddess of Destruction, 2013+) replaces one subclass with a second "main" that levels to cap and can Awaken. Out of reference scope; the data model below leaves room for it (`is_dual`).
+1. The main class must have completed the 2nd transfer and be at level 75. It must also have completed Fate's Whisper (Q234) or Mimir's Elixir (Q235), or be Noble.
+2. A new subclass starts at level 40 as a *2nd-class* profession (the player selects for example "Gladiator", not "Warrior"). It has its own XP/SP, skills, and level. The player switches at a village master, and the switch swaps the full skill set and stats. The switch removes buffs, but not the buffs with the flag `isStayOnSubclassChange`.
+3. These classes are never allowed as a subclass: Overlord, Warsmith.
+4. An Elf main cannot take a Dark Elf class, and a Dark Elf main cannot take an Elf class. Non-Kamael cannot take Kamael classes. Kamael can take *only* Kamael classes (and the Soul Breaker of the same gender). Inspector requires two other Kamael subclasses at 75.
+5. A character cannot take the "equivalent" class of its own class. The five equivalence sets are {Dark Avenger, Paladin, Temple Knight, Shillien Knight}, {Treasure Hunter, Abyss Walker, Plains Walker}, {Hawkeye, Silver Ranger, Phantom Ranger}, {Warlock, Elemental Summoner, Phantom Summoner}, {Sorcerer, Spellsinger, Spellhowler}. A character also cannot take its own base class, or a class that it already has as another subclass (L2J examines this with `equalsOrChildOf`).
+6. Certification ("stacking") skills (`skillTrees/subClassSkillTree.xml`): when a subclass gets to 65 / 70 / 75 / 80, the character gets a certificate item. The character spends certificates on main-class passives: Emergent Ability (Attack / Defense / Casting, at 65), Master Ability (at 70), transformation and class-group skills (at 75/80). The maximum is 4 certified skills for each subclass, and 12 in total with three subclasses. At the village master, the character can cancel (refund) certificates for adena.
+7. Dual class (Goddess of Destruction, 2013+) replaces one subclass with a second "main" class. This class levels to the cap and can Awaken. This is not in the reference scope. The data model below keeps space for it (`is_dual`).
 
 ## 3. Design decisions for Nightfall
 
@@ -178,39 +203,44 @@ Rules encoded in L2J `PlayerClass.getAvailableSubclasses` and `L2VillageMasterIn
 
 | Decision | Choice | Alternatives considered |
 |---|---|---|
-| Races | 5: Human, Elf, Dark Elf, Orc, Dwarf. Kamael excluded. | 3 races (Human/Elf/Dark Elf) is cheaper for art but racial stat identity is data-only, so all five cost the same server-side. Kamael requires gender-split trees, light-only armor rules and the Soul resource, which touch combat; defer to post-MVP. |
-| Base classes | 9 (all L2 base classes). | Fighter-only start was considered; mystics are needed to validate the magic formulas in Phase 3. |
-| 1st transfer | All 18 first classes at level 20, data-only. | Fewer would make the tree asymmetric across races. |
-| 2nd transfer | Data defined for all 31, but only skill trees for a vertical slice (Gladiator, Paladin, Treasure Hunter, Hawkeye, Sorcerer, Bishop, Prophet, Spellsinger, Shillien Knight, Destroyer, Warcryer, Bounty Hunter) are populated in MVP. | Shipping all 31 skill trees is a content task for Phase 3/6. The class *definitions* are cheap; the *skills* are not. |
+| Races | 5: Human, Elf, Dark Elf, Orc, Dwarf. Kamael is not included. | 3 races (Human/Elf/Dark Elf) cost less for art. But the racial stat identity is data-only, thus all five races cost the same on the server. Kamael requires trees split by gender, light-only armor rules and the Soul resource, and these touch combat. Do Kamael after the MVP. |
+| Base classes | 9 (all L2 base classes). | We considered a fighter-only start. But mystics are necessary to validate the magic formulas in Phase 3. |
+| 1st transfer | All 18 first classes at level 20, data-only. | Fewer classes would make the tree asymmetric across races. |
+| 2nd transfer | Data defined for all 31. But in MVP, only the skill trees for a vertical slice (Gladiator, Paladin, Treasure Hunter, Hawkeye, Sorcerer, Bishop, Prophet, Spellsinger, Shillien Knight, Destroyer, Warcryer, Bounty Hunter) have data. | All 31 skill trees are a content task for Phase 3/6. The class *definitions* are cheap; the *skills* are not. |
 | 3rd transfer | Defined in data, not reachable in MVP (level cap 60 for MVP; see Phase 1). | |
-| Subclass | Data model and eligibility rules implemented; UI and village master flow deferred. | Avoids a schema migration later. |
-| Transfer gating | Level gate + a `ClassTransferToken` item purchasable from a class master NPC (Classic-style). Quest hooks are a `requirements` list in data so Phase 6 can add quests without schema change. | Full quest chains (L2 retail) are a Phase 6 content item. |
-| Stat budget | Fixed 170-point budget enforced by the loader. | |
-| Growth curves | Per-class HP/MP/CP tables copied from L2J as the initial tuning set, stored per class with inheritance: a class without its own table uses its parent's. | Formula-based growth (`hp = a + b*lvl + c*lvl^2`) was considered; tables are easier to tune per class and match L2 exactly. |
-| Class ids | Reuse retail ids (0..57, 88..118) so L2 reference data and community knowledge map 1:1. Kamael ids 123-136 reserved. | Dense Nightfall-only ids would be cleaner but break every cross-reference. |
-| Name uniqueness | Class names are Nightfall's own (we are L2-inspired, not L2); the TOML carries `display_name` plus `l2_ref` for traceability. | |
+| Subclass | The data model and eligibility rules are implemented. The UI and village master flow are for a later phase. | This prevents a schema migration later. |
+| Transfer gating | Level gate + a `ClassTransferToken` item that a player can buy from a class master NPC (Classic-style). Quest hooks are a `requirements` list in data, thus Phase 6 can add quests without a schema change. | Full quest chains (L2 retail) are a Phase 6 content item. |
+| Stat budget | Fixed 170-point budget. The loader makes sure of it. | |
+| Growth curves | HP/MP/CP tables for each class, copied from L2J as the initial tuning set. Each class has its table, with inheritance: if a class has no table, it uses the table of its parent. | We considered formula-based growth (`hp = a + b*lvl + c*lvl^2`). Tables are easier to tune for each class, and they match L2 exactly. |
+| Class ids | Use the retail ids again (0..57, 88..118), thus L2 reference data and community knowledge map 1:1. Kamael ids 123-136 are reserved. | Dense Nightfall-only ids would be cleaner, but they break all cross-references. |
+| Name uniqueness | Class names are Nightfall's own (Nightfall is L2-inspired, not L2). The TOML has `display_name` plus `l2_ref` for traceability. | |
 
 ### 3.2 Racial traits in Nightfall
 
-Keep L2's approach: traits are mostly the stat array plus movement/collision, with a small list of explicit racial passives so the differences are legible to players:
+Keep the L2 approach: traits are mostly the stat array plus movement/collision. A small list of explicit racial passives makes the differences easy for players to see:
 
-| Race | Explicit passive (granted at level 1) | Notes |
+| Race | Explicit passive (given at level 1) | Notes |
 |---|---|---|
-| Human | `Adaptable`: +5% XP/SP gain | Replaces L2's "widest tree" advantage with something visible. |
-| Elf | `Forest Step`: +3 run speed, +3% evasion; `Mother Tree Attunement`: +50% HP/MP regen in Elven forest zones | Mirrors L2 numbers (run 125 vs 115) and the Mother Tree zone. |
-| Dark Elf | `Shadow Precision`: +5% critical damage | L2 DE has no explicit passive; added for legibility. |
+| Human | `Adaptable`: +5% XP/SP gain | Replaces the L2 "widest tree" advantage with a bonus that players can see. |
+| Elf | `Forest Step`: +3 run speed, +3% evasion; `Mother Tree Attunement`: +50% HP/MP regen in Elven forest zones | Copies the L2 numbers (run 125 vs 115) and the Mother Tree zone. |
+| Dark Elf | `Shadow Precision`: +5% critical damage | L2 DE has no explicit passive; we added it so that players can see the difference. |
 | Orc | `Iron Constitution`: +10% HP regen, +5 Shock (stun) resistance | |
-| Dwarf | `Pack Mule`: +20% weight limit; `Keen Eye`: Spoil/Sweep skill access; `Artisan Hands`: crafting skill access | Weight limit base formula stays CON-driven as in Phase 1. |
+| Dwarf | `Pack Mule`: +20% weight limit; `Keen Eye`: Spoil/Sweep skill access; `Artisan Hands`: crafting skill access | The base formula of the weight limit stays CON-driven, as in Phase 1. |
 
 ### 3.3 Transfer mechanics
 
-- A transfer is allowed when `level >= class.min_level`, `current_class == class.parent`, and all `requirements` are met (MVP: possess `ClassTransferToken` of tier 1/2). Transfer consumes the token.
-- On transfer: set `class_id`, recompute max HP/MP/CP from the new growth table, grant `auto_get` skills from the new tree up to current level, keep current HP/MP percentages, broadcast `ClassChanged`.
-- No downgrades. Transfers are irreversible (as in L2).
+- A transfer is possible when `level >= class.min_level`, `current_class == class.parent`, and all `requirements` are met (MVP: the character has a `ClassTransferToken` of tier 1/2). The transfer consumes the token.
+- On transfer, the server does these steps:
+  1. Set `class_id`.
+  2. Calculate max HP/MP/CP again from the new growth table.
+  3. Give the `auto_get` skills from the new tree, up to the current level.
+  4. Keep the current HP/MP percentages.
+  5. Broadcast `ClassChanged`.
+- No downgrades. Transfers are permanent (as in L2).
 
 ### 3.4 Subclass (post-MVP, data reserved)
 
-Implement L2 rules 1-5 from 2.4 as a pure function `subclass::eligible(main: &CharacterSheet, candidate: ClassId) -> Result<(), SubclassDenied>`. Subclass start level 40, cap = `main_level_cap - 5`. Certification skills are modelled as a `certifications: Vec<Certification>` on the character; limits (4 per sub, 12 total) are constants in data.
+Implement L2 rules 1-5 from 2.4 as a pure function `subclass::eligible(main: &CharacterSheet, candidate: ClassId) -> Result<(), SubclassDenied>`. Subclass start level 40, cap = `main_level_cap - 5`. The character has the certification skills as a `certifications: Vec<Certification>`. The limits (4 for each sub, 12 total) are constants in data.
 
 ## 4. Data model
 
@@ -315,7 +345,7 @@ subclass_equivalents = ["paladin", "dark_avenger", "shillien_knight"]
 subclass_allowed = true    # false for Overlord, Warsmith
 ```
 
-Growth CSV example (`data/growth/gladiator.csv`): `level,hp,mp,cp` with rows 1..85, values from L2J as the initial set.
+Growth CSV example (`data/growth/gladiator.csv`): `level,hp,mp,cp` with rows 1..85. The values come from L2J as the initial set.
 
 ### 4.3 Rust data model
 
@@ -395,7 +425,7 @@ impl ClassRegistry {
 }
 ```
 
-Character-side state (persisted; see Phase 0 for storage):
+Character-side state (the server stores it; see Phase 0 for storage):
 
 ```rust
 pub struct CharacterSheet {
@@ -500,7 +530,7 @@ service GameService {
 }
 ```
 
-Subclass RPCs (`AddSubclass`, `SwitchClassSlot`, `CancelSubclass`) are specified in the same style but not implemented in MVP.
+The subclass RPCs (`AddSubclass`, `SwitchClassSlot`, `CancelSubclass`) have specifications in the same style, but they are not implemented in MVP.
 
 ## 5. Interfaces
 
@@ -508,24 +538,24 @@ Subclass RPCs (`AddSubclass`, `SwitchClassSlot`, `CancelSubclass`) are specified
 
 | RPC | Server behaviour | Errors |
 |---|---|---|
-| `ListClasses` | Returns static data + `data_version` (hash of the TOML set). Client caches. | none |
-| `CreateCharacter` | Validates name (3-16 chars, unique, profanity list), race selectable, `base_class_id` belongs to race and tier 0, mystic path exists for race. Builds `CharacterSheet` from `ClassDef` + `RaceDef`, grants level-1 `auto_get` skills and racial passives, places at a random `start_point`. | `ALREADY_EXISTS` (name), `INVALID_ARGUMENT`, `RESOURCE_EXHAUSTED` (slots per account, 7 as in L2) |
-| `TransferOptions` | `registry.transfer_options(current, level)` plus requirement evaluation. | `NOT_FOUND` |
-| `ChangeClass` | Re-validates eligibility server-side, consumes token, applies 3.3, persists, emits `ClassChanged` on the realtime stream to nearby players (visual change). | `FAILED_PRECONDITION` with unmet list |
+| `ListClasses` | Returns static data + `data_version` (hash of the TOML set). The client caches the data. | none |
+| `CreateCharacter` | Validates the name (3-16 chars, unique, profanity list). Validates that the race is selectable, that `base_class_id` belongs to the race and tier 0, and that a mystic path exists for the race. Builds `CharacterSheet` from `ClassDef` + `RaceDef`. Gives the level-1 `auto_get` skills and racial passives. Puts the character at a random `start_point`. | `ALREADY_EXISTS` (name), `INVALID_ARGUMENT`, `RESOURCE_EXHAUSTED` (slots for each account, 7 as in L2) |
+| `TransferOptions` | `registry.transfer_options(current, level)` plus the requirement evaluation. | `NOT_FOUND` |
+| `ChangeClass` | Validates eligibility again on the server, consumes the token, applies 3.3, and stores the result. Emits `ClassChanged` on the realtime stream to the players near the character (visual change). | `FAILED_PRECONDITION` with the unmet list |
 
 ### 5.2 Server events (realtime stream, defined fully in Phase 3)
 
-- `ClassChanged { character_id, class_id }` to everyone who can see the character.
-- `StatsRecomputed { max_hp, max_mp, max_cp, derived... }` to the owner after transfer or level-up.
+- `ClassChanged { character_id, class_id }` to all players who can see the character.
+- `StatsRecomputed { max_hp, max_mp, max_cp, derived... }` to the owner after a transfer or level-up.
 - `SkillsGranted { skill_ids }` to the owner.
 
 ### 5.3 What the client needs
 
-Static `ListClassesResponse` to render the creation screen (race -> base class), the class-tree UI (ancestors/children), and transfer dialogs (`TransferOptions`). Nothing about formulas; the server sends final derived stats.
+The client uses the static `ListClassesResponse` to render the creation screen (race -> base class), the class-tree UI (ancestors/children), and the transfer dialogs (`TransferOptions`). The client does not need formulas, because the server sends the final derived stats.
 
 ## 6. Rust implementation notes
 
-Module layout under `apps/api/src/`:
+Module layout in `apps/api/src/`:
 
 ```
 character/
@@ -544,31 +574,42 @@ data/
   growth/*.csv
 ```
 
-Crates: `serde`, `toml`, `csv`, `thiserror` (typed errors mapped to `tonic::Status` in `grpc.rs`), `blake3` for `data_version`. All registries are immutable after startup and shared as `Arc<StaticData>` through tonic's service struct; hot reload is a GM command (Phase 9) that swaps the `Arc` behind an `ArcSwap`.
+Crates: `serde`, `toml`, `csv`, `thiserror` (typed errors mapped to `tonic::Status` in `grpc.rs`), `blake3` for `data_version`. All registries do not change after startup. The tonic service struct shares them as `Arc<StaticData>`. Hot reload is a GM command (Phase 9) that swaps the `Arc` behind an `ArcSwap`.
 
-Concurrency: class transfer mutates a `CharacterSheet`. Sheets are owned by the zone actor that currently simulates the character (Phase 0 architecture); the gRPC handler sends a `Command::ChangeClass` to that actor and awaits a oneshot reply, so there is no lock on the sheet. Persistence is write-behind from the actor.
+Concurrency: a class transfer changes a `CharacterSheet`. The zone actor that now simulates the character controls the sheet (Phase 0 architecture). The gRPC handler sends a `Command::ChangeClass` to that actor, and waits for a oneshot reply. Thus there is no lock on the sheet. The actor stores the sheet with write-behind persistence.
 
-Validation at load (fail fast, before binding ports): stat budget 170; parent exists and is `tier - 1`; `min_level` matches tier (1/20/40/76); race consistent along the chain; `subclass_equivalents` symmetric; growth table has rows 1..cap; every `start_point` is inside the named zone (Phase 6 geodata); every `passives.grant` resolves to a skill key (Phase 3 registry) — this makes the Phase 3 skill registry a load-time dependency of the character module, which is intended.
+Validation at load (fail fast, before the server binds ports):
 
-Build: `apps/api/build.rs` already compiles `game.proto` via `protox`; adding messages requires no build change. Regenerate the TypeScript client types from the same proto (Phase 0 pipeline).
+- Stat budget 170.
+- The parent exists and is `tier - 1`.
+- `min_level` matches the tier (1/20/40/76).
+- The race is the same along the chain.
+- `subclass_equivalents` is symmetric.
+- The growth table has rows 1..cap.
+- Each `start_point` is in the named zone (Phase 6 geodata).
+- Each `passives.grant` resolves to a skill key (Phase 3 registry).
+
+Thus the Phase 3 skill registry is a load-time dependency of the character module. This is intentional.
+
+Build: `apps/api/build.rs` already compiles `game.proto` through `protox`. New messages do not need a build change. Generate the TypeScript client types again from the same proto (Phase 0 pipeline).
 
 ## 7. Client implications
 
-- Character creation screen: race cards (5), then base class (fighter/mystic where available), sex, appearance. Preview uses the `BaseStats` from `ClassInfo`; show the 170 budget as six bars.
-- Class tree view: render from `ClassInfo.parent_class_id`; highlight current path; grey-out ineligible.
-- Class master NPC dialog: calls `TransferOptions`, shows unmet requirements as text, confirms with `ChangeClass`.
-- Phaser: per-race sprite sheets (5 races x 2 sexes); class does not change the body in MVP (L2 only changes appearance via armor and 3rd-class marks).
-- Movement speed from `RaceInfo` is for *prediction* only; the server's `StatsRecomputed` is authoritative.
+- Character creation screen: race cards (5), then base class (fighter/mystic where available), sex, appearance. The preview uses the `BaseStats` from `ClassInfo`. Show the 170 budget as six bars.
+- Class tree view: render from `ClassInfo.parent_class_id`. Highlight the current path. Show the ineligible classes in grey.
+- Class master NPC dialog: calls `TransferOptions`, shows the unmet requirements as text, and sends `ChangeClass` when the player accepts.
+- Phaser: sprite sheets for each race (5 races x 2 sexes). In MVP, the class does not change the body (L2 changes the appearance only through armor and 3rd-class marks).
+- Movement speed from `RaceInfo` is for *prediction* only. The `StatsRecomputed` from the server is authoritative.
 
 ## 8. Open questions
 
-1. Level cap for MVP (Phase 1 says 60): do we gate the 2nd transfer at 40 as in L2 or pull it to 35 so testers see it sooner?
-2. Should Human get an explicit passive at all, or stay "no passive, widest tree"? The +5% XP is a placeholder.
-3. Growth tables: copy L2J values for all 31 second classes now (cheap) or only the vertical slice?
-4. Class names: do we keep L2 names as `display_name` during development and rename before public release, or name from day one? Legal review of names pending.
-5. Whether `ClassId` should stay retail-compatible once Kamael/custom classes are added (ids 58-87 and 119-122 are free; 137+ open).
-6. Transfer token economics (adena price per tier) belong to Phase 5; needs a placeholder value.
-7. Subclass start level 40 with a level-cap-60 MVP would make subclasses meaningless; defer until cap >= 75 or redefine as "start at cap - 35".
+1. Level cap for MVP (Phase 1 says 60): do we put the 2nd transfer gate at 40 as in L2? Or do we move it to 35, so that testers see it earlier?
+2. Do we give Human an explicit passive, or does Human stay "no passive, widest tree"? The +5% XP is a placeholder.
+3. Growth tables: copy the L2J values for all 31 second classes now (cheap), or only the vertical slice?
+4. Class names: do we keep L2 names as `display_name` during development and change them before public release? Or do we use our own names from the first day? The legal review of names is not complete.
+5. Do we keep `ClassId` retail-compatible after we add Kamael/custom classes (ids 58-87 and 119-122 are free; 137+ open)?
+6. Transfer token economics (adena price for each tier) are part of Phase 5. A placeholder value is necessary.
+7. With a level-cap-60 MVP, a subclass start level of 40 makes subclasses of no value. Postpone subclasses until the cap is >= 75, or define the start again as "start at cap - 35".
 
 ## 9. Sources
 
