@@ -125,9 +125,15 @@ V6_FLAGS={'PHASE3_ENABLED':'1','PHASE4_ENABLED':'1'}
 
 
 def unit_flags(unit_dir,scenario_dir):
-    """Zone flags the unit's API ran with: owned-fixture manifest, else the shared-stack record."""
-    manifest=scenario_dir/'fixture/manifest.json'
-    if manifest.is_file():return json.loads(manifest.read_text()).get('zone_flags')
+    """Zone flags the unit's API ran with: owned-fixture manifest, else the shared-stack record.
+
+    sim-lib provisions one owned fixture per unit under its FIRST scenario's folder
+    (`$ARTIFACTS/<first scenario>/fixture`); run-sim-ci resolves it as `*/fixture`. Every
+    scenario of the unit shares it, so resolve exactly one manifest per unit.
+    """
+    manifests=sorted(unit_dir.glob('*/fixture/manifest.json'))
+    if len(manifests)>1:raise ValueError(f'unit {unit_dir.name} has more than one fixture manifest')
+    if manifests:return json.loads(manifests[0].read_text()).get('zone_flags')
     record=unit_dir/'zone-flags.json'
     return json.loads(record.read_text()) if record.is_file() else None
 
@@ -172,7 +178,7 @@ def scenario_evidence(suite,units,scenario):
         if not log.is_file() or not REPLAY_MATCH.search(log.read_text()):
             problems.append(f'replay check of {nfr.relative_to(suite)} did not report a match')
     try:flags=unit_flags(unit_dir,folder)
-    except (OSError,ValueError):flags=None
+    except (OSError,ValueError) as error:flags=None;problems.append(f'zone flags unreadable: {error}')
     if flags!=V6_FLAGS:problems.append(f'not a V6 run (zone flags {flags})')
     return dict(verified=not problems,problems=problems,zone_flags=flags,
                 recordings={str(n.relative_to(suite)):sha(n) for n in recordings})

@@ -79,7 +79,8 @@ def write_suite(root,units,status='PASS',flags=V6,replay=MATCH,kinds=(),infra=()
                 process_exit_code=0 if not kinds else 1,infrastructure_failures=list(infra))))
             (folder/name/f'{name}.nfr').write_bytes(b'NFR'+name.encode())
             (folder/name/f'{name}.replay.log').write_text(replay)
-            if fixture:
+            if fixture and name==names[0]:
+                # Real layout: one owned fixture per unit, under its first scenario's folder.
                 (folder/name/'fixture').mkdir()
                 (folder/name/'fixture/manifest.json').write_text(json.dumps(dict(fixture='x',zone_flags=flags)))
     (root/'summary.json').write_text(json.dumps(dict(schema_version=1,units=rows)))
@@ -105,6 +106,17 @@ class Runner(unittest.TestCase):
     def test_clean_v6_suite_verifies_every_scenario(self):
         result=self.verdict();self.assertTrue(result['all_verified'],result)
         self.assertEqual(result['scenarios'][1]['zone_flags'],V6)
+
+    def test_second_scenario_of_a_paired_fixture_unit_is_v6(self):
+        result=self.verdict()
+        pair=[r for r in result['scenarios'] if r['scenario'].startswith('multi/3-pair-')]
+        self.assertEqual([(r['verified'],r['zone_flags']) for r in pair],[(True,V6),(True,V6)])
+        self.assertFalse((self.root/'suite/3-pair/3-pair-b/fixture').exists())
+        (self.root/'suite/3-pair/3-pair-b/fixture').mkdir()
+        (self.root/'suite/3-pair/3-pair-b/fixture/manifest.json').write_text(json.dumps(dict(zone_flags=V6)))
+        result=regression.regression_verdict(self.inventory,self.root/'suite')
+        self.assertFalse(result['all_verified'])
+        self.assertTrue(any('more than one fixture manifest' in p for p in result['scenarios'][1]['problems']))
 
     def test_shared_stack_units_prove_v6_by_their_zone_flags_record(self):
         self.assertTrue(self.verdict(fixture=False)['all_verified'])
