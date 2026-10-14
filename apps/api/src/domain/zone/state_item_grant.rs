@@ -884,6 +884,33 @@ mod tests {
             assert!(operations[..operations.len().saturating_sub(1)]
                 .iter()
                 .all(|op| *op == if backfill { "backfill" } else { "starter" }));
+            // D117/D79: exactly one baseline for the owner-tick, before every delta: the
+            // pre-kit owner (revision 0, no instances). The changed tick strictly advances it:
+            // every post-state (kit rows and the grant) carries revision 1, the kit's revision.
+            let baselines: Vec<_> = facts
+                .iter()
+                .enumerate()
+                .filter_map(|(at, fact)| match &fact.fact {
+                    ItemEvidenceData::Baseline(data) => Some((at, data)),
+                    _ => None,
+                })
+                .collect();
+            assert_eq!(baselines.len(), 1, "one pre-tick baseline per owner-tick");
+            let (at, baseline) = baselines[0];
+            assert!(facts[..at]
+                .iter()
+                .all(|fact| !matches!(fact.fact, ItemEvidenceData::Delta(_))));
+            assert_eq!(baseline["inventory_revision"], 0);
+            assert_eq!(baseline["instances"], serde_json::json!([]));
+            for fact in &facts {
+                if let ItemEvidenceData::Delta(data) = &fact.fact {
+                    assert_eq!(data["after"]["revision"], 1, "{data}");
+                }
+            }
+            let plan = projections(&tick);
+            assert_eq!(plan.len(), 1);
+            assert_eq!(plan[0].checkpoint.inventory_revision, 1);
+            assert_eq!(plan[0].materializations[0].inventory_revision, 1);
         }
     }
 }
