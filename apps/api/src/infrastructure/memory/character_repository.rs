@@ -791,6 +791,20 @@ impl CharacterRepository for InMemoryCharacterRepository {
         Ok(())
     }
 
+    async fn lane_quarantines(
+        &self,
+        zone: crate::domain::zone::ZoneId,
+    ) -> anyhow::Result<Vec<crate::application::ports::LaneQuarantine>> {
+        Ok(self
+            .state
+            .lock()
+            .lane_quarantines
+            .values()
+            .filter(|quarantine| quarantine.zone == zone)
+            .cloned()
+            .collect())
+    }
+
     async fn load_for_admission(
         &self,
         character_id: CharacterId,

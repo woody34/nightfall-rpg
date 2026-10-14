@@ -220,6 +220,11 @@ async fn recovery_quarantines_a_permanently_failing_item_lane_and_boots_the_zone
     .unwrap();
     assert!(reason.contains("injected_permanent_item_failure"), "{reason}");
     assert_eq!(u64::try_from(at_epoch).unwrap(), epoch);
+    // The operations listing (boot summary, runbook) names exactly this owner in this zone.
+    let listed = repo.lane_quarantines(zone).await.unwrap();
+    assert_eq!(listed.len(), 1);
+    assert_eq!((listed[0].character_id, listed[0].epoch), (poisoned.character, epoch));
+    assert!(listed[0].reason.contains("injected_permanent_item_failure"));
     // The healthy owner is untouched: it logs into the new epoch with its settled inventory.
     let app = app_for(&second, &repo, &writer).await;
     let mut socket = ws::join(&app, &healthy).await;

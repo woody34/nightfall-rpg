@@ -195,6 +195,47 @@ For more client logging, add `-LogCmds="LogNightfall Verbose"` to the launch com
 | API exits: `zone admission refused: unresolved checkpoint recovery history ... cannot decode replay-log record` | an older build left unclosed epochs whose event format has since changed. Dev data only: `docker compose exec postgres psql -U nightfall -c "UPDATE zone_epochs SET closed_at = now() WHERE closed_at IS NULL"` |
 | `Blocking waiting for file lock on build directory` | another `cargo` (rust-analyzer, tests, a second API) holds `target/`; wait or stop it |
 | Port 3000/50051 in use | an old `nightfall-api` is still running: `pkill nightfall-api` |
+| Login closes at once with code 4423 `character_lane_quarantined` | the checkpoint lane of that character is quarantined. Do the "Quarantined lanes" procedure below |
+
+### Quarantined lanes
+
+**Why it occurs.** At startup, the API recovers each zone epoch that did not close. If the
+checkpoint of one character fails permanently during this recovery, the API quarantines that
+character. The zone then starts for all other characters. The API does not release the dropped
+facts of that character, so the database keeps its last committed checkpoint.
+
+**What you see.**
+
+- At startup, the API writes one log line for each zone. "no quarantined lanes" tells you that
+  the zone has no quarantined characters. The warning "quarantined lanes" gives the number and
+  the owners (`character@epoch:tick`).
+- At login, the API writes the warning "login refused: character checkpoint lane quarantined"
+  with the character and the reason. The client gets close code 4423.
+- The dev `GrantItem` RPC for that character gives `FAILED_PRECONDITION` `character_lane_quarantined`.
+
+**To list the quarantined characters:**
+
+```bash
+docker compose exec postgres psql -U nightfall -c \
+  "SELECT character_id, zone_id, epoch, tick, reason, created_at FROM character_lane_quarantines ORDER BY created_at"
+```
+
+**To clear a quarantined character:**
+
+1. Read the `reason` column. It names the check that failed.
+2. Find the cause and correct it. Do not clear the row before the correction is in the build.
+3. Stop the API.
+4. Delete the row of that character:
+
+   ```bash
+   docker compose exec postgres psql -U nightfall -c \
+     "DELETE FROM character_lane_quarantines WHERE character_id = '<character-id>'"
+   ```
+
+5. Start the API. Make sure that the startup log does not show the character in "quarantined lanes".
+6. Log in with the character. The character starts from its last committed checkpoint.
+
+If the cause is not corrected, the next failure of the lane fences the zone again.
 
 ## Shutting down
 

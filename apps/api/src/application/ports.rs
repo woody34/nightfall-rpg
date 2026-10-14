@@ -134,6 +134,16 @@ pub trait CharacterRepository: Send + Sync {
     async fn quarantine_lane(&self, quarantine: &LaneQuarantine) -> anyhow::Result<()> {
         anyhow::bail!("lane quarantine is unavailable in this repository: {}", quarantine.reason)
     }
+
+    /// T11 operations: the quarantined owners recorded for `zone`, by character id. The boot
+    /// summary and the runbook (running-locally.md, "Quarantined lanes") read this.
+    async fn lane_quarantines(
+        &self,
+        zone: crate::domain::zone::ZoneId,
+    ) -> anyhow::Result<Vec<LaneQuarantine>> {
+        let _ = zone;
+        Ok(Vec::new())
+    }
 }
 
 /// A permanent per-owner recovery quarantine (T11).
