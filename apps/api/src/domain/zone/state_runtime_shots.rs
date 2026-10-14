@@ -9,6 +9,42 @@ use crate::domain::zone::state_effects::CastWork;
 use crate::domain::zone::{EquipSlot, ItemInstanceId, Phase4Projection};
 
 impl ZoneState {
+    /// Heal caster classification for evidence: (mage, npc, RHAND weapon grade or NONE).
+    pub(super) fn heal_caster_terms_v6(&self, caster: EntityId) -> Option<(bool, bool, String)> {
+        let items = self.phase4.as_ref()?;
+        let combat = self.entities.get(&caster)?.combat.as_ref()?;
+        let (mage, npc) = match &combat.role {
+            CombatRole::Player {
+                progression: Some(player),
+                ..
+            } => (
+                self.classes
+                    .as_ref()?
+                    .get(player.class_state.current_class_id)?
+                    .archetype
+                    == crate::domain::zone::Archetype::Mystic,
+                false,
+            ),
+            CombatRole::Npc { .. } => (false, true),
+            CombatRole::Player {
+                progression: None, ..
+            } => return None,
+        };
+        let grade = items
+            .canonical
+            .players
+            .get(&caster)
+            .and_then(|player| {
+                player
+                    .paperdoll
+                    .get(&EquipSlot::Rhand)
+                    .and_then(|id| player.inventory.get(id))
+            })
+            .and_then(|item| items.rules.parts().items.get(&item.template_id))
+            .map_or_else(|| "NONE".to_owned(), |item| item.grade.clone());
+        Some((mage, npc, grade))
+    }
+
     pub(super) fn heal_shot_terms_v6(
         &self,
         caster: EntityId,
@@ -284,6 +320,13 @@ impl ZoneState {
             ordinal,
             None,
             &resolution,
+        );
+        self.charge_transition_evidence_v6(
+            work.caster,
+            context.shots,
+            (spirit, soul, used),
+            &resolution,
+            "cast",
         );
         events
             .retain(|event| !matches!(event,ZoneEvent::ItemCheckpoint(p) if p.entity==work.caster));
@@ -643,6 +686,7 @@ impl ZoneState {
             return Err(missing());
         }
         let before = item.clone();
+        let before_charges = item.charges;
         item.charges &= !ShotKind::Soul.bit();
         item.revision = revision;
         let change = InventoryChange {
@@ -681,6 +725,13 @@ impl ZoneState {
             None,
             &resolution,
         );
+        self.charge_transition_evidence_v6(
+            attacker,
+            before_charges,
+            (false, true, true),
+            &resolution,
+            "attack",
+        );
         self.publish_attack_projection_v6(
             tick,
             attacker,
@@ -689,5 +740,49 @@ impl ZoneState {
             original_revision,
             events,
         )
+    }
+}
+
+impl ZoneState {
+    /// D46 `charge_transition`: the charge set before a discharge, the caller's shot kinds and
+    /// landing, and the sorted set after (it correlates with the D73 use row). Evidence-only.
+    fn charge_transition_evidence_v6(
+        &mut self,
+        owner: EntityId,
+        before: u8,
+        (use_spirit, use_soul, landed): (bool, bool, bool),
+        resolution: &str,
+        event: &str,
+    ) {
+        if !self.items_evidence_enabled() {
+            return;
+        }
+        let Ok(after) =
+            crate::domain::zone::item_shots::discharge(before, landed, use_spirit, use_soul)
+        else {
+            return;
+        };
+        let names = |bits: u8| {
+            let mut names: Vec<&str> = [
+                (ShotKind::Soul.bit(), "soul"),
+                (ShotKind::Spirit.bit(), "spirit"),
+                (ShotKind::BlessedSpirit.bit(), "blessed"),
+            ]
+            .into_iter()
+            .filter(|(bit, _)| bits & bit != 0)
+            .map(|(_, name)| name)
+            .collect();
+            names.sort_unstable();
+            names
+        };
+        self.item_formula_v6(
+            owner,
+            "charge_transition",
+            serde_json::json!({"charges": names(before), "use_spirit": use_spirit,
+                "use_soul": use_soul, "landed": landed, "unequip": false}),
+            serde_json::json!(names(after)),
+            resolution,
+            Some(serde_json::json!({"event": event})),
+        );
     }
 }

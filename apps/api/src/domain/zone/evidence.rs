@@ -34,11 +34,39 @@ pub struct EvidenceDraw {
     pub word_after: String,
 }
 
+/// One generator call not yet covered by an `item_rng` fact (B3/T10): every draw becomes a
+/// fact, tabulated by its caller or, failing that, as a zone draw at the next flush.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct RawDraw {
+    pub tick: Tick,
+    pub callsite: String,
+    pub word_before: u128,
+    pub word_after: u128,
+    pub bound: u32,
+    pub value: u32,
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct EvidenceBuffer {
+    /// Item-evidence mode only: generator calls awaiting their `item_rng` fact.
+    pub raw_draws: Vec<RawDraw>,
     pub facts: Vec<EvidenceFact>,
     pub draws: Vec<EvidenceDraw>,
     pub items: Option<Vec<ItemEvidenceFact>>,
+    /// D46 `bow_launch` facts opened at an accepted bow start and completed with the hit,
+    /// critical and spread residues at impact: (resolution id, inputs, actual). Evidence only.
+    pub pending_launch: std::collections::BTreeMap<EntityId, (String, Value, Value)>,
+    /// D46 `dual_plan` facts planned at the first subhit and completed when the stored
+    /// second is applied or discarded: (resolution id, inputs, actual). Evidence only.
+    pub pending_dual: std::collections::BTreeMap<EntityId, (String, Value, Value)>,
+    /// D92 cast-bound families awaiting their terminal tick, by cast id:
+    /// (owner, formula, resolution id, inputs, actual). Evidence only.
+    #[allow(clippy::type_complexity)] // Evidence-only staging, never canonical.
+    pub pending_cast:
+        std::collections::BTreeMap<u64, Vec<(EntityId, String, String, Value, Value)>>,
+    /// D99/D104 `resurrection_scroll` starts by caster, awaiting the offer response:
+    /// (resolution id, definition record, start tick, scroll count before, cost).
+    pub pending_resurrect: std::collections::BTreeMap<EntityId, (String, Value, u64, u64, u64)>,
 }
 
 /// D46 observations captured at their operation boundary, never persisted as state.

@@ -988,6 +988,116 @@ mod tests {
         assert!(weapon.category(RETAIL_RESIDUES).is_err());
     }
 
+    /// D105 / review-3 refine P2-2: every F11 vector of the independent E1 oracle (binary32
+    /// since D105) is consumed: per-table residue distributions and samples through `select`,
+    /// the category weights through `category`, and the cancel fee boundaries.
+    #[test]
+    #[allow(clippy::too_many_lines, clippy::indexing_slicing)] // Fixture JSON, three families.
+    fn f11_oracle_vectors_drive_select_category_and_cancel_fee() {
+        use serde_json::Value;
+        let rules = embedded_phase4_bundle().unwrap().items;
+        let oracle: Value = serde_json::from_str(include_str!(
+            "../../../../../packages/data/fixtures/item-oracle.json"
+        ))
+        .unwrap();
+        let int = |v: &Value| u32::try_from(v.as_u64().unwrap()).unwrap();
+        let (mut tables, mut categories, mut cancels) = (0, 0, 0);
+        for vector in oracle["vectors"].as_array().unwrap() {
+            let id = vector["id"].as_str().unwrap();
+            let (inputs, expected) = (&vector["inputs"], &vector["expected"]);
+            if id.starts_with("retail-") && inputs["rows"].is_array() {
+                let rows: Vec<RetailRow> = inputs["rows"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|row| {
+                        let (n, d) = (
+                            row[1]["numerator"].as_u64().unwrap(),
+                            row[1]["denominator"].as_u64().unwrap(),
+                        );
+                        assert_eq!(n * 100 % d, 0, "{id}");
+                        RetailRow {
+                            option: int(&row[0]),
+                            hundredths: u32::try_from(n * 100 / d).unwrap(),
+                        }
+                    })
+                    .collect();
+                for (residue, option) in expected["samples"].as_object().unwrap() {
+                    assert_eq!(
+                        select(&rows, residue.parse().unwrap()).unwrap(),
+                        int(option),
+                        "{id} sample {residue}"
+                    );
+                }
+                // Rows own descending, contiguous residue ranges; check both range ends.
+                let distribution = expected["distribution"].as_object().unwrap();
+                let mut unique = std::collections::BTreeSet::new();
+                if rows.iter().all(|row| unique.insert(row.option)) {
+                    let mut top = RETAIL_RESIDUES;
+                    let mut total = 0;
+                    for row in &rows {
+                        let count = distribution.get(&row.option.to_string()).map_or(0, int);
+                        if count == 0 {
+                            continue;
+                        }
+                        let (hi, lo) = (top - 1, top - count);
+                        assert_eq!(select(&rows, hi).unwrap(), row.option, "{id} hi {hi}");
+                        assert_eq!(select(&rows, lo).unwrap(), row.option, "{id} lo {lo}");
+                        top = lo;
+                        total += count;
+                    }
+                    assert_eq!((top, total), (0, RETAIL_RESIDUES), "{id}");
+                } else {
+                    // Repeated option ids: compare the full histogram.
+                    let mut counts = std::collections::BTreeMap::<u32, u32>::new();
+                    for residue in 0..RETAIL_RESIDUES {
+                        *counts.entry(select(&rows, residue).unwrap()).or_default() += 1;
+                    }
+                    for (option, count) in distribution {
+                        assert_eq!(counts[&option.parse::<u32>().unwrap()], int(count), "{id}");
+                    }
+                }
+                tables += 1;
+            } else if id.starts_with("categories-") {
+                let accessory = inputs["accessory"].as_bool().unwrap();
+                let selectors = RetailSelectors::new(
+                    &rules,
+                    accessory,
+                    false,
+                    if accessory { 12754 } else { 8723 },
+                )
+                .unwrap();
+                let mut counts = std::collections::BTreeMap::<u32, u32>::new();
+                for residue in 0..RETAIL_RESIDUES {
+                    *counts
+                        .entry(selectors.category(residue).unwrap())
+                        .or_default() += 1;
+                }
+                for (label, count) in expected.as_object().unwrap() {
+                    assert_eq!(counts[&label.parse::<u32>().unwrap()], int(count), "{id}");
+                }
+                categories += 1;
+            } else if id.starts_with("cancel-") {
+                let grade = inputs["grade"].as_str().unwrap();
+                let mut definition = rules
+                    .parts()
+                    .items
+                    .values()
+                    .find(|d| d.kind == "Weapon" && d.grade == grade)
+                    .unwrap()
+                    .clone();
+                definition.crystal_count = int(&inputs["crystals"]);
+                assert_eq!(
+                    cancel_fee(&rules, &definition, 0).unwrap(),
+                    expected.as_u64().unwrap(),
+                    "{id}"
+                );
+                cancels += 1;
+            }
+        }
+        assert_eq!((tables, categories, cancels), (735, 2, 24));
+    }
+
     #[test]
     fn cancel_fee_uses_instance_crystal_count_boundaries() {
         let rules = embedded_phase4_bundle().unwrap().items;

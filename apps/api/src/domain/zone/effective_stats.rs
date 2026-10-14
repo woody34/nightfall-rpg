@@ -130,7 +130,9 @@ impl PlayerStatInputs {
                     .random_damage
             },
             // D84: the class fists weapon's random damage (5, Orc Shaman 10); 5+isqrt(level)
-            // only without one (L2Character.java:5034-5044, D24).
+            // only without one (L2Character.java:5034-5044, D24). The fists template's own
+            // item funcs (critRate, accCombat, pAtkSpd) are deliberately NOT folded: pinned
+            // attaches item funcs only on equip, and the fists are never equipped.
             None => match equipment.rules.parts().fists_weapon(class_id.0) {
                 Some(fists) => fists.random_damage,
                 None => super::fist_random_damage(stats.constants(), level)?,

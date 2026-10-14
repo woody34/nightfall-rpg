@@ -51,6 +51,8 @@ impl ZoneState {
     ) -> u32 {
         let before = self.rng.get_word_pos();
         let value = self.roll_below(bound);
+        // B3: a target-less roll keeps its callsite on the zone draw fact.
+        self.label_raw_draw(before, site);
         if self.items_evidence_enabled() {
             if let Some(subject) = target {
                 self.item_evidence(

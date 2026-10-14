@@ -387,6 +387,16 @@ impl ItemRulesParts {
         {
             return Err("invalid class unarmed combat bases".into());
         }
+        // Review-3 nit: lineages are disjoint (unarmed lookups take the first match).
+        let mut lineage = std::collections::BTreeSet::new();
+        if self
+            .class_combat
+            .iter()
+            .flat_map(|row| &row.lineage_class_ids)
+            .any(|class| !lineage.insert(*class))
+        {
+            return Err("overlapping class combat lineages".into());
+        }
         // D84: disjoint ascending class ranges, each naming an imported FIST weapon.
         let mut previous: Option<u32> = None;
         for fists in &self.fists_weapons {
@@ -812,6 +822,37 @@ mod tests {
         crate::infrastructure::item_data::generated_test_rules()
             .parts()
             .clone()
+    }
+
+    #[test]
+    fn fists_weapons_follow_pinned_class_ranges_and_orc_shaman_radius() {
+        // D84 literals from pinned XML 244-252 / findFistsWeaponItem: Human Fighter 0 -> 246,
+        // Orc Mystic line 49-52 -> 252 (random_damage 10), others 5; reach 40 L2 units.
+        let parts = fixture();
+        for (class, template, radius) in [
+            (0, 246, 5),
+            (10, 251, 5),
+            (44, 248, 5),
+            (49, 252, 10),
+            (52, 252, 10),
+        ] {
+            let fists = parts.fists_weapon(class).unwrap();
+            assert_eq!(
+                (
+                    fists.template_id,
+                    fists.random_damage,
+                    fists.attack_range,
+                    fists.weapon_type.as_str()
+                ),
+                (template, radius, 40, "FIST"),
+                "{class}"
+            );
+        }
+        // 3rd-class ids (88+) have no fists template: D84 re-resolves per class, so after such
+        // a transfer an unarmed player falls back to the class_combat range, 5+isqrt(level)
+        // random damage and angle 120 until relog (Phase 4 deviation PD1,
+        // phase-4-architecture-decisions.md §6; pinned keeps the login fists).
+        assert!(parts.fists_weapon(88).is_none());
     }
 
     #[test]

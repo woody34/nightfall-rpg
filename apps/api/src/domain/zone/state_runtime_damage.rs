@@ -633,6 +633,7 @@ impl ZoneState {
             crate::domain::zone::phase4::ShieldOutcome::None
         };
         if shield == crate::domain::zone::phase4::ShieldOutcome::Perfect {
+            self.magic_perfect_evidence_v6(caster, target, skill, rank, handler, shots, critical);
             return self.magic_apply_v6(
                 tick,
                 caster,
@@ -670,11 +671,19 @@ impl ZoneState {
         let success =
             i64::from(draw(self, DamageRollSite::MagicSuccess, target, 100).map_err(invariant)?)
                 < i64::from(rate);
+        // The second (failure) draw is taken only for a player caster after a failed first.
+        let second_success = if !success && self.sidecar(caster.entity)?.player.is_some() {
+            Some(
+                i64::from(
+                    draw(self, DamageRollSite::MagicFailure, target, 100).map_err(invariant)?,
+                ) < i64::from(rate),
+            )
+        } else {
+            None
+        };
         let resolution = if success {
             MagicResolution::Success
-        } else if self.sidecar(caster.entity)?.player.is_some()
-            && i64::from(draw(self, DamageRollSite::MagicFailure, target, 100).map_err(invariant)?)
-                < i64::from(rate)
+        } else if second_success == Some(true)
             && b.physical.level().saturating_sub(a.physical.level()) <= 9
         {
             MagicResolution::Half
@@ -692,6 +701,7 @@ impl ZoneState {
         .map_err(invariant)?;
         // A normal block adds sDef, or shieldDefensePercent of it (MagicalAttackRange).
         let mut m_def = q(b.m_def_q).map_err(invariant)?;
+        let mut shield_def = ExactRatio::whole(0);
         if shield == crate::domain::zone::phase4::ShieldOutcome::Normal {
             let s_def = ExactRatio::new(
                 self.damage_stat_v5(target.entity, &b, "sDef", 0)?
@@ -719,23 +729,52 @@ impl ZoneState {
                 s_def
             };
             m_def = m_def.checked_add(added).map_err(invariant)?;
+            shield_def = added;
         }
+        let pvp_bonus = self.item_pvp_damage_bonus(
+            caster.entity,
+            target.entity,
+            &a,
+            if skill.is_magic == 1 {
+                "pvpMagicalDmg"
+            } else {
+                "pvpPhysSkillsDmg"
+            },
+        )?;
+        // Unelemented starter equipment returns 1 before skill attributePower is read.
+        let attribute = skill_math::attribute_bonus(0, 0, false, false).map_err(invariant)?;
+        let npc = self.npc_penalty_v5(
+            caster.entity,
+            target.entity,
+            crate::domain::zone::skill_npc::NpcPenaltyPath::Magical,
+        )?;
+        let target_player = self.sidecar(target.entity)?.player.is_some();
         let damage = skill_math::magical_skill_base(
             power,
-            q(a.m_atk_q).and_then(|value| value.checked_mul(ExactRatio::whole(if shots & 4 != 0 {4} else if shots & 2 != 0 {2} else {1}))).map_err(invariant)?,
+            q(a.m_atk_q)
+                .and_then(|value| {
+                    value.checked_mul(ExactRatio::whole(if shots & 4 != 0 {
+                        4
+                    } else if shots & 2 != 0 {
+                        2
+                    } else {
+                        1
+                    }))
+                })
+                .map_err(invariant)?,
             m_def,
             resolution,
             critical,
-            self.sidecar(caster.entity)?.player.is_some() && self.sidecar(target.entity)?.player.is_some(),
+            self.sidecar(caster.entity)?.player.is_some() && target_player,
         )
         .map_err(invariant)?
-        .checked_mul(spread).map_err(invariant)?
-        .checked_mul(self.item_pvp_damage_bonus(caster.entity, target.entity, &a,
-            if skill.is_magic == 1 { "pvpMagicalDmg" } else { "pvpPhysSkillsDmg" })?).map_err(invariant)?
-        // Unelemented starter equipment returns 1 before skill attributePower is read.
-        .checked_mul(skill_math::attribute_bonus(0, 0, false, false).map_err(invariant)?)
+        .checked_mul(spread)
         .map_err(invariant)?
-        .checked_mul(self.npc_penalty_v5(caster.entity, target.entity, crate::domain::zone::skill_npc::NpcPenaltyPath::Magical)?)
+        .checked_mul(pvp_bonus)
+        .map_err(invariant)?
+        .checked_mul(attribute)
+        .map_err(invariant)?
+        .checked_mul(npc)
         .map_err(invariant)?;
         let positive = damage
             .checked_cmp(ExactRatio::whole(0))
@@ -746,6 +785,52 @@ impl ZoneState {
         } else {
             0
         };
+        if self.items_evidence_enabled() && self.phase4_player_v6(caster.entity) {
+            use crate::domain::zone::state::item_evidence_hooks::{
+                ratio_json as r, root_floor_certificate,
+            };
+            let (offset, coefficient, radicand) = damage.parts();
+            let scale = ExactRatio::whole(Q);
+            let certificate = root_floor_certificate(offset, coefficient, radicand);
+            let scaled = offset
+                .checked_mul(scale)
+                .and_then(|o| coefficient.checked_mul(scale).map(|c| (o, c)))
+                .ok()
+                .and_then(|(o, c)| root_floor_certificate(o, c, radicand));
+            if let (Some((floor, lower, upper)), Some((floor_q, _, _))) = (certificate, scaled) {
+                let branch = match resolution {
+                    MagicResolution::Half => "half",
+                    MagicResolution::Resist => "resisted",
+                    MagicResolution::Success if critical => "critical",
+                    MagicResolution::Success => "success",
+                };
+                let level_difference =
+                    i64::from(b.physical.level()).saturating_sub(i64::from(a.physical.level()));
+                let (pvp_magic, pvp_skill) = if skill.is_magic == 1 {
+                    (pvp_bonus, ExactRatio::whole(1))
+                } else {
+                    (ExactRatio::whole(1), pvp_bonus)
+                };
+                self.item_formula_v6(
+                    caster.entity,
+                    "magic_damage",
+                    serde_json::json!({"power": r(power), "m_atk": r(q(a.m_atk_q).map_err(invariant)?),
+                        "m_def": r(q(b.m_def_q).map_err(invariant)?), "spirit": shots & 2 != 0,
+                        "blessed": shots & 4 != 0, "shield_def": r(shield_def), "perfect": false,
+                        "critical": critical, "attacker_player": true, "target_player": target_player,
+                        "is_pvp": target_player, "skill_is_magic": skill.is_magic == 1,
+                        "pvp_magic_def": 1, "pvp_skill_def": 1, "magic_failures": true,
+                        "first_success": success, "second_success": second_success,
+                        "level_difference": level_difference, "magic_crit_damage": 1,
+                        "spread": r(spread), "pvp_magic_damage": r(pvp_magic),
+                        "pvp_skill_damage": r(pvp_skill), "attribute": r(attribute), "npc": r(npc)}),
+                    serde_json::json!({"lower": lower, "upper": upper, "damage": floor,
+                        "damage_q": floor_q, "branch": branch}),
+                    &format!("magic:{}:{}:{}", caster.entity, target.entity, self.rng.get_word_pos()),
+                    Some(serde_json::json!({"skill_id": skill.id.0, "target_entity": target.entity.to_string(), "event": "cast"})),
+                );
+            }
+        }
         if self.evidence.is_some() {
             let mut detail = serde_json::json!({
                 "formula": "calcMagicDam", "skill_id": skill.id, "rank": rank,
@@ -765,6 +850,58 @@ impl ZoneState {
         self.magic_apply_v6(
             tick, caster, target, critical, resolution, positive, rolled, events, draw,
         )
+    }
+
+    /// D46 `magic_damage` for a perfect block: Formulas.java:815-827 returns 1 before any
+    /// success/spread draw, so both success fields are null (D89). Evidence-only.
+    #[allow(clippy::too_many_arguments)] // The caller's frozen cast inputs.
+    fn magic_perfect_evidence_v6(
+        &mut self,
+        caster: TargetBinding,
+        target: TargetBinding,
+        skill: &SkillDef,
+        rank: u32,
+        handler: &crate::domain::zone::skill::SkillHandler,
+        shots: u8,
+        critical: bool,
+    ) {
+        use crate::domain::zone::state::item_evidence_hooks::ratio_json as r;
+        if !self.items_evidence_enabled() || !self.phase4_player_v6(caster.entity) {
+            return;
+        }
+        let (Ok(a), Ok(b)) = (self.effective(caster.entity), self.effective(target.entity)) else {
+            return;
+        };
+        let (Some(power), Ok(m_atk), Ok(m_def), Ok(target_side)) = (
+            handler
+                .params
+                .get("power")
+                .and_then(|p| p.at(rank, skill.max_level))
+                .and_then(|p| ExactRatio::parse_literal(p).ok()),
+            q(a.m_atk_q),
+            q(b.m_def_q),
+            self.sidecar(target.entity),
+        ) else {
+            return;
+        };
+        let target_player = target_side.player.is_some();
+        let level_difference =
+            i64::from(b.physical.level()).saturating_sub(i64::from(a.physical.level()));
+        self.item_formula_v6(
+            caster.entity,
+            "magic_damage",
+            serde_json::json!({"power": r(power), "m_atk": r(m_atk), "m_def": r(m_def),
+                "spirit": shots & 2 != 0, "blessed": shots & 4 != 0, "shield_def": 0,
+                "perfect": true, "critical": critical, "attacker_player": true,
+                "target_player": target_player, "is_pvp": target_player,
+                "skill_is_magic": skill.is_magic == 1, "pvp_magic_def": 1, "pvp_skill_def": 1,
+                "magic_failures": true, "first_success": null, "second_success": null,
+                "level_difference": level_difference, "magic_crit_damage": 1, "spread": 1,
+                "pvp_magic_damage": 1, "pvp_skill_damage": 1, "attribute": 1, "npc": 1}),
+            serde_json::json!({"lower": 1, "upper": 1, "damage": 1, "damage_q": Q, "branch": "perfect"}),
+            &format!("magic:{}:{}:{}", caster.entity, target.entity, self.rng.get_word_pos()),
+            Some(serde_json::json!({"skill_id": skill.id.0, "target_entity": target.entity.to_string(), "event": "cast"})),
+        );
     }
 
     /// Shared magical recipient tail; a perfect block enters with rolled damage 1.
@@ -6573,6 +6710,472 @@ mod tests {
             .item_casts
             .is_empty());
     }
+    /// B4 fixture: a level-52 Bishop at the trainer holding one 8618 stack per `books` count.
+    fn bishop_with_books(
+        books: &[u64],
+    ) -> (
+        ZoneState,
+        TargetBinding,
+        Vec<crate::domain::zone::ItemInstanceId>,
+        crate::domain::AccountId,
+    ) {
+        let (mut zone, owner, _, ids) = use_fixture(&vec![8618; books.len()]);
+        let xp_at_52 = zone.rules.as_ref().unwrap().xp_to_level(52).unwrap();
+        let base_stats = zone
+            .classes
+            .as_ref()
+            .unwrap()
+            .get(ClassId(10))
+            .unwrap()
+            .base_stats;
+        let trainer = Vec2Fixed::from_tiles(126, 128);
+        let from = zone.entities[&owner.entity].pos;
+        zone.aoi.relocate(owner.entity, from, trainer);
+        let entity = zone.entities.get_mut(&owner.entity).unwrap();
+        entity.pos = trainer;
+        entity.dest = None;
+        let CombatRole::Player {
+            xp,
+            progression: Some(player),
+            ..
+        } = &mut entity.combat.as_mut().unwrap().role
+        else {
+            unreachable!()
+        };
+        *xp = xp_at_52;
+        player.class_state.current_class_id = ClassId(16);
+        // A fixture-seeded Bishop with both required historical transfer receipts.
+        for (target_class, level) in [(15, 20), (16, 40)] {
+            player.class_state.successful_transfer_receipts.push(
+                crate::domain::character_progression::SuccessfulTransferReceipt {
+                    key: Uuid::from_u128(u128::from(target_class)),
+                    target_class_id: ClassId(target_class),
+                    result: crate::domain::character_progression::FrozenTransferResult {
+                        character_id: crate::domain::CharacterId::from_uuid(owner.entity.as_uuid()),
+                        identity: player.identity.clone(),
+                        name: crate::domain::CharacterName::new("First").unwrap(),
+                        current_class_id: ClassId(target_class),
+                        level,
+                        xp: 0,
+                        sp: 0,
+                        stats: base_stats,
+                        position_millitiles: [126_000, 128_000],
+                        hp: 1,
+                        mp: 1,
+                        cp: 0,
+                        max_hp: 1,
+                        max_mp: 1,
+                        max_cp: 0,
+                        token_tier_1_count: 0,
+                        token_tier_2_count: 0,
+                        granted_skill_keys: Vec::new(),
+                    },
+                },
+            );
+        }
+        let inventory = &mut zone
+            .phase4
+            .as_mut()
+            .unwrap()
+            .canonical
+            .players
+            .get_mut(&owner.entity)
+            .unwrap()
+            .inventory;
+        for (id, count) in ids.iter().zip(books) {
+            inventory.get_mut(id).unwrap().count = *count;
+        }
+        zone.relevel(owner.entity).unwrap();
+        zone.sync_passives_v5(owner.entity).unwrap();
+        zone.rebuild_v5(owner.entity).unwrap();
+        zone.run_tick(zone.draft(Vec::new())).unwrap();
+        let CombatRole::Player {
+            progression: Some(player),
+            ..
+        } = &zone.entities[&owner.entity].combat.as_ref().unwrap().role
+        else {
+            unreachable!()
+        };
+        let account = player.identity.account_id;
+        (zone, owner, ids, account)
+    }
+    fn book_learn(
+        owner: TargetBinding,
+        account: crate::domain::AccountId,
+        key: Uuid,
+        seq: u32,
+    ) -> ZoneInput {
+        ZoneInput::session(
+            owner.entity,
+            SessionGeneration(1),
+            seq,
+            ZoneCommand::LearnSkill {
+                entity: owner.entity,
+                account,
+                request_key: key,
+                skill_id: crate::domain::zone::skill::SkillId(1405),
+                skill_level: 1,
+            },
+        )
+    }
+    fn learned_rank(zone: &ZoneState, owner: TargetBinding) -> u32 {
+        let CombatRole::Player {
+            progression: Some(player),
+            ..
+        } = &zone.entities[&owner.entity].combat.as_ref().unwrap().role
+        else {
+            unreachable!()
+        };
+        player
+            .class_state
+            .learned_skills
+            .iter()
+            .find(|skill| skill.key == "l2.skill.1405")
+            .map_or(0, |skill| skill.level)
+    }
+    /// E3.4/D47 (B4): a level-52 Bishop learns Divine Inspiration rank 1 by consuming its
+    /// book through the ledger (Consume aggregate caused by the learn receipt); without the
+    /// book the learn refuses with no effect, and V5 (no inventory) still refuses.
+    #[test]
+    #[allow(clippy::too_many_lines)] // Fixture-seeded Bishop, refusal, success and V5 parity.
+    fn v6_skill_book_learning_consumes_the_book_through_the_ledger() {
+        use crate::domain::zone::phase4_projection::{ItemEvidenceValue, ItemOperation};
+        use crate::domain::zone::skill::{SkillId, SkillRef};
+        let (mut zone, owner, ids, account) = bishop_with_books(&[1]);
+        let book = ids[0];
+        let key = Uuid::from_u128(0x0197_0000_0000_7000_8000_0000_0000_0042);
+        let learn = |seq| book_learn(owner, account, key, seq);
+        let rank = |zone: &ZoneState| learned_rank(zone, owner);
+        // Without the book: the read-only query and the command refuse, with no effect.
+        let mut missing = zone.clone();
+        missing
+            .phase4
+            .as_mut()
+            .unwrap()
+            .canonical
+            .players
+            .get_mut(&owner.entity)
+            .unwrap()
+            .inventory
+            .remove(&book);
+        let generation = SessionGeneration(1);
+        assert_eq!(
+            missing.validate_learn_skill(
+                owner.entity,
+                account,
+                generation,
+                SkillRef {
+                    id: SkillId(1405),
+                    rank: 1
+                }
+            ),
+            Err(RejectReason::SkillItemRequired)
+        );
+        let before = missing.snapshot();
+        let refused = missing.run_tick(missing.draft(vec![learn(1)])).unwrap();
+        assert_eq!(refused.dispositions[0].reason, RejectReason::SkillItemRequired);
+        assert!(!refused
+            .events
+            .iter()
+            .any(|e| matches!(e, ZoneEvent::SkillLearned { .. } | ZoneEvent::ItemCheckpoint(_))));
+        assert_eq!(rank(&missing), 0);
+        assert_eq!(
+            missing.snapshot().phase4,
+            before.phase4,
+            "a refused learn leaves the inventory untouched"
+        );
+        // V5 (no inventory) keeps refusing a book-gated row.
+        let mut legacy = zone.clone();
+        legacy.phase4 = None;
+        assert_eq!(
+            legacy.validate_learn_skill(
+                owner.entity,
+                account,
+                generation,
+                SkillRef {
+                    id: SkillId(1405),
+                    rank: 1
+                }
+            ),
+            Err(RejectReason::SkillItemRequired)
+        );
+        // With the book: one tick learns the rank and consumes the book atomically.
+        let revision =
+            zone.phase4.as_ref().unwrap().canonical.players[&owner.entity].inventory_revision;
+        let snapshot = zone.snapshot();
+        let mut cold = ZoneState::from_snapshot_with_items(
+            snapshot.clone(),
+            Some(Arc::clone(&zone.phase4.as_ref().unwrap().rules)),
+        )
+        .unwrap();
+        let draft = zone.draft(vec![learn(1)]);
+        let learned = zone.run_tick(draft.clone()).unwrap();
+        assert_eq!(learned, cold.run_tick(draft).unwrap());
+        assert!(learned.dispositions.is_empty(), "{:?}", learned.dispositions);
+        assert_eq!(rank(&zone), 1);
+        let items = &zone.phase4.as_ref().unwrap().canonical.players[&owner.entity];
+        assert!(!items.inventory.contains_key(&book));
+        assert!(items
+            .inventory
+            .values()
+            .all(|item| item.template_id != 8618));
+        assert_eq!(items.inventory_revision, revision.checked_add(1).unwrap());
+        let learned_at = learned
+            .events
+            .iter()
+            .position(|e| matches!(e, ZoneEvent::SkillLearned { .. }))
+            .unwrap();
+        let (at, projection) = learned
+            .events
+            .iter()
+            .enumerate()
+            .find_map(|(at, e)| match e {
+                ZoneEvent::ItemCheckpoint(p) => Some((at, p)),
+                _ => None,
+            })
+            .unwrap();
+        assert!(at > learned_at);
+        assert!(projection.receipts.is_empty());
+        assert_eq!(projection.ledger.len(), 1);
+        let row = &projection.ledger[0];
+        assert_eq!(row.operation, ItemOperation::Consume);
+        assert_eq!(row.instance, book);
+        assert_eq!(row.count_delta, -1);
+        assert!(row.after.is_none());
+        assert_eq!(row.causes.len(), 1);
+        assert_eq!(row.causes[0].family, "skill_learn_payment");
+        assert_eq!(
+            row.causes[0].fields.get("receipt"),
+            Some(&ItemEvidenceValue::Text(key.to_string()))
+        );
+        assert_eq!(row.causes[0].contributing_receipt(), Ok(None));
+        assert_eq!(projection.checkpoint.inventory_revision, items.inventory_revision);
+        assert!(projection
+            .checkpoint
+            .instances
+            .iter()
+            .all(|item| item.template_id != 8618));
+        // The same rank cannot be bought twice; the command refuses before any payment.
+        let again = zone.run_tick(zone.draft(vec![learn(2)])).unwrap();
+        assert_eq!(again.dispositions[0].reason, RejectReason::SkillWrongRank);
+        if let Ok(path) = std::env::var("NIGHTFALL_TEST_SKILL_BOOK_LEARN_RECORDING") {
+            use crate::application::replay_log::{AppliedTickRecord, Watermark, WatermarkReason};
+            let records = vec![AppliedTickRecord::from_applied(
+                snapshot.seed.zone,
+                &learned,
+            )];
+            let recording = crate::infrastructure::eventlog::Recording {
+                watermark: Watermark {
+                    zone: snapshot.seed.zone,
+                    epoch: snapshot.seed.epoch,
+                    records: 1,
+                    last_tick: Some(learned.tick),
+                    reason: WatermarkReason::Shutdown,
+                },
+                records,
+                snapshot,
+            };
+            std::fs::write(path, recording.to_bytes().unwrap()).unwrap();
+        }
+    }
+    fn book_checkpoint(tick: &AppliedTick) -> &crate::domain::zone::Phase4Projection {
+        let checkpoints: Vec<_> = tick
+            .events
+            .iter()
+            .filter_map(|e| match e {
+                ZoneEvent::ItemCheckpoint(p) => Some(p.as_ref()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(checkpoints.len(), 1, "one owner checkpoint per tick");
+        checkpoints[0]
+    }
+
+    /// engine-review-6 P2-4: two book stacks pay the lowest instance ID, one copy only.
+    #[test]
+    fn v6_skill_book_learning_pays_the_lowest_instance_of_two_copies() {
+        use crate::domain::zone::phase4_projection::ItemOperation;
+        let (mut zone, owner, ids, account) = bishop_with_books(&[1, 1]);
+        assert!(ids[0] < ids[1]);
+        let revision =
+            zone.phase4.as_ref().unwrap().canonical.players[&owner.entity].inventory_revision;
+        let key = Uuid::from_u128(0x0197_0000_0000_7000_8000_0000_0000_0043);
+        let learned = zone
+            .run_tick(zone.draft(vec![book_learn(owner, account, key, 1)]))
+            .unwrap();
+        assert!(learned.dispositions.is_empty(), "{:?}", learned.dispositions);
+        assert_eq!(learned_rank(&zone, owner), 1);
+        let items = &zone.phase4.as_ref().unwrap().canonical.players[&owner.entity];
+        assert!(!items.inventory.contains_key(&ids[0]));
+        assert_eq!(items.inventory[&ids[1]].count, 1);
+        assert_eq!(items.inventory_revision, revision.checked_add(1).unwrap());
+        let projection = book_checkpoint(&learned);
+        assert_eq!(projection.ledger.len(), 1);
+        assert_eq!(projection.ledger[0].operation, ItemOperation::Consume);
+        assert_eq!(projection.ledger[0].instance, ids[0]);
+        assert_eq!(projection.ledger[0].count_delta, -1);
+    }
+
+    /// engine-review-6 P2-4: an earlier item command on the same owner in the same tick merges
+    /// with the learn payment: one checkpoint, one revision step, the book's rows in D94 shape.
+    #[test]
+    fn v6_skill_book_learning_merges_with_an_earlier_same_tick_item_command() {
+        use crate::domain::zone::phase4_projection::ItemOperation;
+        use crate::domain::zone::ItemCommandKind;
+        let (mut zone, owner, ids, account) = bishop_with_books(&[2]);
+        let book = ids[0];
+        let revision =
+            zone.phase4.as_ref().unwrap().canonical.players[&owner.entity].inventory_revision;
+        let destroy = item_intent(
+            &zone,
+            owner.entity,
+            986,
+            ItemCommandKind::Destroy {
+                instance: book,
+                count: 1,
+            },
+        );
+        let key = Uuid::from_u128(0x0197_0000_0000_7000_8000_0000_0000_0044);
+        let mut cold = ZoneState::from_snapshot_with_items(
+            zone.snapshot(),
+            Some(Arc::clone(&zone.phase4.as_ref().unwrap().rules)),
+        )
+        .unwrap();
+        let draft = zone.draft(vec![
+            review_input(owner.entity, 1, ZoneCommand::Item(Box::new(destroy))),
+            book_learn(owner, account, key, 2),
+        ]);
+        let tick = zone.run_tick(draft.clone()).unwrap();
+        assert_eq!(tick, cold.run_tick(draft).unwrap());
+        assert!(tick.dispositions.is_empty(), "{:?}", tick.dispositions);
+        assert_eq!(learned_rank(&zone, owner), 1);
+        let items = &zone.phase4.as_ref().unwrap().canonical.players[&owner.entity];
+        assert!(items
+            .inventory
+            .values()
+            .all(|item| item.template_id != 8618));
+        assert_eq!(items.inventory_revision, revision.checked_add(1).unwrap());
+        let learned_at = tick
+            .events
+            .iter()
+            .position(|e| matches!(e, ZoneEvent::SkillLearned { .. }))
+            .unwrap();
+        let checkpoint_at = tick
+            .events
+            .iter()
+            .position(|e| matches!(e, ZoneEvent::ItemCheckpoint(_)))
+            .unwrap();
+        assert!(checkpoint_at > learned_at);
+        let projection = book_checkpoint(&tick);
+        assert_eq!(projection.receipts.len(), 1, "the destroy receipt survives the merge");
+        assert_eq!(projection.checkpoint.inventory_revision, items.inventory_revision);
+        let rows: Vec<_> = projection
+            .ledger
+            .iter()
+            .filter(|row| row.instance == book)
+            .collect();
+        assert_eq!(rows.len(), 2, "{rows:?}");
+        assert_eq!(rows[0].operation, ItemOperation::Destroy);
+        assert_eq!(rows[0].count_delta, -1);
+        let consume = rows[1];
+        assert_eq!(consume.operation, ItemOperation::Consume);
+        assert_eq!(consume.count_delta, -1);
+        assert!(consume.after.is_none());
+        assert_eq!(consume.causes.len(), 1);
+        assert_eq!(consume.causes[0].family, "skill_learn_payment");
+        assert_eq!(
+            rows.iter().map(|row| row.count_delta).sum::<i64>(),
+            -2,
+            "both copies leave exactly once"
+        );
+    }
+
+    /// engine-review-6 P2-4: pinned precedence (`RequestAcquireSkill`: SP before items). With
+    /// neither the SP nor the book, the refusal is `InsufficientSp` and nothing changes.
+    #[test]
+    fn v6_skill_book_learning_refuses_sp_before_the_book() {
+        use crate::domain::zone::skill::{SkillId, SkillRef};
+        let (mut zone, owner, ids, account) = bishop_with_books(&[1]);
+        let mut encoded = serde_json::to_value(zone.classes.as_deref().unwrap()).unwrap();
+        let row = encoded["classes"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|c| c["id"] == 16)
+            .unwrap()["skill_tree"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|r| r["skill_id"] == 1405 && r["skill_level"] == 1)
+            .unwrap();
+        row["sp_cost"] = serde_json::json!(1000);
+        zone.classes = Some(Arc::new(serde_json::from_value(encoded).unwrap()));
+        let CombatRole::Player {
+            progression: Some(player),
+            ..
+        } = &mut zone
+            .entities
+            .get_mut(&owner.entity)
+            .unwrap()
+            .combat
+            .as_mut()
+            .unwrap()
+            .role
+        else {
+            unreachable!()
+        };
+        player.class_state.sp = 999;
+        let query = |zone: &ZoneState| {
+            zone.validate_learn_skill(
+                owner.entity,
+                account,
+                SessionGeneration(1),
+                SkillRef {
+                    id: SkillId(1405),
+                    rank: 1,
+                },
+            )
+        };
+        // Book present, SP short: SP refuses.
+        assert_eq!(query(&zone), Err(RejectReason::InsufficientSp));
+        // Neither: SP still refuses first, not the book.
+        zone.phase4
+            .as_mut()
+            .unwrap()
+            .canonical
+            .players
+            .get_mut(&owner.entity)
+            .unwrap()
+            .inventory
+            .remove(&ids[0]);
+        assert_eq!(query(&zone), Err(RejectReason::InsufficientSp));
+        let before = zone.phase4.as_ref().unwrap().canonical.clone();
+        let key = Uuid::from_u128(0x0197_0000_0000_7000_8000_0000_0000_0045);
+        let refused = zone
+            .run_tick(zone.draft(vec![book_learn(owner, account, key, 1)]))
+            .unwrap();
+        assert_eq!(refused.dispositions[0].reason, RejectReason::InsufficientSp);
+        assert_eq!(zone.phase4.as_ref().unwrap().canonical, before);
+        assert_eq!(learned_rank(&zone, owner), 0);
+        // SP sufficient, no book: now the book refuses.
+        let CombatRole::Player {
+            progression: Some(player),
+            ..
+        } = &mut zone
+            .entities
+            .get_mut(&owner.entity)
+            .unwrap()
+            .combat
+            .as_mut()
+            .unwrap()
+            .role
+        else {
+            unreachable!()
+        };
+        player.class_state.sp = 1000;
+        assert_eq!(query(&zone), Err(RejectReason::SkillItemRequired));
+    }
+
     #[test]
     #[allow(clippy::too_many_lines)] // Fixture-seeded learned rank, real skill/cost definitions and critical projection.
     fn v6_learned_item_cost_is_atomic_paid_once_and_not_refunded_on_cancel() {
@@ -6708,18 +7311,28 @@ mod tests {
         assert!(started.dispositions.is_empty(), "{:?}", started.dispositions);
         if let Ok(path) = std::env::var("NIGHTFALL_TEST_CAST_COST_EVIDENCE_RECORDING") {
             use crate::application::replay_log::{AppliedTickRecord, Watermark, WatermarkReason};
+            // Through the cast's completion, so D92's terminal learned_item_cost fact exists.
+            let mut records = vec![AppliedTickRecord::from_applied(
+                snapshot.seed.zone,
+                &started,
+            )];
+            let mut tail = zone.clone();
+            for _ in 0..80 {
+                let applied = tail.run_tick(tail.draft(Vec::new())).unwrap();
+                records.push(AppliedTickRecord::from_applied(snapshot.seed.zone, &applied));
+                if matches!(tail.sidecar(owner.entity).unwrap().cast, CastState::Idle) {
+                    break;
+                }
+            }
             let recording = crate::infrastructure::eventlog::Recording {
                 watermark: Watermark {
                     zone: snapshot.seed.zone,
                     epoch: snapshot.seed.epoch,
-                    records: 1,
-                    last_tick: Some(started.tick),
+                    records: u64::try_from(records.len()).unwrap(),
+                    last_tick: records.last().map(|r| r.tick),
                     reason: WatermarkReason::Shutdown,
                 },
-                records: vec![AppliedTickRecord::from_applied(
-                    snapshot.seed.zone,
-                    &started,
-                )],
+                records,
                 snapshot,
             };
             let bytes = recording.to_bytes().unwrap();
@@ -7703,10 +8316,17 @@ mod tests {
         assert!(draws
             .iter()
             .all(|d| d.2 == RETAIL_RESIDUES && d.1 == d.0 + 1));
+        // Rebuild-family facts (load, D91 clamps, D103 gear_stats of the equips) aside.
         let formulas: Vec<_> = facts
             .iter()
             .filter_map(|f| match &f.fact {
-                ItemEvidenceData::Formula(v) if !load_family(v) => {
+                ItemEvidenceData::Formula(v)
+                    if !load_family(v)
+                        && !matches!(
+                            v["formula"].as_str(),
+                            Some("clamp_no_heal" | "gear_stats")
+                        ) =>
+                {
                     Some(v["formula"].as_str().unwrap().to_owned())
                 },
                 _ => None,
@@ -7799,7 +8419,7 @@ mod tests {
             };
             let expected = match case {
                 0 => {
-                    // Accessory stone on a weapon: AbstractRefinePacket.java:251–254.
+                    // Accessory stone on a weapon: AbstractRefinePacket.java:253-256.
                     kind = K::Refine {
                         npc,
                         target: weapon,
@@ -7859,7 +8479,7 @@ mod tests {
                     RejectReason::OutOfRange
                 },
                 6 => {
-                    // D-grade target (AbstractRefinePacket.java:290–292).
+                    // D-grade target (AbstractRefinePacket.java:301-303).
                     let player = zone
                         .phase4
                         .as_mut()
@@ -7926,7 +8546,7 @@ mod tests {
                     RejectReason::ItemNotOwned
                 },
                 _ => {
-                    // Level below the stone's player level (AbstractRefinePacket.java:259–260).
+                    // Level below the stone's player level (AbstractRefinePacket.java:261-264).
                     let player = zone
                         .phase4
                         .as_mut()
@@ -8013,7 +8633,7 @@ mod tests {
         assert_eq!(applied, cold.run_tick(draft).unwrap());
         assert_eq!(zone.rng.get_word_pos(), cursor);
         let player = &zone.phase4.as_ref().unwrap().canonical.players[&owner.entity];
-        // RequestRefineCancel.java:108–110 disarms the RHAND weapon even for an accessory.
+        // RequestRefineCancel.java:112-115 disarms the RHAND weapon even for an accessory.
         assert!(!player.paperdoll.contains_key(&EquipSlot::Rhand));
         assert_eq!(player.paperdoll[&EquipSlot::Neck], necklace);
         assert!(player.inventory[&necklace].augment_id.is_none());
@@ -8025,7 +8645,9 @@ mod tests {
                     half
                 }));
         }
-        assert!(zone.entities[&owner.entity].combat.as_ref().unwrap().hp <= hp);
+        // Removing the augment re-folds max HP; current HP is clamped to it, never raised.
+        let combat = zone.entities[&owner.entity].combat.as_ref().unwrap();
+        assert_eq!(combat.hp, hp.min(combat.sheet.max_hp()));
         let projection = applied
             .events
             .iter()
@@ -8501,7 +9123,8 @@ mod tests {
                 .unwrap()
                 .min(cap)
         };
-        for misses in [&[][..], &[3][..]] {
+        // A primary miss (draw 1) still scans every secondary (doAttackHitByPole).
+        for misses in [&[][..], &[3][..], &[1][..]] {
             let mut zone = zone.clone();
             let swing = arm_swing(&mut zone, owner, npc);
             let mut trace = Vec::new();
@@ -8528,7 +9151,11 @@ mod tests {
                 .collect();
             // Primary + (count > max) ⇒ max + 1 attempted secondaries.
             assert_eq!(results.len(), 1 + maximum + 1, "{misses:?}");
-            assert_eq!(results[0], (npc.entity, AttackOutcome::Hit, base.min(cap)));
+            if misses.contains(&1) {
+                assert_eq!(results[0], (npc.entity, AttackOutcome::Miss, 0));
+            } else {
+                assert_eq!(results[0], (npc.entity, AttackOutcome::Hit, base.min(cap)));
+            }
             for (k, (target, outcome, damage)) in results[1..].iter().enumerate() {
                 let k = u32::try_from(k).unwrap();
                 assert_eq!(*target, extra[k as usize]);
@@ -8543,6 +9170,97 @@ mod tests {
                 .iter()
                 .any(|(t, ..)| *t == extra[8] || *t == extra[9]));
         }
+        // Player candidates (L2PcInstance.isAutoAttackable): the other player stands first in
+        // the cone and in ordinal order; it is skipped while neither flagged nor chaotic, and
+        // takes the first 85% secondary when chaotic or flagged, shifting every NPC by one.
+        let other = zone
+            .entities
+            .values()
+            .find(|e| e.kind == EntityKind::Player && e.id != owner.entity)
+            .unwrap()
+            .id;
+        assert!(zone.sidecar(other).unwrap().ordinal < zone.sidecar(extra[0]).unwrap().ordinal);
+        place(&mut zone, other, raw(10_700, 10_000));
+        let other_binding = zone.binding(other).unwrap();
+        let mut other_probe = Vec::new();
+        let (_, other_base, _, _) = zone
+            .clone()
+            .auto_resolve_v5(owner, other_binding, &mut forced(&[], &mut other_probe))
+            .unwrap();
+        for (karma, flagged, included) in [(0, false, false), (1, false, true), (0, true, true)] {
+            let mut zone = zone.clone();
+            let tick = zone.next_tick;
+            let pvp = &mut zone
+                .sidecar_mut(other)
+                .unwrap()
+                .player
+                .as_mut()
+                .unwrap()
+                .pvp;
+            pvp.karma = karma;
+            pvp.flag_until = flagged.then_some(Tick(tick.0 + 100));
+            let swing = arm_swing(&mut zone, owner, npc);
+            let mut events = Vec::new();
+            zone.land_auto_v5(
+                swing.impact,
+                owner.entity,
+                swing,
+                &mut events,
+                &mut forced(&[], &mut Vec::new()),
+            )
+            .unwrap();
+            let targets: Vec<_> = events
+                .iter()
+                .filter_map(|e| match e {
+                    ZoneEvent::AttackResult { target, damage, .. } => Some((*target, *damage)),
+                    _ => None,
+                })
+                .collect();
+            assert_eq!(targets.len(), 1 + maximum + 1, "{karma} {flagged}");
+            if included {
+                let first = u32::try_from(i128::from(other_base) * 85 / 100).unwrap();
+                assert_eq!(targets[1].0, other);
+                assert_eq!(targets[1].1, first.min(other_base));
+                assert_eq!(targets[2].0, extra[0]);
+                assert_eq!(targets[2].1, expected(1));
+            } else {
+                assert!(targets.iter().all(|(t, _)| *t != other));
+                assert_eq!(targets[1], (extra[0], expected(0)));
+            }
+        }
+        // A candidate killed by its own secondary (1 HP left) is counted and the scan goes on
+        // to the next candidate at the next percentage.
+        let mut lethal = zone.clone();
+        lethal
+            .entities
+            .get_mut(&extra[0])
+            .unwrap()
+            .combat
+            .as_mut()
+            .unwrap()
+            .hp = 1;
+        let swing = arm_swing(&mut lethal, owner, npc);
+        let mut events = Vec::new();
+        lethal
+            .land_auto_v5(
+                swing.impact,
+                owner.entity,
+                swing,
+                &mut events,
+                &mut forced(&[], &mut Vec::new()),
+            )
+            .unwrap();
+        let results: Vec<_> = events
+            .iter()
+            .filter_map(|e| match e {
+                ZoneEvent::AttackResult { target, damage, .. } => Some((*target, *damage)),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(results.len(), 1 + maximum + 1);
+        assert_eq!(results[1], (extra[0], 1));
+        assert!(lethal.entities[&extra[0]].targeting.dead);
+        assert_eq!(results[2], (extra[1], expected(1)));
         // The fixture must exercise uncapped secondary percentages.
         assert!(expected(1) < cap && expected(1) < expected(0));
     }
@@ -8702,8 +9420,15 @@ mod tests {
             )]))
             .unwrap();
         assert!(tick.dispositions.is_empty(), "{:?}", tick.dispositions);
+        // Non-degenerate facing (review-3 P2-10): the attacker stands one mirror step in
+        // front of the bearer, opposite the "behind" probe point used below.
         let pos = shield.entities[&owner.entity].pos;
-        place(&mut shield, npc.entity, pos);
+        let back = Vec2Fixed::from_tiles(9, 10);
+        let front = Vec2Fixed::new(
+            Fixed::from_raw(2 * pos.x.raw() - back.x.raw()),
+            Fixed::from_raw(2 * pos.y.raw() - back.y.raw()),
+        );
+        place(&mut shield, npc.entity, front);
         let skills = shield
             .phase3
             .as_ref()
@@ -8729,80 +9454,98 @@ mod tests {
         };
         let physical = pick("PhysicalAttack");
         let magical = pick("MagicalAttack");
-        // perfect: ShieldPerfect 99 (> 100 − 10); normal: 90 then ShieldNormal 0 < rate.
-        let run =
-            |zone: &ZoneState, skill: &crate::domain::zone::skill::SkillDef, perfect: bool| {
-                let mut zone = zone.clone();
-                let mut sites = Vec::new();
-                let mut draw = |zone: &mut ZoneState,
-                                site: R,
-                                _: TargetBinding,
-                                bound: u32|
-                 -> Result<u32, StatError> {
-                    zone.roll_below(bound);
-                    sites.push(site);
-                    Ok(match site {
-                        R::ShieldPerfect => {
-                            if perfect {
-                                99
-                            } else {
-                                90
-                            }
-                        },
-                        R::ShieldNormal | R::MagicSuccess => 0,
-                        R::PhysicalEvasion => 99,
-                        R::MagicCritical => 999,
-                        R::Spread => bound / 2,
-                        _ => bound - 1,
-                    })
-                };
-                let handler = skill
-                    .effects
-                    .iter()
-                    .find(|h| h.name == "PhysicalAttack" || h.name == "MagicalAttack")
-                    .unwrap();
-                let result = if handler.name == "PhysicalAttack" {
-                    zone.physical_handler_rolled_v5(
-                        zone.next_tick,
-                        npc,
-                        owner,
-                        skill,
-                        1,
-                        handler,
-                        0,
-                        &mut Vec::new(),
-                        &mut draw,
-                    )
-                } else {
-                    zone.magic_handler_rolled_v5(
-                        zone.next_tick,
-                        npc,
-                        owner,
-                        skill,
-                        1,
-                        handler,
-                        0,
-                        &mut Vec::new(),
-                        &mut draw,
-                    )
-                }
-                .unwrap();
-                (result.rolled, sites)
+        // Literal skills from the pinned XML: 1 (ignoreShieldDefence=true) and Wind Strike
+        // 1177 (MagicalAttackRange shieldDefensePercent=40).
+        let ignoring = skills[&crate::domain::zone::skill::SkillId(1)].clone();
+        let percent = skills[&crate::domain::zone::skill::SkillId(1177)].clone();
+        // Block modes: Some(true) perfect (ShieldPerfect 99 > 100 − 10); Some(false) normal
+        // (90, then ShieldNormal 0 < rShld 20); None unblocked (90, then 99 ≥ 20).
+        let run = |zone: &ZoneState,
+                   skill: &crate::domain::zone::skill::SkillDef,
+                   block: Option<bool>| {
+            let mut zone = zone.clone();
+            let mut sites = Vec::new();
+            let mut draw = |zone: &mut ZoneState,
+                            site: R,
+                            _: TargetBinding,
+                            bound: u32|
+             -> Result<u32, StatError> {
+                zone.roll_below(bound);
+                sites.push(site);
+                Ok(match site {
+                    R::ShieldPerfect => {
+                        if block == Some(true) {
+                            99
+                        } else {
+                            90
+                        }
+                    },
+                    R::ShieldNormal => {
+                        if block.is_none() {
+                            99
+                        } else {
+                            0
+                        }
+                    },
+                    R::MagicSuccess => 0,
+                    R::PhysicalEvasion => 99,
+                    R::MagicCritical => 999,
+                    R::Spread => bound / 2,
+                    _ => bound - 1,
+                })
             };
+            let handler = skill
+                .effects
+                .iter()
+                .find(|h| {
+                    matches!(
+                        h.name.as_str(),
+                        "PhysicalAttack" | "MagicalAttack" | "MagicalAttackRange"
+                    )
+                })
+                .unwrap();
+            let result = if handler.name == "PhysicalAttack" {
+                zone.physical_handler_rolled_v5(
+                    zone.next_tick,
+                    npc,
+                    owner,
+                    skill,
+                    1,
+                    handler,
+                    0,
+                    &mut Vec::new(),
+                    &mut draw,
+                )
+            } else {
+                zone.magic_handler_rolled_v5(
+                    zone.next_tick,
+                    npc,
+                    owner,
+                    skill,
+                    1,
+                    handler,
+                    0,
+                    &mut Vec::new(),
+                    &mut draw,
+                )
+            }
+            .unwrap();
+            (result.rolled, sites)
+        };
         // PhysicalAttack: evasion → shield → (critical) → formula; perfect returns 1, no spread.
-        let (perfect, sites) = run(&shield, &physical, true);
+        let (perfect, sites) = run(&shield, &physical, Some(true));
         assert_eq!(perfect, 1);
         assert_eq!(sites[..2], [R::PhysicalEvasion, R::ShieldPerfect]);
         assert!(!sites.contains(&R::Spread));
-        let (normal, sites) = run(&shield, &physical, false);
+        let (normal, sites) = run(&shield, &physical, Some(false));
         assert_eq!(sites[..3], [R::PhysicalEvasion, R::ShieldPerfect, R::ShieldNormal]);
         assert!(sites.contains(&R::Spread));
         // MagicalAttack: critical → shield; perfect returns 1 before success and spread draws.
-        let (magic_perfect, sites) = run(&shield, &magical, true);
+        let (magic_perfect, sites) = run(&shield, &magical, Some(true));
         assert_eq!(magic_perfect, 1);
         assert_eq!(sites[..2], [R::MagicCritical, R::ShieldPerfect]);
         assert!(!sites.contains(&R::MagicSuccess) && !sites.contains(&R::Spread));
-        let (magic_normal, sites) = run(&shield, &magical, false);
+        let (magic_normal, sites) = run(&shield, &magical, Some(false));
         assert_eq!(
             sites[..4],
             [
@@ -8812,13 +9555,41 @@ mod tests {
                 R::MagicSuccess
             ]
         );
+        // Exact source terms: with every other draw equal, damage is floor(K / defence), so a
+        // block must be consistent with defence + sDef 128 (Hoplon 628, XML literal) for
+        // physical and magical callers, and + 128 × 40 / 100 for Wind Strike.
+        let b = shield.effective(owner.entity).unwrap();
+        let (p_def, m_def) = (i128::from(b.physical.p_def().raw()), i128::from(b.m_def_q));
+        let q = i128::from(Q);
+        let consistent = |open: u32, blocked: u32, defence: i128, added: i128| {
+            // K·Q ∈ [open·d, (open+1)·d) ∩ [blocked·(d+a), (blocked+1)·(d+a)), all ×Q.
+            let (open, blocked) = (i128::from(open), i128::from(blocked));
+            let with = defence + added;
+            (open * defence).max(blocked * with) < ((open + 1) * defence).min((blocked + 1) * with)
+        };
+        let (unblocked, sites) = run(&shield, &physical, None);
+        assert_eq!(sites[..3], [R::PhysicalEvasion, R::ShieldPerfect, R::ShieldNormal]);
+        assert!(normal < unblocked);
+        assert!(consistent(unblocked, normal, p_def, 128 * q), "{unblocked} {normal}");
+        assert!(!consistent(unblocked, normal, p_def, 0));
+        let (magic_unblocked, _) = run(&shield, &magical, None);
+        assert!(consistent(magic_unblocked, magic_normal, m_def, 128 * q));
+        let (wind_unblocked, _) = run(&shield, &percent, None);
+        let (wind_blocked, sites) = run(&shield, &percent, Some(false));
+        assert!(sites.contains(&R::ShieldNormal));
+        assert!(consistent(wind_unblocked, wind_blocked, m_def, 128 * q * 40 / 100));
+        assert!(!consistent(wind_unblocked, wind_blocked, m_def, 128 * q));
+        // ignoreShieldDefence skips both shield draws and the defence term.
+        let (ignored, sites) = run(&shield, &ignoring, Some(false));
+        assert!(!sites.contains(&R::ShieldPerfect) && !sites.contains(&R::ShieldNormal));
+        assert_eq!(ignored, run(&shield, &ignoring, None).0);
         // Behind the shield bearer: no eligible block, no shield draws, larger damage.
         let mut behind = shield.clone();
         place(&mut behind, npc.entity, Vec2Fixed::from_tiles(9, 10));
-        let (open, sites) = run(&behind, &physical, false);
+        let (open, sites) = run(&behind, &physical, Some(false));
         assert!(!sites.contains(&R::ShieldPerfect));
         assert!(open > normal, "{open} > {normal}");
-        let (magic_open, sites) = run(&behind, &magical, false);
+        let (magic_open, sites) = run(&behind, &magical, Some(false));
         assert!(!sites.contains(&R::ShieldPerfect));
         assert!(magic_open > magic_normal, "{magic_open} > {magic_normal}");
     }
@@ -9086,6 +9857,8 @@ mod tests {
         for required in [
             "dual_timing",
             "dual_damage",
+            "dual_plan",
+            "pole_sequence",
             "physical_damage",
             "fist_spread",
             "position",
@@ -9393,7 +10166,208 @@ mod tests {
         // The worst envelope itself decodes and restores a runnable V6 zone.
         let decoded = decode_snapshot(&encoded).unwrap();
         assert_eq!(decoded, snapshot);
-        ZoneState::from_snapshot_with_items(decoded, Some(rules)).unwrap();
+        ZoneState::from_snapshot_with_items(decoded, Some(Arc::clone(&rules))).unwrap();
+        // Session-8 C10 population: the same worst-case owners in a 1,000-combatant zone
+        // (the remaining combatants are template NPCs spread over the zone), one live tick.
+        let npc_rules = load_rules(&RulesSource::embedded()).unwrap().rules;
+        let template = parse_zone(TEST_ZONE_TOML).unwrap().npc_templates[0].clone();
+        let combatants = live
+            .entities
+            .values()
+            .filter(|e| e.combat.is_some())
+            .count();
+        let spawns: Vec<_> = (0..1000_usize.saturating_sub(combatants))
+            .map(|n| {
+                let n = i32::try_from(n).unwrap();
+                ZoneInput::system(ZoneCommand::SpawnNpc {
+                    name: "Keltir".into(),
+                    pos: Vec2Fixed::from_tiles(20 + (n % 200), 20 + (n / 200) * 40),
+                    speed: template.move_speed,
+                    combat: Some(Box::new(
+                        NpcCombat::from_template(&npc_rules, &template).unwrap(),
+                    )),
+                })
+            })
+            .collect();
+        assert!(live
+            .run_tick(live.draft(spawns))
+            .unwrap()
+            .dispositions
+            .is_empty());
+        let mut population = live.snapshot();
+        // Review-5 P2-3: before the pools are injected, the 1,000-combatant envelope with the
+        // worst-case owners encodes, decodes and restores into a runnable V6 zone.
+        {
+            let encoded = encode_snapshot(&population).unwrap();
+            let decoded = decode_snapshot(&encoded).unwrap();
+            assert_eq!(decoded, population);
+            let mut cold =
+                ZoneState::from_snapshot_with_items(decoded, Some(Arc::clone(&rules))).unwrap();
+            cold.run_tick(cold.draft(Vec::new())).unwrap();
+        }
+        // D106: full effect pools (24 buffs, 12 songs, 8 debuffs = 44 each) on every NPC, as
+        // benches/support/snapshot_capacity.rs builds them, combined with the worst-case
+        // owners: 44 synthetic, independently stackable periodic skills join the epoch rules.
+        {
+            use crate::domain::zone::effects::{
+                compile_periodic, ActiveEffect, ActiveHandler, ActivePeriodic, EffectFlags,
+                EffectId, EffectList, EffectPool, EffectSource, EffectSourceKind, PulseSchedule,
+            };
+            use crate::domain::zone::skill::{SkillId, SkillRef};
+            let phase = population.phase3.as_mut().unwrap();
+            // V6 envelopes reference the epoch rules by hash (D27), so synthetic skills
+            // cannot join them; every pool entry reuses the source-valid periodic skill 1095
+            // with the bench's independent "NONE" abnormal stacking, which is what the
+            // encoded size depends on.
+            let rules = Arc::clone(&phase.rules);
+            // 44 distinct admitted abnormal skills, periodic ones first (largest handlers).
+            let mut pool: Vec<SkillId> = rules
+                .skills()
+                .skills()
+                .values()
+                .filter(|s| {
+                    s.abnormal.is_some()
+                        && s.effects.first().is_some_and(|h| {
+                            compile_periodic(h, 1, s.max_level).is_ok_and(|p| p.is_some())
+                        })
+                })
+                .map(|s| s.id)
+                .collect();
+            let rest: Vec<SkillId> = rules
+                .skills()
+                .skills()
+                .values()
+                .filter(|s| s.abnormal.is_some() && !pool.contains(&s.id))
+                .map(|s| s.id)
+                .collect();
+            pool.extend(rest);
+            pool.truncate(44);
+            assert_eq!(pool.len(), 44);
+            let npcs: Vec<_> = population
+                .entities
+                .iter()
+                .filter(|e| e.kind == EntityKind::Npc)
+                .map(|e| e.id)
+                .collect();
+            let mut next_effect = phase.next_effect_id;
+            let mut sequence = phase.next_install_sequence;
+            for id in npcs {
+                let state = phase.entities.get_mut(&id).unwrap();
+                let mut entries = state.effects.entries().clone();
+                for offset in 0..44_u32 {
+                    let skill = rules
+                        .skills()
+                        .get(pool[usize::try_from(offset).unwrap()])
+                        .unwrap();
+                    let abnormal = skill.abnormal.as_ref().unwrap();
+                    let periodic = skill
+                        .effects
+                        .first()
+                        .and_then(|h| compile_periodic(h, 1, skill.max_level).ok().flatten());
+                    let effect = ActiveEffect {
+                        id: EffectId(next_effect),
+                        skill: SkillRef {
+                            id: skill.id,
+                            rank: 1,
+                        },
+                        source: EffectSource {
+                            binding: Some(TargetBinding {
+                                entity: EntityId::from_uuid(Uuid::from_u128(
+                                    0x00E0_0000_0000 + u128::from(next_effect),
+                                )),
+                                incarnation: 1,
+                            }),
+                            kind: EffectSourceKind::Player,
+                        },
+                        target_incarnation: 1,
+                        applied_at: population.tick,
+                        expires_at: Some(Tick(population.tick.0 + 12_000)),
+                        pool: if offset < 24 {
+                            EffectPool::Buff
+                        } else if offset < 36 {
+                            EffectPool::SongDance
+                        } else {
+                            EffectPool::Debuff
+                        },
+                        abnormal_type: "NONE".into(),
+                        abnormal_level: abnormal.level[0],
+                        flags: EffectFlags {
+                            stay_after_death: *skill
+                                .stay_after_death
+                                .at(1, skill.max_level)
+                                .unwrap(),
+                            stay_on_subclass_change: *skill
+                                .stay_on_subclass_change
+                                .at(1, skill.max_level)
+                                .unwrap(),
+                            removed_on_damage: *skill
+                                .removed_on_damage
+                                .at(1, skill.max_level)
+                                .unwrap(),
+                            removed_on_action_except_move: *skill
+                                .removed_on_action_except_move
+                                .at(1, skill.max_level)
+                                .unwrap(),
+                            irreplaceable: *skill
+                                .irreplaceable_buff
+                                .at(1, skill.max_level)
+                                .unwrap(),
+                        },
+                        handlers: vec![ActiveHandler {
+                            xml_ordinal: 0,
+                            periodic: periodic.map(|(resource, power, interval)| ActivePeriodic {
+                                resource,
+                                power,
+                                schedule: PulseSchedule::new(population.tick, interval).unwrap(),
+                            }),
+                        }],
+                    };
+                    state
+                        .modifier_install_order
+                        .insert(sequence, RestoredModifierSource::Effect(effect.id));
+                    entries.insert(effect.id, effect);
+                    next_effect += 1;
+                    sequence += 1;
+                }
+                state.effects = EffectList::from_entries(entries).unwrap();
+            }
+            phase.next_effect_id = next_effect;
+            phase.next_install_sequence = sequence;
+        }
+        assert_eq!(
+            population
+                .entities
+                .iter()
+                .filter(|e| e.combat.is_some())
+                .count(),
+            1000
+        );
+        let encoded = encode_snapshot(&population).unwrap();
+        let decoded_len = u32::from_le_bytes(encoded[8..12].try_into().unwrap()) as usize;
+        let effects: usize = population
+            .phase3
+            .as_ref()
+            .unwrap()
+            .entities
+            .values()
+            .map(|e| e.effects.entries().len())
+            .sum();
+        eprintln!(
+            "PHASE4_C10_POPULATION combatants=1000 effects={effects} item_owners={} encoded={} decoded={} budget_encoded={} budget_decoded={}",
+            population.phase4.as_ref().unwrap().players.len(),
+            encoded.len(),
+            decoded_len,
+            MAX_SNAPSHOT_ENCODED,
+            MAX_SNAPSHOT_JSON
+        );
+        assert!(encoded.len() <= MAX_SNAPSHOT_ENCODED);
+        assert!(decoded_len <= MAX_SNAPSHOT_JSON);
+        assert!(effects >= 990 * 44);
+        // The pools are injected into the snapshot (their stat effects are not folded into
+        // the NPC sheets), so this envelope is a size/codec gate: it decodes exactly. The
+        // worst-case owners alone restored through from_snapshot_with_items above.
+        let decoded = decode_snapshot(&encoded).unwrap();
+        assert_eq!(decoded, population);
     }
 
     /// Recorded evidence run: every tick is cold-replayed from the boundary, its record kept
@@ -9511,10 +10485,615 @@ mod tests {
             run.tick(owner.entity, Vec::new());
         }
         let names = run.formulas();
-        for required in ["bow_reuse", "bow_damage", "physical_damage"] {
+        for required in ["bow_reuse", "bow_damage", "bow_launch", "physical_damage"] {
             assert!(names.contains(required), "{required}: {names:?}");
         }
         run.write("NIGHTFALL_TEST_BOW_RECORDING");
+    }
+
+    #[test]
+    fn v6_gear_evidence_recording_exports_set_shield_history_and_clamps() {
+        use crate::domain::zone::{EquipSlot, ItemCommandKind as K};
+        // Chest 58 and Hoplon 628 belong to set 3; Phoenix Necklace 933 adds maxMp 26.
+        let (zone, owner, _, ids) = use_fixture(&[58, 628, 933]);
+        let mut run = EvidenceRun::start(zone);
+        let mut request = 1400_u128;
+        let mut step = |run: &mut EvidenceRun, kind: K| {
+            request += 1;
+            let intent = item_intent(&run.zone, owner.entity, request, kind);
+            let applied = run.tick(owner.entity, vec![ZoneCommand::Item(Box::new(intent))]);
+            assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+        };
+        let equip = |instance| K::Equip {
+            instance,
+            preferred_slot: None,
+        };
+        // The fixture wears the full set; break it (legs) and take the chest off first so the
+        // 4-armor-set phases see an incomplete set.
+        step(
+            &mut run,
+            K::Unequip {
+                slot: EquipSlot::Legs,
+            },
+        ); // remove of a required part
+        step(
+            &mut run,
+            K::Unequip {
+                slot: EquipSlot::Chest,
+            },
+        ); // no chest: no set transition
+        step(&mut run, equip(ids[1])); // shield first: no chest, no set transition
+        step(&mut run, equip(ids[0])); // shield-then-chest: equip_chest, incomplete, false
+        step(
+            &mut run,
+            K::Unequip {
+                slot: EquipSlot::Lhand,
+            },
+        ); // remove
+        step(&mut run, equip(ids[1])); // chest-then-shield: equip_shield, incomplete, true
+        step(&mut run, equip(ids[2])); // maxMp +26: clamp_no_heal (no heal)
+        step(
+            &mut run,
+            K::Unequip {
+                slot: EquipSlot::Neck,
+            },
+        ); // maxMp −26: a lowered maximum clamps
+        let names = run.formulas();
+        for required in ["set_shield_history", "clamp_no_heal"] {
+            assert!(names.contains(required), "{required}: {names:?}");
+        }
+        run.write("NIGHTFALL_TEST_GEAR_RECORDING");
+    }
+
+    #[test]
+    fn v6_heal_evidence_recording_exports_heal() {
+        // Heal 1011 rank 1 on the wounded caster (TARGET), from a real learned skill.
+        let (mut zone, owner, _, _) = use_fixture(&[]);
+        let CombatRole::Player {
+            progression: Some(p),
+            ..
+        } = &mut zone
+            .entities
+            .get_mut(&owner.entity)
+            .unwrap()
+            .combat
+            .as_mut()
+            .unwrap()
+            .role
+        else {
+            panic!("player")
+        };
+        p.class_state.learned_skills = vec![crate::domain::subclass::LearnedSkill {
+            key: "l2.skill.1011".into(),
+            level: 1,
+        }];
+        zone.rebuild_v5(owner.entity).unwrap();
+        set_resources(&mut zone, owner, 10, 0);
+        let mut run = EvidenceRun::start(zone);
+        run.tick(
+            owner.entity,
+            vec![ZoneCommand::CastSkill {
+                entity: owner.entity,
+                skill_id: crate::domain::zone::skill::SkillId(1011),
+                target: Some(owner.entity),
+            }],
+        );
+        for _ in 0..70 {
+            run.tick(owner.entity, Vec::new());
+        }
+        assert!(run.formulas().contains("heal"), "{:?}", run.formulas());
+        run.write("NIGHTFALL_TEST_HEAL_RECORDING");
+    }
+
+    #[test]
+    fn v6_consumable_evidence_recording_exports_consumable_use() {
+        use crate::domain::zone::ItemCommandKind as K;
+        // Lesser Healing Potion 1060 (admitted under D97) used by a wounded owner.
+        let (mut zone, owner, _, ids) = use_fixture(&[1060]);
+        set_resources(&mut zone, owner, 10, 0);
+        let mut run = EvidenceRun::start(zone);
+        let intent = item_intent(
+            &run.zone,
+            owner.entity,
+            1501,
+            K::Use {
+                instance: ids[0],
+                target: None,
+            },
+        );
+        let applied = run.tick(owner.entity, vec![ZoneCommand::Item(Box::new(intent))]);
+        assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+        for _ in 0..30 {
+            run.tick(owner.entity, Vec::new());
+        }
+        assert!(run.formulas().contains("consumable_use"), "{:?}", run.formulas());
+        run.write("NIGHTFALL_TEST_CONSUMABLE_RECORDING");
+    }
+
+    #[test]
+    fn v6_escape_evidence_recording_exports_escape_timing() {
+        use crate::domain::zone::ItemCommandKind as K;
+        // Scroll of Escape 736: prepaid at start, one fact on the teleport landing tick.
+        let (zone, owner, _, ids) = use_fixture(&[736]);
+        let zone = zone.with_safe_point(Vec2Fixed::from_tiles(126, 126));
+        let mut run = EvidenceRun::start(zone);
+        let intent = item_intent(
+            &run.zone,
+            owner.entity,
+            1601,
+            K::Use {
+                instance: ids[0],
+                target: None,
+            },
+        );
+        let applied = run.tick(owner.entity, vec![ZoneCommand::Item(Box::new(intent))]);
+        assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+        for _ in 0..260 {
+            run.tick(owner.entity, Vec::new());
+            if matches!(run.zone.sidecar(owner.entity).unwrap().cast, CastState::Idle) {
+                break;
+            }
+        }
+        run.tick(owner.entity, Vec::new());
+        let names = run.formulas();
+        assert!(names.contains("escape_timing"), "{names:?}");
+        run.write("NIGHTFALL_TEST_ESCAPE_RECORDING");
+    }
+
+    /// E4.6 scenario support (4-combat-kinds blow/lethal phases): a level-40 Treasure Hunter
+    /// with Mortal Blow 16:24 and Deadly Blow 263:3 casts from behind a stationary target
+    /// facing east with dagger 10; the export carries `blow_success` and `lethal` facts with the
+    /// scenario's skill contexts.
+    #[test]
+    #[allow(clippy::too_many_lines)] // Class/level fixture, equip, two casts and the export.
+    fn v6_scenario_blow_and_lethal_from_behind_with_a_dagger() {
+        use crate::domain::subclass::LearnedSkill;
+        use crate::domain::zone::skill::SkillId;
+        use crate::domain::zone::ItemCommandKind as K;
+        let (mut zone, owner, npc, ids) = use_fixture(&[10]);
+        let xp_at_40 = zone.rules.as_ref().unwrap().xp_to_level(40).unwrap();
+        let base_stats = zone
+            .classes
+            .as_ref()
+            .unwrap()
+            .get(ClassId(0))
+            .unwrap()
+            .base_stats;
+        let combat = zone
+            .entities
+            .get_mut(&owner.entity)
+            .unwrap()
+            .combat
+            .as_mut()
+            .unwrap();
+        let CombatRole::Player {
+            class,
+            xp,
+            progression: Some(player),
+        } = &mut combat.role
+        else {
+            unreachable!()
+        };
+        // The shared fixture spawns Human Mystics; this owner is re-based as a Human Fighter.
+        *class = "human_fighter".into();
+        player.identity.base_class_id = ClassId(0);
+        player.class_state = ClassState::new(ClassId(0));
+        *xp = xp_at_40;
+        player.class_state.current_class_id = ClassId(8);
+        // Human Fighter → Rogue (20) → Treasure Hunter (40), with both transfer receipts.
+        for (target_class, level) in [(7, 20), (8, 40)] {
+            player.class_state.successful_transfer_receipts.push(
+                crate::domain::character_progression::SuccessfulTransferReceipt {
+                    key: Uuid::from_u128(u128::from(target_class) + 0xB10),
+                    target_class_id: ClassId(target_class),
+                    result: crate::domain::character_progression::FrozenTransferResult {
+                        character_id: crate::domain::CharacterId::from_uuid(owner.entity.as_uuid()),
+                        identity: player.identity.clone(),
+                        name: crate::domain::CharacterName::new("First").unwrap(),
+                        current_class_id: ClassId(target_class),
+                        level,
+                        xp: 0,
+                        sp: 0,
+                        stats: base_stats,
+                        position_millitiles: [10000, 10000],
+                        hp: 1,
+                        mp: 1,
+                        cp: 0,
+                        max_hp: 1,
+                        max_mp: 1,
+                        max_cp: 0,
+                        token_tier_1_count: 0,
+                        token_tier_2_count: 0,
+                        granted_skill_keys: Vec::new(),
+                    },
+                },
+            );
+        }
+        player.class_state.merge_learned_skills(vec![
+            LearnedSkill {
+                key: "l2.skill.16".into(),
+                level: 24,
+            },
+            LearnedSkill {
+                key: "l2.skill.263".into(),
+                level: 3,
+            },
+        ]);
+        zone.relevel(owner.entity).unwrap();
+        // The fighter line's collision radius follows the re-based profession.
+        let radius = {
+            let c = zone.entities[&owner.entity].combat.as_ref().unwrap();
+            let CombatRole::Player {
+                progression: Some(p),
+                ..
+            } = &c.role
+            else {
+                unreachable!()
+            };
+            crate::domain::zone::profession_stats(
+                zone.rules.as_ref().unwrap(),
+                zone.classes.as_ref().unwrap(),
+                &p.identity,
+                &p.class_state,
+                c.sheet.level(),
+            )
+            .unwrap()
+            .3
+        };
+        zone.entities
+            .get_mut(&owner.entity)
+            .unwrap()
+            .combat
+            .as_mut()
+            .unwrap()
+            .collision_radius = radius;
+        zone.sync_passives_v5(owner.entity).unwrap();
+        zone.rebuild_v5(owner.entity).unwrap();
+        let max = zone.effective(owner.entity).unwrap();
+        set_resources(&mut zone, owner, max.physical.max_hp(), max.max_cp);
+        zone.entities
+            .get_mut(&owner.entity)
+            .unwrap()
+            .combat
+            .as_mut()
+            .unwrap()
+            .mp = max.physical.max_mp();
+        // Target at (108,100) facing east; the owner one tile west is behind it.
+        place(&mut zone, npc.entity, Vec2Fixed::from_tiles(108, 100));
+        place(&mut zone, owner.entity, Vec2Fixed::from_tiles(107, 100));
+        zone.run_tick(zone.draft(Vec::new())).unwrap();
+        let mut run = EvidenceRun::start(zone);
+        let equip = item_intent(
+            &run.zone,
+            owner.entity,
+            1701,
+            K::Equip {
+                instance: ids[0],
+                preferred_slot: None,
+            },
+        );
+        let applied = run.tick(owner.entity, vec![ZoneCommand::Item(Box::new(equip))]);
+        assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+        for skill in [16, 263] {
+            let applied = run.tick(
+                owner.entity,
+                vec![ZoneCommand::CastSkill {
+                    entity: owner.entity,
+                    skill_id: SkillId(skill),
+                    target: Some(npc.entity),
+                }],
+            );
+            assert!(applied.dispositions.is_empty(), "{skill}: {:?}", applied.dispositions);
+            for _ in 0..40 {
+                run.tick(owner.entity, Vec::new());
+                if matches!(run.zone.sidecar(owner.entity).unwrap().cast, CastState::Idle) {
+                    break;
+                }
+            }
+        }
+        let names = run.formulas();
+        for required in ["blow_success", "lethal"] {
+            assert!(names.contains(required), "{required}: {names:?}");
+        }
+        run.write("NIGHTFALL_TEST_SCENARIO_BLOW_RECORDING");
+    }
+
+    #[test]
+    fn v6_resurrection_evidence_recording_exports_resurrection_scroll() {
+        use crate::domain::zone::ItemCommandKind as K;
+        // D99/D104: Scroll of Resurrection 737 on a dead peer; one fact on the target when it
+        // accepts, under the caster's use receipt.
+        let (mut zone, owner, npc, ids) = use_fixture(&[737]);
+        let dead = zone
+            .phase4
+            .as_ref()
+            .unwrap()
+            .canonical
+            .players
+            .keys()
+            .copied()
+            .find(|id| *id != owner.entity)
+            .unwrap();
+        let target = zone.binding(dead).unwrap();
+        zone.apply_damage_v5(
+            zone.next_tick,
+            DamageRequest {
+                source: zone.damage_source_v5(npc).unwrap(),
+                target,
+                cause: DamageCause::Direct,
+                rolled_damage: u32::MAX,
+            },
+            &mut Vec::new(),
+        )
+        .unwrap();
+        zone.run_tick(zone.draft(Vec::new())).unwrap();
+        let mut run = EvidenceRun::start(zone);
+        let intent = item_intent(
+            &run.zone,
+            owner.entity,
+            1801,
+            K::Use {
+                instance: ids[0],
+                target: None,
+            },
+        );
+        let applied = run.tick(
+            owner.entity,
+            vec![
+                ZoneCommand::SetTarget {
+                    entity: owner.entity,
+                    target: Some(dead),
+                },
+                ZoneCommand::Item(Box::new(intent)),
+            ],
+        );
+        assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+        let mut offer = None;
+        for _ in 0..200 {
+            run.tick(owner.entity, Vec::new());
+            offer = run
+                .zone
+                .sidecar(dead)
+                .unwrap()
+                .player
+                .as_ref()
+                .unwrap()
+                .resurrect_offer
+                .as_ref()
+                .map(|o| o.id);
+            if offer.is_some() {
+                break;
+            }
+        }
+        let applied = run.tick(
+            dead,
+            vec![ZoneCommand::AcceptResurrect {
+                entity: dead,
+                offer_id: offer.unwrap(),
+                accept: true,
+            }],
+        );
+        assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+        assert!(!run.zone.entities[&dead].targeting.dead);
+        assert!(run.formulas().contains("resurrection_scroll"), "{:?}", run.formulas());
+        run.write("NIGHTFALL_TEST_RESURRECTION_RECORDING");
+    }
+
+    #[test]
+    fn v6_d94_shapes_recording_exports_through_the_evidence_exporter() {
+        use crate::domain::zone::{EquipSlot, ItemCommandKind as K};
+        // Review-4 P1: [C, T] (Enchant then Destroy the scroll stack) and [Dp, C] (partial
+        // Destroy then Enchant on one scroll stack) in real ticks.
+        let (mut zone, owner, target, scroll) = enchant_fixture(956, EquipSlot::Chest, 0);
+        zone.phase4
+            .as_mut()
+            .unwrap()
+            .canonical
+            .players
+            .get_mut(&owner.entity)
+            .unwrap()
+            .inventory
+            .get_mut(&scroll)
+            .unwrap()
+            .count = 6;
+        zone.rebuild_v5(owner.entity).unwrap();
+        zone.run_tick(zone.draft(Vec::new())).unwrap();
+        let mut run = EvidenceRun::start(zone);
+        let mut request = 1900_u128;
+        let mut intent = |run: &EvidenceRun, kind: K| {
+            request += 1;
+            ZoneCommand::Item(Box::new(item_intent(&run.zone, owner.entity, request, kind)))
+        };
+        let enchant = K::Enchant {
+            target,
+            scroll,
+            support: None,
+        };
+        let first = vec![
+            intent(
+                &run,
+                K::Destroy {
+                    instance: scroll,
+                    count: 1,
+                },
+            ),
+            intent(&run, enchant.clone()),
+        ];
+        let applied = run.tick(owner.entity, first);
+        assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+        let second = vec![
+            intent(&run, enchant),
+            intent(
+                &run,
+                K::Destroy {
+                    instance: scroll,
+                    count: 3,
+                },
+            ),
+        ];
+        let applied = run.tick(owner.entity, second);
+        assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+        run.write("NIGHTFALL_TEST_D94_RECORDING");
+    }
+
+    #[test]
+    fn v6_gear_stats_recording_exports_engine_folds() {
+        use crate::domain::zone::{item_sources, EquipSlot, ItemCommandKind as K};
+        // D103(a): a light owner (only no-grade gear, so no grade/overload penalty) equips and
+        // unequips a weapon and a shirt; each rebuild exports gear_stats.
+        let (mut zone, owner, _, ids) = use_fixture(&[1, 21]);
+        {
+            let items = zone.phase4.as_mut().unwrap();
+            let rules = Arc::clone(&items.rules);
+            let player = items.canonical.players.get_mut(&owner.entity).unwrap();
+            player.inventory.retain(|id, _| ids.contains(id));
+            for item in player.inventory.values_mut() {
+                item.slot = None;
+                item.location = crate::domain::zone::ItemLocation::Inventory;
+                item.charges = 0;
+            }
+            player.paperdoll.clear();
+            player.auto_shots.clear();
+            player.active_sets = item_sources::reconcile_sets(player, &rules, None).unwrap();
+            let next = &mut zone
+                .phase3
+                .as_mut()
+                .unwrap()
+                .canonical
+                .next_install_sequence;
+            item_sources::reconcile_sources(player, &rules, next).unwrap();
+        }
+        zone.rebuild_v5(owner.entity).unwrap();
+        zone.run_tick(zone.draft(Vec::new())).unwrap();
+        let held = &zone.phase4.as_ref().unwrap().canonical.players[&owner.entity];
+        assert_eq!((held.weapon_penalty, held.armor_penalty, held.overload_level), (0, 0, 0));
+        let mut run = EvidenceRun::start(zone);
+        let mut request = 2000_u128;
+        let mut step = |run: &mut EvidenceRun, kind: K| {
+            request += 1;
+            let intent = item_intent(&run.zone, owner.entity, request, kind);
+            let applied = run.tick(owner.entity, vec![ZoneCommand::Item(Box::new(intent))]);
+            assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+        };
+        for id in &ids {
+            step(
+                &mut run,
+                K::Equip {
+                    instance: *id,
+                    preferred_slot: None,
+                },
+            );
+        }
+        step(
+            &mut run,
+            K::Unequip {
+                slot: EquipSlot::Rhand,
+            },
+        );
+        assert!(run.formulas().contains("gear_stats"), "{:?}", run.formulas());
+        run.write("NIGHTFALL_TEST_GEAR_STATS_RECORDING");
+    }
+
+    #[test]
+    fn v6_reduced_mp_bow_recording_tabulates_the_reduction_draw() {
+        use crate::domain::zone::ItemCommandKind as K;
+        // D109: bow 4818 (reduced_mp_consume 47,1) with Steel Arrows 1342; the reduced-MP draw
+        // is an item_rng fact, so the export's gap-free cursor holds.
+        let (mut zone, owner, npc, ids) = use_fixture(&[4818, 1342]);
+        let start = zone.entities[&owner.entity].pos;
+        place(
+            &mut zone,
+            npc.entity,
+            Vec2Fixed::new(Fixed::from_raw(start.x.raw() + 6_000), start.y),
+        );
+        let mut run = EvidenceRun::start(zone);
+        let equip = item_intent(
+            &run.zone,
+            owner.entity,
+            2101,
+            K::Equip {
+                instance: ids[0],
+                preferred_slot: None,
+            },
+        );
+        run.tick(owner.entity, vec![ZoneCommand::Item(Box::new(equip))]);
+        run.tick(
+            owner.entity,
+            vec![
+                ZoneCommand::SetTarget {
+                    entity: owner.entity,
+                    target: Some(npc.entity),
+                },
+                ZoneCommand::Attack {
+                    entity: owner.entity,
+                },
+            ],
+        );
+        for _ in 0..40 {
+            run.tick(owner.entity, Vec::new());
+        }
+        assert!(run.facts.iter().any(|f| matches!(&f.fact,
+            crate::domain::zone::evidence::ItemEvidenceData::Rng { callsite, .. }
+                if callsite == "bow_reduced_mp")));
+        run.write("NIGHTFALL_TEST_REDUCED_BOW_RECORDING");
+    }
+
+    /// E4.6 scenario support: 4-combat-kinds `unarmed` (`fist_spread` on weapon 0) and
+    /// `pole-primary` (`pole_damage` primary) phases from real swings.
+    #[test]
+    fn v6_scenario_unarmed_and_pole_primary_recording() {
+        use crate::domain::zone::{EquipSlot, ItemCommandKind as K};
+        let (zone, owner, npc, ids) = use_fixture(&[15]);
+        let mut run = EvidenceRun::start(zone);
+        let mut request = 2200_u128;
+        let mut item = |run: &mut EvidenceRun, kind: K| {
+            request += 1;
+            let intent = item_intent(&run.zone, owner.entity, request, kind);
+            let applied = run.tick(owner.entity, vec![ZoneCommand::Item(Box::new(intent))]);
+            assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+        };
+        if run.zone.phase4.as_ref().unwrap().canonical.players[&owner.entity]
+            .paperdoll
+            .contains_key(&EquipSlot::Rhand)
+        {
+            item(
+                &mut run,
+                K::Unequip {
+                    slot: EquipSlot::Rhand,
+                },
+            );
+        }
+        let attack = |run: &mut EvidenceRun| {
+            run.tick(
+                owner.entity,
+                vec![
+                    ZoneCommand::SetTarget {
+                        entity: owner.entity,
+                        target: Some(npc.entity),
+                    },
+                    ZoneCommand::Attack {
+                        entity: owner.entity,
+                    },
+                ],
+            );
+            for _ in 0..40 {
+                run.tick(owner.entity, Vec::new());
+            }
+        };
+        attack(&mut run);
+        item(
+            &mut run,
+            K::Equip {
+                instance: ids[0],
+                preferred_slot: None,
+            },
+        );
+        attack(&mut run);
+        let names = run.formulas();
+        for required in ["fist_spread", "pole_damage"] {
+            assert!(names.contains(required), "{required}: {names:?}");
+        }
+        run.write("NIGHTFALL_TEST_SCENARIO_KINDS_RECORDING");
     }
 
     #[test]

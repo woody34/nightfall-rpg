@@ -313,6 +313,7 @@ impl ZoneState {
                 .insert(id);
         }
         let attack_range = self.attack_range_v6(id, &effective)?;
+        let clamp_before = self.clamp_snapshot_v6(id);
         let e = self.entities.get_mut(&id).ok_or_else(missing)?;
         let c = e.combat.as_mut().ok_or_else(missing)?;
         if let Some(range) = attack_range {
@@ -343,6 +344,9 @@ impl ZoneState {
         }
         if combat_points_full {
             fractions.cp = 0;
+        }
+        if let Some(clamp_before) = clamp_before {
+            self.clamp_no_heal_evidence_v6(id, &clamp_before);
         }
         if let Some(before) = before {
             self.evidence_fact(
@@ -895,6 +899,7 @@ impl ZoneState {
                 }
             }
         }
+        self.finish_cast_evidence_v6(&events);
         // D66: canonical per-instance ledger order is fixed once, at the tick boundary.
         for event in &mut events {
             if let ZoneEvent::ItemCheckpoint(projection) = event {
@@ -2622,6 +2627,11 @@ impl ZoneState {
         }
         Ok(())
     }
+    /// Passive reconciliation: each learned, Executable passive without an install source is
+    /// installed at the next sequence, in skill-id order (`BTreeMap`). D116's V6 upgrade of a
+    /// retained V5 skill checkpoint (API `upgrade_v6_skill_checkpoint`) follows this same
+    /// rule and order for several promoted passives; a single mid-session learn installs
+    /// identically.
     fn sync_passives_v5(&mut self, id: EntityId) -> Result<(), TickError> {
         let CombatRole::Player {
             progression: Some(player),

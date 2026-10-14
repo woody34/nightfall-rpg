@@ -554,6 +554,16 @@ impl ZoneState {
             self.guard_equipment_cast_v6(id)?;
         }
         let incarnation = combat.incarnation;
+        let set_observations = if self.items_evidence_enabled() {
+            crate::domain::zone::item_sources::set_shield_observations(
+                player,
+                &mutation,
+                &items.rules,
+            )
+            .unwrap_or_default()
+        } else {
+            Vec::new()
+        };
         let phase = self.phase3.as_ref().ok_or(RejectReason::InvalidLoad)?;
         let (mut staged, next) = crate::domain::zone::item_sources::apply_paperdoll(
             player,
@@ -591,6 +601,25 @@ impl ZoneState {
         if self.items_evidence_enabled() {
             let subject = self.binding(id).ok_or(RejectReason::InvalidLoad)?;
             let resolution = format!("{:?}:{}", reference.operation, reference.key).to_lowercase();
+            // D46 `set_shield_history` (D20): one fact per set-shield transition.
+            let event = format!("{:?}", reference.operation).to_lowercase();
+            if matches!(event.as_str(), "equip" | "unequip" | "enchant") {
+                self.gear_stats_evidence_v6(id, &event, &resolution);
+            }
+            // Same resolution as the command's ledger rows, so phases correlate the mutation.
+            for observed in &set_observations {
+                self.item_formula_v6(
+                    id,
+                    "set_shield_history",
+                    serde_json::json!({"previous": observed.previous,
+                        "mutation": observed.mutation, "chest_present": observed.chest_present,
+                        "matching_shield": observed.matching_shield, "complete": observed.complete,
+                        "required_part": observed.required_part}),
+                    serde_json::json!(observed.active),
+                    &resolution,
+                    Some(serde_json::json!({"event": event, "set_id": observed.set_id})),
+                );
+            }
             if let Some(fact) = exchange_formula {
                 self.item_evidence(
                     subject,

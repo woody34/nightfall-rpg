@@ -120,6 +120,114 @@ pub fn reconcile_sets(
     Ok(result)
 }
 
+/// One D20 set-shield transition, observed for D46 `set_shield_history` evidence.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(missing_docs, clippy::struct_excessive_bools)] // The oracle's boolean inputs, verbatim.
+pub struct SetShieldObservation {
+    pub set_id: u32,
+    pub previous: bool,
+    pub mutation: &'static str,
+    pub chest_present: bool,
+    pub matching_shield: bool,
+    pub complete: bool,
+    pub required_part: bool,
+    pub active: bool,
+}
+
+/// Replays a paperdoll mutation's slot transitions in listener order (as `apply_paperdoll`
+/// does) and reports, for each transition touching a set part or set shield of the worn
+/// chest's sets, the shield history before and after. Evidence only; never mutates.
+pub fn set_shield_observations(
+    player: &Phase4Player,
+    mutation: &PaperdollMutation,
+    rules: &Phase4Rules,
+) -> Result<Vec<SetShieldObservation>, ItemError> {
+    let mut staged = player.clone();
+    let mut out = Vec::new();
+    for change in &mutation.changes {
+        let previous_sets = staged.active_sets.clone();
+        let instance = change
+            .after
+            .as_ref()
+            .or(change.before.as_ref())
+            .ok_or(ItemError("empty inventory transition"))?
+            .id;
+        if let Some(slot) = change.before.as_ref().and_then(|before| before.slot) {
+            staged.paperdoll.remove(&slot);
+        }
+        if let Some(after) = &change.after {
+            if let Some(slot) = after.slot {
+                staged.paperdoll.insert(slot, after.id);
+            }
+            staged.inventory.insert(instance, after.clone());
+        } else {
+            staged.inventory.remove(&instance);
+        }
+        let after_sets = reconcile_sets(&staged, rules, Some(change))?;
+        let removed = change.before.as_ref().filter(|before| {
+            before.slot.is_some()
+                && change
+                    .after
+                    .as_ref()
+                    .is_none_or(|after| after.slot != before.slot)
+        });
+        let added = change.after.as_ref().filter(|after| {
+            after.slot.is_some()
+                && change
+                    .before
+                    .as_ref()
+                    .is_none_or(|before| before.slot != after.slot)
+        });
+        if let Some(chest) = equipped(&staged, EquipSlot::Chest) {
+            for set in rules
+                .parts()
+                .armor_sets
+                .values()
+                .filter(|set| set.chest.contains(&chest.template_id))
+            {
+                let (kind, required_part) = if let Some(before) = removed {
+                    if !contains(set, before) && !set.shield.contains(&before.template_id) {
+                        continue;
+                    }
+                    ("remove", contains(set, before))
+                } else if let Some(after) = added {
+                    if set.shield.contains(&after.template_id) {
+                        ("equip_shield", false)
+                    } else if contains(set, after) {
+                        ("equip_chest", false)
+                    } else {
+                        continue;
+                    }
+                } else {
+                    continue;
+                };
+                let complete = parts(set).iter().all(|(slot, allowed)| {
+                    allowed.is_empty()
+                        || equipped(&staged, *slot)
+                            .is_some_and(|item| allowed.contains(&item.template_id))
+                });
+                out.push(SetShieldObservation {
+                    set_id: set.id,
+                    previous: previous_sets
+                        .get(&set.id)
+                        .filter(|s| s.chest == chest.id)
+                        .is_some_and(|s| s.shield_skill_active),
+                    mutation: kind,
+                    chest_present: true,
+                    matching_shield: has_shield(&staged, set),
+                    complete,
+                    required_part,
+                    active: after_sets
+                        .get(&set.id)
+                        .is_some_and(|s| s.shield_skill_active),
+                });
+            }
+        }
+        staged.active_sets = after_sets;
+    }
+    Ok(out)
+}
+
 /// Catalogue-derived provider identities. Reconciliation allocates only genuinely new
 /// providers, preserving enchant refreshes and death/resurrection identity exactly.
 pub fn desired_sources(

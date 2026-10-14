@@ -90,8 +90,8 @@ class Revision5Tests(unittest.TestCase):
                     if launched:
                         reason = 'launched'
                         draws.append(dict(site='hit', bound=1000, residue=x['hit_residue']))
-                        # D88: a hit iff the residue is strictly below the chance.
-                        self.assertEqual(x['miss'], x['hit_residue'] >= x['hit_chance'], name)
+                        # calcHitMiss: miss iff chance < residue (D88 strictness revoked).
+                        self.assertEqual(x['miss'], x['hit_residue'] > x['hit_chance'], name)
                         if not x['miss']:
                             # D87: the caller's live residues, not a neutral 999 / radius.
                             draws.append(dict(site='critical', bound=1000, residue=x['critical_residue']))
@@ -108,7 +108,7 @@ class Revision5Tests(unittest.TestCase):
             self.assertEqual(y['arrows_consumed'], int(launched), name)
             self.assertEqual(sum(i['count'] for i in y['inventory']), sum(i['count'] for i in x['inventory'])-int(launched), name)
             if launched:
-                self.assertEqual(y['hit'], x['hit_residue'] < x['hit_chance'], name)
+                self.assertEqual(y['hit'], x['hit_residue'] <= x['hit_chance'], name)
                 self.assertEqual(y['lhand'], arrow['instance_id'] if arrow['count'] > 1 else None, name)
 
     def test_exhaustion_refill_and_empty_skip_payment(self):
@@ -140,7 +140,8 @@ class Revision5Tests(unittest.TestCase):
             events = [r['event'] for r in y['trace']]
             if 'accepted' in events:
                 self.assertFalse(y['dead']); self.assertEqual(y['incarnation'], 8)
-                self.assertEqual(y['hp_q'], int(F(101)*F(65, 100)*1000000))
+                # D104: whole floor of max_hp x 0.65 (65.65 -> 65), remainder cleared.
+                self.assertEqual(y['hp_q'], 65*1000000)
                 self.assertEqual(y['recoverable_xp'], 0)
                 self.assertIsNone(y['offer'])
             else:
@@ -153,7 +154,7 @@ class Revision5Tests(unittest.TestCase):
         at = o.decode_rationals(self.by_id['resurrection-scroll-accept-expiry-0']['expected'])
         self.assertFalse(before['dead']); self.assertTrue(at['dead'])
         retained = o.decode_rationals(self.by_id['resurrection-scroll-first-valid']['expected'])
-        self.assertEqual(retained['xp_refund'], 50)
+        self.assertEqual(retained['xp_refund'], 51)  # Math.round(101 x 50 / 100 = 50.5)
         self.assertEqual([r['event'] for r in retained['trace']][-2:], ['accepted', 'NO_RESURRECT_OFFER'])
 
     def test_dormant_starter_rejection_preserves_every_state_dimension(self):

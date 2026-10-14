@@ -39,10 +39,12 @@ def residue_in(residue, bound):
 
 
 def bow_launch(weapon, inventory, lhand, mp, mp_modifier, reduction_residue, miss, critical_residue,
-               spread_residue, reuse_remaining=0, hit_chance=800, hit_residue=None):
+               spread_residue, reuse_remaining=0, hit_chance=800, hit_residue=None, blocked=False):
+    # D108: a perfect shield block takes the critical draw but no spread draw.
     # D87: the critical and spread residues are caller inputs, null iff that draw is not
-    # taken (a miss; no spread draw for a zero-radius bow). D88: reuse_remaining is in ticks
-    # and the hit test is the pinned strict Rnd.get(1000) < chance.
+    # taken (a miss; no spread draw for a zero-radius bow). D88: reuse_remaining is in ticks.
+    # Hit iff residue <= chance (Formulas.calcHitMiss: miss iff chance < Rnd.get(1000); the
+    # strict form of D88 was revoked).
     # checkAndEquipArrows trusts occupied LHAND; grade matching is a search rule.
     inventory = [dict(item) for item in inventory]
     splus = lambda grade: 'S' if grade in {'S80', 'S84'} else grade
@@ -71,8 +73,8 @@ def bow_launch(weapon, inventory, lhand, mp, mp_modifier, reduction_residue, mis
         result['reason'] = 'mp'
         return result
     if hit_residue is None:
-        hit_residue = hit_chance if miss else hit_chance-1
-    if not 0 <= hit_residue < 1000 or miss != (hit_residue >= hit_chance):
+        hit_residue = hit_chance+1 if miss else hit_chance
+    if not 0 <= hit_residue < 1000 or miss != (hit_residue > hit_chance):
         raise ValueError('inconsistent bow hit residue')
     result['draws'].append(dict(site='hit', bound=1000, residue=hit_residue))
     radius = weapon['spread_radius']
@@ -81,11 +83,11 @@ def bow_launch(weapon, inventory, lhand, mp, mp_modifier, reduction_residue, mis
             raise ValueError('a missed bow shot draws no critical or spread residue')
     else:
         result['draws'].append(dict(site='critical', bound=1000, residue=residue_in(critical_residue, 1000)))
-        if radius > 0:
+        if radius > 0 and not blocked:
             result['draws'].append(dict(site='spread', bound=2*radius+1,
                                         residue=residue_in(spread_residue, 2*radius+1)))
         elif spread_residue is not None:
-            raise ValueError('a zero-radius bow draws no spread residue')
+            raise ValueError('a zero-radius bow or a perfect block draws no spread residue')
     result.update(accepted=True, reason='launched', mp=F(mp)-cost, mp_q=int((F(mp)-cost)*Q),
                   mp_paid=cost, arrows_consumed=1, hit=not miss)
     arrow['count'] -= 1
@@ -113,8 +115,9 @@ def bow_refill(weapon, arrow, mp):
 
 def resurrection_scroll(definition, start_tick, available, death_incarnation, current_incarnation,
                         dead, response, response_tick, response_offer_id, existing_offer,
-                        repeat, hp, max_hp, mp, cp, recoverable_xp, restore_percent, restore_hp):
-    # I5 prepays at accepted start. Offers are created only at cast completion.
+                        repeat, hp, max_hp, mp, cp, recoverable_xp, restore_percent, restore_hp, offer_id):
+    # I5 prepays at accepted start. Offers are created only at cast completion; D104: the
+    # created offer's id is the actual offer's (`offer_id`), never a constant.
     skill = definition['skills'][0]
     cost = skill['item_consume_count']
     if available < cost:
@@ -127,7 +130,7 @@ def resurrection_scroll(definition, start_tick, available, death_incarnation, cu
     if offer is not None and completion >= offer['expires_at']:
         offer = None
     if dead and current_incarnation == death_incarnation and offer is None:
-        offer = dict(offer_id=1, target_incarnation=death_incarnation, created_at=completion,
+        offer = dict(offer_id=offer_id, target_incarnation=death_incarnation, created_at=completion,
                      expires_at=completion+600, restore_percent=F(restore_percent), recoverable_xp=recoverable_xp)
         trace.append(dict(event='offered', tick=completion, offer=dict(offer), inventory=inventory))
     elif offer is not None:
@@ -148,9 +151,15 @@ def resurrection_scroll(definition, start_tick, available, death_incarnation, cu
             trace.append(dict(event='NO_RESURRECT_OFFER', tick=response_tick, attempt=attempt, inventory=inventory))
             continue
         if response == 'accept':
-            refund = int(F(offer['recoverable_xp'])*F(offer['restore_percent'])/100)
+            # Math.round (half up), capped by the loss: phase-3-zone-design.md:414.
+            refund = min(int(F(offer['recoverable_xp'])*F(offer['restore_percent'])/100+F(1, 2)),
+                         offer['recoverable_xp'])
             recoverable_xp = 0
-            hp = max(F(hp), F(max_hp)*F(restore_hp))
+            # D104: the accepted Phase 3 revive (combat_math town_respawn_vitals): whole HP =
+            # max(1, floor(max_hp x RespawnRestoreHP)), Q remainder cleared. Pinned
+            # L2Character.doRevive (2098-2124) also raises CP/MP to RespawnRestoreCP/MP, both
+            # 0.00 in pinned character.properties:40,42, so MP and CP are unchanged.
+            hp = F(max(1, int(F(max_hp)*F(restore_hp))))
             dead = False
             current_incarnation += 1
             trace.append(dict(event='accepted', tick=response_tick, refund=refund, inventory=inventory))
@@ -217,19 +226,24 @@ def escape_timing(definition, start_tick, casting_speed, available, resources, i
 
 
 def dual_plan(hits, formulas, second_valid, hit_residues, hit_chance, spread_radius, critical_residues,
-              spread_residues):
+              spread_residues, blocked=(False, False)):
+    # D108: a perfectly blocked subhit draws its critical but no spread residue.
     # D87: per-subhit critical/spread residues are inputs, null iff that subhit missed (D89).
-    # D88: a subhit lands iff its residue is strictly below the chance.
-    if hits != [r < hit_chance for r in hit_residues]:
+    # A subhit lands iff its residue is <= the chance (calcHitMiss; D88 strictness revoked).
+    if hits != [r <= hit_chance for r in hit_residues]:
         raise ValueError('inconsistent dual hit residues')
     draws = [dict(site='hit'+str(i+1), bound=1000, residue=r) for i, r in enumerate(hit_residues)]
     damage = []
-    for index, (hit, formula, critical, spread) in enumerate(
-            zip(hits, formulas, critical_residues, spread_residues, strict=True), 1):
+    for index, (hit, formula, critical, spread, block) in enumerate(
+            zip(hits, formulas, critical_residues, spread_residues, blocked, strict=True), 1):
         if hit:
-            draws += [dict(site=f'critical{index}', bound=1000, residue=residue_in(critical, 1000)),
-                      dict(site=f'spread{index}', bound=2*spread_radius+1,
-                           residue=residue_in(spread, 2*spread_radius+1))]
+            draws.append(dict(site=f'critical{index}', bound=1000, residue=residue_in(critical, 1000)))
+            if block:
+                if spread is not None:
+                    raise ValueError('a perfectly blocked subhit draws no spread residue')
+            else:
+                draws.append(dict(site=f'spread{index}', bound=2*spread_radius+1,
+                                  residue=residue_in(spread, 2*spread_radius+1)))
         elif critical is not None or spread is not None:
             raise ValueError('a missed subhit draws no critical or spread residue')
         damage.append(int(F(formula))//2 if hit else 0)
@@ -329,7 +343,7 @@ def add_behavior_vectors(src, add, o):
                               critical_residue=None if miss else (0 if state == 'equipped' else 999),
                               spread_residue=None if miss or weapon['spread_radius'] == 0 else (
                                   0 if state == 'equipped' else weapon['spread_radius']),
-                              reuse_remaining=0, hit_chance=800, hit_residue=800 if miss else 799)
+                              reuse_remaining=0, hit_chance=800, hit_residue=801 if miss else 800)
                 result = bow_launch(**inputs)
                 add('F10', f'bow-launch-{grade}-{state}-{miss}', inputs, result,
                     [src.citation(sid), src.citation(aid), src.citation(wrong), *bow_sources], result['draws'])
@@ -347,7 +361,7 @@ def add_behavior_vectors(src, add, o):
                     inputs = dict(weapon=weapon, inventory=[arrow_stack(src, aid, 2)], lhand=None,
                                   mp=mp, mp_modifier=modifier, reduction_residue=residue, miss=True,
                                   critical_residue=None, spread_residue=None, reuse_remaining=0, hit_chance=800,
-                                  hit_residue=800)
+                                  hit_residue=801)
                     result = bow_launch(**inputs)
                     add('F10', f'bow-mp-{sid}-{residue}-{cost}-{delta}-{modifier}', inputs, result,
                         [src.citation(sid), src.citation(aid), *bow_sources], result['draws'])
@@ -355,7 +369,7 @@ def add_behavior_vectors(src, add, o):
         inputs = dict(weapon=weapon, inventory=[] if state == 'empty' else [arrow_stack(src, aid, 2)],
                       lhand=None, mp=F(10), mp_modifier=F(1), reduction_residue=0, miss=False,
                       critical_residue=999, spread_residue=weapon['spread_radius'] or None,
-                      reuse_remaining=1 if state == 'reuse' else 0, hit_chance=800, hit_residue=799)
+                      reuse_remaining=1 if state == 'reuse' else 0, hit_chance=800, hit_residue=800)
         result = bow_launch(**inputs)
         add('F10', 'bow-mp-skip-'+state, inputs, result, [src.citation(sid), *bow_sources], result['draws'])
     definition = o.consumable_definition(src, 737)
@@ -374,7 +388,8 @@ def add_behavior_vectors(src, add, o):
     base = dict(definition=definition, start_tick=10, available=2, death_incarnation=7,
                 current_incarnation=7, dead=True, response='offer', response_tick=160,
                 response_offer_id=1, existing_offer=None, repeat=0, hp=F(0), max_hp=101,
-                mp=F(13, 2), cp=F(17, 2), recoverable_xp=101, restore_percent=power, restore_hp=restore_hp)
+                mp=F(13, 2), cp=F(17, 2), recoverable_xp=101, restore_percent=power, restore_hp=restore_hp,
+                offer_id=1)
     branches = [('offer', {}), ('decline', dict(response='decline')), ('accept', dict(response='accept', repeat=1)),
                 ('stale-id', dict(response='accept', response_offer_id=2)),
                 ('stale-death', dict(current_incarnation=8, response='accept')),
@@ -447,13 +462,20 @@ def add_audit_vectors(src, add, o):
     for hits in [[False, False], [True, False], [False, True], [True, True]]:
         for valid in [False, True]:
             inputs = dict(hits=hits, formulas=[F(499, 10), F(10199, 100)], second_valid=valid,
-                          hit_residues=[799 if h else 800 for h in hits], hit_chance=800, spread_radius=6,
+                          hit_residues=[800 if h else 801 for h in hits], hit_chance=800, spread_radius=6,
                           critical_residues=[(0 if valid else 999) if h else None for h in hits],
                           spread_residues=[(12 if valid else 6) if h else None for h in hits])
             result = dual_plan(**inputs)
+            if hits == [True, True] and valid:
+                # D108: the second subhit perfectly blocked (critical drawn, no spread).
+                blocked_inputs = dict(inputs, blocked=[False, True], spread_residues=[12, None])
+                blocked_result = dual_plan(**blocked_inputs)
+                add('F10', 'dual-plan-blocked', blocked_inputs, blocked_result,
+                    ['G/model/actor/L2Character.java:1137-1182', 'G/model/stats/Formulas.java:1077-1116',
+                     'D108 perfect block takes no spread draw'], blocked_result['draws'])
             add('F10', f'dual-plan-{hits}-{valid}', inputs, result,
                 ['G/model/actor/L2Character.java:1137-1182,5034-5044', 'G/model/stats/Formulas.java:1054-1063',
-                 'design/2.2 I3 stored second resolution; shieldless caller; residues are inputs (D87); strict hit (D88)'], result['draws'])
+                 'design/2.2 I3 stored second resolution; shieldless caller; residues are inputs (D87)'], result['draws'])
     for count in [0, 1, 2]:
         candidates = [dict(eligible=True, hit=True, formula=F(499, 10)) for _ in range(4)]
         add('F10', f'pole-count-{count}', dict(candidates=candidates, maximum=count), o.pole_sequence(candidates, count),

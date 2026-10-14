@@ -15,6 +15,8 @@ import json
 from math import isqrt, factorial
 from pathlib import Path
 import re
+import math
+import struct
 import subprocess
 import sys
 import tomllib
@@ -354,23 +356,37 @@ def lethal(full,half,full_residue,half_residue,eligible=True,attribute=1,trait=1
     return {'outcome':'half' if half_residue<exact(half)*scale else 'none','draws':draws}
 
 
+def binary32(value):
+    """Round a Python float (an exact binary64 here) to the nearest binary32."""
+    return struct.unpack('<f',struct.pack('<f',value))[0]
+
+
+def retail_thresholds(rows):
+    """D86/D105: AugmentationData's `float s=10000; s -= getAugmentChance()*100` (chance from
+    Float.parseFloat). Each step's operands are binary32, so the binary64 product/difference is
+    exact and one struct round trip is the Java float result. `s` before each row."""
+    s=binary32(10000.0);out=[]
+    for option,chance in rows:
+        out.append(s)
+        s=binary32(s-binary32(binary32(float(exact(chance)))*100.0))
+    return out
+
+
 def retail_select(rows,residue):
     if not 0<=residue<10000:raise ValueError('invalid retail residue')
-    threshold=F(10000);selected=0
-    for option,chance in rows:
-        if threshold>residue:
-            threshold-=exact(chance)*100;selected=option
+    selected=0
+    for (option,chance),threshold in zip(rows,retail_thresholds(rows)):
+        if threshold>residue:selected=option
     if selected==0:raise ValueError('retail table leaves option zero')
     return selected
 
 
 def retail_distribution(rows):
-    # Exact interval enumeration equivalent to exhaustive residues, without O(N*10000).
-    threshold=F(10000);counts=Counter()
+    # Interval enumeration over the binary32 thresholds, equivalent to exhaustive residues.
+    thresholds=retail_thresholds(rows);counts=Counter()
     for index,(option,chance) in enumerate(rows):
-        previous=threshold;threshold-=exact(chance)*100
-        lower=0 if index==len(rows)-1 else max(0,-((-threshold.numerator)//threshold.denominator))
-        upper=min(9999,-((-previous.numerator)//previous.denominator)-1)
+        lower=0 if index==len(rows)-1 else max(0,math.ceil(thresholds[index+1]))
+        upper=min(9999,math.ceil(thresholds[index])-1)
         if upper>=lower:counts[option]+=upper-lower+1
     if sum(counts.values())!=10000:raise ValueError('retail row selector does not cover 10000 residues')
     return dict(sorted(counts.items()))
@@ -540,6 +556,13 @@ class Source:
         for path in sorted((dp/(D+'stats/armorsets')).glob('*.xml')):
             file=path.relative_to(dp).as_posix();text=self.read(file)
             for row in ET.fromstring(text).findall('set'):self.sets.append((file,row))
+        # D84: pinned L2PcInstance.findFistsWeaponItem class ranges -> fists template.
+        pc=self.read(G+'model/actor/instance/L2PcInstance.java',True)
+        body=re.search(r'public L2Weapon findFistsWeaponItem\(int classId\) \{(.*?)\n\t\treturn weaponItem;',pc,re.S)
+        if body is None:raise ValueError('missing findFistsWeaponItem')
+        self.fists=[(int(lo,16),int(hi,16),int(tid)) for lo,hi,tid in re.findall(
+            r'\(classId >= 0x([0-9a-f]+)\) && \(classId <= 0x([0-9a-f]+)\)\) \{[^{}]*?getTemplate\((\d+)\)',body[1])]
+        if len(self.fists)!=9:raise ValueError('unexpected fists ranges')
         class_ids=self.read(G+'model/base/ClassId.java',True)
         self.races={int(sid,16):race for sid,race in re.findall(r'\w+\((0x[0-9a-fA-F]+), (?:true|false), (?:true, )?Race\.(\w+),',class_ids)}
         self.bonuses={s.tag:{int(r.get('value')):F(r.get('bonus')) for r in s.findall('stat')}
@@ -639,6 +662,15 @@ def gear_stats(src,class_file,level,equipment,skill_refs=(),base_deltas=None,bas
         'atkCountMax':F(1),'pAtkAngle':F(static.findtext('baseDamRange/width')),'pAtkRange':F(static.findtext('baseAtkRange')),
         'critDmg':F(1),'critDmgAdd':F(0),'sDef':F(0),'rShld':F(0),'shieldDefAngle':F(0),'rEvas':F(0),'weightLimit':F(69000)}
     slots={row[2] for row in equipment};weapon_type='FIST';armor_type='NONE'
+    fists=None
+    if not any(slot=='rhand' for sid,enchant,slot,seq in equipment):
+        # D84: an unarmed player's active weapon is the class fists template
+        # (L2PcInstance.findFistsWeaponItem / getActiveWeaponItem): its reach, angle and radius.
+        fists=fists_template(src,int(root.findtext('classId')))
+        fp=src.properties(fists)
+        values['pAtkRange']=F(fp.get('attack_range','40'))
+        damage_parts=fp.get('damage_range','').split(';')
+        values['pAtkAngle']=F(damage_parts[3]) if len(damage_parts)>=4 and damage_parts[3].isdigit() else F(120)
     for sid,enchant,slot,seq in equipment:
         p=src.properties(sid)
         if slot=='rhand':
@@ -760,13 +792,20 @@ def gear_stats(src,class_file,level,equipment,skill_refs=(),base_deltas=None,bas
         else:raise ValueError('unknown fold operation')
         values[stat]=new;trace.append({'order':order,'sequence':seq,'handler_ordinal':ordinal[0],'ordinal':ordinal[1],'stat':stat,'operation':op,'before':old,'operand':value,'after':new})
     weapon=next((sid for sid,e,slot,seq in equipment if slot=='rhand'),None)
-    radius=fist_spread(level)['radius'] if weapon is None else int(src.properties(weapon).get('random_damage','0'))
+    radius=int(src.properties(weapon if weapon is not None else fists).get('random_damage','0'))
     qvalues={k:q(v) for k,v in values.items()};getters={k:trunc(v) for k,v in values.items()}
     qvalues['accCombat']=floor_a_plus_b_root(accuracy_a*Q,accuracy_b*Q,base['DEX'])[0]
     getters['accCombat']=floor_a_plus_b_root(accuracy_a,accuracy_b,base['DEX'])[0]
     return {'exact':values,'root_expressions':{'accCombat':{'rational':accuracy_a,'root_coefficient':accuracy_b,'radicand':base['DEX']}},'q':qvalues,'getters':getters,
             'trace':trace,'base_stats':base,'weapon_type':weapon_type,'random_damage':radius,'spread_bound':2*radius+1,
             'enchant_hp':hp_bonus,'traits':traits,'weight':sum(int(src.properties(sid).get('weight','0')) for sid,e,slot,seq in equipment)}
+
+
+def fists_template(src,class_id):
+    """The class fists template from the pinned findFistsWeaponItem ranges (D84)."""
+    for lo,hi,tid in src.fists:
+        if lo<=class_id<=hi:return tid
+    raise ValueError('class without a fists template')
 
 
 def defence_slot_stats(src,class_file,level,occupied_slots,chest_bodypart='none'):
@@ -973,7 +1012,7 @@ def make_vectors(src):
     injected=ET.fromstring(src.read(human))
     injected.find('staticData/baseMDef/lfinger').text='999'
     injected.find('staticData/baseMDef/rfinger').text='7'
-    proxy=SimpleNamespace(xml=lambda file:injected,bonuses=src.bonuses,items=src.items,skills=src.skills,hp=src.hp,properties=src.properties,races=src.races)
+    proxy=SimpleNamespace(xml=lambda file:injected,bonuses=src.bonuses,items=src.items,skills=src.skills,hp=src.hp,properties=src.properties,races=src.races,fists=src.fists)
     add('F1','RFINGER-duplication-unequal-injected-bases',{'class_file':human,'level':84,'injected_lfinger':999,'injected_rfinger':7},
         gear_stats(proxy,human,84,[]),[human,'G/model/actor/templates/L2PcTemplate.java:71-75','design/12.1 injected unequal finger bases'])
     for sid in [4270,6209,6213,3599]:

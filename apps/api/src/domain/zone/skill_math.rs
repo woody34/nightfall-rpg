@@ -826,6 +826,11 @@ impl RootExpression {
             radicand,
         })
     }
+    /// `(offset, coefficient, radicand)` for evidence certificates.
+    #[must_use]
+    pub fn parts(self) -> (ExactRatio, ExactRatio, ExactRatio) {
+        (self.offset, self.coefficient, self.radicand)
+    }
     /// A rational branch such as full magic resist or a clamped rate.
     pub fn constant(value: ExactRatio) -> Self {
         Self {

@@ -9,6 +9,7 @@ use crate::domain::zone::phase4_projection::{
     ItemAuditEvidence, ItemDeltaPlan, ItemEvidenceValue as V, ItemOperation,
 };
 use crate::domain::zone::{EquipSlot, ItemInstanceId, ItemLocation};
+use serde_json::{json, Value};
 
 /// Outcome of the bow guard at an accepted swing start.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -231,11 +232,34 @@ impl ZoneState {
         }
         // Reduced MP: Rnd.get(100) < chance only when a reduced cost exists.
         let mut cost = definition.mp_consume;
+        let mut reduction_residue = None;
         if let [chance, reduced] = definition.reduced_mp_consume.as_slice() {
-            if *reduced > 0 && self.roll_below(100) < *chance {
-                cost = *reduced;
+            if *reduced > 0 {
+                // D109: tabulated as an item_rng fact so the exported cursor stays gap-free.
+                let before = self.rng.get_word_pos();
+                let residue = self.roll_below(100);
+                if self.items_evidence_enabled() {
+                    if let Some(subject) = self.binding(id) {
+                        self.item_evidence(
+                            subject,
+                            crate::domain::zone::evidence::ItemEvidenceData::Rng {
+                                callsite: "bow_reduced_mp".into(),
+                                word_before: before,
+                                word_after: self.rng.get_word_pos(),
+                                bound: 100,
+                                value: residue,
+                                resolution_id: format!("attack:{id}:{}", tick.0),
+                            },
+                        );
+                    }
+                }
+                reduction_residue = Some(residue);
+                if residue < *chance {
+                    cost = *reduced;
+                }
             }
         }
+        let launch_inputs = self.bow_launch_open_v6(id, &definition, held_arrow, reduction_residue);
         let effective = self.effective(id)?;
         let cost = self
             .damage_stat_v5(
@@ -405,6 +429,9 @@ impl ZoneState {
             .and_then(|entity| entity.combat.as_mut())
             .ok_or_else(missing)?;
         combat.mp = combat.mp.checked_sub(cost).ok_or_else(missing)?;
+        if let Some(inputs) = launch_inputs {
+            self.bow_launch_stage_v6(id, &resolution, inputs, &player, arrow, cost);
+        }
         if let Some(next) = next_sequence {
             self.phase3
                 .as_mut()
@@ -518,6 +545,320 @@ impl ZoneState {
             .ok_or_else(missing)?;
         let denominator = scale.checked_mul(5).ok_or_else(missing)?;
         u32::try_from(numerator.checked_div(denominator).ok_or_else(missing)?).map_err(invariant)
+    }
+}
+
+/// D46 `bow_launch` evidence (D87/D89): opened at the accepted start with the oracle's
+/// launch inputs, staged with the observed payment, completed at impact with the hit,
+/// critical and spread residues. Evidence-only: no canonical effect, no tick failure.
+impl ZoneState {
+    /// Ammunition records in instance order: the oracle's candidate search input.
+    fn bow_ammo_records_v6(&self, player: &crate::domain::zone::Phase4Player) -> Value {
+        let Some(items) = self.phase4.as_ref() else {
+            return json!([]);
+        };
+        Value::Array(
+            player
+                .inventory
+                .values()
+                .filter_map(|item| {
+                    let definition = items.rules.parts().items.get(&item.template_id)?;
+                    matches!(definition.etcitem_type.as_str(), "ARROW" | "BOLT").then(|| {
+                        json!({"instance_id": item.id.get(), "template_id": item.template_id,
+                            "count": item.count, "grade": definition.grade,
+                            "kind": definition.etcitem_type})
+                    })
+                })
+                .collect(),
+        )
+    }
+
+    /// Exact MP (whole points plus the Q remainder) as an oracle rational.
+    fn bow_exact_mp_v6(&self, id: EntityId) -> Option<ExactRatio> {
+        let mp = self.entities.get(&id)?.combat.as_ref()?.mp;
+        let remainder = self.sidecar(id).ok()?.fractions.mp;
+        let scaled = i64::from(mp).checked_mul(Q)?.checked_add(remainder)?;
+        ExactRatio::new(i128::from(scaled), i128::from(Q)).ok()
+    }
+
+    pub(super) fn bow_launch_open_v6(
+        &self,
+        id: EntityId,
+        definition: &crate::domain::zone::item_rules::ItemDefinition,
+        held: Option<ItemInstanceId>,
+        reduction_residue: Option<u32>,
+    ) -> Option<Value> {
+        use crate::domain::zone::state::item_evidence_hooks::ratio_json as r;
+        if !self.items_evidence_enabled() || !self.phase4_player_v6(id) {
+            return None;
+        }
+        let player = self.phase4.as_ref()?.canonical.players.get(&id)?;
+        let (reduced_chance, reduced_cost) = match definition.reduced_mp_consume.as_slice() {
+            [chance, cost] => (*chance, *cost),
+            _ => (0, 0),
+        };
+        let effective = self.effective(id).ok()?;
+        let modifier = self
+            .damage_stat_v5(id, &effective, "bowMpConsumeRate", Q)
+            .ok()?;
+        Some(json!({
+            "weapon": {"template_id": definition.template_id, "grade": definition.grade,
+                "mp_cost": definition.mp_consume, "reduced_chance": reduced_chance,
+                "reduced_cost": reduced_cost, "spread_radius": definition.random_damage},
+            "inventory": self.bow_ammo_records_v6(player),
+            "lhand": held.map(ItemInstanceId::get),
+            "mp": r(self.bow_exact_mp_v6(id)?),
+            "mp_modifier": r(modifier),
+            "reduction_residue": reduction_residue,
+            "reuse_remaining": 0,
+        }))
+    }
+
+    #[allow(clippy::too_many_arguments)] // The staged payment fields of one launch.
+    pub(super) fn bow_launch_stage_v6(
+        &mut self,
+        id: EntityId,
+        resolution: &str,
+        inputs: Value,
+        player: &crate::domain::zone::Phase4Player,
+        arrow: ItemInstanceId,
+        cost: u32,
+    ) {
+        use crate::domain::zone::state::item_evidence_hooks::ratio_json as r;
+        let Some(mp) = self.bow_exact_mp_v6(id) else {
+            return;
+        };
+        let Some(mp_q) = mp
+            .checked_mul(ExactRatio::whole(Q))
+            .ok()
+            .and_then(|v| v.trunc().ok())
+        else {
+            return;
+        };
+        let mut draws = Vec::new();
+        if let Some(residue) = inputs.get("reduction_residue").and_then(Value::as_u64) {
+            draws.push(json!({"site": "bow_mp_reduction", "bound": 100, "residue": residue}));
+        }
+        let actual = json!({
+            "accepted": true, "reason": "launched",
+            "inventory": self.bow_ammo_records_v6(player),
+            "lhand": player.paperdoll.get(&EquipSlot::Lhand).map(|item| item.get()),
+            "equipped_lhand": arrow.get(), "mp": r(mp), "mp_q": mp_q, "mp_paid": cost,
+            "arrows_consumed": 1, "mp_cost": cost, "draws": draws, "hit": null,
+        });
+        if let Some(buffer) = self.evidence.as_mut() {
+            buffer
+                .pending_launch
+                .insert(id, (resolution.to_owned(), inputs, actual));
+        }
+    }
+
+    /// Before the impact draws: the evidence draw mark and the hit chance.
+    pub(super) fn bow_launch_mark_v6(
+        &self,
+        source: TargetBinding,
+        target: TargetBinding,
+    ) -> Option<(usize, i128)> {
+        let pending = self
+            .evidence
+            .as_ref()?
+            .pending_launch
+            .contains_key(&source.entity);
+        if !pending || !self.bow_attacker_v6(source.entity) {
+            return None;
+        }
+        let chance = self.hit_chance_v5(source, target).ok()?;
+        Some((self.evidence_mark(), chance))
+    }
+
+    /// After the impact draws: emit the completed launch fact once.
+    pub(super) fn bow_launch_complete_v6(
+        &mut self,
+        id: EntityId,
+        target: EntityId,
+        mark: usize,
+        chance: i128,
+        (hit, blocked): (bool, bool),
+    ) {
+        let residue = |site: &str| {
+            self.evidence_draws(mark)
+                .iter()
+                .find(|draw| draw.callsite == site)
+                .map(|draw| (draw.value, draw.bound))
+        };
+        let (hit_draw, critical, spread) =
+            (residue("AutoHit"), residue("AutoCritical"), residue("Spread"));
+        let Some((resolution, mut inputs, mut actual)) = self
+            .evidence
+            .as_mut()
+            .and_then(|buffer| buffer.pending_launch.remove(&id))
+        else {
+            return;
+        };
+        let Some((hit_residue, _)) = hit_draw else {
+            return;
+        };
+        let (Some(inputs_map), Some(actual_map)) = (inputs.as_object_mut(), actual.as_object_mut())
+        else {
+            return;
+        };
+        inputs_map.insert("miss".into(), json!(!hit));
+        inputs_map.insert("hit_chance".into(), json!(chance));
+        inputs_map.insert("hit_residue".into(), json!(hit_residue));
+        // D89: null iff the draw was not taken.
+        inputs_map.insert("critical_residue".into(), json!(critical.map(|(v, _)| v)));
+        inputs_map.insert("spread_residue".into(), json!(spread.map(|(v, _)| v)));
+        // D108: read from the resolver's shield outcome (exact for zero-radius bows too).
+        inputs_map.insert("blocked".into(), json!(hit && blocked));
+        if let Some(draws) = actual_map.get_mut("draws").and_then(Value::as_array_mut) {
+            draws.push(json!({"site": "hit", "bound": 1000, "residue": hit_residue}));
+            if let Some((value, bound)) = critical {
+                draws.push(json!({"site": "critical", "bound": bound, "residue": value}));
+            }
+            if let Some((value, bound)) = spread {
+                draws.push(json!({"site": "spread", "bound": bound, "residue": value}));
+            }
+        }
+        actual_map.insert("hit".into(), json!(hit));
+        let context = Some(self.attack_context_v6(id, target));
+        self.item_formula_v6(id, "bow_launch", inputs, actual, &resolution, context);
+    }
+}
+
+/// D46 `dual_plan` evidence (D87/D89): planned at the first subhit, completed when the
+/// stored second is applied or discarded at its deadline. Evidence-only.
+impl ZoneState {
+    pub(super) fn dual_plan_mark_v6(
+        &self,
+        source: TargetBinding,
+        target: TargetBinding,
+    ) -> Option<(usize, i128)> {
+        if !self.items_evidence_enabled() || !self.phase4_player_v6(source.entity) {
+            return None;
+        }
+        let chance = self.hit_chance_v5(source, target).ok()?;
+        Some((self.evidence_mark(), chance))
+    }
+
+    #[allow(clippy::too_many_arguments)] // The observed halves of one dual plan.
+    pub(super) fn dual_plan_stage_v6(
+        &mut self,
+        id: EntityId,
+        resolution: &str,
+        mark: usize,
+        chance: i128,
+        observed: &[(usize, Option<ExactRatio>, bool)],
+        damages: [u32; 2],
+    ) {
+        use crate::domain::zone::state::item_evidence_hooks::ratio_json as r;
+        let hit_residues: Vec<u32> = self
+            .evidence_draws(mark)
+            .iter()
+            .filter(|draw| draw.callsite == "AutoHit")
+            .map(|draw| draw.value)
+            .take(2)
+            .collect();
+        let Ok(radius) = self
+            .effective(id)
+            .map(|stats| stats.physical.random_damage())
+        else {
+            return;
+        };
+        if hit_residues.len() != 2 || observed.len() != 2 {
+            return;
+        }
+        let mut hits = Vec::new();
+        let mut formulas = Vec::new();
+        let mut criticals = Vec::new();
+        let mut spreads = Vec::new();
+        let mut blocked = Vec::new();
+        let mut draws: Vec<Value> = hit_residues
+            .iter()
+            .enumerate()
+            .map(|(index, residue)| {
+                json!({"site": format!("hit{}", index.saturating_add(1)), "bound": 1000, "residue": residue})
+            })
+            .collect();
+        for (index, ((start, exact, perfect), residue)) in
+            observed.iter().zip(&hit_residues).enumerate()
+        {
+            let hit = i128::from(*residue) <= chance;
+            let end = observed
+                .get(index.saturating_add(1))
+                .map_or(usize::MAX, |(next, ..)| *next);
+            let window: Vec<_> = self
+                .evidence_draws(*start)
+                .iter()
+                .take(end.saturating_sub(*start))
+                .map(|draw| (draw.callsite.clone(), draw.value, draw.bound))
+                .collect();
+            let find = |site: &str| {
+                window
+                    .iter()
+                    .find(|(name, ..)| name == site)
+                    .map(|(_, value, bound)| (*value, *bound))
+            };
+            let (critical, spread) = if hit {
+                (find("AutoCritical"), find("Spread"))
+            } else {
+                (None, None)
+            };
+            if hit {
+                // D89/D108: a missing draw is null, never a dropped fact (unreachable today: a
+                // landed subhit always draws its critical).
+                if let Some((c, cb)) = critical {
+                    draws.push(
+                        json!({"site": format!("critical{}", index.saturating_add(1)), "bound": cb, "residue": c}),
+                    );
+                }
+                // D108: a perfectly blocked subhit takes no spread draw; the fact is kept.
+                if let Some((s, sb)) = spread {
+                    draws.push(
+                        json!({"site": format!("spread{}", index.saturating_add(1)), "bound": sb, "residue": s}),
+                    );
+                }
+            }
+            blocked.push(hit && *perfect);
+            hits.push(hit);
+            formulas.push(exact.map_or(json!(0), r));
+            criticals.push(critical.map(|(value, _)| value));
+            spreads.push(spread.map(|(value, _)| value));
+        }
+        let inputs = json!({"hits": hits, "formulas": formulas, "hit_residues": hit_residues,
+            "hit_chance": chance, "spread_radius": radius, "critical_residues": criticals,
+            "spread_residues": spreads, "blocked": blocked});
+        let actual = json!({"plan": damages, "stored_second": damages[1],
+            "second_recomputed": false, "draws": draws, "refunded_draws": []});
+        if let Some(buffer) = self.evidence.as_mut() {
+            buffer
+                .pending_dual
+                .insert(id, (resolution.to_owned(), inputs, actual));
+        }
+    }
+
+    pub(super) fn dual_plan_complete_v6(&mut self, id: EntityId, target: EntityId, valid: bool) {
+        let Some((resolution, mut inputs, mut actual)) = self
+            .evidence
+            .as_mut()
+            .and_then(|buffer| buffer.pending_dual.remove(&id))
+        else {
+            return;
+        };
+        let (Some(inputs_map), Some(actual_map)) = (inputs.as_object_mut(), actual.as_object_mut())
+        else {
+            return;
+        };
+        inputs_map.insert("second_valid".into(), json!(valid));
+        let plan = actual_map.get("plan").cloned().unwrap_or(Value::Null);
+        let first = plan.get(0).cloned().unwrap_or(Value::Null);
+        let second = if valid {
+            plan.get(1).cloned().unwrap_or(Value::Null)
+        } else {
+            Value::Null
+        };
+        actual_map.insert("applied".into(), json!([first, second]));
+        let context = Some(self.attack_context_v6(id, target));
+        self.item_formula_v6(id, "dual_plan", inputs, actual, &resolution, context);
     }
 }
 

@@ -73,6 +73,23 @@ fn quote_wide_integers(text: &[u8]) -> anyhow::Result<Vec<u8>> {
     Ok(out)
 }
 
+/// D46 canonical instance scalars exclude D65 creation provenance (checkpoint data the API
+/// verifies); granted instances carry it, so published rows drop it after every check
+/// against the checkpoint has run.
+fn strip_creation_origin(fact: &mut ItemEvidenceFact) {
+    fn strip(value: &mut Value) {
+        if let Value::Object(map) = value {
+            map.remove("creation_origin");
+            map.values_mut().for_each(strip);
+        } else if let Value::Array(items) = value {
+            items.iter_mut().for_each(strip);
+        }
+    }
+    if let ItemEvidenceData::Delta(row) | ItemEvidenceData::Baseline(row) = &mut fact.fact {
+        strip(row);
+    }
+}
+
 #[derive(Serialize)]
 struct SequencedFact<'a> {
     sequence: u64,
@@ -212,6 +229,13 @@ fn export_cause(cause: &ItemAuditEvidence) -> anyhow::Result<Value> {
         };
         // Keep the captured cast resolution namespace, including its actual numeric ID.
         json!(format!("item_cast:cast:{id}"))
+    } else if cause.family == "skill_learn_payment" {
+        // E3.4/D47 skill-book payment: the learn receipt key is the resolution identity.
+        let Some(ItemEvidenceValue::Text(key)) = cause.fields.get("receipt") else {
+            bail!("learn payment lacks its learn receipt");
+        };
+        let key: uuid::Uuid = key.parse().context("invalid learn receipt key")?;
+        json!(format!("item_cast:learn:{key}"))
     } else {
         bail!("unsupported consume cause {}", cause.family);
     };
@@ -367,6 +391,7 @@ fn same_identity(left: &Value, right: &Value) -> bool {
 /// D66: per (owner, life, tick, instance) export every positive row first in cause order, then
 /// the single Consume aggregate last. Rows are rebuilt from the observed tick-start state and
 /// the actual net deltas only; the engine ledger and record bytes are untouched.
+#[allow(clippy::too_many_lines)] // One chain pass: split, rebase, aggregate, terminal.
 fn normalize_d66(
     facts: &mut [ItemEvidenceFact],
     bounds: &std::collections::BTreeMap<ChainKey, (Value, Value)>,
@@ -391,15 +416,29 @@ fn normalize_d66(
         };
         // Positive rows and count-neutral rows (e.g. an automatic arrow equip) keep their
         // observed order ahead of the aggregate, exactly as the engine ledger does.
+        // D94: at most one terminal row (after = null, not the aggregate), the chain's last
+        // observed row; it stays last, with the aggregate immediately before it.
         let mut positives = Vec::new();
         let mut consumes = Vec::new();
+        let mut terminals = Vec::new();
         for &index in &slots {
+            let ended = facts
+                .get(index)
+                .and_then(chain_key)
+                .is_some_and(|(_, row)| row.get("after").is_some_and(Value::is_null));
             if operation(index)? == "consume" {
                 consumes.push(index);
+            } else if ended {
+                terminals.push(index);
             } else {
                 positives.push(index);
             }
         }
+        let terminal = match terminals.as_slice() {
+            [] => None,
+            [index] if slots.last() == Some(index) => Some(*index),
+            _ => bail!("D94 terminal row is not the chain's single last row"),
+        };
         let [consume] = consumes.as_slice() else {
             if consumes.is_empty() {
                 // D83: every chain carries the D76 row position, Consume or not.
@@ -422,22 +461,22 @@ fn normalize_d66(
             let ItemEvidenceData::Delta(row) = &mut fact.fact else {
                 bail!("positive slot is not a delta");
             };
+            // D100: non-terminal rows of either sign rebase in observed order.
             let delta = row
                 .get("count_delta")
                 .and_then(Value::as_i64)
-                .filter(|delta| *delta >= 0)
-                .context("D66 chain row before the Consume aggregate removes count")?;
-            let observed = row.get("after").context("positive after")?;
+                .context("D66 chain row count delta")?;
+            let observed = row.get("after").context("non-terminal after")?;
             if observed.is_null()
-                || (state.is_null() && delta == 0)
-                || (delta > 0 && !state.is_null() && !same_identity(&state, observed))
+                || (state.is_null() && delta <= 0)
+                || (delta != 0 && !state.is_null() && !same_identity(&state, observed))
             {
-                bail!("D66 positive row changes instance identity");
+                bail!("D66 non-terminal row changes instance identity");
             }
             let count = json_count(&state)?
                 .checked_add(i128::from(delta))
                 .and_then(|count| u64::try_from(count).ok())
-                .context("D66 positive count overflow")?;
+                .context("D66 non-terminal row count is negative or overflows")?;
             let mut after = observed.clone();
             set(&mut after, "count", json!(count))?;
             set(row, "before", state.clone())?;
@@ -454,34 +493,148 @@ fn normalize_d66(
             .get("count_delta")
             .and_then(Value::as_i64)
             .context("consume count delta")?;
+        // With a terminal row the aggregate ends at its observed before-state (D94).
+        let end = match terminal {
+            Some(index) => {
+                let Some((_, row)) = facts.get(index).and_then(chain_key) else {
+                    bail!("terminal slot is not a delta");
+                };
+                row.get("before").context("terminal before")?.clone()
+            },
+            None => end.clone(),
+        };
         if state.is_null()
-            || json_count(end)?.checked_sub(json_count(&state)?) != Some(i128::from(delta))
-            || (!end.is_null() && !same_identity(&state, end))
+            || json_count(&end)?.checked_sub(json_count(&state)?) != Some(i128::from(delta))
+            || (!end.is_null() && !same_identity(&state, &end))
         {
             bail!("D66 Consume aggregate does not conserve the post-positive state");
         }
         set(row, "before", state)?;
-        set(row, "after", end.clone())?;
+        set(row, "after", end)?;
         set(row, "operation_ordinal", json!(positives.len()))?;
         rows.push(fact);
-        for (slot, row) in slots.iter().zip(rows) {
+        if let Some(index) = terminal {
+            let mut fact = facts.get(index).context("terminal slot")?.clone();
+            let ItemEvidenceData::Delta(row) = &mut fact.fact else {
+                bail!("terminal slot is not a delta");
+            };
+            set(
+                row,
+                "operation_ordinal",
+                json!(positives.len().checked_add(1).context("ordinal overflow")?),
+            )?;
+            rows.push(fact);
+        }
+        // Rows are written back to the chain's slots in canonical order.
+        let mut ordered = slots.clone();
+        ordered.sort_unstable();
+        for (slot, row) in ordered.iter().zip(rows) {
             *facts.get_mut(*slot).context("chain slot")? = row;
         }
     }
     Ok(())
 }
 
+/// D93/D96 use-row causes: automatic attack discharges name their attack resolution, cast
+/// discharges name the cast's skill (from the recording's `SkillCastStarted` events), and a
+/// receipt-bound use (manual shot charge) names its receipt. Every count delta is 0.
+fn attach_use_causes(
+    row: &mut Value,
+    delta: &ItemDeltaPlan,
+    casts: &std::collections::BTreeMap<u64, u32>,
+) -> anyhow::Result<()> {
+    for (key, expected) in [
+        ("instance", serde_json::to_value(delta.instance)?),
+        ("before", serde_json::to_value(&delta.before)?),
+        ("after", serde_json::to_value(&delta.after)?),
+        ("count_delta", json!(delta.count_delta)),
+    ] {
+        if row.get(key) != Some(&expected) {
+            bail!("observed use {key} differs from verified checkpoint");
+        }
+    }
+    if delta.operation != ItemOperation::Use || delta.count_delta != 0 {
+        bail!("use checkpoint identity mismatch");
+    }
+    let mut causes = Vec::new();
+    for cause in &delta.causes {
+        if cause.family != "shot_discharge" {
+            bail!("unsupported use cause {}", cause.family);
+        }
+        let identity = if let Some(ItemEvidenceValue::Unsigned(cast)) = cause.fields.get("cast") {
+            let skill = casts
+                .get(cast)
+                .context("cast discharge without a recorded cast start")?;
+            format!("cast_discharge:{skill}")
+        } else {
+            let Some(ItemEvidenceValue::Text(resolution)) = cause.fields.get("resolution_id")
+            else {
+                bail!("shot discharge lacks its attack resolution");
+            };
+            if resolution.is_empty() || resolution.chars().any(char::is_whitespace) {
+                bail!("invalid shot discharge resolution");
+            }
+            format!("shot_discharge:{resolution}")
+        };
+        causes.push(json!({"cause": identity, "count_delta": 0}));
+    }
+    if let Some(receipt) = delta.receipt {
+        causes.push(
+            json!({"cause": receipt_text(serde_json::to_value(receipt)?)?, "count_delta": 0}),
+        );
+    }
+    if causes.is_empty() {
+        bail!("use row without a discharge or receipt cause");
+    }
+    let row = row.as_object_mut().context("use object")?;
+    row.insert("causes".into(), json!(causes));
+    Ok(())
+}
+
+type EntityKey = (nightfall_api::domain::zone::EntityId, u64);
+
 fn export_tick(
     facts: Vec<ItemEvidenceFact>,
     events: &[ZoneEvent],
+    casts: &std::collections::BTreeMap<u64, u32>,
 ) -> anyhow::Result<Vec<ItemEvidenceFact>> {
     let bounds = chain_bounds(&facts)?;
     let mut facts = group_tick(facts)?;
     normalize_d66(&mut facts, &bounds)?;
+    // Use rows pair with the checkpoint's Use deltas of the same instance, in order.
+    let mut used = std::collections::BTreeMap::<(EntityKey, u64), usize>::new();
     for fact in &mut facts {
         let ItemEvidenceData::Delta(row) = &mut fact.fact else {
             continue;
         };
+        if row.get("operation").and_then(Value::as_str) == Some("use") {
+            let instance = row
+                .get("instance")
+                .and_then(Value::as_u64)
+                .context("use instance")?;
+            let index = used
+                .entry(((fact.entity, fact.tick.0), instance))
+                .or_insert(0);
+            let delta = events
+                .iter()
+                .filter_map(|event| {
+                    if let ZoneEvent::ItemCheckpoint(projection) = event {
+                        (projection.entity == fact.entity && projection.tick == fact.tick)
+                            .then_some(projection)
+                    } else {
+                        None
+                    }
+                })
+                .flat_map(|projection| &projection.ledger)
+                .filter(|delta| {
+                    delta.operation == ItemOperation::Use && delta.instance.get() == instance
+                })
+                .nth(*index)
+                .context("use lacks a verified checkpoint row")?;
+            *index = index.checked_add(1).context("use index overflow")?;
+            attach_use_causes(row, delta, casts)?;
+            continue;
+        }
         if row.get("operation").and_then(Value::as_str) != Some("consume") {
             continue;
         }
@@ -565,6 +718,16 @@ pub(super) fn collect(rec: &Recording, recording_bytes: &[u8]) -> anyhow::Result
     )?;
     let mut sequence = 0_u64;
     let mut cursor = rec.snapshot.rng.word_pos;
+    // Casts in flight at the boundary come from the snapshot sidecars; later starts from
+    // SkillCastStarted events.
+    let mut casts = std::collections::BTreeMap::<u64, u32>::new();
+    if let Some(phase3) = rec.snapshot.phase3.as_ref() {
+        for entity in phase3.entities.values() {
+            if let nightfall_api::domain::zone::CastState::Casting(cast) = &entity.cast {
+                casts.insert(cast.id.0, cast.skill.id.0);
+            }
+        }
+    }
     for record in &rec.records {
         if record.zone != seed.zone
             || record.epoch != seed.epoch
@@ -580,7 +743,12 @@ pub(super) fn collect(rec: &Recording, recording_bytes: &[u8]) -> anyhow::Result
         if !record.reproduced_by(&AppliedTickRecord::from_applied(seed.zone, &applied)) {
             bail!("item evidence replay divergence at tick {}", record.tick.0);
         }
-        for fact in export_tick(state.take_items_replay_evidence(), &applied.events)? {
+        for event in &applied.events {
+            if let ZoneEvent::SkillCastStarted { cast_id, skill, .. } = event {
+                casts.insert(cast_id.0, skill.id.0);
+            }
+        }
+        for fact in export_tick(state.take_items_replay_evidence(), &applied.events, &casts)? {
             if let nightfall_api::domain::zone::evidence::ItemEvidenceData::Rng {
                 word_before,
                 word_after,
@@ -605,6 +773,8 @@ pub(super) fn collect(rec: &Recording, recording_bytes: &[u8]) -> anyhow::Result
             {
                 bail!("invalid item evidence subject/tick");
             }
+            let mut fact = fact;
+            strip_creation_origin(&mut fact);
             line(
                 &mut out,
                 &SequencedFact {
@@ -853,7 +1023,7 @@ mod tests {
             object.remove("causes");
             object.insert("receipt".into(), Value::Null);
         }
-        assert!(export_tick(vec![fact], &[]).is_err());
+        assert!(export_tick(vec![fact], &[], &std::collections::BTreeMap::new()).is_err());
         Ok(())
     }
 
@@ -890,6 +1060,49 @@ mod tests {
                 "delta":row.get("count_delta")}));
         }
         Ok(rows)
+    }
+
+    /// T10/B3: an epoch whose only item activity is an offline grant exports, both when an
+    /// earlier tick drew non-item words (NPC spawn ids, now tabulated as zone draws) and when
+    /// the whole epoch is draw-free; the gap-free cursor still holds across all facts.
+    #[test]
+    fn offline_grant_only_epochs_export_with_a_gap_free_cursor() -> anyhow::Result<()> {
+        for (bytes, expect_zone_draws) in [
+            (&include_bytes!("../../../fixtures/items/offline-grant-only.nfr")[..], true),
+            (&include_bytes!("../../../fixtures/items/draw-free-grant.nfr")[..], false),
+        ] {
+            let recording = nightfall_api::infrastructure::eventlog::Recording::from_bytes(bytes)?;
+            let out = collect(&recording, bytes)?;
+            let rows: Vec<Value> = std::str::from_utf8(&out)?
+                .lines()
+                .map(serde_json::from_str)
+                .collect::<Result<_, _>>()?;
+            let mut cursor = recording.snapshot.rng.word_pos;
+            let mut zone_draws = 0;
+            for row in &rows {
+                if row.get("kind").and_then(Value::as_str) == Some("item_rng") {
+                    let data = row.get("data").context("rng data")?;
+                    let word = |key: &str| -> anyhow::Result<u128> {
+                        let value = data.get(key).context("rng word")?;
+                        value
+                            .as_u64()
+                            .map(u128::from)
+                            .or_else(|| value.as_str().and_then(|s| s.parse().ok()))
+                            .context("rng word value")
+                    };
+                    assert_eq!(word("word_before")?, cursor);
+                    cursor = word("word_after")?;
+                    zone_draws += usize::from(
+                        data.get("callsite").and_then(Value::as_str) == Some("entity_id"),
+                    );
+                }
+            }
+            assert_eq!(zone_draws > 0, expect_zone_draws);
+            assert!(rows
+                .iter()
+                .any(|row| row.get("kind").and_then(Value::as_str) == Some("item_delta")));
+        }
+        Ok(())
     }
 
     #[test]
@@ -995,10 +1208,45 @@ mod tests {
                 json!({"operation":"consume","ordinal":1,"before":3,"after":2,"delta":-1}),
             ]
         );
-        // A non-Consume count decrease cannot precede the aggregate.
+        // D100: a partial Destroy precedes the aggregate, rebased in observed order.
+        assert_eq!(
+            d66(vec![
+                observed("destroy", Some(3), Some(2)),
+                observed("consume", Some(2), Some(1))
+            ])?,
+            vec![
+                json!({"operation":"destroy","ordinal":0,"before":3,"after":2,"delta":-1}),
+                json!({"operation":"consume","ordinal":1,"before":2,"after":1,"delta":-1}),
+            ]
+        );
+        // D94 [C, T]: the terminal Destroy stays last; the aggregate ends at its before.
+        assert_eq!(
+            d66(vec![
+                observed("consume", Some(3), Some(2)),
+                observed("destroy", Some(2), None)
+            ])?,
+            vec![
+                json!({"operation":"consume","ordinal":0,"before":3,"after":2,"delta":-1}),
+                json!({"operation":"destroy","ordinal":1,"before":2,"after":null,"delta":-2}),
+            ]
+        );
+        // D94 [E/G, C, T]: Consume 3->2, Grant 2->5, Destroy 5->None rebases the grant first.
+        assert_eq!(
+            d66(vec![
+                observed("consume", Some(3), Some(2)),
+                observed("grant", Some(2), Some(5)),
+                observed("destroy", Some(5), None)
+            ])?,
+            vec![
+                json!({"operation":"grant","ordinal":0,"before":3,"after":6,"delta":3}),
+                json!({"operation":"consume","ordinal":1,"before":6,"after":5,"delta":-1}),
+                json!({"operation":"destroy","ordinal":2,"before":5,"after":null,"delta":-5}),
+            ]
+        );
+        // A terminal row that is not last (or two of them) is refused.
         assert!(d66(vec![
-            observed("destroy", Some(3), Some(1)),
-            observed("consume", Some(1), Some(0))
+            observed("destroy", Some(3), None),
+            observed("consume", Some(3), Some(2))
         ])
         .is_err());
         let mut relabelled = observed("grant", Some(2), Some(5));

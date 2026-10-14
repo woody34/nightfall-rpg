@@ -1111,15 +1111,19 @@ impl ZoneState {
     /// the largest multiple of `n` not above 2^32 are rejected, so there is no modulo bias.
     /// `n == 1` still consumes a word; callers skip the draw for a zero-width range.
     pub fn roll_below(&mut self, n: u32) -> u32 {
-        let n = u64::from(n.max(1));
+        let bound = n.max(1);
+        let before = self.rng.get_word_pos();
+        let n = u64::from(bound);
         let span = 1_u64 << 32;
         let limit = span.saturating_sub(span.checked_rem(n).unwrap_or(0));
-        loop {
+        let value = loop {
             let v = u64::from(self.rng.next_u32());
             if v < limit {
-                return u32::try_from(v.checked_rem(n).unwrap_or(0)).unwrap_or(0);
+                break u32::try_from(v.checked_rem(n).unwrap_or(0)).unwrap_or(0);
             }
-        }
+        };
+        self.note_raw_draw("zone_roll", before, bound, value);
+        value
     }
 
     /// Phase one of a tick: assigns consecutive ordinals to `inputs` (in the given order) for
@@ -1709,7 +1713,10 @@ impl ZoneState {
     /// A version-4 UUID from the zone RNG, for ids that are not inputs (plan §8 #6).
     fn random_entity_id(&mut self) -> EntityId {
         let mut bytes = [0_u8; 16];
+        let before = self.rng.get_word_pos();
         self.rng.fill_bytes(&mut bytes);
+        // Not a bounded draw: recorded as words consumed for an id (bound 1, value 0).
+        self.note_raw_draw("entity_id", before, 1, 0);
         EntityId::from_uuid(uuid::Builder::from_random_bytes(bytes).into_uuid())
     }
 
