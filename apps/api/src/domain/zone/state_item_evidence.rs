@@ -37,6 +37,7 @@ impl ZoneState {
 
     /// Drain only after the enclosing replay record has reproduced exactly.
     pub fn take_items_replay_evidence(&mut self) -> Vec<ItemEvidenceFact> {
+        self.flush_raw_draws(None);
         self.evidence.as_mut().map_or_else(Vec::new, |buffer| {
             buffer.facts.clear();
             buffer.draws.clear();
@@ -51,6 +52,21 @@ impl ZoneState {
     }
 
     pub(super) fn item_evidence(&mut self, subject: TargetBinding, fact: ItemEvidenceData) {
+        // B3: earlier untabulated draws precede this fact; the draws it covers are its own.
+        if let ItemEvidenceData::Rng {
+            word_before,
+            word_after,
+            ..
+        } = &fact
+        {
+            let (before, after) = (*word_before, *word_after);
+            self.flush_raw_draws(Some(before));
+            if let Some(buffer) = self.evidence.as_mut() {
+                buffer
+                    .raw_draws
+                    .retain(|draw| draw.word_before < before || draw.word_after > after);
+            }
+        }
         if let Some(facts) = self
             .evidence
             .as_mut()
@@ -62,6 +78,69 @@ impl ZoneState {
                 origin: ItemEvidenceOrigin::Live,
                 tick: self.next_tick,
                 fact,
+            });
+        }
+    }
+
+    /// B3/T10: record a generator call while item evidence is on, so the exported cursor
+    /// stays gap-free even for draws whose caller tabulates nothing (spawn ids, NPC rolls
+    /// without a binding, target-less rolls).
+    pub(super) fn note_raw_draw(&mut self, callsite: &str, before: u128, bound: u32, value: u32) {
+        let after = self.rng.get_word_pos();
+        let tick = self.next_tick;
+        if let Some(buffer) = self.evidence.as_mut().filter(|b| b.items.is_some()) {
+            buffer
+                .raw_draws
+                .push(crate::domain::zone::evidence::RawDraw {
+                    tick,
+                    callsite: callsite.to_owned(),
+                    word_before: before,
+                    word_after: after,
+                    bound,
+                    value,
+                });
+        }
+    }
+
+    /// Name the pending raw draw starting at `before` (a caller that cannot tabulate it).
+    pub(super) fn label_raw_draw(&mut self, before: u128, callsite: &str) {
+        if let Some(draw) = self
+            .evidence
+            .as_mut()
+            .and_then(|b| b.raw_draws.iter_mut().find(|d| d.word_before == before))
+        {
+            callsite.clone_into(&mut draw.callsite);
+        }
+    }
+
+    /// Emit untabulated draws (all, or those ending at or before `until`) as zone `item_rng`
+    /// facts with a nil subject, in generator order.
+    fn flush_raw_draws(&mut self, until: Option<u128>) {
+        let Some(buffer) = self.evidence.as_mut() else {
+            return;
+        };
+        let Some(facts) = buffer.items.as_mut() else {
+            buffer.raw_draws.clear();
+            return;
+        };
+        let (flush, keep): (Vec<_>, Vec<_>) = std::mem::take(&mut buffer.raw_draws)
+            .into_iter()
+            .partition(|draw| until.is_none_or(|limit| draw.word_after <= limit));
+        buffer.raw_draws = keep;
+        for draw in flush {
+            facts.push(ItemEvidenceFact {
+                entity: EntityId::from_uuid(uuid::Uuid::nil()),
+                incarnation: 1,
+                origin: ItemEvidenceOrigin::Live,
+                tick: draw.tick,
+                fact: ItemEvidenceData::Rng {
+                    resolution_id: format!("zone:{}:{}", draw.callsite, draw.word_before),
+                    callsite: draw.callsite,
+                    word_before: draw.word_before,
+                    word_after: draw.word_after,
+                    bound: draw.bound,
+                    value: draw.value,
+                },
             });
         }
     }
@@ -898,6 +977,8 @@ impl ZoneState {
     pub(super) fn item_evidence_npc_roll(&mut self, npc: EntityId, site: &str, bound: u32) -> u32 {
         let before = self.rng.get_word_pos();
         let value = self.roll_below(bound);
+        // B3: without a binding the draw still becomes a zone fact under this callsite.
+        self.label_raw_draw(before, site);
         if self.items_evidence_enabled() {
             if let Some(subject) = self.binding(npc) {
                 self.item_evidence(

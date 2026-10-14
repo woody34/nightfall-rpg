@@ -595,6 +595,82 @@ mod tests {
         assert_eq!(refused.dispositions[0].reason, RejectReason::NotPermitted);
     }
 
+    /// T10: a recorded V6 epoch whose only item activity is an offline grant (no item draw),
+    /// while the same epoch's first tick spawns an NPC (non-item generator words). Writes the
+    /// recording consumed by the replay exporter's fixture test.
+    #[test]
+    fn v6_offline_grant_only_epoch_recording() {
+        use crate::application::replay_log::{Watermark, WatermarkReason};
+        let (mut zone, owner, _) = ZoneState::item_checkpoint_fixture();
+        zone.run_tick(zone.draft(Vec::new())).unwrap();
+        let mut core = paused(&zone, owner.entity);
+        core.load.alive = false;
+        core.load.hp = Some(0);
+        replay(
+            &mut zone,
+            vec![ZoneInput::system(ZoneCommand::Despawn {
+                entity: owner.entity,
+            })],
+        );
+        let mut command = grant(&zone, owner.entity, 9101, 10);
+        command.paused = Some(Box::new(core));
+        let snapshot = zone.snapshot();
+        let stats = crate::infrastructure::rules_data::load_rules(
+            &crate::infrastructure::rules_data::RulesSource::embedded(),
+        )
+        .unwrap()
+        .rules;
+        let template = crate::infrastructure::zone_data::parse_zone(
+            crate::infrastructure::zone_data::TEST_ZONE_TOML,
+        )
+        .unwrap()
+        .npc_templates[0]
+            .clone();
+        let cursor = zone.rng.get_word_pos();
+        let spawn = replay(
+            &mut zone,
+            vec![ZoneInput::system(ZoneCommand::SpawnNpc {
+                name: "Keltir".into(),
+                pos: crate::domain::zone::Vec2Fixed::from_tiles(30, 30),
+                speed: template.move_speed,
+                combat: Some(Box::new(
+                    crate::domain::zone::NpcCombat::from_template(&stats, &template).unwrap(),
+                )),
+            })],
+        );
+        assert!(zone.rng.get_word_pos() > cursor, "the spawn tick draws non-item words");
+        let draw_free = zone.snapshot();
+        let cursor = zone.rng.get_word_pos();
+        let granted = replay(&mut zone, vec![input(&command)]);
+        assert_eq!(zone.rng.get_word_pos(), cursor, "an offline grant draws nothing");
+        assert!(granted.dispositions.is_empty(), "{:?}", granted.dispositions);
+        let records = vec![
+            AppliedTickRecord::from_applied(snapshot.seed.zone, &spawn),
+            AppliedTickRecord::from_applied(snapshot.seed.zone, &granted),
+        ];
+        let write = |variable: &str,
+                     snapshot: crate::domain::zone::ZoneSnapshot,
+                     records: Vec<AppliedTickRecord>| {
+            if let Ok(path) = std::env::var(variable) {
+                let recording = crate::infrastructure::eventlog::Recording {
+                    watermark: Watermark {
+                        zone: snapshot.seed.zone,
+                        epoch: snapshot.seed.epoch,
+                        records: u64::try_from(records.len()).unwrap(),
+                        last_tick: records.last().map(|r| r.tick),
+                        reason: WatermarkReason::Shutdown,
+                    },
+                    records,
+                    snapshot,
+                };
+                std::fs::write(path, recording.to_bytes().unwrap()).unwrap();
+            }
+        };
+        // Spawn tick (non-item draws) + grant tick, and a genuinely draw-free grant-only epoch.
+        write("NIGHTFALL_TEST_OFFLINE_ONLY_RECORDING", snapshot, records.clone());
+        write("NIGHTFALL_TEST_DRAW_FREE_RECORDING", draw_free, records[1..].to_vec());
+    }
+
     #[test]
     fn v6_offline_grants_preserve_paused_core_without_admission_or_rng() {
         let (mut zone, owner, _) = ZoneState::item_checkpoint_fixture();
