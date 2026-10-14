@@ -99,6 +99,22 @@ impl PgCharacterRepository {
             .map_err(anyhow::Error::msg)
     }
 
+    /// D116 read-side upgrade of a retained V5 skill checkpoint under V6 rules.
+    fn read_phase3(
+        &self,
+        phase3: Option<Phase3Checkpoint>,
+        c: &Character,
+    ) -> anyhow::Result<Option<Phase3Checkpoint>> {
+        if phase3.is_none() {
+            return Ok(None);
+        }
+        Ok(crate::infrastructure::character_validation::upgrade_v6_skill_checkpoint(
+            phase3,
+            &*self.phase3_rules()?,
+            &c.class_state.learned_skills,
+        ))
+    }
+
     fn validate_versioned(
         &self,
         c: &Character,
@@ -265,6 +281,7 @@ impl CharacterRepository for PgCharacterRepository {
                 let alive = model.alive;
                 let mut c = model_to_character(model)?;
                 character_ledger::hydrate(&tx, &mut c).await?;
+                let phase3 = self.read_phase3(phase3, &c)?;
                 self.validate_versioned(&c, &c.class_state, phase3.as_ref(), alive)?;
                 Some(c)
             } else {
@@ -291,6 +308,7 @@ impl CharacterRepository for PgCharacterRepository {
                 let alive = model.alive;
                 let mut character = model_to_character(model)?;
                 character_ledger::hydrate(&tx, &mut character).await?;
+                let phase3 = self.read_phase3(phase3, &character)?;
                 self.validate_versioned(
                     &character,
                     &character.class_state,
@@ -360,6 +378,7 @@ impl CharacterRepository for PgCharacterRepository {
                 );
                 let mut c = model_to_character(m)?;
                 character_ledger::hydrate(&tx, &mut c).await?;
+                let phase3 = self.read_phase3(phase3, &c)?;
                 self.validate_versioned(&c, &c.class_state, phase3.as_ref(), alive)?;
                 let phase4 = if let Some(rules) = &self.phase4_rules {
                     let requests = super::item_admission::load_pending(&tx, c.id).await?;
@@ -564,6 +583,16 @@ impl PgCharacterRepository {
         // Item audit facts require the atomic inventory/ledger/receipt projection lane.
         if items.is_none() && events.iter().any(DomainEvent::is_item) {
             return Err(CheckpointError::Constraint("item_projection_required".into()));
+        }
+        // D47: learn payments bind to this transaction's learn receipt, and a rank that
+        // requires items settles only with exactly those payments.
+        if receipt.is_some() || items.is_some() {
+            crate::application::ports::validate_learn_payments(
+                items.map_or(&[][..], |work| work.projection.ledger.as_slice()),
+                cp,
+                receipt,
+                &*crate::infrastructure::character_validation::registry(self.classes.as_ref())?,
+            )?;
         }
         if receipt.is_none() {
             if let Some(name) = cp.violated_constraint() {

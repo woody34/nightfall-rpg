@@ -55,6 +55,7 @@ pub(crate) async fn allocator_fixture() -> (
                 paused: None,
                 known: None,
                 conflict: None,
+                enchant: 0,
             })),
         )]))
         .unwrap();
@@ -1224,11 +1225,13 @@ async fn recorded_grant_reply_waits_for_log_checkpoint_and_returns_original_base
             CharacterId::from_uuid(h.entity.as_uuid()),
             57,
             10,
+            0,
         ),
         rules_hash: h.state.snapshot().phase4.unwrap().rules_hash,
         paused: None,
         known: None,
         conflict: None,
+        enchant: 0,
     };
     let writer = Arc::new(FlakyItems::new(h.repo.clone(), true, false));
     h.service.item_repo = Some(writer.clone());
@@ -1289,6 +1292,7 @@ async fn recorded_grant_reply_waits_for_log_checkpoint_and_returns_original_base
         CharacterId::from_uuid(h.entity.as_uuid()),
         57,
         3,
+        0,
     );
     let later = handle.enqueue_grant_item(next).await.unwrap();
     driver.step().await.unwrap();
@@ -1324,6 +1328,7 @@ async fn recorded_grant_reply_waits_for_log_checkpoint_and_returns_original_base
         CharacterId::from_uuid(h.entity.as_uuid()),
         57,
         11,
+        0,
     );
     let refused = handle.enqueue_grant_item(conflict).await.unwrap();
     driver.step().await.unwrap();

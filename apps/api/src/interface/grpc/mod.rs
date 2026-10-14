@@ -194,6 +194,7 @@ impl GameService for GameServiceImpl {
                 template_id: body.template_id,
                 count: body.count,
                 idempotency_key: body.idempotency_key,
+                enchant_level: body.enchant_level,
             })
             .await
             .map_err(to_status)?;

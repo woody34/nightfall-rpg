@@ -1,6 +1,6 @@
-//! Real zone ticks settled on both adapters: D95 Refine + `CancelRefine` at the blacksmith and
+//! Real zone ticks settled on both adapters: D95 Refine + `CancelRefine` at the blacksmith,
 //! D100 credit after a plain debit (partial Destroy of a crystal stack, then a Crystallize
-//! refund into it).
+//! refund into it) and the D113 enchanted dev grant (birth enchant level, no RNG).
 #![allow(
     missing_docs,
     clippy::unwrap_used,
@@ -16,7 +16,7 @@ use api::application::ports::*;
 use api::application::replay_log::{restore_snapshot, start_epoch, AppliedTickRecord, EventLog};
 use api::domain::character_progression::{FrozenTransferResult, SuccessfulTransferReceipt};
 use api::domain::subclass::LearnedSkill;
-use api::domain::zone::item_grant::grant_fingerprint;
+use api::domain::zone::item_grant::{grant_enchant_limit, grant_fingerprint_with_enchant};
 use api::domain::zone::phase4_projection::{ItemOperation, ItemRefineOutcome};
 use api::domain::zone::*;
 use api::domain::{AccountId, Character, CharacterId, CharacterName, Race};
@@ -76,7 +76,7 @@ where
         level: u32,
         class: Option<u32>,
         skills: Vec<LearnedSkill>,
-        grants: &[(u32, u64)],
+        grants: &[(u32, u64, u32)],
     ) -> Self {
         let bundle = item_data::embedded_phase4_bundle().unwrap();
         let rules = rules_data::load_rules(&rules_data::RulesSource::embedded())
@@ -202,7 +202,7 @@ where
         let entity = EntityId::from_uuid(c.id.as_uuid());
         let grants = grants
             .iter()
-            .map(|(template, count)| {
+            .map(|(template, count, enchant)| {
                 ZoneInput::system(ZoneCommand::MaterializePendingItems(Box::new(
                     ItemGrantCommand {
                         entity,
@@ -210,11 +210,14 @@ where
                         request_id: Uuid::now_v7(),
                         template_id: *template,
                         count: *count,
-                        fingerprint: grant_fingerprint(c.id, *template, *count),
+                        fingerprint: grant_fingerprint_with_enchant(
+                            c.id, *template, *count, *enchant,
+                        ),
                         rules_hash: bundle.items.hash(),
                         paused: Some(Box::new(core.clone())),
                         known: None,
                         conflict: None,
+                        enchant: *enchant,
                     },
                 )))
             })
@@ -284,6 +287,52 @@ where
             .checkpoint(self.entity, snapshot.tick, snapshot.phase3.as_ref().unwrap())
             .unwrap()
             .instances
+    }
+
+    /// A live server grant (the `GrantItem` command) for the admitted owner, cold-replayed,
+    /// logged and settled; returns the tick's private projection.
+    async fn grant_live(&mut self, template_id: u32, count: u64, enchant: u32) -> Phase4Projection {
+        let character = CharacterId::from_uuid(self.entity.as_uuid());
+        let command = ItemGrantCommand {
+            entity: self.entity,
+            account: self.character.account_id,
+            request_id: Uuid::now_v7(),
+            template_id,
+            count,
+            fingerprint: grant_fingerprint_with_enchant(character, template_id, count, enchant),
+            rules_hash: item_data::embedded_phase4_bundle().unwrap().items.hash(),
+            paused: None,
+            known: None,
+            conflict: None,
+            enchant,
+        };
+        let draft =
+            self.state
+                .draft(vec![ZoneInput::system(ZoneCommand::MaterializePendingItems(
+                    Box::new(command),
+                ))]);
+        let mut cold = restore_snapshot(self.state.snapshot()).unwrap();
+        let applied = self.state.run_tick(draft.clone()).unwrap();
+        assert_eq!(applied, cold.run_tick(draft).unwrap());
+        assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+        let record = AppliedTickRecord::from_applied(self.zone, &applied);
+        assert_eq!(AppliedTickRecord::decode(&record.encode()).unwrap(), record);
+        self.log.append_applied(&record).await.unwrap();
+        self.service
+            .admitted(&applied, &self.state.snapshot())
+            .await
+            .unwrap();
+        applied
+            .events
+            .iter()
+            .find_map(|event| {
+                if let ZoneEvent::ItemCheckpoint(p) = event {
+                    Some(p.as_ref().clone())
+                } else {
+                    None
+                }
+            })
+            .unwrap()
     }
 
     /// One session tick of `commands`, cold-replayed, logged and settled through the service.
@@ -369,10 +418,10 @@ where
         None,
         Vec::new(),
         &[
-            (necklace, 1),
-            (stone, 2),
-            (cost.gemstone_id, gems * 2),
-            (57, 5_000_000),
+            (necklace, 1, 0),
+            (stone, 2, 0),
+            (cost.gemstone_id, gems * 2, 0),
+            (57, 5_000_000, 0),
         ],
     )
     .await;
@@ -458,7 +507,7 @@ where
             key: "l2.skill.248".into(),
             level: 1,
         }],
-        &[(weapon, 1), (weapon, 1)],
+        &[(weapon, 1, 0), (weapon, 1, 0)],
     )
     .await;
     let weapons: Vec<_> = scene
@@ -580,4 +629,180 @@ async fn postgres_real_partial_destroy_then_crystallize_refund_settles() {
     assert_eq!(rows.len(), 2);
     assert_eq!((rows[0], rows[1].0), ((0, -1), 1));
     assert!(rows[1].1 > 0);
+}
+
+/// One refused live grant tick: returns its single disposition reason; nothing changes.
+fn refused_grant(
+    state: &mut ZoneState,
+    entity: EntityId,
+    account: api::domain::AccountId,
+    template_id: u32,
+    count: u64,
+    enchant: u32,
+) -> RejectReason {
+    let character = CharacterId::from_uuid(entity.as_uuid());
+    let before = state.snapshot();
+    let draft = state.draft(vec![ZoneInput::system(ZoneCommand::MaterializePendingItems(
+        Box::new(ItemGrantCommand {
+            entity,
+            account,
+            request_id: Uuid::now_v7(),
+            template_id,
+            count,
+            fingerprint: grant_fingerprint_with_enchant(character, template_id, count, enchant),
+            rules_hash: item_data::embedded_phase4_bundle().unwrap().items.hash(),
+            paused: None,
+            known: None,
+            conflict: None,
+            enchant,
+        }),
+    ))]);
+    let applied = state.run_tick(draft).unwrap();
+    assert_eq!(applied.dispositions.len(), 1, "{:?}", applied.dispositions);
+    assert_eq!(state.snapshot().phase4, before.phase4);
+    applied.dispositions[0].reason
+}
+
+/// D113: birth enchant levels are bounded by the template's enchant rules in play: the
+/// highest matching scroll's maximum + 1 (NONE-grade weapon 13539: 24) and the first 0%-chance
+/// level of its chance group (D-grade armor 40: `ARMOR_GROUP` is 0% from +20, so 20). An
+/// offline (paused) owner and an admitted owner both receive the item at its level; the
+/// retained row and the append-only birth row carry it. An over-limit level is `InvalidEnchant`
+/// even into a full inventory, where a valid level is `InventoryFull`.
+#[allow(clippy::too_many_lines)] // One shared memory/Pg D113 contract.
+async fn enchanted_grant_contract<R>(repo: Arc<R>) -> (CharacterId, ItemInstanceId)
+where
+    R: CharacterRepository
+        + ItemAdmissionRepository
+        + ItemCheckpointRepository
+        + ItemInventoryRepository
+        + 'static,
+{
+    let bundle = item_data::embedded_phase4_bundle().unwrap();
+    // Reachable-in-play (D113 amended): the ceiling counts the scroll and support bonuses,
+    // so an armor is rate-bound only where base plus every bonus is 0% (15397 at +20).
+    let (armor, weapon) = (15397, 13539);
+    assert_eq!(grant_enchant_limit(&bundle.items, armor), 20, "rate-bound");
+    assert_eq!(grant_enchant_limit(&bundle.items, 40), 65_535, "bonus keeps +20 reachable");
+    assert_eq!(grant_enchant_limit(&bundle.items, weapon), 24, "scroll-bound");
+    assert_eq!(grant_enchant_limit(&bundle.items, 69), 65_535, "unbounded D weapon");
+    assert_eq!(grant_enchant_limit(&bundle.items, 57), 0, "stackable");
+    // Offline: the paused-owner grant materializes the kit and the +20 armor before login.
+    let mut scene = Scene::new(
+        repo,
+        "EnchantedGrant",
+        Race::Human,
+        20,
+        None,
+        Vec::new(),
+        &[(57, 1, 0), (armor, 1, 20)],
+    )
+    .await;
+    let offline = scene
+        .instances()
+        .into_iter()
+        .find(|item| item.template_id == armor)
+        .unwrap();
+    assert_eq!(offline.enchant, 20);
+    // Live: +24 on the scroll-bound weapon.
+    let projection = scene.grant_live(weapon, 1, 24).await;
+    let born = projection
+        .ledger
+        .iter()
+        .find(|row| {
+            row.after
+                .as_ref()
+                .is_some_and(|item| item.template_id == weapon)
+        })
+        .unwrap();
+    assert!(born.before.is_none());
+    assert_eq!(born.after.as_ref().unwrap().enchant, 24);
+    let id = born.instance;
+    let retained = scene
+        .repo
+        .retained_inventory(scene.character.id)
+        .await
+        .unwrap()
+        .unwrap()
+        .checkpoint
+        .unwrap();
+    let level = |id| {
+        retained
+            .instances
+            .iter()
+            .find(|item| item.id == id)
+            .unwrap()
+            .enchant
+    };
+    assert_eq!((level(id), level(offline.id)), (24, 20));
+    let (entity, account) = (scene.entity, scene.character.account_id);
+    for (template, enchant) in [(weapon, 25), (armor, 21)] {
+        assert_eq!(
+            refused_grant(&mut scene.state, entity, account, template, 1, enchant),
+            RejectReason::InvalidEnchant
+        );
+    }
+    // Fill the ordinary inventory with the lightest storable non-stackable item.
+    let parts = bundle.items.parts();
+    let filler = parts
+        .items
+        .iter()
+        .filter(|(template, definition)| {
+            !definition.stackable
+                && definition.flags.get("is_questitem") == Some(&false)
+                && parts.capabilities.get(template).is_some_and(|c| c.storable)
+        })
+        .min_by_key(|(template, definition)| (definition.weight, **template))
+        .map(|(template, _)| *template)
+        .unwrap();
+    let capacity = u64::from(retained.ordinary_capacity);
+    let used = u64::try_from(retained.instances.len()).unwrap();
+    scene
+        .grant_live(filler, capacity.checked_sub(used).unwrap(), 0)
+        .await;
+    assert_eq!(
+        refused_grant(&mut scene.state, entity, account, armor, 1, 21),
+        RejectReason::InvalidEnchant,
+        "the level is checked before placement"
+    );
+    assert_eq!(
+        refused_grant(&mut scene.state, entity, account, armor, 1, 3),
+        RejectReason::InventoryFull
+    );
+    (scene.character.id, id)
+}
+
+#[tokio::test]
+async fn memory_enchanted_dev_grant_is_born_at_its_level() {
+    let repo = memory_repo();
+    let (_, id) = enchanted_grant_contract(repo.clone()).await;
+    let birth = repo
+        .item_ledger_for_test()
+        .into_iter()
+        .find(|row| row.instance_id == id && row.delta.before.is_none())
+        .unwrap();
+    assert_eq!(birth.delta.after.unwrap().enchant, 24);
+}
+
+#[tokio::test]
+async fn postgres_enchanted_dev_grant_is_born_at_its_level() {
+    let Some((pool, repo)) = pg_repo().await else {
+        return;
+    };
+    let (character, id) = enchanted_grant_contract(repo).await;
+    let enchant: i64 = sqlx::query_scalar(
+        "SELECT (delta->'after'->>'enchant')::bigint FROM item_ledger WHERE character_id=$1 AND instance_id=$2 AND delta->'before'='null'::jsonb",
+    )
+    .bind(character.as_uuid())
+    .bind(i64::try_from(id.get()).unwrap())
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(enchant, 24);
+    let stored: i64 = sqlx::query_scalar("SELECT enchant FROM item_instances WHERE id=$1")
+        .bind(i64::try_from(id.get()).unwrap())
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(stored, 24);
 }

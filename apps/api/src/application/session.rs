@@ -315,6 +315,39 @@ pub struct PlayerSpawn {
     pub load: Option<Box<PlayerLoad>>,
 }
 
+/// The skill sidecar a load carries into its epoch. A retained V6 item checkpoint always
+/// travels with its retained skill checkpoint. A pending first materialization (no retained
+/// item checkpoint) without a retained skill checkpoint carries none: the zone installs the
+/// learned providers exactly as a V5 fresh admission does.
+pub(crate) fn v6_skill_origin(
+    loaded: &crate::application::ProgressionState,
+) -> Result<Option<crate::domain::zone::Phase3Checkpoint>, &'static str> {
+    match (&loaded.phase3, &loaded.phase4) {
+        (Some(checkpoint), _) => Ok(Some(checkpoint.clone())),
+        (None, None) => Ok(None),
+        (None, Some(items)) if items.checkpoint.is_none() => Ok(None),
+        (None, Some(_)) => Err("retained item checkpoint without its skill checkpoint"),
+    }
+}
+
+/// The paused-owner skill origin of an offline grant: the retained skill checkpoint, or the
+/// canonical empty origin for a pending owner with no learned providers.
+pub(crate) fn paused_skill_origin(
+    loaded: &crate::application::ProgressionState,
+) -> Option<crate::domain::zone::Phase3Checkpoint> {
+    match (&loaded.phase3, &loaded.phase4) {
+        (Some(checkpoint), _) => Some(checkpoint.clone()),
+        (None, Some(items))
+            if loaded.class_state.learned_skills.is_empty()
+                && items.checkpoint.is_none()
+                && !items.pending.is_empty() =>
+        {
+            Some(crate::domain::zone::Phase3Checkpoint::new())
+        },
+        (None, _) => None,
+    }
+}
+
 /// The zone generation for an account's session generation. Generations start at 1 and only
 /// grow, so the conversion is exact.
 #[must_use]
@@ -388,15 +421,20 @@ impl SessionRegistry {
                 .await
                 .map_err(|_| AdmitError::LoadFailed)?
                 .ok_or(AdmitError::LoadFailed)?;
-            // Remove this rollout fence when the V6 command codec carries the canonical load.
-            if loaded.phase4.is_some() || (loaded.phase3.is_some() && !zone.phase3_enabled()) {
+            // A load carries exactly the policy sidecars its epoch executes: retained V5 skills
+            // need a V5 zone and the V6 item load (retained checkpoint and pending kit) a V6
+            // zone. The recorded SpawnPlayer carries the canonical load (PbPlayerLoad.phase4).
+            if (loaded.phase4.is_some() && !zone.phase4_enabled())
+                || (loaded.phase3.is_some() && !zone.phase3_enabled())
+            {
                 return Err(AdmitError::LoadFailed);
             }
             loaded.name.as_str().clone_into(&mut spawn.name);
             spawn.pos = saved_position(loaded.position).ok_or(AdmitError::LoadFailed)?;
+            let phase3 = v6_skill_origin(&loaded).map_err(|_| AdmitError::LoadFailed)?;
             spawn.load = Some(Box::new(PlayerLoad {
-                phase4: None,
-                phase3: loaded.phase3,
+                phase4: loaded.phase4,
+                phase3,
                 progression: zone.has_classes().then(|| {
                     Box::new(crate::domain::zone::PlayerProgression {
                         identity: loaded.identity,

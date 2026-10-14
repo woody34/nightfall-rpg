@@ -20,6 +20,20 @@ pub async fn empty_schema_pool() -> Option<PgPool> {
         .execute(sqlx::raw_sql(sqlx::AssertSqlSafe(format!("CREATE SCHEMA {schema}"))))
         .await
         .unwrap();
+    schema_pool(&schema).await
+}
+
+/// A pool on an existing test schema, for example one another process created.
+pub async fn schema_pool(schema: &str) -> Option<PgPool> {
+    let url = std::env::var("DATABASE_URL").ok()?;
+    assert!(
+        schema.starts_with("test_")
+            && schema
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '_'),
+        "test schema names only"
+    );
+    let schema = schema.to_owned();
     let pool = PgPoolOptions::new()
         .max_connections(8)
         .after_connect(move |conn, _| {

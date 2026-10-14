@@ -11582,6 +11582,7 @@ mod tests {
             paused: None,
             known: None,
             conflict: None,
+            enchant: 0,
         };
         let draft = zone.draft(vec![
             command(

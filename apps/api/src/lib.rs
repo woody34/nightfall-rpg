@@ -258,7 +258,9 @@ pub fn start_realtime(
         registry: SessionRegistry::with_characters(deps.characters.clone()),
         audit: deps.audit.clone(),
         metrics: Arc::new(deps.metrics.clone()),
-        codec: if zones.fixture().phase3_enabled() {
+        codec: if zones.fixture().phase4_enabled() {
+            Arc::new(interface::ws::Phase4Codec)
+        } else if zones.fixture().phase3_enabled() {
             Arc::new(interface::ws::Phase3Codec)
         } else {
             Arc::new(ProstCodec)
