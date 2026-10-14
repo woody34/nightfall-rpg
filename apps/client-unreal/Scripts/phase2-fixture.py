@@ -107,13 +107,12 @@ def clean_env():
 
 
 def zone_flags(selected):
-    """Per-unit zone version flags, recorded in the unit manifest: Phase 4 packs boot a V6
-    zone (PHASE4_ENABLED=1); Phase 2/3 units leave it unset so legacy recordings stay
-    byte-exact."""
-    flags = {'PHASE3_ENABLED': '1'}
-    if selected in PHASE4:
-        flags['PHASE4_ENABLED'] = '1'
-    return flags
+    """Per-unit zone version flags, recorded in the unit manifest and checked at exec-api.
+
+    D114: every unit (Phase 2, 3 and 4 packs alike) boots a V6 zone, so Phase 0b-3
+    behaviour is regression-tested on the production rules (E6.3). The per-unit mechanism
+    stays so a future zone version is again one decision away."""
+    return {'PHASE3_ENABLED': '1', 'PHASE4_ENABLED': '1'}
 
 
 def candidate_binaries(folder):

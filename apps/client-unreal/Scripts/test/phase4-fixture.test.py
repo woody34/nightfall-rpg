@@ -220,12 +220,16 @@ class Fixtures(unittest.TestCase):
             with self.assertRaises(ValueError):seed.guarded_grpc(address)
 
     def test_zone_flags_are_per_unit(self):
-        # Phase 4 packs boot V6; Phase 2/3 units leave PHASE4_ENABLED unset (byte-exact legacy).
-        for pack in fixture.PHASE4:self.assertEqual(fixture.zone_flags(pack),{'PHASE3_ENABLED':'1','PHASE4_ENABLED':'1'},pack)
-        for pack in fixture.PHASE3|fixture.PHASE2:self.assertNotIn('PHASE4_ENABLED',fixture.zone_flags(pack),pack)
+        # D114: every unit boots V6; the per-unit manifest field and exec-api check remain.
+        for pack in fixture.PHASE4|fixture.PHASE3|fixture.PHASE2:
+            self.assertEqual(fixture.zone_flags(pack),{'PHASE3_ENABLED':'1','PHASE4_ENABLED':'1'},pack)
+        source=(SCRIPTS/'phase2-fixture.py').read_text()
+        self.assertIn("'zone_flags': zone_flags(selected)",source);self.assertIn("!= zone_flags(value['fixture'])",source)
         lib=(SCRIPTS/'sim-lib.sh').read_text();soak=(SCRIPTS/'run-soak.sh').read_text()
-        self.assertNotIn('PHASE4_ENABLED=1 exec',lib);self.assertIn('unset PHASE4_ENABLED',lib)
-        self.assertIn('ZONE_FLAGS=(env -u PHASE4_ENABLED)',soak);self.assertNotIn('PHASE4_ENABLED="$ITEMS"',soak)
+        self.assertEqual(lib.count('PHASE3_ENABLED=1 PHASE4_ENABLED=1 exec'),2);self.assertNotIn('unset PHASE4_ENABLED',lib)
+        self.assertIn('zone-flags.json',lib)
+        self.assertIn('ZONE_FLAGS=(env PHASE3_ENABLED=1 PHASE4_ENABLED=1)',soak);self.assertNotIn('PHASE3_ENABLED="$CASTING"',soak)
+        self.assertNotIn('env -u PHASE4_ENABLED',soak)
 
     def test_stage_manifests_are_validated(self):
         roles={name:r|{'account_id':'owner'} for name,r in fixture.phase4.profiles('phase4-equip').items()}

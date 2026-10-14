@@ -150,15 +150,18 @@ sim_api_prepare() {
       (
         cd "$SIM_REPO"
         if [[ -f .env ]]; then set -a; . ./.env; set +a; fi
-        # Shared-stack units are Phase 0b/1 (Phase 2-4 packs run on owned fixture stacks with
-        # per-unit flags from their manifest): never boot V6 here, even if .env sets it.
-        unset PHASE4_ENABLED
+        # D114: shared-stack units (Phase 0b/1) boot V6 like every owned fixture unit
+        # (phase2-fixture.py zone_flags); explicit values override any .env setting.
         if [[ -n "${SIM_API_BIN:-}" ]]; then
-          AUTH_DEV_TOKENS=1 PHASE3_ENABLED=1 exec "$SIM_API_BIN"
+          AUTH_DEV_TOKENS=1 PHASE3_ENABLED=1 PHASE4_ENABLED=1 exec "$SIM_API_BIN"
         fi
-        AUTH_DEV_TOKENS=1 PHASE3_ENABLED=1 exec cargo run --quiet -p nightfall-api
+        AUTH_DEV_TOKENS=1 PHASE3_ENABLED=1 PHASE4_ENABLED=1 exec cargo run --quiet -p nightfall-api
       ) >"${SIM_API_LOG:-/dev/null}" 2>&1 &
       SIM_STARTED_API_PID=$!
+      # Evidence for phase4-regression.py: the zone flags this unit's API was started with.
+      if [[ -n "${ARTIFACTS:-}" ]]; then
+        printf '{"PHASE3_ENABLED": "1", "PHASE4_ENABLED": "1"}\n' >"$ARTIFACTS/zone-flags.json"
+      fi
       trap sim_exit_cleanup EXIT
       local deadline=$((SECONDS + ${SIM_API_WAIT:-180}))
       while ((SECONDS < deadline)); do

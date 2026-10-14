@@ -21,13 +21,14 @@ class Regression(unittest.TestCase):
         data=json.loads((SCRIPTS.parent/'Scenarios/phase4-regression.pending.json').read_text())
         files={p.relative_to(SCRIPTS.parent/'Scenarios').as_posix():p for p in (SCRIPTS.parent/'Scenarios').rglob('*.nfs') if re.match(r'(?:0b|1|2|3)-',p.name)}
         self.assertEqual(set(files),{r['scenario'] for r in data['scenarios']})
-        self.assertFalse(data['all_live_verified'])
+        self.assertNotIn('all_live_verified',data)
         for row in data['scenarios']:
             path=files[row['scenario']];self.assertEqual(row['scenario_sha256'],hashlib.sha256(path.read_bytes()).hexdigest())
             actual=[line for line in path.read_text().splitlines() if line.startswith(('nf.WaitFor ','nf.Expect '))]
             self.assertEqual(actual,[r['before'] for r in row['expectations']])
             for entry in row['expectations']:
-                self.assertEqual(entry['before'],entry['after']);self.assertIn('pending',entry['verification'])
+                self.assertEqual(entry['before'],entry['after']);self.assertEqual(set(entry),{'line','before','after','reason'})
+            self.assertNotIn('status',row)
 
     def test_pending_manifest_matches_accepted_migration_and_has_no_allocated_items(self):
         char='01970000-0000-7000-8000-000000000040'
@@ -43,7 +44,7 @@ class Regression(unittest.TestCase):
         self.assertNotIn('INSERT INTO item_instances(',sql)
         self.assertEqual(sql.count('COMMIT;'),1)
 
-    def test_isolated_math_and_backfill_cases_are_explicitly_pending(self):
+    def test_isolated_math_and_backfill_inventory(self):
         data=json.loads((SCRIPTS.parent/'Scenarios/phase4-regression.pending.json').read_text())
         rows=data['isolated_source_vectors'];self.assertEqual(len(rows),12)
         human=next(r for r in rows if r['class_id']==10 and r['level']==20)
@@ -51,7 +52,111 @@ class Regression(unittest.TestCase):
         self.assertEqual(human['before']['pDef'],58860000);self.assertEqual(human['after']['pDef'],63220000)
         cases=json.loads((SCRIPTS.parent/'Scenarios/phase4-backfill.pending.json').read_text())['cases']
         self.assertEqual({r['state'] for r in cases},{'alive','dead','never_admitted'})
-        self.assertTrue(all('pending' in r['execution'] for r in cases))
+        self.assertTrue(all('execution' not in r for r in cases))
+        self.assertEqual(json.loads((SCRIPTS.parent/'Scenarios/phase4-backfill.pending.json').read_text()),regression.backfill_matrix())
+
+
+V6={'PHASE3_ENABLED':'1','PHASE4_ENABLED':'1'}
+MATCH='zone 1 epoch 1: match. 10 ticks replayed (10 recorded), 1 players, 5 outputs, 9 bytes compared, 0 digest-only, in 1.0 ms\n'
+
+
+def write_suite(root,units,status='PASS',flags=V6,replay=MATCH,kinds=(),infra=(),fixture=True):
+    """A run-sim-ci.py artifact tree: summary.json, unit verdicts, scenario state, recordings."""
+    rows=[]
+    for unit,names in units.items():
+        folder=root/unit;folder.mkdir(parents=True)
+        rows.append(dict(unit=unit,scenarios=names,status=status))
+        (folder/'pipeline-verdict.json').write_text(json.dumps(dict(schema_version=1,completed=True,exit_code=0 if not kinds and not infra else 1,
+            infrastructure_failures=list(infra),scenarios=[dict(scenario=n,failure_kinds=list(kinds)) for n in names])))
+        if not fixture:(folder/'zone-flags.json').write_text(json.dumps(flags))
+        for name in names:
+            (folder/name).mkdir()
+            (folder/name/'pipeline-state.json').write_text(json.dumps(dict(scenario=name,failure_kinds=list(kinds),
+                process_exit_code=0 if not kinds else 1,infrastructure_failures=list(infra))))
+            (folder/name/f'{name}.nfr').write_bytes(b'NFR'+name.encode())
+            (folder/name/f'{name}.replay.log').write_text(replay)
+            if fixture:
+                (folder/name/'fixture').mkdir()
+                (folder/name/'fixture/manifest.json').write_text(json.dumps(dict(fixture='x',zone_flags=flags)))
+    (root/'summary.json').write_text(json.dumps(dict(schema_version=1,units=rows)))
+
+
+class Runner(unittest.TestCase):
+    """D114: verification comes only from V6 suite evidence and the API backfill results."""
+    def setUp(self):
+        import tempfile
+        self.tmp=tempfile.TemporaryDirectory();self.root=Path(self.tmp.name)
+        self.inventory=dict(scenarios=[dict(scenario='2-a.nfs',scenario_sha256='s',expectations=[1]),
+                                       dict(scenario='multi/3-pair-a.nfs',scenario_sha256='s',expectations=[]),
+                                       dict(scenario='multi/3-pair-b.nfs',scenario_sha256='s',expectations=[])])
+        self.units={'2-a':['2-a'],'3-pair':['3-pair-a','3-pair-b']}
+        self.sha=patch.object(regression,'sha',lambda path:'s');self.sha.start()
+    def tearDown(self):
+        self.sha.stop();self.tmp.cleanup()
+
+    def verdict(self,**kw):
+        write_suite(self.root/'suite',self.units,**kw)
+        return regression.regression_verdict(self.inventory,self.root/'suite')
+
+    def test_clean_v6_suite_verifies_every_scenario(self):
+        result=self.verdict();self.assertTrue(result['all_verified'],result)
+        self.assertEqual(result['scenarios'][1]['zone_flags'],V6)
+
+    def test_shared_stack_units_prove_v6_by_their_zone_flags_record(self):
+        self.assertTrue(self.verdict(fixture=False)['all_verified'])
+
+    def test_non_v6_failed_quarantined_or_diverged_units_are_findings(self):
+        cases=[dict(flags={'PHASE3_ENABLED':'1'}),dict(status='QUARANTINED'),dict(kinds=['bot_expectation']),
+               dict(infra=['replay_check']),dict(replay='zone 1 epoch 1: tick 4 output differs\n'),dict(replay='')]
+        for i,case in enumerate(cases):
+            self.root=Path(self.tmp.name)/str(i)
+            result=self.verdict(**case)
+            self.assertFalse(result['all_verified'],case)
+            self.assertTrue(all(r['problems'] for r in result['scenarios']),case)
+
+    def test_missing_unit_or_recording_is_not_verified(self):
+        write_suite(self.root/'suite',{'2-a':['2-a']})
+        result=regression.regression_verdict(self.inventory,self.root/'suite')
+        self.assertFalse(result['all_verified']);self.assertEqual(result['scenarios'][1]['problems'],['unit not run'])
+        (self.root/'suite/2-a/2-a/2-a.nfr').unlink()
+        self.assertIn('no recording',regression.regression_verdict(self.inventory,self.root/'suite')['scenarios'][0]['problems'])
+        self.assertFalse(regression.regression_verdict(self.inventory,None)['all_verified'])
+
+    def test_stale_inventory_is_refused(self):
+        write_suite(self.root/'suite',self.units)
+        self.inventory['scenarios'][0]['scenario_sha256']='other'
+        with self.assertRaisesRegex(ValueError,'stale'):regression.regression_verdict(self.inventory,self.root/'suite')
+
+
+class Backfill(unittest.TestCase):
+    MATRIX=dict(schema_version=1,cases=[dict(id='human_fighter-alive',class_id=0,state='alive',required_gates=['kit_once','crash_resume']),
+                                        dict(id='human_fighter-dead',class_id=0,state='dead',required_gates=['kit_once'])])
+
+    def results(self,**gates):
+        return dict(schema_version=1,source='apps/api/tests/phase4_backfill.rs',commit='abc',
+                    cases=[dict(id='human_fighter-alive',class_id=0,state='alive',gates=dict(kit_once=True,crash_resume=True)|gates),
+                           dict(id='human_fighter-dead',class_id=0,state='dead',gates=dict(kit_once=True))])
+
+    def test_every_case_and_gate_must_pass(self):
+        self.assertTrue(regression.backfill_verdict(self.MATRIX,self.results())['all_verified'])
+        failed=regression.backfill_verdict(self.MATRIX,self.results(crash_resume=False))
+        self.assertFalse(failed['all_verified']);self.assertEqual(failed['cases'][0]['problems'],['gate crash_resume not passed'])
+        self.assertFalse(regression.backfill_verdict(self.MATRIX,None)['all_verified'])
+        missing=self.results();missing['cases'].pop()
+        self.assertEqual(regression.backfill_verdict(self.MATRIX,missing)['cases'][1]['problems'],['no result'])
+        wrong=self.results();wrong['cases'][1]['state']='alive'
+        self.assertFalse(regression.backfill_verdict(self.MATRIX,wrong)['all_verified'])
+
+    def test_unknown_duplicate_and_unversioned_results_are_refused(self):
+        extra=self.results();extra['cases'].append(dict(id='elf-alive',gates={}))
+        with self.assertRaisesRegex(ValueError,'unknown cases'):regression.backfill_verdict(self.MATRIX,extra)
+        dup=self.results();dup['cases'].append(dup['cases'][0])
+        with self.assertRaisesRegex(ValueError,'duplicate'):regression.backfill_verdict(self.MATRIX,dup)
+        with self.assertRaisesRegex(ValueError,'schema'):regression.backfill_verdict(self.MATRIX,dict(schema_version=2,cases=[]))
+
+    def test_runner_source_has_no_hard_coded_verdict(self):
+        source=(SCRIPTS/'phase4-regression.py').read_text()
+        self.assertNotIn('all_live_verified=False',source);self.assertNotIn("'pending V6",source)
 
 
 if __name__=='__main__':unittest.main()
