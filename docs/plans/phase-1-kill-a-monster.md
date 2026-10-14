@@ -1,321 +1,330 @@
 # Phase 1 Plan: Kill a Monster
 
-**Status:** COMPLETE 2026-10-09. **Status (original):** DRAFT 2026-10-08. **Planning model:** Codex; implementation model and effort per story.
+**Status:** COMPLETE 2026-10-09. **Status (original):** DRAFT 2026-10-08. **Planning model:** Codex; each story gives its implementation model and effort.
 
 ## 1. Goal
 
-The smallest Lineage 2 loop: a player targets and auto-attacks one NPC type, takes damage,
-kills it, gains XP, levels up, can die, and respawns to fight again. Ship it in the existing
-256×256 flat test zone with the existing login, WebSocket, AOI, SeaORM and replay stack.
-Acceptance is one playable loop plus byte-identical headless replay, including a mid-fight restore.
+This is the smallest Lineage 2 loop. A player targets and auto-attacks one NPC type, takes damage,
+kills it, gets XP, and levels up. The player can die, and then respawns to fight again. Release it in the
+256×256 flat test zone that exists, with the login, WebSocket, AOI, SeaORM and replay stack that exist.
+Acceptance is one playable loop and a byte-identical headless replay, which includes a restore in the middle of a fight.
 
 ## 2. Decisions
 
 | # | Decision | Choice | Rejected | Why |
 |---|----------|--------|----------|-----|
-| D1 | Scope | One level-1 melee monster template, one fixed starter weapon stat block; two instances allowed to demonstrate social aggro | Skills, loot or class progression | Smallest complete combat loop |
-| D2 | Formula authority | High Five formulas/tables from the planning references, transcribed verbatim into TOML under `packages/data/`; the physical damage coefficient is whatever the pinned L2J High Five `Formulas.java` uses for a normal attack (resolved by E1.1: **76**; the 77 is the crit-additive and skill constant), and the attack interval is **500000 / pAtkSpd** (HF), not Interlude's 470000 | Interlude XP/death brackets, simplified linear stats, invented balancing formulas | User's phase decision supersedes conflicting older decisions; source conflicts are enumerated below |
-| D3 | Arithmetic | Integer/fixed-point only inside `domain/zone`; decimal data compiled before admission, fixed rounding contract (§3.1) | Runtime floating point, client-calculated damage | Same snapshot, inputs and seed produce identical state and bytes |
-| D4 | NPC AI | L2J intention subset: Idle, Active, Attack, ReturnHome, Dead; aggro range, social aggro, hate list, leash, seeded respawn jitter | Behaviour trees, timers outside the actor, UE navigation as authority | Tick-driven, inspectable and replayable |
-| D5 | Durability | All new simulation state in `ZoneState` and `ZoneSnapshot`, all new facts in `AppliedTick`; preserve draft → run → durable ack → release | Combat side effects before the durable gate, replay from session audit | Extends the current actor without a second simulation |
-| D6 | Persistence/events | SeaORM transaction for XP/level/HP and associated state/outbox; periodic and logout saves; `CharacterLeveled` / `CharacterDied` through the existing outbox relay | Per-hit DB writes, direct NATS publishing from the domain | Atomic aggregate updates, bounded persistence lag |
-| D7 | Art | Free Fab/Quixel/Game Animation Sample assets; exactly **one owner step**, a bundled download through Epic launcher/Fab site; agent performs import/retarget/wiring | Custom art production, repeated manual editor setup | A visible monster with idle/walk/attack/death animations at low production cost |
+| D1 | Scope | One level-1 melee monster template, one fixed starter weapon stat block; two instances are permitted to show social aggro | Skills, loot or class progression | This is the smallest complete combat loop |
+| D2 | Formula authority | High Five formulas/tables from the planning references, transcribed with no change into TOML in `packages/data/`. The physical damage coefficient is the value that the pinned L2J High Five `Formulas.java` uses for a normal attack (E1.1 resolved it: **76**; 77 is the crit-additive and skill constant). The attack interval is **500000 / pAtkSpd** (HF), not the Interlude 470000 | Interlude XP/death brackets, simplified linear stats, invented balancing formulas | The phase decision of the user supersedes older decisions that do not agree with it. The list below gives the source conflicts |
+| D3 | Arithmetic | Only integer/fixed-point in `domain/zone`; decimal data is compiled before admission, with a fixed rounding contract (§3.1) | Runtime floating point, damage that the client calculates | The same snapshot, inputs and seed give an identical state and identical bytes |
+| D4 | NPC AI | L2J intention subset: Idle, Active, Attack, ReturnHome, Dead; aggro range, social aggro, hate list, leash, seeded respawn jitter | Behaviour trees, timers outside the actor, UE navigation as authority | The tick controls it, and you can examine and replay it |
+| D5 | Durability | All new simulation state is in `ZoneState` and `ZoneSnapshot`, and all new facts are in `AppliedTick`; keep draft → run → durable ack → release | Combat side effects before the durable gate, replay from the session audit | It extends the current actor without a second simulation |
+| D6 | Persistence/events | SeaORM transaction for XP/level/HP and the related state/outbox; periodic and logout saves; `CharacterLeveled` / `CharacterDied` through the outbox relay that exists | DB writes for each hit, direct NATS publishing from the domain | Atomic aggregate updates, bounded persistence lag |
+| D7 | Art | Free Fab/Quixel/Game Animation Sample assets; exactly **one owner step**, a bundled download through the Epic launcher/Fab site; the agent does the import/retarget/wiring | Custom art production, repeated manual editor setup | A monster that you can see, with idle/walk/attack/death animations, at a low production cost |
 
 **Source precedence and fidelity gate.** Read [stats](../planning/01-stat-formulas.md) §§2–3,
 [combat](../planning/03-combat-and-skills.md) §§2.1, 2.3–2.4, 2.7–2.8, and
-[world](../planning/06-world-and-content.md) §§2.4–2.5. These references are not internally uniform:
+[world](../planning/06-world-and-content.md) §§2.4–2.5. These references do not all agree:
 
-- Stats §3 chooses Interlude curves, examples, XP and death brackets; this phase chooses the
-  **HF** curves in §2.1, HF XP column in §2.6 (through 85), and HF death percentages in §2.7.
-- Combat §2.1 prints **76** for normal attacks and 77 appears elsewhere; E1.1 resolves the
+- Stats §3 selects the Interlude curves, examples, XP and death brackets. This phase selects the
+  **HF** curves in §2.1, the HF XP column in §2.6 (through 85), and the HF death percentages in §2.7.
+- Combat §2.1 gives **76** for normal attacks, and 77 is in other locations. E1.1 resolves the
   coefficient from the pinned L2J HF source and records it (no architect override).
-  Stats §2.4/§3.3 prints **470000** (Interlude); D2 selects combat §2.4's **500000** (HF).
-- Accuracy/evasion disagree (`sqrt(DEX) * 5` in stats versus `* 6` in combat). Use the detailed
-  stat derivations in stats §2.4, including its listed high-level accuracy additions and evasion
-  addition above 69; record that precedence, rather than silently mixing both variants.
-- Full HF starting profiles/bonus lookup rows and the level-86 XP sentinel are not printed in full.
-  E1.1 must complete those from the primary L2J source already cited by the docs, pin its revision,
-  and document the missing rows. Do not relabel Interlude profiles as HF or invent missing values.
-- **Resolved by E1.1** against pinned L2J HF (`l2j-server-game@abfde049`,
+  Stats §2.4/§3.3 gives **470000** (Interlude). D2 selects the **500000** of combat §2.4 (HF).
+- Accuracy/evasion do not agree (`sqrt(DEX) * 5` in stats, but `* 6` in combat). Use the detailed
+  stat derivations in stats §2.4, which include its listed high-level accuracy additions and the evasion
+  addition above 69. Record that precedence. Do not silently mix the two variants.
+- The full HF starting profiles/bonus lookup rows and the level-86 XP sentinel are not fully given.
+  E1.1 must complete them from the primary L2J source that the docs cite, pin its revision,
+  and document the missing rows. Do not relabel Interlude profiles as HF, and do not invent missing values.
+- **Resolved by E1.1** against the pinned L2J HF (`l2j-server-game@abfde049`,
   `l2j-server-datapack@3ca488dd`; ledger and errata in [SOURCES](../../packages/data/SOURCES.md)):
-  K = **76**; interval 500000; accuracy/evasion use `sqrt(DEX) * 6` with the source's level
-  additions (superseding the stats §2.4 precedence above); HF stat bonuses are the
-  `statBonus.xml` tables (the docs' `1.009^(s−49)` curves and STR 88 are Ertheia data, E-1);
-  the docs' "HF" XP column is Ertheia too (E-2); weapon stats replace the fist values (E-5).
-- Preserve literal source formulas and table values alongside scaled data, with document/section
-  and upstream revision provenance. The one explicit selection (500000 over 470000) stays labelled as an HF-vs-Interlude choice.
-  No undocumented tuning or runtime interpolation; inconsistent worked-example rows get explicit
-  errata and a rational calculation, never wider tolerances just to make a test pass.
+  K = **76**. The interval is 500000. Accuracy/evasion use `sqrt(DEX) * 6` with the level
+  additions of the source (this supersedes the stats §2.4 precedence above). The HF stat bonuses are the
+  `statBonus.xml` tables (the `1.009^(s−49)` curves and STR 88 in the docs are Ertheia data, E-1).
+  The "HF" XP column of the docs is also Ertheia (E-2). The weapon stats replace the fist values (E-5).
+- Keep the literal source formulas and table values together with the scaled data, with the document/section
+  and upstream revision provenance. The one explicit selection (500000, not 470000) keeps its label as an HF-against-Interlude selection.
+  There is no undocumented tuning and no runtime interpolation. Worked-example rows that do not agree get explicit
+  errata and a rational calculation. Never make tolerances wider only to make a test pass.
 
 ## 3. Architecture and deterministic contract
 
-Keep [architecture](../engineering/architecture.md)'s inward dependencies: TOML loading in
-infrastructure, immutable validated rules injected through application bootstrap, pure stat/combat/AI
-calculations in `apps/api/src/domain/zone`, wire conversion in `interface::zone_mapping`.
-Extend `packages/proto/nightfall/v1/world.proto` first and regenerate Rust/TurboLink bindings.
+Keep the inward dependencies of the [architecture](../engineering/architecture.md): TOML loading in
+infrastructure, immutable validated rules injected through the application bootstrap, pure stat/combat/AI
+calculations in `apps/api/src/domain/zone`, and wire conversion in `interface::zone_mapping`.
+Extend `packages/proto/nightfall/v1/world.proto` first, and make the Rust/TurboLink bindings again.
 The current `Fixed(i32)` means milli-tiles, `Speed` means milli-tiles/tick, `Tick` is 100 ms,
-and AOI is 3×3 cells of 32 tiles. Retain those units and `ChaCha12` key/stream/word-position state.
+and AOI is 3×3 cells of 32 tiles. Keep those units and the `ChaCha12` key/stream/word-position state.
 
 ### 3.1 Formula representation, scaling and examples
 
-`Q = 1_000_000`. Bonuses, coefficients and derived fractional stats use signed `i64` Q units;
-base attributes/levels, live HP/MP, damage, hate and XP are whole integers (XP `u64`). Use checked
-`i128/u128` intermediates; reject data exceeding proven bounds, never wrap. Decimal TOML literals
-are strings or explicit scaled integers, parsed exactly without binary floating point. Store formula
-IDs, literal source expressions and constants in `tables/formulas.toml`; a typed evaluator implements
+`Q = 1_000_000`. Bonuses, coefficients and derived fractional stats use signed `i64` Q units.
+Base attributes/levels, live HP/MP, damage, hate and XP are whole integers (XP `u64`). Use checked
+`i128/u128` intermediate values. Reject data that is more than the proven bounds. Never wrap. Decimal TOML literals
+are strings or explicit scaled integers, which are parsed exactly without binary floating point. Store the formula
+IDs, the literal source expressions and the constants in `tables/formulas.toml`. A typed evaluator implements
 only the specified operations. Static curves become checked-in lookup tables, not runtime `pow`.
-NPC template combat stats are final values; do not apply player class bonuses to them a second time.
-The chosen level-1 monster does not trigger HF's level-78+ NPC damage penalty (stats §2.9).
+The NPC template combat stats are final values. Do not apply player class bonuses to them a second time.
+The selected level-1 monster does not start the HF NPC damage penalty for level 78+ (stats §2.9).
 
 Let `F` mean mathematical floor, `C` ceiling, and `R(x)=F(x+1/2)` the source
-`Math.round` rule (ties toward positive infinity); signed divisions implement floor explicitly.
+`Math.round` rule (ties go in the direction of positive infinity). Signed divisions implement floor explicitly.
 Evaluate each expression below as one rational product before its stated final division. Do not
-truncate bonuses, P.Atk or P.Def to whole units before damage. Resource maxima floor to whole units;
-UI rounding never feeds back into simulation. `isqrt(n)` is the floor integer square root.
+truncate bonuses, P.Atk or P.Def to whole units before damage. Resource maxima floor to whole units.
+UI rounding never goes back into the simulation. `isqrt(n)` is the floor integer square root.
 
 | Calculation | Data and exact evaluation/rounding |
 |-------------|------------------------------------|
-| Six stat bonuses | HF `statBonus.xml` 2-decimal table values for indices 0–99 (exact at Q), with their generating comments (`1.036^(STR−34.845)` …) kept as provenance; the generator re-derives each row from its comment in high-precision decimal, doubling precision until rounding agrees, and records disagreements as errata. Lookups outside 0–99 are errors. (The previous `1.009^(s−49)` set is Ertheia, errata E-1.) |
-| Level modifier | `LM_Q = (L+89)*10000`, exact representation of `(L+89)/100`. |
-| P.Atk / P.Def | `A_Q = F(atk_Q*STR_Q*LM_Q/Q²)` where `atk` is the weapon's P.Atk when one is held (L2J `<set>` replaces the fist value, E-5) else the class fist P.Atk; `D_Q = F(baseUnarmouredDef_Q*LM_Q/Q)`. No occupied armour slots in this phase. |
-| HP / MP | `n=L−1`; class table values from stats §2.5: `H_Q=baseHP_Q+aHP_Q*n+bHP_Q*n²`, analogously `M_Q`; `maxHP=F(H_Q*CON_Q/Q²)`, `maxMP=F(M_Q*MEN_Q/Q²)`. Reconcile expanded rows with the source tables. |
-| Accuracy / evasion | `root_Q=isqrt(DEX*Q²)`; `acc_Q=Q*R((6*root_Q+L*Q+accAdd_Q[L]+weaponAccuracy_Q)/Q)`; `eva_Q=Q*min(250,R((6*root_Q+L*Q+evaAdd_Q[L])/Q))`. Round each getter before hit calculation (E1.4); the independent bounded-root oracle proves Q root truncation does not change a rounded result for DEX 0–99. HF additions as exact per-level entries: accuracy `+(L−69)` above 69 and `+(L−76)` above 77; evasion `+(L−69)` from 70, ×1.2 from 78 (E-3). |
-| Hit | Flat/front condition multiplier is Q. `chance‰=clamp(800+20*(R(acc_Q/Q)−R(eva_Q/Q)),200,980)`. This also rounds final NPC accuracy/evasion inputs as the source getters do. Preserve the docs' comparator: **hit iff roll ≤ chance**, roll uniform `0..999`; thus “80%” nominal is 801/1000 outcomes. Test this boundary explicitly, do not quietly change `>=` to `>`. |
-| Physical crit | `crit‰=min(500,F(base*DEX_Q*10/Q))`, base = HF fist 4 or the weapon's (Squire's Sword 8); crit iff roll `< crit‰`; multiplier 2, additive crit modifiers 0. |
-| Physical damage | `max(1,F(K*A_Q*criticalFactor*(100+j)/(D_Q*100)))` with `K` = **76** (resolved, `calcPhysDam`), integer `j` uniform in `[-r,r]` from the weapon's random-damage radius (Squire's Sword 10; bare hands `5+isqrt(L)`). This is the documented physical pipeline with D2's constant; soulshots, position, traits, attributes, PvP and buffs are neutral (1 or 0). No skills. |
-| Attack timing | `speed_Q=Q*min(1500,R(baseAtkSpeed*DEX_Q/Q))`, base = weapon speed when held (379) else fist (300), strictly positive. Follow HF casts: `interval_ms=F(500000*Q/speed_Q)`, `impact_ms=F(interval_ms/2)`; then impact after `max(1,C(impact_ms/100))` ticks and next cycle after `max(1,C(interval_ms/100))` ticks. E1.4 replaces the earlier exact-fraction scheduling because it differed by up to one tick. |
-| Hate | On landed damage `d`, add `F(d*100/(npcLevel+7))`, cap total at `999999999`; track actual damage separately. Auto/social aggro adds 1 hate. |
-| XP / death | HF cumulative XP `X[L]` in `experience.toml` (L1–85 plus sentinel `X[86]`; XP capped at `X[86]−1`), rate 1 and template reward, no Nightfall level-gap XP multiplier. `loss=R((X[L+1]−X[L])*loss_Q[L]/Q)` then `xp=max(0,xp−loss)`; derive level by threshold search. HF loss is 10% at L1, −0.125 percentage points/level through L49, 4% through L75, 2.5/2/1.5% at L76/77/78, 1% at L79–85. Store every row; e.g. L2 fraction is 98750/Q. |
-| Respawn | NPC delay in integer ticks: `deathTick+10*(delaySeconds+uniform(0..randomSeconds))`, inclusive random endpoints. Player town respawn: `HP=max(1,F(maxHP*65/100))`, MP 0, protection `PlayerSpawnProtection` = 600 **s** = 6000 ticks (E-6); Attack ends protection. |
+| Six stat bonuses | HF `statBonus.xml` 2-decimal table values for indices 0–99 (exact at Q), with their generating comments (`1.036^(STR−34.845)` …) kept as provenance. The generator derives each row again from its comment in high-precision decimal. It doubles the precision until the rounding agrees, and records disagreements as errata. Lookups outside 0–99 are errors. (The previous `1.009^(s−49)` set is Ertheia, errata E-1.) |
+| Level modifier | `LM_Q = (L+89)*10000`, the exact representation of `(L+89)/100`. |
+| P.Atk / P.Def | `A_Q = F(atk_Q*STR_Q*LM_Q/Q²)`. Here `atk` is the P.Atk of the weapon when the character holds one (the L2J `<set>` replaces the fist value, E-5); if not, it is the class fist P.Atk. `D_Q = F(baseUnarmouredDef_Q*LM_Q/Q)`. There are no occupied armour slots in this phase. |
+| HP / MP | `n=L−1`; class table values from stats §2.5: `H_Q=baseHP_Q+aHP_Q*n+bHP_Q*n²`, and `M_Q` in the same way; `maxHP=F(H_Q*CON_Q/Q²)`, `maxMP=F(M_Q*MEN_Q/Q²)`. Reconcile the expanded rows with the source tables. |
+| Accuracy / evasion | `root_Q=isqrt(DEX*Q²)`; `acc_Q=Q*R((6*root_Q+L*Q+accAdd_Q[L]+weaponAccuracy_Q)/Q)`; `eva_Q=Q*min(250,R((6*root_Q+L*Q+evaAdd_Q[L])/Q))`. Round each getter before the hit calculation (E1.4). The independent bounded-root oracle proves that the Q root truncation does not change a rounded result for DEX 0–99. The HF additions are exact entries for each level: accuracy `+(L−69)` above 69 and `+(L−76)` above 77; evasion `+(L−69)` from 70, ×1.2 from 78 (E-3). |
+| Hit | The flat/front condition multiplier is Q. `chance‰=clamp(800+20*(R(acc_Q/Q)−R(eva_Q/Q)),200,980)`. This also rounds the final NPC accuracy/evasion inputs, as the source getters do. Keep the comparator of the docs: **hit iff roll ≤ chance**, with a uniform roll `0..999`. Thus a nominal “80%” is 801/1000 outcomes. Test this boundary explicitly. Do not quietly change `>=` to `>`. |
+| Physical crit | `crit‰=min(500,F(base*DEX_Q*10/Q))`, base = HF fist 4 or the value of the weapon (Squire's Sword 8); crit iff roll `< crit‰`; multiplier 2, additive crit modifiers 0. |
+| Physical damage | `max(1,F(K*A_Q*criticalFactor*(100+j)/(D_Q*100)))` with `K` = **76** (resolved, `calcPhysDam`). The integer `j` is uniform in `[-r,r]`, from the random-damage radius of the weapon (Squire's Sword 10; bare hands `5+isqrt(L)`). This is the documented physical pipeline with the constant of D2. Soulshots, position, traits, attributes, PvP and buffs are neutral (1 or 0). No skills. |
+| Attack timing | `speed_Q=Q*min(1500,R(baseAtkSpeed*DEX_Q/Q))`. The base is the weapon speed when the character holds a weapon (379); if not, it is the fist (300). It is always more than zero. Follow the HF casts: `interval_ms=F(500000*Q/speed_Q)`, `impact_ms=F(interval_ms/2)`. Then the impact occurs after `max(1,C(impact_ms/100))` ticks, and the next cycle after `max(1,C(interval_ms/100))` ticks. E1.4 replaces the earlier exact-fraction schedule, because it had a difference of up to one tick. |
+| Hate | On landed damage `d`, add `F(d*100/(npcLevel+7))`, and cap the total at `999999999`. Record the actual damage separately. Auto/social aggro adds 1 hate. |
+| XP / death | HF cumulative XP `X[L]` in `experience.toml` (L1–85 plus the sentinel `X[86]`; XP has a cap at `X[86]−1`), rate 1 and the template reward, no Nightfall level-gap XP multiplier. `loss=R((X[L+1]−X[L])*loss_Q[L]/Q)`, then `xp=max(0,xp−loss)`. Find the level with a threshold search. The HF loss is 10% at L1, −0.125 percentage points for each level through L49, 4% through L75, 2.5/2/1.5% at L76/77/78, and 1% at L79–85. Store each row; for example, the L2 fraction is 98750/Q. |
+| Respawn | The NPC delay in integer ticks: `deathTick+10*(delaySeconds+uniform(0..randomSeconds))`, with inclusive random endpoints. Player town respawn: `HP=max(1,F(maxHP*65/100))`, MP 0, protection `PlayerSpawnProtection` = 600 **s** = 6000 ticks (E-6). Attack stops the protection. |
 
-Worked vectors (tests must assert the integer encodings as well as displayed values):
+Worked vectors (the tests must assert the integer encodings and also the displayed values):
 
-1. Docs' `LM(20)=1.09` → `1090000`; no-armour P.Def 80 → `87200000` (87.2).
+1. `LM(20)=1.09` of the docs → `1090000`; no-armour P.Def 80 → `87200000` (87.2).
    HF Human Fighter STR 40 gives `1200000`; Squire's Sword P.Atk 6 at L1:
    `F(6000000*1200000*900000/10¹²)=6480000` (bare hands 4 → `4320000`).
-   Legacy arithmetic only (Ertheia STR 88, E-1): `F(12000000*1418259*900000/10¹²)=15317197`.
-2. Docs' Human Fighter raw L40 HP/MP: `80+11.765*39+0.065*39²=637.700`,
-   `30+5.430*39+0.030*39²=287.400`. With supplied fixture bonuses CON=1.57, MEN=1.28,
-   maxima are `floor(1001.189)=1001` HP and `floor(367.872)=367` MP.
-   Those bonuses test arithmetic; the HF table has CON 43 = 1.58 (E-4), giving 1007 HP.
-3. Accuracy 40 versus evasion 35 → 900‰; rolls 900/901 hit/miss. Differences −31/+10
-   clamp to 200/980‰. HF DEX 30 bonus 1.10 gives fist crit 44‰: rolls 43/44 crit/normal;
+   Only legacy arithmetic (Ertheia STR 88, E-1): `F(12000000*1418259*900000/10¹²)=15317197`.
+2. Raw L40 HP/MP of the Human Fighter in the docs: `80+11.765*39+0.065*39²=637.700`,
+   `30+5.430*39+0.030*39²=287.400`. With the supplied fixture bonuses CON=1.57, MEN=1.28,
+   the maxima are `floor(1001.189)=1001` HP and `floor(367.872)=367` MP.
+   Those bonuses test the arithmetic. The HF table has CON 43 = 1.58 (E-4), which gives 1007 HP.
+3. Accuracy 40 against evasion 35 → 900‰; the rolls 900/901 hit/miss. The differences −31/+10
+   clamp to 200/980‰. The HF DEX 30 bonus 1.10 gives a fist crit of 44‰: the rolls 43/44 crit/normal;
    with Squire's Sword (base 8) 88‰. HF Human Fighter L1 accuracy
    `Q*R((6*5477225+1Q)/Q)=34000000` (34).
-   Stats §3.3's Interlude base-44 example instead floors to 48‰; test it only as a labelled legacy vector.
+   The Interlude base-44 example of stats §3.3 floors to 48‰ instead. Test it only as a legacy vector with a label.
 4. K=76 (resolved): P.Atk 100, P.Def 50, spread 0: `76*100/50=152`; crit = 304. Spread −10 gives
-   `floor(136.8)=136`; miss = 0 damage, no crit/spread draw. Damage 152 to an L20 mob adds `floor(152*100/27)=562` hate.
+   `floor(136.8)=136`. A miss = 0 damage, with no crit/spread draw. Damage 152 to an L20 mob adds `floor(152*100/27)=562` hate.
 5. Speed 300: raw interval 1666⅔ ms → source interval 1666 ms, half 833 ms,
    impact tick +9, next swing +17. Speed 1500: interval 333 ms, half 166 ms, impact +2,
    next swing +4. Squire's Sword at DEX 30: `R(379*1.10)=417`, interval 1199 ms,
    half 599 ms, impact +6, next swing +12. Bare hands DEX 17: speed 294, interval
    1700 ms → cycle +17 (the superseded exact-fraction contract gave +18).
-6. Docs' HF thresholds `X[1]=0, X[2]=68, X[3]=363`: XP 60 + reward 10 → 70, level 2.
-   Death at L2 loses `R((363−68)*0.09875)=29`, leaving XP 41 and level 1.
-   At maxHP 126, town respawn restores 81 HP. XP stops at `X[86]−1 = 16890558727` (level 85);
-   the L86 sentinel supplies L85's death-loss span (`R(3710077625*0.01)=37100776`), not a level.
+6. The HF thresholds of the docs `X[1]=0, X[2]=68, X[3]=363`: XP 60 + reward 10 → 70, level 2.
+   Death at L2 loses `R((363−68)*0.09875)=29`, and XP 41 and level 1 stay.
+   At maxHP 126, the town respawn restores 81 HP. XP stops at `X[86]−1 = 16890558727` (level 85).
+   The L86 sentinel gives the death-loss span of L85 (`R(3710077625*0.01)=37100776`). It is not a level.
 
-E1.4 fidelity review: the independent rational oracle and measured discrepancy ledger are in
+E1.4 fidelity review: The independent rational oracle and the measured discrepancy ledger are in
 [SOURCES.md §E1.4](../../packages/data/SOURCES.md#e14-independent-fidelity-review).
-The former fractional hit calculation differed by **19‰**; floored death loss differed by
-**1 XP** and could prevent delevelling (L5, XP 3183: old 2884/L5, source 2883/L4).
-Both now match source rounding. HP/MP retain exact decimal source rows under D3: Java
-binary32 storage differs by at most **1 resource unit** across the extended attribute grid,
-and by **0** for all nine unmodified profiles at all 85 levels.
+The former fractional hit calculation had a difference of **19‰**. The floored death loss had a difference of
+**1 XP**, and it could prevent delevelling (L5, XP 3183: old 2884/L5, source 2883/L4).
+Both agree with the source rounding now. HP/MP keep the exact decimal source rows under D3. Across the extended attribute grid, the Java
+binary32 storage has a difference of a maximum of **1 resource unit**.
+For all nine unmodified profiles at all 85 levels, the difference is **0**.
 
 ### 3.2 Commands, state, AI and replay
 
-- Add session intents `SetTarget` (nullable target), `Attack` (enable/disable), and `Respawn`.
-  Session identity supplies the actor; no client damage/stat inputs. Validate alive state, target
-  existence/life incarnation, attackability, range/AOI, and session generation. An accepted Attack
-  chases into melee range, then repeats; duplicate enable must not reset cooldown or create a swing.
-  MoveTo cancels auto-attack; clearing/changing target cancels a pending swing. Players cannot attack players.
-- Add proto combat events `AttackResult`, `EntityDied`, `EntityRespawned`, `StatsChanged`, `XpGained`,
-  `LevelUp`. Carry tick, stable event index, entity IDs and life incarnation; AttackResult has miss/crit,
-  damage and remaining HP. Add target/attack-cycle state (start/impact/ready ticks) to authoritative
-  state updates so animations can wind up before impact. EntitySpawn includes template, life state,
-  public HP/maxHP/level and current cycle for AOI entry. MP/XP/private stats are owner-only.
-- Snapshot base/derived stats, HP/MP, XP/level, target, auto-attack flag, pending swing/target incarnation,
+- Add the session intents `SetTarget` (nullable target), `Attack` (enable/disable), and `Respawn`.
+  The session identity gives the actor. There are no client damage/stat inputs. Validate the alive state, the target
+  existence/life incarnation, the attackability, the range/AOI, and the session generation. An accepted Attack
+  chases into melee range, then repeats. A duplicate enable must not reset the cooldown or make a swing.
+  MoveTo cancels auto-attack. If the target is cleared or changed, the pending swing is cancelled. Players cannot attack players.
+- Add the proto combat events `AttackResult`, `EntityDied`, `EntityRespawned`, `StatsChanged`, `XpGained`,
+  `LevelUp`. They carry the tick, a stable event index, the entity IDs and the life incarnation. AttackResult has miss/crit,
+  damage and remaining HP. Add the target/attack-cycle state (start/impact/ready ticks) to the authoritative
+  state updates, so that animations can wind up before impact. EntitySpawn includes the template, life state,
+  public HP/maxHP/level and the current cycle for AOI entry. MP/XP/private stats are only for the owner.
+- Snapshot these items: base/derived stats, HP/MP, XP/level, target, auto-attack flag, pending swing/target incarnation,
   cooldowns, protection, death/corpse/respawn deadlines, NPC template/spawn slot/home, intention,
   hate/damage maps, last-hit/think/wander timers, path destination, event counters and pending save state.
-  Store immutable resolved rules/templates in the snapshot; hash **all** dependent TOML, not just zone
-  bounds. Restore never consults current data. Bump snapshot/log schemas and reject unsupported versions.
+  Store the immutable resolved rules/templates in the snapshot. Hash **all** the dependent TOML, not only the zone
+  bounds. Restore never reads the current data. Increase the snapshot/log schema versions, and reject unsupported versions.
 - Tick order: admitted inputs by ordinal → due respawns → AI think/commands → movement → due impacts
-  by attacker ID → immediate damage/death/XP/level consequences → start eligible next cycles → AOI
+  by attacker ID → immediate damage/death/XP/level results → start of the eligible next cycles → AOI
   outputs/checkpoint facts. If an earlier impact kills an attacker, its later impact is cancelled.
-  Generated AI commands have a separate ordered field in AppliedTick; replay regenerates and compares
-  them, never feeds them back as external inputs and executes them twice.
-- Every new world/internal event, including off-AOI AI changes and persistence facts, is in AppliedTick
-  and its durable record codec, not only the observer outputs. Record a canonical end-of-tick state
-  digest too, so invisible state drift fails replay. Preserve response-first ordering, then
-  sorted AOI despawns/spawns/moves, then combat facts in causal event-index order; spawn precedes any
-  fact referencing a newly visible entity. Only emit cross-entity combat facts when both are known;
-  owner StatsChanged still delivers damage/death state when the attacker is outside AOI.
-- NPC think every 10 ticks: Idle wakes when players are nearby; Active scans aggro range, seeds hate,
-  and otherwise rolls 1-in-30 to wander; Attack selects most hated, chases and swings. Ties retain the
-  current target, then lowest EntityId. A clan call gives nearby idle/active allies 1 hate, once per
-  engagement; process allies in ID order without recursive calls. No players nearby must not stop
-  an already scheduled return, corpse expiry or respawn timer.
-- ReturnHome on leash breach, unreachable/invalid target or 1200 ticks without a successful hit;
-  clear hate/cycle, walk to home, restore full NPC HP there, then Active. Returning NPCs cannot be
-  damaged or re-aggroed. Dead clears movement/target/hate, keeps its corpse until corpse deadline,
-  then hides it; its spawn slot/timer survives. Respawn restores template stats with a new life
-  incarnation. The same one NPC type may have two spawn slots for social-aggro tests.
-- Flat-zone pathing uses existing `Vec2Fixed::step_toward`, squared integer range checks and stable
-  tie rules; no obstacles, actor collision avoidance or asynchronous nav queries. Data ranges use
-  explicit milli-tiles, never implicitly treat L2 world units as tiles. Enforce bounds and leash.
-- RNG order is fixed: due spawn slots in slot-ID order, AI by entity ID, impacts by attacker ID.
-  At a valid impact draw hit, then (only on hit) crit and spread; invalid/cancelled swings draw nothing.
-  Draw respawn jitter once in the death consequences; a zero spread/jitter radius consumes no draw.
-  Wander direction/distance and respawn jitter use specified inclusive integer ranges and unbiased
-  rejection sampling from the existing ChaCha12 stream. Snapshot at every timer boundary in tests.
+  Generated AI commands have a separate ordered field in AppliedTick. Replay makes them again and compares
+  them. It never sends them back as external inputs, and it never does them two times.
+- Each new world/internal event is in AppliedTick and in its durable record codec, not only in the observer outputs.
+  This includes off-AOI AI changes and persistence facts. Also record a canonical end-of-tick state
+  digest, so that invisible state drift fails the replay. Keep the response-first order, then the
+  sorted AOI despawns/spawns/moves, then the combat facts in causal event-index order. A spawn comes before all
+  facts that refer to a newly visible entity. Emit combat facts between entities only when the two entities are known.
+  The owner StatsChanged still delivers the damage/death state when the attacker is outside AOI.
+- The NPC thinks every 10 ticks. Idle wakes when players are near. Active scans the aggro range and seeds hate.
+  If not, it rolls 1-in-30 to wander. Attack selects the most hated, chases and swings. For a tie, it keeps the
+  current target, then the lowest EntityId. A clan call gives 1 hate to idle/active allies that are near, one time for each
+  engagement. Process the allies in ID order, without recursive calls. If no players are near, this must not stop
+  a return, a corpse expiry or a respawn timer that is already scheduled.
+- ReturnHome occurs on a leash breach, on an unreachable/invalid target, or after 1200 ticks without a successful hit.
+  It clears the hate/cycle, walks to home, restores the full NPC HP there, and then goes to Active. Returning NPCs cannot
+  get damage or aggro again. Dead clears the movement/target/hate, and keeps its corpse until the corpse deadline.
+  Then it hides the corpse. Its spawn slot/timer stays. Respawn restores the template stats with a new life
+  incarnation. The same one NPC type can have two spawn slots for the social-aggro tests.
+- Flat-zone pathing uses the `Vec2Fixed::step_toward` that exists, squared integer range checks and stable
+  tie rules. There are no obstacles, no actor collision avoidance and no asynchronous nav queries. Data ranges use
+  explicit milli-tiles. Never use L2 world units as tiles implicitly. Enforce the bounds and the leash.
+- The RNG order is fixed: due spawn slots in slot-ID order, AI by entity ID, impacts by attacker ID.
+  At a valid impact, draw hit, then (only on hit) crit and spread. Invalid/cancelled swings draw nothing.
+  Draw the respawn jitter one time in the death results. A zero spread/jitter radius uses no draw.
+  The wander direction/distance and the respawn jitter use specified inclusive integer ranges and unbiased
+  rejection sampling from the ChaCha12 stream that exists. In tests, snapshot at each timer boundary.
 
 ### 3.3 Progression and persistence boundary
 
-One kill grants the template's full XP once to the eligible live player landing the killing blow;
-cancelled or unvalidated same-tick swings receive no credit, regardless of prior damage.
-There is no party or shared reward system. Process multiple
-thresholds in order, emitting LevelUp per gained level and final StatsChanged. Recalculate stats on
-level loss too (StatsChanged carries old/new level); keep current HP/MP, clamped to new maxima.
-Death sets HP zero, cancels combat, charges XP loss once, and retains dead state through reconnect.
-Respawn is an explicit dead-player request to the zone's safe point; no resurrection skill or XP refund.
+One kill gives the full XP of the template one time, to the eligible live player that lands the killing blow.
+Cancelled or unvalidated swings in the same tick get no credit, also if they did damage before.
+There is no party or shared reward system. Process more than one
+threshold in order. Emit LevelUp for each level that the player gets, and a final StatsChanged. Also calculate the stats again on
+level loss (StatsChanged carries the old/new level). Keep the current HP/MP, clamped to the new maxima.
+Death sets HP to zero, cancels combat, charges the XP loss one time, and keeps the dead state through reconnect.
+Respawn is an explicit request from a dead player to the safe point of the zone. There is no resurrection skill and no XP refund.
 
-Emit a full persistence checkpoint every 50 ticks (5 s), on death/level change and before logout
+Emit a full persistence checkpoint every 50 ticks (5 s), on a death/level change, and before the logout
 despawn. Include XP, level, HP, MP, alive/dead state, position, character revision and pending events.
-Application worker persists the checkpoint plus outbox entries in **one SeaORM transaction**, then
-returns a recorded system acknowledgement; pending checkpoints/events live in ZoneState/Snapshot
-until acknowledged. Logout/admission waits for the final save; stale generations/revisions cannot
-overwrite a replacement. Retry keys are `(zone, epoch, character, checkpoint_revision)` with a
-payload hash: identical retry is a no-op; changed payload conflicts. Event IDs are deterministic.
-No I/O in the domain or new rule based on DB completion time. After a crash, recover acknowledged
-checkpoint facts from the durable applied-log prefix before admitting the character; this projection
-does not bypass the replay verifier's existing refusal of incomplete epochs. Ordinary unsaved progress
-may roll back by up to 5 s; death/level checkpoints must be recovered, including their outbox facts.
+The application worker stores the checkpoint and the outbox entries in **one SeaORM transaction**. Then it
+returns a recorded system acknowledgement. Pending checkpoints/events stay in ZoneState/Snapshot
+until they are acknowledged. Logout/admission waits for the final save. Stale generations/revisions cannot
+overwrite a replacement. The retry keys are `(zone, epoch, character, checkpoint_revision)` with a
+payload hash. An identical retry does nothing. A changed payload is a conflict. Event IDs are deterministic.
+There is no I/O in the domain, and no new rule that uses the DB completion time. After a crash, recover the acknowledged
+checkpoint facts from the durable applied-log prefix before the admission of the character. This projection
+does not bypass the current refusal of incomplete epochs by the replay verifier. Ordinary unsaved progress
+can roll back by a maximum of 5 s. You must recover the death/level checkpoints, which include their outbox facts.
 
 ## 4. Epics, stories, tasks
 
-Models: **Sonnet medium** for mechanical work, **Opus high** for design-heavy work,
-**Codex high/medium** for integration, review and docs, **agy medium** for docs-only diagrams.
-Every Done when includes tests or document validation; completion also requires the applicable
+Models: **Sonnet medium** for mechanical work, **Opus high** for work with much design,
+**Codex high/medium** for integration, review and docs, **agy medium** for diagrams that are only docs.
+Each Done when includes tests or document validation. Completion also must have the applicable
 [API guidelines §4](../engineering/api-guidelines.md#4-required-tests-per-endpoint) matrix:
-**U** = unit happy path, every typed error, validation with no state/event/RNG change;
-**W** = real-socket happy path/all fields, every documented error, authentication/ownership, retry,
-read-after-write; **A** = repository round-trip, typed constraints, rollback and concurrent retries.
-For WS mutations, retain §3b monotonic seq (repeated seq closes 4400); test fresh-seq repeated intents
-for semantic idempotence. Keyed save/RPC mutations test same-key replay and changed-body conflict.
-No endpoint means W is inapplicable, not an excuse to omit its domain/adapter/UE tests.
+
+- **U** = unit happy path, each typed error, validation with no state/event/RNG change.
+- **W** = real-socket happy path/all fields, each documented error, authentication/ownership, retry,
+  read-after-write.
+- **A** = repository round trip, typed constraints, rollback and concurrent retries.
+
+For WS mutations, keep the §3b monotonic seq (a repeated seq closes 4400). Test repeated intents with a new seq
+for semantic idempotence. Keyed save/RPC mutations test the same-key replay and the changed-body conflict.
+If there is no endpoint, W does not apply. But this is not a reason to omit its domain/adapter/UE tests.
 
 > [!NOTE]
-> The `[client-visible]` tag denotes client-observable contract and state behavior. The simulation traceability checker verifies completed tagged stories against scenario coverage (`.nfs`). Rendering-only portions retain automation and cook validation, but tags remain on those stories and uncovered cases are explicitly reported. New plans should add tags independently before writing scenarios.
+> The `[client-visible]` tag identifies a contract and state behavior that the client can see. The simulation traceability checker examines completed tagged stories against the scenario coverage (`.nfs`). Parts that are only for rendering keep their automation and cook validation. But these stories keep their tags, and the checker reports the cases that have no coverage. New plans must add tags independently before you write scenarios.
 
 ### E1: Stat engine as data
 
 | Story | Tasks | Model | Done when |
 |-------|-------|-------|-----------|
-| ✅ 1.1 Source and TOML tables | Resolve §2 fidelity ledger; add `packages/data/tables/{stat_bonus,formulas,experience,penalties}.toml`, HF starter profiles/HP/MP tables in `classes/`, fixed starter weapon block; preserve literals, source revisions and decimal table generator | Opus high | Golden transcriptions match every selected printed value; missing HF rows and L86 sentinel are source-backed; discrepancy tests identify incompatible Interlude/rounded examples explicitly |
-| ✅ 1.2 Validated loading | Extend infrastructure data loader; exact decimal parsing, table coverage, monotone XP, nonzero defence/speed, coefficient bounds, cross-file IDs and canonical config hash; inject resolved rules | Sonnet medium | U: malformed decimals, holes, overflow, bad references and invalid caps reject startup; identical files yield identical rules/hash; one changed coefficient changes hash |
-| ✅ 1.3 Pure domain stat calculation | Implement §3.1 in domain/zone with typed scales, integer sqrt, caps, XP lookup/loss; extend no-float/source scans for every new module | Opus high | U: each worked vector matches exact scaled values; generated legal inputs satisfy resource bounds, monotone XP/level, capped hit/crit/speed and overflow safety; clippy/source scans pass |
-| ✅ 1.4 Formula fidelity review | Add property tests against docs' worked examples and independent rational oracle, all supported levels/profiles; compare legacy vectors only under labelled legacy inputs; review errata | Codex high | U: golden and property suites pass with documented display rounding; no unexplained mismatches, copied implementation oracle, substituted Interlude production table or hidden runtime float |
+| ✅ 1.1 Source and TOML tables | Resolve the §2 fidelity ledger; add `packages/data/tables/{stat_bonus,formulas,experience,penalties}.toml`, the HF starter profiles/HP/MP tables in `classes/`, and a fixed starter weapon block; keep the literals, source revisions and the decimal table generator | Opus high | The golden transcriptions agree with each selected printed value; the source supports the missing HF rows and the L86 sentinel; discrepancy tests identify incompatible Interlude/rounded examples explicitly |
+| ✅ 1.2 Validated loading | Extend the infrastructure data loader: exact decimal parsing, table coverage, monotone XP, nonzero defence/speed, coefficient bounds, IDs across files and a canonical config hash; inject the resolved rules | Sonnet medium | U: malformed decimals, holes, overflow, bad references and invalid caps stop the startup; identical files give identical rules/hash; one changed coefficient changes the hash |
+| ✅ 1.3 Pure domain stat calculation | Implement §3.1 in domain/zone with typed scales, integer sqrt, caps, XP lookup/loss; extend the no-float/source scans to each new module | Opus high | U: each worked vector agrees with the exact scaled values; generated legal inputs satisfy the resource bounds, monotone XP/level, capped hit/crit/speed and overflow safety; the clippy/source scans pass |
+| ✅ 1.4 Formula fidelity review | Add property tests against the worked examples of the docs and an independent rational oracle, for all supported levels/profiles; compare legacy vectors only with labelled legacy inputs; examine the errata | Codex high | U: the golden and property suites pass with documented display rounding; no unexplained mismatches, no copied implementation oracle, no substituted Interlude production table and no hidden runtime float |
 
 ### E2: Combat core in the zone actor
 
 | Story | Tasks | Model | Done when |
 |-------|-------|-------|-----------|
-| ✅ 2.1 Contract and intent plumbing [client-visible] | Add Attack/SetTarget/Respawn, six required combat events and cycle/state fields; append proto tags/reasons, regenerate bindings; map session identity and generation | Codex high | U+W: encode/decode all fields, malformed/unknown/dead/nonattackable/out-of-AOI targets, ownership/stale session, auth, seq/rate limits, repeated intents and applied-tick Ack/rejection pass; no old tag changes |
-| ✅ 2.2 Complete combat state and log [client-visible] | Extend Entity/ZoneState/ZoneSnapshot, SpawnPlayer loaded state, AppliedTick events/generated commands/state digest and durable codec; immutable data bundle and schema versions; preserve AOI ordering/privacy | Opus high | U: mid-swing snapshot round-trip equals uninterrupted ticks including RNG/bytes; off-AOI facts persist; AOI entry and replacement reconstruct combat state; unsupported schema rejected; gate failure releases nothing |
-| ✅ 2.3 Auto-attack and damage [client-visible] | Target/enable/disable/chase, integer impact/ready deadlines, range recheck at impact, miss/crit/spread, damage and cycle events for player and NPC | Opus high | U+W: §3.1 vectors, repeat Attack without extra swing, cancellation, target replacement, moving out of reach, simultaneous lethal impacts and seeded hit/crit boundaries pass; client cannot supply damage |
-| ✅ 2.4 Death and player respawn [client-visible] | One-shot death consequences, HP zero, cycle cancellation, H5 XP loss/delevel, dead-state admission, safe-point Respawn and protection | Opus high | U+W: duplicate lethal/respawn attempts cannot charge twice or revive living actors; dead movement/attack rejected; 65% HP/0 MP/protection expiry and early Attack cancellation tested; reconnect preserves death |
-| ✅ 2.5 Aggro and hate core [client-visible] | Ordered hate/damage ledger, H5 damage hate/cap, target eligibility, retain-current/ID ties, forget on death/despawn; expose deterministic aggression commands/events to E3 | Opus high | U: arithmetic/cap/tie vectors, two attackers, disconnect/death cleanup and identical-command/seed properties pass; rejected attacks add no hate |
-| ✅ 2.6 XP and level transition [client-visible] | Exactly-once kill credit, H5 threshold search/cap, LevelUp/XpGained/StatsChanged, HP/MP clamp on recalc, checkpoint facts | Sonnet medium | U+W: XP 60→70→41 example, multi-level reward, capped XP, same-tick attackers credit only the landed killing blow; repeated death yields no second reward; owner-only XP and read-after-write state asserted |
+| ✅ 2.1 Contract and intent plumbing [client-visible] | Add Attack/SetTarget/Respawn, six necessary combat events and the cycle/state fields; append proto tags/reasons, make the bindings again; map the session identity and generation | Codex high | U+W: encode/decode of all fields, malformed/unknown/dead/nonattackable/out-of-AOI targets, ownership/stale session, auth, seq/rate limits, repeated intents and applied-tick Ack/rejection pass; no old tag changes |
+| ✅ 2.2 Complete combat state and log [client-visible] | Extend Entity/ZoneState/ZoneSnapshot, the SpawnPlayer loaded state, the AppliedTick events/generated commands/state digest and the durable codec; immutable data bundle and schema versions; keep the AOI order/privacy | Opus high | U: a mid-swing snapshot round trip is equal to uninterrupted ticks, also the RNG/bytes; off-AOI facts stay; AOI entry and replacement reconstruct the combat state; an unsupported schema is rejected; a gate failure releases nothing |
+| ✅ 2.3 Auto-attack and damage [client-visible] | Target/enable/disable/chase, integer impact/ready deadlines, range check again at impact, miss/crit/spread, damage and cycle events for player and NPC | Opus high | U+W: the §3.1 vectors, a repeated Attack without an extra swing, cancellation, target replacement, movement out of reach, simultaneous lethal impacts and seeded hit/crit boundaries pass; the client cannot supply damage |
+| ✅ 2.4 Death and player respawn [client-visible] | One-shot death results, HP zero, cycle cancellation, H5 XP loss/delevel, dead-state admission, safe-point Respawn and protection | Opus high | U+W: duplicate lethal/respawn attempts cannot charge two times or revive living actors; dead movement/attack is rejected; 65% HP/0 MP/protection expiry and early Attack cancellation are tested; reconnect keeps the death |
+| ✅ 2.5 Aggro and hate core [client-visible] | Ordered hate/damage ledger, H5 damage hate/cap, target eligibility, retain-current/ID ties, forget on death/despawn; give E3 access to deterministic aggression commands/events | Opus high | U: arithmetic/cap/tie vectors, two attackers, disconnect/death cleanup and identical-command/seed properties pass; rejected attacks add no hate |
+| ✅ 2.6 XP and level transition [client-visible] | Kill credit exactly one time, H5 threshold search/cap, LevelUp/XpGained/StatsChanged, HP/MP clamp on recalculation, checkpoint facts | Sonnet medium | U+W: the XP 60→70→41 example, a multi-level reward, capped XP, and attackers in the same tick where only the landed killing blow gets credit; a repeated death gives no second reward; owner-only XP and read-after-write state are asserted |
 
 ### E3: NPC data and AI
 
 | Story | Tasks | Model | Done when |
 |-------|-------|-------|-----------|
-| ✅ 3.1 Templates and spawn data [client-visible] | Add `packages/data/npcs/*.toml`: one attackable melee type, level/base stats, XP, movement/range/collision, clan/help/aggro/leash, corpse/respawn fields; extend `zones/test_zone.toml` with template-referencing spawn slots/count/home and player safe point | Sonnet medium | U: references/units/bounds/delays validate, old Gatekeeper/Wanderer remain noncombat fixtures or are explicitly migrated; 256×256 zone boots; no second monster type required |
-| ✅ 3.2 Intention state machine [client-visible] | Implement §3.2 Idle/Active/Attack/ReturnHome/Dead transitions and events, 10-tick think, auto/social aggro and 1-in-30 wander; use E2 hate and attacks | Opus high | U: transition table covers every guard; same-clan help, out-of-range/non-clan non-help, no recursive help, dead target and empty-region timers pass under fixed ticks/seed |
-| ✅ 3.3 Deterministic chase and leash [client-visible] | Reuse integer flat-zone movement for chase/wander/return; bound destinations, attack range and home radius; no-hit timeout, exact arrival, full HP on return | Opus high | U: diagonal/edge/zero-speed cases, tie ordering, 1200-tick timeout and leash reset pass; mid-path snapshot restores identical events/bytes; property test proves progress without overshoot |
-| ✅ 3.4 Corpse and respawn scheduler [client-visible] | Stable spawn-slot ownership; death → corpse expiry → delay plus seeded random delay → new life; preserve slot when corpse leaves AOI | Sonnet medium | U: min/max jitter, zero jitter, corpse before respawn, never-double-spawn, same-seed sequences, stale-incarnation target rejection and snapshot during Dead all pass |
+| ✅ 3.1 Templates and spawn data [client-visible] | Add `packages/data/npcs/*.toml`: one attackable melee type, level/base stats, XP, movement/range/collision, clan/help/aggro/leash, corpse/respawn fields; extend `zones/test_zone.toml` with spawn slots that refer to templates, count/home and a player safe point | Sonnet medium | U: references/units/bounds/delays validate; the old Gatekeeper/Wanderer stay noncombat fixtures or are explicitly migrated; the 256×256 zone boots; a second monster type is not necessary |
+| ✅ 3.2 Intention state machine [client-visible] | Implement the §3.2 Idle/Active/Attack/ReturnHome/Dead transitions and events, the 10-tick think, auto/social aggro and the 1-in-30 wander; use the E2 hate and attacks | Opus high | U: the transition table covers each guard; same-clan help, no help for out-of-range/non-clan, no recursive help, dead target and empty-region timers pass with fixed ticks/seed |
+| ✅ 3.3 Deterministic chase and leash [client-visible] | Use the integer flat-zone movement again for chase/wander/return; bound the destinations, attack range and home radius; no-hit timeout, exact arrival, full HP on return | Opus high | U: diagonal/edge/zero-speed cases, tie order, the 1200-tick timeout and the leash reset pass; a mid-path snapshot restores identical events/bytes; a property test proves progress without overshoot |
+| ✅ 3.4 Corpse and respawn scheduler [client-visible] | Stable spawn-slot ownership; death → corpse expiry → delay plus seeded random delay → new life; keep the slot when the corpse leaves AOI | Sonnet medium | U: min/max jitter, zero jitter, corpse before respawn, never a double spawn, same-seed sequences, rejection of a stale-incarnation target and a snapshot during Dead all pass |
 
 ### E4: Persistence and events
 
 | Story | Tasks | Model | Done when |
 |-------|-------|-------|-----------|
-| ✅ 4.1 Character repository transaction | Migrate XP/level/HP plus MP/life/revision state, generated SeaORM entities; extend memory/Postgres ports for atomic checkpoint+outbox and idempotency | Sonnet medium | U+A: round-trip, valid XP/level/HP constraints, no partial update/outbox on failure, concurrent identical retries exactly once, conflicting body/stale revision rejected; entity regeneration clean |
-| ✅ 4.2 Checkpoint and admission integration [client-visible] | Five-second tick checkpoint, death/level checkpoint, logout final save before despawn, recorded save ack; admission loads committed state; recover durable checkpoint prefix after crash | Codex high | U+A+W: periodic/logout/reconnect preserve fields; delayed DB and generation replacement cannot overwrite newer state; crash before/after transaction and log ack recovers checkpoint facts; failed save retained/retried |
-| ✅ 4.3 Domain events through outbox | Map deterministic facts to CharacterLeveled/CharacterDied, ordered aggregate sequence and stable IDs; stage with checkpoint, reuse relay on `nightfall.character.leveled` / `.died` | Codex high | U+A: one logical event per transition, multiple level-ups retained, failed commit publishes none; crash after commit/before publish and duplicate delivery prove retry/dedupe; death delevel reported consistently |
+| ✅ 4.1 Character repository transaction | Migrate the XP/level/HP and the MP/life/revision state, generated SeaORM entities; extend the memory/Postgres ports for an atomic checkpoint+outbox and idempotency | Sonnet medium | U+A: round trip, valid XP/level/HP constraints, no partial update/outbox on failure, concurrent identical retries exactly one time, a conflicting body/stale revision is rejected; the entity regeneration is clean |
+| ✅ 4.2 Checkpoint and admission integration [client-visible] | Five-second tick checkpoint, death/level checkpoint, logout final save before despawn, recorded save ack; admission loads the committed state; recover the durable checkpoint prefix after a crash | Codex high | U+A+W: periodic/logout/reconnect keep the fields; a delayed DB and a generation replacement cannot overwrite a newer state; a crash before/after the transaction and the log ack recovers the checkpoint facts; a failed save is kept/retried |
+| ✅ 4.3 Domain events through outbox | Map the deterministic facts to CharacterLeveled/CharacterDied, an ordered aggregate sequence and stable IDs; stage them with the checkpoint, use the relay again on `nightfall.character.leveled` / `.died` | Codex high | U+A: one logical event for each transition, more than one level-up kept, a failed commit publishes none; a crash after commit/before publish and a duplicate delivery prove retry/dedupe; a death delevel is reported consistently |
 
 ### E5: Client
 
 | Story | Tasks | Model | Done when |
 |-------|-------|-------|-----------|
-| ✅ 5.1 Asset acquisition and import | Prepare one manifest of currently free Fab/Quixel/Game Animation Sample assets: IDs/URLs, version, licence/attribution, skeleton and all four required clips. **One owner action: download the complete manifest in one Epic launcher/Fab-site session to the agreed staging folder.** Then script import/migrate, retarget, materials, animation assets and proxy wiring; keep vendor content outside regenerated Input/Blueprints/UI/Maps | Codex high | Manifest/licence validation and scripted repeat-import test pass; editor asset-load/cook tests find mesh+idle/walk/attack/death; owner does no manual import/retarget. Verify clip coverage before requesting download; choose a free compatible pack if Game Animation Sample lacks attack/death |
-| ✅ 5.2 Typed combat projection and HUD [client-visible] | Extend generated-code bridge, NetClient, WorldProxySubsystem and OwnEntityComponent; target frame, player/NPC HP bars, XP/level display and authoritative target clearing | Sonnet medium | UE automation tests feed recorded events and assert every field, owner privacy, AOI entry/exit, stale life/generation rejection and reconnect state; no local damage calculation |
-| ✅ 5.3 Click attack and damage numbers [client-visible] | NPC raycast sends SetTarget then Attack; ground click keeps MoveTo/cancel; render miss/crit/damage once per event; show rejection and pending state | Sonnet medium | UE automation plus real-server W: NPC click attacks, ground click moves, repeated click cannot accelerate attacks, rejected/dead target clears correctly, replayed event cannot duplicate a number |
-| ✅ 5.4 Animated proxies and death UI [client-visible] | NPC idle/walk/attack/death from chosen pack/Game Animation Sample, cycle timing from server, frozen corpse then removal; dead-player overlay and Respawn button; target/HP reset after respawn | Codex high | UE automation covers life/animation/UI transitions; two-client scripted playtest completes kill→XP→level and death→respawn, including late AOI entry and 150 ms interpolation; cooked assets load with no manual editor wiring |
+| ✅ 5.1 Asset acquisition and import | Prepare one manifest of Fab/Quixel/Game Animation Sample assets that are free now: IDs/URLs, version, licence/attribution, skeleton and all four necessary clips. **One owner action: download the complete manifest in one Epic launcher/Fab-site session to the agreed staging folder.** Then script the import/migrate, retarget, materials, animation assets and proxy wiring; keep vendor content outside the Input/Blueprints/UI/Maps that the script makes again | Codex high | The manifest/licence validation and the scripted repeat-import test pass; the editor asset-load/cook tests find mesh+idle/walk/attack/death; the owner does no manual import/retarget. Verify the clip coverage before you request the download; if Game Animation Sample does not have attack/death, select a free compatible pack |
+| ✅ 5.2 Typed combat projection and HUD [client-visible] | Extend the generated-code bridge, NetClient, WorldProxySubsystem and OwnEntityComponent; target frame, player/NPC HP bars, XP/level display and authoritative target clearing | Sonnet medium | UE automation tests send recorded events and assert each field, owner privacy, AOI entry/exit, stale life/generation rejection and reconnect state; no local damage calculation |
+| ✅ 5.3 Click attack and damage numbers [client-visible] | An NPC raycast sends SetTarget, then Attack; a ground click keeps MoveTo/cancel; render miss/crit/damage one time for each event; show the rejection and the pending state | Sonnet medium | UE automation and real-server W: an NPC click attacks, a ground click moves, a repeated click cannot make attacks faster, a rejected/dead target clears correctly, a replayed event cannot duplicate a number |
+| ✅ 5.4 Animated proxies and death UI [client-visible] | NPC idle/walk/attack/death from the selected pack/Game Animation Sample, cycle timing from the server, frozen corpse then removal; dead-player overlay and Respawn button; target/HP reset after respawn | Codex high | UE automation covers the life/animation/UI transitions; a two-client scripted playtest completes kill→XP→level and death→respawn, which includes late AOI entry and 150 ms interpolation; cooked assets load with no manual editor wiring |
 
 ### E6: Replay, telemetry, docs
 
 | Story | Tasks | Model | Done when |
 |-------|-------|-------|-----------|
-| ✅ 6.1 Fight recording and CI | Extend the two-player recording scenario with target/chase, hit/miss/crit, social aggro/leash, NPC death/respawn, XP/level, player death/delevel/respawn and disconnect; write versioned `apps/api/fixtures/sessions/two-players-fight-v2.nfr`; update replay-check and codec fixtures | Codex high | Byte/digest replay passes from epoch and mid-fight snapshot; old movement coverage retained under explicit schema policy; changed coefficient, RNG draw, AI event or off-AOI state causes failure; gaps/incomplete watermark still refused |
-| ✅ 6.2 Combat telemetry | Add bounded-label combat event/hit/miss/crit/death/respawn/level counters, AI intention counts, combat tick duration, save lag/failures; consume admitted events only, update Grafana dashboard | Sonnet medium | Instrumentation tests count each durable event once, no entity/account IDs in metric labels, no replay publishing; load test stays within existing 200-session tick p99 <20 ms budget with defined monster count |
-| ✅ 6.3 Three diagrams | Use [diagram-design skill](/home/matt-woodruff/.claude/plugins/marketplaces/diagram-design/skills/diagram-design/SKILL.md) and [diagram README](../diagrams/README.md): `combat-sequence.html`, `npc-state-machine.html`, `stat-derivation-data-flow.html`; minimal-light/default, static inline SVG, fitted sequence/state and doc-inline data flow; link from README | agy medium | Docs-only validation: matching type/semantic/style/output references read, self_check and available geometry checker pass, rendered desktop/narrow/print inspected; diagrams match final code, include durable gate and data provenance |
-| ✅ 6.4 Decision record and integration review | Write one short `docs/decisions/phase-1-combat.md` covering HF precedence, the resolved damage coefficient, 500000, fixed scales, AI/replay, asset choice/licence and limitations; update architecture/API/client/replay instructions and diagram links | Codex high | Link/schema checks and code-to-doc review pass; required U/W/A matrix, UE tests, fight replay and `moon ci` green; record all source errata and measured playtest/load results without claiming unrun checks |
-| ✅ 6.5 Tick digest and AOI output optimisation (follow-up) | replace the canonical JSON state digest with a versioned binary digest and share AOI output generation per cell; replay fixtures must still match or be re-versioned | Codex medium | Done when release p99 for 200x200 drops below 1 ms and fixtures replay |
+| ✅ 6.1 Fight recording and CI | Extend the two-player recording scenario with target/chase, hit/miss/crit, social aggro/leash, NPC death/respawn, XP/level, player death/delevel/respawn and disconnect; write the versioned `apps/api/fixtures/sessions/two-players-fight-v2.nfr`; update the replay-check and codec fixtures | Codex high | The byte/digest replay passes from the epoch and from a mid-fight snapshot; the old movement coverage stays under an explicit schema policy; a changed coefficient, RNG draw, AI event or off-AOI state causes a failure; gaps/an incomplete watermark are still refused |
+| ✅ 6.2 Combat telemetry | Add bounded-label counters for combat event/hit/miss/crit/death/respawn/level, AI intention counts, combat tick duration, save lag/failures; use only admitted events, update the Grafana dashboard | Sonnet medium | Instrumentation tests count each durable event one time, no entity/account IDs in metric labels, no replay publishing; the load test stays in the 200-session tick p99 <20 ms budget that exists, with a defined monster count |
+| ✅ 6.3 Three diagrams | Use the [diagram-design skill](/home/matt-woodruff/.claude/plugins/marketplaces/diagram-design/skills/diagram-design/SKILL.md) and the [diagram README](../diagrams/README.md): `combat-sequence.html`, `npc-state-machine.html`, `stat-derivation-data-flow.html`; minimal-light/default, static inline SVG, fitted sequence/state and doc-inline data flow; link from the README | agy medium | Docs-only validation: the matching type/semantic/style/output references are read, self_check and the available geometry checker pass, the rendered desktop/narrow/print views are examined; the diagrams agree with the final code, and include the durable gate and the data provenance |
+| ✅ 6.4 Decision record and integration review | Write one short `docs/decisions/phase-1-combat.md` that covers the HF precedence, the resolved damage coefficient, 500000, fixed scales, AI/replay, asset selection/licence and limitations; update the architecture/API/client/replay instructions and the diagram links | Codex high | The link/schema checks and the code-to-doc review pass; the necessary U/W/A matrix, UE tests, fight replay and `moon ci` are green; record all source errata and the measured playtest/load results, and do not claim checks that did not run |
+| ✅ 6.5 Tick digest and AOI output optimisation (follow-up) | Replace the canonical JSON state digest with a versioned binary digest, and share the AOI output generation for each cell; the replay fixtures must still agree or get a new version | Codex medium | Done when the release p99 for 200x200 is less than 1 ms and the fixtures replay |
 
-Release build measurements on Ryzen 9 3900X (Rust 1.98.1) met the <20 ms budget: 1,000 moving NPCs p50 0.418 ms / p99 0.445 ms; 200 players + 200 keltirs fighting p50 0.604 ms / p99 2.215 ms; 50 players + 50 keltirs p50 0.131 ms / p99 0.317 ms (profiling: 72% JSON state digest, 24% AOI output); release-only `api:perf-check` (`moon run api:perf-check`) asserts p99 < 20 ms.
+The release build measurements on Ryzen 9 3900X (Rust 1.98.1) were in the <20 ms budget:
 
-Snapshot schema 5 adds persistence lanes; schema 4 remains readable for replay. Record schema 3
-and the existing `.nfr` fixtures are unchanged. Recovery uses the durable `zone_epochs` index,
-refreshed recovery snapshots at least daily (23-hour cadence) and on clean shutdown, and refuses
-admission when unresolved history is missing. See architecture §2.8 for fail-closed semantics.
+- 1,000 moving NPCs: p50 0.418 ms / p99 0.445 ms.
+- 200 players + 200 keltirs in a fight: p50 0.604 ms / p99 2.215 ms.
+- 50 players + 50 keltirs: p50 0.131 ms / p99 0.317 ms (profiling: 72% JSON state digest, 24% AOI output).
+
+The release-only `api:perf-check` (`moon run api:perf-check`) asserts p99 < 20 ms.
+
+Snapshot schema 5 adds persistence lanes. Replay can still read schema 4. Record schema 3
+and the `.nfr` fixtures that exist do not change. Recovery uses the durable `zone_epochs` index and
+refreshed recovery snapshots. The refresh occurs a minimum of one time each day (23-hour cadence), and on a clean shutdown. Recovery refuses
+admission when unresolved history is missing. See architecture §2.8 for the fail-closed semantics.
 
 ## 5. Order and estimate
 
-1. E1.1 fidelity gate, E1.2–1.4 and E2.1 contract: **4–5 days**. Prepare E5.1 manifest early.
-2. E2.2–2.6 core: **5–7 days**; E3.1 data can follow the contract immediately.
-3. E3.2–3.4 AI/pathing/spawns: **3–4 days**; E4 persistence after checkpoint contract: **3–4 days**.
-4. E5 client/import: **4–5 days**, after the single owner download and stable proto; placeholder
-   rendering lets client plumbing proceed while that download is pending.
-5. E6 telemetry/docs alongside implementation, then replay/integration acceptance: **3–4 days**.
+1. E1.1 fidelity gate, E1.2–1.4 and the E2.1 contract: **4–5 days**. Prepare the E5.1 manifest early.
+2. E2.2–2.6 core: **5–7 days**. The E3.1 data can start immediately after the contract.
+3. E3.2–3.4 AI/pathing/spawns: **3–4 days**. E4 persistence after the checkpoint contract: **3–4 days**.
+4. E5 client/import: **4–5 days**, after the one owner download and a stable proto. Placeholder
+   rendering lets the client plumbing continue while that download is pending.
+5. E6 telemetry/docs at the same time as the implementation, then replay/integration acceptance: **3–4 days**.
 
-**Total: 22–29 focused engineering days (about 5–6 weeks), 6 epics / 25 stories.** Download wait
-and source-data gaps are schedule risks, not extra owner setup stories. Review design-heavy work
-before dependent mechanical stories; keep this phase to a playable fight rather than expanding content.
+**Total: 22–29 focused engineering days (approximately 5–6 weeks), 6 epics / 25 stories.** The download wait
+and the source-data gaps are schedule risks, not extra owner setup stories. Examine the work with much design
+before the dependent mechanical stories. Keep this phase to a playable fight. Do not add more content.
 
 ## 6. Risks
 
 | # | Risk | Mitigation |
 |---|------|------------|
-| R1 | Fixed-point formula fidelity: HF/Interlude conflicts, rounded examples, integer quantization and overflow | E1 source ledger, source-resolved coefficient and the explicit 500000 selection, exact decimal tables, independent rational oracle, worked vectors and caps; close missing HF rows before accepting gameplay |
-| R2 | AI determinism with pathing: iteration order, RNG consumption, timer drift, hidden path state | Flat integer paths, ordered maps/commands, specified RNG draws, all timers/state snapshotted, restore tests during chase/swing/dead, off-AOI event comparison |
-| R3 | Asset licensing/availability and missing animations: “free” is not a licence or a guarantee of combat clips | Verify each listing's applicable terms, version and clip coverage before the one download; record permitted project use/redistribution, avoid raw-asset redistribution outside those terms; choose compatible free pack before manifest handoff |
+| R1 | Fixed-point formula fidelity: HF/Interlude conflicts, rounded examples, integer quantization and overflow | E1 source ledger, the coefficient that the source resolves and the explicit 500000 selection, exact decimal tables, independent rational oracle, worked vectors and caps; close the missing HF rows before you accept gameplay |
+| R2 | AI determinism with pathing: iteration order, RNG consumption, timer drift, hidden path state | Flat integer paths, ordered maps/commands, specified RNG draws, all timers/state in the snapshot, restore tests during chase/swing/dead, off-AOI event comparison |
+| R3 | Asset licensing/availability and missing animations: “free” is not a licence, and it does not make sure of combat clips | Verify the applicable terms, version and clip coverage of each listing before the one download; record the permitted project use/redistribution, and do not redistribute raw assets outside those terms; select a compatible free pack before the manifest handoff |
 | R4 | Scope creep into skills, buffs, equipment or a full AI framework | One weapon block/type, neutral optional modifiers, fixed intention subset; new skill mechanics/content go into a later phase |
-| R5 | Persistence lag, duplicate events or stale logout overwrites | Atomic checkpoint/outbox, generation/revision fence, deterministic IDs, crash/retry tests and recovered durable checkpoint prefix before admission |
+| R5 | Persistence lag, duplicate events or stale logout overwrites | Atomic checkpoint/outbox, generation/revision fence, deterministic IDs, crash/retry tests and the recovered durable checkpoint prefix before admission |
 
 ## 7. Out of scope for this phase
 
 - Headless simulation scenarios for the loop above: Phase 1a
-  ([phase-1a-simulation-testing.md](phase-1a-simulation-testing.md)) back-fills them for Phases 0b–1
-  after this phase closes; E5.4's two-client scripted playtest stays manual until then.
+  ([phase-1a-simulation-testing.md](phase-1a-simulation-testing.md)) adds them later for Phases 0b–1,
+  after this phase closes. Until then, the two-client scripted playtest of E5.4 stays manual.
 
-- Skills, spells, buffs/debuffs (including Death Penalty/Lucky passives), resurrection skills/scrolls.
-- Items, loot, inventory, equipment or enhancement beyond the fixed starter weapon stat block;
+- Skills, spells, buffs/debuffs (which include the Death Penalty/Lucky passives), resurrection skills/scrolls.
+- Items, loot, inventory, equipment or enhancement other than the fixed starter weapon stat block;
   shields, soulshots, bows, dual attacks, polearm sweeps and positional/elemental combat modifiers.
-- Multiple zones, parties/shared XP, PvP/karma, raids/minions/champions, quests, class advancement.
-- Obstacles/geodata/A*, collision avoidance, terrain/height/weather effects, UE-authoritative combat.
-- Passive resource regeneration, full CP/magic combat, production-scale balance or an art pipeline
-  beyond the one imported monster/proxy set; existing movement/login behaviour remains supported.
+- More than one zone, parties/shared XP, PvP/karma, raids/minions/champions, quests, class advancement.
+- Obstacles/geodata/A*, collision avoidance, terrain/height/weather effects, combat with UE as the authority.
+- Passive resource regeneration, full CP/magic combat, production-scale balance, or an art pipeline
+  other than the one imported monster/proxy set. The movement/login behaviour that exists stays supported.
 
 ## 9. Outcome
 
-- **Playtest verified:** Two-client playtest with the imported Animated Cockatrice (Fab EULA, author Marko Jäntti) and animated proxies completed the full kill → level 2 and death → respawn loop ([screenshot](../images/e5.4-playtest-victim-dead.jpg)).
-- **All stories landed:** All stories across E1.1–E1.4, E2.1–E2.6, E3.1–E3.4, E4.1–E4.3, E5.1–E5.4, and E6.1–E6.5 landed on main as of 2026-10-09.
-- **Server test suite:** ~535 server tests passing across unit, repository transaction, and real-socket WebSocket integration suites.
-- **Deterministic replay:** Two replay fixtures (467-tick movement, 908-tick fight) replay byte-identically in CI from both zone epoch start and mid-fight snapshot.
-- **Tick performance:** Release-build tick p99 for 200 players vs 200 keltirs is 0.70 ms after E6.5 digest/AOI optimization (comfortably within the 20 ms budget).
-- **Independent Codex review:** 10 findings from an independent Codex review were all fixed (fail-closed epoch recovery, killing-blow credit, checkpoint lanes in snapshots, client XP/incarnation fences, real E2E test).
-- **Learned — The source-fidelity trap:** Research docs' nominal "High Five" tables turned out to be Ertheia-era data; replaced directly from pinned official L2J Bitbucket source with an oracle-verified fixed-point engine.
-- **Learned — Property tests + replay for determinism bugs:** Property tests and byte-identical replay fixtures caught subtle determinism bugs (arrival ordering, rounding divergence) that unit tests missed.
-- **Learned — Codex for integration/mechanical stories:** Codex was highly effective for mechanical table transcriptions, cross-stack integration plumbing, and adversarial review.
+- **Playtest verified:** A two-client playtest with the imported Animated Cockatrice (Fab EULA, author Marko Jäntti) and animated proxies completed the full kill → level 2 and death → respawn loop ([screenshot](../images/e5.4-playtest-victim-dead.jpg)).
+- **All stories merged:** All stories in E1.1–E1.4, E2.1–E2.6, E3.1–E3.4, E4.1–E4.3, E5.1–E5.4, and E6.1–E6.5 were on main on 2026-10-09.
+- **Server test suite:** ~535 server tests pass in the unit, repository transaction, and real-socket WebSocket integration suites.
+- **Deterministic replay:** Two replay fixtures (467-tick movement, 908-tick fight) replay byte-identically in CI, from the zone epoch start and from a mid-fight snapshot.
+- **Tick performance:** The release-build tick p99 for 200 players against 200 keltirs is 0.70 ms after the E6.5 digest/AOI optimization (much less than the 20 ms budget).
+- **Independent Codex review:** An independent Codex review gave 10 findings. All of them were repaired (fail-closed epoch recovery, killing-blow credit, checkpoint lanes in snapshots, client XP/incarnation fences, real E2E test).
+- **Lesson — The source-fidelity trap:** The nominal "High Five" tables in the research docs were Ertheia-era data. We replaced them directly from the pinned official L2J Bitbucket source, with a fixed-point engine that an oracle verifies.
+- **Lesson — Property tests + replay for determinism bugs:** Property tests and byte-identical replay fixtures found small determinism bugs that the unit tests did not find (arrival order, rounding divergence).
+- **Lesson — Codex for integration/mechanical stories:** Codex was very effective for mechanical table transcriptions, integration plumbing across the stack, and adversarial review.
