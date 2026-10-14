@@ -541,6 +541,26 @@ def source_data_sha256():
 # Item RNG callsites with pinned bounds. D109: `bow_reduced_mp` (Rnd.get(100), the
 # reduced_mp_consume roll of the 21 such bows) appears in bow recordings.
 CALLSITE_BOUNDS={'enchant':100000,'bow_reduced_mp':100}
+# T10/B3 (zone 844e541): with item evidence on, every generator call is an item_rng fact.
+# Draws no caller tabulates are zone facts: nil subject, live incarnation 1, callsite
+# `zone_roll`, `entity_id` or the caller's own site, resolution `zone:<callsite>:<word_before>`.
+# An entity id fills 16 bytes from the generator: 4 words, recorded as bound 1 / value 0.
+ZONE_SUBJECT='00000000-0000-0000-0000-000000000000'
+ZONE_CALLSITES=('zone_roll','entity_id')
+ENTITY_ID_WORDS=4
+
+
+def zone_draw(row,data,before,after,bound,value):
+    """Validate the zone-draw grammar; non-zone facts may not use it."""
+    if row['entity']!=ZONE_SUBJECT:
+        if data['callsite'] in ZONE_CALLSITES or data['resolution_id'].startswith('zone:'):
+            raise ValueError('zone RNG grammar requires the nil zone subject (T10)')
+        return
+    if row.get('origin','live')!='live' or row['incarnation']!=1:raise ValueError('zone RNG draw must be live incarnation 1 (T10)')
+    if not re.fullmatch(r'[a-z][a-z0-9_]*',data['callsite']):raise ValueError('malformed zone RNG callsite')
+    if data['resolution_id']!=f"zone:{data['callsite']}:{before}":raise ValueError('zone RNG resolution must be zone:<callsite>:<word_before> (T10)')
+    if data['callsite']=='entity_id' and (bound,value,after-before)!=(1,0,ENTITY_ID_WORDS):
+        raise ValueError('entity-id zone draw must consume one 128-bit id (4 words, bound 1, value 0)')
 
 
 # D104: optional harness inputs beyond the E1 signature (engine MP respawn floor operands).
@@ -1093,6 +1113,7 @@ def validate(rows,recording,rules_hash):
         tick=integer(row['tick'])
         if not previous<=tick<=last:raise ValueError('unordered/out-of-scope fact')
         previous=tick;data=row['data']
+        if row['entity']==ZONE_SUBJECT and row['kind']!='item_rng':raise ValueError('the nil zone subject carries only item_rng draws (T10)')
         if row['kind'] in ('item_rng','item_delta'):
             if not isinstance(data.get('resolution_id'),str) or not data['resolution_id']:raise ValueError('operation resolution identity required')
         if row['kind']=='item_formula':
@@ -1144,6 +1165,7 @@ def validate(rows,recording,rules_hash):
             if not isinstance(data['callsite'],str) or not data['callsite']:raise ValueError('RNG callsite required')
             # Known callsites have pinned bounds; other callsites stay accepted (draw table, D46).
             if data['callsite'] in CALLSITE_BOUNDS and bound!=CALLSITE_BOUNDS[data['callsite']]:raise ValueError('RNG callsite bound mismatch: '+data['callsite'])
+            zone_draw(row,data,before,after,bound,value)
         elif row['kind']=='item_delta':
             receipt_field='receipt_refs' if data.get('operation')=='consume' else 'receipt_ref'
             fields={'operation','instance','before','after','count_delta','operation_ordinal',receipt_field,'resolution_id'}

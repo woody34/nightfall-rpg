@@ -2601,4 +2601,81 @@ class Evidence(unittest.TestCase):
             self.assertTrue(gate.requirements(path),path.name)
 
 
+
+# T10/B3 (zone 844e541): the zone's two fixtures, exported by nightfall-replay at 844e541.
+T10=SCRIPTS/'test/fixtures/phase4-t10'
+T10_RECORDINGS={'offline-grant-only':'f9c0c0b9fcf388ba96b08b22abb048fde100172247d30c4e36cde589cd6da2d4',
+                'draw-free-grant':'0a2d41c5be6e4a46df1ff0ff24d6ad729c9101b46d30aaf623829c647efc5ec9'}
+ZONE=gate.ZONE_SUBJECT
+
+
+class ZoneDraws(unittest.TestCase):
+    """Zone RNG facts: nil subject, zone_roll/entity_id/caller site, zone:<site>:<word>."""
+    def export(self,name):
+        rows=gate.read_jsonl(T10/f'{name}.jsonl')
+        self.assertEqual(rows[0]['recording_sha256'],T10_RECORDINGS[name])
+        recording=SCRIPTS.parents[2]/f'apps/api/fixtures/items/{name}.nfr'
+        if recording.is_file():self.assertEqual(gate.digest(recording),T10_RECORDINGS[name])
+        return rows
+
+    def validate(self,rows):
+        # The recording digest is pinned above; the .nfr itself lives on the zone branch.
+        original=gate.digest;gate.digest=lambda path:rows[0]['recording_sha256']
+        try:return gate.validate(copy.deepcopy(rows),Path('pinned.nfr'),rows[0]['phase4_rules_hash'])
+        finally:gate.digest=original
+
+    def mutate(self,rows,change):
+        rows=copy.deepcopy(rows);change(rows);return rows
+
+    def test_zone_fixtures_validate(self):
+        spawn=self.export('offline-grant-only');free=self.export('draw-free-grant')
+        self.validate(spawn);self.validate(free)
+        draws=[r for r in spawn if r.get('kind')=='item_rng']
+        self.assertEqual([(r['entity'],r['data']['callsite'],r['data']['resolution_id']) for r in draws],[(ZONE,'entity_id','zone:entity_id:4')])
+        self.assertFalse([r for r in free if r.get('kind')=='item_rng'])
+
+    def zone_rows(self,callsite='zone_roll',before=4,after=5,bound=100,value=7,**extra):
+        rows=self.export('offline-grant-only')
+        rows[2]['data']=dict(callsite=callsite,word_before=before,word_after=after,bound=bound,value=value,
+                             resolution_id=f'zone:{callsite}:{before}')
+        rows[2].update(extra)
+        return rows
+
+    def test_zone_roll_and_caller_sites_are_accepted_with_their_bounds(self):
+        self.validate(self.zone_rows())
+        self.validate(self.zone_rows(callsite='bow_reduced_mp',bound=100,value=99,after=7)) # rejection resampling
+        with self.assertRaisesRegex(ValueError,'bound mismatch'):self.validate(self.zone_rows(callsite='bow_reduced_mp',bound=99))
+        with self.assertRaisesRegex(ValueError,'cursor/residue'):self.validate(self.zone_rows(value=100))
+
+    def test_zone_grammar_is_enforced(self):
+        rows=self.export('offline-grant-only')
+        cases={
+            'resolution':lambda r:r[2]['data'].update(resolution_id='zone:entity_id:5'),
+            'site':lambda r:r[2]['data'].update(resolution_id='zone:zone_roll:4'),
+            'id words':lambda r:r[2]['data'].update(word_after=7),
+            'id bound':lambda r:r[2]['data'].update(bound=2),
+            'incarnation':lambda r:r[2].update(incarnation=2),
+            'offline':lambda r:r[2].update(origin='offline',incarnation=0),
+            'callsite':lambda r:r[2]['data'].update(callsite='Zone Roll',resolution_id='zone:Zone Roll:4'),
+            'non-rng':lambda r:r[1].update(entity=ZONE),
+            'owner uses zone grammar':lambda r:r[2].update(entity=r[1]['entity']),
+        }
+        for name,change in cases.items():
+            with self.subTest(name),self.assertRaises(ValueError):self.validate(self.mutate(rows,change))
+        owner=self.zone_rows(callsite='bow_reduced_mp',after=5)
+        owner[2]['entity']=owner[1]['entity'];owner[2]['data']['resolution_id']='attack:1'
+        self.validate(owner)
+
+    def test_gap_free_cursor_spans_zone_and_owner_draws(self):
+        rows=self.zone_rows() # zone_roll 4..5
+        follow=copy.deepcopy(rows[2]);follow['entity']=rows[1]['entity']
+        follow['data'].update(callsite='bow_reduced_mp',word_before=6,word_after=7,resolution_id='attack:1')
+        rows.insert(3,follow)
+        for index,row in enumerate(rows[1:-1]):row['sequence']=index
+        rows[-1]['facts']=len(rows)-2
+        with self.assertRaisesRegex(ValueError,'cursor'):self.validate(rows) # word 5 untabulated
+        follow['data'].update(word_before=5,word_after=6)
+        self.validate(rows)
+
+
 if __name__=='__main__':unittest.main()

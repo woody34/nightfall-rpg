@@ -65,6 +65,21 @@ JSONL contract (schema version 1 of this sidecar):
   continuity. Draw-free branches have no fabricated draw. Enchant always requires one bound100000
   draw at callsite `enchant`, including guaranteed success (GAME@abfde049
   EnchantScroll.java:149-155). Its residue must equal the outcome input.
+  T10/B3 (zone 844e541): with item evidence on, EVERY generator call is an
+  `item_rng` fact, so the cursor is gap-free from the first fact to the last
+  (each `word_before` equals the previous fact's `word_after`; the rule is
+  unchanged). A caller's own fact covers the draws it tabulates. Every other
+  draw is a zone fact: `entity` = the nil UUID, `origin=live`, `incarnation=1`,
+  `callsite` = `zone_roll`, `entity_id` or the caller's own site
+  (`[a-z][a-z0-9_]*`), `resolution_id` = `zone:<callsite>:<word_before>`
+  (decimal). An `entity_id` draw is one 128-bit id: exactly 4 words, `bound=1`,
+  `value=0`. A `zone_roll` or caller-site draw has `value < bound`, may span
+  several words (rejection resampling), and a caller site with a pinned bound
+  (D109 list) keeps that bound. The nil subject carries no other fact kind,
+  and a non-nil subject may not use the `zone_roll`/`entity_id` callsites or a
+  `zone:` resolution. Zone facts never correlate with an owner's resolution.
+  The exporter drops D65 `creation_origin` from published instance rows; the
+  canonical instance scalars are unchanged.
 - `item_delta`: `operation,instance,before,after,count_delta,operation_ordinal,resolution_id`,
   plus `receipt_refs,causes` for `operation=consume`, otherwise `receipt_ref`.
   Consume is one aggregate row per instance per tick at the final ordinal. Under D62,
