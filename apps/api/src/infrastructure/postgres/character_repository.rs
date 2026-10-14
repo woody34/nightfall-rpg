@@ -565,6 +565,16 @@ impl PgCharacterRepository {
         if items.is_none() && events.iter().any(DomainEvent::is_item) {
             return Err(CheckpointError::Constraint("item_projection_required".into()));
         }
+        // D47: learn payments bind to this transaction's learn receipt, and a rank that
+        // requires items settles only with exactly those payments.
+        if receipt.is_some() || items.is_some() {
+            crate::application::ports::validate_learn_payments(
+                items.map_or(&[][..], |work| work.projection.ledger.as_slice()),
+                cp,
+                receipt,
+                &*crate::infrastructure::character_validation::registry(self.classes.as_ref())?,
+            )?;
+        }
         if receipt.is_none() {
             if let Some(name) = cp.violated_constraint() {
                 return Err(CheckpointError::Constraint(name.to_owned()));

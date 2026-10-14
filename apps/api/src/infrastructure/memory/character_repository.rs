@@ -426,6 +426,13 @@ impl crate::application::ports::LearningCheckpointRepository for InMemoryCharact
         if receipt.account_id != owner {
             return Err(CheckpointError::Constraint("character_learn_receipt_valid".into()));
         }
+        // D47: a rank that requires items settles only with its item payments.
+        crate::application::ports::validate_learn_payments(
+            &[],
+            checkpoint,
+            Some(receipt),
+            &*crate::infrastructure::character_validation::registry(self.classes.as_ref())?,
+        )?;
         let fingerprint = receipt.checkpoint_fingerprint(checkpoint, events)?;
         let scoped = (owner, checkpoint.idempotency.0.clone(), checkpoint.idempotency.1);
         if let Some((stored, revision)) = state.checkpoint_keys.get(&scoped) {
@@ -515,6 +522,12 @@ impl crate::application::ports::ItemCheckpointRepository for InMemoryCharacterRe
         work.validate(cp, owner)?;
         work.validate_catalogue(rules)?;
         work.validate_events(cp, events)?;
+        crate::application::ports::validate_learn_payments(
+            &work.projection.ledger,
+            cp,
+            learning,
+            &*crate::infrastructure::character_validation::registry(self.classes.as_ref())?,
+        )?;
         let receipts = work.receipts(cp)?;
         for receipt in &receipts {
             if let Some(known) = current.item_receipts.get(&(
