@@ -122,7 +122,7 @@ ZONE_FLAGS=(env PHASE3_ENABLED=1 PHASE4_ENABLED=1)
 DATABASE_URL="postgres://nightfall:nightfall@localhost:$((5432 + OFFSET))/$SOAK_DB" \
 NATS_URL="nats://localhost:$((4222 + OFFSET))" \
 HTTP_ADDR="127.0.0.1:$HTTP_PORT" GRPC_ADDR="127.0.0.1:$GRPC_PORT" \
-WS_PUBLIC_URL="ws://localhost:$HTTP_PORT/ws" AUTH_DEV_TOKENS=1 WS_MAX_SESSIONS_PER_IP=32 \
+TELEMETRY_PRETTY=0 WS_PUBLIC_URL="ws://localhost:$HTTP_PORT/ws" AUTH_DEV_TOKENS=1 WS_MAX_SESSIONS_PER_IP=32 \
 OIDC_ISSUER="http://localhost:$((8080 + OFFSET))/realms/nightfall" OIDC_AUDIENCE=nightfall-api \
 OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:$((4317 + OFFSET))" OTEL_SERVICE_NAME=nightfall-api \
 ZONE_FILE="$OUT/fixtures/data/zones/test_zone.toml" RULES_DIR="$OUT/fixtures/data" \

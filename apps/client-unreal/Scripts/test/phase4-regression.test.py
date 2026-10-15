@@ -131,6 +131,23 @@ class Runner(unittest.TestCase):
         plain.write_text('INFO nightfall_api::zone_runtime: Phase3 bootstrap bundle validated with the Phase4 (V6) item extension '
                          'phase4_item_rules_hash=sha256:'+'1'*64+' phase4_skill_rules_hash=sha256:'+'2'*64+'\n')
         self.assertTrue(regression.is_v6(fixture.api_zone_flags(plain)))
+        # T15: the repo-default TELEMETRY_PRETTY=1 layout (ANSI-coloured), captured from the i3 run.
+        pretty=fixture.api_zone_flags(SCRIPTS/'test/fixtures/phase4-v6-log/api-v6-startup-pretty.log')
+        self.assertEqual(pretty['phase4_skill_rules_hash'],'sha256:5c2378c9eab24f26fdef161c4965dc3567fc05eefe04186cdf095d84cad7f6d1')
+        self.assertTrue(regression.is_v6(pretty))
+        # Pretty multi-line layout: fields on the following lines, record ends at the next timestamp.
+        plain.write_text('  \x1b[2m2026-10-15T01:06:34Z\x1b[0m \x1b[32m INFO\x1b[0m Phase3 bootstrap bundle validated with the Phase4 (V6) item extension\n'
+                         '    \x1b[3mphase4_item_rules_hash\x1b[0m: sha256:'+'3'*64+'\n    \x1b[3mphase4_skill_rules_hash\x1b[0m: sha256:'+'4'*64+'\n'
+                         '  2026-10-15T01:06:35Z  INFO nightfall-api starting\n')
+        self.assertEqual(fixture.api_zone_flags(plain)['phase4_skill_rules_hash'],'sha256:'+'4'*64)
+        # Hashes of a LATER record never complete a marker line that lacks them.
+        plain.write_text('2026-10-15T01:06:34Z INFO Phase3 bootstrap bundle validated with the Phase4 (V6) item extension\n'
+                         '2026-10-15T01:06:35Z INFO other phase4_item_rules_hash=sha256:'+'1'*64+' phase4_skill_rules_hash=sha256:'+'2'*64+'\n')
+        self.assertIsNone(fixture.api_zone_flags(plain))
+        lib=(SCRIPTS/'sim-lib.sh').read_text()
+        self.assertEqual(lib.count('PHASE4_ENABLED=1 TELEMETRY_PRETTY=0 exec'),2)
+        self.assertIn('has no V6 bootstrap line after health',lib)
+        self.assertIn('TELEMETRY_PRETTY=0',(SCRIPTS/'run-soak.sh').read_text())
         plain.write_text('INFO Phase3 bootstrap bundle validated phase3_rules_hash=sha256:'+'1'*64+'\n') # V5 boot
         self.assertIsNone(fixture.api_zone_flags(plain))
         lib=(SCRIPTS/'sim-lib.sh').read_text()

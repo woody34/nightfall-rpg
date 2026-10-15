@@ -302,7 +302,7 @@ class Fixtures(unittest.TestCase):
         source=(SCRIPTS/'phase2-fixture.py').read_text()
         self.assertIn("'zone_flags': zone_flags(selected)",source);self.assertIn("!= zone_flags(value['fixture'])",source)
         lib=(SCRIPTS/'sim-lib.sh').read_text();soak=(SCRIPTS/'run-soak.sh').read_text()
-        self.assertEqual(lib.count('PHASE3_ENABLED=1 PHASE4_ENABLED=1 exec'),2);self.assertNotIn('unset PHASE4_ENABLED',lib)
+        self.assertEqual(lib.count('PHASE3_ENABLED=1 PHASE4_ENABLED=1 TELEMETRY_PRETTY=0 exec'),2);self.assertNotIn('unset PHASE4_ENABLED',lib)
         self.assertIn('zone-flags.json',lib)
         self.assertIn('ZONE_FLAGS=(env PHASE3_ENABLED=1 PHASE4_ENABLED=1)',soak);self.assertNotIn('PHASE3_ENABLED="$CASTING"',soak)
         self.assertNotIn('env -u PHASE4_ENABLED',soak)

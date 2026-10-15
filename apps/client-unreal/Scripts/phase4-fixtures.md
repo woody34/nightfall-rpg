@@ -195,9 +195,12 @@ health, sim-lib records what the API ATTESTS (review-3 P2-3): `phase2-fixture.py
 reads the API's own V6 bootstrap log line ("Phase3 bootstrap bundle validated with the
 Phase4 (V6) item extension") and writes the flags with its `phase4_item_rules_hash` and
 `phase4_skill_rules_hash` to `<unit>/zone-flags.json` (shared stack) or
-`<unit>/<first scenario>/fixture/zone-flags.json` (owned fixture). Without that line nothing
-is written. An attached API (`--api attach`) records nothing either, so its units cannot
-verify E6.3.
+`<unit>/<first scenario>/fixture/zone-flags.json` (owned fixture). T15: every API the
+harness starts (shared stack, owned fixtures, soak) runs with `TELEMETRY_PRETTY=0`, whatever
+the caller's `.env` says (the repo default is 1), so its log is JSON. The parser also strips
+ANSI escapes and accepts the pretty and plain tracing layouts. An API the harness started
+whose log has no V6 bootstrap line after health fails the unit loudly (`sim_die`). An
+attached API (`--api attach`) records nothing, so its units cannot verify E6.3.
 Blacksmith is at (124,128), design §7; tax0 is hashed fixture policy.
 
 Live grammar compatibility is separately checked by sim-parser-check.py against

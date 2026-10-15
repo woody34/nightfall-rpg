@@ -321,6 +321,8 @@ def provision(folder, batch):
             'NATS_URL': f'nats://127.0.0.1:{nats}', 'HTTP_ADDR': f'127.0.0.1:{http}',
             'GRPC_ADDR': f'127.0.0.1:{grpc}', 'WS_PUBLIC_URL': f'ws://127.0.0.1:{http}/ws',
             'AUTH_DEV_TOKENS': '1', f'NIGHTFALL_PHASE{version}_FIXTURE': '1',
+            # T15: machine-readable (JSON) API logs for the V6 attestation, whatever .env says.
+            'TELEMETRY_PRETTY': '0',
             **zone_flags(selected),
             'ZONE_FILE': str(zone_file),
             'RULES_DIR': str(rules_dir)}
@@ -478,22 +480,31 @@ V6_STARTUP = 'Phase3 bootstrap bundle validated with the Phase4 (V6) item extens
 V6_HASHES = ('phase4_item_rules_hash', 'phase4_skill_rules_hash')
 
 
+ANSI_ESCAPE = re.compile(r'\x1b\[[0-9;?]*[ -/]*[@-~]')
+
+
 def api_zone_flags(log):
-    """Review-3 P2-3: the zone flags a unit's API actually booted with, from its startup log.
+    """Review-3 P2-3 / T15: the zone flags a unit's API actually booted with, from its startup log.
 
     Only the API's own V6 bootstrap line attests V6; the record carries the rules hashes that
-    line names. Accepts the JSON and the plain tracing formats. Returns None without it."""
-    for line in log.read_text(errors='replace').splitlines():
-        if V6_STARTUP not in line:
-            continue
-        hashes = {}
-        for name in V6_HASHES:
-            match = re.search(name + r'\W+(sha256:[0-9a-f]{64})', line)
-            if not match:
-                return None
-            hashes[name] = match[1]
-        return {'PHASE3_ENABLED': '1', 'PHASE4_ENABLED': '1', **hashes, 'evidence': 'api startup log'}
-    return None
+    line names. ANSI escapes are stripped first, and the JSON (`"name":"sha256:…"`), compact
+    (`name=sha256:…`) and pretty (`name: sha256:…`, fields possibly on the following lines)
+    tracing layouts are accepted. Returns None without that line."""
+    text = ANSI_ESCAPE.sub('', log.read_text(errors='replace'))
+    start = text.find(V6_STARTUP)
+    if start < 0:
+        return None
+    # The fields follow the message on its line, or (pretty multi-line layout) on the next
+    # lines; the record ends at the next timestamped line (or JSON record).
+    end = re.search(r'\n\s*(?:\{|\d{4}-\d{2}-\d{2}T)', text[start:])
+    window = text[start:start + end.start()] if end else text[start:]
+    hashes = {}
+    for name in V6_HASHES:
+        match = re.search(r'\b' + name + r'"?\s*[:=]\s*"?(sha256:[0-9a-f]{64})\b', window)
+        if not match:
+            return None
+        hashes[name] = match[1]
+    return {'PHASE3_ENABLED': '1', 'PHASE4_ENABLED': '1', **hashes, 'evidence': 'api startup log'}
 
 
 def main():
