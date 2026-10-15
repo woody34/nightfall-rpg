@@ -228,9 +228,11 @@ def profiles(pack, repo=REPO, paired=False):
     elif pack == 'phase4-blacksmith':
         r = recipe(repo)
         extras = [(x['template_id'], x['count'], 3 if x['template_id'] == r['base_template'] else 0) for x in r['ingredients']]
-        stone = next(x for x in table('augmentation_chances', repo)['stones'] if x['kind'] == 'weapon')
-        cost = next(x for x in table('augmentation_chances', repo)['costs'] if x['grade'] == catalogue(repo)[r['base_template']]['grade'])
-        extras += [(stone['template_id'], 1, 0), (cost['gemstone_id'], cost['weapon_count'], 0), (57, 210000, 0)]
+        # D123/T24: weapon refine stays deferred (D82: no weapon life stone is admitted), so
+        # 4-augment refines an ACCESSORY: the stable minimum admitted C-grade accessory and the
+        # minimum admitted accessory life stone, paid with the C-grade accessory gemstones.
+        accessory, stone, cost = accessory_refine(repo)
+        extras += [(accessory, 1, 0), (stone['template_id'], 1, 0), (cost['gemstone_id'], cost['accessory_count'], 0), (57, 210000, 0)]
         owner = role(repo, level=stone['level'], position=(126, 128))
     elif pack == 'phase4-kinds':
         extras=[(s[k],1,0) for k in ('dual','dualfist','pole','dagger')]
@@ -281,6 +283,24 @@ def declared_units(directory):
 
 def declared_pair(batch):
     return len(batch) == 2 and batch[0].parent == batch[1].parent and any(set(r) == {p.name for p in batch} for r in declared_units(batch[0].parent).values())
+
+
+ACCESSORY_BODYPARTS = ('neck', 'rear;lear', 'rfinger;lfinger')
+
+
+def accessory_refine(repo=REPO):
+    """(accessory template, life stone row, gemstone cost row) for the D123 accessory refine."""
+    admitted_stones = {a['stone_id'] for a in table('capabilities', repo)['augmentation']
+                       if a['admitted'] and a['kind'].startswith('accessory')}
+    stones = [x for x in table('augmentation_chances', repo)['stones']
+              if x['kind'] == 'accessory' and x['template_id'] in admitted_stones]
+    if not stones:
+        raise ValueError('no admitted accessory life stone')
+    stone = min(stones, key=lambda x: (x['level'], x['template_id']))
+    accessory = next(i for i, r in sorted(catalogue(repo).items()) if capabilities(repo)[i]['admitted']
+                     and r['kind'] == 'Armor' and r['grade'] == 'C' and r['bodypart'] in ACCESSORY_BODYPARTS)
+    cost = next(x for x in table('augmentation_chances', repo)['costs'] if x['grade'] == 'C')
+    return accessory, stone, cost
 
 
 def publish(repo=REPO):

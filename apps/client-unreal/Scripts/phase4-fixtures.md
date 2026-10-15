@@ -274,3 +274,15 @@ The live `<scenario>.nfr` remains the unit recording for every other gate. Offli
 integration 7262804 binaries. The live capture's item export refuses ("partial/live
 captures"). The graceful-stop closed epoch has a Shutdown watermark, replays to a match, and
 its item evidence validates.
+
+Accessory refine (D123/T24). Weapon refine stays deferred (D82: no weapon life stone is
+admitted, so the zone refuses it with ItemCapabilityDeferred). 4-augment therefore refines an
+accessory, with the same assertions (applied outcome, draws/options, cancel fee). The
+phase4-blacksmith pack (shared with 4-sa-exchange, whose SA ingredients are unchanged) now
+carries:
+- the stable minimum admitted C-grade accessory: Necklace of Seal 119;
+- the minimum admitted accessory life stone: 12754 (level 46, the owner's level);
+- the C-grade accessory gemstones: 2130 × 200;
+- the cancel-fee adena.
+
+The weapon life stone 8723 and 2130 × 20 are gone (`accessory_refine()`).
