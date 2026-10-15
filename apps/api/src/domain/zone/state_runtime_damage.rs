@@ -12844,6 +12844,136 @@ mod tests {
         ZoneState::from_snapshot_with_items(zone.snapshot(), Some(rules)).unwrap();
     }
 
+    /// T28/D127: an attack-start recharge that only removes an automatic shot (no stack left
+    /// at the attempt, or fewer than one charge) still publishes the owner's `ItemCheckpoint`:
+    /// a changed tick (D79 revision step) carrying its `auto_shot_exhausted` evidence.
+    #[test]
+    fn v6_attack_auto_shot_only_removal_publishes_its_checkpoint() {
+        use crate::domain::zone::phase4_projection::ItemEvidenceValue as V;
+        use crate::domain::zone::EquipSlot;
+        // Flamberge (C) needs 2 soulshots per charge; 1464 is its C-grade soulshot.
+        for (stock, reason) in [(None, "missing"), (Some(1_u64), "insufficient")] {
+            let (mut zone, owner, npc, ids) = use_fixture(&[1464]);
+            let rules = Arc::clone(&zone.phase4.as_ref().unwrap().rules);
+            let player = zone
+                .phase4
+                .as_mut()
+                .unwrap()
+                .canonical
+                .players
+                .get_mut(&owner.entity)
+                .unwrap();
+            let weapon = player.inventory[&player.paperdoll[&EquipSlot::Rhand]].template_id;
+            assert_eq!(rules.parts().items[&weapon].soulshots, 2);
+            player.auto_shots.insert(1464);
+            match stock {
+                Some(count) => player.inventory.get_mut(&ids[0]).unwrap().count = count,
+                None => {
+                    player.inventory.remove(&ids[0]);
+                },
+            }
+            zone.rebuild_v5(owner.entity).unwrap();
+            zone.run_tick(zone.draft(Vec::new())).unwrap();
+            let mut cold =
+                ZoneState::from_snapshot_with_items(zone.snapshot(), Some(Arc::clone(&rules)))
+                    .unwrap();
+            let start = vec![
+                review_input(
+                    owner.entity,
+                    1,
+                    ZoneCommand::SetTarget {
+                        entity: owner.entity,
+                        target: Some(npc.entity),
+                    },
+                ),
+                review_input(
+                    owner.entity,
+                    2,
+                    ZoneCommand::Attack {
+                        entity: owner.entity,
+                    },
+                ),
+            ];
+            let mut published = None;
+            for step in 0..200 {
+                let before = zone
+                    .phase4
+                    .as_ref()
+                    .unwrap()
+                    .canonical
+                    .checkpoint(
+                        owner.entity,
+                        zone.next_tick,
+                        &zone.phase3.as_ref().unwrap().canonical,
+                    )
+                    .unwrap();
+                let draft = zone.draft(if step == 0 { start.clone() } else { Vec::new() });
+                let applied = zone.run_tick(draft.clone()).unwrap();
+                assert_eq!(applied, cold.run_tick(draft).unwrap());
+                assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+                if let Some(projection) = applied.events.iter().find_map(|e| match e {
+                    ZoneEvent::ItemCheckpoint(p) if p.entity == owner.entity => {
+                        Some(p.as_ref().clone())
+                    },
+                    _ => None,
+                }) {
+                    published = Some((before, projection));
+                    break;
+                }
+                assert!(zone.phase4.as_ref().unwrap().canonical.players[&owner.entity]
+                    .auto_shots
+                    .contains(&1464));
+            }
+            let (before, projection) = published.expect("the removal tick publishes");
+            assert!(before.auto_shots.contains(&1464));
+            assert!(!projection.checkpoint.auto_shots.contains(&1464));
+            assert!(projection.ledger.is_empty(), "{:?}", projection.ledger);
+            assert_eq!(
+                projection.checkpoint.inventory_revision,
+                before.inventory_revision.checked_add(1).unwrap(),
+                "a changed tick strictly advances (D79)"
+            );
+            let evidence = projection
+                .evidence
+                .iter()
+                .filter(|e| e.family == "auto_shot_exhausted")
+                .collect::<Vec<_>>();
+            assert_eq!(evidence.len(), 1, "{evidence:?}");
+            assert_eq!(evidence[0].fields["template"], V::Unsigned(1464));
+            assert_eq!(evidence[0].fields["reason"], V::Text(reason.into()));
+            assert_eq!(evidence[0].fields["remaining"], V::Unsigned(stock.unwrap_or(0)));
+            // The API's D127 rule (session 21): removal-only, and the removed template has no
+            // remaining instance, or `insufficient` with remaining below the weapon's
+            // per-shot requirement.
+            let held: u64 = projection
+                .checkpoint
+                .instances
+                .iter()
+                .filter(|item| item.template_id == 1464)
+                .map(|item| item.count)
+                .sum();
+            assert!(projection
+                .checkpoint
+                .auto_shots
+                .is_subset(&before.auto_shots));
+            assert!(held == 0 || (reason == "insufficient" && held < 2));
+            // Every other part of the tick settles through the API gate today; the removal
+            // itself needs the API's D127 acceptance (aligned here until it lands).
+            let mut aligned = before.clone();
+            aligned
+                .auto_shots
+                .clone_from(&projection.checkpoint.auto_shots);
+            crate::application::ports::ItemCheckpointWork {
+                zone: zone.seed.zone,
+                epoch: zone.seed.epoch,
+                allocation: zone.phase4.as_ref().unwrap().canonical.allocator,
+                projection,
+            }
+            .validate_before(Some(&aligned))
+            .unwrap();
+        }
+    }
+
     /// D127: the automatic charge that consumes the last shots of a stack disables that
     /// automatic shot in the same tick; its Consume row (`auto_shot_payment`) and the
     /// `auto_shot_exhausted` evidence reference the emptied stack with one resolution id.

@@ -378,7 +378,7 @@ impl ZoneState {
         attacker: EntityId,
         had_previous: bool,
         mut projection: Phase4Projection,
-        original_revision: u64,
+        (original_revision, original_auto_shots): (u64, std::collections::BTreeSet<u32>),
         events: &mut Vec<ZoneEvent>,
     ) -> Result<(), TickError> {
         self.rebuild_v5(attacker).map_err(invariant)?;
@@ -394,6 +394,8 @@ impl ZoneState {
             && projection.ledger.is_empty()
             && projection.evidence.is_empty()
             && projection.checkpoint.inventory_revision == original_revision
+            // T28: an auto_shots-only change is a changed tick; it always publishes.
+            && projection.checkpoint.auto_shots == original_auto_shots
         {
             return Ok(());
         }
@@ -514,7 +516,7 @@ impl ZoneState {
         let Some(weapon) = player.paperdoll.get(&EquipSlot::Rhand).copied() else {
             return Ok(());
         };
-        let original_revision = player.inventory_revision;
+        let original = (player.inventory_revision, player.auto_shots.clone());
         let subject = self.binding(attacker).ok_or_else(missing)?;
         if !player.auto_shots.is_empty() {
             let (previous, revision) =
@@ -544,7 +546,7 @@ impl ZoneState {
                 attacker,
                 previous.is_some(),
                 projection,
-                original_revision,
+                original,
                 events,
             )?;
         }
@@ -680,7 +682,7 @@ impl ZoneState {
             .players
             .get_mut(&attacker)
             .ok_or_else(missing)?;
-        let original_revision = player.inventory_revision;
+        let original = (player.inventory_revision, player.auto_shots.clone());
         let item = player.inventory.get_mut(&weapon).ok_or_else(missing)?;
         if item.charges & ShotKind::Soul.bit() == 0 {
             return Err(missing());
@@ -737,7 +739,7 @@ impl ZoneState {
             attacker,
             previous.is_some(),
             projection,
-            original_revision,
+            original,
             events,
         )
     }

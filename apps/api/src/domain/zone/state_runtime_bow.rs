@@ -289,12 +289,12 @@ impl ZoneState {
             return Ok(BowStart::Wait);
         }
         let (previous, revision) = self.attack_projection_v6(tick, id, initial_revision, events)?;
-        let original_revision = self
+        let original = self
             .phase4
             .as_ref()
             .and_then(|items| items.canonical.players.get(&id))
-            .ok_or_else(missing)?
-            .inventory_revision;
+            .map(|player| (player.inventory_revision, player.auto_shots.clone()))
+            .ok_or_else(missing)?;
         let mut projection = match previous.clone() {
             Some(projection) => projection,
             None => self.empty_projection_v6(tick, id)?,
@@ -453,7 +453,7 @@ impl ZoneState {
             id,
             previous.is_some(),
             projection,
-            original_revision,
+            original,
             events,
         )?;
         // Timing: attack = trunc(500000/pAtkSpd) (rounded speed, as the melee path), impact at
