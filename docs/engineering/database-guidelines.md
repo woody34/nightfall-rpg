@@ -84,8 +84,10 @@ transaction. `started_at` and `closed_at` are its lifecycle timestamps; `first_s
 epoch's first applied sequence as recovery snapshots advance. `last_recorded_tick` is a
 conservative upper bound recorded before log admission; `last_checkpointed_tick` advances
 only after all critical saves through that tick complete. Unclosed rows require recovery before
-admission. Missing history (including an uncertain final publish) fails closed and is logged;
-only completed recovery or a successful clean-shutdown save and baseline closes the row.
+admission. Missing history fails closed and is logged. The one exception is the final indexed
+tick when `last_checkpointed_tick` is below it: its publish is uncertain, and no output or save
+exists for it, so recovery closes the epoch at the last record before it (T21). Only completed
+recovery or a successful clean-shutdown save and baseline closes the row.
 
 ## 3. Queries
 

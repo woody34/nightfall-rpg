@@ -108,6 +108,8 @@ pub struct RecoveryEpoch {
     pub epoch: u64,
     /// Highest tick that may have reached the log, recorded before admission.
     pub last_recorded_tick: Option<crate::domain::zone::Tick>,
+    /// Highest tick whose checkpoint completed (after its log acknowledgement), if indexed.
+    pub last_checkpointed_tick: Option<crate::domain::zone::Tick>,
 }
 
 /// Durable epoch discovery (`zone_epochs`) and recovery baselines (`zone_snapshots`).

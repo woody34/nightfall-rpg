@@ -305,7 +305,12 @@ async fn missing_real_jetstream_snapshot_or_record_keeps_recovery_unresolved_and
                 repo.load_for_admission(c.id).await.unwrap().unwrap(),
             )]))
             .unwrap();
-        store.recording(def.zone, 1, batch.tick).await.unwrap();
+        // T21: the intent for the next tick proves the batch tick was acknowledged, so its
+        // record is required (an intent for the batch tick alone is the crash window).
+        store
+            .recording(def.zone, 1, Tick(batch.tick.0.checked_add(1).unwrap()))
+            .await
+            .unwrap();
         if remove_snapshot {
             log.append_applied(&AppliedTickRecord::from_applied(def.zone, &batch))
                 .await

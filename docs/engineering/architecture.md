@@ -288,6 +288,11 @@ so a shutdown flush at the same tick cannot deduplicate different checkpoint sta
 index inserted in the same transaction. It records start, first sequence, checkpoint progress
 and closure independently of JetStream retention. `last_recorded_tick` is a conservative
 upper bound written before log admission, so losing a final record cannot hide a pending save.
+The zone writes it only after the log acknowledged the previous tick. Recovery therefore needs
+the history through the tick before it. The indexed tick itself can be absent: a crash between
+the index write and the acknowledgement released no output and no save for it. If
+`last_checkpointed_tick` reaches the indexed tick, that tick was acknowledged, and its absence
+fails closed (T21).
 
 **Record.** `AppliedTickRecord { zone, epoch, tick, server_time_ms, commands (ordinal, source,
 seq, command), dispositions, outputs, output_form }`, where `outputs` is each player's ordered

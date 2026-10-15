@@ -647,7 +647,13 @@ async fn recovery_permanent_failure_and_missing_log_leave_epoch_unresolved_then_
     let snapshot = h.zone.snapshot().await.unwrap();
     let log = InMemoryEventLog::default();
     let index = Index::default();
-    index.recording(ZoneId(77), 1, snapshot.tick).await.unwrap();
+    // T21: the intent for the tick after the transfer proves the transfer tick itself was
+    // acknowledged, so its record is required (an intent alone for the transfer tick would be
+    // the crash window, which recovery may close without it).
+    index
+        .recording(ZoneId(77), 1, Tick(snapshot.tick.0.checked_add(1).unwrap()))
+        .await
+        .unwrap();
     let mut recovery = CheckpointService::new(
         h.repo.clone(),
         Arc::new(InMemorySessionAudit::default()),
