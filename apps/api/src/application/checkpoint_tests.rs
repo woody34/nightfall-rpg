@@ -605,67 +605,29 @@ async fn restored_cadence_saves_on_the_original_fiftieth_tick() {
     assert_eq!(h.stored().await.revision, 1);
 }
 
-/// T21: the recording index is written before a tick's log admission, after the previous tick
-/// was acknowledged. A process killed in that window leaves the indexed tick without its record;
-/// recovery settles the acknowledged prefix and closes the epoch at its last record. A gap
-/// before the indexed tick, or a missing tick whose checkpoint completed (so it had been
-/// acknowledged), is still refused and the epoch stays unresolved.
 #[tokio::test]
-async fn recovery_accepts_only_the_unacknowledged_indexed_tick_as_missing() {
-    use crate::application::replay_log::{EpochStatus, EventLog, ZoneSnapshotStore};
+async fn missing_tail_is_refused_even_when_a_fresh_baseline_survives() {
+    use crate::application::replay_log::ZoneSnapshotStore;
     use crate::infrastructure::eventlog::{InMemoryEventLog, InMemoryZoneSnapshotStore};
-    // (intent beyond the last record, completed checkpoint of the intent tick, accepted)
-    for (beyond, completed, accepted) in [(1_u64, false, true), (2, false, false), (1, true, false)]
-    {
-        let mut h = Harness::new().await;
-        let log = Arc::new(InMemoryEventLog::default());
-        let store = Arc::new(InMemoryZoneSnapshotStore::default());
-        let start = h.state.snapshot();
-        log.write_snapshot(&start).await.unwrap();
-        h.service = h.service.with_durability(log.clone(), store.clone());
-        h.service.refresh(&start).await.unwrap();
-        let zone = start.seed.zone;
-        let epoch = start.seed.epoch;
-        let mut last = start.tick;
-        for _ in 0..3 {
-            let tick = h.state.run_tick(h.state.draft(vec![])).unwrap();
-            store.recording(zone, epoch, tick.tick).await.unwrap();
-            log.append_applied(&AppliedTickRecord::from_applied(zone, &tick))
-                .await
-                .unwrap();
-            last = tick.tick;
-        }
-        // The crashed attempt: its intent is indexed, its record never acknowledged.
-        let intent = Tick(last.0.checked_add(beyond).unwrap());
-        store.recording(zone, epoch, intent).await.unwrap();
-        if completed {
-            store.checkpointed(zone, epoch, intent).await.unwrap();
-        }
-        let mut recovery =
-            CheckpointService::new(h.repo.clone(), h.audit.clone(), Arc::new(Metrics::detached()));
-        let result = recovery
-            .recover_indexed(log.as_ref(), store.as_ref(), zone)
-            .await;
-        if accepted {
-            result.unwrap();
-            assert!(store.unresolved(zone).await.unwrap().is_empty());
-            let status = log.epoch_status(zone, epoch).await.unwrap();
-            assert!(
-                matches!(&status, EpochStatus::Complete(w) if w.last_tick == Some(last) && w.records == 3),
-                "the recovered epoch closes at its last record: {status:?}"
-            );
-        } else {
-            assert!(result
-                .unwrap_err()
-                .to_string()
-                .contains("ends before indexed tick"));
-            assert_eq!(store.unresolved(zone).await.unwrap().len(), 1);
-            assert!(!matches!(
-                log.epoch_status(zone, epoch).await.unwrap(),
-                EpochStatus::Complete(_)
-            ));
-        }
-    }
+    let mut h = Harness::new().await;
+    let log = Arc::new(InMemoryEventLog::default());
+    let store = Arc::new(InMemoryZoneSnapshotStore::default());
+    let snapshot = h.state.snapshot();
+    h.service = h.service.with_durability(log.clone(), store.clone());
+    h.service.refresh(&snapshot).await.unwrap();
+    // D134: the index is written only after the log acknowledged the tick, so an indexed tick
+    // missing from the log is log loss and fails closed.
+    store
+        .recording(snapshot.seed.zone, snapshot.seed.epoch, snapshot.tick)
+        .await
+        .unwrap();
+    let mut recovery = CheckpointService::new(h.repo, h.audit, Arc::new(Metrics::detached()));
+    let error = recovery
+        .recover_indexed(log.as_ref(), store.as_ref(), snapshot.seed.zone)
+        .await
+        .unwrap_err();
+    assert!(error.to_string().contains("ends before indexed tick"));
+    assert_eq!(store.unresolved(snapshot.seed.zone).await.unwrap().len(), 1);
 }
 
 #[tokio::test]

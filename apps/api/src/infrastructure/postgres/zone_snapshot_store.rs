@@ -196,13 +196,11 @@ impl ZoneSnapshotStore for PgZoneSnapshotStore {
         zone: ZoneId,
     ) -> anyhow::Result<Vec<crate::application::replay_log::RecoveryEpoch>> {
         self.db.query_all_raw(Statement::from_sql_and_values(DbBackend::Postgres,
-            "SELECT epoch, last_recorded_tick, last_checkpointed_tick FROM zone_epochs WHERE zone_id = $1 AND closed_at IS NULL ORDER BY epoch", [zone_col(zone)?.into()])).await?
+            "SELECT epoch, last_recorded_tick FROM zone_epochs WHERE zone_id = $1 AND closed_at IS NULL ORDER BY epoch", [zone_col(zone)?.into()])).await?
             .into_iter().map(|row| {
                 let epoch: i64 = row.try_get("", "epoch")?;
                 let tick: Option<i64> = row.try_get("", "last_recorded_tick")?;
-                let checkpointed: Option<i64> = row.try_get("", "last_checkpointed_tick")?;
-                let tick_of = |t: Option<i64>| t.map(|t| u64::try_from(t).map(crate::domain::zone::Tick)).transpose();
-                Ok(crate::application::replay_log::RecoveryEpoch { epoch: u64::try_from(epoch)?, last_recorded_tick: tick_of(tick)?, last_checkpointed_tick: tick_of(checkpointed)? })
+                Ok(crate::application::replay_log::RecoveryEpoch { epoch: u64::try_from(epoch)?, last_recorded_tick: tick.map(|t| u64::try_from(t).map(crate::domain::zone::Tick)).transpose()? })
             }).collect()
     }
 

@@ -286,13 +286,14 @@ at an admitted boundary and on clean shutdown; its message ID includes the bound
 so a shutdown flush at the same tick cannot deduplicate different checkpoint state.
 `zone_snapshots` holds this latest baseline; `zone_epochs` is a durable, unpruned discovery
 index inserted in the same transaction. It records start, first sequence, checkpoint progress
-and closure independently of JetStream retention. `last_recorded_tick` is a conservative
-upper bound written before log admission, so losing a final record cannot hide a pending save.
-The zone writes it only after the log acknowledged the previous tick. Recovery therefore needs
-the history through the tick before it. The indexed tick itself can be absent: a crash between
-the index write and the acknowledgement released no output and no save for it. If
-`last_checkpointed_tick` reaches the indexed tick, that tick was acknowledged, and its absence
-fails closed (T21).
+and closure independently of JetStream retention. The zone writes `last_recorded_tick` after
+the log acknowledges the tick and before its checkpoint or output (D134). So
+`last_recorded_tick = T` means that record T was acknowledged. Every output, RPC reply,
+checkpoint, outbox row, receipt and `last_checkpointed_tick` advance is at or below it.
+Recovery requires the history through `last_recorded_tick`. A shorter history is log loss and
+fails closed. A crash after the acknowledgement and before the index write leaves the index at
+T-1. Recovery then replays record T from the log and settles its checkpoint. One process owns a
+zone at a time. The index and the applied publish do not fence a second, stale owner.
 
 **Record.** `AppliedTickRecord { zone, epoch, tick, server_time_ms, commands (ordinal, source,
 seq, command), dispositions, outputs, output_form }`, where `outputs` is each player's ordered

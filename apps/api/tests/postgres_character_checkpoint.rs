@@ -437,10 +437,4 @@ async fn storage_subphase_timings_distinguish_pool_wait_queries_and_commit_witho
     }
     let markers: (i64, i64) = sqlx::query_as("SELECT last_recorded_tick,last_checkpointed_tick FROM zone_epochs WHERE zone_id=77 AND epoch=1").fetch_one(&single).await.unwrap();
     assert_eq!(markers, (35, 30));
-    // T21: recovery discovery carries both markers (intent and completed checkpoint).
-    let indexed = index.unresolved(ZoneId(77)).await.unwrap();
-    assert_eq!(
-        (indexed[0].last_recorded_tick, indexed[0].last_checkpointed_tick),
-        (Some(Tick(35)), Some(Tick(30)))
-    );
 }

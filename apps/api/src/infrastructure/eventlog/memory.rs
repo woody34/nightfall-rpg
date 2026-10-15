@@ -255,14 +255,7 @@ impl EventLog for InMemoryEventLog {
 #[derive(Default)]
 pub struct InMemoryZoneSnapshotStore {
     rows: Mutex<BTreeMap<(ZoneId, u64), ZoneSnapshotRow>>,
-    /// (last recorded intent, closed, last checkpointed) per epoch.
-    #[allow(clippy::type_complexity)]
-    epochs: Mutex<
-        BTreeMap<
-            (ZoneId, u64),
-            (Option<crate::domain::zone::Tick>, bool, Option<crate::domain::zone::Tick>),
-        >,
-    >,
+    epochs: Mutex<BTreeMap<(ZoneId, u64), (Option<crate::domain::zone::Tick>, bool)>>,
 }
 
 #[async_trait]
@@ -275,13 +268,10 @@ impl ZoneSnapshotStore for InMemoryZoneSnapshotStore {
             .epochs
             .lock()
             .iter()
-            .filter(|((z, _), (_, closed, _))| *z == zone && !closed)
-            .map(|((_, epoch), (tick, _, checkpointed))| {
-                crate::application::replay_log::RecoveryEpoch {
-                    epoch: *epoch,
-                    last_recorded_tick: *tick,
-                    last_checkpointed_tick: *checkpointed,
-                }
+            .filter(|((z, _), (_, closed))| *z == zone && !closed)
+            .map(|((_, epoch), (tick, _))| crate::application::replay_log::RecoveryEpoch {
+                epoch: *epoch,
+                last_recorded_tick: *tick,
             })
             .collect())
     }
@@ -296,13 +286,10 @@ impl ZoneSnapshotStore for InMemoryZoneSnapshotStore {
     }
     async fn checkpointed(
         &self,
-        zone: ZoneId,
-        epoch: u64,
-        tick: crate::domain::zone::Tick,
+        _zone: ZoneId,
+        _epoch: u64,
+        _tick: crate::domain::zone::Tick,
     ) -> anyhow::Result<()> {
-        let mut epochs = self.epochs.lock();
-        let done = &mut epochs.entry((zone, epoch)).or_default().2;
-        *done = (*done).max(Some(tick));
         Ok(())
     }
     async fn close(&self, zone: ZoneId, epoch: u64) -> anyhow::Result<()> {

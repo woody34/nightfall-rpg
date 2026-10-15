@@ -182,7 +182,8 @@ impl CheckpointService {
         self
     }
 
-    /// Records intent before the log gate, so even a missing final record fails closed.
+    /// T21/D134: indexes a tick after its log acknowledgement and before its checkpoint or
+    /// output. Recovery requires the history through it; a shorter history is log loss.
     pub async fn recording(&self, zone: ZoneId, epoch: u64, tick: Tick) {
         self.index_tick(zone, epoch, tick, false).await;
     }
@@ -255,7 +256,7 @@ impl CheckpointService {
     ) -> anyhow::Result<()> {
         for indexed in store.unresolved(zone).await? {
             let result = self
-                .recover_through(log, zone, indexed.epoch, Some(&indexed))
+                .recover_through(log, zone, indexed.epoch, indexed.last_recorded_tick)
                 .await;
             if let Err(error) = result {
                 tracing::error!(zone = zone.0, epoch = indexed.epoch, error = %error, "zone admission refused: unresolved checkpoint recovery history");
@@ -1016,7 +1017,7 @@ impl CheckpointService {
         log: &dyn EventLog,
         zone: ZoneId,
         epoch: u64,
-        indexed: Option<&super::replay_log::RecoveryEpoch>,
+        required: Option<Tick>,
     ) -> anyhow::Result<()> {
         let stored = log
             .read_recovery_snapshot(zone, epoch)
@@ -1034,7 +1035,7 @@ impl CheckpointService {
         self.restore(&stored.snapshot);
         self.recovering = Some((zone, epoch));
         let replayed = self
-            .replay_recovery(log, zone, epoch, indexed, stored.snapshot)
+            .replay_recovery(log, zone, epoch, required, stored.snapshot)
             .await;
         self.recovering = None;
         replayed?;
@@ -1056,7 +1057,7 @@ impl CheckpointService {
         log: &dyn EventLog,
         zone: ZoneId,
         epoch: u64,
-        indexed: Option<&super::replay_log::RecoveryEpoch>,
+        required: Option<Tick>,
         snapshot: ZoneSnapshot,
     ) -> anyhow::Result<()> {
         let stored_snapshot = snapshot;
@@ -1093,18 +1094,8 @@ impl CheckpointService {
             }
             self.admitted(&applied, &state.snapshot()).await?;
         }
-        // T21: the recording index is written BEFORE the tick's log admission, and only after
-        // the previous tick was acknowledged and checkpointed. So the history must reach the
-        // tick before it; the indexed tick itself may be absent (a crash between the index
-        // write and the acknowledgement released no output for it), unless its checkpoint
-        // completed, which proves it was acknowledged.
-        let reached = state.snapshot().tick;
-        let required = indexed.and_then(|indexed| indexed.last_recorded_tick);
-        let checkpointed = indexed.and_then(|indexed| indexed.last_checkpointed_tick);
         anyhow::ensure!(
-            required.is_none_or(|tick| {
-                reached > tick || (reached == tick && checkpointed.is_none_or(|done| done < tick))
-            }),
+            required.is_none_or(|tick| state.snapshot().tick > tick),
             "checkpoint recovery history ends before indexed tick {required:?}"
         );
         // A baseline can itself carry pending critical facts, even without a later record;

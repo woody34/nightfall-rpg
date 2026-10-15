@@ -108,8 +108,6 @@ pub struct RecoveryEpoch {
     pub epoch: u64,
     /// Highest tick that may have reached the log, recorded before admission.
     pub last_recorded_tick: Option<crate::domain::zone::Tick>,
-    /// Highest tick whose checkpoint completed (after its log acknowledgement), if indexed.
-    pub last_checkpointed_tick: Option<crate::domain::zone::Tick>,
 }
 
 /// Durable epoch discovery (`zone_epochs`) and recovery baselines (`zone_snapshots`).
@@ -118,7 +116,8 @@ pub struct RecoveryEpoch {
 pub trait ZoneSnapshotStore: Send + Sync {
     /// All unresolved epochs, oldest first. Completed recovery closes each one.
     async fn unresolved(&self, zone: ZoneId) -> anyhow::Result<Vec<RecoveryEpoch>>;
-    /// Record a tick before attempting its durable admission (a crash may leave uncertainty).
+    /// Index a tick after the log acknowledged its record and before its checkpoint or output
+    /// (D134): `last_recorded_tick = T` implies record T is durable.
     async fn recording(
         &self,
         zone: ZoneId,
