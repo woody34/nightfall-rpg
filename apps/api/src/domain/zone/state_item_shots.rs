@@ -228,7 +228,26 @@ impl ZoneState {
                         .cloned()
                 };
                 let Some(selected) = selected else {
-                    player.auto_shots.remove(&template);
+                    // D128: the toggle-enable `missing` removal carries its entry too.
+                    if player.auto_shots.remove(&template) {
+                        let requirement = shot_requirement(
+                            &player,
+                            &self.phase4.as_ref().ok_or(RejectReason::InvalidLoad)?.rules,
+                            template,
+                        );
+                        projection.evidence.push(auto_shot_exhausted(
+                            template,
+                            None,
+                            0,
+                            "missing",
+                            &format!(
+                                "shot:{:?}:{}:{}",
+                                reference.operation, reference.key, template
+                            )
+                            .to_lowercase(),
+                            requirement,
+                        ));
+                    }
                     continue;
                 };
                 let resolution = if enabled.is_some() {
@@ -400,8 +419,17 @@ impl ZoneState {
                 Ok(value)
             })
             .map_err(invalid)?;
-        if resolved.disable_auto {
-            player.auto_shots.remove(&stack.template_id);
+        // D128: every disable path (automatic recharge, manual Use, toggle) records the
+        // removal with the weapon's unreduced per-shot requirement.
+        if resolved.disable_auto && player.auto_shots.remove(&stack.template_id) {
+            projection.evidence.push(auto_shot_exhausted(
+                stack.template_id,
+                Some(stack.id),
+                stack.count,
+                "insufficient",
+                resolution,
+                weapon.as_ref().map(|weapon| (weapon.id, count)),
+            ));
         }
         let mut changes = Vec::new();
         if resolved.outcome == ChargeOutcome::Charged {
@@ -602,12 +630,18 @@ impl ZoneState {
                 .cloned();
             let Some(stack) = stack else {
                 player.auto_shots.remove(&template);
+                let requirement = shot_requirement(
+                    &player,
+                    &self.phase4.as_ref().ok_or(RejectReason::InvalidLoad)?.rules,
+                    template,
+                );
                 projection.evidence.push(auto_shot_exhausted(
                     template,
                     None,
                     0,
                     "missing",
                     &resolution,
+                    requirement,
                 ));
                 continue;
             };
@@ -651,23 +685,20 @@ impl ZoneState {
                 })
                 .try_fold(0_u64, |sum, item| sum.checked_add(item.count))
                 .ok_or(RejectReason::InvalidLoad)?;
-            if !player.auto_shots.contains(&template) {
-                // Insufficient for one charge (the charge resolution disabled it).
-                projection.evidence.push(auto_shot_exhausted(
+            // `insufficient` is recorded by apply_shot_v6 itself (D128).
+            if remaining == 0 && player.auto_shots.remove(&template) {
+                let requirement = shot_requirement(
+                    &player,
+                    &self.phase4.as_ref().ok_or(RejectReason::InvalidLoad)?.rules,
                     template,
-                    Some(stack.id),
-                    remaining,
-                    "insufficient",
-                    &resolution,
-                ));
-            } else if remaining == 0 {
-                player.auto_shots.remove(&template);
+                );
                 projection.evidence.push(auto_shot_exhausted(
                     template,
                     Some(stack.id),
                     0,
                     "exhausted",
                     &resolution,
+                    requirement,
                 ));
             }
         }
@@ -684,18 +715,20 @@ impl ZoneState {
     }
 }
 
-/// D127 audit evidence for a receipt-less automatic-shot removal: the template, the stack the
-/// charge inspected or consumed (absent when no stack was left), the post-tick count of the
-/// template, why it stopped (`exhausted`: this tick's charge consumed the stack to zero, and
-/// the stack's Consume row carries the `auto_shot_payment` cause with the same resolution id;
-/// `insufficient`: fewer than one charge left; `missing`: no stack at the charge attempt), and
-/// the attempt's resolution id.
+/// D127/D128 audit evidence for an automatic-shot removal without its own toggle: the
+/// template, the stack the charge inspected or consumed (absent when no stack was left), the
+/// template's remaining count, why it stopped (`exhausted`: this tick's charge consumed the
+/// stack to zero, and the stack's Consume row carries the `auto_shot_payment` cause with the
+/// same resolution id; `insufficient`: fewer shots than one charge; `missing`: no stack at the
+/// attempt), the attempt's resolution id, and, when a weapon is held, that weapon instance and
+/// its unreduced per-shot requirement for the template's shot kind.
 fn auto_shot_exhausted(
     template: u32,
     instance: Option<crate::domain::zone::ItemInstanceId>,
     remaining: u64,
     reason: &str,
     resolution: &str,
+    requirement: Option<(crate::domain::zone::ItemInstanceId, u32)>,
 ) -> ItemAuditEvidence {
     let mut fields = BTreeMap::from([
         ("template".into(), V::Unsigned(u64::from(template))),
@@ -706,8 +739,34 @@ fn auto_shot_exhausted(
     if let Some(instance) = instance {
         fields.insert("instance".into(), V::Unsigned(instance.get()));
     }
+    if let Some((weapon, required)) = requirement {
+        fields.insert("weapon".into(), V::Unsigned(weapon.get()));
+        fields.insert("required".into(), V::Unsigned(u64::from(required)));
+    }
     ItemAuditEvidence {
         family: "auto_shot_exhausted".into(),
         fields,
     }
+}
+
+/// The Rhand weapon and its unreduced per-shot count for `template`'s shot kind (D128).
+fn shot_requirement(
+    player: &crate::domain::zone::phase4::Phase4Player,
+    rules: &crate::domain::zone::item_rules::Phase4Rules,
+    template: u32,
+) -> Option<(crate::domain::zone::ItemInstanceId, u32)> {
+    let weapon = player
+        .paperdoll
+        .get(&EquipSlot::Rhand)
+        .and_then(|id| player.inventory.get(id))?;
+    let definition = rules.parts().items.get(&weapon.template_id)?;
+    let shot = kind(&rules.parts().items.get(&template)?.handler)?;
+    Some((
+        weapon.id,
+        if shot == ShotKind::Soul {
+            definition.soulshots
+        } else {
+            definition.spiritshots
+        },
+    ))
 }

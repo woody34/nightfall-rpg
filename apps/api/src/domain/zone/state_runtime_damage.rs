@@ -12607,7 +12607,16 @@ mod tests {
             .unwrap();
         assert!(projection.ledger.is_empty());
         assert_eq!(projection.receipts.len(), 1);
-        assert_eq!(projection.evidence.len(), 2);
+        // Two soulshot_reduction draws and the D128 `insufficient` entry for 1464.
+        assert_eq!(projection.evidence.len(), 3);
+        assert_eq!(
+            projection
+                .evidence
+                .iter()
+                .filter(|e| e.family == "auto_shot_exhausted")
+                .count(),
+            1
+        );
         let facts = observed.take_items_replay_evidence();
         let draws = facts
             .iter()
@@ -12645,6 +12654,195 @@ mod tests {
             std::fs::write(path, bytes).unwrap();
         }
         ZoneState::from_snapshot_with_items(zone.snapshot(), Some(rules)).unwrap();
+    }
+
+    /// The owner's checkpoint before the next tick and the tick's own projection.
+    fn shot_tick(
+        zone: &mut ZoneState,
+        owner: TargetBinding,
+        inputs: Vec<ZoneInput>,
+    ) -> (
+        AppliedTick,
+        crate::domain::zone::Phase4Checkpoint,
+        crate::domain::zone::Phase4Projection,
+    ) {
+        let before = zone
+            .phase4
+            .as_ref()
+            .unwrap()
+            .canonical
+            .checkpoint(owner.entity, zone.next_tick, &zone.phase3.as_ref().unwrap().canonical)
+            .unwrap();
+        let mut cold = ZoneState::from_snapshot_with_items(
+            zone.snapshot(),
+            Some(Arc::clone(&zone.phase4.as_ref().unwrap().rules)),
+        )
+        .unwrap();
+        let draft = zone.draft(inputs);
+        let applied = zone.run_tick(draft.clone()).unwrap();
+        assert_eq!(applied, cold.run_tick(draft).unwrap());
+        let projection = applied
+            .events
+            .iter()
+            .find_map(|e| match e {
+                ZoneEvent::ItemCheckpoint(p) if p.entity == owner.entity => {
+                    Some(p.as_ref().clone())
+                },
+                _ => None,
+            })
+            .expect("the removal tick publishes");
+        (applied, before, projection)
+    }
+
+    /// Settle a tick through the API gate with the `auto_shots` removal aligned (the API's
+    /// D127/D130 acceptance of the evidenced removal lands in API session 21).
+    fn settle_aligned(
+        zone: &ZoneState,
+        before: &crate::domain::zone::Phase4Checkpoint,
+        projection: crate::domain::zone::Phase4Projection,
+    ) {
+        let mut aligned = before.clone();
+        aligned
+            .auto_shots
+            .clone_from(&projection.checkpoint.auto_shots);
+        crate::application::ports::ItemCheckpointWork {
+            zone: zone.seed.zone,
+            epoch: zone.seed.epoch,
+            allocation: zone.phase4.as_ref().unwrap().canonical.allocator,
+            projection,
+        }
+        .validate_before(Some(&aligned))
+        .unwrap();
+    }
+
+    /// engine-review-7 P1-1 / D128: a manual Use with fewer shots than the weapon needs
+    /// refuses (`InsufficientItems`) and disables the automatic shot with its entry; the
+    /// toggle-enable path's `missing` removal of another template carries one too.
+    #[test]
+    #[allow(clippy::too_many_lines)] // Two disable paths over one fixture.
+    fn v6_every_auto_shot_disable_path_records_its_entry() {
+        use crate::domain::zone::phase4_projection::ItemEvidenceValue as V;
+        use crate::domain::zone::{EquipSlot, ItemCommandKind as K};
+        let entries = |projection: &crate::domain::zone::Phase4Projection| {
+            projection
+                .evidence
+                .iter()
+                .filter(|e| e.family == "auto_shot_exhausted")
+                .cloned()
+                .collect::<Vec<_>>()
+        };
+        // Weapon 4814 with soulshot 1464 automatic and fewer shots than one charge.
+        let (mut zone, owner, _, ids) = use_fixture(&[4814, 1464]);
+        let rules = Arc::clone(&zone.phase4.as_ref().unwrap().rules);
+        let required = rules.parts().items[&4814].soulshots;
+        assert!(required > 1, "{required}");
+        let player = zone
+            .phase4
+            .as_mut()
+            .unwrap()
+            .canonical
+            .players
+            .get_mut(&owner.entity)
+            .unwrap();
+        player.inventory.get_mut(&ids[0]).unwrap().count = 1;
+        player.inventory.get_mut(&ids[1]).unwrap().count = u64::from(required) - 1;
+        let equip = zone
+            .run_tick(zone.draft(vec![ZoneInput::session(
+                owner.entity,
+                SessionGeneration(1),
+                1,
+                ZoneCommand::Item(Box::new(item_intent(
+                    &zone,
+                    owner.entity,
+                    2500,
+                    K::Equip {
+                        instance: ids[0],
+                        preferred_slot: Some(EquipSlot::Rhand),
+                    },
+                ))),
+            )]))
+            .unwrap();
+        assert!(equip.dispositions.is_empty(), "{:?}", equip.dispositions);
+        let mut toggle = zone.clone();
+        zone.phase4
+            .as_mut()
+            .unwrap()
+            .canonical
+            .players
+            .get_mut(&owner.entity)
+            .unwrap()
+            .auto_shots
+            .insert(1464);
+        let manual = use_input(&zone, owner, 2501, 2, ids[1], None);
+        let (applied, before, projection) = shot_tick(&mut zone, owner, vec![manual]);
+        assert_eq!(applied.dispositions.len(), 1, "{:?}", applied.dispositions);
+        assert_eq!(applied.dispositions[0].reason, RejectReason::InsufficientItems);
+        assert!(projection.receipts.is_empty());
+        assert!(!projection.checkpoint.auto_shots.contains(&1464));
+        let found = entries(&projection);
+        assert_eq!(found.len(), 1, "{found:?}");
+        let entry = &found[0].fields;
+        assert_eq!(entry["template"], V::Unsigned(1464));
+        assert_eq!(entry["reason"], V::Text("insufficient".into()));
+        assert_eq!(entry["instance"], V::Unsigned(ids[1].get()));
+        assert_eq!(entry["remaining"], V::Unsigned(u64::from(required) - 1));
+        assert_eq!(entry["required"], V::Unsigned(u64::from(required)));
+        assert_eq!(entry["weapon"], V::Unsigned(ids[0].get()));
+        settle_aligned(&zone, &before, projection);
+        // Toggle-enable: 1463 is automatic with no stack left; enabling 1464 visits it.
+        toggle
+            .phase4
+            .as_mut()
+            .unwrap()
+            .canonical
+            .players
+            .get_mut(&owner.entity)
+            .unwrap()
+            .auto_shots
+            .insert(1463);
+        let input = ZoneInput::session(
+            owner.entity,
+            SessionGeneration(1),
+            2,
+            ZoneCommand::Item(Box::new(item_intent(
+                &toggle,
+                owner.entity,
+                2502,
+                K::ToggleAutoShot {
+                    template: 1464,
+                    enabled: true,
+                },
+            ))),
+        );
+        let (_, before, projection) = shot_tick(&mut toggle, owner, vec![input]);
+        assert!(!projection.checkpoint.auto_shots.contains(&1463));
+        let found = entries(&projection);
+        let missing = found
+            .iter()
+            .find(|e| e.fields["template"] == V::Unsigned(1463))
+            .expect("missing entry");
+        assert_eq!(missing.fields["reason"], V::Text("missing".into()));
+        assert_eq!(missing.fields["remaining"], V::Unsigned(0));
+        assert!(!missing.fields.contains_key("instance"));
+        assert_eq!(missing.fields["weapon"], V::Unsigned(ids[0].get()));
+        assert_eq!(
+            missing.fields["required"],
+            V::Unsigned(u64::from(required)),
+            "1463 is a soulshot too"
+        );
+        // One entry per removed template, in template order.
+        let templates = found
+            .iter()
+            .map(|e| e.fields["template"].clone())
+            .collect::<Vec<_>>();
+        let mut sorted = templates.clone();
+        sorted.sort_by_key(|v| match v {
+            V::Unsigned(n) => *n,
+            _ => u64::MAX,
+        });
+        sorted.dedup();
+        assert_eq!(templates, sorted);
+        settle_aligned(&toggle, &before, projection);
     }
 
     #[test]
