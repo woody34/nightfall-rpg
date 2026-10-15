@@ -547,13 +547,15 @@ impl ItemCheckpointWork {
                 && cp.inventory_revision == revision
         });
         // A fresh no-op receipt can retain the revision; actual mutations take one step.
+        // D137: a no-op receipt keeps the un-stepped revision even when a later same-tick
+        // mutation steps the owner, so a receipt carries the settled or the pre-tick revision.
+        let pre_tick = before.map(|cp| cp.inventory_revision);
         if (!unchanged
             && before.map_or(0, |cp| cp.inventory_revision).checked_add(1) != Some(revision))
-            || self
-                .projection
-                .receipts
-                .iter()
-                .any(|receipt| receipt.result.inventory_revision != revision)
+            || self.projection.receipts.iter().any(|receipt| {
+                receipt.result.inventory_revision != revision
+                    && Some(receipt.result.inventory_revision) != pre_tick
+            })
             || self
                 .projection
                 .materializations
@@ -1104,13 +1106,13 @@ pub fn validate_learn_payments(
 }
 
 /// D127 (amended) + D128 + D130: the per-template account of an automatic-shot set change.
-/// Every changed template is either covered by a `ToggleAutoShot` receipt (one template per
-/// receipt; the receipt fingerprint does not name it, so at most one unevidenced change per
-/// receipt) or is a removal evidenced by exactly one `auto_shot_exhausted` projection entry:
+/// Every changed template is either covered by a `ToggleAutoShot` receipt or is a removal
+/// evidenced by exactly one `auto_shot_exhausted` projection entry:
 /// - `exhausted`: remaining 0, no instance left, and this tick's Consume row of `instance`
 ///   (that template, `after` None) carries the `auto_shot_payment` cause with the same id;
-/// - `missing`: remaining 0 and no instance of the template left;
-/// - `insufficient`: `instance` is the template's only remaining stack with count `remaining`;
+/// - `missing`: remaining 0 and no instance of the template (D136: before or after the tick);
+/// - `insufficient`: `instance` is the template's only stack with count `remaining` (D136: in
+///   the pre-tick or the settled checkpoint, with the weapon of that same checkpoint);
 ///   `required` is the wielded (`weapon`) right-hand weapon's unreduced per-shot count from the
 ///   catalogue; `remaining < required`, and below the reduced count when this resolution's
 ///   `soulshot_reduction` draw reduced it. Unknown (no rules, no weapon) fails closed.
@@ -1180,24 +1182,37 @@ fn validate_auto_shots(
                         })
                     })
             },
-            "missing" => remaining == 0 && stacks.is_empty() && instance.is_none(),
+            // D136: a retained entry is as-of its removal. Its stack and weapon facts must hold
+            // in the pre-tick checkpoint or in the settled one (later same-tick commands can
+            // change the stack or the wielded weapon after the removal).
+            "missing" => {
+                remaining == 0
+                    && instance.is_none()
+                    && [before, after]
+                        .iter()
+                        .any(|cp| cp.instances.iter().all(|item| item.template_id != template))
+            },
             "insufficient" => {
-                let [stack] = stacks.as_slice() else {
-                    return Err(bad());
-                };
                 remaining > 0
-                    && stack.count == remaining
-                    && instance == Some(stack.id.get())
-                    && insufficient(
-                        after,
-                        projection,
-                        rules,
-                        template,
-                        remaining,
-                        unsigned(fields, "required"),
-                        unsigned(fields, "weapon"),
-                        &resolution,
-                    )
+                    && [before, after].iter().any(|cp| {
+                        let stacks: Vec<_> = cp
+                            .instances
+                            .iter()
+                            .filter(|item| item.template_id == template)
+                            .collect();
+                        matches!(stacks.as_slice(), [stack] if stack.count == remaining
+                            && instance == Some(stack.id.get()))
+                            && insufficient(
+                                cp,
+                                projection,
+                                rules,
+                                template,
+                                remaining,
+                                unsigned(fields, "required"),
+                                unsigned(fields, "weapon"),
+                                &resolution,
+                            )
+                    })
             },
             _ => false,
         };
@@ -1205,6 +1220,7 @@ fn validate_auto_shots(
             return Err(bad());
         }
     }
+    // D135: one toggle receipt explains any one unexplained change (Phase 5: per-target).
     let toggles = projection
         .receipts
         .iter()
@@ -1885,10 +1901,17 @@ mod attack_settlement_tests {
             code(run(&[soul], vec![missing(spirit), missing(spirit)], 1)),
             "item_auto_shot_evidence"
         );
-        // `missing` needs the stack gone.
+        // `missing` needs the stack absent before or after the tick (D136): a stack held on both
+        // sides refuses; one granted later in the tick does not.
         let mut kept = checkpoint(vec![item(5, spirit, 3)], &[soul]);
         kept.paperdoll.clear();
-        let p = projection(kept, vec![missing(spirit)]);
-        assert_eq!(code(validate_auto_shots(&before, &p, Some(&rules))), "item_auto_shot_evidence");
+        let mut stocked = checkpoint(vec![item(5, spirit, 3)], &[soul, spirit]);
+        stocked.paperdoll.clear();
+        let p = projection(kept.clone(), vec![missing(spirit)]);
+        assert_eq!(
+            code(validate_auto_shots(&stocked, &p, Some(&rules))),
+            "item_auto_shot_evidence"
+        );
+        assert!(validate_auto_shots(&before, &p, Some(&rules)).is_ok());
     }
 }
