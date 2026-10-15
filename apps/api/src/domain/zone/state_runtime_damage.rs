@@ -12908,6 +12908,13 @@ mod tests {
         zone.rebuild_v5(owner.entity).unwrap();
         let mut cold =
             ZoneState::from_snapshot_with_items(zone.snapshot(), Some(Arc::clone(&rules))).unwrap();
+        let settled_before = zone
+            .phase4
+            .as_ref()
+            .unwrap()
+            .canonical
+            .checkpoint(owner.entity, zone.next_tick, &zone.phase3.as_ref().unwrap().canonical)
+            .unwrap();
         let draft = zone.draft(vec![input]);
         let applied = zone.run_tick(draft.clone()).unwrap();
         assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
@@ -12942,6 +12949,16 @@ mod tests {
         assert_eq!(evidence.fields["remaining"], V::Unsigned(0));
         assert_eq!(evidence.fields["reason"], V::Text("exhausted".into()));
         assert_eq!(evidence.fields["resolution_id"], row.causes[0].fields["resolution_id"]);
+        // API session 21 (D127/D130): the real tick settles without a toggle receipt against
+        // the un-aligned pre-tick checkpoint, with the bound rules.
+        crate::application::ports::ItemCheckpointWork {
+            zone: zone.seed.zone,
+            epoch: zone.seed.epoch,
+            allocation: zone.phase4.as_ref().unwrap().canonical.allocator,
+            projection: projection.as_ref().clone(),
+        }
+        .validate_before_with(Some(&settled_before), Some(&rules))
+        .unwrap();
     }
 
     #[test]
@@ -13070,20 +13087,16 @@ mod tests {
             exhausted[0].fields["reason"],
             crate::domain::zone::phase4_projection::ItemEvidenceValue::Text("missing".into())
         );
-        // T26: the API settlement gate accepts these receipt-less automatic-shot debits. The
-        // API's D127 acceptance of the evidenced auto_shots removal is API-side, so the
-        // `before` set is aligned here to isolate the consumption gate.
-        let mut aligned = before_checkpoint.clone();
-        aligned
-            .auto_shots
-            .clone_from(&projection.checkpoint.auto_shots);
+        // T26 + D127/D130 (API session 21): the API settlement gate accepts these receipt-less
+        // automatic-shot debits and the evidenced `missing` removal against the un-aligned
+        // pre-tick checkpoint, with the bound rules.
         crate::application::ports::ItemCheckpointWork {
             zone: zone.seed.zone,
             epoch: zone.seed.epoch,
             allocation: zone.phase4.as_ref().unwrap().canonical.allocator,
             projection: projection.as_ref().clone(),
         }
-        .validate_before(Some(&aligned))
+        .validate_before_with(Some(&before_checkpoint), Some(&zone.phase4.as_ref().unwrap().rules))
         .unwrap();
         assert_eq!(zone.snapshot(), cold.snapshot());
         let stop = review_input(
