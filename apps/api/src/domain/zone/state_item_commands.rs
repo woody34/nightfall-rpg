@@ -1017,8 +1017,9 @@ impl ZoneState {
                     .map_err(|_| TickError::Phase3Invariant)?;
                 // D133: one `auto_shot_exhausted` entry per template the whole tick net-removed
                 // (tick-start set minus the final set), the last one recorded; none for a
-                // template that ends the tick as it began (an enable that its own recharge
-                // disabled, or a removal that a later operation re-enabled).
+                // template that is not net-removed: one that ends the tick as it began (an enable
+                // that its own recharge disabled, or a removal that a later operation
+                // re-enabled), or one that was net-added (absent at start, in the final set).
                 let start = before_items
                     .and_then(|items| items.players.get(&projection.entity))
                     .map(|player| player.auto_shots.clone())
@@ -1027,26 +1028,34 @@ impl ZoneState {
                     .difference(&projection.checkpoint.auto_shots)
                     .copied()
                     .collect();
-                let template =
-                    |entry: &crate::domain::zone::phase4_projection::ItemAuditEvidence| match entry
-                        .fields
-                        .get("template")
-                    {
-                        Some(
-                            crate::domain::zone::phase4_projection::ItemEvidenceValue::Unsigned(id),
-                        ) => u32::try_from(*id).ok(),
-                        _ => None,
-                    };
+                // Every producer writes `template` as an Unsigned u32; anything else is a
+                // producer defect, so the tick fails closed instead of dropping the entry.
+                let mut templates = Vec::with_capacity(projection.evidence.len());
+                for entry in &projection.evidence {
+                    templates.push(if entry.family == "auto_shot_exhausted" {
+                        match entry.fields.get("template") {
+                            Some(
+                                crate::domain::zone::phase4_projection::ItemEvidenceValue::Unsigned(
+                                    id,
+                                ),
+                            ) => Some(u32::try_from(*id).map_err(|_| TickError::Phase3Invariant)?),
+                            _ => return Err(TickError::Phase3Invariant),
+                        }
+                    } else {
+                        None
+                    });
+                }
                 let mut kept = std::collections::BTreeSet::new();
-                let mut evidence = std::mem::take(&mut projection.evidence);
-                evidence.reverse();
-                evidence.retain(|entry| {
-                    entry.family != "auto_shot_exhausted"
-                        || template(entry)
-                            .is_some_and(|id| removed.contains(&id) && kept.insert(id))
-                });
-                evidence.reverse();
-                projection.evidence = evidence;
+                let mut keep: Vec<bool> = templates
+                    .iter()
+                    .rev()
+                    .map(|template| {
+                        template.is_none_or(|id| removed.contains(&id) && kept.insert(id))
+                    })
+                    .collect();
+                keep.reverse();
+                let mut keep = keep.into_iter();
+                projection.evidence.retain(|_| keep.next().unwrap_or(true));
                 // D94/P2-6: the frozen tick is normalized and renumbered, so the positional
                 // validator (the one snapshots, decode and the API apply) runs here.
                 projection

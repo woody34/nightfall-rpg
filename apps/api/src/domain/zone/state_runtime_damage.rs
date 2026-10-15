@@ -12732,6 +12732,13 @@ mod tests {
         let mut observed = zone.clone();
         observed.enable_items_replay_evidence().unwrap();
         let before = zone.phase4.as_ref().unwrap().canonical.players[&owner.entity].clone();
+        let before_checkpoint = zone
+            .phase4
+            .as_ref()
+            .unwrap()
+            .canonical
+            .checkpoint(owner.entity, zone.next_tick, &zone.phase3.as_ref().unwrap().canonical)
+            .unwrap();
         let mut probe = zone.clone();
         let first = probe.roll_below(100);
         let second = probe.roll_below(100);
@@ -12782,6 +12789,16 @@ mod tests {
             .evidence
             .iter()
             .all(|e| e.family != "auto_shot_exhausted"));
+        // engine-review-9 P2-1: settle through the API account against the real pre-tick
+        // checkpoint, with the bound rules.
+        crate::application::ports::ItemCheckpointWork {
+            zone: zone.seed.zone,
+            epoch: zone.seed.epoch,
+            allocation: zone.phase4.as_ref().unwrap().canonical.allocator,
+            projection: projection.as_ref().clone(),
+        }
+        .validate_before_with(Some(&before_checkpoint), Some(&rules))
+        .unwrap();
         let facts = observed.take_items_replay_evidence();
         let draws = facts
             .iter()
