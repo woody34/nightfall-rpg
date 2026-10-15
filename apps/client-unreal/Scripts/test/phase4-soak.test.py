@@ -16,6 +16,7 @@ seed=load('soak4_seed',REPO/'infra/scripts/seed-phase4-soak.py')
 grammar=load('soak4_grammar',SCRIPTS/'phase4-grammar.py')
 variants=load('soak4_variants',SCRIPTS/'phase4-variants.py')
 evidence=load('soak4_evidence',SCRIPTS/'phase4-evidence.py')
+fixtures_contracts=load('soak4_contracts',SCRIPTS/'phase4-fixtures.py')
 
 
 class Soak(unittest.TestCase):
@@ -31,7 +32,12 @@ class Soak(unittest.TestCase):
                 self.assertEqual(Path(role['token_file']).stat().st_mode&0o777,0o600)
                 self.assertIn('nf.Cast 1068 self',source);self.assertIn('nf.Cast 1177',source)
                 self.assertIn('nf.Equip 1',source);self.assertIn('nf.Equip 6',source)
-                self.assertIn('nf.AutoShot 2509 on',source);self.assertIn('nf.AutoShot 5789 on',source)
+                # T30: the shots toggled are the role pack's own templates (D97 soulshot 1835).
+                picks=fixtures_contracts.selection(REPO);held={r['template_id'] for r in supplied['inventory']}
+                for shot in (picks['soulshot'],picks['spiritshot']):
+                    self.assertIn(f'nf.AutoShot {shot} on',source);self.assertIn(shot,held)
+                self.assertEqual((picks['soulshot'],picks['spiritshot']),(1835,2509))
+                self.assertNotIn('5789',source)
                 commands=re.findall(r'^nf.Enchant .+$',source,re.M);self.assertEqual(len(commands),1)
                 self.assertTrue(grammar.command(commands[0].split()));keys.add(commands[0].split()[-1])
                 count=sum(int(l.split('#',1)[0].split()[-1]) for l in source.splitlines() if l.startswith('nf.WaitFor '))

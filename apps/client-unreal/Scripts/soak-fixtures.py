@@ -50,10 +50,16 @@ def casting_scenario(waypoints):
     return '\n'.join(lines) + '\n'
 
 
-def item_scenario(scenario, seed, key):
+def item_scenario(scenario, seed, key, shots):
     # Same explicit key repeats the frozen success on BotLoop; never spends a second scroll.
     if sum(r['template_id'] == 71 for r in seed['inventory']) != 1:
         raise ValueError('soak item role needs exactly one C sword 71 (template-addressed enchant)')
+    # T30: the shot templates come from the role pack's own selection (D97 admitted soulshot
+    # 1835), never a hard-coded id; both must be in this role's granted inventory.
+    soulshot, spiritshot = shots
+    held = {r['template_id'] for r in seed['inventory']}
+    if soulshot not in held or spiritshot not in held:
+        raise ValueError(f'soak item role lacks its pack shot templates {soulshot}/{spiritshot}')
     lines = [
         '# Phase4 equipment test inputs: phase4-packs.json; admitted min NG sword1 and C sword71.',
         '# Added waits are owner delivery10ticks*100ms*3=3s each (A1); sum+30s grace below.',
@@ -62,9 +68,9 @@ def item_scenario(scenario, seed, key):
         f'nf.Enchant 951 template:71 {key}',
         'nf.WaitFor enchant_result_consistent 3', 'nf.Expect inventory_has 951 == 0',
         'nf.Equip 1', 'nf.WaitFor equipped rhand == 1 3',
-        'nf.AutoShot 5789 on', 'nf.WaitFor autoshot_on 5789 3',
+        f'nf.AutoShot {soulshot} on', f'nf.WaitFor autoshot_on {soulshot} 3',
         'nf.Equip 6', 'nf.WaitFor equipped rhand == 6 3',
-        'nf.AutoShot 2509 on', 'nf.WaitFor autoshot_on 2509 3',
+        f'nf.AutoShot {spiritshot} on', f'nf.WaitFor autoshot_on {spiritshot} 3',
     ]
     scenario = scenario.replace('nf.WaitFor in_world 15\n', 'nf.WaitFor in_world 15\n' + '\n'.join(lines) + '\n', 1)
     scenario = scenario.replace('# covers: 3 E2.1', '# covers: 4 E6.4, 4 E6.5, 3 E2.1', 1)
@@ -112,7 +118,8 @@ def prepare(repo: Path, out: Path, clients: int, casting: bool = False, items: b
                           'scenario': str((role_dir / 'Scenarios/1-kill-one-monster.nfs').resolve())})
             scenario = casting_scenario(waypoints)
             if items:
-                scenario = item_scenario(scenario, seed, str(uuid.uuid4()))
+                picks = contracts.selection(repo)
+                scenario = item_scenario(scenario, seed, str(uuid.uuid4()), (picks['soulshot'], picks['spiritshot']))
         path = out / f'client-{i + 1:02}' / 'Scenarios' / '1-kill-one-monster.nfs'
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(scenario)
