@@ -111,7 +111,8 @@ class NpcPhase3Tests(unittest.TestCase):
         # Phase 3 accepted later oracle-provenance metadata before Phase 4 began.
         paths = subprocess.check_output(['git', 'ls-tree', '-r', '--name-only', '56e55a6', 'packages/data'], text=True).splitlines()
         for rel in paths:
-            if '/scripts/' in rel or rel.endswith('SOURCES.md'):
+            # Prose files (SOURCES.md, READMEs) are documentation, not generated data; they may be rewritten.
+            if '/scripts/' in rel or rel.endswith('SOURCES.md') or rel.endswith('README.md'):
                 continue
             with self.subTest(path=rel):
                 old = subprocess.check_output(['git', 'show', f'56e55a6:{rel}'])
