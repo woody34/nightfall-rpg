@@ -592,6 +592,7 @@ impl ZoneState {
             .clone();
         let before = player.auto_shots.clone();
         for template in before.iter().copied() {
+            let resolution = format!("{action}:shot:{template}");
             let stack = player
                 .inventory
                 .values()
@@ -601,6 +602,13 @@ impl ZoneState {
                 .cloned();
             let Some(stack) = stack else {
                 player.auto_shots.remove(&template);
+                projection.evidence.push(auto_shot_exhausted(
+                    template,
+                    None,
+                    0,
+                    "missing",
+                    &resolution,
+                ));
                 continue;
             };
             let definition = self
@@ -630,9 +638,38 @@ impl ZoneState {
                 &stack,
                 boundary,
                 None,
-                &format!("{action}:shot:{template}"),
+                &resolution,
                 projection,
             )?;
+            // D127: an automatic charge that empties the stack disables the automatic shot in
+            // the same tick, so the receipt-less auto_shots change has its own ledger evidence.
+            let remaining = player
+                .inventory
+                .values()
+                .filter(|item| {
+                    item.template_id == template && item.location == ItemLocation::Inventory
+                })
+                .try_fold(0_u64, |sum, item| sum.checked_add(item.count))
+                .ok_or(RejectReason::InvalidLoad)?;
+            if !player.auto_shots.contains(&template) {
+                // Insufficient for one charge (the charge resolution disabled it).
+                projection.evidence.push(auto_shot_exhausted(
+                    template,
+                    Some(stack.id),
+                    remaining,
+                    "insufficient",
+                    &resolution,
+                ));
+            } else if remaining == 0 {
+                player.auto_shots.remove(&template);
+                projection.evidence.push(auto_shot_exhausted(
+                    template,
+                    Some(stack.id),
+                    0,
+                    "exhausted",
+                    &resolution,
+                ));
+            }
         }
         if before != player.auto_shots {
             player.inventory_revision = boundary.revision;
@@ -644,5 +681,33 @@ impl ZoneState {
             .players
             .insert(subject.entity, player);
         Ok(())
+    }
+}
+
+/// D127 audit evidence for a receipt-less automatic-shot removal: the template, the stack the
+/// charge inspected or consumed (absent when no stack was left), the post-tick count of the
+/// template, why it stopped (`exhausted`: this tick's charge consumed the stack to zero, and
+/// the stack's Consume row carries the `auto_shot_payment` cause with the same resolution id;
+/// `insufficient`: fewer than one charge left; `missing`: no stack at the charge attempt), and
+/// the attempt's resolution id.
+fn auto_shot_exhausted(
+    template: u32,
+    instance: Option<crate::domain::zone::ItemInstanceId>,
+    remaining: u64,
+    reason: &str,
+    resolution: &str,
+) -> ItemAuditEvidence {
+    let mut fields = BTreeMap::from([
+        ("template".into(), V::Unsigned(u64::from(template))),
+        ("remaining".into(), V::Unsigned(remaining)),
+        ("reason".into(), V::Text(reason.to_owned())),
+        ("resolution_id".into(), V::Text(resolution.to_owned())),
+    ]);
+    if let Some(instance) = instance {
+        fields.insert("instance".into(), V::Unsigned(instance.get()));
+    }
+    ItemAuditEvidence {
+        family: "auto_shot_exhausted".into(),
+        fields,
     }
 }
