@@ -452,6 +452,11 @@ def scenario_copy(folder, scenario):
     target = folder / 'scenarios' / scenario.name
     target.parent.mkdir(mode=0o700, exist_ok=True)
     target.write_text(text)
+    # T28: the bot reads its log-sentinel allow-list from `<scenario>.allow` next to the .nfs it
+    # runs (Bot/BotLogSentinel.h), so the mapped copy carries the sidecar byte-identically.
+    allow = scenario.with_suffix('.allow')
+    if allow.is_file():
+        target.with_suffix('.allow').write_bytes(allow.read_bytes())
     return target
 
 
