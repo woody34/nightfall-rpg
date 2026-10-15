@@ -1277,6 +1277,95 @@ mod tests {
         }
     }
 
+    /// T22: V6 keeps the pinned Phase 3 flag semantics. In V5 and V6 alike, a hostile attack on
+    /// a neutral player flags the attacker for `pvp_flag_ticks` (1200) from the flagging tick, the
+    /// deadline is the only expiry tick, and both players receive the same `PvpStateChanged`
+    /// facts at the same relative ticks (set, then clear exactly at the deadline).
+    #[test]
+    #[allow(clippy::too_many_lines)] // One scenario run on both runtimes and compared.
+    fn t22_pvp_flag_deadline_and_visible_state_match_on_v5_and_v6() {
+        let run = |mut zone: ZoneState| -> Vec<(u64, bool, Option<u64>, usize)> {
+            let players = zone
+                .entities
+                .values()
+                .filter(|e| e.kind == EntityKind::Player)
+                .map(|e| e.id)
+                .collect::<Vec<_>>();
+            assert_eq!(players.len(), 2);
+            let (attacker, victim) = (players[0], players[1]);
+            let duration = zone
+                .phase3
+                .as_ref()
+                .unwrap()
+                .canonical
+                .rules
+                .pvp()
+                .flags
+                .pvp_flag_ticks;
+            assert_eq!(duration, 1200);
+            let mut seen = Vec::new();
+            let mut start = None;
+            let mut stopped = false;
+            for step in 0..1600 {
+                let mut inputs = Vec::new();
+                if step == 0 {
+                    inputs.push(ZoneInput::system(ZoneCommand::SetTarget {
+                        entity: attacker,
+                        target: Some(victim),
+                    }));
+                    inputs.push(ZoneInput::system(ZoneCommand::Attack { entity: attacker }));
+                }
+                if start.is_some() && !stopped {
+                    inputs.push(ZoneInput::system(ZoneCommand::StopAttack { entity: attacker }));
+                    stopped = true;
+                }
+                let applied = zone.run_tick(zone.draft(inputs)).unwrap();
+                for event in &applied.events {
+                    if let ZoneEvent::PvpStateChanged {
+                        entity,
+                        pvp,
+                        baseline: None,
+                        ..
+                    } = event
+                    {
+                        if *entity != attacker {
+                            continue;
+                        }
+                        let base = *start.get_or_insert(applied.tick.0);
+                        // Every player observer receives the fact in the same tick.
+                        let observers = players
+                            .iter()
+                            .filter(|observer| {
+                                applied.outputs.get(observer).is_some_and(|outputs| {
+                                    outputs.contains(&ObserverOutput::Event(event.clone()))
+                                })
+                            })
+                            .count();
+                        seen.push((
+                            applied.tick.0 - base,
+                            pvp.flag_until.is_some(),
+                            pvp.flag_until.map(|until| until.0 - base),
+                            observers,
+                        ));
+                    }
+                }
+                if start.is_some() && seen.last().is_some_and(|(_, flagged, _, _)| !flagged) {
+                    break;
+                }
+            }
+            seen
+        };
+        let (v5, ..) = fixture();
+        let (v6, ..) = equipment_fixture();
+        assert!(v5.phase4.is_none() && v6.phase4.is_some());
+        let v5 = run(v5);
+        let v6 = run(v6);
+        // Set at the first hostile act (deadline +1200), cleared exactly at that deadline.
+        assert_eq!(v5.first().copied(), Some((0, true, Some(1200), 2)), "{v5:?}");
+        assert_eq!(v5.last().copied(), Some((1200, false, None, 2)), "{v5:?}");
+        assert_eq!(v5, v6);
+    }
+
     #[test]
     fn flag_expiry_and_peace_intent_are_live_and_do_not_draw_rng() {
         let (mut zone, source, target, _) = fixture();
