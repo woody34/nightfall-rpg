@@ -68,15 +68,18 @@ def transfer_receipts(name, role, repo=REPO):
         raise ValueError(f"class {role['class_id']} needs {len(chain)} receipts; seeded transfers cover tiers 1..2")
     receipts = []
     for ordinal, target in enumerate(chain):
-        if not target['min_level'] <= role['level'] <= 85:
-            raise ValueError(f"seeded level {role['level']} below class {target['id']} minimum {target['min_level']}")
+        if role['level'] < target['min_level']:
+            raise ValueError(f"seeded level {role['level']} is below the class {target['id']} minimum {target['min_level']}")
+        if role['level'] > 85:
+            raise ValueError(f"seeded level {role['level']} is above the maximum transfer level 85")
         key = str(uuid5(NAMESPACE_URL, f"nightfall:seed-transfer:{role['character_id']}:{ordinal}"))
         response = {
             'character_id': role['character_id'],
             'identity': {'account_id': role['account_id'], 'race': role['race'], 'base_class_id': role['base_class_id'],
                          'appearance': {'sex': 'Female', 'hair_style': 0, 'hair_color': 0, 'face': 0}},
             'name': f'Skill{name}', 'current_class_id': target['id'], 'level': target['min_level'],
-            'xp': 0, 'sp': 0, 'stats': dict(role['base_stats']), 'position_millitiles': [0, 0],
+            # The validator compares with the BASE class's own stats (not the profession block).
+            'xp': 0, 'sp': 0, 'stats': dict(table[role['base_class_id']]['base_stats']), 'position_millitiles': [0, 0],
             'hp': 1, 'mp': 1, 'cp': 0, 'max_hp': 1, 'max_mp': 1, 'max_cp': 0,
             'token_tier_1_count': 0, 'token_tier_2_count': 0, 'granted_skill_keys': []}
         receipts.append(dict(ordinal=ordinal, key=key, target_class_id=target['id'],

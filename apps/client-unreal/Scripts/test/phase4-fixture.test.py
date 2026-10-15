@@ -355,6 +355,8 @@ class Fixtures(unittest.TestCase):
         self.assertGreaterEqual(transferred,1)  # phase4-kinds: Treasure Hunter (7 -> 8)
         kinds=fixture.phase4.profiles('phase4-kinds')['owner']|{'account_id':'01970000-0000-7000-8000-000000000042'}
         self.assertEqual([r['target_class_id'] for r in base3.transfer_receipts('owner',kinds)],[7,8])
+        with self.assertRaisesRegex(ValueError,'level 39 is below the class 8 minimum 40'):base3.transfer_receipts('owner',kinds|{'level':39})
+        with self.assertRaisesRegex(ValueError,'level 86 is above the maximum transfer level 85'):base3.transfer_receipts('owner',kinds|{'level':86})
 
     def test_grant_plan_models_slot_capacity(self):
         # D125 (amended)/T27: the dev grant enforces slot capacity; the plan refuses first.
