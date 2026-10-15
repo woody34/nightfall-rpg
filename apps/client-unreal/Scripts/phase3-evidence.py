@@ -100,6 +100,12 @@ def draw_key(data):
     return json.dumps(data, sort_keys=True)
 
 
+# D114/T17: additive keys the V6 producer writes on Phase 3 facts (state_runtime_damage.rs
+# inserts `shots` on damage_formula when the zone has Phase 4 state). Surveyed over every
+# i3 V6 export: this is the only one.
+V6_ADDITIVE = {'damage_formula': {'shots'}}
+
+
 def validate(rows, recording):
     if not isinstance(rows, list) or len(rows) < 2:
         raise ValueError('manifest and complete trailer required')
@@ -129,6 +135,8 @@ def validate(rows, recording):
         same(watermark[key], expected)
     if not isinstance(watermark['reason'], str) or not watermark['reason']:
         raise ValueError('watermark reason required')
+    meta = manifest['snapshot_meta']
+    v6 = isinstance(meta, dict) and (meta.get('schema_version'), meta.get('digest_version')) == (10, 'BinaryV6')
     previous_tick, draws, cursor = start, {}, 0
     for sequence, row in enumerate(rows[1:-1]):
         if set(row) != {'kind', 'entity', 'tick', 'sequence', 'data'}:
@@ -158,8 +166,19 @@ def validate(rows, recording):
             fields = RAW_FIELDS[kind]
         else:
             raise ValueError(f'unknown raw category {kind}')
-        if set(data) != set(fields.split()):
+        expected = set(fields.split())
+        if v6:
+            # D114/T17: the V6 producer adds exactly these keys to Phase 3 facts; they are
+            # required on V6, refused on V5, and any other unknown key still refuses.
+            expected |= V6_ADDITIVE.get(kind, set())
+        if set(data) != expected:
             raise ValueError(f'unknown/missing {kind} data fields; producer PASS flags forbidden')
+        if v6 and kind == 'damage_formula':
+            # The Phase 3 oracle has no shot term: a charged soul/spiritshot multiplies the
+            # damage under Phase 4 rules (the Phase 4 consumer's claim). C11 checks only
+            # unshot damage exactly, so a nonzero `shots` refuses instead of being ignored.
+            if integer(data['shots']) != 0:
+                raise ValueError('Phase 3 C11 damage_formula with a charged shot (shots != 0) is outside the Phase 3 oracle')
         if 'target' in data:
             binding(data['target'])
         if 'skill_id' in data:

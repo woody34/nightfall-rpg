@@ -425,3 +425,7 @@ observer events carry additive fields (for example `phase4.visible`), which the 
 The C11 gates read `observer_combat` facts. A V6 export without them fails the gate (it does
 not pass vacuously), so the zone exporter must emit `observer_combat` for BinaryV6 too.
 Regression: `test/phase3-evidence-v6.test.py` (the i3 1-late-entry-b V6 recording).
+V6 additive fact fields (T17, facet 2): the only key the V6 producer adds to Phase 3 facts is
+`shots` on `damage_formula` (surveyed over every i3 V6 export). It is required on V6 and
+refused on V5. It must be 0, because the Phase 3 oracle has no shot term (shot damage is the
+Phase 4 consumer's claim). Any other unknown key still refuses.

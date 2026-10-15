@@ -73,5 +73,40 @@ class V6Recordings(unittest.TestCase):
         self.assertTrue(result['gates'][0]['errors'])
 
 
+class V6AdditiveFields(unittest.TestCase):
+    """T17 facet 2: the V6 producer adds `shots` to damage_formula (state_runtime_damage.rs)."""
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory(); self.addCleanup(self.tmp.cleanup)
+        raw = Path(self.tmp.name) / 'raw.jsonl'
+        raw.write_bytes(gzip.decompress((FIXTURE / '1-late-entry-b.raw.jsonl.gz').read_bytes()))
+        self.rows = evidence.read_jsonl(raw)
+        # The real V6 calcMagicDam fact from the i3 3-aggro-skill-hate export (shots 0).
+        self.fact = json.loads((FIXTURE / '3-aggro-skill-hate.damage_formula.json').read_text())
+
+    def validate(self, fact, v5=False):
+        rows = copy.deepcopy(self.rows)
+        if v5: rows[0]['snapshot_meta'].update(schema_version=9, digest_version='BinaryV5')
+        fact = copy.deepcopy(fact); fact['tick'] = rows[-2]['tick']  # inside the recording scope
+        rows.insert(len(rows) - 1, fact)
+        for index, row in enumerate(rows[1:-1]): row['sequence'] = index
+        rows[-1]['facts'] = len(rows) - 2
+        return evidence.validate(rows, FIXTURE / '1-late-entry-b.nfr')
+
+    def test_real_v6_damage_formula_with_shots_validates(self):
+        self.assertEqual(self.fact['data']['shots'], 0)
+        self.assertEqual(evidence.V6_ADDITIVE, {'damage_formula': {'shots'}})
+        self.validate(self.fact)
+
+    def test_shots_is_exact_and_version_bound(self):
+        missing = copy.deepcopy(self.fact); del missing['data']['shots']
+        charged = copy.deepcopy(self.fact); charged['data']['shots'] = 1
+        unknown = copy.deepcopy(self.fact); unknown['data']['bonus'] = 1
+        with self.assertRaisesRegex(ValueError, 'unknown/missing damage_formula'): self.validate(missing)
+        with self.assertRaisesRegex(ValueError, 'charged shot'): self.validate(charged)
+        with self.assertRaisesRegex(ValueError, 'unknown/missing damage_formula'): self.validate(unknown)
+        with self.assertRaisesRegex(ValueError, 'unknown/missing damage_formula'): self.validate(self.fact, v5=True)
+        self.validate(missing, v5=True)  # the V5 field set is unchanged
+
+
 if __name__ == '__main__':
     unittest.main()

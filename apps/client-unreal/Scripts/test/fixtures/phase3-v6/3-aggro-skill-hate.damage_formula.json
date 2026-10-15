@@ -1,0 +1,30 @@
+{
+ "data": {
+  "critical": false,
+  "exact_damage": {
+   "coefficient": "254800/5307",
+   "offset": "0/1",
+   "radicand": "2174569/200000"
+  },
+  "formula": "calcMagicDam",
+  "m_atk_q": 10872845,
+  "m_def_q": 31842000,
+  "magic_level_difference": -13,
+  "magic_success_rate": 100,
+  "power": "21/1",
+  "rank": 5,
+  "resolution": "Success",
+  "rolled_damage": 158,
+  "shots": 0,
+  "skill_id": 1177,
+  "spread": "4/5",
+  "target": {
+   "entity": "68ed22e8-eadd-4e80-8181-544deba2f18f",
+   "incarnation": 1
+  }
+ },
+ "entity": "01970000-0000-7000-8000-000000000030",
+ "kind": "damage_formula",
+ "sequence": 61,
+ "tick": 160
+}
