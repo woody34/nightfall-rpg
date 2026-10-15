@@ -226,6 +226,8 @@ def check_committed(inventory,matrix,paths=None):
     """The verdict is over the COMMITTED inventories; regenerating them must not change them."""
     for path,current in zip(paths or (INVENTORY,BACKFILL_INVENTORY),(inventory,matrix)):
         committed=json.loads(path.read_text())
+        if not isinstance(committed,dict):
+            raise ValueError(f'committed inventory {path.name} is not a JSON object; regenerate with `{REGENERATE}`')
         if committed!=current:
             fields=sorted(k for k in set(committed)|set(current) if committed.get(k)!=current.get(k))
             raise ValueError(f'committed inventory {path.name} is stale (differs in: {", ".join(fields)}); regenerate from the '

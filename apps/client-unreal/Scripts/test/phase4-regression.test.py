@@ -188,6 +188,8 @@ class Runner(unittest.TestCase):
         regression.check_committed(dict(x=1),dict(y=1),(first,second))
         with self.assertRaisesRegex(ValueError,r'a.json is stale \(differs in: x\); regenerate from the repo root with `python3 apps/client-unreal/Scripts/phase4-regression.py --publish .*--backfill .*` and commit both files'):
             regression.check_committed(dict(x=2),dict(y=1),(first,second))
+        first.write_text('[]')
+        with self.assertRaisesRegex(ValueError,'a.json is not a JSON object'):regression.check_committed(dict(x=1),dict(y=1),(first,second))
         # The committed inventory lists every recording in apps/api/fixtures/sessions (T29).
         data=json.loads((SCRIPTS.parent/'Scenarios/phase4-regression.pending.json').read_text())
         self.assertEqual(set(data['historical_recordings']),{p.name for p in (REPO/'apps/api/fixtures/sessions').glob('*.nfr')})

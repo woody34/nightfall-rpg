@@ -94,6 +94,9 @@ def prepare(repo: Path, out: Path, clients: int, casting: bool = False, items: b
     spec = importlib.util.spec_from_file_location('phase3_soak_inputs', repo / ('apps/client-unreal/Scripts/phase4-fixtures.py' if items else 'apps/client-unreal/Scripts/phase3-fixtures.py'))
     contracts = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(contracts)
+    if items:
+        picks = contracts.selection(repo)  # once per soak: every role toggles the same pack shots
+        shots = (picks['soulshot'], picks['spiritshot'])
     for i in range(clients):
         # At most 8 roles: >=35 tiles between homes. This includes both NPCs'
         # maximum wander (sqrt(2)*9.375 each; domain/zone/ai.rs) plus clan-help(8).
@@ -118,8 +121,7 @@ def prepare(repo: Path, out: Path, clients: int, casting: bool = False, items: b
                           'scenario': str((role_dir / 'Scenarios/1-kill-one-monster.nfs').resolve())})
             scenario = casting_scenario(waypoints)
             if items:
-                picks = contracts.selection(repo)
-                scenario = item_scenario(scenario, seed, str(uuid.uuid4()), (picks['soulshot'], picks['spiritshot']))
+                scenario = item_scenario(scenario, seed, str(uuid.uuid4()), shots)
         path = out / f'client-{i + 1:02}' / 'Scenarios' / '1-kill-one-monster.nfs'
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(scenario)

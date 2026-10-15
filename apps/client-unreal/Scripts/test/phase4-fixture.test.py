@@ -296,10 +296,12 @@ class Fixtures(unittest.TestCase):
             self.assertEqual(fixture.scenario_copy(folder,owner).read_text(),'nf.Equip instance:4294967301\nnf.Expect equipped instance:4294967301 == 1\n')
             self.assertEqual(fixture.scenario_copy(folder,observer).read_text(),'nf.Use instance:4294967400\n')
             # T28: the allow-list sidecar travels with the mapped copy, byte-identically.
-            (scenarios/'4-x-a.allow').write_bytes(b'LogTurboLink Error: CallRpcError: FailedPrecondition # reason\n')
+            (scenarios/'4-x-a.allow').write_bytes(b'LogTurboLink | CallRpcError: FailedPrecondition:GrantItem requires AUTH_DEV_TOKENS=1 | expected refusal\n')
             copy=fixture.scenario_copy(folder,owner)
             self.assertEqual(copy.with_suffix('.allow').read_bytes(),(scenarios/'4-x-a.allow').read_bytes())
             self.assertFalse((folder/'scenarios'/'4-x-b.allow').exists())
+            (scenarios/'4-x-a.allow').unlink();fixture.scenario_copy(folder,owner)  # source lost its sidecar
+            self.assertFalse((folder/'scenarios'/'4-x-a.allow').exists())
             for real in ('4-grant-item-denied','4-item-skill-learn'):
                 self.assertTrue((SCRIPTS.parent/'Scenarios'/(real+'.allow')).is_file(),real)
             observer.write_text('nf.Use instance:7\n') # owner's id is not the observer's

@@ -77,9 +77,11 @@ def selection(repo=REPO):
     # ItemCapabilityDeferred); the positive potion case is Lesser Healing Potion 1060 (D97).
     for name, title in [('escape', 'Scroll of Escape'), ('resurrect', 'Scroll of Resurrection'),
                         ('potion', 'Lesser Healing Potion'), ('blessed_escape', 'Blessed Scroll of Escape')]:
-        result[name] = next(i for i, r in sorted(catalogue(repo).items())
-                            if r['name'] == title and capabilities(repo)[i]['admitted']
-                            and not capabilities(repo)[i]['use_blockers'])
+        result[name] = next((i for i, r in sorted(catalogue(repo).items())
+                             if r['name'] == title and capabilities(repo)[i]['admitted']
+                             and not capabilities(repo)[i]['use_blockers']), None)
+        if result[name] is None:
+            raise ValueError(f'no admitted, usable {title!r} template for selection {name!r}')
     scrolls = table('enchant_scrolls', repo)['scrolls']
     for name, blessed, safe in [('scroll', False, False), ('blessed_scroll', True, False), ('safe_scroll', False, True)]:
         result[name] = min(r['template_id'] for r in scrolls if r['weapon'] and r['target_grade'] == 'C'
