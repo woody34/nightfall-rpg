@@ -145,8 +145,8 @@ pub fn resolve_phase4_bundle(
     find().ok_or_else(|| {
         let mut message = String::from(
             "recorded V6 rules are unavailable in this process: an epoch recorded over a \
-             RULES_DIR overlay resolves only with PHASE4_ENABLED=1 and the RULES_DIR it was \
-             recorded with (replay tools: set that RULES_DIR)",
+             RULES_DIR overlay or ZONE_SIM_FIXTURE resolves only with the RULES_DIR and \
+             ZONE_SIM_FIXTURE it was recorded with (the API also needs PHASE4_ENABLED=1)",
         );
         if !failures.is_empty() {
             message.push_str("; configured source: ");

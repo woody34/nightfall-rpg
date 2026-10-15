@@ -186,6 +186,24 @@ impl ZoneRuntimeConfig {
         Ok(Some(prepare_phase3_bootstrap(&source, rules, classes, self.load_zone()?)?))
     }
 
+    /// T18: the configured Phase 3 source that replay tools register (lazily composed) so they
+    /// resolve the V6 bundle of an epoch this configuration recorded: the `RULES_DIR` overlay
+    /// and the `ZONE_SIM_FIXTURE` NPC overrides, composed exactly as [`Self::prepare_phase4`]
+    /// composes them. `None` when only the embedded bundle can be recorded.
+    pub fn phase4_replay_source(
+        &self,
+    ) -> anyhow::Result<Option<crate::infrastructure::skill_data::Phase3DataSource>> {
+        if let Some(name) = &self.simulation_fixture {
+            anyhow::ensure!(
+                name == "phase1a-social-aggro",
+                "unknown ZONE_SIM_FIXTURE {name:?}; expected phase1a-social-aggro"
+            );
+        } else if self.rules_dir.is_none() {
+            return Ok(None);
+        }
+        self.phase3_source().map(Some)
+    }
+
     fn phase3_source(&self) -> anyhow::Result<crate::infrastructure::skill_data::Phase3DataSource> {
         let mut source = match &self.rules_dir {
             Some(root) => crate::infrastructure::skill_data::Phase3DataSource::from_dir(root)?,
