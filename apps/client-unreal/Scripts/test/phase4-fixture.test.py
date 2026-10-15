@@ -307,6 +307,55 @@ class Fixtures(unittest.TestCase):
             observer.write_text('nf.Use instance:7\n') # owner's id is not the observer's
             with self.assertRaisesRegex(ValueError,'was not provisioned'):fixture.scenario_copy(folder,observer)
 
+    def test_class_transferred_seeded_owners_carry_per_tier_receipts(self):
+        # D124/T25: every non-base-class seeded owner (all Phase 3/4 packs and soak roles) gets
+        # one change_class receipt per tier, parent -> child, as the API requires.
+        import tomllib,uuid
+        base3=seed.base
+        p3=load('fixture_p3',SCRIPTS/'phase3-fixtures.py')
+        professions={r['id']:r for r in (tomllib.loads(f.read_text()) for f in (REPO/'packages/data/professions').glob('*.toml'))}
+        classes={tomllib.loads(f.read_text())['class_id']:tomllib.loads(f.read_text()) for f in (REPO/'packages/data/classes').glob('*.toml')}
+        roles=[]
+        for pack in sorted(p3.PHASE3):
+            for paired in (False,True):
+                try:roles+=[(pack,n,r) for n,r in p3.profiles(pack,REPO,paired).items()]
+                except ValueError:pass
+        for pack in sorted(fixture.PHASE4):
+            roles+=[(pack,n,r) for n,r in fixture.phase4.profiles(pack,paired=pack in fixture.phase4.PAIRED).items()]
+        for index in range(8):
+            for module in (p3,fixture.phase4):
+                roles.append(('soak',f'c{index}',module.soak_profile(REPO,str(uuid.uuid4()),str(uuid.uuid4()),index,8)))
+        transferred=0
+        for pack,name,role in roles:
+            role=role|{'account_id':role.get('account_id') or '01970000-0000-7000-8000-000000000042'}
+            receipts=base3.transfer_receipts(name,role)
+            with self.subTest(pack=pack,role=name):
+                if role['class_id']==role['base_class_id']:
+                    self.assertEqual(receipts,[]);continue
+                transferred+=1
+                target=professions[role['class_id']]
+                self.assertEqual([r['ordinal'] for r in receipts],list(range(target['tier'])))
+                self.assertEqual(receipts[-1]['target_class_id'],role['class_id'])
+                parent=role['base_class_id']
+                for r in receipts:
+                    step=professions[r['target_class_id']];self.assertEqual(step['parent'],parent);parent=step['id']
+                    body=r['response']
+                    self.assertEqual(body['current_class_id'],step['id']);self.assertLessEqual(step['min_level'],body['level'])
+                    self.assertLessEqual(body['level'],85);self.assertLessEqual(step['min_level'],role['level'])
+                    self.assertEqual(body['stats'],classes[role['base_class_id']]['base_stats'])
+                    self.assertEqual(body['identity'],{'account_id':role['account_id'],'race':role['race'],'base_class_id':role['base_class_id'],
+                                                       'appearance':{'sex':'Female','hair_style':0,'hair_color':0,'face':0}})
+                    self.assertEqual(r['fingerprint'],f"v1|{role['character_id']}|{step['id']}")
+                    self.assertEqual(set(body),{'character_id','identity','name','current_class_id','level','xp','sp','stats','position_millitiles',
+                                                'hp','mp','cp','max_hp','max_mp','max_cp','token_tier_1_count','token_tier_2_count','granted_skill_keys'})
+                sql=base3.seed_sql({name:role})
+                self.assertEqual(sql.count('INSERT INTO character_transfer_receipts'),len(receipts))
+                self.assertEqual(sql.count("'change_class'"),len(receipts))
+                self.assertLess(sql.index('INSERT INTO characters('),sql.index('INSERT INTO idempotency_keys'))
+        self.assertGreaterEqual(transferred,1)  # phase4-kinds: Treasure Hunter (7 -> 8)
+        kinds=fixture.phase4.profiles('phase4-kinds')['owner']|{'account_id':'01970000-0000-7000-8000-000000000042'}
+        self.assertEqual([r['target_class_id'] for r in base3.transfer_receipts('owner',kinds)],[7,8])
+
     def test_grant_plan_models_slot_capacity(self):
         # D125 (amended)/T27: the dev grant enforces slot capacity; the plan refuses first.
         role=copy.deepcopy(fixture.phase4.profiles('phase4-equip')['owner'])

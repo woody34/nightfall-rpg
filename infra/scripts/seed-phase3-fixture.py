@@ -10,8 +10,9 @@ import os
 from pathlib import Path
 import re
 import subprocess
+import tomllib
 from urllib.parse import urlparse
-from uuid import UUID
+from uuid import NAMESPACE_URL, UUID, uuid5
 
 REPO = Path(__file__).resolve().parents[2]
 spec = importlib.util.spec_from_file_location('phase3_fixtures', REPO / 'apps/client-unreal/Scripts/phase3-fixtures.py')
@@ -42,6 +43,58 @@ def psql_env(database_url, shim=False):
     return env
 
 
+def professions(repo=REPO):
+    return {row['id']: row for row in (tomllib.loads(path.read_text())
+            for path in sorted((repo / 'packages/data/professions').glob('*.toml')))}
+
+
+def transfer_receipts(name, role, repo=REPO):
+    """D124/T25: a class-transferred seeded owner needs ONE change_class receipt per tier
+    (character_progression.rs validate_for_skill_rules): parent -> child along
+    professions/*.toml, each a frozen transfer result at a level its target allows, with the
+    owner's identity and its BASE class stats; the last target is the current class. Mirrors the
+    API test phase4_login_runtime::postgres_seeded_class_transferred_owner_needs_its_receipt_history."""
+    if role['class_id'] == role['base_class_id']:
+        return []
+    table = professions(repo)
+    chain, current = [], table[role['class_id']]
+    while current['id'] != role['base_class_id']:
+        chain.append(current)
+        if current.get('parent') is None:
+            raise ValueError(f"class {role['class_id']} does not descend from base {role['base_class_id']}")
+        current = table[current['parent']]
+    chain.reverse()
+    if len(chain) != table[role['class_id']]['tier'] or not 1 <= len(chain) <= 2:
+        raise ValueError(f"class {role['class_id']} needs {len(chain)} receipts; seeded transfers cover tiers 1..2")
+    receipts = []
+    for ordinal, target in enumerate(chain):
+        if not target['min_level'] <= role['level'] <= 85:
+            raise ValueError(f"seeded level {role['level']} below class {target['id']} minimum {target['min_level']}")
+        key = str(uuid5(NAMESPACE_URL, f"nightfall:seed-transfer:{role['character_id']}:{ordinal}"))
+        response = {
+            'character_id': role['character_id'],
+            'identity': {'account_id': role['account_id'], 'race': role['race'], 'base_class_id': role['base_class_id'],
+                         'appearance': {'sex': 'Female', 'hair_style': 0, 'hair_color': 0, 'face': 0}},
+            'name': f'Skill{name}', 'current_class_id': target['id'], 'level': target['min_level'],
+            'xp': 0, 'sp': 0, 'stats': dict(role['base_stats']), 'position_millitiles': [0, 0],
+            'hp': 1, 'mp': 1, 'cp': 0, 'max_hp': 1, 'max_mp': 1, 'max_cp': 0,
+            'token_tier_1_count': 0, 'token_tier_2_count': 0, 'granted_skill_keys': []}
+        receipts.append(dict(ordinal=ordinal, key=key, target_class_id=target['id'],
+                             fingerprint=f"v1|{role['character_id']}|{target['id']}", response=response))
+    return receipts
+
+
+def transfer_sql(name, role, repo=REPO):
+    sql = ''
+    for r in transfer_receipts(name, role, repo):
+        response = json.dumps(r['response'], separators=(',', ':'), sort_keys=True).replace("'", "''")
+        sql += (f"INSERT INTO idempotency_keys(key,fingerprint,account_id,operation,response) VALUES "
+                f"('{r['key']}','{r['fingerprint']}','{role['account_id']}','change_class','{response}'::jsonb);\n"
+                f"INSERT INTO character_transfer_receipts(character_id,ordinal,account_id,key,target_class_id) VALUES "
+                f"('{role['character_id']}',{r['ordinal']},'{role['account_id']}','{r['key']}',{r['target_class_id']});\n")
+    return sql
+
+
 def seed_sql(roles):
     rows, skills = [], []
     for name, role in roles.items():
@@ -57,6 +110,7 @@ def seed_sql(roles):
                     f"{role['recoverable_death_xp_loss']},{role['phase3_timer_policy_version']},'{installation}'::jsonb)")
         for skill, rank in sorted(role['learned_ranks'].items(), key=lambda item: int(item[0])):
             skills.append(f"('{role['character_id']}',0,'l2.skill.{skill}',{rank})")
+    transfers = ''.join(transfer_sql(name, role) for name, role in roles.items())
     skill_sql = ('INSERT INTO character_learned_skills(character_id,slot,skill_key,skill_level)\nVALUES ' + ','.join(skills) + ';') if skills else ''
     accounts = ','.join(f"('{r['account_id']}')" for r in roles.values())
     sql = f"""BEGIN;
@@ -77,7 +131,7 @@ INSERT INTO characters(id,account_id,name,name_normalized,race,level,str,dex,con
 VALUES {','.join(rows)};
 INSERT INTO character_class_slots(character_id,slot,class_id,level,exp,sp)
 SELECT id,0,current_class_id,level,xp,sp FROM characters;
-{skill_sql}
+{transfers}{skill_sql}
 COMMIT;
 """
 
