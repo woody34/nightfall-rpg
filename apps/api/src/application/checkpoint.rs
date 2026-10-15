@@ -182,7 +182,8 @@ impl CheckpointService {
         self
     }
 
-    /// Records intent before the log gate, so even a missing final record fails closed.
+    /// T21/D134: indexes a tick after its log acknowledgement and before its checkpoint or
+    /// output. Recovery requires the history through it; a shorter history is log loss.
     pub async fn recording(&self, zone: ZoneId, epoch: u64, tick: Tick) {
         self.index_tick(zone, epoch, tick, false).await;
     }

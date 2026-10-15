@@ -81,11 +81,13 @@ with a different body is `KeyReused`. Check violations (`23514`) surface as type
 `zone_epochs` is durable recovery evidence, retained independently of JetStream messages and
 snapshot cleanup. Baseline writes update `zone_snapshots` and insert the epoch row in one
 transaction. `started_at` and `closed_at` are its lifecycle timestamps; `first_seq` remains the
-epoch's first applied sequence as recovery snapshots advance. `last_recorded_tick` is a
-conservative upper bound recorded before log admission; `last_checkpointed_tick` advances
+epoch's first applied sequence as recovery snapshots advance. `last_recorded_tick` is written
+after the log acknowledges the tick and before its checkpoint or output (D134). So every
+released effect of the epoch is at or below it. `last_checkpointed_tick` advances
 only after all critical saves through that tick complete. Unclosed rows require recovery before
-admission. Missing history (including an uncertain final publish) fails closed and is logged;
-only completed recovery or a successful clean-shutdown save and baseline closes the row.
+admission. A history shorter than `last_recorded_tick` is log loss. It fails closed and is
+logged. Only completed recovery or a successful clean-shutdown save and baseline closes the row.
+The index assumes one process owns a zone at a time. It does not fence a second, stale owner.
 
 ## 3. Queries
 

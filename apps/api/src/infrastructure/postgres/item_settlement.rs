@@ -119,8 +119,9 @@ pub(super) async fn persist(
     cp: &CharacterCheckpoint,
     work: &ItemCheckpointWork,
     before: Option<&Phase4Checkpoint>,
+    rules: Option<&crate::domain::zone::Phase4Rules>,
 ) -> Result<(), CheckpointError> {
-    work.validate_before(before)?;
+    work.validate_before_with(before, rules)?;
     let requests = super::item_admission::load_pending(tx, cp.character_id).await?;
     work.validate_pending(&requests)?;
     persist_range(tx, work).await?;

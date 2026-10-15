@@ -50,6 +50,12 @@ pub fn router(metrics: Metrics, routes: Router) -> Router {
 /// Maps application errors to HTTP status codes. Used once REST endpoints exist.
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
+        // D124: stored class state that violates the ledger is a named precondition.
+        if let Some(code) = self.stored_precondition() {
+            tracing::warn!(error = ?self, code, "stored character state refused");
+            return (StatusCode::CONFLICT, Json(serde_json::json!({ "error": code })))
+                .into_response();
+        }
         let status = match &self {
             AppError::InvalidArgument(_) => StatusCode::BAD_REQUEST,
             AppError::NotFound { .. } => StatusCode::NOT_FOUND,

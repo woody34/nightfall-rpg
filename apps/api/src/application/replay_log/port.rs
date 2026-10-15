@@ -116,7 +116,8 @@ pub struct RecoveryEpoch {
 pub trait ZoneSnapshotStore: Send + Sync {
     /// All unresolved epochs, oldest first. Completed recovery closes each one.
     async fn unresolved(&self, zone: ZoneId) -> anyhow::Result<Vec<RecoveryEpoch>>;
-    /// Record a tick before attempting its durable admission (a crash may leave uncertainty).
+    /// Index a tick after the log acknowledged its record and before its checkpoint or output
+    /// (D134): `last_recorded_tick = T` implies record T is durable.
     async fn recording(
         &self,
         zone: ZoneId,

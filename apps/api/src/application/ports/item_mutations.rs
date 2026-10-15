@@ -478,10 +478,21 @@ impl ItemCheckpointWork {
     }
 
     /// Every changed scalar needs a real ledger fact. Sidecar-only changes need no fake ID.
-    #[allow(clippy::too_many_lines)] // One ordered scalar/count/identity gate for atomic settlement.
     pub fn validate_before(
         &self,
         before: Option<&Phase4Checkpoint>,
+    ) -> Result<(), CheckpointError> {
+        self.validate_before_with(before, None)
+    }
+
+    /// As [`Self::validate_before`], with the bound item rules (D127: an `insufficient`
+    /// automatic-shot drop is checked against the equipped weapon's per-shot requirement;
+    /// without rules it fails closed).
+    #[allow(clippy::too_many_lines)] // One ordered scalar/count/identity gate for atomic settlement.
+    pub fn validate_before_with(
+        &self,
+        before: Option<&Phase4Checkpoint>,
+        rules: Option<&crate::domain::zone::Phase4Rules>,
     ) -> Result<(), CheckpointError> {
         let kit = self
             .projection
@@ -501,18 +512,8 @@ impl ItemCheckpointWork {
         {
             return Err(invalid("pending_kit_materialization_required"));
         }
-        if before.is_some_and(|cp| cp.auto_shots != self.projection.checkpoint.auto_shots)
-            && !self.projection.receipts.iter().any(|receipt| {
-                matches!(
-                    receipt.result.detail,
-                    ItemResultDetail::Operation {
-                        operation: ItemOperation::ToggleAutoShot,
-                        ..
-                    }
-                )
-            })
-        {
-            return Err(invalid("item_toggle_receipt_required"));
+        if let Some(before) = before {
+            validate_auto_shots(before, &self.projection, rules)?;
         }
         let old: BTreeMap<_, _> = before
             .into_iter()
@@ -546,13 +547,24 @@ impl ItemCheckpointWork {
                 && cp.inventory_revision == revision
         });
         // A fresh no-op receipt can retain the revision; actual mutations take one step.
+        // D137: a no-op ToggleAutoShot (nothing affected) keeps the un-stepped revision even
+        // when a later same-tick mutation steps the owner; every other receipt carries the
+        // settled revision.
+        let pre_tick = before.map(|cp| cp.inventory_revision);
         if (!unchanged
             && before.map_or(0, |cp| cp.inventory_revision).checked_add(1) != Some(revision))
-            || self
-                .projection
-                .receipts
-                .iter()
-                .any(|receipt| receipt.result.inventory_revision != revision)
+            || self.projection.receipts.iter().any(|receipt| {
+                let no_op_toggle = matches!(
+                    &receipt.result.detail,
+                    ItemResultDetail::Operation {
+                        operation: ItemOperation::ToggleAutoShot,
+                        affected,
+                        ..
+                    } if affected.is_empty()
+                );
+                receipt.result.inventory_revision != revision
+                    && !(no_op_toggle && Some(receipt.result.inventory_revision) == pre_tick)
+            })
             || self
                 .projection
                 .materializations
@@ -613,7 +625,7 @@ impl ItemCheckpointWork {
                     return Err(invalid("item_ledger_count_conservation"));
                 }
                 if delta.operation == ItemOperation::Consume {
-                    validate_consumption(delta)?;
+                    validate_consumption(delta, rules)?;
                     consumed = true;
                 }
                 endpoint = delta.after.as_ref();
@@ -1102,19 +1114,266 @@ pub fn validate_learn_payments(
     Ok(())
 }
 
-/// T26: receipt-less ammunition debits of an attack (D85/D109): a bow shot's arrow
-/// (`arrow_payment`) and an automatic shot's charge (`auto_shot_payment`). Their identity is
-/// the zone's attack resolution id (non-empty, no whitespace), as the evidence exporter reads it.
-fn attack_payment(cause: &crate::domain::zone::phase4_projection::ItemAuditEvidence) -> bool {
+/// D127 (amended) + D128 + D130: the per-template account of an automatic-shot set change.
+/// Every changed template is either covered by a `ToggleAutoShot` receipt or is a removal
+/// evidenced by exactly one `auto_shot_exhausted` projection entry:
+/// - `exhausted`: remaining 0, no instance left, and this tick's Consume row of `instance`
+///   (that template, `after` None) carries the `auto_shot_payment` cause with the same id;
+/// - `missing`: remaining 0 and no instance of the template (D136: before or after the tick);
+/// - `insufficient`: `instance` is the template's only stack with count `remaining` (D136: in
+///   the pre-tick or the settled checkpoint, with the weapon of that same checkpoint);
+///   `required` is the wielded (`weapon`) right-hand weapon's unreduced per-shot count from the
+///   catalogue; `remaining < required`, and below the reduced count when this resolution's
+///   `soulshot_reduction` draw reduced it. Unknown (no rules, no weapon) fails closed.
+///
+/// Spurious, duplicate or malformed entries are refused (`item_auto_shot_evidence`); an
+/// unaccounted change needs the receipt (`item_toggle_receipt_required`).
+fn validate_auto_shots(
+    before: &Phase4Checkpoint,
+    projection: &Phase4Projection,
+    rules: Option<&crate::domain::zone::Phase4Rules>,
+) -> Result<(), CheckpointError> {
+    use crate::domain::zone::phase4_projection::ItemEvidenceValue as V;
+    let after = &projection.checkpoint;
+    let removed: BTreeSet<u32> = before
+        .auto_shots
+        .difference(&after.auto_shots)
+        .copied()
+        .collect();
+    let added = after.auto_shots.difference(&before.auto_shots).count();
+    let bad = || invalid("item_auto_shot_evidence");
+    let text = |fields: &BTreeMap<String, V>, key: &str| match fields.get(key) {
+        Some(V::Text(value)) => Some(value.clone()),
+        _ => None,
+    };
+    let unsigned = |fields: &BTreeMap<String, V>, key: &str| match fields.get(key) {
+        Some(V::Unsigned(value)) => Some(*value),
+        _ => None,
+    };
+    let mut evidenced = BTreeSet::new();
+    for entry in projection
+        .evidence
+        .iter()
+        .filter(|entry| entry.family == "auto_shot_exhausted")
+    {
+        let fields = &entry.fields;
+        let template = unsigned(fields, "template")
+            .and_then(|t| u32::try_from(t).ok())
+            .ok_or_else(bad)?;
+        let remaining = unsigned(fields, "remaining").ok_or_else(bad)?;
+        let reason = text(fields, "reason").ok_or_else(bad)?;
+        let resolution = text(fields, "resolution_id").ok_or_else(bad)?;
+        if !removed.contains(&template) || !evidenced.insert(template) || resolution.is_empty() {
+            return Err(bad());
+        }
+        let stacks: Vec<_> = after
+            .instances
+            .iter()
+            .filter(|item| item.template_id == template)
+            .collect();
+        let instance = unsigned(fields, "instance");
+        let ok = match reason.as_str() {
+            "exhausted" => {
+                remaining == 0
+                    && stacks.is_empty()
+                    && instance.is_some_and(|instance| {
+                        projection.ledger.iter().any(|row| {
+                            row.operation == ItemOperation::Consume
+                                && row.instance.get() == instance
+                                && row.after.is_none()
+                                && row.before.as_ref().map(|item| item.template_id)
+                                    == Some(template)
+                                && row.causes.iter().any(|cause| {
+                                    cause.family == "auto_shot_payment"
+                                        && text(&cause.fields, "resolution_id").as_deref()
+                                            == Some(resolution.as_str())
+                                })
+                        })
+                    })
+            },
+            // D136: a retained entry is as-of its removal. Its stack and weapon facts must hold
+            // in the pre-tick checkpoint or in the settled one (later same-tick commands can
+            // change the stack or the wielded weapon after the removal).
+            "missing" => {
+                remaining == 0
+                    && instance.is_none()
+                    && [before, after]
+                        .iter()
+                        .any(|cp| cp.instances.iter().all(|item| item.template_id != template))
+            },
+            "insufficient" => {
+                remaining > 0
+                    && [before, after].iter().any(|cp| {
+                        let stacks: Vec<_> = cp
+                            .instances
+                            .iter()
+                            .filter(|item| item.template_id == template)
+                            .collect();
+                        matches!(stacks.as_slice(), [stack] if stack.count == remaining
+                            && instance == Some(stack.id.get()))
+                            && insufficient(
+                                cp,
+                                projection,
+                                rules,
+                                template,
+                                remaining,
+                                unsigned(fields, "required"),
+                                unsigned(fields, "weapon"),
+                                &resolution,
+                            )
+                    })
+            },
+            _ => false,
+        };
+        if !ok {
+            return Err(bad());
+        }
+    }
+    // D135: one toggle receipt explains any one unexplained change (Phase 5: per-target).
+    let toggles = projection
+        .receipts
+        .iter()
+        .filter(|receipt| {
+            matches!(
+                receipt.result.detail,
+                ItemResultDetail::Operation {
+                    operation: ItemOperation::ToggleAutoShot,
+                    ..
+                }
+            )
+        })
+        .count();
+    let unaccounted = removed
+        .len()
+        .checked_sub(evidenced.len())
+        .and_then(|left| left.checked_add(added))
+        .ok_or_else(bad)?;
+    if unaccounted > toggles {
+        return Err(invalid("item_toggle_receipt_required"));
+    }
+    Ok(())
+}
+
+/// D128 `insufficient`: `required` must be the wielded right-hand weapon's unreduced per-shot
+/// count for this shot kind (catalogue), `weapon` must name that weapon (instance or template),
+/// and the remaining stack must be below the count the charge actually needed: the reduced
+/// count when this resolution's `soulshot_reduction` residue fell under the reduction chance.
+#[allow(clippy::too_many_arguments)] // One entry's cross-checks against checkpoint, rules and draw.
+fn insufficient(
+    after: &Phase4Checkpoint,
+    projection: &Phase4Projection,
+    rules: Option<&crate::domain::zone::Phase4Rules>,
+    template: u32,
+    remaining: u64,
+    required: Option<u64>,
+    weapon: Option<u64>,
+    resolution: &str,
+) -> bool {
+    use crate::domain::zone::phase4_projection::ItemEvidenceValue as V;
+    let (Some(rules), Some(required), Some(weapon)) = (rules, required, weapon) else {
+        return false;
+    };
+    let items = &rules.parts().items;
+    let Some(wielded) = after
+        .paperdoll
+        .get(&crate::domain::zone::EquipSlot::Rhand)
+        .and_then(|id| after.instances.iter().find(|item| item.id == *id))
+    else {
+        return false;
+    };
+    if weapon != wielded.id.get() && weapon != u64::from(wielded.template_id) {
+        return false;
+    }
+    let (Some(shot), Some(definition)) = (items.get(&template), items.get(&wielded.template_id))
+    else {
+        return false;
+    };
+    let soul = shot.handler == "SoulShots";
+    let full = match shot.handler.as_str() {
+        "SoulShots" => definition.soulshots,
+        "SpiritShot" | "BlessedSpiritShot" => definition.spiritshots,
+        _ => return false,
+    };
+    if full == 0 || required != u64::from(full) {
+        return false;
+    }
+    let draw = projection.evidence.iter().find(|entry| {
+        entry.family == "soulshot_reduction"
+            && matches!(entry.fields.get("resolution_id"), Some(V::Text(id)) if id == resolution)
+    });
+    let needed = match (soul, definition.reduced_soulshot.as_slice(), draw) {
+        (true, [chance, reduced], Some(draw)) if *reduced > 0 => match draw.fields.get("residue") {
+            Some(V::Unsigned(residue)) if *residue < u64::from(*chance) => u64::from(*reduced),
+            Some(V::Unsigned(_)) => u64::from(full),
+            _ => return false,
+        },
+        // A reducing weapon always draws; a missing draw is not this resolution.
+        (true, [_, reduced], None) if *reduced > 0 => return false,
+        (_, _, None) => u64::from(full),
+        (_, _, Some(_)) => return false,
+    };
+    remaining < needed
+}
+
+/// T26/D126, tightened by D129: receipt-less ammunition debits of an attack. Their identity is
+/// the zone's attack resolution id, as the evidence exporter reads it (the receipt branch is
+/// taken before this check, so the `receipt` test is defensive only).
+/// - `arrow_payment`: exactly one arrow (`count_delta` -1), a `weapon` template, and the id
+///   `attack:<attacker>:<tick>`;
+/// - `auto_shot_payment`: the id `attack:…` or `cast:…` ending in `:shot:<debited template>`;
+/// - with the bound item rules, the debited template must be ammunition (ARROW/BOLT) or a shot.
+fn attack_payment(
+    cause: &crate::domain::zone::phase4_projection::ItemAuditEvidence,
+    delta: &crate::domain::zone::phase4_projection::ItemDeltaPlan,
+    rules: Option<&crate::domain::zone::Phase4Rules>,
+) -> bool {
     use crate::domain::zone::phase4_projection::ItemEvidenceValue;
-    matches!(cause.family.as_str(), "arrow_payment" | "auto_shot_payment")
-        && !cause.fields.contains_key("receipt")
-        && matches!(cause.fields.get("resolution_id"), Some(ItemEvidenceValue::Text(id))
-            if !id.is_empty() && !id.chars().any(char::is_whitespace))
+    let Some(ItemEvidenceValue::Text(id)) = cause.fields.get("resolution_id") else {
+        return false;
+    };
+    if id.is_empty() || id.chars().any(char::is_whitespace) || cause.fields.contains_key("receipt")
+    {
+        return false;
+    }
+    let Some(template) = delta.before.as_ref().map(|item| item.template_id) else {
+        return false;
+    };
+    let definition = rules.map(|rules| rules.parts().items.get(&template));
+    match cause.family.as_str() {
+        "arrow_payment" => {
+            let mut parts = id.split(':');
+            let shape = parts.next() == Some("attack")
+                && parts.next().is_some_and(|attacker| !attacker.is_empty())
+                && parts.next().is_some_and(|tick| {
+                    !tick.is_empty() && tick.bytes().all(|b| b.is_ascii_digit())
+                })
+                && parts.next().is_none();
+            shape
+                && matches!(cause.fields.get("count_delta"), Some(ItemEvidenceValue::Signed(-1)))
+                && matches!(cause.fields.get("weapon"), Some(ItemEvidenceValue::Unsigned(w)) if *w > 0)
+                && definition.is_none_or(|definition| {
+                    definition.is_some_and(|d| matches!(d.etcitem_type.as_str(), "ARROW" | "BOLT"))
+                })
+        },
+        "auto_shot_payment" => {
+            (id.starts_with("attack:") || id.starts_with("cast:"))
+                && id.ends_with(&format!(":shot:{template}"))
+                && definition.is_none_or(|definition| {
+                    definition.is_some_and(|d| {
+                        matches!(
+                            d.handler.as_str(),
+                            "SoulShots" | "SpiritShot" | "BlessedSpiritShot"
+                        )
+                    })
+                })
+        },
+        _ => false,
+    }
 }
 
 fn validate_consumption(
     delta: &crate::domain::zone::phase4_projection::ItemDeltaPlan,
+    rules: Option<&crate::domain::zone::Phase4Rules>,
 ) -> Result<(), CheckpointError> {
     use crate::domain::zone::phase4_projection::ItemEvidenceValue;
     let mut total = 0_i128;
@@ -1137,7 +1396,7 @@ fn validate_consumption(
         } else if !(cause.family == "skill_cast_payment"
             && matches!(cause.fields.get("cast_id"), Some(ItemEvidenceValue::Unsigned(id)) if *id > 0)
             || cause.family == LEARN_PAYMENT && learn_payment(cause).is_some()
-            || attack_payment(cause))
+            || attack_payment(cause, delta, rules))
         {
             return Err(invalid("item_consume_cause_identity"));
         }
@@ -1300,7 +1559,7 @@ mod learn_payment_tests {
         let classes = classes();
         let (cp, receipt) = learner(1);
         let paid = [payment(&receipt, 8618, LEARN_PAYMENT)];
-        validate_consumption(&paid[0]).unwrap();
+        validate_consumption(&paid[0], None).unwrap();
         validate_learn_payments(&paid, &cp, Some(&receipt), &classes).unwrap();
         // Unpaid, wrong book, or a payment without (or for another) learn receipt.
         let refused = |ledger: &[ItemDeltaPlan], learning: Option<&SuccessfulLearnReceipt>| {
@@ -1322,7 +1581,7 @@ mod learn_payment_tests {
         // Rank 2 needs 8619, not the rank-1 book.
         let (_, rank2) = learner(2);
         let mut wrong_rank = payment(&rank2, 8618, LEARN_PAYMENT);
-        validate_consumption(&wrong_rank).unwrap();
+        validate_consumption(&wrong_rank, None).unwrap();
         assert!(validate_learn_payments(
             std::slice::from_ref(&wrong_rank),
             &cp,
@@ -1334,7 +1593,7 @@ mod learn_payment_tests {
         validate_learn_payments(&[wrong_rank], &cp, Some(&rank2), &classes).unwrap();
         // An unknown family without an item receipt keeps the identity refusal.
         assert!(matches!(
-            validate_consumption(&payment(&receipt, 8618, "skill_learn")),
+            validate_consumption(&payment(&receipt, 8618, "skill_learn"), None),
             Err(CheckpointError::Constraint(c)) if c == "item_consume_cause_identity"
         ));
     }
@@ -1355,33 +1614,313 @@ mod learn_payment_tests {
     }
 }
 
+/// D126 as tightened by D129, and the D127/D128/D130 automatic-shot account (API session 21).
 #[cfg(test)]
-mod attack_payment_tests {
+#[allow(clippy::unwrap_used, clippy::indexing_slicing)]
+mod attack_settlement_tests {
     use super::*;
-    use crate::domain::zone::phase4_projection::{ItemAuditEvidence, ItemEvidenceValue as V};
+    use crate::domain::zone::phase4_projection::{
+        FrozenItemResult, ItemAuditEvidence, ItemDeltaPlan, ItemEvidenceValue as V,
+        ItemReceiptFact, ItemReceiptRef,
+    };
+    use crate::domain::zone::{
+        EquipSlot, ItemInstance, ItemInstanceId, ItemLocation, Phase4Checkpoint, Phase4Rules, Tick,
+    };
 
-    fn cause(family: &str, resolution: Option<&str>, receipt: bool) -> ItemAuditEvidence {
-        let mut fields = BTreeMap::from([("count_delta".to_owned(), V::Signed(-1))]);
-        if let Some(id) = resolution {
-            fields.insert("resolution_id".into(), V::Text(id.into()));
+    fn rules() -> std::sync::Arc<Phase4Rules> {
+        crate::infrastructure::item_data::embedded_phase4_bundle()
+            .unwrap()
+            .items
+    }
+
+    fn template(
+        rules: &Phase4Rules,
+        keep: impl Fn(&crate::domain::zone::item_rules::ItemDefinition) -> bool,
+    ) -> u32 {
+        rules
+            .parts()
+            .items
+            .iter()
+            .find(|(_, d)| keep(d))
+            .map(|(t, _)| *t)
+            .unwrap()
+    }
+
+    fn item(id: u64, template_id: u32, count: u64) -> ItemInstance {
+        ItemInstance {
+            creation_origin: None,
+            id: ItemInstanceId::new(id).unwrap(),
+            template_id,
+            count,
+            location: ItemLocation::Inventory,
+            slot: None,
+            enchant: 0,
+            augment_id: None,
+            charges: 0,
+            created_tick: Tick(1),
+            revision: 1,
         }
-        if receipt {
-            fields.insert("receipt".into(), V::Text(uuid::Uuid::nil().to_string()));
-        }
-        ItemAuditEvidence {
-            family: family.into(),
-            fields,
+    }
+
+    fn debit(family: &str, template: u32, fields: &[(&str, V)], count_delta: i64) -> ItemDeltaPlan {
+        let mut fields: BTreeMap<String, V> = fields
+            .iter()
+            .map(|(k, v)| ((*k).to_owned(), v.clone()))
+            .collect();
+        fields
+            .entry("count_delta".into())
+            .or_insert(V::Signed(count_delta));
+        ItemDeltaPlan {
+            operation: ItemOperation::Consume,
+            operation_ordinal: 0,
+            instance: ItemInstanceId::new(1 << 33).unwrap(),
+            before: Some(item(1 << 33, template, 5)),
+            after: Some(item(1 << 33, template, 5_u64.checked_add_signed(count_delta).unwrap())),
+            count_delta,
+            receipt: None,
+            receipt_refs: Vec::new(),
+            causes: vec![ItemAuditEvidence {
+                family: family.into(),
+                fields,
+            }],
         }
     }
 
     #[test]
-    fn attack_ammunition_debits_need_their_resolution_identity() {
-        assert!(attack_payment(&cause("arrow_payment", Some("attack:7:2"), false)));
-        assert!(attack_payment(&cause("auto_shot_payment", Some("cast:3"), false)));
-        assert!(!attack_payment(&cause("arrow_payment", None, false)));
-        assert!(!attack_payment(&cause("arrow_payment", Some(""), false)));
-        assert!(!attack_payment(&cause("arrow_payment", Some("a b"), false)));
-        assert!(!attack_payment(&cause("arrow_payment", Some("attack:7"), true)));
-        assert!(!attack_payment(&cause("skill_learn", Some("attack:7"), false)));
+    fn ammunition_debits_need_the_d129_identity_and_ammunition() {
+        let rules = rules();
+        let arrow = template(&rules, |d| d.etcitem_type == "ARROW");
+        let soul = template(&rules, |d| d.handler == "SoulShots");
+        let sword = template(&rules, |d| d.soulshots > 0);
+        let id = |text: &str| ("resolution_id", V::Text(text.into()));
+        let weapon = ("weapon", V::Unsigned(u64::from(sword)));
+        let ok = |delta: &ItemDeltaPlan| validate_consumption(delta, Some(&rules)).is_ok();
+        let arrow_row = |fields: &[(&str, V)], count| debit("arrow_payment", arrow, fields, count);
+        assert!(ok(&arrow_row(&[id("attack:e1:40"), weapon.clone()], -1)));
+        // Not one arrow, no weapon, malformed attack ids, or not ammunition.
+        assert!(!ok(&arrow_row(&[id("attack:e1:40"), weapon.clone()], -2)));
+        assert!(!ok(&arrow_row(&[id("attack:e1:40")], -1)));
+        for bad in [
+            "attack:e1",
+            "attack:e1:4x",
+            "cast:3",
+            "attack::40",
+            "attack:e1:40:9",
+            "attack:e 1:40",
+        ] {
+            assert!(!ok(&arrow_row(&[id(bad), weapon.clone()], -1)), "{bad}");
+        }
+        assert!(!ok(&debit("arrow_payment", soul, &[id("attack:e1:40"), weapon.clone()], -1)));
+        // Automatic shots: attack/cast ids naming the debited template.
+        let shot = |text: String, t| debit("auto_shot_payment", t, &[id(&text)], -2);
+        assert!(ok(&shot(format!("attack:e1:40:shot:{soul}"), soul)));
+        assert!(ok(&shot(format!("cast:3:shot:{soul}"), soul)));
+        assert!(!ok(&shot(format!("use:3:shot:{soul}"), soul)));
+        assert!(!ok(&shot(format!("attack:e1:40:shot:{arrow}"), soul)));
+        assert!(!ok(&shot(format!("attack:e1:40:shot:{arrow}"), arrow)));
+        // Without the bound rules the identity checks still apply.
+        assert!(validate_consumption(&shot(format!("cast:3:shot:{soul}"), soul), None).is_ok());
+        // Contributions must sum to the aggregate; a row receipt is never contributed.
+        let mut unbalanced = arrow_row(&[id("attack:e1:40"), weapon.clone()], -1);
+        unbalanced.count_delta = -2;
+        assert!(!ok(&unbalanced));
+        let mut receipted = arrow_row(&[id("attack:e1:40"), weapon], -1);
+        receipted.receipt = Some(ItemReceiptRef {
+            operation: ItemOperation::Use,
+            key: uuid::Uuid::from_u128(7),
+        });
+        assert!(!ok(&receipted));
+    }
+
+    fn checkpoint(instances: Vec<ItemInstance>, shots: &[u32]) -> Phase4Checkpoint {
+        let paperdoll = instances
+            .iter()
+            .filter(|i| i.slot.is_some())
+            .map(|i| (EquipSlot::Rhand, i.id))
+            .collect();
+        Phase4Checkpoint {
+            schema_version: 1,
+            timer_policy_version: 1,
+            rules_hash: [0; 32],
+            inventory_revision: 1,
+            instances,
+            paperdoll,
+            auto_shots: shots.iter().copied().collect(),
+            item_reuse_remainders: Vec::new(),
+            equipment_install_order: Vec::new(),
+            active_sets: BTreeMap::new(),
+            weight: 0,
+            max_load: 100_000,
+            ordinary_capacity: 80,
+            quest_capacity: 100,
+            weight_penalty_bonus: 1,
+            overload_level: 0,
+            overloaded: false,
+            expertise: 0,
+            weapon_penalty: 0,
+            armor_penalty: 0,
+            starter_kit_receipt: None,
+        }
+    }
+
+    fn projection(after: Phase4Checkpoint, evidence: Vec<ItemAuditEvidence>) -> Phase4Projection {
+        Phase4Projection {
+            exchanges: Vec::new(),
+            refines: Vec::new(),
+            enchant_attempts: Vec::new(),
+            paused_core: None,
+            tick: Tick(2),
+            entity: crate::domain::zone::EntityId::from_uuid(uuid::Uuid::from_u128(3)),
+            account: crate::domain::AccountId::from_uuid(uuid::Uuid::from_u128(4)),
+            checkpoint: after,
+            ledger: Vec::new(),
+            receipts: Vec::new(),
+            materializations: Vec::new(),
+            evidence,
+        }
+    }
+
+    fn insufficient(
+        template: u32,
+        remaining: u64,
+        instance: u64,
+        required: u64,
+        weapon: u64,
+    ) -> ItemAuditEvidence {
+        ItemAuditEvidence {
+            family: "auto_shot_exhausted".into(),
+            fields: BTreeMap::from([
+                ("template".into(), V::Unsigned(u64::from(template))),
+                ("remaining".into(), V::Unsigned(remaining)),
+                ("reason".into(), V::Text("insufficient".into())),
+                ("resolution_id".into(), V::Text(format!("attack:e:2:shot:{template}"))),
+                ("instance".into(), V::Unsigned(instance)),
+                ("required".into(), V::Unsigned(required)),
+                ("weapon".into(), V::Unsigned(weapon)),
+            ]),
+        }
+    }
+
+    #[test]
+    fn insufficient_is_checked_against_the_unreduced_count_and_the_reduction_draw() {
+        let rules = rules();
+        let soul = template(&rules, |d| d.handler == "SoulShots");
+        let (reducing, chance, reduced, full) = rules
+            .parts()
+            .items
+            .iter()
+            .find_map(|(t, d)| match d.reduced_soulshot.as_slice() {
+                [c, r] if *r > 0 && d.soulshots > *r.max(&1) => {
+                    Some((*t, u64::from(*c), u64::from(*r), u64::from(d.soulshots)))
+                },
+                _ => None,
+            })
+            .unwrap();
+        let mut weapon = item(9, reducing, 1);
+        weapon.location = ItemLocation::Paperdoll;
+        weapon.slot = Some(EquipSlot::Rhand);
+        let before = checkpoint(vec![weapon.clone(), item(5, soul, reduced)], &[soul]);
+        let after = checkpoint(vec![weapon.clone(), item(5, soul, reduced)], &[]);
+        let draw = |residue: u64| ItemAuditEvidence {
+            family: "soulshot_reduction".into(),
+            fields: BTreeMap::from([
+                ("resolution_id".into(), V::Text(format!("attack:e:2:shot:{soul}"))),
+                ("residue".into(), V::Unsigned(residue)),
+            ]),
+        };
+        let check = |evidence: Vec<ItemAuditEvidence>| {
+            validate_auto_shots(&before, &projection(after.clone(), evidence), Some(&rules))
+        };
+        let entry = insufficient(soul, reduced, 5, full, weapon.id.get());
+        // Not reduced: `reduced` shots are below the full count.
+        assert!(check(vec![entry.clone(), draw(chance)]).is_ok());
+        // Reduced: `reduced` shots would have been enough, so the disable is not insufficient.
+        assert!(check(vec![entry.clone(), draw(chance.checked_sub(1).unwrap())]).is_err());
+        // A reducing weapon always draws; a missing draw fails closed, as does no rules.
+        assert!(check(vec![entry.clone()]).is_err());
+        assert!(validate_auto_shots(
+            &before,
+            &projection(after.clone(), vec![entry, draw(chance)]),
+            None
+        )
+        .is_err());
+        // `required` must be the unreduced count and `weapon` the wielded one.
+        assert!(check(vec![
+            insufficient(soul, reduced, 5, reduced, weapon.id.get()),
+            draw(chance)
+        ])
+        .is_err());
+        assert!(check(vec![insufficient(soul, reduced, 5, full, 8), draw(chance)]).is_err());
+    }
+
+    #[test]
+    fn a_toggle_receipt_covers_one_template_and_entries_must_match_removals() {
+        let rules = rules();
+        let soul = template(&rules, |d| d.handler == "SoulShots");
+        let spirit = template(&rules, |d| d.handler == "SpiritShot");
+        let missing = |template: u32| ItemAuditEvidence {
+            family: "auto_shot_exhausted".into(),
+            fields: BTreeMap::from([
+                ("template".into(), V::Unsigned(u64::from(template))),
+                ("remaining".into(), V::Unsigned(0)),
+                ("reason".into(), V::Text("missing".into())),
+                ("resolution_id".into(), V::Text(format!("cast:1:shot:{template}"))),
+            ]),
+        };
+        let toggle = ItemReceiptFact {
+            request_id: uuid::Uuid::from_u128(11),
+            fingerprint: "toggle".into(),
+            result: FrozenItemResult {
+                accepted_sequence: None,
+                request_fingerprint: "toggle".into(),
+                entity: crate::domain::zone::EntityId::from_uuid(uuid::Uuid::from_u128(3)),
+                incarnation: 0,
+                tick: Tick(2),
+                inventory_revision: 2,
+                receipt: uuid::Uuid::from_u128(11),
+                detail: ItemResultDetail::Operation {
+                    operation: ItemOperation::ToggleAutoShot,
+                    affected: Vec::new(),
+                    recipe: None,
+                },
+            },
+        };
+        let before = checkpoint(Vec::new(), &[soul, spirit]);
+        let run = |shots: &[u32], evidence: Vec<ItemAuditEvidence>, toggles: usize| {
+            let mut p = projection(checkpoint(Vec::new(), shots), evidence);
+            p.receipts = std::iter::repeat_n(toggle.clone(), toggles).collect();
+            validate_auto_shots(&before, &p, Some(&rules))
+        };
+        let code = |r: Result<(), CheckpointError>| match r {
+            Err(CheckpointError::Constraint(name)) => name,
+            other => format!("{other:?}"),
+        };
+        // Both removed: two evidenced, or one evidenced plus one toggle.
+        assert!(run(&[], vec![missing(soul), missing(spirit)], 0).is_ok());
+        assert!(run(&[], vec![missing(soul)], 1).is_ok());
+        // One toggle never covers two unevidenced changes.
+        assert_eq!(code(run(&[], Vec::new(), 1)), "item_toggle_receipt_required");
+        assert_eq!(code(run(&[spirit, 7], vec![missing(soul)], 0)), "item_toggle_receipt_required");
+        // A spurious entry (template kept) or a duplicate entry is refused even with a toggle.
+        assert_eq!(
+            code(run(&[soul], vec![missing(soul), missing(spirit)], 1)),
+            "item_auto_shot_evidence"
+        );
+        assert_eq!(
+            code(run(&[soul], vec![missing(spirit), missing(spirit)], 1)),
+            "item_auto_shot_evidence"
+        );
+        // `missing` needs the stack absent before or after the tick (D136): a stack held on both
+        // sides refuses; one granted later in the tick does not.
+        let mut kept = checkpoint(vec![item(5, spirit, 3)], &[soul]);
+        kept.paperdoll.clear();
+        let mut stocked = checkpoint(vec![item(5, spirit, 3)], &[soul, spirit]);
+        stocked.paperdoll.clear();
+        let p = projection(kept.clone(), vec![missing(spirit)]);
+        assert_eq!(
+            code(validate_auto_shots(&stocked, &p, Some(&rules))),
+            "item_auto_shot_evidence"
+        );
+        assert!(validate_auto_shots(&before, &p, Some(&rules)).is_ok());
     }
 }

@@ -615,7 +615,8 @@ async fn missing_tail_is_refused_even_when_a_fresh_baseline_survives() {
     let snapshot = h.state.snapshot();
     h.service = h.service.with_durability(log.clone(), store.clone());
     h.service.refresh(&snapshot).await.unwrap();
-    // The index remembers a final attempt, but its applied message is no longer retained.
+    // D134: the index is written only after the log acknowledged the tick, so an indexed tick
+    // missing from the log is log loss and fails closed.
     store
         .recording(snapshot.seed.zone, snapshot.seed.epoch, snapshot.tick)
         .await

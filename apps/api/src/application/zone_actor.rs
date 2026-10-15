@@ -853,15 +853,6 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
         }
         runtime_phase("record_budget", phase_started);
         let phase_started = Instant::now();
-        if let Some(service) = self.checkpoints.service() {
-            service
-                .lock()
-                .await
-                .recording(self.state.seed().zone, record.epoch, record.tick)
-                .await;
-        }
-        runtime_phase("recording_index", phase_started);
-        let phase_started = Instant::now();
         if let Err(e) = self.gate.admit(&record).await {
             self.gate_holds = self.gate_holds.saturating_add(1);
             if self.gate.terminal_failure() {
@@ -876,6 +867,17 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
             return TickOutcome::Held(tick);
         }
         runtime_phase("durable_gate", phase_started);
+        // T21/D134: index the tick only after its log acknowledgement and before its
+        // checkpoint or any output, so `last_recorded_tick = T` implies record T is durable.
+        let phase_started = Instant::now();
+        if let Some(service) = self.checkpoints.service() {
+            service
+                .lock()
+                .await
+                .recording(self.state.seed().zone, record.epoch, record.tick)
+                .await;
+        }
+        runtime_phase("recording_index", phase_started);
         let phase_started = Instant::now();
         if let Some(service) = self.checkpoints.service() {
             let snapshot_started = Instant::now();
