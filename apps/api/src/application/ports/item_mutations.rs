@@ -1102,6 +1102,17 @@ pub fn validate_learn_payments(
     Ok(())
 }
 
+/// T26: receipt-less ammunition debits of an attack (D85/D109): a bow shot's arrow
+/// (`arrow_payment`) and an automatic shot's charge (`auto_shot_payment`). Their identity is
+/// the zone's attack resolution id (non-empty, no whitespace), as the evidence exporter reads it.
+fn attack_payment(cause: &crate::domain::zone::phase4_projection::ItemAuditEvidence) -> bool {
+    use crate::domain::zone::phase4_projection::ItemEvidenceValue;
+    matches!(cause.family.as_str(), "arrow_payment" | "auto_shot_payment")
+        && !cause.fields.contains_key("receipt")
+        && matches!(cause.fields.get("resolution_id"), Some(ItemEvidenceValue::Text(id))
+            if !id.is_empty() && !id.chars().any(char::is_whitespace))
+}
+
 fn validate_consumption(
     delta: &crate::domain::zone::phase4_projection::ItemDeltaPlan,
 ) -> Result<(), CheckpointError> {
@@ -1125,7 +1136,8 @@ fn validate_consumption(
             }
         } else if !(cause.family == "skill_cast_payment"
             && matches!(cause.fields.get("cast_id"), Some(ItemEvidenceValue::Unsigned(id)) if *id > 0)
-            || cause.family == LEARN_PAYMENT && learn_payment(cause).is_some())
+            || cause.family == LEARN_PAYMENT && learn_payment(cause).is_some()
+            || attack_payment(cause))
         {
             return Err(invalid("item_consume_cause_identity"));
         }
@@ -1340,5 +1352,36 @@ mod learn_payment_tests {
         validate_learn_payments(&[], &cp, None, &classes).unwrap();
         cp.class_state = None;
         assert!(validate_learn_payments(&[], &cp, Some(&receipt), &classes).is_err());
+    }
+}
+
+#[cfg(test)]
+mod attack_payment_tests {
+    use super::*;
+    use crate::domain::zone::phase4_projection::{ItemAuditEvidence, ItemEvidenceValue as V};
+
+    fn cause(family: &str, resolution: Option<&str>, receipt: bool) -> ItemAuditEvidence {
+        let mut fields = BTreeMap::from([("count_delta".to_owned(), V::Signed(-1))]);
+        if let Some(id) = resolution {
+            fields.insert("resolution_id".into(), V::Text(id.into()));
+        }
+        if receipt {
+            fields.insert("receipt".into(), V::Text(uuid::Uuid::nil().to_string()));
+        }
+        ItemAuditEvidence {
+            family: family.into(),
+            fields,
+        }
+    }
+
+    #[test]
+    fn attack_ammunition_debits_need_their_resolution_identity() {
+        assert!(attack_payment(&cause("arrow_payment", Some("attack:7:2"), false)));
+        assert!(attack_payment(&cause("auto_shot_payment", Some("cast:3"), false)));
+        assert!(!attack_payment(&cause("arrow_payment", None, false)));
+        assert!(!attack_payment(&cause("arrow_payment", Some(""), false)));
+        assert!(!attack_payment(&cause("arrow_payment", Some("a b"), false)));
+        assert!(!attack_payment(&cause("arrow_payment", Some("attack:7"), true)));
+        assert!(!attack_payment(&cause("skill_learn", Some("attack:7"), false)));
     }
 }
