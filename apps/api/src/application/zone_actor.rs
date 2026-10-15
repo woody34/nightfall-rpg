@@ -347,6 +347,11 @@ impl ZoneHandle {
         self.phase3
     }
 
+    /// Whether this actor runs a durable V6 (items) epoch: item loads, intents and grants.
+    pub fn phase4_enabled(&self) -> bool {
+        self.phase4_durable
+    }
+
     /// Current zone position for best-effort session audit. The next tick follows state
     /// advancement, including idle ticks and ticks waiting for durable admission.
     pub fn audit_context(&self) -> super::SessionAuditContext {
@@ -1060,6 +1065,7 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
         use crate::domain::zone::{CombatRole, ZoneCommand};
         let fence = (self.state.next_tick(), TickError::PersistenceFence);
         let mut changed = false;
+        let mut unadmitted = Vec::new();
         for index in selected {
             let queued = self.pending.get(*index).ok_or(fence)?;
             let ZoneCommand::Item(command) = &queued.input.command else {
@@ -1068,9 +1074,6 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
             let CommandSource::Session { entity, generation } = queued.input.source else {
                 return Err(fence);
             };
-            if entity != command.entity {
-                return Err(fence);
-            }
             let owner = self
                 .state
                 .entity(entity)
@@ -1084,8 +1087,14 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
                         progression: None, ..
                     }
                     | CombatRole::Npc { .. } => None,
-                })
-                .ok_or(fence)?;
+                });
+            // T12: a per-session precondition (no admitted player for this session yet, or a
+            // command naming another entity) is refused for that session, never a zone fence.
+            // The input never entered the zone: no record, no state, no receipt.
+            let Some(owner) = owner.filter(|_| entity == command.entity) else {
+                unadmitted.push(*index);
+                continue;
+            };
             let mut normalized = command
                 .as_ref()
                 .clone()
@@ -1147,6 +1156,13 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
                     ZoneCommand::Item(Box::new(normalized));
                 changed = true;
             }
+        }
+        unadmitted.sort_unstable();
+        for index in unadmitted.into_iter().rev() {
+            if let Some(dropped) = self.pending.remove(index) {
+                tracing::debug!(seq = ?dropped.input.seq, "item intent without an admitted player dropped");
+            }
+            changed = true;
         }
         Ok(changed)
     }
@@ -1305,7 +1321,10 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
                 let CommandSource::Session { entity, generation } = queued.input.source else {
                     return Err(fence);
                 };
-                let account = command.authenticated_account().map_err(|_| fence)?;
+                // Unnormalized (unadmitted) intents never allocate; preflight_items drops them.
+                let Ok(account) = command.authenticated_account() else {
+                    continue;
+                };
                 required |= self.state.class_player(entity, account, generation).is_ok()
                     && command.known_result().map_err(|_| fence)?.is_none()
                     && command.receipt_conflict().map_err(|_| fence)?.is_none()

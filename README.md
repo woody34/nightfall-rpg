@@ -1,10 +1,24 @@
 # Nightfall RPG
 
-A Lineage 2-inspired MMORPG. Monorepo managed by [moon](https://moonrepo.dev).
+An MMORPG that comes from the ideas of Lineage 2. This monorepo uses [moon](https://moonrepo.dev).
 
 ## Status
 
-The prototype has a complete combat loop (login, zone, click-to-move, auto-attack keltirs, death/respawn, XP/level) with animated monsters as of 2026-10-09: players can authenticate via Keycloak device authorization, create a character, acquire a single-use play ticket, join a zone over WebSocket, navigate via click-to-move with server reconciliation, and fight keltirs with deterministic replay logging. Architecture, verification details, and combat decisions are documented in the [Phase 1 plan](docs/plans/phase-1-kill-a-monster.md), [Phase 1 combat decision record](docs/decisions/phase-1-combat.md), [Phase 0b plan](docs/plans/phase-0b-connected-slice.md), and [docs/diagrams/README.md](docs/diagrams/README.md).
+The prototype has a complete combat loop (login, zone, click-to-move, auto-attack keltirs, death/respawn, XP/level) with animated monsters (status on 2026-10-09). Players can do these steps:
+
+- Authenticate through the Keycloak device authorization.
+- Make a character.
+- Get a play ticket that they can use one time.
+- Join a zone over WebSocket.
+- Move with click-to-move and server reconciliation.
+- Fight keltirs with deterministic replay logging.
+
+These documents give the architecture, the verification details, and the combat decisions:
+
+- The [Phase 1 plan](docs/plans/phase-1-kill-a-monster.md).
+- The [Phase 1 combat decision record](docs/decisions/phase-1-combat.md).
+- The [Phase 0b plan](docs/plans/phase-0b-connected-slice.md).
+- [docs/diagrams/README.md](docs/diagrams/README.md).
 
 ## Layout
 
@@ -19,14 +33,14 @@ packages/
 
 ## Prerequisites
 
-Install [proto](https://moonrepo.dev/docs/proto/install), then from the repo root:
+Install [proto](https://moonrepo.dev/docs/proto/install). Then, from the repo root, run:
 
 ```bash
 proto use
 ```
 
-That installs the pinned versions of moon and Rust from `.prototools`. Unreal Engine is installed separately; see `apps/client-unreal/README.md`.
-No system `protoc` is needed: the API compiles `.proto` files with `protox` at build time.
+This command installs the pinned versions of moon and Rust from `.prototools`. You install Unreal Engine separately. Refer to `apps/client-unreal/README.md`.
+A system `protoc` is not necessary: the API compiles `.proto` files with `protox` when it builds.
 
 ## Local infrastructure
 
@@ -35,9 +49,9 @@ docker compose up -d      # Postgres 16 on :5432, NATS 2.11 on :4222, Grafana LG
 cp .env.example .env      # DATABASE_URL / NATS_URL for the API
 ```
 
-Keycloak (OIDC, device flow login) imports the `nightfall` realm on boot; admin console at http://localhost:8080 (admin/admin), dev user `testplayer`/`testplayer`. On an existing Postgres volume, create its database once: `docker compose exec postgres psql -U nightfall -c 'CREATE DATABASE keycloak'`. See `infra/keycloak/README.md`.
+Keycloak (OIDC, device flow login) imports the `nightfall` realm when it starts. The admin console is at http://localhost:8080 (admin/admin). The dev user is `testplayer`/`testplayer`. If you use a Postgres volume that exists, make the Keycloak database one time: `docker compose exec postgres psql -U nightfall -c 'CREATE DATABASE keycloak'`. Refer to `infra/keycloak/README.md`.
 
-Without `DATABASE_URL` / `NATS_URL` the API runs with in-memory adapters and warns at startup.
+If `DATABASE_URL` / `NATS_URL` are not set, the API runs with in-memory adapters and gives a warning when it starts.
 
 ## Running
 
@@ -46,43 +60,43 @@ Without `DATABASE_URL` / `NATS_URL` the API runs with in-memory adapters and war
 moon run api:dev
 ```
 
-The Unreal client is opened from `apps/client-unreal/Nightfall.uproject` in Unreal Editor.
+To open the Unreal client, open `apps/client-unreal/Nightfall.uproject` in Unreal Editor.
 
 ## Observability
 
-`docker compose up -d` also starts `grafana/otel-lgtm` (Grafana, Tempo, Loki, Prometheus and an
-OpenTelemetry collector in one container, decision D6): Grafana at <http://localhost:3300>
-(`admin` / `admin`), OTLP gRPC on `:4317`, OTLP HTTP on `:4318`.
+`docker compose up -d` also starts `grafana/otel-lgtm` (decision D6). This container has Grafana, Tempo, Loki, Prometheus and an
+OpenTelemetry collector. Grafana is at <http://localhost:3300>
+(`admin` / `admin`). OTLP gRPC is on `:4317`, and OTLP HTTP is on `:4318`.
 
-The API exports traces, logs and metrics over OTLP when `OTEL_EXPORTER_OTLP_ENDPOINT` is set
-(see `.env.example`). Without it nothing leaves the process: logs still go to stdout (JSON, or
-human-readable with `TELEMETRY_PRETTY=1`) and `GET /metrics` still serves Prometheus text.
+When `OTEL_EXPORTER_OTLP_ENDPOINT` is set, the API exports traces, logs and metrics over OTLP
+(refer to `.env.example`). If it is not set, no data goes out of the process. Logs still go to stdout (JSON, or
+a format that is easy for persons to read with `TELEMETRY_PRETTY=1`). `GET /metrics` still serves Prometheus text.
 
 | Signal | Where |
 |--------|-------|
-| Traces | Grafana -> Explore -> Tempo, `{resource.service.name="nightfall-api"}`. One root span per HTTP request (`http.request`) or RPC (`grpc.request` with `rpc.service`, `rpc.method`, `account_id`), all carrying `request_id` (uuid v7, also the `x-request-id` response header). |
-| Logs | Explore -> Loki, `{service_name="nightfall-api"}`, shipped over OTLP by the OpenTelemetry logs bridge. |
-| Metrics | Explore -> Prometheus, or scrape `http://localhost:3000/metrics`. Catalogue in `infrastructure/telemetry/metrics.rs`, all prefixed `nightfall_`. |
+| Traces | Grafana -> Explore -> Tempo, `{resource.service.name="nightfall-api"}`. One root span for each HTTP request (`http.request`) or RPC (`grpc.request` with `rpc.service`, `rpc.method`, `account_id`). All root spans have `request_id` (uuid v7, also the `x-request-id` response header). |
+| Logs | Explore -> Loki, `{service_name="nightfall-api"}`. The OpenTelemetry logs bridge sends them over OTLP. |
+| Metrics | Explore -> Prometheus, or scrape `http://localhost:3000/metrics`. The catalogue is in `infrastructure/telemetry/metrics.rs`. All names start with `nightfall_`. |
 | Dashboard | "Nightfall API", provisioned from `infra/grafana/dashboards/`. |
-| Alerts | Provisioned from `infra/grafana/alerts/`: tick p99 > 50 ms, any dropped WebSocket frame in 5 m, outbox lag > 30 s. |
+| Alerts | Provisioned from `infra/grafana/alerts/`: tick p99 > 50 ms, a dropped WebSocket frame in 5 m, outbox lag > 30 s. |
 
-Metrics whose producers do not exist yet (tick loop, sessions, WebSocket frames, event log,
-outbox relay) are defined and show "No data" until those stories land. The outbox gauges read
-from the `OutboxStatsSource` hook; the relay registers itself with `Metrics::set_outbox_source`.
-To carry a trace across a queue (socket -> zone actor -> broadcast), put a `TraceCarrier` in the
-message; see `infrastructure/telemetry/carrier.rs`.
+Some metrics do not have producers yet (tick loop, sessions, WebSocket frames, event log,
+outbox relay). These metrics are defined, and they show "No data" until those stories merge. The outbox gauges read
+from the `OutboxStatsSource` hook. The relay registers itself with `Metrics::set_outbox_source`.
+To move a trace across a queue (socket -> zone actor -> broadcast), put a `TraceCarrier` in the
+message. Refer to `infrastructure/telemetry/carrier.rs`.
 
-Requests record the URL **path only**, never the query string or headers (tickets and tokens must
-not reach telemetry); `tests/span_secrets.rs` enforces it.
+Requests record **only the URL path**. They never record the query string or the headers, because tickets and tokens must
+not go into telemetry. `tests/span_secrets.rs` enforces this rule.
 
-Verify the pipeline without a browser (API running with the OTLP endpoint set):
+To verify the pipeline without a browser, start the API with the OTLP endpoint set. Then run:
 
 ```bash
 docker compose up -d lgtm
 infra/scripts/verify-observability.sh      # trace, Loki line, metric sample, /metrics scrape
 ```
 
-which runs, against Grafana's datasource proxy:
+The script runs these commands against the Grafana datasource proxy:
 
 ```bash
 curl -s -u admin:admin -G localhost:3300/api/datasources/proxy/uid/tempo/api/search \
@@ -93,8 +107,8 @@ curl -s -u admin:admin -G localhost:3300/api/datasources/proxy/uid/prometheus/ap
   --data-urlencode 'query=nightfall_http_requests_total{route="/health"}'
 ```
 
-To see an alert fire, push a synthetic slow tick histogram and poll the rule state (pending for
-about a minute, then firing):
+To see an alert fire, push a synthetic slow tick histogram and poll the rule state. The rule state is pending for
+approximately a minute, then it changes to firing:
 
 ```bash
 infra/scripts/push-synthetic-tick.sh 300 &
@@ -112,18 +126,18 @@ moon check --all          # run every build/test/lint task in the workspace
 
 ## Proto workflow
 
-Edit `packages/proto/nightfall/v1/*.proto`. The Rust server regenerates bindings on the next
-`cargo build` (see `apps/api/build.rs`). C++ bindings for the Unreal client are generated by
-`apps/client-unreal/Scripts/gen-proto.sh` (requires `protoc`).
+Change `packages/proto/nightfall/v1/*.proto`. The Rust server makes the bindings again on the next
+`cargo build` (refer to `apps/api/build.rs`). `apps/client-unreal/Scripts/gen-proto.sh` makes the C++ bindings for the Unreal client.
+This script must have `protoc`.
 
 ## Documentation
 
-- [docs/planning](docs/planning/README.md): what to build, per phase.
-- [docs/engineering](docs/engineering/README.md): how to build it. Rust standard, architecture, API and database rules.
-- [docs/research](docs/research/README.md): decision research, currently the client engine comparison.
+- [docs/planning](docs/planning/README.md): what to build, for each phase.
+- [docs/engineering](docs/engineering/README.md): how to build it. The Rust standard, the architecture, and the API and database rules.
+- [docs/research](docs/research/README.md): decision research. Now, this is the comparison of client engines.
 
 ## Notes
 
-- This repo uses **moon 2.x**. Config file names and fields differ from moon 1.x docs and examples
+- This repo uses **moon 2.x**. The config file names and fields are different from the moon 1.x docs and examples
   (`.moon/toolchains.yml` is plural, `layer` replaces `type`, `preset: server` replaces `local: true`).
-- The first `proto use` installs moon, Node, pnpm, and Rust under `~/.proto`. Nothing is installed system-wide.
+- The first `proto use` installs moon, Node, pnpm, and Rust under `~/.proto`. It installs nothing for the full system.

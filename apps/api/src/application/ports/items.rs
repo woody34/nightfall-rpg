@@ -331,6 +331,24 @@ impl ItemLedgerEntry {
     }
 }
 
+/// The ledger-owned part of a retained item checkpoint: owned instances (incl. location/slot,
+/// so the paperdoll), the inventory revision, auto-shot toggles, the kit receipt and the bound
+/// rules. Only a frozen item projection may change it. Everything else in the sidecar is
+/// derived from it plus the skill lane (weight, penalties, sets, and the interleaved provider
+/// install order, which a skill effect also extends), or decays with time (item reuse), and
+/// rides ordinary checkpoints.
+pub(crate) fn item_ledger_state_changed(
+    before: &crate::domain::zone::Phase4Checkpoint,
+    after: &crate::domain::zone::Phase4Checkpoint,
+) -> bool {
+    before.instances != after.instances
+        || before.paperdoll != after.paperdoll
+        || before.inventory_revision != after.inventory_revision
+        || before.auto_shots != after.auto_shots
+        || before.starter_kit_receipt != after.starter_kit_receipt
+        || before.rules_hash != after.rules_hash
+}
+
 /// A periodic/lifecycle save may retain paused timers, but cannot change ownership or a
 /// request-controlled owner sidecar without the typed item projection transaction.
 pub(crate) fn validate_item_retention(
@@ -341,13 +359,7 @@ pub(crate) fn validate_item_retention(
     match (before, after) {
         (Some(_), None) => Err(CheckpointError::Constraint("characters_phase4_downgrade".into())),
         (None, Some(_)) => Err(CheckpointError::Constraint("item_projection_required".into())),
-        (Some(before), Some(after))
-            if before.instances != after.instances
-                || before.inventory_revision != after.inventory_revision
-                || before.auto_shots != after.auto_shots
-                || before.starter_kit_receipt != after.starter_kit_receipt
-                || before.rules_hash != after.rules_hash =>
-        {
+        (Some(before), Some(after)) if item_ledger_state_changed(before, after) => {
             Err(CheckpointError::Constraint("item_projection_required".into()))
         },
         (None, None) | (Some(_), Some(_)) => Ok(()),

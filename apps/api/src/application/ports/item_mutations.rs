@@ -1006,6 +1006,102 @@ fn invalid(name: &str) -> CheckpointError {
     CheckpointError::Constraint(name.into())
 }
 
+/// D47/E3.4: a learned skill rank that requires items consumes them in the learning tick.
+/// The payment has no item receipt; it is bound to the unified learn receipt instead.
+const LEARN_PAYMENT: &str = "skill_learn_payment";
+
+/// `(learn request key, skill id, skill level)` of a learn payment cause.
+fn learn_payment(
+    cause: &crate::domain::zone::phase4_projection::ItemAuditEvidence,
+) -> Option<(uuid::Uuid, u64, u64)> {
+    use crate::domain::zone::phase4_projection::ItemEvidenceValue;
+    let ItemEvidenceValue::Text(key) = cause.fields.get("receipt")? else {
+        return None;
+    };
+    let key = key.parse::<uuid::Uuid>().ok().filter(|key| !key.is_nil())?;
+    let (Some(ItemEvidenceValue::Unsigned(id)), Some(ItemEvidenceValue::Unsigned(level))) =
+        (cause.fields.get("skill_id"), cause.fields.get("skill_level"))
+    else {
+        return None;
+    };
+    (*id > 0 && *level > 0).then_some((key, *id, *level))
+}
+
+/// D47/E3.4: every learn payment belongs to the learn receipt settled in the same
+/// transaction, names its learned rank, and pays exactly that rank's required items (per
+/// template, in the owner's current class tree); a learn receipt whose rank requires items
+/// settles only together with exactly those payments (`ledger` empty when no item work).
+pub fn validate_learn_payments(
+    ledger: &[crate::domain::zone::phase4_projection::ItemDeltaPlan],
+    cp: &CharacterCheckpoint,
+    learning: Option<&super::SuccessfulLearnReceipt>,
+    classes: &crate::domain::class::ClassRegistry,
+) -> Result<(), CheckpointError> {
+    use crate::domain::zone::phase4_projection::ItemEvidenceValue;
+    let mut paid = BTreeMap::<u32, i128>::new();
+    for delta in ledger
+        .iter()
+        .filter(|delta| delta.operation == ItemOperation::Consume)
+    {
+        for cause in delta
+            .causes
+            .iter()
+            .filter(|cause| cause.family == LEARN_PAYMENT)
+        {
+            let (key, id, level) =
+                learn_payment(cause).ok_or_else(|| invalid("item_learn_payment"))?;
+            let receipt = learning.ok_or_else(|| invalid("item_learn_payment_receipt"))?;
+            if key != receipt.key.as_uuid()
+                || id != u64::from(receipt.result.skill.id.0)
+                || level != u64::from(receipt.result.skill.rank)
+            {
+                return Err(invalid("item_learn_payment_receipt"));
+            }
+            let Some(ItemEvidenceValue::Signed(debit)) = cause.fields.get("count_delta") else {
+                return Err(invalid("item_learn_payment"));
+            };
+            let template = delta
+                .template()
+                .map_err(|_| invalid("item_learn_payment"))?;
+            let total = paid.entry(template).or_insert(0);
+            *total = total
+                .checked_sub(i128::from(*debit))
+                .ok_or_else(|| invalid("item_learn_payment"))?;
+        }
+    }
+    let Some(receipt) = learning else {
+        return Ok(());
+    };
+    let class = cp
+        .class_state
+        .as_ref()
+        .ok_or_else(|| invalid("item_learn_payment"))?
+        .current_class_id;
+    let skill = receipt.result.skill;
+    let row = classes
+        .skill_tree(class)
+        .map_err(|_| invalid("item_learn_payment"))?
+        .into_iter()
+        .find(|row| row.skill_id == skill.id.0 && row.skill_level == skill.rank)
+        .ok_or_else(|| invalid("item_learn_payment"))?;
+    let mut required = BTreeMap::<u32, i128>::new();
+    for item in &row.required_items {
+        let template = item
+            .item
+            .strip_prefix("l2.item.")
+            .and_then(|id| id.parse::<u32>().ok())
+            .ok_or_else(|| invalid("item_learn_payment"))?;
+        let total = required.entry(template).or_insert(0);
+        *total = total
+            .checked_add(i128::from(item.count))
+            .ok_or_else(|| invalid("item_learn_payment"))?;
+    }
+    if paid != required {
+        return Err(invalid("item_learn_payment"));
+    }
+    Ok(())
+}
+
 fn validate_consumption(
     delta: &crate::domain::zone::phase4_projection::ItemDeltaPlan,
 ) -> Result<(), CheckpointError> {
@@ -1027,8 +1123,9 @@ fn validate_consumption(
             if !references.contains(&receipt) {
                 references.push(receipt);
             }
-        } else if cause.family != "skill_cast_payment"
-            || !matches!(cause.fields.get("cast_id"), Some(ItemEvidenceValue::Unsigned(id)) if *id > 0)
+        } else if !(cause.family == "skill_cast_payment"
+            && matches!(cause.fields.get("cast_id"), Some(ItemEvidenceValue::Unsigned(id)) if *id > 0)
+            || cause.family == LEARN_PAYMENT && learn_payment(cause).is_some())
         {
             return Err(invalid("item_consume_cause_identity"));
         }
@@ -1054,4 +1151,194 @@ fn validate_consumption(
         return Err(invalid("item_consume_receipt_order"));
     }
     Ok(())
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::indexing_slicing)]
+mod learn_payment_tests {
+    use super::*;
+    use crate::application::ports::SuccessfulLearnReceipt;
+    use crate::domain::character_progression::ClassState;
+    use crate::domain::class::ClassId;
+    use crate::domain::zone::phase4_projection::{
+        ItemAuditEvidence, ItemDeltaPlan, ItemEvidenceValue,
+    };
+    use crate::domain::zone::skill::{SkillId, SkillRef};
+    use crate::domain::zone::{
+        FrozenLearnResult, ItemInstance, ItemInstanceId, ItemLocation, LearnedEffectiveStats, Tick,
+    };
+
+    fn classes() -> std::sync::Arc<crate::domain::class::ClassRegistry> {
+        crate::infrastructure::class_data::load_classes(
+            &crate::infrastructure::class_data::ClassSource::embedded(),
+        )
+        .unwrap()
+        .registry
+    }
+    /// A Rogue (7) learning skill 1405 rank `rank`; rank 1 requires one book 8618.
+    fn learner(rank: u32) -> (CharacterCheckpoint, SuccessfulLearnReceipt) {
+        let character = CharacterId::from_uuid(uuid::Uuid::from_u128(5));
+        let ledger = ClassState {
+            base_class_id: ClassId(0),
+            current_class_id: ClassId(7),
+            sp: 0,
+            learned_skills: Vec::new(),
+            cp: 0,
+            token_tier_1_count: 0,
+            token_tier_2_count: 0,
+            milestone_claimed_mask: 0,
+            successful_transfer_receipts: Vec::new(),
+        };
+        let cp = CharacterCheckpoint {
+            character_id: character,
+            revision_seen: 1,
+            level: 40,
+            xp: 0,
+            hp: 1,
+            mp: 1,
+            alive: true,
+            position: crate::domain::Position { x: 0.0, y: 0.0 },
+            idempotency: ("checkpoint".into(), IdempotencyKey::new()),
+            class_state: Some(ledger),
+            phase4: None,
+            phase3: None,
+        };
+        let skill = SkillRef {
+            id: SkillId(1405),
+            rank,
+        };
+        let receipt = SuccessfulLearnReceipt {
+            account_id: AccountId::from_uuid(uuid::Uuid::from_u128(6)),
+            key: IdempotencyKey::new(),
+            request_fingerprint: String::new(),
+            result: FrozenLearnResult {
+                character_id: character,
+                skill,
+                sp_spent: 0,
+                sp_remaining: 0,
+                tick: Tick(9),
+                hp: 1,
+                max_hp: 1,
+                mp: 1,
+                max_mp: 1,
+                cp: 0,
+                max_cp: 0,
+                effective_stats: LearnedEffectiveStats {
+                    p_atk_q: 0,
+                    p_def_q: 0,
+                    m_atk_q: 0,
+                    m_def_q: 0,
+                    attack_speed: 0,
+                    cast_speed: 0,
+                    speed_q: 0,
+                    accuracy_q: 0,
+                    evasion_q: 0,
+                    crit_permille: 0,
+                },
+                incarnation: 1,
+            },
+        };
+        (cp, receipt)
+    }
+    fn book(template: u32, count: u64) -> ItemInstance {
+        ItemInstance {
+            creation_origin: None,
+            id: ItemInstanceId::new(1 << 33).unwrap(),
+            template_id: template,
+            count,
+            location: ItemLocation::Inventory,
+            slot: None,
+            enchant: 0,
+            augment_id: None,
+            charges: 0,
+            created_tick: Tick(1),
+            revision: 2,
+        }
+    }
+    fn payment(receipt: &SuccessfulLearnReceipt, template: u32, family: &str) -> ItemDeltaPlan {
+        ItemDeltaPlan {
+            operation: ItemOperation::Consume,
+            operation_ordinal: 0,
+            instance: ItemInstanceId::new(1 << 33).unwrap(),
+            before: Some(book(template, 1)),
+            after: None,
+            count_delta: -1,
+            receipt: None,
+            receipt_refs: Vec::new(),
+            causes: vec![ItemAuditEvidence {
+                family: family.into(),
+                fields: BTreeMap::from([
+                    ("receipt".into(), ItemEvidenceValue::Text(receipt.key.to_string())),
+                    (
+                        "skill_id".into(),
+                        ItemEvidenceValue::Unsigned(u64::from(receipt.result.skill.id.0)),
+                    ),
+                    (
+                        "skill_level".into(),
+                        ItemEvidenceValue::Unsigned(u64::from(receipt.result.skill.rank)),
+                    ),
+                    ("count_delta".into(), ItemEvidenceValue::Signed(-1)),
+                ]),
+            }],
+        }
+    }
+
+    #[test]
+    fn book_learning_pays_exactly_the_ranks_required_items_under_its_receipt() {
+        let classes = classes();
+        let (cp, receipt) = learner(1);
+        let paid = [payment(&receipt, 8618, LEARN_PAYMENT)];
+        validate_consumption(&paid[0]).unwrap();
+        validate_learn_payments(&paid, &cp, Some(&receipt), &classes).unwrap();
+        // Unpaid, wrong book, or a payment without (or for another) learn receipt.
+        let refused = |ledger: &[ItemDeltaPlan], learning: Option<&SuccessfulLearnReceipt>| {
+            validate_learn_payments(ledger, &cp, learning, &classes).unwrap_err()
+        };
+        assert!(
+            matches!(refused(&[], Some(&receipt)), CheckpointError::Constraint(c) if c == "item_learn_payment")
+        );
+        assert!(
+            matches!(refused(&[payment(&receipt, 8619, LEARN_PAYMENT)], Some(&receipt)), CheckpointError::Constraint(c) if c == "item_learn_payment")
+        );
+        assert!(
+            matches!(refused(&paid, None), CheckpointError::Constraint(c) if c == "item_learn_payment_receipt")
+        );
+        let (_, other) = learner(1);
+        assert!(
+            matches!(refused(&paid, Some(&other)), CheckpointError::Constraint(c) if c == "item_learn_payment_receipt")
+        );
+        // Rank 2 needs 8619, not the rank-1 book.
+        let (_, rank2) = learner(2);
+        let mut wrong_rank = payment(&rank2, 8618, LEARN_PAYMENT);
+        validate_consumption(&wrong_rank).unwrap();
+        assert!(validate_learn_payments(
+            std::slice::from_ref(&wrong_rank),
+            &cp,
+            Some(&rank2),
+            &classes
+        )
+        .is_err());
+        wrong_rank.before = Some(book(8619, 1));
+        validate_learn_payments(&[wrong_rank], &cp, Some(&rank2), &classes).unwrap();
+        // An unknown family without an item receipt keeps the identity refusal.
+        assert!(matches!(
+            validate_consumption(&payment(&receipt, 8618, "skill_learn")),
+            Err(CheckpointError::Constraint(c)) if c == "item_consume_cause_identity"
+        ));
+    }
+
+    #[test]
+    fn learning_without_required_items_needs_no_payment() {
+        let classes = classes();
+        let (mut cp, mut receipt) = learner(1);
+        // Rogue skill 3 (Power Strike) has no required items in the tree.
+        receipt.result.skill = SkillRef {
+            id: SkillId(3),
+            rank: 1,
+        };
+        validate_learn_payments(&[], &cp, Some(&receipt), &classes).unwrap();
+        validate_learn_payments(&[], &cp, None, &classes).unwrap();
+        cp.class_state = None;
+        assert!(validate_learn_payments(&[], &cp, Some(&receipt), &classes).is_err());
+    }
 }

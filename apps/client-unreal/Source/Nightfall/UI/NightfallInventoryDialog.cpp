@@ -29,7 +29,7 @@ void UNightfallInventoryDialog::EnsureLayout()
  EnchantButton=Button(TEXT("Enchant / crystallize"));EnchantButton->OnClicked.AddDynamic(this,&UNightfallInventoryDialog::Enchant);BlacksmithButton=Button(TEXT("Blacksmith: augment / cancel / special ability"));BlacksmithButton->OnClicked.AddDynamic(this,&UNightfallInventoryDialog::Blacksmith);
  Text(TEXT("Item hotbar (F1–F9)"));SlotPicker=WidgetTree->ConstructWidget<UComboBoxString>();Column->AddChild(SlotPicker);for(int32 I=1;I<=9;++I)SlotPicker->AddOption(FString::FromInt(I));SlotPicker->SetSelectedIndex(0);
  ModePicker=WidgetTree->ConstructWidget<UComboBoxString>();Column->AddChild(ModePicker);ModePicker->AddOption(TEXT("Manual use"));ModePicker->AddOption(TEXT("Auto-shot toggle"));ModePicker->SetSelectedIndex(0);
- Button(TEXT("Assign selected item"))->OnClicked.AddDynamic(this,&UNightfallInventoryDialog::Assign);Button(TEXT("Clear hotbar slot"))->OnClicked.AddDynamic(this,&UNightfallInventoryDialog::ClearSlot);
+ AssignButton=Button(TEXT("Assign selected item"));AssignButton->OnClicked.AddDynamic(this,&UNightfallInventoryDialog::Assign);Button(TEXT("Clear hotbar slot"))->OnClicked.AddDynamic(this,&UNightfallInventoryDialog::ClearSlot);
  Button(TEXT("Refresh catalogue / detached inventory"))->OnClicked.AddDynamic(this,&UNightfallInventoryDialog::Refresh);Button(TEXT("Close"))->OnClicked.AddDynamic(this,&UNightfallInventoryDialog::Close);
 }
 void UNightfallInventoryDialog::NativeOnInitialized(){Super::NativeOnInitialized();EnsureLayout();BindState(GetGameInstance()?GetGameInstance()->GetSubsystem<UInventoryStateSubsystem>():nullptr);}
@@ -63,6 +63,12 @@ void UNightfallInventoryDialog::Render()
  for(uint8 I=1;I<=25;++I){const auto Slot=EGrpcNightfallV1EquipSlot(I);const auto* Held=Live?State->Equipped(Slot):nullptr;if(Detached && View)for(const auto& Item:View->Items)if(Item.Slot==Slot){Held=&Item;break;}const FString Name=NightfallItems::SlotName(Slot);Paperdoll->AddChild(Choice(Name+TEXT(": ")+(Held?(Live?ItemLabel(Held->InstanceId):FString::Printf(TEXT("Item %u +%u"),Held->TemplateId.Value,Held->Enchant.Value)):TEXT("empty")),Held?Held->InstanceId.Value:0,Name));}
  const auto* Held=Live?State->Find(Selected):nullptr;const auto* Def=Held?State->Definition(Held->TemplateId):nullptr;const bool Ready=Live && !State->IsBusy();
  Selection->SetText(FText::FromString(Held?ItemLabel(Selected):TEXT("Select a current item")));EquipButton->SetIsEnabled(Ready && Def && Def->Kind!=EGrpcNightfallV1ItemKind::ITEM_KIND_ETC);UseButton->SetIsEnabled(Ready && Def && Def->Usable);UnequipButton->SetIsEnabled(Ready && !SelectedSlot.IsEmpty() && State->Equipped(NightfallItems::Slot(SelectedSlot)));EnchantButton->SetIsEnabled(Ready && State->HasCatalog());BlacksmithButton->SetIsEnabled(Ready && State->HasCatalog() && !State->Blacksmith().IsEmpty());
+}
+FString UNightfallInventoryDialog::PaperdollLabel(const FString& Slot) const
+{
+ if(!Paperdoll)return {};const FString Prefix=Slot+TEXT(": ");
+ for(UWidget* Child:Paperdoll->GetAllChildren())if(const auto* B=Cast<UButton>(Child))if(const auto* T=Cast<UTextBlock>(B->GetChildAt(0))){const FString Text=T->GetText().ToString();if(Text.StartsWith(Prefix))return Text;}
+ return {};
 }
 void UNightfallInventoryDialog::Select(uint64 Id){if(Selected!=Id){Key.Reset();Selected=Id;}SelectedSlot.Reset();Render();}
 void UNightfallInventoryDialog::SelectSlot(const FString& Slot){if(SelectedSlot!=Slot)Key.Reset();SelectedSlot=Slot;const auto* I=State?State->Equipped(NightfallItems::Slot(Slot)):nullptr;Selected=I?I->InstanceId.Value:0;Render();}

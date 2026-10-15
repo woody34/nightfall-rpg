@@ -2627,6 +2627,11 @@ impl ZoneState {
         }
         Ok(())
     }
+    /// Passive reconciliation: each learned, Executable passive without an install source is
+    /// installed at the next sequence, in skill-id order (`BTreeMap`). D116's V6 upgrade of a
+    /// retained V5 skill checkpoint (API `upgrade_v6_skill_checkpoint`) follows this same
+    /// rule and order for several promoted passives; a single mid-session learn installs
+    /// identically.
     fn sync_passives_v5(&mut self, id: EntityId) -> Result<(), TickError> {
         let CombatRole::Player {
             progression: Some(player),

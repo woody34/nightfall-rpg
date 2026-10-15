@@ -26,24 +26,38 @@ pub fn embedded_phase4_bundle() -> Result<Phase4RuleBundle, String> {
     static BUNDLE: OnceLock<Result<Phase4RuleBundle, String>> = OnceLock::new();
     BUNDLE
         .get_or_init(|| {
-            use super::skill_data::{
-                load_phase3_rules, load_phase4_skills, Phase3DataSource, SkillSource,
-            };
-            let base = load_phase3_rules(&Phase3DataSource::embedded(), &[])
-                .map_err(|error| error.to_string())?;
-            let skills = load_phase4_skills(&SkillSource::phase4_embedded(), &[])
-                .map_err(|error| error.to_string())?;
-            let skills = base
-                .with_phase4_skills(skills)
-                .map_err(|errors| errors.join("; "))?;
+            let skills = embedded_phase4_skills()?;
             let items = load_embedded_phase4_rules(skills.hash())?;
             items.validate_phase3(&skills)?;
             Ok(Phase4RuleBundle {
                 items: Arc::new(items),
-                skills: Arc::new(skills),
+                skills,
             })
         })
         .clone()
+}
+
+/// The embedded V6 skill composition alone. Comparing a skill hash never assembles the
+/// item tables (the expensive part of a bundle).
+fn embedded_phase4_skills() -> Result<Arc<crate::domain::zone::Phase3Rules>, String> {
+    static SKILLS: OnceLock<Result<Arc<crate::domain::zone::Phase3Rules>, String>> =
+        OnceLock::new();
+    SKILLS
+        .get_or_init(|| {
+            compose_phase4_skills(&super::skill_data::Phase3DataSource::embedded()).map(Arc::new)
+        })
+        .clone()
+}
+
+fn compose_phase4_skills(
+    source: &super::skill_data::Phase3DataSource,
+) -> Result<crate::domain::zone::Phase3Rules, String> {
+    use super::skill_data::{load_phase3_rules, load_phase4_skills, SkillSource};
+    let base = load_phase3_rules(source, &[]).map_err(|error| error.to_string())?;
+    let skills = load_phase4_skills(&SkillSource::phase4_embedded(), &[])
+        .map_err(|error| error.to_string())?;
+    base.with_phase4_skills(skills)
+        .map_err(|errors| errors.join("; "))
 }
 
 /// V6 bundles composed at startup over a configured Phase 3 data source (`RULES_DIR`
@@ -60,17 +74,18 @@ static INSTALLED: parking_lot::Mutex<Vec<Phase4RuleBundle>> = parking_lot::Mutex
 pub fn configured_phase4_bundle(
     source: &super::skill_data::Phase3DataSource,
 ) -> Result<Phase4RuleBundle, String> {
-    use super::skill_data::{load_phase3_rules, load_phase4_skills, SkillSource};
-    let base = load_phase3_rules(source, &[]).map_err(|error| error.to_string())?;
-    let skills = load_phase4_skills(&SkillSource::phase4_embedded(), &[])
-        .map_err(|error| error.to_string())?;
-    let skills = base
-        .with_phase4_skills(skills)
-        .map_err(|errors| errors.join("; "))?;
-    let embedded = embedded_phase4_bundle()?;
-    if skills.hash() == embedded.skills.hash() {
-        return Ok(embedded);
+    let skills = compose_phase4_skills(source)?;
+    if skills.hash() == embedded_phase4_skills()?.hash() {
+        return embedded_phase4_bundle();
     }
+    if let Some(known) = INSTALLED
+        .lock()
+        .iter()
+        .find(|known| known.skills.hash() == skills.hash())
+    {
+        return Ok(known.clone());
+    }
+    // The item tables are the embedded ones (D27); only their Phase 3 binding differs.
     let items = load_embedded_phase4_rules(skills.hash())?;
     items.validate_phase3(&skills)?;
     let bundle = Phase4RuleBundle {
@@ -86,23 +101,67 @@ pub fn configured_phase4_bundle(
     Ok(bundle)
 }
 
+/// Configured Phase 3 sources composed only when a recorded hash misses (replay tools):
+/// registering costs nothing until a V6 epoch actually references the composition.
+static DEFERRED: parking_lot::Mutex<Vec<super::skill_data::Phase3DataSource>> =
+    parking_lot::Mutex::new(Vec::new());
+
+/// Register a configured source (for example `RULES_DIR`) for lazy composition by
+/// [`resolve_phase4_bundle`]. Composition errors surface on the lookup that needs it.
+pub fn register_phase4_source(source: super::skill_data::Phase3DataSource) {
+    DEFERRED.lock().push(source);
+}
+
 /// Resolve both exact recorded hashes before constructing a V6 zone or decoding its
-/// dynamic sidecars: the embedded bundle, or one this process composed at startup from its
-/// configured data. A later build must never substitute a different capability closure.
+/// dynamic sidecars: the embedded bundle, or one this process composed from its configured
+/// data (at startup, or lazily from a registered source on the first miss). A later build
+/// must never substitute a different capability closure.
 pub fn resolve_phase4_bundle(
     item_hash: [u8; 32],
     skill_hash: [u8; 32],
 ) -> Result<Phase4RuleBundle, String> {
-    let bundle = embedded_phase4_bundle()?;
-    if bundle.items.hash() == item_hash && bundle.skills.hash() == skill_hash {
+    let find = || {
+        INSTALLED
+            .lock()
+            .iter()
+            .find(|known| known.items.hash() == item_hash && known.skills.hash() == skill_hash)
+            .cloned()
+    };
+    if embedded_phase4_skills()?.hash() == skill_hash {
+        let bundle = embedded_phase4_bundle()?;
+        if bundle.items.hash() == item_hash {
+            return Ok(bundle);
+        }
+    } else if let Some(bundle) = find() {
         return Ok(bundle);
     }
-    INSTALLED
-        .lock()
-        .iter()
-        .find(|known| known.items.hash() == item_hash && known.skills.hash() == skill_hash)
-        .cloned()
-        .ok_or_else(|| "recorded V6 rules are unavailable in this build".into())
+    let pending = std::mem::take(&mut *DEFERRED.lock());
+    let mut failures = Vec::new();
+    for source in pending {
+        if let Err(error) = configured_phase4_bundle(&source) {
+            failures.push(error);
+        }
+    }
+    find().ok_or_else(|| {
+        let mut message = String::from(
+            "recorded V6 rules are unavailable in this process: an epoch recorded over a \
+             RULES_DIR overlay or ZONE_SIM_FIXTURE resolves only with the RULES_DIR and \
+             ZONE_SIM_FIXTURE it was recorded with (the API also needs PHASE4_ENABLED=1)",
+        );
+        if !failures.is_empty() {
+            message.push_str("; configured source: ");
+            message.push_str(&failures.join("; "));
+        }
+        message
+    })
+}
+
+/// D27 item tables parsed once per process; every Phase 3 binding reuses them.
+fn embedded_item_sources() -> Result<Map<String, Value>, String> {
+    static SOURCES: OnceLock<Result<Map<String, Value>, String>> = OnceLock::new();
+    SOURCES
+        .get_or_init(|| load_sources(&ItemDataSource::Embedded))
+        .clone()
 }
 
 /// Read one immutable generated bundle. This path is not enabled by legacy bootstrap.
@@ -113,10 +172,25 @@ pub fn load_phase4_rules(directory: &Path, phase3_hash: [u8; 32]) -> Result<Phas
 
 /// D27: replay resolves only the compiled generated bundle, then verifies its full hash.
 pub fn load_embedded_phase4_rules(phase3_hash: [u8; 32]) -> Result<Phase4Rules, String> {
-    assemble(&ItemDataSource::Embedded, phase3_hash)
+    bind(embedded_item_sources()?, phase3_hash)
 }
 
 fn assemble(directory: &ItemDataSource<'_>, phase3_hash: [u8; 32]) -> Result<Phase4Rules, String> {
+    bind(load_sources(directory)?, phase3_hash)
+}
+
+fn bind(mut parts: Map<String, Value>, phase3_hash: [u8; 32]) -> Result<Phase4Rules, String> {
+    parts.insert(
+        "phase3_hash".into(),
+        serde_json::to_value(phase3_hash).map_err(|e| e.to_string())?,
+    );
+    let normalized = normalize(Value::Object(parts))?;
+    let parts: ItemRulesParts = serde_json::from_value(normalized)
+        .map_err(|error| format!("Phase4 typed rules: {error}"))?;
+    Phase4Rules::try_new(parts)
+}
+
+fn load_sources(directory: &ItemDataSource<'_>) -> Result<Map<String, Value>, String> {
     let mut parts = Map::new();
     let mut manifest = read_table(
         directory,
@@ -134,18 +208,11 @@ fn assemble(directory: &ItemDataSource<'_>, phase3_hash: [u8; 32]) -> Result<Pha
         return Err("invalid Phase4 manifest domain".into());
     }
     parts.insert("formula_revision".into(), take(&mut manifest, "formula_revision")?);
-    parts.insert(
-        "phase3_hash".into(),
-        serde_json::to_value(phase3_hash).map_err(|e| e.to_string())?,
-    );
     parts.insert("sources".into(), Value::Array(Vec::new()));
     load_items(directory, &mut parts)?;
     load_enchantment(directory, &mut parts)?;
     load_equipment_extras(directory, &mut parts)?;
-    let normalized = normalize(Value::Object(parts))?;
-    let parts: ItemRulesParts = serde_json::from_value(normalized)
-        .map_err(|error| format!("Phase4 typed rules: {error}"))?;
-    Phase4Rules::try_new(parts)
+    Ok(parts)
 }
 
 fn load_items(

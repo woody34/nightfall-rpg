@@ -1,7 +1,7 @@
 # Phase 9: Live Operations
 
-Game master tooling, anti-cheat and bot detection, patching and deployment, metrics and
-telemetry, and the event scheduler. Defines the `ops` module layout in `apps/api`, the GM gRPC
+This phase is about game master tools, anti-cheat and bot detection, patches and deployment, metrics and
+telemetry, and the event scheduler. It defines the `ops` module layout in `apps/api`, the GM gRPC
 service, the metric catalogue, and the moon-based CI/CD pipeline.
 
 ---
@@ -10,24 +10,28 @@ service, the metric catalogue, and the moon-based CI/CD pipeline.
 
 **Delivers**
 
-- A GM command surface (`AdminService` gRPC) with role-based access, confirmation for
-  destructive commands, and an append-only audit log; a minimal web admin panel served by axum.
-- Server-authoritative anti-cheat: per-tick movement validation, per-packet-type rate limits,
-  bot heuristics (timing regularity, uptime, path repetition), a player bot-report system with
-  L2-style thresholds, captcha-on-suspicion, and tiered responses (flag, jail, ban).
-- Release engineering: client/server version handshake in `Ping`, protobuf compatibility rules
-  enforced by `buf breaking`, `sqlx` migrations, graceful shutdown with character save, Docker
-  images via `cargo-chef`, GitHub Actions running `moon ci`.
+- A GM command interface (`AdminService` gRPC) with role-based access, a confirmation step for
+  destructive commands, and an append-only audit log. A minimal web admin panel that axum serves.
+- Server-authoritative anti-cheat:
+  - Movement validation at each tick, and rate limits for each packet type.
+  - Bot heuristics (timing regularity, uptime, path repetition).
+  - A system for player bot reports with thresholds of the L2 type.
+  - A captcha when there is a suspicion, and tiered responses (flag, jail, ban).
+- Release engineering:
+  - A client/server version handshake in `Ping`.
+  - Protobuf compatibility rules that `buf breaking` enforces.
+  - `sqlx` migrations, and a graceful shutdown that saves the characters.
+  - Docker images through `cargo-chef`, and GitHub Actions that run `moon ci`.
 - Telemetry: `tracing` + OpenTelemetry + Prometheus, a defined metric list, Grafana dashboards
-  provisioned from files, JSON logs with correlation ids, Sentry crash reporting.
+  provisioned from files, JSON logs with correlation ids, and Sentry crash reports.
 - A data-driven event scheduler (cron triggers; actions: spawn NPCs, rate multipliers, enable
-  drops, announce) modelled on L2J's `LongTimeEvent`.
+  drops, announce). Its model is the L2J `LongTimeEvent`.
 
 **Excludes**
 
-- Billing, account recovery, and customer support ticketing (external tools).
-- Content of specific events (Phase 6 content lists); this phase delivers the engine.
-- Kernel/host hardening and DDoS mitigation beyond application rate limiting.
+- Billing, account recovery, and customer support tickets (external tools).
+- The content of specific events (Phase 6 content lists). This phase delivers the engine.
+- Kernel/host hardening and DDoS mitigation, other than the application rate limits.
 
 ---
 
@@ -35,7 +39,7 @@ service, the metric catalogue, and the moon-based CI/CD pipeline.
 
 ### 2.1 L2J admin commands and access levels
 
-Commands are typed in chat as `//command args` (internally `admin_command`). `adminCommands.xml`
+Players type commands in chat as `//command args` (internally `admin_command`). `adminCommands.xml`
 is a `<list>` of `<admin command="admin_spawn" accessLevel="100" [confirmDlg="true"]/>` entries
 (600+ in L2J Mobius). `accessLevels.xml` defines the roles:
 
@@ -52,10 +56,10 @@ is a `<list>` of `<admin command="admin_spawn" accessLevel="100" [confirmDlg="tr
 | 70 | Admin | |
 | 100 | Master | `isGM`, `allowPeaceAttack`, `allowFixedRes`, `allowAltg`, all flags true |
 
-Each level carries `nameColor`, `titleColor`, `childAccess` (which levels it may administer),
+Each level has `nameColor`, `titleColor`, `childAccess` (the levels that it can administer),
 `isGM`, `allowPeaceAttack`, `allowFixedRes`, `allowTransaction`, `allowAltg`, `giveDamage`,
-`takeAggro`, `gainExp`. Note the shipped `adminCommands.xml` grants every command at level 100;
-operators are expected to lower individual commands for their GM tiers. Representative commands:
+`takeAggro`, `gainExp`. Note: the released `adminCommands.xml` gives all commands at level 100.
+The operators must decrease the level of individual commands for their GM tiers. These are typical commands:
 
 | Area | Commands |
 |---|---|
@@ -69,13 +73,13 @@ operators are expected to lower individual commands for their GM tiers. Represen
 | Comms | `//announce text`, `//reload_announcements`, `//gmchat`, `//gmliston/off` |
 
 `General.properties` adds `GMStartupInvulnerable=True`, `GMStartupInvisible=False`,
-`GMStartupAutoList=False`, and jail behaviour (`JailIsPvp=False`, `JailDisableChat=True`,
+`GMStartupAutoList=False`, and the jail behavior (`JailIsPvp=False`, `JailDisableChat=True`,
 `JailDisableTransaction=False`).
 
 ### 2.2 L2J flood protector (rate limiting)
 
-`FloodProtector.properties` configures per-action minimum intervals in 100 ms game ticks, each
-with `LogFlooding`, `PunishmentLimit`, `PunishmentType` (none/kick/ban/jail), `PunishmentTime`:
+`FloodProtector.properties` configures the minimum interval for each action, in 100 ms game ticks. Each
+protector has `LogFlooding`, `PunishmentLimit`, `PunishmentType` (none/kick/ban/jail), `PunishmentTime`:
 
 | Protector | Interval (ticks) | Protector | Interval |
 |---|---|---|---|
@@ -87,28 +91,31 @@ with `LogFlooding`, `PunishmentLimit`, `PunishmentType` (none/kick/ban/jail), `P
 | Subclass | 20 | Manor | 30 |
 | CharacterSelect | 30 | ItemAuction | 9 |
 
-Punishment is off by default; operators enable it per protector.
+Punishment is off by default. Operators enable it for each protector.
 
 ### 2.3 L2J movement validation
 
-See Phase 8 §2.1: the server rejects a `MoveBackwardToLocation` beyond 9,900 units
-(`dx²+dy² > 98,010,000`) or while `isOutOfControl()`, simulates movement itself at the
-character's run speed (capped by `MaxRunSpeed=300`), and on `ValidatePosition` resyncs the client
-with `ValidateLocation` when the squared deviation exceeds 250,000 (500 units) or |dZ| > 200.
-`CoordSynchronize=2` is the strict mode. A missing `moveMovement` field (BufferUnderflow) is
-treated as an L2Walker signature.
+Refer to Phase 8 §2.1. The server rejects a `MoveBackwardToLocation` farther than 9,900 units
+(`dx²+dy² > 98,010,000`), or while `isOutOfControl()`. It does the movement simulation itself at the
+run speed of the character (with the cap `MaxRunSpeed=300`). On `ValidatePosition`, it synchronizes the client again
+with `ValidateLocation` when the squared deviation is more than 250,000 (500 units) or |dZ| > 200.
+`CoordSynchronize=2` is the strict mode. If the `moveMovement` field is missing (BufferUnderflow), the server
+thinks that it is a sign of L2Walker.
 
 ### 2.4 L2J bot report ("Report bot" button)
 
 `BotReportTable` implements the retail High Five system:
 
-- Each player has 7 report points per day, reset at `BotReportPointsResetHour` (default 00:00).
-- `BotReportDelay` (default 30 min) between reports by the same player; the same IP also
-  cannot report twice inside the delay. `AllowReportsFromSameClanMembers=False`.
-- Rejected when: target in a peace zone or battleground, in Olympiad, at clan war with the
-  reporter, has gained no XP since login, reporter is themselves flagged, or already reported
-  this target recently.
-- Thresholds in `botreport_punishments.xml` apply debuff skills with a system message:
+- Each player has 7 report points each day. They reset at `BotReportPointsResetHour` (default 00:00).
+- `BotReportDelay` (default 30 min) is the time between reports by the same player. The same IP also
+  cannot report two times in the delay. `AllowReportsFromSameClanMembers=False`.
+- The server rejects a report in these conditions:
+  - The target is in a peace zone or battleground, or in the Olympiad.
+  - The target is at clan war with the reporter.
+  - The target got no XP after login.
+  - The reporter has a PvP flag.
+  - The reporter reported this target recently.
+- The thresholds in `botreport_punishments.xml` apply debuff skills with a system message:
 
 | Reports | Skill | SysMsg |
 |---|---|---|
@@ -119,12 +126,12 @@ treated as an L2Walker signature.
 | 150 / 175 | 6057 | 2480 |
 | 150+ (range) | 6040 (harsher) | - |
 
-Captcha challenges were a popular private-server addition layered on top of this (the suspect
-must type an image code in N seconds or is jailed); retail relied on debuffs plus GM review.
+Captcha challenges were a popular addition on private servers, on top of this system. The suspect
+must type an image code in N seconds, or the server jails the suspect. Retail used debuffs and a GM examination.
 
 ### 2.5 L2J events
 
-`LongTimeEvent` (extended by `L2Day`, `Christmas`, `Freya`, etc.) loads
+`LongTimeEvent` (extended by `L2Day`, `Christmas`, `Freya`, and other events) loads
 `data/scripts/events/<Name>/config.xml`:
 
 ```xml
@@ -143,23 +150,31 @@ must type an image code in N seconds or is jailed); retail relied on debuffs plu
 </event>
 ```
 
-The constructor schedules `startEvent()` on the thread pool (immediately if inside the period,
-delayed otherwise, skipped if expired). `startEvent` registers the droplist with
-`EventDroplist.addGlobalDrop`, spawns NPCs with a despawn time equal to the event end, and
-posts an `EventAnnouncement`; a `ScheduleEnd` runnable announces the end and optionally destroys
-event items. Retail seasonal events: L2 Day (anniversary letter collection), Freya's Celebration
-(winter buffs), Christmas (Santa Trainee / Saving Santa), Master of Enchanting, Golden Pig,
-Halloween. All reduce to the same primitives: spawn, drop, rate multiplier, announce, exchange.
+The constructor schedules `startEvent()` on the thread pool. If the time is in the period, the start is immediate.
+If not, the start is delayed. If the period expired, the event does not start. `startEvent` registers the droplist with
+`EventDroplist.addGlobalDrop` and spawns NPCs with a despawn time equal to the event end. It also
+posts an `EventAnnouncement`. A `ScheduleEnd` runnable announces the end, and it can destroy the
+event items. These are the retail seasonal events:
+
+- L2 Day (anniversary letter collection).
+- Freya's Celebration (winter buffs).
+- Christmas (Santa Trainee / Saving Santa).
+- Master of Enchanting, Golden Pig, Halloween.
+
+All of them use the same primitives: spawn, drop, rate multiplier, announce, exchange.
 
 ### 2.6 Bot detection literature
 
-- Chen et al. (Ragnarok Online traffic) found bots distinguishable by **regularity of command
-  release times**, **traffic burstiness across time scales**, and **insensitivity to network
-  conditions**; ensemble classifiers reached 90% accuracy with zero false positives
-  (conservative) or 95% with <1% false negatives (progressive).
-- Thawonmas (DMIN 2010, Cabal Online logs) fed **action frequencies, types, and time intervals**
+- Chen et al. (Ragnarok Online traffic) found that these signs make bots different from humans:
+  - **The regularity of command release times**.
+  - **The traffic burstiness across time scales**.
+  - **No sensitivity to network conditions**.
+
+  Ensemble classifiers got 90% accuracy with zero false positives
+  (conservative), or 95% with <1% false negatives (progressive).
+- Thawonmas (DMIN 2010, Cabal Online logs) gave **action frequencies, types, and time intervals**
   to an SVM to separate bots from humans.
-- Systematic reviews (IEEE Access) agree the strongest server-side signals are timing variance,
+- Systematic reviews (IEEE Access) agree that these are the strongest server-side signals: timing variance,
   session length, movement path repetition, and social-graph isolation.
 
 ---
@@ -168,33 +183,34 @@ Halloween. All reduce to the same primitives: spawn, drop, rate multiplier, anno
 
 ### 3.1 GM tooling
 
-- **Roles** (stored on the account, carried in the session JWT as `role` claim) mirror L2J
-  levels so the mental model transfers: `USER=0, CHAT_MOD=10, EVENT_GM=50, GM=60, ADMIN=70,
+- **Roles**: the server stores the role on the account. The session JWT carries it as the `role` claim. The roles are the same as the L2J
+  levels, so that the mental model is the same: `USER=0, CHAT_MOD=10, EVENT_GM=50, GM=60, ADMIN=70,
   MASTER=100`. Each `AdminService` RPC declares a minimum level; `childAccess` semantics: a GM
   can only punish accounts with a lower level.
-- **Commands are RPCs, not chat parsing.** The client's `//cmd` chat syntax is a thin
-  translator in the HUD that calls the same RPCs the web panel calls. One code path, one audit.
-- **Confirmation** for destructive ops (`ban`, `delete`, `shutdown`, `wipe_inventory`): the
-  RPC must carry `confirm_token` obtained from a prior `Prepare` call (10 s validity) — the
-  server-side equivalent of L2J's `confirmDlg="true"`.
-- **Audit log** is append-only Postgres table `gm_audit` written inside the same transaction as
-  the effect; every row has `actor_account_id, actor_role, command, args_json, target_ids,
+- **Commands are RPCs, not chat parsing.** The client `//cmd` chat syntax is a thin
+  translator in the HUD. It calls the same RPCs that the web panel calls. There is one code path and one audit.
+- **Confirmation** for destructive operations (`ban`, `delete`, `shutdown`, `wipe_inventory`): the
+  RPC must carry a `confirm_token` from a prior `Prepare` call (10 s validity). This is the
+  server-side equivalent of the L2J `confirmDlg="true"`.
+- **Audit log**: an append-only Postgres table, `gm_audit`. The server writes it in the same transaction as
+  the effect. Each row has `actor_account_id, actor_role, command, args_json, target_ids,
   result, request_id, ip, at`. Audit writes are also emitted as `tracing` events at `INFO` with
-  `audit=true` so they land in logs and can alert.
-- **Web admin panel**: axum serves `/admin` (static Preact bundle built in `apps/admin`, or a
-  single HTML page in v1) and `/admin/api/*` JSON routes that wrap the same service layer. Auth
-  via the same JWT (role ≥ GM) in an `Authorization: Bearer` header; CSRF not needed for bearer
-  tokens; CORS locked to the admin origin.
-- **GM privileges in-world**: `invul`, `invisible`, `gmspeed`, `peace_attack` are per-session
-  toggles that default on login to the L2J defaults (invulnerable on, invisible off, auto-list
-  off). GM characters are excluded from leaderboards, XP metrics, and bot heuristics.
+  `audit=true`. Thus, they go into the logs and can start alerts.
+- **Web admin panel**: axum serves `/admin` (a static Preact bundle built in `apps/admin`, or one
+  HTML page in v1) and `/admin/api/*` JSON routes. These routes wrap the same service layer.
+  - The authentication uses the same JWT (role ≥ GM) in an `Authorization: Bearer` header.
+  - CSRF protection is not necessary for bearer tokens.
+  - CORS is locked to the admin origin.
+- **GM privileges in the world**: `invul`, `invisible`, `gmspeed`, `peace_attack` are toggles for each session.
+  At login, they use the L2J defaults (invulnerable on, invisible off, auto-list
+  off). GM characters are not included in leaderboards, XP metrics, and bot heuristics.
 
 ### 3.2 Anti-cheat
 
-Server authority (Phase 0) already removes the classic cheats: damage, loot, inventory, and
-cooldowns are computed server-side. What remains is input shaping and automation.
+Server authority (Phase 0) already removes the classic cheats. The server calculates damage, loot, inventory, and
+cooldowns. The remaining risks are input shaping and automation.
 
-**Movement validation per tick (100 ms):**
+**Movement validation at each tick (100 ms):**
 
 ```
 allowed = run_speed_px_s * dt_s * 1.10        // 10% tolerance for tick jitter
@@ -204,12 +220,12 @@ if MoveTo.dest beyond 1,200 px from pos         → reject (mirrors L2J's 9,900-
 if intent arrives while stunned/dead/casting-locked → ActionFailed, no violation (normal race)
 ```
 
-Because movement is simulated server-side (client only sends destinations), speed hacks can
-only manifest as *more frequent* destinations, which rate limiting handles, or as tampering
-with the client's displayed position, which is cosmetic. The validation above matters for any
-future client-reported positions (vehicles, knockbacks).
+The server does the movement simulation (the client only sends destinations). Thus, speed hacks can
+only send destinations *more frequently*, and the rate limits stop this. Or they can change
+the position that the client shows, which is only cosmetic. The validation above is important for
+client-reported positions in the future (vehicles, knockbacks).
 
-**Rate limits per intent type** (token bucket per session; L2J intervals converted):
+**Rate limits for each intent type** (a token bucket for each session; the L2J intervals are converted):
 
 | Intent | Sustained | Burst | On exceed |
 |---|---|---|---|
@@ -223,10 +239,10 @@ future client-reported positions (vehicles, knockbacks).
 | Any RPC (connection-level, `tower-governor`) | 50/s | 100 | HTTP 429 / `RESOURCE_EXHAUSTED` |
 | Subscribe reconnects | 1 per 2 s | 3 | close |
 
-Exceeding a bucket 20 times in a minute raises a `violation("flood", kind)`.
+If a session goes above a bucket limit 20 times in one minute, the server records a `violation("flood", kind)`.
 
-**Bot heuristics** (computed by an `anticheat::scorer` task every 5 min per online session
-from an in-memory per-session action log of the last 500 actions):
+**Bot heuristics**: an `anticheat::scorer` task calculates them each 5 min for each online session.
+It uses an in-memory action log for each session, with the last 500 actions:
 
 | Signal | Computation | Points |
 |---|---|---|
@@ -238,98 +254,138 @@ from an in-memory per-session action log of the last 500 actions):
 | Camera/UI silence | Zero `SetTarget` by click (all by Tab) and zero window opens for 2 h | +10 |
 | Prior flags | Each previous flag in 30 days | +10 |
 
-Score ≥ 50 → **flag** (log, GM dashboard, enable fine-grained logging). Score ≥ 70 →
-**captcha challenge**. Failed captcha or score ≥ 90 → **jail** 60 min + GM review queue.
-Repeat jail within 7 days → **account ban** (temporary 7 d, then permanent on third). Every
-tier is a GM-reviewable record; auto-bans require two independent signals (e.g. CV and
-reaction floor) to limit false positives, per the literature's "conservative" scheme.
+The score sets these tiers:
 
-**Captcha-on-suspicion:** server generates a 5-character image (server-side rasterised with
-`imageproc`/`ab_glyph`, noise lines) sent as `CaptchaChallenge{png_bytes, deadline_ms=60000}`
-on the world stream. The HUD renders a modal; `AnswerCaptcha{text}` must arrive before the
-deadline; three failures → jail. Rate: at most one captcha per hour per player regardless of
-score, never during combat with players, never in Olympiad/siege.
+- Score ≥ 50 → **flag** (log, GM dashboard, enable fine-grained logging).
+- Score ≥ 70 → **captcha challenge**.
+- A failed captcha or a score ≥ 90 → **jail** 60 min + GM review queue.
+- A second jail in 7 days → **account ban** (temporary 7 d, then permanent on the third).
 
-**Player bot report**: port of L2J: 7 points/day reset 00:00 server time, 30-min delay per
-reporter, same-IP delay, no same-clan reports, rejections identical to L2J. Reports add +5 to the
-heuristic score (capped +25) rather than applying debuffs directly, so reports cannot be
-weaponised without corroborating behaviour; 25+ reports always surface the player in the GM
+Each tier is a record that a GM can examine. Automatic bans need two independent signals (for example, CV and
+reaction floor). This decreases false positives, as in the "conservative" scheme of the literature.
+
+**Captcha when there is a suspicion:** the server makes a 5-character image (rasterized on the server with
+`imageproc`/`ab_glyph`, with noise lines). It sends the image as `CaptchaChallenge{png_bytes, deadline_ms=60000}`
+on the world stream. The HUD renders a modal. `AnswerCaptcha{text}` must arrive before the
+deadline. After three failures, the server jails the player. Rate: a maximum of one captcha each hour for each player, independent of the
+score. Never during combat with players, and never in Olympiad/siege.
+
+**Player bot report**: this is a port of L2J:
+
+- 7 points each day, reset at 00:00 server time.
+- A 30-min delay for each reporter, and a delay for the same IP.
+- No reports from the same clan. The rejections are the same as in L2J.
+
+Each report adds +5 to the
+heuristic score (with a cap of +25). Reports do not apply debuffs directly. Thus, players cannot use reports as a
+weapon without behavior that agrees with the reports. A player with 25+ reports always shows in the GM
 queue.
 
 ### 3.3 Patching, versioning, maintenance
 
-- **Version handshake** uses the existing `Ping(client_version)`. Server config holds
-  `min_client_version` and `latest_client_version`. Response gains `compat` =
-  `OK | UPDATE_AVAILABLE | UPDATE_REQUIRED`; the client shows a banner or blocks login. The
-  client version is Vite's `__APP_VERSION__` from `package.json` + git short SHA. Server
-  version is `CARGO_PKG_VERSION` (already returned).
-- **Protobuf compatibility**: never change or reuse field numbers; remove fields by `reserved`
-  number and name; add enum values only; `oneof` additions are safe, moves into an existing
-  `oneof` are not; integer widenings are wire-compatible but avoid them. Enforced in CI by
-  `buf breaking --against '.git#branch=main'` with the `WIRE_JSON` category (we also serialise
-  JSON in the admin API). Services are versioned by package (`nightfall.v1`); a `v2` package
-  is the only way to break.
+- **Version handshake**: it uses the existing `Ping(client_version)`. The server config has
+  `min_client_version` and `latest_client_version`. The response gets `compat` =
+  `OK | UPDATE_AVAILABLE | UPDATE_REQUIRED`. The client shows a banner or blocks the login. The
+  client version is the Vite `__APP_VERSION__` from `package.json` + the git short SHA. The server
+  version is `CARGO_PKG_VERSION` (the server already returns it).
+- **Protobuf compatibility**:
+  - Do not change field numbers, and do not use them again.
+  - To remove a field, use `reserved` for the
+  number and the name.
+  - You can only add enum values.
+  - `oneof` additions are safe. Moves into an existing
+  `oneof` are not safe.
+  - Integer widenings are wire-compatible, but do not use them.
+
+  CI enforces these rules with
+  `buf breaking --against '.git#branch=main'` and the `WIRE_JSON` category (we also serialize
+  JSON in the admin API). The package gives the version of the services (`nightfall.v1`). A `v2` package
+  is the only permitted way to break compatibility.
 - **Database migrations**: `sqlx::migrate!()` with `apps/api/migrations/<timestamp>_<name>.sql`
-  (reversible pairs via `sqlx migrate add -r`), tracked in `_sqlx_migrations`. Chosen over
-  refinery because the server already uses `sqlx` for queries (Phase 0), compile-time query
-  checking shares the same offline data, and one tool is fewer. Rule: migrations are
-  expand/contract — a deploy N adds columns/tables; deploy N+1 removes the old ones, so server
-  N-1 and N can run against the same schema during a rollout.
-- **Deploy model**: a stateful world server cannot be blue/green'd transparently (players are
-  in memory). We use a **short maintenance window with graceful drain**, L2-style:
-  `//server_shutdown 300` → countdown announcements at 300/180/60/30/10 s via `SystemMessage`
-  → logins disabled at T-60 → at T: stop accepting intents, persist every online character and
-  inventory in one transaction per character (parallel, bounded by a semaphore of 32), close
-  streams with `Status::unavailable("maintenance")`, exit 0. The client auto-reconnects with
-  backoff (Phase 8) and the new binary comes up behind the same address. True blue/green is
-  used for the **stateless edge** (axum HTTP, admin panel, auth) which can run two versions
-  behind the reverse proxy. If a second world shard ever exists, players are drained shard by
-  shard.
-- **Graceful shutdown**: `tokio::signal::ctrl_c()` + `SIGTERM` via `signal(SignalKind::terminate())`
+  (reversible pairs through `sqlx migrate add -r`), recorded in `_sqlx_migrations`. We selected this instead of
+  refinery for these reasons:
+  - The server already uses `sqlx` for queries (Phase 0).
+  - The compile-time query
+  checks use the same offline data.
+  - One tool is fewer.
+
+  Rule: migrations are
+  expand/contract. A deploy N adds columns/tables, and the deploy N+1 removes the old ones. Thus, the server
+  N-1 and the server N can run against the same schema during a rollout.
+- **Deploy model**: you cannot do a transparent blue/green deploy of a stateful world server (players are
+  in memory). We use a **short maintenance window with a graceful drain**, as in L2:
+  1. `//server_shutdown 300` → countdown announcements at 300/180/60/30/10 s through `SystemMessage`.
+  2. At T-60, logins are disabled.
+  3. At T, the server stops accepting intents. It keeps each online character and
+  inventory in one transaction for each character (parallel, with a semaphore of 32 as the limit).
+  4. It closes the
+  streams with `Status::unavailable("maintenance")` and exits with 0.
+
+  The client reconnects automatically with
+  backoff (Phase 8), and the new binary starts behind the same address. We use true blue/green
+  for the **stateless edge** (axum HTTP, admin panel, auth). The edge can run two versions
+  behind the reverse proxy. If a second world shard exists in the future, the drain occurs one shard after the other.
+- **Graceful shutdown**: `tokio::signal::ctrl_c()` + `SIGTERM` through `signal(SignalKind::terminate())`
   into a `CancellationToken`; axum `with_graceful_shutdown(token.cancelled())`, tonic
-  `serve_with_shutdown(addr, svc, token.cancelled())`; the game loop observes the token, runs
-  `persist_all()`, then drops the exporter guard (flush). Docker `stop_grace_period: 90s`.
-- **Docker**: `cargo-chef` multi-stage (planner → cook deps → build → `debian:trixie-slim`
-  runtime), one image `nightfall-api`, tagged with git SHA and semver. Client is static:
+  `serve_with_shutdown(addr, svc, token.cancelled())`. The game loop monitors the token and runs
+  `persist_all()`. Then it drops the exporter guard (flush). Docker `stop_grace_period: 90s`.
+- **Docker**: a `cargo-chef` multi-stage build (planner → cook deps → build → `debian:trixie-slim`
+  runtime). There is one image, `nightfall-api`, tagged with the git SHA and semver. The client is static:
   `vite build` → `dist/` → an nginx or Caddy image, or object storage + CDN.
-- **CI**: GitHub Actions runs `moon ci` which selects affected targets by comparing the PR head
-  against base; `fetch-depth: 0` is required for the diff. Dev servers (`dev`, `preview`) are
-  marked `runInCI: false`.
+- **CI**: GitHub Actions runs `moon ci`. This command selects the affected targets: it compares the PR head
+  with the base. `fetch-depth: 0` is necessary for the diff. The dev servers (`dev`, `preview`) have the
+  mark `runInCI: false`.
 
 ### 3.4 Metrics and telemetry
 
-- **Library choice**: `tracing` for spans/logs (already in `main.rs`); `metrics` facade with
-  `metrics-exporter-prometheus` for a `/metrics` endpoint on the axum port (simple, no
-  collector needed, Grafana scrapes directly); `tracing-opentelemetry` + `opentelemetry-otlp`
-  for traces to an OTel collector/Tempo/Jaeger, enabled by `OTEL_EXPORTER_OTLP_ENDPOINT`. We
-  deliberately keep metrics on the `metrics` crate rather than OTel metrics: Prometheus
-  exposition is the common denominator and `counter!/gauge!/histogram!` are cheap in the tick
+- **Library selection**:
+  - `tracing` for spans/logs (already in `main.rs`).
+  - The `metrics` facade with
+  `metrics-exporter-prometheus` for a `/metrics` endpoint on the axum port. This is simple: no
+  collector is necessary, and Grafana scrapes directly.
+  - `tracing-opentelemetry` + `opentelemetry-otlp`
+  for traces to an OTel collector/Tempo/Jaeger. `OTEL_EXPORTER_OTLP_ENDPOINT` enables it.
+
+  We
+  keep the metrics on the `metrics` crate, not on OTel metrics, as a decision. The Prometheus
+  exposition is the common denominator, and `counter!/gauge!/histogram!` have a low cost in the tick
   loop.
-- **Naming** follows Prometheus conventions: `nightfall_` prefix, base units (`_seconds`,
-  `_bytes`), `_total` for counters, low-cardinality labels only (zone ids, class ids, intent
+- **Names** use the Prometheus conventions: the `nightfall_` prefix, base units (`_seconds`,
+  `_bytes`), and `_total` for counters. Use only low-cardinality labels (zone ids, class ids, intent
   kinds — never character or account ids).
 - **Histogram buckets** for tick duration: `[0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2,
   0.5, 1.0]` seconds (the tick budget is 0.1 s); DB latency: `[0.0005, 0.001, 0.0025, 0.005,
   0.01, 0.025, 0.05, 0.1, 0.25, 1.0]`.
 - **Logs**: JSON (`tracing_subscriber::fmt().json()`) in production, pretty in dev
-  (`LOG_FORMAT=pretty`). Every HTTP/gRPC request gets `request_id` (tower-http
-  `SetRequestIdLayer` + `PropagateRequestIdLayer`, UUID v7) placed on the root span via
-  `make_span_with`; game-loop spans carry `session_id`, `character_id`, `zone_id`. Audit and
-  anticheat events carry `audit=true` / `anticheat=true` fields for log routing.
-- **Crash reporting**: `sentry` + `sentry-tracing` layer: panics captured by default, `ERROR`
-  events become Sentry events, `INFO+` become breadcrumbs. `sentry::init` must run before the
-  Tokio runtime starts, so `main` becomes a plain `fn main` that builds the runtime after
-  `init`. Release = `CARGO_PKG_VERSION+sha`. Client: `@sentry/browser` with the same release
-  string so client/server errors correlate.
-- **Dashboards** provisioned from `ops/grafana/dashboards/*.json` via a file provider:
-  *Overview* (CCU, tick p50/p99, RPC error rate, DB p99), *Economy* (adena in circulation,
-  created/destroyed per hour, item sinks), *World* (XP/h per zone, deaths per zone, monster
-  kills), *Players* (class distribution, level histogram, session length), *Security* (flags,
+  (`LOG_FORMAT=pretty`).
+  - Each HTTP/gRPC request gets a `request_id` (tower-http
+  `SetRequestIdLayer` + `PropagateRequestIdLayer`, UUID v7). The server puts it on the root span through
+  `make_span_with`.
+  - Game-loop spans have `session_id`, `character_id`, `zone_id`.
+  - Audit and
+  anticheat events have `audit=true` / `anticheat=true` fields for the log routes.
+- **Crash reports**: the `sentry` + `sentry-tracing` layer.
+  - It captures panics by default. `ERROR`
+  events become Sentry events, and `INFO+` events become breadcrumbs.
+  - `sentry::init` must run before the
+  Tokio runtime starts. Thus, `main` becomes a plain `fn main` that builds the runtime after
+  `init`.
+  - Release = `CARGO_PKG_VERSION+sha`.
+  - Client: `@sentry/browser` with the same release
+  string, so that client and server errors correlate.
+- **Dashboards**: they are provisioned from `ops/grafana/dashboards/*.json` through a file provider:
+  - *Overview* (CCU, tick p50/p99, RPC error rate, DB p99).
+  - *Economy* (adena in circulation,
+  created/destroyed each hour, item sinks).
+  - *World* (XP/h for each zone, deaths for each zone, monster
+  kills).
+  - *Players* (class distribution, level histogram, session length).
+  - *Security* (flags,
   jails, bans, flood drops, captcha pass rate).
 
 ### 3.5 Events
 
-Data-driven definitions in `apps/api/events/*.toml`, hot-reloadable with `//reload events`:
+Data-driven definitions are in `apps/api/events/*.toml`. You can hot-reload them with `//reload events`:
 
 ```toml
 [event]
@@ -366,17 +422,17 @@ msg_id = 7002
 ```
 
 The `EventScheduler` uses `tokio-cron-scheduler` (6-field, seconds-first expressions; `0 */5 *
-* * *` = every five minutes) for triggers and a `start`/`end` one-shot per event. Actions are
-reversible: each `apply()` returns an `Undo` that `end()` runs in reverse order. Rate multipliers
-compose multiplicatively with the global `Rates` config. Event state (which events are active,
-what was spawned) is persisted in `event_state` so a restart mid-event re-applies without
-double-spawning.
+* * *` = every five minutes) for triggers and a `start`/`end` one-shot for each event. Actions are
+reversible. Each `apply()` returns an `Undo`, and `end()` runs these in the opposite sequence. Rate multipliers
+multiply with the global `Rates` config. The server keeps the event state (the active events and
+the spawned entities) in `event_state`. Thus, after a restart in the middle of an event, the server applies the event again without
+a second spawn.
 
 ---
 
 ## 4. Data model
 
-Postgres tables (migrations in `apps/api/migrations/`):
+Postgres tables (the migrations are in `apps/api/migrations/`):
 
 ```sql
 CREATE TABLE gm_audit (
@@ -428,8 +484,8 @@ CREATE TABLE event_state (
 CREATE TABLE server_meta (key TEXT PRIMARY KEY, value JSONB NOT NULL);  -- min_client_version, maintenance flag
 ```
 
-Economy counters that feed metrics are not tables: `adena_in_circulation` is a gauge
-recomputed every 60 s by `SELECT sum(count) FROM items WHERE item_id = ADENA`; item
+The economy counters that give data to the metrics are not tables. `adena_in_circulation` is a gauge.
+The server calculates it again each 60 s with `SELECT sum(count) FROM items WHERE item_id = ADENA`. The item
 create/destroy counters increment inline in the inventory service.
 
 ### 4.1 Proto additions
@@ -497,10 +553,10 @@ message EventStateChanged { string event_id = 1; bool active = 2; uint32 msg_id 
 
 ### 5.1 Auth interceptor
 
-A tonic interceptor validates the JWT (`jsonwebtoken`, HS256 for v1, key from env), extracts
-`account_id`, `role`, `session_id` into request extensions, and rejects `AdminService` calls
-whose role is below the method's minimum (a `static` table `METHOD_MIN_ROLE: &[(&str, GmRole)]`
-keyed by `grpc path`). The same JWT is accepted by the axum admin routes via an extractor.
+A tonic interceptor validates the JWT (`jsonwebtoken`, HS256 for v1, the key from env). It extracts
+`account_id`, `role`, `session_id` into request extensions. It rejects `AdminService` calls
+if the role is below the minimum of the method. The minimum comes from a `static` table `METHOD_MIN_ROLE: &[(&str, GmRole)]`,
+with the `grpc path` as the key. The axum admin routes accept the same JWT through an extractor.
 
 ### 5.2 Admin HTTP routes (axum, port 3000)
 
@@ -518,16 +574,16 @@ keyed by `grpc path`). The same JWT is accepted by the axum admin routes via an 
 
 ### 5.3 Server events to the client
 
-`ShutdownNotice`, `CaptchaChallenge`, `EventStateChanged`, plus `SystemMessage`s for all
-punishments (jail entry/exit, chat ban, flood warnings) so the client needs no new text.
+`ShutdownNotice`, `CaptchaChallenge`, `EventStateChanged`, and `SystemMessage`s for all
+punishments (jail entry/exit, chat ban, flood warnings). Thus, the client needs no new text.
 
 ### 5.4 Observability endpoints and signals
 
-- `/metrics` scraped every 15 s by Prometheus.
-- OTLP traces exported over gRPC to `OTEL_EXPORTER_OTLP_ENDPOINT` (sampling: 100% of
-  admin/auth RPCs, 1% of world intents, 100% of errors via tail sampling in the collector).
-- Logs to stdout as JSON; container runtime ships them (Loki/Vector).
-- Sentry DSN from `SENTRY_DSN`.
+- Prometheus scrapes `/metrics` each 15 s.
+- The server exports OTLP traces over gRPC to `OTEL_EXPORTER_OTLP_ENDPOINT`. The sampling is 100% of
+  admin/auth RPCs, 1% of world intents, and 100% of errors (through tail sampling in the collector).
+- Logs go to stdout as JSON. The container runtime sends them on (Loki/Vector).
+- The Sentry DSN comes from `SENTRY_DSN`.
 
 ---
 
@@ -609,8 +665,8 @@ gauge!("nightfall_ccu").set(sessions.len() as f64);
 if start.elapsed() > Duration::from_millis(100) { counter!("nightfall_tick_overrun_total").increment(1); }
 ```
 
-Game-loop spans are created per tick (`info_span!("tick", tick = n)`) but **not** per entity;
-per-entity work records metrics only, to keep overhead under 1% of the tick budget.
+The server makes game-loop spans for each tick (`info_span!("tick", tick = n)`), but **not** for each entity.
+The work for each entity only records metrics. This keeps the overhead below 1% of the tick budget.
 
 ### 6.4 Graceful shutdown
 
@@ -623,24 +679,24 @@ let game = game_loop::run(world.clone(), token.clone());  // observes token; on 
 tokio::try_join!(http, grpc, game)?;
 ```
 
-`AdminService::Shutdown{seconds}` spawns the countdown announcer which cancels the token at T;
+`AdminService::Shutdown{seconds}` spawns the countdown announcer. The announcer cancels the token at T.
 `abort=true` cancels the announcer. `persist_all` uses `futures::stream::iter(chars).for_each_concurrent(32, save)`
-with a 60 s overall deadline, logging any failures at `ERROR` with character ids so they can be
-recovered from the last periodic save (every 15 min, matching L2J's `CharacterDataStoreInterval`).
+with a 60 s overall deadline. It logs all failures at `ERROR` with the character ids. Thus, you can
+recover them from the last periodic save (each 15 min, the same as the L2J `CharacterDataStoreInterval`).
 
 ### 6.5 Concurrency notes
 
-- Rate-limit buckets live in the per-session struct (single-writer per session task); no locks.
-- The heuristics scorer snapshots `ActionLog`s via `Arc<Mutex<_>>` with `try_lock` and skips a
-  session rather than blocking the game loop.
-- Audit writes are awaited inside the admin RPC (not fire-and-forget) so a failed audit fails
-  the command.
-- Event actions mutate world state through the same command channel the game loop drains, so
+- The rate-limit buckets are in the struct of each session (one writer for each session task). There are no locks.
+- The heuristics scorer makes snapshots of the `ActionLog`s through `Arc<Mutex<_>>` with `try_lock`. If it cannot get the lock, it skips the
+  session. It does not block the game loop.
+- The admin RPC waits for the audit writes (they are not fire-and-forget). Thus, if the audit fails, the
+  command also fails.
+- Event actions change the world state through the same command channel that the game loop drains. Thus,
   they apply at tick boundaries.
 
 ### 6.6 Metric catalogue
 
-All names carry the `nightfall_` prefix. Labels are low-cardinality only.
+All names have the `nightfall_` prefix. Labels are only low-cardinality.
 
 | Metric | Type | Labels | Source / notes |
 |---|---|---|---|
@@ -678,10 +734,16 @@ All names carry the `nightfall_` prefix. Labels are low-cardinality only.
 | `client_fps_p5` | histogram | `zoom` | from client beacons (sampled) |
 | `client_rtt_seconds` | histogram | - | from client beacons |
 
-Grafana alert rules shipped with the dashboards: tick p99 > 80 ms for 5 min; `db_errors_total`
-rate > 1/s; `ccu` drops > 50% in 5 min (crash or network); `adena_flow_total{direction="created"}`
-hourly rate > 3x its 7-day median (dupe/exploit tripwire); `anticheat_flags_total{tier="ban"}`
-> 10/h (false-positive tripwire).
+These Grafana alert rules come with the dashboards:
+
+- Tick p99 > 80 ms for 5 min.
+- `db_errors_total`
+rate > 1/s.
+- `ccu` decreases > 50% in 5 min (crash or network).
+- The `adena_flow_total{direction="created"}`
+hourly rate > 3x its 7-day median (dupe/exploit tripwire).
+- `anticheat_flags_total{tier="ban"}`
+more than 10/h (false-positive tripwire).
 
 ### 6.7 CI/CD pipeline
 
@@ -744,13 +806,19 @@ jobs:
         run: curl -fsS https://api.nightfall.example/health && ./ops/scripts/grpc-ping.sh
 ```
 
-Task wiring in moon: `api` project gets `lint: cargo clippy -- -D warnings`, `test: cargo test`,
-`build: cargo build --release` (outputs `target/release/nightfall-api`); `client` already has
-`build`; add `typecheck: tsc --noEmit` and `lint: eslint .`; `proto` project gets
+Task wiring in moon:
+
+- The `api` project gets `lint: cargo clippy -- -D warnings`, `test: cargo test`,
+`build: cargo build --release` (outputs `target/release/nightfall-api`).
+- `client` already has
+`build`. Add `typecheck: tsc --noEmit` and `lint: eslint .`.
+- The `proto` project gets
 `lint: buf lint` and `gen-ts: buf generate` (inputs `nightfall/**/*.proto`, outputs
-`../../apps/client/src/gen`), and `client:build` depends on `proto:gen-ts`. `dev` and
-`preview` tasks are `runInCI: false`. Rust CI uses `Swatinem/rust-cache@v2` in addition to
-moon's own cache for `target/`.
+`../../apps/client/src/gen`). `client:build` depends on `proto:gen-ts`.
+- The `dev` and
+`preview` tasks are `runInCI: false`.
+- Rust CI uses `Swatinem/rust-cache@v2`, and also the
+moon cache for `target/`.
 
 `apps/api/Dockerfile`:
 
@@ -782,11 +850,14 @@ STOPSIGNAL SIGTERM
 ENTRYPOINT ["/usr/local/bin/nightfall-api"]
 ```
 
-The binary accepts a `migrate` subcommand (runs `sqlx::migrate!()` and exits) so migrations run
-as a one-off container before the server rolls. `docker-compose.yml` for production sets
-`stop_grace_period: 90s` so the drain in §3.3 completes; `ops/compose/observability.yml` runs
-Prometheus (scrape `api:3000/metrics` every 15 s), Grafana with file provisioning
-(`/etc/grafana/provisioning/{datasources,dashboards}` mounted from `ops/grafana/`), and an
+The binary accepts a `migrate` subcommand (it runs `sqlx::migrate!()` and exits). Thus, migrations run
+as a one-off container before the server rolls. The production `docker-compose.yml` sets
+`stop_grace_period: 90s`, so that the drain in §3.3 completes. `ops/compose/observability.yml` runs these items:
+
+- Prometheus (it scrapes `api:3000/metrics` each 15 s).
+- Grafana with file provisioning
+(`/etc/grafana/provisioning/{datasources,dashboards}` mounted from `ops/grafana/`).
+- An
 OTel collector.
 
 ### 6.8 Crates to add
@@ -802,47 +873,50 @@ OTel collector.
 
 ## 7. Client implications
 
-- **Version gate** in `BootScene`: on `UPDATE_REQUIRED` show a blocking dialog with the latest
-  version and a reload button (the client is a web bundle, so "update" is a hard refresh with a
-  cache-busted `index.html`); on `UPDATE_AVAILABLE` show a dismissible banner; on `maintenance`
-  show the countdown screen and poll `Ping` every 10 s.
+- **Version gate** in `BootScene`:
+  - On `UPDATE_REQUIRED`, show a blocking dialog with the latest
+  version and a reload button. The client is a web bundle, so "update" is a hard refresh with a
+  cache-busted `index.html`.
+  - On `UPDATE_AVAILABLE`, show a banner that the player can close.
+  - On `maintenance`,
+  show the countdown screen and poll `Ping` each 10 s.
 - **Shutdown countdown**: `ShutdownNotice` renders a top-center banner with the remaining
-  seconds; the client disables intent sending at 0 and shows "Reconnecting" with backoff.
-- **Captcha modal**: `CaptchaChallenge` opens a modal with the PNG, an input, and a countdown;
-  input is sent via `AnswerCaptcha`. The modal cannot be dismissed; failing is handled
-  server-side.
-- **GM chat syntax**: HUD translates `//spawn 30001 3` into `AdminService.Spawn` for accounts
-  whose session role ≥ EVENT_GM; unknown commands show a help list. The GM also gets a small
-  "GM" panel (toggles, teleport-to-click, target info with entity id) only when role ≥ GM.
-- **Bot report**: a "Report bot" context-menu entry on players; shows remaining points (7/day)
-  and the 30-minute cooldown; results arrive as `SystemMessage`s.
-- **Event banners**: `EventStateChanged` triggers a toast using the localized `msg_id`; the
+  seconds. At 0, the client stops sending intents and shows "Reconnecting" with backoff.
+- **Captcha modal**: `CaptchaChallenge` opens a modal with the PNG, an input, and a countdown.
+  The client sends the input through `AnswerCaptcha`. The player cannot close the modal. The server controls
+  failures.
+- **GM chat syntax**: the HUD translates `//spawn 30001 3` into `AdminService.Spawn` for accounts
+  with a session role ≥ EVENT_GM. Unknown commands show a help list. The GM also gets a small
+  "GM" panel (toggles, teleport-to-click, target info with entity id), only when the role is ≥ GM.
+- **Bot report**: a "Report bot" context-menu entry on players. It shows the remaining points (7/day)
+  and the 30-minute cooldown. The results come as `SystemMessage`s.
+- **Event banners**: `EventStateChanged` starts a toast with the localized `msg_id`. The
   world map shows event NPC markers from `EntitySpawn.kind == NPC` with an `event_id` tag.
-- **Client telemetry**: `@sentry/browser` with `release` = client version; a `performance`
-  beacon every 60 s posting FPS p5, entity count, RTT to `POST /telemetry/client` (sampled
-  10%), which the server turns into `nightfall_client_fps_p5` histograms.
+- **Client telemetry**: `@sentry/browser` with `release` = the client version. A `performance`
+  beacon each 60 s posts FPS p5, entity count and RTT to `POST /telemetry/client` (sampled
+  10%). The server changes these into `nightfall_client_fps_p5` histograms.
 
 ---
 
 ## 8. Open questions
 
-1. **Shard model.** The drain-and-restart deploy assumes one world process. If zones become
-   separate processes (Phase 6 instancing), per-zone rolling restarts become possible and the
-   maintenance window shrinks to seconds per zone; decide before building the orchestrator.
-2. **Captcha accessibility.** Image captchas fail screen-reader users. Options: audio
-   alternative, or replace captcha with a "GM whisper" check for flagged accounts. Decide with
+1. **Shard model.** The drain-and-restart deploy accepts that there is one world process. If zones become
+   separate processes (Phase 6 instancing), rolling restarts for each zone become possible. Then the
+   maintenance window decreases to seconds for each zone. Decide before we build the orchestrator.
+2. **Captcha accessibility.** Screen-reader users cannot use image captchas. Options: an audio
+   alternative, or replace the captcha with a "GM whisper" check for flagged accounts. Decide with
    the accessibility baseline from Phase 8.
-3. **Native histograms.** Prometheus recommends native histograms; `metrics-exporter-prometheus`
-   exposes classic buckets. Revisit when the exporter supports native histograms.
-4. **Where the admin panel lives.** A single HTML page served by axum is enough for v1; if it
-   grows, promote to `apps/admin` (Vite + Preact) as a moon project with its own deploy.
-5. **Automatic bans.** The thresholds in §3.2 are initial guesses; calibrate by running the
-   scorer in shadow mode (flag only) for the first month and reviewing false-positive rates
-   before enabling jail/ban tiers.
-6. **Economy gauges cost.** `SUM(count)` over all items every 60 s is fine at 10k characters;
-   at 100k use an incremental counter updated by the inventory service instead.
-7. **Client log shipping.** Whether to ship client console logs to the server at all (privacy,
-   volume) or rely solely on Sentry breadcrumbs.
+3. **Native histograms.** Prometheus recommends native histograms. `metrics-exporter-prometheus`
+   gives classic buckets. Examine this again when the exporter supports native histograms.
+4. **Where the admin panel is.** For v1, one HTML page that axum serves is sufficient. If it
+   becomes larger, move it to `apps/admin` (Vite + Preact) as a moon project with its own deploy.
+5. **Automatic bans.** The thresholds in §3.2 are initial estimates. Calibrate them: run the
+   scorer in shadow mode (only flags) for the first month, and examine the false-positive rates
+   before you enable the jail/ban tiers.
+6. **Cost of the economy gauges.** `SUM(count)` over all items each 60 s is satisfactory at 10k characters.
+   At 100k, use an incremental counter that the inventory service updates.
+7. **Client log shipping.** Do we send client console logs to the server (privacy,
+   volume), or do we use only Sentry breadcrumbs?
 
 ---
 

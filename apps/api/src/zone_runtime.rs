@@ -186,6 +186,24 @@ impl ZoneRuntimeConfig {
         Ok(Some(prepare_phase3_bootstrap(&source, rules, classes, self.load_zone()?)?))
     }
 
+    /// T18: the configured Phase 3 source that replay tools register (lazily composed) so they
+    /// resolve the V6 bundle of an epoch this configuration recorded: the `RULES_DIR` overlay
+    /// and the `ZONE_SIM_FIXTURE` NPC overrides, composed exactly as [`Self::prepare_phase4`]
+    /// composes them. `None` when only the embedded bundle can be recorded.
+    pub fn phase4_replay_source(
+        &self,
+    ) -> anyhow::Result<Option<crate::infrastructure::skill_data::Phase3DataSource>> {
+        if let Some(name) = &self.simulation_fixture {
+            anyhow::ensure!(
+                name == "phase1a-social-aggro",
+                "unknown ZONE_SIM_FIXTURE {name:?}; expected phase1a-social-aggro"
+            );
+        } else if self.rules_dir.is_none() {
+            return Ok(None);
+        }
+        self.phase3_source().map(Some)
+    }
+
     fn phase3_source(&self) -> anyhow::Result<crate::infrastructure::skill_data::Phase3DataSource> {
         let mut source = match &self.rules_dir {
             Some(root) => crate::infrastructure::skill_data::Phase3DataSource::from_dir(root)?,
@@ -333,6 +351,7 @@ pub async fn start(
     } else if let Some(epoch) = log.latest_epoch(def.zone).await? {
         checkpoints.recover(log.as_ref(), def.zone, epoch).await?;
     }
+    log_quarantined_lanes(deps.characters.as_ref(), def.zone).await;
     let mut bootstrap = ZoneBootstrap::new(log, snapshots, clock, Arc::new(metrics.clone()))
         .with_telemetry(Arc::new(metrics))
         .with_rules(rules)
@@ -347,6 +366,35 @@ pub async fn start(
     let running = bootstrap.start(&def, IntervalTicks::new()).await?;
     running.handle().checkpoints.install(checkpoints);
     Ok(running)
+}
+
+/// T11 boot summary: after recovery, one line per zone with the quarantined owners (their
+/// logins are refused until an operator clears the row; see running-locally.md).
+async fn log_quarantined_lanes(
+    characters: &dyn crate::application::CharacterRepository,
+    zone: crate::domain::zone::ZoneId,
+) {
+    match characters.lane_quarantines(zone).await {
+        Ok(rows) if rows.is_empty() => {
+            tracing::info!(zone = zone.0, quarantined_lanes = 0, "no quarantined lanes");
+        },
+        Ok(rows) => {
+            let owners = rows
+                .iter()
+                .map(|row| format!("{}@{}:{}", row.character_id, row.epoch, row.tick.0))
+                .collect::<Vec<_>>()
+                .join(",");
+            tracing::warn!(
+                zone = zone.0,
+                quarantined_lanes = rows.len(),
+                owners = %owners,
+                "quarantined lanes: these owners are refused until an operator clears them"
+            );
+        },
+        Err(error) => {
+            tracing::warn!(zone = zone.0, error = %error, "quarantined lanes could not be listed");
+        },
+    }
 }
 
 #[cfg(test)]

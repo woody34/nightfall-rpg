@@ -354,6 +354,130 @@ mod tests {
     }
 
     #[test]
+    fn v6_codec_decodes_all_ten_item_intents_and_legacy_codecs_still_refuse_them() {
+        use crate::domain::zone::ItemCommandKind as K;
+        use pb::client_message::Intent;
+        let e = EntityId::from_uuid(Uuid::from_u128(5));
+        let key = Uuid::from_u128(7).to_string();
+        let npc = || {
+            Some(pb::ItemTarget {
+                entity_id: Uuid::from_u128(2).as_bytes().to_vec(),
+                incarnation: 3,
+            })
+        };
+        let intents = [
+            Intent::EquipItem(pb::EquipItemRequest {
+                idempotency_key: key.clone(),
+                instance_id: 9,
+                preferred_slot: pb::EquipSlot::Rhand.into(),
+            }),
+            Intent::UnequipItem(pb::UnequipItemRequest {
+                idempotency_key: key.clone(),
+                slot: pb::EquipSlot::Rhand.into(),
+            }),
+            Intent::UseItem(pb::UseItemRequest {
+                idempotency_key: key.clone(),
+                instance_id: 9,
+                target: None,
+            }),
+            Intent::DestroyItem(pb::DestroyItemRequest {
+                idempotency_key: key.clone(),
+                instance_id: 9,
+                count: 2,
+            }),
+            Intent::EnchantItem(pb::EnchantItemRequest {
+                idempotency_key: key.clone(),
+                scroll_instance_id: 10,
+                target_instance_id: 9,
+                support_instance_id: None,
+            }),
+            Intent::ToggleAutoShot(pb::ToggleAutoShotRequest {
+                idempotency_key: key.clone(),
+                template_id: 1835,
+                enabled: true,
+            }),
+            Intent::RefineItem(pb::RefineItemRequest {
+                idempotency_key: key.clone(),
+                npc: npc(),
+                target_instance_id: 9,
+                stone_instance_id: 11,
+            }),
+            Intent::CancelRefine(pb::CancelRefineRequest {
+                idempotency_key: key.clone(),
+                npc: npc(),
+                target_instance_id: 9,
+            }),
+            Intent::ExchangeSpecialAbility(pb::ExchangeSpecialAbilityRequest {
+                idempotency_key: key.clone(),
+                npc: npc(),
+                target_instance_id: 9,
+                recipe_id: 4,
+            }),
+            Intent::CrystallizeItem(pb::CrystallizeItemRequest {
+                idempotency_key: key.clone(),
+                instance_id: 9,
+            }),
+        ];
+        let mut kinds = Vec::new();
+        for (seq, intent) in (1_u32..).zip(intents) {
+            let frame = pb::ClientMessage {
+                seq,
+                intent: Some(intent),
+            }
+            .encode_to_vec();
+            let decoded = Phase4Codec.decode(e, &frame).unwrap();
+            assert_eq!(decoded.seq, seq);
+            assert!(
+                matches!(&decoded.command, Ok(ZoneCommand::Item(command))
+                    if command.entity == e && command.request_id.to_string() == key),
+                "V6 must decode item intent {seq}: {:?}",
+                decoded.command
+            );
+            if let Ok(ZoneCommand::Item(command)) = &decoded.command {
+                kinds.push(std::mem::discriminant(&command.kind));
+            }
+            for legacy in [
+                ProstCodec.decode(e, &frame).unwrap(),
+                Phase3Codec.decode(e, &frame).unwrap(),
+            ] {
+                assert_eq!(
+                    legacy.command,
+                    Err((SessionReject::NotYetImplemented, "phase 4 runtime is not yet available"))
+                );
+            }
+        }
+        assert_eq!(kinds.len(), 10);
+        for (i, kind) in kinds.iter().enumerate() {
+            assert!(!kinds[..i].contains(kind), "every intent maps to its own command kind");
+        }
+        assert_eq!(
+            kinds[1],
+            std::mem::discriminant(&K::Unequip {
+                slot: crate::domain::zone::EquipSlot::Rhand
+            })
+        );
+        // Malformed item bodies are refused as invalid; other intents decode exactly as V5.
+        let bad = pb::ClientMessage {
+            seq: 11,
+            intent: Some(Intent::CrystallizeItem(pb::CrystallizeItemRequest {
+                idempotency_key: "not-a-uuid".into(),
+                instance_id: 9,
+            })),
+        }
+        .encode_to_vec();
+        assert_eq!(
+            Phase4Codec.decode(e, &bad).unwrap().command.unwrap_err().0,
+            SessionReject::Invalid
+        );
+        let stop = pb::ClientMessage {
+            seq: 12,
+            intent: Some(Intent::StopMove(pb::StopMoveRequest {})),
+        }
+        .encode_to_vec();
+        assert_eq!(Phase4Codec.decode(e, &stop), Phase3Codec.decode(e, &stop));
+    }
+
+    #[test]
     fn rejections_encode_as_intent_rejected() {
         let b = ProstCodec.rejected(9, SessionReject::RateLimited, "slow down");
         let m = pb::ServerMessage::decode(b.as_ref()).unwrap();
@@ -365,6 +489,36 @@ mod tests {
                 detail: "slow down".to_owned(),
             }))
         );
+    }
+}
+
+/// Phase 4 input adapter, selected by a durable V6 epoch: the ten item intents decode to
+/// session item commands (the actor adds account authority and receipt preflight); every
+/// other intent is decoded exactly as V5 does.
+#[derive(Debug, Clone, Copy)]
+pub struct Phase4Codec;
+
+impl SessionCodec for Phase4Codec {
+    fn decode(&self, entity: EntityId, frame: &[u8]) -> Result<DecodedIntent, Undecodable> {
+        let msg = pb::ClientMessage::decode(frame).map_err(|_| Undecodable)?;
+        let Some(intent) = msg.intent.as_ref() else {
+            return Phase3Codec.decode(entity, frame);
+        };
+        let command = match crate::interface::zone_mapping::item_command_from_pb(entity, intent) {
+            Ok(None) => return Phase3Codec.decode(entity, frame),
+            Ok(Some(command)) => Ok(crate::domain::zone::ZoneCommand::Item(Box::new(command))),
+            Err(error) => Err((SessionReject::Invalid, mapping_detail(error))),
+        };
+        Ok(DecodedIntent {
+            seq: msg.seq,
+            command,
+        })
+    }
+    fn rejected(&self, seq: u32, reason: SessionReject, detail: &str) -> Bytes {
+        ProstCodec.rejected(seq, reason, detail)
+    }
+    fn outputs(&self, outputs: &[ObserverOutput], server_time_ms: i64) -> Vec<Bytes> {
+        ProstCodec.outputs(outputs, server_time_ms)
     }
 }
 

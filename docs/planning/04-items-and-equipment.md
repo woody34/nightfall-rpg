@@ -2,44 +2,50 @@
 
 ## 1. Purpose and scope
 
-Phase 4 delivers everything a character can hold, wear, or consume:
+Phase 4 gives all the items that a character can hold, wear, or use up:
 
-- **Item templates** (static definitions loaded from data files) and **item instances** (rows owned by a character, with enchant level, augmentation, binding, and stack count).
+- **Item templates** (static definitions that the server loads from data files).
+- **Item instances** (rows that a character owns, with enchant level, augmentation, binding, and stack count).
 - **Weapons** (type, P.Atk/M.Atk, attack speed, crit rate, random damage, range, shot consumption, MP cost for bows).
-- **Armor** (heavy/light/robe tradeoffs, class mastery hooks, set bonuses), **jewelry** (M.Def, resistances), **shields**.
-- The **grade system** (No/D/C/B/A/S), expertise levels, and the grade penalty applied when equipping above expertise.
+- **Armor** (the tradeoffs of heavy/light/robe, class mastery hooks, set bonuses), **jewelry** (M.Def, resistances), **shields**.
+- The **grade system** (No/D/C/B/A/S), the expertise levels, and the grade penalty. The server applies this penalty when a character equips an item above its expertise.
 - **Consumables**: soulshots, spiritshots, blessed spiritshots, potions, scrolls.
-- **Enchanting** (safe levels, success curves, per-level stat bonus, blessed scrolls, crystallization on failure).
+- **Enchanting** (safe levels, success curves, the stat bonus for each level, blessed scrolls, crystallization after a failure).
 - **Augmentation** (life stones, option pools, skill chance) and **special abilities** (soul crystals).
 - **Inventory** (slot and weight limits, overweight penalties), **warehouse** (private, clan), and **freight**.
 
-Explicitly excluded: how items are *acquired* (drops, crafting, shops, trade) — Phase 5; combat formulas that consume the stats defined here — Phase 3; pet items and mounts — Phase 3/6; cosmetic items — Phase 8.
+These items are not in the scope of this phase:
 
-Phase 3 (combat) consumes the stat outputs of this phase (P.Atk, attack speed, shot multipliers) and Phase 5 (economy) consumes the identity model (stackability, tradeability, grade, crystal value).
+- How a character *gets* items (drops, crafting, shops, trade). This is Phase 5.
+- The combat formulas that use the stats in this document. This is Phase 3.
+- Pet items and mounts. This is Phase 3/6.
+- Cosmetic items. This is Phase 8.
+
+Phase 3 (combat) uses the stat outputs of this phase (P.Atk, attack speed, shot multipliers). Phase 5 (economy) uses the identity model (stackability, tradeability, grade, crystal value).
 
 ## 2. Reference: how Lineage 2 does it
 
-Numbers below are taken from the L2J High Five datapack and server source (the most complete open reimplementation), cross-checked against an Interlude-era L2J fork where the two eras differ. L2J's values are themselves reverse-engineered from retail and are a starting point, not canon.
+The numbers below come from the L2J High Five datapack and server source. This is the most complete open reimplementation. Where the two eras are different, we compared the numbers with an Interlude-era L2J fork. L2J got its values from retail by reverse engineering. Thus these values are a start point, not canon.
 
 ### 2.1 Weapon types and base stats
 
-Every weapon template carries `weapon_type`, `bodypart` (`rhand` = one-handed, `lrhand` = two-handed), `random_damage`, `attack_range`, `soulshots`/`spiritshots` (shots consumed per hit), optional `mp_consume` and `reuse_delay` (bows), and four stats: `pAtk`, `mAtk`, `critRate`, `pAtkSpd`. A survey of all ~4,000 weapon templates in the H5 datapack gives these per-type constants (the base attack speed is the same for every weapon of a type regardless of grade):
+Each weapon template has `weapon_type`, `bodypart` (`rhand` = one-handed, `lrhand` = two-handed), `random_damage`, and `attack_range`. It also has `soulshots`/`spiritshots` (the shots that one hit uses). Bows can also have `mp_consume` and `reuse_delay`. Each template has four stats: `pAtk`, `mAtk`, `critRate`, `pAtkSpd`. We examined all ~4,000 weapon templates in the H5 datapack. The result is the constants below for each type. The base attack speed is the same for all weapons of a type, at all grades:
 
 | Type (L2J `weapon_type`) | Slot | Base Atk.Spd | Crit rate | Random dmg % | Attack range | Notes |
 |---|---|---|---|---|---|---|
 | SWORD (1H) | rhand | 379 | 8 | 10 | 40 | |
-| SWORD (2H) | lrhand | 325 | 8 | 10 | 40 | Higher P.Atk than 1H of same grade |
-| BLUNT (1H) | rhand | 379 | 4 | 20 | 40 | `accCombat +4.75`; mage staves are 2H blunts flagged `is_magic_weapon` |
+| SWORD (2H) | lrhand | 325 | 8 | 10 | 40 | More P.Atk than a 1H of the same grade |
+| BLUNT (1H) | rhand | 379 | 4 | 20 | 40 | `accCombat +4.75`; mage staves are 2H blunts with the flag `is_magic_weapon` |
 | BLUNT (2H) | lrhand | 325 | 4 | 20 | 40 | |
-| DAGGER | rhand | 433 | 12 | 5 | 40 | Lowest P.Atk per grade, highest speed/crit |
-| BOW | lrhand | 293 (227 for the slow "heavy" bows) | 12 | 5 | 500 | `accCombat -3.75`, `mp_consume` per shot, `reuse_delay 1500` ms between shots |
+| DAGGER | rhand | 433 | 12 | 5 | 40 | Lowest P.Atk for each grade, highest speed/crit |
+| BOW | lrhand | 293 (227 for the slow "heavy" bows) | 12 | 5 | 500 | `accCombat -3.75`, `mp_consume` for each shot, `reuse_delay 1500` ms between shots |
 | DUAL | lrhand | 325 | 8 | 10 | 40 | Dual swords; P.Atk between 1H and 2H |
 | DUALFIST | lrhand | 325 | 4 | 5 | 40 | `accCombat +4.75` |
-| POLE | lrhand | 325 | 8 | 10 | 80 | `accCombat -3.75`; hits up to N targets in an arc (skill 3599) |
+| POLE | lrhand | 325 | 8 | 10 | 80 | `accCombat -3.75`; hits a maximum of N targets in an arc (skill 3599) |
 | FIST (bare hands) | — | 325 | 4 | 5 | 40 | P.Atk 4 at level 1 |
-| RAPIER / ANCIENTSWORD / CROSSBOW (Kamael, Gracia+) | — | 406 / 350 / 303 | 10 / 8 / 10 | 40 / 15 / 10 | | Out of scope for Nightfall's era |
+| RAPIER / ANCIENTSWORD / CROSSBOW (Kamael, Gracia+) | — | 406 / 350 / 303 | 10 / 8 / 10 | 40 / 15 / 10 | | Not in the scope of the Nightfall era |
 
-Representative P.Atk / M.Atk by grade (from the datapack):
+Typical P.Atk / M.Atk for each grade (from the datapack):
 
 | Grade | 1H sword | 2H sword | Dagger | Bow | Pole | Dual | Mage staff (2H blunt) |
 |---|---|---|---|---|---|---|---|
@@ -48,29 +54,43 @@ Representative P.Atk / M.Atk by grade (from the datapack):
 | B (Sword of Damascus, Great Sword, Bow of Peril, Lance, Arthro Nail) | 194 / 99 | 213 / 91 | ~168 / 99 | 400 / 99 | 194 / 99 | — | — |
 | A (Keshanberk*Keshanberk) | — | — | — | — | — | 259 / 107 | — |
 
-The bow's 400 P.Atk vs. the sword's 194 at the same grade is deliberate: the bow fires at 293 speed, pays `mp_consume` 1-6 MP per shot by grade (NG 1, D 2, C 3, B 4, A 5, S 6), has `reuse_delay 1500` ms, and consumes more soulshots per hit at low grades (D bows 6-10, C bows 8-10, B 3, A 2, S 1; melee weapons 2-3 at NG/D/C, 1 at B/A/S). Damage per hit for a normal attack is roughly `76 * P.Atk / P.Def` scaled by random damage, so bows trade sustained DPS and MP for burst and range.
+At the same grade, the bow has 400 P.Atk and the sword has 194. This difference is intentional, because the bow has these costs:
+
+- It fires at 293 speed.
+- It uses `mp_consume` 1-6 MP for each shot, by grade (NG 1, D 2, C 3, B 4, A 5, S 6).
+- It has `reuse_delay 1500` ms.
+- At low grades, it uses more soulshots for each hit: D bows 6-10, C bows 8-10, B 3, A 2, S 1. Melee weapons use 2-3 at NG/D/C, and 1 at B/A/S.
+
+For a normal attack, the damage for each hit is approximately `76 * P.Atk / P.Def`, scaled by random damage. Thus bows give less sustained DPS and use MP, but they give more burst and range.
 
 ### 2.2 Armor, shields, jewelry
 
-Armor templates carry `armor_type` (HEAVY, LIGHT, MAGIC = robe, or none for jewelry/shields), `bodypart` (`chest`, `legs`, `onepiece` = full body, `head`, `gloves`, `feet`, `lhand` = shield, `neck`, `rear;lear`, `rfinger;lfinger`), `pDef`/`mDef`, optional `maxMp`, and item skills for set/resist effects. Same-grade comparison (B grade):
+Armor templates have these fields:
+
+- `armor_type` (HEAVY, LIGHT, MAGIC = robe, or none for jewelry/shields).
+- `bodypart` (`chest`, `legs`, `onepiece` = full body, `head`, `gloves`, `feet`, `lhand` = shield, `neck`, `rear;lear`, `rfinger;lfinger`).
+- `pDef`/`mDef`, and an optional `maxMp`.
+- Item skills for set/resist effects.
+
+Comparison at the same grade (B grade):
 
 | Piece | Heavy (Blue Wolf) | Light (Blue Wolf) | Robe (Blue Wolf Tunic / Avadon Robe) |
 |---|---|---|---|
 | Upper body | Breastplate 166 P.Def | Leather Armor (full body) 202 P.Def | Tunic 83 P.Def +377 MP |
 | Lower body | Gaiters 104 P.Def | (included) | Stockings ~52 P.Def +MP |
 | Full body alternative | Doom Plate 270 P.Def | — | Avadon Robe 127 P.Def +561 MP |
-| Helmet | 66 P.Def (shared across types) | | |
+| Helmet | 66 P.Def (the same for all types) | | |
 
-A grade: Majestic Plate 293, Majestic Leather 220, Majestic Robe 147 (+718 MP). Rule of thumb from the data: light body armor ≈ 75% of heavy, robe ≈ 50% of heavy, with robes compensating with raw MP and (via class passives) casting speed and M.Def.
+A grade: Majestic Plate 293, Majestic Leather 220, Majestic Robe 147 (+718 MP). The data shows a general rule: light body armor ≈ 75% of heavy, and robe ≈ 50% of heavy. Robes compensate with raw MP. Robes also compensate with casting speed and M.Def (through class passives).
 
-The tradeoff is enforced through **class mastery passives**, not the items:
+The **class mastery passives** cause the tradeoff, not the items:
 
-- **Heavy Armor Mastery** (skill 231, 50 levels, lvl 18-74): `+pDef` from 1.9 to 79.3, conditional on `<using kind="HEAVY"/>`. Enchanted versions add HP regen.
-- **Light Armor Mastery**, fighter version (227): `+pDef` 4.2 to 81.3 and `+evasion` 3 to 6, only while wearing light. Rogue version (233): `+pDef` 1.3 to 65.6, `+evasion` 4 to 7, and critical damage received x0.85 / x0.75 / x0.65 by tier.
-- **Robe Mastery** (mages): M.Def and casting speed bonuses conditional on MAGIC armor.
-- Wearing the wrong type simply loses the passive; in Interlude mages in heavy additionally received casting-speed penalties via the same conditional mechanism.
+- **Heavy Armor Mastery** (skill 231, 50 levels, lvl 18-74): `+pDef` from 1.9 to 79.3, with the condition `<using kind="HEAVY"/>`. The enchanted versions also add HP regen.
+- **Light Armor Mastery**, fighter version (227): `+pDef` 4.2 to 81.3 and `+evasion` 3 to 6, only while the character wears light armor. Rogue version (233): `+pDef` 1.3 to 65.6, `+evasion` 4 to 7, and critical damage received x0.85 / x0.75 / x0.65 by tier.
+- **Robe Mastery** (mages): M.Def and casting speed bonuses, with the condition of MAGIC armor.
+- If a character wears the incorrect type, it does not get the passive. In Interlude, mages in heavy armor also got casting-speed penalties through the same conditional mechanism.
 
-Jewelry provides **M.Def only** (plus MP on later grades) and is where elemental/status resistances live via `item_skill`:
+Jewelry gives **M.Def only** (plus MP on later grades). Elemental/status resistances are on jewelry, through `item_skill`:
 
 | Grade | Necklace | Earring | Ring |
 |---|---|---|---|
@@ -78,13 +98,19 @@ Jewelry provides **M.Def only** (plus MP on later grades) and is where elemental
 | A (Majestic) | 85 (+33 MP) | 63 (+25 MP) | 42 (+17 MP) |
 | S (Tateossian) | 95 (+42 MP) | ~71 | 48 (+21 MP) |
 
-**Shields** (`lhand`) add P.Def and a block rate (`rShld`) with a block power (`shieldDef`); block is rolled before P.Def in Phase 3.
+**Shields** (`lhand`) add P.Def and a block rate (`rShld`) with a block power (`shieldDef`). In Phase 3, the block roll occurs before P.Def.
 
-**Armor sets** are a separate data file (`stats/armorsets/{b_grade,a_grade,...}.xml`). A set lists accepted item ids per slot (including alternate versions such as "Light Use" variants), a `skill` granted when the full set is worn (e.g. `3520 Zubei's Leather Shirt Light Armor Set`: +STR/-CON style stat shifts, +evasion, +MP regen depending on set) and an `enchant6skill` granted when every piece is +6 or higher (e.g. `3618 Enchant Light Armor (B Grade)`, +P.Def %). Full-body pieces count as chest+legs.
+**Armor sets** are in a separate data file (`stats/armorsets/{b_grade,a_grade,...}.xml`). A set has these parts:
+
+- A list of the accepted item ids for each slot. This list includes alternative versions, for example "Light Use" variants.
+- A `skill` that the character gets when it wears the full set. An example is `3520 Zubei's Leather Shirt Light Armor Set`: stat shifts of the +STR/-CON type, +evasion, and +MP regen, by set.
+- An `enchant6skill` that the character gets when all pieces are +6 or higher. An example is `3618 Enchant Light Armor (B Grade)`, +P.Def %.
+
+Full-body pieces count as chest+legs.
 
 ### 2.3 Grades, expertise and the grade penalty
 
-Grades are the `crystal_type` of the template. L2J's `CrystalType` enum also stores the crystal item and the crystal-count growth per enchant level:
+Grades are the `crystal_type` of the template. The L2J `CrystalType` enum also keeps the crystal item and the increase of the crystal count for each enchant level:
 
 | Grade | id | Crystal item | Crystal bonus per enchant (armor / weapon) | Level band (Expertise skill) |
 |---|---|---|---|---|
@@ -96,14 +122,14 @@ Grades are the `crystal_type` of the template. L2J's `CrystalType` enum also sto
 | S | 5 | 1462 | 25 / 250 | 76+ |
 | S80 / S84 | 6 / 7 | 1462 | 25 / 250 | 80+ / 84+ (Gracia+) |
 
-Expertise is a passive skill (id 239) auto-learned at 20/40/52/61/76; its level equals the highest grade id usable without penalty. The penalty is recomputed on every equip change (`refreshExpertisePenalty`):
+Expertise is a passive skill (id 239). A character learns it automatically at 20/40/52/61/76. Its level is equal to the highest grade id that the character can use without a penalty. The server calculates the penalty again at each equip change (`refreshExpertisePenalty`):
 
 ```
 weaponPenalty = clamp(maxEquippedWeaponGradeId - expertiseLevel - bonus, 0, 4)
 armorPenalty  = clamp(maxEquippedArmorGradeId  - expertiseLevel - bonus, 0, 4)   // armor, shield, jewelry; arrows exempt
 ```
 
-Each non-zero penalty level applies a hidden passive:
+Each penalty level that is not zero applies a hidden passive:
 
 | Penalty level | Weapon Grade Penalty (skill 6209) | Armor Grade Penalty (skill 6213) |
 |---|---|---|
@@ -112,43 +138,48 @@ Each non-zero penalty level applies a hidden passive:
 | 3 | Accuracy -16, crit x0.7, crit dmg x0.7, … | Evasion -7.5, speeds x0.5787 |
 | 4 | Accuracy -16, crit x0.6, crit dmg x0.6, … | Evasion -10, speeds x0.4823 |
 
-The armor speed multipliers are `1 / 1.2^n`. In Interlude the penalty was accuracy/evasion only (one level per grade over), which is why "twinks" in over-grade gear were viable there and not in Gracia+.
+The armor speed multipliers are `1 / 1.2^n`. In Interlude, the penalty was accuracy/evasion only (one level for each grade above the expertise). For this reason, "twinks" in over-grade gear were effective in Interlude, but not in Gracia+.
 
 ### 2.4 Consumables
 
-**Soulshots / spiritshots / blessed spiritshots** are stackable `EtcItem`s whose handler consumes `weapon.soulshots` (or `spiritshots`) units and sets a charged flag that the next attack or spell consumes:
+**Soulshots / spiritshots / blessed spiritshots** are stackable `EtcItem`s. Their handler uses `weapon.soulshots` (or `spiritshots`) units and sets a charged flag. The next attack or spell uses this flag:
 
 | Shot | Effect (H5 L2J) | NPC price per unit, by grade (NG/D/C/B/A/S) |
 |---|---|---|
-| Soulshot | Normal hit: P.Atk x2 (`ssboost = 2`). Physical skills: `77 * (power + P.Atk * 2) / P.Def` (Interlude formula used x1.458 inside skills) | 7 / 14 / 22 / 50 / 80 / 100 |
-| Spiritshot | M.Atk x2 (damage ∝ sqrt(M.Atk), so ≈ x1.41 damage); casting time x0.6 | 15 / 18 / 35 / 100 / 120 / 150 |
+| Soulshot | Normal hit: P.Atk x2 (`ssboost = 2`). Physical skills: `77 * (power + P.Atk * 2) / P.Def` (the Interlude formula used x1.458 in skills) | 7 / 14 / 22 / 50 / 80 / 100 |
+| Spiritshot | M.Atk x2 (damage ∝ sqrt(M.Atk), thus ≈ x1.41 damage); casting time x0.6 | 15 / 18 / 35 / 100 / 120 / 150 |
 | Blessed Spiritshot | M.Atk x4 (≈ x2 damage); casting time x0.6 | 35 / 28 / 42 / 245 / 290 / 350 |
 
-A shot must match the weapon's grade. Monsters also carry `shotChance`/`spiritChance` (e.g. 30%) to fire their own shots.
+A shot must match the grade of the weapon. Monsters also have `shotChance`/`spiritChance` (for example 30%) to fire their own shots.
 
-**Potions**: Healing Potion (+ HP over time), Greater/Quick variants, Mana Potions were *not* in Interlude retail (private-server addition). **Scrolls**: Scroll of Escape (teleport to nearest town, cast time 20 s, interrupted on damage), Scroll of Resurrection (restores XP fraction by scroll tier), Blessed Scroll of Escape, enchant scrolls (next section).
+**Potions**: Healing Potion (+ HP over time) and the Greater/Quick variants. Mana Potions were *not* in Interlude retail (private servers added them). **Scrolls**:
+
+- Scroll of Escape (teleport to the nearest town, cast time 20 s, damage interrupts it).
+- Scroll of Resurrection (gives back a fraction of XP, by scroll tier).
+- Blessed Scroll of Escape.
+- Enchant scrolls (next section).
 
 ### 2.5 Enchanting
 
-Rules common to all eras:
+These rules are the same in all eras:
 
-- Scroll must match item grade and category (weapon vs. armor; jewelry uses armor scrolls).
-- **Safe enchant: +3** for everything, **+4 for full-body armor** (`onepiece`). Below the safe level success is 100%.
-- Success increments enchant by 1. The server broadcasts at armor +6 / weapon +7 and at +15.
-- **Failure with a normal scroll**: item is destroyed and converted into crystals of its grade (if `crystallizable`). L2J's count: `crystals = item.crystalCount(with enchant bonus) - (baseCrystalCount + 1) / 2`, minimum 1. The "with enchant bonus" term is `base + crystalEnchantBonus * (enchant - 3)` for enchant > 3, so a +10 B weapon returns far more B crystals than a +0 one.
-- **Failure with a blessed scroll**: item survives, enchant resets to +0 (and the item is unequipped). Blessed Scroll: Enchant Weapon (A) lists at 15,000,000 adena vs 1,800,000 for the normal A scroll.
-- **Crystal scrolls** (Interlude/C4 era): fail → stays at current level. Removed later.
-- Armor reaching +4 while equipped grants its `enchant4Skill` (e.g. +4 Doom helmet set bonuses); +6 full sets grant `enchant6skill`.
+- The scroll must match the item grade and category (weapon or armor; jewelry uses armor scrolls).
+- **Safe enchant: +3** for all items, **+4 for full-body armor** (`onepiece`). Below the safe level, success is 100%.
+- A success increases the enchant by 1. The server broadcasts at armor +6 / weapon +7 and at +15.
+- **Failure with a normal scroll**: the item is destroyed, and the server changes it into crystals of its grade (if `crystallizable`). The L2J count is `crystals = item.crystalCount(with enchant bonus) - (baseCrystalCount + 1) / 2`, minimum 1. For enchant > 3, the "with enchant bonus" term is `base + crystalEnchantBonus * (enchant - 3)`. Thus a +10 B weapon gives back many more B crystals than a +0 B weapon.
+- **Failure with a blessed scroll**: the item is not destroyed, and the enchant goes back to +0 (the item is also unequipped). The list price of Blessed Scroll: Enchant Weapon (A) is 15,000,000 adena. The list price of the normal A scroll is 1,800,000.
+- **Crystal scrolls** (Interlude/C4 era): after a failure, the item stays at its current level. Later versions removed these scrolls.
+- When armor gets to +4 while it is equipped, it gives its `enchant4Skill` (for example +4 Doom helmet set bonuses). Full sets at +6 give `enchant6skill`.
 
-Success chance differs by era:
+The success chance is different for each era:
 
 | Era | Weapon (after safe) | Armor / jewelry (after safe) |
 |---|---|---|
 | Interlude (community-reported retail) | flat ~66% | flat ~66% |
 | L2J Interlude fork defaults | 68% | armor 52%, jewelry 54% |
-| H5 L2J (`enchantItemGroups.xml`) | Fighter weapons: 70% for +3→+15, 35% beyond. Mage weapons: 40% for +3→+15, 20% beyond | +3→+4 66.67%, then `100/(n-1)`: 33.34, 25, 20, 16.67, 14.29, 12.5, 11.12, 10, 9.1, 8.34, 7.7, 7.15, 6.67, 6.25, 5.89, 5.56 (+19→+20), 0 beyond. Full body shifted one step (100% to +4) |
+| H5 L2J (`enchantItemGroups.xml`) | Fighter weapons: 70% for +3→+15, 35% after that. Mage weapons: 40% for +3→+15, 20% after that | +3→+4 66.67%, then `100/(n-1)`: 33.34, 25, 20, 16.67, 14.29, 12.5, 11.12, 10, 9.1, 8.34, 7.7, 7.15, 6.67, 6.25, 5.89, 5.56 (+19→+20), 0 after that. Full body moves one step (100% to +4) |
 
-Stat bonus per enchant level (`FuncEnchant`). `enchant` is capped at 3 for the base term and `over = enchant - 3` is the doubled term:
+Stat bonus for each enchant level (`FuncEnchant`). For the base term, `enchant` has a cap of 3. The doubled term is `over = enchant - 3`:
 
 | Stat | Grade | Per level ≤+3 | Per level >+3 |
 |---|---|---|---|
@@ -160,11 +191,11 @@ Stat bonus per enchant level (`FuncEnchant`). `enchant` is capped at 3 for the b
 | P.Atk, 2H (2H sword, 2H blunt, dual, dualfist) | S / A / B-C / D-NG | +6 / +5 / +4 / +2 | +12 / +10 / +8 / +4 |
 | P.Atk, bow | S / A / B-C / D-NG | +10 / +8 / +6 / +4 | +20 / +16 / +12 / +8 |
 
-(*L2J treats poles as `lrhand`, so they use the 2H row; retail descriptions list spears with the 1H row. Decide one way in Nightfall.) Example: Bow of Peril (B) at +12 gains `6*3 + 12*9 = 126` P.Atk on a 400 base. Armor at +6 gains `3 + 3*3 = 12` P.Def per piece; at +3 it gains only 3, which is why +3 is cheap and +6 is the first meaningful milestone.
+(*L2J sets poles as `lrhand`, thus they use the 2H row. Retail descriptions put spears in the 1H row. Nightfall must select one of the two.) Example: Bow of Peril (B) at +12 gets `6*3 + 12*9 = 126` P.Atk on a base of 400. Armor at +6 gets `3 + 3*3 = 12` P.Def for each piece. At +3 it gets only 3. For this reason, +3 is cheap and +6 is the first important milestone.
 
 ### 2.6 Augmentation (life stones)
 
-Augmentation adds two hidden "options" (each an id in a 16-bit field, stored as `(stat34 << 16) | stat12`) to a C+ weapon, consuming a Life Stone and Gemstones, with **100% success**. Removing an augmentation costs adena by grade and clears both options.
+Augmentation adds two hidden "options" to a C+ weapon. Each option is an id in a 16-bit field, stored as `(stat34 << 16) | stat12`. Augmentation uses a Life Stone and Gemstones, and it has **100% success**. To remove an augmentation, the character pays adena by grade. The removal clears the two options.
 
 | Life Stone grade | NPC reference price (lvl 46 stone) | L2J skill chance (`AugmentationXXSkillChance`) | Glow chance | Retail-like colour split yellow/blue/purple/red |
 |---|---|---|---|---|
@@ -173,30 +204,45 @@ Augmentation adds two hidden "options" (each an id in a 16-bit field, stored as 
 | High-grade | 200,000 | 45% | 70% | same |
 | Top-grade | 1,000,000 | 60% | 100% | same |
 
-Purple and red results always carry a skill, so the "retail-like" mode yields ~10% skill chance regardless of grade, with grade mostly controlling the *strength* of the stat roll (offset = `lifeStoneLevel * 91` sub-block inside a 3640-entry block per colour) and the glow. Life stone **level** (46, 49, 52, 55, 58, 61, 64, 67, 70, 76, then 80/82/84) must be ≤ the character's level and scales the magnitude of stat options. Base-stat modifiers (+1 STR/CON/INT/MEN) have a flat 1% chance independent of grade.
+Purple and red results always have a skill. Thus the "retail-like" mode gives ~10% skill chance at all grades. The grade controls mostly the *strength* of the stat roll and the glow. The offset is a `lifeStoneLevel * 91` sub-block in a 3640-entry block for each colour. The life stone **level** (46, 49, 52, 55, 58, 61, 64, 67, 70, 76, then 80/82/84) must be ≤ the level of the character. This level scales the magnitude of the stat options. Base-stat modifiers (+1 STR/CON/INT/MEN) have a flat 1% chance, and the grade has no effect on this chance.
 
 Option pools (yellow = plain stat, blue = better stat, purple = passive/chance skill, red = active skill):
 
 - Stats: P.Atk, M.Atk, P.Def, M.Def, Max HP/MP/CP, HP/MP/CP regen, Accuracy, Evasion, Crit rate, Atk.Spd, Cast.Spd, Speed, STR/CON/INT/MEN +1.
-- Passive skills: Reflect damage, Heal/Refresh/Duel Might (party or self stat %), Prayer, Agility, Empower, Might, Shield, etc.
-- Chance skills (proc on hit/being hit): Poison, Stun, Paralyze, Silence, Hold, Heal, Refresh.
-- Active skills (castable): Heal, Celestial Shield, Blessed Body/Soul, Haste, Might, Empower, Wild Magic, Cheap Shot, Guidance, Focus, Shield, Agility, Duel Might, Reflex, Stun, Blessed Escape, Bleed, Poison, Fire/Ice/Wind bolts, Hydro Blast, etc.
+- Passive skills: Reflect damage, Heal/Refresh/Duel Might (party or self stat %), Prayer, Agility, Empower, Might, Shield, and other skills.
+- Chance skills (proc when the character hits or gets a hit): Poison, Stun, Paralyze, Silence, Hold, Heal, Refresh.
+- Active skills (castable): Heal, Celestial Shield, Blessed Body/Soul, Haste, Might, Empower, Wild Magic, Cheap Shot, Guidance, Focus, Shield, Agility, Duel Might, Reflex, Stun, Blessed Escape, Bleed, Poison, Fire/Ice/Wind bolts, Hydro Blast, and other skills.
 
-Gemstone cost per attempt (`getGemStoneCount`): C 20 Gemstone D, B 30 Gemstone D, A 20 Gemstone C, S 25 Gemstone C (S80/S84 36 Gemstone B). Accessory augmentation (Freya+) uses accessory life stones and 200-480 gemstones.
+Gemstone cost for each attempt (`getGemStoneCount`): C 20 Gemstone D, B 30 Gemstone D, A 20 Gemstone C, S 25 Gemstone C (S80/S84 36 Gemstone B). Accessory augmentation (Freya+) uses accessory life stones and 200-480 gemstones.
 
 ### 2.7 Special abilities (soul crystals)
 
-A C-grade or better weapon can be exchanged at a Blacksmith of Mammon for an SA variant (e.g. `Sword of Damascus - Focus`, `item_skill 3010-6`) by paying the base weapon, a Soul Crystal of matching stage and colour, Gemstones, and Ancient Adena. SA names observed across the datapack (counts are number of weapon variants): Focus (240), Health (226), Haste (151), Mana Up (69), Acumen (66), Cheap Shot (61), Critical Damage (59), Light (58), Guidance (56), Anger (54), HP Drain (40), Critical Stun (39), Conversion (35), Magic Hold (33), Critical Poison (31), Critical Bleed (30), HP Regeneration (28), Critical Drain (28), Rsk. Focus (27), Critical Slow (25), Rsk. Haste (24), MP Regeneration (24), Evasion (23), Rsk. Evasion (22), Quick Recovery (21), Mental Shield (18), Back Blow (18), Magic Silence (17), Empower (17), M. Atk. (15), Great Gale (15), Towering Blow (14), Thunder (13), Miser (12), Magic Weakness (12).
+A character can exchange a weapon of C grade or higher for an SA variant at a Blacksmith of Mammon (for example `Sword of Damascus - Focus`, `item_skill 3010-6`). The character pays with the base weapon, a Soul Crystal of the matching stage and colour, Gemstones, and Ancient Adena. These are the SA names in the datapack (the counts are the number of weapon variants): Focus (240), Health (226), Haste (151), Mana Up (69), Acumen (66), Cheap Shot (61), Critical Damage (59), Light (58), Guidance (56), Anger (54), HP Drain (40), Critical Stun (39), Conversion (35), Magic Hold (33), Critical Poison (31), Critical Bleed (30), HP Regeneration (28), Critical Drain (28), Rsk. Focus (27), Critical Slow (25), Rsk. Haste (24), MP Regeneration (24), Evasion (23), Rsk. Evasion (22), Quick Recovery (21), Mental Shield (18), Back Blow (18), Magic Silence (17), Empower (17), M. Atk. (15), Great Gale (15), Towering Blow (14), Thunder (13), Miser (12), Magic Weakness (12).
 
-Weapon type conventions: swords get Focus/Haste/Health (1H) or Focus/Health/Critical Damage (2H); daggers Focus/Back Blow/Critical Damage or Critical Bleed/Poison; bows Cheap Shot/Focus/Critical Slow or Guidance/Light/Miser; blunts Anger/Health/Rsk. Focus; mage staves Acumen/Conversion/Mana Up or Empower/Magic Hold/Magic Silence; duals Focus/Health/Critical Damage; poles Guidance/Light/Haste or Anger/Critical Stun/Towering Blow.
+The usual SA for each weapon type:
 
-Soul crystals come in Red / Green / Blue, stages 1-13 (H5 extends to 16). Required stage by grade: C needs 7-8, B 9-10, A 11-12, S 13. Stage 1-10 crystals are leveled by killing specific monsters while the crystal is in inventory (`levelUpCrystalData.xml` lists per NPC: which stage it can raise, `LAST_HIT` vs `FULL_PARTY` absorb mode, whether the Dwarf skill is needed, and a chance, default 5%); stage 11+ requires raid bosses with `FULL_PARTY` absorb. A failed absorb at high stage can **break** the crystal into a broken crystal, which is the main sink for the SA market.
+- Swords: Focus/Haste/Health (1H) or Focus/Health/Critical Damage (2H).
+- Daggers: Focus/Back Blow/Critical Damage or Critical Bleed/Poison.
+- Bows: Cheap Shot/Focus/Critical Slow or Guidance/Light/Miser.
+- Blunts: Anger/Health/Rsk. Focus.
+- Mage staves: Acumen/Conversion/Mana Up or Empower/Magic Hold/Magic Silence.
+- Duals: Focus/Health/Critical Damage.
+- Poles: Guidance/Light/Haste or Anger/Critical Stun/Towering Blow.
+
+Soul crystals come in Red / Green / Blue, stages 1-13 (H5 extends to 16). The necessary stage by grade: C needs 7-8, B 9-10, A 11-12, S 13. A stage 1-10 crystal gets a higher level when the character kills specific monsters while the crystal is in the inventory. For each NPC, `levelUpCrystalData.xml` gives these data:
+
+- The stage that the NPC can raise.
+- The absorb mode, `LAST_HIT` or `FULL_PARTY`.
+- If the Dwarf skill is necessary.
+- A chance (default 5%).
+
+A stage 11+ crystal must have raid bosses with `FULL_PARTY` absorb. At a high stage, a failed absorb can **break** the crystal into a broken crystal. This is the main sink for the SA market.
 
 ### 2.8 Item identity, flags, inventory and storage
 
-Template flags (parsed in `L2Item`): `is_stackable` (default false), `is_sellable`, `is_droppable`, `is_destroyable`, `is_tradable`, `is_depositable` (default true), `is_questitem`, `is_freightable`, `enchant_enabled`, `element_enabled`, `duration` (minutes, shadow items), `time` (seconds, time-limited items), `crystal_type`, `crystal_count`, `price` (reference price for NPC sell = `price / 2`), `weight` (in 1/1000 units, so a 1,600 "weight" short sword weighs 1.6 kg). Every instance has an `object_id` (32-bit, unique across the world) separate from the template `item_id`; stackables are one instance with a count.
+Template flags (parsed in `L2Item`): `is_stackable` (default false), `is_sellable`, `is_droppable`, `is_destroyable`, `is_tradable`, `is_depositable` (default true), `is_questitem`, `is_freightable`, `enchant_enabled`, `element_enabled`, `duration` (minutes, shadow items), `time` (seconds, time-limited items), `crystal_type`, `crystal_count`, `price` (reference price for NPC sell = `price / 2`), `weight` (in 1/1000 units, thus a short sword with 1,600 "weight" weighs 1.6 kg). Each instance has an `object_id` (32-bit, unique in the world) that is different from the template `item_id`. A stackable is one instance with a count.
 
-"Soulbound" in the retail sense (bind-on-equip) does not exist in classic L2; untradeable items are untradeable from the template (`is_tradable=false`, e.g. quest rewards, hero weapons, PvP items, Common Items). **Common Items** (lower-cost crafted variants, e.g. `Common Item - Sword of Damascus`) share stats with the original but have `crystal_count` 82 vs 1346, cannot be enchanted or augmented, and are untradeable. **Shadow items** have `duration` and vanish when it expires.
+In classic L2, "Soulbound" in the retail sense (bind-on-equip) does not exist. An item is untradeable only if its template is untradeable (`is_tradable=false`, for example quest rewards, hero weapons, PvP items, Common Items). **Common Items** are crafted variants with a lower cost (for example `Common Item - Sword of Damascus`). They have the same stats as the original, but they have `crystal_count` 82 (the original has 1346). A character cannot enchant or augment them, and they are untradeable. **Shadow items** have a `duration`, and they disappear when it expires.
 
 Capacity (character.properties):
 
@@ -204,12 +250,12 @@ Capacity (character.properties):
 |---|---|---|---|
 | Inventory slots | 80 | 100 | GM 250; quest items have a separate 100-slot pool; client crashes above ~300 |
 | Private warehouse | 100 | 120 | |
-| Clan warehouse | 200 (150 in Interlude) | | Withdrawal gated by clan privilege |
-| Freight | 200 (20 in Interlude) | | 1,000 adena per deposited item; delivers between characters of one account |
+| Clan warehouse | 200 (150 in Interlude) | | Withdrawal is possible only with the clan privilege |
+| Freight | 200 (20 in Interlude) | | 1,000 adena for each deposited item; moves items between characters of one account |
 | Private store sell / buy slots | 3 / 4 | 4 / 5 | Interlude: 4 / 5 |
-| Max adena | 99,900,000,000 | | per container |
+| Max adena | 99,900,000,000 | | for each container |
 
-**Weight limit** (`getMaxLoad`): `floor(CON_bonus(CON) * 69000) * WeightLimitMultiplier`, where `CON_bonus` is the same table used for HP (≈1.0 at CON 43, giving ~69,000 weight units ≈ 69 kg). Items also have a `weightLimit` stat hook so belts/passives can add to it. Overweight penalty is recomputed on every inventory change (`refreshOverloaded`), with `load_pct = (currentLoad - bonusWeightPenalty) / maxLoad`:
+**Weight limit** (`getMaxLoad`): `floor(CON_bonus(CON) * 69000) * WeightLimitMultiplier`. `CON_bonus` is the same table that HP uses (≈1.0 at CON 43, which gives ~69,000 weight units ≈ 69 kg). Items also have a `weightLimit` stat hook, thus belts/passives can add to it. The server calculates the overweight penalty again at each inventory change (`refreshOverloaded`), with `load_pct = (currentLoad - bonusWeightPenalty) / maxLoad`:
 
 | Load | Penalty level (skill 4270) | HP/MP regen | Run speed | Other |
 |---|---|---|---|---|
@@ -219,38 +265,42 @@ Capacity (character.properties):
 | 80-100% | 3 | x0.5 | x0.5 | |
 | ≥ 100% | 4 | x0.5 | x0 | `isOverloaded`: cannot attack, cast or pick up |
 
-Dwarves get higher base CON and the Dwarven "weight limit" passives (`weightLimit` stat), not a different formula.
+Dwarves get a higher base CON and the Dwarven "weight limit" passives (`weightLimit` stat). They do not use a different formula.
 
 ## 3. Design decisions for Nightfall
 
-1. **Keep the six-grade ladder and the level bands** (NG 1-19, D 20-39, C 40-51, B 52-60, A 61-75, S 76+). Rationale: the ladder is the backbone of the economy's demand curve (Phase 5); its vertical steps create crafting and enchant markets per band. S80/S84 are not planned.
-2. **Grade penalty = Gracia+ model, not Interlude**: separate weapon/armor penalty levels 0-4 with the multiplicative speed penalties from 2.3. This closes the "twink" loophole and makes expertise meaningful. Penalty effects are data-driven buffs (Phase 3 status system), not hard-coded.
-3. **Weapon type constants are data, not code**: base attack speed, crit, random damage, range, shot count, MP cost live in the template file, with the 2.1 table as the defaults. Nightfall uses the 1H row for poles (retail description) rather than L2J's 2H row.
-4. **Armor type tradeoff via class passives**, exactly as L2 does, so a class can "wear anything" at the cost of its mastery. Phase 2 defines which classes get which mastery.
-5. **Enchant model**: safe +3 (+4 full body), then an H5-style per-level curve for armor (`100/(n-1)` from +4) and a flat-then-halved curve for weapons (70%/35% fighter, 40%/20% mage). Flat Interlude 66% was considered and rejected because the armor curve gives a natural ceiling without a hard cap. Blessed scrolls reset to +0; normal scrolls crystallize. Max enchant is uncapped for weapons and capped at +20 for armor (0% beyond +19), as in the H5 table.
-6. **Enchant bonus table** is the FuncEnchant table verbatim (2.5), stored as data keyed by `(stat, grade, weapon_class)`.
-7. **Augmentation**: adopt the two-option model with 100% success and grade-driven glow/strength, but use the "retail-like" 55/35/7/3 colour split so skill augments stay rare (~10%) at every grade. Life stone level gates magnitude. Removal is paid in adena (Phase 5 sink).
-8. **Special abilities**: implement SA as a *template variant* (separate `item_id`, as L2 does) rather than an instance modifier. Simpler for the client (icon/name per variant) and for the economy (SA weapons are distinct market items). Soul crystal leveling is a Phase 6 monster-side feature; this phase only defines the crystal items and the exchange.
-9. **Item identity**: `ItemTemplate` (static, loaded from TOML, hot-reloadable in dev) vs `ItemInstance` (Postgres row with `instance_id` UUIDv7). Stackables are one row with `count`; non-stackables always `count = 1`. Binding flags come from the template; Nightfall adds one instance-level flag `bound_to_character` reserved for future bind-on-pickup rewards (default false, never set in Phase 4).
-10. **Inventory limits**: 80 slots (+20 Dwarf), weight = `floor(CON_bonus * 69000)`, overweight levels as in 2.8. Warehouse 100/120, clan 200, freight 200 at 1,000 adena per item. These are config values, not constants.
-11. **Shots**: soulshot x2 P.Atk on hits, spiritshot x2 M.Atk, blessed x4 M.Atk and cast time x0.6, all grade-matched. Auto-use is client intent; the server validates grade, count, and charge state.
-12. **No item durability / repair**: as in L2. Enchant failure and crystallization are the item sink (Phase 5).
+1. **Keep the six-grade ladder and the level bands** (NG 1-19, D 20-39, C 40-51, B 52-60, A 61-75, S 76+). Reason: the ladder is the backbone of the demand curve of the economy (Phase 5). Its vertical steps make crafting and enchant markets for each band. S80/S84 are not in the plan.
+2. **Grade penalty = Gracia+ model, not Interlude**: separate weapon/armor penalty levels 0-4 with the multiplicative speed penalties from 2.3. This closes the "twink" loophole and makes expertise important. Penalty effects are data-driven buffs (Phase 3 status system), not hard-coded.
+3. **Weapon type constants are data, not code**: base attack speed, crit, random damage, range, shot count, and MP cost are in the template file. The 2.1 table gives the defaults. Nightfall uses the 1H row for poles (retail description), not the 2H row of L2J.
+4. **Armor type tradeoff through class passives**, the same as L2. Thus a class can "wear anything", but then it loses its mastery. Phase 2 defines which classes get which mastery.
+5. **Enchant model**: safe +3 (+4 full body). After the safe level, armor uses an H5-style curve for each level (`100/(n-1)` from +4). Weapons use a curve that is flat and then halved (70%/35% fighter, 40%/20% mage). We considered the flat Interlude 66%, but we rejected it. The reason is that the armor curve gives a natural ceiling without a hard cap. Blessed scrolls set the item back to +0; normal scrolls crystallize the item. Weapons have no maximum enchant. Armor has a cap at +20 (0% beyond +19), as in the H5 table.
+6. **Enchant bonus table** is the FuncEnchant table word for word (2.5). It is stored as data, with `(stat, grade, weapon_class)` as the key.
+7. **Augmentation**: use the two-option model with 100% success, where the grade controls glow/strength. But use the "retail-like" 55/35/7/3 colour split, thus skill augments stay rare (~10%) at all grades. The life stone level controls the magnitude. The character pays for removal in adena (Phase 5 sink).
+8. **Special abilities**: implement SA as a *template variant* (a separate `item_id`, as L2 does), not as an instance modifier. This is simpler for the client (icon/name for each variant) and for the economy (SA weapons are different market items). Soul crystal leveling is a Phase 6 monster-side function. This phase only defines the crystal items and the exchange.
+9. **Item identity**: `ItemTemplate` (static, loaded from TOML, hot-reloadable in dev) and `ItemInstance` (Postgres row with `instance_id` UUIDv7). A stackable is one row with `count`. A non-stackable always has `count = 1`. Binding flags come from the template. Nightfall adds one instance-level flag, `bound_to_character`, for future bind-on-pickup rewards (default false, Phase 4 never sets it).
+10. **Inventory limits**: 80 slots (+20 Dwarf), weight = `floor(CON_bonus * 69000)`, overweight levels as in 2.8. Warehouse 100/120, clan 200, freight 200 at 1,000 adena for each item. These are config values, not constants.
+11. **Shots**: soulshot x2 P.Atk on hits, spiritshot x2 M.Atk, blessed x4 M.Atk and cast time x0.6. The grade of all shots must match. Auto-use is a client intent. The server validates grade, count, and charge state.
+12. **No item durability / repair**: the same as L2. Enchant failure and crystallization are the item sink (Phase 5).
 
-Alternatives considered: (a) a single "item level" instead of grades — rejected, grades give discrete market tiers; (b) deterministic enchant with pity counters — deferred to tuning (Phase 9 telemetry); (c) bind-on-equip for raid loot — deferred (open question 8.4).
+Alternatives that we considered:
+
+- (a) One "item level" instead of grades. We rejected it, because grades give discrete market tiers.
+- (b) Deterministic enchant with pity counters. We will decide this during tuning (Phase 9 telemetry).
+- (c) Bind-on-equip for raid loot. We will decide this later (open question 8.4).
 
 ## 4. Data model
 
 ### 4.1 Entities
 
-- **ItemTemplate** — immutable definition. Identified by `template_id: u32` (stable, never reused). Variants (SA, Common Item) are their own templates with `base_template_id` for display grouping.
-- **ItemInstance** — owned row: `instance_id`, `template_id`, `owner_character_id`, `location` (INVENTORY, EQUIPPED, WAREHOUSE, CLAN_WAREHOUSE, FREIGHT, MAIL, TRADE_ESCROW, GROUND), `slot`, `count`, `enchant`, `augment_a`, `augment_b`, `expires_at`, `bound_to_character`, `created_at`, `updated_at`, `version` (optimistic lock).
-- **EquipSlot** — enum: RHAND, LHAND, LRHAND (virtual: occupies both), HEAD, CHEST, LEGS, FULLBODY (virtual: chest+legs), GLOVES, FEET, NECK, EAR_L, EAR_R, FINGER_L, FINGER_R, UNDERWEAR, CLOAK (reserved), BELT (reserved).
-- **ArmorSet** — list of template ids per slot, full-set skill id, +6 skill id.
-- **EnchantRateGroup** / **EnchantBonusTable** / **ExpertiseTable** / **WeightPenaltyTable** — pure data.
+- **ItemTemplate**: a definition that does not change. `template_id: u32` identifies it (stable, never used again). Variants (SA, Common Item) are their own templates, with `base_template_id` to put them in groups for the display.
+- **ItemInstance**: a row that a character owns: `instance_id`, `template_id`, `owner_character_id`, `location` (INVENTORY, EQUIPPED, WAREHOUSE, CLAN_WAREHOUSE, FREIGHT, MAIL, TRADE_ESCROW, GROUND), `slot`, `count`, `enchant`, `augment_a`, `augment_b`, `expires_at`, `bound_to_character`, `created_at`, `updated_at`, `version` (optimistic lock).
+- **EquipSlot**: enum: RHAND, LHAND, LRHAND (virtual: uses the two hands), HEAD, CHEST, LEGS, FULLBODY (virtual: chest+legs), GLOVES, FEET, NECK, EAR_L, EAR_R, FINGER_L, FINGER_R, UNDERWEAR, CLOAK (reserved), BELT (reserved).
+- **ArmorSet**: a list of template ids for each slot, the full-set skill id, the +6 skill id.
+- **EnchantRateGroup** / **EnchantBonusTable** / **ExpertiseTable** / **WeightPenaltyTable**: data only.
 
 ### 4.2 Template definition (TOML)
 
-One file per grade and category under `packages/data/items/`, e.g. `weapons_b.toml`:
+There is one file for each grade and category in `packages/data/items/`, for example `weapons_b.toml`:
 
 ```toml
 [[item]]
@@ -385,7 +435,7 @@ CREATE TABLE item_ledger (
 );
 ```
 
-Stack merge rule: when adding a stackable template to a container, `UPDATE ... SET count = count + $n WHERE owner_id=$o AND template_id=$t AND location=$l AND enchant=0` else `INSERT`. Non-stackables always insert.
+Stack merge rule: when the server adds a stackable template to a container, it does `UPDATE ... SET count = count + $n WHERE owner_id=$o AND template_id=$t AND location=$l AND enchant=0`. If no row matches, it does `INSERT`. For non-stackables, the server always does an insert.
 
 ### 4.4 Proto sketch (`packages/proto/nightfall/v1/items.proto`)
 
@@ -447,21 +497,30 @@ message InventoryUpdate { repeated Item added = 1; repeated Item modified = 2; r
                           Inventory summary = 4; }
 ```
 
-Add to `GameService`: `GetInventory`, `Equip`, `Unequip`, `UseItem`, `DestroyItem`, `Enchant`, `Augment`, and a server-streaming `SubscribeInventory(stream InventoryUpdate)` until the general world-event stream exists (Phase 0).
+Add these RPCs to `GameService`: `GetInventory`, `Equip`, `Unequip`, `UseItem`, `DestroyItem`, `Enchant`, `Augment`, and a server-streaming `SubscribeInventory(stream InventoryUpdate)`. Use the stream RPC until the general world-event stream exists (Phase 0).
 
 ## 5. Interfaces
 
-**gRPC** (above). All mutating RPCs are idempotent per `(character_id, request_id)` for 60 s to survive client retries.
+**gRPC** (above). All mutating RPCs are idempotent for each `(character_id, request_id)` for 60 s. Thus client retries are safe.
 
-**Server events** (internal bus, Phase 0): `ItemAdded`, `ItemRemoved`, `ItemEquipped`, `ItemUnequipped`, `EnchantResolved{seed, outcome}`, `AugmentResolved`, `WeightPenaltyChanged`, `GradePenaltyChanged`. Combat (Phase 3) subscribes to equip/unequip and penalty events to rebuild the stat sheet; economy telemetry (Phase 5/9) subscribes to everything.
+**Server events** (internal bus, Phase 0): `ItemAdded`, `ItemRemoved`, `ItemEquipped`, `ItemUnequipped`, `EnchantResolved{seed, outcome}`, `AugmentResolved`, `WeightPenaltyChanged`, `GradePenaltyChanged`. Combat (Phase 3) subscribes to equip/unequip and penalty events, and then builds the stat sheet again. Economy telemetry (Phase 5/9) subscribes to all events.
 
-**Validation on equip** (server-side, in order): item owned and in inventory; template `kind` equipable; class/race restrictions from the template (Phase 2 hook); two-handed weapon unequips shield; FULLBODY unequips chest+legs; ring/earring picks the free slot or swaps the left; arrows must match bow grade; then recompute grade penalty, weight penalty, set bonuses, and emit a single `InventoryUpdate`.
+**Validation on equip** (server-side, in this sequence):
 
-**Client needs**: a static item catalogue (`template_id → name, icon, grade, kind, display stats`) shipped as JSON generated from the TOML at build time (moon task), so `Item` messages stay small.
+1. The character owns the item, and the item is in the inventory.
+2. The template `kind` is equipable.
+3. The class/race restrictions from the template apply (Phase 2 hook).
+4. A two-handed weapon unequips the shield.
+5. FULLBODY unequips chest+legs.
+6. A ring/earring goes into the free slot, or it swaps the left slot.
+7. Arrows must match the bow grade.
+8. Then the server calculates the grade penalty, weight penalty, and set bonuses again, and emits one `InventoryUpdate`.
+
+**Client needs**: a static item catalogue (`template_id → name, icon, grade, kind, display stats`). The build (moon task) makes this catalogue as JSON from the TOML, and the client gets it with the build. Thus `Item` messages stay small.
 
 ## 6. Rust implementation notes
 
-Module layout under `apps/api/src/items/`:
+Module layout in `apps/api/src/items/`:
 
 ```
 items/
@@ -482,9 +541,9 @@ items/
 
 Crates: `sqlx` (Postgres, `runtime-tokio`, `uuid`, `time`), `uuid` (v7), `serde` + `toml`, `arc-swap` for catalog hot-reload, `rand` + `rand_chacha` for the seeded RNG, `thiserror` for `ItemError`.
 
-Concurrency: the authoritative inventory for an online character lives in that character's actor task (one `tokio` task per session, Phase 0), so inventory mutations are single-threaded per character and need no locks. Cross-character moves (trade, mail, Phase 5) go through Postgres transactions with `SELECT ... FOR UPDATE` on both `item_instances` rows plus the `version` check. Offline containers (warehouse, freight) are only touched via repo transactions.
+Concurrency: the authoritative inventory for an online character is in the actor task of that character (one `tokio` task for each session, Phase 0). Thus inventory mutations are single-threaded for each character, and they do not need locks. Moves between characters (trade, mail, Phase 5) go through Postgres transactions. These transactions use `SELECT ... FOR UPDATE` on the two `item_instances` rows, and the `version` check. Only repo transactions touch offline containers (warehouse, freight).
 
-RNG: every enchant/augment roll uses `ChaCha12Rng::from_seed(hash(server_secret, character_id, request_id))`. The seed is written to `item_ledger.rng_seed` so any outcome can be replayed in a GM tool. Never use thread RNG for player-visible rolls.
+RNG: each enchant/augment roll uses `ChaCha12Rng::from_seed(hash(server_secret, character_id, request_id))`. The server writes the seed to `item_ledger.rng_seed`, thus a GM tool can replay each outcome. Do not use thread RNG for rolls that players can see.
 
 Enchant resolution pseudocode:
 
@@ -506,33 +565,33 @@ pub fn crystal_refund(tpl: &ItemTemplate, enchant: u16) -> u32 {
 }
 ```
 
-Derived-stat contribution (consumed by Phase 3): `items::equip::StatContribution { p_atk, m_atk, p_def, m_def, atk_spd_base, crit, random_dmg, range, accuracy_mod, evasion_mod, max_mp, penalty_mults }` computed once per equipment change and cached on the character.
+Derived-stat contribution (Phase 3 uses it): `items::equip::StatContribution { p_atk, m_atk, p_def, m_def, atk_spd_base, crit, random_dmg, range, accuracy_mod, evasion_mod, max_mp, penalty_mults }`. The server calculates it one time for each equipment change, and caches it on the character.
 
 ## 7. Client implications
 
-- Render inventory as an 80/100-slot grid plus equipment paper-doll with the 14 slots; grey out items above expertise and show the penalty level badge (`weapon_grade_penalty`, `armor_grade_penalty` from `Inventory`).
-- Weight bar with colour thresholds at 50/66/80/100%; show the regen/speed penalty text from a client-side table.
-- Enchant UI: drag scroll onto item, display safe level and the server-returned outcome; animate +N glow tiers (weapon glow starts at +4, intensifies at +7/+10/+13 in L2; Phaser tint/particle per tier).
-- Shots: toggle buttons per shot type; client sends `UseItem` once to toggle auto-use, server consumes per attack and streams count deltas (batched, not per hit).
-- Tooltips compute display values (base + enchant bonus) from the catalogue and the `enchant` field using the same table as the server, so the two must be generated from one TOML.
-- Augmented weapons show option names from a client-side option catalogue keyed by option id.
+- Render the inventory as an 80/100-slot grid, and an equipment paper-doll with the 14 slots. Show the items above the expertise in grey, and show the penalty level badge (`weapon_grade_penalty`, `armor_grade_penalty` from `Inventory`).
+- Show a weight bar with colour thresholds at 50/66/80/100%. Show the regen/speed penalty text from a client-side table.
+- Enchant UI: the player drags a scroll onto an item. Show the safe level and the outcome that the server returns. Animate the +N glow tiers. In L2, the weapon glow starts at +4 and increases at +7/+10/+13. Use a Phaser tint/particle for each tier.
+- Shots: show toggle buttons for each shot type. The client sends `UseItem` one time to toggle auto-use. The server consumes shots for each attack, and streams count deltas (in batches, not for each hit).
+- Tooltips calculate display values (base + enchant bonus) from the catalogue and the `enchant` field. They use the same table as the server. Thus the client table and the server table must come from one TOML.
+- Augmented weapons show option names from a client-side option catalogue, with the option id as the key.
 
 ## 8. Open questions
 
-1. Expertise bonus (`getExpertisePenaltyBonus`) — L2 gave some Dwarf/Kamael skills +1 expertise. Do any Nightfall classes get it (Phase 2)?
-2. Weapon enchant cap: leave uncapped (H5) or hard-cap at +16/+20? Depends on Phase 5 sink tuning.
-3. Pole enchant row (1H per retail text vs 2H per L2J). Decision above is 1H; confirm with combat balance in Phase 3.
-4. Bind-on-pickup for raid loot: supported by schema (`bound_to`), not used. Decide with Phase 6 raid design.
-5. Augment removal fee schedule by grade and whether removal returns the life stone (L2: no).
-6. Soul crystal break chance and stage ladder — finalize with Phase 6 monster tables.
-7. Mana potions: L2 Interlude retail had none; many private servers add them. Phase 3 MP economy decides.
-8. Whether `Common Item` variants exist at all in Nightfall or whether crafting always yields the full item (Phase 5).
-9. Shadow (time-limited) items: keep `expires_at` but no content planned; confirm before building expiry sweeps.
+1. Expertise bonus (`getExpertisePenaltyBonus`): in L2, some Dwarf/Kamael skills gave +1 expertise. Do some Nightfall classes get it (Phase 2)?
+2. Weapon enchant cap: no cap (H5), or a hard cap at +16/+20? This depends on Phase 5 sink tuning.
+3. Pole enchant row (1H from the retail text, or 2H from L2J). The decision above is 1H. Make sure that this decision agrees with the combat balance in Phase 3.
+4. Bind-on-pickup for raid loot: the schema supports it (`bound_to`), but it is not used. Decide with the Phase 6 raid design.
+5. The schedule of augment removal fees by grade, and if removal gives back the life stone (L2: no).
+6. Soul crystal break chance and stage ladder: make the final decision with the Phase 6 monster tables.
+7. Mana potions: L2 Interlude retail had none; many private servers add them. The Phase 3 MP economy decides.
+8. Do `Common Item` variants exist in Nightfall, or does crafting always give the full item (Phase 5)?
+9. Shadow (time-limited) items: keep `expires_at`, but no content is in the plan. Make sure of this before you build expiry sweeps.
 
 ## 9. Sources
 
 - L2J Server (High Five) game source, Bitbucket `l2jserver/l2j-server-game` (checked out 2026-09-13): `model/stats/functions/formulas/FuncEnchant.java` (enchant bonus table), `model/actor/instance/L2PcInstance.java` (`refreshOverloaded`, `refreshExpertisePenalty`, `getMaxLoad`), `model/items/type/CrystalType.java`, `model/items/L2Item.java` (template flags), `network/clientpackets/RequestEnchantItem.java` and `model/items/enchant/EnchantScroll.java` (enchant resolution, crystallization), `network/clientpackets/AbstractRefinePacket.java` (life stone table, gemstone costs), `data/xml/impl/AugmentationData.java` (option generation), `network/clientpackets/RequestCrystallizeItem.java`, `model/stats/Formulas.java` (shot multipliers), `src/main/resources/config/character.properties` (inventory, warehouse, freight, store slots, augmentation chances, expertise penalty). https://bitbucket.org/l2jserver/l2j-server-game
-- L2J Datapack (High Five), Bitbucket `l2jserver/l2j-server-datapack`: `data/stats/items/*.xml` (all weapon/armor/jewelry/consumable templates surveyed for the type table), `data/enchantItemGroups.xml` (enchant rate curves), `data/enchantItemData.xml` (scroll grades), `data/stats/skills/06200-06299.xml` (skills 6209/6213 grade penalty), `data/stats/skills/04200-04299.xml` (skill 4270 weight penalty), `data/stats/skills/00200-00299.xml` (armor masteries 227/231/233, weapon mastery 249, Create Item 172), `data/stats/armorsets/*.xml`, `data/levelUpCrystalData.xml` and quest `Q00350_EnhanceYourWeapon` (soul crystal leveling). https://bitbucket.org/l2jserver/l2j-server-datapack
+- L2J Datapack (High Five), Bitbucket `l2jserver/l2j-server-datapack`: `data/stats/items/*.xml` (we examined all weapon/armor/jewelry/consumable templates for the type table), `data/enchantItemGroups.xml` (enchant rate curves), `data/enchantItemData.xml` (scroll grades), `data/stats/skills/06200-06299.xml` (skills 6209/6213 grade penalty), `data/stats/skills/04200-04299.xml` (skill 4270 weight penalty), `data/stats/skills/00200-00299.xml` (armor masteries 227/231/233, weapon mastery 249, Create Item 172), `data/stats/armorsets/*.xml`, `data/levelUpCrystalData.xml` and quest `Q00350_EnhanceYourWeapon` (soul crystal leveling). https://bitbucket.org/l2jserver/l2j-server-datapack
 - L2JBrasil Interlude server fork (GitHub `L2jBrasil/Server-Interlude`, 2018): `Config.java` (Interlude defaults: EnchantChanceWeapon 68, Armor 52, Jewelry 54, EnchantSafeMax 3, EnchantSafeMaxFull 4, warehouse 100/120/150, freight 20, store slots 5/4), `RequestEnchantItem.java` (flat chance, full armor +4 safe, crystal scrolls). https://github.com/L2jBrasil/Server-Interlude
 - l2hub.info item database, "Scroll: Enchant Weapon (Grade S)" description (per-type P.Atk bonus and doubling from +4). https://l2hub.info/c4/items/scrl_of_ench_wp_s
 - ludo.guide, "Enchanting / Upgrading equipment" and "Augmenting / Life Stones" (Lineage II). https://www.ludo.guide/guide/lineage-ii/enchanting-augmenting/enchanting-upgrading-equipment , https://www.ludo.guide/guide/lineage-ii/enchanting-augmenting/augmenting-life-stones

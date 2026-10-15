@@ -115,9 +115,12 @@ fn valid_scroll(
 
 /// D113: the highest enchant level a template can reach in play with some matching scroll.
 /// Per scroll: one past its `max_enchant` (an absent maximum is `MAX_GRANT_ENCHANT`), and no
-/// further than the first level whose chance-group range has a 0% base chance (an attempt
-/// from that level can never succeed). The template must be an admitted, storable,
-/// non-stackable, enchantable weapon or armor outside the blacklist; otherwise zero.
+/// further than the first level whose effective chance is 0%: the chance-group base (the same
+/// range lookup the attempt uses) plus the scroll's bonus plus the best support scroll still
+/// valid at that level (an attempt from that level can never succeed); only admitted scroll
+/// and support templates count. The template must be
+/// an admitted, storable, non-stackable, enchantable weapon or armor outside the blacklist;
+/// otherwise zero.
 pub(in crate::domain::zone) fn grant_enchant_limit(rules: &Phase4Rules, template: u32) -> u32 {
     use crate::domain::zone::item_grant::MAX_GRANT_ENCHANT;
     let parts = rules.parts();
@@ -135,10 +138,17 @@ pub(in crate::domain::zone) fn grant_enchant_limit(rules: &Phase4Rules, template
     {
         return 0;
     }
+    // Only scrolls and supports a player can actually hold count (admitted capability).
+    let admitted = |template: u32| {
+        parts
+            .capabilities
+            .get(&template)
+            .is_some_and(|c| c.admitted)
+    };
     parts
         .enchant_scrolls
         .values()
-        .filter(|rule| scroll_matches(rule, definition))
+        .filter(|rule| admitted(rule.template_id) && scroll_matches(rule, definition))
         .filter_map(|rule| {
             let scroll_cap = if rule.max_enchant == 0 {
                 MAX_GRANT_ENCHANT
@@ -146,17 +156,60 @@ pub(in crate::domain::zone) fn grant_enchant_limit(rules: &Phase4Rules, template
                 rule.max_enchant.saturating_add(1).min(MAX_GRANT_ENCHANT)
             };
             let group = chance_group(rules, definition, rule).ok()?;
-            let rate_cap = group
-                .ranges
-                .iter()
-                .filter(|range| range.chance_1e5 == 0)
-                .map(|range| range.min)
-                .min()
-                .unwrap_or(MAX_GRANT_ENCHANT);
-            Some(scroll_cap.min(rate_cap))
+            let bonus = bonus_units(rule).ok()?;
+            // The base chance is constant between range boundaries, and so is the set of
+            // valid supports between their max_enchant boundaries: test only those levels.
+            let supports: Vec<_> = if rule.blessed {
+                Vec::new()
+            } else {
+                parts
+                    .enchant_supports
+                    .values()
+                    .filter(|support| {
+                        admitted(support.template_id) && scroll_matches(support, definition)
+                    })
+                    .filter_map(|support| Some((support.max_enchant, bonus_units(support).ok()?)))
+                    .collect()
+            };
+            let mut levels = std::collections::BTreeSet::from([0_u32]);
+            for range in &group.ranges {
+                levels.insert(range.min);
+                levels.insert(range.max.saturating_add(1));
+            }
+            for (max, _) in &supports {
+                levels.insert(max.saturating_add(1));
+            }
+            let zero = levels
+                .into_iter()
+                .take_while(|level| *level < scroll_cap)
+                .find(|level| {
+                    let support = supports
+                        .iter()
+                        .filter(|(max, _)| *max == 0 || level <= max)
+                        .map(|(_, units)| *units)
+                        .max()
+                        .unwrap_or(0);
+                    base_chance(group, *level)
+                        .is_ok_and(|base| base.saturating_add(bonus).saturating_add(support) == 0)
+                })
+                .unwrap_or(scroll_cap);
+            Some(scroll_cap.min(zero))
         })
         .max()
         .unwrap_or(0)
+}
+/// The chance-group base for an attempt from `level`: its range, else the last range.
+fn base_chance(
+    group: &crate::domain::zone::item_rules::EnchantRates,
+    level: u32,
+) -> Result<u32, RejectReason> {
+    Ok(group
+        .ranges
+        .iter()
+        .find(|r| r.min <= level && level <= r.max)
+        .or_else(|| group.ranges.last())
+        .ok_or(RejectReason::InvalidEnchant)?
+        .chance_1e5)
 }
 fn bonus_units(rule: &EnchantScrollRule) -> Result<u32, RejectReason> {
     let value = rule
@@ -300,13 +353,7 @@ pub(super) fn prepare(
         0
     };
     let group = chance_group(rules, definition, scroll)?;
-    let base = group
-        .ranges
-        .iter()
-        .find(|r| r.min <= target.enchant && target.enchant <= r.max)
-        .or_else(|| group.ranges.last())
-        .ok_or(RejectReason::InvalidEnchant)?
-        .chance_1e5;
+    let base = base_chance(group, target.enchant)?;
     let bonus = bonus_units(scroll)?;
     let chance = base
         .checked_add(bonus)

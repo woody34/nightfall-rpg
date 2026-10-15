@@ -27,7 +27,7 @@ impl RegistrySkillCatalogue {
         rules
             .validate_catalogue(classes)
             .map_err(anyhow::Error::msg)?;
-        Self::build(classes, rules.skills(), rules.runtime_revision() == 3)
+        Self::build(classes, rules.skills(), rules.is_v6())
     }
 
     fn build(

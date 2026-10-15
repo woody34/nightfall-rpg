@@ -6710,6 +6710,472 @@ mod tests {
             .item_casts
             .is_empty());
     }
+    /// B4 fixture: a level-52 Bishop at the trainer holding one 8618 stack per `books` count.
+    fn bishop_with_books(
+        books: &[u64],
+    ) -> (
+        ZoneState,
+        TargetBinding,
+        Vec<crate::domain::zone::ItemInstanceId>,
+        crate::domain::AccountId,
+    ) {
+        let (mut zone, owner, _, ids) = use_fixture(&vec![8618; books.len()]);
+        let xp_at_52 = zone.rules.as_ref().unwrap().xp_to_level(52).unwrap();
+        let base_stats = zone
+            .classes
+            .as_ref()
+            .unwrap()
+            .get(ClassId(10))
+            .unwrap()
+            .base_stats;
+        let trainer = Vec2Fixed::from_tiles(126, 128);
+        let from = zone.entities[&owner.entity].pos;
+        zone.aoi.relocate(owner.entity, from, trainer);
+        let entity = zone.entities.get_mut(&owner.entity).unwrap();
+        entity.pos = trainer;
+        entity.dest = None;
+        let CombatRole::Player {
+            xp,
+            progression: Some(player),
+            ..
+        } = &mut entity.combat.as_mut().unwrap().role
+        else {
+            unreachable!()
+        };
+        *xp = xp_at_52;
+        player.class_state.current_class_id = ClassId(16);
+        // A fixture-seeded Bishop with both required historical transfer receipts.
+        for (target_class, level) in [(15, 20), (16, 40)] {
+            player.class_state.successful_transfer_receipts.push(
+                crate::domain::character_progression::SuccessfulTransferReceipt {
+                    key: Uuid::from_u128(u128::from(target_class)),
+                    target_class_id: ClassId(target_class),
+                    result: crate::domain::character_progression::FrozenTransferResult {
+                        character_id: crate::domain::CharacterId::from_uuid(owner.entity.as_uuid()),
+                        identity: player.identity.clone(),
+                        name: crate::domain::CharacterName::new("First").unwrap(),
+                        current_class_id: ClassId(target_class),
+                        level,
+                        xp: 0,
+                        sp: 0,
+                        stats: base_stats,
+                        position_millitiles: [126_000, 128_000],
+                        hp: 1,
+                        mp: 1,
+                        cp: 0,
+                        max_hp: 1,
+                        max_mp: 1,
+                        max_cp: 0,
+                        token_tier_1_count: 0,
+                        token_tier_2_count: 0,
+                        granted_skill_keys: Vec::new(),
+                    },
+                },
+            );
+        }
+        let inventory = &mut zone
+            .phase4
+            .as_mut()
+            .unwrap()
+            .canonical
+            .players
+            .get_mut(&owner.entity)
+            .unwrap()
+            .inventory;
+        for (id, count) in ids.iter().zip(books) {
+            inventory.get_mut(id).unwrap().count = *count;
+        }
+        zone.relevel(owner.entity).unwrap();
+        zone.sync_passives_v5(owner.entity).unwrap();
+        zone.rebuild_v5(owner.entity).unwrap();
+        zone.run_tick(zone.draft(Vec::new())).unwrap();
+        let CombatRole::Player {
+            progression: Some(player),
+            ..
+        } = &zone.entities[&owner.entity].combat.as_ref().unwrap().role
+        else {
+            unreachable!()
+        };
+        let account = player.identity.account_id;
+        (zone, owner, ids, account)
+    }
+    fn book_learn(
+        owner: TargetBinding,
+        account: crate::domain::AccountId,
+        key: Uuid,
+        seq: u32,
+    ) -> ZoneInput {
+        ZoneInput::session(
+            owner.entity,
+            SessionGeneration(1),
+            seq,
+            ZoneCommand::LearnSkill {
+                entity: owner.entity,
+                account,
+                request_key: key,
+                skill_id: crate::domain::zone::skill::SkillId(1405),
+                skill_level: 1,
+            },
+        )
+    }
+    fn learned_rank(zone: &ZoneState, owner: TargetBinding) -> u32 {
+        let CombatRole::Player {
+            progression: Some(player),
+            ..
+        } = &zone.entities[&owner.entity].combat.as_ref().unwrap().role
+        else {
+            unreachable!()
+        };
+        player
+            .class_state
+            .learned_skills
+            .iter()
+            .find(|skill| skill.key == "l2.skill.1405")
+            .map_or(0, |skill| skill.level)
+    }
+    /// E3.4/D47 (B4): a level-52 Bishop learns Divine Inspiration rank 1 by consuming its
+    /// book through the ledger (Consume aggregate caused by the learn receipt); without the
+    /// book the learn refuses with no effect, and V5 (no inventory) still refuses.
+    #[test]
+    #[allow(clippy::too_many_lines)] // Fixture-seeded Bishop, refusal, success and V5 parity.
+    fn v6_skill_book_learning_consumes_the_book_through_the_ledger() {
+        use crate::domain::zone::phase4_projection::{ItemEvidenceValue, ItemOperation};
+        use crate::domain::zone::skill::{SkillId, SkillRef};
+        let (mut zone, owner, ids, account) = bishop_with_books(&[1]);
+        let book = ids[0];
+        let key = Uuid::from_u128(0x0197_0000_0000_7000_8000_0000_0000_0042);
+        let learn = |seq| book_learn(owner, account, key, seq);
+        let rank = |zone: &ZoneState| learned_rank(zone, owner);
+        // Without the book: the read-only query and the command refuse, with no effect.
+        let mut missing = zone.clone();
+        missing
+            .phase4
+            .as_mut()
+            .unwrap()
+            .canonical
+            .players
+            .get_mut(&owner.entity)
+            .unwrap()
+            .inventory
+            .remove(&book);
+        let generation = SessionGeneration(1);
+        assert_eq!(
+            missing.validate_learn_skill(
+                owner.entity,
+                account,
+                generation,
+                SkillRef {
+                    id: SkillId(1405),
+                    rank: 1
+                }
+            ),
+            Err(RejectReason::SkillItemRequired)
+        );
+        let before = missing.snapshot();
+        let refused = missing.run_tick(missing.draft(vec![learn(1)])).unwrap();
+        assert_eq!(refused.dispositions[0].reason, RejectReason::SkillItemRequired);
+        assert!(!refused
+            .events
+            .iter()
+            .any(|e| matches!(e, ZoneEvent::SkillLearned { .. } | ZoneEvent::ItemCheckpoint(_))));
+        assert_eq!(rank(&missing), 0);
+        assert_eq!(
+            missing.snapshot().phase4,
+            before.phase4,
+            "a refused learn leaves the inventory untouched"
+        );
+        // V5 (no inventory) keeps refusing a book-gated row.
+        let mut legacy = zone.clone();
+        legacy.phase4 = None;
+        assert_eq!(
+            legacy.validate_learn_skill(
+                owner.entity,
+                account,
+                generation,
+                SkillRef {
+                    id: SkillId(1405),
+                    rank: 1
+                }
+            ),
+            Err(RejectReason::SkillItemRequired)
+        );
+        // With the book: one tick learns the rank and consumes the book atomically.
+        let revision =
+            zone.phase4.as_ref().unwrap().canonical.players[&owner.entity].inventory_revision;
+        let snapshot = zone.snapshot();
+        let mut cold = ZoneState::from_snapshot_with_items(
+            snapshot.clone(),
+            Some(Arc::clone(&zone.phase4.as_ref().unwrap().rules)),
+        )
+        .unwrap();
+        let draft = zone.draft(vec![learn(1)]);
+        let learned = zone.run_tick(draft.clone()).unwrap();
+        assert_eq!(learned, cold.run_tick(draft).unwrap());
+        assert!(learned.dispositions.is_empty(), "{:?}", learned.dispositions);
+        assert_eq!(rank(&zone), 1);
+        let items = &zone.phase4.as_ref().unwrap().canonical.players[&owner.entity];
+        assert!(!items.inventory.contains_key(&book));
+        assert!(items
+            .inventory
+            .values()
+            .all(|item| item.template_id != 8618));
+        assert_eq!(items.inventory_revision, revision.checked_add(1).unwrap());
+        let learned_at = learned
+            .events
+            .iter()
+            .position(|e| matches!(e, ZoneEvent::SkillLearned { .. }))
+            .unwrap();
+        let (at, projection) = learned
+            .events
+            .iter()
+            .enumerate()
+            .find_map(|(at, e)| match e {
+                ZoneEvent::ItemCheckpoint(p) => Some((at, p)),
+                _ => None,
+            })
+            .unwrap();
+        assert!(at > learned_at);
+        assert!(projection.receipts.is_empty());
+        assert_eq!(projection.ledger.len(), 1);
+        let row = &projection.ledger[0];
+        assert_eq!(row.operation, ItemOperation::Consume);
+        assert_eq!(row.instance, book);
+        assert_eq!(row.count_delta, -1);
+        assert!(row.after.is_none());
+        assert_eq!(row.causes.len(), 1);
+        assert_eq!(row.causes[0].family, "skill_learn_payment");
+        assert_eq!(
+            row.causes[0].fields.get("receipt"),
+            Some(&ItemEvidenceValue::Text(key.to_string()))
+        );
+        assert_eq!(row.causes[0].contributing_receipt(), Ok(None));
+        assert_eq!(projection.checkpoint.inventory_revision, items.inventory_revision);
+        assert!(projection
+            .checkpoint
+            .instances
+            .iter()
+            .all(|item| item.template_id != 8618));
+        // The same rank cannot be bought twice; the command refuses before any payment.
+        let again = zone.run_tick(zone.draft(vec![learn(2)])).unwrap();
+        assert_eq!(again.dispositions[0].reason, RejectReason::SkillWrongRank);
+        if let Ok(path) = std::env::var("NIGHTFALL_TEST_SKILL_BOOK_LEARN_RECORDING") {
+            use crate::application::replay_log::{AppliedTickRecord, Watermark, WatermarkReason};
+            let records = vec![AppliedTickRecord::from_applied(
+                snapshot.seed.zone,
+                &learned,
+            )];
+            let recording = crate::infrastructure::eventlog::Recording {
+                watermark: Watermark {
+                    zone: snapshot.seed.zone,
+                    epoch: snapshot.seed.epoch,
+                    records: 1,
+                    last_tick: Some(learned.tick),
+                    reason: WatermarkReason::Shutdown,
+                },
+                records,
+                snapshot,
+            };
+            std::fs::write(path, recording.to_bytes().unwrap()).unwrap();
+        }
+    }
+    fn book_checkpoint(tick: &AppliedTick) -> &crate::domain::zone::Phase4Projection {
+        let checkpoints: Vec<_> = tick
+            .events
+            .iter()
+            .filter_map(|e| match e {
+                ZoneEvent::ItemCheckpoint(p) => Some(p.as_ref()),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(checkpoints.len(), 1, "one owner checkpoint per tick");
+        checkpoints[0]
+    }
+
+    /// engine-review-6 P2-4: two book stacks pay the lowest instance ID, one copy only.
+    #[test]
+    fn v6_skill_book_learning_pays_the_lowest_instance_of_two_copies() {
+        use crate::domain::zone::phase4_projection::ItemOperation;
+        let (mut zone, owner, ids, account) = bishop_with_books(&[1, 1]);
+        assert!(ids[0] < ids[1]);
+        let revision =
+            zone.phase4.as_ref().unwrap().canonical.players[&owner.entity].inventory_revision;
+        let key = Uuid::from_u128(0x0197_0000_0000_7000_8000_0000_0000_0043);
+        let learned = zone
+            .run_tick(zone.draft(vec![book_learn(owner, account, key, 1)]))
+            .unwrap();
+        assert!(learned.dispositions.is_empty(), "{:?}", learned.dispositions);
+        assert_eq!(learned_rank(&zone, owner), 1);
+        let items = &zone.phase4.as_ref().unwrap().canonical.players[&owner.entity];
+        assert!(!items.inventory.contains_key(&ids[0]));
+        assert_eq!(items.inventory[&ids[1]].count, 1);
+        assert_eq!(items.inventory_revision, revision.checked_add(1).unwrap());
+        let projection = book_checkpoint(&learned);
+        assert_eq!(projection.ledger.len(), 1);
+        assert_eq!(projection.ledger[0].operation, ItemOperation::Consume);
+        assert_eq!(projection.ledger[0].instance, ids[0]);
+        assert_eq!(projection.ledger[0].count_delta, -1);
+    }
+
+    /// engine-review-6 P2-4: an earlier item command on the same owner in the same tick merges
+    /// with the learn payment: one checkpoint, one revision step, the book's rows in D94 shape.
+    #[test]
+    fn v6_skill_book_learning_merges_with_an_earlier_same_tick_item_command() {
+        use crate::domain::zone::phase4_projection::ItemOperation;
+        use crate::domain::zone::ItemCommandKind;
+        let (mut zone, owner, ids, account) = bishop_with_books(&[2]);
+        let book = ids[0];
+        let revision =
+            zone.phase4.as_ref().unwrap().canonical.players[&owner.entity].inventory_revision;
+        let destroy = item_intent(
+            &zone,
+            owner.entity,
+            986,
+            ItemCommandKind::Destroy {
+                instance: book,
+                count: 1,
+            },
+        );
+        let key = Uuid::from_u128(0x0197_0000_0000_7000_8000_0000_0000_0044);
+        let mut cold = ZoneState::from_snapshot_with_items(
+            zone.snapshot(),
+            Some(Arc::clone(&zone.phase4.as_ref().unwrap().rules)),
+        )
+        .unwrap();
+        let draft = zone.draft(vec![
+            review_input(owner.entity, 1, ZoneCommand::Item(Box::new(destroy))),
+            book_learn(owner, account, key, 2),
+        ]);
+        let tick = zone.run_tick(draft.clone()).unwrap();
+        assert_eq!(tick, cold.run_tick(draft).unwrap());
+        assert!(tick.dispositions.is_empty(), "{:?}", tick.dispositions);
+        assert_eq!(learned_rank(&zone, owner), 1);
+        let items = &zone.phase4.as_ref().unwrap().canonical.players[&owner.entity];
+        assert!(items
+            .inventory
+            .values()
+            .all(|item| item.template_id != 8618));
+        assert_eq!(items.inventory_revision, revision.checked_add(1).unwrap());
+        let learned_at = tick
+            .events
+            .iter()
+            .position(|e| matches!(e, ZoneEvent::SkillLearned { .. }))
+            .unwrap();
+        let checkpoint_at = tick
+            .events
+            .iter()
+            .position(|e| matches!(e, ZoneEvent::ItemCheckpoint(_)))
+            .unwrap();
+        assert!(checkpoint_at > learned_at);
+        let projection = book_checkpoint(&tick);
+        assert_eq!(projection.receipts.len(), 1, "the destroy receipt survives the merge");
+        assert_eq!(projection.checkpoint.inventory_revision, items.inventory_revision);
+        let rows: Vec<_> = projection
+            .ledger
+            .iter()
+            .filter(|row| row.instance == book)
+            .collect();
+        assert_eq!(rows.len(), 2, "{rows:?}");
+        assert_eq!(rows[0].operation, ItemOperation::Destroy);
+        assert_eq!(rows[0].count_delta, -1);
+        let consume = rows[1];
+        assert_eq!(consume.operation, ItemOperation::Consume);
+        assert_eq!(consume.count_delta, -1);
+        assert!(consume.after.is_none());
+        assert_eq!(consume.causes.len(), 1);
+        assert_eq!(consume.causes[0].family, "skill_learn_payment");
+        assert_eq!(
+            rows.iter().map(|row| row.count_delta).sum::<i64>(),
+            -2,
+            "both copies leave exactly once"
+        );
+    }
+
+    /// engine-review-6 P2-4: pinned precedence (`RequestAcquireSkill`: SP before items). With
+    /// neither the SP nor the book, the refusal is `InsufficientSp` and nothing changes.
+    #[test]
+    fn v6_skill_book_learning_refuses_sp_before_the_book() {
+        use crate::domain::zone::skill::{SkillId, SkillRef};
+        let (mut zone, owner, ids, account) = bishop_with_books(&[1]);
+        let mut encoded = serde_json::to_value(zone.classes.as_deref().unwrap()).unwrap();
+        let row = encoded["classes"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|c| c["id"] == 16)
+            .unwrap()["skill_tree"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|r| r["skill_id"] == 1405 && r["skill_level"] == 1)
+            .unwrap();
+        row["sp_cost"] = serde_json::json!(1000);
+        zone.classes = Some(Arc::new(serde_json::from_value(encoded).unwrap()));
+        let CombatRole::Player {
+            progression: Some(player),
+            ..
+        } = &mut zone
+            .entities
+            .get_mut(&owner.entity)
+            .unwrap()
+            .combat
+            .as_mut()
+            .unwrap()
+            .role
+        else {
+            unreachable!()
+        };
+        player.class_state.sp = 999;
+        let query = |zone: &ZoneState| {
+            zone.validate_learn_skill(
+                owner.entity,
+                account,
+                SessionGeneration(1),
+                SkillRef {
+                    id: SkillId(1405),
+                    rank: 1,
+                },
+            )
+        };
+        // Book present, SP short: SP refuses.
+        assert_eq!(query(&zone), Err(RejectReason::InsufficientSp));
+        // Neither: SP still refuses first, not the book.
+        zone.phase4
+            .as_mut()
+            .unwrap()
+            .canonical
+            .players
+            .get_mut(&owner.entity)
+            .unwrap()
+            .inventory
+            .remove(&ids[0]);
+        assert_eq!(query(&zone), Err(RejectReason::InsufficientSp));
+        let before = zone.phase4.as_ref().unwrap().canonical.clone();
+        let key = Uuid::from_u128(0x0197_0000_0000_7000_8000_0000_0000_0045);
+        let refused = zone
+            .run_tick(zone.draft(vec![book_learn(owner, account, key, 1)]))
+            .unwrap();
+        assert_eq!(refused.dispositions[0].reason, RejectReason::InsufficientSp);
+        assert_eq!(zone.phase4.as_ref().unwrap().canonical, before);
+        assert_eq!(learned_rank(&zone, owner), 0);
+        // SP sufficient, no book: now the book refuses.
+        let CombatRole::Player {
+            progression: Some(player),
+            ..
+        } = &mut zone
+            .entities
+            .get_mut(&owner.entity)
+            .unwrap()
+            .combat
+            .as_mut()
+            .unwrap()
+            .role
+        else {
+            unreachable!()
+        };
+        player.class_state.sp = 1000;
+        assert_eq!(query(&zone), Err(RejectReason::SkillItemRequired));
+    }
+
     #[test]
     #[allow(clippy::too_many_lines)] // Fixture-seeded learned rank, real skill/cost definitions and critical projection.
     fn v6_learned_item_cost_is_atomic_paid_once_and_not_refunded_on_cancel() {

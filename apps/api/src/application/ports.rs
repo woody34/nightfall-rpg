@@ -127,6 +127,51 @@ pub trait CharacterRepository: Send + Sync {
         checkpoint: &CharacterCheckpoint,
         events: &[DomainEvent],
     ) -> Result<CheckpointOutcome, CheckpointError>;
+
+    /// T11: durably quarantine an owner whose checkpoint lane failed permanently while an
+    /// unresolved epoch was recovered. Idempotent (the first record wins). Admission refuses a
+    /// quarantined owner with `character_lane_quarantined` until an operator resolves it.
+    async fn quarantine_lane(&self, quarantine: &LaneQuarantine) -> anyhow::Result<()> {
+        anyhow::bail!("lane quarantine is unavailable in this repository: {}", quarantine.reason)
+    }
+
+    /// T11 operations: the quarantined owners recorded for `zone`, by character id. The boot
+    /// summary and the runbook (running-locally.md, "Quarantined lanes") read this.
+    async fn lane_quarantines(
+        &self,
+        zone: crate::domain::zone::ZoneId,
+    ) -> anyhow::Result<Vec<LaneQuarantine>> {
+        let _ = zone;
+        Ok(Vec::new())
+    }
+}
+
+/// A permanent per-owner recovery quarantine (T11).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LaneQuarantine {
+    /// The owner.
+    pub character_id: CharacterId,
+    /// The recovered zone.
+    pub zone: crate::domain::zone::ZoneId,
+    /// The recovered epoch.
+    pub epoch: u64,
+    /// The recorded tick at which the lane failed.
+    pub tick: crate::domain::zone::Tick,
+    /// The named failure.
+    pub reason: String,
+}
+
+/// The named admission refusal for a quarantined owner.
+pub const LANE_QUARANTINED: &str = "character_lane_quarantined";
+
+/// The typed admission refusal for a quarantined owner (T11). Its text is
+/// `character_lane_quarantined: <reason>`; callers downcast it from the `anyhow` load error to
+/// refuse the owner by name instead of as a generic load failure.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("{}: {}", LANE_QUARANTINED, .reason)]
+pub struct LaneQuarantined {
+    /// The first recorded failure of the quarantined lane.
+    pub reason: String,
 }
 
 /// Level range the `characters.level` check constraint enforces.

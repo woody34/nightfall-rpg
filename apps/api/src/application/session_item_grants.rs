@@ -92,12 +92,23 @@ impl ItemGrantRuntime for SessionContext {
                     let repo = self.registry.characters.as_ref().ok_or_else(|| {
                         AppError::Unavailable("committed owner loading unavailable".into())
                     })?;
-                    let loaded = repo.load_for_admission(character).await?.ok_or_else(|| {
-                        AppError::NotFound {
+                    // T11: a quarantined owner is refused by name, never as an internal error.
+                    let loaded = repo
+                        .load_for_admission(character)
+                        .await
+                        .map_err(|error| {
+                            match error.downcast_ref::<crate::application::ports::LaneQuarantined>()
+                            {
+                                Some(quarantined) => {
+                                    AppError::FailedPrecondition(quarantined.to_string())
+                                },
+                                None => AppError::Infrastructure(error),
+                            }
+                        })?
+                        .ok_or_else(|| AppError::NotFound {
                             entity: "character",
                             id: character.to_string(),
-                        }
-                    })?;
+                        })?;
                     if loaded.identity.account_id != account {
                         return Err(AppError::PermissionDenied(
                             "character belongs to another account".into(),
@@ -107,21 +118,9 @@ impl ItemGrantRuntime for SessionContext {
                         AppError::FailedPrecondition("invalid saved position".into())
                     })?;
                     // A pending owner with no learned providers has the canonical empty paused origin.
-                    let phase3 = match loaded.phase3 {
-                        Some(checkpoint) => checkpoint,
-                        None if loaded.class_state.learned_skills.is_empty()
-                            && loaded.phase4.as_ref().is_some_and(|items| {
-                                items.checkpoint.is_none() && !items.pending.is_empty()
-                            }) =>
-                        {
-                            crate::domain::zone::Phase3Checkpoint::new()
-                        },
-                        None => {
-                            return Err(AppError::FailedPrecondition(
-                                "paused skill checkpoint unavailable".into(),
-                            ))
-                        },
-                    };
+                    let phase3 = super::paused_skill_origin(&loaded).ok_or_else(|| {
+                        AppError::FailedPrecondition("paused skill checkpoint unavailable".into())
+                    })?;
                     command.paused = Some(Box::new(ItemPausedCore {
                         name: loaded.name.as_str().to_owned(),
                         position,

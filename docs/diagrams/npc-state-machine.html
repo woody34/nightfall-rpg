@@ -76,7 +76,7 @@
     <div class="diagram-container">
       <svg viewBox="0 0 1080 720" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="npc-sm-title npc-sm-desc">
         <title id="npc-sm-title">NPC state machine</title>
-        <desc id="npc-sm-desc">Spawn-slot NPCs move between the intentions Idle, Active, Attack, ReturnHome and Dead; a decayed corpse is hidden by the respawn scheduler until its slot member respawns as a new incarnation.</desc>
+        <desc id="npc-sm-desc">Spawn-slot NPCs move between the intentions Idle, Active, Attack, ReturnHome and Dead. When a corpse decays, the respawn scheduler hides it. The corpse stays hidden until its slot member respawns as a new incarnation.</desc>
         <defs>
           <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
 <polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/>
@@ -176,9 +176,9 @@
       </svg>
     </div>
     <div class="notes">
-<p>Tick order: commands → spawn phase (expired corpses despawn, then due members respawn in slot/member order) → AI phase (NPCs in id order) → chase → movement → impacts → hit bookkeeping → next swings → AOI output. <code>Attack</code> and <code>ReturnHome</code> are checked every tick; everything else runs on the think tick, <code>tick % 10 == EntityId % 10</code>.</p>
-<p>Entering <code>Attack</code> comes from the <code>reselect</code> hook whenever an idle or active NPC acquires a target: its own aggro scan, a player's hit, or a clan call. The first engagement calls idle/active NPCs of the same clan within <code>clan_help_range</code> (id order, 1 hate each); helpers never call. Leash is the NPC's distance from home; the timeout counts from entering <code>Attack</code> or the last landed hit.</p>
-<p>RNG: a first life draws its id; an <code>Active</code> mobile NPC without prey draws <code>roll_below(30)</code> per think and, on 0, <code>dx</code> then <code>dy</code>; death draws the respawn jitter <code>0..=random</code> unless it is 0. Respawn at <code>max(death + 10·(delay + jitter), corpse_until + 1)</code>. Intention changes are internal events: in <code>AppliedTick</code> and the record, never on the wire.</p>
+<p>Tick sequence: commands → spawn phase (expired corpses despawn, then due members respawn in slot/member sequence) → AI phase (NPCs in id sequence) → chase → movement → impacts → hit records → next swings → AOI output. <code>Attack</code> and <code>ReturnHome</code> are examined on each tick. All other states run on the think tick, <code>tick % 10 == EntityId % 10</code>.</p>
+<p>The transition into <code>Attack</code> occurs through the <code>reselect</code> hook each time an idle or active NPC gets a target: from its own aggro scan, from the hit of a player, or from a clan call. The first engagement calls the idle/active NPCs of the same clan in the <code>clan_help_range</code> (in id sequence, 1 hate each). The helpers do not call other NPCs. The leash is the distance of the NPC from its home. The timeout starts when the NPC goes into <code>Attack</code> or at the last hit that landed.</p>
+<p>RNG: in its first life, an NPC draws its id. An <code>Active</code> mobile NPC that has no prey draws <code>roll_below(30)</code> for each think. On 0, it draws <code>dx</code> then <code>dy</code>. At death, the NPC draws the respawn jitter <code>0..=random</code> if the jitter range is not 0. The respawn occurs at <code>max(death + 10·(delay + jitter), corpse_until + 1)</code>. Intention changes are internal events: they are in <code>AppliedTick</code> and in the record, but not on the wire.</p>
 <p>Source: <a href="../../apps/api/src/domain/zone/ai.rs">ai.rs</a> · <a href="../../apps/api/src/domain/zone/state_ai.rs">state_ai.rs</a> · <a href="../../apps/api/src/domain/zone/state_combat.rs">state_combat.rs</a> · <a href="../../apps/api/src/domain/zone/state.rs">state.rs</a>.</p>
 </div>
   </div>

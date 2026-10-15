@@ -1,73 +1,74 @@
 # Simulation Runner Provisioning and Operations
 
-This document specifies the setup, provisioning, operation, and gating policies for the
-dedicated self-hosted Linux simulation runner supporting Nightfall's headless client testing
-suite ([.github/workflows/sim.yml](../../.github/workflows/sim.yml)).
+This document gives the setup, provisioning, operation, and gating policies for the
+dedicated self-hosted Linux simulation runner. This runner is for the headless client test
+suite of Nightfall ([.github/workflows/sim.yml](../../.github/workflows/sim.yml)).
 
 ---
 
 ## 1. Owner Provisioning Checklist
 
-Provisioning the simulation runner is an **owner-only action** (Phase 1a plan Story 4.1).
-The runner executes real headless Unreal Engine 5 client instances against containerized
-backend stacks (Postgres, NATS, Keycloak, and the Rust game server API).
+Only the owner can provision the simulation runner. This is an **owner-only action** (Phase 1a plan Story 4.1).
+The runner runs real headless Unreal Engine 5 client instances against backend stacks in containers
+(Postgres, NATS, Keycloak, and the Rust game server API).
 
 ### Prerequisites Summary
 
 | Item | Requirement | Purpose |
 |---|---|---|
-| **Host System** | Dedicated Linux x86_64 physical machine or persistent VM with space for the engine, build outputs and DDC | Engine compilation, DDC, container stacks, concurrent client processes |
-| **Runner Labels** | `self-hosted`, `linux`, `unreal` | Target selector for [.github/workflows/sim.yml](../../.github/workflows/sim.yml) (`runs-on: [self-hosted, linux, unreal]`) |
-| **Unreal Engine** | UE 5.8.3 legally installed under an authorized Epic Games account | Real client headless binary (`-game -nullrhi -nosound -unattended`) |
-| **Clang Toolchain** | Epic native toolchain `v26_clang-20.1.8-rockylinux8` | Unreal Build Tool (UBT) C++ compilation (`LINUX_MULTIARCH_ROOT`) |
-| **Container Engine** | Docker Engine + Docker Compose v2 plugin | Per-unit ephemeral service stacks (`docker compose`) |
-| **Language Toolchains** | Repository-pinned Rust toolchain (`cargo`, `rustc`; see `rust-toolchain.toml`), `moon` CLI, `python3`, `curl`, `git`, `timeout` | Building API binaries, running tasks, running CI orchestration |
-| **Cache Warming** | TurboLink third-party libs (~900 MB) extracted, DDC warmed once | Avoids repeated third-party downloads and shader compilation |
-| **Environment Vars** | `UE_ROOT`, `LINUX_MULTIARCH_ROOT` set in runner profile and GitHub repo variables | Engine and toolchain location resolution |
-| **Credentials** | Owner GitHub repository admin credentials | Generating the runner registration token (cannot be automated/fabricated) |
+| **Host System** | A dedicated Linux x86_64 physical machine or a persistent VM, with space for the engine, the build outputs and the DDC | Engine compilation, DDC, container stacks, client processes that run at the same time |
+| **Runner Labels** | `self-hosted`, `linux`, `unreal` | The target selector for [.github/workflows/sim.yml](../../.github/workflows/sim.yml) (`runs-on: [self-hosted, linux, unreal]`) |
+| **Unreal Engine** | UE 5.8.3, installed legally under an authorized Epic Games account | The real headless client binary (`-game -nullrhi -nosound -unattended`) |
+| **Clang Toolchain** | The Epic native toolchain `v26_clang-20.1.8-rockylinux8` | Unreal Build Tool (UBT) C++ compilation (`LINUX_MULTIARCH_ROOT`) |
+| **Container Engine** | Docker Engine + Docker Compose v2 plugin | Ephemeral service stacks for each unit (`docker compose`) |
+| **Language Toolchains** | The Rust toolchain that the repository pins (`cargo`, `rustc`; refer to `rust-toolchain.toml`), `moon` CLI, `python3`, `curl`, `git`, `timeout` | To build the API binaries, run tasks, and run the CI orchestration |
+| **Cache Warming** | TurboLink third-party libs (~900 MB) extracted. DDC warmed one time. | Prevents repeated third-party downloads and shader compilation |
+| **Environment Vars** | `UE_ROOT`, `LINUX_MULTIARCH_ROOT` set in the runner profile and in the GitHub repo variables | To find the location of the engine and the toolchain |
+| **Credentials** | The GitHub repository admin credentials of the owner | To make the runner registration token (automation cannot make this token, and you must not make up a token) |
 
-First-time TurboLink setup also needs `unzip`; rebuilding cached proto tools needs
-Python's `venv` support and a C++ compiler. The proto installer provisions CMake
-and Ninja in its own virtual environment and uses Unreal's bundled .NET SDK.
-The optional Keycloak token path in `Scripts/run-tests.sh` checks for `jq` and
-`openssl` before using them; neither is required for the dev-token path.
+The first TurboLink setup also must have `unzip`. To build the cached proto tools again, you must have
+the Python `venv` support and a C++ compiler. The proto installer provisions CMake
+and Ninja in its own virtual environment, and uses the .NET SDK that comes with Unreal.
+The optional Keycloak token path in `Scripts/run-tests.sh` makes sure that `jq` and
+`openssl` are there before it uses them. The dev-token path does not use these tools.
 
-Host `psql`, `rg` and `fd` are not runner prerequisites. Isolated Phase 2/3
-fixture packs install a controlled `psql` shim that executes in their owned
-Postgres service. Casting soak seeding similarly uses `docker compose exec -T`
-with the run's explicit project, resolved Compose file and split libpq variables;
-the host connection port is checked against that service before execution.
+The runner does not need the host `psql`, `rg` and `fd`. The isolated Phase 2/3
+fixture packs install a controlled `psql` shim that runs in the Postgres service that they control.
+The casting soak seed also uses `docker compose exec -T`
+with the explicit project of the run, the resolved Compose file and split libpq variables.
+Before the seed runs, the script compares the host connection port with that service.
 
 ---
 
 ### Step-by-Step Provisioning Checklist
 
 #### Step 1: Dedicated Host and OS Isolation
-- [ ] Allocate a dedicated Linux box or VM. Do not co-locate with shared build agents:
-  the simulation suite binds host network ports (`3000` HTTP API, `4222` NATS, `5432` Postgres,
+- [ ] Get a dedicated Linux box or VM. Do not put the runner on the same host as shared build agents.
+  The simulation suite binds host network ports (`3000` HTTP API, `4222` NATS, `5432` Postgres,
   `8080` Keycloak, `50051` gRPC).
-- [ ] Configure concurrency: workflow-level concurrency group `nightfall-unreal-stack` ensures
-  only one simulation run executes on the runner at a time.
+- [ ] Configure concurrency. The workflow-level concurrency group `nightfall-unreal-stack` makes sure that
+  only one simulation run operates on the runner at a time.
 
 #### Step 2: Legally Install Unreal Engine 5.8.3
-- [ ] Unreal Engine requires an Epic Games account and acceptance of the Unreal Engine EULA.
-  Engine binaries cannot be redistributed through the repository.
-- [ ] Download official Linux prebuilt binaries:
+- [ ] Get an Epic Games account and accept the Unreal Engine EULA. Unreal Engine must have these two items.
+  You cannot distribute the engine binaries through the repository.
+- [ ] Download the official Linux prebuilt binaries:
   1. Sign in at <https://www.unrealengine.com/linux>.
-  2. Download the Linux UE 5.8.3 distribution available to your account.
-  3. Extract to a stable directory, e.g. `/home/ubuntu/Linux_Unreal_Engine_5.8.3`.
-- [ ] Confirm file permissions:
+  2. Download the Linux UE 5.8.3 distribution that is available to your account.
+  3. Extract it to a stable directory, for example `/home/ubuntu/Linux_Unreal_Engine_5.8.3`.
+- [ ] Make sure that the file permissions are correct:
   ```bash
   chmod +x "$UE_ROOT/Engine/Build/BatchFiles/Linux/Build.sh"
   chmod +x "$UE_ROOT/Engine/Binaries/Linux/UnrealEditor"
   ```
-- [ ] Validate engine version in `$UE_ROOT/Engine/Build/Build.version`:
+- [ ] Validate the engine version in `$UE_ROOT/Engine/Build/Build.version`:
   `MajorVersion=5`, `MinorVersion=8`, `PatchVersion=3`.
 
 #### Step 3: Install Native Clang Toolchain
-- [ ] Epic's prebuilt Linux engine requires Epic's bundled clang toolchain. Without it,
-  Unreal Build Tool (UBT) fails SDK validation with `Platform Linux is not a valid platform to build`.
-- [ ] Obtain `v26_clang-20.1.8-rockylinux8` from the engine installation instructions; unpack it into `$HOME/UnrealToolchains`.
+- [ ] Install the clang toolchain from Epic. The prebuilt Linux engine from Epic must have it.
+  Without it, Unreal Build Tool (UBT) fails SDK validation with `Platform Linux is not a valid platform to build`.
+- [ ] Get `v26_clang-20.1.8-rockylinux8` from the engine installation instructions.
+- [ ] Unpack the toolchain into `$HOME/UnrealToolchains`.
 - [ ] Set `LINUX_MULTIARCH_ROOT`:
   ```bash
   export LINUX_MULTIARCH_ROOT="$HOME/UnrealToolchains/v26_clang-20.1.8-rockylinux8"
@@ -79,62 +80,62 @@ the host connection port is checked against that service before execution.
   docker compose version
   docker info --format '{{.ServerVersion}}'
   ```
-- [ ] Grant non-root Docker execution to the runner user:
+- [ ] Let the runner user run Docker without root:
   ```bash
   sudo usermod -aG docker "$USER"
   # Log out and log back in to apply group changes
   ```
 
 #### Step 5: Install Rust and moon Toolchains
-- [ ] Install Rust stable via `rustup` (`cargo`, `rustc`):
+- [ ] Install Rust stable through `rustup` (`cargo`, `rustc`):
   ```bash
   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
   ```
-- [ ] Install `moon` CLI:
+- [ ] Install the `moon` CLI:
   ```bash
   curl -fsSL https://moonrepo.dev/install/moon.sh | bash
   ```
-- [ ] Ensure required CLI utilities are present:
+- [ ] Make sure that the necessary CLI utilities are there:
   ```bash
   sudo apt-get update && sudo apt-get install -y curl python3 git coreutils
   ```
 
 #### Step 6: TurboLink Setup and DDC Warming
-- [ ] Unpack TurboLink gRPC/Protobuf prebuilt libraries (~900 MB) into `Plugins/TurboLink/Source/ThirdParty/`:
+- [ ] Unpack the TurboLink gRPC/Protobuf prebuilt libraries (~900 MB) into `Plugins/TurboLink/Source/ThirdParty/`:
   ```bash
   moon run client-unreal:setup
   ```
-- [ ] Warm the Derived Data Cache (DDC) and resolve ICU asset dependencies:
-  The Linux UnrealEditor binary resolves `Engine/Content` relative to its working directory.
-  Run it once from its binary directory:
+- [ ] Warm the Derived Data Cache (DDC) and resolve the ICU asset dependencies.
+  The Linux UnrealEditor binary finds `Engine/Content` relative to its working directory.
+  Run it one time from its binary directory:
   ```bash
   "$UE_ROOT/Engine/Binaries/Linux/UnrealEditor" "$PWD/apps/client-unreal/Nightfall.uproject" \
     -run=DerivedDataCache -fill -unattended -nosound -nop4
   ```
 
 #### Step 7: Environment and GitHub Repository Variables
-- [ ] Persist environment variables in the runner user profile (`~/.bashrc`):
+- [ ] Keep the environment variables in the runner user profile (`~/.bashrc`):
   ```bash
   export UE_ROOT="/home/ubuntu/Linux_Unreal_Engine_5.8.3"
   export LINUX_MULTIARCH_ROOT="/home/ubuntu/UnrealToolchains/v26_clang-20.1.8-rockylinux8"
   ```
-- [ ] Set GitHub repository variables under **Settings > Secrets and variables > Actions > Variables**:
+- [ ] Set the GitHub repository variables under **Settings > Secrets and variables > Actions > Variables**:
   - `UE_ROOT`: `/home/ubuntu/Linux_Unreal_Engine_5.8.3`
   - `LINUX_MULTIARCH_ROOT`: `/home/ubuntu/UnrealToolchains/v26_clang-20.1.8-rockylinux8`
-  - `SIM_PR_REQUIRED`: initially unset or `false` (do not set `true` until the 2-week gate passes)
+  - `SIM_PR_REQUIRED`: at first, not set or `false` (do not set `true` until the 2-week gate passes)
 
 #### Step 8: Register GitHub Self-Hosted Runner
 > [!IMPORTANT]
-> Runner registration requires **repository owner admin credentials**.
-> Do not invent, mock, or assume registration success in documentation or automated scripts.
-> The owner must generate a fresh registration token from GitHub:
-> 1. Go to repository **Settings > Actions > Runners > New self-hosted runner**.
+> Runner registration must have the **repository owner admin credentials**.
+> Do not make up, mock, or assume a registration success in documentation or in automated scripts.
+> The owner must make a new registration token from GitHub:
+> 1. Go to the repository **Settings > Actions > Runners > New self-hosted runner**.
 > 2. Select **OS: Linux**, Architecture: **x64**.
-> 3. Execute the `./config.sh` command with labels: `--labels linux,unreal`.
+> 3. Run the `./config.sh` command with these labels: `--labels linux,unreal`.
 > 4. Install and start the service: `sudo ./svc.sh install && sudo ./svc.sh start`.
 
 #### Step 9: Warmed Acceptance Commands
-Run the following verification sequence directly on the runner by hand to confirm operational readiness:
+To make sure that the runner is ready for operation, run this verification sequence manually on the runner:
 ```bash
 # 1. Non-mutating preflight check
 bash infra/scripts/check-sim-runner.sh
@@ -157,91 +158,94 @@ moon run client-unreal:sim -- Scenarios/0b-login-enter-world.nfs --api start
 
 ## 2. CI Architecture: Fresh Per-Unit Compose Stacks
 
-In CI ([.github/workflows/sim.yml](../../.github/workflows/sim.yml)), the test suite is driven by
-[apps/client-unreal/Scripts/run-sim-ci.py](../../apps/client-unreal/Scripts/run-sim-ci.py).
+In CI ([.github/workflows/sim.yml](../../.github/workflows/sim.yml)),
+[apps/client-unreal/Scripts/run-sim-ci.py](../../apps/client-unreal/Scripts/run-sim-ci.py) controls the test suite.
 
-Recursive discovery includes all 121 scenario files / 106 single/group units,
-including all 49 Phase4 files / 47 units. Each client's limit is the largest
-role's rounded-up `nf.Within` plus 30 seconds of launch/exit grace. There is no
-600-second minimum. An explicitly requested `--timeout` can raise the limit.
+Recursive discovery finds all 121 scenario files / 106 single/group units.
+This includes all 49 Phase4 files / 47 units.
+The limit of each client is the largest rounded-up `nf.Within` of its roles, plus 30 seconds of launch/exit grace.
+There is no 600-second minimum. An explicit `--timeout` can make the limit larger.
 
-`run-sim-ci.py::unit_allowances` records the following components in each unit's
-summary. These are enforced failure ceilings, not measured execution durations:
+`run-sim-ci.py::unit_allowances` records the components that follow in the summary of each unit.
+These values are enforced failure ceilings. They are not measured execution times.
 
 | Component | Derivation |
 |---|---|
-| Fixture | Isolated: seeder help 10s + three logged provision commands (up, migration, seed), each bounded at 180s. Non-isolated fresh stack: Compose up bounded at 180s. Both add a wall-clock API startup limit of 180s plus the last curl/sleep (2s + 1s). |
-| Replay and evidence | Policy: one client window per role for the complete export/check/trace/coverage/formula work, including shared group work. The wrapper process-group watchdog enforces the total window. No replay timing measurements are available for Phase3. |
-| Cleanup | API stop grace 15s. Isolated fixtures add two commands (logs/down), each bounded at 60s, plus one EXIT retry of those commands. |
-| Fallback cleanup | Isolated fixtures only: a further logs/down attempt (2 × 60s) after a forced wrapper termination interrupts its EXIT trap. |
-| Diagnostic retry | Solo units only, when `--video`: capture 110s + kill grace 10s + encode 110s + kill grace 10s. Multi-role units never retry. |
-| Local work and termination | Explicit 30s policy grace for parser/artifact/JUnit/scheduling work; 10s process-group termination grace after the watchdog deadline. |
-| Outer Compose | Down 120s + log collection 60s, only for the 21 non-isolated fresh-stack units. All 85 isolated units (including every Phase4 unit) skip these dispatcher operations. |
+| Fixture | Isolated: seeder help 10s + three logged provision commands (up, migration, seed). The limit of each command is 180s. Non-isolated fresh stack: Compose up, with a limit of 180s. The two types also add a wall-clock API startup limit of 180s, plus the last curl/sleep (2s + 1s). |
+| Replay and evidence | Policy: one client window for each role, for all the export/check/trace/coverage/formula work. This includes the shared group work. The process-group watchdog of the wrapper enforces the total window. Phase3 has no replay timing measurements. |
+| Cleanup | API stop grace 15s. Isolated fixtures add two commands (logs/down), with a limit of 60s each, plus one EXIT retry of these commands. |
+| Fallback cleanup | Isolated fixtures only: one more logs/down attempt (2 × 60s), when a forced wrapper termination interrupts its EXIT trap. |
+| Diagnostic retry | Solo units only, with `--video`: capture 110s + kill grace 10s + encode 110s + kill grace 10s. Multi-role units never retry. |
+| Local work and termination | An explicit 30s policy grace for parser/artifact/JUnit/scheduling work. A 10s process-group termination grace after the watchdog deadline. |
+| Outer Compose | Down 120s + log collection 60s, only for the 21 non-isolated fresh-stack units. All 85 isolated units (this includes each Phase4 unit) skip these dispatcher operations. |
 
-The workflow builds once and supplies API, migration and replay binaries plus
-trace/coverage commands to every wrapper, so these allowances do not include
-implicit per-unit compilation. Summed components with every solo video retry are:
-clients 24,773s; fixtures 69,928s; replay/evidence 30,449s; cleanup 21,990s;
-retry 21,840s; local grace 3,180s; outer Compose 3,780s; fallback cleanup 10,200s;
-termination 1,060s. Total: **187,200s (52 hours)**. Headless-only total: 165,360s.
-The self-hosted job deadline is 3,125 minutes (187,500s), with 5m00s beyond those
-failure ceilings. That headroom is not a measured build/upload guarantee; a run
-reaching the job deadline fails. The larger failure ceiling follows all applicable
-provision/cleanup/retry bounds rather than an assumed flat orchestration padding.
-The regression checks the derivations and complete discovery; no scenarios are
-excluded. Actual timing evidence is needed before tightening infrastructure caps.
+The workflow builds one time. It gives the API, migration and replay binaries and the
+trace/coverage commands to each wrapper. Thus, these allowances do not include
+compilation for each unit. The sums of the components, with each solo video retry, are:
+
+- clients 24,773s; fixtures 69,928s; replay/evidence 30,449s; cleanup 21,990s;
+- retry 21,840s; local grace 3,180s; outer Compose 3,780s; fallback cleanup 10,200s;
+- termination 1,060s.
+
+Total: **187,200s (52 hours)**. The total for headless runs only is 165,360s.
+The deadline of the self-hosted job is 3,125 minutes (187,500s). This is 5m00s more than the
+failure ceilings. This margin does not guarantee a measured build/upload time.
+A run that gets to the job deadline fails.
+The larger failure ceiling follows all applicable provision/cleanup/retry limits. It does not use an assumed flat margin for orchestration.
+The regression checks the derivations and the complete discovery. No scenarios are excluded.
+Before you make the infrastructure limits smaller, get actual timing evidence.
 
 ### Ephemeral Stack Isolation
 
 1. **Dedicated Project Namespace**:
    The workflow sets `COMPOSE_PROJECT_NAME=nightfall-sim-${{ github.run_id }}-${{ github.run_attempt }}`.
-   `run-sim-ci.py` verifies this namespace format before allowing `--fresh-stack` to run, preventing
-   accidental volume deletion on non-CI environments.
+   `run-sim-ci.py` verifies this namespace format before it lets `--fresh-stack` run. This prevents
+   an accidental removal of volumes in environments that are not CI.
 
 2. **Per-Unit Teardown and Volume Wipe**:
-   Every scenario unit (single scenario or paired multi-client role) begins by wiping the stack:
+   Each scenario unit (one scenario or a paired multi-client role) starts with the removal of the stack:
    ```bash
    docker compose down --volumes --remove-orphans
    ```
-   This guarantees that database rows, Keycloak realm accounts, NATS JetStream state, and zone
-   instances from one scenario cannot bleed into the next.
+   This makes sure that database rows, Keycloak realm accounts, NATS JetStream state, and zone
+   instances from one scenario cannot go into the next scenario.
 
 3. **Fresh Service Startup**:
-   For each unit, services are started afresh (`docker compose up -d --wait`) and the Nightfall API
-   is launched with `AUTH_DEV_TOKENS=1`.
+   For each unit, the services start again from the beginning (`docker compose up -d --wait`). The Nightfall API
+   starts with `AUTH_DEV_TOKENS=1`.
 
 4. **Telemetry and Logs**:
-   Each unit preserves:
-   - `orchestration.log`: Full stdout/stderr of the test launcher and client processes.
-   - `compose.log`: Service container output (`docker compose logs --no-color`).
+   Each unit keeps:
+   - `orchestration.log`: the full stdout/stderr of the test launcher and the client processes.
+   - `compose.log`: the output of the service containers (`docker compose logs --no-color`).
    - JUnit XML, UE logs (`Saved/Sim/<scenario>.log`), `.nfr` replay recordings, and `.trace.html` traces.
 
 ---
 
 ## 3. The 4 Paired Multi-Client Roles
 
-Scenarios involving cross-client interaction cannot run in isolation; they execute as coordinated
-pairs via [apps/client-unreal/Scripts/run-sim-multi.sh](../../apps/client-unreal/Scripts/run-sim-multi.sh),
-sharing a common `-SimGroup` token. Coordination occurs strictly through the server state (e.g.
-observing entity proxies), never via local IPC.
+Scenarios with interaction between clients cannot run in isolation. They run as coordinated
+pairs through [apps/client-unreal/Scripts/run-sim-multi.sh](../../apps/client-unreal/Scripts/run-sim-multi.sh),
+and they share a common `-SimGroup` token. Coordination occurs only through the server state (for example,
+observation of entity proxies), never through local IPC.
 
 In [run-sim-ci.py](../../apps/client-unreal/Scripts/run-sim-ci.py), paired roles (`*-a.nfs` and `*-b.nfs`)
-form an atomic unit. If an `-a` role exists without a matching `-b` role (or vice versa), the runner
+make an atomic unit. If an `-a` role exists without a matching `-b` role (or the opposite), the runner
 fails immediately with a configuration error (`orphan scenario role`).
 
 | Paired Unit | Role Files | Systems Tested | Failure Signature |
 |---|---|---|---|
-| **Two Clients in View** | `0b-two-clients-a.nfs`<br>`0b-two-clients-b.nfs` | • A walks to (12, 9) and logs out.<br>• B waits for `proxies >= 1`, observes A's proxy within 2 tiles after interpolation delay.<br>• B confirms A's despawn with zero leaked proxy actors (`proxy_actors_in_sync`). | Leaked proxy actor on despawn, proxy position desync > 2 tiles. |
-| **Login Replacement** | `0b-login-replaces-a.nfs`<br>`0b-login-replaces-b.nfs` | • Both processes authenticate under the same account and character via `nf.LoginGroup`.<br>• B's login triggers server disconnect of A with WebSocket close code `4409` (`SESSION_REPLACED`).<br>• A asserts clean closure (`close_code == 4409`) and halts without reconnecting; B stays `in_world`. | A attempts reconnection after 4409, or B fails to take over session. |
-| **Late Entry and Stale Spawn** | `1-late-entry-a.nfs`<br>`1-late-entry-b.nfs` | • A engages and damages a keltir.<br>• B enters the world mid-fight: asserts the keltir spawn carries wounded HP and incarnation.<br>• Next hit continues from current HP.<br>• A drops socket (`nf.DropSocket`), reconnects with a fresh ticket; asserts XP unknown until the next gain and NPC HP not reset by stale spawn. | Regression in `IsStaleSpawn`, resetting wounded NPC HP to full, or stale XP display. |
-| **Social Aggro** | `1-social-aggro-a.nfs`<br>`1-social-aggro-b.nfs` | • Two keltir instances.<br>• A attacks keltir 1; keltir 2 calls clan assist and engages A.<br>• B stands in aggro range of keltir 2 but does not attack.<br>• B asserts it observes the fight (`npcs_fighting >= 1`) but is never attacked (`attacked_by == 0`). | Help call incorrectly flags neutral bystander B, or social hate fails to spread. |
+| **Two Clients in View** | `0b-two-clients-a.nfs`<br>`0b-two-clients-b.nfs` | • A walks to (12, 9) and logs out.<br>• B waits for `proxies >= 1`, and observes the proxy of A within 2 tiles after the interpolation delay.<br>• B makes sure that A despawns with zero leaked proxy actors (`proxy_actors_in_sync`). | A leaked proxy actor on despawn, or a proxy position desync > 2 tiles. |
+| **Login Replacement** | `0b-login-replaces-a.nfs`<br>`0b-login-replaces-b.nfs` | • The two processes authenticate under the same account and character through `nf.LoginGroup`.<br>• The login of B causes the server to disconnect A with the WebSocket close code `4409` (`SESSION_REPLACED`).<br>• A asserts a clean closure (`close_code == 4409`) and stops without a reconnection. B stays `in_world`. | A tries to reconnect after 4409, or B does not take control of the session. |
+| **Late Entry and Stale Spawn** | `1-late-entry-a.nfs`<br>`1-late-entry-b.nfs` | • A attacks and damages a keltir.<br>• B enters the world during the fight, and asserts that the keltir spawn has the wounded HP and incarnation.<br>• The next hit continues from the current HP.<br>• A drops the socket (`nf.DropSocket`) and reconnects with a new ticket. A asserts that XP is unknown until the next gain, and that an old spawn does not reset the NPC HP. | A regression in `IsStaleSpawn`, which resets the wounded NPC HP to full, or an old XP value on the screen. |
+| **Social Aggro** | `1-social-aggro-a.nfs`<br>`1-social-aggro-b.nfs` | • Two keltir instances.<br>• A attacks keltir 1. Keltir 2 calls clan assist and attacks A.<br>• B stands in the aggro range of keltir 2, but does not attack.<br>• B asserts that it observes the fight (`npcs_fighting >= 1`), but that it is never attacked (`attacked_by == 0`). | The help call incorrectly marks the neutral bystander B, or the social hate does not spread. |
 
 ---
 
 ## 4. Quarantine Policy and JSON Schema
 
-The quarantine system isolates known flaky tests or in-progress bugs from blocking CI while
-ensuring failures remain visible and time-bounded.
+The quarantine system isolates known flaky tests or bugs that are not repaired, so that they do not block CI.
+It also makes sure that the failures stay visible and have a time limit.
 
 ### Quarantine File Location
 [apps/client-unreal/Scenarios/quarantine.json](../../apps/client-unreal/Scenarios/quarantine.json)
@@ -295,47 +299,47 @@ ensuring failures remain visible and time-bounded.
 ### Enforcement Rules
 
 1. **Pre-Run Validation**:
-   `run-sim-ci.py` parses `quarantine.json` before launching any client. It rejects:
-   - Missing `schema_version: 1` or missing `scenarios` list.
+   `run-sim-ci.py` parses `quarantine.json` before it starts a client. It refuses:
+   - A missing `schema_version: 1` or a missing `scenarios` list.
    - Unknown scenario names or duplicate entries.
-   - Empty or whitespace-only `owner`, `reason`, `issue`, or `expires`.
+   - An empty or whitespace-only `owner`, `reason`, `issue`, or `expires`.
    - **Expired Quarantines**: If `date.fromisoformat(item["expires"]) < date.today()`,
      `run-sim-ci.py` raises `ValueError: expired quarantine <scenario>: <date>`.
-     An expired quarantine **immediately halts CI with failure**.
+     An expired quarantine **immediately stops CI with a failure**.
 
 2. **Execution Semantics**:
-   - Quarantined scenarios **still run**. They are never skipped up-front.
-   - Raw failing artifacts (JUnit XML, UE logs, recordings, traces) are generated and preserved.
-   - If a quarantined scenario fails, its unit status is recorded as `QUARANTINED` in `summary.json`
-     and emitted as `<skipped>` in aggregate `suite.xml`.
+   - Quarantined scenarios **still run**. CI never skips them at the start.
+   - CI makes and keeps the raw artifacts of the failure (JUnit XML, UE logs, recordings, traces).
+   - If a quarantined scenario fails, CI records its unit status as `QUARANTINED` in `summary.json`.
+     CI emits it as `<skipped>` in the aggregate `suite.xml`.
 
 3. **Infrastructure Failures Cannot Be Quarantined**:
-   Quarantine exempts only scenario assertion failures. A quarantined scenario **still fails CI** if:
-   - Orchestration crashes (exit code not in `0` or `1`).
-   - Session recording is missing (`no session recording`).
-   - Replay check fails (`moon run api:replay-check` / `replay check failed` / `FAIL replay`).
-   - Trace generation fails (`trace generation failed`).
-   - Unexplained nonzero exit code occurs.
+   Quarantine applies only to scenario assertion failures. A quarantined scenario **still fails CI** if:
+   - The orchestration crashes (exit code not `0` or `1`).
+   - The session recording is missing (`no session recording`).
+   - The replay check fails (`moon run api:replay-check` / `replay check failed` / `FAIL replay`).
+   - The trace generation fails (`trace generation failed`).
+   - A nonzero exit code occurs, and there is no explanation for it.
 
 ---
 
 ## 5. Promotion Gate: PR Gating and Opt-In Policy
 
-Simulation testing runs real game processes on a persistent self-hosted runner. To avoid blocking
-development before stability is proven, the pipeline follows a two-stage gating lifecycle.
+Simulation tests run real game processes on a persistent self-hosted runner. The pipeline must not block
+development before the runner is proved stable. Thus the pipeline follows a gating lifecycle with two stages.
 
 ### Stage 1: Pre-Gate Opt-In (Current State)
 - **Workflow Triggers**:
   - Pushes to `main`.
-  - Nightly scheduled run (`15 2 * * *`).
+  - The scheduled run each night (`15 2 * * *`).
   - Manual `workflow_dispatch`.
 - **Soft Failure**:
-  Job runs with `continue-on-error: ${{ vars.SIM_PR_REQUIRED != 'true' }}`. Failures report in
-  GitHub Actions summaries and artifacts but do not block branch merges.
-- **PR Opt-In via `sim` Label**:
-  - Pull requests do **not** run simulation CI by default.
-  - Trusted developers can opt in a PR by adding the **`sim`** label to the PR.
-  - **Fork PR Security**: PRs from forks **never execute** on the self-hosted runner:
+  The job runs with `continue-on-error: ${{ vars.SIM_PR_REQUIRED != 'true' }}`. Failures show in the
+  GitHub Actions summaries and artifacts, but they do not block branch merges.
+- **PR Opt-In through the `sim` Label**:
+  - By default, pull requests do **not** run simulation CI.
+  - Trusted developers can opt in a PR. To do this, they add the **`sim`** label to the PR.
+  - **Fork PR Security**: PRs from forks **never run** on the self-hosted runner:
     ```yaml
     if: >-
       github.event_name != 'pull_request' ||
@@ -344,15 +348,15 @@ development before stability is proven, the pipeline follows a two-stage gating 
     ```
 
 ### Stage 2: Flake Gate and Branch Protection Enforcement
-The owner enforces PR simulation gating once the runner demonstrates stability:
+When the runner shows that it is stable, the owner enforces the PR simulation gate:
 
 1. **Two-Week Stability Requirement**:
    The test suite must complete **two consecutive calendar weeks with zero unquarantined failures**
-   on `main` pushes and nightly scheduled runs.
+   on `main` pushes and on the scheduled runs each night.
 2. **Owner Actions**:
-   - Set repository variable `SIM_PR_REQUIRED=true` under **Settings > Secrets and variables > Actions > Variables**.
-   - In GitHub **Branch Protection Rules** for `main`:
-     Add status check **`Simulation / sim`** to the required status checks list for PRs touching:
+   - Set the repository variable `SIM_PR_REQUIRED=true` under **Settings > Secrets and variables > Actions > Variables**.
+   - In the GitHub **Branch Protection Rules** for `main`:
+     Add the status check **`Simulation / sim`** to the list of required status checks for PRs that change:
      - `apps/client-unreal/**`
      - `apps/api/**`
      - `packages/**`
@@ -362,12 +366,12 @@ The owner enforces PR simulation gating once the runner demonstrates stability:
 
 ## 6. Optional Video Diagnostics (`--video`)
 
-When a single-client scenario fails during a nightly run or manual dispatch, the runner can capture
-an off-screen rendered replay to produce an MP4 diagnostic video.
+When a single-client scenario fails during a run at night or a manual dispatch, the runner can capture
+a replay that it renders off-screen. The runner makes an MP4 diagnostic video from this replay.
 
 ### Runner Prerequisites
 
-Verified via:
+This command verifies these prerequisites:
 ```bash
 bash infra/scripts/check-sim-runner.sh --video
 ```
@@ -375,46 +379,46 @@ bash infra/scripts/check-sim-runner.sh --video
 - `xvfb-run` (X Virtual Framebuffer).
 - `ffmpeg` with `libx264` support.
 - `xauth`.
-- **Mesa lavapipe**: CPU-based software Vulkan ICD (`/usr/share/vulkan/icd.d/lvp_icd.json` or path in `SIM_VIDEO_ICD`).
+- **Mesa lavapipe**: a software Vulkan ICD that uses the CPU (`/usr/share/vulkan/icd.d/lvp_icd.json` or the path in `SIM_VIDEO_ICD`).
 
 ### Execution Rules
 
 1. **Failure-Only Trigger**:
-   Video rendering runs **only when a scenario fails**. It is never executed for passing scenarios.
+   The video render runs **only when a scenario fails**. It never runs for scenarios that pass.
 2. **Single-Client Scenarios Only**:
-   Rendered retry is supported for single-client scenarios (`run-sim.sh`). Multi-client paired
-   scenarios (`run-sim-multi.sh`) do not execute video retries.
+   The rendered retry operates only for single-client scenarios (`run-sim.sh`). Multi-client paired
+   scenarios (`run-sim-multi.sh`) do not run video retries.
 3. **Execution Context**:
-   Invoked via [apps/client-unreal/Scripts/sim-video.sh](../../apps/client-unreal/Scripts/sim-video.sh):
-   - Strips `-nullrhi`.
+   [apps/client-unreal/Scripts/sim-video.sh](../../apps/client-unreal/Scripts/sim-video.sh) starts the retry. This script:
+   - Removes `-nullrhi`.
    - Adds `-vulkan -sm5 -AllowSoftwareRendering -RenderOffscreen -DumpMovie -ForceRes -ResX=960 -ResY=540 -FPS=15 -NoVSync`.
-   - Uses SM5 and permits CPU devices because the default UE profile excludes lavapipe; Lumen, Nanite and virtual shadows are disabled only in this diagnostic retry.
+   - Uses SM5 and lets CPU devices operate, because the default UE profile does not include lavapipe. Lumen, Nanite and virtual shadows are off only in this diagnostic retry.
    - Runs under `xvfb-run -a -s '-screen 0 960x540x24'`.
-   - Outputs frame dumps to `$dest/frames/`, assembles them with a concat manifest, and encodes
-     to H.264 MP4 (`960x540` at 15 fps).
+   - Writes frame dumps to `$dest/frames/`, puts them together with a concat manifest, and encodes
+     them to H.264 MP4 (`960x540` at 15 fps).
 4. **Isolated Retry Reports**:
    The video retry writes separate outputs:
    - `retry-exit-code.txt`
    - `stdout.log`
    - `ffmpeg.log`
-   - Standalone retry JUnit XML.
+   - A standalone retry JUnit XML.
 5. **No Verdict Overrides**:
-   The video retry's exit code and report **never replace or alter the original headless test verdict**.
-   The headless run remains the sole authority for test pass/fail status.
+   The exit code and the report of the video retry **never replace or change the original headless test verdict**.
+   Only the headless run sets the pass/fail status of the test.
 6. **No Claim Playable Until Tested**:
-   Do not assume or claim diagnostic videos are playable or operational until verified on the
-   specific runner host with lavapipe and ffmpeg installed.
+   Verify the diagnostic videos on the specific runner host with lavapipe and ffmpeg installed.
+   Until then, do not assume or claim that the videos play or operate.
 
 ## Scenario fixture selection
 
-A scenario can request `# fixture: phase1a-social-aggro`. Both members of a pair must agree.
-The CI orchestrator validates the supported fixture name, clears inherited `ZONE_SIM_FIXTURE`
-for ordinary cases, and sets it for this fresh API process only. Fixture selection requires
-`--fresh-stack`; an attached running API cannot switch fixture data.
+A scenario can request `# fixture: phase1a-social-aggro`. The two members of a pair must agree.
+The CI orchestrator validates the supported fixture name. For usual cases, it clears the inherited `ZONE_SIM_FIXTURE`.
+It sets the fixture only for this new API process. The fixture selection must have
+`--fresh-stack`. An attached API that runs cannot change the fixture data.
 
 ## Headless traceability scope
 
-Completed stories tagged `[client-visible]` must have a valid `# covers:` reference.
-A reference means the scenario asserts the observable portion of the story; existing server
-U/A tests, renderer automation and cooked-asset checks remain required for the rest. Tags are
-chosen from story behavior before coverage exists; uncovered cases fail and remain visible.
+Each completed story that has the tag `[client-visible]` must have a valid `# covers:` reference.
+A reference means that the scenario asserts the observable part of the story. For the remaining part, the server
+U/A tests, the renderer automation and the cooked-asset checks are still necessary. We select the tags from the
+story behavior before the coverage exists. Cases without coverage fail and stay visible.
