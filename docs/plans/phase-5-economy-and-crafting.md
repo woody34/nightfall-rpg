@@ -2,14 +2,16 @@
 
 **Status:** Planning. No implementation, story or gate has run; nothing in this document attests a pass.
 
-**Authorship.** Plan rev 6 was a full rewrite by the Claude design author (AD5 B23), replacing agy rev 5 (9d54c2a), which plan-review-3 rejected. Rev 7 applies plan-review-4 (accept with bounded fixes; E43–E46, B24). Architect: Claude. Independent review: a fresh Claude reviewer (author ≠ reviewer, A20).
+**Authorship.** Plan rev 6 was a full rewrite by the Claude design author (AD5 B23), replacing agy rev 5 (9d54c2a), which plan-review-3 rejected. Rev 7 applies plan-review-4 (accept with bounded fixes; E43–E46, B24). Rev 8 renumbers Phase 5 migrations to 000015..000019 (after Phase 4's `m20261014_000014`), refreshes the design SHA to 91fc056, adds the E56 freight fixture note, adds client story 5.8 (Phase 4 D120, close 4423) and adds the Phase 4 process lesson (lane-wide no-stub and end-to-end smoke conditions; a latent-stub audit before the first integration gate run). Architect: Claude. Independent review: a fresh Claude reviewer (author ≠ reviewer, A20).
 
 **Sources and precedence.**
 
 | Source | Role |
 |---|---|
-| [`phase-5-zone-design.md`](phase-5-zone-design.md) @ **0d525c7** | The **frozen** design (`codex/phase5-design`, AD5 B22). The file lives on that branch until integration merges it, so this link resolves only after the merge. Cited as **D §n**. Every contract, number and formula is normative there. This plan never restates a formula differently: where it summarises, the design wins. |
-| [`phase-5-architecture-decisions.md`](phase-5-architecture-decisions.md) | Binding decisions P1–P4, A1–A20, B1–B24 and E1–E46. Re-synced from the architect notes in this commit: verbatim body plus a banner (B12). |
+| [`phase-5-zone-design.md`](phase-5-zone-design.md) @ **91fc056** (rev 10; section numbers unchanged since 0d525c7) | The **frozen** design (`codex/phase5-design`, AD5 B22). The file lives on that branch until integration merges it, so this link resolves only after the merge. Cited as **D §n**. Every contract, number and formula is normative there. This plan never restates a formula differently: where it summarises, the design wins. |
+| [`phase-5-architecture-decisions.md`](phase-5-architecture-decisions.md) | Binding decisions P1–P4, A1–A20, B1–B26 and E1–E56. Re-synced from the architect notes in this commit: verbatim body plus a banner (B12). |
+| `codex/phase5-data` @ **3410877** | The final Epic 1 data branch (E56). Stories 1.1–1.7 are complete there. |
+| Final Phase 4 `main` SHA: *to be filled at Phase 4 close* | All Phase 5 worktrees branch from this SHA. |
 | [`05-economy-and-crafting.md`](../planning/05-economy-and-crafting.md) | Owner scope (P1). It is unpinned research. Its numbers never override the pinned sources or the design. |
 
 Pinned sources: l2j-game `abfde0490ac52a2106e884b7242c0276c44cdf76` and l2j-dp `3ca488dd2bd0bfaca43e378886a3c2e37968153a`, under `/home/matt-woodruff/.cache/nightfall/l2j/`. They are build-time provenance, never a runtime or replay dependency.
@@ -242,13 +244,13 @@ Lease sets per command, verbatim from D §10.0:
 | EpochReconcile (system) | none (ledger only) | — |
 
 **Migrations (D §11.4).**
-- **Numbering.** They start at the next free number after the final Phase 4 integration SHA, **provisionally 000014..000018**, and must be re-verified at implementation. D76's forward migration is still uncommitted on the Phase 4 branches.
+- **Numbering.** Phase 4 API migrations end at `m20261014_000014` (`character_lane_quarantines`). Phase 5 migrations are therefore **000015..000019**. Re-verify against the final Phase 4 `main` SHA before story 4.1. Design §11.4 still shows 000014..000018: each number shifts by one. The design's first implementation-time touch (story 7.2) records this shift; the frozen design is not edited now.
 - **Names:**
-  - `m2026XXXX_000014_economy_ledger_owners`
-  - `…_000015_economy_items`
-  - `…_000016_economy_mail`
-  - `…_000017_economy_auction_manor`
-  - `…_000018_economy_control`
+  - `m2026XXXX_000015_economy_ledger_owners`
+  - `…_000016_economy_items`
+  - `…_000017_economy_mail`
+  - `…_000018_economy_auction_manor`
+  - `…_000019_economy_control`
 - **Contents** are exactly D §11.4: owner-widened ledger with T1 trigger; single item table for every durable location with the mail/delivery FK policy; `mail_messages` with checkpoint-computed `expires_at`; `item_auctions`/`item_auction_bids` with plain NULLable bidder columns; `manor_seed_production`/`manor_crop_procure`; `economy_leases`/`economy_deliveries`/`economy_counters`/`economy_counter_facts`.
 - **Each migration** ships `.sql` + `_down.sql` + `.rs`, and `entities.sh` regenerates the entities.
 
@@ -352,6 +354,9 @@ All stories are pending. A story gets the `✅` prefix only after independent re
 - E1, E2 and E3 stories complete on unit, property, replay and oracle evidence. **None of them requires a `.nfs` run.**
 - Their "Simulation scenario(s)" stories (1.8, 3.15) author expectation and assertion sections and are reviewed. They do not run them.
 - Live `.nfs` passes are owned **once**, by 6.6. The client UI subscope is owned by 5.7.
+- **Lane-wide Done When (Phase 4 process lesson).** Every lane's final story adds two conditions to its Done When:
+  1. **No pending, fence or stub markers** remain in the lane's owned files (`TODO`, `todo!`, `unimplemented!`, stub returns, "pending"/"fence" placeholders). A grep over the owned files proves it.
+  2. **One end-to-end smoke on the production binary**: grant → login → intent → evidence export. The smoke runs the lane's own feature path.
 
 Each design §14 test family or item has exactly one owner:
 
@@ -379,7 +384,7 @@ Each design §14 test family or item has exactly one owner:
 | 1.5 Oracle: drop families [required] | C | `economy_oracle.py` families D-C, D-E, D-W, D-L, D-M, D-O, D-P, D-T exactly as D §14.1. **Done When:** all vectors pass against the pinned sources. D-E reproduces the 3/4 threshold groups and the 1,127 fall-offs. D-W reports 141 bits at G = 1 and ≤ 255 at G = 2^±32. No Rust-authored expectations. |
 | 1.6 Oracle: party, XP and ledger families [required] | C | Families L-P, X and G (D §14.1). **Done When:** vectors pass, including X for n = 5 with all e < 2·10⁶ (74,892 differences, e = 45 → 62), the 36 SP-only templates, and T1 orders. |
 | 1.7 Oracle: vendor, craft, multisell, manor, auction, fee, pow, L-table and flood families [required] | C | Families V-P, V-R, V-S, M, C, S, A, F, PW, LT, FL (D §14.1). **Done When:** vectors pass. V-P equals binary64 over all 5,803 pairs × 4 castle percents (362 naive-truncation differences at castle 0). PW matches all 320 captured entries; its negative controls give 44/79 and 78/79. |
-| 1.8 Simulation scenario(s) [client-visible] [required] | C | Generate oracle expectation sidecars for all 36 §2.8 files: `5-drop-basic`, `5-drop-precise-over-100`, `5-drop-level-gap`, `5-drop-rate-multiplier`, `5-pickup-protection`, `5-herb`, `5-decay`, `5-party-loot-finders`, `5-party-loot-random`, `5-party-loot-random-spoil`, `5-party-loot-by-turn`, `5-party-loot-by-turn-spoil`, `5-party-adena-split`, `5-party-vote`, `5-party-xp`, `5-solo-xp-damage-share`, `5-spoil-sweep`, `5-sweep-party`, `5-pk-drop`, `5-vendor-buy-sell-refund`, `5-vendor-restock`, `5-multisell`, `5-craft-dwarf`, `5-craft-common-masterwork`, `5-private-manufacture`, `5-trade`, `5-trade-cancel-disconnect`, `5-store-sell-package`, `5-store-buy`, `5-warehouse`, `5-freight`, `5-mail-cod`, `5-mail-reject-cancel-expiry`, `5-auction-bid-cancel-award`, `5-manor-sow-harvest-sell`, `5-epoch-reconcile` (`.nfs`). 1.8 also owns the **pack declarations** (E46): the oracle-relevant inputs of every §5.3 pack (roles, classes, levels, positions, inventories, recipes, party, container rows and the fixture schedule) as data files under `apps/client-unreal/Scenarios/fixtures/`. 6.1 implements the seeders that consume them and extends them with harness-only fields. **Done When:** each sidecar is derived from 1.5–1.7 functions over those declarations and reviewed by Z. **No live run is required** (that is 6.6). |
+| 1.8 Simulation scenario(s) [client-visible] [required] | C | Generate oracle expectation sidecars for all 36 §2.8 files: `5-drop-basic`, `5-drop-precise-over-100`, `5-drop-level-gap`, `5-drop-rate-multiplier`, `5-pickup-protection`, `5-herb`, `5-decay`, `5-party-loot-finders`, `5-party-loot-random`, `5-party-loot-random-spoil`, `5-party-loot-by-turn`, `5-party-loot-by-turn-spoil`, `5-party-adena-split`, `5-party-vote`, `5-party-xp`, `5-solo-xp-damage-share`, `5-spoil-sweep`, `5-sweep-party`, `5-pk-drop`, `5-vendor-buy-sell-refund`, `5-vendor-restock`, `5-multisell`, `5-craft-dwarf`, `5-craft-common-masterwork`, `5-private-manufacture`, `5-trade`, `5-trade-cancel-disconnect`, `5-store-sell-package`, `5-store-buy`, `5-warehouse`, `5-freight`, `5-mail-cod`, `5-mail-reject-cancel-expiry`, `5-auction-bid-cancel-award`, `5-manor-sow-harvest-sell`, `5-epoch-reconcile` (`.nfs`). 1.8 also owns the **pack declarations** (E46): the oracle-relevant inputs of every §5.3 pack (roles, classes, levels, positions, inventories, recipes, party, container rows and the fixture schedule) as data files under `apps/client-unreal/Scenarios/fixtures/`. 6.1 implements the seeders that consume them and extends them with harness-only fields. **E56 fixture note:** freight packs use freightable templates only (20678 Gatekeeper Hat, 20725 Red Flame of Valakas, or other freightable templates). Adena (57) is not freightable, so no freight declaration contains adena except the refusal vector. **Done When:** each sidecar is derived from 1.5–1.7 functions over those declarations and reviewed by Z. **No live run is required** (that is 6.6). |
 
 ### Epic 2: Contracts, version boundary and rules (C proto; Z codec/rules)
 
@@ -415,7 +420,7 @@ Every story ends on unit, property, replay and oracle evidence. None runs `.nfs`
 
 | Story | Model | Work / Done When |
 |---|---|---|
-| 4.1 Migrations and entities [required] | C | The §2.5 migrations, provisionally 000014..000018 (re-verify the numbers against the final Phase 4 integration SHA first), with `.sql`/`_down.sql`/`.rs` and the `entities.sh` regeneration. **Done When:** 4.1 owns the D §14.4 "Migrations" item: up/down on an empty DB and on a seeded Phase 4 DB pass; the T1 trigger accepts the legacy D76 shape and the T1 shape and rejects others. `entities.sh --check` is clean. |
+| 4.1 Migrations and entities [required] | C | The §2.5 migrations 000015..000019 (re-verify the numbers against the final Phase 4 `main` SHA first), with `.sql`/`_down.sql`/`.rs` and the `entities.sh` regeneration. **Done When:** 4.1 owns the D §14.4 "Migrations" item: up/down on an empty DB and on a seeded Phase 4 DB pass; the T1 trigger accepts the legacy D76 shape and the T1 shape and rejects others. `entities.sh --check` is clean. |
 | 4.2 Checkpoint and admission adapter [required] | C | `characters.phase5_checkpoint` (the only durable recipe-book home), the PbPlayerLoad 11 producer, memory/Postgres parity. **Done When:** fingerprint parity and fail-closed unknown-field/version units pass on both adapters. No `character_recipes` table exists. |
 | 4.3 Lease manager, preflight and frozen inputs [required] | C | D §10.0: per-command lease sets, canonical keys with bytewise order and `COLLATE "C"`, all-or-nothing acquisition, no data-row locks, pre-images and DB-time decisions per the D §12.2 frozen table, and the system-job `request_key` derivation. **Done When:** units pass for every lease set; opposite-role MailSend acquires in the same order; a held key gives `CONTAINER_BUSY` with nothing inserted. |
 | 4.4 Economy checkpoint writer and outbox [required] | C | D §11.5: container CAS in key order, lease deletes in the same order, owner-kind ledger rows, delivery rows, `expires_at` computed in the insert, outbox subjects, `40P01`/`40001` transient, `economy_lease_violation` permanent. **Done When:** memory/Postgres adapter units pass, including forced 40P01 retry and a CAS-miss fence (4.4 owns the D §14.4 "lease CAS" engine-unit item). |
@@ -441,13 +446,14 @@ Every story ends on unit, property, replay and oracle evidence. None runs `.nfs`
 | 5.4 Trade and private-store windows [client-visible] [required] | C | Trade request/answer/add/confirm/cancel; store set/close/buy/sell/package/manufacture. **Done When:** automation passes. |
 | 5.5 Warehouse, freight, mail, auction and manor dialogs [client-visible] [required] | C | Driven by the read RPCs and the WS intents; `CONTAINER_BUSY` retry UX. **Done When:** automation passes. |
 | 5.6 Bot DSL and predicates [client-visible] [required] | C | The §5.3 command and predicate set, and only that set. **Done When:** parser, UNKNOWN and reset tests pass. |
+| 5.8 Lane-quarantine close code (Phase 4 D120) [required] | C | The Unreal client treats WebSocket close **4423** `character_lane_quarantined` as **no-reconnect**, like 4409. It shows the reason and stops the reconnect loop. The bot records the close code in its diagnostics coverage. **Done When:** named NetClient and BotDiagnostics automation tests close a socket with 4423 and assert no reconnect attempt, the shown reason and the counted close code; the existing 4409 tests still pass. |
 | 5.7 Simulation scenario(s) [client-visible] [required] | C | Client UI-subscope automation for every §2.8 file (all 36 names as listed in 1.8). **Done When:** `run-tests.sh --require-live-api` passes with **zero skips**, and cook/stage proves the assets. A `.nfs` run alone never proves pixels. The live `.nfs` pass is 6.6. |
 
 ### Epic 6: Harness, regression, replay, sizing, scenarios and soak (C; Z review)
 
 | Story | Model | Work / Done When |
 |---|---|---|
-| 6.1 Predicate map, fixture dispatcher and packs [required] | C | First deliverable: the parser-tested §5.3 command/predicate → carrier map. Then `phase5-fixtures.py` and `infra/scripts/seed-phase5-*.py` for every §5.3 pack, consuming 1.8's pack declarations and extending them with harness-only fields (E46), seeded pre-admission via owned-container exec (no host psql). 6.1 also checks whether the harness has a tick fast-forward/injection facility for `5-vendor-restock` (E43) and records the answer. **Done When:** parser/stub/UNKNOWN/reset tests and seed idempotency tests pass before any scenario work. |
+| 6.1 Predicate map, fixture dispatcher and packs [required] | C | First deliverable: the parser-tested §5.3 command/predicate → carrier map. Then `phase5-fixtures.py` and `infra/scripts/seed-phase5-*.py` for every §5.3 pack, consuming 1.8's pack declarations and extending them with harness-only fields (E46). The `phase5-freight` seeder seeds freightable templates only (20678, 20725 or other freightable templates); adena is not freightable (E56), seeded pre-admission via owned-container exec (no host psql). 6.1 also checks whether the harness has a tick fast-forward/injection facility for `5-vendor-restock` (E43) and records the answer. **Done When:** parser/stub/UNKNOWN/reset tests and seed idempotency tests pass before any scenario work. |
 | 6.2 Evidence contract v2 consumer and oracle gates [required] | C | Strict consumer of the 3.13 export (D §14.3), with C14/C15 actual-input gates calling the 1.5–1.7 oracle functions. **Done When:** missing/corrupt/repeated/foreign-owner fact tests and every `econ_chance` exact recomputation pass. UNKNOWN is never allow-listed. Z reviews. |
 | 6.3 Earlier-phase suites re-derived under production V7 [required] | C | C16: every Phase 0b–4 live scenario runs production V7. A machine-readable before/after report covers every scenario and variant, with the reasons for each changed value: B16 damage-share XP, the respawn-jitter reorder after the drop draws, and V7 corpse time. Changed expectations are re-derived with the oracle and re-cited in the header. **Done When:** the report is reviewed; no assertion is relaxed, quarantined or allow-listed; historical `.nfr` files stay byte-exact. |
 | 6.4 V7 replay fixtures and digest coverage [required] | Z | Verified V7 `.nfr` fixtures with drops, pickups, party, vendor, craft, trade, containers and system jobs. Each canonical Phase 5 field is mutated to show digest divergence. Snapshot mid-action recovery. **Done When:** replay byte-exact; mutation and recovery tests pass; the 3.13 export over these fixtures is deterministic; C reviews. |
@@ -460,7 +466,7 @@ Every story ends on unit, property, replay and oracle evidence. None runs `.nfs`
 | Story | Model | Work / Done When |
 |---|---|---|
 | 7.1 Metrics and observability [required] | C | Bounded op/outcome/item-class/grade counters (A19) and the **only** new gauge, `nightfall_zone_ground_items{kind}` (E25); `infra/scripts/verify-observability.sh` updated. No alerts or thresholds are invented. **Done When:** pre/active/post scrapes agree with committed export facts; no identifier labels. |
-| 7.2 Diagrams and operational docs [required] | D + Claude | D drafts the implemented flows and runbooks (lease and delivery queue, epoch reconcile). **Claude** (the design author, E23/B23) makes the first implementation-time design touch: the four cosmetic design-review-7 nits A–D (B22), and aligning the domain `ItemLocation` list (which includes `Ground`) with the six wire values in D §13.4. **Done When:** Claude review approves them against the implemented contracts. |
+| 7.2 Diagrams and operational docs [required] | D + Claude | D drafts the implemented flows and runbooks (lease and delivery queue, epoch reconcile). **Claude** (the design author, E23/B23) makes the first implementation-time design touch: the four cosmetic design-review-7 nits A–D (B22), and aligning the domain `ItemLocation` list (which includes `Ground`) with the six wire values in D §13.4. The touch also records the migration renumbering: Phase 5 migrations are 000015..000019, not D §11.4's 000014..000018, because Phase 4 ends at `m20261014_000014`. **Done When:** Claude review approves them against the implemented contracts. |
 | 7.3 Outcome and limitations [required] | D | Fill §9 only after root acceptance. **Done When:** Claude review verifies the evidence links, measured sizes and residuals. |
 
 ## 5. Required acceptance evidence and fixtures
@@ -537,7 +543,7 @@ Phases 1–4 acceptance remains required. There is no whole-epic circular gate:
 2. **Engine:** E3 after E2. Stories 3.1–3.2 come first. 3.3–3.12 can run in parallel behind Z's serialization of shared files. Then 3.13 and 3.14, then 3.15.
 3. **Adapters:** E4.1–4.4 after E2.1/E2.2 (4.2 also after 3.1); E4.5/4.7 after 3.11; E4.6 after 4.1–4.2; E4.8 after 4.1–4.7.
 4. **Client and harness:** E5 skeleton after E2.1; live after E3/E4. E6.2 after 3.13; E6.3/6.4/6.5 after E3/E4. E6.6 after E4, E5.6 and E6.1/6.2. E6.7 after 6.5 and 6.6.
-5. **Close (root).** Every item is required implementation evidence. Docs-only authoring is never a gate pass. Root integrates independently reviewed commits and runs, on the merged tree:
+5. **Close (root).** Every item is required implementation evidence. Docs-only authoring is never a gate pass. **Before the first integration gate run**, root runs a **latent-stub audit** over the merged tree: no pending, fence or stub markers in any Phase 5 file, and every lane's end-to-end smoke receipt present. Root integrates independently reviewed commits and runs, on the merged tree:
    - `moon ci`;
    - `cargo fmt --check`;
    - strict `cargo clippy --all-targets -- -D warnings`;
@@ -561,7 +567,7 @@ Phases 1–4 acceptance remains required. There is no whole-epic circular gate:
 | Unbounded ground state (E25) | Snapshot exceeds C10 | Measurement gate plus gauge; overflow is reported, never truncated |
 | Lease contention | `CONTAINER_BUSY` storms; delayed deliveries | Bytewise key order, no data-row locks, busy re-queue, per-delivery bound (E41) and crash-window tests |
 | V7 changes earlier-phase observables (B16, jitter order, corpse time) | Silent weakening of older suites | Story 6.3 before/after report and re-derivation; no relaxed assertion |
-| Migration numbering collision with D76 | Broken migration order | Re-verify the numbering against the final Phase 4 integration SHA before 4.1 |
+| Migration numbering collision with late Phase 4 migrations | Broken migration order | Phase 5 starts at 000015 after Phase 4's `m20261014_000014`; re-verify against the final Phase 4 `main` SHA before 4.1 |
 | Unreal shared build state | Invalid evidence | Root lock; named automation, cook and stage receipts |
 
 ## 8. Out of scope
