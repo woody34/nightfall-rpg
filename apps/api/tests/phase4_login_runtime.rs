@@ -975,3 +975,130 @@ async fn postgres_seeded_class_transferred_owner_needs_its_receipt_history() {
     assert_eq!(options.current_class_id, 8);
     socket.close().await;
 }
+
+/// D125: the dev `GrantItem` (admin item creation) may exceed the owner's weight ceiling, so a
+/// fixture can provision overload; the owner then retains an overload rank. Slot capacity still
+/// binds it (`InventoryFull`), and in-game additions keep the ceiling (domain unit test
+/// `admin_grant_exceeds_weight_but_never_slot_capacity`). Idempotent retry is unchanged.
+async fn overweight_grant<R>(repo: Arc<R>, log: Arc<dyn EventLog>)
+where
+    R: CharacterRepository
+        + ItemAdmissionRepository
+        + ItemCheckpointRepository
+        + ItemInventoryRepository
+        + ItemReceiptRepository
+        + LearningCheckpointRepository
+        + 'static,
+{
+    let character = Character::create(
+        AccountId::from_uuid(common::account()),
+        CharacterName::new("HeavyGrant").unwrap(),
+        Race::Human,
+    );
+    repo.create_idempotent(&IdempotencyKey::new(), "heavy-grant", &character)
+        .await
+        .unwrap();
+    let (app, _, _) = v6_app(repo.clone(), log).await;
+    let id = character.id.as_uuid().as_bytes().to_vec();
+    let request = |template_id, count| pb::GrantItemRequest {
+        character_id: id.clone(),
+        template_id,
+        count,
+        idempotency_key: Uuid::now_v7().to_string(),
+        enchant_level: None,
+    };
+    // The kit first, so the retained ceiling is known.
+    grant(&app, request(57, 1)).await;
+    let before = repo
+        .retained_inventory(character.id)
+        .await
+        .unwrap()
+        .unwrap()
+        .checkpoint
+        .unwrap();
+    assert!(before.weight <= before.max_load && before.overload_level == 0);
+    let bundle = item_data::embedded_phase4_bundle().unwrap();
+    let parts = bundle.items.parts();
+    let (template, weight) = parts
+        .items
+        .iter()
+        .filter(|(t, d)| {
+            d.stackable
+                && **t != 57
+                && d.weight > 0
+                && parts.capabilities.get(t).is_some_and(|c| c.storable)
+        })
+        .map(|(t, d)| (*t, u64::from(d.weight)))
+        .max_by_key(|(t, w)| (*w, *t))
+        .unwrap();
+    let count = u64::try_from(before.max_load)
+        .unwrap()
+        .checked_mul(2)
+        .and_then(|load| load.checked_div(weight))
+        .and_then(|units| units.checked_add(1))
+        .unwrap();
+    let heavy = request(template, count);
+    let first = grant(&app, heavy.clone()).await;
+    assert_eq!(grant(&app, heavy).await, first, "idempotent retry unchanged");
+    let after = repo
+        .retained_inventory(character.id)
+        .await
+        .unwrap()
+        .unwrap()
+        .checkpoint
+        .unwrap();
+    assert!(after.weight > after.max_load, "{} <= {}", after.weight, after.max_load);
+    assert!(after.overloaded && after.overload_level >= 1, "{after:?}");
+    // Slot capacity still binds the admin grant.
+    let filler = parts
+        .items
+        .iter()
+        .filter(|(t, d)| {
+            !d.stackable
+                && d.flags.get("is_questitem") == Some(&false)
+                && parts.capabilities.get(t).is_some_and(|c| c.storable)
+        })
+        .map(|(t, _)| *t)
+        .next()
+        .unwrap();
+    let refused = app
+        .grpc
+        .clone()
+        .grant_item(request(filler, u64::from(after.ordinary_capacity).checked_add(1).unwrap()))
+        .await
+        .unwrap_err();
+    assert_eq!(refused.code(), tonic::Code::FailedPrecondition, "{refused:?}");
+    assert_eq!(refused.message(), "InventoryFull");
+}
+
+#[tokio::test]
+async fn memory_dev_grant_may_overload_but_not_overfill() {
+    let bundle = item_data::embedded_phase4_bundle().unwrap();
+    let repo = Arc::new(
+        InMemoryCharacterRepository::default()
+            .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
+            .unwrap(),
+    );
+    overweight_grant(repo, Arc::new(InMemoryEventLog::default())).await;
+}
+
+#[tokio::test]
+async fn postgres_jetstream_dev_grant_may_overload_but_not_overfill() {
+    let pool = common::pg::migrated_pool()
+        .await
+        .expect("owned DATABASE_URL required");
+    let url = std::env::var("NATS_URL").expect("owned NATS_URL required");
+    common::pg::insert_account(&pool, common::account()).await;
+    let bundle = item_data::embedded_phase4_bundle().unwrap();
+    let repo = Arc::new(
+        PgCharacterRepository::new(pool)
+            .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
+            .unwrap(),
+    );
+    let log = Arc::new(
+        JetStreamEventLog::connect(async_nats::connect(&url).await.unwrap(), Metrics::detached())
+            .await
+            .unwrap(),
+    );
+    overweight_grant(repo, log).await;
+}
