@@ -4,6 +4,7 @@
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "ProtoCodec.h"
 #include "SnapshotBuffer.h"
+#include "TickEstimator.h"
 #include "NetClientSubsystem.generated.h"
 
 class IWebSocket;
@@ -112,6 +113,15 @@ public:
 	bool IsConnected() const { return bConnected; }
 	bool IsPhase3Projection() const { return bPhase3Projection; }
 	uint64 GetLatestReceivedTick() const { return LatestReceivedTick; }
+	/**
+	 * Newest received tick advanced by the local monotonic clock at the fixed 100 ms tick (D132):
+	 * what deadline-relative reads (flag remaining, reuse ready, offer expiry, protection) use, so
+	 * they do not depend on how often the zone sends this session a tick-bearing frame. Never
+	 * below GetLatestReceivedTick(); see FTickEstimator for the clamp.
+	 */
+	uint64 GetEstimatedTick() const { return FMath::Max(LatestReceivedTick, TickEstimator.Estimate(MonotonicSeconds())); }
+	/** Test only: replaces FPlatformTime::Seconds as the clock the estimate advances with. */
+	void SetMonotonicClockForTesting(TFunction<double()> Clock) { MonotonicClock = MoveTemp(Clock); }
 
 	/**
 	 * The server closes a session that sends nothing for 60 s (4408). While connected, a check runs
@@ -274,6 +284,10 @@ private:
 	bool bConnected = false;
 	bool bPhase3Projection = false;
 	uint64 LatestReceivedTick = 0;
+	FTickEstimator TickEstimator;
+	TFunction<double()> MonotonicClock;
+	double MonotonicSeconds() const { return MonotonicClock ? MonotonicClock() : FPlatformTime::Seconds(); }
+	void ObserveReceivedTick() { if (LatestReceivedTick) TickEstimator.Observe(LatestReceivedTick, MonotonicSeconds()); }
 	bool bWantConnected = false;
 	bool bReconnectPending = false;
 	/** Bumped by Connect and Disconnect; pending reconnects and ticket replies compare it. */

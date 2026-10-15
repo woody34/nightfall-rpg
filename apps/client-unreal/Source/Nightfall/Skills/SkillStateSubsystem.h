@@ -48,6 +48,8 @@ public:
  uint64 GetOperationSerial() const { return OperationSerial; }
  bool RpcDone() const { return bRpcDone && !IsBusy(); }
 	uint64 GetTick() const;
+	/** GetTick() advanced between frames by the local 100 ms tick clock (D132): for deadline-relative bot reads. */
+	uint64 GetEstimatedTick() const;
 	bool IsHydrated(const FString& Entity) const { return Fence.Hydrated(Entity, GetTick()); }
 	bool HasOwnerState() const { return bOwnerKnown; }
  bool HasSkillBaseline() const { return bSyncKnown; }
@@ -55,13 +57,16 @@ public:
 	const TOptional<uint64>& GetSp() const { return Sp; }
 	uint64 GetSpGainedTotal() const { return SpGainedTotal; }
 	uint32 GetDeathPenalty() const { return DeathPenalty; }
-	TOptional<uint64> ReuseRemaining(uint32 Id) const;
+	TOptional<uint64> ReuseRemaining(uint32 Id) const { return ReuseRemaining(Id, GetTick()); }
+	TOptional<uint64> ReuseRemaining(uint32 Id, uint64 AtTick) const;
  float CooldownFraction(uint32 Id) const;
 	const FCastView* FindCast(const FString& Entity) const { return Casts.Find(Entity.ToLower()); }
 	const FPvpStateChanged* FindPvp(const FString& Entity) const { return Pvp.Find(Entity.ToLower()); }
-	FString Flag(const FString& Entity) const;
+	FString Flag(const FString& Entity) const { return Flag(Entity, GetTick()); }
+	FString Flag(const FString& Entity, uint64 AtTick) const;
 	const TOptional<FResurrectOffer>& GetOffer() const { return Offer; }
-	bool OfferPending() const;
+	bool OfferPending() const { return OfferPending(GetTick()); }
+	bool OfferPending(uint64 AtTick) const;
  uint64 GetLastOfferId() const { return LastOfferId; }
 	int32 GetCastTransitions() const { return CastTransitions; }
 	using FDone = TFunction<void(const FNetResult&)>;

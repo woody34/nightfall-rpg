@@ -561,7 +561,7 @@ Predicates (`FBotPredicateRegistry`, `Bot/BotPredicates.cpp`). Numbers take `<op
 | `acks <op> <n>` | Acks received (one for each accepted intent; the server refuses keep-alives and never Acks them) | `OnIntentAck` |
 | `own_mp <op> <n>` | the MP of the player | projection |
 | `own_hp_is_respawn_hp`, `own_mp_is_respawn_mp` | own HP == max(1, floor(maxHP * restore_hp_q / 1e6)), MP == floor(maxMP * restore_mp_q / 1e6) (65 %, 0) | projection, `tables/formulas.toml` |
-| `protection_active` | inferred from the server rule (no flag on the wire): an `EntityRespawned` for the player, no Attack accepted after it, and fewer than spawn_protection_seconds * 10 ticks elapsed | events, `tables/formulas.toml` |
+| `protection_active` | inferred from the server rule (no flag on the wire): an `EntityRespawned` for the player, no Attack accepted after it, and fewer than spawn_protection_seconds * 10 ticks elapsed (newest received tick, or the D132 estimated tick when later) | events, `tables/formulas.toml` |
 | `own_level_matches_xp` | own level == the highest `experience.toml` level that the XP total gets to | projection, `tables/experience.toml` |
 | `death_xp_loss <op> <n>`, `death_xp_loss_matches_table` | the XP that the newest death took; it is equal to min(XP, round((X[L+1] - X[L]) * fraction_q[L] / 1e6)) for the level L at the death | `StatsChanged`, `tables/penalties.toml` |
 | `attack_results <op> <n>`, `damage_numbers_match_results` | different AttackResults received; one floating number for each different AttackResult | `OnAttackResult`, `OnDamageNumber` |
@@ -1224,9 +1224,11 @@ consumption, for duplicate-consent rejection tests. Explicit IDs are for server 
 Numeric comparisons accept exact unsigned integers and `== != < <= > >=`.
 Unknown evidence evaluates false, and the output shows it as unknown where applicable.
 
+Deadline-relative reads (`target_flag_remaining`, `own_flag`/`target_flag`, `skill_ready`, `skill_reuse_remaining`, `resurrect_offer_pending`, `target_swing_impact_remaining`, `players_attacking_me`, `protection_active`, and the `nf.CastIf` reuse check) compare with the estimated tick (D132): the newest received tick advanced by the local monotonic clock at the fixed 100 ms tick, rebased on every newer received tick and clamped down to it when the projection ran ahead. The zone sends a frame only when something visible changes, so the received tick alone can stay many ticks behind (T22). Evidence-ordering checks keep the received tick.
+
 | Predicate | Authoritative message / fields |
 |---|---|
-| `skill_ready <id>`, `skill_reuse_remaining <id> op n` | Owner SkillStateSync ranks/reuse, SkillReuse.ready_tick, received stream tick |
+| `skill_ready <id>`, `skill_reuse_remaining <id> op n` | Owner SkillStateSync ranks/reuse, SkillReuse.ready_tick, estimated tick (D132) |
 | `learned_rank <id> op n` | SkillStateSync.learned, SkillLearned (not historical RPC resources) |
 | `buff_active/inactive <id>`, `debuff_active <id>`, `effect_count op n` | Identity baseline plus EffectApplied.pool/end_tick and EffectRemoved.effect_id |
 | `entity_effect_active/inactive <own|self|target|UUID> <id>` | Visible identity/incarnation, EffectApplied/Removed stable IDs and deadlines |
@@ -1248,7 +1250,7 @@ Unknown evidence evaluates false, and the output shows it as unknown where appli
 | `entity_at <entity> <x> <y> <tol>` | The newest received EntitySpawn/EntityMove position sample, only for the current known identity |
 | `entity_casting <entity> <id>` | The current SkillCastStarted skill ID, including identity hydration; a terminal Result/Cancelled clears it |
 | `initial_hp/mp/cp op n` | The first owner EntitySpawn HP and the first accepted StatsChanged MP/CP in the current admission; later updates do not change these samples |
-| `target_flag_remaining op n` | Received PvpStateChanged.flag_until_tick minus the newest received tick, with zero as the minimum |
+| `target_flag_remaining op n` | Received PvpStateChanged.flag_until_tick minus the estimated tick (D132: newest received tick advanced by the local 100 ms clock between frames), with zero as the minimum |
 | `cast_cancel_reason/observed_cast_cancel_reason == <reason>` | The last accepted SkillCastCancelled.reason, with caster life/cast ID fences; observed includes the owner |
 | `buff_replacements op n`, `replacement_remove_before_apply` | Known buff EffectRemoved(reason=REPLACED), then an EffectApplied for the same target/skill/pool with a new effect ID; duplicates/baselines not included |
 | `effect_remove_reason == <reason>` | The last accepted EffectRemoved.reason for a stable effect ID that was known before |
