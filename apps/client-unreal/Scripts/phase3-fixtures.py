@@ -84,7 +84,9 @@ def profiles(pack, repo, paired=False):
     elif pack == 'phase3-resurrect':
         # Advanced classes require a durable successful-transfer receipt. Start at
         # the trainer in the base class; caster scenarios buy Cleric/Resurrection
-        # through real public mutations rather than fabricating that history.
+        # through real public mutations. (A seeded class-transferred owner, such as
+        # phase4-kinds, gets one seeded receipt per tier instead: D124/T25,
+        # seed-phase3-fixture.py transfer_receipts.)
         owner = role(OWNER, 'human_mystic', 30, 10000, [126, 128], {1068: 1, 1216: 1})
     elif pack == 'phase3-regen':
         owner = role(OWNER, 'human_mystic', 14, 0, [126, 128], {1177: 1}, hp=1, mp=1, cp=1)

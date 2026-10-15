@@ -294,3 +294,15 @@ InventoryFull. Dev grants may exceed max load (weight), as an L2J admin-created 
 a player overweight; 4-overload depends on this (overload level 4, weight > 100%).
 `seed-phase4-fixture.py capacity_blockers()` models the slot rule on each pack's final
 inventory, so a pack over slot capacity is blocked at plan time, before any write.
+
+Seeded class-transfer history (D124/T25). The API refuses a class-transferred owner that has
+no class-transfer receipts (FAILED_PRECONDITION `invalid_class_transfer_receipt_history`).
+For each seeded role whose class is not its base class, `seed-phase3-fixture.py`
+(`transfer_receipts`) writes one `change_class` receipt per tier in the seed transaction. The
+receipts follow the parent chain in `professions/*.toml`, and each one has:
+- an `idempotency_keys` row with the frozen transfer result: the owner's identity, the base
+  class's own stats, the target's minimum level and zero vitals;
+- a `character_transfer_receipts` row with ordinal 0 or 1.
+
+Today the only such role is the phase4-kinds owner (Treasure Hunter: receipts for classes 7
+and 8). A level below a target's minimum, or above 85, refuses before any write.
