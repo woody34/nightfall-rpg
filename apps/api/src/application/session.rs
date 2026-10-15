@@ -1143,7 +1143,7 @@ impl super::ports::ClassTransferRuntime for SessionContext {
             .snapshot()
             .await
             .map_err(|_| super::AppError::Unavailable("zone stopped".into()))?;
-        let state = crate::domain::zone::ZoneState::from_snapshot(snapshot)
+        let state = super::replay_log::restore_snapshot(snapshot)
             .map_err(|_| super::AppError::Unavailable("invalid zone snapshot".into()))?;
         let p = state
             .class_player(entity, caller, generation)
@@ -1189,7 +1189,7 @@ impl super::ports::Phase3Runtime for SessionContext {
             .snapshot()
             .await
             .map_err(|_| super::AppError::Unavailable("zone stopped".into()))?;
-        let state = crate::domain::zone::ZoneState::from_snapshot(snapshot)
+        let state = super::replay_log::restore_snapshot(snapshot)
             .map_err(|_| super::AppError::Unavailable("invalid zone snapshot".into()))?;
         state
             .class_player(entity, caller, generation)
@@ -1212,7 +1212,7 @@ impl super::ports::Phase3Runtime for SessionContext {
             .snapshot()
             .await
             .map_err(|_| super::AppError::Unavailable("zone stopped".into()))?;
-        let state = crate::domain::zone::ZoneState::from_snapshot(snapshot.clone())
+        let state = super::replay_log::restore_snapshot(snapshot.clone())
             .map_err(|_| super::AppError::Unavailable("invalid zone snapshot".into()))?;
         let player = state
             .class_player(entity, caller, zone_generation(generation))
