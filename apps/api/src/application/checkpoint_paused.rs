@@ -18,6 +18,10 @@ impl CheckpointService {
                 owners.insert(projection.entity),
                 "multiple final item checkpoints for one tick/owner"
             );
+            // T11: a quarantined owner's later recorded facts are dropped, offline ones too.
+            if self.quarantined.contains_key(&projection.entity) {
+                continue;
+            }
             if snapshot
                 .entities
                 .iter()

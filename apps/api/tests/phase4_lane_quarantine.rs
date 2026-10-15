@@ -220,6 +220,11 @@ async fn recovery_quarantines_a_permanently_failing_item_lane_and_boots_the_zone
     .unwrap();
     assert!(reason.contains("injected_permanent_item_failure"), "{reason}");
     assert_eq!(u64::try_from(at_epoch).unwrap(), epoch);
+    // The operations listing (boot summary, runbook) names exactly this owner in this zone.
+    let listed = repo.lane_quarantines(zone).await.unwrap();
+    assert_eq!(listed.len(), 1);
+    assert_eq!((listed[0].character_id, listed[0].epoch), (poisoned.character, epoch));
+    assert!(listed[0].reason.contains("injected_permanent_item_failure"));
     // The healthy owner is untouched: it logs into the new epoch with its settled inventory.
     let app = app_for(&second, &repo, &writer).await;
     let mut socket = ws::join(&app, &healthy).await;
@@ -230,14 +235,28 @@ async fn recovery_quarantines_a_permanently_failing_item_lane_and_boots_the_zone
     assert_eq!(again.inventory_revision, settled.inventory_revision);
     assert_eq!(again.items, settled.items);
     socket.close().await;
-    // The quarantined owner's login is refused; the zone keeps running.
+    // The quarantined owner's login is refused by name with the permanent 4423 close (never
+    // the retryable 1011 "zone unavailable"); the zone keeps running.
     let ticket = ws::ticket(&app, &poisoned).await;
-    if let Ok(mut refused) = ws::connect(&app, &ticket).await {
-        assert!(refused
-            .closed(std::time::Duration::from_secs(10))
-            .await
-            .is_some());
-    }
+    let mut refused = ws::connect(&app, &ticket)
+        .await
+        .expect("the refusal is a close after the upgrade");
+    let frame = tokio::time::timeout(std::time::Duration::from_secs(10), async {
+        use futures_util::StreamExt as _;
+        loop {
+            match refused.socket.next().await {
+                Some(Ok(tokio_tungstenite::tungstenite::Message::Close(frame))) => break frame,
+                Some(Ok(_)) => {},
+                // A socket that ends without a close frame fails the expect below.
+                Some(Err(_)) | None => break None,
+            }
+        }
+    })
+    .await
+    .expect("the quarantined login is closed at once")
+    .expect("the close carries a code and reason");
+    assert_eq!(u16::from(frame.code), 4423);
+    assert_eq!(frame.reason.as_str(), LANE_QUARANTINED);
     assert!(!second.handle().persistence_failed());
     second.shutdown(WatermarkReason::Shutdown).await.unwrap();
     let _ = std::fs::remove_file(path);

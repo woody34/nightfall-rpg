@@ -442,6 +442,14 @@ async fn logged_purchase_with_stale_checkpoint_quarantines_the_owner_during_reco
             && format!("{refused:#}").contains("newer revision"),
         "{refused:#}"
     );
+    // The typed refusal and the operations listing name the same owner.
+    assert!(refused
+        .downcast_ref::<nightfall_api::application::ports::LaneQuarantined>()
+        .is_some());
+    let listed = repo.lane_quarantines(ZoneId(88)).await.unwrap();
+    assert_eq!(listed.len(), 1);
+    assert_eq!((listed[0].character_id, listed[0].epoch), (c.id, 1));
+    assert!(repo.lane_quarantines(ZoneId(89)).await.unwrap().is_empty());
     assert_eq!(repo.get(c.id).await.unwrap().unwrap().class_state, expected.class_state);
     assert_eq!(
         repo.learn_receipt_lookup(

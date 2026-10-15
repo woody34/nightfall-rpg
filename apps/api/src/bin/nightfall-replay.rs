@@ -442,19 +442,19 @@ async fn main() -> ExitCode {
             return ExitCode::from(ERROR);
         },
     };
-    // V6 epochs recorded over a RULES_DIR overlay reference its composed bundle by hash;
-    // the same overlay must be supplied to resolve them (the embedded bundle needs nothing).
-    // It is composed lazily, only when a recorded hash misses the embedded bundle.
-    if let Some(dir) = std::env::var_os("RULES_DIR").filter(|dir| !dir.is_empty()) {
-        match nightfall_api::infrastructure::skill_data::Phase3DataSource::from_dir(
-            std::path::Path::new(&dir),
-        ) {
-            Ok(source) => nightfall_api::infrastructure::item_data::register_phase4_source(source),
-            Err(error) => {
-                eprintln!("error: RULES_DIR V6 bundle: {error}");
-                return ExitCode::from(ERROR);
-            },
-        }
+    // V6 epochs recorded over a RULES_DIR overlay and/or ZONE_SIM_FIXTURE reference their
+    // composed bundle by hash; the same configuration must be supplied to resolve them (the
+    // embedded bundle needs nothing). It is composed lazily, exactly as the API composes it at
+    // startup, only when a recorded hash misses the embedded bundle (T18).
+    match nightfall_api::zone_runtime::ZoneRuntimeConfig::from_env().phase4_replay_source() {
+        Ok(Some(source)) => {
+            nightfall_api::infrastructure::item_data::register_phase4_source(source);
+        },
+        Ok(None) => {},
+        Err(error) => {
+            eprintln!("error: configured V6 bundle (RULES_DIR / ZONE_SIM_FIXTURE): {error:#}");
+            return ExitCode::from(ERROR);
+        },
     }
     let result = match args.command {
         Command::Verify => verify(&args).await,

@@ -1,6 +1,7 @@
 //! Real zone ticks settled on both adapters: D95 Refine + `CancelRefine` at the blacksmith,
 //! D100 credit after a plain debit (partial Destroy of a crystal stack, then a Crystallize
-//! refund into it) and the D113 enchanted dev grant (birth enchant level, no RNG).
+//! refund into it), the D113 enchanted dev grant (birth enchant level, no RNG) and the D47/B4
+//! paid skill learn (book 8618 consumed by the learn receipt, zone b63f0ec).
 #![allow(
     missing_docs,
     clippy::unwrap_used,
@@ -67,6 +68,7 @@ where
         + ItemAdmissionRepository
         + ItemCheckpointRepository
         + ItemInventoryRepository
+        + LearningCheckpointRepository
         + 'static,
 {
     async fn new(
@@ -77,6 +79,20 @@ where
         class: Option<u32>,
         skills: Vec<LearnedSkill>,
         grants: &[(u32, u64, u32)],
+    ) -> Self {
+        Self::new_at(repo, name, race, level, class, skills, grants, None).await
+    }
+
+    /// As `new`, with the owner placed at `at` (tiles) instead of the blacksmith.
+    async fn new_at(
+        repo: Arc<R>,
+        name: &str,
+        race: Race,
+        level: u32,
+        class: Option<u32>,
+        skills: Vec<LearnedSkill>,
+        grants: &[(u32, u64, u32)],
+        at: Option<(i32, i32)>,
     ) -> Self {
         let bundle = item_data::embedded_phase4_bundle().unwrap();
         let rules = rules_data::load_rules(&rules_data::RulesSource::embedded())
@@ -191,12 +207,14 @@ where
             Arc::new(InMemorySessionAudit::default()),
             Arc::new(Metrics::detached()),
         )
-        .with_items(repo.clone());
+        .with_items(repo.clone())
+        .with_learning(repo.clone());
         let loaded = repo.load_for_admission(c.id).await.unwrap().unwrap();
         let blacksmith = &bundle.items.parts().capacities.blacksmith;
+        let (x, y) = at.unwrap_or((blacksmith.x, blacksmith.y));
         let core = ItemPausedCore {
             name: c.name.as_str().to_owned(),
-            position: Vec2Fixed::from_tiles(blacksmith.x, blacksmith.y),
+            position: Vec2Fixed::from_tiles(x, y),
             load: player_load(loaded),
         };
         let entity = EntityId::from_uuid(c.id.as_uuid());
@@ -399,6 +417,7 @@ where
         + ItemAdmissionRepository
         + ItemCheckpointRepository
         + ItemInventoryRepository
+        + LearningCheckpointRepository
         + 'static,
 {
     let bundle = item_data::embedded_phase4_bundle().unwrap();
@@ -471,6 +490,7 @@ where
         + ItemAdmissionRepository
         + ItemCheckpointRepository
         + ItemInventoryRepository
+        + LearningCheckpointRepository
         + 'static,
 {
     let bundle = item_data::embedded_phase4_bundle().unwrap();
@@ -676,6 +696,7 @@ where
         + ItemAdmissionRepository
         + ItemCheckpointRepository
         + ItemInventoryRepository
+        + LearningCheckpointRepository
         + 'static,
 {
     let bundle = item_data::embedded_phase4_bundle().unwrap();
@@ -805,4 +826,224 @@ async fn postgres_enchanted_dev_grant_is_born_at_its_level() {
         .await
         .unwrap();
     assert_eq!(stored, 24);
+}
+
+/// D47/B4 (api-review-10 P2-1): the zone's paid learn of 1405 rank 1 (a level-52 Rogue with one
+/// book 8618 at the trainer) settles as one unified checkpoint: the book's Consume aggregate
+/// caused by `skill_learn_payment`, the learn receipt and the learned rank. The same learn
+/// without its item work (`checkpoint_learning`) is refused as `item_learn_payment`.
+async fn paid_learn_contract<R>(repo: Arc<R>) -> CharacterId
+where
+    R: CharacterRepository
+        + ItemAdmissionRepository
+        + ItemCheckpointRepository
+        + ItemInventoryRepository
+        + LearningCheckpointRepository
+        + 'static,
+{
+    use api::domain::zone::phase4_projection::ItemEvidenceValue;
+    const BOOK: u32 = 8618;
+    let mut scene = Scene::new_at(
+        repo,
+        "PaidLearn",
+        Race::Human,
+        52,
+        Some(7),
+        Vec::new(),
+        &[(BOOK, 1, 0)],
+        Some((126, 128)),
+    )
+    .await;
+    let book = scene
+        .instances()
+        .into_iter()
+        .find(|item| item.template_id == BOOK)
+        .unwrap();
+    let key = Uuid::now_v7();
+    scene.seq = scene.seq.checked_add(1).unwrap();
+    let draft = scene.state.draft(vec![ZoneInput::session(
+        scene.entity,
+        SessionGeneration(1),
+        scene.seq,
+        ZoneCommand::LearnSkill {
+            entity: scene.entity,
+            account: scene.character.account_id,
+            request_key: key,
+            skill_id: skill::SkillId(1405),
+            skill_level: 1,
+        },
+    )]);
+    let mut cold = restore_snapshot(scene.state.snapshot()).unwrap();
+    let applied = scene.state.run_tick(draft.clone()).unwrap();
+    assert_eq!(applied, cold.run_tick(draft).unwrap());
+    assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+    let result = applied
+        .events
+        .iter()
+        .find_map(|event| {
+            if let ZoneEvent::SkillLearned { result, .. } = event {
+                Some(result.as_ref().clone())
+            } else {
+                None
+            }
+        })
+        .unwrap();
+    let projection = applied
+        .events
+        .iter()
+        .find_map(|event| {
+            if let ZoneEvent::ItemCheckpoint(p) = event {
+                Some(p.as_ref().clone())
+            } else {
+                None
+            }
+        })
+        .unwrap();
+    // The recorded producer shape (b63f0ec): one whole-book Consume aggregate, no item receipt,
+    // caused by the learn receipt's key and rank.
+    assert_eq!(projection.ledger.len(), 1);
+    let row = &projection.ledger[0];
+    assert_eq!(
+        (row.operation, row.instance, row.count_delta),
+        (ItemOperation::Consume, book.id, -1)
+    );
+    assert!(row.after.is_none() && row.receipt.is_none() && row.receipt_refs.is_empty());
+    assert_eq!(row.causes.len(), 1);
+    assert_eq!(row.causes[0].family, "skill_learn_payment");
+    assert_eq!(
+        row.causes[0].fields.get("receipt"),
+        Some(&ItemEvidenceValue::Text(key.to_string()))
+    );
+    let receipt = SuccessfulLearnReceipt {
+        account_id: scene.character.account_id,
+        key: IdempotencyKey::from_uuid(key),
+        request_fingerprint: learn_skill_fingerprint(scene.character.id, result.skill),
+        result: result.clone(),
+    };
+    // The item-less learning path never settles a book-gated rank.
+    let loaded = scene
+        .repo
+        .load_for_admission(scene.character.id)
+        .await
+        .unwrap()
+        .unwrap();
+    let mut class_state = loaded.class_state.clone();
+    class_state.merge_learned_skills([LearnedSkill {
+        key: "l2.skill.1405".into(),
+        level: 1,
+    }]);
+    let unpaid = api::application::CharacterCheckpoint {
+        character_id: scene.character.id,
+        revision_seen: loaded.revision,
+        level: loaded.level,
+        xp: loaded.xp,
+        hp: loaded.hp.unwrap_or(100),
+        mp: loaded.mp.unwrap_or(100),
+        alive: loaded.alive,
+        position: loaded.position,
+        idempotency: ("learn_skill".into(), IdempotencyKey::new()),
+        class_state: Some(class_state),
+        phase3: loaded.phase3.clone(),
+        phase4: None,
+    };
+    assert!(matches!(
+        scene.repo.checkpoint_learning(&unpaid, &[], &receipt).await,
+        Err(CheckpointError::Constraint(name)) if name == "item_learn_payment"
+    ));
+    assert_eq!(
+        scene
+            .repo
+            .learn_receipt_lookup(receipt.account_id, &receipt.key, &receipt.request_fingerprint)
+            .await
+            .unwrap(),
+        LearnReceiptLookup::Unknown
+    );
+    // The real recording settles through the checkpoint lane: Applied, once.
+    scene
+        .log
+        .append_applied(&AppliedTickRecord::from_applied(scene.zone, &applied))
+        .await
+        .unwrap();
+    scene
+        .service
+        .admitted(&applied, &scene.state.snapshot())
+        .await
+        .unwrap();
+    assert_eq!(
+        scene
+            .repo
+            .learn_receipt_lookup(receipt.account_id, &receipt.key, &receipt.request_fingerprint)
+            .await
+            .unwrap(),
+        LearnReceiptLookup::Known(result)
+    );
+    let settled = scene
+        .repo
+        .load_for_admission(scene.character.id)
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(settled
+        .class_state
+        .learned_skills
+        .iter()
+        .any(|skill| skill.key == "l2.skill.1405" && skill.level == 1));
+    let retained = scene
+        .repo
+        .retained_inventory(scene.character.id)
+        .await
+        .unwrap()
+        .unwrap()
+        .checkpoint
+        .unwrap();
+    assert_eq!(retained, projection.checkpoint, "settled tick is the retained state");
+    assert!(retained
+        .instances
+        .iter()
+        .all(|item| item.template_id != BOOK));
+    scene.character.id
+}
+
+#[tokio::test]
+async fn memory_real_paid_skill_learn_settles_the_book_payment() {
+    let repo = memory_repo();
+    let character = paid_learn_contract(repo.clone()).await;
+    let payments: Vec<_> = repo
+        .item_ledger_for_test()
+        .into_iter()
+        .filter(|row| {
+            row.character_id == character
+                && row.operation == ItemLedgerOperation::Consume
+                && row
+                    .delta
+                    .causes
+                    .iter()
+                    .any(|cause| cause["family"] == "skill_learn_payment")
+        })
+        .collect();
+    assert_eq!(payments.len(), 1);
+}
+
+#[tokio::test]
+async fn postgres_real_paid_skill_learn_settles_the_book_payment() {
+    let Some((pool, repo)) = pg_repo().await else {
+        return;
+    };
+    let character = paid_learn_contract(repo).await;
+    let payments: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM item_ledger WHERE character_id=$1 AND op='consume' AND delta->'causes' @> '[{\"family\":\"skill_learn_payment\"}]'::jsonb",
+    )
+    .bind(character.as_uuid())
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(payments, 1);
+    let learned: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM outbox WHERE subject='nightfall.character.skill_learned' AND payload::text LIKE '%' || $1 || '%'",
+    )
+    .bind(character.as_uuid().to_string())
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(learned, 1);
 }

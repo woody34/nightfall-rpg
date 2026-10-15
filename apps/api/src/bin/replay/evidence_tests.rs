@@ -307,3 +307,39 @@ fn recorded_admission_and_learning_emit_actual_restored_state_and_frozen_commit(
     );
     Ok(())
 }
+
+/// T17/D114: V6 recordings carry the Phase 3 `observer_combat` facts the C11 gates read.
+/// Fixture: a V6 (snapshot 10, `BinaryV6`) Prophet self-cast of 1388 through completion,
+/// written by the lib test `v6_learned_item_cost_is_atomic_paid_once_and_not_refunded_on_cancel`
+/// (`NIGHTFALL_TEST_CAST_COST_EVIDENCE_RECORDING`, embedded rules).
+#[test]
+fn v6_recordings_export_observer_combat_facts() -> anyhow::Result<()> {
+    let bytes = std::fs::read(
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/phase3-v6/v6-cast-observers.nfr"),
+    )?;
+    let rec = Recording::from_bytes(&bytes)?;
+    assert_eq!(
+        rec.snapshot.meta.digest_version,
+        nightfall_api::domain::zone::StateDigestVersion::BinaryV6
+    );
+    let first = collect(&rec, &bytes)?;
+    assert_eq!(first, collect(&rec, &bytes)?);
+    let rows = rows(&first)?;
+    let observed: Vec<_> = rows
+        .iter()
+        .filter(|row| row["kind"] == "observer_combat")
+        .collect();
+    assert!(!observed.is_empty(), "V6 export lacks observer_combat");
+    let events: BTreeSet<_> = observed
+        .iter()
+        .flat_map(|row| row["data"]["events"].as_array().into_iter().flatten())
+        .filter_map(|event| event["type"].as_str())
+        .collect();
+    for kind in ["skill_cast_started", "skill_cast_result"] {
+        assert!(events.contains(kind), "missing {kind}: {events:?}");
+    }
+    for row in &observed {
+        assert!(row["entity"].is_string() && row["tick"].is_u64(), "{row}");
+    }
+    Ok(())
+}

@@ -92,12 +92,23 @@ impl ItemGrantRuntime for SessionContext {
                     let repo = self.registry.characters.as_ref().ok_or_else(|| {
                         AppError::Unavailable("committed owner loading unavailable".into())
                     })?;
-                    let loaded = repo.load_for_admission(character).await?.ok_or_else(|| {
-                        AppError::NotFound {
+                    // T11: a quarantined owner is refused by name, never as an internal error.
+                    let loaded = repo
+                        .load_for_admission(character)
+                        .await
+                        .map_err(|error| {
+                            match error.downcast_ref::<crate::application::ports::LaneQuarantined>()
+                            {
+                                Some(quarantined) => {
+                                    AppError::FailedPrecondition(quarantined.to_string())
+                                },
+                                None => AppError::Infrastructure(error),
+                            }
+                        })?
+                        .ok_or_else(|| AppError::NotFound {
                             entity: "character",
                             id: character.to_string(),
-                        }
-                    })?;
+                        })?;
                     if loaded.identity.account_id != account {
                         return Err(AppError::PermissionDenied(
                             "character belongs to another account".into(),

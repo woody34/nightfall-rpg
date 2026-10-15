@@ -193,6 +193,7 @@ port, thus the §4 adapter tests do not apply.
 | 4400 | `seq` did not increase | repair the client; reconnect |
 | 4408 | Idle timeout | reconnect when the player does an action |
 | 4409 | Stale generation, or a newer session of the same player entity replaced it | stop; do not reconnect automatically |
+| 4423 | The checkpoint lane of the character is quarantined (reason `character_lane_quarantined`). An operator must clear it. | stop; do not reconnect automatically |
 | 4429 | The client does not read fast enough (outbound queue full, or a full broadcast buffer behind) | reconnect with a new ticket; the server sends the AOI again |
 
 The writer gives 1 s to send a close frame before it drops the socket. A transport failure

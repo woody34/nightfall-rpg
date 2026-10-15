@@ -694,3 +694,148 @@ async fn postgres_jetstream_item_intent_before_admission_is_refused_without_a_fe
     );
     early_intent(repo, log).await;
 }
+
+/// T19: every Phase 2/3 RPC that reads the live zone (class transfer options, the session
+/// generation behind `LearnSkill`, the learnable-skill catalogue) and the transfer itself work
+/// for an online player of a V6 zone. They used to rebuild the zone with the V5-only
+/// `ZoneState::from_snapshot` and answered UNAVAILABLE "invalid zone snapshot".
+async fn phase2_phase3_rpcs<R>(repo: Arc<R>, log: Arc<dyn EventLog>)
+where
+    R: CharacterRepository
+        + ItemAdmissionRepository
+        + ItemCheckpointRepository
+        + ItemInventoryRepository
+        + ItemReceiptRepository
+        + LearningCheckpointRepository
+        + 'static,
+{
+    use api::domain::subclass::LearnedSkill;
+    let account = common::account();
+    let mut character = Character::create(
+        AccountId::from_uuid(account),
+        CharacterName::new("SixTransfer").unwrap(),
+        Race::Human,
+    );
+    let rules = rules_data::load_rules(&rules_data::RulesSource::embedded())
+        .unwrap()
+        .rules;
+    character.level = 40;
+    character.xp = rules.xp_to_level(40).unwrap();
+    // At the trainer, with SP to buy a rank and one token per tier (milestones claimed).
+    character.position = api::domain::Position { x: 126.0, y: 128.0 };
+    character.class_state.sp = 1_000_000;
+    character.class_state.token_tier_1_count = 1;
+    character.class_state.token_tier_2_count = 1;
+    character.class_state.milestone_claimed_mask = 3;
+    character.class_state.learned_skills = vec![LearnedSkill {
+        key: "racial.adaptable".into(),
+        level: 1,
+    }];
+    repo.create_idempotent(&IdempotencyKey::new(), "v6-transfer", &character)
+        .await
+        .unwrap();
+    let (app, _, _) = v6_app(repo.clone(), log).await;
+    let player = ws::Player {
+        account,
+        character: character.id,
+        name: character.name.as_str().to_owned(),
+    };
+    let mut socket = ws::join(&app, &player).await;
+    socket
+        .until(|m| inventory_sync(m).is_some_and(|s| s.baseline))
+        .await;
+    let mut client = app.game_as(account);
+    let id = character.id.to_string();
+    let options = client
+        .transfer_options(pb::TransferOptionsRequest {
+            character_id: id.clone(),
+        })
+        .await
+        .expect("TransferOptions on V6")
+        .into_inner();
+    assert_eq!(options.current_class_id, 0);
+    assert_eq!(
+        options
+            .options
+            .iter()
+            .map(|o| o.class_id)
+            .collect::<Vec<_>>(),
+        vec![1, 4, 7]
+    );
+    assert!(options.options.iter().all(|o| o.eligible));
+    let learnable = client
+        .list_learnable_skills(pb::ListLearnableSkillsRequest {
+            character_id: id.clone(),
+        })
+        .await
+        .expect("ListLearnableSkills on V6")
+        .into_inner();
+    assert_eq!(learnable.current_class_id, 0);
+    let rank = learnable
+        .skills
+        .iter()
+        .filter(|s| s.eligible)
+        .find_map(|s| s.skill.clone().filter(|i| i.required_items.is_empty()))
+        .expect("an eligible rank at the trainer");
+    let learned = client
+        .learn_skill(pb::LearnSkillRequest {
+            character_id: id.clone(),
+            skill_id: rank.skill_id,
+            skill_level: rank.skill_level,
+            idempotency_key: Uuid::now_v7().to_string(),
+        })
+        .await
+        .expect("LearnSkill on V6")
+        .into_inner();
+    assert_eq!((learned.skill_id, learned.skill_level), (rank.skill_id, rank.skill_level));
+    let changed = client
+        .change_class(pb::ChangeClassRequest {
+            character_id: id.clone(),
+            target_class_id: 1,
+            idempotency_key: Uuid::now_v7().to_string(),
+        })
+        .await
+        .expect("ChangeClass on V6")
+        .into_inner();
+    assert_eq!(changed.character.as_ref().unwrap().class_id, 1);
+    let after = client
+        .transfer_options(pb::TransferOptionsRequest { character_id: id })
+        .await
+        .expect("TransferOptions after the transfer")
+        .into_inner();
+    assert_eq!(after.current_class_id, 1);
+    assert_eq!(after.options.iter().map(|o| o.class_id).collect::<Vec<_>>(), vec![2, 3]);
+    socket.close().await;
+}
+
+#[tokio::test]
+async fn memory_phase2_phase3_rpcs_work_on_a_v6_zone() {
+    let bundle = item_data::embedded_phase4_bundle().unwrap();
+    let repo = Arc::new(
+        InMemoryCharacterRepository::default()
+            .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
+            .unwrap(),
+    );
+    phase2_phase3_rpcs(repo, Arc::new(InMemoryEventLog::default())).await;
+}
+
+#[tokio::test]
+async fn postgres_jetstream_phase2_phase3_rpcs_work_on_a_v6_zone() {
+    let pool = common::pg::migrated_pool()
+        .await
+        .expect("owned DATABASE_URL required");
+    let url = std::env::var("NATS_URL").expect("owned NATS_URL required");
+    common::pg::insert_account(&pool, common::account()).await;
+    let bundle = item_data::embedded_phase4_bundle().unwrap();
+    let repo = Arc::new(
+        PgCharacterRepository::new(pool)
+            .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
+            .unwrap(),
+    );
+    let log = Arc::new(
+        JetStreamEventLog::connect(async_nats::connect(&url).await.unwrap(), Metrics::detached())
+            .await
+            .unwrap(),
+    );
+    phase2_phase3_rpcs(repo, log).await;
+}

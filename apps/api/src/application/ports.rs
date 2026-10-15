@@ -134,6 +134,16 @@ pub trait CharacterRepository: Send + Sync {
     async fn quarantine_lane(&self, quarantine: &LaneQuarantine) -> anyhow::Result<()> {
         anyhow::bail!("lane quarantine is unavailable in this repository: {}", quarantine.reason)
     }
+
+    /// T11 operations: the quarantined owners recorded for `zone`, by character id. The boot
+    /// summary and the runbook (running-locally.md, "Quarantined lanes") read this.
+    async fn lane_quarantines(
+        &self,
+        zone: crate::domain::zone::ZoneId,
+    ) -> anyhow::Result<Vec<LaneQuarantine>> {
+        let _ = zone;
+        Ok(Vec::new())
+    }
 }
 
 /// A permanent per-owner recovery quarantine (T11).
@@ -153,6 +163,16 @@ pub struct LaneQuarantine {
 
 /// The named admission refusal for a quarantined owner.
 pub const LANE_QUARANTINED: &str = "character_lane_quarantined";
+
+/// The typed admission refusal for a quarantined owner (T11). Its text is
+/// `character_lane_quarantined: <reason>`; callers downcast it from the `anyhow` load error to
+/// refuse the owner by name instead of as a generic load failure.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[error("{}: {}", LANE_QUARANTINED, .reason)]
+pub struct LaneQuarantined {
+    /// The first recorded failure of the quarantined lane.
+    pub reason: String,
+}
 
 /// Level range the `characters.level` check constraint enforces.
 pub const LEVEL_RANGE: std::ops::RangeInclusive<u32> = 1..=85;

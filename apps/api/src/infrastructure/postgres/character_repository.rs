@@ -374,6 +374,35 @@ impl CharacterRepository for PgCharacterRepository {
         Ok(())
     }
 
+    async fn lane_quarantines(
+        &self,
+        zone: crate::domain::zone::ZoneId,
+    ) -> anyhow::Result<Vec<crate::application::ports::LaneQuarantine>> {
+        let rows = self
+            .db
+            .query_all_raw(Statement::from_sql_and_values(
+                DbBackend::Postgres,
+                "SELECT character_id, epoch, tick, reason FROM character_lane_quarantines \
+                 WHERE zone_id = $1 ORDER BY character_id",
+                [i32::try_from(zone.0)?.into()],
+            ))
+            .await?;
+        rows.iter()
+            .map(|row| {
+                let character: uuid::Uuid = row.try_get("", "character_id")?;
+                let epoch: i64 = row.try_get("", "epoch")?;
+                let tick: i64 = row.try_get("", "tick")?;
+                Ok(crate::application::ports::LaneQuarantine {
+                    character_id: CharacterId::from_uuid(character),
+                    zone,
+                    epoch: u64::try_from(epoch)?,
+                    tick: crate::domain::zone::Tick(u64::try_from(tick)?),
+                    reason: row.try_get("", "reason")?,
+                })
+            })
+            .collect()
+    }
+
     async fn load_for_admission(
         &self,
         character_id: CharacterId,
@@ -395,7 +424,7 @@ impl CharacterRepository for PgCharacterRepository {
                     .await?;
                 if let Some(row) = quarantined {
                     let reason: String = row.try_get("", "reason")?;
-                    anyhow::bail!("{}: {reason}", crate::application::ports::LANE_QUARANTINED);
+                    return Err(crate::application::ports::LaneQuarantined { reason }.into());
                 }
                 let hp = m.hp.map(u32::try_from).transpose()?;
                 let mp = m.mp.map(u32::try_from).transpose()?;

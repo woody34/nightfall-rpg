@@ -140,6 +140,9 @@ pub enum SessionEnd {
     SlowConsumer,
     /// The zone refused the admission (for example the saved position is outside it): 1011.
     AdmissionRefused,
+    /// The character's checkpoint lane is quarantined (T11) until an operator clears it: 4423.
+    /// Permanent; the client must not reconnect automatically.
+    LaneQuarantined,
     /// The zone actor stopped: 1011.
     ZoneUnavailable,
 }
@@ -156,6 +159,7 @@ impl SessionEnd {
             Self::Replaced => Some(4409),
             Self::SlowConsumer => Some(4429),
             Self::AdmissionRefused | Self::ZoneUnavailable => Some(1011),
+            Self::LaneQuarantined => Some(4423),
         }
     }
 
@@ -171,6 +175,7 @@ impl SessionEnd {
             Self::SlowConsumer => "client too slow",
             Self::AdmissionRefused => "admission refused",
             Self::ZoneUnavailable => "zone unavailable",
+            Self::LaneQuarantined => super::ports::LANE_QUARANTINED,
         }
     }
 
@@ -184,6 +189,7 @@ impl SessionEnd {
             Self::SlowConsumer => "slow_consumer",
             Self::AdmissionRefused => "admission_refused",
             Self::ZoneUnavailable => "zone_unavailable",
+            Self::LaneQuarantined => "lane_quarantined",
         }
     }
 }
@@ -356,7 +362,7 @@ pub fn zone_generation(g: crate::domain::SessionGeneration) -> SessionGeneration
 }
 
 /// Why the registry refused an admission.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum AdmitError {
     /// A session with the same or a newer generation already owns the character.
     #[error("a newer session owns this character")]
@@ -364,6 +370,9 @@ pub enum AdmitError {
     /// Committed character state could not be loaded.
     #[error("character admission load failed")]
     LoadFailed,
+    /// The character's checkpoint lane is quarantined (T11): a named, permanent refusal.
+    #[error(transparent)]
+    Quarantined(#[from] super::ports::LaneQuarantined),
     /// The zone actor has stopped.
     #[error(transparent)]
     ZoneStopped(#[from] ActorStopped),
@@ -419,7 +428,10 @@ impl SessionRegistry {
             let loaded = repo
                 .load_for_admission(id)
                 .await
-                .map_err(|_| AdmitError::LoadFailed)?
+                .map_err(|error| match error.downcast_ref::<super::ports::LaneQuarantined>() {
+                    Some(quarantined) => AdmitError::Quarantined(quarantined.clone()),
+                    None => AdmitError::LoadFailed,
+                })?
                 .ok_or(AdmitError::LoadFailed)?;
             // A load carries exactly the policy sidecars its epoch executes: retained V5 skills
             // need a V5 zone and the V6 item load (retained checkpoint and pending kit) a V6
@@ -627,6 +639,14 @@ pub async fn run_session<R: FrameSource, W: FrameSink>(
                 end
             },
             Err(AdmitError::Stale) => SessionEnd::Replaced,
+            Err(AdmitError::Quarantined(quarantined)) => {
+                tracing::warn!(
+                    character = %start.player.entity,
+                    reason = %quarantined.reason,
+                    "login refused: character checkpoint lane quarantined"
+                );
+                SessionEnd::LaneQuarantined
+            },
             Err(AdmitError::ZoneStopped(_) | AdmitError::LoadFailed) => SessionEnd::ZoneUnavailable,
         };
         tracing::Span::current().record("end", end.label());
@@ -1123,7 +1143,7 @@ impl super::ports::ClassTransferRuntime for SessionContext {
             .snapshot()
             .await
             .map_err(|_| super::AppError::Unavailable("zone stopped".into()))?;
-        let state = crate::domain::zone::ZoneState::from_snapshot(snapshot)
+        let state = super::replay_log::restore_snapshot(snapshot)
             .map_err(|_| super::AppError::Unavailable("invalid zone snapshot".into()))?;
         let p = state
             .class_player(entity, caller, generation)
@@ -1169,7 +1189,7 @@ impl super::ports::Phase3Runtime for SessionContext {
             .snapshot()
             .await
             .map_err(|_| super::AppError::Unavailable("zone stopped".into()))?;
-        let state = crate::domain::zone::ZoneState::from_snapshot(snapshot)
+        let state = super::replay_log::restore_snapshot(snapshot)
             .map_err(|_| super::AppError::Unavailable("invalid zone snapshot".into()))?;
         state
             .class_player(entity, caller, generation)
@@ -1192,7 +1212,7 @@ impl super::ports::Phase3Runtime for SessionContext {
             .snapshot()
             .await
             .map_err(|_| super::AppError::Unavailable("zone stopped".into()))?;
-        let state = crate::domain::zone::ZoneState::from_snapshot(snapshot.clone())
+        let state = super::replay_log::restore_snapshot(snapshot.clone())
             .map_err(|_| super::AppError::Unavailable("invalid zone snapshot".into()))?;
         let player = state
             .class_player(entity, caller, zone_generation(generation))

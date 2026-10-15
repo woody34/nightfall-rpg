@@ -331,8 +331,6 @@ impl ItemLedgerEntry {
     }
 }
 
-/// A periodic/lifecycle save may retain paused timers, but cannot change ownership or a
-/// request-controlled owner sidecar without the typed item projection transaction.
 /// The ledger-owned part of a retained item checkpoint: owned instances (incl. location/slot,
 /// so the paperdoll), the inventory revision, auto-shot toggles, the kit receipt and the bound
 /// rules. Only a frozen item projection may change it. Everything else in the sidecar is
@@ -351,6 +349,8 @@ pub(crate) fn item_ledger_state_changed(
         || before.rules_hash != after.rules_hash
 }
 
+/// A periodic/lifecycle save may retain paused timers, but cannot change ownership or a
+/// request-controlled owner sidecar without the typed item projection transaction.
 pub(crate) fn validate_item_retention(
     before: Option<&crate::domain::zone::Phase4Checkpoint>,
     after: Option<&crate::domain::zone::Phase4Checkpoint>,
