@@ -370,6 +370,9 @@ pub enum AdmitError {
     /// Committed character state could not be loaded.
     #[error("character admission load failed")]
     LoadFailed,
+    /// D124: the stored character state violates the class ledger rules (named code).
+    #[error("stored character state refused: {0}")]
+    InvalidStoredState(&'static str),
     /// The character's checkpoint lane is quarantined (T11): a named, permanent refusal.
     #[error(transparent)]
     Quarantined(#[from] super::ports::LaneQuarantined),
@@ -428,9 +431,16 @@ impl SessionRegistry {
             let loaded = repo
                 .load_for_admission(id)
                 .await
-                .map_err(|error| match error.downcast_ref::<super::ports::LaneQuarantined>() {
-                    Some(quarantined) => AdmitError::Quarantined(quarantined.clone()),
-                    None => AdmitError::LoadFailed,
+                .map_err(|error| {
+                    if let Some(quarantined) = error.downcast_ref::<super::ports::LaneQuarantined>()
+                    {
+                        return AdmitError::Quarantined(quarantined.clone());
+                    }
+                    // D124: stored class state that violates the ledger refuses by name.
+                    match super::AppError::Infrastructure(error).stored_precondition() {
+                        Some(code) => AdmitError::InvalidStoredState(code),
+                        None => AdmitError::LoadFailed,
+                    }
                 })?
                 .ok_or(AdmitError::LoadFailed)?;
             // A load carries exactly the policy sidecars its epoch executes: retained V5 skills
@@ -639,6 +649,14 @@ pub async fn run_session<R: FrameSource, W: FrameSink>(
                 end
             },
             Err(AdmitError::Stale) => SessionEnd::Replaced,
+            Err(AdmitError::InvalidStoredState(code)) => {
+                tracing::warn!(
+                    character = %start.player.entity,
+                    code,
+                    "login refused: stored character state violates the class ledger"
+                );
+                SessionEnd::AdmissionRefused
+            },
             Err(AdmitError::Quarantined(quarantined)) => {
                 tracing::warn!(
                     character = %start.player.entity,

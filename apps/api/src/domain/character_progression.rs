@@ -547,6 +547,26 @@ pub enum ClassStateError {
     MilestoneMask,
 }
 
+impl ClassStateError {
+    /// D124: the stable precondition code a caller sees when stored class state (for example a
+    /// seeded fixture history) violates the ledger rules. Never an internal error.
+    #[must_use]
+    pub const fn code(self) -> &'static str {
+        match self {
+            Self::TokenCount => "invalid_class_token_count",
+            Self::Level => "invalid_class_token_level",
+            Self::ReceiptLimit => "invalid_class_transfer_receipt_limit",
+            Self::ConflictingReceipt => "conflicting_class_transfer_receipt",
+            Self::ReceiptTarget => "invalid_class_transfer_receipt_target",
+            Self::Lineage => "invalid_class_lineage",
+            Self::Identity => "class_ledger_identity_mismatch",
+            Self::ReceiptHistory => "invalid_class_transfer_receipt_history",
+            Self::LearnedSkills => "invalid_learned_skill_metadata",
+            Self::MilestoneMask => "unknown_token_milestone_bit",
+        }
+    }
+}
+
 fn validate_receipts(receipts: &[SuccessfulTransferReceipt]) -> Result<(), ClassStateError> {
     if receipts.len() > MAX_TRANSFER_RECEIPTS {
         return Err(ClassStateError::ReceiptLimit);

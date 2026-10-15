@@ -839,3 +839,139 @@ async fn postgres_jetstream_phase2_phase3_rpcs_work_on_a_v6_zone() {
     );
     phase2_phase3_rpcs(repo, log).await;
 }
+
+/// T25/D124: a harness-seeded class-transferred owner (level-40 Treasure Hunter, class 8,
+/// written straight into `characters` without its transfer receipts) is refused by the dev
+/// grant with the named `FAILED_PRECONDITION` `invalid_class_transfer_receipt_history`, never
+/// `INTERNAL`. With the receipt history every class change writes (Rogue 7 then Treasure Hunter
+/// 8: `character_transfer_receipts` ordinals 0..1, each bound to its `change_class`
+/// `idempotency_keys` row holding the frozen transfer result) the same owner is granted and
+/// admitted into the V6 zone.
+#[tokio::test]
+async fn postgres_seeded_class_transferred_owner_needs_its_receipt_history() {
+    use api::domain::character_progression::FrozenTransferResult;
+    use api::domain::class::ClassId;
+    let pool = common::pg::migrated_pool()
+        .await
+        .expect("owned DATABASE_URL required");
+    let url = std::env::var("NATS_URL").expect("owned NATS_URL required");
+    // The dev grant client authenticates as the shared test account.
+    let account = common::account();
+    common::pg::insert_account(&pool, account).await;
+    let bundle = item_data::embedded_phase4_bundle().unwrap();
+    let repo = Arc::new(
+        PgCharacterRepository::new(pool.clone())
+            .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
+            .unwrap(),
+    );
+    let mut character = Character::create(
+        AccountId::from_uuid(account),
+        CharacterName::new("SeededHunter").unwrap(),
+        Race::Human,
+    );
+    character.level = 40;
+    character.xp = rules_data::load_rules(&rules_data::RulesSource::embedded())
+        .unwrap()
+        .rules
+        .xp_to_level(40)
+        .unwrap();
+    repo.create_idempotent(&IdempotencyKey::new(), "seeded-hunter", &character)
+        .await
+        .unwrap();
+    // The harness seed shape (seed-phase3/4-fixture.py): the class columns only.
+    for statement in [
+        "UPDATE characters SET current_class_id = 8 WHERE id = $1",
+        "UPDATE character_class_slots SET class_id = 8 WHERE character_id = $1 AND slot = 0",
+    ] {
+        sqlx::query(statement)
+            .bind(character.id.as_uuid())
+            .execute(&pool)
+            .await
+            .unwrap();
+    }
+    let log = Arc::new(
+        JetStreamEventLog::connect(async_nats::connect(&url).await.unwrap(), Metrics::detached())
+            .await
+            .unwrap(),
+    );
+    let (app, _, _) = v6_app(repo.clone(), log).await;
+    let request = || pb::GrantItemRequest {
+        character_id: character.id.as_uuid().as_bytes().to_vec(),
+        template_id: 57,
+        count: 10,
+        idempotency_key: Uuid::now_v7().to_string(),
+        enchant_level: None,
+    };
+    let refused = app.grpc.clone().grant_item(request()).await.unwrap_err();
+    assert_eq!(refused.code(), tonic::Code::FailedPrecondition, "{refused:?}");
+    assert_eq!(refused.message(), "invalid_class_transfer_receipt_history");
+    // The required history: one receipt per tier, parent to child, each frozen at a level the
+    // target allows, with the base-class stats and the owner's identity.
+    for (ordinal, target, level) in [(0_i16, 7_u32, 20_u32), (1, 8, 40)] {
+        let key = Uuid::now_v7();
+        let result = FrozenTransferResult {
+            character_id: character.id,
+            identity: character.identity(),
+            name: character.name.clone(),
+            current_class_id: ClassId(target),
+            level,
+            xp: 0,
+            sp: 0,
+            stats: character.stats,
+            position_millitiles: [0, 0],
+            hp: 1,
+            mp: 1,
+            cp: 0,
+            max_hp: 1,
+            max_mp: 1,
+            max_cp: 0,
+            token_tier_1_count: 0,
+            token_tier_2_count: 0,
+            granted_skill_keys: Vec::new(),
+        };
+        sqlx::query(
+            "INSERT INTO idempotency_keys (key, fingerprint, account_id, operation, response) \
+             VALUES ($1, $2, $3, 'change_class', $4)",
+        )
+        .bind(key)
+        .bind(format!("v1|{}|{target}", character.id))
+        .bind(account)
+        .bind(serde_json::to_value(&result).unwrap())
+        .execute(&pool)
+        .await
+        .unwrap();
+        sqlx::query(
+            "INSERT INTO character_transfer_receipts \
+             (character_id, ordinal, account_id, key, target_class_id) VALUES ($1, $2, $3, $4, $5)",
+        )
+        .bind(character.id.as_uuid())
+        .bind(ordinal)
+        .bind(account)
+        .bind(key)
+        .bind(i32::try_from(target).unwrap())
+        .execute(&pool)
+        .await
+        .unwrap();
+    }
+    let granted = grant(&app, request()).await;
+    assert!(granted.inventory.is_some());
+    let player = ws::Player {
+        account,
+        character: character.id,
+        name: character.name.as_str().to_owned(),
+    };
+    let mut socket = ws::join(&app, &player).await;
+    socket
+        .until(|m| inventory_sync(m).is_some_and(|s| s.baseline))
+        .await;
+    let options = app
+        .game_as(account)
+        .transfer_options(pb::TransferOptionsRequest {
+            character_id: character.id.to_string(),
+        })
+        .await
+        .expect("the seeded Treasure Hunter is online")
+        .into_inner();
+    assert_eq!(options.current_class_id, 8);
+    socket.close().await;
+}
