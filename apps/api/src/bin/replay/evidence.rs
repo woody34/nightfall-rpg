@@ -21,7 +21,13 @@ fn observer_combat(
     applied: &AppliedTick,
     count: &mut u64,
 ) -> anyhow::Result<()> {
-    if applied.digest_version != nightfall_api::domain::zone::StateDigestVersion::BinaryV5 {
+    // T17/D114: Phase 3 observer evidence exists from V5 on; V6 units carry it too (its
+    // additive observer fields are part of the event, never a separate fact).
+    if !matches!(
+        applied.digest_version,
+        nightfall_api::domain::zone::StateDigestVersion::BinaryV5
+            | nightfall_api::domain::zone::StateDigestVersion::BinaryV6
+    ) {
         return Ok(());
     }
     for (observer, outputs) in &applied.outputs {
