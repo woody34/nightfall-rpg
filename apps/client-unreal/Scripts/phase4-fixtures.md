@@ -286,3 +286,11 @@ carries:
 - the cancel-fee adena.
 
 The weapon life stone 8723 and 2130 × 20 are gone (`accessory_refine()`).
+
+Grant capacity (D125 amended, T27). The dev GrantItem enforces the real inventory slot
+capacity on every addition: ordinary slots 80 (dwarf 100) and quest slots 100. Stackables
+take one slot per template; other items take one per instance. A violation is refused with
+InventoryFull. Dev grants may exceed max load (weight), as an L2J admin-created item can make
+a player overweight; 4-overload depends on this (overload level 4, weight > 100%).
+`seed-phase4-fixture.py capacity_blockers()` models the slot rule on each pack's final
+inventory, so a pack over slot capacity is blocked at plan time, before any write.

@@ -154,10 +154,9 @@ class Fixtures(unittest.TestCase):
                                  sorted(r['enchant'] for r in role['inventory'] if r['enchant']),(pack,name))
         enchanted={p for p in fixture.PHASE4 if any(r['enchant'] for role in fixture.phase4.profiles(p,paired=p in fixture.phase4.PAIRED).values() for r in role['inventory'])}
         self.assertEqual(enchanted,{'phase4-enchant','phase4-blacksmith','phase4-equip-onepiece','phase4-armor-enchant4','phase4-armor-enchant6'})
-        # D125/T27: the plan models the grant's real limits (slots + weight <= max load). The
-        # 4-overload pack needs weight > max load, which GrantItem refuses (InventoryFull):
-        # it is blocked here, before any write, pending the D125 decision on how to reach it.
-        self.assertEqual(blocked_packs,{'phase4-overload'})
+        # D125 (amended)/T27: the plan models the grant's slot capacity; dev grants may exceed
+        # max load, so the overweight 4-overload pack provisions unchanged.
+        self.assertEqual(blocked_packs,set()) # all 39 packs provision
         self.assertEqual(len(fixture.PHASE4),39);self.assertGreater(planned,0)
         print(f'D112/D113 dry run: all {len(fixture.PHASE4)} packs provision, {planned} grants planned (enchanted: {sorted(enchanted)})',flush=True)
 
@@ -299,14 +298,15 @@ class Fixtures(unittest.TestCase):
             observer.write_text('nf.Use instance:7\n') # owner's id is not the observer's
             with self.assertRaisesRegex(ValueError,'was not provisioned'):fixture.scenario_copy(folder,observer)
 
-    def test_grant_plan_models_slot_and_weight_capacity(self):
-        # D125/T27: the dev grant enforces InventoryMutation limits; the plan refuses first.
+    def test_grant_plan_models_slot_capacity(self):
+        # D125 (amended)/T27: the dev grant enforces slot capacity; the plan refuses first.
         role=copy.deepcopy(fixture.phase4.profiles('phase4-equip')['owner'])
         catalogue=fixture.phase4.catalogue()
         self.assertEqual(seed.capacity_blockers(role,catalogue),[])
+        # D125 amended: weight above max load is allowed for dev grants (605210 vs 67620 here).
         heavy=copy.deepcopy(fixture.phase4.profiles('phase4-overload')['owner'])
-        reasons=[b['reason'] for b in seed.capacity_blockers(heavy,catalogue)]
-        self.assertEqual(reasons,['pack weight 605210 exceeds max load 67620 (GrantItem InventoryFull; D125)'])
+        self.assertEqual(seed.capacity_blockers(heavy,catalogue),[])
+        self.assertGreater(sum(int(catalogue[r['template_id']]['weight'])*r['count'] for r in heavy['inventory']),67620)
         sword=next(i for i,r in sorted(catalogue.items()) if not r['stackable'] and r['kind']=='Weapon' and int(r['weight'])<=100)
         many=copy.deepcopy(role)
         many['inventory']+= [dict(many['inventory'][0],instance_id=1000+i,template_id=sword,slot=None,location='inventory',enchant=0) for i in range(80)]
