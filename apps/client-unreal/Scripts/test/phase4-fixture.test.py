@@ -4,6 +4,7 @@ import copy
 import importlib.util
 import json
 import os
+import subprocess
 from pathlib import Path
 import tempfile
 import unittest
@@ -294,6 +295,39 @@ class Fixtures(unittest.TestCase):
             self.assertEqual(fixture.scenario_copy(folder,observer).read_text(),'nf.Use instance:4294967400\n')
             observer.write_text('nf.Use instance:7\n') # owner's id is not the observer's
             with self.assertRaisesRegex(ValueError,'was not provisioned'):fixture.scenario_copy(folder,observer)
+
+    def test_item_evidence_reads_a_gracefully_closed_epoch(self):
+        # D122/T23: stop the owned API with SIGTERM, then export the closed epoch non-live.
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);dest=root/'unit';dest.mkdir();log=root/'calls'
+            (dest/'u.xml').write_text('<testsuites><properties><property name="own_entity_id" value="01970000-0000-7000-8000-000000000040"/></properties></testsuites>')
+            replay=root/'replay';replay.write_text(f'''#!/usr/bin/env bash
+echo "$*" >> "{log}"
+[[ -e "{root}/flaky" ]] && {{ rm "{root}/flaky"; echo "jetstream request timed out" >&2; exit 2; }}
+out=""; while (($#)); do [[ "$1" == --out ]] && out="$2"; shift; done
+echo recording > "$out"
+''');replay.chmod(0o755)
+            script=f'''. "{SCRIPTS}/sim-lib.sh"
+sleep 300 & SIM_STARTED_API_PID=$!
+SIM_FIXTURE_DIR="{root}" SIM_REPLAY_BIN="{replay}" SIM_API_STOP_GRACE=5
+sim_closed_epoch "{dest}" u; echo "rc=$? closed=$CLOSED_EPOCH pid=[$SIM_STARTED_API_PID]"
+'''
+            (root/'flaky').touch() # first export attempt times out (JetStream right after shutdown)
+            out=subprocess.run(['bash','-c',script],capture_output=True,text=True,timeout=60)
+            self.assertIn(f'rc=0 closed={dest}/closed-epoch/u.nfr pid=[]',out.stdout,out.stderr)
+            calls=log.read_text().splitlines()
+            self.assertEqual(len(calls),2)
+            for call in calls:
+                self.assertIn('export --zone 1 --latest --session 01970000-0000-7000-8000-000000000040 --out',call)
+                self.assertNotIn('--live',call)
+            # Without an owned fixture API there is no closed epoch to read.
+            out=subprocess.run(['bash','-c',f'. "{SCRIPTS}/sim-lib.sh"; SIM_FIXTURE_DIR=""; sim_closed_epoch "{dest}" u; echo rc=$?'],
+                               capture_output=True,text=True,timeout=30)
+            self.assertIn('rc=1',out.stdout);self.assertIn('requires an owned fixture API',out.stderr)
+        lib=(SCRIPTS/'sim-lib.sh').read_text()
+        self.assertIn('sim_closed_epoch "$dest" "$name" || return 1\n    recording="$CLOSED_EPOCH"',lib)
+        # The live capture stays for the replay/trace gates.
+        self.assertIn('--latest --session "$entity" --live --out "$dest/$name.nfr"',lib)
 
     def test_zone_flags_are_per_unit(self):
         # D114: every unit boots V6; the per-unit manifest field and exec-api check remain.

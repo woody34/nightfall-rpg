@@ -257,3 +257,20 @@ when `PHASE4_BACKFILL_RESULTS=<path>` is set; extra keys such as `note` or
                 "gates": {"migration_rerun": true, "first_v6_admission": true,
                           "crash_resume": true, "kit_once": true,
                           "allocator_no_collision": true}}]}
+
+Item evidence reads a closed epoch (D122/T23). The item-evidence exporter refuses live or
+partial captures, and that refusal stays. For a Phase 4 unit with item gates or phases,
+`sim_phase4_evidence` runs after the live capture's replay, trace and coverage gates. It then:
+1. stops the unit's owned fixture API gracefully (`sim_api_stop_graceful`, SIGTERM; the API
+   drains and closes the epoch with a Shutdown watermark; it fails if the API does not exit
+   within `SIM_API_STOP_GRACE`, default 30 s);
+2. exports that closed epoch non-live for the report owner to
+   `<unit>/<scenario>/closed-epoch/<scenario>.nfr`, retrying up to 3 times because JetStream
+   can time out just after the shutdown;
+3. runs `phase4-evidence.py` on that recording.
+
+The live `<scenario>.nfr` remains the unit recording for every other gate. Offline fixtures
+(`SIM_REPLAY_CMD`) are unchanged. Proven on an owned phase4-armor-enchant4 fixture with the
+integration 7262804 binaries. The live capture's item export refuses ("partial/live
+captures"). The graceful-stop closed epoch has a Shutdown watermark, replays to a match, and
+its item evidence validates.

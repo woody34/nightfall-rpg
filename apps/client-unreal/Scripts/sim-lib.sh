@@ -395,15 +395,65 @@ sim_phase3_evidence() {
     --report "$dest/$name.xml" --out "$dest/phase3-evidence.json" --replay "$command"
 }
 
+# D122/T23: the item-evidence exporter refuses live/partial captures, so Phase 4 item gates
+# read a CLOSED epoch: stop this unit's owned fixture API gracefully (SIGTERM drains and closes
+# the epoch with a Shutdown watermark), then export that epoch non-live for the role. The live
+# capture stays the unit recording for the replay/trace/coverage gates.
+sim_api_stop_graceful() {
+  [[ -n "$SIM_STARTED_API_PID" ]] || return 0
+  kill -TERM "$SIM_STARTED_API_PID" 2>/dev/null || true
+  local grace
+  for ((grace=0; grace<${SIM_API_STOP_GRACE:-30}; grace++)); do
+    kill -0 "$SIM_STARTED_API_PID" 2>/dev/null || break
+    sleep 1
+  done
+  if kill -0 "$SIM_STARTED_API_PID" 2>/dev/null; then
+    sim_api_cleanup
+    return 1
+  fi
+  wait "$SIM_STARTED_API_PID" 2>/dev/null || true
+  SIM_STARTED_API_PID=""
+}
+
+sim_closed_epoch() {
+  local dest="$1" name="$2" entity bin out
+  out="$dest/closed-epoch/$name.nfr"
+  [[ -n "${SIM_FIXTURE_DIR:-}" ]] || { sim_log "Phase4 item evidence requires an owned fixture API"; return 1; }
+  entity="$(sed -n 's/.*name="own_entity_id" value="\([^"]*\)".*/\1/p' "$dest/$name.xml" 2>/dev/null | head -1)"
+  [[ -n "$entity" ]] || { sim_log "Phase4 item evidence requires the report owner"; return 1; }
+  sim_api_stop_graceful || { sim_log "fixture API did not stop gracefully; its epoch is not closed"; return 1; }
+  mkdir -p "$dest/closed-epoch"
+  bin="$(sim_replay_bin)" || return 1
+  # NATS JetStream can time out right after the API's shutdown; retry a bounded number of times.
+  local attempt
+  for attempt in 1 2 3; do
+    sleep 2
+    if "$bin" export --zone "${SIM_ZONE_ID:-1}" --latest --session "$entity" --out "$out" \
+        >>"$dest/closed-epoch/$name.export.log" 2>&1; then
+      CLOSED_EPOCH="$out"
+      return 0
+    fi
+  done
+  sim_log "closed-epoch export failed (see $dest/closed-epoch/$name.export.log)"
+  return 1
+}
+
 sim_phase4_evidence() {
-  local scenario="$1" dest="$2" name="$3" nfrs=() command
+  local scenario="$1" dest="$2" name="$3" nfrs=() command recording
   python3 "$SIM_HERE/phase4-evidence.py" --list "$scenario" || return 1
   [[ "$(python3 "$SIM_HERE/phase4-evidence.py" --count "$scenario")" != 0 ]] || return 0
   shopt -s nullglob; nfrs=("$dest"/*.nfr); shopt -u nullglob
   ((${#nfrs[@]} == 1)) || { sim_log "Phase4 replay gates require one verified unit recording"; return 1; }
   [[ -n "${SIM_PHASE4_RULES_HASH:-}" ]] || { sim_log "Phase4 runtime rules hash required"; return 1; }
   command="${SIM_PHASE4_EVIDENCE_CMD:-$(sim_replay_bin)}"
-  python3 "$SIM_HERE/phase4-evidence.py" --scenario "$scenario" --recording "${nfrs[0]}" \
+  recording="${nfrs[0]}"
+  # Offline fixtures (SIM_REPLAY_CMD) already carry complete recordings and perform no export.
+  if [[ -z "${SIM_REPLAY_CMD:-}" ]]; then
+    CLOSED_EPOCH=""
+    sim_closed_epoch "$dest" "$name" || return 1
+    recording="$CLOSED_EPOCH"
+  fi
+  python3 "$SIM_HERE/phase4-evidence.py" --scenario "$scenario" --recording "$recording" \
     --report "$dest/$name.xml" --out "$dest/phase4-evidence.json" --replay "$command" \
     --rules-hash "$SIM_PHASE4_RULES_HASH"
 }
