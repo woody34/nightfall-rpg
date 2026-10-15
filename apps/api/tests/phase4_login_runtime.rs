@@ -878,6 +878,20 @@ async fn postgres_seeded_class_transferred_owner_needs_its_receipt_history() {
     repo.create_idempotent(&IdempotencyKey::new(), "seeded-hunter", &character)
         .await
         .unwrap();
+    let log = Arc::new(
+        JetStreamEventLog::connect(async_nats::connect(&url).await.unwrap(), Metrics::detached())
+            .await
+            .unwrap(),
+    );
+    let (app, _, _) = v6_app(repo.clone(), log).await;
+    let seeded = ws::Player {
+        account,
+        character: character.id,
+        name: character.name.as_str().to_owned(),
+    };
+    // IssuePlayTicket refuses the corrupt history itself, so the WebSocket refusal needs a
+    // ticket issued while the stored state was still valid.
+    let early_ticket = ws::ticket(&app, &seeded).await;
     // The harness seed shape (seed-phase3/4-fixture.py): the class columns only.
     for statement in [
         "UPDATE characters SET current_class_id = 8 WHERE id = $1",
@@ -889,12 +903,6 @@ async fn postgres_seeded_class_transferred_owner_needs_its_receipt_history() {
             .await
             .unwrap();
     }
-    let log = Arc::new(
-        JetStreamEventLog::connect(async_nats::connect(&url).await.unwrap(), Metrics::detached())
-            .await
-            .unwrap(),
-    );
-    let (app, _, _) = v6_app(repo.clone(), log).await;
     let request = || pb::GrantItemRequest {
         character_id: character.id.as_uuid().as_bytes().to_vec(),
         template_id: 57,
@@ -905,6 +913,22 @@ async fn postgres_seeded_class_transferred_owner_needs_its_receipt_history() {
     let refused = app.grpc.clone().grant_item(request()).await.unwrap_err();
     assert_eq!(refused.code(), tonic::Code::FailedPrecondition, "{refused:?}");
     assert_eq!(refused.message(), "invalid_class_transfer_receipt_history");
+    // api-review-14 P2-2: the WebSocket login of the same owner, with a ticket issued while the
+    // history was still valid, is refused by name before the upgrade: the `/ws` handler's
+    // character read maps the stored-state precondition to HTTP 409 (`{"error": code}`),
+    // never 500. (The session-path AdmissionRefused branch behind it needs the history to break
+    // between the handler's read and admission; it is defence in depth.)
+    assert_eq!(ws::connect(&app, &early_ticket).await.err(), Some(409));
+    let ticket = app
+        .session_as(account)
+        .issue_play_ticket(pb::IssuePlayTicketRequest {
+            character_id: character.id.to_string(),
+            idempotency_key: Uuid::now_v7().to_string(),
+        })
+        .await
+        .unwrap_err();
+    assert_eq!(ticket.code(), tonic::Code::FailedPrecondition, "{ticket:?}");
+    assert_eq!(ticket.message(), "invalid_class_transfer_receipt_history");
     // The required history: one receipt per tier, parent to child, each frozen at a level the
     // target allows, with the base-class stats and the owner's identity.
     for (ordinal, target, level) in [(0_i16, 7_u32, 20_u32), (1, 8, 40)] {
@@ -1069,6 +1093,19 @@ where
         .unwrap_err();
     assert_eq!(refused.code(), tonic::Code::FailedPrecondition, "{refused:?}");
     assert_eq!(refused.message(), "InventoryFull");
+    // api-review-14 P2-3: the overloaded owner logs into V6 and is admitted (4-overload).
+    let player = ws::Player {
+        account: common::account(),
+        character: character.id,
+        name: character.name.as_str().to_owned(),
+    };
+    let mut socket = ws::join(&app, &player).await;
+    let seen = socket
+        .until(|m| inventory_sync(m).is_some_and(|s| s.baseline))
+        .await;
+    let baseline = inventory_sync(seen.last().unwrap()).unwrap();
+    assert_eq!(baseline.inventory_revision, after.inventory_revision);
+    socket.close().await;
 }
 
 #[tokio::test]
