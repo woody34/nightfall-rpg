@@ -26,6 +26,8 @@ import re
 import shutil
 import subprocess
 import time
+import tomllib
+from fractions import Fraction
 from urllib.parse import urlparse
 import uuid
 from uuid import UUID
@@ -86,6 +88,37 @@ def seed_sql(roles):
     return sql + 'BEGIN;\n' + BACKFILL.read_text() + '\nCOMMIT;\n'
 
 
+def capacity_blockers(role, catalogue, repo=REPO):
+    """D125/T27: the dev grant enforces the real inventory limits on every addition (the API's
+    InventoryMutation: ordinary/quest slot capacity and total weight <= max load), refusing
+    InventoryFull. The final pack is the largest state the grants reach, so it must fit:
+    slots (stackables take one slot per template, others one per instance) within the race
+    capacity, and weight within the base max load trunc(69000 x CON bonus); a pack relying on
+    a load modifier is refused here rather than at the live grant."""
+    capacities = contracts.table('capacities', repo)
+    bonus = tomllib.loads((repo / 'packages/data/tables/stat_bonus.toml').read_text())
+    con = role['base_stats']['con']
+    max_load = int(capacities['load_multiplier'] * Fraction(bonus['con']['bonus'][con]))
+    dwarf = role.get('race') == 'dwarf' or str(role.get('class_profile', '')).startswith('dwarven')
+    limits = {'ordinary': capacities['dwarf_inventory'] if dwarf else capacities['inventory'],
+              'quest': capacities['quest_inventory']}
+    used, weight, stacks = {'ordinary': 0, 'quest': 0}, 0, set()
+    for row in role['inventory']:
+        item = catalogue[row['template_id']]
+        kind = 'quest' if item['properties'].get('is_questitem') == 'true' else 'ordinary'
+        if item['stackable']:
+            if row['template_id'] not in stacks:
+                stacks.add(row['template_id']); used[kind] += 1
+        else:
+            used[kind] += row['count']
+        weight += int(item['weight']) * row['count']
+    blockers = [dict(reason=f'{kind} slots {used[kind]} exceed capacity {limits[kind]} (GrantItem InventoryFull)')
+                for kind in used if used[kind] > limits[kind]]
+    if weight > max_load:
+        blockers.append(dict(reason=f'pack weight {weight} exceeds max load {max_load} (GrantItem InventoryFull; D125)'))
+    return blockers
+
+
 def grant_plan(fixture, name, role, repo=REPO):
     """Grants that turn the materialized starter kit into the pack inventory.
 
@@ -102,6 +135,7 @@ def grant_plan(fixture, name, role, repo=REPO):
         if row['equipped']:
             kit_equipped[row['template_id']] = kit_equipped.get(row['template_id'], 0) + 1
     blockers, totals, enchants, equipped = [], {}, {}, {}
+    blockers += capacity_blockers(role, catalogue, repo)
     for row in role['inventory']:
         template = row['template_id']
         if row['charge_bits'] or row['augment_id'] is not None:

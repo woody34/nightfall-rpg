@@ -154,7 +154,10 @@ class Fixtures(unittest.TestCase):
                                  sorted(r['enchant'] for r in role['inventory'] if r['enchant']),(pack,name))
         enchanted={p for p in fixture.PHASE4 if any(r['enchant'] for role in fixture.phase4.profiles(p,paired=p in fixture.phase4.PAIRED).values() for r in role['inventory'])}
         self.assertEqual(enchanted,{'phase4-enchant','phase4-blacksmith','phase4-equip-onepiece','phase4-armor-enchant4','phase4-armor-enchant6'})
-        self.assertEqual(blocked_packs,set()) # all 39 packs provision
+        # D125/T27: the plan models the grant's real limits (slots + weight <= max load). The
+        # 4-overload pack needs weight > max load, which GrantItem refuses (InventoryFull):
+        # it is blocked here, before any write, pending the D125 decision on how to reach it.
+        self.assertEqual(blocked_packs,{'phase4-overload'})
         self.assertEqual(len(fixture.PHASE4),39);self.assertGreater(planned,0)
         print(f'D112/D113 dry run: all {len(fixture.PHASE4)} packs provision, {planned} grants planned (enchanted: {sorted(enchanted)})',flush=True)
 
@@ -295,6 +298,23 @@ class Fixtures(unittest.TestCase):
             self.assertEqual(fixture.scenario_copy(folder,observer).read_text(),'nf.Use instance:4294967400\n')
             observer.write_text('nf.Use instance:7\n') # owner's id is not the observer's
             with self.assertRaisesRegex(ValueError,'was not provisioned'):fixture.scenario_copy(folder,observer)
+
+    def test_grant_plan_models_slot_and_weight_capacity(self):
+        # D125/T27: the dev grant enforces InventoryMutation limits; the plan refuses first.
+        role=copy.deepcopy(fixture.phase4.profiles('phase4-equip')['owner'])
+        catalogue=fixture.phase4.catalogue()
+        self.assertEqual(seed.capacity_blockers(role,catalogue),[])
+        heavy=copy.deepcopy(fixture.phase4.profiles('phase4-overload')['owner'])
+        reasons=[b['reason'] for b in seed.capacity_blockers(heavy,catalogue)]
+        self.assertEqual(reasons,['pack weight 605210 exceeds max load 67620 (GrantItem InventoryFull; D125)'])
+        sword=next(i for i,r in sorted(catalogue.items()) if not r['stackable'] and r['kind']=='Weapon' and int(r['weight'])<=100)
+        many=copy.deepcopy(role)
+        many['inventory']+= [dict(many['inventory'][0],instance_id=1000+i,template_id=sword,slot=None,location='inventory',enchant=0) for i in range(80)]
+        self.assertTrue(any('ordinary slots' in b['reason'] for b in seed.capacity_blockers(many,catalogue)))
+        # Stackables take one slot per template regardless of count.
+        arrows=copy.deepcopy(role)
+        arrows['inventory'].append(dict(role['inventory'][0],instance_id=999,template_id=17,count=10,slot=None,location='inventory'))
+        self.assertEqual(seed.capacity_blockers(arrows,catalogue),[])
 
     def test_item_evidence_reads_a_gracefully_closed_epoch(self):
         # D122/T23: stop the owned API with SIGTERM, then export the closed epoch non-live.
