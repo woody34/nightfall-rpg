@@ -1278,13 +1278,17 @@ mod tests {
     }
 
     /// T22: V6 keeps the pinned Phase 3 flag semantics. In V5 and V6 alike, a hostile attack on
-    /// a neutral player flags the attacker for `pvp_flag_ticks` (1200) from the flagging tick, the
+    /// a neutral player flags the attacker for `pvp_flag_ticks` (1200) and the victim's
+    /// retaliation on the flagged attacker flags the victim for `pvp_flag_low_ticks` (600); each
     /// deadline is the only expiry tick, and both players receive the same `PvpStateChanged`
     /// facts at the same relative ticks (set, then clear exactly at the deadline).
     #[test]
     #[allow(clippy::too_many_lines)] // One scenario run on both runtimes and compared.
     fn t22_pvp_flag_deadline_and_visible_state_match_on_v5_and_v6() {
-        let run = |mut zone: ZoneState| -> Vec<(u64, bool, Option<u64>, usize)> {
+        // (role: 0 attacker / 1 retaliating victim, tick, flagged, deadline, observers), with
+        // ticks relative to the attacker's first flag.
+        type Fact = (u8, u64, bool, Option<u64>, usize);
+        let run = |mut zone: ZoneState| -> Vec<Fact> {
             let players = zone
                 .entities
                 .values()
@@ -1293,19 +1297,11 @@ mod tests {
                 .collect::<Vec<_>>();
             assert_eq!(players.len(), 2);
             let (attacker, victim) = (players[0], players[1]);
-            let duration = zone
-                .phase3
-                .as_ref()
-                .unwrap()
-                .canonical
-                .rules
-                .pvp()
-                .flags
-                .pvp_flag_ticks;
-            assert_eq!(duration, 1200);
-            let mut seen = Vec::new();
+            let flags = &zone.phase3.as_ref().unwrap().canonical.rules.pvp().flags;
+            assert_eq!((flags.pvp_flag_ticks, flags.pvp_flag_low_ticks), (1200, 600));
+            let mut seen: Vec<Fact> = Vec::new();
             let mut start = None;
-            let mut stopped = false;
+            let (mut retaliated, mut victim_stopped) = (false, false);
             for step in 0..1600 {
                 let mut inputs = Vec::new();
                 if step == 0 {
@@ -1315,9 +1311,18 @@ mod tests {
                     }));
                     inputs.push(ZoneInput::system(ZoneCommand::Attack { entity: attacker }));
                 }
-                if start.is_some() && !stopped {
+                if start.is_some() && !retaliated {
+                    // The attacker stops; the neutral victim strikes the flagged attacker.
                     inputs.push(ZoneInput::system(ZoneCommand::StopAttack { entity: attacker }));
-                    stopped = true;
+                    inputs.push(ZoneInput::system(ZoneCommand::SetTarget {
+                        entity: victim,
+                        target: Some(attacker),
+                    }));
+                    inputs.push(ZoneInput::system(ZoneCommand::Attack { entity: victim }));
+                    retaliated = true;
+                } else if !victim_stopped && seen.iter().any(|fact| fact.0 == 1) {
+                    inputs.push(ZoneInput::system(ZoneCommand::StopAttack { entity: victim }));
+                    victim_stopped = true;
                 }
                 let applied = zone.run_tick(zone.draft(inputs)).unwrap();
                 for event in &applied.events {
@@ -1328,9 +1333,7 @@ mod tests {
                         ..
                     } = event
                     {
-                        if *entity != attacker {
-                            continue;
-                        }
+                        let role = u8::from(*entity == victim);
                         let base = *start.get_or_insert(applied.tick.0);
                         // Every player observer receives the fact in the same tick.
                         let observers = players
@@ -1342,6 +1345,7 @@ mod tests {
                             })
                             .count();
                         seen.push((
+                            role,
                             applied.tick.0 - base,
                             pvp.flag_until.is_some(),
                             pvp.flag_until.map(|until| until.0 - base),
@@ -1349,7 +1353,10 @@ mod tests {
                         ));
                     }
                 }
-                if start.is_some() && seen.last().is_some_and(|(_, flagged, _, _)| !flagged) {
+                if seen
+                    .last()
+                    .is_some_and(|(role, _, flagged, _, _)| *role == 0 && !flagged)
+                {
                     break;
                 }
             }
@@ -1360,9 +1367,20 @@ mod tests {
         assert!(v5.phase4.is_none() && v6.phase4.is_some());
         let v5 = run(v5);
         let v6 = run(v6);
-        // Set at the first hostile act (deadline +1200), cleared exactly at that deadline.
-        assert_eq!(v5.first().copied(), Some((0, true, Some(1200), 2)), "{v5:?}");
-        assert_eq!(v5.last().copied(), Some((1200, false, None, 2)), "{v5:?}");
+        // Neutral target: the attacker is flagged +1200 and cleared exactly at that deadline.
+        assert_eq!(v5.first().copied(), Some((0, 0, true, Some(1200), 2)), "{v5:?}");
+        assert_eq!(v5.last().copied(), Some((0, 1200, false, None, 2)), "{v5:?}");
+        // Retaliation on a flagged player (the recording's path): +600, cleared exactly then.
+        let victim = v5
+            .iter()
+            .filter(|fact| fact.0 == 1)
+            .copied()
+            .collect::<Vec<_>>();
+        assert_eq!(victim.len(), 2, "{v5:?}");
+        let (set, deadline) = (victim[0].1, victim[0].3.unwrap());
+        assert!(victim[0].2 && victim[0].4 == 2);
+        assert_eq!(deadline, set + 600);
+        assert_eq!(victim[1], (1, deadline, false, None, 2));
         assert_eq!(v5, v6);
     }
 
@@ -12757,16 +12775,13 @@ mod tests {
             .unwrap();
         assert!(projection.ledger.is_empty());
         assert_eq!(projection.receipts.len(), 1);
-        // Two soulshot_reduction draws and the D128 `insufficient` entry for 1464.
-        assert_eq!(projection.evidence.len(), 3);
-        assert_eq!(
-            projection
-                .evidence
-                .iter()
-                .filter(|e| e.family == "auto_shot_exhausted")
-                .count(),
-            1
-        );
+        // D133: two soulshot_reduction draws. The toggle enabled 1464 and its own recharge
+        // disabled it (not yet automatic at tick start): not net-removed, so no entry.
+        assert_eq!(projection.evidence.len(), 2);
+        assert!(projection
+            .evidence
+            .iter()
+            .all(|e| e.family != "auto_shot_exhausted"));
         let facts = observed.take_items_replay_evidence();
         let draws = facts
             .iter()
@@ -12844,25 +12859,162 @@ mod tests {
         (applied, before, projection)
     }
 
-    /// Settle a tick through the API gate with the `auto_shots` removal aligned (the API's
-    /// D127/D130 acceptance of the evidenced removal lands in API session 21).
-    fn settle_aligned(
+    /// Settle a tick through the API gate's D127/D130 account (D133): the un-aligned
+    /// pre-tick checkpoint and the bound rules.
+    fn settle(
         zone: &ZoneState,
         before: &crate::domain::zone::Phase4Checkpoint,
         projection: crate::domain::zone::Phase4Projection,
     ) {
-        let mut aligned = before.clone();
-        aligned
-            .auto_shots
-            .clone_from(&projection.checkpoint.auto_shots);
         crate::application::ports::ItemCheckpointWork {
             zone: zone.seed.zone,
             epoch: zone.seed.epoch,
             allocation: zone.phase4.as_ref().unwrap().canonical.allocator,
             projection,
         }
-        .validate_before(Some(&aligned))
+        .validate_before_with(Some(before), Some(&zone.phase4.as_ref().unwrap().rules))
         .unwrap();
+    }
+
+    /// D133 (engine-review-8 P1-1/P2-1): entries are normalized against the tick-start set.
+    /// (a) Toggle-enable of a not-yet-automatic template with too few shots: the toggle adds
+    /// it and its own recharge disables it, so it is not net-removed and has no entry.
+    /// (b) In one tick, a toggle removes an automatic template whose stack is gone (entry), a
+    /// grant adds shots, and a toggle re-enables it: unchanged over the tick, so no entry.
+    /// Both ticks settle un-aligned through the API's D127/D130 account.
+    #[test]
+    #[allow(clippy::too_many_lines)] // Two one-tick scenarios over one fixture.
+    fn v6_auto_shot_entries_follow_the_tick_net_change() {
+        use crate::domain::zone::{EquipSlot, ItemCommandKind as K};
+        let (mut zone, owner, _, ids) = use_fixture(&[4814, 1464]);
+        let rules = Arc::clone(&zone.phase4.as_ref().unwrap().rules);
+        let required = rules.parts().items[&4814].soulshots;
+        let player = zone
+            .phase4
+            .as_mut()
+            .unwrap()
+            .canonical
+            .players
+            .get_mut(&owner.entity)
+            .unwrap();
+        let light = player.paperdoll[&EquipSlot::Rhand];
+        let light_required = rules.parts().items[&player.inventory[&light].template_id].soulshots;
+        assert!(light_required < required, "{light_required} {required}");
+        player.inventory.get_mut(&ids[0]).unwrap().count = 1;
+        player.inventory.get_mut(&ids[1]).unwrap().count = u64::from(required) - 1;
+        assert!(u64::from(required) > u64::from(light_required));
+        let item = |zone: &ZoneState, key: u128, seq: u32, kind: K| {
+            ZoneInput::session(
+                owner.entity,
+                SessionGeneration(1),
+                seq,
+                ZoneCommand::Item(Box::new(item_intent(zone, owner.entity, key, kind))),
+            )
+        };
+        let equip = item(
+            &zone,
+            2600,
+            1,
+            K::Equip {
+                instance: ids[0],
+                preferred_slot: Some(EquipSlot::Rhand),
+            },
+        );
+        let equipped = zone.run_tick(zone.draft(vec![equip])).unwrap();
+        assert!(equipped.dispositions.is_empty(), "{:?}", equipped.dispositions);
+        let entries = |projection: &crate::domain::zone::Phase4Projection| {
+            projection
+                .evidence
+                .iter()
+                .filter(|e| e.family == "auto_shot_exhausted")
+                .count()
+        };
+        // (a) toggle-enable, not yet automatic, too few shots.
+        let mut toggle = zone.clone();
+        let enable = item(
+            &toggle,
+            2601,
+            2,
+            K::ToggleAutoShot {
+                template: 1464,
+                enabled: true,
+            },
+        );
+        let (_, before, projection) = shot_tick(&mut toggle, owner, vec![enable]);
+        assert!(!before.auto_shots.contains(&1464));
+        assert!(!projection.checkpoint.auto_shots.contains(&1464));
+        assert_eq!(entries(&projection), 0);
+        settle(&toggle, &before, projection);
+        // (b) 1464 is automatic at tick start with no stack. A toggle of 1463 visits it and
+        // removes it (`missing`, an entry at that point); a dev grant then adds 1464 shots and
+        // a toggle re-enables 1464, all in the command phase of one tick. Staged Use and the
+        // attack/cast recharges run after every item command, so this is the only in-tick
+        // remove-then-re-enable order.
+        let (mut zone, owner, _, ids) = use_fixture(&[1463, 1464]);
+        let player = zone
+            .phase4
+            .as_mut()
+            .unwrap()
+            .canonical
+            .players
+            .get_mut(&owner.entity)
+            .unwrap();
+        player.inventory.remove(&ids[1]);
+        player.auto_shots.insert(1464);
+        zone.rebuild_v5(owner.entity).unwrap();
+        zone.run_tick(zone.draft(Vec::new())).unwrap();
+        let account = match &zone.entities[&owner.entity].combat.as_ref().unwrap().role {
+            CombatRole::Player {
+                progression: Some(p),
+                ..
+            } => p.identity.account_id,
+            _ => unreachable!(),
+        };
+        let grant = crate::domain::zone::item_grant::ItemGrantCommand {
+            entity: owner.entity,
+            account,
+            request_id: Uuid::from_u128(2605),
+            template_id: 1464,
+            count: 5,
+            fingerprint: crate::domain::zone::item_grant::grant_fingerprint(
+                crate::domain::CharacterId::from_uuid(owner.entity.as_uuid()),
+                1464,
+                5,
+            ),
+            rules_hash: rules.hash(),
+            paused: None,
+            known: None,
+            conflict: None,
+            enchant: 0,
+        };
+        let inputs = vec![
+            item(
+                &zone,
+                2606,
+                1,
+                K::ToggleAutoShot {
+                    template: 1463,
+                    enabled: true,
+                },
+            ),
+            ZoneInput::system(ZoneCommand::MaterializePendingItems(Box::new(grant))),
+            item(
+                &zone,
+                2607,
+                2,
+                K::ToggleAutoShot {
+                    template: 1464,
+                    enabled: true,
+                },
+            ),
+        ];
+        let (applied, before, projection) = shot_tick(&mut zone, owner, inputs);
+        assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+        assert!(before.auto_shots.contains(&1464));
+        assert!(projection.checkpoint.auto_shots.contains(&1464), "re-enabled");
+        assert!(projection.checkpoint.auto_shots.contains(&1463));
+        assert_eq!(entries(&projection), 0, "{:?}", projection.evidence);
+        settle(&zone, &before, projection);
     }
 
     /// engine-review-7 P1-1 / D128: a manual Use with fewer shots than the weapon needs
@@ -12938,7 +13090,7 @@ mod tests {
         assert_eq!(entry["remaining"], V::Unsigned(u64::from(required) - 1));
         assert_eq!(entry["required"], V::Unsigned(u64::from(required)));
         assert_eq!(entry["weapon"], V::Unsigned(ids[0].get()));
-        settle_aligned(&zone, &before, projection);
+        settle(&zone, &before, projection);
         // Toggle-enable: 1463 is automatic with no stack left; enabling 1464 visits it.
         toggle
             .phase4
@@ -12972,6 +13124,10 @@ mod tests {
             .find(|e| e.fields["template"] == V::Unsigned(1463))
             .expect("missing entry");
         assert_eq!(missing.fields["reason"], V::Text("missing".into()));
+        // D133: 1464 was enabled and disabled within this tick, so it has no entry.
+        assert!(found
+            .iter()
+            .all(|e| e.fields["template"] != V::Unsigned(1464)));
         assert_eq!(missing.fields["remaining"], V::Unsigned(0));
         assert!(!missing.fields.contains_key("instance"));
         assert_eq!(missing.fields["weapon"], V::Unsigned(ids[0].get()));
@@ -12992,7 +13148,7 @@ mod tests {
         });
         sorted.dedup();
         assert_eq!(templates, sorted);
-        settle_aligned(&toggle, &before, projection);
+        settle(&toggle, &before, projection);
     }
 
     #[test]
@@ -13305,20 +13461,8 @@ mod tests {
                 .auto_shots
                 .is_subset(&before.auto_shots));
             assert!(held == 0 || (reason == "insufficient" && held < 2));
-            // Every other part of the tick settles through the API gate today; the removal
-            // itself needs the API's D127 acceptance (aligned here until it lands).
-            let mut aligned = before.clone();
-            aligned
-                .auto_shots
-                .clone_from(&projection.checkpoint.auto_shots);
-            crate::application::ports::ItemCheckpointWork {
-                zone: zone.seed.zone,
-                epoch: zone.seed.epoch,
-                allocation: zone.phase4.as_ref().unwrap().canonical.allocator,
-                projection,
-            }
-            .validate_before(Some(&aligned))
-            .unwrap();
+            // D133: the whole tick settles un-aligned through the API's D127/D130 account.
+            settle(&zone, &before, projection);
         }
     }
 

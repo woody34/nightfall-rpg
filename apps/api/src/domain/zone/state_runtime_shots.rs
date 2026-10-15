@@ -394,7 +394,8 @@ impl ZoneState {
             && projection.ledger.is_empty()
             && projection.evidence.is_empty()
             && projection.checkpoint.inventory_revision == original_revision
-            // T28: an auto_shots-only change is a changed tick; it always publishes.
+            // T28: an auto_shots-only change is a changed tick; it always publishes. Every
+            // removal also emits evidence today, so this clause guards the no-evidence case.
             && projection.checkpoint.auto_shots == original_auto_shots
         {
             return Ok(());

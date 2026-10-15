@@ -676,7 +676,8 @@ impl ZoneState {
                 projection,
             )?;
             // D127: an automatic charge that empties the stack disables the automatic shot in
-            // the same tick, so the receipt-less auto_shots change has its own ledger evidence.
+            // the same tick, so the receipt-less auto_shots change carries its projection audit
+            // evidence (an `auto_shot_exhausted` entry, not a ledger row).
             let remaining = player
                 .inventory
                 .values()

@@ -1111,6 +1111,21 @@ mod tests {
                 .context("binding")?;
             assert!(instance.get("template_id").is_some() && instance.get("count").is_some());
         }
+        // A support binding, when the attempt has one, is an instance snapshot too.
+        if let Some(support) = outcome
+            .pointer("/data/operation/support_before")
+            .filter(|value| !value.is_null())
+        {
+            assert!(support.get("template_id").is_some());
+        }
+        // Bytes: the pre-T31 export of this fixture with only the removed keys deleted.
+        let previous = include_str!("../../../fixtures/items/enchant-origin.pre-t31.jsonl");
+        let origin = r#""creation_origin":{"epoch":67,"zone":1}"#;
+        let expected = previous
+            .replace(&format!(",{origin}"), "")
+            .replace(&format!("{origin},"), "");
+        assert!(!expected.contains("creation_origin"));
+        assert_eq!(text, expected);
         Ok(())
     }
 
