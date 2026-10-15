@@ -72,11 +72,14 @@ def selection(repo=REPO):
         'c_weapon': dict(kind='Weapon', weapon_type='SWORD', grade='C'),
         'overgrade': dict(kind='Weapon', weapon_type='SWORD', grade='S'),
     }.items(): result[name] = select(repo, **conditions)['template_id']
-    # Exact named source rows for scrolls and player HP potion; validate admission below.
+    # Exact named source rows for scrolls and player HP potion; each must be admitted AND usable
+    # (no use blockers). D131: Healing Potion 727 has no V6 use handler (use:no_handler ->
+    # ItemCapabilityDeferred); the positive potion case is Lesser Healing Potion 1060 (D97).
     for name, title in [('escape', 'Scroll of Escape'), ('resurrect', 'Scroll of Resurrection'),
-                        ('potion', 'Healing Potion'), ('blessed_escape', 'Blessed Scroll of Escape')]:
+                        ('potion', 'Lesser Healing Potion'), ('blessed_escape', 'Blessed Scroll of Escape')]:
         result[name] = next(i for i, r in sorted(catalogue(repo).items())
-                            if r['name'] == title and capabilities(repo)[i]['admitted'])
+                            if r['name'] == title and capabilities(repo)[i]['admitted']
+                            and not capabilities(repo)[i]['use_blockers'])
     scrolls = table('enchant_scrolls', repo)['scrolls']
     for name, blessed, safe in [('scroll', False, False), ('blessed_scroll', True, False), ('safe_scroll', False, True)]:
         result[name] = min(r['template_id'] for r in scrolls if r['weapon'] and r['target_grade'] == 'C'

@@ -20,8 +20,9 @@ CP elixir8634 are deferred by skills2288:1 and2289:1 respectively
 (DP@3ca488dd stats/items/08600-08699.xml:314,427; capabilities.toml).
 D47 assigns these dependencies to E2 followed by E1 promotion. Book-learn skill1405
 (4-item-skill-learn.nfs) is produced by zone b63f0ec (B4) and selected by its `book-learn`
-phase. Mana Potion728 remains excluded by D33/default config. HP727 is the
-positive potion case; the source precision setup includes the deferred cases,
+phase. Mana Potion728 remains excluded by D33/default config. Healing Potion 727 has no V6
+use handler (ItemCapabilityDeferred); the positive potion case is Lesser Healing Potion 1060
+(D97, D131); the source precision setup includes the deferred cases,
 without pretending their live Done When has passed.
 
 `phase4-fixtures.md` and `phase4-evidence-contract.md` are the current E5/E2/E3

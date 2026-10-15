@@ -2599,13 +2599,13 @@
             "revision": 0,
             "slot": null,
             "source": {
-              "file": "src/main/resources/data/stats/items/00700-00799.xml",
-              "lines": "373",
+              "file": "src/main/resources/data/stats/items/01000-01099.xml",
+              "lines": "622",
               "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
               "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-              "symbol": "item 727"
+              "symbol": "item 1060"
             },
-            "template_id": 727
+            "template_id": 1060
           }
         ],
         "karma": 0,
@@ -2720,7 +2720,7 @@
               "location": "inventory",
               "revision": 0,
               "slot": null,
-              "template_id": 727
+              "template_id": 1060
             },
             "before": null,
             "instance_id": 7,
@@ -13931,7 +13931,7 @@
     "onepiece": 60,
     "overgrade": 82,
     "pole": 15,
-    "potion": 727,
+    "potion": 1060,
     "resurrect": 737,
     "ring": 116,
     "safe_scroll": 22227,
