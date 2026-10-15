@@ -7397,6 +7397,67 @@ mod tests {
         assert_eq!(zone.rng.get_word_pos(), cursor);
         assert_eq!(zone.sidecar(owner.entity).unwrap().cast, CastState::Idle);
     }
+    /// T31: an enchant whose target and scroll carry D65 creation provenance (granted
+    /// instances do). Writes the recording the exporter test strips bindings over.
+    #[test]
+    fn v6_enchant_with_creation_origin_recording() {
+        use crate::application::replay_log::{AppliedTickRecord, Watermark, WatermarkReason};
+        let (mut live, owner, target, scroll) =
+            enchant_fixture(956, crate::domain::zone::EquipSlot::Chest, 0);
+        let origin = crate::domain::zone::ItemCreationOrigin {
+            zone: live.seed.zone,
+            epoch: live.seed.epoch,
+        };
+        let player = live
+            .phase4
+            .as_mut()
+            .unwrap()
+            .canonical
+            .players
+            .get_mut(&owner.entity)
+            .unwrap();
+        for id in [target, scroll] {
+            player.inventory.get_mut(&id).unwrap().creation_origin = Some(origin);
+        }
+        live.rebuild_v5(owner.entity).unwrap();
+        let snapshot = live.snapshot();
+        let draft = live.draft(vec![ZoneInput::session(
+            owner.entity,
+            SessionGeneration(1),
+            1,
+            ZoneCommand::Item(Box::new(item_intent(
+                &live,
+                owner.entity,
+                960,
+                crate::domain::zone::ItemCommandKind::Enchant {
+                    target,
+                    scroll,
+                    support: None,
+                },
+            ))),
+        )]);
+        let applied = live.run_tick(draft).unwrap();
+        assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+        if let Ok(path) = std::env::var("NIGHTFALL_TEST_ENCHANT_ORIGIN_RECORDING") {
+            let records = vec![AppliedTickRecord::from_applied(
+                snapshot.seed.zone,
+                &applied,
+            )];
+            let recording = crate::infrastructure::eventlog::Recording {
+                watermark: Watermark {
+                    zone: snapshot.seed.zone,
+                    epoch: snapshot.seed.epoch,
+                    records: 1,
+                    last_tick: Some(applied.tick),
+                    reason: WatermarkReason::Shutdown,
+                },
+                records,
+                snapshot,
+            };
+            std::fs::write(path, recording.to_bytes().unwrap()).unwrap();
+        }
+    }
+
     #[test]
     fn v6_item_evidence_captures_enchant_inputs_without_changing_replay() {
         use crate::application::replay_log::{AppliedTickRecord, Watermark, WatermarkReason};
