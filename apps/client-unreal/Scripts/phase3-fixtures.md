@@ -436,3 +436,29 @@ V6 observer events have additive fields (for example `phase4.visible`). The gate
 The C11 gates read `observer_combat` facts. A V6 export without them fails the gate. It does
 not pass vacuously. The zone exporter emits `observer_combat` for BinaryV6 also.
 Regression: `test/phase3-evidence-v6.test.py` (the i3 1-late-entry-b V6 recording).
+V6 additive fact fields (T17, facet 2): the only key the V6 producer adds to Phase 3 facts is
+`shots` on `damage_formula` (surveyed over every i3 V6 export). It is required on V6 and
+refused on V5. It must be 0, because the Phase 3 oracle has no shot term (shot damage is the
+Phase 4 consumer's claim). Any other unknown key still refuses.
+V6 equipment (D121, T17 facet 3): on V6 the equipped starter kit installs real item
+modifiers, where V5 modelled the starter weapon as a built-in profile. The checks
+skill_damage_matches_oracle and stat_matches_oracle prove every item install before they use
+it:
+- Item installs are the non-zero install sequences that are absent from the effect/skill
+  install order.
+- There must be exactly one item install per equipped template of the admission load's pending
+  kit, in equip order.
+- Each install must carry exactly that template's `for` functions from
+  `packages/data/tables-phase4` (ordinal, priority, stat, operation, Q6 value, no conditions).
+- A missing, extra or altered install refuses. A retained-item (checkpoint) load, unarmed
+  V6, and jewellery or other slots also refuse.
+
+Proven installs are folded like any other modifier:
+- Priority-0 functions act on the base: the weapon Set for mAtk/pAtk, and the armour pDef Add
+  together with the FuncPDefMod slot-default replacement from `class_slots.toml`. The recorded
+  built-in Sub must equal that replacement.
+- Later functions fold with the extras in priority order.
+- V6 values follow the E1 gear oracle that the V6 zone is pinned to: exact fold, then
+  q = trunc(x × 1e6). V5 recordings keep the accepted Math.round path unchanged.
+
+Regression: test/phase3-evidence-v6.test.py `V6Equipment` (real i3c facts plus mutations).
