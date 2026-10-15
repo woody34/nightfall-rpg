@@ -69,7 +69,11 @@ fi
 exec "{sys.executable}" "$@"
 ''')
         self.fake('curl', 'exit 0\n')
+        # The stub API attests V6 the way the real one does (JSON log; T15/P2-3) unless api-no-v6 exists.
         api = self.fake('api', f'''echo api >> "{self.events}"
+if [[ ! -e "{self.root}/api-no-v6" ]]; then
+  echo '{{"level":"INFO","fields":{{"message":"Phase3 bootstrap bundle validated with the Phase4 (V6) item extension","phase4_item_rules_hash":"sha256:{'1'*64}","phase4_skill_rules_hash":"sha256:{'2'*64}"}}}}'
+fi
 "{sys.executable}" -c 'import os,json; from pathlib import Path; Path("{self.root}/api-env.json").write_text(json.dumps(dict(os.environ)))'
 exec sleep 60
 ''')
@@ -311,6 +315,21 @@ exec bash "{SCRIPTS}/test/fake-bot.sh" "$@"
         self.assertEqual(len(legacy), 19)
         self.assertEqual(set(ci.fixture(batch) for batch in ci.units(legacy)),
                          {'default', 'phase1a-social-aggro', 'phase1a-late-entry'})
+
+    def test_fixture_api_v6_attestation_and_loud_failure(self):
+        # T15: the API this harness starts logs JSON (TELEMETRY_PRETTY=0) and must attest V6.
+        scenario = self.scenario('phase2-transfer', 'phase2-transfer')
+        result, artifacts = self.run_wrapper([scenario], TELEMETRY_PRETTY='1')
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        folder = artifacts / scenario.stem / 'fixture'
+        record = json.loads((folder / 'zone-flags.json').read_text())
+        self.assertEqual((record['PHASE4_ENABLED'], record['phase4_item_rules_hash']), ('1', 'sha256:' + '1' * 64))
+        self.assertEqual(json.loads((folder / 'state.json').read_text())['env']['TELEMETRY_PRETTY'], '0')
+        (self.root / 'api-no-v6').touch() # the fixture API runs with a clean environment
+        result, artifacts = self.run_wrapper([scenario])
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('has no V6 bootstrap line after health', result.stderr)
+        self.assertFalse(any(line.startswith('bot ') for line in self.lines()[-3:]))
 
     def test_solo_order_seeder_forwarding_isolation_cleanup_and_arguments(self):
         for pack in ('phase2-transfer', 'phase2-transfer-missing-token'):

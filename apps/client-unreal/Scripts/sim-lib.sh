@@ -152,10 +152,11 @@ sim_api_prepare() {
         if [[ -f .env ]]; then set -a; . ./.env; set +a; fi
         # D114: shared-stack units (Phase 0b/1) boot V6 like every owned fixture unit
         # (phase2-fixture.py zone_flags); explicit values override any .env setting.
+        # T15: TELEMETRY_PRETTY=0 keeps the log JSON for the V6 attestation (repo .env sets 1).
         if [[ -n "${SIM_API_BIN:-}" ]]; then
-          AUTH_DEV_TOKENS=1 PHASE3_ENABLED=1 PHASE4_ENABLED=1 exec "$SIM_API_BIN"
+          AUTH_DEV_TOKENS=1 PHASE3_ENABLED=1 PHASE4_ENABLED=1 TELEMETRY_PRETTY=0 exec "$SIM_API_BIN"
         fi
-        AUTH_DEV_TOKENS=1 PHASE3_ENABLED=1 PHASE4_ENABLED=1 exec cargo run --quiet -p nightfall-api
+        AUTH_DEV_TOKENS=1 PHASE3_ENABLED=1 PHASE4_ENABLED=1 TELEMETRY_PRETTY=0 exec cargo run --quiet -p nightfall-api
       ) >"${SIM_API_LOG:-/dev/null}" 2>&1 &
       SIM_STARTED_API_PID=$!
       trap sim_exit_cleanup EXIT
@@ -178,14 +179,15 @@ sim_api_prepare() {
   esac
 }
 
-# Review-3 P2-3: after health, record the zone flags the API attests in its own V6 startup
-# line (with its rules hashes) for phase4-regression.py. Without that line nothing is written,
-# so the unit cannot verify E6.3; the run itself continues (fail closed at verification).
+# Review-3 P2-3 / T15: after health, record the zone flags the API attests in its own V6
+# startup line (with its rules hashes) for phase4-regression.py. An API this harness started
+# must attest V6: a missing log or line fails the unit loudly. (Attach mode has no log here.)
 sim_record_zone_flags() {
   local log="$1" out="$2"
-  [[ -n "$log" && -n "$out" && -f "$log" ]] || return 0
+  [[ -n "$log" && -n "$out" ]] || return 0
+  [[ -f "$log" ]] || sim_die "API log $log missing; cannot attest the V6 zone"
   python3 "$SIM_HERE/phase2-fixture.py" zone-flags --log "$log" --out "$out" \
-    || sim_log "API log does not attest a V6 zone; $out not written"
+    || sim_die "API log $log has no V6 bootstrap line after health; the unit is not V6 (see phase4-fixtures.md)"
 }
 
 sim_api_cleanup() {
