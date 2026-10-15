@@ -9,7 +9,7 @@
 # Wind Strike base hitTime4000ms *3=12s; Ice Bolt base3100ms *3 rounds up to12s.
 # 01000-01099.xml:554,1553,1560: Resurrection6000ms *3=18s, Might1200s *3=3600s.
 # A6: regen30ticks *100ms *3=9s; A16/R7: flag1200ticks *100ms *3=360s.
-# Boundaries are checked against received ticks/deadlines; source waits are conservative budgets.
+# Boundaries are checked against the estimated current tick (D132) and received deadlines; source waits are conservative budgets.
 nf.Login
 nf.WaitFor connected 15
 nf.EnterWorld
@@ -72,7 +72,7 @@ nf.Target 01970000-0000-7000-8000-000000000031
 nf.WaitFor target_flag == none 180
 nf.WaitFor target_flag == pvp 30
 # Test scheduling window10 ticks is a fixture choice, not a cast formula.
-# The predicate checks received flag deadline minus received current tick; the final
+# The predicate checks received flag deadline minus estimated current tick (D132); the final
 # assertion MUST witness Started before expiry and impact at/after it (no vacuous pass).
 nf.WaitFor target_flag_remaining <= 10 360
 nf.WaitFor skill_ready 1177 12
