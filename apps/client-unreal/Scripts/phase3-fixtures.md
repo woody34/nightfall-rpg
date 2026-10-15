@@ -417,3 +417,11 @@ conversion: pinned game `abfde049`, `NpcData.java:164-185`, `L2CharTemplate.java
 override applies to both the zone and the validated V5 physical profile before hashing.
 It does not change the source template or production rules. The Rust bootstrap test
 starts both selected fixtures under V5 and checks the rooted social NPCs.
+
+C11 on V6 (D114, T17): `phase3-evidence.py` evaluates a C11 export of a V5 recording
+(snapshot 9, BinaryV5) or a V6 recording (snapshot 10, BinaryV6). Every other pairing, and a
+recording without its Phase 3 policy, refuses. The Phase 3 facts and claims are the same; V6
+observer events carry additive fields (for example `phase4.visible`), which the gates ignore.
+The C11 gates read `observer_combat` facts. A V6 export without them fails the gate (it does
+not pass vacuously), so the zone exporter must emit `observer_combat` for BinaryV6 too.
+Regression: `test/phase3-evidence-v6.test.py` (the i3 1-late-entry-b V6 recording).

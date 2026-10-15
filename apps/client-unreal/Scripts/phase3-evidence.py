@@ -1034,11 +1034,18 @@ def late_entry_continuity(row, manifest, facts, template):
     late_entry_swing(row, facts, template)
 
 
+C11_RECORDINGS = frozenset({(9, 'BinaryV5'), (10, 'BinaryV6')})
+
+
 def evaluate(rows, recording, entity, gates):
     entity = str(uuid.UUID(entity))
     manifest, facts = validate(rows, recording)
-    if manifest['snapshot_meta']['schema_version'] != 9 or manifest['snapshot_meta']['digest_version'] != 'BinaryV5' or not manifest['phase3_rules']:
-        raise ValueError('C11 requires recorded V5 policy')
+    # D114/T17: Phase 0b-3 units record V6 epochs (snapshot 10, BinaryV6) whose Phase 3
+    # policy and facts are the V5 families unchanged; V5 recordings stay accepted. Any other
+    # pairing, or a recording without its Phase 3 policy, still refuses.
+    meta = manifest['snapshot_meta']
+    if (meta['schema_version'], meta['digest_version']) not in C11_RECORDINGS or not manifest['phase3_rules']:
+        raise ValueError('C11 requires a recorded V5 or V6 Phase 3 policy')
     owner = [r for r in facts if r['entity'] == entity]
     results = []
     for gate in gates:
