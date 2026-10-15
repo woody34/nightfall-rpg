@@ -321,7 +321,8 @@ impl ZoneState {
                 count: command.count,
             }],
             &items.rules,
-            InventoryLimits::from_player(player),
+            // D125: admin item creation may exceed the weight ceiling, never slot capacity.
+            InventoryLimits::from_player(player).admin_grant(),
             InventoryBoundary {
                 tick,
                 revision,

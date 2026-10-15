@@ -46,6 +46,24 @@ pub enum AppError {
     Infrastructure(#[from] anyhow::Error),
 }
 
+impl AppError {
+    /// D124: the named stored-state precondition behind an infrastructure error, if any. Stored
+    /// class state that violates the ledger rules (a seeded transfer history without its
+    /// receipts, ...) is the caller's data problem, reported by its stable code.
+    #[must_use]
+    pub fn stored_precondition(&self) -> Option<&'static str> {
+        let Self::Infrastructure(error) = self else {
+            return None;
+        };
+        error
+            .chain()
+            .find_map(|cause| {
+                cause.downcast_ref::<crate::domain::character_progression::ClassStateError>()
+            })
+            .map(|class| class.code())
+    }
+}
+
 impl From<NameError> for AppError {
     fn from(e: NameError) -> Self {
         AppError::InvalidArgument(e.to_string())

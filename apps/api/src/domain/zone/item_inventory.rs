@@ -21,6 +21,16 @@ impl InventoryLimits {
             max_weight: player.max_load,
         }
     }
+    /// D125: the dev `GrantItem` creates items like pinned admin item creation: slot
+    /// capacities still apply, the weight ceiling does not (the owner may become overloaded).
+    /// Every in-game acquisition keeps [`Self::from_player`].
+    #[must_use]
+    pub const fn admin_grant(self) -> Self {
+        Self {
+            max_weight: i64::MAX,
+            ..self
+        }
+    }
     /// Slot ceilings come from the immutable source policy; the effective load getter
     /// supplies the checked weight ceiling after attributes and modifiers have folded.
     pub fn from_rules(
@@ -958,6 +968,58 @@ mod tests {
                 tick: Tick(10),
                 revision: 2
             }
+        )
+        .is_err());
+    }
+    /// D125: the admin grant lifts only the weight ceiling; the in-game limits refuse the
+    /// same addition, and slot capacity still binds the admin grant.
+    #[test]
+    fn admin_grant_exceeds_weight_but_never_slot_capacity() {
+        let bundle = embedded_phase4_bundle().unwrap();
+        let rules = &bundle.items;
+        let inventory = BTreeMap::new();
+        let range = ItemInstanceRange::new(100, 100, 110).unwrap();
+        let boundary = InventoryBoundary {
+            origin: super::super::ItemCreationOrigin {
+                zone: super::super::ZoneId(1),
+                epoch: 1,
+            },
+            tick: Tick(10),
+            revision: 2,
+        };
+        let add = [InventoryEdit::Add {
+            template: 2369,
+            count: 1,
+        }];
+        let in_game = InventoryLimits {
+            ordinary: 1,
+            quest: 1,
+            max_weight: 0,
+        };
+        assert!(
+            InventoryMutation::prepare(&inventory, range, &add, rules, in_game, boundary).is_err()
+        );
+        let plan = InventoryMutation::prepare(
+            &inventory,
+            range,
+            &add,
+            rules,
+            in_game.admin_grant(),
+            boundary,
+        )
+        .unwrap();
+        assert!(plan.weight > 0, "the owner is now over its zero weight ceiling");
+        let two = [InventoryEdit::Add {
+            template: 2369,
+            count: 2,
+        }];
+        assert!(InventoryMutation::prepare(
+            &inventory,
+            range,
+            &two,
+            rules,
+            in_game.admin_grant(),
+            boundary
         )
         .is_err());
     }

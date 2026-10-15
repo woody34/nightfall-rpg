@@ -11732,7 +11732,32 @@ mod tests {
             )]))
             .unwrap();
         assert!(trimmed.dispositions.is_empty(), "{:?}", trimmed.dispositions);
+        let last_checkpoint = last
+            .phase4
+            .as_ref()
+            .unwrap()
+            .canonical
+            .checkpoint(owner.entity, last.next_tick, &last.phase3.as_ref().unwrap().canonical)
+            .unwrap();
         let shot = last.run_tick(attack(&last, 3)).unwrap();
+        // T26 (4-bow-last-arrow): the last arrow's debit and the emptied left hand settle.
+        crate::application::ports::ItemCheckpointWork {
+            zone: last.seed.zone,
+            epoch: last.seed.epoch,
+            allocation: last.phase4.as_ref().unwrap().canonical.allocator,
+            projection: shot
+                .events
+                .iter()
+                .find_map(|e| match e {
+                    ZoneEvent::ItemCheckpoint(p) if p.entity == owner.entity => {
+                        Some(p.as_ref().clone())
+                    },
+                    _ => None,
+                })
+                .unwrap(),
+        }
+        .validate_before(Some(&last_checkpoint))
+        .unwrap();
         assert!(shot
             .events
             .iter()
@@ -11746,6 +11771,13 @@ mod tests {
             ZoneState::from_snapshot_with_items(zone.snapshot(), Some(Arc::clone(&rules))).unwrap();
         zone.enable_items_replay_evidence().unwrap();
         let mp = zone.entities[&owner.entity].combat.as_ref().unwrap().mp;
+        let before_checkpoint = zone
+            .phase4
+            .as_ref()
+            .unwrap()
+            .canonical
+            .checkpoint(owner.entity, zone.next_tick, &zone.phase3.as_ref().unwrap().canonical)
+            .unwrap();
         let draft = attack(&zone, 2);
         let fired = zone.run_tick(draft.clone()).unwrap();
         assert!(fired.dispositions.is_empty(), "{:?}", fired.dispositions);
@@ -11777,6 +11809,25 @@ mod tests {
         assert_eq!((debit.instance, debit.count_delta), (arrow, -1));
         assert!(debit.receipt_refs.is_empty());
         assert_eq!(debit.causes[0].family, "arrow_payment");
+        // T26: the API settlement gate accepts the receipt-less arrow debit of a real shot
+        // (before, it refused item_consume_cause_identity and fenced the zone).
+        let projection = fired
+            .events
+            .iter()
+            .find_map(|e| match e {
+                ZoneEvent::ItemCheckpoint(p) if p.entity == owner.entity => Some(p.as_ref()),
+                _ => None,
+            })
+            .unwrap()
+            .clone();
+        crate::application::ports::ItemCheckpointWork {
+            zone: zone.seed.zone,
+            epoch: zone.seed.epoch,
+            allocation: zone.phase4.as_ref().unwrap().canonical.allocator,
+            projection,
+        }
+        .validate_before(Some(&before_checkpoint))
+        .unwrap();
         // L2Character.java:1033 falloff: trunc(D×(distance/4000 + 4/5)), distance in L2 units.
         let mut probe = zone.clone();
         for (offset, damage, expected) in [
@@ -12793,6 +12844,123 @@ mod tests {
         ZoneState::from_snapshot_with_items(zone.snapshot(), Some(rules)).unwrap();
     }
 
+    /// D127: the automatic charge that consumes the last shots of a stack disables that
+    /// automatic shot in the same tick; its Consume row (`auto_shot_payment`) and the
+    /// `auto_shot_exhausted` evidence reference the emptied stack with one resolution id.
+    #[test]
+    fn v6_automatic_shot_exhausting_its_stack_is_removed_with_evidence() {
+        use crate::domain::zone::phase4_projection::{ItemEvidenceValue as V, ItemOperation};
+        let (mut zone, owner, npc, ids) = use_fixture(&[2511]);
+        let rules = Arc::clone(&zone.phase4.as_ref().unwrap().rules);
+        let player = zone
+            .phase4
+            .as_mut()
+            .unwrap()
+            .canonical
+            .players
+            .get_mut(&owner.entity)
+            .unwrap();
+        player.auto_shots.insert(2511);
+        let CombatRole::Player {
+            progression: Some(p),
+            ..
+        } = &mut zone
+            .entities
+            .get_mut(&owner.entity)
+            .unwrap()
+            .combat
+            .as_mut()
+            .unwrap()
+            .role
+        else {
+            panic!("player")
+        };
+        p.class_state.learned_skills = vec![crate::domain::subclass::LearnedSkill {
+            key: "l2.skill.1177".into(),
+            level: 1,
+        }];
+        zone.rebuild_v5(owner.entity).unwrap();
+        // Probe the per-charge count, then leave exactly one charge in the stack.
+        let mut probe = zone.clone();
+        let input = review_input(
+            owner.entity,
+            1,
+            ZoneCommand::CastSkill {
+                entity: owner.entity,
+                skill_id: crate::domain::zone::skill::SkillId(1177),
+                target: Some(npc.entity),
+            },
+        );
+        probe.run_tick(probe.draft(vec![input.clone()])).unwrap();
+        let per_charge = 3 - probe.phase4.as_ref().unwrap().canonical.players[&owner.entity]
+            .inventory[&ids[0]]
+            .count;
+        assert!(per_charge > 0 && per_charge < 3);
+        let player = zone
+            .phase4
+            .as_mut()
+            .unwrap()
+            .canonical
+            .players
+            .get_mut(&owner.entity)
+            .unwrap();
+        player.inventory.get_mut(&ids[0]).unwrap().count = per_charge;
+        zone.rebuild_v5(owner.entity).unwrap();
+        let mut cold =
+            ZoneState::from_snapshot_with_items(zone.snapshot(), Some(Arc::clone(&rules))).unwrap();
+        let settled_before = zone
+            .phase4
+            .as_ref()
+            .unwrap()
+            .canonical
+            .checkpoint(owner.entity, zone.next_tick, &zone.phase3.as_ref().unwrap().canonical)
+            .unwrap();
+        let draft = zone.draft(vec![input]);
+        let applied = zone.run_tick(draft.clone()).unwrap();
+        assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+        assert_eq!(applied, cold.run_tick(draft).unwrap());
+        let player = &zone.phase4.as_ref().unwrap().canonical.players[&owner.entity];
+        assert!(!player.inventory.contains_key(&ids[0]), "the last shots were paid");
+        assert!(!player.auto_shots.contains(&2511), "removed in the same tick");
+        let projection = applied
+            .events
+            .iter()
+            .find_map(|e| match e {
+                ZoneEvent::ItemCheckpoint(p) if p.entity == owner.entity => Some(p),
+                _ => None,
+            })
+            .unwrap();
+        assert!(!projection.checkpoint.auto_shots.contains(&2511));
+        let row = projection
+            .ledger
+            .iter()
+            .find(|row| row.instance == ids[0])
+            .unwrap();
+        assert_eq!(row.operation, ItemOperation::Consume);
+        assert!(row.after.is_none());
+        assert_eq!(row.causes[0].family, "auto_shot_payment");
+        let evidence = projection
+            .evidence
+            .iter()
+            .find(|e| e.family == "auto_shot_exhausted")
+            .unwrap();
+        assert_eq!(evidence.fields["template"], V::Unsigned(2511));
+        assert_eq!(evidence.fields["instance"], V::Unsigned(ids[0].get()));
+        assert_eq!(evidence.fields["remaining"], V::Unsigned(0));
+        assert_eq!(evidence.fields["reason"], V::Text("exhausted".into()));
+        assert_eq!(evidence.fields["resolution_id"], row.causes[0].fields["resolution_id"]);
+        // API session 21 (D127/D130): the real tick settles without a toggle receipt against
+        // the un-aligned pre-tick checkpoint, with the bound rules.
+        crate::application::ports::ItemCheckpointWork {
+            zone: zone.seed.zone,
+            epoch: zone.seed.epoch,
+            allocation: zone.phase4.as_ref().unwrap().canonical.allocator,
+            projection: projection.as_ref().clone(),
+        }
+        .validate_before_with(Some(&settled_before), Some(&rules))
+        .unwrap();
+    }
+
     #[test]
     #[allow(clippy::too_many_lines)]
     fn v6_shot_automatic_cast_recharges_after_guards_and_retains_paid_charge_on_cancel() {
@@ -12858,6 +13026,13 @@ mod tests {
             .iter()
             .any(|e| matches!(e, ZoneEvent::ItemCheckpoint(_))));
         zone.enable_items_replay_evidence().unwrap();
+        let before_checkpoint = zone
+            .phase4
+            .as_ref()
+            .unwrap()
+            .canonical
+            .checkpoint(owner.entity, zone.next_tick, &zone.phase3.as_ref().unwrap().canonical)
+            .unwrap();
         let draft = zone.draft(vec![input(Some(npc.entity))]);
         let applied = zone.run_tick(draft.clone()).unwrap();
         assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
@@ -12897,6 +13072,32 @@ mod tests {
             assert!(debit.receipt_refs.is_empty());
             assert_eq!(debit.causes[0].family, "auto_shot_payment");
         }
+        // D127: the stack-less 1465 leaves auto_shots with its audit evidence.
+        let exhausted = projection
+            .evidence
+            .iter()
+            .filter(|e| e.family == "auto_shot_exhausted")
+            .collect::<Vec<_>>();
+        assert_eq!(exhausted.len(), 1, "{exhausted:?}");
+        assert_eq!(
+            exhausted[0].fields["template"],
+            crate::domain::zone::phase4_projection::ItemEvidenceValue::Unsigned(1465)
+        );
+        assert_eq!(
+            exhausted[0].fields["reason"],
+            crate::domain::zone::phase4_projection::ItemEvidenceValue::Text("missing".into())
+        );
+        // T26 + D127/D130 (API session 21): the API settlement gate accepts these receipt-less
+        // automatic-shot debits and the evidenced `missing` removal against the un-aligned
+        // pre-tick checkpoint, with the bound rules.
+        crate::application::ports::ItemCheckpointWork {
+            zone: zone.seed.zone,
+            epoch: zone.seed.epoch,
+            allocation: zone.phase4.as_ref().unwrap().canonical.allocator,
+            projection: projection.as_ref().clone(),
+        }
+        .validate_before_with(Some(&before_checkpoint), Some(&zone.phase4.as_ref().unwrap().rules))
+        .unwrap();
         assert_eq!(zone.snapshot(), cold.snapshot());
         let stop = review_input(
             owner.entity,
