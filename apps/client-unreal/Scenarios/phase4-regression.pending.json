@@ -2,6 +2,8 @@
   "historical_recordings": {
     "phase3-casts-v5.nfr": "70eda56bcaf1fa7269947b56da7eae04656110ca2b6968dbbaa2b6c0de9c580f",
     "phase3-gameplay-v5.nfr": "f7050ff5bbf5907c298ae507aadedfeb8568c84888980e806dbe0cf0b7a35278",
+    "t11-v6-zone1-epoch23.nfr": "0fe3f8a9af9668874e808e22c8d954bf04dd8802bfa4e96542d0b7e62b349f29",
+    "t19-v6-class-transfer.nfr": "2f53d1b95e65b8a95883629809f8f4aab7b9aa6773b37e5cba7aa80cebc283cc",
     "two-players-fight-v2.nfr": "126c4d50d6a2f3ffc831b8c1bba4e5b9a0b5b9f33c211c5854deba8bb05dfba2",
     "two-players-v4.nfr": "2e73809baad35a15baa3cc485b776f37310c301d5fb890a69892d08b203e8cda"
   },

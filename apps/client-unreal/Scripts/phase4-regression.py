@@ -121,6 +121,9 @@ def report():
                 historical_recordings={p.name:sha(p) for p in sorted((REPO/'apps/api/fixtures/sessions').glob('*.nfr'))})
 
 
+REGENERATE=('python3 apps/client-unreal/Scripts/phase4-regression.py'
+            ' --publish apps/client-unreal/Scenarios/phase4-regression.pending.json'
+            ' --backfill apps/client-unreal/Scenarios/phase4-backfill.pending.json')
 INVENTORY=SCRIPTS.parent/'Scenarios/phase4-regression.pending.json'
 BACKFILL_INVENTORY=SCRIPTS.parent/'Scenarios/phase4-backfill.pending.json'
 V6_FLAGS={'PHASE3_ENABLED':'1','PHASE4_ENABLED':'1'}
@@ -222,8 +225,11 @@ def regression_verdict(inventory,suite):
 def check_committed(inventory,matrix,paths=None):
     """The verdict is over the COMMITTED inventories; regenerating them must not change them."""
     for path,current in zip(paths or (INVENTORY,BACKFILL_INVENTORY),(inventory,matrix)):
-        if json.loads(path.read_text())!=current:
-            raise ValueError(f'committed inventory {path.name} is stale; regenerate with --publish/--backfill')
+        committed=json.loads(path.read_text())
+        if committed!=current:
+            fields=sorted(k for k in set(committed)|set(current) if committed.get(k)!=current.get(k))
+            raise ValueError(f'committed inventory {path.name} is stale (differs in: {", ".join(fields)}); regenerate from the '
+                             f'repo root with `{REGENERATE}` and commit both files')
 
 
 def backfill_verdict(matrix,results):
