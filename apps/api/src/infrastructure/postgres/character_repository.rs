@@ -841,7 +841,7 @@ impl PgCharacterRepository {
         let phase4_original =
             super::phase4_checkpoint::load(&tx, &original_model, phase3_original.as_ref()).await?;
         if let Some(work) = items {
-            work.validate_before(phase4_original.as_ref())?;
+            work.validate_before_with(phase4_original.as_ref(), self.phase4_rules.as_deref())?;
         } else {
             crate::application::ports::validate_item_retention(
                 phase4_original.as_ref(),
@@ -861,7 +861,14 @@ impl PgCharacterRepository {
         }
 
         if let Some(work) = items {
-            super::item_settlement::persist(&tx, cp, work, phase4_original.as_ref()).await?;
+            super::item_settlement::persist(
+                &tx,
+                cp,
+                work,
+                phase4_original.as_ref(),
+                self.phase4_rules.as_deref(),
+            )
+            .await?;
         } else if let Some(phase4) = &cp.phase4 {
             super::phase4_checkpoint::persist_retained(&tx, cp.character_id, phase4).await?;
         }

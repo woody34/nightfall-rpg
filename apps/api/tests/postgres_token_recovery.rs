@@ -401,3 +401,144 @@ async fn missing_checkpoint_lane_or_durable_gate_stops_real_database_admission_b
         assert!(grants(&pool, &c).await.is_empty());
     }
 }
+
+/// Fails the first `close` (an interrupted recovery: watermark written, epoch row still open),
+/// then delegates.
+struct FailCloseOnce {
+    inner: Arc<PgZoneSnapshotStore>,
+    failed: std::sync::atomic::AtomicBool,
+}
+#[async_trait::async_trait]
+impl ZoneSnapshotStore for FailCloseOnce {
+    async fn unresolved(
+        &self,
+        zone: nightfall_api::domain::zone::ZoneId,
+    ) -> anyhow::Result<Vec<nightfall_api::application::replay_log::RecoveryEpoch>> {
+        self.inner.unresolved(zone).await
+    }
+    async fn recording(
+        &self,
+        zone: nightfall_api::domain::zone::ZoneId,
+        epoch: u64,
+        tick: Tick,
+    ) -> anyhow::Result<()> {
+        self.inner.recording(zone, epoch, tick).await
+    }
+    async fn checkpointed(
+        &self,
+        zone: nightfall_api::domain::zone::ZoneId,
+        epoch: u64,
+        tick: Tick,
+    ) -> anyhow::Result<()> {
+        self.inner.checkpointed(zone, epoch, tick).await
+    }
+    async fn close(
+        &self,
+        zone: nightfall_api::domain::zone::ZoneId,
+        epoch: u64,
+    ) -> anyhow::Result<()> {
+        if !self.failed.swap(true, std::sync::atomic::Ordering::AcqRel) {
+            anyhow::bail!("killed before the epoch row closed");
+        }
+        self.inner.close(zone, epoch).await
+    }
+    async fn insert(&self, row: &ZoneSnapshotRow) -> anyhow::Result<()> {
+        self.inner.insert(row).await
+    }
+    async fn set_first_seq(
+        &self,
+        zone: nightfall_api::domain::zone::ZoneId,
+        epoch: u64,
+        seq: nightfall_api::application::replay_log::Seq,
+    ) -> anyhow::Result<()> {
+        self.inner.set_first_seq(zone, epoch, seq).await
+    }
+    async fn get(
+        &self,
+        zone: nightfall_api::domain::zone::ZoneId,
+        epoch: u64,
+    ) -> anyhow::Result<Option<ZoneSnapshotRow>> {
+        self.inner.get(zone, epoch).await
+    }
+    async fn latest_epoch(
+        &self,
+        zone: nightfall_api::domain::zone::ZoneId,
+    ) -> anyhow::Result<Option<u64>> {
+        self.inner.latest_epoch(zone).await
+    }
+}
+
+/// T21/D134 (api-review-15 P2-2, P1-1) on Postgres and `JetStream`, without kill timing. The
+/// zone indexes a tick only after its acknowledgement, so a crash between the acknowledgement
+/// and the index write leaves the index one tick behind the log. Recovery replays the unindexed
+/// tick from the log and settles it. A recovery interrupted before the epoch row closes leaves
+/// the zone recoverable: the next boot settles the same history again and closes the epoch.
+/// An indexed tick missing from the log stays log loss and fails closed.
+#[tokio::test]
+async fn crash_window_and_interrupted_recovery_recover_on_postgres_and_jetstream() {
+    use nightfall_api::application::replay_log::EpochStatus;
+    let (_pool, repo, log, store) = services().await;
+    let c = character("Crashwindow", 40, [0, 0], 0);
+    repo.create_idempotent(&IdempotencyKey::new(), "create", &c)
+        .await
+        .unwrap();
+    let def = definition();
+    let mut zone = state(&def);
+    baseline(log.as_ref(), store.as_ref(), &zone).await;
+    // Tick A: acknowledged, then indexed (D134 order).
+    let first = zone
+        .run_tick(zone.draft(vec![spawn(
+            c.id,
+            repo.load_for_admission(c.id).await.unwrap().unwrap(),
+        )]))
+        .unwrap();
+    log.append_applied(&AppliedTickRecord::from_applied(def.zone, &first))
+        .await
+        .unwrap();
+    store.recording(def.zone, 1, first.tick).await.unwrap();
+    // Tick B: acknowledged; the process dies before its index write.
+    let second = zone.run_tick(zone.draft(Vec::new())).unwrap();
+    log.append_applied(&AppliedTickRecord::from_applied(def.zone, &second))
+        .await
+        .unwrap();
+    // The first recovery settles the history but dies before the epoch row closes.
+    let flaky = FailCloseOnce {
+        inner: store.clone(),
+        failed: std::sync::atomic::AtomicBool::new(false),
+    };
+    assert!(lane(repo.clone())
+        .recover_indexed(log.as_ref(), &flaky, def.zone)
+        .await
+        .is_err());
+    assert_eq!(store.unresolved(def.zone).await.unwrap().len(), 1);
+    // The next boot recovers the same epoch, through the unindexed tick B, and closes it.
+    lane(repo.clone())
+        .recover_indexed(log.as_ref(), store.as_ref(), def.zone)
+        .await
+        .unwrap();
+    assert!(store.unresolved(def.zone).await.unwrap().is_empty());
+    let status = log.epoch_status(def.zone, 1).await.unwrap();
+    assert!(
+        matches!(&status, EpochStatus::Complete(w) if w.last_tick == Some(second.tick) && w.records == 2),
+        "{status:?}"
+    );
+    // Strict rule: an indexed tick that the log never received is log loss.
+    let lost = definition();
+    let lost_state = state(&lost);
+    baseline(log.as_ref(), store.as_ref(), &lost_state).await;
+    store
+        .recording(lost.zone, 1, lost_state.snapshot().tick)
+        .await
+        .unwrap();
+    let error = lane(repo)
+        .recover_indexed(log.as_ref(), store.as_ref(), lost.zone)
+        .await
+        .unwrap_err();
+    assert!(
+        error
+            .to_string()
+            .contains("history ends before indexed tick"),
+        "{error}"
+    );
+    assert_eq!(store.unresolved(lost.zone).await.unwrap().len(), 1);
+}

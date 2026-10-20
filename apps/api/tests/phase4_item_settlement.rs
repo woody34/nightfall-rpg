@@ -2784,3 +2784,713 @@ async fn postgres_item_ledger_row_ordinal_trigger_enforces_row_positions() {
     let error = tx.commit().await.unwrap_err();
     assert_eq!(error.as_database_error().unwrap().constraint(), Some("item_ledger_row_ordinal"));
 }
+
+/// D127/D128/D130 (engine-review-7 P2-4) with D129 `auto_shot_payment`: one attack tick drops
+/// three automatic shots without a `ToggleAutoShot` receipt, each evidenced by its
+/// `auto_shot_exhausted` entry: `exhausted` (its whole stack paid by the tick's charge),
+/// `insufficient` (one shot left, the wielded weapon needs more per charge) and `missing` (no
+/// stack). It settles once; every unaccounted or mis-evidenced variant is refused first.
+#[allow(clippy::too_many_lines)] // Grant, refusals and the settled triple share one owner.
+async fn auto_shot_exhausted_contract<R>(repo: &R, bundle: &Phase4RuleBundle)
+where
+    R: CharacterRepository + ItemAdmissionRepository + ItemCheckpointRepository,
+{
+    use nightfall_api::domain::zone::EquipSlot;
+    let parts = bundle.items.parts();
+    let shots: Vec<u32> = parts
+        .items
+        .iter()
+        .filter(|(_, d)| d.handler == "SoulShots")
+        .map(|(t, _)| *t)
+        .take(2)
+        .collect();
+    let (soul, emptied) = (shots[0], shots[1]);
+    let missing = parts
+        .items
+        .iter()
+        .find(|(_, d)| d.handler == "SpiritShot")
+        .map(|(t, _)| *t)
+        .unwrap();
+    let (weapon, needed) = parts
+        .items
+        .iter()
+        .find(|(_, d)| d.soulshots >= 2 && d.reduced_soulshot.is_empty())
+        .map(|(t, d)| (*t, u64::from(d.soulshots)))
+        .unwrap();
+    let (c, mut baseline, mut baseline_work, _) = fixture(repo, bundle, "ShotsExhausted").await;
+    // First materialization: the automatic set needs no toggle receipt yet.
+    baseline_work.projection.checkpoint.auto_shots = BTreeSet::from([soul, emptied, missing]);
+    baseline.phase4 = Some(baseline_work.projection.checkpoint.clone());
+    let baseline_events = events(&baseline, &baseline_work);
+    assert_eq!(
+        repo.checkpoint_items(&baseline, &baseline_events, &baseline_work, None)
+            .await
+            .unwrap(),
+        CheckpointOutcome::Applied(1)
+    );
+    // Tick 74: a dev grant births the wielded weapon, one `soul` shot and two `emptied` shots.
+    let mut allocation = baseline_work.allocation;
+    let born = |template: u32, count: u64, wield: bool, id| ItemInstance {
+        creation_origin: Some(nightfall_api::domain::zone::ItemCreationOrigin {
+            zone: ZoneId(1),
+            epoch: 1,
+        }),
+        id,
+        template_id: template,
+        count,
+        location: if wield {
+            ItemLocation::Paperdoll
+        } else {
+            ItemLocation::Inventory
+        },
+        slot: wield.then_some(EquipSlot::Rhand),
+        enchant: 0,
+        augment_id: None,
+        charges: 0,
+        created_tick: Tick(74),
+        revision: 2,
+    };
+    let wielded = born(weapon, 1, true, allocation.allocate().unwrap());
+    let single = born(soul, 1, false, allocation.allocate().unwrap());
+    let pair = born(emptied, 2, false, allocation.allocate().unwrap());
+    let mut granted = baseline.clone();
+    granted.revision_seen = 1;
+    granted.idempotency.1 = IdempotencyKey::new();
+    let retained = granted.phase4.as_mut().unwrap();
+    retained.inventory_revision = 2;
+    retained
+        .instances
+        .extend([wielded.clone(), single.clone(), pair.clone()]);
+    retained.instances.sort_by_key(|item| item.id);
+    retained.paperdoll.insert(EquipSlot::Rhand, wielded.id);
+    let request = Uuid::now_v7();
+    let mut grant_work = baseline_work.clone();
+    grant_work.allocation = allocation;
+    grant_work.projection.tick = Tick(74);
+    grant_work.projection.checkpoint = retained.clone();
+    grant_work.projection.materializations.clear();
+    grant_work.projection.ledger = [&wielded, &single, &pair]
+        .into_iter()
+        .map(|item| ItemDeltaPlan {
+            receipt_refs: Vec::new(),
+            operation: ItemOperation::Grant,
+            operation_ordinal: 0,
+            instance: item.id,
+            before: None,
+            after: Some(item.clone()),
+            count_delta: i64::try_from(item.count).unwrap(),
+            receipt: Some(ItemReceiptRef {
+                operation: ItemOperation::Grant,
+                key: request,
+            }),
+            causes: Vec::new(),
+        })
+        .collect();
+    grant_work.projection.receipts = vec![ItemReceiptFact {
+        request_id: request,
+        fingerprint: "grant-shots".into(),
+        result: FrozenItemResult {
+            accepted_sequence: None,
+            request_fingerprint: "grant-shots".into(),
+            entity: grant_work.projection.entity,
+            incarnation: 4,
+            tick: Tick(74),
+            inventory_revision: 2,
+            receipt: request,
+            detail: ItemResultDetail::Operation {
+                operation: ItemOperation::Grant,
+                affected: vec![wielded.id, single.id, pair.id],
+                recipe: None,
+            },
+        },
+    }];
+    let grant_events = events(&granted, &grant_work);
+    assert_eq!(
+        repo.checkpoint_items(&granted, &grant_events, &grant_work, None)
+            .await
+            .unwrap(),
+        CheckpointOutcome::Applied(2)
+    );
+    let before = repo.load_for_admission(c.id).await.unwrap();
+    // Tick 75: the attack's automatic recharge pays `emptied` to zero and drops all three.
+    let attack = format!("attack:{}:75", grant_work.projection.entity);
+    let resolution = |template: u32| format!("{attack}:shot:{template}");
+    let entry = |template: u32, remaining: u64, reason: &str, instance: Option<u64>| {
+        let mut fields = BTreeMap::from([
+            ("template".into(), ItemEvidenceValue::Unsigned(u64::from(template))),
+            ("remaining".into(), ItemEvidenceValue::Unsigned(remaining)),
+            ("reason".into(), ItemEvidenceValue::Text(reason.into())),
+            ("resolution_id".into(), ItemEvidenceValue::Text(resolution(template))),
+        ]);
+        if let Some(instance) = instance {
+            fields.insert("instance".into(), ItemEvidenceValue::Unsigned(instance));
+        }
+        if reason == "insufficient" {
+            fields.insert("required".into(), ItemEvidenceValue::Unsigned(needed));
+            fields.insert("weapon".into(), ItemEvidenceValue::Unsigned(wielded.id.get()));
+        }
+        ItemAuditEvidence {
+            family: "auto_shot_exhausted".into(),
+            fields,
+        }
+    };
+    let tick = |evidence: Vec<ItemAuditEvidence>| {
+        let mut cp = granted.clone();
+        cp.revision_seen = 2;
+        cp.idempotency.1 = IdempotencyKey::new();
+        let retained = cp.phase4.as_mut().unwrap();
+        retained.inventory_revision = 3;
+        retained.auto_shots.clear();
+        retained.instances.retain(|item| item.id != pair.id);
+        let mut work = grant_work.clone();
+        work.projection.tick = Tick(75);
+        work.projection.checkpoint = retained.clone();
+        work.projection.receipts.clear();
+        work.projection.evidence = evidence;
+        work.projection.ledger = vec![ItemDeltaPlan {
+            receipt_refs: Vec::new(),
+            operation: ItemOperation::Consume,
+            operation_ordinal: 0,
+            instance: pair.id,
+            before: Some(pair.clone()),
+            after: None,
+            count_delta: -2,
+            receipt: None,
+            causes: vec![ItemAuditEvidence {
+                family: "auto_shot_payment".into(),
+                fields: BTreeMap::from([
+                    ("count_delta".into(), ItemEvidenceValue::Signed(-2)),
+                    ("operation_ordinal".into(), ItemEvidenceValue::Unsigned(1)),
+                    ("resolution_id".into(), ItemEvidenceValue::Text(resolution(emptied))),
+                ]),
+            }],
+        }];
+        let events = events(&cp, &work);
+        (cp, work, events)
+    };
+    let triple = || {
+        vec![
+            entry(emptied, 0, "exhausted", Some(pair.id.get())),
+            entry(soul, 1, "insufficient", Some(single.id.get())),
+            entry(missing, 0, "missing", None),
+        ]
+    };
+    let refused = |result: Result<CheckpointOutcome, CheckpointError>, name: &str| {
+        assert!(
+            matches!(&result, Err(CheckpointError::Constraint(n)) if n == name),
+            "{name}: {result:?}"
+        );
+    };
+    // No evidence at all; one removal unevidenced.
+    let (cp, work, events) = tick(Vec::new());
+    refused(
+        repo.checkpoint_items(&cp, &events, &work, None).await,
+        "item_toggle_receipt_required",
+    );
+    let (cp, work, events) = tick(triple().split_off(1));
+    refused(
+        repo.checkpoint_items(&cp, &events, &work, None).await,
+        "item_toggle_receipt_required",
+    );
+    // A duplicate, a wrong requirement, an exhausted entry with another resolution id.
+    let mut duplicate = triple();
+    duplicate.push(entry(missing, 0, "missing", None));
+    let mut wrong_required = triple();
+    wrong_required[1]
+        .fields
+        .insert("required".into(), ItemEvidenceValue::Unsigned(needed.checked_add(1).unwrap()));
+    let mut other_id = triple();
+    other_id[0]
+        .fields
+        .insert("resolution_id".into(), ItemEvidenceValue::Text(resolution(soul)));
+    for evidence in [duplicate, wrong_required, other_id] {
+        let (cp, work, events) = tick(evidence);
+        refused(
+            repo.checkpoint_items(&cp, &events, &work, None).await,
+            "item_auto_shot_evidence",
+        );
+    }
+    assert_eq!(repo.load_for_admission(c.id).await.unwrap(), before);
+    // The evidenced triple settles once.
+    let (cp, work, events) = tick(triple());
+    assert_eq!(
+        repo.checkpoint_items(&cp, &events, &work, None)
+            .await
+            .unwrap(),
+        CheckpointOutcome::Applied(3)
+    );
+    assert_eq!(
+        repo.checkpoint_items(&cp, &events, &work, None)
+            .await
+            .unwrap(),
+        CheckpointOutcome::Replayed(3)
+    );
+    let settled = repo.load_for_admission(c.id).await.unwrap().unwrap();
+    let retained = settled.phase4.unwrap().checkpoint.unwrap();
+    assert!(retained.auto_shots.is_empty());
+    assert!(retained.instances.iter().all(|item| item.id != pair.id));
+    assert!(retained
+        .instances
+        .iter()
+        .any(|item| item.id == single.id && item.count == 1));
+}
+
+#[tokio::test]
+async fn memory_exhausted_auto_shot_drops_without_a_toggle_receipt() {
+    let bundle = embedded_phase4_bundle().unwrap();
+    let repo = InMemoryCharacterRepository::default()
+        .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
+        .unwrap();
+    auto_shot_exhausted_contract(&repo, &bundle).await;
+}
+
+#[tokio::test]
+async fn postgres_exhausted_auto_shot_drops_without_a_toggle_receipt() {
+    let Some(pool) = common::pg::migrated_pool().await else {
+        return;
+    };
+    common::pg::insert_account(&pool, Uuid::from_u128(1)).await;
+    let bundle = embedded_phase4_bundle().unwrap();
+    let repo = PgCharacterRepository::new(pool)
+        .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
+        .unwrap();
+    auto_shot_exhausted_contract(&repo, &bundle).await;
+}
+
+/// One settled tick on top of `base`: the given instances, automatic set, ledger, receipts and
+/// evidence; the revision steps once.
+#[allow(clippy::too_many_arguments)]
+fn shots_tick(
+    base: &CharacterCheckpoint,
+    base_work: &ItemCheckpointWork,
+    tick: u64,
+    instances: Vec<ItemInstance>,
+    shots: BTreeSet<u32>,
+    ledger: Vec<ItemDeltaPlan>,
+    receipts: Vec<ItemReceiptFact>,
+    evidence: Vec<ItemAuditEvidence>,
+) -> (CharacterCheckpoint, ItemCheckpointWork, Vec<DomainEvent>) {
+    let mut cp = base.clone();
+    cp.revision_seen = cp.revision_seen.checked_add(1).unwrap();
+    cp.idempotency.1 = IdempotencyKey::new();
+    let retained = cp.phase4.as_mut().unwrap();
+    retained.inventory_revision = retained.inventory_revision.checked_add(1).unwrap();
+    retained.instances = instances;
+    retained.instances.sort_by_key(|item| item.id);
+    retained.auto_shots = shots;
+    let mut work = base_work.clone();
+    work.projection.tick = Tick(tick);
+    work.projection.checkpoint = retained.clone();
+    work.projection.ledger = ledger;
+    work.projection.receipts = receipts;
+    work.projection.materializations.clear();
+    work.projection.evidence = evidence;
+    let events = events(&cp, &work);
+    (cp, work, events)
+}
+
+fn receipt(
+    entity: EntityId,
+    operation: ItemOperation,
+    key: Uuid,
+    tick: u64,
+    revision: u64,
+    affected: Vec<nightfall_api::domain::zone::ItemInstanceId>,
+) -> ItemReceiptFact {
+    ItemReceiptFact {
+        request_id: key,
+        fingerprint: format!("{operation:?}-body"),
+        result: FrozenItemResult {
+            accepted_sequence: None,
+            request_fingerprint: format!("{operation:?}-body"),
+            entity,
+            incarnation: 4,
+            tick: Tick(tick),
+            inventory_revision: revision,
+            receipt: key,
+            detail: ItemResultDetail::Operation {
+                operation,
+                affected,
+                recipe: None,
+            },
+        },
+    }
+}
+
+/// D136 + D137 (engine-review-9 P1-1/P1-2): an `auto_shot_exhausted` entry is evidence as of
+/// the removal, and a no-op `ToggleAutoShot` receipt keeps the pre-tick revision. Reviewer
+/// probes on real pre-tick checkpoints (un-aligned):
+/// - A: a `missing` entry, then a same-tick grant refills the template (true before the tick);
+/// - B: an `insufficient` entry (stack, weapon), then a same-tick Destroy of that stack (true
+///   before the tick);
+/// - D: a no-op toggle (pre-tick revision), then a same-tick Destroy steps the owner; and the
+///   reverse order (the later no-op receipt reads the stepped revision).
+///
+/// Genuinely wrong evidence (a weapon or a count that holds in neither checkpoint) and a stale
+/// receipt revision still refuse.
+#[allow(clippy::too_many_lines)]
+async fn as_of_removal_contract<R>(repo: &R, bundle: &Phase4RuleBundle)
+where
+    R: CharacterRepository + ItemAdmissionRepository + ItemCheckpointRepository,
+{
+    use nightfall_api::domain::zone::EquipSlot;
+    let parts = bundle.items.parts();
+    let shots: Vec<u32> = parts
+        .items
+        .iter()
+        .filter(|(_, d)| d.handler == "SoulShots")
+        .map(|(t, _)| *t)
+        .take(2)
+        .collect();
+    let (soul, emptied) = (shots[0], shots[1]);
+    let missing = parts
+        .items
+        .iter()
+        .find(|(_, d)| d.handler == "SpiritShot")
+        .map(|(t, _)| *t)
+        .unwrap();
+    let (weapon, needed) = parts
+        .items
+        .iter()
+        .find(|(_, d)| d.soulshots >= 2 && d.reduced_soulshot.is_empty())
+        .map(|(t, d)| (*t, u64::from(d.soulshots)))
+        .unwrap();
+    let (c, mut baseline, mut baseline_work, _) = fixture(repo, bundle, "ShotsAsOf").await;
+    // First materialization: the automatic set needs no toggle receipt yet.
+    baseline_work.projection.checkpoint.auto_shots = BTreeSet::from([soul, emptied, missing]);
+    baseline.phase4 = Some(baseline_work.projection.checkpoint.clone());
+    let baseline_events = events(&baseline, &baseline_work);
+    assert_eq!(
+        repo.checkpoint_items(&baseline, &baseline_events, &baseline_work, None)
+            .await
+            .unwrap(),
+        CheckpointOutcome::Applied(1)
+    );
+    // Tick 74: a dev grant births the wielded weapon, one `soul` shot and two `emptied` shots.
+    let mut allocation = baseline_work.allocation;
+    let born = |template: u32, count: u64, wield: bool, id| ItemInstance {
+        creation_origin: Some(nightfall_api::domain::zone::ItemCreationOrigin {
+            zone: ZoneId(1),
+            epoch: 1,
+        }),
+        id,
+        template_id: template,
+        count,
+        location: if wield {
+            ItemLocation::Paperdoll
+        } else {
+            ItemLocation::Inventory
+        },
+        slot: wield.then_some(EquipSlot::Rhand),
+        enchant: 0,
+        augment_id: None,
+        charges: 0,
+        created_tick: Tick(74),
+        revision: 2,
+    };
+    let wielded = born(weapon, 1, true, allocation.allocate().unwrap());
+    let single = born(soul, 1, false, allocation.allocate().unwrap());
+    let pair = born(emptied, 2, false, allocation.allocate().unwrap());
+    let mut granted = baseline.clone();
+    granted.revision_seen = 1;
+    granted.idempotency.1 = IdempotencyKey::new();
+    let retained = granted.phase4.as_mut().unwrap();
+    retained.inventory_revision = 2;
+    retained
+        .instances
+        .extend([wielded.clone(), single.clone(), pair.clone()]);
+    retained.instances.sort_by_key(|item| item.id);
+    retained.paperdoll.insert(EquipSlot::Rhand, wielded.id);
+    let request = Uuid::now_v7();
+    let mut grant_work = baseline_work.clone();
+    grant_work.allocation = allocation;
+    grant_work.projection.tick = Tick(74);
+    grant_work.projection.checkpoint = retained.clone();
+    grant_work.projection.materializations.clear();
+    grant_work.projection.ledger = [&wielded, &single, &pair]
+        .into_iter()
+        .map(|item| ItemDeltaPlan {
+            receipt_refs: Vec::new(),
+            operation: ItemOperation::Grant,
+            operation_ordinal: 0,
+            instance: item.id,
+            before: None,
+            after: Some(item.clone()),
+            count_delta: i64::try_from(item.count).unwrap(),
+            receipt: Some(ItemReceiptRef {
+                operation: ItemOperation::Grant,
+                key: request,
+            }),
+            causes: Vec::new(),
+        })
+        .collect();
+    grant_work.projection.receipts = vec![ItemReceiptFact {
+        request_id: request,
+        fingerprint: "grant-shots".into(),
+        result: FrozenItemResult {
+            accepted_sequence: None,
+            request_fingerprint: "grant-shots".into(),
+            entity: grant_work.projection.entity,
+            incarnation: 4,
+            tick: Tick(74),
+            inventory_revision: 2,
+            receipt: request,
+            detail: ItemResultDetail::Operation {
+                operation: ItemOperation::Grant,
+                affected: vec![wielded.id, single.id, pair.id],
+                recipe: None,
+            },
+        },
+    }];
+    let grant_events = events(&granted, &grant_work);
+    assert_eq!(
+        repo.checkpoint_items(&granted, &grant_events, &grant_work, None)
+            .await
+            .unwrap(),
+        CheckpointOutcome::Applied(2)
+    );
+    let refused = |result: Result<CheckpointOutcome, CheckpointError>, name: &str| {
+        assert!(
+            matches!(&result, Err(CheckpointError::Constraint(n)) if n == name),
+            "{name}: {result:?}"
+        );
+    };
+    let entry = |template: u32, remaining: u64, reason: &str, extra: &[(&str, u64)]| {
+        let mut fields = BTreeMap::from([
+            ("template".into(), ItemEvidenceValue::Unsigned(u64::from(template))),
+            ("remaining".into(), ItemEvidenceValue::Unsigned(remaining)),
+            ("reason".into(), ItemEvidenceValue::Text(reason.into())),
+            (
+                "resolution_id".into(),
+                ItemEvidenceValue::Text(format!("cast:1:shot:{template}")),
+            ),
+        ]);
+        for (key, value) in extra {
+            fields.insert((*key).into(), ItemEvidenceValue::Unsigned(*value));
+        }
+        ItemAuditEvidence {
+            family: "auto_shot_exhausted".into(),
+            fields,
+        }
+    };
+    let destroy_row = |item: &ItemInstance, key: Uuid| ItemDeltaPlan {
+        receipt_refs: Vec::new(),
+        operation: ItemOperation::Destroy,
+        operation_ordinal: 0,
+        instance: item.id,
+        before: Some(item.clone()),
+        after: None,
+        count_delta: i64::try_from(item.count).unwrap().checked_neg().unwrap(),
+        receipt: Some(ItemReceiptRef {
+            operation: ItemOperation::Destroy,
+            key,
+        }),
+        causes: Vec::new(),
+    };
+    let me = grant_work.projection.entity;
+    let held = |cp: &CharacterCheckpoint| cp.phase4.as_ref().unwrap().instances.clone();
+    // Probe A (tick 75, revision 3): `missing` dropped, then a grant of 5 refills `missing`.
+    let mut refill = allocation;
+    let refilled = born(missing, 5, false, refill.allocate().unwrap());
+    let refilled = ItemInstance {
+        created_tick: Tick(75),
+        revision: 3,
+        ..refilled
+    };
+    let grant_key = Uuid::now_v7();
+    let probe_a = |evidence| {
+        let mut instances = held(&granted);
+        instances.push(refilled.clone());
+        let (cp, mut work, _) = shots_tick(
+            &granted,
+            &grant_work,
+            75,
+            instances,
+            BTreeSet::from([soul, emptied]),
+            vec![ItemDeltaPlan {
+                receipt_refs: Vec::new(),
+                operation: ItemOperation::Grant,
+                operation_ordinal: 0,
+                instance: refilled.id,
+                before: None,
+                after: Some(refilled.clone()),
+                count_delta: 5,
+                receipt: Some(ItemReceiptRef {
+                    operation: ItemOperation::Grant,
+                    key: grant_key,
+                }),
+                causes: Vec::new(),
+            }],
+            vec![receipt(
+                me,
+                ItemOperation::Grant,
+                grant_key,
+                75,
+                3,
+                vec![refilled.id],
+            )],
+            evidence,
+        );
+        work.allocation = refill;
+        let events = events(&cp, &work);
+        (cp, work, events)
+    };
+    // The entry is checked as of the removal, but an `instance` on `missing` is still refused.
+    let (cp, work, events) = probe_a(vec![entry(
+        missing,
+        0,
+        "missing",
+        &[("instance", refilled.id.get())],
+    )]);
+    refused(
+        repo.checkpoint_items(&cp, &events, &work, None).await,
+        "item_auto_shot_evidence",
+    );
+    let (a_cp, a_work, a_events) = probe_a(vec![entry(missing, 0, "missing", &[])]);
+    assert_eq!(
+        repo.checkpoint_items(&a_cp, &a_events, &a_work, None)
+            .await
+            .unwrap(),
+        CheckpointOutcome::Applied(3)
+    );
+    // Probe B (tick 76, revision 4): `soul` is insufficient (1 left, weapon wielded), then the
+    // same tick destroys that stack.
+    let destroy_key = Uuid::now_v7();
+    let probe_b = |required: u64, weapon_id: u64, remaining: u64| {
+        let instances: Vec<_> = held(&a_cp)
+            .into_iter()
+            .filter(|item| item.id != single.id)
+            .collect();
+        shots_tick(
+            &a_cp,
+            &a_work,
+            76,
+            instances,
+            BTreeSet::from([emptied]),
+            vec![destroy_row(&single, destroy_key)],
+            vec![receipt(
+                me,
+                ItemOperation::Destroy,
+                destroy_key,
+                76,
+                4,
+                vec![single.id],
+            )],
+            vec![entry(
+                soul,
+                remaining,
+                "insufficient",
+                &[
+                    ("instance", single.id.get()),
+                    ("required", required),
+                    ("weapon", weapon_id),
+                ],
+            )],
+        )
+    };
+    for (required, weapon_id, remaining) in [
+        (needed, pair.id.get(), 1),    // not the wielded weapon in either
+        (needed, wielded.id.get(), 2), // a count that holds in neither
+        (needed.checked_add(1).unwrap(), wielded.id.get(), 1), // not the catalogue count
+    ] {
+        let (cp, work, events) = probe_b(required, weapon_id, remaining);
+        refused(
+            repo.checkpoint_items(&cp, &events, &work, None).await,
+            "item_auto_shot_evidence",
+        );
+    }
+    let (b_cp, b_work, b_events) = probe_b(needed, wielded.id.get(), 1);
+    assert_eq!(
+        repo.checkpoint_items(&b_cp, &b_events, &b_work, None)
+            .await
+            .unwrap(),
+        CheckpointOutcome::Applied(4)
+    );
+    // Probe D (tick 77, revision 5): a no-op toggle keeps revision 4, then a Destroy of the
+    // `emptied` pair steps the owner to 5. A stale receipt revision (3) still refuses.
+    let probe_d = |toggle_revision: u64,
+                   tick: u64,
+                   base: &CharacterCheckpoint,
+                   base_work: &ItemCheckpointWork,
+                   target: &ItemInstance| {
+        let instances: Vec<_> = held(base)
+            .into_iter()
+            .filter(|item| item.id != target.id)
+            .collect();
+        let (toggle_key, pair_key) = (Uuid::now_v7(), Uuid::now_v7());
+        let shots = base.phase4.as_ref().unwrap().auto_shots.clone();
+        let revision = base
+            .phase4
+            .as_ref()
+            .unwrap()
+            .inventory_revision
+            .checked_add(1)
+            .unwrap();
+        shots_tick(
+            base,
+            base_work,
+            tick,
+            instances,
+            shots,
+            vec![destroy_row(target, pair_key)],
+            vec![
+                receipt(
+                    me,
+                    ItemOperation::ToggleAutoShot,
+                    toggle_key,
+                    tick,
+                    toggle_revision,
+                    Vec::new(),
+                ),
+                receipt(me, ItemOperation::Destroy, pair_key, tick, revision, vec![target.id]),
+            ],
+            Vec::new(),
+        )
+    };
+    let (cp, work, events) = probe_d(3, 77, &b_cp, &b_work, &pair);
+    refused(
+        repo.checkpoint_items(&cp, &events, &work, None).await,
+        "item_checkpoint_revision_step",
+    );
+    let (d_cp, d_work, d_events) = probe_d(4, 77, &b_cp, &b_work, &pair);
+    assert_eq!(
+        repo.checkpoint_items(&d_cp, &d_events, &d_work, None)
+            .await
+            .unwrap(),
+        CheckpointOutcome::Applied(5)
+    );
+    // Reverse order (tick 78, revision 6): the later no-op receipt reads the stepped revision.
+    let (r_cp, r_work, r_events) = probe_d(6, 78, &d_cp, &d_work, &refilled);
+    assert_eq!(
+        repo.checkpoint_items(&r_cp, &r_events, &r_work, None)
+            .await
+            .unwrap(),
+        CheckpointOutcome::Applied(6)
+    );
+    let settled = repo.load_for_admission(c.id).await.unwrap().unwrap();
+    let retained = settled.phase4.unwrap().checkpoint.unwrap();
+    assert_eq!(retained.inventory_revision, 6);
+    assert_eq!(retained.auto_shots, BTreeSet::from([emptied]));
+}
+
+#[tokio::test]
+async fn memory_auto_shot_evidence_is_as_of_the_removal() {
+    let bundle = embedded_phase4_bundle().unwrap();
+    let repo = InMemoryCharacterRepository::default()
+        .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
+        .unwrap();
+    as_of_removal_contract(&repo, &bundle).await;
+}
+
+#[tokio::test]
+async fn postgres_auto_shot_evidence_is_as_of_the_removal() {
+    let Some(pool) = common::pg::migrated_pool().await else {
+        return;
+    };
+    common::pg::insert_account(&pool, Uuid::from_u128(1)).await;
+    let bundle = embedded_phase4_bundle().unwrap();
+    let repo = PgCharacterRepository::new(pool)
+        .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
+        .unwrap();
+    as_of_removal_contract(&repo, &bundle).await;
+}

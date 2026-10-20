@@ -6,6 +6,11 @@ use crate::application::AppError;
 
 /// Maps application errors to canonical gRPC codes. Infrastructure details never leak.
 pub(crate) fn to_status(e: AppError) -> Status {
+    // D124: stored class state that violates the ledger is a named precondition, not INTERNAL.
+    if let Some(code) = e.stored_precondition() {
+        tracing::warn!(error = ?e, code, "stored character state refused");
+        return Status::failed_precondition(code);
+    }
     match e {
         AppError::InvalidArgument(m) => Status::invalid_argument(m),
         AppError::NotFound { entity, id } => Status::not_found(format!("{entity} {id} not found")),
@@ -48,6 +53,15 @@ mod tests {
             (AppError::ResourceExhausted("x".into()), Code::ResourceExhausted),
             (AppError::Unavailable("x".into()), Code::Unavailable),
             (AppError::Infrastructure(anyhow::anyhow!("db down")), Code::Internal),
+            (
+                AppError::Infrastructure(
+                    anyhow::Error::from(
+                        crate::domain::character_progression::ClassStateError::ReceiptHistory,
+                    )
+                    .context("load_for_admission"),
+                ),
+                Code::FailedPrecondition,
+            ),
         ];
         for (e, code) in cases {
             assert_eq!(to_status(e).code(), code);

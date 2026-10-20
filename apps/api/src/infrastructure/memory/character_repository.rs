@@ -308,7 +308,10 @@ impl InMemoryCharacterRepository {
             return Err(CheckpointError::Constraint("characters_phase3_downgrade".into()));
         }
         if let Some(work) = items {
-            work.validate_before(s.item_inventories.get(&checkpoint.character_id))?;
+            work.validate_before_with(
+                s.item_inventories.get(&checkpoint.character_id),
+                self.phase4_rules.as_deref(),
+            )?;
         } else {
             crate::application::ports::validate_item_retention(
                 s.item_inventories.get(&checkpoint.character_id),

@@ -20,6 +20,7 @@ impl ZoneState {
         &mut self,
         tick: Tick,
         command: &ItemGrantCommand,
+        initial_revision: Option<u64>,
         events: &mut Vec<ZoneEvent>,
         receipts: &mut BTreeMap<(crate::domain::AccountId, ItemReceiptRef), ItemReceiptState>,
     ) -> Result<(), RejectReason> {
@@ -119,7 +120,12 @@ impl ZoneState {
         } else {
             None
         };
-        let mut projection = candidate.apply_grant_v6(tick, command, previous)?;
+        let mut projection = candidate.apply_grant_v6(
+            tick,
+            command,
+            previous,
+            initial_revision.filter(|_| command.paused.is_none()),
+        )?;
         if let Some(core) = core {
             projection.paused_core =
                 Some(Box::new(candidate.freeze_paused_items_v6(tick, command.entity, core)?));
@@ -261,6 +267,7 @@ impl ZoneState {
         tick: Tick,
         command: &ItemGrantCommand,
         previous: Option<Phase4Projection>,
+        initial_revision: Option<u64>,
     ) -> Result<Phase4Projection, RejectReason> {
         let id = command.entity;
         let combat = self
@@ -292,7 +299,14 @@ impl ZoneState {
             .players
             .get(&id)
             .ok_or(RejectReason::InvalidLoad)?;
-        let revision = if previous.as_ref().is_some_and(|p| !p.ledger.is_empty()) {
+        // D79: one revision step per changed owner-tick. A live owner compares with its
+        // tick-start revision (an earlier same-tick auto_shots-only change already stepped
+        // it, with no ledger row); the offline path keeps the kit projection's ledger rule.
+        let changed = initial_revision.map_or_else(
+            || previous.as_ref().is_some_and(|p| !p.ledger.is_empty()),
+            |initial| initial != player.inventory_revision,
+        );
+        let revision = if changed {
             player.inventory_revision
         } else {
             player
@@ -321,7 +335,8 @@ impl ZoneState {
                 count: command.count,
             }],
             &items.rules,
-            InventoryLimits::from_player(player),
+            // D125: admin item creation may exceed the weight ceiling, never slot capacity.
+            InventoryLimits::from_player(player).admin_grant(),
             InventoryBoundary {
                 tick,
                 revision,

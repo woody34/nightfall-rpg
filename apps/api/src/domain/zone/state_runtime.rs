@@ -907,7 +907,7 @@ impl ZoneState {
             }
         }
         self.final_items_v6(tick, before_items, &mut events)?;
-        self.freeze_items_v6(tick, &mut events)?;
+        self.freeze_items_v6(tick, before_items, &mut events)?;
         self.freeze_learning_v5(tick, &mut events)?;
         self.freeze_transfers_v5(&mut events)?;
         self.phase3
@@ -1220,7 +1220,10 @@ impl ZoneState {
                     .map_err(cast_reject)?;
             },
             ZoneCommand::MaterializePendingItems(grant) => {
-                self.grant_item_v6(tick, grant, events, &mut staged.item_receipts)?;
+                let initial = before_items
+                    .and_then(|items| items.players.get(&grant.entity))
+                    .map(|player| player.inventory_revision);
+                self.grant_item_v6(tick, grant, initial, events, &mut staged.item_receipts)?;
             },
             ZoneCommand::ExtendItemRange { range } => {
                 self.phase4
