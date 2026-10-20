@@ -168,18 +168,19 @@ void USkillStateSubsystem::ApplyCancel(const FSkillCastCancelled& C)
  const int32 Before=CastTransitions;FinishCast(C.Caster,C.CasterIncarnation,C.CastId,C.Tick,C.Reason);
  if(CastTransitions!=Before){ObservedCancel=C;if(IsOwn(C.Caster))++Counts.FindOrAdd(TEXT("cast_cancellations"));}
 }
-TOptional<uint64> USkillStateSubsystem::ReuseRemaining(uint32 Id) const
+TOptional<uint64> USkillStateSubsystem::ReuseRemaining(uint32 Id, uint64 AtTick) const
 {
 	if (!bSyncKnown || !Learned.Contains(Id)) return {};
-	const auto* R = Reuse.Find(Id); return R && R->ReadyTick > GetTick() ? R->ReadyTick - GetTick() : uint64(0);
+	const auto* R = Reuse.Find(Id); return R && R->ReadyTick > AtTick ? R->ReadyTick - AtTick : uint64(0);
 }
-FString USkillStateSubsystem::Flag(const FString& Entity) const
+FString USkillStateSubsystem::Flag(const FString& Entity, uint64 AtTick) const
 {
-	const auto* P = FindPvp(Entity); return !P ? TEXT("unknown") : P->Karma ? TEXT("chaotic") : P->FlagUntilTick > GetTick() ? TEXT("pvp") : TEXT("none");
+	const auto* P = FindPvp(Entity); return !P ? TEXT("unknown") : P->Karma ? TEXT("chaotic") : P->FlagUntilTick > AtTick ? TEXT("pvp") : TEXT("none");
 }
-bool USkillStateSubsystem::OfferPending() const { return Net && Fence.Dead(Net->GetOwnEntityId()) && Offer.IsSet() && Offer->State == 1 && Offer->ExpiryTick > GetTick(); }
+bool USkillStateSubsystem::OfferPending(uint64 AtTick) const { return Net && Fence.Dead(Net->GetOwnEntityId()) && Offer.IsSet() && Offer->State == 1 && Offer->ExpiryTick > AtTick; }
 
 uint64 USkillStateSubsystem::GetTick() const { return FMath::Max(Fence.Tick, Net ? Net->GetLatestReceivedTick() : uint64(0)); }
+uint64 USkillStateSubsystem::GetEstimatedTick() const { return FMath::Max(Fence.Tick, Net ? Net->GetEstimatedTick() : uint64(0)); }
 
 void USkillStateSubsystem::ApplyCatalog(const FGrpcNightfallV1GetSkillCatalogResponse& R) { Catalog = R; bCatalogKnown = true; EnsureHotbar(); OnChanged.Broadcast(); }
 void USkillStateSubsystem::ApplyLearnable(const FGrpcNightfallV1ListLearnableSkillsResponse& R) { Learnable = R; bLearnableKnown = true; OnChanged.Broadcast(); }

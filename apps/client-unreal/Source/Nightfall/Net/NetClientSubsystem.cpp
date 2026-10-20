@@ -92,7 +92,7 @@ void UNetClientSubsystem::Open(const FString& WsUrl, const FString& PlayTicket)
 		ReconnectAttempt = 0;
 		Frame.Reset();
 		KnownEntities.Reset();
-		bPhase3Projection = false; LatestReceivedTick = 0;
+		bPhase3Projection = false; LatestReceivedTick = 0; TickEstimator.Reset();
 		Tombstones.Reset();   // the server re-sends every spawn in our area of interest
 		TickTimeOriginMs.Reset();   // a new session may be a new zone epoch; the next EntityMove re-learns it
 		KeepAliveSeqs.Reset();
@@ -208,6 +208,7 @@ void UNetClientSubsystem::DispatchServerMessage(const FServerMessage& Msg)
 	if (Msg.Ack.IsSet())
 	{
 		LatestReceivedTick = FMath::Max(LatestReceivedTick, Msg.Ack->Tick);
+		ObserveReceivedTick();
 		LastAckedSeq = FMath::Max(LastAckedSeq, Msg.Ack->Seq);
 		UE_LOG(LogNightfall, Verbose, TEXT("ws: ack seq %u (applies on tick %llu)"), Msg.Ack->Seq, Msg.Ack->Tick);
 		OnIntentAck.Broadcast(*Msg.Ack);
@@ -257,6 +258,7 @@ void UNetClientSubsystem::DispatchServerMessage(const FServerMessage& Msg)
 		if (E.SkillStateSync.IsSet()) LatestReceivedTick = FMath::Max(LatestReceivedTick, E.SkillStateSync->Tick);
 		if (E.VitalsChanged.IsSet()) LatestReceivedTick = FMath::Max(LatestReceivedTick, E.VitalsChanged->Tick);
 		if (E.TargetChanged.IsSet()) LatestReceivedTick = FMath::Max(LatestReceivedTick, E.TargetChanged->Tick);
+		ObserveReceivedTick();
 		if (E.SkillStateSync.IsSet() || E.SkillCastStarted.IsSet() || E.EffectApplied.IsSet() || E.VitalsChanged.IsSet() || (E.StatsChanged.IsSet() && E.StatsChanged->bBaseline)) bPhase3Projection = true;
 		if (E.Spawn.IsSet())
 		{
