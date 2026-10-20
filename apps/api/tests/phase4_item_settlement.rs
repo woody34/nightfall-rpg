@@ -3447,6 +3447,68 @@ where
             Vec::new(),
         )
     };
+    // api-review-16 P2-1: a toggle receipt that names nothing but pays a shot under its key
+    // (a Consume row with that receipt) is not a no-op, so it cannot keep the pre-tick revision.
+    {
+        let toggle = Uuid::now_v7();
+        let mut charged = pair.clone();
+        charged.count = 1;
+        charged.revision = 5;
+        let instances: Vec<_> = held(&b_cp)
+            .into_iter()
+            .map(|item| {
+                if item.id == pair.id {
+                    charged.clone()
+                } else {
+                    item
+                }
+            })
+            .collect();
+        let (cp, work, events) = shots_tick(
+            &b_cp,
+            &b_work,
+            77,
+            instances,
+            b_cp.phase4.as_ref().unwrap().auto_shots.clone(),
+            vec![ItemDeltaPlan {
+                receipt_refs: Vec::new(),
+                operation: ItemOperation::Consume,
+                operation_ordinal: 0,
+                instance: pair.id,
+                before: Some(pair.clone()),
+                after: Some(charged),
+                count_delta: -1,
+                receipt: Some(ItemReceiptRef {
+                    operation: ItemOperation::ToggleAutoShot,
+                    key: toggle,
+                }),
+                causes: vec![ItemAuditEvidence {
+                    family: "toggle_shot_payment".into(),
+                    fields: BTreeMap::from([
+                        ("count_delta".into(), ItemEvidenceValue::Signed(-1)),
+                        ("receipt".into(), ItemEvidenceValue::Text(toggle.to_string())),
+                        (
+                            "resolution_id".into(),
+                            ItemEvidenceValue::Text(format!("shot:toggleautoshot:{toggle}")),
+                        ),
+                    ]),
+                }],
+            }],
+            vec![receipt(
+                me,
+                ItemOperation::ToggleAutoShot,
+                toggle,
+                77,
+                4,
+                Vec::new(),
+            )],
+            Vec::new(),
+        );
+        refused(
+            repo.checkpoint_items(&cp, &events, &work, None).await,
+            "item_checkpoint_revision_step",
+        );
+    }
     let (cp, work, events) = probe_d(3, 77, &b_cp, &b_work, &pair);
     refused(
         repo.checkpoint_items(&cp, &events, &work, None).await,
