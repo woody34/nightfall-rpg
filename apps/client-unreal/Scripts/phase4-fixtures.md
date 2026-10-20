@@ -257,3 +257,52 @@ when `PHASE4_BACKFILL_RESULTS=<path>` is set; extra keys such as `note` or
                 "gates": {"migration_rerun": true, "first_v6_admission": true,
                           "crash_resume": true, "kit_once": true,
                           "allocator_no_collision": true}}]}
+
+Item evidence reads a closed epoch (D122/T23). The item-evidence exporter refuses live or
+partial captures, and that refusal stays. For a Phase 4 unit with item gates or phases,
+`sim_phase4_evidence` runs after the live capture's replay, trace and coverage gates. It then:
+1. stops the unit's owned fixture API gracefully (`sim_api_stop_graceful`, SIGTERM; the API
+   drains and closes the epoch with a Shutdown watermark; it fails if the API does not exit
+   within `SIM_API_STOP_GRACE`, default 30 s);
+2. exports that closed epoch non-live for the report owner to
+   `<unit>/<scenario>/closed-epoch/<scenario>.nfr`, retrying up to 3 times because JetStream
+   can time out just after the shutdown;
+3. runs `phase4-evidence.py` on that recording.
+
+The live `<scenario>.nfr` remains the unit recording for every other gate. Offline fixtures
+(`SIM_REPLAY_CMD`) are unchanged. Proven on an owned phase4-armor-enchant4 fixture with the
+integration 7262804 binaries. The live capture's item export refuses ("partial/live
+captures"). The graceful-stop closed epoch has a Shutdown watermark, replays to a match, and
+its item evidence validates.
+
+Accessory refine (D123/T24). Weapon refine stays deferred (D82: no weapon life stone is
+admitted, so the zone refuses it with ItemCapabilityDeferred). 4-augment therefore refines an
+accessory, with the same assertions (applied outcome, draws/options, cancel fee). The
+phase4-blacksmith pack (shared with 4-sa-exchange, whose SA ingredients are unchanged) now
+carries:
+- the stable minimum admitted C-grade accessory: Necklace of Seal 119;
+- the minimum admitted accessory life stone: 12754 (level 46, the owner's level);
+- the C-grade accessory gemstones: 2130 × 200;
+- the cancel-fee adena.
+
+The weapon life stone 8723 and 2130 × 20 are gone (`accessory_refine()`).
+
+Grant capacity (D125 amended, T27). The dev GrantItem enforces the real inventory slot
+capacity on every addition: ordinary slots 80 (dwarf 100) and quest slots 100. Stackables
+take one slot per template; other items take one per instance. A violation is refused with
+InventoryFull. Dev grants may exceed max load (weight), as an L2J admin-created item can make
+a player overweight; 4-overload depends on this (overload level 4, weight > 100%).
+`seed-phase4-fixture.py capacity_blockers()` models the slot rule on each pack's final
+inventory, so a pack over slot capacity is blocked at plan time, before any write.
+
+Seeded class-transfer history (D124/T25). The API refuses a class-transferred owner that has
+no class-transfer receipts (FAILED_PRECONDITION `invalid_class_transfer_receipt_history`).
+For each seeded role whose class is not its base class, `seed-phase3-fixture.py`
+(`transfer_receipts`) writes one `change_class` receipt per tier in the seed transaction. The
+receipts follow the parent chain in `professions/*.toml`, and each one has:
+- an `idempotency_keys` row with the frozen transfer result: the owner's identity, the base
+  class's own stats, the target's minimum level and zero vitals;
+- a `character_transfer_receipts` row with ordinal 0 or 1.
+
+Today the only such role is the phase4-kinds owner (Treasure Hunter: receipts for classes 7
+and 8). A level below a target's minimum, or above 85, refuses before any write.

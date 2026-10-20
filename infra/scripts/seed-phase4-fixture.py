@@ -86,6 +86,29 @@ def seed_sql(roles):
     return sql + 'BEGIN;\n' + BACKFILL.read_text() + '\nCOMMIT;\n'
 
 
+def capacity_blockers(role, catalogue, repo=REPO):
+    """D125 (amended, option 1)/T27: the dev GrantItem enforces the real inventory SLOT
+    capacity on every addition (ordinary/quest; InventoryFull) but may exceed max load, as an
+    L2J admin-created item can make a player overweight (4-overload needs weight > 100%).
+    The final pack is the largest state the grants reach, so its slots must fit: stackables
+    take one slot per template, other items one per instance, within the race capacity."""
+    capacities = contracts.table('capacities', repo)
+    dwarf = role.get('race') == 'dwarf' or str(role.get('class_profile', '')).startswith('dwarven')
+    limits = {'ordinary': capacities['dwarf_inventory'] if dwarf else capacities['inventory'],
+              'quest': capacities['quest_inventory']}
+    used, stacks = {'ordinary': 0, 'quest': 0}, set()
+    for row in role['inventory']:
+        item = catalogue[row['template_id']]
+        kind = 'quest' if item['properties'].get('is_questitem') == 'true' else 'ordinary'
+        if item['stackable']:
+            if row['template_id'] not in stacks:
+                stacks.add(row['template_id']); used[kind] += 1
+        else:
+            used[kind] += row['count']
+    return [dict(reason=f'{kind} slots {used[kind]} exceed capacity {limits[kind]} (GrantItem InventoryFull)')
+            for kind in used if used[kind] > limits[kind]]
+
+
 def grant_plan(fixture, name, role, repo=REPO):
     """Grants that turn the materialized starter kit into the pack inventory.
 
@@ -102,6 +125,7 @@ def grant_plan(fixture, name, role, repo=REPO):
         if row['equipped']:
             kit_equipped[row['template_id']] = kit_equipped.get(row['template_id'], 0) + 1
     blockers, totals, enchants, equipped = [], {}, {}, {}
+    blockers += capacity_blockers(role, catalogue, repo)
     for row in role['inventory']:
         template = row['template_id']
         if row['charge_bits'] or row['augment_id'] is not None:

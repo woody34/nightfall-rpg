@@ -4,6 +4,7 @@ import copy
 import importlib.util
 import json
 import os
+import subprocess
 from pathlib import Path
 import tempfile
 import unittest
@@ -153,6 +154,8 @@ class Fixtures(unittest.TestCase):
                                  sorted(r['enchant'] for r in role['inventory'] if r['enchant']),(pack,name))
         enchanted={p for p in fixture.PHASE4 if any(r['enchant'] for role in fixture.phase4.profiles(p,paired=p in fixture.phase4.PAIRED).values() for r in role['inventory'])}
         self.assertEqual(enchanted,{'phase4-enchant','phase4-blacksmith','phase4-equip-onepiece','phase4-armor-enchant4','phase4-armor-enchant6'})
+        # D125 (amended)/T27: the plan models the grant's slot capacity; dev grants may exceed
+        # max load, so the overweight 4-overload pack provisions unchanged.
         self.assertEqual(blocked_packs,set()) # all 39 packs provision
         self.assertEqual(len(fixture.PHASE4),39);self.assertGreater(planned,0)
         print(f'D112/D113 dry run: all {len(fixture.PHASE4)} packs provision, {planned} grants planned (enchanted: {sorted(enchanted)})',flush=True)
@@ -292,8 +295,119 @@ class Fixtures(unittest.TestCase):
             (folder/'grant-complete').write_text('')
             self.assertEqual(fixture.scenario_copy(folder,owner).read_text(),'nf.Equip instance:4294967301\nnf.Expect equipped instance:4294967301 == 1\n')
             self.assertEqual(fixture.scenario_copy(folder,observer).read_text(),'nf.Use instance:4294967400\n')
+            # T28: the allow-list sidecar travels with the mapped copy, byte-identically.
+            (scenarios/'4-x-a.allow').write_bytes(b'LogTurboLink | CallRpcError: FailedPrecondition:GrantItem requires AUTH_DEV_TOKENS=1 | expected refusal\n')
+            copy=fixture.scenario_copy(folder,owner)
+            self.assertEqual(copy.with_suffix('.allow').read_bytes(),(scenarios/'4-x-a.allow').read_bytes())
+            self.assertFalse((folder/'scenarios'/'4-x-b.allow').exists())
+            (scenarios/'4-x-a.allow').unlink();fixture.scenario_copy(folder,owner)  # source lost its sidecar
+            self.assertFalse((folder/'scenarios'/'4-x-a.allow').exists())
+            for real in ('4-grant-item-denied','4-item-skill-learn'):
+                self.assertTrue((SCRIPTS.parent/'Scenarios'/(real+'.allow')).is_file(),real)
             observer.write_text('nf.Use instance:7\n') # owner's id is not the observer's
             with self.assertRaisesRegex(ValueError,'was not provisioned'):fixture.scenario_copy(folder,observer)
+
+    def test_class_transferred_seeded_owners_carry_per_tier_receipts(self):
+        # D124/T25: every non-base-class seeded owner (all Phase 3/4 packs and soak roles) gets
+        # one change_class receipt per tier, parent -> child, as the API requires.
+        import tomllib,uuid
+        base3=seed.base
+        p3=load('fixture_p3',SCRIPTS/'phase3-fixtures.py')
+        professions={r['id']:r for r in (tomllib.loads(f.read_text()) for f in (REPO/'packages/data/professions').glob('*.toml'))}
+        classes={tomllib.loads(f.read_text())['class_id']:tomllib.loads(f.read_text()) for f in (REPO/'packages/data/classes').glob('*.toml')}
+        roles=[]
+        for pack in sorted(p3.PHASE3):
+            for paired in (False,True):
+                try:roles+=[(pack,n,r) for n,r in p3.profiles(pack,REPO,paired).items()]
+                except ValueError:pass
+        for pack in sorted(fixture.PHASE4):
+            roles+=[(pack,n,r) for n,r in fixture.phase4.profiles(pack,paired=pack in fixture.phase4.PAIRED).items()]
+        for index in range(8):
+            for module in (p3,fixture.phase4):
+                roles.append(('soak',f'c{index}',module.soak_profile(REPO,str(uuid.uuid4()),str(uuid.uuid4()),index,8)))
+        transferred=0
+        for pack,name,role in roles:
+            role=role|{'account_id':role.get('account_id') or '01970000-0000-7000-8000-000000000042'}
+            receipts=base3.transfer_receipts(name,role)
+            with self.subTest(pack=pack,role=name):
+                if role['class_id']==role['base_class_id']:
+                    self.assertEqual(receipts,[]);continue
+                transferred+=1
+                target=professions[role['class_id']]
+                self.assertEqual([r['ordinal'] for r in receipts],list(range(target['tier'])))
+                self.assertEqual(receipts[-1]['target_class_id'],role['class_id'])
+                parent=role['base_class_id']
+                for r in receipts:
+                    step=professions[r['target_class_id']];self.assertEqual(step['parent'],parent);parent=step['id']
+                    body=r['response']
+                    self.assertEqual(body['current_class_id'],step['id']);self.assertLessEqual(step['min_level'],body['level'])
+                    self.assertLessEqual(body['level'],85);self.assertLessEqual(step['min_level'],role['level'])
+                    self.assertEqual(body['stats'],classes[role['base_class_id']]['base_stats'])
+                    self.assertEqual(body['identity'],{'account_id':role['account_id'],'race':role['race'],'base_class_id':role['base_class_id'],
+                                                       'appearance':{'sex':'Female','hair_style':0,'hair_color':0,'face':0}})
+                    self.assertEqual(r['fingerprint'],f"v1|{role['character_id']}|{step['id']}")
+                    self.assertEqual(set(body),{'character_id','identity','name','current_class_id','level','xp','sp','stats','position_millitiles',
+                                                'hp','mp','cp','max_hp','max_mp','max_cp','token_tier_1_count','token_tier_2_count','granted_skill_keys'})
+                sql=base3.seed_sql({name:role})
+                self.assertEqual(sql.count('INSERT INTO character_transfer_receipts'),len(receipts))
+                self.assertEqual(sql.count("'change_class'"),len(receipts))
+                self.assertLess(sql.index('INSERT INTO characters('),sql.index('INSERT INTO idempotency_keys'))
+        self.assertGreaterEqual(transferred,1)  # phase4-kinds: Treasure Hunter (7 -> 8)
+        kinds=fixture.phase4.profiles('phase4-kinds')['owner']|{'account_id':'01970000-0000-7000-8000-000000000042'}
+        self.assertEqual([r['target_class_id'] for r in base3.transfer_receipts('owner',kinds)],[7,8])
+        with self.assertRaisesRegex(ValueError,'level 39 is below the class 8 minimum 40'):base3.transfer_receipts('owner',kinds|{'level':39})
+        with self.assertRaisesRegex(ValueError,'level 86 is above the maximum transfer level 85'):base3.transfer_receipts('owner',kinds|{'level':86})
+
+    def test_grant_plan_models_slot_capacity(self):
+        # D125 (amended)/T27: the dev grant enforces slot capacity; the plan refuses first.
+        role=copy.deepcopy(fixture.phase4.profiles('phase4-equip')['owner'])
+        catalogue=fixture.phase4.catalogue()
+        self.assertEqual(seed.capacity_blockers(role,catalogue),[])
+        # D125 amended: weight above max load is allowed for dev grants (605210 vs 67620 here).
+        heavy=copy.deepcopy(fixture.phase4.profiles('phase4-overload')['owner'])
+        self.assertEqual(seed.capacity_blockers(heavy,catalogue),[])
+        self.assertGreater(sum(int(catalogue[r['template_id']]['weight'])*r['count'] for r in heavy['inventory']),67620)
+        sword=next(i for i,r in sorted(catalogue.items()) if not r['stackable'] and r['kind']=='Weapon' and int(r['weight'])<=100)
+        many=copy.deepcopy(role)
+        many['inventory']+= [dict(many['inventory'][0],instance_id=1000+i,template_id=sword,slot=None,location='inventory',enchant=0) for i in range(80)]
+        self.assertTrue(any('ordinary slots' in b['reason'] for b in seed.capacity_blockers(many,catalogue)))
+        # Stackables take one slot per template regardless of count.
+        arrows=copy.deepcopy(role)
+        arrows['inventory'].append(dict(role['inventory'][0],instance_id=999,template_id=17,count=10,slot=None,location='inventory'))
+        self.assertEqual(seed.capacity_blockers(arrows,catalogue),[])
+
+    def test_item_evidence_reads_a_gracefully_closed_epoch(self):
+        # D122/T23: stop the owned API with SIGTERM, then export the closed epoch non-live.
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);dest=root/'unit';dest.mkdir();log=root/'calls'
+            (dest/'u.xml').write_text('<testsuites><properties><property name="own_entity_id" value="01970000-0000-7000-8000-000000000040"/></properties></testsuites>')
+            replay=root/'replay';replay.write_text(f'''#!/usr/bin/env bash
+echo "$*" >> "{log}"
+[[ -e "{root}/flaky" ]] && {{ rm "{root}/flaky"; echo "jetstream request timed out" >&2; exit 2; }}
+out=""; while (($#)); do [[ "$1" == --out ]] && out="$2"; shift; done
+echo recording > "$out"
+''');replay.chmod(0o755)
+            script=f'''. "{SCRIPTS}/sim-lib.sh"
+sleep 300 & SIM_STARTED_API_PID=$!
+SIM_FIXTURE_DIR="{root}" SIM_REPLAY_BIN="{replay}" SIM_API_STOP_GRACE=5
+sim_closed_epoch "{dest}" u; echo "rc=$? closed=$CLOSED_EPOCH pid=[$SIM_STARTED_API_PID]"
+'''
+            (root/'flaky').touch() # first export attempt times out (JetStream right after shutdown)
+            out=subprocess.run(['bash','-c',script],capture_output=True,text=True,timeout=60)
+            self.assertIn(f'rc=0 closed={dest}/closed-epoch/u.nfr pid=[]',out.stdout,out.stderr)
+            calls=log.read_text().splitlines()
+            self.assertEqual(len(calls),2)
+            for call in calls:
+                self.assertIn('export --zone 1 --latest --session 01970000-0000-7000-8000-000000000040 --out',call)
+                self.assertNotIn('--live',call)
+            # Without an owned fixture API there is no closed epoch to read.
+            out=subprocess.run(['bash','-c',f'. "{SCRIPTS}/sim-lib.sh"; SIM_FIXTURE_DIR=""; sim_closed_epoch "{dest}" u; echo rc=$?'],
+                               capture_output=True,text=True,timeout=30)
+            self.assertIn('rc=1',out.stdout);self.assertIn('requires an owned fixture API',out.stderr)
+        lib=(SCRIPTS/'sim-lib.sh').read_text()
+        self.assertIn('sim_closed_epoch "$dest" "$name" || return 1\n    recording="$CLOSED_EPOCH"',lib)
+        # The live capture stays for the replay/trace gates.
+        self.assertIn('--latest --session "$entity" --live --out "$dest/$name.nfr"',lib)
 
     def test_zone_flags_are_per_unit(self):
         # D114: every unit boots V6; the per-unit manifest field and exec-api check remain.

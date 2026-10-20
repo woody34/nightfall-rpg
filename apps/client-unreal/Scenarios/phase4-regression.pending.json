@@ -2,6 +2,8 @@
   "historical_recordings": {
     "phase3-casts-v5.nfr": "70eda56bcaf1fa7269947b56da7eae04656110ca2b6968dbbaa2b6c0de9c580f",
     "phase3-gameplay-v5.nfr": "f7050ff5bbf5907c298ae507aadedfeb8568c84888980e806dbe0cf0b7a35278",
+    "t11-v6-zone1-epoch23.nfr": "0fe3f8a9af9668874e808e22c8d954bf04dd8802bfa4e96542d0b7e62b349f29",
+    "t19-v6-class-transfer.nfr": "2f53d1b95e65b8a95883629809f8f4aab7b9aa6773b37e5cba7aa80cebc283cc",
     "two-players-fight-v2.nfr": "126c4d50d6a2f3ffc831b8c1bba4e5b9a0b5b9f33c211c5854deba8bb05dfba2",
     "two-players-v4.nfr": "2e73809baad35a15baa3cc485b776f37310c301d5fb890a69892d08b203e8cda"
   },
@@ -2091,7 +2093,7 @@
       "role_input_status": "public creation/login inputs; captured admission load",
       "role_inputs": null,
       "scenario": "1-late-entry-b.nfs",
-      "scenario_sha256": "2e35333bcdc2e8a88470ccca07bb61a547f3224410aebd422952b50c2c11ccf0"
+      "scenario_sha256": "dee41a071f7316bc90c6a5cafef00ed3dff8bb06b865b6c27383038216f3e86b"
     },
     {
       "creation_commands": [],
@@ -8243,7 +8245,7 @@
         }
       },
       "scenario": "3-aggro-skill-hate.nfs",
-      "scenario_sha256": "ad5f2c2e040a87ce2f9a31af63501bd1b54a186df4348a73e49d90d831a9f383"
+      "scenario_sha256": "c7d895f63f5a94e90d3609aa17e62d63c53752b68e9fa8126d92af9e8bb3812b"
     },
     {
       "creation_commands": [],
@@ -8375,7 +8377,7 @@
         }
       },
       "scenario": "3-buff-expires.nfs",
-      "scenario_sha256": "d1d0ecd2078038948270e0cc64ed56b7da77dedfdada96a54f57d66667f5e2c6"
+      "scenario_sha256": "e3f8bdfda1a6b4ef76bc210f141b269f682e75f8b2dbe79e7319df2b14979fc6"
     },
     {
       "creation_commands": [],
@@ -8583,7 +8585,7 @@
         }
       },
       "scenario": "3-cast-observer-a.nfs",
-      "scenario_sha256": "31c313f57894ca896bb0cdcedb233a5ef65b59c80539b0bc74d55e495c98d551"
+      "scenario_sha256": "9c074114701f6904133f67f6ba5db567dc58b558f16cd4408c041d06013005b3"
     },
     {
       "creation_commands": [],
@@ -8761,7 +8763,7 @@
         }
       },
       "scenario": "3-cast-observer-b.nfs",
-      "scenario_sha256": "b073a20549346aaf217f1a1a5a83598e8b9514d159f79715f809f5bd8b3e2c9d"
+      "scenario_sha256": "de328455cc6016816527037b5c3192a0e7311d4a2bd978f693e6490fe171bc1c"
     },
     {
       "creation_commands": [],
@@ -8887,7 +8889,7 @@
         }
       },
       "scenario": "3-cast-reconnect.nfs",
-      "scenario_sha256": "fec86ea9ee6e83aaa186e083380dee24b2a6f8aa72b574c297bf40d89edcdd2f"
+      "scenario_sha256": "6927e9b0524bd7486cc905fa73efd63edd109b719e1797e558dccffe3d2c0e8d"
     },
     {
       "creation_commands": [],
@@ -9037,7 +9039,7 @@
         }
       },
       "scenario": "3-cast-rejected.nfs",
-      "scenario_sha256": "3fca8624579508de6c1e8924a756169266a9731284029b32d61ca9472acfd592"
+      "scenario_sha256": "6600cad94f81aa385c05ecf2bd24aa7244e68c41ca85338af8a19284de9a5ba9"
     },
     {
       "creation_commands": [],
@@ -9199,7 +9201,7 @@
         }
       },
       "scenario": "3-cast-skill.nfs",
-      "scenario_sha256": "84cc100de668dd30a5b22386be907432e5694cde1e760969dbeef571683dc034"
+      "scenario_sha256": "b3f1e89c38071085e40f1337844eb3906c320ebf43ebf2648214576dd35cf443"
     },
     {
       "creation_commands": [],
@@ -9361,7 +9363,7 @@
         }
       },
       "scenario": "3-death-penalty.nfs",
-      "scenario_sha256": "9735da32183096a8a56a0997eb91cfb66b75a9f7bbc93e031db6cdcdc96cb916"
+      "scenario_sha256": "80c0a90ab293e39ab3af2b240269b251f832761530d6be71072eca66c3f1218a"
     },
     {
       "creation_commands": [],
@@ -9481,7 +9483,7 @@
         }
       },
       "scenario": "3-debuff-status.nfs",
-      "scenario_sha256": "b69134277402c12d7d15db239cc0eaae4a77d1fa563904fddf6cfbec0012ab15"
+      "scenario_sha256": "9a52a302fbb50752ff26a73431bdb3b7ebb4b3c9de40ed59f96ba06f1860f3f6"
     },
     {
       "creation_commands": [],
@@ -9637,7 +9639,7 @@
         }
       },
       "scenario": "3-learn-rejected.nfs",
-      "scenario_sha256": "bb103f9392d4fce6014db0a0bfb2cb4d40d474f9f8674e32de51a3603e654403"
+      "scenario_sha256": "76faa705905d6de0e011d947b301f6840803cb2624a7ef849707a77ba915f08c"
     },
     {
       "creation_commands": [],
@@ -9823,7 +9825,7 @@
         }
       },
       "scenario": "3-learn-skill.nfs",
-      "scenario_sha256": "e798292a410ec5e5e51649620706f2f47692e94452990e43985c8d679d297cf9"
+      "scenario_sha256": "c23e3e518bba6259c6df601f085e423feb23972ca631c2571468957e55fed247"
     },
     {
       "creation_commands": [],
@@ -10166,7 +10168,7 @@
         }
       },
       "scenario": "3-pvp-flag-a.nfs",
-      "scenario_sha256": "1cef555950916f6e6d9b035e1483db4b89891c3da8f3ec48898797a8259640e8"
+      "scenario_sha256": "2447c44dead090d62763c45b377516ee6600ae667f4a08e8acbc3b826e8a7a32"
     },
     {
       "creation_commands": [],
@@ -10461,7 +10463,7 @@
         }
       },
       "scenario": "3-pvp-flag-b.nfs",
-      "scenario_sha256": "b39d21f547ff36933e448a8e6786f194ab59c6c7552b4b2f3859d6de1b8a996c"
+      "scenario_sha256": "27d3135cb0d3d5ab515911fd2f87bac837d44623e6ad27431ebb7077119b5bbc"
     },
     {
       "creation_commands": [],
@@ -10781,7 +10783,7 @@
         }
       },
       "scenario": "3-pvp-karma-decay.nfs",
-      "scenario_sha256": "20892af7a9b5ab31fcf00c25e1ee8bb5ad2da93ca007e127d860d49c6f352fd0"
+      "scenario_sha256": "328271f43bcbc1a9236a6bdb58b8d0ec5e343bd6cc53d3acb0d1be0e301124b3"
     },
     {
       "creation_commands": [],
@@ -10903,7 +10905,7 @@
         }
       },
       "scenario": "3-regen.nfs",
-      "scenario_sha256": "2954f080c4d512ce6dc39c77505286a8e78f045160cc4f956a3c398eafe38ab4"
+      "scenario_sha256": "f6c83c23e595c9ff022a42b13f39ac22d6dec5039cdc521cd22043418684e687"
     },
     {
       "creation_commands": [],
@@ -11095,7 +11097,7 @@
         }
       },
       "scenario": "3-resurrect-a.nfs",
-      "scenario_sha256": "010e6617fda4aca81cd746e0ea7749bd20810c920f4635e400be83a802943eb5"
+      "scenario_sha256": "6be3fa9f57ea639d37e1c6cb1bc5f63900b98e7c6299182f25d68a1efc6a5b88"
     },
     {
       "creation_commands": [],
@@ -11269,7 +11271,7 @@
         }
       },
       "scenario": "3-resurrect-b.nfs",
-      "scenario_sha256": "26d0d13a69985eed8ae98044e7277432d7f4f2c7c7195b9e266bb0267b119141"
+      "scenario_sha256": "93fd503a6847666668f9af6d0567fa801eb033c5c2c4b8f469419102ef559c78"
     },
     {
       "creation_commands": [],

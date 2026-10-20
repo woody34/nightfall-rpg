@@ -22,7 +22,7 @@ nf.Target template:keltir_durable
 nf.WaitFor target != none 3
 nf.WaitFor target_wounded 90
 # HARNESS: durable speed floor(253/10)=25 yields100 impact ticks; see fixture provenance.
-# Require95 RECEIVED ticks remaining, then two2-tile legs. Three waits
+# Require95 ESTIMATED ticks remaining (D132), then two2-tile legs. Three waits
 # total<=9s=90ticks for the roundtrip, leaving5ticks of delivery slack.
 # x63/cell1 leaves AOI; x65/cell2 enters (aoi.rs:13). Tight position bounds
 # keep own_at from passing on the wrong side. No sleep or guessed swing phase.

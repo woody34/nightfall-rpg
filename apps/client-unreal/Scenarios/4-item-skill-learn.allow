@@ -1,1 +1,1 @@
-LogTurboLink | CallRpcError: FailedPrecondition:learning requires an inventory item | Explicit missing-book refusal before actor GrantItem; learned rank/SP unchanged.
+LogTurboLink | CallRpcError: FailedPrecondition:skill learning requires an inventory item | Explicit missing-book refusal before actor GrantItem; learned rank/SP unchanged.

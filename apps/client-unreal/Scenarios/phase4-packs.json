@@ -1264,7 +1264,7 @@
       "owner": {
         "alive": true,
         "allocator": {
-          "next_item_instance": 13,
+          "next_item_instance": 14,
           "range_end_exclusive": 4294967296,
           "range_start": 1
         },
@@ -1484,20 +1484,38 @@
             "revision": 0,
             "slot": null,
             "source": {
-              "file": "src/main/resources/data/stats/items/08700-08799.xml",
-              "lines": "246",
+              "file": "src/main/resources/data/stats/items/00100-00199.xml",
+              "lines": "347",
               "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
               "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-              "symbol": "item 8723"
+              "symbol": "item 119"
             },
-            "template_id": 8723
+            "template_id": 119
           },
           {
             "augment_id": null,
             "charge_bits": 0,
-            "count": 20,
+            "count": 1,
             "enchant": 0,
             "instance_id": 12,
+            "location": "inventory",
+            "revision": 0,
+            "slot": null,
+            "source": {
+              "file": "src/main/resources/data/stats/items/12700-12799.xml",
+              "lines": "701",
+              "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+              "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+              "symbol": "item 12754"
+            },
+            "template_id": 12754
+          },
+          {
+            "augment_id": null,
+            "charge_bits": 0,
+            "count": 200,
+            "enchant": 0,
+            "instance_id": 13,
             "location": "inventory",
             "revision": 0,
             "slot": null,
@@ -1687,7 +1705,7 @@
               "location": "inventory",
               "revision": 0,
               "slot": null,
-              "template_id": 8723
+              "template_id": 119
             },
             "before": null,
             "instance_id": 11,
@@ -1697,16 +1715,32 @@
             "after": {
               "augment_id": null,
               "charge_bits": 0,
-              "count": 20,
+              "count": 1,
               "enchant": 0,
               "instance_id": 12,
+              "location": "inventory",
+              "revision": 0,
+              "slot": null,
+              "template_id": 12754
+            },
+            "before": null,
+            "instance_id": 12,
+            "op": "grant"
+          },
+          {
+            "after": {
+              "augment_id": null,
+              "charge_bits": 0,
+              "count": 200,
+              "enchant": 0,
+              "instance_id": 13,
               "location": "inventory",
               "revision": 0,
               "slot": null,
               "template_id": 2130
             },
             "before": null,
-            "instance_id": 12,
+            "instance_id": 13,
             "op": "grant"
           }
         ],
@@ -2565,13 +2599,13 @@
             "revision": 0,
             "slot": null,
             "source": {
-              "file": "src/main/resources/data/stats/items/00700-00799.xml",
-              "lines": "373",
+              "file": "src/main/resources/data/stats/items/01000-01099.xml",
+              "lines": "622",
               "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
               "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
-              "symbol": "item 727"
+              "symbol": "item 1060"
             },
-            "template_id": 727
+            "template_id": 1060
           }
         ],
         "karma": 0,
@@ -2686,7 +2720,7 @@
               "location": "inventory",
               "revision": 0,
               "slot": null,
-              "template_id": 727
+              "template_id": 1060
             },
             "before": null,
             "instance_id": 7,
@@ -13897,7 +13931,7 @@
     "onepiece": 60,
     "overgrade": 82,
     "pole": 15,
-    "potion": 727,
+    "potion": 1060,
     "resurrect": 737,
     "ring": 116,
     "safe_scroll": 22227,
