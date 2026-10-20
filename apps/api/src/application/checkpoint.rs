@@ -184,14 +184,25 @@ impl CheckpointService {
 
     /// T21/D134: indexes a tick after its log acknowledgement and before its checkpoint or
     /// output. Recovery requires the history through it; a shorter history is log loss.
-    pub async fn recording(&self, zone: ZoneId, epoch: u64, tick: Tick) {
-        self.index_tick(zone, epoch, tick, false).await;
+    /// api-review-16 P3-1: a persistent index failure is an error after bounded retries, and the
+    /// caller fences the zone before releasing anything for the tick (no hang under the lock).
+    pub async fn recording(&self, zone: ZoneId, epoch: u64, tick: Tick) -> anyhow::Result<()> {
+        self.index_tick(zone, epoch, tick, false).await
     }
 
-    async fn index_tick(&self, zone: ZoneId, epoch: u64, tick: Tick, completed: bool) {
+    async fn index_tick(
+        &self,
+        zone: ZoneId,
+        epoch: u64,
+        tick: Tick,
+        completed: bool,
+    ) -> anyhow::Result<()> {
+        /// Attempts (one second apart) before an index failure fences the zone.
+        const INDEX_ATTEMPTS: u32 = 5;
         let Some((_, store)) = &self.durability else {
-            return;
+            return Ok(());
         };
+        let mut attempt = 1;
         loop {
             let result = if completed {
                 store.checkpointed(zone, epoch, tick).await
@@ -199,11 +210,19 @@ impl CheckpointService {
                 store.recording(zone, epoch, tick).await
             };
             match result {
-                Ok(()) => return,
+                Ok(()) => return Ok(()),
+                Err(error) if attempt >= INDEX_ATTEMPTS => {
+                    self.metrics.failed();
+                    return Err(error.context(format!(
+                        "epoch index update failed {INDEX_ATTEMPTS} times (zone {}, epoch {epoch}, tick {})",
+                        zone.0, tick.0
+                    )));
+                },
                 Err(error) => {
                     self.metrics.failed();
-                    tracing::error!(zone = zone.0, epoch, error = %error, "epoch index update retained for retry");
+                    tracing::error!(zone = zone.0, epoch, attempt, error = %error, "epoch index update retained for retry");
                     tokio::time::sleep(Duration::from_secs(1)).await;
+                    attempt = attempt.saturating_add(1);
                 },
             }
         }
@@ -914,7 +933,7 @@ impl CheckpointService {
         let index_started = std::time::Instant::now();
         if self.wrote_since_index {
             self.index_tick(snapshot.seed.zone, tick.epoch, tick.tick, true)
-                .await;
+                .await?;
             self.wrote_since_index = false;
         }
         super::zone_actor::runtime_phase("checkpoint_index", index_started);

@@ -871,11 +871,18 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
         // checkpoint or any output, so `last_recorded_tick = T` implies record T is durable.
         let phase_started = Instant::now();
         if let Some(service) = self.checkpoints.service() {
-            service
+            let indexed = service
                 .lock()
                 .await
                 .recording(self.state.seed().zone, record.epoch, record.tick)
                 .await;
+            if let Err(error) = indexed {
+                // Nothing for this tick is visible yet; recovery replays it from the log.
+                tracing::error!(%error, "recording index failure fences zone before output release");
+                self.failed = true;
+                self.fail_replies();
+                return TickOutcome::Held(tick);
+            }
         }
         runtime_phase("recording_index", phase_started);
         let phase_started = Instant::now();
