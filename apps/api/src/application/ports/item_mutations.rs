@@ -547,9 +547,9 @@ impl ItemCheckpointWork {
                 && cp.inventory_revision == revision
         });
         // A fresh no-op receipt can retain the revision; actual mutations take one step.
-        // D137: a no-op ToggleAutoShot (nothing affected) keeps the un-stepped revision even
-        // when a later same-tick mutation steps the owner; every other receipt carries the
-        // settled revision.
+        // D137: a no-op ToggleAutoShot (nothing affected, no ledger row under its key) keeps
+        // the un-stepped revision even when a later same-tick mutation steps the owner; every
+        // other receipt carries the settled revision.
         let pre_tick = before.map(|cp| cp.inventory_revision);
         if (!unchanged
             && before.map_or(0, |cp| cp.inventory_revision).checked_add(1) != Some(revision))
@@ -561,7 +561,13 @@ impl ItemCheckpointWork {
                         affected,
                         ..
                     } if affected.is_empty()
-                );
+                ) && !self.projection.ledger.iter().any(|delta| {
+                    delta.receipt.is_some_and(|r| r.key == receipt.request_id)
+                        || delta
+                            .receipt_refs
+                            .iter()
+                            .any(|r| r.key == receipt.request_id)
+                });
                 receipt.result.inventory_revision != revision
                     && !(no_op_toggle && Some(receipt.result.inventory_revision) == pre_tick)
             })
