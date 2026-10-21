@@ -105,6 +105,7 @@ impl ZoneState {
             if core.load.checkpoint_revision != input.load.checkpoint_revision {
                 return Err(RejectReason::InvalidLoad);
             }
+            let first_attach = previous.is_none();
             candidate.attach_paused_items_v6(tick, command.entity, core)?;
             let mut kit = Vec::new();
             candidate
@@ -115,6 +116,13 @@ impl ZoneState {
                     return Err(RejectReason::InvalidLoad);
                 }
                 previous = Some(*projection);
+            }
+            // D142: the first offline attach of a charged/toggled retained owner records the
+            // incarnation reset; a later same-tick grant extends that projection.
+            if first_attach && previous.is_none() {
+                previous = candidate
+                    .incarnation_reset_v6(tick, command.entity, Some(&input.load), None)
+                    .map_err(invalid)?;
             }
             Some(input.as_ref())
         } else {

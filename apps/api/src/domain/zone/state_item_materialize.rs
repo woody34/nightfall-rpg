@@ -378,6 +378,129 @@ impl ZoneState {
     }
 }
 
+/// D142: whether admitting this retained checkpoint resets transient state (D71).
+pub(super) fn incarnation_reset_needed(
+    checkpoint: &crate::domain::zone::phase4_checkpoint::Phase4Checkpoint,
+) -> bool {
+    !checkpoint.auto_shots.is_empty() || checkpoint.instances.iter().any(|item| item.charges != 0)
+}
+
+impl ZoneState {
+    /// D142: the D71 incarnation reset of a retained checkpoint is a ledger change persisted
+    /// through the item lane. After `attach_v5` stepped the revision, build the owner's
+    /// admission-tick projection: one receipt-less Use row per charged instance (charges to
+    /// 0, count delta 0, cause `incarnation_reset`) and one `auto_shot_exhausted` entry
+    /// (reason `incarnation`) per dropped toggle. None when nothing was reset.
+    pub(super) fn incarnation_reset_v6(
+        &self,
+        tick: Tick,
+        id: EntityId,
+        load: Option<&PlayerLoad>,
+        previous: Option<Phase4Projection>,
+    ) -> Result<Option<Phase4Projection>, TickError> {
+        use crate::domain::zone::phase4_projection::{ItemAuditEvidence, ItemEvidenceValue as V};
+        let Some(retained) = load
+            .and_then(|load| load.phase4.as_ref())
+            .and_then(|items| items.checkpoint.as_ref())
+        else {
+            return Ok(previous);
+        };
+        if !incarnation_reset_needed(retained) {
+            return Ok(previous);
+        }
+        let items = self.phase4.as_ref().ok_or(TickError::Phase3Invariant)?;
+        let player = items
+            .canonical
+            .players
+            .get(&id)
+            .ok_or(TickError::Phase3Invariant)?;
+        let resolution = format!("incarnation:{id}:{}", tick.0);
+        let phase = &self
+            .phase3
+            .as_ref()
+            .ok_or(TickError::Phase3Invariant)?
+            .canonical;
+        let checkpoint = items
+            .canonical
+            .checkpoint(id, tick, phase)
+            .map_err(|_| TickError::Phase3Invariant)?;
+        let account = load
+            .and_then(|load| load.progression.as_ref())
+            .ok_or(TickError::Phase3Invariant)?
+            .identity
+            .account_id;
+        let mut projection = previous.unwrap_or_else(|| Phase4Projection {
+            enchant_attempts: Vec::new(),
+            exchanges: Vec::new(),
+            refines: Vec::new(),
+            paused_core: None,
+            tick,
+            entity: id,
+            account,
+            checkpoint: checkpoint.clone(),
+            ledger: Vec::new(),
+            receipts: Vec::new(),
+            materializations: Vec::new(),
+            evidence: Vec::new(),
+        });
+        projection.checkpoint = checkpoint;
+        for before in retained.instances.iter().filter(|item| item.charges != 0) {
+            let after = player
+                .inventory
+                .get(&before.id)
+                .ok_or(TickError::Phase3Invariant)?;
+            let cause = ItemAuditEvidence {
+                family: "incarnation_reset".into(),
+                fields: BTreeMap::from([
+                    ("resolution_id".into(), V::Text(resolution.clone())),
+                    ("cleared".into(), V::Unsigned(u64::from(before.charges))),
+                ]),
+            };
+            projection.ledger.push(ItemDeltaPlan {
+                operation: ItemOperation::Use,
+                operation_ordinal: 0,
+                instance: before.id,
+                before: Some(before.clone()),
+                after: Some(after.clone()),
+                count_delta: 0,
+                receipt: None,
+                receipt_refs: Vec::new(),
+                causes: vec![cause],
+            });
+        }
+        for template in &retained.auto_shots {
+            let remaining = player
+                .inventory
+                .values()
+                .filter(|item| {
+                    item.template_id == *template
+                        && item.location == crate::domain::zone::ItemLocation::Inventory
+                })
+                .try_fold(0_u64, |sum, item| sum.checked_add(item.count))
+                .ok_or(TickError::Phase3Invariant)?;
+            projection.evidence.push(ItemAuditEvidence {
+                family: "auto_shot_exhausted".into(),
+                fields: BTreeMap::from([
+                    ("template".into(), V::Unsigned(u64::from(*template))),
+                    ("remaining".into(), V::Unsigned(remaining)),
+                    ("reason".into(), V::Text("incarnation".into())),
+                    ("resolution_id".into(), V::Text(resolution.clone())),
+                ]),
+            });
+        }
+        projection
+            .validate_staged(
+                phase
+                    .checkpoint(id, tick)
+                    .map_err(|_| TickError::Phase3Invariant)?
+                    .modifier_install_order
+                    .len(),
+            )
+            .map_err(|_| TickError::Phase3Invariant)?;
+        Ok(Some(projection))
+    }
+}
+
 #[cfg(test)]
 #[allow(
     clippy::unwrap_used,

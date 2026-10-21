@@ -1220,7 +1220,7 @@ impl ZoneState {
         let impacts = events.len();
         self.land_impacts(tick, &mut events);
         self.note_hits(tick, events.get(impacts..).unwrap_or_default());
-        self.start_swings(tick, None, &mut events)?;
+        self.start_swings(tick, None, &std::collections::BTreeMap::new(), &mut events)?;
         self.flush_progression(tick, &mut events);
         let responses = responses(tick, &draft.commands, &dispositions);
         let outputs = self.observe(tick, responses, &events);

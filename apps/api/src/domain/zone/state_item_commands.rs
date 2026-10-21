@@ -1076,7 +1076,14 @@ impl ZoneState {
                 // producer defect, so the tick fails closed instead of dropping the entry.
                 let mut templates = Vec::with_capacity(projection.evidence.len());
                 for entry in &projection.evidence {
-                    templates.push(if entry.family == "auto_shot_exhausted" {
+                    // D142: an `incarnation` entry accounts for the retained checkpoint's toggles
+                    // (the admitted owner has no tick-start set) and is never normalized away.
+                    let incarnation = matches!(
+                        entry.fields.get("reason"),
+                        Some(crate::domain::zone::phase4_projection::ItemEvidenceValue::Text(r))
+                            if r == "incarnation"
+                    );
+                    templates.push(if entry.family == "auto_shot_exhausted" && !incarnation {
                         match entry.fields.get("template") {
                             Some(
                                 crate::domain::zone::phase4_projection::ItemEvidenceValue::Unsigned(

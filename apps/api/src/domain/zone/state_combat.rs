@@ -1005,6 +1005,7 @@ impl ZoneState {
         &mut self,
         tick: Tick,
         before_items: Option<&crate::domain::zone::Phase4Snapshot>,
+        admitted: &std::collections::BTreeMap<EntityId, u64>,
         events: &mut Vec<ZoneEvent>,
     ) -> Result<(), super::TickError> {
         use super::runtime::BowStart;
@@ -1039,9 +1040,7 @@ impl ZoneState {
                 .is_some_and(|c| tick >= c.ready_at);
             // V6 bow guard (design §5.4): arrows/MP are paid at the accepted start.
             let bow = if ready && self.phase4.is_some() {
-                let initial = before_items
-                    .and_then(|items| items.players.get(&id))
-                    .map(|player| player.inventory_revision);
+                let initial = super::runtime::tick_start_revision(before_items, admitted, id);
                 self.bow_start_v6(tick, id, initial, events)?
             } else {
                 BowStart::Melee

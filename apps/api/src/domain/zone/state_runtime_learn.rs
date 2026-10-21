@@ -436,6 +436,7 @@ impl ZoneState {
         tick: Tick,
         command: &AppliedCommand,
         staged: &StagedActions,
+        initial_revision: Option<u64>,
         events: &mut Vec<ZoneEvent>,
     ) -> Result<(), RejectReason> {
         let ZoneCommand::LearnSkill {
@@ -503,6 +504,7 @@ impl ZoneState {
             skill,
             &prepared.required_items,
             previous,
+            initial_revision,
         )?;
         let prepared = candidate.prepare_live_learn(entity, account, generation, skill)?;
         let mut local = Vec::new();
@@ -616,6 +618,7 @@ impl ZoneState {
         skill: SkillRef,
         required: &[(u32, u32)],
         previous: Option<crate::domain::zone::Phase4Projection>,
+        initial_revision: Option<u64>,
     ) -> Result<crate::domain::zone::Phase4Projection, RejectReason> {
         use crate::domain::zone::item_inventory::InventoryEdit;
         use crate::domain::zone::phase4_projection::{
@@ -629,7 +632,12 @@ impl ZoneState {
             .players
             .get(&id)
             .ok_or(RejectReason::InvalidLoad)?;
-        let revision = if previous.as_ref().is_some_and(|p| !p.ledger.is_empty()) {
+        // T37 (D79): one step per owner-tick, measured against the tick-start revision.
+        let changed = initial_revision.map_or_else(
+            || previous.as_ref().is_some_and(|p| !p.ledger.is_empty()),
+            |initial| initial != player.inventory_revision,
+        );
+        let revision = if changed {
             player.inventory_revision
         } else {
             player
