@@ -118,6 +118,9 @@ The export refuses these inputs:
 - RNG gaps. This includes a first draw or a last draw that is not present.
 - Replay divergence.
 
+The incarnation reset (D142) is evidence for the API ledger only. The item evidence export
+does not contain it (D145).
+
 RNG cursors are full-width JSON integers. The old `--evidence-out` format stays separate.
 
 The current producer records these facts:

@@ -648,6 +648,109 @@ impl ZoneState {
     }
 }
 
+impl ZoneState {
+    /// T25: names the first check that refuses a paused (offline) owner's load as
+    /// `InvalidLoad`, in the order the paused grant runs them (`attach_paused_items_v6`):
+    /// item load, pending kit, item rules hash, skill checkpoint, combat profile, class
+    /// ledger, lineage profile, profession stats, skill state attach. Diagnostics only: the
+    /// refusal itself stays the zone's.
+    pub fn diagnose_paused_load(
+        &self,
+        id: EntityId,
+        core: &crate::domain::zone::ItemPausedCore,
+    ) -> String {
+        let load = &core.load;
+        if let Some(items) = &self.phase4 {
+            if let Err(error) = load.validate_phase4() {
+                return format!("item load: {error}");
+            }
+            let Some(retained) = load.phase4.as_ref() else {
+                return "item load: missing".into();
+            };
+            if let Err(error) = self.validate_pending_kit_v6(load) {
+                return format!("pending starter kit: {error}");
+            }
+            if retained
+                .checkpoint
+                .as_ref()
+                .is_some_and(|cp| cp.rules_hash != items.rules.hash())
+            {
+                return "item rules hash: the retained items were bound to other rules".into();
+            }
+        }
+        if let (Some(checkpoint), Some(phase)) = (&load.phase3, &self.phase3) {
+            let Some(progression) = &load.progression else {
+                return "progression: missing".into();
+            };
+            if let Err(error) = checkpoint.validate(
+                &phase.canonical.rules,
+                &progression.class_state.learned_skills,
+                load.alive,
+            ) {
+                return format!("skill checkpoint: {error}");
+            }
+        }
+        let Some(rules) = self.rules.as_deref() else {
+            return "zone stat rules: missing".into();
+        };
+        if let Err(reason) = player_combat(rules, load) {
+            let lineage = load.progression.as_ref().and_then(|p| {
+                crate::domain::character_progression::base_class_profile(p.identity.base_class_id)
+            });
+            return format!(
+                "class_profile `{}` at level {} is not a combat profile ({reason:?}); expected the lineage profile {lineage:?}",
+                load.class, load.level
+            );
+        }
+        if let (Some(registry), Some(p)) = (&self.classes, &load.progression) {
+            let checked = if let Some(phase) = &self.phase3 {
+                p.class_state.validate_for_skill_rules(
+                    registry,
+                    &p.identity,
+                    CharacterId::from_uuid(id.as_uuid()),
+                    &phase.canonical.rules,
+                )
+            } else {
+                p.class_state.validate_for(
+                    registry,
+                    &p.identity,
+                    CharacterId::from_uuid(id.as_uuid()),
+                )
+            };
+            if let Err(error) = checked {
+                return format!(
+                    "class ledger (base_class_id {}, current_class_id {}, {} learned skills): {} ({error})",
+                    p.class_state.base_class_id.0,
+                    p.class_state.current_class_id.0,
+                    p.class_state.learned_skills.len(),
+                    error.code()
+                );
+            }
+            let lineage =
+                crate::domain::character_progression::base_class_profile(p.identity.base_class_id);
+            if lineage != Some(load.class.as_str()) {
+                return format!(
+                    "class_profile `{}` is not the lineage profile {lineage:?} of base_class_id {}",
+                    load.class, p.identity.base_class_id.0
+                );
+            }
+            if let Err(error) =
+                profession_stats(rules, registry, &p.identity, &p.class_state, load.level)
+            {
+                return format!(
+                    "profession stats (class {}, level {}): {error}",
+                    p.class_state.current_class_id.0, load.level
+                );
+            }
+        }
+        let mut candidate = self.clone();
+        if let Err(reason) = candidate.attach_paused_items_v6_for_diagnosis(id, core) {
+            return reason;
+        }
+        "the grant itself (inventory, capacity or receipt state)".into()
+    }
+}
+
 #[cfg(test)]
 #[allow(
     clippy::unwrap_used,

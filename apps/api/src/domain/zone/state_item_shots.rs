@@ -284,8 +284,27 @@ impl ZoneState {
                 }
             }
         }
+        let revision_before = player.inventory_revision;
         if before_toggle != player.auto_shots {
             player.inventory_revision = revision;
+        }
+        // D148: a pure toggle (no charge row) that steps the revision exports one
+        // instance-less `toggle_auto_shot` delta, so the consumer's revision chain sees the
+        // step. Export-only evidence: nothing recorded changes.
+        if let (Some(enabled), true) = (enabled, self.items_evidence_enabled()) {
+            if affected.is_empty() && player.inventory_revision != revision_before {
+                self.item_evidence(
+                    subject,
+                    ItemEvidenceData::Delta(json!({
+                        "operation": ItemOperation::ToggleAutoShot,
+                        "template": stack.template_id, "enabled": enabled,
+                        "inventory_revision": player.inventory_revision, "count_delta": 0,
+                        "receipt": Some(reference),
+                        "resolution_id": format!("{:?}:{}", reference.operation, reference.key)
+                            .to_lowercase(),
+                    })),
+                );
+            }
         }
         self.phase4
             .as_mut()
