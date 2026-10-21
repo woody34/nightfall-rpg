@@ -8062,7 +8062,7 @@
         },
         "character_id": "01970000-0000-7000-8000-000000000040",
         "class_id": 8,
-        "class_profile": "treasure_hunter",
+        "class_profile": "human_fighter",
         "combat_capability_dependencies": [
           {
             "admitted": false,

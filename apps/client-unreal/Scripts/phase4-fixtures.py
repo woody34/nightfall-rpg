@@ -157,8 +157,15 @@ def role(repo, character=OWNER, profession='human_mystic', level=14, position=(1
     definition = tomllib.loads((repo / f'packages/data/professions/{profession}.toml').read_text())
     xp = next(r['xp'] for r in tomllib.loads((repo / 'packages/data/tables/experience.toml').read_text())['to_level'] if r['level'] == level)
     base = phase3.profiles('phase3-trainer', repo)['owner']
+    # T25: `characters.class_profile` is the legacy Phase 1 combat profile of the LINEAGE, the
+    # tier-0 profession of base_class_id (API character_progression::base_class_profile; the
+    # repository writes it on creation and class transfer never changes it). A transferred
+    # owner seeded with its current profession is refused by the zone load check
+    # (state_class.rs loaded_player: base_class_profile(base_class_id) must equal load.class).
+    class_profile = next(tomllib.loads(path.read_text())['key'] for path in sorted((repo / 'packages/data/professions').glob('*.toml'))
+                         if tomllib.loads(path.read_text())['id'] == definition['base_class_id'] and tomllib.loads(path.read_text())['tier'] == 0)
     return base | dict(character_id=character, profession=profession, class_id=definition['id'],
-                       base_class_id=definition['base_class_id'], class_profile=profession, race=definition['race'],
+                       base_class_id=definition['base_class_id'], class_profile=class_profile, race=definition['race'],
                        base_stats=definition['base_stats'], level=level, xp=xp, sp=100000,
                        position=list(position), facing=[1, 0], learned_ranks={'1177': 1, '1068': 1} if profession == 'human_mystic' else {})
 

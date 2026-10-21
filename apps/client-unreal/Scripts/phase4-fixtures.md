@@ -306,3 +306,11 @@ receipts follow the parent chain in `professions/*.toml`, and each one has:
 
 Today the only such role is the phase4-kinds owner (Treasure Hunter: receipts for classes 7
 and 8). A level below a target's minimum, or above 85, refuses before any write.
+
+The `characters.class_profile` column of a transferred owner is the profile of its base class
+(`human_fighter` for the phase4-kinds owner), not its current profession. The API writes the
+base profile at creation and a class transfer does not change it. The zone load check
+(`loaded_player`) refuses an owner whose `class_profile` is not the base profile of its
+`base_class_id` with `FAILED_PRECONDITION "character state does not match the zone's rules"`
+(T25 at 611407e). `phase4-fixtures.py` (`role`) derives the column from the tier-0 profession
+of `base_class_id`.
