@@ -327,7 +327,10 @@ def decode_data(kind,data):
     data=dict(data)
     if kind=='item_rng':return wide_fields(data,{'word_before','word_after','bound','value'})
     if kind=='item_delta':
-        data=wide_fields(data,{'instance','count_delta','operation_ordinal'})
+        data=wide_fields(data,{'instance','count_delta','operation_ordinal','template','inventory_revision'})
+        if data.get('operation')=='toggle_auto_shot':
+            # D148: the instance-less toggle step; absent optional keys read as null for every consumer.
+            for key in ('instance','before','after','receipt_ref'):data.setdefault(key,None)
         for key in ('before','after'):
             if key in data:data[key]=wide_instance(data[key])
         if isinstance(data.get('causes'),list):
@@ -863,7 +866,10 @@ def validate_instance(value,cap=True):
 ITEM_TRANSITIONS={
     'consume':('consume',frozenset({'count'})),
     'equip':('retain',frozenset({'slot','location'})),
-    'unequip':('retain',frozenset({'slot','location'})),
+    # D147: the zone's Unequip clears weapon charges (L2J); charges may only change to 0 here.
+    'unequip':('retain',frozenset({'slot','location','charges'})),
+    # D148: an export-only revision step for a pure auto-shot toggle; no instance, count-neutral.
+    'toggle_auto_shot':('toggle',frozenset()),
     'enchant':('retain',frozenset({'enchant'})),
     'refine':('retain',frozenset({'augment_id'})),
     'cancel_refine':('retain',frozenset({'augment_id'})),
@@ -921,6 +927,7 @@ def validate_transition(data):
         if not changed or changed-allowed:raise ValueError(operation+' changed forbidden canonical fields')
     if operation=='equip' and after['location']!='paperdoll':raise ValueError('equip must enter paperdoll')
     if operation=='unequip' and (before['location']!='paperdoll' or after['location']!='inventory'):raise ValueError('unequip must leave paperdoll')
+    if operation=='unequip' and after['charges'] not in (0,before['charges']):raise ValueError('unequip may only clear charges (D147)')
     if operation=='refine' and after['augment_id'] is None:raise ValueError('refine must install augmentation')
     if operation=='cancel_refine' and (before['augment_id'] is None or after['augment_id'] is not None):raise ValueError('cancel_refine must remove augmentation')
 
@@ -1016,7 +1023,7 @@ def validate_exchanges(rows):
     for row in rows[1:-1]:
         if row['kind']!='item_delta':continue
         data=row['data']
-        refs=data['receipt_refs'] if data['operation']=='consume' else [data['receipt_ref']]
+        refs=data['receipt_refs'] if data['operation']=='consume' else [data.get('receipt_ref')]
         for ref in refs:
             if ref is None or not ref.startswith('receipt:exchange:'):continue
             if not re.fullmatch(r'receipt:exchange:\S+',ref):raise ValueError('invalid Exchange receipt')
@@ -1070,12 +1077,17 @@ def validate_instance_history(rows):
     observation of an instance under a later incarnation of its owner) exactly
     the transient `charges` field is exempt; slot/location and every other
     canonical field must still match. D72: at that boundary `charges` may only
-    CLEAR (become 0 or stay unchanged), never appear, and the owner's first
-    baseline of a later incarnation (after a live earlier incarnation was
-    observed) carries `auto_shots=[]`. The stored record advances from `after`
-    only once its `before` has matched.
+    CLEAR (become 0 or stay unchanged), never appear, and the re-admission
+    baseline carries `auto_shots=[]`. D144: the exported `incarnation` is the
+    resurrection counter (1 on every admission), so an `item_baseline` of an
+    owner that already has a life (a re-admission after logout, or the adopt
+    baseline of a paused owner) is the D71 boundary: the zone's incarnation
+    reset clears `charges` and drops the auto-shot toggles across it, under
+    the same D72 rules. A charge change observed by anything other than such
+    a baseline, or inside one admission, still drifts. The stored record
+    advances from `after` only once its `before` has matched.
     """
-    canonical={};owners={};incarnations={};exhausted=set();lives={};baselines=set()
+    canonical={};owners={};incarnations={};exhausted=set();lives={}
     def strip(state,boundary):
         transient={'count','revision'}|({'charges'} if boundary else set())
         return {k:v for k,v in state.items() if k not in transient}
@@ -1084,11 +1096,11 @@ def validate_instance_history(rows):
         if identity in exhausted:raise ValueError('exhausted instance reappeared')
         if identity in owners and owners[identity]!=entity:raise ValueError('instance observed under two owners')
         owners[identity]=entity
-    def observe(state,row):
+    def observe(state,row,readmission=False):
         identity=state['id'];bind(identity,row['entity'])
         if identity in canonical:
             previous=canonical[identity]
-            boundary=row['incarnation']>incarnations[identity]
+            boundary=row['incarnation']>incarnations[identity] or readmission
             if strip(state,boundary)!=strip(previous,boundary):raise ValueError('instance identity drifted between observations')
             if boundary and state['charges'] not in (0,previous['charges']):
                 raise ValueError('shot charges appeared at re-admission (D72)')
@@ -1096,13 +1108,14 @@ def validate_instance_history(rows):
     for row in rows[1:-1]:
         data=row['data'];life=(row['entity'],row['incarnation'])
         if row['kind']=='item_baseline':
-            earlier=any(0<incarnation<row['incarnation'] for incarnation in lives.get(row['entity'],()))
-            if life not in baselines and earlier and data['auto_shots']!=[]:
+            # D144: a baseline of an owner that already has a life is a re-admission; D72: the
+            # restore always drops the toggle set, so the baseline carries none.
+            readmission=row['entity'] in lives
+            if readmission and data['auto_shots']!=[]:
                 raise ValueError('auto-shot toggles survived re-admission (D72)')
-            baselines.add(life)
         lives.setdefault(row['entity'],set()).add(row['incarnation'])
         if row['kind']=='item_baseline':
-            for state in data['instances']:observe(state,row)
+            for state in data['instances']:observe(state,row,readmission)
         elif row['kind']=='item_formula' and data['formula']=='enchant_outcome':
             # Before bindings attest existing instances; formula outputs do not allocate.
             operation=data.get('operation',{})
@@ -1121,6 +1134,7 @@ def validate_instance_history(rows):
                     continue
                 observe(state,row)
         elif row['kind']=='item_delta':
+            if data['operation']=='toggle_auto_shot':continue # D148: no instance.
             identity=data['instance'];before,after=data['before'],data['after']
             if before is None:
                 if identity in canonical or identity in owners:raise ValueError('positive row must allocate a fresh instance ID')
@@ -1216,6 +1230,25 @@ def validate(rows,recording,rules_hash):
             # Known callsites have pinned bounds; other callsites stay accepted (draw table, D46).
             if data['callsite'] in CALLSITE_BOUNDS and bound!=CALLSITE_BOUNDS[data['callsite']]:raise ValueError('RNG callsite bound mismatch: '+data['callsite'])
             zone_draw(row,data,before,after,bound,value)
+        elif row['kind']=='item_delta' and data.get('operation')=='toggle_auto_shot':
+            # D148: a pure auto-shot toggle took a D79 owner step with no instance change. The
+            # exporter emits {resolution_id, receipt_ref, template, enabled, inventory_revision
+            # (post-step), count_delta 0}; it never names an instance. D151: the row resolves as
+            # `toggleautoshot:<key>` under its verified receipt `receipt:toggle_auto_shot:<key>`.
+            required={'operation','resolution_id','template','enabled','inventory_revision','count_delta'}
+            optional={'instance','before','after','receipt_ref'}
+            if not required<=set(data) or set(data)-required-optional:raise ValueError('unknown/missing toggle_auto_shot fields (D148)')
+            if any(data.get(key) is not None for key in ('instance','before','after')):raise ValueError('toggle_auto_shot must not name an instance (D148)')
+            match=re.fullmatch('toggleautoshot:('+LEARN_KEY+')',data['resolution_id'])
+            if not match or data.get('receipt_ref')!='receipt:toggle_auto_shot:'+match[1]:
+                raise ValueError('toggle_auto_shot must resolve as toggleautoshot:<key> under receipt:toggle_auto_shot:<key> (D151)')
+            if type(data['enabled']) is not bool:raise ValueError('toggle_auto_shot enabled must be a boolean (D148)')
+            if integer(data['template'],1) not in shot_templates():raise ValueError('toggle_auto_shot names an unsupported auto-shot template (D148)')
+            integer(data['inventory_revision'],1)
+            if type(data['count_delta']) is not int or data['count_delta']!=0:raise ValueError('toggle_auto_shot must be count-neutral (D148)')
+            key=(row['entity'],row['incarnation'],data['resolution_id'],None,0)
+            if key in seen:raise ValueError('repeated ledger fact')
+            seen.add(key)
         elif row['kind']=='item_delta':
             receipt_field='receipt_refs' if data.get('operation')=='consume' else 'receipt_ref'
             fields={'operation','instance','before','after','count_delta','operation_ordinal',receipt_field,'resolution_id'}
@@ -1302,12 +1335,26 @@ def inventory_history(rows,targets=None):
     re-stamp). A `before` therefore equals the instance's retained state exactly,
     including that last-change revision: strictly below the tick's step on its
     first touch in the tick, equal to the step for later same-tick rows.
+
+    D144/D142: a later baseline of one owner is a re-admission. When its
+    `inventory_revision` is the retained revision plus one, the admission took
+    the D142 reset step: every retained instance with charges is expected
+    re-stamped to that revision with charges 0 and every other instance
+    unchanged (a toggles-only reset steps with no instance change, which the
+    consumer cannot tell apart from a charged one, so the fold is
+    unconditional). Any other revision must equal the retained one with the
+    retained state exactly. D148: a `toggle_auto_shot` row is the tick's owner
+    step with no instance change. D149/D150: every row of one entity, offline
+    (incarnation 0), live and resurrected (incarnation >= 2), is ONE chain in
+    tick order: `incarnation` is the resurrection counter (1 on every
+    admission), a resurrection emits no baseline and resets nothing, and the
+    adopt/admission baseline folds under the rule above.
     """
     groups={};owners={};steps={}
     for row in rows[1:-1]:
         groups.setdefault((row['entity'],row['incarnation'],row['tick']),[]).append(row)
     for scope,facts in groups.items():
-        owner=scope[:2];tick=scope[2]
+        owner=(scope[0],);tick=scope[2]
         revision,states,complete,floor=owners.get(owner,(None,{},False,-1))
         balances={}
         for row in facts:
@@ -1316,17 +1363,25 @@ def inventory_history(rows,targets=None):
                 if any(item['revision']>baseline['inventory_revision'] for item in baseline['instances']):
                     raise ValueError('baseline item revision ahead of inventory revision (D79)')
                 if revision is not None:
-                    same(baseline['inventory_revision'],revision)
-                    if complete:same(bound,{identity:state for identity,state in states.items() if state is not None})
+                    if baseline['inventory_revision']==revision+1:
+                        step=baseline['inventory_revision']
+                        expected={identity:(state|{'charges':0,'revision':step} if state['charges'] else state)
+                                  for identity,state in states.items() if state is not None}
                     else:
-                        for identity,state in states.items():same(bound.get(identity),state)
+                        same(baseline['inventory_revision'],revision)
+                        expected={identity:state for identity,state in states.items() if state is not None}
+                    if complete:same(bound,expected)
+                    else:
+                        for identity,state in expected.items():same(bound.get(identity),state)
                 elif baseline['inventory_revision']<floor:raise ValueError('baseline inventory revision regressed')
                 revision=baseline['inventory_revision'];states=bound;complete=True
         deltas=[row['data'] for row in facts if row['kind']=='item_delta']
         if not deltas:
             owners[owner]=(revision,states,complete,floor)
             continue
-        afters={d['after']['revision'] for d in deltas if d['after'] is not None}
+        toggles=[d for d in deltas if d['operation']=='toggle_auto_shot']
+        deltas=[d for d in deltas if d['operation']!='toggle_auto_shot']
+        afters={d['after']['revision'] for d in deltas if d['after'] is not None}|{t['inventory_revision'] for t in toggles}
         if revision is None:
             # A slice without a baseline binds its step from the tick's post-states;
             # befores carry older last-change revisions and cannot bind it (D79).
@@ -1348,6 +1403,10 @@ def inventory_history(rows,targets=None):
                 if identity not in states and not complete:states[identity]=target
             if row['kind']!='item_delta':continue
             delta=row['data']
+            if delta['operation']=='toggle_auto_shot':
+                # D148: the step itself, carried by the row; nothing else moves.
+                if current is None or delta['inventory_revision']!=current:raise ValueError('toggle_auto_shot revision differs from the owner step (D148)')
+                continue
             before,after=delta['before'],delta['after']
             if after is not None and current is not None:
                 if revision is not None and after['revision']<=revision:raise ValueError('item revision did not increase across ticks')
@@ -1422,7 +1481,7 @@ def enchant_evidence(row, rows, steps=None,targets=None):
     deltas=[r['data'] for r in correlated if r['kind']=='item_delta']
     required=[]
     def require(instance,operation,before,after):
-        matched=[d for d in deltas if d['instance']==instance and d['operation']==operation]
+        matched=[d for d in deltas if d.get('instance')==instance and d['operation']==operation]
         if len(matched)!=1:raise ValueError('missing/duplicate enchant '+operation+' row')
         same(matched[0]['receipt_ref'],op['receipt_ref'])
         same(matched[0]['before'],before)
@@ -1571,7 +1630,7 @@ def evaluate(rows,recording,entity,gates,rules_hash,phase_specs=()):
                 mutation=phase['mutation'];found=False
                 for delta in rows[1:-1]:
                     if delta['kind']!='item_delta' or (delta['entity'],delta['incarnation'],delta['data']['resolution_id'])!=(row['entity'],row['incarnation'],data['resolution_id']):continue
-                    d=delta['data'];item=d['after'] if mutation['operation']=='equip' else d['before']
+                    d=delta['data'];item=d.get('after') if mutation['operation']=='equip' else d.get('before')
                     if item and d['operation']==mutation['operation'] and item['template_id']==mutation['template'] and item['slot']==mutation['slot']:found=True
                 if not found:continue
             try:formula(data['formula'],data['inputs'],data['actual'])
