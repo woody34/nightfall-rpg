@@ -977,6 +977,27 @@ async fn postgres_seeded_class_transferred_owner_needs_its_receipt_history() {
         .await
         .unwrap();
     }
+    // T25 (i3c): a seed that writes the current profession into `class_profile` is refused by
+    // the zone's load check, and the refusal names the field.
+    sqlx::query("UPDATE characters SET class_profile = 'treasure_hunter' WHERE id = $1")
+        .bind(character.id.as_uuid())
+        .execute(&pool)
+        .await
+        .unwrap();
+    let named = app.grpc.clone().grant_item(request()).await.unwrap_err();
+    assert_eq!(named.code(), tonic::Code::FailedPrecondition, "{named:?}");
+    assert!(
+        named
+            .message()
+            .starts_with("character state does not match the zone's rules: ")
+            && named.message().contains("class_profile `treasure_hunter`"),
+        "{named:?}"
+    );
+    sqlx::query("UPDATE characters SET class_profile = 'human_fighter' WHERE id = $1")
+        .bind(character.id.as_uuid())
+        .execute(&pool)
+        .await
+        .unwrap();
     let granted = grant(&app, request()).await;
     assert!(granted.inventory.is_some());
     let player = ws::Player {

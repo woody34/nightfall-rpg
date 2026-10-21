@@ -157,6 +157,22 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
             .iter()
             .find(|d| d.ordinal == command.ordinal)
         {
+            // T25: an offline owner's refused load names the check that failed, so a fixture
+            // can be seeded consistent with the zone's rules.
+            if let (
+                crate::domain::zone::RejectReason::InvalidLoad,
+                ZoneCommand::MaterializePendingItems(grant),
+            ) = (disposition.reason, &command.command)
+            {
+                if let Some(core) = grant.paused.as_deref() {
+                    let detail = self.state.diagnose_paused_load(grant.entity, core);
+                    tracing::warn!(character = %grant.entity, %detail, "offline grant refused: character state does not match the zone's rules");
+                    return Err(crate::application::AppError::FailedPrecondition(format!(
+                        "{}: {detail}",
+                        disposition.reason.detail()
+                    )));
+                }
+            }
             return Err(class_error(disposition.reason));
         }
         let ZoneCommand::MaterializePendingItems(grant) = &command.command else {

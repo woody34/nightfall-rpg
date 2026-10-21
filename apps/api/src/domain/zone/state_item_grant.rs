@@ -167,6 +167,54 @@ impl ZoneState {
         Ok(())
     }
 
+    /// T25 diagnostics: the paused attach with the skill-state error named.
+    pub(super) fn attach_paused_items_v6_for_diagnosis(
+        &mut self,
+        id: EntityId,
+        core: &ItemPausedCore,
+    ) -> Result<(), String> {
+        let tick = self.next_tick();
+        match self.attach_paused_items_v6(tick, id, core) {
+            Ok(()) => Ok(()),
+            Err(RejectReason::InvalidLoad) => {
+                // Re-run the attach step alone to keep its error text.
+                let mut probe = self.clone();
+                let combat = probe
+                    .rules
+                    .as_deref()
+                    .ok_or_else(|| "zone stat rules: missing".to_owned())
+                    .and_then(|rules| {
+                        probe
+                            .loaded_player(rules, &core.load, id)
+                            .map_err(|reason| format!("player load: {reason:?}"))
+                    })?;
+                probe.entities.insert(
+                    id,
+                    Entity {
+                        id,
+                        kind: EntityKind::Player,
+                        name: core.name.clone(),
+                        pos: core.position,
+                        dest: None,
+                        speed: Speed::from_milli_tiles_per_tick(0),
+                        generation: SessionGeneration::default(),
+                        targeting: crate::domain::zone::TargetingState {
+                            dead: !core.load.alive,
+                            ..Default::default()
+                        },
+                        combat: Some(combat),
+                        ai: None,
+                    },
+                );
+                probe
+                    .attach_v5(tick, id, Some(&core.load))
+                    .map_err(|error| format!("skill state attach: {error}"))?;
+                Err("paused attach".into())
+            },
+            Err(reason) => Err(format!("paused attach: {reason:?}")),
+        }
+    }
+
     fn attach_paused_items_v6(
         &mut self,
         tick: Tick,
