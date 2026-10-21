@@ -125,6 +125,16 @@ async fn failed_publish_leaves_row_unpublished_then_retries() {
     // Backoff elapses, retry succeeds, row is marked.
     wait_until_drained(&pool).await;
     assert_eq!(*publisher.published.lock(), vec![id]);
+    // The relay refreshes its stats after the row is marked; wait (bounded) for that refresh
+    // before asserting the drained state, so the check does not race the relay under load.
+    let _ = tokio::time::timeout(Duration::from_secs(10), async {
+        while relay.stats().oldest_pending_age_seconds().abs() >= f64::EPSILON
+            || relay.stats().pending() != 0
+        {
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+    })
+    .await;
     assert!(relay.stats().oldest_pending_age_seconds().abs() < f64::EPSILON);
     assert_eq!(relay.stats().pending(), 0);
     stop(relay, token).await;
