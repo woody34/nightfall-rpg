@@ -1047,3 +1047,249 @@ async fn postgres_real_paid_skill_learn_settles_the_book_payment() {
     .unwrap();
     assert_eq!(learned, 1);
 }
+
+/// T36 probe: item activity (equip + automatic soulshot, which charges the weapon), then the
+/// owner leaves and logs in again. D71 resets the transient charges and toggles on the new
+/// incarnation.
+async fn relogin_after_shots_contract<R>(repo: Arc<R>)
+where
+    R: CharacterRepository
+        + ItemAdmissionRepository
+        + ItemCheckpointRepository
+        + ItemInventoryRepository
+        + LearningCheckpointRepository
+        + 'static,
+{
+    let mut scene = Scene::new(
+        repo,
+        "ShotRelogin",
+        Race::Human,
+        10,
+        None,
+        Vec::new(),
+        &[(2369, 1, 0), (1835, 100, 0)],
+    )
+    .await;
+    let weapon = scene
+        .instances()
+        .iter()
+        .find(|item| item.template_id == 2369)
+        .unwrap()
+        .id;
+    scene
+        .tick(vec![ItemCommandKind::Equip {
+            instance: weapon,
+            preferred_slot: None,
+        }])
+        .await;
+    scene
+        .tick(vec![ItemCommandKind::ToggleAutoShot {
+            template: 1835,
+            enabled: true,
+        }])
+        .await;
+    let retained = scene
+        .repo
+        .retained_inventory(scene.character.id)
+        .await
+        .unwrap()
+        .unwrap()
+        .checkpoint
+        .unwrap();
+    assert!(retained.auto_shots.contains(&1835));
+    // Disconnect: lifecycle flush, then Despawn.
+    scene.service.flush(scene.entity).await.unwrap();
+    let left = scene
+        .state
+        .run_tick(
+            scene
+                .state
+                .draft(vec![ZoneInput::system(ZoneCommand::Despawn {
+                    entity: scene.entity,
+                })]),
+        )
+        .unwrap();
+    scene
+        .log
+        .append_applied(&AppliedTickRecord::from_applied(scene.zone, &left))
+        .await
+        .unwrap();
+    scene
+        .service
+        .admitted(&left, &scene.state.snapshot())
+        .await
+        .unwrap();
+    // Re-login from the committed state.
+    let loaded = scene
+        .repo
+        .load_for_admission(scene.character.id)
+        .await
+        .unwrap()
+        .unwrap();
+    let back = scene
+        .state
+        .run_tick(
+            scene
+                .state
+                .draft(vec![ZoneInput::system(ZoneCommand::SpawnPlayer {
+                    entity: scene.entity,
+                    name: scene.character.name.as_str().to_owned(),
+                    pos: Vec2Fixed::from_tiles(126, 126),
+                    speed: Speed::DEFAULT,
+                    generation: SessionGeneration(2),
+                    load: Some(Box::new(player_load(loaded))),
+                })]),
+        )
+        .unwrap();
+    assert!(back.dispositions.is_empty(), "{:?}", back.dispositions);
+    scene
+        .log
+        .append_applied(&AppliedTickRecord::from_applied(scene.zone, &back))
+        .await
+        .unwrap();
+    scene
+        .service
+        .admitted(&back, &scene.state.snapshot())
+        .await
+        .unwrap();
+    for _ in 0..3 {
+        let idle = scene.state.run_tick(scene.state.draft(Vec::new())).unwrap();
+        scene
+            .log
+            .append_applied(&AppliedTickRecord::from_applied(scene.zone, &idle))
+            .await
+            .unwrap();
+        scene
+            .service
+            .admitted(&idle, &scene.state.snapshot())
+            .await
+            .unwrap();
+    }
+    // A second disconnect saves the new incarnation's state.
+    scene.service.flush(scene.entity).await.unwrap();
+}
+
+#[tokio::test]
+#[ignore = "D142 zone half pending"]
+async fn memory_relogin_after_automatic_shots_settles() {
+    relogin_after_shots_contract(memory_repo()).await;
+}
+
+#[tokio::test]
+#[ignore = "D142 zone half pending"]
+async fn postgres_relogin_after_automatic_shots_settles() {
+    let Some((_pool, repo)) = pg_repo().await else {
+        return;
+    };
+    relogin_after_shots_contract(repo).await;
+}
+
+/// T37 (zone): Equip and ToggleAutoShot(on) in the same tick. D79: every mutating receipt of
+/// the tick carries the settled revision; the API refuses the tick otherwise.
+async fn equip_and_toggle_contract<R>(repo: Arc<R>) -> Vec<(ItemOperation, u64, u64)>
+where
+    R: CharacterRepository
+        + ItemAdmissionRepository
+        + ItemCheckpointRepository
+        + ItemInventoryRepository
+        + LearningCheckpointRepository
+        + 'static,
+{
+    let mut scene = Scene::new(
+        repo,
+        "EquipToggle",
+        Race::Human,
+        10,
+        None,
+        Vec::new(),
+        &[(2369, 1, 0), (1835, 100, 0)],
+    )
+    .await;
+    let weapon = scene
+        .instances()
+        .iter()
+        .find(|item| item.template_id == 2369)
+        .unwrap()
+        .id;
+    let inputs = [
+        ItemCommandKind::Equip {
+            instance: weapon,
+            preferred_slot: None,
+        },
+        ItemCommandKind::ToggleAutoShot {
+            template: 1835,
+            enabled: true,
+        },
+    ]
+    .into_iter()
+    .zip(1_u32..)
+    .map(|(kind, seq)| {
+        ZoneInput::session(
+            scene.entity,
+            SessionGeneration(1),
+            seq,
+            ZoneCommand::Item(Box::new(
+                ItemCommand::new(scene.entity, Uuid::now_v7(), kind)
+                    .unwrap()
+                    .with_account(scene.character.account_id)
+                    .unwrap(),
+            )),
+        )
+    })
+    .collect();
+    let applied = scene.state.run_tick(scene.state.draft(inputs)).unwrap();
+    assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+    let projection = applied
+        .events
+        .iter()
+        .find_map(|event| {
+            if let ZoneEvent::ItemCheckpoint(p) = event {
+                Some(p.as_ref().clone())
+            } else {
+                None
+            }
+        })
+        .unwrap();
+    let observed = projection
+        .receipts
+        .iter()
+        .map(|receipt| {
+            let ItemResultDetail::Operation { operation, .. } = &receipt.result.detail else {
+                unreachable!("operation receipts only")
+            };
+            (
+                *operation,
+                receipt.result.inventory_revision,
+                projection.checkpoint.inventory_revision,
+            )
+        })
+        .collect();
+    scene
+        .log
+        .append_applied(&AppliedTickRecord::from_applied(scene.zone, &applied))
+        .await
+        .unwrap();
+    scene
+        .service
+        .admitted(&applied, &scene.state.snapshot())
+        .await
+        .unwrap_or_else(|error| {
+            panic!("T37: {error:#}; receipts (op, receipt rev, settled rev): {observed:?}")
+        });
+    observed
+}
+
+#[tokio::test]
+#[ignore = "T37 zone receipt stamping pending"]
+async fn memory_equip_and_toggle_in_one_tick_settles() {
+    equip_and_toggle_contract(memory_repo()).await;
+}
+
+#[tokio::test]
+#[ignore = "T37 zone receipt stamping pending"]
+async fn postgres_equip_and_toggle_in_one_tick_settles() {
+    let Some((_pool, repo)) = pg_repo().await else {
+        return;
+    };
+    equip_and_toggle_contract(repo).await;
+}

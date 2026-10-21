@@ -1126,6 +1126,7 @@ pub fn validate_learn_payments(
 /// - `exhausted`: remaining 0, no instance left, and this tick's Consume row of `instance`
 ///   (that template, `after` None) carries the `auto_shot_payment` cause with the same id;
 /// - `missing`: remaining 0 and no instance of the template (D136: before or after the tick);
+/// - `incarnation` (D142): the admission reset; no toggles and no charges remain settled;
 /// - `insufficient`: `instance` is the template's only stack with count `remaining` (D136: in
 ///   the pre-tick or the settled checkpoint, with the weapon of that same checkpoint);
 ///   `required` is the wielded (`weapon`) right-hand weapon's unreduced per-shot count from the
@@ -1134,6 +1135,7 @@ pub fn validate_learn_payments(
 ///
 /// Spurious, duplicate or malformed entries are refused (`item_auto_shot_evidence`); an
 /// unaccounted change needs the receipt (`item_toggle_receipt_required`).
+#[allow(clippy::too_many_lines)] // One entry match per D127/D130/D136/D142 reason keeps the account auditable.
 fn validate_auto_shots(
     before: &Phase4Checkpoint,
     projection: &Phase4Projection,
@@ -1228,6 +1230,20 @@ fn validate_auto_shots(
                                 &resolution,
                             )
                     })
+            },
+            // D142: a new incarnation drops every automatic shot and every weapon charge (D71).
+            // Accepted only when the settled state is that reset: no toggles and no charges left;
+            // `remaining` is the template's settled count.
+            "incarnation" => {
+                instance.is_none()
+                    && after.auto_shots.is_empty()
+                    && after.instances.iter().all(|item| item.charges == 0)
+                    && after
+                        .instances
+                        .iter()
+                        .filter(|item| item.template_id == template)
+                        .try_fold(0_u64, |total, item| total.checked_add(item.count))
+                        == Some(remaining)
             },
             _ => false,
         };
@@ -1928,5 +1944,45 @@ mod attack_settlement_tests {
             "item_auto_shot_evidence"
         );
         assert!(validate_auto_shots(&before, &p, Some(&rules)).is_ok());
+    }
+
+    /// D142: the admission reset of a new incarnation drops every toggle and every charge.
+    #[test]
+    fn an_incarnation_entry_is_accepted_only_for_the_complete_reset() {
+        let rules = rules();
+        let soul = template(&rules, |d| d.handler == "SoulShots");
+        let spirit = template(&rules, |d| d.handler == "SpiritShot");
+        let entry = |template: u32, remaining: u64, instance: Option<u64>| {
+            let mut fields = BTreeMap::from([
+                ("template".into(), V::Unsigned(u64::from(template))),
+                ("remaining".into(), V::Unsigned(remaining)),
+                ("reason".into(), V::Text("incarnation".into())),
+                ("resolution_id".into(), V::Text("incarnation:e:9".into())),
+            ]);
+            if let Some(instance) = instance {
+                fields.insert("instance".into(), V::Unsigned(instance));
+            }
+            ItemAuditEvidence {
+                family: "auto_shot_exhausted".into(),
+                fields,
+            }
+        };
+        let mut charged = item(7, 2369, 1);
+        charged.charges = 1;
+        let before = checkpoint(vec![charged.clone(), item(5, soul, 40)], &[soul, spirit]);
+        let mut cleared = charged.clone();
+        cleared.charges = 0;
+        let reset = checkpoint(vec![cleared.clone(), item(5, soul, 40)], &[]);
+        let run = |after: Phase4Checkpoint, evidence| {
+            validate_auto_shots(&before, &projection(after, evidence), Some(&rules))
+        };
+        assert!(run(reset.clone(), vec![entry(soul, 40, None), entry(spirit, 0, None)]).is_ok());
+        // A charge left, a toggle left, an instance named, or a wrong count: refused.
+        let still_charged = checkpoint(vec![charged, item(5, soul, 40)], &[]);
+        assert!(run(still_charged, vec![entry(soul, 40, None), entry(spirit, 0, None)]).is_err());
+        let kept = checkpoint(vec![cleared, item(5, soul, 40)], &[spirit]);
+        assert!(run(kept, vec![entry(soul, 40, None)]).is_err());
+        assert!(run(reset.clone(), vec![entry(soul, 40, Some(5)), entry(spirit, 0, None)]).is_err());
+        assert!(run(reset, vec![entry(soul, 39, None), entry(spirit, 0, None)]).is_err());
     }
 }
