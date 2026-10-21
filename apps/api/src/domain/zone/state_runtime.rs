@@ -444,7 +444,7 @@ impl ZoneState {
                 .and_then(|load| load.phase4.as_ref())
                 .and_then(|items| items.checkpoint.as_ref())
             {
-                let (player, timers) = crate::domain::zone::Phase4Player::restore(
+                let (mut player, timers) = crate::domain::zone::Phase4Player::restore(
                     checkpoint,
                     &restored,
                     tick,
@@ -452,6 +452,24 @@ impl ZoneState {
                 )
                 .map_err(invariant)?;
                 restored = timers;
+                // D142: the D71 reset of retained charges/toggles is a ledger change. The
+                // admitted owner takes its one D79 step here, so the admission baseline and the
+                // reset rows (incarnation_reset_v6) agree on the new revision.
+                if super::item_materialize::incarnation_reset_needed(checkpoint) {
+                    let revision = player
+                        .inventory_revision
+                        .checked_add(1)
+                        .filter(|r| i64::try_from(*r).is_ok())
+                        .ok_or_else(missing)?;
+                    player.inventory_revision = revision;
+                    for retained in checkpoint.instances.iter().filter(|item| item.charges != 0) {
+                        player
+                            .inventory
+                            .get_mut(&retained.id)
+                            .ok_or_else(missing)?
+                            .revision = revision;
+                    }
+                }
                 self.phase4
                     .as_mut()
                     .ok_or_else(missing)?
@@ -809,11 +827,17 @@ impl ZoneState {
         }
         self.note_hits_v5(tick)?;
         let mut item_receipts = std::mem::take(&mut staged.item_receipts);
+        let admitted = std::mem::take(&mut staged.admitted_revisions);
         for entry in staged.drain() {
             let ordinal = entry.ordinal();
-            if let Err(reason) =
-                self.start_action_v5(tick, entry, before_items, &mut item_receipts, &mut events)
-            {
+            if let Err(reason) = self.start_action_v5(
+                tick,
+                entry,
+                before_items,
+                &admitted,
+                &mut item_receipts,
+                &mut events,
+            ) {
                 let c = draft
                     .commands
                     .iter()
@@ -831,7 +855,7 @@ impl ZoneState {
         if self.complete_runtime_v5() {
             self.release_stale_attack_plans_v6();
             let first = events.len();
-            self.start_swings(tick, before_items, &mut events)?;
+            self.start_swings(tick, before_items, &admitted, &mut events)?;
             let started: Vec<_> = events
                 .get(first..)
                 .ok_or_else(missing)?
@@ -858,9 +882,7 @@ impl ZoneState {
             }
             if self.phase4.is_some() {
                 for attacker in started {
-                    let initial = before_items
-                        .and_then(|items| items.players.get(&attacker))
-                        .map(|player| player.inventory_revision);
+                    let initial = tick_start_revision(before_items, &admitted, attacker);
                     self.start_attack_shots_v6(tick, attacker, initial, &mut events)?;
                 }
             }
@@ -907,7 +929,7 @@ impl ZoneState {
             }
         }
         self.final_items_v6(tick, before_items, &mut events)?;
-        self.freeze_items_v6(tick, &mut events)?;
+        self.freeze_items_v6(tick, before_items, &mut events)?;
         self.freeze_learning_v5(tick, &mut events)?;
         self.freeze_transfers_v5(&mut events)?;
         self.phase3
@@ -946,11 +968,13 @@ impl ZoneState {
         }
         Ok(())
     }
+    #[allow(clippy::too_many_arguments)] // The tick-start revision sources travel together.
     fn start_action_v5(
         &mut self,
         tick: Tick,
         action: StagedAction,
         before_items: Option<&crate::domain::zone::Phase4Snapshot>,
+        admitted: &BTreeMap<EntityId, u64>,
         item_receipts: &mut BTreeMap<
             (crate::domain::AccountId, crate::domain::zone::phase4_projection::ItemReceiptRef),
             ItemReceiptState,
@@ -974,9 +998,7 @@ impl ZoneState {
                     self.start_cast_v5(
                         tick,
                         &entry,
-                        before_items
-                            .and_then(|items| items.players.get(&entry.caster.entity))
-                            .map(|p| p.inventory_revision),
+                        tick_start_revision(before_items, admitted, entry.caster.entity),
                         events,
                     )
                 }
@@ -1136,9 +1158,17 @@ impl ZoneState {
             }
         }
         match &command.command {
-            ZoneCommand::SpawnPlayer { load, .. } => {
+            ZoneCommand::SpawnPlayer { entity, load, .. } => {
                 self.validate_paused_load_v5(load.as_deref())?;
                 events.extend(self.admit_v5(tick, command, load.as_deref())?);
+                if self.phase4.is_some() {
+                    let admitted = load
+                        .as_deref()
+                        .and_then(|load| load.phase4.as_ref())
+                        .and_then(|items| items.checkpoint.as_ref())
+                        .map_or(0, |checkpoint| checkpoint.inventory_revision);
+                    staged.admitted_revisions.insert(*entity, admitted);
+                }
             },
             ZoneCommand::SpawnNpc { .. } => {
                 events.extend(self.admit_v5(tick, command, None)?);
@@ -1169,7 +1199,11 @@ impl ZoneState {
                 staged.cancel(*entity, *cast_id, CastCancelReason::Stopped);
                 self.cancel_v5(tick, *entity, *cast_id, CastCancelReason::Stopped, events);
             },
-            ZoneCommand::LearnSkill { .. } => self.learn_v5(tick, command, staged, events)?,
+            ZoneCommand::LearnSkill { entity, .. } => {
+                let initial =
+                    tick_start_revision(before_items, &staged.admitted_revisions, *entity);
+                self.learn_v5(tick, command, staged, initial, events)?;
+            },
             ZoneCommand::ChangeClass { .. } if self.complete_runtime_v5() => {
                 self.transfer_v5(tick, command, staged, events)?;
             },
@@ -1220,7 +1254,11 @@ impl ZoneState {
                     .map_err(cast_reject)?;
             },
             ZoneCommand::MaterializePendingItems(grant) => {
-                self.grant_item_v6(tick, grant, events, &mut staged.item_receipts)?;
+                let initial = before_items
+                    .and_then(|items| items.players.get(&grant.entity))
+                    .map(|player| player.inventory_revision)
+                    .or_else(|| staged.admitted_revisions.get(&grant.entity).copied());
+                self.grant_item_v6(tick, grant, initial, events, &mut staged.item_receipts)?;
             },
             ZoneCommand::ExtendItemRange { range } => {
                 self.phase4
@@ -1260,7 +1298,8 @@ impl ZoneState {
                     target,
                     initial_inventory_revision: before_items
                         .and_then(|items| items.players.get(&item.entity))
-                        .map(|player| player.inventory_revision),
+                        .map(|player| player.inventory_revision)
+                        .or_else(|| staged.admitted_revisions.get(&item.entity).copied()),
                 };
                 if matches!(item.kind, crate::domain::zone::ItemCommandKind::Use { .. })
                     && !item.has_known_receipt()
@@ -1388,6 +1427,12 @@ impl ZoneState {
             candidate
                 .attach_v5(tick, entity, load)
                 .map_err(|_| RejectReason::InvalidLoad)?;
+            if let Some(projection) = candidate
+                .incarnation_reset_v6(tick, entity, load, None)
+                .map_err(|_| RejectReason::InvalidLoad)?
+            {
+                events.push(ZoneEvent::ItemCheckpoint(Box::new(projection)));
+            }
             candidate
                 .materialize_kit_v6(tick, entity, load, &mut events)
                 .map_err(|_| RejectReason::InvalidLoad)?;
@@ -3729,4 +3774,17 @@ fn effect_range_v5(skill: &SkillDef, rank: u32) -> Result<i64, TickError> {
     } else {
         -1
     })
+}
+
+/// T37 (D79): the owner's revision before this tick's changes: the tick-start snapshot, or for
+/// an owner admitted this tick the revision it was admitted with.
+pub(super) fn tick_start_revision(
+    before_items: Option<&crate::domain::zone::Phase4Snapshot>,
+    admitted: &BTreeMap<EntityId, u64>,
+    id: EntityId,
+) -> Option<u64> {
+    before_items
+        .and_then(|items| items.players.get(&id))
+        .map(|player| player.inventory_revision)
+        .or_else(|| admitted.get(&id).copied())
 }

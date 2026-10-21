@@ -554,6 +554,47 @@ impl ZoneState {
             self.guard_equipment_cast_v6(id)?;
         }
         let incarnation = combat.incarnation;
+        // D141: crystallize attests its crystal count (the E1 `crystal_count` oracle inputs of
+        // the pre-state instance) under the intent's resolution, like every item resolution.
+        let crystallized = match command.kind {
+            ItemCommandKind::Crystallize { instance } => Some(instance),
+            ItemCommandKind::Equip { .. }
+            | ItemCommandKind::Unequip { .. }
+            | ItemCommandKind::Destroy { .. }
+            | ItemCommandKind::Use { .. }
+            | ItemCommandKind::Enchant { .. }
+            | ItemCommandKind::ToggleAutoShot { .. }
+            | ItemCommandKind::Refine { .. }
+            | ItemCommandKind::CancelRefine { .. }
+            | ItemCommandKind::ExchangeSpecialAbility { .. } => None,
+        };
+        let crystal_fact = match crystallized {
+            Some(instance) if self.items_evidence_enabled() => {
+                player.inventory.get(&instance).and_then(|item| {
+                    let definition = items.rules.parts().items.get(&item.template_id)?;
+                    let grade = items
+                        .rules
+                        .parts()
+                        .grades
+                        .iter()
+                        .find(|g| g.grade == definition.grade)?;
+                    let weapon = definition.kind == "Weapon";
+                    let count = crate::domain::zone::item_enchant::crystal_count(
+                        definition,
+                        item.enchant,
+                        &items.rules,
+                    )
+                    .ok()?;
+                    Some((
+                        serde_json::json!({"base": definition.crystal_count,
+                            "bonus": if weapon { grade.weapon_bonus } else { grade.armor_bonus },
+                            "enchant": item.enchant, "weapon": weapon}),
+                        serde_json::json!(count),
+                    ))
+                })
+            },
+            _ => None,
+        };
         let set_observations = if self.items_evidence_enabled() {
             crate::domain::zone::item_sources::set_shield_observations(
                 player,
@@ -605,6 +646,9 @@ impl ZoneState {
             let event = format!("{:?}", reference.operation).to_lowercase();
             if matches!(event.as_str(), "equip" | "unequip" | "enchant") {
                 self.gear_stats_evidence_v6(id, &event, &resolution);
+            }
+            if let Some((inputs, actual)) = crystal_fact {
+                self.item_formula_v6(id, "crystal_count", inputs, actual, &resolution, None);
             }
             // Same resolution as the command's ledger rows, so phases correlate the mutation.
             for observed in &set_observations {
@@ -989,6 +1033,7 @@ impl ZoneState {
     pub(super) fn freeze_items_v6(
         &self,
         tick: Tick,
+        before_items: Option<&crate::domain::zone::Phase4Snapshot>,
         events: &mut Vec<ZoneEvent>,
     ) -> Result<(), TickError> {
         let Some(items) = &self.phase4 else {
@@ -1014,6 +1059,54 @@ impl ZoneState {
                     .canonical
                     .checkpoint(projection.entity, tick, &phase.canonical)
                     .map_err(|_| TickError::Phase3Invariant)?;
+                // D133: one `auto_shot_exhausted` entry per template the whole tick net-removed
+                // (tick-start set minus the final set), the last one recorded; none for a
+                // template that is not net-removed: one that ends the tick as it began (an enable
+                // that its own recharge disabled, or a removal that a later operation
+                // re-enabled), or one that was net-added (absent at start, in the final set).
+                let start = before_items
+                    .and_then(|items| items.players.get(&projection.entity))
+                    .map(|player| player.auto_shots.clone())
+                    .unwrap_or_default();
+                let removed: std::collections::BTreeSet<u32> = start
+                    .difference(&projection.checkpoint.auto_shots)
+                    .copied()
+                    .collect();
+                // Every producer writes `template` as an Unsigned u32; anything else is a
+                // producer defect, so the tick fails closed instead of dropping the entry.
+                let mut templates = Vec::with_capacity(projection.evidence.len());
+                for entry in &projection.evidence {
+                    // D142: an `incarnation` entry accounts for the retained checkpoint's toggles
+                    // (the admitted owner has no tick-start set) and is never normalized away.
+                    let incarnation = matches!(
+                        entry.fields.get("reason"),
+                        Some(crate::domain::zone::phase4_projection::ItemEvidenceValue::Text(r))
+                            if r == "incarnation"
+                    );
+                    templates.push(if entry.family == "auto_shot_exhausted" && !incarnation {
+                        match entry.fields.get("template") {
+                            Some(
+                                crate::domain::zone::phase4_projection::ItemEvidenceValue::Unsigned(
+                                    id,
+                                ),
+                            ) => Some(u32::try_from(*id).map_err(|_| TickError::Phase3Invariant)?),
+                            _ => return Err(TickError::Phase3Invariant),
+                        }
+                    } else {
+                        None
+                    });
+                }
+                let mut kept = std::collections::BTreeSet::new();
+                let mut keep: Vec<bool> = templates
+                    .iter()
+                    .rev()
+                    .map(|template| {
+                        template.is_none_or(|id| removed.contains(&id) && kept.insert(id))
+                    })
+                    .collect();
+                keep.reverse();
+                let mut keep = keep.into_iter();
+                projection.evidence.retain(|_| keep.next().unwrap_or(true));
                 // D94/P2-6: the frozen tick is normalized and renumbered, so the positional
                 // validator (the one snapshots, decode and the API apply) runs here.
                 projection

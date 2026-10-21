@@ -75,7 +75,9 @@ fn quote_wide_integers(text: &[u8]) -> anyhow::Result<Vec<u8>> {
 
 /// D46 canonical instance scalars exclude D65 creation provenance (checkpoint data the API
 /// verifies); granted instances carry it, so published rows drop it after every check
-/// against the checkpoint has run.
+/// against the checkpoint has run. T31: every published instance snapshot is cleaned, the
+/// formula bindings included (enchant `target_before`/`scroll_before`/`support_before`);
+/// there a key is removed only inside an instance object (one with `template_id`).
 fn strip_creation_origin(fact: &mut ItemEvidenceFact) {
     fn strip(value: &mut Value) {
         if let Value::Object(map) = value {
@@ -85,8 +87,20 @@ fn strip_creation_origin(fact: &mut ItemEvidenceFact) {
             items.iter_mut().for_each(strip);
         }
     }
-    if let ItemEvidenceData::Delta(row) | ItemEvidenceData::Baseline(row) = &mut fact.fact {
-        strip(row);
+    fn strip_instances(value: &mut Value) {
+        if let Value::Object(map) = value {
+            if map.contains_key("template_id") {
+                map.remove("creation_origin");
+            }
+            map.values_mut().for_each(strip_instances);
+        } else if let Value::Array(items) = value {
+            items.iter_mut().for_each(strip_instances);
+        }
+    }
+    match &mut fact.fact {
+        ItemEvidenceData::Delta(row) | ItemEvidenceData::Baseline(row) => strip(row),
+        ItemEvidenceData::Formula(row) => strip_instances(row),
+        ItemEvidenceData::Rng { .. } => {},
     }
 }
 
@@ -1074,6 +1088,59 @@ mod tests {
                 "delta":row.get("count_delta")}));
         }
         Ok(rows)
+    }
+
+    /// T31: an enchant over instances with D65 creation provenance (fixture written by the lib
+    /// test `v6_enchant_with_creation_origin_recording`) publishes no `creation_origin` in any
+    /// instance snapshot, the enchant bindings included; the bindings keep their scalars.
+    #[test]
+    fn enchant_bindings_publish_no_creation_origin() -> anyhow::Result<()> {
+        let bytes = &include_bytes!("../../../fixtures/items/enchant-origin.nfr")[..];
+        let recording = nightfall_api::infrastructure::eventlog::Recording::from_bytes(bytes)?;
+        let has_origin = recording
+            .snapshot
+            .phase4
+            .as_ref()
+            .context("V6 snapshot")?
+            .players
+            .values()
+            .flat_map(|player| player.inventory.values())
+            .any(|item| item.creation_origin.is_some());
+        assert!(has_origin, "the fixture must carry creation provenance");
+        let out = collect(&recording, bytes)?;
+        let text = std::str::from_utf8(&out)?;
+        assert!(!text.contains("creation_origin"), "{text}");
+        let outcome = text
+            .lines()
+            .map(serde_json::from_str::<Value>)
+            .collect::<Result<Vec<_>, _>>()?
+            .into_iter()
+            .find(|row| {
+                row.pointer("/data/formula").and_then(Value::as_str) == Some("enchant_outcome")
+            })
+            .context("enchant_outcome fact")?;
+        for binding in ["target_before", "scroll_before"] {
+            let instance = outcome
+                .pointer(&format!("/data/operation/{binding}"))
+                .context("binding")?;
+            assert!(instance.get("template_id").is_some() && instance.get("count").is_some());
+        }
+        // A support binding, when the attempt has one, is an instance snapshot too.
+        if let Some(support) = outcome
+            .pointer("/data/operation/support_before")
+            .filter(|value| !value.is_null())
+        {
+            assert!(support.get("template_id").is_some());
+        }
+        // Bytes: the pre-T31 export of this fixture with only the removed keys deleted.
+        let previous = include_str!("../../../fixtures/items/enchant-origin.pre-t31.jsonl");
+        let origin = r#""creation_origin":{"epoch":67,"zone":1}"#;
+        let expected = previous
+            .replace(&format!(",{origin}"), "")
+            .replace(&format!("{origin},"), "");
+        assert!(!expected.contains("creation_origin"));
+        assert_eq!(text, expected);
+        Ok(())
     }
 
     /// T10/B3: an epoch whose only item activity is an offline grant exports, both when an

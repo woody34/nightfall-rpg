@@ -179,6 +179,10 @@ pub struct StagedActions {
         (crate::domain::account::AccountId, super::phase4_projection::ItemReceiptRef),
         ItemReceiptState,
     >,
+    /// T37 (D79): the inventory revision an owner admitted THIS tick had before any of this
+    /// tick's changes (the retained checkpoint's revision, or 0 before a starter kit). It
+    /// stands in for the tick-start revision, which such an owner does not have.
+    pub(crate) admitted_revisions: BTreeMap<EntityId, u64>,
 }
 /// Tick-local receipt knowledge; a recorded conflict must not be bypassed by a later fresh intent.
 #[derive(Debug)]

@@ -20,6 +20,7 @@ impl ZoneState {
         &mut self,
         tick: Tick,
         command: &ItemGrantCommand,
+        initial_revision: Option<u64>,
         events: &mut Vec<ZoneEvent>,
         receipts: &mut BTreeMap<(crate::domain::AccountId, ItemReceiptRef), ItemReceiptState>,
     ) -> Result<(), RejectReason> {
@@ -104,6 +105,7 @@ impl ZoneState {
             if core.load.checkpoint_revision != input.load.checkpoint_revision {
                 return Err(RejectReason::InvalidLoad);
             }
+            let first_attach = previous.is_none();
             candidate.attach_paused_items_v6(tick, command.entity, core)?;
             let mut kit = Vec::new();
             candidate
@@ -115,11 +117,23 @@ impl ZoneState {
                 }
                 previous = Some(*projection);
             }
+            // D142: the first offline attach of a charged/toggled retained owner records the
+            // incarnation reset; a later same-tick grant extends that projection.
+            if first_attach && previous.is_none() {
+                previous = candidate
+                    .incarnation_reset_v6(tick, command.entity, Some(&input.load), None)
+                    .map_err(invalid)?;
+            }
             Some(input.as_ref())
         } else {
             None
         };
-        let mut projection = candidate.apply_grant_v6(tick, command, previous)?;
+        let mut projection = candidate.apply_grant_v6(
+            tick,
+            command,
+            previous,
+            initial_revision.filter(|_| command.paused.is_none()),
+        )?;
         if let Some(core) = core {
             projection.paused_core =
                 Some(Box::new(candidate.freeze_paused_items_v6(tick, command.entity, core)?));
@@ -309,6 +323,7 @@ impl ZoneState {
         tick: Tick,
         command: &ItemGrantCommand,
         previous: Option<Phase4Projection>,
+        initial_revision: Option<u64>,
     ) -> Result<Phase4Projection, RejectReason> {
         let id = command.entity;
         let combat = self
@@ -340,7 +355,14 @@ impl ZoneState {
             .players
             .get(&id)
             .ok_or(RejectReason::InvalidLoad)?;
-        let revision = if previous.as_ref().is_some_and(|p| !p.ledger.is_empty()) {
+        // D79: one revision step per changed owner-tick. A live owner compares with its
+        // tick-start revision (an earlier same-tick auto_shots-only change already stepped
+        // it, with no ledger row); the offline path keeps the kit projection's ledger rule.
+        let changed = initial_revision.map_or_else(
+            || previous.as_ref().is_some_and(|p| !p.ledger.is_empty()),
+            |initial| initial != player.inventory_revision,
+        );
+        let revision = if changed {
             player.inventory_revision
         } else {
             player
@@ -950,6 +972,18 @@ mod tests {
                 .iter()
                 .all(|fact| !matches!(fact.fact, ItemEvidenceData::Delta(_))));
             assert_eq!(baseline["inventory_revision"], 0);
+            // D140: the materialized kit's paperdoll is attested by one gear_stats fact under
+            // the materialization resolution.
+            let kit_stats = facts
+                .iter()
+                .filter(|fact| {
+                    matches!(&fact.fact, ItemEvidenceData::Formula(v)
+                        if v["formula"] == "gear_stats"
+                            && v["resolution_id"]
+                                == format!("materialize:{}", uuid::Uuid::from_u128(9090)))
+                })
+                .count();
+            assert_eq!(kit_stats, 1, "{facts:?}");
             assert_eq!(baseline["instances"], serde_json::json!([]));
             for fact in &facts {
                 if let ItemEvidenceData::Delta(data) = &fact.fact {
