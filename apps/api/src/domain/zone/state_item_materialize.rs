@@ -444,6 +444,8 @@ impl ZoneState {
             evidence: Vec::new(),
         });
         projection.checkpoint = checkpoint;
+        // D145: these rows and entries are API-ledger-only evidence; the item evidence export
+        // (item_delta facts) carries no incarnation reset.
         for before in retained.instances.iter().filter(|item| item.charges != 0) {
             let after = player
                 .inventory
@@ -469,6 +471,8 @@ impl ZoneState {
             });
         }
         for template in &retained.auto_shots {
+            // `remaining` sums the Inventory-location stacks; shots are never equippable, so it
+            // equals the API account's all-instances sum today.
             let remaining = player
                 .inventory
                 .values()

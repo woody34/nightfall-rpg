@@ -13393,6 +13393,135 @@ mod tests {
                 .unwrap_or_else(|e| panic!("{first}+{second}: {e:?}"));
             }
         }
+        // P3-2: an owner admitted THIS tick with a retained toggle (an entry-only D142 reset),
+        // then equip + toggle-on in the same tick: one step from the retained revision.
+        let mut zone = base.clone();
+        zone.phase4
+            .as_mut()
+            .unwrap()
+            .canonical
+            .players
+            .get_mut(&owner.entity)
+            .unwrap()
+            .auto_shots
+            .insert(1463);
+        let phase = &zone.phase3.as_ref().unwrap().canonical;
+        let retained = zone
+            .phase4
+            .as_ref()
+            .unwrap()
+            .canonical
+            .checkpoint(owner.entity, zone.next_tick, phase)
+            .unwrap();
+        assert!(retained.instances.iter().all(|item| item.charges == 0));
+        let combat = zone.entities[&owner.entity].combat.as_ref().unwrap();
+        let CombatRole::Player {
+            progression: Some(progression),
+            class,
+            xp,
+        } = &combat.role
+        else {
+            unreachable!()
+        };
+        let load = PlayerLoad {
+            phase4: Some(crate::domain::zone::Phase4PlayerLoad {
+                checkpoint: Some(retained.clone()),
+                pending: Vec::new(),
+            }),
+            phase3: Some(phase.checkpoint(owner.entity, zone.next_tick).unwrap()),
+            progression: Some(progression.clone()),
+            checkpoint_revision: Some(1),
+            class: class.clone(),
+            xp: *xp,
+            level: combat.sheet.level(),
+            hp: Some(combat.hp),
+            mp: Some(combat.mp),
+            alive: true,
+        };
+        let session = |zone: &ZoneState, key: u128, seq: u32, kind: K| {
+            ZoneInput::session(
+                owner.entity,
+                SessionGeneration(2),
+                seq,
+                ZoneCommand::Item(Box::new(item_intent(zone, owner.entity, key, kind))),
+            )
+        };
+        let equip = session(
+            &zone,
+            3301,
+            1,
+            K::Equip {
+                instance: ids[2],
+                preferred_slot: None,
+            },
+        );
+        let toggle = session(
+            &zone,
+            3302,
+            2,
+            K::ToggleAutoShot {
+                template: 1464,
+                enabled: true,
+            },
+        );
+        zone.run_tick(zone.draft(vec![ZoneInput::system(ZoneCommand::Despawn {
+            entity: owner.entity,
+        })]))
+        .unwrap();
+        let spawn = ZoneCommand::SpawnPlayer {
+            entity: owner.entity,
+            name: "Second".into(),
+            pos: Vec2Fixed::from_tiles(20, 20),
+            speed: Speed::DEFAULT,
+            generation: SessionGeneration(2),
+            load: Some(Box::new(load)),
+        };
+        let admitted = zone
+            .run_tick(zone.draft(vec![ZoneInput::system(spawn), equip, toggle]))
+            .unwrap();
+        assert!(admitted.dispositions.is_empty(), "{:?}", admitted.dispositions);
+        let projection = admitted
+            .events
+            .iter()
+            .find_map(|e| match e {
+                ZoneEvent::ItemCheckpoint(p) if p.entity == owner.entity => {
+                    Some(p.as_ref().clone())
+                },
+                _ => None,
+            })
+            .unwrap();
+        let revision = projection.checkpoint.inventory_revision;
+        assert_eq!(revision, retained.inventory_revision + 1);
+        assert_eq!(projection.receipts.len(), 2);
+        assert!(projection
+            .receipts
+            .iter()
+            .all(|r| r.result.inventory_revision == revision));
+        assert!(projection
+            .evidence
+            .iter()
+            .any(|e| e.family == "auto_shot_exhausted"
+                && e.fields.get("reason")
+                    == Some(&crate::domain::zone::phase4_projection::ItemEvidenceValue::Text(
+                        "incarnation".into()
+                    ))));
+        let settled = crate::application::ports::ItemCheckpointWork {
+            zone: zone.seed.zone,
+            epoch: zone.seed.epoch,
+            allocation: zone.phase4.as_ref().unwrap().canonical.allocator,
+            projection,
+        }
+        .validate_before_with(Some(&retained), Some(&rules));
+        // CROSS-LANE (reported, session 20): the API accepts an `incarnation` entry only when
+        // the SETTLED auto_shots is empty and no settled instance is charged. A same-tick
+        // toggle-on after admission re-enables and charges, so the account refuses this
+        // zone-consistent tick (one step, every receipt settled). Flip this assertion to Ok when
+        // the API rule is decided.
+        assert!(
+            matches!(&settled, Err(crate::application::ports::CheckpointError::Constraint(c))
+                if c == "item_auto_shot_evidence"),
+            "{settled:?}"
+        );
     }
 
     /// D133 (engine-review-8 P1-1/P2-1): entries are normalized against the tick-start set.

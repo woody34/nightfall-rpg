@@ -112,6 +112,8 @@ rejects a gate whose formula observations are absent. Successful file creation a
 not Phase 4 acceptance. Offline grants currently refuse this export because their canonical
 incarnation is zero and D46 requires a positive incarnation. Same-tick enchant revisions
 also require consumer review: multiple accepted operations share one inventory revision.
+The incarnation reset (D142) is evidence for the API ledger only. The item evidence export
+does not contain it (D145).
 
 The real engine probe can emit a disposable recording for CLI/consumer verification:
 

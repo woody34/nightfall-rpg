@@ -182,6 +182,8 @@ pub struct StagedActions {
     /// T37 (D79): the inventory revision an owner admitted THIS tick had before any of this
     /// tick's changes (the retained checkpoint's revision, or 0 before a starter kit). It
     /// stands in for the tick-start revision, which such an owner does not have.
+    /// Recorded only on V6 (`phase4` present): a V5 owner has no item lane, so its
+    /// `tick_start_revision` stays `None` and no item path reads it.
     pub(crate) admitted_revisions: BTreeMap<EntityId, u64>,
 }
 /// Tick-local receipt knowledge; a recorded conflict must not be bypassed by a later fresh intent.

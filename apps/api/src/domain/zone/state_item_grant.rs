@@ -132,7 +132,20 @@ impl ZoneState {
             tick,
             command,
             previous,
-            initial_revision.filter(|_| command.paused.is_none()),
+            // engine-review-11 P1-1 (D79, as T37): a paused owner's tick-start revision is the
+            // ORIGINAL input's retained revision (0 before a kit), so a toggles-only D142 reset
+            // (entry, no row) counts as this tick's step; a second same-tick grant still reads
+            // "changed" through the already-stepped projection.
+            initial_revision.or_else(|| {
+                command.paused.as_deref().map(|paused| {
+                    paused
+                        .load
+                        .phase4
+                        .as_ref()
+                        .and_then(|items| items.checkpoint.as_ref())
+                        .map_or(0, |checkpoint| checkpoint.inventory_revision)
+                })
+            }),
         )?;
         if let Some(core) = core {
             projection.paused_core =
@@ -664,6 +677,75 @@ mod tests {
             )],
         );
         assert_eq!(refused.dispositions[0].reason, RejectReason::NotPermitted);
+    }
+
+    /// engine-review-11 P1-1: an offline grant to a paused owner whose retained checkpoint
+    /// has an automatic-shot toggle but no charged instance (the D142 reset is entry-only)
+    /// steps the revision once, with one grant and with two same-tick grants, and settles
+    /// un-aligned through the API account against the retained checkpoint.
+    #[test]
+    fn v6_offline_grant_to_a_toggles_only_retained_owner_steps_once() {
+        let (mut zone, owner, _) = ZoneState::item_checkpoint_fixture();
+        zone.run_tick(zone.draft(Vec::new())).unwrap();
+        let player = zone
+            .phase4
+            .as_mut()
+            .unwrap()
+            .canonical
+            .players
+            .get_mut(&owner.entity)
+            .unwrap();
+        player.auto_shots.insert(1464);
+        for item in player.inventory.values_mut() {
+            item.charges = 0;
+        }
+        let core = paused(&zone, owner.entity);
+        let retained = core
+            .load
+            .phase4
+            .as_ref()
+            .and_then(|items| items.checkpoint.clone())
+            .unwrap();
+        assert!(retained.auto_shots.contains(&1464));
+        assert!(retained.instances.iter().all(|item| item.charges == 0));
+        replay(
+            &mut zone,
+            vec![ZoneInput::system(ZoneCommand::Despawn {
+                entity: owner.entity,
+            })],
+        );
+        let rules = Arc::clone(&zone.phase4.as_ref().unwrap().rules);
+        for grants in [1_u128, 2] {
+            let mut run = zone.clone();
+            let inputs = (0..grants)
+                .map(|n| {
+                    let mut command = grant(&run, owner.entity, 9201 + n, 10);
+                    command.paused = Some(Box::new(core.clone()));
+                    input(&command)
+                })
+                .collect();
+            let tick = replay(&mut run, inputs);
+            assert!(tick.dispositions.is_empty(), "{:?}", tick.dispositions);
+            let plans = projections(&tick);
+            assert_eq!(plans.len(), 1);
+            let plan = plans[0].clone();
+            let revision = plan.checkpoint.inventory_revision;
+            assert_eq!(revision, retained.inventory_revision + 1, "{grants} grant(s)");
+            assert!(plan.checkpoint.auto_shots.is_empty());
+            assert_eq!(plan.receipts.len(), usize::try_from(grants).unwrap());
+            assert!(plan
+                .receipts
+                .iter()
+                .all(|r| r.result.inventory_revision == revision));
+            crate::application::ports::ItemCheckpointWork {
+                zone: run.seed.zone,
+                epoch: run.seed.epoch,
+                allocation: run.phase4.as_ref().unwrap().canonical.allocator,
+                projection: plan,
+            }
+            .validate_before_with(Some(&retained), Some(&rules))
+            .unwrap();
+        }
     }
 
     /// T10: a recorded V6 epoch whose only item activity is an offline grant (no item draw),
