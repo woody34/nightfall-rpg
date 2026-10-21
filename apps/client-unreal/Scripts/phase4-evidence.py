@@ -1072,8 +1072,14 @@ def validate_instance_history(rows):
     canonical field must still match. D72: at that boundary `charges` may only
     CLEAR (become 0 or stay unchanged), never appear, and the owner's first
     baseline of a later incarnation (after a live earlier incarnation was
-    observed) carries `auto_shots=[]`. The stored record advances from `after`
-    only once its `before` has matched.
+    observed) carries `auto_shots=[]`. D144: the exported `incarnation` is the
+    resurrection counter (1 on every admission), so an `item_baseline` of an
+    owner that already has a life (a re-admission after logout) is also the
+    D71 boundary: the zone's incarnation reset clears `charges` and drops the
+    auto-shot toggles across it, under the same D72 clear-only rule. A charge
+    change observed by anything other than such a baseline, or inside one
+    admission, still drifts. The stored record advances from `after` only once
+    its `before` has matched.
     """
     canonical={};owners={};incarnations={};exhausted=set();lives={};baselines=set()
     def strip(state,boundary):
@@ -1084,11 +1090,11 @@ def validate_instance_history(rows):
         if identity in exhausted:raise ValueError('exhausted instance reappeared')
         if identity in owners and owners[identity]!=entity:raise ValueError('instance observed under two owners')
         owners[identity]=entity
-    def observe(state,row):
+    def observe(state,row,readmission=False):
         identity=state['id'];bind(identity,row['entity'])
         if identity in canonical:
             previous=canonical[identity]
-            boundary=row['incarnation']>incarnations[identity]
+            boundary=row['incarnation']>incarnations[identity] or readmission
             if strip(state,boundary)!=strip(previous,boundary):raise ValueError('instance identity drifted between observations')
             if boundary and state['charges'] not in (0,previous['charges']):
                 raise ValueError('shot charges appeared at re-admission (D72)')
@@ -1096,13 +1102,15 @@ def validate_instance_history(rows):
     for row in rows[1:-1]:
         data=row['data'];life=(row['entity'],row['incarnation'])
         if row['kind']=='item_baseline':
+            # D144: a baseline of an owner that already has a life is a re-admission.
+            readmission=row['entity'] in lives
             earlier=any(0<incarnation<row['incarnation'] for incarnation in lives.get(row['entity'],()))
             if life not in baselines and earlier and data['auto_shots']!=[]:
                 raise ValueError('auto-shot toggles survived re-admission (D72)')
             baselines.add(life)
         lives.setdefault(row['entity'],set()).add(row['incarnation'])
         if row['kind']=='item_baseline':
-            for state in data['instances']:observe(state,row)
+            for state in data['instances']:observe(state,row,readmission)
         elif row['kind']=='item_formula' and data['formula']=='enchant_outcome':
             # Before bindings attest existing instances; formula outputs do not allocate.
             operation=data.get('operation',{})
@@ -1308,7 +1316,7 @@ def inventory_history(rows,targets=None):
         groups.setdefault((row['entity'],row['incarnation'],row['tick']),[]).append(row)
     for scope,facts in groups.items():
         owner=scope[:2];tick=scope[2]
-        revision,states,complete,floor=owners.get(owner,(None,{},False,-1))
+        revision,states,complete,floor,toggles=owners.get(owner,(None,{},False,-1,None))
         balances={}
         for row in facts:
             if row['kind']=='item_baseline':
@@ -1316,15 +1324,26 @@ def inventory_history(rows,targets=None):
                 if any(item['revision']>baseline['inventory_revision'] for item in baseline['instances']):
                     raise ValueError('baseline item revision ahead of inventory revision (D79)')
                 if revision is not None:
-                    same(baseline['inventory_revision'],revision)
-                    if complete:same(bound,{identity:state for identity,state in states.items() if state is not None})
+                    # D144: a later baseline of the same owner life is a re-admission. D142: when
+                    # the retained state had a charged instance or a toggle, the admission takes ONE
+                    # step; every charged instance is re-stamped to it with charges 0 (the D71
+                    # reset); untouched instances keep their revision. Otherwise nothing moves.
+                    charged=any(state and state['charges'] for state in states.values())
+                    if baseline['inventory_revision']==revision+1 and (charged or toggles is not False):
+                        step=baseline['inventory_revision']
+                        expected={identity:(state|{'charges':0,'revision':step} if state['charges'] else state)
+                                  for identity,state in states.items() if state is not None}
                     else:
-                        for identity,state in states.items():same(bound.get(identity),state)
+                        same(baseline['inventory_revision'],revision)
+                        expected={identity:state for identity,state in states.items() if state is not None}
+                    if complete:same(bound,expected)
+                    else:
+                        for identity,state in expected.items():same(bound.get(identity),state)
                 elif baseline['inventory_revision']<floor:raise ValueError('baseline inventory revision regressed')
-                revision=baseline['inventory_revision'];states=bound;complete=True
+                revision=baseline['inventory_revision'];states=bound;complete=True;toggles=bool(baseline['auto_shots'])
         deltas=[row['data'] for row in facts if row['kind']=='item_delta']
         if not deltas:
-            owners[owner]=(revision,states,complete,floor)
+            owners[owner]=(revision,states,complete,floor,toggles)
             continue
         afters={d['after']['revision'] for d in deltas if d['after'] is not None}
         if revision is None:
@@ -1374,7 +1393,7 @@ def inventory_history(rows,targets=None):
             # A removal-only tick still took a step s >= max(before.revision)+1; later changed
             # ticks must exceed it and later baselines must reach it (D79, review-2 P2-1).
             floor=max(floor,max(d['before']['revision'] for d in deltas if d['before'] is not None)+1)
-        owners[owner]=(current,states,complete,floor)
+        owners[owner]=(current,states,complete,floor,toggles)
     return steps
 
 

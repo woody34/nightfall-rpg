@@ -191,6 +191,13 @@ JSONL contract (schema version 1 of this sidecar):
   incarnation (≥1) of that entity was observed in the recording, carries
   `auto_shots=[]`. A recording whose first observation of the owner is
   already a later incarnation (snapshot start) is not a re-admission.
+  D144 names the re-admission boundary: the exported `incarnation` is the
+  resurrection counter (1 on every admission), not an admission counter. An
+  `item_baseline` of an owner that already has a life in the recording (a
+  logout and login) is the D71 boundary: `charges` may clear to 0 and the
+  toggles may drop across it, under the D72 clear-only rule. A `charges`
+  change that any other observation shows, with no such baseline between the
+  two observations, refuses as drift (engine-review-11 P1-2).
   Owner binding and the D68 cap also apply to a malformed (non-canonical)
   enchant before binding whose `id` is a positive integer, whichever owner is
   being evaluated.

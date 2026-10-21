@@ -782,45 +782,129 @@ class Evidence(unittest.TestCase):
         weapon=item(100,1,71,'rhand')|{'charges':1}
         rows.insert(1,dict(kind='item_baseline',entity=OWNER,incarnation=1,tick=0,sequence=0,
             data=dict(inventory_revision=0,instances=[copy.deepcopy(weapon)],paperdoll={'rhand':100},auto_shots=[5789])))
-        incarnation=1 if variant=='same-incarnation' else 2
-        seen=weapon|{'charges':0}
+        incarnation=1 if variant in ('same-incarnation','same-incarnation-no-baseline') else 2
+        # D144/D142: under the same incarnation the re-admission baseline carries the reset step
+        # (inventory revision +1, the cleared weapon re-stamped to it); a new incarnation starts over.
+        step=1 if variant=='same-incarnation' else 0
+        seen=weapon|{'charges':0,'revision':step}
         if field:seen[field]=value
         if field=='slot':seen['location']='paperdoll' if value else 'inventory'
         paperdoll={seen['slot']:100} if seen['slot'] else {}
-        if variant!='no-baseline':
+        if variant not in ('no-baseline','same-incarnation-no-baseline'):
             rows.insert(-1,dict(kind='item_baseline',entity=OWNER,incarnation=incarnation,tick=1,sequence=0,
-                data=dict(inventory_revision=0,instances=[copy.deepcopy(seen)],paperdoll=paperdoll,auto_shots=[])))
+                data=dict(inventory_revision=step,instances=[copy.deepcopy(seen)],paperdoll=paperdoll,auto_shots=[])))
         before=copy.deepcopy(seen)
         if variant=='later-drift':before['charges']=1 # charges change again inside incarnation 2 with no row.
         # Every variant observes the instance through a ledger before as well (unequip, or equip when drifted out).
         operation,moved=('unequip',{'slot':None,'location':'inventory','charges':0}) if before['slot'] else ('equip',{'slot':'rhand','location':'paperdoll'})
         rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=incarnation,tick=1,sequence=0,
-            data=dict(operation=operation,instance=100,before=before,after=before|moved|{'revision':1},
+            data=dict(operation=operation,instance=100,before=before,after=before|moved|{'revision':step+1},
                       count_delta=0,operation_ordinal=0,resolution_id=f'{operation}:9',receipt_ref=None)))
         rows[0]['watermark'].update(records=2,last_tick=1);rows[-1].update(ticks=2,last_tick=1)
         return self.repair(rows)
 
     def test_d71_readmission_clears_only_shot_charges(self):
-        # Controls: charges (and the auto-shot set) cleared on re-admission, with and without a baseline.
-        for variant in ('control','no-baseline'):
+        # Controls: charges (and the auto-shot set) cleared on re-admission, with and without a baseline;
+        # D144: also under the same (resurrection) incarnation when a re-admission baseline observes it.
+        for variant in ('control','no-baseline','same-incarnation'):
             rows=self.readmission_rows(variant)
             gate.validate_instance_history(rows)
             self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['pole_damage'],HASH)['passed'],variant)
         cases=0
         # Slot/location drift at the boundary still rejects (the paperdoll is retained, D16).
-        for variant,field,value in [('control','slot',None),('no-baseline','slot',None),('control','slot','lhand')]+[('control',f,v) for f,v in self.BOUNDARY_DRIFT if f!='template_id']:
+        for variant,field,value in [('control','slot',None),('no-baseline','slot',None),('control','slot','lhand'),('same-incarnation','slot',None)]+[(v,f,x) for v in ('control','same-incarnation') for f,x in self.BOUNDARY_DRIFT if f!='template_id']:
             with self.subTest(variant=variant,field=field,value=value):
                 bad=self.readmission_rows(variant,field,value)
                 self.assert_rejected(bad,('pole_damage',))
                 with self.assertRaisesRegex(ValueError,'identity drifted'):gate.validate_instance_history(bad)
                 cases+=1
-        # Charges drift inside one incarnation still rejects: same incarnation, and again after the boundary.
-        for variant in ('same-incarnation','later-drift'):
+        # Charges drift inside one admission still rejects: same incarnation with no re-admission
+        # baseline (D144 negative), and again after the boundary.
+        for variant in ('same-incarnation-no-baseline','later-drift'):
             with self.subTest(variant=variant):
                 bad=self.readmission_rows(variant);self.assert_rejected(bad,('pole_damage',))
                 with self.assertRaisesRegex(ValueError,'identity drifted'):gate.validate_instance_history(bad)
                 cases+=1
-        print(f'D71: charges/auto-shots cleared on re-admission pass; {cases} slot/field/same-incarnation charge drifts reject',flush=True)
+        print(f'D71: charges/auto-shots cleared on re-admission pass; {cases} slot/field/same-admission charge drifts reject',flush=True)
+
+    def d144_rows(self,readmission_baseline=True,seen_charges=0,auto_shots=(),trailing='unequip',step=None):
+        """D144: two admissions under incarnation 1 (the resurrection counter never moved).
+
+        Tick 0, first admission: the kit baseline (weapon 100 in the bag, shots 101) and the
+        equip. Tick 1: the auto-shot toggle charges the weapon (a receipt-bound `use`,
+        charges 0 -> 1) and pays one shot (consume). Tick 2, after logout and login: the
+        re-admission baseline shows the retained paperdoll with the D71 reset applied
+        (charges `seen_charges`, toggles `auto_shots`) and the D142 step (`step`, default:
+        one step when the charge is cleared, none when it is kept; the cleared weapon is
+        re-stamped to it); a trailing ledger row then observes the reset state. Without the
+        baseline the trailing row observes charges 0 against the canonical charged weapon
+        inside one admission.
+        """
+        if step is None:step=1 if seen_charges==0 else 0
+        rows=copy.deepcopy(self.rows)
+        weapon=item(100,1,71);shots=item(101,5,2509)
+        rows.insert(1,dict(kind='item_baseline',entity=OWNER,incarnation=1,tick=0,sequence=0,
+            data=dict(inventory_revision=0,instances=[copy.deepcopy(weapon),copy.deepcopy(shots)],paperdoll={},auto_shots=[])))
+        equipped=weapon|{'slot':'rhand','location':'paperdoll','revision':1}
+        rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=0,sequence=0,
+            data=dict(operation='equip',instance=100,before=copy.deepcopy(weapon),after=copy.deepcopy(equipped),
+                      count_delta=0,operation_ordinal=0,resolution_id='equip:1',receipt_ref='receipt:equip:k1')))
+        charged=equipped|{'charges':1,'revision':2}
+        rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=1,sequence=0,
+            data=dict(operation='use',instance=100,before=copy.deepcopy(equipped),after=copy.deepcopy(charged),
+                      count_delta=0,operation_ordinal=0,resolution_id='toggle:1',receipt_ref='receipt:use:k2',
+                      causes=[dict(cause='receipt:use:k2',count_delta=0)])))
+        rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=1,sequence=0,
+            data=dict(operation='consume',instance=101,before=copy.deepcopy(shots),after=shots|{'count':4,'revision':2},
+                      count_delta=-1,operation_ordinal=0,resolution_id='toggle:1',receipt_refs=[],
+                      causes=[dict(cause='auto_shot:toggle:1',count_delta=-1)])))
+        retained=charged|{'charges':seen_charges,'revision':2+step if seen_charges!=1 else 2}
+        if readmission_baseline:
+            rows.insert(-1,dict(kind='item_baseline',entity=OWNER,incarnation=1,tick=2,sequence=0,
+                data=dict(inventory_revision=2+step,instances=[copy.deepcopy(retained),shots|{'count':4,'revision':2}],paperdoll={'rhand':100},auto_shots=list(auto_shots))))
+        if trailing=='unequip':
+            rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=2,sequence=0,
+                data=dict(operation='unequip',instance=100,before=copy.deepcopy(retained),after=retained|{'slot':None,'location':'inventory','revision':3+step},
+                          count_delta=0,operation_ordinal=0,resolution_id='unequip:2',receipt_ref='receipt:unequip:k3')))
+        rows[0]['watermark'].update(records=3,last_tick=2);rows[-1].update(ticks=3,last_tick=2)
+        return self.repair(rows)
+
+    def test_d144_readmission_baseline_is_the_d71_boundary(self):
+        # The real re-admission shape (engine-review-11 P1-2): equip, toggle (receipt-bound charge),
+        # then a re-admission baseline under the SAME incarnation 1 with charges 0 and toggles off.
+        # The history check, the full validate() and the gate evaluation all accept it.
+        rows=self.d144_rows()
+        gate.validate_instance_history(rows);gate.validate(rows,self.recording,HASH)
+        self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['pole_damage'],HASH)['passed'])
+        # Baseline only (no trailing row), and an unchanged charge across the baseline (no step), also pass.
+        for kwargs in (dict(trailing=None),dict(seen_charges=1,trailing=None)):
+            with self.subTest(**kwargs):
+                rows=self.d144_rows(**kwargs);gate.validate_instance_history(rows);gate.validate(rows,self.recording,HASH)
+        # Negative: the same charge change with no re-admission baseline between the observations.
+        bad=self.d144_rows(readmission_baseline=False)
+        with self.assertRaisesRegex(ValueError,'identity drifted'):gate.validate_instance_history(bad)
+        self.assert_rejected(bad,('pole_damage',))
+        # Negative: charges may only clear across the boundary, never grow or swap kind (D72).
+        for seen in (2,3):
+            with self.subTest(seen=seen):
+                bad=self.d144_rows(seen_charges=seen,trailing=None)
+                with self.assertRaisesRegex(ValueError,'charges appeared'):gate.validate_instance_history(bad)
+                self.assert_rejected(bad,('pole_damage',))
+        # Negative: the boundary exempts charges only; a slot drift at the re-admission still rejects.
+        bad=self.d144_rows();baseline=next(r for r in bad if r['kind']=='item_baseline' and r['tick']==2)
+        baseline['data']['instances'][0].update(slot='lhand');baseline['data']['paperdoll']={'lhand':100}
+        with self.assertRaisesRegex(ValueError,'identity drifted'):gate.validate_instance_history(bad)
+        # D142 shape at the boundary: a cleared charge takes exactly one owner step that re-stamps the
+        # cleared weapon; a clear without the step, two steps, or a step with nothing to reset refuse.
+        for kwargs in (dict(step=0),dict(step=2),dict(seen_charges=1,step=1)):
+            with self.subTest(**kwargs):
+                bad=self.d144_rows(trailing=None,**kwargs);gate.validate_instance_history(bad)
+                with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
+        # The untouched shots keep their revision across the reset; a re-stamp of them refuses.
+        bad=self.d144_rows(trailing=None);baseline=next(r for r in bad if r['kind']=='item_baseline' and r['tick']==2)
+        baseline['data']['instances'][1]['revision']=3
+        with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
+        print('D144: same-incarnation re-admission baseline clears charges/toggles with the D142 step; drift without a baseline, growing charges, slot drift and wrong steps reject',flush=True)
 
     def d72_rows(self,start,seen,auto_shots=(),baseline=True):
         """D72: inc1 weapon with `start` charges re-observed at inc2 with `seen` charges."""
