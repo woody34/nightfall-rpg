@@ -3441,6 +3441,70 @@ where
             Vec::new(),
         )
     };
+    // D152 (api-review-18 P2-1): a skill-item Use that consumes nothing but starts a cast whose
+    // recharge pays a shot (a receipt-less `cast:` auto_shot_payment row) is not a no-op, so
+    // its receipt cannot keep the pre-tick revision. Synthetic rows: the pinned V6 data's
+    // non-consumed usable (Red Soul Crystal 4629, skill 2096) needs an attackable target.
+    {
+        let use_key = Uuid::now_v7();
+        let mut charged = pair.clone();
+        charged.count = 1;
+        charged.revision = 5;
+        let instances: Vec<_> = held(&b_cp)
+            .into_iter()
+            .map(|item| {
+                if item.id == pair.id {
+                    charged.clone()
+                } else {
+                    item
+                }
+            })
+            .collect();
+        let recharge = |use_revision: u64| {
+            shots_tick(
+                &b_cp,
+                &b_work,
+                77,
+                instances.clone(),
+                b_cp.phase4.as_ref().unwrap().auto_shots.clone(),
+                vec![ItemDeltaPlan {
+                    receipt_refs: Vec::new(),
+                    operation: ItemOperation::Consume,
+                    operation_ordinal: 0,
+                    instance: pair.id,
+                    before: Some(pair.clone()),
+                    after: Some(charged.clone()),
+                    count_delta: -1,
+                    receipt: None,
+                    causes: vec![ItemAuditEvidence {
+                        family: "auto_shot_payment".into(),
+                        fields: BTreeMap::from([
+                            ("count_delta".into(), ItemEvidenceValue::Signed(-1)),
+                            ("operation_ordinal".into(), ItemEvidenceValue::Unsigned(1)),
+                            (
+                                "resolution_id".into(),
+                                ItemEvidenceValue::Text(format!("cast:9:shot:{emptied}")),
+                            ),
+                        ]),
+                    }],
+                }],
+                vec![receipt(
+                    me,
+                    ItemOperation::Use,
+                    use_key,
+                    77,
+                    use_revision,
+                    Vec::new(),
+                )],
+                Vec::new(),
+            )
+        };
+        let (cp, work, events) = recharge(4);
+        refused(
+            repo.checkpoint_items(&cp, &events, &work, None).await,
+            "item_checkpoint_revision_step",
+        );
+    }
     // api-review-16 P2-1: a toggle receipt that names nothing but pays a shot under its key
     // (a Consume row with that receipt) is not a no-op, so it cannot keep the pre-tick revision.
     {
