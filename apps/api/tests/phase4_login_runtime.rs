@@ -977,6 +977,27 @@ async fn postgres_seeded_class_transferred_owner_needs_its_receipt_history() {
         .await
         .unwrap();
     }
+    // T25 (i3c): a seed that writes the current profession into `class_profile` is refused by
+    // the zone's load check, and the refusal names the field.
+    sqlx::query("UPDATE characters SET class_profile = 'treasure_hunter' WHERE id = $1")
+        .bind(character.id.as_uuid())
+        .execute(&pool)
+        .await
+        .unwrap();
+    let named = app.grpc.clone().grant_item(request()).await.unwrap_err();
+    assert_eq!(named.code(), tonic::Code::FailedPrecondition, "{named:?}");
+    assert!(
+        named
+            .message()
+            .starts_with("character state does not match the zone's rules: ")
+            && named.message().contains("class_profile `treasure_hunter`"),
+        "{named:?}"
+    );
+    sqlx::query("UPDATE characters SET class_profile = 'human_fighter' WHERE id = $1")
+        .bind(character.id.as_uuid())
+        .execute(&pool)
+        .await
+        .unwrap();
     let granted = grant(&app, request()).await;
     assert!(granted.inventory.is_some());
     let player = ws::Player {
@@ -1138,4 +1159,139 @@ async fn postgres_jetstream_dev_grant_may_overload_but_not_overfill() {
             .unwrap(),
     );
     overweight_grant(repo, log).await;
+}
+
+/// T36/D142: owners with item activity (an online grant, then an automatic soulshot that
+/// charges the equipped weapon) disconnect together while another owner stays online, then
+/// log in again. The new incarnation drops the transient charges and toggles (D71); that reset
+/// must settle through the item lane, so the zone never fences and every re-login gets its
+/// inventory baseline.
+async fn relogin_after_item_activity<R>(
+    repo: Arc<R>,
+    log: Arc<dyn EventLog>,
+    pool: Option<&sqlx::PgPool>,
+) where
+    R: CharacterRepository
+        + ItemAdmissionRepository
+        + ItemCheckpointRepository
+        + ItemInventoryRepository
+        + ItemReceiptRepository
+        + LearningCheckpointRepository
+        + 'static,
+{
+    const LEAVING: usize = 8;
+    let mut players = Vec::new();
+    for index in 0..=LEAVING {
+        let account = Uuid::now_v7();
+        if let Some(pool) = pool {
+            common::pg::insert_account(pool, account).await;
+        }
+        let name = format!(
+            "Relogin{}",
+            char::from(b'a'.checked_add(u8::try_from(index).unwrap()).unwrap())
+        );
+        let character = Character::create(
+            AccountId::from_uuid(account),
+            CharacterName::new(name.clone()).unwrap(),
+            Race::Human,
+        );
+        repo.create_idempotent(&IdempotencyKey::new(), &name, &character)
+            .await
+            .unwrap();
+        players.push(ws::Player {
+            account,
+            character: character.id,
+            name,
+        });
+    }
+    let (app, _, _) = v6_app(repo.clone(), log).await;
+    let mut sockets = Vec::new();
+    for player in &players {
+        let mut socket = ws::join(&app, player).await;
+        socket
+            .until(|m| inventory_sync(m).is_some_and(|s| s.baseline))
+            .await;
+        let granted = app
+            .game_as(player.account)
+            .grant_item(pb::GrantItemRequest {
+                character_id: player.character.as_uuid().as_bytes().to_vec(),
+                template_id: 1835,
+                count: 200,
+                idempotency_key: Uuid::now_v7().to_string(),
+                enchant_level: None,
+            })
+            .await
+            .expect("online grant");
+        assert!(granted.into_inner().inventory.is_some());
+        socket
+            .send(&pb::ClientMessage {
+                seq: 1,
+                intent: Some(pb::client_message::Intent::ToggleAutoShot(
+                    pb::ToggleAutoShotRequest {
+                        idempotency_key: Uuid::now_v7().to_string(),
+                        template_id: 1835,
+                        enabled: true,
+                    },
+                )),
+            })
+            .await;
+        let results = socket
+            .until(|m| item_result(m).is_some() || ws::rejected(m).is_some())
+            .await;
+        assert!(results.iter().all(|m| ws::rejected(m).is_none()), "{results:?}");
+        sockets.push(socket);
+    }
+    let stays = sockets.pop().unwrap();
+    // Eight owners leave together.
+    for socket in sockets {
+        socket.close().await;
+    }
+    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+    assert!(!app.zone.persistence_failed(), "the departures must not fence the zone");
+    for player in players.iter().take(LEAVING) {
+        let mut socket = ws::join(&app, player).await;
+        let seen = socket
+            .until(|m| inventory_sync(m).is_some_and(|s| s.baseline))
+            .await;
+        let baseline = inventory_sync(seen.last().unwrap()).unwrap();
+        assert!(baseline.items.iter().any(|item| item.template_id == 1835));
+        socket.close().await;
+    }
+    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+    assert!(!app.zone.persistence_failed(), "the re-logins must not fence the zone");
+    app.zone.snapshot().await.expect("zone stays up");
+    stays.close().await;
+}
+
+#[tokio::test]
+#[ignore = "D142 zone half pending"]
+async fn memory_relogin_after_item_activity_keeps_the_zone_up() {
+    let bundle = item_data::embedded_phase4_bundle().unwrap();
+    let repo = Arc::new(
+        InMemoryCharacterRepository::default()
+            .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
+            .unwrap(),
+    );
+    relogin_after_item_activity(repo, Arc::new(InMemoryEventLog::default()), None).await;
+}
+
+#[tokio::test]
+#[ignore = "D142 zone half pending"]
+async fn postgres_jetstream_relogin_after_item_activity_keeps_the_zone_up() {
+    let pool = common::pg::migrated_pool()
+        .await
+        .expect("owned DATABASE_URL required");
+    let url = std::env::var("NATS_URL").expect("owned NATS_URL required");
+    let bundle = item_data::embedded_phase4_bundle().unwrap();
+    let repo = Arc::new(
+        PgCharacterRepository::new(pool.clone())
+            .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
+            .unwrap(),
+    );
+    let log = Arc::new(
+        JetStreamEventLog::connect(async_nats::connect(&url).await.unwrap(), Metrics::detached())
+            .await
+            .unwrap(),
+    );
+    relogin_after_item_activity(repo, log, Some(&pool)).await;
 }

@@ -572,6 +572,20 @@ fn attach_use_causes(
     }
     let mut causes = Vec::new();
     for cause in &delta.causes {
+        if cause.family == "incarnation_reset" {
+            // D142: the admission reset of a new incarnation clears the retained charges.
+            let Some(ItemEvidenceValue::Text(resolution)) = cause.fields.get("resolution_id")
+            else {
+                bail!("incarnation reset lacks its resolution");
+            };
+            if resolution.is_empty() || resolution.chars().any(char::is_whitespace) {
+                bail!("invalid incarnation reset resolution");
+            }
+            causes.push(
+                json!({"cause": format!("incarnation_reset:{resolution}"), "count_delta": 0}),
+            );
+            continue;
+        }
         if cause.family != "shot_discharge" {
             bail!("unsupported use cause {}", cause.family);
         }
