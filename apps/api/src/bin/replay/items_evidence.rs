@@ -651,6 +651,10 @@ fn export_tick(
             attach_use_causes(row, delta, casts)?;
             continue;
         }
+        if row.get("operation").and_then(Value::as_str) == Some("toggle_auto_shot") {
+            verify_pure_toggle(row, fact.entity, fact.tick, events)?;
+            continue;
+        }
         if row.get("operation").and_then(Value::as_str) != Some("consume") {
             continue;
         }
@@ -680,6 +684,63 @@ fn export_tick(
         attach_consume_causes(row, delta)?;
     }
     Ok(facts)
+}
+
+/// D148: an exported pure-toggle step must name a verified `ToggleAutoShot` receipt of the
+/// owner's tick checkpoint that has no ledger row under its key, at the settled revision.
+fn verify_pure_toggle(
+    row: &Value,
+    entity: nightfall_api::domain::zone::EntityId,
+    tick: nightfall_api::domain::zone::Tick,
+    events: &[ZoneEvent],
+) -> anyhow::Result<()> {
+    if row.get("instance").is_some()
+        || row.get("count_delta") != Some(&json!(0))
+        || !row.get("enabled").is_some_and(Value::is_boolean)
+        || !row.get("template").is_some_and(Value::is_u64)
+    {
+        bail!("malformed toggle_auto_shot step");
+    }
+    let key: uuid::Uuid = row
+        .get("resolution_id")
+        .and_then(Value::as_str)
+        .and_then(|id| id.strip_prefix("toggleautoshot:"))
+        .context("toggle step resolution")?
+        .parse()
+        .context("toggle step request key")?;
+    let projection = events
+        .iter()
+        .find_map(|event| {
+            if let ZoneEvent::ItemCheckpoint(p) = event {
+                (p.entity == entity && p.tick == tick).then_some(p)
+            } else {
+                None
+            }
+        })
+        .context("toggle step lacks its tick checkpoint")?;
+    let receipt = projection
+        .receipts
+        .iter()
+        .find(|receipt| receipt.request_id == key)
+        .context("toggle step lacks its verified receipt")?;
+    let toggle = matches!(
+        &receipt.result.detail,
+        nightfall_api::domain::zone::phase4_projection::ItemResultDetail::Operation {
+            operation: ItemOperation::ToggleAutoShot,
+            affected,
+            ..
+        } if affected.is_empty()
+    );
+    if !toggle
+        || projection.ledger.iter().any(|delta| {
+            delta.receipt.is_some_and(|r| r.key == key)
+                || delta.receipt_refs.iter().any(|r| r.key == key)
+        })
+        || row.get("inventory_revision") != Some(&json!(projection.checkpoint.inventory_revision))
+    {
+        bail!("toggle step is not a verified pure toggle");
+    }
+    Ok(())
 }
 
 #[allow(clippy::too_many_lines)] // Whole-recording validation precedes any artifact publication.
@@ -1076,6 +1137,66 @@ mod tests {
                 "delta":row.get("count_delta")}));
         }
         Ok(rows)
+    }
+
+    /// D148: the toggle-steps fixture (lib test `v6_pure_toggle_steps_export_a_toggle_delta`)
+    /// exports one instance-less `toggle_auto_shot` step per pure toggle (on and off of the
+    /// uncharged 1463) and none for the charging toggle of 1464, which has its Use row.
+    #[test]
+    fn pure_toggles_export_a_revision_step_and_charging_toggles_do_not() -> anyhow::Result<()> {
+        let bytes = &include_bytes!("../../../fixtures/items/toggle-steps.nfr")[..];
+        let recording = nightfall_api::infrastructure::eventlog::Recording::from_bytes(bytes)?;
+        let out = collect(&recording, bytes)?;
+        let rows: Vec<Value> = std::str::from_utf8(&out)?
+            .lines()
+            .map(serde_json::from_str)
+            .collect::<Result<_, _>>()?;
+        let deltas: Vec<&Value> = rows
+            .iter()
+            .filter(|row| row.get("kind").and_then(Value::as_str) == Some("item_delta"))
+            .collect();
+        let steps: Vec<&Value> = deltas
+            .iter()
+            .copied()
+            .filter(|row| row.pointer("/data/operation") == Some(&json!("toggle_auto_shot")))
+            .collect();
+        assert_eq!(steps.len(), 2, "{steps:?}");
+        let key = |n: u128| uuid::Uuid::from_u128(n).to_string();
+        for (step, (request, enabled, revision)) in steps
+            .iter()
+            .zip([(3401_u128, true, 2_u64), (3402, false, 3)])
+        {
+            assert_eq!(
+                step.get("data"),
+                Some(&json!({"operation": "toggle_auto_shot", "template": 1463,
+                    "enabled": enabled, "inventory_revision": revision, "count_delta": 0,
+                    "receipt_ref": format!("receipt:toggle_auto_shot:{}", key(request)),
+                    "resolution_id": format!("toggleautoshot:{}", key(request))}))
+            );
+        }
+        // The charging toggle is a Use row under its receipt, not a pure step.
+        let charging = format!("receipt:toggle_auto_shot:{}", key(3403));
+        assert!(deltas
+            .iter()
+            .any(|row| row.pointer("/data/operation") == Some(&json!("use"))
+                && row.pointer("/data/receipt_ref") == Some(&json!(charging))));
+        // A malformed or unverified step fails closed.
+        let mut bad = steps
+            .first()
+            .and_then(|step| step.get("data"))
+            .context("data")?
+            .clone();
+        bad.as_object_mut()
+            .context("step object")?
+            .insert("instance".into(), json!(1));
+        assert!(verify_pure_toggle(
+            &bad,
+            nightfall_api::domain::zone::EntityId::from_uuid(uuid::Uuid::nil()),
+            nightfall_api::domain::zone::Tick(0),
+            &[]
+        )
+        .is_err());
+        Ok(())
     }
 
     /// T31: an enchant over instances with D65 creation provenance (fixture written by the lib

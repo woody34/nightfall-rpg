@@ -10649,6 +10649,56 @@ mod tests {
         }
     }
 
+    /// D148: three toggle ticks for the exporter: toggle-on of 1463 (D grade on Flamberge:
+    /// no charge, a pure step), toggle-off of 1463 (a pure step), then toggle-on of 1464
+    /// (charges the weapon: a Use row under its key, so no pure-toggle delta). Each pure
+    /// toggle emits one instance-less `toggle_auto_shot` delta at the settled revision.
+    #[test]
+    fn v6_pure_toggle_steps_export_a_toggle_delta() {
+        use crate::domain::zone::ItemCommandKind as K;
+        let (mut zone, owner, _, _) = use_fixture(&[1463, 1464]);
+        zone.run_tick(zone.draft(Vec::new())).unwrap();
+        let mut run = EvidenceRun::start(zone);
+        let toggle = |run: &mut EvidenceRun, key: u128, template: u32, enabled: bool| {
+            let intent =
+                item_intent(&run.zone, owner.entity, key, K::ToggleAutoShot { template, enabled });
+            let applied = run.tick(owner.entity, vec![ZoneCommand::Item(Box::new(intent))]);
+            assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+        };
+        toggle(&mut run, 3401, 1463, true);
+        toggle(&mut run, 3402, 1463, false);
+        toggle(&mut run, 3403, 1464, true);
+        let steps: Vec<_> = run
+            .facts
+            .iter()
+            .filter_map(|f| match &f.fact {
+                crate::domain::zone::evidence::ItemEvidenceData::Delta(v)
+                    if v["operation"] == "toggle_auto_shot" =>
+                {
+                    Some(v.clone())
+                },
+                _ => None,
+            })
+            .collect();
+        assert_eq!(steps.len(), 2, "{steps:?}");
+        assert_eq!(
+            (&steps[0]["template"], &steps[0]["enabled"]),
+            (&serde_json::json!(1463), &serde_json::json!(true))
+        );
+        assert_eq!(
+            (&steps[1]["template"], &steps[1]["enabled"]),
+            (&serde_json::json!(1463), &serde_json::json!(false))
+        );
+        assert!(steps
+            .iter()
+            .all(|s| s.get("instance").is_none() && s["count_delta"] == 0));
+        assert_eq!(
+            steps[1]["inventory_revision"].as_u64().unwrap(),
+            steps[0]["inventory_revision"].as_u64().unwrap() + 1
+        );
+        run.write("NIGHTFALL_TEST_TOGGLE_STEPS_RECORDING");
+    }
+
     #[test]
     fn v6_bow_evidence_recording_exports_damage_reuse_and_launch() {
         use crate::domain::zone::ItemCommandKind as K;
