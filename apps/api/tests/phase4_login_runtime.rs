@@ -1264,7 +1264,6 @@ async fn relogin_after_item_activity<R>(
 }
 
 #[tokio::test]
-#[ignore = "D142 zone half pending"]
 async fn memory_relogin_after_item_activity_keeps_the_zone_up() {
     let bundle = item_data::embedded_phase4_bundle().unwrap();
     let repo = Arc::new(
@@ -1276,7 +1275,6 @@ async fn memory_relogin_after_item_activity_keeps_the_zone_up() {
 }
 
 #[tokio::test]
-#[ignore = "D142 zone half pending"]
 async fn postgres_jetstream_relogin_after_item_activity_keeps_the_zone_up() {
     let pool = common::pg::migrated_pool()
         .await

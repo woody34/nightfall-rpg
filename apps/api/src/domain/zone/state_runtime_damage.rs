@@ -13562,16 +13562,10 @@ mod tests {
             projection,
         }
         .validate_before_with(Some(&retained), Some(&rules));
-        // CROSS-LANE (reported, session 20): the API accepts an `incarnation` entry only when
-        // the SETTLED auto_shots is empty and no settled instance is charged. A same-tick
-        // toggle-on after admission re-enables and charges, so the account refuses this
-        // zone-consistent tick (one step, every receipt settled). Flip this assertion to Ok when
-        // the API rule is decided.
-        assert!(
-            matches!(&settled, Err(crate::application::ports::CheckpointError::Constraint(c))
-                if c == "item_auto_shot_evidence"),
-            "{settled:?}"
-        );
+        // T38/D146 (API session 27): the account judges the `incarnation` entries and reset rows
+        // against the admission reset itself, so a same-tick toggle-on that re-enables and
+        // charges after admission settles under its own receipt.
+        assert!(settled.is_ok(), "{settled:?}");
     }
 
     /// D133 (engine-review-8 P1-1/P2-1): entries are normalized against the tick-start set.

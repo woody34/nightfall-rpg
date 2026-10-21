@@ -3408,7 +3408,8 @@ where
     );
     // Probe D (tick 77, revision 5): a no-op toggle keeps revision 4, then a Destroy of the
     // `emptied` pair steps the owner to 5. A stale receipt revision (3) still refuses.
-    let probe_d = |toggle_revision: u64,
+    let probe_d = |no_op: ItemOperation,
+                   toggle_revision: u64,
                    tick: u64,
                    base: &CharacterCheckpoint,
                    base_work: &ItemCheckpointWork,
@@ -3434,14 +3435,7 @@ where
             shots,
             vec![destroy_row(target, pair_key)],
             vec![
-                receipt(
-                    me,
-                    ItemOperation::ToggleAutoShot,
-                    toggle_key,
-                    tick,
-                    toggle_revision,
-                    Vec::new(),
-                ),
+                receipt(me, no_op, toggle_key, tick, toggle_revision, Vec::new()),
                 receipt(me, ItemOperation::Destroy, pair_key, tick, revision, vec![target.id]),
             ],
             Vec::new(),
@@ -3509,12 +3503,13 @@ where
             "item_checkpoint_revision_step",
         );
     }
-    let (cp, work, events) = probe_d(3, 77, &b_cp, &b_work, &pair);
+    let (cp, work, events) = probe_d(ItemOperation::ToggleAutoShot, 3, 77, &b_cp, &b_work, &pair);
     refused(
         repo.checkpoint_items(&cp, &events, &work, None).await,
         "item_checkpoint_revision_step",
     );
-    let (d_cp, d_work, d_events) = probe_d(4, 77, &b_cp, &b_work, &pair);
+    let (d_cp, d_work, d_events) =
+        probe_d(ItemOperation::ToggleAutoShot, 4, 77, &b_cp, &b_work, &pair);
     assert_eq!(
         repo.checkpoint_items(&d_cp, &d_events, &d_work, None)
             .await
@@ -3522,16 +3517,49 @@ where
         CheckpointOutcome::Applied(5)
     );
     // Reverse order (tick 78, revision 6): the later no-op receipt reads the stepped revision.
-    let (r_cp, r_work, r_events) = probe_d(6, 78, &d_cp, &d_work, &refilled);
+    let (r_cp, r_work, r_events) =
+        probe_d(ItemOperation::ToggleAutoShot, 6, 78, &d_cp, &d_work, &refilled);
     assert_eq!(
         repo.checkpoint_items(&r_cp, &r_events, &r_work, None)
             .await
             .unwrap(),
         CheckpointOutcome::Applied(6)
     );
+    // D143: a no-op receipt of any kind (Equip, Unequip, Use, Destroy; nothing affected, no
+    // row under its key) keeps the pre-tick revision while a same-tick Destroy steps the owner.
+    let (mut base, mut base_work) = (r_cp, r_work);
+    let mut revision = 6_u64;
+    for (tick, no_op) in (79_u64..).zip([
+        ItemOperation::Equip,
+        ItemOperation::Unequip,
+        ItemOperation::Use,
+        ItemOperation::Destroy,
+    ]) {
+        let target = held(&base)
+            .into_iter()
+            .find(|item| item.location == ItemLocation::Inventory)
+            .unwrap();
+        // A stale revision still refuses for every kind.
+        let (cp, work, events) =
+            probe_d(no_op, revision.checked_sub(1).unwrap(), tick, &base, &base_work, &target);
+        refused(
+            repo.checkpoint_items(&cp, &events, &work, None).await,
+            "item_checkpoint_revision_step",
+        );
+        let (cp, work, events) = probe_d(no_op, revision, tick, &base, &base_work, &target);
+        revision = revision.checked_add(1).unwrap();
+        assert_eq!(
+            repo.checkpoint_items(&cp, &events, &work, None)
+                .await
+                .unwrap(),
+            CheckpointOutcome::Applied(revision),
+            "{no_op:?}"
+        );
+        (base, base_work) = (cp, work);
+    }
     let settled = repo.load_for_admission(c.id).await.unwrap().unwrap();
     let retained = settled.phase4.unwrap().checkpoint.unwrap();
-    assert_eq!(retained.inventory_revision, 6);
+    assert_eq!(retained.inventory_revision, 10);
     assert_eq!(retained.auto_shots, BTreeSet::from([emptied]));
 }
 

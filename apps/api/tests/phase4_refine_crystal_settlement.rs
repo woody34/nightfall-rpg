@@ -1051,7 +1051,7 @@ async fn postgres_real_paid_skill_learn_settles_the_book_payment() {
 /// T36 probe: item activity (equip + automatic soulshot, which charges the weapon), then the
 /// owner leaves and logs in again. D71 resets the transient charges and toggles on the new
 /// incarnation.
-async fn relogin_after_shots_contract<R>(repo: Arc<R>)
+async fn relogin_after_shots_contract<R>(repo: Arc<R>, toggle_on_admission: bool)
 where
     R: CharacterRepository
         + ItemAdmissionRepository
@@ -1062,7 +1062,11 @@ where
 {
     let mut scene = Scene::new(
         repo,
-        "ShotRelogin",
+        if toggle_on_admission {
+            "ShotRetoggle"
+        } else {
+            "ShotRelogin"
+        },
         Race::Human,
         10,
         None,
@@ -1128,18 +1132,39 @@ where
         .unwrap();
     let back = scene
         .state
-        .run_tick(
-            scene
-                .state
-                .draft(vec![ZoneInput::system(ZoneCommand::SpawnPlayer {
-                    entity: scene.entity,
-                    name: scene.character.name.as_str().to_owned(),
-                    pos: Vec2Fixed::from_tiles(126, 126),
-                    speed: Speed::DEFAULT,
-                    generation: SessionGeneration(2),
-                    load: Some(Box::new(player_load(loaded))),
-                })]),
-        )
+        .run_tick(scene.state.draft({
+            let mut inputs = vec![ZoneInput::system(ZoneCommand::SpawnPlayer {
+                entity: scene.entity,
+                name: scene.character.name.as_str().to_owned(),
+                pos: Vec2Fixed::from_tiles(126, 126),
+                speed: Speed::DEFAULT,
+                generation: SessionGeneration(2),
+                load: Some(Box::new(player_load(loaded))),
+            })];
+            // T38/D146: the client re-enables its automatic shot in the admission tick
+            // (the toggle charges the weapon again after the reset).
+            if toggle_on_admission {
+                inputs.push(ZoneInput::session(
+                    scene.entity,
+                    SessionGeneration(2),
+                    1,
+                    ZoneCommand::Item(Box::new(
+                        ItemCommand::new(
+                            scene.entity,
+                            Uuid::now_v7(),
+                            ItemCommandKind::ToggleAutoShot {
+                                template: 1835,
+                                enabled: true,
+                            },
+                        )
+                        .unwrap()
+                        .with_account(scene.character.account_id)
+                        .unwrap(),
+                    )),
+                ));
+            }
+            inputs
+        }))
         .unwrap();
     assert!(back.dispositions.is_empty(), "{:?}", back.dispositions);
     scene
@@ -1170,22 +1195,23 @@ where
 }
 
 #[tokio::test]
-#[ignore = "D142 zone half pending"]
 async fn memory_relogin_after_automatic_shots_settles() {
-    relogin_after_shots_contract(memory_repo()).await;
+    relogin_after_shots_contract(memory_repo(), false).await;
+    relogin_after_shots_contract(memory_repo(), true).await;
 }
 
 #[tokio::test]
-#[ignore = "D142 zone half pending"]
 async fn postgres_relogin_after_automatic_shots_settles() {
     let Some((_pool, repo)) = pg_repo().await else {
         return;
     };
-    relogin_after_shots_contract(repo).await;
+    relogin_after_shots_contract(repo.clone(), false).await;
+    relogin_after_shots_contract(repo, true).await;
 }
 
-/// T37 (zone): Equip and ToggleAutoShot(on) in the same tick. D79: every mutating receipt of
-/// the tick carries the settled revision; the API refuses the tick otherwise.
+/// T37/D143: a no-op Equip (the kit weapon is already wielded) and ToggleAutoShot(on) in the
+/// same tick. The zone stamps the no-op Equip receipt with the pre-tick revision and the toggle
+/// with the settled one; D143 accepts the pre-tick revision on any no-op receipt.
 async fn equip_and_toggle_contract<R>(repo: Arc<R>) -> Vec<(ItemOperation, u64, u64)>
 where
     R: CharacterRepository
@@ -1280,13 +1306,11 @@ where
 }
 
 #[tokio::test]
-#[ignore = "T37 zone receipt stamping pending"]
 async fn memory_equip_and_toggle_in_one_tick_settles() {
     equip_and_toggle_contract(memory_repo()).await;
 }
 
 #[tokio::test]
-#[ignore = "T37 zone receipt stamping pending"]
 async fn postgres_equip_and_toggle_in_one_tick_settles() {
     let Some((_pool, repo)) = pg_repo().await else {
         return;
