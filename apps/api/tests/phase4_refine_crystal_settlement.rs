@@ -1170,13 +1170,11 @@ where
 }
 
 #[tokio::test]
-#[ignore = "D142 zone half pending"]
 async fn memory_relogin_after_automatic_shots_settles() {
     relogin_after_shots_contract(memory_repo()).await;
 }
 
 #[tokio::test]
-#[ignore = "D142 zone half pending"]
 async fn postgres_relogin_after_automatic_shots_settles() {
     let Some((_pool, repo)) = pg_repo().await else {
         return;
