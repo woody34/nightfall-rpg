@@ -13198,13 +13198,8 @@ mod tests {
             projection,
         }
         .validate_before_with(Some(&retained), Some(&rules));
-        // D142 pending (API session 25 accepts reason `incarnation`): until it lands the
-        // account refuses the evidenced removal with this exact code.
-        assert!(
-            matches!(&settled, Ok(()))
-                || matches!(&settled, Err(crate::application::ports::CheckpointError::Constraint(c)) if c == "item_auto_shot_evidence"),
-            "{settled:?}"
-        );
+        // D142: the API account (session 25, merged) accepts the reason-`incarnation` entries.
+        settled.unwrap();
         // (b) nothing transient retained: no ItemCheckpoint on re-admission.
         let (load, _) = retained_load(&zone);
         let again = readmit(&mut zone, load, 3);
