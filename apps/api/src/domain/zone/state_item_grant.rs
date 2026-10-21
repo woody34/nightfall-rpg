@@ -916,6 +916,18 @@ mod tests {
                 .iter()
                 .all(|fact| !matches!(fact.fact, ItemEvidenceData::Delta(_))));
             assert_eq!(baseline["inventory_revision"], 0);
+            // D140: the materialized kit's paperdoll is attested by one gear_stats fact under
+            // the materialization resolution.
+            let kit_stats = facts
+                .iter()
+                .filter(|fact| {
+                    matches!(&fact.fact, ItemEvidenceData::Formula(v)
+                        if v["formula"] == "gear_stats"
+                            && v["resolution_id"]
+                                == format!("materialize:{}", uuid::Uuid::from_u128(9090)))
+                })
+                .count();
+            assert_eq!(kit_stats, 1, "{facts:?}");
             assert_eq!(baseline["instances"], serde_json::json!([]));
             for fact in &facts {
                 if let ItemEvidenceData::Delta(data) = &fact.fact {

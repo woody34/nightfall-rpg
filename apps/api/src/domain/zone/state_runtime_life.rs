@@ -722,13 +722,16 @@ impl ZoneState {
             "dead": entity.targeting.dead, "incarnation": combat.incarnation, "hp": r(hp),
             "hp_q": hp_q, "mp": r(mp), "cp": r(cp), "xp_refund": mutation.xp_restored,
             "recoverable_xp": if accept { 0 } else { offer.recoverable_xp }, "draws": []});
+        // D139: the fact's subject is the owner of the consumed scroll (the caster); the
+        // resurrected player is named by the context's `target_entity`.
         self.item_formula_v6(
-            target,
+            offer.caster.entity,
             "resurrection_scroll",
             inputs,
             actual,
             &resolution,
-            Some(serde_json::json!({"skill_id": offer.skill.id.0, "event": "cast"})),
+            Some(serde_json::json!({"skill_id": offer.skill.id.0, "event": "cast",
+                "target_entity": target.to_string()})),
         );
     }
 }

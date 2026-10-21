@@ -554,6 +554,47 @@ impl ZoneState {
             self.guard_equipment_cast_v6(id)?;
         }
         let incarnation = combat.incarnation;
+        // D141: crystallize attests its crystal count (the E1 `crystal_count` oracle inputs of
+        // the pre-state instance) under the intent's resolution, like every item resolution.
+        let crystallized = match command.kind {
+            ItemCommandKind::Crystallize { instance } => Some(instance),
+            ItemCommandKind::Equip { .. }
+            | ItemCommandKind::Unequip { .. }
+            | ItemCommandKind::Destroy { .. }
+            | ItemCommandKind::Use { .. }
+            | ItemCommandKind::Enchant { .. }
+            | ItemCommandKind::ToggleAutoShot { .. }
+            | ItemCommandKind::Refine { .. }
+            | ItemCommandKind::CancelRefine { .. }
+            | ItemCommandKind::ExchangeSpecialAbility { .. } => None,
+        };
+        let crystal_fact = match crystallized {
+            Some(instance) if self.items_evidence_enabled() => {
+                player.inventory.get(&instance).and_then(|item| {
+                    let definition = items.rules.parts().items.get(&item.template_id)?;
+                    let grade = items
+                        .rules
+                        .parts()
+                        .grades
+                        .iter()
+                        .find(|g| g.grade == definition.grade)?;
+                    let weapon = definition.kind == "Weapon";
+                    let count = crate::domain::zone::item_enchant::crystal_count(
+                        definition,
+                        item.enchant,
+                        &items.rules,
+                    )
+                    .ok()?;
+                    Some((
+                        serde_json::json!({"base": definition.crystal_count,
+                            "bonus": if weapon { grade.weapon_bonus } else { grade.armor_bonus },
+                            "enchant": item.enchant, "weapon": weapon}),
+                        serde_json::json!(count),
+                    ))
+                })
+            },
+            _ => None,
+        };
         let set_observations = if self.items_evidence_enabled() {
             crate::domain::zone::item_sources::set_shield_observations(
                 player,
@@ -605,6 +646,9 @@ impl ZoneState {
             let event = format!("{:?}", reference.operation).to_lowercase();
             if matches!(event.as_str(), "equip" | "unequip" | "enchant") {
                 self.gear_stats_evidence_v6(id, &event, &resolution);
+            }
+            if let Some((inputs, actual)) = crystal_fact {
+                self.item_formula_v6(id, "crystal_count", inputs, actual, &resolution, None);
             }
             // Same resolution as the command's ledger rows, so phases correlate the mutation.
             for observed in &set_observations {
