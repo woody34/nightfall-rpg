@@ -205,10 +205,12 @@ JSONL contract (schema version 1 of this sidecar):
   the reset step; every retained instance with charges is expected at that
   revision with charges 0, and every other instance unchanged. A toggles-only
   reset steps with no instance change, which the consumer cannot tell from a
-  charged reset, so the fold applies to every plus-one baseline. Any other
-  revision must equal the retained one, with the retained state exactly. A
-  clear without the step, two steps, or a re-stamped uncharged instance
-  refuses (harness-review-7 P1-1).
+  charged reset, so the fold applies to every plus-one baseline; it therefore
+  also accepts a plus-one admission baseline with nothing retained to reset,
+  which the consumer cannot observe (the API's D146 account owns that check).
+  Any other revision must equal the retained one, with the retained state
+  exactly. A clear without the step, two steps, or a re-stamped uncharged
+  instance refuses (harness-review-7 P1-1).
   Owner binding and the D68 cap also apply to a malformed (non-canonical)
   enchant before binding whose `id` is a positive integer, whichever owner is
   being evaluated.
@@ -220,7 +222,7 @@ JSONL contract (schema version 1 of this sidecar):
   |---|---|
   | consume | Existing before; only count changes by the strictly negative cause sum. Remaining count ≥0; after is null iff exhausted. |
   | equip / unequip | Both endpoints; only slot/location change. Equip enters paperdoll; unequip leaves it for inventory. D147: unequip may also change `charges`, only to 0 (the zone's Unequip clears weapon charges, L2J); any other charges change refuses. |
-  | toggle_auto_shot | D148, export-only. No instance, no endpoints: `{resolution_id: the toggle request key, template, enabled: bool, inventory_revision: the post-step revision, count_delta: 0}`; `instance`/`before`/`after`/`receipt_ref` are absent or null. It is the tick's owner revision step for a pure toggle (toggle-on with no charge, or toggle-off) and changes no instance. A row that names an instance or is not count-neutral refuses. |
+  | toggle_auto_shot | D148, export-only. No instance, no endpoints: `{resolution_id, receipt_ref, template, enabled: bool, inventory_revision: the post-step revision, count_delta: 0}`; `instance`/`before`/`after` are absent or null. D151: the row resolves as `toggleautoshot:<key>` under its verified receipt `receipt_ref = receipt:toggle_auto_shot:<key>` with the same UUID key; a missing receipt, a key mismatch or another operation in the receipt refuses. `template` is an admitted auto-shot template. It is the tick's owner revision step for a pure toggle that MOVED the revision (toggle-on with no charge, or toggle-off) and changes no instance; it names the toggle that stepped, not the settled set (on then off in one tick is one `enabled: true` row). The settled toggles come only from `item_baseline.auto_shots`. A row that names an instance or is not count-neutral refuses. |
   | enchant | Both endpoints; only enchant changes. Outcome correlation requires the exact source result; unchanged outcomes have no row. Destruction/refund uses separate destroy/grant rows. |
   | refine / cancel_refine | Both endpoints; only augment_id changes. Refine installs a packed option pair; cancel removes it. |
   | destroy | Existing before; strictly negative count_delta. After is null (whole, terminal) or, D100, a partial Destroy: only count changes, to a positive remainder (non-terminal debit). Refunds are separate grant rows. |
@@ -286,8 +288,12 @@ JSONL contract (schema version 1 of this sidecar):
   offline (pre-admission, incarnation 0) rows and the live incarnation-1 rows of one
   entity are ONE state/revision chain through the adopt/admission baseline, in
   either order (offline grant then admission; live session, logout, offline grant,
-  re-admission). Later incarnations (resurrections) keep independent
-  state/revision histories; allocation freshness,
+  re-admission). D150: every incarnation of one entity is the SAME chain, in
+  tick order. `incarnation` is the resurrection counter (1 on every admission,
+  +1 on respawn); a resurrection emits no `item_baseline` and resets nothing,
+  so a row of a later incarnation starts from the retained state of the
+  earlier one, and the next admission (incarnation 1 again) folds its
+  baseline under the D142 rule above. Allocation freshness,
   exhausted-ID tombstones, single-owner binding and canonical identity fields
   (D69, except `charges` at the boundary, D71) are recording-wide.
 - `item_baseline`: `inventory_revision,instances,paperdoll,auto_shots`. Complete

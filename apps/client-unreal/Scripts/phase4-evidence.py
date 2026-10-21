@@ -1232,14 +1232,18 @@ def validate(rows,recording,rules_hash):
             zone_draw(row,data,before,after,bound,value)
         elif row['kind']=='item_delta' and data.get('operation')=='toggle_auto_shot':
             # D148: a pure auto-shot toggle took a D79 owner step with no instance change. The
-            # exporter emits {resolution_id (the toggle request key), template, enabled,
-            # inventory_revision (post-step), count_delta 0}; it never names an instance.
+            # exporter emits {resolution_id, receipt_ref, template, enabled, inventory_revision
+            # (post-step), count_delta 0}; it never names an instance. D151: the row resolves as
+            # `toggleautoshot:<key>` under its verified receipt `receipt:toggle_auto_shot:<key>`.
             required={'operation','resolution_id','template','enabled','inventory_revision','count_delta'}
             optional={'instance','before','after','receipt_ref'}
             if not required<=set(data) or set(data)-required-optional:raise ValueError('unknown/missing toggle_auto_shot fields (D148)')
-            if any(data.get(key) is not None for key in optional):raise ValueError('toggle_auto_shot must not name an instance or receipt (D148)')
+            if any(data.get(key) is not None for key in ('instance','before','after')):raise ValueError('toggle_auto_shot must not name an instance (D148)')
+            match=re.fullmatch('toggleautoshot:('+LEARN_KEY+')',data['resolution_id'])
+            if not match or data.get('receipt_ref')!='receipt:toggle_auto_shot:'+match[1]:
+                raise ValueError('toggle_auto_shot must resolve as toggleautoshot:<key> under receipt:toggle_auto_shot:<key> (D151)')
             if type(data['enabled']) is not bool:raise ValueError('toggle_auto_shot enabled must be a boolean (D148)')
-            if integer(data['template'],1)>=2**32:raise ValueError('toggle_auto_shot template outside u32 (D148)')
+            if integer(data['template'],1) not in shot_templates():raise ValueError('toggle_auto_shot names an unsupported auto-shot template (D148)')
             integer(data['inventory_revision'],1)
             if type(data['count_delta']) is not int or data['count_delta']!=0:raise ValueError('toggle_auto_shot must be count-neutral (D148)')
             key=(row['entity'],row['incarnation'],data['resolution_id'],None,0)
@@ -1340,15 +1344,17 @@ def inventory_history(rows,targets=None):
     consumer cannot tell apart from a charged one, so the fold is
     unconditional). Any other revision must equal the retained one with the
     retained state exactly. D148: a `toggle_auto_shot` row is the tick's owner
-    step with no instance change. D149: the offline (pre-admission, incarnation
-    0) rows and the live incarnation-1 rows of one entity are ONE chain through
-    the adopt/admission baseline.
+    step with no instance change. D149/D150: every row of one entity, offline
+    (incarnation 0), live and resurrected (incarnation >= 2), is ONE chain in
+    tick order: `incarnation` is the resurrection counter (1 on every
+    admission), a resurrection emits no baseline and resets nothing, and the
+    adopt/admission baseline folds under the rule above.
     """
     groups={};owners={};steps={}
     for row in rows[1:-1]:
         groups.setdefault((row['entity'],row['incarnation'],row['tick']),[]).append(row)
     for scope,facts in groups.items():
-        owner=(scope[0],) if scope[1] in (0,1) else scope[:2];tick=scope[2]
+        owner=(scope[0],);tick=scope[2]
         revision,states,complete,floor=owners.get(owner,(None,{},False,-1))
         balances={}
         for row in facts:

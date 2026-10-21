@@ -656,8 +656,9 @@ class Evidence(unittest.TestCase):
         rows=self.transition_rows('consume',count=2,enchant=0)
         debit=rows[-2]['data']
         debit.update(after=None,count_delta=-2,causes=[dict(cause='auto_shot:transition:1',count_delta=-2)])
+        # D150: one chain per entity; OWNER's second incarnation continues the step after the consume.
         rows.insert(-1,dict(kind='item_delta',entity=entity,incarnation=incarnation,tick=1,sequence=0,
-            data=dict(operation='grant',instance=200,before=None,after=item(200,3,2509)|{'revision':2 if entity==OWNER and incarnation==1 else 1},
+            data=dict(operation='grant',instance=200,before=None,after=item(200,3,2509)|{'revision':2 if entity==OWNER else 1},
                       count_delta=3,operation_ordinal=0,resolution_id='grant:fresh',receipt_ref=None)))
         rows[0]['watermark'].update(records=2,last_tick=1);rows[-1].update(ticks=2,last_tick=1)
         return self.repair(rows)
@@ -783,18 +784,21 @@ class Evidence(unittest.TestCase):
         rows.insert(1,dict(kind='item_baseline',entity=OWNER,incarnation=1,tick=0,sequence=0,
             data=dict(inventory_revision=0,instances=[copy.deepcopy(weapon)],paperdoll={'rhand':100},auto_shots=[5789])))
         incarnation=1 if variant in ('same-incarnation','same-incarnation-no-baseline') else 2
-        # D144/D142: under the same incarnation the re-admission baseline carries the reset step
-        # (inventory revision +1, the cleared weapon re-stamped to it); a new incarnation starts over.
-        step=1 if variant=='same-incarnation' else 0
-        seen=weapon|{'charges':0,'revision':step}
+        # D144/D142/D150: one chain per entity. A re-admission baseline (any incarnation) carries the
+        # reset step (inventory revision +1, the cleared weapon re-stamped to it). Without a baseline
+        # (a resurrection) nothing resets: the retained charge is observed by the next row's before.
+        baseline=variant not in ('no-baseline','same-incarnation-no-baseline')
+        step=1 if baseline else 0
+        seen=weapon|{'charges':0 if baseline else 1,'revision':step}
         if field:seen[field]=value
         if field=='slot':seen['location']='paperdoll' if value else 'inventory'
         paperdoll={seen['slot']:100} if seen['slot'] else {}
-        if variant not in ('no-baseline','same-incarnation-no-baseline'):
+        if baseline:
             rows.insert(-1,dict(kind='item_baseline',entity=OWNER,incarnation=incarnation,tick=1,sequence=0,
                 data=dict(inventory_revision=step,instances=[copy.deepcopy(seen)],paperdoll=paperdoll,auto_shots=[])))
         before=copy.deepcopy(seen)
         if variant=='later-drift':before['charges']=1 # charges change again inside incarnation 2 with no row.
+        if variant=='same-incarnation-no-baseline':before['charges']=0 # cleared with no re-admission baseline.
         # Every variant observes the instance through a ledger before as well (unequip, or equip when drifted out).
         operation,moved=('unequip',{'slot':None,'location':'inventory','charges':0}) if before['slot'] else ('equip',{'slot':'rhand','location':'paperdoll'})
         rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=incarnation,tick=1,sequence=0,
@@ -804,8 +808,9 @@ class Evidence(unittest.TestCase):
         return self.repair(rows)
 
     def test_d71_readmission_clears_only_shot_charges(self):
-        # Controls: charges (and the auto-shot set) cleared on re-admission, with and without a baseline;
-        # D144: also under the same (resurrection) incarnation when a re-admission baseline observes it.
+        # Controls: charges (and the auto-shot set) cleared by a re-admission baseline, under a later
+        # incarnation or the same one (D144); without a baseline (a resurrection, D150) the retained
+        # charge is observed and the unequip clears it (D147).
         for variant in ('control','no-baseline','same-incarnation'):
             rows=self.readmission_rows(variant)
             gate.validate_instance_history(rows)
@@ -940,7 +945,10 @@ class Evidence(unittest.TestCase):
         gate.validate(rows,self.recording,HASH)
         self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['pole_damage'],HASH)['passed'])
         cases=0
-        for before,after in ((1,1),(1,3),(1,2),(0,1),(3,1)):
+        # Every non-clearing charge change on unequip refuses: the unequipped weapon leaves the paperdoll,
+        # so a retained or grown charge is refused by the nonweapon-slot instance rule before D147 (which
+        # itself only forbids a change to a non-zero value).
+        for before,after in ((1,3),(1,2),(0,1),(3,1),(1,1)):
             with self.subTest(before=before,after=after):
                 bad=copy.deepcopy(rows);d=next(r['data'] for r in bad if r['kind']=='item_delta')
                 d['before']['charges']=before;bad[1]['data']['instances'][0]['charges']=before;d['after']['charges']=after
@@ -949,7 +957,15 @@ class Evidence(unittest.TestCase):
         bad=self.transition_rows('equip');d=next(r['data'] for r in bad if r['kind']=='item_delta');d['after']['charges']=0;d['before']['charges']=0
         d['after']['charges']=1
         with self.assertRaisesRegex(ValueError,'forbidden canonical fields'):gate.validate(bad,self.recording,HASH)
-        print(f'D147: unequip clears charges passes; {cases+1} other charge changes on unequip/equip reject',flush=True)
+        print(f'D147: unequip clears charges passes; {cases} other charge changes on unequip and 1 on equip reject',flush=True)
+
+    TOGGLE_KEYS=('01970000-0000-7000-8000-00000000a001','01970000-0000-7000-8000-00000000a002')
+
+    @staticmethod
+    def toggle_row(key,enabled,revision,template=2509):
+        """D148/D151: the zone's export shape (items_evidence.rs export_fact of a verified ToggleAutoShot receipt)."""
+        return dict(operation='toggle_auto_shot',resolution_id='toggleautoshot:'+key,receipt_ref='receipt:toggle_auto_shot:'+key,
+                    template=template,enabled=enabled,inventory_revision=revision,count_delta=0,instance=None,before=None,after=None)
 
     def d148_rows(self,toggle=None,baseline=True):
         """D148: a pure toggle (no charge) steps the owner revision with no instance change."""
@@ -959,10 +975,10 @@ class Evidence(unittest.TestCase):
             rows.insert(1,dict(kind='item_baseline',entity=OWNER,incarnation=1,tick=0,sequence=0,
                 data=dict(inventory_revision=0,instances=[copy.deepcopy(weapon),copy.deepcopy(shots)],paperdoll={'rhand':100},auto_shots=[])))
         rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=1,sequence=0,
-            data=dict(operation='toggle_auto_shot',resolution_id='toggle:k1',template=2509,enabled=True,inventory_revision=1,count_delta=0)|(toggle or {})))
+            data=self.toggle_row(self.TOGGLE_KEYS[0],True,1)|(toggle or {})))
         # Later ticks continue from the stepped revision: a toggle-off step, then an unequip.
         rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=2,sequence=0,
-            data=dict(operation='toggle_auto_shot',resolution_id='toggle:k2',template=2509,enabled=False,inventory_revision=2,count_delta=0)))
+            data=self.toggle_row(self.TOGGLE_KEYS[1],False,2)))
         rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=3,sequence=0,
             data=dict(operation='unequip',instance=100,before=copy.deepcopy(weapon),after=weapon|{'slot':None,'location':'inventory','revision':3},
                       count_delta=0,operation_ordinal=0,resolution_id='unequip:3',receipt_ref='receipt:unequip:k3')))
@@ -978,17 +994,39 @@ class Evidence(unittest.TestCase):
                 gate.validate(rows,self.recording,HASH);gate.validate_instance_history(rows)
                 self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['pole_damage'],HASH)['passed'])
                 self.assertEqual(gate.inventory_history(rows)[(OWNER,1,1)],(0,1) if baseline else (0,1))
-        # The optional instance/receipt keys may be present as null, and the exporter may omit them.
-        rows=self.d148_rows(toggle=dict(instance=None,before=None,after=None,receipt_ref=None));gate.validate(rows,self.recording,HASH)
+        # The exporter may omit the null instance keys; the receipt is required (D151).
+        rows=self.d148_rows();delta=next(r['data'] for r in rows if r['kind']=='item_delta')
+        for key in ('instance','before','after'):del delta[key]
+        gate.validate(rows,self.recording,HASH)
+        # The committed zone fixture's shape (apps/api/fixtures/items/toggle-steps.nfr at 1e2f447, per
+        # harness-review-8): admission baseline rev 1, toggle steps 2 and 3, the unequip row at 4.
+        rows=copy.deepcopy(self.rows);weapon=item(100,1,71,'rhand')|{'revision':1};shots=item(101,5,2509)|{'revision':1}
+        rows.insert(1,dict(kind='item_baseline',entity=OWNER,incarnation=1,tick=0,sequence=0,
+            data=dict(inventory_revision=1,instances=[copy.deepcopy(weapon),copy.deepcopy(shots)],paperdoll={'rhand':100},auto_shots=[])))
+        rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=1,sequence=0,data=self.toggle_row(self.TOGGLE_KEYS[0],True,2)))
+        rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=2,sequence=0,data=self.toggle_row(self.TOGGLE_KEYS[1],False,3)))
+        rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=3,sequence=0,
+            data=dict(operation='unequip',instance=100,before=copy.deepcopy(weapon),after=weapon|{'slot':None,'location':'inventory','revision':4},
+                      count_delta=0,operation_ordinal=0,resolution_id='unequip:3',receipt_ref='receipt:unequip:k3')))
+        rows[0]['watermark'].update(records=4,last_tick=3);rows[-1].update(ticks=4,last_tick=3);self.repair(rows)
+        gate.validate(rows,self.recording,HASH)
+        self.assertEqual({k:v for k,v in gate.inventory_history(rows).items()},{(OWNER,1,1):(1,2),(OWNER,1,2):(2,3),(OWNER,1,3):(3,4)})
+        self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['pole_damage'],HASH)['passed'])
         cases=0
+        key=self.TOGGLE_KEYS[0]
         for name,toggle in {
             'names an instance':dict(instance=100),
             'carries a before':dict(before=item(100,1,71,'rhand')),
-            'carries a receipt':dict(receipt_ref='receipt:toggle:k1'),
+            'receipt key differs from the resolution key':dict(receipt_ref='receipt:toggle_auto_shot:'+self.TOGGLE_KEYS[1]),
+            'receipt missing':dict(receipt_ref=None),
+            'wrong operation in the receipt':dict(receipt_ref='receipt:toggle:'+key),
+            'resolution not the toggle form':dict(resolution_id='toggle:'+key),
+            'resolution key not a uuid':dict(resolution_id='toggleautoshot:k1',receipt_ref='receipt:toggle_auto_shot:k1'),
             'non-zero count_delta':dict(count_delta=-1),
             'enabled not boolean':dict(enabled=1),
             'template zero':dict(template=0),
             'template outside u32':dict(template=2**32),
+            'template not an auto-shot':dict(template=57),
             'revision not the step':dict(inventory_revision=2),
             'revision zero':dict(inventory_revision=0),
             'unknown field':dict(operation_ordinal=0),
@@ -997,12 +1035,56 @@ class Evidence(unittest.TestCase):
                 bad=self.d148_rows(toggle=toggle)
                 with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
                 cases+=1
+        bad=self.d148_rows();del next(r['data'] for r in bad if r['kind']=='item_delta')['receipt_ref']
+        with self.assertRaisesRegex(ValueError,'D151'):gate.validate(bad,self.recording,HASH)
+        cases+=1
         # A later baseline must reach the stepped revision: the chain is continuous across pure toggles.
         bad=self.d148_rows();bad[-2]['data']['inventory_revision']=2;bad[-2]['data']['instances'][0]['revision']=2
         with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
         bad=self.d148_rows();bad[-3]['data']['after']['revision']=2
         with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
-        print(f'D148: toggle_auto_shot steps pass (with/without baseline, null optional keys); {cases+2} malformed/discontinuous shapes reject',flush=True)
+        print(f'D148/D151: toggle_auto_shot steps pass (with/without baseline, omitted null keys, the toggle-steps fixture shape); {cases+2} malformed/discontinuous shapes reject',flush=True)
+
+    def d150_rows(self,readmission_revision=4,inc2_before=None,trailing=True):
+        """D150: equip + toggle (charged) at incarnation 1, death, respawn at incarnation 2 (no baseline,
+        nothing reset), unequip at incarnation 2 (charge cleared, D147), logout, re-admission at
+        incarnation 1 with the baseline at retained+1 (toggles-only reset: nothing re-stamped)."""
+        rows=self.d144_rows(readmission_baseline=False,trailing=None)
+        weapon=next(r['data']['after'] for r in rows if r['kind']=='item_delta' and r['data']['operation']=='use')
+        before=copy.deepcopy(weapon)|(inc2_before or {})
+        unequipped=weapon|{'slot':None,'location':'inventory','charges':0,'revision':3}
+        rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=2,tick=2,sequence=0,
+            data=dict(operation='unequip',instance=100,before=before,after=copy.deepcopy(unequipped),
+                      count_delta=0,operation_ordinal=0,resolution_id='unequip:2',receipt_ref='receipt:unequip:k9')))
+        shots=next(r['data']['after'] for r in rows if r['kind']=='item_delta' and r['data']['operation']=='consume')
+        rows.insert(-1,dict(kind='item_baseline',entity=OWNER,incarnation=1,tick=3,sequence=0,
+            data=dict(inventory_revision=readmission_revision,instances=[copy.deepcopy(unequipped),copy.deepcopy(shots)],paperdoll={},auto_shots=[])))
+        if trailing:
+            rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=3,sequence=0,
+                data=dict(operation='equip',instance=100,before=copy.deepcopy(unequipped),after=unequipped|{'slot':'rhand','location':'paperdoll','revision':readmission_revision+1},
+                          count_delta=0,operation_ordinal=0,resolution_id='equip:3',receipt_ref='receipt:equip:k10')))
+        rows[0]['watermark'].update(records=4,last_tick=3);rows[-1].update(ticks=4,last_tick=3)
+        return self.repair(rows)
+
+    def test_d150_one_chain_per_entity_across_death_and_relog(self):
+        for trailing in (True,False):
+            with self.subTest(trailing=trailing):
+                rows=self.d150_rows(trailing=trailing)
+                gate.validate_instance_history(rows);gate.validate(rows,self.recording,HASH)
+                self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['pole_damage'],HASH)['passed'])
+                self.assertEqual(gate.inventory_history(rows)[(OWNER,2,2)],(2,3))
+        # Negatives: the re-admission baseline skips the incarnation-2 row's step (continues the
+        # pre-death chain), or an incarnation-2 before that does not match the incarnation-1 retained state.
+        for name,kwargs in {'baseline at the pre-death revision':dict(readmission_revision=2),'baseline two steps ahead':dict(readmission_revision=5),
+                            'inc-2 before revision stale':dict(inc2_before={'revision':1}),'inc-2 before charge dropped':dict(inc2_before={'charges':0}),
+                            'inc-2 before enchant drift':dict(inc2_before={'enchant':3})}.items():
+            with self.subTest(name):
+                bad=self.d150_rows(**kwargs)
+                with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
+                self.assert_rejected(bad,('pole_damage',))
+        bad=self.d150_rows(readmission_revision=3);bad[-3]['data']['instances'][0].update(slot='rhand',charges=0,revision=3);bad[-3]['data']['paperdoll']={'rhand':100}
+        with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
+        print('D150: equip+toggle, death, inc-2 unequip, relog baseline at retained+1 folds as one chain; 6 pre-death-chain / stale-before shapes reject',flush=True)
 
     def d149_rows(self,admission_revision=2,granted=True,order='offline-first'):
         """D149: offline (incarnation 0) and live (incarnation 1) rows of one entity are one chain."""
@@ -1054,19 +1136,26 @@ class Evidence(unittest.TestCase):
         rows=self.readmission_rows('control' if baseline else 'no-baseline')
         first=next(r for r in rows if r['kind']=='item_baseline')
         first['data']['instances'][0]['charges']=start
+        # D150: one chain. A re-admission baseline that clears a charge carries the D142 step (the
+        # readmission_rows control); an unchanged or absent charge means no reset step was taken.
+        reset=baseline and seen!=start
         for row in rows[1:-1]:
             if row['incarnation']!=2:continue
             if row['kind']=='item_baseline':
                 row['data']['instances'][0]['charges']=seen;row['data']['auto_shots']=list(auto_shots)
-            elif row['kind']=='item_delta':row['data']['before']['charges']=seen
+                if not reset:row['data']['inventory_revision']=0;row['data']['instances'][0]['revision']=0
+            elif row['kind']=='item_delta':
+                row['data']['before']['charges']=seen
+                if not reset:row['data']['before']['revision']=0;row['data']['after']['revision']=1
         if seen and baseline:
             # A still-charged weapon stays equipped: the inc2 baseline alone observes it.
             rows=self.repair([r for r in rows if r['kind']!='item_delta'])
         return rows
 
     def test_d72_readmission_charges_only_clear_and_toggles_reset(self):
-        # Controls: cleared (1 -> 0), unchanged (1 -> 1), absent (0 -> 0), with and without the inc2 baseline.
-        for start,seen,baseline in ((1,0,True),(1,0,False),(1,1,True),(4,4,True),(0,0,True)):
+        # Controls: cleared by the re-admission baseline (1 -> 0), unchanged (1 -> 1), absent (0 -> 0);
+        # without a baseline (D150 resurrection) the charge is retained (1 -> 1) and the unequip clears it.
+        for start,seen,baseline in ((1,0,True),(1,1,False),(1,1,True),(4,4,True),(0,0,True),(0,0,False)):
             with self.subTest(start=start,seen=seen,baseline=baseline):
                 rows=self.d72_rows(start,seen,baseline=baseline);gate.validate_instance_history(rows)
                 self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['pole_damage'],HASH)['passed'])
