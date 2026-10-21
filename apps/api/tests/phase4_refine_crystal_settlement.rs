@@ -1184,8 +1184,9 @@ async fn postgres_relogin_after_automatic_shots_settles() {
     relogin_after_shots_contract(repo).await;
 }
 
-/// T37 (zone): Equip and ToggleAutoShot(on) in the same tick. D79: every mutating receipt of
-/// the tick carries the settled revision; the API refuses the tick otherwise.
+/// T37/D143: a no-op Equip (the kit weapon is already wielded) and ToggleAutoShot(on) in the
+/// same tick. The zone stamps the no-op Equip receipt with the pre-tick revision and the toggle
+/// with the settled one; D143 accepts the pre-tick revision on any no-op receipt.
 async fn equip_and_toggle_contract<R>(repo: Arc<R>) -> Vec<(ItemOperation, u64, u64)>
 where
     R: CharacterRepository
@@ -1280,13 +1281,11 @@ where
 }
 
 #[tokio::test]
-#[ignore = "T37 zone receipt stamping pending"]
 async fn memory_equip_and_toggle_in_one_tick_settles() {
     equip_and_toggle_contract(memory_repo()).await;
 }
 
 #[tokio::test]
-#[ignore = "T37 zone receipt stamping pending"]
 async fn postgres_equip_and_toggle_in_one_tick_settles() {
     let Some((_pool, repo)) = pg_repo().await else {
         return;
