@@ -5527,9 +5527,42 @@ mod tests {
         })
         .collect();
         let draft = zone.draft(commands);
+        let mut observed = zone.clone();
+        observed.enable_items_replay_evidence().unwrap();
         let applied = zone.run_tick(draft.clone()).unwrap();
         assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+        assert_eq!(applied, observed.run_tick(draft.clone()).unwrap());
         assert_eq!(applied, cold.run_tick(draft).unwrap());
+        // D141: the crystallize attests its crystal count under the intent's resolution
+        // (`crystallize:<request key>`), owned by the crystallizing player.
+        let facts = observed.take_items_replay_evidence();
+        let crystal_fact = facts
+            .iter()
+            .find_map(|f| match &f.fact {
+                crate::domain::zone::evidence::ItemEvidenceData::Formula(v)
+                    if v["formula"] == "crystal_count" =>
+                {
+                    Some((f.entity, v.clone()))
+                },
+                _ => None,
+            })
+            .expect("crystal_count fact");
+        assert_eq!(crystal_fact.0, owner.entity);
+        assert_eq!(
+            crystal_fact.1["inputs"],
+            serde_json::json!({"base": 705, "bonus": 45, "enchant": 4, "weapon": true})
+        );
+        assert_eq!(crystal_fact.1["actual"], 930);
+        assert_eq!(crystal_fact.1["resolution_id"], format!("crystallize:{}", Uuid::from_u128(22)));
+        let delta = facts.iter().find_map(|f| match &f.fact {
+            crate::domain::zone::evidence::ItemEvidenceData::Delta(v)
+                if v["resolution_id"] == crystal_fact.1["resolution_id"] =>
+            {
+                Some(v.clone())
+            },
+            _ => None,
+        });
+        assert!(delta.is_some(), "the crystallize rows share the resolution");
         assert_eq!(zone.rng.get_word_pos(), rng);
         assert_eq!(zone.phase4.as_ref().unwrap().canonical.allocator, allocation);
         let player = &zone.phase4.as_ref().unwrap().canonical.players[&owner.entity];
@@ -11044,6 +11077,21 @@ mod tests {
         assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
         assert!(!run.zone.entities[&dead].targeting.dead);
         assert!(run.formulas().contains("resurrection_scroll"), "{:?}", run.formulas());
+        // D139: the subject is the scroll's owner; the resurrected player is the context's
+        // `target_entity`.
+        let fact = run
+            .facts
+            .iter()
+            .find(|f| {
+                matches!(&f.fact, crate::domain::zone::evidence::ItemEvidenceData::Formula(v)
+                if v["formula"] == "resurrection_scroll")
+            })
+            .unwrap();
+        assert_eq!(fact.entity, owner.entity);
+        let crate::domain::zone::evidence::ItemEvidenceData::Formula(value) = &fact.fact else {
+            unreachable!()
+        };
+        assert_eq!(value["context"]["target_entity"], dead.to_string());
         run.write("NIGHTFALL_TEST_RESURRECTION_RECORDING");
     }
 
@@ -11102,6 +11150,94 @@ mod tests {
         let applied = run.tick(owner.entity, second);
         assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
         run.write("NIGHTFALL_TEST_D94_RECORDING");
+    }
+
+    /// D138 (T31): an equip of an enchanted, grade-penalized armour piece still emits its
+    /// `gear_stats` install fact, with the winning grade-penalty provider (6213) folded and
+    /// reported; its unequip emits one too.
+    #[test]
+    fn v6_gear_stats_covers_enchanted_and_penalized_installs() {
+        use crate::domain::zone::{item_sources, EquipSlot, ItemCommandKind as K};
+        let (mut zone, owner, _, ids) = use_fixture(&[10491]);
+        {
+            let items = zone.phase4.as_mut().unwrap();
+            let rules = Arc::clone(&items.rules);
+            let player = items.canonical.players.get_mut(&owner.entity).unwrap();
+            player.inventory.retain(|id, _| ids.contains(id));
+            for item in player.inventory.values_mut() {
+                item.slot = None;
+                item.location = crate::domain::zone::ItemLocation::Inventory;
+                item.charges = 0;
+                item.enchant = 4;
+            }
+            player.paperdoll.clear();
+            player.auto_shots.clear();
+            player.active_sets = item_sources::reconcile_sets(player, &rules, None).unwrap();
+            let next = &mut zone
+                .phase3
+                .as_mut()
+                .unwrap()
+                .canonical
+                .next_install_sequence;
+            item_sources::reconcile_sources(player, &rules, next).unwrap();
+        }
+        zone.rebuild_v5(owner.entity).unwrap();
+        zone.run_tick(zone.draft(Vec::new())).unwrap();
+        let mut run = EvidenceRun::start(zone);
+        let gear = |run: &EvidenceRun, resolution: &str| {
+            run.facts
+                .iter()
+                .filter_map(|f| match &f.fact {
+                    crate::domain::zone::evidence::ItemEvidenceData::Formula(v)
+                        if v["formula"] == "gear_stats" && v["resolution_id"] == resolution =>
+                    {
+                        Some((f.entity, v.clone()))
+                    },
+                    _ => None,
+                })
+                .collect::<Vec<_>>()
+        };
+        let equip = item_intent(
+            &run.zone,
+            owner.entity,
+            2701,
+            K::Equip {
+                instance: ids[0],
+                preferred_slot: None,
+            },
+        );
+        let applied = run.tick(owner.entity, vec![ZoneCommand::Item(Box::new(equip))]);
+        assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+        let held = &run.zone.phase4.as_ref().unwrap().canonical.players[&owner.entity];
+        assert!(held.armor_penalty > 0, "the C-grade shirt is penalized");
+        assert_eq!(held.inventory[&ids[0]].enchant, 4);
+        let installed = gear(&run, &format!("equip:{}", Uuid::from_u128(2701)));
+        assert_eq!(installed.len(), 1, "{:?}", run.formulas());
+        assert_eq!(installed[0].0, owner.entity);
+        let fact = &installed[0].1;
+        assert_eq!(fact["context"]["event"], "equip");
+        assert!(fact["inputs"]["equipment"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|row| row[0] == 10491 && row[1] == 4));
+        assert!(fact["inputs"]["skill_refs"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|row| row[0] == 6213 && row[1] == held.armor_penalty));
+        let unequip = item_intent(
+            &run.zone,
+            owner.entity,
+            2702,
+            K::Unequip {
+                slot: EquipSlot::Under,
+            },
+        );
+        let applied = run.tick(owner.entity, vec![ZoneCommand::Item(Box::new(unequip))]);
+        assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
+        assert_eq!(gear(&run, &format!("unequip:{}", Uuid::from_u128(2702))).len(), 1);
+        run.write("NIGHTFALL_TEST_GEAR_PENALTY_RECORDING");
     }
 
     #[test]

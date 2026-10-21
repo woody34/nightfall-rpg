@@ -813,9 +813,9 @@ impl ZoneState {
         else {
             return; // Transferred classes use other pinned class files.
         };
-        if player.weapon_penalty != 0
-            || player.armor_penalty != 0
-            || player.overload_level != 0
+        // D138: grade penalties no longer suppress the fact; their winning 6209/6213
+        // providers are folded and reported like any other passive provider.
+        if player.overload_level != 0
             || side
                 .modifier_install_order
                 .values()
@@ -855,11 +855,9 @@ impl ZoneState {
                         return;
                     }
                 },
-                K::ItemSkill { .. } | K::Enchant4 { .. } | K::Polearm => {},
-                K::EnchantOption { .. }
-                | K::Augment { .. }
-                | K::GradePenalty { .. }
-                | K::Overload => return,
+                K::ItemSkill { .. } | K::Enchant4 { .. } | K::Polearm | K::GradePenalty { .. } => {
+                },
+                K::EnchantOption { .. } | K::Augment { .. } | K::Overload => return,
             }
             let Ok(references) =
                 crate::domain::zone::item_sources::source_skills(player, &items.rules, key)

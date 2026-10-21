@@ -354,6 +354,9 @@ impl ZoneState {
             )
             .map_err(|_| TickError::Phase3Invariant)?;
         if self.items_evidence_enabled() {
+            // D140: the kit installs its paperdoll (D121); one gear_stats fact attests the
+            // equipped kit's stats under the materialization resolution.
+            self.gear_stats_evidence_v6(id, "admission", &format!("materialize:{}", reference.key));
             let subject = self.binding(id).ok_or(TickError::Phase3Invariant)?;
             for row in &projection.ledger {
                 self.item_evidence_delta(
