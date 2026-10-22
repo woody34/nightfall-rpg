@@ -552,6 +552,17 @@ impl ItemCheckpointWork {
         // key) keeps the un-stepped revision even when a later same-tick mutation steps the
         // owner; every mutating receipt carries the settled revision.
         let pre_tick = before.map(|cp| cp.inventory_revision);
+        // D152 (refusing check): a skill-item Use whose item is not consumed can still start a
+        // cast whose cast-START recharge writes receipt-less rows (resolution
+        // `cast:<id>:shot:<template>`); such a Use loses the no-op exemption. Cast-completion
+        // discharge rows (`cast:<id>`, run after the command phase) do not count.
+        let cast_rows = self.projection.ledger.iter().any(|delta| {
+            delta.causes.iter().any(|cause| {
+                matches!(cause.fields.get("resolution_id"),
+                    Some(crate::domain::zone::phase4_projection::ItemEvidenceValue::Text(id))
+                        if id.starts_with("cast:") && id.contains(":shot:"))
+            })
+        });
         if (!unchanged
             && before.map_or(0, |cp| cp.inventory_revision).checked_add(1) != Some(revision))
             || self.projection.receipts.iter().any(|receipt| {
@@ -564,7 +575,13 @@ impl ItemCheckpointWork {
                             .receipt_refs
                             .iter()
                             .any(|r| r.key == receipt.request_id)
-                });
+                }) && !(matches!(
+                    &receipt.result.detail,
+                    ItemResultDetail::Operation {
+                        operation: ItemOperation::Use,
+                        ..
+                    }
+                ) && cast_rows);
                 receipt.result.inventory_revision != revision
                     && !(no_op && Some(receipt.result.inventory_revision) == pre_tick)
             })
