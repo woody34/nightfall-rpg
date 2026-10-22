@@ -6,13 +6,17 @@ sessions/t19-*.nfr) the script runs `check` (byte-identical replay), `coverage` 
 item counter label must be a sim-gates.py V4_LABELS name) and `export --items-evidence-out`.
 A closed-epoch fixture (items/, phase3-v6/) must export, and phase4-evidence.py validate() must
 accept the export; a live capture (T11/T19 sessions) must be refused by the exporter with its
-live-capture message. Every closed export must carry the same phase4_rules_hash (and the
---rules-hash value when given). Exit 1 on any mismatch, 2 on a usage error.
+live-capture message. Every closed export must carry the pinned phase4_rules_hash: --rules-hash,
+or the embedded-bundle `phase4_item_rules_hash` that the built nightfall-api (--api, default the
+replay binary's sibling) attests at startup without a stack. No hash means exit 2. Exit 1 on any
+mismatch, 2 on a usage error or a tool timeout.
 """
 import argparse
 import importlib.util
 import json
+import os
 from pathlib import Path
+import re
 import subprocess
 import sys
 
@@ -31,6 +35,29 @@ def module(name):
 
 gates = module('sim-gates.py')
 evidence = module('phase4-evidence.py')
+phase2 = module('phase2-fixture.py')
+HASH = re.compile(r'[0-9a-f]{64}')
+
+
+def derive_rules_hash(api, out):
+    """The embedded V6 bundle's phase4_item_rules_hash from the API's own startup attestation.
+
+    The API validates the bundle and logs both hashes before it connects to Postgres, so an
+    unreachable DATABASE_URL and no RULES_DIR make it attest the embedded bundle and exit."""
+    api = Path(api)
+    if not api.is_file():
+        raise ValueError(f'nightfall-api {api} is not a file; pass --api or --rules-hash')
+    log = Path(out) / 'rules-hash.api.log'
+    env = {key: os.environ[key] for key in ('PATH', 'HOME', 'LANG', 'LC_ALL', 'LD_LIBRARY_PATH') if key in os.environ}
+    env.update(DATABASE_URL='postgres://probe:probe@127.0.0.1:1/probe', NATS_URL='nats://127.0.0.1:1',
+               HTTP_ADDR='127.0.0.1:0', GRPC_ADDR='127.0.0.1:0', AUTH_DEV_TOKENS='1', PHASE3_ENABLED='1',
+               PHASE4_ENABLED='1', RUST_LOG='info', TELEMETRY_PRETTY='0')
+    with log.open('w') as sink:
+        subprocess.run([str(api)], env=env, stdout=sink, stderr=subprocess.STDOUT, timeout=COMMAND_TIMEOUT)
+    record = phase2.api_zone_flags(log)
+    if record is None:
+        raise ValueError(f'{api} attested no V6 bundle (see {log}); pass --rules-hash')
+    return record['phase4_item_rules_hash'].split(':', 1)[1]
 
 
 def fixtures(repo):
@@ -93,8 +120,8 @@ def smoke_fixture(binary, recording, kind, out, rules_hash):
         row['rules_hash'] = manifest.get('phase4_rules_hash')
         if not isinstance(row['rules_hash'], str):
             raise ValueError('export manifest names no phase4_rules_hash')
-        if rules_hash and row['rules_hash'] != rules_hash:
-            raise ValueError(f"export rules hash {row['rules_hash'][:12]}… differs from --rules-hash {rules_hash[:12]}…")
+        if row['rules_hash'] != rules_hash:
+            raise ValueError(f"export rules hash {row['rules_hash'][:12]}… differs from the pinned hash {rules_hash[:12]}…")
         evidence.validate(rows, recording, row['rules_hash'])
         row['facts'] = len(rows) - 2
     except (ValueError, KeyError, TypeError, IndexError, OSError) as error:
@@ -102,16 +129,13 @@ def smoke_fixture(binary, recording, kind, out, rules_hash):
     return row
 
 
-def smoke(binary, repo, out, rules_hash=None):
+def smoke(binary, repo, out, rules_hash):
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
+    if not isinstance(rules_hash, str) or not HASH.fullmatch(rules_hash):
+        raise ValueError('the pinned phase4 rules hash must be 64 hex characters')
     rows = [smoke_fixture(binary, recording, kind, out, rules_hash) for recording, kind in fixtures(repo)]
-    hashes = sorted({row['rules_hash'] for row in rows if row.get('rules_hash')})
-    if len(hashes) > 1:
-        for row in rows:
-            if row.get('rules_hash'):
-                row['problems'].append(f'closed fixtures disagree on phase4_rules_hash: {[h[:12] for h in hashes]}')
-    report = {'schema_version': 1, 'replay': str(binary), 'repo': str(repo), 'rules_hash': hashes[0] if len(hashes) == 1 else None,
+    report = {'schema_version': 1, 'replay': str(binary), 'repo': str(repo), 'rules_hash': rules_hash,
               'fixtures': rows, 'passed': all(not row['problems'] for row in rows)}
     (out / 'contract-smoke.json').write_text(json.dumps(report, indent=2) + '\n')
     return report
@@ -122,19 +146,26 @@ def main():
     parser.add_argument('--replay', type=Path, required=True, help='built nightfall-replay binary (release for V6 bundles)')
     parser.add_argument('--repo', type=Path, default=REPO, help='repository root whose apps/api/fixtures are checked')
     parser.add_argument('--out', type=Path, required=True, help='directory for logs, exports and contract-smoke.json')
-    parser.add_argument('--rules-hash', help='pin the compiled Phase 4 runtime rules hash the exports must carry')
+    parser.add_argument('--rules-hash', help='pin the compiled Phase 4 rules hash the exports must carry (else derived from --api)')
+    parser.add_argument('--api', type=Path, help='built nightfall-api that attests the embedded bundle hash (default: beside --replay)')
     args = parser.parse_args()
     if not args.replay.is_file():
         parser.error(f'{args.replay} is not a file')
     try:
-        report = smoke(args.replay.resolve(), args.repo.resolve(), args.out.resolve(), args.rules_hash)
+        out = args.out.resolve()
+        out.mkdir(parents=True, exist_ok=True)
+        rules_hash = args.rules_hash or derive_rules_hash(args.api or args.replay.resolve().with_name('nightfall-api'), out)
+        report = smoke(args.replay.resolve(), args.repo.resolve(), out, rules_hash)
+    except subprocess.TimeoutExpired as error:
+        print(f'contract smoke: tool timed out after {COMMAND_TIMEOUT}s: {error.cmd[0] if error.cmd else error}', file=sys.stderr)
+        return 2
     except (ValueError, OSError, subprocess.SubprocessError) as error:
         parser.error(str(error))
     for row in report['fixtures']:
         status = 'PASS' if not row['problems'] else 'FAIL'
         print(f"{status} {Path(row['fixture']).name} ({row['kind']})" + ''.join('\n  ' + p for p in row['problems']), flush=True)
     print(f"contract smoke: {sum(not r['problems'] for r in report['fixtures'])}/{len(report['fixtures'])} fixtures agree; "
-          f"rules hash {report['rules_hash'] or '(disagree/none)'}; report {args.out / 'contract-smoke.json'}", flush=True)
+          f"rules hash {report['rules_hash']}; report {out / 'contract-smoke.json'}", flush=True)
     return 0 if report['passed'] else 1
 
 

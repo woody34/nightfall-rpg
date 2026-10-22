@@ -72,6 +72,14 @@ class ContractSmokeTests(unittest.TestCase):
         self.binary = root / 'nightfall-replay'
         self.binary.write_text(FAKE)
         self.binary.chmod(0o755)
+        # The sibling nightfall-api attests the embedded bundle (both hashes) and exits, as the real one does.
+        self.api = root / 'nightfall-api'
+        # derive_rules_hash starts the API with a clean environment, so the fake is steered by files beside it.
+        self.api.write_text('#!/usr/bin/env bash\nhere="$(dirname "$0")"\n[[ ! -f "$here/api-silent" ]] || exit 1\n'
+                            'hash="$(cat "$here/api-hash" 2>/dev/null || echo bfee2e7d9fb73f53706c7a4afc19f5d095f4d630ca90e9a5747895c0e5472aad)"\n'
+                            'echo "{\\"timestamp\\":\\"2026-10-22T00:00:00Z\\",\\"level\\":\\"INFO\\",\\"fields\\":{\\"message\\":\\"Phase3 bootstrap bundle validated with the Phase4 (V6) item extension\\",'
+                            '\\"phase4_item_rules_hash\\":\\"sha256:$hash\\",\\"phase4_skill_rules_hash\\":\\"sha256:5c2378c9eab24f26fdef161c4965dc3567fc05eefe04186cdf095d84cad7f6d1\\"}}"\nexit 1\n')
+        self.api.chmod(0o755)
         self.out = root / 'out'
         self.env = {**os.environ, 'FAKE_COVERAGE': str(FIXTURES / 'phase4-contract-smoke/coverage.schema4.json'),
                     'FAKE_EXPORTS': str(FIXTURES / 'phase4-t10'), 'PYTHONDONTWRITEBYTECODE': '1'}
@@ -95,8 +103,23 @@ class ContractSmokeTests(unittest.TestCase):
         self.assertEqual(report['fixtures'][0]['labels']['item_operations'], ['grant'])
         self.assertEqual(result.stdout.count('PASS '), 3)
         self.assertTrue((self.out / 'draw-free-grant.phase4.raw.jsonl').is_file())
+        self.assertTrue((self.out / 'rules-hash.api.log').is_file())
         self.assertFalse(self.run_smoke('--rules-hash', 'a' * 64).returncode == 0)
         self.assertEqual(self.run_smoke('--rules-hash', report['rules_hash']).returncode, 0)
+
+    def test_pinned_hash_comes_from_the_api_attestation_or_the_flag_never_the_export(self):
+        (self.api.parent / 'api-hash').write_text('e' * 64 + '\n')  # a stale embedded bundle fails every closed fixture
+        result = self.run_smoke()
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertTrue(all(any('pinned hash' in p for p in r['problems']) for r in self.report()['fixtures'] if r['kind'] == 'closed'))
+        (self.api.parent / 'api-hash').unlink()
+        (self.api.parent / 'api-silent').touch()
+        self.assertEqual(self.run_smoke().returncode, 2)  # no attestation, no --rules-hash
+        (self.api.parent / 'api-silent').unlink()
+        self.assertEqual(self.run_smoke('--api', str(self.out / 'missing-api')).returncode, 2)
+        self.assertEqual(self.run_smoke('--rules-hash', 'xyz').returncode, 2)
+        self.assertEqual(self.run_smoke('--api', str(self.out / 'missing-api'), '--rules-hash',
+                                        'bfee2e7d9fb73f53706c7a4afc19f5d095f4d630ca90e9a5747895c0e5472aad').returncode, 0)
 
     def test_divergence_unknown_label_and_live_export_fail_the_gate(self):
         result = self.run_smoke(FAKE_DIVERGE='offline-grant-only')
@@ -113,7 +136,7 @@ class ContractSmokeTests(unittest.TestCase):
     def test_rules_hash_disagreement_and_corrupt_export_fail(self):
         result = self.run_smoke(FAKE_HASH_SWAP='draw-free-grant')
         self.assertEqual(result.returncode, 1)
-        self.assertTrue(any('disagree' in p for r in self.report()['fixtures'] for p in r['problems']))
+        self.assertTrue(any('pinned hash' in p for p in self.report()['fixtures'][0]['problems']))
         (self.repo / 'apps/api/fixtures/items/offline-grant-only.nfr').write_bytes(b'changed recording')
         result = self.run_smoke()
         self.assertEqual(result.returncode, 1)

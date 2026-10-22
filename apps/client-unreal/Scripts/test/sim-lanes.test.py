@@ -56,21 +56,29 @@ class OffsetTests(unittest.TestCase):
         self.assertTrue(seen.isdisjoint({27432, 27422, 28080, 25432, 24222, 28222, 23300, 24317, 24318, 28081,
                                          15432, 14222, 18222, 13300, 14317, 14318, 18080, 13000, 15051}))
 
+    def free_port_below_ephemeral(self):
+        """A free port below the kernel ephemeral range, aligned to a lane block."""
+        for port in range(29990, 20000, -lanes.STRIDE):
+            if not any(lanes.bound(p) for p in range(port, port + lanes.STRIDE)):
+                return port
+        self.skipTest('no free lane block below the ephemeral range')
+
     def test_allocation_fails_fast_on_a_bound_port_and_out_of_range_blocks(self):
+        base = self.free_port_below_ephemeral()
+        port = base + 7  # api_http
         with socket.socket() as held:
-            held.bind(('127.0.0.1', 0))
+            held.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            held.bind(('127.0.0.1', port))
             held.listen()
-            port = held.getsockname()[1]
-            base = port - (port % lanes.STRIDE)
-            if base <= 1024:
-                self.skipTest('ephemeral port below the lane range')
             with self.assertRaises(ValueError) as refused:
-                lanes.allocate(1, port_base=base)
+                lanes.allocate(1, port_base=base, ephemeral=(32768, 60999))
             self.assertIn(str(port), str(refused.exception))
             self.assertIn('in use', str(refused.exception))
-        self.assertEqual(len(lanes.allocate(1, port_base=base)), 1)
+            self.assertTrue(lanes.bound(port))
+        self.assertFalse(lanes.bound(port))
+        self.assertEqual(len(lanes.allocate(1, port_base=base, ephemeral=(32768, 60999))), 1)
         with self.assertRaises(ValueError):
-            lanes.allocate(2, port_base=65535 - lanes.STRIDE, probe=lambda port: False)
+            lanes.allocate(2, port_base=65535 - lanes.STRIDE, probe=lambda port: False, ephemeral=None)
         for bad in (0, -1, '2'):
             with self.assertRaises(ValueError):
                 lanes.allocate(bad, probe=lambda port: False)
@@ -80,6 +88,45 @@ class OffsetTests(unittest.TestCase):
             lanes.allocate(1, project_base='nightfall-sim-Upper', probe=lambda port: False)
         self.assertEqual(lanes.allocate(1, project_base='nightfall-sim-ci-7', probe=lambda port: False)[0]['compose_project'],
                          'nightfall-sim-ci-7-lane0')
+
+    def test_time_wait_port_is_not_in_use_but_a_listener_is(self):
+        # Real listeners (Rust std/tokio, docker-proxy) set SO_REUSEADDR; Linux lets a reusing probe
+        # bind over their TIME_WAIT leftovers only when the old socket reused too.
+        with socket.socket() as server:
+            server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            server.bind(('127.0.0.1', 0))
+            server.listen()
+            port = server.getsockname()[1]
+            self.assertTrue(lanes.bound(port))
+            with socket.create_connection(('127.0.0.1', port)) as client:
+                accepted, _ = server.accept()
+                accepted.close()  # server-side active close: the port enters TIME_WAIT
+                client.recv(1)
+        self.assertFalse(lanes.bound(port))  # TIME_WAIT leftovers do not refuse a block
+        with socket.socket() as again:
+            again.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            again.bind(('127.0.0.1', port))
+            again.listen()
+            self.assertTrue(lanes.bound(port))
+
+    def test_blocks_inside_the_ephemeral_range_are_refused(self):
+        free = lambda port: False
+        with self.assertRaises(ValueError) as refused:
+            lanes.allocate(1, port_base=40000, probe=free, ephemeral=(32768, 60999))
+        self.assertIn('ephemeral', str(refused.exception))
+        with self.assertRaises(ValueError):  # the last lane's block crosses the lower bound
+            lanes.allocate(277, port_base=30000, probe=free, ephemeral=(32768, 60999))
+        self.assertEqual(len(lanes.allocate(276, port_base=30000, probe=free, ephemeral=(32768, 60999))), 276)
+        self.assertEqual(len(lanes.allocate(1, port_base=61000, probe=free, ephemeral=(32768, 60999))), 1)
+        self.assertEqual(len(lanes.allocate(1, port_base=40000, probe=free, ephemeral=False)), 1)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / 'range'
+            path.write_text('32768\t60999\n')
+            self.assertEqual(lanes.ephemeral_range(path), (32768, 60999))
+            path.write_text('garbage\n')
+            self.assertIsNone(lanes.ephemeral_range(path))
+            self.assertIsNone(lanes.ephemeral_range(Path(tmp) / 'missing'))
+        self.assertIsNotNone(lanes.ephemeral_range())  # this host's /proc range reads
 
 
 class ComposeTests(unittest.TestCase):
@@ -106,6 +153,10 @@ class ComposeTests(unittest.TestCase):
         external['volumes']['pgdata'] = {'external': True, 'name': 'shared'}
         with self.assertRaises(ValueError):
             lanes.lane_compose(external, lanes.lane_ports(30000, 0))
+        named = json.loads(json.dumps(STACK))
+        named['services']['postgres']['container_name'] = 'nightfall-postgres'
+        with self.assertRaises(ValueError):
+            lanes.lane_compose(named, lanes.lane_ports(30000, 0))
 
     def test_api_env_and_unit_env_follow_the_lane_block(self):
         lane = lanes.allocate(2, probe=lambda port: False)[1]
@@ -138,6 +189,8 @@ class ComposeTests(unittest.TestCase):
         self.assertFalse(any('grpcendpoint' in a.lower() for a in json.loads(isolated['SIM_BOT_ARGS_JSON'])))
         with self.assertRaises(ValueError):
             lanes.bot_args('["-UserDir=/elsewhere"]', '/x')
+        with self.assertRaises(ValueError):
+            lanes.bot_args('["-ini:Game:[/Script/Nightfall.NetSettings]:GrpcEndpoint=127.0.0.1:1"]', '/x')
         with self.assertRaises(ValueError):
             lanes.bot_args('{"a": 1}', '/x')
 
@@ -290,7 +343,8 @@ class SuiteTests(unittest.TestCase):
         self.assertTrue(all(case.find('failure') is not None for case in suite.findall('testcase')))
 
     def test_serial_default_records_lane_zero_without_lane_files(self):
-        failed, seen, calls, summary = self.run_main(environ={'COMPOSE_PROJECT_NAME': 'nightfall-sim-test'})
+        failed, seen, calls, summary = self.run_main(environ={'COMPOSE_PROJECT_NAME': 'nightfall-sim-test',
+                                                               'SIM_API_ENV_FILE': '/operator/stale.env'})
         self.assertEqual(summary['parallel'], 1)
         self.assertEqual([row['lane'] for row in summary['units']], [0] * 5)
         self.assertTrue(all(row['lane_ports'] is None for row in summary['units']))

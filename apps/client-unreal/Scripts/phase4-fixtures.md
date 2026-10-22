@@ -336,8 +336,11 @@ captures. For each fixture it runs:
   `phase4_rules_hash`. A live capture must get the exporter's refusal
   (`refuses partial/live captures`).
 
-All closed exports must carry one `phase4_rules_hash`; `--rules-hash` pins it. The script
-writes the logs, the exports and `contract-smoke.json` to `--out`. It exits 1 on any mismatch and
-2 on a usage error. Run it with the release binary: the V6 bundle composition is slow in a debug
+Every closed export must carry the pinned `phase4_rules_hash`. `--rules-hash` pins it. Without
+`--rules-hash` the script starts the built `nightfall-api` (`--api`, default: beside the replay
+binary) with an unreachable `DATABASE_URL` and no `RULES_DIR`; the API attests the embedded
+bundle's `phase4_item_rules_hash` and exits, and that hash is the pin. Without a hash the script
+exits 2. The script writes the logs, the exports and `contract-smoke.json` to `--out`. It exits
+1 on any mismatch, and 2 on a usage error or a tool timeout. Run it with the release binary: the V6 bundle composition is slow in a debug
 build. The offline test `Scripts/test/phase4-contract-smoke.test.py` drives the script with a fake
 binary and the pinned `test/fixtures/phase4-t10` exports.

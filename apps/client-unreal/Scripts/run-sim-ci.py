@@ -304,6 +304,7 @@ def run_unit(args, artifacts, exempt, batch, fixture_name, allowance, lane=None,
     command += list(map(str, batch))
     code = 2
     env = dict(os.environ)
+    env.pop("SIM_API_ENV_FILE", None)  # only a lane sets the shared-stack API endpoint file
     if lane is not None:
         env.update(lanes.unit_env(lane, lane_folder, fixture_name in phase2.ISOLATED, os.environ))
         if fixture_name not in phase2.ISOLATED:

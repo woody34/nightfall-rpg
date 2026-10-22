@@ -35,12 +35,28 @@ def lane_ports(base, index):
     return {name: start + offset for offset, name in enumerate(PORT_NAMES)}
 
 
+EPHEMERAL_RANGE_FILE = Path('/proc/sys/net/ipv4/ip_local_port_range')
+
+
+def ephemeral_range(path=EPHEMERAL_RANGE_FILE):
+    """The kernel's outbound/`bind(0)` port range (low, high), or None when unreadable."""
+    try:
+        low, high = map(int, Path(path).read_text().split())
+    except (OSError, ValueError):
+        return None
+    return (low, high) if 0 < low <= high <= MAX_PORT else None
+
+
 def bound(port):
-    """True when any socket already binds `port` on this host (IPv4 any/loopback or IPv6 any)."""
+    """True when a socket listens on `port` (IPv4 any/loopback or IPv6 any).
+
+    SO_REUSEADDR lets the probe bind over TIME_WAIT leftovers of a previous run's API while a
+    live listener still refuses the bind, so only a real listener reports the block in use."""
     for family, address in ((socket.AF_INET, '0.0.0.0'), (socket.AF_INET, '127.0.0.1'),
                             (socket.AF_INET6, '::')):
         try:
             with socket.socket(family, socket.SOCK_STREAM) as probe:
+                probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 probe.bind((address, port))
         except OSError as error:
             if family == socket.AF_INET6 and error.errno in (97, 99):  # EAFNOSUPPORT, EADDRNOTAVAIL
@@ -57,14 +73,24 @@ def project_name(base, index):
     return f'{base}-lane{index}'
 
 
-def allocate(parallel, port_base=DEFAULT_PORT_BASE, project_base=DEFAULT_PROJECT_BASE, probe=None):
-    """Port blocks and project names for every lane; fails fast on a block already in use."""
+def allocate(parallel, port_base=DEFAULT_PORT_BASE, project_base=DEFAULT_PROJECT_BASE, probe=None, ephemeral=None):
+    """Port blocks and project names for every lane; fails fast on a block already in use.
+
+    A block inside the kernel ephemeral range (`ephemeral`, default read from
+    /proc/sys/net/ipv4/ip_local_port_range) is refused: owned fixtures (`bind 127.0.0.1:0`) and
+    outbound connections could take a lane port between two units. The default base 30000 stays
+    below the Linux default range 32768-60999 for up to 276 lanes."""
     if type(parallel) is not int or parallel < 1:
         raise ValueError('parallel must be a positive integer')
     probe = probe or bound
+    ephemeral = ephemeral_range() if ephemeral is None else ephemeral
     lanes = []
     for index in range(parallel):
         ports = lane_ports(port_base, index)
+        first, last = min(ports.values()), max(ports.values())
+        if ephemeral and first <= ephemeral[1] and last >= ephemeral[0]:
+            raise ValueError(f'lane {index} port block {first}-{last} intersects the ephemeral port range '
+                             f'{ephemeral[0]}-{ephemeral[1]}; choose a lower --lane-port-base or fewer lanes')
         busy = sorted(port for port in ports.values() if probe(port))
         if busy:
             raise ValueError(f'lane {index} port block {min(ports.values())}-{max(ports.values())} is in use '
@@ -81,6 +107,8 @@ def lane_compose(config, ports):
     config = json.loads(json.dumps(config))
     config.pop('name', None)
     for name, service in config['services'].items():
+        if 'container_name' in service:
+            raise ValueError(f'service {name} has a fixed container_name; lanes need project-owned containers')
         for port in service.get('ports', []):
             key = (name, int(port['target']))
             if key not in PUBLISHED or port.get('protocol', 'tcp') != 'tcp':
@@ -123,6 +151,8 @@ def bot_args(existing_json, user_dir, ports=None):
         raise ValueError('SIM_BOT_ARGS_JSON must be an array of strings')
     if any(a.lower().startswith('-userdir=') for a in existing):
         raise ValueError('lanes own the UE UserDir; remove -UserDir from SIM_BOT_ARGS_JSON')
+    if any('grpcendpoint' in a.lower() for a in existing):
+        raise ValueError('lanes own the client gRPC endpoint; remove GrpcEndpoint from SIM_BOT_ARGS_JSON')
     args = [*existing, f'-UserDir={user_dir}']
     if ports is not None:
         args.append(f"-ini:Game:[/Script/Nightfall.NetSettings]:GrpcEndpoint=127.0.0.1:{ports['api_grpc']}")
