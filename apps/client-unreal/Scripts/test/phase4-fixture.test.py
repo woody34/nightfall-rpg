@@ -54,7 +54,20 @@ class Fixtures(unittest.TestCase):
             text=(SCRIPTS.parent/f'Scenarios/variants/4-enchant-{name}.nfs').read_text()
             self.assertIn(f'nf.Enchant {scroll} instance:12 ',text);self.assertIn(f'nf.WaitFor enchant_outcome == {outcome} 3',text)
             self.assertIn('nf.WaitFor item_receipt_matches_first 3',text);self.assertIn('nf.Expect inventory_has 84 == 1',text)
-        print('T52: zone RNG stream reproduces i3e words 40..43; mage sword +3 fails at 47096; enchant overlay has 10 static NPCs',flush=True)
+        # success_no_increment (harness-review-10, D161 revoked): B armour at +20 (ARMOR_GROUP base 0) with
+        # the bonus-100 safe armour scroll 22020 gives chance 100000; no accepted draw can fail it.
+        self.assertEqual((selection['b_armor'],selection['no_increment_scroll']),(357,22020))
+        scroll=next(r for r in fixture.phase4.table('enchant_scrolls')['scrolls'] if r['template_id']==22020)
+        self.assertEqual((scroll['weapon'],scroll['target_grade'],scroll['safe'],scroll['bonus_rate'],scroll['max_enchant']),(False,'B',True,'100',65535))
+        chance=groups['ARMOR_GROUP'][(20,65535)]+int(scroll['bonus_rate'])*1000;self.assertEqual(chance,100000)
+        self.assertTrue(all(v is None or v<chance for v in (fixture.phase4.zone_roll(w,100000)[0] for w in range(0,200))))
+        self.assertEqual([(r['instance_id'],r['template_id'],r['enchant']) for r in owner['inventory'] if r['instance_id']>=13],[(13,357,20),(14,22020,0)])
+        text=(SCRIPTS.parent/'Scenarios/variants/4-enchant-no-increment.nfs').read_text()
+        for line in ('nf.Equip instance:13','nf.WaitFor enchant_level chest == 20 3','nf.Enchant 22020 instance:13 ','nf.WaitFor enchant_outcome == success_no_increment 3',
+                     'nf.Expect enchant_level chest == 20','nf.Expect inventory_has 22020 == 0','# item-gate: enchant_chance','# item-gate: enchant_outcome'):
+            self.assertIn(line,text)
+        self.assertNotIn('failure_refund',text)
+        print('T52: zone RNG stream reproduces i3e words 40..43; mage sword +3 fails at 47096; enchant overlay has 10 static NPCs; +20 B armour with 22020 is success_no_increment at chance 100000',flush=True)
 
     def test_published_inputs_match_and_ids_are_disjoint(self):
         data=json.loads((SCRIPTS.parent/'Scenarios/phase4-packs.json').read_text())

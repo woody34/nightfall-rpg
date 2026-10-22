@@ -3130,7 +3130,7 @@
       "owner": {
         "alive": true,
         "allocator": {
-          "next_item_instance": 13,
+          "next_item_instance": 15,
           "range_end_exclusive": 4294967296,
           "range_start": 1
         },
@@ -3375,6 +3375,42 @@
               "symbol": "item 84"
             },
             "template_id": 84
+          },
+          {
+            "augment_id": null,
+            "charge_bits": 0,
+            "count": 1,
+            "enchant": 20,
+            "instance_id": 13,
+            "location": "inventory",
+            "revision": 0,
+            "slot": null,
+            "source": {
+              "file": "src/main/resources/data/stats/items/00300-00399.xml",
+              "lines": "1461",
+              "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+              "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+              "symbol": "item 357"
+            },
+            "template_id": 357
+          },
+          {
+            "augment_id": null,
+            "charge_bits": 0,
+            "count": 1,
+            "enchant": 0,
+            "instance_id": 14,
+            "location": "inventory",
+            "revision": 0,
+            "slot": null,
+            "source": {
+              "file": "src/main/resources/data/stats/items/22000-22099.xml",
+              "lines": "297",
+              "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+              "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+              "symbol": "item 22020"
+            },
+            "template_id": 22020
           }
         ],
         "karma": 0,
@@ -3573,6 +3609,38 @@
             },
             "before": null,
             "instance_id": 12,
+            "op": "grant"
+          },
+          {
+            "after": {
+              "augment_id": null,
+              "charge_bits": 0,
+              "count": 1,
+              "enchant": 20,
+              "instance_id": 13,
+              "location": "inventory",
+              "revision": 0,
+              "slot": null,
+              "template_id": 357
+            },
+            "before": null,
+            "instance_id": 13,
+            "op": "grant"
+          },
+          {
+            "after": {
+              "augment_id": null,
+              "charge_bits": 0,
+              "count": 1,
+              "enchant": 0,
+              "instance_id": 14,
+              "location": "inventory",
+              "revision": 0,
+              "slot": null,
+              "template_id": 22020
+            },
+            "before": null,
+            "instance_id": 14,
             "op": "grant"
           }
         ],
@@ -13951,6 +14019,7 @@
   "schema_version": 1,
   "selections": {
     "arrow": 17,
+    "b_armor": 357,
     "blessed_escape": 1538,
     "blessed_scroll": 6573,
     "blessed_spiritshot": 3947,
@@ -13963,6 +14032,7 @@
     "dual": 1299,
     "dualfist": 253,
     "escape": 736,
+    "no_increment_scroll": 22020,
     "onepiece": 60,
     "overgrade": 82,
     "pole": 15,

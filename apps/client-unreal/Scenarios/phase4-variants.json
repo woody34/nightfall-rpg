@@ -9029,6 +9029,21 @@
     },
     {
       "assertions": [
+        "# item-gate: enchant_chance",
+        "# item-gate: enchant_outcome",
+        "nf.Expect enchant_level chest == 20",
+        "nf.Expect inventory_has 22020 == 0"
+      ],
+      "canonical": "4-enchant-fail.nfs",
+      "execution": "pending E2/E3/E5",
+      "fixture": "phase4-enchant",
+      "id": "4-enchant-no-increment",
+      "scenarios": [
+        "variants/4-enchant-no-increment.nfs"
+      ]
+    },
+    {
+      "assertions": [
         "# item-gate: shot_payment",
         "# item-gate: charge_transition",
         "# item-gate: physical_damage"

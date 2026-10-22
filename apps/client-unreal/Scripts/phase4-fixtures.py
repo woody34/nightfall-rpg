@@ -79,6 +79,14 @@ def selection(repo=REPO):
     result['c_magic_weapon'] = next(i for i, r in sorted(catalogue(repo).items())
                                     if capabilities(repo)[i]['admitted'] and r['kind'] == 'Weapon' and r['grade'] == 'C'
                                     and r['weapon_type'] == 'SWORD' and r['flags']['is_magic_weapon'])
+    # success_no_increment (harness-review-10, D161 revoked): ARMOR_GROUP has base chance 0 from
+    # +20; the ancient safe B armour scroll (bonus_rate 100) lifts the chance to 100000, so the
+    # zone takes the success branch with no increment whatever the draw. Stable minimum admitted
+    # B-grade body armour and the B armour scroll with bonus "100".
+    result['b_armor'] = select(repo, kind='Armor', grade='B', bodypart='chest')['template_id']
+    result['no_increment_scroll'] = min(r['template_id'] for r in table('enchant_scrolls', repo)['scrolls']
+                                        if not r['weapon'] and r['target_grade'] == 'B' and str(r['bonus_rate']) == '100'
+                                        and r['safe'] and capabilities(repo)[r['template_id']]['admitted'])
     # Exact named source rows for scrolls and player HP potion; each must be admitted AND usable
     # (no use blockers). D131: Healing Potion 727 has no V6 use handler (use:no_handler ->
     # ItemCapabilityDeferred); the positive potion case is Lesser Healing Potion 1060 (D97).
@@ -237,6 +245,10 @@ def profiles(pack, repo=REPO, paired=False):
         extras += [(s[k], 2, 0) for k in ('scroll', 'blessed_scroll', 'safe_scroll')]
         # T52: the C mage sword at +3 (instance 12) is the deterministic failure target.
         extras.append((s['c_magic_weapon'], 1, 3))
+        # 4-enchant-no-increment: B body armour at +20 (instance 13) and one bonus-100 safe armour
+        # scroll (instance 14); D113 grants a +20 birth enchant (the ceiling is MAX_GRANT_ENCHANT
+        # because base + bonus never reaches 0 for this scroll).
+        extras += [(s['b_armor'], 1, 20), (s['no_increment_scroll'], 1, 0)]
     elif pack == 'phase4-crystallize':
         extras = [(s['d_weapon'], 1, 0), (s['d_weapon'], 1, 0)]
         owner = role(repo, profession='dwarven_fighter', level=20, position=(126, 128))

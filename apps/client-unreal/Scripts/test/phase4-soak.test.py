@@ -85,9 +85,9 @@ class Soak(unittest.TestCase):
             with self.assertRaises(ValueError):fixtures.prepare(REPO,Path(tmp),8,items=True)
 
     def test_variants_remain_strict_and_live_pending(self):
-        data=variants.validate();self.assertEqual(len(data['runtime_cases']),26)
+        data=variants.validate();self.assertEqual(len(data['runtime_cases']),27)
         for row in data['runtime_cases']:self.assertIn('pending',row['execution'])
-        self.assertEqual(len({r['id'] for r in data['runtime_cases']}),26)
+        self.assertEqual(len({r['id'] for r in data['runtime_cases']}),27)
 
     def test_armour_reconnect_distinguishes_retained_history_from_full_set_and_shield(self):
         paths=[SCRIPTS.parent/'Scenarios/4-armor-set.nfs',

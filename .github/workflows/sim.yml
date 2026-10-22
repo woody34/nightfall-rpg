@@ -31,12 +31,12 @@ jobs:
       (github.event.pull_request.head.repo.full_name == github.repository &&
        (contains(github.event.pull_request.labels.*.name, 'sim') || vars.SIM_PR_REQUIRED == 'true'))
     runs-on: [self-hosted, linux, unreal]
-    # 106 units: sum(run-sim-ci.unit_allowances(batch, video=True)) = 187,328s.
+    # 107 units: sum(run-sim-ci.unit_allowances(batch, video=True)) = 188,926s.
     # Within+30 clients; bounded fixture startup/teardown; one replay window per role;
     # capture/encode retry caps; outer Compose only for 21 non-isolated units.
-    # 3,128 minutes = 187,680s, leaving 5m52s beyond the failure ceilings.
+    # 3,154 minutes = 189,240s, leaving 5m14s beyond the failure ceilings.
     # pipeline-corrections.test.py checks each derivation and complete discovery.
-    timeout-minutes: 3128
+    timeout-minutes: 3154
     continue-on-error: ${{ vars.SIM_PR_REQUIRED != 'true' }}
     env:
       COMPOSE_PROJECT_NAME: nightfall-sim-${{ github.run_id }}-${{ github.run_attempt }}

@@ -342,15 +342,14 @@ blessed_reset; both keep the item and replay the exact key. Each unit waits for 
 outcome (`nf.WaitFor enchant_outcome == <outcome> 3`) and keeps the evidence gates
 enchant_chance, enchant_outcome and failure_refund.
 
-`success_no_increment` has a rule (`state_item_enchant.rs`: base chance0 at the item's
-level, success branch) but no pinned unit. It needs armour at +20 (ARMOR_GROUP chance0
-from +20) with the bonus scroll22011 (+10%) and a draw below10000. The first such word is
-57 (4808), seventeen words after the pinned cursor, and the harness has no deterministic
-way to consume seventeen words before an enchant (only three 100% enchants exist on the
-fighter sword +0..+2). D161: the suite coverage gate (`phase4-coverage.py`,
-`Scenarios/phase4-coverage.required.json`) does not require `success_no_increment` in
-Phase4. The label stays valid for the producer (`sim-gates.py` V4_LABELS), because the
-pinned L2J rule exists. The branch needs armour at +20 and the +10% bonus scroll22011, which
-is outside the Phase4 admitted item range (support items stop at max_enchant9), and the
-harness has no fixture RNG-cursor control. Phase5 adds that control and returns the label to
-the required set. Every other enchant outcome stays required.
+`success_no_increment` (harness-review-10; D161 revoked) does not depend on the draw.
+`state_item_enchant.rs` takes the success branch with no increment when the base chance is0
+and the total chance is100000 (at chance100000 both branches are the success branch).
+ARMOR_GROUP has base chance0 from +20. The ancient safe armour scroll22020 (B grade,
+`bonus_rate = "100"`, admitted) adds100000. The pack grants the stable minimum admitted B
+body armour357 at +20 (instance13; D113 allows a +20 birth enchant because base + bonus
+never reaches0 for this scroll) and one scroll22020 (instance14). 4-enchant-no-increment
+equips the armour, waits for `enchant_level chest == 20`, enchants it with22020, waits for
+`enchant_outcome == success_no_increment`, and asserts the level stays20 and the scroll is
+consumed. Gates: enchant_chance and enchant_outcome (a success has no refund branch). The
+suite coverage gate requires every enchant outcome.
