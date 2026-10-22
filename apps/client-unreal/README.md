@@ -1213,7 +1213,9 @@ Cooldowns use a linear sweep from the received ready ticks. Cast bars keep the o
 start/complete ticks. Buff, song/dance and debuff summaries show the rank and the remaining
 authoritative ticks. Own CP, SP, death penalty, target karma and white/purple/red
 flags come from server facts. The Skill trainer button opens the learning
-options and errors from the server. Learning retries keep the UUID of the selected rank. Successful
+options and errors from the server. Learning retries keep the UUID of the selected rank. A learn request
+that arrives while a LearnSkill RPC is in flight waits in a FIFO queue (at most 8) and goes out unchanged when
+the RPC completes; the client does not drop it (D160). `IsBusy()` and `learn_rpc_error == pending` cover the queued state. Successful
 frozen receipts never replace the current world resources. Death offers have
 accept/decline actions. The existing floating damage/flinch cues give temporary
 feedback. There is no new art, skill-specific animation, particle or sound asset.
