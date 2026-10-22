@@ -72,6 +72,11 @@ public:
 	using FDone = TFunction<void(const FNetResult&)>;
 	using FCatalogProvider = TFunction<void(USessionClient::FSkillCatalogCallback)>;
 	void SetCatalogProviderForTesting(FCatalogProvider Provider) { CatalogProvider = MoveTemp(Provider); }
+	using FLearnProvider = TFunction<void(const FGrpcNightfallV1LearnSkillRequest&, USessionClient::FLearnCallback)>;
+	void SetLearnProviderForTesting(FLearnProvider Provider) { LearnProvider = MoveTemp(Provider); }
+	/** Learn requests issued while a LearnSkill RPC is in flight wait here, FIFO, and go out one at a time (D160). */
+	static constexpr int32 MaxQueuedLearns = 8;
+	int32 QueuedLearns() const { return LearnQueue.Num(); }
 	void LoadCatalog(FDone Done = nullptr);
 	void LoadLearnable(FDone Done = nullptr);
 	void Learn(uint32 Id, uint32 Rank, FDone Done = nullptr, const FString& Key = FString());
@@ -82,10 +87,10 @@ public:
 	const FGrpcNightfallV1LearnSkillResponse& GetLearnReceipt() const { return LearnReceipt; }
 	const FNetResult& GetLastResult() const { return LastResult; }
 	const FNetResult& GetLearnResult() const { return LearnResult; }
-	bool IsBusy() const { return bBusy || bCatalogBusy; }
+	bool IsBusy() const { return bBusy || bCatalogBusy || !LearnQueue.IsEmpty(); }
 	bool HasCatalog() const { return bCatalogKnown; }
 	bool HasLearnable() const { return bLearnableKnown; }
-	bool HasLearnResult() const { return bLearnDone && !bBusy; }
+	bool HasLearnResult() const { return bLearnDone && !bBusy && LearnQueue.IsEmpty(); }
 	const FGrpcNightfallV1SkillCatalogEntry* FindSkill(uint32 Id) const;
 	TArray<uint32> Hotbar() const;
 	TArray<uint32> AvailableSkills() const;
@@ -112,6 +117,11 @@ private:
 	uint64 CatalogSerial = 0;
 	bool bCatalogBusy = false;
 	FCatalogProvider CatalogProvider;
+	FLearnProvider LearnProvider;
+	struct FQueuedLearn { uint32 Id = 0; uint32 Rank = 0; FString Key; FDone Done; };
+	TArray<FQueuedLearn> LearnQueue;
+	void StartLearn(uint32 Id, uint32 Rank, FDone Done, const FString& Key);
+	void DrainLearnQueue();
 	TOptional<FEntitySpawn> SelectedCorpse;
  bool bRpcDone = false;
  TMap<FString,FString> FirstReceipts;
