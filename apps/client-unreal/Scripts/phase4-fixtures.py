@@ -215,7 +215,11 @@ def profiles(pack, repo=REPO, paired=False):
         owner=role(repo,level=ARMOR_LEVEL)
         owner['learned_ranks']=owner['learned_ranks']|expertise_rank(repo,'human_mystic',ARMOR_LEVEL)
         if config.get('enchant')==4:extras.append((enchant4_item(repo)['template_id'],1,4))
-    elif pack == 'phase4-shield': extras = [(s['sword'], 1, 0)]
+    elif pack == 'phase4-shield':
+        extras = [(s['sword'], 1, 0)]
+        # T51/D157: the attacker (-a) stands EAST of the defender (-b at 112,100), who faces east
+        # (new life) and steps one tile east toward it, so every hit is a front-facing shield roll.
+        owner = role(repo, position=(114, 100))
     elif pack == 'phase4-bow': extras = [(s['bow'], 1, 0), (s['arrow'], config.get('arrows', 2), 0)]
     elif pack == 'phase4-grade': extras = [(s['overgrade'], 1, 0)]
     elif pack == 'phase4-overload':

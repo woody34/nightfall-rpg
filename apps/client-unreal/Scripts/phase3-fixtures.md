@@ -299,6 +299,23 @@ seeders remove inherited libpq settings before they supply the guarded endpoint.
 **Client-owned NightfallSoak.cs handoff:** Use `-SoakRoleManifest=<roles.json>`.
 Validate schema_version1/casting/count/order. Use the scenario of each role and
 `-DevTokenFile=<token_file>` (never inline tokens). Keep a unique UserDir/BotOutDir.
+
+**Items soak loop (D155, T49):** With `--items`, `soak-fixtures.py` writes two scripts for
+each lane. `scenario` (`1-kill-one-monster.nfs`) is the first-iteration script. It has the one
+keyed `nf.Enchant 951 template:71 <key>` of the role's single C scroll, the equip swaps
+(sword1, wand6), the auto-shot toggles and the casting workload. `loop_scenario`
+(`1-kill-one-monster.loop.nfs`, in the same directory) is the script for BotLoop iterations
+2 and later. It has the login, `nf.Expect inventory_has 951 == 0`, the same equip swaps, the
+same auto-shot toggles and the same casting workload. It has no enchant and no scroll use,
+because the first iteration consumed the scroll and the client refuses to send an enchant for
+a scroll it does not hold. The client runs `scenario` once and then `loop_scenario` with
+`-BotLoopScenario=<loop_scenario>`; the reset between iterations does not change. The
+manifest key is optional: a casting-only soak does not write it, and the client behaviour
+does not change when the key is absent (schema_version stays 1). `run-soak.sh` refuses an
+items soak when `NightfallSoak.cs` has no `BotLoopScenario` support. The soak gates do not
+change: each closed epoch holds exactly one consumed C scroll951 per client (iteration 1),
+the keyed enchant success evidence, committed sword1 and wand6 equips and a positive paid
+auto-shot from each iteration (`phase4-evidence.py soak()`, `soak-report.py`).
 Give sufficient time for the final360s casting scenario plus the boot grace. This replaces the earlier120s
 request, because the full sum of movement/cast/state waits now fits in the scenario budget.
 Use `-SoakScenarioSeconds=360`. Include that final scenario allowance plus the

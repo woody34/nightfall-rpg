@@ -362,9 +362,15 @@ revision/ordinal ordering, offline incarnation0 owner binding and two-receipt
 Consume aggregates. These checks do not attest a live producer.
 
 Formula data may also carry `context` with only `weapon_template,skill_id,
-target_entity,event,set_id`. IDs are bounded integers; weapon0 means unarmed;
-event is equip|unequip|enchant|admission|attack|cast. These are captured source
-caller identities, not harness phase labels. `# item-phase: <JSON>` selects a
+target_entity,attacker_entity,event,set_id`. IDs are bounded integers; weapon0 means unarmed;
+event is equip|unequip|enchant|admission|attack|cast; `target_entity` and
+`attacker_entity` are canonical UUIDs. These are captured source
+caller identities, not harness phase labels. D153: the subject (`entity`) of a
+formula fact is the owner of the item the formula evaluates. The `shield` fact
+belongs to the DEFENDER (the shield owner) and names the attacker in
+`attacker_entity`; the attacker's own facts are `physical_damage` and the like.
+A scenario's `# item-gate:` therefore pairs with the role that owns the item
+(4-shield-block-b gates `shield`, 4-shield-block-a gates `physical_damage`). `# item-phase: <JSON>` selects a
 required owner resolution by formula, context, input/output values, required or
 absent skill providers, and a correlated ledger mutation. Missing weapon/provider
 phases fail even if the generic gate is already satisfied. `providers` and
@@ -539,6 +545,14 @@ verified by exact oracle equality on the producer's actual inputs.
   equals its first cause's resolution id. A `cast_discharge` cause names a
   skill, not a resolution; D96: such a row's `resolution_id` is
   `cast:<cast_id>` and the consumer checks the `cast:` prefix only.
+  T50 (zone session 22): `shot_charge:<resolution_id>` is the automatic
+  recharge at attack/cast start. Such a use row has exactly that one cause
+  and no receipt, its `resolution_id` equals the cause's resolution id, it
+  ADDS charge bits and removes none, and the same owner tick holds the
+  auto_shot payment Consume of a shot template under that resolution
+  (`auto_shot:<resolution_id>`) whose handler bit (SoulShots 1, SpiritShot 2,
+  BlessedSpiritShot 4) is exactly the bits added (harness-review-9 P2-1: a
+  soulshot cannot fund a spirit bit); a row that misses any of these refuses.
   A use row with any discharge cause may only CLEAR charge bits
   (`after.charges & ~before.charges == 0`); only a receipt-bound use (manual
   shot charge) may add them.

@@ -31,10 +31,10 @@ jobs:
       (github.event.pull_request.head.repo.full_name == github.repository &&
        (contains(github.event.pull_request.labels.*.name, 'sim') || vars.SIM_PR_REQUIRED == 'true'))
     runs-on: [self-hosted, linux, unreal]
-    # 106 units: sum(run-sim-ci.unit_allowances(batch, video=True)) = 187,302s.
+    # 106 units: sum(run-sim-ci.unit_allowances(batch, video=True)) = 187,316s.
     # Within+30 clients; bounded fixture startup/teardown; one replay window per role;
     # capture/encode retry caps; outer Compose only for 21 non-isolated units.
-    # 3,127 minutes = 187,620s, leaving 5m18s beyond the failure ceilings.
+    # 3,127 minutes = 187,620s, leaving 5m04s beyond the failure ceilings.
     # pipeline-corrections.test.py checks each derivation and complete discovery.
     timeout-minutes: 3127
     continue-on-error: ${{ vars.SIM_PR_REQUIRED != 'true' }}

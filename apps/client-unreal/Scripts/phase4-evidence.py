@@ -602,11 +602,19 @@ def table(name):
     return tomllib.loads((REPO/'packages/data/tables-phase4'/(name+'.toml')).read_text())
 
 
+SHOT_BITS={'SoulShots':1,'SpiritShot':2,'BlessedSpiritShot':4}
+
+
 @lru_cache(maxsize=1)
 def shot_templates():
     admitted={r['template_id'] for r in table('capabilities')['items'] if r['admitted']}
     return {identity for identity,item in item_tables().items() if identity in admitted
-            and item['etcitem_type']=='SHOT' and item['handler'] in ('SoulShots','SpiritShot','BlessedSpiritShot')}
+            and item['etcitem_type']=='SHOT' and item['handler'] in SHOT_BITS}
+
+
+def shot_bit(template):
+    """The charge bit a paid shot template adds (soul 1, spirit 2, blessed spirit 4); None otherwise."""
+    return SHOT_BITS[item_tables()[template]['handler']] if template in shot_templates() else None
 
 
 @lru_cache(maxsize=1)
@@ -887,7 +895,9 @@ ITEM_TRANSITIONS={
 TERMINAL=frozenset(('destroy','crystallize'))
 CAUSE=re.compile(r'(?:auto_shot|arrow|item_cast):\S+|receipt:[^:\s]+:\S+')
 # D93: discharges (use rows) name their own family; payment causes stay Consume-only.
-USE_CAUSE=re.compile(r'shot_discharge:\S+|cast_discharge:[1-9][0-9]*|receipt:[^:\s]+:\S+')
+# T50: `shot_charge:<resolution>` is the automatic recharge at attack/cast start: a receipt-less
+# Use row that ADDS charge bits, paid by the same owner tick's auto_shot Consume under that resolution.
+USE_CAUSE=re.compile(r'shot_discharge:\S+|shot_charge:\S+|cast_discharge:[1-9][0-9]*|receipt:[^:\s]+:\S+')
 
 
 def validate_causes(causes,negative):
@@ -1162,6 +1172,7 @@ def validate(rows,recording,rules_hash):
     if watermark['reason'] not in ('shutdown','epoch_closed'):raise ValueError('incomplete watermark')
     same(complete,dict(kind='complete',facts=len(rows)-2,ticks=ticks,last_tick=last))
     previous=start;seen=set();cursor=None;instance_steps={};instance_rows={};baselined=set();changed=set()
+    shot_charges=[];shot_payments={} # T50: (entity, incarnation, tick, resolution) -> added bit / paid shot bit
     for sequence,row in enumerate(rows[1:-1]):
         if set(row)-{'origin'}!= {'kind','entity','incarnation','tick','sequence','data'}:raise ValueError('missing/unknown raw item fields')
         if 'origin' in row and row['origin'] not in ('live','offline'):raise ValueError('unknown item fact origin')
@@ -1185,10 +1196,13 @@ def validate(rows,recording,rules_hash):
             same(data['baseline'],False)
             if 'context' in data:
                 context=data['context']
-                if not isinstance(context,dict) or set(context)-{'weapon_template','skill_id','target_entity','event','set_id'}:raise ValueError('invalid formula context')
+                # D153: a formula fact's subject is the owner of the item it evaluates (the shield
+                # fact belongs to the defender); the other party is context, `attacker_entity`.
+                if not isinstance(context,dict) or set(context)-{'weapon_template','skill_id','target_entity','attacker_entity','event','set_id'}:raise ValueError('invalid formula context')
                 for key in ('weapon_template','skill_id','set_id'):
                     if key in context and integer(context[key])>=2**32:raise ValueError('context ID outside u32')
-                if 'target_entity' in context:same(str(UUID(context['target_entity'])),context['target_entity'])
+                for key in ('target_entity','attacker_entity'):
+                    if key in context:same(str(UUID(context[key])),context[key])
                 if 'event' in context and context['event'] not in ('equip','unequip','enchant','admission','attack','cast'):raise ValueError('unknown formula event')
             if not isinstance(data['resolution_id'],str) or not data['resolution_id']:raise ValueError('resolution identity required')
             # D91: one clamp fact per resource of a rebuild, distinguished by its suffix.
@@ -1263,6 +1277,12 @@ def validate(rows,recording,rules_hash):
                 same(data['count_delta'],sum(c['count_delta'] for c in causes))
                 first=causes[0]['cause']
                 if not first.startswith('receipt:'):same(data['resolution_id'],first.split(':',1)[1])
+                # T50: an auto_shot payment of a shot template funds a same-tick shot_charge use row that
+                # adds exactly that shot's bit (review-9 P2-1: a soulshot cannot fund a spirit bit).
+                bit=shot_bit(data['before'].get('template_id')) if isinstance(data.get('before'),dict) else None
+                if bit:
+                    for cause in causes:
+                        if cause['cause'].startswith('auto_shot:'):shot_payments[(row['entity'],row['incarnation'],tick,cause['cause'].split(':',1)[1])]=bit
             elif refs is not None and (not isinstance(refs,str) or not refs):
                 raise ValueError('single ledger receipt_ref required')
             if data['operation']=='use':
@@ -1271,11 +1291,20 @@ def validate(rows,recording,rules_hash):
                 # D93: an automatic attack discharge row resolves under its first cause's resolution.
                 first=data['causes'][0]['cause']
                 if first.startswith('shot_discharge:'):same(data['resolution_id'],first.split(':',1)[1])
-                # Review-2 P3-2: a discharge only clears charge bits; a receipt-bound use may charge.
-                if any(not c['cause'].startswith('receipt:') for c in data['causes']):
-                    before,after=data['before'],data['after']
-                    if isinstance(before,dict) and isinstance(after,dict) and type(before.get('charges')) is int and type(after.get('charges')) is int \
-                            and after['charges']&~before['charges']:
+                before,after=data['before'],data['after']
+                charged=isinstance(before,dict) and isinstance(after,dict) and type(before.get('charges')) is int and type(after.get('charges')) is int
+                if first.startswith('shot_charge:'):
+                    # T50: the automatic recharge at attack/cast start. The exporter names a row so only
+                    # when it adds charge bits, carries no receipt and the same owner tick holds the
+                    # auto_shot payment Consume under that resolution; the consumer mirrors all three.
+                    if len(data['causes'])!=1 or refs is not None:raise ValueError('shot_charge use row carries one cause and no receipt (T50)')
+                    same(data['resolution_id'],first.split(':',1)[1])
+                    if not charged or not after['charges']&~before['charges'] or before['charges']&~after['charges']:
+                        raise ValueError('shot_charge use row must add charge bits and remove none (T50)')
+                    shot_charges.append(((row['entity'],row['incarnation'],tick,data['resolution_id']),after['charges']&~before['charges']))
+                elif any(not c['cause'].startswith('receipt:') for c in data['causes']):
+                    # Review-2 P3-2: a discharge only clears charge bits; a receipt-bound use may charge.
+                    if charged and after['charges']&~before['charges']:
                         raise ValueError('a discharge use row cannot add charges')
                 # D96: a cast discharge resolves under its cast (`cast:<cast_id>`); prefix only.
                 if first.startswith('cast_discharge:') and not re.fullmatch(r'cast:\S+',data['resolution_id']):
@@ -1300,6 +1329,8 @@ def validate(rows,recording,rules_hash):
             instance_steps[identity]=(tick,ordinal)
             instance_rows.setdefault((*identity,tick),[]).append(data)
         else:raise ValueError('unknown item raw fact kind')
+    for key,added in shot_charges:
+        if shot_payments.get(key)!=added:raise ValueError('shot_charge use row needs the same-tick auto_shot payment Consume of the shot whose bit it adds (T50)')
     for deltas in instance_rows.values():
         validate_chain_caps(deltas)
         # D76/D83: operation_ordinal is the row POSITION 0..n-1 within EVERY

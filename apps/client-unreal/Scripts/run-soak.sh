@@ -6,6 +6,10 @@
 # Set SOAK_API_BIN to an already-built API to avoid a redundant Rust build.
 # SOAK_TMPFS_VOLUMES=<size> (e.g. 8g) backs the stack's Postgres/NATS volumes with tmpfs so host
 # filesystem fsync stalls cannot leak into tick latency; the run records storage.txt either way.
+# SOAK_PHASE4_RULES_HASH is the compiled Phase 4 runtime rules hash of SOAK_API_BIN (64 hex
+# characters, not the data hash). The operator or the gate runner sets it; no script sets it. The
+# items soak refuses to start without it, because phase4-evidence.py --soak-manifest and
+# soak-report.py compare the export manifest with it (phase4-evidence-contract.md).
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 . "$HERE/sim-lib.sh"
@@ -34,6 +38,16 @@ if ((CASTING)); then
     || sim_die "casting soak requires client Gauntlet SoakRoleManifest support; see phase3-fixtures.md"
   grep -Eq 'SoakScenarioSeconds' "$SIM_PROJECT_DIR/Build/Scripts/NightfallSoak.cs" \
     || sim_die "casting soak requires client SoakScenarioSeconds budget support; see phase3-fixtures.md"
+  if ((ITEMS)); then
+    # D155: the items soak enchants its one scroll in iteration 1 only; later BotLoop iterations
+    # run the lane's `loop_scenario` (-BotLoopScenario). Without the hook the client would loop
+    # the enchant and refuse it (T49).
+    grep -Eq 'BotLoopScenario' "$SIM_PROJECT_DIR/Build/Scripts/NightfallSoak.cs" \
+      || sim_die "items soak requires client NightfallSoak.cs loop_scenario/BotLoopScenario support (D155); see phase3-fixtures.md"
+    # The item evidence verdict needs the runtime rules hash; refuse before any infrastructure starts.
+    [[ "${SOAK_PHASE4_RULES_HASH:-}" =~ ^[0-9a-f]{64}$ ]] \
+      || sim_die "items soak requires SOAK_PHASE4_RULES_HASH (64 hex, the compiled Phase4 runtime rules hash of SOAK_API_BIN); see phase4-evidence-contract.md"
+  fi
 fi
 sim_resolve_env
 export UE_ROOT
