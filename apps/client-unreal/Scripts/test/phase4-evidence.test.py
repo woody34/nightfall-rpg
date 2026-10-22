@@ -2687,9 +2687,11 @@ class Evidence(unittest.TestCase):
         return self.repair(rows)
 
     def test_t50_shot_charge_use_rows_add_bits_under_a_same_tick_payment(self):
-        for before,after in ((1,3),(0,1),(0,2),(2,6),(0,4)):
-            with self.subTest(before=before,after=after):
-                rows=self.t50_rows(before,after);gate.validate(rows,self.recording,HASH)
+        # Controls: the real-export shape (spiritshot 2509 adds bit 2: 1 -> 3) and each shot kind adding
+        # exactly its own bit (soul 1835 -> 1, spirit 2509 -> 2, blessed spirit 3947 -> 4).
+        for before,after,template in ((1,3,2509),(0,2,2509),(0,1,1835),(2,3,1835),(0,4,3947),(3,7,3947)):
+            with self.subTest(before=before,after=after,template=template):
+                rows=self.t50_rows(before,after,payment_template=template);gate.validate(rows,self.recording,HASH)
                 self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['pole_damage'],HASH)['passed'])
         cases=0
         for name,kwargs in {
@@ -2700,6 +2702,11 @@ class Evidence(unittest.TestCase):
             'no payment':dict(payment=False),
             'payment under another resolution':dict(payment_resolution='cast:8:shot:2509'),
             'payment of a non-shot template':dict(payment_template=57),
+            # review-9 P2-1: the added bit must be the paid shot's kind.
+            'soulshot funding a spirit bit':dict(before_charges=1,after_charges=3,payment_template=1835),
+            'spiritshot funding a blessed bit':dict(before_charges=0,after_charges=4,payment_template=2509),
+            'blessed spiritshot funding a soul bit':dict(before_charges=0,after_charges=1,payment_template=3947),
+            'one payment funding two bits':dict(before_charges=0,after_charges=3,payment_template=2509),
         }.items():
             with self.subTest(name):
                 bad=self.t50_rows(**kwargs)

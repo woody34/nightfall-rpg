@@ -550,7 +550,9 @@ verified by exact oracle equality on the producer's actual inputs.
   and no receipt, its `resolution_id` equals the cause's resolution id, it
   ADDS charge bits and removes none, and the same owner tick holds the
   auto_shot payment Consume of a shot template under that resolution
-  (`auto_shot:<resolution_id>`); a row that misses any of these refuses.
+  (`auto_shot:<resolution_id>`) whose handler bit (SoulShots 1, SpiritShot 2,
+  BlessedSpiritShot 4) is exactly the bits added (harness-review-9 P2-1: a
+  soulshot cannot fund a spirit bit); a row that misses any of these refuses.
   A use row with any discharge cause may only CLEAR charge bits
   (`after.charges & ~before.charges == 0`); only a receipt-bound use (manual
   shot charge) may add them.

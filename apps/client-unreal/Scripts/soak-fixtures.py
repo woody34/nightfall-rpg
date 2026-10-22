@@ -109,7 +109,9 @@ def item_loop_scenario(scenario, seed, shots):
         'nf.WaitFor item_baseline 3', 'nf.Expect inventory_has 951 == 0',
     ] + item_swaps(soulshot, spiritshot)
     scenario = scenario.replace('nf.WaitFor in_world 15\n', 'nf.WaitFor in_world 15\n' + '\n'.join(lines) + '\n', 1)
-    scenario = scenario.replace('# covers: 3 E2.1', '# covers: 4 E6.4, 4 E6.5, 3 E2.1', 1)
+    # E6.4 (packaged soak: gear swaps and auto-shots per client) only; the enchant and the
+    # scenario-file story E6.5 stay with the first-iteration script.
+    scenario = scenario.replace('# covers: 3 E2.1', '# covers: 4 E6.4, 3 E2.1', 1)
     return item_budget(scenario)
 
 

@@ -602,11 +602,19 @@ def table(name):
     return tomllib.loads((REPO/'packages/data/tables-phase4'/(name+'.toml')).read_text())
 
 
+SHOT_BITS={'SoulShots':1,'SpiritShot':2,'BlessedSpiritShot':4}
+
+
 @lru_cache(maxsize=1)
 def shot_templates():
     admitted={r['template_id'] for r in table('capabilities')['items'] if r['admitted']}
     return {identity for identity,item in item_tables().items() if identity in admitted
-            and item['etcitem_type']=='SHOT' and item['handler'] in ('SoulShots','SpiritShot','BlessedSpiritShot')}
+            and item['etcitem_type']=='SHOT' and item['handler'] in SHOT_BITS}
+
+
+def shot_bit(template):
+    """The charge bit a paid shot template adds (soul 1, spirit 2, blessed spirit 4); None otherwise."""
+    return SHOT_BITS[item_tables()[template]['handler']] if template in shot_templates() else None
 
 
 @lru_cache(maxsize=1)
@@ -1164,7 +1172,7 @@ def validate(rows,recording,rules_hash):
     if watermark['reason'] not in ('shutdown','epoch_closed'):raise ValueError('incomplete watermark')
     same(complete,dict(kind='complete',facts=len(rows)-2,ticks=ticks,last_tick=last))
     previous=start;seen=set();cursor=None;instance_steps={};instance_rows={};baselined=set();changed=set()
-    shot_charges=[];shot_payments=set() # T50: (entity, incarnation, tick, resolution) of charge rows and auto_shot payments
+    shot_charges=[];shot_payments={} # T50: (entity, incarnation, tick, resolution) -> added bit / paid shot bit
     for sequence,row in enumerate(rows[1:-1]):
         if set(row)-{'origin'}!= {'kind','entity','incarnation','tick','sequence','data'}:raise ValueError('missing/unknown raw item fields')
         if 'origin' in row and row['origin'] not in ('live','offline'):raise ValueError('unknown item fact origin')
@@ -1269,10 +1277,12 @@ def validate(rows,recording,rules_hash):
                 same(data['count_delta'],sum(c['count_delta'] for c in causes))
                 first=causes[0]['cause']
                 if not first.startswith('receipt:'):same(data['resolution_id'],first.split(':',1)[1])
-                # T50: an auto_shot payment of a shot template can fund a same-tick shot_charge use row.
-                if isinstance(data.get('before'),dict) and data['before'].get('template_id') in shot_templates():
+                # T50: an auto_shot payment of a shot template funds a same-tick shot_charge use row that
+                # adds exactly that shot's bit (review-9 P2-1: a soulshot cannot fund a spirit bit).
+                bit=shot_bit(data['before'].get('template_id')) if isinstance(data.get('before'),dict) else None
+                if bit:
                     for cause in causes:
-                        if cause['cause'].startswith('auto_shot:'):shot_payments.add((row['entity'],row['incarnation'],tick,cause['cause'].split(':',1)[1]))
+                        if cause['cause'].startswith('auto_shot:'):shot_payments[(row['entity'],row['incarnation'],tick,cause['cause'].split(':',1)[1])]=bit
             elif refs is not None and (not isinstance(refs,str) or not refs):
                 raise ValueError('single ledger receipt_ref required')
             if data['operation']=='use':
@@ -1291,7 +1301,7 @@ def validate(rows,recording,rules_hash):
                     same(data['resolution_id'],first.split(':',1)[1])
                     if not charged or not after['charges']&~before['charges'] or before['charges']&~after['charges']:
                         raise ValueError('shot_charge use row must add charge bits and remove none (T50)')
-                    shot_charges.append((row['entity'],row['incarnation'],tick,data['resolution_id']))
+                    shot_charges.append(((row['entity'],row['incarnation'],tick,data['resolution_id']),after['charges']&~before['charges']))
                 elif any(not c['cause'].startswith('receipt:') for c in data['causes']):
                     # Review-2 P3-2: a discharge only clears charge bits; a receipt-bound use may charge.
                     if charged and after['charges']&~before['charges']:
@@ -1319,8 +1329,8 @@ def validate(rows,recording,rules_hash):
             instance_steps[identity]=(tick,ordinal)
             instance_rows.setdefault((*identity,tick),[]).append(data)
         else:raise ValueError('unknown item raw fact kind')
-    for key in shot_charges:
-        if key not in shot_payments:raise ValueError('shot_charge use row needs the same-tick auto_shot payment Consume of its shot template (T50)')
+    for key,added in shot_charges:
+        if shot_payments.get(key)!=added:raise ValueError('shot_charge use row needs the same-tick auto_shot payment Consume of the shot whose bit it adds (T50)')
     for deltas in instance_rows.values():
         validate_chain_caps(deltas)
         # D76/D83: operation_ordinal is the row POSITION 0..n-1 within EVERY
