@@ -712,4 +712,45 @@ mod tests {
         assert!(candidates(71, 22227, 14, None).is_ok());
         assert!(candidates(71, 22227, 15, None).is_err());
     }
+
+    /// D161: the suite cannot reach `success_no_increment`, so this pins it. L2J
+    /// `ARMOR_GROUP` gives +20 a base chance of 0; bonus scroll 22011 (C armour,
+    /// `bonusRate` 10) lifts it to 10%. A residue below 10000 succeeds without an
+    /// increment: the level stays +20 and the scroll is paid. A chance of exactly 0 (the
+    /// plain C armour scroll 952) takes the failure branch for every draw.
+    #[test]
+    fn v6_enchant_bonus_scroll_at_zero_base_succeeds_without_increment() {
+        let target = ItemInstanceId::new(1).unwrap();
+        let scroll = ItemInstanceId::new(2).unwrap();
+        // 354 Chain Mail Shirt: C-grade chest armour.
+        for (raw, residue) in [(0, 0), (9_999, 9_999), (100_009_999, 9_999)] {
+            let plan = candidates(354, 22011, 20, None).unwrap();
+            assert_eq!(plan.chance, 10_000);
+            let resolved = plan.resolve(raw, 7);
+            assert_eq!(resolved.attempt.draw, residue);
+            assert_eq!(resolved.attempt.outcome, ItemEnchantOutcome::SuccessNoIncrement);
+            assert_eq!(
+                serde_json::to_value(resolved.attempt.outcome).unwrap(),
+                "success_no_increment"
+            );
+            assert_eq!((resolved.attempt.old_enchant, resolved.attempt.new_enchant), (20, 20));
+            assert_eq!(resolved.attempt.after.as_ref().unwrap().enchant, 20);
+            assert_eq!(resolved.mutation.inventory[&target].enchant, 20);
+            assert!(!resolved.mutation.inventory.contains_key(&scroll));
+            assert_eq!(resolved.payments, vec![scroll]);
+        }
+        // The first residue outside the chance fails; 22011 is neither safe nor blessed.
+        let failed = candidates(354, 22011, 20, None).unwrap().resolve(10_000, 7);
+        assert_eq!(failed.attempt.outcome, ItemEnchantOutcome::Destroyed);
+        assert!(!failed.mutation.inventory.contains_key(&target));
+        // Chance exactly 0: even residue 0 is not below it, so the failure branch is forced.
+        for raw in [0, 9_999, 99_999] {
+            let plan = candidates(354, 952, 20, None).unwrap();
+            assert_eq!(plan.chance, 0);
+            let resolved = plan.resolve(raw, 7);
+            assert_eq!(resolved.attempt.outcome, ItemEnchantOutcome::Destroyed);
+            assert!(!resolved.mutation.inventory.contains_key(&target));
+            assert!(!resolved.mutation.inventory.contains_key(&scroll));
+        }
+    }
 }
