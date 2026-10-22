@@ -33,6 +33,86 @@ pub(super) struct Coverage {
     owner_stats_updates: u64,
     #[serde(flatten, skip_serializing_if = "Option::is_none")]
     phase3: Option<phase3::Stats>,
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    items: Option<ItemStats>,
+}
+
+/// T48: schema-four V6 item coverage (sim-gates.py `V4_COUNTERS`/`V4_SCALARS`/`V4_LABELS`),
+/// from the verified final per-owner `ItemCheckpoint` of every tick.
+#[derive(Debug, Default, Serialize)]
+pub(super) struct ItemStats {
+    /// One per ledger row by its operation, plus one per `ToggleAutoShot` receipt.
+    item_operations: BTreeMap<String, u64>,
+    enchant_outcomes: BTreeMap<String, u64>,
+    refine_outcomes: BTreeMap<String, u64>,
+    /// One per charge bit a Use row adds to a weapon (soul 1, spirit 2, blessed spirit 4).
+    shot_payments: BTreeMap<String, u64>,
+    item_ledger_rows: u64,
+    /// Ledger rows that create an instance (no `before`).
+    item_allocations: u64,
+    /// Retained/initial inventories at the boundary plus every V6 player admission.
+    inventory_baselines: u64,
+}
+
+fn snake(value: &impl Serialize) -> anyhow::Result<String> {
+    let value = serde_json::to_value(value)?;
+    if let serde_json::Value::String(name) = value {
+        Ok(name)
+    } else {
+        anyhow::bail!("non-symbolic coverage label {value}")
+    }
+}
+
+fn item_facts(items: &mut ItemStats, events: &[ZoneEvent]) -> anyhow::Result<()> {
+    use nightfall_api::domain::zone::phase4_projection::{ItemOperation, ItemResultDetail};
+    for event in events {
+        if let ZoneEvent::EntitySpawn {
+            kind: EntityKind::Player,
+            ..
+        } = event
+        {
+            items.inventory_baselines = items.inventory_baselines.saturating_add(1);
+        }
+        if let ZoneEvent::ItemCheckpoint(projection) = event {
+            {
+                for row in &projection.ledger {
+                    items.item_ledger_rows = items.item_ledger_rows.saturating_add(1);
+                    if row.before.is_none() && row.after.is_some() {
+                        items.item_allocations = items.item_allocations.saturating_add(1);
+                    }
+                    increment(&mut items.item_operations, snake(&row.operation)?);
+                    if row.operation == ItemOperation::Use {
+                        if let (Some(before), Some(after)) = (&row.before, &row.after) {
+                            let added = after.charges & !before.charges;
+                            for (bit, label) in
+                                [(1_u8, "soul"), (2, "spirit"), (4, "blessed_spirit")]
+                            {
+                                if added & bit != 0 {
+                                    increment(&mut items.shot_payments, label.into());
+                                }
+                            }
+                        }
+                    }
+                }
+                for receipt in &projection.receipts {
+                    if let ItemResultDetail::Operation {
+                        operation: ItemOperation::ToggleAutoShot,
+                        ..
+                    } = receipt.result.detail
+                    {
+                        increment(&mut items.item_operations, "toggle_auto_shot".into());
+                    }
+                }
+                for attempt in &projection.enchant_attempts {
+                    increment(&mut items.enchant_outcomes, snake(&attempt.outcome)?);
+                }
+                for refine in &projection.refines {
+                    increment(&mut items.refine_outcomes, snake(&refine.outcome)?);
+                }
+            }
+        }
+    }
+    Ok(())
 }
 
 fn table(states: &[&str], reachable: &[(&str, &str)]) -> Vec<Transition> {
@@ -100,6 +180,7 @@ impl Coverage {
             class_transfer_effects: BTreeMap::new(),
             owner_stats_updates: 0,
             phase3: None,
+            items: None,
         }
     }
 
@@ -157,6 +238,23 @@ impl Coverage {
             }
         }
         println!("Owner stats updates\t{}", self.owner_stats_updates);
+        if let Some(items) = &self.items {
+            for (name, counts) in [
+                ("Item operations", &items.item_operations),
+                ("Enchant outcomes", &items.enchant_outcomes),
+                ("Refine outcomes", &items.refine_outcomes),
+                ("Shot payments", &items.shot_payments),
+            ] {
+                println!("{name}");
+                for (key, count) in counts {
+                    println!("{key}\t{count}");
+                }
+            }
+            println!(
+                "Item ledger rows\t{}\nItem allocations\t{}\nInventory baselines\t{}",
+                items.item_ledger_rows, items.item_allocations, items.inventory_baselines
+            );
+        }
     }
 }
 
@@ -174,6 +272,14 @@ pub(super) fn collect(rec: &Recording) -> anyhow::Result<Coverage> {
     if rec.snapshot.phase3.is_some() {
         report.schema_version = 3;
         report.phase3 = Some(phase3::Stats::new());
+    }
+    // T48: V6 recordings (with the item lane) carry schema four; V5 stays schema three.
+    if let Some(items) = rec.snapshot.phase4.as_ref() {
+        report.schema_version = 4;
+        report.items = Some(ItemStats {
+            inventory_baselines: u64::try_from(items.players.len())?,
+            ..ItemStats::default()
+        });
     }
     let mut phase3 = phase3::Tracker::baseline(&rec.snapshot);
     let mut zone = nightfall_api::application::replay_log::restore_snapshot(rec.snapshot.clone())?;
@@ -227,6 +333,9 @@ pub(super) fn collect(rec: &Recording) -> anyhow::Result<Coverage> {
             }
         }
         commands(&mut report, &mut attacks, &mut kinds, &mut targets, r);
+        if let Some(items) = report.items.as_mut() {
+            item_facts(items, &applied.events)?;
+        }
         let events = match r.output_form {
             OutputForm::Encoded => decode_events(&r.events)?,
             OutputForm::Sha256 => applied.events,
@@ -470,6 +579,47 @@ mod tests {
     use nightfall_api::domain::zone::{
         AppliedCommand, CommandSource, Disposition, Ordinal, RejectReason,
     };
+
+    /// T48: a V6 recording reports schema four with the sim-gates `V4_COUNTERS`/`V4_SCALARS`
+    /// (toggle-steps: two pure toggles and one charging toggle that pays a soulshot), while a
+    /// V5 recording keeps schema three with no item keys.
+    #[test]
+    fn v6_recordings_report_schema_four_item_coverage() {
+        let rec = Recording::from_bytes(include_bytes!("../../../fixtures/items/toggle-steps.nfr"))
+            .unwrap();
+        let report = serde_json::to_value(collect(&rec).unwrap()).unwrap();
+        assert_eq!(report["schema_version"], 4);
+        for key in [
+            "item_operations",
+            "enchant_outcomes",
+            "refine_outcomes",
+            "shot_payments",
+        ] {
+            assert!(report[key].is_object(), "{key}");
+        }
+        for key in [
+            "item_ledger_rows",
+            "item_allocations",
+            "inventory_baselines",
+        ] {
+            assert!(report[key].is_u64(), "{key}");
+        }
+        assert_eq!(report["item_operations"]["toggle_auto_shot"], 3);
+        assert_eq!(report["item_operations"]["use"], 1);
+        assert_eq!(report["item_operations"]["consume"], 1);
+        assert_eq!(report["shot_payments"], serde_json::json!({"soul": 1}));
+        assert_eq!(report["item_ledger_rows"], 2);
+        assert_eq!(report["item_allocations"], 0);
+        assert_eq!(report["inventory_baselines"], 2);
+        let legacy =
+            Recording::from_bytes(include_bytes!("../../../fixtures/sessions/phase3-casts-v5.nfr"))
+                .unwrap();
+        let report = serde_json::to_value(collect(&legacy).unwrap()).unwrap();
+        assert_eq!(report["schema_version"], 3);
+        assert!(
+            report.get("item_operations").is_none() && report.get("item_ledger_rows").is_none()
+        );
+    }
 
     #[test]
     fn rejected_player_spawn_cannot_reclassify_an_npc_or_clear_its_life_on_decay() {

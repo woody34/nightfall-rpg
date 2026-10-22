@@ -549,6 +549,49 @@ fn normalize_d66(
     Ok(())
 }
 
+/// T50: an automatic recharge (attack or cast start, no receipt) charges the weapon with a
+/// receipt-less, cause-less Use row; its cause is the verified automatic shot payment of the
+/// same resolution (`<action>:shot:<template>`): a Consume row of that template in the same
+/// owner-tick checkpoint carrying `auto_shot_payment` with that resolution id. It exports as
+/// the count-neutral use identity `shot_charge:<resolution>` (D93: payment identities stay
+/// Consume-only, so it is not `auto_shot:`; the consumer's use-cause grammar needs this
+/// family). Anything else stays refused.
+fn automatic_charge_identity(
+    row: &Value,
+    delta: &ItemDeltaPlan,
+    ledger: &[&ItemDeltaPlan],
+) -> Option<String> {
+    if delta.receipt.is_some() || !delta.causes.is_empty() {
+        return None;
+    }
+    let resolution = row.get("resolution_id").and_then(Value::as_str)?;
+    let (action, template) = resolution.rsplit_once(":shot:")?;
+    let template = template.parse::<u32>().ok()?;
+    if !(action.starts_with("attack:") || action.starts_with("cast:"))
+        || resolution.chars().any(char::is_whitespace)
+    {
+        return None;
+    }
+    let charged = delta
+        .before
+        .as_ref()
+        .zip(delta.after.as_ref())
+        .is_some_and(|(b, a)| a.charges & !b.charges != 0 && a.id == b.id && a.count == b.count);
+    let paid = ledger.iter().any(|consume| {
+        consume.operation == ItemOperation::Consume
+            && consume
+                .before
+                .as_ref()
+                .is_some_and(|item| item.template_id == template)
+            && consume.causes.iter().any(|cause| {
+                cause.family == "auto_shot_payment"
+                    && cause.fields.get("resolution_id")
+                        == Some(&ItemEvidenceValue::Text(resolution.to_owned()))
+            })
+    });
+    (charged && paid).then(|| format!("shot_charge:{resolution}"))
+}
+
 /// D93/D96 use-row causes: automatic attack discharges name their attack resolution, cast
 /// discharges name the cast's skill (from the recording's `SkillCastStarted` events), and a
 /// receipt-bound use (manual shot charge) names its receipt. Every count delta is 0.
@@ -556,6 +599,7 @@ fn attach_use_causes(
     row: &mut Value,
     delta: &ItemDeltaPlan,
     casts: &std::collections::BTreeMap<u64, u32>,
+    ledger: &[&ItemDeltaPlan],
 ) -> anyhow::Result<()> {
     for (key, expected) in [
         ("instance", serde_json::to_value(delta.instance)?),
@@ -600,6 +644,11 @@ fn attach_use_causes(
         );
     }
     if causes.is_empty() {
+        if let Some(identity) = automatic_charge_identity(row, delta, ledger) {
+            causes.push(json!({"cause": identity, "count_delta": 0}));
+        }
+    }
+    if causes.is_empty() {
         bail!("use row without a discharge or receipt cause");
     }
     let row = row.as_object_mut().context("use object")?;
@@ -631,7 +680,7 @@ fn export_tick(
             let index = used
                 .entry(((fact.entity, fact.tick.0), instance))
                 .or_insert(0);
-            let delta = events
+            let ledger: Vec<&ItemDeltaPlan> = events
                 .iter()
                 .filter_map(|event| {
                     if let ZoneEvent::ItemCheckpoint(projection) = event {
@@ -642,13 +691,17 @@ fn export_tick(
                     }
                 })
                 .flat_map(|projection| &projection.ledger)
+                .collect();
+            let delta = ledger
+                .iter()
+                .copied()
                 .filter(|delta| {
                     delta.operation == ItemOperation::Use && delta.instance.get() == instance
                 })
                 .nth(*index)
                 .context("use lacks a verified checkpoint row")?;
             *index = index.checked_add(1).context("use index overflow")?;
-            attach_use_causes(row, delta, casts)?;
+            attach_use_causes(row, delta, casts, &ledger)?;
             continue;
         }
         if row.get("operation").and_then(Value::as_str) == Some("toggle_auto_shot") {
@@ -967,6 +1020,73 @@ mod tests {
             2
         ))
         .is_err());
+        Ok(())
+    }
+
+    /// T50: the soak's cast-start automatic recharge charges the weapon with a receipt-less,
+    /// cause-less Use row. It exports as `shot_charge:<resolution>` only when the same
+    /// owner-tick ledger has that resolution's `auto_shot_payment` Consume of the shot template,
+    /// and only for a row that adds charge bits; anything else stays refused.
+    #[test]
+    fn automatic_charge_use_rows_take_their_verified_payment_identity() -> anyhow::Result<()> {
+        let weapon = |charges: u8| -> anyhow::Result<nightfall_api::domain::zone::ItemInstance> {
+            Ok(serde_json::from_value(json!({"id":44,"template_id":6,"count":1,
+                "location":"paperdoll","slot":"rhand","enchant":0,"augment_id":null,
+                "charges":charges,"created_tick":140,"revision":11}))?)
+        };
+        let stack = |count: u64| -> anyhow::Result<nightfall_api::domain::zone::ItemInstance> {
+            Ok(serde_json::from_value(json!({"id":45,"template_id":2509,"count":count,
+                "location":"inventory","slot":null,"enchant":0,"augment_id":null,
+                "charges":0,"created_tick":0,"revision":11}))?)
+        };
+        let resolution = "cast:9:shot:2509";
+        let charge = ItemDeltaPlan {
+            operation: ItemOperation::Use,
+            operation_ordinal: 0,
+            instance: nightfall_api::domain::zone::ItemInstanceId::new(44)?,
+            before: Some(weapon(1)?),
+            after: Some(weapon(3)?),
+            count_delta: 0,
+            receipt: None,
+            receipt_refs: Vec::new(),
+            causes: Vec::new(),
+        };
+        let payment = |id: &str| ItemDeltaPlan {
+            operation: ItemOperation::Consume,
+            operation_ordinal: 0,
+            instance: nightfall_api::domain::zone::ItemInstanceId::new(45)
+                .unwrap_or_else(|_| unreachable!()),
+            before: stack(10).ok(),
+            after: stack(9).ok(),
+            count_delta: -1,
+            receipt: None,
+            receipt_refs: Vec::new(),
+            causes: vec![ItemAuditEvidence {
+                family: "auto_shot_payment".into(),
+                fields: [
+                    ("count_delta".into(), ItemEvidenceValue::Signed(-1)),
+                    ("resolution_id".into(), ItemEvidenceValue::Text(id.into())),
+                ]
+                .into_iter()
+                .collect(),
+            }],
+        };
+        let row = json!({"resolution_id": resolution});
+        let paid = payment(resolution);
+        assert_eq!(
+            automatic_charge_identity(&row, &charge, &[&charge, &paid]),
+            Some(format!("shot_charge:{resolution}"))
+        );
+        // No matching payment, a payment of another resolution, or a row that adds no charge
+        // bits keep the refusal.
+        let other = payment("cast:8:shot:2509");
+        assert_eq!(automatic_charge_identity(&row, &charge, &[&charge]), None);
+        assert_eq!(automatic_charge_identity(&row, &charge, &[&other]), None);
+        let mut cleared = charge.clone();
+        cleared.after = Some(weapon(0)?);
+        assert_eq!(automatic_charge_identity(&row, &cleared, &[&paid]), None);
+        let manual = json!({"resolution_id": "shot:use:00000000-0000-0000-0000-000000000001"});
+        assert_eq!(automatic_charge_identity(&manual, &charge, &[&paid]), None);
         Ok(())
     }
 

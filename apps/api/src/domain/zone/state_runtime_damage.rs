@@ -12317,6 +12317,46 @@ mod tests {
         );
         let rear = run(&behind, &[(R::AutoHit, 1000, 0), (R::AutoCritical, 1000, 999), spread]);
         assert!(rear.1 > open.1, "{rear:?} {open:?}");
+        // D153 (T44): a V6 player attacker's shield check is the DEFENDER's fact (the shield
+        // owner), with the attacker in the context's `attacker_entity`.
+        let attacker = zone
+            .entities
+            .values()
+            .find(|e| e.kind == EntityKind::Player && e.id != owner.entity)
+            .map(|e| e.id)
+            .unwrap();
+        let attacker = zone.binding(attacker).unwrap();
+        let mut pvp = zone.clone();
+        let from = pvp.entities[&attacker.entity].pos;
+        pvp.entities.get_mut(&attacker.entity).unwrap().pos = pos;
+        pvp.aoi.relocate(attacker.entity, from, pos);
+        pvp.enable_items_replay_evidence().unwrap();
+        let mut trace = Vec::new();
+        assert_eq!(
+            pvp.shield_v6(
+                attacker,
+                owner,
+                &mut scripted(&[(R::ShieldPerfect, 100, 91)], &mut trace)
+            )
+            .unwrap(),
+            ShieldOutcome::Perfect
+        );
+        let facts = pvp.take_items_replay_evidence();
+        let shield = facts
+            .iter()
+            .find_map(|f| match &f.fact {
+                crate::domain::zone::evidence::ItemEvidenceData::Formula(v)
+                    if v["formula"] == "shield" =>
+                {
+                    Some((f.entity, v.clone()))
+                },
+                _ => None,
+            })
+            .unwrap();
+        assert_eq!(shield.0, owner.entity, "filed under the shield owner");
+        assert_eq!(shield.1["context"]["attacker_entity"], attacker.entity.to_string());
+        assert!(shield.1["context"].get("target_entity").is_none());
+        assert_eq!(shield.1["actual"]["outcome"], "perfect");
         // The legacy V5 formula keeps its draw order without shield or position terms.
         let mut legacy = zone.clone();
         legacy.phase4 = None;
