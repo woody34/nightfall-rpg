@@ -681,7 +681,22 @@ the paired multi-client roles, the quarantine JSON schema and the PR gate policy
 
   # Full CI suite with per-unit fresh Compose stacks and paired roles:
   COMPOSE_PROJECT_NAME=nightfall-sim-local python3 apps/client-unreal/Scripts/run-sim-ci.py --fresh-stack --artifacts apps/client-unreal/Saved/SimCI
+
+  # The same suite in 3 lanes (about one third of the wall clock):
+  python3 apps/client-unreal/Scripts/run-sim-ci.py --fresh-stack --parallel 3 --artifacts apps/client-unreal/Saved/SimCI
   ```
+- **Parallel lanes (`--parallel N`):** `run-sim-ci.py` takes units from one sorted queue and runs
+  them in N lanes at the same time. A unit with two roles stays in one lane. Each lane owns a
+  Compose project (`<COMPOSE_PROJECT_NAME or nightfall-sim-phase4>-lane<N>`), a block of 10
+  host ports (`--lane-port-base`, default 30000, so lane N uses 30000 + 10N to 30009 + 10N:
+  Postgres, NATS, Grafana, OTLP, Keycloak, API HTTP and gRPC, loopback only), an API process, and
+  a UE `-UserDir`. The suite refuses to start when a port of a block is bound (an owned stack, a
+  soak or another suite). Owned fixture units (Phase 2/3/4 packs) keep their own random ports
+  and projects. Per-unit artifacts have the same layout and names as the serial run; the lane
+  files are under `<artifacts>/.lanes/lane-<N>/`. `summary.json` records `lane`, `lane_ports` and
+  `compose_project` for each unit and a `lanes` list; the units and `suite.xml` are sorted by unit
+  name. Each lane removes its Compose project and volumes when its queue is empty. `--parallel 1`
+  (the default) is the serial run and does not need `--parallel`.
 - **PR gate and quarantine:** Simulation CI does not block PRs until `main` has two consecutive weeks
   with zero unquarantined failures. Trusted PRs from the same repository opt in with the `sim`
   label. Fork PRs never run on the persistent runner. `Scenarios/quarantine.json` records the known flakes.

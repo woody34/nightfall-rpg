@@ -11,6 +11,7 @@
 #   SIM_PIPELINE_VERDICT completed schema v1 JSON; written only after final wrapper gates
 #   SIM_REPLAY_CMD    command run as `$SIM_REPLAY_CMD <file.nfr>` (default: nightfall-replay --source file --file)
 #   SIM_API_URL       API base for the health check (default http://localhost:3000)
+#   SIM_API_ENV_FILE  shell assignments sourced after the repository .env before a shared-stack API starts (lanes)
 #   SIM_REQUIRE_OWNED_API=1 reject attach/occupied endpoints; verify the launched API owns its listener
 #   SIM_REQUIRE_FRESH_ARTIFACTS=1 snapshot outputs before launch; collect only changed files within wall bounds
 #   SIM_TIMEOUT       seconds per scenario / per group (default 600)
@@ -150,6 +151,9 @@ sim_api_prepare() {
       (
         cd "$SIM_REPO"
         if [[ -f .env ]]; then set -a; . ./.env; set +a; fi
+        # run-sim-ci.py --parallel: the lane's endpoints (DATABASE_URL, NATS_URL, HTTP_ADDR, GRPC_ADDR,
+        # WS_PUBLIC_URL, OIDC_ISSUER, OTEL endpoint) override .env for this shared-stack API.
+        if [[ -n "${SIM_API_ENV_FILE:-}" ]]; then set -a; . "$SIM_API_ENV_FILE"; set +a; fi
         # D114: shared-stack units (Phase 0b/1) boot V6 like every owned fixture unit
         # (phase2-fixture.py zone_flags); explicit values override any .env setting.
         # T15: TELEMETRY_PRETTY=0 keeps the log JSON for the V6 attestation (repo .env sets 1).
