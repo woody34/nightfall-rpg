@@ -41,12 +41,15 @@ pub(super) struct Coverage {
 /// from the verified final per-owner `ItemCheckpoint` of every tick.
 #[derive(Debug, Default, Serialize)]
 pub(super) struct ItemStats {
-    /// One per ledger row by its operation, plus one per `ToggleAutoShot` receipt.
+    /// One per ledger row by its operation, plus one per `ToggleAutoShot` receipt. The rows
+    /// include the D142 incarnation-reset Use rows, which the item evidence export omits
+    /// (D145), so `use` here can exceed the exported use rows.
     item_operations: BTreeMap<String, u64>,
     enchant_outcomes: BTreeMap<String, u64>,
     refine_outcomes: BTreeMap<String, u64>,
     /// One per charge bit a Use row adds to a weapon (soul 1, spirit 2, blessed spirit 4).
     shot_payments: BTreeMap<String, u64>,
+    /// Every ledger row, the D142 reset rows included (not exported, D145).
     item_ledger_rows: u64,
     /// Ledger rows that create an instance (no `before`).
     item_allocations: u64,

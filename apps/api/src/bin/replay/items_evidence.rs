@@ -576,7 +576,13 @@ fn automatic_charge_identity(
         .before
         .as_ref()
         .zip(delta.after.as_ref())
-        .is_some_and(|(b, a)| a.charges & !b.charges != 0 && a.id == b.id && a.count == b.count);
+        // Add-bits-only (the consumer's rule): a charge row never also clears a bit.
+        .is_some_and(|(b, a)| {
+            a.charges & !b.charges != 0
+                && b.charges & !a.charges == 0
+                && a.id == b.id
+                && a.count == b.count
+        });
     let paid = ledger.iter().any(|consume| {
         consume.operation == ItemOperation::Consume
             && consume
@@ -1087,6 +1093,19 @@ mod tests {
         assert_eq!(automatic_charge_identity(&row, &cleared, &[&paid]), None);
         let manual = json!({"resolution_id": "shot:use:00000000-0000-0000-0000-000000000001"});
         assert_eq!(automatic_charge_identity(&manual, &charge, &[&paid]), None);
+        // A row that adds one bit and clears another is not a pure charge.
+        let mut swapped = charge.clone();
+        swapped.before = Some(weapon(4)?);
+        swapped.after = Some(weapon(1)?);
+        assert_eq!(automatic_charge_identity(&row, &swapped, &[&paid]), None);
+        // The attack-start recharge leg: `attack:<uuid>:<tick>:shot:<template>`.
+        let attack = "attack:01970000-0000-7000-8000-000000000040:378:shot:2509";
+        let attack_row = json!({"resolution_id": attack});
+        let attack_paid = payment(attack);
+        assert_eq!(
+            automatic_charge_identity(&attack_row, &charge, &[&attack_paid]),
+            Some(format!("shot_charge:{attack}"))
+        );
         Ok(())
     }
 
