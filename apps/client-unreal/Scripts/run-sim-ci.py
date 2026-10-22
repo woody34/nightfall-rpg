@@ -20,6 +20,9 @@ _spec.loader.exec_module(gates)
 _fixture_spec = importlib.util.spec_from_file_location('phase2_fixture', PROJECT / 'Scripts/phase2-fixture.py')
 phase2 = importlib.util.module_from_spec(_fixture_spec)
 _fixture_spec.loader.exec_module(phase2)
+_lanes_spec = importlib.util.spec_from_file_location('sim_lanes', PROJECT / 'Scripts/sim-lanes.py')
+lanes = importlib.util.module_from_spec(_lanes_spec)
+_lanes_spec.loader.exec_module(lanes)
 
 # CI uses already-built candidate binaries. These are policy caps, not measured durations.
 API_WAIT = 180
@@ -282,6 +285,143 @@ def suite_coverage(artifacts, batches, baseline):
             'contract': contract, 'summary_lines': lines}
 
 
+def unit_name(batch):
+    return batch[0].stem[:-2] if len(batch) > 1 and batch[0].stem.endswith('-a') else batch[0].stem
+
+
+def run_unit(args, artifacts, exempt, batch, fixture_name, allowance, lane=None, lane_folder=None):
+    """One unit, start to verdict. `lane` (parallel > 1) adds the lane's stack/API/UserDir environment."""
+    names = [p.stem for p in batch]
+    name = unit_name(batch)
+    dest = artifacts / name
+    start = time.monotonic()
+    script = "run-sim-multi.sh" if len(batch) > 1 else "run-sim.sh"
+    budget = allowance['client']
+    command = ["bash", str(PROJECT / "Scripts" / script), "--api", "start" if args.fresh_stack else "attach",
+               "--artifacts", str(dest), "--timeout", str(budget)]
+    if args.video and len(batch) == 1:
+        command.append("--video")
+    command += list(map(str, batch))
+    code = 2
+    env = dict(os.environ)
+    env.pop("SIM_API_ENV_FILE", None)  # only a lane sets the shared-stack API endpoint file
+    if lane is not None:
+        env.update(lanes.unit_env(lane, lane_folder, fixture_name in phase2.ISOLATED, os.environ))
+        if fixture_name not in phase2.ISOLATED:
+            lane['shared_units'] = lane.get('shared_units', 0) + 1
+    env["SIM_SAVED_DIR"] = str(dest / "bot-output")
+    env["SIM_PIPELINE_VERDICT"] = str(dest / "pipeline-verdict.json")
+    env["SIM_REQUIRE_FRESH_ARTIFACTS"] = "1"
+    env["SIM_REQUIRE_TRANSITION_COVERAGE"] = "1"
+    env["SIM_API_WAIT"] = str(API_WAIT)
+    env["SIM_COMPOSE_UP_TIMEOUT"] = str(phase2.OPERATION_TIMEOUT)
+    env["SIM_VIDEO_TIMEOUT"] = str(VIDEO_CAPTURE)
+    env["SIM_VIDEO_ENCODE_TIMEOUT"] = str(VIDEO_ENCODE)
+    if args.fresh_stack:
+        env["SIM_REQUIRE_OWNED_API"] = "1"
+    env.pop("ZONE_SIM_FIXTURE", None)
+    env.pop("ZONE_FILE", None)
+    if fixture_name == "phase1a-late-entry":
+        env["ZONE_FILE"] = str(REPO / "apps/api/fixtures/phase1a-late-entry/zones/late_entry.toml")
+    elif fixture_name != "default" and fixture_name not in phase2.ISOLATED:
+        env["ZONE_SIM_FIXTURE"] = fixture_name
+    orchestration_errors = []
+    with (dest / "orchestration.log").open("w") as log:
+        try:
+            if args.fresh_stack and fixture_name not in phase2.ISOLATED:
+                subprocess.run(["docker", "compose", "down", "--volumes", "--remove-orphans"], cwd=REPO, env=env,
+                               stdout=log, stderr=subprocess.STDOUT, check=True, timeout=COMPOSE_DOWN)
+            code = run_clients(command, log, wrapper_seconds(allowance), env=env)
+        except (OSError, subprocess.SubprocessError) as error:
+            log.write(f"orchestration failed: {error}\n")
+            orchestration_errors.append(str(error))
+    if args.fresh_stack and fixture_name not in phase2.ISOLATED:
+        with (dest / "compose.log").open("w") as log:
+            try:
+                subprocess.run(["docker", "compose", "logs", "--no-color"], cwd=REPO, env=env,
+                               stdout=log, stderr=subprocess.STDOUT, timeout=COMPOSE_LOGS, check=True)
+            except (OSError, subprocess.SubprocessError) as error:
+                log.write(f"compose log collection failed: {error}\n")
+                orchestration_errors.append(str(error))
+    if fixture_name in phase2.ISOLATED:
+        # A forced wrapper/process-group timeout may interrupt its EXIT trap. Retry only
+        # generated owned fixture resources, never the root Compose project.
+        for state_path in dest.glob('*/fixture/state.json'):
+            folder = state_path.parent
+            try:
+                status_path = folder / 'cleanup-status.json'
+                cleaned = status_path.exists() and json.loads(status_path.read_text()).get('completed') is True
+                if not cleaned:
+                    phase2.cleanup(folder)
+            except (OSError, ValueError, KeyError, subprocess.SubprocessError):
+                orchestration_errors.append('owned Phase2 fixture cleanup failed; see fixture logs')
+    bad_reports = junit_failures(dest, names)
+    if len(names) > 1 and not group_report_matches(dest, names):
+        orchestration_errors.append("missing, invalid or incomplete group JUnit merge")
+    try:
+        verdict = pipeline_verdict(dest, names, code)
+        orchestration_errors.extend(verdict['infrastructure_failures'])
+    except (OSError, ValueError, KeyError, TypeError, AttributeError, ET.ParseError) as error:
+        orchestration_errors.append(f'missing, invalid or incomplete pipeline verdict: {error}')
+    failed = code != 0 or bool(bad_reports) or bool(orchestration_errors)
+    log_text = (dest / "orchestration.log").read_text()
+    quarantined = failed and not orchestration_errors and quarantine_verdict(
+        dest, names, code, bad_reports, exempt)
+    # Any unexplained nonzero exit stays blocking, even if all reports look green.
+    status = "QUARANTINED" if quarantined else "FAIL" if failed else "PASS"
+    elapsed = round(time.monotonic() - start, 3)
+    row = {"unit": name, "scenarios": names, "status": status, "exit_code": code,
+           "seconds": elapsed, "allowances": allowance, "failed_reports": bad_reports,
+           "infrastructure_errors": orchestration_errors,
+           "quarantine": {n: exempt[n] for n in names if n in exempt},
+           "lane": lane['index'] if lane is not None else 0,
+           "lane_ports": lane['ports'] if lane is not None else None,
+           "compose_project": lane['compose_project'] if lane is not None else os.environ.get("COMPOSE_PROJECT_NAME"),
+           "_log_tail": log_text[-12000:]}
+    print(f"{status} {name} ({elapsed}s)" + (f" lane={lane['index']}" if lane is not None else ""), flush=True)
+    return row
+
+
+def lane_folder(artifacts, lane):
+    return artifacts / ".lanes" / f"lane-{lane['index']}"
+
+
+def lane_teardown(artifacts, lane):
+    """Remove the lane's shared Compose stack and volumes after its last unit (lanes own their projects)."""
+    if not lane.get('shared_units'):
+        lane['teardown_exit'] = None
+        return
+    folder = lane_folder(artifacts, lane)
+    env = dict(os.environ, COMPOSE_PROJECT_NAME=lane['compose_project'], COMPOSE_FILE=str(folder / 'compose.json'))
+    with (folder / 'teardown.log').open('w') as log:
+        try:
+            result = subprocess.run(["docker", "compose", "down", "--volumes", "--remove-orphans"], cwd=REPO, env=env,
+                                    stdout=log, stderr=subprocess.STDOUT, timeout=COMPOSE_DOWN)
+            lane['teardown_exit'] = result.returncode
+        except (OSError, subprocess.SubprocessError) as error:
+            log.write(f"lane teardown failed: {error}\n")
+            lane['teardown_exit'] = 1
+
+
+def run_suite(args, artifacts, exempt, batches, fixtures, allowances, lane_plan):
+    """Serial (today) or N lanes from one queue; rows come back sorted by unit name."""
+    if lane_plan is None:
+        return [run_unit(args, artifacts, exempt, batch, fixture_name, allowance)
+                for batch, fixture_name, allowance in zip(batches, fixtures, allowances)]
+    work = {unit_name(batch): (batch, fixture_name, allowance)
+            for batch, fixture_name, allowance in zip(batches, fixtures, allowances)}
+
+    def run(lane, name):
+        batch, fixture_name, allowance = work[name]
+        return run_unit(args, artifacts, exempt, batch, fixture_name, allowance, lane, lane_folder(artifacts, lane))
+
+    try:
+        return lanes.schedule(list(work), lane_plan, run)
+    finally:
+        for lane in lane_plan:
+            lane_teardown(artifacts, lane)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--scenarios", type=Path, default=PROJECT / "Scenarios")
@@ -293,9 +433,17 @@ def main():
     parser.add_argument("--fresh-stack", action="store_true", help="wipe this Compose project's volumes for each unit")
     parser.add_argument("--video", action="store_true", help="failure-only rendered retry for single-client cases")
     parser.add_argument("--timeout", type=int, help="explicit client minimum; default is each unit's nf.Within + 30s grace")
+    parser.add_argument("--parallel", type=int, default=1,
+                        help="lanes that run units concurrently from one queue (default 1: one lane, today's behaviour)")
+    parser.add_argument("--lane-port-base", type=int, default=lanes.DEFAULT_PORT_BASE,
+                        help=f"first host port of lane 0's block; lane N uses base + {lanes.STRIDE} * N (parallel > 1)")
     args = parser.parse_args()
     if args.timeout is not None and args.timeout <= 0:
         parser.error("--timeout must be positive")
+    if args.parallel < 1:
+        parser.error("--parallel must be positive")
+    if args.parallel > 1 and not args.fresh_stack:
+        parser.error("--parallel requires --fresh-stack; lanes cannot share one attached API")
     scenarios = sorted(args.scenarios.resolve().rglob("*.nfs"))
     if not scenarios:
         parser.error("no scenarios")
@@ -308,9 +456,18 @@ def main():
             raise ValueError("scenario fixture selection requires --fresh-stack; an attached API cannot switch fixtures")
     except (ValueError, OSError) as error:
         parser.error(str(error))
-    if (args.fresh_stack and any(value not in phase2.ISOLATED for value in fixtures)
+    shared_units = any(value not in phase2.ISOLATED for value in fixtures)
+    if (args.fresh_stack and shared_units and args.parallel == 1
             and not os.environ.get("COMPOSE_PROJECT_NAME", "").startswith("nightfall-sim-")):
         parser.error("--fresh-stack requires an isolated COMPOSE_PROJECT_NAME=nightfall-sim-...")
+    lane_plan = None
+    if args.parallel > 1:
+        # Lanes own their projects and port blocks; probe the host before any artifact exists.
+        try:
+            lane_plan = lanes.allocate(args.parallel, args.lane_port_base,
+                                       os.environ.get("COMPOSE_PROJECT_NAME") or lanes.DEFAULT_PROJECT_BASE)
+        except ValueError as error:
+            parser.error(str(error))
     artifacts = args.artifacts.resolve()
     # Retain the published path layout, but never reuse evidence from an earlier invocation.
     # Do not delete artifacts: callers must select a new destination for each CI attempt.
@@ -328,95 +485,22 @@ def main():
         # A late mkdir failure must not discard hours of completed results.
         for name in unit_names:
             (artifacts / name).mkdir()
-    except OSError as error:
+        if lane_plan is not None:
+            (artifacts / ".lanes").mkdir()
+            source = lanes.compose_source(REPO, artifacts / ".lanes") if shared_units else None
+            for lane in lane_plan:
+                lanes.write_lane(lane_folder(artifacts, lane), lane, source)
+    except (OSError, ValueError, subprocess.SubprocessError) as error:
         parser.error(str(error))
-    report = []
+    report = run_suite(args, artifacts, exempt, batches, fixtures, allowances, lane_plan)
     aggregate = ET.Element("testsuite", name="sim orchestration")
-    for batch, fixture_name, allowance in zip(batches, fixtures, allowances):
-        names = [p.stem for p in batch]
-        name = names[0][:-2] if len(batch) > 1 and names[0].endswith('-a') else names[0]
-        dest = artifacts / name
-        start = time.monotonic()
-        script = "run-sim-multi.sh" if len(batch) > 1 else "run-sim.sh"
-        budget = allowance['client']
-        command = ["bash", str(PROJECT / "Scripts" / script), "--api", "start" if args.fresh_stack else "attach",
-                   "--artifacts", str(dest), "--timeout", str(budget)]
-        if args.video and len(batch) == 1:
-            command.append("--video")
-        command += list(map(str, batch))
-        code = 2
-        env = dict(os.environ)
-        env["SIM_SAVED_DIR"] = str(dest / "bot-output")
-        env["SIM_PIPELINE_VERDICT"] = str(dest / "pipeline-verdict.json")
-        env["SIM_REQUIRE_FRESH_ARTIFACTS"] = "1"
-        env["SIM_REQUIRE_TRANSITION_COVERAGE"] = "1"
-        env["SIM_API_WAIT"] = str(API_WAIT)
-        env["SIM_COMPOSE_UP_TIMEOUT"] = str(phase2.OPERATION_TIMEOUT)
-        env["SIM_VIDEO_TIMEOUT"] = str(VIDEO_CAPTURE)
-        env["SIM_VIDEO_ENCODE_TIMEOUT"] = str(VIDEO_ENCODE)
-        if args.fresh_stack:
-            env["SIM_REQUIRE_OWNED_API"] = "1"
-        env.pop("ZONE_SIM_FIXTURE", None)
-        env.pop("ZONE_FILE", None)
-        if fixture_name == "phase1a-late-entry":
-            env["ZONE_FILE"] = str(REPO / "apps/api/fixtures/phase1a-late-entry/zones/late_entry.toml")
-        elif fixture_name != "default" and fixture_name not in phase2.ISOLATED:
-            env["ZONE_SIM_FIXTURE"] = fixture_name
-        orchestration_errors = []
-        with (dest / "orchestration.log").open("w") as log:
-            try:
-                if args.fresh_stack and fixture_name not in phase2.ISOLATED:
-                    subprocess.run(["docker", "compose", "down", "--volumes", "--remove-orphans"], cwd=REPO,
-                                   stdout=log, stderr=subprocess.STDOUT, check=True, timeout=COMPOSE_DOWN)
-                code = run_clients(command, log, wrapper_seconds(allowance), env=env)
-            except (OSError, subprocess.SubprocessError) as error:
-                log.write(f"orchestration failed: {error}\n")
-                orchestration_errors.append(str(error))
-        if args.fresh_stack and fixture_name not in phase2.ISOLATED:
-            with (dest / "compose.log").open("w") as log:
-                try:
-                    subprocess.run(["docker", "compose", "logs", "--no-color"], cwd=REPO,
-                                   stdout=log, stderr=subprocess.STDOUT, timeout=COMPOSE_LOGS, check=True)
-                except (OSError, subprocess.SubprocessError) as error:
-                    log.write(f"compose log collection failed: {error}\n")
-                    orchestration_errors.append(str(error))
-        if fixture_name in phase2.ISOLATED:
-            # A forced wrapper/process-group timeout may interrupt its EXIT trap. Retry only
-            # generated owned fixture resources, never the root Compose project.
-            for state_path in dest.glob('*/fixture/state.json'):
-                folder = state_path.parent
-                try:
-                    status_path = folder / 'cleanup-status.json'
-                    cleaned = status_path.exists() and json.loads(status_path.read_text()).get('completed') is True
-                    if not cleaned:
-                        phase2.cleanup(folder)
-                except (OSError, ValueError, KeyError, subprocess.SubprocessError):
-                    orchestration_errors.append('owned Phase2 fixture cleanup failed; see fixture logs')
-        bad_reports = junit_failures(dest, names)
-        if len(names) > 1 and not group_report_matches(dest, names):
-            orchestration_errors.append("missing, invalid or incomplete group JUnit merge")
-        try:
-            verdict = pipeline_verdict(dest, names, code)
-            orchestration_errors.extend(verdict['infrastructure_failures'])
-        except (OSError, ValueError, KeyError, TypeError, AttributeError, ET.ParseError) as error:
-            orchestration_errors.append(f'missing, invalid or incomplete pipeline verdict: {error}')
-        failed = code != 0 or bool(bad_reports) or bool(orchestration_errors)
-        log_text = (dest / "orchestration.log").read_text()
-        quarantined = failed and not orchestration_errors and quarantine_verdict(
-            dest, names, code, bad_reports, exempt)
-        # Any unexplained nonzero exit stays blocking, even if all reports look green.
-        status = "QUARANTINED" if quarantined else "FAIL" if failed else "PASS"
-        elapsed = round(time.monotonic() - start, 3)
-        report.append({"unit": name, "scenarios": names, "status": status, "exit_code": code,
-                       "seconds": elapsed, "allowances": allowance, "failed_reports": bad_reports,
-                       "infrastructure_errors": orchestration_errors,
-                       "quarantine": {n: exempt[n] for n in names if n in exempt}})
-        case = ET.SubElement(aggregate, "testcase", name=name, time=str(elapsed))
-        if status == "FAIL":
-            ET.SubElement(case, "failure", message=f"exit={code}; failed/missing reports={bad_reports}").text = log_text[-12000:]
-        elif quarantined:
-            ET.SubElement(case, "skipped", message="quarantined; raw failing JUnit retained").text = json.dumps(report[-1]["quarantine"])
-        print(f"{status} {name} ({elapsed}s)", flush=True)
+    for row in report:
+        case = ET.SubElement(aggregate, "testcase", name=row["unit"], time=str(row["seconds"]))
+        if row["status"] == "FAIL":
+            ET.SubElement(case, "failure", message=f"exit={row['exit_code']}; failed/missing reports={row['failed_reports']}").text = row.pop("_log_tail")
+        elif row["status"] == "QUARANTINED":
+            ET.SubElement(case, "skipped", message="quarantined; raw failing JUnit retained").text = json.dumps(row["quarantine"])
+        row.pop("_log_tail", None)
     coverage = suite_coverage(artifacts, batches, args.contract_baseline.resolve())
     failures = sum(row["status"] == "FAIL" for row in report)
     if coverage['infrastructure_errors']:
@@ -425,14 +509,29 @@ def main():
         ET.SubElement(case, 'failure', type='pipeline_infrastructure',
                       message='; '.join(coverage['infrastructure_errors']))
 
-    aggregate.set("tests", str(len(report) + bool(coverage["infrastructure_errors"])))
+    leaked = [lane for lane in lane_plan or [] if lane.get('teardown_exit')]
+    if leaked:
+        failures += 1
+        case = ET.SubElement(aggregate, 'testcase', name='lane teardown')
+        ET.SubElement(case, 'failure', type='pipeline_infrastructure',
+                      message='; '.join(f"lane {lane['index']} compose project {lane['compose_project']} not removed; see .lanes/lane-{lane['index']}/teardown.log" for lane in leaked))
+    aggregate.set("tests", str(len(report) + bool(coverage["infrastructure_errors"]) + bool(leaked)))
     aggregate.set("failures", str(failures))
     aggregate.set("skipped", str(sum(row["status"] == "QUARANTINED" for row in report)))
     ET.ElementTree(aggregate).write(artifacts / "suite.xml", encoding="utf-8", xml_declaration=True)
-    (artifacts / "summary.json").write_text(json.dumps({"schema_version": 1, "units": report, "coverage": coverage}, indent=2) + "\n")
+    lane_rows = lane_plan or [{"index": 0, "ports": None, "compose_project": os.environ.get("COMPOSE_PROJECT_NAME"),
+                               "units": [row["unit"] for row in report], "shared_units": sum(value not in phase2.ISOLATED for value in fixtures), "teardown_exit": None}]
+    (artifacts / "summary.json").write_text(json.dumps({"schema_version": 1, "units": report, "coverage": coverage,
+                                                        "parallel": args.parallel, "lanes": lane_rows}, indent=2) + "\n")
     summary = "| Scenario/group | Result | Seconds |\n|---|---|---|\n" + "".join(
         f"| {row['unit']} | {row['status']} | {row['seconds']} |\n" for row in report)
+    if lane_plan is not None:
+        summary += "\n| Lane | Compose project | Ports | Units |\n|---|---|---|---|\n" + "".join(
+            f"| {lane['index']} | {lane['compose_project']} | {min(lane['ports'].values())}-{max(lane['ports'].values())} | {', '.join(lane['units']) or '(none)'} |\n"
+            for lane in lane_plan)
     summary += '\n' + '\n\n'.join(coverage['summary_lines']) + '\n'
+    if leaked:
+        summary += '\n' + '\n\n'.join(f"FAIL infrastructure: lane {lane['index']} compose project {lane['compose_project']} not removed" for lane in leaked) + '\n'
     if coverage['infrastructure_errors']:
         summary += '\n' + '\n\n'.join('FAIL infrastructure: ' + e for e in coverage['infrastructure_errors']) + '\n'
     (artifacts / "summary.md").write_text(summary)

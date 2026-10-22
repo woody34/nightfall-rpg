@@ -314,3 +314,33 @@ base profile at creation and a class transfer does not change it. The zone load 
 `base_class_id` with `FAILED_PRECONDITION "character state does not match the zone's rules"`
 (T25 at 611407e). `phase4-fixtures.py` (`role`) derives the column from the tier-0 profession
 of `base_class_id`.
+
+## Contract smoke (lane gate)
+
+`phase4-contract-smoke.py` checks the replay producer against the harness consumer in minutes,
+before the suite runs for hours:
+
+    python3 Scripts/phase4-contract-smoke.py --replay target/release/nightfall-replay \
+        --out Saved/contract-smoke [--rules-hash <64 hex>] [--repo <root>]
+
+The script finds every committed V6 fixture under `apps/api/fixtures`: `items/*.nfr` and
+`phase3-v6/*.nfr` are closed epochs; `sessions/t11-*.nfr` and `sessions/t19-*.nfr` are live
+captures. For each fixture it runs:
+
+- `nightfall-replay check --file`: the replay must match.
+- `nightfall-replay coverage --file --out`: the report must be schema 4 with every item counter
+  (`sim-gates.py` `V4_COUNTERS`, `V4_SCALARS`). Every label of `item_operations`,
+  `enchant_outcomes`, `refine_outcomes` and `shot_payments` must be a `V4_LABELS` name.
+- `nightfall-replay export --file --items-evidence-out`: a closed fixture must export, and
+  `phase4-evidence.py` `validate()` must accept the export with the manifest's
+  `phase4_rules_hash`. A live capture must get the exporter's refusal
+  (`refuses partial/live captures`).
+
+Every closed export must carry the pinned `phase4_rules_hash`. `--rules-hash` pins it. Without
+`--rules-hash` the script starts the built `nightfall-api` (`--api`, default: beside the replay
+binary) with an unreachable `DATABASE_URL` and no `RULES_DIR`; the API attests the embedded
+bundle's `phase4_item_rules_hash` and exits, and that hash is the pin. Without a hash the script
+exits 2. The script writes the logs, the exports and `contract-smoke.json` to `--out`. It exits
+1 on any mismatch, and 2 on a usage error or a tool timeout. Run it with the release binary: the V6 bundle composition is slow in a debug
+build. The offline test `Scripts/test/phase4-contract-smoke.test.py` drives the script with a fake
+binary and the pinned `test/fixtures/phase4-t10` exports.
