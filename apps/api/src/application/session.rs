@@ -1161,8 +1161,10 @@ impl super::ports::ClassTransferRuntime for SessionContext {
             .snapshot()
             .await
             .map_err(|_| super::AppError::Unavailable("zone stopped".into()))?;
-        let state = super::replay_log::restore_snapshot(snapshot)
-            .map_err(|_| super::AppError::Unavailable("invalid zone snapshot".into()))?;
+        let state = super::replay_log::restore_snapshot(snapshot).map_err(|error| {
+            tracing::error!(%error, "live zone snapshot does not restore");
+            super::AppError::Unavailable(format!("invalid zone snapshot: {error}"))
+        })?;
         let p = state
             .class_player(entity, caller, generation)
             .map_err(super::zone_actor::class_error)?;
@@ -1207,8 +1209,10 @@ impl super::ports::Phase3Runtime for SessionContext {
             .snapshot()
             .await
             .map_err(|_| super::AppError::Unavailable("zone stopped".into()))?;
-        let state = super::replay_log::restore_snapshot(snapshot)
-            .map_err(|_| super::AppError::Unavailable("invalid zone snapshot".into()))?;
+        let state = super::replay_log::restore_snapshot(snapshot).map_err(|error| {
+            tracing::error!(%error, "live zone snapshot does not restore");
+            super::AppError::Unavailable(format!("invalid zone snapshot: {error}"))
+        })?;
         state
             .class_player(entity, caller, generation)
             .map_err(super::zone_actor::class_error)?;
@@ -1230,8 +1234,10 @@ impl super::ports::Phase3Runtime for SessionContext {
             .snapshot()
             .await
             .map_err(|_| super::AppError::Unavailable("zone stopped".into()))?;
-        let state = super::replay_log::restore_snapshot(snapshot.clone())
-            .map_err(|_| super::AppError::Unavailable("invalid zone snapshot".into()))?;
+        let state = super::replay_log::restore_snapshot(snapshot.clone()).map_err(|error| {
+            tracing::error!(%error, "live zone snapshot does not restore");
+            super::AppError::Unavailable(format!("invalid zone snapshot: {error}"))
+        })?;
         let player = state
             .class_player(entity, caller, zone_generation(generation))
             .map_err(super::zone_actor::class_error)?;

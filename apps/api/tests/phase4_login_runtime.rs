@@ -1293,3 +1293,172 @@ async fn postgres_jetstream_relogin_after_item_activity_keeps_the_zone_up() {
     );
     relogin_after_item_activity(repo, log, Some(&pool)).await;
 }
+
+/// T47 (D43): a paid learn retried with the SAME key returns the frozen first reply, byte for
+/// byte: a retry racing the first request (sent before its reply) and one sent after it.
+async fn paid_learn_retries_return_the_first_reply<R>(
+    repo: Arc<R>,
+    log: Arc<dyn EventLog>,
+    pool: Option<&sqlx::PgPool>,
+) where
+    R: CharacterRepository
+        + ItemAdmissionRepository
+        + ItemCheckpointRepository
+        + ItemInventoryRepository
+        + ItemReceiptRepository
+        + LearningCheckpointRepository
+        + 'static,
+{
+    use api::domain::character_progression::{FrozenTransferResult, SuccessfulTransferReceipt};
+    let account = Uuid::now_v7();
+    if let Some(pool) = pool {
+        common::pg::insert_account(pool, account).await;
+    }
+    let rules = rules_data::load_rules(&rules_data::RulesSource::embedded())
+        .unwrap()
+        .rules;
+    let mut character = Character::create(
+        AccountId::from_uuid(account),
+        CharacterName::new("BookRetry").unwrap(),
+        Race::Human,
+    );
+    character.level = 52;
+    character.xp = rules.xp_to_level(52).unwrap();
+    character.position = api::domain::Position { x: 126.0, y: 128.0 };
+    repo.create_idempotent(&IdempotencyKey::new(), "book-retry", &character)
+        .await
+        .unwrap();
+    // A recorded transfer to Rogue (7): 1405 rank 1 then needs one book 8618 at level 52.
+    let loaded = repo
+        .load_for_admission(character.id)
+        .await
+        .unwrap()
+        .unwrap();
+    let mut class_state = loaded.class_state.clone();
+    let target = api::domain::class::ClassId(7);
+    class_state.current_class_id = target;
+    class_state
+        .record_success(SuccessfulTransferReceipt {
+            key: Uuid::now_v7(),
+            target_class_id: target,
+            result: FrozenTransferResult {
+                character_id: character.id,
+                identity: character.identity(),
+                name: character.name.clone(),
+                current_class_id: target,
+                level: 52,
+                xp: character.xp,
+                sp: class_state.sp,
+                stats: character.stats,
+                position_millitiles: [0, 0],
+                hp: 100,
+                mp: 100,
+                cp: 0,
+                max_hp: 100,
+                max_mp: 100,
+                max_cp: 100,
+                token_tier_1_count: 0,
+                token_tier_2_count: 0,
+                granted_skill_keys: vec![],
+            },
+        })
+        .unwrap();
+    let checkpoint = api::application::CharacterCheckpoint {
+        character_id: character.id,
+        revision_seen: loaded.revision,
+        level: loaded.level,
+        xp: loaded.xp,
+        hp: loaded.hp.unwrap_or(100),
+        mp: loaded.mp.unwrap_or(100),
+        alive: loaded.alive,
+        position: loaded.position,
+        idempotency: ("save_checkpoint".into(), IdempotencyKey::new()),
+        class_state: Some(class_state),
+        phase3: Some(loaded.phase3.clone().unwrap_or_else(Phase3Checkpoint::new)),
+        phase4: None,
+    };
+    assert!(matches!(
+        repo.checkpoint(&checkpoint, &[]).await.unwrap(),
+        api::application::CheckpointOutcome::Applied(_)
+    ));
+    let (app, _, _) = v6_app(repo.clone(), log).await;
+    let player = ws::Player {
+        account,
+        character: character.id,
+        name: character.name.as_str().to_owned(),
+    };
+    let mut socket = ws::join(&app, &player).await;
+    socket
+        .until(|m| inventory_sync(m).is_some_and(|s| s.baseline))
+        .await;
+    let mut client = app.game_as(account);
+    client
+        .grant_item(pb::GrantItemRequest {
+            character_id: character.id.as_uuid().as_bytes().to_vec(),
+            template_id: 8618,
+            count: 1,
+            idempotency_key: Uuid::now_v7().to_string(),
+            enchant_level: None,
+        })
+        .await
+        .expect("online book grant");
+    let request = pb::LearnSkillRequest {
+        character_id: character.id.to_string(),
+        skill_id: 1405,
+        skill_level: 1,
+        idempotency_key: Uuid::now_v7().to_string(),
+    };
+    let first = client
+        .learn_skill(request.clone())
+        .await
+        .expect("paid learn")
+        .into_inner();
+    // A retry after the reply, and one more tick later.
+    let later = client
+        .learn_skill(request.clone())
+        .await
+        .expect("retry")
+        .into_inner();
+    assert_eq!(later, first);
+    tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+    let latest = client
+        .learn_skill(request)
+        .await
+        .expect("retry")
+        .into_inner();
+    assert_eq!(latest, first);
+    assert_eq!((first.skill_id, first.skill_level), (1405, 1));
+    socket.close().await;
+}
+
+#[tokio::test]
+async fn memory_paid_learn_retries_return_the_first_reply() {
+    let bundle = item_data::embedded_phase4_bundle().unwrap();
+    let repo = Arc::new(
+        InMemoryCharacterRepository::default()
+            .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
+            .unwrap(),
+    );
+    paid_learn_retries_return_the_first_reply(repo, Arc::new(InMemoryEventLog::default()), None)
+        .await;
+}
+
+#[tokio::test]
+async fn postgres_jetstream_paid_learn_retries_return_the_first_reply() {
+    let pool = common::pg::migrated_pool()
+        .await
+        .expect("owned DATABASE_URL required");
+    let url = std::env::var("NATS_URL").expect("owned NATS_URL required");
+    let bundle = item_data::embedded_phase4_bundle().unwrap();
+    let repo = Arc::new(
+        PgCharacterRepository::new(pool.clone())
+            .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
+            .unwrap(),
+    );
+    let log = Arc::new(
+        JetStreamEventLog::connect(async_nats::connect(&url).await.unwrap(), Metrics::detached())
+            .await
+            .unwrap(),
+    );
+    paid_learn_retries_return_the_first_reply(repo, log, Some(&pool)).await;
+}

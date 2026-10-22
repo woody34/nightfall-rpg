@@ -832,7 +832,7 @@ async fn postgres_enchanted_dev_grant_is_born_at_its_level() {
 /// book 8618 at the trainer) settles as one unified checkpoint: the book's Consume aggregate
 /// caused by `skill_learn_payment`, the learn receipt and the learned rank. The same learn
 /// without its item work (`checkpoint_learning`) is refused as `item_learn_payment`.
-async fn paid_learn_contract<R>(repo: Arc<R>) -> CharacterId
+async fn paid_learn_contract<R>(repo: Arc<R>, restore_after_learn: bool) -> CharacterId
 where
     R: CharacterRepository
         + ItemAdmissionRepository
@@ -876,6 +876,11 @@ where
     let mut cold = restore_snapshot(scene.state.snapshot()).unwrap();
     let applied = scene.state.run_tick(draft.clone()).unwrap();
     assert_eq!(applied, cold.run_tick(draft).unwrap());
+    if restore_after_learn {
+        // T55: the live snapshot right after the paid learn must restore (the class/learn RPCs
+        // and recovery read it).
+        restore_snapshot(scene.state.snapshot()).expect("post-learn snapshot restores");
+    }
     assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
     let result = applied
         .events
@@ -1007,7 +1012,7 @@ where
 #[tokio::test]
 async fn memory_real_paid_skill_learn_settles_the_book_payment() {
     let repo = memory_repo();
-    let character = paid_learn_contract(repo.clone()).await;
+    let character = paid_learn_contract(repo.clone(), false).await;
     let payments: Vec<_> = repo
         .item_ledger_for_test()
         .into_iter()
@@ -1029,7 +1034,7 @@ async fn postgres_real_paid_skill_learn_settles_the_book_payment() {
     let Some((pool, repo)) = pg_repo().await else {
         return;
     };
-    let character = paid_learn_contract(repo).await;
+    let character = paid_learn_contract(repo, false).await;
     let payments: i64 = sqlx::query_scalar(
         "SELECT count(*) FROM item_ledger WHERE character_id=$1 AND op='consume' AND delta->'causes' @> '[{\"family\":\"skill_learn_payment\"}]'::jsonb",
     )
@@ -1316,4 +1321,13 @@ async fn postgres_equip_and_toggle_in_one_tick_settles() {
         return;
     };
     equip_and_toggle_contract(repo).await;
+}
+
+/// T55 (zone): after a V6 paid learn the live snapshot does not restore (`CombatMismatch` at
+/// the `state_runtime.rs` `refresh_items_for` check: the stored owner weight still counts the paid
+/// book). Flip when the zone fix lands.
+#[tokio::test]
+#[ignore = "T55 zone pending: snapshot does not restore after a paid learn"]
+async fn memory_paid_learn_snapshot_restores() {
+    paid_learn_contract(memory_repo(), true).await;
 }
