@@ -268,6 +268,15 @@ impl ZoneState {
             }
             c.incarnation = mutation.incarnation;
             c.protected_until = None;
+            // T51/D157: the revived life starts facing east (V6); an escape teleport is the
+            // same life and keeps its facing.
+            if let Some(facing) = candidate
+                .phase4
+                .as_mut()
+                .and_then(|items| items.canonical.facing.get_mut(&entity))
+            {
+                *facing = crate::domain::zone::item_angles::FacingVector::EAST;
+            }
             c.swing = None;
             c.auto_attack = false;
             c.chasing = false;

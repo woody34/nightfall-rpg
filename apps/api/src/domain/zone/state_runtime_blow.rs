@@ -115,12 +115,10 @@ impl ZoneState {
         } else {
             ShieldOutcome::None
         };
-        // D46 `shield`: subject is whichever V6 player is involved (attacker first).
-        let owner = if self.phase4_player_v6(caster.entity) {
-            caster.entity
-        } else {
-            target.entity
-        };
+        // D153: the subject of the `shield` fact is the owner of the shield it evaluates (the
+        // defender); the attacker is the context's `attacker_entity`. A defender without
+        // the V6 item lane (an NPC) has no item to own the fact.
+        let owner = target.entity;
         if self.items_evidence_enabled() && self.phase4_player_v6(owner) {
             use crate::domain::zone::state::item_evidence_hooks::ratio_json as r;
             let sites = ["shield_perfect", "shield_normal"];
@@ -134,7 +132,12 @@ impl ZoneState {
                 ShieldOutcome::Normal => "normal",
                 ShieldOutcome::None => "none",
             };
-            let context = self.attack_context_v6(caster.entity, target.entity);
+            let mut context = self.attack_context_v6(caster.entity, target.entity);
+            if let Some(fields) = context.as_object_mut() {
+                fields.remove("target_entity");
+                fields
+                    .insert("attacker_entity".into(), serde_json::json!(caster.entity.to_string()));
+            }
             self.item_formula_v6(
                 owner,
                 "shield",

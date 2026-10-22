@@ -120,6 +120,16 @@ The export refuses these inputs:
 
 The incarnation reset (D142) is evidence for the API ledger only. The item evidence export
 does not contain it (D145).
+An automatic shot recharge at the start of an attack or cast writes a Use row on the weapon with no
+receipt. The export gives it the cause `shot_charge:<resolution>` only when the same tick has the
+`auto_shot_payment` consume of that shot with the same resolution, and the row only adds charge
+bits. Other Use rows without a cause stop the export (T50).
+A pure ToggleAutoShot (no charge row) that steps the inventory revision exports one `item_delta`
+with the operation `toggle_auto_shot`. This row has no instance. It has the template, the enabled
+flag, the new revision and count delta 0 (D148).
+`nightfall-replay coverage` writes schema 4 for V6 recordings. Schema 4 adds the item counters
+`item_operations`, `enchant_outcomes`, `refine_outcomes` and `shot_payments`, and the item scalars
+`item_ledger_rows`, `item_allocations` and `inventory_baselines` (T48). V5 recordings keep schema 3.
 
 RNG cursors are full-width JSON integers. The old `--evidence-out` format stays separate.
 

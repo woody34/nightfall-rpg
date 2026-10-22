@@ -1732,6 +1732,17 @@ impl ZoneState {
             let Some(dest) = e.dest else { continue };
             let from = e.pos;
             e.pos = from.step_toward(dest, e.speed);
+            // T51/D157 (V6 only; plan §2 chase/movement row): an actual nonzero displacement
+            // sets the primitive gcd-normalized facing; a blocked or no-op step keeps it.
+            if e.pos != from {
+                if let Some(facing) = self
+                    .phase4
+                    .as_mut()
+                    .and_then(|items| items.canonical.facing.get_mut(&e.id))
+                {
+                    *facing = facing.moved(from, e.pos);
+                }
+            }
             if e.pos == from && e.pos != dest {
                 continue;
             }

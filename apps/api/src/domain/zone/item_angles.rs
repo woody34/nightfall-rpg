@@ -215,6 +215,34 @@ impl From<AngleRatio> for String {
 mod tests {
     use super::*;
 
+    /// T51/D157: an actual displacement reduces to its primitive gcd-normalized vector for
+    /// axis, diagonal and general directions and large steps; zero keeps the facing.
+    #[test]
+    fn movement_facing_is_the_primitive_displacement() {
+        let pos = |x, y| super::super::Vec2Fixed {
+            x: super::super::Fixed::from_raw(x),
+            y: super::super::Fixed::from_raw(y),
+        };
+        let start = FacingVector::EAST;
+        for ((dx, dy), expected) in [
+            ((500, 0), (1, 0)),
+            ((-750, 0), (-1, 0)),
+            ((0, 1250), (0, 1)),
+            ((0, -3), (0, -1)),
+            ((40, 40), (1, 1)),
+            ((-25, 25), (-1, 1)),
+            ((-9, -9), (-1, -1)),
+            ((600, 400), (3, 2)),
+            ((-1_000_000, 999_999), (-1_000_000, 999_999)),
+            ((2_000_000_000, 1_000_000_000), (2, 1)),
+        ] {
+            let moved = start.moved(pos(100, 200), pos(100 + dx, 200 + dy));
+            assert_eq!(moved.components(), expected, "{dx},{dy}");
+            // A zero displacement (blocked or no-op step) keeps the previous facing.
+            assert_eq!(moved.moved(pos(7, 7), pos(7, 7)), moved);
+        }
+    }
+
     #[test]
     fn movement_facing_and_inclusive_cones_preserve_exact_boundaries() {
         let pos = |x, y| super::super::Vec2Fixed {
