@@ -1185,10 +1185,13 @@ def validate(rows,recording,rules_hash):
             same(data['baseline'],False)
             if 'context' in data:
                 context=data['context']
-                if not isinstance(context,dict) or set(context)-{'weapon_template','skill_id','target_entity','event','set_id'}:raise ValueError('invalid formula context')
+                # D153: a formula fact's subject is the owner of the item it evaluates (the shield
+                # fact belongs to the defender); the other party is context, `attacker_entity`.
+                if not isinstance(context,dict) or set(context)-{'weapon_template','skill_id','target_entity','attacker_entity','event','set_id'}:raise ValueError('invalid formula context')
                 for key in ('weapon_template','skill_id','set_id'):
                     if key in context and integer(context[key])>=2**32:raise ValueError('context ID outside u32')
-                if 'target_entity' in context:same(str(UUID(context['target_entity'])),context['target_entity'])
+                for key in ('target_entity','attacker_entity'):
+                    if key in context:same(str(UUID(context[key])),context[key])
                 if 'event' in context and context['event'] not in ('equip','unequip','enchant','admission','attack','cast'):raise ValueError('unknown formula event')
             if not isinstance(data['resolution_id'],str) or not data['resolution_id']:raise ValueError('resolution identity required')
             # D91: one clamp fact per resource of a rebuild, distinguished by its suffix.

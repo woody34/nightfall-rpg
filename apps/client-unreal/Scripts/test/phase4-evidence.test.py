@@ -2666,6 +2666,20 @@ class Evidence(unittest.TestCase):
                 result=gate.evaluate(rows,self.recording,OWNER,[name],HASH)
                 self.assertTrue(result['passed'],result)
 
+    def test_d153_attacker_entity_context_names_the_other_party(self):
+        # D153: a formula fact's subject is the owner of the item it evaluates (the shield fact is the
+        # defender's); the attacker is context. The key is a canonical UUID like target_entity.
+        rows=copy.deepcopy(self.rows);rows[1]['data']['context']={'attacker_entity':OTHER,'event':'attack'}
+        gate.validate(rows,self.recording,HASH)
+        self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['pole_damage'],HASH)['passed'])
+        for value in ('nope','AAAAAAAA-0000-7000-8000-000000000041',7,None):
+            with self.subTest(value=value):
+                bad=copy.deepcopy(rows);bad[1]['data']['context']['attacker_entity']=value
+                with self.assertRaises((ValueError,TypeError,AttributeError)):gate.validate(bad,self.recording,HASH)
+        bad=copy.deepcopy(rows);bad[1]['data']['context']['defender_entity']=OTHER
+        with self.assertRaisesRegex(ValueError,'invalid formula context'):gate.validate(bad,self.recording,HASH)
+        print('D153: attacker_entity context accepted as a canonical UUID; malformed values and unknown context keys reject',flush=True)
+
     def test_phase_binding_rejects_unrelated_weapon_or_deleted_mutation(self):
         rows=copy.deepcopy(self.rows);rows[1]['data']['context']={'weapon_template':15}
         phase=dict(name='secondary-pole',formula='pole_damage',context={'weapon_template':15},inputs={'primary':False})

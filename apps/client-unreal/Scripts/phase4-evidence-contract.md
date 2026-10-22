@@ -362,9 +362,15 @@ revision/ordinal ordering, offline incarnation0 owner binding and two-receipt
 Consume aggregates. These checks do not attest a live producer.
 
 Formula data may also carry `context` with only `weapon_template,skill_id,
-target_entity,event,set_id`. IDs are bounded integers; weapon0 means unarmed;
-event is equip|unequip|enchant|admission|attack|cast. These are captured source
-caller identities, not harness phase labels. `# item-phase: <JSON>` selects a
+target_entity,attacker_entity,event,set_id`. IDs are bounded integers; weapon0 means unarmed;
+event is equip|unequip|enchant|admission|attack|cast; `target_entity` and
+`attacker_entity` are canonical UUIDs. These are captured source
+caller identities, not harness phase labels. D153: the subject (`entity`) of a
+formula fact is the owner of the item the formula evaluates. The `shield` fact
+belongs to the DEFENDER (the shield owner) and names the attacker in
+`attacker_entity`; the attacker's own facts are `physical_damage` and the like.
+A scenario's `# item-gate:` therefore pairs with the role that owns the item
+(4-shield-block-b gates `shield`, 4-shield-block-a gates `physical_damage`). `# item-phase: <JSON>` selects a
 required owner resolution by formula, context, input/output values, required or
 absent skill providers, and a correlated ledger mutation. Missing weapon/provider
 phases fail even if the generic gate is already satisfied. `providers` and

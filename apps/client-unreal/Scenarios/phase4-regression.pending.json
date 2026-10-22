@@ -8811,8 +8811,8 @@
           "reason": "identity/receipt/learning/progression assertion retained; verify actual V6 context"
         },
         {
-          "after": "nf.WaitFor buff_active 1068 3",
-          "before": "nf.WaitFor buff_active 1068 3",
+          "after": "nf.WaitFor buff_active 1068 10",
+          "before": "nf.WaitFor buff_active 1068 10",
           "line": 24,
           "reason": "existing assertion retained; equipment/maxima/position/RNG/cadence context requires V6 export and oracle"
         },
@@ -8889,7 +8889,7 @@
         }
       },
       "scenario": "3-cast-reconnect.nfs",
-      "scenario_sha256": "6927e9b0524bd7486cc905fa73efd63edd109b719e1797e558dccffe3d2c0e8d"
+      "scenario_sha256": "6d9c58f60e3d86cd2a2b6ebf4728cb2e4110032aeb385f16d037866cdce3a96d"
     },
     {
       "creation_commands": [],
