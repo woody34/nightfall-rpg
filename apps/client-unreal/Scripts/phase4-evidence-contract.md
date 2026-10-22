@@ -553,6 +553,13 @@ verified by exact oracle equality on the producer's actual inputs.
   (`auto_shot:<resolution_id>`) whose handler bit (SoulShots 1, SpiritShot 2,
   BlessedSpiritShot 4) is exactly the bits added (harness-review-9 P2-1: a
   soulshot cannot fund a spirit bit); a row that misses any of these refuses.
+  D161 (suite coverage, not this sidecar): `enchant_outcomes.success_no_increment` is an
+  ALLOWED schema-4 counter label (the pinned rule exists: base chance 0 at the item's
+  level with a positive scroll bonus gives success without increment) but Phase 4 does
+  not REQUIRE it across the suite: the branch needs armour at +20 plus the +10% bonus
+  scroll, outside the admitted item range (support items cap at max_enchant 9), and
+  there is no fixture RNG-cursor control. Phase 5 adds that control and restores the
+  requirement. `success`, `safe_failed`, `blessed_reset` and `destroyed` stay required.
   A use row with any discharge cause may only CLEAR charge bits
   (`after.charges & ~before.charges == 0`); only a receipt-bound use (manual
   shot charge) may add them.

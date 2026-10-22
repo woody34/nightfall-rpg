@@ -31,6 +31,11 @@ class Coverage(unittest.TestCase):
         self.assertEqual(required['intents']['crystallize_item'],'28')
         self.assertNotIn('crystallize_item',required['events'])
         self.assertEqual(required,json.loads((SCRIPTS.parent/'Scenarios/phase4-coverage.required.json').read_text()))
+        # D161: success_no_increment is a valid producer label but not a Phase 4 suite requirement.
+        self.assertEqual(required['enchant_outcomes'],['success','safe_failed','blessed_reset','destroyed'])
+        self.assertIn('success_no_increment',p4.gates.V4_LABELS['enchant_outcomes'])
+        self.assertTrue(set(required['enchant_outcomes'])<p4.gates.V4_LABELS['enchant_outcomes'])
+        for group in ('item_operations','refine_outcomes','shot_payments'):self.assertEqual(set(required[group]),p4.gates.V4_LABELS[group])
 
     def test_inherited_fields_missing_reachability_and_legacy_injection_fail(self):
         path=self.root/'current.json';path.write_text(json.dumps(self.data));p4.gates.read_transitions(path)

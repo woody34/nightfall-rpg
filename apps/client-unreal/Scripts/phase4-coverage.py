@@ -24,7 +24,11 @@ def required_wire():
     return dict(schema_version=1,kind='required future observations, not baseline evidence',
                 intents=intents,events=events,
                 item_operations=['grant','starter','backfill','equip','unequip','consume','enchant','destroy','crystallize','refine','cancel_refine','exchange','use','toggle_auto_shot'],
-                enchant_outcomes=['success','success_no_increment','safe_failed','blessed_reset','destroyed'],
+                # D161: success_no_increment stays an ALLOWED producer label (sim-gates V4_LABELS) but is
+                # not REQUIRED across the suite: the branch needs armour at +20 plus the +10% bonus
+                # scroll, outside the Phase 4 admitted item range (support items cap at max_enchant 9),
+                # and no fixture RNG-cursor control exists yet. Phase 5 restores it to the required set.
+                enchant_outcomes=['success','safe_failed','blessed_reset','destroyed'],
                 refine_outcomes=['applied','removed'],shot_payments=['soul','spirit','blessed_spirit'])
 
 

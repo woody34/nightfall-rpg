@@ -42,6 +42,7 @@ V4_COUNTERS = ('item_operations', 'enchant_outcomes', 'refine_outcomes', 'shot_p
 V4_SCALARS = ('item_ledger_rows', 'item_allocations', 'inventory_baselines')
 V4_LABELS = {
     'item_operations': set('grant starter backfill equip unequip consume enchant destroy crystallize refine cancel_refine exchange use toggle_auto_shot'.split()),
+    # D161: success_no_increment is a valid producer label but not a suite requirement (phase4-coverage.py).
     'enchant_outcomes': set('success success_no_increment safe_failed blessed_reset destroyed'.split()),
     'refine_outcomes': {'applied', 'removed'},
     'shot_payments': {'soul', 'spirit', 'blessed_spirit'},

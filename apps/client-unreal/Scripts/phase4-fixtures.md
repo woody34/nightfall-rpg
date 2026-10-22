@@ -347,5 +347,10 @@ level, success branch) but no pinned unit. It needs armour at +20 (ARMOR_GROUP c
 from +20) with the bonus scroll22011 (+10%) and a draw below10000. The first such word is
 57 (4808), seventeen words after the pinned cursor, and the harness has no deterministic
 way to consume seventeen words before an enchant (only three 100% enchants exist on the
-fighter sword +0..+2). This case stays open until the zone or the API gives a fixture
-RNG position or seed control.
+fighter sword +0..+2). D161: the suite coverage gate (`phase4-coverage.py`,
+`Scenarios/phase4-coverage.required.json`) does not require `success_no_increment` in
+Phase4. The label stays valid for the producer (`sim-gates.py` V4_LABELS), because the
+pinned L2J rule exists. The branch needs armour at +20 and the +10% bonus scroll22011, which
+is outside the Phase4 admitted item range (support items stop at max_enchant9), and the
+harness has no fixture RNG-cursor control. Phase5 adds that control and returns the label to
+the required set. Every other enchant outcome stays required.

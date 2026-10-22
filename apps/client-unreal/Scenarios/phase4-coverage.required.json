@@ -1,7 +1,6 @@
 {
   "enchant_outcomes": [
     "success",
-    "success_no_increment",
     "safe_failed",
     "blessed_reset",
     "destroyed"
