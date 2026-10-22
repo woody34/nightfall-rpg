@@ -6,6 +6,7 @@ import json
 import os
 import subprocess
 from pathlib import Path
+import re
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -20,6 +21,41 @@ scenarios=load('scenario4',SCRIPTS/'phase4-scenarios.py')
 
 
 class Fixtures(unittest.TestCase):
+    def test_t52_enchant_outcomes_are_pinned_by_the_zone_rng_stream(self):
+        # The zone ChaCha12 stream (zone 1, epoch 1) reproduces the i3e exports: entity ids take
+        # words 0..39, the first enchant draws word 40 (fail/success/safe) or 41 (blessed, after a walk).
+        for position,value in ((40,47096),(41,26339),(42,39447),(43,89321)):
+            self.assertEqual(fixture.phase4.zone_rng_word(position)%100000,value)
+            self.assertEqual(fixture.phase4.zone_roll(position,100000)[0],value)
+        self.assertEqual(fixture.phase4.zone_roll(41,30)[0],29);self.assertEqual(fixture.phase4.zone_roll(42,30)[0],17);self.assertEqual(fixture.phase4.zone_roll(43,30)[0],1)
+        # The pinned word 40 fails a MAGE weapon at +3 (40%) and passes a FIGHTER weapon (70%) and 0..2 (100%).
+        groups={r['name']:{(x['min'],x['max']):x['chance_1e5'] for x in r['ranges']} for r in fixture.phase4.table('enchant_groups')['rates']}
+        self.assertEqual(groups['MAGE_WEAPON_GROUP'][(3,14)],40000);self.assertEqual(groups['FIGHTER_WEAPON_GROUP'][(3,14)],70000)
+        self.assertTrue(groups['MAGE_WEAPON_GROUP'][(3,14)]<=47096<groups['FIGHTER_WEAPON_GROUP'][(3,14)])
+        selection=fixture.phase4.selection()
+        sword=fixture.phase4.catalogue()[selection['c_magic_weapon']]
+        self.assertEqual((selection['c_magic_weapon'],sword['grade'],sword['weapon_type'],sword['flags']['is_magic_weapon']),(84,'C','SWORD',True))
+        owner=fixture.phase4.profiles('phase4-enchant')['owner']
+        self.assertEqual([(r['instance_id'],r['template_id'],r['enchant']) for r in owner['inventory'] if r['template_id'] in (71,84)],[(7,71,0),(8,71,3),(12,84,3)])
+        # The enchant pack overlay spawns the same ten NPC entities, none of which can walk.
+        with tempfile.TemporaryDirectory() as tmp:
+            overlay=Path(tmp)/'data';fixture.phase4.create_overlay(overlay,REPO,'phase4-enchant')
+            zone=(overlay/'zones/test_zone.toml').read_text()
+            self.assertNotIn('[[spawn_slots]]',zone);self.assertEqual(zone.count('[[npcs]]'),10)
+            self.assertEqual(len(re.findall(r'^speed = 0$',zone,re.M)),10);self.assertNotRegex(zone,r'(?m)^speed = [1-9]')
+            for name in ('keltir_a','skill_target','skill_sentinel','karma_reward','pole_secondary_a','pole_secondary_b','Wanderer','blacksmith'):
+                self.assertIn(f'name = "{name}"',zone)
+            other=Path(tmp)/'other';fixture.phase4.create_overlay(other,REPO,'phase4-shield')
+            self.assertIn('[[spawn_slots]]',(other/'zones/test_zone.toml').read_text())
+        # Scenario side: the failure units target instance 12 and wait for their pinned outcome.
+        fail=(SCRIPTS.parent/'Scenarios/4-enchant-fail.nfs').read_text()
+        self.assertIn('nf.Enchant 951 instance:12 ',fail);self.assertIn('nf.WaitFor enchant_outcome == destroyed 3',fail);self.assertNotIn('item_receipt_matches_first',fail)
+        for name,scroll,outcome in (('safe',22227,'safe_failed'),('blessed',6573,'blessed_reset')):
+            text=(SCRIPTS.parent/f'Scenarios/variants/4-enchant-{name}.nfs').read_text()
+            self.assertIn(f'nf.Enchant {scroll} instance:12 ',text);self.assertIn(f'nf.WaitFor enchant_outcome == {outcome} 3',text)
+            self.assertIn('nf.WaitFor item_receipt_matches_first 3',text);self.assertIn('nf.Expect inventory_has 84 == 1',text)
+        print('T52: zone RNG stream reproduces i3e words 40..43; mage sword +3 fails at 47096; enchant overlay has 10 static NPCs',flush=True)
+
     def test_published_inputs_match_and_ids_are_disjoint(self):
         data=json.loads((SCRIPTS.parent/'Scenarios/phase4-packs.json').read_text())
         self.assertEqual(data,fixture.phase4.publish())

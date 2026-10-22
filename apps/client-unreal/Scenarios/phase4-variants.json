@@ -8999,6 +8999,7 @@
         "# item-gate: enchant_outcome",
         "# item-gate: failure_refund",
         "nf.Expect inventory_has 6573 == 1",
+        "nf.Expect inventory_has 84 == 1",
         "nf.Expect inventory_has 6573 == 1"
       ],
       "canonical": "4-enchant-fail.nfs",
@@ -9015,6 +9016,7 @@
         "# item-gate: enchant_outcome",
         "# item-gate: failure_refund",
         "nf.Expect inventory_has 22227 == 1",
+        "nf.Expect inventory_has 84 == 1",
         "nf.Expect inventory_has 22227 == 1"
       ],
       "canonical": "4-enchant-fail.nfs",

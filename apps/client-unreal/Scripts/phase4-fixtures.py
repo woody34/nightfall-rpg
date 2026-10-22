@@ -5,6 +5,7 @@ from functools import lru_cache
 import importlib.util
 import json
 from pathlib import Path
+import re
 import tomllib
 
 REPO = Path(__file__).resolve().parents[3]
@@ -72,6 +73,12 @@ def selection(repo=REPO):
         'c_weapon': dict(kind='Weapon', weapon_type='SWORD', grade='C'),
         'overgrade': dict(kind='Weapon', weapon_type='SWORD', grade='S'),
     }.items(): result[name] = select(repo, **conditions)['template_id']
+    # T52: the stable minimum admitted C-grade MAGE weapon (MAGE_WEAPON_GROUP: 40% at +3..+14,
+    # FIGHTER_WEAPON_GROUP: 70%). The failure units enchant it at +3 so the pinned zone draw
+    # (ChaCha12 word 40 of zone 1 epoch 1 = 47096 of 100000) fails deterministically.
+    result['c_magic_weapon'] = next(i for i, r in sorted(catalogue(repo).items())
+                                    if capabilities(repo)[i]['admitted'] and r['kind'] == 'Weapon' and r['grade'] == 'C'
+                                    and r['weapon_type'] == 'SWORD' and r['flags']['is_magic_weapon'])
     # Exact named source rows for scrolls and player HP potion; each must be admitted AND usable
     # (no use blockers). D131: Healing Potion 727 has no V6 use handler (use:no_handler ->
     # ItemCapabilityDeferred); the positive potion case is Lesser Healing Potion 1060 (D97).
@@ -228,6 +235,8 @@ def profiles(pack, repo=REPO, paired=False):
     elif pack == 'phase4-enchant':
         extras = [(s['c_weapon'], 1, 0), (s['c_weapon'], 1, 3)]
         extras += [(s[k], 2, 0) for k in ('scroll', 'blessed_scroll', 'safe_scroll')]
+        # T52: the C mage sword at +3 (instance 12) is the deterministic failure target.
+        extras.append((s['c_magic_weapon'], 1, 3))
     elif pack == 'phase4-crystallize':
         extras = [(s['d_weapon'], 1, 0), (s['d_weapon'], 1, 0)]
         owner = role(repo, profession='dwarven_fighter', level=20, position=(126, 128))
@@ -360,7 +369,63 @@ def denied_auth_inputs():
     return dict(token=token, issuer=issuer, audience=audience, account=str(UUID(os.environ.get('SIM_PHASE4_OWNER_ACCOUNT', ''))))
 
 
-def create_overlay(destination, repo):
+STATIC_NPC_PACKS = frozenset(('phase4-enchant',))
+
+
+def zone_rng_word(position, zone=1, epoch=1, stream=0):
+    """The zone's ChaCha12 output word at `position` (apps/api domain/zone/state.rs ZoneSeed/RngState).
+
+    Key = b"nightfall.zone.rng.1" || zone id LE u32 || epoch LE u64; rand_chacha layout
+    (constants, key, 64-bit block counter, 64-bit stream), 12 rounds, block = 16 words.
+    `roll_below(n)` takes consecutive words, rejects a word >= 2^32 - 2^32 % n and returns
+    word % n. Verified against the i3e exports: words 40..43 of zone 1 epoch 1 are
+    47096 (mod 100000), 26339, 39447 and 89321.
+    """
+    import struct
+    mask = 0xffffffff
+    def rotl(v, c): return ((v << c) | (v >> (32 - c))) & mask
+    def quarter(s, a, b, c, d):
+        s[a] = (s[a] + s[b]) & mask; s[d] ^= s[a]; s[d] = rotl(s[d], 16)
+        s[c] = (s[c] + s[d]) & mask; s[b] ^= s[c]; s[b] = rotl(s[b], 12)
+        s[a] = (s[a] + s[b]) & mask; s[d] ^= s[a]; s[d] = rotl(s[d], 8)
+        s[c] = (s[c] + s[d]) & mask; s[b] ^= s[c]; s[b] = rotl(s[b], 7)
+    key = b'nightfall.zone.rng.1' + struct.pack('<I', zone) + struct.pack('<Q', epoch)
+    init = list(struct.unpack('<4I', b'expand 32-byte k') + struct.unpack('<8I', key)
+                + struct.unpack('<2I', struct.pack('<Q', position // 16)) + struct.unpack('<2I', struct.pack('<Q', stream)))
+    state = init[:]
+    for _ in range(6):
+        quarter(state, 0, 4, 8, 12); quarter(state, 1, 5, 9, 13); quarter(state, 2, 6, 10, 14); quarter(state, 3, 7, 11, 15)
+        quarter(state, 0, 5, 10, 15); quarter(state, 1, 6, 11, 12); quarter(state, 2, 7, 8, 13); quarter(state, 3, 4, 9, 14)
+    return (state[position % 16] + init[position % 16]) & mask
+
+
+def zone_roll(position, bound, **seed):
+    """`roll_below(bound)` at a stream position: (value, words consumed); None value = rejected word."""
+    word = zone_rng_word(position, **seed)
+    limit = (1 << 32) - ((1 << 32) % bound)
+    return (word % bound if word < limit else None), 1
+
+
+def pin_rng_cursor(zone):
+    """T52: no NPC walks, so the zone RNG cursor at the first player intent is fixed.
+
+    The zone's ChaCha12 stream is keyed by (zone 1, epoch 1) and every fresh fixture stack
+    starts at word 0. The ten NPC spawns draw entity ids (4 words each, words 0..39); an idle
+    NPC with a positive speed also rolls `npc_walk` on its own cadence, which moved the enchant
+    draw of 4-enchant-blessed from word 40 to word 41 in i3e. Every spawn slot becomes a static
+    zone NPC (speed 0: the walk roll is skipped before any draw) and the Wanderer stands still,
+    so the entity count (10) and therefore the enchant draw (word 40, value 47096) are fixed.
+    """
+    text = zone.read_text()
+    text = text.replace('name = "Wanderer"\nattackable = false\npos = [32, 32]\nspeed = 500', 'name = "Wanderer"\nattackable = false\npos = [32, 32]\nspeed = 0')
+    slots = re.findall(r'\[\[spawn_slots\]\]\nid = "([^"]+)"\ntemplate = "[^"]+"\nhome = \[(\d+), (\d+)\]\ncount = 1\n(?:respawn_[a-z_]+ = \d+\n)*', text)
+    text = re.sub(r'\[\[spawn_slots\]\]\nid = "[^"]+"\ntemplate = "[^"]+"\nhome = \[\d+, \d+\]\ncount = 1\n(?:respawn_[a-z_]+ = \d+\n)*', '', text)
+    for name, x, y in slots:
+        text += f'\n[[npcs]]\nname = "{name}"\nattackable = false\npos = [{x}, {y}]\nspeed = 0\n'
+    zone.write_text(text)
+
+
+def create_overlay(destination, repo, pack=None):
     phase3.create_overlay(destination, repo)
     zone = destination / 'zones/test_zone.toml'
     blacksmith = table('capacities', repo)['blacksmith']
@@ -378,3 +443,5 @@ def create_overlay(destination, repo):
         with zone.open('a') as out:
             out.write(f'\n[[spawn_slots]]\nid = "{name}"\ntemplate = "{name}"\nhome = [{position[0]}, {position[1]}]\ncount = 1\n')
     zone.write_text(zone.read_text() + '\n[[npcs]]\nname = ' + json.dumps(blacksmith['template']) + '\nattackable = false\npos = [' + str(blacksmith['x']) + ', ' + str(blacksmith['y']) + ']\nspeed = 0\n')
+    if pack in STATIC_NPC_PACKS:
+        pin_rng_cursor(zone)

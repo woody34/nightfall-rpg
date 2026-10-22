@@ -314,3 +314,38 @@ base profile at creation and a class transfer does not change it. The zone load 
 `base_class_id` with `FAILED_PRECONDITION "character state does not match the zone's rules"`
 (T25 at 611407e). `phase4-fixtures.py` (`role`) derives the column from the tier-0 profession
 of `base_class_id`.
+
+## Pinned enchant outcomes (T52)
+
+The zone has one random source: a `ChaCha12` stream with the key `nightfall.zone.rng.1`,
+the zone id and the epoch (`domain/zone/state.rs`, `ZoneSeed`). Every fresh fixture stack
+is zone1 epoch1 and starts at word0. The stream is the same in every run.
+`phase4-fixtures.py zone_rng_word(position)` computes the stream in Python, and
+`zone_roll(position, bound)` applies the zone's `roll_below`. The i3e exports confirm
+words40..43: 47096, 26339, 39447 and 89321 (modulo100000).
+
+The ten NPC spawns of the Phase4 overlay draw entity ids (4 words each, words0..39).
+An idle NPC with a positive speed also rolls `npc_walk` on its own cadence. In i3e this
+roll moved the enchant draw of 4-enchant-blessed from word40 to word41. The enchant
+pack overlay (`create_overlay(..., 'phase4-enchant')`, `pin_rng_cursor`) makes every
+spawn slot a static zone NPC with speed0 and stops the Wanderer, so the entity count
+stays ten and no walk roll occurs. The first enchant of the unit then draws word40,
+value47096, in every run.
+
+The outcome follows from the pinned rate groups (`enchant_groups.toml`): a FIGHTER
+weapon at +3 has 70000 (success), a MAGE weapon at +3 has 40000 (failure). The pack adds
+the stable minimum admitted C mage sword84 at +3 (instance12). 4-enchant-success
+enchants the fighter sword at +0 (100000, success). 4-enchant-fail enchants instance12
+with the normal scroll951 (destroyed; no exact-key replay, the instance is gone).
+4-enchant-safe (22227) gives safe_failed and 4-enchant-blessed (6573) gives
+blessed_reset; both keep the item and replay the exact key. Each unit waits for its
+outcome (`nf.WaitFor enchant_outcome == <outcome> 3`) and keeps the evidence gates
+enchant_chance, enchant_outcome and failure_refund.
+
+`success_no_increment` has a rule (`state_item_enchant.rs`: base chance0 at the item's
+level, success branch) but no pinned unit. It needs armour at +20 (ARMOR_GROUP chance0
+from +20) with the bonus scroll22011 (+10%) and a draw below10000. The first such word is
+57 (4808), seventeen words after the pinned cursor, and the harness has no deterministic
+way to consume seventeen words before an enchant (only three 100% enchants exist on the
+fighter sword +0..+2). This case stays open until the zone or the API gives a fixture
+RNG position or seed control.

@@ -3130,7 +3130,7 @@
       "owner": {
         "alive": true,
         "allocator": {
-          "next_item_instance": 12,
+          "next_item_instance": 13,
           "range_end_exclusive": 4294967296,
           "range_start": 1
         },
@@ -3357,6 +3357,24 @@
               "symbol": "item 22227"
             },
             "template_id": 22227
+          },
+          {
+            "augment_id": null,
+            "charge_bits": 0,
+            "count": 1,
+            "enchant": 3,
+            "instance_id": 12,
+            "location": "inventory",
+            "revision": 0,
+            "slot": null,
+            "source": {
+              "file": "src/main/resources/data/stats/items/00000-00099.xml",
+              "lines": "1544",
+              "repository": "https://bitbucket.org/l2jserver/l2j-server-datapack",
+              "revision": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+              "symbol": "item 84"
+            },
+            "template_id": 84
           }
         ],
         "karma": 0,
@@ -3539,6 +3557,22 @@
             },
             "before": null,
             "instance_id": 11,
+            "op": "grant"
+          },
+          {
+            "after": {
+              "augment_id": null,
+              "charge_bits": 0,
+              "count": 1,
+              "enchant": 3,
+              "instance_id": 12,
+              "location": "inventory",
+              "revision": 0,
+              "slot": null,
+              "template_id": 84
+            },
+            "before": null,
+            "instance_id": 12,
             "op": "grant"
           }
         ],
@@ -13922,6 +13956,7 @@
     "blessed_spiritshot": 3947,
     "blunt": 4,
     "bow": 13,
+    "c_magic_weapon": 84,
     "c_weapon": 71,
     "d_weapon": 69,
     "dagger": 10,

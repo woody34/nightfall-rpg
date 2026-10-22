@@ -117,10 +117,18 @@ def generate(directory=DIRECTORY):
         path=variants/(name+'.nfs');path.write_text(text)
         assertions=[l for l in text.splitlines() if l.startswith(('nf.Expect ','# item-gate:'))]
         rows.append(dict(id=name,fixture=pack,canonical=canonical,scenarios=[str(path.relative_to(directory))],assertions=assertions,execution='pending E2/E3/E5'))
-    for name,scroll in [('blessed',6573),('safe',22227)]:
+    for name,scroll,outcome in [('blessed',6573,'blessed_reset'),('safe',22227,'safe_failed')]:
+        # T52: the same pinned draw (word 40) fails the C mage sword +3; a blessed scroll resets it
+        # to +0 and a safe scroll keeps it, so both variants keep the item and replay the exact key.
         canonical='4-enchant-fail.nfs';text=(directory/canonical).read_text()
         text=text.replace('# fixture: phase4-enchant','# fixture: phase4-enchant\n# variant: 4-enchant-'+name)
         text=text.replace('nf.Enchant 951 ',f'nf.Enchant {scroll} ').replace('inventory_has 951',f'inventory_has {scroll}')
+        text=text.replace('enchant_outcome == destroyed',f'enchant_outcome == {outcome}').replace('nf.Expect inventory_has 84 == 0','nf.Expect inventory_has 84 == 1')
+        key=re.search(r'^nf.Enchant \S+ instance:12 (\S+)$',text,re.M)[1]
+        replay=[f'nf.Enchant {scroll} instance:12 {key}','nf.WaitFor item_receipt_matches_first 3',f'nf.Expect inventory_has {scroll} == 1']
+        text=re.sub(r'^(# Total budget.*\n)?nf.Within \d+$',lambda m:'\n'.join(replay)+'\n'+(m.group(1) or '')+'nf.Within 0',text,count=1,flags=re.M)
+        waits=sum(int(l.split('#',1)[0].split()[-1]) for l in text.splitlines() if l.startswith('nf.WaitFor '))
+        text=text.replace('nf.Within 0',f'nf.Within {waits+30}')
         path=variants/f'4-enchant-{name}.nfs';path.write_text(text)
         rows.append(dict(id='4-enchant-'+name,fixture='phase4-enchant',canonical=canonical,scenarios=[str(path.relative_to(directory))],assertions=[l for l in text.splitlines() if l.startswith(('nf.Expect ','# item-gate:'))],execution='pending E2/E3/E5'))
     for name,canonical in [('manual-soulshot','4-soulshot.nfs'),('blessed-escape','4-escape-scroll.nfs')]:
