@@ -2380,6 +2380,77 @@ mod tests {
         assert_eq!((player.weapon_penalty, player.armor_penalty, player.overload_level), (2, 1, 2));
     }
 
+    /// T51/D157: a V6 step with actual displacement sets the primitive facing; a blocked
+    /// step keeps it; an escape (same-life teleport) keeps it; a new life (town respawn)
+    /// starts east. V5 zones have no facing.
+    #[test]
+    #[allow(clippy::too_many_lines)] // One owner through every facing rule.
+    fn v6_facing_follows_actual_movement_and_resets_on_a_new_life() {
+        use crate::domain::zone::item_angles::FacingVector;
+        let (mut zone, owner, npc) = equipment_fixture();
+        zone.run_tick(zone.draft(Vec::new())).unwrap();
+        let facing = |zone: &ZoneState| {
+            zone.phase4.as_ref().unwrap().canonical.facing[&owner.entity].components()
+        };
+        assert_eq!(facing(&zone), FacingVector::EAST.components());
+        let walk = |zone: &mut ZoneState, dx: i32, dy: i32| {
+            let from = zone.entities[&owner.entity].pos;
+            let dest = Vec2Fixed::new(
+                Fixed::from_raw(from.x.raw() + dx),
+                Fixed::from_raw(from.y.raw() + dy),
+            );
+            zone.run_tick(zone.draft(vec![ZoneInput::system(ZoneCommand::MoveTo {
+                entity: owner.entity,
+                dest,
+            })]))
+            .unwrap();
+            (from, zone.entities[&owner.entity].pos)
+        };
+        // North-west diagonal, then due south: each step's displacement, reduced.
+        let (from, to) = walk(&mut zone, -3000, 3000);
+        assert_ne!(from, to);
+        assert_eq!(facing(&zone), (-1, 1));
+        zone.run_tick(zone.draft(vec![ZoneInput::system(ZoneCommand::StopMove {
+            entity: owner.entity,
+        })]))
+        .unwrap();
+        let (from, to) = walk(&mut zone, 0, -4000);
+        assert_ne!(from, to);
+        assert_eq!(facing(&zone), (0, -1));
+        // Blocked (no speed): no displacement, facing kept.
+        zone.entities.get_mut(&owner.entity).unwrap().speed = Speed::from_milli_tiles_per_tick(0);
+        let (from, to) = walk(&mut zone, 5000, 0);
+        assert_eq!(from, to);
+        assert_eq!(facing(&zone), (0, -1));
+        // Same-life teleport (escape to the safe point) keeps the facing.
+        let mut escaped = zone.clone();
+        escaped.safe_point = Some(Vec2Fixed::from_tiles(40, 40));
+        let before = escaped.entities[&owner.entity].pos;
+        escaped
+            .escape_v6(escaped.next_tick, owner, &mut Vec::new())
+            .unwrap();
+        assert_ne!(escaped.entities[&owner.entity].pos, before);
+        assert_eq!(facing(&escaped), (0, -1));
+        // A new life starts east.
+        set_resources(&mut zone, owner, 1, 0);
+        zone.apply_damage_rolled_v5(
+            zone.next_tick,
+            DamageRequest {
+                source: zone.damage_source_v5(npc).unwrap(),
+                target: owner,
+                cause: DamageCause::Direct,
+                rolled_damage: 50,
+            },
+            &mut Vec::new(),
+            &mut scripted(&[(DamageRollSite::DeathPenalty, 100, 99)], &mut Vec::new()),
+        )
+        .unwrap();
+        assert!(zone.entities[&owner.entity].targeting.dead);
+        assert_eq!(facing(&zone), (0, -1), "death itself does not turn the body");
+        zone.respawn_town_v5(zone.next_tick, owner.entity).unwrap();
+        assert_eq!(facing(&zone), FacingVector::EAST.components());
+    }
+
     #[test]
     #[allow(clippy::too_many_lines)] // One lifecycle proves failed and successful admission share no providers.
     fn v6_equipment_survives_death_dead_checkpoint_restore_and_town_resurrection() {
@@ -12317,6 +12388,56 @@ mod tests {
         );
         let rear = run(&behind, &[(R::AutoHit, 1000, 0), (R::AutoCritical, 1000, 999), spread]);
         assert!(rear.1 > open.1, "{rear:?} {open:?}");
+        // T51/D157: the defender steps toward the attacker behind it (west), so its facing
+        // turns west and the same attacker is now in front: Formulas.calcShldUse rolls the
+        // perfect check first (a perfect block returns 1), then the rate check.
+        let mut turned = behind.clone();
+        let here = turned.entities[&owner.entity].pos;
+        turned.entities.get_mut(&owner.entity).unwrap().dest =
+            Some(Vec2Fixed::new(Fixed::from_raw(here.x.raw() - 200), here.y));
+        turned.step(turned.next_tick);
+        turned.entities.get_mut(&owner.entity).unwrap().dest = None;
+        assert_eq!(
+            turned.phase4.as_ref().unwrap().canonical.facing[&owner.entity].components(),
+            (-1, 0)
+        );
+        assert_eq!(
+            run(
+                &turned,
+                &[
+                    (R::AutoHit, 1000, 0),
+                    (R::ShieldPerfect, 100, 91),
+                    (R::AutoCritical, 1000, 999),
+                ],
+            ),
+            (AttackOutcome::Hit, 1)
+        );
+        let normal = run(
+            &turned,
+            &[
+                (R::AutoHit, 1000, 0),
+                (R::ShieldPerfect, 100, 90),
+                (R::ShieldNormal, 100, 0),
+                (R::AutoCritical, 1000, 999),
+                spread,
+            ],
+        );
+        assert_eq!(normal.0, AttackOutcome::Hit);
+        // Side (attacker due north of a west-facing defender, 90 degrees off the 120-degree
+        // shield cone): no shield draws.
+        let mut side = turned.clone();
+        let at = turned.entities[&owner.entity].pos;
+        let north = Vec2Fixed::new(at.x, Fixed::from_raw(at.y.raw() + 1000));
+        let from = side.entities[&npc.entity].pos;
+        side.entities.get_mut(&npc.entity).unwrap().pos = north;
+        side.aoi.relocate(npc.entity, from, north);
+        let mut trace = Vec::new();
+        assert_eq!(
+            side.clone()
+                .shield_v6(npc, owner, &mut scripted(&[], &mut trace))
+                .unwrap(),
+            ShieldOutcome::None
+        );
         // D153 (T44): a V6 player attacker's shield check is the DEFENDER's fact (the shield
         // owner), with the attacker in the context's `attacker_entity`.
         let attacker = zone

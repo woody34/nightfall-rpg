@@ -916,6 +916,14 @@ impl ZoneState {
         c.hp = hp;
         c.mp = mp;
         c.incarnation = c.incarnation.saturating_add(1);
+        // T51/D157: a new life starts facing east (V6).
+        if let Some(facing) = self
+            .phase4
+            .as_mut()
+            .and_then(|items| items.canonical.facing.get_mut(&entity))
+        {
+            *facing = crate::domain::zone::item_angles::FacingVector::EAST;
+        }
         c.protected_until = Some(Tick(tick.0.saturating_add(protection)));
         c.swing = None;
         c.auto_attack = false;
