@@ -34,6 +34,13 @@ if ((CASTING)); then
     || sim_die "casting soak requires client Gauntlet SoakRoleManifest support; see phase3-fixtures.md"
   grep -Eq 'SoakScenarioSeconds' "$SIM_PROJECT_DIR/Build/Scripts/NightfallSoak.cs" \
     || sim_die "casting soak requires client SoakScenarioSeconds budget support; see phase3-fixtures.md"
+  if ((ITEMS)); then
+    # D155: the items soak enchants its one scroll in iteration 1 only; later BotLoop iterations
+    # run the lane's `loop_scenario` (-BotLoopScenario). Without the hook the client would loop
+    # the enchant and refuse it (T49).
+    grep -Eq 'BotLoopScenario' "$SIM_PROJECT_DIR/Build/Scripts/NightfallSoak.cs" \
+      || sim_die "items soak requires client NightfallSoak.cs loop_scenario/BotLoopScenario support (D155); see phase3-fixtures.md"
+  fi
 fi
 sim_resolve_env
 export UE_ROOT

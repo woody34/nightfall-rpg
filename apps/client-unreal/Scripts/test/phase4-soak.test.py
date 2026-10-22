@@ -48,7 +48,35 @@ class Soak(unittest.TestCase):
                     self.assertLessEqual((move[0]-previous[0])**2+(move[1]-previous[1])**2,60**2)
                     self.assertFalse(116<=move[0]<=136 and 116<=move[1]<=136)
                     previous=move
+                # D155: the BotLoop script for iterations >= 2 keeps the swaps, toggles and casting the
+                # soak gates need, and never enchants or uses the scroll the first iteration consumed.
+                loop_path=Path(role['loop_scenario']);loop=loop_path.read_text()
+                self.assertEqual(loop_path.name,'1-kill-one-monster.loop.nfs');self.assertEqual(loop_path.parent,Path(role['scenario']).parent)
+                self.assertNotIn('nf.Enchant',loop);self.assertNotIn('nf.UseItem',loop);self.assertIn('nf.Expect inventory_has 951 == 0',loop)
+                for line in ('nf.Equip 1','nf.WaitFor equipped rhand == 1 3','nf.Equip 6','nf.WaitFor equipped rhand == 6 3',
+                             f"nf.AutoShot {picks['soulshot']} on",f"nf.AutoShot {picks['spiritshot']} on",'nf.Cast 1068 self','nf.Cast 1177','nf.WaitFor item_baseline 3'):
+                    self.assertIn(line,loop)
+                self.assertEqual(re.findall(r'^nf.ClickMove .+$',loop,re.M),re.findall(r'^nf.ClickMove .+$',source,re.M))
+                loop_waits=sum(int(l.split('#',1)[0].split()[-1]) for l in loop.splitlines() if l.startswith('nf.WaitFor '))
+                loop_budget=int(re.search(r'^nf.Within (\d+)$',loop,re.M)[1]);self.assertEqual(loop_budget,loop_waits+30);self.assertLess(loop_budget,budget)
+                for line in loop.splitlines():
+                    tokens=line.split('#',1)[0].split()
+                    if tokens and tokens[0].startswith('nf.') and tokens[0] not in ('nf.WaitFor','nf.Expect','nf.Within','nf.Login','nf.EnterWorld','nf.Cast','nf.ClickMove','nf.Target'):
+                        self.assertTrue(grammar.command(tokens) is not False,line)
             self.assertEqual(len(identities),8);self.assertEqual(len(keys),8)
+            # The two scripts differ only by the enchant lines; every lane's loop file is distinct and exists.
+            self.assertEqual(len({r['loop_scenario'] for r in manifest['roles']}),8)
+            first=Path(manifest['roles'][0]['scenario']).read_text().splitlines();loop=Path(manifest['roles'][0]['loop_scenario']).read_text().splitlines()
+            removed=[l for l in first if l not in loop];added=[l for l in loop if l not in first]
+            removed_commands=[l for l in removed if l.startswith('nf.')]
+            self.assertEqual([l.split()[0] for l in removed_commands],['nf.Enchant','nf.WaitFor','nf.Within'])
+            self.assertEqual(removed_commands[1],'nf.WaitFor enchant_result_consistent 3')
+            self.assertEqual([l.split()[0] for l in added if l.startswith('nf.')],['nf.Within'])
+        # Absent key = today's behaviour: a casting-only soak emits no loop script.
+        with tempfile.TemporaryDirectory() as tmp:
+            out=Path(tmp);fixtures.prepare(REPO,out,2,casting=True)
+            for role in json.loads((out/'roles.json').read_text())['roles']:
+                self.assertNotIn('loop_scenario',role);self.assertFalse((Path(role['scenario']).parent/'1-kill-one-monster.loop.nfs').exists())
             bad=copy.deepcopy(manifest);bad['roles'][0]['seed']['inventory'][0]['count']=2
             with self.assertRaises(ValueError):seed.validated_roles(bad)
 
