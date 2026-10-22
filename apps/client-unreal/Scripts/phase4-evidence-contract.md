@@ -545,6 +545,12 @@ verified by exact oracle equality on the producer's actual inputs.
   equals its first cause's resolution id. A `cast_discharge` cause names a
   skill, not a resolution; D96: such a row's `resolution_id` is
   `cast:<cast_id>` and the consumer checks the `cast:` prefix only.
+  T50 (zone session 22): `shot_charge:<resolution_id>` is the automatic
+  recharge at attack/cast start. Such a use row has exactly that one cause
+  and no receipt, its `resolution_id` equals the cause's resolution id, it
+  ADDS charge bits and removes none, and the same owner tick holds the
+  auto_shot payment Consume of a shot template under that resolution
+  (`auto_shot:<resolution_id>`); a row that misses any of these refuses.
   A use row with any discharge cause may only CLEAR charge bits
   (`after.charges & ~before.charges == 0`); only a receipt-bound use (manual
   shot charge) may add them.

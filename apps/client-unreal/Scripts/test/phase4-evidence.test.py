@@ -2666,6 +2666,55 @@ class Evidence(unittest.TestCase):
                 result=gate.evaluate(rows,self.recording,OWNER,[name],HASH)
                 self.assertTrue(result['passed'],result)
 
+    def t50_rows(self,before_charges=1,after_charges=3,receipt=None,payment=True,payment_resolution='cast:9:shot:2509',payment_template=2509):
+        """T50: the automatic recharge at cast start (zone session 22): a receipt-less Use row with
+        cause shot_charge:cast:9:shot:2509 adding charge bits (1 -> 3), paid by the same owner
+        tick's auto_shot Consume of the shot template under that resolution."""
+        rows=copy.deepcopy(self.rows)
+        weapon=item(100,1,71,'rhand')|{'charges':before_charges};shots=item(101,5,payment_template)
+        rows.insert(1,dict(kind='item_baseline',entity=OWNER,incarnation=1,tick=0,sequence=0,
+            data=dict(inventory_revision=0,instances=[copy.deepcopy(weapon),copy.deepcopy(shots)],paperdoll={'rhand':100},auto_shots=[2509])))
+        use=dict(operation='use',instance=100,before=copy.deepcopy(weapon),after=weapon|{'charges':after_charges,'revision':1},
+                 count_delta=0,operation_ordinal=0,resolution_id='cast:9:shot:2509',receipt_ref=receipt,
+                 causes=[dict(cause='shot_charge:cast:9:shot:2509',count_delta=0)]+([dict(cause=receipt,count_delta=0)] if receipt else []))
+        rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=1,sequence=0,data=use))
+        if payment:
+            rows.insert(-1,dict(kind='item_delta',entity=OWNER,incarnation=1,tick=1,sequence=0,
+                data=dict(operation='consume',instance=101,before=copy.deepcopy(shots),after=shots|{'count':4,'revision':1},
+                          count_delta=-1,operation_ordinal=0,resolution_id=payment_resolution,receipt_refs=[],
+                          causes=[dict(cause='auto_shot:'+payment_resolution,count_delta=-1)])))
+        rows[0]['watermark'].update(records=2,last_tick=1);rows[-1].update(ticks=2,last_tick=1)
+        return self.repair(rows)
+
+    def test_t50_shot_charge_use_rows_add_bits_under_a_same_tick_payment(self):
+        for before,after in ((1,3),(0,1),(0,2),(2,6),(0,4)):
+            with self.subTest(before=before,after=after):
+                rows=self.t50_rows(before,after);gate.validate(rows,self.recording,HASH)
+                self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['pole_damage'],HASH)['passed'])
+        cases=0
+        for name,kwargs in {
+            'charges removed':dict(before_charges=3,after_charges=1),
+            'charges unchanged':dict(before_charges=1,after_charges=1),
+            'charge bit swapped':dict(before_charges=1,after_charges=2),
+            'receipt present':dict(receipt='receipt:use:k1'),
+            'no payment':dict(payment=False),
+            'payment under another resolution':dict(payment_resolution='cast:8:shot:2509'),
+            'payment of a non-shot template':dict(payment_template=57),
+        }.items():
+            with self.subTest(name):
+                bad=self.t50_rows(**kwargs)
+                with self.assertRaises(ValueError):gate.validate(bad,self.recording,HASH)
+                self.assert_rejected(bad,('pole_damage',));cases+=1
+        # The payment in another owner tick does not fund it.
+        bad=self.t50_rows();payment=next(r for r in bad if r['kind']=='item_delta' and r['data']['operation']=='consume');payment['tick']=2
+        bad[0]['watermark'].update(records=3,last_tick=2);bad[-1].update(ticks=3,last_tick=2);payment['data']['after']['revision']=2
+        with self.assertRaisesRegex(ValueError,'same-tick auto_shot payment'):gate.validate(bad,self.recording,HASH)
+        # A discharge row still cannot add charges (review-2 P3-2 unchanged).
+        bad=self.t50_rows();use=next(r for r in bad if r['kind']=='item_delta' and r['data']['operation']=='use')
+        use['data']['causes']=[dict(cause='shot_discharge:cast:9:shot:2509',count_delta=0)]
+        with self.assertRaisesRegex(ValueError,'cannot add charges'):gate.validate(bad,self.recording,HASH)
+        print(f'T50: shot_charge use rows (bits added, receipt-less, same-tick auto_shot payment) pass; {cases+2} malformed shapes reject',flush=True)
+
     def test_d153_attacker_entity_context_names_the_other_party(self):
         # D153: a formula fact's subject is the owner of the item it evaluates (the shield fact is the
         # defender's); the attacker is context. The key is a canonical UUID like target_entity.
