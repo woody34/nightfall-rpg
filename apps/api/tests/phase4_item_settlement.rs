@@ -525,7 +525,9 @@ fn events(cp: &CharacterCheckpoint, work: &ItemCheckpointWork) -> Vec<DomainEven
                 ItemOperation::Starter | ItemOperation::Backfill | ItemOperation::Grant => {
                     DomainEvent::ItemGranted { fact }
                 },
-                ItemOperation::Consume => DomainEvent::ItemConsumed { fact },
+                // As the checkpoint lane maps them (checkpoint.rs item_events): receipt-less
+                // Use rows (shot charge/discharge) are consumption facts.
+                ItemOperation::Consume | ItemOperation::Use => DomainEvent::ItemConsumed { fact },
                 ItemOperation::Destroy | ItemOperation::Crystallize => {
                     DomainEvent::ItemDestroyed { fact }
                 },
@@ -536,7 +538,7 @@ fn events(cp: &CharacterCheckpoint, work: &ItemCheckpointWork) -> Vec<DomainEven
                     DomainEvent::ItemRefined { fact }
                 },
                 ItemOperation::Exchange => DomainEvent::ItemExchanged { fact },
-                ItemOperation::Use | ItemOperation::ToggleAutoShot => {
+                ItemOperation::ToggleAutoShot => {
                     panic!("owner-only operations cannot be fixture ledger rows")
                 },
             }
@@ -3621,9 +3623,212 @@ where
         );
         (base, base_work) = (cp, work);
     }
+    // D152 legs on settled state (api-review-19 P1-1/P3-1). Tick 83: a grant of two `emptied`
+    // shots (revision 11).
+    let mut refill_range = base_work.allocation;
+    let shots = born(emptied, 2, false, refill_range.allocate().unwrap());
+    let shots = ItemInstance {
+        created_tick: Tick(83),
+        revision: 11,
+        ..shots
+    };
+    let grant_key = Uuid::now_v7();
+    let (cp, mut work, _) = {
+        let mut instances = held(&base);
+        instances.push(shots.clone());
+        shots_tick(
+            &base,
+            &base_work,
+            83,
+            instances,
+            base.phase4.as_ref().unwrap().auto_shots.clone(),
+            vec![ItemDeltaPlan {
+                receipt_refs: Vec::new(),
+                operation: ItemOperation::Grant,
+                operation_ordinal: 0,
+                instance: shots.id,
+                before: None,
+                after: Some(shots.clone()),
+                count_delta: 2,
+                receipt: Some(ItemReceiptRef {
+                    operation: ItemOperation::Grant,
+                    key: grant_key,
+                }),
+                causes: Vec::new(),
+            }],
+            vec![receipt(
+                me,
+                ItemOperation::Grant,
+                grant_key,
+                83,
+                11,
+                vec![shots.id],
+            )],
+            Vec::new(),
+        )
+    };
+    work.allocation = refill_range;
+    let events = self::events(&cp, &work);
+    assert_eq!(
+        repo.checkpoint_items(&cp, &events, &work, None)
+            .await
+            .unwrap(),
+        CheckpointOutcome::Applied(11)
+    );
+    let (base, base_work) = (cp, work);
+    // Tick 84: a Use whose cast START recharges (one shot paid, the wielded weapon charged).
+    // Refused at the pre-tick revision; settles at the settled one (the P3-1 complement).
+    let weapon_now = held(&base)
+        .into_iter()
+        .find(|item| item.id == wielded.id)
+        .unwrap();
+    let mut spent = shots.clone();
+    spent.count = 1;
+    spent.revision = 12;
+    let mut charged = weapon_now.clone();
+    charged.charges = 1;
+    charged.revision = 12;
+    let start = format!("cast:9:shot:{emptied}");
+    let recharge = |use_revision: u64| {
+        let instances: Vec<_> = held(&base)
+            .into_iter()
+            .map(|item| {
+                if item.id == shots.id {
+                    spent.clone()
+                } else if item.id == weapon_now.id {
+                    charged.clone()
+                } else {
+                    item
+                }
+            })
+            .collect();
+        shots_tick(
+            &base,
+            &base_work,
+            84,
+            instances,
+            base.phase4.as_ref().unwrap().auto_shots.clone(),
+            vec![
+                ItemDeltaPlan {
+                    receipt_refs: Vec::new(),
+                    operation: ItemOperation::Use,
+                    operation_ordinal: 0,
+                    instance: weapon_now.id,
+                    before: Some(weapon_now.clone()),
+                    after: Some(charged.clone()),
+                    count_delta: 0,
+                    receipt: None,
+                    causes: vec![ItemAuditEvidence {
+                        family: "shot_charge".into(),
+                        fields: BTreeMap::from([(
+                            "resolution_id".into(),
+                            ItemEvidenceValue::Text(start.clone()),
+                        )]),
+                    }],
+                },
+                ItemDeltaPlan {
+                    receipt_refs: Vec::new(),
+                    operation: ItemOperation::Consume,
+                    operation_ordinal: 0,
+                    instance: shots.id,
+                    before: Some(shots.clone()),
+                    after: Some(spent.clone()),
+                    count_delta: -1,
+                    receipt: None,
+                    causes: vec![ItemAuditEvidence {
+                        family: "auto_shot_payment".into(),
+                        fields: BTreeMap::from([
+                            ("count_delta".into(), ItemEvidenceValue::Signed(-1)),
+                            ("operation_ordinal".into(), ItemEvidenceValue::Unsigned(1)),
+                            ("resolution_id".into(), ItemEvidenceValue::Text(start.clone())),
+                        ]),
+                    }],
+                },
+            ],
+            vec![receipt(
+                me,
+                ItemOperation::Use,
+                Uuid::now_v7(),
+                84,
+                use_revision,
+                Vec::new(),
+            )],
+            Vec::new(),
+        )
+    };
+    let (cp, work, events) = recharge(11);
+    refused(
+        repo.checkpoint_items(&cp, &events, &work, None).await,
+        "item_checkpoint_revision_step",
+    );
+    let (cp, work, events) = recharge(12);
+    assert_eq!(
+        repo.checkpoint_items(&cp, &events, &work, None)
+            .await
+            .unwrap(),
+        CheckpointOutcome::Applied(12)
+    );
+    let (base, base_work) = (cp, work);
+    // Tick 85 (api-review-19 P1-1): a genuine no-op Use (pre-tick revision 12) in a tick that
+    // also holds an earlier cast's COMPLETION discharge row (`cast:9`, after the command phase,
+    // stepping the owner to 13) settles: completion rows do not withdraw the exemption.
+    let mut discharged = charged.clone();
+    discharged.charges = 0;
+    discharged.revision = 13;
+    let instances: Vec<_> = held(&base)
+        .into_iter()
+        .map(|item| {
+            if item.id == charged.id {
+                discharged.clone()
+            } else {
+                item
+            }
+        })
+        .collect();
+    let (cp, work, events) = shots_tick(
+        &base,
+        &base_work,
+        85,
+        instances,
+        base.phase4.as_ref().unwrap().auto_shots.clone(),
+        vec![ItemDeltaPlan {
+            receipt_refs: Vec::new(),
+            operation: ItemOperation::Use,
+            operation_ordinal: 0,
+            instance: charged.id,
+            before: Some(charged.clone()),
+            after: Some(discharged),
+            count_delta: 0,
+            receipt: None,
+            causes: vec![ItemAuditEvidence {
+                family: "shot_discharge".into(),
+                fields: BTreeMap::from([
+                    ("cast".into(), ItemEvidenceValue::Unsigned(9)),
+                    ("resolution_id".into(), ItemEvidenceValue::Text("cast:9".into())),
+                    ("frozen_charges".into(), ItemEvidenceValue::Unsigned(1)),
+                    ("discharged".into(), ItemEvidenceValue::Unsigned(1)),
+                ]),
+            }],
+        }],
+        vec![receipt(
+            me,
+            ItemOperation::Use,
+            Uuid::now_v7(),
+            85,
+            12,
+            Vec::new(),
+        )],
+        Vec::new(),
+    );
+    assert_eq!(
+        repo.checkpoint_items(&cp, &events, &work, None)
+            .await
+            .unwrap(),
+        CheckpointOutcome::Applied(13)
+    );
     let settled = repo.load_for_admission(c.id).await.unwrap().unwrap();
     let retained = settled.phase4.unwrap().checkpoint.unwrap();
-    assert_eq!(retained.inventory_revision, 10);
+    assert_eq!(retained.inventory_revision, 13);
     assert_eq!(retained.auto_shots, BTreeSet::from([emptied]));
 }
 
@@ -3633,7 +3838,7 @@ async fn memory_auto_shot_evidence_is_as_of_the_removal() {
     let repo = InMemoryCharacterRepository::default()
         .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
         .unwrap();
-    as_of_removal_contract(&repo, &bundle).await;
+    Box::pin(as_of_removal_contract(&repo, &bundle)).await;
 }
 
 #[tokio::test]
@@ -3646,5 +3851,5 @@ async fn postgres_auto_shot_evidence_is_as_of_the_removal() {
     let repo = PgCharacterRepository::new(pool)
         .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
         .unwrap();
-    as_of_removal_contract(&repo, &bundle).await;
+    Box::pin(as_of_removal_contract(&repo, &bundle)).await;
 }
