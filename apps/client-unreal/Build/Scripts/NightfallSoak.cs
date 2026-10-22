@@ -47,6 +47,8 @@ namespace Nightfall
                 string scenario = lanes != null ? lanes[i].Scenario : Path.Combine(fixtures, $"client-{i + 1:00}", "Scenarios", "1-kill-one-monster.nfs");
                 roles[i].CommandLineParams.Add("BotScenario", $"\"{scenario}\"");
                 if (lanes != null) roles[i].CommandLineParams.Add("DevTokenFile", $"\"{lanes[i].Token}\"");
+                // D155: iterations >= 2 of the BotLoop run this script instead of the first-iteration scenario.
+                if (lanes != null && lanes[i].LoopScenario != null) roles[i].CommandLineParams.Add("BotLoopScenario", $"\"{lanes[i].LoopScenario}\"");
                 roles[i].CommandLineParams.Add("BotDataDir", $"\"{Path.Combine(fixtures, "data")}\"");
                 roles[i].CommandLineParams.Add("BotOutDir", $"\"{dir}\"");
                 roles[i].CommandLineParams.Add("BotLoop", Seconds.ToString());
@@ -67,6 +69,7 @@ namespace Nightfall
         {
             public string Scenario;
             public string Token;
+            public string LoopScenario;   // optional manifest key `loop_scenario`; null when absent
         }
 
         // Fail before launching any role. Tokens are paths only and never read or logged here.
@@ -89,7 +92,8 @@ namespace Nightfall
                     throw new ArgumentException("SoakRoleManifest role order must be client-01, client-02, ...");
                 string scenario = role.GetProperty("scenario").GetString();
                 string token = role.GetProperty("token_file").GetString();
-                foreach (string value in new[] { scenario, token })
+                string loopScenario = role.TryGetProperty("loop_scenario", out var loopElement) ? loopElement.GetString() : null;
+                foreach (string value in loopScenario != null ? new[] { scenario, token, loopScenario } : new[] { scenario, token })
                 {
                     if (String.IsNullOrEmpty(value) || !Path.IsPathFullyQualified(value) || value.Contains('"') || value.Contains('\n') || value.Contains('\r') || !File.Exists(value) || !paths.Add(Path.GetFullPath(value)))
                         throw new ArgumentException("Manifest paths must be unique existing absolute paths without command-line delimiters");
@@ -103,7 +107,7 @@ namespace Nightfall
                     if ((mode & exposed) != 0 || (mode & UnixFileMode.UserRead) == 0)
                         throw new ArgumentException("DevTokenFile must be private and owner-readable");
                 }
-                result.Add(new Lane { Scenario = Path.GetFullPath(scenario), Token = Path.GetFullPath(token) });
+                result.Add(new Lane { Scenario = Path.GetFullPath(scenario), Token = Path.GetFullPath(token), LoopScenario = loopScenario != null ? Path.GetFullPath(loopScenario) : null });
             }
             return result;
         }
