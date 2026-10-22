@@ -1734,6 +1734,8 @@ impl ZoneState {
             e.pos = from.step_toward(dest, e.speed);
             // T51/D157 (V6 only; plan §2 chase/movement row): an actual nonzero displacement
             // sets the primitive gcd-normalized facing; a blocked or no-op step keeps it.
+            // Engine-review-14 P3-4: the V6 state digest carries the facing, so a recording
+            // regenerated across this rule changes digests only (same events and outputs).
             if e.pos != from {
                 if let Some(facing) = self
                     .phase4

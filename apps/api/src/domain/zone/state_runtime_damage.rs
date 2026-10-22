@@ -5598,9 +5598,11 @@ mod tests {
         })
         .collect();
         let draft = zone.draft(commands);
+        let boundary = zone.snapshot();
         let mut observed = zone.clone();
         observed.enable_items_replay_evidence().unwrap();
         let applied = zone.run_tick(draft.clone()).unwrap();
+        write_one_tick("NIGHTFALL_TEST_REMOVAL_RECORDING", boundary, &applied);
         assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
         assert_eq!(applied, observed.run_tick(draft.clone()).unwrap());
         assert_eq!(applied, cold.run_tick(draft).unwrap());
@@ -5797,6 +5799,28 @@ mod tests {
         assert!(!zone.phase4.as_ref().unwrap().canonical.players[&owner.entity]
             .inventory
             .contains_key(&arrows));
+    }
+    /// Write a one-tick recording (`boundary` = the pre-tick snapshot) when `variable` is set.
+    fn write_one_tick(
+        variable: &str,
+        boundary: crate::domain::zone::ZoneSnapshot,
+        applied: &AppliedTick,
+    ) {
+        use crate::application::replay_log::{AppliedTickRecord, Watermark, WatermarkReason};
+        if let Ok(path) = std::env::var(variable) {
+            let recording = crate::infrastructure::eventlog::Recording {
+                watermark: Watermark {
+                    zone: boundary.seed.zone,
+                    epoch: boundary.seed.epoch,
+                    records: 1,
+                    last_tick: Some(applied.tick),
+                    reason: WatermarkReason::Shutdown,
+                },
+                records: vec![AppliedTickRecord::from_applied(boundary.seed.zone, applied)],
+                snapshot: boundary,
+            };
+            std::fs::write(path, recording.to_bytes().unwrap()).unwrap();
+        }
     }
     fn enchant_fixture(
         scroll_template: u32,
@@ -7895,9 +7919,11 @@ mod tests {
                 })
                 .collect(),
         );
+        let boundary = zone.snapshot();
         zone.enable_items_replay_evidence().unwrap();
         let cursor = zone.rng.get_word_pos();
         let applied = zone.run_tick(draft.clone()).unwrap();
+        write_one_tick("NIGHTFALL_TEST_EXCHANGE_RECORDING", boundary, &applied);
         assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
         assert_eq!(applied, cold.run_tick(draft).unwrap());
         assert_eq!(cursor, zone.rng.get_word_pos());
@@ -11187,6 +11213,23 @@ mod tests {
                 break;
             }
         }
+        // Engine-review-14 P3-2: the dead life faces north-west; the accepted
+        // resurrection starts the new life east (T51/D157).
+        let facing = |zone: &ZoneState| zone.phase4.as_ref().unwrap().canonical.facing[&dead];
+        let point = |x, y| crate::domain::zone::Vec2Fixed {
+            x: crate::domain::zone::Fixed::from_raw(x),
+            y: crate::domain::zone::Fixed::from_raw(y),
+        };
+        let east = crate::domain::zone::item_angles::FacingVector::EAST;
+        *run.zone
+            .phase4
+            .as_mut()
+            .unwrap()
+            .canonical
+            .facing
+            .get_mut(&dead)
+            .unwrap() = east.moved(point(5, 5), point(3, 3));
+        assert_ne!(facing(&run.zone), east);
         let applied = run.tick(
             dead,
             vec![ZoneCommand::AcceptResurrect {
@@ -11197,6 +11240,7 @@ mod tests {
         );
         assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
         assert!(!run.zone.entities[&dead].targeting.dead);
+        assert_eq!(facing(&run.zone), east);
         assert!(run.formulas().contains("resurrection_scroll"), "{:?}", run.formulas());
         // D139: the subject is the scroll's owner; the resurrected player is the context's
         // `target_entity`.
