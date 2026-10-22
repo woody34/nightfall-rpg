@@ -431,6 +431,7 @@ impl ZoneState {
         Ok(())
     }
 
+    #[allow(clippy::too_many_lines)] // One paid-learn transaction on a candidate.
     pub(super) fn learn_v5(
         &mut self,
         tick: Tick,
@@ -506,6 +507,17 @@ impl ZoneState {
             previous,
             initial_revision,
         )?;
+        // T55: the paid inventory re-derives the item view (weight, overload, penalties)
+        // before the learn is re-derived on it, as every other item payment does; the
+        // snapshot restore re-derives the same view, so a stale one fails the restore.
+        let speed_before = self
+            .entities
+            .get(&entity)
+            .ok_or(RejectReason::UnknownEntity)?
+            .speed;
+        candidate
+            .rebuild_v5(entity)
+            .map_err(|_| RejectReason::InvalidLoad)?;
         let prepared = candidate.prepare_live_learn(entity, account, generation, skill)?;
         let mut local = Vec::new();
         candidate.commit_learn_v5(
@@ -517,6 +529,23 @@ impl ZoneState {
             prepared,
             &mut local,
         )?;
+        let moved = candidate
+            .entities
+            .get(&entity)
+            .ok_or(RejectReason::UnknownEntity)?;
+        if moved.speed != speed_before
+            && !local
+                .iter()
+                .any(|e| matches!(e, ZoneEvent::EntityMove { entity: m, .. } if *m == entity))
+        {
+            local.push(ZoneEvent::EntityMove {
+                tick,
+                entity,
+                pos: moved.pos,
+                dest: moved.dest,
+                speed: moved.speed,
+            });
+        }
         let phase = &candidate
             .phase3
             .as_ref()

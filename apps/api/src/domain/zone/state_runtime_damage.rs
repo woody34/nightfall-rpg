@@ -2387,6 +2387,8 @@ mod tests {
     #[allow(clippy::too_many_lines)] // One owner through every facing rule.
     fn v6_facing_follows_actual_movement_and_resets_on_a_new_life() {
         use crate::domain::zone::item_angles::FacingVector;
+        // This test forces a zero speed; the T55 per-tick restore check does not apply.
+        crate::domain::zone::state::skip_v6_restore_identity();
         let (mut zone, owner, npc) = equipment_fixture();
         zone.run_tick(zone.draft(Vec::new())).unwrap();
         let facing = |zone: &ZoneState| {
@@ -7076,6 +7078,8 @@ mod tests {
     fn v6_skill_book_learning_consumes_the_book_through_the_ledger() {
         use crate::domain::zone::phase4_projection::{ItemEvidenceValue, ItemOperation};
         use crate::domain::zone::skill::{SkillId, SkillRef};
+        // This test removes the book behind the ledger in a refusal branch; the T55 per-tick restore check does not apply.
+        crate::domain::zone::state::skip_v6_restore_identity();
         let (mut zone, owner, ids, account) = bishop_with_books(&[1]);
         let book = ids[0];
         let key = Uuid::from_u128(0x0197_0000_0000_7000_8000_0000_0000_0042);
@@ -7330,6 +7334,8 @@ mod tests {
     #[test]
     fn v6_skill_book_learning_refuses_sp_before_the_book() {
         use crate::domain::zone::skill::{SkillId, SkillRef};
+        // This test edits the class table and the inventory directly; the T55 per-tick restore check does not apply.
+        crate::domain::zone::state::skip_v6_restore_identity();
         let (mut zone, owner, ids, account) = bishop_with_books(&[1]);
         let mut encoded = serde_json::to_value(zone.classes.as_deref().unwrap()).unwrap();
         let row = encoded["classes"]
