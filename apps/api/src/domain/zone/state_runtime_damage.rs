@@ -5896,6 +5896,8 @@ mod tests {
                 Some(Arc::clone(&zone.phase4.as_ref().unwrap().rules)),
             )
             .unwrap();
+            // Evidence never changes the applied tick (compared with `cold` below).
+            zone.enable_items_replay_evidence().unwrap();
             let intent = item_intent(
                 &zone,
                 owner.entity,
@@ -5945,12 +5947,44 @@ mod tests {
                 (raw, raw % 100_000, chance, expected)
             );
             assert_eq!(attempt.before, original.inventory[&target]);
-            let player = &zone.phase4.as_ref().unwrap().canonical.players[&owner.entity];
+            let player = zone.phase4.as_ref().unwrap().canonical.players[&owner.entity].clone();
             assert_eq!(player.inventory[&scroll].count, 2);
             assert_eq!(player.inventory_revision, original.inventory_revision + 1);
             assert_eq!(attempt.after.as_ref(), player.inventory.get(&target));
             if matches!(expected, O::SafeFailed | O::SuccessNoIncrement) {
                 assert_eq!(player.inventory[&target], original.inventory[&target]);
+            }
+            // D163: the enchant_outcome fact names the outcome as the receipt does.
+            let scrolls_left = player.inventory[&scroll].count;
+            let facts = zone.take_items_replay_evidence();
+            let fact = facts
+                .iter()
+                .find_map(|f| match &f.fact {
+                    crate::domain::zone::evidence::ItemEvidenceData::Formula(v)
+                        if v["formula"] == "enchant_outcome" =>
+                    {
+                        Some(v.clone())
+                    },
+                    _ => None,
+                })
+                .expect("enchant_outcome fact");
+            let name = match expected {
+                O::Success => "success",
+                O::SuccessNoIncrement => "success_no_increment",
+                O::SafeFailed => "safe_failure",
+                O::BlessedReset => "blessed_failure",
+                O::Destroyed => "destroyed",
+            };
+            assert_eq!(fact["actual"]["outcome"], name, "scroll {template}");
+            let level = if expected == O::Destroyed {
+                attempt.old_enchant
+            } else {
+                attempt.new_enchant
+            };
+            assert_eq!(fact["actual"]["enchant"], level);
+            if expected == O::SuccessNoIncrement {
+                assert_eq!((attempt.old_enchant, attempt.new_enchant, level), (20, 20, 20));
+                assert_eq!(scrolls_left, 2);
             }
             if matches!(expected, O::BlessedReset | O::Destroyed) {
                 assert!(!player.paperdoll.contains_key(&slot));
