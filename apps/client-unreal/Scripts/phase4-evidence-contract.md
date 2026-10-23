@@ -557,7 +557,12 @@ verified by exact oracle equality on the producer's actual inputs.
   revoked by harness-review-10) is REQUIRED like every other schema-4 label:
   4-enchant-no-increment produces it deterministically (armour at +20 has base chance
   0; the ancient safe armour scroll 22020 with bonus 100 makes the chance 100000, so the
-  zone takes the success branch with no increment whatever the draw).
+  zone takes the success branch with no increment whatever the draw). D163: the
+  `enchant_outcome` fact reports `actual.outcome = "success_no_increment"` for that
+  branch, with the unchanged `enchant` and `destroyed: false`; the consumer maps the E1
+  oracle's `success` at base 0 to that name, treats it as a success (failure_refund not
+  applicable), and refuses a `success` fact at base 0 or a `success_no_increment` fact
+  whose level moved or whose base is positive.
   A use row with any discharge cause may only CLEAR charge bits
   (`after.charges & ~before.charges == 0`); only a receipt-bound use (manual
   shot charge) may add them.

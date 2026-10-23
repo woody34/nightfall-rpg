@@ -352,4 +352,6 @@ never reaches0 for this scroll) and one scroll22020 (instance14). 4-enchant-no-i
 equips the armour, waits for `enchant_level chest == 20`, enchants it with22020, waits for
 `enchant_outcome == success_no_increment`, and asserts the level stays20 and the scroll is
 consumed. Gates: enchant_chance and enchant_outcome (a success has no refund branch). The
-suite coverage gate requires every enchant outcome.
+suite coverage gate requires every enchant outcome. D163: the client receipt and the
+`enchant_outcome` evidence fact both carry `success_no_increment`; the consumer refuses a
+`success` fact at base chance0 and a `success_no_increment` fact whose level moved.

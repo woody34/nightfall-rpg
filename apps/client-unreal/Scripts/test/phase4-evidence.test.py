@@ -1295,13 +1295,14 @@ class Evidence(unittest.TestCase):
             corruptions+=1
         print(f'Operation property check: seed=0xE612; {controls} controls pass; {corruptions} per-operation field corruptions reject',flush=True)
 
-    def enchant_rows(self,base=100,residue=0,enchant=0,blessed=False,safe=False,entity=OWNER,target_id=8,scroll_id=7,support=False):
+    def enchant_rows(self,base=100,residue=0,enchant=0,blessed=False,safe=False,entity=OWNER,target_id=8,scroll_id=7,support=False,bonus=0,target_template=71,scroll_template=None):
         rows=[copy.deepcopy(self.rows[0])]
-        target=item(target_id,1,71);target['enchant']=enchant
-        scroll=item(scroll_id,1,6573 if blessed else 22227 if safe else 951)
+        target=item(target_id,1,target_template);target['enchant']=enchant
+        scroll=item(scroll_id,1,scroll_template or (6573 if blessed else 22227 if safe else 951))
         support_item=item(9,1,12363) if support else None
-        inputs=dict(base=base,bonus=0,support=18 if support else 0,residue=residue,enchant=enchant,blessed=blessed,safe=safe)
+        inputs=dict(base=base,bonus=bonus,support=18 if support else 0,residue=residue,enchant=enchant,blessed=blessed,safe=safe)
         result=gate.oracle.enchant_outcome(**inputs)
+        if result['outcome']=='success' and base==0:result=result|{'outcome':'success_no_increment'} # D163 producer naming
         def append(kind,data):
             data['resolution_id']='enchant:1'
             rows.append(dict(kind=kind,entity=entity,incarnation=1,tick=0,sequence=len(rows)-1,data=data))
@@ -1910,6 +1911,32 @@ class Evidence(unittest.TestCase):
             self.assertFalse(any(r['kind']=='item_delta' and r['data']['operation']=='grant' for r in rows))
         rows=self.enchant_rows(blessed=True)
         self.assertTrue(gate.evaluate(rows,self.recording,OWNER,['enchant_outcome'],HASH)['passed'])
+
+    def test_d163_success_no_increment_fact_at_base_zero(self):
+        # Armour at +20 (ARMOR_GROUP base 0) with the bonus-100 safe scroll: chance 100000, the level
+        # stays, the producer reports success_no_increment and failure_refund is not applicable.
+        gates=['enchant_outcome','enchant_chance','failure_refund']
+        armour=dict(base=0,bonus=100,enchant=20,safe=True,target_template=357,scroll_template=22020) # the 4-enchant-no-increment pack rows
+        for residue in (0,47096,99999):
+            with self.subTest(residue=residue):
+                rows=self.enchant_rows(residue=residue,**armour)
+                fact=rows[1]['data'];self.assertEqual(fact['actual'],{'outcome':'success_no_increment','enchant':20,'destroyed':False})
+                self.assertFalse(any(r['kind']=='item_delta' and r['data']['instance']==8 for r in rows))
+                result=gate.evaluate(rows,self.recording,OWNER,gates,HASH);self.assertTrue(result['passed'],result)
+                self.assertFalse(next(g for g in result['gates'] if g['formula']=='failure_refund')['applicable'])
+        rows=self.enchant_rows(**armour)
+        cases={'success at base 0':lambda f:f['actual'].update(outcome='success'),
+               'no_increment with a moved level':lambda f:f['actual'].update(enchant=21),
+               'no_increment at a positive base':lambda f:f['inputs'].update(base=70),
+               'destroyed flag on a success':lambda f:f['actual'].update(destroyed=True)}
+        for name,mutate in cases.items():
+            with self.subTest(name):
+                bad=copy.deepcopy(rows);mutate(bad[1]['data']);self.assert_rejected(bad,gates)
+        # A positive base keeps the oracle's `success` naming and the increment.
+        rows=self.enchant_rows(base=70,bonus=0,enchant=3,residue=10)
+        self.assertEqual(rows[1]['data']['actual']['outcome'],'success');self.assertTrue(gate.evaluate(rows,self.recording,OWNER,gates,HASH)['passed'])
+        bad=copy.deepcopy(rows);bad[1]['data']['actual']['outcome']='success_no_increment';self.assert_rejected(bad,gates)
+        print('D163: success_no_increment fact at base 0 passes with refund not applicable; success-at-base-0, moved level, positive base and relabelled success reject',flush=True)
 
     def test_unchanged_enchant_target_matches_complete_baseline(self):
         rows=self.enchant_rows(base=70,residue=99999,enchant=3,safe=True)

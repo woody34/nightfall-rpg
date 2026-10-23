@@ -723,6 +723,14 @@ def formula(name,inputs,actual):
         same(actual,oracle.rational(resurrection_expected(inputs,actual)))
     else:
         function=getattr(oracle,name,None) or getattr(oracle.behavior,name,None)
+        if name=='enchant_outcome':
+            # D163: at base chance 0 (ARMOR_GROUP from +20) a success leaves the level unchanged and
+            # the producer reports `success_no_increment`; the E1 oracle names that branch `success`
+            # with the unchanged level. A `success` fact at base 0, or a `success_no_increment` fact
+            # whose level moved or whose base is positive, mismatches and refuses.
+            decoded=oracle.decode_rationals(inputs);expected=function(**decoded)
+            if expected['outcome']=='success' and decoded['base']==0:expected={**expected,'outcome':'success_no_increment'}
+            same(actual,oracle.rational(expected));return
         if name=='magic_damage':magic_draws(inputs)
         if name in DRAW_FIELDS:
             try:result=function(**oracle.decode_rationals(inputs))
