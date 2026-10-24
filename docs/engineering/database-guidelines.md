@@ -76,6 +76,15 @@ in the same transaction. The key fingerprint covers the whole body including the
 with a different body is `KeyReused`. Check violations (`23514`) surface as typed
 `CheckpointError::Constraint(name)`. `hp`/`mp` NULL means full, because the stat engine owns maxima.
 
+One tick can save more than one owner. The lane saves the owners of different accounts at the
+same time, at most 8 at a time (D162). When a tick writes outbox or ledger rows, the owners of one
+account are saved one after the other, in entity order. Before the saves start, the lane reserves the `outbox` and `item_ledger` identity
+values of the tick in owner order, and each save writes its reserved values (`OVERRIDING SYSTEM
+VALUE`). Each save commits after the saves of the earlier owners of the tick. So the recorded
+order does not depend on the commit timing, and the relay sees the rows in id order. Every save
+that started settles; a failed save leaves a gap in the reserved values. The lane writes the item
+ledger rows of one save in one statement. The validation inside the transaction is not changed.
+
 ## 2c. Zone recovery epochs
 
 `zone_epochs` is durable recovery evidence, retained independently of JetStream messages and

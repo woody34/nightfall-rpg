@@ -128,6 +128,20 @@ pub trait CharacterRepository: Send + Sync {
         events: &[DomainEvent],
     ) -> Result<CheckpointOutcome, CheckpointError>;
 
+    /// D162: reserves the identity values that one tick's concurrent saves will write, in the
+    /// serial (owner) order: `outbox_rows` outbox ids and `ledger_rows` item ledger ids, each
+    /// ascending. The lane hands every save its slice before any save starts, so the recorded
+    /// order does not depend on commit timing. Adapters without identity columns return the
+    /// empty reservation and keep assigning nothing.
+    async fn reserve_commit_order(
+        &self,
+        outbox_rows: usize,
+        ledger_rows: usize,
+    ) -> anyhow::Result<super::commit_order::CommitOrderReservation> {
+        let _ = (outbox_rows, ledger_rows);
+        Ok(super::commit_order::CommitOrderReservation::default())
+    }
+
     /// T11: durably quarantine an owner whose checkpoint lane failed permanently while an
     /// unresolved epoch was recovered. Idempotent (the first record wins). Admission refuses a
     /// quarantined owner with `character_lane_quarantined` until an operator resolves it.

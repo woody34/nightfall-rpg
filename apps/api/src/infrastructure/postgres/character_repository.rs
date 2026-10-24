@@ -487,7 +487,52 @@ impl CharacterRepository for PgCharacterRepository {
     ///    revision check because a retry arrives after the revision moved on.
     /// 3. `UPDATE ... WHERE id AND revision = revision_seen`; zero rows is `Stale` and the
     ///    transaction (claim included) rolls back. Check violations roll back as `Constraint`.
-    /// 4. D162: wait for the commit turn; stage the events in `outbox`; commit.
+    /// D162: one statement reserves the tick's outbox and item ledger identity values from the
+    /// identity sequences, in order; the saves then write them with `OVERRIDING SYSTEM VALUE`.
+    async fn reserve_commit_order(
+        &self,
+        outbox_rows: usize,
+        ledger_rows: usize,
+    ) -> anyhow::Result<crate::application::commit_order::CommitOrderReservation> {
+        let count = |rows: usize| i64::try_from(rows).map_err(anyhow::Error::from);
+        let rows = self
+            .timed(
+                "reserve_commit_order",
+                self.db.query_all_raw(Statement::from_sql_and_values(
+                    DbBackend::Postgres,
+                    "SELECT 'o' AS kind, nextval(pg_get_serial_sequence('outbox','id')) AS id FROM generate_series(1,$1) \
+                     UNION ALL SELECT 'l' AS kind, nextval(pg_get_serial_sequence('item_ledger','id')) AS id FROM generate_series(1,$2)",
+                    [count(outbox_rows)?.into(), count(ledger_rows)?.into()],
+                )),
+            )
+            .await?;
+        let mut reservation = crate::application::commit_order::CommitOrderReservation::default();
+        for row in rows {
+            let kind: String = row.try_get("", "kind")?;
+            let id: i64 = row.try_get("", "id")?;
+            match kind.as_str() {
+                "o" => reservation.outbox_ids.push(id),
+                "l" => reservation.ledger_ids.push(id),
+                other => anyhow::bail!("unknown commit order kind {other}"),
+            }
+        }
+        // nextval values are ascending within one statement; the sort only pins the contract.
+        reservation.outbox_ids.sort_unstable();
+        reservation.ledger_ids.sort_unstable();
+        anyhow::ensure!(
+            reservation.outbox_ids.len() == outbox_rows
+                && reservation.ledger_ids.len() == ledger_rows,
+            "commit order reservation returned {}/{} outbox and {}/{} ledger ids",
+            reservation.outbox_ids.len(),
+            outbox_rows,
+            reservation.ledger_ids.len(),
+            ledger_rows
+        );
+        Ok(reservation)
+    }
+
+    /// 4. Stage the events in `outbox` (D162: with the tick's pre-assigned ids); wait for the
+    ///    commit turn; write the shared item range; commit.
     async fn checkpoint(
         &self,
         checkpoint: &CharacterCheckpoint,
@@ -873,29 +918,22 @@ impl PgCharacterRepository {
             super::phase4_checkpoint::persist_retained(&tx, cp.character_id, phase4).await?;
         }
 
-        // D162: the ordered tail. The rows that carry a global order (the shared item range
-        // high-water mark, ledger and outbox identity values) and the commit wait for the
-        // earlier owners of this tick, so the recorded order is the serial order. The wait has
-        // its own timing, so the soak report separates it from the SQL time of the save.
+        // D162: the rows with a global order take the tick's pre-assigned identity values (the
+        // serial order), so they are written concurrently with the other owners of the tick.
+        let reserved = crate::application::commit_order::reserved().unwrap_or_default();
+        if let Some(work) = items {
+            super::item_settlement::persist_ledger(&tx, work, &reserved.ledger_ids).await?;
+        }
+        stage_outbox(&tx, events, &reserved.outbox_ids).await?;
+        // The commit turn: the earlier row-writing owners of this tick have finished (committed,
+        // replayed or failed). Only the shared range row and the commit follow, so commits
+        // become visible in id order and the range row is never contended. The wait has its own
+        // timing, so the soak report separates it from the SQL time of the save.
         self.timed("checkpoint_turn_wait", crate::application::commit_order::wait_turn())
             .await;
         if let Some(work) = items {
-            super::item_settlement::persist_ordered(&tx, work).await?;
+            super::item_settlement::persist_range(&tx, work).await?;
         }
-        for event in events {
-            let staged = outbox::ActiveModel {
-                subject: ActiveValue::Set(event.subject().to_owned()),
-                payload: ActiveValue::Set(
-                    serde_json::to_value(event).map_err(anyhow::Error::from)?,
-                ),
-                ..Default::default()
-            };
-            outbox::Entity::insert(staged)
-                .exec_without_returning(&tx)
-                .await
-                .map_err(other)?;
-        }
-
         self.timed(
             "checkpoint_commit",
             super::storage_timing::timed("checkpoint", "commit", tx.commit()),
@@ -1001,4 +1039,65 @@ impl PgCharacterRepository {
         tx.commit().await.map_err(anyhow::Error::from)?;
         Ok(CreateOutcome::Created(character.clone()))
     }
+}
+
+/// Outbox rows per batched INSERT; 3 parameters per row stays far below the 65535 limit.
+const OUTBOX_ROWS_PER_STATEMENT: usize = 1000;
+
+/// Stages `events` in `outbox` in one batched statement per chunk, in event order. With a
+/// pre-assigned `ids` slice (D162, one id per event) the rows take exactly those identity
+/// values; with none the identity default applies.
+async fn stage_outbox(
+    tx: &sea_orm::DatabaseTransaction,
+    events: &[DomainEvent],
+    ids: &[i64],
+) -> Result<(), CheckpointError> {
+    if events.is_empty() {
+        return Ok(());
+    }
+    if !ids.is_empty() && ids.len() != events.len() {
+        return Err(CheckpointError::Constraint("commit_order_reservation".into()));
+    }
+    let explicit = !ids.is_empty();
+    let columns_per_row = if explicit { 3 } else { 2 };
+    for (chunk_index, chunk) in events.chunks(OUTBOX_ROWS_PER_STATEMENT).enumerate() {
+        let mut sql = String::from(if explicit {
+            "INSERT INTO outbox(id,subject,payload) OVERRIDING SYSTEM VALUE VALUES"
+        } else {
+            "INSERT INTO outbox(subject,payload) VALUES"
+        });
+        let mut values: Vec<sea_orm::Value> =
+            Vec::with_capacity(chunk.len().saturating_mul(columns_per_row));
+        for (index, event) in chunk.iter().enumerate() {
+            let base = index.saturating_mul(columns_per_row);
+            let placeholders: Vec<String> = (1..=columns_per_row)
+                .map(|column| format!("${}", base.saturating_add(column)))
+                .collect();
+            if index > 0 {
+                sql.push(',');
+            }
+            sql.push('(');
+            sql.push_str(&placeholders.join(","));
+            sql.push(')');
+            if explicit {
+                let position = chunk_index
+                    .saturating_mul(OUTBOX_ROWS_PER_STATEMENT)
+                    .saturating_add(index);
+                let id = ids.get(position).ok_or_else(|| {
+                    CheckpointError::Constraint("commit_order_reservation".into())
+                })?;
+                values.push((*id).into());
+            }
+            values.push(event.subject().to_owned().into());
+            values.push(
+                serde_json::to_value(event)
+                    .map_err(anyhow::Error::from)?
+                    .into(),
+            );
+        }
+        tx.execute_raw(Statement::from_sql_and_values(DbBackend::Postgres, sql, values))
+            .await
+            .map_err(checkpoint_db_error)?;
+    }
+    Ok(())
 }

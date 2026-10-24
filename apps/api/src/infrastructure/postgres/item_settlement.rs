@@ -142,26 +142,35 @@ pub(super) async fn persist(
     Ok(())
 }
 
-/// Ledger rows per batched INSERT; 10 parameters per row stays far below the 65535 limit.
+/// Ledger rows per batched INSERT; 11 parameters per row stays far below the 65535 limit.
 const LEDGER_ROWS_PER_STATEMENT: usize = 500;
 
-/// D162: the ordered tail of an item save, run after the commit turn opens. The range
-/// high-water mark is a row that all owners of the zone share, and the ledger identity values
-/// are global, so both are written in the serial (entity) order. D162 option B: the ledger
-/// rows of one save go in batched statements, in canonical row order, so their identity
-/// values are the ones the row-by-row path produced.
-pub(super) async fn persist_ordered(
+/// D162 (option B, non-semantic half): the ledger rows of one save go in batched statements, in
+/// canonical row order. With a pre-assigned `ids` slice (one id per row, the tick's serial
+/// order) the rows take exactly those identity values; with none the identity default applies.
+/// The row-ordinal constraint is checked right after, as before.
+pub(super) async fn persist_ledger(
     tx: &DatabaseTransaction,
     work: &ItemCheckpointWork,
+    ids: &[i64],
 ) -> Result<(), CheckpointError> {
-    persist_range(tx, work).await?;
     let rows = work.ledger_entries()?;
-    for chunk in rows.chunks(LEDGER_ROWS_PER_STATEMENT) {
-        let mut sql = String::from("INSERT INTO item_ledger(character_id,zone_id,epoch,tick,revision,op,instance_id,operation_ordinal,delta,receipt_ref) VALUES");
-        let mut values = Vec::with_capacity(chunk.len().saturating_mul(10));
+    if !ids.is_empty() && ids.len() != rows.len() {
+        return Err(CheckpointError::Constraint("commit_order_reservation".into()));
+    }
+    let explicit = !ids.is_empty();
+    let columns_per_row = if explicit { 11 } else { 10 };
+    for (chunk_index, chunk) in rows.chunks(LEDGER_ROWS_PER_STATEMENT).enumerate() {
+        let mut sql = String::from(if explicit {
+            "INSERT INTO item_ledger(id,character_id,zone_id,epoch,tick,revision,op,instance_id,operation_ordinal,delta,receipt_ref) OVERRIDING SYSTEM VALUE VALUES"
+        } else {
+            "INSERT INTO item_ledger(character_id,zone_id,epoch,tick,revision,op,instance_id,operation_ordinal,delta,receipt_ref) VALUES"
+        });
+        let mut values: Vec<sea_orm::Value> =
+            Vec::with_capacity(chunk.len().saturating_mul(columns_per_row));
         for (index, row) in chunk.iter().enumerate() {
-            let base = index.saturating_mul(10);
-            let placeholders: Vec<String> = (1..=10)
+            let base = index.saturating_mul(columns_per_row);
+            let placeholders: Vec<String> = (1..=columns_per_row)
                 .map(|column| format!("${}", base.saturating_add(column)))
                 .collect();
             if index > 0 {
@@ -170,6 +179,15 @@ pub(super) async fn persist_ordered(
             sql.push('(');
             sql.push_str(&placeholders.join(","));
             sql.push(')');
+            if explicit {
+                let position = chunk_index
+                    .saturating_mul(LEDGER_ROWS_PER_STATEMENT)
+                    .saturating_add(index);
+                let id = ids.get(position).ok_or_else(|| {
+                    CheckpointError::Constraint("commit_order_reservation".into())
+                })?;
+                values.push((*id).into());
+            }
             values.extend([
                 row.character_id.as_uuid().into(),
                 i32::try_from(row.zone_id.0)
@@ -197,7 +215,10 @@ pub(super) async fn persist_ordered(
     Ok(())
 }
 
-async fn persist_range(
+/// D162: the shared range high-water mark is the one row every owner of the zone writes. It is
+/// written after the commit turn opens (the earlier owners have committed), right before this
+/// commit, so concurrent saves never contend for its row lock.
+pub(super) async fn persist_range(
     tx: &DatabaseTransaction,
     work: &ItemCheckpointWork,
 ) -> Result<(), CheckpointError> {

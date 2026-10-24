@@ -955,6 +955,81 @@ impl CheckpointService {
         Ok(())
     }
 
+    /// D162: the account of every due owner the snapshot knows, and the save window: the
+    /// configured concurrency, or 1 (the serial path) when an owner that writes rows has no
+    /// known account, because same-account owners must stay serial.
+    fn save_window(
+        &self,
+        due: &BTreeSet<EntityId>,
+        snapshot: &ZoneSnapshot,
+    ) -> (BTreeMap<EntityId, crate::domain::AccountId>, usize) {
+        let writes_rows = |player: &Player| {
+            !player.events.is_empty() || player.learning.is_some() || player.items.is_some()
+        };
+        let accounts: BTreeMap<EntityId, crate::domain::AccountId> = snapshot
+            .entities
+            .iter()
+            .filter(|entity| due.contains(&entity.id))
+            .filter_map(|entity| match entity.combat.as_ref().map(|c| &c.role) {
+                Some(CombatRole::Player {
+                    progression: Some(progression),
+                    ..
+                }) => Some((entity.id, progression.identity.account_id)),
+                _ => None,
+            })
+            .collect();
+        let window = if self
+            .players
+            .iter()
+            .filter(|(id, player)| due.contains(id) && writes_rows(player))
+            .all(|(id, _)| accounts.contains_key(id))
+        {
+            self.save_concurrency
+        } else {
+            1
+        };
+        (accounts, window)
+    }
+
+    /// D162: the (outbox rows, ledger rows) each due owner writes, in entity order, and the
+    /// tick's identity reservation for them. A tick in which at most one owner writes rows
+    /// needs no reservation: the identity defaults of that single transaction are the serial
+    /// values already.
+    async fn reserve_tick_rows(
+        &self,
+        due: &BTreeSet<EntityId>,
+    ) -> anyhow::Result<(Vec<(usize, usize)>, super::commit_order::CommitOrderReservation)> {
+        let counts: Vec<(usize, usize)> = self
+            .players
+            .iter()
+            .filter(|(id, _)| due.contains(id))
+            .map(|(_, player)| {
+                if !player.dirty {
+                    return (0, 0);
+                }
+                let ledger = player
+                    .items
+                    .as_ref()
+                    .map_or(0, |work| work.projection.ledger.len());
+                (player.events.len(), ledger)
+            })
+            .collect();
+        let writers = counts
+            .iter()
+            .filter(|(outbox, ledger)| *outbox > 0 || *ledger > 0)
+            .count();
+        let reservation = if writers >= 2 {
+            let outbox_rows = counts.iter().map(|(outbox, _)| *outbox).sum();
+            let ledger_rows = counts.iter().map(|(_, ledger)| *ledger).sum();
+            self.repo
+                .reserve_commit_order(outbox_rows, ledger_rows)
+                .await?
+        } else {
+            super::commit_order::CommitOrderReservation::default()
+        };
+        Ok((counts, reservation))
+    }
+
     async fn save_due(
         &mut self,
         due: &BTreeSet<EntityId>,
@@ -986,39 +1061,28 @@ impl CheckpointService {
             }
             return Ok(());
         }
-        // D162: owners are saved in windows of `save_concurrency` in entity order. An owner
-        // with ordered work (outbox facts, a learn receipt or item rows) is in the commit-turn
-        // chain: the ordered tail of its transaction (item range, ledger rows, outbox rows,
-        // commit) waits for the earlier ordered owners, so the recorded rows are those of the
-        // serial path. The owners of one account stay serial in entity order (account-scoped
-        // receipts); accounts run concurrently. An owner without ordered work is not in the
-        // chain, because it writes no globally ordered row. An ordered owner without a known
-        // account makes the whole tick serial. The whole batch still gates index and output.
-        let ordered = |player: &Player| {
+        // D162: the due owners are saved in windows of `save_concurrency`, in entity order.
+        // Every recorded order is fixed before the saves run: the outbox and item ledger
+        // identity values of the tick are reserved in owner order and handed to each save, and
+        // every owner that writes such rows commits in its commit turn (after the earlier
+        // row-writing owners of its window have finished), so the relay sees commits in id
+        // order. In a tick in which any owner writes such rows, the owners of one account stay
+        // serial in entity order (account-scoped receipts and facts); accounts run concurrently.
+        // An owner that writes no row is not in the chain (it has no global order to keep), and
+        // a tick without any row-writing owner keeps the old fully concurrent saves. An owner
+        // with rows but without a known account makes the whole tick serial. Every started save
+        // settles; the first failure in entity order is reported after the batch. Concurrency
+        // changes timing only: the whole batch still gates the recording index and every output.
+        let (accounts, window) = self.save_window(due, snapshot);
+        let (counts, mut reservation) = self.reserve_tick_rows(due).await?;
+        let writes_rows = |player: &Player| {
             !player.events.is_empty() || player.learning.is_some() || player.items.is_some()
         };
-        let accounts: BTreeMap<EntityId, crate::domain::AccountId> = snapshot
-            .entities
-            .iter()
-            .filter(|entity| due.contains(&entity.id))
-            .filter_map(|entity| match entity.combat.as_ref().map(|c| &c.role) {
-                Some(CombatRole::Player {
-                    progression: Some(progression),
-                    ..
-                }) => Some((entity.id, progression.identity.account_id)),
-                _ => None,
-            })
-            .collect();
-        let window = if self
-            .players
-            .iter()
-            .filter(|(id, player)| due.contains(id) && ordered(player))
-            .all(|(id, _)| accounts.contains_key(id))
-        {
-            self.save_concurrency
-        } else {
-            1
-        };
+        let by_account = window > 1
+            && self
+                .players
+                .iter()
+                .any(|(id, player)| due.contains(id) && writes_rows(player));
         let repo = self.repo.as_ref();
         let learning = self.learning_repo.as_deref();
         let items = self.item_repo.as_deref();
@@ -1026,25 +1090,38 @@ impl CheckpointService {
         let metrics = self.metrics.as_ref();
         let sessions = &self.sessions;
         let pending = &self.pending;
-        let mut owners: Vec<(EntityId, &mut Player)> = self
+        let mut owners = Vec::with_capacity(counts.len());
+        for ((id, player), (outbox_rows, ledger_rows)) in self
             .players
             .iter_mut()
             .filter(|(id, _)| due.contains(id))
-            .map(|(id, player)| (*id, player))
-            .collect();
+            .zip(counts)
+        {
+            let reserved = if reservation.is_empty() {
+                super::commit_order::CommitOrderReservation::default()
+            } else {
+                reservation
+                    .take(outbox_rows, ledger_rows)
+                    .ok_or_else(|| anyhow::anyhow!("commit order reservation is short"))?
+            };
+            owners.push((*id, player, reserved));
+        }
         while !owners.is_empty() {
             let rest = owners.split_off(window.min(owners.len()));
             let batch = std::mem::replace(&mut owners, rest);
             let mut chain = super::commit_order::chain(
-                batch.iter().filter(|(_, player)| ordered(player)).count(),
+                batch
+                    .iter()
+                    .filter(|(_, player, _)| writes_rows(player))
+                    .count(),
             )
             .into_iter();
-            // Owners group by account; an unordered owner without a known account is its own
-            // group.
+            // Owners group by account when the tick writes ordered rows; an owner without a
+            // known account is its own group. The serial path (window 1) is one group.
             let mut groups: BTreeMap<(Option<crate::domain::AccountId>, Option<EntityId>), Vec<_>> =
                 BTreeMap::new();
-            for (id, player) in batch {
-                let (turn, release) = if ordered(player) {
+            for (id, player, reserved) in batch {
+                let (turn, release) = if writes_rows(player) {
                     chain
                         .next()
                         .ok_or_else(|| anyhow::anyhow!("commit turn chain is short"))?
@@ -1052,34 +1129,33 @@ impl CheckpointService {
                     super::commit_order::unordered()
                 };
                 let key = match accounts.get(&id) {
-                    Some(account) => (Some(*account), None),
-                    None => (None, Some(id)),
+                    Some(account) if by_account => (Some(*account), None),
+                    _ if window > 1 => (None, Some(id)),
+                    _ => (None, None),
                 };
-                let key = if window > 1 { key } else { (None, None) };
+                let slot = super::commit_order::Slot::new(turn, reserved);
                 groups
                     .entry(key)
                     .or_default()
-                    .push((id, player, turn, release));
+                    .push((id, player, slot, release));
             }
             let saves = groups.into_values().map(|group| async move {
-                let mut failure = None;
-                for (id, player, turn, release) in group {
-                    if failure.is_none() {
-                        let session = sessions.get(&id).copied();
-                        let saved = super::commit_order::scoped(
-                            turn,
-                            save(repo, learning, items, audit, metrics, pending, session, player),
-                        )
-                        .await;
-                        match saved {
-                            Ok(()) => player.last_saved = tick,
-                            Err(error) => failure = Some((id, error)),
-                        }
+                let mut failures = Vec::new();
+                for (id, player, slot, release) in group {
+                    let session = sessions.get(&id).copied();
+                    let saved = super::commit_order::scoped(
+                        slot,
+                        save(repo, learning, items, audit, metrics, pending, session, player),
+                    )
+                    .await;
+                    match saved {
+                        Ok(()) => player.last_saved = tick,
+                        Err(error) => failures.push((id, error)),
                     }
-                    // Opens the next owner's turn after this save returned or was skipped.
+                    // Opens the successor's turn now that this save has returned.
                     drop(release);
                 }
-                failure
+                failures
             });
             // Settle every started transaction even on failure; never cancel an in-flight
             // commit. The first failure in entity order stops the later windows.
