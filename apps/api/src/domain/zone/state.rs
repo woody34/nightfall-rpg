@@ -737,6 +737,17 @@ struct ProgressNote {
     respawned: bool,
 }
 
+#[cfg(test)]
+thread_local! {
+    static SKIP_RESTORE_IDENTITY: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// T55 (test builds): turn off the per-tick restore identity check on this test thread.
+#[cfg(test)]
+pub(crate) fn skip_v6_restore_identity() {
+    SKIP_RESTORE_IDENTITY.with(|skip| skip.set(true));
+}
+
 impl ZoneState {
     /// An empty zone at tick 0, ordinal 0, with the RNG at the start of its stream.
     /// `time_origin_ms` is the wall-clock time the caller assigns to tick 0.
@@ -1172,13 +1183,39 @@ impl ZoneState {
             }
         }
         if self.phase3_enabled() {
-            self.run_tick_v5(draft)
+            let applied = self.run_tick_v5(draft);
+            // T55 (test builds): after every applied V6 tick, snapshot -> restore is an
+            // identity; the restore re-derives every item view and must match it.
+            #[cfg(test)]
+            if applied.is_ok() {
+                self.assert_v6_restore_identity();
+            }
+            applied
         } else {
             if draft.commands.iter().any(|c| c.command.requires_phase3()) {
                 return Err(TickError::Phase3CommandInLegacy);
             }
             self.run_tick_legacy(draft)
         }
+    }
+
+    /// T55: a V6 state restores from its own snapshot to the same snapshot and digest.
+    /// A test that edits the state directly into a shape no command can reach (an item
+    /// removed behind the ledger, a forced speed, an edited class table) opts out with
+    /// [`skip_v6_restore_identity`].
+    #[cfg(test)]
+    #[allow(clippy::expect_used)] // Test-build invariant check.
+    pub(crate) fn assert_v6_restore_identity(&self) {
+        if SKIP_RESTORE_IDENTITY.with(std::cell::Cell::get) {
+            return;
+        }
+        let Some(items) = &self.phase4 else { return };
+        let snapshot = self.snapshot();
+        let restored =
+            Self::from_snapshot_with_items(snapshot.clone(), Some(Arc::clone(&items.rules)))
+                .expect("T55: a V6 snapshot restores");
+        assert_eq!(restored.state_digest(), self.state_digest(), "T55: restored digest");
+        assert!(restored.snapshot() == snapshot, "T55: restored snapshot differs");
     }
 
     /// Immutable recorded byte admission inputs; absent only for legacy epochs.
@@ -1734,6 +1771,8 @@ impl ZoneState {
             e.pos = from.step_toward(dest, e.speed);
             // T51/D157 (V6 only; plan §2 chase/movement row): an actual nonzero displacement
             // sets the primitive gcd-normalized facing; a blocked or no-op step keeps it.
+            // Engine-review-14 P3-4: the V6 state digest carries the facing, so a recording
+            // regenerated across this rule changes digests only (same events and outputs).
             if e.pos != from {
                 if let Some(facing) = self
                     .phase4

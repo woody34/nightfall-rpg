@@ -41,9 +41,10 @@ pub(super) struct Coverage {
 /// from the verified final per-owner `ItemCheckpoint` of every tick.
 #[derive(Debug, Default, Serialize)]
 pub(super) struct ItemStats {
-    /// One per ledger row by its operation, plus one per `ToggleAutoShot` receipt. The rows
-    /// include the D142 incarnation-reset Use rows, which the item evidence export omits
-    /// (D145), so `use` here can exceed the exported use rows.
+    /// D159: one per command receipt by its operation (crystallize, exchange, enchant, …,
+    /// `toggle_auto_shot`, and starter/backfill/grant materializations), plus one per ledger row
+    /// that has no command receipt, by its row operation. Those rows include the D142
+    /// incarnation-reset Use rows, which the item evidence export omits (D145).
     item_operations: BTreeMap<String, u64>,
     enchant_outcomes: BTreeMap<String, u64>,
     refine_outcomes: BTreeMap<String, u64>,
@@ -67,7 +68,7 @@ fn snake(value: &impl Serialize) -> anyhow::Result<String> {
 }
 
 fn item_facts(items: &mut ItemStats, events: &[ZoneEvent]) -> anyhow::Result<()> {
-    use nightfall_api::domain::zone::phase4_projection::{ItemOperation, ItemResultDetail};
+    use nightfall_api::domain::zone::phase4_projection::ItemOperation;
     for event in events {
         if let ZoneEvent::EntitySpawn {
             kind: EntityKind::Player,
@@ -78,12 +79,21 @@ fn item_facts(items: &mut ItemStats, events: &[ZoneEvent]) -> anyhow::Result<()>
         }
         if let ZoneEvent::ItemCheckpoint(projection) = event {
             {
+                // D159: a command's rows count once under the command (its receipt's
+                // operation: crystallize, exchange, enchant, refine, equip, …), one label per
+                // receipt per owner-tick; only rows without a command (receipt-less consume
+                // payments, automatic charges/discharges, D142 resets) count by their row op.
+                for receipt in &projection.receipts {
+                    increment(&mut items.item_operations, snake(&receipt.result.operation())?);
+                }
                 for row in &projection.ledger {
                     items.item_ledger_rows = items.item_ledger_rows.saturating_add(1);
                     if row.before.is_none() && row.after.is_some() {
                         items.item_allocations = items.item_allocations.saturating_add(1);
                     }
-                    increment(&mut items.item_operations, snake(&row.operation)?);
+                    if row.receipt.is_none() && row.receipt_refs.is_empty() {
+                        increment(&mut items.item_operations, snake(&row.operation)?);
+                    }
                     if row.operation == ItemOperation::Use {
                         if let (Some(before), Some(after)) = (&row.before, &row.after) {
                             let added = after.charges & !before.charges;
@@ -95,15 +105,6 @@ fn item_facts(items: &mut ItemStats, events: &[ZoneEvent]) -> anyhow::Result<()>
                                 }
                             }
                         }
-                    }
-                }
-                for receipt in &projection.receipts {
-                    if let ItemResultDetail::Operation {
-                        operation: ItemOperation::ToggleAutoShot,
-                        ..
-                    } = receipt.result.detail
-                    {
-                        increment(&mut items.item_operations, "toggle_auto_shot".into());
                     }
                 }
                 for attempt in &projection.enchant_attempts {
@@ -607,9 +608,8 @@ mod tests {
         ] {
             assert!(report[key].is_u64(), "{key}");
         }
-        assert_eq!(report["item_operations"]["toggle_auto_shot"], 3);
-        assert_eq!(report["item_operations"]["use"], 1);
-        assert_eq!(report["item_operations"]["consume"], 1);
+        // D159: the charging toggle's use/consume rows count under its receipt.
+        assert_eq!(report["item_operations"], serde_json::json!({"toggle_auto_shot": 3}));
         assert_eq!(report["shot_payments"], serde_json::json!({"soul": 1}));
         assert_eq!(report["item_ledger_rows"], 2);
         assert_eq!(report["item_allocations"], 0);
@@ -622,6 +622,88 @@ mod tests {
         assert!(
             report.get("item_operations").is_none() && report.get("item_ledger_rows").is_none()
         );
+    }
+
+    /// The harness V4 `item_operations` labels (`sim-gates.py` `V4_LABELS`, ec70975).
+    const V4_ITEM_OPERATIONS: [&str; 14] = [
+        "grant",
+        "starter",
+        "backfill",
+        "equip",
+        "unequip",
+        "consume",
+        "enchant",
+        "destroy",
+        "crystallize",
+        "refine",
+        "cancel_refine",
+        "exchange",
+        "use",
+        "toggle_auto_shot",
+    ];
+
+    fn item_operations(bytes: &[u8]) -> serde_json::Value {
+        let report =
+            serde_json::to_value(collect(&Recording::from_bytes(bytes).unwrap()).unwrap()).unwrap();
+        assert_eq!(report["schema_version"], 4);
+        let operations = report["item_operations"].clone();
+        for label in operations.as_object().unwrap().keys() {
+            assert!(V4_ITEM_OPERATIONS.contains(&label.as_str()), "{label}");
+        }
+        operations
+    }
+
+    #[test]
+    fn d159_item_operations_count_each_command_once_under_its_family() {
+        use serde_json::json;
+        // One label per resolution: crystallize's destroy + grant rows, exchange's
+        // consume ×n + grant rows and enchant's scroll consume count once each.
+        let fixtures: [(&[u8], serde_json::Value); 5] = [
+            (
+                include_bytes!("../../../fixtures/items/enchant-origin.nfr"),
+                json!({"enchant": 1}),
+            ),
+            (
+                include_bytes!("../../../fixtures/items/draw-free-grant.nfr"),
+                json!({"grant": 1}),
+            ),
+            (
+                include_bytes!("../../../fixtures/items/crystallize-destroy.nfr"),
+                json!({"crystallize": 1, "destroy": 2}),
+            ),
+            (
+                include_bytes!("../../../fixtures/items/sa-exchange.nfr"),
+                json!({"exchange": 2}),
+            ),
+            (
+                include_bytes!("../../../fixtures/items/toggle-steps.nfr"),
+                json!({"toggle_auto_shot": 3}),
+            ),
+        ];
+        for (bytes, expected) in fixtures {
+            assert_eq!(item_operations(bytes), expected);
+        }
+    }
+
+    /// D159 on the i3e items soak (not committed). Run this test alone with
+    /// `NIGHTFALL_TEST_I3E_SOAK=<soak.nfr>` and the `RULES_DIR`, `ZONE_FILE` and
+    /// `PHASE4_ENABLED=1` of its run: automatic charges and receipt-less payments keep
+    /// their row operation; every command counts once under its family.
+    #[test]
+    fn d159_i3e_soak_item_operations() {
+        if let Ok(path) = std::env::var("NIGHTFALL_TEST_I3E_SOAK") {
+            if let Some(source) = nightfall_api::zone_runtime::ZoneRuntimeConfig::from_env()
+                .phase4_replay_source()
+                .unwrap()
+            {
+                nightfall_api::infrastructure::item_data::register_phase4_source(source);
+            }
+            assert_eq!(
+                item_operations(&std::fs::read(path).unwrap()),
+                serde_json::json!({"backfill": 8, "consume": 144, "enchant": 8, "equip": 288,
+                    "grant": 40, "toggle_auto_shot": 288, "use": 568})
+            );
+        }
     }
 
     #[test]

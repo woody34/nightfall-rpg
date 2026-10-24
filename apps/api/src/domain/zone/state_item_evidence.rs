@@ -290,7 +290,9 @@ impl ZoneState {
         fields.insert("safe".into(), json!(rule.safe));
         fields.insert("blessed".into(), json!(rule.blessed));
         let outcome = match attempt.outcome {
-            ItemEnchantOutcome::Success | ItemEnchantOutcome::SuccessNoIncrement => "success",
+            ItemEnchantOutcome::Success => "success",
+            // D163: one name across the fact, the receipt outcome and the coverage label.
+            ItemEnchantOutcome::SuccessNoIncrement => "success_no_increment",
             ItemEnchantOutcome::SafeFailed => "safe_failure",
             ItemEnchantOutcome::BlessedReset => "blessed_failure",
             ItemEnchantOutcome::Destroyed => "destroyed",

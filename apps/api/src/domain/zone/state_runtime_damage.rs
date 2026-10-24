@@ -2387,6 +2387,8 @@ mod tests {
     #[allow(clippy::too_many_lines)] // One owner through every facing rule.
     fn v6_facing_follows_actual_movement_and_resets_on_a_new_life() {
         use crate::domain::zone::item_angles::FacingVector;
+        // This test forces a zero speed; the T55 per-tick restore check does not apply.
+        crate::domain::zone::state::skip_v6_restore_identity();
         let (mut zone, owner, npc) = equipment_fixture();
         zone.run_tick(zone.draft(Vec::new())).unwrap();
         let facing = |zone: &ZoneState| {
@@ -5598,9 +5600,11 @@ mod tests {
         })
         .collect();
         let draft = zone.draft(commands);
+        let boundary = zone.snapshot();
         let mut observed = zone.clone();
         observed.enable_items_replay_evidence().unwrap();
         let applied = zone.run_tick(draft.clone()).unwrap();
+        write_one_tick("NIGHTFALL_TEST_REMOVAL_RECORDING", boundary, &applied);
         assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
         assert_eq!(applied, observed.run_tick(draft.clone()).unwrap());
         assert_eq!(applied, cold.run_tick(draft).unwrap());
@@ -5798,6 +5802,28 @@ mod tests {
             .inventory
             .contains_key(&arrows));
     }
+    /// Write a one-tick recording (`boundary` = the pre-tick snapshot) when `variable` is set.
+    fn write_one_tick(
+        variable: &str,
+        boundary: crate::domain::zone::ZoneSnapshot,
+        applied: &AppliedTick,
+    ) {
+        use crate::application::replay_log::{AppliedTickRecord, Watermark, WatermarkReason};
+        if let Ok(path) = std::env::var(variable) {
+            let recording = crate::infrastructure::eventlog::Recording {
+                watermark: Watermark {
+                    zone: boundary.seed.zone,
+                    epoch: boundary.seed.epoch,
+                    records: 1,
+                    last_tick: Some(applied.tick),
+                    reason: WatermarkReason::Shutdown,
+                },
+                records: vec![AppliedTickRecord::from_applied(boundary.seed.zone, applied)],
+                snapshot: boundary,
+            };
+            std::fs::write(path, recording.to_bytes().unwrap()).unwrap();
+        }
+    }
     fn enchant_fixture(
         scroll_template: u32,
         slot: crate::domain::zone::EquipSlot,
@@ -5870,6 +5896,8 @@ mod tests {
                 Some(Arc::clone(&zone.phase4.as_ref().unwrap().rules)),
             )
             .unwrap();
+            // Evidence never changes the applied tick (compared with `cold` below).
+            zone.enable_items_replay_evidence().unwrap();
             let intent = item_intent(
                 &zone,
                 owner.entity,
@@ -5919,12 +5947,44 @@ mod tests {
                 (raw, raw % 100_000, chance, expected)
             );
             assert_eq!(attempt.before, original.inventory[&target]);
-            let player = &zone.phase4.as_ref().unwrap().canonical.players[&owner.entity];
+            let player = zone.phase4.as_ref().unwrap().canonical.players[&owner.entity].clone();
             assert_eq!(player.inventory[&scroll].count, 2);
             assert_eq!(player.inventory_revision, original.inventory_revision + 1);
             assert_eq!(attempt.after.as_ref(), player.inventory.get(&target));
             if matches!(expected, O::SafeFailed | O::SuccessNoIncrement) {
                 assert_eq!(player.inventory[&target], original.inventory[&target]);
+            }
+            // D163: the enchant_outcome fact names the outcome as the receipt does.
+            let scrolls_left = player.inventory[&scroll].count;
+            let facts = zone.take_items_replay_evidence();
+            let fact = facts
+                .iter()
+                .find_map(|f| match &f.fact {
+                    crate::domain::zone::evidence::ItemEvidenceData::Formula(v)
+                        if v["formula"] == "enchant_outcome" =>
+                    {
+                        Some(v.clone())
+                    },
+                    _ => None,
+                })
+                .expect("enchant_outcome fact");
+            let name = match expected {
+                O::Success => "success",
+                O::SuccessNoIncrement => "success_no_increment",
+                O::SafeFailed => "safe_failure",
+                O::BlessedReset => "blessed_failure",
+                O::Destroyed => "destroyed",
+            };
+            assert_eq!(fact["actual"]["outcome"], name, "scroll {template}");
+            let level = if expected == O::Destroyed {
+                attempt.old_enchant
+            } else {
+                attempt.new_enchant
+            };
+            assert_eq!(fact["actual"]["enchant"], level);
+            if expected == O::SuccessNoIncrement {
+                assert_eq!((attempt.old_enchant, attempt.new_enchant, level), (20, 20, 20));
+                assert_eq!(scrolls_left, 2);
             }
             if matches!(expected, O::BlessedReset | O::Destroyed) {
                 assert!(!player.paperdoll.contains_key(&slot));
@@ -7052,6 +7112,8 @@ mod tests {
     fn v6_skill_book_learning_consumes_the_book_through_the_ledger() {
         use crate::domain::zone::phase4_projection::{ItemEvidenceValue, ItemOperation};
         use crate::domain::zone::skill::{SkillId, SkillRef};
+        // This test removes the book behind the ledger in a refusal branch; the T55 per-tick restore check does not apply.
+        crate::domain::zone::state::skip_v6_restore_identity();
         let (mut zone, owner, ids, account) = bishop_with_books(&[1]);
         let book = ids[0];
         let key = Uuid::from_u128(0x0197_0000_0000_7000_8000_0000_0000_0042);
@@ -7306,6 +7368,8 @@ mod tests {
     #[test]
     fn v6_skill_book_learning_refuses_sp_before_the_book() {
         use crate::domain::zone::skill::{SkillId, SkillRef};
+        // This test edits the class table and the inventory directly; the T55 per-tick restore check does not apply.
+        crate::domain::zone::state::skip_v6_restore_identity();
         let (mut zone, owner, ids, account) = bishop_with_books(&[1]);
         let mut encoded = serde_json::to_value(zone.classes.as_deref().unwrap()).unwrap();
         let row = encoded["classes"]
@@ -7895,9 +7959,11 @@ mod tests {
                 })
                 .collect(),
         );
+        let boundary = zone.snapshot();
         zone.enable_items_replay_evidence().unwrap();
         let cursor = zone.rng.get_word_pos();
         let applied = zone.run_tick(draft.clone()).unwrap();
+        write_one_tick("NIGHTFALL_TEST_EXCHANGE_RECORDING", boundary, &applied);
         assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
         assert_eq!(applied, cold.run_tick(draft).unwrap());
         assert_eq!(cursor, zone.rng.get_word_pos());
@@ -11187,6 +11253,23 @@ mod tests {
                 break;
             }
         }
+        // Engine-review-14 P3-2: the dead life faces north-west; the accepted
+        // resurrection starts the new life east (T51/D157).
+        let facing = |zone: &ZoneState| zone.phase4.as_ref().unwrap().canonical.facing[&dead];
+        let point = |x, y| crate::domain::zone::Vec2Fixed {
+            x: crate::domain::zone::Fixed::from_raw(x),
+            y: crate::domain::zone::Fixed::from_raw(y),
+        };
+        let east = crate::domain::zone::item_angles::FacingVector::EAST;
+        *run.zone
+            .phase4
+            .as_mut()
+            .unwrap()
+            .canonical
+            .facing
+            .get_mut(&dead)
+            .unwrap() = east.moved(point(5, 5), point(3, 3));
+        assert_ne!(facing(&run.zone), east);
         let applied = run.tick(
             dead,
             vec![ZoneCommand::AcceptResurrect {
@@ -11197,6 +11280,7 @@ mod tests {
         );
         assert!(applied.dispositions.is_empty(), "{:?}", applied.dispositions);
         assert!(!run.zone.entities[&dead].targeting.dead);
+        assert_eq!(facing(&run.zone), east);
         assert!(run.formulas().contains("resurrection_scroll"), "{:?}", run.formulas());
         // D139: the subject is the scroll's owner; the resurrected player is the context's
         // `target_entity`.
