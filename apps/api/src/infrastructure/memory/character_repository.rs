@@ -437,6 +437,8 @@ impl crate::application::ports::LearningCheckpointRepository for InMemoryCharact
         receipt: &crate::application::ports::SuccessfulLearnReceipt,
     ) -> Result<crate::application::ports::LearningCheckpointOutcome, CheckpointError> {
         use crate::application::ports::LearningCheckpointOutcome;
+        // D162: apply in the serial (entity) order of this tick's batch.
+        crate::application::commit_order::wait_turn().await;
         let mut state = self.state.lock();
         let owner = state
             .characters
@@ -517,6 +519,8 @@ impl crate::application::ports::ItemCheckpointRepository for InMemoryCharacterRe
         learning: Option<&crate::application::ports::SuccessfulLearnReceipt>,
     ) -> Result<CheckpointOutcome, CheckpointError> {
         use crate::application::ports::PendingItemStatus;
+        // D162: apply in the serial (entity) order of this tick's batch.
+        crate::application::commit_order::wait_turn().await;
         let mut current = self.state.lock();
         let owner = current
             .characters
@@ -867,6 +871,8 @@ impl CharacterRepository for InMemoryCharacterRepository {
         checkpoint: &CharacterCheckpoint,
         events: &[DomainEvent],
     ) -> Result<CheckpointOutcome, CheckpointError> {
+        // D162: apply in the serial (entity) order of this tick's batch.
+        crate::application::commit_order::wait_turn().await;
         let mut s = self.state.lock();
         self.checkpoint_locked(&mut s, checkpoint, events, checkpoint.fingerprint(events), None)
     }

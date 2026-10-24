@@ -124,18 +124,7 @@ pub(super) async fn persist(
     work.validate_before_with(before, rules)?;
     let requests = super::item_admission::load_pending(tx, cp.character_id).await?;
     work.validate_pending(&requests)?;
-    persist_range(tx, work).await?;
     persist_rows(tx, cp.character_id, &work.projection.checkpoint, before, work).await?;
-    for row in work.ledger_entries()? {
-        execute(tx, "INSERT INTO item_ledger(character_id,zone_id,epoch,tick,revision,op,instance_id,operation_ordinal,delta,receipt_ref) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)",
-            vec![row.character_id.as_uuid().into(), i32::try_from(row.zone_id.0).map_err(anyhow::Error::from)?.into(),
-                signed(row.epoch)?.into(), signed(row.tick.0)?.into(), signed(row.revision)?.into(), row.operation.as_str().into(),
-                signed(row.instance_id.get())?.into(), i32::try_from(row.operation_ordinal).map_err(anyhow::Error::from)?.into(),
-                serde_json::to_value(&row.delta).map_err(anyhow::Error::from)?.into(), row.receipt_ref.into()]).await?;
-    }
-    // D76: the whole tick is appended, so check row-position ordinals now; a violation is a
-    // permanent named constraint here rather than a retryable commit failure.
-    execute(tx, "SET CONSTRAINTS item_ledger_row_ordinal IMMEDIATE", Vec::new()).await?;
     for receipt in work.receipts(cp)? {
         execute(tx, "INSERT INTO item_mutation_receipts(account_id,operation,key,character_id,fingerprint,response) VALUES($1,$2,$3,$4,$5,$6)",
             vec![receipt.account_id.as_uuid().into(), receipt.operation.as_str().into(), receipt.key.into(),
@@ -150,6 +139,61 @@ pub(super) async fn persist(
     }
     super::phase4_checkpoint::persist_retained(tx, cp.character_id, &work.projection.checkpoint)
         .await?;
+    Ok(())
+}
+
+/// Ledger rows per batched INSERT; 10 parameters per row stays far below the 65535 limit.
+const LEDGER_ROWS_PER_STATEMENT: usize = 500;
+
+/// D162: the ordered tail of an item save, run after the commit turn opens. The range
+/// high-water mark is a row that all owners of the zone share, and the ledger identity values
+/// are global, so both are written in the serial (entity) order. D162 option B: the ledger
+/// rows of one save go in batched statements, in canonical row order, so their identity
+/// values are the ones the row-by-row path produced.
+pub(super) async fn persist_ordered(
+    tx: &DatabaseTransaction,
+    work: &ItemCheckpointWork,
+) -> Result<(), CheckpointError> {
+    persist_range(tx, work).await?;
+    let rows = work.ledger_entries()?;
+    for chunk in rows.chunks(LEDGER_ROWS_PER_STATEMENT) {
+        let mut sql = String::from("INSERT INTO item_ledger(character_id,zone_id,epoch,tick,revision,op,instance_id,operation_ordinal,delta,receipt_ref) VALUES");
+        let mut values = Vec::with_capacity(chunk.len().saturating_mul(10));
+        for (index, row) in chunk.iter().enumerate() {
+            let base = index.saturating_mul(10);
+            let placeholders: Vec<String> = (1..=10)
+                .map(|column| format!("${}", base.saturating_add(column)))
+                .collect();
+            if index > 0 {
+                sql.push(',');
+            }
+            sql.push('(');
+            sql.push_str(&placeholders.join(","));
+            sql.push(')');
+            values.extend([
+                row.character_id.as_uuid().into(),
+                i32::try_from(row.zone_id.0)
+                    .map_err(anyhow::Error::from)?
+                    .into(),
+                signed(row.epoch)?.into(),
+                signed(row.tick.0)?.into(),
+                signed(row.revision)?.into(),
+                row.operation.as_str().into(),
+                signed(row.instance_id.get())?.into(),
+                i32::try_from(row.operation_ordinal)
+                    .map_err(anyhow::Error::from)?
+                    .into(),
+                serde_json::to_value(&row.delta)
+                    .map_err(anyhow::Error::from)?
+                    .into(),
+                row.receipt_ref.into(),
+            ]);
+        }
+        execute(tx, &sql, values).await?;
+    }
+    // D76: the whole tick is appended, so check row-position ordinals now; a violation is a
+    // permanent named constraint here rather than a retryable commit failure.
+    execute(tx, "SET CONSTRAINTS item_ledger_row_ordinal IMMEDIATE", Vec::new()).await?;
     Ok(())
 }
 

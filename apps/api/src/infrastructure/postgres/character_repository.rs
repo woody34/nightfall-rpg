@@ -487,7 +487,7 @@ impl CharacterRepository for PgCharacterRepository {
     ///    revision check because a retry arrives after the revision moved on.
     /// 3. `UPDATE ... WHERE id AND revision = revision_seen`; zero rows is `Stale` and the
     ///    transaction (claim included) rolls back. Check violations roll back as `Constraint`.
-    /// 4. Stage the events in `outbox`; commit.
+    /// 4. D162: wait for the commit turn; stage the events in `outbox`; commit.
     async fn checkpoint(
         &self,
         checkpoint: &CharacterCheckpoint,
@@ -873,6 +873,15 @@ impl PgCharacterRepository {
             super::phase4_checkpoint::persist_retained(&tx, cp.character_id, phase4).await?;
         }
 
+        // D162: the ordered tail. The rows that carry a global order (the shared item range
+        // high-water mark, ledger and outbox identity values) and the commit wait for the
+        // earlier owners of this tick, so the recorded order is the serial order. The wait has
+        // its own timing, so the soak report separates it from the SQL time of the save.
+        self.timed("checkpoint_turn_wait", crate::application::commit_order::wait_turn())
+            .await;
+        if let Some(work) = items {
+            super::item_settlement::persist_ordered(&tx, work).await?;
+        }
         for event in events {
             let staged = outbox::ActiveModel {
                 subject: ActiveValue::Set(event.subject().to_owned()),

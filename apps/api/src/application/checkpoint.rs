@@ -68,7 +68,12 @@ pub struct CheckpointService {
     /// Owners whose lane failed permanently during recovery (T11): their later recorded facts
     /// are dropped, the quarantine is persisted, and the zone still boots.
     quarantined: BTreeMap<EntityId, super::ports::LaneQuarantine>,
+    /// D162: the most owner saves of one tick in flight at once; 1 is the serial path.
+    save_concurrency: usize,
 }
+
+/// D162: at most this many owner saves of one tick are in flight.
+pub const SAVE_CONCURRENCY: usize = 8;
 
 impl CheckpointService {
     /// Builds a lane without starting a task or subscribing to lossy broadcasts.
@@ -94,7 +99,16 @@ impl CheckpointService {
             pending: parking_lot::Mutex::default(),
             recovering: None,
             quarantined: BTreeMap::new(),
+            save_concurrency: SAVE_CONCURRENCY,
         }
+    }
+
+    /// D162: sets how many owner saves of one tick may be in flight (at least 1). The value 1
+    /// is the serial path; the recorded rows are the same for every value.
+    #[must_use]
+    pub fn with_save_concurrency(mut self, concurrency: usize) -> Self {
+        self.save_concurrency = concurrency.max(1);
+        self
     }
 
     /// Installs atomic paid-learning persistence before admitting experimental players.
@@ -920,7 +934,7 @@ impl CheckpointService {
         let wrote = due
             .iter()
             .any(|id| self.players.get(id).is_some_and(|p| p.dirty));
-        self.save_due(&due, tick.tick).await?;
+        self.save_due(&due, tick.tick, snapshot).await?;
         self.wrote_since_index |= wrote;
         self.players.retain(|id, _| {
             let present = snapshot.entities.iter().any(|e| e.id == *id);
@@ -941,7 +955,12 @@ impl CheckpointService {
         Ok(())
     }
 
-    async fn save_due(&mut self, due: &BTreeSet<EntityId>, tick: Tick) -> anyhow::Result<()> {
+    async fn save_due(
+        &mut self,
+        due: &BTreeSet<EntityId>,
+        tick: Tick,
+        snapshot: &ZoneSnapshot,
+    ) -> anyhow::Result<()> {
         if self.recovering.is_some() {
             // Recovery settles owners one by one; a permanent failure quarantines that owner.
             for id in due {
@@ -967,16 +986,38 @@ impl CheckpointService {
             }
             return Ok(());
         }
-        // Account-scoped receipts and outbox facts retain entity order. Independent resource
-        // checkpoints may overlap, but the whole batch still gates index completion/output.
-        let concurrency = if due.iter().any(|id| {
-            self.players
-                .get(id)
-                .is_some_and(|p| !p.events.is_empty() || p.learning.is_some() || p.items.is_some())
-        }) {
-            1
+        // D162: owners are saved in windows of `save_concurrency` in entity order. An owner
+        // with ordered work (outbox facts, a learn receipt or item rows) is in the commit-turn
+        // chain: the ordered tail of its transaction (item range, ledger rows, outbox rows,
+        // commit) waits for the earlier ordered owners, so the recorded rows are those of the
+        // serial path. The owners of one account stay serial in entity order (account-scoped
+        // receipts); accounts run concurrently. An owner without ordered work is not in the
+        // chain, because it writes no globally ordered row. An ordered owner without a known
+        // account makes the whole tick serial. The whole batch still gates index and output.
+        let ordered = |player: &Player| {
+            !player.events.is_empty() || player.learning.is_some() || player.items.is_some()
+        };
+        let accounts: BTreeMap<EntityId, crate::domain::AccountId> = snapshot
+            .entities
+            .iter()
+            .filter(|entity| due.contains(&entity.id))
+            .filter_map(|entity| match entity.combat.as_ref().map(|c| &c.role) {
+                Some(CombatRole::Player {
+                    progression: Some(progression),
+                    ..
+                }) => Some((entity.id, progression.identity.account_id)),
+                _ => None,
+            })
+            .collect();
+        let window = if self
+            .players
+            .iter()
+            .filter(|(id, player)| due.contains(id) && ordered(player))
+            .all(|(id, _)| accounts.contains_key(id))
+        {
+            self.save_concurrency
         } else {
-            8
+            1
         };
         let repo = self.repo.as_ref();
         let learning = self.learning_repo.as_deref();
@@ -985,28 +1026,73 @@ impl CheckpointService {
         let metrics = self.metrics.as_ref();
         let sessions = &self.sessions;
         let pending = &self.pending;
-        let mut saves = Vec::new();
-        for (id, player) in &mut self.players {
-            if !due.contains(id) {
-                continue;
+        let mut owners: Vec<(EntityId, &mut Player)> = self
+            .players
+            .iter_mut()
+            .filter(|(id, _)| due.contains(id))
+            .map(|(id, player)| (*id, player))
+            .collect();
+        while !owners.is_empty() {
+            let rest = owners.split_off(window.min(owners.len()));
+            let batch = std::mem::replace(&mut owners, rest);
+            let mut chain = super::commit_order::chain(
+                batch.iter().filter(|(_, player)| ordered(player)).count(),
+            )
+            .into_iter();
+            // Owners group by account; an unordered owner without a known account is its own
+            // group.
+            let mut groups: BTreeMap<(Option<crate::domain::AccountId>, Option<EntityId>), Vec<_>> =
+                BTreeMap::new();
+            for (id, player) in batch {
+                let (turn, release) = if ordered(player) {
+                    chain
+                        .next()
+                        .ok_or_else(|| anyhow::anyhow!("commit turn chain is short"))?
+                } else {
+                    super::commit_order::unordered()
+                };
+                let key = match accounts.get(&id) {
+                    Some(account) => (Some(*account), None),
+                    None => (None, Some(id)),
+                };
+                let key = if window > 1 { key } else { (None, None) };
+                groups
+                    .entry(key)
+                    .or_default()
+                    .push((id, player, turn, release));
             }
-            let session = sessions.get(id).copied();
-            saves.push(async move {
-                save(repo, learning, items, audit, metrics, pending, session, player).await?;
-                player.last_saved = tick;
-                Ok(())
+            let saves = groups.into_values().map(|group| async move {
+                let mut failure = None;
+                for (id, player, turn, release) in group {
+                    if failure.is_none() {
+                        let session = sessions.get(&id).copied();
+                        let saved = super::commit_order::scoped(
+                            turn,
+                            save(repo, learning, items, audit, metrics, pending, session, player),
+                        )
+                        .await;
+                        match saved {
+                            Ok(()) => player.last_saved = tick,
+                            Err(error) => failure = Some((id, error)),
+                        }
+                    }
+                    // Opens the next owner's turn after this save returned or was skipped.
+                    drop(release);
+                }
+                failure
             });
-        }
-        let mut saves = futures_util::stream::iter(saves).buffered(concurrency);
-        if concurrency == 1 {
-            while let Some(result) = saves.next().await {
-                result?;
+            // Settle every started transaction even on failure; never cancel an in-flight
+            // commit. The first failure in entity order stops the later windows.
+            let failures: BTreeMap<EntityId, anyhow::Error> = futures_util::future::join_all(saves)
+                .await
+                .into_iter()
+                .flatten()
+                .collect();
+            if let Some((_, error)) = failures.into_iter().next() {
+                return Err(error);
             }
-            return Ok(());
         }
-        // Settle every started transaction even on failure; never cancel an in-flight commit.
-        let results: Vec<anyhow::Result<()>> = saves.collect().await;
-        results.into_iter().collect()
+        Ok(())
     }
 
     async fn refresh_if_due(&mut self, snapshot: &ZoneSnapshot) {
