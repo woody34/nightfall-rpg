@@ -85,8 +85,15 @@ pub use sizing::{
     AdmissionSizingError, CommandAdmissionSize,
 };
 
+#[path = "codec_item_views.rs"]
+mod item_views;
+#[path = "codec_items.rs"]
+mod items;
+pub(super) use item_views::from_json as item_view_from_json;
+pub(super) use items::{grant_from_json, result_from_json};
 #[path = "codec_phase3.rs"]
 mod phase3;
+
 use phase3::{PbAcceptResurrect, PbCancelCast, PbCastSkill, PbLearnSkill};
 
 use bytes::Bytes;
@@ -155,13 +162,38 @@ struct PbCommand {
     seq: Option<u32>,
     #[prost(
         oneof = "PbCommandKind",
-        tags = "4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19"
+        tags = "4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31"
     )]
     kind: Option<PbCommandKind>,
 }
 
 #[derive(Clone, PartialEq, prost::Oneof)]
 enum PbCommandKind {
+    #[prost(bytes, tag = "30")]
+    MaterializePendingItems(Vec<u8>),
+    #[prost(bytes, tag = "31")]
+    ExtendItemRange(Vec<u8>),
+    #[prost(bytes, tag = "20")]
+    EquipItem(Vec<u8>),
+    #[prost(bytes, tag = "21")]
+    UnequipItem(Vec<u8>),
+    #[prost(bytes, tag = "22")]
+    UseItem(Vec<u8>),
+    #[prost(bytes, tag = "23")]
+    DestroyItem(Vec<u8>),
+    #[prost(bytes, tag = "24")]
+    EnchantItem(Vec<u8>),
+    #[prost(bytes, tag = "25")]
+    ToggleAutoShot(Vec<u8>),
+    #[prost(bytes, tag = "26")]
+    RefineItem(Vec<u8>),
+    #[prost(bytes, tag = "27")]
+    CancelRefine(Vec<u8>),
+    #[prost(bytes, tag = "28")]
+    ExchangeSpecialAbility(Vec<u8>),
+    #[prost(bytes, tag = "29")]
+    CrystallizeItem(Vec<u8>),
+
     #[prost(message, tag = "16")]
     CastSkill(PbCastSkill),
     #[prost(message, tag = "17")]
@@ -206,6 +238,8 @@ struct PbAddAggro {
 
 #[derive(Clone, PartialEq, Message)]
 struct PbPlayerLoad {
+    #[prost(bytes = "vec", optional, tag = "10")]
+    phase4: Option<Vec<u8>>,
     #[prost(bytes = "vec", optional, tag = "9")]
     phase3: Option<Vec<u8>>,
     #[prost(bytes = "vec", optional, tag = "8")]
@@ -436,13 +470,34 @@ struct PbOutputs {
 struct PbOutput {
     #[prost(
         oneof = "PbOutputItem",
-        tags = "1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 29, 30, 31"
+        tags = "1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41"
     )]
     item: Option<PbOutputItem>,
 }
 
 #[derive(Clone, PartialEq, prost::Oneof)]
 enum PbOutputItem {
+    #[prost(bytes, tag = "32")]
+    InventorySync(Vec<u8>),
+    #[prost(bytes, tag = "33")]
+    InventoryChanged(Vec<u8>),
+    #[prost(bytes, tag = "34")]
+    EquipmentChanged(Vec<u8>),
+    #[prost(bytes, tag = "35")]
+    WeightChanged(Vec<u8>),
+    #[prost(bytes, tag = "36")]
+    PenaltyChanged(Vec<u8>),
+    #[prost(bytes, tag = "37")]
+    EnchantResult(Vec<u8>),
+    #[prost(bytes, tag = "38")]
+    RefineResult(Vec<u8>),
+    #[prost(bytes, tag = "39")]
+    ItemOperationResult(Vec<u8>),
+    #[prost(bytes, tag = "40")]
+    ItemCheckpoint(Vec<u8>),
+    /// D26 V6-only enriched EntitySpawn/StatsChanged (canonical integer-only JSON).
+    #[prost(bytes, tag = "41")]
+    Phase4Enriched(Vec<u8>),
     #[prost(bytes, tag = "26")]
     PvpStateChanged(Vec<u8>),
     #[prost(bytes, tag = "27")]
@@ -639,6 +694,7 @@ fn record_to_pb(r: &AppliedTickRecord) -> PbRecord {
             StateDigestVersion::BinaryV3 => 5,
             StateDigestVersion::BinaryV4 => 6,
             StateDigestVersion::BinaryV5 => 7,
+            StateDigestVersion::BinaryV6 => 8,
         },
     }
 }
@@ -647,7 +703,7 @@ fn record_to_pb(r: &AppliedTickRecord) -> PbRecord {
 /// combat commands and facts. 3 (E2.4/E2.6): progression facts, the
 /// `alive` load flag, XP on `StatsChanged`. 4: binary v2 state digest. Schema 3 remains
 /// readable and writable for JSON v1 replay; earlier versions are refused (1 reads 0).
-pub const RECORD_SCHEMA_VERSION: u32 = 7;
+pub const RECORD_SCHEMA_VERSION: u32 = 8;
 
 pub(super) fn encode_events(events: &[ZoneEvent]) -> Vec<u8> {
     PbOutputs {
@@ -721,6 +777,7 @@ struct PbSetTarget {
     target: Option<Vec<u8>>,
 }
 
+#[allow(clippy::too_many_lines)] // Exhaustive mapping preserves every historical command tag.
 fn command_to_pb(c: &AppliedCommand) -> PbCommand {
     let kind = match &c.command {
         ZoneCommand::CastSkill {
@@ -758,6 +815,13 @@ fn command_to_pb(c: &AppliedCommand) -> PbCommand {
             skill_id: skill_id.0,
             skill_level: *skill_level,
         }),
+        ZoneCommand::MaterializePendingItems(command) => {
+            PbCommandKind::MaterializePendingItems(canonical_json(command))
+        },
+        ZoneCommand::ExtendItemRange { range } => {
+            PbCommandKind::ExtendItemRange(canonical_json(range))
+        },
+        ZoneCommand::Item(command) => items::command_to_pb(command),
         ZoneCommand::ChangeClass { .. } => PbCommandKind::ChangeClass(canonical_json(&c.command)),
         ZoneCommand::SpawnPlayer {
             entity,
@@ -773,6 +837,7 @@ fn command_to_pb(c: &AppliedCommand) -> PbCommand {
             speed: speed.milli_tiles_per_tick(),
             generation: generation.0,
             load: load.as_ref().map(|l| PbPlayerLoad {
+                phase4: l.phase4.as_ref().map(canonical_json),
                 phase3: l.phase3.as_ref().map(canonical_json),
                 progression: l.progression.as_ref().map(canonical_json),
                 checkpoint_revision: l.checkpoint_revision,
@@ -851,6 +916,19 @@ const fn reason_to_pb(r: RejectReason) -> i32 {
         RejectReason::TransferRequirement => 18,
         RejectReason::InCombat => 19,
         RejectReason::ClassMasterTooFar => 20,
+        RejectReason::ItemNotOwned => 39,
+        RejectReason::ItemNotUsable => 40,
+        RejectReason::InvalidEquipSlot => 41,
+        RejectReason::InsufficientItems => 42,
+        RejectReason::InventoryFull => 43,
+        RejectReason::ItemGradeMismatch => 44,
+        RejectReason::ItemReuse => 45,
+        RejectReason::InvalidEnchant => 46,
+        RejectReason::InvalidRefinement => 47,
+        RejectReason::InvalidRecipe => 48,
+        RejectReason::ItemOperationConflict => 49,
+        RejectReason::ItemCapabilityDeferred => 50,
+        RejectReason::CrystallizeLevelTooLow => 51,
         RejectReason::SkillUnknown => 21,
         RejectReason::SkillNotLearned => 22,
         RejectReason::SkillCooldown => 23,
@@ -894,6 +972,19 @@ fn reason_from_pb(v: i32) -> Result<RejectReason, CodecError> {
         18 => RejectReason::TransferRequirement,
         19 => RejectReason::InCombat,
         20 => RejectReason::ClassMasterTooFar,
+        39 => RejectReason::ItemNotOwned,
+        40 => RejectReason::ItemNotUsable,
+        41 => RejectReason::InvalidEquipSlot,
+        42 => RejectReason::InsufficientItems,
+        43 => RejectReason::InventoryFull,
+        44 => RejectReason::ItemGradeMismatch,
+        45 => RejectReason::ItemReuse,
+        46 => RejectReason::InvalidEnchant,
+        47 => RejectReason::InvalidRefinement,
+        48 => RejectReason::InvalidRecipe,
+        49 => RejectReason::ItemOperationConflict,
+        50 => RejectReason::ItemCapabilityDeferred,
+        51 => RejectReason::CrystallizeLevelTooLow,
         21 => RejectReason::SkillUnknown,
         22 => RejectReason::SkillNotLearned,
         23 => RejectReason::SkillCooldown,
@@ -1171,6 +1262,10 @@ fn cancel_from_pb(v: i32) -> Result<SwingCancel, CodecError> {
 
 #[allow(clippy::too_many_lines)] // exhaustive one-to-one durable event mapping
 fn event_to_pb(e: &ZoneEvent) -> PbOutputItem {
+    // D26: select the enriched carrier before every older event-carrier dispatch.
+    if phase4_enriched(e) {
+        return PbOutputItem::Phase4Enriched(canonical_json(e));
+    }
     if phase3_carrier(e) {
         return PbOutputItem::Phase3Projection(canonical_json(e));
     }
@@ -1184,6 +1279,11 @@ fn event_to_pb(e: &ZoneEvent) -> PbOutputItem {
         return PbOutputItem::Phase2(canonical_json(e));
     }
     match e {
+        ZoneEvent::ItemView(view) => item_views::to_pb(view),
+        ZoneEvent::ItemResult(result) => items::result_to_pb(result),
+        ZoneEvent::ItemCheckpoint(projection) => {
+            PbOutputItem::ItemCheckpoint(canonical_json(projection))
+        },
         ZoneEvent::PvpStateChanged { .. } => PbOutputItem::PvpStateChanged(canonical_json(e)),
         ZoneEvent::ResurrectOffer { .. } => PbOutputItem::ResurrectOffer(canonical_json(e)),
         ZoneEvent::SkillLearned { .. } => PbOutputItem::SkillLearned(canonical_json(e)),
@@ -1320,6 +1420,7 @@ fn event_to_pb(e: &ZoneEvent) -> PbOutputItem {
         }),
         ZoneEvent::StatsChanged {
             class: _,
+            phase4: _,
             entity,
             hp,
             max_hp,
@@ -1370,6 +1471,7 @@ fn event_to_pb(e: &ZoneEvent) -> PbOutputItem {
         }),
         ZoneEvent::EntitySpawn {
             identity: _,
+            phase4: _,
             tick,
             entity,
             kind,
@@ -1433,7 +1535,11 @@ fn output_form_from_pb(v: i32) -> Result<OutputForm, CodecError> {
     }
 }
 
-fn player_output_from_pb(o: PbPlayerOutput, form: OutputForm) -> Result<PlayerOutput, CodecError> {
+fn player_output_from_pb(
+    o: PbPlayerOutput,
+    form: OutputForm,
+    phase4: bool,
+) -> Result<PlayerOutput, CodecError> {
     let fits = match form {
         OutputForm::Encoded => o.sha256.is_empty(),
         OutputForm::Sha256 => o.encoded.is_empty() && o.sha256.len() == 32,
@@ -1445,21 +1551,33 @@ fn player_output_from_pb(o: PbPlayerOutput, form: OutputForm) -> Result<PlayerOu
             o.sha256.len()
         )));
     }
+    let entity = entity_from(&o.entity)?;
+    if phase4 && form == OutputForm::Encoded {
+        for output in decode_outputs(&o.encoded)? {
+            if let ObserverOutput::Event(ZoneEvent::ItemView(view)) = &output {
+                if view.owner_only() && view.entity != entity {
+                    return Err(CodecError("inventory in another owner's output".into()));
+                }
+            }
+            if let ObserverOutput::Event(ZoneEvent::ItemResult(result)) = output {
+                if result.entity != entity {
+                    return Err(CodecError("item result in another owner's output".into()));
+                }
+            }
+        }
+    }
     let bytes = match form {
         OutputForm::Encoded => o.encoded,
         OutputForm::Sha256 => o.sha256,
     };
-    Ok(PlayerOutput {
-        entity: entity_from(&o.entity)?,
-        bytes,
-    })
+    Ok(PlayerOutput { entity, bytes })
 }
 
 pub(super) fn decode_record(bytes: &[u8]) -> Result<AppliedTickRecord, CodecError> {
     let pb = PbRecord::decode(bytes).map_err(err)?;
-    if ![3, 4, 5, 6, RECORD_SCHEMA_VERSION].contains(&pb.schema) {
+    if ![3, 4, 5, 6, 7, RECORD_SCHEMA_VERSION].contains(&pb.schema) {
         return Err(CodecError(format!(
-            "record schema {} is not supported (this build reads 3, 4, 5, 6 and {RECORD_SCHEMA_VERSION})",
+            "record schema {} is not supported (this build reads 3, 4, 5, 6, 7 and {RECORD_SCHEMA_VERSION})",
             pb.schema
         )));
     }
@@ -1490,7 +1608,7 @@ pub(super) fn decode_record(bytes: &[u8]) -> Result<AppliedTickRecord, CodecErro
         outputs: pb
             .outputs
             .into_iter()
-            .map(|o| player_output_from_pb(o, output_form))
+            .map(|o| player_output_from_pb(o, output_form, pb.schema == 8))
             .collect::<Result<_, _>>()?,
         output_form,
         events: pb.events,
@@ -1503,8 +1621,10 @@ pub(super) fn decode_record(bytes: &[u8]) -> Result<AppliedTickRecord, CodecErro
             StateDigestVersion::BinaryV3
         } else if pb.schema == 6 {
             StateDigestVersion::BinaryV4
-        } else {
+        } else if pb.schema == 7 {
             StateDigestVersion::BinaryV5
+        } else {
+            StateDigestVersion::BinaryV6
         },
     })
 }
@@ -1581,6 +1701,19 @@ fn source_from(s: Option<PbSession>) -> Result<CommandSource, CodecError> {
 
 fn command_from_pb(c: PbCommand) -> Result<AppliedCommand, CodecError> {
     let command = match c.kind {
+        Some(PbCommandKind::MaterializePendingItems(bytes)) => items::grant_from_json(&bytes)?,
+        Some(PbCommandKind::ExtendItemRange(bytes)) => items::range_from_json(&bytes)?,
+        Some(PbCommandKind::EquipItem(bytes)) => items::command_from_json(&bytes, 20)?,
+        Some(PbCommandKind::UnequipItem(bytes)) => items::command_from_json(&bytes, 21)?,
+        Some(PbCommandKind::UseItem(bytes)) => items::command_from_json(&bytes, 22)?,
+        Some(PbCommandKind::DestroyItem(bytes)) => items::command_from_json(&bytes, 23)?,
+        Some(PbCommandKind::EnchantItem(bytes)) => items::command_from_json(&bytes, 24)?,
+        Some(PbCommandKind::ToggleAutoShot(bytes)) => items::command_from_json(&bytes, 25)?,
+        Some(PbCommandKind::RefineItem(bytes)) => items::command_from_json(&bytes, 26)?,
+        Some(PbCommandKind::CancelRefine(bytes)) => items::command_from_json(&bytes, 27)?,
+        Some(PbCommandKind::ExchangeSpecialAbility(bytes)) => items::command_from_json(&bytes, 28)?,
+        Some(PbCommandKind::CrystallizeItem(bytes)) => items::command_from_json(&bytes, 29)?,
+
         None => return Err(CodecError("command without a kind".to_owned())),
         Some(PbCommandKind::CastSkill(value)) => value.into_command()?,
         Some(PbCommandKind::CancelCast(value)) => value.into_command()?,
@@ -1602,7 +1735,8 @@ fn command_from_pb(c: PbCommand) -> Result<AppliedCommand, CodecError> {
             load: s
                 .load
                 .map(|l| {
-                    Ok::<_, CodecError>(Box::new(PlayerLoad {
+                    let load = PlayerLoad {
+                        phase4: l.phase4.map(|b| phase4_load_from_json(&b)).transpose()?,
                         phase3: l
                             .phase3
                             .map(|b| serde_json::from_slice(&b).map_err(err))
@@ -1618,7 +1752,9 @@ fn command_from_pb(c: PbCommand) -> Result<AppliedCommand, CodecError> {
                         hp: l.hp,
                         mp: l.mp,
                         alive: !l.dead,
-                    }))
+                    };
+                    load.validate_phase4().map_err(err)?;
+                    Ok::<_, CodecError>(Box::new(load))
                 })
                 .transpose()?,
         },
@@ -1741,6 +1877,17 @@ fn stats_from_pb(s: PbStats) -> FinalStats {
 #[allow(clippy::too_many_lines)] // exhaustive one-to-one durable event mapping
 fn event_from_pb(item: PbOutputItem) -> Result<ZoneEvent, CodecError> {
     Ok(match item {
+        PbOutputItem::InventorySync(bytes) => item_views::from_json(&bytes, 32)?,
+        PbOutputItem::InventoryChanged(bytes) => item_views::from_json(&bytes, 33)?,
+        PbOutputItem::EquipmentChanged(bytes) => item_views::from_json(&bytes, 34)?,
+        PbOutputItem::WeightChanged(bytes) => item_views::from_json(&bytes, 35)?,
+        PbOutputItem::PenaltyChanged(bytes) => item_views::from_json(&bytes, 36)?,
+        PbOutputItem::EnchantResult(bytes) => items::result_from_json(&bytes, 37)?,
+        PbOutputItem::RefineResult(bytes) => items::result_from_json(&bytes, 38)?,
+        PbOutputItem::ItemOperationResult(bytes) => items::result_from_json(&bytes, 39)?,
+        PbOutputItem::ItemCheckpoint(bytes) => {
+            ZoneEvent::ItemCheckpoint(Box::new(phase4_projection_from_json(&bytes)?))
+        },
         PbOutputItem::PvpStateChanged(bytes) => {
             let event = phase3_event_from_json(&bytes)?;
             if !matches!(event, ZoneEvent::PvpStateChanged { incarnation, .. } if incarnation != 0)
@@ -1818,8 +1965,12 @@ fn event_from_pb(item: PbOutputItem) -> Result<ZoneEvent, CodecError> {
             }
             event
         },
+        PbOutputItem::Phase4Enriched(bytes) => enriched_from_json(&bytes)?,
         PbOutputItem::Phase3Projection(bytes) => {
             let event: ZoneEvent = phase3_event_from_json(&bytes)?;
+            if phase4_enriched(&event) {
+                return Err(err("Phase4 enrichment in an older carrier"));
+            }
             if !matches!(event, ZoneEvent::VitalsChanged { .. } | ZoneEvent::SkillStateSync { .. })
                 && !phase3_carrier(&event)
             {
@@ -1839,6 +1990,9 @@ fn event_from_pb(item: PbOutputItem) -> Result<ZoneEvent, CodecError> {
         },
         PbOutputItem::Phase2(bytes) => {
             let event: ZoneEvent = serde_json::from_slice(&bytes).map_err(err)?;
+            if phase4_enriched(&event) {
+                return Err(err("Phase4 enrichment in an older carrier"));
+            }
             if !matches!(
                 event,
                 ZoneEvent::ClassChanged { .. }
@@ -1938,6 +2092,7 @@ fn event_from_pb(item: PbOutputItem) -> Result<ZoneEvent, CodecError> {
             respawned: d.respawned,
         }),
         PbOutputItem::StatsChanged(e) => ZoneEvent::StatsChanged {
+            phase4: None,
             class: None,
             entity: entity_from(&e.entity)?,
             hp: e.hp,
@@ -1966,6 +2121,7 @@ fn event_from_pb(item: PbOutputItem) -> Result<ZoneEvent, CodecError> {
             tick: Tick(e.tick),
         },
         PbOutputItem::Spawn(s) => ZoneEvent::EntitySpawn {
+            phase4: None,
             identity: None,
             tick: Tick(s.tick),
             entity: entity_from(&s.entity)?,
@@ -2026,6 +2182,49 @@ fn phase3_carrier(event: &ZoneEvent) -> bool {
         || matches!(event, ZoneEvent::StatsChanged { class: Some(c), .. } if c.phase3.is_some())
 }
 
+/// D26: exactly EntitySpawn/StatsChanged carrying their Phase4 sidecar.
+fn phase4_enriched(event: &ZoneEvent) -> bool {
+    matches!(
+        event,
+        ZoneEvent::EntitySpawn {
+            phase4: Some(_),
+            ..
+        } | ZoneEvent::StatsChanged {
+            phase4: Some(_),
+            ..
+        }
+    )
+}
+
+/// Strict tag41 grammar: canonical bytes, permitted variants, complete sidecars. A spawn
+/// needs its public combat Phase3 policy; owner stats need the owner Phase3 sheet whose
+/// nested effective projection the Phase4 extension completes.
+pub(super) fn enriched_from_json(bytes: &[u8]) -> Result<ZoneEvent, CodecError> {
+    let event = phase3_event_from_json(bytes)?;
+    let valid = if let ZoneEvent::EntitySpawn {
+        phase4: Some(items),
+        combat: Some(combat),
+        identity: Some(_),
+        ..
+    } = &event
+    {
+        combat.phase3.is_some() && items.validate().is_ok()
+    } else if let ZoneEvent::StatsChanged {
+        phase4: Some(items),
+        class: Some(class),
+        ..
+    } = &event
+    {
+        class.phase3.is_some() && items.validate().is_ok()
+    } else {
+        false
+    };
+    if !valid {
+        return Err(err("invalid Phase4 enriched event"));
+    }
+    Ok(event)
+}
+
 fn phase3_event_from_json(bytes: &[u8]) -> Result<ZoneEvent, CodecError> {
     let event: ZoneEvent = serde_json::from_slice(bytes).map_err(err)?;
     if canonical_json(&event) != bytes {
@@ -2036,6 +2235,36 @@ fn phase3_event_from_json(bytes: &[u8]) -> Result<ZoneEvent, CodecError> {
 
 // These plain structs contain only bounded integer/string data and ordered vectors. JSON
 // serialization cannot fail; using one canonical encoding retains absent legacy fields.
+/// Validate opaque private DTO bytes while traversing the enclosing record grammar.
+pub(super) fn phase4_projection_from_json(
+    bytes: &[u8],
+) -> Result<crate::domain::zone::Phase4Projection, CodecError> {
+    use crate::domain::zone::phase4_checkpoint::RetainedEquipmentSource;
+    let projection: crate::domain::zone::Phase4Projection =
+        serde_json::from_slice(bytes).map_err(err)?;
+    let count = projection
+        .checkpoint
+        .equipment_install_order
+        .iter()
+        .filter(|source| matches!(source, RetainedEquipmentSource::Phase3(_)))
+        .count();
+    projection.validate_structure(count).map_err(err)?;
+    if canonical_json(&projection) != bytes {
+        return Err(err("noncanonical private item projection"));
+    }
+    Ok(projection)
+}
+
+pub(super) fn phase4_load_from_json(
+    bytes: &[u8],
+) -> Result<crate::domain::zone::Phase4PlayerLoad, CodecError> {
+    let load = serde_json::from_slice(bytes).map_err(err)?;
+    if canonical_json(&load) != bytes {
+        return Err(err("noncanonical item admission load"));
+    }
+    Ok(load)
+}
+
 fn canonical_json<T: serde::Serialize>(value: &T) -> Vec<u8> {
     serde_json::to_vec(value).unwrap_or_default()
 }
@@ -2050,7 +2279,7 @@ mod combat_tests {
             ..Default::default()
         };
         let error = super::decode_record(&prost::Message::encode_to_vec(&pb)).unwrap_err();
-        assert_eq!(error.to_string(), "cannot decode replay-log record: record schema 999 is not supported (this build reads 3, 4, 5, 6 and 7)");
+        assert_eq!(error.to_string(), "cannot decode replay-log record: record schema 999 is not supported (this build reads 3, 4, 5, 6, 7 and 8)");
     }
 
     use super::*;
@@ -2103,6 +2332,7 @@ mod combat_tests {
     #[test]
     fn stats_changed_durable_round_trip() {
         let event = ObserverOutput::Event(ZoneEvent::StatsChanged {
+            phase4: None,
             class: None,
             tick: Tick(31),
             entity: id(1),
@@ -2115,6 +2345,198 @@ mod combat_tests {
         });
         let encoded = output_to_pb(&event).encode_to_vec();
         assert_eq!(output_from_pb(PbOutput::decode(encoded.as_slice()).unwrap()).unwrap(), event);
+    }
+
+    fn enriched_events() -> (ZoneEvent, ZoneEvent, ZoneEvent) {
+        use crate::domain::zone::item_views::{
+            ItemPenaltyView, ItemWeightView, Phase4EffectiveView, Phase4SpawnView, Phase4StatsView,
+            VisibleEquipment,
+        };
+        let combat = crate::domain::zone::CombatView {
+            phase3: Some(crate::domain::zone::CombatViewPhase3 {
+                status_flags: crate::domain::zone::effects::StatusFlags::default(),
+                flag_until: None,
+                karma: 0,
+            }),
+            template: None,
+            incarnation: 2,
+            dead: false,
+            attackable: false,
+            hp: 40,
+            max_hp: 50,
+            level: 3,
+            swing: None,
+        };
+        let spawn = |visible: Vec<VisibleEquipment>| ZoneEvent::EntitySpawn {
+            identity: Some(crate::domain::zone::PlayerIdentityView {
+                race: crate::domain::Race::Human,
+                class_id: crate::domain::class::ClassId(10),
+                appearance: crate::domain::character_progression::CharacterAppearance::default(),
+            }),
+            phase4: Some(Box::new(Phase4SpawnView { visible })),
+            tick: Tick(31),
+            entity: id(1),
+            kind: crate::domain::zone::EntityKind::Player,
+            name: "Owner".into(),
+            pos: Vec2Fixed::from_tiles(3, 4),
+            dest: None,
+            speed: crate::domain::zone::Speed::DEFAULT,
+            generation: crate::domain::zone::SessionGeneration(1),
+            combat: Some(combat.clone()),
+        };
+        let stats = ZoneEvent::StatsChanged {
+            class: Some(crate::domain::zone::ClassStatsView {
+                phase3: Some(Box::new(crate::domain::zone::OwnerPhase3View {
+                    incarnation: 2,
+                    baseline: Some(Tick(31)),
+                    pvp: crate::domain::zone::PvpState {
+                        flag_until: None,
+                        karma: 0,
+                        pk_count: 0,
+                        pvp_count: 0,
+                    },
+                    death_penalty_level: 0,
+                    effective: crate::domain::zone::LearnedEffectiveStats {
+                        p_atk_q: 1,
+                        p_def_q: 2,
+                        m_atk_q: 3,
+                        m_def_q: 4,
+                        attack_speed: 300,
+                        cast_speed: 333,
+                        speed_q: 5,
+                        accuracy_q: 6,
+                        evasion_q: 7,
+                        crit_permille: 8,
+                    },
+                })),
+                class_id: crate::domain::class::ClassId(10),
+                sp: 0,
+                cp: 0,
+                max_cp: 0,
+                token_tier_1_count: 0,
+                token_tier_2_count: 0,
+            }),
+            phase4: Some(Box::new(Phase4StatsView {
+                weight: ItemWeightView::new(700, 1000, 1).unwrap(),
+                penalties: ItemPenaltyView {
+                    expertise: 0,
+                    weapon_level: 1,
+                    armor_level: 0,
+                    overload_level: 2,
+                    overloaded: true,
+                },
+                inventory_revision: 9,
+                // Nondefault shield/reach/angle values and an explicit zero.
+                effective: Phase4EffectiveView {
+                    shield_def_q: 230_000_000,
+                    shield_rate_q: 20_000_000,
+                    shield_angle_degrees: 120,
+                    physical_reach_millitiles: 2_500,
+                    physical_angle_degrees: 0,
+                },
+            })),
+            tick: Tick(31),
+            entity: id(1),
+            hp: 40,
+            max_hp: 50,
+            mp: 6,
+            max_mp: 7,
+            level: 3,
+            xp: 99,
+        };
+        let visible = VisibleEquipment {
+            slot: crate::domain::zone::EquipSlot::Rhand,
+            template_id: 71,
+            glow_tier: 1,
+        };
+        (spawn(vec![visible]), spawn(Vec::new()), stats)
+    }
+
+    #[test]
+    #[allow(
+        clippy::too_many_lines,
+        clippy::indexing_slicing,
+        clippy::wildcard_enum_match_arm,
+        clippy::unreachable
+    )]
+    fn d26_enriched_events_use_tag41_round_trip_and_reject_partial_or_smuggled_sidecars() {
+        use super::phase3_boundary_tests::{empty, nested};
+        let (equipped, empty_gear, stats) = enriched_events();
+        for event in [&equipped, &empty_gear, &stats] {
+            let output = ObserverOutput::Event(event.clone());
+            let pb = output_to_pb(&output);
+            assert!(matches!(pb.item, Some(PbOutputItem::Phase4Enriched(_))), "{event:?}");
+            let encoded = pb.encode_to_vec();
+            let decoded = output_from_pb(PbOutput::decode(encoded.as_slice()).unwrap()).unwrap();
+            assert_eq!(decoded, output);
+            assert_eq!(output_to_pb(&decoded).encode_to_vec(), encoded);
+            // Record8 grammar accepts it; Record7 has no tag41.
+            let outputs = encode_outputs(std::slice::from_ref(&output));
+            let mut record = empty(8).encode_to_vec();
+            record.extend(nested(7, &nested(2, &outputs)));
+            assert!(super::super::codec_validation::record(&record, 8, false).is_ok());
+            let mut legacy = empty(7).encode_to_vec();
+            legacy.extend(nested(7, &nested(2, &outputs)));
+            assert!(super::super::codec_validation::record(&legacy, 7, false).is_err());
+        }
+        // Phase4-absent events keep their exact older carriers.
+        for event in [&equipped, &stats] {
+            let mut legacy = event.clone();
+            match &mut legacy {
+                ZoneEvent::EntitySpawn { phase4, .. } => *phase4 = None,
+                ZoneEvent::StatsChanged { phase4, .. } => *phase4 = None,
+                _ => unreachable!(),
+            }
+            let item = output_to_pb(&ObserverOutput::Event(legacy)).item.unwrap();
+            assert!(matches!(item, PbOutputItem::Phase3Projection(_)));
+        }
+        // Partial sidecars, wrong variants, noncanonical bytes and older carriers reject.
+        let mut no_policy = equipped.clone();
+        if let ZoneEvent::EntitySpawn {
+            combat: Some(c), ..
+        } = &mut no_policy
+        {
+            c.phase3 = None;
+        }
+        let mut no_sheet = stats.clone();
+        if let ZoneEvent::StatsChanged { class: Some(c), .. } = &mut no_sheet {
+            c.phase3 = None;
+        }
+        let mut tombstone = equipped.clone();
+        if let ZoneEvent::EntitySpawn {
+            phase4: Some(p), ..
+        } = &mut tombstone
+        {
+            p.visible[0].template_id = 0;
+        }
+        let mut weight = stats.clone();
+        if let ZoneEvent::StatsChanged {
+            phase4: Some(p), ..
+        } = &mut weight
+        {
+            p.weight.per_mille += 1;
+        }
+        let vitals = ZoneEvent::VitalsChanged {
+            tick: Tick(31),
+            entity: id(1),
+            incarnation: 2,
+            hp: 1,
+            max_hp: 2,
+            baseline: None,
+        };
+        for invalid in [&no_policy, &no_sheet, &tombstone, &weight, &vitals] {
+            assert!(enriched_from_json(&canonical_json(invalid)).is_err(), "{invalid:?}");
+        }
+        let mut spaced = canonical_json(&equipped);
+        spaced.insert(1, b' ');
+        assert!(enriched_from_json(&spaced).is_err());
+        let mut unknown = serde_json::to_value(&stats).unwrap();
+        unknown["phase4"]["extra"] = serde_json::json!(1);
+        assert!(enriched_from_json(&serde_json::to_vec(&unknown).unwrap()).is_err());
+        for event in [&equipped, &stats] {
+            assert!(event_from_pb(PbOutputItem::Phase2(canonical_json(event))).is_err());
+            assert!(event_from_pb(PbOutputItem::Phase3Projection(canonical_json(event))).is_err());
+        }
     }
 
     #[test]
@@ -2200,14 +2622,14 @@ mod combat_tests {
 mod phase3_boundary_tests {
     use super::*;
 
-    fn empty(schema: u32) -> PbRecord {
+    pub(super) fn empty(schema: u32) -> PbRecord {
         PbRecord {
             schema,
             state_digest: Bytes::from(vec![0; 32]),
             ..PbRecord::default()
         }
     }
-    fn nested(tag: u32, value: &[u8]) -> Vec<u8> {
+    pub(super) fn nested(tag: u32, value: &[u8]) -> Vec<u8> {
         let mut bytes = Vec::new();
         prost::encoding::encode_key(tag, prost::encoding::WireType::LengthDelimited, &mut bytes);
         prost::encoding::encode_varint(value.len() as u64, &mut bytes);
@@ -2285,6 +2707,7 @@ mod phase3_boundary_tests {
                 }),
             },
             ZoneEvent::EntitySpawn {
+                phase4: None,
                 tick: Tick(1),
                 entity: id,
                 kind: EntityKind::Player,

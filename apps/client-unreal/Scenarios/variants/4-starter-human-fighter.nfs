@@ -1,0 +1,41 @@
+# covers: 4 E1.2, 4 E1.6, 4 E2.1, 4 E2.6, 4 E2.9, 4 E3.3, 4 E3.5, 4 E5.1, 4 E5.4, 4 E5.5, 4 E6.5
+# fixture: phase4-starter-human_fighter
+# variant: 4-starter-human-fighter
+# Execution evidence is the live gate run (run-sim-ci.py + phase4-evidence.py), not syntax/traceability.
+# Exact inventory/paperdoll/enchant/count source operands: phase4-packs.json.
+# Waits: delivery 10ticks*100ms*3=3s (A1); RPC/login policy5s*3=15s.
+# Combat fixture allowance30s; death90s; offer180s (inherited phase3 fixtures).
+# Source scroll Escape20s*3=60s (pinned DP skills02000-02099; design§8).
+# Skill1177 hitTime4000ms*3=12s (pinned DP skills01100-01199.xml:1645).
+# Counts/enchant are fixture inputs; numeric formulas are checked by actual-input export oracle.
+# item-gate: gear_stats
+# item-gate: max_load
+nf.Login
+nf.WaitFor connected 15
+nf.EnterWorld
+nf.WaitFor in_world 15
+nf.WaitFor item_baseline 3
+nf.Expect inventory_has 2369 == 1
+nf.Expect equipped rhand == 2369
+nf.Expect inventory_has 10 == 1
+nf.Expect inventory_has 1146 == 1
+nf.Expect equipped chest == 1146
+nf.Expect inventory_has 1147 == 1
+nf.Expect equipped legs == 1147
+nf.Expect inventory_has 5588 == 1
+nf.Expect inventory_has 10650 == 5
+nf.Expect inventory_has 12753 == 10
+nf.DropSocket
+nf.WaitFor reconnects >= 1 15
+nf.WaitFor item_baseline 15
+nf.Expect inventory_has 2369 == 1
+nf.Expect equipped rhand == 2369
+nf.Expect inventory_has 10 == 1
+nf.Expect inventory_has 1146 == 1
+nf.Expect equipped chest == 1146
+nf.Expect inventory_has 1147 == 1
+nf.Expect equipped legs == 1147
+nf.Expect inventory_has 5588 == 1
+nf.Expect inventory_has 10650 == 5
+nf.Expect inventory_has 12753 == 10
+nf.Within 108

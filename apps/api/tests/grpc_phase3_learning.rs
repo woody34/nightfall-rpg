@@ -96,7 +96,8 @@ async fn learning_maps_every_frozen_field_and_replays_after_disconnect_progressi
                 speed_q: 11_000_005,
                 accuracy_q: 12_000_006,
                 evasion_q: 13_000_007,
-                crit_permille: 51
+                crit_permille: 51,
+                ..Default::default()
             })
         }
     );

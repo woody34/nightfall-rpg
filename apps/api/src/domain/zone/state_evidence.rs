@@ -51,6 +51,23 @@ impl ZoneState {
     ) -> u32 {
         let before = self.rng.get_word_pos();
         let value = self.roll_below(bound);
+        // B3: a target-less roll keeps its callsite on the zone draw fact.
+        self.label_raw_draw(before, site);
+        if self.items_evidence_enabled() {
+            if let Some(subject) = target {
+                self.item_evidence(
+                    subject,
+                    crate::domain::zone::evidence::ItemEvidenceData::Rng {
+                        callsite: site.into(),
+                        word_before: before,
+                        word_after: self.rng.get_word_pos(),
+                        bound,
+                        value,
+                        resolution_id: format!("damage:{before}"),
+                    },
+                );
+            }
+        }
         if let Some(buffer) = &mut self.evidence {
             let draw = EvidenceDraw {
                 callsite: site.to_owned(),

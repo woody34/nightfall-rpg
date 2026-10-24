@@ -1,0 +1,58 @@
+{
+  "enchant_outcomes": [
+    "success",
+    "success_no_increment",
+    "safe_failed",
+    "blessed_reset",
+    "destroyed"
+  ],
+  "events": {
+    "enchant_result": "31",
+    "equipment_changed": "28",
+    "inventory_changed": "27",
+    "inventory_sync": "26",
+    "item_operation_result": "33",
+    "penalty_changed": "30",
+    "refine_result": "32",
+    "weight_changed": "29"
+  },
+  "intents": {
+    "cancel_refine": "26",
+    "crystallize_item": "28",
+    "destroy_item": "22",
+    "enchant_item": "23",
+    "equip_item": "19",
+    "exchange_special_ability": "27",
+    "refine_item": "25",
+    "toggle_auto_shot": "24",
+    "unequip_item": "20",
+    "use_item": "21"
+  },
+  "item_operations": [
+    "grant",
+    "starter",
+    "backfill",
+    "equip",
+    "unequip",
+    "consume",
+    "enchant",
+    "destroy",
+    "crystallize",
+    "refine",
+    "cancel_refine",
+    "exchange",
+    "use",
+    "toggle_auto_shot"
+  ],
+  "kind": "required future observations, not baseline evidence",
+  "refine_outcomes": [
+    "applied",
+    "removed"
+  ],
+  "schema_version": 1,
+  "shot_payments": [
+    "soul",
+    "spirit",
+    "blessed_spirit"
+  ]
+}

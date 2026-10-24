@@ -32,11 +32,20 @@ impl Phase3AdmissionPolicy {
         }
     }
 
+    /// V6 uses the same hard byte ceilings under a distinct recorded policy.
+    #[must_use]
+    pub const fn version_two() -> Self {
+        Self {
+            version: 2,
+            ..Self::version_one()
+        }
+    }
+
     /// Portable structural checks. Exact protobuf framing/recipient feasibility and the
     /// backend ceiling remain application-layer checks; this module has no codec dependency.
     #[must_use]
     pub const fn is_valid(self) -> bool {
-        self.version == 1
+        matches!(self.version, 1 | 2)
             && self.max_command_bytes > 0
             && self.max_command_bytes <= 262_144
             && self.record_budget > self.max_command_bytes
@@ -44,6 +53,9 @@ impl Phase3AdmissionPolicy {
             && self.max_observers > 0
     }
 }
+
+/// The recorded runtime revision of a V6 (Phase 4) skill composition.
+pub(super) const V6_RUNTIME_REVISION: u32 = 3;
 
 /// Immutable Phase 3 policy, separately hashed from historical stat/class registries.
 /// Construction validates every registry capability and policy table; snapshot decoding
@@ -87,6 +99,29 @@ impl Phase3Rules {
         Self::try_new_revision(skills, pvp, regen, constants, profiles, geometry, npc, 2)
     }
 
+    /// Construct a new V6 epoch bundle with the separately validated item skill closure.
+    /// This consumes immutable source data; it never upgrades a live or recovered V5 epoch.
+    pub fn with_phase4_skills(
+        self,
+        skills: super::skill::SkillRegistry,
+    ) -> Result<Self, Vec<String>> {
+        Self::try_new_revision(
+            skills,
+            self.pvp,
+            self.regen,
+            self.constants,
+            self.profiles,
+            self.geometry,
+            self.npc,
+            V6_RUNTIME_REVISION,
+        )
+    }
+
+    /// Whether these rules are the V6 composition (the Phase 4 skill closure).
+    pub const fn is_v6(&self) -> bool {
+        self.runtime_revision == V6_RUNTIME_REVISION
+    }
+
     #[allow(clippy::too_many_arguments)]
     fn try_new_revision(
         skills: super::skill::SkillRegistry,
@@ -98,7 +133,9 @@ impl Phase3Rules {
         npc: super::skill_npc::NpcSkillRules,
         runtime_revision: u32,
     ) -> Result<Self, Vec<String>> {
-        if !matches!(runtime_revision, 1 | 2) {
+        if !matches!(runtime_revision, 1..=3)
+            || skills.capability_revision() != if runtime_revision == 3 { 2 } else { 1 }
+        {
             return Err(vec!["unsupported Phase3 runtime revision".into()]);
         }
         let errors: Vec<_> = [
@@ -170,7 +207,12 @@ impl Phase3Rules {
             if skill.key != known.key
                 || skill.max_level != known.max_level
                 || skill.l2_ref != known.l2_ref
-                || skill.runtime_status != known.runtime_status
+                || (skill.runtime_status != known.runtime_status
+                    && !(self.runtime_revision == 3
+                        && known.runtime_status
+                            == crate::domain::class::RuntimeSkillStatus::Deferred
+                        && skill.runtime_status
+                            == crate::domain::class::RuntimeSkillStatus::Executable))
                 || skill.provenance.file != known.source_file
             {
                 return Err(format!("Phase3 rules disagree with catalogue skill {}", known.id));
@@ -360,14 +402,29 @@ impl Phase3Snapshot {
         &self,
         combatants: &BTreeMap<super::EntityId, super::Phase3EntityContext<'_>>,
     ) -> Result<(), super::effects::EffectError> {
-        if !self.validate() || combatants.len() != self.entities.len() {
+        self.validate_live_with_item_casts(combatants, &BTreeMap::new())
+    }
+
+    pub(super) fn validate_live_with_item_casts(
+        &self,
+        combatants: &BTreeMap<super::EntityId, super::Phase3EntityContext<'_>>,
+        item_skills: &BTreeMap<super::EntityId, super::skill::SkillRef>,
+    ) -> Result<(), super::effects::EffectError> {
+        if !self.validate()
+            || combatants.len() != self.entities.len()
+            || item_skills.keys().any(|id| !combatants.contains_key(id))
+        {
             return Err(super::effects::EffectError::Invalid("Phase3 sidecar cardinality/policy"));
         }
         for (id, context) in combatants {
             self.entities
                 .get(id)
                 .ok_or(super::effects::EffectError::Invalid("missing combatant sidecar"))?
-                .validate_live(&self.rules, *context)?;
+                .validate_live_with_item_cast(
+                    &self.rules,
+                    *context,
+                    item_skills.get(id).copied(),
+                )?;
         }
         Ok(())
     }

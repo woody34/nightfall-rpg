@@ -1,4 +1,5 @@
 //! Harness-owned bridge into the production bootstrap and admission validators.
+mod common;
 use std::collections::BTreeMap;
 use std::path::Path;
 
@@ -93,6 +94,7 @@ fn validate(root: &Path, manifest: &Path) -> anyhow::Result<()> {
                 .context("account overflow")?;
             let [x, y] = role.position;
             let load = PlayerLoad {
+                phase4: None,
                 phase3: Some(checkpoint),
                 progression: Some(Box::new(PlayerProgression {
                     identity: CharacterIdentity {
@@ -169,6 +171,7 @@ fn generated_overlay_and_all_seed_roles_pass_real_admission() -> anyhow::Result<
                 simulation_fixture: (fixture == "phase1a-social-aggro").then(|| fixture.to_owned()),
                 auth_dev_tokens: true,
                 phase3_enabled: Some("1".into()),
+                phase4_enabled: None,
             };
             let prepared = config
                 .prepare_phase3(load_classes(&ClassSource::from_dir(&data)?)?)?
@@ -244,6 +247,7 @@ fn evidence_load(role: &Role, account: u128) -> PlayerLoad {
         .modifier_install_order
         .clone_from(&role.modifier_install_order);
     PlayerLoad {
+        phase4: None,
         phase3: Some(checkpoint),
         progression: Some(Box::new(PlayerProgression {
             identity: CharacterIdentity {
@@ -1255,4 +1259,264 @@ fn late_entry_handshake_preserves_wounded_baseline_and_first_hit() -> anyhow::Re
     })();
     std::fs::remove_dir_all(&work)?;
     result
+}
+
+/// T8: `PHASE4_ENABLED=1` on a `RULES_DIR` overlay boots a V6 epoch whose Phase 3 data (incl.
+/// the fixture-only NPC profiles such as `skill_target`) comes from the overlay with the V5
+/// overlay semantics, while the default embedded source keeps the embedded D27 bundle.
+#[tokio::test]
+async fn phase4_startup_composes_the_v6_bundle_over_a_rules_dir_overlay() -> anyhow::Result<()> {
+    use nightfall_api::application::replay_log::{restore_snapshot, WatermarkReason};
+    use nightfall_api::infrastructure::item_data::{
+        configured_phase4_bundle, embedded_phase4_bundle, resolve_phase4_bundle,
+    };
+    let repo = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(Path::parent)
+        .context("repository root")?;
+    let temporary =
+        std::env::temp_dir().join(format!("nightfall-phase4-overlay-{}", uuid::Uuid::now_v7()));
+    std::fs::create_dir(&temporary)?;
+    let result = async {
+        let generated = std::process::Command::new("python3")
+            .arg(repo.join("apps/client-unreal/Scripts/phase3-validation-inputs.py"))
+            .arg(&temporary)
+            .status()?;
+        ensure!(generated.success(), "fixture input generation failed");
+        let root = temporary.join("data");
+        let zone = load_zone(&root.join("zones/test_zone.toml"))?;
+        ensure!(
+            zone.npc_templates
+                .iter()
+                .any(|template| template.id.0 == "skill_target"),
+            "overlay defines the fixture-only NPC"
+        );
+        let embedded = embedded_phase4_bundle().map_err(anyhow::Error::msg)?;
+        let overlay = configured_phase4_bundle(&Phase3DataSource::from_dir(&root)?)
+            .map_err(anyhow::Error::msg)?;
+        ensure!(overlay.skills.profiles().npcs.contains_key("skill_target"));
+        ensure!(!embedded.skills.profiles().npcs.contains_key("skill_target"));
+        // Profiles are Phase 3 data: the skill hash is the overlay's Phase 3 rules hash and the
+        // item hash binds it; both resolve in this process once composed.
+        ensure!(overlay.skills.hash() != embedded.skills.hash());
+        ensure!(overlay.items.hash() != embedded.items.hash());
+        ensure!(overlay.items.parts().items == embedded.items.parts().items);
+        let resolved = resolve_phase4_bundle(overlay.items.hash(), overlay.skills.hash())
+            .map_err(anyhow::Error::msg)?;
+        ensure!(resolved.skills.hash() == overlay.skills.hash());
+        let config = nightfall_api::zone_runtime::ZoneRuntimeConfig {
+            rules_dir: Some(root.clone()),
+            zone_file: Some(root.join("zones/test_zone.toml")),
+            simulation_fixture: None,
+            auth_dev_tokens: true,
+            phase3_enabled: Some("1".into()),
+            phase4_enabled: Some("1".into()),
+        };
+        let mut deps = nightfall_api::Dependencies::in_memory();
+        deps.classes = Some(load_classes(&ClassSource::from_dir(&root)?)?);
+        let running = nightfall_api::zone_runtime::start(&config, None, None, &deps).await?;
+        let snapshot = running
+            .handle()
+            .snapshot()
+            .await
+            .map_err(|_| anyhow::anyhow!("zone stopped"))?;
+        let items = snapshot.phase4.as_ref().context("V6 epoch expected")?;
+        ensure!(items.rules_hash == overlay.items.hash());
+        ensure!(
+            snapshot.phase3.as_ref().context("V5 sidecar")?.rules_hash == overlay.skills.hash()
+        );
+        let restored = restore_snapshot(snapshot)?;
+        ensure!(restored.snapshot().phase4.is_some(), "overlay V6 snapshot restores");
+        running.shutdown(WatermarkReason::Shutdown).await?;
+        Ok(())
+    }
+    .await;
+    std::fs::remove_dir_all(&temporary)?;
+    result
+}
+
+/// T8 with the production adapters: `PHASE4_ENABLED=1` on a `RULES_DIR` overlay boots V6 with
+/// the Postgres character adapter (V6 overlay rules, item checkpoint lane and range admission),
+/// the `JetStream` replay log and the Postgres snapshot index. The first boot runs in a child
+/// process that is killed with SIGKILL (no watermark, no shutdown checkpoint); the restart
+/// recovers that overlay-recorded V6 epoch, resolving its bundle by hash, and opens a new one.
+#[tokio::test]
+#[allow(clippy::too_many_lines, clippy::print_stdout)] // Child/parent halves; the child reports on stdout.
+async fn phase4_overlay_boots_and_recovers_on_postgres_and_jetstream() -> anyhow::Result<()> {
+    use nightfall_api::application::replay_log::{EpochStatus, EventLog, WatermarkReason};
+    use tokio::io::AsyncBufReadExt as _;
+    const CHILD: &str = "NIGHTFALL_T8_CRASH_CHILD";
+    let nats = std::env::var("NATS_URL").context("owned NATS_URL required")?;
+    if let Ok(spec) = std::env::var(CHILD) {
+        // Child half: boot the first epoch, report it, then wait to be killed.
+        let (schema, root) = spec.split_once('|').context("child spec")?;
+        let pool = common::pg::schema_pool(schema)
+            .await
+            .context("owned DATABASE_URL required")?;
+        let (config, deps, _) = t8_overlay_runtime(&pool, Path::new(root))?;
+        let running = nightfall_api::zone_runtime::start(
+            &config,
+            Some(&nats),
+            Some(nightfall_api::infrastructure::postgres::connection_from_pool(&pool)),
+            &deps,
+        )
+        .await?;
+        running
+            .handle()
+            .item_grants_available()
+            .await
+            .map_err(|error| anyhow::anyhow!("{error}"))?;
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+        println!("T8_CHILD_READY {}", running.epoch());
+        tokio::time::sleep(std::time::Duration::from_mins(10)).await;
+        anyhow::bail!("the parent never killed the first boot");
+    }
+    let pool = common::pg::migrated_pool()
+        .await
+        .context("owned DATABASE_URL required")?;
+    let schema: String = sqlx::query_scalar("SELECT current_schema()")
+        .fetch_one(&pool)
+        .await?;
+    let repo = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(Path::parent)
+        .context("repository root")?;
+    let temporary =
+        std::env::temp_dir().join(format!("nightfall-phase4-overlay-pg-{}", uuid::Uuid::now_v7()));
+    std::fs::create_dir(&temporary)?;
+    let result = Box::pin(async {
+        let generated = std::process::Command::new("python3")
+            .arg(repo.join("apps/client-unreal/Scripts/phase3-validation-inputs.py"))
+            .arg(&temporary)
+            .status()?;
+        ensure!(generated.success(), "fixture input generation failed");
+        let root = temporary.join("data");
+        let (config, deps, overlay) = t8_overlay_runtime(&pool, &root)?;
+        // First boot in a separate process, killed without any graceful step.
+        let mut child = tokio::process::Command::new(std::env::current_exe()?)
+            .args([
+                "--exact",
+                "phase4_overlay_boots_and_recovers_on_postgres_and_jetstream",
+                "--nocapture",
+                "--test-threads=1",
+            ])
+            .env(CHILD, format!("{schema}|{}", root.display()))
+            .stdout(std::process::Stdio::piped())
+            .kill_on_drop(true)
+            .spawn()?;
+        let mut lines =
+            tokio::io::BufReader::new(child.stdout.take().context("child stdout")?).lines();
+        let first = tokio::time::timeout(std::time::Duration::from_mins(15), async {
+            while let Some(line) = lines.next_line().await? {
+                // libtest may print "test <name> ... " on the same line first.
+                if let Some((_, epoch)) = line.split_once("T8_CHILD_READY ") {
+                    return Ok::<_, anyhow::Error>(Some(epoch.trim().parse::<u64>()?));
+                }
+            }
+            Ok(None)
+        })
+        .await
+        .context("first boot timed out")??;
+        child.kill().await?; // SIGKILL, then reap
+        let first = first.context("first boot never became ready")?;
+        let log = nightfall_api::infrastructure::eventlog::JetStreamEventLog::connect(
+            async_nats::connect(&nats).await?,
+            nightfall_api::infrastructure::telemetry::Metrics::detached(),
+        )
+        .await?;
+        let zone = load_zone(&root.join("zones/test_zone.toml"))?.zone;
+        ensure!(
+            matches!(log.epoch_status(zone, first).await?, EpochStatus::Incomplete { .. }),
+            "the killed boot left its epoch without a watermark"
+        );
+        let running = nightfall_api::zone_runtime::start(
+            &config,
+            Some(&nats),
+            Some(nightfall_api::infrastructure::postgres::connection_from_pool(&pool)),
+            &deps,
+        )
+        .await?;
+        running
+            .handle()
+            .item_grants_available()
+            .await
+            .map_err(|error| anyhow::anyhow!("{error}"))?;
+        let snapshot = running
+            .handle()
+            .snapshot()
+            .await
+            .map_err(|_| anyhow::anyhow!("zone stopped"))?;
+        ensure!(
+            snapshot
+                .phase4
+                .as_ref()
+                .context("V6 epoch expected")?
+                .rules_hash
+                == overlay.items.hash()
+        );
+        let second = snapshot.seed.epoch;
+        running.shutdown(WatermarkReason::Shutdown).await?;
+        ensure!(second > first, "the restart opened a new epoch after recovery");
+        let EpochStatus::Complete(recovered) = log.epoch_status(zone, first).await? else {
+            anyhow::bail!("recovery must durably close the killed epoch");
+        };
+        ensure!(recovered.reason == WatermarkReason::EpochEnd);
+        let indexed: i64 = sqlx::query_scalar("SELECT count(*) FROM zone_snapshots")
+            .fetch_one(&pool)
+            .await?;
+        ensure!(indexed >= 2, "both V6 epochs are indexed");
+        // The overlay-recorded V6 snapshot decodes and restores by hash (D27 resolution).
+        let stored: Vec<u8> =
+            sqlx::query_scalar("SELECT snapshot FROM zone_snapshots WHERE epoch=$1")
+                .bind(i64::try_from(first)?)
+                .fetch_one(&pool)
+                .await?;
+        let decoded = nightfall_api::application::replay_log::decode_snapshot(&stored)?;
+        ensure!(decoded.phase4.as_ref().context("V6 sidecar")?.rules_hash == overlay.items.hash());
+        ensure!(decoded.phase3.as_ref().context("V5 sidecar")?.rules_hash == overlay.skills.hash());
+        nightfall_api::application::replay_log::restore_snapshot(decoded)?;
+        Ok(())
+    })
+    .await;
+    std::fs::remove_dir_all(&temporary)?;
+    result
+}
+
+/// The production V6 overlay composition with the Postgres adapters, as `main` wires it.
+fn t8_overlay_runtime(
+    pool: &sqlx::PgPool,
+    root: &Path,
+) -> anyhow::Result<(
+    nightfall_api::zone_runtime::ZoneRuntimeConfig,
+    nightfall_api::Dependencies,
+    nightfall_api::infrastructure::item_data::Phase4RuleBundle,
+)> {
+    use nightfall_api::infrastructure::item_data::configured_phase4_bundle;
+    use nightfall_api::infrastructure::postgres::{connection_from_pool, PgCharacterRepository};
+    use std::sync::Arc;
+    let classes = load_classes(&ClassSource::from_dir(root)?)?;
+    let overlay =
+        configured_phase4_bundle(&Phase3DataSource::from_dir(root)?).map_err(anyhow::Error::msg)?;
+    let characters = Arc::new(
+        PgCharacterRepository::new(connection_from_pool(pool))
+            .with_classes(classes.registry.clone())
+            .with_phase4_rules(overlay.items.clone(), overlay.skills.clone())?,
+    );
+    let mut deps = nightfall_api::Dependencies::in_memory();
+    deps.classes = Some(classes);
+    deps.characters = characters.clone();
+    deps.item_inventory = Some(characters.clone());
+    deps.item_receipts = Some(characters.clone());
+    deps.item_checkpoints = Some(characters.clone());
+    deps.item_admission = Some(characters.clone());
+    deps.learning = Some(characters);
+    let config = nightfall_api::zone_runtime::ZoneRuntimeConfig {
+        rules_dir: Some(root.to_path_buf()),
+        zone_file: Some(root.join("zones/test_zone.toml")),
+        simulation_fixture: None,
+        auth_dev_tokens: true,
+        phase3_enabled: Some("1".into()),
+        phase4_enabled: Some("1".into()),
+    };
+    Ok((config, deps, overlay))
 }

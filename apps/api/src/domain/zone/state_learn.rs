@@ -71,22 +71,26 @@ pub struct LearnMutation {
     /// A newly installed/ranked passive requires declarative stat reconstruction before
     /// the caller freezes success resources. Active learning changes no timed effects.
     pub passive_changed: bool,
+    /// E3.4/D47 (V6 only): skill-book (template, count) costs the caller debits atomically.
+    pub required_items: Vec<(u32, u32)>,
 }
 
 /// Validate exact rank/capability/item/SP/command-phase guards and stage the one purchase.
 /// The source of costs/requirements is the current lineage's `SkillLearnDef`; free autoget
 /// reconciliation has its own path and can never debit through this function.
+#[allow(clippy::too_many_lines)] // One ordered guard chain, including the V6 book costs.
 pub fn prepare_learn(
     ledger: &ClassState,
     phase3: &Phase3Entity,
     context: LearnContext<'_>,
     request: SkillRef,
     next_modifier_sequence: u64,
+    items_payable: bool,
 ) -> Result<LearnMutation, LearnError> {
     let classes = context.classes;
     let rules = context.rules;
     ledger
-        .validate_for_phase3(classes, context.identity, context.character)
+        .validate_for_skill_rules(classes, context.identity, context.character, rules)
         .map_err(|_| LearnError::InvalidState)?;
     if phase3.player.is_none()
         || ledger.sp > i64::MAX.unsigned_abs()
@@ -130,8 +134,32 @@ pub fn prepare_learn(
     if context.level < row.required_level {
         return Err(LearnError::LevelRequired);
     }
-    if !row.required_items.is_empty() {
+    // V5 has no inventory: a book-gated row refuses. V6 returns the costs for the caller's
+    // ledger debit (E3.4/D47); the book's presence is checked there, atomically.
+    if !row.required_items.is_empty() && !items_payable {
         return Err(LearnError::ItemRequired);
+    }
+    let required_items = row
+        .required_items
+        .iter()
+        .map(|requirement| {
+            let template = requirement
+                .item
+                .strip_prefix("l2.item.")
+                .and_then(|id| id.parse::<u32>().ok())
+                .filter(|id| *id > 0)
+                .ok_or(LearnError::InvalidState)?;
+            if requirement.count == 0 {
+                return Err(LearnError::InvalidState);
+            }
+            Ok((template, requirement.count))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    // D118: every paid learn carries one learned_item_cost fact, and its frozen shape names a
+    // single template. A rank costing several templates (none in the pinned data: 144 rows,
+    // all one book) is refused fail-closed until that shape exists, never paid without a fact.
+    if required_items.len() > 1 {
+        return Err(LearnError::DeferredSkill);
     }
     if skill.runtime_status != RuntimeSkillStatus::Executable {
         return Err(LearnError::DeferredSkill);
@@ -148,6 +176,7 @@ pub fn prepare_learn(
         phase3: phase3.clone(),
         next_modifier_sequence,
         passive_changed,
+        required_items,
     };
     candidate.ledger.sp = sp;
     let learned = LearnedSkill {
@@ -189,7 +218,7 @@ pub fn prepare_learn(
     }
     candidate
         .ledger
-        .validate_for_phase3(classes, context.identity, context.character)
+        .validate_for_skill_rules(classes, context.identity, context.character, rules)
         .map_err(|_| LearnError::InvalidState)?;
     Ok(candidate)
 }
@@ -250,7 +279,7 @@ mod tests {
         let state = blank();
         let before = ledger.clone();
         let before_state = state.clone();
-        let first = prepare_learn(&ledger, &state, ctx, skill(3, 1), 1).unwrap();
+        let first = prepare_learn(&ledger, &state, ctx, skill(3, 1), 1, false).unwrap();
         assert_eq!((first.sp_spent, first.ledger.sp), (50, 50));
         assert_eq!(
             first.ledger.learned_skills,
@@ -275,14 +304,15 @@ mod tests {
         let encoded = serde_json::to_vec(&first.ledger).unwrap();
         assert_eq!(serde_json::from_slice::<ClassState>(&encoded).unwrap(), first.ledger);
         assert_eq!(
-            prepare_learn(&first.ledger, &first.phase3, ctx, skill(3, 1), 1),
+            prepare_learn(&first.ledger, &first.phase3, ctx, skill(3, 1), 1, false),
             Err(LearnError::WrongRank)
         );
-        let second = prepare_learn(&first.ledger, &first.phase3, ctx, skill(3, 2), 1).unwrap();
+        let second =
+            prepare_learn(&first.ledger, &first.phase3, ctx, skill(3, 2), 1, false).unwrap();
         assert_eq!(second.ledger.sp, 0);
         assert_eq!(second.ledger.learned_skills[0].level, 2);
         assert_eq!(
-            prepare_learn(&second.ledger, &second.phase3, ctx, skill(3, 3), 1),
+            prepare_learn(&second.ledger, &second.phase3, ctx, skill(3, 3), 1, false),
             Err(LearnError::InsufficientSp)
         );
     }
@@ -295,14 +325,15 @@ mod tests {
         ctx.level = 10;
         let mut ledger = ClassState::new(ClassId(0));
         ledger.sp = 2000;
-        let first = prepare_learn(&ledger, &blank(), ctx, skill(141, 1), 7).unwrap();
+        let first = prepare_learn(&ledger, &blank(), ctx, skill(141, 1), 7, false).unwrap();
         assert!(first.passive_changed);
         assert_eq!(first.next_modifier_sequence, 8);
         assert_eq!(
             first.phase3.modifier_install_order.get(&7),
             Some(&RestoredModifierSource::Passive(skill(141, 1)))
         );
-        let second = prepare_learn(&first.ledger, &first.phase3, ctx, skill(141, 2), 8).unwrap();
+        let second =
+            prepare_learn(&first.ledger, &first.phase3, ctx, skill(141, 2), 8, false).unwrap();
         assert_eq!(second.phase3.modifier_install_order.len(), 1);
         assert!(!second.phase3.modifier_install_order.contains_key(&7));
         assert_eq!(
@@ -313,11 +344,11 @@ mod tests {
         assert_eq!(second.next_modifier_sequence, 9);
         let before = first.clone();
         assert_eq!(
-            prepare_learn(&first.ledger, &first.phase3, ctx, skill(141, 2), u64::MAX),
+            prepare_learn(&first.ledger, &first.phase3, ctx, skill(141, 2), u64::MAX, false),
             Err(LearnError::SequenceExhausted)
         );
         assert_eq!(
-            prepare_learn(&first.ledger, &first.phase3, ctx, skill(141, 2), 7),
+            prepare_learn(&first.ledger, &first.phase3, ctx, skill(141, 2), 7, false),
             Err(LearnError::SequenceExhausted)
         );
         assert_eq!(first, before);
@@ -341,6 +372,7 @@ mod tests {
         assert_eq!(input.derive(&restored, &rules, false).unwrap(), learned);
     }
     #[test]
+    #[allow(clippy::too_many_lines)] // One shared fixture across the ordered guard chain.
     fn command_phase_guards_reject_without_consuming_sp_or_install_order() {
         let classes = load_classes(&ClassSource::embedded()).unwrap().registry;
         let rules = load_phase3_rules(&Phase3DataSource::embedded(), &[]).unwrap();
@@ -374,32 +406,38 @@ mod tests {
                 LearnError::TrainerRequired,
             ),
         ] {
-            assert_eq!(prepare_learn(&ledger, &state, changed, skill(3, 1), 1), Err(expected));
+            assert_eq!(
+                prepare_learn(&ledger, &state, changed, skill(3, 1), 1, false),
+                Err(expected)
+            );
         }
         assert_eq!(
-            prepare_learn(&ledger, &state, ctx, skill(u32::MAX, 1), 1),
+            prepare_learn(&ledger, &state, ctx, skill(u32::MAX, 1), 1, false),
             Err(LearnError::UnknownSkill)
         );
-        assert_eq!(prepare_learn(&ledger, &state, ctx, skill(3, 2), 1), Err(LearnError::WrongRank));
         assert_eq!(
-            prepare_learn(&ledger, &state, ctx, skill(142, 1), 1),
+            prepare_learn(&ledger, &state, ctx, skill(3, 2), 1, false),
+            Err(LearnError::WrongRank)
+        );
+        assert_eq!(
+            prepare_learn(&ledger, &state, ctx, skill(142, 1), 1, false),
             Err(LearnError::DeferredSkill)
         );
         assert_eq!(
-            prepare_learn(&ledger, &state, ctx, skill(1177, 1), 1),
+            prepare_learn(&ledger, &state, ctx, skill(1177, 1), 1, false),
             Err(LearnError::NotLearnable)
         );
         assert_eq!(ledger, before);
         let mut casting = state.clone();
         casting.cast = CastState::Casting(super::super::phase3_entity::tests::cast());
         assert_eq!(
-            prepare_learn(&ledger, &casting, ctx, skill(3, 1), 1),
+            prepare_learn(&ledger, &casting, ctx, skill(3, 1), 1, false),
             Err(LearnError::InCombat)
         );
         let mut malformed = ledger.clone();
         malformed.sp = u64::MAX;
         assert_eq!(
-            prepare_learn(&malformed, &state, ctx, skill(3, 1), 1),
+            prepare_learn(&malformed, &state, ctx, skill(3, 1), 1, false),
             Err(LearnError::InvalidState)
         );
         // A valid source item prerequisite must be checked by the mutation, even if the
@@ -427,9 +465,56 @@ mod tests {
                     ..ctx
                 },
                 skill(3, 1),
-                1
+                1,
+                false
             ),
             Err(LearnError::ItemRequired)
+        );
+        // V6 (E3.4/D47): the same row is payable; the costs return to the caller.
+        let payable = prepare_learn(
+            &ledger,
+            &state,
+            LearnContext {
+                classes: &with_items,
+                ..ctx
+            },
+            skill(3, 1),
+            1,
+            true,
+        )
+        .unwrap();
+        assert_eq!(payable.required_items, vec![(1, 1)]);
+        // D118: a rank costing more than one template refuses fail-closed, on V5 and V6.
+        let mut encoded = serde_json::to_value(&with_items).unwrap();
+        let row = encoded["classes"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|c| c["id"] == 0)
+            .unwrap()["skill_tree"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|r| r["skill_id"] == 3 && r["skill_level"] == 1)
+            .unwrap();
+        row["required_items"] = serde_json::json!([
+            { "item":"l2.item.1", "count":1 },
+            { "item":"l2.item.2", "count":1 }
+        ]);
+        let two_books: ClassRegistry = serde_json::from_value(encoded).unwrap();
+        assert_eq!(
+            prepare_learn(
+                &ledger,
+                &state,
+                LearnContext {
+                    classes: &two_books,
+                    ..ctx
+                },
+                skill(3, 1),
+                1,
+                true,
+            ),
+            Err(LearnError::DeferredSkill)
         );
     }
 }

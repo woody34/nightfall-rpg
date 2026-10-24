@@ -11,6 +11,7 @@
 #   SIM_PIPELINE_VERDICT completed schema v1 JSON; written only after final wrapper gates
 #   SIM_REPLAY_CMD    command run as `$SIM_REPLAY_CMD <file.nfr>` (default: nightfall-replay --source file --file)
 #   SIM_API_URL       API base for the health check (default http://localhost:3000)
+#   SIM_API_ENV_FILE  shell assignments sourced after the repository .env before a shared-stack API starts (lanes)
 #   SIM_REQUIRE_OWNED_API=1 reject attach/occupied endpoints; verify the launched API owns its listener
 #   SIM_REQUIRE_FRESH_ARTIFACTS=1 snapshot outputs before launch; collect only changed files within wall bounds
 #   SIM_TIMEOUT       seconds per scenario / per group (default 600)
@@ -146,25 +147,32 @@ sim_api_prepare() {
         sim_api_endpoint_probe free || sim_die "cannot start an owned API at $SIM_API_URL"
       elif sim_api_healthy; then sim_log "API already healthy at $SIM_API_URL; attaching"; return 0; fi
       sim_log "starting compose stack and the API (AUTH_DEV_TOKENS=1)"
-      (cd "$SIM_REPO" && docker compose up -d --wait >&2) || sim_die "docker compose up failed"
+      (cd "$SIM_REPO" && timeout "${SIM_COMPOSE_UP_TIMEOUT:-180}" docker compose up -d --wait >&2) || sim_die "docker compose up failed"
       (
         cd "$SIM_REPO"
         if [[ -f .env ]]; then set -a; . ./.env; set +a; fi
+        # run-sim-ci.py --parallel: the lane's endpoints (DATABASE_URL, NATS_URL, HTTP_ADDR, GRPC_ADDR,
+        # WS_PUBLIC_URL, OIDC_ISSUER, OTEL endpoint) override .env for this shared-stack API.
+        if [[ -n "${SIM_API_ENV_FILE:-}" ]]; then set -a; . "$SIM_API_ENV_FILE"; set +a; fi
+        # D114: shared-stack units (Phase 0b/1) boot V6 like every owned fixture unit
+        # (phase2-fixture.py zone_flags); explicit values override any .env setting.
+        # T15: TELEMETRY_PRETTY=0 keeps the log JSON for the V6 attestation (repo .env sets 1).
         if [[ -n "${SIM_API_BIN:-}" ]]; then
-          AUTH_DEV_TOKENS=1 PHASE3_ENABLED=1 exec "$SIM_API_BIN"
+          AUTH_DEV_TOKENS=1 PHASE3_ENABLED=1 PHASE4_ENABLED=1 TELEMETRY_PRETTY=0 exec "$SIM_API_BIN"
         fi
-        AUTH_DEV_TOKENS=1 PHASE3_ENABLED=1 exec cargo run --quiet -p nightfall-api
+        AUTH_DEV_TOKENS=1 PHASE3_ENABLED=1 PHASE4_ENABLED=1 TELEMETRY_PRETTY=0 exec cargo run --quiet -p nightfall-api
       ) >"${SIM_API_LOG:-/dev/null}" 2>&1 &
       SIM_STARTED_API_PID=$!
       trap sim_exit_cleanup EXIT
-      local i
-      for ((i = 0; i < ${SIM_API_WAIT:-180}; i++)); do
+      local deadline=$((SECONDS + ${SIM_API_WAIT:-180}))
+      while ((SECONDS < deadline)); do
         kill -0 "$SIM_STARTED_API_PID" 2>/dev/null || sim_die "API exited during startup (see ${SIM_API_LOG:-its log})"
         if sim_api_healthy; then
           if [[ "${SIM_REQUIRE_OWNED_API:-0}" == 1 ]]; then
             sim_api_endpoint_probe owned || sim_die "API ownership verification failed"
             kill -0 "$SIM_STARTED_API_PID" 2>/dev/null || sim_die "owned API exited during startup"
           fi
+          sim_record_zone_flags "${SIM_API_LOG:-}" "${ARTIFACTS:+$ARTIFACTS/zone-flags.json}"
           return 0
         fi
         sleep 1
@@ -175,18 +183,27 @@ sim_api_prepare() {
   esac
 }
 
+# Review-3 P2-3 / T15: after health, record the zone flags the API attests in its own V6
+# startup line (with its rules hashes) for phase4-regression.py. An API this harness started
+# must attest V6: a missing log or line fails the unit loudly. (Attach mode has no log here.)
+sim_record_zone_flags() {
+  local log="$1" out="$2"
+  [[ -n "$log" && -n "$out" ]] || return 0
+  [[ -f "$log" ]] || sim_die "API log $log missing; cannot attest the V6 zone"
+  python3 "$SIM_HERE/phase2-fixture.py" zone-flags --log "$log" --out "$out" \
+    || sim_die "API log $log has no V6 bootstrap line after health; the unit is not V6 (see phase4-fixtures.md)"
+}
+
 sim_api_cleanup() {
   [[ -n "$SIM_STARTED_API_PID" ]] || return 0
   pkill -TERM -P "$SIM_STARTED_API_PID" 2>/dev/null || true
   kill -TERM "$SIM_STARTED_API_PID" 2>/dev/null || true
-  if [[ -n "${SIM_FIXTURE_DIR:-}" ]]; then
-    local grace
-    for ((grace=0; grace<15; grace++)); do
-      kill -0 "$SIM_STARTED_API_PID" 2>/dev/null || break
-      sleep 1
-    done
-    kill -KILL "$SIM_STARTED_API_PID" 2>/dev/null || true
-  fi
+  local grace
+  for ((grace=0; grace<15; grace++)); do
+    kill -0 "$SIM_STARTED_API_PID" 2>/dev/null || break
+    sleep 1
+  done
+  kill -KILL "$SIM_STARTED_API_PID" 2>/dev/null || true
   wait "$SIM_STARTED_API_PID" 2>/dev/null || true
   SIM_STARTED_API_PID=""
 }
@@ -219,6 +236,11 @@ sim_expand_scenarios() {
 # Echoes NUL-free, space-safe args via the SIM_BOT_CMD array.
 sim_bot_cmd() {
   local scenario="$1"; shift
+  if [[ -n "${SIM_FIXTURE_DIR:-}" ]]; then
+    # Phase 4 packs: run the copy whose pack instance ids map to the granted server ids.
+    scenario="$(python3 "$SIM_HERE/phase2-fixture.py" scenario --folder "$SIM_FIXTURE_DIR" "$scenario")" \
+      || sim_die "invalid Phase4 scenario instance mapping"
+  fi
   SIM_BOT_CMD=()
   local bin; bin="$(sim_bot_bin)"
   SIM_BOT_CMD+=("$bin")
@@ -377,6 +399,69 @@ sim_phase3_evidence() {
     --report "$dest/$name.xml" --out "$dest/phase3-evidence.json" --replay "$command"
 }
 
+# D122/T23: the item-evidence exporter refuses live/partial captures, so Phase 4 item gates
+# read a CLOSED epoch: stop this unit's owned fixture API gracefully (SIGTERM drains and closes
+# the epoch with a Shutdown watermark), then export that epoch non-live for the role. The live
+# capture stays the unit recording for the replay/trace/coverage gates.
+sim_api_stop_graceful() {
+  [[ -n "$SIM_STARTED_API_PID" ]] || return 0
+  kill -TERM "$SIM_STARTED_API_PID" 2>/dev/null || true
+  local grace
+  for ((grace=0; grace<${SIM_API_STOP_GRACE:-30}; grace++)); do
+    kill -0 "$SIM_STARTED_API_PID" 2>/dev/null || break
+    sleep 1
+  done
+  if kill -0 "$SIM_STARTED_API_PID" 2>/dev/null; then
+    sim_api_cleanup
+    return 1
+  fi
+  wait "$SIM_STARTED_API_PID" 2>/dev/null || true
+  SIM_STARTED_API_PID=""
+}
+
+sim_closed_epoch() {
+  local dest="$1" name="$2" entity bin out
+  out="$dest/closed-epoch/$name.nfr"
+  [[ -n "${SIM_FIXTURE_DIR:-}" ]] || { sim_log "Phase4 item evidence requires an owned fixture API"; return 1; }
+  entity="$(sed -n 's/.*name="own_entity_id" value="\([^"]*\)".*/\1/p' "$dest/$name.xml" 2>/dev/null | head -1)"
+  [[ -n "$entity" ]] || { sim_log "Phase4 item evidence requires the report owner"; return 1; }
+  sim_api_stop_graceful || { sim_log "fixture API did not stop gracefully; its epoch is not closed"; return 1; }
+  mkdir -p "$dest/closed-epoch"
+  bin="$(sim_replay_bin)" || return 1
+  # NATS JetStream can time out right after the API's shutdown; retry a bounded number of times.
+  local attempt
+  for attempt in 1 2 3; do
+    sleep 2
+    if "$bin" export --zone "${SIM_ZONE_ID:-1}" --latest --session "$entity" --out "$out" \
+        >>"$dest/closed-epoch/$name.export.log" 2>&1; then
+      CLOSED_EPOCH="$out"
+      return 0
+    fi
+  done
+  sim_log "closed-epoch export failed (see $dest/closed-epoch/$name.export.log)"
+  return 1
+}
+
+sim_phase4_evidence() {
+  local scenario="$1" dest="$2" name="$3" nfrs=() command recording
+  python3 "$SIM_HERE/phase4-evidence.py" --list "$scenario" || return 1
+  [[ "$(python3 "$SIM_HERE/phase4-evidence.py" --count "$scenario")" != 0 ]] || return 0
+  shopt -s nullglob; nfrs=("$dest"/*.nfr); shopt -u nullglob
+  ((${#nfrs[@]} == 1)) || { sim_log "Phase4 replay gates require one verified unit recording"; return 1; }
+  [[ -n "${SIM_PHASE4_RULES_HASH:-}" ]] || { sim_log "Phase4 runtime rules hash required"; return 1; }
+  command="${SIM_PHASE4_EVIDENCE_CMD:-$(sim_replay_bin)}"
+  recording="${nfrs[0]}"
+  # Offline fixtures (SIM_REPLAY_CMD) already carry complete recordings and perform no export.
+  if [[ -z "${SIM_REPLAY_CMD:-}" ]]; then
+    CLOSED_EPOCH=""
+    sim_closed_epoch "$dest" "$name" || return 1
+    recording="$CLOSED_EPOCH"
+  fi
+  python3 "$SIM_HERE/phase4-evidence.py" --scenario "$scenario" --recording "$recording" \
+    --report "$dest/$name.xml" --out "$dest/phase4-evidence.json" --replay "$command" \
+    --rules-hash "$SIM_PHASE4_RULES_HASH"
+}
+
 # Every current recording is counted using the Rust catalogue; never infer it from scenarios.
 # --no-replay still covers any recording the bot produced, but permits no recordings locally.
 sim_transition_coverage() {
@@ -444,12 +529,12 @@ sim_finalize_verdict() {
 sim_fixture_detect() { python3 "$SIM_HERE/phase2-fixture.py" detect "$@"; }
 sim_phase3_parser_check() {
   local selected="$1"; shift
-  [[ "$selected" == phase3-* ]] || return 0
+  [[ "$selected" == phase3-* || "$selected" == phase4-* ]] || return 0
   python3 "$SIM_HERE/sim-parser-check.py" --project "$SIM_PROJECT_DIR" "$@" \
     || sim_die "Phase3 scenario/client registry mismatch; see phase3-fixtures.md"
 }
 sim_fixture_validate_mode() {
-  [[ "$1" == phase2-* || "$1" == phase3-* ]] || return 0
+  [[ "$1" == phase2-* || "$1" == phase3-* || "$1" == phase4-* ]] || return 0
   [[ "$2" == start ]] || sim_die "Phase2 fixture requires --api start; attaching is refused"
   [[ "$SIM_API_URL" == http://localhost:3000 || "$SIM_API_URL" == http://127.0.0.1:3000 ]] \
     || sim_die "Phase2 chooses fresh endpoints; explicit SIM_API_URL is unsupported"
@@ -476,6 +561,7 @@ sim_fixture_finish() {
   SIM_FIXTURE_DIR=""
   SIM_API_URL="$SIM_PRE_FIXTURE_API_URL"
   if [[ "$SIM_PRE_FIXTURE_NATS_SET" == x ]]; then export NATS_URL="$SIM_PRE_FIXTURE_NATS"; else unset NATS_URL; fi
+  if [[ "${SIM_PRE_FIXTURE_RULES_SET:-}" == x ]]; then export RULES_DIR="$SIM_PRE_FIXTURE_RULES"; else unset RULES_DIR; fi
 }
 
 sim_unit_prepare() {
@@ -493,7 +579,7 @@ sim_unit_prepare() {
       export ZONE_FILE="$RULES_DIR/zones/test_zone.toml"
     fi
   fi
-  if [[ "$selected" != phase2-* && "$selected" != phase3-* ]]; then
+  if [[ "$selected" != phase2-* && "$selected" != phase3-* && "$selected" != phase4-* ]]; then
     [[ -n "$SIM_STARTED_API_PID" ]] || sim_api_prepare "$mode"
     return
   fi
@@ -513,17 +599,31 @@ sim_unit_prepare() {
   local -a endpoints=()
   mapfile -t endpoints <"$endpoints_file"; rm -f "$endpoints_file"
   SIM_API_URL="${endpoints[0]}"; export NATS_URL="${endpoints[1]}"
+  # nightfall-replay (export/check/evidence) must compose the same RULES_DIR bundle the
+  # fixture API ran with: V6 epochs over an overlay reference that bundle by hash.
+  SIM_PRE_FIXTURE_RULES_SET="${RULES_DIR+x}"; SIM_PRE_FIXTURE_RULES="${RULES_DIR:-}"
+  RULES_DIR="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["data_sources"]["rules_dir"])' "$SIM_FIXTURE_DIR/state.json")" \
+    || sim_die "fixture manifest lacks its rules directory"
+  export RULES_DIR
   sim_api_endpoint_probe free || sim_die "fixture API endpoint occupied"
   SIM_API_URL="${endpoints[2]}" sim_api_endpoint_probe free || sim_die "fixture gRPC endpoint occupied"
   python3 "$SIM_HERE/phase2-fixture.py" exec-api --folder "$SIM_FIXTURE_DIR" >"$SIM_FIXTURE_DIR/api.log" 2>&1 &
   SIM_STARTED_API_PID=$!
-  local i
-  for ((i = 0; i < ${SIM_API_WAIT:-180}; i++)); do
+  local deadline=$((SECONDS + ${SIM_API_WAIT:-180}))
+  while ((SECONDS < deadline)); do
     kill -0 "$SIM_STARTED_API_PID" 2>/dev/null || sim_die "fixture API exited during startup"
     if sim_api_healthy; then
       sim_api_endpoint_probe owned || sim_die "fixture API ownership verification failed"
       SIM_API_URL="${endpoints[2]}" sim_api_endpoint_probe owned || sim_die "fixture gRPC ownership verification failed"
       kill -0 "$SIM_STARTED_API_PID" 2>/dev/null || sim_die "fixture API exited during startup"
+      sim_record_zone_flags "$SIM_FIXTURE_DIR/api.log" "$SIM_FIXTURE_DIR/zone-flags.json"
+      if [[ "$selected" == phase4-* ]]; then
+        # D112: grant the pack through the dev GrantItem gRPC before any client logs in, within
+        # the same startup allowance; any refusal fails provisioning loudly.
+        local remaining=$((deadline - SECONDS)); ((remaining > 0)) || sim_die "no startup budget left for the Phase4 grant"
+        timeout --kill-after=5 "$remaining" python3 "$SIM_HERE/phase2-fixture.py" grant --folder "$SIM_FIXTURE_DIR" \
+          || sim_die "Phase4 fixture grant failed (see $SIM_FIXTURE_DIR/grant.log)"
+      fi
       return 0
     fi
     sleep 1

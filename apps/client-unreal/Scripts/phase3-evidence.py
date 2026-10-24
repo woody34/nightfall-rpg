@@ -13,7 +13,9 @@ from pathlib import Path
 import shlex
 import subprocess
 import sys
+import tomllib
 import uuid
+from functools import lru_cache
 import xml.etree.ElementTree as ET
 
 SCRIPTS = Path(__file__).resolve().parent
@@ -100,6 +102,12 @@ def draw_key(data):
     return json.dumps(data, sort_keys=True)
 
 
+# D114/T17: additive keys the V6 producer writes on Phase 3 facts (state_runtime_damage.rs
+# inserts `shots` on damage_formula when the zone has Phase 4 state). Surveyed over every
+# i3 V6 export: this is the only one.
+V6_ADDITIVE = {'damage_formula': {'shots'}}
+
+
 def validate(rows, recording):
     if not isinstance(rows, list) or len(rows) < 2:
         raise ValueError('manifest and complete trailer required')
@@ -129,6 +137,8 @@ def validate(rows, recording):
         same(watermark[key], expected)
     if not isinstance(watermark['reason'], str) or not watermark['reason']:
         raise ValueError('watermark reason required')
+    meta = manifest['snapshot_meta']
+    v6 = isinstance(meta, dict) and (meta.get('schema_version'), meta.get('digest_version')) == (10, 'BinaryV6')
     previous_tick, draws, cursor = start, {}, 0
     for sequence, row in enumerate(rows[1:-1]):
         if set(row) != {'kind', 'entity', 'tick', 'sequence', 'data'}:
@@ -158,8 +168,19 @@ def validate(rows, recording):
             fields = RAW_FIELDS[kind]
         else:
             raise ValueError(f'unknown raw category {kind}')
-        if set(data) != set(fields.split()):
+        expected = set(fields.split())
+        if v6:
+            # D114/T17: the V6 producer adds exactly these keys to Phase 3 facts; they are
+            # required on V6, refused on V5, and any other unknown key still refuses.
+            expected |= V6_ADDITIVE.get(kind, set())
+        if set(data) != expected:
             raise ValueError(f'unknown/missing {kind} data fields; producer PASS flags forbidden')
+        if v6 and kind == 'damage_formula':
+            # The Phase 3 oracle has no shot term: a charged soul/spiritshot multiplies the
+            # damage under Phase 4 rules (the Phase 4 consumer's claim). C11 checks only
+            # unshot damage exactly, so a nonzero `shots` refuses instead of being ignored.
+            if integer(data['shots']) != 0:
+                raise ValueError('Phase 3 C11 damage_formula with a charged shot (shots != 0) is outside the Phase 3 oracle')
         if 'target' in data:
             binding(data['target'])
         if 'skill_id' in data:
@@ -233,6 +254,93 @@ def requirements(path):
             raise ValueError(f'{kind} takes no arguments')
         result.append({'kind': kind, 'args': args, 'line': line})
     return result
+
+
+# D121 (T17 facet 3): on V6 the equipped starter kit installs real item modifiers (V5 had the
+# starter weapon as a built-in profile). Each item install must equal exactly the functions the
+# equipped item's template defines (packages/data/tables-phase4, the E1 item tables); verified
+# installs are then folded like any other modifier. Anything unproven refuses.
+ITEM_OPERATIONS = {'set': 'Set', 'add': 'Add', 'sub': 'Sub', 'mul': 'Mul', 'div': 'Div'}
+ITEM_ORDERS = {'set': 0, 'add': 30, 'sub': 30, 'mul': 20, 'div': 20}
+# Concrete paperdoll slots whose class default pDef an equipped piece replaces (FuncPDefMod).
+P_DEF_SLOTS = {'chest': ('chest',), 'fullarmor': ('chest', 'legs'), 'legs': ('legs',), 'head': ('head',),
+               'feet': ('feet',), 'gloves': ('gloves',)}
+WEAPON_BODYPARTS = frozenset(('rhand', 'lrhand'))
+
+
+@lru_cache(maxsize=1)
+def item_templates():
+    rows = {}
+    for name in ('weapons', 'armors', 'etc_items'):
+        for row in tomllib.loads((REPO / f'packages/data/tables-phase4/{name}.toml').read_text())['items']:
+            rows[row['template_id']] = row
+    return rows
+
+
+@lru_cache(maxsize=1)
+def class_slots():
+    return {row['key']: row for row in tomllib.loads(
+        (REPO / 'packages/data/tables-phase4/class_slots.toml').read_text())['classes']}
+
+
+def template_functions(template_id):
+    """The template's `for` functions as recorded calculator rows (Q6 values)."""
+    row = item_templates().get(template_id)
+    if row is None:
+        raise ValueError(f'equipped template {template_id} is not in the item tables')
+    result = []
+    for block in (c for c in row['raw']['children'] if c['tag'] == 'for'):
+        for ordinal, node in enumerate(block['children']):
+            if node['tag'] not in ITEM_OPERATIONS or node['children']:
+                raise ValueError(f'template {template_id} function {node["tag"]} is outside the Phase 3 oracle')
+            value = Fraction(node['attributes']['val']) * 1_000_000
+            if value.denominator != 1:
+                raise ValueError(f'template {template_id} value is not a Q6 integer')
+            result.append({'conditions': [], 'key': {
+                'function_ordinal': ordinal, 'handler_ordinal': 0, 'install_sequence': None,
+                'priority': int(node['attributes'].get('order', ITEM_ORDERS[node['tag']])),
+                'stat': node['attributes']['stat']}, 'operation': {ITEM_OPERATIONS[node['tag']]: int(value)}})
+    return result
+
+
+def equipped_kit(facts, entity, before):
+    """Equipped templates of a V6 player, in install order, from its admission load (pending kit).
+
+    None for a load without Phase 4 state (V5 recordings, NPCs)."""
+    loads = [r['data']['load'] for r in facts if r['kind'] == 'admission_reconstruction'
+             and r['entity'] == entity and r['sequence'] < before and r['data'].get('load')]
+    if not loads or loads[-1].get('phase4') is None:
+        return None
+    phase4 = loads[-1]['phase4']
+    if phase4['checkpoint'] is not None:
+        raise ValueError('V6 retained-item equipment (checkpoint load) is outside the Phase 3 C11 oracle')
+    kits = [p['materialization']['manifest']['items'] for p in phase4['pending']]
+    if len(kits) > 1:
+        raise ValueError('more than one pending kit materialization')
+    return [i['template_id'] for i in (kits[0] if kits else []) if i['equipped']]
+
+
+def item_installs(context, kit):
+    """Install sequences of item modifiers in `context`, each proven against its template.
+
+    Item installs are the non-zero install sequences absent from the effect/skill install
+    order; there must be exactly one per equipped template, in equip order, and each must
+    carry exactly that template's functions (no missing, extra or altered row)."""
+    calculator = context['effective']['calculator']
+    order = context['phase3']['modifier_install_order']
+    sequences = sorted({f['key']['install_sequence'] for f in calculator
+                        if f['key']['install_sequence'] != 0 and str(f['key']['install_sequence']) not in order})
+    kit = kit or []
+    if len(sequences) != len(kit):
+        raise ValueError(f'item installs {sequences} differ from the equipped kit {kit} (missing or extra install)')
+    canon = lambda f: json.dumps([f['key']['function_ordinal'], f['key']['handler_ordinal'], f['key']['priority'],
+                                  f['key']['stat'], f['operation'], f['conditions']], sort_keys=True)
+    for sequence, template in zip(sequences, kit):
+        actual = sorted(canon(f) for f in calculator if f['key']['install_sequence'] == sequence)
+        expected = sorted(canon(f) for f in template_functions(template))
+        if actual != expected:
+            raise ValueError(f'install {sequence} differs from the functions of equipped template {template}')
+    return set(sequences)
 
 
 def fold(initial, functions, stat):
@@ -619,8 +727,14 @@ def damage(row, manifest, facts):
     caster, target = inputs['caster']['effective'], inputs['target']['effective']
     supported = {'pAtk', 'pDef', 'mAtk', 'mDef', 'mAtkSpd', 'rEvas', 'runSpd',
                  'regHp', 'regMp', 'regCp', 'magicSuccRes'}
-    changed = {f['key']['stat'] for c in (caster, target) for f in c['calculator']
-               if f['key']['install_sequence'] != 0}
+    changed = set()
+    for side in (inputs['caster'], inputs['target']):
+        # D121: proven item installs are the equipped kit, base-equivalent to V5's built-in
+        # starter weapon (whose effective values the stat gate recomputes); effect installs
+        # stay independent modifiers.
+        items = item_installs(side, equipped_kit(facts, side['entity']['id'], row['sequence']))
+        changed |= {f['key']['stat'] for f in side['effective']['calculator']
+                    if f['key']['install_sequence'] not in items and f['key']['install_sequence'] != 0}
     if changed - supported:
         raise ValueError('unsupported independent damage modifiers')
     outcomes = [o for o in resolution['outcomes'] if o['target'] == data['target'] and o['resolution_kind'] in ('magical', 'physical')]
@@ -779,49 +893,107 @@ def stats(row, manifest, facts):
     contexts.extend(r['data']['after'] for r in facts if r['kind'] == 'modifier_reconstruction'
                     and r['entity'] == row['entity'] and r['sequence'] < row['sequence']
                     and r['data']['after']['phase3']['effects']['entries'])
-    changed = {f['key']['stat'] for c in contexts for f in c['effective']['calculator']
-               if f['key']['install_sequence'] != 0}
+    # D121: on V6 the equipped kit's item installs are proven against their templates and are
+    # base-equivalent (V5's built-in starter weapon); every other install is an extra modifier.
+    kit = equipped_kit(facts, row['entity'], row['sequence'])
+    proven = [item_installs(c, kit) if kit is not None else set() for c in contexts]
+    changed = {f['key']['stat'] for c, items in zip(contexts, proven) for f in c['effective']['calculator']
+               if f['key']['install_sequence'] != 0 and f['key']['install_sequence'] not in items}
     unsupported = changed - {'mAtk', 'mDef', 'mAtkSpd', 'rEvas', 'pAtk', 'pDef'}
     if unsupported:
         raise ValueError('unsupported independent affected stats: ' + ','.join(sorted(unsupported)))
-    weapon = manifest['phase3_rules']['profiles']['starter_weapon']['functions']
-    sets = [w for w in weapon if w['stat'] == 'mAtk' and w['operation'] == 'SET']
-    if len(sets) != 1:
-        raise ValueError('independent weapon MAtk baseline required')
+    items = proven[0]
+    calculator = effective['calculator']
+    item_rows = [f for f in calculator if f['key']['install_sequence'] in items]
+    if any(f['key']['priority'] == 1 for f in item_rows):
+        raise ValueError('item modifier at the built-in level-function priority')
+    # Item functions at priority 0 act on the base before the built-in level function; later
+    # ones fold with the extras in calculator priority order.
+    pre = [f for f in item_rows if f['key']['priority'] == 0]
+    def extras_for(stat):
+        rows = [f for f in calculator if f['key']['stat'] == stat and f['key']['install_sequence'] != 0
+                and (f['key']['install_sequence'] not in items or f['key']['priority'] > 1)]
+        if kit is None:
+            return rows  # V5: unchanged recorded order
+        return sorted(rows, key=lambda f: (f['key']['priority'], f['key']['install_sequence'],
+                                           f['key']['handler_ordinal'], f['key']['function_ordinal']))
+
+    # V5 (C11 as accepted): Math.round on the level-function result and on the folded value.
+    # V6 (D121): the E1 Phase 4 gear oracle the V6 zone is pinned to (item_oracle.gear_stats,
+    # q = trunc(exact x Q)) folds exact values and truncates once.
+    if kit is None:
+        initial_q = lambda exact: Fraction(oracle.rounded(exact * 1_000_000), 1_000_000)
+        to_q = lambda value: oracle.rounded(value * 1_000_000)
+    else:
+        initial_q = lambda exact: exact
+        to_q = lambda value: oracle.floor(value * 1_000_000) if value >= 0 else -oracle.floor(-value * 1_000_000)
+
+    def item_set(stat):
+        rows = [f for f in pre if f['key']['stat'] == stat and 'Set' in f['operation']]
+        if len(rows) != 1:
+            raise ValueError(f'equipped V6 weapon {stat} baseline required (unarmed V6 is outside the Phase 3 oracle)')
+        return Fraction(rows[0]['operation']['Set'], 1_000_000)
+
+    def pre_adds(stat):
+        rows = [f for f in pre if f['key']['stat'] == stat and 'Set' not in f['operation']]
+        if any('Add' not in f['operation'] for f in rows):
+            raise ValueError(f'unsupported pre-level {stat} item operation')
+        return sum((Fraction(f['operation']['Add'], 1_000_000) for f in rows), Fraction(0))
+
+    if kit is not None:
+        if any(item_templates()[t]['bodypart'] not in WEAPON_BODYPARTS | set(P_DEF_SLOTS) for t in kit):
+            raise ValueError('equipped V6 jewellery/other slots are outside the Phase 3 oracle')
+        if pre_adds('mAtk') or pre_adds('pAtk') or pre_adds('mDef') or pre_adds('mAtkSpd'):
+            raise ValueError('pre-level item additions on attack/magic stats are outside the Phase 3 oracle')
+        m_atk_init, p_atk_init = item_set('mAtk'), item_set('pAtk')
+    else:
+        weapon = manifest['phase3_rules']['profiles']['starter_weapon']['functions']
+        sets = [w for w in weapon if w['stat'] == 'mAtk' and w['operation'] == 'SET']
+        if len(sets) != 1:
+            raise ValueError('independent weapon MAtk baseline required')
+        atk_sets = [w for w in weapon if w['stat'] == 'pAtk' and w['operation'] == 'SET']
+        if len(atk_sets) != 1:
+            raise ValueError('independent weapon PAtk baseline required')
+        m_atk_init, p_atk_init = ratio(sets[0]['value']), ratio(atk_sets[0]['value'])
     # Independent source formulas precede the retained Func fold; never trust supplied Product.
     for formula, stat, source, actual in (
-        ('FuncMAtkMod', 'mAtk', {'init_val': sets[0]['value'], 'level': level, 'int_stat': base_stats['int']}, effective['m_atk_q']),
+        ('FuncMAtkMod', 'mAtk', {'init_val': m_atk_init, 'level': level, 'int_stat': base_stats['int']}, effective['m_atk_q']),
         ('FuncMDefMod', 'mDef', {'value': magical['base_m_def'], 'level': level, 'men_stat': base_stats['men']}, effective['m_def_q']),
         ('FuncMAtkSpeed', 'mAtkSpd', {'init_val': magical['base_m_atk_speed'], 'wit_stat': base_stats['wit'],
          'max_m_atk_speed': manifest['phase3_rules']['constants']['MaxMAtkSpeed']['value']}, effective['cast_speed'])):
         value = source.get('init_val', source.get('value'))
         stat_value = source.get('int_stat', source.get('men_stat', source.get('wit_stat')))
-        exact = oracle.calc_stat_base(formula, ratio(value), level, stat_value,
+        exact = oracle.calc_stat_base(formula, value if isinstance(value, Fraction) else ratio(value), level, stat_value,
                                       source.get('max_m_atk_speed'))
-        initial = Fraction(oracle.rounded(exact * 1_000_000), 1_000_000)
-        extras = [f for f in effective['calculator'] if f['key']['stat'] == stat and f['key']['install_sequence'] != 0]
-        derived = fold(initial, extras, stat)
+        derived = fold(initial_q(exact), extras_for(stat), stat)
         expected = (int(min(derived, source['max_m_atk_speed'])) if formula == 'FuncMAtkSpeed'
-                    else rounded(derived * 1_000_000))
+                    else to_q(derived))
         same(actual, expected)
     if any(f['key']['stat'] == 'rEvas' and f['key']['install_sequence'] != 0 for f in effective['calculator']):
         raise ValueError('independent modified evasion vector required')
     independent = oracle.calc_evasion_base(level, base_stats['dex'])
     same(effective['physical']['evasion'], independent * 1_000_000)
     # FuncPAtkMod.java:43-44; FuncPDefMod.java:45-70; weapon SET precedes builtin.
-    atk_sets = [w for w in weapon if w['stat'] == 'pAtk' and w['operation'] == 'SET']
-    if len(atk_sets) != 1:
-        raise ValueError('independent weapon PAtk baseline required')
     physical_profile = next((p for p in manifest['rules']['classes'] if p['id'] == role['class']), None)
     if physical_profile is None:
         raise ValueError('independent physical class profile required')
+    p_def_base = Fraction(physical_profile['p_def_unarmoured'], 1_000_000)
+    if kit is not None:
+        # FuncPDefMod: each occupied armour slot replaces the class default for that slot.
+        defaults = class_slots()[role['class']]['p_def_slots']
+        occupied = [slot for t in kit for slot in P_DEF_SLOTS.get(item_templates()[t]['bodypart'], ())]
+        if len(occupied) != len(set(occupied)):
+            raise ValueError('two equipped pieces occupy one armour slot')
+        replaced = sum(defaults[slot] for slot in occupied)
+        builtin_sub = [f['operation'] for f in calculator if f['key']['stat'] == 'pDef'
+                       and f['key']['install_sequence'] == 0 and 'Sub' in f['operation']]
+        same(builtin_sub, [{'Sub': replaced * 1_000_000}])
+        p_def_base += pre_adds('pDef') - replaced
     for formula, stat, value, actual in (
-        ('FuncPAtk', 'pAtk', atk_sets[0]['value'], effective['physical']['p_atk']),
-        ('FuncPDef', 'pDef', Fraction(physical_profile['p_def_unarmoured'], 1_000_000), effective['physical']['p_def'])):
-        exact = oracle.calc_stat_base(formula, value if isinstance(value, Fraction) else ratio(value), level, base_stats['str'])
-        initial = Fraction(oracle.rounded(exact * 1_000_000), 1_000_000)
-        extras = [f for f in effective['calculator'] if f['key']['stat'] == stat and f['key']['install_sequence'] != 0]
-        same(actual, oracle.rounded(fold(initial, extras, stat) * 1_000_000))
+        ('FuncPAtk', 'pAtk', p_atk_init, effective['physical']['p_atk']),
+        ('FuncPDef', 'pDef', p_def_base, effective['physical']['p_def'])):
+        exact = oracle.calc_stat_base(formula, value, level, base_stats['str'])
+        same(actual, to_q(fold(initial_q(exact), extras_for(stat), stat)))
 
 
 def karma_decay(row, manifest, facts):
@@ -1034,11 +1206,18 @@ def late_entry_continuity(row, manifest, facts, template):
     late_entry_swing(row, facts, template)
 
 
+C11_RECORDINGS = frozenset({(9, 'BinaryV5'), (10, 'BinaryV6')})
+
+
 def evaluate(rows, recording, entity, gates):
     entity = str(uuid.UUID(entity))
     manifest, facts = validate(rows, recording)
-    if manifest['snapshot_meta']['schema_version'] != 9 or manifest['snapshot_meta']['digest_version'] != 'BinaryV5' or not manifest['phase3_rules']:
-        raise ValueError('C11 requires recorded V5 policy')
+    # D114/T17: Phase 0b-3 units record V6 epochs (snapshot 10, BinaryV6) whose Phase 3
+    # policy and facts are the V5 families unchanged; V5 recordings stay accepted. Any other
+    # pairing, or a recording without its Phase 3 policy, still refuses.
+    meta = manifest['snapshot_meta']
+    if (meta['schema_version'], meta['digest_version']) not in C11_RECORDINGS or not manifest['phase3_rules']:
+        raise ValueError('C11 requires a recorded V5 or V6 Phase 3 policy')
     owner = [r for r in facts if r['entity'] == entity]
     results = []
     for gate in gates:

@@ -8,6 +8,53 @@ use super::{
 use crate::domain::zone::state_death::{death_penalty_roll_required, prepare_death, DeathContext};
 
 impl ZoneState {
+    /// Escape.java:62 and design§8: relocation preserves life/resources and uses the
+    /// epoch safe point. AOI output is reconciled by the normal end-of-tick observer pass.
+    pub(super) fn escape_v6(
+        &mut self,
+        tick: Tick,
+        target: effects::TargetBinding,
+        events: &mut Vec<ZoneEvent>,
+    ) -> Result<crate::domain::zone::SkillTargetResult, TickError> {
+        if self.phase4.is_none() || self.binding(target.entity) != Some(target) {
+            return Err(missing());
+        }
+        let to = self.safe_point.ok_or_else(missing)?;
+        self.disengage(tick, target.entity, super::SwingCancel::Stopped, events);
+        self.note_progress(target.entity);
+        let entity = self.entities.get_mut(&target.entity).ok_or_else(missing)?;
+        let combat = entity.combat.as_ref().ok_or_else(missing)?;
+        if entity.targeting.dead || entity.kind != EntityKind::Player {
+            return Err(missing());
+        }
+        let hp = combat.hp;
+        let from = entity.pos;
+        let moved = from != to || entity.dest.is_some();
+        entity.pos = to;
+        entity.dest = None;
+        if moved {
+            events.push(ZoneEvent::EntityMove {
+                tick,
+                entity: target.entity,
+                pos: to,
+                dest: None,
+                speed: entity.speed,
+            });
+        }
+        self.aoi.relocate(target.entity, from, to);
+        Ok(crate::domain::zone::SkillTargetResult {
+            target,
+            resolution_kind: crate::domain::zone::SkillResolutionKind::Effect,
+            outcome: crate::domain::zone::SkillOutcome::Hit,
+            rolled: 0,
+            cp_absorbed: 0,
+            hp_removed: 0,
+            heal: 0,
+            target_hp_after: hp,
+            applied_effect_ids: Vec::new(),
+        })
+    }
+
     pub(super) fn expire_policy_v5(
         &mut self,
         tick: Tick,
@@ -193,6 +240,7 @@ impl ZoneState {
             | DeathError::Effect(_)
             | DeathError::Math(_) => RejectReason::InvalidLoad,
         })?;
+        let scroll_before = candidate.resurrection_before_v6(entity, &mutation.offer);
         let mut events = vec![offer_event(
             tick,
             entity,
@@ -205,7 +253,7 @@ impl ZoneState {
         )];
         *candidate
             .sidecar_mut(entity)
-            .map_err(|_| RejectReason::InvalidLoad)? = mutation.phase3;
+            .map_err(|_| RejectReason::InvalidLoad)? = mutation.phase3.clone();
         if accept {
             candidate.note_progress(entity);
             let e = candidate
@@ -220,6 +268,15 @@ impl ZoneState {
             }
             c.incarnation = mutation.incarnation;
             c.protected_until = None;
+            // T51/D157: the revived life starts facing east (V6); an escape teleport is the
+            // same life and keeps its facing.
+            if let Some(facing) = candidate
+                .phase4
+                .as_mut()
+                .and_then(|items| items.canonical.facing.get_mut(&entity))
+            {
+                *facing = crate::domain::zone::item_angles::FacingVector::EAST;
+            }
             c.swing = None;
             c.auto_attack = false;
             c.chasing = false;
@@ -257,6 +314,9 @@ impl ZoneState {
             if let Some(note) = candidate.progress.get_mut(&entity) {
                 note.respawned = true;
             }
+        }
+        if let Some(before) = scroll_before {
+            candidate.resurrection_scroll_evidence_v6(tick, entity, &mutation, accept, before);
         }
         if candidate.evidence.is_some() {
             candidate.evidence_fact("resurrection_refund", entity, serde_json::json!({
@@ -383,7 +443,7 @@ impl ZoneState {
         let rules = Arc::clone(&self.phase3.as_ref().ok_or_else(missing)?.canonical.rules);
         let context = DeathContext {
             incarnation: target.incarnation,
-            was_alive: !recipient.targeting.dead && c.hp > 0,
+            was_alive: !recipient.targeting.dead,
             killer_kind: Some(match request.source.kind {
                 EffectSourceKind::Player => EntityKind::Player,
                 EffectSourceKind::Npc => EntityKind::Npc,
@@ -525,5 +585,162 @@ pub(super) fn offer_event(
         recoverable_xp: offer.recoverable_xp,
         expires_at: offer.expires_at,
         state,
+    }
+}
+
+/// Target vitals before a scroll offer is answered, and the caster's staged scroll start.
+pub(super) struct ScrollBefore {
+    start: (String, serde_json::Value, u64, u64, u64),
+    incarnation: u32,
+    hp: crate::domain::zone::skill_math::ExactRatio,
+    mp: crate::domain::zone::skill_math::ExactRatio,
+    cp: crate::domain::zone::skill_math::ExactRatio,
+}
+
+fn exact_resource(
+    whole: u32,
+    remainder: i64,
+) -> Option<crate::domain::zone::skill_math::ExactRatio> {
+    crate::domain::zone::skill_math::ExactRatio::new(
+        i128::from(whole)
+            .checked_mul(i128::from(crate::domain::zone::Q))?
+            .checked_add(i128::from(remainder))?,
+        i128::from(crate::domain::zone::Q),
+    )
+    .ok()
+}
+
+impl ZoneState {
+    /// D99/D104 `resurrection_scroll`: only offers created by a staged scroll start.
+    fn resurrection_before_v6(
+        &mut self,
+        target: EntityId,
+        offer: &crate::domain::zone::ResurrectOffer,
+    ) -> Option<ScrollBefore> {
+        if !self.items_evidence_enabled() || !self.phase4_player_v6(target) {
+            return None;
+        }
+        let start = self
+            .evidence
+            .as_ref()?
+            .pending_resurrect
+            .get(&offer.caster.entity)?
+            .clone();
+        let entity = self.entities.get(&target)?;
+        let combat = entity.combat.as_ref()?;
+        let CombatRole::Player {
+            progression: Some(progression),
+            ..
+        } = &combat.role
+        else {
+            return None;
+        };
+        let fractions = self.sidecar(target).ok()?.fractions;
+        let before = ScrollBefore {
+            start,
+            incarnation: combat.incarnation,
+            hp: exact_resource(combat.hp, fractions.hp)?,
+            mp: exact_resource(combat.mp, fractions.mp)?,
+            cp: exact_resource(progression.class_state.cp, fractions.cp)?,
+        };
+        // One answer per scroll offer.
+        self.evidence
+            .as_mut()?
+            .pending_resurrect
+            .remove(&offer.caster.entity);
+        Some(before)
+    }
+
+    fn resurrection_scroll_evidence_v6(
+        &mut self,
+        tick: Tick,
+        target: EntityId,
+        mutation: &crate::domain::zone::state_death::AcceptMutation,
+        accept: bool,
+        before: ScrollBefore,
+    ) {
+        use crate::domain::zone::skill_math::ExactRatio;
+        use crate::domain::zone::state::item_evidence_hooks::ratio_json as r;
+        let (resolution, definition, start_tick, available, cost) = before.start;
+        let offer = &mutation.offer;
+        let (Some(entity), Ok(fractions), Some(rules)) = (
+            self.entities.get(&target),
+            self.sidecar(target).map(|s| s.fractions),
+            self.rules.as_ref(),
+        ) else {
+            return;
+        };
+        let Some(combat) = entity.combat.as_ref() else {
+            return;
+        };
+        let CombatRole::Player {
+            progression: Some(progression),
+            ..
+        } = &combat.role
+        else {
+            return;
+        };
+        let (Some(hp), Some(mp), Some(cp), Ok(percent), Ok(restore_hp)) = (
+            exact_resource(combat.hp, fractions.hp),
+            exact_resource(combat.mp, fractions.mp),
+            exact_resource(progression.class_state.cp, fractions.cp),
+            ExactRatio::new(
+                i128::from(offer.restore_percent_q),
+                i128::from(crate::domain::zone::Q),
+            ),
+            ExactRatio::new(
+                i128::from(rules.constants().respawn_restore_hp.raw()),
+                i128::from(crate::domain::zone::Q),
+            ),
+        ) else {
+            return;
+        };
+        let Some(hp_q) = i64::from(combat.hp)
+            .checked_mul(crate::domain::zone::Q)
+            .and_then(|v| v.checked_add(fractions.hp))
+        else {
+            return;
+        };
+        let inventory = available.saturating_sub(cost);
+        let offer_json = serde_json::json!({"offer_id": offer.id.0,
+            "target_incarnation": offer.target_incarnation, "created_at": offer.created_at.0,
+            "expires_at": offer.expires_at.0, "restore_percent": r(percent),
+            "recoverable_xp": offer.recoverable_xp});
+        let terminal = if accept {
+            serde_json::json!({"event": "accepted", "tick": tick.0,
+                "refund": mutation.xp_restored, "inventory": inventory})
+        } else {
+            serde_json::json!({"event": "declined", "tick": tick.0, "inventory": inventory})
+        };
+        let trace = serde_json::json!([
+            {"event": "start", "tick": start_tick, "consumed": cost, "inventory": inventory},
+            {"event": "complete", "tick": offer.created_at.0, "consumed": 0, "inventory": inventory},
+            {"event": "offered", "tick": offer.created_at.0, "offer": offer_json, "inventory": inventory},
+            terminal,
+        ]);
+        let inputs = serde_json::json!({"definition": definition, "start_tick": start_tick,
+            "available": available, "death_incarnation": offer.target_incarnation,
+            "current_incarnation": before.incarnation, "dead": true,
+            "response": if accept { "accept" } else { "decline" }, "response_tick": tick.0,
+            "response_offer_id": offer.id.0, "existing_offer": null, "repeat": false,
+            "hp": r(before.hp), "max_hp": combat.sheet.max_hp(), "mp": r(before.mp),
+            "cp": r(before.cp), "recoverable_xp": offer.recoverable_xp,
+            "restore_percent": r(percent), "restore_hp": r(restore_hp), "offer_id": offer.id.0});
+        let actual = serde_json::json!({"accepted": true, "consumed": cost,
+            "completion_consumed": 0, "inventory": inventory, "offer": null, "trace": trace,
+            "dead": entity.targeting.dead, "incarnation": combat.incarnation, "hp": r(hp),
+            "hp_q": hp_q, "mp": r(mp), "cp": r(cp), "xp_refund": mutation.xp_restored,
+            "recoverable_xp": if accept { 0 } else { offer.recoverable_xp }, "draws": []});
+        // D139: the fact's subject is the owner of the consumed scroll (the caster); the
+        // resurrected player is named by the context's `target_entity`.
+        self.item_formula_v6(
+            offer.caster.entity,
+            "resurrection_scroll",
+            inputs,
+            actual,
+            &resolution,
+            Some(serde_json::json!({"skill_id": offer.skill.id.0, "event": "cast",
+                "target_entity": target.to_string()})),
+        );
     }
 }

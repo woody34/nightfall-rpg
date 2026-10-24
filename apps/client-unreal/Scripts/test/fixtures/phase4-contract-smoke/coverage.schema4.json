@@ -1,0 +1,574 @@
+{
+  "schema_version": 4,
+  "npc_intentions": [
+    {
+      "from": "Idle",
+      "to": "Idle",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "Idle",
+      "to": "Active",
+      "reachable": true,
+      "count": 0
+    },
+    {
+      "from": "Idle",
+      "to": "Attack",
+      "reachable": true,
+      "count": 0
+    },
+    {
+      "from": "Idle",
+      "to": "ReturnHome",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "Idle",
+      "to": "Dead",
+      "reachable": true,
+      "count": 0
+    },
+    {
+      "from": "Active",
+      "to": "Idle",
+      "reachable": true,
+      "count": 0
+    },
+    {
+      "from": "Active",
+      "to": "Active",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "Active",
+      "to": "Attack",
+      "reachable": true,
+      "count": 0
+    },
+    {
+      "from": "Active",
+      "to": "ReturnHome",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "Active",
+      "to": "Dead",
+      "reachable": true,
+      "count": 0
+    },
+    {
+      "from": "Attack",
+      "to": "Idle",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "Attack",
+      "to": "Active",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "Attack",
+      "to": "Attack",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "Attack",
+      "to": "ReturnHome",
+      "reachable": true,
+      "count": 0
+    },
+    {
+      "from": "Attack",
+      "to": "Dead",
+      "reachable": true,
+      "count": 0
+    },
+    {
+      "from": "ReturnHome",
+      "to": "Idle",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "ReturnHome",
+      "to": "Active",
+      "reachable": true,
+      "count": 0
+    },
+    {
+      "from": "ReturnHome",
+      "to": "Attack",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "ReturnHome",
+      "to": "ReturnHome",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "ReturnHome",
+      "to": "Dead",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "Dead",
+      "to": "Idle",
+      "reachable": true,
+      "count": 0
+    },
+    {
+      "from": "Dead",
+      "to": "Active",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "Dead",
+      "to": "Attack",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "Dead",
+      "to": "ReturnHome",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "Dead",
+      "to": "Dead",
+      "reachable": false,
+      "count": 0
+    }
+  ],
+  "player_attack_states": [
+    {
+      "from": "idle",
+      "to": "idle",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "idle",
+      "to": "pending",
+      "reachable": true,
+      "count": 0
+    },
+    {
+      "from": "idle",
+      "to": "active",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "pending",
+      "to": "idle",
+      "reachable": true,
+      "count": 0
+    },
+    {
+      "from": "pending",
+      "to": "pending",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "pending",
+      "to": "active",
+      "reachable": true,
+      "count": 0
+    },
+    {
+      "from": "active",
+      "to": "idle",
+      "reachable": true,
+      "count": 0
+    },
+    {
+      "from": "active",
+      "to": "pending",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "active",
+      "to": "active",
+      "reachable": false,
+      "count": 0
+    }
+  ],
+  "life_incarnations": {},
+  "deaths": {
+    "npc": 0,
+    "player": 0
+  },
+  "respawns": {
+    "npc": 0,
+    "player": 0
+  },
+  "intent_rejected": {},
+  "class_transfer_commands": {},
+  "class_changes": {},
+  "class_transfer_effects": {},
+  "owner_stats_updates": 0,
+  "resurrection_offers": [
+    {
+      "from": "Absent",
+      "to": "Absent",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "Absent",
+      "to": "Offered",
+      "reachable": true,
+      "count": 0
+    },
+    {
+      "from": "Absent",
+      "to": "Accepted",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "Absent",
+      "to": "Declined",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "Absent",
+      "to": "Expired",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "Offered",
+      "to": "Absent",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "Offered",
+      "to": "Offered",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "Offered",
+      "to": "Accepted",
+      "reachable": true,
+      "count": 0
+    },
+    {
+      "from": "Offered",
+      "to": "Declined",
+      "reachable": true,
+      "count": 0
+    },
+    {
+      "from": "Offered",
+      "to": "Expired",
+      "reachable": true,
+      "count": 0
+    },
+    {
+      "from": "Accepted",
+      "to": "Absent",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "Accepted",
+      "to": "Offered",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "Accepted",
+      "to": "Accepted",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "Accepted",
+      "to": "Declined",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "Accepted",
+      "to": "Expired",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "Declined",
+      "to": "Absent",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "Declined",
+      "to": "Offered",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "Declined",
+      "to": "Accepted",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "Declined",
+      "to": "Declined",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "Declined",
+      "to": "Expired",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "Expired",
+      "to": "Absent",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "Expired",
+      "to": "Offered",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "Expired",
+      "to": "Accepted",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "Expired",
+      "to": "Declined",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "Expired",
+      "to": "Expired",
+      "reachable": false,
+      "count": 0
+    }
+  ],
+  "pvp_transitions": [
+    {
+      "from": "Neutral",
+      "to": "Neutral",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "Neutral",
+      "to": "Flagged",
+      "reachable": true,
+      "count": 0
+    },
+    {
+      "from": "Neutral",
+      "to": "Chaotic",
+      "reachable": true,
+      "count": 0
+    },
+    {
+      "from": "Neutral",
+      "to": "ChaoticFlagged",
+      "reachable": true,
+      "count": 0
+    },
+    {
+      "from": "Flagged",
+      "to": "Neutral",
+      "reachable": true,
+      "count": 0
+    },
+    {
+      "from": "Flagged",
+      "to": "Flagged",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "Flagged",
+      "to": "Chaotic",
+      "reachable": true,
+      "count": 0
+    },
+    {
+      "from": "Flagged",
+      "to": "ChaoticFlagged",
+      "reachable": true,
+      "count": 0
+    },
+    {
+      "from": "Chaotic",
+      "to": "Neutral",
+      "reachable": true,
+      "count": 0
+    },
+    {
+      "from": "Chaotic",
+      "to": "Flagged",
+      "reachable": true,
+      "count": 0
+    },
+    {
+      "from": "Chaotic",
+      "to": "Chaotic",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "Chaotic",
+      "to": "ChaoticFlagged",
+      "reachable": true,
+      "count": 0
+    },
+    {
+      "from": "ChaoticFlagged",
+      "to": "Neutral",
+      "reachable": true,
+      "count": 0
+    },
+    {
+      "from": "ChaoticFlagged",
+      "to": "Flagged",
+      "reachable": true,
+      "count": 0
+    },
+    {
+      "from": "ChaoticFlagged",
+      "to": "Chaotic",
+      "reachable": true,
+      "count": 0
+    },
+    {
+      "from": "ChaoticFlagged",
+      "to": "ChaoticFlagged",
+      "reachable": false,
+      "count": 0
+    }
+  ],
+  "karma_changes": {},
+  "pk_credits": 0,
+  "pvp_credits": 0,
+  "cast_states": [
+    {
+      "from": "Idle",
+      "to": "Idle",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "Idle",
+      "to": "Casting",
+      "reachable": true,
+      "count": 0
+    },
+    {
+      "from": "Casting",
+      "to": "Idle",
+      "reachable": true,
+      "count": 0
+    },
+    {
+      "from": "Casting",
+      "to": "Casting",
+      "reachable": false,
+      "count": 0
+    }
+  ],
+  "cast_end_reasons": {},
+  "effect_states": [
+    {
+      "from": "Absent",
+      "to": "Absent",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "Absent",
+      "to": "Active",
+      "reachable": true,
+      "count": 0
+    },
+    {
+      "from": "Absent",
+      "to": "Removed",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "Active",
+      "to": "Absent",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "Active",
+      "to": "Active",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "Active",
+      "to": "Removed",
+      "reachable": true,
+      "count": 0
+    },
+    {
+      "from": "Removed",
+      "to": "Absent",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "Removed",
+      "to": "Active",
+      "reachable": false,
+      "count": 0
+    },
+    {
+      "from": "Removed",
+      "to": "Removed",
+      "reachable": false,
+      "count": 0
+    }
+  ],
+  "effect_remove_reasons": {},
+  "learning_commands": {},
+  "learning_committed": 0,
+  "cp_absorption": {},
+  "item_operations": {
+    "grant": 1
+  },
+  "enchant_outcomes": {},
+  "refine_outcomes": {},
+  "shot_payments": {},
+  "item_ledger_rows": 1,
+  "item_allocations": 1,
+  "inventory_baselines": 1
+}

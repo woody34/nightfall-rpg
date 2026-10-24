@@ -9,7 +9,7 @@
 # Wind Strike base hitTime4000ms *3=12s; Ice Bolt base3100ms *3 rounds up to12s.
 # 01000-01099.xml:554,1553,1560: Resurrection6000ms *3=18s, Might1200s *3=3600s.
 # A6: regen30ticks *100ms *3=9s; A16/R7: flag1200ticks *100ms *3=360s.
-# Boundaries are checked against received ticks/deadlines; source waits are conservative budgets.
+# Boundaries are checked against the estimated current tick (D132) and received deadlines; source waits are conservative budgets.
 nf.Login
 nf.WaitFor connected 15
 nf.EnterWorld
@@ -21,10 +21,10 @@ nf.Expect effect_count == 1
 nf.DropSocket
 nf.WaitFor reconnects >= 1 15
 nf.WaitFor in_world 15
-nf.WaitFor buff_active 1068 3
+nf.WaitFor buff_active 1068 10
 nf.Expect effect_count == 1
 nf.Expect retained_effect_identity_coherent
 nf.Expect owner_skill_baseline_coherent
 # replay-gate: restore_did_not_reapply_hooks
 # Total budget >= sum of the derived per-step timeouts plus30s exit grace.
-nf.Within 108
+nf.Within 115

@@ -199,7 +199,7 @@ impl ClassState {
         identity: &CharacterIdentity,
         character_id: CharacterId,
     ) -> Result<(), ClassStateError> {
-        self.validate_for_policy(registry, identity, character_id, false)
+        self.validate_for_policy(registry, identity, character_id, false, None)
     }
 
     /// Phase 3 admits paid, executable ranks from the current class lineage as well as
@@ -213,7 +213,26 @@ impl ClassState {
         identity: &CharacterIdentity,
         character_id: CharacterId,
     ) -> Result<(), ClassStateError> {
-        self.validate_for_policy(registry, identity, character_id, true)
+        self.validate_for_policy(registry, identity, character_id, true, None)
+    }
+
+    /// Validate a retained ledger against the already-validated epoch skill catalogue.
+    /// V6 promotions may replace legacy deferred status; lineage, rank and receipt checks
+    /// remain unchanged. Historical rules retain the Phase 3 capability policy exactly.
+    pub fn validate_for_skill_rules(
+        &self,
+        registry: &super::class::ClassRegistry,
+        identity: &CharacterIdentity,
+        character_id: CharacterId,
+        rules: &super::zone::Phase3Rules,
+    ) -> Result<(), ClassStateError> {
+        self.validate_for_policy(
+            registry,
+            identity,
+            character_id,
+            true,
+            (rules.runtime_revision() == 3).then(|| rules.skills()),
+        )
     }
 
     fn validate_for_policy(
@@ -222,6 +241,7 @@ impl ClassState {
         identity: &CharacterIdentity,
         character_id: CharacterId,
         allow_manual: bool,
+        promoted: Option<&super::zone::skill::SkillRegistry>,
     ) -> Result<(), ClassStateError> {
         self.validate()?;
         if identity.base_class_id != self.base_class_id
@@ -247,7 +267,7 @@ impl ClassState {
         {
             return Err(ClassStateError::Lineage);
         }
-        self.validate_learned_metadata(registry, identity.race, allow_manual)?;
+        self.validate_learned_metadata(registry, identity.race, allow_manual, promoted)?;
         let mut parent = self.base_class_id;
         for (ordinal, receipt) in self.successful_transfer_receipts.iter().enumerate() {
             let target = registry
@@ -290,6 +310,7 @@ impl ClassState {
         registry: &super::class::ClassRegistry,
         race: Race,
         allow_manual: bool,
+        promoted: Option<&super::zone::skill::SkillRegistry>,
     ) -> Result<(), ClassStateError> {
         let mut allowed = std::collections::BTreeSet::new();
         for row in registry
@@ -303,9 +324,20 @@ impl ClassState {
                 if known.key != row.key || row.skill_level > known.max_level {
                     return Err(ClassStateError::LearnedSkills);
                 }
-                if !row.auto_get
-                    && known.runtime_status != super::class::RuntimeSkillStatus::Executable
-                {
+                let executable = promoted.map_or_else(
+                    || known.runtime_status == super::class::RuntimeSkillStatus::Executable,
+                    |skills| {
+                        skills
+                            .get(super::zone::skill::SkillId(row.skill_id))
+                            .is_some_and(|skill| {
+                                skill.key == row.key
+                                    && row.skill_level <= skill.max_level
+                                    && skill.runtime_status
+                                        == super::class::RuntimeSkillStatus::Executable
+                            })
+                    },
+                );
+                if !row.auto_get && !executable {
                     continue;
                 }
                 allowed.insert((row.key.as_str(), row.skill_level));
@@ -381,11 +413,11 @@ impl ClassState {
         let incoming: Vec<_> = skills.into_iter().collect();
         let mut probe = self.clone();
         probe.learned_skills.clone_from(&incoming);
-        probe.validate_learned_metadata(registry, race, false)?;
+        probe.validate_learned_metadata(registry, race, false, None)?;
         let mut candidate = self.clone();
         let granted = candidate.merge_learned_skills(incoming);
         candidate.validate()?;
-        candidate.validate_learned_metadata(registry, race, false)?;
+        candidate.validate_learned_metadata(registry, race, false, None)?;
         *self = candidate;
         Ok(granted)
     }
@@ -513,6 +545,26 @@ pub enum ClassStateError {
     /// An unknown token milestone bit is present.
     #[error("unknown token milestone bit")]
     MilestoneMask,
+}
+
+impl ClassStateError {
+    /// D124: the stable precondition code a caller sees when stored class state (for example a
+    /// seeded fixture history) violates the ledger rules. Never an internal error.
+    #[must_use]
+    pub const fn code(self) -> &'static str {
+        match self {
+            Self::TokenCount => "invalid_class_token_count",
+            Self::Level => "invalid_class_token_level",
+            Self::ReceiptLimit => "invalid_class_transfer_receipt_limit",
+            Self::ConflictingReceipt => "conflicting_class_transfer_receipt",
+            Self::ReceiptTarget => "invalid_class_transfer_receipt_target",
+            Self::Lineage => "invalid_class_lineage",
+            Self::Identity => "class_ledger_identity_mismatch",
+            Self::ReceiptHistory => "invalid_class_transfer_receipt_history",
+            Self::LearnedSkills => "invalid_learned_skill_metadata",
+            Self::MilestoneMask => "unknown_token_milestone_bit",
+        }
+    }
 }
 
 fn validate_receipts(receipts: &[SuccessfulTransferReceipt]) -> Result<(), ClassStateError> {

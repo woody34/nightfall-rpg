@@ -1,6 +1,7 @@
 #include "BotPredicates.h"
 #include "ClassBotPredicates.h"
 #include "SkillBotPredicates.h"
+#include "ItemBotPredicates.h"
 #include "BotFixtureData.h"
 #include "BotScenarioRunner.h"
 #include "Auth/AuthSubsystem.h"
@@ -1045,8 +1046,10 @@ void FBotPredicateRegistry::RegisterBuiltins()
 			if (!O->bOwnRespawned) return { false, TEXT("not respawned") };
 			if (O->bAttackedSinceRespawn) return { false, TEXT("ended by an accepted Attack") };
 			const uint64 Until = O->OwnRespawnTick + static_cast<uint64>(D->SpawnProtectionSeconds) * 10;
-			const bool b = O->NewestTick < Until && !Combat->IsOwnDead();
-			return { b, FString::Printf(TEXT("respawned tick %llu, until %llu, newest %llu"), O->OwnRespawnTick, Until, O->NewestTick) };
+			// D132: the deadline is compared with the newest tick advanced by the local 100 ms clock.
+			const uint64 Now = FMath::Max(O->NewestTick, C.Net() ? C.Net()->GetEstimatedTick() : uint64(0));
+			const bool b = Now < Until && !Combat->IsOwnDead();
+			return { b, FString::Printf(TEXT("respawned tick %llu, until %llu, newest %llu, estimated %llu"), O->OwnRespawnTick, Until, O->NewestTick, Now) };
 		});
 	Custom(TEXT("own_level_matches_xp"), TEXT("Own level == the highest level whose tables/experience.toml threshold the XP total reaches"),
 		[Own, Fixture](const FBotContext& C) -> FBotPredicateValue
@@ -1193,4 +1196,5 @@ void FBotPredicateRegistry::RegisterBuiltins()
 		Count([](const FBotObservations& O) { return O.LateSpawnHpBad; }));
 	ClassBotPredicates::Register(*this);
 	SkillBotPredicates::Register(*this);
+	ItemBotPredicates::Register(*this);
 }

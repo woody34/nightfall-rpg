@@ -100,3 +100,56 @@ missing facts, independent oracle inputs that are not supported, unknown categor
 because it also occurs in a resolution slice. The older harness proposal uses `trace --evidence-out`, one JSON document
 and rows with gate names. This proposal must have an adapter to this binding C14 export/JSONL schema. This producer intentionally
 does not make oracle-vector matches or acceptance flags.
+
+## Phase 4 item evidence (D46)
+
+```sh
+nightfall-replay export --file epoch.nfr --items-evidence-out /tmp/items.jsonl
+```
+
+This JSONL format is separate. It follows the [frozen E6 contract](../../apps/client-unreal/Scripts/phase4-evidence-contract.md).
+Before the export makes a new destination, it verifies each recorded output and state digest.
+`--session` makes sure that the owner occurs in the recording. The facts always cover the full recording.
+The export refuses these inputs:
+
+- Partial captures and live captures.
+- Historical schemas.
+- Completion watermarks that do not agree.
+- RNG gaps. This includes a first draw or a last draw that is not present.
+- Replay divergence.
+
+The incarnation reset (D142) is evidence for the API ledger only. The item evidence export
+does not contain it (D145).
+An automatic shot recharge at the start of an attack or cast writes a Use row on the weapon with no
+receipt. The export gives it the cause `shot_charge:<resolution>` only when the same tick has the
+`auto_shot_payment` consume of that shot with the same resolution, and the row only adds charge
+bits. Other Use rows without a cause stop the export (T50).
+A pure ToggleAutoShot (no charge row) that steps the inventory revision exports one `item_delta`
+with the operation `toggle_auto_shot`. This row has no instance. It has the template, the enabled
+flag, the new revision and count delta 0 (D148).
+`nightfall-replay coverage` writes schema 4 for V6 recordings. Schema 4 adds the item counters
+`item_operations`, `enchant_outcomes`, `refine_outcomes` and `shot_payments`, and the item scalars
+`item_ledger_rows`, `item_allocations` and `inventory_baselines` (T48). V5 recordings keep schema 3.
+
+RNG cursors are full-width JSON integers. The old `--evidence-out` format stays separate.
+
+The current producer records these facts:
+
+- The initial inventories and the admission inventories.
+- The accepted changes from item operations, before the consume aggregation.
+- Live grants, and starter/backfill materialization.
+- Item payments and learned-cast payments.
+- The exact enchant inputs, outcomes and refunds.
+- The combat/effect/NPC randomness between these facts.
+
+The other formula families are work that is not complete. The consumer rejects a gate when its formula observations are not present.
+A file that the export makes is not, alone, Phase 4 acceptance.
+Offline grants now refuse this export. Their canonical incarnation is zero, and D46 must have a positive incarnation.
+Enchant revisions in the same tick also must have a consumer review, because many accepted operations use one inventory revision.
+
+The real engine probe can write a disposable recording. Use it to verify the CLI and the consumer:
+
+```sh
+NIGHTFALL_TEST_ITEM_EVIDENCE_RECORDING=/tmp/items-probe.nfr \
+  cargo test -p nightfall-api --lib v6_item_evidence_captures -- --test-threads=2
+```

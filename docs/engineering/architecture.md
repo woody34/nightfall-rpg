@@ -328,8 +328,14 @@ at an admitted boundary, and on a clean shutdown. Its message ID includes the bo
 Thus a shutdown flush at the same tick cannot deduplicate a different checkpoint state.
 `zone_snapshots` holds this latest baseline. `zone_epochs` is a durable discovery index that is not pruned.
 The code inserts its rows in the same transaction. It records the start, the first sequence, the checkpoint progress
-and the closure independently of the JetStream retention. `last_recorded_tick` is a conservative
-upper limit that the code writes before the log admission. Thus, if the final record is lost, it cannot hide a pending save.
+and the closure independently of the JetStream retention. The zone writes `last_recorded_tick` after
+the log acknowledges the tick and before its checkpoint or output (D134). Thus
+`last_recorded_tick = T` means that record T was acknowledged. Each output, RPC reply,
+checkpoint, outbox row, receipt and `last_checkpointed_tick` advance is at or below it.
+Recovery requires the history through `last_recorded_tick`. A shorter history is log loss and
+fails closed. A crash after the acknowledgement and before the index write leaves the index at
+T-1. Recovery then replays record T from the log and settles its checkpoint. One process owns a
+zone at a time. The index and the applied publish do not fence a second, stale owner.
 
 **Record.** `AppliedTickRecord { zone, epoch, tick, server_time_ms, commands (ordinal, source,
 seq, command), dispositions, outputs, output_form }`, where `outputs` is each player's ordered

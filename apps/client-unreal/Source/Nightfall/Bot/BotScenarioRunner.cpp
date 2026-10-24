@@ -34,6 +34,42 @@ FString UBotScenarioRunner::ResolveScenarioPath(const FString& Path)
 	return FPaths::ConvertRelativePathToFull(FPaths::LaunchDir(), Path);
 }
 
+bool UBotScenarioRunner::LoadScenarioFile(const FString& Path, FBotScenario& OutScenario, TArray<FString>& OutErrors)
+{
+	FString Text;
+	if (!FFileHelper::LoadFileToString(Text, *Path))
+	{
+		OutErrors.Add(FString::Printf(TEXT("cannot read scenario file %s"), *Path));
+		return false;
+	}
+	TArray<FString> Errors;
+	BotScenario::Parse(FPaths::GetBaseFilename(Path), Text, FBotPredicateRegistry::Get(),
+		[](const FString& Name) { return IConsoleManager::Get().FindConsoleObject(*Name) != nullptr; }, OutScenario, Errors);
+	OutErrors.Append(Errors);
+	return Errors.IsEmpty();
+}
+
+FBotTestCase UBotScenarioRunner::StartFailureCase(const TArray<FString>& ParseErrors)
+{
+	FBotTestCase Case;
+	Case.Name = ParseErrors.IsEmpty() ? TEXT("start scenario") : TEXT("parse scenario");
+	Case.Status = FBotTestCase::EStatus::Failed;
+	Case.Message = ParseErrors.IsEmpty() ? FString(TEXT("the engine exited before the world loaded")) : ParseErrors[0];
+	Case.Detail = FString::Join(ParseErrors, TEXT("\n"));
+	return Case;
+}
+
+int32 FBotLoopPlan::Accumulate(const TArray<FBotTestCase>& IterationCases)
+{
+	++Iterations;
+	for (FBotTestCase Case : IterationCases)
+	{
+		Case.Name = FString::Printf(TEXT("iteration %d: %s"), Iterations, *Case.Name);
+		Cases.Add(MoveTemp(Case));
+	}
+	return Iterations;
+}
+
 void UBotScenarioRunner::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Collection.InitializeDependency<UNetClientSubsystem>();
@@ -92,25 +128,29 @@ void UBotScenarioRunner::Initialize(FSubsystemCollectionBase& Collection)
 
 	TestOnlyCommands = BotSteps::RegisterTestOnlyCommands();
 
-	FString Text;
-	if (!FFileHelper::LoadFileToString(Text, *ScenarioPath))
+	// Both scripts parse before the first step: a missing or invalid loop script fails the run
+	// closed instead of surfacing after iteration 1 (D155).
+	FBotScenario Scenario;
+	TArray<FString> Errors;
+	if (LoadScenarioFile(ScenarioPath, Scenario, Errors)) LoopPlan.First = MoveTemp(Scenario);
+	ParseErrors.Append(Errors);
+	FString LoopPath;
+	if (FParse::Value(FCommandLine::Get(), TEXT("BotLoopScenario="), LoopPath) && !LoopPath.IsEmpty())
 	{
-		ParseErrors.Add(FString::Printf(TEXT("cannot read scenario file %s"), *ScenarioPath));
+		LoopScenarioPath = ResolveScenarioPath(LoopPath);
+		if (LoopSeconds <= 0.0) ParseErrors.Add(TEXT("BotLoopScenario requires BotLoop"));
+		FBotScenario LoopScenario;
+		TArray<FString> LoopErrors;
+		if (LoadScenarioFile(LoopScenarioPath, LoopScenario, LoopErrors)) LoopPlan.Loop = MoveTemp(LoopScenario);
+		for (const FString& Error : LoopErrors) ParseErrors.Add(FString::Printf(TEXT("loop scenario %s: %s"), *FPaths::GetCleanFilename(LoopScenarioPath), *Error));
 	}
-	else
+	if (ParseErrors.IsEmpty())
 	{
-		FBotScenario Scenario;
-		TArray<FString> Errors;
-		BotScenario::Parse(ScenarioName, Text, FBotPredicateRegistry::Get(),
-			[](const FString& Name) { return IConsoleManager::Get().FindConsoleObject(*Name) != nullptr; }, Scenario, Errors);
-		ParseErrors.Append(Errors);
-		if (ParseErrors.IsEmpty())
-		{
-			Executor = MakeUnique<FBotScenarioExecutor>(MoveTemp(Scenario),
-				[this](const FString& Line, FString& OutError) { return ExecLine(Line, OutError); },
-				[this](const FBotPredicateFn& Predicate) { return Predicate(MakeContext()); },
-				[this](const FString& Line) { Log(Line); });
-		}
+		FBotScenario Copy = LoopPlan.First;
+		Executor = MakeUnique<FBotScenarioExecutor>(MoveTemp(Copy),
+			[this](const FString& Line, FString& OutError) { return ExecLine(Line, OutError); },
+			[this](const FBotPredicateFn& Predicate) { return Predicate(MakeContext()); },
+			[this](const FString& Line) { Log(Line); });
 	}
 
 	// A scenario needs a fresh, isolated account (plan D5): without a dev token on the command
@@ -123,8 +163,9 @@ void UBotScenarioRunner::Initialize(FSubsystemCollectionBase& Collection)
 	}
 
 	MakeContext();   // start observing acks / rejections / damage numbers before the first step
-	UE_LOG(LogNightfallBot, Display, TEXT("bot: scenario %s, artifacts in %s%s"), *ScenarioPath, *OutDir,
-		GeneratedAccount.IsEmpty() ? TEXT("") : *FString::Printf(TEXT(", account test:%s"), *GeneratedAccount));
+	UE_LOG(LogNightfallBot, Display, TEXT("bot: scenario %s, artifacts in %s%s%s"), *ScenarioPath, *OutDir,
+		GeneratedAccount.IsEmpty() ? TEXT("") : *FString::Printf(TEXT(", account test:%s"), *GeneratedAccount),
+		LoopScenarioPath.IsEmpty() ? TEXT("") : *FString::Printf(TEXT(", loop scenario %s from iteration 2"), *LoopScenarioPath));
 	TickHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &UBotScenarioRunner::Tick));
 #endif
 }
@@ -220,15 +261,10 @@ void UBotScenarioRunner::Begin()
 bool UBotScenarioRunner::AdvanceLoop()
 {
 	if (LoopSeconds <= 0.0 || !Executor->HasPassed() || Sentinel.NumUnallowed() != 0) return false;
-	++LoopIterations;
-	for (FBotTestCase Case : Executor->GetTestCases())
-	{
-		Case.Name = FString::Printf(TEXT("iteration %d: %s"), LoopIterations, *Case.Name);
-		LoopCases.Add(MoveTemp(Case));
-	}
+	const int32 Iteration = LoopPlan.Accumulate(Executor->GetTestCases());
 	// Finish whole scenarios, never turn an unfinished assertion into a passing timeout.
 	if (FPlatformTime::Seconds() - LoopStartSeconds >= LoopSeconds) return false;
-	Log(FString::Printf(TEXT("loop iteration %d passed; resetting login and projections"), LoopIterations));
+	Log(FString::Printf(TEXT("loop iteration %d passed; resetting login and projections"), Iteration));
 	FString Error;
 	if (!ExecLine(TEXT("nf.Logout"), Error))
 	{
@@ -248,7 +284,8 @@ bool UBotScenarioRunner::AdvanceLoop()
 		const FString CommandLine = FString(FCommandLine::Get()).Replace(*Previous, *GeneratedAccount);
 		FCommandLine::Set(*CommandLine);
 	}
-	FBotScenario Scenario = Executor->GetScenario();
+	if (LoopPlan.SwitchesScript()) Log(FString::Printf(TEXT("loop iteration %d onwards runs the loop scenario %s"), Iteration + 1, *LoopScenarioPath));
+	FBotScenario Scenario = LoopPlan.Next();
 	Executor = MakeUnique<FBotScenarioExecutor>(MoveTemp(Scenario),
 		[this](const FString& Line, FString& OutError) { return ExecLine(Line, OutError); },
 		[this](const FBotPredicateFn& Predicate) { return Predicate(MakeContext()); },
@@ -299,25 +336,21 @@ void UBotScenarioRunner::Complete()
 		if (LoopSeconds > 0.0)
 		{
 			// Successful final iteration is already accumulated; retain its sentinel only.
-			if (Executor->HasPassed() && Sentinel.NumUnallowed() == 0 && LoopIterations > 0)
+			if (Executor->HasPassed() && Sentinel.NumUnallowed() == 0 && LoopPlan.Iterations > 0)
 			{
 				FBotTestCase SentinelCase = Cases.Last();
-				Cases = LoopCases;
+				Cases = LoopPlan.Cases;
 				Cases.Add(MoveTemp(SentinelCase));
 			}
-			else Cases.Insert(LoopCases, 0);
+			else Cases.Insert(LoopPlan.Cases, 0);
 		}
 		Seconds = Executor->ElapsedSeconds();
 		bStepsPassed = Executor->HasPassed();
 	}
 	else
 	{
-		Cases = LoopCases;
-		FBotTestCase& Case = Cases.AddDefaulted_GetRef();
-		Case.Name = ParseErrors.IsEmpty() ? TEXT("start scenario") : TEXT("parse scenario");
-		Case.Status = FBotTestCase::EStatus::Failed;
-		Case.Message = ParseErrors.IsEmpty() ? FString(TEXT("the engine exited before the world loaded")) : ParseErrors[0];
-		Case.Detail = FString::Join(ParseErrors, TEXT("\n"));
+		Cases = LoopPlan.Cases;
+		Cases.Add(StartFailureCase(ParseErrors));
 		for (const FString& Error : ParseErrors) UE_LOG(LogNightfallBot, Display, TEXT("bot: scenario error: %s"), *Error);
 	}
 	const int32 Unallowed = Sentinel.NumUnallowed();
@@ -343,7 +376,8 @@ void UBotScenarioRunner::WriteArtifacts(const TArray<FBotTestCase>& Cases, doubl
 	if (LoopSeconds > 0.0)
 	{
 		Properties.Emplace(TEXT("loop_seconds"), FString::SanitizeFloat(LoopSeconds));
-		Properties.Emplace(TEXT("loop_iterations"), FString::FromInt(LoopIterations));
+		Properties.Emplace(TEXT("loop_iterations"), FString::FromInt(LoopPlan.Iterations));
+		if (!LoopScenarioPath.IsEmpty()) Properties.Emplace(TEXT("loop_scenario_file"), LoopScenarioPath);
 	}
 	if (Executor) Properties.Emplace(TEXT("budget_seconds"), FString::SanitizeFloat(Executor->GetScenario().BudgetSeconds));
 	Properties.Emplace(TEXT("sentinel_unallowed"), FString::FromInt(Sentinel.NumUnallowed()));

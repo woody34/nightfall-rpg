@@ -479,6 +479,8 @@ The scripts (`run-sim.sh`, `run-sim-multi.sh`, CI) use exactly this contract:
 | `-BotScenario=<path>` | The scenario to run. An absolute path, or else relative to the launch directory, or else relative to the project directory. Its base name (`1-kill-one-monster`) names the artifacts. |
 | `-BotOutDir=<dir>` | The artifact directory. Default `<project>/Saved/Sim`. Give each parallel process its own directory, or use different scenario names. |
 | `-BotDataDir=<dir>` | The server fixture data directory (`tables/*.toml`, `zones/*.toml`). Default `<project>/../../packages/data`. |
+| `-BotLoop=<seconds>` | Run the scenario again and again for at least this long. The runner resets the login between iterations (see "Nightly Gauntlet soak"). |
+| `-BotLoopScenario=<path>` | Only with `-BotLoop` (D155). Iteration 1 runs the `-BotScenario` script. Iteration 2 and all later iterations run this script. The runner resolves the path like `-BotScenario`. The runner parses both scripts before the first step. A missing or invalid loop script is a parse error (exit code 1), not a passing timeout. Without this flag, each iteration runs the `-BotScenario` script. |
 | `-DevToken=<token>` / `-DevTokenFile=<path>` | The same as for all runs. If you give neither, `nf.Login` uses a new `test:<uuid>` account (the API must run with `AUTH_DEV_TOKENS=1`). The JUnit `account` property records the account. |
 | `-game -nullrhi -nosound -unattended` | The headless client (plan D1). `-unattended` prevents ensures and dialogs from blocking. |
 
@@ -561,7 +563,7 @@ Predicates (`FBotPredicateRegistry`, `Bot/BotPredicates.cpp`). Numbers take `<op
 | `acks <op> <n>` | Acks received (one for each accepted intent; the server refuses keep-alives and never Acks them) | `OnIntentAck` |
 | `own_mp <op> <n>` | the MP of the player | projection |
 | `own_hp_is_respawn_hp`, `own_mp_is_respawn_mp` | own HP == max(1, floor(maxHP * restore_hp_q / 1e6)), MP == floor(maxMP * restore_mp_q / 1e6) (65 %, 0) | projection, `tables/formulas.toml` |
-| `protection_active` | inferred from the server rule (no flag on the wire): an `EntityRespawned` for the player, no Attack accepted after it, and fewer than spawn_protection_seconds * 10 ticks elapsed | events, `tables/formulas.toml` |
+| `protection_active` | inferred from the server rule (no flag on the wire): an `EntityRespawned` for the player, no Attack accepted after it, and fewer than spawn_protection_seconds * 10 ticks elapsed (newest received tick, or the D132 estimated tick when later) | events, `tables/formulas.toml` |
 | `own_level_matches_xp` | own level == the highest `experience.toml` level that the XP total gets to | projection, `tables/experience.toml` |
 | `death_xp_loss <op> <n>`, `death_xp_loss_matches_table` | the XP that the newest death took; it is equal to min(XP, round((X[L+1] - X[L]) * fraction_q[L] / 1e6)) for the level L at the death | `StatsChanged`, `tables/penalties.toml` |
 | `attack_results <op> <n>`, `damage_numbers_match_results` | different AttackResults received; one floating number for each different AttackResult | `OnAttackResult`, `OnDamageNumber` |
@@ -681,7 +683,25 @@ the paired multi-client roles, the quarantine JSON schema and the PR gate policy
 
   # Full CI suite with per-unit fresh Compose stacks and paired roles:
   COMPOSE_PROJECT_NAME=nightfall-sim-local python3 apps/client-unreal/Scripts/run-sim-ci.py --fresh-stack --artifacts apps/client-unreal/Saved/SimCI
+
+  # The same suite in 3 lanes (about one third of the wall clock):
+  python3 apps/client-unreal/Scripts/run-sim-ci.py --fresh-stack --parallel 3 --artifacts apps/client-unreal/Saved/SimCI
   ```
+- **Parallel lanes (`--parallel N`):** `run-sim-ci.py` takes units from one sorted queue and runs
+  them in N lanes at the same time. A unit with two roles stays in one lane. Each lane owns a
+  Compose project (`<COMPOSE_PROJECT_NAME or nightfall-sim-phase4>-lane<N>`). Each lane owns a
+  block of 10 host ports (`--lane-port-base`, default 30000). Lane N uses 30000 + 10N to
+  30009 + 10N for Postgres, NATS, Grafana, OTLP, Keycloak, API HTTP and gRPC, on loopback only.
+  Each lane also owns an API process and a UE `-UserDir`. The suite refuses to start when a
+  listener holds a port of a block (an owned stack, a soak or another suite). The suite also
+  refuses a block inside the kernel ephemeral port range (`/proc/sys/net/ipv4/ip_local_port_range`,
+  32768-60999 by default): the base 30000 is safe for up to 276 lanes. Owned fixture units
+  (Phase 2/3/4 packs) keep their own random ports and projects. Per-unit artifacts have the same
+  layout and names as the serial run; the lane files are under `<artifacts>/.lanes/lane-<N>/`.
+  `summary.json` records `lane`, `lane_ports` and `compose_project` for each unit and a `lanes`
+  list. In a parallel run the units and `suite.xml` are sorted by unit name. The suite removes each
+  lane's Compose project and volumes when all lanes have finished. `--parallel 1` (the default) is
+  the serial run and does not need `--parallel`.
 - **PR gate and quarantine:** Simulation CI does not block PRs until `main` has two consecutive weeks
   with zero unquarantined failures. Trusted PRs from the same repository opt in with the `sim`
   label. Fork PRs never run on the persistent runner. `Scenarios/quarantine.json` records the known flakes.
@@ -710,6 +730,7 @@ bash Scripts/run-soak.sh
   - It goes back to the login map.
 
   Then the `nf.Login` and `nf.EnterWorld` of the scenario log in as a new character. This prevents a leak of position, HP or XP between iterations.
+- **Loop scenario (D155, T49):** A first-iteration script can consume an item that the later iterations do not hold (the keyed enchant scroll of the items soak). For this case the role manifest lane has an optional `loop_scenario` key (an absolute path to an existing `.nfs` file; `schema_version` stays 1). `NightfallSoak.cs` passes it to the client as `-BotLoopScenario="<path>"`. Iteration 1 runs the `scenario` script. Iteration 2 and all later iterations run the `loop_scenario` script, with the same login reset, the same sentinel and the same `iteration N:` testcase names. The runner logs one line when it changes scripts, and the JUnit property `loop_scenario_file` records the path. A lane without the key runs the `scenario` script in every iteration, as before. The offline tests `Nightfall.Bot.Loop.*` check the script selection, the testcase names and the fail-closed parse error.
 - **Whole-iteration completion and process timeouts:** The runner always completes its final whole scenario iteration, also if it runs longer than the requested duration. The runner never stops an unfinished step early, and it never changes it into a passing timeout. Gauntlet applies a maximum process timeout (`MaxDuration = Seconds + 180`, tick budget check at `Seconds + 150`). It fails if a role crashes, goes above its process budget, or exits with a value that is not zero.
 - **Metrics flush and API shutdown:** To flush the cumulative metrics, the script stops the API before the final Prometheus scrape. `run-soak.sh` stops the API correctly through SIGTERM (with a 15-second grace period). Thus, the final combat histograms are fully exported without more idle ticks. The runner records a forced (SIGKILL) API shutdown, or an API shutdown that is not zero, as a runner failure (`runner-errors.txt`). This makes sure that incomplete metrics or hung processes fail the run.
 - **Artifacts and reports:** The JUnit XML of each client (`1-kill-one-monster.xml` with `iteration N:` testcases, `loop_iterations` and `loop_seconds`), the engine logs and the isolated `UserDir` directories go in `Saved/Soak/<timestamp>-<pid>/client-XX/` (or `--artifacts <dir>`). `run-soak.sh` now automatically exports the complete `soak.nfr` (zone 1 epoch 1) and examines the replay with `nightfall-replay check`. `Scripts/soak-report.py` collects these into:
@@ -1072,9 +1093,13 @@ our tests (no engine tests). The live tests (`Nightfall.Login.EndToEnd`, `Nightf
 and skip. With `-RequireLiveApi`, the same condition is an error. Thus, a server that is down cannot show green:
 
 ```bash
+Scripts/run-tests.sh offline              # local tests only; no authentication credentials
+Scripts/run-tests.sh --offline Nightfall.Item  # Phase 4 item tests
 Scripts/run-tests.sh                      # local: live tests skip with a warning when the API is down
 Scripts/run-tests.sh --require-live-api   # CI: a down API fails them (also on when CI=true)
 ```
+
+[phase4-client-offline.md](Scripts/phase4-client-offline.md) lists the Phase 4 offline checks and the open integration gates.
 
 ### Running simulations
 
@@ -1206,7 +1231,9 @@ Cooldowns use a linear sweep from the received ready ticks. Cast bars keep the o
 start/complete ticks. Buff, song/dance and debuff summaries show the rank and the remaining
 authoritative ticks. Own CP, SP, death penalty, target karma and white/purple/red
 flags come from server facts. The Skill trainer button opens the learning
-options and errors from the server. Learning retries keep the UUID of the selected rank. Successful
+options and errors from the server. Learning retries keep the UUID of the selected rank. A learn request
+that arrives while a LearnSkill RPC is in flight waits in a FIFO queue (at most 8) and goes out unchanged when
+the RPC completes; the client does not drop it (D160). `IsBusy()` and `learn_rpc_error == pending` cover the queued state. Successful
 frozen receipts never replace the current world resources. Death offers have
 accept/decline actions. The existing floating damage/flinch cues give temporary
 feedback. There is no new art, skill-specific animation, particle or sound asset.
@@ -1220,9 +1247,11 @@ consumption, for duplicate-consent rejection tests. Explicit IDs are for server 
 Numeric comparisons accept exact unsigned integers and `== != < <= > >=`.
 Unknown evidence evaluates false, and the output shows it as unknown where applicable.
 
+Deadline-relative reads (`target_flag_remaining`, `own_flag`/`target_flag`, `skill_ready`, `skill_reuse_remaining`, `resurrect_offer_pending`, `target_swing_impact_remaining`, `players_attacking_me`, `protection_active`, and the `nf.CastIf` reuse check) compare with the estimated tick (D132): the newest received tick advanced by the local monotonic clock at the fixed 100 ms tick, rebased on every newer received tick and clamped down to it when the projection ran ahead. The zone sends a frame only when something visible changes, so the received tick alone can stay many ticks behind (T22). Evidence-ordering checks keep the received tick.
+
 | Predicate | Authoritative message / fields |
 |---|---|
-| `skill_ready <id>`, `skill_reuse_remaining <id> op n` | Owner SkillStateSync ranks/reuse, SkillReuse.ready_tick, received stream tick |
+| `skill_ready <id>`, `skill_reuse_remaining <id> op n` | Owner SkillStateSync ranks/reuse, SkillReuse.ready_tick, estimated tick (D132) |
 | `learned_rank <id> op n` | SkillStateSync.learned, SkillLearned (not historical RPC resources) |
 | `buff_active/inactive <id>`, `debuff_active <id>`, `effect_count op n` | Identity baseline plus EffectApplied.pool/end_tick and EffectRemoved.effect_id |
 | `entity_effect_active/inactive <own|self|target|UUID> <id>` | Visible identity/incarnation, EffectApplied/Removed stable IDs and deadlines |
@@ -1244,7 +1273,7 @@ Unknown evidence evaluates false, and the output shows it as unknown where appli
 | `entity_at <entity> <x> <y> <tol>` | The newest received EntitySpawn/EntityMove position sample, only for the current known identity |
 | `entity_casting <entity> <id>` | The current SkillCastStarted skill ID, including identity hydration; a terminal Result/Cancelled clears it |
 | `initial_hp/mp/cp op n` | The first owner EntitySpawn HP and the first accepted StatsChanged MP/CP in the current admission; later updates do not change these samples |
-| `target_flag_remaining op n` | Received PvpStateChanged.flag_until_tick minus the newest received tick, with zero as the minimum |
+| `target_flag_remaining op n` | Received PvpStateChanged.flag_until_tick minus the estimated tick (D132: newest received tick advanced by the local 100 ms clock between frames), with zero as the minimum |
 | `cast_cancel_reason/observed_cast_cancel_reason == <reason>` | The last accepted SkillCastCancelled.reason, with caster life/cast ID fences; observed includes the owner |
 | `buff_replacements op n`, `replacement_remove_before_apply` | Known buff EffectRemoved(reason=REPLACED), then an EffectApplied for the same target/skill/pool with a new effect ID; duplicates/baselines not included |
 | `effect_remove_reason == <reason>` | The last accepted EffectRemoved.reason for a stable effect ID that was known before |
@@ -1278,3 +1307,49 @@ Round 3 UI corrections:
 - Native automation tests the production mouse-hit resolver and the key delegate. It also tests the HUD cast progress/terminal state, the effect countdown/pool/expiry, the PvP colours and the actual accept/decline button delegates.
 
 These are headless state/input checks. They are not rendered screenshots, and they do not prove live gameplay.
+
+Phase 4 items:
+
+- Phase 4 items use the existing WebSocket and the authenticated GameService.
+- The owner inventory reducer must have the identity first, and then InventorySync. It accepts all summary siblings that have the same revision.
+- When the reducer does not get a revision, it connects again with a new ticket.
+- Detached GetInventory responses have `tick/baseline_tick/incarnation = 0`. The **View inventory** button on each character row shows them separately.
+- Detached responses never set a world baseline, and they never overwrite the live inventory.
+
+**Inventory (I)** opens these code-built parts:
+
+- The grid, with the exact count, enchant and augment badges.
+- The paperdoll and the weight/penalty view.
+- The tooltips from the received catalogue.
+
+To equip or to manually use an item, select the item. To unequip an item, select a paperdoll slot. The enchant/crystallize forms and the blacksmith forms select received item instances and SA recipes.
+
+When you confirm a request again, the client keeps the UUID and the body that it resolved first. This is also true after the server consumed a scroll or a base weapon. A changed body with the same key goes to the conflict path of the server. A pending request stops only when its matching receipt or a seq rejection arrives. No widget predicts item counts, stats or random results.
+
+The inventory form assigns nine item hotbar slots for each character. **F1–F9** or the second HUD hotbar row use these slots. Each slot is explicitly a manual use or an auto-shot toggle. The toggle labels read the received auto-shot set. The number keys continue to use the skill hotbar. The item bindings stay in `GeneratedConfig/NightfallItems.ini`.
+
+The E6 command/predicate authority is [phase4-fixtures.md](Scripts/phase4-fixtures.md) and [phase4-grammar.py](Scripts/phase4-grammar.py). The client also registers the architect amendment `refine_outcome == applied|removed`.
+
+- `weight_pct` compares the raw received weight/max-load with exact decimal/rational literals. Large literals are also correct.
+- When the max-load is zero or less, `weight_pct` stays UNKNOWN.
+- The arrow classification comes from pinned E1 ARROW metadata. The client compares it with the name/kind of the received catalogue.
+- After an E1 catalogue update, run `python3 Scripts/gen-item-client-metadata.py` to make the arrow metadata again.
+- `nf.GrantItem` uses the authenticated RPC. The server enforces AUTH_DEV_TOKENS. When the server refuses, `item_rpc_error` shows the refusal.
+
+Item content:
+
+- `Scripts/create_content.py` imports a deterministic placeholder icon atlas with three kinds. It also makes `/Game/Items/M_ItemGlow`.
+- The weapon meshes on the pawn and on the proxies use only the public VisibleEquipment.
+- The alternating cube/cylinder shapes are cosmetic template placeholders. They are not models for the weapon kinds.
+- The glow colours use the tier from the server, with the placeholder policy of design §1.5/I6 (weapon +7/+15, armour +6). This is not evidence of the retail client material.
+- Empty gear baselines and slot tombstones hide the meshes.
+- Content generation and the pixel/cook checks are integration gates. The native component is safe when optional generated art is not present.
+
+`Scripts/run-tests.sh --offline` selects `Nightfall.Item`, and it does not get credentials. The tests cover these items:
+
+- Wire fields/presence, and identity/revision/privacy/reset.
+- Received predicates and exact comparisons.
+- Catalogue failure/lifetime, and sticky outcome coherence.
+- The actual widget delegates, the frozen retry, the hotbar keys and the public gear projection.
+
+Headless input/state tests do not certify rendered pixels or live gameplay. At integration, use `--require-live-api` and the canonical Phase 4 scenarios. The E5 story Done When stays open until these gates and an independent review pass.

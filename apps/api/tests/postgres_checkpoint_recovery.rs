@@ -92,6 +92,7 @@ async fn crash_before_or_after_transaction_and_missing_audit_ack_recovers_identi
                 speed: Speed::DEFAULT,
                 generation: SessionGeneration(1),
                 load: Some(Box::new(PlayerLoad {
+                    phase4: None,
                     phase3: None,
                     checkpoint_revision: Some(0),
                     ..PlayerLoad::fresh("human_fighter")

@@ -133,12 +133,25 @@ def get_referenced_skills(skill_elem: ET.Element, tables: dict[str, list[str]]) 
     return refs
 
 
-def is_cond_allowed(elem: ET.Element) -> bool:
+def is_cond_allowed(elem: ET.Element, phase4: bool = False) -> bool:
     if elem.tag in ("and", "or", "not"):
-        return not elem.attrib and all(is_cond_allowed(child) for child in elem)
+        return not elem.attrib and all(is_cond_allowed(child, phase4) for child in elem)
+    if phase4:
+        if elem.tag == "player" and set(elem.attrib) == {"insideZoneId"}:
+            return all(param_allowed(part.strip(), "positive_int") for part in elem.attrib["insideZoneId"].split(","))
+        if elem.tag == "player" and set(elem.attrib) in ({"resting"}, {"standing"}, {"moving"}, {"running"}, {"canEscape"}, {"flyMounted"}):
+            return next(iter(elem.attrib.values())) in {"true", "false"}
+        if elem.tag == "using" and set(elem.attrib) == {"slot"}:
+            return elem.attrib["slot"] in {"chest", "lhand", "rhand", "lrhand", "head", "legs", "feet", "gloves"}
+        if elem.tag == "player" and set(elem.attrib) in ({"weight"}, {"invSize"}):
+            return param_allowed(next(iter(elem.attrib.values())), "int")
+        # D34: rank-expanded inclusive levelRange is executable at cast start
+        # (Z 4f9ac8c/c5229d4/f6d882b); parse_cond_node validates each expanded rank.
+        if elem.tag == "player" and set(elem.attrib) == {"levelRange"}:
+            return re.fullmatch(r"#\w+|\d+;\d+", elem.attrib["levelRange"]) is not None
     if elem.tag == "using":
         return (set(elem.attrib) == {"kind"}
-                and all(k.strip() in ALLOWED_WEAPON_KINDS for k in elem.attrib["kind"].split(",")))
+                and all(k.strip() in (ALLOWED_WEAPON_KINDS | ({"LIGHT", "MAGIC", "HEAVY", "SIGIL", "SHIELD"} if phase4 else set())) for k in elem.attrib["kind"].split(",")))
     if elem.tag == "player":
         if set(elem.attrib.keys()) == {"canResurrect"} and elem.attrib["canResurrect"] in {"true", "false"}:
             return True
@@ -164,7 +177,7 @@ def condition_nodes(elem: ET.Element) -> list[ET.Element]:
     return [node for c in condition_elements(elem) for node in (list(c) if c.tag == "cond" else [c])]
 
 
-def get_cond_blockers(cond_elem: ET.Element) -> set[str]:
+def get_cond_blockers(cond_elem: ET.Element, phase4: bool = False) -> set[str]:
     blockers: set[str] = set()
 
     def walk(e: ET.Element) -> None:
@@ -175,23 +188,46 @@ def get_cond_blockers(cond_elem: ET.Element) -> set[str]:
                 walk(c)
         elif e.tag == "using" and set(e.attrib) == {"kind"}:
             for value in e.attrib["kind"].split(","):
-                if value.strip() not in ALLOWED_WEAPON_KINDS:
+                if value.strip() not in ALLOWED_WEAPON_KINDS | ({"LIGHT", "MAGIC", "HEAVY", "SIGIL", "SHIELD"} if phase4 else set()):
                     blockers.add(f"cond:using_kind:{value.strip()}")
-        elif not is_cond_allowed(e):
+        elif not is_cond_allowed(e, phase4):
             blockers.add(f"cond:{cond_sig(e)}")
 
     walk(cond_elem)
     return blockers
 
 
-def parse_cond_node(elem: ET.Element) -> dict:
-    if elem.tag == "using" and is_cond_allowed(elem):
+def parse_cond_node(elem: ET.Element, phase4: bool = False, tables=None, levels=1) -> dict:
+    if phase4 and elem.tag == "player" and set(elem.attrib) == {"levelRange"}:
+        ranges = []
+        for value in expand(elem.attrib["levelRange"], tables or {}, levels):
+            parts = value.split(";")
+            if len(parts) != 2 or not all(part.isdigit() for part in parts):
+                raise SourceError("invalid player levelRange")
+            minimum, maximum = map(int, parts)
+            if minimum > maximum:
+                raise SourceError("inverted player levelRange")
+            ranges.append({"minimum": minimum, "maximum": maximum})
+        # D34: inclusive min<=level<=max per resolved rank (ConditionPlayerLevelRange.java:41-43).
+        return {"kind": "player_level_range", "ranges": ranges}
+    if phase4 and is_cond_allowed(elem, phase4):
+        if elem.tag == "player" and set(elem.attrib) == {"insideZoneId"}:
+            return {"kind": "player_inside_zone_ids", "zone_ids": [int(part.strip()) for part in elem.attrib["insideZoneId"].split(",")]}
+        if elem.tag == "player" and set(elem.attrib) in ({"resting"}, {"standing"}, {"moving"}, {"running"}, {"canEscape"}, {"flyMounted"}):
+            key = next(iter(elem.attrib))
+            return {"kind": "player_" + key, "value": elem.attrib[key] == "true"}
+        if elem.tag == "using" and "slot" in elem.attrib:
+            return {"kind": "using_slot", "slot": elem.attrib["slot"]}
+        if elem.tag == "player" and set(elem.attrib) in ({"weight"}, {"invSize"}):
+            key = next(iter(elem.attrib))
+            return {"kind": "player_" + key, "value": int(elem.attrib[key])}
+    if elem.tag == "using" and is_cond_allowed(elem, phase4):
         kinds = [k.strip() for k in elem.attrib["kind"].split(",")]
         return {"kind": "using_kind", "weapon_kinds": kinds}
     elif elem.tag == "player" and is_cond_allowed(elem):
         return {"kind": "player_can_resurrect", "value": elem.attrib["canResurrect"] == "true"}
     elif elem.tag in ("and", "or", "not"):
-        node = {"kind": elem.tag, "conditions": [parse_cond_node(c) for c in elem]}
+        node = {"kind": elem.tag, "conditions": [parse_cond_node(c, phase4, tables, levels) for c in elem]}
         if elem.attrib:
             node["attrs"] = dict(elem.attrib)
         return node
@@ -277,6 +313,24 @@ EFFECT_PARAMS = {
     "DefenceTrait": dict.fromkeys(TRAITS, "number"),
     "AttackTrait": dict.fromkeys(TRAITS, "number"),
 }
+# V6 contract only. Historical generation uses the defaults above unchanged.
+PHASE4_STATS = {"sDef", "rShld", "shieldDefAngle", "blowRate", "weightLimit", "weightPenalty",
+                "atkCountMax", "pAtkAngle", "pAtkRange", "STR", "DEX", "CON", "INT", "MEN", "WIT",
+                "mCritRate", "physicalSkillPower", "mpConsume",
+                # D34: Z executes the three PvP multipliers at every implemented caller
+                # (4f9ac8c auto/PhysicalAttack/MagicalAttack, bfc00a7 FatalBlow).
+                "pvpPhysDmg", "pvpPhysSkillsDmg", "pvpMagicalDmg",
+                # D47: Z folds the abnormal-slot capacity at live admission (402e554).
+                "enlargeAbnormalSlot"}
+PHASE4_EFFECT_PARAMS = {
+    # D50: FatalBlow.java:43-46 reads double power, int blowChance/criticalChance;
+    # Z executes FatalBlow/Lethal/blowRate at runtime (bfc00a7).
+    "FatalBlow": {"power": "number", "blowChance": "int", "criticalChance": "int"},
+    "Lethal": {"fullLethal": "number", "halfLethal": "number"},
+    "Hp": {"amount": "number", "mode": {"DIFF", "PER"}},
+    "Escape": {"escapeType": {"TOWN"}},
+}
+
 DISPEL_SLOTS = {"BLEEDING", "POISON", "PARALYZE", "ROOT_PHYSICALLY", "TURN_STONE"}
 
 
@@ -299,10 +353,10 @@ def param_allowed(value: str, rule) -> bool:
     return False
 
 
-def load_all_datapack_skills(dp: Datapack) -> dict[int, tuple[str, ET.Element]]:
+def load_all_datapack_skills(dp: Datapack, phase4: bool = False) -> dict[int, tuple[str, ET.Element]]:
     skills = {}
     skills_dir = dp.root / DATA_STATS_SKILLS
-    for xml_path in sorted(skills_dir.glob("*.xml")):
+    for xml_path in sorted(skills_dir.rglob("*.xml") if phase4 else skills_dir.glob("*.xml")):
         tree = ET.parse(xml_path)
         for s in tree.getroot().iter("skill"):
             sid = int(s.attrib["id"])
@@ -314,7 +368,10 @@ def load_all_datapack_skills(dp: Datapack) -> dict[int, tuple[str, ET.Element]]:
 def compute_all_blockers(
     all_dp_skills: dict[int, tuple[str, ET.Element]],
     target_ids: set[int],
+    phase4: bool = False,
 ) -> tuple[set[int], dict[int, set[str]]]:
+    allowed_stats = ALLOWED_STATS | (PHASE4_STATS if phase4 else set())
+    allowed_effects = TIER_B_EFFECTS | (set(PHASE4_EFFECT_PARAMS) if phase4 else set())
     skill_tables: dict[int, dict[str, list[str]]] = {}
     for sid in all_dp_skills:
         skill_tables[sid] = parse_tables(all_dp_skills[sid][1])
@@ -355,12 +412,14 @@ def compute_all_blockers(
 
         tgt = sets.get("targetType", "unset")
         for t in set(tgt if isinstance(tgt, list) else [tgt]):
-            if t not in ALLOWED_TARGET_TYPES:
+            item_selector_noop = (phase4 and t == "NONE" and sets.get("isMagic") == "2"
+                and not any(child.tag.endswith("ffects") and child.findall("effect") for child in s))
+            if t not in ALLOWED_TARGET_TYPES and not item_selector_noop:
                 blockers.add(f"target:{t}")
 
         scope = sets.get("affectScope", "unset")
         for sc in set(scope if isinstance(scope, list) else [scope]):
-            if sc not in ALLOWED_AFFECT_SCOPES:
+            if sc not in ALLOWED_AFFECT_SCOPES | ({"FAN"} if phase4 else set()):
                 blockers.add(f"scope:{sc}")
 
         has_item_consume = False
@@ -369,11 +428,11 @@ def compute_all_blockers(
                 vals = sets[k] if isinstance(sets[k], list) else [sets[k]]
                 if any(v not in ("0", 0, None) for v in vals):
                     has_item_consume = True
-        if has_item_consume:
+        if has_item_consume and not phase4:
             blockers.add("item_consume")
 
         for cond in s.findall("cond"):
-            blockers.update(get_cond_blockers(cond))
+            blockers.update(get_cond_blockers(cond, phase4))
 
         affect_object = sets.get("affectObject")
         if affect_object is not None:
@@ -386,20 +445,20 @@ def compute_all_blockers(
                 if child.tag != "effects":
                     blockers.add(f"section:{child.tag}")
                 for cond in condition_nodes(child):
-                    blockers.update(get_cond_blockers(cond))
+                    blockers.update(get_cond_blockers(cond, phase4))
                 for eff in child.findall("effect"):
                     for cond in condition_nodes(eff):
-                        blockers.update(get_cond_blockers(cond))
+                        blockers.update(get_cond_blockers(cond, phase4))
                     name = eff.attrib.get("name", "")
                     if name in ("TargetMe", "TickHpFatal"):
                         blockers.add(f"effect:{name}")
-                    elif name not in TIER_B_EFFECTS:
+                    elif name not in allowed_effects:
                         blockers.add(f"effect:{name}")
 
                     levels = int(s.attrib.get("levels", 1))
-                    if name in TIER_B_EFFECTS:
+                    if name in allowed_effects:
                         params = effect_params(eff)
-                        rules = EFFECT_PARAMS.get(name, {})
+                        rules = (EFFECT_PARAMS | (PHASE4_EFFECT_PARAMS if phase4 else {})).get(name, {})
                         for key, val in params.items():
                             values = expand(val, tables, levels)
                             if key not in rules or not all(param_allowed(v, rules[key]) for v in values):
@@ -409,13 +468,13 @@ def compute_all_blockers(
                     for stat_elem in eff:
                         if stat_elem.tag in ALL_STAT_OPS:
                             for cond in condition_nodes(stat_elem):
-                                blockers.update(get_cond_blockers(cond))
+                                blockers.update(get_cond_blockers(cond, phase4))
                             for attr in set(stat_elem.attrib) - ALLOWED_STAT_ATTRIBUTES[stat_elem.tag]:
                                 blockers.add(f"stat_attr:{attr}")
                             if stat_elem.tag not in ALLOWED_STAT_OPS:
                                 blockers.add(f"op:{stat_elem.tag}")
                             stat_name = stat_elem.attrib.get("stat", "")
-                            if stat_name not in ALLOWED_STATS:
+                            if stat_name not in allowed_stats:
                                 blockers.add(f"stat:{stat_name}")
                             if not all(param_allowed(v, "number") for v in expand(stat_elem.get("val", ""), tables, levels)):
                                 blockers.add(f"stat_value:{stat_name}")
@@ -445,6 +504,7 @@ def generate_skill_toml(
     s: ET.Element,
     blockers: set[str],
     is_sample_only: bool = False,
+    phase4: bool = False,
 ) -> str:
     levels = int(s.attrib.get("levels", 1))
     tables = parse_tables(s)
@@ -470,7 +530,7 @@ def generate_skill_toml(
                         if value.startswith("#"):
                             condition_tables[value] = expand(value, tables, levels)
             result["raw_conditions"] = [re.sub(r">\s+<", "><", ET.tostring(c, encoding="unicode").strip()) for c in conds]
-            result["conditions"] = [parse_cond_node(ch) for ch in condition_nodes(elem)]
+            result["conditions"] = [parse_cond_node(ch, phase4, tables, levels) for ch in condition_nodes(elem)]
         return result
 
     boolean = lambda v: v.lower() == "true"  # StatsSet/Boolean.parseBoolean semantics
@@ -565,6 +625,8 @@ def generate_skill_toml(
     if is_sample_only:
         lines.append("# Out-of-scope sample only; do not ship in runtime registry.")
     emit_fields(lines, data)
+    if phase4:
+        lines.insert(1, "# V6-only capability contract; historical skills/ files are unchanged.")
     content = "\n".join(lines).rstrip() + "\n"
     # Syntax AND structure validated before writing, including --check.
     if tomllib.loads(content) != data:

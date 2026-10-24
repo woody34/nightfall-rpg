@@ -3,6 +3,7 @@
 //! passive installation and final immutable success fact, never a repository or reply.
 
 use super::*;
+use crate::domain::zone::item_inventory::{InventoryBoundary, InventoryLimits, InventoryMutation};
 use crate::domain::zone::skill::SkillRef;
 use crate::domain::zone::state_learn::{prepare_learn, LearnContext, LearnError};
 use crate::domain::zone::{FrozenLearnResult, LearnedEffectiveStats};
@@ -13,6 +14,8 @@ struct PreparedLearning {
     sidecar: Phase3Entity,
     next_sequence: u64,
     spent: u64,
+    /// V6 (E3.4/D47) skill-book costs as `(template, count)`; empty for V5 and free rows.
+    required_items: Vec<(u32, u32)>,
 }
 
 fn learn_reject(error: LearnError) -> RejectReason {
@@ -43,8 +46,33 @@ impl ZoneState {
         generation: SessionGeneration,
         skill: SkillRef,
     ) -> Result<(), RejectReason> {
-        self.prepare_live_learn(entity, account, generation, skill)
-            .map(|_| ())
+        let prepared = self.prepare_live_learn(entity, account, generation, skill)?;
+        self.learn_items_owned(entity, &prepared.required_items)
+    }
+
+    /// V6 read-only possession check: the book(s) must be in the owner's inventory now. The
+    /// payment takes them through the inventory mutation when the command executes.
+    fn learn_items_owned(&self, id: EntityId, required: &[(u32, u32)]) -> Result<(), RejectReason> {
+        if required.is_empty() {
+            return Ok(());
+        }
+        let inventory = &self
+            .phase4
+            .as_ref()
+            .and_then(|items| items.canonical.players.get(&id))
+            .ok_or(RejectReason::InvalidLoad)?
+            .inventory;
+        for (template, count) in required {
+            let owned = inventory
+                .values()
+                .filter(|item| item.template_id == *template)
+                .try_fold(0_u64, |sum, item| sum.checked_add(item.count))
+                .ok_or(RejectReason::InvalidLoad)?;
+            if owned < u64::from(*count) {
+                return Err(RejectReason::SkillItemRequired);
+            }
+        }
+        Ok(())
     }
 
     pub(in super::super) fn engaged_for_learning(&self, entity: EntityId) -> bool {
@@ -129,12 +157,13 @@ impl ZoneState {
                 classes: self.classes.as_deref().ok_or(RejectReason::InvalidLoad)?,
                 rules: &phase.canonical.rules,
                 level: c.sheet.level(),
-                alive: !e.targeting.dead && c.hp != 0,
+                alive: !e.targeting.dead,
                 engaged: self.engaged_for_learning(id),
                 position: e.pos,
             },
             skill,
             phase.canonical.next_install_sequence,
+            self.phase4.is_some(),
         )
         .map_err(learn_reject)?;
         // Derive and narrow every fallible resource/speed projection before publishing any
@@ -186,6 +215,7 @@ impl ZoneState {
             sidecar,
             next_sequence: mutation.next_modifier_sequence,
             spent: mutation.sp_spent,
+            required_items: mutation.required_items,
         })
     }
 
@@ -317,6 +347,40 @@ impl ZoneState {
                                 .binding(entity)
                                 .is_some_and(|b| t.incarnation == Some(b.incarnation))
                     }))
+        }) || staged.pending_item_uses().any(|entry| {
+            if self.binding(entry.caster.entity) != Some(entry.caster) {
+                return false;
+            }
+            if entry.caster.entity == entity {
+                return true;
+            }
+            let crate::domain::zone::ItemCommandKind::Use { instance, .. } = entry.command.kind
+            else {
+                return false;
+            };
+            let hostile = self
+                .phase4
+                .as_ref()
+                .and_then(|items| {
+                    items
+                        .canonical
+                        .players
+                        .get(&entry.caster.entity)
+                        .and_then(|player| player.inventory.get(&instance))
+                        .and_then(|item| items.rules.parts().items.get(&item.template_id))
+                })
+                .is_some_and(|item| {
+                    item.skills.iter().any(|skill| {
+                        self.hostile_skill_v5(crate::domain::zone::skill::SkillId(skill.id))
+                    })
+                });
+            hostile
+                && entry.timing.target.is_some_and(|target| {
+                    target.entity == entity
+                        && self
+                            .binding(entity)
+                            .is_some_and(|binding| target.incarnation == Some(binding.incarnation))
+                })
         })
     }
 
@@ -367,11 +431,13 @@ impl ZoneState {
         Ok(())
     }
 
+    #[allow(clippy::too_many_lines)] // One paid-learn transaction on a candidate.
     pub(super) fn learn_v5(
         &mut self,
         tick: Tick,
         command: &AppliedCommand,
         staged: &StagedActions,
+        initial_revision: Option<u64>,
         events: &mut Vec<ZoneEvent>,
     ) -> Result<(), RejectReason> {
         let ZoneCommand::LearnSkill {
@@ -409,6 +475,116 @@ impl ZoneState {
             rank: skill_level,
         };
         let prepared = self.prepare_live_learn(entity, account, generation, skill)?;
+        if prepared.required_items.is_empty() {
+            return self.commit_learn_v5(
+                tick,
+                entity,
+                account,
+                request_key,
+                skill,
+                prepared,
+                events,
+            );
+        }
+        // V6 skill-book learning (E3.4/D47) is one transaction on a candidate: pay the
+        // book(s) through the ledger, re-derive the learn on the paid inventory, learn the
+        // rank, then publish the owner's checkpoint. Any refusal leaves no partial effect.
+        self.learn_items_owned(entity, &prepared.required_items)?;
+        let mut candidate = self.clone();
+        let previous = events.iter().find_map(|event| {
+            if let ZoneEvent::ItemCheckpoint(projection) = event {
+                (projection.entity == entity).then(|| projection.as_ref().clone())
+            } else {
+                None
+            }
+        });
+        let mut projection = candidate.pay_learn_items_v6(
+            tick,
+            entity,
+            request_key,
+            skill,
+            &prepared.required_items,
+            previous,
+            initial_revision,
+        )?;
+        // T55: the paid inventory re-derives the item view (weight, overload, penalties)
+        // before the learn is re-derived on it, as every other item payment does; the
+        // snapshot restore re-derives the same view, so a stale one fails the restore.
+        let speed_before = self
+            .entities
+            .get(&entity)
+            .ok_or(RejectReason::UnknownEntity)?
+            .speed;
+        candidate
+            .rebuild_v5(entity)
+            .map_err(|_| RejectReason::InvalidLoad)?;
+        let prepared = candidate.prepare_live_learn(entity, account, generation, skill)?;
+        let mut local = Vec::new();
+        candidate.commit_learn_v5(
+            tick,
+            entity,
+            account,
+            request_key,
+            skill,
+            prepared,
+            &mut local,
+        )?;
+        let moved = candidate
+            .entities
+            .get(&entity)
+            .ok_or(RejectReason::UnknownEntity)?;
+        if moved.speed != speed_before
+            && !local
+                .iter()
+                .any(|e| matches!(e, ZoneEvent::EntityMove { entity: m, .. } if *m == entity))
+        {
+            local.push(ZoneEvent::EntityMove {
+                tick,
+                entity,
+                pos: moved.pos,
+                dest: moved.dest,
+                speed: moved.speed,
+            });
+        }
+        let phase = &candidate
+            .phase3
+            .as_ref()
+            .ok_or(RejectReason::InvalidLoad)?
+            .canonical;
+        projection.checkpoint = candidate
+            .phase4
+            .as_ref()
+            .ok_or(RejectReason::InvalidLoad)?
+            .canonical
+            .checkpoint(entity, tick, phase)
+            .map_err(|_| RejectReason::InvalidLoad)?;
+        projection
+            .validate_staged(
+                phase
+                    .checkpoint(entity, tick)
+                    .map_err(|_| RejectReason::InvalidLoad)?
+                    .modifier_install_order
+                    .len(),
+            )
+            .map_err(|_| RejectReason::InvalidLoad)?;
+        *self = candidate;
+        events.retain(|event| !matches!(event, ZoneEvent::ItemCheckpoint(p) if p.entity == entity));
+        events.extend(local);
+        events.push(ZoneEvent::ItemCheckpoint(Box::new(projection)));
+        Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)] // The command identity travels with the prepared learn.
+    fn commit_learn_v5(
+        &mut self,
+        tick: Tick,
+        entity: EntityId,
+        account: AccountId,
+        request_key: uuid::Uuid,
+        skill: SkillRef,
+        prepared: PreparedLearning,
+        events: &mut Vec<ZoneEvent>,
+    ) -> Result<(), RejectReason> {
         let old = self
             .entities
             .get(&entity)
@@ -453,6 +629,210 @@ impl ZoneState {
             result: Box::new(result),
         });
         Ok(())
+    }
+
+    /// E3.4/D47 skill-book payment: take each required template (lowest owned instance IDs
+    /// first) through one D69 Consume aggregate per instance, in the D66/D94 ledger shape.
+    /// The cause is the learn receipt, in the API settlement contract: family
+    /// `skill_learn_payment` with `receipt` (the `LearnSkill` request key), `skill_id`,
+    /// `skill_level` and `count_delta`. Opens the owner's staged projection; the caller
+    /// publishes it once the rank is learned. D92 `learned_item_cost` carries one fact on the
+    /// commit tick (evidence only; one fact when the row has one book).
+    #[allow(clippy::too_many_lines, clippy::too_many_arguments)] // One mutation, its evidence and ledger rows.
+    fn pay_learn_items_v6(
+        &mut self,
+        tick: Tick,
+        id: EntityId,
+        request_key: uuid::Uuid,
+        skill: SkillRef,
+        required: &[(u32, u32)],
+        previous: Option<crate::domain::zone::Phase4Projection>,
+        initial_revision: Option<u64>,
+    ) -> Result<crate::domain::zone::Phase4Projection, RejectReason> {
+        use crate::domain::zone::item_inventory::InventoryEdit;
+        use crate::domain::zone::phase4_projection::{
+            ItemAuditEvidence, ItemEvidenceValue as V, ItemOperation,
+        };
+        use crate::domain::zone::Phase4Projection;
+        let subject = self.binding(id).ok_or(RejectReason::InvalidLoad)?;
+        let items = self.phase4.as_ref().ok_or(RejectReason::InvalidLoad)?;
+        let player = items
+            .canonical
+            .players
+            .get(&id)
+            .ok_or(RejectReason::InvalidLoad)?;
+        // T37 (D79): one step per owner-tick, measured against the tick-start revision.
+        let changed = initial_revision.map_or_else(
+            || previous.as_ref().is_some_and(|p| !p.ledger.is_empty()),
+            |initial| initial != player.inventory_revision,
+        );
+        let revision = if changed {
+            player.inventory_revision
+        } else {
+            player
+                .inventory_revision
+                .checked_add(1)
+                .filter(|r| i64::try_from(*r).is_ok())
+                .ok_or(RejectReason::InvalidLoad)?
+        };
+        let edits = required
+            .iter()
+            .map(|(template, count)| InventoryEdit::TakeTemplate {
+                template: *template,
+                count: u64::from(*count),
+                preferred: None,
+            })
+            .collect::<Vec<_>>();
+        let payment = InventoryMutation::prepare(
+            &player.inventory,
+            items.canonical.allocator,
+            &edits,
+            &items.rules,
+            InventoryLimits::from_player(player),
+            InventoryBoundary {
+                tick,
+                revision,
+                origin: crate::domain::zone::ItemCreationOrigin {
+                    zone: self.seed.zone,
+                    epoch: self.seed.epoch,
+                },
+            },
+        )
+        .map_err(|_| RejectReason::SkillItemRequired)?;
+        if payment.changes.is_empty() {
+            return Err(RejectReason::InvalidLoad);
+        }
+        for change in &payment.changes {
+            self.guard_item_removal_v6(
+                id,
+                change.before.as_ref().ok_or(RejectReason::InvalidLoad)?,
+            )?;
+        }
+        let resolution = format!("learn:{request_key}");
+        // D118: prepare_learn refuses multi-template ranks, so every payment has its fact.
+        let [(template, count)] = required else {
+            return Err(RejectReason::SkillDeferred);
+        };
+        if self.items_evidence_enabled() {
+            let records = |inventory: &BTreeMap<
+                crate::domain::zone::ItemInstanceId,
+                crate::domain::zone::ItemInstance,
+            >| {
+                inventory
+                    .values()
+                    .filter(|item| item.template_id == *template && item.count > 0)
+                    .map(|item| {
+                        serde_json::json!({"instance_id": item.id.get(),
+                            "template_id": item.template_id, "count": item.count})
+                    })
+                    .collect::<Vec<_>>()
+            };
+            let mut consumed = serde_json::Map::new();
+            for change in &payment.changes {
+                if let Some(before) = &change.before {
+                    let take = before
+                        .count
+                        .saturating_sub(change.after.as_ref().map_or(0, |i| i.count));
+                    consumed.insert(before.id.get().to_string(), serde_json::json!(take));
+                }
+            }
+            let inputs = serde_json::json!({"skill_id": skill.id.0, "rank": skill.rank,
+                "consume_id": template, "consume_count": count,
+                "inventory": records(&player.inventory), "phase": "complete", "repeat": false});
+            let actual = serde_json::json!({"accepted": true,
+                "inventory": records(&payment.inventory), "consumed": consumed,
+                "completion_consumed": {}, "repeated_consumed": {}, "phase": "complete",
+                "draws": []});
+            self.item_formula_v6(id, "learned_item_cost", inputs, actual, &resolution, None);
+        }
+        let account = match &self
+            .entities
+            .get(&id)
+            .and_then(|e| e.combat.as_ref())
+            .ok_or(RejectReason::InvalidLoad)?
+            .role
+        {
+            CombatRole::Player {
+                progression: Some(p),
+                ..
+            } => p.identity.account_id,
+            CombatRole::Player {
+                progression: None, ..
+            }
+            | CombatRole::Npc { .. } => return Err(RejectReason::NotAPlayer),
+        };
+        let items = self.phase4.as_mut().ok_or(RejectReason::InvalidLoad)?;
+        let player = items
+            .canonical
+            .players
+            .get_mut(&id)
+            .ok_or(RejectReason::InvalidLoad)?;
+        player.inventory = payment.inventory;
+        player.inventory_revision = revision;
+        items.canonical.allocator = payment.allocator;
+        for change in &payment.changes {
+            self.item_evidence_delta(subject, change, ItemOperation::Consume, 0, None, &resolution);
+        }
+        // The checkpoint is replaced after the rank is learned; this one only seeds a new
+        // projection with the paid inventory.
+        let checkpoint = self
+            .phase4
+            .as_ref()
+            .ok_or(RejectReason::InvalidLoad)?
+            .canonical
+            .checkpoint(
+                id,
+                tick,
+                &self
+                    .phase3
+                    .as_ref()
+                    .ok_or(RejectReason::InvalidLoad)?
+                    .canonical,
+            )
+            .map_err(|_| RejectReason::InvalidLoad)?;
+        let mut projection = previous.unwrap_or_else(|| Phase4Projection {
+            enchant_attempts: Vec::new(),
+            exchanges: Vec::new(),
+            refines: Vec::new(),
+            paused_core: None,
+            tick,
+            entity: id,
+            account,
+            checkpoint: checkpoint.clone(),
+            ledger: Vec::new(),
+            receipts: Vec::new(),
+            materializations: Vec::new(),
+            evidence: Vec::new(),
+        });
+        projection.checkpoint = checkpoint;
+        for change in payment.changes {
+            let before = change.before.as_ref().ok_or(RejectReason::InvalidLoad)?;
+            let count_delta = i64::try_from(
+                before
+                    .count
+                    .checked_sub(change.after.as_ref().map_or(0, |i| i.count))
+                    .ok_or(RejectReason::InvalidLoad)?,
+            )
+            .ok()
+            .and_then(i64::checked_neg)
+            .ok_or(RejectReason::InvalidLoad)?;
+            let cause = ItemAuditEvidence {
+                family: "skill_learn_payment".into(),
+                fields: BTreeMap::from([
+                    ("receipt".into(), V::Text(request_key.to_string())),
+                    ("skill_id".into(), V::Unsigned(u64::from(skill.id.0))),
+                    ("skill_level".into(), V::Unsigned(u64::from(skill.rank))),
+                    ("count_delta".into(), V::Signed(count_delta)),
+                ]),
+            };
+            super::item_commands::append_item_consumption(
+                &mut projection,
+                change,
+                count_delta,
+                cause,
+            )?;
+        }
+        Ok(projection)
     }
 
     fn learn_result_v5(

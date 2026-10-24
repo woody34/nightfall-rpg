@@ -96,7 +96,7 @@ pub async fn verify_epoch(
     epoch: RecordedEpoch,
     opts: VerifyOptions,
 ) -> Result<ReplayReport, VerifyError> {
-    let state = ZoneState::from_snapshot(epoch.snapshot.snapshot)?;
+    let state = crate::application::replay_log::restore_snapshot(epoch.snapshot.snapshot)?;
     verify_with(state, epoch.records, opts).await
 }
 

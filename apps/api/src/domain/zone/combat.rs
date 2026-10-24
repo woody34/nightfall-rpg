@@ -104,7 +104,7 @@ pub struct CombatState {
     pub role: CombatRole,
     /// Derived stats; maxima come from here.
     pub sheet: StatSheet,
-    /// Current whole HP; 0 when dead.
+    /// Current whole HP; V6 may be alive at zero with a positive resource remainder.
     pub hp: u32,
     /// Current whole MP.
     pub mp: u32,
@@ -184,6 +184,9 @@ pub struct CombatView {
 /// repository (plan D5). HP/MP `None` means full (a character never saved in combat).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PlayerLoad {
+    /// Explicit V6 inventory and pending manifests, never inferred from a legacy load.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub phase4: Option<super::Phase4PlayerLoad>,
     /// Explicit paused Phase3 payload. Absence never promotes a legacy repository row.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub phase3: Option<super::Phase3Checkpoint>,
@@ -217,6 +220,7 @@ impl PlayerLoad {
     #[must_use]
     pub fn fresh(class: impl Into<String>) -> Self {
         Self {
+            phase4: None,
             phase3: None,
             progression: None,
             checkpoint_revision: None,
@@ -227,6 +231,21 @@ impl PlayerLoad {
             mp: None,
             alive: true,
         }
+    }
+
+    /// Item admission references the same retained skill provider order in this envelope.
+    pub fn validate_phase4(&self) -> Result<(), super::ItemError> {
+        if let Some(items) = &self.phase4 {
+            let sources = match (&self.phase3, &items.checkpoint) {
+                (Some(skills), _) => skills.modifier_install_order.len(),
+                // A pending first materialization has no retained provider order yet: the
+                // spawn installs the learned providers as a V5 fresh admission does (B1).
+                (None, None) => 0,
+                (None, Some(_)) => return Err(super::ItemError("item load requires skills")),
+            };
+            items.validate_structure(sources)?;
+        }
+        Ok(())
     }
 }
 

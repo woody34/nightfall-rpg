@@ -4,9 +4,7 @@ use std::path::Path;
 
 use anyhow::{bail, Context as _};
 use nightfall_api::application::replay_log::AppliedTickRecord;
-use nightfall_api::domain::zone::{
-    AppliedTick, AppliedTickDraft, ObserverOutput, ZoneEvent, ZoneState,
-};
+use nightfall_api::domain::zone::{AppliedTick, AppliedTickDraft, ObserverOutput, ZoneEvent};
 use nightfall_api::infrastructure::eventlog::Recording;
 use serde_json::json;
 use sha2::{Digest, Sha256};
@@ -23,7 +21,13 @@ fn observer_combat(
     applied: &AppliedTick,
     count: &mut u64,
 ) -> anyhow::Result<()> {
-    if applied.digest_version != nightfall_api::domain::zone::StateDigestVersion::BinaryV5 {
+    // T17/D114: Phase 3 observer evidence exists from V5 on; V6 units carry it too (its
+    // additive observer fields are part of the event, never a separate fact).
+    if !matches!(
+        applied.digest_version,
+        nightfall_api::domain::zone::StateDigestVersion::BinaryV5
+            | nightfall_api::domain::zone::StateDigestVersion::BinaryV6
+    ) {
         return Ok(());
     }
     for (observer, outputs) in &applied.outputs {
@@ -78,7 +82,7 @@ pub(super) fn collect(rec: &Recording, recording_bytes: &[u8]) -> anyhow::Result
     {
         bail!("evidence requires a consistent completion watermark");
     }
-    let mut state = ZoneState::from_snapshot(rec.snapshot.clone())?;
+    let mut state = nightfall_api::application::replay_log::restore_snapshot(rec.snapshot.clone())?;
     state.enable_replay_evidence();
     let mut out = Vec::new();
     line(

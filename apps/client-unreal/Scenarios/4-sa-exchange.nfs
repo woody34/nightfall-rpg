@@ -1,0 +1,29 @@
+# covers: 4 E1.5, 4 E1.6, 4 E2.5, 4 E2.6, 4 E2.9, 4 E5.2, 4 E5.5, 4 E6.5
+# fixture: phase4-blacksmith
+# Execution evidence is the live gate run (run-sim-ci.py + phase4-evidence.py), not syntax/traceability.
+# Exact inventory/paperdoll/enchant/count source operands: phase4-packs.json.
+# Waits: delivery 10ticks*100ms*3=3s (A1); RPC/login policy5s*3=15s.
+# Combat fixture allowance30s; death90s; offer180s (inherited phase3 fixtures).
+# Source scroll Escape20s*3=60s (pinned DP skills02000-02099; design§8).
+# Skill1177 hitTime4000ms*3=12s (pinned DP skills01100-01199.xml:1645).
+# Counts/enchant are fixture inputs; numeric formulas are checked by actual-input export oracle.
+# item-gate: sa_exchange
+nf.Login
+nf.WaitFor connected 15
+nf.EnterWorld
+nf.WaitFor in_world 15
+nf.WaitFor item_baseline 3
+nf.WaitFor blacksmith_known 3
+nf.ExchangeSA 72 4316442132481 01970000-0000-7000-8000-000000000042
+nf.WaitFor item_operation == exchange_sa 3
+nf.WaitFor inventory_has 4682 == 1 3
+nf.Expect inventory_has 72 == 0
+nf.Expect inventory_has 4645 == 0
+nf.ExchangeSA 72 4316442132481 01970000-0000-7000-8000-000000000042
+nf.WaitFor item_receipt_matches_first 3
+nf.Expect inventory_has 4682 == 1
+nf.Equip 4682
+nf.WaitFor equipped rhand == 4682 3
+nf.Expect enchant_level rhand == 3
+# Total budget: sum of declared conservative waits +30s exit grace.
+nf.Within 78

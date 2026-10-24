@@ -8,7 +8,7 @@ use crate::application::ports::{CheckpointError, RepositoryError};
 use crate::application::{CreateOutcome, ProgressionState};
 use crate::domain::zone::{
     DeathFact, PlayerLoad, SessionGeneration, Speed, Vec2Fixed, ZoneBounds, ZoneEvent, ZoneInput,
-    ZoneSeed,
+    ZoneSeed, ZoneState,
 };
 use crate::domain::{AccountId, Character, CharacterName, Race};
 use crate::infrastructure::memory::{
@@ -61,6 +61,7 @@ impl Harness {
                 speed: Speed::DEFAULT,
                 generation: SessionGeneration(1),
                 load: Some(Box::new(PlayerLoad {
+                    phase4: None,
                     phase3: None,
                     checkpoint_revision: Some(0),
                     ..PlayerLoad::fresh("human_fighter")
@@ -308,6 +309,15 @@ fn multiple_levels_and_death_keep_stable_ids_order_and_penalty() {
         .map(|e| match e {
             DomainEvent::CharacterLeveled { metadata, .. }
             | DomainEvent::CharacterDied { metadata, .. } => metadata,
+            DomainEvent::ItemGranted { fact }
+            | DomainEvent::ItemEquipped { fact }
+            | DomainEvent::ItemUnequipped { fact }
+            | DomainEvent::ItemConsumed { fact }
+            | DomainEvent::ItemEnchanted { fact }
+            | DomainEvent::ItemDestroyed { fact }
+            | DomainEvent::ItemRefined { fact }
+            | DomainEvent::ItemRefineCancelled { fact }
+            | DomainEvent::ItemExchanged { fact } => &fact.metadata,
             DomainEvent::CharacterCreated { .. }
             | DomainEvent::CharacterClassChanged { .. }
             | DomainEvent::CharacterTokenGranted { .. }
@@ -605,7 +615,8 @@ async fn missing_tail_is_refused_even_when_a_fresh_baseline_survives() {
     let snapshot = h.state.snapshot();
     h.service = h.service.with_durability(log.clone(), store.clone());
     h.service.refresh(&snapshot).await.unwrap();
-    // The index remembers a final attempt, but its applied message is no longer retained.
+    // D134: the index is written only after the log acknowledged the tick, so an indexed tick
+    // missing from the log is log loss and fails closed.
     store
         .recording(snapshot.seed.zone, snapshot.seed.epoch, snapshot.tick)
         .await

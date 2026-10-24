@@ -116,6 +116,7 @@ fn every_combat_fact_counts_once_and_outputs_are_not_counted() {
             level: 2,
         },
         ZoneEvent::StatsChanged {
+            phase4: None,
             entity: player,
             tick: Tick(1),
             hp: 10,

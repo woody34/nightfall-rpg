@@ -3,6 +3,8 @@
 #include "World/ClassMasterActor.h"
 #include "UI/NightfallClassDialog.h"
 #include "UI/NightfallSkillDialog.h"
+#include "UI/NightfallInventoryDialog.h"
+#include "Items/InventoryStateSubsystem.h"
 #include "Skills/SkillStateSubsystem.h"
 #include "Components/InputComponent.h"
 #include "InputCoreTypes.h"
@@ -69,18 +71,23 @@ void ANightfallPlayerController::SetupInputComponent()
 
 void ANightfallPlayerController::BindSkillKeys()
 {
+ if(!InputComponent)return;
  const FKey Keys[]={EKeys::One,EKeys::Two,EKeys::Three,EKeys::Four,EKeys::Five,EKeys::Six,EKeys::Seven,EKeys::Eight,EKeys::Nine};
  if(InputComponent)for(int32 Index=0;Index<9;++Index)
  {
   FInputKeyBinding Binding(FInputChord(Keys[Index]),IE_Pressed);
   Binding.KeyDelegate.GetDelegateForManualSet().BindWeakLambda(this,[this,Index]()
   {
-   if((ClassDialog && ClassDialog->IsInViewport()) || (SkillDialog && SkillDialog->IsInViewport()))return;
+   if((ClassDialog && ClassDialog->IsInViewport()) || (SkillDialog && SkillDialog->IsInViewport()) || (InventoryDialog && InventoryDialog->IsInViewport()))return;
    auto* Combat=GetGameInstance()->GetSubsystem<UCombatStateSubsystem>();if(Combat && Combat->IsOwnDead())return;
    if(auto* Skills=GetGameInstance()->GetSubsystem<USkillStateSubsystem>())Skills->CastSlot(Index);
   });
   InputComponent->KeyBindings.Add(Binding);
  }
+ const FKey ItemKeys[]={EKeys::F1,EKeys::F2,EKeys::F3,EKeys::F4,EKeys::F5,EKeys::F6,EKeys::F7,EKeys::F8,EKeys::F9};
+ for(int32 Index=0;Index<9;++Index){auto& B=InputComponent->BindKey(ItemKeys[Index],IE_Pressed,this,&ANightfallPlayerController::OpenInventoryDialog);B.KeyDelegate.GetDelegateForManualSet().BindWeakLambda(this,[this,Index]{if((ClassDialog && ClassDialog->IsInViewport()) || (SkillDialog && SkillDialog->IsInViewport()) || (InventoryDialog && InventoryDialog->IsInViewport()))return;if(GetGameInstance())if(auto* Items=GetGameInstance()->GetSubsystem<UInventoryStateSubsystem>())Items->ActivateHotbar(Index);});}
+ InputComponent->BindKey(EKeys::I,IE_Pressed,this,&ANightfallPlayerController::OpenInventoryDialog);
+
 }
 
 bool ANightfallPlayerController::ClickEntityProxy(const FString& EntityId)
@@ -227,4 +234,10 @@ void ANightfallPlayerController::OpenSkillDialog()
  if((SkillDialog && SkillDialog->IsInViewport()) || (ClassDialog && ClassDialog->IsInViewport()))return;
  SkillDialog=CreateWidget<UNightfallSkillDialog>(this,UNightfallSkillDialog::StaticClass());
  if(SkillDialog){SkillDialog->AddToViewport(20);SkillDialog->ActivateWidget();}
+}
+
+void ANightfallPlayerController::OpenInventoryDialog()
+{
+ if(!InventoryDialog)InventoryDialog=CreateWidget<UNightfallInventoryDialog>(this);
+ if(InventoryDialog){if(!InventoryDialog->IsInViewport())InventoryDialog->AddToViewport(50);InventoryDialog->BindState(GetGameInstance()->GetSubsystem<UInventoryStateSubsystem>());InventoryDialog->ActivateWidget();}
 }

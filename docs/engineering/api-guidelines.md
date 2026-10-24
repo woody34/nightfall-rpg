@@ -193,6 +193,7 @@ port, thus the §4 adapter tests do not apply.
 | 4400 | `seq` did not increase | repair the client; reconnect |
 | 4408 | Idle timeout | reconnect when the player does an action |
 | 4409 | Stale generation, or a newer session of the same player entity replaced it | stop; do not reconnect automatically |
+| 4423 | The checkpoint lane of the character is quarantined (reason `character_lane_quarantined`). An operator must clear it. | stop; do not reconnect automatically |
 | 4429 | The client does not read fast enough (outbound queue full, or a full broadcast buffer behind) | reconnect with a new ticket; the server sends the AOI again |
 
 The writer gives 1 s to send a close frame before it drops the socket. A transport failure
@@ -253,6 +254,9 @@ Examples that are in the repo now: `grpc_create_character.rs` (10 cases, with a 
 - Use `snake_case` fields. Use `SCREAMING_CASE` enum values with the enum name as prefix. Value 0 is
   `_UNSPECIFIED`, and the server rejects it for required enums.
 - Never use a field number again or change its number. Reserve removed numbers.
-- On the wire, ids are strings that hold UUIDs. On the server, they are typed.
+- On the wire, existing ids are strings that hold UUIDs. On the server, they are typed.
+- Phase 4 item messages use exactly 16 canonical UUID bytes for character/entity ids.
+- Item instance ids are positive `uint64` values that are safe as a signed bigint. They come from
+  durable zone allocator ranges, and they are not UUID identities. Refer to phase-4-zone-design.md §1.1/§11.
 - Document each RPC with its idempotency behaviour and the error codes that it returns.
 - `buf breaking` runs in CI against `main` (Phase 9 §3).

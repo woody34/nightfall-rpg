@@ -8,7 +8,6 @@ use nightfall_api::application::replay_log::{
 };
 use nightfall_api::domain::zone::{
     AppliedTickDraft, AttackOutcome, EntityId, ObserverOutput, Vec2Fixed, ZoneCommand, ZoneEvent,
-    ZoneState,
 };
 use nightfall_api::infrastructure::eventlog::Recording;
 use serde::Serialize;
@@ -64,6 +63,9 @@ fn glyph(e: &ZoneEvent) -> Option<(&'static str, &'static str)> {
         | ZoneEvent::LevelUp { .. }
         | ZoneEvent::EntitySpawn { .. }
         | ZoneEvent::EntityMove { .. }
+        | ZoneEvent::ItemView(_)
+        | ZoneEvent::ItemResult(_)
+        | ZoneEvent::ItemCheckpoint(_)
         | ZoneEvent::Progression(_)
         | ZoneEvent::EntityDespawn { .. } => None,
     }
@@ -147,6 +149,9 @@ impl Projection {
             | ZoneEvent::XpGained { .. }
             | ZoneEvent::LevelUp { .. }
             | ZoneEvent::TargetChanged { .. }
+            | ZoneEvent::ItemView(_)
+            | ZoneEvent::ItemResult(_)
+            | ZoneEvent::ItemCheckpoint(_)
             | ZoneEvent::Progression(_) => {},
         }
     }
@@ -236,6 +241,30 @@ fn event_detail(event: &ZoneEvent, owner: Option<EntityId>) -> String {
             "Progression checkpoint: {} · tick {} (private state hidden)",
             delta.entity, delta.tick.0
         ),
+        ZoneEvent::ItemView(view) => {
+            if !view.owner_only() || owner == Some(view.entity) {
+                format!("{event:#?}")
+            } else {
+                format!(
+                    "Inventory update: {} · tick {} (owner-private fields hidden)",
+                    view.entity, view.tick.0
+                )
+            }
+        },
+        ZoneEvent::ItemResult(result) => {
+            if owner == Some(result.entity) {
+                format!("{event:#?}")
+            } else {
+                format!(
+                    "Item result: {} · tick {} (owner-private fields hidden)",
+                    result.entity, result.tick.0
+                )
+            }
+        },
+        ZoneEvent::ItemCheckpoint(projection) => format!(
+            "Item checkpoint: {} · tick {} (private state hidden)",
+            projection.entity, projection.tick.0
+        ),
         ZoneEvent::EffectApplied { .. }
         | ZoneEvent::EffectRemoved { .. }
         | ZoneEvent::SkillCastStarted { .. }
@@ -275,6 +304,9 @@ fn command_details(record: &AppliedTickRecord) -> String {
                 }
                 format!("{command:#?} (private admission load hidden)")
             },
+            ZoneCommand::MaterializePendingItems(_) => "Item grant (private owner hidden)".into(),
+            ZoneCommand::ExtendItemRange { .. } => "Item allocator reservation (private range hidden)".into(),
+            ZoneCommand::Item(command) => format!("Item intent for {} (private request hidden)", command.entity),
             ZoneCommand::LearnSkill { entity, skill_id, skill_level, .. } => format!(
                 "LearnSkill actor command: {entity} → skill {} rank {skill_level} (private receipt identity hidden)", skill_id.0
             ),
@@ -397,7 +429,7 @@ pub(super) fn render(
         .iter()
         .any(|r| r.output_form == OutputForm::Sha256)
     {
-        Some(ZoneState::from_snapshot(rec.snapshot.clone())?)
+        Some(nightfall_api::application::replay_log::restore_snapshot(rec.snapshot.clone())?)
     } else {
         None
     };
@@ -542,6 +574,7 @@ mod tests {
             generation: SessionGeneration(u64::MAX),
         };
         let stats = ZoneEvent::StatsChanged {
+            phase4: None,
             entity: owner,
             tick,
             hp: 1,

@@ -201,7 +201,38 @@ def main():
         raise RuntimeError("could not save L_Login")
     log("L_Login")
 
+    create_item_placeholders()
     log("done")
+
+
+def create_item_placeholders():
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from item_placeholder_atlas import write_atlas
+    image = write_atlas(Path(unreal.Paths.project_saved_dir()) / "ItemPlaceholderAtlas.png")
+    task = unreal.AssetImportTask()
+    task.set_editor_property("filename", str(image))
+    task.set_editor_property("destination_path", "/Game/Items")
+    task.set_editor_property("destination_name", "T_ItemPlaceholderAtlas")
+    task.set_editor_property("automated", True)
+    task.set_editor_property("replace_existing", True)
+    task.set_editor_property("save", True)
+    tools.import_asset_tasks([task])
+    texture = assets.load_asset("/Game/Items/T_ItemPlaceholderAtlas")
+    if texture is None:
+        raise RuntimeError("item placeholder atlas import failed")
+    material = assets.load_asset("/Game/Items/M_ItemGlow")
+    if material is None:
+        material = create("M_ItemGlow", "/Game/Items", unreal.Material, unreal.MaterialFactoryNew())
+        tint = unreal.MaterialEditingLibrary.create_material_expression(material, unreal.MaterialExpressionVectorParameter)
+        tint.set_editor_property("parameter_name", "Tint")
+        tint.set_editor_property("default_value", unreal.LinearColor(0.6, 0.6, 0.6, 1.0))
+        unreal.MaterialEditingLibrary.connect_material_property(tint, "", unreal.MaterialProperty.MP_BASE_COLOR)
+        unreal.MaterialEditingLibrary.connect_material_property(tint, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+        unreal.MaterialEditingLibrary.recompile_material(material)
+        assets.save_loaded_asset(material)
+    log("item atlas and glow placeholder material")
 
 
 try:

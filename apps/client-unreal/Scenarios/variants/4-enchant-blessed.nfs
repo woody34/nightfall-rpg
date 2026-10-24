@@ -1,0 +1,31 @@
+# covers: 4 E1.3, 4 E1.6, 4 E2.4, 4 E2.6, 4 E2.9, 4 E5.2, 4 E5.5, 4 E6.5
+# fixture: phase4-enchant
+# variant: 4-enchant-blessed
+# Execution evidence is the live gate run (run-sim-ci.py + phase4-evidence.py), not syntax/traceability.
+# Exact inventory/paperdoll/enchant/count source operands: phase4-packs.json.
+# Waits: delivery 10ticks*100ms*3=3s (A1); RPC/login policy5s*3=15s.
+# Combat fixture allowance30s; death90s; offer180s (inherited phase3 fixtures).
+# Source scroll Escape20s*3=60s (pinned DP skills02000-02099; design§8).
+# Skill1177 hitTime4000ms*3=12s (pinned DP skills01100-01199.xml:1645).
+# Counts/enchant are fixture inputs; numeric formulas are checked by actual-input export oracle.
+# item-gate: enchant_chance
+# item-gate: enchant_outcome
+# item-gate: failure_refund
+nf.Login
+nf.WaitFor connected 15
+nf.EnterWorld
+nf.WaitFor in_world 15
+nf.WaitFor item_baseline 3
+# T52: deterministic failure. The enchant pack spawns no walking NPC, so the zone ChaCha12 stream
+# (zone1 epoch1) is at word40 = 47096/100000 at the first enchant; the C mage sword84 at +3
+# (MAGE_WEAPON_GROUP 40%) fails: destroyed (normal scroll), safe_failed (safe), blessed_reset (blessed).
+nf.Enchant 6573 instance:12 01970000-0000-7000-8000-000000000042
+nf.WaitFor enchant_outcome == blessed_reset 3
+nf.WaitFor enchant_result_consistent 3
+nf.Expect inventory_has 6573 == 1
+nf.Expect inventory_has 84 == 1
+nf.Enchant 6573 instance:12 01970000-0000-7000-8000-000000000042
+nf.WaitFor item_receipt_matches_first 3
+nf.Expect inventory_has 6573 == 1
+# Total budget: sum of declared conservative waits +30s exit grace.
+nf.Within 72

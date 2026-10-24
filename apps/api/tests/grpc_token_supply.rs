@@ -24,6 +24,7 @@ async fn save_vitals(h: &Harness, c: &Character, revision: u64) {
     h.repo
         .checkpoint(
             &CharacterCheckpoint {
+                phase4: None,
                 phase3: None,
                 character_id: c.id,
                 revision_seen: revision,

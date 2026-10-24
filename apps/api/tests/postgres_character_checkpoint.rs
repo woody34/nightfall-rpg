@@ -40,6 +40,7 @@ async fn seeded(pool: &PgPool) -> (PgCharacterRepository, Character) {
 
 fn checkpoint(c: &Character, revision_seen: u64, k: &str) -> CharacterCheckpoint {
     CharacterCheckpoint {
+        phase4: None,
         phase3: None,
         class_state: None,
         character_id: c.id,
@@ -254,6 +255,7 @@ async fn same_key_replays_and_different_body_is_rejected() {
     assert!(matches!(err, CheckpointError::KeyReused), "{err:?}");
 
     let missing = CharacterCheckpoint {
+        phase4: None,
         phase3: None,
         character_id: Uuid::from_u128(9).into(),
         ..cp
@@ -368,6 +370,14 @@ async fn storage_subphase_timings_distinguish_pool_wait_queries_and_commit_witho
         .without_time()
         .with_writer(move || writer.clone())
         .finish();
+    // With exactly one registered dispatcher, tracing-core computes the interest of a newly
+    // registered callsite from the registering thread's default only. A sibling test that
+    // first hits a storage-timing callsite on its own thread (default: no subscriber) would
+    // then cache "never" for every thread, and this scoped capture would miss it. A second
+    // registered (no-op) dispatcher, created first and alive for the whole capture, makes
+    // every registration and rebuild consult all registered dispatchers instead.
+    let _registered_peer = tracing::Dispatch::new(tracing::subscriber::NoSubscriber::default());
+    let subscriber = tracing::Dispatch::new(subscriber);
     async {
         let held = single.acquire().await.unwrap();
         let release = async {

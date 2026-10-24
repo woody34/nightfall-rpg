@@ -169,7 +169,7 @@ pub fn restore_regen(
     amounts: RegenAmounts,
 ) -> Result<RegenRestoration, StatError> {
     fractions.validate().map_err(|_| StatError::Overflow)?;
-    if hp.current == 0
+    if (hp.current == 0 && fractions.hp == 0)
         || cp.is_some() != amounts.cp_q.is_some()
         || (cp.is_none() && fractions.cp != 0)
     {
@@ -356,10 +356,36 @@ mod tests {
             },
             over,
             Some(over),
-            fractions,
+            ResourceFractions { hp: 0, ..fractions },
             amounts
         )
         .is_err());
+    }
+
+    #[test]
+    fn fractional_zero_whole_hp_is_alive_and_regen_carries_the_remainder() {
+        let restored = restore_regen(
+            RegenResource {
+                current: 0,
+                maximum: 10,
+            },
+            RegenResource {
+                current: 0,
+                maximum: 10,
+            },
+            None,
+            ResourceFractions {
+                hp: Q / 2,
+                ..Default::default()
+            },
+            RegenAmounts {
+                hp_q: 3 * Q / 4,
+                mp_q: 0,
+                cp_q: None,
+            },
+        )
+        .unwrap();
+        assert_eq!((restored.hp, restored.fractions.hp, restored.hp_granted), (1, Q / 4, 1));
     }
 
     #[test]

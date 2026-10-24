@@ -34,6 +34,9 @@
 //!   the zone refuses it if a newer session owns the entity, so a stale socket can never remove
 //!   its replacement.
 
+#[path = "session_item_grants.rs"]
+mod item_grants;
+
 use std::collections::BTreeMap;
 use std::future::Future;
 use std::sync::Arc;
@@ -77,6 +80,9 @@ const WRITE_BATCH: usize = 64;
 /// Intents a session keeps trace context for while waiting for their response. Responses
 /// arrive within a tick or two, so this only bounds a misbehaving zone.
 const TRACES_IN_FLIGHT: usize = 64;
+
+// Bound lifecycle exclusion even when an actor is waiting for its log acknowledgement.
+const INVENTORY_WAIT: Duration = Duration::from_secs(2);
 
 /// Per-session resource limits. [`SessionLimits::default`] is the contract in world.proto;
 /// tests shorten the timeouts.
@@ -134,6 +140,9 @@ pub enum SessionEnd {
     SlowConsumer,
     /// The zone refused the admission (for example the saved position is outside it): 1011.
     AdmissionRefused,
+    /// The character's checkpoint lane is quarantined (T11) until an operator clears it: 4423.
+    /// Permanent; the client must not reconnect automatically.
+    LaneQuarantined,
     /// The zone actor stopped: 1011.
     ZoneUnavailable,
 }
@@ -150,6 +159,7 @@ impl SessionEnd {
             Self::Replaced => Some(4409),
             Self::SlowConsumer => Some(4429),
             Self::AdmissionRefused | Self::ZoneUnavailable => Some(1011),
+            Self::LaneQuarantined => Some(4423),
         }
     }
 
@@ -165,6 +175,7 @@ impl SessionEnd {
             Self::SlowConsumer => "client too slow",
             Self::AdmissionRefused => "admission refused",
             Self::ZoneUnavailable => "zone unavailable",
+            Self::LaneQuarantined => super::ports::LANE_QUARANTINED,
         }
     }
 
@@ -178,6 +189,7 @@ impl SessionEnd {
             Self::SlowConsumer => "slow_consumer",
             Self::AdmissionRefused => "admission_refused",
             Self::ZoneUnavailable => "zone_unavailable",
+            Self::LaneQuarantined => "lane_quarantined",
         }
     }
 }
@@ -309,6 +321,39 @@ pub struct PlayerSpawn {
     pub load: Option<Box<PlayerLoad>>,
 }
 
+/// The skill sidecar a load carries into its epoch. A retained V6 item checkpoint always
+/// travels with its retained skill checkpoint. A pending first materialization (no retained
+/// item checkpoint) without a retained skill checkpoint carries none: the zone installs the
+/// learned providers exactly as a V5 fresh admission does.
+pub(crate) fn v6_skill_origin(
+    loaded: &crate::application::ProgressionState,
+) -> Result<Option<crate::domain::zone::Phase3Checkpoint>, &'static str> {
+    match (&loaded.phase3, &loaded.phase4) {
+        (Some(checkpoint), _) => Ok(Some(checkpoint.clone())),
+        (None, None) => Ok(None),
+        (None, Some(items)) if items.checkpoint.is_none() => Ok(None),
+        (None, Some(_)) => Err("retained item checkpoint without its skill checkpoint"),
+    }
+}
+
+/// The paused-owner skill origin of an offline grant: the retained skill checkpoint, or the
+/// canonical empty origin for a pending owner with no learned providers.
+pub(crate) fn paused_skill_origin(
+    loaded: &crate::application::ProgressionState,
+) -> Option<crate::domain::zone::Phase3Checkpoint> {
+    match (&loaded.phase3, &loaded.phase4) {
+        (Some(checkpoint), _) => Some(checkpoint.clone()),
+        (None, Some(items))
+            if loaded.class_state.learned_skills.is_empty()
+                && items.checkpoint.is_none()
+                && !items.pending.is_empty() =>
+        {
+            Some(crate::domain::zone::Phase3Checkpoint::new())
+        },
+        (None, _) => None,
+    }
+}
+
 /// The zone generation for an account's session generation. Generations start at 1 and only
 /// grow, so the conversion is exact.
 #[must_use]
@@ -317,7 +362,7 @@ pub fn zone_generation(g: crate::domain::SessionGeneration) -> SessionGeneration
 }
 
 /// Why the registry refused an admission.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum AdmitError {
     /// A session with the same or a newer generation already owns the character.
     #[error("a newer session owns this character")]
@@ -325,6 +370,12 @@ pub enum AdmitError {
     /// Committed character state could not be loaded.
     #[error("character admission load failed")]
     LoadFailed,
+    /// D124: the stored character state violates the class ledger rules (named code).
+    #[error("stored character state refused: {0}")]
+    InvalidStoredState(&'static str),
+    /// The character's checkpoint lane is quarantined (T11): a named, permanent refusal.
+    #[error(transparent)]
+    Quarantined(#[from] super::ports::LaneQuarantined),
     /// The zone actor has stopped.
     #[error(transparent)]
     ZoneStopped(#[from] ActorStopped),
@@ -380,15 +431,32 @@ impl SessionRegistry {
             let loaded = repo
                 .load_for_admission(id)
                 .await
-                .map_err(|_| AdmitError::LoadFailed)?
+                .map_err(|error| {
+                    if let Some(quarantined) = error.downcast_ref::<super::ports::LaneQuarantined>()
+                    {
+                        return AdmitError::Quarantined(quarantined.clone());
+                    }
+                    // D124: stored class state that violates the ledger refuses by name.
+                    match super::AppError::Infrastructure(error).stored_precondition() {
+                        Some(code) => AdmitError::InvalidStoredState(code),
+                        None => AdmitError::LoadFailed,
+                    }
+                })?
                 .ok_or(AdmitError::LoadFailed)?;
-            if loaded.phase3.is_some() && !zone.phase3_enabled() {
+            // A load carries exactly the policy sidecars its epoch executes: retained V5 skills
+            // need a V5 zone and the V6 item load (retained checkpoint and pending kit) a V6
+            // zone. The recorded SpawnPlayer carries the canonical load (PbPlayerLoad.phase4).
+            if (loaded.phase4.is_some() && !zone.phase4_enabled())
+                || (loaded.phase3.is_some() && !zone.phase3_enabled())
+            {
                 return Err(AdmitError::LoadFailed);
             }
             loaded.name.as_str().clone_into(&mut spawn.name);
             spawn.pos = saved_position(loaded.position).ok_or(AdmitError::LoadFailed)?;
+            let phase3 = v6_skill_origin(&loaded).map_err(|_| AdmitError::LoadFailed)?;
             spawn.load = Some(Box::new(PlayerLoad {
-                phase3: loaded.phase3,
+                phase4: loaded.phase4,
+                phase3,
                 progression: zone.has_classes().then(|| {
                     Box::new(crate::domain::zone::PlayerProgression {
                         identity: loaded.identity,
@@ -581,6 +649,22 @@ pub async fn run_session<R: FrameSource, W: FrameSink>(
                 end
             },
             Err(AdmitError::Stale) => SessionEnd::Replaced,
+            Err(AdmitError::InvalidStoredState(code)) => {
+                tracing::warn!(
+                    character = %start.player.entity,
+                    code,
+                    "login refused: stored character state violates the class ledger"
+                );
+                SessionEnd::AdmissionRefused
+            },
+            Err(AdmitError::Quarantined(quarantined)) => {
+                tracing::warn!(
+                    character = %start.player.entity,
+                    reason = %quarantined.reason,
+                    "login refused: character checkpoint lane quarantined"
+                );
+                SessionEnd::LaneQuarantined
+            },
             Err(AdmitError::ZoneStopped(_) | AdmitError::LoadFailed) => SessionEnd::ZoneUnavailable,
         };
         tracing::Span::current().record("end", end.label());
@@ -818,6 +902,13 @@ impl<'a> Actor<'a> {
             Ok(c) => c,
             Err((reason, detail)) => return self.reject(intent.seq, reason, detail).await,
         };
+        // T12: item intents need this session's admitted player (the actor resolves its account
+        // authority from it); before admission they are refused here, never queued.
+        if !self.admitted && matches!(command, ZoneCommand::Item(_)) {
+            return self
+                .reject(intent.seq, SessionReject::Invalid, "player not admitted yet")
+                .await;
+        }
         self.forward(intent.seq, command).await
     }
 
@@ -914,6 +1005,9 @@ impl<'a> Actor<'a> {
                     | ZoneCommand::CancelCast { .. }
                     | ZoneCommand::AcceptResurrect { .. }
                     | ZoneCommand::LearnSkill { .. }
+                    | ZoneCommand::MaterializePendingItems(_)
+                    | ZoneCommand::ExtendItemRange { .. }
+                    | ZoneCommand::Item(_)
                     | ZoneCommand::ChangeClass { .. }
                     | ZoneCommand::SpawnNpc { .. }
                     | ZoneCommand::Despawn { .. }
@@ -1067,7 +1161,7 @@ impl super::ports::ClassTransferRuntime for SessionContext {
             .snapshot()
             .await
             .map_err(|_| super::AppError::Unavailable("zone stopped".into()))?;
-        let state = crate::domain::zone::ZoneState::from_snapshot(snapshot)
+        let state = super::replay_log::restore_snapshot(snapshot)
             .map_err(|_| super::AppError::Unavailable("invalid zone snapshot".into()))?;
         let p = state
             .class_player(entity, caller, generation)
@@ -1113,7 +1207,7 @@ impl super::ports::Phase3Runtime for SessionContext {
             .snapshot()
             .await
             .map_err(|_| super::AppError::Unavailable("zone stopped".into()))?;
-        let state = crate::domain::zone::ZoneState::from_snapshot(snapshot)
+        let state = super::replay_log::restore_snapshot(snapshot)
             .map_err(|_| super::AppError::Unavailable("invalid zone snapshot".into()))?;
         state
             .class_player(entity, caller, generation)
@@ -1136,7 +1230,7 @@ impl super::ports::Phase3Runtime for SessionContext {
             .snapshot()
             .await
             .map_err(|_| super::AppError::Unavailable("zone stopped".into()))?;
-        let state = crate::domain::zone::ZoneState::from_snapshot(snapshot.clone())
+        let state = super::replay_log::restore_snapshot(snapshot.clone())
             .map_err(|_| super::AppError::Unavailable("invalid zone snapshot".into()))?;
         let player = state
             .class_player(entity, caller, zone_generation(generation))
@@ -1254,5 +1348,44 @@ impl super::ports::LearnReceiptRepository for SessionContext {
             .ok_or_else(|| anyhow::anyhow!("learning persistence unavailable"))?;
         let service = lane.lock().await;
         service.learn_receipt_lookup(caller, key, fingerprint).await
+    }
+}
+
+#[async_trait::async_trait]
+impl super::ports::ItemInventoryRuntime for SessionContext {
+    async fn detached_inventory(
+        &self,
+        character: crate::domain::CharacterId,
+        repository: &dyn super::ports::ItemInventoryRepository,
+    ) -> Result<Option<super::ports::RetainedInventory>, super::AppError> {
+        self.zone.inventory_available()?;
+        let unavailable = || super::AppError::Unavailable("inventory zone is unavailable".into());
+        let deadline = Instant::now()
+            .checked_add(INVENTORY_WAIT)
+            .ok_or_else(unavailable)?;
+        let live = tokio::time::timeout_at(deadline, self.registry.live.lock())
+            .await
+            .map_err(|_| unavailable())?;
+        self.zone.inventory_available()?;
+        let entity = EntityId::from_uuid(character.as_uuid());
+        super::use_cases::get_inventory::require_out_of_world(
+            true,
+            true,
+            live.contains_key(&entity),
+        )?;
+        let snapshot = tokio::time::timeout_at(deadline, self.zone.snapshot())
+            .await
+            .map_err(|_| unavailable())?
+            .map_err(|_| unavailable())?;
+        self.zone.inventory_available()?;
+        super::use_cases::get_inventory::require_out_of_world(
+            true,
+            true,
+            snapshot.entities.iter().any(|owner| owner.id == entity),
+        )?;
+        // Keep admission and final-save/departure behind this parent-locked retained read.
+        let result = repository.retained_inventory(character).await?;
+        drop(live);
+        Ok(result)
     }
 }

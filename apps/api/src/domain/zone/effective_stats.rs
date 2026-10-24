@@ -63,7 +63,103 @@ pub struct PlayerStatInputs {
     pub functions: Vec<StatFunction>,
     pub limits: EffectiveStatLimits,
 }
+/// V6 canonical equipment and its separately hash-bound catalogue.
+#[derive(Clone, Copy)]
+pub struct EquipmentStatContext<'a> {
+    /// Retained instances and provider installation order.
+    pub player: &'a super::Phase4Player,
+    /// Immutable item and class-slot definitions.
+    pub rules: &'a super::Phase4Rules,
+}
+impl<'a> EquipmentStatContext<'a> {
+    /// Actual weapon kind; an empty right hand uses class fist bases.
+    pub fn weapon_kind(self) -> Result<&'a str, StatError> {
+        let Some(id) = self.player.paperdoll.get(&super::EquipSlot::Rhand) else {
+            return Ok("FIST");
+        };
+        let item = self.player.inventory.get(id).ok_or(StatError::Overflow)?;
+        let definition = self
+            .rules
+            .parts()
+            .items
+            .get(&item.template_id)
+            .ok_or(StatError::Overflow)?;
+        Ok(&definition.weapon_type)
+    }
+}
 impl PlayerStatInputs {
+    /// Build V6 from actual item providers and hash-bound class defence slots. Legacy
+    /// construction remains unchanged; equipment removal returns to class fist bases.
+    pub fn from_equipment(
+        stats: &super::StatRules,
+        classes: &crate::domain::class::ClassRegistry,
+        rules: &Phase3Rules,
+        class_id: crate::domain::class::ClassId,
+        level: u32,
+        equipment: EquipmentStatContext<'_>,
+    ) -> Result<Self, StatError> {
+        use super::item_functions::{equipped_functions, subtract_defence_slots};
+        super::item_equipment::validate_paperdoll(
+            &equipment.player.inventory,
+            &equipment.player.paperdoll,
+            equipment.rules,
+        )
+        .map_err(|_| StatError::Overflow)?;
+        let mut inputs = Self::from_class(stats, classes, rules, class_id, level)?;
+        let class = classes.get(class_id).ok_or(StatError::Overflow)?;
+        let weapon = equipment
+            .player
+            .paperdoll
+            .get(&super::EquipSlot::Rhand)
+            .map(|id| {
+                equipment
+                    .player
+                    .inventory
+                    .get(id)
+                    .ok_or(StatError::Overflow)
+            })
+            .transpose()?;
+        inputs.bases.random_damage = match weapon {
+            Some(item) => {
+                equipment
+                    .rules
+                    .parts()
+                    .items
+                    .get(&item.template_id)
+                    .ok_or(StatError::Overflow)?
+                    .random_damage
+            },
+            // D84: the class fists weapon's random damage (5, Orc Shaman 10); 5+isqrt(level)
+            // only without one (L2Character.java:5034-5044, D24). The fists template's own
+            // item funcs (critRate, accCombat, pAtkSpd) are deliberately NOT folded: pinned
+            // attaches item funcs only on equip, and the fists are never equipped.
+            None => match equipment.rules.parts().fists_weapon(class_id.0) {
+                Some(fists) => fists.random_damage,
+                None => super::fist_random_damage(stats.constants(), level)?,
+            },
+        };
+        inputs.functions = super::stat_functions::standard_functions(
+            &class.base_stats,
+            stats.bonus(),
+            super::level_mod(stats.constants(), level)?,
+            level,
+            true,
+            weapon.is_some(),
+        )?;
+        let slots = equipment
+            .rules
+            .parts()
+            .class_slots
+            .iter()
+            .find(|row| row.base_class_id == class.base_class_id.0)
+            .ok_or(StatError::Overflow)?;
+        subtract_defence_slots(&mut inputs.functions, equipment.player, equipment.rules, slots)?;
+        inputs
+            .functions
+            .extend(equipped_functions(equipment.player, equipment.rules)?);
+        Ok(inputs)
+    }
+
     /// Build from the current profession's growth and source templates plus the actually
     /// equipped starter weapon. Order0 weapon SET replaces class6 with weapon5 for M.Atk.
     pub fn from_class(
@@ -399,7 +495,7 @@ fn modifiers(
     Ok(traits)
 }
 
-fn compile_handler(
+pub(super) fn compile_handler(
     functions: &mut Vec<StatFunction>,
     handler: &SkillHandler,
     skill: &SkillDef,
@@ -428,7 +524,7 @@ fn compile_handler(
     Ok(())
 }
 
-fn fold_traits(
+pub(super) fn fold_traits(
     traits: &mut BTreeMap<String, EffectiveTrait>,
     handler: &SkillHandler,
     rank: u32,
@@ -489,6 +585,43 @@ pub fn derive_effective_stats(
 ) -> Result<EffectiveStats, StatError> {
     let mut functions: Vec<_> = builtins.into_iter().collect();
     let traits = modifiers(entity, rules, conditions, &mut functions)?;
+    let flags = entity
+        .effects
+        .status_flags(rules.skills())
+        .map_err(|_| StatError::Overflow)?;
+    finish_effective_stats(
+        base,
+        CompiledModifiers {
+            functions,
+            traits,
+            flags,
+        },
+        rules,
+        limits,
+        conditions,
+    )
+}
+
+/// Reconstructed functions/traits/flags; never canonical persisted state.
+pub(super) struct CompiledModifiers {
+    pub functions: Vec<StatFunction>,
+    pub traits: BTreeMap<String, EffectiveTrait>,
+    pub flags: StatusFlags,
+}
+
+#[allow(clippy::similar_names)]
+pub(super) fn finish_effective_stats(
+    base: &EffectiveStatBases,
+    modifiers: CompiledModifiers,
+    rules: &Phase3Rules,
+    limits: EffectiveStatLimits,
+    conditions: FunctionConditions<'_>,
+) -> Result<EffectiveStats, StatError> {
+    let CompiledModifiers {
+        functions,
+        traits,
+        flags,
+    } = modifiers;
     let calculator = StatCalculator::try_new(functions)?;
     let fold = |stat: &str, initial: i64| calculator.fold(stat, initial, conditions);
     // CharStat.calcStat only clamps <=0, not every positive fraction below one.
@@ -580,10 +713,7 @@ pub fn derive_effective_stats(
         } else {
             0
         },
-        flags: entity
-            .effects
-            .status_flags(rules.skills())
-            .map_err(|_| StatError::Overflow)?,
+        flags,
         traits,
         calculator,
     })

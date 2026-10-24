@@ -3,6 +3,33 @@
 
 use super::record::CodecError;
 
+/// Presence is forbidden, including null and empty values, throughout legacy payloads.
+pub(super) fn pre_phase4_json(value: &serde_json::Value) -> Result<(), CodecError> {
+    match value {
+        serde_json::Value::Object(fields) => {
+            for (key, child) in fields {
+                if matches!(
+                    key.as_str(),
+                    "phase4" | "item_work" | "learning" | "capability_revision"
+                ) {
+                    return Err(CodecError(format!("V6 field {key} in historical payload")));
+                }
+                pre_phase4_json(child)?;
+            }
+        },
+        serde_json::Value::Array(values) => {
+            for child in values {
+                pre_phase4_json(child)?;
+            }
+        },
+        serde_json::Value::Null
+        | serde_json::Value::Bool(_)
+        | serde_json::Value::Number(_)
+        | serde_json::Value::String(_) => {},
+    }
+    Ok(())
+}
+
 pub(super) fn legacy_json(value: &serde_json::Value) -> Result<(), CodecError> {
     match value {
         serde_json::Value::Object(fields) => {
@@ -16,7 +43,11 @@ pub(super) fn legacy_json(value: &serde_json::Value) -> Result<(), CodecError> {
             for (key, child) in fields {
                 if matches!(
                     key.as_str(),
-                    "runtime_revision"
+                    "phase4"
+                        | "item_work"
+                        | "learning"
+                        | "capability_revision"
+                        | "runtime_revision"
                         | "phase3"
                         | "phase3_admission_policy"
                         | "active_effects"
@@ -77,12 +108,37 @@ fn varint(bytes: &mut &[u8]) -> Result<u64, CodecError> {
     Err(CodecError("overflowed varint".into()))
 }
 
+#[cfg(test)]
+pub(super) fn item_command(bytes: &[u8]) -> Result<(), CodecError> {
+    message(bytes, "PbCommand", 8, false)
+}
+
 fn message(mut bytes: &[u8], node: &str, schema: u32, digested: bool) -> Result<(), CodecError> {
+    let mut command_kind_seen = false;
+    let mut command_fields = std::collections::BTreeSet::new();
     while !bytes.is_empty() {
         let key = varint(&mut bytes)?;
         let tag = u32::try_from(key >> 3).map_err(|e| CodecError(e.to_string()))?;
         let wire = key & 7;
-        let (expected, mut child, json) = if schema >= 7 {
+        if schema >= 8
+            && matches!(node, "PbCommand" | "PbPlayerLoad")
+            && !command_fields.insert(tag)
+        {
+            return Err(CodecError("duplicate V6 command field".into()));
+        }
+        if schema >= 8 && node == "PbCommand" && tag >= 4 {
+            if command_kind_seen {
+                return Err(CodecError("duplicate V6 command kind".into()));
+            }
+            command_kind_seen = true;
+        }
+        let (expected, mut child, json) = if schema >= 8
+            && ((node == "PbCommand" && (20..=31).contains(&tag))
+                || (node == "PbPlayerLoad" && tag == 10)
+                || (node == "PbOutput" && (32..=41).contains(&tag)))
+        {
+            (2, None, false)
+        } else if schema >= 7 {
             phase3_field(node, tag).map_or_else(|| field(node, tag), Ok)?
         } else {
             field(node, tag)?
@@ -106,6 +162,9 @@ fn message(mut bytes: &[u8], node: &str, schema: u32, digested: bool) -> Result<
         }
         if wire == 0 {
             let value = varint(&mut bytes)?;
+            if schema < 8 && node == "PbDisposition" && tag == 5 && value >= 39 {
+                return Err(CodecError("Phase 4 rejection in legacy record".into()));
+            }
             if schema < 7 && node == "PbDisposition" && tag == 5 && value >= 21 {
                 return Err(CodecError("Phase 3 rejection in legacy record".into()));
             }
@@ -119,6 +178,38 @@ fn message(mut bytes: &[u8], node: &str, schema: u32, digested: bool) -> Result<
                 .split_at_checked(len)
                 .ok_or_else(|| CodecError("truncated nested payload".into()))?;
             bytes = rest;
+            if schema >= 8
+                && node == "PbPlayerOutput"
+                && tag == 2
+                && super::codec::decode_outputs(payload)?.iter().any(|output| {
+                    matches!(
+                        output,
+                        crate::domain::zone::ObserverOutput::Event(
+                            crate::domain::zone::ZoneEvent::ItemCheckpoint(_)
+                        )
+                    )
+                })
+            {
+                return Err(CodecError("private item checkpoint in observer output".into()));
+            }
+            if schema >= 8 && node == "PbOutput" && (32..=36).contains(&tag) {
+                super::codec::item_view_from_json(payload, tag)?;
+            }
+            if schema >= 8 && node == "PbOutput" && (37..=39).contains(&tag) {
+                super::codec::result_from_json(payload, tag)?;
+            }
+            if schema >= 8 && node == "PbOutput" && tag == 40 {
+                super::codec::phase4_projection_from_json(payload)?;
+            }
+            if schema >= 8 && node == "PbOutput" && tag == 41 {
+                super::codec::enriched_from_json(payload)?;
+            }
+            if schema >= 8 && node == "PbCommand" && tag == 30 {
+                super::codec::grant_from_json(payload)?;
+            }
+            if schema >= 8 && node == "PbPlayerLoad" && tag == 10 {
+                super::codec::phase4_load_from_json(payload)?;
+            }
             if let Some(child) = child {
                 message(payload, child, schema, digested)?;
             }
@@ -362,4 +453,23 @@ fn phase3_field(node: &str, tag: u32) -> Option<(u64, Option<&'static str>, bool
         | ("PbLearnSkill", 4 | 5) => (0, None, false),
         _ => return None,
     })
+}
+
+#[cfg(test)]
+mod metadata_tests {
+    #[test]
+    fn legacy_item_work_presence_is_refused_even_when_null_or_nested() {
+        for value in [
+            serde_json::json!({"checkpoints":[{"item_work":null}]}),
+            serde_json::json!({"checkpoints":[{"latest":{"phase4":null}}]}),
+            serde_json::json!({"item_work":{}}),
+            serde_json::json!({"checkpoints":[{"learning":null}]}),
+        ] {
+            assert!(super::pre_phase4_json(&value).is_err());
+            assert!(super::legacy_json(&value).is_err());
+        }
+        let empty = serde_json::json!({"checkpoints":[{"latest":{"hp":1}}]});
+        assert!(super::pre_phase4_json(&empty).is_ok());
+        assert!(super::legacy_json(&empty).is_ok());
+    }
 }

@@ -92,7 +92,7 @@ void UNetClientSubsystem::Open(const FString& WsUrl, const FString& PlayTicket)
 		ReconnectAttempt = 0;
 		Frame.Reset();
 		KnownEntities.Reset();
-		bPhase3Projection = false; LatestReceivedTick = 0;
+		bPhase3Projection = false; LatestReceivedTick = 0; TickEstimator.Reset();
 		Tombstones.Reset();   // the server re-sends every spawn in our area of interest
 		TickTimeOriginMs.Reset();   // a new session may be a new zone epoch; the next EntityMove re-learns it
 		KeepAliveSeqs.Reset();
@@ -208,6 +208,7 @@ void UNetClientSubsystem::DispatchServerMessage(const FServerMessage& Msg)
 	if (Msg.Ack.IsSet())
 	{
 		LatestReceivedTick = FMath::Max(LatestReceivedTick, Msg.Ack->Tick);
+		ObserveReceivedTick();
 		LastAckedSeq = FMath::Max(LastAckedSeq, Msg.Ack->Seq);
 		UE_LOG(LogNightfall, Verbose, TEXT("ws: ack seq %u (applies on tick %llu)"), Msg.Ack->Seq, Msg.Ack->Tick);
 		OnIntentAck.Broadcast(*Msg.Ack);
@@ -228,6 +229,14 @@ void UNetClientSubsystem::DispatchServerMessage(const FServerMessage& Msg)
 	if (Msg.Event.IsSet())
 	{
 		const FWorldEvent& E = *Msg.Event;
+		if (E.InventorySync.IsSet()) LatestReceivedTick = FMath::Max(LatestReceivedTick, E.InventorySync->Tick.Value);
+		if (E.InventoryChanged.IsSet()) LatestReceivedTick = FMath::Max(LatestReceivedTick, E.InventoryChanged->Tick.Value);
+		if (E.EquipmentChanged.IsSet()) LatestReceivedTick = FMath::Max(LatestReceivedTick, E.EquipmentChanged->Tick.Value);
+		if (E.WeightChanged.IsSet()) LatestReceivedTick = FMath::Max(LatestReceivedTick, E.WeightChanged->Tick.Value);
+		if (E.PenaltyChanged.IsSet()) LatestReceivedTick = FMath::Max(LatestReceivedTick, E.PenaltyChanged->Tick.Value);
+		if (E.EnchantResult.IsSet()) LatestReceivedTick = FMath::Max(LatestReceivedTick, E.EnchantResult->Tick.Value);
+		if (E.RefineResult.IsSet()) LatestReceivedTick = FMath::Max(LatestReceivedTick, E.RefineResult->Tick.Value);
+		if (E.ItemOperationResult.IsSet()) LatestReceivedTick = FMath::Max(LatestReceivedTick, E.ItemOperationResult->Tick.Value);
 		if (E.Move.IsSet()) LatestReceivedTick = FMath::Max(LatestReceivedTick, E.Move->Tick);
 		if (E.AttackResult.IsSet()) LatestReceivedTick = FMath::Max(LatestReceivedTick, E.AttackResult->Tick);
 		if (E.EntityDied.IsSet()) LatestReceivedTick = FMath::Max(LatestReceivedTick, E.EntityDied->Tick);
@@ -249,6 +258,7 @@ void UNetClientSubsystem::DispatchServerMessage(const FServerMessage& Msg)
 		if (E.SkillStateSync.IsSet()) LatestReceivedTick = FMath::Max(LatestReceivedTick, E.SkillStateSync->Tick);
 		if (E.VitalsChanged.IsSet()) LatestReceivedTick = FMath::Max(LatestReceivedTick, E.VitalsChanged->Tick);
 		if (E.TargetChanged.IsSet()) LatestReceivedTick = FMath::Max(LatestReceivedTick, E.TargetChanged->Tick);
+		ObserveReceivedTick();
 		if (E.SkillStateSync.IsSet() || E.SkillCastStarted.IsSet() || E.EffectApplied.IsSet() || E.VitalsChanged.IsSet() || (E.StatsChanged.IsSet() && E.StatsChanged->bBaseline)) bPhase3Projection = true;
 		if (E.Spawn.IsSet())
 		{
@@ -337,7 +347,16 @@ void UNetClientSubsystem::DispatchServerMessage(const FServerMessage& Msg)
 		if (E.ResurrectOffer.IsSet()) OnResurrectOffer.Broadcast(*E.ResurrectOffer);
 		if (E.SpGained.IsSet()) OnSpGained.Broadcast(*E.SpGained);
 		if (E.SkillStateSync.IsSet()) OnSkillStateSync.Broadcast(*E.SkillStateSync);
+		if (E.InventorySync.IsSet()) OnInventorySync.Broadcast(*E.InventorySync);
+		if (E.InventoryChanged.IsSet()) OnInventoryChanged.Broadcast(*E.InventoryChanged);
+		if (E.EquipmentChanged.IsSet()) OnEquipmentChanged.Broadcast(*E.EquipmentChanged);
+		if (E.WeightChanged.IsSet()) OnWeightChanged.Broadcast(*E.WeightChanged);
+		if (E.PenaltyChanged.IsSet()) OnPenaltyChanged.Broadcast(*E.PenaltyChanged);
+		if (E.EnchantResult.IsSet()) OnEnchantResult.Broadcast(*E.EnchantResult);
+		if (E.RefineResult.IsSet()) OnRefineResult.Broadcast(*E.RefineResult);
+		if (E.ItemOperationResult.IsSet()) OnItemOperationResult.Broadcast(*E.ItemOperationResult);
 		if (E.VitalsChanged.IsSet()) OnVitalsChanged.Broadcast(*E.VitalsChanged);
+		if(E.EnchantResult.IsSet() || E.RefineResult.IsSet() || E.ItemOperationResult.IsSet())OnItemReceiptPayload.Broadcast(E);
 		if (E.XpGained.IsSet()) OnXpGained.Broadcast(*E.XpGained);
 		if (E.LevelUp.IsSet()) OnLevelUp.Broadcast(*E.LevelUp);
 		if (E.TargetChanged.IsSet()) OnTargetChanged.Broadcast(*E.TargetChanged);
@@ -463,4 +482,66 @@ uint32 UNetClientSubsystem::SendCancelCast(TOptional<uint64> CastId)
 uint32 UNetClientSubsystem::SendAcceptResurrect(uint64 OfferId, bool bAccept)
 {
 	FClientMessage M; M.Seq = ++NextSeq; M.AcceptResurrect = FAcceptResurrectIntent{OfferId, bAccept}; Send(M); return bConnected ? M.Seq : 0;
+}
+
+uint32 UNetClientSubsystem::SendEquipItem(const FGrpcNightfallV1EquipItemRequest& Request)
+{
+	if (!bConnected) return 0;
+	FClientMessage M; M.Seq = ++NextSeq; M.EquipItem = Request; Send(M); return M.Seq;
+}
+uint32 UNetClientSubsystem::SendUnequipItem(const FGrpcNightfallV1UnequipItemRequest& Request)
+{
+	if (!bConnected) return 0;
+	FClientMessage M; M.Seq = ++NextSeq; M.UnequipItem = Request; Send(M); return M.Seq;
+}
+uint32 UNetClientSubsystem::SendUseItem(const FGrpcNightfallV1UseItemRequest& Request)
+{
+	if (!bConnected) return 0;
+	FClientMessage M; M.Seq = ++NextSeq; M.UseItem = Request; Send(M); return M.Seq;
+}
+uint32 UNetClientSubsystem::SendDestroyItem(const FGrpcNightfallV1DestroyItemRequest& Request)
+{
+	if (!bConnected) return 0;
+	FClientMessage M; M.Seq = ++NextSeq; M.DestroyItem = Request; Send(M); return M.Seq;
+}
+uint32 UNetClientSubsystem::SendEnchantItem(const FGrpcNightfallV1EnchantItemRequest& Request)
+{
+	if (!bConnected) return 0;
+	FClientMessage M; M.Seq = ++NextSeq; M.EnchantItem = Request; Send(M); return M.Seq;
+}
+uint32 UNetClientSubsystem::SendToggleAutoShot(const FGrpcNightfallV1ToggleAutoShotRequest& Request)
+{
+	if (!bConnected) return 0;
+	FClientMessage M; M.Seq = ++NextSeq; M.ToggleAutoShot = Request; Send(M); return M.Seq;
+}
+uint32 UNetClientSubsystem::SendRefineItem(const FGrpcNightfallV1RefineItemRequest& Request)
+{
+	if (!bConnected) return 0;
+	FClientMessage M; M.Seq = ++NextSeq; M.RefineItem = Request; Send(M); return M.Seq;
+}
+uint32 UNetClientSubsystem::SendCancelRefine(const FGrpcNightfallV1CancelRefineRequest& Request)
+{
+	if (!bConnected) return 0;
+	FClientMessage M; M.Seq = ++NextSeq; M.CancelRefine = Request; Send(M); return M.Seq;
+}
+uint32 UNetClientSubsystem::SendExchangeSpecialAbility(const FGrpcNightfallV1ExchangeSpecialAbilityRequest& Request)
+{
+	if (!bConnected) return 0;
+	FClientMessage M; M.Seq = ++NextSeq; M.ExchangeSpecialAbility = Request; Send(M); return M.Seq;
+}
+uint32 UNetClientSubsystem::SendCrystallizeItem(const FGrpcNightfallV1CrystallizeItemRequest& Request)
+{
+	if (!bConnected) return 0;
+	FClientMessage M; M.Seq = ++NextSeq; M.CrystallizeItem = Request; Send(M); return M.Seq;
+}
+void UNetClientSubsystem::RequestInventoryBaseline()
+{
+ if (!bConnected || !TicketProvider) return;
+ CloseSocket();
+ ApplyClosedState(0, TEXT("inventory revision gap: fresh baseline required"), false);
+}
+
+uint32 UNetClientSubsystem::SendItemMessage(FClientMessage Message)
+{
+ if (!bConnected) return 0; Message.Seq=++NextSeq; Send(Message); return Message.Seq;
 }

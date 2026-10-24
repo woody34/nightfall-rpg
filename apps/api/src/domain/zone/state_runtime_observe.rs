@@ -88,6 +88,7 @@ impl ZoneState {
                 continue;
             }
             let mut ordinary = Vec::new();
+            let mut item_results = Vec::new();
             for mut output in std::mem::take(out) {
                 match &mut output {
                     ObserverOutput::Accepted { .. } | ObserverOutput::Rejected(_) => {
@@ -96,8 +97,24 @@ impl ZoneState {
                     ObserverOutput::Event(ZoneEvent::EntitySpawn {
                         entity,
                         combat: Some(combat),
+                        phase4,
                         ..
                     }) => {
+                        // D26: a V6 player's public paperdoll subset (possibly empty).
+                        if let Some(items) = self.phase4.as_ref() {
+                            if let Some(player) = items.canonical.players.get(entity) {
+                                *phase4 = Some(Box::new(
+                                    crate::domain::zone::item_views::Phase4SpawnView {
+                                        visible:
+                                            crate::domain::zone::item_views::visible_equipment(
+                                                player,
+                                                &items.rules,
+                                            )
+                                            .map_err(|_| TickError::Phase3Invariant)?,
+                                    },
+                                ));
+                            }
+                        }
                         let pvp = self
                             .sidecar(*entity)
                             .ok()
@@ -124,6 +141,9 @@ impl ZoneState {
                     ) => {},
                     ObserverOutput::Event(ZoneEvent::StatsChanged { entity, .. })
                         if owner_baseline && entity == observer => {},
+                    ObserverOutput::Event(ZoneEvent::ItemView(view))
+                        if owner_baseline && view.entity == *observer && view.owner_only() => {},
+                    ObserverOutput::Event(ZoneEvent::ItemResult(_)) => item_results.push(output),
                     ObserverOutput::Event(_) => ordinary.push(output),
                 }
             }
@@ -133,7 +153,9 @@ impl ZoneState {
                     *observer,
                     Some(tick),
                 )?));
-                out.push(ObserverOutput::Event(self.owner_sync_v5(tick, *observer)?));
+                if self.phase4.is_none() {
+                    out.push(ObserverOutput::Event(self.owner_sync_v5(tick, *observer)?));
+                }
             }
             for id in &hydrate {
                 let Some(binding) = self.binding(*id) else {
@@ -232,6 +254,12 @@ impl ZoneState {
                         baseline: owner_baseline.then_some(tick),
                     }),
                 }));
+            }
+            if owner_baseline && self.phase4.is_some() && self.binding(*observer).is_some() {
+                out.push(ObserverOutput::Event(self.owner_sync_v5(tick, *observer)?));
+                if let Some(baseline) = self.item_baseline_v6(tick, *observer)? {
+                    out.push(ObserverOutput::Event(baseline));
+                }
             }
             out.extend(ordinary);
             for event in &filtered {
@@ -388,6 +416,7 @@ impl ZoneState {
                     out.push(ObserverOutput::Event(event));
                 }
             }
+            out.extend(item_results);
         }
         outputs.retain(|_, out| !out.is_empty());
         Ok(outputs)

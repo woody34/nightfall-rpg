@@ -124,6 +124,7 @@ async fn seed_named(repo: Arc<dyn CharacterRepository>, name: &str) -> Character
     p.modifier_install_order
         .push(RetainedModifierSource::Effect { effect_ordinal: 0 });
     let cp = CharacterCheckpoint {
+        phase4: None,
         character_id: c.id,
         revision_seen: 0,
         level: c.level,
@@ -317,6 +318,7 @@ async fn retained_admission_stale_revision_fences_before_output() {
     // Admission captured revision 1. A newer writer wins before this tick checkpoints.
     let saved = repo.load_for_admission(c.id).await.unwrap().unwrap();
     let newer = CharacterCheckpoint {
+        phase4: None,
         character_id: c.id,
         revision_seen: saved.revision,
         level: saved.level,
@@ -897,6 +899,7 @@ async fn seed_full_cp_named(repo: Arc<dyn CharacterRepository>, name: &str) -> C
         idempotency: ("save_checkpoint".into(), IdempotencyKey::new()),
         class_state: Some(ledger),
         phase3: saved.phase3,
+        phase4: None,
     };
     repo.checkpoint(&cp, &[]).await.unwrap();
     c

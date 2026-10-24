@@ -1,6 +1,9 @@
 #include "NightfallWire.h"
 #include "SNightfallV1/WorldMarshaling.h"
 #include "SNightfallV1/GameMarshaling.h"
+#include "SNightfallV1/ItemsMarshaling.h"
+#include <google/protobuf/io/coded_stream.h>
+#include <google/protobuf/wire_format_lite.h>
 
 namespace NightfallWire
 {
@@ -35,7 +38,17 @@ namespace NightfallWire
 			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::Respawn && Intent.Respawn.IsValid()) ||
 			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::CastSkill && Intent.CastSkill.IsValid()) ||
 			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::CancelCast && Intent.CancelCast.IsValid()) ||
-			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::AcceptResurrect && Intent.AcceptResurrect.IsValid());
+			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::AcceptResurrect && Intent.AcceptResurrect.IsValid()) ||
+			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::EquipItem) ||
+			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::UnequipItem) ||
+			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::UseItem) ||
+			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::DestroyItem) ||
+			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::EnchantItem) ||
+			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::ToggleAutoShot) ||
+			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::RefineItem) ||
+			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::CancelRefine) ||
+			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::ExchangeSpecialAbility) ||
+			(Intent.IntentCase == EGrpcNightfallV1ClientMessageIntent::CrystallizeItem);
 
 		::nightfall::v1::ClientMessage Msg;
 		if (bHasIntent)
@@ -115,4 +128,44 @@ void NightfallWire::EncodeServerMessage(const FGrpcNightfallV1ServerMessage& In,
  if(bSpawn){if(!bSwing)Msg.mutable_event()->mutable_spawn()->clear_pending_swing();if(!bCast)Msg.mutable_event()->mutable_spawn()->clear_pending_cast();}
 	Out.SetNumUninitialized(static_cast<int32>(Msg.ByteSizeLong()));
 	Msg.SerializeWithCachedSizesToArray(Out.GetData());
+}
+
+namespace
+{
+ bool ExtractPayload(const uint8* Data,int32 Size,uint32 Field,uint32 LastCase,TArray<uint8>& Out)
+ {
+  google::protobuf::io::CodedInputStream Stream(Data,Size);
+  while(Stream.CurrentPosition()<Size){
+   const uint32 Tag=Stream.ReadTag();if(!Tag)return false;
+   if(Tag==(Field<<3|2)){
+    uint32 Length=0;if(!Stream.ReadVarint32(&Length) || Length>uint32(Size-Stream.CurrentPosition()))return false;
+    Out.Append(Data+Stream.CurrentPosition(),int32(Length));if(!Stream.Skip(int32(Length)))return false;
+   }else {
+    if((Tag&7)==2 && (Tag>>3)<=LastCase)Out.Reset();
+    if(!google::protobuf::internal::WireFormatLite::SkipField(&Stream,Tag))return false;
+   }
+  }
+  return true;
+ }
+}
+void NightfallWire::ItemReceiptBytes(const uint8* Data,int32 Size,TArray<uint8>& Out)
+{
+ Out.Reset();::nightfall::v1::ServerMessage M;
+ if(Size<0 || (Size>0 && !Data) || !M.ParseFromArray(Data,Size) || !M.has_event())return;
+ const auto& E=M.event();const uint32 Field=E.has_enchant_result()?31:E.has_refine_result()?32:E.has_item_operation_result()?33:0;
+ if(!Field)return;
+ TArray<uint8> Envelope;
+ if(!ExtractPayload(Data,Size,2,3,Envelope) || !ExtractPayload(Envelope.GetData(),Envelope.Num(),Field,33,Out))Out.Reset();
+}
+void NightfallWire::EncodeItemReceipt(const FGrpcNightfallV1EnchantResult& In,TArray<uint8>& Out)
+{
+ ::nightfall::v1::EnchantResult M;TURBOLINK_TO_GRPC(&In,&M);Out.SetNumUninitialized(static_cast<int32>(M.ByteSizeLong()));M.SerializeWithCachedSizesToArray(Out.GetData());
+}
+void NightfallWire::EncodeItemReceipt(const FGrpcNightfallV1RefineResult& In,TArray<uint8>& Out)
+{
+ ::nightfall::v1::RefineResult M;TURBOLINK_TO_GRPC(&In,&M);Out.SetNumUninitialized(static_cast<int32>(M.ByteSizeLong()));M.SerializeWithCachedSizesToArray(Out.GetData());
+}
+void NightfallWire::EncodeItemReceipt(const FGrpcNightfallV1ItemOperationResult& In,TArray<uint8>& Out)
+{
+ ::nightfall::v1::ItemOperationResult M;TURBOLINK_TO_GRPC(&In,&M);Out.SetNumUninitialized(static_cast<int32>(M.ByteSizeLong()));M.SerializeWithCachedSizesToArray(Out.GetData());
 }

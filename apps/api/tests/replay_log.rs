@@ -912,6 +912,7 @@ fn output() -> impl Strategy<Value = ObserverOutput> {
         )
             .prop_map(|(t, entity, npc, name, pos, dest, speed, g)| {
                 ObserverOutput::Event(ZoneEvent::EntitySpawn {
+                    phase4: None,
                     identity: None,
                     tick: Tick(t),
                     entity,

@@ -2006,7 +2006,7 @@ fn mixed_magic_continuous_success_precedes_instant_and_stronger_stack_keeps_dama
             s.effects.push(debuff);
             s.abnormal = Some(abnormal);
             s.operate_type = "A2".into();
-            s.activate_rate = 60;
+            s.activate_rate = nightfall_api::domain::zone::skill::RankValue::Scalar(60);
             s.basic_property = "MEN".into();
             s.min_chance = 50;
             s.max_chance = 50;

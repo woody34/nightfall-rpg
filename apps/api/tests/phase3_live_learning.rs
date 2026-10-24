@@ -379,7 +379,7 @@ async fn reply_and_output_wait_for_ack_with_identical_frozen_retry() {
 }
 
 #[tokio::test]
-async fn logged_purchase_with_stale_checkpoint_remains_fenced_during_recovery() {
+async fn logged_purchase_with_stale_checkpoint_quarantines_the_owner_during_recovery() {
     let repo = Arc::new(InMemoryCharacterRepository::default().with_phase3_rules(rules()));
     let c = seed(repo.as_ref()).await;
     let (zone, driver, log) = actor(repo.clone()).await;
@@ -387,6 +387,7 @@ async fn logged_purchase_with_stale_checkpoint_remains_fenced_during_recovery() 
     let mut output = zone.subscribe();
     let before = repo.load_for_admission(c.id).await.unwrap().unwrap();
     let newer = CharacterCheckpoint {
+        phase4: None,
         character_id: c.id,
         revision_seen: before.revision,
         level: before.level,
@@ -431,11 +432,41 @@ async fn logged_purchase_with_stale_checkpoint_remains_fenced_during_recovery() 
         Arc::new(Metrics::detached()),
     )
     .with_learning(repo.clone());
+    // T11: the newer revision keeps this owner's lane fenced, so recovery quarantines the
+    // owner instead of refusing to boot the zone. The newer committed state is untouched, the
+    // logged purchase never settles, and admission is refused by name.
+    recovery.recover(log.as_ref(), ZoneId(88), 1).await.unwrap();
+    let refused = repo.load_for_admission(c.id).await.unwrap_err();
     assert!(
-        recovery.recover(log.as_ref(), ZoneId(88), 1).await.is_err(),
-        "newer revision remains fenced during recovery"
+        format!("{refused:#}").starts_with(nightfall_api::application::ports::LANE_QUARANTINED)
+            && format!("{refused:#}").contains("newer revision"),
+        "{refused:#}"
     );
-    assert_eq!(repo.load_for_admission(c.id).await.unwrap().unwrap(), expected);
+    // The typed refusal and the operations listing name the same owner.
+    assert!(refused
+        .downcast_ref::<nightfall_api::application::ports::LaneQuarantined>()
+        .is_some());
+    let listed = repo.lane_quarantines(ZoneId(88)).await.unwrap();
+    assert_eq!(listed.len(), 1);
+    assert_eq!((listed[0].character_id, listed[0].epoch), (c.id, 1));
+    assert!(repo.lane_quarantines(ZoneId(89)).await.unwrap().is_empty());
+    assert_eq!(repo.get(c.id).await.unwrap().unwrap().class_state, expected.class_state);
+    assert_eq!(
+        repo.learn_receipt_lookup(
+            c.account_id,
+            &key,
+            &learn_skill_fingerprint(
+                c.id,
+                SkillRef {
+                    id: SkillId(3),
+                    rank: 1
+                }
+            )
+        )
+        .await
+        .unwrap(),
+        LearnReceiptLookup::Unknown
+    );
 }
 
 #[tokio::test]

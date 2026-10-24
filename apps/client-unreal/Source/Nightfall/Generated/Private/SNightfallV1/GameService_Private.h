@@ -164,3 +164,48 @@ public:
 	UGameService::FGetSkillCatalogResponseLambda ResponseLambda;
 };
 
+UCLASS()
+class UGameServiceGetItemCatalogLambdaWrapper : public UObject
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY()
+	UGameServiceClient* InnerClient;
+
+	UFUNCTION()
+	void OnResponse(FGrpcContextHandle Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1GetItemCatalogResponse& Response);
+public:
+	FGrpcContextHandle Handle;
+	UGameService::FGetItemCatalogResponseLambda ResponseLambda;
+};
+
+UCLASS()
+class UGameServiceGetInventoryLambdaWrapper : public UObject
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY()
+	UGameServiceClient* InnerClient;
+
+	UFUNCTION()
+	void OnResponse(FGrpcContextHandle Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1GetInventoryResponse& Response);
+public:
+	FGrpcContextHandle Handle;
+	UGameService::FGetInventoryResponseLambda ResponseLambda;
+};
+
+UCLASS()
+class UGameServiceGrantItemLambdaWrapper : public UObject
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY()
+	UGameServiceClient* InnerClient;
+
+	UFUNCTION()
+	void OnResponse(FGrpcContextHandle Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1GrantItemResponse& Response);
+public:
+	FGrpcContextHandle Handle;
+	UGameService::FGrantItemResponseLambda ResponseLambda;
+};
+

@@ -84,7 +84,8 @@ FGrpcNightfallV1Character UGrpcNightfallV1CharacterHelperLibrary::MakeCharacter(
     FUInt32 Level, FGrpcNightfallV1BaseStats Stats, FGrpcNightfallV1Position Position,
     FUInt32 ClassId, FUInt32 BaseClassId, FUInt32 ActiveClassSlot,
     TArray<FGrpcNightfallV1ClassProgress> Classes, EGrpcNightfallV1Sex Sex, FUInt32 HairStyle,
-    FUInt32 HairColor, FUInt32 Face
+    FUInt32 HairColor, FUInt32 Face, FUInt64 InventoryRevision,
+    FBytes ItemRulesHash
 )
 {
     FGrpcNightfallV1Character Character;
@@ -105,6 +106,8 @@ FGrpcNightfallV1Character UGrpcNightfallV1CharacterHelperLibrary::MakeCharacter(
     Character.HairStyle = HairStyle;
     Character.HairColor = HairColor;
     Character.Face = Face;
+    Character.InventoryRevision = InventoryRevision;
+    Character.ItemRulesHash = ItemRulesHash;
 
     return Character;
 }
@@ -114,7 +117,8 @@ void UGrpcNightfallV1CharacterHelperLibrary::BreakCharacter(const FGrpcNightfall
     FUInt32& Level, FGrpcNightfallV1BaseStats& Stats, FGrpcNightfallV1Position& Position,
     FUInt32& ClassId, FUInt32& BaseClassId, FUInt32& ActiveClassSlot,
     TArray<FGrpcNightfallV1ClassProgress>& Classes, EGrpcNightfallV1Sex& Sex, FUInt32& HairStyle,
-    FUInt32& HairColor, FUInt32& Face
+    FUInt32& HairColor, FUInt32& Face, FUInt64& InventoryRevision,
+    FBytes& ItemRulesHash
 )
 {
     Id = Character.Id;
@@ -137,6 +141,8 @@ void UGrpcNightfallV1CharacterHelperLibrary::BreakCharacter(const FGrpcNightfall
     HairStyle = Character.HairStyle;
     HairColor = Character.HairColor;
     Face = Character.Face;
+    InventoryRevision = Character.InventoryRevision;
+    ItemRulesHash = Character.ItemRulesHash;
 }
 
 FGrpcNightfallV1SkillLearnInfo UGrpcNightfallV1SkillLearnInfoHelperLibrary::MakeSkillLearnInfo(

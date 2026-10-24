@@ -10,7 +10,7 @@ systems all come from the stat formulas in that document.
 | 1 | [01-stat-formulas.md](01-stat-formulas.md) | Base stats, derived stats, XP curves | Complete |
 | 2 | [02-race-and-class.md](02-race-and-class.md) | Races, class tree, transfers, subclasses | Complete |
 | 3 | [03-combat-and-skills.md](03-combat-and-skills.md) | Combat core, skills, buffs, status, elements, aggro, death, PvP, pets | Complete |
-| 4 | [04-items-and-equipment.md](04-items-and-equipment.md) | Weapons, armor, grades, consumables, enchant, augment, inventory | Planned |
+| 4 | [04-items-and-equipment.md](04-items-and-equipment.md) · [Executable plan](../plans/phase-4-items-and-equipment.md) | Weapons, armor, grades, consumables, enchant, augment, inventory | Planning |
 | 5 | [05-economy-and-crafting.md](05-economy-and-crafting.md) | Drops, crafting, currency sinks, vendors, player trade | Planned |
 | 6 | [06-world-and-content.md](06-world-and-content.md) | Zones, monsters and AI, travel, quests, raids, instances | Planned |
 | 7 | [07-social-systems.md](07-social-systems.md) | Party, clan, alliance, sieges, Olympiad | Planned |

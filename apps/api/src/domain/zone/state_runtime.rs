@@ -5,12 +5,17 @@
 mod live_damage;
 #[path = "state_runtime_effects.rs"]
 mod live_effects;
+#[path = "state_runtime_item_cast.rs"]
+mod live_item_cast;
 #[path = "state_runtime_learn.rs"]
 mod live_learning;
 #[path = "state_runtime_life.rs"]
 mod live_life;
 #[path = "state_runtime_observe.rs"]
 mod live_observe;
+#[path = "state_runtime_shots.rs"]
+mod live_shots;
+pub(in crate::domain::zone) use live_damage::{AttackStyle, BowStart};
 
 use super::*;
 use crate::domain::zone::effective_stats::{EffectiveStats, NpcStatInputs, PlayerStatInputs};
@@ -27,8 +32,8 @@ use crate::domain::zone::state_pvp::{
 };
 use crate::domain::zone::state_regen::RegenSchedule;
 use crate::domain::zone::state_skill::{
-    self, CapturedTarget, CastCancelReason, CastError, CastStart, CastStatContext, StagedAction,
-    StagedActions, StagedCast,
+    self, CapturedTarget, CastCancelReason, CastError, CastStart, CastStatContext,
+    ItemCommandTiming, ItemReceiptState, StagedAction, StagedActions, StagedCast, StagedItemUse,
 };
 use crate::domain::zone::{
     CastId, CastState, EntityOrdinal, Phase3Entity, Phase3EntityContext, Phase3Player, PvpState,
@@ -148,7 +153,7 @@ impl ZoneState {
             .and_then(|p| p.canonical.entities.get_mut(&id))
             .ok_or_else(missing)
     }
-    fn binding(&self, id: EntityId) -> Option<TargetBinding> {
+    pub(super) fn binding(&self, id: EntityId) -> Option<TargetBinding> {
         self.entities
             .get(&id)?
             .combat
@@ -163,6 +168,30 @@ impl ZoneState {
         e: &Entity,
         sidecar: &Phase3Entity,
     ) -> Result<EffectiveStats, StatError> {
+        if let Some(items) = &self.phase4 {
+            if e.kind == EntityKind::Player {
+                return crate::domain::zone::item_modifiers::derive_player(
+                    self.rules.as_deref().ok_or(StatError::Overflow)?,
+                    self.classes.as_deref().ok_or(StatError::Overflow)?,
+                    &self
+                        .phase3
+                        .as_ref()
+                        .ok_or(StatError::Overflow)?
+                        .canonical
+                        .rules,
+                    e,
+                    sidecar,
+                    crate::domain::zone::effective_stats::EquipmentStatContext {
+                        player: items
+                            .canonical
+                            .players
+                            .get(&e.id)
+                            .ok_or(StatError::Overflow)?,
+                        rules: &items.rules,
+                    },
+                );
+            }
+        }
         derive_effective_v5(
             self.rules.as_deref().ok_or(StatError::Overflow)?,
             self.classes.as_deref().ok_or(StatError::Overflow)?,
@@ -176,6 +205,24 @@ impl ZoneState {
             sidecar,
         )
     }
+    pub(super) fn effect_capacities_v6(
+        &self,
+        id: EntityId,
+    ) -> Result<crate::domain::zone::effects::EffectCapacities, TickError> {
+        use crate::domain::zone::effects::{EffectCapacities, StatusFlags};
+        if self.phase4.is_none() {
+            return Ok(EffectCapacities::for_enlarge(0));
+        }
+        let effective = self.effective(id)?;
+        EffectCapacities::from_calculator(
+            &effective.calculator,
+            FunctionConditions {
+                weapon_kind: self.item_weapon_kind(id, "SWORD")?,
+                can_resurrect: !effective.flags.intersects(StatusFlags::RESURRECTION_BLOCK),
+            },
+        )
+        .map_err(invariant)
+    }
     pub(super) fn effective(&self, id: EntityId) -> Result<Arc<EffectiveStats>, TickError> {
         if let Some(cached) = self.phase3.as_ref().and_then(|p| p.effective.get(&id)) {
             return Ok(Arc::clone(cached));
@@ -184,16 +231,70 @@ impl ZoneState {
             .map(Arc::new)
             .map_err(invariant)
     }
-    fn rebuild_v5(&mut self, id: EntityId) -> Result<(), TickError> {
+    fn refresh_items_for(
+        &self,
+        id: EntityId,
+    ) -> Result<Option<crate::domain::zone::item_refresh::RefreshedEquipment>, StatError> {
+        let Some(items) = &self.phase4 else {
+            return Ok(None);
+        };
+        let entity = self.entities.get(&id).ok_or(StatError::Overflow)?;
+        if entity.kind != EntityKind::Player {
+            return Ok(None);
+        }
+        let phase = self.phase3.as_ref().ok_or(StatError::Overflow)?;
+        crate::domain::zone::item_refresh::refresh_player(
+            self.rules.as_deref().ok_or(StatError::Overflow)?,
+            self.classes.as_deref().ok_or(StatError::Overflow)?,
+            &phase.canonical.rules,
+            entity,
+            phase
+                .canonical
+                .entities
+                .get(&id)
+                .ok_or(StatError::Overflow)?,
+            crate::domain::zone::effective_stats::EquipmentStatContext {
+                player: items
+                    .canonical
+                    .players
+                    .get(&id)
+                    .ok_or(StatError::Overflow)?,
+                rules: &items.rules,
+            },
+            phase.canonical.next_install_sequence,
+        )
+        .map(Some)
+    }
+    pub(super) fn rebuild_v5(&mut self, id: EntityId) -> Result<(), TickError> {
         let before = self.evidence.as_ref().map(|_| {
             serde_json::json!({
                 "entity": self.entities.get(&id), "word_cursor": self.rng.get_word_pos().to_string()
             })
         });
-        let effective = Arc::new(
+        let refreshed = self.refresh_items_for(id).map_err(invariant)?;
+        let effective = Arc::new(if let Some(refreshed) = &refreshed {
+            refreshed.effective.clone()
+        } else {
             self.effective_for(self.entities.get(&id).ok_or_else(missing)?, self.sidecar(id)?)
-                .map_err(invariant)?,
-        );
+                .map_err(invariant)?
+        });
+        let speed = effective.movement_speed().map_err(invariant)?;
+        if let Some(refreshed) = &refreshed {
+            self.load_evidence_v6(id, refreshed)?;
+        }
+        if let Some(refreshed) = refreshed {
+            self.phase4
+                .as_mut()
+                .ok_or_else(missing)?
+                .canonical
+                .players
+                .insert(id, refreshed.player);
+            self.phase3
+                .as_mut()
+                .ok_or_else(missing)?
+                .canonical
+                .next_install_sequence = refreshed.next_sequence;
+        }
         self.phase3
             .as_mut()
             .ok_or_else(missing)?
@@ -211,12 +312,17 @@ impl ZoneState {
                 .vitals_dirty
                 .insert(id);
         }
+        let attack_range = self.attack_range_v6(id, &effective)?;
+        let clamp_before = self.clamp_snapshot_v6(id);
         let e = self.entities.get_mut(&id).ok_or_else(missing)?;
         let c = e.combat.as_mut().ok_or_else(missing)?;
+        if let Some(range) = attack_range {
+            c.attack_range = range;
+        }
         c.hp = c.hp.min(effective.physical.max_hp());
         c.mp = c.mp.min(effective.physical.max_mp());
         c.sheet = effective.physical;
-        e.speed = effective.movement_speed().map_err(invariant)?;
+        e.speed = speed;
         let health_full = c.hp == c.sheet.max_hp();
         let mana_full = c.mp == c.sheet.max_mp();
         let mut combat_points_full = true;
@@ -239,6 +345,9 @@ impl ZoneState {
         if combat_points_full {
             fractions.cp = 0;
         }
+        if let Some(clamp_before) = clamp_before {
+            self.clamp_no_heal_evidence_v6(id, &clamp_before);
+        }
         if let Some(before) = before {
             self.evidence_fact(
                 "modifier_reconstruction",
@@ -254,7 +363,7 @@ impl ZoneState {
         Ok(())
     }
     #[allow(clippy::too_many_lines)] // Paused admission reconstructs once without replaying hooks.
-    fn attach_v5(
+    pub(super) fn attach_v5(
         &mut self,
         tick: Tick,
         id: EntityId,
@@ -303,7 +412,8 @@ impl ZoneState {
             reuse: BTreeMap::new(),
             effects: EffectList::default(),
             modifier_install_order: sources,
-            regen: RegenSchedule::start(tick, c.hp != 0, p.rules.regen()).map_err(invariant)?,
+            regen: RegenSchedule::start(tick, !e.targeting.dead, p.rules.regen())
+                .map_err(invariant)?,
             fractions: ResourceFractions::default(),
             player: player.then_some(Phase3Player {
                 pvp: PvpState {
@@ -318,21 +428,63 @@ impl ZoneState {
             }),
         };
         if let Some(checkpoint) = checkpoint {
-            let restored = checkpoint
+            let first_sequence = p.next_install_sequence;
+            let mut restored = checkpoint
                 .stage_restore(
                     &p.rules,
                     learned,
-                    c.hp != 0,
+                    !e.targeting.dead,
                     c.incarnation,
                     tick,
                     p.next_effect_id,
                     p.next_install_sequence,
                 )
                 .map_err(invariant)?;
-            restored
-                .effects
-                .validate_capacity(crate::domain::zone::effects::EffectCapacities::for_enlarge(0))
+            if let Some(checkpoint) = load
+                .and_then(|load| load.phase4.as_ref())
+                .and_then(|items| items.checkpoint.as_ref())
+            {
+                let (mut player, timers) = crate::domain::zone::Phase4Player::restore(
+                    checkpoint,
+                    &restored,
+                    tick,
+                    first_sequence,
+                )
                 .map_err(invariant)?;
+                restored = timers;
+                // D142: the D71 reset of retained charges/toggles is a ledger change. The
+                // admitted owner takes its one D79 step here, so the admission baseline and the
+                // reset rows (incarnation_reset_v6) agree on the new revision.
+                if super::item_materialize::incarnation_reset_needed(checkpoint) {
+                    let revision = player
+                        .inventory_revision
+                        .checked_add(1)
+                        .filter(|r| i64::try_from(*r).is_ok())
+                        .ok_or_else(missing)?;
+                    player.inventory_revision = revision;
+                    for retained in checkpoint.instances.iter().filter(|item| item.charges != 0) {
+                        player
+                            .inventory
+                            .get_mut(&retained.id)
+                            .ok_or_else(missing)?
+                            .revision = revision;
+                    }
+                }
+                self.phase4
+                    .as_mut()
+                    .ok_or_else(missing)?
+                    .canonical
+                    .players
+                    .insert(id, player);
+            }
+            if self.phase4.is_none() {
+                restored
+                    .effects
+                    .validate_capacity(crate::domain::zone::effects::EffectCapacities::for_enlarge(
+                        0,
+                    ))
+                    .map_err(invariant)?;
+            }
             p.next_effect_id = restored.next_effect_id;
             p.next_install_sequence = restored.next_install_sequence;
             sidecar.reuse = restored.reuse;
@@ -358,7 +510,35 @@ impl ZoneState {
         }
         p.next_entity_ordinal = p.next_entity_ordinal.checked_add(1).ok_or_else(missing)?;
         p.entities.insert(id, sidecar);
+        let pending_kit = self.begin_pending_kit_v6(id, load)?;
+        if let Some(items) = &mut self.phase4 {
+            items
+                .canonical
+                .facing
+                .insert(id, crate::domain::zone::item_angles::FacingVector::EAST);
+            items
+                .canonical
+                .validate_allocations(
+                    &items.rules,
+                    &self.phase3.as_ref().ok_or_else(missing)?.canonical,
+                )
+                .map_err(invariant)?;
+        }
+        if let Some(refreshed) = self.refresh_items_for(id).map_err(invariant)? {
+            let items = self.phase4.as_ref().ok_or_else(missing)?;
+            let phase = self.phase3.as_ref().ok_or_else(missing)?;
+            if !pending_kit
+                && (items.canonical.players.get(&id) != Some(&refreshed.player)
+                    || refreshed.next_sequence != phase.canonical.next_install_sequence)
+            {
+                return Err(missing());
+            }
+        }
         self.rebuild_v5(id)?;
+        self.sidecar(id)?
+            .effects
+            .validate_capacity(self.effect_capacities_v6(id)?)
+            .map_err(invariant)?;
         // Fresh unspecified resources mean the reconstructed maximum, not its effect-free base.
         if let Some(load) = load {
             let c = self
@@ -373,6 +553,9 @@ impl ZoneState {
                 c.mp = c.sheet.max_mp();
             }
             self.rebuild_v5(id)?;
+        }
+        if player && self.phase4.is_some() {
+            self.item_evidence_baseline(id)?;
         }
         if self.evidence.is_some() {
             self.evidence_fact(
@@ -414,7 +597,7 @@ impl ZoneState {
                         Phase3EntityContext {
                             next_tick: self.next_tick,
                             incarnation: c.incarnation,
-                            alive: c.hp != 0,
+                            alive: !e.targeting.dead,
                             player: e.kind == EntityKind::Player,
                             learned,
                         },
@@ -422,9 +605,20 @@ impl ZoneState {
                 })
             })
             .collect();
+        let item_skills = self
+            .phase4
+            .as_ref()
+            .map(|items| {
+                items
+                    .canonical
+                    .validate_casts(&items.rules, &phase.canonical, &contexts)
+            })
+            .transpose()
+            .map_err(|_| SnapshotError::CombatMismatch)?
+            .unwrap_or_default();
         phase
             .canonical
-            .validate_live(&contexts)
+            .validate_live_with_item_casts(&contexts, &item_skills)
             .map_err(|_| SnapshotError::CombatMismatch)?;
         for (id, e) in &self.entities {
             let Some(c) = &e.combat else { continue };
@@ -470,6 +664,21 @@ impl ZoneState {
             let effective = self
                 .effective_for(e, side)
                 .map_err(|_| SnapshotError::CombatMismatch)?;
+            if let Some(refreshed) = self
+                .refresh_items_for(*id)
+                .map_err(|_| SnapshotError::CombatMismatch)?
+            {
+                let player = self
+                    .phase4
+                    .as_ref()
+                    .and_then(|items| items.canonical.players.get(id))
+                    .ok_or(SnapshotError::CombatMismatch)?;
+                if &refreshed.player != player
+                    || refreshed.next_sequence != phase.canonical.next_install_sequence
+                {
+                    return Err(SnapshotError::CombatMismatch);
+                }
+            }
             if c.sheet != effective.physical
                 || e.speed
                     != effective
@@ -477,7 +686,8 @@ impl ZoneState {
                         .map_err(|_| SnapshotError::CombatMismatch)?
                 || c.hp > c.sheet.max_hp()
                 || c.mp > c.sheet.max_mp()
-                || e.targeting.dead != (c.hp == 0)
+                || e.targeting.dead
+                    != (c.hp == 0 && (self.phase4.is_none() || side.fractions.hp == 0))
             {
                 return Err(SnapshotError::CombatMismatch);
             }
@@ -488,12 +698,13 @@ impl ZoneState {
             } = &c.role
             {
                 p.class_state
-                    .validate_for_phase3(
+                    .validate_for_skill_rules(
                         self.classes
                             .as_deref()
                             .ok_or(SnapshotError::CombatMismatch)?,
                         &p.identity,
                         crate::domain::CharacterId::from_uuid(id.as_uuid()),
+                        &phase.canonical.rules,
                     )
                     .map_err(|_| SnapshotError::CombatMismatch)?;
                 let rules = self.rules.as_deref().ok_or(SnapshotError::CombatMismatch)?;
@@ -537,12 +748,16 @@ impl ZoneState {
     ) -> Result<AppliedTick, TickError> {
         self.check_draft(&draft)?;
         let mut candidate = self.clone();
-        let applied = candidate.execute_v5(draft)?;
+        let applied = candidate.execute_v5(draft, self.phase4.as_ref().map(|p| &p.canonical))?;
         *self = candidate;
         Ok(applied)
     }
     #[allow(clippy::too_many_lines)] // Ordered live phase barriers remain visible in one driver.
-    fn execute_v5(&mut self, draft: AppliedTickDraft) -> Result<AppliedTick, TickError> {
+    fn execute_v5(
+        &mut self,
+        draft: AppliedTickDraft,
+        before_items: Option<&crate::domain::zone::Phase4Snapshot>,
+    ) -> Result<AppliedTick, TickError> {
         let tick = draft.tick;
         // A restored snapshot carries only canonical inputs. Warm missing sheets once;
         // subsequent reads share them until a modifier, level or class mutation rebuilds.
@@ -579,7 +794,7 @@ impl ZoneState {
         let mut dispositions = Vec::new();
         let mut staged = StagedActions::default();
         for command in &draft.commands {
-            let result = self.command_v5(tick, command, &mut staged, &mut events);
+            let result = self.command_v5(tick, command, before_items, &mut staged, &mut events);
             if let Err(reason) = result {
                 dispositions.push(Disposition {
                     ordinal: command.ordinal,
@@ -605,14 +820,24 @@ impl ZoneState {
         events.extend(self.step(tick));
         // Binding V5 phases 5-9: completions, impacts, bookkeeping, starts, AI.
         // A due stun/lethal cast cancels a swing before any of its damage draws.
-        self.complete_casts_v5(tick, &mut events)?;
+        self.complete_casts_v5(tick, before_items, &mut events)?;
         if self.complete_runtime_v5() {
-            self.land_autos_v5(tick, &mut events)?;
+            self.land_autos_v5(tick, before_items, &mut events)?;
+            self.release_stale_attack_plans_v6();
         }
         self.note_hits_v5(tick)?;
+        let mut item_receipts = std::mem::take(&mut staged.item_receipts);
+        let admitted = std::mem::take(&mut staged.admitted_revisions);
         for entry in staged.drain() {
             let ordinal = entry.ordinal();
-            if let Err(reason) = self.start_action_v5(tick, entry, &mut events) {
+            if let Err(reason) = self.start_action_v5(
+                tick,
+                entry,
+                before_items,
+                &admitted,
+                &mut item_receipts,
+                &mut events,
+            ) {
                 let c = draft
                     .commands
                     .iter()
@@ -628,8 +853,21 @@ impl ZoneState {
             }
         }
         if self.complete_runtime_v5() {
+            self.release_stale_attack_plans_v6();
             let first = events.len();
-            self.start_swings(tick, &mut events);
+            self.start_swings(tick, before_items, &admitted, &mut events)?;
+            let started: Vec<_> = events
+                .get(first..)
+                .ok_or_else(missing)?
+                .iter()
+                .filter_map(|event| {
+                    if let ZoneEvent::AttackStarted { attacker, .. } = event {
+                        Some(*attacker)
+                    } else {
+                        None
+                    }
+                })
+                .collect();
             for event in events.get(first..).ok_or_else(missing)? {
                 if let ZoneEvent::AttackStarted {
                     attacker, target, ..
@@ -640,6 +878,12 @@ impl ZoneState {
                         self.binding(*attacker).ok_or_else(missing)?,
                         self.binding(*target).ok_or_else(missing)?,
                     )?;
+                }
+            }
+            if self.phase4.is_some() {
+                for attacker in started {
+                    let initial = tick_start_revision(before_items, &admitted, attacker);
+                    self.start_attack_shots_v6(tick, attacker, initial, &mut events)?;
                 }
             }
         }
@@ -677,6 +921,15 @@ impl ZoneState {
                 }
             }
         }
+        self.finish_cast_evidence_v6(&events);
+        // D66: canonical per-instance ledger order is fixed once, at the tick boundary.
+        for event in &mut events {
+            if let ZoneEvent::ItemCheckpoint(projection) = event {
+                projection.normalize_d66().map_err(invariant)?;
+            }
+        }
+        self.final_items_v6(tick, before_items, &mut events)?;
+        self.freeze_items_v6(tick, before_items, &mut events)?;
         self.freeze_learning_v5(tick, &mut events)?;
         self.freeze_transfers_v5(&mut events)?;
         self.phase3
@@ -715,18 +968,39 @@ impl ZoneState {
         }
         Ok(())
     }
+    #[allow(clippy::too_many_arguments)] // The tick-start revision sources travel together.
     fn start_action_v5(
         &mut self,
         tick: Tick,
         action: StagedAction,
+        before_items: Option<&crate::domain::zone::Phase4Snapshot>,
+        admitted: &BTreeMap<EntityId, u64>,
+        item_receipts: &mut BTreeMap<
+            (crate::domain::AccountId, crate::domain::zone::phase4_projection::ItemReceiptRef),
+            ItemReceiptState,
+        >,
         events: &mut Vec<ZoneEvent>,
     ) -> Result<(), RejectReason> {
         match action {
+            StagedAction::Use(entry) => {
+                if entry.canceled {
+                    return Ok(());
+                }
+                if self.binding(entry.caster.entity) != Some(entry.caster) {
+                    return Err(RejectReason::UnknownEntity);
+                }
+                self.item_command_at_v6(tick, &entry.command, entry.timing, events, item_receipts)
+            },
             StagedAction::Cast(entry) => {
                 if entry.canceled.is_some() {
                     Ok(())
                 } else {
-                    self.start_cast_v5(tick, &entry, events)
+                    self.start_cast_v5(
+                        tick,
+                        &entry,
+                        tick_start_revision(before_items, admitted, entry.caster.entity),
+                        events,
+                    )
                 }
             },
             StagedAction::Attack {
@@ -839,6 +1113,7 @@ impl ZoneState {
         &mut self,
         tick: Tick,
         command: &AppliedCommand,
+        before_items: Option<&crate::domain::zone::Phase4Snapshot>,
         staged: &mut StagedActions,
         events: &mut Vec<ZoneEvent>,
     ) -> Result<(), RejectReason> {
@@ -848,13 +1123,15 @@ impl ZoneState {
             ZoneCommand::CastSkill { .. }
                 | ZoneCommand::Attack { .. }
                 | ZoneCommand::AcceptResurrect { .. }
+                | ZoneCommand::Item(_)
         ) {
             self.refuse_dead_actor(command.source, &command.command)?;
         }
-        if let ZoneCommand::Despawn { entity } | ZoneCommand::ReplaceSession { entity, .. } =
-            command.command
+        if let ZoneCommand::SpawnPlayer { entity, .. }
+        | ZoneCommand::Despawn { entity }
+        | ZoneCommand::ReplaceSession { entity, .. } = command.command
         {
-            if events.iter().any(|event| matches!(event, ZoneEvent::SkillLearned { entity: learned, .. } | ZoneEvent::ClassTransfer { entity: learned, .. } if *learned == entity)) {
+            if events.iter().any(|event| matches!(event, ZoneEvent::SkillLearned { entity: learned, .. } | ZoneEvent::ClassTransfer { entity: learned, .. } if *learned == entity) || matches!(event, ZoneEvent::ItemCheckpoint(p) if p.entity == entity)) {
                 return Err(RejectReason::InCombat);
             }
         }
@@ -881,9 +1158,17 @@ impl ZoneState {
             }
         }
         match &command.command {
-            ZoneCommand::SpawnPlayer { load, .. } => {
+            ZoneCommand::SpawnPlayer { entity, load, .. } => {
                 self.validate_paused_load_v5(load.as_deref())?;
                 events.extend(self.admit_v5(tick, command, load.as_deref())?);
+                if self.phase4.is_some() {
+                    let admitted = load
+                        .as_deref()
+                        .and_then(|load| load.phase4.as_ref())
+                        .and_then(|items| items.checkpoint.as_ref())
+                        .map_or(0, |checkpoint| checkpoint.inventory_revision);
+                    staged.admitted_revisions.insert(*entity, admitted);
+                }
             },
             ZoneCommand::SpawnNpc { .. } => {
                 events.extend(self.admit_v5(tick, command, None)?);
@@ -914,7 +1199,11 @@ impl ZoneState {
                 staged.cancel(*entity, *cast_id, CastCancelReason::Stopped);
                 self.cancel_v5(tick, *entity, *cast_id, CastCancelReason::Stopped, events);
             },
-            ZoneCommand::LearnSkill { .. } => self.learn_v5(tick, command, staged, events)?,
+            ZoneCommand::LearnSkill { entity, .. } => {
+                let initial =
+                    tick_start_revision(before_items, &staged.admitted_revisions, *entity);
+                self.learn_v5(tick, command, staged, initial, events)?;
+            },
             ZoneCommand::ChangeClass { .. } if self.complete_runtime_v5() => {
                 self.transfer_v5(tick, command, staged, events)?;
             },
@@ -964,6 +1253,77 @@ impl ZoneState {
                     })
                     .map_err(cast_reject)?;
             },
+            ZoneCommand::MaterializePendingItems(grant) => {
+                let initial = before_items
+                    .and_then(|items| items.players.get(&grant.entity))
+                    .map(|player| player.inventory_revision)
+                    .or_else(|| staged.admitted_revisions.get(&grant.entity).copied());
+                self.grant_item_v6(tick, grant, initial, events, &mut staged.item_receipts)?;
+            },
+            ZoneCommand::ExtendItemRange { range } => {
+                self.phase4
+                    .as_mut()
+                    .ok_or(RejectReason::NotYetImplemented)?
+                    .canonical
+                    .allocator
+                    .extend(*range)
+                    .map_err(|_| RejectReason::InvalidLoad)?;
+            },
+            ZoneCommand::Item(item) => {
+                let explicit =
+                    if let crate::domain::zone::ItemCommandKind::Use { target, .. } = item.kind {
+                        target
+                    } else {
+                        None
+                    };
+                let target = explicit
+                    .map(|target| CapturedTarget {
+                        entity: target.entity,
+                        incarnation: Some(target.incarnation),
+                    })
+                    .or_else(|| {
+                        self.entities
+                            .get(&item.entity)
+                            .and_then(|entity| entity.targeting.target)
+                            .map(|entity| CapturedTarget {
+                                entity,
+                                incarnation: self
+                                    .binding(entity)
+                                    .map(|binding| binding.incarnation),
+                            })
+                    });
+                let timing = ItemCommandTiming {
+                    ordinal: command.ordinal,
+                    accepted_sequence: command.seq,
+                    target,
+                    initial_inventory_revision: before_items
+                        .and_then(|items| items.players.get(&item.entity))
+                        .map(|player| player.inventory_revision)
+                        .or_else(|| staged.admitted_revisions.get(&item.entity).copied()),
+                };
+                if matches!(item.kind, crate::domain::zone::ItemCommandKind::Use { .. })
+                    && !item.has_known_receipt()
+                    && item
+                        .receipt_conflict()
+                        .map_err(|_| RejectReason::InvalidLoad)?
+                        .is_none()
+                {
+                    self.item_account_v6(item)?;
+                    let caster = self
+                        .binding(item.entity)
+                        .ok_or(RejectReason::UnknownEntity)?;
+                    staged
+                        .stage_action(StagedAction::Use(Box::new(StagedItemUse {
+                            caster,
+                            command: item.clone(),
+                            timing,
+                            canceled: false,
+                        })))
+                        .map_err(cast_reject)?;
+                } else {
+                    self.item_command_at_v6(tick, item, timing, events, &mut staged.item_receipts)?;
+                }
+            },
             ZoneCommand::AcceptResurrect { .. }
             | ZoneCommand::ChangeClass { .. }
             | ZoneCommand::Attack { .. }
@@ -986,6 +1346,7 @@ impl ZoneState {
                         staged.cancel_attacks(entity);
                     },
                     ZoneCommand::Despawn { entity } => {
+                        self.remove_items_v6(entity);
                         if let Some(p) = &mut self.phase3 {
                             if let Some(mut side) = p.canonical.entities.remove(&entity) {
                                 if let Some(offer) = side.invalidate_resurrect_offer() {
@@ -1005,6 +1366,9 @@ impl ZoneState {
                     | ZoneCommand::CancelCast { .. }
                     | ZoneCommand::AcceptResurrect { .. }
                     | ZoneCommand::LearnSkill { .. }
+                    | ZoneCommand::Item(_)
+                    | ZoneCommand::MaterializePendingItems(_)
+                    | ZoneCommand::ExtendItemRange { .. }
                     | ZoneCommand::ChangeClass { .. }
                     | ZoneCommand::SpawnPlayer { .. }
                     | ZoneCommand::SpawnNpc { .. }
@@ -1026,18 +1390,75 @@ impl ZoneState {
         load: Option<&PlayerLoad>,
     ) -> Result<Vec<ZoneEvent>, RejectReason> {
         let mut candidate = self.clone();
-        let events = candidate.apply(tick, command)?;
-        for event in &events {
-            if let ZoneEvent::EntitySpawn { entity, .. } = event {
-                candidate
-                    .attach_v5(tick, *entity, load)
-                    .map_err(|_| RejectReason::InvalidLoad)?;
+        let mut events = candidate.apply(tick, command)?;
+        let spawned: Vec<_> = events
+            .iter()
+            .filter_map(|event| {
+                if let ZoneEvent::EntitySpawn { entity, .. } = event {
+                    Some(*entity)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        for entity in spawned {
+            if candidate.phase4.is_some() {
+                if let Some(load) = load {
+                    candidate
+                        .entities
+                        .get_mut(&entity)
+                        .ok_or(RejectReason::InvalidLoad)?
+                        .targeting
+                        .dead = !load.alive;
+                    for event in &mut events {
+                        if let ZoneEvent::EntitySpawn {
+                            entity: id,
+                            combat: Some(view),
+                            ..
+                        } = event
+                        {
+                            if *id == entity {
+                                view.dead = !load.alive;
+                            }
+                        }
+                    }
+                }
             }
+            candidate
+                .attach_v5(tick, entity, load)
+                .map_err(|_| RejectReason::InvalidLoad)?;
+            if let Some(projection) = candidate
+                .incarnation_reset_v6(tick, entity, load, None)
+                .map_err(|_| RejectReason::InvalidLoad)?
+            {
+                events.push(ZoneEvent::ItemCheckpoint(Box::new(projection)));
+            }
+            candidate
+                .materialize_kit_v6(tick, entity, load, &mut events)
+                .map_err(|_| RejectReason::InvalidLoad)?;
         }
         *self = candidate;
         Ok(events)
     }
-    fn validate_paused_load_v5(&self, load: Option<&PlayerLoad>) -> Result<(), RejectReason> {
+    pub(super) fn validate_paused_load_v5(
+        &self,
+        load: Option<&PlayerLoad>,
+    ) -> Result<(), RejectReason> {
+        if let Some(items) = &self.phase4 {
+            let load = load.ok_or(RejectReason::InvalidLoad)?;
+            load.validate_phase4()
+                .map_err(|_| RejectReason::InvalidLoad)?;
+            let retained = load.phase4.as_ref().ok_or(RejectReason::InvalidLoad)?;
+            self.validate_pending_kit_v6(load)
+                .map_err(|_| RejectReason::InvalidLoad)?;
+            if retained
+                .checkpoint
+                .as_ref()
+                .is_some_and(|cp| cp.rules_hash != items.rules.hash())
+            {
+                return Err(RejectReason::InvalidLoad);
+            }
+        }
         let Some(load) = load else { return Ok(()) };
         let Some(checkpoint) = &load.phase3 else {
             return Ok(());
@@ -1103,6 +1524,7 @@ impl ZoneState {
                 reason,
             });
         }
+        self.cancel_item_casts_v6(tick, entity, id, reason, events);
     }
     fn hostility_v5(
         &self,
@@ -1123,7 +1545,7 @@ impl ZoneState {
                 },
                 kind: e.kind,
                 pos: e.pos,
-                alive: c.hp != 0,
+                alive: !e.targeting.dead,
                 attackable: e.targeting.attackable,
                 protected: c.protected_until.is_some_and(|until| until > tick),
             })
@@ -1148,6 +1570,27 @@ impl ZoneState {
             },
         )
     }
+    /// ConditionOpResurrection.java:40–51; external siege/pet modes are not admitted.
+    pub(super) fn can_resurrect_target_v6(&self, target: TargetBinding) -> Result<bool, TickError> {
+        if self.binding(target.entity) != Some(target)
+            || self
+                .entities
+                .get(&target.entity)
+                .is_none_or(|entity| !entity.targeting.dead || entity.kind != EntityKind::Player)
+        {
+            return Ok(false);
+        }
+        Ok(!self
+            .effective(target.entity)?
+            .flags
+            .intersects(effects::StatusFlags::RESURRECTION_BLOCK)
+            && self
+                .sidecar(target.entity)?
+                .player
+                .as_ref()
+                .is_some_and(|player| player.resurrect_offer.is_none()))
+    }
+
     #[allow(clippy::too_many_arguments)] // Start/escape range rules share life/AOI/peace guards.
     fn cast_target_v5(
         &self,
@@ -1216,6 +1659,7 @@ impl ZoneState {
         &mut self,
         tick: Tick,
         entry: &StagedCast,
+        initial_revision: Option<u64>,
         events: &mut Vec<ZoneEvent>,
     ) -> Result<(), RejectReason> {
         let e = self
@@ -1223,7 +1667,7 @@ impl ZoneState {
             .get(&entry.caster.entity)
             .ok_or(RejectReason::UnknownEntity)?;
         let c = e.combat.as_ref().ok_or(RejectReason::InvalidLoad)?;
-        if c.incarnation != entry.caster.incarnation || c.hp == 0 {
+        if c.incarnation != entry.caster.incarnation || e.targeting.dead {
             return Err(RejectReason::DeadActor);
         }
         let CombatRole::Player {
@@ -1240,13 +1684,55 @@ impl ZoneState {
             entry.skill_id,
         )
         .map_err(cast_reject)?;
+        let has_auto_shots = self
+            .phase4
+            .as_ref()
+            .and_then(|items| items.canonical.players.get(&entry.caster.entity))
+            .is_some_and(|player| !player.auto_shots.is_empty());
+        if self.phase4.is_some() && (!skill.item_consume.is_empty() || has_auto_shots) {
+            return self.start_paid_skill_cast_v6(
+                tick,
+                entry,
+                &skill.clone(),
+                reference,
+                initial_revision,
+                events,
+            );
+        }
+        self.start_defined_cast_v6(tick, entry, &skill.clone(), reference, None, None, events)
+    }
+
+    #[allow(clippy::too_many_lines, clippy::too_many_arguments)] // Shared validated start preserves learned and item lane ordering.
+    pub(super) fn start_defined_cast_v6(
+        &mut self,
+        tick: Tick,
+        entry: &StagedCast,
+        skill: &SkillDef,
+        reference: crate::domain::zone::skill::SkillRef,
+        origin: Option<(crate::domain::zone::phase4::ItemCastOrigin, bool)>,
+        item_payment: Option<(
+            &mut crate::domain::zone::Phase4Projection,
+            crate::domain::zone::item_inventory::InventoryBoundary,
+        )>,
+        events: &mut Vec<ZoneEvent>,
+    ) -> Result<(), RejectReason> {
+        let caster = self
+            .entities
+            .get(&entry.caster.entity)
+            .ok_or(RejectReason::UnknownEntity)?;
+        let combat = caster.combat.as_ref().ok_or(RejectReason::NotAPlayer)?;
+        if combat.incarnation != entry.caster.incarnation || caster.targeting.dead {
+            return Err(RejectReason::DeadActor);
+        }
+        let simultaneous = origin
+            .as_ref()
+            .is_some_and(|(_, simultaneous)| *simultaneous);
         if !supported_cast(skill, reference.rank)
             || (!self.complete_runtime_v5()
                 && skill.effects.iter().any(|h| h.name == "Resurrection"))
         {
             return Err(RejectReason::NotYetImplemented);
         }
-        let skill = skill.clone();
         let target = if skill
             .target_type
             .at(reference.rank, skill.max_level)
@@ -1262,13 +1748,18 @@ impl ZoneState {
             })
         }
         .ok_or(RejectReason::InvalidTargetType)?;
+        if skill.effects.iter().any(|handler| handler.name == "Escape")
+            && (self.phase4.is_none() || self.safe_point.is_none() || target != entry.caster)
+        {
+            return Err(RejectReason::NotPermitted);
+        }
         let point_blank = skill
             .affect_scope
             .at(reference.rank, skill.max_level)
             .is_some_and(|s| s == "POINT_BLANK");
         if !self.complete_runtime_v5()
             && !point_blank
-            && hostile_skill(&skill)
+            && hostile_skill(skill)
             && self
                 .entities
                 .get(&target.entity)
@@ -1285,7 +1776,7 @@ impl ZoneState {
             entry.caster,
             target,
             range,
-            !point_blank && hostile_skill(&skill),
+            !point_blank && hostile_skill(skill),
             false,
             skill
                 .target_type
@@ -1295,14 +1786,30 @@ impl ZoneState {
         let effective = self
             .effective(entry.caster.entity)
             .map_err(|_| RejectReason::InvalidLoad)?;
-        let terms = state_skill::cast_terms(
-            &skill,
+        let (mut weapon, mut shots) = self.available_cast_shots_v6(entry.caster.entity, skill)?;
+        let mut terms = state_skill::cast_terms(
+            skill,
             reference.rank,
             CastStatContext {
+                world: self
+                    .phase4
+                    .as_ref()
+                    .map(|_| state_skill::CastWorldConditions {
+                        // The hash-validated test_zone has no L2 boss/instance zones; fear,
+                        // duels, mounts, Olympiad and combat flags are not admitted in V6.
+                        can_escape: caster.kind == EntityKind::Player,
+                        inside_zone_ids: &[],
+                    }),
+                player_level: self.phase4.as_ref().map(|_| effective.physical.level()),
                 calculator: &effective.calculator,
                 conditions: FunctionConditions {
-                    weapon_kind: "SWORD",
-                    can_resurrect: true,
+                    weapon_kind: self
+                        .item_weapon_kind(entry.caster.entity, "SWORD")
+                        .map_err(|_| RejectReason::InvalidLoad)?,
+                    can_resurrect: self.phase4.is_none()
+                        || self
+                            .can_resurrect_target_v6(target)
+                            .map_err(|_| RejectReason::InvalidLoad)?,
                 },
                 attack_speed: u32::try_from(
                     effective
@@ -1318,10 +1825,27 @@ impl ZoneState {
             },
         )
         .map_err(cast_reject)?;
+        if skill.is_magic == 1 && shots & 6 != 0 {
+            let hit_time = u32::try_from(
+                *skill
+                    .hit_time_ms
+                    .at(reference.rank, skill.max_level)
+                    .ok_or(RejectReason::InvalidLoad)?,
+            )
+            .map_err(|_| RejectReason::InvalidLoad)?;
+            terms.animation = crate::domain::zone::effects::FrozenRatio::new(
+                skill_math::cast_animation(hit_time, effective.cast_speed, false, true, true)
+                    .map_err(|_| RejectReason::InvalidLoad)?,
+            );
+        }
         let mut side = self
             .sidecar(entry.caster.entity)
             .map_err(|_| RejectReason::InvalidLoad)?
             .clone();
+        let original_main = side.cast.clone();
+        if simultaneous {
+            side.cast = CastState::Idle;
+        }
         let phase = self.phase3.as_ref().ok_or(RejectReason::InvalidLoad)?;
         let mut next_cast_id = phase.canonical.next_cast_id;
         let c = self
@@ -1329,29 +1853,75 @@ impl ZoneState {
             .get(&entry.caster.entity)
             .and_then(|e| e.combat.as_ref())
             .ok_or(RejectReason::InvalidLoad)?;
-        let mut mp = c.mp;
+        let original_mp = c.mp;
+        let original_next_id = next_cast_id;
+        let hp = c.hp;
+        let incarnation = c.incarnation;
+        let unstarted_side = item_payment.as_ref().map(|_| side.clone());
+        let mut mp = original_mp;
+        let hp_remainder_q = if self.phase4.is_some() {
+            side.fractions.hp
+        } else {
+            0
+        };
+        let mut start = CastStart {
+            now: tick,
+            ordinal: entry.ordinal,
+            incarnation,
+            terms,
+            target: Some(target),
+            affect_limit: 0,
+            targets: Vec::new(),
+        };
         let mut cast = side
-            .begin_cast(
-                &mut next_cast_id,
-                &mut mp,
-                c.hp,
-                CastStart {
-                    now: tick,
-                    ordinal: entry.ordinal,
-                    incarnation: c.incarnation,
-                    terms,
-                    target: Some(target),
-                    affect_limit: 0,
-                    targets: Vec::new(),
-                },
-            )
+            .begin_cast(&mut next_cast_id, &mut mp, hp, hp_remainder_q, start.clone())
             .map_err(cast_reject)?;
+        if let Some((projection, boundary)) = item_payment {
+            // Deterministic cast guards above precede the source's optional reduction draw.
+            self.recharge_cast_shots_v6(entry.caster, skill, cast.id, boundary, projection)?;
+            let available = self.available_cast_shots_v6(entry.caster.entity, skill)?;
+            if available != (weapon, shots) {
+                (weapon, shots) = available;
+                if skill.is_magic == 1 && shots & 6 != 0 {
+                    let hit_time = u32::try_from(
+                        *skill
+                            .hit_time_ms
+                            .at(reference.rank, skill.max_level)
+                            .ok_or(RejectReason::InvalidLoad)?,
+                    )
+                    .map_err(|_| RejectReason::InvalidLoad)?;
+                    start.terms.animation = crate::domain::zone::effects::FrozenRatio::new(
+                        skill_math::cast_animation(
+                            hit_time,
+                            effective.cast_speed,
+                            false,
+                            true,
+                            true,
+                        )
+                        .map_err(|_| RejectReason::InvalidLoad)?,
+                    );
+                }
+                side = unstarted_side.ok_or(RejectReason::InvalidLoad)?;
+                next_cast_id = original_next_id;
+                mp = original_mp;
+                cast = side
+                    .begin_cast(&mut next_cast_id, &mut mp, hp, hp_remainder_q, start)
+                    .map_err(cast_reject)?;
+            }
+        }
         let (affect_limit, targets) =
-            self.collect_targets_v5(tick, entry.caster, target, &skill, reference.rank)?;
+            self.collect_targets_v5(tick, entry.caster, target, skill, reference.rank)?;
         cast.affect_limit = affect_limit;
         cast.targets = targets;
         side.cast = CastState::Casting(cast.clone());
         let launched = side.launch_cast(tick, cast.id, |_| true);
+        let CastState::Casting(retained_cast) = &side.cast else {
+            return Err(RejectReason::InvalidLoad);
+        };
+        let retained_cast = retained_cast.clone();
+        if simultaneous {
+            side.cast = original_main;
+        }
         *self
             .sidecar_mut(entry.caster.entity)
             .map_err(|_| RejectReason::InvalidLoad)? = side;
@@ -1360,23 +1930,54 @@ impl ZoneState {
             .ok_or(RejectReason::InvalidLoad)?
             .canonical
             .next_cast_id = next_cast_id;
+        if origin.is_some() || shots != 0 {
+            self.bind_cast_shots_v6(crate::domain::zone::phase4::ItemCastState {
+                caster: entry.caster,
+                cast: retained_cast,
+                origin: origin.map(|(origin, _)| origin),
+                simultaneous,
+                weapon,
+                shots,
+            })?;
+        }
         let c = self
             .entities
             .get_mut(&entry.caster.entity)
             .and_then(|e| e.combat.as_mut())
             .ok_or(RejectReason::InvalidLoad)?;
         c.mp = mp;
-        if hostile_skill(&skill) {
+        if hostile_skill(skill) {
             c.protected_until = None;
         }
-        if self.complete_runtime_v5() {
+        if self.complete_runtime_v5() && !simultaneous {
             self.disengage(tick, entry.caster.entity, SwingCancel::Stopped, events);
         }
-        if hostile_skill(&skill) {
+        if hostile_skill(skill) {
             for target in &cast.targets {
                 self.note_hostility_v5(tick, entry.caster, *target)
                     .map_err(|_| RejectReason::InvalidLoad)?;
             }
+        }
+        if self.items_evidence_enabled() {
+            let speed = if skill.is_magic == 1 {
+                effective.cast_speed
+            } else {
+                u32::try_from(
+                    effective
+                        .physical
+                        .attack_speed()
+                        .raw()
+                        .checked_div(Q)
+                        .ok_or(RejectReason::InvalidLoad)?,
+                )
+                .map_err(|_| RejectReason::InvalidLoad)?
+            };
+            self.item_evidence(entry.caster, crate::domain::zone::evidence::ItemEvidenceData::Formula(serde_json::json!({
+                "formula":"cast_time", "inputs":{"hit_time":skill.hit_time_ms.at(reference.rank,skill.max_level).ok_or(RejectReason::InvalidLoad)?,
+                    "casting_speed":speed,"spirit":shots & 2 != 0,"blessed":shots & 4 != 0,"static":skill.is_magic==2,"is_magic":skill.is_magic==1},
+                "actual":u64::try_from(cast.animation.value().trunc().map_err(|_| RejectReason::InvalidLoad)?).map_err(|_| RejectReason::InvalidLoad)?,
+                "resolution_id":format!("cast:{}",cast.id.0),"baseline":false
+            })));
         }
         events.push(cast_started(tick, entry.caster.entity, &cast, None));
         if cast.reuse_until > tick {
@@ -1433,17 +2034,13 @@ impl ZoneState {
     fn complete_casts_v5(
         &mut self,
         tick: Tick,
+        before_items: Option<&crate::domain::zone::Phase4Snapshot>,
         events: &mut Vec<ZoneEvent>,
     ) -> Result<(), TickError> {
         self.refresh_schedule_v5()?;
-        let launches = self
-            .phase3
-            .as_ref()
-            .ok_or_else(missing)?
-            .schedule
-            .cast_launches(tick);
+        let launches = self.cast_work_v6(tick, true)?;
         for work in launches {
-            let CastState::Casting(cast) = self.sidecar(work.caster)?.cast.clone() else {
+            let Some(cast) = self.cast_for_work_v6(work)? else {
                 continue;
             };
             let rules = &self.phase3.as_ref().ok_or_else(missing)?.canonical.rules;
@@ -1468,18 +2065,12 @@ impl ZoneState {
                 self.cancel_v5(tick, work.caster, Some(cast.id), target_cancel(reason), events);
                 continue;
             }
-            self.sidecar_mut(work.caster)?
-                .launch_cast(tick, work.cast, |target| targets.contains(&target));
+            self.launch_cast_work_v6(tick, work, &targets)?;
         }
         self.refresh_schedule_v5()?;
-        let impacts = self
-            .phase3
-            .as_ref()
-            .ok_or_else(missing)?
-            .schedule
-            .cast_impacts(tick);
+        let impacts = self.cast_work_v6(tick, false)?;
         for work in impacts {
-            let CastState::Casting(cast) = self.sidecar(work.caster)?.cast.clone() else {
+            let Some(cast) = self.cast_for_work_v6(work)? else {
                 continue;
             };
             let skill = self
@@ -1526,9 +2117,11 @@ impl ZoneState {
                 &skill,
                 cast.skill.rank,
                 CastStatContext {
+                    world: None,
+                    player_level: self.phase4.as_ref().map(|_| stats.physical.level()),
                     calculator: &stats.calculator,
                     conditions: FunctionConditions {
-                        weapon_kind: "SWORD",
+                        weapon_kind: self.item_weapon_kind(work.caster, "SWORD")?,
                         can_resurrect: true,
                     },
                     attack_speed: 1,
@@ -1537,19 +2130,7 @@ impl ZoneState {
                 },
             )
             .map_err(invariant)?;
-            let phase = self.phase3.as_mut().ok_or_else(missing)?;
-            phase.schedule_dirty.insert(work.caster);
-            let side = phase
-                .canonical
-                .entities
-                .get_mut(&work.caster)
-                .ok_or_else(missing)?;
-            let c = self
-                .entities
-                .get_mut(&work.caster)
-                .and_then(|e| e.combat.as_mut())
-                .ok_or_else(missing)?;
-            match side.pay_cast_impact(tick, cast.id, &mut c.mp, &mut c.hp, mp, hp) {
+            match self.pay_cast_work_v6(tick, work, mp, hp)? {
                 Err(reason) => {
                     events.push(ZoneEvent::SkillCastCancelled {
                         tick,
@@ -1573,11 +2154,22 @@ impl ZoneState {
                     target,
                     &skill,
                     cast.skill.rank,
+                    cast.id,
                     events,
                     &mut results,
                 )?;
             }
-            self.sidecar_mut(work.caster)?.finish_cast(cast.id);
+            self.discharge_cast_shots_v6(
+                tick,
+                work,
+                &skill,
+                !results.is_empty(),
+                before_items
+                    .and_then(|items| items.players.get(&work.caster))
+                    .map(|player| player.inventory_revision),
+                events,
+            )?;
+            self.finish_cast_work_v6(work)?;
             events.push(ZoneEvent::SkillCastResult {
                 tick,
                 caster,
@@ -1596,6 +2188,7 @@ impl ZoneState {
         target: TargetBinding,
         skill: &SkillDef,
         rank: u32,
+        cast_id: CastId,
         events: &mut Vec<ZoneEvent>,
         results: &mut Vec<SkillTargetResult>,
     ) -> Result<(), TickError> {
@@ -1606,6 +2199,11 @@ impl ZoneState {
         } else {
             serde_json::Value::Null
         };
+        let shots = self
+            .phase4
+            .as_ref()
+            .and_then(|items| items.canonical.item_casts.get(&cast_id))
+            .map_or(0, |context| context.shots);
         let result_start = results.len();
         let continuous = self.continuous_terms_v5(caster, target, skill, rank)?;
 
@@ -1614,6 +2212,10 @@ impl ZoneState {
             .iter()
             .filter(|h| !crate::domain::zone::effects::continuous_handler(&h.name))
         {
+            if handler.name == "Escape" {
+                results.push(self.escape_v6(tick, target, events)?);
+                continue;
+            }
             if handler.name == "Resurrection" {
                 results.push(self.resurrect_offer_v5(
                     tick,
@@ -1624,18 +2226,40 @@ impl ZoneState {
                 )?);
                 continue;
             }
-            let resolve = if matches!(handler.name.as_str(), "DispelBySlot" | "DispelByCategory") {
-                Self::dispel_handler_v5
-            } else if matches!(handler.name.as_str(), "Heal" | "HpPerMax" | "Mp" | "Cp") {
-                Self::restore_handler_v5
-            } else if matches!(handler.name.as_str(), "GetAgro" | "AddHate") {
-                Self::agro_handler_v5
-            } else if handler.name == "PhysicalAttack" {
-                Self::physical_handler_v5
-            } else {
-                Self::magic_handler_v5
-            };
-            results.push(resolve(self, tick, caster, target, skill, rank, handler, events)?);
+            if handler.name == "FatalBlow" {
+                results.push(
+                    self.blow_handler_v6(
+                        tick, caster, target, skill, rank, handler, shots, events,
+                    )?,
+                );
+                if self
+                    .entities
+                    .get(&target.entity)
+                    .is_none_or(|e| e.targeting.dead)
+                {
+                    break;
+                }
+                continue;
+            }
+            let resolved = match handler.name.as_str() {
+                "Lethal" => {
+                    self.lethal_handler_v6(tick, caster, target, skill, rank, handler, events)
+                },
+                "DispelBySlot" | "DispelByCategory" => {
+                    self.dispel_handler_v5(tick, caster, target, skill, rank, handler, events)
+                },
+                "Heal" | "Hp" | "HpPerMax" | "Mp" | "Cp" => self
+                    .restore_handler_v5(tick, caster, target, skill, rank, handler, shots, events),
+                "GetAgro" | "AddHate" => {
+                    self.agro_handler_v5(tick, caster, target, skill, rank, handler, events)
+                },
+                "PhysicalAttack" => self
+                    .physical_handler_v5(tick, caster, target, skill, rank, handler, shots, events),
+                _ => {
+                    self.magic_handler_v5(tick, caster, target, skill, rank, handler, shots, events)
+                },
+            }?;
+            results.push(resolved);
             if self
                 .entities
                 .get(&target.entity)
@@ -1740,7 +2364,7 @@ impl ZoneState {
             .peace_square(self.bounds)
             .map_err(invariant)?;
         if self.binding(victim.id) != Some(request.target)
-            || combat.hp == 0
+            || victim.targeting.dead
             || combat.protected_at(tick)
             || peace.contains(victim.pos)
             || (victim.kind == EntityKind::Npc
@@ -1875,9 +2499,13 @@ impl ZoneState {
         let rules = Arc::clone(&self.phase3.as_ref().ok_or_else(missing)?.canonical.rules);
         let stats = Arc::clone(self.rules.as_ref().ok_or_else(missing)?);
         let classes = Arc::clone(self.classes.as_ref().ok_or_else(missing)?);
+        let equipment = self.phase4.as_ref().map(|items| {
+            (items.canonical.players.get(&target.entity).cloned(), Arc::clone(&items.rules))
+        });
         let mutation = state_damage::prepare_hp_reduction(
             &side,
             DamageResources {
+                hp_remainder_q: self.phase4.as_ref().map(|_| side.fractions.hp),
                 hp: c.hp,
                 mp: c.mp,
                 cp,
@@ -1892,7 +2520,25 @@ impl ZoneState {
             &rules,
             |bound| draw(self, DamageRollSite::StunRemoval, target, bound),
             |side| {
-                let effective = derive_effective_v5(&stats, &classes, &rules, &recipient, side)?;
+                let effective = if let Some((player, items)) = &equipment {
+                    if recipient.kind == EntityKind::Player {
+                        crate::domain::zone::item_modifiers::derive_player(
+                            &stats,
+                            &classes,
+                            &rules,
+                            &recipient,
+                            side,
+                            crate::domain::zone::effective_stats::EquipmentStatContext {
+                                player: player.as_ref().ok_or(StatError::Overflow)?,
+                                rules: items,
+                            },
+                        )?
+                    } else {
+                        derive_effective_v5(&stats, &classes, &rules, &recipient, side)?
+                    }
+                } else {
+                    derive_effective_v5(&stats, &classes, &rules, &recipient, side)?
+                };
                 Ok(DamageMaxima {
                     hp: effective.physical.max_hp(),
                     mp: effective.physical.max_mp(),
@@ -1912,7 +2558,7 @@ impl ZoneState {
         }
         self.note_hostility_v5(tick, source, target)?;
         self.damage_hate_v5(tick, request, events)?;
-        if mutation.hp_removed > 0 {
+        if mutation.hp_removed > 0 || mutation.lethal {
             self.phase3
                 .as_mut()
                 .ok_or_else(missing)?
@@ -2026,6 +2672,11 @@ impl ZoneState {
         }
         Ok(())
     }
+    /// Passive reconciliation: each learned, Executable passive without an install source is
+    /// installed at the next sequence, in skill-id order (`BTreeMap`). D116's V6 upgrade of a
+    /// retained V5 skill checkpoint (API `upgrade_v6_skill_checkpoint`) follows this same
+    /// rule and order for several promoted passives; a single mid-session learn installs
+    /// identically.
     fn sync_passives_v5(&mut self, id: EntityId) -> Result<(), TickError> {
         let CombatRole::Player {
             progression: Some(player),
@@ -2141,18 +2792,26 @@ impl ZoneState {
                     .map_err(invariant)?
                     .raw())
                 .map_err(invariant)?,
-                con_bonus: q(stats
-                    .bonus()
-                    .bonus(crate::domain::zone::StatKind::Con, base.con)
+                con_bonus: if self.phase4.is_some() && player {
+                    self.base_property_v5(id, "CON")?.1
+                } else {
+                    q(stats
+                        .bonus()
+                        .bonus(crate::domain::zone::StatKind::Con, base.con)
+                        .map_err(invariant)?
+                        .raw())
                     .map_err(invariant)?
-                    .raw())
-                .map_err(invariant)?,
-                men_bonus: q(stats
-                    .bonus()
-                    .bonus(crate::domain::zone::StatKind::Men, base.men)
+                },
+                men_bonus: if self.phase4.is_some() && player {
+                    self.base_property_v5(id, "MEN")?.1
+                } else {
+                    q(stats
+                        .bonus()
+                        .bonus(crate::domain::zone::StatKind::Men, base.men)
+                        .map_err(invariant)?
+                        .raw())
                     .map_err(invariant)?
-                    .raw())
-                .map_err(invariant)?,
+                },
                 posture: if e.dest.is_some() {
                     RegenPosture::Moving
                 } else {
@@ -2163,7 +2822,8 @@ impl ZoneState {
                 input,
                 &effective.calculator,
                 FunctionConditions {
-                    weapon_kind: if player { "SWORD" } else { "NONE" },
+                    weapon_kind: self
+                        .item_weapon_kind(id, if player { "SWORD" } else { "NONE" })?,
                     can_resurrect: player,
                 },
                 rules.regen(),
@@ -2244,7 +2904,7 @@ impl ZoneState {
         }
         Ok(())
     }
-    fn owner_stats_v5(
+    pub(super) fn owner_stats_v5(
         &self,
         tick: Tick,
         id: EntityId,
@@ -2288,6 +2948,33 @@ impl ZoneState {
                     crit_permille: stats.physical.crit_permille(),
                 },
             }));
+        }
+        // D26: a V6 owner's StatsChanged carries weight/penalties/revision and the
+        // effective extension, published through PbOutput41.
+        if let Some(player) = self
+            .phase4
+            .as_ref()
+            .and_then(|items| items.canonical.players.get(&id))
+        {
+            let enrichment = crate::domain::zone::item_views::Phase4StatsView {
+                weight: crate::domain::zone::item_views::ItemWeightView::new(
+                    player.weight,
+                    player.max_load,
+                    player.weight_penalty_bonus,
+                )
+                .map_err(invariant)?,
+                penalties: crate::domain::zone::item_views::ItemPenaltyView::from(player),
+                inventory_revision: player.inventory_revision,
+                effective: self.phase4_effective_view_v6(id)?,
+            };
+            if let ZoneEvent::StatsChanged {
+                class: Some(_),
+                phase4,
+                ..
+            } = &mut event
+            {
+                *phase4 = Some(Box::new(enrichment));
+            }
         }
         Ok(event)
     }
@@ -2598,7 +3285,13 @@ fn hostile_skill(skill: &SkillDef) -> bool {
         || skill.effects.iter().any(|h| {
             matches!(
                 h.name.as_str(),
-                "MagicalAttack" | "MagicalAttackRange" | "PhysicalAttack" | "GetAgro" | "AddHate"
+                "MagicalAttack"
+                    | "MagicalAttackRange"
+                    | "PhysicalAttack"
+                    | "FatalBlow"
+                    | "Lethal"
+                    | "GetAgro"
+                    | "AddHate"
             )
         })
 }
@@ -2617,10 +3310,14 @@ fn supported_cast(skill: &SkillDef, rank: u32) -> bool {
             matches!(
                 h.name.as_str(),
                 "Resurrection"
+                    | "Escape"
                     | "PhysicalAttack"
+                    | "FatalBlow"
+                    | "Lethal"
                     | "MagicalAttack"
                     | "MagicalAttackRange"
                     | "Heal"
+                    | "Hp"
                     | "HpPerMax"
                     | "Mp"
                     | "Cp"
@@ -2640,6 +3337,11 @@ fn supported_cast(skill: &SkillDef, rank: u32) -> bool {
                     | "DefenceTrait"
                     | "AttackTrait"
             ) && h.section == "effects"
+                && (h.name != "Escape"
+                    || h.params
+                        .get("escapeType")
+                        .and_then(|value| value.at(rank, skill.max_level))
+                        .is_some_and(|value| value == "TOWN"))
                 && h.conditions.is_empty()
                 && h.section_conditions.is_empty()
                 && (!matches!(h.name.as_str(), "MaxHp" | "MaxMp")
@@ -2687,6 +3389,7 @@ impl ZoneState {
         for event in &spawned {
             match event {
                 ZoneEvent::EntityDespawn { entity, .. } => {
+                    self.remove_items_v6(*entity);
                     let phase = self.phase3.as_mut().ok_or_else(missing)?;
                     phase.canonical.entities.remove(entity);
                     phase.effective.remove(entity);
@@ -3071,4 +3774,17 @@ fn effect_range_v5(skill: &SkillDef, rank: u32) -> Result<i64, TickError> {
     } else {
         -1
     })
+}
+
+/// T37 (D79): the owner's revision before this tick's changes: the tick-start snapshot, or for
+/// an owner admitted this tick the revision it was admitted with.
+pub(super) fn tick_start_revision(
+    before_items: Option<&crate::domain::zone::Phase4Snapshot>,
+    admitted: &BTreeMap<EntityId, u64>,
+    id: EntityId,
+) -> Option<u64> {
+    before_items
+        .and_then(|items| items.players.get(&id))
+        .map(|player| player.inventory_revision)
+        .or_else(|| admitted.get(&id).copied())
 }

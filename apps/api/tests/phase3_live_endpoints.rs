@@ -266,6 +266,7 @@ async fn real_learning_catalogue_cast_cancel_hydration_and_offline_frozen_reply(
     ledger.sp = 777;
     repo.checkpoint(
         &api::application::CharacterCheckpoint {
+            phase4: None,
             character_id: c.id,
             revision_seen: saved.revision,
             level: saved.level,
@@ -541,6 +542,7 @@ async fn normal_v5_services_transfer_preserves_paid_rank_effect_and_frozen_offli
         .unwrap();
     repo.checkpoint(
         &api::application::CharacterCheckpoint {
+            phase4: None,
             character_id: c.id,
             revision_seen: 0,
             level: c.level,

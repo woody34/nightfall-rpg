@@ -207,10 +207,10 @@ async fn startup_after_historical_epoch(phase3: bool) {
 
 #[tokio::test]
 async fn unfinished_v4_recovery_starts_v5_with_fresh_checkpoint_policy() {
-    startup_after_historical_epoch(false).await;
+    Box::pin(startup_after_historical_epoch(false)).await;
 }
 
 #[tokio::test]
 async fn historical_v5_recovery_starts_v5_with_fresh_checkpoint_policy() {
-    startup_after_historical_epoch(true).await;
+    Box::pin(startup_after_historical_epoch(true)).await;
 }

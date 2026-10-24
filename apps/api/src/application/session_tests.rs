@@ -447,6 +447,7 @@ fn close_codes_match_the_contract() {
         (SessionEnd::SlowConsumer, Some(4429)),
         (SessionEnd::AdmissionRefused, Some(1011)),
         (SessionEnd::ZoneUnavailable, Some(1011)),
+        (SessionEnd::LaneQuarantined, Some(4423)),
     ];
     for (end, code) in cases {
         assert_eq!(end.close_code(), code, "{end:?}");
@@ -515,4 +516,31 @@ async fn session_actor_dispatches_raw_frames_with_metadata_to_the_event_log() {
     assert!(outs
         .iter()
         .all(|r| r.session == client.id.as_uuid() && r.zone == seen.zone && r.epoch == seen.epoch));
+}
+
+#[tokio::test(start_paused = true)]
+async fn detached_inventory_bounds_lifecycle_lock_wait_without_retained_reads() {
+    use crate::application::ports::{
+        ItemInventoryRepository, ItemInventoryRuntime, RetainedInventory,
+    };
+    struct NoRead;
+    #[async_trait::async_trait]
+    impl ItemInventoryRepository for NoRead {
+        async fn retained_inventory(
+            &self,
+            _: crate::domain::CharacterId,
+        ) -> anyhow::Result<Option<RetainedInventory>> {
+            panic!("timed-out lifecycle read must not reach the repository");
+        }
+    }
+    let h = harness(SessionLimits::default());
+    let guard = h.ctx.registry.live.lock().await;
+    assert!(matches!(
+        h.ctx
+            .detached_inventory(crate::domain::CharacterId::new(), &NoRead)
+            .await,
+        Err(crate::application::AppError::Unavailable(_))
+    ));
+    drop(guard);
+    assert!(h.ctx.registry.live.try_lock().is_ok());
 }

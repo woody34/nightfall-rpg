@@ -44,7 +44,7 @@ bool USkillStateSubsystem::IsOwn(const FString& Id) const { return Net && Net->I
 void USkillStateSubsystem::ClearOwner()
 {
 	SelectedCorpse.Reset();
-	++OperationSerial; bBusy = false; bRpcDone = false; FirstReceipts.Reset(); bReceiptMatches.Reset(); Counts.Reset(); bLearnDone = false; bLearnableKnown = false; Learnable = {}; LearnReceipt = {};
+	++OperationSerial; bBusy = false; bRpcDone = false; LearnQueue.Reset(); FirstReceipts.Reset(); bReceiptMatches.Reset(); Counts.Reset(); bLearnDone = false; bLearnableKnown = false; Learnable = {}; LearnReceipt = {};
 	InitialHp.Reset(); InitialMp.Reset(); InitialCp.Reset(); ObservedCancel.Reset();
  LastOfferId=0; Learned.Reset(); Reuse.Reset(); Sp.Reset(); Offer.Reset(); LearnedEvents.Reset(); SpGainEvents.Reset(); OwnerTick = 0;
 	SyncTick = StatsTick = SpTick = LastSpGainTick = OfferTick = SpGainedTotal = 0; DeathPenalty = 0;
@@ -168,18 +168,19 @@ void USkillStateSubsystem::ApplyCancel(const FSkillCastCancelled& C)
  const int32 Before=CastTransitions;FinishCast(C.Caster,C.CasterIncarnation,C.CastId,C.Tick,C.Reason);
  if(CastTransitions!=Before){ObservedCancel=C;if(IsOwn(C.Caster))++Counts.FindOrAdd(TEXT("cast_cancellations"));}
 }
-TOptional<uint64> USkillStateSubsystem::ReuseRemaining(uint32 Id) const
+TOptional<uint64> USkillStateSubsystem::ReuseRemaining(uint32 Id, uint64 AtTick) const
 {
 	if (!bSyncKnown || !Learned.Contains(Id)) return {};
-	const auto* R = Reuse.Find(Id); return R && R->ReadyTick > GetTick() ? R->ReadyTick - GetTick() : uint64(0);
+	const auto* R = Reuse.Find(Id); return R && R->ReadyTick > AtTick ? R->ReadyTick - AtTick : uint64(0);
 }
-FString USkillStateSubsystem::Flag(const FString& Entity) const
+FString USkillStateSubsystem::Flag(const FString& Entity, uint64 AtTick) const
 {
-	const auto* P = FindPvp(Entity); return !P ? TEXT("unknown") : P->Karma ? TEXT("chaotic") : P->FlagUntilTick > GetTick() ? TEXT("pvp") : TEXT("none");
+	const auto* P = FindPvp(Entity); return !P ? TEXT("unknown") : P->Karma ? TEXT("chaotic") : P->FlagUntilTick > AtTick ? TEXT("pvp") : TEXT("none");
 }
-bool USkillStateSubsystem::OfferPending() const { return Net && Fence.Dead(Net->GetOwnEntityId()) && Offer.IsSet() && Offer->State == 1 && Offer->ExpiryTick > GetTick(); }
+bool USkillStateSubsystem::OfferPending(uint64 AtTick) const { return Net && Fence.Dead(Net->GetOwnEntityId()) && Offer.IsSet() && Offer->State == 1 && Offer->ExpiryTick > AtTick; }
 
 uint64 USkillStateSubsystem::GetTick() const { return FMath::Max(Fence.Tick, Net ? Net->GetLatestReceivedTick() : uint64(0)); }
+uint64 USkillStateSubsystem::GetEstimatedTick() const { return FMath::Max(Fence.Tick, Net ? Net->GetEstimatedTick() : uint64(0)); }
 
 void USkillStateSubsystem::ApplyCatalog(const FGrpcNightfallV1GetSkillCatalogResponse& R) { Catalog = R; bCatalogKnown = true; EnsureHotbar(); OnChanged.Broadcast(); }
 void USkillStateSubsystem::ApplyLearnable(const FGrpcNightfallV1ListLearnableSkillsResponse& R) { Learnable = R; bLearnableKnown = true; OnChanged.Broadcast(); }
@@ -209,19 +210,46 @@ void USkillStateSubsystem::LoadLearnable(FDone Done)
 	{
 		if (!Weak.IsValid() || Serial != Weak->OperationSerial) return;
 		Weak->bBusy = false; Weak->bRpcDone = true; Weak->LastResult = Result; if (Result.IsOk()) Weak->ApplyLearnable(R); Weak->OnChanged.Broadcast(); if (Done) Done(Result);
+		if (Weak.IsValid()) Weak->DrainLearnQueue();
 	});
 }
 void USkillStateSubsystem::Learn(uint32 Id, uint32 Rank, FDone Done, const FString& Key)
 {
-	if (!Session || !Net || bBusy) return;
+	if ((!Session && !LearnProvider) || !Net) return;
+	if (bBusy)
+	{
+		// D160 (T47): never drop a learn while an RPC is in flight. The server replays a same-key
+		// learn byte-identically, so the queued request goes out unchanged when the current one completes.
+		if (LearnQueue.Num() >= MaxQueuedLearns)
+		{
+			FNetResult Full; Full.Error = ENetError::ResourceExhausted; Full.Message = FString::Printf(TEXT("learn queue full (%d pending)"), LearnQueue.Num());
+			if (Done) Done(Full);
+			return;
+		}
+		LearnQueue.Add(FQueuedLearn{ Id, Rank, Key, MoveTemp(Done) });
+		OnChanged.Broadcast();
+		return;
+	}
+	StartLearn(Id, Rank, MoveTemp(Done), Key);
+}
+void USkillStateSubsystem::DrainLearnQueue()
+{
+	if (bBusy || LearnQueue.IsEmpty()) return;
+	FQueuedLearn Next = MoveTemp(LearnQueue[0]); LearnQueue.RemoveAt(0);
+	StartLearn(Next.Id, Next.Rank, MoveTemp(Next.Done), Next.Key);
+}
+void USkillStateSubsystem::StartLearn(uint32 Id, uint32 Rank, FDone Done, const FString& Key)
+{
 	bBusy = true; bRpcDone = false; bLearnDone = false; const uint64 Serial = ++OperationSerial;
 	FGrpcNightfallV1LearnSkillRequest Req; Req.CharacterId = Net->GetOwnEntityId(); Req.SkillId = Id; Req.SkillLevel = Rank;
 	Req.IdempotencyKey = Key.IsEmpty() ? FGuid::NewGuid().ToString(EGuidFormats::DigitsWithHyphensLower) : Key;
 	LastLearnKey = Req.IdempotencyKey;
-	Session->LearnSkill(Req, [Weak = TWeakObjectPtr<USkillStateSubsystem>(this), Serial, Done](const FNetResult& Result, const FGrpcNightfallV1LearnSkillResponse& R)
+	auto Callback = [Weak = TWeakObjectPtr<USkillStateSubsystem>(this), Serial, Done](const FNetResult& Result, const FGrpcNightfallV1LearnSkillResponse& R)
 	{
 		if (Weak.IsValid()) Weak->CompleteLearn(Serial, Result, R, Done);
-	});
+	};
+	if (LearnProvider) LearnProvider(Req, MoveTemp(Callback));
+	else Session->LearnSkill(Req, MoveTemp(Callback));
 }
 void USkillStateSubsystem::CompleteLearn(uint64 Serial, const FNetResult& Result, const FGrpcNightfallV1LearnSkillResponse& R, FDone Done)
 {
@@ -234,6 +262,7 @@ void USkillStateSubsystem::CompleteLearn(uint64 Serial, const FNetResult& Result
   if(const auto* First=FirstReceipts.Find(LastLearnKey))bReceiptMatches=(*First==Json);
   else {if(FirstReceipts.Num()>=128)FirstReceipts.Reset();FirstReceipts.Add(LastLearnKey,Json);bReceiptMatches.Reset();} }
 	OnChanged.Broadcast(); if (Done) Done(Result);
+	DrainLearnQueue();
 }
 const FGrpcNightfallV1SkillCatalogEntry* USkillStateSubsystem::FindSkill(uint32 Id) const
 {

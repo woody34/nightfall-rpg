@@ -14,9 +14,20 @@ use crate::application::{
 use crate::domain::character_progression::base_class_profile;
 use crate::domain::{AccountId, Character, CharacterId, DomainEvent};
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 struct State {
+    lane_quarantines: BTreeMap<CharacterId, crate::application::ports::LaneQuarantine>,
     characters: HashMap<CharacterId, Character>,
+    item_receipts: BTreeMap<
+        (AccountId, crate::application::ports::ItemMutationOperation, IdempotencyKey),
+        crate::application::ports::ItemMutationReceipt,
+    >,
+    item_ledger: Vec<crate::application::ports::ItemLedgerEntry>,
+    item_inventories: BTreeMap<CharacterId, crate::domain::zone::Phase4Checkpoint>,
+    item_ranges:
+        BTreeMap<(crate::domain::zone::ZoneId, u64, u64), crate::application::ports::ItemIdRange>,
+    pending_item_requests:
+        BTreeMap<CharacterId, Vec<crate::application::ports::PendingItemRequest>>,
     names: HashMap<String, CharacterId>,
     /// `(account, key)`: keys are scoped to the account, like the Postgres primary key.
     keys: HashMap<(AccountId, IdempotencyKey), (String, CharacterId)>,
@@ -33,10 +44,64 @@ struct State {
 }
 
 impl State {
+    fn character_view(&self, character: &Character) -> Character {
+        let mut view = character.clone();
+        view.item_metadata = self
+            .item_inventories
+            .get(&character.id)
+            .map(crate::domain::CharacterItemMetadata::from);
+        view
+    }
+
+    /// D77: like the Postgres adapter, every retained item needs its append-only birth row;
+    /// provenance corruption is a permanent named constraint that fences the lane.
+    fn item_checkpoint(
+        &self,
+        character: CharacterId,
+    ) -> Result<Option<crate::domain::zone::Phase4Checkpoint>, CheckpointError> {
+        let Some(mut checkpoint) = self.item_inventories.get(&character).cloned() else {
+            return Ok(None);
+        };
+        let named = |name: &str| CheckpointError::Constraint(name.into());
+        for item in &mut checkpoint.instances {
+            let birth = self
+                .item_ledger
+                .iter()
+                .find(|row| {
+                    row.character_id == character
+                        && row.instance_id == item.id
+                        && row.delta.before.is_none()
+                })
+                .ok_or_else(|| named("item_creation_ledger_missing"))?;
+            if birth
+                .delta
+                .after
+                .as_ref()
+                .is_none_or(|born| born.created_tick != item.created_tick)
+            {
+                return Err(named("item_creation_ledger_tick"));
+            }
+            let recorded = crate::domain::zone::ItemCreationOrigin {
+                zone: birth.zone_id,
+                epoch: birth.epoch,
+            };
+            if item
+                .creation_origin
+                .is_some_and(|origin| origin != recorded)
+            {
+                return Err(named("item_creation_ledger_origin"));
+            }
+            item.creation_origin = Some(recorded);
+            item.validate().map_err(anyhow::Error::from)?;
+        }
+        Ok(Some(checkpoint))
+    }
+
     fn put(&mut self, c: &Character) {
         self.progression.insert(
             c.id,
             ProgressionState {
+                phase4: None,
                 phase3: None,
                 position: c.position,
                 level: c.level,
@@ -62,6 +127,7 @@ pub struct InMemoryCharacterRepository {
     state: Mutex<State>,
     classes: Option<Arc<ClassRegistry>>,
     phase3_rules: Option<Arc<Phase3Rules>>,
+    phase4_rules: Option<Arc<crate::domain::zone::Phase4Rules>>,
 }
 
 impl InMemoryCharacterRepository {
@@ -76,6 +142,18 @@ impl InMemoryCharacterRepository {
     pub fn with_phase3_rules(mut self, rules: Arc<Phase3Rules>) -> Self {
         self.phase3_rules = Some(rules);
         self
+    }
+
+    /// Install the exact item/skill pair selected for this V6 epoch, never a mixed catalogue.
+    pub fn with_phase4_rules(
+        mut self,
+        items: Arc<crate::domain::zone::Phase4Rules>,
+        skills: Arc<Phase3Rules>,
+    ) -> anyhow::Result<Self> {
+        items.validate_phase3(&skills).map_err(anyhow::Error::msg)?;
+        self.phase3_rules = Some(skills);
+        self.phase4_rules = Some(items);
+        Ok(self)
     }
 
     fn phase3_rules(&self) -> anyhow::Result<Arc<Phase3Rules>> {
@@ -97,6 +175,22 @@ impl InMemoryCharacterRepository {
             .map_err(anyhow::Error::msg)
     }
 
+    /// D116 read-side upgrade of a retained V5 skill checkpoint under V6 rules.
+    fn read_phase3(
+        &self,
+        phase3: Option<Phase3Checkpoint>,
+        c: &Character,
+    ) -> anyhow::Result<Option<Phase3Checkpoint>> {
+        if phase3.is_none() {
+            return Ok(None);
+        }
+        Ok(crate::infrastructure::character_validation::upgrade_v6_skill_checkpoint(
+            phase3,
+            &*self.phase3_rules()?,
+            &c.class_state.learned_skills,
+        ))
+    }
+
     fn validate_versioned(
         &self,
         c: &Character,
@@ -112,7 +206,7 @@ impl InMemoryCharacterRepository {
                 .validate_catalogue(&registry)
                 .map_err(anyhow::Error::msg)?;
             phase3.validate(&rules, &ledger.learned_skills, alive)?;
-            ledger.validate_for_phase3(&registry, &c.identity(), c.id)?;
+            ledger.validate_for_skill_rules(&registry, &c.identity(), c.id, &rules)?;
         } else {
             ledger.validate_for(&registry, &c.identity(), c.id)?;
         }
@@ -146,6 +240,12 @@ impl InMemoryCharacterRepository {
         self.state.lock().outbox.clone()
     }
 
+    /// Ordered append-only item rows for dependency-free adapter assertions.
+    #[must_use]
+    pub fn item_ledger_for_test(&self) -> Vec<crate::application::ports::ItemLedgerEntry> {
+        self.state.lock().item_ledger.clone()
+    }
+
     /// Number of stored characters.
     #[must_use]
     pub fn len(&self) -> usize {
@@ -160,13 +260,19 @@ impl InMemoryCharacterRepository {
 }
 
 impl InMemoryCharacterRepository {
+    #[allow(clippy::too_many_lines)] // Keep key/fence/validation/atomic mutation ordering visible.
     fn checkpoint_locked(
         &self,
         s: &mut State,
         checkpoint: &CharacterCheckpoint,
         events: &[DomainEvent],
         fingerprint: String,
+        items: Option<&crate::application::ports::ItemCheckpointWork>,
     ) -> Result<CheckpointOutcome, CheckpointError> {
+        // Item audit facts require the atomic inventory/ledger/receipt projection lane.
+        if items.is_none() && events.iter().any(DomainEvent::is_item) {
+            return Err(CheckpointError::Constraint("item_projection_required".into()));
+        }
         let account = s
             .characters
             .get(&checkpoint.character_id)
@@ -188,6 +294,9 @@ impl InMemoryCharacterRepository {
         if current != checkpoint.revision_seen {
             return Ok(CheckpointOutcome::Stale);
         }
+        if let Some(before) = s.item_checkpoint(checkpoint.character_id)? {
+            s.item_inventories.insert(checkpoint.character_id, before);
+        }
         if let Some(name) = checkpoint.violated_constraint() {
             return Err(CheckpointError::Constraint(name.to_owned()));
         }
@@ -197,6 +306,17 @@ impl InMemoryCharacterRepository {
                 .is_some_and(|p| p.phase3.is_some())
         {
             return Err(CheckpointError::Constraint("characters_phase3_downgrade".into()));
+        }
+        if let Some(work) = items {
+            work.validate_before_with(
+                s.item_inventories.get(&checkpoint.character_id),
+                self.phase4_rules.as_deref(),
+            )?;
+        } else {
+            crate::application::ports::validate_item_retention(
+                s.item_inventories.get(&checkpoint.character_id),
+                checkpoint.phase4.as_ref(),
+            )?;
         }
         if let Some(ledger) = &checkpoint.class_state {
             let character = s
@@ -279,6 +399,10 @@ impl InMemoryCharacterRepository {
                 c.class_state = ledger.clone();
             }
         }
+        if let Some(phase4) = &checkpoint.phase4 {
+            s.item_inventories
+                .insert(checkpoint.character_id, phase4.clone());
+        }
         s.outbox.extend_from_slice(events);
         s.checkpoint_keys.insert(scoped, (fingerprint, revision));
         Ok(CheckpointOutcome::Applied(revision))
@@ -322,6 +446,13 @@ impl crate::application::ports::LearningCheckpointRepository for InMemoryCharact
         if receipt.account_id != owner {
             return Err(CheckpointError::Constraint("character_learn_receipt_valid".into()));
         }
+        // D47: a rank that requires items settles only with its item payments.
+        crate::application::ports::validate_learn_payments(
+            &[],
+            checkpoint,
+            Some(receipt),
+            &*crate::infrastructure::character_validation::registry(self.classes.as_ref())?,
+        )?;
         let fingerprint = receipt.checkpoint_fingerprint(checkpoint, events)?;
         let scoped = (owner, checkpoint.idempotency.0.clone(), checkpoint.idempotency.1);
         if let Some((stored, revision)) = state.checkpoint_keys.get(&scoped) {
@@ -340,7 +471,7 @@ impl crate::application::ports::LearningCheckpointRepository for InMemoryCharact
             };
         }
         receipt.validate(checkpoint, owner)?;
-        let outcome = self.checkpoint_locked(&mut state, checkpoint, events, fingerprint)?;
+        let outcome = self.checkpoint_locked(&mut state, checkpoint, events, fingerprint, None)?;
         if matches!(outcome, CheckpointOutcome::Applied(_) | CheckpointOutcome::Replayed(_)) {
             state.learn_receipts.insert(
                 (receipt.account_id, receipt.key),
@@ -348,6 +479,205 @@ impl crate::application::ports::LearningCheckpointRepository for InMemoryCharact
             );
         }
         Ok(LearningCheckpointOutcome::Checkpoint(outcome))
+    }
+}
+
+#[async_trait]
+impl crate::application::ports::ItemReceiptRepository for InMemoryCharacterRepository {
+    async fn item_receipt_lookup(
+        &self,
+        account: AccountId,
+        operation: crate::application::ports::ItemMutationOperation,
+        key: &IdempotencyKey,
+        fingerprint: &str,
+    ) -> anyhow::Result<crate::application::ports::ItemReceiptLookup> {
+        use crate::application::ports::ItemReceiptLookup;
+        let state = self.state.lock();
+        Ok(match state.item_receipts.get(&(account, operation, *key)) {
+            None => ItemReceiptLookup::Unknown,
+            Some(receipt) if receipt.fingerprint != fingerprint => ItemReceiptLookup::Conflict {
+                stored_fingerprint: receipt.fingerprint.clone(),
+            },
+            Some(receipt) => {
+                receipt.validate()?;
+                ItemReceiptLookup::Known(Box::new(receipt.clone()))
+            },
+        })
+    }
+}
+
+#[async_trait]
+impl crate::application::ports::ItemCheckpointRepository for InMemoryCharacterRepository {
+    #[allow(clippy::too_many_lines)] // Same key/fence/child/outbox transaction ordering as Pg.
+    async fn checkpoint_items(
+        &self,
+        cp: &CharacterCheckpoint,
+        events: &[DomainEvent],
+        work: &crate::application::ports::ItemCheckpointWork,
+        learning: Option<&crate::application::ports::SuccessfulLearnReceipt>,
+    ) -> Result<CheckpointOutcome, CheckpointError> {
+        use crate::application::ports::PendingItemStatus;
+        let mut current = self.state.lock();
+        let owner = current
+            .characters
+            .get(&cp.character_id)
+            .ok_or(CheckpointError::NotFound)?
+            .account_id;
+        let fingerprint = work.fingerprint(cp, events, learning)?;
+        let checkpoint_key = (owner, cp.idempotency.0.clone(), cp.idempotency.1);
+        if let Some((stored, revision)) = current.checkpoint_keys.get(&checkpoint_key) {
+            return if *stored == fingerprint {
+                Ok(CheckpointOutcome::Replayed(*revision))
+            } else {
+                Err(CheckpointError::KeyReused)
+            };
+        }
+        let rules = self
+            .phase4_rules
+            .as_ref()
+            .ok_or_else(|| CheckpointError::Constraint("item_checkpoint_rules".into()))?;
+        if rules.hash() != work.projection.checkpoint.rules_hash {
+            return Err(CheckpointError::Constraint("item_checkpoint_rules".into()));
+        }
+        work.validate(cp, owner)?;
+        work.validate_catalogue(rules)?;
+        work.validate_events(cp, events)?;
+        crate::application::ports::validate_learn_payments(
+            &work.projection.ledger,
+            cp,
+            learning,
+            &*crate::infrastructure::character_validation::registry(self.classes.as_ref())?,
+        )?;
+        let receipts = work.receipts(cp)?;
+        for receipt in &receipts {
+            if let Some(known) = current.item_receipts.get(&(
+                owner,
+                receipt.operation,
+                IdempotencyKey::from_uuid(receipt.key),
+            )) {
+                return if known.fingerprint == receipt.fingerprint {
+                    Ok(CheckpointOutcome::Stale)
+                } else {
+                    Err(CheckpointError::KeyReused)
+                };
+            }
+        }
+        if let Some(receipt) = learning {
+            if let Some((stored, _)) = current.learn_receipts.get(&(owner, receipt.key)) {
+                return if *stored == receipt.request_fingerprint {
+                    Ok(CheckpointOutcome::Stale)
+                } else {
+                    Err(CheckpointError::KeyReused)
+                };
+            }
+            receipt.validate(cp, owner)?;
+        }
+        let mut staged = current.clone();
+        let before = staged.item_checkpoint(cp.character_id)?;
+        if let Some(before) = &before {
+            staged
+                .item_inventories
+                .insert(cp.character_id, before.clone());
+        }
+        let outcome = self.checkpoint_locked(&mut staged, cp, events, fingerprint, Some(work))?;
+        if !matches!(outcome, CheckpointOutcome::Applied(_)) {
+            return Ok(outcome);
+        }
+        work.validate_pending(
+            staged
+                .pending_item_requests
+                .get(&cp.character_id)
+                .map_or(&[], Vec::as_slice),
+        )?;
+        let (start, next, end) = work.allocation.bounds();
+        if end > 1_u64 << 32 {
+            let range = staged
+                .item_ranges
+                .get_mut(&(work.zone, work.epoch, start))
+                .ok_or_else(|| CheckpointError::Constraint("item_checkpoint_reservation".into()))?;
+            if range.range_start != start || range.range_end_exclusive != end {
+                return Err(CheckpointError::Constraint("item_checkpoint_reservation".into()));
+            }
+            range.next_reserved = range.next_reserved.max(next);
+        }
+        for row in work.ledger_entries()? {
+            if row.delta.before.is_none()
+                && !before
+                    .as_ref()
+                    .is_some_and(|cp| cp.instances.iter().any(|item| item.id == row.instance_id))
+                && staged
+                    .item_ledger
+                    .iter()
+                    .any(|known| known.instance_id == row.instance_id)
+            {
+                return Err(CheckpointError::Constraint("item_instance_identity_reused".into()));
+            }
+            if staged.item_ledger.iter().any(|known| {
+                (
+                    known.zone_id,
+                    known.epoch,
+                    known.tick,
+                    known.character_id,
+                    known.instance_id,
+                    known.operation,
+                    known.operation_ordinal,
+                ) == (
+                    row.zone_id,
+                    row.epoch,
+                    row.tick,
+                    row.character_id,
+                    row.instance_id,
+                    row.operation,
+                    row.operation_ordinal,
+                )
+            }) {
+                return Err(CheckpointError::Constraint("item_ledger_logical_key".into()));
+            }
+            staged.item_ledger.push(row);
+        }
+        // D76 row positions are enforced by `validate_before` before any row is staged; the
+        // Postgres item_ledger_row_ordinal trigger is storage defence in depth with no memory copy.
+        for item in &work.projection.checkpoint.instances {
+            if staged.item_inventories.iter().any(|(id, inventory)| {
+                *id != cp.character_id
+                    && inventory.instances.iter().any(|known| known.id == item.id)
+            }) {
+                return Err(CheckpointError::Constraint("item_instance_owner_immutable".into()));
+            }
+        }
+        for receipt in receipts {
+            staged.item_receipts.insert(
+                (owner, receipt.operation, IdempotencyKey::from_uuid(receipt.key)),
+                receipt,
+            );
+        }
+        for completion in &work.projection.materializations {
+            let pending = staged
+                .pending_item_requests
+                .get_mut(&cp.character_id)
+                .and_then(|requests| {
+                    requests.iter_mut().find(|request| {
+                        request.request_id == completion.request_id
+                            && request.account_id == work.projection.account
+                            && request.operation == request.kind.operation()
+                    })
+                })
+                .ok_or_else(|| {
+                    CheckpointError::Constraint("pending_item_completion_missing".into())
+                })?;
+            pending.status = PendingItemStatus::Materialized {
+                revision: completion.inventory_revision,
+                receipt: completion.receipt.key,
+            };
+        }
+        if let Some(receipt) = learning {
+            staged.learn_receipts.insert(
+                (owner, receipt.key),
+                (receipt.request_fingerprint.clone(), receipt.result.clone()),
+            );
+        }
+        *current = staged;
+        Ok(outcome)
     }
 }
 
@@ -363,11 +693,14 @@ impl CharacterRepository for InMemoryCharacterRepository {
             self.validate_versioned(
                 c,
                 &c.class_state,
-                progression.phase3.as_ref(),
+                self.read_phase3(progression.phase3.clone(), c)?.as_ref(),
                 progression.alive,
             )?;
         }
-        Ok(state.characters.get(&id).cloned())
+        Ok(state
+            .characters
+            .get(&id)
+            .map(|character| state.character_view(character)))
     }
 
     async fn list_by_account(&self, account: AccountId) -> anyhow::Result<Vec<Character>> {
@@ -385,10 +718,10 @@ impl CharacterRepository for InMemoryCharacterRepository {
             self.validate_versioned(
                 c,
                 &c.class_state,
-                progression.phase3.as_ref(),
+                self.read_phase3(progression.phase3.clone(), c)?.as_ref(),
                 progression.alive,
             )?;
-            out.push(c.clone());
+            out.push(state.character_view(c));
         }
         out.sort_by_key(|c| c.id.as_uuid());
         Ok(out)
@@ -406,11 +739,15 @@ impl CharacterRepository for InMemoryCharacterRepository {
             if stored_fp != fingerprint {
                 return Ok(CreateOutcome::KeyReused);
             }
-            let existing = s.characters.get(id).cloned().ok_or_else(|| {
-                RepositoryError::Other(anyhow::anyhow!(
-                    "idempotency key points at missing character"
-                ))
-            })?;
+            let existing = s
+                .characters
+                .get(id)
+                .map(|character| s.character_view(character))
+                .ok_or_else(|| {
+                    RepositoryError::Other(anyhow::anyhow!(
+                        "idempotency key points at missing character"
+                    ))
+                })?;
             return Ok(CreateOutcome::Replayed(existing));
         }
         self.validate(character)?;
@@ -426,6 +763,8 @@ impl CharacterRepository for InMemoryCharacterRepository {
         {
             return Err(RepositoryError::SlotsFull);
         }
+        let starter = crate::infrastructure::item_manifests::starter_request(character)?;
+        s.pending_item_requests.insert(character.id, vec![starter]);
         s.names.insert(norm, character.id);
         s.keys
             .insert(scoped, (fingerprint.to_owned(), character.id));
@@ -439,11 +778,52 @@ impl CharacterRepository for InMemoryCharacterRepository {
         Ok(CreateOutcome::Created(character.clone()))
     }
 
+    async fn quarantine_lane(
+        &self,
+        quarantine: &crate::application::ports::LaneQuarantine,
+    ) -> anyhow::Result<()> {
+        let mut state = self.state.lock();
+        anyhow::ensure!(
+            state.characters.contains_key(&quarantine.character_id),
+            "quarantined character missing"
+        );
+        state
+            .lane_quarantines
+            .entry(quarantine.character_id)
+            .or_insert_with(|| quarantine.clone());
+        Ok(())
+    }
+
+    async fn lane_quarantines(
+        &self,
+        zone: crate::domain::zone::ZoneId,
+    ) -> anyhow::Result<Vec<crate::application::ports::LaneQuarantine>> {
+        Ok(self
+            .state
+            .lock()
+            .lane_quarantines
+            .values()
+            .filter(|quarantine| quarantine.zone == zone)
+            .cloned()
+            .collect())
+    }
+
     async fn load_for_admission(
         &self,
         character_id: CharacterId,
     ) -> anyhow::Result<Option<ProgressionState>> {
         let state = self.state.lock();
+        if let Some(quarantine) = state.lane_quarantines.get(&character_id) {
+            return Err(crate::application::ports::LaneQuarantined {
+                reason: quarantine.reason.clone(),
+            }
+            .into());
+        }
+        // Legacy readers must never silently drop retained V6 inventory.
+        anyhow::ensure!(
+            self.phase4_rules.is_some() || !state.item_inventories.contains_key(&character_id),
+            "Phase4 admission requires its matching runtime bundle"
+        );
         if let Some(c) = state.characters.get(&character_id) {
             let progression = state
                 .progression
@@ -452,11 +832,34 @@ impl CharacterRepository for InMemoryCharacterRepository {
             self.validate_versioned(
                 c,
                 &c.class_state,
-                progression.phase3.as_ref(),
+                self.read_phase3(progression.phase3.clone(), c)?.as_ref(),
                 progression.alive,
             )?;
         }
-        Ok(state.progression.get(&character_id).cloned())
+        let mut loaded = state.progression.get(&character_id).cloned();
+        if let (Some(loaded), Some(c)) = (&mut loaded, state.characters.get(&character_id)) {
+            loaded.phase3 = self.read_phase3(loaded.phase3.take(), c)?;
+        }
+        if let (Some(loaded), Some(rules)) = (&mut loaded, &self.phase4_rules) {
+            let character = state
+                .characters
+                .get(&character_id)
+                .ok_or_else(|| anyhow::anyhow!("progression character missing"))?;
+            loaded.phase4 = Some(crate::infrastructure::item_manifests::admission_load(
+                character,
+                state.item_checkpoint(character_id)?,
+                state
+                    .pending_item_requests
+                    .get(&character_id)
+                    .map_or(&[], Vec::as_slice),
+                loaded
+                    .phase3
+                    .as_ref()
+                    .map_or(0, |p| p.modifier_install_order.len()),
+                rules,
+            )?);
+        }
+        Ok(loaded)
     }
 
     async fn checkpoint(
@@ -465,7 +868,215 @@ impl CharacterRepository for InMemoryCharacterRepository {
         events: &[DomainEvent],
     ) -> Result<CheckpointOutcome, CheckpointError> {
         let mut s = self.state.lock();
-        self.checkpoint_locked(&mut s, checkpoint, events, checkpoint.fingerprint(events))
+        self.checkpoint_locked(&mut s, checkpoint, events, checkpoint.fingerprint(events), None)
+    }
+}
+
+#[async_trait]
+impl crate::application::ports::ItemAdmissionRepository for InMemoryCharacterRepository {
+    async fn reserve_item_range(
+        &self,
+        zone: crate::domain::zone::ZoneId,
+        epoch: u64,
+    ) -> Result<crate::application::ports::ItemIdRange, CheckpointError> {
+        use crate::application::ports::ItemIdRange;
+        if i32::try_from(zone.0).is_err() {
+            return Err(CheckpointError::Constraint("item_id_ranges_zone".into()));
+        }
+        if i64::try_from(epoch).is_err() {
+            return Err(CheckpointError::Constraint("item_id_ranges_epoch".into()));
+        }
+        let mut state = self.state.lock();
+        if let Some((_, range)) = state
+            .item_ranges
+            .range((zone, epoch, 0)..=(zone, epoch, u64::MAX))
+            .next_back()
+        {
+            return Ok(*range);
+        }
+        let start = state
+            .item_ranges
+            .values()
+            .map(|range| range.range_end_exclusive)
+            .max()
+            .unwrap_or(1_u64 << 32);
+        let end = start
+            .checked_add(1_u64 << 32)
+            .filter(|end| i64::try_from(*end).is_ok())
+            .ok_or_else(|| CheckpointError::Constraint("item_id_ranges_exhausted".into()))?;
+        let range = ItemIdRange {
+            zone_id: zone,
+            epoch,
+            range_start: start,
+            range_end_exclusive: end,
+            next_reserved: start,
+        };
+        range.validate()?;
+        state.item_ranges.insert((zone, epoch, start), range);
+        Ok(range)
+    }
+    async fn reserve_item_range_extension(
+        &self,
+        zone: crate::domain::zone::ZoneId,
+        epoch: u64,
+        exhausted_range_start: u64,
+    ) -> Result<crate::application::ports::ItemIdRange, CheckpointError> {
+        use crate::application::ports::ItemIdRange;
+        if i32::try_from(zone.0).is_err() {
+            return Err(CheckpointError::Constraint("item_id_ranges_zone".into()));
+        }
+        if i64::try_from(epoch).is_err() {
+            return Err(CheckpointError::Constraint("item_id_ranges_epoch".into()));
+        }
+        if i64::try_from(exhausted_range_start).is_err() {
+            return Err(CheckpointError::Constraint("item_id_ranges_bounds".into()));
+        }
+        let mut state = self.state.lock();
+        let old = state
+            .item_ranges
+            .get(&(zone, epoch, exhausted_range_start))
+            .ok_or_else(|| CheckpointError::Constraint("item_id_ranges_missing".into()))?;
+        old.validate()?;
+        if old.next_reserved != old.range_end_exclusive {
+            return Err(CheckpointError::Constraint("item_id_ranges_not_exhausted".into()));
+        }
+        if let Some((_, successor)) = state
+            .item_ranges
+            .range((zone, epoch, old.range_end_exclusive)..=(zone, epoch, u64::MAX))
+            .next()
+        {
+            return Ok(ItemIdRange {
+                next_reserved: successor.range_start,
+                ..*successor
+            });
+        }
+        let start = state
+            .item_ranges
+            .values()
+            .map(|range| range.range_end_exclusive)
+            .max()
+            .ok_or_else(|| CheckpointError::Constraint("item_id_ranges_missing".into()))?;
+        let end = start
+            .checked_add(1_u64 << 32)
+            .filter(|end| i64::try_from(*end).is_ok())
+            .ok_or_else(|| CheckpointError::Constraint("item_id_ranges_exhausted".into()))?;
+        let range = ItemIdRange {
+            zone_id: zone,
+            epoch,
+            range_start: start,
+            range_end_exclusive: end,
+            next_reserved: start,
+        };
+        range.validate()?;
+        state.item_ranges.insert((zone, epoch, start), range);
+        Ok(range)
+    }
+    async fn pending_item_requests(
+        &self,
+        character: CharacterId,
+    ) -> anyhow::Result<Vec<crate::application::ports::PendingItemRequest>> {
+        let state = self.state.lock();
+        anyhow::ensure!(
+            state.characters.contains_key(&character),
+            "pending items character missing"
+        );
+        Ok(state
+            .pending_item_requests
+            .get(&character)
+            .cloned()
+            .unwrap_or_default())
+    }
+}
+
+#[async_trait]
+impl crate::application::ports::ItemInventoryRepository for InMemoryCharacterRepository {
+    async fn retained_inventory(
+        &self,
+        character: CharacterId,
+    ) -> anyhow::Result<Option<crate::application::ports::RetainedInventory>> {
+        let state = self.state.lock();
+        let Some(progression) = state.progression.get(&character) else {
+            return Ok(None);
+        };
+        let checkpoint = state.item_checkpoint(character)?;
+        if let Some(checkpoint) = &checkpoint {
+            let phase3 = progression
+                .phase3
+                .as_ref()
+                .ok_or_else(|| anyhow::anyhow!("Phase4 checkpoint requires Phase3 state"))?;
+            checkpoint.validate_structure(phase3.modifier_install_order.len())?;
+        }
+        Ok(Some(crate::application::ports::RetainedInventory {
+            character_id: character,
+            character_revision: progression.revision,
+            checkpoint,
+        }))
+    }
+}
+
+impl InMemoryCharacterRepository {
+    /// Explicit fixture seed only, before actor admission. Never called by a grant RPC.
+    pub fn insert_item_checkpoint_for_test(
+        &self,
+        character: CharacterId,
+        checkpoint: crate::domain::zone::Phase4Checkpoint,
+    ) -> anyhow::Result<()> {
+        let mut state = self.state.lock();
+        let progression = state
+            .progression
+            .get(&character)
+            .ok_or_else(|| anyhow::anyhow!("fixture character missing"))?;
+        let phase3 = progression
+            .phase3
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("Phase4 fixture requires Phase3 state"))?;
+        checkpoint.validate_structure(phase3.modifier_install_order.len())?;
+        state.item_inventories.insert(character, checkpoint);
+        Ok(())
+    }
+
+    /// Fixture seed only: append the append-only birth row (D65/D77) that a real settlement
+    /// would have written for each retained item that lacks one, at the item's own provenance.
+    pub fn seed_item_birth_ledger_for_test(&self, character: CharacterId) -> anyhow::Result<()> {
+        use crate::application::ports::{ItemLedgerDelta, ItemLedgerEntry, ItemLedgerOperation};
+        let mut state = self.state.lock();
+        let checkpoint = state
+            .item_inventories
+            .get(&character)
+            .cloned()
+            .ok_or_else(|| anyhow::anyhow!("fixture item checkpoint missing"))?;
+        for item in checkpoint.instances {
+            if state.item_ledger.iter().any(|row| {
+                row.character_id == character
+                    && row.instance_id == item.id
+                    && row.delta.before.is_none()
+            }) {
+                continue;
+            }
+            let origin = item
+                .creation_origin
+                .ok_or_else(|| anyhow::anyhow!("fixture birth row needs explicit provenance"))?;
+            state.item_ledger.push(ItemLedgerEntry {
+                character_id: character,
+                zone_id: origin.zone,
+                epoch: origin.epoch,
+                tick: item.created_tick,
+                revision: item.revision,
+                operation: ItemLedgerOperation::Grant,
+                instance_id: item.id,
+                operation_ordinal: 0,
+                delta: ItemLedgerDelta {
+                    before: None,
+                    count_delta: i64::try_from(item.count)?,
+                    after: Some(item),
+                    causes: Vec::new(),
+                    receipt: None,
+                    receipt_refs: Vec::new(),
+                },
+                receipt_ref: None,
+            });
+        }
+        Ok(())
     }
 }
 
@@ -491,6 +1102,7 @@ mod tests {
 
     fn cp(c: &Character, seen: u64, key: &str) -> CharacterCheckpoint {
         CharacterCheckpoint {
+            phase4: None,
             phase3: None,
             character_id: c.id,
             revision_seen: seen,

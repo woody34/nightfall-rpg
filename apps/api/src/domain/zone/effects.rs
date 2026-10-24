@@ -379,6 +379,18 @@ pub struct EffectCapacities {
     buff: usize,
 }
 impl EffectCapacities {
+    /// CharStat.java:626-627 folds the base buff count before its integer cast.
+    /// The accepted finite-pool contract clamps Enlarge to zero through four.
+    pub fn from_calculator(
+        calculator: &super::stat_functions::StatCalculator,
+        conditions: super::stat_functions::FunctionConditions<'_>,
+    ) -> Result<Self, super::StatError> {
+        let count = calculator.fold("enlargeAbnormalSlot", 20 * super::Q, conditions)? / super::Q;
+        let bonus = i32::try_from(count.saturating_sub(20).clamp(0, 4))
+            .map_err(|_| super::StatError::Overflow)?;
+        Ok(Self::for_enlarge(bonus))
+    }
+
     /// Enlarge contribution is clamped to zero through four.
     pub fn for_enlarge(contribution: i32) -> Self {
         Self {
@@ -1097,6 +1109,80 @@ mod tests {
         let restored: EffectList = serde_json::from_slice(&encoded).unwrap();
         assert_eq!(restored, list);
         assert!(!String::from_utf8(encoded).unwrap().contains("stacks"));
+    }
+
+    #[test]
+    fn v6_enlarge_buff_capacity_folds_source_ranks_before_integer_cast() {
+        use super::super::stat_functions::{
+            compile_modifier, FunctionConditions, FunctionKey, FunctionOp, StatCalculator,
+            StatFunction,
+        };
+        let bundle = crate::infrastructure::item_data::embedded_phase4_bundle().unwrap();
+        let skill = bundle.skills.skills().get(SkillId(1405)).unwrap();
+        let modifier = skill
+            .effects
+            .iter()
+            .flat_map(|handler| &handler.stat_children)
+            .find(|modifier| modifier.stat == "enlargeAbnormalSlot")
+            .unwrap();
+        let conditions = FunctionConditions {
+            weapon_kind: "FIST",
+            can_resurrect: true,
+        };
+        // Pinned DP stats/skills/01400-01499.xml:264-277 has ranks +1,+2,+3,+4.
+        for rank in 0..=4_u32 {
+            let functions = if rank == 0 {
+                Vec::new()
+            } else {
+                vec![compile_modifier(modifier, rank, skill.max_level, 1, 0, 1).unwrap()]
+            };
+            let calculator = StatCalculator::try_new(functions).unwrap();
+            let capacity = EffectCapacities::from_calculator(&calculator, conditions).unwrap();
+            let limit = 20_u64.checked_add(u64::from(rank)).unwrap();
+            assert_eq!(capacity.buff, usize::try_from(limit).unwrap());
+            let mut list = EffectList::default();
+            for id in 1..=limit {
+                assert!(
+                    matches!(list.admit(entry(id, u32::try_from(id).unwrap(), 1, EffectPool::Buff), capacity).unwrap(), EffectAdmission::Applied { removed } if removed.is_empty())
+                );
+            }
+            let EffectAdmission::Applied { removed } = list
+                .admit(entry(99, 99, 2, EffectPool::Buff), capacity)
+                .unwrap()
+            else {
+                unreachable!()
+            };
+            assert_eq!(
+                removed.iter().map(|effect| effect.id).collect::<Vec<_>>(),
+                vec![EffectId(1)]
+            );
+            assert_eq!(list.entries().len(), capacity.buff);
+        }
+        for (operation, count) in [
+            (FunctionOp::Mul(super::super::Q * 11 / 10), 22),
+            (FunctionOp::Add(super::super::Q * 19 / 10), 21),
+            (FunctionOp::Set(-super::super::Q), 20),
+            (FunctionOp::Set(super::super::Q * 100), 24),
+        ] {
+            let calculator = StatCalculator::try_new([StatFunction {
+                key: FunctionKey {
+                    stat: "enlargeAbnormalSlot".into(),
+                    priority: 30,
+                    install_sequence: 1,
+                    handler_ordinal: 0,
+                    function_ordinal: 1,
+                },
+                operation,
+                conditions: Vec::new(),
+            }])
+            .unwrap();
+            assert_eq!(
+                EffectCapacities::from_calculator(&calculator, conditions)
+                    .unwrap()
+                    .buff,
+                count
+            );
+        }
     }
 
     #[test]

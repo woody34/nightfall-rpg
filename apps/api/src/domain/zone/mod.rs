@@ -34,11 +34,33 @@ pub mod effects;
 mod entity;
 pub mod evidence;
 mod fixed;
+pub mod item;
+pub mod item_angles;
+mod item_cast;
+pub mod item_combat;
+pub mod item_conditions;
+pub mod item_enchant;
+pub mod item_equipment;
+pub mod item_exchange;
+pub mod item_functions;
+pub mod item_grant;
+pub mod item_inventory;
+pub mod item_modifiers;
+pub mod item_refine;
+pub mod item_refresh;
+pub mod item_rules;
+pub mod item_shots;
+pub mod item_sources;
+pub mod item_views;
 mod npc_template;
 mod phase2;
 mod phase3;
 mod phase3_checkpoint;
 mod phase3_entity;
+pub mod phase4;
+pub mod phase4_admission;
+pub mod phase4_checkpoint;
+pub mod phase4_projection;
 mod progression;
 mod scaled;
 pub mod skill;
@@ -82,6 +104,15 @@ pub use command::{
 };
 pub use entity::{Entity, EntityId, EntityKind, TargetingState, Tick, TICK_MS};
 pub use fixed::{Fixed, Speed, Vec2Fixed, UNITS_PER_TILE};
+pub use item::{
+    EquipSlot, ItemCreationOrigin, ItemError, ItemInstance, ItemInstanceId, ItemInstanceRange,
+    ItemLocation,
+};
+pub use item_enchant::EnchantAttempt;
+pub use item_exchange::ExchangeAudit;
+pub use item_grant::{ItemGrantCommand, ItemPausedCore};
+pub use item_refine::RefineAudit;
+pub use item_rules::Phase4Rules;
 pub use npc_template::{NpcTemplate, NpcTemplateId, SpawnSlot};
 pub use phase2::{
     profession_stats, transfer_resource, ClassStatsView, PlayerIdentityView, PlayerProgression,
@@ -95,6 +126,12 @@ pub use phase3_entity::{
     CastId, CastInFlight, CastState, EntityOrdinal, OfferId, Phase3Entity, Phase3EntityContext,
     Phase3Player, PvpState, ResurrectOffer,
 };
+pub use phase4::{Phase4Player, Phase4Snapshot};
+pub use phase4_admission::{
+    ItemCommand, ItemCommandKind, MaterializePendingItems, Phase4PlayerLoad,
+};
+pub use phase4_checkpoint::Phase4Checkpoint;
+pub use phase4_projection::{FrozenItemResult, ItemResultDetail, Phase4Projection};
 pub use progression::{add_xp, death_xp_loss, level_for_xp, xp_after_death, xp_cap};
 pub use scaled::{ceil_div, floor_div, isqrt, Scaled, StatError, Q};
 pub use stat_rules::{
@@ -107,9 +144,10 @@ pub use stat_sheet::{
     resource_max, sqrt_dex, FinalStats, StatSheet,
 };
 pub use state::{
-    CheckpointRequestSnapshot, CheckpointSnapshot, InvalidBounds, NpcHate, RngState, SnapshotError,
-    SnapshotMeta, StateDigestVersion, TickError, ZoneBounds, ZoneId, ZoneSeed, ZoneSnapshot,
-    ZoneState, MAX_MOVE_DISTANCE_TILES, SNAPSHOT_SCHEMA_VERSION,
+    CheckpointLearnReceiptSnapshot, CheckpointRequestSnapshot, CheckpointSnapshot, InvalidBounds,
+    ItemCheckpointWorkSnapshot, NpcHate, RngState, SnapshotError, SnapshotMeta, StateDigestVersion,
+    TickError, ZoneBounds, ZoneId, ZoneSeed, ZoneSnapshot, ZoneState, MAX_MOVE_DISTANCE_TILES,
+    SNAPSHOT_SCHEMA_VERSION,
 };
 
 #[cfg(test)]
@@ -118,8 +156,28 @@ mod tests {
     /// Every source file in this module, embedded at compile time so the scan cannot miss a
     /// file that exists but is not listed: adding a module without adding it here fails
     /// `every_zone_source_is_scanned`.
-    const SOURCES: [(&str, &str); 51] = [
+    const SOURCES: [(&str, &str); 87] = [
         ("mod.rs", include_str!("mod.rs")),
+        ("item.rs", include_str!("item.rs")),
+        ("item_rules.rs", include_str!("item_rules.rs")),
+        ("item_sources.rs", include_str!("item_sources.rs")),
+        ("item_angles.rs", include_str!("item_angles.rs")),
+        ("item_cast.rs", include_str!("item_cast.rs")),
+        ("item_combat.rs", include_str!("item_combat.rs")),
+        ("item_shots.rs", include_str!("item_shots.rs")),
+        ("state_runtime_shots.rs", include_str!("state_runtime_shots.rs")),
+        ("state_item_shots.rs", include_str!("state_item_shots.rs")),
+        ("phase4.rs", include_str!("phase4.rs")),
+        ("phase4_projection.rs", include_str!("phase4_projection.rs")),
+        ("item_inventory.rs", include_str!("item_inventory.rs")),
+        ("item_conditions.rs", include_str!("item_conditions.rs")),
+        ("item_views.rs", include_str!("item_views.rs")),
+        ("item_functions.rs", include_str!("item_functions.rs")),
+        ("item_modifiers.rs", include_str!("item_modifiers.rs")),
+        ("item_refresh.rs", include_str!("item_refresh.rs")),
+        ("item_equipment.rs", include_str!("item_equipment.rs")),
+        ("phase4_admission.rs", include_str!("phase4_admission.rs")),
+        ("phase4_checkpoint.rs", include_str!("phase4_checkpoint.rs")),
         ("evidence.rs", include_str!("evidence.rs")),
         ("state_evidence.rs", include_str!("state_evidence.rs")),
         ("effects.rs", include_str!("effects.rs")),
@@ -141,6 +199,8 @@ mod tests {
         ("state_runtime_life.rs", include_str!("state_runtime_life.rs")),
         ("state_runtime_observe.rs", include_str!("state_runtime_observe.rs")),
         ("state_runtime_auto.rs", include_str!("state_runtime_auto.rs")),
+        ("state_runtime_blow.rs", include_str!("state_runtime_blow.rs")),
+        ("state_runtime_bow.rs", include_str!("state_runtime_bow.rs")),
         ("state_runtime_damage.rs", include_str!("state_runtime_damage.rs")),
         ("state_damage.rs", include_str!("state_damage.rs")),
         ("phase2.rs", include_str!("phase2.rs")),
@@ -165,9 +225,23 @@ mod tests {
         ("stat_tests.rs", include_str!("stat_tests.rs")),
         ("state_regen.rs", include_str!("state_regen.rs")),
         ("state_runtime.rs", include_str!("state_runtime.rs")),
+        ("state_runtime_item_cast.rs", include_str!("state_runtime_item_cast.rs")),
         ("state_runtime_effects.rs", include_str!("state_runtime_effects.rs")),
         ("state.rs", include_str!("state.rs")),
         ("state_digest.rs", include_str!("state_digest.rs")),
+        ("state_digest_items.rs", include_str!("state_digest_items.rs")),
+        ("state_items.rs", include_str!("state_items.rs")),
+        ("state_item_commands.rs", include_str!("state_item_commands.rs")),
+        ("state_item_enchant.rs", include_str!("state_item_enchant.rs")),
+        ("state_item_evidence.rs", include_str!("state_item_evidence.rs")),
+        ("state_item_use.rs", include_str!("state_item_use.rs")),
+        ("state_item_materialize.rs", include_str!("state_item_materialize.rs")),
+        ("item_grant.rs", include_str!("item_grant.rs")),
+        ("item_enchant.rs", include_str!("item_enchant.rs")),
+        ("item_exchange.rs", include_str!("item_exchange.rs")),
+        ("item_refine.rs", include_str!("item_refine.rs")),
+        ("state_item_grant.rs", include_str!("state_item_grant.rs")),
+        ("state_item_views.rs", include_str!("state_item_views.rs")),
         ("state_combat.rs", include_str!("state_combat.rs")),
         ("state_tests.rs", include_str!("state_tests.rs")),
     ];

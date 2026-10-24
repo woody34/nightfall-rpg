@@ -38,6 +38,20 @@ pub const DEFAULT_WS_PUBLIC_URL: &str = "ws://localhost:3000/ws";
 /// The ports the server needs, already bound to adapters.
 #[derive(Clone)]
 pub struct Dependencies {
+    /// Exact startup `AUTH_DEV_TOKENS=1` gate, independent of catalogue/runtime availability.
+    pub dev_item_grants: bool,
+    /// Typed actor materialization port; None refuses grants before repository reads.
+    pub item_grants: Option<Arc<dyn application::ports::ItemGrantRuntime>>,
+    /// Same typed item/learning writer installed before durable recovery.
+    pub item_checkpoints: Option<Arc<dyn application::ports::ItemCheckpointRepository>>,
+    /// Durable item range reservations from the same character adapter.
+    pub item_admission: Option<Arc<dyn application::ports::ItemAdmissionRepository>>,
+    /// Frozen item receipts from the same atomic item checkpoint adapter.
+    pub item_receipts: Option<Arc<dyn application::ports::ItemReceiptRepository>>,
+    /// Prevalidated V6 metadata; None keeps `GetItemCatalog` fail closed.
+    pub item_catalogue: Option<Arc<dyn application::ports::ItemCataloguePort>>,
+    /// Same adapter as character persistence; None refuses detached inventory reads.
+    pub item_inventory: Option<Arc<dyn application::ports::ItemInventoryRepository>>,
     /// The same character adapter's atomic checkpoint/receipt writer, installed before
     /// recovery and actor admission. Absent adapters cannot enable paid learning.
     pub learning: Option<Arc<dyn application::ports::LearningCheckpointRepository>>,
@@ -80,6 +94,13 @@ impl Dependencies {
     pub fn in_memory() -> Self {
         let characters = Arc::new(infrastructure::memory::InMemoryCharacterRepository::default());
         Self {
+            dev_item_grants: false,
+            item_grants: None,
+            item_receipts: Some(characters.clone()),
+            item_checkpoints: Some(characters.clone()),
+            item_admission: Some(characters.clone()),
+            item_catalogue: None,
+            item_inventory: Some(characters.clone()),
             learning: Some(characters.clone()),
             classes: None,
             class_transfers: None,
@@ -136,7 +157,18 @@ pub fn build_grpc_services(deps: &Dependencies) -> anyhow::Result<GrpcServices> 
                 deps.class_transfers.clone(),
             ),
             TransferOptions::new(deps.characters.clone(), deps.class_transfers.clone()),
-        ),
+        )
+        .with_dev_item_grants(deps.dev_item_grants)
+        .with_grant_item(application::use_cases::GrantItem::new(
+            deps.dev_item_grants,
+            deps.characters.clone(),
+            deps.item_receipts.clone(),
+            deps.item_catalogue.clone(),
+            deps.item_grants.clone(),
+        ))
+        .with_item_catalogue(application::use_cases::GetItemCatalog::new(
+            deps.item_catalogue.clone(),
+        )),
         session: SessionServiceImpl::new(IssuePlayTicket::new(
             deps.characters.clone(),
             deps.sessions.clone(),
@@ -155,6 +187,27 @@ pub async fn build_live_grpc_services(
     realtime: &Realtime,
 ) -> anyhow::Result<GrpcServices> {
     let mut services = build_grpc_services(deps)?;
+    services.game = services
+        .game
+        .with_grant_item(application::use_cases::GrantItem::new(
+            deps.dev_item_grants,
+            deps.characters.clone(),
+            deps.item_receipts.clone(),
+            deps.item_catalogue.clone(),
+            Some(
+                deps.item_grants
+                    .clone()
+                    .unwrap_or_else(|| realtime.sessions.clone()),
+            ),
+        ));
+    services.game = services
+        .game
+        .with_get_inventory(application::use_cases::GetInventory::new(
+            deps.characters.clone(),
+            deps.item_inventory.clone(),
+            Some(realtime.sessions.clone()),
+            deps.item_catalogue.clone(),
+        ));
     if realtime.sessions.zone.phase3_enabled() {
         services.game = services.game.with_phase3(
             interface::grpc::Phase3UseCases::for_runtime(
@@ -190,6 +243,12 @@ pub fn start_realtime(
         deps.audit.clone(),
         Arc::new(deps.metrics.clone()),
     );
+    if let Some(items) = &deps.item_checkpoints {
+        checkpoints = checkpoints.with_items(items.clone());
+    }
+    if let Some(reservations) = &deps.item_admission {
+        checkpoints = checkpoints.with_item_admission(reservations.clone());
+    }
     if let Some(learning) = &deps.learning {
         checkpoints = checkpoints.with_learning(learning.clone());
     }
@@ -199,7 +258,9 @@ pub fn start_realtime(
         registry: SessionRegistry::with_characters(deps.characters.clone()),
         audit: deps.audit.clone(),
         metrics: Arc::new(deps.metrics.clone()),
-        codec: if zones.fixture().phase3_enabled() {
+        codec: if zones.fixture().phase4_enabled() {
+            Arc::new(interface::ws::Phase4Codec)
+        } else if zones.fixture().phase3_enabled() {
             Arc::new(interface::ws::Phase3Codec)
         } else {
             Arc::new(ProstCodec)

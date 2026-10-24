@@ -53,7 +53,7 @@ class FinalGatesTests(unittest.TestCase):
 
     def scenario(self, name, result='pass', amount=1):
         path = self.scenarios / f'{name}.nfs'
-        path.write_text(f'fake result {result}\nfake count {amount}\n')
+        path.write_text(f'nf.Within 30\nfake result {result}\nfake count {amount}\n')
         return path
 
     def run_wrapper(self, name, result, **env):

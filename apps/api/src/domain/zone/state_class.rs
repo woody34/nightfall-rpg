@@ -110,7 +110,9 @@ impl ZoneState {
     ) {
         if !matches!(
             self.meta.digest_version,
-            StateDigestVersion::BinaryV4 | StateDigestVersion::BinaryV5
+            StateDigestVersion::BinaryV4
+                | StateDigestVersion::BinaryV5
+                | StateDigestVersion::BinaryV6
         ) {
             return;
         }
@@ -138,11 +140,15 @@ impl ZoneState {
         // The entire ledger was validated at admission/restore and every mutation preserves
         // it. Validation here fails closed by retaining an unchanged ledger.
         let adjustment = if phase3 {
+            let Some(skill_rules) = self.phase3.as_ref().map(|phase| &phase.canonical.rules) else {
+                return;
+            };
             if p.class_state
-                .validate_for_phase3(
+                .validate_for_skill_rules(
                     registry,
                     &p.identity,
                     CharacterId::from_uuid(entity.as_uuid()),
+                    skill_rules,
                 )
                 .is_err()
             {
@@ -205,10 +211,16 @@ impl ZoneState {
             (None, None) => {},
             (Some(registry), Some(p)) => {
                 if self.phase3_enabled() {
-                    p.class_state.validate_for_phase3(
+                    p.class_state.validate_for_skill_rules(
                         registry,
                         &p.identity,
                         CharacterId::from_uuid(entity.as_uuid()),
+                        &self
+                            .phase3
+                            .as_ref()
+                            .ok_or(RejectReason::InvalidLoad)?
+                            .canonical
+                            .rules,
                     )
                 } else {
                     p.class_state.validate_for(
@@ -232,7 +244,15 @@ impl ZoneState {
                 if !self.phase3_enabled() {
                     p.class_state.cp = p.class_state.cp.min(max_cp);
                 }
-                combat.hp = if self.phase3_enabled() && load.alive {
+                combat.hp = if self.phase4.is_some()
+                    && load.alive
+                    && load
+                        .phase3
+                        .as_ref()
+                        .is_some_and(|checkpoint| checkpoint.resource_fractions.hp > 0)
+                {
+                    load.hp.unwrap_or(sheet.max_hp())
+                } else if self.phase3_enabled() && load.alive {
                     load.hp.unwrap_or(sheet.max_hp()).max(1)
                 } else if load.alive {
                     load.hp.unwrap_or(sheet.max_hp()).clamp(1, sheet.max_hp())
@@ -304,7 +324,7 @@ impl ZoneState {
         let Some(class) = registry.get(target) else {
             return vec![RejectReason::TransferIneligible];
         };
-        if e.targeting.dead || c.hp == 0 {
+        if e.targeting.dead {
             unmet.push(RejectReason::DeadActor);
         }
         if !(1..=2).contains(&class.tier)
@@ -578,10 +598,16 @@ impl ZoneState {
             .record_success(receipt.clone())
             .map_err(|_| RejectReason::TransferConflict)?;
         if self.complete_runtime_v5() {
-            p.class_state.validate_for_phase3(
+            p.class_state.validate_for_skill_rules(
                 registry,
                 &p.identity,
                 CharacterId::from_uuid(entity.as_uuid()),
+                &self
+                    .phase3
+                    .as_ref()
+                    .ok_or(RejectReason::InvalidLoad)?
+                    .canonical
+                    .rules,
             )
         } else {
             p.class_state.validate_for(
@@ -619,6 +645,109 @@ impl ZoneState {
                 receipt: Box::new(receipt),
             },
         ])
+    }
+}
+
+impl ZoneState {
+    /// T25: names the first check that refuses a paused (offline) owner's load as
+    /// `InvalidLoad`, in the order the paused grant runs them (`attach_paused_items_v6`):
+    /// item load, pending kit, item rules hash, skill checkpoint, combat profile, class
+    /// ledger, lineage profile, profession stats, skill state attach. Diagnostics only: the
+    /// refusal itself stays the zone's.
+    pub fn diagnose_paused_load(
+        &self,
+        id: EntityId,
+        core: &crate::domain::zone::ItemPausedCore,
+    ) -> String {
+        let load = &core.load;
+        if let Some(items) = &self.phase4 {
+            if let Err(error) = load.validate_phase4() {
+                return format!("item load: {error}");
+            }
+            let Some(retained) = load.phase4.as_ref() else {
+                return "item load: missing".into();
+            };
+            if let Err(error) = self.validate_pending_kit_v6(load) {
+                return format!("pending starter kit: {error}");
+            }
+            if retained
+                .checkpoint
+                .as_ref()
+                .is_some_and(|cp| cp.rules_hash != items.rules.hash())
+            {
+                return "item rules hash: the retained items were bound to other rules".into();
+            }
+        }
+        if let (Some(checkpoint), Some(phase)) = (&load.phase3, &self.phase3) {
+            let Some(progression) = &load.progression else {
+                return "progression: missing".into();
+            };
+            if let Err(error) = checkpoint.validate(
+                &phase.canonical.rules,
+                &progression.class_state.learned_skills,
+                load.alive,
+            ) {
+                return format!("skill checkpoint: {error}");
+            }
+        }
+        let Some(rules) = self.rules.as_deref() else {
+            return "zone stat rules: missing".into();
+        };
+        if let Err(reason) = player_combat(rules, load) {
+            let lineage = load.progression.as_ref().and_then(|p| {
+                crate::domain::character_progression::base_class_profile(p.identity.base_class_id)
+            });
+            return format!(
+                "class_profile `{}` at level {} is not a combat profile ({reason:?}); expected the lineage profile {lineage:?}",
+                load.class, load.level
+            );
+        }
+        if let (Some(registry), Some(p)) = (&self.classes, &load.progression) {
+            let checked = if let Some(phase) = &self.phase3 {
+                p.class_state.validate_for_skill_rules(
+                    registry,
+                    &p.identity,
+                    CharacterId::from_uuid(id.as_uuid()),
+                    &phase.canonical.rules,
+                )
+            } else {
+                p.class_state.validate_for(
+                    registry,
+                    &p.identity,
+                    CharacterId::from_uuid(id.as_uuid()),
+                )
+            };
+            if let Err(error) = checked {
+                return format!(
+                    "class ledger (base_class_id {}, current_class_id {}, {} learned skills): {} ({error})",
+                    p.class_state.base_class_id.0,
+                    p.class_state.current_class_id.0,
+                    p.class_state.learned_skills.len(),
+                    error.code()
+                );
+            }
+            let lineage =
+                crate::domain::character_progression::base_class_profile(p.identity.base_class_id);
+            if lineage != Some(load.class.as_str()) {
+                return format!(
+                    "class_profile `{}` is not the lineage profile {lineage:?} of base_class_id {}",
+                    load.class, p.identity.base_class_id.0
+                );
+            }
+            if let Err(error) =
+                profession_stats(rules, registry, &p.identity, &p.class_state, load.level)
+            {
+                return format!(
+                    "profession stats (class {}, level {}): {error}",
+                    p.class_state.current_class_id.0, load.level
+                );
+            }
+        }
+        let mut candidate = self.clone();
+        if let Err(reason) = candidate.attach_paused_items_v6_for_diagnosis(id, core) {
+            return reason;
+        }
+        "the grant itself (inventory, capacity or receipt state)".into()
     }
 }
 
@@ -683,6 +812,7 @@ mod tests {
             max_cp: 0,
         };
         let load = PlayerLoad {
+            phase4: None,
             phase3: None,
             progression: Some(Box::new(progression)),
             level,
@@ -1309,6 +1439,7 @@ mod tests {
                 speed: Speed::DEFAULT,
                 generation: SessionGeneration(1),
                 load: Some(Box::new(PlayerLoad {
+                    phase4: None,
                     phase3: None,
                     progression: Some(Box::new(PlayerProgression {
                         identity: identity.clone(),
@@ -1371,6 +1502,7 @@ mod tests {
             assert_eq!(encode_snapshot(&decode_snapshot(&encoded).unwrap()).unwrap(), encoded);
             let mut replay = ZoneState::from_snapshot(decode_snapshot(&encoded).unwrap()).unwrap();
             let load = PlayerLoad {
+                phase4: None,
                 phase3: None,
                 progression: Some(Box::new(PlayerProgression {
                     identity: p.identity.clone(),

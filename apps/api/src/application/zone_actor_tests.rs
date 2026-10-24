@@ -414,3 +414,125 @@ fn restored_observers_must_fit_the_frozen_policy_before_simulation() {
     };
     assert!(ZoneActor::try_spawn_gated_with_admission(state, ticks, OpenGate, policy).is_err());
 }
+
+/// T21/D134 (api-review-16 P2-2): the actor indexes a tick only after its log acknowledgement.
+/// A held tick leaves `last_recorded_tick` at the previous tick and releases nothing; the retry
+/// that is acknowledged advances it and only then publishes the tick.
+#[tokio::test]
+async fn the_recording_index_advances_only_after_the_log_acknowledges_the_tick() {
+    use crate::application::replay_log::ZoneSnapshotStore;
+    use crate::infrastructure::eventlog::{InMemoryEventLog, InMemoryZoneSnapshotStore};
+    let closed = Arc::new(AtomicBool::new(false));
+    let (ticks, driver) = manual_ticks();
+    let initial = state();
+    let zone_id = initial.seed().zone;
+    let epoch = initial.seed().epoch;
+    let zone = ZoneActor::spawn_gated(initial, ticks, SwitchGate(closed.clone()));
+    let store = Arc::new(InMemoryZoneSnapshotStore::default());
+    zone.checkpoints.install(
+        crate::application::checkpoint::CheckpointService::new(
+            Arc::new(crate::infrastructure::memory::InMemoryCharacterRepository::default()),
+            Arc::new(crate::infrastructure::memory::InMemorySessionAudit::default()),
+            Arc::new(crate::infrastructure::telemetry::Metrics::detached()),
+        )
+        .with_durability(Arc::new(InMemoryEventLog::default()), store.clone()),
+    );
+    let indexed = || async {
+        store
+            .unresolved(zone_id)
+            .await
+            .unwrap()
+            .into_iter()
+            .find(|row| row.epoch == epoch)
+            .and_then(|row| row.last_recorded_tick)
+    };
+    let mut rx = zone.subscribe();
+    zone.send(spawn(1)).unwrap();
+    assert_eq!(driver.step().await, Ok(TickOutcome::Ran(Tick(0))));
+    assert_eq!(rx.recv().await.unwrap().tick, Tick(0));
+    assert_eq!(indexed().await, Some(Tick(0)));
+    // The log refuses tick 1: no index advance and nothing released.
+    closed.store(true, Ordering::SeqCst);
+    zone.send(spawn(2)).unwrap();
+    assert_eq!(driver.step().await, Ok(TickOutcome::Held(Tick(1))));
+    assert_eq!(driver.step().await, Ok(TickOutcome::Held(Tick(1))));
+    assert_eq!(indexed().await, Some(Tick(0)));
+    assert!(rx.try_recv().is_err());
+    // The retry is acknowledged: the index reaches tick 1, then the tick is published.
+    closed.store(false, Ordering::SeqCst);
+    assert_eq!(driver.step().await, Ok(TickOutcome::Ran(Tick(1))));
+    assert_eq!(indexed().await, Some(Tick(1)));
+    assert_eq!(rx.recv().await.unwrap().tick, Tick(1));
+}
+
+/// A snapshot index whose `recording` update always fails.
+#[derive(Default)]
+struct BrokenIndex(crate::infrastructure::eventlog::InMemoryZoneSnapshotStore);
+
+#[async_trait::async_trait]
+impl crate::application::replay_log::ZoneSnapshotStore for BrokenIndex {
+    async fn unresolved(
+        &self,
+        zone: ZoneId,
+    ) -> anyhow::Result<Vec<crate::application::replay_log::RecoveryEpoch>> {
+        self.0.unresolved(zone).await
+    }
+    async fn recording(&self, _zone: ZoneId, _epoch: u64, _tick: Tick) -> anyhow::Result<()> {
+        anyhow::bail!("index database unavailable")
+    }
+    async fn checkpointed(&self, zone: ZoneId, epoch: u64, tick: Tick) -> anyhow::Result<()> {
+        self.0.checkpointed(zone, epoch, tick).await
+    }
+    async fn close(&self, zone: ZoneId, epoch: u64) -> anyhow::Result<()> {
+        self.0.close(zone, epoch).await
+    }
+    async fn insert(
+        &self,
+        row: &crate::application::replay_log::ZoneSnapshotRow,
+    ) -> anyhow::Result<()> {
+        self.0.insert(row).await
+    }
+    async fn set_first_seq(
+        &self,
+        zone: ZoneId,
+        epoch: u64,
+        seq: crate::application::replay_log::Seq,
+    ) -> anyhow::Result<()> {
+        self.0.set_first_seq(zone, epoch, seq).await
+    }
+    async fn get(
+        &self,
+        zone: ZoneId,
+        epoch: u64,
+    ) -> anyhow::Result<Option<crate::application::replay_log::ZoneSnapshotRow>> {
+        self.0.get(zone, epoch).await
+    }
+    async fn latest_epoch(&self, zone: ZoneId) -> anyhow::Result<Option<u64>> {
+        self.0.latest_epoch(zone).await
+    }
+}
+
+/// api-review-16 P3-1: a persistent recording-index failure fences the zone after bounded
+/// retries instead of hanging under the checkpoint lock, and releases nothing for the tick.
+#[tokio::test(start_paused = true)]
+async fn a_persistent_recording_index_failure_fences_before_output() {
+    let (ticks, driver) = manual_ticks();
+    let zone = ZoneActor::spawn_gated(state(), ticks, SwitchGate(Arc::new(AtomicBool::new(false))));
+    zone.checkpoints.install(
+        crate::application::checkpoint::CheckpointService::new(
+            Arc::new(crate::infrastructure::memory::InMemoryCharacterRepository::default()),
+            Arc::new(crate::infrastructure::memory::InMemorySessionAudit::default()),
+            Arc::new(crate::infrastructure::telemetry::Metrics::detached()),
+        )
+        .with_durability(
+            Arc::new(crate::infrastructure::eventlog::InMemoryEventLog::default()),
+            Arc::new(BrokenIndex::default()),
+        ),
+    );
+    let mut rx = zone.subscribe();
+    zone.send(spawn(1)).unwrap();
+    assert_eq!(driver.step().await, Ok(TickOutcome::Held(Tick(0))));
+    assert!(rx.try_recv().is_err());
+    zone.stopped().await;
+    assert!(zone.persistence_failed());
+}

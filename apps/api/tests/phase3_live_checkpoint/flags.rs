@@ -34,6 +34,7 @@ async fn flag_crash(head: u64, partial: bool) {
                 idempotency: ("save_checkpoint".into(), IdempotencyKey::new()),
                 class_state: Some(saved.class_state),
                 phase3: Some(retained),
+                phase4: None,
             },
             &[],
         )
@@ -289,14 +290,14 @@ async fn flag_crash(head: u64, partial: bool) {
 #[tokio::test]
 async fn flag_start_refresh_and_expiry_survive_mid_cadence_and_log_ack_crashes() {
     for head in [35, 50, 1225, 1250] {
-        flag_crash(head, false).await;
+        Box::pin(flag_crash(head, false)).await;
     }
 }
 
 #[tokio::test]
 async fn active_and_expired_flags_survive_partial_cadence_save_twice() {
     for head in [50, 1250] {
-        flag_crash(head, true).await;
+        Box::pin(flag_crash(head, true)).await;
     }
 }
 

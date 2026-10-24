@@ -3,6 +3,7 @@
 #include "SNightfallV1/GameClient.h"
 #include "GameService_Private.h"
 #include "GameMarshaling.h"
+#include "SNightfallV1/ItemsMarshaling.h"
 #include "TurboLinkGrpcManager_Private.h"
 #include "TurboLinkGrpcUtilities.h"
 
@@ -197,4 +198,46 @@ void UGameService::CallGetSkillCatalog(const FGrpcNightfallV1GetSkillCatalogRequ
 	lambdaWrapper->Handle = InnerClient->InitGetSkillCatalog();
 	InnerClient->OnGetSkillCatalogResponse.AddUniqueDynamic(lambdaWrapper, &UGameServiceGetSkillCatalogLambdaWrapper::OnResponse);
 	InnerClient->GetSkillCatalog(lambdaWrapper->Handle, Request, MetaData, DeadLineSeconds);
+}
+
+void UGameService::CallGetItemCatalog(const FGrpcNightfallV1GetItemCatalogRequest& Request, FGetItemCatalogResponseLambda ResponseLambda, FGrpcMetaData MetaData, float DeadLineSeconds)
+{
+	if (InnerClient == nullptr)
+	{
+		InnerClient = MakeClient();
+	}
+	UGameServiceGetItemCatalogLambdaWrapper* lambdaWrapper = NewObject<UGameServiceGetItemCatalogLambdaWrapper>();
+	lambdaWrapper->InnerClient = InnerClient;
+	lambdaWrapper->ResponseLambda = ResponseLambda;
+	lambdaWrapper->Handle = InnerClient->InitGetItemCatalog();
+	InnerClient->OnGetItemCatalogResponse.AddUniqueDynamic(lambdaWrapper, &UGameServiceGetItemCatalogLambdaWrapper::OnResponse);
+	InnerClient->GetItemCatalog(lambdaWrapper->Handle, Request, MetaData, DeadLineSeconds);
+}
+
+void UGameService::CallGetInventory(const FGrpcNightfallV1GetInventoryRequest& Request, FGetInventoryResponseLambda ResponseLambda, FGrpcMetaData MetaData, float DeadLineSeconds)
+{
+	if (InnerClient == nullptr)
+	{
+		InnerClient = MakeClient();
+	}
+	UGameServiceGetInventoryLambdaWrapper* lambdaWrapper = NewObject<UGameServiceGetInventoryLambdaWrapper>();
+	lambdaWrapper->InnerClient = InnerClient;
+	lambdaWrapper->ResponseLambda = ResponseLambda;
+	lambdaWrapper->Handle = InnerClient->InitGetInventory();
+	InnerClient->OnGetInventoryResponse.AddUniqueDynamic(lambdaWrapper, &UGameServiceGetInventoryLambdaWrapper::OnResponse);
+	InnerClient->GetInventory(lambdaWrapper->Handle, Request, MetaData, DeadLineSeconds);
+}
+
+void UGameService::CallGrantItem(const FGrpcNightfallV1GrantItemRequest& Request, FGrantItemResponseLambda ResponseLambda, FGrpcMetaData MetaData, float DeadLineSeconds)
+{
+	if (InnerClient == nullptr)
+	{
+		InnerClient = MakeClient();
+	}
+	UGameServiceGrantItemLambdaWrapper* lambdaWrapper = NewObject<UGameServiceGrantItemLambdaWrapper>();
+	lambdaWrapper->InnerClient = InnerClient;
+	lambdaWrapper->ResponseLambda = ResponseLambda;
+	lambdaWrapper->Handle = InnerClient->InitGrantItem();
+	InnerClient->OnGrantItemResponse.AddUniqueDynamic(lambdaWrapper, &UGameServiceGrantItemLambdaWrapper::OnResponse);
+	InnerClient->GrantItem(lambdaWrapper->Handle, Request, MetaData, DeadLineSeconds);
 }

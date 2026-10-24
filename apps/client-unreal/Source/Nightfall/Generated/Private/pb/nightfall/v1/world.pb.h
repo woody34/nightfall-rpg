@@ -39,6 +39,7 @@
 #include "google/protobuf/generated_enum_reflection.h"
 #include "google/protobuf/unknown_field_set.h"
 #include "nightfall/v1/game.pb.h"
+#include "nightfall/v1/items.pb.h"
 // @@protoc_insertion_point(includes)
 
 // Must be included last.
@@ -308,6 +309,19 @@ enum RejectReason : int {
   REJECT_REASON_PEACE_ZONE = 22,
   REJECT_REASON_WEAPON_CONDITION = 23,
   REJECT_REASON_NO_RESURRECT_OFFER = 24,
+  REJECT_REASON_ITEM_NOT_OWNED = 25,
+  REJECT_REASON_ITEM_NOT_USABLE = 26,
+  REJECT_REASON_INVALID_EQUIP_SLOT = 27,
+  REJECT_REASON_INSUFFICIENT_ITEMS = 28,
+  REJECT_REASON_INVENTORY_FULL = 29,
+  REJECT_REASON_ITEM_GRADE_MISMATCH = 30,
+  REJECT_REASON_ITEM_REUSE = 31,
+  REJECT_REASON_INVALID_ENCHANT = 32,
+  REJECT_REASON_INVALID_REFINEMENT = 33,
+  REJECT_REASON_INVALID_RECIPE = 34,
+  REJECT_REASON_ITEM_OPERATION_CONFLICT = 35,
+  REJECT_REASON_ITEM_CAPABILITY_DEFERRED = 36,
+  REJECT_REASON_CRYSTALLIZE_LEVEL_TOO_LOW = 37,
   RejectReason_INT_MIN_SENTINEL_DO_NOT_USE_ =
       std::numeric_limits<::int32_t>::min(),
   RejectReason_INT_MAX_SENTINEL_DO_NOT_USE_ =
@@ -316,8 +330,8 @@ enum RejectReason : int {
 
 bool RejectReason_IsValid(int value);
 constexpr RejectReason RejectReason_MIN = static_cast<RejectReason>(0);
-constexpr RejectReason RejectReason_MAX = static_cast<RejectReason>(24);
-constexpr int RejectReason_ARRAYSIZE = 24 + 1;
+constexpr RejectReason RejectReason_MAX = static_cast<RejectReason>(37);
+constexpr int RejectReason_ARRAYSIZE = 37 + 1;
 const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor*
 RejectReason_descriptor();
 template <typename T>
@@ -330,7 +344,7 @@ const std::string& RejectReason_Name(T value) {
 template <>
 inline const std::string& RejectReason_Name(RejectReason value) {
   return ::PROTOBUF_NAMESPACE_ID::internal::NameOfDenseEnum<RejectReason_descriptor,
-                                                 0, 24>(
+                                                 0, 37>(
       static_cast<int>(value));
 }
 inline bool RejectReason_Parse(absl::string_view name, RejectReason* value) {
@@ -728,6 +742,16 @@ class ClientMessage final :
     kCastSkill = 16,
     kCancelCast = 17,
     kAcceptResurrect = 18,
+    kEquipItem = 19,
+    kUnequipItem = 20,
+    kUseItem = 21,
+    kDestroyItem = 22,
+    kEnchantItem = 23,
+    kToggleAutoShot = 24,
+    kRefineItem = 25,
+    kCancelRefine = 26,
+    kExchangeSpecialAbility = 27,
+    kCrystallizeItem = 28,
     INTENT_NOT_SET = 0,
   };
 
@@ -818,6 +842,16 @@ class ClientMessage final :
     kCastSkillFieldNumber = 16,
     kCancelCastFieldNumber = 17,
     kAcceptResurrectFieldNumber = 18,
+    kEquipItemFieldNumber = 19,
+    kUnequipItemFieldNumber = 20,
+    kUseItemFieldNumber = 21,
+    kDestroyItemFieldNumber = 22,
+    kEnchantItemFieldNumber = 23,
+    kToggleAutoShotFieldNumber = 24,
+    kRefineItemFieldNumber = 25,
+    kCancelRefineFieldNumber = 26,
+    kExchangeSpecialAbilityFieldNumber = 27,
+    kCrystallizeItemFieldNumber = 28,
   };
   // uint32 seq = 1;
   void clear_seq() ;
@@ -991,6 +1025,186 @@ class ClientMessage final :
   void unsafe_arena_set_allocated_accept_resurrect(
       ::nightfall::v1::AcceptResurrectRequest* accept_resurrect);
   ::nightfall::v1::AcceptResurrectRequest* unsafe_arena_release_accept_resurrect();
+  // .nightfall.v1.EquipItemRequest equip_item = 19;
+  bool has_equip_item() const;
+  private:
+  bool _internal_has_equip_item() const;
+
+  public:
+  void clear_equip_item() ;
+  const ::nightfall::v1::EquipItemRequest& equip_item() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::EquipItemRequest* release_equip_item();
+  ::nightfall::v1::EquipItemRequest* mutable_equip_item();
+  void set_allocated_equip_item(::nightfall::v1::EquipItemRequest* equip_item);
+  private:
+  const ::nightfall::v1::EquipItemRequest& _internal_equip_item() const;
+  ::nightfall::v1::EquipItemRequest* _internal_mutable_equip_item();
+  public:
+  void unsafe_arena_set_allocated_equip_item(
+      ::nightfall::v1::EquipItemRequest* equip_item);
+  ::nightfall::v1::EquipItemRequest* unsafe_arena_release_equip_item();
+  // .nightfall.v1.UnequipItemRequest unequip_item = 20;
+  bool has_unequip_item() const;
+  private:
+  bool _internal_has_unequip_item() const;
+
+  public:
+  void clear_unequip_item() ;
+  const ::nightfall::v1::UnequipItemRequest& unequip_item() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::UnequipItemRequest* release_unequip_item();
+  ::nightfall::v1::UnequipItemRequest* mutable_unequip_item();
+  void set_allocated_unequip_item(::nightfall::v1::UnequipItemRequest* unequip_item);
+  private:
+  const ::nightfall::v1::UnequipItemRequest& _internal_unequip_item() const;
+  ::nightfall::v1::UnequipItemRequest* _internal_mutable_unequip_item();
+  public:
+  void unsafe_arena_set_allocated_unequip_item(
+      ::nightfall::v1::UnequipItemRequest* unequip_item);
+  ::nightfall::v1::UnequipItemRequest* unsafe_arena_release_unequip_item();
+  // .nightfall.v1.UseItemRequest use_item = 21;
+  bool has_use_item() const;
+  private:
+  bool _internal_has_use_item() const;
+
+  public:
+  void clear_use_item() ;
+  const ::nightfall::v1::UseItemRequest& use_item() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::UseItemRequest* release_use_item();
+  ::nightfall::v1::UseItemRequest* mutable_use_item();
+  void set_allocated_use_item(::nightfall::v1::UseItemRequest* use_item);
+  private:
+  const ::nightfall::v1::UseItemRequest& _internal_use_item() const;
+  ::nightfall::v1::UseItemRequest* _internal_mutable_use_item();
+  public:
+  void unsafe_arena_set_allocated_use_item(
+      ::nightfall::v1::UseItemRequest* use_item);
+  ::nightfall::v1::UseItemRequest* unsafe_arena_release_use_item();
+  // .nightfall.v1.DestroyItemRequest destroy_item = 22;
+  bool has_destroy_item() const;
+  private:
+  bool _internal_has_destroy_item() const;
+
+  public:
+  void clear_destroy_item() ;
+  const ::nightfall::v1::DestroyItemRequest& destroy_item() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::DestroyItemRequest* release_destroy_item();
+  ::nightfall::v1::DestroyItemRequest* mutable_destroy_item();
+  void set_allocated_destroy_item(::nightfall::v1::DestroyItemRequest* destroy_item);
+  private:
+  const ::nightfall::v1::DestroyItemRequest& _internal_destroy_item() const;
+  ::nightfall::v1::DestroyItemRequest* _internal_mutable_destroy_item();
+  public:
+  void unsafe_arena_set_allocated_destroy_item(
+      ::nightfall::v1::DestroyItemRequest* destroy_item);
+  ::nightfall::v1::DestroyItemRequest* unsafe_arena_release_destroy_item();
+  // .nightfall.v1.EnchantItemRequest enchant_item = 23;
+  bool has_enchant_item() const;
+  private:
+  bool _internal_has_enchant_item() const;
+
+  public:
+  void clear_enchant_item() ;
+  const ::nightfall::v1::EnchantItemRequest& enchant_item() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::EnchantItemRequest* release_enchant_item();
+  ::nightfall::v1::EnchantItemRequest* mutable_enchant_item();
+  void set_allocated_enchant_item(::nightfall::v1::EnchantItemRequest* enchant_item);
+  private:
+  const ::nightfall::v1::EnchantItemRequest& _internal_enchant_item() const;
+  ::nightfall::v1::EnchantItemRequest* _internal_mutable_enchant_item();
+  public:
+  void unsafe_arena_set_allocated_enchant_item(
+      ::nightfall::v1::EnchantItemRequest* enchant_item);
+  ::nightfall::v1::EnchantItemRequest* unsafe_arena_release_enchant_item();
+  // .nightfall.v1.ToggleAutoShotRequest toggle_auto_shot = 24;
+  bool has_toggle_auto_shot() const;
+  private:
+  bool _internal_has_toggle_auto_shot() const;
+
+  public:
+  void clear_toggle_auto_shot() ;
+  const ::nightfall::v1::ToggleAutoShotRequest& toggle_auto_shot() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::ToggleAutoShotRequest* release_toggle_auto_shot();
+  ::nightfall::v1::ToggleAutoShotRequest* mutable_toggle_auto_shot();
+  void set_allocated_toggle_auto_shot(::nightfall::v1::ToggleAutoShotRequest* toggle_auto_shot);
+  private:
+  const ::nightfall::v1::ToggleAutoShotRequest& _internal_toggle_auto_shot() const;
+  ::nightfall::v1::ToggleAutoShotRequest* _internal_mutable_toggle_auto_shot();
+  public:
+  void unsafe_arena_set_allocated_toggle_auto_shot(
+      ::nightfall::v1::ToggleAutoShotRequest* toggle_auto_shot);
+  ::nightfall::v1::ToggleAutoShotRequest* unsafe_arena_release_toggle_auto_shot();
+  // .nightfall.v1.RefineItemRequest refine_item = 25;
+  bool has_refine_item() const;
+  private:
+  bool _internal_has_refine_item() const;
+
+  public:
+  void clear_refine_item() ;
+  const ::nightfall::v1::RefineItemRequest& refine_item() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::RefineItemRequest* release_refine_item();
+  ::nightfall::v1::RefineItemRequest* mutable_refine_item();
+  void set_allocated_refine_item(::nightfall::v1::RefineItemRequest* refine_item);
+  private:
+  const ::nightfall::v1::RefineItemRequest& _internal_refine_item() const;
+  ::nightfall::v1::RefineItemRequest* _internal_mutable_refine_item();
+  public:
+  void unsafe_arena_set_allocated_refine_item(
+      ::nightfall::v1::RefineItemRequest* refine_item);
+  ::nightfall::v1::RefineItemRequest* unsafe_arena_release_refine_item();
+  // .nightfall.v1.CancelRefineRequest cancel_refine = 26;
+  bool has_cancel_refine() const;
+  private:
+  bool _internal_has_cancel_refine() const;
+
+  public:
+  void clear_cancel_refine() ;
+  const ::nightfall::v1::CancelRefineRequest& cancel_refine() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::CancelRefineRequest* release_cancel_refine();
+  ::nightfall::v1::CancelRefineRequest* mutable_cancel_refine();
+  void set_allocated_cancel_refine(::nightfall::v1::CancelRefineRequest* cancel_refine);
+  private:
+  const ::nightfall::v1::CancelRefineRequest& _internal_cancel_refine() const;
+  ::nightfall::v1::CancelRefineRequest* _internal_mutable_cancel_refine();
+  public:
+  void unsafe_arena_set_allocated_cancel_refine(
+      ::nightfall::v1::CancelRefineRequest* cancel_refine);
+  ::nightfall::v1::CancelRefineRequest* unsafe_arena_release_cancel_refine();
+  // .nightfall.v1.ExchangeSpecialAbilityRequest exchange_special_ability = 27;
+  bool has_exchange_special_ability() const;
+  private:
+  bool _internal_has_exchange_special_ability() const;
+
+  public:
+  void clear_exchange_special_ability() ;
+  const ::nightfall::v1::ExchangeSpecialAbilityRequest& exchange_special_ability() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::ExchangeSpecialAbilityRequest* release_exchange_special_ability();
+  ::nightfall::v1::ExchangeSpecialAbilityRequest* mutable_exchange_special_ability();
+  void set_allocated_exchange_special_ability(::nightfall::v1::ExchangeSpecialAbilityRequest* exchange_special_ability);
+  private:
+  const ::nightfall::v1::ExchangeSpecialAbilityRequest& _internal_exchange_special_ability() const;
+  ::nightfall::v1::ExchangeSpecialAbilityRequest* _internal_mutable_exchange_special_ability();
+  public:
+  void unsafe_arena_set_allocated_exchange_special_ability(
+      ::nightfall::v1::ExchangeSpecialAbilityRequest* exchange_special_ability);
+  ::nightfall::v1::ExchangeSpecialAbilityRequest* unsafe_arena_release_exchange_special_ability();
+  // .nightfall.v1.CrystallizeItemRequest crystallize_item = 28;
+  bool has_crystallize_item() const;
+  private:
+  bool _internal_has_crystallize_item() const;
+
+  public:
+  void clear_crystallize_item() ;
+  const ::nightfall::v1::CrystallizeItemRequest& crystallize_item() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::CrystallizeItemRequest* release_crystallize_item();
+  ::nightfall::v1::CrystallizeItemRequest* mutable_crystallize_item();
+  void set_allocated_crystallize_item(::nightfall::v1::CrystallizeItemRequest* crystallize_item);
+  private:
+  const ::nightfall::v1::CrystallizeItemRequest& _internal_crystallize_item() const;
+  ::nightfall::v1::CrystallizeItemRequest* _internal_mutable_crystallize_item();
+  public:
+  void unsafe_arena_set_allocated_crystallize_item(
+      ::nightfall::v1::CrystallizeItemRequest* crystallize_item);
+  ::nightfall::v1::CrystallizeItemRequest* unsafe_arena_release_crystallize_item();
   void clear_intent();
   IntentCase intent_case() const;
   // @@protoc_insertion_point(class_scope:nightfall.v1.ClientMessage)
@@ -1005,6 +1219,16 @@ class ClientMessage final :
   void set_has_cast_skill();
   void set_has_cancel_cast();
   void set_has_accept_resurrect();
+  void set_has_equip_item();
+  void set_has_unequip_item();
+  void set_has_use_item();
+  void set_has_destroy_item();
+  void set_has_enchant_item();
+  void set_has_toggle_auto_shot();
+  void set_has_refine_item();
+  void set_has_cancel_refine();
+  void set_has_exchange_special_ability();
+  void set_has_crystallize_item();
 
   inline bool has_intent() const;
   inline void clear_has_intent();
@@ -1026,6 +1250,16 @@ class ClientMessage final :
       ::nightfall::v1::CastSkillRequest* cast_skill_;
       ::nightfall::v1::CancelCastRequest* cancel_cast_;
       ::nightfall::v1::AcceptResurrectRequest* accept_resurrect_;
+      ::nightfall::v1::EquipItemRequest* equip_item_;
+      ::nightfall::v1::UnequipItemRequest* unequip_item_;
+      ::nightfall::v1::UseItemRequest* use_item_;
+      ::nightfall::v1::DestroyItemRequest* destroy_item_;
+      ::nightfall::v1::EnchantItemRequest* enchant_item_;
+      ::nightfall::v1::ToggleAutoShotRequest* toggle_auto_shot_;
+      ::nightfall::v1::RefineItemRequest* refine_item_;
+      ::nightfall::v1::CancelRefineRequest* cancel_refine_;
+      ::nightfall::v1::ExchangeSpecialAbilityRequest* exchange_special_ability_;
+      ::nightfall::v1::CrystallizeItemRequest* crystallize_item_;
     } intent_;
     mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
     ::uint32_t _oneof_case_[1];
@@ -3016,6 +3250,14 @@ class WorldEvent final :
     kSpGained = 23,
     kSkillStateSync = 24,
     kVitalsChanged = 25,
+    kInventorySync = 26,
+    kInventoryChanged = 27,
+    kEquipmentChanged = 28,
+    kWeightChanged = 29,
+    kPenaltyChanged = 30,
+    kEnchantResult = 31,
+    kRefineResult = 32,
+    kItemOperationResult = 33,
     EVENT_NOT_SET = 0,
   };
 
@@ -3121,6 +3363,14 @@ class WorldEvent final :
     kSpGainedFieldNumber = 23,
     kSkillStateSyncFieldNumber = 24,
     kVitalsChangedFieldNumber = 25,
+    kInventorySyncFieldNumber = 26,
+    kInventoryChangedFieldNumber = 27,
+    kEquipmentChangedFieldNumber = 28,
+    kWeightChangedFieldNumber = 29,
+    kPenaltyChangedFieldNumber = 30,
+    kEnchantResultFieldNumber = 31,
+    kRefineResultFieldNumber = 32,
+    kItemOperationResultFieldNumber = 33,
   };
   // .nightfall.v1.EntitySpawn spawn = 1;
   bool has_spawn() const;
@@ -3572,6 +3822,150 @@ class WorldEvent final :
   void unsafe_arena_set_allocated_vitals_changed(
       ::nightfall::v1::VitalsChanged* vitals_changed);
   ::nightfall::v1::VitalsChanged* unsafe_arena_release_vitals_changed();
+  // .nightfall.v1.InventorySync inventory_sync = 26;
+  bool has_inventory_sync() const;
+  private:
+  bool _internal_has_inventory_sync() const;
+
+  public:
+  void clear_inventory_sync() ;
+  const ::nightfall::v1::InventorySync& inventory_sync() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::InventorySync* release_inventory_sync();
+  ::nightfall::v1::InventorySync* mutable_inventory_sync();
+  void set_allocated_inventory_sync(::nightfall::v1::InventorySync* inventory_sync);
+  private:
+  const ::nightfall::v1::InventorySync& _internal_inventory_sync() const;
+  ::nightfall::v1::InventorySync* _internal_mutable_inventory_sync();
+  public:
+  void unsafe_arena_set_allocated_inventory_sync(
+      ::nightfall::v1::InventorySync* inventory_sync);
+  ::nightfall::v1::InventorySync* unsafe_arena_release_inventory_sync();
+  // .nightfall.v1.InventoryChanged inventory_changed = 27;
+  bool has_inventory_changed() const;
+  private:
+  bool _internal_has_inventory_changed() const;
+
+  public:
+  void clear_inventory_changed() ;
+  const ::nightfall::v1::InventoryChanged& inventory_changed() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::InventoryChanged* release_inventory_changed();
+  ::nightfall::v1::InventoryChanged* mutable_inventory_changed();
+  void set_allocated_inventory_changed(::nightfall::v1::InventoryChanged* inventory_changed);
+  private:
+  const ::nightfall::v1::InventoryChanged& _internal_inventory_changed() const;
+  ::nightfall::v1::InventoryChanged* _internal_mutable_inventory_changed();
+  public:
+  void unsafe_arena_set_allocated_inventory_changed(
+      ::nightfall::v1::InventoryChanged* inventory_changed);
+  ::nightfall::v1::InventoryChanged* unsafe_arena_release_inventory_changed();
+  // .nightfall.v1.EquipmentChanged equipment_changed = 28;
+  bool has_equipment_changed() const;
+  private:
+  bool _internal_has_equipment_changed() const;
+
+  public:
+  void clear_equipment_changed() ;
+  const ::nightfall::v1::EquipmentChanged& equipment_changed() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::EquipmentChanged* release_equipment_changed();
+  ::nightfall::v1::EquipmentChanged* mutable_equipment_changed();
+  void set_allocated_equipment_changed(::nightfall::v1::EquipmentChanged* equipment_changed);
+  private:
+  const ::nightfall::v1::EquipmentChanged& _internal_equipment_changed() const;
+  ::nightfall::v1::EquipmentChanged* _internal_mutable_equipment_changed();
+  public:
+  void unsafe_arena_set_allocated_equipment_changed(
+      ::nightfall::v1::EquipmentChanged* equipment_changed);
+  ::nightfall::v1::EquipmentChanged* unsafe_arena_release_equipment_changed();
+  // .nightfall.v1.WeightChanged weight_changed = 29;
+  bool has_weight_changed() const;
+  private:
+  bool _internal_has_weight_changed() const;
+
+  public:
+  void clear_weight_changed() ;
+  const ::nightfall::v1::WeightChanged& weight_changed() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::WeightChanged* release_weight_changed();
+  ::nightfall::v1::WeightChanged* mutable_weight_changed();
+  void set_allocated_weight_changed(::nightfall::v1::WeightChanged* weight_changed);
+  private:
+  const ::nightfall::v1::WeightChanged& _internal_weight_changed() const;
+  ::nightfall::v1::WeightChanged* _internal_mutable_weight_changed();
+  public:
+  void unsafe_arena_set_allocated_weight_changed(
+      ::nightfall::v1::WeightChanged* weight_changed);
+  ::nightfall::v1::WeightChanged* unsafe_arena_release_weight_changed();
+  // .nightfall.v1.PenaltyChanged penalty_changed = 30;
+  bool has_penalty_changed() const;
+  private:
+  bool _internal_has_penalty_changed() const;
+
+  public:
+  void clear_penalty_changed() ;
+  const ::nightfall::v1::PenaltyChanged& penalty_changed() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::PenaltyChanged* release_penalty_changed();
+  ::nightfall::v1::PenaltyChanged* mutable_penalty_changed();
+  void set_allocated_penalty_changed(::nightfall::v1::PenaltyChanged* penalty_changed);
+  private:
+  const ::nightfall::v1::PenaltyChanged& _internal_penalty_changed() const;
+  ::nightfall::v1::PenaltyChanged* _internal_mutable_penalty_changed();
+  public:
+  void unsafe_arena_set_allocated_penalty_changed(
+      ::nightfall::v1::PenaltyChanged* penalty_changed);
+  ::nightfall::v1::PenaltyChanged* unsafe_arena_release_penalty_changed();
+  // .nightfall.v1.EnchantResult enchant_result = 31;
+  bool has_enchant_result() const;
+  private:
+  bool _internal_has_enchant_result() const;
+
+  public:
+  void clear_enchant_result() ;
+  const ::nightfall::v1::EnchantResult& enchant_result() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::EnchantResult* release_enchant_result();
+  ::nightfall::v1::EnchantResult* mutable_enchant_result();
+  void set_allocated_enchant_result(::nightfall::v1::EnchantResult* enchant_result);
+  private:
+  const ::nightfall::v1::EnchantResult& _internal_enchant_result() const;
+  ::nightfall::v1::EnchantResult* _internal_mutable_enchant_result();
+  public:
+  void unsafe_arena_set_allocated_enchant_result(
+      ::nightfall::v1::EnchantResult* enchant_result);
+  ::nightfall::v1::EnchantResult* unsafe_arena_release_enchant_result();
+  // .nightfall.v1.RefineResult refine_result = 32;
+  bool has_refine_result() const;
+  private:
+  bool _internal_has_refine_result() const;
+
+  public:
+  void clear_refine_result() ;
+  const ::nightfall::v1::RefineResult& refine_result() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::RefineResult* release_refine_result();
+  ::nightfall::v1::RefineResult* mutable_refine_result();
+  void set_allocated_refine_result(::nightfall::v1::RefineResult* refine_result);
+  private:
+  const ::nightfall::v1::RefineResult& _internal_refine_result() const;
+  ::nightfall::v1::RefineResult* _internal_mutable_refine_result();
+  public:
+  void unsafe_arena_set_allocated_refine_result(
+      ::nightfall::v1::RefineResult* refine_result);
+  ::nightfall::v1::RefineResult* unsafe_arena_release_refine_result();
+  // .nightfall.v1.ItemOperationResult item_operation_result = 33;
+  bool has_item_operation_result() const;
+  private:
+  bool _internal_has_item_operation_result() const;
+
+  public:
+  void clear_item_operation_result() ;
+  const ::nightfall::v1::ItemOperationResult& item_operation_result() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::ItemOperationResult* release_item_operation_result();
+  ::nightfall::v1::ItemOperationResult* mutable_item_operation_result();
+  void set_allocated_item_operation_result(::nightfall::v1::ItemOperationResult* item_operation_result);
+  private:
+  const ::nightfall::v1::ItemOperationResult& _internal_item_operation_result() const;
+  ::nightfall::v1::ItemOperationResult* _internal_mutable_item_operation_result();
+  public:
+  void unsafe_arena_set_allocated_item_operation_result(
+      ::nightfall::v1::ItemOperationResult* item_operation_result);
+  ::nightfall::v1::ItemOperationResult* unsafe_arena_release_item_operation_result();
   void clear_event();
   EventCase event_case() const;
   // @@protoc_insertion_point(class_scope:nightfall.v1.WorldEvent)
@@ -3602,6 +3996,14 @@ class WorldEvent final :
   void set_has_sp_gained();
   void set_has_skill_state_sync();
   void set_has_vitals_changed();
+  void set_has_inventory_sync();
+  void set_has_inventory_changed();
+  void set_has_equipment_changed();
+  void set_has_weight_changed();
+  void set_has_penalty_changed();
+  void set_has_enchant_result();
+  void set_has_refine_result();
+  void set_has_item_operation_result();
 
   inline bool has_event() const;
   inline void clear_has_event();
@@ -3638,6 +4040,14 @@ class WorldEvent final :
       ::nightfall::v1::SpGained* sp_gained_;
       ::nightfall::v1::SkillStateSync* skill_state_sync_;
       ::nightfall::v1::VitalsChanged* vitals_changed_;
+      ::nightfall::v1::InventorySync* inventory_sync_;
+      ::nightfall::v1::InventoryChanged* inventory_changed_;
+      ::nightfall::v1::EquipmentChanged* equipment_changed_;
+      ::nightfall::v1::WeightChanged* weight_changed_;
+      ::nightfall::v1::PenaltyChanged* penalty_changed_;
+      ::nightfall::v1::EnchantResult* enchant_result_;
+      ::nightfall::v1::RefineResult* refine_result_;
+      ::nightfall::v1::ItemOperationResult* item_operation_result_;
     } event_;
     mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
     ::uint32_t _oneof_case_[1];
@@ -3776,6 +4186,7 @@ class EntitySpawn final :
 
   enum : int {
     kActiveEffectsFieldNumber = 24,
+    kVisibleEquipmentFieldNumber = 29,
     kEntityIdFieldNumber = 1,
     kNameFieldNumber = 2,
     kTemplateIdFieldNumber = 7,
@@ -3824,6 +4235,26 @@ class EntitySpawn final :
   ::nightfall::v1::ActiveEffect* add_active_effects();
   const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::nightfall::v1::ActiveEffect >&
       active_effects() const;
+  // repeated .nightfall.v1.VisibleEquipment visible_equipment = 29;
+  int visible_equipment_size() const;
+  private:
+  int _internal_visible_equipment_size() const;
+
+  public:
+  void clear_visible_equipment() ;
+  ::nightfall::v1::VisibleEquipment* mutable_visible_equipment(int index);
+  ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::nightfall::v1::VisibleEquipment >*
+      mutable_visible_equipment();
+  private:
+  const ::nightfall::v1::VisibleEquipment& _internal_visible_equipment(int index) const;
+  ::nightfall::v1::VisibleEquipment* _internal_add_visible_equipment();
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<::nightfall::v1::VisibleEquipment>& _internal_visible_equipment() const;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<::nightfall::v1::VisibleEquipment>* _internal_mutable_visible_equipment();
+  public:
+  const ::nightfall::v1::VisibleEquipment& visible_equipment(int index) const;
+  ::nightfall::v1::VisibleEquipment* add_visible_equipment();
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::nightfall::v1::VisibleEquipment >&
+      visible_equipment() const;
   // string entity_id = 1;
   void clear_entity_id() ;
   const std::string& entity_id() const;
@@ -4147,6 +4578,7 @@ class EntitySpawn final :
     ::PROTOBUF_NAMESPACE_ID::internal::HasBits<1> _has_bits_;
     mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
     ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::nightfall::v1::ActiveEffect > active_effects_;
+    ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::nightfall::v1::VisibleEquipment > visible_equipment_;
     ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr entity_id_;
     ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr name_;
     ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr template_id_;
@@ -5880,6 +6312,8 @@ class StatsChanged final :
   enum : int {
     kEntityFieldNumber = 1,
     kEffectiveStatsFieldNumber = 20,
+    kItemWeightFieldNumber = 24,
+    kItemPenaltiesFieldNumber = 25,
     kHpFieldNumber = 2,
     kMaxHpFieldNumber = 3,
     kMpFieldNumber = 4,
@@ -5901,6 +6335,7 @@ class StatsChanged final :
     kBaselineTickFieldNumber = 22,
     kBaselineFieldNumber = 21,
     kIncarnationFieldNumber = 23,
+    kInventoryRevisionFieldNumber = 26,
   };
   // string entity = 1;
   void clear_entity() ;
@@ -5936,6 +6371,34 @@ class StatsChanged final :
   void unsafe_arena_set_allocated_effective_stats(
       ::nightfall::v1::EffectiveStats* effective_stats);
   ::nightfall::v1::EffectiveStats* unsafe_arena_release_effective_stats();
+  // .nightfall.v1.ItemWeightState item_weight = 24;
+  bool has_item_weight() const;
+  void clear_item_weight() ;
+  const ::nightfall::v1::ItemWeightState& item_weight() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::ItemWeightState* release_item_weight();
+  ::nightfall::v1::ItemWeightState* mutable_item_weight();
+  void set_allocated_item_weight(::nightfall::v1::ItemWeightState* item_weight);
+  private:
+  const ::nightfall::v1::ItemWeightState& _internal_item_weight() const;
+  ::nightfall::v1::ItemWeightState* _internal_mutable_item_weight();
+  public:
+  void unsafe_arena_set_allocated_item_weight(
+      ::nightfall::v1::ItemWeightState* item_weight);
+  ::nightfall::v1::ItemWeightState* unsafe_arena_release_item_weight();
+  // .nightfall.v1.ItemPenaltyState item_penalties = 25;
+  bool has_item_penalties() const;
+  void clear_item_penalties() ;
+  const ::nightfall::v1::ItemPenaltyState& item_penalties() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::ItemPenaltyState* release_item_penalties();
+  ::nightfall::v1::ItemPenaltyState* mutable_item_penalties();
+  void set_allocated_item_penalties(::nightfall::v1::ItemPenaltyState* item_penalties);
+  private:
+  const ::nightfall::v1::ItemPenaltyState& _internal_item_penalties() const;
+  ::nightfall::v1::ItemPenaltyState* _internal_mutable_item_penalties();
+  public:
+  void unsafe_arena_set_allocated_item_penalties(
+      ::nightfall::v1::ItemPenaltyState* item_penalties);
+  ::nightfall::v1::ItemPenaltyState* unsafe_arena_release_item_penalties();
   // uint32 hp = 2;
   void clear_hp() ;
   ::uint32_t hp() const;
@@ -6146,6 +6609,16 @@ class StatsChanged final :
   void _internal_set_incarnation(::uint32_t value);
 
   public:
+  // uint64 inventory_revision = 26;
+  void clear_inventory_revision() ;
+  ::uint64_t inventory_revision() const;
+  void set_inventory_revision(::uint64_t value);
+
+  private:
+  ::uint64_t _internal_inventory_revision() const;
+  void _internal_set_inventory_revision(::uint64_t value);
+
+  public:
   // @@protoc_insertion_point(class_scope:nightfall.v1.StatsChanged)
  private:
   class _Internal;
@@ -6158,6 +6631,8 @@ class StatsChanged final :
     mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
     ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr entity_;
     ::nightfall::v1::EffectiveStats* effective_stats_;
+    ::nightfall::v1::ItemWeightState* item_weight_;
+    ::nightfall::v1::ItemPenaltyState* item_penalties_;
     ::uint32_t hp_;
     ::uint32_t max_hp_;
     ::uint32_t mp_;
@@ -6179,6 +6654,7 @@ class StatsChanged final :
     ::uint64_t baseline_tick_;
     bool baseline_;
     ::uint32_t incarnation_;
+    ::uint64_t inventory_revision_;
   };
   union { Impl_ _impl_; };
   friend struct ::TableStruct_nightfall_2fv1_2fworld_2eproto;
@@ -11771,6 +12247,666 @@ inline ::nightfall::v1::AcceptResurrectRequest* ClientMessage::mutable_accept_re
   return _msg;
 }
 
+// .nightfall.v1.EquipItemRequest equip_item = 19;
+inline bool ClientMessage::has_equip_item() const {
+  return intent_case() == kEquipItem;
+}
+inline bool ClientMessage::_internal_has_equip_item() const {
+  return intent_case() == kEquipItem;
+}
+inline void ClientMessage::set_has_equip_item() {
+  _impl_._oneof_case_[0] = kEquipItem;
+}
+inline ::nightfall::v1::EquipItemRequest* ClientMessage::release_equip_item() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.equip_item)
+  if (intent_case() == kEquipItem) {
+    clear_has_intent();
+    ::nightfall::v1::EquipItemRequest* temp = _impl_.intent_.equip_item_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.equip_item_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::EquipItemRequest& ClientMessage::_internal_equip_item() const {
+  return intent_case() == kEquipItem
+      ? *_impl_.intent_.equip_item_
+      : reinterpret_cast<::nightfall::v1::EquipItemRequest&>(::nightfall::v1::_EquipItemRequest_default_instance_);
+}
+inline const ::nightfall::v1::EquipItemRequest& ClientMessage::equip_item() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.equip_item)
+  return _internal_equip_item();
+}
+inline ::nightfall::v1::EquipItemRequest* ClientMessage::unsafe_arena_release_equip_item() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.equip_item)
+  if (intent_case() == kEquipItem) {
+    clear_has_intent();
+    ::nightfall::v1::EquipItemRequest* temp = _impl_.intent_.equip_item_;
+    _impl_.intent_.equip_item_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_equip_item(::nightfall::v1::EquipItemRequest* equip_item) {
+  clear_intent();
+  if (equip_item) {
+    set_has_equip_item();
+    _impl_.intent_.equip_item_ = equip_item;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.equip_item)
+}
+inline ::nightfall::v1::EquipItemRequest* ClientMessage::_internal_mutable_equip_item() {
+  if (intent_case() != kEquipItem) {
+    clear_intent();
+    set_has_equip_item();
+    _impl_.intent_.equip_item_ = CreateMaybeMessage< ::nightfall::v1::EquipItemRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.equip_item_;
+}
+inline ::nightfall::v1::EquipItemRequest* ClientMessage::mutable_equip_item() {
+  ::nightfall::v1::EquipItemRequest* _msg = _internal_mutable_equip_item();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.equip_item)
+  return _msg;
+}
+
+// .nightfall.v1.UnequipItemRequest unequip_item = 20;
+inline bool ClientMessage::has_unequip_item() const {
+  return intent_case() == kUnequipItem;
+}
+inline bool ClientMessage::_internal_has_unequip_item() const {
+  return intent_case() == kUnequipItem;
+}
+inline void ClientMessage::set_has_unequip_item() {
+  _impl_._oneof_case_[0] = kUnequipItem;
+}
+inline ::nightfall::v1::UnequipItemRequest* ClientMessage::release_unequip_item() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.unequip_item)
+  if (intent_case() == kUnequipItem) {
+    clear_has_intent();
+    ::nightfall::v1::UnequipItemRequest* temp = _impl_.intent_.unequip_item_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.unequip_item_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::UnequipItemRequest& ClientMessage::_internal_unequip_item() const {
+  return intent_case() == kUnequipItem
+      ? *_impl_.intent_.unequip_item_
+      : reinterpret_cast<::nightfall::v1::UnequipItemRequest&>(::nightfall::v1::_UnequipItemRequest_default_instance_);
+}
+inline const ::nightfall::v1::UnequipItemRequest& ClientMessage::unequip_item() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.unequip_item)
+  return _internal_unequip_item();
+}
+inline ::nightfall::v1::UnequipItemRequest* ClientMessage::unsafe_arena_release_unequip_item() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.unequip_item)
+  if (intent_case() == kUnequipItem) {
+    clear_has_intent();
+    ::nightfall::v1::UnequipItemRequest* temp = _impl_.intent_.unequip_item_;
+    _impl_.intent_.unequip_item_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_unequip_item(::nightfall::v1::UnequipItemRequest* unequip_item) {
+  clear_intent();
+  if (unequip_item) {
+    set_has_unequip_item();
+    _impl_.intent_.unequip_item_ = unequip_item;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.unequip_item)
+}
+inline ::nightfall::v1::UnequipItemRequest* ClientMessage::_internal_mutable_unequip_item() {
+  if (intent_case() != kUnequipItem) {
+    clear_intent();
+    set_has_unequip_item();
+    _impl_.intent_.unequip_item_ = CreateMaybeMessage< ::nightfall::v1::UnequipItemRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.unequip_item_;
+}
+inline ::nightfall::v1::UnequipItemRequest* ClientMessage::mutable_unequip_item() {
+  ::nightfall::v1::UnequipItemRequest* _msg = _internal_mutable_unequip_item();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.unequip_item)
+  return _msg;
+}
+
+// .nightfall.v1.UseItemRequest use_item = 21;
+inline bool ClientMessage::has_use_item() const {
+  return intent_case() == kUseItem;
+}
+inline bool ClientMessage::_internal_has_use_item() const {
+  return intent_case() == kUseItem;
+}
+inline void ClientMessage::set_has_use_item() {
+  _impl_._oneof_case_[0] = kUseItem;
+}
+inline ::nightfall::v1::UseItemRequest* ClientMessage::release_use_item() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.use_item)
+  if (intent_case() == kUseItem) {
+    clear_has_intent();
+    ::nightfall::v1::UseItemRequest* temp = _impl_.intent_.use_item_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.use_item_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::UseItemRequest& ClientMessage::_internal_use_item() const {
+  return intent_case() == kUseItem
+      ? *_impl_.intent_.use_item_
+      : reinterpret_cast<::nightfall::v1::UseItemRequest&>(::nightfall::v1::_UseItemRequest_default_instance_);
+}
+inline const ::nightfall::v1::UseItemRequest& ClientMessage::use_item() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.use_item)
+  return _internal_use_item();
+}
+inline ::nightfall::v1::UseItemRequest* ClientMessage::unsafe_arena_release_use_item() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.use_item)
+  if (intent_case() == kUseItem) {
+    clear_has_intent();
+    ::nightfall::v1::UseItemRequest* temp = _impl_.intent_.use_item_;
+    _impl_.intent_.use_item_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_use_item(::nightfall::v1::UseItemRequest* use_item) {
+  clear_intent();
+  if (use_item) {
+    set_has_use_item();
+    _impl_.intent_.use_item_ = use_item;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.use_item)
+}
+inline ::nightfall::v1::UseItemRequest* ClientMessage::_internal_mutable_use_item() {
+  if (intent_case() != kUseItem) {
+    clear_intent();
+    set_has_use_item();
+    _impl_.intent_.use_item_ = CreateMaybeMessage< ::nightfall::v1::UseItemRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.use_item_;
+}
+inline ::nightfall::v1::UseItemRequest* ClientMessage::mutable_use_item() {
+  ::nightfall::v1::UseItemRequest* _msg = _internal_mutable_use_item();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.use_item)
+  return _msg;
+}
+
+// .nightfall.v1.DestroyItemRequest destroy_item = 22;
+inline bool ClientMessage::has_destroy_item() const {
+  return intent_case() == kDestroyItem;
+}
+inline bool ClientMessage::_internal_has_destroy_item() const {
+  return intent_case() == kDestroyItem;
+}
+inline void ClientMessage::set_has_destroy_item() {
+  _impl_._oneof_case_[0] = kDestroyItem;
+}
+inline ::nightfall::v1::DestroyItemRequest* ClientMessage::release_destroy_item() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.destroy_item)
+  if (intent_case() == kDestroyItem) {
+    clear_has_intent();
+    ::nightfall::v1::DestroyItemRequest* temp = _impl_.intent_.destroy_item_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.destroy_item_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::DestroyItemRequest& ClientMessage::_internal_destroy_item() const {
+  return intent_case() == kDestroyItem
+      ? *_impl_.intent_.destroy_item_
+      : reinterpret_cast<::nightfall::v1::DestroyItemRequest&>(::nightfall::v1::_DestroyItemRequest_default_instance_);
+}
+inline const ::nightfall::v1::DestroyItemRequest& ClientMessage::destroy_item() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.destroy_item)
+  return _internal_destroy_item();
+}
+inline ::nightfall::v1::DestroyItemRequest* ClientMessage::unsafe_arena_release_destroy_item() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.destroy_item)
+  if (intent_case() == kDestroyItem) {
+    clear_has_intent();
+    ::nightfall::v1::DestroyItemRequest* temp = _impl_.intent_.destroy_item_;
+    _impl_.intent_.destroy_item_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_destroy_item(::nightfall::v1::DestroyItemRequest* destroy_item) {
+  clear_intent();
+  if (destroy_item) {
+    set_has_destroy_item();
+    _impl_.intent_.destroy_item_ = destroy_item;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.destroy_item)
+}
+inline ::nightfall::v1::DestroyItemRequest* ClientMessage::_internal_mutable_destroy_item() {
+  if (intent_case() != kDestroyItem) {
+    clear_intent();
+    set_has_destroy_item();
+    _impl_.intent_.destroy_item_ = CreateMaybeMessage< ::nightfall::v1::DestroyItemRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.destroy_item_;
+}
+inline ::nightfall::v1::DestroyItemRequest* ClientMessage::mutable_destroy_item() {
+  ::nightfall::v1::DestroyItemRequest* _msg = _internal_mutable_destroy_item();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.destroy_item)
+  return _msg;
+}
+
+// .nightfall.v1.EnchantItemRequest enchant_item = 23;
+inline bool ClientMessage::has_enchant_item() const {
+  return intent_case() == kEnchantItem;
+}
+inline bool ClientMessage::_internal_has_enchant_item() const {
+  return intent_case() == kEnchantItem;
+}
+inline void ClientMessage::set_has_enchant_item() {
+  _impl_._oneof_case_[0] = kEnchantItem;
+}
+inline ::nightfall::v1::EnchantItemRequest* ClientMessage::release_enchant_item() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.enchant_item)
+  if (intent_case() == kEnchantItem) {
+    clear_has_intent();
+    ::nightfall::v1::EnchantItemRequest* temp = _impl_.intent_.enchant_item_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.enchant_item_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::EnchantItemRequest& ClientMessage::_internal_enchant_item() const {
+  return intent_case() == kEnchantItem
+      ? *_impl_.intent_.enchant_item_
+      : reinterpret_cast<::nightfall::v1::EnchantItemRequest&>(::nightfall::v1::_EnchantItemRequest_default_instance_);
+}
+inline const ::nightfall::v1::EnchantItemRequest& ClientMessage::enchant_item() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.enchant_item)
+  return _internal_enchant_item();
+}
+inline ::nightfall::v1::EnchantItemRequest* ClientMessage::unsafe_arena_release_enchant_item() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.enchant_item)
+  if (intent_case() == kEnchantItem) {
+    clear_has_intent();
+    ::nightfall::v1::EnchantItemRequest* temp = _impl_.intent_.enchant_item_;
+    _impl_.intent_.enchant_item_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_enchant_item(::nightfall::v1::EnchantItemRequest* enchant_item) {
+  clear_intent();
+  if (enchant_item) {
+    set_has_enchant_item();
+    _impl_.intent_.enchant_item_ = enchant_item;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.enchant_item)
+}
+inline ::nightfall::v1::EnchantItemRequest* ClientMessage::_internal_mutable_enchant_item() {
+  if (intent_case() != kEnchantItem) {
+    clear_intent();
+    set_has_enchant_item();
+    _impl_.intent_.enchant_item_ = CreateMaybeMessage< ::nightfall::v1::EnchantItemRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.enchant_item_;
+}
+inline ::nightfall::v1::EnchantItemRequest* ClientMessage::mutable_enchant_item() {
+  ::nightfall::v1::EnchantItemRequest* _msg = _internal_mutable_enchant_item();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.enchant_item)
+  return _msg;
+}
+
+// .nightfall.v1.ToggleAutoShotRequest toggle_auto_shot = 24;
+inline bool ClientMessage::has_toggle_auto_shot() const {
+  return intent_case() == kToggleAutoShot;
+}
+inline bool ClientMessage::_internal_has_toggle_auto_shot() const {
+  return intent_case() == kToggleAutoShot;
+}
+inline void ClientMessage::set_has_toggle_auto_shot() {
+  _impl_._oneof_case_[0] = kToggleAutoShot;
+}
+inline ::nightfall::v1::ToggleAutoShotRequest* ClientMessage::release_toggle_auto_shot() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.toggle_auto_shot)
+  if (intent_case() == kToggleAutoShot) {
+    clear_has_intent();
+    ::nightfall::v1::ToggleAutoShotRequest* temp = _impl_.intent_.toggle_auto_shot_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.toggle_auto_shot_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::ToggleAutoShotRequest& ClientMessage::_internal_toggle_auto_shot() const {
+  return intent_case() == kToggleAutoShot
+      ? *_impl_.intent_.toggle_auto_shot_
+      : reinterpret_cast<::nightfall::v1::ToggleAutoShotRequest&>(::nightfall::v1::_ToggleAutoShotRequest_default_instance_);
+}
+inline const ::nightfall::v1::ToggleAutoShotRequest& ClientMessage::toggle_auto_shot() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.toggle_auto_shot)
+  return _internal_toggle_auto_shot();
+}
+inline ::nightfall::v1::ToggleAutoShotRequest* ClientMessage::unsafe_arena_release_toggle_auto_shot() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.toggle_auto_shot)
+  if (intent_case() == kToggleAutoShot) {
+    clear_has_intent();
+    ::nightfall::v1::ToggleAutoShotRequest* temp = _impl_.intent_.toggle_auto_shot_;
+    _impl_.intent_.toggle_auto_shot_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_toggle_auto_shot(::nightfall::v1::ToggleAutoShotRequest* toggle_auto_shot) {
+  clear_intent();
+  if (toggle_auto_shot) {
+    set_has_toggle_auto_shot();
+    _impl_.intent_.toggle_auto_shot_ = toggle_auto_shot;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.toggle_auto_shot)
+}
+inline ::nightfall::v1::ToggleAutoShotRequest* ClientMessage::_internal_mutable_toggle_auto_shot() {
+  if (intent_case() != kToggleAutoShot) {
+    clear_intent();
+    set_has_toggle_auto_shot();
+    _impl_.intent_.toggle_auto_shot_ = CreateMaybeMessage< ::nightfall::v1::ToggleAutoShotRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.toggle_auto_shot_;
+}
+inline ::nightfall::v1::ToggleAutoShotRequest* ClientMessage::mutable_toggle_auto_shot() {
+  ::nightfall::v1::ToggleAutoShotRequest* _msg = _internal_mutable_toggle_auto_shot();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.toggle_auto_shot)
+  return _msg;
+}
+
+// .nightfall.v1.RefineItemRequest refine_item = 25;
+inline bool ClientMessage::has_refine_item() const {
+  return intent_case() == kRefineItem;
+}
+inline bool ClientMessage::_internal_has_refine_item() const {
+  return intent_case() == kRefineItem;
+}
+inline void ClientMessage::set_has_refine_item() {
+  _impl_._oneof_case_[0] = kRefineItem;
+}
+inline ::nightfall::v1::RefineItemRequest* ClientMessage::release_refine_item() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.refine_item)
+  if (intent_case() == kRefineItem) {
+    clear_has_intent();
+    ::nightfall::v1::RefineItemRequest* temp = _impl_.intent_.refine_item_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.refine_item_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::RefineItemRequest& ClientMessage::_internal_refine_item() const {
+  return intent_case() == kRefineItem
+      ? *_impl_.intent_.refine_item_
+      : reinterpret_cast<::nightfall::v1::RefineItemRequest&>(::nightfall::v1::_RefineItemRequest_default_instance_);
+}
+inline const ::nightfall::v1::RefineItemRequest& ClientMessage::refine_item() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.refine_item)
+  return _internal_refine_item();
+}
+inline ::nightfall::v1::RefineItemRequest* ClientMessage::unsafe_arena_release_refine_item() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.refine_item)
+  if (intent_case() == kRefineItem) {
+    clear_has_intent();
+    ::nightfall::v1::RefineItemRequest* temp = _impl_.intent_.refine_item_;
+    _impl_.intent_.refine_item_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_refine_item(::nightfall::v1::RefineItemRequest* refine_item) {
+  clear_intent();
+  if (refine_item) {
+    set_has_refine_item();
+    _impl_.intent_.refine_item_ = refine_item;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.refine_item)
+}
+inline ::nightfall::v1::RefineItemRequest* ClientMessage::_internal_mutable_refine_item() {
+  if (intent_case() != kRefineItem) {
+    clear_intent();
+    set_has_refine_item();
+    _impl_.intent_.refine_item_ = CreateMaybeMessage< ::nightfall::v1::RefineItemRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.refine_item_;
+}
+inline ::nightfall::v1::RefineItemRequest* ClientMessage::mutable_refine_item() {
+  ::nightfall::v1::RefineItemRequest* _msg = _internal_mutable_refine_item();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.refine_item)
+  return _msg;
+}
+
+// .nightfall.v1.CancelRefineRequest cancel_refine = 26;
+inline bool ClientMessage::has_cancel_refine() const {
+  return intent_case() == kCancelRefine;
+}
+inline bool ClientMessage::_internal_has_cancel_refine() const {
+  return intent_case() == kCancelRefine;
+}
+inline void ClientMessage::set_has_cancel_refine() {
+  _impl_._oneof_case_[0] = kCancelRefine;
+}
+inline ::nightfall::v1::CancelRefineRequest* ClientMessage::release_cancel_refine() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.cancel_refine)
+  if (intent_case() == kCancelRefine) {
+    clear_has_intent();
+    ::nightfall::v1::CancelRefineRequest* temp = _impl_.intent_.cancel_refine_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.cancel_refine_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::CancelRefineRequest& ClientMessage::_internal_cancel_refine() const {
+  return intent_case() == kCancelRefine
+      ? *_impl_.intent_.cancel_refine_
+      : reinterpret_cast<::nightfall::v1::CancelRefineRequest&>(::nightfall::v1::_CancelRefineRequest_default_instance_);
+}
+inline const ::nightfall::v1::CancelRefineRequest& ClientMessage::cancel_refine() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.cancel_refine)
+  return _internal_cancel_refine();
+}
+inline ::nightfall::v1::CancelRefineRequest* ClientMessage::unsafe_arena_release_cancel_refine() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.cancel_refine)
+  if (intent_case() == kCancelRefine) {
+    clear_has_intent();
+    ::nightfall::v1::CancelRefineRequest* temp = _impl_.intent_.cancel_refine_;
+    _impl_.intent_.cancel_refine_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_cancel_refine(::nightfall::v1::CancelRefineRequest* cancel_refine) {
+  clear_intent();
+  if (cancel_refine) {
+    set_has_cancel_refine();
+    _impl_.intent_.cancel_refine_ = cancel_refine;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.cancel_refine)
+}
+inline ::nightfall::v1::CancelRefineRequest* ClientMessage::_internal_mutable_cancel_refine() {
+  if (intent_case() != kCancelRefine) {
+    clear_intent();
+    set_has_cancel_refine();
+    _impl_.intent_.cancel_refine_ = CreateMaybeMessage< ::nightfall::v1::CancelRefineRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.cancel_refine_;
+}
+inline ::nightfall::v1::CancelRefineRequest* ClientMessage::mutable_cancel_refine() {
+  ::nightfall::v1::CancelRefineRequest* _msg = _internal_mutable_cancel_refine();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.cancel_refine)
+  return _msg;
+}
+
+// .nightfall.v1.ExchangeSpecialAbilityRequest exchange_special_ability = 27;
+inline bool ClientMessage::has_exchange_special_ability() const {
+  return intent_case() == kExchangeSpecialAbility;
+}
+inline bool ClientMessage::_internal_has_exchange_special_ability() const {
+  return intent_case() == kExchangeSpecialAbility;
+}
+inline void ClientMessage::set_has_exchange_special_ability() {
+  _impl_._oneof_case_[0] = kExchangeSpecialAbility;
+}
+inline ::nightfall::v1::ExchangeSpecialAbilityRequest* ClientMessage::release_exchange_special_ability() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.exchange_special_ability)
+  if (intent_case() == kExchangeSpecialAbility) {
+    clear_has_intent();
+    ::nightfall::v1::ExchangeSpecialAbilityRequest* temp = _impl_.intent_.exchange_special_ability_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.exchange_special_ability_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::ExchangeSpecialAbilityRequest& ClientMessage::_internal_exchange_special_ability() const {
+  return intent_case() == kExchangeSpecialAbility
+      ? *_impl_.intent_.exchange_special_ability_
+      : reinterpret_cast<::nightfall::v1::ExchangeSpecialAbilityRequest&>(::nightfall::v1::_ExchangeSpecialAbilityRequest_default_instance_);
+}
+inline const ::nightfall::v1::ExchangeSpecialAbilityRequest& ClientMessage::exchange_special_ability() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.exchange_special_ability)
+  return _internal_exchange_special_ability();
+}
+inline ::nightfall::v1::ExchangeSpecialAbilityRequest* ClientMessage::unsafe_arena_release_exchange_special_ability() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.exchange_special_ability)
+  if (intent_case() == kExchangeSpecialAbility) {
+    clear_has_intent();
+    ::nightfall::v1::ExchangeSpecialAbilityRequest* temp = _impl_.intent_.exchange_special_ability_;
+    _impl_.intent_.exchange_special_ability_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_exchange_special_ability(::nightfall::v1::ExchangeSpecialAbilityRequest* exchange_special_ability) {
+  clear_intent();
+  if (exchange_special_ability) {
+    set_has_exchange_special_ability();
+    _impl_.intent_.exchange_special_ability_ = exchange_special_ability;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.exchange_special_ability)
+}
+inline ::nightfall::v1::ExchangeSpecialAbilityRequest* ClientMessage::_internal_mutable_exchange_special_ability() {
+  if (intent_case() != kExchangeSpecialAbility) {
+    clear_intent();
+    set_has_exchange_special_ability();
+    _impl_.intent_.exchange_special_ability_ = CreateMaybeMessage< ::nightfall::v1::ExchangeSpecialAbilityRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.exchange_special_ability_;
+}
+inline ::nightfall::v1::ExchangeSpecialAbilityRequest* ClientMessage::mutable_exchange_special_ability() {
+  ::nightfall::v1::ExchangeSpecialAbilityRequest* _msg = _internal_mutable_exchange_special_ability();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.exchange_special_ability)
+  return _msg;
+}
+
+// .nightfall.v1.CrystallizeItemRequest crystallize_item = 28;
+inline bool ClientMessage::has_crystallize_item() const {
+  return intent_case() == kCrystallizeItem;
+}
+inline bool ClientMessage::_internal_has_crystallize_item() const {
+  return intent_case() == kCrystallizeItem;
+}
+inline void ClientMessage::set_has_crystallize_item() {
+  _impl_._oneof_case_[0] = kCrystallizeItem;
+}
+inline ::nightfall::v1::CrystallizeItemRequest* ClientMessage::release_crystallize_item() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.crystallize_item)
+  if (intent_case() == kCrystallizeItem) {
+    clear_has_intent();
+    ::nightfall::v1::CrystallizeItemRequest* temp = _impl_.intent_.crystallize_item_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.crystallize_item_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::CrystallizeItemRequest& ClientMessage::_internal_crystallize_item() const {
+  return intent_case() == kCrystallizeItem
+      ? *_impl_.intent_.crystallize_item_
+      : reinterpret_cast<::nightfall::v1::CrystallizeItemRequest&>(::nightfall::v1::_CrystallizeItemRequest_default_instance_);
+}
+inline const ::nightfall::v1::CrystallizeItemRequest& ClientMessage::crystallize_item() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.crystallize_item)
+  return _internal_crystallize_item();
+}
+inline ::nightfall::v1::CrystallizeItemRequest* ClientMessage::unsafe_arena_release_crystallize_item() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.crystallize_item)
+  if (intent_case() == kCrystallizeItem) {
+    clear_has_intent();
+    ::nightfall::v1::CrystallizeItemRequest* temp = _impl_.intent_.crystallize_item_;
+    _impl_.intent_.crystallize_item_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_crystallize_item(::nightfall::v1::CrystallizeItemRequest* crystallize_item) {
+  clear_intent();
+  if (crystallize_item) {
+    set_has_crystallize_item();
+    _impl_.intent_.crystallize_item_ = crystallize_item;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.crystallize_item)
+}
+inline ::nightfall::v1::CrystallizeItemRequest* ClientMessage::_internal_mutable_crystallize_item() {
+  if (intent_case() != kCrystallizeItem) {
+    clear_intent();
+    set_has_crystallize_item();
+    _impl_.intent_.crystallize_item_ = CreateMaybeMessage< ::nightfall::v1::CrystallizeItemRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.crystallize_item_;
+}
+inline ::nightfall::v1::CrystallizeItemRequest* ClientMessage::mutable_crystallize_item() {
+  ::nightfall::v1::CrystallizeItemRequest* _msg = _internal_mutable_crystallize_item();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.crystallize_item)
+  return _msg;
+}
+
 inline bool ClientMessage::has_intent() const {
   return intent_case() != INTENT_NOT_SET;
 }
@@ -14321,6 +15457,534 @@ inline ::nightfall::v1::VitalsChanged* WorldEvent::mutable_vitals_changed() {
   return _msg;
 }
 
+// .nightfall.v1.InventorySync inventory_sync = 26;
+inline bool WorldEvent::has_inventory_sync() const {
+  return event_case() == kInventorySync;
+}
+inline bool WorldEvent::_internal_has_inventory_sync() const {
+  return event_case() == kInventorySync;
+}
+inline void WorldEvent::set_has_inventory_sync() {
+  _impl_._oneof_case_[0] = kInventorySync;
+}
+inline ::nightfall::v1::InventorySync* WorldEvent::release_inventory_sync() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.WorldEvent.inventory_sync)
+  if (event_case() == kInventorySync) {
+    clear_has_event();
+    ::nightfall::v1::InventorySync* temp = _impl_.event_.inventory_sync_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.event_.inventory_sync_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::InventorySync& WorldEvent::_internal_inventory_sync() const {
+  return event_case() == kInventorySync
+      ? *_impl_.event_.inventory_sync_
+      : reinterpret_cast<::nightfall::v1::InventorySync&>(::nightfall::v1::_InventorySync_default_instance_);
+}
+inline const ::nightfall::v1::InventorySync& WorldEvent::inventory_sync() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.WorldEvent.inventory_sync)
+  return _internal_inventory_sync();
+}
+inline ::nightfall::v1::InventorySync* WorldEvent::unsafe_arena_release_inventory_sync() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.WorldEvent.inventory_sync)
+  if (event_case() == kInventorySync) {
+    clear_has_event();
+    ::nightfall::v1::InventorySync* temp = _impl_.event_.inventory_sync_;
+    _impl_.event_.inventory_sync_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void WorldEvent::unsafe_arena_set_allocated_inventory_sync(::nightfall::v1::InventorySync* inventory_sync) {
+  clear_event();
+  if (inventory_sync) {
+    set_has_inventory_sync();
+    _impl_.event_.inventory_sync_ = inventory_sync;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.WorldEvent.inventory_sync)
+}
+inline ::nightfall::v1::InventorySync* WorldEvent::_internal_mutable_inventory_sync() {
+  if (event_case() != kInventorySync) {
+    clear_event();
+    set_has_inventory_sync();
+    _impl_.event_.inventory_sync_ = CreateMaybeMessage< ::nightfall::v1::InventorySync >(GetArenaForAllocation());
+  }
+  return _impl_.event_.inventory_sync_;
+}
+inline ::nightfall::v1::InventorySync* WorldEvent::mutable_inventory_sync() {
+  ::nightfall::v1::InventorySync* _msg = _internal_mutable_inventory_sync();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.WorldEvent.inventory_sync)
+  return _msg;
+}
+
+// .nightfall.v1.InventoryChanged inventory_changed = 27;
+inline bool WorldEvent::has_inventory_changed() const {
+  return event_case() == kInventoryChanged;
+}
+inline bool WorldEvent::_internal_has_inventory_changed() const {
+  return event_case() == kInventoryChanged;
+}
+inline void WorldEvent::set_has_inventory_changed() {
+  _impl_._oneof_case_[0] = kInventoryChanged;
+}
+inline ::nightfall::v1::InventoryChanged* WorldEvent::release_inventory_changed() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.WorldEvent.inventory_changed)
+  if (event_case() == kInventoryChanged) {
+    clear_has_event();
+    ::nightfall::v1::InventoryChanged* temp = _impl_.event_.inventory_changed_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.event_.inventory_changed_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::InventoryChanged& WorldEvent::_internal_inventory_changed() const {
+  return event_case() == kInventoryChanged
+      ? *_impl_.event_.inventory_changed_
+      : reinterpret_cast<::nightfall::v1::InventoryChanged&>(::nightfall::v1::_InventoryChanged_default_instance_);
+}
+inline const ::nightfall::v1::InventoryChanged& WorldEvent::inventory_changed() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.WorldEvent.inventory_changed)
+  return _internal_inventory_changed();
+}
+inline ::nightfall::v1::InventoryChanged* WorldEvent::unsafe_arena_release_inventory_changed() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.WorldEvent.inventory_changed)
+  if (event_case() == kInventoryChanged) {
+    clear_has_event();
+    ::nightfall::v1::InventoryChanged* temp = _impl_.event_.inventory_changed_;
+    _impl_.event_.inventory_changed_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void WorldEvent::unsafe_arena_set_allocated_inventory_changed(::nightfall::v1::InventoryChanged* inventory_changed) {
+  clear_event();
+  if (inventory_changed) {
+    set_has_inventory_changed();
+    _impl_.event_.inventory_changed_ = inventory_changed;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.WorldEvent.inventory_changed)
+}
+inline ::nightfall::v1::InventoryChanged* WorldEvent::_internal_mutable_inventory_changed() {
+  if (event_case() != kInventoryChanged) {
+    clear_event();
+    set_has_inventory_changed();
+    _impl_.event_.inventory_changed_ = CreateMaybeMessage< ::nightfall::v1::InventoryChanged >(GetArenaForAllocation());
+  }
+  return _impl_.event_.inventory_changed_;
+}
+inline ::nightfall::v1::InventoryChanged* WorldEvent::mutable_inventory_changed() {
+  ::nightfall::v1::InventoryChanged* _msg = _internal_mutable_inventory_changed();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.WorldEvent.inventory_changed)
+  return _msg;
+}
+
+// .nightfall.v1.EquipmentChanged equipment_changed = 28;
+inline bool WorldEvent::has_equipment_changed() const {
+  return event_case() == kEquipmentChanged;
+}
+inline bool WorldEvent::_internal_has_equipment_changed() const {
+  return event_case() == kEquipmentChanged;
+}
+inline void WorldEvent::set_has_equipment_changed() {
+  _impl_._oneof_case_[0] = kEquipmentChanged;
+}
+inline ::nightfall::v1::EquipmentChanged* WorldEvent::release_equipment_changed() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.WorldEvent.equipment_changed)
+  if (event_case() == kEquipmentChanged) {
+    clear_has_event();
+    ::nightfall::v1::EquipmentChanged* temp = _impl_.event_.equipment_changed_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.event_.equipment_changed_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::EquipmentChanged& WorldEvent::_internal_equipment_changed() const {
+  return event_case() == kEquipmentChanged
+      ? *_impl_.event_.equipment_changed_
+      : reinterpret_cast<::nightfall::v1::EquipmentChanged&>(::nightfall::v1::_EquipmentChanged_default_instance_);
+}
+inline const ::nightfall::v1::EquipmentChanged& WorldEvent::equipment_changed() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.WorldEvent.equipment_changed)
+  return _internal_equipment_changed();
+}
+inline ::nightfall::v1::EquipmentChanged* WorldEvent::unsafe_arena_release_equipment_changed() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.WorldEvent.equipment_changed)
+  if (event_case() == kEquipmentChanged) {
+    clear_has_event();
+    ::nightfall::v1::EquipmentChanged* temp = _impl_.event_.equipment_changed_;
+    _impl_.event_.equipment_changed_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void WorldEvent::unsafe_arena_set_allocated_equipment_changed(::nightfall::v1::EquipmentChanged* equipment_changed) {
+  clear_event();
+  if (equipment_changed) {
+    set_has_equipment_changed();
+    _impl_.event_.equipment_changed_ = equipment_changed;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.WorldEvent.equipment_changed)
+}
+inline ::nightfall::v1::EquipmentChanged* WorldEvent::_internal_mutable_equipment_changed() {
+  if (event_case() != kEquipmentChanged) {
+    clear_event();
+    set_has_equipment_changed();
+    _impl_.event_.equipment_changed_ = CreateMaybeMessage< ::nightfall::v1::EquipmentChanged >(GetArenaForAllocation());
+  }
+  return _impl_.event_.equipment_changed_;
+}
+inline ::nightfall::v1::EquipmentChanged* WorldEvent::mutable_equipment_changed() {
+  ::nightfall::v1::EquipmentChanged* _msg = _internal_mutable_equipment_changed();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.WorldEvent.equipment_changed)
+  return _msg;
+}
+
+// .nightfall.v1.WeightChanged weight_changed = 29;
+inline bool WorldEvent::has_weight_changed() const {
+  return event_case() == kWeightChanged;
+}
+inline bool WorldEvent::_internal_has_weight_changed() const {
+  return event_case() == kWeightChanged;
+}
+inline void WorldEvent::set_has_weight_changed() {
+  _impl_._oneof_case_[0] = kWeightChanged;
+}
+inline ::nightfall::v1::WeightChanged* WorldEvent::release_weight_changed() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.WorldEvent.weight_changed)
+  if (event_case() == kWeightChanged) {
+    clear_has_event();
+    ::nightfall::v1::WeightChanged* temp = _impl_.event_.weight_changed_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.event_.weight_changed_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::WeightChanged& WorldEvent::_internal_weight_changed() const {
+  return event_case() == kWeightChanged
+      ? *_impl_.event_.weight_changed_
+      : reinterpret_cast<::nightfall::v1::WeightChanged&>(::nightfall::v1::_WeightChanged_default_instance_);
+}
+inline const ::nightfall::v1::WeightChanged& WorldEvent::weight_changed() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.WorldEvent.weight_changed)
+  return _internal_weight_changed();
+}
+inline ::nightfall::v1::WeightChanged* WorldEvent::unsafe_arena_release_weight_changed() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.WorldEvent.weight_changed)
+  if (event_case() == kWeightChanged) {
+    clear_has_event();
+    ::nightfall::v1::WeightChanged* temp = _impl_.event_.weight_changed_;
+    _impl_.event_.weight_changed_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void WorldEvent::unsafe_arena_set_allocated_weight_changed(::nightfall::v1::WeightChanged* weight_changed) {
+  clear_event();
+  if (weight_changed) {
+    set_has_weight_changed();
+    _impl_.event_.weight_changed_ = weight_changed;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.WorldEvent.weight_changed)
+}
+inline ::nightfall::v1::WeightChanged* WorldEvent::_internal_mutable_weight_changed() {
+  if (event_case() != kWeightChanged) {
+    clear_event();
+    set_has_weight_changed();
+    _impl_.event_.weight_changed_ = CreateMaybeMessage< ::nightfall::v1::WeightChanged >(GetArenaForAllocation());
+  }
+  return _impl_.event_.weight_changed_;
+}
+inline ::nightfall::v1::WeightChanged* WorldEvent::mutable_weight_changed() {
+  ::nightfall::v1::WeightChanged* _msg = _internal_mutable_weight_changed();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.WorldEvent.weight_changed)
+  return _msg;
+}
+
+// .nightfall.v1.PenaltyChanged penalty_changed = 30;
+inline bool WorldEvent::has_penalty_changed() const {
+  return event_case() == kPenaltyChanged;
+}
+inline bool WorldEvent::_internal_has_penalty_changed() const {
+  return event_case() == kPenaltyChanged;
+}
+inline void WorldEvent::set_has_penalty_changed() {
+  _impl_._oneof_case_[0] = kPenaltyChanged;
+}
+inline ::nightfall::v1::PenaltyChanged* WorldEvent::release_penalty_changed() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.WorldEvent.penalty_changed)
+  if (event_case() == kPenaltyChanged) {
+    clear_has_event();
+    ::nightfall::v1::PenaltyChanged* temp = _impl_.event_.penalty_changed_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.event_.penalty_changed_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::PenaltyChanged& WorldEvent::_internal_penalty_changed() const {
+  return event_case() == kPenaltyChanged
+      ? *_impl_.event_.penalty_changed_
+      : reinterpret_cast<::nightfall::v1::PenaltyChanged&>(::nightfall::v1::_PenaltyChanged_default_instance_);
+}
+inline const ::nightfall::v1::PenaltyChanged& WorldEvent::penalty_changed() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.WorldEvent.penalty_changed)
+  return _internal_penalty_changed();
+}
+inline ::nightfall::v1::PenaltyChanged* WorldEvent::unsafe_arena_release_penalty_changed() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.WorldEvent.penalty_changed)
+  if (event_case() == kPenaltyChanged) {
+    clear_has_event();
+    ::nightfall::v1::PenaltyChanged* temp = _impl_.event_.penalty_changed_;
+    _impl_.event_.penalty_changed_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void WorldEvent::unsafe_arena_set_allocated_penalty_changed(::nightfall::v1::PenaltyChanged* penalty_changed) {
+  clear_event();
+  if (penalty_changed) {
+    set_has_penalty_changed();
+    _impl_.event_.penalty_changed_ = penalty_changed;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.WorldEvent.penalty_changed)
+}
+inline ::nightfall::v1::PenaltyChanged* WorldEvent::_internal_mutable_penalty_changed() {
+  if (event_case() != kPenaltyChanged) {
+    clear_event();
+    set_has_penalty_changed();
+    _impl_.event_.penalty_changed_ = CreateMaybeMessage< ::nightfall::v1::PenaltyChanged >(GetArenaForAllocation());
+  }
+  return _impl_.event_.penalty_changed_;
+}
+inline ::nightfall::v1::PenaltyChanged* WorldEvent::mutable_penalty_changed() {
+  ::nightfall::v1::PenaltyChanged* _msg = _internal_mutable_penalty_changed();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.WorldEvent.penalty_changed)
+  return _msg;
+}
+
+// .nightfall.v1.EnchantResult enchant_result = 31;
+inline bool WorldEvent::has_enchant_result() const {
+  return event_case() == kEnchantResult;
+}
+inline bool WorldEvent::_internal_has_enchant_result() const {
+  return event_case() == kEnchantResult;
+}
+inline void WorldEvent::set_has_enchant_result() {
+  _impl_._oneof_case_[0] = kEnchantResult;
+}
+inline ::nightfall::v1::EnchantResult* WorldEvent::release_enchant_result() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.WorldEvent.enchant_result)
+  if (event_case() == kEnchantResult) {
+    clear_has_event();
+    ::nightfall::v1::EnchantResult* temp = _impl_.event_.enchant_result_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.event_.enchant_result_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::EnchantResult& WorldEvent::_internal_enchant_result() const {
+  return event_case() == kEnchantResult
+      ? *_impl_.event_.enchant_result_
+      : reinterpret_cast<::nightfall::v1::EnchantResult&>(::nightfall::v1::_EnchantResult_default_instance_);
+}
+inline const ::nightfall::v1::EnchantResult& WorldEvent::enchant_result() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.WorldEvent.enchant_result)
+  return _internal_enchant_result();
+}
+inline ::nightfall::v1::EnchantResult* WorldEvent::unsafe_arena_release_enchant_result() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.WorldEvent.enchant_result)
+  if (event_case() == kEnchantResult) {
+    clear_has_event();
+    ::nightfall::v1::EnchantResult* temp = _impl_.event_.enchant_result_;
+    _impl_.event_.enchant_result_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void WorldEvent::unsafe_arena_set_allocated_enchant_result(::nightfall::v1::EnchantResult* enchant_result) {
+  clear_event();
+  if (enchant_result) {
+    set_has_enchant_result();
+    _impl_.event_.enchant_result_ = enchant_result;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.WorldEvent.enchant_result)
+}
+inline ::nightfall::v1::EnchantResult* WorldEvent::_internal_mutable_enchant_result() {
+  if (event_case() != kEnchantResult) {
+    clear_event();
+    set_has_enchant_result();
+    _impl_.event_.enchant_result_ = CreateMaybeMessage< ::nightfall::v1::EnchantResult >(GetArenaForAllocation());
+  }
+  return _impl_.event_.enchant_result_;
+}
+inline ::nightfall::v1::EnchantResult* WorldEvent::mutable_enchant_result() {
+  ::nightfall::v1::EnchantResult* _msg = _internal_mutable_enchant_result();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.WorldEvent.enchant_result)
+  return _msg;
+}
+
+// .nightfall.v1.RefineResult refine_result = 32;
+inline bool WorldEvent::has_refine_result() const {
+  return event_case() == kRefineResult;
+}
+inline bool WorldEvent::_internal_has_refine_result() const {
+  return event_case() == kRefineResult;
+}
+inline void WorldEvent::set_has_refine_result() {
+  _impl_._oneof_case_[0] = kRefineResult;
+}
+inline ::nightfall::v1::RefineResult* WorldEvent::release_refine_result() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.WorldEvent.refine_result)
+  if (event_case() == kRefineResult) {
+    clear_has_event();
+    ::nightfall::v1::RefineResult* temp = _impl_.event_.refine_result_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.event_.refine_result_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::RefineResult& WorldEvent::_internal_refine_result() const {
+  return event_case() == kRefineResult
+      ? *_impl_.event_.refine_result_
+      : reinterpret_cast<::nightfall::v1::RefineResult&>(::nightfall::v1::_RefineResult_default_instance_);
+}
+inline const ::nightfall::v1::RefineResult& WorldEvent::refine_result() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.WorldEvent.refine_result)
+  return _internal_refine_result();
+}
+inline ::nightfall::v1::RefineResult* WorldEvent::unsafe_arena_release_refine_result() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.WorldEvent.refine_result)
+  if (event_case() == kRefineResult) {
+    clear_has_event();
+    ::nightfall::v1::RefineResult* temp = _impl_.event_.refine_result_;
+    _impl_.event_.refine_result_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void WorldEvent::unsafe_arena_set_allocated_refine_result(::nightfall::v1::RefineResult* refine_result) {
+  clear_event();
+  if (refine_result) {
+    set_has_refine_result();
+    _impl_.event_.refine_result_ = refine_result;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.WorldEvent.refine_result)
+}
+inline ::nightfall::v1::RefineResult* WorldEvent::_internal_mutable_refine_result() {
+  if (event_case() != kRefineResult) {
+    clear_event();
+    set_has_refine_result();
+    _impl_.event_.refine_result_ = CreateMaybeMessage< ::nightfall::v1::RefineResult >(GetArenaForAllocation());
+  }
+  return _impl_.event_.refine_result_;
+}
+inline ::nightfall::v1::RefineResult* WorldEvent::mutable_refine_result() {
+  ::nightfall::v1::RefineResult* _msg = _internal_mutable_refine_result();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.WorldEvent.refine_result)
+  return _msg;
+}
+
+// .nightfall.v1.ItemOperationResult item_operation_result = 33;
+inline bool WorldEvent::has_item_operation_result() const {
+  return event_case() == kItemOperationResult;
+}
+inline bool WorldEvent::_internal_has_item_operation_result() const {
+  return event_case() == kItemOperationResult;
+}
+inline void WorldEvent::set_has_item_operation_result() {
+  _impl_._oneof_case_[0] = kItemOperationResult;
+}
+inline ::nightfall::v1::ItemOperationResult* WorldEvent::release_item_operation_result() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.WorldEvent.item_operation_result)
+  if (event_case() == kItemOperationResult) {
+    clear_has_event();
+    ::nightfall::v1::ItemOperationResult* temp = _impl_.event_.item_operation_result_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.event_.item_operation_result_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::ItemOperationResult& WorldEvent::_internal_item_operation_result() const {
+  return event_case() == kItemOperationResult
+      ? *_impl_.event_.item_operation_result_
+      : reinterpret_cast<::nightfall::v1::ItemOperationResult&>(::nightfall::v1::_ItemOperationResult_default_instance_);
+}
+inline const ::nightfall::v1::ItemOperationResult& WorldEvent::item_operation_result() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.WorldEvent.item_operation_result)
+  return _internal_item_operation_result();
+}
+inline ::nightfall::v1::ItemOperationResult* WorldEvent::unsafe_arena_release_item_operation_result() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.WorldEvent.item_operation_result)
+  if (event_case() == kItemOperationResult) {
+    clear_has_event();
+    ::nightfall::v1::ItemOperationResult* temp = _impl_.event_.item_operation_result_;
+    _impl_.event_.item_operation_result_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void WorldEvent::unsafe_arena_set_allocated_item_operation_result(::nightfall::v1::ItemOperationResult* item_operation_result) {
+  clear_event();
+  if (item_operation_result) {
+    set_has_item_operation_result();
+    _impl_.event_.item_operation_result_ = item_operation_result;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.WorldEvent.item_operation_result)
+}
+inline ::nightfall::v1::ItemOperationResult* WorldEvent::_internal_mutable_item_operation_result() {
+  if (event_case() != kItemOperationResult) {
+    clear_event();
+    set_has_item_operation_result();
+    _impl_.event_.item_operation_result_ = CreateMaybeMessage< ::nightfall::v1::ItemOperationResult >(GetArenaForAllocation());
+  }
+  return _impl_.event_.item_operation_result_;
+}
+inline ::nightfall::v1::ItemOperationResult* WorldEvent::mutable_item_operation_result() {
+  ::nightfall::v1::ItemOperationResult* _msg = _internal_mutable_item_operation_result();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.WorldEvent.item_operation_result)
+  return _msg;
+}
+
 inline bool WorldEvent::has_event() const {
   return event_case() != EVENT_NOT_SET;
 }
@@ -15179,6 +16843,51 @@ inline ::uint32_t EntitySpawn::_internal_pvp_count() const {
 inline void EntitySpawn::_internal_set_pvp_count(::uint32_t value) {
   ;
   _impl_.pvp_count_ = value;
+}
+
+// repeated .nightfall.v1.VisibleEquipment visible_equipment = 29;
+inline int EntitySpawn::_internal_visible_equipment_size() const {
+  return _impl_.visible_equipment_.size();
+}
+inline int EntitySpawn::visible_equipment_size() const {
+  return _internal_visible_equipment_size();
+}
+inline ::nightfall::v1::VisibleEquipment* EntitySpawn::mutable_visible_equipment(int index) {
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.EntitySpawn.visible_equipment)
+  return _internal_mutable_visible_equipment()->Mutable(index);
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::nightfall::v1::VisibleEquipment >*
+EntitySpawn::mutable_visible_equipment() {
+  // @@protoc_insertion_point(field_mutable_list:nightfall.v1.EntitySpawn.visible_equipment)
+  return _internal_mutable_visible_equipment();
+}
+inline const ::nightfall::v1::VisibleEquipment& EntitySpawn::_internal_visible_equipment(int index) const {
+  return _internal_visible_equipment().Get(index);
+}
+inline const ::nightfall::v1::VisibleEquipment& EntitySpawn::visible_equipment(int index) const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.EntitySpawn.visible_equipment)
+  return _internal_visible_equipment(index);
+}
+inline ::nightfall::v1::VisibleEquipment* EntitySpawn::_internal_add_visible_equipment() {
+  return _internal_mutable_visible_equipment()->Add();
+}
+inline ::nightfall::v1::VisibleEquipment* EntitySpawn::add_visible_equipment() {
+  ::nightfall::v1::VisibleEquipment* _add = _internal_add_visible_equipment();
+  // @@protoc_insertion_point(field_add:nightfall.v1.EntitySpawn.visible_equipment)
+  return _add;
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField< ::nightfall::v1::VisibleEquipment >&
+EntitySpawn::visible_equipment() const {
+  // @@protoc_insertion_point(field_list:nightfall.v1.EntitySpawn.visible_equipment)
+  return _internal_visible_equipment();
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<::nightfall::v1::VisibleEquipment>&
+EntitySpawn::_internal_visible_equipment() const {
+  return _impl_.visible_equipment_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<::nightfall::v1::VisibleEquipment>*
+EntitySpawn::_internal_mutable_visible_equipment() {
+  return &_impl_.visible_equipment_;
 }
 
 // uint64 status_flags = 28;
@@ -17016,6 +18725,194 @@ inline ::uint32_t StatsChanged::_internal_incarnation() const {
 inline void StatsChanged::_internal_set_incarnation(::uint32_t value) {
   ;
   _impl_.incarnation_ = value;
+}
+
+// .nightfall.v1.ItemWeightState item_weight = 24;
+inline bool StatsChanged::has_item_weight() const {
+  bool value = (_impl_._has_bits_[0] & 0x00000002u) != 0;
+  PROTOBUF_ASSUME(!value || _impl_.item_weight_ != nullptr);
+  return value;
+}
+inline const ::nightfall::v1::ItemWeightState& StatsChanged::_internal_item_weight() const {
+  const ::nightfall::v1::ItemWeightState* p = _impl_.item_weight_;
+  return p != nullptr ? *p : reinterpret_cast<const ::nightfall::v1::ItemWeightState&>(
+      ::nightfall::v1::_ItemWeightState_default_instance_);
+}
+inline const ::nightfall::v1::ItemWeightState& StatsChanged::item_weight() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.StatsChanged.item_weight)
+  return _internal_item_weight();
+}
+inline void StatsChanged::unsafe_arena_set_allocated_item_weight(
+    ::nightfall::v1::ItemWeightState* item_weight) {
+  if (GetArenaForAllocation() == nullptr) {
+    delete reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(_impl_.item_weight_);
+  }
+  _impl_.item_weight_ = item_weight;
+  if (item_weight) {
+    _impl_._has_bits_[0] |= 0x00000002u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000002u;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.StatsChanged.item_weight)
+}
+inline ::nightfall::v1::ItemWeightState* StatsChanged::release_item_weight() {
+  _impl_._has_bits_[0] &= ~0x00000002u;
+  ::nightfall::v1::ItemWeightState* temp = _impl_.item_weight_;
+  _impl_.item_weight_ = nullptr;
+#ifdef PROTOBUF_FORCE_COPY_IN_RELEASE
+  auto* old =  reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(temp);
+  temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+  if (GetArenaForAllocation() == nullptr) { delete old; }
+#else  // PROTOBUF_FORCE_COPY_IN_RELEASE
+  if (GetArenaForAllocation() != nullptr) {
+    temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+  }
+#endif  // !PROTOBUF_FORCE_COPY_IN_RELEASE
+  return temp;
+}
+inline ::nightfall::v1::ItemWeightState* StatsChanged::unsafe_arena_release_item_weight() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.StatsChanged.item_weight)
+  _impl_._has_bits_[0] &= ~0x00000002u;
+  ::nightfall::v1::ItemWeightState* temp = _impl_.item_weight_;
+  _impl_.item_weight_ = nullptr;
+  return temp;
+}
+inline ::nightfall::v1::ItemWeightState* StatsChanged::_internal_mutable_item_weight() {
+  _impl_._has_bits_[0] |= 0x00000002u;
+  if (_impl_.item_weight_ == nullptr) {
+    auto* p = CreateMaybeMessage<::nightfall::v1::ItemWeightState>(GetArenaForAllocation());
+    _impl_.item_weight_ = p;
+  }
+  return _impl_.item_weight_;
+}
+inline ::nightfall::v1::ItemWeightState* StatsChanged::mutable_item_weight() {
+  ::nightfall::v1::ItemWeightState* _msg = _internal_mutable_item_weight();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.StatsChanged.item_weight)
+  return _msg;
+}
+inline void StatsChanged::set_allocated_item_weight(::nightfall::v1::ItemWeightState* item_weight) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  if (message_arena == nullptr) {
+    delete reinterpret_cast< ::PROTOBUF_NAMESPACE_ID::MessageLite*>(_impl_.item_weight_);
+  }
+  if (item_weight) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(item_weight));
+    if (message_arena != submessage_arena) {
+      item_weight = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, item_weight, submessage_arena);
+    }
+    _impl_._has_bits_[0] |= 0x00000002u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000002u;
+  }
+  _impl_.item_weight_ = item_weight;
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.StatsChanged.item_weight)
+}
+
+// .nightfall.v1.ItemPenaltyState item_penalties = 25;
+inline bool StatsChanged::has_item_penalties() const {
+  bool value = (_impl_._has_bits_[0] & 0x00000004u) != 0;
+  PROTOBUF_ASSUME(!value || _impl_.item_penalties_ != nullptr);
+  return value;
+}
+inline const ::nightfall::v1::ItemPenaltyState& StatsChanged::_internal_item_penalties() const {
+  const ::nightfall::v1::ItemPenaltyState* p = _impl_.item_penalties_;
+  return p != nullptr ? *p : reinterpret_cast<const ::nightfall::v1::ItemPenaltyState&>(
+      ::nightfall::v1::_ItemPenaltyState_default_instance_);
+}
+inline const ::nightfall::v1::ItemPenaltyState& StatsChanged::item_penalties() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.StatsChanged.item_penalties)
+  return _internal_item_penalties();
+}
+inline void StatsChanged::unsafe_arena_set_allocated_item_penalties(
+    ::nightfall::v1::ItemPenaltyState* item_penalties) {
+  if (GetArenaForAllocation() == nullptr) {
+    delete reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(_impl_.item_penalties_);
+  }
+  _impl_.item_penalties_ = item_penalties;
+  if (item_penalties) {
+    _impl_._has_bits_[0] |= 0x00000004u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000004u;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.StatsChanged.item_penalties)
+}
+inline ::nightfall::v1::ItemPenaltyState* StatsChanged::release_item_penalties() {
+  _impl_._has_bits_[0] &= ~0x00000004u;
+  ::nightfall::v1::ItemPenaltyState* temp = _impl_.item_penalties_;
+  _impl_.item_penalties_ = nullptr;
+#ifdef PROTOBUF_FORCE_COPY_IN_RELEASE
+  auto* old =  reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(temp);
+  temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+  if (GetArenaForAllocation() == nullptr) { delete old; }
+#else  // PROTOBUF_FORCE_COPY_IN_RELEASE
+  if (GetArenaForAllocation() != nullptr) {
+    temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+  }
+#endif  // !PROTOBUF_FORCE_COPY_IN_RELEASE
+  return temp;
+}
+inline ::nightfall::v1::ItemPenaltyState* StatsChanged::unsafe_arena_release_item_penalties() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.StatsChanged.item_penalties)
+  _impl_._has_bits_[0] &= ~0x00000004u;
+  ::nightfall::v1::ItemPenaltyState* temp = _impl_.item_penalties_;
+  _impl_.item_penalties_ = nullptr;
+  return temp;
+}
+inline ::nightfall::v1::ItemPenaltyState* StatsChanged::_internal_mutable_item_penalties() {
+  _impl_._has_bits_[0] |= 0x00000004u;
+  if (_impl_.item_penalties_ == nullptr) {
+    auto* p = CreateMaybeMessage<::nightfall::v1::ItemPenaltyState>(GetArenaForAllocation());
+    _impl_.item_penalties_ = p;
+  }
+  return _impl_.item_penalties_;
+}
+inline ::nightfall::v1::ItemPenaltyState* StatsChanged::mutable_item_penalties() {
+  ::nightfall::v1::ItemPenaltyState* _msg = _internal_mutable_item_penalties();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.StatsChanged.item_penalties)
+  return _msg;
+}
+inline void StatsChanged::set_allocated_item_penalties(::nightfall::v1::ItemPenaltyState* item_penalties) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  if (message_arena == nullptr) {
+    delete reinterpret_cast< ::PROTOBUF_NAMESPACE_ID::MessageLite*>(_impl_.item_penalties_);
+  }
+  if (item_penalties) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(item_penalties));
+    if (message_arena != submessage_arena) {
+      item_penalties = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, item_penalties, submessage_arena);
+    }
+    _impl_._has_bits_[0] |= 0x00000004u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000004u;
+  }
+  _impl_.item_penalties_ = item_penalties;
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.StatsChanged.item_penalties)
+}
+
+// uint64 inventory_revision = 26;
+inline void StatsChanged::clear_inventory_revision() {
+  _impl_.inventory_revision_ = ::uint64_t{0u};
+}
+inline ::uint64_t StatsChanged::inventory_revision() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.StatsChanged.inventory_revision)
+  return _internal_inventory_revision();
+}
+inline void StatsChanged::set_inventory_revision(::uint64_t value) {
+  _internal_set_inventory_revision(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.StatsChanged.inventory_revision)
+}
+inline ::uint64_t StatsChanged::_internal_inventory_revision() const {
+  return _impl_.inventory_revision_;
+}
+inline void StatsChanged::_internal_set_inventory_revision(::uint64_t value) {
+  ;
+  _impl_.inventory_revision_ = value;
 }
 
 // -------------------------------------------------------------------

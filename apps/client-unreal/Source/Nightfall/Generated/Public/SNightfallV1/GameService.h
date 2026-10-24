@@ -56,6 +56,15 @@ public:
 	typedef TFunction<void(const FGrpcResult& GrpcResult, const FGrpcNightfallV1GetSkillCatalogResponse& Response)> FGetSkillCatalogResponseLambda;
 	void CallGetSkillCatalog(const FGrpcNightfallV1GetSkillCatalogRequest& Request, FGetSkillCatalogResponseLambda ResponseLambda, FGrpcMetaData MetaData = FGrpcMetaData(), float DeadLineSeconds = 0.f);
 
+	typedef TFunction<void(const FGrpcResult& GrpcResult, const FGrpcNightfallV1GetItemCatalogResponse& Response)> FGetItemCatalogResponseLambda;
+	void CallGetItemCatalog(const FGrpcNightfallV1GetItemCatalogRequest& Request, FGetItemCatalogResponseLambda ResponseLambda, FGrpcMetaData MetaData = FGrpcMetaData(), float DeadLineSeconds = 0.f);
+
+	typedef TFunction<void(const FGrpcResult& GrpcResult, const FGrpcNightfallV1GetInventoryResponse& Response)> FGetInventoryResponseLambda;
+	void CallGetInventory(const FGrpcNightfallV1GetInventoryRequest& Request, FGetInventoryResponseLambda ResponseLambda, FGrpcMetaData MetaData = FGrpcMetaData(), float DeadLineSeconds = 0.f);
+
+	typedef TFunction<void(const FGrpcResult& GrpcResult, const FGrpcNightfallV1GrantItemResponse& Response)> FGrantItemResponseLambda;
+	void CallGrantItem(const FGrpcNightfallV1GrantItemRequest& Request, FGrantItemResponseLambda ResponseLambda, FGrpcMetaData MetaData = FGrpcMetaData(), float DeadLineSeconds = 0.f);
+
 public:
 	class Private;
 	Private* const d = nullptr;

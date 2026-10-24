@@ -67,6 +67,8 @@ http-body-util = "0.1"
 # 9.x verifies with ring (already in the tree via rustls); 10+ needs aws-lc-rs or the `rsa`
 # crate, which carries an unfixed RustSec advisory.
 jsonwebtoken = { version = "9.3", default-features = false }
+# Already present transitively; certified angle intervals exceed i128.
+num-bigint = "0.4"
 opentelemetry = { version = "0.33", default-features = false, features = ["trace", "metrics", "logs"] }
 opentelemetry-appender-tracing = { version = "0.33", default-features = false }
 opentelemetry-otlp = { version = "0.33", default-features = false, features = ["grpc-tonic", "trace", "metrics", "logs"] }

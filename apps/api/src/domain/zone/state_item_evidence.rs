@@ -1,0 +1,1179 @@
+//! D46 sidecar capture; no observation changes canonical state or consumes randomness.
+use super::*;
+use crate::domain::zone::effects::TargetBinding;
+use crate::domain::zone::evidence::{ItemEvidenceData, ItemEvidenceFact, ItemEvidenceOrigin};
+use crate::domain::zone::item_inventory::InventoryChange;
+use crate::domain::zone::phase4_projection::{ItemOperation, ItemReceiptRef};
+use crate::domain::zone::skill_math::ExactRatio;
+use crate::domain::zone::Q;
+use serde_json::json;
+
+impl ZoneState {
+    /// Exact replay boundary cursor, without cloning a full snapshot.
+    pub fn replay_rng_word_position(&self) -> u128 {
+        self.rng.get_word_pos()
+    }
+    /// Enable the frozen V6 evidence stream and capture the starting inventories.
+    pub fn enable_items_replay_evidence(&mut self) -> Result<(), TickError> {
+        let owners: Vec<_> = self
+            .phase4
+            .as_ref()
+            .ok_or(TickError::Phase3Invariant)?
+            .canonical
+            .players
+            .keys()
+            .copied()
+            .collect();
+        self.enable_replay_evidence();
+        self.evidence
+            .as_mut()
+            .ok_or(TickError::Phase3Invariant)?
+            .items = Some(Vec::new());
+        for owner in owners {
+            self.item_evidence_baseline(owner)?;
+        }
+        Ok(())
+    }
+
+    /// Drain only after the enclosing replay record has reproduced exactly.
+    pub fn take_items_replay_evidence(&mut self) -> Vec<ItemEvidenceFact> {
+        self.flush_raw_draws(None);
+        self.evidence.as_mut().map_or_else(Vec::new, |buffer| {
+            buffer.facts.clear();
+            buffer.draws.clear();
+            buffer.items.as_mut().map_or_else(Vec::new, std::mem::take)
+        })
+    }
+
+    pub(super) fn items_evidence_enabled(&self) -> bool {
+        self.evidence
+            .as_ref()
+            .is_some_and(|buffer| buffer.items.is_some())
+    }
+
+    pub(super) fn item_evidence(&mut self, subject: TargetBinding, fact: ItemEvidenceData) {
+        // B3: earlier untabulated draws precede this fact; the draws it covers are its own.
+        // Absorption rule (engine-review-6 N1): a caller tabulating its own draws must emit
+        // its item_rng fact before any LATER draw is tabulated by another fact. The deferred
+        // emitters (enchant, refine, shots) hold that today because nothing draws between
+        // their draw and their fact. A future interleaving fails closed at the exporter
+        // (duplicate or out-of-order cursor), never silently.
+        if let ItemEvidenceData::Rng {
+            word_before,
+            word_after,
+            ..
+        } = &fact
+        {
+            let (before, after) = (*word_before, *word_after);
+            self.flush_raw_draws(Some(before));
+            if let Some(buffer) = self.evidence.as_mut() {
+                buffer
+                    .raw_draws
+                    .retain(|draw| draw.word_before < before || draw.word_after > after);
+            }
+        }
+        if let Some(facts) = self
+            .evidence
+            .as_mut()
+            .and_then(|buffer| buffer.items.as_mut())
+        {
+            facts.push(ItemEvidenceFact {
+                entity: subject.entity,
+                incarnation: subject.incarnation,
+                origin: ItemEvidenceOrigin::Live,
+                tick: self.next_tick,
+                fact,
+            });
+        }
+    }
+
+    /// B3/T10: record a generator call while item evidence is on, so the exported cursor
+    /// stays gap-free even for draws whose caller tabulates nothing (spawn ids, NPC rolls
+    /// without a binding, target-less rolls).
+    pub(super) fn note_raw_draw(&mut self, callsite: &str, before: u128, bound: u32, value: u32) {
+        let after = self.rng.get_word_pos();
+        let tick = self.next_tick;
+        if let Some(buffer) = self.evidence.as_mut().filter(|b| b.items.is_some()) {
+            buffer
+                .raw_draws
+                .push(crate::domain::zone::evidence::RawDraw {
+                    tick,
+                    callsite: callsite.to_owned(),
+                    word_before: before,
+                    word_after: after,
+                    bound,
+                    value,
+                });
+        }
+    }
+
+    /// Name the pending raw draw starting at `before` (a caller that cannot tabulate it).
+    pub(super) fn label_raw_draw(&mut self, before: u128, callsite: &str) {
+        // Word positions are unique within a tick buffer, so `find` names exactly one draw;
+        // callers label the draw they just made, which is the last one pushed (N2).
+        debug_assert!(self
+            .evidence
+            .as_ref()
+            .and_then(|b| b.raw_draws.last())
+            .is_none_or(|last| last.word_before == before));
+        if let Some(draw) = self
+            .evidence
+            .as_mut()
+            .and_then(|b| b.raw_draws.iter_mut().find(|d| d.word_before == before))
+        {
+            callsite.clone_into(&mut draw.callsite);
+        }
+    }
+
+    /// Emit untabulated draws (all, or those ending at or before `until`) as zone `item_rng`
+    /// facts with a nil subject, in generator order.
+    fn flush_raw_draws(&mut self, until: Option<u128>) {
+        let Some(buffer) = self.evidence.as_mut() else {
+            return;
+        };
+        let Some(facts) = buffer.items.as_mut() else {
+            buffer.raw_draws.clear();
+            return;
+        };
+        let (flush, keep): (Vec<_>, Vec<_>) = std::mem::take(&mut buffer.raw_draws)
+            .into_iter()
+            .partition(|draw| until.is_none_or(|limit| draw.word_after <= limit));
+        buffer.raw_draws = keep;
+        for draw in flush {
+            facts.push(ItemEvidenceFact {
+                entity: EntityId::from_uuid(uuid::Uuid::nil()),
+                incarnation: 1,
+                origin: ItemEvidenceOrigin::Live,
+                tick: draw.tick,
+                fact: ItemEvidenceData::Rng {
+                    resolution_id: format!("zone:{}:{}", draw.callsite, draw.word_before),
+                    callsite: draw.callsite,
+                    word_before: draw.word_before,
+                    word_after: draw.word_after,
+                    bound: draw.bound,
+                    value: draw.value,
+                },
+            });
+        }
+    }
+
+    /// The private candidate retains earlier observations; adopt only its new suffix.
+    pub(super) fn adopt_offline_item_evidence(
+        &mut self,
+        candidate: &Self,
+        owner: EntityId,
+    ) -> Result<(), RejectReason> {
+        let Some(facts) = self
+            .evidence
+            .as_mut()
+            .and_then(|buffer| buffer.items.as_mut())
+        else {
+            return Ok(());
+        };
+        let suffix = candidate
+            .evidence
+            .as_ref()
+            .and_then(|buffer| buffer.items.as_ref())
+            .and_then(|rows| rows.get(facts.len()..))
+            .ok_or(RejectReason::InvalidLoad)?;
+        if suffix.iter().any(|row| row.entity != owner) {
+            return Err(RejectReason::InvalidLoad);
+        }
+        // A paused core's private rebuild is not a live dirty-rebuild clamp (D91 facts are
+        // live-life observations), so its clamp_no_heal facts are not adopted.
+        facts.extend(
+            suffix
+                .iter()
+                .filter(|row| {
+                    !matches!(&row.fact, ItemEvidenceData::Formula(value)
+                        if value.get("formula").and_then(serde_json::Value::as_str) == Some("clamp_no_heal"))
+                })
+                .cloned()
+                .map(|mut row| {
+                    row.incarnation = 0;
+                    row.origin = ItemEvidenceOrigin::Offline;
+                    row
+                }),
+        );
+        Ok(())
+    }
+
+    pub(super) fn item_evidence_baseline(&mut self, owner: EntityId) -> Result<(), TickError> {
+        if !self.items_evidence_enabled() {
+            return Ok(());
+        }
+        let subject = self.binding(owner).ok_or(TickError::Phase3Invariant)?;
+        let player = self
+            .phase4
+            .as_ref()
+            .and_then(|phase| phase.canonical.players.get(&owner))
+            .ok_or(TickError::Phase3Invariant)?;
+        let data = json!({"inventory_revision": player.inventory_revision,
+            "instances": player.inventory.values().collect::<Vec<_>>(),
+            "paperdoll": player.paperdoll, "auto_shots": player.auto_shots});
+        self.item_evidence(subject, ItemEvidenceData::Baseline(data));
+        Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)] // Frozen operation identity accompanies its exact scalar change.
+    pub(super) fn item_evidence_delta(
+        &mut self,
+        subject: TargetBinding,
+        change: &InventoryChange,
+        operation: ItemOperation,
+        ordinal: u32,
+        receipt: Option<ItemReceiptRef>,
+        resolution: &str,
+    ) {
+        if !self.items_evidence_enabled() || change.before == change.after {
+            return;
+        }
+        let Some(instance) = change.after.as_ref().or(change.before.as_ref()) else {
+            return;
+        };
+        let count_delta = i128::from(change.after.as_ref().map_or(0, |item| item.count))
+            .saturating_sub(i128::from(change.before.as_ref().map_or(0, |item| item.count)));
+        self.item_evidence(
+            subject,
+            ItemEvidenceData::Delta(json!({
+                "operation": operation, "instance": instance.id, "before": change.before,
+                "after": change.after, "count_delta": count_delta,
+                "operation_ordinal": ordinal, "receipt": receipt, "resolution_id": resolution
+            })),
+        );
+    }
+
+    #[allow(clippy::too_many_lines)] // Serialize captured source inputs and resolved values together.
+    pub(super) fn item_evidence_enchant(
+        &mut self,
+        subject: TargetBinding,
+        attempt: &crate::domain::zone::item_enchant::EnchantAttempt,
+        detail: &crate::domain::zone::phase4_projection::ItemResultDetail,
+    ) -> Result<(), RejectReason> {
+        use crate::domain::zone::phase4_projection::{
+            ItemEnchantOutcome, ItemEvidenceValue, ItemResultDetail,
+        };
+        if !self.items_evidence_enabled() {
+            return Ok(());
+        }
+        let invalid = || RejectReason::InvalidLoad;
+        let text = |key: &str| match attempt.cause.fields.get(key) {
+            Some(ItemEvidenceValue::Text(value)) => Ok(value.as_str()),
+            _ => Err(invalid()),
+        };
+        let number = |key: &str| match attempt.cause.fields.get(key) {
+            Some(ItemEvidenceValue::Unsigned(value)) => Ok(*value),
+            _ => Err(invalid()),
+        };
+        let ratio = |key: &str| number(key).map(|n| json!({"numerator":n,"denominator":1000}));
+        let resolution = text("resolution_id")?.to_owned();
+        let before = text("word_before")?
+            .parse::<u128>()
+            .map_err(|_| invalid())?;
+        let scroll: serde_json::Value =
+            serde_json::from_str(text("scroll_before")?).map_err(|_| invalid())?;
+        let support: serde_json::Value =
+            serde_json::from_str(text("support_before")?).map_err(|_| invalid())?;
+        let items = self.phase4.as_ref().ok_or_else(invalid)?;
+        let rule = items
+            .rules
+            .parts()
+            .enchant_scrolls
+            .get(&attempt.scroll_template)
+            .ok_or_else(invalid)?;
+        let inputs = json!({"base":ratio("base_chance_1e5")?, "bonus":ratio("scroll_bonus_1e5")?,
+            "support":ratio("support_bonus_1e5")?});
+        let mut outcome_inputs = inputs.clone();
+        let fields = outcome_inputs.as_object_mut().ok_or_else(invalid)?;
+        fields.insert("residue".into(), json!(attempt.draw));
+        fields.insert("enchant".into(), json!(attempt.old_enchant));
+        fields.insert("safe".into(), json!(rule.safe));
+        fields.insert("blessed".into(), json!(rule.blessed));
+        let outcome = match attempt.outcome {
+            ItemEnchantOutcome::Success => "success",
+            // D163: one name across the fact, the receipt outcome and the coverage label.
+            ItemEnchantOutcome::SuccessNoIncrement => "success_no_increment",
+            ItemEnchantOutcome::SafeFailed => "safe_failure",
+            ItemEnchantOutcome::BlessedReset => "blessed_failure",
+            ItemEnchantOutcome::Destroyed => "destroyed",
+        };
+        let ItemResultDetail::Enchant { refunds, .. } = detail else {
+            return Err(invalid());
+        };
+        let refund_fact = if refunds.is_empty() {
+            None
+        } else {
+            let refund_count = refunds
+                .iter()
+                .try_fold(0_u64, |sum, refund| sum.checked_add(refund.count))
+                .ok_or_else(invalid)?;
+            let definition = items
+                .rules
+                .parts()
+                .items
+                .get(&attempt.template)
+                .ok_or_else(invalid)?;
+            let grade = items
+                .rules
+                .parts()
+                .grades
+                .iter()
+                .find(|g| g.grade == definition.grade)
+                .ok_or_else(invalid)?;
+            let weapon = definition.kind == "Weapon";
+            Some(json!({"formula":"failure_refund", "inputs":{
+                "base":definition.crystal_count,"bonus":if weapon {grade.weapon_bonus} else {grade.armor_bonus},
+                "enchant":attempt.old_enchant,"weapon":weapon,
+                "crystallizable":definition.flags.get("is_crystallizable") == Some(&true),"crystal_id":grade.crystal_id},
+                "actual":refund_count,"resolution_id":resolution,"baseline":false}))
+        };
+        self.item_evidence(
+            subject,
+            ItemEvidenceData::Rng {
+                callsite: "enchant".into(),
+                word_before: before,
+                word_after: self.rng.get_word_pos(),
+                bound: 100_000,
+                value: attempt.draw,
+                resolution_id: resolution.clone(),
+            },
+        );
+        self.item_evidence(
+            subject,
+            ItemEvidenceData::Formula(json!({
+            "formula":"enchant_chance","inputs":inputs,"actual":attempt.chance_1e5,
+            "resolution_id":resolution,"baseline":false})),
+        );
+        self.item_evidence(subject, ItemEvidenceData::Formula(json!({
+            "formula":"enchant_outcome","inputs":outcome_inputs,"actual":{
+                "outcome":outcome,"enchant":if attempt.outcome == ItemEnchantOutcome::Destroyed {attempt.old_enchant} else {attempt.new_enchant},
+                "destroyed":attempt.outcome == ItemEnchantOutcome::Destroyed},
+            "operation":{"target_before":attempt.before,"scroll_before":scroll,"support_before":support,"receipt":attempt.receipt},
+            "resolution_id":resolution,"baseline":false})));
+        if let Some(fact) = refund_fact {
+            self.item_evidence(subject, ItemEvidenceData::Formula(fact));
+        }
+        Ok(())
+    }
+
+    /// Retail draws (three `item_rng` facts), both selectors, the category and packing for
+    /// Refine; the instance-crystal fee for `CancelRefine`. Inputs are the actual filtered rows.
+    pub(super) fn item_evidence_refine(
+        &mut self,
+        subject: TargetBinding,
+        audit: &crate::domain::zone::RefineAudit,
+        draws: Option<&(crate::domain::zone::item_refine::RetailSelectors, Vec<(u128, u128, u32)>)>,
+        resolution: &str,
+    ) -> Result<(), RejectReason> {
+        use crate::domain::zone::item_refine::{RetailRow, RETAIL_RESIDUES};
+        if !self.items_evidence_enabled() {
+            return Ok(());
+        }
+        let invalid = || RejectReason::InvalidLoad;
+        let Some(selection) = audit.selection else {
+            let items = self.phase4.as_ref().ok_or_else(invalid)?;
+            let definition = items
+                .rules
+                .parts()
+                .items
+                .get(&audit.before.template_id)
+                .ok_or_else(invalid)?;
+            let crystals = crate::domain::zone::item_enchant::crystal_count(
+                definition,
+                audit.before.enchant,
+                &items.rules,
+            )
+            .map_err(|_| invalid())?;
+            let fee = audit.payments.first().ok_or_else(invalid)?.count;
+            self.item_evidence(
+                subject,
+                ItemEvidenceData::Formula(json!({
+                "formula":"cancel_fee","inputs":{"grade":definition.grade,"crystals":crystals},
+                "actual":fee,"resolution_id":resolution,"baseline":false})),
+            );
+            return Ok(());
+        };
+        let (selectors, words) = draws.ok_or_else(invalid)?;
+        let rows = |rows: &[RetailRow]| {
+            rows.iter()
+                .map(|row| json!([row.option, {"numerator": row.hundredths, "denominator": 100}]))
+                .collect::<Vec<_>>()
+        };
+        let sites = ["augment_option12", "augment_category", "augment_option34"];
+        if words.len() != sites.len() {
+            return Err(invalid());
+        }
+        for (site, (before, after, raw)) in sites.iter().zip(words) {
+            self.item_evidence(
+                subject,
+                ItemEvidenceData::Rng {
+                    callsite: (*site).into(),
+                    word_before: *before,
+                    word_after: *after,
+                    bound: RETAIL_RESIDUES,
+                    value: raw % RETAIL_RESIDUES,
+                    resolution_id: format!("{resolution}:{site}"),
+                },
+            );
+        }
+        let facts = [
+            json!({"formula":"retail_select","inputs":{"rows":rows(&selectors.first),
+                "residue":selection.first_raw % RETAIL_RESIDUES},"actual":selection.option12,
+                "resolution_id":format!("{resolution}:{}", sites[0]),"baseline":false}),
+            json!({"formula":"category","inputs":{"residue":selection.category_raw % RETAIL_RESIDUES,
+                "accessory":selectors.accessory},"actual":selection.category,
+                "resolution_id":format!("{resolution}:{}", sites[1]),"baseline":false}),
+            json!({"formula":"retail_select","inputs":{"rows":rows(&selectors.category_rows(selection.category)),
+                "residue":selection.second_raw % RETAIL_RESIDUES},"actual":selection.option34,
+                "resolution_id":format!("{resolution}:{}", sites[2]),"baseline":false}),
+            json!({"formula":"retail_draw_contract","inputs":{"accessory":selectors.accessory},
+                "actual":{"draw_sites":[{"site":"option12","bound":RETAIL_RESIDUES},
+                    {"site":"category","bound":RETAIL_RESIDUES},{"site":"option34","bound":RETAIL_RESIDUES}],
+                    "category_weights":selectors.weights,"non_retail_draws":[]},
+                "resolution_id":format!("{resolution}:contract"),"baseline":false}),
+            json!({"formula":"pack_options","inputs":{"first":selection.option12,"second":selection.option34},
+                "actual":selection.packed().map_err(|_| invalid())?,"resolution_id":resolution,"baseline":false}),
+        ];
+        for fact in facts {
+            self.item_evidence(subject, ItemEvidenceData::Formula(fact));
+        }
+        Ok(())
+    }
+
+    /// D46 `max_load`/`overload`/`grade_penalties` when a dirty rebuild changes them.
+    pub(super) fn load_evidence_v6(
+        &mut self,
+        id: EntityId,
+        refreshed: &crate::domain::zone::item_refresh::RefreshedEquipment,
+    ) -> Result<(), TickError> {
+        if !self.items_evidence_enabled() {
+            return Ok(());
+        }
+        let Some(rules) = self
+            .phase4
+            .as_ref()
+            .map(|items| std::sync::Arc::clone(&items.rules))
+        else {
+            return Ok(());
+        };
+        let Some(old) = self
+            .phase4
+            .as_ref()
+            .and_then(|items| items.canonical.players.get(&id))
+            .cloned()
+        else {
+            return Ok(());
+        };
+        let new = &refreshed.player;
+        let word = self.rng.get_word_pos();
+        // Review-3 P2-8: two rebuilds in one tick with no draw between them share the
+        // cursor, so a per-(owner, tick) sequence keeps each load resolution id unique.
+        let prefix = format!("load:{id}:{}:", self.next_tick.0);
+        let sequence = self
+            .evidence
+            .as_ref()
+            .and_then(|buffer| buffer.items.as_ref())
+            .map_or(0, |facts| {
+                facts
+                    .iter()
+                    .filter_map(|fact| {
+                        if let ItemEvidenceData::Formula(value) = &fact.fact {
+                            value
+                                .get("resolution_id")
+                                .and_then(serde_json::Value::as_str)
+                                .filter(|resolution| resolution.starts_with(&prefix))
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<std::collections::BTreeSet<_>>()
+                    .len()
+            });
+        let resolution = format!("{prefix}{word}:{sequence}");
+        if (old.max_load, old.weight, old.overload_level, old.overloaded)
+            != (new.max_load, new.weight, new.overload_level, new.overloaded)
+        {
+            let load = &refreshed.load;
+            self.item_formula_v6(
+                id,
+                "max_load",
+                json!({"con_bonus": ratio_json(load.con_bonus), "weight_limit": ratio_json(load.weight_limit),
+                    "multiplier": ratio_json(load.multiplier), "add": ratio_json(load.add)}),
+                json!(new.max_load),
+                &resolution,
+                None,
+            );
+            let per_mille = if new.max_load > 0 {
+                Some(
+                    i128::from(new.weight)
+                        .checked_sub(i128::from(new.weight_penalty_bonus))
+                        .and_then(|v| v.checked_mul(1000))
+                        .and_then(|v| v.checked_div(i128::from(new.max_load)))
+                        .and_then(|v| i64::try_from(v).ok())
+                        .ok_or(TickError::Phase3Invariant)?,
+                )
+            } else {
+                None
+            };
+            self.item_formula_v6(
+                id,
+                "overload",
+                json!({"weight": new.weight, "maximum": new.max_load, "bonus": new.weight_penalty_bonus,
+                    "previous_level": old.overload_level, "previous_overloaded": old.overloaded}),
+                json!({"per_mille": per_mille, "level": new.overload_level,
+                    "overloaded": new.overloaded, "changed": new.overload_level != old.overload_level}),
+                &resolution,
+                None,
+            );
+        }
+        if (old.weapon_penalty, old.armor_penalty, old.expertise, &old.paperdoll)
+            != (new.weapon_penalty, new.armor_penalty, new.expertise, &new.paperdoll)
+        {
+            let mut equipped = Vec::new();
+            for item in new.inventory.values().filter(|item| item.slot.is_some()) {
+                let definition = rules
+                    .parts()
+                    .items
+                    .get(&item.template_id)
+                    .ok_or(TickError::Phase3Invariant)?;
+                let grade = rules
+                    .parts()
+                    .grades
+                    .iter()
+                    .find(|row| row.grade == definition.grade)
+                    .ok_or(TickError::Phase3Invariant)?
+                    .id;
+                equipped.push(json!({"instance_id": item.id, "grade": grade,
+                    "weapon": definition.kind == "Weapon",
+                    "arrow": matches!(definition.etcitem_type.as_str(), "ARROW" | "BOLT")}));
+            }
+            self.item_formula_v6(
+                id,
+                "grade_penalties",
+                json!({"equipped": equipped, "expertise": new.expertise, "bonus": 0}),
+                json!({"weapon": new.weapon_penalty, "armor": new.armor_penalty}),
+                &resolution,
+                None,
+            );
+        }
+        Ok(())
+    }
+
+    /// A live V6 owner with an item sidecar (combat evidence subjects).
+    pub(in crate::domain::zone) fn phase4_player_v6(&self, id: EntityId) -> bool {
+        self.phase4
+            .as_ref()
+            .is_some_and(|items| items.canonical.players.contains_key(&id))
+    }
+
+    /// One `item_formula` fact for a V6 owner; resolution identities are caller-unique.
+    #[allow(clippy::too_many_arguments)] // The frozen fact fields plus its owner.
+    pub(in crate::domain::zone) fn item_formula_v6(
+        &mut self,
+        owner: EntityId,
+        formula: &str,
+        inputs: serde_json::Value,
+        actual: serde_json::Value,
+        resolution: &str,
+        context: Option<serde_json::Value>,
+    ) {
+        if !self.items_evidence_enabled() || !self.phase4_player_v6(owner) {
+            return;
+        }
+        if let Some(subject) = self.binding(owner) {
+            let mut fact = serde_json::Map::new();
+            fact.insert("formula".into(), json!(formula));
+            fact.insert("inputs".into(), inputs);
+            fact.insert("actual".into(), actual);
+            fact.insert("resolution_id".into(), json!(resolution));
+            fact.insert("baseline".into(), json!(false));
+            if let Some(context) = context {
+                fact.insert("context".into(), context);
+            }
+            self.item_evidence(subject, ItemEvidenceData::Formula(serde_json::Value::Object(fact)));
+        }
+    }
+
+    /// Captured caller identity for scenario phases: weapon (0 = unarmed), recipient, event.
+    /// Exact (whole + Q remainder) HP/MP/CP and their maxima before a dirty rebuild clamp.
+    pub(in crate::domain::zone) fn clamp_snapshot_v6(
+        &self,
+        id: EntityId,
+    ) -> Option<[(i128, i128); 3]> {
+        // Live lives only: a paused (offline, incarnation 0) rebuild is not a clamp event.
+        if !self.items_evidence_enabled()
+            || !self.phase4_player_v6(id)
+            || self
+                .binding(id)
+                .is_none_or(|binding| binding.incarnation == 0)
+        {
+            return None;
+        }
+        self.clamp_values_v6(id)
+    }
+
+    fn clamp_values_v6(&self, id: EntityId) -> Option<[(i128, i128); 3]> {
+        let combat = self.entities.get(&id)?.combat.as_ref()?;
+        let fractions = &self.sidecar(id).ok()?.fractions;
+        let CombatRole::Player {
+            progression: Some(progression),
+            ..
+        } = &combat.role
+        else {
+            return None;
+        };
+        let q = i128::from(Q);
+        let exact = |whole: u32, remainder: i64| {
+            i128::from(whole)
+                .checked_mul(q)
+                .and_then(|v| v.checked_add(i128::from(remainder)))
+        };
+        Some([
+            (
+                exact(combat.hp, fractions.hp)?,
+                i128::from(combat.sheet.max_hp()).checked_mul(q)?,
+            ),
+            (
+                exact(combat.mp, fractions.mp)?,
+                i128::from(combat.sheet.max_mp()).checked_mul(q)?,
+            ),
+            (
+                exact(progression.class_state.cp, fractions.cp)?,
+                i128::from(progression.max_cp).checked_mul(q)?,
+            ),
+        ])
+    }
+
+    /// D46/D91 `clamp_no_heal`: whenever a rebuild changes a maximum, current = min(current,
+    /// new maximum) — a raised maximum never heals. One fact per resource, `:hp|:mp|:cp`.
+    pub(in crate::domain::zone) fn clamp_no_heal_evidence_v6(
+        &mut self,
+        id: EntityId,
+        before: &[(i128, i128); 3],
+    ) {
+        let Some(after) = self.clamp_values_v6(id) else {
+            return;
+        };
+        let q = i128::from(Q);
+        let ratio = |value: i128| ExactRatio::new(value, q).ok().map(ratio_json);
+        let word = self.rng.get_word_pos();
+        let prefix = format!("rebuild:{id}:{}:{word}:", self.next_tick.0);
+        let sequence = self
+            .evidence
+            .as_ref()
+            .and_then(|buffer| buffer.items.as_ref())
+            .map_or(0, |facts| {
+                facts
+                    .iter()
+                    .filter_map(|fact| {
+                        if let ItemEvidenceData::Formula(value) = &fact.fact {
+                            value
+                                .get("resolution_id")
+                                .and_then(serde_json::Value::as_str)
+                                .filter(|resolution| resolution.starts_with(&prefix))
+                                .and_then(|resolution| resolution.rsplit_once(':'))
+                                .map(|(stem, _)| stem.to_owned())
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<std::collections::BTreeSet<_>>()
+                    .len()
+            });
+        for ((name, (current, old_max)), (current_after, new_max)) in
+            ["hp", "mp", "cp"].iter().zip(before).zip(after)
+        {
+            if *old_max == new_max {
+                continue;
+            }
+            let (Some(current), Some(new_max_json), Some(result)) =
+                (ratio(*current), ratio(new_max), ratio(current_after))
+            else {
+                continue;
+            };
+            self.item_formula_v6(
+                id,
+                "clamp_no_heal",
+                json!({"current": current, "new_max": new_max_json}),
+                result,
+                &format!("{prefix}{sequence}:{name}"),
+                None,
+            );
+        }
+    }
+
+    /// D92: cast-bound families carry one fact on the terminal tick of their cast (completion
+    /// result or cancellation), under the originating intent's resolution id.
+    pub(in crate::domain::zone) fn finish_cast_evidence_v6(&mut self, events: &[ZoneEvent]) {
+        if !self.items_evidence_enabled() {
+            return;
+        }
+        for event in events {
+            let (cast, phase) = if let ZoneEvent::SkillCastResult { cast_id, .. } = event {
+                (cast_id.0, "complete")
+            } else if let ZoneEvent::SkillCastCancelled { cast_id, .. } = event {
+                (cast_id.0, "cancel")
+            } else {
+                continue;
+            };
+            let Some(pending) = self
+                .evidence
+                .as_mut()
+                .and_then(|buffer| buffer.pending_cast.remove(&cast))
+            else {
+                continue;
+            };
+            for (owner, formula, resolution, mut inputs, mut actual) in pending {
+                if formula == "learned_item_cost" {
+                    if let (Some(inputs), Some(actual)) =
+                        (inputs.as_object_mut(), actual.as_object_mut())
+                    {
+                        inputs.insert("phase".into(), json!(phase));
+                        actual.insert("phase".into(), json!(phase));
+                    }
+                }
+                if formula == "escape_timing" {
+                    // D92: the teleport landing tick carries the fact; a cancelled escape
+                    // has no landing and no terminal fact.
+                    if phase != "complete" {
+                        continue;
+                    }
+                    let Some(pos) = self.entities.get(&owner).map(|e| e.pos) else {
+                        continue;
+                    };
+                    if let Some(actual) = actual.as_object_mut() {
+                        actual.insert(
+                            "destination".into(),
+                            json!([pos.x.raw().div_euclid(1000), pos.y.raw().div_euclid(1000)]),
+                        );
+                    }
+                }
+                self.item_formula_v6(
+                    owner,
+                    &formula,
+                    inputs,
+                    actual,
+                    &resolution,
+                    Some(json!({"event": "cast"})),
+                );
+            }
+        }
+    }
+
+    /// D46/D103(a) `gear_stats` after an equipment rebuild: the oracle inputs (pinned base
+    /// class file, level, worn equipment with install sequences, winning passive providers)
+    /// and the engine's q/getter folds of the 11 engine-folded stats plus base attributes.
+    /// Exported only where the oracle models every provider: a base-class player with no
+    /// timed effects, death penalty, grade/overload penalty, augment, enchant option or set
+    /// attribute delta.
+    #[allow(clippy::too_many_lines)] // One provider census and eleven folds.
+    pub(in crate::domain::zone) fn gear_stats_evidence_v6(
+        &mut self,
+        id: EntityId,
+        event: &str,
+        resolution: &str,
+    ) {
+        use crate::domain::zone::phase4_checkpoint::EquipmentSourceKey as K;
+        use crate::domain::zone::stat_functions::FunctionConditions;
+        use crate::domain::zone::RestoredModifierSource as R;
+        if !self.items_evidence_enabled() || !self.phase4_player_v6(id) {
+            return;
+        }
+        let (Some(items), Some(phase3), Some(stats), Some(classes)) = (
+            self.phase4.as_ref(),
+            self.phase3.as_ref(),
+            self.rules.as_ref(),
+            self.classes.as_ref(),
+        ) else {
+            return;
+        };
+        let (Some(player), Some(entity), Ok(side), Ok(effective)) = (
+            items.canonical.players.get(&id),
+            self.entities.get(&id),
+            self.sidecar(id),
+            self.effective(id),
+        ) else {
+            return;
+        };
+        let Some(combat) = entity.combat.as_ref() else {
+            return;
+        };
+        let CombatRole::Player {
+            progression: Some(progression),
+            ..
+        } = &combat.role
+        else {
+            return;
+        };
+        let class_id = progression.class_state.current_class_id;
+        let Some(slots) = items
+            .rules
+            .parts()
+            .class_slots
+            .iter()
+            .find(|row| row.base_class_id == class_id.0)
+        else {
+            return; // Transferred classes use other pinned class files.
+        };
+        // D138: grade penalties no longer suppress the fact; their winning 6209/6213
+        // providers are folded and reported like any other passive provider.
+        if player.overload_level != 0
+            || side
+                .modifier_install_order
+                .values()
+                .any(|source| !matches!(source, R::Passive(_)))
+        {
+            return;
+        }
+        let mut winners: std::collections::BTreeMap<u32, (u32, u64)> =
+            std::collections::BTreeMap::new();
+        for (sequence, source) in &side.modifier_install_order {
+            if let R::Passive(reference) = source {
+                winners.insert(reference.id.0, (reference.rank, *sequence));
+            }
+        }
+        let rules = &phase3.canonical.rules;
+        let mut equipment = Vec::new();
+        for (sequence, key) in &player.equipment_sources {
+            match key {
+                K::Item { instance } => {
+                    let Some(item) = player.inventory.get(instance) else {
+                        return;
+                    };
+                    if item.augment_id.is_some() {
+                        return;
+                    }
+                    equipment.push(json!([item.template_id, item.enchant, item.slot, sequence]));
+                    continue;
+                },
+                K::ArmorSet { set, .. } => {
+                    if items
+                        .rules
+                        .parts()
+                        .armor_sets
+                        .get(set)
+                        .is_none_or(|rule| rule.base_stats.values().any(|v| *v != 0))
+                    {
+                        return;
+                    }
+                },
+                K::ItemSkill { .. } | K::Enchant4 { .. } | K::Polearm | K::GradePenalty { .. } => {
+                },
+                K::EnchantOption { .. } | K::Augment { .. } | K::Overload => return,
+            }
+            let Ok(references) =
+                crate::domain::zone::item_sources::source_skills(player, &items.rules, key)
+            else {
+                return;
+            };
+            for reference in references {
+                let Some(skill) = rules.skills().get(reference.id) else {
+                    return;
+                };
+                if skill.operate_type != "P" {
+                    continue;
+                }
+                if winners
+                    .get(&reference.id.0)
+                    .is_none_or(|(rank, _)| reference.rank > *rank)
+                {
+                    winners.insert(reference.id.0, (reference.rank, *sequence));
+                }
+            }
+        }
+        let skill_refs: Vec<_> = winners
+            .iter()
+            .map(|(skill, (rank, sequence))| json!([skill, rank, sequence]))
+            .collect();
+        let class_file = format!(
+            "src/main/resources/data/stats/chars/baseStats/{}.xml",
+            slots
+                .key
+                .split('_')
+                .map(|part| {
+                    let mut chars = part.chars();
+                    chars.next().map_or_else(String::new, |first| {
+                        first.to_ascii_uppercase().to_string() + chars.as_str()
+                    })
+                })
+                .collect::<String>()
+        );
+        let level = combat.sheet.level();
+        let context = crate::domain::zone::effective_stats::EquipmentStatContext {
+            player,
+            rules: &items.rules,
+        };
+        let Ok(inputs) = crate::domain::zone::effective_stats::PlayerStatInputs::from_equipment(
+            stats, classes, rules, class_id, level, context,
+        ) else {
+            return;
+        };
+        let Ok(weapon_kind) = context.weapon_kind() else {
+            return;
+        };
+        let conditions = FunctionConditions {
+            weapon_kind,
+            can_resurrect: true,
+        };
+        let bases = &inputs.bases;
+        let mut q = serde_json::Map::new();
+        let mut getters = serde_json::Map::new();
+        for (stat, initial) in [
+            ("pAtk", bases.p_atk_q),
+            ("mAtk", bases.m_atk_q),
+            ("pDef", bases.p_def_q),
+            ("mDef", bases.m_def_q),
+            ("critRate", bases.crit_q),
+            ("pAtkSpd", bases.attack_speed_q),
+            ("maxHp", bases.max_hp_q),
+            ("maxMp", bases.max_mp_q),
+            ("maxCp", bases.max_cp_q),
+            ("mAtkSpd", bases.cast_speed_q),
+            ("runSpd", bases.run_speed_q),
+        ] {
+            let Ok(value) = effective.calculator.fold(stat, initial, conditions) else {
+                return;
+            };
+            q.insert(stat.into(), json!(value));
+            getters.insert(stat.into(), json!(value.div_euclid(Q)));
+        }
+        let Some(class) = classes.get(class_id) else {
+            return;
+        };
+        let mut base_stats = serde_json::Map::new();
+        for (name, value) in [
+            ("STR", class.base_stats.str),
+            ("DEX", class.base_stats.dex),
+            ("CON", class.base_stats.con),
+            ("INT", class.base_stats.int),
+            ("WIT", class.base_stats.wit),
+            ("MEN", class.base_stats.men),
+        ] {
+            let Ok(folded) = crate::domain::zone::scaled::Scaled::from_int(i64::from(value))
+                .and_then(|initial| effective.calculator.fold(name, initial.raw(), conditions))
+            else {
+                return;
+            };
+            base_stats.insert(name.into(), json!(folded.div_euclid(Q)));
+        }
+        self.item_formula_v6(
+            id,
+            "gear_stats",
+            json!({"class_file": class_file, "level": level, "equipment": equipment,
+                "skill_refs": skill_refs, "base_deltas": null, "base_delta_sequence": -1}),
+            json!({"q": q, "getters": getters, "base_stats": base_stats}),
+            resolution,
+            Some(json!({"event": event})),
+        );
+    }
+
+    pub(in crate::domain::zone) fn attack_context_v6(
+        &self,
+        attacker: EntityId,
+        target: EntityId,
+    ) -> serde_json::Value {
+        let weapon = self
+            .phase4
+            .as_ref()
+            .and_then(|items| items.canonical.players.get(&attacker))
+            .and_then(|player| {
+                player
+                    .paperdoll
+                    .get(&crate::domain::zone::EquipSlot::Rhand)
+                    .and_then(|id| player.inventory.get(id))
+            })
+            .map_or(0, |item| item.template_id);
+        json!({"weapon_template": weapon, "target_entity": target.to_string(), "event": "attack"})
+    }
+
+    pub(super) fn item_evidence_npc_roll(&mut self, npc: EntityId, site: &str, bound: u32) -> u32 {
+        let before = self.rng.get_word_pos();
+        let value = self.roll_below(bound);
+        // B3: without a binding the draw still becomes a zone fact under this callsite.
+        self.label_raw_draw(before, site);
+        if self.items_evidence_enabled() {
+            if let Some(subject) = self.binding(npc) {
+                self.item_evidence(
+                    subject,
+                    ItemEvidenceData::Rng {
+                        callsite: site.into(),
+                        word_before: before,
+                        word_after: self.rng.get_word_pos(),
+                        bound,
+                        value,
+                        resolution_id: format!("npc:{site}:{before}"),
+                    },
+                );
+            }
+        }
+        value
+    }
+}
+
+/// D80: an integer outside ±2^53 is an exact decimal string; others stay JSON numbers.
+pub(in crate::domain::zone) fn wide_json(value: i128) -> serde_json::Value {
+    const LIMIT: u128 = 1 << 53;
+    if value.unsigned_abs() > LIMIT {
+        json!(value.to_string())
+    } else {
+        i64::try_from(value).map_or_else(|_| json!(value.to_string()), |v| json!(v))
+    }
+}
+
+/// Exact reduced ratio in the frozen `{numerator, denominator}` evidence shape (D80 widths).
+pub(in crate::domain::zone) fn ratio_json(
+    value: crate::domain::zone::skill_math::ExactRatio,
+) -> serde_json::Value {
+    let (numerator, denominator) = value.parts();
+    json!({"numerator": wide_json(numerator), "denominator": wide_json(denominator)})
+}
+
+/// The E1 oracle's `floor_a_plus_b_root` certificate for nonnegative rationals `a`, `b` and
+/// radicand `r`: root bounds at 64/128/256/512 bits until `floor(a + b·root)` agrees (or the
+/// upper floor is an exact tie). Returns (floor, a + b·lower, a + b·upper) as JSON.
+#[allow(clippy::arithmetic_side_effects)] // Arbitrary-precision integers; divisors are nonzero.
+pub(in crate::domain::zone) fn root_floor_certificate(
+    a: ExactRatio,
+    b: ExactRatio,
+    r: ExactRatio,
+) -> Option<(serde_json::Value, serde_json::Value, serde_json::Value)> {
+    root_floor_bounds(a, b, r).map(|(floor, lower, upper, _, _)| (floor, lower, upper))
+}
+
+/// [`root_floor_certificate`] plus the certified square-root bounds themselves.
+#[allow(clippy::arithmetic_side_effects, clippy::type_complexity)] // Arbitrary precision.
+pub(in crate::domain::zone) fn root_floor_bounds(
+    a: ExactRatio,
+    b: ExactRatio,
+    r: ExactRatio,
+) -> Option<(
+    serde_json::Value,
+    serde_json::Value,
+    serde_json::Value,
+    serde_json::Value,
+    serde_json::Value,
+)> {
+    use num_bigint::BigUint;
+    let big = |value: i128| u128::try_from(value).ok().map(BigUint::from);
+    let ((an, ad), (bn, bd), (rn, rd)) = (a.parts(), b.parts(), r.parts());
+    let (an, ad, bn, bd, rn, rd) = (big(an)?, big(ad)?, big(bn)?, big(bd)?, big(rn)?, big(rd)?);
+    if ad == BigUint::ZERO || bd == BigUint::ZERO || rd == BigUint::ZERO {
+        return None;
+    }
+    for bits in [64_u32, 128, 256, 512] {
+        let scale = BigUint::from(1_u8) << bits;
+        let target = &rn * &scale * &scale;
+        let lower = (&target / &rd).sqrt();
+        let upper = if &lower * &lower * &rd == target {
+            lower.clone()
+        } else {
+            &lower + 1_u8
+        };
+        // a + b·L/S = (an·bd·S + bn·L·ad) / (ad·bd·S)
+        let denominator = &ad * &bd * &scale;
+        let value = |root: &BigUint| &an * &bd * &scale + &bn * root * &ad;
+        let (low, high) = (value(&lower), value(&upper));
+        let lo = &low / &denominator;
+        let hi = &high / &denominator;
+        let tie = bn != BigUint::ZERO && {
+            let hi_ad = &hi * &ad;
+            hi_ad >= an && {
+                let numerator = (hi_ad - &an) * &bd;
+                &numerator * &numerator * &rd == (&ad * &bn) * (&ad * &bn) * &rn
+            }
+        };
+        if lo == hi || tie {
+            return Some((
+                big_json(&hi),
+                big_ratio(&low, &denominator),
+                big_ratio(&high, &denominator),
+                big_ratio(&lower, &scale),
+                big_ratio(&upper, &scale),
+            ));
+        }
+    }
+    None
+}
+
+fn big_json(value: &num_bigint::BigUint) -> serde_json::Value {
+    if value.bits() <= 53 {
+        u64::try_from(value).map_or_else(|_| json!(value.to_string()), |v| json!(v))
+    } else {
+        json!(value.to_string())
+    }
+}
+
+#[allow(clippy::arithmetic_side_effects)] // Arbitrary-precision integers; divisors are nonzero.
+fn big_gcd(a: &num_bigint::BigUint, b: &num_bigint::BigUint) -> num_bigint::BigUint {
+    let (mut a, mut b) = (a.clone(), b.clone());
+    while b != num_bigint::BigUint::ZERO {
+        let r = &a % &b;
+        a = b;
+        b = r;
+    }
+    a
+}
+
+#[allow(clippy::arithmetic_side_effects)] // Arbitrary-precision integers; divisors are nonzero.
+fn big_ratio(
+    numerator: &num_bigint::BigUint,
+    denominator: &num_bigint::BigUint,
+) -> serde_json::Value {
+    let divisor = big_gcd(numerator, denominator);
+    let divisor = if divisor == num_bigint::BigUint::ZERO {
+        num_bigint::BigUint::from(1_u8)
+    } else {
+        divisor
+    };
+    json!({"numerator": big_json(&(numerator / &divisor)), "denominator": big_json(&(denominator / &divisor))})
+}
+
+/// D46/D80 `bow_damage` actual, reproducing the frozen certificate exactly: `base =
+/// trunc(formula)`, `damage = floor(4·base/5 + base·√R/125000)` with R = dx²+dy² (milli-
+/// tiles), decided on the first 2^-bits (64, 128, 256, 512) root interval whose floors agree
+/// or whose upper floor is an exact root tie; distances are those bounds × 32/1000.
+#[allow(clippy::arithmetic_side_effects)] // Arbitrary-precision integers; divisors are nonzero.
+pub(in crate::domain::zone) fn bow_damage_actual(
+    base: u64,
+    dx: i64,
+    dy: i64,
+) -> Option<serde_json::Value> {
+    use num_bigint::BigUint;
+    let radicand =
+        BigUint::from(dx.unsigned_abs()).pow(2) + BigUint::from(dy.unsigned_abs()).pow(2);
+    let base_big = BigUint::from(base);
+    for bits in [64_u32, 128, 256, 512] {
+        let scale = BigUint::from(1_u8) << bits;
+        let scaled = &radicand * &scale * &scale;
+        let lower = scaled.sqrt();
+        let upper = if &lower * &lower == scaled {
+            lower.clone()
+        } else {
+            &lower + 1_u8
+        };
+        // floor(base·(500000·S + 5·root)/(625000·S))
+        let floor_at = |root: &BigUint| -> BigUint {
+            (&base_big * (BigUint::from(500_000_u32) * &scale + root * 5_u8))
+                / (BigUint::from(625_000_u32) * &scale)
+        };
+        let lo = floor_at(&lower);
+        let hi = floor_at(&upper);
+        let tie = base > 0 && {
+            // ((hi − 4·base/5)·125000/base)² == R, with the quotient nonnegative.
+            let five_hi = &hi * 5_u8;
+            let four_base = &base_big * 4_u8;
+            five_hi >= four_base && {
+                let numerator = (five_hi - four_base) * 25_000_u32;
+                &numerator * &numerator == &radicand * &base_big * &base_big
+            }
+        };
+        if lo == hi || tie {
+            let thousand_scale = BigUint::from(1000_u16) * &scale;
+            return Some(json!({"base": base,
+                "distance_l2_lower": big_ratio(&(&lower * 32_u8), &thousand_scale),
+                "distance_l2_upper": big_ratio(&(&upper * 32_u8), &thousand_scale),
+                "damage": big_json(&hi)}));
+        }
+    }
+    None
+}

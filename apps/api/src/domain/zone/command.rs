@@ -86,6 +86,15 @@ impl ZoneInput {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ZoneCommand {
+    /// Server-only recorded direct grant; offline work carries its private paused owner.
+    MaterializePendingItems(Box<super::ItemGrantCommand>),
+    /// Recorded server reservation; only replaces an exhausted V6 allocator range.
+    ExtendItemRange {
+        /// New globally reserved block, starting at its unused first identity.
+        range: super::ItemInstanceRange,
+    },
+    /// Authenticated owner item intent. V6 only; costs and outcomes are resolved by the zone.
+    Item(Box<super::ItemCommand>),
     /// Stage a skill start; learned rank and selected target are resolved by the zone.
     CastSkill {
         /// Authenticated session-owned caster.
@@ -234,11 +243,21 @@ impl ZoneCommand {
         }
         matches!(
             self,
-            Self::CastSkill { .. }
+            Self::Item(_)
+                | Self::MaterializePendingItems(_)
+                | Self::CastSkill { .. }
                 | Self::CancelCast { .. }
                 | Self::AcceptResurrect { .. }
                 | Self::LearnSkill { .. }
         )
+    }
+
+    /// Item intents must never enter a pre-V6 replay epoch.
+    pub const fn requires_phase4(&self) -> bool {
+        matches!(
+            self,
+            Self::Item(_) | Self::MaterializePendingItems(_) | Self::ExtendItemRange { .. }
+        ) || matches!(self, Self::SpawnPlayer { load: Some(load), .. } if load.phase4.is_some())
     }
 
     /// The entity the command is about. `None` for `SpawnNpc`, whose id is not known until the
@@ -246,6 +265,8 @@ impl ZoneCommand {
     #[must_use]
     pub const fn entity(&self) -> Option<EntityId> {
         match self {
+            Self::Item(command) => Some(command.entity),
+            Self::MaterializePendingItems(command) => Some(command.entity),
             Self::CastSkill { entity, .. }
             | Self::CancelCast { entity, .. }
             | Self::AcceptResurrect { entity, .. }
@@ -261,7 +282,7 @@ impl ZoneCommand {
             | Self::StopAttack { entity }
             | Self::Respawn { entity } => Some(*entity),
             Self::AddAggro { npc, .. } => Some(*npc),
-            Self::SpawnNpc { .. } => None,
+            Self::SpawnNpc { .. } | Self::ExtendItemRange { .. } => None,
         }
     }
 }
@@ -270,6 +291,33 @@ impl ZoneCommand {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RejectReason {
+    /// Phase 4 `ItemNotOwned` refusal.
+    ItemNotOwned,
+    /// Phase 4 `ItemNotUsable` refusal.
+    ItemNotUsable,
+    /// Phase 4 `InvalidEquipSlot` refusal.
+    InvalidEquipSlot,
+    /// Phase 4 `InsufficientItems` refusal.
+    InsufficientItems,
+    /// Phase 4 `InventoryFull` refusal.
+    InventoryFull,
+    /// Phase 4 `ItemGradeMismatch` refusal.
+    ItemGradeMismatch,
+    /// Phase 4 `ItemReuse` refusal.
+    ItemReuse,
+    /// Phase 4 `InvalidEnchant` refusal.
+    InvalidEnchant,
+    /// Phase 4 `InvalidRefinement` refusal.
+    InvalidRefinement,
+    /// Phase 4 `InvalidRecipe` refusal.
+    InvalidRecipe,
+    /// Phase 4 `ItemOperationConflict` refusal.
+    ItemOperationConflict,
+    /// Phase 4 `ItemCapabilityDeferred` refusal.
+    ItemCapabilityDeferred,
+    /// Phase 4 `CrystallizeLevelTooLow` refusal.
+    CrystallizeLevelTooLow,
+
     /// Skill is outside the current lineage or automatically granted.
     SkillNotLearnable,
     /// Purchase must name exactly the next learned rank.
@@ -362,6 +410,19 @@ impl RejectReason {
             Self::SkillItemRequired => "skill learning requires an inventory item",
             Self::SkillDeferred => "skill runtime is deferred",
             Self::InsufficientSp => "insufficient SP",
+            Self::ItemNotOwned => "ItemNotOwned",
+            Self::ItemNotUsable => "ItemNotUsable",
+            Self::InvalidEquipSlot => "InvalidEquipSlot",
+            Self::InsufficientItems => "InsufficientItems",
+            Self::InventoryFull => "InventoryFull",
+            Self::ItemGradeMismatch => "ItemGradeMismatch",
+            Self::ItemReuse => "ItemReuse",
+            Self::InvalidEnchant => "InvalidEnchant",
+            Self::InvalidRefinement => "InvalidRefinement",
+            Self::InvalidRecipe => "InvalidRecipe",
+            Self::ItemOperationConflict => "ItemOperationConflict",
+            Self::ItemCapabilityDeferred => "ItemCapabilityDeferred",
+            Self::CrystallizeLevelTooLow => "CrystallizeLevelTooLow",
             Self::SkillUnknown => "SkillUnknown",
             Self::SkillNotLearned => "SkillNotLearned",
             Self::SkillCooldown => "SkillCooldown",
@@ -532,6 +593,12 @@ pub enum SkillOutcome {
 #[serde(tag = "type", rename_all = "snake_case")]
 #[allow(clippy::enum_variant_names)] // names mirror the proto messages one to one
 pub enum ZoneEvent {
+    /// Private final-tick item settlement; never an observer or WebSocket event.
+    ItemCheckpoint(Box<super::Phase4Projection>),
+    /// Frozen operation result, visible only to the owning player.
+    ItemResult(Box<super::FrozenItemResult>),
+    /// Owner inventory or public changed-slot equipment projection.
+    ItemView(Box<super::item_views::ItemViewEvent>),
     /// Final public flag/karma/counters, also used for identity bootstrap.
     #[allow(missing_docs)]
     PvpStateChanged {
@@ -570,6 +637,7 @@ pub enum ZoneEvent {
         entity: EntityId,
         incarnation: u32,
         learned: Vec<super::skill::SkillRef>,
+        #[serde(deserialize_with = "deserialize_skill_reuse")]
         reuse: BTreeMap<super::skill::SkillId, Tick>,
         sp: u64,
         pvp: super::PvpState,
@@ -785,6 +853,9 @@ pub enum ZoneEvent {
         /// Phase 2 owner-only resources; absent in legacy output.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         class: Option<super::ClassStatsView>,
+        /// D26 owner weight/penalty/revision and effective extension; V6 only.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        phase4: Option<Box<super::item_views::Phase4StatsView>>,
         /// Tick of the fact.
         tick: Tick,
         /// owner UUID; this event is owner-only (MP is private).
@@ -841,6 +912,9 @@ pub enum ZoneEvent {
         /// Public Phase 2 identity; absent for legacy entities and NPCs.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         identity: Option<super::PlayerIdentityView>,
+        /// D26 public visible equipment of a V6 player; absent otherwise.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        phase4: Option<Box<super::item_views::Phase4SpawnView>>,
         /// When.
         tick: Tick,
         /// Who.
@@ -929,6 +1003,9 @@ impl ZoneEvent {
             | Self::AttackCancelled { tick, .. }
             | Self::HateChanged { tick, .. }
             | Self::NpcIntentionChanged { tick, .. } => *tick,
+            Self::ItemCheckpoint(p) => p.tick,
+            Self::ItemResult(result) => result.tick,
+            Self::ItemView(view) => view.tick,
             Self::Progression(d) => d.tick,
         }
     }
@@ -962,6 +1039,9 @@ impl ZoneEvent {
             | Self::LevelUp { entity, .. }
             | Self::TargetChanged { entity, .. }
             | Self::NpcIntentionChanged { entity, .. } => *entity,
+            Self::ItemCheckpoint(p) => p.entity,
+            Self::ItemResult(result) => result.entity,
+            Self::ItemView(view) => view.entity,
             Self::Progression(d) => d.entity,
             Self::AttackResult { attacker, .. }
             | Self::AttackStarted { attacker, .. }
@@ -1112,4 +1192,22 @@ pub enum AttackOutcome {
     Hit,
     /// Landed critical damage.
     Crit,
+}
+
+// Internally tagged serde enums buffer map keys as strings, bypassing JSON's numeric-key
+// adapter. Keep the existing numeric-key encoding and require its exact decimal spelling.
+fn deserialize_skill_reuse<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<BTreeMap<super::skill::SkillId, Tick>, D::Error> {
+    let values = BTreeMap::<String, Tick>::deserialize(deserializer)?;
+    values
+        .into_iter()
+        .map(|(key, tick)| {
+            let id = key.parse::<u32>().map_err(serde::de::Error::custom)?;
+            if id == 0 || id.to_string() != key {
+                return Err(serde::de::Error::custom("invalid skill reuse key"));
+            }
+            Ok((super::skill::SkillId(id), tick))
+        })
+        .collect()
 }

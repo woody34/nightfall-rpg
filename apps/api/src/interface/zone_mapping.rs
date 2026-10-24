@@ -5,6 +5,9 @@
 //! D7). Inbound floats are rounded to the nearest 1/1000 tile once, at the edge, so everything
 //! downstream (including replay of the recorded inbound bytes) is integer and deterministic.
 
+mod item_views;
+mod items;
+pub use items::{frozen_item_result_to_pb, item_command_from_pb};
 mod hydration;
 pub use hydration::{
     phase3_identity_to_pb, phase3_selection_to_pb, phase3_swing_to_pb, pvp_state_to_pb,
@@ -35,6 +38,12 @@ pub enum MappingError {
     /// Phase 3 wire contract is present, but the actor runtime has not been integrated.
     #[error("phase 3 runtime is not yet available")]
     Phase3Unavailable,
+    /// Phase 4 contract is present; item actor integration is not installed yet.
+    #[error("phase 4 runtime is not yet available")]
+    Phase4Unavailable,
+    /// Invalid item key/identity/count/slot or stale target binding shape.
+    #[error("invalid item request")]
+    InvalidItem,
     /// Target is neither empty nor a UUID.
     #[error("target must be a UUID or empty")]
     InvalidTarget,
@@ -52,11 +61,14 @@ impl MappingError {
     #[must_use]
     pub const fn reject_reason(self) -> pb::RejectReason {
         match self {
-            Self::Phase3Unavailable => pb::RejectReason::NotYetImplemented,
-            Self::InvalidCoordinate => pb::RejectReason::OutOfBounds,
-            Self::InvalidTarget | Self::MissingIntent | Self::MissingDestination => {
-                pb::RejectReason::Invalid
+            Self::Phase3Unavailable | Self::Phase4Unavailable => {
+                pb::RejectReason::NotYetImplemented
             },
+            Self::InvalidCoordinate => pb::RejectReason::OutOfBounds,
+            Self::InvalidItem
+            | Self::InvalidTarget
+            | Self::MissingIntent
+            | Self::MissingDestination => pb::RejectReason::Invalid,
         }
     }
 }
@@ -120,6 +132,7 @@ pub fn player_spawn(c: &Character) -> Result<PlayerSpawn, MappingError> {
         pos: Vec2Fixed::new(tiles_to_fixed(c.position.x)?, tiles_to_fixed(c.position.y)?),
         speed: Speed::DEFAULT,
         load: Some(Box::new(PlayerLoad {
+            phase4: None,
             phase3: None,
             level: c.level,
             xp: c.xp,
@@ -186,6 +199,16 @@ pub fn command_from_pb(
         pb::client_message::Intent::Attack(_) => Ok(ZoneCommand::Attack { entity }),
         pb::client_message::Intent::StopAttack(_) => Ok(ZoneCommand::StopAttack { entity }),
         pb::client_message::Intent::Respawn(_) => Ok(ZoneCommand::Respawn { entity }),
+        pb::client_message::Intent::EquipItem(_)
+        | pb::client_message::Intent::UnequipItem(_)
+        | pb::client_message::Intent::UseItem(_)
+        | pb::client_message::Intent::DestroyItem(_)
+        | pb::client_message::Intent::EnchantItem(_)
+        | pb::client_message::Intent::ToggleAutoShot(_)
+        | pb::client_message::Intent::RefineItem(_)
+        | pb::client_message::Intent::CancelRefine(_)
+        | pb::client_message::Intent::ExchangeSpecialAbility(_)
+        | pb::client_message::Intent::CrystallizeItem(_) => Err(MappingError::Phase4Unavailable),
         pb::client_message::Intent::CastSkill(_)
         | pb::client_message::Intent::CancelCast(_)
         | pb::client_message::Intent::AcceptResurrect(_) => Err(MappingError::Phase3Unavailable),
@@ -303,6 +326,7 @@ pub fn world_event_to_pb(ev: &ZoneEvent, server_time_ms: i64) -> Vec<pb::WorldEv
     match ev {
         ZoneEvent::EntitySpawn {
             identity,
+            phase4,
             tick,
             entity,
             kind,
@@ -314,6 +338,14 @@ pub fn world_event_to_pb(ev: &ZoneEvent, server_time_ms: i64) -> Vec<pb::WorldEv
             combat,
         } => {
             let mut spawn = spawn_to_pb(*entity, *kind, name, *pos, *generation, combat.as_ref());
+            // D26: public visible equipment only (field 29); never owned records.
+            if let (Some(items), Some(Event::Spawn(s))) = (phase4, &mut spawn.event) {
+                s.visible_equipment = items
+                    .visible
+                    .iter()
+                    .map(item_views::visible_to_pb)
+                    .collect();
+            }
             if let (Some(identity), Some(Event::Spawn(s))) = (identity, &mut spawn.event) {
                 s.race = match identity.race {
                     Race::Human => pb::Race::Human,
@@ -450,11 +482,18 @@ pub fn world_event_to_pb(ev: &ZoneEvent, server_time_ms: i64) -> Vec<pb::WorldEv
             tick: tick.0,
             session_generation: u32::try_from(generation.0).unwrap_or(u32::MAX),
         }))],
+        ZoneEvent::ItemView(view) => item_views::event_to_pb(view)
+            .map(|event| vec![world(event)])
+            .unwrap_or_default(),
+        ZoneEvent::ItemResult(result) => items::frozen_item_result_to_pb(result)
+            .map(|event| vec![world(event)])
+            .unwrap_or_default(),
         // Internal; never in an observer's output.
         ZoneEvent::TokensReconciled { .. }
         | ZoneEvent::ClassTransfer { .. }
         | ZoneEvent::HateChanged { .. }
         | ZoneEvent::NpcIntentionChanged { .. }
+        | ZoneEvent::ItemCheckpoint(_)
         | ZoneEvent::Progression(_) => Vec::new(),
         ZoneEvent::EntityRespawned {
             entity,
@@ -471,6 +510,7 @@ pub fn world_event_to_pb(ev: &ZoneEvent, server_time_ms: i64) -> Vec<pb::WorldEv
         }))],
         ZoneEvent::StatsChanged {
             class,
+            phase4,
             tick,
             entity,
             hp,
@@ -479,8 +519,13 @@ pub fn world_event_to_pb(ev: &ZoneEvent, server_time_ms: i64) -> Vec<pb::WorldEv
             max_mp,
             level,
             xp,
-            ..
         } => vec![world(Event::StatsChanged(pb::StatsChanged {
+            // D26 owner enrichment: fields 24..26 share the InventorySync/Changed revision.
+            item_weight: phase4.as_ref().map(|p| item_views::weight_to_pb(&p.weight)),
+            item_penalties: phase4
+                .as_ref()
+                .map(|p| item_views::penalty_to_pb(&p.penalties)),
+            inventory_revision: phase4.as_ref().map_or(0, |p| p.inventory_revision),
             entity: entity.to_string(),
             hp: *hp,
             max_hp: *max_hp,
@@ -541,6 +586,17 @@ pub fn world_event_to_pb(ev: &ZoneEvent, server_time_ms: i64) -> Vec<pb::WorldEv
                     accuracy_q: p.effective.accuracy_q,
                     evasion_q: p.effective.evasion_q,
                     crit_permille: p.effective.crit_permille,
+                    shield_def_q: phase4.as_ref().map_or(0, |e| e.effective.shield_def_q),
+                    shield_rate_q: phase4.as_ref().map_or(0, |e| e.effective.shield_rate_q),
+                    shield_angle_degrees: phase4
+                        .as_ref()
+                        .map_or(0, |e| e.effective.shield_angle_degrees),
+                    physical_reach_millitiles: phase4
+                        .as_ref()
+                        .map_or(0, |e| e.effective.physical_reach_millitiles),
+                    physical_angle_degrees: phase4
+                        .as_ref()
+                        .map_or(0, |e| e.effective.physical_angle_degrees),
                 }
             }),
         }))],
@@ -942,6 +998,19 @@ pub fn world_event_to_pb(ev: &ZoneEvent, server_time_ms: i64) -> Vec<pb::WorldEv
 #[must_use]
 pub fn reject_reason_to_pb(r: RejectReason) -> pb::RejectReason {
     match r {
+        RejectReason::ItemNotOwned => pb::RejectReason::ItemNotOwned,
+        RejectReason::ItemNotUsable => pb::RejectReason::ItemNotUsable,
+        RejectReason::InvalidEquipSlot => pb::RejectReason::InvalidEquipSlot,
+        RejectReason::InsufficientItems => pb::RejectReason::InsufficientItems,
+        RejectReason::InventoryFull => pb::RejectReason::InventoryFull,
+        RejectReason::ItemGradeMismatch => pb::RejectReason::ItemGradeMismatch,
+        RejectReason::ItemReuse => pb::RejectReason::ItemReuse,
+        RejectReason::InvalidEnchant => pb::RejectReason::InvalidEnchant,
+        RejectReason::InvalidRefinement => pb::RejectReason::InvalidRefinement,
+        RejectReason::InvalidRecipe => pb::RejectReason::InvalidRecipe,
+        RejectReason::ItemOperationConflict => pb::RejectReason::ItemOperationConflict,
+        RejectReason::ItemCapabilityDeferred => pb::RejectReason::ItemCapabilityDeferred,
+        RejectReason::CrystallizeLevelTooLow => pb::RejectReason::CrystallizeLevelTooLow,
         RejectReason::SkillUnknown => pb::RejectReason::SkillUnknown,
         RejectReason::SkillNotLearned => pb::RejectReason::SkillNotLearned,
         RejectReason::SkillCooldown => pb::RejectReason::SkillCooldown,
@@ -1138,6 +1207,7 @@ mod tests {
     #[test]
     fn spawn_of_a_moving_entity_is_followed_by_its_move() {
         let ev = ZoneEvent::EntitySpawn {
+            phase4: None,
             identity: None,
             tick: Tick(1),
             entity: EntityId::from_uuid(Uuid::from_u128(1)),
@@ -1305,6 +1375,7 @@ mod combat_tests {
     #[test]
     fn stats_changed_all_fields_round_trip() {
         let event = ZoneEvent::StatsChanged {
+            phase4: None,
             class: None,
             tick: Tick(31),
             entity: id(1),

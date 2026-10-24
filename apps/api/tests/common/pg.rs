@@ -20,6 +20,20 @@ pub async fn empty_schema_pool() -> Option<PgPool> {
         .execute(sqlx::raw_sql(sqlx::AssertSqlSafe(format!("CREATE SCHEMA {schema}"))))
         .await
         .unwrap();
+    schema_pool(&schema).await
+}
+
+/// A pool on an existing test schema, for example one another process created.
+pub async fn schema_pool(schema: &str) -> Option<PgPool> {
+    let url = std::env::var("DATABASE_URL").ok()?;
+    assert!(
+        schema.starts_with("test_")
+            && schema
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '_'),
+        "test schema names only"
+    );
+    let schema = schema.to_owned();
     let pool = PgPoolOptions::new()
         .max_connections(8)
         .after_connect(move |conn, _| {
@@ -119,4 +133,20 @@ pub async fn insert_account(pool: &PgPool, id: Uuid) {
         .execute(pool)
         .await
         .unwrap();
+}
+
+/// Structural retained fixtures still carry the recorded creation row used for provenance.
+pub async fn seed_item_creation(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    character: nightfall_api::domain::CharacterId,
+    item: &nightfall_api::domain::zone::ItemInstance,
+) {
+    let origin = item.creation_origin.unwrap();
+    let delta =
+        serde_json::json!({"before":null,"after":item,"count_delta":item.count,"causes":[]});
+    sqlx::query("INSERT INTO item_ledger(character_id,zone_id,epoch,tick,revision,op,instance_id,operation_ordinal,delta) VALUES($1,$2,$3,$4,$5,'grant',$6,0,$7)")
+        .bind(character.as_uuid()).bind(i32::try_from(origin.zone.0).unwrap())
+        .bind(i64::try_from(origin.epoch).unwrap()).bind(i64::try_from(item.created_tick.0).unwrap())
+        .bind(i64::try_from(item.revision).unwrap()).bind(i64::try_from(item.id.get()).unwrap())
+        .bind(delta).execute(&mut **tx).await.unwrap();
 }

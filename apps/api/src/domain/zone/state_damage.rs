@@ -28,6 +28,11 @@ pub enum DamageRollSite {
     AutoCritical,
     PhysicalEvasion,
     PhysicalCritical,
+    BlowSuccess,
+    LethalFull,
+    LethalHalf,
+    ShieldPerfect,
+    ShieldNormal,
     MagicCritical,
     MagicSuccess,
     MagicFailure,
@@ -65,6 +70,8 @@ pub struct DamageOutcome {
 #[allow(missing_docs)]
 pub struct DamageResources {
     pub hp: u32,
+    /// V6 total-HP semantics; None preserves historical whole-only death decisions.
+    pub hp_remainder_q: Option<i64>,
     pub mp: u32,
     pub cp: Option<u32>,
 }
@@ -143,9 +150,13 @@ fn validate_resources(
     let expected_cp = request.cause != DamageCause::HpConsumption
         && request.source_kind == EffectSourceKind::Player
         && resources.cp.is_some();
-    if resources.hp == 0
+    let fraction = resources.hp_remainder_q.unwrap_or(0);
+    if !(0..super::Q).contains(&fraction)
+        || (resources.hp == 0 && fraction == 0)
         || request.classification.absorb_cp != expected_cp
-        || (request.cause == DamageCause::HpConsumption && request.rolled_damage >= resources.hp)
+        || (request.cause == DamageCause::HpConsumption
+            && (request.rolled_damage > resources.hp
+                || (request.rolled_damage == resources.hp && fraction == 0)))
         || (request.cause != DamageCause::HpConsumption
             && request.source_kind == EffectSourceKind::System)
     {
@@ -189,6 +200,12 @@ pub fn prepare_hp_reduction(
         return Err(DamageError::Invalid);
     }
     original.fractions.validate()?;
+    if resources
+        .hp_remainder_q
+        .is_some_and(|fraction| fraction != original.fractions.hp)
+    {
+        return Err(DamageError::Invalid);
+    }
     let damage = limited_damage(resources.hp, request);
     let mut phase3 = original.clone();
     let mut removed_effects = Vec::new();
@@ -261,6 +278,9 @@ pub fn prepare_hp_reduction(
             }
         };
         clamp(&mut resources.hp, &mut phase3.fractions.hp, maxima.hp);
+        if let Some(fraction) = &mut resources.hp_remainder_q {
+            *fraction = phase3.fractions.hp;
+        }
         clamp(&mut resources.mp, &mut phase3.fractions.mp, maxima.mp);
         if let Some((cp, maximum)) = resources.cp.as_mut().zip(maxima.cp) {
             clamp(cp, &mut phase3.fractions.cp, maximum);
@@ -272,12 +292,18 @@ pub fn prepare_hp_reduction(
         0
     };
     let after_cp = damage.saturating_sub(cp_absorbed);
+    if after_cp > resources.hp {
+        if let Some(fraction) = &mut resources.hp_remainder_q {
+            *fraction = 0;
+            phase3.fractions.hp = 0;
+        }
+    }
     let hp_removed = after_cp.min(resources.hp);
     resources.hp = resources.hp.saturating_sub(hp_removed);
     if let Some(cp) = &mut resources.cp {
         *cp = cp.saturating_sub(cp_absorbed);
     }
-    let lethal = resources.hp == 0;
+    let lethal = resources.hp == 0 && resources.hp_remainder_q.unwrap_or(0) == 0;
     if lethal {
         phase3.fractions = ResourceFractions::default();
     }
@@ -331,6 +357,54 @@ mod tests {
         cp: Some(1000),
     };
     #[test]
+    fn v6_fractional_hp_preserves_liveness_until_total_zero_and_v5_keeps_whole_rule() {
+        let rules = load_phase3_rules(&Phase3DataSource::embedded(), &[]).unwrap();
+        let mut original = blank();
+        original.fractions.hp = super::super::Q / 2;
+        for hp in [0, 1, 2] {
+            for damage in [0, 1, 2, 3] {
+                let resources = DamageResources {
+                    hp,
+                    hp_remainder_q: Some(original.fractions.hp),
+                    mp: 10,
+                    cp: Some(0),
+                };
+                let outcome = prepare_hp_reduction(
+                    &original,
+                    resources,
+                    request(DamageCause::Direct, damage, false, true),
+                    &rules,
+                    |_| unreachable!(),
+                    |_| Ok(MAX),
+                )
+                .unwrap();
+                let expected = (i64::from(hp) * super::super::Q + original.fractions.hp
+                    - i64::from(damage) * super::super::Q)
+                    .max(0);
+                assert_eq!(
+                    i64::from(outcome.resources.hp) * super::super::Q + outcome.phase3.fractions.hp,
+                    expected
+                );
+                assert_eq!(outcome.lethal, expected == 0);
+                if hp > 0 {
+                    let old = prepare_hp_reduction(
+                        &original,
+                        DamageResources {
+                            hp_remainder_q: None,
+                            ..resources
+                        },
+                        request(DamageCause::Direct, damage, false, true),
+                        &rules,
+                        |_| unreachable!(),
+                        |_| Ok(MAX),
+                    )
+                    .unwrap();
+                    assert_eq!(old.lethal, damage >= hp);
+                }
+            }
+        }
+    }
+    #[test]
     fn damage_removal_walks_source_pools_before_application_ids() {
         let mut source = Phase3DataSource::embedded();
         let text = source.skills.0.get_mut("skills/1040.toml").unwrap();
@@ -349,6 +423,7 @@ mod tests {
         let result = prepare_hp_reduction(
             &original,
             DamageResources {
+                hp_remainder_q: None,
                 hp: 100,
                 mp: 11,
                 cp: Some(20),
@@ -383,6 +458,7 @@ mod tests {
             cp: 789,
         };
         let resources = DamageResources {
+            hp_remainder_q: None,
             hp: 100,
             mp: 11,
             cp: Some(20),
@@ -409,6 +485,7 @@ mod tests {
         assert_eq!(
             reduced.resources,
             DamageResources {
+                hp_remainder_q: None,
                 hp: 35,
                 mp: 10,
                 cp: Some(0)
@@ -454,6 +531,7 @@ mod tests {
                     for cause in [DamageCause::Direct, DamageCause::Periodic] {
                         let original = blank();
                         let resources = DamageResources {
+                            hp_remainder_q: None,
                             hp,
                             mp: 11,
                             cp: Some(cp),
@@ -519,6 +597,7 @@ mod tests {
                         let result = prepare_hp_reduction(
                             &original,
                             DamageResources {
+                                hp_remainder_q: None,
                                 hp: 100,
                                 mp: 11,
                                 cp: player.then_some(20),
@@ -580,6 +659,7 @@ mod tests {
         let rules = load_phase3_rules(&Phase3DataSource::embedded(), &[]).unwrap();
         let original = blank();
         let resources = DamageResources {
+            hp_remainder_q: None,
             hp: 10,
             mp: 11,
             cp: Some(20),

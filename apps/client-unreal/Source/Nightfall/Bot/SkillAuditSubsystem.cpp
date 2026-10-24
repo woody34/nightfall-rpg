@@ -317,12 +317,12 @@ TOptional<uint64> USkillAuditSubsystem::Number(const FString& Name) const
   const auto* Combat=GetGameInstance()->GetSubsystem<UCombatStateSubsystem>();if(!Combat)return {};
   const FString Target=Combat->GetOwn().TargetId.ToLower();const auto* I=Fence.Identities.Find(Target);const auto* S=Swings.Find(Target);
   if(!I || I->bDead || !S || !S->AttackerIncarnation.IsSet() || *S->AttackerIncarnation!=I->LifeIncarnation || !Fence.Visible(S->Target,S->TargetIncarnation) || Fence.Dead(S->Target))return {};
-  const uint64 Tick=Net->GetLatestReceivedTick();return S->ImpactTick>Tick?S->ImpactTick-Tick:0;
+  const uint64 Tick=Net->GetEstimatedTick();return S->ImpactTick>Tick?S->ImpactTick-Tick:0;
  }
  if(Name==TEXT("players_attacking_me"))
  {
   // A landed swing stays available for impact audits; StopAttack during recovery has no cancel frame.
-  const uint64 Tick=Net->GetLatestReceivedTick();uint64 Count=0;
+  const uint64 Tick=Net->GetEstimatedTick();uint64 Count=0;
   for(const auto& S:Swings)
   {
    const auto* I=Fence.Identities.Find(S.Key);

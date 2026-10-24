@@ -299,6 +299,23 @@ seeders remove inherited libpq settings before they supply the guarded endpoint.
 **Client-owned NightfallSoak.cs handoff:** Use `-SoakRoleManifest=<roles.json>`.
 Validate schema_version1/casting/count/order. Use the scenario of each role and
 `-DevTokenFile=<token_file>` (never inline tokens). Keep a unique UserDir/BotOutDir.
+
+**Items soak loop (D155, T49):** With `--items`, `soak-fixtures.py` writes two scripts for
+each lane. `scenario` (`1-kill-one-monster.nfs`) is the first-iteration script. It has the one
+keyed `nf.Enchant 951 template:71 <key>` of the role's single C scroll, the equip swaps
+(sword1, wand6), the auto-shot toggles and the casting workload. `loop_scenario`
+(`1-kill-one-monster.loop.nfs`, in the same directory) is the script for BotLoop iterations
+2 and later. It has the login, `nf.Expect inventory_has 951 == 0`, the same equip swaps, the
+same auto-shot toggles and the same casting workload. It has no enchant and no scroll use,
+because the first iteration consumed the scroll and the client refuses to send an enchant for
+a scroll it does not hold. The client runs `scenario` once and then `loop_scenario` with
+`-BotLoopScenario=<loop_scenario>`; the reset between iterations does not change. The
+manifest key is optional: a casting-only soak does not write it, and the client behaviour
+does not change when the key is absent (schema_version stays 1). `run-soak.sh` refuses an
+items soak when `NightfallSoak.cs` has no `BotLoopScenario` support. The soak gates do not
+change: each closed epoch holds exactly one consumed C scroll951 per client (iteration 1),
+the keyed enchant success evidence, committed sword1 and wand6 equips and a positive paid
+auto-shot from each iteration (`phase4-evidence.py soak()`, `soak-report.py`).
 Give sufficient time for the final360s casting scenario plus the boot grace. This replaces the earlier120s
 request, because the full sum of movement/cast/state waits now fits in the scenario budget.
 Use `-SoakScenarioSeconds=360`. Include that final scenario allowance plus the
@@ -428,3 +445,37 @@ conversion: pinned game `abfde049`, `NpcData.java:164-185`, `L2CharTemplate.java
 override applies to the zone and to the validated V5 physical profile before the hash operation.
 It does not change the source template or the production rules. The Rust bootstrap test
 starts the two selected fixtures under V5 and examines the rooted social NPCs.
+
+C11 on V6 (D114, T17): `phase3-evidence.py` evaluates a C11 export of a V5 recording
+(snapshot 9, BinaryV5) or a V6 recording (snapshot 10, BinaryV6). It refuses every other
+pairing and a recording without its Phase 3 policy. The Phase 3 facts and claims do not change.
+V6 observer events have additive fields (for example `phase4.visible`). The gates ignore them.
+The C11 gates read `observer_combat` facts. A V6 export without them fails the gate. It does
+not pass vacuously. The zone exporter emits `observer_combat` for BinaryV6 also.
+Regression: `test/phase3-evidence-v6.test.py` (the i3 1-late-entry-b V6 recording).
+V6 additive fact fields (T17, facet 2): the only key the V6 producer adds to Phase 3 facts is
+`shots` on `damage_formula` (surveyed over every i3 V6 export). It is required on V6 and
+refused on V5. It must be 0, because the Phase 3 oracle has no shot term (shot damage is the
+Phase 4 consumer's claim). Any other unknown key still refuses.
+V6 equipment (D121, T17 facet 3): on V6 the equipped starter kit installs real item
+modifiers, where V5 modelled the starter weapon as a built-in profile. The checks
+skill_damage_matches_oracle and stat_matches_oracle prove every item install before they use
+it:
+- Item installs are the non-zero install sequences that are absent from the effect/skill
+  install order.
+- There must be exactly one item install per equipped template of the admission load's pending
+  kit, in equip order.
+- Each install must carry exactly that template's `for` functions from
+  `packages/data/tables-phase4` (ordinal, priority, stat, operation, Q6 value, no conditions).
+- A missing, extra or altered install refuses. A retained-item (checkpoint) load, unarmed
+  V6, and jewellery or other slots also refuse.
+
+Proven installs are folded like any other modifier:
+- Priority-0 functions act on the base: the weapon Set for mAtk/pAtk, and the armour pDef Add
+  together with the FuncPDefMod slot-default replacement from `class_slots.toml`. The recorded
+  built-in Sub must equal that replacement.
+- Later functions fold with the extras in priority order.
+- V6 values follow the E1 gear oracle that the V6 zone is pinned to: exact fold, then
+  q = trunc(x × 1e6). V5 recordings keep the accepted Math.round path unchanged.
+
+Regression: test/phase3-evidence-v6.test.py `V6Equipment` (real i3c facts plus mutations).

@@ -234,12 +234,16 @@ pub fn prepare_resurrect_offer(
         .iter()
         .find(|h| h.name == "Resurrection")
         .ok_or(DeathError::InvalidState)?;
-    let power = handler
-        .params
-        .get("power")
-        .and_then(|p| p.at(context.skill.rank, skill.max_level))
-        .ok_or(DeathError::InvalidState)?;
-    let power = ExactRatio::parse_literal(power)?;
+    // Resurrection.java:40 defaults omitted power to zero (ordinary item scrolls).
+    let power = match handler.params.get("power") {
+        Some(power) => ExactRatio::parse_literal(
+            power
+                .at(context.skill.rank, skill.max_level)
+                .ok_or(DeathError::InvalidState)?,
+        )?,
+        None if rules.runtime_revision() == 3 => ExactRatio::whole(0),
+        None => return Err(DeathError::InvalidState),
+    };
     let percent = resurrect_percent(power, context.wit_bonus)?.to_q()?;
     if !(0..=100_000_000).contains(&percent) {
         return Err(DeathError::InvalidState);

@@ -133,3 +133,42 @@ public:
 	GrpcContext_GameService_GetSkillCatalog(FGrpcContextHandle _Handle, UGrpcService* _Service, UGrpcClient* _Client);
 };
 
+class GrpcContext_GameService_GetItemCatalog : public GrpcContext_Ping_Pong<GameService_GetItemCatalog_ReaderWriter, ::nightfall::v1::GetItemCatalogResponse>
+{
+	friend class UGameServiceClient;
+	typedef GrpcContext_Ping_Pong<GameService_GetItemCatalog_ReaderWriter, ::nightfall::v1::GetItemCatalogResponse> Super;
+
+private:
+	void Call(const FGrpcNightfallV1GetItemCatalogRequest& Request);
+	virtual void OnRpcEvent(bool Ok, const void* EventTag) override;
+
+public:
+	GrpcContext_GameService_GetItemCatalog(FGrpcContextHandle _Handle, UGrpcService* _Service, UGrpcClient* _Client);
+};
+
+class GrpcContext_GameService_GetInventory : public GrpcContext_Ping_Pong<GameService_GetInventory_ReaderWriter, ::nightfall::v1::GetInventoryResponse>
+{
+	friend class UGameServiceClient;
+	typedef GrpcContext_Ping_Pong<GameService_GetInventory_ReaderWriter, ::nightfall::v1::GetInventoryResponse> Super;
+
+private:
+	void Call(const FGrpcNightfallV1GetInventoryRequest& Request);
+	virtual void OnRpcEvent(bool Ok, const void* EventTag) override;
+
+public:
+	GrpcContext_GameService_GetInventory(FGrpcContextHandle _Handle, UGrpcService* _Service, UGrpcClient* _Client);
+};
+
+class GrpcContext_GameService_GrantItem : public GrpcContext_Ping_Pong<GameService_GrantItem_ReaderWriter, ::nightfall::v1::GrantItemResponse>
+{
+	friend class UGameServiceClient;
+	typedef GrpcContext_Ping_Pong<GameService_GrantItem_ReaderWriter, ::nightfall::v1::GrantItemResponse> Super;
+
+private:
+	void Call(const FGrpcNightfallV1GrantItemRequest& Request);
+	virtual void OnRpcEvent(bool Ok, const void* EventTag) override;
+
+public:
+	GrpcContext_GameService_GrantItem(FGrpcContextHandle _Handle, UGrpcService* _Service, UGrpcClient* _Client);
+};
+

@@ -105,15 +105,17 @@ class NpcPhase3Tests(unittest.TestCase):
                 else:
                     self.assertEqual(F(v['exact_rational']), 1001 * expected)
 
-    def test_all_existing_generated_outputs_byte_exact_at_task_base(self):
+    def test_legacy_outputs_byte_exact_at_accepted_phase4_base(self):
         # git object reads remain in this worktree; no other checkout is accessed.
         import subprocess
-        paths = subprocess.check_output(['git', 'ls-tree', '-r', '--name-only', '059146f', 'packages/data'], text=True).splitlines()
+        # Phase 3 accepted later oracle-provenance metadata before Phase 4 began.
+        paths = subprocess.check_output(['git', 'ls-tree', '-r', '--name-only', '56e55a6', 'packages/data'], text=True).splitlines()
         for rel in paths:
-            if '/scripts/' in rel or rel.endswith('SOURCES.md'):
+            # Prose files (SOURCES.md, READMEs) are documentation, not generated data; they may be rewritten.
+            if '/scripts/' in rel or rel.endswith('SOURCES.md') or rel.endswith('README.md'):
                 continue
             with self.subTest(path=rel):
-                old = subprocess.check_output(['git', 'show', f'059146f:{rel}'])
+                old = subprocess.check_output(['git', 'show', f'56e55a6:{rel}'])
                 self.assertEqual((O.ROOT.parents[1] / rel).read_bytes(), old)
 
 

@@ -16,6 +16,25 @@ pub struct RegistrySkillCatalogue(SkillCatalogue);
 impl RegistrySkillCatalogue {
     /// Both registries must come from their strict loaders, using the same data revision.
     pub fn new(classes: &ClassRegistry, skills: &SkillRegistry) -> anyhow::Result<Self> {
+        Self::build(classes, skills, false)
+    }
+
+    /// V6 uses the canonical epoch rule validator for published capability promotions.
+    pub fn for_rules(
+        classes: &ClassRegistry,
+        rules: &crate::domain::zone::Phase3Rules,
+    ) -> anyhow::Result<Self> {
+        rules
+            .validate_catalogue(classes)
+            .map_err(anyhow::Error::msg)?;
+        Self::build(classes, rules.skills(), rules.is_v6())
+    }
+
+    fn build(
+        classes: &ClassRegistry,
+        skills: &SkillRegistry,
+        phase4: bool,
+    ) -> anyhow::Result<Self> {
         let entries = classes
             .known_skills()
             .iter()
@@ -26,7 +45,10 @@ impl RegistrySkillCatalogue {
                 anyhow::ensure!(
                     root.key == def.key
                         && root.max_level == def.max_level
-                        && root.runtime_status == def.runtime_status
+                        && (root.runtime_status == def.runtime_status
+                            || (phase4
+                                && root.runtime_status == RuntimeSkillStatus::Deferred
+                                && def.runtime_status == RuntimeSkillStatus::Executable))
                         && root.l2_ref == def.l2_ref,
                     "catalogue skill {} disagrees with validated registry",
                     root.id
@@ -203,6 +225,38 @@ mod tests {
         );
         assert!(wire_strings(id, "target", &RankValue::Levels(vec!["SELF".into()]), 2).is_err());
         Ok(())
+    }
+
+    #[test]
+    fn phase4_catalogue_epoch_uses_canonical_promotions_and_refuses_metadata_drift() {
+        let classes = crate::infrastructure::class_data::load_classes(
+            &crate::infrastructure::class_data::ClassSource::embedded(),
+        )
+        .unwrap();
+        let bundle = crate::infrastructure::item_data::embedded_phase4_bundle().unwrap();
+        assert!(RegistrySkillCatalogue::new(&classes.registry, bundle.skills.skills()).is_err());
+        let adapter = RegistrySkillCatalogue::for_rules(&classes.registry, &bundle.skills).unwrap();
+        let catalogue = adapter.catalogue().unwrap();
+        for entry in &catalogue.skills {
+            let actual = bundle.skills.skills().get(entry.skill_id).unwrap();
+            assert_eq!(
+                entry.effect_implemented,
+                actual.runtime_status == RuntimeSkillStatus::Executable
+            );
+            assert_eq!(entry.deferred_reasons, actual.blockers);
+        }
+        let mut metadata = serde_json::to_value(classes.registry.as_ref()).unwrap();
+        *metadata
+            .get_mut("known_skills")
+            .unwrap()
+            .as_array_mut()
+            .unwrap()
+            .first_mut()
+            .unwrap()
+            .get_mut("source_file")
+            .unwrap() = "src/main/resources/data/stats/skills/wrong.xml".into();
+        let drifted: ClassRegistry = serde_json::from_value(metadata).unwrap();
+        assert!(RegistrySkillCatalogue::for_rules(&drifted, &bundle.skills).is_err());
     }
 
     #[test]
