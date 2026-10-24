@@ -16,11 +16,16 @@ nf.WaitFor connected 15
 nf.EnterWorld
 nf.WaitFor in_world 15
 nf.WaitFor item_baseline 3
-nf.Enchant 22227 instance:8 01970000-0000-7000-8000-000000000042
+# T52: deterministic failure. The enchant pack spawns no walking NPC, so the zone ChaCha12 stream
+# (zone1 epoch1) is at word40 = 47096/100000 at the first enchant; the C mage sword84 at +3
+# (MAGE_WEAPON_GROUP 40%) fails: destroyed (normal scroll), safe_failed (safe), blessed_reset (blessed).
+nf.Enchant 22227 instance:12 01970000-0000-7000-8000-000000000042
+nf.WaitFor enchant_outcome == safe_failed 3
 nf.WaitFor enchant_result_consistent 3
 nf.Expect inventory_has 22227 == 1
-nf.Enchant 22227 instance:8 01970000-0000-7000-8000-000000000042
+nf.Expect inventory_has 84 == 1
+nf.Enchant 22227 instance:12 01970000-0000-7000-8000-000000000042
 nf.WaitFor item_receipt_matches_first 3
 nf.Expect inventory_has 22227 == 1
 # Total budget: sum of declared conservative waits +30s exit grace.
-nf.Within 69
+nf.Within 72

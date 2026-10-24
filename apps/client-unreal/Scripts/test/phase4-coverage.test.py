@@ -31,6 +31,10 @@ class Coverage(unittest.TestCase):
         self.assertEqual(required['intents']['crystallize_item'],'28')
         self.assertNotIn('crystallize_item',required['events'])
         self.assertEqual(required,json.loads((SCRIPTS.parent/'Scenarios/phase4-coverage.required.json').read_text()))
+        # D161 revoked: every allowed schema-4 label is required, success_no_increment included
+        # (4-enchant-no-increment produces it deterministically).
+        self.assertIn('success_no_increment',required['enchant_outcomes'])
+        for group in p4.gates.V4_COUNTERS:self.assertEqual(set(required[group]),p4.gates.V4_LABELS[group])
 
     def test_inherited_fields_missing_reachability_and_legacy_injection_fail(self):
         path=self.root/'current.json';path.write_text(json.dumps(self.data));p4.gates.read_transitions(path)

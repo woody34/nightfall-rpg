@@ -117,12 +117,37 @@ def generate(directory=DIRECTORY):
         path=variants/(name+'.nfs');path.write_text(text)
         assertions=[l for l in text.splitlines() if l.startswith(('nf.Expect ','# item-gate:'))]
         rows.append(dict(id=name,fixture=pack,canonical=canonical,scenarios=[str(path.relative_to(directory))],assertions=assertions,execution='pending E2/E3/E5'))
-    for name,scroll in [('blessed',6573),('safe',22227)]:
+    for name,scroll,outcome in [('blessed',6573,'blessed_reset'),('safe',22227,'safe_failed')]:
+        # T52: the same pinned draw (word 40) fails the C mage sword +3; a blessed scroll resets it
+        # to +0 and a safe scroll keeps it, so both variants keep the item and replay the exact key.
         canonical='4-enchant-fail.nfs';text=(directory/canonical).read_text()
         text=text.replace('# fixture: phase4-enchant','# fixture: phase4-enchant\n# variant: 4-enchant-'+name)
         text=text.replace('nf.Enchant 951 ',f'nf.Enchant {scroll} ').replace('inventory_has 951',f'inventory_has {scroll}')
+        text=text.replace('enchant_outcome == destroyed',f'enchant_outcome == {outcome}').replace('nf.Expect inventory_has 84 == 0','nf.Expect inventory_has 84 == 1')
+        key=re.search(r'^nf.Enchant \S+ instance:12 (\S+)$',text,re.M)[1]
+        replay=[f'nf.Enchant {scroll} instance:12 {key}','nf.WaitFor item_receipt_matches_first 3',f'nf.Expect inventory_has {scroll} == 1']
+        text=re.sub(r'^(# Total budget.*\n)?nf.Within \d+$',lambda m:'\n'.join(replay)+'\n'+(m.group(1) or '')+'nf.Within 0',text,count=1,flags=re.M)
+        waits=sum(int(l.split('#',1)[0].split()[-1]) for l in text.splitlines() if l.startswith('nf.WaitFor '))
+        text=text.replace('nf.Within 0',f'nf.Within {waits+30}')
         path=variants/f'4-enchant-{name}.nfs';path.write_text(text)
         rows.append(dict(id='4-enchant-'+name,fixture='phase4-enchant',canonical=canonical,scenarios=[str(path.relative_to(directory))],assertions=[l for l in text.splitlines() if l.startswith(('nf.Expect ','# item-gate:'))],execution='pending E2/E3/E5'))
+    # 4-enchant-no-increment (harness-review-10): ARMOR_GROUP base 0 at +20 plus the bonus-100 ancient
+    # safe armour scroll gives chance 100000: the success branch with no increment, independent of
+    # the zone draw. The armour is equipped so its received enchant level is observable.
+    canonical='4-enchant-fail.nfs';text=(directory/canonical).read_text();picks=scenarios.fixtures.selection()
+    owner=scenarios.fixtures.profiles('phase4-enchant')['owner']
+    armour=next(r for r in owner['inventory'] if r['template_id']==picks['b_armor'] and r['enchant']==20)
+    scroll=picks['no_increment_scroll']
+    header=text[:text.index('nf.Login')].replace('# fixture: phase4-enchant','# fixture: phase4-enchant\n# variant: 4-enchant-no-increment').replace('# item-gate: failure_refund\n','')
+    body=['nf.Login','nf.WaitFor connected 15','nf.EnterWorld','nf.WaitFor in_world 15','nf.WaitFor item_baseline 3',
+          f'nf.Equip instance:{armour["instance_id"]}',f'nf.WaitFor equipped chest == {armour["template_id"]} 3','nf.WaitFor enchant_level chest == 20 3',
+          f'nf.Enchant {scroll} instance:{armour["instance_id"]} 01970000-0000-7000-8000-000000000042',
+          'nf.WaitFor enchant_outcome == success_no_increment 3','nf.WaitFor enchant_result_consistent 3',
+          'nf.Expect enchant_level chest == 20',f'nf.Expect inventory_has {scroll} == 0']
+    waits=sum(int(l.split()[-1]) for l in body if l.startswith('nf.WaitFor '))
+    text=header+'\n'.join(body+['# Total budget: sum of declared conservative waits +30s exit grace.',f'nf.Within {waits+30}'])+'\n'
+    path=variants/'4-enchant-no-increment.nfs';path.write_text(text)
+    rows.append(dict(id='4-enchant-no-increment',fixture='phase4-enchant',canonical=canonical,scenarios=[str(path.relative_to(directory))],assertions=[l for l in text.splitlines() if l.startswith(('nf.Expect ','# item-gate:'))],execution='pending E2/E3/E5'))
     for name,canonical in [('manual-soulshot','4-soulshot.nfs'),('blessed-escape','4-escape-scroll.nfs')]:
         text=(directory/canonical).read_text();pack='phase4-shots' if name=='manual-soulshot' else 'phase4-scrolls'
         text=text.replace('# fixture: '+pack,'# fixture: '+pack+'\n# variant: 4-'+name)

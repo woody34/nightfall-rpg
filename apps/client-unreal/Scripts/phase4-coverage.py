@@ -24,6 +24,9 @@ def required_wire():
     return dict(schema_version=1,kind='required future observations, not baseline evidence',
                 intents=intents,events=events,
                 item_operations=['grant','starter','backfill','equip','unequip','consume','enchant','destroy','crystallize','refine','cancel_refine','exchange','use','toggle_auto_shot'],
+                # D161 revoked (harness-review-10): success_no_increment is REQUIRED; 4-enchant-no-increment
+                # produces it deterministically (B armour at +20, ancient safe armour scroll 22020: base 0
+                # + bonus 100 -> chance 100000, no draw value matters).
                 enchant_outcomes=['success','success_no_increment','safe_failed','blessed_reset','destroyed'],
                 refine_outcomes=['applied','removed'],shot_payments=['soul','spirit','blessed_spirit'])
 

@@ -304,7 +304,8 @@ def provision(folder, batch):
         pg, nats, http, grpc = ports
         if selected in PHASE3 | PHASE4:
             overlay_data = folder / "data"
-            (phase4.create_overlay if selected in PHASE4 else phase3.create_overlay)(overlay_data, REPO)
+            if selected in PHASE4: phase4.create_overlay(overlay_data, REPO, selected)
+            else: phase3.create_overlay(overlay_data, REPO)
             zone_file = overlay_data / "zones/test_zone.toml"
             rules_dir = overlay_data
         elif selected in token_fixtures.TOKEN_CROSSING:

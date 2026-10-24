@@ -344,3 +344,44 @@ exits 2. The script writes the logs, the exports and `contract-smoke.json` to `-
 1 on any mismatch, and 2 on a usage error or a tool timeout. Run it with the release binary: the V6 bundle composition is slow in a debug
 build. The offline test `Scripts/test/phase4-contract-smoke.test.py` drives the script with a fake
 binary and the pinned `test/fixtures/phase4-t10` exports.
+
+## Pinned enchant outcomes (T52)
+
+The zone has one random source: a `ChaCha12` stream with the key `nightfall.zone.rng.1`,
+the zone id and the epoch (`domain/zone/state.rs`, `ZoneSeed`). Every fresh fixture stack
+is zone1 epoch1 and starts at word0. The stream is the same in every run.
+`phase4-fixtures.py zone_rng_word(position)` computes the stream in Python, and
+`zone_roll(position, bound)` applies the zone's `roll_below`. The i3e exports confirm
+words40..43: 47096, 26339, 39447 and 89321 (modulo100000).
+
+The ten NPC spawns of the Phase4 overlay draw entity ids (4 words each, words0..39).
+An idle NPC with a positive speed also rolls `npc_walk` on its own cadence. In i3e this
+roll moved the enchant draw of 4-enchant-blessed from word40 to word41. The enchant
+pack overlay (`create_overlay(..., 'phase4-enchant')`, `pin_rng_cursor`) makes every
+spawn slot a static zone NPC with speed0 and stops the Wanderer, so the entity count
+stays ten and no walk roll occurs. The first enchant of the unit then draws word40,
+value47096, in every run.
+
+The outcome follows from the pinned rate groups (`enchant_groups.toml`): a FIGHTER
+weapon at +3 has 70000 (success), a MAGE weapon at +3 has 40000 (failure). The pack adds
+the stable minimum admitted C mage sword84 at +3 (instance12). 4-enchant-success
+enchants the fighter sword at +0 (100000, success). 4-enchant-fail enchants instance12
+with the normal scroll951 (destroyed; no exact-key replay, the instance is gone).
+4-enchant-safe (22227) gives safe_failed and 4-enchant-blessed (6573) gives
+blessed_reset; both keep the item and replay the exact key. Each unit waits for its
+outcome (`nf.WaitFor enchant_outcome == <outcome> 3`) and keeps the evidence gates
+enchant_chance, enchant_outcome and failure_refund.
+
+`success_no_increment` (harness-review-10; D161 revoked) does not depend on the draw.
+`state_item_enchant.rs` takes the success branch with no increment when the base chance is0
+and the total chance is100000 (at chance100000 both branches are the success branch).
+ARMOR_GROUP has base chance0 from +20. The ancient safe armour scroll22020 (B grade,
+`bonus_rate = "100"`, admitted) adds100000. The pack grants the stable minimum admitted B
+body armour357 at +20 (instance13; D113 allows a +20 birth enchant because base + bonus
+never reaches0 for this scroll) and one scroll22020 (instance14). 4-enchant-no-increment
+equips the armour, waits for `enchant_level chest == 20`, enchants it with22020, waits for
+`enchant_outcome == success_no_increment`, and asserts the level stays20 and the scroll is
+consumed. Gates: enchant_chance and enchant_outcome (a success has no refund branch). The
+suite coverage gate requires every enchant outcome. D163: the client receipt and the
+`enchant_outcome` evidence fact both carry `success_no_increment`; the consumer refuses a
+`success` fact at base chance0 and a `success_no_increment` fact whose level moved.

@@ -8999,6 +8999,7 @@
         "# item-gate: enchant_outcome",
         "# item-gate: failure_refund",
         "nf.Expect inventory_has 6573 == 1",
+        "nf.Expect inventory_has 84 == 1",
         "nf.Expect inventory_has 6573 == 1"
       ],
       "canonical": "4-enchant-fail.nfs",
@@ -9015,6 +9016,7 @@
         "# item-gate: enchant_outcome",
         "# item-gate: failure_refund",
         "nf.Expect inventory_has 22227 == 1",
+        "nf.Expect inventory_has 84 == 1",
         "nf.Expect inventory_has 22227 == 1"
       ],
       "canonical": "4-enchant-fail.nfs",
@@ -9023,6 +9025,21 @@
       "id": "4-enchant-safe",
       "scenarios": [
         "variants/4-enchant-safe.nfs"
+      ]
+    },
+    {
+      "assertions": [
+        "# item-gate: enchant_chance",
+        "# item-gate: enchant_outcome",
+        "nf.Expect enchant_level chest == 20",
+        "nf.Expect inventory_has 22020 == 0"
+      ],
+      "canonical": "4-enchant-fail.nfs",
+      "execution": "pending E2/E3/E5",
+      "fixture": "phase4-enchant",
+      "id": "4-enchant-no-increment",
+      "scenarios": [
+        "variants/4-enchant-no-increment.nfs"
       ]
     },
     {
