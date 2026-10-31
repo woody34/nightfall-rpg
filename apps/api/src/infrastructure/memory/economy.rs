@@ -285,6 +285,11 @@ impl LeaseRepository for InMemoryEconomyStore {
 impl EconomyCheckpointRepository for InMemoryEconomyStore {
     async fn checkpoint_economy(&self, write: &EconomyCheckpointWrite) -> Result<(), EconomyError> {
         write.validate()?;
+        if !write.receipts.is_empty() {
+            return Err(EconomyError::Constraint(
+                "economy_receipts_need_character_checkpoint".into(),
+            ));
+        }
         let mut state = self.lock();
         Self::take_transient(&mut state)?;
         // c-review-4 P2-1: every released lease must still be held by this (zone, epoch); a

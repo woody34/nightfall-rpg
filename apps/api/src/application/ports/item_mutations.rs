@@ -196,6 +196,69 @@ pub struct ItemCheckpointWork {
     pub allocation: ItemInstanceRange,
     pub projection: Phase4Projection,
 }
+
+/// One economy ledger row of the checkpointed character (`owner_kind = character`, P5-Q13), as
+/// the V6 validator reads it: `delta.before` / `delta.after` are V6 `ItemInstance` JSON. The V6
+/// validator counts these rows as the ledger of their instances (coverage, the one-step revision
+/// rule, continuity and the shared T1 row positions), beside the projection's own V6 rows.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EconomyCharacterRow {
+    /// The instance.
+    pub instance: crate::domain::zone::ItemInstanceId,
+    /// The row position among every row of this owner and instance in the tick (T1).
+    pub operation_ordinal: u32,
+    /// The scalar before the row (`None`: the instance enters the character).
+    pub before: Option<crate::domain::zone::ItemInstance>,
+    /// The scalar after the row (`None`: the instance leaves the character).
+    pub after: Option<crate::domain::zone::ItemInstance>,
+}
+
+impl EconomyCharacterRow {
+    /// The character-owner rows of an economy write. A character row of another character is
+    /// refused: one revision-fenced transaction settles one character (`checkpoint_with_economy`).
+    pub fn of_write(
+        character: CharacterId,
+        write: &crate::application::economy::EconomyCheckpointWrite,
+    ) -> Result<Vec<Self>, CheckpointError> {
+        let mut rows = Vec::new();
+        for row in write
+            .ledger
+            .iter()
+            .filter(|row| row.owner_kind == "character")
+        {
+            if row.owner_id != character.as_uuid() {
+                return Err(invalid("economy_character_row_foreign"));
+            }
+            let scalar =
+                |name: &str| -> Result<Option<crate::domain::zone::ItemInstance>, CheckpointError> {
+                    match row.delta.get(name) {
+                        None | Some(serde_json::Value::Null) => Ok(None),
+                        Some(value) => serde_json::from_value(value.clone())
+                            .map(Some)
+                            .map_err(|_| invalid("economy_character_row_delta")),
+                    }
+                };
+            rows.push(Self {
+                instance: crate::domain::zone::ItemInstanceId::new(row.instance_id)
+                    .map_err(|_| invalid("economy_character_row_delta"))?,
+                operation_ordinal: row.operation_ordinal,
+                before: scalar("before")?,
+                after: scalar("after")?,
+            });
+        }
+        Ok(rows)
+    }
+}
+
+/// One ledger row of an instance as the scalar chain check reads it: a V6 projection row or an
+/// economy character row.
+struct ChainRow<'a> {
+    ordinal: u32,
+    before: Option<&'a crate::domain::zone::ItemInstance>,
+    after: Option<&'a crate::domain::zone::ItemInstance>,
+    v6: Option<&'a crate::domain::zone::phase4_projection::ItemDeltaPlan>,
+}
+
 impl ItemCheckpointWork {
     /// Structural agreement with the ordinary checkpoint; contextual fold validation is zone-owned.
     pub fn validate(
@@ -488,11 +551,22 @@ impl ItemCheckpointWork {
     /// As [`Self::validate_before`], with the bound item rules (D127: an `insufficient`
     /// automatic-shot drop is checked against the equipped weapon's per-shot requirement;
     /// without rules it fails closed).
-    #[allow(clippy::too_many_lines)] // One ordered scalar/count/identity gate for atomic settlement.
     pub fn validate_before_with(
         &self,
         before: Option<&Phase4Checkpoint>,
         rules: Option<&crate::domain::zone::Phase4Rules>,
+    ) -> Result<(), CheckpointError> {
+        self.validate_before_with_economy(before, rules, &[])
+    }
+
+    /// As [`Self::validate_before_with`], with the tick's economy rows of this character
+    /// (P5-Q13, `checkpoint_with_economy`). Without economy rows it is exactly the V6 rule.
+    #[allow(clippy::too_many_lines)] // One ordered scalar/count/identity gate for atomic settlement.
+    pub fn validate_before_with_economy(
+        &self,
+        before: Option<&Phase4Checkpoint>,
+        rules: Option<&crate::domain::zone::Phase4Rules>,
+        economy: &[EconomyCharacterRow],
     ) -> Result<(), CheckpointError> {
         let kit = self
             .projection
@@ -536,6 +610,7 @@ impl ItemCheckpointWork {
                     .ledger
                     .iter()
                     .any(|delta| delta.instance == *id)
+                && !economy.iter().any(|row| row.instance == *id)
             {
                 return Err(invalid("item_checkpoint_unledgered_scalar"));
             }
@@ -543,6 +618,7 @@ impl ItemCheckpointWork {
         let revision = self.projection.checkpoint.inventory_revision;
         let unchanged = before.is_some_and(|cp| {
             self.projection.ledger.is_empty()
+                && economy.is_empty()
                 && cp.instances == self.projection.checkpoint.instances
                 && cp.auto_shots == self.projection.checkpoint.auto_shots
                 && cp.inventory_revision == revision
@@ -597,64 +673,107 @@ impl ItemCheckpointWork {
             .keys()
             .chain(new.keys())
             .chain(self.projection.ledger.iter().map(|delta| &delta.instance))
+            .chain(economy.iter().map(|row| &row.instance))
             .copied()
             .collect();
         for id in &changed_ids {
             let mut endpoint = old.get(id).copied();
             let (mut consumed, mut ended) = (false, false);
-            for (position, delta) in self
+            let mut rows: Vec<ChainRow<'_>> = self
                 .projection
                 .ledger
                 .iter()
                 .filter(|delta| delta.instance == *id)
-                .enumerate()
-            {
-                if delta.before.as_ref() != endpoint {
+                .map(|delta| ChainRow {
+                    ordinal: delta.operation_ordinal,
+                    before: delta.before.as_ref(),
+                    after: delta.after.as_ref(),
+                    v6: Some(delta),
+                })
+                .collect();
+            if economy.iter().any(|row| row.instance == *id) {
+                // P5-Q13: V6 and economy rows of one instance share the T1 positions; the V6
+                // rows keep their own relative order.
+                if rows.windows(2).any(|pair| {
+                    pair.first()
+                        .zip(pair.get(1))
+                        .is_some_and(|(a, b)| a.ordinal >= b.ordinal)
+                }) {
+                    return Err(invalid("item_ledger_row_order"));
+                }
+                rows.extend(
+                    economy
+                        .iter()
+                        .filter(|row| row.instance == *id)
+                        .map(|row| ChainRow {
+                            ordinal: row.operation_ordinal,
+                            before: row.before.as_ref(),
+                            after: row.after.as_ref(),
+                            v6: None,
+                        }),
+                );
+                rows.sort_by_key(|row| row.ordinal);
+            }
+            for (position, row) in rows.iter().enumerate() {
+                if row.before != endpoint {
                     return Err(invalid("item_ledger_scalar_continuity"));
                 }
+                let operation = row.v6.map(|delta| delta.operation);
                 // D66/D94: [non-terminal rows in cause order..., the single Consume aggregate, at
                 // most one terminal row (after = None: whole transfer-out, Destroy, Crystallize)];
                 // nothing follows a terminal row. D100: non-terminal rows keep D69 cause order,
                 // so a credit may follow a non-Consume debit (partial Destroy, then a crystal
-                // refund); continuity, conservation and the D74 caps still bind every row.
-                let terminal = delta.operation != ItemOperation::Consume && delta.after.is_none();
+                // refund); continuity, conservation and the D74 caps still bind every row. An
+                // economy row is never a Consume.
+                let terminal = operation != Some(ItemOperation::Consume) && row.after.is_none();
                 if ended || (consumed && !terminal) {
                     return Err(invalid("item_ledger_row_order"));
                 }
                 ended = terminal;
-                // D76/D55: the ordinal is this row's canonical position 0..n-1 among the
+                // D76/D55/T1: the ordinal is this row's canonical position 0..n-1 among the
                 // instance's rows this tick, so it strictly increases and every row of one
                 // logical operation (implicit Unequip + Destroy) takes its own ordinal; under D94
                 // the Consume aggregate holds n-1, or n-2 when a terminal row follows it.
-                if u64::from(delta.operation_ordinal)
-                    != u64::try_from(position).map_err(anyhow::Error::from)?
-                {
+                if u64::from(row.ordinal) != u64::try_from(position).map_err(anyhow::Error::from)? {
                     return Err(invalid("item_ledger_row_ordinal"));
                 }
-                if delta
-                    .after
-                    .as_ref()
-                    .is_some_and(|item| item.revision != revision)
-                {
+                if row.after.is_some_and(|item| item.revision != revision) {
                     return Err(invalid("item_ledger_revision_step"));
                 }
-                let difference = i128::from(delta.after.as_ref().map_or(0, |item| item.count))
-                    .checked_sub(i128::from(delta.before.as_ref().map_or(0, |item| item.count)))
-                    .ok_or_else(|| invalid("item_ledger_count_overflow"))?;
-                if difference != i128::from(delta.count_delta) {
-                    return Err(invalid("item_ledger_count_conservation"));
+                if let Some(delta) = row.v6 {
+                    let difference = i128::from(delta.after.as_ref().map_or(0, |item| item.count))
+                        .checked_sub(i128::from(delta.before.as_ref().map_or(0, |item| item.count)))
+                        .ok_or_else(|| invalid("item_ledger_count_overflow"))?;
+                    if difference != i128::from(delta.count_delta) {
+                        return Err(invalid("item_ledger_count_conservation"));
+                    }
+                    if delta.operation == ItemOperation::Consume {
+                        validate_consumption(delta, rules)?;
+                        consumed = true;
+                    }
                 }
-                if delta.operation == ItemOperation::Consume {
-                    validate_consumption(delta, rules)?;
-                    consumed = true;
-                }
-                endpoint = delta.after.as_ref();
+                endpoint = row.after;
             }
             if endpoint != new.get(id).copied() {
                 return Err(invalid("item_ledger_final_scalar"));
             }
         }
         let mut created = BTreeSet::new();
+        for row in economy {
+            if row.before.is_none()
+                && (old.contains_key(&row.instance) || !created.insert(row.instance))
+            {
+                return Err(invalid("item_instance_identity_reused"));
+            }
+            if let Some(original) = old.get(&row.instance) {
+                if row.before.iter().chain(row.after.iter()).any(|item| {
+                    item.created_tick != original.created_tick
+                        || item.creation_origin != original.creation_origin
+                }) {
+                    return Err(invalid("item_instance_creation_immutable"));
+                }
+            }
+        }
         for delta in &self.projection.ledger {
             if delta.before.is_none()
                 && (old.contains_key(&delta.instance) || !created.insert(delta.instance))

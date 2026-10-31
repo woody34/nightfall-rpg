@@ -451,6 +451,7 @@ async fn postgres_checkpoint_cas_fence_rolls_back_and_writes_everything_or_nothi
             fact_id: Uuid::from_u128(0x900),
             payload: serde_json::json!({"cod": 500}),
         }],
+        receipts: vec![],
     };
     repo.checkpoint_economy(&write).await.unwrap();
     let row = sqlx::query("SELECT count, revision FROM item_instances WHERE id = 900001")

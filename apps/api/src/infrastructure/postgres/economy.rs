@@ -25,7 +25,7 @@ use uuid::Uuid;
 use crate::application::economy::{
     canonical_keys, ContainerDelta, DeliveryKind, DeliveryRepository, DeliveryRow, DeltaChange,
     EconomyCheckpointRepository, EconomyCheckpointWrite, EconomyCounterRepository, EconomyError,
-    LeaseGrant, LeaseKey, LeaseKind, LeaseRepository,
+    LeaseGrant, LeaseKey, LeaseKind, LeaseRepository, OwnerLedgerRow,
 };
 
 /// `SeaORM`-backed economy repository over the story 4.1 tables.
@@ -392,6 +392,11 @@ async fn apply_delta(tx: &DatabaseTransaction, delta: &ContainerDelta) -> Result
 impl EconomyCheckpointRepository for PgEconomyRepository {
     async fn checkpoint_economy(&self, write: &EconomyCheckpointWrite) -> Result<(), EconomyError> {
         write.validate()?;
+        if !write.receipts.is_empty() {
+            return Err(EconomyError::Constraint(
+                "economy_receipts_need_character_checkpoint".into(),
+            ));
+        }
         let tx = self.db.begin().await.map_err(classify)?;
         let result = checkpoint_in(&tx, write).await;
         match result {
@@ -428,13 +433,24 @@ pub(super) async fn checkpoint_in(
             )));
         }
     }
-    for row in &write.ledger {
+    // T1: a stable sort by row position keeps the write's order between owners (the creating
+    // row of an instance stays first, P5-Q13) and makes each inserted (owner, instance) prefix
+    // hold positions 0..k, so the row ordinal trigger also holds when it is already immediate.
+    let mut ledger: Vec<&OwnerLedgerRow> = write.ledger.iter().collect();
+    ledger.sort_by_key(|row| row.operation_ordinal);
+    for row in ledger {
         let character: Option<Uuid> = (row.owner_kind == "character").then_some(row.owner_id);
         let owner: Option<Uuid> = (row.owner_kind != "character").then_some(row.owner_id);
         execute(tx, "INSERT INTO item_ledger(owner_kind,owner_id,character_id,zone_id,epoch,tick,revision,op,instance_id,operation_ordinal,delta,receipt_ref) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)",
             vec![row.owner_kind.clone().into(), owner.into(), character.into(), i32::try_from(row.zone_id).map_err(|e| EconomyError::Other(e.into()))?.into(),
                  signed(row.epoch)?.into(), signed(row.tick)?.into(), signed(row.revision)?.into(), row.op.clone().into(), signed(row.instance_id)?.into(),
                  i32::try_from(row.operation_ordinal).map_err(|e| EconomyError::Other(e.into()))?.into(), row.delta.clone().into(), row.receipt_ref.into()]).await?;
+    }
+    // P5-Q13: the scopes were claimed in `idempotency_keys` before the revision fence.
+    for receipt in &write.receipts {
+        execute(tx, "INSERT INTO item_mutation_receipts(account_id,operation,key,character_id,fingerprint,response) VALUES($1,$2,$3,$4,$5,$6)",
+            vec![receipt.account_id.into(), receipt.operation.clone().into(), receipt.request_key.into(), receipt.character_id.into(),
+                 receipt.fingerprint.clone().into(), receipt.response().into()]).await?;
     }
     for fact in &write.outbox {
         let mut payload = fact.payload.clone();

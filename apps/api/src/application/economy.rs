@@ -611,6 +611,73 @@ pub struct EconomyCheckpointWrite {
     pub lease_releases: Vec<LeaseKey>,
     /// Outbox facts.
     pub outbox: Vec<OutboxFact>,
+    /// Frozen economy receipts (P5-Q13), persisted to `item_mutation_receipts` in the same
+    /// transaction. Only the revision-fenced character checkpoint takes receipts.
+    #[serde(default)]
+    pub receipts: Vec<EconomyReceipt>,
+}
+
+/// The receipt scopes of the economy intents (`item_mutation_receipts.operation`, scope 14..42).
+pub const ECONOMY_RECEIPT_OPERATIONS: &[&str] = &[
+    "pick_up_item",
+    "vendor_buy",
+    "vendor_sell",
+    "vendor_refund",
+    "multisell_choose",
+    "register_recipe",
+    "delete_recipe",
+    "craft_item",
+    "trade_confirm",
+    "store_buy",
+    "store_sell",
+    "private_manufacture",
+    "warehouse_deposit",
+    "warehouse_withdraw",
+    "freight_send",
+    "freight_withdraw",
+    "mail_send",
+    "mail_take",
+    "mail_reject",
+    "mail_cancel",
+    "mail_delete",
+    "manor_buy_seed",
+    "manor_sell_crop",
+    "auction_bid",
+    "auction_cancel_bid",
+    "party",
+    "trade_session",
+    "store_setup",
+    "mail_mark_read",
+];
+
+/// One frozen `EconomyResult` receipt (owner only, `PbOutput` 43). A replay of the same request
+/// key with the same fingerprint returns the stored receipt; another fingerprint is the D43
+/// conflict, as for V6 receipts.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct EconomyReceipt {
+    /// The caller's account.
+    pub account_id: Uuid,
+    /// The acting character (the checkpointed one).
+    pub character_id: Uuid,
+    /// The request scope, one of [`ECONOMY_RECEIPT_OPERATIONS`].
+    pub operation: String,
+    /// The intent's idempotency key.
+    pub request_key: Uuid,
+    /// The request fingerprint.
+    pub fingerprint: String,
+    /// The receipt id.
+    pub receipt_id: Uuid,
+    /// The frozen `EconomyResult` protobuf bytes, lowercase hex.
+    pub frozen_result: String,
+}
+
+impl EconomyReceipt {
+    /// The stored `item_mutation_receipts.response` (and idempotency response) JSON.
+    #[must_use]
+    pub fn response(&self) -> serde_json::Value {
+        serde_json::json!({ "receipt_id": self.receipt_id.to_string(), "economy_result": self.frozen_result })
+    }
 }
 
 impl EconomyCheckpointWrite {
@@ -634,6 +701,25 @@ impl EconomyCheckpointWrite {
                 return Err(EconomyError::Constraint(
                     "insert deltas carry no expected revision; updates and deletes must".into(),
                 ));
+            }
+        }
+        let mut scopes = std::collections::BTreeSet::new();
+        for receipt in &self.receipts {
+            if !ECONOMY_RECEIPT_OPERATIONS.contains(&receipt.operation.as_str())
+                || receipt.fingerprint.is_empty()
+                || receipt.frozen_result.is_empty()
+                || receipt.frozen_result.len() % 2 != 0
+                || !receipt
+                    .frozen_result
+                    .bytes()
+                    .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+                || !scopes.insert((
+                    receipt.account_id,
+                    receipt.operation.as_str(),
+                    receipt.request_key,
+                ))
+            {
+                return Err(EconomyError::Constraint("economy_receipt_invalid".into()));
             }
         }
         for fact in &self.outbox {

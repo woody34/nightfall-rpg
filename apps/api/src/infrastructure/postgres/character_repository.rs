@@ -672,6 +672,19 @@ impl PgCharacterRepository {
             // Structural refusal before any row is locked (design §11.5).
             write.validate().map_err(super::economy::checkpoint_error)?;
         }
+        // P5-Q13: the economy rows of this character are the ledger of its changed scalars,
+        // which only the V6 item projection writes.
+        let economy_rows = economy
+            .map(|write| {
+                crate::application::ports::EconomyCharacterRow::of_write(cp.character_id, write)
+            })
+            .transpose()?
+            .unwrap_or_default();
+        if items.is_none() && !economy_rows.is_empty() {
+            return Err(CheckpointError::Constraint(
+                "economy_character_rows_need_projection".into(),
+            ));
+        }
         // Item audit facts require the atomic inventory/ledger/receipt projection lane.
         if items.is_none() && events.iter().any(DomainEvent::is_item) {
             return Err(CheckpointError::Constraint("item_projection_required".into()));
@@ -760,6 +773,35 @@ impl PgCharacterRepository {
             if super::item_settlement::claim_receipts(&tx, cp, work).await? {
                 tx.rollback().await.map_err(other)?;
                 return Ok(LearningCheckpointOutcome::Checkpoint(CheckpointOutcome::Stale));
+            }
+        }
+        // P5-Q13: economy receipts claim their request scope like V6 receipts, before the
+        // revision fence: a known key with the same fingerprint is a replay of a settled
+        // command (nothing of this draft is applied); another fingerprint is the D43 conflict.
+        if let Some(write) = economy {
+            for receipt in &write.receipts {
+                if receipt.character_id != cp.character_id.as_uuid()
+                    || receipt.account_id != account
+                {
+                    return Err(CheckpointError::Constraint("economy_receipt_scope".into()));
+                }
+                let claim = idempotency::claim(
+                    &tx,
+                    AccountId::from_uuid(account),
+                    &receipt.operation,
+                    &IdempotencyKey::from_uuid(receipt.request_key),
+                    &receipt.fingerprint,
+                    receipt.response(),
+                )
+                .await
+                .map_err(checkpoint_anyhow_error)?;
+                if let Claim::Existing { fingerprint, .. } = claim {
+                    if fingerprint != receipt.fingerprint {
+                        return Err(CheckpointError::KeyReused);
+                    }
+                    tx.rollback().await.map_err(other)?;
+                    return Ok(LearningCheckpointOutcome::Checkpoint(CheckpointOutcome::Stale));
+                }
             }
         }
         if let Some(receipt) = receipt {
@@ -871,7 +913,11 @@ impl PgCharacterRepository {
         let phase4_original =
             super::phase4_checkpoint::load(&tx, &original_model, phase3_original.as_ref()).await?;
         if let Some(work) = items {
-            work.validate_before_with(phase4_original.as_ref(), self.phase4_rules.as_deref())?;
+            work.validate_before_with_economy(
+                phase4_original.as_ref(),
+                self.phase4_rules.as_deref(),
+                &economy_rows,
+            )?;
         } else {
             crate::application::ports::validate_item_retention(
                 phase4_original.as_ref(),
@@ -901,6 +947,7 @@ impl PgCharacterRepository {
                 work,
                 phase4_original.as_ref(),
                 self.phase4_rules.as_deref(),
+                &economy_rows,
             )
             .await?;
         } else if let Some(phase4) = &cp.phase4 {
@@ -931,6 +978,9 @@ impl PgCharacterRepository {
             super::economy::checkpoint_in(&tx, write)
                 .await
                 .map_err(super::economy::checkpoint_error)?;
+            if items.is_some() && !economy_rows.is_empty() {
+                super::item_settlement::check_row_ordinals(&tx).await?;
+            }
         }
 
         for event in events {

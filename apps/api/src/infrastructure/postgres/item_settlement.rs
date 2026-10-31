@@ -120,8 +120,9 @@ pub(super) async fn persist(
     work: &ItemCheckpointWork,
     before: Option<&Phase4Checkpoint>,
     rules: Option<&crate::domain::zone::Phase4Rules>,
+    economy: &[crate::application::ports::EconomyCharacterRow],
 ) -> Result<(), CheckpointError> {
-    work.validate_before_with(before, rules)?;
+    work.validate_before_with_economy(before, rules, economy)?;
     let requests = super::item_admission::load_pending(tx, cp.character_id).await?;
     work.validate_pending(&requests)?;
     persist_range(tx, work).await?;
@@ -134,8 +135,12 @@ pub(super) async fn persist(
                 serde_json::to_value(&row.delta).map_err(anyhow::Error::from)?.into(), row.receipt_ref.into()]).await?;
     }
     // D76: the whole tick is appended, so check row-position ordinals now; a violation is a
-    // permanent named constraint here rather than a retryable commit failure.
-    execute(tx, "SET CONSTRAINTS item_ledger_row_ordinal IMMEDIATE", Vec::new()).await?;
+    // permanent named constraint here rather than a retryable commit failure. With economy rows
+    // of this character the tick is complete only after `checkpoint_in` (P5-Q13, shared T1
+    // positions), so the caller checks there.
+    if economy.is_empty() {
+        check_row_ordinals(tx).await?;
+    }
     for receipt in work.receipts(cp)? {
         execute(tx, "INSERT INTO item_mutation_receipts(account_id,operation,key,character_id,fingerprint,response) VALUES($1,$2,$3,$4,$5,$6)",
             vec![receipt.account_id.as_uuid().into(), receipt.operation.as_str().into(), receipt.key.into(),
@@ -150,6 +155,12 @@ pub(super) async fn persist(
     }
     super::phase4_checkpoint::persist_retained(tx, cp.character_id, &work.projection.checkpoint)
         .await?;
+    Ok(())
+}
+
+/// D76/T1: check the deferred row-ordinal trigger now, as a named permanent constraint.
+pub(super) async fn check_row_ordinals(tx: &DatabaseTransaction) -> Result<(), CheckpointError> {
+    execute(tx, "SET CONSTRAINTS item_ledger_row_ordinal IMMEDIATE", Vec::new()).await?;
     Ok(())
 }
 
