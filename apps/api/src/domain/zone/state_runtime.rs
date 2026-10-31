@@ -1357,6 +1357,7 @@ impl ZoneState {
                     },
                     ZoneCommand::Despawn { entity } => {
                         self.remove_items_v6(entity);
+                        self.remove_phase5_player(entity);
                         if let Some(p) = &mut self.phase3 {
                             if let Some(mut side) = p.canonical.entities.remove(&entity) {
                                 if let Some(offer) = side.invalidate_resurrect_offer() {
@@ -1447,6 +1448,12 @@ impl ZoneState {
             candidate
                 .materialize_kit_v6(tick, entity, load, &mut events)
                 .map_err(|_| RejectReason::InvalidLoad)?;
+            // V7 (design §1.11): the Phase 5 record comes from the load's checkpoint.
+            match load {
+                Some(load) => candidate.admit_phase5_player(entity, load)?,
+                None if candidate.phase5.is_some() => return Err(RejectReason::InvalidLoad),
+                None => {},
+            }
         }
         *self = candidate;
         Ok(events)
@@ -1455,6 +1462,13 @@ impl ZoneState {
         &self,
         load: Option<&PlayerLoad>,
     ) -> Result<(), RejectReason> {
+        if let Some(phase5) = &self.phase5 {
+            // A V7 load carries the Phase 5 checkpoint validated against the epoch's rules.
+            load.and_then(|load| load.phase5.as_ref())
+                .ok_or(RejectReason::InvalidLoad)?
+                .validate_rules(&phase5.rules)
+                .map_err(|_| RejectReason::InvalidLoad)?;
+        }
         if let Some(items) = &self.phase4 {
             let load = load.ok_or(RejectReason::InvalidLoad)?;
             load.validate_phase4()
@@ -3401,6 +3415,7 @@ impl ZoneState {
             match event {
                 ZoneEvent::EntityDespawn { entity, .. } => {
                     self.remove_items_v6(*entity);
+                    self.remove_phase5_player(*entity);
                     let phase = self.phase3.as_mut().ok_or_else(missing)?;
                     phase.canonical.entities.remove(entity);
                     phase.effective.remove(entity);

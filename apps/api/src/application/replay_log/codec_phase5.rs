@@ -72,23 +72,23 @@ pub(super) fn command_from_json(
 }
 
 pub(super) fn event_to_pb(event: &EconomyEvent) -> PbOutputItem {
+    use crate::domain::zone::phase5_event::EconomyBody;
     let bytes = canonical_json(event);
-    match event.body.output_kind() {
-        Phase5OutputKind::EconomyResult => PbOutputItem::EconomyResult(bytes),
-        Phase5OutputKind::CorpseStateChanged => PbOutputItem::CorpseStateChanged(bytes),
-        Phase5OutputKind::PartyStateChanged => PbOutputItem::PartyStateChanged(bytes),
-        Phase5OutputKind::PartyLootVote => PbOutputItem::PartyLootVote(bytes),
-        Phase5OutputKind::PartyInviteReceived => PbOutputItem::PartyInviteReceived(bytes),
-        Phase5OutputKind::TradeRequestReceived => PbOutputItem::TradeRequestReceived(bytes),
-        Phase5OutputKind::TradeSessionChanged => PbOutputItem::TradeSessionChanged(bytes),
-        Phase5OutputKind::PrivateStoreChanged => PbOutputItem::PrivateStoreChanged(bytes),
-        Phase5OutputKind::RecipeBookSync => PbOutputItem::RecipeBookSync(bytes),
-        Phase5OutputKind::ItemAuctionStatusChanged => PbOutputItem::ItemAuctionStatusChanged(bytes),
-        Phase5OutputKind::LootDistributed => PbOutputItem::LootDistributed(bytes),
-        // Never produced by `EconomyBody::output_kind`; kept for an exhaustive dispatch.
-        Phase5OutputKind::Phase5Enriched | Phase5OutputKind::EconomyCheckpoint => {
-            PbOutputItem::EconomyResult(bytes)
+    // One carrier per body variant (design §12.3); no other kind can reach this dispatch.
+    match &event.body {
+        EconomyBody::EconomyResult { .. } => PbOutputItem::EconomyResult(bytes),
+        EconomyBody::CorpseStateChanged { .. } => PbOutputItem::CorpseStateChanged(bytes),
+        EconomyBody::PartyStateChanged { .. } => PbOutputItem::PartyStateChanged(bytes),
+        EconomyBody::PartyLootVote { .. } => PbOutputItem::PartyLootVote(bytes),
+        EconomyBody::PartyInviteReceived { .. } => PbOutputItem::PartyInviteReceived(bytes),
+        EconomyBody::TradeRequestReceived { .. } => PbOutputItem::TradeRequestReceived(bytes),
+        EconomyBody::TradeSessionChanged { .. } => PbOutputItem::TradeSessionChanged(bytes),
+        EconomyBody::PrivateStoreChanged { .. } => PbOutputItem::PrivateStoreChanged(bytes),
+        EconomyBody::RecipeBookSync { .. } => PbOutputItem::RecipeBookSync(bytes),
+        EconomyBody::ItemAuctionStatusChanged { .. } => {
+            PbOutputItem::ItemAuctionStatusChanged(bytes)
         },
+        EconomyBody::LootDistributed { .. } => PbOutputItem::LootDistributed(bytes),
     }
 }
 

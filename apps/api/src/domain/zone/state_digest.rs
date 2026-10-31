@@ -17,6 +17,8 @@ use sha2::{Digest as _, Sha256};
 
 #[path = "state_digest_items.rs"]
 mod items;
+#[path = "state_digest_phase5.rs"]
+mod phase5;
 
 impl ZoneState {
     /// V7 layout (design §12.4): the complete V6 digest, then the Phase 5 appends in the
@@ -27,6 +29,7 @@ impl ZoneState {
         let mut w = Writer(Vec::new());
         w.0.extend_from_slice(b"nightfall-state-v7\0");
         w.0.extend_from_slice(&self.phase4_state_digest());
+        w.option(self.phase5.as_ref(), |w, p| phase5::append(w, &p.canonical));
         Sha256::digest(&w.0).into()
     }
 

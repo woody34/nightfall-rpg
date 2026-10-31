@@ -437,12 +437,16 @@ fn phase5_switch_defaults_to_v7_and_refuses_malformed_or_contradictory_values() 
 /// Story 2.3: the Phase 5 rules bind to the V6 bundle at boot (D27) or refuse boot.
 #[test]
 fn phase5_rules_bind_to_the_v6_bundle_or_refuse_boot() {
-    // Selected only by default without a V6 bundle: nothing to bind, no refusal.
-    assert!(config(&[]).prepare_phase5(None).unwrap().is_none());
-    // Explicit V7 without V6 is a contradiction.
+    // V7 without a composed V6 bundle refuses boot (the bundle is composed for V7); an
+    // explicit PHASE4_ENABLED=0 keeps the V6-off selection with no V7 and no refusal.
+    assert!(config(&[]).prepare_phase5(None).is_err());
     assert!(config(&[("PHASE5_ENABLED", "1")])
         .prepare_phase5(None)
         .is_err());
+    assert!(config(&[("PHASE4_ENABLED", "0")])
+        .prepare_phase5(None)
+        .unwrap()
+        .is_none());
     let bundle = crate::infrastructure::item_data::embedded_phase4_bundle().unwrap();
     // V7 switched off: no rules even with a bundle.
     assert!(config(&[("PHASE5_ENABLED", "0"), ("PHASE4_ENABLED", "1")])

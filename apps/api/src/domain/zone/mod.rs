@@ -62,6 +62,7 @@ pub mod phase4;
 pub mod phase4_admission;
 pub mod phase4_checkpoint;
 pub mod phase4_projection;
+pub mod phase5;
 pub mod phase5_command;
 pub mod phase5_event;
 pub mod phase5_rules;
@@ -86,6 +87,7 @@ pub mod state_learn;
 pub mod state_pvp;
 pub mod state_regen;
 pub mod state_skill;
+pub mod wide;
 
 pub use ai::{
     Intention, MemberState, NpcAi, NpcBrain, SlotMember, SpawnSlotSpec, MAX_ATTACK_TIMEOUT_TICKS,
@@ -137,6 +139,9 @@ pub use phase4_admission::{
 };
 pub use phase4_checkpoint::Phase4Checkpoint;
 pub use phase4_projection::{FrozenItemResult, ItemResultDetail, Phase4Projection};
+pub use phase5::{
+    FloodKind, GroundItem, GroundSource, Phase5Context, Phase5Player, Phase5Snapshot, Phase5Zone,
+};
 pub use phase5_command::{LootMode, Phase5Command};
 pub use phase5_event::{
     EconomyBody, EconomyCheckpoint, EconomyEvent, GroundItemDetail, LeaseKey, LeaseKind,
@@ -161,6 +166,7 @@ pub use state::{
     TickError, ZoneBounds, ZoneId, ZoneSeed, ZoneSnapshot, ZoneState, MAX_MOVE_DISTANCE_TILES,
     SNAPSHOT_SCHEMA_VERSION,
 };
+pub use wide::U256;
 
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::expect_used, clippy::indexing_slicing)]
@@ -168,9 +174,13 @@ mod tests {
     /// Every source file in this module, embedded at compile time so the scan cannot miss a
     /// file that exists but is not listed: adding a module without adding it here fails
     /// `every_zone_source_is_scanned`.
-    const SOURCES: [(&str, &str); 92] = [
+    const SOURCES: [(&str, &str); 96] = [
         ("mod.rs", include_str!("mod.rs")),
         ("binary64.rs", include_str!("binary64.rs")),
+        ("wide.rs", include_str!("wide.rs")),
+        ("state_phase5.rs", include_str!("state_phase5.rs")),
+        ("phase5.rs", include_str!("phase5.rs")),
+        ("state_digest_phase5.rs", include_str!("state_digest_phase5.rs")),
         ("phase5_rules.rs", include_str!("phase5_rules.rs")),
         ("phase5_wire.rs", include_str!("phase5_wire.rs")),
         ("phase5_command.rs", include_str!("phase5_command.rs")),

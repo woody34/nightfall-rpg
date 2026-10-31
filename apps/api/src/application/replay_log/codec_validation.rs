@@ -45,7 +45,9 @@ pub(super) fn pre_phase5_json(value: &serde_json::Value) -> Result<(), CodecErro
                 }
                 if let Some(text) = child.as_str() {
                     let forbidden = match key.as_str() {
-                        "type" | "event" => matches!(text, "economy" | "economy_checkpoint"),
+                        "type" | "event" => {
+                            matches!(text, "economy" | "economy_checkpoint" | "phase5")
+                        },
                         "location" => V7_ITEM_LOCATIONS.contains(&text),
                         "op" | "operation" => {
                             V7_LEDGER_OPS.contains(&text) || V7_RECEIPT_SCOPES.contains(&text)

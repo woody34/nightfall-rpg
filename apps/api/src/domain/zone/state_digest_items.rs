@@ -110,6 +110,15 @@ impl Writer {
             self.u8(match item.location {
                 ItemLocation::Inventory => 0,
                 ItemLocation::Paperdoll => 1,
+                // V7 locations never sit in a player's inventory map (design §11.2); the
+                // codes match the Phase 5 digest so the layout stays total.
+                ItemLocation::Ground => 2,
+                ItemLocation::Refund => 3,
+                ItemLocation::Warehouse => 4,
+                ItemLocation::Freight => 5,
+                ItemLocation::Mail => 6,
+                ItemLocation::Delivery => 7,
+                ItemLocation::AuctionBid => 8,
             });
             self.option(item.slot.as_ref(), |w, slot| w.u8(*slot as u8));
             self.u32(item.enchant);

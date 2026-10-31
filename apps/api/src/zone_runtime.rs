@@ -90,10 +90,13 @@ impl ZoneRuntimeConfig {
         }
     }
 
+    /// V6 is selected by `PHASE4_ENABLED=1`, or implied by a V7 selection (design §12.1):
+    /// V7 extends V6, so the V6 bundle is composed whenever V7 is requested.
     fn phase4_requested(&self) -> anyhow::Result<bool> {
         match self.phase4_enabled.as_deref() {
-            None | Some("0") => Ok(false),
-            Some("1") => {
+            Some("0") => Ok(false),
+            None if !self.phase5_requested()? => Ok(false),
+            None | Some("1") => {
                 if !self.phase3_requested()? {
                     if self.phase3_enabled.is_none() {
                         anyhow::bail!(
@@ -118,7 +121,11 @@ impl ZoneRuntimeConfig {
     /// is composed by the engine stories; this selection is what they consult.
     pub fn phase5_requested(&self) -> anyhow::Result<bool> {
         let requested = match self.phase5_enabled.as_deref() {
-            None => self.simulation_fixture.is_none(),
+            // Unset keeps the older selection under a simulation fixture or an explicit
+            // `PHASE4_ENABLED=0` (no V6, so no V7; no error), and selects V7 otherwise.
+            None => {
+                self.simulation_fixture.is_none() && self.phase4_enabled.as_deref() != Some("0")
+            },
             Some("0") => false,
             Some("1") => true,
             Some(_) => anyhow::bail!("PHASE5_ENABLED must be unset, 0 or 1"),
@@ -155,11 +162,7 @@ impl ZoneRuntimeConfig {
             return Ok(None);
         }
         let Some(bundle) = phase4 else {
-            anyhow::ensure!(
-                self.phase5_enabled.is_none(),
-                "PHASE5_ENABLED=1 requires the V6 bundle: set PHASE4_ENABLED=1"
-            );
-            return Ok(None);
+            anyhow::bail!("V7 requires the V6 bundle: PHASE5_ENABLED selects V7 but no V6 bundle was composed");
         };
         let rules = crate::infrastructure::economy_data::phase5_rules_for(&bundle.items)
             .map_err(anyhow::Error::msg)?;
@@ -354,7 +357,7 @@ pub async fn start(
     };
     // E2.3: a V7 selection validates and binds the Phase 5 rules before anything connects;
     // the engine stories consume the bound rules when they open V7 epochs.
-    let _phase5 = cfg.prepare_phase5(phase4.as_ref())?;
+    let phase5 = cfg.prepare_phase5(phase4.as_ref())?;
     let metrics = deps.metrics.clone();
     let clock = deps.clock.clone();
     let def = cfg.load_zone()?;
@@ -432,6 +435,10 @@ pub async fn start(
     if let (Some(bundle), Some(reservations)) = (phase4, &deps.item_admission) {
         // Every new epoch of this run boots V6 with fresh durable instance reservations.
         bootstrap = bootstrap.with_phase4_rules(bundle.items, reservations.clone());
+        if let Some(economy) = phase5 {
+            // Design §12.1: a V7 selection opens every new epoch of this run as Snapshot 11.
+            bootstrap = bootstrap.with_phase5_rules(economy);
+        }
     }
     let running = bootstrap.start(&def, IntervalTicks::new()).await?;
     running.handle().checkpoints.install(checkpoints);
