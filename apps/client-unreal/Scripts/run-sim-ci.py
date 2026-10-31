@@ -45,10 +45,12 @@ def unit_allowances(batch, fresh_stack=True, video=False, timeout=None):
     # The last curl (2s) and sleep (1s) can finish past the startup deadline.
     startup = API_WAIT + 3 if isolated or fresh_stack else 2
     cleanup = 2 * phase2.CLEANUP_COMMAND_TIMEOUT
+    # A Phase 5 file is one unit with one client per `# role:` block (P5-D5).
+    roles = sum(len(phase2.phase5.grammar.roles_of(path.read_text())) for path in batch) if fixture(batch) in phase2.PHASE5 else len(batch)
     return dict(client=client, fixture=provision + startup,
                 # All export/check/trace/coverage/formula work gets one client window per role.
                 # This policy is enforced by the wrapper watchdog, including shared group work.
-                replay=len(batch) * client,
+                replay=roles * client,
                 cleanup=API_STOP_GRACE + (2 * cleanup if isolated else 0),
                 retry=VIDEO_CAPTURE + PROCESS_STOP_GRACE + VIDEO_ENCODE + PROCESS_STOP_GRACE if video and len(batch) == 1 else 0,
                 grace=WRAPPER_GRACE,
@@ -295,6 +297,9 @@ def run_unit(args, artifacts, exempt, batch, fixture_name, allowance, lane=None,
     name = unit_name(batch)
     dest = artifacts / name
     start = time.monotonic()
+    if fixture_name in phase2.PHASE5 and len(batch) == 1:
+        # One file, one unit: the role copies are the processes of this unit (P5-D5).
+        batch = phase2.phase5.split_unit(batch[0], dest / "roles")
     script = "run-sim-multi.sh" if len(batch) > 1 else "run-sim.sh"
     budget = allowance['client']
     command = ["bash", str(PROJECT / "Scripts" / script), "--api", "start" if args.fresh_stack else "attach",

@@ -212,7 +212,8 @@ socket.getaddrinfo = lambda *a, **k: [(socket.AF_INET, socket.SOCK_STREAM, 6, ''
             self.assertEqual(row['client'], max(limits) + 30)
             self.assertEqual(row['fixture'], (ci.phase2.SEEDER_HELP_TIMEOUT + provision_commands * command_cap
                                              if isolated else command_cap) + ci.API_WAIT + 3)
-            self.assertEqual(row['replay'], len(batch) * row['client'])
+            roles = sum(len(ci.phase2.phase5.grammar.roles_of(p.read_text())) for p in batch) if ci.fixture(batch) in ci.phase2.PHASE5 else len(batch)
+            self.assertEqual(row['replay'], roles * row['client'])  # P5-D5: one client per role block
             self.assertEqual(row['cleanup'], ci.API_STOP_GRACE + (2 * cleanup_cap if isolated else 0))
             self.assertEqual(row['fallback_cleanup'], cleanup_cap if isolated else 0)
             self.assertEqual(row['compose'], ci.COMPOSE_DOWN + ci.COMPOSE_LOGS if not isolated else 0)

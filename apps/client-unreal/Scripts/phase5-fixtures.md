@@ -23,13 +23,68 @@ python3 apps/client-unreal/Scripts/phase5-expectations.py --check
 python3 -m pytest apps/client-unreal/Scripts/test/phase5-scenarios.test.py
 ```
 
-## Role blocks
+## Role blocks and the unit (P5-D5)
 
 A file with more than one role has `# role: <name>` lines. The commands after a role line belong
-to that pack role until the next role line. A file without a role line is role `a`. The runner
-starts one client for each role (the Phase 3 `run-sim-multi.sh` pattern). Role names are `a`, `b`
-and `c`, and each must exist in the pack. The budget `nf.Within` is the largest role's sum of
-`nf.WaitFor` timeouts + 30 s.
+to that pack role until the next role line. A file without a role line is role `a`. Role names are
+`a`, `b` and `c`, and each must exist in the pack. The budget `nf.Within` is the largest role's sum
+of `nf.WaitFor` timeouts + 30 s.
+
+One Phase 5 file is ONE unit: one owned stack, one client for each role, one scheduling atom for
+`run-sim-ci.py --parallel`. `run-sim-ci.py` writes one copy for each role
+(`<artifacts>/<unit>/roles/<file>.role-<r>.nfs`, `phase5-fixtures.py split_unit`) and runs them
+with `run-sim-multi.sh`. Each copy keeps the shared header lines and `nf.Within`. The replay
+allowance counts one window for each role. `phase2-fixture.py` accepts the file or its role copies
+as one unit and refuses copies of two files.
+
+## Story 6.1 contract: profiles, overlay, seeder
+
+| Piece | Path | Content |
+|-------|------|---------|
+| Grammar | `Scripts/phase5-grammar.py`, `Scripts/test/phase5-grammar.test.py` | Syntax of the 41 §5.3 commands and the predicates, each with its received carrier and reset rule. Every line of the 36 files parses. |
+| Profiles | `Scripts/phase5-fixtures.py`, `Scenarios/phase5-harness.json` | Pack role -> seedable profile: profession from `class_id`, level, position, starter kit + declared inventory (role stride 10,000), chaotic state, learned ranks. Published for review. |
+| Overlay | `phase5-fixtures.py create_overlay` | The Phase 4 overlay (blacksmith) plus the pack's fixed NPCs (`[[npcs]]` named `merchant`, `exchanger`, `warehouse_keeper`, `manor_manager`, `auctioneer`) and monsters (`[[spawn_slots]]` with templates `npc_<pinned id>`). |
+| Seeder | `infra/scripts/seed-phase5-fixture.py`, `Scripts/test/phase5-fixture.test.py` | Stages below. `--help` lists the 27 packs. |
+| Dispatcher | `Scripts/phase2-fixture.py`, `Scripts/run-sim-ci.py`, `Scripts/sim-lib.sh` | Phase 5 branch: version 5 stack (`nf_phase5_fixture_*`, `nightfall-phase5-harness-*`), `PHASE5_ENABLED=1`, role tokens `a|b|c.token`, grant stage, per-role `instance:` mapping. |
+
+### Seeder stages
+
+1. **pre-admission** (before the API starts): accounts, characters, learned skills and class-transfer
+   receipts for every role (the Phase 3 seed); then the Phase 5 container rows a pack declares
+   (warehouse rows, the auction schedule for the pack's auctioneer, the Gludio manor lists). The
+   container rows are inside a `DO` block that raises unless the story 4.1 tables exist
+   (`item_auctions`, `manor_seed_production`, `manor_crop_procure`, `item_instances.owner_kind`).
+   An older schema fails before any Phase 5 row.
+2. **`--grant`** (API healthy, before login): dev `GrantItem` for each inventory row beyond the
+   starter kit, with UUIDv5 keys (`nightfall:phase5-fixture:<pack>:<role>:<index>:<template>:<count>`).
+   A re-run replays the receipts. The offline `GetInventory` baseline must equal the pack.
+3. `--dry-run` prints the SQL and the grant plan and writes nothing.
+
+Guards: `NIGHTFALL_PHASE5_FIXTURE=1`; an owned loopback non-5432 `nf_phase5_fixture_*` database; an
+owned loopback gRPC address (not 50051); accounts `a=<uuid> [b=<uuid> c=<uuid>]`, distinct unless
+the pack declares `same_account_as`; SQL goes through the owned Compose `postgres` exec, never a
+host `psql`.
+
+### Transport limits the packs respect
+
+- GrantItem cannot augment: `phase5-warehouse` grants weapon 119 and life stone 12754 and the file
+  refines live at the blacksmith (`nf.Refine`) before the deposit.
+- GrantItem cannot equip beyond the starter kit: `phase5-pk-drop` uses the kit's equipped weapon
+  (2369) and armour (1146, 1147) as the 10 % / 40 % rows.
+- Dwarven Scavenger (class 54) roles are level >= 20 (class minimum).
+- Templates that the Phase 4 item catalogue lacks (1294, 1666, 1864, 1869, 1870, 3838, 3845, 5125,
+  6908, 6926) are **blockers** until the E51 catalogue closure lands at integration; the seeder
+  refuses the pack before any write and names them. `Scenarios/phase5-harness.json` lists them.
+- Skills Spoil 254, Sweeper 42, Create Item 172 and Create Common Item 1320 are not in the Phase 3
+  class trees. The seeder writes them as learned ranks; the zone admits them through E2/E3 (B11).
+- The overlay monsters `npc_<id>` carry the keltir combat body. The engine (E3, design §1.3) binds
+  the pinned drop lists to the template; `phase5-overlay.json` records the pinned id for each slot.
+
+### Tick fast-forward (E43)
+
+The API and the harness at main 5abae32 have no tick fast-forward or injection facility (only
+`ZONE_SIM_FIXTURE`). `5-vendor-restock` asserts the restock arithmetic through the export and the
+V-R oracle; the live refill after 36,000 ticks runs in the soak lane only.
 
 ## Gate labels
 

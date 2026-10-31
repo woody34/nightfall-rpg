@@ -579,7 +579,7 @@ sim_unit_prepare() {
       export ZONE_FILE="$RULES_DIR/zones/test_zone.toml"
     fi
   fi
-  if [[ "$selected" != phase2-* && "$selected" != phase3-* && "$selected" != phase4-* ]]; then
+  if [[ "$selected" != phase2-* && "$selected" != phase3-* && "$selected" != phase4-* && "$selected" != phase5-* ]]; then
     [[ -n "$SIM_STARTED_API_PID" ]] || sim_api_prepare "$mode"
     return
   fi
@@ -617,7 +617,7 @@ sim_unit_prepare() {
       SIM_API_URL="${endpoints[2]}" sim_api_endpoint_probe owned || sim_die "fixture gRPC ownership verification failed"
       kill -0 "$SIM_STARTED_API_PID" 2>/dev/null || sim_die "fixture API exited during startup"
       sim_record_zone_flags "$SIM_FIXTURE_DIR/api.log" "$SIM_FIXTURE_DIR/zone-flags.json"
-      if [[ "$selected" == phase4-* ]]; then
+      if [[ "$selected" == phase4-* || "$selected" == phase5-* ]]; then
         # D112: grant the pack through the dev GrantItem gRPC before any client logs in, within
         # the same startup allowance; any refusal fails provisioning loudly.
         local remaining=$((deadline - SECONDS)); ((remaining > 0)) || sim_die "no startup budget left for the Phase4 grant"

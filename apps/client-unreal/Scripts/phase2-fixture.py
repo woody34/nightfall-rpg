@@ -26,13 +26,18 @@ _p4_spec = importlib.util.spec_from_file_location('phase4_fixtures', Path(__file
 phase4 = importlib.util.module_from_spec(_p4_spec)
 _p4_spec.loader.exec_module(phase4)
 
+_p5_spec = importlib.util.spec_from_file_location('phase5_fixtures', Path(__file__).resolve().parent / 'phase5-fixtures.py')
+phase5 = importlib.util.module_from_spec(_p5_spec)
+_p5_spec.loader.exec_module(phase5)
+
 REPO = Path(__file__).resolve().parents[3]
 PHASE2 = token_fixtures.PHASE2
 PHASE3 = phase3.PHASE3
 PHASE4 = phase4.PHASE4
 # Phase 5 packs (plan §5.3) are declared by story 1.8 in Scenarios/fixtures/phase5-packs.json; story 6.1
-# owns their seeders and dispatcher. Each Phase 5 file is one unit whose roles are `# role:` blocks.
-PHASE5 = frozenset(json.loads((REPO / 'apps/client-unreal/Scenarios/fixtures/phase5-packs.json').read_text())['packs'])
+# owns their seeders and dispatcher. Each Phase 5 file is ONE unit (P5-D5): its `# role:` blocks run
+# as role copies (`<file>.role-<r>.nfs`) on one owned stack, one client per role.
+PHASE5 = phase5.PHASE5
 ISOLATED = PHASE2 | PHASE3 | PHASE4 | PHASE5
 SUPPORTED = ISOLATED | {'default', 'phase1a-social-aggro', 'phase1a-late-entry'}
 OWNER = token_fixtures.OWNER
@@ -89,8 +94,7 @@ def fixture(batch):
     elif selected in phase3.PAIRED:
         raise ValueError('Phase3 pack requires matching cooperating -a/-b roles')
     elif selected in PHASE5:
-        if len(batch) != 1:
-            raise ValueError('Phase5 fixture requires one scenario per unit (roles are # role: blocks)')
+        phase5.declared_roles(selected, batch)  # one unit: the file or its role copies
     elif selected in ISOLATED and len(batch) != 1:
         raise ValueError('solo Phase2 fixture requires one scenario per fresh unit')
     return selected
@@ -118,7 +122,10 @@ def zone_flags(selected):
     D114: every unit (Phase 2, 3 and 4 packs alike) boots a V6 zone, so Phase 0b-3
     behaviour is regression-tested on the production rules (E6.3). The per-unit mechanism
     stays so a future zone version is again one decision away."""
-    return {'PHASE3_ENABLED': '1', 'PHASE4_ENABLED': '1'}
+    flags = {'PHASE3_ENABLED': '1', 'PHASE4_ENABLED': '1'}
+    if selected in PHASE5:
+        flags['PHASE5_ENABLED'] = '1'  # V7 (D §12.1); the V7 attestation is story 6.3/6.6
+    return flags
 
 
 def candidate_binaries(folder):
@@ -225,6 +232,22 @@ def private_text(path, value):
     path.chmod(0o600)
 
 
+def phase5_account_args(accounts):
+    """`a=<uuid> b=<uuid> c=<uuid>` for the seeder, one pair per distinct account role."""
+    return [f'{role}={account}' for role, account in sorted(accounts.items())]
+
+
+def phase5_token_files(folder, roles):
+    """One private token file per Phase 5 role copy (roles on one account share the token text)."""
+    directory = folder / 'tokens'
+    directory.mkdir(mode=0o700)
+    for role in roles.values():
+        path = directory / f"{role['role']}.token"
+        if not path.exists():
+            private_text(path, f"test:{role['account_id']}\n")
+        role['token_file'] = str(path)
+
+
 def role_token_files(folder, roles, owner):
     directory = folder / 'tokens'
     directory.mkdir(mode=0o700)
@@ -256,7 +279,7 @@ def private_json(path, value):
 
 def state(folder):
     value = json.loads((folder / 'state.json').read_text())
-    if not re.fullmatch(r'nightfall-(?:sim-phase2|phase3-harness|phase4-harness)-[0-9a-f]{32}', value['project']):
+    if not re.fullmatch(r'nightfall-(?:sim-phase2|phase3-harness|phase4-harness|phase5-harness)-[0-9a-f]{32}', value['project']):
         raise ValueError('invalid owned fixture project')
     return value
 
@@ -273,9 +296,9 @@ def logged(command, folder, name, env, seconds=OPERATION_TIMEOUT):
 
 
 def published_seeder(selected="phase2-transfer"):
-    packs = PHASE4 if selected in PHASE4 else PHASE3 if selected in PHASE3 else PHASE2
-    version = "4" if selected in PHASE4 else "3" if selected in PHASE3 else "2"
-    seeder = Path(os.environ.get(f'SIM_PHASE{version}_SEEDER', REPO / (f'infra/scripts/seed-phase{version}-fixture.py' if version in ('3', '4') else 'infra/scripts/seed-phase2-transfer-fixture.py'))).resolve()
+    packs = PHASE5 if selected in PHASE5 else PHASE4 if selected in PHASE4 else PHASE3 if selected in PHASE3 else PHASE2
+    version = "5" if selected in PHASE5 else "4" if selected in PHASE4 else "3" if selected in PHASE3 else "2"
+    seeder = Path(os.environ.get(f'SIM_PHASE{version}_SEEDER', REPO / (f'infra/scripts/seed-phase{version}-fixture.py' if version in ('3', '4', '5') else 'infra/scripts/seed-phase2-transfer-fixture.py'))).resolve()
     # Verify the published pack interface before creating any infrastructure. Old pair-only
     # seeders must fail here, rather than provisioning the wrong solo/missing-token ledger.
     contract = subprocess.run([sys.executable, str(seeder), '--help'], env=clean_env(),
@@ -290,27 +313,29 @@ def provision(folder, batch):
     if selected not in ISOLATED:
         raise ValueError('provision requires an isolated fixture')
     safe_bot_args(json.loads(os.environ.get('SIM_BOT_ARGS_JSON', '[]')))
-    if selected in PHASE4 and any(not os.environ.get(k) for k in ('SIM_API_BIN', 'SIM_MIGRATE_BIN')):
-        raise ValueError('Phase4 requires candidate SIM_API_BIN and SIM_MIGRATE_BIN; no implicit cargo build')
+    if selected in PHASE4 | PHASE5 and any(not os.environ.get(k) for k in ('SIM_API_BIN', 'SIM_MIGRATE_BIN')):
+        raise ValueError('Phase4/Phase5 requires candidate SIM_API_BIN and SIM_MIGRATE_BIN; no implicit cargo build')
     if selected == 'phase4-grant-denied':
         phase4.denied_auth_inputs()
     folder.mkdir(mode=0o700, parents=True, exist_ok=False)
     api, migrate = candidate_binaries(folder)
     seeder = published_seeder(selected)
     identity = uuid.uuid4().hex
-    version = '4' if selected in PHASE4 else '3' if selected in PHASE3 else '2'
+    version = '5' if selected in PHASE5 else '4' if selected in PHASE4 else '3' if selected in PHASE3 else '2'
     db = f'nf_phase{version}_fixture_' + identity
-    project = (f'nightfall-phase{version}-harness-' if version in ('3', '4') else 'nightfall-sim-phase2-') + identity
+    project = (f'nightfall-phase{version}-harness-' if version in ('3', '4', '5') else 'nightfall-sim-phase2-') + identity
     paired = selected == 'phase2-transfer-observer' or selected in PHASE3 | PHASE4 and len(batch) == 2
     owner, observer = str(uuid.uuid4()), str(uuid.uuid4())
+    phase5_accounts = phase5.accounts_for(selected, {'a': owner, 'b': observer, 'c': str(uuid.uuid4())}) if selected in PHASE5 else {}
     password = uuid.uuid4().hex
     reserved = reserve_ports(4)
     try:
         ports = [sock.getsockname()[1] for sock in reserved]
         pg, nats, http, grpc = ports
-        if selected in PHASE3 | PHASE4:
+        if selected in PHASE3 | PHASE4 | PHASE5:
             overlay_data = folder / "data"
-            if selected in PHASE4: phase4.create_overlay(overlay_data, REPO, selected)
+            if selected in PHASE5: phase5.create_overlay(overlay_data, REPO, selected)
+            elif selected in PHASE4: phase4.create_overlay(overlay_data, REPO, selected)
             else: phase3.create_overlay(overlay_data, REPO)
             zone_file = overlay_data / "zones/test_zone.toml"
             rules_dir = overlay_data
@@ -337,13 +362,17 @@ def provision(folder, batch):
             auth = phase4.denied_auth_inputs()
             owner = auth['account']
             env.update(AUTH_DEV_TOKENS='0', OIDC_ISSUER=auth['issuer'], OIDC_AUDIENCE=auth['audience'])
-        roles = {path.stem: {'account_id': observer if paired and phase3.observer_role(path) else owner,
+        roles = {path.stem: {'account_id': phase5_accounts[phase5.role_of(path)], 'role': phase5.role_of(path),
+                             'character_id': next(d['character_id'] for d in phase5.PACKS[selected]['roles'] if d['role'] == phase5.role_of(path))} for path in batch} if selected in PHASE5 else \
+                {path.stem: {'account_id': observer if paired and phase3.observer_role(path) else owner,
                             'character_id': (phase4.OBSERVER if paired and phase3.observer_role(path) else phase4.OWNER) if selected in PHASE4 else (phase3.OBSERVER if paired and phase3.observer_role(path) else phase3.OWNER) if selected in PHASE3 else (OBSERVER if paired and phase3.observer_role(path) else OWNER)} for path in batch}
         if selected == 'phase4-grant-denied':
             token_dir = folder / 'tokens'; token_dir.mkdir(mode=0o700)
             token_path = token_dir / 'owner.token'
             private_text(token_path, auth['token'] + '\n')
             for role in roles.values(): role['token_file'] = str(token_path)
+        elif selected in PHASE5:
+            phase5_token_files(folder, roles)
         else:
             role_token_files(folder, roles, owner)
         manifest = {'schema_version': 1, 'fixture': selected, 'project': project, 'database': db,
@@ -351,9 +380,15 @@ def provision(folder, batch):
                     'ports': dict(postgres=pg, nats=nats, http=http, grpc=grpc), 'roles': roles,
                     'api_binary': api, 'migrate_binary': migrate, 'seeder': str(seeder),
                     'data_sources': {'rules_dir': str(rules_dir), 'zone_file': str(zone_file),
-                                     'is_overlay': selected in token_fixtures.TOKEN_CROSSING or selected in PHASE3 | PHASE4},
+                                     'is_overlay': selected in token_fixtures.TOKEN_CROSSING or selected in PHASE3 | PHASE4 | PHASE5},
                     'sha256': {'api': digest(api), 'migrate': digest(migrate), 'seeder': digest(seeder),
                                'zone': digest(zone_file)}}
+        if selected in PHASE5:
+            manifest['data_sha256'] = phase3.data_hashes(REPO)
+            manifest['overlay_data_sha256'] = phase3.tree_hashes(overlay_data)
+            manifest['seed_inputs'] = phase5.profiles(selected, REPO)
+            manifest['accounts'] = phase5_accounts
+            manifest['overlay'] = json.loads((overlay_data / 'phase5-overlay.json').read_text())
         if selected in PHASE4:
             manifest['data_sha256'] = phase3.data_hashes(REPO)
             manifest['overlay_data_sha256'] = phase3.tree_hashes(overlay_data)
@@ -382,10 +417,13 @@ def provision(folder, batch):
             sock.close()
     logged(compose(folder, manifest) + ['up', '-d', '--wait'], folder, 'infra-start.log', clean_env())
     logged([migrate, 'up'], folder, 'migrate.log', env)
-    command = [sys.executable, str(seeder), '--fixture', selected, '--owner-account', owner]
-    if paired:
-        command += ['--observer-account', observer]
-    if selected in PHASE4:
+    if selected in PHASE5:
+        command = [sys.executable, str(seeder), '--fixture', selected, '--account'] + phase5_account_args(phase5_accounts)
+    else:
+        command = [sys.executable, str(seeder), '--fixture', selected, '--owner-account', owner]
+        if paired:
+            command += ['--observer-account', observer]
+    if selected in PHASE4 | PHASE5:
         command += ['--compose-project', project, '--compose-file', str(folder / 'compose.json')]
     seed_env = env | {'NIGHTFALL_FIXTURE_PSQL_SHIM': '1', 'PATH': install_psql(folder) + os.pathsep + env.get('PATH', os.defpath)}
     logged(command, folder, 'seed.log', seed_env)
@@ -400,7 +438,11 @@ def validate_seed(folder, selected, owner, observer):
     if not records:
         raise ValueError('seeder did not publish its fixture manifest')
     seed = records[-1]
-    if selected in PHASE4:
+    if selected in PHASE5:
+        phase5.validate_seed_manifest(seed, selected, state(folder)['accounts'], 'pre-admission')
+        if seed.get('data_sha256') != state(folder)['data_sha256']:
+            raise ValueError('Phase5 seed data hashes changed')
+    elif selected in PHASE4:
         phase4.validate_seed_manifest(seed, selected, owner, observer, REPO, 'observer' in state(folder)['seed_inputs'], 'pre-admission')
         if seed.get('data_sha256') != state(folder)['data_sha256']:
             raise ValueError('Phase4 seed data hashes changed')
@@ -417,10 +459,23 @@ def grant(folder):
     """D112: after the owned API is healthy and before any client login, grant every pack item
     through the dev GrantItem gRPC and confirm admission from the offline baseline."""
     value = state(folder)
-    if value['fixture'] not in PHASE4:
+    if value['fixture'] not in PHASE4 | PHASE5:
         return
     if not (folder / 'seed-complete').is_file():
         raise ValueError('grant requires the completed pre-admission seed')
+    if value['fixture'] in PHASE5:
+        command = [sys.executable, value['seeder'], '--fixture', value['fixture'], '--account'] + phase5_account_args(value['accounts']) + \
+                  ['--grant', '--grpc', f"127.0.0.1:{value['ports']['grpc']}"]
+        if digest(value['seeder']) != value['sha256']['seeder']:
+            raise ValueError('seeder changed after fixture provisioning')
+        logged(command, folder, 'grant.log', value['env'] | {'PATH': os.environ.get('PATH', os.defpath)})
+        records = [json.loads(line) for line in (folder / 'grant.log').read_text().splitlines() if line.startswith('{')]
+        if not records:
+            raise ValueError('seeder did not publish its grant manifest')
+        phase5.validate_seed_manifest(records[-1], value['fixture'], value['accounts'], 'granted')
+        (folder / 'grant-manifest.json').write_text(json.dumps(records[-1], indent=2) + '\n')
+        (folder / 'grant-complete').touch()
+        return
     roles = value['roles']
     owner = next(r['account_id'] for r in roles.values() if r['character_id'] == phase4.OWNER)
     observer = next((r['account_id'] for r in roles.values() if r['character_id'] == phase4.OBSERVER), None)
@@ -443,12 +498,15 @@ def scenario_copy(folder, scenario):
     """Phase 4 scenarios name pack instance ids (`instance:N`); the server allocates its own ids,
     so the bot runs a copy whose ids are mapped through the confirmed grant manifest."""
     value = state(folder)
-    if value['fixture'] not in PHASE4:
+    if value['fixture'] not in PHASE4 | PHASE5:
         return scenario
     manifest = folder / 'grant-manifest.json'
     if not (folder / 'grant-complete').is_file() or not manifest.is_file():
         raise ValueError('Phase4 scenario requires the confirmed grant stage')
-    role = 'observer' if value['roles'][scenario.stem]['character_id'] == phase4.OBSERVER else 'owner'
+    if value['fixture'] in PHASE5:
+        role = value['roles'][scenario.stem]['role']
+    else:
+        role = 'observer' if value['roles'][scenario.stem]['character_id'] == phase4.OBSERVER else 'owner'
     mapping = json.loads(manifest.read_text())['granted'][role]['instance_map']
     def mapped(match):
         identity = match[1]
@@ -557,7 +615,7 @@ def main():
                 raise ValueError('API binary changed after fixture provisioning')
             if not (folder / 'seed-complete').is_file():
                 raise ValueError('API startup requires completed before-admission seed')
-            if {k: value['env'][k] for k in ('PHASE3_ENABLED', 'PHASE4_ENABLED') if k in value['env']} != zone_flags(value['fixture']):
+            if {k: value['env'][k] for k in ('PHASE3_ENABLED', 'PHASE4_ENABLED', 'PHASE5_ENABLED') if k in value['env']} != zone_flags(value['fixture']):
                 raise ValueError('API zone flags differ from the unit manifest')
             # Running outside the repo also prevents a binary's dotenv lookup from finding root .env.
             os.chdir(folder)
