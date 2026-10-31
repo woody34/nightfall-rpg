@@ -61,6 +61,9 @@ pub mod phase4;
 pub mod phase4_admission;
 pub mod phase4_checkpoint;
 pub mod phase4_projection;
+pub mod phase5_command;
+pub mod phase5_event;
+pub mod phase5_wire;
 mod progression;
 mod scaled;
 pub mod skill;
@@ -132,6 +135,12 @@ pub use phase4_admission::{
 };
 pub use phase4_checkpoint::Phase4Checkpoint;
 pub use phase4_projection::{FrozenItemResult, ItemResultDetail, Phase4Projection};
+pub use phase5_command::{LootMode, Phase5Command};
+pub use phase5_event::{
+    EconomyBody, EconomyCheckpoint, EconomyEvent, GroundItemDetail, LeaseKey, LeaseKind,
+    Phase5Checkpoint, RecipeBook,
+};
+pub use phase5_wire::{Phase5CommandKind, Phase5OutputKind};
 pub use progression::{add_xp, death_xp_loss, level_for_xp, xp_after_death, xp_cap};
 pub use scaled::{ceil_div, floor_div, isqrt, Scaled, StatError, Q};
 pub use stat_rules::{
@@ -156,8 +165,11 @@ mod tests {
     /// Every source file in this module, embedded at compile time so the scan cannot miss a
     /// file that exists but is not listed: adding a module without adding it here fails
     /// `every_zone_source_is_scanned`.
-    const SOURCES: [(&str, &str); 87] = [
+    const SOURCES: [(&str, &str); 90] = [
         ("mod.rs", include_str!("mod.rs")),
+        ("phase5_wire.rs", include_str!("phase5_wire.rs")),
+        ("phase5_command.rs", include_str!("phase5_command.rs")),
+        ("phase5_event.rs", include_str!("phase5_event.rs")),
         ("item.rs", include_str!("item.rs")),
         ("item_rules.rs", include_str!("item_rules.rs")),
         ("item_sources.rs", include_str!("item_sources.rs")),

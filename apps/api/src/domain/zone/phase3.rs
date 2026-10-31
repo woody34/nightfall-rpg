@@ -41,11 +41,20 @@ impl Phase3AdmissionPolicy {
         }
     }
 
+    /// V7 (Phase 5) keeps the same ceilings under its own recorded policy (design §12.1).
+    #[must_use]
+    pub const fn version_three() -> Self {
+        Self {
+            version: 3,
+            ..Self::version_one()
+        }
+    }
+
     /// Portable structural checks. Exact protobuf framing/recipient feasibility and the
     /// backend ceiling remain application-layer checks; this module has no codec dependency.
     #[must_use]
     pub const fn is_valid(self) -> bool {
-        matches!(self.version, 1 | 2)
+        matches!(self.version, 1..=3)
             && self.max_command_bytes > 0
             && self.max_command_bytes <= 262_144
             && self.record_budget > self.max_command_bytes

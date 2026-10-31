@@ -19,6 +19,17 @@ use sha2::{Digest as _, Sha256};
 mod items;
 
 impl ZoneState {
+    /// V7 layout (design §12.4): the complete V6 digest, then the Phase 5 appends in the
+    /// design order (rules hash, ground items, NPC sidecars, parties, requests, trades,
+    /// stores, vendor stock, per-player recipes/refund/flood). The appends are written by
+    /// story 3.1 together with the canonical Phase 5 block they digest.
+    pub(super) fn phase5_state_digest(&self) -> [u8; 32] {
+        let mut w = Writer(Vec::new());
+        w.0.extend_from_slice(b"nightfall-state-v7\0");
+        w.0.extend_from_slice(&self.phase4_state_digest());
+        Sha256::digest(&w.0).into()
+    }
+
     pub(super) fn phase4_state_digest(&self) -> [u8; 32] {
         let mut w = Writer(Vec::new());
         w.0.extend_from_slice(b"nightfall-state-v6\0");

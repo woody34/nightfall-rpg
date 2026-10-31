@@ -95,6 +95,7 @@ fn validate(root: &Path, manifest: &Path) -> anyhow::Result<()> {
             let [x, y] = role.position;
             let load = PlayerLoad {
                 phase4: None,
+                phase5: None,
                 phase3: Some(checkpoint),
                 progression: Some(Box::new(PlayerProgression {
                     identity: CharacterIdentity {
@@ -172,6 +173,7 @@ fn generated_overlay_and_all_seed_roles_pass_real_admission() -> anyhow::Result<
                 auth_dev_tokens: true,
                 phase3_enabled: Some("1".into()),
                 phase4_enabled: None,
+                phase5_enabled: None,
             };
             let prepared = config
                 .prepare_phase3(load_classes(&ClassSource::from_dir(&data)?)?)?
@@ -248,6 +250,7 @@ fn evidence_load(role: &Role, account: u128) -> PlayerLoad {
         .clone_from(&role.modifier_install_order);
     PlayerLoad {
         phase4: None,
+        phase5: None,
         phase3: Some(checkpoint),
         progression: Some(Box::new(PlayerProgression {
             identity: CharacterIdentity {
@@ -1311,6 +1314,7 @@ async fn phase4_startup_composes_the_v6_bundle_over_a_rules_dir_overlay() -> any
             auth_dev_tokens: true,
             phase3_enabled: Some("1".into()),
             phase4_enabled: Some("1".into()),
+            phase5_enabled: None,
         };
         let mut deps = nightfall_api::Dependencies::in_memory();
         deps.classes = Some(load_classes(&ClassSource::from_dir(&root)?)?);
@@ -1517,6 +1521,7 @@ fn t8_overlay_runtime(
         auth_dev_tokens: true,
         phase3_enabled: Some("1".into()),
         phase4_enabled: Some("1".into()),
+        phase5_enabled: None,
     };
     Ok((config, deps, overlay))
 }

@@ -327,6 +327,7 @@ pub fn world_event_to_pb(ev: &ZoneEvent, server_time_ms: i64) -> Vec<pb::WorldEv
         ZoneEvent::EntitySpawn {
             identity,
             phase4,
+            phase5: _,
             tick,
             entity,
             kind,
@@ -494,7 +495,11 @@ pub fn world_event_to_pb(ev: &ZoneEvent, server_time_ms: i64) -> Vec<pb::WorldEv
         | ZoneEvent::HateChanged { .. }
         | ZoneEvent::NpcIntentionChanged { .. }
         | ZoneEvent::ItemCheckpoint(_)
-        | ZoneEvent::Progression(_) => Vec::new(),
+        | ZoneEvent::EconomyCheckpoint(_)
+        | ZoneEvent::Progression(_)
+        // Design §13.1 WorldEvents 34..45 are mapped once `economy.proto` lands (story 2.1
+        // and the Epic 4 gateway). No V7 epoch emits them before that.
+        | ZoneEvent::Economy(_) => Vec::new(),
         ZoneEvent::EntityRespawned {
             entity,
             tick,
@@ -1207,6 +1212,7 @@ mod tests {
     #[test]
     fn spawn_of_a_moving_entity_is_followed_by_its_move() {
         let ev = ZoneEvent::EntitySpawn {
+            phase5: None,
             phase4: None,
             identity: None,
             tick: Tick(1),

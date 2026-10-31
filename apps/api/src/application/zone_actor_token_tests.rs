@@ -55,6 +55,7 @@ fn spawn(c: &Character, revision: Option<u64>) -> ZoneInput {
         generation: SessionGeneration(1),
         load: Some(Box::new(PlayerLoad {
             phase4: None,
+            phase5: None,
             phase3: None,
             progression: Some(Box::new(PlayerProgression {
                 identity: c.identity(),

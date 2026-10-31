@@ -66,7 +66,10 @@ pub const MAX_MOVE_DISTANCE_TILES: i32 = 64;
 /// 7: resolved class registry, verified immutable hash, player identity and transfer ledger.
 /// 8: `BinaryV4` once-ever token policy; older epochs keep supply disabled.
 /// 9: isolated Phase 3 skills/effects/player-combat policy with `BinaryV5`.
-pub const SNAPSHOT_SCHEMA_VERSION: u32 = 10;
+/// 10: hash-referenced Phase 4 item state with `BinaryV6`.
+/// 11: Phase 5 economy state with `BinaryV7` (design §12.1); the Phase 5 block itself
+/// lands with story 3.1, so no schema-11 snapshot validates before it exists.
+pub const SNAPSHOT_SCHEMA_VERSION: u32 = 11;
 
 /// Canonical state encoding hashed with SHA-256. Fixed for an epoch, including on restore.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -84,6 +87,8 @@ pub enum StateDigestVersion {
     BinaryV5,
     /// Item/equipment epochs with hash-resolved immutable rules.
     BinaryV6,
+    /// Phase 5 economy epochs: V6 plus the design §12.4 appends, all rules hash-referenced.
+    BinaryV7,
 }
 
 /// Identity of a zone.
@@ -435,6 +440,9 @@ pub enum TickError {
     /// Only normalized authenticated item envelopes can become replay inputs.
     #[error("invalid Phase 4 command envelope")]
     Phase4CommandMalformed,
+    /// Economy intents, system jobs and Phase 5 loads require an admitted V7 epoch.
+    #[error("Phase 5 command in a historical epoch")]
+    Phase5CommandInLegacy,
     /// The Phase 3 boundary exists, but gameplay installation is not complete.
     #[error("Phase 3 gameplay is not installed")]
     Phase3NotReady,
@@ -540,7 +548,10 @@ impl ZoneSnapshot {
                             .as_ref()
                             .is_some_and(|p| p.formula_revision == 1 && p.timer_policy_version == 1)
                 },
-                (4..=10, _, _) => false,
+                // (11, BinaryV7): V7 requires valid Phase 3, Phase 4 and Phase 5 blocks with
+                // all three rules hashes (design §12.1). The Phase 5 block is story 3.1: until
+                // it exists no V7 snapshot validates, so a relabelled V6 snapshot fails closed.
+                (4..=11, _, _) => false,
                 (version, _, _) => return Err(SnapshotError::Schema(version)),
             };
         if valid {
@@ -1169,6 +1180,9 @@ impl ZoneState {
         if !self.phase4_enabled() && draft.commands.iter().any(|c| c.command.requires_phase4()) {
             return Err(TickError::Phase4CommandInLegacy);
         }
+        if !self.phase5_enabled() && draft.commands.iter().any(|c| c.command.requires_phase5()) {
+            return Err(TickError::Phase5CommandInLegacy);
+        }
         for command in &draft.commands {
             if let ZoneCommand::SpawnPlayer {
                 load: Some(load), ..
@@ -1228,7 +1242,9 @@ impl ZoneState {
     pub fn phase3_enabled(&self) -> bool {
         matches!(
             (self.meta.schema_version, self.meta.digest_version),
-            (9, StateDigestVersion::BinaryV5) | (10, StateDigestVersion::BinaryV6)
+            (9, StateDigestVersion::BinaryV5)
+                | (10, StateDigestVersion::BinaryV6)
+                | (11, StateDigestVersion::BinaryV7)
         )
     }
 
@@ -1287,6 +1303,7 @@ impl ZoneState {
             StateDigestVersion::BinaryV4 => self.token_state_digest(),
             StateDigestVersion::BinaryV5 => self.phase3_state_digest(),
             StateDigestVersion::BinaryV6 => self.phase4_state_digest(),
+            StateDigestVersion::BinaryV7 => self.phase5_state_digest(),
         }
     }
 
@@ -1348,7 +1365,8 @@ impl ZoneState {
                 && !matches!(
                     cmd,
                     ZoneCommand::SpawnPlayer { .. } | ZoneCommand::MaterializePendingItems(_)
-                )))
+                ))
+            || matches!(cmd, ZoneCommand::Phase5(command) if !command.kind().is_system()))
             && source == CommandSource::System
         {
             return Err(RejectReason::NotPermitted);
@@ -1357,6 +1375,14 @@ impl ZoneState {
             return Ok(());
         };
         match cmd {
+            ZoneCommand::Phase5(command)
+                if !command.kind().is_system() && command.entity() == Some(entity) =>
+            {
+                match self.entities.get(&entity) {
+                    Some(e) if e.generation != generation => Err(RejectReason::StaleSession),
+                    Some(_) | None => Ok(()),
+                }
+            },
             ZoneCommand::Item(command) if command.entity == entity => {
                 match self.entities.get(&entity) {
                     Some(e) if e.generation != generation => Err(RejectReason::StaleSession),
@@ -1387,6 +1413,7 @@ impl ZoneState {
             ZoneCommand::MaterializePendingItems(_)
             | ZoneCommand::ExtendItemRange { .. }
             | ZoneCommand::Item(_)
+            | ZoneCommand::Phase5(_)
             | ZoneCommand::CastSkill { .. }
             | ZoneCommand::CancelCast { .. }
             | ZoneCommand::AcceptResurrect { .. }
@@ -1417,6 +1444,7 @@ impl ZoneState {
             ZoneCommand::MaterializePendingItems(_)
             | ZoneCommand::ExtendItemRange { .. }
             | ZoneCommand::Item(_)
+            | ZoneCommand::Phase5(_)
             | ZoneCommand::CastSkill { .. }
             | ZoneCommand::CancelCast { .. }
             | ZoneCommand::AcceptResurrect { .. }
@@ -1589,7 +1617,9 @@ impl ZoneState {
             | ZoneCommand::ReplaceSession { .. }
             | ZoneCommand::AddAggro { .. }
             | ZoneCommand::MaterializePendingItems(_)
-            | ZoneCommand::ExtendItemRange { .. } => Ok(()),
+            | ZoneCommand::ExtendItemRange { .. }
+            // Phase 5 intents check liveness at their pinned step (design §4.1; story 3.5).
+            | ZoneCommand::Phase5(_) => Ok(()),
         }
     }
 
@@ -1925,6 +1955,8 @@ fn fact_visible(event: &ZoneEvent, observer: EntityId, known: &[EntityId]) -> bo
         | ZoneEvent::HateChanged { .. }
         | ZoneEvent::NpcIntentionChanged { .. }
         | ZoneEvent::ItemCheckpoint(_)
+        | ZoneEvent::EconomyCheckpoint(_)
+        | ZoneEvent::Economy(_)
         | ZoneEvent::Progression(_)
         | ZoneEvent::EntitySpawn { .. }
         | ZoneEvent::EntityMove { .. }
@@ -2014,6 +2046,8 @@ impl<'a> CellFacts<'a> {
                 | ZoneEvent::HateChanged { .. }
                 | ZoneEvent::NpcIntentionChanged { .. }
                 | ZoneEvent::ItemCheckpoint(_)
+                | ZoneEvent::EconomyCheckpoint(_)
+                | ZoneEvent::Economy(_)
                 | ZoneEvent::Progression(_)
                 | ZoneEvent::EntitySpawn { .. }
                 | ZoneEvent::EntityMove { .. }
@@ -2175,6 +2209,7 @@ fn diff_into(
 fn spawn_event(tick: Tick, e: &Entity) -> ZoneEvent {
     ZoneEvent::EntitySpawn {
         phase4: None,
+        phase5: None,
         identity: e.combat.as_ref().and_then(|c| match &c.role {
             CombatRole::Player { progression, .. } => progression.as_ref().map(|p| p.public()),
             CombatRole::Npc { .. } => None,

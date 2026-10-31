@@ -455,6 +455,7 @@ impl SessionRegistry {
             spawn.pos = saved_position(loaded.position).ok_or(AdmitError::LoadFailed)?;
             let phase3 = v6_skill_origin(&loaded).map_err(|_| AdmitError::LoadFailed)?;
             spawn.load = Some(Box::new(PlayerLoad {
+                phase5: None,
                 phase4: loaded.phase4,
                 phase3,
                 progression: zone.has_classes().then(|| {
@@ -1008,6 +1009,7 @@ impl<'a> Actor<'a> {
                     | ZoneCommand::MaterializePendingItems(_)
                     | ZoneCommand::ExtendItemRange { .. }
                     | ZoneCommand::Item(_)
+                    | ZoneCommand::Phase5(_)
                     | ZoneCommand::ChangeClass { .. }
                     | ZoneCommand::SpawnNpc { .. }
                     | ZoneCommand::Despawn { .. }

@@ -2498,6 +2498,7 @@ mod tests {
             panic!("player");
         };
         let load = PlayerLoad {
+            phase5: None,
             phase4: Some(crate::domain::zone::Phase4PlayerLoad {
                 checkpoint: Some(item_checkpoint),
                 pending: Vec::new(),
@@ -11713,6 +11714,7 @@ mod tests {
             panic!("player")
         };
         let load = PlayerLoad {
+            phase5: None,
             phase4: Some(crate::domain::zone::Phase4PlayerLoad {
                 checkpoint: Some(item_checkpoint),
                 pending: Vec::new(),
@@ -13400,6 +13402,7 @@ mod tests {
             };
             (
                 PlayerLoad {
+                    phase5: None,
                     phase4: Some(crate::domain::zone::Phase4PlayerLoad {
                         checkpoint: Some(item_checkpoint.clone()),
                         pending: Vec::new(),
@@ -13719,6 +13722,7 @@ mod tests {
             unreachable!()
         };
         let load = PlayerLoad {
+            phase5: None,
             phase4: Some(crate::domain::zone::Phase4PlayerLoad {
                 checkpoint: Some(retained.clone()),
                 pending: Vec::new(),

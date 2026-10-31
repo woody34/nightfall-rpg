@@ -22,6 +22,7 @@ async fn offline() -> (Harness, ItemPausedCore) {
             progression: progression.clone(),
             checkpoint_revision: Some(cp.revision_seen),
             phase3: cp.phase3.clone(),
+            phase5: None,
             phase4: Some(Phase4PlayerLoad {
                 checkpoint: cp.phase4.clone(),
                 pending: vec![],

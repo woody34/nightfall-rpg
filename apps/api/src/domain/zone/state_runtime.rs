@@ -1269,6 +1269,16 @@ impl ZoneState {
                     .extend(*range)
                     .map_err(|_| RejectReason::InvalidLoad)?;
             },
+            // V7 only; each Epic 3 story installs its kinds here. No V7 epoch exists before
+            // the Phase 5 snapshot block (story 3.1), so this arm is unreachable until then:
+            // a system job has no executor yet (3.11), a client intent no handler (3.3–3.10).
+            ZoneCommand::Phase5(command) => {
+                return Err(if command.kind().is_system() {
+                    RejectReason::NotPermitted
+                } else {
+                    RejectReason::NotYetImplemented
+                })
+            },
             ZoneCommand::Item(item) => {
                 let explicit =
                     if let crate::domain::zone::ItemCommandKind::Use { target, .. } = item.kind {
@@ -1367,6 +1377,7 @@ impl ZoneState {
                     | ZoneCommand::AcceptResurrect { .. }
                     | ZoneCommand::LearnSkill { .. }
                     | ZoneCommand::Item(_)
+                    | ZoneCommand::Phase5(_)
                     | ZoneCommand::MaterializePendingItems(_)
                     | ZoneCommand::ExtendItemRange { .. }
                     | ZoneCommand::ChangeClass { .. }

@@ -30,6 +30,70 @@ pub(super) fn pre_phase4_json(value: &serde_json::Value) -> Result<(), CodecErro
     Ok(())
 }
 
+/// V7 presence is forbidden in every Record ≤ 8 / Snapshot ≤ 10 payload (design §12.1):
+/// Phase 5 keys, the `economy` event types, V7 `ItemLocation` values, V7 ledger ops and
+/// receipt scopes, and the ground-item entity kind, at any depth and even when empty.
+pub(super) fn pre_phase5_json(value: &serde_json::Value) -> Result<(), CodecError> {
+    use crate::domain::zone::phase5_wire::{
+        V7_ENTITY_KIND, V7_ITEM_LOCATIONS, V7_JSON_KEYS, V7_LEDGER_OPS, V7_RECEIPT_SCOPES,
+    };
+    match value {
+        serde_json::Value::Object(fields) => {
+            for (key, child) in fields {
+                if V7_JSON_KEYS.contains(&key.as_str()) {
+                    return Err(CodecError(format!("V7 field {key} in historical payload")));
+                }
+                if let Some(text) = child.as_str() {
+                    let forbidden = match key.as_str() {
+                        "type" | "event" => matches!(text, "economy" | "economy_checkpoint"),
+                        "location" => V7_ITEM_LOCATIONS.contains(&text),
+                        "op" | "operation" => {
+                            V7_LEDGER_OPS.contains(&text) || V7_RECEIPT_SCOPES.contains(&text)
+                        },
+                        "kind" => text == V7_ENTITY_KIND,
+                        _ => false,
+                    };
+                    if forbidden {
+                        return Err(CodecError(format!(
+                            "V7 value {key}={text} in historical payload"
+                        )));
+                    }
+                }
+                pre_phase5_json(child)?;
+            }
+        },
+        serde_json::Value::Array(values) => {
+            for child in values {
+                pre_phase5_json(child)?;
+            }
+        },
+        serde_json::Value::Null
+        | serde_json::Value::Bool(_)
+        | serde_json::Value::Number(_)
+        | serde_json::Value::String(_) => {},
+    }
+    Ok(())
+}
+
+/// Opaque protobuf `bytes` whose schema is JSON, at Record 5..8 (the Phase 5 scan runs on
+/// every one of them under Record ≤ 8).
+fn json_payload(node: &str, tag: u32) -> bool {
+    matches!(
+        (node, tag),
+        ("PbCommand", 15 | 20..=31)
+            | ("PbPlayerLoad", 8..=10)
+            | ("PbOutput", 18..=27 | 29..=41)
+    )
+}
+
+/// Phase 5 carriers (design §12.2, §12.3); tag 51 is reserved and never admitted.
+fn phase5_slot(node: &str, tag: u32) -> bool {
+    matches!(
+        (node, tag),
+        ("PbCommand", 32..=76) | ("PbPlayerLoad", 11) | ("PbOutput", 42..=50 | 52..=55)
+    )
+}
+
 pub(super) fn legacy_json(value: &serde_json::Value) -> Result<(), CodecError> {
     match value {
         serde_json::Value::Object(fields) => {
@@ -113,6 +177,7 @@ pub(super) fn item_command(bytes: &[u8]) -> Result<(), CodecError> {
     message(bytes, "PbCommand", 8, false)
 }
 
+#[allow(clippy::too_many_lines)] // The raw record grammar is one traversal by design.
 fn message(mut bytes: &[u8], node: &str, schema: u32, digested: bool) -> Result<(), CodecError> {
     let mut command_kind_seen = false;
     let mut command_fields = std::collections::BTreeSet::new();
@@ -132,10 +197,19 @@ fn message(mut bytes: &[u8], node: &str, schema: u32, digested: bool) -> Result<
             }
             command_kind_seen = true;
         }
-        let (expected, mut child, json) = if schema >= 8
-            && ((node == "PbCommand" && (20..=31).contains(&tag))
-                || (node == "PbPlayerLoad" && tag == 10)
-                || (node == "PbOutput" && (32..=41).contains(&tag)))
+        if node == "PbOutput" && tag == 51 {
+            return Err(CodecError(
+                "reserved Phase 5 output 51 (MailNotification is API-only)".into(),
+            ));
+        }
+        if schema < 9 && phase5_slot(node, tag) {
+            return Err(CodecError(format!("Phase 5 {node}.{tag} in legacy record {schema}")));
+        }
+        let (expected, mut child, json) = if (schema >= 9 && phase5_slot(node, tag))
+            || (schema >= 8
+                && ((node == "PbCommand" && (20..=31).contains(&tag))
+                    || (node == "PbPlayerLoad" && tag == 10)
+                    || (node == "PbOutput" && (32..=41).contains(&tag))))
         {
             (2, None, false)
         } else if schema >= 7 {
@@ -162,6 +236,12 @@ fn message(mut bytes: &[u8], node: &str, schema: u32, digested: bool) -> Result<
         }
         if wire == 0 {
             let value = varint(&mut bytes)?;
+            if schema < 9 && node == "PbDisposition" && tag == 5 && value >= 52 {
+                return Err(CodecError("Phase 5 rejection in legacy record".into()));
+            }
+            if schema < 9 && node == "PbSpawnEvent" && tag == 3 && value >= 3 {
+                return Err(CodecError("Phase 5 entity kind in legacy record".into()));
+            }
             if schema < 8 && node == "PbDisposition" && tag == 5 && value >= 39 {
                 return Err(CodecError("Phase 4 rejection in legacy record".into()));
             }
@@ -178,19 +258,13 @@ fn message(mut bytes: &[u8], node: &str, schema: u32, digested: bool) -> Result<
                 .split_at_checked(len)
                 .ok_or_else(|| CodecError("truncated nested payload".into()))?;
             bytes = rest;
-            if schema >= 8
-                && node == "PbPlayerOutput"
-                && tag == 2
-                && super::codec::decode_outputs(payload)?.iter().any(|output| {
-                    matches!(
-                        output,
-                        crate::domain::zone::ObserverOutput::Event(
-                            crate::domain::zone::ZoneEvent::ItemCheckpoint(_)
-                        )
-                    )
-                })
-            {
-                return Err(CodecError("private item checkpoint in observer output".into()));
+            if schema < 9 && json_payload(node, tag) {
+                let value: serde_json::Value =
+                    serde_json::from_slice(payload).map_err(|e| CodecError(e.to_string()))?;
+                pre_phase5_json(&value)?;
+            }
+            if schema >= 9 && phase5_slot(node, tag) {
+                super::codec::phase5_payload(node, tag, payload)?;
             }
             if schema >= 8 && node == "PbOutput" && (32..=36).contains(&tag) {
                 super::codec::item_view_from_json(payload, tag)?;
@@ -212,6 +286,23 @@ fn message(mut bytes: &[u8], node: &str, schema: u32, digested: bool) -> Result<
             }
             if let Some(child) = child {
                 message(payload, child, schema, digested)?;
+            }
+            // After the grammar traversal, so a Phase 5 carrier is named by the grammar
+            // (not by the permissive decoder) under Record ≤ 8.
+            if schema >= 8
+                && node == "PbPlayerOutput"
+                && tag == 2
+                && super::codec::decode_outputs(payload)?.iter().any(|output| {
+                    matches!(
+                        output,
+                        crate::domain::zone::ObserverOutput::Event(
+                            crate::domain::zone::ZoneEvent::ItemCheckpoint(_)
+                                | crate::domain::zone::ZoneEvent::EconomyCheckpoint(_)
+                        )
+                    )
+                })
+            {
+                return Err(CodecError("private checkpoint in observer output".into()));
             }
             if json {
                 let value =

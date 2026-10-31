@@ -32,6 +32,7 @@ use uuid::Uuid;
 
 fn player_load(loaded: api::application::ProgressionState) -> PlayerLoad {
     PlayerLoad {
+        phase5: None,
         phase3: loaded.phase3.or_else(|| Some(Phase3Checkpoint::new())),
         phase4: loaded.phase4,
         progression: Some(Box::new(PlayerProgression {

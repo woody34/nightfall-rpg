@@ -184,6 +184,9 @@ pub struct CombatView {
 /// repository (plan D5). HP/MP `None` means full (a character never saved in combat).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PlayerLoad {
+    /// Explicit V7 recipe-book checkpoint (design §1.11); never inferred from a V6 load.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub phase5: Option<super::Phase5Checkpoint>,
     /// Explicit V6 inventory and pending manifests, never inferred from a legacy load.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub phase4: Option<super::Phase4PlayerLoad>,
@@ -220,6 +223,7 @@ impl PlayerLoad {
     #[must_use]
     pub fn fresh(class: impl Into<String>) -> Self {
         Self {
+            phase5: None,
             phase4: None,
             phase3: None,
             progression: None,
@@ -235,6 +239,13 @@ impl PlayerLoad {
 
     /// Item admission references the same retained skill provider order in this envelope.
     pub fn validate_phase4(&self) -> Result<(), super::ItemError> {
+        if let Some(recipes) = &self.phase5 {
+            // A V7 load requires the Phase 3, Phase 4 and Phase 5 blocks (design §1.11).
+            if self.phase4.is_none() || self.phase3.is_none() {
+                return Err(super::ItemError("Phase 5 load requires the item and skill blocks"));
+            }
+            recipes.validate()?;
+        }
         if let Some(items) = &self.phase4 {
             let sources = match (&self.phase3, &items.checkpoint) {
                 (Some(skills), _) => skills.modifier_install_order.len(),

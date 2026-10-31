@@ -83,7 +83,15 @@ impl ZoneState {
 
     /// Recorded item policy; environment switches cannot alter an existing epoch.
     pub fn phase4_enabled(&self) -> bool {
-        self.meta.schema_version == 10 && self.meta.digest_version == StateDigestVersion::BinaryV6
+        matches!(
+            (self.meta.schema_version, self.meta.digest_version),
+            (10, StateDigestVersion::BinaryV6) | (11, StateDigestVersion::BinaryV7)
+        )
+    }
+
+    /// V7 (Phase 5) epochs only; selected by the validated epoch version, never by state.
+    pub fn phase5_enabled(&self) -> bool {
+        self.meta.schema_version == 11 && self.meta.digest_version == StateDigestVersion::BinaryV7
     }
 
     pub(crate) fn item_instance_range(&self) -> Option<ItemInstanceRange> {

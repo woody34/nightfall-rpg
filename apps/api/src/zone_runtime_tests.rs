@@ -373,3 +373,63 @@ fn phase3_switch_defaults_normal_startup_to_v5_and_refuses_truthy_values() {
             .is_err());
     }
 }
+
+/// Story 2.2: the `PHASE5_ENABLED` matrix of design §12.1.
+#[test]
+fn phase5_switch_defaults_to_v7_and_refuses_malformed_or_contradictory_values() {
+    // Unset selects V7, except under the historical simulation-fixture selection.
+    assert!(config(&[]).phase5_requested().unwrap());
+    assert!(config(&[("PHASE4_ENABLED", "1")])
+        .phase5_requested()
+        .unwrap());
+    assert!(!config(&[("ZONE_SIM_FIXTURE", "phase1a-social-aggro")])
+        .phase5_requested()
+        .unwrap());
+    // Exact 0 keeps the older selection; exact 1 selects V7.
+    assert!(!config(&[("PHASE5_ENABLED", "0")])
+        .phase5_requested()
+        .unwrap());
+    assert!(config(&[("PHASE5_ENABLED", "1")])
+        .phase5_requested()
+        .unwrap());
+    assert!(config(&[
+        ("PHASE5_ENABLED", "1"),
+        ("PHASE4_ENABLED", "1"),
+        ("PHASE3_ENABLED", "1")
+    ])
+    .phase5_requested()
+    .unwrap());
+    // Any other value refuses boot, through the production selection check too.
+    for value in ["", "true", "01", "1 ", "2", "yes"] {
+        let cfg = config(&[("PHASE5_ENABLED", value)]);
+        assert!(cfg.phase5_requested().is_err(), "{value:?}");
+        assert!(cfg.validate_production_selection().is_err(), "{value:?}");
+    }
+    // V7 extends V6 and V5: an explicit older `0` contradicts an explicit V7 selection.
+    assert!(config(&[("PHASE5_ENABLED", "1"), ("PHASE4_ENABLED", "0")])
+        .phase5_requested()
+        .is_err());
+    assert!(config(&[("PHASE5_ENABLED", "1"), ("PHASE3_ENABLED", "0")])
+        .phase5_requested()
+        .is_err());
+    assert!(config(&[
+        ("PHASE5_ENABLED", "1"),
+        ("ZONE_SIM_FIXTURE", "phase1a-social-aggro"),
+        ("AUTH_DEV_TOKENS", "1")
+    ])
+    .phase5_requested()
+    .is_err());
+    assert!(config(&[
+        ("PHASE5_ENABLED", "1"),
+        ("PHASE3_ENABLED", "1"),
+        ("ZONE_SIM_FIXTURE", "phase1a-social-aggro"),
+        ("AUTH_DEV_TOKENS", "1")
+    ])
+    .phase5_requested()
+    .unwrap());
+    // The older switches keep their own matrix.
+    assert!(config(&[]).validate_production_selection().is_ok());
+    assert!(config(&[("PHASE5_ENABLED", "0"), ("PHASE4_ENABLED", "0")])
+        .validate_production_selection()
+        .is_ok());
+}

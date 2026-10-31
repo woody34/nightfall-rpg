@@ -168,6 +168,7 @@ pub(super) fn reserve_recipients(recipients: &mut BTreeSet<EntityId>, input: &Zo
         | ZoneCommand::MaterializePendingItems(_)
         | ZoneCommand::ExtendItemRange { .. }
         | ZoneCommand::Item(_)
+        | ZoneCommand::Phase5(_)
         | ZoneCommand::ChangeClass { .. }
         | ZoneCommand::SpawnNpc { .. }
         | ZoneCommand::Despawn { .. }
@@ -198,6 +199,7 @@ pub(super) fn failure(
             | ZoneCommand::MaterializePendingItems(_)
             | ZoneCommand::ExtendItemRange { .. }
             | ZoneCommand::Item(_)
+            | ZoneCommand::Phase5(_)
             | ZoneCommand::ChangeClass { .. }
             | ZoneCommand::SpawnNpc { .. }
             | ZoneCommand::Despawn { .. }
