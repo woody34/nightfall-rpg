@@ -128,6 +128,16 @@ impl ZoneState {
                         combat.swing = None;
                         out.push(output);
                     },
+                    ObserverOutput::Event(ZoneEvent::EntitySpawn {
+                        entity,
+                        kind: EntityKind::GroundItem,
+                        phase5,
+                        ..
+                    }) => {
+                        // Design §1.13: a ground item's spawn carries its static detail.
+                        *phase5 = self.ground_spawn_detail(*entity).map(Box::new);
+                        out.push(output);
+                    },
                     ObserverOutput::Event(
                         ZoneEvent::EntitySpawn { .. }
                         | ZoneEvent::EntityDespawn { .. }

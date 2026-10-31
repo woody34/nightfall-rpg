@@ -106,6 +106,10 @@ struct TemplateFile {
     corpse_decay_ticks: u32,
     respawn_delay_secs: i64,
     respawn_random_secs: i64,
+    /// V7 only: the pinned L2J npc id of this template's `drops.toml` row (P5-Q8). Ignored
+    /// (and stripped from the zone) outside V7 epochs.
+    #[serde(default)]
+    pinned_npc_id: Option<u32>,
 }
 
 /// A spawn slot as written in a zone file.
@@ -239,6 +243,7 @@ pub fn parse_template(stem: &str, src: &str, errors: &mut Vec<String>) -> Option
         corpse_decay_ticks: f.corpse_decay_ticks,
         respawn_delay_secs: delay?,
         respawn_random_secs: random?,
+        pinned_npc_id: f.pinned_npc_id,
     })
 }
 

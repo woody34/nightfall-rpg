@@ -659,6 +659,13 @@ impl ZoneState {
             killer,
             incarnation,
         });
+        // V7 (design §2.2): drops resolve here, from the still-present hate ledger, before
+        // npc_died draws the respawn jitter. V5/V6 skip this entirely.
+        if self.phase5_enabled() {
+            if let Err(error) = self.death_v7(tick, victim, killer, events) {
+                self.latch_phase5_fault(&error);
+            }
+        }
         // E3.4 hook: corpse deadline and respawn schedule of a spawn-slot NPC (state_ai.rs).
         self.npc_died(tick, victim, events);
         if let Some(ledger) = self.hate.remove(&victim) {
@@ -1216,6 +1223,8 @@ pub(super) fn may_attack(attacker: &Entity, target: &Entity) -> bool {
         (EntityKind::Npc, EntityKind::Player) => {
             matches!(target.combat.as_ref().map(|c| &c.role), Some(CombatRole::Player { .. }))
         },
-        (EntityKind::Player | EntityKind::Npc, EntityKind::Player | EntityKind::Npc) => false,
+        (EntityKind::Player | EntityKind::Npc, EntityKind::Player | EntityKind::Npc)
+        | (EntityKind::GroundItem, _)
+        | (_, EntityKind::GroundItem) => false,
     }
 }

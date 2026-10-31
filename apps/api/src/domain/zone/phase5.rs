@@ -346,6 +346,9 @@ pub struct Phase5Zone {
     pub canonical: Phase5Snapshot,
     /// The rules the epoch is bound to; the snapshot carries only their hash.
     pub rules: Arc<Phase5Rules>,
+    /// A V7 invariant failure latched by an infallible hook; turned into a tick error before
+    /// anything is flushed. Never snapshot state.
+    pub fault: Option<String>,
 }
 
 /// Inputs the invariants read from the rest of the zone (design §1.11).
@@ -426,13 +429,11 @@ impl Phase5Snapshot {
             if !catalogue.contains(&ground.item.template_id) {
                 return fail("ground item template outside the catalogue");
             }
-            let stackable = context
-                .items
-                .parts()
-                .items
-                .get(&ground.item.template_id)
-                .is_some_and(|definition| definition.stackable);
-            if !stackable && ground.item.count != 1 {
+            // D10: the closure's definitions join the V6 ones when items_closure.toml binds.
+            let Some(definition) = context.items.parts().items.get(&ground.item.template_id) else {
+                return fail("ground item template without an item definition");
+            };
+            if !definition.stackable && ground.item.count != 1 {
                 return fail("non-stackable ground item with count != 1");
             }
             if !instances.insert(ground.item.id) {
@@ -442,13 +443,12 @@ impl Phase5Snapshot {
                 || ground
                     .decay_due
                     .is_some_and(|due| due < ground.dropped_tick)
-                || context.entities.contains_key(entity)
-                    && context
-                        .entities
-                        .get(entity)
-                        .is_some_and(|e| e.kind != EntityKind::Npc)
+                || context
+                    .entities
+                    .get(entity)
+                    .is_none_or(|e| e.kind != EntityKind::GroundItem || e.pos != ground.pos)
             {
-                return fail("ground item timing or entity collision");
+                return fail("ground item timing or entity mismatch");
             }
             for owner in [
                 ground.loot_owner.map(|p| p.owner),
@@ -461,6 +461,13 @@ impl Phase5Snapshot {
                     return fail("ground protection without an owner");
                 }
             }
+        }
+        if context
+            .entities
+            .values()
+            .any(|e| e.kind == EntityKind::GroundItem && !self.ground.contains_key(&e.id))
+        {
+            return fail("ground entity without a ground item record");
         }
         // Each sidecar NPC exists; a sweep holder only while dead with corpse_until > tick.
         for (npc, economy) in &self.npcs {

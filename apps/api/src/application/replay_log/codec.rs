@@ -1164,6 +1164,8 @@ const fn kind_to_pb(k: EntityKind) -> i32 {
     match k {
         EntityKind::Player => 1,
         EntityKind::Npc => 2,
+        // V7 only; the raw grammar refuses kind 3 under Record ≤ 8.
+        EntityKind::GroundItem => 3,
     }
 }
 
@@ -2106,6 +2108,7 @@ fn kind_from_pb(v: i32) -> Result<EntityKind, CodecError> {
     match v {
         1 => Ok(EntityKind::Player),
         2 => Ok(EntityKind::Npc),
+        3 => Ok(EntityKind::GroundItem),
         other => Err(CodecError(format!("unknown entity kind {other}"))),
     }
 }

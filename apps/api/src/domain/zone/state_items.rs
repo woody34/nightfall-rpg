@@ -111,6 +111,7 @@ impl ZoneState {
         state.phase5 = Some(crate::domain::zone::Phase5Zone {
             canonical: crate::domain::zone::Phase5Snapshot::new(&economy),
             rules: economy,
+            fault: None,
         });
         state.meta.schema_version = 11;
         state.meta.digest_version = StateDigestVersion::BinaryV7;

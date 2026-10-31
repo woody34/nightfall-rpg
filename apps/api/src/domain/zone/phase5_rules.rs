@@ -546,6 +546,19 @@ pub struct Phase5Rules {
     inventory: Phase5Inventory,
     g: Binary64,
     hash: [u8; 32],
+    /// Derived lookups (not hashed: functions of `parts`).
+    npc_index: BTreeMap<u32, usize>,
+    herbs: BTreeSet<u32>,
+}
+
+/// The drop list a roll walks (design §3.1): DEATH uses the DROP strategies, CORPSE the SPOIL
+/// strategies; both use the DEATH group factory.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DropScope {
+    /// `<death>` list; `DeathDrop*Multiplier`.
+    Death,
+    /// `<corpse>` list (spoil); `CorpseDrop*Multiplier`.
+    Corpse,
 }
 
 /// The hash domain separator (design §1.10).
@@ -626,12 +639,115 @@ impl Phase5Rules {
             encode_value(&serde_json::Value::String((*label).to_owned()), &mut bytes)?;
             encode_value(value, &mut bytes)?;
         }
+        let npc_index = parts
+            .drops
+            .npc
+            .iter()
+            .enumerate()
+            .map(|(index, npc)| (npc.id, index))
+            .collect();
+        let herbs = parts
+            .herbs
+            .handled
+            .iter()
+            .map(|herb| herb.id)
+            .chain(parts.herbs.unhandled.iter().map(|herb| herb.id))
+            .collect();
         Ok(Self {
             parts,
             inventory,
             g,
             hash: Sha256::digest(bytes).into(),
+            npc_index,
+            herbs,
         })
+    }
+
+    /// The `drops.toml` row of a pinned npc id.
+    #[must_use]
+    pub fn drop_npc(&self, pinned: u32) -> Option<&DropNpc> {
+        self.npc_index
+            .get(&pinned)
+            .and_then(|index| self.parts.drops.npc.get(*index))
+    }
+
+    /// `hasExImmediateEffect()` of a template: the 68 herb templates (design §1.10 item 5).
+    #[must_use]
+    pub fn is_herb(&self, template: u32) -> bool {
+        self.herbs.contains(&template)
+    }
+
+    /// `m(item)` of design §3.4: the folded `rate'` of the first matching branch (override map,
+    /// herb, raid, scope default). `float multiplier = 1; multiplier *= rate'` is `rate'`
+    /// exactly, since every `rate'` is already a binary32 value. Champion is disabled.
+    #[must_use]
+    pub fn chance_multiplier(
+        &self,
+        scope: DropScope,
+        template: u32,
+        raid: bool,
+    ) -> Option<Binary64> {
+        let rates = &self.parts.rates;
+        let config = rates
+            .item_overrides
+            .iter()
+            .find(|(key, row)| {
+                key.starts_with("DropChanceMultiplier_") && row.item_id == Some(template)
+            })
+            .map(|(_, row)| row)
+            .or_else(|| {
+                let name = if self.is_herb(template) {
+                    "HerbDropChanceMultiplier"
+                } else if raid {
+                    "RaidDropChanceMultiplier"
+                } else {
+                    match scope {
+                        DropScope::Death => "DeathDropChanceMultiplier",
+                        DropScope::Corpse => "CorpseDropChanceMultiplier",
+                    }
+                };
+                rates.double_rates.get(name)
+            })?;
+        Binary64::parse_hex(config.rate_prime_bits.as_deref()?).ok()
+    }
+
+    /// `a(item)` of design §3.4: the amount multiplier of the first matching branch. A Java
+    /// `double` (`1 × Float` is exact); G never multiplies it.
+    #[must_use]
+    pub fn amount_multiplier(
+        &self,
+        scope: DropScope,
+        template: u32,
+        raid: bool,
+    ) -> Option<Binary64> {
+        let rates = &self.parts.rates;
+        if let Some((_, row)) = rates.item_overrides.iter().find(|(key, row)| {
+            key.starts_with("DropAmountMultiplier_") && row.item_id == Some(template)
+        }) {
+            return fl32_decimal(&row.value).ok();
+        }
+        let name = if self.is_herb(template) {
+            "HerbDropAmountMultiplier"
+        } else if raid {
+            "RaidDropAmountMultiplier"
+        } else {
+            match scope {
+                DropScope::Death => "DeathDropAmountMultiplier",
+                DropScope::Corpse => "CorpseDropAmountMultiplier",
+            }
+        };
+        fl_decimal(&rates.double_rates.get(name)?.value).ok()
+    }
+
+    /// Whether the deep-blue rules apply to this victim (`UseDeepBlueDropRules[Raid]`).
+    #[must_use]
+    pub fn deep_blue(&self, raid: bool) -> bool {
+        let deep = &self.parts.rates.deep_blue;
+        if raid {
+            deep.use_deep_blue_drop_rules_raid
+        } else {
+            deep.use_deep_blue_drop_rules
+        }
     }
 
     /// The validated tables.

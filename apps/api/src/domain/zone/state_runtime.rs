@@ -812,6 +812,8 @@ impl ZoneState {
         if self.complete_runtime_v5() {
             self.expire_policy_v5(tick, &mut events)?;
         }
+        // V7 phase 2 (design §2.1): protection deadlines, then ground decay on the grid.
+        self.expire_phase5(tick, &mut events);
         self.pulse_effects_v5(tick, &mut events)?;
         self.regen_v5(tick)?;
         if self.complete_runtime_v5() {
@@ -890,6 +892,8 @@ impl ZoneState {
         self.drain_ai_v5(tick, &mut events);
         self.ai_phase(tick, &mut events);
         self.drain_ai_v5(tick, &mut events);
+        // A V7 hook that latched an invariant failure fails the tick before any flush.
+        self.take_phase5_fault()?;
         self.phase3
             .as_mut()
             .ok_or_else(missing)?
@@ -2347,6 +2351,8 @@ impl ZoneState {
             kind: match self.entities.get(&source.entity).ok_or_else(missing)?.kind {
                 EntityKind::Player => EffectSourceKind::Player,
                 EntityKind::Npc => EffectSourceKind::Npc,
+                // A ground item never casts or carries effects.
+                EntityKind::GroundItem => return Err(missing()),
             },
         })
     }
@@ -3416,12 +3422,16 @@ impl ZoneState {
                 ZoneEvent::EntityDespawn { entity, .. } => {
                     self.remove_items_v6(*entity);
                     self.remove_phase5_player(*entity);
+                    self.phase5_npc_despawned(*entity);
                     let phase = self.phase3.as_mut().ok_or_else(missing)?;
                     phase.canonical.entities.remove(entity);
                     phase.effective.remove(entity);
                     phase.schedule_dirty.insert(*entity);
                 },
-                ZoneEvent::EntitySpawn { entity, .. } => self.attach_v5(tick, *entity, None)?,
+                ZoneEvent::EntitySpawn { entity, .. } => {
+                    self.attach_v5(tick, *entity, None)?;
+                    self.phase5_npc_spawned(*entity);
+                },
                 _ => {},
             }
         }
