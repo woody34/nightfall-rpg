@@ -405,6 +405,7 @@ pub(super) fn decode(bytes: &[u8]) -> Result<ZoneSnapshot, CodecError> {
     if snapshot.phase3.is_some()
         || !snapshot.entities.is_empty()
         || !snapshot.aoi.is_empty()
+        || snapshot.phase5.is_some() != (message.format == 3)
         || !matches!(
             (
                 message.format,
@@ -419,7 +420,13 @@ pub(super) fn decode(bytes: &[u8]) -> Result<ZoneSnapshot, CodecError> {
     {
         return Err(error("invalid base policy or duplicated phase3"));
     }
-    (snapshot.entities, snapshot.aoi) = unpack(required(message.base_entities)?)?;
+    let base_entities = required(message.base_entities)?;
+    if message.format < 3 {
+        // Snapshot 9/10 entity bodies refuse every V7 name too (z-review-1 P2-2).
+        let value: serde_json::Value = unpack(base_entities.clone())?;
+        super::codec_validation::pre_phase5_json(&value)?;
+    }
+    (snapshot.entities, snapshot.aoi) = unpack(base_entities)?;
     let rules_hash: [u8; 32] = message
         .rules_hash
         .try_into()
@@ -462,7 +469,12 @@ pub(super) fn decode(bytes: &[u8]) -> Result<ZoneSnapshot, CodecError> {
         {
             return Err(error("entity order/duplicate"));
         }
-        let metadata: Metadata = unpack(required(entity.metadata)?)?;
+        let metadata_value = required(entity.metadata)?;
+        if message.format < 3 {
+            let value: serde_json::Value = unpack(metadata_value.clone())?;
+            super::codec_validation::pre_phase5_json(&value)?;
+        }
+        let metadata: Metadata = unpack(metadata_value)?;
         let mut effects = BTreeMap::new();
         let mut previous_effect = entity.effect_base;
         for mut effect in entity.effects {
@@ -639,6 +651,23 @@ mod tests {
     use super::*;
     use crate::domain::zone::*;
     use crate::infrastructure::{class_data, rules_data, skill_data};
+
+    /// z-review-1 P2-2: a Snapshot ≤ 10 envelope refuses V7 names inside the packed entity
+    /// bodies (tag 9) and inside each per-entity metadata, before typed decoding.
+    #[test]
+    fn legacy_envelopes_refuse_v7_names_inside_packed_entities() {
+        let bytes = encode(&snapshot()).unwrap();
+        assert!(decode(&bytes).is_ok());
+        let mut message = Snapshot::decode(bytes.as_slice()).unwrap();
+        message.base_entities = Some(pack(&serde_json::json!([[{ "phase5": null }], []])).unwrap());
+        let error = decode(&message.encode_to_vec()).unwrap_err().to_string();
+        assert!(error.contains("V7"), "{error}");
+        let mut message = Snapshot::decode(bytes.as_slice()).unwrap();
+        let first = message.entities.first_mut().unwrap();
+        first.metadata = Some(pack(&serde_json::json!({ "location": "warehouse" })).unwrap());
+        let error = decode(&message.encode_to_vec()).unwrap_err().to_string();
+        assert!(error.contains("V7"), "{error}");
+    }
 
     fn snapshot() -> ZoneSnapshot {
         let mut snapshot = ZoneState::new_phase3(

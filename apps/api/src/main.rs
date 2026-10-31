@@ -26,7 +26,8 @@ use tokio_util::sync::CancellationToken;
 async fn main() -> anyhow::Result<()> {
     let telemetry = telemetry::init(&TelemetryConfig::from_env())?;
 
-    let result = run(telemetry.metrics()).await;
+    // The runtime future grew past the clippy large-future bound with the V7 bootstrap.
+    let result = Box::pin(run(telemetry.metrics())).await;
 
     // Flush buffered spans and metrics whether or not the servers exited cleanly.
     telemetry.shutdown().await;

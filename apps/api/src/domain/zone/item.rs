@@ -165,6 +165,20 @@ pub enum ItemLocation {
     Inventory,
     /// Equipped; its slot is also present in the paperdoll index.
     Paperdoll,
+    /// V7 only (design §11.2): on the ground as a `GroundItem`; never on the wire.
+    Ground,
+    /// V7 only: in the owner's refund tab.
+    Refund,
+    /// V7 only: a DB-only private warehouse row (never zone state).
+    Warehouse,
+    /// V7 only: a DB-only freight row.
+    Freight,
+    /// V7 only: a DB-only mail attachment row.
+    Mail,
+    /// V7 only: a DB-only pending delivery row.
+    Delivery,
+    /// V7 only: a DB-only auction bid escrow row.
+    AuctionBid,
 }
 
 /// Immutable clock namespace of an item's creation; retained items can cross epochs.

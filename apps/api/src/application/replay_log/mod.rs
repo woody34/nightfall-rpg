@@ -56,5 +56,15 @@ pub fn restore_snapshot(
                 .map_err(SnapshotError::Rules)
         })
         .transpose()?;
-    ZoneState::from_snapshot_with_items(snapshot, rules)
+    // V7: the Phase 5 rules are the embedded tables bound to the resolved V6 bundle (D27);
+    // the recorded hash must match or restoration is refused.
+    let economy = match (&snapshot.phase5, &rules) {
+        (Some(_), Some(items)) => Some(
+            crate::infrastructure::economy_data::phase5_rules_for(items)
+                .map_err(SnapshotError::Rules)?,
+        ),
+        (Some(_), None) => return Err(SnapshotError::CombatMismatch),
+        (None, _) => None,
+    };
+    ZoneState::from_snapshot_with_bundles(snapshot, rules, economy)
 }

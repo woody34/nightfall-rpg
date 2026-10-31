@@ -84,7 +84,7 @@ Visibility follows D §1.13. Admission order is identity spawns (including groun
 Rows 1–6 are copied verbatim from the Phase 4 plan §2.2.
 
 - **Snapshot magic** is `b"NFSNAP11"`.
-- **`PHASE5_ENABLED`:** unset selects V7 (except historical simulation-fixture selection); `"0"` selects V6 behaviour; `"1"` selects V7; any other value refuses boot. The recorded version wins on replay.
+- **`PHASE5_ENABLED`:** unset selects V7 (except historical simulation-fixture selection); `"0"` selects V6 behaviour; `"1"` selects V7; any other value refuses boot. The recorded version wins on replay. **Matrix row (z-review-1 P2-1, story 3.1):** unset together with `PHASE4_ENABLED=0` keeps the V6-off selection (no V7, no error); a V7 selection composes the V6 bundle itself (`prepare_phase4` runs when V6 **or** V7 is requested), and an explicit `"1"` whose V6 bundle cannot be composed refuses boot.
 - **Legacy rejection.** Every Phase 5 field, kind, tag, entity kind, V7 `ItemLocation` and ledger op is rejected recursively under Record ≤ 8 before permissive decoding.
 - **Historical bytes.** `apps/api/fixtures/sessions/*.nfr` stay byte-exact (`replay-check.sh`).
 - **All live suites**, including earlier phases, run production V7 with the reviewed bundles (C16; §4 story 6.3).
