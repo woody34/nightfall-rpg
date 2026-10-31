@@ -121,6 +121,7 @@ message StoreSellEntry {
   uint64 instance_id = 1;
   uint64 count = 2;
   uint64 price = 3;
+  uint32 template_id = 4; // P5-D9: the listed item's template, so a buyer can name an entry without the instance id
 }
 
 // A buy-store entry: a template, an enchant level, a count and a unit price.

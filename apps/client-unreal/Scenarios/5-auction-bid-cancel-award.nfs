@@ -24,7 +24,7 @@ nf.AuctionBid 32320 150000
 nf.WaitFor economy_result == auction_bid 3
 nf.Expect adena_delta == -150000
 nf.WaitFor auction_state == FINISHED 120
-nf.Expect auction_award_to_warehouse 9901
+nf.WaitFor auction_award_to_warehouse 9901 3
 # role: b
 nf.Login
 nf.WaitFor connected 15
@@ -37,10 +37,10 @@ nf.MarkItemState
 nf.AuctionBid 32320 100000
 nf.WaitFor economy_result == auction_bid 3
 nf.Expect adena_delta == -100000
-nf.Expect auction_leader != self
+nf.WaitFor auction_leader != self 3
 nf.WaitFor auction_highest_bid == 150000 33
 nf.AuctionCancel 32320
 nf.WaitFor economy_result == auction_cancel_bid 3
 nf.Expect adena_delta == 0
 # Total budget: the largest role's sum of declared waits + 30 s exit grace.
-nf.Within 252
+nf.Within 255

@@ -321,6 +321,9 @@ struct FGrpcNightfallV1StoreSellEntry : public FGrpcMessage
 
     UPROPERTY(BlueprintReadWrite, Category = TurboLink)
     FUInt64 Price = 0;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 TemplateId = 0;
 };
 
 USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.StoreBuyEntry"))

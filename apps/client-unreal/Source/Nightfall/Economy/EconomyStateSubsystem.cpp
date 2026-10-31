@@ -497,7 +497,7 @@ bool UEconomyStateSubsystem::Build(const FString& Name, const TArray<FString>& A
  if (Name == TEXT("nf.storesell"))
  {
   FGrpcNightfallV1SetPrivateStoreSellRequest Q; Q.IdempotencyKey = Key; Q.Title = A[0]; Q.PackageSale = A.Num() == 3;
-  for (const auto& E : Entries(A.Last())) { if (E.Num() != 3) return false; const auto Id = Instance(FString::Printf(TEXT("template:%llu"), E[0])); if (!Id.IsSet()) return false; FGrpcNightfallV1StoreSellEntry S; S.InstanceId = *Id; S.Count = E[1]; S.Price = E[2]; Q.Entries.Add(S); }
+  for (const auto& E : Entries(A.Last())) { if (E.Num() != 3) return false; const auto Id = Instance(FString::Printf(TEXT("template:%llu"), E[0])); if (!Id.IsSet()) return false; FGrpcNightfallV1StoreSellEntry S; S.InstanceId = *Id; S.TemplateId = uint32(E[0]); S.Count = E[1]; S.Price = E[2]; Q.Entries.Add(S); }
   M.SetPrivateStoreSell = Q; return true;
  }
  if (Name == TEXT("nf.storebuy"))
@@ -515,10 +515,10 @@ bool UEconomyStateSubsystem::Build(const FString& Name, const TArray<FString>& A
  if (Name == TEXT("nf.storeclose")) { FGrpcNightfallV1ClosePrivateStoreRequest Q; Q.IdempotencyKey = Key; M.ClosePrivateStore = Q; return true; }
  if (Name == TEXT("nf.storebuyfrom"))
  {
-  // StoreSellEntry carries no template: the buyer binds `template:<id>:<count>:<price>` to the received store entry with that price and enough count (P5-Q11).
+  // P5-D9: the buyer binds `template:<id>:<count>:<price>` to the received store entry of that template with that price and enough count.
   const FString Owner = Role(A[0]); const FGrpcNightfallV1PrivateStoreChanged* S = Owner.IsEmpty() ? nullptr : Store(Owner); if (!S) return false;
   FGrpcNightfallV1PrivateStoreBuyRequest Q; Q.IdempotencyKey = Key; Q.StoreOwner = Owner; TSet<uint64> Used;
-  for (const auto& E : Entries(A[1])) { if (E.Num() != 3) return false; const FGrpcNightfallV1StoreSellEntry* Match = nullptr; for (const auto& Row : S->Sell) if (!Used.Contains(Row.InstanceId.Value) && Row.Price.Value == E[2] && Row.Count.Value >= E[1]) { Match = &Row; break; } if (!Match) return false; Used.Add(Match->InstanceId.Value); FGrpcNightfallV1StoreSellEntry R; R.InstanceId = Match->InstanceId; R.Count = E[1]; R.Price = E[2]; Q.Entries.Add(R); }
+  for (const auto& E : Entries(A[1])) { if (E.Num() != 3) return false; const FGrpcNightfallV1StoreSellEntry* Match = nullptr; for (const auto& Row : S->Sell) if (!Used.Contains(Row.InstanceId.Value) && Row.TemplateId.Value == E[0] && Row.Price.Value == E[2] && Row.Count.Value >= E[1]) { Match = &Row; break; } if (!Match) return false; Used.Add(Match->InstanceId.Value); FGrpcNightfallV1StoreSellEntry R; R.InstanceId = Match->InstanceId; R.TemplateId = Match->TemplateId; R.Count = E[1]; R.Price = E[2]; Q.Entries.Add(R); }
   M.PrivateStoreBuy = Q; return true;
  }
  if (Name == TEXT("nf.storesellto"))

@@ -27,8 +27,54 @@ use crate::domain::zone::phase5_wire::Phase5CommandKind;
 pub const NS_SYSJOB: Uuid = Uuid::from_u128(0x6e69_6768_7466_616c_6c2d_7379_736a_6f62);
 /// `UUIDv5` namespace of `auction_bid` owner ids (design §11.1).
 pub const NS_AUCTION: Uuid = Uuid::from_u128(0x6e69_6768_7466_616c_6c2d_6175_6374_696f);
-/// `UUIDv5` namespace of derived message and delivery ids (design §10.0, E12).
-pub const NS_ECONOMY_ROW: Uuid = Uuid::from_u128(0x6e69_6768_7466_616c_6c2d_6563_6f6e_726f);
+/// `UUIDv5` namespace of derived mail message ids (design §10.3 `NS_MAIL`).
+pub const NS_MAIL: Uuid = Uuid::from_u128(0x6e69_6768_7466_616c_6c2d_6d61_696c_0000);
+/// `UUIDv5` namespace of derived delivery ids (design §10.4 `NS_DELIVERY`).
+pub const NS_DELIVERY: Uuid = Uuid::from_u128(0x6e69_6768_7466_616c_6c2d_6465_6c69_7665);
+/// `UUIDv5` namespace of ledger transfer links (design §11.2 `NS_XFER`).
+pub const NS_XFER: Uuid = Uuid::from_u128(0x6e69_6768_7466_616c_6c2d_7866_6572_0000);
+
+/// A row whose id the API derives from the request key (design §10.0, E12).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DerivedRow {
+    /// A mail message (`NS_MAIL`).
+    Message,
+    /// A delivery (`NS_DELIVERY`).
+    Delivery,
+    /// A ledger transfer link (`NS_XFER`).
+    Transfer,
+}
+
+impl DerivedRow {
+    fn namespace(self) -> &'static Uuid {
+        match self {
+            Self::Message => &NS_MAIL,
+            Self::Delivery => &NS_DELIVERY,
+            Self::Transfer => &NS_XFER,
+        }
+    }
+
+    fn label(self) -> &'static str {
+        match self {
+            Self::Message => "message",
+            Self::Delivery => "delivery",
+            Self::Transfer => "transfer",
+        }
+    }
+}
+
+/// Refuses a lease key list that is not strictly ascending in the canonical bytewise order
+/// (design §10.0): all-or-nothing acquisition is deadlock-free only in that order, and
+/// `LeaseGrant.keys` is a plain `Vec` any caller can fill (c-review-4 P2-2).
+pub fn canonical_keys(keys: &[LeaseKey]) -> Result<(), EconomyError> {
+    if keys
+        .windows(2)
+        .any(|pair| pair.first().zip(pair.get(1)).is_some_and(|(a, b)| a >= b))
+    {
+        return Err(EconomyError::Constraint("lease set out of canonical order".into()));
+    }
+    Ok(())
+}
 
 /// Why a lease or checkpoint call failed.
 #[derive(Debug, thiserror::Error)]
@@ -332,8 +378,8 @@ pub fn auction_bid_owner(auction: u64, character: Uuid) -> Uuid {
 
 /// A derived row id (message or delivery) from request identity (E12): never a `BIGSERIAL`.
 #[must_use]
-pub fn derived_row_id(kind: &str, request_key: Uuid, ordinal: u32) -> Uuid {
-    Uuid::new_v5(&NS_ECONOMY_ROW, format!("{kind}:{request_key}:{ordinal}").as_bytes())
+pub fn derived_row_id(row: DerivedRow, request_key: Uuid, ordinal: u32) -> Uuid {
+    Uuid::new_v5(row.namespace(), format!("{}:{request_key}:{ordinal}", row.label()).as_bytes())
 }
 
 /// One durable container row as the preflight froze it (design §10.0 step 1, §12.2). Integers
@@ -795,7 +841,28 @@ mod tests {
         assert_eq!(SystemJob::MailExpire(M).kind(), Phase5CommandKind::MailExpire);
         assert_eq!(auction_bid_owner(1, A), auction_bid_owner(1, A));
         assert_ne!(auction_bid_owner(1, A), auction_bid_owner(2, A));
-        assert_ne!(derived_row_id("message", D, 0), derived_row_id("message", D, 1));
+        assert_ne!(
+            derived_row_id(DerivedRow::Message, D, 0),
+            derived_row_id(DerivedRow::Message, D, 1)
+        );
+        assert_ne!(
+            derived_row_id(DerivedRow::Message, D, 0),
+            derived_row_id(DerivedRow::Delivery, D, 0)
+        );
+        assert_ne!(
+            derived_row_id(DerivedRow::Delivery, D, 0),
+            derived_row_id(DerivedRow::Transfer, D, 0)
+        );
+        assert_ne!(NS_MAIL, NS_DELIVERY);
+        assert_ne!(NS_DELIVERY, NS_XFER);
+        let mut descending = sets::mail_send(A, B);
+        descending.reverse();
+        assert!(matches!(canonical_keys(&descending), Err(EconomyError::Constraint(_))));
+        assert!(canonical_keys(&sets::mail_send(A, B)).is_ok());
+        assert!(matches!(
+            canonical_keys(&[descending[0], descending[0]]),
+            Err(EconomyError::Constraint(_))
+        ));
     }
 
     #[test]

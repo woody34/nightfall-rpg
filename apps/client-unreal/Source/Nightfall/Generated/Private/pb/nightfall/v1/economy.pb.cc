@@ -368,6 +368,8 @@ PROTOBUF_CONSTEXPR StoreSellEntry::StoreSellEntry(
 
   , /*decltype(_impl_.price_)*/ ::uint64_t{0u}
 
+  , /*decltype(_impl_.template_id_)*/ 0u
+
   , /*decltype(_impl_._cached_size_)*/{}} {}
 struct StoreSellEntryDefaultTypeInternal {
   PROTOBUF_CONSTEXPR StoreSellEntryDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
@@ -2494,6 +2496,7 @@ const ::uint32_t TableStruct_nightfall_2fv1_2feconomy_2eproto::offsets[] PROTOBU
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::StoreSellEntry, _impl_.instance_id_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::StoreSellEntry, _impl_.count_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::StoreSellEntry, _impl_.price_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::StoreSellEntry, _impl_.template_id_),
     ~0u,  // no _has_bits_
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::StoreBuyEntry, _internal_metadata_),
     ~0u,  // no _extensions_
@@ -3533,90 +3536,90 @@ static const ::_pbi::MigrationSchema
         { 140, -1, -1, sizeof(::nightfall::v1::TradeConfirmRequest)},
         { 149, -1, -1, sizeof(::nightfall::v1::TradeCancelRequest)},
         { 158, -1, -1, sizeof(::nightfall::v1::StoreSellEntry)},
-        { 169, -1, -1, sizeof(::nightfall::v1::StoreBuyEntry)},
-        { 181, -1, -1, sizeof(::nightfall::v1::ManufactureEntry)},
-        { 191, -1, -1, sizeof(::nightfall::v1::SetPrivateStoreSellRequest)},
-        { 203, -1, -1, sizeof(::nightfall::v1::SetPrivateStoreBuyRequest)},
-        { 214, -1, -1, sizeof(::nightfall::v1::SetPrivateManufactureRequest)},
-        { 225, -1, -1, sizeof(::nightfall::v1::ClosePrivateStoreRequest)},
-        { 234, -1, -1, sizeof(::nightfall::v1::PrivateStoreBuyRequest)},
-        { 245, -1, -1, sizeof(::nightfall::v1::PrivateStoreSellEntry)},
-        { 257, -1, -1, sizeof(::nightfall::v1::PrivateStoreSellRequest)},
-        { 268, -1, -1, sizeof(::nightfall::v1::PrivateManufactureOrderRequest)},
-        { 279, -1, -1, sizeof(::nightfall::v1::PartyInviteRequest)},
-        { 290, -1, -1, sizeof(::nightfall::v1::PartyAnswerRequest)},
-        { 300, -1, -1, sizeof(::nightfall::v1::PartyLeaveRequest)},
-        { 309, -1, -1, sizeof(::nightfall::v1::PartyKickRequest)},
-        { 319, -1, -1, sizeof(::nightfall::v1::PartyChangeLeaderRequest)},
-        { 329, -1, -1, sizeof(::nightfall::v1::PartyLootChangeRequest)},
-        { 339, -1, -1, sizeof(::nightfall::v1::PartyLootChangeAnswer)},
-        { 349, -1, -1, sizeof(::nightfall::v1::WarehouseDepositRequest)},
-        { 360, -1, -1, sizeof(::nightfall::v1::WarehouseWithdrawRequest)},
-        { 371, -1, -1, sizeof(::nightfall::v1::FreightSendRequest)},
-        { 383, -1, -1, sizeof(::nightfall::v1::FreightWithdrawRequest)},
-        { 394, -1, -1, sizeof(::nightfall::v1::MailSendRequest)},
-        { 408, -1, -1, sizeof(::nightfall::v1::MailTakeAttachmentsRequest)},
-        { 418, -1, -1, sizeof(::nightfall::v1::MailRejectRequest)},
-        { 428, -1, -1, sizeof(::nightfall::v1::MailCancelRequest)},
-        { 438, -1, -1, sizeof(::nightfall::v1::MailDeleteRequest)},
-        { 449, -1, -1, sizeof(::nightfall::v1::ManorBuySeedRequest)},
-        { 461, -1, -1, sizeof(::nightfall::v1::CropSale)},
-        { 473, -1, -1, sizeof(::nightfall::v1::ManorSellCropRequest)},
-        { 484, -1, -1, sizeof(::nightfall::v1::ItemAuctionBidRequest)},
-        { 495, -1, -1, sizeof(::nightfall::v1::ItemAuctionCancelBidRequest)},
-        { 506, -1, -1, sizeof(::nightfall::v1::MailMarkReadRequest)},
-        { 516, -1, -1, sizeof(::nightfall::v1::GroundItemDetail)},
-        { 534, 565, -1, sizeof(::nightfall::v1::EconomyResult)},
-        { 587, -1, -1, sizeof(::nightfall::v1::PickupOutcome)},
-        { 600, -1, -1, sizeof(::nightfall::v1::VendorOutcome)},
-        { 611, -1, -1, sizeof(::nightfall::v1::CraftOutcome)},
-        { 624, -1, -1, sizeof(::nightfall::v1::ExchangeOutcome)},
-        { 635, -1, -1, sizeof(::nightfall::v1::TradeOutcome)},
-        { 646, -1, -1, sizeof(::nightfall::v1::StoreOutcome)},
-        { 658, -1, -1, sizeof(::nightfall::v1::ContainerOutcome)},
-        { 669, -1, -1, sizeof(::nightfall::v1::MailOutcome)},
-        { 681, -1, -1, sizeof(::nightfall::v1::ManorOutcome)},
-        { 692, -1, -1, sizeof(::nightfall::v1::AuctionOutcome)},
-        { 705, -1, -1, sizeof(::nightfall::v1::PartyOutcome)},
-        { 714, -1, -1, sizeof(::nightfall::v1::RecipeOutcome)},
-        { 724, -1, -1, sizeof(::nightfall::v1::CorpseStateChanged)},
-        { 738, -1, -1, sizeof(::nightfall::v1::PartyMember)},
-        { 748, -1, -1, sizeof(::nightfall::v1::PartyStateChanged)},
-        { 762, -1, -1, sizeof(::nightfall::v1::PartyLootVote)},
-        { 774, -1, -1, sizeof(::nightfall::v1::PartyInviteReceived)},
-        { 785, -1, -1, sizeof(::nightfall::v1::TradeRequestReceived)},
-        { 795, -1, -1, sizeof(::nightfall::v1::TradeEntry)},
-        { 807, -1, -1, sizeof(::nightfall::v1::TradeSessionChanged)},
-        { 823, -1, -1, sizeof(::nightfall::v1::PrivateStoreChanged)},
-        { 838, -1, -1, sizeof(::nightfall::v1::MailNotification)},
-        { 851, -1, -1, sizeof(::nightfall::v1::RecipeBookSync)},
-        { 866, -1, -1, sizeof(::nightfall::v1::ItemAuctionStatusChanged)},
-        { 881, -1, -1, sizeof(::nightfall::v1::LootDistributed)},
-        { 895, -1, -1, sizeof(::nightfall::v1::ListBuylistRequest)},
-        { 905, -1, -1, sizeof(::nightfall::v1::BuylistEntry)},
-        { 918, -1, -1, sizeof(::nightfall::v1::ListBuylistResponse)},
-        { 932, -1, -1, sizeof(::nightfall::v1::GetMultisellListRequest)},
-        { 941, -1, -1, sizeof(::nightfall::v1::MultisellIngredient)},
-        { 954, -1, -1, sizeof(::nightfall::v1::MultisellEntry)},
-        { 966, -1, -1, sizeof(::nightfall::v1::GetMultisellListResponse)},
-        { 979, -1, -1, sizeof(::nightfall::v1::GetRecipeBookRequest)},
-        { 988, 997, -1, sizeof(::nightfall::v1::GetRecipeBookResponse)},
-        { 998, -1, -1, sizeof(::nightfall::v1::GetWarehouseRequest)},
-        { 1007, -1, -1, sizeof(::nightfall::v1::GetWarehouseResponse)},
-        { 1018, -1, -1, sizeof(::nightfall::v1::GetFreightRequest)},
-        { 1027, -1, -1, sizeof(::nightfall::v1::GetFreightResponse)},
-        { 1038, -1, -1, sizeof(::nightfall::v1::MailHeader)},
-        { 1056, -1, -1, sizeof(::nightfall::v1::ListMailRequest)},
-        { 1066, -1, -1, sizeof(::nightfall::v1::ListMailResponse)},
-        { 1077, -1, -1, sizeof(::nightfall::v1::ReadMailRequest)},
-        { 1087, 1098, -1, sizeof(::nightfall::v1::ReadMailResponse)},
-        { 1101, -1, -1, sizeof(::nightfall::v1::ListItemAuctionsRequest)},
-        { 1111, -1, -1, sizeof(::nightfall::v1::AuctionView)},
-        { 1129, 1140, -1, sizeof(::nightfall::v1::ListItemAuctionsResponse)},
-        { 1143, -1, -1, sizeof(::nightfall::v1::GetManorDataRequest)},
-        { 1152, -1, -1, sizeof(::nightfall::v1::SeedProductionView)},
-        { 1164, -1, -1, sizeof(::nightfall::v1::CropProcureView)},
-        { 1177, -1, -1, sizeof(::nightfall::v1::GetManorDataResponse)},
+        { 170, -1, -1, sizeof(::nightfall::v1::StoreBuyEntry)},
+        { 182, -1, -1, sizeof(::nightfall::v1::ManufactureEntry)},
+        { 192, -1, -1, sizeof(::nightfall::v1::SetPrivateStoreSellRequest)},
+        { 204, -1, -1, sizeof(::nightfall::v1::SetPrivateStoreBuyRequest)},
+        { 215, -1, -1, sizeof(::nightfall::v1::SetPrivateManufactureRequest)},
+        { 226, -1, -1, sizeof(::nightfall::v1::ClosePrivateStoreRequest)},
+        { 235, -1, -1, sizeof(::nightfall::v1::PrivateStoreBuyRequest)},
+        { 246, -1, -1, sizeof(::nightfall::v1::PrivateStoreSellEntry)},
+        { 258, -1, -1, sizeof(::nightfall::v1::PrivateStoreSellRequest)},
+        { 269, -1, -1, sizeof(::nightfall::v1::PrivateManufactureOrderRequest)},
+        { 280, -1, -1, sizeof(::nightfall::v1::PartyInviteRequest)},
+        { 291, -1, -1, sizeof(::nightfall::v1::PartyAnswerRequest)},
+        { 301, -1, -1, sizeof(::nightfall::v1::PartyLeaveRequest)},
+        { 310, -1, -1, sizeof(::nightfall::v1::PartyKickRequest)},
+        { 320, -1, -1, sizeof(::nightfall::v1::PartyChangeLeaderRequest)},
+        { 330, -1, -1, sizeof(::nightfall::v1::PartyLootChangeRequest)},
+        { 340, -1, -1, sizeof(::nightfall::v1::PartyLootChangeAnswer)},
+        { 350, -1, -1, sizeof(::nightfall::v1::WarehouseDepositRequest)},
+        { 361, -1, -1, sizeof(::nightfall::v1::WarehouseWithdrawRequest)},
+        { 372, -1, -1, sizeof(::nightfall::v1::FreightSendRequest)},
+        { 384, -1, -1, sizeof(::nightfall::v1::FreightWithdrawRequest)},
+        { 395, -1, -1, sizeof(::nightfall::v1::MailSendRequest)},
+        { 409, -1, -1, sizeof(::nightfall::v1::MailTakeAttachmentsRequest)},
+        { 419, -1, -1, sizeof(::nightfall::v1::MailRejectRequest)},
+        { 429, -1, -1, sizeof(::nightfall::v1::MailCancelRequest)},
+        { 439, -1, -1, sizeof(::nightfall::v1::MailDeleteRequest)},
+        { 450, -1, -1, sizeof(::nightfall::v1::ManorBuySeedRequest)},
+        { 462, -1, -1, sizeof(::nightfall::v1::CropSale)},
+        { 474, -1, -1, sizeof(::nightfall::v1::ManorSellCropRequest)},
+        { 485, -1, -1, sizeof(::nightfall::v1::ItemAuctionBidRequest)},
+        { 496, -1, -1, sizeof(::nightfall::v1::ItemAuctionCancelBidRequest)},
+        { 507, -1, -1, sizeof(::nightfall::v1::MailMarkReadRequest)},
+        { 517, -1, -1, sizeof(::nightfall::v1::GroundItemDetail)},
+        { 535, 566, -1, sizeof(::nightfall::v1::EconomyResult)},
+        { 588, -1, -1, sizeof(::nightfall::v1::PickupOutcome)},
+        { 601, -1, -1, sizeof(::nightfall::v1::VendorOutcome)},
+        { 612, -1, -1, sizeof(::nightfall::v1::CraftOutcome)},
+        { 625, -1, -1, sizeof(::nightfall::v1::ExchangeOutcome)},
+        { 636, -1, -1, sizeof(::nightfall::v1::TradeOutcome)},
+        { 647, -1, -1, sizeof(::nightfall::v1::StoreOutcome)},
+        { 659, -1, -1, sizeof(::nightfall::v1::ContainerOutcome)},
+        { 670, -1, -1, sizeof(::nightfall::v1::MailOutcome)},
+        { 682, -1, -1, sizeof(::nightfall::v1::ManorOutcome)},
+        { 693, -1, -1, sizeof(::nightfall::v1::AuctionOutcome)},
+        { 706, -1, -1, sizeof(::nightfall::v1::PartyOutcome)},
+        { 715, -1, -1, sizeof(::nightfall::v1::RecipeOutcome)},
+        { 725, -1, -1, sizeof(::nightfall::v1::CorpseStateChanged)},
+        { 739, -1, -1, sizeof(::nightfall::v1::PartyMember)},
+        { 749, -1, -1, sizeof(::nightfall::v1::PartyStateChanged)},
+        { 763, -1, -1, sizeof(::nightfall::v1::PartyLootVote)},
+        { 775, -1, -1, sizeof(::nightfall::v1::PartyInviteReceived)},
+        { 786, -1, -1, sizeof(::nightfall::v1::TradeRequestReceived)},
+        { 796, -1, -1, sizeof(::nightfall::v1::TradeEntry)},
+        { 808, -1, -1, sizeof(::nightfall::v1::TradeSessionChanged)},
+        { 824, -1, -1, sizeof(::nightfall::v1::PrivateStoreChanged)},
+        { 839, -1, -1, sizeof(::nightfall::v1::MailNotification)},
+        { 852, -1, -1, sizeof(::nightfall::v1::RecipeBookSync)},
+        { 867, -1, -1, sizeof(::nightfall::v1::ItemAuctionStatusChanged)},
+        { 882, -1, -1, sizeof(::nightfall::v1::LootDistributed)},
+        { 896, -1, -1, sizeof(::nightfall::v1::ListBuylistRequest)},
+        { 906, -1, -1, sizeof(::nightfall::v1::BuylistEntry)},
+        { 919, -1, -1, sizeof(::nightfall::v1::ListBuylistResponse)},
+        { 933, -1, -1, sizeof(::nightfall::v1::GetMultisellListRequest)},
+        { 942, -1, -1, sizeof(::nightfall::v1::MultisellIngredient)},
+        { 955, -1, -1, sizeof(::nightfall::v1::MultisellEntry)},
+        { 967, -1, -1, sizeof(::nightfall::v1::GetMultisellListResponse)},
+        { 980, -1, -1, sizeof(::nightfall::v1::GetRecipeBookRequest)},
+        { 989, 998, -1, sizeof(::nightfall::v1::GetRecipeBookResponse)},
+        { 999, -1, -1, sizeof(::nightfall::v1::GetWarehouseRequest)},
+        { 1008, -1, -1, sizeof(::nightfall::v1::GetWarehouseResponse)},
+        { 1019, -1, -1, sizeof(::nightfall::v1::GetFreightRequest)},
+        { 1028, -1, -1, sizeof(::nightfall::v1::GetFreightResponse)},
+        { 1039, -1, -1, sizeof(::nightfall::v1::MailHeader)},
+        { 1057, -1, -1, sizeof(::nightfall::v1::ListMailRequest)},
+        { 1067, -1, -1, sizeof(::nightfall::v1::ListMailResponse)},
+        { 1078, -1, -1, sizeof(::nightfall::v1::ReadMailRequest)},
+        { 1088, 1099, -1, sizeof(::nightfall::v1::ReadMailResponse)},
+        { 1102, -1, -1, sizeof(::nightfall::v1::ListItemAuctionsRequest)},
+        { 1112, -1, -1, sizeof(::nightfall::v1::AuctionView)},
+        { 1130, 1141, -1, sizeof(::nightfall::v1::ListItemAuctionsResponse)},
+        { 1144, -1, -1, sizeof(::nightfall::v1::GetManorDataRequest)},
+        { 1153, -1, -1, sizeof(::nightfall::v1::SeedProductionView)},
+        { 1165, -1, -1, sizeof(::nightfall::v1::CropProcureView)},
+        { 1178, -1, -1, sizeof(::nightfall::v1::GetManorDataResponse)},
 };
 
 static const ::_pb::Message* const file_default_instances[] = {
@@ -3752,274 +3755,275 @@ const char descriptor_table_protodef_nightfall_2fv1_2feconomy_2eproto[] PROTOBUF
     "_key\030\001 \001(\t\022\023\n\013instance_id\030\002 \001(\004\022\r\n\005count"
     "\030\003 \001(\004\".\n\023TradeConfirmRequest\022\027\n\017idempot"
     "ency_key\030\001 \001(\t\"-\n\022TradeCancelRequest\022\027\n\017"
-    "idempotency_key\030\001 \001(\t\"C\n\016StoreSellEntry\022"
+    "idempotency_key\030\001 \001(\t\"X\n\016StoreSellEntry\022"
     "\023\n\013instance_id\030\001 \001(\004\022\r\n\005count\030\002 \001(\004\022\r\n\005p"
-    "rice\030\003 \001(\004\"S\n\rStoreBuyEntry\022\023\n\013template_"
-    "id\030\001 \001(\r\022\017\n\007enchant\030\002 \001(\r\022\r\n\005count\030\003 \001(\004"
-    "\022\r\n\005price\030\004 \001(\004\"3\n\020ManufactureEntry\022\021\n\tr"
-    "ecipe_id\030\001 \001(\r\022\014\n\004cost\030\002 \001(\004\"\211\001\n\032SetPriv"
-    "ateStoreSellRequest\022\027\n\017idempotency_key\030\001"
-    " \001(\t\022\r\n\005title\030\002 \001(\t\022\024\n\014package_sale\030\003 \001("
-    "\010\022-\n\007entries\030\004 \003(\0132\034.nightfall.v1.StoreS"
-    "ellEntry\"q\n\031SetPrivateStoreBuyRequest\022\027\n"
-    "\017idempotency_key\030\001 \001(\t\022\r\n\005title\030\002 \001(\t\022,\n"
-    "\007entries\030\003 \003(\0132\033.nightfall.v1.StoreBuyEn"
-    "try\"w\n\034SetPrivateManufactureRequest\022\027\n\017i"
-    "dempotency_key\030\001 \001(\t\022\r\n\005title\030\002 \001(\t\022/\n\007e"
-    "ntries\030\003 \003(\0132\036.nightfall.v1.ManufactureE"
-    "ntry\"3\n\030ClosePrivateStoreRequest\022\027\n\017idem"
-    "potency_key\030\001 \001(\t\"u\n\026PrivateStoreBuyRequ"
-    "est\022\027\n\017idempotency_key\030\001 \001(\t\022\023\n\013store_ow"
-    "ner\030\002 \001(\t\022-\n\007entries\030\003 \003(\0132\034.nightfall.v"
-    "1.StoreSellEntry\"_\n\025PrivateStoreSellEntr"
-    "y\022\023\n\013instance_id\030\001 \001(\004\022\023\n\013template_id\030\002 "
-    "\001(\r\022\r\n\005count\030\003 \001(\004\022\r\n\005price\030\004 \001(\004\"}\n\027Pri"
-    "vateStoreSellRequest\022\027\n\017idempotency_key\030"
-    "\001 \001(\t\022\023\n\013store_owner\030\002 \001(\t\0224\n\007entries\030\003 "
-    "\003(\0132#.nightfall.v1.PrivateStoreSellEntry"
-    "\"a\n\036PrivateManufactureOrderRequest\022\027\n\017id"
-    "empotency_key\030\001 \001(\t\022\023\n\013store_owner\030\002 \001(\t"
-    "\022\021\n\trecipe_id\030\003 \001(\r\"c\n\022PartyInviteReques"
-    "t\022\027\n\017idempotency_key\030\001 \001(\t\022\016\n\006target\030\002 \001"
-    "(\t\022$\n\004mode\030\003 \001(\0162\026.nightfall.v1.LootMode"
-    "\"=\n\022PartyAnswerRequest\022\027\n\017idempotency_ke"
-    "y\030\001 \001(\t\022\016\n\006answer\030\002 \001(\005\",\n\021PartyLeaveReq"
-    "uest\022\027\n\017idempotency_key\030\001 \001(\t\";\n\020PartyKi"
-    "ckRequest\022\027\n\017idempotency_key\030\001 \001(\t\022\016\n\006me"
-    "mber\030\002 \001(\t\"C\n\030PartyChangeLeaderRequest\022\027"
-    "\n\017idempotency_key\030\001 \001(\t\022\016\n\006member\030\002 \001(\t\""
-    "W\n\026PartyLootChangeRequest\022\027\n\017idempotency"
-    "_key\030\001 \001(\t\022$\n\004mode\030\002 \001(\0162\026.nightfall.v1."
-    "LootMode\"@\n\025PartyLootChangeAnswer\022\027\n\017ide"
-    "mpotency_key\030\001 \001(\t\022\016\n\006accept\030\002 \001(\010\"l\n\027Wa"
-    "rehouseDepositRequest\022\027\n\017idempotency_key"
-    "\030\001 \001(\t\022\016\n\006keeper\030\002 \001(\t\022(\n\007entries\030\003 \003(\0132"
-    "\027.nightfall.v1.ItemCount\"m\n\030WarehouseWit"
-    "hdrawRequest\022\027\n\017idempotency_key\030\001 \001(\t\022\016\n"
-    "\006keeper\030\002 \001(\t\022(\n\007entries\030\003 \003(\0132\027.nightfa"
-    "ll.v1.ItemCount\"\201\001\n\022FreightSendRequest\022\027"
-    "\n\017idempotency_key\030\001 \001(\t\022\016\n\006keeper\030\002 \001(\t\022"
-    "\030\n\020target_character\030\003 \001(\t\022(\n\007entries\030\004 \003"
-    "(\0132\027.nightfall.v1.ItemCount\"k\n\026FreightWi"
-    "thdrawRequest\022\027\n\017idempotency_key\030\001 \001(\t\022\016"
-    "\n\006keeper\030\002 \001(\t\022(\n\007entries\030\003 \003(\0132\027.nightf"
-    "all.v1.ItemCount\"\241\001\n\017MailSendRequest\022\027\n\017"
-    "idempotency_key\030\001 \001(\t\022\025\n\rreceiver_name\030\002"
-    " \001(\t\022\017\n\007subject\030\003 \001(\t\022\014\n\004body\030\004 \001(\t\022\021\n\tc"
-    "od_adena\030\005 \001(\004\022,\n\013attachments\030\006 \003(\0132\027.ni"
-    "ghtfall.v1.ItemCount\"I\n\032MailTakeAttachme"
-    "ntsRequest\022\027\n\017idempotency_key\030\001 \001(\t\022\022\n\nm"
-    "essage_id\030\002 \001(\t\"@\n\021MailRejectRequest\022\027\n\017"
-    "idempotency_key\030\001 \001(\t\022\022\n\nmessage_id\030\002 \001("
-    "\t\"@\n\021MailCancelRequest\022\027\n\017idempotency_ke"
-    "y\030\001 \001(\t\022\022\n\nmessage_id\030\002 \001(\t\"S\n\021MailDelet"
-    "eRequest\022\027\n\017idempotency_key\030\001 \001(\t\022\023\n\013mes"
-    "sage_ids\030\002 \003(\t\022\020\n\010sent_box\030\003 \001(\010\"}\n\023Mano"
-    "rBuySeedRequest\022\027\n\017idempotency_key\030\001 \001(\t"
-    "\022\017\n\007manager\030\002 \001(\t\022\020\n\010manor_id\030\003 \001(\r\022*\n\005s"
-    "eeds\030\004 \003(\0132\033.nightfall.v1.TemplateCount\""
-    "Q\n\010CropSale\022\023\n\013instance_id\030\001 \001(\004\022\017\n\007crop"
-    "_id\030\002 \001(\r\022\020\n\010manor_id\030\003 \001(\r\022\r\n\005count\030\004 \001"
-    "(\004\"i\n\024ManorSellCropRequest\022\027\n\017idempotenc"
-    "y_key\030\001 \001(\t\022\017\n\007manager\030\002 \001(\t\022\'\n\007entries\030"
-    "\003 \003(\0132\026.nightfall.v1.CropSale\"V\n\025ItemAuc"
-    "tionBidRequest\022\027\n\017idempotency_key\030\001 \001(\t\022"
-    "\027\n\017instance_npc_id\030\002 \001(\r\022\013\n\003bid\030\003 \001(\004\"c\n"
-    "\033ItemAuctionCancelBidRequest\022\027\n\017idempote"
-    "ncy_key\030\001 \001(\t\022\022\n\nauctioneer\030\002 \001(\t\022\027\n\017ins"
-    "tance_npc_id\030\003 \001(\r\"B\n\023MailMarkReadReques"
-    "t\022\027\n\017idempotency_key\030\001 \001(\t\022\022\n\nmessage_id"
-    "\030\002 \001(\t\"\357\001\n\020GroundItemDetail\022\030\n\020item_inst"
-    "ance_id\030\001 \001(\004\022\023\n\013template_id\030\002 \001(\r\022\r\n\005co"
-    "unt\030\003 \001(\004\022\017\n\007enchant\030\004 \001(\r\022\022\n\nloot_owner"
-    "\030\005 \001(\t\022\027\n\017loot_until_tick\030\006 \001(\004\022\032\n\022drop_"
-    "protect_owner\030\007 \001(\t\022\037\n\027drop_protect_unti"
-    "l_tick\030\010 \001(\004\022\024\n\014dropped_tick\030\t \001(\004\022\014\n\004he"
-    "rb\030\n \001(\010\"\356\006\n\rEconomyResult\022\021\n\tentity_id\030"
-    "\001 \001(\014\022\023\n\013incarnation\030\002 \001(\r\022\014\n\004tick\030\003 \001(\004"
-    "\022\032\n\022inventory_revision\030\004 \001(\004\022\022\n\nreceipt_"
-    "id\030\005 \001(\t\022.\n\toperation\030\006 \001(\0162\033.nightfall."
-    "v1.ItemOperation\022\035\n\025affected_instance_id"
-    "s\030\007 \003(\004\022\023\n\013request_key\030\010 \001(\014\022\033\n\023request_"
-    "fingerprint\030\t \001(\t\022 \n\023accepted_client_seq"
-    "\030\n \001(\004H\001\210\001\001\022-\n\006pickup\030\024 \001(\0132\033.nightfall."
-    "v1.PickupOutcomeH\000\022-\n\006vendor\030\025 \001(\0132\033.nig"
-    "htfall.v1.VendorOutcomeH\000\022+\n\005craft\030\026 \001(\013"
-    "2\032.nightfall.v1.CraftOutcomeH\000\0222\n\tmultis"
-    "ell\030\027 \001(\0132\035.nightfall.v1.ExchangeOutcome"
-    "H\000\022+\n\005trade\030\030 \001(\0132\032.nightfall.v1.TradeOu"
-    "tcomeH\000\022+\n\005store\030\031 \001(\0132\032.nightfall.v1.St"
-    "oreOutcomeH\000\0223\n\tcontainer\030\032 \001(\0132\036.nightf"
-    "all.v1.ContainerOutcomeH\000\022)\n\004mail\030\033 \001(\0132"
-    "\031.nightfall.v1.MailOutcomeH\000\022+\n\005manor\030\034 "
-    "\001(\0132\032.nightfall.v1.ManorOutcomeH\000\022/\n\007auc"
-    "tion\030\035 \001(\0132\034.nightfall.v1.AuctionOutcome"
-    "H\000\022+\n\005party\030\036 \001(\0132\032.nightfall.v1.PartyOu"
-    "tcomeH\000\022-\n\006recipe\030\037 \001(\0132\033.nightfall.v1.R"
-    "ecipeOutcomeH\000B\t\n\007outcomeB\026\n\024_accepted_c"
-    "lient_seq\"c\n\rPickupOutcome\022\023\n\013template_i"
-    "d\030\001 \001(\r\022\r\n\005count\030\002 \001(\004\022\021\n\trecipient\030\003 \001("
-    "\t\022\014\n\004herb\030\004 \001(\010\022\r\n\005split\030\005 \001(\010\"R\n\rVendor"
-    "Outcome\022\027\n\017adena_delta_abs\030\001 \001(\004\022\022\n\naden"
-    "a_paid\030\002 \001(\010\022\024\n\014refund_order\030\003 \003(\r\"i\n\014Cr"
-    "aftOutcome\022\017\n\007success\030\001 \001(\010\022\022\n\nmasterwor"
-    "k\030\002 \001(\010\022\030\n\020product_template\030\003 \001(\r\022\r\n\005cou"
-    "nt\030\004 \001(\004\022\013\n\003fee\030\005 \001(\004\"D\n\017ExchangeOutcome"
-    "\022\017\n\007list_id\030\001 \001(\r\022\020\n\010entry_id\030\002 \001(\r\022\016\n\006a"
-    "mount\030\003 \001(\004\"r\n\014TradeOutcome\022\017\n\007partner\030\001"
-    " \001(\t\022&\n\005given\030\002 \003(\0132\027.nightfall.v1.ItemC"
-    "ount\022)\n\010received\030\003 \003(\0132\027.nightfall.v1.It"
-    "emCount\"l\n\014StoreOutcome\022\024\n\014counterparty\030"
-    "\001 \001(\t\022&\n\005items\030\002 \003(\0132\027.nightfall.v1.Item"
-    "Count\022\r\n\005adena\030\003 \001(\004\022\017\n\007skipped\030\004 \003(\r\"Z\n"
-    "\020ContainerOutcome\022\021\n\tcontainer\030\001 \001(\t\022\013\n\003"
-    "fee\030\002 \001(\004\022&\n\005moved\030\003 \003(\0132\027.nightfall.v1."
-    "ItemCount\"S\n\013MailOutcome\022\022\n\nmessage_id\030\001"
-    " \001(\t\022\013\n\003fee\030\002 \001(\004\022\020\n\010cod_paid\030\003 \001(\004\022\021\n\tp"
-    "rocessed\030\004 \001(\r\"X\n\014ManorOutcome\022,\n\007grante"
-    "d\030\001 \003(\0132\033.nightfall.v1.TemplateCount\022\r\n\005"
-    "adena\030\002 \001(\004\022\013\n\003fee\030\003 \001(\004\"j\n\016AuctionOutco"
-    "me\022\022\n\nauction_id\030\001 \001(\004\022\013\n\003bid\030\002 \001(\004\022\014\n\004p"
-    "aid\030\003 \001(\004\022\020\n\010refunded\030\004 \001(\004\022\027\n\017reserve_n"
-    "ot_met\030\005 \001(\010\" \n\014PartyOutcome\022\020\n\010party_id"
-    "\030\001 \001(\004\"3\n\rRecipeOutcome\022\021\n\trecipe_id\030\001 \001"
-    "(\r\022\017\n\007dwarven\030\002 \001(\010\"r\n\022CorpseStateChange"
-    "d\022\013\n\003npc\030\001 \001(\t\022\014\n\004tick\030\002 \001(\004\022\017\n\007spoiled\030"
-    "\003 \001(\010\022\016\n\006seeded\030\004 \001(\010\022\021\n\tsweepable\030\005 \001(\010"
-    "\022\r\n\005swept\030\006 \001(\010\",\n\013PartyMember\022\016\n\006entity"
-    "\030\001 \001(\t\022\r\n\005level\030\002 \001(\r\"\252\001\n\021PartyStateChan"
-    "ged\022\020\n\010party_id\030\001 \001(\004\022*\n\007members\030\002 \003(\0132\031"
-    ".nightfall.v1.PartyMember\022$\n\004mode\030\003 \001(\0162"
-    "\026.nightfall.v1.LootMode\022\020\n\010baseline\030\004 \001("
-    "\010\022\021\n\tdisbanded\030\005 \001(\010\022\014\n\004tick\030\006 \001(\004\"\211\001\n\rP"
-    "artyLootVote\022\020\n\010party_id\030\001 \001(\004\022$\n\004mode\030\002"
-    " \001(\0162\026.nightfall.v1.LootMode\022*\n\005phase\030\003 "
-    "\001(\0162\033.nightfall.v1.LootVotePhase\022\024\n\014expi"
-    "res_tick\030\004 \001(\004\"d\n\023PartyInviteReceived\022\021\n"
-    "\trequester\030\001 \001(\t\022$\n\004mode\030\002 \001(\0162\026.nightfa"
-    "ll.v1.LootMode\022\024\n\014expires_tick\030\003 \001(\004\"\?\n\024"
-    "TradeRequestReceived\022\021\n\trequester\030\001 \001(\t\022"
-    "\024\n\014expires_tick\030\002 \001(\004\"V\n\nTradeEntry\022\023\n\013i"
-    "nstance_id\030\001 \001(\004\022\023\n\013template_id\030\002 \001(\r\022\r\n"
-    "\005count\030\003 \001(\004\022\017\n\007enchant\030\004 \001(\r\"\376\001\n\023TradeS"
-    "essionChanged\022\017\n\007partner\030\001 \001(\t\022\'\n\005phase\030"
-    "\002 \001(\0162\030.nightfall.v1.TradePhase\022%\n\003own\030\003"
-    " \003(\0132\030.nightfall.v1.TradeEntry\022/\n\rpartne"
-    "r_items\030\004 \003(\0132\030.nightfall.v1.TradeEntry\022"
-    "\025\n\rown_confirmed\030\005 \001(\010\022\031\n\021partner_confir"
-    "med\030\006 \001(\010\022\025\n\rcancel_reason\030\007 \001(\t\022\014\n\004tick"
-    "\030\010 \001(\004\"\363\001\n\023PrivateStoreChanged\022\r\n\005owner\030"
-    "\001 \001(\t\022%\n\004kind\030\002 \001(\0162\027.nightfall.v1.Store"
-    "Kind\022\r\n\005title\030\003 \001(\t\022*\n\004sell\030\004 \003(\0132\034.nigh"
-    "tfall.v1.StoreSellEntry\022(\n\003buy\030\005 \003(\0132\033.n"
-    "ightfall.v1.StoreBuyEntry\0223\n\013manufacture"
-    "\030\006 \003(\0132\036.nightfall.v1.ManufactureEntry\022\014"
-    "\n\004tick\030\007 \001(\004\"x\n\020MailNotification\022\022\n\nmess"
-    "age_id\030\001 \001(\t\022\023\n\013sender_name\030\002 \001(\t\022\017\n\007sub"
-    "ject\030\003 \001(\t\022\027\n\017has_attachments\030\004 \001(\010\022\021\n\tc"
-    "od_adena\030\005 \001(\004\"\223\001\n\016RecipeBookSync\022\017\n\007dwa"
-    "rven\030\001 \003(\r\022\016\n\006common\030\002 \003(\r\022\025\n\rdwarven_li"
-    "mit\030\003 \001(\r\022\024\n\014common_limit\030\004 \001(\r\022\020\n\010basel"
-    "ine\030\005 \001(\010\022\014\n\004tick\030\006 \001(\004\022\023\n\013incarnation\030\007"
-    " \001(\r\"\300\001\n\030ItemAuctionStatusChanged\022\027\n\017ins"
-    "tance_npc_id\030\001 \001(\r\022\022\n\nauction_id\030\002 \001(\004\022\023"
-    "\n\013template_id\030\003 \001(\r\022\023\n\013highest_bid\030\004 \001(\004"
-    "\022)\n\005state\030\005 \001(\0162\032.nightfall.v1.AuctionSt"
-    "ate\022\020\n\010init_bid\030\006 \001(\004\022\020\n\010extended\030\007 \001(\010\""
-    "\215\001\n\017LootDistributed\022\016\n\006picker\030\001 \001(\t\022\021\n\tr"
-    "ecipient\030\002 \001(\t\022\023\n\013template_id\030\003 \001(\r\022\r\n\005c"
-    "ount\030\004 \001(\004\022$\n\004mode\030\005 \001(\0162\026.nightfall.v1."
-    "LootMode\022\r\n\005spoil\030\006 \001(\010\"<\n\022ListBuylistRe"
-    "quest\022\024\n\014character_id\030\001 \001(\014\022\020\n\010merchant\030"
-    "\002 \001(\t\"j\n\014BuylistEntry\022\023\n\013template_id\030\001 \001"
-    "(\r\022\022\n\nunit_price\030\002 \001(\004\022\017\n\007limited\030\003 \001(\010\022"
-    "\r\n\005stock\030\004 \001(\004\022\021\n\tmax_stock\030\005 \001(\004\"\311\001\n\023Li"
-    "stBuylistResponse\022\017\n\007list_id\030\001 \001(\004\022\027\n\017me"
-    "rchant_npc_id\030\002 \001(\r\022\032\n\022castle_tax_percen"
-    "t\030\003 \001(\r\022+\n\007entries\030\004 \003(\0132\032.nightfall.v1."
-    "BuylistEntry\022+\n\nrefund_tab\030\005 \003(\0132\027.night"
-    "fall.v1.OwnedItem\022\022\n\nstate_tick\030\006 \001(\004\"*\n"
-    "\027GetMultisellListRequest\022\017\n\007list_id\030\001 \001("
-    "\r\"\177\n\023MultisellIngredient\022\023\n\013template_id\030"
-    "\001 \001(\r\022\r\n\005count\030\002 \001(\004\022\026\n\016tax_ingredient\030\003"
-    " \001(\010\022\033\n\023maintain_ingredient\030\004 \001(\010\022\017\n\007enc"
-    "hant\030\005 \001(\r\"\242\001\n\016MultisellEntry\022\020\n\010entry_i"
-    "d\030\001 \001(\r\0226\n\013ingredients\030\002 \003(\0132!.nightfall"
-    ".v1.MultisellIngredient\0223\n\010products\030\003 \003("
-    "\0132!.nightfall.v1.MultisellIngredient\022\021\n\t"
-    "stackable\030\004 \001(\010\"\246\001\n\030GetMultisellListResp"
-    "onse\022\017\n\007list_id\030\001 \001(\r\022\034\n\024maintain_enchan"
-    "tment\030\002 \001(\010\022\023\n\013apply_taxes\030\003 \001(\010\022\027\n\017allo"
-    "wed_npc_ids\030\004 \003(\r\022-\n\007entries\030\005 \003(\0132\034.nig"
-    "htfall.v1.MultisellEntry\",\n\024GetRecipeBoo"
-    "kRequest\022\024\n\014character_id\030\001 \001(\014\"C\n\025GetRec"
-    "ipeBookResponse\022*\n\004book\030\001 \001(\0132\034.nightfal"
-    "l.v1.RecipeBookSync\"+\n\023GetWarehouseReque"
-    "st\022\024\n\014character_id\030\001 \001(\014\"b\n\024GetWarehouse"
-    "Response\022&\n\005items\030\001 \003(\0132\027.nightfall.v1.O"
-    "wnedItem\022\020\n\010capacity\030\002 \001(\r\022\020\n\010revision\030\003"
-    " \001(\004\")\n\021GetFreightRequest\022\024\n\014character_i"
-    "d\030\001 \001(\014\"`\n\022GetFreightResponse\022&\n\005items\030\001"
+    "rice\030\003 \001(\004\022\023\n\013template_id\030\004 \001(\r\"S\n\rStore"
+    "BuyEntry\022\023\n\013template_id\030\001 \001(\r\022\017\n\007enchant"
+    "\030\002 \001(\r\022\r\n\005count\030\003 \001(\004\022\r\n\005price\030\004 \001(\004\"3\n\020"
+    "ManufactureEntry\022\021\n\trecipe_id\030\001 \001(\r\022\014\n\004c"
+    "ost\030\002 \001(\004\"\211\001\n\032SetPrivateStoreSellRequest"
+    "\022\027\n\017idempotency_key\030\001 \001(\t\022\r\n\005title\030\002 \001(\t"
+    "\022\024\n\014package_sale\030\003 \001(\010\022-\n\007entries\030\004 \003(\0132"
+    "\034.nightfall.v1.StoreSellEntry\"q\n\031SetPriv"
+    "ateStoreBuyRequest\022\027\n\017idempotency_key\030\001 "
+    "\001(\t\022\r\n\005title\030\002 \001(\t\022,\n\007entries\030\003 \003(\0132\033.ni"
+    "ghtfall.v1.StoreBuyEntry\"w\n\034SetPrivateMa"
+    "nufactureRequest\022\027\n\017idempotency_key\030\001 \001("
+    "\t\022\r\n\005title\030\002 \001(\t\022/\n\007entries\030\003 \003(\0132\036.nigh"
+    "tfall.v1.ManufactureEntry\"3\n\030ClosePrivat"
+    "eStoreRequest\022\027\n\017idempotency_key\030\001 \001(\t\"u"
+    "\n\026PrivateStoreBuyRequest\022\027\n\017idempotency_"
+    "key\030\001 \001(\t\022\023\n\013store_owner\030\002 \001(\t\022-\n\007entrie"
+    "s\030\003 \003(\0132\034.nightfall.v1.StoreSellEntry\"_\n"
+    "\025PrivateStoreSellEntry\022\023\n\013instance_id\030\001 "
+    "\001(\004\022\023\n\013template_id\030\002 \001(\r\022\r\n\005count\030\003 \001(\004\022"
+    "\r\n\005price\030\004 \001(\004\"}\n\027PrivateStoreSellReques"
+    "t\022\027\n\017idempotency_key\030\001 \001(\t\022\023\n\013store_owne"
+    "r\030\002 \001(\t\0224\n\007entries\030\003 \003(\0132#.nightfall.v1."
+    "PrivateStoreSellEntry\"a\n\036PrivateManufact"
+    "ureOrderRequest\022\027\n\017idempotency_key\030\001 \001(\t"
+    "\022\023\n\013store_owner\030\002 \001(\t\022\021\n\trecipe_id\030\003 \001(\r"
+    "\"c\n\022PartyInviteRequest\022\027\n\017idempotency_ke"
+    "y\030\001 \001(\t\022\016\n\006target\030\002 \001(\t\022$\n\004mode\030\003 \001(\0162\026."
+    "nightfall.v1.LootMode\"=\n\022PartyAnswerRequ"
+    "est\022\027\n\017idempotency_key\030\001 \001(\t\022\016\n\006answer\030\002"
+    " \001(\005\",\n\021PartyLeaveRequest\022\027\n\017idempotency"
+    "_key\030\001 \001(\t\";\n\020PartyKickRequest\022\027\n\017idempo"
+    "tency_key\030\001 \001(\t\022\016\n\006member\030\002 \001(\t\"C\n\030Party"
+    "ChangeLeaderRequest\022\027\n\017idempotency_key\030\001"
+    " \001(\t\022\016\n\006member\030\002 \001(\t\"W\n\026PartyLootChangeR"
+    "equest\022\027\n\017idempotency_key\030\001 \001(\t\022$\n\004mode\030"
+    "\002 \001(\0162\026.nightfall.v1.LootMode\"@\n\025PartyLo"
+    "otChangeAnswer\022\027\n\017idempotency_key\030\001 \001(\t\022"
+    "\016\n\006accept\030\002 \001(\010\"l\n\027WarehouseDepositReque"
+    "st\022\027\n\017idempotency_key\030\001 \001(\t\022\016\n\006keeper\030\002 "
+    "\001(\t\022(\n\007entries\030\003 \003(\0132\027.nightfall.v1.Item"
+    "Count\"m\n\030WarehouseWithdrawRequest\022\027\n\017ide"
+    "mpotency_key\030\001 \001(\t\022\016\n\006keeper\030\002 \001(\t\022(\n\007en"
+    "tries\030\003 \003(\0132\027.nightfall.v1.ItemCount\"\201\001\n"
+    "\022FreightSendRequest\022\027\n\017idempotency_key\030\001"
+    " \001(\t\022\016\n\006keeper\030\002 \001(\t\022\030\n\020target_character"
+    "\030\003 \001(\t\022(\n\007entries\030\004 \003(\0132\027.nightfall.v1.I"
+    "temCount\"k\n\026FreightWithdrawRequest\022\027\n\017id"
+    "empotency_key\030\001 \001(\t\022\016\n\006keeper\030\002 \001(\t\022(\n\007e"
+    "ntries\030\003 \003(\0132\027.nightfall.v1.ItemCount\"\241\001"
+    "\n\017MailSendRequest\022\027\n\017idempotency_key\030\001 \001"
+    "(\t\022\025\n\rreceiver_name\030\002 \001(\t\022\017\n\007subject\030\003 \001"
+    "(\t\022\014\n\004body\030\004 \001(\t\022\021\n\tcod_adena\030\005 \001(\004\022,\n\013a"
+    "ttachments\030\006 \003(\0132\027.nightfall.v1.ItemCoun"
+    "t\"I\n\032MailTakeAttachmentsRequest\022\027\n\017idemp"
+    "otency_key\030\001 \001(\t\022\022\n\nmessage_id\030\002 \001(\t\"@\n\021"
+    "MailRejectRequest\022\027\n\017idempotency_key\030\001 \001"
+    "(\t\022\022\n\nmessage_id\030\002 \001(\t\"@\n\021MailCancelRequ"
+    "est\022\027\n\017idempotency_key\030\001 \001(\t\022\022\n\nmessage_"
+    "id\030\002 \001(\t\"S\n\021MailDeleteRequest\022\027\n\017idempot"
+    "ency_key\030\001 \001(\t\022\023\n\013message_ids\030\002 \003(\t\022\020\n\010s"
+    "ent_box\030\003 \001(\010\"}\n\023ManorBuySeedRequest\022\027\n\017"
+    "idempotency_key\030\001 \001(\t\022\017\n\007manager\030\002 \001(\t\022\020"
+    "\n\010manor_id\030\003 \001(\r\022*\n\005seeds\030\004 \003(\0132\033.nightf"
+    "all.v1.TemplateCount\"Q\n\010CropSale\022\023\n\013inst"
+    "ance_id\030\001 \001(\004\022\017\n\007crop_id\030\002 \001(\r\022\020\n\010manor_"
+    "id\030\003 \001(\r\022\r\n\005count\030\004 \001(\004\"i\n\024ManorSellCrop"
+    "Request\022\027\n\017idempotency_key\030\001 \001(\t\022\017\n\007mana"
+    "ger\030\002 \001(\t\022\'\n\007entries\030\003 \003(\0132\026.nightfall.v"
+    "1.CropSale\"V\n\025ItemAuctionBidRequest\022\027\n\017i"
+    "dempotency_key\030\001 \001(\t\022\027\n\017instance_npc_id\030"
+    "\002 \001(\r\022\013\n\003bid\030\003 \001(\004\"c\n\033ItemAuctionCancelB"
+    "idRequest\022\027\n\017idempotency_key\030\001 \001(\t\022\022\n\nau"
+    "ctioneer\030\002 \001(\t\022\027\n\017instance_npc_id\030\003 \001(\r\""
+    "B\n\023MailMarkReadRequest\022\027\n\017idempotency_ke"
+    "y\030\001 \001(\t\022\022\n\nmessage_id\030\002 \001(\t\"\357\001\n\020GroundIt"
+    "emDetail\022\030\n\020item_instance_id\030\001 \001(\004\022\023\n\013te"
+    "mplate_id\030\002 \001(\r\022\r\n\005count\030\003 \001(\004\022\017\n\007enchan"
+    "t\030\004 \001(\r\022\022\n\nloot_owner\030\005 \001(\t\022\027\n\017loot_unti"
+    "l_tick\030\006 \001(\004\022\032\n\022drop_protect_owner\030\007 \001(\t"
+    "\022\037\n\027drop_protect_until_tick\030\010 \001(\004\022\024\n\014dro"
+    "pped_tick\030\t \001(\004\022\014\n\004herb\030\n \001(\010\"\356\006\n\rEconom"
+    "yResult\022\021\n\tentity_id\030\001 \001(\014\022\023\n\013incarnatio"
+    "n\030\002 \001(\r\022\014\n\004tick\030\003 \001(\004\022\032\n\022inventory_revis"
+    "ion\030\004 \001(\004\022\022\n\nreceipt_id\030\005 \001(\t\022.\n\toperati"
+    "on\030\006 \001(\0162\033.nightfall.v1.ItemOperation\022\035\n"
+    "\025affected_instance_ids\030\007 \003(\004\022\023\n\013request_"
+    "key\030\010 \001(\014\022\033\n\023request_fingerprint\030\t \001(\t\022 "
+    "\n\023accepted_client_seq\030\n \001(\004H\001\210\001\001\022-\n\006pick"
+    "up\030\024 \001(\0132\033.nightfall.v1.PickupOutcomeH\000\022"
+    "-\n\006vendor\030\025 \001(\0132\033.nightfall.v1.VendorOut"
+    "comeH\000\022+\n\005craft\030\026 \001(\0132\032.nightfall.v1.Cra"
+    "ftOutcomeH\000\0222\n\tmultisell\030\027 \001(\0132\035.nightfa"
+    "ll.v1.ExchangeOutcomeH\000\022+\n\005trade\030\030 \001(\0132\032"
+    ".nightfall.v1.TradeOutcomeH\000\022+\n\005store\030\031 "
+    "\001(\0132\032.nightfall.v1.StoreOutcomeH\000\0223\n\tcon"
+    "tainer\030\032 \001(\0132\036.nightfall.v1.ContainerOut"
+    "comeH\000\022)\n\004mail\030\033 \001(\0132\031.nightfall.v1.Mail"
+    "OutcomeH\000\022+\n\005manor\030\034 \001(\0132\032.nightfall.v1."
+    "ManorOutcomeH\000\022/\n\007auction\030\035 \001(\0132\034.nightf"
+    "all.v1.AuctionOutcomeH\000\022+\n\005party\030\036 \001(\0132\032"
+    ".nightfall.v1.PartyOutcomeH\000\022-\n\006recipe\030\037"
+    " \001(\0132\033.nightfall.v1.RecipeOutcomeH\000B\t\n\007o"
+    "utcomeB\026\n\024_accepted_client_seq\"c\n\rPickup"
+    "Outcome\022\023\n\013template_id\030\001 \001(\r\022\r\n\005count\030\002 "
+    "\001(\004\022\021\n\trecipient\030\003 \001(\t\022\014\n\004herb\030\004 \001(\010\022\r\n\005"
+    "split\030\005 \001(\010\"R\n\rVendorOutcome\022\027\n\017adena_de"
+    "lta_abs\030\001 \001(\004\022\022\n\nadena_paid\030\002 \001(\010\022\024\n\014ref"
+    "und_order\030\003 \003(\r\"i\n\014CraftOutcome\022\017\n\007succe"
+    "ss\030\001 \001(\010\022\022\n\nmasterwork\030\002 \001(\010\022\030\n\020product_"
+    "template\030\003 \001(\r\022\r\n\005count\030\004 \001(\004\022\013\n\003fee\030\005 \001"
+    "(\004\"D\n\017ExchangeOutcome\022\017\n\007list_id\030\001 \001(\r\022\020"
+    "\n\010entry_id\030\002 \001(\r\022\016\n\006amount\030\003 \001(\004\"r\n\014Trad"
+    "eOutcome\022\017\n\007partner\030\001 \001(\t\022&\n\005given\030\002 \003(\013"
+    "2\027.nightfall.v1.ItemCount\022)\n\010received\030\003 "
+    "\003(\0132\027.nightfall.v1.ItemCount\"l\n\014StoreOut"
+    "come\022\024\n\014counterparty\030\001 \001(\t\022&\n\005items\030\002 \003("
+    "\0132\027.nightfall.v1.ItemCount\022\r\n\005adena\030\003 \001("
+    "\004\022\017\n\007skipped\030\004 \003(\r\"Z\n\020ContainerOutcome\022\021"
+    "\n\tcontainer\030\001 \001(\t\022\013\n\003fee\030\002 \001(\004\022&\n\005moved\030"
+    "\003 \003(\0132\027.nightfall.v1.ItemCount\"S\n\013MailOu"
+    "tcome\022\022\n\nmessage_id\030\001 \001(\t\022\013\n\003fee\030\002 \001(\004\022\020"
+    "\n\010cod_paid\030\003 \001(\004\022\021\n\tprocessed\030\004 \001(\r\"X\n\014M"
+    "anorOutcome\022,\n\007granted\030\001 \003(\0132\033.nightfall"
+    ".v1.TemplateCount\022\r\n\005adena\030\002 \001(\004\022\013\n\003fee\030"
+    "\003 \001(\004\"j\n\016AuctionOutcome\022\022\n\nauction_id\030\001 "
+    "\001(\004\022\013\n\003bid\030\002 \001(\004\022\014\n\004paid\030\003 \001(\004\022\020\n\010refund"
+    "ed\030\004 \001(\004\022\027\n\017reserve_not_met\030\005 \001(\010\" \n\014Par"
+    "tyOutcome\022\020\n\010party_id\030\001 \001(\004\"3\n\rRecipeOut"
+    "come\022\021\n\trecipe_id\030\001 \001(\r\022\017\n\007dwarven\030\002 \001(\010"
+    "\"r\n\022CorpseStateChanged\022\013\n\003npc\030\001 \001(\t\022\014\n\004t"
+    "ick\030\002 \001(\004\022\017\n\007spoiled\030\003 \001(\010\022\016\n\006seeded\030\004 \001"
+    "(\010\022\021\n\tsweepable\030\005 \001(\010\022\r\n\005swept\030\006 \001(\010\",\n\013"
+    "PartyMember\022\016\n\006entity\030\001 \001(\t\022\r\n\005level\030\002 \001"
+    "(\r\"\252\001\n\021PartyStateChanged\022\020\n\010party_id\030\001 \001"
+    "(\004\022*\n\007members\030\002 \003(\0132\031.nightfall.v1.Party"
+    "Member\022$\n\004mode\030\003 \001(\0162\026.nightfall.v1.Loot"
+    "Mode\022\020\n\010baseline\030\004 \001(\010\022\021\n\tdisbanded\030\005 \001("
+    "\010\022\014\n\004tick\030\006 \001(\004\"\211\001\n\rPartyLootVote\022\020\n\010par"
+    "ty_id\030\001 \001(\004\022$\n\004mode\030\002 \001(\0162\026.nightfall.v1"
+    ".LootMode\022*\n\005phase\030\003 \001(\0162\033.nightfall.v1."
+    "LootVotePhase\022\024\n\014expires_tick\030\004 \001(\004\"d\n\023P"
+    "artyInviteReceived\022\021\n\trequester\030\001 \001(\t\022$\n"
+    "\004mode\030\002 \001(\0162\026.nightfall.v1.LootMode\022\024\n\014e"
+    "xpires_tick\030\003 \001(\004\"\?\n\024TradeRequestReceive"
+    "d\022\021\n\trequester\030\001 \001(\t\022\024\n\014expires_tick\030\002 \001"
+    "(\004\"V\n\nTradeEntry\022\023\n\013instance_id\030\001 \001(\004\022\023\n"
+    "\013template_id\030\002 \001(\r\022\r\n\005count\030\003 \001(\004\022\017\n\007enc"
+    "hant\030\004 \001(\r\"\376\001\n\023TradeSessionChanged\022\017\n\007pa"
+    "rtner\030\001 \001(\t\022\'\n\005phase\030\002 \001(\0162\030.nightfall.v"
+    "1.TradePhase\022%\n\003own\030\003 \003(\0132\030.nightfall.v1"
+    ".TradeEntry\022/\n\rpartner_items\030\004 \003(\0132\030.nig"
+    "htfall.v1.TradeEntry\022\025\n\rown_confirmed\030\005 "
+    "\001(\010\022\031\n\021partner_confirmed\030\006 \001(\010\022\025\n\rcancel"
+    "_reason\030\007 \001(\t\022\014\n\004tick\030\010 \001(\004\"\363\001\n\023PrivateS"
+    "toreChanged\022\r\n\005owner\030\001 \001(\t\022%\n\004kind\030\002 \001(\016"
+    "2\027.nightfall.v1.StoreKind\022\r\n\005title\030\003 \001(\t"
+    "\022*\n\004sell\030\004 \003(\0132\034.nightfall.v1.StoreSellE"
+    "ntry\022(\n\003buy\030\005 \003(\0132\033.nightfall.v1.StoreBu"
+    "yEntry\0223\n\013manufacture\030\006 \003(\0132\036.nightfall."
+    "v1.ManufactureEntry\022\014\n\004tick\030\007 \001(\004\"x\n\020Mai"
+    "lNotification\022\022\n\nmessage_id\030\001 \001(\t\022\023\n\013sen"
+    "der_name\030\002 \001(\t\022\017\n\007subject\030\003 \001(\t\022\027\n\017has_a"
+    "ttachments\030\004 \001(\010\022\021\n\tcod_adena\030\005 \001(\004\"\223\001\n\016"
+    "RecipeBookSync\022\017\n\007dwarven\030\001 \003(\r\022\016\n\006commo"
+    "n\030\002 \003(\r\022\025\n\rdwarven_limit\030\003 \001(\r\022\024\n\014common"
+    "_limit\030\004 \001(\r\022\020\n\010baseline\030\005 \001(\010\022\014\n\004tick\030\006"
+    " \001(\004\022\023\n\013incarnation\030\007 \001(\r\"\300\001\n\030ItemAuctio"
+    "nStatusChanged\022\027\n\017instance_npc_id\030\001 \001(\r\022"
+    "\022\n\nauction_id\030\002 \001(\004\022\023\n\013template_id\030\003 \001(\r"
+    "\022\023\n\013highest_bid\030\004 \001(\004\022)\n\005state\030\005 \001(\0162\032.n"
+    "ightfall.v1.AuctionState\022\020\n\010init_bid\030\006 \001"
+    "(\004\022\020\n\010extended\030\007 \001(\010\"\215\001\n\017LootDistributed"
+    "\022\016\n\006picker\030\001 \001(\t\022\021\n\trecipient\030\002 \001(\t\022\023\n\013t"
+    "emplate_id\030\003 \001(\r\022\r\n\005count\030\004 \001(\004\022$\n\004mode\030"
+    "\005 \001(\0162\026.nightfall.v1.LootMode\022\r\n\005spoil\030\006"
+    " \001(\010\"<\n\022ListBuylistRequest\022\024\n\014character_"
+    "id\030\001 \001(\014\022\020\n\010merchant\030\002 \001(\t\"j\n\014BuylistEnt"
+    "ry\022\023\n\013template_id\030\001 \001(\r\022\022\n\nunit_price\030\002 "
+    "\001(\004\022\017\n\007limited\030\003 \001(\010\022\r\n\005stock\030\004 \001(\004\022\021\n\tm"
+    "ax_stock\030\005 \001(\004\"\311\001\n\023ListBuylistResponse\022\017"
+    "\n\007list_id\030\001 \001(\004\022\027\n\017merchant_npc_id\030\002 \001(\r"
+    "\022\032\n\022castle_tax_percent\030\003 \001(\r\022+\n\007entries\030"
+    "\004 \003(\0132\032.nightfall.v1.BuylistEntry\022+\n\nref"
+    "und_tab\030\005 \003(\0132\027.nightfall.v1.OwnedItem\022\022"
+    "\n\nstate_tick\030\006 \001(\004\"*\n\027GetMultisellListRe"
+    "quest\022\017\n\007list_id\030\001 \001(\r\"\177\n\023MultisellIngre"
+    "dient\022\023\n\013template_id\030\001 \001(\r\022\r\n\005count\030\002 \001("
+    "\004\022\026\n\016tax_ingredient\030\003 \001(\010\022\033\n\023maintain_in"
+    "gredient\030\004 \001(\010\022\017\n\007enchant\030\005 \001(\r\"\242\001\n\016Mult"
+    "isellEntry\022\020\n\010entry_id\030\001 \001(\r\0226\n\013ingredie"
+    "nts\030\002 \003(\0132!.nightfall.v1.MultisellIngred"
+    "ient\0223\n\010products\030\003 \003(\0132!.nightfall.v1.Mu"
+    "ltisellIngredient\022\021\n\tstackable\030\004 \001(\010\"\246\001\n"
+    "\030GetMultisellListResponse\022\017\n\007list_id\030\001 \001"
+    "(\r\022\034\n\024maintain_enchantment\030\002 \001(\010\022\023\n\013appl"
+    "y_taxes\030\003 \001(\010\022\027\n\017allowed_npc_ids\030\004 \003(\r\022-"
+    "\n\007entries\030\005 \003(\0132\034.nightfall.v1.Multisell"
+    "Entry\",\n\024GetRecipeBookRequest\022\024\n\014charact"
+    "er_id\030\001 \001(\014\"C\n\025GetRecipeBookResponse\022*\n\004"
+    "book\030\001 \001(\0132\034.nightfall.v1.RecipeBookSync"
+    "\"+\n\023GetWarehouseRequest\022\024\n\014character_id\030"
+    "\001 \001(\014\"b\n\024GetWarehouseResponse\022&\n\005items\030\001"
     " \003(\0132\027.nightfall.v1.OwnedItem\022\020\n\010capacit"
-    "y\030\002 \001(\r\022\020\n\010revision\030\003 \001(\004\"\327\001\n\nMailHeader"
-    "\022\022\n\nmessage_id\030\001 \001(\t\022\023\n\013sender_name\030\002 \001("
-    "\t\022\025\n\rreceiver_name\030\003 \001(\t\022\017\n\007subject\030\004 \001("
-    "\t\022\027\n\017has_attachments\030\005 \001(\010\022\021\n\tcod_adena\030"
-    "\006 \001(\004\022\014\n\004read\030\007 \001(\010\022\020\n\010returned\030\010 \001(\010\022\023\n"
-    "\013system_kind\030\t \001(\r\022\027\n\017expires_unix_ms\030\n "
-    "\001(\003\"P\n\017ListMailRequest\022\024\n\014character_id\030\001"
-    " \001(\014\022\'\n\010mail_box\030\002 \001(\0162\025.nightfall.v1.Ma"
-    "ilBox\"\\\n\020ListMailResponse\022*\n\010messages\030\001 "
-    "\003(\0132\030.nightfall.v1.MailHeader\022\r\n\005count\030\002"
-    " \001(\r\022\r\n\005limit\030\003 \001(\r\";\n\017ReadMailRequest\022\024"
-    "\n\014character_id\030\001 \001(\014\022\022\n\nmessage_id\030\002 \001(\t"
-    "\"x\n\020ReadMailResponse\022(\n\006header\030\001 \001(\0132\030.n"
-    "ightfall.v1.MailHeader\022\014\n\004body\030\002 \001(\t\022,\n\013"
-    "attachments\030\003 \003(\0132\027.nightfall.v1.OwnedIt"
-    "em\"H\n\027ListItemAuctionsRequest\022\027\n\017instanc"
-    "e_npc_id\030\001 \001(\r\022\024\n\014character_id\030\002 \001(\014\"\353\001\n"
-    "\013AuctionView\022\022\n\nauction_id\030\001 \001(\004\022)\n\005stat"
-    "e\030\002 \001(\0162\032.nightfall.v1.AuctionState\022\023\n\013t"
-    "emplate_id\030\003 \001(\r\022\r\n\005count\030\004 \001(\004\022\020\n\010init_"
-    "bid\030\005 \001(\004\022\023\n\013highest_bid\030\006 \001(\004\022\025\n\rstart_"
-    "unix_ms\030\007 \001(\003\022\023\n\013end_unix_ms\030\010 \001(\003\022\017\n\007ow"
-    "n_bid\030\t \001(\004\022\025\n\rown_cancelled\030\n \001(\010\"\234\001\n\030L"
-    "istItemAuctionsResponse\022*\n\007current\030\001 \001(\013"
-    "2\031.nightfall.v1.AuctionView\022\'\n\004next\030\002 \001("
-    "\0132\031.nightfall.v1.AuctionView\022+\n\010own_bids"
-    "\030\003 \003(\0132\031.nightfall.v1.AuctionView\"(\n\023Get"
-    "ManorDataRequest\022\021\n\tcastle_id\030\001 \001(\r\"Z\n\022S"
-    "eedProductionView\022\017\n\007seed_id\030\001 \001(\r\022\r\n\005pr"
-    "ice\030\002 \001(\004\022\024\n\014start_amount\030\003 \001(\004\022\016\n\006amoun"
-    "t\030\004 \001(\004\"l\n\017CropProcureView\022\017\n\007crop_id\030\001 "
-    "\001(\r\022\r\n\005price\030\002 \001(\004\022\024\n\014start_amount\030\003 \001(\004"
-    "\022\016\n\006amount\030\004 \001(\004\022\023\n\013reward_type\030\005 \001(\r\"\210\001"
-    "\n\024GetManorDataResponse\022\021\n\tcastle_id\030\001 \001("
-    "\r\022/\n\005seeds\030\002 \003(\0132 .nightfall.v1.SeedProd"
-    "uctionView\022,\n\005crops\030\003 \003(\0132\035.nightfall.v1"
-    ".CropProcureView*\276\001\n\010LootMode\022\031\n\025LOOT_MO"
-    "DE_UNSPECIFIED\020\000\022\035\n\031LOOT_MODE_FINDERS_KE"
-    "EPERS\020\001\022\024\n\020LOOT_MODE_RANDOM\020\002\022$\n LOOT_MO"
-    "DE_RANDOM_INCLUDING_SPOIL\020\003\022\025\n\021LOOT_MODE"
-    "_BY_TURN\020\004\022%\n!LOOT_MODE_BY_TURN_INCLUDIN"
-    "G_SPOIL\020\005*\213\001\n\rLootVotePhase\022\037\n\033LOOT_VOTE"
-    "_PHASE_UNSPECIFIED\020\000\022\035\n\031LOOT_VOTE_PHASE_"
-    "REQUESTED\020\001\022\033\n\027LOOT_VOTE_PHASE_APPLIED\020\002"
-    "\022\035\n\031LOOT_VOTE_PHASE_CANCELLED\020\003*\267\001\n\nTrad"
-    "ePhase\022\033\n\027TRADE_PHASE_UNSPECIFIED\020\000\022\027\n\023T"
-    "RADE_PHASE_STARTED\020\001\022\032\n\026TRADE_PHASE_ITEM"
-    "_ADDED\020\002\022!\n\035TRADE_PHASE_PARTNER_CONFIRME"
-    "D\020\003\022\031\n\025TRADE_PHASE_COMPLETED\020\004\022\031\n\025TRADE_"
-    "PHASE_CANCELLED\020\005*\236\001\n\tStoreKind\022\032\n\026STORE"
-    "_KIND_UNSPECIFIED\020\000\022\023\n\017STORE_KIND_NONE\020\001"
-    "\022\023\n\017STORE_KIND_SELL\020\002\022\033\n\027STORE_KIND_PACK"
-    "AGE_SELL\020\003\022\022\n\016STORE_KIND_BUY\020\004\022\032\n\026STORE_"
-    "KIND_MANUFACTURE\020\005*\177\n\014AuctionState\022\035\n\031AU"
-    "CTION_STATE_UNSPECIFIED\020\000\022\031\n\025AUCTION_STA"
-    "TE_CREATED\020\001\022\031\n\025AUCTION_STATE_STARTED\020\002\022"
-    "\032\n\026AUCTION_STATE_FINISHED\020\003*L\n\007MailBox\022\030"
-    "\n\024MAIL_BOX_UNSPECIFIED\020\000\022\022\n\016MAIL_BOX_INB"
-    "OX\020\001\022\023\n\017MAIL_BOX_OUTBOX\020\002b\006proto3"
+    "y\030\002 \001(\r\022\020\n\010revision\030\003 \001(\004\")\n\021GetFreightR"
+    "equest\022\024\n\014character_id\030\001 \001(\014\"`\n\022GetFreig"
+    "htResponse\022&\n\005items\030\001 \003(\0132\027.nightfall.v1"
+    ".OwnedItem\022\020\n\010capacity\030\002 \001(\r\022\020\n\010revision"
+    "\030\003 \001(\004\"\327\001\n\nMailHeader\022\022\n\nmessage_id\030\001 \001("
+    "\t\022\023\n\013sender_name\030\002 \001(\t\022\025\n\rreceiver_name\030"
+    "\003 \001(\t\022\017\n\007subject\030\004 \001(\t\022\027\n\017has_attachment"
+    "s\030\005 \001(\010\022\021\n\tcod_adena\030\006 \001(\004\022\014\n\004read\030\007 \001(\010"
+    "\022\020\n\010returned\030\010 \001(\010\022\023\n\013system_kind\030\t \001(\r\022"
+    "\027\n\017expires_unix_ms\030\n \001(\003\"P\n\017ListMailRequ"
+    "est\022\024\n\014character_id\030\001 \001(\014\022\'\n\010mail_box\030\002 "
+    "\001(\0162\025.nightfall.v1.MailBox\"\\\n\020ListMailRe"
+    "sponse\022*\n\010messages\030\001 \003(\0132\030.nightfall.v1."
+    "MailHeader\022\r\n\005count\030\002 \001(\r\022\r\n\005limit\030\003 \001(\r"
+    "\";\n\017ReadMailRequest\022\024\n\014character_id\030\001 \001("
+    "\014\022\022\n\nmessage_id\030\002 \001(\t\"x\n\020ReadMailRespons"
+    "e\022(\n\006header\030\001 \001(\0132\030.nightfall.v1.MailHea"
+    "der\022\014\n\004body\030\002 \001(\t\022,\n\013attachments\030\003 \003(\0132\027"
+    ".nightfall.v1.OwnedItem\"H\n\027ListItemAucti"
+    "onsRequest\022\027\n\017instance_npc_id\030\001 \001(\r\022\024\n\014c"
+    "haracter_id\030\002 \001(\014\"\353\001\n\013AuctionView\022\022\n\nauc"
+    "tion_id\030\001 \001(\004\022)\n\005state\030\002 \001(\0162\032.nightfall"
+    ".v1.AuctionState\022\023\n\013template_id\030\003 \001(\r\022\r\n"
+    "\005count\030\004 \001(\004\022\020\n\010init_bid\030\005 \001(\004\022\023\n\013highes"
+    "t_bid\030\006 \001(\004\022\025\n\rstart_unix_ms\030\007 \001(\003\022\023\n\013en"
+    "d_unix_ms\030\010 \001(\003\022\017\n\007own_bid\030\t \001(\004\022\025\n\rown_"
+    "cancelled\030\n \001(\010\"\234\001\n\030ListItemAuctionsResp"
+    "onse\022*\n\007current\030\001 \001(\0132\031.nightfall.v1.Auc"
+    "tionView\022\'\n\004next\030\002 \001(\0132\031.nightfall.v1.Au"
+    "ctionView\022+\n\010own_bids\030\003 \003(\0132\031.nightfall."
+    "v1.AuctionView\"(\n\023GetManorDataRequest\022\021\n"
+    "\tcastle_id\030\001 \001(\r\"Z\n\022SeedProductionView\022\017"
+    "\n\007seed_id\030\001 \001(\r\022\r\n\005price\030\002 \001(\004\022\024\n\014start_"
+    "amount\030\003 \001(\004\022\016\n\006amount\030\004 \001(\004\"l\n\017CropProc"
+    "ureView\022\017\n\007crop_id\030\001 \001(\r\022\r\n\005price\030\002 \001(\004\022"
+    "\024\n\014start_amount\030\003 \001(\004\022\016\n\006amount\030\004 \001(\004\022\023\n"
+    "\013reward_type\030\005 \001(\r\"\210\001\n\024GetManorDataRespo"
+    "nse\022\021\n\tcastle_id\030\001 \001(\r\022/\n\005seeds\030\002 \003(\0132 ."
+    "nightfall.v1.SeedProductionView\022,\n\005crops"
+    "\030\003 \003(\0132\035.nightfall.v1.CropProcureView*\276\001"
+    "\n\010LootMode\022\031\n\025LOOT_MODE_UNSPECIFIED\020\000\022\035\n"
+    "\031LOOT_MODE_FINDERS_KEEPERS\020\001\022\024\n\020LOOT_MOD"
+    "E_RANDOM\020\002\022$\n LOOT_MODE_RANDOM_INCLUDING"
+    "_SPOIL\020\003\022\025\n\021LOOT_MODE_BY_TURN\020\004\022%\n!LOOT_"
+    "MODE_BY_TURN_INCLUDING_SPOIL\020\005*\213\001\n\rLootV"
+    "otePhase\022\037\n\033LOOT_VOTE_PHASE_UNSPECIFIED\020"
+    "\000\022\035\n\031LOOT_VOTE_PHASE_REQUESTED\020\001\022\033\n\027LOOT"
+    "_VOTE_PHASE_APPLIED\020\002\022\035\n\031LOOT_VOTE_PHASE"
+    "_CANCELLED\020\003*\267\001\n\nTradePhase\022\033\n\027TRADE_PHA"
+    "SE_UNSPECIFIED\020\000\022\027\n\023TRADE_PHASE_STARTED\020"
+    "\001\022\032\n\026TRADE_PHASE_ITEM_ADDED\020\002\022!\n\035TRADE_P"
+    "HASE_PARTNER_CONFIRMED\020\003\022\031\n\025TRADE_PHASE_"
+    "COMPLETED\020\004\022\031\n\025TRADE_PHASE_CANCELLED\020\005*\236"
+    "\001\n\tStoreKind\022\032\n\026STORE_KIND_UNSPECIFIED\020\000"
+    "\022\023\n\017STORE_KIND_NONE\020\001\022\023\n\017STORE_KIND_SELL"
+    "\020\002\022\033\n\027STORE_KIND_PACKAGE_SELL\020\003\022\022\n\016STORE"
+    "_KIND_BUY\020\004\022\032\n\026STORE_KIND_MANUFACTURE\020\005*"
+    "\177\n\014AuctionState\022\035\n\031AUCTION_STATE_UNSPECI"
+    "FIED\020\000\022\031\n\025AUCTION_STATE_CREATED\020\001\022\031\n\025AUC"
+    "TION_STATE_STARTED\020\002\022\032\n\026AUCTION_STATE_FI"
+    "NISHED\020\003*L\n\007MailBox\022\030\n\024MAIL_BOX_UNSPECIF"
+    "IED\020\000\022\022\n\016MAIL_BOX_INBOX\020\001\022\023\n\017MAIL_BOX_OU"
+    "TBOX\020\002b\006proto3"
 };
 static const ::_pbi::DescriptorTable* const descriptor_table_nightfall_2fv1_2feconomy_2eproto_deps[1] =
     {
@@ -4029,7 +4033,7 @@ static ::absl::once_flag descriptor_table_nightfall_2fv1_2feconomy_2eproto_once;
 const ::_pbi::DescriptorTable descriptor_table_nightfall_2fv1_2feconomy_2eproto = {
     false,
     false,
-    11913,
+    11934,
     descriptor_table_protodef_nightfall_2fv1_2feconomy_2eproto,
     "nightfall/v1/economy.proto",
     &descriptor_table_nightfall_2fv1_2feconomy_2eproto_once,
@@ -7943,6 +7947,8 @@ inline void StoreSellEntry::SharedCtor(::_pb::Arena* arena) {
 
     , decltype(_impl_.price_) { ::uint64_t{0u} }
 
+    , decltype(_impl_.template_id_) { 0u }
+
     , /*decltype(_impl_._cached_size_)*/{}
   };
 }
@@ -7971,8 +7977,8 @@ void StoreSellEntry::Clear() {
   (void) cached_has_bits;
 
   ::memset(&_impl_.instance_id_, 0, static_cast<::size_t>(
-      reinterpret_cast<char*>(&_impl_.price_) -
-      reinterpret_cast<char*>(&_impl_.instance_id_)) + sizeof(_impl_.price_));
+      reinterpret_cast<char*>(&_impl_.template_id_) -
+      reinterpret_cast<char*>(&_impl_.instance_id_)) + sizeof(_impl_.template_id_));
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
@@ -8004,6 +8010,15 @@ const char* StoreSellEntry::_InternalParse(const char* ptr, ::_pbi::ParseContext
       case 3:
         if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 24)) {
           _impl_.price_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // uint32 template_id = 4;
+      case 4:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 32)) {
+          _impl_.template_id_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
           CHK_(ptr);
         } else {
           goto handle_unusual;
@@ -8059,6 +8074,13 @@ failure:
         3, this->_internal_price(), target);
   }
 
+  // uint32 template_id = 4;
+  if (this->_internal_template_id() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        4, this->_internal_template_id(), target);
+  }
+
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
     target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
@@ -8093,6 +8115,12 @@ failure:
         this->_internal_price());
   }
 
+  // uint32 template_id = 4;
+  if (this->_internal_template_id() != 0) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_template_id());
+  }
+
   return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
 }
 
@@ -8120,6 +8148,9 @@ void StoreSellEntry::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const :
   if (from._internal_price() != 0) {
     _this->_internal_set_price(from._internal_price());
   }
+  if (from._internal_template_id() != 0) {
+    _this->_internal_set_template_id(from._internal_template_id());
+  }
   _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
 }
 
@@ -8138,8 +8169,8 @@ void StoreSellEntry::InternalSwap(StoreSellEntry* other) {
   using std::swap;
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
   ::PROTOBUF_NAMESPACE_ID::internal::memswap<
-      PROTOBUF_FIELD_OFFSET(StoreSellEntry, _impl_.price_)
-      + sizeof(StoreSellEntry::_impl_.price_)
+      PROTOBUF_FIELD_OFFSET(StoreSellEntry, _impl_.template_id_)
+      + sizeof(StoreSellEntry::_impl_.template_id_)
       - PROTOBUF_FIELD_OFFSET(StoreSellEntry, _impl_.instance_id_)>(
           reinterpret_cast<char*>(&_impl_.instance_id_),
           reinterpret_cast<char*>(&other->_impl_.instance_id_));

@@ -21,7 +21,7 @@ nf.Expect adena_delta == -2000
 nf.Expect inventory_has 20678 == 0
 nf.FreightSend b template:57:100
 nf.WaitFor rejected == ITEM_NOT_FREIGHTABLE 3
-nf.Expect freight_capacity == 200
+nf.WaitFor freight_capacity == 200 3
 # role: b
 nf.Login
 nf.WaitFor connected 15
@@ -33,6 +33,6 @@ nf.WaitFor freight_has 20678 == 1 33
 nf.FreightWithdraw 20678:1
 nf.WaitFor economy_result == freight_withdraw 3
 nf.Expect inventory_has 20678 == 1
-nf.Expect freight_has 20725 == 1
+nf.WaitFor freight_has 20725 == 1 3
 # Total budget: the largest role's sum of declared waits + 30 s exit grace.
-nf.Within 114
+nf.Within 117

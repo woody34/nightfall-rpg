@@ -9,9 +9,9 @@ use async_trait::async_trait;
 use uuid::Uuid;
 
 use crate::application::economy::{
-    ContainerDelta, DeliveryCompletion, DeliveryRepository, DeliveryRow, DeltaChange,
-    EconomyCheckpointRepository, EconomyCheckpointWrite, EconomyCounterRepository, EconomyError,
-    LeaseGrant, LeaseKey, LeaseRepository, OutboxFact, OwnerLedgerRow,
+    canonical_keys, ContainerDelta, DeliveryCompletion, DeliveryRepository, DeliveryRow,
+    DeltaChange, EconomyCheckpointRepository, EconomyCheckpointWrite, EconomyCounterRepository,
+    EconomyError, LeaseGrant, LeaseKey, LeaseRepository, OutboxFact, OwnerLedgerRow,
 };
 
 /// A stored container row: its revision and columns.
@@ -148,6 +148,7 @@ impl InMemoryEconomyStore {
 #[async_trait]
 impl LeaseRepository for InMemoryEconomyStore {
     async fn acquire(&self, grant: &LeaseGrant) -> Result<(), EconomyError> {
+        canonical_keys(&grant.keys)?;
         let mut state = self.lock();
         Self::take_transient(&mut state)?;
         let held: Vec<LeaseKey> = grant

@@ -17,7 +17,7 @@ use sea_orm::{
 use uuid::Uuid;
 
 use crate::application::economy::{
-    ContainerDelta, DeliveryKind, DeliveryRepository, DeliveryRow, DeltaChange,
+    canonical_keys, ContainerDelta, DeliveryKind, DeliveryRepository, DeliveryRow, DeltaChange,
     EconomyCheckpointRepository, EconomyCheckpointWrite, EconomyCounterRepository, EconomyError,
     LeaseGrant, LeaseKey, LeaseKind, LeaseRepository,
 };
@@ -129,10 +129,11 @@ fn group_grants(rows: Vec<(LeaseKey, LeaseGrant)>) -> Vec<LeaseGrant> {
 #[async_trait]
 impl LeaseRepository for PgEconomyRepository {
     async fn acquire(&self, grant: &LeaseGrant) -> Result<(), EconomyError> {
+        canonical_keys(&grant.keys)?;
         let tx = self.db.begin().await.map_err(classify)?;
         let mut held = Vec::new();
         for key in &grant.keys {
-            // Ascending key order: the set is already canonical (lease_set), checked here.
+            // Ascending key order (canonical_keys above): all-or-nothing acquisition stays deadlock-free.
             let inserted = execute(
                 &tx,
                 "INSERT INTO economy_leases(owner_kind,owner_id,zone_id,epoch,account_id,operation,request_key) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (owner_kind,owner_id) DO NOTHING",
@@ -154,7 +155,8 @@ impl LeaseRepository for PgEconomyRepository {
             }
         }
         if !held.is_empty() {
-            tx.rollback().await.map_err(classify)?;
+            // A failed rollback must not replace the Busy class (c-review-4 P3-3); the connection is dropped anyway.
+            let _ = tx.rollback().await;
             return Err(EconomyError::Busy(held));
         }
         tx.commit().await.map_err(classify)
@@ -380,7 +382,8 @@ impl EconomyCheckpointRepository for PgEconomyRepository {
         match result {
             Ok(()) => tx.commit().await.map_err(classify),
             Err(error) => {
-                tx.rollback().await.map_err(classify)?;
+                // Keep the original error class (LeaseViolation, Constraint, Transient) on a failed rollback (c-review-4 P3-3).
+                let _ = tx.rollback().await;
                 Err(error)
             },
         }

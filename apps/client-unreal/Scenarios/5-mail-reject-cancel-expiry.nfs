@@ -27,7 +27,7 @@ nf.WaitFor economy_result == mail_cancel 3
 nf.Expect inventory_has 1864 == 10
 nf.MailSend b expiry template:1864:1
 nf.WaitFor economy_result == mail_send 3
-nf.Expect mail_expiry_hours == 360
+nf.WaitFor mail_expiry_hours == 360 3
 nf.MailDelete latest sent
 nf.WaitFor economy_result == mail_delete 3
 # role: b

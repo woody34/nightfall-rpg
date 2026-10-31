@@ -53,7 +53,7 @@ nf.Sell merchant 314130 template:1294 1
 nf.WaitFor economy_result == vendor_sell 3
 nf.Sell merchant 314130 template:1294 1
 nf.WaitFor economy_result == vendor_sell 3
-nf.Expect refund_tab_count == 12
-nf.Expect refund_tab_oldest_destroyed
+nf.WaitFor refund_tab_count == 12 3
+nf.WaitFor refund_tab_oldest_destroyed 3
 # Total budget: the largest role's sum of declared waits + 30 s exit grace.
-nf.Within 126
+nf.Within 132

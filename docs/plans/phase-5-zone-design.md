@@ -1972,7 +1972,7 @@ message TradeAnswerRequest { string idempotency_key = 1; bool accept = 2; }     
 message TradeAddItemRequest { string idempotency_key = 1; uint64 instance_id = 2; uint64 count = 3; }
 message TradeConfirmRequest { string idempotency_key = 1; }
 message TradeCancelRequest { string idempotency_key = 1; }
-message StoreSellEntry { uint64 instance_id = 1; uint64 count = 2; uint64 price = 3; }
+message StoreSellEntry { uint64 instance_id = 1; uint64 count = 2; uint64 price = 3; uint32 template_id = 4; } // P5-D9: template_id is additive; PrivateStoreChanged.sell and store purchases carry it, so a buyer binds an entry by template without the seller's instance id
 message StoreBuyEntry { uint32 template_id = 1; uint32 enchant = 2; uint64 count = 3; uint64 price = 4; }
 message ManufactureEntry { uint32 recipe_id = 1; uint64 cost = 2; }
 message SetPrivateStoreSellRequest { string idempotency_key = 1; string title = 2; bool package_sale = 3; repeated StoreSellEntry entries = 4; }

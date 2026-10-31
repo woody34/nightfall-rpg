@@ -3734,6 +3734,7 @@ class StoreSellEntry final :
     kInstanceIdFieldNumber = 1,
     kCountFieldNumber = 2,
     kPriceFieldNumber = 3,
+    kTemplateIdFieldNumber = 4,
   };
   // uint64 instance_id = 1;
   void clear_instance_id() ;
@@ -3765,6 +3766,16 @@ class StoreSellEntry final :
   void _internal_set_price(::uint64_t value);
 
   public:
+  // uint32 template_id = 4;
+  void clear_template_id() ;
+  ::uint32_t template_id() const;
+  void set_template_id(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_template_id() const;
+  void _internal_set_template_id(::uint32_t value);
+
+  public:
   // @@protoc_insertion_point(class_scope:nightfall.v1.StoreSellEntry)
  private:
   class _Internal;
@@ -3776,6 +3787,7 @@ class StoreSellEntry final :
     ::uint64_t instance_id_;
     ::uint64_t count_;
     ::uint64_t price_;
+    ::uint32_t template_id_;
     mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   };
   union { Impl_ _impl_; };
@@ -22577,6 +22589,26 @@ inline ::uint64_t StoreSellEntry::_internal_price() const {
 inline void StoreSellEntry::_internal_set_price(::uint64_t value) {
   ;
   _impl_.price_ = value;
+}
+
+// uint32 template_id = 4;
+inline void StoreSellEntry::clear_template_id() {
+  _impl_.template_id_ = 0u;
+}
+inline ::uint32_t StoreSellEntry::template_id() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.StoreSellEntry.template_id)
+  return _internal_template_id();
+}
+inline void StoreSellEntry::set_template_id(::uint32_t value) {
+  _internal_set_template_id(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.StoreSellEntry.template_id)
+}
+inline ::uint32_t StoreSellEntry::_internal_template_id() const {
+  return _impl_.template_id_;
+}
+inline void StoreSellEntry::_internal_set_template_id(::uint32_t value) {
+  ;
+  _impl_.template_id_ = value;
 }
 
 // -------------------------------------------------------------------

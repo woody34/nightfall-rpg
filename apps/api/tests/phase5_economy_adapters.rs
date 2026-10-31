@@ -62,6 +62,15 @@ fn columns(pairs: &[(&str, serde_json::Value)]) -> serde_json::Map<String, serde
 
 /// The shared contract over any adapter that implements all four ports.
 async fn lease_contract<R: LeaseRepository>(repo: &R) {
+    // c-review-4 P2-2: a grant whose keys are not strictly ascending is refused as Constraint, nothing inserted.
+    let mut descending = sets::mail_send(A, B);
+    descending.reverse();
+    let refused = repo
+        .acquire(&grant(descending.clone(), Uuid::from_u128(0xdead)))
+        .await
+        .unwrap_err();
+    assert!(matches!(refused, EconomyError::Constraint(_)), "{refused:?}");
+    assert!(repo.held(&descending).await.unwrap().is_empty());
     // All-or-nothing: the second grant shares one key and gets Busy with nothing inserted.
     let first = grant(sets::mail_send(A, B), Uuid::from_u128(1));
     repo.acquire(&first).await.unwrap();
@@ -106,6 +115,53 @@ async fn lease_contract<R: LeaseRepository>(repo: &R) {
     assert_eq!(job.keys[0].kind, LeaseKind::Delivery);
     assert_eq!(job.keys[1].kind, LeaseKind::Warehouse);
     repo.release_epoch(1, 1).await.unwrap();
+}
+
+/// c-review-4 P3-1: two overlapping multi-key sets ({a,b} vs {b,c}) race; the loser inserted neither key.
+async fn overlapping_sets_leave_exactly_one_whole_set<R: LeaseRepository + 'static>(repo: Arc<R>) {
+    const C: Uuid = Uuid::from_u128(0x5002);
+    let left = sets::mail_send(A, B);
+    let right = sets::mail_send(B, C);
+    let mut all: Vec<LeaseKey> = left.iter().chain(right.iter()).copied().collect();
+    all.sort();
+    all.dedup();
+    assert_eq!(all.len(), 3, "the sets must overlap on exactly one key");
+    for round in 0..8_u128 {
+        let (ra, rb) = (Arc::clone(&repo), Arc::clone(&repo));
+        let (la, rc) = (left.clone(), right.clone());
+        let ta = tokio::spawn(async move {
+            ra.acquire(&grant(la, Uuid::from_u128(0x2000 + round)))
+                .await
+        });
+        let tb = tokio::spawn(async move {
+            rb.acquire(&grant(rc, Uuid::from_u128(0x3000 + round)))
+                .await
+        });
+        let outcomes = [ta.await.unwrap(), tb.await.unwrap()];
+        for outcome in &outcomes {
+            assert!(
+                matches!(outcome, Ok(()) | Err(EconomyError::Busy(_) | EconomyError::Transient(_))),
+                "{outcome:?}"
+            );
+        }
+        let winners = outcomes.iter().filter(|o| o.is_ok()).count();
+        let held = repo.held(&all).await.unwrap();
+        assert!(winners <= 1, "{winners} winners");
+        if winners == 1 {
+            assert_eq!(held.len(), 1, "exactly one grant holds keys");
+            assert!(held[0].keys == left || held[0].keys == right);
+            // The loser's exclusive key was never inserted.
+            let exclusive = if held[0].keys == left {
+                right[1]
+            } else {
+                left[0]
+            };
+            assert!(repo.held(&[exclusive]).await.unwrap().is_empty());
+        } else {
+            assert!(held.is_empty());
+        }
+        repo.release_epoch(1, 1).await.unwrap();
+    }
 }
 
 async fn concurrent_acquires_have_exactly_one_winner<R: LeaseRepository + 'static>(repo: Arc<R>) {
@@ -157,6 +213,7 @@ async fn memory_leases_follow_the_contract() {
     let store = InMemoryEconomyStore::default();
     lease_contract(&store).await;
     concurrent_acquires_have_exactly_one_winner(Arc::new(InMemoryEconomyStore::default())).await;
+    overlapping_sets_leave_exactly_one_whole_set(Arc::new(InMemoryEconomyStore::default())).await;
 }
 
 #[tokio::test]
@@ -315,6 +372,7 @@ async fn postgres_leases_follow_the_contract_and_concurrent_acquires_have_one_wi
     let repo = Arc::new(PgEconomyRepository::new(db));
     lease_contract(repo.as_ref()).await;
     concurrent_acquires_have_exactly_one_winner(Arc::clone(&repo)).await;
+    overlapping_sets_leave_exactly_one_whole_set(Arc::clone(&repo)).await;
     // Nothing is left in the lease table after the recoveries.
     let left: i64 = sqlx::query("SELECT count(*) FROM economy_leases")
         .fetch_one(&pool)

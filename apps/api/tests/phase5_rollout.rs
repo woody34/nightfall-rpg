@@ -165,6 +165,7 @@ fn economy_intents() -> Vec<Intent> {
                 instance_id: 1,
                 count: 1,
                 price: 1,
+                template_id: 1864,
             }],
         }),
         Intent::SetPrivateStoreBuy(pb::SetPrivateStoreBuyRequest {
@@ -195,6 +196,7 @@ fn economy_intents() -> Vec<Intent> {
                 instance_id: 1,
                 count: 1,
                 price: 1,
+                template_id: 1864,
             }],
         }),
         Intent::PrivateStoreSell(pb::PrivateStoreSellRequest {

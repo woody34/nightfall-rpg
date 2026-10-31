@@ -218,6 +218,7 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::StoreSellEntry* in, FGrpcNightfall
     out->InstanceId=in->instance_id();
     out->Count=in->count();
     out->Price=in->price();
+    out->TemplateId=in->template_id();
 }
 
 void TURBOLINK_TO_GRPC(const FGrpcNightfallV1StoreSellEntry* in, ::nightfall::v1::StoreSellEntry* out)
@@ -225,6 +226,7 @@ void TURBOLINK_TO_GRPC(const FGrpcNightfallV1StoreSellEntry* in, ::nightfall::v1
     out->set_instance_id(in->InstanceId);
     out->set_count(in->Count);
     out->set_price(in->Price);
+    out->set_template_id(in->TemplateId);
 }
 
 void GRPC_TO_TURBOLINK(const ::nightfall::v1::StoreBuyEntry* in, FGrpcNightfallV1StoreBuyEntry* out)
