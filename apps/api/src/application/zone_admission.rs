@@ -54,7 +54,7 @@ impl TryFrom<crate::domain::zone::Phase3AdmissionPolicy> for RecordAdmissionPoli
 impl RecordAdmissionPolicy {
     /// Refuse an epoch that cannot fit one maximum legal input with the full reserve.
     pub fn validate(self, gate_ceiling: usize) -> Result<(), AdmissionSizingError> {
-        if !matches!(self.version, 1 | 2)
+        if !matches!(self.version, 1..=3)
             || self.max_command_bytes > 262_144
             || self.max_observers == 0
         {
@@ -113,7 +113,13 @@ mod policy_tests {
         }
         .validate(1_044_480)
         .is_err());
-        for version in [0, 3, u32::MAX] {
+        let v7 = RecordAdmissionPolicy::try_from(
+            crate::domain::zone::Phase3AdmissionPolicy::version_three(),
+        )
+        .expect("recorded V7 policy");
+        assert_eq!(v7.version, 3);
+        assert!(v7.validate(1_044_480).is_ok());
+        for version in [0, 4, u32::MAX] {
             assert!(RecordAdmissionPolicy { version, ..v6 }
                 .validate(1_044_480)
                 .is_err());

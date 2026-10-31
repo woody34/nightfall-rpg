@@ -17,6 +17,7 @@ pub mod auth;
 mod character_validation;
 pub mod class_data;
 pub mod data_hash;
+pub mod economy_data;
 pub mod eventlog;
 mod exact_decimal;
 pub mod item_data;

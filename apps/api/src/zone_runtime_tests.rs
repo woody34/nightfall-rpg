@@ -433,3 +433,28 @@ fn phase5_switch_defaults_to_v7_and_refuses_malformed_or_contradictory_values() 
         .validate_production_selection()
         .is_ok());
 }
+
+/// Story 2.3: the Phase 5 rules bind to the V6 bundle at boot (D27) or refuse boot.
+#[test]
+fn phase5_rules_bind_to_the_v6_bundle_or_refuse_boot() {
+    // Selected only by default without a V6 bundle: nothing to bind, no refusal.
+    assert!(config(&[]).prepare_phase5(None).unwrap().is_none());
+    // Explicit V7 without V6 is a contradiction.
+    assert!(config(&[("PHASE5_ENABLED", "1")])
+        .prepare_phase5(None)
+        .is_err());
+    let bundle = crate::infrastructure::item_data::embedded_phase4_bundle().unwrap();
+    // V7 switched off: no rules even with a bundle.
+    assert!(config(&[("PHASE5_ENABLED", "0"), ("PHASE4_ENABLED", "1")])
+        .prepare_phase5(Some(&bundle))
+        .unwrap()
+        .is_none());
+    let rules = config(&[("PHASE4_ENABLED", "1")])
+        .prepare_phase5(Some(&bundle))
+        .unwrap()
+        .unwrap();
+    let embedded = crate::infrastructure::economy_data::embedded_phase5_rules().unwrap();
+    assert_eq!(rules.hash(), embedded.hash());
+    assert_eq!(rules.parts().phase4_hash, bundle.items.hash());
+    rules.validate_phase4(&bundle.items).unwrap();
+}

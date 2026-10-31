@@ -57,6 +57,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--datapack", type=Path, required=True)
     parser.add_argument("--game", type=Path, required=True)
+    parser.add_argument(
+        "--phase5-rules",
+        action="store_true",
+        help="also run the Rust Phase5Rules loader (nightfall-replay phase5-rules) over tables-phase5",
+    )
     args = parser.parse_args()
     sources = ["--datapack", str(args.datapack), "--game", str(args.game)]
     checks = [
@@ -87,6 +92,18 @@ def main() -> int:
         label = " ".join([script, *options, "--check"])
         print(f"Checking {label}", flush=True)
         result = subprocess.run([sys.executable, "-B", str(SCRIPTS / script), *options, "--check"])
+        if result.returncode:
+            failures.append(label)
+    if args.phase5_rules:
+        # Plan story 2.3 (E46): the Rust loader must agree with every emitted table; it
+        # recomputes every frozen binary64 value and cross-reference and prints the hash.
+        label = "nightfall-replay phase5-rules --dir tables-phase5"
+        print(f"Checking {label}", flush=True)
+        result = subprocess.run(
+            ["cargo", "run", "--quiet", "--release", "--bin", "nightfall-replay", "--",
+             "phase5-rules", "--dir", str(SCRIPTS.parent / "tables-phase5")],
+            cwd=SCRIPTS.parent.parent.parent,
+        )
         if result.returncode:
             failures.append(label)
     if failures:

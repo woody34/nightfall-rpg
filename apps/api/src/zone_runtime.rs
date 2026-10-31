@@ -142,6 +142,35 @@ impl ZoneRuntimeConfig {
         Ok(requested)
     }
 
+    /// The Phase 5 rules a V7 epoch is bound to (design §1.10, D27): the embedded tables
+    /// validated and hashed against the V6 bundle this process composed. `None` when V7 is
+    /// not selected, or when it is selected only by default without a V6 bundle (the epoch
+    /// version itself is chosen by the engine stories); an explicit `PHASE5_ENABLED=1`
+    /// without `PHASE4_ENABLED=1` refuses boot, as does any table validation failure.
+    pub fn prepare_phase5(
+        &self,
+        phase4: Option<&crate::infrastructure::item_data::Phase4RuleBundle>,
+    ) -> anyhow::Result<Option<Arc<crate::domain::zone::Phase5Rules>>> {
+        if !self.phase5_requested()? {
+            return Ok(None);
+        }
+        let Some(bundle) = phase4 else {
+            anyhow::ensure!(
+                self.phase5_enabled.is_none(),
+                "PHASE5_ENABLED=1 requires the V6 bundle: set PHASE4_ENABLED=1"
+            );
+            return Ok(None);
+        };
+        let rules = crate::infrastructure::economy_data::phase5_rules_for(&bundle.items)
+            .map_err(anyhow::Error::msg)?;
+        tracing::info!(
+            phase5_rules_hash = %format_args!("sha256:{}", rules.hash_hex()),
+            global_multiplier = rules.global_multiplier_string(),
+            "Phase 5 rules validated and bound to the V6 bundle"
+        );
+        Ok(Some(rules))
+    }
+
     /// Validates the compiled epoch selection before adapter connections and recovery.
     /// Full bundle validation remains required whenever V5 or V6 is selected.
     pub fn validate_production_selection(&self) -> anyhow::Result<()> {
@@ -323,6 +352,9 @@ pub async fn start(
             &crate::infrastructure::class_data::ClassSource::embedded(),
         )?)?,
     };
+    // E2.3: a V7 selection validates and binds the Phase 5 rules before anything connects;
+    // the engine stories consume the bound rules when they open V7 epochs.
+    let _phase5 = cfg.prepare_phase5(phase4.as_ref())?;
     let metrics = deps.metrics.clone();
     let clock = deps.clock.clone();
     let def = cfg.load_zone()?;
