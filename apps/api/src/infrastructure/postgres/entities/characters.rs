@@ -68,6 +68,8 @@ pub struct Model {
     pub modifier_install_order: Json,
     #[sea_orm(column_type = "JsonBinary", nullable)]
     pub phase4_checkpoint: Option<Json>,
+    #[sea_orm(column_type = "JsonBinary", nullable)]
+    pub phase5_checkpoint: Option<Json>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -82,6 +84,10 @@ pub enum Relation {
     CharacterSkillReuse,
     #[sea_orm(has_many = "super::character_transfer_receipts::Entity")]
     CharacterTransferReceipts,
+    #[sea_orm(has_many = "super::economy_deliveries::Entity")]
+    EconomyDeliveries,
+    #[sea_orm(has_many = "super::item_auction_bids::Entity")]
+    ItemAuctionBids,
     #[sea_orm(has_many = "super::item_instances::Entity")]
     ItemInstances,
     #[sea_orm(has_many = "super::item_ledger::Entity")]
@@ -122,6 +128,18 @@ impl Related<super::character_transfer_receipts::Entity> for Entity {
     }
 }
 
+impl Related<super::economy_deliveries::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::EconomyDeliveries.def()
+    }
+}
+
+impl Related<super::item_auction_bids::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::ItemAuctionBids.def()
+    }
+}
+
 impl Related<super::item_instances::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::ItemInstances.def()
@@ -156,6 +174,15 @@ impl Related<super::idempotency_keys::Entity> for Entity {
                 .def()
                 .rev(),
         )
+    }
+}
+
+impl Related<super::item_auctions::Entity> for Entity {
+    fn to() -> RelationDef {
+        super::item_auction_bids::Relation::ItemAuctions.def()
+    }
+    fn via() -> Option<RelationDef> {
+        Some(super::item_auction_bids::Relation::Characters.def().rev())
     }
 }
 
