@@ -83,7 +83,11 @@ impl ZoneState {
 
     /// Construct a V7 epoch (design §12.1): the V6 inputs plus the bound Phase 5 rules,
     /// an empty Phase 5 block and the `version_three` admission policy.
-    #[allow(clippy::too_many_arguments)] // Independent epoch inputs must remain explicit.
+    #[allow(clippy::too_many_arguments)]
+    // Independent epoch inputs must remain explicit.
+    // The V6 bundle is taken by value like `new_phase4`; a V7 epoch binds it and then runs
+    // on the economy rules' V7 item view (D10), so the argument itself is only checked.
+    #[allow(clippy::needless_pass_by_value)]
     pub fn new_phase5(
         seed: ZoneSeed,
         bounds: ZoneBounds,

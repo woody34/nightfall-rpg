@@ -416,14 +416,9 @@ mod tests {
         let inv = rules.inventory();
         assert_eq!((inv.closure_items, inv.reward_npcs), (4264, 10_461));
         // The V6 bundle is unchanged; the V7 view adds exactly the closure under its hash.
-        let v6_hex: String = bundle
-            .items
-            .hash()
-            .iter()
-            .map(|b| format!("{b:02x}"))
-            .collect();
+        let v6_hex = rules.parts().items_closure.v6_items_sha256.clone();
+        assert_eq!(rules.parts().phase4_hash, bundle.items.hash());
         assert_eq!(v6_hex, "bfee2e7d9fb73f53706c7a4afc19f5d095f4d630ca90e9a5747895c0e5472aad");
-        assert_eq!(rules.parts().items_closure.v6_items_sha256, v6_hex);
         let view = rules.v7_items().unwrap();
         assert_eq!(view.hash(), bundle.items.hash());
         assert!(!bundle.items.parts().items.contains_key(&1048));
