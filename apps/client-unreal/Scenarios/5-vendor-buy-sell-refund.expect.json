@@ -7,11 +7,14 @@
    "vendor_refund"
   ],
   "merchant": {
+   "count": 0,
    "item": 1294,
+   "limited": false,
    "list_id": 314130,
    "npc": 31413,
    "ref_price": 75,
-   "source": "merchants.toml entries (Merchant/Antonio/Antonio.java _sellList0)",
+   "restock_min": -1,
+   "source": "tables-phase5/merchants.toml entries (src/main/java/com/l2jserver/datapack/ai/npc/Merchant/Antonio/Antonio.java _sellList0)",
    "tax": "15"
   },
   "refund_price_by_count": {
@@ -48,7 +51,7 @@
    "tax": "15"
   }
  },
- "expectations_sha256": "e315a4fe7defc40a05a036456c4fb6e36b1d63499dc518004c911a119f219815",
+ "expectations_sha256": "35466105b5badd7340e33934b04e0a638f61593b93b27654af2e6bf4f0b49dea",
  "fixture": "phase5-vendors",
  "scenario": "5-vendor-buy-sell-refund.nfs",
  "schema_version": 1,

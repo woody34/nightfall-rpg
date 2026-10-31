@@ -72,9 +72,11 @@ host `psql`.
 - GrantItem cannot equip beyond the starter kit: `phase5-pk-drop` uses the kit's equipped weapon
   (2369) and armour (1146, 1147) as the 10 % / 40 % rows.
 - Dwarven Scavenger (class 54) roles are level >= 20 (class minimum).
-- Templates that the Phase 4 item catalogue lacks (1294, 1666, 1864, 1869, 1870, 3838, 3845, 5125,
-  6908, 6926) are **blockers** until the E51 catalogue closure lands at integration; the seeder
-  refuses the pack before any write and names them. `Scenarios/phase5-harness.json` lists them.
+- The admitted item set under V7 is the Phase 4 catalogue plus the Phase 5 catalogue closure
+  (`tables-phase5/catalogue.toml`, 9,338 storable templates, hashed into Phase5Rules; P5-D7). Ten
+  pack templates (1294, 1666, 1864, 1869, 1870, 3838, 3845, 5125, 6908, 6926) come from the
+  closure only. A template outside both sets is a blocker: the seeder refuses the pack before any
+  write and names it.
 - Skills Spoil 254, Sweeper 42, Create Item 172 and Create Common Item 1320 are not in the Phase 3
   class trees. The seeder writes them as learned ranks; the zone admits them through E2/E3 (B11).
 - The overlay monsters `npc_<id>` carry the keltir combat body. The engine (E3, design §1.3) binds
@@ -112,7 +114,10 @@ files and this table together.
 | `nf.MailSend` / `nf.MailTake` / `nf.MailReject` / `nf.MailCancel` / `nf.MailDelete` / `nf.MailRead` | `<role> <subject> [cod <adena>] [entries]`; `latest`; `MailDelete latest sent` | MailNotification / EconomyResult(mail) |
 | `nf.AuctionBid` / `nf.AuctionCancel` | `<instance_npc_id> <bid>`; `<instance_npc_id>` | ItemAuctionStatusChanged / EconomyResult(auction) |
 | `nf.ManorBuySeed` / `nf.ManorSellCrop` | `manor_manager <manor_id> <seed> <n>`; `manor_manager template:<crop> <crop_id> <manor_id> <count|all>` | EconomyResult(manor) |
-| `nf.Target` / `nf.Cast` | `template:<npc id>` or `entity:<role>`; `Cast <skill> target` (Spoil 254, Sweeper 42) | TargetChanged / SkillCastResult / CorpseStateChanged |
+| `nf.Target` / `nf.Cast` | registered forms: `nf.Target template:npc_<pinned id>` (the overlay template id) or a character UUID; `nf.WaitFor target == "Npc <id>"` (Spawn.Name); `entity_dead target`; `entity_in_view <uuid>`; `Cast <skill> target` (Spoil 254, Sweeper 42) | TargetChanged / SkillCastResult / CorpseStateChanged |
+
+Phase 5 predicates that name a monster take `template:npc_<pinned id>` (the overlay template). A sweep emits no
+`EconomyResult`: the files wait on `corpse_swept`, `loot_distributed` and inventory deltas.
 
 Predicates with a `_between <lo> <hi>` suffix compare a received whole integer to an inclusive
 range from the sidecar. `adena_delta` compares the received adena count to the `nf.MarkItemState`

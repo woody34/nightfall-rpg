@@ -7,6 +7,7 @@ every `# econ-gate:` label is a design §14.3 formula, chance callsite, select c
 callsite; the budget equals the largest role's sum of waits + 30 s; role blocks name pack roles;
 the oracle sidecars and pack declarations are present and `phase5-expectations.py --check` clean.
 """
+import importlib.util
 import json
 from pathlib import Path
 import re
@@ -21,40 +22,17 @@ PLAN = REPO / "docs/plans/phase-5-economy-and-crafting.md"
 DESIGN = REPO / "docs/plans/phase-5-zone-design.md"
 PACKS = json.loads((SCENARIOS / "fixtures/phase5-packs.json").read_text())["packs"]
 
-COMMANDS = {
-    # registered Phase 0b-4 commands used here
-    "Login", "EnterWorld", "WaitFor", "Expect", "Within", "ClickMove", "Target", "Attack", "StopAttack", "Cast", "UseItem", "DropSocket", "MarkItemState", "Refine",
-    # plan §5.3 Phase 5 commands (argument authority: story 6.1's parser)
-    "PickUp", "Buy", "Sell", "Refund", "Multisell", "RegisterRecipe", "DeleteRecipe", "Craft", "ManufactureOrder",
-    "TradeRequest", "TradeAnswer", "TradeAdd", "TradeConfirm", "TradeCancel",
-    "StoreSell", "StoreBuy", "StoreManufacture", "StoreClose", "StoreBuyFrom", "StoreSellTo",
-    "PartyInvite", "PartyAnswer", "PartyLeave", "PartyKick", "PartyLeader", "PartyLootVote", "PartyLootAnswer",
-    "Deposit", "Withdraw", "FreightSend", "FreightWithdraw",
-    "MailSend", "MailTake", "MailReject", "MailCancel", "MailDelete", "MailRead",
-    "AuctionBid", "AuctionCancel", "ManorBuySeed", "ManorSellCrop",
-}
-PREDICATES = {
-    # registered (Phase 0b-4)
-    "connected", "in_world", "item_baseline", "target", "entity_dead", "own_dead", "inventory_has", "inventory_revision_since_mark", "cast_results",
-    "buff_active", "rejected", "entity_in_view", "xp_gained_events", "refine_outcome", "blacksmith_known", "refined",
-    # plan §5.3 Phase 5 predicates
-    "ground_item_exists", "recipe_registered", "craft_result", "trade_state", "store_state", "party_member_count", "loot_mode", "mail_received", "auction_state", "manor_result",
-    # received-state refinements of the §5.3 carriers (EntitySpawn kind 3 / EconomyResult / PartyStateChanged / TradeSessionChanged / PrivateStoreChanged /
-    # ItemAuctionStatusChanged / CorpseStateChanged / LootDistributed / PartyLootVote / RecipeBookSync); 6.1 binds each to its carrier field
-    "ground_item_kind", "ground_loot_owner", "ground_drop_protection", "ground_drop_protection_none", "ground_protection_expired", "ground_item_count_between",
-    "ground_item_gone", "ground_despawn_on_grid", "ground_item_any", "ground_item_count", "economy_result", "economy_result_count", "economy_export_marker",
-    "own_level_between", "rules_rate_multiplier", "herb_skill_early_abort", "pk_drop_decays", "party_invite_received", "loot_recipient_in_party", "loot_recipient",
-    "by_turn_cursor_advanced", "loot_distributed", "loot_distributed_mode", "loot_distributed_count", "loot_distributed_spoil", "own_out_of_party_range",
-    "corpse_spoiled", "corpse_sweepable", "corpse_swept", "corpse_until_delta", "sweep_recipient_in_party", "party_sweep_done", "adena_split_share_between",
-    "adena_split_origin", "loot_vote_phase", "xp_gained_last", "sp_gained_last", "xp_gained_last_between", "xp_share_matches_export", "sp_gained_events_for",
-    "entity_gone", "own_karma", "own_pk_count", "pk_drop_count_between", "pk_dropped_excluded", "pk_unequipped_before_roll", "merchant_known", "adena_delta",
-    "refund_tab_count", "refund_tab_oldest_destroyed", "vendor_stock", "vendor_restock_due_delta", "exchanger_known", "enchant_of", "craft_result_any",
-    "craft_materials_consumed", "craft_masterwork", "craft_fee_before_roll", "store_state_of", "manufacture_gate_ticks", "own_trade_confirmed", "trade_transfer_pairs",
-    "trade_request_received", "trade_cancel_reason", "store_entries_skipped", "warehouse_keeper_known", "container_fee", "warehouse_has", "container_busy_retry_observed",
-    "freight_capacity", "freight_has", "cod_credit_received", "mail_expiry_hours", "mail_gone", "mail_has_attachments", "auctioneer_known", "auction_highest_bid",
-    "auction_award_to_warehouse", "auction_leader", "manor_manager_known", "corpse_seeded_or_sow_failed", "harvest_done", "manor_drops_unchanged", "manor_fee_equals_p_div_20",
-    "epoch_reconcile_rows_before_admission",
-}
+spec5 = importlib.util.spec_from_file_location('grammar5', CLIENT / 'Scripts/phase5-grammar.py')
+grammar5 = importlib.util.module_from_spec(spec5)
+spec5.loader.exec_module(grammar5)
+spec4 = importlib.util.spec_from_file_location('grammar4', CLIENT / 'Scripts/phase4-grammar.py')
+grammar4 = importlib.util.module_from_spec(spec4)
+spec4.loader.exec_module(grammar4)
+REGISTRY = {line.strip() for line in (CLIENT / 'Scripts/test/fixtures/bot-registry-76ac549.txt').read_text().splitlines() if line.strip() and not line.startswith('#')}
+# The closed vocabulary: the Phase 5 contract (§5.3, phase5-grammar.py) plus names the client registers
+# (phase4-grammar.py and the committed 76ac549 registry snapshot). Nothing is typed here.
+COMMANDS = {n[3:] for n in grammar5.COMMANDS} | {n[3:] for n in grammar4.COMMANDS} | {n[3:] for n in REGISTRY if n.startswith('nf.')} | {'WaitFor', 'Expect', 'Within'}
+PREDICATES = set(grammar5.PREDICATES) | set(grammar4.PREDICATES) | {n for n in REGISTRY if not n.startswith('nf.')}
 GATE_LABELS = {
     # design §14.3 econ_formula
     "drop_chance", "vendor_unit_price", "sell_price", "refund_price", "party_xp", "solo_xp", "even_split", "warehouse_fee", "freight_fee", "mail_fee", "crop_reward", "crop_fee",

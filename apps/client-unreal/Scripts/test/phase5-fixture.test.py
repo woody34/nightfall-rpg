@@ -74,11 +74,18 @@ class Profiles(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'distinct account'):
             fixture.accounts_for('phase5-trade', {'a': A, 'b': A})
 
-    def test_catalogue_blockers_name_the_e51_gap_only(self):
-        blocked = {t['template_id'] for p in fixture.PHASE5 for prof in fixture.profiles(p).values() for t in fixture.catalogue_blockers(prof)}
-        self.assertEqual(blocked, {1294, 1666, 1864, 1869, 1870, 3838, 3845, 5125, 6908, 6926})
-        self.assertEqual(fixture.catalogue_blockers(fixture.profiles('phase5-epoch')['a']), [{'instance_id': 8, 'template_id': 1864, 'reason': fixture.MISSING_FROM_PHASE4_CATALOGUE}])
-        self.assertEqual(fixture.catalogue_blockers(fixture.profiles('phase5-auction')['a']), [])
+    def test_admitted_set_is_phase4_catalogue_plus_phase5_closure(self):
+        # P5-D7: every pack template is admitted under V7; the ten closure-only templates are no blockers.
+        for pack in fixture.PHASE5:
+            for prof in fixture.profiles(pack).values():
+                self.assertEqual(fixture.catalogue_blockers(prof), [], pack)
+        for template in (1294, 1666, 1864, 1869, 1870, 3838, 3845, 5125, 6908, 6926):
+            self.assertNotIn(template, fixture.phase4.catalogue(REPO))
+            self.assertIn(template, fixture.phase5_closure(REPO))
+        self.assertTrue(fixture.admitted(57) and fixture.admitted(1864))
+        self.assertFalse(fixture.admitted(999999999))
+        self.assertEqual(fixture.catalogue_blockers({'inventory': [dict(instance_id=1, template_id=999999999)]}),
+                         [dict(instance_id=1, template_id=999999999, reason=fixture.MISSING_FROM_PHASE4_CATALOGUE)])
 
     def test_published_harness_profiles_are_committed(self):
         committed = json.loads((SCRIPTS.parent / 'Scenarios/phase5-harness.json').read_text())
@@ -214,12 +221,18 @@ class Seeder(unittest.TestCase):
                 for grant in plan['grants']:
                     self.assertNotIn(grant['template_id'], missing)
                     self.assertRegex(grant['key'], r'^[0-9a-f-]{36}$')
-        # the real pre-admission stage refuses while any role is blocked (no partial seed)
-        apply = seeder('--fixture', 'phase5-vendors', '--account', f'a={A}', '--compose-project', 'p', '--compose-file', '/dev/null')
-        self.assertEqual(apply.returncode, 2)
-        self.assertIn('cannot be provisioned', apply.stderr)
-        # a pack with nothing blocked and no container rows reaches the SQL stage (and only then needs the owned exec)
-        self.assertEqual(seed.plans_for('phase5-auction', seed.roles_with_accounts('phase5-auction', {'a': A, 'b': B}))['a']['blockers'], [])
+        # P5-D7: no pack is blocked; every declared template is granted beyond the kit
+        for pack in sorted(fixture.PHASE5):
+            accounts = dict(zip([d['role'] for d in fixture.PACKS[pack]['roles'] if not d.get('same_account_as')], (A, B, C)))
+            for role, plan in seed.plans_for(pack, seed.roles_with_accounts(pack, accounts)).items():
+                self.assertEqual(plan['blockers'], [], (pack, role))
+                granted = {g['template_id'] for g in plan['grants']}
+                declared = {r['template_id'] for d in fixture.PACKS[pack]['roles'] if d['role'] == role for r in d['inventory']}
+                self.assertTrue(declared <= granted | {2369, 2370, 10, 1146, 1147, 5588, 10650, 12753}, (pack, role, declared - granted))
+        # the real pre-admission stage refuses a blocked role before any write (synthetic blocker)
+        blocked_role = seed.roles_with_accounts('phase5-epoch', {'a': A})
+        blocked_role['a']['inventory'].append(dict(instance_id=99, template_id=999999999, count=1, enchant=0, augment_id=None, charge_bits=0, location='inventory', slot=None, revision=0))
+        self.assertTrue(seed.plans_for('phase5-epoch', blocked_role)['a']['blockers'])
 
     def test_shared_account_and_scavenger_rows(self):
         out = seeder('--fixture', 'phase5-freight', '--account', f'a={A}', '--dry-run').stdout

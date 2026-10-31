@@ -25,7 +25,7 @@ ECONOMY_OPERATIONS = {
     'pick_up_item', 'vendor_buy', 'vendor_sell', 'vendor_refund', 'multisell_choose', 'register_recipe', 'delete_recipe',
     'craft_item', 'trade_confirm', 'store_buy', 'store_sell', 'private_manufacture', 'warehouse_deposit', 'warehouse_withdraw',
     'freight_send', 'freight_withdraw', 'mail_send', 'mail_take', 'mail_reject', 'mail_cancel', 'mail_delete', 'manor_buy_seed',
-    'manor_sell_crop', 'auction_bid', 'auction_cancel_bid', 'party', 'trade_session', 'store_setup', 'mail_mark_read', 'sweep',
+    'manor_sell_crop', 'auction_bid', 'auction_cancel_bid', 'party', 'trade_session', 'store_setup', 'mail_mark_read',
 }
 REJECT_REASONS = {
     'GROUND_ITEM_NOT_FOUND', 'GROUND_ITEM_PROTECTED', 'INVALID_MERCHANT', 'INVALID_QUANTITY', 'VENDOR_OUT_OF_STOCK', 'ADENA_LIMIT',
@@ -118,22 +118,22 @@ PREDICATES = {
     'loot_distributed_count': ('<comparison> <n>', 'LootDistributed envelopes', RESET_IDENTITY),
     'loot_distributed_spoil': ('== true|false', 'LootDistributed.spoil', RESET_IDENTITY),
     'own_out_of_party_range': ('', 'own EntitySpawn/EntityMove position vs the leader beyond PartyRange2', RESET_IDENTITY),
-    'corpse_spoiled': ('template:<id>', 'CorpseStateChanged.spoiled', RESET_IDENTITY),
-    'corpse_sweepable': ('template:<id>', 'CorpseStateChanged.sweepable', RESET_IDENTITY),
-    'corpse_swept': ('template:<id>', 'CorpseStateChanged.swept', RESET_IDENTITY),
-    'corpse_until_delta': ('template:<id> == <ticks>', 'CorpseStateChanged.tick at death vs EntityDespawn tick', RESET_IDENTITY),
-    'sweep_recipient_in_party': ('', 'EconomyResult(sweep).pickup.recipient in PartyStateChanged.members', 'owner incarnation'),
-    'party_sweep_done': ('', 'CorpseStateChanged.swept for the known corpse', RESET_IDENTITY),
+    'corpse_spoiled': ('template:npc_<id>', 'CorpseStateChanged.spoiled', RESET_IDENTITY),
+    'corpse_sweepable': ('template:npc_<id>', 'CorpseStateChanged.sweepable', RESET_IDENTITY),
+    'corpse_swept': ('template:npc_<id>', 'CorpseStateChanged.swept', RESET_IDENTITY),
+    'corpse_until_delta': ('template:npc_<id> == <ticks>', 'CorpseStateChanged.tick at death vs EntityDespawn tick', RESET_IDENTITY),
+    'sweep_recipient_in_party': ('', 'LootDistributed.recipient (spoil = true) in PartyStateChanged.members; a sweep emits no EconomyResult (D §5.3, §13.3)', RESET_IDENTITY),
+    'party_sweep_done': ('template:npc_<id>', 'CorpseStateChanged.swept for the known corpse', RESET_IDENTITY),
     'adena_split_share_between': ('<lo> <hi>', 'owner InventoryChanged adena delta since nf.MarkItemState', 'mark / owner baseline'),
     'adena_split_origin': ('== npc', 'LootDistributed/EconomyResult positions equal the corpse origin', RESET_IDENTITY),
     'loot_vote_phase': ('== <phase>', 'PartyLootVote.phase', 'PartyStateChanged / expires_tick'),
+    'xp_gained_events': ('<comparison> <n>', 'owner XpGained envelopes after the identity baseline (Phase 5 registers it; no Phase 4 bot does)', 'owner incarnation'),
     'xp_gained_last': ('== <n>', 'last owner XpGained.amount', 'owner incarnation'),
     'sp_gained_last': ('== <n>', 'last owner SpGained.amount', 'owner incarnation'),
     'xp_gained_last_between': ('<lo> <hi>', 'last owner XpGained.amount', 'owner incarnation'),
     'xp_share_matches_export': ('', 'owner XpGained.amount equals the econ_formula solo_xp actual of the C14 export', 'owner incarnation'),
-    'sp_gained_events_for': ('template:<id> == <n>', 'owner SpGained envelopes after the kill of that template', 'owner incarnation'),
-    'entity_gone': ('template:<id>', 'EntityDespawn of the known entity', RESET_IDENTITY),
-    'own_karma': ('<comparison> <n>', 'owner StatsChanged.karma', 'owner baseline'),
+    'sp_gained_events_for': ('template:npc_<id> == <n>', 'owner SpGained envelopes after the kill of that template', 'owner incarnation'),
+    'entity_gone': ('template:npc_<id>', 'EntityDespawn of the known entity', RESET_IDENTITY),
     'own_pk_count': ('<comparison> <n>', 'owner StatsChanged.pk_count', 'owner baseline'),
     'pk_drop_count_between': ('<lo> <hi>', 'owner InventoryChanged.removed_ids at death', 'owner incarnation'),
     'pk_dropped_excluded': ('== 0', 'removed_ids intersect the sidecar exclusion set', 'owner incarnation'),
@@ -177,8 +177,8 @@ PREDICATES = {
     'auction_award_to_warehouse': ('<template>', 'GetWarehouseResponse lists the template after FINISHED', 'revision'),
     'auction_leader': ('!= self', 'AuctionView.own_bid < highest_bid in ListItemAuctionsResponse', 'ListItemAuctions'),
     'manor_manager_known': ('', 'EntitySpawn of the noncombat entity named manor_manager', RESET_IDENTITY),
-    'corpse_seeded_or_sow_failed': ('template:<id>', 'CorpseStateChanged.seeded or SkillCastResult of Sow', RESET_IDENTITY),
-    'harvest_done': ('template:<id>', 'SkillCastResult of Harvest + InventoryChanged', RESET_IDENTITY),
+    'corpse_seeded_or_sow_failed': ('template:npc_<id>', 'CorpseStateChanged.seeded or SkillCastResult of Sow', RESET_IDENTITY),
+    'harvest_done': ('template:npc_<id>', 'SkillCastResult of Harvest + InventoryChanged', RESET_IDENTITY),
     'manor_drops_unchanged': ('', 'ground EntitySpawn set equals the death list expectation (E13)', RESET_IDENTITY),
     'manor_fee_equals_p_div_20': ('', 'EconomyResult.manor.fee == adena // 20', 'owner incarnation'),
     'manor_result': ('granted <template> >= <n>', 'EconomyResult.manor.granted', 'owner incarnation'),
@@ -213,6 +213,12 @@ def template_ref(text):
     return text.startswith('template:') and number(text[9:], 2**32 - 1)
 
 
+def npc_ref(text):
+    """`template:npc_<pinned id>`: the zone template id of an overlay monster (phase5-fixtures.py), the same
+    string `nf.Target template:<id>` resolves (ResolveTemplateTarget)."""
+    return bool(re.fullmatch(r'template:npc_[1-9][0-9]{0,9}', text))
+
+
 def entries(text, parts, allow_bare=False):
     """`template:<id>:<a>[:<b>]` comma list with exactly `parts` numeric fields after the template."""
     if not text:
@@ -229,7 +235,7 @@ def entries(text, parts, allow_bare=False):
 
 def command(tokens):
     """None means outside this contract; False means recognized but malformed."""
-    name = next((n for n in COMMANDS if n.lower() == tokens[0].lower()), None)
+    name = tokens[0] if tokens[0] in COMMANDS else None  # exact case, like the bot and the scenarios test
     if name is None:
         return None
     args = list(tokens[1:])
@@ -291,7 +297,7 @@ def predicate(tokens):
                 'auction_award_to_warehouse'):
         return n == 1 and number(args[0], 2**32 - 1)
     if name in ('corpse_spoiled', 'corpse_sweepable', 'corpse_swept', 'party_sweep_done', 'entity_gone', 'corpse_seeded_or_sow_failed', 'harvest_done'):
-        return n == 1 and template_ref(args[0])
+        return n == 1 and npc_ref(args[0])
     if name == 'ground_item_kind': return n == 3 and number(args[0], 2**32 - 1) and args[1] == '==' and args[2] == '3'
     if name in ('ground_loot_owner', 'ground_drop_protection'): return n == 3 and number(args[0], 2**32 - 1) and args[1] in ('==', '!=') and args[2] == 'self'
     if name == 'ground_item_count_between': return n == 3 and number(args[0], 2**32 - 1) and number(args[1], zero=True) and number(args[2], zero=True) and int(args[1]) <= int(args[2])
@@ -313,7 +319,7 @@ def predicate(tokens):
     if name == 'craft_result': return n == 2 and args[0] == '==' and args[1] in ('success', 'fail', 'masterwork')
     if name == 'rejected': return n == 2 and args[0] == '==' and args[1] in REJECT_REASONS
     if name == 'adena_delta': return n == 2 and args[0] == '==' and signed(args[1])
-    if name in ('corpse_until_delta', 'sp_gained_events_for'): return n == 3 and template_ref(args[0]) and args[1] == '==' and number(args[2], zero=True)
+    if name in ('corpse_until_delta', 'sp_gained_events_for'): return n == 3 and npc_ref(args[0]) and args[1] == '==' and number(args[2], zero=True)
     if name in ('vendor_stock', 'vendor_restock_due_delta'): return n == 4 and number(args[0]) and number(args[1], 2**32 - 1) and args[2] == '==' and number(args[3], zero=True)
     if name in ('enchant_of', 'warehouse_has', 'freight_has'): return n == 3 and number(args[0], 2**32 - 1) and args[1] == '==' and number(args[2], zero=True)
     if name in ('craft_materials_consumed', 'recipe_registered'): return n == 1 and number(args[0], 2**32 - 1)
@@ -323,7 +329,7 @@ def predicate(tokens):
     if name in ('xp_gained_last', 'sp_gained_last', 'refund_tab_count', 'manufacture_gate_ticks', 'trade_transfer_pairs', 'store_entries_skipped',
                 'container_fee', 'freight_capacity', 'mail_expiry_hours', 'auction_highest_bid', 'pk_dropped_excluded'):
         return n == 2 and args[0] == '==' and number(args[1], zero=True) and (name != 'pk_dropped_excluded' or args[1] == '0')
-    if name in ('ground_item_count', 'party_member_count', 'loot_distributed_count', 'own_karma', 'own_pk_count'):
+    if name in ('ground_item_count', 'party_member_count', 'loot_distributed_count', 'own_pk_count', 'xp_gained_events'):
         return n == 2 and args[0] in COMPARISONS and number(args[1], zero=True)
     return False
 

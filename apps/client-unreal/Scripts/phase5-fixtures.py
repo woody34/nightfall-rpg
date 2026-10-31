@@ -43,7 +43,8 @@ SPOIL, SWEEPER, CREATE_ITEM, CREATE_COMMON_ITEM = 254, 42, 172, 1320
 DWARVEN_CRAFT_CLASSES = {54, 55, 56, 57}
 # Fixed noncombat fixture NPCs by pack kind: zone [[npcs]] names the bot resolves (phase4 blacksmith pattern).
 FIXED_NPC_KINDS = ('merchant', 'multisell', 'warehouse_keeper', 'manor_manager', 'auctioneer')
-MISSING_FROM_PHASE4_CATALOGUE = 'template is not in the Phase 4 item catalogue (E51 closure lands at integration); GrantItem would refuse it'
+MISSING_FROM_PHASE4_CATALOGUE = ('template is in neither the Phase 4 item catalogue nor the Phase 5 catalogue closure '
+                                 '(tables-phase5/catalogue.toml, storable); V7 admission refuses it (P5-D7)')
 
 
 @lru_cache(maxsize=None)
@@ -142,10 +143,21 @@ def accounts_for(pack, accounts):
     return out
 
 
+@lru_cache(maxsize=None)
+def phase5_closure(repo=REPO):
+    """P5-D7: under V7 the admitted item set is the Phase 4 catalogue plus the Phase 5 catalogue closure
+    (tables-phase5/catalogue.toml, storable templates; hashed into Phase5Rules)."""
+    table = tomllib.loads((repo / 'packages/data/tables-phase5/catalogue.toml').read_text())
+    return frozenset(t['id'] for t in table['templates'] if t['storable'])
+
+
+def admitted(template, repo=REPO):
+    return template in phase4.catalogue(repo) or template in phase5_closure(repo)
+
+
 def catalogue_blockers(profile, repo=REPO):
-    catalogue = phase4.catalogue(repo)
     return [dict(instance_id=row['instance_id'], template_id=row['template_id'], reason=MISSING_FROM_PHASE4_CATALOGUE)
-            for row in profile['inventory'] if row['template_id'] not in catalogue]
+            for row in profile['inventory'] if not admitted(row['template_id'], repo)]
 
 
 def npc_template_text(repo, npc_id, level):

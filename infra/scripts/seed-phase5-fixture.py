@@ -129,9 +129,16 @@ def grant_plan(pack, name, role):
     for row in kit['items']:
         kit_total[row['template_id']] = kit_total.get(row['template_id'], 0) + row['count']
     blockers = list(contracts.catalogue_blockers(role, REPO))
-    known = {row['template_id'] for row in role['inventory'] if row['template_id'] in catalogue}
+    known = {row['template_id'] for row in role['inventory'] if contracts.admitted(row['template_id'], REPO)}
+    stackable = lambda t: catalogue[t]['stackable'] if t in catalogue else contracts.phase4_free_stackable(t, REPO)  # noqa: E731
     if not blockers:
-        blockers += phase4_seed.capacity_blockers(role, catalogue, REPO)
+        # slot capacity over the admitted set: stackables one slot per template, others one per instance
+        capacities = contracts.phase4.table('capacities', REPO)
+        dwarf = str(role.get('class_profile', '')).startswith('dwarven')
+        limit = capacities['dwarf_inventory'] if dwarf else capacities['inventory']
+        used = len({r['template_id'] for r in role['inventory'] if stackable(r['template_id'])}) + sum(r['count'] for r in role['inventory'] if not stackable(r['template_id']))
+        if used > limit:
+            blockers.append(dict(reason=f'ordinary slots {used} exceed capacity {limit} (GrantItem InventoryFull)'))
     totals, enchants = {}, {}
     for row in role['inventory']:
         template = row['template_id']
@@ -145,7 +152,7 @@ def grant_plan(pack, name, role):
     for template in sorted(totals):
         if template not in known:
             continue
-        if catalogue[template]['stackable']:
+        if stackable(template):
             if any(enchants[template]):
                 blockers.append(dict(template_id=template, reason='enchanted stackable'))
             missing = totals[template] - kit_total.get(template, 0)

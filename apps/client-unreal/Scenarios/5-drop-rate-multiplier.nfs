@@ -17,10 +17,10 @@ nf.EnterWorld
 nf.WaitFor in_world 15
 nf.WaitFor item_baseline 3
 nf.Expect rules_rate_multiplier == 1.5
-nf.Target template:20003
-nf.WaitFor target == template:20003 3
+nf.Target template:npc_20003
+nf.WaitFor target == "Npc 20003" 3
 nf.Attack
-nf.WaitFor entity_dead template:20003 30
+nf.WaitFor entity_dead target 30
 nf.WaitFor economy_export_marker 3
 # Total budget: the largest role's sum of declared waits + 30 s exit grace.
 nf.Within 99

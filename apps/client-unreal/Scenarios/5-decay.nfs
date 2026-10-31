@@ -9,27 +9,24 @@
 # econ-gate: death_item
 # econ-gate: group_chance
 # econ-gate: group_select
-# econ-gate: pk_gate
-# econ-gate: pk_item
 nf.Login
 nf.WaitFor connected 15
 nf.EnterWorld
 nf.WaitFor in_world 15
 nf.WaitFor item_baseline 3
-nf.Target template:18478
-nf.WaitFor target == template:18478 3
+nf.Target template:npc_18478
+nf.WaitFor target == "Npc 18478" 3
 nf.Attack
-nf.WaitFor entity_dead template:18478 30
+nf.WaitFor entity_dead target 30
 nf.WaitFor ground_item_exists 8600 3
 nf.WaitFor ground_item_gone 8600 70
 nf.Expect ground_despawn_on_grid 8600
-nf.Target template:18544
-nf.WaitFor target == template:18544 3
+nf.Target template:npc_18544
+nf.WaitFor target == "Npc 18544" 3
 nf.Attack
-nf.WaitFor entity_dead template:18544 30
+nf.WaitFor entity_dead target 30
 nf.WaitFor ground_item_exists 9849 3
 nf.WaitFor ground_item_gone 9849 20
 nf.Expect ground_despawn_on_grid 9849
-nf.Expect pk_drop_decays == false
 # Total budget: the largest role's sum of declared waits + 30 s exit grace.
 nf.Within 225

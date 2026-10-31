@@ -62,16 +62,19 @@
   "roll_order": "corpse list first (iff spoiled), then death list (L2Attackable.java:838-842)",
   "spoil_skill": 254,
   "spoiled_extension_ticks": 100,
+  "sweep_carrier": "CorpseStateChanged.swept + LootDistributed/inventory deltas; no EconomyResult (D \u00a75.3, \u00a713.3)",
   "sweep_rights": "spoiler or any member of the spoiler's party (L2Attackable.java:1028)",
   "sweeper": {
    "hit_time_ms": 500,
    "mp": 3,
    "reuse_ms": 500,
-   "source": "A7 pinned"
+   "skill": 42,
+   "source": "DP stats/skills/00000-00099.xml:1465-1484",
+   "target_type": "NPC_BODY"
   },
   "sweeper_skill": 42
  },
- "expectations_sha256": "f4d59ce66be4d9c3b17bec9cca2fb3450483c0d1fd1d253ba94077c3a1ab3d1d",
+ "expectations_sha256": "a2de163679591ce034ce6aafe1219c31a0d152d0ab959c6c37056cb3187a596e",
  "fixture": "phase5-party-spoil",
  "scenario": "5-sweep-party.nfs",
  "schema_version": 1,

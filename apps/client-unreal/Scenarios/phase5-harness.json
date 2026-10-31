@@ -296,7 +296,7 @@
     "races/elf.toml": "f266132c7d8b7d917190c0a633ec0a6304941b930d30cf2fa1a4df900e7bb7b2",
     "races/human.toml": "8c098c407f37ba53799c417d66b487d1ad35fa1069d8d26a3b4b0f542eeafb79",
     "races/orc.toml": "8c8e9d84235242572fd69418a089a13a3d1ac451bc9b83ed3392a06e695b0850",
-    "scripts/check_all.py": "fbf92b7701686a8d587bdab5213c4daef8942e89afe68318efc9e482744dc14e",
+    "scripts/check_all.py": "7644f602c54c74d4c9f4e5b44380a1cbb840aac9d0a71609b585ef055c620d3d",
     "scripts/economy_oracle.py": "72e0367c470dcfc7683808c2e8d3f002e4424845273526fe19ab60e5fcca88ce",
     "scripts/gen_class_phase3.py": "847d28dc6f2495b3ad27ed61dc5644b88234fc21205aa324513832cb217a8bdd",
     "scripts/gen_classes.py": "b97716c689dcd738f49e263ae900ce7264ca35094327950819e19f6bc1698074",
@@ -3881,33 +3881,7 @@
     },
     "phase5-craft": {
       "blockers": {
-        "a": [
-          {
-            "instance_id": 8,
-            "reason": "template is not in the Phase 4 item catalogue (E51 closure lands at integration); GrantItem would refuse it",
-            "template_id": 1666
-          },
-          {
-            "instance_id": 9,
-            "reason": "template is not in the Phase 4 item catalogue (E51 closure lands at integration); GrantItem would refuse it",
-            "template_id": 3838
-          },
-          {
-            "instance_id": 10,
-            "reason": "template is not in the Phase 4 item catalogue (E51 closure lands at integration); GrantItem would refuse it",
-            "template_id": 1864
-          },
-          {
-            "instance_id": 11,
-            "reason": "template is not in the Phase 4 item catalogue (E51 closure lands at integration); GrantItem would refuse it",
-            "template_id": 1869
-          },
-          {
-            "instance_id": 12,
-            "reason": "template is not in the Phase 4 item catalogue (E51 closure lands at integration); GrantItem would refuse it",
-            "template_id": 3845
-          }
-        ]
+        "a": []
       },
       "roles": {
         "a": {
@@ -4158,18 +4132,7 @@
     },
     "phase5-craft-common": {
       "blockers": {
-        "a": [
-          {
-            "instance_id": 8,
-            "reason": "template is not in the Phase 4 item catalogue (E51 closure lands at integration); GrantItem would refuse it",
-            "template_id": 6926
-          },
-          {
-            "instance_id": 9,
-            "reason": "template is not in the Phase 4 item catalogue (E51 closure lands at integration); GrantItem would refuse it",
-            "template_id": 6908
-          }
-        ]
+        "a": []
       },
       "roles": {
         "a": {
@@ -4382,13 +4345,7 @@
     },
     "phase5-decay": {
       "blockers": {
-        "a": [
-          {
-            "instance_id": 8,
-            "reason": "template is not in the Phase 4 item catalogue (E51 closure lands at integration); GrantItem would refuse it",
-            "template_id": 1864
-          }
-        ]
+        "a": []
       },
       "roles": {
         "a": {
@@ -5510,13 +5467,7 @@
     },
     "phase5-epoch": {
       "blockers": {
-        "a": [
-          {
-            "instance_id": 8,
-            "reason": "template is not in the Phase 4 item catalogue (E51 closure lands at integration); GrantItem would refuse it",
-            "template_id": 1864
-          }
-        ]
+        "a": []
       },
       "roles": {
         "a": {
@@ -6306,13 +6257,7 @@
     },
     "phase5-mail": {
       "blockers": {
-        "a": [
-          {
-            "instance_id": 9,
-            "reason": "template is not in the Phase 4 item catalogue (E51 closure lands at integration); GrantItem would refuse it",
-            "template_id": 1864
-          }
-        ],
+        "a": [],
         "b": []
       },
       "roles": {
@@ -6716,13 +6661,7 @@
     },
     "phase5-manor": {
       "blockers": {
-        "a": [
-          {
-            "instance_id": 9,
-            "reason": "template is not in the Phase 4 item catalogue (E51 closure lands at integration); GrantItem would refuse it",
-            "template_id": 5125
-          }
-        ]
+        "a": []
       },
       "roles": {
         "a": {
@@ -6934,18 +6873,7 @@
     "phase5-manufacture": {
       "blockers": {
         "a": [],
-        "b": [
-          {
-            "instance_id": 10009,
-            "reason": "template is not in the Phase 4 item catalogue (E51 closure lands at integration); GrantItem would refuse it",
-            "template_id": 1864
-          },
-          {
-            "instance_id": 10010,
-            "reason": "template is not in the Phase 4 item catalogue (E51 closure lands at integration); GrantItem would refuse it",
-            "template_id": 1869
-          }
-        ]
+        "b": []
       },
       "roles": {
         "a": {
@@ -8855,18 +8783,7 @@
     },
     "phase5-pk-drop": {
       "blockers": {
-        "a": [
-          {
-            "instance_id": 8,
-            "reason": "template is not in the Phase 4 item catalogue (E51 closure lands at integration); GrantItem would refuse it",
-            "template_id": 1864
-          },
-          {
-            "instance_id": 10,
-            "reason": "template is not in the Phase 4 item catalogue (E51 closure lands at integration); GrantItem would refuse it",
-            "template_id": 1869
-          }
-        ],
+        "a": [],
         "b": []
       },
       "roles": {
@@ -10564,30 +10481,8 @@
     },
     "phase5-stores": {
       "blockers": {
-        "a": [
-          {
-            "instance_id": 8,
-            "reason": "template is not in the Phase 4 item catalogue (E51 closure lands at integration); GrantItem would refuse it",
-            "template_id": 1864
-          },
-          {
-            "instance_id": 9,
-            "reason": "template is not in the Phase 4 item catalogue (E51 closure lands at integration); GrantItem would refuse it",
-            "template_id": 1869
-          },
-          {
-            "instance_id": 10,
-            "reason": "template is not in the Phase 4 item catalogue (E51 closure lands at integration); GrantItem would refuse it",
-            "template_id": 1870
-          }
-        ],
-        "b": [
-          {
-            "instance_id": 10009,
-            "reason": "template is not in the Phase 4 item catalogue (E51 closure lands at integration); GrantItem would refuse it",
-            "template_id": 1864
-          }
-        ]
+        "a": [],
+        "b": []
       },
       "roles": {
         "a": {
@@ -11014,20 +10909,8 @@
     },
     "phase5-trade": {
       "blockers": {
-        "a": [
-          {
-            "instance_id": 8,
-            "reason": "template is not in the Phase 4 item catalogue (E51 closure lands at integration); GrantItem would refuse it",
-            "template_id": 1864
-          }
-        ],
-        "b": [
-          {
-            "instance_id": 10008,
-            "reason": "template is not in the Phase 4 item catalogue (E51 closure lands at integration); GrantItem would refuse it",
-            "template_id": 1869
-          }
-        ]
+        "a": [],
+        "b": []
       },
       "roles": {
         "a": {
@@ -11629,13 +11512,7 @@
     },
     "phase5-vendors": {
       "blockers": {
-        "a": [
-          {
-            "instance_id": 9,
-            "reason": "template is not in the Phase 4 item catalogue (E51 closure lands at integration); GrantItem would refuse it",
-            "template_id": 1294
-          }
-        ]
+        "a": []
       },
       "roles": {
         "a": {
@@ -11846,18 +11723,7 @@
     },
     "phase5-warehouse": {
       "blockers": {
-        "a": [
-          {
-            "instance_id": 9,
-            "reason": "template is not in the Phase 4 item catalogue (E51 closure lands at integration); GrantItem would refuse it",
-            "template_id": 1864
-          },
-          {
-            "instance_id": 10,
-            "reason": "template is not in the Phase 4 item catalogue (E51 closure lands at integration); GrantItem would refuse it",
-            "template_id": 1869
-          }
-        ]
+        "a": []
       },
       "roles": {
         "a": {

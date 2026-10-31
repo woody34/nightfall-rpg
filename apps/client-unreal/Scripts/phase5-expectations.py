@@ -188,16 +188,55 @@ def decay_9849_npc() -> int | None:
     return None
 
 
-MERCHANT = {"npc": 31413, "list_id": 314130, "item": 1294, "ref_price": 75, "tax": "15",
-            "source": "merchants.toml entries (Merchant/Antonio/Antonio.java _sellList0)"}
-RESTOCK = {"npc": 35363, "list_id": 353630, "item": 16127, "ref_price": 23000, "tax": "10", "count": 10, "restock_min": 60,
-           "source": "merchants.toml entries (Chamberlain/Alfred/Alfred.java _sellList0)"}
+
+
+def merchant_entry(list_id: int, item: int) -> dict:
+    """One merchants.toml entry (the only typed inputs are the list and item ids)."""
+    row = next(e for e in tbl("merchants")["entries"] if list_id in e["list_ids"] and e["item"] == item)
+    npc = row["npcs"][row["list_ids"].index(list_id)]
+    return {"npc": npc, "list_id": list_id, "item": item, "ref_price": row["ref_price"], "tax": row["tax"], "count": row["count"],
+            "restock_min": row["restock_min"], "limited": row["limited"], "source": f"tables-phase5/merchants.toml entries ({row['script']} {row['array']})"}
+
+
+def auction_fixture(instance: int, auction_id: int) -> dict:
+    inst = next(i for i in tbl("auction")["instance"] if i["id"] == instance)
+    item = next(i for i in inst["items"] if i["auction_id"] == auction_id)
+    return {"instance": instance, "auction_id": auction_id, "item": item["item_id"], "count": item["count"], "init_bid": item["init_bid"],
+            "length_minutes": item["length_minutes"], "source": "tables-phase5/auction.toml instance/items"}
+
+
+def pinned_int(name: str, key: str) -> int:
+    return int(eo.prop(name, key))
+
+
+def store_limits() -> dict:
+    """Private store slot limits from the pinned character.properties (GC/character.properties:306-313)."""
+    return {"sell_or_package": pinned_int("character.properties", "MaxPvtStoreSellSlotsOther"), "buy": pinned_int("character.properties", "MaxPvtStoreBuySlotsOther"),
+            "dwarf_sell_or_package": pinned_int("character.properties", "MaxPvtStoreSellSlotsDwarf"), "dwarf_buy": pinned_int("character.properties", "MaxPvtStoreBuySlotsDwarf"),
+            "source": "GC/character.properties:306-313 (MaxPvtStore{Sell,Buy}Slots{Other,Dwarf}); manufacture uses the sell slots (D §9.3)"}
+
+
+def sweeper_skill() -> dict:
+    """Sweeper 42 timing from the pinned skill XML (DP stats/skills/00000-00099.xml:1465-1484)."""
+    import xml.etree.ElementTree as ET
+    root = ET.parse(eo.DP / eo.DPD / "stats/skills/00000-00099.xml").getroot()
+    skill = next(s for s in root.findall("skill") if s.get("id") == "42")
+    sets = {s.get("name"): s.get("val") for s in skill.findall("set")}
+    return {"skill": 42, "hit_time_ms": int(sets["hitTime"]), "reuse_ms": int(sets["reuseDelay"]), "mp": int(sets["mpConsume2"]), "target_type": sets["targetType"],
+            "source": "DP stats/skills/00000-00099.xml:1465-1484"}
+
+
+HARNESS_CONSTANTS = {
+    "trade_radius_l2_units": {"value": 150, "source": "GJ network/clientpackets/TradeRequest.java:168, TradeDone.java:91 (calculateDistance > 150)"},
+    "trade_request_timeout_seconds": {"value": 15, "source": "GJ model/L2Request.java:32,116 (REQUEST_TIMEOUT = 15 s)"},
+}
 MULTISELL = {"list_id": 616, "npc": 32347}
 RECIPE_DWARF = 1        # mk_wooden_arrow, 100 %, craft level 1 (recipes.toml recipe[id=1])
 RECIPE_DWARF_FAIL = 322  # q_mk_titans_powerstone, 25 %, craft level 2
-AUCTION = {"instance": 32320, "auction_id": 1, "item": 9901, "init_bid": 100000}
-STORE_LIMITS = {"sell_or_package": 3, "buy": 4, "manufacture": 3, "dwarf_sell_or_package": 4, "dwarf_buy": 5, "dwarf_manufacture": 4,
-                "source": "D §9.3 (pinned PrivateStoreLimits; Dwarf +1)"}
+MERCHANT = merchant_entry(314130, 1294)
+RESTOCK = merchant_entry(353630, 16127)
+AUCTION = auction_fixture(32320, 1)
+STORE_LIMITS = store_limits()
 
 
 def recipe(rid: int) -> dict:
@@ -396,8 +435,9 @@ def exp_solo_xp(p: dict) -> dict:
 def exp_spoil(p: dict) -> dict:
     npc = npc_row(20003)
     killer = next(r for r in p["roles"] if r["role"] == "a")["level"]
-    return {"corpse_time_ticks": s_ticks(npc["corpse_time"]), "spoiled_extension_ticks": s_ticks(10), "corpse_until_spoiled_ticks": s_ticks(npc["corpse_time"] + 10),
-            "spoil_skill": 254, "sweeper_skill": 42, "sweeper": {"hit_time_ms": 500, "reuse_ms": 500, "mp": 3, "source": "A7 pinned"},
+    extend = pinned_int("npc.properties", "SpoiledCorpseExtendTime")  # GC/npc.properties:90; DecayTaskManager.java:60-64
+    return {"corpse_time_ticks": s_ticks(npc["corpse_time"]), "spoiled_extension_ticks": s_ticks(extend), "corpse_until_spoiled_ticks": s_ticks(npc["corpse_time"] + extend),
+            "spoil_skill": 254, "sweeper_skill": 42, "sweeper": sweeper_skill(), "sweep_carrier": "CorpseStateChanged.swept + LootDistributed/inventory deltas; no EconomyResult (D §5.3, §13.3)",
             "corpse_nodes": node_expectations(npc, killer, scope="corpse"), "despawn": "ConsumeBody ends the corpse; EntityDespawn in the next spawn phase (D §5.3)",
             "ledger_op": "sweep", "roll_order": "corpse list first (iff spoiled), then death list (L2Attackable.java:838-842)"}
 
@@ -412,8 +452,11 @@ def exp_sweep_party(p: dict) -> dict:
 def exp_pk(p: dict) -> dict:
     pk = tbl("ground")["pk"]
     a = next(r for r in p["roles"] if r["role"] == "a")
-    kit = [{"id": 0, "template": 2369, "equipped": True, "weapon": True}, {"id": 0, "template": 1146, "equipped": True, "weapon": False},
-           {"id": 0, "template": 1147, "equipped": True, "weapon": False}]  # human_fighter starter kit equipped rows (tables-phase4/starter_kits.toml)
+    import tomllib
+    kits = tomllib.loads((REPO / "packages/data/tables-phase4/starter_kits.toml").read_text())["kits"]
+    kit_rows = next(k for k in kits if k["class_id"] == a["class_id"])["items"]  # the API materializes this kit at first admission
+    kit = [{"id": 0, "template": r["template_id"], "equipped": True, "weapon": r["template_id"] == 2369} for r in kit_rows if r["equipped"]]
+    assert [r["template"] for r in kit] == [2369, 1146, 1147], kit  # tables-phase4/starter_kits.toml class 0 equipped rows
     inv_ = kit + [{"id": i["instance_id"], "template": i["template_id"], "equipped": i.get("equipped", False), "weapon": i.get("slot") == "rhand"} for i in a["inventory"]]
     excluded = [i["template"] for i in inv_ if eo.pk_excluded(dict(i))]
     return {"gate": {"karma_rate_drop": pk["karma_rate_drop"], "threshold": str(eo.chance_threshold(F(pk["karma_rate_drop"])))},
@@ -433,7 +476,9 @@ def exp_vendor(p: dict) -> dict:
     for i in range(13):
         tab, dead = eo.refund_tab_add(tab, m["item"], 1, False)
         destroyed += dead
-    return {"merchant": m, "unit_price_castle_0": eo.unit_price(ref, m["tax"], 0), "unit_price_table_row": next(u for u in tbl("merchants")["unit_prices"] if u["item"] == m["item"] and u["tax"] == m["tax"]),
+    table_row = next(u for u in tbl("merchants")["unit_prices"] if u["item"] == m["item"] and u["tax"] == m["tax"])
+    assert table_row["castle_0"] == eo.unit_price(ref, m["tax"], 0), table_row
+    return {"merchant": m, "unit_price_castle_0": eo.unit_price(ref, m["tax"], 0), "unit_price_table_row": table_row,
             "sell_price_by_count": sells, "refund_price_by_count": refunds, "refund_tab_after_13_sells": {"entries": len(tab), "destroyed": destroyed},
             "transaction_flood_ticks": tbl("storage_mail")["flood_intervals_ticks"]["transaction"], "ledger_ops": ["vendor_buy", "vendor_sell", "vendor_refund"]}
 
@@ -442,7 +487,7 @@ def exp_restock(p: dict) -> dict:
     m = p["merchant"]
     return {"merchant": m, "unit_price_castle_0": eo.unit_price(m["ref_price"], m["tax"], 0), "stock": m["count"], "restock_ticks": m["restock_min"] * 60 * 10,
             "out_of_stock_reject": "VENDOR_OUT_OF_STOCK after `count` units", "live_refill": "soak lane only unless 6.1 finds a tick fast-forward facility (E43)",
-            "restock_minutes_source": "merchants.toml entries restock_min (V-R: 60 is the shortest pinned)"}
+            "restock_minutes_source": "merchants.toml entries restock_min (V-R: 60 is the shortest pinned)", "restock_is_shortest_pinned": m["restock_min"] == min(e["restock_min"] for e in tbl("merchants")["entries"] if e["limited"])}
 
 
 def exp_multisell(p: dict) -> dict:
@@ -490,7 +535,8 @@ def exp_manufacture(p: dict) -> dict:
 
 
 def exp_trade(p: dict) -> dict:
-    return {"radius_l2_units": 150, "request_expiry_ticks": s_ticks(15), "transaction_flood_ticks": tbl("storage_mail")["flood_intervals_ticks"]["transaction"],
+    return {"radius_l2_units": HARNESS_CONSTANTS["trade_radius_l2_units"], "request_expiry_ticks": s_ticks(HARNESS_CONSTANTS["trade_request_timeout_seconds"]["value"]),
+            "request_timeout": HARNESS_CONSTANTS["trade_request_timeout_seconds"], "transaction_flood_ticks": tbl("storage_mail")["flood_intervals_ticks"]["transaction"],
             "phases": ["STARTED", "ITEM_ADDED", "PARTNER_CONFIRMED", "COMPLETED", "CANCELLED"], "add_invalidates": "the adder's own confirmation only",
             "ledger": "paired transfer_out/transfer_in rows linked by one receipt (B13)", "source": "E4/E10 (TradeRequest.java:168, TradeDone.java:91)"}
 
@@ -560,7 +606,8 @@ def exp_manor(p: dict) -> dict:
     P = crop["price"] * 3
     return {"castle": {"id": fx["castle_id"], "castle_area": fx["castle_area"]}, "seed": seed, "crop": crop, "crop_row": row,
             "sow_basic": eo.sow_basic(row["level"], row["alternative"], a["level"], npc["level"]), "sow_threshold": str(eo.chance_threshold(F(max(eo.sow_basic(row["level"], row["alternative"], a["level"], npc["level"]), 0)))),
-            "harvest_basic": eo.harvest_basic(a["level"], npc["level"]), "harvester_items": mn["skills"]["harvester_items"], "skills": {"sow": 2097, "harvest": 2098},
+            "harvest_basic": eo.harvest_basic(a["level"], npc["level"]), "harvester_items": mn["skills"]["harvester_items"],
+            "skills": {"sow": sorted({s["id"] for s in mn["skills"]["sow"]}), "harvest": sorted({s["id"] for s in mn["skills"]["harvest"]}), "source": "tables-phase5/manor.toml skills"},
             "crop_sale_3": {"reward_template": row["rew1"], "P": P, "fee": int(eo.fl(eo.fl(F(P)) * eo.fl(F("0.05")))), "fee_equals_P_div_20": int(eo.fl(eo.fl(F(P)) * eo.fl(F("0.05")))) == P // 20},
             "manor_flood_ticks": tbl("storage_mail")["flood_intervals_ticks"]["manor"], "normal_drops_unchanged": True}
 

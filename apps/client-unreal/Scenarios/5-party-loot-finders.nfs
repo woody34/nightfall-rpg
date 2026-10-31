@@ -20,10 +20,10 @@ nf.WaitFor party_member_count == 2 15
 nf.PartyInvite c
 nf.WaitFor party_member_count == 3 15
 nf.Expect loot_mode == FINDERS_KEEPERS
-nf.Target template:20003
-nf.WaitFor target == template:20003 3
+nf.Target template:npc_20003
+nf.WaitFor target == "Npc 20003" 3
 nf.Attack
-nf.WaitFor entity_dead template:20003 30
+nf.WaitFor entity_dead target 30
 nf.WaitFor ground_item_exists 57 3
 nf.PickUp template:57
 nf.WaitFor economy_result == pick_up_item 3

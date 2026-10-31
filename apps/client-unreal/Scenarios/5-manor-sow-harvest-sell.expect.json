@@ -41,13 +41,18 @@
    "seed_id": 5016
   },
   "skills": {
-   "harvest": 2098,
-   "sow": 2097
+   "harvest": [
+    2098
+   ],
+   "source": "tables-phase5/manor.toml skills",
+   "sow": [
+    2097
+   ]
   },
   "sow_basic": 90,
   "sow_threshold": "16602069666338596455"
  },
- "expectations_sha256": "79e87175496c719bb954998dffbc5e35146b865ca58c5336c6cc1b63387bc20f",
+ "expectations_sha256": "d4b76f44a5d648c25756e52b660234998d7864b2892a9c6b200a4db60e04721f",
  "fixture": "phase5-manor",
  "scenario": "5-manor-sow-harvest-sell.nfs",
  "schema_version": 1,

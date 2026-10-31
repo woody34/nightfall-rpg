@@ -12,7 +12,7 @@ nf.WaitFor connected 15
 nf.EnterWorld
 nf.WaitFor in_world 15
 nf.WaitFor item_baseline 3
-nf.WaitFor entity_in_view entity:b 15
+nf.WaitFor entity_in_view 01970000-0000-7000-8000-000000000051 15
 nf.TradeRequest b
 nf.WaitFor trade_state == STARTED 15
 nf.TradeAdd template:1864 5
@@ -20,7 +20,7 @@ nf.WaitFor trade_state == ITEM_ADDED 3
 nf.WaitFor trade_state == CANCELLED 15
 nf.Expect inventory_has 1864 == 10
 nf.Expect trade_cancel_reason == departure
-nf.WaitFor entity_in_view entity:b 30
+nf.WaitFor entity_in_view 01970000-0000-7000-8000-000000000051 30
 nf.TradeRequest b
 nf.WaitFor trade_state == STARTED 15
 nf.ClickMove 150 100

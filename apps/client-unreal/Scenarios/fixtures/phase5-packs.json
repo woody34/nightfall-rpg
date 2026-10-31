@@ -4,9 +4,12 @@
   "phase5-auction": {
    "auction": {
     "auction_id": 1,
+    "count": 1,
     "init_bid": 100000,
     "instance": 32320,
-    "item": 9901
+    "item": 9901,
+    "length_minutes": 300,
+    "source": "tables-phase5/auction.toml instance/items"
    },
    "fixed_npcs": [
     {
@@ -1247,11 +1250,9 @@
    "store_limits": {
     "buy": 4,
     "dwarf_buy": 5,
-    "dwarf_manufacture": 4,
     "dwarf_sell_or_package": 4,
-    "manufacture": 3,
     "sell_or_package": 3,
-    "source": "D \u00a79.3 (pinned PrivateStoreLimits; Dwarf +1)"
+    "source": "GC/character.properties:306-313 (MaxPvtStore{Sell,Buy}Slots{Other,Dwarf}); manufacture uses the sell slots (D \u00a79.3)"
    },
    "zone": "test_zone"
   },
@@ -1321,11 +1322,12 @@
    "merchant": {
     "count": 10,
     "item": 16127,
+    "limited": true,
     "list_id": 353630,
     "npc": 35363,
     "ref_price": 23000,
     "restock_min": 60,
-    "source": "merchants.toml entries (Chamberlain/Alfred/Alfred.java _sellList0)",
+    "source": "tables-phase5/merchants.toml entries (src/main/java/com/l2jserver/datapack/ai/npc/Chamberlain/Alfred/Alfred.java _sellList0)",
     "tax": "10"
    },
    "monsters": [],
@@ -1366,11 +1368,14 @@
     }
    ],
    "merchant": {
+    "count": 0,
     "item": 1294,
+    "limited": false,
     "list_id": 314130,
     "npc": 31413,
     "ref_price": 75,
-    "source": "merchants.toml entries (Merchant/Antonio/Antonio.java _sellList0)",
+    "restock_min": -1,
+    "source": "tables-phase5/merchants.toml entries (src/main/java/com/l2jserver/datapack/ai/npc/Merchant/Antonio/Antonio.java _sellList0)",
     "tax": "15"
    },
    "monsters": [],

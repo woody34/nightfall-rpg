@@ -26,6 +26,7 @@ nf.Expect loot_mode == RANDOM
 nf.PartyLootVote FINDERS_KEEPERS
 nf.WaitFor loot_vote_phase == CANCELLED 20
 nf.Expect loot_mode == RANDOM
+nf.WaitFor party_member_count == 2 15
 # role: b
 nf.Login
 nf.WaitFor connected 15
@@ -62,5 +63,7 @@ nf.WaitFor loot_vote_phase == CANCELLED 3
 nf.WaitFor loot_vote_phase == REQUESTED 15
 nf.PartyLootAnswer accept
 nf.WaitFor loot_vote_phase == CANCELLED 20
+nf.PartyLeave
+nf.WaitFor party_member_count == 0 3
 # Total budget: the largest role's sum of declared waits + 30 s exit grace.
 nf.Within 179

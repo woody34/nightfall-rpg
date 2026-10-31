@@ -13,29 +13,29 @@ nf.WaitFor connected 15
 nf.EnterWorld
 nf.WaitFor in_world 15
 nf.WaitFor item_baseline 3
-nf.Target template:20003
-nf.WaitFor target == template:20003 3
+nf.Target template:npc_20003
+nf.WaitFor target == "Npc 20003" 3
 nf.Attack
-nf.WaitFor entity_dead template:20003 30
+nf.WaitFor entity_dead target 30
 nf.WaitFor xp_gained_events >= 1 3
 nf.Expect xp_gained_last_between 1 178
 nf.Expect xp_share_matches_export
-nf.Target template:4301
-nf.WaitFor target == template:4301 3
+nf.Target template:npc_4301
+nf.WaitFor target == "Npc 4301" 3
 nf.Attack
-nf.WaitFor entity_dead template:4301 30
+nf.WaitFor entity_dead target 30
 nf.Expect xp_gained_events == 1
-nf.Expect sp_gained_events_for template:4301 == 0
+nf.Expect sp_gained_events_for template:npc_4301 == 0
 # role: b
 nf.Login
 nf.WaitFor connected 15
 nf.EnterWorld
 nf.WaitFor in_world 15
 nf.WaitFor item_baseline 3
-nf.Target template:20003
-nf.WaitFor target == template:20003 3
+nf.Target template:npc_20003
+nf.WaitFor target == "Npc 20003" 3
 nf.Attack
-nf.WaitFor entity_dead template:20003 30
+nf.WaitFor entity_dead target 30
 nf.WaitFor xp_gained_events >= 1 3
 nf.Expect xp_gained_last_between 1 178
 nf.Expect xp_share_matches_export

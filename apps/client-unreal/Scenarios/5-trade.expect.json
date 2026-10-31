@@ -10,12 +10,19 @@
    "COMPLETED",
    "CANCELLED"
   ],
-  "radius_l2_units": 150,
+  "radius_l2_units": {
+   "source": "GJ network/clientpackets/TradeRequest.java:168, TradeDone.java:91 (calculateDistance > 150)",
+   "value": 150
+  },
   "request_expiry_ticks": 150,
+  "request_timeout": {
+   "source": "GJ model/L2Request.java:32,116 (REQUEST_TIMEOUT = 15 s)",
+   "value": 15
+  },
   "source": "E4/E10 (TradeRequest.java:168, TradeDone.java:91)",
   "transaction_flood_ticks": 10
  },
- "expectations_sha256": "0231c2ab10b219c9e83d2e310f4271d1fa71b4fd9404aae3667675fe139e3d24",
+ "expectations_sha256": "a196dd22cae9b4eff5c73bf01391f2ab61a4a55e98489f68246034be50778226",
  "fixture": "phase5-trade",
  "scenario": "5-trade.nfs",
  "schema_version": 1,

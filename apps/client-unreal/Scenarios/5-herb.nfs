@@ -15,20 +15,20 @@ nf.EnterWorld
 nf.WaitFor in_world 15
 nf.WaitFor item_baseline 3
 nf.MarkItemState
-nf.Target template:18478
-nf.WaitFor target == template:18478 3
+nf.Target template:npc_18478
+nf.WaitFor target == "Npc 18478" 3
 nf.Attack
-nf.WaitFor entity_dead template:18478 30
+nf.WaitFor entity_dead target 30
 nf.WaitFor ground_item_exists 8600 3
 nf.PickUp template:8600
 nf.WaitFor economy_result == pick_up_item 3
 nf.Expect inventory_has 8600 == 0
 nf.Expect inventory_revision_since_mark == 0
 nf.WaitFor buff_active 2278 3
-nf.Target template:18544
-nf.WaitFor target == template:18544 3
+nf.Target template:npc_18544
+nf.WaitFor target == "Npc 18544" 3
 nf.Attack
-nf.WaitFor entity_dead template:18544 30
+nf.WaitFor entity_dead target 30
 nf.WaitFor ground_item_exists 8612 3
 nf.PickUp template:8612
 nf.WaitFor economy_result == pick_up_item 3

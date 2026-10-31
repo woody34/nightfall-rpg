@@ -19,10 +19,10 @@ nf.WaitFor connected 15
 nf.EnterWorld
 nf.WaitFor in_world 15
 nf.WaitFor item_baseline 3
-nf.Target template:22320
-nf.WaitFor target == template:22320 3
+nf.Target template:npc_22320
+nf.WaitFor target == "Npc 22320" 3
 nf.Attack
-nf.WaitFor entity_dead template:22320 30
+nf.WaitFor entity_dead target 30
 nf.WaitFor ground_item_exists 57 3
 nf.Expect ground_item_kind 57 == 3
 nf.Expect ground_loot_owner 57 == self
@@ -35,11 +35,11 @@ nf.WaitFor connected 15
 nf.EnterWorld
 nf.WaitFor in_world 15
 nf.WaitFor item_baseline 3
-nf.Target template:22320
-nf.WaitFor target == template:22320 3
+nf.Target template:npc_22320
+nf.WaitFor target == "Npc 22320" 3
 nf.Attack
 nf.StopAttack
-nf.WaitFor entity_dead template:22320 30
+nf.WaitFor entity_dead target 30
 nf.WaitFor ground_item_exists 57 3
 nf.Expect ground_loot_owner 57 != self
 # Total budget: the largest role's sum of declared waits + 30 s exit grace.

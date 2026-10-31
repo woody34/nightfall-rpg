@@ -15,15 +15,13 @@
   "limits": {
    "buy": 4,
    "dwarf_buy": 5,
-   "dwarf_manufacture": 4,
    "dwarf_sell_or_package": 4,
-   "manufacture": 3,
    "sell_or_package": 3,
-   "source": "D \u00a79.3 (pinned PrivateStoreLimits; Dwarf +1)"
+   "source": "GC/character.properties:306-313 (MaxPvtStore{Sell,Buy}Slots{Other,Dwarf}); manufacture uses the sell slots (D \u00a79.3)"
   },
   "package_sale": "bought whole or refused PACKAGE_INCOMPLETE"
  },
- "expectations_sha256": "69b0058bb89332e4d970eb8944f3d1f0813c31ed7275e37ed51c7d7d58c9f674",
+ "expectations_sha256": "b19111802ec719c2d66e3e0ed64ffd37070c2a54db250e2c0ff2232c50395da5",
  "fixture": "phase5-stores",
  "scenario": "5-store-buy.nfs",
  "schema_version": 1,

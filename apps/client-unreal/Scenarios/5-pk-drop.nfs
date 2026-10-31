@@ -30,12 +30,13 @@ nf.WaitFor connected 15
 nf.EnterWorld
 nf.WaitFor in_world 15
 nf.WaitFor item_baseline 3
-nf.Target entity:a
-nf.WaitFor target == entity:a 3
+nf.Target 01970000-0000-7000-8000-000000000050
+nf.WaitFor target == 01970000-0000-7000-8000-000000000050 3
 nf.Attack
-nf.WaitFor entity_dead entity:a 60
+nf.WaitFor entity_dead target 60
 nf.WaitFor ground_item_any 3
 nf.PickUp nearest
 nf.WaitFor economy_result == pick_up_item 3
+nf.Expect pk_drop_decays == false
 # Total budget: the largest role's sum of declared waits + 30 s exit grace.
 nf.Within 132

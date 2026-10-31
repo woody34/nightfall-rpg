@@ -3,9 +3,12 @@
  "expectations": {
   "auction": {
    "auction_id": 1,
+   "count": 1,
    "init_bid": 100000,
    "instance": 32320,
-   "item": 9901
+   "item": 9901,
+   "length_minutes": 300,
+   "source": "tables-phase5/auction.toml instance/items"
   },
   "award": "winner's item is delivered to the WAREHOUSE (E16)",
   "bids": [
@@ -52,7 +55,7 @@
   "item_auction_flood_ticks": 9,
   "server_bypass_ticks": 5
  },
- "expectations_sha256": "b05b38c49b1ff47f24ae6df4831cc1dde0bdeb43bb3c04e6e599e8102817c6a8",
+ "expectations_sha256": "437d6d1837ff060a066afcc310b080d0c0cdbdbc7742edd280ddf86e2984ccf0",
  "fixture": "phase5-auction",
  "scenario": "5-auction-bid-cancel-award.nfs",
  "schema_version": 1,
