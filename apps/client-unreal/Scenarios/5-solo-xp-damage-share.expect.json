@@ -3,6 +3,46 @@
  "expectations": {
   "S": 5,
   "X": 178,
+  "awarded_max_level10": 186,
+  "awarded_shares": {
+   "a_dmg10_of10_level10": [
+    186,
+    5
+   ],
+   "a_dmg10_of10_level12": [
+    129,
+    3
+   ],
+   "a_dmg10_of10_level20": [
+    29,
+    0
+   ],
+   "a_dmg1_of10_level10": [
+    17,
+    0
+   ],
+   "a_dmg1_of10_level12": [
+    12,
+    0
+   ],
+   "a_dmg1_of10_level20": [
+    2,
+    0
+   ],
+   "a_dmg7_of10_level10": [
+    130,
+    3
+   ],
+   "a_dmg7_of10_level12": [
+    90,
+    2
+   ],
+   "a_dmg7_of10_level20": [
+    21,
+    0
+   ]
+  },
+  "killer_race": "human",
   "npc": 20003,
   "rule": "B16: per-attacker damage share X*dmg/total, pow56 penalty above diff 5, 0 XP -> 0 SP",
   "shares": {
@@ -55,7 +95,7 @@
    "sp": null
   }
  },
- "expectations_sha256": "586fce6762e28924c47d5f32d95549689d0d15211e4d99b8949ca6de3697bd36",
+ "expectations_sha256": "8dd6e66e172807b3a242202d535592c17a748659b7aa515f1f62dbc9fe95c44e",
  "fixture": "phase5-solo-xp",
  "scenario": "5-solo-xp-damage-share.nfs",
  "schema_version": 1,

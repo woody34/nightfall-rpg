@@ -345,6 +345,25 @@ def fam_dc(out: dict) -> str:
         vec.append({"case": f"synthetic_ungrouped_{s}", "C_bits": bits(c), "mult_base": mult_base,
                     "remainder_bits": bits(rem), "remainder_draw": c > 100, "pass_threshold": str(chance_threshold(c)),
                     "remainder_threshold": str(chance_threshold(rem))})
+    # (b') P5-D13(a): the only pinned `min > max` row (npc 29181 adena 9,000,000..1,100,000) draws
+    # min - roll_below(7,899,999): uniform over 1,100,002..9,000,000, no clamp, one roll.
+    odd = [(npc["id"], scope, it) for npc in npc_rows() for scope in ("death", "corpse")
+           for node in npc[scope] for it in (node["items"] if node["kind"] == "group" else [node]) if it["min"] > it["max"]]
+    require([(n, sc, it["id"], it["min"], it["max"]) for n, sc, it in odd] == [(29181, "death", 57, 9_000_000, 1_100_000)],
+            "exactly one pinned min > max row")
+    row = odd[0][2]
+    for word in (0, 12_345, 7_899_998, 7_899_999, (1 << 32) - (1 << 32) % 7_899_999 - 1):
+        qty, n, used = drop_quantity(row, iter([word]))
+        require(n == 7_899_999 and used == 1 and qty == 9_000_000 - word % 7_899_999, "min > max quantity")
+        require(1_100_002 <= qty <= 9_000_000, "min > max range")
+    rejected = (1 << 32) - (1 << 32) % 7_899_999
+    qty, n, used = drop_quantity(row, iter([rejected, 5]))
+    require((qty, used) == (9_000_000 - 5, 2), "rejection sampling above the limit")
+    for lo, hi in ((5, 4), (6, 4), (4, 4)):
+        values = {drop_quantity({"min": lo, "max": hi}, iter([w]))[0] for w in range(64)}
+        require(values == ({lo} if lo - hi in (0, 1) else set(range(hi + 2, lo + 1))), f"degenerate {lo}..{hi}")
+    vec.append({"case": "min_gt_max_npc_29181_adena", "npc": 29181, "item": 57, "min": 9_000_000, "max": 1_100_000,
+                "n": 7_899_999, "word": 12_345, "quantity": 9_000_000 - 12_345, "range": [1_100_002, 9_000_000]})
     # (c) every single-item group collapse, STRICT rule, vs binary64 reference
     singles = 0
     for npc in npc_rows():
@@ -640,6 +659,23 @@ def format_decimal(q: F, digits: int) -> str:
 # --- whole-death traces (§2.2, §2.3) ---------------------------------------------------
 
 
+def drop_quantity(item: dict, words) -> tuple[int, int, int]:
+    """P5-D13(a): `Rnd.get(min, max)` = `min + (long)(nextDouble() * (max - min + 1))` with no bounds
+    check (l2j-server-commons 2.6.10.0 RandomContainer.get; IDropCalculationStrategy.java:43,
+    IGroupedItemDropCalculationStrategy.java:80). Normal rows: `min + roll_below(max - min + 1)`.
+    `min > max`: uniform over `{max + 2, ..., min}` = `min - roll_below(max(1, min - max - 1))`
+    (always `min` when `min - max` is 1 or 2's degenerate k = 0, -1). One roll either way (P3);
+    nothing is clamped or swapped. Returns (quantity, n, words used)."""
+    lo, hi = item["min"], item["max"]
+    if lo <= hi:
+        n = hi - lo + 1
+        q, used = roll_below_words(words, n)
+        return lo + q, n, used
+    n = max(1, lo - hi - 1)
+    q, used = roll_below_words(words, n)
+    return lo - q, n, used
+
+
 def roll_ungrouped(item: dict, c: F, site: int, words: Words, trace: list):
     """IDropCalculationStrategy.DEFAULT_STRATEGY (:32-47): chance draw; STRICT > 100 precise branch
     with its remainder draw; quantity roll_below even at min == max (P3)."""
@@ -655,10 +691,9 @@ def roll_ungrouped(item: dict, c: F, site: int, words: Words, trace: list):
         trace.append({"site": site, "draw": "remainder", "C": bits(rem), "pass": chance(r2, rem)})
         if chance(r2, rem):
             mult += 1
-    n = item["max"] - item["min"] + 1
-    q, used = roll_below_words(words, n)
+    qty, n, used = drop_quantity(item, words)
     trace.append({"site": site, "draw": "quantity", "n": n, "words": used})
-    return (item["id"], (item["min"] + q) * mult)
+    return (item["id"], qty * mult)
 
 
 def roll_node(node: dict, scope: str, raid: bool, L_group: F, L_item, words: Words, trace: list) -> list:
@@ -700,10 +735,9 @@ def roll_node(node: dict, scope: str, raid: bool, L_group: F, L_item, words: Wor
         trace.append({"site": site, "draw": "remainder", "C": bits(rem), "pass": chance(r2, rem)})
         if chance(r2, rem):
             mult += 1
-    n = it["max"] - it["min"] + 1
-    q, used = roll_below_words(words, n)
+    qty, n, used = drop_quantity(it, words)
     trace.append({"site": site, "draw": "quantity", "n": n, "words": used})
-    return [(it["id"], (it["min"] + q) * mult)]
+    return [(it["id"], qty * mult)]
 
 
 def death_trace(npc: dict, killer_level: int, spoiled: bool, respawn_random: int, seed: int) -> dict:
@@ -789,15 +823,22 @@ def warehouse_depositable(inst: dict, private: bool) -> bool:
     return True
 
 
-def pk_drop(inv: list[dict], karma: int, pk_count: int, killer_is_player: bool, words: Words) -> tuple[list, list]:
-    """§3.9 pk_drop_v7 over a scripted word stream; mutates `equipped` like the pinned unequip."""
+def pk_drop(inv: list[dict], karma: int, pk_count: int, killer: str | None, words: Words) -> tuple[list, list]:
+    """§3.9 pk_drop_v7 over a scripted word stream; mutates `equipped` like the pinned unequip.
+
+    P5-D13(b), pinned L2PcInstance.onDieDropItem (:4473-4553): `killer == null -> return`; the karma
+    branch (`getKarma() > 0 && getPkKills() >= pkLimit`, :4496) applies to ANY killer, an NPC
+    included; only the `isKillerNpc && level > 4` branch (:4503) is NPC-specific and its
+    PlayerRateDrop = 0 never draws. `killer` is "player", "npc" or None."""
     g = table("ground.toml")["pk"]
     trace: list = []
     dropped: list = []
-    if not killer_is_player:
-        return trace, dropped  # NPC killer: PlayerRateDrop = 0, no draw
-    if not (karma > 0 and pk_count >= g["minimum_pk_required_to_drop"]):
+    if killer is None:
         return trace, dropped
+    if killer not in ("player", "npc"):
+        raise OracleError(f"unknown killer kind {killer!r}")
+    if not (karma > 0 and pk_count >= g["minimum_pk_required_to_drop"]):
+        return trace, dropped  # the NPC-killer branch: PlayerRateDrop = 0, no draw
     r = words.u64()
     ok = chance_bound(r, g["karma_rate_drop"], 100)
     trace.append(["gate", ok])
@@ -846,7 +887,7 @@ def fam_dp(out: dict) -> str:
         inv += [{"id": 50, "template": 57}, {"id": 51, "template": 7694}, {"id": 52, "template": 2375},
                 {"id": 53, "template": plain[0], "augmented": True}, {"id": 54, "template": shadow, "equipped": True},
                 {"id": 55, "template": timed}]
-        tr, dropped = pk_drop(inv, 10, 6, True, Words(seed))
+        tr, dropped = pk_drop(inv, 10, 6, "player", Words(seed))
         if len(dropped) == 10:
             last = dropped[-1][0]
             require(all(i["equipped"] for i in inv if i["id"] > last and i["id"] <= 24 and i["id"] % 3 == 0),
@@ -857,11 +898,19 @@ def fam_dp(out: dict) -> str:
                         "trace": tr, "dropped": dropped})
             break
     require(vec, "a vector reaching the 10-drop break")
-    require(pk_drop([{"id": 1, "template": plain[0]}], 10, 5, True, Words(9)) == ([], []), "pk_count < 6 draws nothing")
-    require(pk_drop([{"id": 1, "template": plain[0]}], 10, 9, False, Words(9)) == ([], []), "NPC killer draws nothing")
+    require(pk_drop([{"id": 1, "template": plain[0]}], 10, 5, "player", Words(9)) == ([], []), "pk_count < 6 draws nothing")
+    require(pk_drop([{"id": 1, "template": plain[0]}], 10, 5, "npc", Words(9)) == ([], []),
+            "NPC killer below the PK limit: PlayerRateDrop 0, no draw")
+    require(pk_drop([{"id": 1, "template": plain[0]}], 10, 9, None, Words(9)) == ([], []), "no killer draws nothing")
+    # P5-D13(b): an NPC killer of a karma >= 6-PK player draws the same gate and rolls as a player killer.
+    npc_inv = [{"id": i + 1, "template": t} for i, t in enumerate(plain[:4])]
+    player_inv = [dict(i) for i in npc_inv]
+    by_npc = pk_drop(npc_inv, 10, 9, "npc", Words(seed))
+    require(by_npc[0] and by_npc[0][0][0] == "gate", "NPC killer takes the karma gate")
+    require(by_npc == pk_drop(player_inv, 10, 9, "player", Words(seed)), "NPC and player killers draw identically")
     out["dp_vectors"] = {"break_at_10": vec, "shadow_template": shadow, "time_limited_template": timed}
     return ("exclusions (adena, NonDroppable, PetItems, quest, augmented, shadow, time-limited); unequip-before-roll; "
-            "break at 10; gate 40; offsets [-25, 24]; NPC killer no draw")
+            "break at 10; gate 40; offsets [-25, 24]; NPC killer takes the karma branch (P5-D13b)")
 
 
 def decay_due(dropped: int, limit: int) -> int:
@@ -1004,6 +1053,12 @@ def calc_exp_sp(diff: int, dmg: int, total: int, X: int, S: int) -> tuple[int, i
     return math.floor(x), math.floor(s)
 
 
+def award_xp(xp: int, race: str | None) -> int:
+    """P5-D11: the engine's award_xp (state_combat.rs) applies the existing Nightfall Phase 2 Human
+    bonus to every XP award of a Human player: floor(xp * 105 / 100). SP is unchanged."""
+    return xp * 105 // 100 if race == "human" else xp
+
+
 def round_half_up(v: F) -> int:
     return math.floor(v + F(1, 2))
 
@@ -1063,7 +1118,7 @@ def reward_pass(R: dict[int, dict], parties: list[list[int]], players: dict[int,
             e = math.floor(fl32(fl32(e) * 1))  # exp *= penalty (float, servitor penalty 1)
             if info["alive"]:
                 awards.setdefault(pid, [0, 0])
-                awards[pid][0] += e
+                awards[pid][0] += award_xp(e, info.get("race"))
                 awards[pid][1] += s
             passes.append({"visit": pid, "branch": "solo", "exp": e, "sp": s, "awarded": info["alive"]})
             continue
@@ -1092,7 +1147,7 @@ def reward_pass(R: dict[int, dict], parties: list[list[int]], players: dict[int,
                                     [players[m]["alive"] for m in rewarded], party_lvl)
             for m, (ae, as_) in zip(rewarded, dist):
                 awards.setdefault(m, [0, 0])
-                awards[m][0] += ae
+                awards[m][0] += award_xp(ae, players[m].get("race"))
                 awards[m][1] += as_
             rec["distribution"] = dist
         passes.append(rec)
@@ -1184,6 +1239,16 @@ def fam_x(out: dict) -> str:
     require(rp["passes"][-1]["visit"] == 5 and rp["passes"][-1]["branch"] == "solo", "solo attacker")
     full = reward_pass({1: {"damage": 500}, 4: {"damage": 500}}, [[1, 4]], players, 52, Xn, Sn)
     require(full["passes"][0]["partyMul_bits"] == bits(F(1)), "partyDmg == total -> partyMul 1")
+    # P5-D11: a Human killer's award passes through award_xp (x1.05, floor); other races unchanged.
+    require([award_xp(x, "human") for x in (0, 19, 20, 80, 115, 999, 1000)] == [0, 19, 21, 84, 120, 1048, 1050], "Human x1.05 floor")
+    require(award_xp(999, "dwarf") == 999 and award_xp(999, None) == 999, "non-Human awards unchanged")
+    human = {k: dict(v, race="human") for k, v in players.items()}
+    as_human = reward_pass(R, [[1, 2, 3, 4]], human, 52, Xn, Sn)
+    for key, (xp, sp) in rp["awards"].items():
+        require(as_human["awards"][key] == [award_xp(xp, "human"), sp], f"Human award {key}")
+    vec["human_bonus"] = {"rule": "award_xp: floor(xp * 105 / 100) for race human (Phase 2), SP unchanged",
+                          "examples": {str(x): award_xp(x, "human") for x in (80, 115, 999, 1000)},
+                          "reward_pass_awards": as_human["awards"]}
     vec["party"] = party
     vec["gaps"] = gaps
     vec["reward_pass"] = {"X": Xn, "S": Sn, "players": {str(k): v for k, v in players.items()},

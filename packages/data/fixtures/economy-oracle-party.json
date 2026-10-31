@@ -712,6 +712,29 @@
     0
    ]
   ],
+  "human_bonus": {
+   "examples": {
+    "1000": 1050,
+    "115": 120,
+    "80": 84,
+    "999": 1048
+   },
+   "reward_pass_awards": {
+    "1": [
+     8579,
+     2140
+    ],
+    "4": [
+     7967,
+     1988
+    ],
+    "5": [
+     7859,
+     1961
+    ]
+   },
+   "rule": "award_xp: floor(xp * 105 / 100) for race human (Phase 2), SP unchanged"
+  },
   "n5": {
    "differences_below_2e6": 74892,
    "e45": 62,
