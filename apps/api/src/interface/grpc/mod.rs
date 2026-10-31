@@ -4,6 +4,7 @@
 //! request extensions ([`auth::caller`]), never from a request field (Story 1.6).
 
 pub mod auth;
+mod economy_reads;
 mod mapping;
 mod session_service;
 mod status;
@@ -56,6 +57,7 @@ pub struct GameServiceImpl {
     get_inventory: Option<crate::application::use_cases::GetInventory>,
     dev_item_grants: bool,
     grant_item: Option<crate::application::use_cases::GrantItem>,
+    economy: Option<Arc<crate::application::use_cases::EconomyQueries>>,
 }
 
 /// Phase 3 use cases shared by live composition and transport tests.
@@ -96,6 +98,7 @@ impl GameServiceImpl {
             get_inventory: None,
             dev_item_grants: false,
             grant_item: None,
+            economy: None,
         }
     }
 
@@ -140,6 +143,20 @@ impl GameServiceImpl {
         self
     }
 
+    /// Installs the Phase 5 read RPCs (story 4.6); without them every read is `UNAVAILABLE`.
+    #[must_use]
+    pub fn with_economy(
+        mut self,
+        queries: Arc<crate::application::use_cases::EconomyQueries>,
+    ) -> Self {
+        self.economy = Some(queries);
+        self
+    }
+
+    fn economy(&self) -> Result<&crate::application::use_cases::EconomyQueries, Status> {
+        self.economy.as_deref().ok_or_else(economy_unavailable)
+    }
+
     /// Wraps in the tonic server type.
     #[must_use]
     pub fn into_server(self) -> GameServiceServer<Self> {
@@ -147,8 +164,8 @@ impl GameServiceImpl {
     }
 }
 
-/// Phase 5 reads fail closed until the economy runtime (E4) is installed: authenticated
-/// callers get `UNAVAILABLE`, nothing is read or written (plan §2.1, D §13.4).
+/// Phase 5 reads fail closed until the economy read use cases (story 4.6) are installed:
+/// authenticated callers get `UNAVAILABLE`, nothing is read or written (plan §2.1, D §13.4).
 fn economy_unavailable() -> Status {
     to_status(AppError::Unavailable("economy runtime is unavailable".into()))
 }
@@ -159,8 +176,14 @@ impl GameService for GameServiceImpl {
         &self,
         req: Request<pb::ListBuylistRequest>,
     ) -> Result<Response<pb::ListBuylistResponse>, Status> {
-        auth::caller(&req)?;
-        Err(economy_unavailable())
+        let caller = auth::caller(&req)?;
+        let req = req.into_inner();
+        let view = self
+            .economy()?
+            .list_buylist(caller, &req.character_id, &req.merchant)
+            .await
+            .map_err(to_status)?;
+        Ok(Response::new(economy_reads::buylist(&view)))
     }
 
     async fn get_multisell_list(
@@ -168,55 +191,107 @@ impl GameService for GameServiceImpl {
         req: Request<pb::GetMultisellListRequest>,
     ) -> Result<Response<pb::GetMultisellListResponse>, Status> {
         auth::caller(&req)?;
-        Err(economy_unavailable())
+        let view = self
+            .economy()?
+            .get_multisell_list(req.get_ref().list_id)
+            .map_err(to_status)?;
+        Ok(Response::new(economy_reads::multisell(view)))
     }
 
     async fn get_recipe_book(
         &self,
         req: Request<pb::GetRecipeBookRequest>,
     ) -> Result<Response<pb::GetRecipeBookResponse>, Status> {
-        auth::caller(&req)?;
-        Err(economy_unavailable())
+        let caller = auth::caller(&req)?;
+        let view = self
+            .economy()?
+            .get_recipe_book(caller, &req.get_ref().character_id)
+            .await
+            .map_err(to_status)?;
+        Ok(Response::new(economy_reads::recipe_book(view)))
     }
 
     async fn get_warehouse(
         &self,
         req: Request<pb::GetWarehouseRequest>,
     ) -> Result<Response<pb::GetWarehouseResponse>, Status> {
-        auth::caller(&req)?;
-        Err(economy_unavailable())
+        let caller = auth::caller(&req)?;
+        let view = self
+            .economy()?
+            .get_container(caller, &req.get_ref().character_id, false)
+            .await
+            .map_err(to_status)?;
+        let (items, capacity, revision) = economy_reads::container(&view, false);
+        Ok(Response::new(pb::GetWarehouseResponse {
+            items,
+            capacity,
+            revision,
+        }))
     }
 
     async fn get_freight(
         &self,
         req: Request<pb::GetFreightRequest>,
     ) -> Result<Response<pb::GetFreightResponse>, Status> {
-        auth::caller(&req)?;
-        Err(economy_unavailable())
+        let caller = auth::caller(&req)?;
+        let view = self
+            .economy()?
+            .get_container(caller, &req.get_ref().character_id, true)
+            .await
+            .map_err(to_status)?;
+        let (items, capacity, revision) = economy_reads::container(&view, true);
+        Ok(Response::new(pb::GetFreightResponse {
+            items,
+            capacity,
+            revision,
+        }))
     }
 
     async fn list_mail(
         &self,
         req: Request<pb::ListMailRequest>,
     ) -> Result<Response<pb::ListMailResponse>, Status> {
-        auth::caller(&req)?;
-        Err(economy_unavailable())
+        let caller = auth::caller(&req)?;
+        let req = req.into_inner();
+        let outbox = match pb::MailBox::try_from(req.mail_box) {
+            Ok(pb::MailBox::Inbox) => Some(false),
+            Ok(pb::MailBox::Outbox) => Some(true),
+            Ok(pb::MailBox::Unspecified) | Err(_) => None,
+        };
+        let (rows, count, limit) = self
+            .economy()?
+            .list_mail(caller, &req.character_id, outbox)
+            .await
+            .map_err(to_status)?;
+        Ok(Response::new(economy_reads::mail_list(&rows, count, limit)))
     }
 
     async fn read_mail(
         &self,
         req: Request<pb::ReadMailRequest>,
     ) -> Result<Response<pb::ReadMailResponse>, Status> {
-        auth::caller(&req)?;
-        Err(economy_unavailable())
+        let caller = auth::caller(&req)?;
+        let req = req.into_inner();
+        let view = self
+            .economy()?
+            .read_mail(caller, &req.character_id, &req.message_id)
+            .await
+            .map_err(to_status)?;
+        Ok(Response::new(economy_reads::read_mail(&view)))
     }
 
     async fn list_item_auctions(
         &self,
         req: Request<pb::ListItemAuctionsRequest>,
     ) -> Result<Response<pb::ListItemAuctionsResponse>, Status> {
-        auth::caller(&req)?;
-        Err(economy_unavailable())
+        let caller = auth::caller(&req)?;
+        let req = req.into_inner();
+        let view = self
+            .economy()?
+            .list_item_auctions(caller, &req.character_id, req.instance_npc_id)
+            .await
+            .map_err(to_status)?;
+        Ok(Response::new(economy_reads::auctions(&view)))
     }
 
     async fn get_manor_data(
@@ -224,7 +299,12 @@ impl GameService for GameServiceImpl {
         req: Request<pb::GetManorDataRequest>,
     ) -> Result<Response<pb::GetManorDataResponse>, Status> {
         auth::caller(&req)?;
-        Err(economy_unavailable())
+        let view = self
+            .economy()?
+            .get_manor_data(req.get_ref().castle_id)
+            .await
+            .map_err(to_status)?;
+        Ok(Response::new(economy_reads::manor(&view)))
     }
     async fn get_item_catalog(
         &self,

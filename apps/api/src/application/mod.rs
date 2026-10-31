@@ -6,6 +6,9 @@
 
 pub mod checkpoint;
 pub mod economy;
+pub mod economy_reads;
+pub mod economy_scheduler;
+pub mod economy_zone_reads;
 pub mod error;
 pub mod ports;
 pub mod replay;
@@ -18,6 +21,8 @@ pub mod zone_admission;
 pub mod zone_bootstrap;
 pub mod zone_registry;
 
+pub use economy_reads::EconomyReadRepository;
+pub use economy_zone_reads::ZoneEconomyReads;
 pub use error::{parse_id, AppError};
 pub use ports::{
     AccountRepository, CharacterCheckpoint, CharacterRepository, CheckpointError,

@@ -309,27 +309,8 @@ impl DeliveryKind {
     }
 }
 
-/// `AuctionSchedule` transitions (design §10.5, §12.2).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-#[allow(missing_docs)]
-pub enum AuctionTransition {
-    Create,
-    Start,
-    Finish,
-    Purge,
-}
-
-impl AuctionTransition {
-    const fn name(self) -> &'static str {
-        match self {
-            Self::Create => "create",
-            Self::Start => "start",
-            Self::Finish => "finish",
-            Self::Purge => "purge",
-        }
-    }
-}
+/// `AuctionSchedule` transitions (design §10.5, §12.2): the zone command's own type.
+pub use crate::domain::zone::phase5_command::AuctionTransition;
 
 /// The system jobs' derived `request_key` (design §11.4; DR5 nit 10):
 /// `UUIDv5(NS_SYSJOB, kind ‖ delivery_id | auction_id ‖ transition | message_id)`. Recovery keys on it.

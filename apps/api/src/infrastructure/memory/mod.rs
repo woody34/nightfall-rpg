@@ -14,7 +14,7 @@ mod token_verifier;
 pub use account_repository::InMemoryAccountRepository;
 pub use character_repository::InMemoryCharacterRepository;
 pub use clock::ManualClock;
-pub use economy::{InMemoryEconomyStore, StoredRow};
+pub use economy::{InMemoryEconomyStore, StoredRow, MEMORY_EPOCH_MS};
 pub use event_bus::InMemoryEventBus;
 pub use secrets::{FixedSecretGenerator, SequentialSecretGenerator};
 pub use session_audit::{AuditedFrame, DiscardSessionAudit, InMemorySessionAudit};

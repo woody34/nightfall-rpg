@@ -30,7 +30,7 @@ use crate::application::economy::{
 
 /// `SeaORM`-backed economy repository over the story 4.1 tables.
 pub struct PgEconomyRepository {
-    db: DatabaseConnection,
+    pub(super) db: DatabaseConnection,
 }
 
 impl PgEconomyRepository {
@@ -340,6 +340,15 @@ async fn apply_delta(tx: &DatabaseTransaction, delta: &ContainerDelta) -> Result
                      i16::try_from(c.get("extend_state").and_then(serde_json::Value::as_i64).unwrap_or(0)).map_err(|e| EconomyError::Other(e.into()))?.into(),
                      column_opt_uuid(c, "last_bidder")?.into(), column_opt_uuid(c, "highest_bidder")?.into(),
                      c.get("highest_bid").and_then(serde_json::Value::as_i64).into()]).await?
+        },
+        ("item_auction", DeltaChange::Insert) => {
+            // AuctionCreate (§10.5): start/end come from the hashed fixture schedule (epoch ms).
+            execute(tx, "INSERT INTO item_auctions(id,instance_npc,item_index,state,extend_state,start_at,end_at,revision) VALUES($1,$2,$3,$4,0,'epoch'::timestamptz + $5::bigint * interval '1 millisecond','epoch'::timestamptz + $6::bigint * interval '1 millisecond',0)",
+                vec![delta.row_key.parse::<i64>().map_err(|_| EconomyError::Constraint("economy_delta_row_key".into()))?.into(),
+                     i32::try_from(column_i64(c, "instance_npc")?).map_err(|e| EconomyError::Other(e.into()))?.into(),
+                     i32::try_from(column_i64(c, "item_index")?).map_err(|e| EconomyError::Other(e.into()))?.into(),
+                     i16::try_from(column_i64(c, "state")?).map_err(|e| EconomyError::Other(e.into()))?.into(),
+                     column_i64(c, "start_unix_ms")?.into(), column_i64(c, "end_unix_ms")?.into()]).await?
         },
         ("item_auction", DeltaChange::Delete) => {
             execute(tx, "DELETE FROM item_auctions WHERE id=$1 AND revision=$2",
