@@ -425,6 +425,11 @@ pub struct EconomyEvent {
     pub entity: EntityId,
     /// The body.
     pub body: EconomyBody,
+    /// Explicit §13.1 recipients when they differ from the kind's default routing (a joiner's
+    /// baseline vs. the members' delta, the members of a loot message). Zone routing only:
+    /// never on the wire. Empty = the kind's default (owner, subject or AOI).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub audience: Vec<EntityId>,
 }
 
 impl EconomyEvent {
@@ -763,7 +768,12 @@ pub(crate) mod samples {
         ];
         bodies
             .into_iter()
-            .map(|body| EconomyEvent { tick, entity, body })
+            .map(|body| EconomyEvent {
+                tick,
+                entity,
+                body,
+                audience: Vec::new(),
+            })
             .collect()
     }
 

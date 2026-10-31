@@ -814,6 +814,7 @@ impl ZoneState {
         }
         // V7 phase 2 (design §2.1): protection deadlines, then ground decay on the grid.
         self.expire_phase5(tick, &mut events);
+        self.expire_phase5_requests(tick, &mut events);
         self.pulse_effects_v5(tick, &mut events)?;
         self.regen_v5(tick)?;
         if self.complete_runtime_v5() {
@@ -1276,13 +1277,8 @@ impl ZoneState {
             // V7 only; each Epic 3 story installs its kinds here. No V7 epoch exists before
             // the Phase 5 snapshot block (story 3.1), so this arm is unreachable until then:
             // a system job has no executor yet (3.11), a client intent no handler (3.3–3.10).
-            ZoneCommand::Phase5(command) => {
-                return Err(if command.kind().is_system() {
-                    RejectReason::NotPermitted
-                } else {
-                    RejectReason::NotYetImplemented
-                })
-            },
+            // V7 phase 0 (design §2.1): every economy intent resolves here, in ordinal order.
+            ZoneCommand::Phase5(phase5) => self.phase5_intent(tick, phase5, command.seq, events)?,
             ZoneCommand::Item(item) => {
                 let explicit =
                     if let crate::domain::zone::ItemCommandKind::Use { target, .. } = item.kind {
@@ -1360,8 +1356,9 @@ impl ZoneState {
                         staged.cancel_attacks(entity);
                     },
                     ZoneCommand::Despawn { entity } => {
+                        // V7 departure hooks run first, while the inventory is still present.
+                        self.depart_phase5(tick, entity, events);
                         self.remove_items_v6(entity);
-                        self.remove_phase5_player(entity);
                         if let Some(p) = &mut self.phase3 {
                             if let Some(mut side) = p.canonical.entities.remove(&entity) {
                                 if let Some(offer) = side.invalidate_resurrect_offer() {

@@ -1659,6 +1659,57 @@ pub(crate) fn class_error(reason: crate::domain::zone::RejectReason) -> super::A
         | RejectReason::InvalidRecipe
         | RejectReason::ItemCapabilityDeferred
         | RejectReason::CrystallizeLevelTooLow
+        | RejectReason::GroundItemNotFound
+        | RejectReason::GroundItemProtected
+        | RejectReason::InvalidMerchant
+        | RejectReason::InvalidQuantity
+        | RejectReason::VendorOutOfStock
+        | RejectReason::AdenaLimit
+        | RejectReason::WeightLimit
+        | RejectReason::InsufficientAdena
+        | RejectReason::ItemNotSellable
+        | RejectReason::ItemCountCap
+        | RejectReason::RecipeAlreadyRegistered
+        | RejectReason::RecipeBookFull
+        | RejectReason::CraftSkillMissing
+        | RejectReason::CraftLevelTooLow
+        | RejectReason::MissingMaterials
+        | RejectReason::EconomyInCombat
+        | RejectReason::NoPendingRequest
+        | RejectReason::AlreadyTrading
+        | RejectReason::TargetBusy
+        | RejectReason::CannotTradeInStore
+        | RejectReason::CannotAdjustAfterConfirm
+        | RejectReason::ItemNotTradable
+        | RejectReason::StoreSlotLimit
+        | RejectReason::StoreNotOpen
+        | RejectReason::PackageIncomplete
+        | RejectReason::PriceMismatch
+        | RejectReason::PartyFull
+        | RejectReason::PartyAlreadyInParty
+        | RejectReason::NotPartyLeader
+        | RejectReason::NotPartyMember
+        | RejectReason::PartyLootVoteInProgress
+        | RejectReason::ContainerBusy
+        | RejectReason::WarehouseFull
+        | RejectReason::ItemNotDepositable
+        | RejectReason::FreightTargetInvalid
+        | RejectReason::ItemNotFreightable
+        | RejectReason::FreightFull
+        | RejectReason::PeaceZoneRequired
+        | RejectReason::MailAttachmentsExceeded
+        | RejectReason::MailReceiverNotFound
+        | RejectReason::MailboxFull
+        | RejectReason::MailNotFound
+        | RejectReason::MailAlreadyTaken
+        | RejectReason::SweepNotAllowed
+        | RejectReason::NotSeedable
+        | RejectReason::HarvestNotAllowed
+        | RejectReason::ManorUnavailable
+        | RejectReason::AuctionNotActive
+        | RejectReason::BidTooLow
+        | RejectReason::BidTooHigh
+        | RejectReason::NoBidToCancel
         | RejectReason::SkillNotLearnable
         | RejectReason::SkillWrongRank
         | RejectReason::SkillLevelRequired

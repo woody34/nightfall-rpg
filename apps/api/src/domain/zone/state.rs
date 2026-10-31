@@ -28,6 +28,8 @@ mod item_views;
 mod items;
 #[path = "state_phase5_death.rs"]
 mod phase5_death;
+#[path = "state_phase5_party.rs"]
+mod phase5_party;
 #[path = "state_phase5.rs"]
 mod phase5_runtime;
 #[path = "state_runtime.rs"]
