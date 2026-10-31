@@ -112,13 +112,23 @@ class Overlay(unittest.TestCase):
                     self.assertEqual((slot['template'], slot['count'], slot['home']), (f'npc_{monster["npc_id"]}', monster['count'], monster['home']))
                     template = tomllib.loads((dest / 'npcs' / f'{slot["template"]}.toml').read_text())
                     self.assertEqual((template['id'], template['level'], template['attackable']), (slot['template'], monster['level'], True))
-                    # only id/name/level differ from the shipped keltir body; the validated Phase 3 suffix is kept
-                    self.assertEqual({k for k in template if template[k] != keltir.get(k)}, {'id', 'name', 'level'} if monster['level'] != 1 else {'id', 'name'})
+                    # P5-Q8(a): the explicit binding field; the id string is never parsed for a number
+                    self.assertEqual(template['pinned_npc_id'], monster['npc_id'])
+                    self.assertIsInstance(template['pinned_npc_id'], int)
+                    self.assertEqual(manifest['monsters'][[m['slot'] for m in manifest['monsters']].index(monster['slot_id'])]['pinned_npc_id'], monster['npc_id'])
+                    # only id/name/level/pinned_npc_id differ from the shipped keltir body; the validated Phase 3 suffix is kept
+                    self.assertEqual({k for k in template if template[k] != keltir.get(k)}, {'id', 'name', 'level', 'pinned_npc_id'} if monster['level'] != 1 else {'id', 'name', 'pinned_npc_id'})
+                    self.assertNotIn('pinned_npc_id', keltir)
                     self.assertEqual(template['phase3'], keltir['phase3'])
                 self.assertEqual(json.loads((dest / 'phase5-overlay.json').read_text()), manifest)
                 self.assertEqual(manifest['rate_multiplier_g'], fixture.PACKS[pack].get('rate_multiplier_g', '1'))
             with self.assertRaises(ValueError):
                 fixture.create_overlay(Path(tmp) / 'x', REPO, 'phase4-equip')
+            # TemplateFile denies unknown fields until story 3.3: a Phase 4 overlay must not carry the Phase 5 field.
+            phase4_dest = Path(tmp) / 'phase4'
+            fixture.phase4.create_overlay(phase4_dest, REPO, None)
+            for path in (phase4_dest / 'npcs').glob('*.toml'):
+                self.assertNotIn('pinned_npc_id', path.read_text(), path.name)
 
     def test_split_unit_and_declared_roles(self):
         with tempfile.TemporaryDirectory() as tmp:

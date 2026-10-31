@@ -171,14 +171,17 @@ def catalogue_blockers(profile, repo=REPO):
 
 def npc_template_text(repo, npc_id, level):
     """A monster template for a pinned NPC id: the shipped keltir body (combat numbers and the
-    validated Phase 3 suffix stay) with the id, name and level of the Phase 5 NPC. The drop-list
-    binding of `npc_<id>` to drops.toml is the engine's (E3); the overlay records the pinned id."""
+    validated Phase 3 suffix stay) with the id, name, level and `pinned_npc_id` of the Phase 5 NPC.
+    The engine (story 3.3) binds the drops.toml lists by `pinned_npc_id`; the id string is not parsed."""
     text = (repo / 'packages/data/npcs/keltir.toml').read_text()
-    text = re.sub(r'^id = "keltir"$', f'id = "npc_{npc_id}"', text, count=1, flags=re.M)
+    # P5-Q8(a): story 3.3 binds drops.toml by the explicit `pinned_npc_id` field, never by parsing the id
+    # string. TemplateFile denies unknown fields until 3.3 lands, so this line is written for Phase 5
+    # monsters only (phase4.create_overlay never carries it) and a Phase 5 unit boots only under V7 with 3.3.
+    text = re.sub(r'^id = "keltir"$', f'id = "npc_{npc_id}"\npinned_npc_id = {npc_id}', text, count=1, flags=re.M)
     text = re.sub(r'^name = "Keltir"$', f'name = "Npc_{npc_id}"', text, count=1, flags=re.M)  # one token: the bot splits on whitespace (BotPredicates.cpp:566-571)
     text = re.sub(r'^level = 1$', f'level = {level}', text, count=1, flags=re.M)
     header = (f'# Phase 5 fixture monster for pinned NPC {npc_id} (tables-phase5/drops.toml npc[id]); body from keltir.toml.\n'
-              f'# The economy sidecar binds the drop lists by pinned id (design §1.3); combat numbers are the keltir starter values.\n')
+              f'# pinned_npc_id binds the drop and corpse lists (story 3.3, design §1.3); combat numbers are the keltir starter values.\n')
     return header + text
 
 

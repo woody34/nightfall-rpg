@@ -43,7 +43,7 @@ as one unit and refuses copies of two files.
 |-------|------|---------|
 | Grammar | `Scripts/phase5-grammar.py`, `Scripts/test/phase5-grammar.test.py` | Syntax of the 41 §5.3 commands and the predicates, each with its received carrier and reset rule. Every line of the 36 files parses. |
 | Profiles | `Scripts/phase5-fixtures.py`, `Scenarios/phase5-harness.json` | Pack role -> seedable profile: profession from `class_id`, level, position, starter kit + declared inventory (role stride 10,000), chaotic state, learned ranks. Published for review. |
-| Overlay | `phase5-fixtures.py create_overlay` | The Phase 4 overlay (blacksmith) plus the pack's fixed NPCs (`[[npcs]]` named `merchant`, `exchanger`, `warehouse_keeper`, `manor_manager`, `auctioneer`) and monsters (`[[spawn_slots]]` with templates `npc_<pinned id>` named `Npc_<pinned id>`). |
+| Overlay | `phase5-fixtures.py create_overlay` | The Phase 4 overlay (blacksmith) plus the pack's fixed NPCs (`[[npcs]]` named `merchant`, `exchanger`, `warehouse_keeper`, `manor_manager`, `auctioneer`) and monsters (`[[spawn_slots]]` with templates `npc_<pinned id>` named `Npc_<pinned id>`, each template carrying `pinned_npc_id`). |
 | Seeder | `infra/scripts/seed-phase5-fixture.py`, `Scripts/test/phase5-fixture.test.py` | Stages below. `--help` lists the 27 packs. |
 | Dispatcher | `Scripts/phase2-fixture.py`, `Scripts/run-sim-ci.py`, `Scripts/sim-lib.sh` | Phase 5 branch: version 5 stack (`nf_phase5_fixture_*`, `nightfall-phase5-harness-*`), `PHASE5_ENABLED=1`, role tokens `a|b|c.token`, grant stage, per-role `instance:` mapping. |
 | Client registry | `Source/Nightfall/Bot/EconomyBotPredicates.cpp`, `Source/Nightfall/Economy/EconomyStateSubsystem.cpp`, `Scripts/test/phase5-client-registry.test.py` | The client registers the 41 commands and 96 predicates of this grammar (story 5.6). The dispatcher passes `-Phase5Roles=<role>:<character uuid>:<name>,...` (`phase2-fixture.py args`, names from `character_name`) so a role letter in a command binds to the seeded character. |
@@ -80,8 +80,12 @@ host `psql`.
   write and names it.
 - Skills Spoil 254, Sweeper 42, Create Item 172 and Create Common Item 1320 are not in the Phase 3
   class trees. The seeder writes them as learned ranks; the zone admits them through E2/E3 (B11).
-- The overlay monsters `npc_<id>` carry the keltir combat body. The engine (E3, design §1.3) binds
-  the pinned drop lists to the template; `phase5-overlay.json` records the pinned id for each slot.
+- The overlay monsters `npc_<id>` carry the keltir combat body and the field `pinned_npc_id = <id>`
+  (P5-Q8(a)). Story 3.3 binds the drop and corpse lists of `drops.toml` by that field. The engine does
+  not parse the id string. `phase5-overlay.json` also records the pinned id for each slot.
+- `TemplateFile` denies unknown fields until story 3.3 lands. The Phase 4 overlay never carries
+  `pinned_npc_id`. A Phase 5 unit boots only under `PHASE5_ENABLED=1` (V7) with 3.3 in the tree;
+  before that, the zone refuses the Phase 5 monster templates at load.
 
 ### Tick fast-forward (E43)
 
