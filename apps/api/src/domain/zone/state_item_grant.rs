@@ -308,7 +308,8 @@ impl ZoneState {
             name: before.name.clone(),
             position: before.position,
             load: PlayerLoad {
-                phase5: None,
+                // The paused owner's recipe book is unchanged by an item grant (story 4.2).
+                phase5: before.load.phase5.clone(),
                 phase4: Some(Phase4PlayerLoad {
                     checkpoint: Some(items.checkpoint(id, tick, phase).map_err(invalid)?),
                     pending: Vec::new(),

@@ -88,6 +88,7 @@ async fn seed<R: CharacterRepository>(repo: &R) -> Character {
         .unwrap();
     repo.checkpoint(
         &CharacterCheckpoint {
+            phase5: None,
             phase4: None,
             character_id: c.id,
             revision_seen: 0,
@@ -230,6 +231,7 @@ async fn postgres_retains_full_u32_widths_history_and_rejects_projection_corrupt
 
 fn periodic(c: &Character, seen: u64, checkpoint: Option<Phase4Checkpoint>) -> CharacterCheckpoint {
     CharacterCheckpoint {
+        phase5: None,
         character_id: c.id,
         revision_seen: seen,
         level: 1,

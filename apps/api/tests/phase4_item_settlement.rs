@@ -412,6 +412,7 @@ async fn fixture<R: CharacterRepository + ItemAdmissionRepository>(
         }),
     };
     let cp = CharacterCheckpoint {
+        phase5: None,
         character_id: character.id,
         revision_seen: 0,
         level: character.level,

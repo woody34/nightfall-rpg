@@ -35,6 +35,8 @@ struct State {
     outbox: Vec<DomainEvent>,
     /// Progression columns that live beside the aggregate, keyed by character.
     progression: HashMap<CharacterId, ProgressionState>,
+    /// `characters.phase5_checkpoint` as stored JSON, read strictly at admission (story 4.2).
+    phase5_columns: BTreeMap<CharacterId, serde_json::Value>,
     /// `(account, operation, key)` -> `(fingerprint, revision)` for checkpoints.
     checkpoint_keys: HashMap<(AccountId, String, IdempotencyKey), (String, u64)>,
     learn_receipts: BTreeMap<
@@ -101,6 +103,7 @@ impl State {
         self.progression.insert(
             c.id,
             ProgressionState {
+                phase5: None,
                 phase4: None,
                 phase3: None,
                 position: c.position,
@@ -260,6 +263,12 @@ impl InMemoryCharacterRepository {
 }
 
 impl InMemoryCharacterRepository {
+    /// Test seam: store raw `characters.phase5_checkpoint` JSON, as a migration or an older
+    /// writer could have left it, so the strict admission read is exercised on this adapter.
+    pub fn set_phase5_column_for_testing(&self, character: CharacterId, value: serde_json::Value) {
+        self.state.lock().phase5_columns.insert(character, value);
+    }
+
     #[allow(clippy::too_many_lines)] // Keep key/fence/validation/atomic mutation ordering visible.
     fn checkpoint_locked(
         &self,
@@ -307,6 +316,16 @@ impl InMemoryCharacterRepository {
         {
             return Err(CheckpointError::Constraint("characters_phase3_downgrade".into()));
         }
+        // A stored V7 recipe book is never dropped by a pre-V7 writer (story 4.2).
+        if checkpoint.phase5.is_none() && s.phase5_columns.contains_key(&checkpoint.character_id) {
+            return Err(CheckpointError::Constraint("characters_phase5_downgrade".into()));
+        }
+        let phase5_column = checkpoint
+            .phase5
+            .as_ref()
+            .map(serde_json::to_value)
+            .transpose()
+            .map_err(anyhow::Error::from)?;
         if let Some(work) = items {
             work.validate_before_with(
                 s.item_inventories.get(&checkpoint.character_id),
@@ -402,6 +421,9 @@ impl InMemoryCharacterRepository {
         if let Some(phase4) = &checkpoint.phase4 {
             s.item_inventories
                 .insert(checkpoint.character_id, phase4.clone());
+        }
+        if let Some(column) = phase5_column {
+            s.phase5_columns.insert(checkpoint.character_id, column);
         }
         s.outbox.extend_from_slice(events);
         s.checkpoint_keys.insert(scoped, (fingerprint, revision));
@@ -840,6 +862,11 @@ impl CharacterRepository for InMemoryCharacterRepository {
         if let (Some(loaded), Some(c)) = (&mut loaded, state.characters.get(&character_id)) {
             loaded.phase3 = self.read_phase3(loaded.phase3.take(), c)?;
         }
+        if let Some(loaded) = &mut loaded {
+            loaded.phase5 = crate::application::ports::phase5_checkpoint_from_column(
+                state.phase5_columns.get(&character_id).cloned(),
+            )?;
+        }
         if let (Some(loaded), Some(rules)) = (&mut loaded, &self.phase4_rules) {
             let character = state
                 .characters
@@ -1102,6 +1129,7 @@ mod tests {
 
     fn cp(c: &Character, seen: u64, key: &str) -> CharacterCheckpoint {
         CharacterCheckpoint {
+            phase5: None,
             phase4: None,
             phase3: None,
             character_id: c.id,

@@ -204,8 +204,52 @@ pub struct ProgressionState {
     pub phase3: Option<crate::domain::zone::Phase3Checkpoint>,
     /// Complete recorded V6 admission input, populated only with the matching runtime bundle.
     pub phase4: Option<crate::domain::zone::Phase4PlayerLoad>,
+    /// `characters.phase5_checkpoint` (design §1.11): the only durable recipe-book home.
+    /// Parsed strictly ([`phase5_checkpoint_from_column`]); `None` when the column is NULL.
+    pub phase5: Option<crate::domain::zone::Phase5Checkpoint>,
     /// Bumped by every applied checkpoint; the fence for the next one.
     pub revision: u64,
+}
+
+/// Strict read of `characters.phase5_checkpoint` (story 4.2): an unknown field, another
+/// schema version or a malformed rules hash fails closed by name. Both adapters use it.
+pub fn phase5_checkpoint_from_column(
+    value: Option<serde_json::Value>,
+) -> anyhow::Result<Option<crate::domain::zone::Phase5Checkpoint>> {
+    let Some(value) = value else { return Ok(None) };
+    let checkpoint: crate::domain::zone::Phase5Checkpoint = serde_json::from_value(value)
+        .map_err(|error| anyhow::anyhow!("characters_phase5_checkpoint_invalid: {error}"))?;
+    checkpoint
+        .validate()
+        .map_err(|error| anyhow::anyhow!("characters_phase5_checkpoint_invalid: {error}"))?;
+    Ok(Some(checkpoint))
+}
+
+/// The `PbPlayerLoad` tag 11 producer (story 4.2, design §1.11): a V7 epoch admits exactly
+/// one Phase 5 checkpoint bound to its rules (D27). A character with no stored book starts
+/// with an empty one under the epoch's rules; a stored book under other rules, or any book
+/// offered to a pre-V7 epoch, fails closed.
+pub fn phase5_admission_load(
+    stored: Option<crate::domain::zone::Phase5Checkpoint>,
+    epoch_rules_hash: Option<&str>,
+) -> Result<Option<crate::domain::zone::Phase5Checkpoint>, &'static str> {
+    match (stored, epoch_rules_hash) {
+        (None, None) => Ok(None),
+        (Some(_), None) => Err("Phase 5 checkpoint offered to a pre-V7 epoch"),
+        (None, Some(hash)) => {
+            let fresh = crate::domain::zone::Phase5Checkpoint {
+                schema_version: crate::domain::zone::Phase5Checkpoint::SCHEMA_VERSION,
+                rules_hash: hash.to_owned(),
+                recipes: crate::domain::zone::RecipeBook::default(),
+            };
+            fresh
+                .validate()
+                .map_err(|_| "V7 epoch rules hash is not lowercase sha256 hex")?;
+            Ok(Some(fresh))
+        },
+        (Some(stored), Some(hash)) if stored.rules_hash == hash => Ok(Some(stored)),
+        (Some(_), Some(_)) => Err("Phase 5 checkpoint rules hash differs from the epoch's (D27)"),
+    }
 }
 
 /// A full persistence checkpoint for one character (plan §3.3).
@@ -235,6 +279,9 @@ pub struct CharacterCheckpoint {
     pub phase4: Option<crate::domain::zone::Phase4Checkpoint>,
     /// Explicit V5 retained state; absent on all legacy requests and fingerprints.
     pub phase3: Option<crate::domain::zone::Phase3Checkpoint>,
+    /// V7 recipe book for `characters.phase5_checkpoint`; absent on every pre-V7 request
+    /// and fingerprint (story 4.2).
+    pub phase5: Option<crate::domain::zone::Phase5Checkpoint>,
 }
 
 impl CharacterCheckpoint {
@@ -263,6 +310,9 @@ impl CharacterCheckpoint {
         if let (Some(phase4), Some(object)) = (&self.phase4, body.as_object_mut()) {
             object.insert("phase4".into(), serde_json::json!(phase4));
         }
+        if let (Some(phase5), Some(object)) = (&self.phase5, body.as_object_mut()) {
+            object.insert("phase5".into(), serde_json::json!(phase5));
+        }
         Sha256::digest(body.to_string().as_bytes())
             .iter()
             .fold(String::new(), |mut s, b| {
@@ -276,6 +326,9 @@ impl CharacterCheckpoint {
     /// Postgres would. Returns the violated constraint's name.
     #[must_use]
     pub fn violated_constraint(&self) -> Option<&'static str> {
+        if self.phase5.as_ref().is_some_and(|p| p.validate().is_err()) {
+            return Some("characters_phase5_checkpoint_valid");
+        }
         if self.phase4.as_ref().is_some_and(|p| {
             self.phase3.as_ref().is_none_or(|phase3| {
                 self.alive != (self.hp > 0 || phase3.resource_fractions.hp > 0)

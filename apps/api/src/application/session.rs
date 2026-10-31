@@ -454,8 +454,15 @@ impl SessionRegistry {
             loaded.name.as_str().clone_into(&mut spawn.name);
             spawn.pos = saved_position(loaded.position).ok_or(AdmitError::LoadFailed)?;
             let phase3 = v6_skill_origin(&loaded).map_err(|_| AdmitError::LoadFailed)?;
+            // Story 4.2: the PbPlayerLoad 11 producer. A V7 epoch receives the stored recipe
+            // book (or an empty one) bound to its rules; a pre-V7 epoch never receives one.
+            let phase5 = super::ports::phase5_admission_load(
+                loaded.phase5.clone(),
+                zone.phase5_rules_hash(),
+            )
+            .map_err(|_| AdmitError::LoadFailed)?;
             spawn.load = Some(Box::new(PlayerLoad {
-                phase5: None,
+                phase5,
                 phase4: loaded.phase4,
                 phase3,
                 progression: zone.has_classes().then(|| {

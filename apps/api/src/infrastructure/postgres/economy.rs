@@ -7,7 +7,13 @@
 //! lease-key order, completes/inserts deliveries, appends owner-kind ledger rows, stages the
 //! outbox facts and deletes the lease rows in the same key order. SQLSTATE `40P01`/`40001` are
 //! `Transient`; a CAS that touches no row is the permanent `economy_lease_violation` fence; other
-//! integrity violations are `Constraint(<name>)`.
+//! integrity violations are `Constraint(<name>)`. Every lease delete must remove exactly one
+//! row: an epoch whose leases were released (recovery) is fenced out with `LeaseViolation`.
+//!
+//! The actor path (story 4.2, c-review-4 P2-1) runs [`checkpoint_in`] inside the
+//! revision-fenced `PgCharacterRepository::checkpoint_with_economy` transaction, after the
+//! character fence. The standalone `EconomyCheckpointRepository::checkpoint_economy` here is for
+//! tests and tools only; no zone settlement calls it.
 
 use async_trait::async_trait;
 use sea_orm::{
@@ -390,7 +396,7 @@ impl EconomyCheckpointRepository for PgEconomyRepository {
     }
 }
 
-async fn checkpoint_in(
+pub(super) async fn checkpoint_in(
     tx: &DatabaseTransaction,
     write: &EconomyCheckpointWrite,
 ) -> Result<(), EconomyError> {
@@ -437,10 +443,29 @@ async fn checkpoint_in(
         .await?;
     }
     for key in &write.lease_releases {
-        execute(tx, "DELETE FROM economy_leases WHERE owner_kind=$1 AND owner_id=$2 AND zone_id=$3 AND epoch=$4",
+        let deleted = execute(tx, "DELETE FROM economy_leases WHERE owner_kind=$1 AND owner_id=$2 AND zone_id=$3 AND epoch=$4",
             vec![key.kind.name().into(), format!("{:039}", key.owner).into(), zone.into(), signed(write.epoch)?.into()]).await?;
+        // c-review-4 P2-1: a writer whose lease is gone (released by recovery) is fenced.
+        if deleted != 1 {
+            return Err(EconomyError::LeaseViolation(*key));
+        }
     }
     Ok(())
+}
+
+/// Maps an economy failure inside the character checkpoint transaction (story 4.2). The fence
+/// and integrity classes keep their names; anything else keeps the economy error as its cause.
+pub(super) fn checkpoint_error(error: EconomyError) -> crate::application::CheckpointError {
+    use crate::application::CheckpointError;
+    match error {
+        EconomyError::LeaseViolation(key) => {
+            CheckpointError::Constraint(format!("economy_lease_violation:{}", key.canonical()))
+        },
+        EconomyError::Constraint(name) => CheckpointError::Constraint(name),
+        other @ (EconomyError::Busy(_) | EconomyError::Transient(_) | EconomyError::Other(_)) => {
+            CheckpointError::Other(anyhow::Error::new(other))
+        },
+    }
 }
 
 #[async_trait]

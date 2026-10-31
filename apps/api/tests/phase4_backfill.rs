@@ -248,6 +248,7 @@ async fn seed(
     let alive = state != "dead";
     let phase3 = (state != "never_admitted").then(|| v5_checkpoint(v5, &ledger.learned_skills));
     let checkpoint = CharacterCheckpoint {
+        phase5: None,
         character_id: c.id,
         revision_seen: 0,
         level,

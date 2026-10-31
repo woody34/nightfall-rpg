@@ -404,6 +404,7 @@ async fn stale_checkpoint_fences_actor_and_never_releases_transfer() {
     drop(service);
     // Another writer advances the committed revision after the actor's last acknowledgement.
     let cp = CharacterCheckpoint {
+        phase5: None,
         phase4: None,
         phase3: None,
         character_id: h.character.id,

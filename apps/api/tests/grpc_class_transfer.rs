@@ -163,6 +163,7 @@ async fn offline_retry_returns_original_frozen_wire_response_after_later_checkpo
         })
         .unwrap();
     let cp = CharacterCheckpoint {
+        phase5: None,
         phase4: None,
         phase3: None,
         character_id: c.id,
@@ -208,6 +209,7 @@ async fn offline_retry_returns_original_frozen_wire_response_after_later_checkpo
     assert_eq!((first.token_tier_1_count, first.token_tier_2_count), (0, 1));
     assert!(first.granted_skill_keys.is_empty());
     let later = CharacterCheckpoint {
+        phase5: None,
         revision_seen: 1,
         level: 40,
         xp: 500,
