@@ -1,0 +1,26 @@
+{
+ "derived_by": "apps/client-unreal/Scripts/phase5-expectations.py over economy_oracle.py (1.5-1.7) and tables-phase5",
+ "expectations": {
+  "live_refill": "soak lane only unless 6.1 finds a tick fast-forward facility (E43)",
+  "merchant": {
+   "count": 10,
+   "item": 16127,
+   "list_id": 353630,
+   "npc": 35363,
+   "ref_price": 23000,
+   "restock_min": 60,
+   "source": "merchants.toml entries (Chamberlain/Alfred/Alfred.java _sellList0)",
+   "tax": "10"
+  },
+  "out_of_stock_reject": "VENDOR_OUT_OF_STOCK after `count` units",
+  "restock_minutes_source": "merchants.toml entries restock_min (V-R: 60 is the shortest pinned)",
+  "restock_ticks": 36000,
+  "stock": 10,
+  "unit_price_castle_0": 25300
+ },
+ "expectations_sha256": "edc42a027949033d20d828227486abea3661793df481389b65ce2f971c174e50",
+ "fixture": "phase5-vendor-restock",
+ "scenario": "5-vendor-restock.nfs",
+ "schema_version": 1,
+ "story": "5 E1.8"
+}

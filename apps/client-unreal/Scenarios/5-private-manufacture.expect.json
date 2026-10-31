@@ -1,0 +1,88 @@
+{
+ "derived_by": "apps/client-unreal/Scripts/phase5-expectations.py over economy_oracle.py (1.5-1.7) and tables-phase5",
+ "expectations": {
+  "fee": 1000,
+  "fee_kept_on_failure": true,
+  "manufacture_flood_ticks": 3,
+  "order": [
+   "mp",
+   "fee",
+   "materials",
+   "success_draw",
+   "masterwork_draw"
+  ],
+  "recipe": {
+   "alt_stat_change": [],
+   "craft_level": 1,
+   "id": 1,
+   "ingredients": [
+    {
+     "count": 4,
+     "id": 1864
+    },
+    {
+     "count": 2,
+     "id": 1869
+    }
+   ],
+   "name": "mk_wooden_arrow",
+   "production": {
+    "count": 500,
+    "id": 17
+   },
+   "recipe_id": 1666,
+   "stat_use": [
+    {
+     "name": "MP",
+     "value": 30
+    }
+   ],
+   "success_rate": 100,
+   "type": "dwarven"
+  },
+  "trace": {
+   "product": [
+    17,
+    500
+   ],
+   "result": "crafted",
+   "trace": [
+    [
+     "mp",
+     30
+    ],
+    [
+     "fee",
+     1000
+    ],
+    [
+     "materials",
+     [
+      [
+       1864,
+       4
+      ],
+      [
+       1869,
+       2
+      ]
+     ]
+    ],
+    [
+     "success_draw",
+     true
+    ],
+    [
+     "masterwork_draw",
+     0,
+     false
+    ]
+   ]
+  }
+ },
+ "expectations_sha256": "0f020e45e855a686299c50804f05b2f46bc548f3440206666cdbd289c285bca0",
+ "fixture": "phase5-manufacture",
+ "scenario": "5-private-manufacture.nfs",
+ "schema_version": 1,
+ "story": "5 E1.8"
+}

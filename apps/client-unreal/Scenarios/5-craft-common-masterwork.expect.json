@@ -1,0 +1,92 @@
+{
+ "derived_by": "apps/client-unreal/Scripts/phase5-expectations.py over economy_oracle.py (1.5-1.7) and tables-phase5",
+ "expectations": {
+  "common_recipes_with_rare_production": 0,
+  "masterwork_draw_always_taken": true,
+  "masterwork_outcome": "masterwork == false on every common craft: no pinned common recipe carries productionRare, so the always-taken rarity-0 draw never passes",
+  "masterwork_threshold": "0",
+  "outcome_carrier": "EconomyResult.craft.masterwork",
+  "rank_table": {
+   "ranks": [
+    {
+     "magic_level": 5,
+     "max_craft_level": 1,
+     "rank": 1
+    },
+    {
+     "magic_level": 5,
+     "max_craft_level": 2,
+     "rank": 2
+    },
+    {
+     "magic_level": 5,
+     "max_craft_level": 3,
+     "rank": 3
+    },
+    {
+     "magic_level": 5,
+     "max_craft_level": 4,
+     "rank": 4
+    },
+    {
+     "magic_level": 5,
+     "max_craft_level": 5,
+     "rank": 5
+    },
+    {
+     "magic_level": 5,
+     "max_craft_level": 6,
+     "rank": 6
+    },
+    {
+     "magic_level": 5,
+     "max_craft_level": 7,
+     "rank": 7
+    },
+    {
+     "magic_level": 5,
+     "max_craft_level": 8,
+     "rank": 8
+    },
+    {
+     "magic_level": 5,
+     "max_craft_level": 9,
+     "rank": 9
+    }
+   ],
+   "skill_id": 1320
+  },
+  "rarity": 0,
+  "recipe": {
+   "alt_stat_change": [],
+   "craft_level": 1,
+   "id": 686,
+   "ingredients": [
+    {
+     "count": 2,
+     "id": 6908
+    }
+   ],
+   "name": "mk_lesser_healing_potion",
+   "production": {
+    "count": 1,
+    "id": 1060
+   },
+   "recipe_id": 6926,
+   "stat_use": [
+    {
+     "name": "MP",
+     "value": 30
+    }
+   ],
+   "success_rate": 100,
+   "type": "common"
+  },
+  "success_threshold": "18446744073709551616"
+ },
+ "expectations_sha256": "75f8952ddfc61d9239ae1dbbb21c97b8187ad14a6c2e974a5fdfddfec8625aff",
+ "fixture": "phase5-craft-common",
+ "scenario": "5-craft-common-masterwork.nfs",
+ "schema_version": 1,
+ "story": "5 E1.8"
+}

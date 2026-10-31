@@ -1,0 +1,30 @@
+{
+ "derived_by": "apps/client-unreal/Scripts/phase5-expectations.py over economy_oracle.py (1.5-1.7) and tables-phase5",
+ "expectations": {
+  "add_invalidates": "the adder's own confirmation only",
+  "cancel_causes": [
+   "partner departs the zone",
+   "UseItem by a participant",
+   "beyond 150 units at confirm",
+   "partner dies"
+  ],
+  "ledger": "paired transfer_out/transfer_in rows linked by one receipt (B13)",
+  "no_partial_transfer": true,
+  "phases": [
+   "STARTED",
+   "ITEM_ADDED",
+   "PARTNER_CONFIRMED",
+   "COMPLETED",
+   "CANCELLED"
+  ],
+  "radius_l2_units": 150,
+  "request_expiry_ticks": 150,
+  "source": "E4/E10 (TradeRequest.java:168, TradeDone.java:91)",
+  "transaction_flood_ticks": 10
+ },
+ "expectations_sha256": "3a125256b7652cb66110439e1aceab5583297bbd8242e0242fd8262681f95c01",
+ "fixture": "phase5-trade",
+ "scenario": "5-trade-cancel-disconnect.nfs",
+ "schema_version": 1,
+ "story": "5 E1.8"
+}

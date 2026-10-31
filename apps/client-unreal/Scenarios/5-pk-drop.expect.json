@@ -1,0 +1,33 @@
+{
+ "derived_by": "apps/client-unreal/Scripts/phase5-expectations.py over economy_oracle.py (1.5-1.7) and tables-phase5",
+ "expectations": {
+  "decays": false,
+  "eligible_count": 15,
+  "excluded_templates": [
+   57
+  ],
+  "gate": {
+   "karma_rate_drop": 40,
+   "threshold": "7378697629483820647"
+  },
+  "iteration": "ascending ItemInstanceId (X4)",
+  "limit": 10,
+  "minimum_pk": 6,
+  "per_item": {
+   "equipped_other": 40,
+   "equipped_weapon": 10,
+   "inventory": 50
+  },
+  "position_offsets": [
+   -25,
+   24
+  ],
+  "protection": "none (E24)",
+  "unequip_before_roll": true
+ },
+ "expectations_sha256": "069e9fa6f5cc2208c4b736993d91926f1a0f290eb7b018b9ea08ddae14f4e969",
+ "fixture": "phase5-pk-drop",
+ "scenario": "5-pk-drop.nfs",
+ "schema_version": 1,
+ "story": "5 E1.8"
+}

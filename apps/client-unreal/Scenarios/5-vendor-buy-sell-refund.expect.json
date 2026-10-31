@@ -1,0 +1,56 @@
+{
+ "derived_by": "apps/client-unreal/Scripts/phase5-expectations.py over economy_oracle.py (1.5-1.7) and tables-phase5",
+ "expectations": {
+  "ledger_ops": [
+   "vendor_buy",
+   "vendor_sell",
+   "vendor_refund"
+  ],
+  "merchant": {
+   "item": 1294,
+   "list_id": 314130,
+   "npc": 31413,
+   "ref_price": 75,
+   "source": "merchants.toml entries (Merchant/Antonio/Antonio.java _sellList0)",
+   "tax": "15"
+  },
+  "refund_price_by_count": {
+   "1": 37,
+   "2": 75,
+   "3": 112,
+   "4": 150,
+   "5": 187
+  },
+  "refund_tab_after_13_sells": {
+   "destroyed": [
+    {
+     "count": 1,
+     "template": 1294
+    }
+   ],
+   "entries": 12
+  },
+  "sell_price_by_count": {
+   "1": 37,
+   "2": 74,
+   "3": 111,
+   "4": 148,
+   "5": 185
+  },
+  "transaction_flood_ticks": 10,
+  "unit_price_castle_0": 86,
+  "unit_price_table_row": {
+   "castle_0": 86,
+   "castle_15": 97,
+   "castle_25": 105,
+   "castle_5": 90,
+   "item": 1294,
+   "tax": "15"
+  }
+ },
+ "expectations_sha256": "e315a4fe7defc40a05a036456c4fb6e36b1d63499dc518004c911a119f219815",
+ "fixture": "phase5-vendors",
+ "scenario": "5-vendor-buy-sell-refund.nfs",
+ "schema_version": 1,
+ "story": "5 E1.8"
+}

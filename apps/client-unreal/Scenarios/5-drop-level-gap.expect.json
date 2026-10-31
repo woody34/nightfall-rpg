@@ -1,0 +1,1878 @@
+{
+ "derived_by": "apps/client-unreal/Scripts/phase5-expectations.py over economy_oracle.py (1.5-1.7) and tables-phase5",
+ "expectations": {
+  "l_table_source": "tables-phase5/adaptations.toml l_table (D \u00a73.3)",
+  "per_killer_level": {
+   "11": {
+    "L_adena_bits": "3ff0000000000000",
+    "L_item_bits": "3fea3d70a3d70a3d",
+    "d": -6,
+    "nodes": [
+     {
+      "C": "8078331831595827/140737488355328",
+      "C_bits": "404cb33333333333",
+      "L_bits": "3fea3d70a3d70a3d",
+      "draws_on_pass": [
+       "chance",
+       "quantity"
+      ],
+      "group_chance": "70",
+      "item_chance": "100",
+      "kind": "single_item_group",
+      "m_bits": "3ff0000000000000",
+      "max": 42,
+      "min": 30,
+      "pass_threshold": "10588431098309282366",
+      "precise_branch": false,
+      "template": 57
+     },
+     {
+      "L_bits": "3fea3d70a3d70a3d",
+      "S": "7738810930225479/281474976710656",
+      "S_bits": "403b7e68547ae147",
+      "draws_on_pass": [
+       "group",
+       "selection",
+       "quantity"
+      ],
+      "group_chance": "33.52899932861328",
+      "items": [
+       {
+        "T_bits": "403ea083126e978d",
+        "max": 1,
+        "min": 1,
+        "share_bits": "403ea083126e978d",
+        "template": 112
+       },
+       {
+        "T_bits": "404ab93a92a30553",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4036d1f212d77319",
+        "template": 118
+       },
+       {
+        "T_bits": "4059000000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "404746c56d5cfaad",
+        "template": 116
+       }
+      ],
+      "kind": "group",
+      "m_bits": "3ff0000000000000",
+      "mult_base": 1,
+      "pass_threshold": "5071707131232569918",
+      "precise_branch": false,
+      "remainder_bits": null
+     },
+     {
+      "L_bits": "3fea3d70a3d70a3d",
+      "S": "6184586282983751/1125899906842624",
+      "S_bits": "4015f8d9347ae147",
+      "draws_on_pass": [
+       "group",
+       "selection",
+       "quantity"
+      ],
+      "group_chance": "6.698800086975098",
+      "items": [
+       {
+        "T_bits": "403d204ea4a8c155",
+        "max": 1,
+        "min": 1,
+        "share_bits": "403d204ea4a8c155",
+        "template": 1864
+       },
+       {
+        "T_bits": "4045d83afb7e9100",
+        "max": 1,
+        "min": 1,
+        "share_bits": "402d204ea4a8c155",
+        "template": 1865
+       },
+       {
+        "T_bits": "404ab2f1a9fbe76d",
+        "max": 1,
+        "min": 1,
+        "share_bits": "40236adab9f559b5",
+        "template": 1866
+       },
+       {
+        "T_bits": "404d9c91d14e3bce",
+        "max": 1,
+        "min": 1,
+        "share_bits": "40174d013a92a305",
+        "template": 1873
+       },
+       {
+        "T_bits": "4056165c91d14e3c",
+        "max": 1,
+        "min": 1,
+        "share_bits": "403d204ea4a8c155",
+        "template": 1868
+       },
+       {
+        "T_bits": "4059000000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "40274d1b71758e23",
+        "template": 1788
+       }
+      ],
+      "kind": "group",
+      "m_bits": "3ff0000000000000",
+      "mult_base": 1,
+      "pass_threshold": "1013282616604057764",
+      "precise_branch": false,
+      "remainder_bits": null
+     },
+     {
+      "L_bits": "3fea3d70a3d70a3d",
+      "S": "605874887369687/17592186044416",
+      "S_bits": "40413851eb851eb8",
+      "draws_on_pass": [
+       "group",
+       "selection",
+       "quantity"
+      ],
+      "group_chance": "42.0",
+      "items": [
+       {
+        "T_bits": "404b800000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "404b800000000000",
+        "template": 8600
+       },
+       {
+        "T_bits": "4057400000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4043000000000000",
+        "template": 8601
+       },
+       {
+        "T_bits": "4059000000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "401c000000000000",
+        "template": 8602
+       }
+      ],
+      "kind": "group",
+      "m_bits": "3ff0000000000000",
+      "mult_base": 1,
+      "pass_threshold": "6353058658985569158",
+      "precise_branch": false,
+      "remainder_bits": null
+     },
+     {
+      "L_bits": "3fea3d70a3d70a3d",
+      "S": "2538904289930117/281474976710656",
+      "S_bits": "40220a3d70a3d70a",
+      "draws_on_pass": [
+       "group",
+       "selection",
+       "quantity"
+      ],
+      "group_chance": "11.0",
+      "items": [
+       {
+        "T_bits": "4049000000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4049000000000000",
+        "template": 8603
+       },
+       {
+        "T_bits": "4057400000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4045800000000000",
+        "template": 8604
+       },
+       {
+        "T_bits": "4059000000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "401c000000000000",
+        "template": 8605
+       }
+      ],
+      "kind": "group",
+      "m_bits": "3ff0000000000000",
+      "mult_base": 1,
+      "pass_threshold": "1663896315448601478",
+      "precise_branch": false,
+      "remainder_bits": null
+     },
+     {
+      "L_bits": "3fea3d70a3d70a3d",
+      "S": "41/2",
+      "S_bits": "4034800000000000",
+      "draws_on_pass": [
+       "group",
+       "selection",
+       "quantity"
+      ],
+      "group_chance": "25.0",
+      "items": [
+       {
+        "T_bits": "4034000000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4034000000000000",
+        "template": 8606
+       },
+       {
+        "T_bits": "4044000000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4034000000000000",
+        "template": 8608
+       },
+       {
+        "T_bits": "404e000000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4034000000000000",
+        "template": 8610
+       },
+       {
+        "T_bits": "4054000000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4034000000000000",
+        "template": 10655
+       },
+       {
+        "T_bits": "4059000000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4034000000000000",
+        "template": 10656
+       }
+      ],
+      "kind": "group",
+      "m_bits": "3ff0000000000000",
+      "mult_base": 1,
+      "pass_threshold": "3781582535110458082",
+      "precise_branch": false,
+      "remainder_bits": null
+     },
+     {
+      "L_bits": "3fea3d70a3d70a3d",
+      "S": "2308094809027379/281474976710656",
+      "S_bits": "4020666666666666",
+      "draws_on_pass": [
+       "group",
+       "selection",
+       "quantity"
+      ],
+      "group_chance": "10.0",
+      "items": [
+       {
+        "T_bits": "4049000000000001",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4049000000000001",
+        "template": 8607
+       },
+       {
+        "T_bits": "4059000000000001",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4049000000000001",
+        "template": 8609
+       }
+      ],
+      "kind": "group",
+      "m_bits": "3ff0000000000000",
+      "mult_base": 1,
+      "pass_threshold": "1512633014044183102",
+      "precise_branch": false,
+      "remainder_bits": null
+     },
+     {
+      "L_bits": "3fea3d70a3d70a3d",
+      "S": "3692951694443807/4503599627370496",
+      "S_bits": "3fea3d70a3d70a3e",
+      "draws_on_pass": [
+       "group",
+       "selection",
+       "quantity"
+      ],
+      "group_chance": "1.0",
+      "items": [
+       {
+        "T_bits": "40407fffffffffff",
+        "max": 1,
+        "min": 1,
+        "share_bits": "40407fffffffffff",
+        "template": 8612
+       },
+       {
+        "T_bits": "40507fffffffffff",
+        "max": 1,
+        "min": 1,
+        "share_bits": "40407fffffffffff",
+        "template": 8613
+       },
+       {
+        "T_bits": "4058fffffffffffe",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4040ffffffffffff",
+        "template": 8614
+       }
+      ],
+      "kind": "group",
+      "m_bits": "3ff0000000000000",
+      "mult_base": 1,
+      "pass_threshold": "151263301404418335",
+      "precise_branch": false,
+      "remainder_bits": null
+     },
+     {
+      "L_bits": "3fea3d70a3d70a3d",
+      "S": "2538904289930117/281474976710656",
+      "S_bits": "40220a3d70a3d70a",
+      "draws_on_pass": [
+       "group",
+       "selection",
+       "quantity"
+      ],
+      "group_chance": "11.0",
+      "items": [
+       {
+        "T_bits": "4057800000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4057800000000000",
+        "template": 8611
+       },
+       {
+        "T_bits": "4058400000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4008000000000000",
+        "template": 10657
+       },
+       {
+        "T_bits": "4059000000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4008000000000000",
+        "template": 13028
+       }
+      ],
+      "kind": "group",
+      "m_bits": "3ff0000000000000",
+      "mult_base": 1,
+      "pass_threshold": "1663896315448601478",
+      "precise_branch": false,
+      "remainder_bits": null
+     }
+    ]
+   },
+   "12": {
+    "L_adena_bits": "3ff0000000000000",
+    "L_item_bits": "3fe47ae147ae147b",
+    "d": -7,
+    "nodes": [
+     {
+      "C": "6305039478318695/140737488355328",
+      "C_bits": "4046666666666667",
+      "L_bits": "3fe47ae147ae147b",
+      "draws_on_pass": [
+       "chance",
+       "quantity"
+      ],
+      "group_chance": "70",
+      "item_chance": "100",
+      "kind": "single_item_group",
+      "m_bits": "3ff0000000000000",
+      "max": 42,
+      "min": 30,
+      "pass_threshold": "8264141345021879911",
+      "precise_branch": false,
+      "template": 57
+     },
+     {
+      "L_bits": "3fe47ae147ae147b",
+      "S": "377502972206121/17592186044416",
+      "S_bits": "4035756428f5c290",
+      "draws_on_pass": [
+       "group",
+       "selection",
+       "quantity"
+      ],
+      "group_chance": "33.52899932861328",
+      "items": [
+       {
+        "T_bits": "403ea083126e978c",
+        "max": 1,
+        "min": 1,
+        "share_bits": "403ea083126e978c",
+        "template": 112
+       },
+       {
+        "T_bits": "404ab93a92a30552",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4036d1f212d77318",
+        "template": 118
+       },
+       {
+        "T_bits": "4058ffffffffffff",
+        "max": 1,
+        "min": 1,
+        "share_bits": "404746c56d5cfaac",
+        "template": 116
+       }
+      ],
+      "kind": "group",
+      "m_bits": "3ff0000000000000",
+      "mult_base": 1,
+      "pass_threshold": "3958405565840055337",
+      "precise_branch": false,
+      "remainder_bits": null
+     },
+     {
+      "L_bits": "3fe47ae147ae147b",
+      "S": "301687135755305/70368744177664",
+      "S_bits": "4011262028f5c290",
+      "draws_on_pass": [
+       "group",
+       "selection",
+       "quantity"
+      ],
+      "group_chance": "6.698800086975098",
+      "items": [
+       {
+        "T_bits": "403d204ea4a8c154",
+        "max": 1,
+        "min": 1,
+        "share_bits": "403d204ea4a8c154",
+        "template": 1864
+       },
+       {
+        "T_bits": "4045d83afb7e90ff",
+        "max": 1,
+        "min": 1,
+        "share_bits": "402d204ea4a8c154",
+        "template": 1865
+       },
+       {
+        "T_bits": "404ab2f1a9fbe76c",
+        "max": 1,
+        "min": 1,
+        "share_bits": "40236adab9f559b4",
+        "template": 1866
+       },
+       {
+        "T_bits": "404d9c91d14e3bcc",
+        "max": 1,
+        "min": 1,
+        "share_bits": "40174d013a92a304",
+        "template": 1873
+       },
+       {
+        "T_bits": "4056165c91d14e3b",
+        "max": 1,
+        "min": 1,
+        "share_bits": "403d204ea4a8c154",
+        "template": 1868
+       },
+       {
+        "T_bits": "4058ffffffffffff",
+        "max": 1,
+        "min": 1,
+        "share_bits": "40274d1b71758e22",
+        "template": 1788
+       }
+      ],
+      "kind": "group",
+      "m_bits": "3ff0000000000000",
+      "mult_base": 1,
+      "pass_threshold": "790854725154386740",
+      "precise_branch": false,
+      "remainder_bits": null
+     },
+     {
+      "L_bits": "3fe47ae147ae147b",
+      "S": "3783023686991217/140737488355328",
+      "S_bits": "403ae147ae147ae2",
+      "draws_on_pass": [
+       "group",
+       "selection",
+       "quantity"
+      ],
+      "group_chance": "42.0",
+      "items": [
+       {
+        "T_bits": "404b800000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "404b800000000000",
+        "template": 8600
+       },
+       {
+        "T_bits": "4057400000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4043000000000000",
+        "template": 8601
+       },
+       {
+        "T_bits": "4059000000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "401bffffffffffff",
+        "template": 8602
+       }
+      ],
+      "kind": "group",
+      "m_bits": "3ff0000000000000",
+      "mult_base": 1,
+      "pass_threshold": "4958484807013127947",
+      "precise_branch": false,
+      "remainder_bits": null
+     },
+     {
+      "L_bits": "3fe47ae147ae147b",
+      "S": "7926335344172073/1125899906842624",
+      "S_bits": "401c28f5c28f5c29",
+      "draws_on_pass": [
+       "group",
+       "selection",
+       "quantity"
+      ],
+      "group_chance": "11.0",
+      "items": [
+       {
+        "T_bits": "4049000000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4049000000000000",
+        "template": 8603
+       },
+       {
+        "T_bits": "4057400000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4045800000000001",
+        "template": 8604
+       },
+       {
+        "T_bits": "4059000000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "401c000000000000",
+        "template": 8605
+       }
+      ],
+      "kind": "group",
+      "m_bits": "3ff0000000000000",
+      "mult_base": 1,
+      "pass_threshold": "1298650782789152441",
+      "precise_branch": false,
+      "remainder_bits": null
+     },
+     {
+      "L_bits": "3fe47ae147ae147b",
+      "S": "16/1",
+      "S_bits": "4030000000000000",
+      "draws_on_pass": [
+       "group",
+       "selection",
+       "quantity"
+      ],
+      "group_chance": "25.0",
+      "items": [
+       {
+        "T_bits": "4034000000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4034000000000000",
+        "template": 8606
+       },
+       {
+        "T_bits": "4044000000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4034000000000000",
+        "template": 8608
+       },
+       {
+        "T_bits": "404e000000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4034000000000000",
+        "template": 8610
+       },
+       {
+        "T_bits": "4054000000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4034000000000000",
+        "template": 10655
+       },
+       {
+        "T_bits": "4059000000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4034000000000000",
+        "template": 10656
+       }
+      ],
+      "kind": "group",
+      "m_bits": "3ff0000000000000",
+      "mult_base": 1,
+      "pass_threshold": "2951479051793528259",
+      "precise_branch": false,
+      "remainder_bits": null
+     },
+     {
+      "L_bits": "3fe47ae147ae147b",
+      "S": "3602879701896397/562949953421312",
+      "S_bits": "401999999999999a",
+      "draws_on_pass": [
+       "group",
+       "selection",
+       "quantity"
+      ],
+      "group_chance": "10.0",
+      "items": [
+       {
+        "T_bits": "4049000000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4049000000000000",
+        "template": 8607
+       },
+       {
+        "T_bits": "4059000000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4049000000000000",
+        "template": 8609
+       }
+      ],
+      "kind": "group",
+      "m_bits": "3ff0000000000000",
+      "mult_base": 1,
+      "pass_threshold": "1180591620717411369",
+      "precise_branch": false,
+      "remainder_bits": null
+     },
+     {
+      "L_bits": "3fe47ae147ae147b",
+      "S": "5764607523034235/9007199254740992",
+      "S_bits": "3fe47ae147ae147b",
+      "draws_on_pass": [
+       "group",
+       "selection",
+       "quantity"
+      ],
+      "group_chance": "1.0",
+      "items": [
+       {
+        "T_bits": "4040800000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4040800000000000",
+        "template": 8612
+       },
+       {
+        "T_bits": "4050800000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4040800000000000",
+        "template": 8613
+       },
+       {
+        "T_bits": "4059000000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4041000000000000",
+        "template": 8614
+       }
+      ],
+      "kind": "group",
+      "m_bits": "3ff0000000000000",
+      "mult_base": 1,
+      "pass_threshold": "118059162071741133",
+      "precise_branch": false,
+      "remainder_bits": null
+     },
+     {
+      "L_bits": "3fe47ae147ae147b",
+      "S": "990791918021509/140737488355328",
+      "S_bits": "401c28f5c28f5c28",
+      "draws_on_pass": [
+       "group",
+       "selection",
+       "quantity"
+      ],
+      "group_chance": "11.0",
+      "items": [
+       {
+        "T_bits": "4057800000000001",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4057800000000001",
+        "template": 8611
+       },
+       {
+        "T_bits": "4058400000000001",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4008000000000001",
+        "template": 10657
+       },
+       {
+        "T_bits": "4059000000000001",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4008000000000001",
+        "template": 13028
+       }
+      ],
+      "kind": "group",
+      "m_bits": "3ff0000000000000",
+      "mult_base": 1,
+      "pass_threshold": "1298650782789152277",
+      "precise_branch": false,
+      "remainder_bits": null
+     }
+    ]
+   },
+   "13": {
+    "L_adena_bits": "3ff0000000000000",
+    "L_item_bits": "3fdd70a3d70a3d71",
+    "d": -8,
+    "nodes": [
+     {
+      "C": "2265873562520781/70368744177664",
+      "C_bits": "404019999999999a",
+      "L_bits": "3fdd70a3d70a3d71",
+      "draws_on_pass": [
+       "chance",
+       "quantity"
+      ],
+      "group_chance": "70",
+      "item_chance": "100",
+      "kind": "single_item_group",
+      "m_bits": "3ff0000000000000",
+      "max": 42,
+      "min": 30,
+      "pass_threshold": "5939851591734476145",
+      "precise_branch": false,
+      "template": 57
+     },
+     {
+      "L_bits": "3fdd70a3d70a3d71",
+      "S": "8682568360740783/562949953421312",
+      "S_bits": "402ed8bffae147af",
+      "draws_on_pass": [
+       "group",
+       "selection",
+       "quantity"
+      ],
+      "group_chance": "33.52899932861328",
+      "items": [
+       {
+        "T_bits": "403ea083126e978d",
+        "max": 1,
+        "min": 1,
+        "share_bits": "403ea083126e978d",
+        "template": 112
+       },
+       {
+        "T_bits": "404ab93a92a30553",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4036d1f212d77319",
+        "template": 118
+       },
+       {
+        "T_bits": "4059000000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "404746c56d5cfaad",
+        "template": 116
+       }
+      ],
+      "kind": "group",
+      "m_bits": "3ff0000000000000",
+      "mult_base": 1,
+      "pass_threshold": "2845104000447539774",
+      "precise_branch": false,
+      "remainder_bits": null
+     },
+     {
+      "L_bits": "3fdd70a3d70a3d71",
+      "S": "6938804122372015/2251799813685248",
+      "S_bits": "4008a6ce3ae147af",
+      "draws_on_pass": [
+       "group",
+       "selection",
+       "quantity"
+      ],
+      "group_chance": "6.698800086975098",
+      "items": [
+       {
+        "T_bits": "403d204ea4a8c154",
+        "max": 1,
+        "min": 1,
+        "share_bits": "403d204ea4a8c154",
+        "template": 1864
+       },
+       {
+        "T_bits": "4045d83afb7e90ff",
+        "max": 1,
+        "min": 1,
+        "share_bits": "402d204ea4a8c154",
+        "template": 1865
+       },
+       {
+        "T_bits": "404ab2f1a9fbe76c",
+        "max": 1,
+        "min": 1,
+        "share_bits": "40236adab9f559b4",
+        "template": 1866
+       },
+       {
+        "T_bits": "404d9c91d14e3bcc",
+        "max": 1,
+        "min": 1,
+        "share_bits": "40174d013a92a304",
+        "template": 1873
+       },
+       {
+        "T_bits": "4056165c91d14e3b",
+        "max": 1,
+        "min": 1,
+        "share_bits": "403d204ea4a8c154",
+        "template": 1868
+       },
+       {
+        "T_bits": "4058ffffffffffff",
+        "max": 1,
+        "min": 1,
+        "share_bits": "40274d1b71758e22",
+        "template": 1788
+       }
+      ],
+      "kind": "group",
+      "m_bits": "3ff0000000000000",
+      "mult_base": 1,
+      "pass_threshold": "568426833704715469",
+      "precise_branch": false,
+      "remainder_bits": null
+     },
+     {
+      "L_bits": "3fdd70a3d70a3d71",
+      "S": "2719048275024937/140737488355328",
+      "S_bits": "403351eb851eb852",
+      "draws_on_pass": [
+       "group",
+       "selection",
+       "quantity"
+      ],
+      "group_chance": "42.0",
+      "items": [
+       {
+        "T_bits": "404b800000000001",
+        "max": 1,
+        "min": 1,
+        "share_bits": "404b800000000001",
+        "template": 8600
+       },
+       {
+        "T_bits": "4057400000000001",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4043000000000001",
+        "template": 8601
+       },
+       {
+        "T_bits": "4059000000000001",
+        "max": 1,
+        "min": 1,
+        "share_bits": "401c000000000000",
+        "template": 8602
+       }
+      ],
+      "kind": "group",
+      "m_bits": "3ff0000000000000",
+      "mult_base": 1,
+      "pass_threshold": "3563910955040685425",
+      "precise_branch": false,
+      "remainder_bits": null
+     },
+     {
+      "L_bits": "3fdd70a3d70a3d71",
+      "S": "5697053528623677/1125899906842624",
+      "S_bits": "40143d70a3d70a3d",
+      "draws_on_pass": [
+       "group",
+       "selection",
+       "quantity"
+      ],
+      "group_chance": "11.0",
+      "items": [
+       {
+        "T_bits": "4049000000000001",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4049000000000001",
+        "template": 8603
+       },
+       {
+        "T_bits": "4057400000000001",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4045800000000001",
+        "template": 8604
+       },
+       {
+        "T_bits": "4059000000000001",
+        "max": 1,
+        "min": 1,
+        "share_bits": "401c000000000001",
+        "template": 8605
+       }
+      ],
+      "kind": "group",
+      "m_bits": "3ff0000000000000",
+      "mult_base": 1,
+      "pass_threshold": "933405250129703240",
+      "precise_branch": false,
+      "remainder_bits": null
+     },
+     {
+      "L_bits": "3fdd70a3d70a3d71",
+      "S": "23/2",
+      "S_bits": "4027000000000000",
+      "draws_on_pass": [
+       "group",
+       "selection",
+       "quantity"
+      ],
+      "group_chance": "25.0",
+      "items": [
+       {
+        "T_bits": "4034000000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4034000000000000",
+        "template": 8606
+       },
+       {
+        "T_bits": "4044000000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4034000000000000",
+        "template": 8608
+       },
+       {
+        "T_bits": "404e000000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4034000000000000",
+        "template": 8610
+       },
+       {
+        "T_bits": "4054000000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4034000000000000",
+        "template": 10655
+       },
+       {
+        "T_bits": "4059000000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4034000000000000",
+        "template": 10656
+       }
+      ],
+      "kind": "group",
+      "m_bits": "3ff0000000000000",
+      "mult_base": 1,
+      "pass_threshold": "2121375568476598436",
+      "precise_branch": false,
+      "remainder_bits": null
+     },
+     {
+      "L_bits": "3fdd70a3d70a3d71",
+      "S": "2589569785738035/562949953421312",
+      "S_bits": "4012666666666666",
+      "draws_on_pass": [
+       "group",
+       "selection",
+       "quantity"
+      ],
+      "group_chance": "10.0",
+      "items": [
+       {
+        "T_bits": "4049000000000001",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4049000000000001",
+        "template": 8607
+       },
+       {
+        "T_bits": "4059000000000001",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4049000000000001",
+        "template": 8609
+       }
+      ],
+      "kind": "group",
+      "m_bits": "3ff0000000000000",
+      "mult_base": 1,
+      "pass_threshold": "848550227390639309",
+      "precise_branch": false,
+      "remainder_bits": null
+     },
+     {
+      "L_bits": "3fdd70a3d70a3d71",
+      "S": "4143311657180857/9007199254740992",
+      "S_bits": "3fdd70a3d70a3d72",
+      "draws_on_pass": [
+       "group",
+       "selection",
+       "quantity"
+      ],
+      "group_chance": "1.0",
+      "items": [
+       {
+        "T_bits": "4040800000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4040800000000000",
+        "template": 8612
+       },
+       {
+        "T_bits": "4050800000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4040800000000000",
+        "template": 8613
+       },
+       {
+        "T_bits": "4059000000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4040ffffffffffff",
+        "template": 8614
+       }
+      ],
+      "kind": "group",
+      "m_bits": "3ff0000000000000",
+      "mult_base": 1,
+      "pass_threshold": "84855022739063952",
+      "precise_branch": false,
+      "remainder_bits": null
+     },
+     {
+      "L_bits": "3fdd70a3d70a3d71",
+      "S": "5697053528623677/1125899906842624",
+      "S_bits": "40143d70a3d70a3d",
+      "draws_on_pass": [
+       "group",
+       "selection",
+       "quantity"
+      ],
+      "group_chance": "11.0",
+      "items": [
+       {
+        "T_bits": "4057800000000001",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4057800000000001",
+        "template": 8611
+       },
+       {
+        "T_bits": "4058400000000001",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4008000000000001",
+        "template": 10657
+       },
+       {
+        "T_bits": "4059000000000001",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4008000000000001",
+        "template": 13028
+       }
+      ],
+      "kind": "group",
+      "m_bits": "3ff0000000000000",
+      "mult_base": 1,
+      "pass_threshold": "933405250129703240",
+      "precise_branch": false,
+      "remainder_bits": null
+     }
+    ]
+   },
+   "14": {
+    "L_adena_bits": "3febe2be2be2be2c",
+    "L_item_bits": "3fd1eb851eb851ec",
+    "d": -9,
+    "nodes": [
+     {
+      "C": "2758454771764429/140737488355328",
+      "C_bits": "403399999999999a",
+      "L_bits": "3fd1eb851eb851ec",
+      "draws_on_pass": [
+       "chance",
+       "quantity"
+      ],
+      "group_chance": "70",
+      "item_chance": "100",
+      "kind": "single_item_group",
+      "m_bits": "3ff0000000000000",
+      "max": 42,
+      "min": 30,
+      "pass_threshold": "3615561838447072379",
+      "precise_branch": false,
+      "template": 57
+     },
+     {
+      "L_bits": "3fd1eb851eb851ec",
+      "S": "2642520805442847/281474976710656",
+      "S_bits": "4022c6b7a3d70a3e",
+      "draws_on_pass": [
+       "group",
+       "selection",
+       "quantity"
+      ],
+      "group_chance": "33.52899932861328",
+      "items": [
+       {
+        "T_bits": "403ea083126e978e",
+        "max": 1,
+        "min": 1,
+        "share_bits": "403ea083126e978e",
+        "template": 112
+       },
+       {
+        "T_bits": "404ab93a92a30554",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4036d1f212d77319",
+        "template": 118
+       },
+       {
+        "T_bits": "4059000000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "404746c56d5cfaac",
+        "template": 116
+       }
+      ],
+      "kind": "group",
+      "m_bits": "3ff0000000000000",
+      "mult_base": 1,
+      "pass_threshold": "1731802435055024210",
+      "precise_branch": false,
+      "remainder_bits": null
+     },
+     {
+      "L_bits": "3fd1eb851eb851ec",
+      "S": "2111809950287135/1125899906842624",
+      "S_bits": "3ffe02b847ae147c",
+      "draws_on_pass": [
+       "group",
+       "selection",
+       "quantity"
+      ],
+      "group_chance": "6.698800086975098",
+      "items": [
+       {
+        "T_bits": "403d204ea4a8c155",
+        "max": 1,
+        "min": 1,
+        "share_bits": "403d204ea4a8c155",
+        "template": 1864
+       },
+       {
+        "T_bits": "4045d83afb7e9100",
+        "max": 1,
+        "min": 1,
+        "share_bits": "402d204ea4a8c155",
+        "template": 1865
+       },
+       {
+        "T_bits": "404ab2f1a9fbe76d",
+        "max": 1,
+        "min": 1,
+        "share_bits": "40236adab9f559b4",
+        "template": 1866
+       },
+       {
+        "T_bits": "404d9c91d14e3bce",
+        "max": 1,
+        "min": 1,
+        "share_bits": "40174d013a92a304",
+        "template": 1873
+       },
+       {
+        "T_bits": "4056165c91d14e3c",
+        "max": 1,
+        "min": 1,
+        "share_bits": "403d204ea4a8c155",
+        "template": 1868
+       },
+       {
+        "T_bits": "4059000000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "40274d1b71758e22",
+        "template": 1788
+       }
+      ],
+      "kind": "group",
+      "m_bits": "3ff0000000000000",
+      "mult_base": 1,
+      "pass_threshold": "345998942255044199",
+      "precise_branch": false,
+      "remainder_bits": null
+     },
+     {
+      "L_bits": "3fd1eb851eb851ec",
+      "S": "3310145726117315/281474976710656",
+      "S_bits": "4027851eb851eb86",
+      "draws_on_pass": [
+       "group",
+       "selection",
+       "quantity"
+      ],
+      "group_chance": "42.0",
+      "items": [
+       {
+        "T_bits": "404b800000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "404b800000000000",
+        "template": 8600
+       },
+       {
+        "T_bits": "4057400000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4043000000000000",
+        "template": 8601
+       },
+       {
+        "T_bits": "4059000000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "401c000000000000",
+        "template": 8602
+       }
+      ],
+      "kind": "group",
+      "m_bits": "3ff0000000000000",
+      "mult_base": 1,
+      "pass_threshold": "2169337103068243559",
+      "precise_branch": false,
+      "remainder_bits": null
+     },
+     {
+      "L_bits": "3fd1eb851eb851ec",
+      "S": "3467771713075283/1125899906842624",
+      "S_bits": "4008a3d70a3d70a6",
+      "draws_on_pass": [
+       "group",
+       "selection",
+       "quantity"
+      ],
+      "group_chance": "11.0",
+      "items": [
+       {
+        "T_bits": "4048ffffffffffff",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4048ffffffffffff",
+        "template": 8603
+       },
+       {
+        "T_bits": "40573fffffffffff",
+        "max": 1,
+        "min": 1,
+        "share_bits": "40457fffffffffff",
+        "template": 8604
+       },
+       {
+        "T_bits": "4058ffffffffffff",
+        "max": 1,
+        "min": 1,
+        "share_bits": "401bfffffffffffe",
+        "template": 8605
+       }
+      ],
+      "kind": "group",
+      "m_bits": "3ff0000000000000",
+      "mult_base": 1,
+      "pass_threshold": "568159717470254367",
+      "precise_branch": false,
+      "remainder_bits": null
+     },
+     {
+      "L_bits": "3fd1eb851eb851ec",
+      "S": "7/1",
+      "S_bits": "401c000000000000",
+      "draws_on_pass": [
+       "group",
+       "selection",
+       "quantity"
+      ],
+      "group_chance": "25.0",
+      "items": [
+       {
+        "T_bits": "4034000000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4034000000000000",
+        "template": 8606
+       },
+       {
+        "T_bits": "4044000000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4034000000000000",
+        "template": 8608
+       },
+       {
+        "T_bits": "404e000000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4034000000000000",
+        "template": 8610
+       },
+       {
+        "T_bits": "4054000000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4034000000000000",
+        "template": 10655
+       },
+       {
+        "T_bits": "4059000000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4034000000000000",
+        "template": 10656
+       }
+      ],
+      "kind": "group",
+      "m_bits": "3ff0000000000000",
+      "mult_base": 1,
+      "pass_threshold": "1291272085159668614",
+      "precise_branch": false,
+      "remainder_bits": null
+     },
+     {
+      "L_bits": "3fd1eb851eb851ec",
+      "S": "3152519739159347/1125899906842624",
+      "S_bits": "4006666666666666",
+      "draws_on_pass": [
+       "group",
+       "selection",
+       "quantity"
+      ],
+      "group_chance": "10.0",
+      "items": [
+       {
+        "T_bits": "4049000000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4049000000000000",
+        "template": 8607
+       },
+       {
+        "T_bits": "4059000000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4049000000000000",
+        "template": 8609
+       }
+      ],
+      "kind": "group",
+      "m_bits": "3ff0000000000000",
+      "mult_base": 1,
+      "pass_threshold": "516508834063867413",
+      "precise_branch": false,
+      "remainder_bits": null
+     },
+     {
+      "L_bits": "3fd1eb851eb851ec",
+      "S": "1261007895663739/4503599627370496",
+      "S_bits": "3fd1eb851eb851ec",
+      "draws_on_pass": [
+       "group",
+       "selection",
+       "quantity"
+      ],
+      "group_chance": "1.0",
+      "items": [
+       {
+        "T_bits": "4040800000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4040800000000000",
+        "template": 8612
+       },
+       {
+        "T_bits": "4050800000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4040800000000000",
+        "template": 8613
+       },
+       {
+        "T_bits": "4059000000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4041000000000000",
+        "template": 8614
+       }
+      ],
+      "kind": "group",
+      "m_bits": "3ff0000000000000",
+      "mult_base": 1,
+      "pass_threshold": "51650883406386750",
+      "precise_branch": false,
+      "remainder_bits": null
+     },
+     {
+      "L_bits": "3fd1eb851eb851ec",
+      "S": "6935543426150565/2251799813685248",
+      "S_bits": "4008a3d70a3d70a5",
+      "draws_on_pass": [
+       "group",
+       "selection",
+       "quantity"
+      ],
+      "group_chance": "11.0",
+      "items": [
+       {
+        "T_bits": "4057800000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4057800000000000",
+        "template": 8611
+       },
+       {
+        "T_bits": "4058400000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4007ffffffffffff",
+        "template": 10657
+       },
+       {
+        "T_bits": "4059000000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4007ffffffffffff",
+        "template": 13028
+       }
+      ],
+      "kind": "group",
+      "m_bits": "3ff0000000000000",
+      "mult_base": 1,
+      "pass_threshold": "568159717470254285",
+      "precise_branch": false,
+      "remainder_bits": null
+     }
+    ]
+   },
+   "15": {
+    "L_adena_bits": "3fe7c57c57c57c58",
+    "L_item_bits": "3fb999999999999a",
+    "d": -10,
+    "nodes": [
+     {
+      "C": "7/1",
+      "C_bits": "401c000000000000",
+      "L_bits": "3fb999999999999a",
+      "draws_on_pass": [
+       "chance",
+       "quantity"
+      ],
+      "group_chance": "70",
+      "item_chance": "100",
+      "kind": "single_item_group",
+      "m_bits": "3ff0000000000000",
+      "max": 42,
+      "min": 30,
+      "pass_threshold": "1291272085159668614",
+      "precise_branch": false,
+      "template": 57
+     },
+     {
+      "L_bits": "3fb999999999999a",
+      "S": "1887514861030605/562949953421312",
+      "S_bits": "400ad2bd33333334",
+      "draws_on_pass": [
+       "group",
+       "selection",
+       "quantity"
+      ],
+      "group_chance": "33.52899932861328",
+      "items": [
+       {
+        "T_bits": "403ea083126e978d",
+        "max": 1,
+        "min": 1,
+        "share_bits": "403ea083126e978d",
+        "template": 112
+       },
+       {
+        "T_bits": "404ab93a92a30552",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4036d1f212d77318",
+        "template": 118
+       },
+       {
+        "T_bits": "4059000000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "404746c56d5cfaad",
+        "template": 116
+       }
+      ],
+      "kind": "group",
+      "m_bits": "3ff0000000000000",
+      "mult_base": 1,
+      "pass_threshold": "618500869662508647",
+      "precise_branch": false,
+      "remainder_bits": null
+     },
+     {
+      "L_bits": "3fb999999999999a",
+      "S": "1508435678776525/2251799813685248",
+      "S_bits": "3fe56fa833333334",
+      "draws_on_pass": [
+       "group",
+       "selection",
+       "quantity"
+      ],
+      "group_chance": "6.698800086975098",
+      "items": [
+       {
+        "T_bits": "403d204ea4a8c155",
+        "max": 1,
+        "min": 1,
+        "share_bits": "403d204ea4a8c155",
+        "template": 1864
+       },
+       {
+        "T_bits": "4045d83afb7e9100",
+        "max": 1,
+        "min": 1,
+        "share_bits": "402d204ea4a8c155",
+        "template": 1865
+       },
+       {
+        "T_bits": "404ab2f1a9fbe76d",
+        "max": 1,
+        "min": 1,
+        "share_bits": "40236adab9f559b4",
+        "template": 1866
+       },
+       {
+        "T_bits": "404d9c91d14e3bce",
+        "max": 1,
+        "min": 1,
+        "share_bits": "40174d013a92a304",
+        "template": 1873
+       },
+       {
+        "T_bits": "4056165c91d14e3c",
+        "max": 1,
+        "min": 1,
+        "share_bits": "403d204ea4a8c155",
+        "template": 1868
+       },
+       {
+        "T_bits": "4059000000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "40274d1b71758e22",
+        "template": 1788
+       }
+      ],
+      "kind": "group",
+      "m_bits": "3ff0000000000000",
+      "mult_base": 1,
+      "pass_threshold": "123571050805372928",
+      "precise_branch": false,
+      "remainder_bits": null
+     },
+     {
+      "L_bits": "3fb999999999999a",
+      "S": "2364389804369511/562949953421312",
+      "S_bits": "4010ccccccccccce",
+      "draws_on_pass": [
+       "group",
+       "selection",
+       "quantity"
+      ],
+      "group_chance": "42.0",
+      "items": [
+       {
+        "T_bits": "404b7ffffffffffe",
+        "max": 1,
+        "min": 1,
+        "share_bits": "404b7ffffffffffe",
+        "template": 8600
+       },
+       {
+        "T_bits": "40573ffffffffffe",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4042ffffffffffff",
+        "template": 8601
+       },
+       {
+        "T_bits": "4058fffffffffffe",
+        "max": 1,
+        "min": 1,
+        "share_bits": "401bffffffffffff",
+        "template": 8602
+       }
+      ],
+      "kind": "group",
+      "m_bits": "3ff0000000000000",
+      "mult_base": 1,
+      "pass_threshold": "774763251095801365",
+      "precise_branch": false,
+      "remainder_bits": null
+     },
+     {
+      "L_bits": "3fb999999999999a",
+      "S": "2476979795053773/2251799813685248",
+      "S_bits": "3ff199999999999a",
+      "draws_on_pass": [
+       "group",
+       "selection",
+       "quantity"
+      ],
+      "group_chance": "11.0",
+      "items": [
+       {
+        "T_bits": "4048ffffffffffff",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4048ffffffffffff",
+        "template": 8603
+       },
+       {
+        "T_bits": "4057400000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4045800000000000",
+        "template": 8604
+       },
+       {
+        "T_bits": "4059000000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "401c000000000000",
+        "template": 8605
+       }
+      ],
+      "kind": "group",
+      "m_bits": "3ff0000000000000",
+      "mult_base": 1,
+      "pass_threshold": "202914184810805085",
+      "precise_branch": false,
+      "remainder_bits": null
+     },
+     {
+      "L_bits": "3fb999999999999a",
+      "S": "5/2",
+      "S_bits": "4004000000000000",
+      "draws_on_pass": [
+       "group",
+       "selection",
+       "quantity"
+      ],
+      "group_chance": "25.0",
+      "items": [
+       {
+        "T_bits": "4034000000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4034000000000000",
+        "template": 8606
+       },
+       {
+        "T_bits": "4044000000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4034000000000000",
+        "template": 8608
+       },
+       {
+        "T_bits": "404e000000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4034000000000000",
+        "template": 8610
+       },
+       {
+        "T_bits": "4054000000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4034000000000000",
+        "template": 10655
+       },
+       {
+        "T_bits": "4059000000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4034000000000000",
+        "template": 10656
+       }
+      ],
+      "kind": "group",
+      "m_bits": "3ff0000000000000",
+      "mult_base": 1,
+      "pass_threshold": "461168601842738791",
+      "precise_branch": false,
+      "remainder_bits": null
+     },
+     {
+      "L_bits": "3fb999999999999a",
+      "S": "1/1",
+      "S_bits": "3ff0000000000000",
+      "draws_on_pass": [
+       "group",
+       "selection",
+       "quantity"
+      ],
+      "group_chance": "10.0",
+      "items": [
+       {
+        "T_bits": "4049000000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4049000000000000",
+        "template": 8607
+       },
+       {
+        "T_bits": "4059000000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4049000000000000",
+        "template": 8609
+       }
+      ],
+      "kind": "group",
+      "m_bits": "3ff0000000000000",
+      "mult_base": 1,
+      "pass_threshold": "184467440737095517",
+      "precise_branch": false,
+      "remainder_bits": null
+     },
+     {
+      "L_bits": "3fb999999999999a",
+      "S": "3602879701896397/36028797018963968",
+      "S_bits": "3fb999999999999a",
+      "draws_on_pass": [
+       "group",
+       "selection",
+       "quantity"
+      ],
+      "group_chance": "1.0",
+      "items": [
+       {
+        "T_bits": "4040800000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4040800000000000",
+        "template": 8612
+       },
+       {
+        "T_bits": "4050800000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4040800000000000",
+        "template": 8613
+       },
+       {
+        "T_bits": "4059000000000000",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4041000000000000",
+        "template": 8614
+       }
+      ],
+      "kind": "group",
+      "m_bits": "3ff0000000000000",
+      "mult_base": 1,
+      "pass_threshold": "18446744073709553",
+      "precise_branch": false,
+      "remainder_bits": null
+     },
+     {
+      "L_bits": "3fb999999999999a",
+      "S": "4953959590107545/4503599627370496",
+      "S_bits": "3ff1999999999999",
+      "draws_on_pass": [
+       "group",
+       "selection",
+       "quantity"
+      ],
+      "group_chance": "11.0",
+      "items": [
+       {
+        "T_bits": "4057800000000001",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4057800000000001",
+        "template": 8611
+       },
+       {
+        "T_bits": "4058400000000001",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4008000000000001",
+        "template": 10657
+       },
+       {
+        "T_bits": "4059000000000001",
+        "max": 1,
+        "min": 1,
+        "share_bits": "4008000000000001",
+        "template": 13028
+       }
+      ],
+      "kind": "group",
+      "m_bits": "3ff0000000000000",
+      "mult_base": 1,
+      "pass_threshold": "202914184810805044",
+      "precise_branch": false,
+      "remainder_bits": null
+     }
+    ]
+   }
+  }
+ },
+ "expectations_sha256": "28e4ada90fb34f15d94a8a18ecbed35b08e897605387cc5a12d89c115cfc1ead",
+ "fixture": "phase5-drops-gap",
+ "scenario": "5-drop-level-gap.nfs",
+ "schema_version": 1,
+ "story": "5 E1.8"
+}

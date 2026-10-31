@@ -1,0 +1,48 @@
+{
+ "derived_by": "apps/client-unreal/Scripts/phase5-expectations.py over economy_oracle.py (1.5-1.7) and tables-phase5",
+ "expectations": {
+  "apply_taxes": false,
+  "consumed": [
+   {
+    "enchant": 3,
+    "id": 1,
+    "template": 9417
+   }
+  ],
+  "entry": {
+   "ingredients": [
+    {
+     "count": 1,
+     "id": 9417,
+     "is_tax": false,
+     "maintain": false
+    }
+   ],
+   "products": [
+    {
+     "count": 1,
+     "id": 9416
+    }
+   ]
+  },
+  "entry_index": 0,
+  "events": "one ItemExchanged / EconomyResult(multisell) per exchange",
+  "list_id": 616,
+  "maintain_enchantment": true,
+  "multisell_flood_ticks": 1,
+  "npc": 32347,
+  "products_enchant_3": [
+   {
+    "count": 1,
+    "enchant": 3,
+    "template": 9416
+   }
+  ],
+  "validate_amount_2_non_stackable": "INVALID_QUANTITY"
+ },
+ "expectations_sha256": "67c1bfa2360ce278dc965bef216d09a380bb6574a699b8d51a0deaf836ab9ddf",
+ "fixture": "phase5-multisell",
+ "scenario": "5-multisell.nfs",
+ "schema_version": 1,
+ "story": "5 E1.8"
+}

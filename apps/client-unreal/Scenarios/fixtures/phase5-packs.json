@@ -1,0 +1,1563 @@
+{
+ "inputs_are_oracle_relevant_only": true,
+ "packs": {
+  "phase5-auction": {
+   "auction": {
+    "auction_id": 1,
+    "init_bid": 100000,
+    "instance": 32320,
+    "item": 9901
+   },
+   "fixed_npcs": [
+    {
+     "attackable": false,
+     "kind": "auctioneer",
+     "name": "auctioneer",
+     "npc_id": 32320,
+     "position": [
+      102,
+      100
+     ]
+    }
+   ],
+   "fixture_schedule": "2026-10-12T00:00:00Z",
+   "monsters": [],
+   "next_item_instance": 3,
+   "roles": [
+    {
+     "character_id": "01970000-0000-7000-8000-000000000050",
+     "class_id": 0,
+     "inventory": [
+      {
+       "count": 500000,
+       "enchant": 0,
+       "instance_id": 1,
+       "template_id": 57
+      }
+     ],
+     "level": 20,
+     "position": [
+      100,
+      100
+     ],
+     "role": "a"
+    },
+    {
+     "character_id": "01970000-0000-7000-8000-000000000051",
+     "class_id": 0,
+     "inventory": [
+      {
+       "count": 500000,
+       "enchant": 0,
+       "instance_id": 2,
+       "template_id": 57
+      }
+     ],
+     "level": 20,
+     "position": [
+      101,
+      100
+     ],
+     "role": "b"
+    }
+   ],
+   "zone": "test_zone"
+  },
+  "phase5-craft": {
+   "fixed_npcs": [],
+   "monsters": [],
+   "next_item_instance": 6,
+   "recipes": {
+    "dwarven": [
+     1,
+     322
+    ]
+   },
+   "roles": [
+    {
+     "character_id": "01970000-0000-7000-8000-000000000050",
+     "class_id": 54,
+     "create_item_rank": 2,
+     "inventory": [
+      {
+       "count": 1,
+       "enchant": 0,
+       "instance_id": 1,
+       "template_id": 1666
+      },
+      {
+       "count": 1,
+       "enchant": 0,
+       "instance_id": 2,
+       "template_id": 3838
+      },
+      {
+       "count": 8,
+       "enchant": 0,
+       "instance_id": 3,
+       "template_id": 1864
+      },
+      {
+       "count": 4,
+       "enchant": 0,
+       "instance_id": 4,
+       "template_id": 1869
+      },
+      {
+       "count": 1,
+       "enchant": 0,
+       "instance_id": 5,
+       "template_id": 3845
+      }
+     ],
+     "level": 20,
+     "position": [
+      100,
+      100
+     ],
+     "role": "a"
+    }
+   ],
+   "zone": "test_zone"
+  },
+  "phase5-craft-common": {
+   "fixed_npcs": [],
+   "monsters": [],
+   "next_item_instance": 3,
+   "recipes": {
+    "common": [
+     686
+    ]
+   },
+   "roles": [
+    {
+     "character_id": "01970000-0000-7000-8000-000000000050",
+     "class_id": 0,
+     "create_common_item_rank": 1,
+     "inventory": [
+      {
+       "count": 1,
+       "enchant": 0,
+       "instance_id": 1,
+       "template_id": 6926
+      },
+      {
+       "count": 6,
+       "enchant": 0,
+       "instance_id": 2,
+       "template_id": 6908
+      }
+     ],
+     "level": 20,
+     "position": [
+      100,
+      100
+     ],
+     "role": "a"
+    }
+   ],
+   "zone": "test_zone"
+  },
+  "phase5-decay": {
+   "fixed_npcs": [],
+   "monsters": [
+    {
+     "count": 1,
+     "home": [
+      103,
+      100
+     ],
+     "is_raid": false,
+     "level": 15,
+     "npc_id": 18478,
+     "slot_id": "npc_18478",
+     "source": "tables-phase5/drops.toml npc[id]"
+    },
+    {
+     "count": 1,
+     "home": [
+      103,
+      102
+     ],
+     "is_raid": false,
+     "level": 83,
+     "npc_id": 22370,
+     "slot_id": "auto_destroy_9849",
+     "source": "tables-phase5/drops.toml npc[id]"
+    }
+   ],
+   "next_item_instance": 2,
+   "note": "herb (60 s), ordinary loot (600 s), item 9849 (10 s); a's PK drop never decays",
+   "roles": [
+    {
+     "character_id": "01970000-0000-7000-8000-000000000050",
+     "class_id": 0,
+     "inventory": [
+      {
+       "count": 5,
+       "enchant": 0,
+       "instance_id": 1,
+       "template_id": 1864
+      }
+     ],
+     "karma": 100,
+     "level": 15,
+     "pk_count": 6,
+     "position": [
+      100,
+      100
+     ],
+     "role": "a"
+    }
+   ],
+   "zone": "test_zone"
+  },
+  "phase5-drops": {
+   "fixed_npcs": [],
+   "monsters": [
+    {
+     "count": 1,
+     "home": [
+      103,
+      100
+     ],
+     "is_raid": false,
+     "level": 81,
+     "npc_id": 22320,
+     "slot_id": "npc_22320",
+     "source": "tables-phase5/drops.toml npc[id]"
+    }
+   ],
+   "next_item_instance": 1,
+   "note": "22320 (level 81): ungrouped 9599, adena group, multi-item groups; b deals less damage than a (maxDealer tie rule asserted by lowest EntityId)",
+   "party": null,
+   "roles": [
+    {
+     "character_id": "01970000-0000-7000-8000-000000000050",
+     "class_id": 0,
+     "inventory": [],
+     "level": 81,
+     "position": [
+      100,
+      100
+     ],
+     "role": "a"
+    },
+    {
+     "character_id": "01970000-0000-7000-8000-000000000051",
+     "class_id": 0,
+     "inventory": [],
+     "level": 81,
+     "position": [
+      101,
+      100
+     ],
+     "role": "b"
+    }
+   ],
+   "zone": "test_zone"
+  },
+  "phase5-drops-gap": {
+   "fixed_npcs": [],
+   "killer_levels": [
+    11,
+    12,
+    13,
+    14,
+    15
+   ],
+   "monsters": [
+    {
+     "count": 5,
+     "home": [
+      103,
+      100
+     ],
+     "is_raid": false,
+     "level": 5,
+     "npc_id": 20003,
+     "slot_id": "npc_20003",
+     "source": "tables-phase5/drops.toml npc[id]"
+    }
+   ],
+   "next_item_instance": 1,
+   "note": "20003 (level 5) killed by level 11..15 -> d = -6..-10; the harness varies role a's level per run (killer_levels)",
+   "roles": [
+    {
+     "character_id": "01970000-0000-7000-8000-000000000050",
+     "class_id": 0,
+     "inventory": [],
+     "level": 11,
+     "position": [
+      100,
+      100
+     ],
+     "role": "a"
+    },
+    {
+     "character_id": "01970000-0000-7000-8000-000000000051",
+     "class_id": 0,
+     "inventory": [],
+     "level": 15,
+     "position": [
+      101,
+      100
+     ],
+     "role": "b"
+    }
+   ],
+   "zone": "test_zone"
+  },
+  "phase5-drops-precise": {
+   "fixed_npcs": [],
+   "monsters": [
+    {
+     "count": 1,
+     "home": [
+      103,
+      100
+     ],
+     "is_raid": false,
+     "level": 15,
+     "npc_id": 18478,
+     "slot_id": "group_100",
+     "source": "tables-phase5/drops.toml npc[id]"
+    },
+    {
+     "count": 1,
+     "home": [
+      103,
+      102
+     ],
+     "is_raid": false,
+     "level": 22,
+     "npc_id": 18352,
+     "slot_id": "ungrouped_100",
+     "source": "tables-phase5/drops.toml npc[id]"
+    }
+   ],
+   "next_item_instance": 1,
+   "note": "18478 (level 15) group chance 100.0 (>= 100 branch, remainder draw) vs 18352 (level 22) ungrouped 9703 at exactly 100 (strict >, no remainder draw); killer level 20 keeps d >= -5 so L = 1 for both",
+   "roles": [
+    {
+     "character_id": "01970000-0000-7000-8000-000000000050",
+     "class_id": 0,
+     "inventory": [],
+     "level": 20,
+     "position": [
+      100,
+      100
+     ],
+     "role": "a"
+    }
+   ],
+   "zone": "test_zone"
+  },
+  "phase5-epoch": {
+   "fixed_npcs": [],
+   "monsters": [
+    {
+     "count": 1,
+     "home": [
+      103,
+      100
+     ],
+     "is_raid": false,
+     "level": 5,
+     "npc_id": 20003,
+     "slot_id": "npc_20003",
+     "source": "tables-phase5/drops.toml npc[id]"
+    }
+   ],
+   "next_item_instance": 2,
+   "roles": [
+    {
+     "character_id": "01970000-0000-7000-8000-000000000050",
+     "class_id": 0,
+     "inventory": [
+      {
+       "count": 3,
+       "enchant": 0,
+       "instance_id": 1,
+       "template_id": 1864
+      }
+     ],
+     "level": 20,
+     "position": [
+      100,
+      100
+     ],
+     "role": "a"
+    }
+   ],
+   "zone": "test_zone"
+  },
+  "phase5-freight": {
+   "fixed_npcs": [
+    {
+     "attackable": false,
+     "kind": "warehouse_keeper",
+     "name": "warehouse_keeper",
+     "npc_id": null,
+     "position": [
+      102,
+      100
+     ]
+    }
+   ],
+   "monsters": [],
+   "next_item_instance": 4,
+   "roles": [
+    {
+     "character_id": "01970000-0000-7000-8000-000000000050",
+     "class_id": 0,
+     "inventory": [
+      {
+       "count": 5000,
+       "enchant": 0,
+       "instance_id": 1,
+       "template_id": 57
+      },
+      {
+       "count": 1,
+       "enchant": 0,
+       "instance_id": 2,
+       "template_id": 20678
+      },
+      {
+       "count": 1,
+       "enchant": 0,
+       "instance_id": 3,
+       "template_id": 20725
+      }
+     ],
+     "level": 20,
+     "position": [
+      100,
+      100
+     ],
+     "role": "a"
+    },
+    {
+     "character_id": "01970000-0000-7000-8000-000000000051",
+     "class_id": 0,
+     "inventory": [],
+     "level": 20,
+     "position": [
+      150,
+      150
+     ],
+     "role": "b",
+     "same_account_as": "a"
+    }
+   ],
+   "zone": "test_zone"
+  },
+  "phase5-herbs": {
+   "fixed_npcs": [],
+   "monsters": [
+    {
+     "count": 1,
+     "home": [
+      103,
+      100
+     ],
+     "is_raid": false,
+     "level": 15,
+     "npc_id": 18478,
+     "slot_id": "single_skill_herbs",
+     "source": "tables-phase5/drops.toml npc[id]"
+    },
+    {
+     "count": 1,
+     "home": [
+      103,
+      102
+     ],
+     "is_raid": false,
+     "level": 45,
+     "npc_id": 18544,
+     "slot_id": "multi_skill_herb",
+     "source": "tables-phase5/drops.toml npc[id]"
+    }
+   ],
+   "next_item_instance": 1,
+   "roles": [
+    {
+     "character_id": "01970000-0000-7000-8000-000000000050",
+     "class_id": 0,
+     "inventory": [],
+     "level": 15,
+     "position": [
+      100,
+      100
+     ],
+     "role": "a"
+    }
+   ],
+   "zone": "test_zone"
+  },
+  "phase5-mail": {
+   "fixed_npcs": [],
+   "monsters": [],
+   "next_item_instance": 4,
+   "roles": [
+    {
+     "character_id": "01970000-0000-7000-8000-000000000050",
+     "class_id": 0,
+     "inventory": [
+      {
+       "count": 5000,
+       "enchant": 0,
+       "instance_id": 1,
+       "template_id": 57
+      },
+      {
+       "count": 10,
+       "enchant": 0,
+       "instance_id": 2,
+       "template_id": 1864
+      }
+     ],
+     "level": 20,
+     "peace_zone": true,
+     "position": [
+      100,
+      100
+     ],
+     "role": "a"
+    },
+    {
+     "character_id": "01970000-0000-7000-8000-000000000051",
+     "class_id": 0,
+     "inventory": [
+      {
+       "count": 2000,
+       "enchant": 0,
+       "instance_id": 3,
+       "template_id": 57
+      }
+     ],
+     "level": 20,
+     "peace_zone": true,
+     "position": [
+      150,
+      150
+     ],
+     "role": "b"
+    }
+   ],
+   "zone": "test_zone"
+  },
+  "phase5-manor": {
+   "fixed_npcs": [
+    {
+     "attackable": false,
+     "kind": "manor_manager",
+     "name": "manor_manager",
+     "npc_id": null,
+     "position": [
+      102,
+      100
+     ]
+    }
+   ],
+   "manor": {
+    "castle_area": 1,
+    "castle_id": 1,
+    "crop_id": 5073,
+    "seed_id": 5016
+   },
+   "monsters": [
+    {
+     "count": 1,
+     "home": [
+      103,
+      100
+     ],
+     "is_raid": false,
+     "level": 5,
+     "npc_id": 20003,
+     "slot_id": "npc_20003",
+     "source": "tables-phase5/drops.toml npc[id]"
+    }
+   ],
+   "next_item_instance": 3,
+   "roles": [
+    {
+     "character_id": "01970000-0000-7000-8000-000000000050",
+     "class_id": 0,
+     "inventory": [
+      {
+       "count": 1000,
+       "enchant": 0,
+       "instance_id": 1,
+       "template_id": 57
+      },
+      {
+       "count": 1,
+       "enchant": 0,
+       "instance_id": 2,
+       "template_id": 5125
+      }
+     ],
+     "level": 10,
+     "position": [
+      100,
+      100
+     ],
+     "role": "a"
+    }
+   ],
+   "zone": "test_zone"
+  },
+  "phase5-manufacture": {
+   "fixed_npcs": [],
+   "manufacture_fee": 1000,
+   "monsters": [],
+   "next_item_instance": 4,
+   "roles": [
+    {
+     "character_id": "01970000-0000-7000-8000-000000000050",
+     "class_id": 54,
+     "create_item_rank": 1,
+     "inventory": [],
+     "level": 20,
+     "position": [
+      100,
+      100
+     ],
+     "registered_recipes": {
+      "dwarven": [
+       1
+      ]
+     },
+     "role": "a"
+    },
+    {
+     "character_id": "01970000-0000-7000-8000-000000000051",
+     "class_id": 0,
+     "inventory": [
+      {
+       "count": 5000,
+       "enchant": 0,
+       "instance_id": 1,
+       "template_id": 57
+      },
+      {
+       "count": 8,
+       "enchant": 0,
+       "instance_id": 2,
+       "template_id": 1864
+      },
+      {
+       "count": 4,
+       "enchant": 0,
+       "instance_id": 3,
+       "template_id": 1869
+      }
+     ],
+     "level": 20,
+     "position": [
+      101,
+      100
+     ],
+     "role": "b"
+    }
+   ],
+   "zone": "test_zone"
+  },
+  "phase5-multisell": {
+   "fixed_npcs": [
+    {
+     "attackable": false,
+     "kind": "multisell",
+     "name": "exchanger",
+     "npc_id": 32347,
+     "position": [
+      102,
+      100
+     ]
+    }
+   ],
+   "monsters": [],
+   "multisell": {
+    "list_id": 616,
+    "npc": 32347
+   },
+   "next_item_instance": 3,
+   "roles": [
+    {
+     "character_id": "01970000-0000-7000-8000-000000000050",
+     "class_id": 0,
+     "inventory": [
+      {
+       "count": 1,
+       "enchant": 3,
+       "instance_id": 1,
+       "template_id": 9417
+      },
+      {
+       "count": 1,
+       "enchant": 0,
+       "instance_id": 2,
+       "template_id": 9417
+      }
+     ],
+     "level": 20,
+     "position": [
+      100,
+      100
+     ],
+     "role": "a"
+    }
+   ],
+   "zone": "test_zone"
+  },
+  "phase5-party": {
+   "fixed_npcs": [],
+   "monsters": [
+    {
+     "count": 3,
+     "home": [
+      103,
+      100
+     ],
+     "is_raid": false,
+     "level": 5,
+     "npc_id": 20003,
+     "slot_id": "npc_20003",
+     "source": "tables-phase5/drops.toml npc[id]"
+    }
+   ],
+   "next_item_instance": 1,
+   "note": "c is outside PartyRange2 and is excluded from RANDOM/BY_TURN/split",
+   "party": {
+    "leader": "a",
+    "members": [
+     "a",
+     "b",
+     "c"
+    ],
+    "mode": "FINDERS_KEEPERS"
+   },
+   "roles": [
+    {
+     "character_id": "01970000-0000-7000-8000-000000000050",
+     "class_id": 0,
+     "inventory": [],
+     "level": 10,
+     "position": [
+      100,
+      100
+     ],
+     "role": "a"
+    },
+    {
+     "character_id": "01970000-0000-7000-8000-000000000051",
+     "class_id": 0,
+     "inventory": [],
+     "level": 12,
+     "position": [
+      101,
+      100
+     ],
+     "role": "b"
+    },
+    {
+     "character_id": "01970000-0000-7000-8000-000000000052",
+     "class_id": 0,
+     "inventory": [],
+     "level": 11,
+     "position": [
+      150,
+      150
+     ],
+     "role": "c"
+    }
+   ],
+   "zone": "test_zone"
+  },
+  "phase5-party-spoil": {
+   "fixed_npcs": [],
+   "monsters": [
+    {
+     "count": 2,
+     "home": [
+      103,
+      100
+     ],
+     "is_raid": false,
+     "level": 5,
+     "npc_id": 20003,
+     "slot_id": "npc_20003",
+     "source": "tables-phase5/drops.toml npc[id]"
+    }
+   ],
+   "next_item_instance": 1,
+   "note": "a (Dwarven Scavenger 54) spoils; b sweeps as party member",
+   "party": {
+    "leader": "a",
+    "members": [
+     "a",
+     "b"
+    ],
+    "mode": "RANDOM_INCLUDING_SPOIL"
+   },
+   "roles": [
+    {
+     "character_id": "01970000-0000-7000-8000-000000000050",
+     "class_id": 54,
+     "inventory": [],
+     "level": 10,
+     "position": [
+      100,
+      100
+     ],
+     "role": "a"
+    },
+    {
+     "character_id": "01970000-0000-7000-8000-000000000051",
+     "class_id": 0,
+     "inventory": [],
+     "level": 12,
+     "position": [
+      101,
+      100
+     ],
+     "role": "b"
+    }
+   ],
+   "zone": "test_zone"
+  },
+  "phase5-party-xp": {
+   "fixed_npcs": [],
+   "monsters": [
+    {
+     "count": 1,
+     "home": [
+      103,
+      100
+     ],
+     "is_raid": false,
+     "level": 5,
+     "npc_id": 20003,
+     "slot_id": "npc_20003",
+     "source": "tables-phase5/drops.toml npc[id]"
+    }
+   ],
+   "next_item_instance": 1,
+   "party": {
+    "leader": "a",
+    "members": [
+     "a",
+     "b"
+    ],
+    "mode": "FINDERS_KEEPERS"
+   },
+   "roles": [
+    {
+     "character_id": "01970000-0000-7000-8000-000000000050",
+     "class_id": 0,
+     "inventory": [],
+     "level": 10,
+     "position": [
+      100,
+      100
+     ],
+     "role": "a"
+    },
+    {
+     "character_id": "01970000-0000-7000-8000-000000000051",
+     "class_id": 0,
+     "inventory": [],
+     "level": 12,
+     "position": [
+      101,
+      100
+     ],
+     "role": "b"
+    }
+   ],
+   "zone": "test_zone"
+  },
+  "phase5-pk-drop": {
+   "fixed_npcs": [],
+   "monsters": [],
+   "next_item_instance": 17,
+   "note": "a is chaotic with pk_count >= 6; b kills a",
+   "roles": [
+    {
+     "character_id": "01970000-0000-7000-8000-000000000050",
+     "class_id": 0,
+     "inventory": [
+      {
+       "count": 10,
+       "enchant": 0,
+       "instance_id": 1,
+       "template_id": 1864
+      },
+      {
+       "count": 1000,
+       "enchant": 0,
+       "instance_id": 2,
+       "template_id": 57
+      },
+      {
+       "count": 1,
+       "enchant": 0,
+       "equipped": true,
+       "instance_id": 3,
+       "slot": "rhand",
+       "template_id": 1
+      },
+      {
+       "count": 1,
+       "enchant": 0,
+       "equipped": true,
+       "instance_id": 4,
+       "slot": "chest",
+       "template_id": 23
+      },
+      {
+       "count": 1,
+       "enchant": 0,
+       "instance_id": 5,
+       "template_id": 1869
+      },
+      {
+       "count": 1,
+       "enchant": 0,
+       "instance_id": 6,
+       "template_id": 1869
+      },
+      {
+       "count": 1,
+       "enchant": 0,
+       "instance_id": 7,
+       "template_id": 1869
+      },
+      {
+       "count": 1,
+       "enchant": 0,
+       "instance_id": 8,
+       "template_id": 1869
+      },
+      {
+       "count": 1,
+       "enchant": 0,
+       "instance_id": 9,
+       "template_id": 1869
+      },
+      {
+       "count": 1,
+       "enchant": 0,
+       "instance_id": 10,
+       "template_id": 1869
+      },
+      {
+       "count": 1,
+       "enchant": 0,
+       "instance_id": 11,
+       "template_id": 1869
+      },
+      {
+       "count": 1,
+       "enchant": 0,
+       "instance_id": 12,
+       "template_id": 1869
+      },
+      {
+       "count": 1,
+       "enchant": 0,
+       "instance_id": 13,
+       "template_id": 1869
+      },
+      {
+       "count": 1,
+       "enchant": 0,
+       "instance_id": 14,
+       "template_id": 1869
+      },
+      {
+       "count": 1,
+       "enchant": 0,
+       "instance_id": 15,
+       "template_id": 1869
+      },
+      {
+       "count": 1,
+       "enchant": 0,
+       "instance_id": 16,
+       "template_id": 1869
+      }
+     ],
+     "karma": 100,
+     "level": 20,
+     "pk_count": 6,
+     "position": [
+      100,
+      100
+     ],
+     "role": "a"
+    },
+    {
+     "character_id": "01970000-0000-7000-8000-000000000051",
+     "class_id": 0,
+     "inventory": [],
+     "level": 20,
+     "position": [
+      101,
+      100
+     ],
+     "role": "b"
+    }
+   ],
+   "zone": "test_zone"
+  },
+  "phase5-protection": {
+   "fixed_npcs": [],
+   "monsters": [
+    {
+     "count": 1,
+     "home": [
+      103,
+      100
+     ],
+     "is_raid": false,
+     "level": 81,
+     "npc_id": 22320,
+     "slot_id": "npc_22320",
+     "source": "tables-phase5/drops.toml npc[id]"
+    }
+   ],
+   "next_item_instance": 1,
+   "note": "a kills; b is a's party member; c is a stranger",
+   "party": {
+    "leader": "a",
+    "members": [
+     "a",
+     "b"
+    ],
+    "mode": "FINDERS_KEEPERS"
+   },
+   "roles": [
+    {
+     "character_id": "01970000-0000-7000-8000-000000000050",
+     "class_id": 0,
+     "inventory": [],
+     "level": 81,
+     "position": [
+      100,
+      100
+     ],
+     "role": "a"
+    },
+    {
+     "character_id": "01970000-0000-7000-8000-000000000051",
+     "class_id": 0,
+     "inventory": [],
+     "level": 81,
+     "position": [
+      101,
+      100
+     ],
+     "role": "b"
+    },
+    {
+     "character_id": "01970000-0000-7000-8000-000000000052",
+     "class_id": 0,
+     "inventory": [],
+     "level": 81,
+     "position": [
+      100,
+      101
+     ],
+     "role": "c"
+    }
+   ],
+   "zone": "test_zone"
+  },
+  "phase5-rates": {
+   "fixed_npcs": [],
+   "monsters": [
+    {
+     "count": 1,
+     "home": [
+      103,
+      100
+     ],
+     "is_raid": false,
+     "level": 5,
+     "npc_id": 20003,
+     "slot_id": "npc_20003",
+     "source": "tables-phase5/drops.toml npc[id]"
+    }
+   ],
+   "next_item_instance": 1,
+   "rate_multiplier_g": "1.5",
+   "roles": [
+    {
+     "character_id": "01970000-0000-7000-8000-000000000050",
+     "class_id": 0,
+     "inventory": [],
+     "level": 5,
+     "position": [
+      100,
+      100
+     ],
+     "role": "a"
+    }
+   ],
+   "zone": "test_zone"
+  },
+  "phase5-solo-xp": {
+   "fixed_npcs": [],
+   "monsters": [
+    {
+     "count": 1,
+     "home": [
+      103,
+      100
+     ],
+     "is_raid": false,
+     "level": 5,
+     "npc_id": 20003,
+     "slot_id": "npc_20003",
+     "source": "tables-phase5/drops.toml npc[id]"
+    },
+    {
+     "count": 1,
+     "home": [
+      103,
+      102
+     ],
+     "is_raid": false,
+     "level": 70,
+     "npc_id": 4301,
+     "slot_id": "sp_only",
+     "source": "tables-phase5/drops.toml npc[id]"
+    }
+   ],
+   "next_item_instance": 1,
+   "note": "two solo players split damage; 4301 is SP-only (exp_rate absent)",
+   "roles": [
+    {
+     "character_id": "01970000-0000-7000-8000-000000000050",
+     "class_id": 0,
+     "inventory": [],
+     "level": 10,
+     "position": [
+      100,
+      100
+     ],
+     "role": "a"
+    },
+    {
+     "character_id": "01970000-0000-7000-8000-000000000051",
+     "class_id": 0,
+     "inventory": [],
+     "level": 10,
+     "position": [
+      101,
+      100
+     ],
+     "role": "b"
+    }
+   ],
+   "zone": "test_zone"
+  },
+  "phase5-spoil": {
+   "fixed_npcs": [],
+   "monsters": [
+    {
+     "count": 1,
+     "home": [
+      103,
+      100
+     ],
+     "is_raid": false,
+     "level": 5,
+     "npc_id": 20003,
+     "slot_id": "npc_20003",
+     "source": "tables-phase5/drops.toml npc[id]"
+    }
+   ],
+   "next_item_instance": 1,
+   "roles": [
+    {
+     "character_id": "01970000-0000-7000-8000-000000000050",
+     "class_id": 54,
+     "inventory": [],
+     "level": 10,
+     "position": [
+      100,
+      100
+     ],
+     "role": "a"
+    }
+   ],
+   "zone": "test_zone"
+  },
+  "phase5-stores": {
+   "fixed_npcs": [],
+   "monsters": [],
+   "next_item_instance": 6,
+   "roles": [
+    {
+     "character_id": "01970000-0000-7000-8000-000000000050",
+     "class_id": 0,
+     "inventory": [
+      {
+       "count": 10,
+       "enchant": 0,
+       "instance_id": 1,
+       "template_id": 1864
+      },
+      {
+       "count": 10,
+       "enchant": 0,
+       "instance_id": 2,
+       "template_id": 1869
+      },
+      {
+       "count": 10,
+       "enchant": 0,
+       "instance_id": 3,
+       "template_id": 1870
+      }
+     ],
+     "level": 20,
+     "position": [
+      100,
+      100
+     ],
+     "role": "a"
+    },
+    {
+     "character_id": "01970000-0000-7000-8000-000000000051",
+     "class_id": 0,
+     "inventory": [
+      {
+       "count": 1000,
+       "enchant": 0,
+       "instance_id": 4,
+       "template_id": 57
+      },
+      {
+       "count": 3,
+       "enchant": 0,
+       "instance_id": 5,
+       "template_id": 1864
+      }
+     ],
+     "level": 20,
+     "position": [
+      101,
+      100
+     ],
+     "role": "b"
+    }
+   ],
+   "store_limits": {
+    "buy": 4,
+    "dwarf_buy": 5,
+    "dwarf_manufacture": 4,
+    "dwarf_sell_or_package": 4,
+    "manufacture": 3,
+    "sell_or_package": 3,
+    "source": "D \u00a79.3 (pinned PrivateStoreLimits; Dwarf +1)"
+   },
+   "zone": "test_zone"
+  },
+  "phase5-trade": {
+   "fixed_npcs": [],
+   "monsters": [],
+   "next_item_instance": 4,
+   "roles": [
+    {
+     "character_id": "01970000-0000-7000-8000-000000000050",
+     "class_id": 0,
+     "inventory": [
+      {
+       "count": 10,
+       "enchant": 0,
+       "instance_id": 1,
+       "template_id": 1864
+      },
+      {
+       "count": 500,
+       "enchant": 0,
+       "instance_id": 2,
+       "template_id": 57
+      }
+     ],
+     "level": 20,
+     "position": [
+      100,
+      100
+     ],
+     "role": "a"
+    },
+    {
+     "character_id": "01970000-0000-7000-8000-000000000051",
+     "class_id": 0,
+     "inventory": [
+      {
+       "count": 5,
+       "enchant": 0,
+       "instance_id": 3,
+       "template_id": 1869
+      }
+     ],
+     "level": 20,
+     "position": [
+      101,
+      100
+     ],
+     "role": "b"
+    }
+   ],
+   "zone": "test_zone"
+  },
+  "phase5-vendor-restock": {
+   "fixed_npcs": [
+    {
+     "attackable": false,
+     "kind": "merchant",
+     "name": "merchant",
+     "npc_id": 35363,
+     "position": [
+      102,
+      100
+     ]
+    }
+   ],
+   "merchant": {
+    "count": 10,
+    "item": 16127,
+    "list_id": 353630,
+    "npc": 35363,
+    "ref_price": 23000,
+    "restock_min": 60,
+    "source": "merchants.toml entries (Chamberlain/Alfred/Alfred.java _sellList0)",
+    "tax": "10"
+   },
+   "monsters": [],
+   "next_item_instance": 2,
+   "roles": [
+    {
+     "character_id": "01970000-0000-7000-8000-000000000050",
+     "class_id": 0,
+     "inventory": [
+      {
+       "count": 1000000,
+       "enchant": 0,
+       "instance_id": 1,
+       "template_id": 57
+      }
+     ],
+     "level": 20,
+     "position": [
+      100,
+      100
+     ],
+     "role": "a"
+    }
+   ],
+   "zone": "test_zone"
+  },
+  "phase5-vendors": {
+   "fixed_npcs": [
+    {
+     "attackable": false,
+     "kind": "merchant",
+     "name": "merchant",
+     "npc_id": 31413,
+     "position": [
+      102,
+      100
+     ]
+    }
+   ],
+   "merchant": {
+    "item": 1294,
+    "list_id": 314130,
+    "npc": 31413,
+    "ref_price": 75,
+    "source": "merchants.toml entries (Merchant/Antonio/Antonio.java _sellList0)",
+    "tax": "15"
+   },
+   "monsters": [],
+   "next_item_instance": 15,
+   "roles": [
+    {
+     "character_id": "01970000-0000-7000-8000-000000000050",
+     "class_id": 0,
+     "inventory": [
+      {
+       "count": 100000,
+       "enchant": 0,
+       "instance_id": 1,
+       "template_id": 57
+      },
+      {
+       "count": 1,
+       "enchant": 0,
+       "instance_id": 2,
+       "template_id": 1294
+      },
+      {
+       "count": 1,
+       "enchant": 0,
+       "instance_id": 3,
+       "template_id": 1294
+      },
+      {
+       "count": 1,
+       "enchant": 0,
+       "instance_id": 4,
+       "template_id": 1294
+      },
+      {
+       "count": 1,
+       "enchant": 0,
+       "instance_id": 5,
+       "template_id": 1294
+      },
+      {
+       "count": 1,
+       "enchant": 0,
+       "instance_id": 6,
+       "template_id": 1294
+      },
+      {
+       "count": 1,
+       "enchant": 0,
+       "instance_id": 7,
+       "template_id": 1294
+      },
+      {
+       "count": 1,
+       "enchant": 0,
+       "instance_id": 8,
+       "template_id": 1294
+      },
+      {
+       "count": 1,
+       "enchant": 0,
+       "instance_id": 9,
+       "template_id": 1294
+      },
+      {
+       "count": 1,
+       "enchant": 0,
+       "instance_id": 10,
+       "template_id": 1294
+      },
+      {
+       "count": 1,
+       "enchant": 0,
+       "instance_id": 11,
+       "template_id": 1294
+      },
+      {
+       "count": 1,
+       "enchant": 0,
+       "instance_id": 12,
+       "template_id": 1294
+      },
+      {
+       "count": 1,
+       "enchant": 0,
+       "instance_id": 13,
+       "template_id": 1294
+      },
+      {
+       "count": 1,
+       "enchant": 0,
+       "instance_id": 14,
+       "template_id": 1294
+      }
+     ],
+     "level": 20,
+     "position": [
+      100,
+      100
+     ],
+     "role": "a"
+    }
+   ],
+   "zone": "test_zone"
+  },
+  "phase5-warehouse": {
+   "fixed_npcs": [
+    {
+     "attackable": false,
+     "kind": "warehouse_keeper",
+     "name": "warehouse_keeper",
+     "npc_id": null,
+     "position": [
+      102,
+      100
+     ]
+    }
+   ],
+   "monsters": [],
+   "next_item_instance": 5,
+   "roles": [
+    {
+     "character_id": "01970000-0000-7000-8000-000000000050",
+     "class_id": 0,
+     "inventory": [
+      {
+       "count": 1000,
+       "enchant": 0,
+       "instance_id": 1,
+       "template_id": 57
+      },
+      {
+       "count": 10,
+       "enchant": 0,
+       "instance_id": 2,
+       "template_id": 1864
+      },
+      {
+       "count": 4,
+       "enchant": 0,
+       "instance_id": 3,
+       "template_id": 1869
+      },
+      {
+       "augment_id": 1234,
+       "count": 1,
+       "enchant": 0,
+       "instance_id": 4,
+       "template_id": 1
+      }
+     ],
+     "level": 20,
+     "position": [
+      100,
+      100
+     ],
+     "role": "a"
+    }
+   ],
+   "warehouse_rows": [
+    {
+     "count": 5,
+     "template_id": 1864
+    }
+   ],
+   "zone": "test_zone"
+  }
+ },
+ "pinned": {
+  "datapack": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+  "game": "abfde0490ac52a2106e884b7242c0276c44cdf76"
+ },
+ "policy": "pre_admission_only",
+ "schema_version": 1,
+ "story": "5 E1.8"
+}

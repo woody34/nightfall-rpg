@@ -1,0 +1,23 @@
+{
+ "derived_by": "apps/client-unreal/Scripts/phase5-expectations.py over economy_oracle.py (1.5-1.7) and tables-phase5",
+ "expectations": {
+  "add_invalidates": "the adder's own confirmation only",
+  "ledger": "paired transfer_out/transfer_in rows linked by one receipt (B13)",
+  "phases": [
+   "STARTED",
+   "ITEM_ADDED",
+   "PARTNER_CONFIRMED",
+   "COMPLETED",
+   "CANCELLED"
+  ],
+  "radius_l2_units": 150,
+  "request_expiry_ticks": 150,
+  "source": "E4/E10 (TradeRequest.java:168, TradeDone.java:91)",
+  "transaction_flood_ticks": 10
+ },
+ "expectations_sha256": "0231c2ab10b219c9e83d2e310f4271d1fa71b4fd9404aae3667675fe139e3d24",
+ "fixture": "phase5-trade",
+ "scenario": "5-trade.nfs",
+ "schema_version": 1,
+ "story": "5 E1.8"
+}

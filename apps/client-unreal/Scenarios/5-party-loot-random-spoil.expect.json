@@ -1,0 +1,46 @@
+{
+ "derived_by": "apps/client-unreal/Scripts/phase5-expectations.py over economy_oracle.py (1.5-1.7) and tables-phase5",
+ "expectations": {
+  "adena_group": {
+   "C": "70/1",
+   "C_bits": "4051800000000000",
+   "L_bits": "3ff0000000000000",
+   "draws_on_pass": [
+    "chance",
+    "quantity"
+   ],
+   "group_chance": "70",
+   "item_chance": "100",
+   "kind": "single_item_group",
+   "m_bits": "3ff0000000000000",
+   "max": 42,
+   "min": 30,
+   "pass_threshold": "12912720851596686132",
+   "precise_branch": false,
+   "template": 57
+  },
+  "by_turn": null,
+  "capacity_check": "slots only; applied only when solo or FINDERS_KEEPERS (P7)",
+  "in_range_count": 2,
+  "loot_distributed_event": true,
+  "members": [
+   {
+    "dist_sq": 0,
+    "in_range": true,
+    "name": "a"
+   },
+   {
+    "dist_sq": 1000000,
+    "in_range": true,
+    "name": "b"
+   }
+  ],
+  "mode": "RANDOM_INCLUDING_SPOIL",
+  "party_range2_tiles": "1400 L2 units = 43.75 tiles (checkIfInRange(PartyRange2) on squared distance, X1/X2)"
+ },
+ "expectations_sha256": "4f90c0df12b65a41970008fcb955779135207f62133037a769b0024f8e1ae467",
+ "fixture": "phase5-party-spoil",
+ "scenario": "5-party-loot-random-spoil.nfs",
+ "schema_version": 1,
+ "story": "5 E1.8"
+}

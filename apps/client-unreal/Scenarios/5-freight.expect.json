@@ -1,0 +1,28 @@
+{
+ "derived_by": "apps/client-unreal/Scripts/phase5-expectations.py over economy_oracle.py (1.5-1.7) and tables-phase5",
+ "expectations": {
+  "adena_refused": "ITEM_NOT_FREIGHTABLE (E56)",
+  "fee_per_entry": 1000,
+  "fees": {
+   "1": 1000,
+   "2": 2000
+  },
+  "ledger_ops": [
+   "deposit",
+   "withdraw"
+  ],
+  "owner_kind": "freight",
+  "same_account": true,
+  "slots": 200,
+  "templates": {
+   "20678": true,
+   "20725": true,
+   "57": false
+  }
+ },
+ "expectations_sha256": "69c22e287a26264a5ba73ecea475d1c55cfb20ad8c4ee9d4386d4300e8578e2f",
+ "fixture": "phase5-freight",
+ "scenario": "5-freight.nfs",
+ "schema_version": 1,
+ "story": "5 E1.8"
+}

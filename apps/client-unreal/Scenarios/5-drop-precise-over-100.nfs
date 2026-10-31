@@ -1,0 +1,32 @@
+# covers: 5 E1.2, 5 E1.5, 5 E1.8, 5 E2.1, 5 E3.3, 5 E3.15, 5 E5.1, 5 E5.6, 5 E5.7, 5 E6.6
+# fixture: phase5-drops-precise
+# Authored by story 1.8 (expectations) for 3.15 (server assertion sections), 5.7 (UI subscope) and 6.6 (live run).
+# Execution evidence is the live gate run (run-sim-ci.py + the schema-2 economy export, story 6.2), never this file alone.
+# Expected values: the oracle sidecar <this file>.expect.json (phase5-expectations.py over economy_oracle.py); pack inputs:
+# fixtures/phase5-packs.json. RNG-dependent outcomes are asserted on received state; exact draws go through econ-gate labels.
+# Waits: delivery 10 ticks*100 ms*3 = 3 s; RPC/login policy 5 s*3 = 15 s; combat fixture allowance 30 s; protection 15 s+5.
+# Role blocks (`# role: <name>`) select the pack role whose commands follow; a file without a block is role a.
+# econ-gate: death_item
+# econ-gate: group_chance
+# econ-gate: group_remainder
+# econ-gate: group_select
+# econ-gate: drop_quantity
+nf.Login
+nf.WaitFor connected 15
+nf.EnterWorld
+nf.WaitFor in_world 15
+nf.WaitFor item_baseline 3
+nf.Target template:18478
+nf.WaitFor target == template:18478 3
+nf.Attack
+nf.WaitFor entity_dead template:18478 30
+nf.WaitFor ground_item_exists 8600 3
+nf.Expect ground_item_count_between 8600 3 10
+nf.Target template:18352
+nf.WaitFor target == template:18352 3
+nf.Attack
+nf.WaitFor entity_dead template:18352 30
+nf.WaitFor ground_item_exists 9703 3
+nf.Expect ground_item_count_between 9703 1 1
+# Total budget: the largest role's sum of declared waits + 30 s exit grace.
+nf.Within 135

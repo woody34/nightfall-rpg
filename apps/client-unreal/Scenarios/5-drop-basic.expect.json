@@ -1,0 +1,236 @@
+{
+ "derived_by": "apps/client-unreal/Scripts/phase5-expectations.py over economy_oracle.py (1.5-1.7) and tables-phase5",
+ "expectations": {
+  "drop_actor": "maxDealer; lastAttacker if the maxDealer is offline; ties -> lowest EntityId (D \u00a73.6)",
+  "ground": {
+   "decay_limit_ticks": 6000,
+   "drop_protection_ticks": 150,
+   "herb_decay_limit_ticks": 600,
+   "loot_owner_ticks": 150,
+   "position_offset_npc": 70,
+   "position_offset_player": [
+    -25,
+    24
+   ],
+   "scanner_grid_ticks": 50
+  },
+  "ground_spawn": {
+   "entity_kind": 3,
+   "entity_spawn_field": "ground_item (30)"
+  },
+  "ledger_ops": [
+   "loot",
+   "pickup"
+  ],
+  "nodes_corpse_if_spoiled": [
+   {
+    "C": "5062496341127175/4503599627370496",
+    "C_bits": "3ff1fc504816f007",
+    "L_bits": "3ff0000000000000",
+    "draws_on_pass": [
+     "chance",
+     "quantity"
+    ],
+    "kind": "item",
+    "m_bits": "3ff0000000000000",
+    "max": 1,
+    "min": 1,
+    "mult_base": 1,
+    "pass_threshold": "207359850132569088",
+    "precise_branch": false,
+    "template": 960
+   },
+   {
+    "C": "196189158278955/2199023255552",
+    "C_bits": "40564ddb22d0e560",
+    "L_bits": "3ff0000000000000",
+    "draws_on_pass": [
+     "chance",
+     "quantity"
+    ],
+    "kind": "item",
+    "m_bits": "3ff0000000000000",
+    "max": 17,
+    "min": 1,
+    "mult_base": 1,
+    "pass_threshold": "16457539426521081447",
+    "precise_branch": false,
+    "template": 1895
+   },
+   {
+    "C": "1977586891373727/35184372088832",
+    "C_bits": "404c1a6b50b0f27c",
+    "L_bits": "3ff0000000000000",
+    "draws_on_pass": [
+     "chance",
+     "quantity"
+    ],
+    "kind": "item",
+    "m_bits": "3ff0000000000000",
+    "max": 1,
+    "min": 1,
+    "mult_base": 1,
+    "pass_threshold": "10368250761045485814",
+    "precise_branch": false,
+    "template": 4040
+   }
+  ],
+  "nodes_death": [
+   {
+    "C": "2536793227604787/35184372088832",
+    "C_bits": "4052066666666666",
+    "L_bits": "3ff0000000000000",
+    "draws_on_pass": [
+     "chance",
+     "quantity"
+    ],
+    "kind": "item",
+    "m_bits": "3ff0000000000000",
+    "max": 3,
+    "min": 1,
+    "mult_base": 1,
+    "pass_threshold": "13300102477144585667",
+    "precise_branch": false,
+    "template": 9599
+   },
+   {
+    "C": "70/1",
+    "C_bits": "4051800000000000",
+    "L_bits": "3ff0000000000000",
+    "draws_on_pass": [
+     "chance",
+     "quantity"
+    ],
+    "group_chance": "70",
+    "item_chance": "100",
+    "kind": "single_item_group",
+    "m_bits": "3ff0000000000000",
+    "max": 32986,
+    "min": 16445,
+    "pass_threshold": "12912720851596686132",
+    "precise_branch": false,
+    "template": 57
+   },
+   {
+    "L_bits": "3ff0000000000000",
+    "S": "4976961/2097152",
+    "S_bits": "4002fc5040000000",
+    "draws_on_pass": [
+     "group",
+     "selection",
+     "quantity"
+    ],
+    "group_chance": "2.373199939727783",
+    "items": [
+     {
+      "T_bits": "3fd53404ea4a8c15",
+      "max": 1,
+      "min": 1,
+      "share_bits": "3fd53404ea4a8c15",
+      "template": 5311
+     },
+     {
+      "T_bits": "4049000000000000",
+      "max": 1,
+      "min": 1,
+      "share_bits": "4048d597f62b6ae8",
+      "template": 5522
+     },
+     {
+      "T_bits": "40492a6809d49518",
+      "max": 1,
+      "min": 1,
+      "share_bits": "3fd53404ea4a8c15",
+      "template": 5316
+     },
+     {
+      "T_bits": "4059000000000000",
+      "max": 1,
+      "min": 1,
+      "share_bits": "4048d597f62b6ae8",
+      "template": 5523
+     }
+    ],
+    "kind": "group",
+    "m_bits": "3ff0000000000000",
+    "mult_base": 1,
+    "pass_threshold": "437778119239013499",
+    "precise_branch": false,
+    "remainder_bits": null
+   },
+   {
+    "L_bits": "3ff0000000000000",
+    "S": "9662969/262144",
+    "S_bits": "40426e3f20000000",
+    "draws_on_pass": [
+     "group",
+     "selection",
+     "quantity"
+    ],
+    "group_chance": "36.86130142211914",
+    "items": [
+     {
+      "T_bits": "40498c816f0068dc",
+      "max": 3,
+      "min": 1,
+      "share_bits": "40498c816f0068dc",
+      "template": 1895
+     },
+     {
+      "T_bits": "404eea027525460b",
+      "max": 1,
+      "min": 1,
+      "share_bits": "40257604189374bc",
+      "template": 4040
+     },
+     {
+      "T_bits": "4050825119ce0760",
+      "max": 1,
+      "min": 1,
+      "share_bits": "4010d4fdf3b645a2",
+      "template": 9628
+     },
+     {
+      "T_bits": "4051370a3d70a3d8",
+      "max": 1,
+      "min": 1,
+      "share_bits": "4006972474538ef3",
+      "template": 9630
+     },
+     {
+      "T_bits": "4051386a7ef9db24",
+      "max": 1,
+      "min": 1,
+      "share_bits": "3f9604189374bc6a",
+      "template": 959
+     },
+     {
+      "T_bits": "4057ed4c985f06f8",
+      "max": 12,
+      "min": 4,
+      "share_bits": "403ad3886594af4f",
+      "template": 9674
+     },
+     {
+      "T_bits": "4059000000000001",
+      "max": 1,
+      "min": 1,
+      "share_bits": "40112b367a0f9097",
+      "template": 9551
+     }
+    ],
+    "kind": "group",
+    "m_bits": "3ff0000000000000",
+    "mult_base": 1,
+    "pass_threshold": "6799709935576977245",
+    "precise_branch": false,
+    "remainder_bits": null
+   }
+  ]
+ },
+ "expectations_sha256": "4ac669f460b3a68650268f6fa55ffd9452eb9ada95801ae10180a827120c16df",
+ "fixture": "phase5-drops",
+ "scenario": "5-drop-basic.nfs",
+ "schema_version": 1,
+ "story": "5 E1.8"
+}

@@ -1,0 +1,60 @@
+{
+ "derived_by": "apps/client-unreal/Scripts/phase5-expectations.py over economy_oracle.py (1.5-1.7) and tables-phase5",
+ "expectations": {
+  "auction": {
+   "auction_id": 1,
+   "init_bid": 100000,
+   "instance": 32320,
+   "item": 9901
+  },
+  "award": "winner's item is delivered to the WAREHOUSE (E16)",
+  "bids": [
+   {
+    "amount": 100000,
+    "bidder": 1,
+    "highest": 1,
+    "payment": 100000,
+    "result": "OK"
+   },
+   {
+    "amount": 100000,
+    "bidder": 2,
+    "highest": 1,
+    "payment": 100000,
+    "result": "OK"
+   },
+   {
+    "amount": 150000,
+    "bidder": 1,
+    "highest": 1,
+    "payment": 50000,
+    "result": "OK"
+   },
+   {
+    "amount": 150000,
+    "bidder": 2,
+    "highest": 1,
+    "payment": 50000,
+    "result": "OK"
+   }
+  ],
+  "cancel_outbid_2": {
+   "refund": 150000,
+   "result": "refunded"
+  },
+  "config": {
+   "expired_after_days": 14,
+   "finish_time_space_minutes": 10,
+   "start_time_space_minutes": 1,
+   "time_extends_on_bid": 0
+  },
+  "fixture_anchor": "2026-10-12T00:00:00Z",
+  "item_auction_flood_ticks": 9,
+  "server_bypass_ticks": 5
+ },
+ "expectations_sha256": "b05b38c49b1ff47f24ae6df4831cc1dde0bdeb43bb3c04e6e599e8102817c6a8",
+ "fixture": "phase5-auction",
+ "scenario": "5-auction-bid-cancel-award.nfs",
+ "schema_version": 1,
+ "story": "5 E1.8"
+}

@@ -1,0 +1,45 @@
+# covers: 5 E1.8, 5 E2.1, 5 E3.9, 5 E3.12, 5 E3.15, 5 E5.4, 5 E5.6, 5 E5.7, 5 E6.6
+# fixture: phase5-trade
+# Authored by story 1.8 (expectations) for 3.15 (server assertion sections), 5.7 (UI subscope) and 6.6 (live run).
+# Execution evidence is the live gate run (run-sim-ci.py + the schema-2 economy export, story 6.2), never this file alone.
+# Expected values: the oracle sidecar <this file>.expect.json (phase5-expectations.py over economy_oracle.py); pack inputs:
+# fixtures/phase5-packs.json. RNG-dependent outcomes are asserted on received state; exact draws go through econ-gate labels.
+# Waits: delivery 10 ticks*100 ms*3 = 3 s; RPC/login policy 5 s*3 = 15 s; combat fixture allowance 30 s; protection 15 s+5.
+# Role blocks (`# role: <name>`) select the pack role whose commands follow; a file without a block is role a.
+# role: a
+nf.Login
+nf.WaitFor connected 15
+nf.EnterWorld
+nf.WaitFor in_world 15
+nf.WaitFor item_baseline 3
+nf.WaitFor entity_in_view entity:b 15
+nf.TradeRequest b
+nf.WaitFor trade_state == STARTED 15
+nf.TradeAdd template:1864 5
+nf.WaitFor trade_state == ITEM_ADDED 3
+nf.TradeConfirm
+nf.WaitFor trade_state == PARTNER_CONFIRMED 15
+nf.WaitFor trade_state == COMPLETED 15
+nf.Expect inventory_has 1864 == 5
+nf.Expect inventory_has 1869 == 5
+nf.Expect trade_transfer_pairs == 2
+# role: b
+nf.Login
+nf.WaitFor connected 15
+nf.EnterWorld
+nf.WaitFor in_world 15
+nf.WaitFor item_baseline 3
+nf.WaitFor trade_request_received 15
+nf.TradeAnswer accept
+nf.WaitFor trade_state == STARTED 3
+nf.TradeAdd template:1869 5
+nf.WaitFor trade_state == ITEM_ADDED 3
+nf.TradeConfirm
+nf.WaitFor own_trade_confirmed 3
+nf.TradeAdd template:1869 0
+nf.WaitFor rejected == CANNOT_ADJUST_AFTER_CONFIRM 3
+nf.WaitFor trade_state == COMPLETED 15
+nf.Expect inventory_has 1864 == 5
+nf.Expect inventory_has 1869 == 0
+# Total budget: the largest role's sum of declared waits + 30 s exit grace.
+nf.Within 126

@@ -1,0 +1,28 @@
+{
+ "derived_by": "apps/client-unreal/Scripts/phase5-expectations.py over economy_oracle.py (1.5-1.7) and tables-phase5",
+ "expectations": {
+  "augmented_allowed": true,
+  "busy_reject": "CONTAINER_BUSY while the container lease is held (retryable)",
+  "fee_per_entry": 30,
+  "fees": {
+   "1": 30,
+   "2": 60,
+   "3": 90
+  },
+  "ledger_ops": [
+   "deposit",
+   "withdraw"
+  ],
+  "merge": "stackables merge into the existing warehouse stack",
+  "owner_kind": "warehouse",
+  "slots": {
+   "dwarf": 120,
+   "other": 100
+  }
+ },
+ "expectations_sha256": "ced09e0002ec4578d8cf04839ae0df06dbb0037fee8d188dc070a29c4a1dff0d",
+ "fixture": "phase5-warehouse",
+ "scenario": "5-warehouse.nfs",
+ "schema_version": 1,
+ "story": "5 E1.8"
+}

@@ -1,0 +1,55 @@
+{
+ "derived_by": "apps/client-unreal/Scripts/phase5-expectations.py over economy_oracle.py (1.5-1.7) and tables-phase5",
+ "expectations": {
+  "castle": {
+   "castle_area": 1,
+   "id": 1
+  },
+  "crop": {
+   "amount": 9000,
+   "crop_id": 5073,
+   "price": 50,
+   "reward_type": 1
+  },
+  "crop_row": {
+   "alternative": false,
+   "castle": 1,
+   "crop": 5073,
+   "level": 10,
+   "limit_crops": 9000,
+   "limit_seed": 8100,
+   "mature": 5103,
+   "rew1": 1864,
+   "rew2": 1878,
+   "seed": 5016
+  },
+  "crop_sale_3": {
+   "P": 150,
+   "fee": 7,
+   "fee_equals_P_div_20": true,
+   "reward_template": 1864
+  },
+  "harvest_basic": 100,
+  "harvester_items": [
+   5125
+  ],
+  "manor_flood_ticks": 30,
+  "normal_drops_unchanged": true,
+  "seed": {
+   "amount": 8100,
+   "price": 5,
+   "seed_id": 5016
+  },
+  "skills": {
+   "harvest": 2098,
+   "sow": 2097
+  },
+  "sow_basic": 90,
+  "sow_threshold": "16602069666338596455"
+ },
+ "expectations_sha256": "79e87175496c719bb954998dffbc5e35146b865ca58c5336c6cc1b63387bc20f",
+ "fixture": "phase5-manor",
+ "scenario": "5-manor-sow-harvest-sell.nfs",
+ "schema_version": 1,
+ "story": "5 E1.8"
+}

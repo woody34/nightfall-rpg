@@ -1,0 +1,144 @@
+{
+ "derived_by": "apps/client-unreal/Scripts/phase5-expectations.py over economy_oracle.py (1.5-1.7) and tables-phase5",
+ "expectations": {
+  "early_abort": "stop at the first skill whose condition fails, is disabled or in reuse; the herb is consumed regardless (E40)",
+  "herb_decay_limit_ticks": 600,
+  "inventory_row": false,
+  "multi_skill": {
+   "id": 8612,
+   "name": "Herb of the Warrior",
+   "skills": [
+    {
+     "id": 2280,
+     "level": 1
+    },
+    {
+     "id": 2282,
+     "level": 1
+    },
+    {
+     "id": 2284,
+     "level": 1
+    }
+   ],
+   "type": "EtcItem"
+  },
+  "nodes": [
+   {
+    "L_bits": "3ff0000000000000",
+    "S": "100/1",
+    "S_bits": "4059000000000000",
+    "draws_on_pass": [
+     "group",
+     "selection",
+     "remainder",
+     "quantity"
+    ],
+    "group_chance": "100.0",
+    "items": [
+     {
+      "T_bits": "404b800000000000",
+      "max": 5,
+      "min": 3,
+      "share_bits": "404b800000000000",
+      "template": 8600
+     },
+     {
+      "T_bits": "4057400000000000",
+      "max": 3,
+      "min": 1,
+      "share_bits": "4043000000000000",
+      "template": 8601
+     },
+     {
+      "T_bits": "4059000000000000",
+      "max": 1,
+      "min": 1,
+      "share_bits": "401c000000000000",
+      "template": 8602
+     }
+    ],
+    "kind": "group",
+    "m_bits": "3ff0000000000000",
+    "mult_base": 1,
+    "pass_threshold": "18446744073709551616",
+    "precise_branch": true,
+    "remainder_bits": "0000000000000000"
+   },
+   {
+    "L_bits": "3ff0000000000000",
+    "S": "50/1",
+    "S_bits": "4049000000000000",
+    "draws_on_pass": [
+     "group",
+     "selection",
+     "quantity"
+    ],
+    "group_chance": "50.0",
+    "items": [
+     {
+      "T_bits": "404b800000000000",
+      "max": 5,
+      "min": 3,
+      "share_bits": "404b800000000000",
+      "template": 8603
+     },
+     {
+      "T_bits": "4057400000000000",
+      "max": 2,
+      "min": 1,
+      "share_bits": "4043000000000000",
+      "template": 8604
+     },
+     {
+      "T_bits": "4059000000000000",
+      "max": 1,
+      "min": 1,
+      "share_bits": "401c000000000000",
+      "template": 8605
+     }
+    ],
+    "kind": "group",
+    "m_bits": "3ff0000000000000",
+    "mult_base": 1,
+    "pass_threshold": "9223372036854775808",
+    "precise_branch": false,
+    "remainder_bits": null
+   },
+   {
+    "C": "1/1",
+    "C_bits": "3ff0000000000000",
+    "L_bits": "3ff0000000000000",
+    "draws_on_pass": [
+     "chance",
+     "quantity"
+    ],
+    "group_chance": "1.0",
+    "item_chance": "100",
+    "kind": "single_item_group",
+    "m_bits": "3ff0000000000000",
+    "max": 1,
+    "min": 1,
+    "pass_threshold": "184467440737095517",
+    "precise_branch": false,
+    "template": 8614
+   }
+  ],
+  "single_skill": {
+   "id": 8600,
+   "name": "Herb of Life",
+   "skills": [
+    {
+     "id": 2278,
+     "level": 1
+    }
+   ],
+   "type": "EtcItem"
+  }
+ },
+ "expectations_sha256": "89e586c7d7343f48ff18f8cc972bdba15f47cbfcd0ac7dfc76a9d9be002079a0",
+ "fixture": "phase5-herbs",
+ "scenario": "5-herb.nfs",
+ "schema_version": 1,
+ "story": "5 E1.8"
+}
