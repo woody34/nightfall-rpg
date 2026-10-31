@@ -53,6 +53,7 @@ const USAGE: &str = "usage:
   nightfall-replay coverage --file PATH [--out coverage.transitions.json]
   nightfall-replay trace --file PATH [--session ENTITY] [--fail-tick N] --out trace.html
   nightfall-replay frames --file PATH --session ENTITY --out FRAMES.jsonl
+  nightfall-replay phase5-rules [--dir packages/data/tables-phase5]
 exit: 0 match, 1 divergence, 2 error, 3 epoch incomplete";
 
 const MATCH: u8 = 0;
@@ -67,6 +68,7 @@ enum Command {
     Coverage,
     Trace,
     Frames,
+    Phase5Rules,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -90,8 +92,10 @@ struct Args {
     fail_tick: Option<u64>,
     evidence_out: Option<PathBuf>,
     items_evidence_out: Option<PathBuf>,
+    dir: Option<PathBuf>,
 }
 
+#[allow(clippy::too_many_lines)] // One arm per subcommand and flag.
 fn parse_args(args: impl IntoIterator<Item = String>) -> anyhow::Result<Args> {
     let mut it = args.into_iter().peekable();
     let command = match it.peek().map(String::as_str) {
@@ -111,6 +115,10 @@ fn parse_args(args: impl IntoIterator<Item = String>) -> anyhow::Result<Args> {
             it.next();
             Command::Frames
         },
+        Some("phase5-rules") => {
+            it.next();
+            Command::Phase5Rules
+        },
         Some("verify" | "check") => {
             it.next();
             Command::Verify
@@ -122,6 +130,7 @@ fn parse_args(args: impl IntoIterator<Item = String>) -> anyhow::Result<Args> {
         fail_tick: None,
         evidence_out: None,
         items_evidence_out: None,
+        dir: None,
         source: Source::JetStream,
         zone: None,
         epoch: None,
@@ -158,6 +167,7 @@ fn parse_args(args: impl IntoIterator<Item = String>) -> anyhow::Result<Args> {
             "--evidence-out" => a.evidence_out = Some(value.into()),
             "--items-evidence-out" => a.items_evidence_out = Some(value.into()),
             "--out" => a.out = Some(value.into()),
+            "--dir" => a.dir = Some(value.into()),
             "--nats" => a.nats = value,
             other => bail!("unknown flag {other}"),
         }
@@ -198,6 +208,7 @@ fn parse_args(args: impl IntoIterator<Item = String>) -> anyhow::Result<Args> {
         bail!("evidence destination must differ from recording paths");
     }
     match (a.command, a.source) {
+        (Command::Phase5Rules, _) => {},
         (Command::Export, Source::File) if evidence_path.is_none() => {
             bail!("file export requires --evidence-out FILE or --items-evidence-out FILE");
         },
@@ -433,6 +444,35 @@ async fn trace_page(a: &Args) -> anyhow::Result<u8> {
     Ok(MATCH)
 }
 
+/// `phase5-rules [--dir DIR]`: the E2.3 data check. Loads the Phase 5 tables (a directory,
+/// or the embedded copy) against the embedded V6 bundle, validates every frozen value and
+/// cross-reference, and prints the design §1.10 hash and inventory. Exit 0 on success.
+fn phase5_rules(args: &Args) -> anyhow::Result<u8> {
+    let started = Instant::now();
+    let rules = nightfall_api::infrastructure::economy_data::check(args.dir.as_deref())
+        .map_err(anyhow::Error::msg)?;
+    let hex = |hash: [u8; 32]| {
+        let mut text = String::with_capacity(64);
+        for byte in hash {
+            let _ = std::fmt::Write::write_fmt(&mut text, format_args!("{byte:02x}"));
+        }
+        text
+    };
+    println!("phase5_rules_hash = sha256:{}", rules.hash_hex());
+    println!("phase4_rules_hash = sha256:{}", hex(rules.parts().phase4_hash));
+    println!("phase3_rules_hash = sha256:{}", hex(rules.parts().phase3_hash));
+    println!("formula_revision = {}", rules.parts().formula_revision);
+    println!(
+        "global_multiplier_g = {:?} (fl = {})",
+        rules.global_multiplier_string(),
+        rules.global_multiplier().hex()
+    );
+    println!("pow_table_sha256 = {}", rules.parts().pow.sha256);
+    println!("inventory = {}", serde_json::to_string_pretty(rules.inventory())?);
+    println!("validated in {:.1} s", started.elapsed().as_secs_f64());
+    Ok(MATCH)
+}
+
 #[tokio::main]
 async fn main() -> ExitCode {
     let args = match parse_args(std::env::args().skip(1)) {
@@ -465,6 +505,7 @@ async fn main() -> ExitCode {
             (Some(file), Some(session), Some(out)) => frames::write(file, session, out).await,
             _ => Ok(ERROR),
         },
+        Command::Phase5Rules => phase5_rules(&args),
     };
     match result {
         Ok(code) => ExitCode::from(code),

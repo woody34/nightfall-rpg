@@ -125,6 +125,7 @@ impl ItemGrantRuntime for SessionContext {
                         name: loaded.name.as_str().to_owned(),
                         position,
                         load: PlayerLoad {
+                            phase5: None,
                             phase4: loaded.phase4,
                             phase3: Some(phase3),
                             progression: Some(Box::new(PlayerProgression {

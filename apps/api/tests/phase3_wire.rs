@@ -376,6 +376,7 @@ fn offer_hydration_requires_matching_v5_identity_and_only_marks_offered() -> any
     ] {
         let identity = ZoneEvent::EntitySpawn {
             phase4: None,
+            phase5: None,
             identity: None,
             tick: Tick(identity_tick),
             entity: if same_entity {

@@ -300,7 +300,8 @@ impl<'de> Deserialize<'de> for Phase4Rules {
 
 // The typed structs above define the grammar. The hash uses explicit value tags, LE
 // fixed-width integers and length-delimited strings/containers, independent of JSON text.
-fn encode_value(value: &serde_json::Value, bytes: &mut Vec<u8>) -> Result<(), String> {
+/// Canonical length-delimited typed encoding shared by the Phase 4 and Phase 5 rule hashes.
+pub(crate) fn encode_value(value: &serde_json::Value, bytes: &mut Vec<u8>) -> Result<(), String> {
     use serde_json::Value;
     match value {
         Value::Null => bytes.push(0),

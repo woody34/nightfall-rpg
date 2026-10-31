@@ -373,3 +373,88 @@ fn phase3_switch_defaults_normal_startup_to_v5_and_refuses_truthy_values() {
             .is_err());
     }
 }
+
+/// Story 2.2: the `PHASE5_ENABLED` matrix of design §12.1.
+#[test]
+fn phase5_switch_defaults_to_v7_and_refuses_malformed_or_contradictory_values() {
+    // Unset selects V7, except under the historical simulation-fixture selection.
+    assert!(config(&[]).phase5_requested().unwrap());
+    assert!(config(&[("PHASE4_ENABLED", "1")])
+        .phase5_requested()
+        .unwrap());
+    assert!(!config(&[("ZONE_SIM_FIXTURE", "phase1a-social-aggro")])
+        .phase5_requested()
+        .unwrap());
+    // Exact 0 keeps the older selection; exact 1 selects V7.
+    assert!(!config(&[("PHASE5_ENABLED", "0")])
+        .phase5_requested()
+        .unwrap());
+    assert!(config(&[("PHASE5_ENABLED", "1")])
+        .phase5_requested()
+        .unwrap());
+    assert!(config(&[
+        ("PHASE5_ENABLED", "1"),
+        ("PHASE4_ENABLED", "1"),
+        ("PHASE3_ENABLED", "1")
+    ])
+    .phase5_requested()
+    .unwrap());
+    // Any other value refuses boot, through the production selection check too.
+    for value in ["", "true", "01", "1 ", "2", "yes"] {
+        let cfg = config(&[("PHASE5_ENABLED", value)]);
+        assert!(cfg.phase5_requested().is_err(), "{value:?}");
+        assert!(cfg.validate_production_selection().is_err(), "{value:?}");
+    }
+    // V7 extends V6 and V5: an explicit older `0` contradicts an explicit V7 selection.
+    assert!(config(&[("PHASE5_ENABLED", "1"), ("PHASE4_ENABLED", "0")])
+        .phase5_requested()
+        .is_err());
+    assert!(config(&[("PHASE5_ENABLED", "1"), ("PHASE3_ENABLED", "0")])
+        .phase5_requested()
+        .is_err());
+    assert!(config(&[
+        ("PHASE5_ENABLED", "1"),
+        ("ZONE_SIM_FIXTURE", "phase1a-social-aggro"),
+        ("AUTH_DEV_TOKENS", "1")
+    ])
+    .phase5_requested()
+    .is_err());
+    assert!(config(&[
+        ("PHASE5_ENABLED", "1"),
+        ("PHASE3_ENABLED", "1"),
+        ("ZONE_SIM_FIXTURE", "phase1a-social-aggro"),
+        ("AUTH_DEV_TOKENS", "1")
+    ])
+    .phase5_requested()
+    .unwrap());
+    // The older switches keep their own matrix.
+    assert!(config(&[]).validate_production_selection().is_ok());
+    assert!(config(&[("PHASE5_ENABLED", "0"), ("PHASE4_ENABLED", "0")])
+        .validate_production_selection()
+        .is_ok());
+}
+
+/// Story 2.3: the Phase 5 rules bind to the V6 bundle at boot (D27) or refuse boot.
+#[test]
+fn phase5_rules_bind_to_the_v6_bundle_or_refuse_boot() {
+    // Selected only by default without a V6 bundle: nothing to bind, no refusal.
+    assert!(config(&[]).prepare_phase5(None).unwrap().is_none());
+    // Explicit V7 without V6 is a contradiction.
+    assert!(config(&[("PHASE5_ENABLED", "1")])
+        .prepare_phase5(None)
+        .is_err());
+    let bundle = crate::infrastructure::item_data::embedded_phase4_bundle().unwrap();
+    // V7 switched off: no rules even with a bundle.
+    assert!(config(&[("PHASE5_ENABLED", "0"), ("PHASE4_ENABLED", "1")])
+        .prepare_phase5(Some(&bundle))
+        .unwrap()
+        .is_none());
+    let rules = config(&[("PHASE4_ENABLED", "1")])
+        .prepare_phase5(Some(&bundle))
+        .unwrap()
+        .unwrap();
+    let embedded = crate::infrastructure::economy_data::embedded_phase5_rules().unwrap();
+    assert_eq!(rules.hash(), embedded.hash());
+    assert_eq!(rules.parts().phase4_hash, bundle.items.hash());
+    rules.validate_phase4(&bundle.items).unwrap();
+}

@@ -49,6 +49,11 @@ pub struct ZoneRuntimeConfig {
     /// Phase 4 item and skill bundle. V6 extends V5, so it requires the V5 selection.
     /// Malformed values refuse startup.
     pub phase4_enabled: Option<String>,
+    /// `PHASE5_ENABLED` (design §12.1): unset selects V7 new epochs, except under a historical
+    /// simulation-fixture selection; exact `0` keeps the V6-and-older selection; exact `1`
+    /// selects V7. Any other value refuses startup. The recorded version always wins on
+    /// replay. V7 extends V6, so it refuses an explicit `PHASE4_ENABLED=0`/`PHASE3_ENABLED=0`.
+    pub phase5_enabled: Option<String>,
 }
 
 impl ZoneRuntimeConfig {
@@ -72,6 +77,7 @@ impl ZoneRuntimeConfig {
             auth_dev_tokens: get("AUTH_DEV_TOKENS").is_some_and(|v| v == "1"),
             phase3_enabled: get("PHASE3_ENABLED").map(|v| v.to_string_lossy().into_owned()),
             phase4_enabled: get("PHASE4_ENABLED").map(|v| v.to_string_lossy().into_owned()),
+            phase5_enabled: get("PHASE5_ENABLED").map(|v| v.to_string_lossy().into_owned()),
         }
     }
 
@@ -105,11 +111,72 @@ impl ZoneRuntimeConfig {
         }
     }
 
+    /// The `PHASE5_ENABLED` matrix (design §12.1): unset → V7 unless a simulation fixture
+    /// keeps its historical epochs; `0` → the older selection; `1` → V7; anything else
+    /// refuses boot. V7 extends V6 and V5, so an explicit `0` on either older switch is a
+    /// contradiction and refuses boot too. The V7 bundle itself (Phase 5 rules and block)
+    /// is composed by the engine stories; this selection is what they consult.
+    pub fn phase5_requested(&self) -> anyhow::Result<bool> {
+        let requested = match self.phase5_enabled.as_deref() {
+            None => self.simulation_fixture.is_none(),
+            Some("0") => false,
+            Some("1") => true,
+            Some(_) => anyhow::bail!("PHASE5_ENABLED must be unset, 0 or 1"),
+        };
+        if requested && self.phase5_enabled.is_some() {
+            anyhow::ensure!(
+                self.phase4_enabled.as_deref() != Some("0"),
+                "PHASE5_ENABLED=1 extends the V6 bundle; PHASE4_ENABLED must be unset or 1"
+            );
+            anyhow::ensure!(
+                self.phase3_enabled.as_deref() != Some("0"),
+                "PHASE5_ENABLED=1 extends the V5 bundle; PHASE3_ENABLED must be unset or 1"
+            );
+            if self.simulation_fixture.is_some() && self.phase3_enabled.is_none() {
+                anyhow::bail!(
+                    "PHASE5_ENABLED=1 extends the V5 bundle, but ZONE_SIM_FIXTURE keeps legacy \
+                     epochs by default; set PHASE3_ENABLED=1 to select V5"
+                );
+            }
+        }
+        Ok(requested)
+    }
+
+    /// The Phase 5 rules a V7 epoch is bound to (design §1.10, D27): the embedded tables
+    /// validated and hashed against the V6 bundle this process composed. `None` when V7 is
+    /// not selected, or when it is selected only by default without a V6 bundle (the epoch
+    /// version itself is chosen by the engine stories); an explicit `PHASE5_ENABLED=1`
+    /// without `PHASE4_ENABLED=1` refuses boot, as does any table validation failure.
+    pub fn prepare_phase5(
+        &self,
+        phase4: Option<&crate::infrastructure::item_data::Phase4RuleBundle>,
+    ) -> anyhow::Result<Option<Arc<crate::domain::zone::Phase5Rules>>> {
+        if !self.phase5_requested()? {
+            return Ok(None);
+        }
+        let Some(bundle) = phase4 else {
+            anyhow::ensure!(
+                self.phase5_enabled.is_none(),
+                "PHASE5_ENABLED=1 requires the V6 bundle: set PHASE4_ENABLED=1"
+            );
+            return Ok(None);
+        };
+        let rules = crate::infrastructure::economy_data::phase5_rules_for(&bundle.items)
+            .map_err(anyhow::Error::msg)?;
+        tracing::info!(
+            phase5_rules_hash = %format_args!("sha256:{}", rules.hash_hex()),
+            global_multiplier = rules.global_multiplier_string(),
+            "Phase 5 rules validated and bound to the V6 bundle"
+        );
+        Ok(Some(rules))
+    }
+
     /// Validates the compiled epoch selection before adapter connections and recovery.
     /// Full bundle validation remains required whenever V5 or V6 is selected.
     pub fn validate_production_selection(&self) -> anyhow::Result<()> {
         self.phase3_requested()?;
-        self.phase4_requested().map(|_| ())
+        self.phase4_requested()?;
+        self.phase5_requested().map(|_| ())
     }
 
     /// Loads and validates the V6 bundle (D27: embedded tables, referenced by hash) before
@@ -285,6 +352,9 @@ pub async fn start(
             &crate::infrastructure::class_data::ClassSource::embedded(),
         )?)?,
     };
+    // E2.3: a V7 selection validates and binds the Phase 5 rules before anything connects;
+    // the engine stories consume the bound rules when they open V7 epochs.
+    let _phase5 = cfg.prepare_phase5(phase4.as_ref())?;
     let metrics = deps.metrics.clone();
     let clock = deps.clock.clone();
     let def = cfg.load_zone()?;

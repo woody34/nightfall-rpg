@@ -56,6 +56,7 @@ async fn a_zone_sim_fixture_v6_epoch_replays_and_exports_with_its_configuration(
         auth_dev_tokens: true,
         phase3_enabled: Some("1".into()),
         phase4_enabled: Some("1".into()),
+        phase5_enabled: None,
     };
     let mut deps = nightfall_api::Dependencies::in_memory();
     deps.classes = Some(nightfall_api::infrastructure::class_data::load_classes(

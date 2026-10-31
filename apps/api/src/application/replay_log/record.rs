@@ -223,6 +223,7 @@ pub(crate) const MAX_SNAPSHOT_JSON: usize = 32 * 1024 * 1024;
 pub(crate) const MAX_SNAPSHOT_ENCODED: usize = 1024 * 1024 - 1024;
 const PHASE3_SNAPSHOT_MAGIC: &[u8; 8] = b"NFSNAP9\0";
 const PHASE4_SNAPSHOT_MAGIC: &[u8; 8] = b"NFSNAP10";
+const PHASE5_SNAPSHOT_MAGIC: &[u8; 8] = b"NFSNAP11";
 const TOKEN_SNAPSHOT_MAGIC: &[u8; 8] = b"NFSNAP8\0";
 const SNAPSHOT_MAGIC: &[u8; 8] = b"NFSNAP7\0";
 
@@ -264,6 +265,7 @@ pub fn encode_snapshot(snapshot: &ZoneSnapshot) -> Result<Vec<u8>, CodecError> {
         snapshot.meta.digest_version,
         crate::domain::zone::StateDigestVersion::BinaryV5
             | crate::domain::zone::StateDigestVersion::BinaryV6
+            | crate::domain::zone::StateDigestVersion::BinaryV7
     ) {
         super::snapshot_phase3::encode(snapshot)?
     } else {
@@ -281,6 +283,7 @@ pub fn encode_snapshot(snapshot: &ZoneSnapshot) -> Result<Vec<u8>, CodecError> {
             | crate::domain::zone::StateDigestVersion::BinaryV4
             | crate::domain::zone::StateDigestVersion::BinaryV5
             | crate::domain::zone::StateDigestVersion::BinaryV6
+            | crate::domain::zone::StateDigestVersion::BinaryV7
     ) {
         return Ok(json);
     }
@@ -293,6 +296,7 @@ pub fn encode_snapshot(snapshot: &ZoneSnapshot) -> Result<Vec<u8>, CodecError> {
             snapshot.meta.digest_version,
             crate::domain::zone::StateDigestVersion::BinaryV5
                 | crate::domain::zone::StateDigestVersion::BinaryV6
+                | crate::domain::zone::StateDigestVersion::BinaryV7
         ) {
             flate2::Compression::best()
         } else {
@@ -312,11 +316,16 @@ pub fn encode_snapshot(snapshot: &ZoneSnapshot) -> Result<Vec<u8>, CodecError> {
             snapshot.meta.digest_version,
             crate::domain::zone::StateDigestVersion::BinaryV5
                 | crate::domain::zone::StateDigestVersion::BinaryV6
+                | crate::domain::zone::StateDigestVersion::BinaryV7
         ) {
-            if snapshot.meta.digest_version == crate::domain::zone::StateDigestVersion::BinaryV6 {
-                PHASE4_SNAPSHOT_MAGIC
-            } else {
-                PHASE3_SNAPSHOT_MAGIC
+            match snapshot.meta.digest_version {
+                crate::domain::zone::StateDigestVersion::BinaryV7 => PHASE5_SNAPSHOT_MAGIC,
+                crate::domain::zone::StateDigestVersion::BinaryV6 => PHASE4_SNAPSHOT_MAGIC,
+                crate::domain::zone::StateDigestVersion::JsonV1
+                | crate::domain::zone::StateDigestVersion::BinaryV2
+                | crate::domain::zone::StateDigestVersion::BinaryV3
+                | crate::domain::zone::StateDigestVersion::BinaryV4
+                | crate::domain::zone::StateDigestVersion::BinaryV5 => PHASE3_SNAPSHOT_MAGIC,
             }
         } else if snapshot.meta.digest_version == crate::domain::zone::StateDigestVersion::BinaryV4
         {
@@ -375,6 +384,7 @@ pub fn decode_snapshot(bytes: &[u8]) -> Result<ZoneSnapshot, CodecError> {
         && !bytes.starts_with(TOKEN_SNAPSHOT_MAGIC)
         && !bytes.starts_with(PHASE3_SNAPSHOT_MAGIC)
         && !bytes.starts_with(PHASE4_SNAPSHOT_MAGIC)
+        && !bytes.starts_with(PHASE5_SNAPSHOT_MAGIC)
     {
         if bytes.len() > MAX_SNAPSHOT_JSON {
             return Err(CodecError("legacy snapshot exceeds 32 MiB".into()));
@@ -416,17 +426,21 @@ pub fn decode_snapshot(bytes: &[u8]) -> Result<ZoneSnapshot, CodecError> {
     {
         return Err(CodecError("snapshot length or compressed stream mismatch".into()));
     }
-    let snapshot: ZoneSnapshot =
-        if bytes.starts_with(PHASE3_SNAPSHOT_MAGIC) || bytes.starts_with(PHASE4_SNAPSHOT_MAGIC) {
-            super::snapshot_phase3::decode(&json)?
-        } else {
-            validate_snapshot_json(&json)?;
-            serde_json::from_slice(&json).map_err(|e| CodecError(e.to_string()))?
-        };
+    let snapshot: ZoneSnapshot = if bytes.starts_with(PHASE3_SNAPSHOT_MAGIC)
+        || bytes.starts_with(PHASE4_SNAPSHOT_MAGIC)
+        || bytes.starts_with(PHASE5_SNAPSHOT_MAGIC)
+    {
+        super::snapshot_phase3::decode(&json)?
+    } else {
+        validate_snapshot_json(&json)?;
+        serde_json::from_slice(&json).map_err(|e| CodecError(e.to_string()))?
+    };
     snapshot
         .validate_version()
         .map_err(|e| CodecError(e.to_string()))?;
-    let expected = if bytes.starts_with(PHASE4_SNAPSHOT_MAGIC) {
+    let expected = if bytes.starts_with(PHASE5_SNAPSHOT_MAGIC) {
+        (11, crate::domain::zone::StateDigestVersion::BinaryV7)
+    } else if bytes.starts_with(PHASE4_SNAPSHOT_MAGIC) {
         (10, crate::domain::zone::StateDigestVersion::BinaryV6)
     } else if bytes.starts_with(PHASE3_SNAPSHOT_MAGIC) {
         (9, crate::domain::zone::StateDigestVersion::BinaryV5)
@@ -451,6 +465,14 @@ fn validate_snapshot_json(bytes: &[u8]) -> Result<(), CodecError> {
         .is_some_and(|v| v < 10)
     {
         super::codec_validation::pre_phase4_json(&value)?;
+    }
+    if value
+        .get("meta")
+        .and_then(|m| m.get("schema_version"))
+        .and_then(serde_json::Value::as_u64)
+        .is_some_and(|v| v < 11)
+    {
+        super::codec_validation::pre_phase5_json(&value)?;
     }
     if value
         .get("meta")

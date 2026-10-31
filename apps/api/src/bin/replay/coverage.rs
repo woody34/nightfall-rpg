@@ -471,6 +471,7 @@ fn commands(
             | ZoneCommand::MaterializePendingItems(_)
             | ZoneCommand::ExtendItemRange { .. }
             | ZoneCommand::Item(_)
+            | ZoneCommand::Phase5(_)
             | ZoneCommand::SpawnPlayer { .. }
             | ZoneCommand::SpawnNpc { .. }
             | ZoneCommand::Despawn { .. }
@@ -571,6 +572,8 @@ fn facts(
             | ZoneEvent::ItemView(_)
             | ZoneEvent::ItemResult(_)
             | ZoneEvent::ItemCheckpoint(_)
+            | ZoneEvent::EconomyCheckpoint(_)
+            | ZoneEvent::Economy(_)
             | ZoneEvent::Progression(_) => {},
         }
     }

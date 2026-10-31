@@ -86,6 +86,8 @@ impl ZoneInput {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ZoneCommand {
+    /// Phase 5 economy intent or system job (design §12.2). V7 only.
+    Phase5(Box<super::Phase5Command>),
     /// Server-only recorded direct grant; offline work carries its private paused owner.
     MaterializePendingItems(Box<super::ItemGrantCommand>),
     /// Recorded server reservation; only replaces an exhausted V6 allocator range.
@@ -256,8 +258,17 @@ impl ZoneCommand {
     pub const fn requires_phase4(&self) -> bool {
         matches!(
             self,
-            Self::Item(_) | Self::MaterializePendingItems(_) | Self::ExtendItemRange { .. }
+            Self::Item(_)
+                | Self::MaterializePendingItems(_)
+                | Self::ExtendItemRange { .. }
+                | Self::Phase5(_)
         ) || matches!(self, Self::SpawnPlayer { load: Some(load), .. } if load.phase4.is_some())
+    }
+
+    /// Economy intents, system jobs and Phase 5 loads must never enter a pre-V7 epoch.
+    pub const fn requires_phase5(&self) -> bool {
+        matches!(self, Self::Phase5(_))
+            || matches!(self, Self::SpawnPlayer { load: Some(load), .. } if load.phase5.is_some())
     }
 
     /// The entity the command is about. `None` for `SpawnNpc`, whose id is not known until the
@@ -265,6 +276,7 @@ impl ZoneCommand {
     #[must_use]
     pub const fn entity(&self) -> Option<EntityId> {
         match self {
+            Self::Phase5(command) => command.entity(),
             Self::Item(command) => Some(command.entity),
             Self::MaterializePendingItems(command) => Some(command.entity),
             Self::CastSkill { entity, .. }
@@ -593,6 +605,11 @@ pub enum SkillOutcome {
 #[serde(tag = "type", rename_all = "snake_case")]
 #[allow(clippy::enum_variant_names)] // names mirror the proto messages one to one
 pub enum ZoneEvent {
+    /// Private final-tick economy settlement (design §12.3 tag 55); never an observer or
+    /// WebSocket event.
+    EconomyCheckpoint(Box<super::EconomyCheckpoint>),
+    /// One Phase 5 world event of design §13.2 (`PbOutput` 43..54). V7 only.
+    Economy(Box<super::EconomyEvent>),
     /// Private final-tick item settlement; never an observer or WebSocket event.
     ItemCheckpoint(Box<super::Phase4Projection>),
     /// Frozen operation result, visible only to the owning player.
@@ -915,6 +932,9 @@ pub enum ZoneEvent {
         /// D26 public visible equipment of a V6 player; absent otherwise.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         phase4: Option<Box<super::item_views::Phase4SpawnView>>,
+        /// Design §13.2 `GroundItemDetail` of a V7 ground item; absent otherwise.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        phase5: Option<Box<super::GroundItemDetail>>,
         /// When.
         tick: Tick,
         /// Who.
@@ -1004,6 +1024,8 @@ impl ZoneEvent {
             | Self::HateChanged { tick, .. }
             | Self::NpcIntentionChanged { tick, .. } => *tick,
             Self::ItemCheckpoint(p) => p.tick,
+            Self::EconomyCheckpoint(p) => p.tick,
+            Self::Economy(e) => e.tick,
             Self::ItemResult(result) => result.tick,
             Self::ItemView(view) => view.tick,
             Self::Progression(d) => d.tick,
@@ -1040,6 +1062,9 @@ impl ZoneEvent {
             | Self::TargetChanged { entity, .. }
             | Self::NpcIntentionChanged { entity, .. } => *entity,
             Self::ItemCheckpoint(p) => p.entity,
+            // Zone-wide private settlement: no subject. Never routed to an observer.
+            Self::EconomyCheckpoint(_) => EntityId::from_uuid(uuid::Uuid::nil()),
+            Self::Economy(e) => e.entity,
             Self::ItemResult(result) => result.entity,
             Self::ItemView(view) => view.entity,
             Self::Progression(d) => d.entity,

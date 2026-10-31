@@ -256,12 +256,14 @@ fn an_invalid_load_is_refused_without_changing_state_or_rng() {
         PlayerLoad::fresh("no_such_class"),
         PlayerLoad {
             phase4: None,
+            phase5: None,
             phase3: None,
             level: 2,
             ..PlayerLoad::fresh("human_fighter")
         },
         PlayerLoad {
             phase4: None,
+            phase5: None,
             phase3: None,
             xp: u64::MAX,
             ..PlayerLoad::fresh("human_fighter")
@@ -294,6 +296,7 @@ fn an_invalid_load_is_refused_without_changing_state_or_rng() {
             generation: GEN1,
             load: Some(Box::new(PlayerLoad {
                 phase4: None,
+                phase5: None,
                 phase3: None,
                 hp: Some(0),
                 mp: Some(u32::MAX),

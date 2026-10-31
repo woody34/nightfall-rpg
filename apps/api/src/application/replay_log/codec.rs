@@ -93,6 +93,8 @@ pub(super) use item_views::from_json as item_view_from_json;
 pub(super) use items::{grant_from_json, result_from_json};
 #[path = "codec_phase3.rs"]
 mod phase3;
+#[path = "codec_phase5.rs"]
+mod phase5;
 
 use phase3::{PbAcceptResurrect, PbCancelCast, PbCastSkill, PbLearnSkill};
 
@@ -105,9 +107,9 @@ use super::record::{
 };
 use crate::domain::zone::{
     AppliedCommand, CombatView, CommandSource, DeathFact, Disposition, EntityId, EntityKind,
-    FinalStats, Fixed, Intention, NpcCombat, ObserverOutput, Ordinal, PlayerLoad, ProgressionDelta,
-    RejectReason, Scaled, SessionGeneration, Speed, StateDigestVersion, Swing, SwingCancel, Tick,
-    Vec2Fixed, ZoneCommand, ZoneEvent, ZoneId,
+    FinalStats, Fixed, Intention, NpcCombat, ObserverOutput, Ordinal, Phase5CommandKind,
+    Phase5OutputKind, PlayerLoad, ProgressionDelta, RejectReason, Scaled, SessionGeneration, Speed,
+    StateDigestVersion, Swing, SwingCancel, Tick, Vec2Fixed, ZoneCommand, ZoneEvent, ZoneId,
 };
 
 #[derive(Clone, PartialEq, Message)]
@@ -162,13 +164,104 @@ struct PbCommand {
     seq: Option<u32>,
     #[prost(
         oneof = "PbCommandKind",
-        tags = "4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31"
+        tags = "4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76"
     )]
     kind: Option<PbCommandKind>,
 }
 
 #[derive(Clone, PartialEq, prost::Oneof)]
 enum PbCommandKind {
+    // V7 Phase 5 economy intents and system jobs, design §12.2 (canonical JSON bodies).
+    #[prost(bytes, tag = "32")]
+    PickUpItem(Vec<u8>),
+    #[prost(bytes, tag = "33")]
+    VendorBuy(Vec<u8>),
+    #[prost(bytes, tag = "34")]
+    VendorSell(Vec<u8>),
+    #[prost(bytes, tag = "35")]
+    VendorRefund(Vec<u8>),
+    #[prost(bytes, tag = "36")]
+    MultisellChoose(Vec<u8>),
+    #[prost(bytes, tag = "37")]
+    RegisterRecipe(Vec<u8>),
+    #[prost(bytes, tag = "38")]
+    DeleteRecipe(Vec<u8>),
+    #[prost(bytes, tag = "39")]
+    CraftItem(Vec<u8>),
+    #[prost(bytes, tag = "40")]
+    TradeRequest(Vec<u8>),
+    #[prost(bytes, tag = "41")]
+    TradeAnswer(Vec<u8>),
+    #[prost(bytes, tag = "42")]
+    TradeAddItem(Vec<u8>),
+    #[prost(bytes, tag = "43")]
+    TradeConfirm(Vec<u8>),
+    #[prost(bytes, tag = "44")]
+    TradeCancel(Vec<u8>),
+    #[prost(bytes, tag = "45")]
+    SetPrivateStoreSell(Vec<u8>),
+    #[prost(bytes, tag = "46")]
+    SetPrivateStoreBuy(Vec<u8>),
+    #[prost(bytes, tag = "47")]
+    SetPrivateManufacture(Vec<u8>),
+    #[prost(bytes, tag = "48")]
+    ClosePrivateStore(Vec<u8>),
+    #[prost(bytes, tag = "49")]
+    PrivateStoreBuy(Vec<u8>),
+    #[prost(bytes, tag = "50")]
+    PrivateStoreSell(Vec<u8>),
+    #[prost(bytes, tag = "51")]
+    PrivateManufactureOrder(Vec<u8>),
+    #[prost(bytes, tag = "52")]
+    PartyInvite(Vec<u8>),
+    #[prost(bytes, tag = "53")]
+    PartyAnswer(Vec<u8>),
+    #[prost(bytes, tag = "54")]
+    PartyLeave(Vec<u8>),
+    #[prost(bytes, tag = "55")]
+    PartyKick(Vec<u8>),
+    #[prost(bytes, tag = "56")]
+    PartyChangeLeader(Vec<u8>),
+    #[prost(bytes, tag = "57")]
+    PartyLootChangeRequest(Vec<u8>),
+    #[prost(bytes, tag = "58")]
+    PartyLootChangeAnswer(Vec<u8>),
+    #[prost(bytes, tag = "59")]
+    WarehouseDeposit(Vec<u8>),
+    #[prost(bytes, tag = "60")]
+    WarehouseWithdraw(Vec<u8>),
+    #[prost(bytes, tag = "61")]
+    FreightSend(Vec<u8>),
+    #[prost(bytes, tag = "62")]
+    FreightWithdraw(Vec<u8>),
+    #[prost(bytes, tag = "63")]
+    MailSend(Vec<u8>),
+    #[prost(bytes, tag = "64")]
+    MailTakeAttachments(Vec<u8>),
+    #[prost(bytes, tag = "65")]
+    MailReject(Vec<u8>),
+    #[prost(bytes, tag = "66")]
+    MailCancel(Vec<u8>),
+    #[prost(bytes, tag = "67")]
+    MailDelete(Vec<u8>),
+    #[prost(bytes, tag = "68")]
+    ManorBuySeed(Vec<u8>),
+    #[prost(bytes, tag = "69")]
+    ManorSellCrop(Vec<u8>),
+    #[prost(bytes, tag = "70")]
+    ItemAuctionBid(Vec<u8>),
+    #[prost(bytes, tag = "71")]
+    ItemAuctionCancelBid(Vec<u8>),
+    #[prost(bytes, tag = "72")]
+    MailMarkRead(Vec<u8>),
+    #[prost(bytes, tag = "73")]
+    DeliverPending(Vec<u8>),
+    #[prost(bytes, tag = "74")]
+    AuctionSchedule(Vec<u8>),
+    #[prost(bytes, tag = "75")]
+    EpochReconcile(Vec<u8>),
+    #[prost(bytes, tag = "76")]
+    MailExpire(Vec<u8>),
     #[prost(bytes, tag = "30")]
     MaterializePendingItems(Vec<u8>),
     #[prost(bytes, tag = "31")]
@@ -238,6 +331,8 @@ struct PbAddAggro {
 
 #[derive(Clone, PartialEq, Message)]
 struct PbPlayerLoad {
+    #[prost(bytes = "vec", optional, tag = "11")]
+    phase5: Option<Vec<u8>>,
     #[prost(bytes = "vec", optional, tag = "10")]
     phase4: Option<Vec<u8>>,
     #[prost(bytes = "vec", optional, tag = "9")]
@@ -470,13 +565,40 @@ struct PbOutputs {
 struct PbOutput {
     #[prost(
         oneof = "PbOutputItem",
-        tags = "1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41"
+        tags = "1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 52, 53, 54, 55"
     )]
     item: Option<PbOutputItem>,
 }
 
 #[derive(Clone, PartialEq, prost::Oneof)]
 enum PbOutputItem {
+    // V7 Phase 5 carriers, design §12.3 (51 reserved: MailNotification is API-only).
+    #[prost(bytes, tag = "42")]
+    Phase5Enriched(Vec<u8>),
+    #[prost(bytes, tag = "43")]
+    EconomyResult(Vec<u8>),
+    #[prost(bytes, tag = "44")]
+    CorpseStateChanged(Vec<u8>),
+    #[prost(bytes, tag = "45")]
+    PartyStateChanged(Vec<u8>),
+    #[prost(bytes, tag = "46")]
+    PartyLootVote(Vec<u8>),
+    #[prost(bytes, tag = "47")]
+    PartyInviteReceived(Vec<u8>),
+    #[prost(bytes, tag = "48")]
+    TradeRequestReceived(Vec<u8>),
+    #[prost(bytes, tag = "49")]
+    TradeSessionChanged(Vec<u8>),
+    #[prost(bytes, tag = "50")]
+    PrivateStoreChanged(Vec<u8>),
+    #[prost(bytes, tag = "52")]
+    RecipeBookSync(Vec<u8>),
+    #[prost(bytes, tag = "53")]
+    ItemAuctionStatusChanged(Vec<u8>),
+    #[prost(bytes, tag = "54")]
+    LootDistributed(Vec<u8>),
+    #[prost(bytes, tag = "55")]
+    EconomyCheckpoint(Vec<u8>),
     #[prost(bytes, tag = "32")]
     InventorySync(Vec<u8>),
     #[prost(bytes, tag = "33")]
@@ -695,6 +817,7 @@ fn record_to_pb(r: &AppliedTickRecord) -> PbRecord {
             StateDigestVersion::BinaryV4 => 6,
             StateDigestVersion::BinaryV5 => 7,
             StateDigestVersion::BinaryV6 => 8,
+            StateDigestVersion::BinaryV7 => 9,
         },
     }
 }
@@ -703,7 +826,9 @@ fn record_to_pb(r: &AppliedTickRecord) -> PbRecord {
 /// combat commands and facts. 3 (E2.4/E2.6): progression facts, the
 /// `alive` load flag, XP on `StatsChanged`. 4: binary v2 state digest. Schema 3 remains
 /// readable and writable for JSON v1 replay; earlier versions are refused (1 reads 0).
-pub const RECORD_SCHEMA_VERSION: u32 = 8;
+/// 7: Phase 3 (`BinaryV5`). 8: Phase 4 items (`BinaryV6`). 9: Phase 5 economy (`BinaryV7`,
+/// design §12.1): command kinds 32..76, player load 11 and outputs 42..55.
+pub const RECORD_SCHEMA_VERSION: u32 = 9;
 
 pub(super) fn encode_events(events: &[ZoneEvent]) -> Vec<u8> {
     PbOutputs {
@@ -822,6 +947,7 @@ fn command_to_pb(c: &AppliedCommand) -> PbCommand {
             PbCommandKind::ExtendItemRange(canonical_json(range))
         },
         ZoneCommand::Item(command) => items::command_to_pb(command),
+        ZoneCommand::Phase5(command) => phase5::command_to_pb(command),
         ZoneCommand::ChangeClass { .. } => PbCommandKind::ChangeClass(canonical_json(&c.command)),
         ZoneCommand::SpawnPlayer {
             entity,
@@ -837,6 +963,7 @@ fn command_to_pb(c: &AppliedCommand) -> PbCommand {
             speed: speed.milli_tiles_per_tick(),
             generation: generation.0,
             load: load.as_ref().map(|l| PbPlayerLoad {
+                phase5: l.phase5.as_ref().map(canonical_json),
                 phase4: l.phase4.as_ref().map(canonical_json),
                 phase3: l.phase3.as_ref().map(canonical_json),
                 progression: l.progression.as_ref().map(canonical_json),
@@ -1262,7 +1389,10 @@ fn cancel_from_pb(v: i32) -> Result<SwingCancel, CodecError> {
 
 #[allow(clippy::too_many_lines)] // exhaustive one-to-one durable event mapping
 fn event_to_pb(e: &ZoneEvent) -> PbOutputItem {
-    // D26: select the enriched carrier before every older event-carrier dispatch.
+    // Design §12.3 tag 42, then D26: enriched carriers before every older dispatch.
+    if phase5::enriched(e) {
+        return PbOutputItem::Phase5Enriched(canonical_json(e));
+    }
     if phase4_enriched(e) {
         return PbOutputItem::Phase4Enriched(canonical_json(e));
     }
@@ -1279,6 +1409,10 @@ fn event_to_pb(e: &ZoneEvent) -> PbOutputItem {
         return PbOutputItem::Phase2(canonical_json(e));
     }
     match e {
+        ZoneEvent::Economy(event) => phase5::event_to_pb(event),
+        ZoneEvent::EconomyCheckpoint(checkpoint) => {
+            PbOutputItem::EconomyCheckpoint(canonical_json(checkpoint))
+        },
         ZoneEvent::ItemView(view) => item_views::to_pb(view),
         ZoneEvent::ItemResult(result) => items::result_to_pb(result),
         ZoneEvent::ItemCheckpoint(projection) => {
@@ -1472,6 +1606,7 @@ fn event_to_pb(e: &ZoneEvent) -> PbOutputItem {
         ZoneEvent::EntitySpawn {
             identity: _,
             phase4: _,
+            phase5: _,
             tick,
             entity,
             kind,
@@ -1575,9 +1710,9 @@ fn player_output_from_pb(
 
 pub(super) fn decode_record(bytes: &[u8]) -> Result<AppliedTickRecord, CodecError> {
     let pb = PbRecord::decode(bytes).map_err(err)?;
-    if ![3, 4, 5, 6, 7, RECORD_SCHEMA_VERSION].contains(&pb.schema) {
+    if ![3, 4, 5, 6, 7, 8, RECORD_SCHEMA_VERSION].contains(&pb.schema) {
         return Err(CodecError(format!(
-            "record schema {} is not supported (this build reads 3, 4, 5, 6, 7 and {RECORD_SCHEMA_VERSION})",
+            "record schema {} is not supported (this build reads 3, 4, 5, 6, 7, 8 and {RECORD_SCHEMA_VERSION})",
             pb.schema
         )));
     }
@@ -1608,7 +1743,7 @@ pub(super) fn decode_record(bytes: &[u8]) -> Result<AppliedTickRecord, CodecErro
         outputs: pb
             .outputs
             .into_iter()
-            .map(|o| player_output_from_pb(o, output_form, pb.schema == 8))
+            .map(|o| player_output_from_pb(o, output_form, pb.schema >= 8))
             .collect::<Result<_, _>>()?,
         output_form,
         events: pb.events,
@@ -1623,8 +1758,10 @@ pub(super) fn decode_record(bytes: &[u8]) -> Result<AppliedTickRecord, CodecErro
             StateDigestVersion::BinaryV4
         } else if pb.schema == 7 {
             StateDigestVersion::BinaryV5
-        } else {
+        } else if pb.schema == 8 {
             StateDigestVersion::BinaryV6
+        } else {
+            StateDigestVersion::BinaryV7
         },
     })
 }
@@ -1699,8 +1836,144 @@ fn source_from(s: Option<PbSession>) -> Result<CommandSource, CodecError> {
     })
 }
 
+#[allow(clippy::too_many_lines)] // One arm per recorded command kind keeps the dispatch exhaustive.
 fn command_from_pb(c: PbCommand) -> Result<AppliedCommand, CodecError> {
     let command = match c.kind {
+        Some(PbCommandKind::PickUpItem(bytes)) => {
+            phase5::command_from_json(&bytes, Phase5CommandKind::PickUpItem)?
+        },
+        Some(PbCommandKind::VendorBuy(bytes)) => {
+            phase5::command_from_json(&bytes, Phase5CommandKind::VendorBuy)?
+        },
+        Some(PbCommandKind::VendorSell(bytes)) => {
+            phase5::command_from_json(&bytes, Phase5CommandKind::VendorSell)?
+        },
+        Some(PbCommandKind::VendorRefund(bytes)) => {
+            phase5::command_from_json(&bytes, Phase5CommandKind::VendorRefund)?
+        },
+        Some(PbCommandKind::MultisellChoose(bytes)) => {
+            phase5::command_from_json(&bytes, Phase5CommandKind::MultisellChoose)?
+        },
+        Some(PbCommandKind::RegisterRecipe(bytes)) => {
+            phase5::command_from_json(&bytes, Phase5CommandKind::RegisterRecipe)?
+        },
+        Some(PbCommandKind::DeleteRecipe(bytes)) => {
+            phase5::command_from_json(&bytes, Phase5CommandKind::DeleteRecipe)?
+        },
+        Some(PbCommandKind::CraftItem(bytes)) => {
+            phase5::command_from_json(&bytes, Phase5CommandKind::CraftItem)?
+        },
+        Some(PbCommandKind::TradeRequest(bytes)) => {
+            phase5::command_from_json(&bytes, Phase5CommandKind::TradeRequest)?
+        },
+        Some(PbCommandKind::TradeAnswer(bytes)) => {
+            phase5::command_from_json(&bytes, Phase5CommandKind::TradeAnswer)?
+        },
+        Some(PbCommandKind::TradeAddItem(bytes)) => {
+            phase5::command_from_json(&bytes, Phase5CommandKind::TradeAddItem)?
+        },
+        Some(PbCommandKind::TradeConfirm(bytes)) => {
+            phase5::command_from_json(&bytes, Phase5CommandKind::TradeConfirm)?
+        },
+        Some(PbCommandKind::TradeCancel(bytes)) => {
+            phase5::command_from_json(&bytes, Phase5CommandKind::TradeCancel)?
+        },
+        Some(PbCommandKind::SetPrivateStoreSell(bytes)) => {
+            phase5::command_from_json(&bytes, Phase5CommandKind::SetPrivateStoreSell)?
+        },
+        Some(PbCommandKind::SetPrivateStoreBuy(bytes)) => {
+            phase5::command_from_json(&bytes, Phase5CommandKind::SetPrivateStoreBuy)?
+        },
+        Some(PbCommandKind::SetPrivateManufacture(bytes)) => {
+            phase5::command_from_json(&bytes, Phase5CommandKind::SetPrivateManufacture)?
+        },
+        Some(PbCommandKind::ClosePrivateStore(bytes)) => {
+            phase5::command_from_json(&bytes, Phase5CommandKind::ClosePrivateStore)?
+        },
+        Some(PbCommandKind::PrivateStoreBuy(bytes)) => {
+            phase5::command_from_json(&bytes, Phase5CommandKind::PrivateStoreBuy)?
+        },
+        Some(PbCommandKind::PrivateStoreSell(bytes)) => {
+            phase5::command_from_json(&bytes, Phase5CommandKind::PrivateStoreSell)?
+        },
+        Some(PbCommandKind::PrivateManufactureOrder(bytes)) => {
+            phase5::command_from_json(&bytes, Phase5CommandKind::PrivateManufactureOrder)?
+        },
+        Some(PbCommandKind::PartyInvite(bytes)) => {
+            phase5::command_from_json(&bytes, Phase5CommandKind::PartyInvite)?
+        },
+        Some(PbCommandKind::PartyAnswer(bytes)) => {
+            phase5::command_from_json(&bytes, Phase5CommandKind::PartyAnswer)?
+        },
+        Some(PbCommandKind::PartyLeave(bytes)) => {
+            phase5::command_from_json(&bytes, Phase5CommandKind::PartyLeave)?
+        },
+        Some(PbCommandKind::PartyKick(bytes)) => {
+            phase5::command_from_json(&bytes, Phase5CommandKind::PartyKick)?
+        },
+        Some(PbCommandKind::PartyChangeLeader(bytes)) => {
+            phase5::command_from_json(&bytes, Phase5CommandKind::PartyChangeLeader)?
+        },
+        Some(PbCommandKind::PartyLootChangeRequest(bytes)) => {
+            phase5::command_from_json(&bytes, Phase5CommandKind::PartyLootChangeRequest)?
+        },
+        Some(PbCommandKind::PartyLootChangeAnswer(bytes)) => {
+            phase5::command_from_json(&bytes, Phase5CommandKind::PartyLootChangeAnswer)?
+        },
+        Some(PbCommandKind::WarehouseDeposit(bytes)) => {
+            phase5::command_from_json(&bytes, Phase5CommandKind::WarehouseDeposit)?
+        },
+        Some(PbCommandKind::WarehouseWithdraw(bytes)) => {
+            phase5::command_from_json(&bytes, Phase5CommandKind::WarehouseWithdraw)?
+        },
+        Some(PbCommandKind::FreightSend(bytes)) => {
+            phase5::command_from_json(&bytes, Phase5CommandKind::FreightSend)?
+        },
+        Some(PbCommandKind::FreightWithdraw(bytes)) => {
+            phase5::command_from_json(&bytes, Phase5CommandKind::FreightWithdraw)?
+        },
+        Some(PbCommandKind::MailSend(bytes)) => {
+            phase5::command_from_json(&bytes, Phase5CommandKind::MailSend)?
+        },
+        Some(PbCommandKind::MailTakeAttachments(bytes)) => {
+            phase5::command_from_json(&bytes, Phase5CommandKind::MailTakeAttachments)?
+        },
+        Some(PbCommandKind::MailReject(bytes)) => {
+            phase5::command_from_json(&bytes, Phase5CommandKind::MailReject)?
+        },
+        Some(PbCommandKind::MailCancel(bytes)) => {
+            phase5::command_from_json(&bytes, Phase5CommandKind::MailCancel)?
+        },
+        Some(PbCommandKind::MailDelete(bytes)) => {
+            phase5::command_from_json(&bytes, Phase5CommandKind::MailDelete)?
+        },
+        Some(PbCommandKind::ManorBuySeed(bytes)) => {
+            phase5::command_from_json(&bytes, Phase5CommandKind::ManorBuySeed)?
+        },
+        Some(PbCommandKind::ManorSellCrop(bytes)) => {
+            phase5::command_from_json(&bytes, Phase5CommandKind::ManorSellCrop)?
+        },
+        Some(PbCommandKind::ItemAuctionBid(bytes)) => {
+            phase5::command_from_json(&bytes, Phase5CommandKind::ItemAuctionBid)?
+        },
+        Some(PbCommandKind::ItemAuctionCancelBid(bytes)) => {
+            phase5::command_from_json(&bytes, Phase5CommandKind::ItemAuctionCancelBid)?
+        },
+        Some(PbCommandKind::MailMarkRead(bytes)) => {
+            phase5::command_from_json(&bytes, Phase5CommandKind::MailMarkRead)?
+        },
+        Some(PbCommandKind::DeliverPending(bytes)) => {
+            phase5::command_from_json(&bytes, Phase5CommandKind::DeliverPending)?
+        },
+        Some(PbCommandKind::AuctionSchedule(bytes)) => {
+            phase5::command_from_json(&bytes, Phase5CommandKind::AuctionSchedule)?
+        },
+        Some(PbCommandKind::EpochReconcile(bytes)) => {
+            phase5::command_from_json(&bytes, Phase5CommandKind::EpochReconcile)?
+        },
+        Some(PbCommandKind::MailExpire(bytes)) => {
+            phase5::command_from_json(&bytes, Phase5CommandKind::MailExpire)?
+        },
         Some(PbCommandKind::MaterializePendingItems(bytes)) => items::grant_from_json(&bytes)?,
         Some(PbCommandKind::ExtendItemRange(bytes)) => items::range_from_json(&bytes)?,
         Some(PbCommandKind::EquipItem(bytes)) => items::command_from_json(&bytes, 20)?,
@@ -1736,6 +2009,7 @@ fn command_from_pb(c: PbCommand) -> Result<AppliedCommand, CodecError> {
                 .load
                 .map(|l| {
                     let load = PlayerLoad {
+                        phase5: l.phase5.map(|b| phase5::load_from_json(&b)).transpose()?,
                         phase4: l.phase4.map(|b| phase4_load_from_json(&b)).transpose()?,
                         phase3: l
                             .phase3
@@ -1877,6 +2151,41 @@ fn stats_from_pb(s: PbStats) -> FinalStats {
 #[allow(clippy::too_many_lines)] // exhaustive one-to-one durable event mapping
 fn event_from_pb(item: PbOutputItem) -> Result<ZoneEvent, CodecError> {
     Ok(match item {
+        PbOutputItem::Phase5Enriched(bytes) => phase5::enriched_from_json(&bytes)?,
+        PbOutputItem::EconomyCheckpoint(bytes) => phase5::checkpoint_from_json(&bytes)?,
+        PbOutputItem::EconomyResult(bytes) => {
+            phase5::event_from_json(&bytes, Phase5OutputKind::EconomyResult)?
+        },
+        PbOutputItem::CorpseStateChanged(bytes) => {
+            phase5::event_from_json(&bytes, Phase5OutputKind::CorpseStateChanged)?
+        },
+        PbOutputItem::PartyStateChanged(bytes) => {
+            phase5::event_from_json(&bytes, Phase5OutputKind::PartyStateChanged)?
+        },
+        PbOutputItem::PartyLootVote(bytes) => {
+            phase5::event_from_json(&bytes, Phase5OutputKind::PartyLootVote)?
+        },
+        PbOutputItem::PartyInviteReceived(bytes) => {
+            phase5::event_from_json(&bytes, Phase5OutputKind::PartyInviteReceived)?
+        },
+        PbOutputItem::TradeRequestReceived(bytes) => {
+            phase5::event_from_json(&bytes, Phase5OutputKind::TradeRequestReceived)?
+        },
+        PbOutputItem::TradeSessionChanged(bytes) => {
+            phase5::event_from_json(&bytes, Phase5OutputKind::TradeSessionChanged)?
+        },
+        PbOutputItem::PrivateStoreChanged(bytes) => {
+            phase5::event_from_json(&bytes, Phase5OutputKind::PrivateStoreChanged)?
+        },
+        PbOutputItem::RecipeBookSync(bytes) => {
+            phase5::event_from_json(&bytes, Phase5OutputKind::RecipeBookSync)?
+        },
+        PbOutputItem::ItemAuctionStatusChanged(bytes) => {
+            phase5::event_from_json(&bytes, Phase5OutputKind::ItemAuctionStatusChanged)?
+        },
+        PbOutputItem::LootDistributed(bytes) => {
+            phase5::event_from_json(&bytes, Phase5OutputKind::LootDistributed)?
+        },
         PbOutputItem::InventorySync(bytes) => item_views::from_json(&bytes, 32)?,
         PbOutputItem::InventoryChanged(bytes) => item_views::from_json(&bytes, 33)?,
         PbOutputItem::EquipmentChanged(bytes) => item_views::from_json(&bytes, 34)?,
@@ -1968,7 +2277,7 @@ fn event_from_pb(item: PbOutputItem) -> Result<ZoneEvent, CodecError> {
         PbOutputItem::Phase4Enriched(bytes) => enriched_from_json(&bytes)?,
         PbOutputItem::Phase3Projection(bytes) => {
             let event: ZoneEvent = phase3_event_from_json(&bytes)?;
-            if phase4_enriched(&event) {
+            if phase4_enriched(&event) || phase5::enriched(&event) {
                 return Err(err("Phase4 enrichment in an older carrier"));
             }
             if !matches!(event, ZoneEvent::VitalsChanged { .. } | ZoneEvent::SkillStateSync { .. })
@@ -1990,7 +2299,7 @@ fn event_from_pb(item: PbOutputItem) -> Result<ZoneEvent, CodecError> {
         },
         PbOutputItem::Phase2(bytes) => {
             let event: ZoneEvent = serde_json::from_slice(&bytes).map_err(err)?;
-            if phase4_enriched(&event) {
+            if phase4_enriched(&event) || phase5::enriched(&event) {
                 return Err(err("Phase4 enrichment in an older carrier"));
             }
             if !matches!(
@@ -2122,6 +2431,7 @@ fn event_from_pb(item: PbOutputItem) -> Result<ZoneEvent, CodecError> {
         },
         PbOutputItem::Spawn(s) => ZoneEvent::EntitySpawn {
             phase4: None,
+            phase5: None,
             identity: None,
             tick: Tick(s.tick),
             entity: entity_from(&s.entity)?,
@@ -2201,6 +2511,9 @@ fn phase4_enriched(event: &ZoneEvent) -> bool {
 /// nested effective projection the Phase4 extension completes.
 pub(super) fn enriched_from_json(bytes: &[u8]) -> Result<ZoneEvent, CodecError> {
     let event = phase3_event_from_json(bytes)?;
+    if phase5::enriched(&event) {
+        return Err(err("Phase5 enrichment in an older carrier"));
+    }
     let valid = if let ZoneEvent::EntitySpawn {
         phase4: Some(items),
         combat: Some(combat),
@@ -2265,6 +2578,27 @@ pub(super) fn phase4_load_from_json(
     Ok(load)
 }
 
+/// Record-grammar hook: the Phase 5 carriers' strict body checks (design §12.2, §12.3),
+/// run while the raw record is traversed and again by the permissive decoder.
+pub(super) fn phase5_payload(node: &str, tag: u32, payload: &[u8]) -> Result<(), CodecError> {
+    match (node, tag) {
+        ("PbCommand", tag) => {
+            let kind = Phase5CommandKind::from_codec_tag(tag)
+                .ok_or_else(|| err("unknown Phase 5 command tag"))?;
+            phase5::command_from_json(payload, kind).map(|_| ())
+        },
+        ("PbPlayerLoad", 11) => phase5::load_from_json(payload).map(|_| ()),
+        ("PbOutput", 42) => phase5::enriched_from_json(payload).map(|_| ()),
+        ("PbOutput", 55) => phase5::checkpoint_from_json(payload).map(|_| ()),
+        ("PbOutput", tag) => {
+            let kind = Phase5OutputKind::from_codec_tag(tag)
+                .ok_or_else(|| err("unknown Phase 5 output tag"))?;
+            phase5::event_from_json(payload, kind).map(|_| ())
+        },
+        _ => Err(err("not a Phase 5 carrier")),
+    }
+}
+
 fn canonical_json<T: serde::Serialize>(value: &T) -> Vec<u8> {
     serde_json::to_vec(value).unwrap_or_default()
 }
@@ -2279,7 +2613,7 @@ mod combat_tests {
             ..Default::default()
         };
         let error = super::decode_record(&prost::Message::encode_to_vec(&pb)).unwrap_err();
-        assert_eq!(error.to_string(), "cannot decode replay-log record: record schema 999 is not supported (this build reads 3, 4, 5, 6, 7 and 8)");
+        assert_eq!(error.to_string(), "cannot decode replay-log record: record schema 999 is not supported (this build reads 3, 4, 5, 6, 7, 8 and 9)");
     }
 
     use super::*;
@@ -2374,6 +2708,7 @@ mod combat_tests {
                 appearance: crate::domain::character_progression::CharacterAppearance::default(),
             }),
             phase4: Some(Box::new(Phase4SpawnView { visible })),
+            phase5: None,
             tick: Tick(31),
             entity: id(1),
             kind: crate::domain::zone::EntityKind::Player,
@@ -2636,7 +2971,7 @@ mod phase3_boundary_tests {
         bytes.extend_from_slice(value);
         bytes
     }
-    fn scalar(tag: u32, value: u64) -> Vec<u8> {
+    pub(super) fn scalar(tag: u32, value: u64) -> Vec<u8> {
         let mut bytes = Vec::new();
         prost::encoding::encode_key(tag, prost::encoding::WireType::Varint, &mut bytes);
         prost::encoding::encode_varint(value, &mut bytes);
@@ -2651,6 +2986,8 @@ mod phase3_boundary_tests {
             (5, StateDigestVersion::BinaryV3),
             (6, StateDigestVersion::BinaryV4),
             (7, StateDigestVersion::BinaryV5),
+            (8, StateDigestVersion::BinaryV6),
+            (9, StateDigestVersion::BinaryV7),
         ] {
             let bytes = empty(schema).encode_to_vec();
             let record = decode_record(&bytes).unwrap();
@@ -2708,6 +3045,7 @@ mod phase3_boundary_tests {
             },
             ZoneEvent::EntitySpawn {
                 phase4: None,
+                phase5: None,
                 tick: Tick(1),
                 entity: id,
                 kind: EntityKind::Player,
@@ -2885,3 +3223,7 @@ mod phase3_boundary_tests {
         assert!(invalid.try_encode().is_err());
     }
 }
+
+#[cfg(test)]
+#[path = "codec_phase5_tests.rs"]
+mod phase5_boundary_tests;

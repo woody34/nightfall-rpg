@@ -813,6 +813,7 @@ mod tests {
         };
         let load = PlayerLoad {
             phase4: None,
+            phase5: None,
             phase3: None,
             progression: Some(Box::new(progression)),
             level,
@@ -1440,6 +1441,7 @@ mod tests {
                 generation: SessionGeneration(1),
                 load: Some(Box::new(PlayerLoad {
                     phase4: None,
+                    phase5: None,
                     phase3: None,
                     progression: Some(Box::new(PlayerProgression {
                         identity: identity.clone(),
@@ -1503,6 +1505,7 @@ mod tests {
             let mut replay = ZoneState::from_snapshot(decode_snapshot(&encoded).unwrap()).unwrap();
             let load = PlayerLoad {
                 phase4: None,
+                phase5: None,
                 phase3: None,
                 progression: Some(Box::new(PlayerProgression {
                     identity: p.identity.clone(),

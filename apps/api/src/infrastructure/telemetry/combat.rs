@@ -296,6 +296,8 @@ impl TickTelemetry for CombatConsumer {
                 | ZoneEvent::ItemView(_)
                 | ZoneEvent::ItemResult(_)
                 | ZoneEvent::ItemCheckpoint(_)
+                | ZoneEvent::EconomyCheckpoint(_)
+                | ZoneEvent::Economy(_)
                 | ZoneEvent::Progression(_)
                 | ZoneEvent::EntityMove { .. } => {},
             }

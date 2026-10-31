@@ -171,6 +171,8 @@ fn assert_output_order(t: &AppliedTick) {
                 | ZoneEvent::ItemView(_)
                 | ZoneEvent::ItemResult(_)
                 | ZoneEvent::ItemCheckpoint(_)
+                | ZoneEvent::EconomyCheckpoint(_)
+                | ZoneEvent::Economy(_)
                 | ZoneEvent::Progression(_)),
             ) => (4, 0, None),
         };
@@ -347,6 +349,7 @@ fn arena(epoch: u64) -> (ZoneState, Vec<EntityId>) {
                 load: Some(Box::new(if n == 0 {
                     PlayerLoad {
                         phase4: None,
+                        phase5: None,
                         phase3: None,
                         level: 2,
                         xp: 70,

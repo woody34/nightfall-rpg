@@ -225,7 +225,15 @@ pub(super) fn encode(snapshot: &ZoneSnapshot) -> Result<Vec<u8>, CodecError> {
     base.entities.clear();
     base.aoi.clear();
     let mut message = Snapshot {
-        format: if snapshot.phase4.is_some() { 2 } else { 1 },
+        format: match snapshot.meta.digest_version {
+            crate::domain::zone::StateDigestVersion::BinaryV7 => 3,
+            crate::domain::zone::StateDigestVersion::BinaryV6 => 2,
+            crate::domain::zone::StateDigestVersion::JsonV1
+            | crate::domain::zone::StateDigestVersion::BinaryV2
+            | crate::domain::zone::StateDigestVersion::BinaryV3
+            | crate::domain::zone::StateDigestVersion::BinaryV4
+            | crate::domain::zone::StateDigestVersion::BinaryV5 => 1,
+        },
         base_json: super::record::bounded_snapshot_json(&base)?,
         rules_hash: phase3.rules_hash.to_vec(),
         rules: if snapshot.phase4.is_some() {
@@ -384,10 +392,15 @@ fn validate_expansion(message: &Snapshot) -> Result<(), CodecError> {
 pub(super) fn decode(bytes: &[u8]) -> Result<ZoneSnapshot, CodecError> {
     let message = Snapshot::decode(bytes).map_err(error)?;
     // Unknown/duplicate fields, alternate integer encodings and field order are refused.
-    if message.encode_to_vec() != bytes || !matches!(message.format, 1 | 2) {
+    if message.encode_to_vec() != bytes || !matches!(message.format, 1..=3) {
         return Err(error("noncanonical body or unsupported format"));
     }
     validate_expansion(&message)?;
+    if message.format < 3 {
+        // Snapshot 9/10 bodies refuse every V7 name recursively (design §12.1 "Legacy").
+        let value: serde_json::Value = serde_json::from_slice(&message.base_json).map_err(error)?;
+        super::codec_validation::pre_phase5_json(&value)?;
+    }
     let mut snapshot: ZoneSnapshot = serde_json::from_slice(&message.base_json).map_err(error)?;
     if snapshot.phase3.is_some()
         || !snapshot.entities.is_empty()
@@ -401,6 +414,7 @@ pub(super) fn decode(bytes: &[u8]) -> Result<ZoneSnapshot, CodecError> {
             ),
             (1, 9, crate::domain::zone::StateDigestVersion::BinaryV5, false)
                 | (2, 10, crate::domain::zone::StateDigestVersion::BinaryV6, true)
+                | (3, 11, crate::domain::zone::StateDigestVersion::BinaryV7, true)
         )
     {
         return Err(error("invalid base policy or duplicated phase3"));

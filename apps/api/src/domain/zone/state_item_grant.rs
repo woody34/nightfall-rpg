@@ -308,6 +308,7 @@ impl ZoneState {
             name: before.name.clone(),
             position: before.position,
             load: PlayerLoad {
+                phase5: None,
                 phase4: Some(Phase4PlayerLoad {
                     checkpoint: Some(items.checkpoint(id, tick, phase).map_err(invalid)?),
                     pending: Vec::new(),

@@ -66,6 +66,8 @@ fn glyph(e: &ZoneEvent) -> Option<(&'static str, &'static str)> {
         | ZoneEvent::ItemView(_)
         | ZoneEvent::ItemResult(_)
         | ZoneEvent::ItemCheckpoint(_)
+        | ZoneEvent::EconomyCheckpoint(_)
+        | ZoneEvent::Economy(_)
         | ZoneEvent::Progression(_)
         | ZoneEvent::EntityDespawn { .. } => None,
     }
@@ -152,6 +154,8 @@ impl Projection {
             | ZoneEvent::ItemView(_)
             | ZoneEvent::ItemResult(_)
             | ZoneEvent::ItemCheckpoint(_)
+            | ZoneEvent::EconomyCheckpoint(_)
+            | ZoneEvent::Economy(_)
             | ZoneEvent::Progression(_) => {},
         }
     }
@@ -265,6 +269,17 @@ fn event_detail(event: &ZoneEvent, owner: Option<EntityId>) -> String {
             "Item checkpoint: {} · tick {} (private state hidden)",
             projection.entity, projection.tick.0
         ),
+        ZoneEvent::EconomyCheckpoint(checkpoint) => format!(
+            "Economy checkpoint: tick {} · {} lease releases (private state hidden)",
+            checkpoint.tick.0,
+            checkpoint.lease_releases.len()
+        ),
+        ZoneEvent::Economy(event) => format!(
+            "Economy {:?}: {} · tick {} (private receipt hidden)",
+            event.body.output_kind(),
+            event.entity,
+            event.tick.0
+        ),
         ZoneEvent::EffectApplied { .. }
         | ZoneEvent::EffectRemoved { .. }
         | ZoneEvent::SkillCastStarted { .. }
@@ -307,6 +322,7 @@ fn command_details(record: &AppliedTickRecord) -> String {
             ZoneCommand::MaterializePendingItems(_) => "Item grant (private owner hidden)".into(),
             ZoneCommand::ExtendItemRange { .. } => "Item allocator reservation (private range hidden)".into(),
             ZoneCommand::Item(command) => format!("Item intent for {} (private request hidden)", command.entity),
+            ZoneCommand::Phase5(command) => format!("Phase 5 {} (private request hidden)", command.kind().name()),
             ZoneCommand::LearnSkill { entity, skill_id, skill_level, .. } => format!(
                 "LearnSkill actor command: {entity} → skill {} rank {skill_level} (private receipt identity hidden)", skill_id.0
             ),
