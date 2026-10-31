@@ -1047,7 +1047,7 @@ Then `finishCrafting()` (`:345-394`) in pinned order:
    - the product is a **fresh** grant (or a merge) to the **customer**, op `craft`, with **no capacity or weight check** (`:576`; rule P7b, pinned).
 6. **On failure.** The materials and fee are lost (100 %, P3). `EconomyResult.craft` is emitted with `success = false` (DR3 nit 12).
 
-`AltStatChange` XP/SP is inactive (`AlternativeCrafting = False`). The outcome is reported in `EconomyResult.craft{success, masterwork, product_template, count}`.
+`AltStatChange` XP/SP is inactive (`AlternativeCrafting = False`). The outcome is reported in `EconomyResult.craft{success, masterwork, product_template, count}`. All 582 recipes with `productionRare` are Dwarven, so a Common craft draws the rarity-0 masterwork roll and reports `masterwork = false` (P5-D4).
 
 ## 9. Player trade and private stores (A11, B2, B3, B7, E4, E10; F16, R18, R22)
 
