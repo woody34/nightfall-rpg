@@ -399,7 +399,7 @@ FGrpcNightfallV1EntitySpawn UGrpcNightfallV1EntitySpawnHelperLibrary::MakeEntity
     FUInt32 HairColor, FUInt32 Face, FUInt64 StateTick,
     FUInt64 FlagUntilTick, FUInt32 Karma, TArray<FGrpcNightfallV1ActiveEffect> ActiveEffects,
     FGrpcNightfallV1SkillCastStarted PendingCast, FUInt32 PkCount, FUInt32 PvpCount,
-    TArray<FGrpcNightfallV1VisibleEquipment> VisibleEquipment, FUInt64 StatusFlags
+    FUInt64 StatusFlags, TArray<FGrpcNightfallV1VisibleEquipment> VisibleEquipment
 )
 {
     FGrpcNightfallV1EntitySpawn EntitySpawn;
@@ -433,8 +433,8 @@ FGrpcNightfallV1EntitySpawn UGrpcNightfallV1EntitySpawnHelperLibrary::MakeEntity
     EntitySpawn.PendingCast = MakeShareable(new FGrpcNightfallV1SkillCastStarted(PendingCast));
     EntitySpawn.PkCount = PkCount;
     EntitySpawn.PvpCount = PvpCount;
-    EntitySpawn.VisibleEquipment = VisibleEquipment;
     EntitySpawn.StatusFlags = StatusFlags;
+    EntitySpawn.VisibleEquipment = VisibleEquipment;
 
     return EntitySpawn;
 }
@@ -449,7 +449,7 @@ void UGrpcNightfallV1EntitySpawnHelperLibrary::BreakEntitySpawn(const FGrpcNight
     FUInt32& HairColor, FUInt32& Face, FUInt64& StateTick,
     FUInt64& FlagUntilTick, FUInt32& Karma, TArray<FGrpcNightfallV1ActiveEffect>& ActiveEffects,
     FGrpcNightfallV1SkillCastStarted& PendingCast, FUInt32& PkCount, FUInt32& PvpCount,
-    TArray<FGrpcNightfallV1VisibleEquipment>& VisibleEquipment, FUInt64& StatusFlags
+    FUInt64& StatusFlags, TArray<FGrpcNightfallV1VisibleEquipment>& VisibleEquipment
 )
 {
     EntityId = EntitySpawn.EntityId;
@@ -488,8 +488,8 @@ void UGrpcNightfallV1EntitySpawnHelperLibrary::BreakEntitySpawn(const FGrpcNight
     }
     PkCount = EntitySpawn.PkCount;
     PvpCount = EntitySpawn.PvpCount;
-    VisibleEquipment = EntitySpawn.VisibleEquipment;
     StatusFlags = EntitySpawn.StatusFlags;
+    VisibleEquipment = EntitySpawn.VisibleEquipment;
 }
 
 FGrpcNightfallV1AttackStarted_attacker_incarnation UGrpcNightfallV1AttackStarted_attacker_incarnationHelperLibrary::Make_attacker_incarnation(EGrpcNightfallV1AttackStarted_attacker_incarnation _attacker_incarnationCase,

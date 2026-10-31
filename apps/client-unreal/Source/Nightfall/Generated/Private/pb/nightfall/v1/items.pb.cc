@@ -960,7 +960,9 @@ PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
 template <typename>
 PROTOBUF_CONSTEXPR GrantItemRequest::GrantItemRequest(
     ::_pbi::ConstantInitialized): _impl_{
-    /*decltype(_impl_.character_id_)*/ {
+    /*decltype(_impl_._has_bits_)*/{}
+  , /*decltype(_impl_._cached_size_)*/{}
+  , /*decltype(_impl_.character_id_)*/ {
     &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
   }
 
@@ -972,7 +974,8 @@ PROTOBUF_CONSTEXPR GrantItemRequest::GrantItemRequest(
 
   , /*decltype(_impl_.template_id_)*/ 0u
 
-  , /*decltype(_impl_._cached_size_)*/{}} {}
+  , /*decltype(_impl_.enchant_level_)*/ 0u
+} {}
 struct GrantItemRequestDefaultTypeInternal {
   PROTOBUF_CONSTEXPR GrantItemRequestDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
   ~GrantItemRequestDefaultTypeInternal() {}
@@ -1564,7 +1567,7 @@ const ::uint32_t TableStruct_nightfall_2fv1_2fitems_2eproto::offsets[] PROTOBUF_
     ~0u,  // no sizeof(Split)
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::GetInventoryResponse, _impl_.inventory_),
     0,
-    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::GrantItemRequest, _impl_._has_bits_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::GrantItemRequest, _internal_metadata_),
     ~0u,  // no _extensions_
     ~0u,  // no _oneof_case_
@@ -1576,6 +1579,12 @@ const ::uint32_t TableStruct_nightfall_2fv1_2fitems_2eproto::offsets[] PROTOBUF_
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::GrantItemRequest, _impl_.template_id_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::GrantItemRequest, _impl_.count_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::GrantItemRequest, _impl_.idempotency_key_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::GrantItemRequest, _impl_.enchant_level_),
+    ~0u,
+    ~0u,
+    ~0u,
+    ~0u,
+    0,
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::GrantItemResponse, _impl_._has_bits_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::GrantItemResponse, _internal_metadata_),
     ~0u,  // no _extensions_
@@ -1628,8 +1637,8 @@ static const ::_pbi::MigrationSchema
         { 524, -1, -1, sizeof(::nightfall::v1::GetItemCatalogResponse)},
         { 537, -1, -1, sizeof(::nightfall::v1::GetInventoryRequest)},
         { 546, 555, -1, sizeof(::nightfall::v1::GetInventoryResponse)},
-        { 556, -1, -1, sizeof(::nightfall::v1::GrantItemRequest)},
-        { 568, 578, -1, sizeof(::nightfall::v1::GrantItemResponse)},
+        { 556, 569, -1, sizeof(::nightfall::v1::GrantItemRequest)},
+        { 574, 584, -1, sizeof(::nightfall::v1::GrantItemResponse)},
 };
 
 static const ::_pb::Message* const file_default_instances[] = {
@@ -1814,70 +1823,71 @@ const char descriptor_table_protodef_nightfall_2fv1_2fitems_2eproto[] PROTOBUF_S
     ".ItemCapability\"+\n\023GetInventoryRequest\022\024"
     "\n\014character_id\030\001 \001(\014\"F\n\024GetInventoryResp"
     "onse\022.\n\tinventory\030\001 \001(\0132\033.nightfall.v1.I"
-    "nventorySync\"e\n\020GrantItemRequest\022\024\n\014char"
-    "acter_id\030\001 \001(\014\022\023\n\013template_id\030\002 \001(\r\022\r\n\005c"
-    "ount\030\003 \001(\004\022\027\n\017idempotency_key\030\004 \001(\t\"v\n\021G"
-    "rantItemResponse\0221\n\006result\030\001 \001(\0132!.night"
-    "fall.v1.ItemOperationResult\022.\n\tinventory"
-    "\030\002 \001(\0132\033.nightfall.v1.InventorySync*\274\001\n\t"
-    "ItemGrade\022\032\n\026ITEM_GRADE_UNSPECIFIED\020\000\022\021\n"
-    "\rITEM_GRADE_NG\020\001\022\020\n\014ITEM_GRADE_D\020\002\022\020\n\014IT"
-    "EM_GRADE_C\020\003\022\020\n\014ITEM_GRADE_B\020\004\022\020\n\014ITEM_G"
-    "RADE_A\020\005\022\020\n\014ITEM_GRADE_S\020\006\022\022\n\016ITEM_GRADE"
-    "_S80\020\007\022\022\n\016ITEM_GRADE_S84\020\010*\322\004\n\tEquipSlot"
-    "\022\032\n\026EQUIP_SLOT_UNSPECIFIED\020\000\022\024\n\020EQUIP_SL"
-    "OT_UNDER\020\001\022\023\n\017EQUIP_SLOT_HEAD\020\002\022\023\n\017EQUIP"
-    "_SLOT_HAIR\020\003\022\024\n\020EQUIP_SLOT_HAIR2\020\004\022\023\n\017EQ"
-    "UIP_SLOT_NECK\020\005\022\024\n\020EQUIP_SLOT_RHAND\020\006\022\024\n"
-    "\020EQUIP_SLOT_CHEST\020\007\022\024\n\020EQUIP_SLOT_LHAND\020"
-    "\010\022\023\n\017EQUIP_SLOT_REAR\020\t\022\023\n\017EQUIP_SLOT_LEA"
-    "R\020\n\022\025\n\021EQUIP_SLOT_GLOVES\020\013\022\023\n\017EQUIP_SLOT"
-    "_LEGS\020\014\022\023\n\017EQUIP_SLOT_FEET\020\r\022\026\n\022EQUIP_SL"
-    "OT_RFINGER\020\016\022\026\n\022EQUIP_SLOT_LFINGER\020\017\022\030\n\024"
-    "EQUIP_SLOT_LBRACELET\020\020\022\030\n\024EQUIP_SLOT_RBR"
-    "ACELET\020\021\022\024\n\020EQUIP_SLOT_DECO1\020\022\022\024\n\020EQUIP_"
-    "SLOT_DECO2\020\023\022\024\n\020EQUIP_SLOT_DECO3\020\024\022\024\n\020EQ"
-    "UIP_SLOT_DECO4\020\025\022\024\n\020EQUIP_SLOT_DECO5\020\026\022\024"
-    "\n\020EQUIP_SLOT_DECO6\020\027\022\024\n\020EQUIP_SLOT_CLOAK"
-    "\020\030\022\023\n\017EQUIP_SLOT_BELT\020\031*g\n\014ItemLocation\022"
-    "\035\n\031ITEM_LOCATION_UNSPECIFIED\020\000\022\033\n\027ITEM_L"
-    "OCATION_INVENTORY\020\001\022\033\n\027ITEM_LOCATION_PAP"
-    "ERDOLL\020\002*p\n\rItemReuseKind\022\037\n\033ITEM_REUSE_"
-    "KIND_UNSPECIFIED\020\000\022\034\n\030ITEM_REUSE_KIND_TE"
-    "MPLATE\020\001\022 \n\034ITEM_REUSE_KIND_SHARED_GROUP"
-    "\020\002*\333\001\n\016EnchantOutcome\022\037\n\033ENCHANT_OUTCOME"
-    "_UNSPECIFIED\020\000\022\033\n\027ENCHANT_OUTCOME_SUCCES"
-    "S\020\001\022\037\n\033ENCHANT_OUTCOME_SAFE_FAILED\020\002\022!\n\035"
-    "ENCHANT_OUTCOME_BLESSED_RESET\020\003\022\035\n\031ENCHA"
-    "NT_OUTCOME_DESTROYED\020\004\022(\n$ENCHANT_OUTCOM"
-    "E_SUCCESS_NO_INCREMENT\020\005*g\n\rRefineOutcom"
-    "e\022\036\n\032REFINE_OUTCOME_UNSPECIFIED\020\000\022\032\n\026REF"
-    "INE_OUTCOME_APPLIED\020\001\022\032\n\026REFINE_OUTCOME_"
-    "REMOVED\020\002*\252\003\n\rItemOperation\022\036\n\032ITEM_OPER"
-    "ATION_UNSPECIFIED\020\000\022\030\n\024ITEM_OPERATION_EQ"
-    "UIP\020\001\022\032\n\026ITEM_OPERATION_UNEQUIP\020\002\022\026\n\022ITE"
-    "M_OPERATION_USE\020\003\022\032\n\026ITEM_OPERATION_DEST"
-    "ROY\020\004\022\032\n\026ITEM_OPERATION_ENCHANT\020\005\022#\n\037ITE"
-    "M_OPERATION_TOGGLE_AUTO_SHOT\020\006\022\031\n\025ITEM_O"
-    "PERATION_REFINE\020\007\022 \n\034ITEM_OPERATION_CANC"
-    "EL_REFINE\020\010\022\036\n\032ITEM_OPERATION_EXCHANGE_S"
-    "A\020\t\022\036\n\032ITEM_OPERATION_CRYSTALLIZE\020\n\022\030\n\024I"
-    "TEM_OPERATION_GRANT\020\013\022\032\n\026ITEM_OPERATION_"
-    "STARTER\020\014\022\033\n\027ITEM_OPERATION_BACKFILL\020\r*c"
-    "\n\010ItemKind\022\031\n\025ITEM_KIND_UNSPECIFIED\020\000\022\024\n"
-    "\020ITEM_KIND_WEAPON\020\001\022\023\n\017ITEM_KIND_ARMOR\020\002"
-    "\022\021\n\rITEM_KIND_ETC\020\003*\256\001\n\017ItemSkillSource\022"
-    "!\n\035ITEM_SKILL_SOURCE_UNSPECIFIED\020\000\022\032\n\026IT"
-    "EM_SKILL_SOURCE_ITEM\020\001\022\"\n\036ITEM_SKILL_SOU"
-    "RCE_ENCHANT_FOUR\020\002\022\031\n\025ITEM_SKILL_SOURCE_"
-    "SET\020\003\022\035\n\031ITEM_SKILL_SOURCE_AUGMENT\020\004b\006pr"
-    "oto3"
+    "nventorySync\"\223\001\n\020GrantItemRequest\022\024\n\014cha"
+    "racter_id\030\001 \001(\014\022\023\n\013template_id\030\002 \001(\r\022\r\n\005"
+    "count\030\003 \001(\004\022\027\n\017idempotency_key\030\004 \001(\t\022\032\n\r"
+    "enchant_level\030\005 \001(\rH\000\210\001\001B\020\n\016_enchant_lev"
+    "el\"v\n\021GrantItemResponse\0221\n\006result\030\001 \001(\0132"
+    "!.nightfall.v1.ItemOperationResult\022.\n\tin"
+    "ventory\030\002 \001(\0132\033.nightfall.v1.InventorySy"
+    "nc*\274\001\n\tItemGrade\022\032\n\026ITEM_GRADE_UNSPECIFI"
+    "ED\020\000\022\021\n\rITEM_GRADE_NG\020\001\022\020\n\014ITEM_GRADE_D\020"
+    "\002\022\020\n\014ITEM_GRADE_C\020\003\022\020\n\014ITEM_GRADE_B\020\004\022\020\n"
+    "\014ITEM_GRADE_A\020\005\022\020\n\014ITEM_GRADE_S\020\006\022\022\n\016ITE"
+    "M_GRADE_S80\020\007\022\022\n\016ITEM_GRADE_S84\020\010*\322\004\n\tEq"
+    "uipSlot\022\032\n\026EQUIP_SLOT_UNSPECIFIED\020\000\022\024\n\020E"
+    "QUIP_SLOT_UNDER\020\001\022\023\n\017EQUIP_SLOT_HEAD\020\002\022\023"
+    "\n\017EQUIP_SLOT_HAIR\020\003\022\024\n\020EQUIP_SLOT_HAIR2\020"
+    "\004\022\023\n\017EQUIP_SLOT_NECK\020\005\022\024\n\020EQUIP_SLOT_RHA"
+    "ND\020\006\022\024\n\020EQUIP_SLOT_CHEST\020\007\022\024\n\020EQUIP_SLOT"
+    "_LHAND\020\010\022\023\n\017EQUIP_SLOT_REAR\020\t\022\023\n\017EQUIP_S"
+    "LOT_LEAR\020\n\022\025\n\021EQUIP_SLOT_GLOVES\020\013\022\023\n\017EQU"
+    "IP_SLOT_LEGS\020\014\022\023\n\017EQUIP_SLOT_FEET\020\r\022\026\n\022E"
+    "QUIP_SLOT_RFINGER\020\016\022\026\n\022EQUIP_SLOT_LFINGE"
+    "R\020\017\022\030\n\024EQUIP_SLOT_LBRACELET\020\020\022\030\n\024EQUIP_S"
+    "LOT_RBRACELET\020\021\022\024\n\020EQUIP_SLOT_DECO1\020\022\022\024\n"
+    "\020EQUIP_SLOT_DECO2\020\023\022\024\n\020EQUIP_SLOT_DECO3\020"
+    "\024\022\024\n\020EQUIP_SLOT_DECO4\020\025\022\024\n\020EQUIP_SLOT_DE"
+    "CO5\020\026\022\024\n\020EQUIP_SLOT_DECO6\020\027\022\024\n\020EQUIP_SLO"
+    "T_CLOAK\020\030\022\023\n\017EQUIP_SLOT_BELT\020\031*g\n\014ItemLo"
+    "cation\022\035\n\031ITEM_LOCATION_UNSPECIFIED\020\000\022\033\n"
+    "\027ITEM_LOCATION_INVENTORY\020\001\022\033\n\027ITEM_LOCAT"
+    "ION_PAPERDOLL\020\002*p\n\rItemReuseKind\022\037\n\033ITEM"
+    "_REUSE_KIND_UNSPECIFIED\020\000\022\034\n\030ITEM_REUSE_"
+    "KIND_TEMPLATE\020\001\022 \n\034ITEM_REUSE_KIND_SHARE"
+    "D_GROUP\020\002*\333\001\n\016EnchantOutcome\022\037\n\033ENCHANT_"
+    "OUTCOME_UNSPECIFIED\020\000\022\033\n\027ENCHANT_OUTCOME"
+    "_SUCCESS\020\001\022\037\n\033ENCHANT_OUTCOME_SAFE_FAILE"
+    "D\020\002\022!\n\035ENCHANT_OUTCOME_BLESSED_RESET\020\003\022\035"
+    "\n\031ENCHANT_OUTCOME_DESTROYED\020\004\022(\n$ENCHANT"
+    "_OUTCOME_SUCCESS_NO_INCREMENT\020\005*g\n\rRefin"
+    "eOutcome\022\036\n\032REFINE_OUTCOME_UNSPECIFIED\020\000"
+    "\022\032\n\026REFINE_OUTCOME_APPLIED\020\001\022\032\n\026REFINE_O"
+    "UTCOME_REMOVED\020\002*\252\003\n\rItemOperation\022\036\n\032IT"
+    "EM_OPERATION_UNSPECIFIED\020\000\022\030\n\024ITEM_OPERA"
+    "TION_EQUIP\020\001\022\032\n\026ITEM_OPERATION_UNEQUIP\020\002"
+    "\022\026\n\022ITEM_OPERATION_USE\020\003\022\032\n\026ITEM_OPERATI"
+    "ON_DESTROY\020\004\022\032\n\026ITEM_OPERATION_ENCHANT\020\005"
+    "\022#\n\037ITEM_OPERATION_TOGGLE_AUTO_SHOT\020\006\022\031\n"
+    "\025ITEM_OPERATION_REFINE\020\007\022 \n\034ITEM_OPERATI"
+    "ON_CANCEL_REFINE\020\010\022\036\n\032ITEM_OPERATION_EXC"
+    "HANGE_SA\020\t\022\036\n\032ITEM_OPERATION_CRYSTALLIZE"
+    "\020\n\022\030\n\024ITEM_OPERATION_GRANT\020\013\022\032\n\026ITEM_OPE"
+    "RATION_STARTER\020\014\022\033\n\027ITEM_OPERATION_BACKF"
+    "ILL\020\r*c\n\010ItemKind\022\031\n\025ITEM_KIND_UNSPECIFI"
+    "ED\020\000\022\024\n\020ITEM_KIND_WEAPON\020\001\022\023\n\017ITEM_KIND_"
+    "ARMOR\020\002\022\021\n\rITEM_KIND_ETC\020\003*\256\001\n\017ItemSkill"
+    "Source\022!\n\035ITEM_SKILL_SOURCE_UNSPECIFIED\020"
+    "\000\022\032\n\026ITEM_SKILL_SOURCE_ITEM\020\001\022\"\n\036ITEM_SK"
+    "ILL_SOURCE_ENCHANT_FOUR\020\002\022\031\n\025ITEM_SKILL_"
+    "SOURCE_SET\020\003\022\035\n\031ITEM_SKILL_SOURCE_AUGMEN"
+    "T\020\004b\006proto3"
 };
 static ::absl::once_flag descriptor_table_nightfall_2fv1_2fitems_2eproto_once;
 const ::_pbi::DescriptorTable descriptor_table_nightfall_2fv1_2fitems_2eproto = {
     false,
     false,
-    7924,
+    7971,
     descriptor_table_protodef_nightfall_2fv1_2fitems_2eproto,
     "nightfall/v1/items.proto",
     &descriptor_table_nightfall_2fv1_2fitems_2eproto_once,
@@ -13901,6 +13911,12 @@ void GetInventoryResponse::InternalSwap(GetInventoryResponse* other) {
 
 class GrantItemRequest::_Internal {
  public:
+  using HasBits = decltype(std::declval<GrantItemRequest>()._impl_._has_bits_);
+  static constexpr ::int32_t kHasBitsOffset =
+    8 * PROTOBUF_FIELD_OFFSET(GrantItemRequest, _impl_._has_bits_);
+  static void set_has_enchant_level(HasBits* has_bits) {
+    (*has_bits)[0] |= 1u;
+  }
 };
 
 GrantItemRequest::GrantItemRequest(::PROTOBUF_NAMESPACE_ID::Arena* arena)
@@ -13912,7 +13928,9 @@ GrantItemRequest::GrantItemRequest(const GrantItemRequest& from)
   : ::PROTOBUF_NAMESPACE_ID::Message() {
   GrantItemRequest* const _this = this; (void)_this;
   new (&_impl_) Impl_{
-      decltype(_impl_.character_id_) {}
+      decltype(_impl_._has_bits_){from._impl_._has_bits_}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.character_id_) {}
 
     , decltype(_impl_.idempotency_key_) {}
 
@@ -13920,7 +13938,8 @@ GrantItemRequest::GrantItemRequest(const GrantItemRequest& from)
 
     , decltype(_impl_.template_id_) {}
 
-    , /*decltype(_impl_._cached_size_)*/{}};
+    , decltype(_impl_.enchant_level_) {}
+  };
 
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
   _impl_.character_id_.InitDefault();
@@ -13938,15 +13957,17 @@ GrantItemRequest::GrantItemRequest(const GrantItemRequest& from)
     _this->_impl_.idempotency_key_.Set(from._internal_idempotency_key(), _this->GetArenaForAllocation());
   }
   ::memcpy(&_impl_.count_, &from._impl_.count_,
-    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.template_id_) -
-    reinterpret_cast<char*>(&_impl_.count_)) + sizeof(_impl_.template_id_));
+    static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.enchant_level_) -
+    reinterpret_cast<char*>(&_impl_.count_)) + sizeof(_impl_.enchant_level_));
   // @@protoc_insertion_point(copy_constructor:nightfall.v1.GrantItemRequest)
 }
 
 inline void GrantItemRequest::SharedCtor(::_pb::Arena* arena) {
   (void)arena;
   new (&_impl_) Impl_{
-      decltype(_impl_.character_id_) {}
+      decltype(_impl_._has_bits_){}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.character_id_) {}
 
     , decltype(_impl_.idempotency_key_) {}
 
@@ -13954,7 +13975,8 @@ inline void GrantItemRequest::SharedCtor(::_pb::Arena* arena) {
 
     , decltype(_impl_.template_id_) { 0u }
 
-    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.enchant_level_) { 0u }
+
   };
   _impl_.character_id_.InitDefault();
   #ifdef PROTOBUF_FORCE_COPY_DEFAULT_STRING
@@ -13996,11 +14018,14 @@ void GrantItemRequest::Clear() {
   ::memset(&_impl_.count_, 0, static_cast<::size_t>(
       reinterpret_cast<char*>(&_impl_.template_id_) -
       reinterpret_cast<char*>(&_impl_.count_)) + sizeof(_impl_.template_id_));
+  _impl_.enchant_level_ = 0u;
+  _impl_._has_bits_.Clear();
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
 const char* GrantItemRequest::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  _Internal::HasBits has_bits{};
   while (!ctx->Done(&ptr)) {
     ::uint32_t tag;
     ptr = ::_pbi::ReadTag(ptr, &tag);
@@ -14044,6 +14069,16 @@ const char* GrantItemRequest::_InternalParse(const char* ptr, ::_pbi::ParseConte
           goto handle_unusual;
         }
         continue;
+      // optional uint32 enchant_level = 5;
+      case 5:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 40)) {
+          _Internal::set_has_enchant_level(&has_bits);
+          _impl_.enchant_level_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
       default:
         goto handle_unusual;
     }  // switch
@@ -14060,6 +14095,7 @@ const char* GrantItemRequest::_InternalParse(const char* ptr, ::_pbi::ParseConte
     CHK_(ptr != nullptr);
   }  // while
 message_done:
+  _impl_._has_bits_.Or(has_bits);
   return ptr;
 failure:
   ptr = nullptr;
@@ -14099,6 +14135,14 @@ failure:
     ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
         _s.data(), static_cast<int>(_s.length()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "nightfall.v1.GrantItemRequest.idempotency_key");
     target = stream->WriteStringMaybeAliased(4, _s, target);
+  }
+
+  cached_has_bits = _impl_._has_bits_[0];
+  // optional uint32 enchant_level = 5;
+  if (cached_has_bits & 0x00000001u) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteUInt32ToArray(
+        5, this->_internal_enchant_level(), target);
   }
 
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
@@ -14141,6 +14185,13 @@ failure:
         this->_internal_template_id());
   }
 
+  // optional uint32 enchant_level = 5;
+  cached_has_bits = _impl_._has_bits_[0];
+  if (cached_has_bits & 0x00000001u) {
+    total_size += ::_pbi::WireFormatLite::UInt32SizePlusOne(
+        this->_internal_enchant_level());
+  }
+
   return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
 }
 
@@ -14171,6 +14222,9 @@ void GrantItemRequest::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const
   if (from._internal_template_id() != 0) {
     _this->_internal_set_template_id(from._internal_template_id());
   }
+  if ((from._impl_._has_bits_[0] & 0x00000001u) != 0) {
+    _this->_internal_set_enchant_level(from._internal_enchant_level());
+  }
   _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
 }
 
@@ -14190,13 +14244,14 @@ void GrantItemRequest::InternalSwap(GrantItemRequest* other) {
   auto* lhs_arena = GetArenaForAllocation();
   auto* rhs_arena = other->GetArenaForAllocation();
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.character_id_, lhs_arena,
                                        &other->_impl_.character_id_, rhs_arena);
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.idempotency_key_, lhs_arena,
                                        &other->_impl_.idempotency_key_, rhs_arena);
   ::PROTOBUF_NAMESPACE_ID::internal::memswap<
-      PROTOBUF_FIELD_OFFSET(GrantItemRequest, _impl_.template_id_)
-      + sizeof(GrantItemRequest::_impl_.template_id_)
+      PROTOBUF_FIELD_OFFSET(GrantItemRequest, _impl_.enchant_level_)
+      + sizeof(GrantItemRequest::_impl_.enchant_level_)
       - PROTOBUF_FIELD_OFFSET(GrantItemRequest, _impl_.count_)>(
           reinterpret_cast<char*>(&_impl_.count_),
           reinterpret_cast<char*>(&other->_impl_.count_));

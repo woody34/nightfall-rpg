@@ -193,3 +193,23 @@ void UGrpcNightfallV1GetItemCatalogRequest_known_rules_hashHelperLibrary::Break_
     _known_rules_hashCase = _known_rules_hash._known_rules_hashCase;
     KnownRulesHash = _known_rules_hash.KnownRulesHash;
 }
+
+FGrpcNightfallV1GrantItemRequest_enchant_level UGrpcNightfallV1GrantItemRequest_enchant_levelHelperLibrary::Make_enchant_level(EGrpcNightfallV1GrantItemRequest_enchant_level _enchant_levelCase,
+    FUInt32 EnchantLevel
+)
+{
+    FGrpcNightfallV1GrantItemRequest_enchant_level _enchant_level;
+    _enchant_level._enchant_levelCase = _enchant_levelCase;
+    _enchant_level.EnchantLevel = EnchantLevel;
+
+    return _enchant_level;
+}
+
+void UGrpcNightfallV1GrantItemRequest_enchant_levelHelperLibrary::Break_enchant_level(const FGrpcNightfallV1GrantItemRequest_enchant_level& _enchant_level, EGrpcNightfallV1GrantItemRequest_enchant_level& _enchant_levelCase,
+    FUInt32& EnchantLevel
+)
+{
+    _enchant_levelCase = _enchant_level._enchant_levelCase;
+    EnchantLevel = _enchant_level.EnchantLevel;
+}
+

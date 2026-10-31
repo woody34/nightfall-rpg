@@ -854,6 +854,12 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::GrantItemRequest* in, FGrpcNightfa
     out->TemplateId=in->template_id();
     out->Count=in->count();
     out->IdempotencyKey=StringCast<TCHAR>((const UTF8CHAR*)(in->idempotency_key().c_str())).Get();
+    out->_enchant_level._enchant_levelCase = EGrpcNightfallV1GrantItemRequest_enchant_level::NotSet;
+    if (in->has_enchant_level())
+    {
+        out->_enchant_level.EnchantLevel=in->enchant_level();
+        out->_enchant_level._enchant_levelCase = EGrpcNightfallV1GrantItemRequest_enchant_level::EnchantLevel;
+    }
 }
 
 void TURBOLINK_TO_GRPC(const FGrpcNightfallV1GrantItemRequest* in, ::nightfall::v1::GrantItemRequest* out)
@@ -862,6 +868,12 @@ void TURBOLINK_TO_GRPC(const FGrpcNightfallV1GrantItemRequest* in, ::nightfall::
     out->set_template_id(in->TemplateId);
     out->set_count(in->Count);
     out->set_idempotency_key((const char*)StringCast<UTF8CHAR>(*(in->IdempotencyKey)).Get());
+    switch (in->_enchant_level._enchant_levelCase)
+    {
+    case EGrpcNightfallV1GrantItemRequest_enchant_level::EnchantLevel:
+        out->set_enchant_level(in->_enchant_level.EnchantLevel);
+        break;
+    }
 }
 
 void GRPC_TO_TURBOLINK(const ::nightfall::v1::GrantItemResponse* in, FGrpcNightfallV1GrantItemResponse* out)
@@ -881,3 +893,4 @@ void TURBOLINK_TO_GRPC(const FGrpcNightfallV1GrantItemResponse* in, ::nightfall:
     if (in->HasInventory) TURBOLINK_TO_GRPC(&(in->Inventory), out->mutable_inventory());
     else out->clear_inventory();
 }
+

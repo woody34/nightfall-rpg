@@ -1452,8 +1452,8 @@ const ::uint32_t TableStruct_nightfall_2fv1_2fworld_2eproto::offsets[] PROTOBUF_
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::EntitySpawn, _impl_.pending_cast_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::EntitySpawn, _impl_.pk_count_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::EntitySpawn, _impl_.pvp_count_),
-    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EntitySpawn, _impl_.visible_equipment_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::EntitySpawn, _impl_.status_flags_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EntitySpawn, _impl_.visible_equipment_),
     ~0u,
     ~0u,
     0,
@@ -2227,9 +2227,9 @@ const char descriptor_table_protodef_nightfall_2fv1_2fworld_2eproto[] PROTOBUF_S
     "active_effects\030\030 \003(\0132\032.nightfall.v1.Acti"
     "veEffect\0224\n\014pending_cast\030\031 \001(\0132\036.nightfa"
     "ll.v1.SkillCastStarted\022\020\n\010pk_count\030\032 \001(\r"
-    "\022\021\n\tpvp_count\030\033 \001(\r\0229\n\021visible_equipment"
-    "\030\035 \003(\0132\036.nightfall.v1.VisibleEquipment\022\024"
-    "\n\014status_flags\030\034 \001(\004\"\253\001\n\nEntityMove\022\021\n\te"
+    "\022\021\n\tpvp_count\030\033 \001(\r\022\024\n\014status_flags\030\034 \001("
+    "\004\0229\n\021visible_equipment\030\035 \003(\0132\036.nightfall"
+    ".v1.VisibleEquipment\"\253\001\n\nEntityMove\022\021\n\te"
     "ntity_id\030\001 \001(\t\022(\n\010position\030\002 \001(\0132\026.night"
     "fall.v1.Position\022+\n\013destination\030\003 \001(\0132\026."
     "nightfall.v1.Position\022\r\n\005speed\030\004 \001(\002\022\026\n\016"

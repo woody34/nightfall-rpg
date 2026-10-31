@@ -16845,6 +16845,26 @@ inline void EntitySpawn::_internal_set_pvp_count(::uint32_t value) {
   _impl_.pvp_count_ = value;
 }
 
+// uint64 status_flags = 28;
+inline void EntitySpawn::clear_status_flags() {
+  _impl_.status_flags_ = ::uint64_t{0u};
+}
+inline ::uint64_t EntitySpawn::status_flags() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.EntitySpawn.status_flags)
+  return _internal_status_flags();
+}
+inline void EntitySpawn::set_status_flags(::uint64_t value) {
+  _internal_set_status_flags(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.EntitySpawn.status_flags)
+}
+inline ::uint64_t EntitySpawn::_internal_status_flags() const {
+  return _impl_.status_flags_;
+}
+inline void EntitySpawn::_internal_set_status_flags(::uint64_t value) {
+  ;
+  _impl_.status_flags_ = value;
+}
+
 // repeated .nightfall.v1.VisibleEquipment visible_equipment = 29;
 inline int EntitySpawn::_internal_visible_equipment_size() const {
   return _impl_.visible_equipment_.size();
@@ -16888,26 +16908,6 @@ EntitySpawn::_internal_visible_equipment() const {
 inline ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<::nightfall::v1::VisibleEquipment>*
 EntitySpawn::_internal_mutable_visible_equipment() {
   return &_impl_.visible_equipment_;
-}
-
-// uint64 status_flags = 28;
-inline void EntitySpawn::clear_status_flags() {
-  _impl_.status_flags_ = ::uint64_t{0u};
-}
-inline ::uint64_t EntitySpawn::status_flags() const {
-  // @@protoc_insertion_point(field_get:nightfall.v1.EntitySpawn.status_flags)
-  return _internal_status_flags();
-}
-inline void EntitySpawn::set_status_flags(::uint64_t value) {
-  _internal_set_status_flags(value);
-  // @@protoc_insertion_point(field_set:nightfall.v1.EntitySpawn.status_flags)
-}
-inline ::uint64_t EntitySpawn::_internal_status_flags() const {
-  return _impl_.status_flags_;
-}
-inline void EntitySpawn::_internal_set_status_flags(::uint64_t value) {
-  ;
-  _impl_.status_flags_ = value;
 }
 
 // -------------------------------------------------------------------

@@ -8638,6 +8638,7 @@ class GrantItemRequest final :
     kIdempotencyKeyFieldNumber = 4,
     kCountFieldNumber = 3,
     kTemplateIdFieldNumber = 2,
+    kEnchantLevelFieldNumber = 5,
   };
   // bytes character_id = 1;
   void clear_character_id() ;
@@ -8699,6 +8700,17 @@ class GrantItemRequest final :
   void _internal_set_template_id(::uint32_t value);
 
   public:
+  // optional uint32 enchant_level = 5;
+  bool has_enchant_level() const;
+  void clear_enchant_level() ;
+  ::uint32_t enchant_level() const;
+  void set_enchant_level(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_enchant_level() const;
+  void _internal_set_enchant_level(::uint32_t value);
+
+  public:
   // @@protoc_insertion_point(class_scope:nightfall.v1.GrantItemRequest)
  private:
   class _Internal;
@@ -8707,11 +8719,13 @@ class GrantItemRequest final :
   typedef void InternalArenaConstructable_;
   typedef void DestructorSkippable_;
   struct Impl_ {
+    ::PROTOBUF_NAMESPACE_ID::internal::HasBits<1> _has_bits_;
+    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
     ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr character_id_;
     ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr idempotency_key_;
     ::uint64_t count_;
     ::uint32_t template_id_;
-    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+    ::uint32_t enchant_level_;
   };
   union { Impl_ _impl_; };
   friend struct ::TableStruct_nightfall_2fv1_2fitems_2eproto;
@@ -14967,6 +14981,31 @@ inline void GrantItemRequest::set_allocated_idempotency_key(std::string* value) 
         }
   #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
   // @@protoc_insertion_point(field_set_allocated:nightfall.v1.GrantItemRequest.idempotency_key)
+}
+
+// optional uint32 enchant_level = 5;
+inline bool GrantItemRequest::has_enchant_level() const {
+  bool value = (_impl_._has_bits_[0] & 0x00000001u) != 0;
+  return value;
+}
+inline void GrantItemRequest::clear_enchant_level() {
+  _impl_.enchant_level_ = 0u;
+  _impl_._has_bits_[0] &= ~0x00000001u;
+}
+inline ::uint32_t GrantItemRequest::enchant_level() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.GrantItemRequest.enchant_level)
+  return _internal_enchant_level();
+}
+inline void GrantItemRequest::set_enchant_level(::uint32_t value) {
+  _internal_set_enchant_level(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.GrantItemRequest.enchant_level)
+}
+inline ::uint32_t GrantItemRequest::_internal_enchant_level() const {
+  return _impl_.enchant_level_;
+}
+inline void GrantItemRequest::_internal_set_enchant_level(::uint32_t value) {
+  _impl_._has_bits_[0] |= 0x00000001u;
+  _impl_.enchant_level_ = value;
 }
 
 // -------------------------------------------------------------------

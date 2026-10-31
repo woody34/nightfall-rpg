@@ -759,11 +759,11 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::EntitySpawn* in, FGrpcNightfallV1E
     }
     out->PkCount=in->pk_count();
     out->PvpCount=in->pvp_count();
+    out->StatusFlags=in->status_flags();
     out->VisibleEquipment.Empty();
     for (int i=0; i<in->visible_equipment_size(); ++i) {
         GRPC_TO_TURBOLINK(&(in->visible_equipment(i)), &(out->VisibleEquipment.AddZeroed_GetRef()));
     }
-    out->StatusFlags=in->status_flags();
 }
 
 void TURBOLINK_TO_GRPC(const FGrpcNightfallV1EntitySpawn* in, ::nightfall::v1::EntitySpawn* out)
@@ -798,10 +798,10 @@ void TURBOLINK_TO_GRPC(const FGrpcNightfallV1EntitySpawn* in, ::nightfall::v1::E
     TURBOLINK_TO_GRPC(in->PendingCast.Get(), out->mutable_pending_cast());
     out->set_pk_count(in->PkCount);
     out->set_pvp_count(in->PvpCount);
+    out->set_status_flags(in->StatusFlags);
     for(const auto& value : in->VisibleEquipment) {
         TURBOLINK_TO_GRPC(&value, out->add_visible_equipment());
     }
-    out->set_status_flags(in->StatusFlags);
 }
 
 void GRPC_TO_TURBOLINK(const ::nightfall::v1::EntityMove* in, FGrpcNightfallV1EntityMove* out)

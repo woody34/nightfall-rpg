@@ -178,6 +178,13 @@ enum class EGrpcNightfallV1GetItemCatalogRequest_known_rules_hash : uint8
     NotSet=255,
 };
 
+UENUM(BlueprintType, meta = (DisplayName="NightfallV1.GrantItemRequest._enchant_level", ScriptName="EGrpcNightfallV1GrantItemRequest_enchant_level"))
+enum class EGrpcNightfallV1GrantItemRequest_enchant_level : uint8
+{
+    EnchantLevel=0,
+    NotSet=255,
+};
+
 USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.ItemTarget"))
 struct FGrpcNightfallV1ItemTarget : public FGrpcMessage
 {
@@ -1106,6 +1113,20 @@ struct FGrpcNightfallV1GetInventoryResponse : public FGrpcMessage
     bool HasInventory = false;
 };
 
+USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.GrantItemRequest._enchant_level",
+    HasNativeMake = "/Script/TurboLinkGrpc.GrpcNightfallV1GrantItemRequest_enchant_levelHelperLibrary.Make_enchant_level",
+    HasNativeBreak = "/Script/TurboLinkGrpc.GrpcNightfallV1GrantItemRequest_enchant_levelHelperLibrary.Break_enchant_level"))
+struct FGrpcNightfallV1GrantItemRequest_enchant_level : public FGrpcMessage
+{
+    GENERATED_BODY()
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    EGrpcNightfallV1GrantItemRequest_enchant_level _enchant_levelCase = EGrpcNightfallV1GrantItemRequest_enchant_level::NotSet;
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FUInt32 EnchantLevel = 0;
+};
+
 USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.GrantItemRequest"))
 struct FGrpcNightfallV1GrantItemRequest : public FGrpcMessage
 {
@@ -1123,6 +1144,9 @@ struct FGrpcNightfallV1GrantItemRequest : public FGrpcMessage
 
     UPROPERTY(BlueprintReadWrite, Category = TurboLink)
     FString IdempotencyKey = "";
+
+    UPROPERTY(BlueprintReadWrite, Category = TurboLink)
+    FGrpcNightfallV1GrantItemRequest_enchant_level _enchant_level;
 };
 
 USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.GrantItemResponse"))
@@ -1271,5 +1295,21 @@ public:
     UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
     static void Break_known_rules_hash(const FGrpcNightfallV1GetItemCatalogRequest_known_rules_hash& _known_rules_hash, EGrpcNightfallV1GetItemCatalogRequest_known_rules_hash& _known_rules_hashCase,
         FBytes& KnownRulesHash
+    );
+};
+
+UCLASS()
+class UGrpcNightfallV1GrantItemRequest_enchant_levelHelperLibrary : public UBlueprintFunctionLibrary
+{
+    GENERATED_BODY()
+public:
+    UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
+    static FGrpcNightfallV1GrantItemRequest_enchant_level Make_enchant_level(EGrpcNightfallV1GrantItemRequest_enchant_level _enchant_levelCase,
+        FUInt32 EnchantLevel
+    );
+
+    UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
+    static void Break_enchant_level(const FGrpcNightfallV1GrantItemRequest_enchant_level& _enchant_level, EGrpcNightfallV1GrantItemRequest_enchant_level& _enchant_levelCase,
+        FUInt32& EnchantLevel
     );
 };

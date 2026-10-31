@@ -739,10 +739,10 @@ struct FGrpcNightfallV1EntitySpawn : public FGrpcMessage
     FUInt32 PvpCount = 0;
 
     UPROPERTY(BlueprintReadWrite, Category = TurboLink)
-    TArray<FGrpcNightfallV1VisibleEquipment> VisibleEquipment;
+    FUInt64 StatusFlags = 0;
 
     UPROPERTY(BlueprintReadWrite, Category = TurboLink)
-    FUInt64 StatusFlags = 0;
+    TArray<FGrpcNightfallV1VisibleEquipment> VisibleEquipment;
 };
 
 USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.EntityMove"))
@@ -1868,7 +1868,7 @@ public:
         FUInt32 HairColor, FUInt32 Face, FUInt64 StateTick,
         FUInt64 FlagUntilTick, FUInt32 Karma, TArray<FGrpcNightfallV1ActiveEffect> ActiveEffects,
         FGrpcNightfallV1SkillCastStarted PendingCast, FUInt32 PkCount, FUInt32 PvpCount,
-        TArray<FGrpcNightfallV1VisibleEquipment> VisibleEquipment, FUInt64 StatusFlags
+        FUInt64 StatusFlags, TArray<FGrpcNightfallV1VisibleEquipment> VisibleEquipment
     );
 
     UFUNCTION(BlueprintPure, Category = "TurboLink|NightfallV1", meta=(BlueprintThreadSafe))
@@ -1882,7 +1882,7 @@ public:
         FUInt32& HairColor, FUInt32& Face, FUInt64& StateTick,
         FUInt64& FlagUntilTick, FUInt32& Karma, TArray<FGrpcNightfallV1ActiveEffect>& ActiveEffects,
         FGrpcNightfallV1SkillCastStarted& PendingCast, FUInt32& PkCount, FUInt32& PvpCount,
-        TArray<FGrpcNightfallV1VisibleEquipment>& VisibleEquipment, FUInt64& StatusFlags
+        FUInt64& StatusFlags, TArray<FGrpcNightfallV1VisibleEquipment>& VisibleEquipment
     );
 };
 
