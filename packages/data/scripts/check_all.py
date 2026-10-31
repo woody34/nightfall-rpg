@@ -67,11 +67,13 @@ def main() -> int:
         ("gen_items.py", sources),
         ("item_oracle.py", sources),
         ("refine_binary32_oracle.py", sources[:2]),
+        ("gen_economy.py", sources),
         ("skill_oracle.py", []),
         ("skill_oracle.py", ["--class-phase3"]),
         ("starter_weapon_oracle.py", []),
         ("npc_phase3/skill_oracle.py", []),
         ("oracle.py", []),
+        ("economy_oracle.py", []),
     ]
     failures = []
     print("Checking hand-written Phase 3 zone geometry", flush=True)

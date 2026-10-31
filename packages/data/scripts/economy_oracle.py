@@ -1,0 +1,2040 @@
+#!/usr/bin/env python3
+"""Phase 5 economy oracle (design §14.1; plan stories 1.5-1.7). Python 3.11+, standard library.
+
+Independent of the Rust engine and of gen_economy.py's arithmetic: every family reads the
+E1 tables (`tables-phase5/`, after `gen_economy.py --check`) or the pinned clones directly,
+and computes with its own exact `Fraction` rounding (`fl`, `fl32`). CPython `float` (IEEE-754
+binary64 with correctly rounded basic operations) is used ONLY as the binary64 reference that
+the exact emulation must equal. No family uses tolerances and no expectation is Rust-authored.
+
+    python3 packages/data/scripts/economy_oracle.py [--check] [--family D-E ...]
+
+Each family asserts its Done-When facts and contributes vectors to a JSON golden per story
+(`fixtures/economy-oracle-{drops,party,vendor}.json`) for the engine's oracle units; `--check`
+regenerates the goldens in memory and fails if a committed golden differs.
+"""
+from __future__ import annotations
+
+import argparse
+from fractions import Fraction as F
+import json
+import math
+from pathlib import Path
+import re
+import struct
+import subprocess
+import sys
+import tomllib
+import xml.etree.ElementTree as ET
+
+DATA = Path(__file__).resolve().parents[1]
+TABLES = DATA / "tables-phase5"
+FIXTURES = DATA / "fixtures"
+DP = Path.home() / ".cache/nightfall/l2j/l2j-dp"
+GAME = Path.home() / ".cache/nightfall/l2j/l2j-game"
+GJ = "src/main/java/com/l2jserver/gameserver/"
+GC = "src/main/resources/config/"
+DPD = "src/main/resources/data/"
+TWO64 = 1 << 64
+
+
+class OracleError(Exception):
+    pass
+
+
+def require(cond: bool, msg: str) -> None:
+    if not cond:
+        raise OracleError(msg)
+
+
+_T: dict[str, dict] = {}
+
+
+def table(name: str) -> dict:
+    if name not in _T:
+        _T[name] = tomllib.loads((TABLES / name).read_text(encoding="utf-8"))
+    return _T[name]
+
+
+def game_text(rel: str) -> str:
+    return (GAME / rel).read_text(encoding="utf-8")
+
+
+def prop(name: str, key: str) -> str:
+    found = re.findall(rf"^{re.escape(key)}\s*=[ \t]*(.*?)[ \t]*$", game_text(GC + name), re.M)
+    require(len(found) == 1, f"{name}: {key}")
+    return found[0]
+
+
+# ---------------------------------------------------------------------------
+# Exact binary rounding (own implementation, integer shifts)
+# ---------------------------------------------------------------------------
+
+
+def _round(x: F, p: int, emin: int, emax: int) -> F:
+    if x == 0:
+        return F(0)
+    if x < 0:
+        return -_round(-x, p, emin, emax)
+    n, d = x.numerator, x.denominator
+    e = n.bit_length() - d.bit_length()
+    if (n << max(0, -e)) < (d << max(0, e)):
+        e -= 1
+    require(emin <= e <= emax, f"{x} outside the normal range")
+    shift = p - 1 - e
+    num, den = (n << shift, d) if shift >= 0 else (n, d << -shift)
+    q, r = divmod(num, den)
+    if 2 * r > den or (2 * r == den and q & 1):
+        q += 1
+    if q == 1 << p:
+        q >>= 1
+        shift -= 1
+        require(p - 1 - shift <= emax, "overflow")
+    return F(q, 1 << shift) if shift >= 0 else F(q << -shift)
+
+
+def fl(x) -> F:
+    return _round(F(x), 53, -1022, 1023)
+
+
+def fl32(x) -> F:
+    return _round(F(x), 24, -126, 127)
+
+
+def bits(x: F) -> str:
+    require(fl(x) == x, f"{x} is not binary64")
+    return struct.pack(">d", float(x)).hex()
+
+
+def from_bits(h: str) -> F:
+    return F(struct.unpack(">d", bytes.fromhex(h))[0])
+
+
+def ref(x: float) -> F:
+    """The exact value of a CPython (binary64) float."""
+    return F(x)
+
+
+def chance(r: int, c: F) -> bool:
+    """E15: success iff r * 100 * D < N * 2^64 (exact; r is one draw_u64)."""
+    return r * 100 * c.denominator < c.numerator * TWO64
+
+
+def chance_threshold(c: F) -> int:
+    """Number of u64 draws that succeed: #{r in [0, 2^64): r*100*D < N*2^64}."""
+    if c <= 0:
+        return 0
+    lim = -(-(c.numerator * TWO64) // (100 * c.denominator))  # ceil
+    return min(lim, TWO64)
+
+
+def chance_bound(r: int, k: int, n: int) -> bool:
+    """`Rnd.get(n) < k` under E15: chance(k*100 / n)."""
+    return chance(r, F(k * 100, n))
+
+
+def roll_below_words(words, n: int) -> tuple[int, int]:
+    """The engine's unbiased roll_below (Z/state.rs:859-869); returns (value, words used)."""
+    n = max(n, 1)
+    limit = (1 << 32) - ((1 << 32) % n)
+    used = 0
+    for w in words:
+        used += 1
+        if w < limit:
+            return w % n, used
+    raise OracleError("word stream exhausted")
+
+
+class Words:
+    """A deterministic u32 word stream (xorshift64*) for whole-trace vectors."""
+
+    def __init__(self, seed: int) -> None:
+        self.s = seed or 0x9E3779B97F4A7C15
+        self.log: list[int] = []
+
+    def __iter__(self):
+        return self
+
+    def __next__(self) -> int:
+        x = self.s
+        x ^= (x >> 12) & ((1 << 64) - 1)
+        x ^= (x << 25) & ((1 << 64) - 1)
+        x ^= (x >> 27) & ((1 << 64) - 1)
+        self.s = x & ((1 << 64) - 1)
+        w = ((self.s * 0x2545F4914F6CDD1D) & ((1 << 64) - 1)) >> 32
+        self.log.append(w)
+        return w
+
+    def u64(self) -> int:
+        return (next(self) << 32) | next(self)
+
+    def roll_below(self, n: int) -> int:
+        return roll_below_words(self, n)[0]
+
+
+FAMILIES: dict[str, tuple[str, object]] = {}
+
+
+def family(name: str, story: str):
+    def wrap(fn):
+        FAMILIES[name] = (story, fn)
+        return fn
+    return wrap
+
+
+# ---------------------------------------------------------------------------
+# Story 1.5: drop families
+# ---------------------------------------------------------------------------
+
+
+def npc_rows():
+    return table("drops.toml")["npc"]
+
+
+def items_xml() -> dict[int, dict]:
+    if "_items" not in _T:
+        out = {}
+        for f in sorted((DP / DPD / "stats/items").glob("*.xml")):
+            for it in ET.parse(f).getroot().findall("item"):
+                s = {x.get("name"): x.get("val") for x in it.findall("set")}
+                out[int(it.get("id"))] = {"type": it.get("type"), "sets": s}
+        _T["_items"] = out
+    return _T["_items"]
+
+
+def is_herb(item_id: int) -> bool:
+    return items_xml()[item_id]["sets"].get("ex_immediate_effect") == "true"
+
+
+def is_stackable(item_id: int) -> bool:
+    return items_xml()[item_id]["sets"].get("is_stackable") == "true"
+
+
+# --- killer modifiers (§3.3), recomputed from npc.properties and the Java expressions ----
+
+
+def _umap_exact(v: int, in_min: int, in_max: int, out_min: int, out_max: F) -> F:
+    x = F(min(max(v, in_min), in_max))
+    return fl(fl(fl(fl(x - in_min) * fl(out_max - out_min)) / F(in_max - in_min)) + out_min)
+
+
+def _umap_float(v: int, in_min: int, in_max: int, out_min: int, out_max: float) -> float:
+    x = float(min(max(v, in_min), in_max))
+    return (((x - in_min) * (out_max - out_min)) / (in_max - in_min)) + out_min
+
+
+def killer_l(strategy: str, d: int, exact: bool = True) -> F:
+    npc = lambda k: int(prop("npc.properties", k))  # noqa: E731
+    if strategy == "raid_clamp":
+        if exact:
+            return max(F(0), min(F(1), fl(fl(d * fl(F("0.15"))) + 1)))
+        return ref(max(0.0, min(1.0, (d * 0.15) + 1)))
+    pre = "DropItem" if strategy == "item_window" else "DropAdena"
+    lo, hi, gap = npc(pre + "MinLevelDifference"), npc(pre + "MaxLevelDifference"), npc(pre + "MinLevelGapChance")
+    if exact:
+        return fl(_umap_exact(d, -hi, -lo, gap, F(100)) / 100)
+    return ref(_umap_float(d, -hi, -lo, gap, 100.0) / 100)
+
+
+def all_l_values() -> list[F]:
+    vals = set()
+    for d in range(-20, 3):
+        for s in ("item_window", "raid_clamp", "adena_window"):
+            vals.add(killer_l(s, d))
+    return sorted(vals)
+
+
+# --- chance model -----------------------------------------------------------------------
+
+
+def cd(s: str) -> F:
+    return fl(F(s))
+
+
+def ungrouped_c(row_chance: str, L: F, m: F = F(1)) -> F:
+    # getChance(victim, killer) = killerMod * (getChance() * multiplier)
+    return fl(L * fl(cd(row_chance) * m))
+
+
+def single_collapse(item_chance: str, group_chance: str) -> F:
+    # (item1.getChance() * dropItem.getChance()) / 100
+    return fl(fl(cd(item_chance) * cd(group_chance)) / 100)
+
+
+def single_item_c(item_chance: str, group_chance: str, L: F, m: F = F(1)) -> F:
+    """Collapsed single-item group chance (getSingleItem, IGroupedItemDropCalculationStrategy:51-56):
+    c' = fl(fl(cd(item) x cd(group)) / 100) keeps the ITEM's chance strategy, so getChance(victim, killer)
+    = L x (c' x m): C = fl(L x fl(c' x m)). The multiplier applies after the collapse (§3.2)."""
+    return fl(L * fl(single_collapse(item_chance, group_chance) * m))
+
+
+def single_item_c_float(item_chance: str, group_chance: str, L: float, m: float) -> F:
+    c1 = (float(item_chance) * float(group_chance)) / 100
+    return ref(L * (c1 * m))
+
+
+def group_eval(group: dict, L: F, m: F = F(1)) -> dict:
+    g = cd(group["chance"])
+    w = [fl(cd(i["chance"]) * m) for i in group["items"]]
+    raw = [fl(fl(wi * g) * L) for wi in w]
+    t = [fl(x / 100) for x in raw]
+    S = F(0)
+    for ti in t:
+        S = fl(S + ti)
+    if S == 0:
+        return {"S": S, "s": None, "T": None}
+    s = [fl(x / S) for x in raw]
+    T, acc = [], F(0)
+    for si in s:
+        acc = fl(acc + si)
+        T.append(acc)
+    return {"S": S, "s": s, "T": T}
+
+
+def group_eval_float(group: dict, L: float, m: float = 1.0) -> dict:
+    g = float(group["chance"])
+    w = [float(i["chance"]) * m for i in group["items"]]
+    raw = [(wi * g) * L for wi in w]
+    S = 0.0
+    for x in raw:
+        S += x / 100
+    if S == 0:
+        return {"S": ref(S), "s": None, "T": None}
+    s = [x / S for x in raw]
+    T, acc = [], 0.0
+    for si in s:
+        acc += si
+        T.append(ref(acc))
+    return {"S": ref(S), "s": [ref(x) for x in s], "T": T}
+
+
+def multi_groups():
+    for npc in npc_rows():
+        for node in npc["death"]:
+            if node["kind"] == "group" and len(node["items"]) > 1:
+                yield npc, node
+
+
+def remainder(c: F) -> F:
+    """Java `chance % 100` for chance >= 0: exact IEEE fmod."""
+    return c - 100 * math.floor(c / 100)
+
+
+@family("D-C", "1.5")
+def fam_dc(out: dict) -> str:
+    vec = []
+    hundred = F(100)
+    hb = int(bits(hundred), 16)
+    below, above = from_bits(format(hb - 1, "016x")), from_bits(format(hb + 1, "016x"))
+    require(below < 100 < above and fl(below) == below and fl(above) == above, "neighbours of 100")
+    for name, c in (("below_100", below), ("exactly_100", hundred), ("above_100", above)):
+        precise = c > 100  # STRICT for ungrouped (IDropCalculationStrategy:36)
+        draws = ["chance"] + (["remainder"] if precise else []) + ["quantity"]
+        vec.append({"case": name, "C_bits": bits(c), "precise_branch": precise, "draws_on_pass": draws,
+                    "pass_threshold": str(chance_threshold(c))})
+    require([v["precise_branch"] for v in vec] == [False, False, True], "strict > 100")
+    # (b) real group extremes used as synthetic ungrouped rows
+    gch = sorted({n["chance"] for npc in npc_rows() for n in npc["death"] if n["kind"] == "group"}, key=F)
+    require(gch[0] == "0.0003000000142492354" and gch[-1] == "188.85499572753906", "group chance extremes")
+    for s in (gch[-1], gch[0]):
+        c = ungrouped_c(s, F(1))
+        require(ref(float(s)) == c, "parseDouble")
+        mult_base = int(c) // 100
+        rem = remainder(c)
+        require(ref(math.fmod(float(s), 100.0)) == rem, "fmod reference")
+        vec.append({"case": f"synthetic_ungrouped_{s}", "C_bits": bits(c), "mult_base": mult_base,
+                    "remainder_bits": bits(rem), "remainder_draw": c > 100, "pass_threshold": str(chance_threshold(c)),
+                    "remainder_threshold": str(chance_threshold(rem))})
+    # (c) every single-item group collapse, STRICT rule, vs binary64 reference
+    singles = 0
+    for npc in npc_rows():
+        for n in npc["death"]:
+            if n["kind"] == "group" and len(n["items"]) == 1:
+                singles += 1
+                c = single_collapse(n["items"][0]["chance"], n["chance"])
+                require(c == ref((float(n["items"][0]["chance"]) * float(n["chance"])) / 100), f"collapse {npc['id']}")
+    require(singles == 3032, f"single-item groups {singles}")
+    # (d) multi-item groups whose binary64 G is exactly 100: remainder 0, remainder draw still taken
+    g100 = [(npc["id"], gi) for npc, gi in multi_groups() if group_eval(gi, F(1))["S"] == 100]
+    require(g100, "a group with G == 100 exists")
+    vec.append({"case": "group_G_exactly_100", "examples": [g100[0][0]], "count_at_L1": len(g100),
+                "draws_on_pass": ["group", "selection", "remainder(0)", "quantity"]})
+    # (e) the 150 multi-item groups with exact inner sum != 100 (and 1 single-item group)
+    off_multi, off_single = [], 0
+    for npc in npc_rows():
+        for n in npc["death"]:
+            if n["kind"] != "group":
+                continue
+            inner = sum(F(i["chance"]) for i in n["items"])
+            if inner != 100:
+                if len(n["items"]) > 1:
+                    ev, fv = group_eval(n, F(1)), group_eval_float(n, 1.0)
+                    require(ev == fv, f"normalized shares {npc['id']}")
+                    off_multi.append({"npc": npc["id"], "inner_sum": str(inner),
+                                      "shares_bits": [bits(x) for x in ev["s"]], "S_bits": bits(ev["S"])})
+                else:
+                    off_single += 1
+    require(len(off_multi) == 150 and off_single == 1, f"inner sums != 100: {len(off_multi)}/{off_single}")
+    out["dc_inner_sum_not_100"] = off_multi
+    # (f) min == max still draws its quantity; (g) per-node draw counts
+    eq = sum(1 for npc in npc_rows() for scope in ("death", "corpse") for n in npc[scope]
+             for r in (n["items"] if n["kind"] == "group" else [n]) if r["min"] == r["max"])
+    require(eq == 56117, f"min == max rows {eq}")
+    vec.append({"case": "min_equals_max", "rows": eq, "quantity_draw": "roll_below(1), always taken (P3)"})
+    out["dc_vectors"] = vec
+    return f"strict>100 ok; 3,032 collapses = binary64; G==100 groups {len(g100)}; 150+1 inner-sum!=100; 56,117 min==max"
+
+
+@family("D-E", "1.5")
+def fam_de(out: dict) -> str:
+    Ls = all_l_values()
+    require(len(Ls) == 19, f"distinct L values {len(Ls)}")
+    groups = list(multi_groups())
+    checked = 0
+    for npc, g in groups:
+        for L in Ls:
+            ev = group_eval(g, L)
+            fv = group_eval_float(g, float(L))
+            require(ev == fv, f"group of {npc['id']} at L={L}")
+            checked += 1
+    # Exact-normalized-100 groups and their binary64 G at L = 1
+    exact100, below, above = 0, [], []
+    falloff = 0
+    for npc, g in groups:
+        exact = sum(F(i["chance"]) * F(g["chance"]) / 100 for i in g["items"])
+        ev = group_eval(g, F(1))
+        if exact == 100:
+            exact100 += 1
+            if ev["S"] < 100:
+                below.append(npc["id"])
+            elif ev["S"] > 100:
+                above.append(npc["id"])
+        if ev["T"][-1] < 100:
+            falloff += 1
+    require(exact100 == 121, f"exact-100 groups {exact100}")
+    require(sorted(below) == [29068, 29150, 29186], f"below-100 {below}")
+    require(sorted(above) == [29028, 29068, 29118, 29163], f"above-100 {above}")
+    require(falloff == 1127, f"fall-offs {falloff}")
+    # ungrouped and single-item rows: every C for every L equals the binary64 reference
+    rows = 0
+    for npc in npc_rows():
+        for scope in ("death", "corpse"):
+            for n in npc[scope]:
+                if n["kind"] == "item":
+                    for L in Ls:
+                        require(ungrouped_c(n["chance"], L) == ref(float(L) * (float(n["chance"]) * 1.0)), "ungrouped C")
+                    rows += 1
+                elif len(n["items"]) == 1:
+                    c1 = single_collapse(n["items"][0]["chance"], n["chance"])
+                    for L in Ls:
+                        require(fl(L * c1) == ref(float(L) * float(c1)), "single C")
+                    rows += 1
+    out["de_summary"] = {"groups": len(groups), "L_values": [bits(x) for x in Ls], "exact_100": exact100,
+                         "below_100_npcs": sorted(below), "above_100_npcs": sorted(above), "falloff_L1": falloff}
+    return (f"{len(groups):,} multi-item groups x {len(Ls)} L = binary64; exact-100 {exact100}: "
+            f"below {sorted(below)}, above {sorted(above)}; fall-offs at L=1 {falloff:,}; {rows:,} ungrouped/single rows")
+
+
+def _width_terms(c: F) -> int:
+    """Widest intermediate of the U256 chance test r*100*D < N*2^64 (r < 2^64)."""
+    if c <= 0:
+        return 0
+    return max(((TWO64 - 1) * 100 * c.denominator).bit_length(), (c.numerator * TWO64).bit_length())
+
+
+def drop_widths(g_str: str) -> int:
+    G = fl(F(g_str))
+    m = fl32(fl(F(1) * G))  # rate' = fl32(fl(1 x G)); multiplier = fl32(fl(1 x rate')) = rate'
+    m = fl32(fl(1 * m))
+    Ls = all_l_values()
+    widest = 0
+    for npc in npc_rows():
+        for scope in ("death", "corpse"):
+            for n in npc[scope]:
+                if n["kind"] == "item" or len(n["items"]) == 1:
+                    for L in Ls:
+                        c = fl(L * fl(cd(n["chance"]) * m)) if n["kind"] == "item" else \
+                            single_item_c(n["items"][0]["chance"], n["chance"], L, m)
+                        widest = max(widest, _width_terms(c))
+                        if c > 100:
+                            widest = max(widest, _width_terms(remainder(c)))
+                    continue
+                for L in Ls:
+                    ev = group_eval(n, L, m)
+                    if ev["S"] == 0:
+                        continue
+                    widest = max(widest, _width_terms(ev["S"]))
+                    if ev["S"] >= 100:
+                        widest = max(widest, _width_terms(remainder(ev["S"])))
+                    for t in ev["T"]:
+                        widest = max(widest, _width_terms(t))
+    return widest
+
+
+@family("D-W", "1.5")
+def fam_dw(out: dict) -> str:
+    w1 = drop_widths("1")
+    whi = drop_widths(str(2 ** 32))
+    wlo = drop_widths("0.00000000023283064365386962890625")  # exactly 2^-32
+    out["dw_widths"] = {"G=1": w1, "G=2^32": whi, "G=2^-32": wlo}
+    require(w1 == 141, f"width at G=1 is {w1}, design reports 141")
+    require(max(whi, wlo) <= 255, f"width {max(whi, wlo)} exceeds 255")
+    return f"widest intermediate: G=1 {w1} bits; G=2^32 {whi}; G=2^-32 {wlo} (<= 255)"
+
+
+def group_killer_l(victim_is_raid: bool, d: int) -> F:
+    """IKillerChanceModifierStrategy.DEFAULT_STRATEGY (groups and single-item groups)."""
+    if victim_is_raid and prop("npc.properties", "UseDeepBlueDropRulesRaid") == "True":
+        return killer_l("raid_clamp", d)
+    if prop("npc.properties", "UseDeepBlueDropRules") == "True":
+        return killer_l("item_window", d)
+    return F(1)
+
+
+def nongroup_killer_l(item_id: int, victim_is_raid: bool, d: int) -> F:
+    """DEFAULT_NONGROUP_STRATEGY: raids use the window, never the clamp (F32); adena has its own window."""
+    raid_rule = prop("npc.properties", "UseDeepBlueDropRulesRaid") == "True"
+    rule = prop("npc.properties", "UseDeepBlueDropRules") == "True"
+    if (not victim_is_raid and rule) or (victim_is_raid and raid_rule):
+        return killer_l("adena_window" if item_id == 57 else "item_window", d)
+    return F(1)
+
+
+@family("D-L", "1.5")
+def fam_dl(out: dict) -> str:
+    vec = {}
+    expected_item = [F(1), F(1), fl(F("0.82")), fl(F("0.64")), fl(F("0.46")), fl(F("0.28")), fl(F("0.1")), fl(F("0.1"))]
+    got = [killer_l("item_window", d) for d in range(-4, -12, -1)]
+    require(got == expected_item, "item window d=-4..-11")
+    vec["item_window"] = {str(d): bits(killer_l("item_window", d)) for d in range(-4, -12, -1)}
+    vec["adena_window"] = {str(d): bits(killer_l("adena_window", d)) for d in range(-8, -17, -1)}
+    vec["raid_clamp"] = {str(d): bits(killer_l("raid_clamp", d)) for d in range(0, -8, -1)}
+    for s, ds in (("item_window", range(-4, -12, -1)), ("adena_window", range(-8, -17, -1)), ("raid_clamp", range(0, -8, -1))):
+        for d in ds:
+            require(killer_l(s, d) == killer_l(s, d, exact=False), f"{s} {d} vs binary64")
+    require(killer_l("raid_clamp", -7) == 0 and killer_l("raid_clamp", -6) == ref(-6 * 0.15 + 1), "raid clamp tail")
+    # Ungrouped rows of a raid use the window, not the clamp (DEFAULT_NONGROUP_STRATEGY; F32)
+    raid_rows = []
+    for d in (-1, -6, -7, -10):
+        g_l, u_l = group_killer_l(True, d), nongroup_killer_l(1864, True, d)
+        require(u_l == killer_l("item_window", d) and g_l == killer_l("raid_clamp", d), f"raid strategies d={d}")
+        raid_rows.append({"d": d, "group_bits": bits(g_l), "ungrouped_bits": bits(u_l),
+                          "ungrouped_adena_bits": bits(nongroup_killer_l(57, True, d))})
+    require(raid_rows[2]["group_bits"] != raid_rows[2]["ungrouped_bits"], "raid ungrouped differs from the clamp at d=-7")
+    vec["raid_victim"] = raid_rows
+    out["dl_vectors"] = vec
+    return "item d=-4..-11, adena d=-8..-16, raid d=-1..-7 = binary64 references"
+
+
+def parse_config(value: str, kind: str) -> F:
+    """Java config parsing: double -> Double.parseDouble = fl(decimal); float -> Float.parseFloat =
+    fl32(decimal), a single rounding to binary32 (not fl32(fl(decimal)))."""
+    return fl32(F(value)) if kind == "float" else fl(F(value))
+
+
+def rate_prime(value: str, kind: str, G: F) -> F:
+    """rate' = fl32(fl(rate x G)) with the config parsed per its Java kind (E37)."""
+    return fl32(fl(parse_config(value, kind) * G))
+
+
+def m_branch(item_id: int, scope: str, raid: bool, g_str: str) -> tuple[str, F]:
+    """m(item) per IChanceMultiplierStrategy.DEFAULT_STRATEGY with G folded per E37."""
+    G = fl(F(g_str))
+    rates = table("rates.toml")
+    over = {}
+    for pair in prop("rates.properties", "DropChanceMultiplierByItemId").split(";"):
+        if pair.strip():
+            k, v = pair.split(",")
+            over[int(k)] = v
+    if item_id in over:
+        branch, rate = "override", rate_prime(over[item_id], "float", G)  # Map<Integer, Float>
+    elif is_herb(item_id):
+        branch, rate = "herb", rate_prime(prop("rates.properties", "HerbDropChanceMultiplier"), "double", G)
+    elif raid:
+        branch, rate = "raid", rate_prime(prop("rates.properties", "RaidDropChanceMultiplier"), "double", G)
+    else:
+        key = "DeathDropChanceMultiplier" if scope == "death" else "CorpseDropChanceMultiplier"
+        branch, rate = scope, rate_prime(prop("rates.properties", key), "double", G)
+    m = fl32(fl(F(1) * rate))  # float multiplier = 1; multiplier *= rate'
+    _ = rates
+    return branch, m
+
+
+@family("D-M", "1.5")
+def fam_dm(out: dict) -> str:
+    # The DR5 double-rounding counterexample: fl32(fl(G)) = 1 while fl32(G) = 1 + 2^-23.
+    q = F(2164260992, 2164260863)
+    g_str = format_decimal(q, 40)
+    require(fl32(fl(F(g_str))) == 1 and fl32(F(g_str)) == 1 + F(1, 2 ** 23), "DR5 counterexample")
+    picks = {"override": (57, "death", False), "herb": (8600, "death", False), "raid": (6656, "death", True),
+             "death": (1864, "death", False), "corpse": (1864, "corpse", False)}
+    vec = []
+    for g in ("1", "1.5", "0.3333333333333333", g_str):
+        for want, (item, scope, raid) in picks.items():
+            branch, m = m_branch(item, scope, raid, g)
+            require(branch == want, f"branch {want}")
+            # float reference: (float)(1f * (float)(rate * G)) for rate 1
+            ref_m = struct.unpack(">f", struct.pack(">f", 1.0 * float(F(g))))[0] if g != g_str else None
+            if ref_m is not None:
+                require(m == ref(ref_m), f"m {want} G={g}")
+            vec.append({"G": g, "branch": branch, "item": item, "m_bits": bits(m)})
+    # Float.parseFloat is a single rounding: rate "1.1" (float config) at G = "1.5"
+    fp = rate_prime("1.1", "float", fl(F("1.5")))
+    dbl = fl32(fl(fl(F("1.1")) * fl(F("1.5"))))
+    jref = struct.unpack(">f", struct.pack(">f", struct.unpack(">f", struct.pack(">f", 1.1))[0] * 1.5))[0]
+    require(fp == ref(jref) and fp != dbl, "float configs parse as binary32")
+    vec.append({"case": "float_config_1.1_G_1.5", "rate_prime_bits": bits(fp), "double_parse_bits": bits(dbl)})
+    # surplus -> precise mult: ungrouped chance 60 at G = 2 -> C = 120 -> mult 1 + remainder draw 20
+    c = fl(F(1) * fl(F(60) * fl32(fl(F(2)))))
+    require(c == 120 and int(c) // 100 == 1 and remainder(c) == 20, "surplus to mult")
+    # amounts: G never touches a(item)
+    a = fl(F(prop("rates.properties", "DeathDropAmountMultiplier")))
+    require(a == 1, "amount multiplier")
+    vec.append({"case": "surplus", "C": "120", "mult_base": 1, "remainder": "20", "amount_multiplier": "1"})
+    # Every single-item group x every L at G = "1.5" (the 5-drop-rate-multiplier fixture): the pinned
+    # collapse-then-multiply C = fl(L x fl(c' x m)) equals the binary64 reference; the former
+    # multiply-then-collapse form fl(L x fl(fl(fl(cd x m) x cd(g)) / 100)) differs (review-2 P1-1).
+    Ls = all_l_values()
+    singles, cells, regress = 0, 0, []
+    for npc in npc_rows():
+        for n in npc["death"]:
+            if n["kind"] != "group" or len(n["items"]) != 1:
+                continue
+            singles += 1
+            it = n["items"][0]
+            m = m_branch(it["id"], "death", npc["is_raid"], "1.5")[1]
+            for L in Ls:
+                pinned = single_item_c(it["chance"], n["chance"], L, m)
+                require(pinned == single_item_c_float(it["chance"], n["chance"], float(L), float(m)),
+                        f"single-item C vs binary64 {npc['id']}")
+                cells += 1
+                wrong = fl(L * fl(fl(fl(cd(it["chance"]) * m) * cd(n["chance"])) / 100))
+                if wrong != pinned:
+                    regress.append({"npc": npc["id"], "group": n["chance"], "item_chance": it["chance"],
+                                    "L_bits": bits(L), "C_bits": bits(pinned), "wrong_bits": bits(wrong)})
+    npcs = sorted({r["npc"] for r in regress})
+    require(singles == 3032, "3,032 single-item groups")
+    require(len(regress) == 35 and npcs == [29181], f"P1-1 regression cells {len(regress)} on {npcs}")
+    out["dm_single_item_g15"] = {"groups": singles, "cells": cells, "regression": regress}
+    out["dm_vectors"] = vec
+    return (f"5 branches x G {{1, 1.5, 0.333..., DR5 string}}; DR5 double rounding reproduced; surplus->mult; amounts unchanged; "
+            f"{singles:,} single-item groups x {len(Ls)} L at G=1.5 = binary64 ({cells:,} cells; {len(regress)} cells on {npcs} differ from the multiply-first form)")
+
+
+def format_decimal(q: F, digits: int) -> str:
+    """The `digits`-significant-digit decimal string nearest to q (q > 0)."""
+    e = 0
+    while q / F(10) ** e >= 10:
+        e += 1
+    while q / F(10) ** e < 1:
+        e -= 1
+    scaled = q / F(10) ** (e - digits + 1)
+    n = round(scaled)
+    s = str(n)
+    point = len(s) - (digits - 1 - e) if e < digits - 1 else None
+    if point is None:
+        return s + "0" * (e - digits + 1)
+    return s[:point] + "." + s[point:] if point > 0 else "0." + "0" * (-point) + s
+
+
+# --- whole-death traces (§2.2, §2.3) ---------------------------------------------------
+
+
+def roll_ungrouped(item: dict, c: F, site: int, words: Words, trace: list):
+    """IDropCalculationStrategy.DEFAULT_STRATEGY (:32-47): chance draw; STRICT > 100 precise branch
+    with its remainder draw; quantity roll_below even at min == max (P3)."""
+    r = words.u64()
+    trace.append({"site": site, "draw": "chance", "C": bits(c), "pass": chance(r, c)})
+    if not chance(r, c):
+        return None
+    mult = 1
+    if c > 100:
+        mult = int(c) // 100
+        rem = remainder(c)
+        r2 = words.u64()
+        trace.append({"site": site, "draw": "remainder", "C": bits(rem), "pass": chance(r2, rem)})
+        if chance(r2, rem):
+            mult += 1
+    n = item["max"] - item["min"] + 1
+    q, used = roll_below_words(words, n)
+    trace.append({"site": site, "draw": "quantity", "n": n, "words": used})
+    return (item["id"], (item["min"] + q) * mult)
+
+
+def roll_node(node: dict, scope: str, raid: bool, L_group: F, L_item, words: Words, trace: list) -> list:
+    """Draws of one drop node in pinned order; returns holders [(item, count)]."""
+    def ungrouped(item, c, site):
+        return roll_ungrouped(item, c, site, words, trace)
+
+    site = 2 if scope == "corpse" else 3
+    if node["kind"] == "item":
+        m = m_branch(node["id"], scope, raid, "1")[1]
+        h = ungrouped(node, fl(L_item(node["id"]) * fl(cd(node["chance"]) * m)), site)
+        return [h] if h else []
+    if len(node["items"]) == 1:
+        it = node["items"][0]
+        m = m_branch(it["id"], scope, raid, "1")[1]
+        h = ungrouped(it, single_item_c(it["chance"], node["chance"], L_group, m), site)
+        return [h] if h else []
+    ev = group_eval(node, L_group)
+    G = ev["S"]
+    r = words.u64()
+    trace.append({"site": site, "draw": "group", "G": bits(G) if G else "0", "pass": chance(r, G)})
+    if not chance(r, G):
+        return []
+    u = words.u64()
+    pick = None
+    for idx, T in enumerate(ev["T"]):
+        if u * 100 * T.denominator < T.numerator * TWO64:
+            pick = idx
+            break
+    trace.append({"site": site, "draw": "selection", "picked": pick})
+    if pick is None:
+        return []
+    it = node["items"][pick]
+    mult = 1
+    if G >= 100:
+        mult = int(G) // 100
+        rem = remainder(G)
+        r2 = words.u64()
+        trace.append({"site": site, "draw": "remainder", "C": bits(rem), "pass": chance(r2, rem)})
+        if chance(r2, rem):
+            mult += 1
+    n = it["max"] - it["min"] + 1
+    q, used = roll_below_words(words, n)
+    trace.append({"site": site, "draw": "quantity", "n": n, "words": used})
+    return [(it["id"], (it["min"] + q) * mult)]
+
+
+def death_trace(npc: dict, killer_level: int, spoiled: bool, respawn_random: int, seed: int) -> dict:
+    words = Words(seed)
+    trace: list = []
+    d = npc["level"] - killer_level
+    L_group = group_killer_l(npc["is_raid"], d)
+    L_item = lambda iid: nongroup_killer_l(iid, npc["is_raid"], d)  # noqa: E731
+    sweep = []
+    if spoiled:
+        for node in npc["corpse"]:
+            sweep += roll_node(node, "corpse", npc["is_raid"], L_group, L_item, words, trace)
+    holders = []
+    for node in npc["death"]:
+        holders += roll_node(node, "death", npc["is_raid"], L_group, L_item, words, trace)
+    for item, count in holders:
+        for _ in range(1 if is_stackable(item) else count):
+            dx = words.roll_below(141) - 70
+            dy = words.roll_below(141) - 70
+            trace.append({"site": 4, "draw": "position", "item": item, "dx": dx, "dy": dy})
+    if respawn_random > 0:
+        trace.append({"site": 5, "draw": "jitter", "value": words.roll_below(respawn_random + 1)})
+    sites = [t["site"] for t in trace]
+    require(sites == sorted(sites), "corpse -> death -> positions -> jitter order")
+    return {"npc": npc["id"], "killer_level": killer_level, "spoiled": spoiled, "respawn_random": respawn_random,
+            "seed": seed, "sweep": sweep, "holders": holders, "trace": trace, "words": words.log}
+
+
+@family("D-O", "1.5")
+def fam_do(out: dict) -> str:
+    byid = {n["id"]: n for n in npc_rows()}
+    plain = next(n["id"] for n in npc_rows() if n["corpse"] and not n["is_raid"] and n["id"] != 22320)
+    raid = next(n["id"] for n in npc_rows() if n["is_raid"] and len(n["death"]) > 1)
+    cases = [(22320, 81, True, 0, 1), (22320, 72, False, 30, 2), (plain, 1, True, 0, 3), (raid, 70, False, 0, 4),
+             (29068, 80, False, 0, 5)]
+    traces = [death_trace(byid[n], kl, sp, rr, sd) for n, kl, sp, rr, sd in cases if n in byid]
+    require(len(traces) == 5, "trace NPCs present")
+    # 22320's first death node is an ungrouped item: it must be the first death draw (document order).
+    first_death = next(t for t in traces[0]["trace"] if t["site"] == 3)
+    require(first_death["draw"] == "chance", "22320 starts with its ungrouped item")
+    out["do_traces"] = traces
+    return f"{len(traces)} whole-death traces (corpse -> death -> positions -> jitter), draw counts per node"
+
+
+def template_flags(template: int) -> dict:
+    """Pinned per-template item flags (L2Item / L2EtcItem / L2ItemInstance)."""
+    sets = items_xml()[template]["sets"]
+    return {
+        "shadow": int(sets.get("duration", "-1")) >= 0,        # isShadowItem: _mana = duration >= 0
+        "time_limited": int(sets.get("time", "-1")) != -1,     # isTimeLimitedItem: _time > 0 iff time != -1
+        "droppable": sets.get("is_droppable", "true") == "true",
+        "quest": items_xml()[template]["type"] == "EtcItem" and sets.get("is_questitem", "false") == "true",
+        "depositable": sets.get("is_depositable", "true") == "true",
+        "tradeable": sets.get("is_tradable", "true") == "true",
+    }
+
+
+def pk_excluded(inst: dict) -> bool:
+    """L2PcInstance.onDieDropItem exclusions (:4524-4531): shadow, time-limited, !isDroppable (incl.
+    augmented), adena, QUEST type2, active pet control item, NonDroppableItems, PetItems (E53)."""
+    pk = table("ground.toml")["pk"]
+    f = template_flags(inst["template"])
+    return (f["shadow"] or f["time_limited"] or not f["droppable"] or inst.get("augmented", False)
+            or inst["template"] == 57 or f["quest"] or inst.get("pet_control", False)
+            or inst["template"] in pk["non_droppable_items"] or inst["template"] in pk["pet_items"])
+
+
+def freightable(inst: dict) -> bool:
+    """RequestPackageSend :121: freight checks only L2Item.isFreightable() (is_freightable, default
+    false), after the generic checkItemManipulation(..., "freight") (E53 correction)."""
+    return items_xml()[inst["template"]]["sets"].get("is_freightable", "false") == "true"
+
+
+def warehouse_depositable(inst: dict, private: bool) -> bool:
+    """L2ItemInstance.isDepositable(isPrivateWareHouse) (:700-711), the warehouse deposit check
+    (SendWareHouseDepositList :167): equipped or non-depositable templates are refused; a
+    non-private (clan) warehouse also refuses non-tradeable (incl. augmented) and shadow items."""
+    f = template_flags(inst["template"])
+    if inst.get("equipped", False) or not f["depositable"]:
+        return False
+    if not private:
+        return f["tradeable"] and not inst.get("augmented", False) and not f["shadow"]
+    return True
+
+
+def pk_drop(inv: list[dict], karma: int, pk_count: int, killer_is_player: bool, words: Words) -> tuple[list, list]:
+    """§3.9 pk_drop_v7 over a scripted word stream; mutates `equipped` like the pinned unequip."""
+    g = table("ground.toml")["pk"]
+    trace: list = []
+    dropped: list = []
+    if not killer_is_player:
+        return trace, dropped  # NPC killer: PlayerRateDrop = 0, no draw
+    if not (karma > 0 and pk_count >= g["minimum_pk_required_to_drop"]):
+        return trace, dropped
+    r = words.u64()
+    ok = chance_bound(r, g["karma_rate_drop"], 100)
+    trace.append(["gate", ok])
+    if not ok:
+        return trace, dropped
+    for inst in sorted(inv, key=lambda i: i["id"]):  # X4: ascending ItemInstanceId
+        if pk_excluded(inst):
+            continue
+        if inst.get("equipped"):
+            p = g["karma_rate_drop_equip_weapon"] if inst.get("weapon") else g["karma_rate_drop_equip"]
+            inst["equipped"] = False
+            trace.append(["unequip", inst["id"]])
+        else:
+            p = g["karma_rate_drop_item"]
+        r = words.u64()
+        ok = chance_bound(r, p, 100)
+        trace.append(["item", inst["id"], p, ok])
+        if ok:
+            dx, dy = words.roll_below(50) - 25, words.roll_below(50) - 25
+            dropped.append([inst["id"], dx, dy])
+            if len(dropped) >= g["karma_drop_limit"]:
+                break
+    return trace, dropped
+
+
+@family("D-P", "1.5")
+def fam_dp(out: dict) -> str:
+    g = table("ground.toml")["pk"]
+    require(len(g["non_droppable_items"]) == 30 and len(set(g["non_droppable_items"])) == 29, "NonDroppable 30/29")
+    require(len(g["pet_items"]) == 11, "PetItems 11")
+    require(g["player_rate_drop"] == 0, "PlayerRateDrop 0: NPC-killer branch never draws")
+    require("itemDrop.isShadowItem() || itemDrop.isTimeLimitedItem() || !itemDrop.isDroppable()"
+            in game_text(GJ + "model/actor/instance/L2PcInstance.java"), "pinned exclusion line")
+    cat = table("catalogue.toml")["templates"]
+    shadow = next(t["id"] for t in cat if "lifetime_deferred" in t["tags"] and template_flags(t["id"])["shadow"])
+    timed = next(t["id"] for t in cat if "lifetime_deferred" in t["tags"] and template_flags(t["id"])["time_limited"])
+    plain = [t["id"] for t in cat if not t["tags"] and t["id"] not in g["non_droppable_items"] + g["pet_items"] + [57]
+             and not any(template_flags(t["id"])[k] for k in ("quest", "shadow", "time_limited"))
+             and template_flags(t["id"])["droppable"] and template_flags(t["id"])["depositable"]
+             and template_flags(t["id"])["tradeable"]][:24]
+    require(pk_excluded({"template": shadow}) and pk_excluded({"template": timed}), "shadow / time-limited excluded (E53)")
+    require(chance_threshold(F(40)) == -(-(40 * TWO64) // 100), "gate threshold")
+    vec = []
+    for seed in range(1, 400):
+        inv = [{"id": i + 1, "template": t, "equipped": i % 3 == 2, "weapon": i % 6 == 5} for i, t in enumerate(plain)]
+        inv += [{"id": 50, "template": 57}, {"id": 51, "template": 7694}, {"id": 52, "template": 2375},
+                {"id": 53, "template": plain[0], "augmented": True}, {"id": 54, "template": shadow, "equipped": True},
+                {"id": 55, "template": timed}]
+        tr, dropped = pk_drop(inv, 10, 6, True, Words(seed))
+        if len(dropped) == 10:
+            last = dropped[-1][0]
+            require(all(i["equipped"] for i in inv if i["id"] > last and i["id"] <= 24 and i["id"] % 3 == 0),
+                    "items after the 10th drop stay equipped")
+            require(next(i for i in inv if i["id"] == 54)["equipped"], "excluded shadow item is not unequipped")
+            require(all(-25 <= d[1] <= 24 and -25 <= d[2] <= 24 for d in dropped), "offsets")
+            vec.append({"seed": seed, "inventory_templates": plain, "shadow": shadow, "time_limited": timed,
+                        "trace": tr, "dropped": dropped})
+            break
+    require(vec, "a vector reaching the 10-drop break")
+    require(pk_drop([{"id": 1, "template": plain[0]}], 10, 5, True, Words(9)) == ([], []), "pk_count < 6 draws nothing")
+    require(pk_drop([{"id": 1, "template": plain[0]}], 10, 9, False, Words(9)) == ([], []), "NPC killer draws nothing")
+    out["dp_vectors"] = {"break_at_10": vec, "shadow_template": shadow, "time_limited_template": timed}
+    return ("exclusions (adena, NonDroppable, PetItems, quest, augmented, shadow, time-limited); unequip-before-roll; "
+            "break at 10; gate 40; offsets [-25, 24]; NPC killer no draw")
+
+
+def decay_due(dropped: int, limit: int) -> int:
+    """X8: smallest T = 0 (mod 50) with T - dropped > limit (ItemsAutoDestroy strict >, 5 s grid)."""
+    scan = table("ground.toml")["ground"]["scanner_ms"] // 100
+    t = -(-dropped // scan) * scan
+    while t - dropped <= limit:
+        t += scan
+    return t
+
+
+@family("D-T", "1.5")
+def fam_dt(out: dict) -> str:
+    gr = table("ground.toml")["ground"]
+    scan = gr["scanner_ms"] // 100
+    require(scan == 50, "scanner 50 ticks")
+    limits = {"auto_destroy_9849": gr["auto_destroy_time"][0]["seconds"] * 10,
+              "herb": gr["herb_decay_seconds"] * 10, "loot": gr["decay_seconds"] * 10}
+    require(sorted(limits.values()) == [100, 600, 6000], "limits 100/600/6,000 ticks")
+    vec = {k: {str(t): decay_due(t, lim) for t in (0, 1, 49, 50, 51)} for k, lim in limits.items()}
+    require(vec["auto_destroy_9849"]["0"] == 150 and vec["auto_destroy_9849"]["50"] == 200, "strict > on the grid")
+    require(vec["loot"]["1"] == 6050 and vec["herb"]["49"] == 650, "grid rounding")
+    vec["pk_drop"] = None  # never registered (DestroyPlayerDroppedItem = False)
+    require(gr["destroy_player_dropped_item"] is False, "PK drops never decay")
+    out["dt_vectors"] = vec
+    return "decay_due at ticks 0/1/49/50/51 for limits 100/600/6,000 (strict > on the 50-tick grid); PK never"
+
+
+# ---------------------------------------------------------------------------
+# Story 1.6: party, XP and ledger families
+# ---------------------------------------------------------------------------
+
+
+def in_range_party2(dist_sq: int, rad: int = 0) -> bool:
+    # checkIfInRange(PartyRange2, ..., true) -> 4*dist^2 <= (2*R + rad)^2, R = m(1400) = 43,750 (X1/X2)
+    r = int(prop("character.properties", "PartyRange2")) * 1000 // 32
+    return 4 * dist_sq <= (2 * r + rad) ** 2
+
+
+def random_looter(members: list[dict], words: Words) -> tuple[str, int]:
+    cands = [m["name"] for m in members if in_range_party2(m["dist_sq"])]
+    if not cands:
+        return "picker", 0
+    return cands[words.roll_below(len(cands))], 1
+
+
+def by_turn_looter(members: list[dict], cursor: int) -> tuple[str | None, int]:
+    for _ in range(len(members)):
+        cursor += 1
+        if cursor >= len(members):
+            cursor = 0
+        if in_range_party2(members[cursor]["dist_sq"]):
+            return members[cursor]["name"], cursor
+    return None, cursor
+
+
+def even_split(members: list[dict], amount: int, words: Words) -> dict[str, int]:
+    rec = [m["name"] for m in members if in_range_party2(m["dist_sq"])]  # member order (X9)
+    if not rec:
+        return {}
+    k = len(rec)
+    got = {n: amount // k for n in rec}
+    for _ in range(amount % k):
+        got[rec[words.roll_below(k)]] += 1
+    return {n: v for n, v in got.items() if v > 0}
+
+
+MODES = ["FINDERS_KEEPERS", "RANDOM", "RANDOM_INCLUDING_SPOIL", "BY_TURN", "BY_TURN_INCLUDING_SPOIL"]
+
+
+@family("L-P", "1.6")
+def fam_lp(out: dict) -> str:
+    near, far = 40000 ** 2, 44000 ** 2
+    require(in_range_party2(43750 ** 2) and not in_range_party2(43751 ** 2), "PartyRange2 1,400 -> 43,750 non-strict")
+    vec: dict = {"random": [], "by_turn": [], "even_split": [], "sweep_routing": []}
+    # RANDOM over every in-range subset of a 4-member party
+    for mask in range(16):
+        members = [{"name": f"m{i}", "dist_sq": near if mask >> i & 1 else far} for i in range(4)]
+        w = Words(100 + mask)
+        looter, draws = random_looter(members, w)
+        require(draws == (1 if mask else 0), "RANDOM draws only with candidates")
+        vec["random"].append({"in_range_mask": mask, "seed": 100 + mask, "looter": looter, "words": w.log})
+    # BY_TURN: pre-increment, wrap, skip-advance, full lap -> picker with cursor advanced by len
+    members = [{"name": f"m{i}", "dist_sq": far if i in (1, 2) else near} for i in range(4)]
+    cur, seq = -1, []
+    for _ in range(5):
+        who, cur = by_turn_looter(members, cur)
+        seq.append((who, cur))
+    require([s[0] for s in seq] == ["m0", "m3", "m0", "m3", "m0"], f"by-turn order {seq}")
+    nobody = [{"name": f"m{i}", "dist_sq": far} for i in range(3)]
+    who, cur2 = by_turn_looter(nobody, 1)
+    require(who is None and cur2 == 1, "full lap returns the picker; cursor advanced by len (mod len)")
+    vec["by_turn"] = {"sequence": seq, "full_lap_cursor_in": 1, "full_lap_cursor_out": cur2}
+    # Even split k = 1..9 with remainders, draws with replacement
+    for k in range(1, 10):
+        members = [{"name": f"m{i}", "dist_sq": near} for i in range(k)]
+        for amount in (k * 7 + k - 1, 2, 1000003):
+            w = Words(k * 31 + amount)
+            got = even_split(members, amount, w)
+            require(sum(got.values()) == amount, "split conserves")
+            require(len(w.log) >= amount % k, "one draw per leftOver")
+            vec["even_split"].append({"k": k, "amount": amount, "seed": k * 31 + amount, "payout": got, "words": w.log})
+    # count 1 is never split: isItemToEvenlyDistribute requires count > 1 -> mode path
+    require(int(prop("character.properties", "PartyEvenlyDistributeItems").split(",")[0]) == 57, "split template 57")
+    vec["split_count_1"] = "mode path"
+    # Sweep routing: spoil=true in every mode; adena count > 1 splits in every mode
+    for mode in MODES:
+        spoil_to = "picker" if mode in ("FINDERS_KEEPERS", "RANDOM", "BY_TURN") else (
+            "random" if mode == "RANDOM_INCLUDING_SPOIL" else "next")
+        vec["sweep_routing"].append({"mode": mode, "non_adena": spoil_to, "adena_gt_1": "even_split"})
+    out["lp_vectors"] = vec
+    return "RANDOM over 16 in-range subsets; BY_TURN cursor/wrap/full lap; even split k=1..9; sweep routing in 5 modes"
+
+
+def pow56(k: int) -> F:
+    require(1 <= k <= 79, f"pow56 k={k} fails closed")
+    return fl(fl(F(5) / 6) ** k)
+
+
+def base_rewards(level: int, exp_rate: str, sp: str, g: str = "1") -> tuple[int, int]:
+    G = fl(F(g))
+    rx = rate_prime(prop("rates.properties", "RateXp"), "float", G)
+    rs = rate_prime(prop("rates.properties", "RateSp"), "float", G)
+    X = math.floor(fl(fl(level * level * cd(exp_rate)) * rx))
+    S = math.floor(fl(cd(sp) * rs))
+    return X, S
+
+
+def calc_exp_sp(diff: int, dmg: int, total: int, X: int, S: int) -> tuple[int, int]:
+    diff = max(diff, -5)
+    x = fl(fl(F(X) * dmg) / total)
+    s = fl(fl(F(S) * dmg) / total)
+    if diff > 5:
+        p = pow56(diff - 5)
+        x, s = fl(x * p), fl(s * p)
+    if x <= 0:
+        x, s = F(0), F(0)
+    elif s <= 0:
+        s = F(0)
+    return math.floor(x), math.floor(s)
+
+
+def round_half_up(v: F) -> int:
+    return math.floor(v + F(1, 2))
+
+
+def bonus(n: int, key: str) -> F:
+    B = [fl(F(b)) for b in table("party.toml")["party"]["bonus_exp_sp"]]
+    if n < 2:
+        return F(1)
+    return fl(B[min(n - 1, 8)] * parse_config(prop("rates.properties", key), "float"))
+
+
+def party_distribute(e: int, s: int, levels: list[int], alive: list[bool], top: int) -> list[tuple[int, int]]:
+    n = len(levels)
+    e = math.floor(fl(e * bonus(n, "RatePartyXp")))
+    s = math.floor(fl(s * bonus(n, "RatePartySp")))
+    sq = sum(lv * lv for lv in levels)
+    gaps = [tuple(map(int, g.split(","))) for g in prop("character.properties", "PartyXpCutoffGaps").split(";")]
+    pct = [int(x) for x in prop("character.properties", "PartyXpCutoffGapPercent").split(",")]
+    out = []
+    for lv, ok in zip(levels, alive):
+        if not ok:
+            out.append((0, 0))
+            continue
+        pre = fl(fl(F(lv * lv) / sq) * 1)
+        ae = round_half_up(fl(e * pre))
+        as_ = math.floor(fl(s * pre))
+        gap = top - lv
+        award = (0, 0)
+        for (lo, hi), p in zip(gaps, pct):
+            if lo <= gap <= hi:
+                award = (ae * p // 100, as_ * p // 100)
+                break
+        out.append(award)
+    return out
+
+
+def reward_pass(R: dict[int, dict], parties: list[list[int]], players: dict[int, dict], npc_level: int,
+                X: int, S: int) -> dict:
+    """§4.5 / L2Attackable.calculateRewards :400-535 over the reward snapshot R.
+
+    R: entity id -> {"damage"} (players with damage > 1 within PartyRange of the NPC, §3.6).
+    parties: member lists in member order. players: id -> {"level", "alive", "in_range"} where
+    in_range is PartyRange 1,600 to the NPC. Visits R in ascending EntityId order (X7); entries
+    removed by a party pass are not visited again; a dead member's entry stays and its later visit
+    runs the party branch with partyDmg = 0 (no award). Returns per-pass records and awards."""
+    total = sum(r["damage"] for r in R.values())
+    R = {k: dict(v) for k, v in R.items()}
+    party_of = {m: tuple(p) for p in parties for m in p}
+    awards: dict[int, list[int]] = {}
+    passes = []
+    for pid in sorted(R):
+        if pid not in R:
+            continue
+        info = players[pid]
+        if pid not in party_of:
+            e, s = calc_exp_sp(info["level"] - npc_level, R[pid]["damage"], total, X, S)
+            e = math.floor(fl32(fl32(e) * 1))  # exp *= penalty (float, servitor penalty 1)
+            if info["alive"]:
+                awards.setdefault(pid, [0, 0])
+                awards[pid][0] += e
+                awards[pid][1] += s
+            passes.append({"visit": pid, "branch": "solo", "exp": e, "sp": s, "awarded": info["alive"]})
+            continue
+        party_dmg, party_lvl, rewarded = 0, 0, []
+        for m in party_of[pid]:
+            pm = players[m]
+            if not pm["alive"]:
+                continue
+            if m in R:
+                if pm["in_range"]:
+                    party_dmg += R[m]["damage"]
+                    rewarded.append(m)
+                    party_lvl = max(party_lvl, pm["level"])
+                del R[m]
+            elif pm["in_range"]:
+                rewarded.append(m)
+                party_lvl = max(party_lvl, pm["level"])
+        party_mul = F(1) if party_dmg >= total else fl32(fl32(party_dmg) / fl32(total))
+        e, s = calc_exp_sp(party_lvl - npc_level, party_dmg, total, X, S)
+        e = math.floor(fl32(fl32(e) * party_mul))
+        s = math.floor(fl32(fl32(s) * party_mul))
+        rec = {"visit": pid, "branch": "party", "partyDmg": party_dmg, "partyLvl": party_lvl,
+               "partyMul_bits": bits(party_mul), "exp": e, "sp": s, "rewarded": rewarded}
+        if party_dmg > 0:
+            dist = party_distribute(e, s, [players[m]["level"] for m in rewarded],
+                                    [players[m]["alive"] for m in rewarded], party_lvl)
+            for m, (ae, as_) in zip(rewarded, dist):
+                awards.setdefault(m, [0, 0])
+                awards[m][0] += ae
+                awards[m][1] += as_
+            rec["distribution"] = dist
+        passes.append(rec)
+    return {"total": total, "passes": passes, "awards": {str(k): v for k, v in sorted(awards.items())}}
+
+
+@family("X", "1.6")
+def fam_x(out: dict) -> str:
+    vec: dict = {}
+    # n = 5: every e < 2*10^6, floor(fl(e * 1.4)) vs floor(7e/5)
+    b5 = bonus(5, "RatePartyXp")
+    require(b5 == fl(F("1.40")), "n=5 bonus is fl(1.40)")
+    diffs, first = 0, None
+    bf = float(b5)
+    for e in range(2_000_000):
+        if int(e * bf) != (7 * e) // 5:
+            diffs += 1
+            if first is None:
+                first = e
+    require(diffs == 74892, f"n=5 differences {diffs}")
+    require(math.floor(fl(45 * b5)) == 62 and (7 * 45) // 5 == 63, "e = 45 -> 62")
+    for e in (45, 1_999_999, 2 ** 25 + 1):
+        require(math.floor(fl(e * b5)) == int(e * bf), "binary64 reference")
+    vec["n5"] = {"differences_below_2e6": diffs, "first": first, "e45": 62}
+    # 36 SP-only templates: expRate absent -> 0 XP and 0 SP
+    sp_only = table("drops.toml")["sp_only_templates"]
+    require(len(sp_only) == 36, "36 SP-only")
+    lv_sp = {}
+    for f in sorted((DP / DPD / "stats/npcs").glob("*.xml")):
+        for n in ET.parse(f).getroot().findall("npc"):
+            if int(n.get("id")) in sp_only:
+                a = n.find("acquire")
+                require(a.get("expRate") is None, "expRate absent")
+                lv_sp[int(n.get("id"))] = (int(n.get("level", 70)), a.get("sp"))
+    for nid, (lv, sp) in lv_sp.items():
+        X, S = base_rewards(lv, "0", sp)
+        for lvl in (1, lv, 85):
+            require(calc_exp_sp(lvl - lv, 1000, 1000, X, S) == (0, 0), f"SP-only {nid}")
+    require({sp for _, sp in lv_sp.values()} >= {"557272", "144137"}, "raid-class SP rows")
+    vec["sp_only"] = sorted(lv_sp)
+    # Solo diffs (pow56 per E32); diff 85 (k = 80) fails closed
+    X, S = base_rewards(40, "24.8737348778133", "17624")
+    solo = {}
+    for diff in (-6, -5, 0, 5, 6, 7, 84):
+        e, s = calc_exp_sp(diff, 700, 1000, X, S)
+        e = math.floor(fl32(fl32(e) * 1))
+        solo[str(diff)] = (e, s)
+    require(solo["-6"] == solo["-5"] == solo["0"] == solo["5"], "diff <= 5 has no penalty")
+    try:
+        calc_exp_sp(85, 700, 1000, X, S)
+        raise OracleError("diff 85 must fail closed")
+    except OracleError as err:
+        require("fails closed" in str(err), "pow56 k=80")
+    vec["solo"] = {"X": X, "S": S, "results": solo}
+    # Fractional 0 < x < 1 keeps SP
+    e, s = calc_exp_sp(0, 1, 3, 2, 300)
+    require(e == 0 and s == 100, "0 < x < 1 keeps SP")
+    vec["fractional_x"] = {"X": 2, "S": 300, "dmg": 1, "total": 3, "result": (e, s)}
+    # e > 2^24: float rounding of long *= float
+    big = 2 ** 24 + 1
+    require(math.floor(fl32(fl32(big) * 1)) == 2 ** 24, "fl32 above 2^24")
+    pm = fl32(fl32(1) / fl32(3))
+    require(math.floor(fl32(fl32(big) * pm)) == int(struct.unpack('>f', struct.pack('>f', struct.unpack('>f', struct.pack('>f', float(big)))[0] * float(pm)))[0]), "partyMul product")
+    vec["float_steps"] = {"e": big, "solo": 2 ** 24, "partyMul_1_3_bits": bits(pm)}
+    # Party n = 1..9, Math.round halves, highfive gaps 9/10/14/15 and negative
+    party = []
+    for n in range(1, 10):
+        levels = [60 - 3 * i for i in range(n)]
+        party.append({"n": n, "levels": levels, "awards": party_distribute(100000, 5000, levels, [True] * n, 60)})
+    gaps = party_distribute(100000, 5000, [70, 61, 60, 56, 55, 75], [True] * 6, 70)
+    require(gaps[1][0] > 0 and gaps[2][0] > 0 and gaps[3][0] > 0 and gaps[4][0] == 0 and gaps[5] == (0, 0),
+            "gaps 9 (100%), 10 (30%), 14 (30%), 15 (0%), negative (nothing)")
+    require(round_half_up(F(5, 2)) == 3 and round_half_up(F(-5, 2)) == -2 and round_half_up(fl(F("0.49999999999999994"))) == 0,
+            "Math.round halves (Java 7+)")
+    # Full party branch (steps 1-5): partyDmg/partyLvl accumulation, partyMul, dead-member second pass
+    Xn, Sn = base_rewards(52, "24.8737348778133", "17624")
+    players = {1: {"level": 55, "alive": True, "in_range": True}, 2: {"level": 50, "alive": False, "in_range": True},
+               3: {"level": 48, "alive": True, "in_range": False}, 4: {"level": 53, "alive": True, "in_range": True},
+               5: {"level": 60, "alive": True, "in_range": True}}
+    R = {1: {"damage": 600}, 2: {"damage": 300}, 3: {"damage": 150}, 5: {"damage": 250}}
+    rp = reward_pass(R, [[1, 2, 3, 4]], players, 52, Xn, Sn)
+    p1 = rp["passes"][0]
+    require(p1["branch"] == "party" and p1["partyDmg"] == 600 and p1["rewarded"] == [1, 4] and p1["partyLvl"] == 55,
+            "party pass: dead 2 skipped, out-of-range 3 removed but not rewarded, 4 joins without damage")
+    require(p1["partyMul_bits"] == bits(fl32(fl32(600) / fl32(1300))), "partyMul = fl32(fl32(partyDmg)/fl32(total))")
+    second = [q for q in rp["passes"] if q["visit"] == 2]
+    require(second and second[0]["partyDmg"] == 0 and "distribution" not in second[0], "dead-member second pass awards nothing")
+    require(not any(q["visit"] == 3 for q in rp["passes"]), "removed entry not revisited")
+    require(rp["passes"][-1]["visit"] == 5 and rp["passes"][-1]["branch"] == "solo", "solo attacker")
+    full = reward_pass({1: {"damage": 500}, 4: {"damage": 500}}, [[1, 4]], players, 52, Xn, Sn)
+    require(full["passes"][0]["partyMul_bits"] == bits(F(1)), "partyDmg == total -> partyMul 1")
+    vec["party"] = party
+    vec["gaps"] = gaps
+    vec["reward_pass"] = {"X": Xn, "S": Sn, "players": {str(k): v for k, v in players.items()},
+                          "R": {str(k): v for k, v in R.items()}, "result": rp, "whole_party": full}
+    out["x_vectors"] = vec
+    return f"n=5 e<2e6: {diffs:,} differences (e=45 -> 62); 36 SP-only -> 0/0; solo diffs; k=80 fails closed; party n=1..9; gaps; full party branch incl. partyMul and the dead-member second pass"
+
+
+# --- ledger (§11.2, T1) -------------------------------------------------------------------
+
+
+TERMINAL = ("transfer_out_whole", "destroy")
+
+
+def t1_order(rows: list[dict]) -> list[dict]:
+    """Rule T1 per (owner, tick, instance): non-terminal rows (cause order), Consume aggregate, terminal."""
+    nonterm = [r for r in rows if r["op"] not in ("consume",) + TERMINAL]
+    cons = [r for r in rows if r["op"] == "consume"]
+    term = [r for r in rows if r["op"] in TERMINAL]
+    require(len(cons) <= 1 and len(term) <= 1, "one consume aggregate, at most one terminal row")
+    ordered = sorted(nonterm, key=lambda r: r["cause"]) + cons + term
+    return [dict(r, ordinal=i) for i, r in enumerate(ordered)]
+
+
+def transfer(src: dict, n: int, target_stack: dict | None, stackable: bool, next_id: int, link: str):
+    """ItemContainer.transferItem: identity / merge / split rows (§11.2)."""
+    whole = n == src["count"]
+    if stackable and target_stack is not None:
+        mode, tid, before = "merge", target_stack["id"], target_stack["count"]
+    elif whole:
+        mode, tid, before = "identity", src["id"], None
+    else:
+        mode, tid, before = "split", next_id, None
+    out = {"op": "transfer_out_whole" if whole else "transfer_out", "instance": src["id"],
+           "after": None if whole else src["count"] - n, "link": link, "mode": mode, "cause": "x"}
+    inn = {"op": "transfer_in", "instance": tid, "before": before, "count_delta": n, "link": link, "mode": mode, "cause": "x"}
+    return out, inn
+
+
+def d67_ok(inn: dict, outs: list[dict]) -> bool:
+    """D67 as amended by B13: an identity transfer_in with before = None (reusing the source id) is
+    exempt from "never seen earlier" only when its link names a matching identity transfer_out."""
+    if inn["mode"] != "identity":
+        return True
+    return any(x["link"] == inn["link"] and x["mode"] == "identity" and x["instance"] == inn["instance"] for x in outs)
+
+
+@family("G", "1.6")
+def fam_g(out: dict) -> str:
+    vec = {}
+    # T1: consume then terminal; ordinals contiguous
+    rows = t1_order([{"op": "destroy", "cause": "pk_drop"}, {"op": "consume", "cause": "C(shot)"},
+                     {"op": "unequip", "cause": "pk_drop"}, {"op": "grant", "cause": "a"}])
+    require([r["op"] for r in rows] == ["grant", "unequip", "consume", "destroy"], "T1 order")
+    require([r["ordinal"] for r in rows] == [0, 1, 2, 3], "contiguous ordinals")
+    vec["t1"] = [r["op"] for r in rows]
+    try:
+        t1_order([{"op": "destroy", "cause": "a"}, {"op": "transfer_out_whole", "cause": "b"}])
+        raise OracleError("two terminal rows accepted")
+    except OracleError as err:
+        require("at most one terminal" in str(err), "terminal uniqueness")
+    # identity / merge / split pairs
+    src = {"id": 10, "count": 5}
+    o, i = transfer(src, 5, None, True, 99, "L1")
+    require(i["mode"] == "identity" and i["instance"] == 10 and i["before"] is None and o["after"] is None, "identity")
+    o2, i2 = transfer(src, 5, {"id": 20, "count": 7}, True, 99, "L2")
+    require(i2["mode"] == "merge" and i2["instance"] == 20 and i2["before"] == 7 and o2["after"] is None, "merge whole")
+    o3, i3 = transfer(src, 2, None, True, 99, "L3")
+    require(i3["mode"] == "split" and i3["instance"] == 99 and o3["after"] == 3 and o3["op"] == "transfer_out", "split")
+    vec["pairs"] = [[o, i], [o2, i2], [o3, i3]]
+    require(d67_ok(i, [o]) and not d67_ok(i, [o3]), "D67 link exemption")
+    # D68/D74 caps on merge receivers
+    cap_adena = int(prop("character.properties", "MaxAdena"))
+    require(cap_adena == 99_900_000_000, "adena cap")
+    require(cap_adena - 1 + 2 > cap_adena, "a merge past the adena cap is refused (ITEM_COUNT_CAP)")
+    vec["caps"] = {"adena": cap_adena, "other_stackable": 2 ** 31 - 1}
+    # Conservation across pairs
+    for o_, i_ in vec["pairs"]:
+        moved_out = src["count"] - (o_["after"] or 0)
+        require(moved_out == i_["count_delta"], "conservation")
+    out["g_vectors"] = vec
+    return "T1 orders and terminal uniqueness; identity/merge/split pairs; D67 link exemption; caps; conservation"
+
+
+# ---------------------------------------------------------------------------
+# Story 1.7: vendor, craft, multisell, manor, auction, fee, pow, L-table and flood families
+# ---------------------------------------------------------------------------
+
+
+def ref_price(item_id: int) -> int:
+    return int(items_xml()[item_id]["sets"].get("price", "0"))
+
+
+def unit_price(p: int, tax: str, castle: int) -> int:
+    t = fl(fl(F(tax)) / 100)
+    c = fl(F(castle) / 100)
+    return math.floor(fl(F(p) * fl(1 + fl(t + c))))
+
+
+@family("V-P", "1.7")
+def fam_vp(out: dict) -> str:
+    m = table("merchants.toml")
+    require("price * (1 + (baseTaxRate + castleTaxRate))" in game_text(GJ + "network/clientpackets/RequestBuyItem.java"),
+            "RequestBuyItem price expression")
+    castles = m["castle_percents"]
+    require(castles == [0, 5, 15, 25], f"castle percents {castles}")
+    pairs = {(e["item"], e["tax"]) for e in m["entries"]}
+    require(len(pairs) == 5803, f"pairs {len(pairs)}")
+    tab = {(u["item"], u["tax"]): u for u in m["unit_prices"]}
+    naive, cells, diffs = 0, 0, []
+    for item, tax in sorted(pairs):
+        p = ref_price(item)
+        for c in castles:
+            emu = unit_price(p, tax, c)
+            hw = int(p * (1 + (float(tax) / 100 + c / 100)))
+            require(emu == hw, f"emulation vs binary64 {item} {tax} {c}")
+            require(tab[(item, tax)][f"castle_{c}"] == emu, f"table vs oracle {item} {tax} {c}")
+            cells += 1
+        if unit_price(p, tax, 0) != (p * (100 + int(tax))) // 100:
+            naive += 1
+            diffs.append([item, tax, p, unit_price(p, tax, 0)])
+    require(naive == 362, f"naive differences {naive}")
+    require(unit_price(100, "15", 0) == 114, "100 x 1.15 -> 114")
+    out["vp_naive_differences"] = diffs
+    return f"{len(pairs):,} pairs x 4 castle % = {cells:,} cells: table = oracle fl = binary64; {naive} naive-truncation differences at castle 0"
+
+
+@family("V-R", "1.7")
+def fam_vr(out: dict) -> str:
+    want = {"0.040000": 1500, "0.042000": 1428, "0.083000": 722, "0.125000": 480, "0.166000": 361,
+            "0.200000": 300, "0.250000": 240, "0.500000": 120, "1.000000": 60}
+    got = {}
+    for e in table("merchants.toml")["entries"]:
+        d = fl(F(e["delay"]))
+        mins = math.floor(fl(F(60) / d)) if d > 0 else -1
+        require(e["restock_min"] == mins, "restock minutes")
+        if d > 0:
+            got[e["delay"]] = mins
+    require(got == want, f"restock minutes {got}")
+    vec = []
+    for delay, mins in want.items():
+        tick, stock, maxc = 1000, 3, 5
+        due = tick + mins * 600  # restockDelay * 60,000 ms in 100 ms ticks
+        vec.append({"delay": delay, "minutes": mins, "decrease_at": tick, "due": due, "refill_to": maxc})
+    # limited stock check uses max(stock, 0): a negative stock admits nothing
+    require(all(c > max(-2, 0) for c in (1, 2)), "negative-count clamp")
+    out["vr_vectors"] = vec
+    return "delay -> minutes 1,500/1,428/722/480/361/300/240/120/60 over all entries; due tick; refill; clamp"
+
+
+# --- vendor sell / refund (§6.5, §6.6) ------------------------------------------------------
+
+
+def sell_price(ref: int, count: int) -> int:
+    """RequestSellItem :142: price = ref / 2 per unit."""
+    return count * (ref // 2)
+
+
+def refund_price(ref: int, count: int) -> int:
+    """RequestRefundItem :155,182: whole entry, floor(count * ref / 2)."""
+    return (count * ref) // 2
+
+
+def refund_tab_add(tab: list[dict], template: int, count: int, stackable: bool) -> tuple[list[dict], list[dict]]:
+    """PcRefund.addItem: merge into an existing stack (entry count unchanged) or append; then
+    destroy the oldest while size > 12 (:57-69). Returns (tab, destroyed)."""
+    tab = [dict(e) for e in tab]
+    for e in tab:
+        if stackable and e["template"] == template:
+            e["count"] += count
+            return tab, []
+    tab.append({"template": template, "count": count})
+    destroyed = []
+    while len(tab) > 12:
+        destroyed.append(tab.pop(0))
+    return tab, destroyed
+
+
+@family("V-S", "1.7")
+def fam_vs(out: dict) -> str:
+    require("getSize() > 12" in game_text(GJ + "model/itemcontainer/PcRefund.java"), "refund tab 12")
+    vec = []
+    for p in (3, 5, 7, 101):
+        for c in range(1, 6):
+            sell, refund = sell_price(p, c), refund_price(p, c)
+            require(refund - sell == c // 2, "refund costs floor(c/2) more")
+            vec.append({"p": p, "c": c, "sell": sell, "refund": refund, "difference": refund - sell})
+    require((sell_price(3, 4), refund_price(3, 4)) == (4, 6), "p=3, c=4 -> 4, 6, 2")
+    tab: list[dict] = []
+    destroyed_all = []
+    for i in range(13):
+        tab, destroyed = refund_tab_add(tab, 1000 + i, 1, False)
+        destroyed_all += destroyed
+    require(len(tab) == 12 and destroyed_all == [{"template": 1000, "count": 1}], "13th entry destroys the oldest")
+    merged, d2 = refund_tab_add(tab, 1005, 4, True)
+    require(len(merged) == 12 and not d2 and next(e for e in merged if e["template"] == 1005)["count"] == 5, "merge does not grow the tab")
+    out["vs_vectors"] = {"prices": vec, "overflow_destroyed": destroyed_all, "after_overflow": tab, "after_merge": merged}
+    return "odd p, c=1..5 sell/refund/difference; 12-entry overflow; merge does not grow the tab"
+
+
+# --- multisell (§7) -------------------------------------------------------------------------
+
+
+def multisell_validate(entry: dict, amount: int) -> str | None:
+    """MultiSellChoose :109 (amount 1..5000) and :135 (non-stackable entry needs amount 1)."""
+    if amount < 1 or amount > 5000:
+        return "INVALID_QUANTITY"
+    if any(not is_stackable(p["id"]) for p in entry["products"] if p["id"] > 0) and amount > 1:
+        return "INVALID_QUANTITY"
+    return None
+
+
+def multisell_required(ing: dict, amount: int) -> int:
+    """MultiSellChoose :212: (blacksmithUseRecipes || !maintainIngredient) ? count * amount : count."""
+    blacksmith = prop("character.properties", "BlacksmithUseRecipes") == "True"
+    return ing["count"] * amount if (blacksmith or not ing["maintain"]) else ing["count"]
+
+
+def multisell_take(instances: list[dict], template: int, n: int, maintain_enchantment: bool, enchant: int) -> list[dict]:
+    """Non-stackable consumption (:255-300): exact enchant matches in inventory order when the list
+    maintains enchantment, else the lowest enchant levels first."""
+    own = [i for i in instances if i["template"] == template]
+    if maintain_enchantment:
+        pick = [i for i in own if i["enchant"] == enchant]
+    else:
+        pick = sorted(own, key=lambda i: i["enchant"])
+    require(len(pick) >= n, "insufficient instances")
+    return pick[:n]
+
+
+def multisell_products(entry: dict, amount: int, maintain_enchantment: bool, taken: list[dict]) -> list[dict]:
+    """Products x amount; maintainEnchantment copies the consumed enchant level (:362) and the i-th
+    consumed augmentation to the i-th product (:354-356); elementals are a no-op (B10)."""
+    out = []
+    augs = [t["augment"] for t in taken if t.get("augment")]
+    enchant = taken[0]["enchant"] if (maintain_enchantment and taken) else 0
+    k = 0
+    for p in entry["products"]:
+        for _ in range(amount if is_stackable(p["id"]) else p["count"] * amount):
+            row = {"template": p["id"], "count": p["count"] * amount if is_stackable(p["id"]) else 1, "enchant": enchant}
+            if maintain_enchantment and k < len(augs):
+                row["augment"] = augs[k]
+                k += 1
+            out.append(row)
+            if is_stackable(p["id"]):
+                break
+    return out
+
+
+def multisell_tax(count: int, tax_rate: F) -> int:
+    """PreparedEntry :49: Math.round(count * taxRate) on the exact double (Java 7+ half-up)."""
+    return round_half_up(fl(fl(F(count)) * fl(tax_rate)))
+
+
+def multisell_prepared_ingredients(entry: dict, apply_taxes: bool, tax_rate: F) -> list[dict]:
+    """PreparedEntry (:43-69): every adena (57) ingredient is removed from its place; non-tax adena
+    counts are summed, plus Math.round(count x taxRate) per tax ingredient when the list applies taxes,
+    and ONE adena ingredient with the total is appended last (if > 0). Other ingredients keep order."""
+    out, adena, tax = [], 0, 0
+    for ing in entry["ingredients"]:
+        if ing["id"] == 57:
+            if ing["is_tax"]:
+                if apply_taxes:
+                    tax += multisell_tax(ing["count"], tax_rate)
+            else:
+                adena += ing["count"]
+            continue
+        out.append(dict(ing))
+    adena += tax
+    if adena > 0:
+        out.append({"id": 57, "count": adena, "is_tax": False, "maintain": False})
+    return out
+
+
+def multisell_check_list(ingredients: list[dict]) -> list[dict]:
+    """MultiSellChoose :168-195: duplicate (id, enchant) ingredients merge into one possession check."""
+    out: list[dict] = []
+    for ing in ingredients:
+        for ex in out:
+            if ex["id"] == ing["id"] and ex.get("enchant", 0) == ing.get("enchant", 0):
+                ex["count"] += ing["count"]
+                break
+        else:
+            out.append(dict(ing))
+    return out
+
+
+@family("M", "1.7")
+def fam_m(out: dict) -> str:
+    src = game_text(GJ + "network/clientpackets/MultiSellChoose.java")
+    require("(_amount < 1) || (_amount > 5000)" in src, "amount 1..5000")
+    require("if (!entry.isStackable() && (_amount > 1))" in src, "non-stackable amount")
+    ms = table("multisell.toml")
+    flagged = [(lst["id"], i) for lst in ms["list"] for e in lst["entries"] for i in e["ingredients"] if i["maintain"]]
+    require(len(flagged) == 21, "21 maintainIngredient")
+    require(not any(i["is_tax"] for lst in ms["list"] for e in lst["entries"] for i in e["ingredients"]), "no isTaxIngredient")
+    stack_entry = next(e for lst in ms["list"] for e in lst["entries"] if all(is_stackable(p["id"]) for p in e["products"] if p["id"] > 0))
+    nonstack_list = next(lst for lst in ms["list"] if lst["maintain_enchantment"])
+    nonstack_entry = next(e for e in nonstack_list["entries"] if any(not is_stackable(p["id"]) for p in e["products"]))
+    bounds = {str(a): multisell_validate(stack_entry, a) for a in (0, 1, 5000, 5001)}
+    require(bounds == {"0": "INVALID_QUANTITY", "1": None, "5000": None, "5001": "INVALID_QUANTITY"}, "amount bounds")
+    require(multisell_validate(nonstack_entry, 2) == "INVALID_QUANTITY" and multisell_validate(nonstack_entry, 1) is None,
+            "non-stackable amount > 1 rejected")
+    consumed = [{"list": l, "id": i["id"], "count": i["count"], "amount": 3, "required": multisell_required(i, 3)} for l, i in flagged]
+    require(all(c["required"] == c["count"] * 3 for c in consumed), "BlacksmithUseRecipes consumes maintainIngredient rows")
+    # maintainEnchantment: exact match + copy; non-maintained: lowest first
+    src_ing = next(i for i in nonstack_entry["ingredients"] if i["id"] > 0 and not is_stackable(i["id"]))
+    inv = [{"id": 1, "template": src_ing["id"], "enchant": 3, "augment": 777}, {"id": 2, "template": src_ing["id"], "enchant": 0},
+           {"id": 3, "template": src_ing["id"], "enchant": 3}]
+    taken_m = multisell_take(inv, src_ing["id"], 1, True, 3)
+    taken_n = multisell_take(inv, src_ing["id"], 1, False, 0)
+    require([t["id"] for t in taken_m] == [1] and [t["id"] for t in taken_n] == [2], "exact match vs lowest")
+    prods = multisell_products(nonstack_entry, 1, True, taken_m)
+    require(prods[0]["enchant"] == 3 and prods[0].get("augment") == 777, "enchant and augment copied")
+    tax = []
+    for count, rate in ((1, F(1, 2)), (3, F(1, 2)), (5, fl(F("0.1"))), (7, F(5, 100))):
+        tax.append({"count": count, "rate_bits": bits(fl(rate)), "tax": multisell_tax(count, rate)})
+    require(tax[0]["tax"] == 1 and tax[1]["tax"] == 2, "half-up at .5")
+    me = sum(1 for lst in ms["list"] if lst["maintain_enchantment"])
+    require(me == 31, "31 maintainEnchantment lists")
+    require("adenaAmount += _taxAmount; // do not forget tax" in game_text(GJ + "model/multisell/PreparedEntry.java"),
+            "PreparedEntry adena aggregation")
+    moved, merged, examples = 0, 0, []
+    for lst in ms["list"]:
+        for idx, e in enumerate(lst["entries"], start=1):
+            adena_rows = [i for i in e["ingredients"] if i["id"] == 57]
+            if not adena_rows:
+                continue
+            prep = multisell_prepared_ingredients(e, lst["apply_taxes"], F(0))
+            require(prep[-1]["id"] == 57 and prep[-1]["count"] == sum(i["count"] for i in adena_rows), "one adena row, last")
+            if e["ingredients"][-1]["id"] != 57:
+                moved += 1
+                if len(examples) < 5:
+                    examples.append({"list": lst["id"], "entry": idx, "xml": e["ingredients"], "prepared": prep})
+            if len(adena_rows) > 1:
+                merged += 1
+    synthetic = {"ingredients": [{"id": 57, "count": 100, "is_tax": False, "maintain": False},
+                                 {"id": 1864, "count": 2, "is_tax": False, "maintain": False},
+                                 {"id": 57, "count": 1000, "is_tax": True, "maintain": False},
+                                 {"id": 57, "count": 50, "is_tax": False, "maintain": False}], "products": []}
+    prep = multisell_prepared_ingredients(synthetic, True, F(1, 2))
+    require(prep == [{"id": 1864, "count": 2, "is_tax": False, "maintain": False},
+                     {"id": 57, "count": 650, "is_tax": False, "maintain": False}], "adena + tax merged and appended last")
+    require(multisell_check_list([{"id": 5, "count": 1}, {"id": 5, "count": 1}]) == [{"id": 5, "count": 2}], "duplicate merge")
+    out["m_vectors"] = {"amount_bounds": bounds, "non_stackable_list": nonstack_list["id"],
+                        "maintain_ingredient_consumed": consumed, "maintain_enchantment": {
+                            "inventory": inv, "taken_maintained": taken_m, "taken_lowest": taken_n, "products": prods},
+                        "tax_half_up": tax, "maintain_enchantment_lists": me,
+                        "adena_aggregation": {"entries_reordered": moved, "entries_with_several_adena": merged,
+                                              "examples": examples, "synthetic": prep}}
+    return "amount 1/5000 (0, 5001 rejected); non-stackable > 1 rejected; 21 maintainIngredient rows consumed; exact-match/lowest consumption with enchant+augment copy; tax half-up; adena aggregated last"
+
+
+# --- craft (§8.2) -------------------------------------------------------------------------
+
+
+def craft(recipe: dict, crafter: dict, customer: dict, fee: int, words: Words) -> dict:
+    """RecipeItemMaker: every check before any payment, then MP -> fee -> materials -> success draw
+    (#10) -> masterwork draw (#11, always taken, rarity 0 included). Returns the step trace."""
+    trace = []
+    rank_key = "create_item" if recipe["type"] == "dwarven" else "create_common_item"
+    if crafter["ranks"].get(rank_key, 0) < recipe["craft_level"]:
+        return {"result": "CRAFT_LEVEL_TOO_LOW", "trace": trace}
+    for ing in recipe["ingredients"]:
+        if customer["items"].get(ing["id"], 0) < ing["count"]:
+            return {"result": "MISSING_MATERIALS", "trace": trace}
+    mp = sum(s["value"] for s in recipe["stat_use"] if s["name"] == "MP")
+    if crafter["mp"] < mp:
+        return {"result": "INSUFFICIENT_MP", "trace": trace}
+    if customer is not crafter and customer["adena"] < fee:
+        return {"result": "INSUFFICIENT_ADENA", "trace": trace}
+    trace.append(["mp", mp])
+    if customer is not crafter:
+        trace.append(["fee", fee])
+    trace.append(["materials", [[i["id"], i["count"]] for i in recipe["ingredients"]]])
+    r = words.u64()
+    ok = chance_bound(r, recipe["success_rate"], 100)
+    trace.append(["success_draw", ok])
+    if not ok:
+        return {"result": "failed", "trace": trace, "fee_kept": customer is not crafter}
+    rarity = recipe["production_rare"]["rarity"] if "production_rare" in recipe else 0
+    r2 = words.u64()
+    rare = chance_bound(r2, rarity, 100)
+    trace.append(["masterwork_draw", rarity, rare])
+    prod = recipe["production_rare"] if rare else recipe["production"]
+    return {"result": "crafted", "trace": trace, "product": [prod["id"], prod["count"]]}
+
+
+@family("C", "1.7")
+def fam_c(out: dict) -> str:
+    rec = table("recipes.toml")["recipe"]
+    rates = sorted({r["success_rate"] for r in rec})
+    require(rates == [10, 25, 60, 70, 95, 100], f"success rates {rates}")
+    rar = sorted({r["production_rare"]["rarity"] for r in rec if "production_rare" in r})
+    require(rar == [1, 4, 20], f"rarities {rar}")
+    thresholds = {"success": {str(k): str(chance_threshold(F(k * 100, 100))) for k in rates},
+                  "masterwork": {str(k): str(chance_threshold(F(k * 100, 100))) for k in rar + [0]}}
+    require(thresholds["success"]["100"] == str(TWO64) and thresholds["masterwork"]["0"] == "0", "bounds")
+    plain = next(r for r in rec if r["success_rate"] == 60 and "production_rare" not in r)
+    rare = next(r for r in rec if "production_rare" in r and r["success_rate"] == 100)
+    crafter = {"ranks": {"create_item": 10, "create_common_item": 9}, "mp": 10_000, "adena": 0, "items": {}}
+    customer = {"ranks": {}, "mp": 0, "adena": 1_000_000, "items": {i["id"]: 10 ** 6 for r in (plain, rare) for i in r["ingredients"]}}
+    runs = []
+    seen = set()
+    for seed in range(1, 60):
+        res = craft(plain, crafter, customer, 500, Words(seed))
+        runs.append({"recipe": plain["id"], "seed": seed, **res})
+        seen.add(res["result"])
+        if {"failed", "crafted"} <= seen:
+            break
+    require({"failed", "crafted"} <= seen, "both outcomes reached")
+    fail = next(r for r in runs if r["result"] == "failed")
+    require([t[0] for t in fail["trace"]] == ["mp", "fee", "materials", "success_draw"] and fail["fee_kept"], "order; fee kept on failure")
+    ok = next(r for r in runs if r["result"] == "crafted")
+    require(ok["trace"][-1][0] == "masterwork_draw" and ok["trace"][-1][1] == 0, "rarity 0 still draws (P4)")
+    empty = {"ranks": crafter["ranks"], "mp": 10_000, "adena": 0, "items": {}}
+    require(craft(plain, empty, empty, 0, Words(1)) == {"result": "MISSING_MATERIALS", "trace": []}, "nothing spent on a missing material")
+    rare_run = craft(rare, crafter, customer, 0, Words(7))
+    out["c_vectors"] = {"thresholds": thresholds, "runs": runs, "rare": rare_run}
+    return "chance_bound for successRate 10/25/60/70/95/100; masterwork 1/4/20 and rarity 0; MP -> fee -> materials -> roll; fee kept on failure; missing material spends nothing"
+
+
+def sow_basic(seed_level: int, alternative: bool, player: int, target: int) -> int:
+    basic = 20 if alternative else 90
+    lo, hi = seed_level - 5, seed_level + 5
+    if target < lo:
+        basic -= 5 * (lo - target)
+    if target > hi:
+        basic -= 5 * (target - hi)
+    diff = abs(player - target)
+    if diff > 5:
+        basic -= 5 * (diff - 5)
+    return basic  # Math.max(basic, 1) result discarded: no floor
+
+
+def harvest_basic(player: int, target: int) -> int:
+    diff = abs(player - target)
+    basic = 100 - (diff - 5) * 5 if diff > 5 else 100
+    return max(basic, 1)
+
+
+@family("S", "1.7")
+def fam_s(out: dict) -> str:
+    sow_src = (DP / "src/main/java/com/l2jserver/datapack/handlers/effecthandlers/instant/Sow.java").read_text()
+    require("Math.max(basicSuccess, 1);" in sow_src and "Rnd.nextInt(99) < basicSuccess" in sow_src, "Sow.java")
+    manor = table("manor.toml")
+    vec = {"sow": [], "harvest": [], "harvest_count": [], "fee": {}}
+    for alt in (False, True):
+        for player, target in ((40, 40), (40, 30), (40, 52), (60, 40), (20, 70)):
+            b = sow_basic(40, alt, player, target)
+            vec["sow"].append({"seed_level": 40, "alternative": alt, "player": player, "target": target, "basic": b,
+                               "threshold": str(chance_threshold(F(max(b, 0) * 100, 99)) if b > 0 else 0)})
+    require(sow_basic(40, True, 20, 70) < 0, "negative basic exists (never succeeds)")
+    for player, target in ((40, 40), (40, 46), (10, 85)):
+        vec["harvest"].append({"player": player, "target": target, "basic": harvest_basic(player, target)})
+    require(harvest_basic(10, 85) == 1, "harvest floor 1")
+    mult = {m["skill"]: m["multiplier"] for m in manor["skills"]["strong_type_multipliers"]}
+    for skills, npc_lv, seed_lv in (([], 30, 30), ([4303], 30, 30), ([4305, 4307], 50, 40)):
+        c = 1
+        for sk in skills:
+            c *= mult[sk]
+        c += max(0, npc_lv - seed_lv - 5)
+        c *= manor["skills"]["rate_drop_manor"]
+        vec["harvest_count"].append({"skills": skills, "npc_level": npc_lv, "seed_level": seed_lv, "count": c})
+    require(vec["harvest_count"][2]["count"] == 4 * 6 + 5, "multipliers then level bonus")
+    # crop sale reward and fee (castle 1 fixtures only)
+    fg = manor["fixture_gludio"]
+    crops = {c["crop"]: c for c in manor["crops"] if c["castle"] == 1}
+    sales = []
+    for row in fg["crop_procurement"][:5]:
+        crop = crops[row["crop_id"]]
+        reward = crop["rew1"] if row["reward_type"] == 1 else crop["rew2"]
+        rp = ref_price(reward)
+        for count in (1, 10):
+            P = count * row["price"]
+            rc = P // rp if rp else None
+            sales.append({"crop": row["crop_id"], "count": count, "P": P, "reward": reward,
+                          "reward_count": rc, "skipped": rp == 0 or (rc is not None and rc < 1),
+                          "fee_other_manor": math.floor(fl(fl(F(P)) * fl(F("0.05"))))})
+    vec["crop_sales"] = sales
+    # fee (long)(P * 0.05) vs P div 20
+    import random
+    rng = random.Random(5)
+    tested = list(range(0, 200_001)) + [2 ** 53 - 1 - i for i in range(1000)] + \
+        [rng.randrange(2 ** 53) for _ in range(200_000)] + [20 * k + r for k in (10 ** 6, 10 ** 12, 2 ** 40) for r in range(20)]
+    fee = lambda P: math.floor(fl(fl(F(P)) * fl(F("0.05"))))  # noqa: E731  (long)(P * 0.05)
+    # The first P where (long)(P * 0.05) != P div 20: fl(0.05) exceeds 1/20 by delta, so a P = 20k + 19
+    # rounds up to k + 1 once P*delta outgrows half an ulp of the product; the residue is monotone in k
+    # inside the [2^48, 2^49) product binade, so bisection over k finds the minimum exactly.
+    lo, hi = (1 << 52) // 20, ((1 << 53) - 20) // 20
+    require(fee(20 * lo + 19) == lo and fee(20 * hi + 19) != hi, "bisection brackets")
+    while hi - lo > 1:
+        mid = (lo + hi) // 2
+        if fee(20 * mid + 19) != mid:
+            hi = mid
+        else:
+            lo = mid
+    first = 20 * hi + 19
+    bad = [P for P in tested if fee(P) != P // 20]
+    require(all(P >= first for P in bad), "no difference below the first one")
+    reach = max(r["price"] * r["amount"] for r in fg["crop_procurement"])
+    max_adena = int(prop("character.properties", "MaxAdena"))
+    require(max(reach, max_adena) < first, "every reachable P is below the first difference")
+    vec["fee"] = {"tested": len(tested), "difference_count": len(bad), "first_difference": first,
+                  "max_reachable_P": reach, "max_adena": max_adena}
+    out["s_vectors"] = vec
+    return (f"Sow 90/20 penalties, no floor; harvest floor 1; harvest count; crop sale reward/fee; fee floor(fl(P*0.05)) = P div 20 "
+            f"for all {len(tested) - len(bad):,} tested P below {first:,} (first difference; {len(bad):,} tested P above it differ; reachable P <= {reach:,})")
+
+
+# --- item auction (§10.5) -----------------------------------------------------------------
+
+
+def auction_new() -> dict:
+    return {"state": "STARTED", "bids": {}, "highest": None, "extend": "INITIAL", "last_bidder": 0,
+            "end_minutes": 300, "start_age_days": 0}
+
+
+def auction_bid(a: dict, who: int, amount: int, init_bid: int, remaining_minutes: int) -> tuple[str, int]:
+    """ItemAuction.registerBid (:215-278) and onPlayerBid (:280-335). Returns (result, payment)."""
+    if amount < init_bid:
+        return "BID_TOO_LOW", 0
+    if amount > 100_000_000_000:
+        return "BID_TOO_HIGH", 0
+    if a["state"] != "STARTED":
+        return "AUCTION_NOT_ACTIVE", 0
+    if a["highest"] is not None and amount < a["bids"][a["highest"]]:
+        return "BID_TOO_LOW", 0  # strict <: an equal bid is accepted
+    prev = a["bids"].get(who)
+    if prev is None or prev == -1:
+        pay = amount  # new bid, or re-bid after cancel: full amount
+    else:
+        if amount < prev:
+            return "BID_TOO_LOW", 0
+        pay = amount - prev  # increment only
+    a["bids"][who] = amount
+    if a["highest"] is None or a["bids"][a["highest"]] < amount:
+        a["highest"] = who
+    if remaining_minutes <= 10:
+        if a["extend"] == "INITIAL":
+            a["extend"], a["end_minutes"] = "EXTEND_5", a["end_minutes"] + 5
+        elif a["extend"] == "EXTEND_5":
+            prev_last, a["last_bidder"] = a["last_bidder"], who
+            if prev_last != who:
+                a["extend"], a["end_minutes"] = "EXTEND_3", a["end_minutes"] + 3
+        elif a["extend"] == "EXTEND_3":
+            extra = int(prop("general.properties", "ItemAuctionTimeExtendsOnBid"))
+            if extra > 0:
+                a["end_minutes"] += extra
+    return "OK", pay
+
+
+def auction_cancel(a: dict, who: int) -> tuple[str, int]:
+    """ItemAuction.cancelBid (:354-406): returns (result, refund)."""
+    if a["state"] == "CREATED":
+        return "refused", 0
+    if a["state"] == "FINISHED" and a["start_age_days"] > int(prop("general.properties", "ItemAuctionExpiredAfter")):
+        return "refused", 0
+    if a["highest"] is None or who not in a["bids"]:
+        return "refused", 0
+    if who == a["highest"]:
+        return ("refused", 0) if a["state"] == "FINISHED" else ("reserve_not_met", 0)
+    if a["bids"][who] == -1:
+        return "skip", 0
+    refund = a["bids"][who]
+    if a["state"] == "FINISHED":
+        del a["bids"][who]
+    else:
+        a["bids"][who] = -1
+    return "refunded", refund
+
+
+@family("A", "1.7")
+def fam_a(out: dict) -> str:
+    src = game_text(GJ + "model/itemauction/ItemAuction.java")
+    require("(_highestBid != null) && (newBid < _highestBid.getLastBid())" in src, "equal bid accepted")
+    require("_highestBid.getLastBid() < bid.getLastBid()" in src, "leader changes on strictly higher")
+    inst = table("auction.toml")["instance"][0]
+    init = inst["items"][0]["init_bid"]
+    a = auction_new()
+    steps = [auction_bid(a, 1, init, init, 60), auction_bid(a, 2, init, init, 60), auction_bid(a, 1, init + 50000, init, 60)]
+    require(steps == [("OK", init), ("OK", init), ("OK", 50000)] and a["highest"] == 1, "equal bid not leading; increment-only")
+    require(auction_bid(a, 3, init - 1, init, 60) == ("BID_TOO_LOW", 0), "below init bid")
+    cancel = {"other_started": auction_cancel(a, 2), "cancelled_again": auction_cancel(a, 2), "leader_started": auction_cancel(a, 1)}
+    require(cancel["other_started"] == ("refunded", init) and cancel["cancelled_again"] == ("skip", 0)
+            and cancel["leader_started"] == ("reserve_not_met", 0), "cancel matrix (started)")
+    require(auction_bid(a, 2, init + 60000, init, 60) == ("OK", init + 60000), "re-bid after cancel pays in full")
+    fin = auction_new()
+    auction_bid(fin, 1, init, init, 60)
+    auction_bid(fin, 2, init + 1, init, 60)
+    fin["state"] = "FINISHED"
+    old = dict(fin, bids=dict(fin["bids"]), start_age_days=15)
+    cancel["leader_finished"] = auction_cancel(fin, 2)
+    cancel["finished_older_than_14_days"] = auction_cancel(old, 1)
+    cancel["other_finished"] = auction_cancel(fin, 1)
+    require(cancel["leader_finished"] == ("refused", 0) and cancel["finished_older_than_14_days"] == ("refused", 0)
+            and cancel["other_finished"] == ("refunded", init) and 1 not in fin["bids"], "cancel matrix (finished)")
+    ext = auction_new()
+    ends = []
+    for who in (1, 1, 2, 3):
+        auction_bid(ext, who, init + 1000 * len(ends), init, 5)
+        ends.append(ext["end_minutes"])
+    require(ends == [305, 308, 308, 308], f"extension 5 -> 3 -> stop {ends}")
+    out["a_vectors"] = {"bids": steps, "cancel": {k: list(v) for k, v in cancel.items()}, "extension_end_minutes": ends,
+                        "item_draw": f"roll_below({len(inst['items'])})"}
+    return "equal bid accepted not leading; increment-only payment; cancel matrix; extension 5 -> 3 -> stop; roll_below(82)"
+
+
+@family("F", "1.7")
+def fam_f(out: dict) -> str:
+    sm = table("storage_mail.toml")
+    wh, fr, ml = sm["warehouse"]["deposit_fee_per_entry"], sm["freight"]["fee_per_entry"], sm["mail"]
+    require((wh, fr, ml["message_fee"], ml["message_fee_per_slot"]) == (30, 1000, 100, 1000), "fees")
+    vec = []
+    for entries, has_adena in ((1, False), (3, True), (8, True)):
+        vec.append({"entries": entries, "adena_entry": has_adena, "warehouse_fee": wh * entries,
+                    "freight_fee": fr * entries, "freight_slots": entries - (1 if has_adena else 0),
+                    "mail_fee": ml["message_fee"] + ml["message_fee_per_slot"] * entries})
+    # Container admission predicates (E53 as corrected): freight = isFreightable only; warehouse =
+    # isDepositable(private) for the private and the non-private warehouse.
+    require("} else if (!item.isFreightable()) {" in game_text(GJ + "network/clientpackets/RequestPackageSend.java"),
+            "pinned freight check")
+    require("if (!oldItem.isDepositable(isPrivate) || !oldItem.isAvailable(player, true, isPrivate)) {"
+            in game_text(GJ + "network/clientpackets/SendWareHouseDepositList.java"), "pinned warehouse check")
+    require("return isTradeable() && !isShadowItem();" in game_text(GJ + "model/items/instance/L2ItemInstance.java"),
+            "pinned isDepositable(false)")
+    cat = [{"id": i, "tags": t["tags"]} for i, t in ((t["id"], t) for t in table("catalogue.toml")["templates"])]
+    tf = template_flags
+    pool = sorted(items_xml())
+    # Pinned data has no shadow template that is both depositable and tradeable (452 depositable but
+    # non-tradeable, 31 neither), so the clan-warehouse shadow clause is reached only through a
+    # template whose is_tradable is already false; the vector uses a depositable shadow template.
+    shadow_flags = {(tf(i)["depositable"], tf(i)["tradeable"]) for i in pool if tf(i)["shadow"]}
+    require(shadow_flags == {(True, False), (False, False)}, f"shadow template flags {shadow_flags}")
+    shadow = next(i for i in pool if tf(i)["shadow"] and tf(i)["depositable"])
+    timed = next(t["id"] for t in cat if tf(t["id"])["time_limited"])
+    plain = next(t["id"] for t in cat if not t["tags"] and tf(t["id"])["depositable"] and tf(t["id"])["tradeable"]
+                 and not tf(t["id"])["shadow"])
+    no_trade = next(t["id"] for t in cat if tf(t["id"])["depositable"] and not tf(t["id"])["tradeable"] and not tf(t["id"])["shadow"])
+    no_dep = next(t["id"] for t in cat if not tf(t["id"])["depositable"])
+    fr_yes = next(t["id"] for t in cat if freightable({"template": t["id"]}))
+    fr_no = next(t["id"] for t in cat if not freightable({"template": t["id"]}) and tf(t["id"])["depositable"])
+    cases = {"plain": {"template": plain}, "augmented": {"template": plain, "augmented": True},
+             "equipped": {"template": plain, "equipped": True}, "shadow": {"template": shadow},
+             "time_limited": {"template": timed}, "non_tradeable": {"template": no_trade},
+             "non_depositable": {"template": no_dep}, "freightable": {"template": fr_yes},
+             "not_freightable": {"template": fr_no}}
+    table_ = {k: {"template": v["template"], "private_warehouse": warehouse_depositable(v, True),
+                  "clan_warehouse": warehouse_depositable(v, False), "freight": freightable(v)} for k, v in cases.items()}
+    require(table_["plain"]["private_warehouse"] and table_["plain"]["clan_warehouse"], "plain deposits")
+    require(table_["augmented"]["private_warehouse"] and not table_["augmented"]["clan_warehouse"], "augmented: private only")
+    require(not table_["equipped"]["private_warehouse"] and not table_["equipped"]["clan_warehouse"], "equipped refused")
+    require(table_["shadow"]["private_warehouse"] and not table_["shadow"]["clan_warehouse"], "shadow: private only")
+    require(table_["non_tradeable"]["private_warehouse"] and not table_["non_tradeable"]["clan_warehouse"], "non-tradeable: private only")
+    require(not table_["non_depositable"]["private_warehouse"], "non-depositable refused")
+    require(table_["freightable"]["freight"] and not table_["not_freightable"]["freight"], "freight follows is_freightable only")
+    freight_ref = sorted(t["id"] for t in cat if freightable({"template": t["id"]}))
+    freight_all = sum(1 for i in pool if freightable({"template": i}))
+    adena_freightable = freightable({"template": 57})
+    require(not adena_freightable, "pinned adena (57) is not freightable")
+    out["f_vectors"] = {"fees": vec, "admission": table_, "freightable_referenced_templates": freight_ref,
+                        "freightable_datapack_templates": freight_all, "adena_freightable": adena_freightable}
+    return ("warehouse 30 x entries (adena counted); freight 1,000 x entries; mail 100 + 1,000 x n; admission: freight = "
+            f"isFreightable ({freight_all:,} datapack / {len(freight_ref)} referenced templates; adena NOT freightable), "
+            "warehouse = isDepositable(private)")
+
+
+def pow_table() -> dict[str, dict[int, str]]:
+    out: dict[str, dict[int, str]] = {"pow56": {}, "pow13": {}}
+    for ln in (DATA / "jvm-pow-tables.txt").read_text().splitlines()[1:]:
+        m = re.fullmatch(r"(pow56|pow13) [kd]=(-?\d+) bits=([0-9a-f]{16})", ln)
+        require(m is not None, f"pow line {ln}")
+        out[m.group(1)][int(m.group(2))] = m.group(3)
+    return out
+
+
+def pow13(d: int) -> F:
+    b = fl(F("1.3"))
+    return fl(b ** d)
+
+
+@family("PW", "1.7")
+def fam_pw(out: dict) -> str:
+    t = pow_table()
+    require(len(t["pow56"]) == 79 and len(t["pow13"]) == 241, "79 + 241")
+    for k, h in t["pow56"].items():
+        require(bits(pow56(k)) == h, f"pow56 {k}")
+    for d, h in t["pow13"].items():
+        require(bits(pow13(d)) == h, f"pow13 {d}")
+    for k in (0, 80):
+        try:
+            pow56(k)
+            raise OracleError(f"pow56({k}) accepted")
+        except OracleError as err:
+            require("fails closed" in str(err), f"k={k}")
+    base = fl(F(5) / 6)
+    step_fl, acc = 0, F(1)
+    for k in range(1, 80):
+        acc = fl(acc * base)
+        step_fl += acc != pow56(k)
+    step_exact, acc = 0, F(1)
+    for k in range(1, 80):
+        acc = fl(acc * F(5, 6))
+        step_exact += acc != pow56(k)
+    require(step_fl == 44 and step_exact == 78, f"negative controls {step_fl}/79, {step_exact}/79")
+    halves = {str(v): round_half_up(F(v)) for v in ("0.5", "1.5", "2.5", "-0.5", "-1.5")}
+    require(halves == {"0.5": 1, "1.5": 2, "2.5": 3, "-0.5": 0, "-1.5": -1}, "Math.round halves")
+    out["pw"] = {"entries": 320, "negative_controls": {"step_fl_base": step_fl, "step_exact_base": step_exact},
+                 "math_round": halves}
+    return f"all 320 entries reproduced; k=0/80 fail closed; negative controls {step_fl}/79 and {step_exact}/79; Math.round halves"
+
+
+@family("LT", "1.7")
+def fam_lt(out: dict) -> str:
+    rows = table("adaptations.toml")["l_table"]
+    require(len(rows) == 22, "22 rows")
+    for r in rows:
+        c = r["d_condition"]
+        d = int(c.split()[-1])
+        require(bits(killer_l(r["strategy"], d)) == r["bits"], f"{r['strategy']} {c}")
+    distinct = len({r["bits"] for r in rows})
+    require(distinct == 19, f"distinct {distinct}")
+    out["lt"] = {"rows": 22, "distinct_bits": distinct}
+    return "22 rows recomputed from the §3.3 expressions = frozen bits (19 distinct)"
+
+
+# --- flood gates (§2.4, E35) --------------------------------------------------------------
+
+# Design §2.4 table: Phase 5 intent -> FloodKind (one `next` per kind per player).
+FLOOD_USERS = {
+    "transaction": ["VendorBuy", "VendorSell", "VendorRefund", "WarehouseDeposit", "WarehouseWithdraw", "FreightSend",
+                    "FreightWithdraw", "TradeConfirm", "TradeCancel", "PrivateStoreBuy", "PrivateStoreSell", "DeleteRecipe",
+                    "MailTakeAttachments", "MailReject", "MailCancel", "ItemAuctionBid"],
+    "multisell": ["MultisellChoose"],
+    "manufacture": ["CraftItem", "PrivateManufactureOrder"],
+    "manor": ["ManorBuySeed"],
+    "send_mail": ["MailSend"],
+    "server_bypass": ["ItemAuctionCancelBid"],
+}
+
+
+def flood_kind(intent: str) -> str | None:
+    for kind, users in FLOOD_USERS.items():
+        if intent in users:
+            return kind
+    return None
+
+
+def flood_intent(state: dict, intent: str, tick: int, before_ok: bool = True, after_ok: bool = True) -> tuple[str, dict]:
+    """FloodProtectorAction.tryPerformAction (:90-127) at its pinned step (E35): a failing check
+    before the gate leaves `next` untouched; the gate refuses at tick < next (RATE_LIMITED);
+    once it passes, next := tick + interval even when a later check rejects."""
+    state = dict(state)
+    if not before_ok:
+        return "REJECTED_BEFORE_GATE", state
+    kind = flood_kind(intent)
+    if kind is None:
+        return ("OK" if after_ok else "REJECTED"), state
+    if tick < state.get(kind, 0):
+        return "RATE_LIMITED", state
+    state[kind] = tick + table("storage_mail.toml")["flood_intervals_ticks"][kind]
+    return ("OK" if after_ok else "REJECTED_AFTER_GATE"), state
+
+
+@family("FL", "1.7")
+def fam_fl(out: dict) -> str:
+    iv = table("storage_mail.toml")["flood_intervals_ticks"]
+    keys = {"multisell": "MultiSellInterval", "transaction": "TransactionInterval", "manufacture": "ManufactureInterval",
+            "manor": "ManorInterval", "send_mail": "SendMailInterval", "server_bypass": "ServerBypassInterval"}
+    for k, p in keys.items():
+        require(iv[k] == int(prop("floodprotector.properties", p)), f"interval {k}")
+    require("if ((curTick < nextGameTick) || punishmentInProgress)" in game_text(GJ + "util/FloodProtectorAction.java"), "gate")
+    vec = []
+    for kind, users in FLOOD_USERS.items():
+        n = iv[kind]
+        intent = users[0]
+        r1, st = flood_intent({}, intent, 100)
+        r2, st2 = flood_intent(st, intent, 100 + n - 1)
+        r3, st3 = flood_intent(st, intent, 100 + n)
+        require(r1 == "OK" and r2 == "RATE_LIMITED" and st2 == st and r3 == "OK" and st3[kind] == 100 + 2 * n, f"{kind} gate")
+        vec.append({"kind": kind, "intent": intent, "interval": n, "accept_at": 100, "refuse_at": 100 + n - 1,
+                    "accept_again_at": 100 + n})
+    rb, sb = flood_intent({}, "VendorBuy", 50, before_ok=False)
+    ra, sa = flood_intent({}, "VendorBuy", 50, after_ok=False)
+    require(rb == "REJECTED_BEFORE_GATE" and sb == {} and ra == "REJECTED_AFTER_GATE" and sa == {"transaction": 60}, "E35")
+    _, shared = flood_intent({}, "VendorBuy", 10)
+    rs, _ = flood_intent(shared, "TradeConfirm", 15)
+    require(rs == "RATE_LIMITED", "Transaction is shared across its intents")
+    require(flood_kind("PickUpItem") is None and flood_kind("ManorSellCrop") is None, "no gate for other intents")
+    out["fl_vectors"] = {"gates": vec, "e35": {"before": [rb, sb], "after": [ra, sa]}, "shared_transaction": rs,
+                         "users": FLOOD_USERS}
+    return "refuse at tick < next, accept at next, next := tick + interval for 6 kinds; E35 before/after positions; shared Transaction"
+
+
+
+# ---------------------------------------------------------------------------
+# Driver
+# ---------------------------------------------------------------------------
+
+GOLDENS = {"1.5": "economy-oracle-drops.json", "1.6": "economy-oracle-party.json", "1.7": "economy-oracle-vendor.json"}
+
+
+def run(selected: list[str] | None) -> tuple[dict[str, dict], list[str]]:
+    outs: dict[str, dict] = {s: {} for s in GOLDENS}
+    lines = []
+    for name, (story, fn) in FAMILIES.items():
+        if selected and name not in selected:
+            continue
+        summary = fn(outs[story])
+        lines.append(f"{name:5} [{story}] {summary}")
+    return outs, lines
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--check", action="store_true", help="fail if a committed golden differs")
+    parser.add_argument("--family", action="append", help="run only these families (no golden I/O)")
+    args = parser.parse_args()
+    try:
+        repos = table("sources.toml")["repositories"]
+        for root, label in ((DP, "datapack"), (GAME, "game")):
+            head = subprocess.run(["git", "-C", str(root), "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
+            require(head == repos[label]["revision"], f"{label} clone at {head}, pinned {repos[label]['revision']}")
+            dirty = subprocess.run(["git", "-C", str(root), "status", "--porcelain", "--untracked-files=no"],
+                                   capture_output=True, text=True).stdout.strip()
+            require(not dirty, f"{label} clone has local modifications")
+        outs, lines = run(args.family)
+    except OracleError as err:
+        print(f"economy_oracle: FAILED: {err}", file=sys.stderr)
+        return 1
+    for ln in lines:
+        print(ln)
+    if args.family:
+        return 0
+    stale = []
+    for story, name in GOLDENS.items():
+        if not outs[story]:
+            continue
+        content = json.dumps(outs[story], indent=1, sort_keys=True) + "\n"
+        path = FIXTURES / name
+        if args.check:
+            if not path.exists() or path.read_text(encoding="utf-8") != content:
+                stale.append(name)
+        else:
+            path.write_text(content, encoding="utf-8")
+    if stale:
+        print("economy_oracle: stale goldens: " + ", ".join(stale), file=sys.stderr)
+        return 1
+    print(f"economy_oracle: {len(lines)} families {'verified' if args.check else 'generated'}.")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
