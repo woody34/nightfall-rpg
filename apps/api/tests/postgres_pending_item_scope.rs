@@ -53,7 +53,10 @@ fn code(error: &sqlx::Error) -> String {
 /// Rollback steps from the head of the migration list down to migration `n` (the list grows with
 /// each phase; fixed counts assumed it ended at 000014).
 fn steps_down_to(n: u32) -> u32 {
-    u32::try_from(Migrator::migrations().len()).unwrap() - n
+    u32::try_from(Migrator::migrations().len())
+        .unwrap()
+        .checked_sub(n)
+        .unwrap()
 }
 
 #[tokio::test]
@@ -149,7 +152,9 @@ async fn shared_uuid_is_legal_across_accounts_and_operations_and_owner_scope_is_
     assert_eq!(code(&error), "23514");
     let db = connection_from_pool(&pool);
     // 000014 and 000013 (D76 row ordinals) roll back first; 000012 then refuses on the shared key.
-    let error = Migrator::down(&db, Some(steps_down_to(11))).await.unwrap_err();
+    let error = Migrator::down(&db, Some(steps_down_to(11)))
+        .await
+        .unwrap_err();
     assert!(
         error
             .to_string()
@@ -238,7 +243,9 @@ async fn row_ordinal_rollback_refuses_while_a_consume_holds_a_positional_ordinal
     tx.commit().await.unwrap();
     let db = connection_from_pool(&pool);
     // 000014 (T11 quarantine) rolls back first; 000013 then refuses.
-    let error = Migrator::down(&db, Some(steps_down_to(12))).await.unwrap_err();
+    let error = Migrator::down(&db, Some(steps_down_to(12)))
+        .await
+        .unwrap_err();
     assert!(
         error
             .to_string()
