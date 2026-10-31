@@ -339,7 +339,7 @@ fn container_views_reuse_owned_item_with_the_new_locations() -> Result<(), prost
     assert_eq!(pb::GetWarehouseResponse::decode(response.encode_to_vec().as_slice())?, response);
     let mail = pb::ListMailRequest {
         character_id: vec![0; 16],
-        r#box: pb::MailBox::Inbox.into(),
+        mail_box: pb::MailBox::Inbox.into(),
     };
     assert_eq!(pb::ListMailRequest::decode(mail.encode_to_vec().as_slice())?, mail);
     Ok(())

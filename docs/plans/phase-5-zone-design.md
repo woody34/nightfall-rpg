@@ -2145,7 +2145,7 @@ message GetFreightResponse { repeated OwnedItem items = 1; uint32 capacity = 2; 
 enum MailBox { MAIL_BOX_UNSPECIFIED = 0; MAIL_BOX_INBOX = 1; MAIL_BOX_OUTBOX = 2; }
 message MailHeader { string message_id = 1; string sender_name = 2; string receiver_name = 3; string subject = 4; bool has_attachments = 5;
                      uint64 cod_adena = 6; bool read = 7; bool returned = 8; uint32 system_kind = 9; int64 expires_unix_ms = 10; }
-message ListMailRequest { bytes character_id = 1; MailBox box = 2; }
+message ListMailRequest { bytes character_id = 1; MailBox mail_box = 2; }   // P5-D1: `box` → `mail_box` (Rust keyword)
 message ListMailResponse { repeated MailHeader messages = 1; uint32 count = 2; uint32 limit = 3; }     // limit 240
 message ReadMailRequest { bytes character_id = 1; string message_id = 2; }
 message ReadMailResponse { MailHeader header = 1; string body = 2; repeated OwnedItem attachments = 3; }   // location MAIL

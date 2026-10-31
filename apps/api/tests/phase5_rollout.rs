@@ -55,7 +55,7 @@ async fn economy_reads_require_authentication_and_refuse_unavailable_without_wri
         let mail = client
             .list_mail(pb::ListMailRequest {
                 character_id: character_id.clone(),
-                r#box: pb::MailBox::Inbox.into(),
+                mail_box: pb::MailBox::Inbox.into(),
             })
             .await;
         assert_eq!(mail.unwrap_err().code(), expected);

@@ -2090,7 +2090,7 @@ PROTOBUF_CONSTEXPR ListMailRequest::ListMailRequest(
     &::_pbi::fixed_address_empty_string, ::_pbi::ConstantInitialized {}
   }
 
-  , /*decltype(_impl_.box_)*/ 0
+  , /*decltype(_impl_.mail_box_)*/ 0
 
   , /*decltype(_impl_._cached_size_)*/{}} {}
 struct ListMailRequestDefaultTypeInternal {
@@ -3390,7 +3390,7 @@ const ::uint32_t TableStruct_nightfall_2fv1_2feconomy_2eproto::offsets[] PROTOBU
     ~0u,  // no _split_
     ~0u,  // no sizeof(Split)
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::ListMailRequest, _impl_.character_id_),
-    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ListMailRequest, _impl_.box_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::ListMailRequest, _impl_.mail_box_),
     ~0u,  // no _has_bits_
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::ListMailResponse, _internal_metadata_),
     ~0u,  // no _extensions_
@@ -3967,59 +3967,59 @@ const char descriptor_table_protodef_nightfall_2fv1_2feconomy_2eproto[] PROTOBUF
     "\t\022\027\n\017has_attachments\030\005 \001(\010\022\021\n\tcod_adena\030"
     "\006 \001(\004\022\014\n\004read\030\007 \001(\010\022\020\n\010returned\030\010 \001(\010\022\023\n"
     "\013system_kind\030\t \001(\r\022\027\n\017expires_unix_ms\030\n "
-    "\001(\003\"K\n\017ListMailRequest\022\024\n\014character_id\030\001"
-    " \001(\014\022\"\n\003box\030\002 \001(\0162\025.nightfall.v1.MailBox"
-    "\"\\\n\020ListMailResponse\022*\n\010messages\030\001 \003(\0132\030"
-    ".nightfall.v1.MailHeader\022\r\n\005count\030\002 \001(\r\022"
-    "\r\n\005limit\030\003 \001(\r\";\n\017ReadMailRequest\022\024\n\014cha"
-    "racter_id\030\001 \001(\014\022\022\n\nmessage_id\030\002 \001(\t\"x\n\020R"
-    "eadMailResponse\022(\n\006header\030\001 \001(\0132\030.nightf"
-    "all.v1.MailHeader\022\014\n\004body\030\002 \001(\t\022,\n\013attac"
-    "hments\030\003 \003(\0132\027.nightfall.v1.OwnedItem\"H\n"
-    "\027ListItemAuctionsRequest\022\027\n\017instance_npc"
-    "_id\030\001 \001(\r\022\024\n\014character_id\030\002 \001(\014\"\353\001\n\013Auct"
-    "ionView\022\022\n\nauction_id\030\001 \001(\004\022)\n\005state\030\002 \001"
-    "(\0162\032.nightfall.v1.AuctionState\022\023\n\013templa"
-    "te_id\030\003 \001(\r\022\r\n\005count\030\004 \001(\004\022\020\n\010init_bid\030\005"
-    " \001(\004\022\023\n\013highest_bid\030\006 \001(\004\022\025\n\rstart_unix_"
-    "ms\030\007 \001(\003\022\023\n\013end_unix_ms\030\010 \001(\003\022\017\n\007own_bid"
-    "\030\t \001(\004\022\025\n\rown_cancelled\030\n \001(\010\"\234\001\n\030ListIt"
-    "emAuctionsResponse\022*\n\007current\030\001 \001(\0132\031.ni"
-    "ghtfall.v1.AuctionView\022\'\n\004next\030\002 \001(\0132\031.n"
-    "ightfall.v1.AuctionView\022+\n\010own_bids\030\003 \003("
-    "\0132\031.nightfall.v1.AuctionView\"(\n\023GetManor"
-    "DataRequest\022\021\n\tcastle_id\030\001 \001(\r\"Z\n\022SeedPr"
-    "oductionView\022\017\n\007seed_id\030\001 \001(\r\022\r\n\005price\030\002"
-    " \001(\004\022\024\n\014start_amount\030\003 \001(\004\022\016\n\006amount\030\004 \001"
-    "(\004\"l\n\017CropProcureView\022\017\n\007crop_id\030\001 \001(\r\022\r"
-    "\n\005price\030\002 \001(\004\022\024\n\014start_amount\030\003 \001(\004\022\016\n\006a"
-    "mount\030\004 \001(\004\022\023\n\013reward_type\030\005 \001(\r\"\210\001\n\024Get"
-    "ManorDataResponse\022\021\n\tcastle_id\030\001 \001(\r\022/\n\005"
-    "seeds\030\002 \003(\0132 .nightfall.v1.SeedProductio"
-    "nView\022,\n\005crops\030\003 \003(\0132\035.nightfall.v1.Crop"
-    "ProcureView*\276\001\n\010LootMode\022\031\n\025LOOT_MODE_UN"
-    "SPECIFIED\020\000\022\035\n\031LOOT_MODE_FINDERS_KEEPERS"
-    "\020\001\022\024\n\020LOOT_MODE_RANDOM\020\002\022$\n LOOT_MODE_RA"
-    "NDOM_INCLUDING_SPOIL\020\003\022\025\n\021LOOT_MODE_BY_T"
-    "URN\020\004\022%\n!LOOT_MODE_BY_TURN_INCLUDING_SPO"
-    "IL\020\005*\213\001\n\rLootVotePhase\022\037\n\033LOOT_VOTE_PHAS"
-    "E_UNSPECIFIED\020\000\022\035\n\031LOOT_VOTE_PHASE_REQUE"
-    "STED\020\001\022\033\n\027LOOT_VOTE_PHASE_APPLIED\020\002\022\035\n\031L"
-    "OOT_VOTE_PHASE_CANCELLED\020\003*\267\001\n\nTradePhas"
-    "e\022\033\n\027TRADE_PHASE_UNSPECIFIED\020\000\022\027\n\023TRADE_"
-    "PHASE_STARTED\020\001\022\032\n\026TRADE_PHASE_ITEM_ADDE"
-    "D\020\002\022!\n\035TRADE_PHASE_PARTNER_CONFIRMED\020\003\022\031"
-    "\n\025TRADE_PHASE_COMPLETED\020\004\022\031\n\025TRADE_PHASE"
-    "_CANCELLED\020\005*\236\001\n\tStoreKind\022\032\n\026STORE_KIND"
-    "_UNSPECIFIED\020\000\022\023\n\017STORE_KIND_NONE\020\001\022\023\n\017S"
-    "TORE_KIND_SELL\020\002\022\033\n\027STORE_KIND_PACKAGE_S"
-    "ELL\020\003\022\022\n\016STORE_KIND_BUY\020\004\022\032\n\026STORE_KIND_"
-    "MANUFACTURE\020\005*\177\n\014AuctionState\022\035\n\031AUCTION"
-    "_STATE_UNSPECIFIED\020\000\022\031\n\025AUCTION_STATE_CR"
-    "EATED\020\001\022\031\n\025AUCTION_STATE_STARTED\020\002\022\032\n\026AU"
-    "CTION_STATE_FINISHED\020\003*L\n\007MailBox\022\030\n\024MAI"
-    "L_BOX_UNSPECIFIED\020\000\022\022\n\016MAIL_BOX_INBOX\020\001\022"
-    "\023\n\017MAIL_BOX_OUTBOX\020\002b\006proto3"
+    "\001(\003\"P\n\017ListMailRequest\022\024\n\014character_id\030\001"
+    " \001(\014\022\'\n\010mail_box\030\002 \001(\0162\025.nightfall.v1.Ma"
+    "ilBox\"\\\n\020ListMailResponse\022*\n\010messages\030\001 "
+    "\003(\0132\030.nightfall.v1.MailHeader\022\r\n\005count\030\002"
+    " \001(\r\022\r\n\005limit\030\003 \001(\r\";\n\017ReadMailRequest\022\024"
+    "\n\014character_id\030\001 \001(\014\022\022\n\nmessage_id\030\002 \001(\t"
+    "\"x\n\020ReadMailResponse\022(\n\006header\030\001 \001(\0132\030.n"
+    "ightfall.v1.MailHeader\022\014\n\004body\030\002 \001(\t\022,\n\013"
+    "attachments\030\003 \003(\0132\027.nightfall.v1.OwnedIt"
+    "em\"H\n\027ListItemAuctionsRequest\022\027\n\017instanc"
+    "e_npc_id\030\001 \001(\r\022\024\n\014character_id\030\002 \001(\014\"\353\001\n"
+    "\013AuctionView\022\022\n\nauction_id\030\001 \001(\004\022)\n\005stat"
+    "e\030\002 \001(\0162\032.nightfall.v1.AuctionState\022\023\n\013t"
+    "emplate_id\030\003 \001(\r\022\r\n\005count\030\004 \001(\004\022\020\n\010init_"
+    "bid\030\005 \001(\004\022\023\n\013highest_bid\030\006 \001(\004\022\025\n\rstart_"
+    "unix_ms\030\007 \001(\003\022\023\n\013end_unix_ms\030\010 \001(\003\022\017\n\007ow"
+    "n_bid\030\t \001(\004\022\025\n\rown_cancelled\030\n \001(\010\"\234\001\n\030L"
+    "istItemAuctionsResponse\022*\n\007current\030\001 \001(\013"
+    "2\031.nightfall.v1.AuctionView\022\'\n\004next\030\002 \001("
+    "\0132\031.nightfall.v1.AuctionView\022+\n\010own_bids"
+    "\030\003 \003(\0132\031.nightfall.v1.AuctionView\"(\n\023Get"
+    "ManorDataRequest\022\021\n\tcastle_id\030\001 \001(\r\"Z\n\022S"
+    "eedProductionView\022\017\n\007seed_id\030\001 \001(\r\022\r\n\005pr"
+    "ice\030\002 \001(\004\022\024\n\014start_amount\030\003 \001(\004\022\016\n\006amoun"
+    "t\030\004 \001(\004\"l\n\017CropProcureView\022\017\n\007crop_id\030\001 "
+    "\001(\r\022\r\n\005price\030\002 \001(\004\022\024\n\014start_amount\030\003 \001(\004"
+    "\022\016\n\006amount\030\004 \001(\004\022\023\n\013reward_type\030\005 \001(\r\"\210\001"
+    "\n\024GetManorDataResponse\022\021\n\tcastle_id\030\001 \001("
+    "\r\022/\n\005seeds\030\002 \003(\0132 .nightfall.v1.SeedProd"
+    "uctionView\022,\n\005crops\030\003 \003(\0132\035.nightfall.v1"
+    ".CropProcureView*\276\001\n\010LootMode\022\031\n\025LOOT_MO"
+    "DE_UNSPECIFIED\020\000\022\035\n\031LOOT_MODE_FINDERS_KE"
+    "EPERS\020\001\022\024\n\020LOOT_MODE_RANDOM\020\002\022$\n LOOT_MO"
+    "DE_RANDOM_INCLUDING_SPOIL\020\003\022\025\n\021LOOT_MODE"
+    "_BY_TURN\020\004\022%\n!LOOT_MODE_BY_TURN_INCLUDIN"
+    "G_SPOIL\020\005*\213\001\n\rLootVotePhase\022\037\n\033LOOT_VOTE"
+    "_PHASE_UNSPECIFIED\020\000\022\035\n\031LOOT_VOTE_PHASE_"
+    "REQUESTED\020\001\022\033\n\027LOOT_VOTE_PHASE_APPLIED\020\002"
+    "\022\035\n\031LOOT_VOTE_PHASE_CANCELLED\020\003*\267\001\n\nTrad"
+    "ePhase\022\033\n\027TRADE_PHASE_UNSPECIFIED\020\000\022\027\n\023T"
+    "RADE_PHASE_STARTED\020\001\022\032\n\026TRADE_PHASE_ITEM"
+    "_ADDED\020\002\022!\n\035TRADE_PHASE_PARTNER_CONFIRME"
+    "D\020\003\022\031\n\025TRADE_PHASE_COMPLETED\020\004\022\031\n\025TRADE_"
+    "PHASE_CANCELLED\020\005*\236\001\n\tStoreKind\022\032\n\026STORE"
+    "_KIND_UNSPECIFIED\020\000\022\023\n\017STORE_KIND_NONE\020\001"
+    "\022\023\n\017STORE_KIND_SELL\020\002\022\033\n\027STORE_KIND_PACK"
+    "AGE_SELL\020\003\022\022\n\016STORE_KIND_BUY\020\004\022\032\n\026STORE_"
+    "KIND_MANUFACTURE\020\005*\177\n\014AuctionState\022\035\n\031AU"
+    "CTION_STATE_UNSPECIFIED\020\000\022\031\n\025AUCTION_STA"
+    "TE_CREATED\020\001\022\031\n\025AUCTION_STATE_STARTED\020\002\022"
+    "\032\n\026AUCTION_STATE_FINISHED\020\003*L\n\007MailBox\022\030"
+    "\n\024MAIL_BOX_UNSPECIFIED\020\000\022\022\n\016MAIL_BOX_INB"
+    "OX\020\001\022\023\n\017MAIL_BOX_OUTBOX\020\002b\006proto3"
 };
 static const ::_pbi::DescriptorTable* const descriptor_table_nightfall_2fv1_2feconomy_2eproto_deps[1] =
     {
@@ -4029,7 +4029,7 @@ static ::absl::once_flag descriptor_table_nightfall_2fv1_2feconomy_2eproto_once;
 const ::_pbi::DescriptorTable descriptor_table_nightfall_2fv1_2feconomy_2eproto = {
     false,
     false,
-    11908,
+    11913,
     descriptor_table_protodef_nightfall_2fv1_2feconomy_2eproto,
     "nightfall/v1/economy.proto",
     &descriptor_table_nightfall_2fv1_2feconomy_2eproto_once,
@@ -29578,7 +29578,7 @@ ListMailRequest::ListMailRequest(const ListMailRequest& from)
   new (&_impl_) Impl_{
       decltype(_impl_.character_id_) {}
 
-    , decltype(_impl_.box_) {}
+    , decltype(_impl_.mail_box_) {}
 
     , /*decltype(_impl_._cached_size_)*/{}};
 
@@ -29590,7 +29590,7 @@ ListMailRequest::ListMailRequest(const ListMailRequest& from)
   if (!from._internal_character_id().empty()) {
     _this->_impl_.character_id_.Set(from._internal_character_id(), _this->GetArenaForAllocation());
   }
-  _this->_impl_.box_ = from._impl_.box_;
+  _this->_impl_.mail_box_ = from._impl_.mail_box_;
   // @@protoc_insertion_point(copy_constructor:nightfall.v1.ListMailRequest)
 }
 
@@ -29599,7 +29599,7 @@ inline void ListMailRequest::SharedCtor(::_pb::Arena* arena) {
   new (&_impl_) Impl_{
       decltype(_impl_.character_id_) {}
 
-    , decltype(_impl_.box_) { 0 }
+    , decltype(_impl_.mail_box_) { 0 }
 
     , /*decltype(_impl_._cached_size_)*/{}
   };
@@ -29634,7 +29634,7 @@ void ListMailRequest::Clear() {
   (void) cached_has_bits;
 
   _impl_.character_id_.ClearToEmpty();
-  _impl_.box_ = 0;
+  _impl_.mail_box_ = 0;
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
@@ -29654,12 +29654,12 @@ const char* ListMailRequest::_InternalParse(const char* ptr, ::_pbi::ParseContex
           goto handle_unusual;
         }
         continue;
-      // .nightfall.v1.MailBox box = 2;
+      // .nightfall.v1.MailBox mail_box = 2;
       case 2:
         if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 16)) {
           ::int32_t val = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint32(&ptr);
           CHK_(ptr);
-          _internal_set_box(static_cast<::nightfall::v1::MailBox>(val));
+          _internal_set_mail_box(static_cast<::nightfall::v1::MailBox>(val));
         } else {
           goto handle_unusual;
         }
@@ -29699,11 +29699,11 @@ failure:
     target = stream->WriteBytesMaybeAliased(1, _s, target);
   }
 
-  // .nightfall.v1.MailBox box = 2;
-  if (this->_internal_box() != 0) {
+  // .nightfall.v1.MailBox mail_box = 2;
+  if (this->_internal_mail_box() != 0) {
     target = stream->EnsureSpace(target);
     target = ::_pbi::WireFormatLite::WriteEnumToArray(
-        2, this->_internal_box(), target);
+        2, this->_internal_mail_box(), target);
   }
 
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
@@ -29728,10 +29728,10 @@ failure:
                                     this->_internal_character_id());
   }
 
-  // .nightfall.v1.MailBox box = 2;
-  if (this->_internal_box() != 0) {
+  // .nightfall.v1.MailBox mail_box = 2;
+  if (this->_internal_mail_box() != 0) {
     total_size += 1 +
-                  ::_pbi::WireFormatLite::EnumSize(this->_internal_box());
+                  ::_pbi::WireFormatLite::EnumSize(this->_internal_mail_box());
   }
 
   return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
@@ -29755,8 +29755,8 @@ void ListMailRequest::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const 
   if (!from._internal_character_id().empty()) {
     _this->_internal_set_character_id(from._internal_character_id());
   }
-  if (from._internal_box() != 0) {
-    _this->_internal_set_box(from._internal_box());
+  if (from._internal_mail_box() != 0) {
+    _this->_internal_set_mail_box(from._internal_mail_box());
   }
   _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
 }
@@ -29779,7 +29779,7 @@ void ListMailRequest::InternalSwap(ListMailRequest* other) {
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
   ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.character_id_, lhs_arena,
                                        &other->_impl_.character_id_, rhs_arena);
-  swap(_impl_.box_, other->_impl_.box_);
+  swap(_impl_.mail_box_, other->_impl_.mail_box_);
 }
 
 ::PROTOBUF_NAMESPACE_ID::Metadata ListMailRequest::GetMetadata() const {

@@ -1684,13 +1684,13 @@ void TURBOLINK_TO_GRPC(const FGrpcNightfallV1MailHeader* in, ::nightfall::v1::Ma
 void GRPC_TO_TURBOLINK(const ::nightfall::v1::ListMailRequest* in, FGrpcNightfallV1ListMailRequest* out)
 {
     out->CharacterId=FBytes((const uint8*)in->character_id().c_str(), in->character_id().length());
-    out->Box=[](int value) { switch (value) { case 0: case 1: case 2: return StaticCast<EGrpcNightfallV1MailBox>(value); default: return EGrpcNightfallV1MailBox::MAIL_BOX_UNSPECIFIED; } }(static_cast<int>(in->box()));
+    out->MailBox=[](int value) { switch (value) { case 0: case 1: case 2: return StaticCast<EGrpcNightfallV1MailBox>(value); default: return EGrpcNightfallV1MailBox::MAIL_BOX_UNSPECIFIED; } }(static_cast<int>(in->mail_box()));
 }
 
 void TURBOLINK_TO_GRPC(const FGrpcNightfallV1ListMailRequest* in, ::nightfall::v1::ListMailRequest* out)
 {
     out->set_character_id(std::string((const char*)(in->CharacterId.Value.GetData()), (size_t)in->CharacterId.Value.Num()));
-    out->set_box(::nightfall::v1::MailBox(static_cast<uint8>(in->Box)));
+    out->set_mail_box(::nightfall::v1::MailBox(static_cast<uint8>(in->MailBox)));
 }
 
 void GRPC_TO_TURBOLINK(const ::nightfall::v1::ListMailResponse* in, FGrpcNightfallV1ListMailResponse* out)

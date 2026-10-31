@@ -740,7 +740,7 @@ message MailHeader {
 
 message ListMailRequest {
   bytes character_id = 1;
-  MailBox box = 2;
+  MailBox mail_box = 2; // P5-D1: `box` is a Rust keyword
 }
 
 // `limit` is the pinned mailbox limit (240).

@@ -1701,7 +1701,7 @@ struct FGrpcNightfallV1ListMailRequest : public FGrpcMessage
     FBytes CharacterId;
 
     UPROPERTY(BlueprintReadWrite, Category = TurboLink)
-    EGrpcNightfallV1MailBox Box = static_cast<EGrpcNightfallV1MailBox>(0);
+    EGrpcNightfallV1MailBox MailBox = static_cast<EGrpcNightfallV1MailBox>(0);
 };
 
 USTRUCT(BlueprintType, meta = (DisplayName="NightfallV1.ListMailResponse"))

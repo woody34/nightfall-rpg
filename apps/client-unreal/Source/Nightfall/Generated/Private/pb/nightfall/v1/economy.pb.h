@@ -19076,7 +19076,7 @@ class ListMailRequest final :
 
   enum : int {
     kCharacterIdFieldNumber = 1,
-    kBoxFieldNumber = 2,
+    kMailBoxFieldNumber = 2,
   };
   // bytes character_id = 1;
   void clear_character_id() ;
@@ -19098,14 +19098,14 @@ class ListMailRequest final :
   std::string* _internal_mutable_character_id();
 
   public:
-  // .nightfall.v1.MailBox box = 2;
-  void clear_box() ;
-  ::nightfall::v1::MailBox box() const;
-  void set_box(::nightfall::v1::MailBox value);
+  // .nightfall.v1.MailBox mail_box = 2;
+  void clear_mail_box() ;
+  ::nightfall::v1::MailBox mail_box() const;
+  void set_mail_box(::nightfall::v1::MailBox value);
 
   private:
-  ::nightfall::v1::MailBox _internal_box() const;
-  void _internal_set_box(::nightfall::v1::MailBox value);
+  ::nightfall::v1::MailBox _internal_mail_box() const;
+  void _internal_set_mail_box(::nightfall::v1::MailBox value);
 
   public:
   // @@protoc_insertion_point(class_scope:nightfall.v1.ListMailRequest)
@@ -19117,7 +19117,7 @@ class ListMailRequest final :
   typedef void DestructorSkippable_;
   struct Impl_ {
     ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr character_id_;
-    int box_;
+    int mail_box_;
     mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   };
   union { Impl_ _impl_; };
@@ -32574,24 +32574,24 @@ inline void ListMailRequest::set_allocated_character_id(std::string* value) {
   // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ListMailRequest.character_id)
 }
 
-// .nightfall.v1.MailBox box = 2;
-inline void ListMailRequest::clear_box() {
-  _impl_.box_ = 0;
+// .nightfall.v1.MailBox mail_box = 2;
+inline void ListMailRequest::clear_mail_box() {
+  _impl_.mail_box_ = 0;
 }
-inline ::nightfall::v1::MailBox ListMailRequest::box() const {
-  // @@protoc_insertion_point(field_get:nightfall.v1.ListMailRequest.box)
-  return _internal_box();
+inline ::nightfall::v1::MailBox ListMailRequest::mail_box() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ListMailRequest.mail_box)
+  return _internal_mail_box();
 }
-inline void ListMailRequest::set_box(::nightfall::v1::MailBox value) {
-   _internal_set_box(value);
-  // @@protoc_insertion_point(field_set:nightfall.v1.ListMailRequest.box)
+inline void ListMailRequest::set_mail_box(::nightfall::v1::MailBox value) {
+   _internal_set_mail_box(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.ListMailRequest.mail_box)
 }
-inline ::nightfall::v1::MailBox ListMailRequest::_internal_box() const {
-  return static_cast<::nightfall::v1::MailBox>(_impl_.box_);
+inline ::nightfall::v1::MailBox ListMailRequest::_internal_mail_box() const {
+  return static_cast<::nightfall::v1::MailBox>(_impl_.mail_box_);
 }
-inline void ListMailRequest::_internal_set_box(::nightfall::v1::MailBox value) {
+inline void ListMailRequest::_internal_set_mail_box(::nightfall::v1::MailBox value) {
   ;
-  _impl_.box_ = value;
+  _impl_.mail_box_ = value;
 }
 
 // -------------------------------------------------------------------
