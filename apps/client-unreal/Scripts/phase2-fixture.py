@@ -30,7 +30,10 @@ REPO = Path(__file__).resolve().parents[3]
 PHASE2 = token_fixtures.PHASE2
 PHASE3 = phase3.PHASE3
 PHASE4 = phase4.PHASE4
-ISOLATED = PHASE2 | PHASE3 | PHASE4
+# Phase 5 packs (plan §5.3) are declared by story 1.8 in Scenarios/fixtures/phase5-packs.json; story 6.1
+# owns their seeders and dispatcher. Each Phase 5 file is one unit whose roles are `# role:` blocks.
+PHASE5 = frozenset(json.loads((REPO / 'apps/client-unreal/Scenarios/fixtures/phase5-packs.json').read_text())['packs'])
+ISOLATED = PHASE2 | PHASE3 | PHASE4 | PHASE5
 SUPPORTED = ISOLATED | {'default', 'phase1a-social-aggro', 'phase1a-late-entry'}
 OWNER = token_fixtures.OWNER
 OBSERVER = token_fixtures.OBSERVER
@@ -85,6 +88,9 @@ def fixture(batch):
             raise ValueError('observer fixture requires exactly matching -a/-b roles (use run-sim-multi.sh)')
     elif selected in phase3.PAIRED:
         raise ValueError('Phase3 pack requires matching cooperating -a/-b roles')
+    elif selected in PHASE5:
+        if len(batch) != 1:
+            raise ValueError('Phase5 fixture requires one scenario per unit (roles are # role: blocks)')
     elif selected in ISOLATED and len(batch) != 1:
         raise ValueError('solo Phase2 fixture requires one scenario per fresh unit')
     return selected
