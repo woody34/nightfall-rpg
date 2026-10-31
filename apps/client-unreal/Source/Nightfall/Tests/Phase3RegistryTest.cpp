@@ -36,7 +36,7 @@ bool FPhase4RegistryTest::RunTest(const FString&)
  FBotPredicateRegistry Registry;Registry.RegisterBuiltins();
  const auto Commands=BotSteps::RegisterTestOnlyCommands();
  TArray<FString> Files;IFileManager::Get().FindFilesRecursive(Files,*FPaths::Combine(FPaths::ProjectDir(),TEXT("Scenarios")),TEXT("4-*.nfs"),true,false);
- TestEqual(TEXT("all canonical and runtime variant sources found"),Files.Num(),49);
+ TestEqual(TEXT("all canonical and runtime variant sources found"),Files.Num(),50); // 49 + 4-enchant-no-increment (cb12a54, D161 revoked)
  for(const auto& Path:Files)
  {
   FString Text;TestTrue(TEXT("scenario readable"),FFileHelper::LoadFileToString(Text,*Path));FBotScenario Scenario;TArray<FString> Errors;

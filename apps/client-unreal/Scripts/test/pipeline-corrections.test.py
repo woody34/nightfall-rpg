@@ -212,7 +212,8 @@ socket.getaddrinfo = lambda *a, **k: [(socket.AF_INET, socket.SOCK_STREAM, 6, ''
             self.assertEqual(row['client'], max(limits) + 30)
             self.assertEqual(row['fixture'], (ci.phase2.SEEDER_HELP_TIMEOUT + provision_commands * command_cap
                                              if isolated else command_cap) + ci.API_WAIT + 3)
-            self.assertEqual(row['replay'], len(batch) * row['client'])
+            roles = sum(len(ci.phase2.phase5.grammar.roles_of(p.read_text())) for p in batch) if ci.fixture(batch) in ci.phase2.PHASE5 else len(batch)
+            self.assertEqual(row['replay'], roles * row['client'])  # P5-D5: one client per role block
             self.assertEqual(row['cleanup'], ci.API_STOP_GRACE + (2 * cleanup_cap if isolated else 0))
             self.assertEqual(row['fallback_cleanup'], cleanup_cap if isolated else 0)
             self.assertEqual(row['compose'], ci.COMPOSE_DOWN + ci.COMPOSE_LOGS if not isolated else 0)
@@ -222,10 +223,11 @@ socket.getaddrinfo = lambda *a, **k: [(socket.AF_INET, socket.SOCK_STREAM, 6, ''
         workflow = (SCRIPTS.parents[2] / '.github/workflows/sim.yml').read_text()
         ceiling = int(re.search(r'timeout-minutes: ([0-9]+)', workflow)[1]) * 60
         headroom = ceiling - allowance
-        self.assertEqual(len(batches), 107)
-        self.assertEqual(sum(ci.fixture(batch) in ci.phase2.ISOLATED for batch in batches),86)
+        self.assertEqual(len(batches), 143)
+        self.assertEqual(sum(ci.fixture(batch) in ci.phase2.ISOLATED for batch in batches),122)
         self.assertEqual(sum(batch[0].name.startswith('4-') for batch in batches),48)
-        self.assertEqual(sum(len(batch) for batch in batches),122)
+        self.assertEqual(sum(batch[0].name.startswith('5-') for batch in batches),36)
+        self.assertEqual(sum(len(batch) for batch in batches),158)
         self.assertGreaterEqual(headroom, 300)
         self.assertIn(f'# {len(batches)} units:', workflow)
         self.assertIn(f'{allowance:,}s', workflow)

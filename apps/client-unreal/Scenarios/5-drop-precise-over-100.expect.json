@@ -1,0 +1,69 @@
+{
+ "derived_by": "apps/client-unreal/Scripts/phase5-expectations.py over economy_oracle.py (1.5-1.7) and tables-phase5",
+ "expectations": {
+  "group_at_100": {
+   "L_bits": "3ff0000000000000",
+   "S": "100/1",
+   "S_bits": "4059000000000000",
+   "draws_on_pass": [
+    "group",
+    "selection",
+    "remainder",
+    "quantity"
+   ],
+   "group_chance": "100.0",
+   "items": [
+    {
+     "T_bits": "404b800000000000",
+     "max": 5,
+     "min": 3,
+     "share_bits": "404b800000000000",
+     "template": 8600
+    },
+    {
+     "T_bits": "4057400000000000",
+     "max": 3,
+     "min": 1,
+     "share_bits": "4043000000000000",
+     "template": 8601
+    },
+    {
+     "T_bits": "4059000000000000",
+     "max": 1,
+     "min": 1,
+     "share_bits": "401c000000000000",
+     "template": 8602
+    }
+   ],
+   "kind": "group",
+   "m_bits": "3ff0000000000000",
+   "mult_base": 1,
+   "pass_threshold": "18446744073709551616",
+   "precise_branch": true,
+   "remainder_bits": "0000000000000000"
+  },
+  "rule": "ungrouped: precise iff C > 100 (strict); group: precise iff S >= 100 (remainder draw taken, remainder 0 never passes)",
+  "ungrouped_at_100": {
+   "C": "100/1",
+   "C_bits": "4059000000000000",
+   "L_bits": "3ff0000000000000",
+   "draws_on_pass": [
+    "chance",
+    "quantity"
+   ],
+   "kind": "item",
+   "m_bits": "3ff0000000000000",
+   "max": 1,
+   "min": 1,
+   "mult_base": 1,
+   "pass_threshold": "18446744073709551616",
+   "precise_branch": false,
+   "template": 9703
+  }
+ },
+ "expectations_sha256": "843c92444cbe530e29f7a8333b23f4ef6caf9caf7c1c90da3d4df8a421a37f53",
+ "fixture": "phase5-drops-precise",
+ "scenario": "5-drop-precise-over-100.nfs",
+ "schema_version": 1,
+ "story": "5 E1.8"
+}

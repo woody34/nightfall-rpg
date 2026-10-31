@@ -117,3 +117,4 @@ void TURBOLINK_TO_GRPC(const FGrpcNightfallV1GrantItemRequest* in, ::nightfall::
 
 void GRPC_TO_TURBOLINK(const ::nightfall::v1::GrantItemResponse* in, FGrpcNightfallV1GrantItemResponse* out);
 void TURBOLINK_TO_GRPC(const FGrpcNightfallV1GrantItemResponse* in, ::nightfall::v1::GrantItemResponse* out);
+

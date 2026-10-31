@@ -1,0 +1,14 @@
+{
+ "derived_by": "apps/client-unreal/Scripts/phase5-expectations.py over economy_oracle.py (1.5-1.7) and tables-phase5",
+ "expectations": {
+  "abandoned": "EpochReconcile (system kind 75) destroys with epoch_void:<epoch> before admission",
+  "close": "graceful close destroys remaining ground items with ledger cause epoch_close:<epoch>",
+  "container_rows": "lease releases and delivery changes in EconomyCheckpoint (PbOutput 55)",
+  "events": "none (ledger only)"
+ },
+ "expectations_sha256": "927799801dde8ab3c1bd24a631f9256cbbe63dc36012b4f64aaa8c061890de76",
+ "fixture": "phase5-epoch",
+ "scenario": "5-epoch-reconcile.nfs",
+ "schema_version": 1,
+ "story": "5 E1.8"
+}

@@ -7,7 +7,7 @@ use sea_orm::entity::prelude::*;
 pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: i64,
-    pub character_id: Uuid,
+    pub character_id: Option<Uuid>,
     #[sea_orm(column_type = "Text")]
     pub location: String,
     pub slot: Option<i16>,
@@ -21,6 +21,11 @@ pub struct Model {
     pub revision: i64,
     pub created_at: DateTimeWithTimeZone,
     pub updated_at: DateTimeWithTimeZone,
+    #[sea_orm(column_type = "Text")]
+    pub owner_kind: String,
+    pub container_id: Option<Uuid>,
+    pub mail_id: Option<Uuid>,
+    pub delivery_id: Option<Uuid>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -33,11 +38,39 @@ pub enum Relation {
         on_delete = "NoAction"
     )]
     Characters,
+    #[sea_orm(
+        belongs_to = "super::economy_deliveries::Entity",
+        from = "Column::DeliveryId",
+        to = "super::economy_deliveries::Column::Id",
+        on_update = "NoAction",
+        on_delete = "Restrict"
+    )]
+    EconomyDeliveries,
+    #[sea_orm(
+        belongs_to = "super::mail_messages::Entity",
+        from = "Column::MailId",
+        to = "super::mail_messages::Column::Id",
+        on_update = "NoAction",
+        on_delete = "Restrict"
+    )]
+    MailMessages,
 }
 
 impl Related<super::characters::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Characters.def()
+    }
+}
+
+impl Related<super::economy_deliveries::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::EconomyDeliveries.def()
+    }
+}
+
+impl Related<super::mail_messages::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::MailMessages.def()
     }
 }
 

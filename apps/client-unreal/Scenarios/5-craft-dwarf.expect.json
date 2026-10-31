@@ -1,0 +1,126 @@
+{
+ "derived_by": "apps/client-unreal/Scripts/phase5-expectations.py over economy_oracle.py (1.5-1.7) and tables-phase5",
+ "expectations": {
+  "create_item_ranks": [
+   {
+    "magic_level": 5,
+    "max_craft_level": 1,
+    "rank": 1
+   },
+   {
+    "magic_level": 20,
+    "max_craft_level": 2,
+    "rank": 2
+   }
+  ],
+  "failure": "100 % material loss; MP spent (D \u00a78.2)",
+  "limits": {
+   "alternative_crafting": false,
+   "common_recipe_limit": 50,
+   "craft_masterwork": true,
+   "dwarf_recipe_limit": 50
+  },
+  "missing_materials": "MISSING_MATERIALS",
+  "recipes": {
+   "fallible": {
+    "alt_stat_change": [],
+    "craft_level": 2,
+    "id": 322,
+    "ingredients": [
+     {
+      "count": 1,
+      "id": 3845
+     }
+    ],
+    "name": "q_mk_titans_powerstone",
+    "production": {
+     "count": 1,
+     "id": 3846
+    },
+    "recipe_id": 3838,
+    "stat_use": [
+     {
+      "name": "MP",
+      "value": 100
+     }
+    ],
+    "success_rate": 25,
+    "type": "dwarven"
+   },
+   "sure": {
+    "alt_stat_change": [],
+    "craft_level": 1,
+    "id": 1,
+    "ingredients": [
+     {
+      "count": 4,
+      "id": 1864
+     },
+     {
+      "count": 2,
+      "id": 1869
+     }
+    ],
+    "name": "mk_wooden_arrow",
+    "production": {
+     "count": 500,
+     "id": 17
+    },
+    "recipe_id": 1666,
+    "stat_use": [
+     {
+      "name": "MP",
+      "value": 30
+     }
+    ],
+    "success_rate": 100,
+    "type": "dwarven"
+   }
+  },
+  "register_consumes_recipe_item": true,
+  "success_thresholds": {
+   "100": "18446744073709551616",
+   "25": "4611686018427387904"
+  },
+  "sure_craft_trace": {
+   "product": [
+    17,
+    500
+   ],
+   "result": "crafted",
+   "trace": [
+    [
+     "mp",
+     30
+    ],
+    [
+     "materials",
+     [
+      [
+       1864,
+       4
+      ],
+      [
+       1869,
+       2
+      ]
+     ]
+    ],
+    [
+     "success_draw",
+     true
+    ],
+    [
+     "masterwork_draw",
+     0,
+     false
+    ]
+   ]
+  }
+ },
+ "expectations_sha256": "1806c936a2ffa6d6c8906736da1af61243f815512d3ddcdd6eeac7ca6fcf012c",
+ "fixture": "phase5-craft",
+ "scenario": "5-craft-dwarf.nfs",
+ "schema_version": 1,
+ "story": "5 E1.8"
+}

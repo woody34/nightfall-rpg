@@ -1,0 +1,80 @@
+{
+ "derived_by": "apps/client-unreal/Scripts/phase5-expectations.py over economy_oracle.py (1.5-1.7) and tables-phase5",
+ "expectations": {
+  "corpse_nodes": [
+   {
+    "C": "5099606002056707/9007199254740992",
+    "C_bits": "3fe21e108c3f3e03",
+    "L_bits": "3fb999999999999a",
+    "draws_on_pass": [
+     "chance",
+     "quantity"
+    ],
+    "kind": "item",
+    "m_bits": "3ff0000000000000",
+    "max": 1,
+    "min": 1,
+    "mult_base": 1,
+    "pass_threshold": "104439930922121360",
+    "precise_branch": false,
+    "template": 1871
+   },
+   {
+    "C": "2549780483030217/562949953421312",
+    "C_bits": "40121e060fe47992",
+    "L_bits": "3fb999999999999a",
+    "draws_on_pass": [
+     "chance",
+     "quantity"
+    ],
+    "kind": "item",
+    "m_bits": "3ff0000000000000",
+    "max": 1,
+    "min": 1,
+    "mult_base": 1,
+    "pass_threshold": "835512068679341507",
+    "precise_branch": false,
+    "template": 116
+   },
+   {
+    "C": "2039815379224919/4503599627370496",
+    "C_bits": "3fdcfcce1c58255c",
+    "L_bits": "3fb999999999999a",
+    "draws_on_pass": [
+     "chance",
+     "quantity"
+    ],
+    "kind": "item",
+    "m_bits": "3ff0000000000000",
+    "max": 1,
+    "min": 1,
+    "mult_base": 1,
+    "pass_threshold": "83550837933052683",
+    "precise_branch": false,
+    "template": 1786
+   }
+  ],
+  "corpse_time_ticks": 70,
+  "corpse_until_spoiled_ticks": 170,
+  "despawn": "ConsumeBody ends the corpse; EntityDespawn in the next spawn phase (D \u00a75.3)",
+  "ledger_op": "sweep",
+  "roll_order": "corpse list first (iff spoiled), then death list (L2Attackable.java:838-842)",
+  "spoil_skill": 254,
+  "spoiled_extension_ticks": 100,
+  "sweep_carrier": "CorpseStateChanged.swept + LootDistributed/inventory deltas; no EconomyResult (D \u00a75.3, \u00a713.3)",
+  "sweeper": {
+   "hit_time_ms": 500,
+   "mp": 3,
+   "reuse_ms": 500,
+   "skill": 42,
+   "source": "DP stats/skills/00000-00099.xml:1465-1484",
+   "target_type": "NPC_BODY"
+  },
+  "sweeper_skill": 42
+ },
+ "expectations_sha256": "4359451e1f1758d909aaa28aef913baf6b011a2781d197f4f50539c8428a9633",
+ "fixture": "phase5-spoil",
+ "scenario": "5-spoil-sweep.nfs",
+ "schema_version": 1,
+ "story": "5 E1.8"
+}

@@ -275,7 +275,14 @@ bool UInventoryStateSubsystem::StatsSynchronized() const
 bool UInventoryStateSubsystem::MarkItemState()
 {
  if(!StatsSynchronized())return false;
- MarkOwner=Net->GetOwnEntityId().ToLower();MarkRevision=Revision();MarkedStats=CurrentStats;return true;
+ MarkOwner=Net->GetOwnEntityId().ToLower();MarkRevision=Revision();MarkedStats=CurrentStats;
+ MarkCounts.Reset();for(const auto& P:Items)MarkCounts.FindOrAdd(P.Value.TemplateId.Value)+=P.Value.Count.Value;
+ OnMarked.Broadcast();return true;
+}
+TOptional<uint64> UInventoryStateSubsystem::MarkedCount(uint32 Template) const
+{
+ if(!RevisionSinceMark().IsSet())return {};
+ const uint64* Found=MarkCounts.Find(Template);return Found?*Found:uint64(0);
 }
 TOptional<uint64> UInventoryStateSubsystem::RevisionSinceMark() const
 {

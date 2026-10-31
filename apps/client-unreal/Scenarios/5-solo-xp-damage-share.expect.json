@@ -1,0 +1,63 @@
+{
+ "derived_by": "apps/client-unreal/Scripts/phase5-expectations.py over economy_oracle.py (1.5-1.7) and tables-phase5",
+ "expectations": {
+  "S": 5,
+  "X": 178,
+  "npc": 20003,
+  "rule": "B16: per-attacker damage share X*dmg/total, pow56 penalty above diff 5, 0 XP -> 0 SP",
+  "shares": {
+   "a_dmg10_of10_level10": [
+    178,
+    5
+   ],
+   "a_dmg10_of10_level12": [
+    123,
+    3
+   ],
+   "a_dmg10_of10_level20": [
+    28,
+    0
+   ],
+   "a_dmg1_of10_level10": [
+    17,
+    0
+   ],
+   "a_dmg1_of10_level12": [
+    12,
+    0
+   ],
+   "a_dmg1_of10_level20": [
+    2,
+    0
+   ],
+   "a_dmg7_of10_level10": [
+    124,
+    3
+   ],
+   "a_dmg7_of10_level12": [
+    86,
+    2
+   ],
+   "a_dmg7_of10_level20": [
+    20,
+    0
+   ]
+  },
+  "sp_only_npc": {
+   "award": [
+    0,
+    0
+   ],
+   "exp_rate": null,
+   "id": 4301,
+   "level": 70,
+   "source": "04300-04399.xml (SP-only: no expRate)",
+   "sp": null
+  }
+ },
+ "expectations_sha256": "586fce6762e28924c47d5f32d95549689d0d15211e4d99b8949ca6de3697bd36",
+ "fixture": "phase5-solo-xp",
+ "scenario": "5-solo-xp-damage-share.nfs",
+ "schema_version": 1,
+ "story": "5 E1.8"
+}

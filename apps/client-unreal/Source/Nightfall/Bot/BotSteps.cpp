@@ -3,6 +3,7 @@
 #include "BotPredicates.h"
 #include "SkillBotPredicates.h"
 #include "ItemBotPredicates.h"
+#include "EconomyBotPredicates.h"
 #include "BotScenarioRunner.h"
 #include "Nightfall.h"
 #include "Auth/AuthSubsystem.h"
@@ -97,7 +98,7 @@ bool BotScenario::Parse(const FString& Name, const FString& Text, const FBotPred
 		{
 			Step.Kind = EBotStepKind::Command;
 			FString CommandError;
-			if (!ItemBotPredicates::ValidateCommand(FBotPredicateRegistry::Tokenize(Source), CommandError) || !SkillBotPredicates::ValidateCommand(FBotPredicateRegistry::Tokenize(Source), CommandError)) { Error(CommandError); continue; }
+			if (!ItemBotPredicates::ValidateCommand(FBotPredicateRegistry::Tokenize(Source), CommandError) || !SkillBotPredicates::ValidateCommand(FBotPredicateRegistry::Tokenize(Source), CommandError) || !EconomyBotPredicates::ValidateCommand(FBotPredicateRegistry::Tokenize(Source), CommandError)) { Error(CommandError); continue; }
 			if (Head.StartsWith(TEXT("nf."), ESearchCase::IgnoreCase) && !(CommandExists && CommandExists(Head)))
 			{
 				Error(FString::Printf(TEXT("unknown command '%s'"), *Head));

@@ -1,0 +1,41 @@
+{
+ "derived_by": "apps/client-unreal/Scripts/phase5-expectations.py over economy_oracle.py (1.5-1.7) and tables-phase5",
+ "expectations": {
+  "decay_due_examples": {
+   "auto_destroy_9849": {
+    "0": 150,
+    "1": 150,
+    "49": 150,
+    "50": 200,
+    "51": 200
+   },
+   "herb": {
+    "0": 650,
+    "1": 650,
+    "49": 650,
+    "50": 700,
+    "51": 700
+   },
+   "loot": {
+    "0": 6050,
+    "1": 6050,
+    "49": 6050,
+    "50": 6100,
+    "51": 6100
+   }
+  },
+  "grid_ticks": 50,
+  "limits_ticks": {
+   "auto_destroy_9849": 100,
+   "herb": 600,
+   "loot": 6000
+  },
+  "pk_drop_decays": true,
+  "rule": "strict >: despawn at the first grid tick T with T - dropped_tick > limit"
+ },
+ "expectations_sha256": "9a129f93ad9b80375f41520fcc72b6910636aae1ad37cf53359071f2cbfa3c7e",
+ "fixture": "phase5-decay",
+ "scenario": "5-decay.nfs",
+ "schema_version": 1,
+ "story": "5 E1.8"
+}

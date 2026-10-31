@@ -1047,7 +1047,7 @@ Then `finishCrafting()` (`:345-394`) in pinned order:
    - the product is a **fresh** grant (or a merge) to the **customer**, op `craft`, with **no capacity or weight check** (`:576`; rule P7b, pinned).
 6. **On failure.** The materials and fee are lost (100 %, P3). `EconomyResult.craft` is emitted with `success = false` (DR3 nit 12).
 
-`AltStatChange` XP/SP is inactive (`AlternativeCrafting = False`). The outcome is reported in `EconomyResult.craft{success, masterwork, product_template, count}`.
+`AltStatChange` XP/SP is inactive (`AlternativeCrafting = False`). The outcome is reported in `EconomyResult.craft{success, masterwork, product_template, count}`. All 582 recipes with `productionRare` are Dwarven, so a Common craft draws the rarity-0 masterwork roll and reports `masterwork = false` (P5-D4).
 
 ## 9. Player trade and private stores (A11, B2, B3, B7, E4, E10; F16, R18, R22)
 
@@ -1972,7 +1972,7 @@ message TradeAnswerRequest { string idempotency_key = 1; bool accept = 2; }     
 message TradeAddItemRequest { string idempotency_key = 1; uint64 instance_id = 2; uint64 count = 3; }
 message TradeConfirmRequest { string idempotency_key = 1; }
 message TradeCancelRequest { string idempotency_key = 1; }
-message StoreSellEntry { uint64 instance_id = 1; uint64 count = 2; uint64 price = 3; }
+message StoreSellEntry { uint64 instance_id = 1; uint64 count = 2; uint64 price = 3; uint32 template_id = 4; } // P5-D9: template_id is additive; PrivateStoreChanged.sell and store purchases carry it, so a buyer binds an entry by template without the seller's instance id
 message StoreBuyEntry { uint32 template_id = 1; uint32 enchant = 2; uint64 count = 3; uint64 price = 4; }
 message ManufactureEntry { uint32 recipe_id = 1; uint64 cost = 2; }
 message SetPrivateStoreSellRequest { string idempotency_key = 1; string title = 2; bool package_sale = 3; repeated StoreSellEntry entries = 4; }
@@ -2145,7 +2145,7 @@ message GetFreightResponse { repeated OwnedItem items = 1; uint32 capacity = 2; 
 enum MailBox { MAIL_BOX_UNSPECIFIED = 0; MAIL_BOX_INBOX = 1; MAIL_BOX_OUTBOX = 2; }
 message MailHeader { string message_id = 1; string sender_name = 2; string receiver_name = 3; string subject = 4; bool has_attachments = 5;
                      uint64 cod_adena = 6; bool read = 7; bool returned = 8; uint32 system_kind = 9; int64 expires_unix_ms = 10; }
-message ListMailRequest { bytes character_id = 1; MailBox box = 2; }
+message ListMailRequest { bytes character_id = 1; MailBox mail_box = 2; }   // P5-D1: `box` → `mail_box` (Rust keyword)
 message ListMailResponse { repeated MailHeader messages = 1; uint32 count = 2; uint32 limit = 3; }     // limit 240
 message ReadMailRequest { bytes character_id = 1; string message_id = 2; }
 message ReadMailResponse { MailHeader header = 1; string body = 2; repeated OwnedItem attachments = 3; }   // location MAIL

@@ -36,6 +36,15 @@ static const char* GameService_method_names[] = {
   "/nightfall.v1.GameService/GetItemCatalog",
   "/nightfall.v1.GameService/GetInventory",
   "/nightfall.v1.GameService/GrantItem",
+  "/nightfall.v1.GameService/ListBuylist",
+  "/nightfall.v1.GameService/GetMultisellList",
+  "/nightfall.v1.GameService/GetRecipeBook",
+  "/nightfall.v1.GameService/GetWarehouse",
+  "/nightfall.v1.GameService/GetFreight",
+  "/nightfall.v1.GameService/ListMail",
+  "/nightfall.v1.GameService/ReadMail",
+  "/nightfall.v1.GameService/ListItemAuctions",
+  "/nightfall.v1.GameService/GetManorData",
 };
 
 std::unique_ptr< GameService::Stub> GameService::NewStub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& options) {
@@ -58,6 +67,15 @@ GameService::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& channe
   , rpcmethod_GetItemCatalog_(GameService_method_names[10], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   , rpcmethod_GetInventory_(GameService_method_names[11], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   , rpcmethod_GrantItem_(GameService_method_names[12], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_ListBuylist_(GameService_method_names[13], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_GetMultisellList_(GameService_method_names[14], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_GetRecipeBook_(GameService_method_names[15], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_GetWarehouse_(GameService_method_names[16], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_GetFreight_(GameService_method_names[17], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_ListMail_(GameService_method_names[18], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_ReadMail_(GameService_method_names[19], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_ListItemAuctions_(GameService_method_names[20], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_GetManorData_(GameService_method_names[21], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   {}
 
 ::grpc::Status GameService::Stub::Ping(::grpc::ClientContext* context, const ::nightfall::v1::PingRequest& request, ::nightfall::v1::PingResponse* response) {
@@ -359,6 +377,213 @@ void GameService::Stub::async::GrantItem(::grpc::ClientContext* context, const :
   return result;
 }
 
+::grpc::Status GameService::Stub::ListBuylist(::grpc::ClientContext* context, const ::nightfall::v1::ListBuylistRequest& request, ::nightfall::v1::ListBuylistResponse* response) {
+  return ::grpc::internal::BlockingUnaryCall< ::nightfall::v1::ListBuylistRequest, ::nightfall::v1::ListBuylistResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), rpcmethod_ListBuylist_, context, request, response);
+}
+
+void GameService::Stub::async::ListBuylist(::grpc::ClientContext* context, const ::nightfall::v1::ListBuylistRequest* request, ::nightfall::v1::ListBuylistResponse* response, std::function<void(::grpc::Status)> f) {
+  ::grpc::internal::CallbackUnaryCall< ::nightfall::v1::ListBuylistRequest, ::nightfall::v1::ListBuylistResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_ListBuylist_, context, request, response, std::move(f));
+}
+
+void GameService::Stub::async::ListBuylist(::grpc::ClientContext* context, const ::nightfall::v1::ListBuylistRequest* request, ::nightfall::v1::ListBuylistResponse* response, ::grpc::ClientUnaryReactor* reactor) {
+  ::grpc::internal::ClientCallbackUnaryFactory::Create< ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_ListBuylist_, context, request, response, reactor);
+}
+
+::grpc::ClientAsyncResponseReader< ::nightfall::v1::ListBuylistResponse>* GameService::Stub::PrepareAsyncListBuylistRaw(::grpc::ClientContext* context, const ::nightfall::v1::ListBuylistRequest& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderHelper::Create< ::nightfall::v1::ListBuylistResponse, ::nightfall::v1::ListBuylistRequest, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), cq, rpcmethod_ListBuylist_, context, request);
+}
+
+::grpc::ClientAsyncResponseReader< ::nightfall::v1::ListBuylistResponse>* GameService::Stub::AsyncListBuylistRaw(::grpc::ClientContext* context, const ::nightfall::v1::ListBuylistRequest& request, ::grpc::CompletionQueue* cq) {
+  auto* result =
+    this->PrepareAsyncListBuylistRaw(context, request, cq);
+  result->StartCall();
+  return result;
+}
+
+::grpc::Status GameService::Stub::GetMultisellList(::grpc::ClientContext* context, const ::nightfall::v1::GetMultisellListRequest& request, ::nightfall::v1::GetMultisellListResponse* response) {
+  return ::grpc::internal::BlockingUnaryCall< ::nightfall::v1::GetMultisellListRequest, ::nightfall::v1::GetMultisellListResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), rpcmethod_GetMultisellList_, context, request, response);
+}
+
+void GameService::Stub::async::GetMultisellList(::grpc::ClientContext* context, const ::nightfall::v1::GetMultisellListRequest* request, ::nightfall::v1::GetMultisellListResponse* response, std::function<void(::grpc::Status)> f) {
+  ::grpc::internal::CallbackUnaryCall< ::nightfall::v1::GetMultisellListRequest, ::nightfall::v1::GetMultisellListResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_GetMultisellList_, context, request, response, std::move(f));
+}
+
+void GameService::Stub::async::GetMultisellList(::grpc::ClientContext* context, const ::nightfall::v1::GetMultisellListRequest* request, ::nightfall::v1::GetMultisellListResponse* response, ::grpc::ClientUnaryReactor* reactor) {
+  ::grpc::internal::ClientCallbackUnaryFactory::Create< ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_GetMultisellList_, context, request, response, reactor);
+}
+
+::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetMultisellListResponse>* GameService::Stub::PrepareAsyncGetMultisellListRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetMultisellListRequest& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderHelper::Create< ::nightfall::v1::GetMultisellListResponse, ::nightfall::v1::GetMultisellListRequest, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), cq, rpcmethod_GetMultisellList_, context, request);
+}
+
+::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetMultisellListResponse>* GameService::Stub::AsyncGetMultisellListRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetMultisellListRequest& request, ::grpc::CompletionQueue* cq) {
+  auto* result =
+    this->PrepareAsyncGetMultisellListRaw(context, request, cq);
+  result->StartCall();
+  return result;
+}
+
+::grpc::Status GameService::Stub::GetRecipeBook(::grpc::ClientContext* context, const ::nightfall::v1::GetRecipeBookRequest& request, ::nightfall::v1::GetRecipeBookResponse* response) {
+  return ::grpc::internal::BlockingUnaryCall< ::nightfall::v1::GetRecipeBookRequest, ::nightfall::v1::GetRecipeBookResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), rpcmethod_GetRecipeBook_, context, request, response);
+}
+
+void GameService::Stub::async::GetRecipeBook(::grpc::ClientContext* context, const ::nightfall::v1::GetRecipeBookRequest* request, ::nightfall::v1::GetRecipeBookResponse* response, std::function<void(::grpc::Status)> f) {
+  ::grpc::internal::CallbackUnaryCall< ::nightfall::v1::GetRecipeBookRequest, ::nightfall::v1::GetRecipeBookResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_GetRecipeBook_, context, request, response, std::move(f));
+}
+
+void GameService::Stub::async::GetRecipeBook(::grpc::ClientContext* context, const ::nightfall::v1::GetRecipeBookRequest* request, ::nightfall::v1::GetRecipeBookResponse* response, ::grpc::ClientUnaryReactor* reactor) {
+  ::grpc::internal::ClientCallbackUnaryFactory::Create< ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_GetRecipeBook_, context, request, response, reactor);
+}
+
+::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetRecipeBookResponse>* GameService::Stub::PrepareAsyncGetRecipeBookRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetRecipeBookRequest& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderHelper::Create< ::nightfall::v1::GetRecipeBookResponse, ::nightfall::v1::GetRecipeBookRequest, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), cq, rpcmethod_GetRecipeBook_, context, request);
+}
+
+::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetRecipeBookResponse>* GameService::Stub::AsyncGetRecipeBookRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetRecipeBookRequest& request, ::grpc::CompletionQueue* cq) {
+  auto* result =
+    this->PrepareAsyncGetRecipeBookRaw(context, request, cq);
+  result->StartCall();
+  return result;
+}
+
+::grpc::Status GameService::Stub::GetWarehouse(::grpc::ClientContext* context, const ::nightfall::v1::GetWarehouseRequest& request, ::nightfall::v1::GetWarehouseResponse* response) {
+  return ::grpc::internal::BlockingUnaryCall< ::nightfall::v1::GetWarehouseRequest, ::nightfall::v1::GetWarehouseResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), rpcmethod_GetWarehouse_, context, request, response);
+}
+
+void GameService::Stub::async::GetWarehouse(::grpc::ClientContext* context, const ::nightfall::v1::GetWarehouseRequest* request, ::nightfall::v1::GetWarehouseResponse* response, std::function<void(::grpc::Status)> f) {
+  ::grpc::internal::CallbackUnaryCall< ::nightfall::v1::GetWarehouseRequest, ::nightfall::v1::GetWarehouseResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_GetWarehouse_, context, request, response, std::move(f));
+}
+
+void GameService::Stub::async::GetWarehouse(::grpc::ClientContext* context, const ::nightfall::v1::GetWarehouseRequest* request, ::nightfall::v1::GetWarehouseResponse* response, ::grpc::ClientUnaryReactor* reactor) {
+  ::grpc::internal::ClientCallbackUnaryFactory::Create< ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_GetWarehouse_, context, request, response, reactor);
+}
+
+::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetWarehouseResponse>* GameService::Stub::PrepareAsyncGetWarehouseRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetWarehouseRequest& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderHelper::Create< ::nightfall::v1::GetWarehouseResponse, ::nightfall::v1::GetWarehouseRequest, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), cq, rpcmethod_GetWarehouse_, context, request);
+}
+
+::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetWarehouseResponse>* GameService::Stub::AsyncGetWarehouseRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetWarehouseRequest& request, ::grpc::CompletionQueue* cq) {
+  auto* result =
+    this->PrepareAsyncGetWarehouseRaw(context, request, cq);
+  result->StartCall();
+  return result;
+}
+
+::grpc::Status GameService::Stub::GetFreight(::grpc::ClientContext* context, const ::nightfall::v1::GetFreightRequest& request, ::nightfall::v1::GetFreightResponse* response) {
+  return ::grpc::internal::BlockingUnaryCall< ::nightfall::v1::GetFreightRequest, ::nightfall::v1::GetFreightResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), rpcmethod_GetFreight_, context, request, response);
+}
+
+void GameService::Stub::async::GetFreight(::grpc::ClientContext* context, const ::nightfall::v1::GetFreightRequest* request, ::nightfall::v1::GetFreightResponse* response, std::function<void(::grpc::Status)> f) {
+  ::grpc::internal::CallbackUnaryCall< ::nightfall::v1::GetFreightRequest, ::nightfall::v1::GetFreightResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_GetFreight_, context, request, response, std::move(f));
+}
+
+void GameService::Stub::async::GetFreight(::grpc::ClientContext* context, const ::nightfall::v1::GetFreightRequest* request, ::nightfall::v1::GetFreightResponse* response, ::grpc::ClientUnaryReactor* reactor) {
+  ::grpc::internal::ClientCallbackUnaryFactory::Create< ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_GetFreight_, context, request, response, reactor);
+}
+
+::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetFreightResponse>* GameService::Stub::PrepareAsyncGetFreightRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetFreightRequest& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderHelper::Create< ::nightfall::v1::GetFreightResponse, ::nightfall::v1::GetFreightRequest, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), cq, rpcmethod_GetFreight_, context, request);
+}
+
+::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetFreightResponse>* GameService::Stub::AsyncGetFreightRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetFreightRequest& request, ::grpc::CompletionQueue* cq) {
+  auto* result =
+    this->PrepareAsyncGetFreightRaw(context, request, cq);
+  result->StartCall();
+  return result;
+}
+
+::grpc::Status GameService::Stub::ListMail(::grpc::ClientContext* context, const ::nightfall::v1::ListMailRequest& request, ::nightfall::v1::ListMailResponse* response) {
+  return ::grpc::internal::BlockingUnaryCall< ::nightfall::v1::ListMailRequest, ::nightfall::v1::ListMailResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), rpcmethod_ListMail_, context, request, response);
+}
+
+void GameService::Stub::async::ListMail(::grpc::ClientContext* context, const ::nightfall::v1::ListMailRequest* request, ::nightfall::v1::ListMailResponse* response, std::function<void(::grpc::Status)> f) {
+  ::grpc::internal::CallbackUnaryCall< ::nightfall::v1::ListMailRequest, ::nightfall::v1::ListMailResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_ListMail_, context, request, response, std::move(f));
+}
+
+void GameService::Stub::async::ListMail(::grpc::ClientContext* context, const ::nightfall::v1::ListMailRequest* request, ::nightfall::v1::ListMailResponse* response, ::grpc::ClientUnaryReactor* reactor) {
+  ::grpc::internal::ClientCallbackUnaryFactory::Create< ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_ListMail_, context, request, response, reactor);
+}
+
+::grpc::ClientAsyncResponseReader< ::nightfall::v1::ListMailResponse>* GameService::Stub::PrepareAsyncListMailRaw(::grpc::ClientContext* context, const ::nightfall::v1::ListMailRequest& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderHelper::Create< ::nightfall::v1::ListMailResponse, ::nightfall::v1::ListMailRequest, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), cq, rpcmethod_ListMail_, context, request);
+}
+
+::grpc::ClientAsyncResponseReader< ::nightfall::v1::ListMailResponse>* GameService::Stub::AsyncListMailRaw(::grpc::ClientContext* context, const ::nightfall::v1::ListMailRequest& request, ::grpc::CompletionQueue* cq) {
+  auto* result =
+    this->PrepareAsyncListMailRaw(context, request, cq);
+  result->StartCall();
+  return result;
+}
+
+::grpc::Status GameService::Stub::ReadMail(::grpc::ClientContext* context, const ::nightfall::v1::ReadMailRequest& request, ::nightfall::v1::ReadMailResponse* response) {
+  return ::grpc::internal::BlockingUnaryCall< ::nightfall::v1::ReadMailRequest, ::nightfall::v1::ReadMailResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), rpcmethod_ReadMail_, context, request, response);
+}
+
+void GameService::Stub::async::ReadMail(::grpc::ClientContext* context, const ::nightfall::v1::ReadMailRequest* request, ::nightfall::v1::ReadMailResponse* response, std::function<void(::grpc::Status)> f) {
+  ::grpc::internal::CallbackUnaryCall< ::nightfall::v1::ReadMailRequest, ::nightfall::v1::ReadMailResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_ReadMail_, context, request, response, std::move(f));
+}
+
+void GameService::Stub::async::ReadMail(::grpc::ClientContext* context, const ::nightfall::v1::ReadMailRequest* request, ::nightfall::v1::ReadMailResponse* response, ::grpc::ClientUnaryReactor* reactor) {
+  ::grpc::internal::ClientCallbackUnaryFactory::Create< ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_ReadMail_, context, request, response, reactor);
+}
+
+::grpc::ClientAsyncResponseReader< ::nightfall::v1::ReadMailResponse>* GameService::Stub::PrepareAsyncReadMailRaw(::grpc::ClientContext* context, const ::nightfall::v1::ReadMailRequest& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderHelper::Create< ::nightfall::v1::ReadMailResponse, ::nightfall::v1::ReadMailRequest, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), cq, rpcmethod_ReadMail_, context, request);
+}
+
+::grpc::ClientAsyncResponseReader< ::nightfall::v1::ReadMailResponse>* GameService::Stub::AsyncReadMailRaw(::grpc::ClientContext* context, const ::nightfall::v1::ReadMailRequest& request, ::grpc::CompletionQueue* cq) {
+  auto* result =
+    this->PrepareAsyncReadMailRaw(context, request, cq);
+  result->StartCall();
+  return result;
+}
+
+::grpc::Status GameService::Stub::ListItemAuctions(::grpc::ClientContext* context, const ::nightfall::v1::ListItemAuctionsRequest& request, ::nightfall::v1::ListItemAuctionsResponse* response) {
+  return ::grpc::internal::BlockingUnaryCall< ::nightfall::v1::ListItemAuctionsRequest, ::nightfall::v1::ListItemAuctionsResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), rpcmethod_ListItemAuctions_, context, request, response);
+}
+
+void GameService::Stub::async::ListItemAuctions(::grpc::ClientContext* context, const ::nightfall::v1::ListItemAuctionsRequest* request, ::nightfall::v1::ListItemAuctionsResponse* response, std::function<void(::grpc::Status)> f) {
+  ::grpc::internal::CallbackUnaryCall< ::nightfall::v1::ListItemAuctionsRequest, ::nightfall::v1::ListItemAuctionsResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_ListItemAuctions_, context, request, response, std::move(f));
+}
+
+void GameService::Stub::async::ListItemAuctions(::grpc::ClientContext* context, const ::nightfall::v1::ListItemAuctionsRequest* request, ::nightfall::v1::ListItemAuctionsResponse* response, ::grpc::ClientUnaryReactor* reactor) {
+  ::grpc::internal::ClientCallbackUnaryFactory::Create< ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_ListItemAuctions_, context, request, response, reactor);
+}
+
+::grpc::ClientAsyncResponseReader< ::nightfall::v1::ListItemAuctionsResponse>* GameService::Stub::PrepareAsyncListItemAuctionsRaw(::grpc::ClientContext* context, const ::nightfall::v1::ListItemAuctionsRequest& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderHelper::Create< ::nightfall::v1::ListItemAuctionsResponse, ::nightfall::v1::ListItemAuctionsRequest, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), cq, rpcmethod_ListItemAuctions_, context, request);
+}
+
+::grpc::ClientAsyncResponseReader< ::nightfall::v1::ListItemAuctionsResponse>* GameService::Stub::AsyncListItemAuctionsRaw(::grpc::ClientContext* context, const ::nightfall::v1::ListItemAuctionsRequest& request, ::grpc::CompletionQueue* cq) {
+  auto* result =
+    this->PrepareAsyncListItemAuctionsRaw(context, request, cq);
+  result->StartCall();
+  return result;
+}
+
+::grpc::Status GameService::Stub::GetManorData(::grpc::ClientContext* context, const ::nightfall::v1::GetManorDataRequest& request, ::nightfall::v1::GetManorDataResponse* response) {
+  return ::grpc::internal::BlockingUnaryCall< ::nightfall::v1::GetManorDataRequest, ::nightfall::v1::GetManorDataResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), rpcmethod_GetManorData_, context, request, response);
+}
+
+void GameService::Stub::async::GetManorData(::grpc::ClientContext* context, const ::nightfall::v1::GetManorDataRequest* request, ::nightfall::v1::GetManorDataResponse* response, std::function<void(::grpc::Status)> f) {
+  ::grpc::internal::CallbackUnaryCall< ::nightfall::v1::GetManorDataRequest, ::nightfall::v1::GetManorDataResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_GetManorData_, context, request, response, std::move(f));
+}
+
+void GameService::Stub::async::GetManorData(::grpc::ClientContext* context, const ::nightfall::v1::GetManorDataRequest* request, ::nightfall::v1::GetManorDataResponse* response, ::grpc::ClientUnaryReactor* reactor) {
+  ::grpc::internal::ClientCallbackUnaryFactory::Create< ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_GetManorData_, context, request, response, reactor);
+}
+
+::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetManorDataResponse>* GameService::Stub::PrepareAsyncGetManorDataRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetManorDataRequest& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderHelper::Create< ::nightfall::v1::GetManorDataResponse, ::nightfall::v1::GetManorDataRequest, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), cq, rpcmethod_GetManorData_, context, request);
+}
+
+::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetManorDataResponse>* GameService::Stub::AsyncGetManorDataRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetManorDataRequest& request, ::grpc::CompletionQueue* cq) {
+  auto* result =
+    this->PrepareAsyncGetManorDataRaw(context, request, cq);
+  result->StartCall();
+  return result;
+}
+
 GameService::Service::Service() {
   AddMethod(new ::grpc::internal::RpcServiceMethod(
       GameService_method_names[0],
@@ -490,6 +715,96 @@ GameService::Service::Service() {
              ::nightfall::v1::GrantItemResponse* resp) {
                return service->GrantItem(ctx, req, resp);
              }, this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      GameService_method_names[13],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< GameService::Service, ::nightfall::v1::ListBuylistRequest, ::nightfall::v1::ListBuylistResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(
+          [](GameService::Service* service,
+             ::grpc::ServerContext* ctx,
+             const ::nightfall::v1::ListBuylistRequest* req,
+             ::nightfall::v1::ListBuylistResponse* resp) {
+               return service->ListBuylist(ctx, req, resp);
+             }, this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      GameService_method_names[14],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< GameService::Service, ::nightfall::v1::GetMultisellListRequest, ::nightfall::v1::GetMultisellListResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(
+          [](GameService::Service* service,
+             ::grpc::ServerContext* ctx,
+             const ::nightfall::v1::GetMultisellListRequest* req,
+             ::nightfall::v1::GetMultisellListResponse* resp) {
+               return service->GetMultisellList(ctx, req, resp);
+             }, this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      GameService_method_names[15],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< GameService::Service, ::nightfall::v1::GetRecipeBookRequest, ::nightfall::v1::GetRecipeBookResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(
+          [](GameService::Service* service,
+             ::grpc::ServerContext* ctx,
+             const ::nightfall::v1::GetRecipeBookRequest* req,
+             ::nightfall::v1::GetRecipeBookResponse* resp) {
+               return service->GetRecipeBook(ctx, req, resp);
+             }, this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      GameService_method_names[16],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< GameService::Service, ::nightfall::v1::GetWarehouseRequest, ::nightfall::v1::GetWarehouseResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(
+          [](GameService::Service* service,
+             ::grpc::ServerContext* ctx,
+             const ::nightfall::v1::GetWarehouseRequest* req,
+             ::nightfall::v1::GetWarehouseResponse* resp) {
+               return service->GetWarehouse(ctx, req, resp);
+             }, this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      GameService_method_names[17],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< GameService::Service, ::nightfall::v1::GetFreightRequest, ::nightfall::v1::GetFreightResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(
+          [](GameService::Service* service,
+             ::grpc::ServerContext* ctx,
+             const ::nightfall::v1::GetFreightRequest* req,
+             ::nightfall::v1::GetFreightResponse* resp) {
+               return service->GetFreight(ctx, req, resp);
+             }, this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      GameService_method_names[18],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< GameService::Service, ::nightfall::v1::ListMailRequest, ::nightfall::v1::ListMailResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(
+          [](GameService::Service* service,
+             ::grpc::ServerContext* ctx,
+             const ::nightfall::v1::ListMailRequest* req,
+             ::nightfall::v1::ListMailResponse* resp) {
+               return service->ListMail(ctx, req, resp);
+             }, this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      GameService_method_names[19],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< GameService::Service, ::nightfall::v1::ReadMailRequest, ::nightfall::v1::ReadMailResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(
+          [](GameService::Service* service,
+             ::grpc::ServerContext* ctx,
+             const ::nightfall::v1::ReadMailRequest* req,
+             ::nightfall::v1::ReadMailResponse* resp) {
+               return service->ReadMail(ctx, req, resp);
+             }, this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      GameService_method_names[20],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< GameService::Service, ::nightfall::v1::ListItemAuctionsRequest, ::nightfall::v1::ListItemAuctionsResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(
+          [](GameService::Service* service,
+             ::grpc::ServerContext* ctx,
+             const ::nightfall::v1::ListItemAuctionsRequest* req,
+             ::nightfall::v1::ListItemAuctionsResponse* resp) {
+               return service->ListItemAuctions(ctx, req, resp);
+             }, this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      GameService_method_names[21],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< GameService::Service, ::nightfall::v1::GetManorDataRequest, ::nightfall::v1::GetManorDataResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(
+          [](GameService::Service* service,
+             ::grpc::ServerContext* ctx,
+             const ::nightfall::v1::GetManorDataRequest* req,
+             ::nightfall::v1::GetManorDataResponse* resp) {
+               return service->GetManorData(ctx, req, resp);
+             }, this)));
 }
 
 GameService::Service::~Service() {
@@ -580,6 +895,69 @@ GameService::Service::~Service() {
 }
 
 ::grpc::Status GameService::Service::GrantItem(::grpc::ServerContext* context, const ::nightfall::v1::GrantItemRequest* request, ::nightfall::v1::GrantItemResponse* response) {
+  (void) context;
+  (void) request;
+  (void) response;
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status GameService::Service::ListBuylist(::grpc::ServerContext* context, const ::nightfall::v1::ListBuylistRequest* request, ::nightfall::v1::ListBuylistResponse* response) {
+  (void) context;
+  (void) request;
+  (void) response;
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status GameService::Service::GetMultisellList(::grpc::ServerContext* context, const ::nightfall::v1::GetMultisellListRequest* request, ::nightfall::v1::GetMultisellListResponse* response) {
+  (void) context;
+  (void) request;
+  (void) response;
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status GameService::Service::GetRecipeBook(::grpc::ServerContext* context, const ::nightfall::v1::GetRecipeBookRequest* request, ::nightfall::v1::GetRecipeBookResponse* response) {
+  (void) context;
+  (void) request;
+  (void) response;
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status GameService::Service::GetWarehouse(::grpc::ServerContext* context, const ::nightfall::v1::GetWarehouseRequest* request, ::nightfall::v1::GetWarehouseResponse* response) {
+  (void) context;
+  (void) request;
+  (void) response;
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status GameService::Service::GetFreight(::grpc::ServerContext* context, const ::nightfall::v1::GetFreightRequest* request, ::nightfall::v1::GetFreightResponse* response) {
+  (void) context;
+  (void) request;
+  (void) response;
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status GameService::Service::ListMail(::grpc::ServerContext* context, const ::nightfall::v1::ListMailRequest* request, ::nightfall::v1::ListMailResponse* response) {
+  (void) context;
+  (void) request;
+  (void) response;
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status GameService::Service::ReadMail(::grpc::ServerContext* context, const ::nightfall::v1::ReadMailRequest* request, ::nightfall::v1::ReadMailResponse* response) {
+  (void) context;
+  (void) request;
+  (void) response;
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status GameService::Service::ListItemAuctions(::grpc::ServerContext* context, const ::nightfall::v1::ListItemAuctionsRequest* request, ::nightfall::v1::ListItemAuctionsResponse* response) {
+  (void) context;
+  (void) request;
+  (void) response;
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status GameService::Service::GetManorData(::grpc::ServerContext* context, const ::nightfall::v1::GetManorDataRequest* request, ::nightfall::v1::GetManorDataResponse* response) {
   (void) context;
   (void) request;
   (void) response;

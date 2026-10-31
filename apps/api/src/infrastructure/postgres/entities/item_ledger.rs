@@ -7,8 +7,7 @@ use sea_orm::entity::prelude::*;
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i64,
-    #[sea_orm(unique_key = "item_ledger_logical_key")]
-    pub character_id: Uuid,
+    pub character_id: Option<Uuid>,
     #[sea_orm(unique_key = "item_ledger_logical_key")]
     pub zone_id: i32,
     #[sea_orm(unique_key = "item_ledger_logical_key")]
@@ -26,6 +25,9 @@ pub struct Model {
     pub delta: Json,
     pub receipt_ref: Option<Uuid>,
     pub created_at: DateTimeWithTimeZone,
+    #[sea_orm(column_type = "Text", unique_key = "item_ledger_logical_key")]
+    pub owner_kind: String,
+    pub owner_id: Option<Uuid>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package nightfall.v1;
 
+import "nightfall/v1/economy.proto";
 import "nightfall/v1/game.proto";
 import "nightfall/v1/items.proto";
 
@@ -52,6 +53,49 @@ message ClientMessage {
     CancelRefineRequest cancel_refine = 26;
     ExchangeSpecialAbilityRequest exchange_special_ability = 27;
     CrystallizeItemRequest crystallize_item = 28;
+    // Phase 5 economy intents (economy.proto; phase-5-zone-design.md §13.1). Sow and Harvest
+    // use the existing use_item = 21.
+    PickUpItemRequest pick_up_item = 29;
+    VendorBuyRequest vendor_buy = 30;
+    VendorSellRequest vendor_sell = 31;
+    VendorRefundRequest vendor_refund = 32;
+    MultisellChooseRequest multisell_choose = 33;
+    RegisterRecipeRequest register_recipe = 34;
+    DeleteRecipeRequest delete_recipe = 35;
+    CraftItemRequest craft_item = 36;
+    TradeRequestRequest trade_request = 37;
+    TradeAnswerRequest trade_answer = 38;
+    TradeAddItemRequest trade_add_item = 39;
+    TradeConfirmRequest trade_confirm = 40;
+    TradeCancelRequest trade_cancel = 41;
+    SetPrivateStoreSellRequest set_private_store_sell = 42;
+    SetPrivateStoreBuyRequest set_private_store_buy = 43;
+    SetPrivateManufactureRequest set_private_manufacture = 44;
+    ClosePrivateStoreRequest close_private_store = 45;
+    PrivateStoreBuyRequest private_store_buy = 46;
+    PrivateStoreSellRequest private_store_sell = 47;
+    PrivateManufactureOrderRequest private_manufacture_order = 48;
+    PartyInviteRequest party_invite = 49;
+    PartyAnswerRequest party_answer = 50;
+    PartyLeaveRequest party_leave = 51;
+    PartyKickRequest party_kick = 52;
+    PartyChangeLeaderRequest party_change_leader = 53;
+    PartyLootChangeRequest party_loot_change_request = 54;
+    PartyLootChangeAnswer party_loot_change_answer = 55;
+    WarehouseDepositRequest warehouse_deposit = 56;
+    WarehouseWithdrawRequest warehouse_withdraw = 57;
+    FreightSendRequest freight_send = 58;
+    FreightWithdrawRequest freight_withdraw = 59;
+    MailSendRequest mail_send = 60;
+    MailTakeAttachmentsRequest mail_take_attachments = 61;
+    MailRejectRequest mail_reject = 62;
+    MailCancelRequest mail_cancel = 63;
+    MailDeleteRequest mail_delete = 64;
+    ManorBuySeedRequest manor_buy_seed = 65;
+    ManorSellCropRequest manor_sell_crop = 66;
+    ItemAuctionBidRequest item_auction_bid = 67;
+    ItemAuctionCancelBidRequest item_auction_cancel_bid = 68;
+    MailMarkReadRequest mail_mark_read = 69; // E31
   }
 }
 
@@ -182,6 +226,58 @@ enum RejectReason {
   REJECT_REASON_ITEM_OPERATION_CONFLICT = 35;
   REJECT_REASON_ITEM_CAPABILITY_DEFERRED = 36;
   REJECT_REASON_CRYSTALLIZE_LEVEL_TOO_LOW = 37;
+  // Phase 5 economy reasons (phase-5-zone-design.md §13.1). This EXTENDS the enum (E20).
+  REJECT_REASON_GROUND_ITEM_NOT_FOUND = 38;
+  REJECT_REASON_GROUND_ITEM_PROTECTED = 39; // DropProtection or loot owner
+  REJECT_REASON_INVALID_MERCHANT = 40; // not a merchant/keeper/manager, or list not allowed
+  REJECT_REASON_INVALID_QUANTITY = 41;
+  REJECT_REASON_VENDOR_OUT_OF_STOCK = 42;
+  REJECT_REASON_ADENA_LIMIT = 43; // MaxAdena / price overflow guards
+  REJECT_REASON_WEIGHT_LIMIT = 44;
+  REJECT_REASON_INSUFFICIENT_ADENA = 45;
+  REJECT_REASON_ITEM_NOT_SELLABLE = 46;
+  REJECT_REASON_ITEM_COUNT_CAP = 47; // D68/D70 receiver cap
+  REJECT_REASON_RECIPE_ALREADY_REGISTERED = 48;
+  REJECT_REASON_RECIPE_BOOK_FULL = 49;
+  REJECT_REASON_CRAFT_SKILL_MISSING = 50;
+  REJECT_REASON_CRAFT_LEVEL_TOO_LOW = 51;
+  REJECT_REASON_MISSING_MATERIALS = 52;
+  REJECT_REASON_IN_COMBAT = 53;
+  REJECT_REASON_NO_PENDING_REQUEST = 54;
+  REJECT_REASON_ALREADY_TRADING = 55;
+  REJECT_REASON_TARGET_BUSY = 56;
+  REJECT_REASON_CANNOT_TRADE_IN_STORE = 57;
+  REJECT_REASON_CANNOT_ADJUST_AFTER_CONFIRM = 58;
+  REJECT_REASON_ITEM_NOT_TRADABLE = 59;
+  REJECT_REASON_STORE_SLOT_LIMIT = 60;
+  REJECT_REASON_STORE_NOT_OPEN = 61;
+  REJECT_REASON_PACKAGE_INCOMPLETE = 62;
+  REJECT_REASON_PRICE_MISMATCH = 63;
+  REJECT_REASON_PARTY_FULL = 64;
+  REJECT_REASON_PARTY_ALREADY_IN_PARTY = 65;
+  REJECT_REASON_NOT_PARTY_LEADER = 66;
+  REJECT_REASON_NOT_PARTY_MEMBER = 67;
+  REJECT_REASON_PARTY_LOOT_VOTE_IN_PROGRESS = 68;
+  REJECT_REASON_CONTAINER_BUSY = 69; // lease held (retryable)
+  REJECT_REASON_WAREHOUSE_FULL = 70;
+  REJECT_REASON_ITEM_NOT_DEPOSITABLE = 71;
+  REJECT_REASON_FREIGHT_TARGET_INVALID = 72;
+  REJECT_REASON_ITEM_NOT_FREIGHTABLE = 73;
+  REJECT_REASON_FREIGHT_FULL = 74;
+  REJECT_REASON_PEACE_ZONE_REQUIRED = 75;
+  REJECT_REASON_MAIL_ATTACHMENTS_EXCEEDED = 76;
+  REJECT_REASON_MAIL_RECEIVER_NOT_FOUND = 77;
+  REJECT_REASON_MAILBOX_FULL = 78;
+  REJECT_REASON_MAIL_NOT_FOUND = 79; // absent, expired, or not the actor's
+  REJECT_REASON_MAIL_ALREADY_TAKEN = 80;
+  REJECT_REASON_SWEEP_NOT_ALLOWED = 81; // not spoiler/party, old corpse, not spoiled
+  REJECT_REASON_NOT_SEEDABLE = 82; // Seed handler failures incl. wrong castle area
+  REJECT_REASON_HARVEST_NOT_ALLOWED = 83;
+  REJECT_REASON_MANOR_UNAVAILABLE = 84;
+  REJECT_REASON_AUCTION_NOT_ACTIVE = 85;
+  REJECT_REASON_BID_TOO_LOW = 86;
+  REJECT_REASON_BID_TOO_HIGH = 87; // > 100,000,000,000
+  REJECT_REASON_NO_BID_TO_CANCEL = 88;
 }
 
 message WorldEvent {
@@ -219,6 +315,19 @@ message WorldEvent {
     EnchantResult enchant_result = 31;
     RefineResult refine_result = 32;
     ItemOperationResult item_operation_result = 33;
+    // Phase 5 economy events (economy.proto; phase-5-zone-design.md §13.1).
+    EconomyResult economy_result = 34; // owner-only frozen receipt
+    CorpseStateChanged corpse_state_changed = 35; // public
+    PartyStateChanged party_state_changed = 36; // party members
+    PartyLootVote party_loot_vote = 37; // party members
+    PartyInviteReceived party_invite_received = 38; // invite target
+    TradeRequestReceived trade_request_received = 39; // trade target
+    TradeSessionChanged trade_session_changed = 40; // both participants
+    PrivateStoreChanged private_store_changed = 41; // AOI
+    MailNotification mail_notification = 42; // receiver; sent by the API gateway, never zone output
+    RecipeBookSync recipe_book_sync = 43; // owner baseline/delta
+    ItemAuctionStatusChanged item_auction_status_changed = 44; // bidders + auctioneer AOI
+    LootDistributed loot_distributed = 45; // party members except recipient
   }
 }
 
@@ -226,6 +335,7 @@ enum EntityKind {
   ENTITY_KIND_UNSPECIFIED = 0;
   ENTITY_KIND_PLAYER = 1;
   ENTITY_KIND_NPC = 2;
+  ENTITY_KIND_GROUND_ITEM = 3; // Phase 5 (B5): an entity that carries one item instance
 }
 
 // An entity entered the receiving session's area of interest (or the zone, or was replaced).
@@ -264,6 +374,7 @@ message EntitySpawn {
   uint32 pvp_count = 27;
   uint64 status_flags = 28; // public status bits; no death-penalty modifier disclosure
   repeated VisibleEquipment visible_equipment = 29;
+  GroundItemDetail ground_item = 30; // Phase 5: present iff kind == ENTITY_KIND_GROUND_ITEM
 }
 
 message EntityMove {

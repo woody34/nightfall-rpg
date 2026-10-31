@@ -1,0 +1,72 @@
+{
+ "derived_by": "apps/client-unreal/Scripts/phase5-expectations.py over economy_oracle.py (1.5-1.7) and tables-phase5",
+ "expectations": {
+  "S": 5,
+  "X": 178,
+  "bonus_n2_bits": "3ff199999999999a",
+  "bonus_table": [
+   "1.0",
+   "1.10",
+   "1.20",
+   "1.30",
+   "1.40",
+   "1.50",
+   "2.0",
+   "2.10",
+   "2.20"
+  ],
+  "cutoff": {
+   "cutoff_gaps": [
+    {
+     "max": 9,
+     "min": 0,
+     "percent": 100
+    },
+    {
+     "max": 14,
+     "min": 10,
+     "percent": 30
+    },
+    {
+     "max": 99,
+     "min": 15,
+     "percent": 0
+    }
+   ],
+   "party_xp_cutoff_level": 20,
+   "party_xp_cutoff_method": "highfive",
+   "party_xp_cutoff_percent": "3.0"
+  },
+  "levels": [
+   10,
+   12
+  ],
+  "npc": 20003,
+  "party_distribute_all_alive": [
+   [
+    80,
+    2
+   ],
+   [
+    115,
+    2
+   ]
+  ],
+  "party_distribute_b_dead": [
+   [
+    80,
+    2
+   ],
+   [
+    0,
+    0
+   ]
+  ],
+  "rule": "D \u00a74.5: level-squared shares, Math.round XP / floor SP, highfive gap percent"
+ },
+ "expectations_sha256": "3455776d87a920ed0e751e867d822ed3955db44f82c63fb10c752d8662bf989c",
+ "fixture": "phase5-party-xp",
+ "scenario": "5-party-xp.nfs",
+ "schema_version": 1,
+ "story": "5 E1.8"
+}

@@ -10,6 +10,7 @@ fn main() -> anyhow::Result<()> {
     let files = [
         proto_root.join("nightfall/v1/game.proto"),
         proto_root.join("nightfall/v1/items.proto"),
+        proto_root.join("nightfall/v1/economy.proto"),
         proto_root.join("nightfall/v1/world.proto"),
         proto_root.join("nightfall/v1/session.proto"),
     ];

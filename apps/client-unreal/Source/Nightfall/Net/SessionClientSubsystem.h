@@ -85,6 +85,11 @@ public:
 	using FGetItemCatalogCallback = TFunction<void(const FNetResult&, const FGrpcNightfallV1GetItemCatalogResponse&)>;
 	using FGetInventoryCallback = TFunction<void(const FNetResult&, const FGrpcNightfallV1GetInventoryResponse&)>;
 	using FGrantItemCallback = TFunction<void(const FNetResult&, const FGrpcNightfallV1GrantItemResponse&)>;
+	using FListBuylistCallback = TFunction<void(const FNetResult&, const FGrpcNightfallV1ListBuylistResponse&)>;
+	using FGetWarehouseCallback = TFunction<void(const FNetResult&, const FGrpcNightfallV1GetWarehouseResponse&)>;
+	using FGetFreightCallback = TFunction<void(const FNetResult&, const FGrpcNightfallV1GetFreightResponse&)>;
+	using FListMailCallback = TFunction<void(const FNetResult&, const FGrpcNightfallV1ListMailResponse&)>;
+	using FListItemAuctionsCallback = TFunction<void(const FNetResult&, const FGrpcNightfallV1ListItemAuctionsResponse&)>;
 	using FPlayTicketCallback = TFunction<void(const FNetResult&, const FGrpcNightfallV1IssuePlayTicketResponse&)>;
 
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
@@ -93,6 +98,12 @@ public:
 	void GetItemCatalog(const FGrpcNightfallV1GetItemCatalogRequest& Request, FGetItemCatalogCallback Callback);
 	void GetInventory(const FGrpcNightfallV1GetInventoryRequest& Request, FGetInventoryCallback Callback);
 	void GrantItem(const FGrpcNightfallV1GrantItemRequest& Request, FGrantItemCallback Callback);
+	// Phase 5 read RPCs (design §13.4): detached views, never world state.
+	void ListBuylist(const FGrpcNightfallV1ListBuylistRequest& Request, FListBuylistCallback Callback);
+	void GetWarehouse(const FGrpcNightfallV1GetWarehouseRequest& Request, FGetWarehouseCallback Callback);
+	void GetFreight(const FGrpcNightfallV1GetFreightRequest& Request, FGetFreightCallback Callback);
+	void ListMail(const FGrpcNightfallV1ListMailRequest& Request, FListMailCallback Callback);
+	void ListItemAuctions(const FGrpcNightfallV1ListItemAuctionsRequest& Request, FListItemAuctionsCallback Callback);
 	void Ping(FPingCallback Callback);
 	void ListClasses(FCatalogueCallback Callback);
 	void GetSkillCatalog(const FGrpcNightfallV1GetSkillCatalogRequest& Request, FSkillCatalogCallback Callback);
@@ -177,6 +188,16 @@ private:
 	TMap<uint32, FGetInventoryCallback> PendingGetInventory;
 	UFUNCTION() void HandleGrantItem(FGrpcContextHandle Handle, const FGrpcResult& Result, const FGrpcNightfallV1GrantItemResponse& Response);
 	TMap<uint32, FGrantItemCallback> PendingGrantItem;
+	UFUNCTION() void HandleListBuylist(FGrpcContextHandle Handle, const FGrpcResult& Result, const FGrpcNightfallV1ListBuylistResponse& Response);
+	TMap<uint32, FListBuylistCallback> PendingListBuylist;
+	UFUNCTION() void HandleGetWarehouse(FGrpcContextHandle Handle, const FGrpcResult& Result, const FGrpcNightfallV1GetWarehouseResponse& Response);
+	TMap<uint32, FGetWarehouseCallback> PendingGetWarehouse;
+	UFUNCTION() void HandleGetFreight(FGrpcContextHandle Handle, const FGrpcResult& Result, const FGrpcNightfallV1GetFreightResponse& Response);
+	TMap<uint32, FGetFreightCallback> PendingGetFreight;
+	UFUNCTION() void HandleListMail(FGrpcContextHandle Handle, const FGrpcResult& Result, const FGrpcNightfallV1ListMailResponse& Response);
+	TMap<uint32, FListMailCallback> PendingListMail;
+	UFUNCTION() void HandleListItemAuctions(FGrpcContextHandle Handle, const FGrpcResult& Result, const FGrpcNightfallV1ListItemAuctionsResponse& Response);
+	TMap<uint32, FListItemAuctionsCallback> PendingListItemAuctions;
 	UPROPERTY()
 	TObjectPtr<UTurboLinkGrpcManager> Manager;
 

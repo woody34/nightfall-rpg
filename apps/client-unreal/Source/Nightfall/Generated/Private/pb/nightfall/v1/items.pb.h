@@ -354,6 +354,12 @@ enum ItemLocation : int {
   ITEM_LOCATION_UNSPECIFIED = 0,
   ITEM_LOCATION_INVENTORY = 1,
   ITEM_LOCATION_PAPERDOLL = 2,
+  ITEM_LOCATION_WAREHOUSE = 3,
+  ITEM_LOCATION_FREIGHT = 4,
+  ITEM_LOCATION_MAIL = 5,
+  ITEM_LOCATION_AUCTION_BID = 6,
+  ITEM_LOCATION_REFUND = 7,
+  ITEM_LOCATION_DELIVERY = 8,
   ItemLocation_INT_MIN_SENTINEL_DO_NOT_USE_ =
       std::numeric_limits<::int32_t>::min(),
   ItemLocation_INT_MAX_SENTINEL_DO_NOT_USE_ =
@@ -362,8 +368,8 @@ enum ItemLocation : int {
 
 bool ItemLocation_IsValid(int value);
 constexpr ItemLocation ItemLocation_MIN = static_cast<ItemLocation>(0);
-constexpr ItemLocation ItemLocation_MAX = static_cast<ItemLocation>(2);
-constexpr int ItemLocation_ARRAYSIZE = 2 + 1;
+constexpr ItemLocation ItemLocation_MAX = static_cast<ItemLocation>(8);
+constexpr int ItemLocation_ARRAYSIZE = 8 + 1;
 const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor*
 ItemLocation_descriptor();
 template <typename T>
@@ -376,7 +382,7 @@ const std::string& ItemLocation_Name(T value) {
 template <>
 inline const std::string& ItemLocation_Name(ItemLocation value) {
   return ::PROTOBUF_NAMESPACE_ID::internal::NameOfDenseEnum<ItemLocation_descriptor,
-                                                 0, 2>(
+                                                 0, 8>(
       static_cast<int>(value));
 }
 inline bool ItemLocation_Parse(absl::string_view name, ItemLocation* value) {
@@ -500,6 +506,35 @@ enum ItemOperation : int {
   ITEM_OPERATION_GRANT = 11,
   ITEM_OPERATION_STARTER = 12,
   ITEM_OPERATION_BACKFILL = 13,
+  ITEM_OPERATION_PICK_UP_ITEM = 14,
+  ITEM_OPERATION_VENDOR_BUY = 15,
+  ITEM_OPERATION_VENDOR_SELL = 16,
+  ITEM_OPERATION_VENDOR_REFUND = 17,
+  ITEM_OPERATION_MULTISELL_CHOOSE = 18,
+  ITEM_OPERATION_REGISTER_RECIPE = 19,
+  ITEM_OPERATION_DELETE_RECIPE = 20,
+  ITEM_OPERATION_CRAFT_ITEM = 21,
+  ITEM_OPERATION_TRADE_CONFIRM = 22,
+  ITEM_OPERATION_STORE_BUY = 23,
+  ITEM_OPERATION_STORE_SELL = 24,
+  ITEM_OPERATION_PRIVATE_MANUFACTURE = 25,
+  ITEM_OPERATION_WAREHOUSE_DEPOSIT = 26,
+  ITEM_OPERATION_WAREHOUSE_WITHDRAW = 27,
+  ITEM_OPERATION_FREIGHT_SEND = 28,
+  ITEM_OPERATION_FREIGHT_WITHDRAW = 29,
+  ITEM_OPERATION_MAIL_SEND = 30,
+  ITEM_OPERATION_MAIL_TAKE = 31,
+  ITEM_OPERATION_MAIL_REJECT = 32,
+  ITEM_OPERATION_MAIL_CANCEL = 33,
+  ITEM_OPERATION_MAIL_DELETE = 34,
+  ITEM_OPERATION_MANOR_BUY_SEED = 35,
+  ITEM_OPERATION_MANOR_SELL_CROP = 36,
+  ITEM_OPERATION_AUCTION_BID = 37,
+  ITEM_OPERATION_AUCTION_CANCEL_BID = 38,
+  ITEM_OPERATION_PARTY = 39,
+  ITEM_OPERATION_TRADE_SESSION = 40,
+  ITEM_OPERATION_STORE_SETUP = 41,
+  ITEM_OPERATION_MAIL_MARK_READ = 42,
   ItemOperation_INT_MIN_SENTINEL_DO_NOT_USE_ =
       std::numeric_limits<::int32_t>::min(),
   ItemOperation_INT_MAX_SENTINEL_DO_NOT_USE_ =
@@ -508,8 +543,8 @@ enum ItemOperation : int {
 
 bool ItemOperation_IsValid(int value);
 constexpr ItemOperation ItemOperation_MIN = static_cast<ItemOperation>(0);
-constexpr ItemOperation ItemOperation_MAX = static_cast<ItemOperation>(13);
-constexpr int ItemOperation_ARRAYSIZE = 13 + 1;
+constexpr ItemOperation ItemOperation_MAX = static_cast<ItemOperation>(42);
+constexpr int ItemOperation_ARRAYSIZE = 42 + 1;
 const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor*
 ItemOperation_descriptor();
 template <typename T>
@@ -522,7 +557,7 @@ const std::string& ItemOperation_Name(T value) {
 template <>
 inline const std::string& ItemOperation_Name(ItemOperation value) {
   return ::PROTOBUF_NAMESPACE_ID::internal::NameOfDenseEnum<ItemOperation_descriptor,
-                                                 0, 13>(
+                                                 0, 42>(
       static_cast<int>(value));
 }
 inline bool ItemOperation_Parse(absl::string_view name, ItemOperation* value) {
@@ -8638,6 +8673,7 @@ class GrantItemRequest final :
     kIdempotencyKeyFieldNumber = 4,
     kCountFieldNumber = 3,
     kTemplateIdFieldNumber = 2,
+    kEnchantLevelFieldNumber = 5,
   };
   // bytes character_id = 1;
   void clear_character_id() ;
@@ -8699,6 +8735,17 @@ class GrantItemRequest final :
   void _internal_set_template_id(::uint32_t value);
 
   public:
+  // optional uint32 enchant_level = 5;
+  bool has_enchant_level() const;
+  void clear_enchant_level() ;
+  ::uint32_t enchant_level() const;
+  void set_enchant_level(::uint32_t value);
+
+  private:
+  ::uint32_t _internal_enchant_level() const;
+  void _internal_set_enchant_level(::uint32_t value);
+
+  public:
   // @@protoc_insertion_point(class_scope:nightfall.v1.GrantItemRequest)
  private:
   class _Internal;
@@ -8707,11 +8754,13 @@ class GrantItemRequest final :
   typedef void InternalArenaConstructable_;
   typedef void DestructorSkippable_;
   struct Impl_ {
+    ::PROTOBUF_NAMESPACE_ID::internal::HasBits<1> _has_bits_;
+    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
     ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr character_id_;
     ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr idempotency_key_;
     ::uint64_t count_;
     ::uint32_t template_id_;
-    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+    ::uint32_t enchant_level_;
   };
   union { Impl_ _impl_; };
   friend struct ::TableStruct_nightfall_2fv1_2fitems_2eproto;
@@ -14967,6 +15016,31 @@ inline void GrantItemRequest::set_allocated_idempotency_key(std::string* value) 
         }
   #endif  // PROTOBUF_FORCE_COPY_DEFAULT_STRING
   // @@protoc_insertion_point(field_set_allocated:nightfall.v1.GrantItemRequest.idempotency_key)
+}
+
+// optional uint32 enchant_level = 5;
+inline bool GrantItemRequest::has_enchant_level() const {
+  bool value = (_impl_._has_bits_[0] & 0x00000001u) != 0;
+  return value;
+}
+inline void GrantItemRequest::clear_enchant_level() {
+  _impl_.enchant_level_ = 0u;
+  _impl_._has_bits_[0] &= ~0x00000001u;
+}
+inline ::uint32_t GrantItemRequest::enchant_level() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.GrantItemRequest.enchant_level)
+  return _internal_enchant_level();
+}
+inline void GrantItemRequest::set_enchant_level(::uint32_t value) {
+  _internal_set_enchant_level(value);
+  // @@protoc_insertion_point(field_set:nightfall.v1.GrantItemRequest.enchant_level)
+}
+inline ::uint32_t GrantItemRequest::_internal_enchant_level() const {
+  return _impl_.enchant_level_;
+}
+inline void GrantItemRequest::_internal_set_enchant_level(::uint32_t value) {
+  _impl_._has_bits_[0] |= 0x00000001u;
+  _impl_.enchant_level_ = value;
 }
 
 // -------------------------------------------------------------------

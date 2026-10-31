@@ -20,6 +20,11 @@ mod m20261012_000011_pending_item_backfill;
 mod m20261012_000012_pending_item_scope;
 mod m20261012_000013_item_ledger_row_ordinal;
 mod m20261014_000014_lane_quarantine;
+mod m20261031_000015_economy_ledger_owners;
+mod m20261031_000016_economy_items;
+mod m20261031_000017_economy_mail;
+mod m20261031_000018_economy_auction_manor;
+mod m20261031_000019_economy_control;
 
 /// All migrations in application order.
 #[derive(Debug, Clone, Copy)]
@@ -43,6 +48,11 @@ impl MigratorTrait for Migrator {
             Box::new(m20261012_000012_pending_item_scope::Migration),
             Box::new(m20261012_000013_item_ledger_row_ordinal::Migration),
             Box::new(m20261014_000014_lane_quarantine::Migration),
+            Box::new(m20261031_000015_economy_ledger_owners::Migration),
+            Box::new(m20261031_000016_economy_items::Migration),
+            Box::new(m20261031_000017_economy_mail::Migration),
+            Box::new(m20261031_000018_economy_auction_manor::Migration),
+            Box::new(m20261031_000019_economy_control::Migration),
         ]
     }
 }

@@ -4,6 +4,7 @@
 mod account_repository;
 mod character_repository;
 mod clock;
+mod economy;
 mod event_bus;
 mod secrets;
 mod session_audit;
@@ -13,6 +14,7 @@ mod token_verifier;
 pub use account_repository::InMemoryAccountRepository;
 pub use character_repository::InMemoryCharacterRepository;
 pub use clock::ManualClock;
+pub use economy::{InMemoryEconomyStore, StoredRow};
 pub use event_bus::InMemoryEventBus;
 pub use secrets::{FixedSecretGenerator, SequentialSecretGenerator};
 pub use session_audit::{AuditedFrame, DiscardSessionAudit, InMemorySessionAudit};

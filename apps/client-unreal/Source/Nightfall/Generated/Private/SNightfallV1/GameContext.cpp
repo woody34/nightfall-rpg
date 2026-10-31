@@ -3,6 +3,7 @@
 #include "SNightfallV1/GameClient.h"
 #include "GameService_Private.h"
 #include "GameMarshaling.h"
+#include "SNightfallV1/EconomyMarshaling.h"
 #include "SNightfallV1/ItemsMarshaling.h"
 #include "TurboLinkGrpcManager.h"
 
@@ -479,6 +480,321 @@ void GrpcContext_GameService_GrantItem::OnRpcEvent(bool Ok, const void* EventTag
 				GRPC_TO_TURBOLINK(_RpcResponse, &response);
 			}
 			client->OnGrantItemResponse.Broadcast(Handle, _Result, response);
+		}
+	);
+}
+
+GrpcContext_GameService_ListBuylist::GrpcContext_GameService_ListBuylist(FGrpcContextHandle _Handle, UGrpcService* _Service, UGrpcClient* _Client)
+	: Super(_Handle, _Service, _Client)
+{
+}
+
+void GrpcContext_GameService_ListBuylist::Call(const FGrpcNightfallV1ListBuylistRequest& Request)
+{
+	check(GetState() == EGrpcContextState::Ready);
+	UpdateState(EGrpcContextState::Initialing);
+
+	::nightfall::v1::ListBuylistRequest rpcRequest;
+	TURBOLINK_TO_GRPC(&Request, &rpcRequest);
+
+	UGameService* service = (UGameService*)Service;
+	RpcReaderWriter = service->d->Stub->AsyncListBuylist(RpcContext.get(), rpcRequest, service->TurboLinkManager->d->CompletionQueue.get());
+	RpcReaderWriter->ReadInitialMetadata(InitialTag);
+}
+
+void GrpcContext_GameService_ListBuylist::OnRpcEvent(bool Ok, const void* EventTag)
+{
+	Super::OnRpcEventInternal(Ok, EventTag,
+		[this](const FGrpcResult& _Result, ::nightfall::v1::ListBuylistResponse* _RpcResponse)
+		{
+			UGameServiceClient* client = (UGameServiceClient*)(this->Client);
+			if (!(client->OnListBuylistResponse.IsBound())) return;
+
+			FGrpcNightfallV1ListBuylistResponse response;
+			if (_RpcResponse) {
+				GRPC_TO_TURBOLINK(_RpcResponse, &response);
+			}
+			client->OnListBuylistResponse.Broadcast(Handle, _Result, response);
+		}
+	);
+}
+
+GrpcContext_GameService_GetMultisellList::GrpcContext_GameService_GetMultisellList(FGrpcContextHandle _Handle, UGrpcService* _Service, UGrpcClient* _Client)
+	: Super(_Handle, _Service, _Client)
+{
+}
+
+void GrpcContext_GameService_GetMultisellList::Call(const FGrpcNightfallV1GetMultisellListRequest& Request)
+{
+	check(GetState() == EGrpcContextState::Ready);
+	UpdateState(EGrpcContextState::Initialing);
+
+	::nightfall::v1::GetMultisellListRequest rpcRequest;
+	TURBOLINK_TO_GRPC(&Request, &rpcRequest);
+
+	UGameService* service = (UGameService*)Service;
+	RpcReaderWriter = service->d->Stub->AsyncGetMultisellList(RpcContext.get(), rpcRequest, service->TurboLinkManager->d->CompletionQueue.get());
+	RpcReaderWriter->ReadInitialMetadata(InitialTag);
+}
+
+void GrpcContext_GameService_GetMultisellList::OnRpcEvent(bool Ok, const void* EventTag)
+{
+	Super::OnRpcEventInternal(Ok, EventTag,
+		[this](const FGrpcResult& _Result, ::nightfall::v1::GetMultisellListResponse* _RpcResponse)
+		{
+			UGameServiceClient* client = (UGameServiceClient*)(this->Client);
+			if (!(client->OnGetMultisellListResponse.IsBound())) return;
+
+			FGrpcNightfallV1GetMultisellListResponse response;
+			if (_RpcResponse) {
+				GRPC_TO_TURBOLINK(_RpcResponse, &response);
+			}
+			client->OnGetMultisellListResponse.Broadcast(Handle, _Result, response);
+		}
+	);
+}
+
+GrpcContext_GameService_GetRecipeBook::GrpcContext_GameService_GetRecipeBook(FGrpcContextHandle _Handle, UGrpcService* _Service, UGrpcClient* _Client)
+	: Super(_Handle, _Service, _Client)
+{
+}
+
+void GrpcContext_GameService_GetRecipeBook::Call(const FGrpcNightfallV1GetRecipeBookRequest& Request)
+{
+	check(GetState() == EGrpcContextState::Ready);
+	UpdateState(EGrpcContextState::Initialing);
+
+	::nightfall::v1::GetRecipeBookRequest rpcRequest;
+	TURBOLINK_TO_GRPC(&Request, &rpcRequest);
+
+	UGameService* service = (UGameService*)Service;
+	RpcReaderWriter = service->d->Stub->AsyncGetRecipeBook(RpcContext.get(), rpcRequest, service->TurboLinkManager->d->CompletionQueue.get());
+	RpcReaderWriter->ReadInitialMetadata(InitialTag);
+}
+
+void GrpcContext_GameService_GetRecipeBook::OnRpcEvent(bool Ok, const void* EventTag)
+{
+	Super::OnRpcEventInternal(Ok, EventTag,
+		[this](const FGrpcResult& _Result, ::nightfall::v1::GetRecipeBookResponse* _RpcResponse)
+		{
+			UGameServiceClient* client = (UGameServiceClient*)(this->Client);
+			if (!(client->OnGetRecipeBookResponse.IsBound())) return;
+
+			FGrpcNightfallV1GetRecipeBookResponse response;
+			if (_RpcResponse) {
+				GRPC_TO_TURBOLINK(_RpcResponse, &response);
+			}
+			client->OnGetRecipeBookResponse.Broadcast(Handle, _Result, response);
+		}
+	);
+}
+
+GrpcContext_GameService_GetWarehouse::GrpcContext_GameService_GetWarehouse(FGrpcContextHandle _Handle, UGrpcService* _Service, UGrpcClient* _Client)
+	: Super(_Handle, _Service, _Client)
+{
+}
+
+void GrpcContext_GameService_GetWarehouse::Call(const FGrpcNightfallV1GetWarehouseRequest& Request)
+{
+	check(GetState() == EGrpcContextState::Ready);
+	UpdateState(EGrpcContextState::Initialing);
+
+	::nightfall::v1::GetWarehouseRequest rpcRequest;
+	TURBOLINK_TO_GRPC(&Request, &rpcRequest);
+
+	UGameService* service = (UGameService*)Service;
+	RpcReaderWriter = service->d->Stub->AsyncGetWarehouse(RpcContext.get(), rpcRequest, service->TurboLinkManager->d->CompletionQueue.get());
+	RpcReaderWriter->ReadInitialMetadata(InitialTag);
+}
+
+void GrpcContext_GameService_GetWarehouse::OnRpcEvent(bool Ok, const void* EventTag)
+{
+	Super::OnRpcEventInternal(Ok, EventTag,
+		[this](const FGrpcResult& _Result, ::nightfall::v1::GetWarehouseResponse* _RpcResponse)
+		{
+			UGameServiceClient* client = (UGameServiceClient*)(this->Client);
+			if (!(client->OnGetWarehouseResponse.IsBound())) return;
+
+			FGrpcNightfallV1GetWarehouseResponse response;
+			if (_RpcResponse) {
+				GRPC_TO_TURBOLINK(_RpcResponse, &response);
+			}
+			client->OnGetWarehouseResponse.Broadcast(Handle, _Result, response);
+		}
+	);
+}
+
+GrpcContext_GameService_GetFreight::GrpcContext_GameService_GetFreight(FGrpcContextHandle _Handle, UGrpcService* _Service, UGrpcClient* _Client)
+	: Super(_Handle, _Service, _Client)
+{
+}
+
+void GrpcContext_GameService_GetFreight::Call(const FGrpcNightfallV1GetFreightRequest& Request)
+{
+	check(GetState() == EGrpcContextState::Ready);
+	UpdateState(EGrpcContextState::Initialing);
+
+	::nightfall::v1::GetFreightRequest rpcRequest;
+	TURBOLINK_TO_GRPC(&Request, &rpcRequest);
+
+	UGameService* service = (UGameService*)Service;
+	RpcReaderWriter = service->d->Stub->AsyncGetFreight(RpcContext.get(), rpcRequest, service->TurboLinkManager->d->CompletionQueue.get());
+	RpcReaderWriter->ReadInitialMetadata(InitialTag);
+}
+
+void GrpcContext_GameService_GetFreight::OnRpcEvent(bool Ok, const void* EventTag)
+{
+	Super::OnRpcEventInternal(Ok, EventTag,
+		[this](const FGrpcResult& _Result, ::nightfall::v1::GetFreightResponse* _RpcResponse)
+		{
+			UGameServiceClient* client = (UGameServiceClient*)(this->Client);
+			if (!(client->OnGetFreightResponse.IsBound())) return;
+
+			FGrpcNightfallV1GetFreightResponse response;
+			if (_RpcResponse) {
+				GRPC_TO_TURBOLINK(_RpcResponse, &response);
+			}
+			client->OnGetFreightResponse.Broadcast(Handle, _Result, response);
+		}
+	);
+}
+
+GrpcContext_GameService_ListMail::GrpcContext_GameService_ListMail(FGrpcContextHandle _Handle, UGrpcService* _Service, UGrpcClient* _Client)
+	: Super(_Handle, _Service, _Client)
+{
+}
+
+void GrpcContext_GameService_ListMail::Call(const FGrpcNightfallV1ListMailRequest& Request)
+{
+	check(GetState() == EGrpcContextState::Ready);
+	UpdateState(EGrpcContextState::Initialing);
+
+	::nightfall::v1::ListMailRequest rpcRequest;
+	TURBOLINK_TO_GRPC(&Request, &rpcRequest);
+
+	UGameService* service = (UGameService*)Service;
+	RpcReaderWriter = service->d->Stub->AsyncListMail(RpcContext.get(), rpcRequest, service->TurboLinkManager->d->CompletionQueue.get());
+	RpcReaderWriter->ReadInitialMetadata(InitialTag);
+}
+
+void GrpcContext_GameService_ListMail::OnRpcEvent(bool Ok, const void* EventTag)
+{
+	Super::OnRpcEventInternal(Ok, EventTag,
+		[this](const FGrpcResult& _Result, ::nightfall::v1::ListMailResponse* _RpcResponse)
+		{
+			UGameServiceClient* client = (UGameServiceClient*)(this->Client);
+			if (!(client->OnListMailResponse.IsBound())) return;
+
+			FGrpcNightfallV1ListMailResponse response;
+			if (_RpcResponse) {
+				GRPC_TO_TURBOLINK(_RpcResponse, &response);
+			}
+			client->OnListMailResponse.Broadcast(Handle, _Result, response);
+		}
+	);
+}
+
+GrpcContext_GameService_ReadMail::GrpcContext_GameService_ReadMail(FGrpcContextHandle _Handle, UGrpcService* _Service, UGrpcClient* _Client)
+	: Super(_Handle, _Service, _Client)
+{
+}
+
+void GrpcContext_GameService_ReadMail::Call(const FGrpcNightfallV1ReadMailRequest& Request)
+{
+	check(GetState() == EGrpcContextState::Ready);
+	UpdateState(EGrpcContextState::Initialing);
+
+	::nightfall::v1::ReadMailRequest rpcRequest;
+	TURBOLINK_TO_GRPC(&Request, &rpcRequest);
+
+	UGameService* service = (UGameService*)Service;
+	RpcReaderWriter = service->d->Stub->AsyncReadMail(RpcContext.get(), rpcRequest, service->TurboLinkManager->d->CompletionQueue.get());
+	RpcReaderWriter->ReadInitialMetadata(InitialTag);
+}
+
+void GrpcContext_GameService_ReadMail::OnRpcEvent(bool Ok, const void* EventTag)
+{
+	Super::OnRpcEventInternal(Ok, EventTag,
+		[this](const FGrpcResult& _Result, ::nightfall::v1::ReadMailResponse* _RpcResponse)
+		{
+			UGameServiceClient* client = (UGameServiceClient*)(this->Client);
+			if (!(client->OnReadMailResponse.IsBound())) return;
+
+			FGrpcNightfallV1ReadMailResponse response;
+			if (_RpcResponse) {
+				GRPC_TO_TURBOLINK(_RpcResponse, &response);
+			}
+			client->OnReadMailResponse.Broadcast(Handle, _Result, response);
+		}
+	);
+}
+
+GrpcContext_GameService_ListItemAuctions::GrpcContext_GameService_ListItemAuctions(FGrpcContextHandle _Handle, UGrpcService* _Service, UGrpcClient* _Client)
+	: Super(_Handle, _Service, _Client)
+{
+}
+
+void GrpcContext_GameService_ListItemAuctions::Call(const FGrpcNightfallV1ListItemAuctionsRequest& Request)
+{
+	check(GetState() == EGrpcContextState::Ready);
+	UpdateState(EGrpcContextState::Initialing);
+
+	::nightfall::v1::ListItemAuctionsRequest rpcRequest;
+	TURBOLINK_TO_GRPC(&Request, &rpcRequest);
+
+	UGameService* service = (UGameService*)Service;
+	RpcReaderWriter = service->d->Stub->AsyncListItemAuctions(RpcContext.get(), rpcRequest, service->TurboLinkManager->d->CompletionQueue.get());
+	RpcReaderWriter->ReadInitialMetadata(InitialTag);
+}
+
+void GrpcContext_GameService_ListItemAuctions::OnRpcEvent(bool Ok, const void* EventTag)
+{
+	Super::OnRpcEventInternal(Ok, EventTag,
+		[this](const FGrpcResult& _Result, ::nightfall::v1::ListItemAuctionsResponse* _RpcResponse)
+		{
+			UGameServiceClient* client = (UGameServiceClient*)(this->Client);
+			if (!(client->OnListItemAuctionsResponse.IsBound())) return;
+
+			FGrpcNightfallV1ListItemAuctionsResponse response;
+			if (_RpcResponse) {
+				GRPC_TO_TURBOLINK(_RpcResponse, &response);
+			}
+			client->OnListItemAuctionsResponse.Broadcast(Handle, _Result, response);
+		}
+	);
+}
+
+GrpcContext_GameService_GetManorData::GrpcContext_GameService_GetManorData(FGrpcContextHandle _Handle, UGrpcService* _Service, UGrpcClient* _Client)
+	: Super(_Handle, _Service, _Client)
+{
+}
+
+void GrpcContext_GameService_GetManorData::Call(const FGrpcNightfallV1GetManorDataRequest& Request)
+{
+	check(GetState() == EGrpcContextState::Ready);
+	UpdateState(EGrpcContextState::Initialing);
+
+	::nightfall::v1::GetManorDataRequest rpcRequest;
+	TURBOLINK_TO_GRPC(&Request, &rpcRequest);
+
+	UGameService* service = (UGameService*)Service;
+	RpcReaderWriter = service->d->Stub->AsyncGetManorData(RpcContext.get(), rpcRequest, service->TurboLinkManager->d->CompletionQueue.get());
+	RpcReaderWriter->ReadInitialMetadata(InitialTag);
+}
+
+void GrpcContext_GameService_GetManorData::OnRpcEvent(bool Ok, const void* EventTag)
+{
+	Super::OnRpcEventInternal(Ok, EventTag,
+		[this](const FGrpcResult& _Result, ::nightfall::v1::GetManorDataResponse* _RpcResponse)
+		{
+			UGameServiceClient* client = (UGameServiceClient*)(this->Client);
+			if (!(client->OnGetManorDataResponse.IsBound())) return;
+
+			FGrpcNightfallV1GetManorDataResponse response;
+			if (_RpcResponse) {
+				GRPC_TO_TURBOLINK(_RpcResponse, &response);
+			}
+			client->OnGetManorDataResponse.Broadcast(Handle, _Result, response);
 		}
 	);
 }

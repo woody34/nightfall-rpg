@@ -421,6 +421,294 @@ void UGameServiceClient::GrantItem(FGrpcContextHandle Handle, const FGrpcNightfa
 	}
 }
 
+FGrpcContextHandle UGameServiceClient::InitListBuylist()
+{
+	FGrpcContextHandle handle = Service->TurboLinkManager->GetNextContextHandle();
+	auto context = UGrpcClient::MakeContext<GrpcContext_GameService_ListBuylist>(handle);
+	context->RpcContext = UTurboLinkGrpcManager::Private::CreateRpcClientContext();
+	return context->GetHandle();
+}
+
+void UGameServiceClient::ListBuylist(FGrpcContextHandle Handle, const FGrpcNightfallV1ListBuylistRequest& Request, FGrpcMetaData MetaData, float DeadLineSeconds)
+{
+	auto context = UGrpcClient::GetContext(Handle);
+	if (context != nullptr)
+	{
+		auto contextListBuylist = StaticCastSharedPtr<GrpcContext_GameService_ListBuylist>(*context);
+		for (const auto& metaDataPair : MetaData.MetaData)
+		{
+			contextListBuylist->RpcContext->AddMetadata(
+				(const char*)StringCast<UTF8CHAR>(*(metaDataPair.Key)).Get(),
+				(const char*)StringCast<UTF8CHAR>(*(metaDataPair.Value)).Get()
+			);
+		}
+
+		if (DeadLineSeconds > 0.f)
+		{
+			std::chrono::time_point deadLine = std::chrono::system_clock::now() +
+				std::chrono::milliseconds((int32)(1000.f * DeadLineSeconds));
+			contextListBuylist->RpcContext->set_deadline(deadLine);
+		}
+		contextListBuylist->Call(Request);
+	}
+}
+
+FGrpcContextHandle UGameServiceClient::InitGetMultisellList()
+{
+	FGrpcContextHandle handle = Service->TurboLinkManager->GetNextContextHandle();
+	auto context = UGrpcClient::MakeContext<GrpcContext_GameService_GetMultisellList>(handle);
+	context->RpcContext = UTurboLinkGrpcManager::Private::CreateRpcClientContext();
+	return context->GetHandle();
+}
+
+void UGameServiceClient::GetMultisellList(FGrpcContextHandle Handle, const FGrpcNightfallV1GetMultisellListRequest& Request, FGrpcMetaData MetaData, float DeadLineSeconds)
+{
+	auto context = UGrpcClient::GetContext(Handle);
+	if (context != nullptr)
+	{
+		auto contextGetMultisellList = StaticCastSharedPtr<GrpcContext_GameService_GetMultisellList>(*context);
+		for (const auto& metaDataPair : MetaData.MetaData)
+		{
+			contextGetMultisellList->RpcContext->AddMetadata(
+				(const char*)StringCast<UTF8CHAR>(*(metaDataPair.Key)).Get(),
+				(const char*)StringCast<UTF8CHAR>(*(metaDataPair.Value)).Get()
+			);
+		}
+
+		if (DeadLineSeconds > 0.f)
+		{
+			std::chrono::time_point deadLine = std::chrono::system_clock::now() +
+				std::chrono::milliseconds((int32)(1000.f * DeadLineSeconds));
+			contextGetMultisellList->RpcContext->set_deadline(deadLine);
+		}
+		contextGetMultisellList->Call(Request);
+	}
+}
+
+FGrpcContextHandle UGameServiceClient::InitGetRecipeBook()
+{
+	FGrpcContextHandle handle = Service->TurboLinkManager->GetNextContextHandle();
+	auto context = UGrpcClient::MakeContext<GrpcContext_GameService_GetRecipeBook>(handle);
+	context->RpcContext = UTurboLinkGrpcManager::Private::CreateRpcClientContext();
+	return context->GetHandle();
+}
+
+void UGameServiceClient::GetRecipeBook(FGrpcContextHandle Handle, const FGrpcNightfallV1GetRecipeBookRequest& Request, FGrpcMetaData MetaData, float DeadLineSeconds)
+{
+	auto context = UGrpcClient::GetContext(Handle);
+	if (context != nullptr)
+	{
+		auto contextGetRecipeBook = StaticCastSharedPtr<GrpcContext_GameService_GetRecipeBook>(*context);
+		for (const auto& metaDataPair : MetaData.MetaData)
+		{
+			contextGetRecipeBook->RpcContext->AddMetadata(
+				(const char*)StringCast<UTF8CHAR>(*(metaDataPair.Key)).Get(),
+				(const char*)StringCast<UTF8CHAR>(*(metaDataPair.Value)).Get()
+			);
+		}
+
+		if (DeadLineSeconds > 0.f)
+		{
+			std::chrono::time_point deadLine = std::chrono::system_clock::now() +
+				std::chrono::milliseconds((int32)(1000.f * DeadLineSeconds));
+			contextGetRecipeBook->RpcContext->set_deadline(deadLine);
+		}
+		contextGetRecipeBook->Call(Request);
+	}
+}
+
+FGrpcContextHandle UGameServiceClient::InitGetWarehouse()
+{
+	FGrpcContextHandle handle = Service->TurboLinkManager->GetNextContextHandle();
+	auto context = UGrpcClient::MakeContext<GrpcContext_GameService_GetWarehouse>(handle);
+	context->RpcContext = UTurboLinkGrpcManager::Private::CreateRpcClientContext();
+	return context->GetHandle();
+}
+
+void UGameServiceClient::GetWarehouse(FGrpcContextHandle Handle, const FGrpcNightfallV1GetWarehouseRequest& Request, FGrpcMetaData MetaData, float DeadLineSeconds)
+{
+	auto context = UGrpcClient::GetContext(Handle);
+	if (context != nullptr)
+	{
+		auto contextGetWarehouse = StaticCastSharedPtr<GrpcContext_GameService_GetWarehouse>(*context);
+		for (const auto& metaDataPair : MetaData.MetaData)
+		{
+			contextGetWarehouse->RpcContext->AddMetadata(
+				(const char*)StringCast<UTF8CHAR>(*(metaDataPair.Key)).Get(),
+				(const char*)StringCast<UTF8CHAR>(*(metaDataPair.Value)).Get()
+			);
+		}
+
+		if (DeadLineSeconds > 0.f)
+		{
+			std::chrono::time_point deadLine = std::chrono::system_clock::now() +
+				std::chrono::milliseconds((int32)(1000.f * DeadLineSeconds));
+			contextGetWarehouse->RpcContext->set_deadline(deadLine);
+		}
+		contextGetWarehouse->Call(Request);
+	}
+}
+
+FGrpcContextHandle UGameServiceClient::InitGetFreight()
+{
+	FGrpcContextHandle handle = Service->TurboLinkManager->GetNextContextHandle();
+	auto context = UGrpcClient::MakeContext<GrpcContext_GameService_GetFreight>(handle);
+	context->RpcContext = UTurboLinkGrpcManager::Private::CreateRpcClientContext();
+	return context->GetHandle();
+}
+
+void UGameServiceClient::GetFreight(FGrpcContextHandle Handle, const FGrpcNightfallV1GetFreightRequest& Request, FGrpcMetaData MetaData, float DeadLineSeconds)
+{
+	auto context = UGrpcClient::GetContext(Handle);
+	if (context != nullptr)
+	{
+		auto contextGetFreight = StaticCastSharedPtr<GrpcContext_GameService_GetFreight>(*context);
+		for (const auto& metaDataPair : MetaData.MetaData)
+		{
+			contextGetFreight->RpcContext->AddMetadata(
+				(const char*)StringCast<UTF8CHAR>(*(metaDataPair.Key)).Get(),
+				(const char*)StringCast<UTF8CHAR>(*(metaDataPair.Value)).Get()
+			);
+		}
+
+		if (DeadLineSeconds > 0.f)
+		{
+			std::chrono::time_point deadLine = std::chrono::system_clock::now() +
+				std::chrono::milliseconds((int32)(1000.f * DeadLineSeconds));
+			contextGetFreight->RpcContext->set_deadline(deadLine);
+		}
+		contextGetFreight->Call(Request);
+	}
+}
+
+FGrpcContextHandle UGameServiceClient::InitListMail()
+{
+	FGrpcContextHandle handle = Service->TurboLinkManager->GetNextContextHandle();
+	auto context = UGrpcClient::MakeContext<GrpcContext_GameService_ListMail>(handle);
+	context->RpcContext = UTurboLinkGrpcManager::Private::CreateRpcClientContext();
+	return context->GetHandle();
+}
+
+void UGameServiceClient::ListMail(FGrpcContextHandle Handle, const FGrpcNightfallV1ListMailRequest& Request, FGrpcMetaData MetaData, float DeadLineSeconds)
+{
+	auto context = UGrpcClient::GetContext(Handle);
+	if (context != nullptr)
+	{
+		auto contextListMail = StaticCastSharedPtr<GrpcContext_GameService_ListMail>(*context);
+		for (const auto& metaDataPair : MetaData.MetaData)
+		{
+			contextListMail->RpcContext->AddMetadata(
+				(const char*)StringCast<UTF8CHAR>(*(metaDataPair.Key)).Get(),
+				(const char*)StringCast<UTF8CHAR>(*(metaDataPair.Value)).Get()
+			);
+		}
+
+		if (DeadLineSeconds > 0.f)
+		{
+			std::chrono::time_point deadLine = std::chrono::system_clock::now() +
+				std::chrono::milliseconds((int32)(1000.f * DeadLineSeconds));
+			contextListMail->RpcContext->set_deadline(deadLine);
+		}
+		contextListMail->Call(Request);
+	}
+}
+
+FGrpcContextHandle UGameServiceClient::InitReadMail()
+{
+	FGrpcContextHandle handle = Service->TurboLinkManager->GetNextContextHandle();
+	auto context = UGrpcClient::MakeContext<GrpcContext_GameService_ReadMail>(handle);
+	context->RpcContext = UTurboLinkGrpcManager::Private::CreateRpcClientContext();
+	return context->GetHandle();
+}
+
+void UGameServiceClient::ReadMail(FGrpcContextHandle Handle, const FGrpcNightfallV1ReadMailRequest& Request, FGrpcMetaData MetaData, float DeadLineSeconds)
+{
+	auto context = UGrpcClient::GetContext(Handle);
+	if (context != nullptr)
+	{
+		auto contextReadMail = StaticCastSharedPtr<GrpcContext_GameService_ReadMail>(*context);
+		for (const auto& metaDataPair : MetaData.MetaData)
+		{
+			contextReadMail->RpcContext->AddMetadata(
+				(const char*)StringCast<UTF8CHAR>(*(metaDataPair.Key)).Get(),
+				(const char*)StringCast<UTF8CHAR>(*(metaDataPair.Value)).Get()
+			);
+		}
+
+		if (DeadLineSeconds > 0.f)
+		{
+			std::chrono::time_point deadLine = std::chrono::system_clock::now() +
+				std::chrono::milliseconds((int32)(1000.f * DeadLineSeconds));
+			contextReadMail->RpcContext->set_deadline(deadLine);
+		}
+		contextReadMail->Call(Request);
+	}
+}
+
+FGrpcContextHandle UGameServiceClient::InitListItemAuctions()
+{
+	FGrpcContextHandle handle = Service->TurboLinkManager->GetNextContextHandle();
+	auto context = UGrpcClient::MakeContext<GrpcContext_GameService_ListItemAuctions>(handle);
+	context->RpcContext = UTurboLinkGrpcManager::Private::CreateRpcClientContext();
+	return context->GetHandle();
+}
+
+void UGameServiceClient::ListItemAuctions(FGrpcContextHandle Handle, const FGrpcNightfallV1ListItemAuctionsRequest& Request, FGrpcMetaData MetaData, float DeadLineSeconds)
+{
+	auto context = UGrpcClient::GetContext(Handle);
+	if (context != nullptr)
+	{
+		auto contextListItemAuctions = StaticCastSharedPtr<GrpcContext_GameService_ListItemAuctions>(*context);
+		for (const auto& metaDataPair : MetaData.MetaData)
+		{
+			contextListItemAuctions->RpcContext->AddMetadata(
+				(const char*)StringCast<UTF8CHAR>(*(metaDataPair.Key)).Get(),
+				(const char*)StringCast<UTF8CHAR>(*(metaDataPair.Value)).Get()
+			);
+		}
+
+		if (DeadLineSeconds > 0.f)
+		{
+			std::chrono::time_point deadLine = std::chrono::system_clock::now() +
+				std::chrono::milliseconds((int32)(1000.f * DeadLineSeconds));
+			contextListItemAuctions->RpcContext->set_deadline(deadLine);
+		}
+		contextListItemAuctions->Call(Request);
+	}
+}
+
+FGrpcContextHandle UGameServiceClient::InitGetManorData()
+{
+	FGrpcContextHandle handle = Service->TurboLinkManager->GetNextContextHandle();
+	auto context = UGrpcClient::MakeContext<GrpcContext_GameService_GetManorData>(handle);
+	context->RpcContext = UTurboLinkGrpcManager::Private::CreateRpcClientContext();
+	return context->GetHandle();
+}
+
+void UGameServiceClient::GetManorData(FGrpcContextHandle Handle, const FGrpcNightfallV1GetManorDataRequest& Request, FGrpcMetaData MetaData, float DeadLineSeconds)
+{
+	auto context = UGrpcClient::GetContext(Handle);
+	if (context != nullptr)
+	{
+		auto contextGetManorData = StaticCastSharedPtr<GrpcContext_GameService_GetManorData>(*context);
+		for (const auto& metaDataPair : MetaData.MetaData)
+		{
+			contextGetManorData->RpcContext->AddMetadata(
+				(const char*)StringCast<UTF8CHAR>(*(metaDataPair.Key)).Get(),
+				(const char*)StringCast<UTF8CHAR>(*(metaDataPair.Value)).Get()
+			);
+		}
+
+		if (DeadLineSeconds > 0.f)
+		{
+			std::chrono::time_point deadLine = std::chrono::system_clock::now() +
+				std::chrono::milliseconds((int32)(1000.f * DeadLineSeconds));
+			contextGetManorData->RpcContext->set_deadline(deadLine);
+		}
+		contextGetManorData->Call(Request);
+	}
+}
+
 void UGameServiceClient::TryCancel(FGrpcContextHandle Handle)
 {
 	auto context = UGrpcClient::GetContext(Handle);
@@ -445,6 +733,15 @@ void UGameServiceClient::Shutdown()
 	OnGetItemCatalogResponse.Clear();
 	OnGetInventoryResponse.Clear();
 	OnGrantItemResponse.Clear();
+	OnListBuylistResponse.Clear();
+	OnGetMultisellListResponse.Clear();
+	OnGetRecipeBookResponse.Clear();
+	OnGetWarehouseResponse.Clear();
+	OnGetFreightResponse.Clear();
+	OnListMailResponse.Clear();
+	OnReadMailResponse.Clear();
+	OnListItemAuctionsResponse.Clear();
+	OnGetManorDataResponse.Clear();
 	Super::Shutdown();
 }
 

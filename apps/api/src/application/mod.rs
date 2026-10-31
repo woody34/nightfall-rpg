@@ -5,6 +5,7 @@
 //! ports. Use cases are unit-tested with in-memory adapters and no I/O.
 
 pub mod checkpoint;
+pub mod economy;
 pub mod error;
 pub mod ports;
 pub mod replay;

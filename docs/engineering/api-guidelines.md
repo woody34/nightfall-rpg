@@ -258,5 +258,7 @@ Examples that are in the repo now: `grpc_create_character.rs` (10 cases, with a 
 - Phase 4 item messages use exactly 16 canonical UUID bytes for character/entity ids.
 - Item instance ids are positive `uint64` values that are safe as a signed bigint. They come from
   durable zone allocator ranges, and they are not UUID identities. Refer to phase-4-zone-design.md §1.1/§11.
+- Phase 5 economy messages live in `economy.proto`. Their tags come from phase-5-zone-design.md §13.
+  The table in `packages/proto/README.md` ("Phase 5 E2.1 economy contract") lists them.
 - Document each RPC with its idempotency behaviour and the error codes that it returns.
 - `buf breaking` runs in CI against `main` (Phase 9 §3).

@@ -1,0 +1,29 @@
+{
+ "derived_by": "apps/client-unreal/Scripts/phase5-expectations.py over economy_oracle.py (1.5-1.7) and tables-phase5",
+ "expectations": {
+  "beyond_owner_adena": "entry skipped (StoreOutcome.skipped)",
+  "buy_store_escrow": false,
+  "closes_on_departure": "B2 (OfflineTradeEnable = False)",
+  "closes_when_empty": true,
+  "kinds": [
+   "NONE",
+   "SELL",
+   "PACKAGE_SELL",
+   "BUY",
+   "MANUFACTURE"
+  ],
+  "limits": {
+   "buy": 4,
+   "dwarf_buy": 5,
+   "dwarf_sell_or_package": 4,
+   "sell_or_package": 3,
+   "source": "GC/character.properties:306-313 (MaxPvtStore{Sell,Buy}Slots{Other,Dwarf}); manufacture uses the sell slots (D \u00a79.3)"
+  },
+  "package_sale": "bought whole or refused PACKAGE_INCOMPLETE"
+ },
+ "expectations_sha256": "b19111802ec719c2d66e3e0ed64ffd37070c2a54db250e2c0ff2232c50395da5",
+ "fixture": "phase5-stores",
+ "scenario": "5-store-sell-package.nfs",
+ "schema_version": 1,
+ "story": "5 E1.8"
+}

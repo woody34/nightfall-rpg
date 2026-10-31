@@ -100,6 +100,11 @@ void USessionClient::Initialize(FSubsystemCollectionBase& Collection)
 	Client->OnGetItemCatalogResponse.AddDynamic(this, &USessionClient::HandleGetItemCatalog);
 	Client->OnGetInventoryResponse.AddDynamic(this, &USessionClient::HandleGetInventory);
 	Client->OnGrantItemResponse.AddDynamic(this, &USessionClient::HandleGrantItem);
+	Client->OnListBuylistResponse.AddDynamic(this, &USessionClient::HandleListBuylist);
+	Client->OnGetWarehouseResponse.AddDynamic(this, &USessionClient::HandleGetWarehouse);
+	Client->OnGetFreightResponse.AddDynamic(this, &USessionClient::HandleGetFreight);
+	Client->OnListMailResponse.AddDynamic(this, &USessionClient::HandleListMail);
+	Client->OnListItemAuctionsResponse.AddDynamic(this, &USessionClient::HandleListItemAuctions);
 	Client->OnGetSkillCatalogResponse.AddDynamic(this, &USessionClient::HandleGetSkillCatalog);
 	Client->OnListClassesResponse.AddDynamic(this, &USessionClient::HandleListClasses);
 	Client->OnTransferOptionsResponse.AddDynamic(this, &USessionClient::HandleTransferOptions);
@@ -452,6 +457,66 @@ void USessionClient::GrantItem(const FGrpcNightfallV1GrantItemRequest& Request, 
 void USessionClient::HandleGrantItem(FGrpcContextHandle Handle, const FGrpcResult& Result, const FGrpcNightfallV1GrantItemResponse& Response)
 {
  Complete(PendingGrantItem, Handle.Value, Result, Response);
+}
+
+void USessionClient::ListBuylist(const FGrpcNightfallV1ListBuylistRequest& Request, FListBuylistCallback Callback)
+{
+ if (!EnsureClient(Client, [&](const FNetResult& R) { Callback(R, {}); })) return;
+ const auto Handle = Client->InitListBuylist();
+ PendingListBuylist.Add(Handle.Value, MoveTemp(Callback));
+ Client->ListBuylist(Handle, Request, MakeMetaData(true), CallTimeoutSeconds);
+}
+void USessionClient::HandleListBuylist(FGrpcContextHandle Handle, const FGrpcResult& Result, const FGrpcNightfallV1ListBuylistResponse& Response)
+{
+ Complete(PendingListBuylist, Handle.Value, Result, Response);
+}
+
+void USessionClient::GetWarehouse(const FGrpcNightfallV1GetWarehouseRequest& Request, FGetWarehouseCallback Callback)
+{
+ if (!EnsureClient(Client, [&](const FNetResult& R) { Callback(R, {}); })) return;
+ const auto Handle = Client->InitGetWarehouse();
+ PendingGetWarehouse.Add(Handle.Value, MoveTemp(Callback));
+ Client->GetWarehouse(Handle, Request, MakeMetaData(true), CallTimeoutSeconds);
+}
+void USessionClient::HandleGetWarehouse(FGrpcContextHandle Handle, const FGrpcResult& Result, const FGrpcNightfallV1GetWarehouseResponse& Response)
+{
+ Complete(PendingGetWarehouse, Handle.Value, Result, Response);
+}
+
+void USessionClient::GetFreight(const FGrpcNightfallV1GetFreightRequest& Request, FGetFreightCallback Callback)
+{
+ if (!EnsureClient(Client, [&](const FNetResult& R) { Callback(R, {}); })) return;
+ const auto Handle = Client->InitGetFreight();
+ PendingGetFreight.Add(Handle.Value, MoveTemp(Callback));
+ Client->GetFreight(Handle, Request, MakeMetaData(true), CallTimeoutSeconds);
+}
+void USessionClient::HandleGetFreight(FGrpcContextHandle Handle, const FGrpcResult& Result, const FGrpcNightfallV1GetFreightResponse& Response)
+{
+ Complete(PendingGetFreight, Handle.Value, Result, Response);
+}
+
+void USessionClient::ListMail(const FGrpcNightfallV1ListMailRequest& Request, FListMailCallback Callback)
+{
+ if (!EnsureClient(Client, [&](const FNetResult& R) { Callback(R, {}); })) return;
+ const auto Handle = Client->InitListMail();
+ PendingListMail.Add(Handle.Value, MoveTemp(Callback));
+ Client->ListMail(Handle, Request, MakeMetaData(true), CallTimeoutSeconds);
+}
+void USessionClient::HandleListMail(FGrpcContextHandle Handle, const FGrpcResult& Result, const FGrpcNightfallV1ListMailResponse& Response)
+{
+ Complete(PendingListMail, Handle.Value, Result, Response);
+}
+
+void USessionClient::ListItemAuctions(const FGrpcNightfallV1ListItemAuctionsRequest& Request, FListItemAuctionsCallback Callback)
+{
+ if (!EnsureClient(Client, [&](const FNetResult& R) { Callback(R, {}); })) return;
+ const auto Handle = Client->InitListItemAuctions();
+ PendingListItemAuctions.Add(Handle.Value, MoveTemp(Callback));
+ Client->ListItemAuctions(Handle, Request, MakeMetaData(true), CallTimeoutSeconds);
+}
+void USessionClient::HandleListItemAuctions(FGrpcContextHandle Handle, const FGrpcResult& Result, const FGrpcNightfallV1ListItemAuctionsResponse& Response)
+{
+ Complete(PendingListItemAuctions, Handle.Value, Result, Response);
 }
 
 void USessionClient::SetBearerToken(const FString& Token)

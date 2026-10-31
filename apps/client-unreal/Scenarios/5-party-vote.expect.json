@@ -1,0 +1,18 @@
+{
+ "derived_by": "apps/client-unreal/Scripts/phase5-expectations.py over economy_oracle.py (1.5-1.7) and tables-phase5",
+ "expectations": {
+  "flow": "RequestPartyLootModification / AnswerPartyLootModification (B15): every member answers; one decline cancels; timeout cancels; a join/leave cancels",
+  "phases": [
+   "REQUESTED",
+   "APPLIED",
+   "CANCELLED"
+  ],
+  "size_cap": 9,
+  "vote_timeout_ticks": 150
+ },
+ "expectations_sha256": "1ead9fbb9b4289a63b8a2711a01c39517aca83af78d958b49e3a017c9fff9661",
+ "fixture": "phase5-party",
+ "scenario": "5-party-vote.nfs",
+ "schema_version": 1,
+ "story": "5 E1.8"
+}

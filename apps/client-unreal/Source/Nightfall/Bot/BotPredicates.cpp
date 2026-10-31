@@ -2,6 +2,7 @@
 #include "ClassBotPredicates.h"
 #include "SkillBotPredicates.h"
 #include "ItemBotPredicates.h"
+#include "EconomyBotPredicates.h"
 #include "BotFixtureData.h"
 #include "BotScenarioRunner.h"
 #include "Auth/AuthSubsystem.h"
@@ -1197,4 +1198,5 @@ void FBotPredicateRegistry::RegisterBuiltins()
 	ClassBotPredicates::Register(*this);
 	SkillBotPredicates::Register(*this);
 	ItemBotPredicates::Register(*this);
+	EconomyBotPredicates::Register(*this);
 }

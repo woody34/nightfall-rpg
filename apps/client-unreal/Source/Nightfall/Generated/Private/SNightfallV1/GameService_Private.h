@@ -209,3 +209,138 @@ public:
 	UGameService::FGrantItemResponseLambda ResponseLambda;
 };
 
+UCLASS()
+class UGameServiceListBuylistLambdaWrapper : public UObject
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY()
+	UGameServiceClient* InnerClient;
+
+	UFUNCTION()
+	void OnResponse(FGrpcContextHandle Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1ListBuylistResponse& Response);
+public:
+	FGrpcContextHandle Handle;
+	UGameService::FListBuylistResponseLambda ResponseLambda;
+};
+
+UCLASS()
+class UGameServiceGetMultisellListLambdaWrapper : public UObject
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY()
+	UGameServiceClient* InnerClient;
+
+	UFUNCTION()
+	void OnResponse(FGrpcContextHandle Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1GetMultisellListResponse& Response);
+public:
+	FGrpcContextHandle Handle;
+	UGameService::FGetMultisellListResponseLambda ResponseLambda;
+};
+
+UCLASS()
+class UGameServiceGetRecipeBookLambdaWrapper : public UObject
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY()
+	UGameServiceClient* InnerClient;
+
+	UFUNCTION()
+	void OnResponse(FGrpcContextHandle Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1GetRecipeBookResponse& Response);
+public:
+	FGrpcContextHandle Handle;
+	UGameService::FGetRecipeBookResponseLambda ResponseLambda;
+};
+
+UCLASS()
+class UGameServiceGetWarehouseLambdaWrapper : public UObject
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY()
+	UGameServiceClient* InnerClient;
+
+	UFUNCTION()
+	void OnResponse(FGrpcContextHandle Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1GetWarehouseResponse& Response);
+public:
+	FGrpcContextHandle Handle;
+	UGameService::FGetWarehouseResponseLambda ResponseLambda;
+};
+
+UCLASS()
+class UGameServiceGetFreightLambdaWrapper : public UObject
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY()
+	UGameServiceClient* InnerClient;
+
+	UFUNCTION()
+	void OnResponse(FGrpcContextHandle Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1GetFreightResponse& Response);
+public:
+	FGrpcContextHandle Handle;
+	UGameService::FGetFreightResponseLambda ResponseLambda;
+};
+
+UCLASS()
+class UGameServiceListMailLambdaWrapper : public UObject
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY()
+	UGameServiceClient* InnerClient;
+
+	UFUNCTION()
+	void OnResponse(FGrpcContextHandle Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1ListMailResponse& Response);
+public:
+	FGrpcContextHandle Handle;
+	UGameService::FListMailResponseLambda ResponseLambda;
+};
+
+UCLASS()
+class UGameServiceReadMailLambdaWrapper : public UObject
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY()
+	UGameServiceClient* InnerClient;
+
+	UFUNCTION()
+	void OnResponse(FGrpcContextHandle Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1ReadMailResponse& Response);
+public:
+	FGrpcContextHandle Handle;
+	UGameService::FReadMailResponseLambda ResponseLambda;
+};
+
+UCLASS()
+class UGameServiceListItemAuctionsLambdaWrapper : public UObject
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY()
+	UGameServiceClient* InnerClient;
+
+	UFUNCTION()
+	void OnResponse(FGrpcContextHandle Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1ListItemAuctionsResponse& Response);
+public:
+	FGrpcContextHandle Handle;
+	UGameService::FListItemAuctionsResponseLambda ResponseLambda;
+};
+
+UCLASS()
+class UGameServiceGetManorDataLambdaWrapper : public UObject
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY()
+	UGameServiceClient* InnerClient;
+
+	UFUNCTION()
+	void OnResponse(FGrpcContextHandle Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1GetManorDataResponse& Response);
+public:
+	FGrpcContextHandle Handle;
+	UGameService::FGetManorDataResponseLambda ResponseLambda;
+};
+

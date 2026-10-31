@@ -3,6 +3,7 @@
 #include "SNightfallV1/GameClient.h"
 #include "GameService_Private.h"
 #include "GameMarshaling.h"
+#include "SNightfallV1/EconomyMarshaling.h"
 #include "SNightfallV1/ItemsMarshaling.h"
 #include "TurboLinkGrpcManager_Private.h"
 #include "TurboLinkGrpcUtilities.h"
@@ -240,4 +241,130 @@ void UGameService::CallGrantItem(const FGrpcNightfallV1GrantItemRequest& Request
 	lambdaWrapper->Handle = InnerClient->InitGrantItem();
 	InnerClient->OnGrantItemResponse.AddUniqueDynamic(lambdaWrapper, &UGameServiceGrantItemLambdaWrapper::OnResponse);
 	InnerClient->GrantItem(lambdaWrapper->Handle, Request, MetaData, DeadLineSeconds);
+}
+
+void UGameService::CallListBuylist(const FGrpcNightfallV1ListBuylistRequest& Request, FListBuylistResponseLambda ResponseLambda, FGrpcMetaData MetaData, float DeadLineSeconds)
+{
+	if (InnerClient == nullptr)
+	{
+		InnerClient = MakeClient();
+	}
+	UGameServiceListBuylistLambdaWrapper* lambdaWrapper = NewObject<UGameServiceListBuylistLambdaWrapper>();
+	lambdaWrapper->InnerClient = InnerClient;
+	lambdaWrapper->ResponseLambda = ResponseLambda;
+	lambdaWrapper->Handle = InnerClient->InitListBuylist();
+	InnerClient->OnListBuylistResponse.AddUniqueDynamic(lambdaWrapper, &UGameServiceListBuylistLambdaWrapper::OnResponse);
+	InnerClient->ListBuylist(lambdaWrapper->Handle, Request, MetaData, DeadLineSeconds);
+}
+
+void UGameService::CallGetMultisellList(const FGrpcNightfallV1GetMultisellListRequest& Request, FGetMultisellListResponseLambda ResponseLambda, FGrpcMetaData MetaData, float DeadLineSeconds)
+{
+	if (InnerClient == nullptr)
+	{
+		InnerClient = MakeClient();
+	}
+	UGameServiceGetMultisellListLambdaWrapper* lambdaWrapper = NewObject<UGameServiceGetMultisellListLambdaWrapper>();
+	lambdaWrapper->InnerClient = InnerClient;
+	lambdaWrapper->ResponseLambda = ResponseLambda;
+	lambdaWrapper->Handle = InnerClient->InitGetMultisellList();
+	InnerClient->OnGetMultisellListResponse.AddUniqueDynamic(lambdaWrapper, &UGameServiceGetMultisellListLambdaWrapper::OnResponse);
+	InnerClient->GetMultisellList(lambdaWrapper->Handle, Request, MetaData, DeadLineSeconds);
+}
+
+void UGameService::CallGetRecipeBook(const FGrpcNightfallV1GetRecipeBookRequest& Request, FGetRecipeBookResponseLambda ResponseLambda, FGrpcMetaData MetaData, float DeadLineSeconds)
+{
+	if (InnerClient == nullptr)
+	{
+		InnerClient = MakeClient();
+	}
+	UGameServiceGetRecipeBookLambdaWrapper* lambdaWrapper = NewObject<UGameServiceGetRecipeBookLambdaWrapper>();
+	lambdaWrapper->InnerClient = InnerClient;
+	lambdaWrapper->ResponseLambda = ResponseLambda;
+	lambdaWrapper->Handle = InnerClient->InitGetRecipeBook();
+	InnerClient->OnGetRecipeBookResponse.AddUniqueDynamic(lambdaWrapper, &UGameServiceGetRecipeBookLambdaWrapper::OnResponse);
+	InnerClient->GetRecipeBook(lambdaWrapper->Handle, Request, MetaData, DeadLineSeconds);
+}
+
+void UGameService::CallGetWarehouse(const FGrpcNightfallV1GetWarehouseRequest& Request, FGetWarehouseResponseLambda ResponseLambda, FGrpcMetaData MetaData, float DeadLineSeconds)
+{
+	if (InnerClient == nullptr)
+	{
+		InnerClient = MakeClient();
+	}
+	UGameServiceGetWarehouseLambdaWrapper* lambdaWrapper = NewObject<UGameServiceGetWarehouseLambdaWrapper>();
+	lambdaWrapper->InnerClient = InnerClient;
+	lambdaWrapper->ResponseLambda = ResponseLambda;
+	lambdaWrapper->Handle = InnerClient->InitGetWarehouse();
+	InnerClient->OnGetWarehouseResponse.AddUniqueDynamic(lambdaWrapper, &UGameServiceGetWarehouseLambdaWrapper::OnResponse);
+	InnerClient->GetWarehouse(lambdaWrapper->Handle, Request, MetaData, DeadLineSeconds);
+}
+
+void UGameService::CallGetFreight(const FGrpcNightfallV1GetFreightRequest& Request, FGetFreightResponseLambda ResponseLambda, FGrpcMetaData MetaData, float DeadLineSeconds)
+{
+	if (InnerClient == nullptr)
+	{
+		InnerClient = MakeClient();
+	}
+	UGameServiceGetFreightLambdaWrapper* lambdaWrapper = NewObject<UGameServiceGetFreightLambdaWrapper>();
+	lambdaWrapper->InnerClient = InnerClient;
+	lambdaWrapper->ResponseLambda = ResponseLambda;
+	lambdaWrapper->Handle = InnerClient->InitGetFreight();
+	InnerClient->OnGetFreightResponse.AddUniqueDynamic(lambdaWrapper, &UGameServiceGetFreightLambdaWrapper::OnResponse);
+	InnerClient->GetFreight(lambdaWrapper->Handle, Request, MetaData, DeadLineSeconds);
+}
+
+void UGameService::CallListMail(const FGrpcNightfallV1ListMailRequest& Request, FListMailResponseLambda ResponseLambda, FGrpcMetaData MetaData, float DeadLineSeconds)
+{
+	if (InnerClient == nullptr)
+	{
+		InnerClient = MakeClient();
+	}
+	UGameServiceListMailLambdaWrapper* lambdaWrapper = NewObject<UGameServiceListMailLambdaWrapper>();
+	lambdaWrapper->InnerClient = InnerClient;
+	lambdaWrapper->ResponseLambda = ResponseLambda;
+	lambdaWrapper->Handle = InnerClient->InitListMail();
+	InnerClient->OnListMailResponse.AddUniqueDynamic(lambdaWrapper, &UGameServiceListMailLambdaWrapper::OnResponse);
+	InnerClient->ListMail(lambdaWrapper->Handle, Request, MetaData, DeadLineSeconds);
+}
+
+void UGameService::CallReadMail(const FGrpcNightfallV1ReadMailRequest& Request, FReadMailResponseLambda ResponseLambda, FGrpcMetaData MetaData, float DeadLineSeconds)
+{
+	if (InnerClient == nullptr)
+	{
+		InnerClient = MakeClient();
+	}
+	UGameServiceReadMailLambdaWrapper* lambdaWrapper = NewObject<UGameServiceReadMailLambdaWrapper>();
+	lambdaWrapper->InnerClient = InnerClient;
+	lambdaWrapper->ResponseLambda = ResponseLambda;
+	lambdaWrapper->Handle = InnerClient->InitReadMail();
+	InnerClient->OnReadMailResponse.AddUniqueDynamic(lambdaWrapper, &UGameServiceReadMailLambdaWrapper::OnResponse);
+	InnerClient->ReadMail(lambdaWrapper->Handle, Request, MetaData, DeadLineSeconds);
+}
+
+void UGameService::CallListItemAuctions(const FGrpcNightfallV1ListItemAuctionsRequest& Request, FListItemAuctionsResponseLambda ResponseLambda, FGrpcMetaData MetaData, float DeadLineSeconds)
+{
+	if (InnerClient == nullptr)
+	{
+		InnerClient = MakeClient();
+	}
+	UGameServiceListItemAuctionsLambdaWrapper* lambdaWrapper = NewObject<UGameServiceListItemAuctionsLambdaWrapper>();
+	lambdaWrapper->InnerClient = InnerClient;
+	lambdaWrapper->ResponseLambda = ResponseLambda;
+	lambdaWrapper->Handle = InnerClient->InitListItemAuctions();
+	InnerClient->OnListItemAuctionsResponse.AddUniqueDynamic(lambdaWrapper, &UGameServiceListItemAuctionsLambdaWrapper::OnResponse);
+	InnerClient->ListItemAuctions(lambdaWrapper->Handle, Request, MetaData, DeadLineSeconds);
+}
+
+void UGameService::CallGetManorData(const FGrpcNightfallV1GetManorDataRequest& Request, FGetManorDataResponseLambda ResponseLambda, FGrpcMetaData MetaData, float DeadLineSeconds)
+{
+	if (InnerClient == nullptr)
+	{
+		InnerClient = MakeClient();
+	}
+	UGameServiceGetManorDataLambdaWrapper* lambdaWrapper = NewObject<UGameServiceGetManorDataLambdaWrapper>();
+	lambdaWrapper->InnerClient = InnerClient;
+	lambdaWrapper->ResponseLambda = ResponseLambda;
+	lambdaWrapper->Handle = InnerClient->InitGetManorData();
+	InnerClient->OnGetManorDataResponse.AddUniqueDynamic(lambdaWrapper, &UGameServiceGetManorDataLambdaWrapper::OnResponse);
+	InnerClient->GetManorData(lambdaWrapper->Handle, Request, MetaData, DeadLineSeconds);
 }

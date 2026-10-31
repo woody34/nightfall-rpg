@@ -147,8 +147,85 @@ impl GameServiceImpl {
     }
 }
 
+/// Phase 5 reads fail closed until the economy runtime (E4) is installed: authenticated
+/// callers get `UNAVAILABLE`, nothing is read or written (plan §2.1, D §13.4).
+fn economy_unavailable() -> Status {
+    to_status(AppError::Unavailable("economy runtime is unavailable".into()))
+}
+
 #[tonic::async_trait]
 impl GameService for GameServiceImpl {
+    async fn list_buylist(
+        &self,
+        req: Request<pb::ListBuylistRequest>,
+    ) -> Result<Response<pb::ListBuylistResponse>, Status> {
+        auth::caller(&req)?;
+        Err(economy_unavailable())
+    }
+
+    async fn get_multisell_list(
+        &self,
+        req: Request<pb::GetMultisellListRequest>,
+    ) -> Result<Response<pb::GetMultisellListResponse>, Status> {
+        auth::caller(&req)?;
+        Err(economy_unavailable())
+    }
+
+    async fn get_recipe_book(
+        &self,
+        req: Request<pb::GetRecipeBookRequest>,
+    ) -> Result<Response<pb::GetRecipeBookResponse>, Status> {
+        auth::caller(&req)?;
+        Err(economy_unavailable())
+    }
+
+    async fn get_warehouse(
+        &self,
+        req: Request<pb::GetWarehouseRequest>,
+    ) -> Result<Response<pb::GetWarehouseResponse>, Status> {
+        auth::caller(&req)?;
+        Err(economy_unavailable())
+    }
+
+    async fn get_freight(
+        &self,
+        req: Request<pb::GetFreightRequest>,
+    ) -> Result<Response<pb::GetFreightResponse>, Status> {
+        auth::caller(&req)?;
+        Err(economy_unavailable())
+    }
+
+    async fn list_mail(
+        &self,
+        req: Request<pb::ListMailRequest>,
+    ) -> Result<Response<pb::ListMailResponse>, Status> {
+        auth::caller(&req)?;
+        Err(economy_unavailable())
+    }
+
+    async fn read_mail(
+        &self,
+        req: Request<pb::ReadMailRequest>,
+    ) -> Result<Response<pb::ReadMailResponse>, Status> {
+        auth::caller(&req)?;
+        Err(economy_unavailable())
+    }
+
+    async fn list_item_auctions(
+        &self,
+        req: Request<pb::ListItemAuctionsRequest>,
+    ) -> Result<Response<pb::ListItemAuctionsResponse>, Status> {
+        auth::caller(&req)?;
+        Err(economy_unavailable())
+    }
+
+    async fn get_manor_data(
+        &self,
+        req: Request<pb::GetManorDataRequest>,
+    ) -> Result<Response<pb::GetManorDataResponse>, Status> {
+        auth::caller(&req)?;
+        Err(economy_unavailable())
+    }
     async fn get_item_catalog(
         &self,
         req: Request<pb::GetItemCatalogRequest>,

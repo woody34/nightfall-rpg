@@ -1,0 +1,38 @@
+{
+ "derived_by": "apps/client-unreal/Scripts/phase5-expectations.py over economy_oracle.py (1.5-1.7) and tables-phase5",
+ "expectations": {
+  "cases": {
+   "expiry_tick": "dropped_tick + 150 (both mechanisms); cleared at until <= tick",
+   "owner_picks": "accepted",
+   "party_member_picks_while_owner_online": "accepted",
+   "party_member_with_owner_offline": "GROUND_ITEM_PROTECTED (loot owner needs the owner online; DropProtection would pass)",
+   "stranger_after_expiry": "accepted",
+   "stranger_before_expiry": "GROUND_ITEM_PROTECTED"
+  },
+  "check_order": [
+   "exists",
+   "drop_protection",
+   "capacity (slots only; solo or FINDERS_KEEPERS)",
+   "loot_owner",
+   "combat flag (vacuous)"
+  ],
+  "source": "D \u00a73.7 (ItemTable.java:203-216, DropProtection.java:35,52-70, L2PcInstance.java:3798-3856)",
+  "timing": {
+   "decay_limit_ticks": 6000,
+   "drop_protection_ticks": 150,
+   "herb_decay_limit_ticks": 600,
+   "loot_owner_ticks": 150,
+   "position_offset_npc": 70,
+   "position_offset_player": [
+    -25,
+    24
+   ],
+   "scanner_grid_ticks": 50
+  }
+ },
+ "expectations_sha256": "36c7a8aab2c6724c953904840c3587a9c155097c082132d14162bacb10be6f5d",
+ "fixture": "phase5-protection",
+ "scenario": "5-pickup-protection.nfs",
+ "schema_version": 1,
+ "story": "5 E1.8"
+}

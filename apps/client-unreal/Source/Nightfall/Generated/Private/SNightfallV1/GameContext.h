@@ -172,3 +172,120 @@ public:
 	GrpcContext_GameService_GrantItem(FGrpcContextHandle _Handle, UGrpcService* _Service, UGrpcClient* _Client);
 };
 
+class GrpcContext_GameService_ListBuylist : public GrpcContext_Ping_Pong<GameService_ListBuylist_ReaderWriter, ::nightfall::v1::ListBuylistResponse>
+{
+	friend class UGameServiceClient;
+	typedef GrpcContext_Ping_Pong<GameService_ListBuylist_ReaderWriter, ::nightfall::v1::ListBuylistResponse> Super;
+
+private:
+	void Call(const FGrpcNightfallV1ListBuylistRequest& Request);
+	virtual void OnRpcEvent(bool Ok, const void* EventTag) override;
+
+public:
+	GrpcContext_GameService_ListBuylist(FGrpcContextHandle _Handle, UGrpcService* _Service, UGrpcClient* _Client);
+};
+
+class GrpcContext_GameService_GetMultisellList : public GrpcContext_Ping_Pong<GameService_GetMultisellList_ReaderWriter, ::nightfall::v1::GetMultisellListResponse>
+{
+	friend class UGameServiceClient;
+	typedef GrpcContext_Ping_Pong<GameService_GetMultisellList_ReaderWriter, ::nightfall::v1::GetMultisellListResponse> Super;
+
+private:
+	void Call(const FGrpcNightfallV1GetMultisellListRequest& Request);
+	virtual void OnRpcEvent(bool Ok, const void* EventTag) override;
+
+public:
+	GrpcContext_GameService_GetMultisellList(FGrpcContextHandle _Handle, UGrpcService* _Service, UGrpcClient* _Client);
+};
+
+class GrpcContext_GameService_GetRecipeBook : public GrpcContext_Ping_Pong<GameService_GetRecipeBook_ReaderWriter, ::nightfall::v1::GetRecipeBookResponse>
+{
+	friend class UGameServiceClient;
+	typedef GrpcContext_Ping_Pong<GameService_GetRecipeBook_ReaderWriter, ::nightfall::v1::GetRecipeBookResponse> Super;
+
+private:
+	void Call(const FGrpcNightfallV1GetRecipeBookRequest& Request);
+	virtual void OnRpcEvent(bool Ok, const void* EventTag) override;
+
+public:
+	GrpcContext_GameService_GetRecipeBook(FGrpcContextHandle _Handle, UGrpcService* _Service, UGrpcClient* _Client);
+};
+
+class GrpcContext_GameService_GetWarehouse : public GrpcContext_Ping_Pong<GameService_GetWarehouse_ReaderWriter, ::nightfall::v1::GetWarehouseResponse>
+{
+	friend class UGameServiceClient;
+	typedef GrpcContext_Ping_Pong<GameService_GetWarehouse_ReaderWriter, ::nightfall::v1::GetWarehouseResponse> Super;
+
+private:
+	void Call(const FGrpcNightfallV1GetWarehouseRequest& Request);
+	virtual void OnRpcEvent(bool Ok, const void* EventTag) override;
+
+public:
+	GrpcContext_GameService_GetWarehouse(FGrpcContextHandle _Handle, UGrpcService* _Service, UGrpcClient* _Client);
+};
+
+class GrpcContext_GameService_GetFreight : public GrpcContext_Ping_Pong<GameService_GetFreight_ReaderWriter, ::nightfall::v1::GetFreightResponse>
+{
+	friend class UGameServiceClient;
+	typedef GrpcContext_Ping_Pong<GameService_GetFreight_ReaderWriter, ::nightfall::v1::GetFreightResponse> Super;
+
+private:
+	void Call(const FGrpcNightfallV1GetFreightRequest& Request);
+	virtual void OnRpcEvent(bool Ok, const void* EventTag) override;
+
+public:
+	GrpcContext_GameService_GetFreight(FGrpcContextHandle _Handle, UGrpcService* _Service, UGrpcClient* _Client);
+};
+
+class GrpcContext_GameService_ListMail : public GrpcContext_Ping_Pong<GameService_ListMail_ReaderWriter, ::nightfall::v1::ListMailResponse>
+{
+	friend class UGameServiceClient;
+	typedef GrpcContext_Ping_Pong<GameService_ListMail_ReaderWriter, ::nightfall::v1::ListMailResponse> Super;
+
+private:
+	void Call(const FGrpcNightfallV1ListMailRequest& Request);
+	virtual void OnRpcEvent(bool Ok, const void* EventTag) override;
+
+public:
+	GrpcContext_GameService_ListMail(FGrpcContextHandle _Handle, UGrpcService* _Service, UGrpcClient* _Client);
+};
+
+class GrpcContext_GameService_ReadMail : public GrpcContext_Ping_Pong<GameService_ReadMail_ReaderWriter, ::nightfall::v1::ReadMailResponse>
+{
+	friend class UGameServiceClient;
+	typedef GrpcContext_Ping_Pong<GameService_ReadMail_ReaderWriter, ::nightfall::v1::ReadMailResponse> Super;
+
+private:
+	void Call(const FGrpcNightfallV1ReadMailRequest& Request);
+	virtual void OnRpcEvent(bool Ok, const void* EventTag) override;
+
+public:
+	GrpcContext_GameService_ReadMail(FGrpcContextHandle _Handle, UGrpcService* _Service, UGrpcClient* _Client);
+};
+
+class GrpcContext_GameService_ListItemAuctions : public GrpcContext_Ping_Pong<GameService_ListItemAuctions_ReaderWriter, ::nightfall::v1::ListItemAuctionsResponse>
+{
+	friend class UGameServiceClient;
+	typedef GrpcContext_Ping_Pong<GameService_ListItemAuctions_ReaderWriter, ::nightfall::v1::ListItemAuctionsResponse> Super;
+
+private:
+	void Call(const FGrpcNightfallV1ListItemAuctionsRequest& Request);
+	virtual void OnRpcEvent(bool Ok, const void* EventTag) override;
+
+public:
+	GrpcContext_GameService_ListItemAuctions(FGrpcContextHandle _Handle, UGrpcService* _Service, UGrpcClient* _Client);
+};
+
+class GrpcContext_GameService_GetManorData : public GrpcContext_Ping_Pong<GameService_GetManorData_ReaderWriter, ::nightfall::v1::GetManorDataResponse>
+{
+	friend class UGameServiceClient;
+	typedef GrpcContext_Ping_Pong<GameService_GetManorData_ReaderWriter, ::nightfall::v1::GetManorDataResponse> Super;
+
+private:
+	void Call(const FGrpcNightfallV1GetManorDataRequest& Request);
+	virtual void OnRpcEvent(bool Ok, const void* EventTag) override;
+
+public:
+	GrpcContext_GameService_GetManorData(FGrpcContextHandle _Handle, UGrpcService* _Service, UGrpcClient* _Client);
+};
+
