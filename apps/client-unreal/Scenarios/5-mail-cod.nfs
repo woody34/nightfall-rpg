@@ -14,7 +14,7 @@ nf.EnterWorld
 nf.WaitFor in_world 15
 nf.WaitFor item_baseline 3
 nf.MarkItemState
-nf.MailSend b cod 500 template:1864:3
+nf.MailSend b paycheck cod 500 template:1864:3
 nf.WaitFor economy_result == mail_send 3
 nf.Expect adena_delta == -1100
 nf.Expect inventory_has 1864 == 7
@@ -26,7 +26,7 @@ nf.WaitFor connected 15
 nf.EnterWorld
 nf.WaitFor in_world 15
 nf.WaitFor item_baseline 3
-nf.WaitFor mail_received cod 33
+nf.WaitFor mail_received paycheck 33
 nf.MarkItemState
 nf.MailRead latest
 nf.WaitFor economy_result == mail_mark_read 3

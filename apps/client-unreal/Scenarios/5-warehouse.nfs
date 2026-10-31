@@ -13,15 +13,19 @@ nf.EnterWorld
 nf.WaitFor in_world 15
 nf.WaitFor item_baseline 3
 nf.WaitFor warehouse_keeper_known 15
+nf.WaitFor blacksmith_known 15
+nf.Refine template:119 template:12754
+nf.WaitFor refine_outcome == applied 3
+nf.Expect refined template:119
 nf.MarkItemState
-nf.Deposit template:1864:5,template:1:1
+nf.Deposit template:1864:5,template:119:1
 nf.WaitFor economy_result == warehouse_deposit 3
 nf.Expect adena_delta == -60
 nf.Expect container_fee == 60
 nf.Expect inventory_has 1864 == 5
-nf.Expect inventory_has 1 == 0
+nf.Expect inventory_has 119 == 0
 nf.Expect warehouse_has 1864 == 10
-nf.Expect warehouse_has 1 == 1
+nf.Expect warehouse_has 119 == 1
 nf.Deposit template:1869:4
 nf.WaitFor economy_result == warehouse_deposit 3
 nf.Expect adena_delta == -90
@@ -31,4 +35,4 @@ nf.Expect inventory_has 1864 == 15
 nf.Expect warehouse_has 1864 == 0
 nf.Expect container_busy_retry_observed
 # Total budget: the largest role's sum of declared waits + 30 s exit grace.
-nf.Within 87
+nf.Within 105

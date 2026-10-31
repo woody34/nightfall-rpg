@@ -23,7 +23,7 @@ PACKS = json.loads((SCENARIOS / "fixtures/phase5-packs.json").read_text())["pack
 
 COMMANDS = {
     # registered Phase 0b-4 commands used here
-    "Login", "EnterWorld", "WaitFor", "Expect", "Within", "ClickMove", "Target", "Attack", "StopAttack", "Cast", "UseItem", "DropSocket", "MarkItemState",
+    "Login", "EnterWorld", "WaitFor", "Expect", "Within", "ClickMove", "Target", "Attack", "StopAttack", "Cast", "UseItem", "DropSocket", "MarkItemState", "Refine",
     # plan §5.3 Phase 5 commands (argument authority: story 6.1's parser)
     "PickUp", "Buy", "Sell", "Refund", "Multisell", "RegisterRecipe", "DeleteRecipe", "Craft", "ManufactureOrder",
     "TradeRequest", "TradeAnswer", "TradeAdd", "TradeConfirm", "TradeCancel",
@@ -36,7 +36,7 @@ COMMANDS = {
 PREDICATES = {
     # registered (Phase 0b-4)
     "connected", "in_world", "item_baseline", "target", "entity_dead", "own_dead", "inventory_has", "inventory_revision_since_mark", "cast_results",
-    "buff_active", "rejected", "entity_in_view", "xp_gained_events",
+    "buff_active", "rejected", "entity_in_view", "xp_gained_events", "refine_outcome", "blacksmith_known", "refined",
     # plan §5.3 Phase 5 predicates
     "ground_item_exists", "recipe_registered", "craft_result", "trade_state", "store_state", "party_member_count", "loot_mode", "mail_received", "auction_state", "manor_result",
     # received-state refinements of the §5.3 carriers (EntitySpawn kind 3 / EconomyResult / PartyStateChanged / TradeSessionChanged / PrivateStoreChanged /

@@ -229,13 +229,13 @@ def build_packs() -> dict[str, dict]:
                          "note": "herb (60 s), ordinary loot (600 s)" + (", item 9849 (10 s)" if n9849 else "; no pinned NPC drops 9849 so its 100-tick limit is asserted through D-T only") + "; a's PK drop never decays"},
         "phase5-party": {"roles": [role("a", 10, pos_a), role("b", 12, pos_b), role("c", 11, far)], "party": {"members": ["a", "b", "c"], "leader": "a", "mode": "FINDERS_KEEPERS"},
                          "monsters": [monster(20003, (103, 100), count=3)], "note": "c is outside PartyRange2 and is excluded from RANDOM/BY_TURN/split"},
-        "phase5-party-spoil": {"roles": [role("a", 10, pos_a, class_id=54), role("b", 12, pos_b)], "party": {"members": ["a", "b"], "leader": "a", "mode": "RANDOM_INCLUDING_SPOIL"},
-                               "monsters": [monster(20003, (103, 100), count=2)], "note": "a (Dwarven Scavenger 54) spoils; b sweeps as party member"},
+        "phase5-party-spoil": {"roles": [role("a", 20, pos_a, class_id=54), role("b", 20, pos_b)], "party": {"members": ["a", "b"], "leader": "a", "mode": "RANDOM_INCLUDING_SPOIL"},
+                               "monsters": [monster(20003, (103, 100), count=2)], "note": "a (Dwarven Scavenger 54, class minimum level 20) spoils; b sweeps as party member"},
         "phase5-party-xp": {"roles": [role("a", 10, pos_a), role("b", 12, pos_b)], "party": {"members": ["a", "b"], "leader": "a", "mode": "FINDERS_KEEPERS"}, "monsters": [monster(20003, (103, 100))]},
         "phase5-solo-xp": {"roles": [role("a", 10, pos_a), role("b", 10, pos_b)], "monsters": [monster(20003, (103, 100)), monster(4301, (103, 102), slot="sp_only")], "note": "two solo players split damage; 4301 is SP-only (exp_rate absent)"},
-        "phase5-spoil": {"roles": [role("a", 10, pos_a, class_id=54)], "monsters": [monster(20003, (103, 100))]},
-        "phase5-pk-drop": {"roles": [role("a", 20, pos_a, karma=100, pk_count=6, inventory=[inv(1864, 10), inv(57, 1000), inv(1, 1, equipped=True, slot="rhand"), inv(23, 1, equipped=True, slot="chest")] + [inv(1869, 1) for _ in range(12)]), role("b", 20, pos_b)],
-                          "note": "a is chaotic with pk_count >= 6; b kills a"},
+        "phase5-spoil": {"roles": [role("a", 20, pos_a, class_id=54)], "monsters": [monster(20003, (103, 100))], "note": "Scavenger 54 needs level >= 20 (class minimum); d = -15 against 20003"},
+        "phase5-pk-drop": {"roles": [role("a", 20, pos_a, karma=100, pk_count=6, inventory=[inv(1864, 10), inv(57, 1000)] + [inv(1869, 1) for _ in range(12)]), role("b", 20, pos_b)],
+                          "note": "a is chaotic with pk_count >= 6; b kills a. The equipped weapon (10 %) and armour (40 %) rows are the starter kit's own equipped items (GrantItem cannot equip beyond the kit)"},
         "phase5-vendors": {"roles": [role("a", 20, pos_a, inventory=[adena(100000)] + [inv(1294, 1) for _ in range(13)])], "fixed_npcs": [fixture_npc("merchant", MERCHANT["npc"], (102, 100), "merchant")], "merchant": MERCHANT},
         "phase5-vendor-restock": {"roles": [role("a", 20, pos_a, inventory=[adena(1000000)])], "fixed_npcs": [fixture_npc("merchant", RESTOCK["npc"], (102, 100), "merchant")], "merchant": RESTOCK},
         "phase5-multisell": {"roles": [role("a", 20, pos_a, inventory=[inv(9417, 1, enchant=3), inv(9417, 1, enchant=0)])], "fixed_npcs": [fixture_npc("multisell", MULTISELL["npc"], (102, 100), "exchanger")], "multisell": MULTISELL},
@@ -244,7 +244,8 @@ def build_packs() -> dict[str, dict]:
         "phase5-manufacture": {"roles": [role("a", 20, pos_a, class_id=54, create_item_rank=1, registered_recipes={"dwarven": [RECIPE_DWARF]}), role("b", 20, pos_b, inventory=[adena(5000)] + mats(r1, 2))], "manufacture_fee": 1000},
         "phase5-trade": {"roles": [role("a", 20, pos_a, inventory=[inv(1864, 10), adena(500)]), role("b", 20, pos_b, inventory=[inv(1869, 5)])]},
         "phase5-stores": {"roles": [role("a", 20, pos_a, inventory=[inv(1864, 10), inv(1869, 10), inv(1870, 10)]), role("b", 20, pos_b, inventory=[adena(1000), inv(1864, 3)])], "store_limits": STORE_LIMITS},
-        "phase5-warehouse": {"roles": [role("a", 20, pos_a, inventory=[adena(1000), inv(1864, 10), inv(1869, 4), inv(1, 1, augment_id=1234)])], "fixed_npcs": [fixture_npc("warehouse_keeper", None, (102, 100), "warehouse_keeper")], "warehouse_rows": [{"template_id": 1864, "count": 5}]},
+        "phase5-warehouse": {"roles": [role("a", 20, pos_a, inventory=[adena(1000), inv(1864, 10), inv(1869, 4), inv(119, 1), inv(12754, 1)])], "fixed_npcs": [fixture_npc("warehouse_keeper", None, (102, 100), "warehouse_keeper")], "warehouse_rows": [{"template_id": 1864, "count": 5}],
+                            "note": "119 is augmented live through the Phase 4 blacksmith (nf.Refine with life stone 12754) before the deposit: GrantItem has no augment transport"},
         "phase5-freight": {"roles": [role("a", 20, pos_a, inventory=[adena(5000), inv(20678, 1), inv(20725, 1)]), role("b", 20, far, same_account_as="a")], "fixed_npcs": [fixture_npc("warehouse_keeper", None, (102, 100), "warehouse_keeper")]},
         "phase5-mail": {"roles": [role("a", 20, pos_a, inventory=[adena(5000), inv(1864, 10)], peace_zone=True), role("b", 20, far, inventory=[adena(2000)], peace_zone=True)]},
         "phase5-auction": {"roles": [role("a", 20, pos_a, inventory=[adena(500000)]), role("b", 20, pos_b, inventory=[adena(500000)])], "fixed_npcs": [fixture_npc("auctioneer", AUCTION["instance"], (102, 100), "auctioneer")], "auction": AUCTION,
@@ -394,9 +395,10 @@ def exp_solo_xp(p: dict) -> dict:
 
 def exp_spoil(p: dict) -> dict:
     npc = npc_row(20003)
+    killer = next(r for r in p["roles"] if r["role"] == "a")["level"]
     return {"corpse_time_ticks": s_ticks(npc["corpse_time"]), "spoiled_extension_ticks": s_ticks(10), "corpse_until_spoiled_ticks": s_ticks(npc["corpse_time"] + 10),
             "spoil_skill": 254, "sweeper_skill": 42, "sweeper": {"hit_time_ms": 500, "reuse_ms": 500, "mp": 3, "source": "A7 pinned"},
-            "corpse_nodes": node_expectations(npc, 10, scope="corpse"), "despawn": "ConsumeBody ends the corpse; EntityDespawn in the next spawn phase (D §5.3)",
+            "corpse_nodes": node_expectations(npc, killer, scope="corpse"), "despawn": "ConsumeBody ends the corpse; EntityDespawn in the next spawn phase (D §5.3)",
             "ledger_op": "sweep", "roll_order": "corpse list first (iff spoiled), then death list (L2Attackable.java:838-842)"}
 
 
@@ -410,7 +412,9 @@ def exp_sweep_party(p: dict) -> dict:
 def exp_pk(p: dict) -> dict:
     pk = tbl("ground")["pk"]
     a = next(r for r in p["roles"] if r["role"] == "a")
-    inv_ = [{"id": i["instance_id"], "template": i["template_id"], "equipped": i.get("equipped", False), "weapon": i.get("slot") == "rhand"} for i in a["inventory"]]
+    kit = [{"id": 0, "template": 2369, "equipped": True, "weapon": True}, {"id": 0, "template": 1146, "equipped": True, "weapon": False},
+           {"id": 0, "template": 1147, "equipped": True, "weapon": False}]  # human_fighter starter kit equipped rows (tables-phase4/starter_kits.toml)
+    inv_ = kit + [{"id": i["instance_id"], "template": i["template_id"], "equipped": i.get("equipped", False), "weapon": i.get("slot") == "rhand"} for i in a["inventory"]]
     excluded = [i["template"] for i in inv_ if eo.pk_excluded(dict(i))]
     return {"gate": {"karma_rate_drop": pk["karma_rate_drop"], "threshold": str(eo.chance_threshold(F(pk["karma_rate_drop"])))},
             "per_item": {"equipped_weapon": pk["karma_rate_drop_equip_weapon"], "equipped_other": pk["karma_rate_drop_equip"], "inventory": pk["karma_rate_drop_item"]},

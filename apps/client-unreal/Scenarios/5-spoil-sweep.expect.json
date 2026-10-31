@@ -3,9 +3,9 @@
  "expectations": {
   "corpse_nodes": [
    {
-    "C": "1593626875642721/281474976710656",
-    "C_bits": "4016a594af4f0d84",
-    "L_bits": "3ff0000000000000",
+    "C": "5099606002056707/9007199254740992",
+    "C_bits": "3fe21e108c3f3e03",
+    "L_bits": "3fb999999999999a",
     "draws_on_pass": [
      "chance",
      "quantity"
@@ -15,14 +15,14 @@
     "max": 1,
     "min": 1,
     "mult_base": 1,
-    "pass_threshold": "1044399309221213635",
+    "pass_threshold": "104439930922121360",
     "precise_branch": false,
     "template": 1871
    },
    {
-    "C": "3187225603787771/70368744177664",
-    "C_bits": "4046a58793dd97f6",
-    "L_bits": "3ff0000000000000",
+    "C": "2549780483030217/562949953421312",
+    "C_bits": "40121e060fe47992",
+    "L_bits": "3fb999999999999a",
     "draws_on_pass": [
      "chance",
      "quantity"
@@ -32,14 +32,14 @@
     "max": 1,
     "min": 1,
     "mult_base": 1,
-    "pass_threshold": "8355120686793414411",
+    "pass_threshold": "835512068679341507",
     "precise_branch": false,
     "template": 116
    },
    {
-    "C": "5099538448062297/1125899906842624",
-    "C_bits": "40121e00d1b71759",
-    "L_bits": "3ff0000000000000",
+    "C": "2039815379224919/4503599627370496",
+    "C_bits": "3fdcfcce1c58255c",
+    "L_bits": "3fb999999999999a",
     "draws_on_pass": [
      "chance",
      "quantity"
@@ -49,7 +49,7 @@
     "max": 1,
     "min": 1,
     "mult_base": 1,
-    "pass_threshold": "835508379330526741",
+    "pass_threshold": "83550837933052683",
     "precise_branch": false,
     "template": 1786
    }
@@ -69,7 +69,7 @@
   },
   "sweeper_skill": 42
  },
- "expectations_sha256": "7d3767610da5ffd6122dcafc9fd03cdd7aecf5c2dbe8102a88c2abe0491e7f0d",
+ "expectations_sha256": "aaec0604603a2b0f0f5961672f83cbe6d3f6924f9eca54f0fcb93354a320002f",
  "fixture": "phase5-spoil",
  "scenario": "5-spoil-sweep.nfs",
  "schema_version": 1,

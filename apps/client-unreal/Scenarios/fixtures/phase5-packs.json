@@ -795,7 +795,7 @@
     }
    ],
    "next_item_instance": 1,
-   "note": "a (Dwarven Scavenger 54) spoils; b sweeps as party member",
+   "note": "a (Dwarven Scavenger 54, class minimum level 20) spoils; b sweeps as party member",
    "party": {
     "leader": "a",
     "members": [
@@ -809,7 +809,7 @@
      "character_id": "01970000-0000-7000-8000-000000000050",
      "class_id": 54,
      "inventory": [],
-     "level": 10,
+     "level": 20,
      "position": [
       100,
       100
@@ -820,7 +820,7 @@
      "character_id": "01970000-0000-7000-8000-000000000051",
      "class_id": 0,
      "inventory": [],
-     "level": 12,
+     "level": 20,
      "position": [
       101,
       100
@@ -884,8 +884,8 @@
   "phase5-pk-drop": {
    "fixed_npcs": [],
    "monsters": [],
-   "next_item_instance": 17,
-   "note": "a is chaotic with pk_count >= 6; b kills a",
+   "next_item_instance": 15,
+   "note": "a is chaotic with pk_count >= 6; b kills a. The equipped weapon (10 %) and armour (40 %) rows are the starter kit's own equipped items (GrantItem cannot equip beyond the kit)",
    "roles": [
     {
      "character_id": "01970000-0000-7000-8000-000000000050",
@@ -906,18 +906,14 @@
       {
        "count": 1,
        "enchant": 0,
-       "equipped": true,
        "instance_id": 3,
-       "slot": "rhand",
-       "template_id": 1
+       "template_id": 1869
       },
       {
        "count": 1,
        "enchant": 0,
-       "equipped": true,
        "instance_id": 4,
-       "slot": "chest",
-       "template_id": 23
+       "template_id": 1869
       },
       {
        "count": 1,
@@ -977,18 +973,6 @@
        "count": 1,
        "enchant": 0,
        "instance_id": 14,
-       "template_id": 1869
-      },
-      {
-       "count": 1,
-       "enchant": 0,
-       "instance_id": 15,
-       "template_id": 1869
-      },
-      {
-       "count": 1,
-       "enchant": 0,
-       "instance_id": 16,
        "template_id": 1869
       }
      ],
@@ -1184,12 +1168,13 @@
     }
    ],
    "next_item_instance": 1,
+   "note": "Scavenger 54 needs level >= 20 (class minimum); d = -15 against 20003",
    "roles": [
     {
      "character_id": "01970000-0000-7000-8000-000000000050",
      "class_id": 54,
      "inventory": [],
-     "level": 10,
+     "level": 20,
      "position": [
       100,
       100
@@ -1504,7 +1489,8 @@
     }
    ],
    "monsters": [],
-   "next_item_instance": 5,
+   "next_item_instance": 6,
+   "note": "119 is augmented live through the Phase 4 blacksmith (nf.Refine with life stone 12754) before the deposit: GrantItem has no augment transport",
    "roles": [
     {
      "character_id": "01970000-0000-7000-8000-000000000050",
@@ -1529,11 +1515,16 @@
        "template_id": 1869
       },
       {
-       "augment_id": 1234,
        "count": 1,
        "enchant": 0,
        "instance_id": 4,
-       "template_id": 1
+       "template_id": 119
+      },
+      {
+       "count": 1,
+       "enchant": 0,
+       "instance_id": 5,
+       "template_id": 12754
       }
      ],
      "level": 20,

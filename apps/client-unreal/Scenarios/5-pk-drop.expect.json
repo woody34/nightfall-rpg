@@ -2,9 +2,12 @@
  "derived_by": "apps/client-unreal/Scripts/phase5-expectations.py over economy_oracle.py (1.5-1.7) and tables-phase5",
  "expectations": {
   "decays": false,
-  "eligible_count": 15,
+  "eligible_count": 13,
   "excluded_templates": [
-   57
+   57,
+   1146,
+   1147,
+   2369
   ],
   "gate": {
    "karma_rate_drop": 40,
@@ -25,7 +28,7 @@
   "protection": "none (E24)",
   "unequip_before_roll": true
  },
- "expectations_sha256": "069e9fa6f5cc2208c4b736993d91926f1a0f290eb7b018b9ea08ddae14f4e969",
+ "expectations_sha256": "6888672636156030d9b640b874b624ff5a9714fc154789ff84ee9383d0c9a3fd",
  "fixture": "phase5-pk-drop",
  "scenario": "5-pk-drop.nfs",
  "schema_version": 1,
