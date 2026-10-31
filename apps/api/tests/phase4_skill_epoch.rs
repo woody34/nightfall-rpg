@@ -67,6 +67,7 @@ fn checkpoint(c: &Character) -> CharacterCheckpoint {
         level: 1,
     }]);
     CharacterCheckpoint {
+        phase5: None,
         character_id: c.id,
         revision_seen: 0,
         level: 60,

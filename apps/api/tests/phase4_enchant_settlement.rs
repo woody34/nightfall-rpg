@@ -389,6 +389,7 @@ where
         projection: projection.clone(),
     };
     let request = api::application::CharacterCheckpoint {
+        phase5: None,
         character_id: c.id,
         revision_seen: before_exchange.revision,
         level: before_exchange.level,

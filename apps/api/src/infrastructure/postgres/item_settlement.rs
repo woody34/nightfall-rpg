@@ -71,7 +71,7 @@ impl ItemCheckpointRepository for PgCharacterRepository {
         match self
             .timed(
                 "checkpoint_items",
-                Box::pin(self.checkpoint_tx(cp, events, learning, Some(work))),
+                Box::pin(self.checkpoint_tx(cp, events, learning, Some(work), None)),
             )
             .await?
         {
@@ -202,7 +202,7 @@ async fn persist_rows(
         {
             let deleted = execute(
                 tx,
-                "DELETE FROM item_instances WHERE character_id=$1 AND id=$2",
+                "DELETE FROM item_instances WHERE character_id=$1 AND id=$2 AND owner_kind='character'",
                 vec![character.as_uuid().into(), signed(item.id.get())?.into()],
             )
             .await?;

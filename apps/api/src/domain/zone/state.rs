@@ -367,6 +367,9 @@ pub struct CheckpointSnapshot {
 /// Integer-only representation of an application checkpoint request.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CheckpointRequestSnapshot {
+    /// V7 recipe book of the request (story 4.2); omitted from every pre-V7 request.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub phase5: Option<super::Phase5Checkpoint>,
     /// Paused item state, omitted from every historical request.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub phase4: Option<super::Phase4Checkpoint>,

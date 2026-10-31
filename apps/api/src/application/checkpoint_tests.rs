@@ -970,3 +970,52 @@ async fn pending_lag_never_publishes_zero_while_a_peer_remains() {
     assert!(pending.lock().is_empty());
     assert!(metrics.0.lock().last().unwrap().is_zero());
 }
+
+#[test]
+fn phase5_checkpoint_of_carries_the_recipe_book_under_the_block_rules() {
+    use crate::domain::zone::{Phase5Player, Phase5Snapshot, RecipeBook};
+    let rules = crate::infrastructure::economy_data::embedded_phase5_rules().unwrap();
+    let player = EntityId::from_uuid(uuid::Uuid::from_u128(0x50));
+    assert!(super::phase5_checkpoint_of(None, player).unwrap().is_none(), "pre-V7");
+    let mut block = Phase5Snapshot::new(&rules);
+    assert!(
+        super::phase5_checkpoint_of(Some(&block), player).is_err(),
+        "missing record fails closed"
+    );
+    block.players.insert(
+        player,
+        Phase5Player {
+            recipes: RecipeBook {
+                dwarven: [322].into_iter().collect(),
+                common: [1].into_iter().collect(),
+            },
+            refund: Vec::new(),
+            party: None,
+            trade: None,
+            flood: std::collections::BTreeMap::new(),
+        },
+    );
+    let checkpoint = super::phase5_checkpoint_of(Some(&block), player)
+        .unwrap()
+        .unwrap();
+    assert_eq!(checkpoint.rules_hash, rules.hash_hex());
+    assert_eq!(
+        checkpoint
+            .recipes
+            .dwarven
+            .iter()
+            .copied()
+            .collect::<Vec<_>>(),
+        vec![322]
+    );
+    checkpoint.validate_rules(&rules).unwrap();
+    // The PbPlayerLoad 11 producer accepts what the lane stored, under the same epoch rules.
+    assert_eq!(
+        crate::application::ports::phase5_admission_load(
+            Some(checkpoint.clone()),
+            Some(&rules.hash_hex())
+        )
+        .unwrap(),
+        Some(checkpoint)
+    );
+}

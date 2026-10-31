@@ -169,6 +169,7 @@ impl Harness {
             repo.insert_for_test(c.clone());
             let phase = snapshot.phase3.as_ref().unwrap();
             let mut cp = CharacterCheckpoint {
+                phase5: None,
                 character_id: c.id,
                 revision_seen: 0,
                 level: c.level,

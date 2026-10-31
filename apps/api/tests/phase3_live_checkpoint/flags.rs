@@ -23,6 +23,7 @@ async fn flag_crash(head: u64, partial: bool) {
         ];
         repo.checkpoint(
             &CharacterCheckpoint {
+                phase5: None,
                 character_id: c.id,
                 revision_seen: saved.revision,
                 level: saved.level,

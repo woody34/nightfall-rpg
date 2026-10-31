@@ -351,6 +351,7 @@ impl CheckpointService {
                 events: p.events.clone(),
                 latest: p.latest.as_ref().map(|cp| {
                     crate::domain::zone::CheckpointRequestSnapshot {
+                        phase5: cp.phase5.clone(),
                         phase4: cp.phase4.clone(),
                         phase3: cp.phase3.clone(),
                         class_state: cp.class_state.clone(),
@@ -407,6 +408,7 @@ impl CheckpointService {
                                 projection: work.projection.clone(),
                             }),
                         latest: p.latest.as_ref().map(|cp| CharacterCheckpoint {
+                            phase5: cp.phase5.clone(),
                             phase4: cp.phase4.clone(),
                             phase3: cp.phase3.clone(),
                             class_state: cp.class_state.clone(),
@@ -593,7 +595,11 @@ impl CheckpointService {
                     phase3.is_none() || retained.is_some(),
                     "player checkpoint sidecar missing"
                 );
+                // Story 4.2: a V7 epoch checkpoints the player's recipe book with every save, so
+                // `characters.phase5_checkpoint` is the book's only durable home (design §1.8).
+                let phase5 = phase5_checkpoint_of(snapshot.phase5.as_ref(), entity.id)?;
                 let mut cp = CharacterCheckpoint {
+                    phase5,
                     phase4: snapshot
                         .phase4
                         .as_ref()
@@ -1390,6 +1396,31 @@ fn stable_id(entity: EntityId, zone: ZoneId, epoch: u64, tick: Tick, ordinal: Op
         *out = *byte;
     }
     Uuid::from_bytes(bytes)
+}
+
+/// Story 4.2: the `characters.phase5_checkpoint` body of one player in a V7 snapshot (the
+/// recipe book under the block's rules hash); `None` before V7. A V7 player without its
+/// Phase 5 record is an invariant failure, never an empty book.
+pub fn phase5_checkpoint_of(
+    block: Option<&crate::domain::zone::Phase5Snapshot>,
+    entity: EntityId,
+) -> anyhow::Result<Option<crate::domain::zone::Phase5Checkpoint>> {
+    let Some(block) = block else { return Ok(None) };
+    let player = block
+        .players
+        .get(&entity)
+        .ok_or_else(|| anyhow::anyhow!("player Phase 5 record missing"))?;
+    let checkpoint = crate::domain::zone::Phase5Checkpoint {
+        schema_version: crate::domain::zone::Phase5Checkpoint::SCHEMA_VERSION,
+        rules_hash: block.rules_hash.iter().fold(String::new(), |mut out, b| {
+            use std::fmt::Write as _;
+            let _ = write!(out, "{b:02x}");
+            out
+        }),
+        recipes: player.recipes.clone(),
+    };
+    checkpoint.validate().map_err(anyhow::Error::from)?;
+    Ok(Some(checkpoint))
 }
 
 /// Maps each transition once, retaining every intermediate level and the death penalty.

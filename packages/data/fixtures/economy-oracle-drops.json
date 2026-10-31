@@ -2415,6 +2415,20 @@
    "remainder_threshold": "55340234849649"
   },
   {
+   "case": "min_gt_max_npc_29181_adena",
+   "item": 57,
+   "max": 1100000,
+   "min": 9000000,
+   "n": 7899999,
+   "npc": 29181,
+   "quantity": 8987655,
+   "range": [
+    1100002,
+    9000000
+   ],
+   "word": 12345
+  },
+  {
    "case": "group_G_exactly_100",
    "count_at_L1": 114,
    "draws_on_pass": [

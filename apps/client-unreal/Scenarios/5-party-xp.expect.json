@@ -3,6 +3,16 @@
  "expectations": {
   "S": 5,
   "X": 178,
+  "awarded_all_alive": [
+   [
+    84,
+    2
+   ],
+   [
+    120,
+    2
+   ]
+  ],
   "bonus_n2_bits": "3ff199999999999a",
   "bonus_table": [
    "1.0",
@@ -62,9 +72,13 @@
     0
    ]
   ],
+  "races": [
+   "human",
+   "human"
+  ],
   "rule": "D \u00a74.5: level-squared shares, Math.round XP / floor SP, highfive gap percent"
  },
- "expectations_sha256": "3455776d87a920ed0e751e867d822ed3955db44f82c63fb10c752d8662bf989c",
+ "expectations_sha256": "719bf592034cd203fde4d08b650e5670235c44e4b9d68865a89fc5bdce0bf4f6",
  "fixture": "phase5-party-xp",
  "scenario": "5-party-xp.nfs",
  "schema_version": 1,

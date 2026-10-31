@@ -318,6 +318,8 @@ impl MutationReply {
 /// Cheap, cloneable access to a running zone.
 #[derive(Debug, Clone)]
 pub struct ZoneHandle {
+    /// Lowercase hex `Phase5Rules` hash of a V7 epoch (story 4.2 admission producer).
+    phase5_rules_hash: Option<String>,
     phase4_durable: bool,
     phase2: bool,
     phase3: bool,
@@ -350,6 +352,12 @@ impl ZoneHandle {
     /// Whether this actor runs a durable V6 (items) epoch: item loads, intents and grants.
     pub fn phase4_enabled(&self) -> bool {
         self.phase4_durable
+    }
+
+    /// The `Phase5Rules` hash (lowercase hex) of a V7 epoch; `None` before V7. Admission binds
+    /// every Phase 5 checkpoint to it (D27).
+    pub fn phase5_rules_hash(&self) -> Option<&str> {
+        self.phase5_rules_hash.as_deref()
     }
 
     /// Current zone position for best-effort session audit. The next tick follows state
@@ -654,6 +662,13 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
         let (stats_tx, stats_rx) = watch::channel(TickStats::default());
         let paused = gate.paused();
         let phase4_durable = !invalid_policy && state.phase4_enabled() && gate.durable();
+        let phase5_rules_hash = state.phase5_block().map(|block| {
+            block.rules_hash.iter().fold(String::new(), |mut out, b| {
+                use std::fmt::Write as _;
+                let _ = write!(out, "{b:02x}");
+                out
+            })
+        });
         let phase2 = state.has_classes();
         let phase3 = state.phase3_enabled();
         let audit_seed = state.seed();
@@ -686,6 +701,7 @@ impl<T: TickSource, G: TickGate> ZoneActor<T, G> {
         };
         tokio::spawn(actor.run());
         ZoneHandle {
+            phase5_rules_hash,
             phase4_durable,
             phase2,
             phase3,
