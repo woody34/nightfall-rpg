@@ -154,7 +154,8 @@ class Grammar(unittest.TestCase):
             for line in path.read_text().splitlines():
                 if not line.startswith('nf.'):
                     continue
-                tokens = shlex.split(line)
+                self.assertNotIn('"', line, f'{path.name}: the bot tokenizes on whitespace only (BotPredicates.cpp:566-571): {line}')
+                tokens = line.split()  # ParseIntoArrayWS: whitespace, no quote handling
                 if tokens[0] in ('nf.WaitFor', 'nf.Expect'):
                     args = tokens[1:]
                     if tokens[0] == 'nf.WaitFor':
@@ -189,7 +190,7 @@ class Grammar(unittest.TestCase):
                 self.assertFalse(inherited_command_ok(tokens), bad)
         for good in ('nf.Target template:npc_20003', 'nf.Target 01970000-0000-7000-8000-000000000050', 'nf.Cast 254 target'):
             self.assertTrue(inherited_command_ok(shlex.split(good)), good)
-        for good in ('target == "Npc 20003"', 'entity_dead target', 'entity_in_view 01970000-0000-7000-8000-000000000051', 'buff_active 2278', 'cast_results == 2', 'inventory_has 57 >= 1'):
+        for good in ('target == Npc_20003', 'entity_dead target', 'entity_in_view 01970000-0000-7000-8000-000000000051', 'buff_active 2278', 'cast_results == 2', 'inventory_has 57 >= 1'):
             self.assertTrue(inherited_predicate_ok(shlex.split(good)), good)
 
     def test_role_split_keeps_header_and_budget(self):
@@ -208,6 +209,7 @@ class Grammar(unittest.TestCase):
             grammar.split_roles('# role: a\nnf.Login\n')
         for path in sorted((SCRIPTS.parent / 'Scenarios').glob('5-*.nfs')):
             text = path.read_text()
+            self.assertNotIn('"', text, path.name)
             parts = grammar.split_roles(text)
             self.assertEqual(set(parts), set(grammar.roles_of(text)), path.name)
             for lines in parts.values():

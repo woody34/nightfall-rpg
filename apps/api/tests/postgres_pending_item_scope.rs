@@ -50,6 +50,12 @@ fn code(error: &sqlx::Error) -> String {
         .into_owned()
 }
 
+/// Rollback steps from the head of the migration list down to migration `n` (the list grows with
+/// each phase; fixed counts assumed it ended at 000014).
+fn steps_down_to(n: u32) -> u32 {
+    u32::try_from(Migrator::migrations().len()).unwrap() - n
+}
+
 #[tokio::test]
 async fn upgrade_preserves_every_manifest_byte_and_legacy_backfill_reruns() {
     let Some(pool) = common::pg::empty_schema_pool().await else {
@@ -78,7 +84,7 @@ async fn upgrade_preserves_every_manifest_byte_and_legacy_backfill_reruns() {
     assert_eq!(repo.pending_item_requests(c.id).await.unwrap(), pending);
     // Round-trip 000012 (pending scope) itself; 000014 (T11 quarantine) and 000013 (D76 row
     // ordinals) step back first.
-    Migrator::down(&db, Some(3)).await.unwrap();
+    Migrator::down(&db, Some(steps_down_to(11))).await.unwrap();
     assert_eq!((applied(&pool, "000012").await, applied(&pool, "000013").await), (0, 0));
     Migrator::up(&db, None).await.unwrap();
     assert_eq!((applied(&pool, "000012").await, applied(&pool, "000013").await), (1, 1));
@@ -143,7 +149,7 @@ async fn shared_uuid_is_legal_across_accounts_and_operations_and_owner_scope_is_
     assert_eq!(code(&error), "23514");
     let db = connection_from_pool(&pool);
     // 000014 and 000013 (D76 row ordinals) roll back first; 000012 then refuses on the shared key.
-    let error = Migrator::down(&db, Some(3)).await.unwrap_err();
+    let error = Migrator::down(&db, Some(steps_down_to(11))).await.unwrap_err();
     assert!(
         error
             .to_string()
@@ -232,7 +238,7 @@ async fn row_ordinal_rollback_refuses_while_a_consume_holds_a_positional_ordinal
     tx.commit().await.unwrap();
     let db = connection_from_pool(&pool);
     // 000014 (T11 quarantine) rolls back first; 000013 then refuses.
-    let error = Migrator::down(&db, Some(2)).await.unwrap_err();
+    let error = Migrator::down(&db, Some(steps_down_to(12))).await.unwrap_err();
     assert!(
         error
             .to_string()

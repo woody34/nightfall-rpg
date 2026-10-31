@@ -12,7 +12,7 @@ nf.EnterWorld
 nf.WaitFor in_world 15
 nf.WaitFor item_baseline 3
 nf.Target template:npc_20003
-nf.WaitFor target == "Npc 20003" 3
+nf.WaitFor target == Npc_20003 3
 nf.Attack
 nf.WaitFor entity_dead target 30
 nf.WaitFor ground_item_any 3

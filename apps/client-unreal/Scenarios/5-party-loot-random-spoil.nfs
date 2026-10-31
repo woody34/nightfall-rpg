@@ -20,8 +20,9 @@ nf.WaitFor item_baseline 3
 nf.PartyInvite b RANDOM_INCLUDING_SPOIL
 nf.WaitFor party_member_count == 2 15
 nf.Expect loot_mode == RANDOM_INCLUDING_SPOIL
+nf.MarkItemState
 nf.Target template:npc_20003
-nf.WaitFor target == "Npc 20003" 3
+nf.WaitFor target == Npc_20003 3
 nf.Cast 254 target
 nf.WaitFor cast_results == 1 15
 nf.WaitFor corpse_spoiled template:npc_20003 3
@@ -30,6 +31,7 @@ nf.WaitFor entity_dead target 30
 nf.Cast 42 target
 nf.WaitFor cast_results == 2 15
 nf.WaitFor corpse_swept template:npc_20003 3
+nf.WaitFor sweep_outcome_received 3
 nf.Expect sweep_recipient_in_party
 # role: b
 nf.Login
@@ -40,8 +42,9 @@ nf.WaitFor item_baseline 3
 nf.WaitFor party_invite_received 15
 nf.PartyAnswer 1
 nf.WaitFor party_member_count == 2 3
-nf.WaitFor loot_distributed 63
-nf.Expect loot_distributed_spoil == true
-nf.Expect loot_distributed_mode == RANDOM_INCLUDING_SPOIL
+nf.MarkItemState
+nf.WaitFor corpse_swept template:npc_20003 63
+nf.WaitFor sweep_outcome_received 3
+nf.Expect sweep_recipient_in_party
 # Total budget: the largest role's sum of declared waits + 30 s exit grace.
-nf.Within 147
+nf.Within 150

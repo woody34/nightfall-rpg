@@ -22,7 +22,7 @@ nf.WaitFor economy_result == manor_buy_seed 3
 nf.Expect adena_delta == -15
 nf.Expect inventory_has 5016 == 3
 nf.Target template:npc_20003
-nf.WaitFor target == "Npc 20003" 3
+nf.WaitFor target == Npc_20003 3
 nf.UseItem 5016 target
 nf.WaitFor corpse_seeded_or_sow_failed template:npc_20003 3
 nf.Attack

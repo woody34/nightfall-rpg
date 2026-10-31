@@ -166,7 +166,7 @@ def npc_template_text(repo, npc_id, level):
     binding of `npc_<id>` to drops.toml is the engine's (E3); the overlay records the pinned id."""
     text = (repo / 'packages/data/npcs/keltir.toml').read_text()
     text = re.sub(r'^id = "keltir"$', f'id = "npc_{npc_id}"', text, count=1, flags=re.M)
-    text = re.sub(r'^name = "Keltir"$', f'name = "Npc {npc_id}"', text, count=1, flags=re.M)
+    text = re.sub(r'^name = "Keltir"$', f'name = "Npc_{npc_id}"', text, count=1, flags=re.M)  # one token: the bot splits on whitespace (BotPredicates.cpp:566-571)
     text = re.sub(r'^level = 1$', f'level = {level}', text, count=1, flags=re.M)
     header = (f'# Phase 5 fixture monster for pinned NPC {npc_id} (tables-phase5/drops.toml npc[id]); body from keltir.toml.\n'
               f'# The economy sidecar binds the drop lists by pinned id (design §1.3); combat numbers are the keltir starter values.\n')

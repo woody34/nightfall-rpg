@@ -17,13 +17,13 @@ nf.EnterWorld
 nf.WaitFor in_world 15
 nf.WaitFor item_baseline 3
 nf.Target template:npc_18478
-nf.WaitFor target == "Npc 18478" 3
+nf.WaitFor target == Npc_18478 3
 nf.Attack
 nf.WaitFor entity_dead target 30
 nf.WaitFor ground_item_exists 8600 3
 nf.Expect ground_item_count_between 8600 3 10
 nf.Target template:npc_18352
-nf.WaitFor target == "Npc 18352" 3
+nf.WaitFor target == Npc_18352 3
 nf.Attack
 nf.WaitFor entity_dead target 30
 nf.WaitFor ground_item_exists 9703 3

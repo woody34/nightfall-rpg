@@ -43,7 +43,7 @@ as one unit and refuses copies of two files.
 |-------|------|---------|
 | Grammar | `Scripts/phase5-grammar.py`, `Scripts/test/phase5-grammar.test.py` | Syntax of the 41 §5.3 commands and the predicates, each with its received carrier and reset rule. Every line of the 36 files parses. |
 | Profiles | `Scripts/phase5-fixtures.py`, `Scenarios/phase5-harness.json` | Pack role -> seedable profile: profession from `class_id`, level, position, starter kit + declared inventory (role stride 10,000), chaotic state, learned ranks. Published for review. |
-| Overlay | `phase5-fixtures.py create_overlay` | The Phase 4 overlay (blacksmith) plus the pack's fixed NPCs (`[[npcs]]` named `merchant`, `exchanger`, `warehouse_keeper`, `manor_manager`, `auctioneer`) and monsters (`[[spawn_slots]]` with templates `npc_<pinned id>`). |
+| Overlay | `phase5-fixtures.py create_overlay` | The Phase 4 overlay (blacksmith) plus the pack's fixed NPCs (`[[npcs]]` named `merchant`, `exchanger`, `warehouse_keeper`, `manor_manager`, `auctioneer`) and monsters (`[[spawn_slots]]` with templates `npc_<pinned id>` named `Npc_<pinned id>`). |
 | Seeder | `infra/scripts/seed-phase5-fixture.py`, `Scripts/test/phase5-fixture.test.py` | Stages below. `--help` lists the 27 packs. |
 | Dispatcher | `Scripts/phase2-fixture.py`, `Scripts/run-sim-ci.py`, `Scripts/sim-lib.sh` | Phase 5 branch: version 5 stack (`nf_phase5_fixture_*`, `nightfall-phase5-harness-*`), `PHASE5_ENABLED=1`, role tokens `a|b|c.token`, grant stage, per-role `instance:` mapping. |
 
@@ -114,7 +114,7 @@ files and this table together.
 | `nf.MailSend` / `nf.MailTake` / `nf.MailReject` / `nf.MailCancel` / `nf.MailDelete` / `nf.MailRead` | `<role> <subject> [cod <adena>] [entries]`; `latest`; `MailDelete latest sent` | MailNotification / EconomyResult(mail) |
 | `nf.AuctionBid` / `nf.AuctionCancel` | `<instance_npc_id> <bid>`; `<instance_npc_id>` | ItemAuctionStatusChanged / EconomyResult(auction) |
 | `nf.ManorBuySeed` / `nf.ManorSellCrop` | `manor_manager <manor_id> <seed> <n>`; `manor_manager template:<crop> <crop_id> <manor_id> <count|all>` | EconomyResult(manor) |
-| `nf.Target` / `nf.Cast` | registered forms: `nf.Target template:npc_<pinned id>` (the overlay template id) or a character UUID; `nf.WaitFor target == "Npc <id>"` (Spawn.Name); `entity_dead target`; `entity_in_view <uuid>`; `Cast <skill> target` (Spoil 254, Sweeper 42) | TargetChanged / SkillCastResult / CorpseStateChanged |
+| `nf.Target` / `nf.Cast` | registered forms: `nf.Target template:npc_<pinned id>` (the overlay template id) or a character UUID; `nf.WaitFor target == Npc_<id>` (the overlay Spawn.Name; one token, because the bot splits on whitespace only); `entity_dead target`; `entity_in_view <uuid>`; `Cast <skill> target` (Spoil 254, Sweeper 42) | TargetChanged / SkillCastResult / CorpseStateChanged |
 
 Phase 5 predicates that name a monster take `template:npc_<pinned id>` (the overlay template). A sweep emits no
 `EconomyResult`: the files wait on `corpse_swept`, `loot_distributed` and inventory deltas.

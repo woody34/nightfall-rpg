@@ -17,7 +17,7 @@ nf.WaitFor in_world 15
 nf.WaitFor item_baseline 3
 nf.WaitFor party_member_count == 2 15
 nf.Target template:npc_22320
-nf.WaitFor target == "Npc 22320" 3
+nf.WaitFor target == Npc_22320 3
 nf.Attack
 nf.WaitFor entity_dead target 30
 nf.WaitFor ground_item_exists 57 3

@@ -96,7 +96,8 @@ class ScenarioFileTests(unittest.TestCase):
             for ln in lines:
                 if not ln.startswith("nf."):
                     continue
-                parts = ln.split()
+                self.assertNotIn('"', ln, f'{name}: quoted tokens cannot be tokenized by the bot: {ln}')
+                parts = ln.split()  # whitespace only, like the bot
                 cmd = parts[0][3:]
                 self.assertIn(cmd, COMMANDS, f"{name}: {ln}")
                 if cmd in ("WaitFor", "Expect"):

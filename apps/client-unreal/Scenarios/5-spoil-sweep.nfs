@@ -17,7 +17,7 @@ nf.WaitFor in_world 15
 nf.WaitFor item_baseline 3
 nf.MarkItemState
 nf.Target template:npc_20003
-nf.WaitFor target == "Npc 20003" 3
+nf.WaitFor target == Npc_20003 3
 nf.Cast 254 target
 nf.WaitFor cast_results == 1 15
 nf.WaitFor corpse_spoiled template:npc_20003 3

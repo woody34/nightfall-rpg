@@ -23,7 +23,7 @@ nf.PartyInvite c
 nf.WaitFor party_member_count == 3 15
 nf.MarkItemState
 nf.Target template:npc_20003
-nf.WaitFor target == "Npc 20003" 3
+nf.WaitFor target == Npc_20003 3
 nf.Attack
 nf.WaitFor entity_dead target 30
 nf.WaitFor ground_item_exists 57 3
