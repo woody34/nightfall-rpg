@@ -210,7 +210,7 @@ message PartyInviteRequest {
   LootMode mode = 3;
 }
 
-// Answer a pending party invite with the pinned -1 / 0 / 1 value (D §4.4).
+// Answer the open party invite with the pinned -1 / 0 / 1 value (D §4.4).
 message PartyAnswerRequest {
   string idempotency_key = 1;
   int32 answer = 2;
@@ -239,7 +239,7 @@ message PartyLootChangeRequest {
   LootMode mode = 2;
 }
 
-// A member's vote on the pending loot-mode change (B15).
+// A member's vote on the proposed loot-mode change (B15).
 message PartyLootChangeAnswer {
   string idempotency_key = 1;
   bool accept = 2;
