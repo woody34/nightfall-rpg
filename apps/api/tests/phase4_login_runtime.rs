@@ -371,7 +371,7 @@ async fn memory_dev_granted_character_logs_into_v6_and_replays() {
             .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
             .unwrap(),
     );
-    contract(repo, Arc::new(InMemoryEventLog::default())).await;
+    Box::pin(contract(repo, Arc::new(InMemoryEventLog::default()))).await;
 }
 
 #[tokio::test]
@@ -392,7 +392,7 @@ async fn postgres_jetstream_dev_granted_character_logs_into_v6_and_replays() {
             .await
             .unwrap(),
     );
-    contract(repo, log).await;
+    Box::pin(contract(repo, log)).await;
 }
 
 /// T11: the client's required-live sequence. `CreateCharacter`, first V6 login (the kit

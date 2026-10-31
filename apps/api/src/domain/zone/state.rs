@@ -26,6 +26,10 @@ mod item_use;
 mod item_views;
 #[path = "state_items.rs"]
 mod items;
+#[path = "state_phase5_death.rs"]
+mod phase5_death;
+#[path = "state_phase5.rs"]
+mod phase5_runtime;
 #[path = "state_runtime.rs"]
 mod runtime;
 
@@ -258,6 +262,9 @@ impl SnapshotMeta {
 /// [`AppliedTick`]s, which replay (Story 3.3) relies on.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ZoneSnapshot {
+    /// V7 economy state (design §1.11); never synthesized for historical epochs.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub phase5: Option<super::Phase5Snapshot>,
     /// V6 item state; never synthesized for historical epochs.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub phase4: Option<super::Phase4Snapshot>,
@@ -449,6 +456,10 @@ pub enum TickError {
     /// A checked Phase 3 invariant failed; no draft is published.
     #[error("Phase 3 runtime invariant failed")]
     Phase3Invariant,
+    /// A checked V7 economy invariant failed (e.g. a drop with no item definition); no draft
+    /// is published.
+    #[error("Phase 5 runtime invariant failed")]
+    Phase5Invariant,
     /// Application stopped before applying a lifecycle transition after a failed save.
     #[error("checkpoint persistence fence")]
     PersistenceFence,
@@ -483,7 +494,12 @@ impl ZoneSnapshot {
     /// All decoding and encoding boundaries share this check; old epochs never normalize
     /// an unsupported digest into an accepted one.
     pub fn validate_version(&self) -> Result<(), SnapshotError> {
-        use StateDigestVersion::{BinaryV2, BinaryV3, BinaryV4, BinaryV5, BinaryV6, JsonV1};
+        use StateDigestVersion::{
+            BinaryV2, BinaryV3, BinaryV4, BinaryV5, BinaryV6, BinaryV7, JsonV1,
+        };
+        if self.meta.schema_version < 11 && self.phase5.is_some() {
+            return Err(SnapshotError::CombatMismatch);
+        }
         if self.meta.schema_version < 10
             && (self.phase4.is_some()
                 || self.checkpoints.iter().any(|lane| {
@@ -548,9 +564,20 @@ impl ZoneSnapshot {
                             .as_ref()
                             .is_some_and(|p| p.formula_revision == 1 && p.timer_policy_version == 1)
                 },
-                // (11, BinaryV7): V7 requires valid Phase 3, Phase 4 and Phase 5 blocks with
-                // all three rules hashes (design §12.1). The Phase 5 block is story 3.1: until
-                // it exists no V7 snapshot validates, so a relabelled V6 snapshot fails closed.
+                // V7 (design §12.1): valid Phase 3, Phase 4 and Phase 5 blocks under the
+                // version_three admission policy; the rules hashes bind at restore.
+                (11, BinaryV7, true) => {
+                    self.validate_skill_boundary(3, 3)
+                        && self
+                            .phase3
+                            .as_ref()
+                            .is_some_and(|p| p.rules.runtime_revision() == 3)
+                        && self
+                            .phase4
+                            .as_ref()
+                            .is_some_and(|p| p.formula_revision == 1 && p.timer_policy_version == 1)
+                        && self.phase5.is_some()
+                },
                 (4..=11, _, _) => false,
                 (version, _, _) => return Err(SnapshotError::Schema(version)),
             };
@@ -707,6 +734,7 @@ pub struct ZoneState {
     evidence: Option<super::evidence::EvidenceBuffer>,
     phase3: Option<super::phase3::Phase3Zone>,
     phase4: Option<super::phase4::Phase4Zone>,
+    phase5: Option<super::phase5::Phase5Zone>,
     classes: Option<Arc<crate::domain::class::ClassRegistry>>,
     seed: ZoneSeed,
     checkpoints: Vec<CheckpointSnapshot>,
@@ -769,6 +797,7 @@ impl ZoneState {
             classes: None,
             phase3: None,
             phase4: None,
+            phase5: None,
             evidence: None,
             checkpoints: Vec::new(),
             meta: SnapshotMeta::legacy(),
@@ -890,7 +919,45 @@ impl ZoneState {
         snapshot: ZoneSnapshot,
         rules: Option<Arc<super::Phase4Rules>>,
     ) -> Result<Self, SnapshotError> {
+        Self::from_snapshot_with_bundles(snapshot, rules, None)
+    }
+
+    /// D27: a V7 block binds to the economy rules whose hash it carries, validated against
+    /// the item rules; a block without matching rules, or rules without a block, is refused.
+    fn bind_phase5(
+        canonical: Option<super::Phase5Snapshot>,
+        economy: Option<Arc<super::Phase5Rules>>,
+        items: Option<&super::Phase4Rules>,
+    ) -> Result<Option<super::phase5::Phase5Zone>, SnapshotError> {
+        match (canonical, economy, items) {
+            (None, None, _) => Ok(None),
+            (Some(canonical), Some(economy), Some(items)) => {
+                economy
+                    .validate_phase4(items)
+                    .map_err(SnapshotError::Rules)?;
+                if canonical.rules_hash != economy.hash() {
+                    return Err(SnapshotError::Rules("Phase5 rules hash mismatch".into()));
+                }
+                Ok(Some(super::phase5::Phase5Zone {
+                    canonical,
+                    rules: economy,
+                    fault: None,
+                    rewards: None,
+                }))
+            },
+            _ => Err(SnapshotError::Rules("explicit matching V7 economy rules required".into())),
+        }
+    }
+
+    /// Restore V7 with explicitly resolved item and economy rules (D27): a V7 snapshot
+    /// without matching economy rules, or economy rules for a non-V7 snapshot, is refused.
+    pub fn from_snapshot_with_bundles(
+        snapshot: ZoneSnapshot,
+        rules: Option<Arc<super::Phase4Rules>>,
+        economy: Option<Arc<super::Phase5Rules>>,
+    ) -> Result<Self, SnapshotError> {
         snapshot.validate_version()?;
+        let phase5 = Self::bind_phase5(snapshot.phase5.clone(), economy, rules.as_deref())?;
         let phase4 = match (snapshot.phase4.clone(), rules) {
             (None, None) => None,
             (Some(canonical), Some(rules)) => {
@@ -932,6 +999,7 @@ impl ZoneState {
             return Err(SnapshotError::SafePointOutOfBounds);
         }
         state.phase4 = phase4;
+        state.phase5 = phase5;
         state.meta = snapshot.meta;
         state.classes = snapshot.classes;
         state.phase3 = snapshot
@@ -979,6 +1047,7 @@ impl ZoneState {
         if state.phase3_enabled() {
             state.validate_runtime_v5()?;
         }
+        state.validate_phase5_block()?;
         let players: Vec<(EntityId, Vec2Fixed)> = state
             .entities
             .values()
@@ -1003,6 +1072,7 @@ impl ZoneState {
     #[must_use]
     pub fn snapshot(&self) -> ZoneSnapshot {
         ZoneSnapshot {
+            phase5: self.phase5.as_ref().map(|p| p.canonical.clone()),
             phase4: self.phase4.as_ref().map(|p| p.canonical.clone()),
             phase3: self.phase3.as_ref().map(|p| p.canonical.clone()),
             classes: self.classes.clone(),
@@ -1225,9 +1295,13 @@ impl ZoneState {
         }
         let Some(items) = &self.phase4 else { return };
         let snapshot = self.snapshot();
-        let restored =
-            Self::from_snapshot_with_items(snapshot.clone(), Some(Arc::clone(&items.rules)))
-                .expect("T55: a V6 snapshot restores");
+        // V7 restores with its bound economy rules as well (D27), under the same identity.
+        let restored = Self::from_snapshot_with_bundles(
+            snapshot.clone(),
+            Some(Arc::clone(&items.rules)),
+            self.phase5.as_ref().map(|p| Arc::clone(&p.rules)),
+        )
+        .expect("T55: a V6/V7 snapshot restores");
         assert_eq!(restored.state_digest(), self.state_digest(), "T55: restored digest");
         assert!(restored.snapshot() == snapshot, "T55: restored snapshot differs");
     }

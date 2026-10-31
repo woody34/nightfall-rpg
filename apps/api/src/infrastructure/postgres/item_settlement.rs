@@ -217,6 +217,17 @@ async fn persist_rows(
         let location = match item.location {
             ItemLocation::Inventory => "inventory",
             ItemLocation::Paperdoll => "paperdoll",
+            // Character-owned settlement never carries a V7 location (design §11.2); the
+            // container rows have their own owner kinds and migrations (story 4.x).
+            ItemLocation::Ground
+            | ItemLocation::Refund
+            | ItemLocation::Warehouse
+            | ItemLocation::Freight
+            | ItemLocation::Mail
+            | ItemLocation::Delivery
+            | ItemLocation::AuctionBid => {
+                return Err(CheckpointError::Constraint("item_location_not_character_owned".into()))
+            },
         };
         let written = execute(tx, "INSERT INTO item_instances(id,character_id,location,slot,template_id,count,enchant,augment_id,charge_bits,bound,created_tick,revision) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,false,$10,$11) ON CONFLICT(id) DO UPDATE SET location=EXCLUDED.location,slot=EXCLUDED.slot,template_id=EXCLUDED.template_id,count=EXCLUDED.count,enchant=EXCLUDED.enchant,augment_id=EXCLUDED.augment_id,charge_bits=EXCLUDED.charge_bits,created_tick=EXCLUDED.created_tick,revision=EXCLUDED.revision,updated_at=now() WHERE item_instances.character_id=EXCLUDED.character_id",
             vec![signed(item.id.get())?.into(),character.as_uuid().into(),location.into(),item.slot.map(|slot| i16::from(slot as u8)).into(),

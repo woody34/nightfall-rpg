@@ -165,6 +165,29 @@ pub enum ItemLocation {
     Inventory,
     /// Equipped; its slot is also present in the paperdoll index.
     Paperdoll,
+    /// V7 only (design §11.2): on the ground as a `GroundItem`; never on the wire.
+    Ground,
+    /// V7 only: in the owner's refund tab.
+    Refund,
+    /// V7 only: a DB-only private warehouse row (never zone state).
+    Warehouse,
+    /// V7 only: a DB-only freight row.
+    Freight,
+    /// V7 only: a DB-only mail attachment row.
+    Mail,
+    /// V7 only: a DB-only pending delivery row.
+    Delivery,
+    /// V7 only: a DB-only auction bid escrow row.
+    AuctionBid,
+}
+
+impl ItemLocation {
+    /// A character's zone inventory holds only carried or equipped instances (z-review-2
+    /// P2-2): ground, refund and the DB-only V7 locations never appear there.
+    #[must_use]
+    pub const fn is_character_owned(self) -> bool {
+        matches!(self, Self::Inventory | Self::Paperdoll)
+    }
 }
 
 /// Immutable clock namespace of an item's creation; retained items can cross epochs.
@@ -231,6 +254,15 @@ impl ItemInstance {
         }
         if self.created_tick.0 > i64::MAX as u64 || self.revision > i64::MAX as u64 {
             return Err(ItemError("item tick or revision outside bigint"));
+        }
+        Ok(())
+    }
+
+    /// [`Self::validate`] plus the character-inventory location rule (z-review-2 P2-2).
+    pub fn validate_character_owned(&self) -> Result<(), ItemError> {
+        self.validate()?;
+        if !self.location.is_character_owned() {
+            return Err(ItemError("character item outside Inventory or Paperdoll"));
         }
         Ok(())
     }

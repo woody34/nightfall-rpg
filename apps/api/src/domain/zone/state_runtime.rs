@@ -812,6 +812,8 @@ impl ZoneState {
         if self.complete_runtime_v5() {
             self.expire_policy_v5(tick, &mut events)?;
         }
+        // V7 phase 2 (design §2.1): protection deadlines, then ground decay on the grid.
+        self.expire_phase5(tick, &mut events);
         self.pulse_effects_v5(tick, &mut events)?;
         self.regen_v5(tick)?;
         if self.complete_runtime_v5() {
@@ -890,6 +892,8 @@ impl ZoneState {
         self.drain_ai_v5(tick, &mut events);
         self.ai_phase(tick, &mut events);
         self.drain_ai_v5(tick, &mut events);
+        // A V7 hook that latched an invariant failure fails the tick before any flush.
+        self.take_phase5_fault()?;
         self.phase3
             .as_mut()
             .ok_or_else(missing)?
@@ -1357,6 +1361,7 @@ impl ZoneState {
                     },
                     ZoneCommand::Despawn { entity } => {
                         self.remove_items_v6(entity);
+                        self.remove_phase5_player(entity);
                         if let Some(p) = &mut self.phase3 {
                             if let Some(mut side) = p.canonical.entities.remove(&entity) {
                                 if let Some(offer) = side.invalidate_resurrect_offer() {
@@ -1447,6 +1452,12 @@ impl ZoneState {
             candidate
                 .materialize_kit_v6(tick, entity, load, &mut events)
                 .map_err(|_| RejectReason::InvalidLoad)?;
+            // V7 (design §1.11): the Phase 5 record comes from the load's checkpoint.
+            match load {
+                Some(load) => candidate.admit_phase5_player(entity, load)?,
+                None if candidate.phase5.is_some() => return Err(RejectReason::InvalidLoad),
+                None => {},
+            }
         }
         *self = candidate;
         Ok(events)
@@ -1455,6 +1466,13 @@ impl ZoneState {
         &self,
         load: Option<&PlayerLoad>,
     ) -> Result<(), RejectReason> {
+        if let Some(phase5) = &self.phase5 {
+            // A V7 load carries the Phase 5 checkpoint validated against the epoch's rules.
+            load.and_then(|load| load.phase5.as_ref())
+                .ok_or(RejectReason::InvalidLoad)?
+                .validate_rules(&phase5.rules)
+                .map_err(|_| RejectReason::InvalidLoad)?;
+        }
         if let Some(items) = &self.phase4 {
             let load = load.ok_or(RejectReason::InvalidLoad)?;
             load.validate_phase4()
@@ -2333,6 +2351,8 @@ impl ZoneState {
             kind: match self.entities.get(&source.entity).ok_or_else(missing)?.kind {
                 EntityKind::Player => EffectSourceKind::Player,
                 EntityKind::Npc => EffectSourceKind::Npc,
+                // A ground item never casts or carries effects.
+                EntityKind::GroundItem => return Err(missing()),
             },
         })
     }
@@ -3401,12 +3421,17 @@ impl ZoneState {
             match event {
                 ZoneEvent::EntityDespawn { entity, .. } => {
                     self.remove_items_v6(*entity);
+                    self.remove_phase5_player(*entity);
+                    self.phase5_npc_despawned(*entity);
                     let phase = self.phase3.as_mut().ok_or_else(missing)?;
                     phase.canonical.entities.remove(entity);
                     phase.effective.remove(entity);
                     phase.schedule_dirty.insert(*entity);
                 },
-                ZoneEvent::EntitySpawn { entity, .. } => self.attach_v5(tick, *entity, None)?,
+                ZoneEvent::EntitySpawn { entity, .. } => {
+                    self.attach_v5(tick, *entity, None)?;
+                    self.phase5_npc_spawned(*entity);
+                },
                 _ => {},
             }
         }

@@ -405,6 +405,7 @@ pub(super) fn decode(bytes: &[u8]) -> Result<ZoneSnapshot, CodecError> {
     if snapshot.phase3.is_some()
         || !snapshot.entities.is_empty()
         || !snapshot.aoi.is_empty()
+        || snapshot.phase5.is_some() != (message.format == 3)
         || !matches!(
             (
                 message.format,
@@ -419,7 +420,13 @@ pub(super) fn decode(bytes: &[u8]) -> Result<ZoneSnapshot, CodecError> {
     {
         return Err(error("invalid base policy or duplicated phase3"));
     }
-    (snapshot.entities, snapshot.aoi) = unpack(required(message.base_entities)?)?;
+    let base_entities = required(message.base_entities)?;
+    if message.format < 3 {
+        // Snapshot 9/10 entity bodies refuse every V7 name too (z-review-1 P2-2).
+        let value: serde_json::Value = unpack(base_entities.clone())?;
+        super::codec_validation::pre_phase5_json(&value)?;
+    }
+    (snapshot.entities, snapshot.aoi) = unpack(base_entities)?;
     let rules_hash: [u8; 32] = message
         .rules_hash
         .try_into()
@@ -462,7 +469,12 @@ pub(super) fn decode(bytes: &[u8]) -> Result<ZoneSnapshot, CodecError> {
         {
             return Err(error("entity order/duplicate"));
         }
-        let metadata: Metadata = unpack(required(entity.metadata)?)?;
+        let metadata_value = required(entity.metadata)?;
+        if message.format < 3 {
+            let value: serde_json::Value = unpack(metadata_value.clone())?;
+            super::codec_validation::pre_phase5_json(&value)?;
+        }
+        let metadata: Metadata = unpack(metadata_value)?;
         let mut effects = BTreeMap::new();
         let mut previous_effect = entity.effect_base;
         for mut effect in entity.effects {
@@ -640,8 +652,31 @@ mod tests {
     use crate::domain::zone::*;
     use crate::infrastructure::{class_data, rules_data, skill_data};
 
+    /// z-review-1 P2-2: a Snapshot ≤ 10 envelope refuses V7 names inside the packed entity
+    /// bodies (tag 9) and inside each per-entity metadata, before typed decoding.
+    /// z-review-2 P3-3: both legacy formats, Snapshot 9 (format 1) and Snapshot 10 /
+    /// `NFSNAP10` (format 2).
+    #[test]
+    fn legacy_envelopes_refuse_v7_names_inside_packed_entities() {
+        for (format, fixture) in [(1, snapshot()), (2, v6_snapshot())] {
+            let bytes = encode(&fixture).unwrap();
+            assert_eq!(decode(&bytes).unwrap(), fixture);
+            let mut message = Snapshot::decode(bytes.as_slice()).unwrap();
+            assert_eq!(message.format, format);
+            message.base_entities =
+                Some(pack(&serde_json::json!([[{ "phase5": null }], []])).unwrap());
+            let error = decode(&message.encode_to_vec()).unwrap_err().to_string();
+            assert!(error.contains("V7"), "format {format}: {error}");
+            let mut message = Snapshot::decode(bytes.as_slice()).unwrap();
+            let first = message.entities.first_mut().unwrap();
+            first.metadata = Some(pack(&serde_json::json!({ "location": "warehouse" })).unwrap());
+            let error = decode(&message.encode_to_vec()).unwrap_err().to_string();
+            assert!(error.contains("V7"), "format {format}: {error}");
+        }
+    }
+
     fn snapshot() -> ZoneSnapshot {
-        let mut snapshot = ZoneState::new_phase3(
+        let snapshot = ZoneState::new_phase3(
             ZoneSeed {
                 zone: ZoneId(1),
                 epoch: 1,
@@ -658,6 +693,44 @@ mod tests {
         )
         .unwrap()
         .snapshot();
+        populate(snapshot)
+    }
+
+    /// A Snapshot 10 (format 2) fixture: a V6 zone with the same two entities.
+    fn v6_snapshot() -> ZoneSnapshot {
+        let bundle = crate::infrastructure::item_data::embedded_phase4_bundle().unwrap();
+        let snapshot = ZoneState::new_phase4(
+            ZoneSeed {
+                zone: ZoneId(1),
+                epoch: 1,
+            },
+            ZoneBounds::new(Vec2Fixed::from_tiles(0, 0), Vec2Fixed::from_tiles(256, 256)).unwrap(),
+            0,
+            rules_data::load_rules(&rules_data::RulesSource::embedded())
+                .unwrap()
+                .rules,
+            class_data::load_classes(&class_data::ClassSource::embedded())
+                .unwrap()
+                .registry,
+            (*bundle.skills).clone(),
+            Arc::clone(&bundle.items),
+            ItemInstanceRange::new(1, 1, 10000).unwrap(),
+        )
+        .unwrap()
+        .snapshot();
+        let mut snapshot = populate(snapshot);
+        // V6 keeps a facing sidecar for every Phase 3 combatant.
+        let ids: Vec<EntityId> = snapshot.entities.iter().map(|entity| entity.id).collect();
+        let items = snapshot.phase4.as_mut().unwrap();
+        for id in ids {
+            items
+                .facing
+                .insert(id, crate::domain::zone::item_angles::FacingVector::EAST);
+        }
+        snapshot
+    }
+
+    fn populate(mut snapshot: ZoneSnapshot) -> ZoneSnapshot {
         snapshot.entities = (1..=2)
             .map(|index| crate::domain::zone::Entity {
                 id: EntityId::from_uuid(Uuid::from_u128(index)),

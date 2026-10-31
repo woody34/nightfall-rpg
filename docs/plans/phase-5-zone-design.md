@@ -1684,7 +1684,7 @@ Outbox subjects, extending A20/C9: `nightfall.item.{looted, picked_up, dropped_p
 | Digest | `StateDigestVersion::BinaryV7`, new variant after `BinaryV6` (`Z/state.rs:72-86`) |
 | Record schema | `RECORD_SCHEMA_VERSION = 9` (`R/codec.rs:706` is 8) |
 | Snapshot | version 11, magic **`b"NFSNAP11"`** (8-byte ASCII, following `b"NFSNAP9\0"` and `b"NFSNAP10"` at `R/record.rs:224-227`) |
-| Runtime gate | **`PHASE5_ENABLED`**: unset → V7, except historical simulation-fixture selection; `"0"` → V6 behaviour; `"1"` → V7; any other value is a startup error. The recorded version wins on replay. V7 requires valid Phase 3 + Phase 4 + Phase 5 blocks and all three rules hashes. Replay admission policy `version_three`. |
+| Runtime gate | **`PHASE5_ENABLED`**: unset → V7, except historical simulation-fixture selection; `"0"` → V6 behaviour; `"1"` → V7; any other value is a startup error. **Interim (ruling P5-D15(a)):** until E4.5 persists the Phase 5 checkpoint, unset keeps the pre-Phase-5 selection and V7 boots only on `"1"` (plan §2.2). The recorded version wins on replay. V7 requires valid Phase 3 + Phase 4 + Phase 5 blocks and all three rules hashes. Replay admission policy `version_three`. |
 | Legacy | Snapshot ≤ 10, Record ≤ 8 and BinaryV6 and older replay byte-exactly. `apps/api/fixtures/sessions/*.nfr` stay untouched (`replay-check.sh`). Decoders reject any Phase 5 command kind, output tag, player-load field, entity kind 3, V7 `ItemLocation`, or new ledger op under Record ≤ 8, and they check recursively before permissive decoding. |
 
 High-water marks were checked at 80b8077:

@@ -74,6 +74,7 @@ pub struct ResolvedRules {
 
 /// Starts zones. Holds the ports every epoch needs.
 pub struct ZoneBootstrap {
+    phase5: Option<Arc<crate::domain::zone::Phase5Rules>>,
     phase4: Option<(
         Arc<crate::domain::zone::Phase4Rules>,
         Arc<dyn super::ports::ItemAdmissionRepository>,
@@ -100,6 +101,7 @@ impl ZoneBootstrap {
     ) -> Self {
         Self {
             phase4: None,
+            phase5: None,
             phase3: None,
             classes: None,
             rules: None,
@@ -139,6 +141,14 @@ impl ZoneBootstrap {
     #[must_use]
     pub fn with_phase3_rules(mut self, rules: crate::domain::zone::Phase3Rules) -> Self {
         self.phase3 = Some(rules);
+        self
+    }
+
+    /// Select a V7 epoch: the Phase 5 rules bound to the V6 bundle (design §12.1). Requires
+    /// `with_phase4_rules`; the zone refuses to start otherwise.
+    #[must_use]
+    pub fn with_phase5_rules(mut self, rules: Arc<crate::domain::zone::Phase5Rules>) -> Self {
+        self.phase5 = Some(rules);
         self
     }
 
@@ -217,20 +227,37 @@ impl ZoneBootstrap {
             let range = reservations
                 .reserve_item_range(seed.zone, seed.epoch)
                 .await?;
-            crate::domain::zone::ZoneState::new_phase4(
-                seed,
-                def.bounds,
-                time_origin_ms,
-                physical.rules.clone(),
-                classes.clone(),
-                skills.clone(),
-                items.clone(),
-                crate::domain::zone::ItemInstanceRange::new(
-                    range.range_start,
-                    range.next_reserved,
-                    range.range_end_exclusive,
-                )?,
-            )?
+            let allocator = crate::domain::zone::ItemInstanceRange::new(
+                range.range_start,
+                range.next_reserved,
+                range.range_end_exclusive,
+            )?;
+            if let Some(economy) = &self.phase5 {
+                crate::domain::zone::ZoneState::new_phase5(
+                    seed,
+                    def.bounds,
+                    time_origin_ms,
+                    physical.rules.clone(),
+                    classes.clone(),
+                    skills.clone(),
+                    items.clone(),
+                    allocator,
+                    economy.clone(),
+                )?
+            } else {
+                crate::domain::zone::ZoneState::new_phase4(
+                    seed,
+                    def.bounds,
+                    time_origin_ms,
+                    physical.rules.clone(),
+                    classes.clone(),
+                    skills.clone(),
+                    items.clone(),
+                    allocator,
+                )?
+            }
+        } else if self.phase5.is_some() {
+            anyhow::bail!("Phase5 (V7) requires the V6 item bundle and reservations");
         } else if let Some(phase3) = &self.phase3 {
             let rules = self
                 .rules

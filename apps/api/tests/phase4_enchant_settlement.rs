@@ -485,7 +485,7 @@ async fn memory_actual_enchant_audit_survives_later_target_destruction_and_dupli
             .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
             .unwrap(),
     );
-    contract(repo.clone(), bundle, Arc::new(InMemoryEventLog::default())).await;
+    Box::pin(contract(repo.clone(), bundle, Arc::new(InMemoryEventLog::default()))).await;
     let exchanged: Vec<_> = repo
         .staged_events()
         .into_iter()
@@ -533,7 +533,7 @@ async fn owned_postgres_jetstream_actual_enchant_audit_survives_target_destructi
             .await
             .unwrap(),
     );
-    let id = contract(repo, bundle, log).await;
+    let id = Box::pin(contract(repo, bundle, log)).await;
     let facts: Vec<serde_json::Value> = sqlx::query_scalar("SELECT payload->'fact' FROM outbox WHERE subject='nightfall.item.enchanted' AND payload->'fact'->>'character_id'=$1").bind(id.to_string()).fetch_all(&pool).await.unwrap();
     assert_eq!(facts.len(), 1);
     assert_eq!(facts[0]["after"]["enchant"], 1);

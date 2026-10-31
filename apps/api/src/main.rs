@@ -26,7 +26,8 @@ use tokio_util::sync::CancellationToken;
 async fn main() -> anyhow::Result<()> {
     let telemetry = telemetry::init(&TelemetryConfig::from_env())?;
 
-    let result = run(telemetry.metrics()).await;
+    // The runtime future grew past the clippy large-future bound with the V7 bootstrap.
+    let result = Box::pin(run(telemetry.metrics())).await;
 
     // Flush buffered spans and metrics whether or not the servers exited cleanly.
     telemetry.shutdown().await;
@@ -549,6 +550,34 @@ mod tests {
             .instances
             .iter()
             .any(|item| item.template_id == 57 && item.count == 10));
+        zone.shutdown(WatermarkReason::Shutdown).await.unwrap();
+    }
+
+    /// V7 twin of the Phase 4 startup (ruling P5-D15(a)): only an explicit
+    /// `PHASE5_ENABLED=1` boots V7, with the Phase 5 rules bound to the composed V6 bundle.
+    #[tokio::test]
+    async fn phase5_enabled_startup_boots_v7_epochs_bound_to_the_v6_bundle() {
+        let zone_cfg = ZoneRuntimeConfig {
+            phase5_enabled: Some("1".into()),
+            ..ZoneRuntimeConfig::default()
+        };
+        let (deps, zone, realtime) = compose(&zone_cfg).await;
+        let snapshot = zone.handle().snapshot().await.unwrap();
+        let bundle = infrastructure::item_data::embedded_phase4_bundle().unwrap();
+        let economy = infrastructure::economy_data::embedded_phase5_rules().unwrap();
+        assert!(snapshot.phase3.is_some());
+        assert!(snapshot.phase4.is_some(), "V7 implies the V6 item sidecar");
+        assert!(snapshot.phase5.is_some(), "a V7 epoch carries the Phase 5 block");
+        let block = snapshot.phase5.as_ref().unwrap();
+        assert_eq!(block.rules_hash, economy.hash());
+        economy.validate_phase4(&bundle.items).unwrap();
+        assert!(deps.item_catalogue.is_some());
+        realtime
+            .sessions
+            .zone
+            .item_grants_available()
+            .await
+            .unwrap();
         zone.shutdown(WatermarkReason::Shutdown).await.unwrap();
     }
 

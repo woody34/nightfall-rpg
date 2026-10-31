@@ -266,6 +266,7 @@ fn kind(kind: EntityKind) -> &'static str {
     match kind {
         EntityKind::Player => "player",
         EntityKind::Npc => "npc",
+        EntityKind::GroundItem => "ground_item",
     }
 }
 

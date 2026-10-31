@@ -81,6 +81,124 @@ impl ZoneState {
         Ok(state)
     }
 
+    /// Construct a V7 epoch (design §12.1): the V6 inputs plus the bound Phase 5 rules,
+    /// an empty Phase 5 block and the `version_three` admission policy.
+    #[allow(clippy::too_many_arguments)] // Independent epoch inputs must remain explicit.
+    pub fn new_phase5(
+        seed: ZoneSeed,
+        bounds: ZoneBounds,
+        time_origin_ms: i64,
+        stat_rules: Arc<StatRules>,
+        classes: Arc<crate::domain::class::ClassRegistry>,
+        skills: Phase3Rules,
+        items: Arc<Phase4Rules>,
+        allocator: ItemInstanceRange,
+        economy: Arc<crate::domain::zone::Phase5Rules>,
+    ) -> Result<Self, SnapshotError> {
+        economy
+            .validate_phase4(&items)
+            .map_err(SnapshotError::Rules)?;
+        let mut state = Self::new_phase4(
+            seed,
+            bounds,
+            time_origin_ms,
+            stat_rules,
+            classes,
+            skills,
+            items,
+            allocator,
+        )?;
+        state.phase5 = Some(crate::domain::zone::Phase5Zone {
+            canonical: crate::domain::zone::Phase5Snapshot::new(&economy),
+            rules: economy,
+            fault: None,
+            rewards: None,
+        });
+        state.meta.schema_version = 11;
+        state.meta.digest_version = StateDigestVersion::BinaryV7;
+        state.meta.phase3_admission_policy = Some(Phase3AdmissionPolicy::version_three());
+        state.snapshot().validate_version()?;
+        Ok(state)
+    }
+
+    /// The design §1.11 invariants of the Phase 5 block against the rest of the zone.
+    pub(super) fn validate_phase5_block(&self) -> Result<(), SnapshotError> {
+        let Some(phase5) = &self.phase5 else {
+            return Ok(());
+        };
+        let items = self.phase4.as_ref().ok_or(SnapshotError::CombatMismatch)?;
+        phase5
+            .canonical
+            .validate(
+                &phase5.rules,
+                &crate::domain::zone::Phase5Context {
+                    items: &items.rules,
+                    phase4: &items.canonical,
+                    entities: &self.entities,
+                    seed: self.seed,
+                    tick: self.next_tick,
+                },
+            )
+            .map_err(|error| SnapshotError::Rules(error.to_string()))
+    }
+
+    /// Admit a player's V7 record from its load (design §1.11): a V7 load requires the
+    /// Phase 5 checkpoint, validated against the epoch's rules hash and recipe limits.
+    pub(super) fn admit_phase5_player(
+        &mut self,
+        entity: crate::domain::zone::EntityId,
+        load: &crate::domain::zone::PlayerLoad,
+    ) -> Result<(), super::RejectReason> {
+        let Some(phase5) = &mut self.phase5 else {
+            return Ok(());
+        };
+        let checkpoint = load
+            .phase5
+            .as_ref()
+            .ok_or(super::RejectReason::InvalidLoad)?;
+        checkpoint
+            .validate_rules(&phase5.rules)
+            .map_err(|_| super::RejectReason::InvalidLoad)?;
+        let limits = &phase5.rules.parts().recipes.config;
+        let known: std::collections::BTreeSet<u32> = phase5
+            .rules
+            .parts()
+            .recipes
+            .recipe
+            .iter()
+            .map(|recipe| recipe.id)
+            .collect();
+        let recipes = &checkpoint.recipes;
+        if recipes.dwarven.len() > usize::try_from(limits.dwarf_recipe_limit).unwrap_or(usize::MAX)
+            || recipes.common.len()
+                > usize::try_from(limits.common_recipe_limit).unwrap_or(usize::MAX)
+            || !recipes.dwarven.is_disjoint(&recipes.common)
+            || recipes
+                .dwarven
+                .iter()
+                .chain(&recipes.common)
+                .any(|recipe| !known.contains(recipe))
+        {
+            return Err(super::RejectReason::InvalidLoad);
+        }
+        phase5.canonical.players.insert(
+            entity,
+            crate::domain::zone::Phase5Player {
+                recipes: recipes.clone(),
+                ..crate::domain::zone::Phase5Player::default()
+            },
+        );
+        Ok(())
+    }
+
+    /// Drop a departed player's V7 record. The departure hooks (store close, party leave,
+    /// trade cancel, refund destroy) are stories 3.5 and 3.9; nothing creates those yet.
+    pub(super) fn remove_phase5_player(&mut self, entity: crate::domain::zone::EntityId) {
+        if let Some(phase5) = &mut self.phase5 {
+            phase5.canonical.players.remove(&entity);
+        }
+    }
+
     /// Recorded item policy; environment switches cannot alter an existing epoch.
     pub fn phase4_enabled(&self) -> bool {
         matches!(

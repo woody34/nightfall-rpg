@@ -659,6 +659,13 @@ impl ZoneState {
             killer,
             incarnation,
         });
+        // V7 (design §2.2): drops resolve here, from the still-present hate ledger, before
+        // npc_died draws the respawn jitter. V5/V6 skip this entirely.
+        if self.phase5_enabled() {
+            if let Err(error) = self.death_v7(tick, victim, killer, events) {
+                self.latch_phase5_fault(&error);
+            }
+        }
         // E3.4 hook: corpse deadline and respawn schedule of a spawn-slot NPC (state_ai.rs).
         self.npc_died(tick, victim, events);
         if let Some(ledger) = self.hate.remove(&victim) {
@@ -681,12 +688,16 @@ impl ZoneState {
             .map(|c| c.role.clone());
         match role {
             Some(CombatRole::Player { .. }) => self.charge_death(tick, victim, killer, events),
-            Some(CombatRole::Npc { xp_reward, .. }) => {
+            // V7 step 7: the B16 distribution stashed by death_v7 replaces the killing-blow
+            // award; V5/V6 (and V7 NPCs without a pinned row) keep it.
+            Some(CombatRole::Npc { xp_reward, .. })
+                if !self.apply_phase5_rewards(tick, victim, events) =>
+            {
                 if let Some(player) = credit {
                     self.award_xp(tick, player, xp_reward, events);
                 }
             },
-            None => {},
+            Some(CombatRole::Npc { .. }) | None => {},
         }
     }
 
@@ -750,7 +761,13 @@ impl ZoneState {
 
     /// Adds `reward` (capped at `X[86] − 1`) to a living player's XP, then emits `XpGained`,
     /// one `LevelUp` per threshold crossed and a final `StatsChanged` (plan §3.3).
-    fn award_xp(&mut self, tick: Tick, player: EntityId, reward: u64, events: &mut Vec<ZoneEvent>) {
+    pub(super) fn award_xp(
+        &mut self,
+        tick: Tick,
+        player: EntityId,
+        reward: u64,
+        events: &mut Vec<ZoneEvent>,
+    ) {
         let Some(rules) = self.rules.clone() else {
             return;
         };
@@ -1216,6 +1233,8 @@ pub(super) fn may_attack(attacker: &Entity, target: &Entity) -> bool {
         (EntityKind::Npc, EntityKind::Player) => {
             matches!(target.combat.as_ref().map(|c| &c.role), Some(CombatRole::Player { .. }))
         },
-        (EntityKind::Player | EntityKind::Npc, EntityKind::Player | EntityKind::Npc) => false,
+        (EntityKind::Player | EntityKind::Npc, EntityKind::Player | EntityKind::Npc)
+        | (EntityKind::GroundItem, _)
+        | (_, EntityKind::GroundItem) => false,
     }
 }

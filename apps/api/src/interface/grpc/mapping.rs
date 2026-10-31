@@ -558,6 +558,15 @@ pub(super) fn detached_inventory_to_pb(
                 location: match item.location {
                     ItemLocation::Inventory => pb::ItemLocation::Inventory,
                     ItemLocation::Paperdoll => pb::ItemLocation::Paperdoll,
+                    // Owner views carry character-owned items only; the container values 3..8 land
+                    // with economy.proto (story 2.1) and Ground never goes on the wire (design §13.1).
+                    ItemLocation::Ground
+                    | ItemLocation::Refund
+                    | ItemLocation::Warehouse
+                    | ItemLocation::Freight
+                    | ItemLocation::Mail
+                    | ItemLocation::Delivery
+                    | ItemLocation::AuctionBid => pb::ItemLocation::Unspecified,
                 }
                 .into(),
                 slot: item
