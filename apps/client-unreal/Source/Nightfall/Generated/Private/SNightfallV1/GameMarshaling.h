@@ -116,3 +116,12 @@ typedef grpc::ClientAsyncResponseReader<::nightfall::v1::GetSkillCatalogResponse
 typedef grpc::ClientAsyncResponseReader<::nightfall::v1::GetItemCatalogResponse> GameService_GetItemCatalog_ReaderWriter;
 typedef grpc::ClientAsyncResponseReader<::nightfall::v1::GetInventoryResponse> GameService_GetInventory_ReaderWriter;
 typedef grpc::ClientAsyncResponseReader<::nightfall::v1::GrantItemResponse> GameService_GrantItem_ReaderWriter;
+typedef grpc::ClientAsyncResponseReader<::nightfall::v1::ListBuylistResponse> GameService_ListBuylist_ReaderWriter;
+typedef grpc::ClientAsyncResponseReader<::nightfall::v1::GetMultisellListResponse> GameService_GetMultisellList_ReaderWriter;
+typedef grpc::ClientAsyncResponseReader<::nightfall::v1::GetRecipeBookResponse> GameService_GetRecipeBook_ReaderWriter;
+typedef grpc::ClientAsyncResponseReader<::nightfall::v1::GetWarehouseResponse> GameService_GetWarehouse_ReaderWriter;
+typedef grpc::ClientAsyncResponseReader<::nightfall::v1::GetFreightResponse> GameService_GetFreight_ReaderWriter;
+typedef grpc::ClientAsyncResponseReader<::nightfall::v1::ListMailResponse> GameService_ListMail_ReaderWriter;
+typedef grpc::ClientAsyncResponseReader<::nightfall::v1::ReadMailResponse> GameService_ReadMail_ReaderWriter;
+typedef grpc::ClientAsyncResponseReader<::nightfall::v1::ListItemAuctionsResponse> GameService_ListItemAuctions_ReaderWriter;
+typedef grpc::ClientAsyncResponseReader<::nightfall::v1::GetManorDataResponse> GameService_GetManorData_ReaderWriter;

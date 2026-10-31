@@ -189,7 +189,7 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::OwnedItem* in, FGrpcNightfallV1Own
         out->_augment_id.AugmentId=in->augment_id();
         out->_augment_id._augment_idCase = EGrpcNightfallV1OwnedItem_augment_id::AugmentId;
     }
-    out->Location=[](int value) { switch (value) { case 0: case 1: case 2: return StaticCast<EGrpcNightfallV1ItemLocation>(value); default: return EGrpcNightfallV1ItemLocation::ITEM_LOCATION_UNSPECIFIED; } }(static_cast<int>(in->location()));
+    out->Location=[](int value) { switch (value) { case 0: case 1: case 2: case 3: case 4: case 5: case 6: case 7: case 8: return StaticCast<EGrpcNightfallV1ItemLocation>(value); default: return EGrpcNightfallV1ItemLocation::ITEM_LOCATION_UNSPECIFIED; } }(static_cast<int>(in->location()));
     out->Slot=[](int value) { switch (value) { case 0: case 1: case 2: case 3: case 4: case 5: case 6: case 7: case 8: case 9: case 10: case 11: case 12: case 13: case 14: case 15: case 16: case 17: case 18: case 19: case 20: case 21: case 22: case 23: case 24: case 25: return StaticCast<EGrpcNightfallV1EquipSlot>(value); default: return EGrpcNightfallV1EquipSlot::EQUIP_SLOT_UNSPECIFIED; } }(static_cast<int>(in->slot()));
     out->ChargeBits=in->charge_bits();
     out->Revision=in->revision();
@@ -498,7 +498,7 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::EnchantResult* in, FGrpcNightfallV
     }
     out->AnnouncementTier=in->announcement_tier();
     out->RequestKey=FBytes((const uint8*)in->request_key().c_str(), in->request_key().length());
-    out->Operation=[](int value) { switch (value) { case 0: case 1: case 2: case 3: case 4: case 5: case 6: case 7: case 8: case 9: case 10: case 11: case 12: case 13: return StaticCast<EGrpcNightfallV1ItemOperation>(value); default: return EGrpcNightfallV1ItemOperation::ITEM_OPERATION_UNSPECIFIED; } }(static_cast<int>(in->operation()));
+    out->Operation=[](int value) { switch (value) { case 0: case 1: case 2: case 3: case 4: case 5: case 6: case 7: case 8: case 9: case 10: case 11: case 12: case 13: case 14: case 15: case 16: case 17: case 18: case 19: case 20: case 21: case 22: case 23: case 24: case 25: case 26: case 27: case 28: case 29: case 30: case 31: case 32: case 33: case 34: case 35: case 36: case 37: case 38: case 39: case 40: case 41: case 42: return StaticCast<EGrpcNightfallV1ItemOperation>(value); default: return EGrpcNightfallV1ItemOperation::ITEM_OPERATION_UNSPECIFIED; } }(static_cast<int>(in->operation()));
     out->RequestFingerprint=StringCast<TCHAR>((const UTF8CHAR*)(in->request_fingerprint().c_str())).Get();
     out->_accepted_client_seq._accepted_client_seqCase = EGrpcNightfallV1EnchantResult_accepted_client_seq::NotSet;
     if (in->has_accepted_client_seq())
@@ -550,7 +550,7 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::RefineResult* in, FGrpcNightfallV1
     }
     out->Outcome=[](int value) { switch (value) { case 0: case 1: case 2: return StaticCast<EGrpcNightfallV1RefineOutcome>(value); default: return EGrpcNightfallV1RefineOutcome::REFINE_OUTCOME_UNSPECIFIED; } }(static_cast<int>(in->outcome()));
     out->RequestKey=FBytes((const uint8*)in->request_key().c_str(), in->request_key().length());
-    out->Operation=[](int value) { switch (value) { case 0: case 1: case 2: case 3: case 4: case 5: case 6: case 7: case 8: case 9: case 10: case 11: case 12: case 13: return StaticCast<EGrpcNightfallV1ItemOperation>(value); default: return EGrpcNightfallV1ItemOperation::ITEM_OPERATION_UNSPECIFIED; } }(static_cast<int>(in->operation()));
+    out->Operation=[](int value) { switch (value) { case 0: case 1: case 2: case 3: case 4: case 5: case 6: case 7: case 8: case 9: case 10: case 11: case 12: case 13: case 14: case 15: case 16: case 17: case 18: case 19: case 20: case 21: case 22: case 23: case 24: case 25: case 26: case 27: case 28: case 29: case 30: case 31: case 32: case 33: case 34: case 35: case 36: case 37: case 38: case 39: case 40: case 41: case 42: return StaticCast<EGrpcNightfallV1ItemOperation>(value); default: return EGrpcNightfallV1ItemOperation::ITEM_OPERATION_UNSPECIFIED; } }(static_cast<int>(in->operation()));
     out->RequestFingerprint=StringCast<TCHAR>((const UTF8CHAR*)(in->request_fingerprint().c_str())).Get();
     out->_accepted_client_seq._accepted_client_seqCase = EGrpcNightfallV1RefineResult_accepted_client_seq::NotSet;
     if (in->has_accepted_client_seq())
@@ -593,7 +593,7 @@ void GRPC_TO_TURBOLINK(const ::nightfall::v1::ItemOperationResult* in, FGrpcNigh
     out->Tick=in->tick();
     out->InventoryRevision=in->inventory_revision();
     out->ReceiptId=StringCast<TCHAR>((const UTF8CHAR*)(in->receipt_id().c_str())).Get();
-    out->Operation=[](int value) { switch (value) { case 0: case 1: case 2: case 3: case 4: case 5: case 6: case 7: case 8: case 9: case 10: case 11: case 12: case 13: return StaticCast<EGrpcNightfallV1ItemOperation>(value); default: return EGrpcNightfallV1ItemOperation::ITEM_OPERATION_UNSPECIFIED; } }(static_cast<int>(in->operation()));
+    out->Operation=[](int value) { switch (value) { case 0: case 1: case 2: case 3: case 4: case 5: case 6: case 7: case 8: case 9: case 10: case 11: case 12: case 13: case 14: case 15: case 16: case 17: case 18: case 19: case 20: case 21: case 22: case 23: case 24: case 25: case 26: case 27: case 28: case 29: case 30: case 31: case 32: case 33: case 34: case 35: case 36: case 37: case 38: case 39: case 40: case 41: case 42: return StaticCast<EGrpcNightfallV1ItemOperation>(value); default: return EGrpcNightfallV1ItemOperation::ITEM_OPERATION_UNSPECIFIED; } }(static_cast<int>(in->operation()));
     out->AffectedInstanceIds.Empty();
     for (int i=0; i<in->affected_instance_ids_size(); ++i) {
         out->AffectedInstanceIds.Add(in->affected_instance_ids(i));

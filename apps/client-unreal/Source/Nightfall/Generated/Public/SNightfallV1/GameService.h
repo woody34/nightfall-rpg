@@ -65,6 +65,33 @@ public:
 	typedef TFunction<void(const FGrpcResult& GrpcResult, const FGrpcNightfallV1GrantItemResponse& Response)> FGrantItemResponseLambda;
 	void CallGrantItem(const FGrpcNightfallV1GrantItemRequest& Request, FGrantItemResponseLambda ResponseLambda, FGrpcMetaData MetaData = FGrpcMetaData(), float DeadLineSeconds = 0.f);
 
+	typedef TFunction<void(const FGrpcResult& GrpcResult, const FGrpcNightfallV1ListBuylistResponse& Response)> FListBuylistResponseLambda;
+	void CallListBuylist(const FGrpcNightfallV1ListBuylistRequest& Request, FListBuylistResponseLambda ResponseLambda, FGrpcMetaData MetaData = FGrpcMetaData(), float DeadLineSeconds = 0.f);
+
+	typedef TFunction<void(const FGrpcResult& GrpcResult, const FGrpcNightfallV1GetMultisellListResponse& Response)> FGetMultisellListResponseLambda;
+	void CallGetMultisellList(const FGrpcNightfallV1GetMultisellListRequest& Request, FGetMultisellListResponseLambda ResponseLambda, FGrpcMetaData MetaData = FGrpcMetaData(), float DeadLineSeconds = 0.f);
+
+	typedef TFunction<void(const FGrpcResult& GrpcResult, const FGrpcNightfallV1GetRecipeBookResponse& Response)> FGetRecipeBookResponseLambda;
+	void CallGetRecipeBook(const FGrpcNightfallV1GetRecipeBookRequest& Request, FGetRecipeBookResponseLambda ResponseLambda, FGrpcMetaData MetaData = FGrpcMetaData(), float DeadLineSeconds = 0.f);
+
+	typedef TFunction<void(const FGrpcResult& GrpcResult, const FGrpcNightfallV1GetWarehouseResponse& Response)> FGetWarehouseResponseLambda;
+	void CallGetWarehouse(const FGrpcNightfallV1GetWarehouseRequest& Request, FGetWarehouseResponseLambda ResponseLambda, FGrpcMetaData MetaData = FGrpcMetaData(), float DeadLineSeconds = 0.f);
+
+	typedef TFunction<void(const FGrpcResult& GrpcResult, const FGrpcNightfallV1GetFreightResponse& Response)> FGetFreightResponseLambda;
+	void CallGetFreight(const FGrpcNightfallV1GetFreightRequest& Request, FGetFreightResponseLambda ResponseLambda, FGrpcMetaData MetaData = FGrpcMetaData(), float DeadLineSeconds = 0.f);
+
+	typedef TFunction<void(const FGrpcResult& GrpcResult, const FGrpcNightfallV1ListMailResponse& Response)> FListMailResponseLambda;
+	void CallListMail(const FGrpcNightfallV1ListMailRequest& Request, FListMailResponseLambda ResponseLambda, FGrpcMetaData MetaData = FGrpcMetaData(), float DeadLineSeconds = 0.f);
+
+	typedef TFunction<void(const FGrpcResult& GrpcResult, const FGrpcNightfallV1ReadMailResponse& Response)> FReadMailResponseLambda;
+	void CallReadMail(const FGrpcNightfallV1ReadMailRequest& Request, FReadMailResponseLambda ResponseLambda, FGrpcMetaData MetaData = FGrpcMetaData(), float DeadLineSeconds = 0.f);
+
+	typedef TFunction<void(const FGrpcResult& GrpcResult, const FGrpcNightfallV1ListItemAuctionsResponse& Response)> FListItemAuctionsResponseLambda;
+	void CallListItemAuctions(const FGrpcNightfallV1ListItemAuctionsRequest& Request, FListItemAuctionsResponseLambda ResponseLambda, FGrpcMetaData MetaData = FGrpcMetaData(), float DeadLineSeconds = 0.f);
+
+	typedef TFunction<void(const FGrpcResult& GrpcResult, const FGrpcNightfallV1GetManorDataResponse& Response)> FGetManorDataResponseLambda;
+	void CallGetManorData(const FGrpcNightfallV1GetManorDataRequest& Request, FGetManorDataResponseLambda ResponseLambda, FGrpcMetaData MetaData = FGrpcMetaData(), float DeadLineSeconds = 0.f);
+
 public:
 	class Private;
 	Private* const d = nullptr;

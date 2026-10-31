@@ -632,3 +632,435 @@ private:
 
 	void Shutdown();
 };
+
+UCLASS(ClassGroup = TurboLink)
+class TURBOLINKGRPC_API UCallGameServiceListBuylist : public UBlueprintAsyncActionBase
+{
+	GENERATED_BODY()
+
+public:
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FGameServiceListBuylistDelegate, const FGrpcResult&, GrpcResult, const FGrpcNightfallV1ListBuylistResponse&, Response);
+
+	UFUNCTION(BlueprintCallable, Category = "TurboLink|GameService", meta = (
+		BlueprintInternalUseOnly = "true",
+		WorldContext = "WorldContextObject",
+		DisplayName = "Call GameService ListBuylist",
+		AdvancedDisplay = 2))
+	static UCallGameServiceListBuylist* ListBuylist(UObject* WorldContextObject, const FGrpcNightfallV1ListBuylistRequest& request, FGrpcMetaData metaData = FGrpcMetaData(), float deadLineSeconds = 0.f);
+
+	UPROPERTY(BlueprintAssignable)
+	FGameServiceListBuylistDelegate OnListBuylistResponse;
+
+	UPROPERTY(BlueprintAssignable)
+	FGameServiceListBuylistDelegate OnFail;
+
+private:
+	virtual void Activate() override;
+
+	UPROPERTY()
+	UGameService* GameService;
+
+	UPROPERTY()
+	UGameServiceClient* GameServiceClient;
+
+	FGrpcContextHandle Context;
+	FGrpcNightfallV1ListBuylistRequest Request;
+	EGrpcServiceState ServiceState;
+	FGrpcMetaData MetaData;
+	float DeadLineSeconds;
+
+	UFUNCTION()
+	void OnServiceStateChanged(EGrpcServiceState NewState);
+
+	UFUNCTION()
+	void OnContextStateChange(FGrpcContextHandle Handle, EGrpcContextState State);
+
+	UFUNCTION()
+	void OnResponse(FGrpcContextHandle Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1ListBuylistResponse& Response);
+
+	void Shutdown();
+};
+
+UCLASS(ClassGroup = TurboLink)
+class TURBOLINKGRPC_API UCallGameServiceGetMultisellList : public UBlueprintAsyncActionBase
+{
+	GENERATED_BODY()
+
+public:
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FGameServiceGetMultisellListDelegate, const FGrpcResult&, GrpcResult, const FGrpcNightfallV1GetMultisellListResponse&, Response);
+
+	UFUNCTION(BlueprintCallable, Category = "TurboLink|GameService", meta = (
+		BlueprintInternalUseOnly = "true",
+		WorldContext = "WorldContextObject",
+		DisplayName = "Call GameService GetMultisellList",
+		AdvancedDisplay = 2))
+	static UCallGameServiceGetMultisellList* GetMultisellList(UObject* WorldContextObject, const FGrpcNightfallV1GetMultisellListRequest& request, FGrpcMetaData metaData = FGrpcMetaData(), float deadLineSeconds = 0.f);
+
+	UPROPERTY(BlueprintAssignable)
+	FGameServiceGetMultisellListDelegate OnGetMultisellListResponse;
+
+	UPROPERTY(BlueprintAssignable)
+	FGameServiceGetMultisellListDelegate OnFail;
+
+private:
+	virtual void Activate() override;
+
+	UPROPERTY()
+	UGameService* GameService;
+
+	UPROPERTY()
+	UGameServiceClient* GameServiceClient;
+
+	FGrpcContextHandle Context;
+	FGrpcNightfallV1GetMultisellListRequest Request;
+	EGrpcServiceState ServiceState;
+	FGrpcMetaData MetaData;
+	float DeadLineSeconds;
+
+	UFUNCTION()
+	void OnServiceStateChanged(EGrpcServiceState NewState);
+
+	UFUNCTION()
+	void OnContextStateChange(FGrpcContextHandle Handle, EGrpcContextState State);
+
+	UFUNCTION()
+	void OnResponse(FGrpcContextHandle Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1GetMultisellListResponse& Response);
+
+	void Shutdown();
+};
+
+UCLASS(ClassGroup = TurboLink)
+class TURBOLINKGRPC_API UCallGameServiceGetRecipeBook : public UBlueprintAsyncActionBase
+{
+	GENERATED_BODY()
+
+public:
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FGameServiceGetRecipeBookDelegate, const FGrpcResult&, GrpcResult, const FGrpcNightfallV1GetRecipeBookResponse&, Response);
+
+	UFUNCTION(BlueprintCallable, Category = "TurboLink|GameService", meta = (
+		BlueprintInternalUseOnly = "true",
+		WorldContext = "WorldContextObject",
+		DisplayName = "Call GameService GetRecipeBook",
+		AdvancedDisplay = 2))
+	static UCallGameServiceGetRecipeBook* GetRecipeBook(UObject* WorldContextObject, const FGrpcNightfallV1GetRecipeBookRequest& request, FGrpcMetaData metaData = FGrpcMetaData(), float deadLineSeconds = 0.f);
+
+	UPROPERTY(BlueprintAssignable)
+	FGameServiceGetRecipeBookDelegate OnGetRecipeBookResponse;
+
+	UPROPERTY(BlueprintAssignable)
+	FGameServiceGetRecipeBookDelegate OnFail;
+
+private:
+	virtual void Activate() override;
+
+	UPROPERTY()
+	UGameService* GameService;
+
+	UPROPERTY()
+	UGameServiceClient* GameServiceClient;
+
+	FGrpcContextHandle Context;
+	FGrpcNightfallV1GetRecipeBookRequest Request;
+	EGrpcServiceState ServiceState;
+	FGrpcMetaData MetaData;
+	float DeadLineSeconds;
+
+	UFUNCTION()
+	void OnServiceStateChanged(EGrpcServiceState NewState);
+
+	UFUNCTION()
+	void OnContextStateChange(FGrpcContextHandle Handle, EGrpcContextState State);
+
+	UFUNCTION()
+	void OnResponse(FGrpcContextHandle Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1GetRecipeBookResponse& Response);
+
+	void Shutdown();
+};
+
+UCLASS(ClassGroup = TurboLink)
+class TURBOLINKGRPC_API UCallGameServiceGetWarehouse : public UBlueprintAsyncActionBase
+{
+	GENERATED_BODY()
+
+public:
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FGameServiceGetWarehouseDelegate, const FGrpcResult&, GrpcResult, const FGrpcNightfallV1GetWarehouseResponse&, Response);
+
+	UFUNCTION(BlueprintCallable, Category = "TurboLink|GameService", meta = (
+		BlueprintInternalUseOnly = "true",
+		WorldContext = "WorldContextObject",
+		DisplayName = "Call GameService GetWarehouse",
+		AdvancedDisplay = 2))
+	static UCallGameServiceGetWarehouse* GetWarehouse(UObject* WorldContextObject, const FGrpcNightfallV1GetWarehouseRequest& request, FGrpcMetaData metaData = FGrpcMetaData(), float deadLineSeconds = 0.f);
+
+	UPROPERTY(BlueprintAssignable)
+	FGameServiceGetWarehouseDelegate OnGetWarehouseResponse;
+
+	UPROPERTY(BlueprintAssignable)
+	FGameServiceGetWarehouseDelegate OnFail;
+
+private:
+	virtual void Activate() override;
+
+	UPROPERTY()
+	UGameService* GameService;
+
+	UPROPERTY()
+	UGameServiceClient* GameServiceClient;
+
+	FGrpcContextHandle Context;
+	FGrpcNightfallV1GetWarehouseRequest Request;
+	EGrpcServiceState ServiceState;
+	FGrpcMetaData MetaData;
+	float DeadLineSeconds;
+
+	UFUNCTION()
+	void OnServiceStateChanged(EGrpcServiceState NewState);
+
+	UFUNCTION()
+	void OnContextStateChange(FGrpcContextHandle Handle, EGrpcContextState State);
+
+	UFUNCTION()
+	void OnResponse(FGrpcContextHandle Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1GetWarehouseResponse& Response);
+
+	void Shutdown();
+};
+
+UCLASS(ClassGroup = TurboLink)
+class TURBOLINKGRPC_API UCallGameServiceGetFreight : public UBlueprintAsyncActionBase
+{
+	GENERATED_BODY()
+
+public:
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FGameServiceGetFreightDelegate, const FGrpcResult&, GrpcResult, const FGrpcNightfallV1GetFreightResponse&, Response);
+
+	UFUNCTION(BlueprintCallable, Category = "TurboLink|GameService", meta = (
+		BlueprintInternalUseOnly = "true",
+		WorldContext = "WorldContextObject",
+		DisplayName = "Call GameService GetFreight",
+		AdvancedDisplay = 2))
+	static UCallGameServiceGetFreight* GetFreight(UObject* WorldContextObject, const FGrpcNightfallV1GetFreightRequest& request, FGrpcMetaData metaData = FGrpcMetaData(), float deadLineSeconds = 0.f);
+
+	UPROPERTY(BlueprintAssignable)
+	FGameServiceGetFreightDelegate OnGetFreightResponse;
+
+	UPROPERTY(BlueprintAssignable)
+	FGameServiceGetFreightDelegate OnFail;
+
+private:
+	virtual void Activate() override;
+
+	UPROPERTY()
+	UGameService* GameService;
+
+	UPROPERTY()
+	UGameServiceClient* GameServiceClient;
+
+	FGrpcContextHandle Context;
+	FGrpcNightfallV1GetFreightRequest Request;
+	EGrpcServiceState ServiceState;
+	FGrpcMetaData MetaData;
+	float DeadLineSeconds;
+
+	UFUNCTION()
+	void OnServiceStateChanged(EGrpcServiceState NewState);
+
+	UFUNCTION()
+	void OnContextStateChange(FGrpcContextHandle Handle, EGrpcContextState State);
+
+	UFUNCTION()
+	void OnResponse(FGrpcContextHandle Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1GetFreightResponse& Response);
+
+	void Shutdown();
+};
+
+UCLASS(ClassGroup = TurboLink)
+class TURBOLINKGRPC_API UCallGameServiceListMail : public UBlueprintAsyncActionBase
+{
+	GENERATED_BODY()
+
+public:
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FGameServiceListMailDelegate, const FGrpcResult&, GrpcResult, const FGrpcNightfallV1ListMailResponse&, Response);
+
+	UFUNCTION(BlueprintCallable, Category = "TurboLink|GameService", meta = (
+		BlueprintInternalUseOnly = "true",
+		WorldContext = "WorldContextObject",
+		DisplayName = "Call GameService ListMail",
+		AdvancedDisplay = 2))
+	static UCallGameServiceListMail* ListMail(UObject* WorldContextObject, const FGrpcNightfallV1ListMailRequest& request, FGrpcMetaData metaData = FGrpcMetaData(), float deadLineSeconds = 0.f);
+
+	UPROPERTY(BlueprintAssignable)
+	FGameServiceListMailDelegate OnListMailResponse;
+
+	UPROPERTY(BlueprintAssignable)
+	FGameServiceListMailDelegate OnFail;
+
+private:
+	virtual void Activate() override;
+
+	UPROPERTY()
+	UGameService* GameService;
+
+	UPROPERTY()
+	UGameServiceClient* GameServiceClient;
+
+	FGrpcContextHandle Context;
+	FGrpcNightfallV1ListMailRequest Request;
+	EGrpcServiceState ServiceState;
+	FGrpcMetaData MetaData;
+	float DeadLineSeconds;
+
+	UFUNCTION()
+	void OnServiceStateChanged(EGrpcServiceState NewState);
+
+	UFUNCTION()
+	void OnContextStateChange(FGrpcContextHandle Handle, EGrpcContextState State);
+
+	UFUNCTION()
+	void OnResponse(FGrpcContextHandle Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1ListMailResponse& Response);
+
+	void Shutdown();
+};
+
+UCLASS(ClassGroup = TurboLink)
+class TURBOLINKGRPC_API UCallGameServiceReadMail : public UBlueprintAsyncActionBase
+{
+	GENERATED_BODY()
+
+public:
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FGameServiceReadMailDelegate, const FGrpcResult&, GrpcResult, const FGrpcNightfallV1ReadMailResponse&, Response);
+
+	UFUNCTION(BlueprintCallable, Category = "TurboLink|GameService", meta = (
+		BlueprintInternalUseOnly = "true",
+		WorldContext = "WorldContextObject",
+		DisplayName = "Call GameService ReadMail",
+		AdvancedDisplay = 2))
+	static UCallGameServiceReadMail* ReadMail(UObject* WorldContextObject, const FGrpcNightfallV1ReadMailRequest& request, FGrpcMetaData metaData = FGrpcMetaData(), float deadLineSeconds = 0.f);
+
+	UPROPERTY(BlueprintAssignable)
+	FGameServiceReadMailDelegate OnReadMailResponse;
+
+	UPROPERTY(BlueprintAssignable)
+	FGameServiceReadMailDelegate OnFail;
+
+private:
+	virtual void Activate() override;
+
+	UPROPERTY()
+	UGameService* GameService;
+
+	UPROPERTY()
+	UGameServiceClient* GameServiceClient;
+
+	FGrpcContextHandle Context;
+	FGrpcNightfallV1ReadMailRequest Request;
+	EGrpcServiceState ServiceState;
+	FGrpcMetaData MetaData;
+	float DeadLineSeconds;
+
+	UFUNCTION()
+	void OnServiceStateChanged(EGrpcServiceState NewState);
+
+	UFUNCTION()
+	void OnContextStateChange(FGrpcContextHandle Handle, EGrpcContextState State);
+
+	UFUNCTION()
+	void OnResponse(FGrpcContextHandle Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1ReadMailResponse& Response);
+
+	void Shutdown();
+};
+
+UCLASS(ClassGroup = TurboLink)
+class TURBOLINKGRPC_API UCallGameServiceListItemAuctions : public UBlueprintAsyncActionBase
+{
+	GENERATED_BODY()
+
+public:
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FGameServiceListItemAuctionsDelegate, const FGrpcResult&, GrpcResult, const FGrpcNightfallV1ListItemAuctionsResponse&, Response);
+
+	UFUNCTION(BlueprintCallable, Category = "TurboLink|GameService", meta = (
+		BlueprintInternalUseOnly = "true",
+		WorldContext = "WorldContextObject",
+		DisplayName = "Call GameService ListItemAuctions",
+		AdvancedDisplay = 2))
+	static UCallGameServiceListItemAuctions* ListItemAuctions(UObject* WorldContextObject, const FGrpcNightfallV1ListItemAuctionsRequest& request, FGrpcMetaData metaData = FGrpcMetaData(), float deadLineSeconds = 0.f);
+
+	UPROPERTY(BlueprintAssignable)
+	FGameServiceListItemAuctionsDelegate OnListItemAuctionsResponse;
+
+	UPROPERTY(BlueprintAssignable)
+	FGameServiceListItemAuctionsDelegate OnFail;
+
+private:
+	virtual void Activate() override;
+
+	UPROPERTY()
+	UGameService* GameService;
+
+	UPROPERTY()
+	UGameServiceClient* GameServiceClient;
+
+	FGrpcContextHandle Context;
+	FGrpcNightfallV1ListItemAuctionsRequest Request;
+	EGrpcServiceState ServiceState;
+	FGrpcMetaData MetaData;
+	float DeadLineSeconds;
+
+	UFUNCTION()
+	void OnServiceStateChanged(EGrpcServiceState NewState);
+
+	UFUNCTION()
+	void OnContextStateChange(FGrpcContextHandle Handle, EGrpcContextState State);
+
+	UFUNCTION()
+	void OnResponse(FGrpcContextHandle Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1ListItemAuctionsResponse& Response);
+
+	void Shutdown();
+};
+
+UCLASS(ClassGroup = TurboLink)
+class TURBOLINKGRPC_API UCallGameServiceGetManorData : public UBlueprintAsyncActionBase
+{
+	GENERATED_BODY()
+
+public:
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FGameServiceGetManorDataDelegate, const FGrpcResult&, GrpcResult, const FGrpcNightfallV1GetManorDataResponse&, Response);
+
+	UFUNCTION(BlueprintCallable, Category = "TurboLink|GameService", meta = (
+		BlueprintInternalUseOnly = "true",
+		WorldContext = "WorldContextObject",
+		DisplayName = "Call GameService GetManorData",
+		AdvancedDisplay = 2))
+	static UCallGameServiceGetManorData* GetManorData(UObject* WorldContextObject, const FGrpcNightfallV1GetManorDataRequest& request, FGrpcMetaData metaData = FGrpcMetaData(), float deadLineSeconds = 0.f);
+
+	UPROPERTY(BlueprintAssignable)
+	FGameServiceGetManorDataDelegate OnGetManorDataResponse;
+
+	UPROPERTY(BlueprintAssignable)
+	FGameServiceGetManorDataDelegate OnFail;
+
+private:
+	virtual void Activate() override;
+
+	UPROPERTY()
+	UGameService* GameService;
+
+	UPROPERTY()
+	UGameServiceClient* GameServiceClient;
+
+	FGrpcContextHandle Context;
+	FGrpcNightfallV1GetManorDataRequest Request;
+	EGrpcServiceState ServiceState;
+	FGrpcMetaData MetaData;
+	float DeadLineSeconds;
+
+	UFUNCTION()
+	void OnServiceStateChanged(EGrpcServiceState NewState);
+
+	UFUNCTION()
+	void OnContextStateChange(FGrpcContextHandle Handle, EGrpcContextState State);
+
+	UFUNCTION()
+	void OnResponse(FGrpcContextHandle Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1GetManorDataResponse& Response);
+
+	void Shutdown();
+};

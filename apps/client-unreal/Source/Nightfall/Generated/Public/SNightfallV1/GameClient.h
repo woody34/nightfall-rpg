@@ -17,6 +17,15 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnGameServiceGetSkillCatalogResp
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnGameServiceGetItemCatalogResponse, FGrpcContextHandle, Handle, const FGrpcResult&, GrpcResult, const FGrpcNightfallV1GetItemCatalogResponse&, Response);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnGameServiceGetInventoryResponse, FGrpcContextHandle, Handle, const FGrpcResult&, GrpcResult, const FGrpcNightfallV1GetInventoryResponse&, Response);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnGameServiceGrantItemResponse, FGrpcContextHandle, Handle, const FGrpcResult&, GrpcResult, const FGrpcNightfallV1GrantItemResponse&, Response);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnGameServiceListBuylistResponse, FGrpcContextHandle, Handle, const FGrpcResult&, GrpcResult, const FGrpcNightfallV1ListBuylistResponse&, Response);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnGameServiceGetMultisellListResponse, FGrpcContextHandle, Handle, const FGrpcResult&, GrpcResult, const FGrpcNightfallV1GetMultisellListResponse&, Response);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnGameServiceGetRecipeBookResponse, FGrpcContextHandle, Handle, const FGrpcResult&, GrpcResult, const FGrpcNightfallV1GetRecipeBookResponse&, Response);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnGameServiceGetWarehouseResponse, FGrpcContextHandle, Handle, const FGrpcResult&, GrpcResult, const FGrpcNightfallV1GetWarehouseResponse&, Response);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnGameServiceGetFreightResponse, FGrpcContextHandle, Handle, const FGrpcResult&, GrpcResult, const FGrpcNightfallV1GetFreightResponse&, Response);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnGameServiceListMailResponse, FGrpcContextHandle, Handle, const FGrpcResult&, GrpcResult, const FGrpcNightfallV1ListMailResponse&, Response);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnGameServiceReadMailResponse, FGrpcContextHandle, Handle, const FGrpcResult&, GrpcResult, const FGrpcNightfallV1ReadMailResponse&, Response);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnGameServiceListItemAuctionsResponse, FGrpcContextHandle, Handle, const FGrpcResult&, GrpcResult, const FGrpcNightfallV1ListItemAuctionsResponse&, Response);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnGameServiceGetManorDataResponse, FGrpcContextHandle, Handle, const FGrpcResult&, GrpcResult, const FGrpcNightfallV1GetManorDataResponse&, Response);
 
 UCLASS(ClassGroup = TurboLink, BlueprintType)
 class TURBOLINKGRPC_API UGameServiceClient : public UGrpcClient
@@ -62,6 +71,33 @@ public:
 
 	UPROPERTY(BlueprintAssignable)
 	FOnGameServiceGrantItemResponse OnGrantItemResponse;
+
+	UPROPERTY(BlueprintAssignable)
+	FOnGameServiceListBuylistResponse OnListBuylistResponse;
+
+	UPROPERTY(BlueprintAssignable)
+	FOnGameServiceGetMultisellListResponse OnGetMultisellListResponse;
+
+	UPROPERTY(BlueprintAssignable)
+	FOnGameServiceGetRecipeBookResponse OnGetRecipeBookResponse;
+
+	UPROPERTY(BlueprintAssignable)
+	FOnGameServiceGetWarehouseResponse OnGetWarehouseResponse;
+
+	UPROPERTY(BlueprintAssignable)
+	FOnGameServiceGetFreightResponse OnGetFreightResponse;
+
+	UPROPERTY(BlueprintAssignable)
+	FOnGameServiceListMailResponse OnListMailResponse;
+
+	UPROPERTY(BlueprintAssignable)
+	FOnGameServiceReadMailResponse OnReadMailResponse;
+
+	UPROPERTY(BlueprintAssignable)
+	FOnGameServiceListItemAuctionsResponse OnListItemAuctionsResponse;
+
+	UPROPERTY(BlueprintAssignable)
+	FOnGameServiceGetManorDataResponse OnGetManorDataResponse;
 
 public:
 	UFUNCTION(BlueprintCallable, Category = TurboLink)
@@ -141,6 +177,60 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = TurboLink, meta = (AdvancedDisplay = 2))
 	void GrantItem(FGrpcContextHandle Handle, const FGrpcNightfallV1GrantItemRequest& Request, FGrpcMetaData MetaData = FGrpcMetaData(), float DeadLineSeconds = 0.f);
+
+	UFUNCTION(BlueprintCallable, Category = TurboLink)
+	FGrpcContextHandle InitListBuylist();
+
+	UFUNCTION(BlueprintCallable, Category = TurboLink, meta = (AdvancedDisplay = 2))
+	void ListBuylist(FGrpcContextHandle Handle, const FGrpcNightfallV1ListBuylistRequest& Request, FGrpcMetaData MetaData = FGrpcMetaData(), float DeadLineSeconds = 0.f);
+
+	UFUNCTION(BlueprintCallable, Category = TurboLink)
+	FGrpcContextHandle InitGetMultisellList();
+
+	UFUNCTION(BlueprintCallable, Category = TurboLink, meta = (AdvancedDisplay = 2))
+	void GetMultisellList(FGrpcContextHandle Handle, const FGrpcNightfallV1GetMultisellListRequest& Request, FGrpcMetaData MetaData = FGrpcMetaData(), float DeadLineSeconds = 0.f);
+
+	UFUNCTION(BlueprintCallable, Category = TurboLink)
+	FGrpcContextHandle InitGetRecipeBook();
+
+	UFUNCTION(BlueprintCallable, Category = TurboLink, meta = (AdvancedDisplay = 2))
+	void GetRecipeBook(FGrpcContextHandle Handle, const FGrpcNightfallV1GetRecipeBookRequest& Request, FGrpcMetaData MetaData = FGrpcMetaData(), float DeadLineSeconds = 0.f);
+
+	UFUNCTION(BlueprintCallable, Category = TurboLink)
+	FGrpcContextHandle InitGetWarehouse();
+
+	UFUNCTION(BlueprintCallable, Category = TurboLink, meta = (AdvancedDisplay = 2))
+	void GetWarehouse(FGrpcContextHandle Handle, const FGrpcNightfallV1GetWarehouseRequest& Request, FGrpcMetaData MetaData = FGrpcMetaData(), float DeadLineSeconds = 0.f);
+
+	UFUNCTION(BlueprintCallable, Category = TurboLink)
+	FGrpcContextHandle InitGetFreight();
+
+	UFUNCTION(BlueprintCallable, Category = TurboLink, meta = (AdvancedDisplay = 2))
+	void GetFreight(FGrpcContextHandle Handle, const FGrpcNightfallV1GetFreightRequest& Request, FGrpcMetaData MetaData = FGrpcMetaData(), float DeadLineSeconds = 0.f);
+
+	UFUNCTION(BlueprintCallable, Category = TurboLink)
+	FGrpcContextHandle InitListMail();
+
+	UFUNCTION(BlueprintCallable, Category = TurboLink, meta = (AdvancedDisplay = 2))
+	void ListMail(FGrpcContextHandle Handle, const FGrpcNightfallV1ListMailRequest& Request, FGrpcMetaData MetaData = FGrpcMetaData(), float DeadLineSeconds = 0.f);
+
+	UFUNCTION(BlueprintCallable, Category = TurboLink)
+	FGrpcContextHandle InitReadMail();
+
+	UFUNCTION(BlueprintCallable, Category = TurboLink, meta = (AdvancedDisplay = 2))
+	void ReadMail(FGrpcContextHandle Handle, const FGrpcNightfallV1ReadMailRequest& Request, FGrpcMetaData MetaData = FGrpcMetaData(), float DeadLineSeconds = 0.f);
+
+	UFUNCTION(BlueprintCallable, Category = TurboLink)
+	FGrpcContextHandle InitListItemAuctions();
+
+	UFUNCTION(BlueprintCallable, Category = TurboLink, meta = (AdvancedDisplay = 2))
+	void ListItemAuctions(FGrpcContextHandle Handle, const FGrpcNightfallV1ListItemAuctionsRequest& Request, FGrpcMetaData MetaData = FGrpcMetaData(), float DeadLineSeconds = 0.f);
+
+	UFUNCTION(BlueprintCallable, Category = TurboLink)
+	FGrpcContextHandle InitGetManorData();
+
+	UFUNCTION(BlueprintCallable, Category = TurboLink, meta = (AdvancedDisplay = 2))
+	void GetManorData(FGrpcContextHandle Handle, const FGrpcNightfallV1GetManorDataRequest& Request, FGrpcMetaData MetaData = FGrpcMetaData(), float DeadLineSeconds = 0.f);
 
 public:
 	virtual void Shutdown() override;

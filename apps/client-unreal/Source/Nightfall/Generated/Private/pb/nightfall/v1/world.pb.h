@@ -38,6 +38,7 @@
 #include "google/protobuf/extension_set.h"  // IWYU pragma: export
 #include "google/protobuf/generated_enum_reflection.h"
 #include "google/protobuf/unknown_field_set.h"
+#include "nightfall/v1/economy.pb.h"
 #include "nightfall/v1/game.pb.h"
 #include "nightfall/v1/items.pb.h"
 // @@protoc_insertion_point(includes)
@@ -322,6 +323,57 @@ enum RejectReason : int {
   REJECT_REASON_ITEM_OPERATION_CONFLICT = 35,
   REJECT_REASON_ITEM_CAPABILITY_DEFERRED = 36,
   REJECT_REASON_CRYSTALLIZE_LEVEL_TOO_LOW = 37,
+  REJECT_REASON_GROUND_ITEM_NOT_FOUND = 38,
+  REJECT_REASON_GROUND_ITEM_PROTECTED = 39,
+  REJECT_REASON_INVALID_MERCHANT = 40,
+  REJECT_REASON_INVALID_QUANTITY = 41,
+  REJECT_REASON_VENDOR_OUT_OF_STOCK = 42,
+  REJECT_REASON_ADENA_LIMIT = 43,
+  REJECT_REASON_WEIGHT_LIMIT = 44,
+  REJECT_REASON_INSUFFICIENT_ADENA = 45,
+  REJECT_REASON_ITEM_NOT_SELLABLE = 46,
+  REJECT_REASON_ITEM_COUNT_CAP = 47,
+  REJECT_REASON_RECIPE_ALREADY_REGISTERED = 48,
+  REJECT_REASON_RECIPE_BOOK_FULL = 49,
+  REJECT_REASON_CRAFT_SKILL_MISSING = 50,
+  REJECT_REASON_CRAFT_LEVEL_TOO_LOW = 51,
+  REJECT_REASON_MISSING_MATERIALS = 52,
+  REJECT_REASON_IN_COMBAT = 53,
+  REJECT_REASON_NO_PENDING_REQUEST = 54,
+  REJECT_REASON_ALREADY_TRADING = 55,
+  REJECT_REASON_TARGET_BUSY = 56,
+  REJECT_REASON_CANNOT_TRADE_IN_STORE = 57,
+  REJECT_REASON_CANNOT_ADJUST_AFTER_CONFIRM = 58,
+  REJECT_REASON_ITEM_NOT_TRADABLE = 59,
+  REJECT_REASON_STORE_SLOT_LIMIT = 60,
+  REJECT_REASON_STORE_NOT_OPEN = 61,
+  REJECT_REASON_PACKAGE_INCOMPLETE = 62,
+  REJECT_REASON_PRICE_MISMATCH = 63,
+  REJECT_REASON_PARTY_FULL = 64,
+  REJECT_REASON_PARTY_ALREADY_IN_PARTY = 65,
+  REJECT_REASON_NOT_PARTY_LEADER = 66,
+  REJECT_REASON_NOT_PARTY_MEMBER = 67,
+  REJECT_REASON_PARTY_LOOT_VOTE_IN_PROGRESS = 68,
+  REJECT_REASON_CONTAINER_BUSY = 69,
+  REJECT_REASON_WAREHOUSE_FULL = 70,
+  REJECT_REASON_ITEM_NOT_DEPOSITABLE = 71,
+  REJECT_REASON_FREIGHT_TARGET_INVALID = 72,
+  REJECT_REASON_ITEM_NOT_FREIGHTABLE = 73,
+  REJECT_REASON_FREIGHT_FULL = 74,
+  REJECT_REASON_PEACE_ZONE_REQUIRED = 75,
+  REJECT_REASON_MAIL_ATTACHMENTS_EXCEEDED = 76,
+  REJECT_REASON_MAIL_RECEIVER_NOT_FOUND = 77,
+  REJECT_REASON_MAILBOX_FULL = 78,
+  REJECT_REASON_MAIL_NOT_FOUND = 79,
+  REJECT_REASON_MAIL_ALREADY_TAKEN = 80,
+  REJECT_REASON_SWEEP_NOT_ALLOWED = 81,
+  REJECT_REASON_NOT_SEEDABLE = 82,
+  REJECT_REASON_HARVEST_NOT_ALLOWED = 83,
+  REJECT_REASON_MANOR_UNAVAILABLE = 84,
+  REJECT_REASON_AUCTION_NOT_ACTIVE = 85,
+  REJECT_REASON_BID_TOO_LOW = 86,
+  REJECT_REASON_BID_TOO_HIGH = 87,
+  REJECT_REASON_NO_BID_TO_CANCEL = 88,
   RejectReason_INT_MIN_SENTINEL_DO_NOT_USE_ =
       std::numeric_limits<::int32_t>::min(),
   RejectReason_INT_MAX_SENTINEL_DO_NOT_USE_ =
@@ -330,8 +382,8 @@ enum RejectReason : int {
 
 bool RejectReason_IsValid(int value);
 constexpr RejectReason RejectReason_MIN = static_cast<RejectReason>(0);
-constexpr RejectReason RejectReason_MAX = static_cast<RejectReason>(37);
-constexpr int RejectReason_ARRAYSIZE = 37 + 1;
+constexpr RejectReason RejectReason_MAX = static_cast<RejectReason>(88);
+constexpr int RejectReason_ARRAYSIZE = 88 + 1;
 const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor*
 RejectReason_descriptor();
 template <typename T>
@@ -344,7 +396,7 @@ const std::string& RejectReason_Name(T value) {
 template <>
 inline const std::string& RejectReason_Name(RejectReason value) {
   return ::PROTOBUF_NAMESPACE_ID::internal::NameOfDenseEnum<RejectReason_descriptor,
-                                                 0, 37>(
+                                                 0, 88>(
       static_cast<int>(value));
 }
 inline bool RejectReason_Parse(absl::string_view name, RejectReason* value) {
@@ -355,6 +407,7 @@ enum EntityKind : int {
   ENTITY_KIND_UNSPECIFIED = 0,
   ENTITY_KIND_PLAYER = 1,
   ENTITY_KIND_NPC = 2,
+  ENTITY_KIND_GROUND_ITEM = 3,
   EntityKind_INT_MIN_SENTINEL_DO_NOT_USE_ =
       std::numeric_limits<::int32_t>::min(),
   EntityKind_INT_MAX_SENTINEL_DO_NOT_USE_ =
@@ -363,8 +416,8 @@ enum EntityKind : int {
 
 bool EntityKind_IsValid(int value);
 constexpr EntityKind EntityKind_MIN = static_cast<EntityKind>(0);
-constexpr EntityKind EntityKind_MAX = static_cast<EntityKind>(2);
-constexpr int EntityKind_ARRAYSIZE = 2 + 1;
+constexpr EntityKind EntityKind_MAX = static_cast<EntityKind>(3);
+constexpr int EntityKind_ARRAYSIZE = 3 + 1;
 const ::PROTOBUF_NAMESPACE_ID::EnumDescriptor*
 EntityKind_descriptor();
 template <typename T>
@@ -377,7 +430,7 @@ const std::string& EntityKind_Name(T value) {
 template <>
 inline const std::string& EntityKind_Name(EntityKind value) {
   return ::PROTOBUF_NAMESPACE_ID::internal::NameOfDenseEnum<EntityKind_descriptor,
-                                                 0, 2>(
+                                                 0, 3>(
       static_cast<int>(value));
 }
 inline bool EntityKind_Parse(absl::string_view name, EntityKind* value) {
@@ -752,6 +805,47 @@ class ClientMessage final :
     kCancelRefine = 26,
     kExchangeSpecialAbility = 27,
     kCrystallizeItem = 28,
+    kPickUpItem = 29,
+    kVendorBuy = 30,
+    kVendorSell = 31,
+    kVendorRefund = 32,
+    kMultisellChoose = 33,
+    kRegisterRecipe = 34,
+    kDeleteRecipe = 35,
+    kCraftItem = 36,
+    kTradeRequest = 37,
+    kTradeAnswer = 38,
+    kTradeAddItem = 39,
+    kTradeConfirm = 40,
+    kTradeCancel = 41,
+    kSetPrivateStoreSell = 42,
+    kSetPrivateStoreBuy = 43,
+    kSetPrivateManufacture = 44,
+    kClosePrivateStore = 45,
+    kPrivateStoreBuy = 46,
+    kPrivateStoreSell = 47,
+    kPrivateManufactureOrder = 48,
+    kPartyInvite = 49,
+    kPartyAnswer = 50,
+    kPartyLeave = 51,
+    kPartyKick = 52,
+    kPartyChangeLeader = 53,
+    kPartyLootChangeRequest = 54,
+    kPartyLootChangeAnswer = 55,
+    kWarehouseDeposit = 56,
+    kWarehouseWithdraw = 57,
+    kFreightSend = 58,
+    kFreightWithdraw = 59,
+    kMailSend = 60,
+    kMailTakeAttachments = 61,
+    kMailReject = 62,
+    kMailCancel = 63,
+    kMailDelete = 64,
+    kManorBuySeed = 65,
+    kManorSellCrop = 66,
+    kItemAuctionBid = 67,
+    kItemAuctionCancelBid = 68,
+    kMailMarkRead = 69,
     INTENT_NOT_SET = 0,
   };
 
@@ -852,6 +946,47 @@ class ClientMessage final :
     kCancelRefineFieldNumber = 26,
     kExchangeSpecialAbilityFieldNumber = 27,
     kCrystallizeItemFieldNumber = 28,
+    kPickUpItemFieldNumber = 29,
+    kVendorBuyFieldNumber = 30,
+    kVendorSellFieldNumber = 31,
+    kVendorRefundFieldNumber = 32,
+    kMultisellChooseFieldNumber = 33,
+    kRegisterRecipeFieldNumber = 34,
+    kDeleteRecipeFieldNumber = 35,
+    kCraftItemFieldNumber = 36,
+    kTradeRequestFieldNumber = 37,
+    kTradeAnswerFieldNumber = 38,
+    kTradeAddItemFieldNumber = 39,
+    kTradeConfirmFieldNumber = 40,
+    kTradeCancelFieldNumber = 41,
+    kSetPrivateStoreSellFieldNumber = 42,
+    kSetPrivateStoreBuyFieldNumber = 43,
+    kSetPrivateManufactureFieldNumber = 44,
+    kClosePrivateStoreFieldNumber = 45,
+    kPrivateStoreBuyFieldNumber = 46,
+    kPrivateStoreSellFieldNumber = 47,
+    kPrivateManufactureOrderFieldNumber = 48,
+    kPartyInviteFieldNumber = 49,
+    kPartyAnswerFieldNumber = 50,
+    kPartyLeaveFieldNumber = 51,
+    kPartyKickFieldNumber = 52,
+    kPartyChangeLeaderFieldNumber = 53,
+    kPartyLootChangeRequestFieldNumber = 54,
+    kPartyLootChangeAnswerFieldNumber = 55,
+    kWarehouseDepositFieldNumber = 56,
+    kWarehouseWithdrawFieldNumber = 57,
+    kFreightSendFieldNumber = 58,
+    kFreightWithdrawFieldNumber = 59,
+    kMailSendFieldNumber = 60,
+    kMailTakeAttachmentsFieldNumber = 61,
+    kMailRejectFieldNumber = 62,
+    kMailCancelFieldNumber = 63,
+    kMailDeleteFieldNumber = 64,
+    kManorBuySeedFieldNumber = 65,
+    kManorSellCropFieldNumber = 66,
+    kItemAuctionBidFieldNumber = 67,
+    kItemAuctionCancelBidFieldNumber = 68,
+    kMailMarkReadFieldNumber = 69,
   };
   // uint32 seq = 1;
   void clear_seq() ;
@@ -1205,6 +1340,744 @@ class ClientMessage final :
   void unsafe_arena_set_allocated_crystallize_item(
       ::nightfall::v1::CrystallizeItemRequest* crystallize_item);
   ::nightfall::v1::CrystallizeItemRequest* unsafe_arena_release_crystallize_item();
+  // .nightfall.v1.PickUpItemRequest pick_up_item = 29;
+  bool has_pick_up_item() const;
+  private:
+  bool _internal_has_pick_up_item() const;
+
+  public:
+  void clear_pick_up_item() ;
+  const ::nightfall::v1::PickUpItemRequest& pick_up_item() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::PickUpItemRequest* release_pick_up_item();
+  ::nightfall::v1::PickUpItemRequest* mutable_pick_up_item();
+  void set_allocated_pick_up_item(::nightfall::v1::PickUpItemRequest* pick_up_item);
+  private:
+  const ::nightfall::v1::PickUpItemRequest& _internal_pick_up_item() const;
+  ::nightfall::v1::PickUpItemRequest* _internal_mutable_pick_up_item();
+  public:
+  void unsafe_arena_set_allocated_pick_up_item(
+      ::nightfall::v1::PickUpItemRequest* pick_up_item);
+  ::nightfall::v1::PickUpItemRequest* unsafe_arena_release_pick_up_item();
+  // .nightfall.v1.VendorBuyRequest vendor_buy = 30;
+  bool has_vendor_buy() const;
+  private:
+  bool _internal_has_vendor_buy() const;
+
+  public:
+  void clear_vendor_buy() ;
+  const ::nightfall::v1::VendorBuyRequest& vendor_buy() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::VendorBuyRequest* release_vendor_buy();
+  ::nightfall::v1::VendorBuyRequest* mutable_vendor_buy();
+  void set_allocated_vendor_buy(::nightfall::v1::VendorBuyRequest* vendor_buy);
+  private:
+  const ::nightfall::v1::VendorBuyRequest& _internal_vendor_buy() const;
+  ::nightfall::v1::VendorBuyRequest* _internal_mutable_vendor_buy();
+  public:
+  void unsafe_arena_set_allocated_vendor_buy(
+      ::nightfall::v1::VendorBuyRequest* vendor_buy);
+  ::nightfall::v1::VendorBuyRequest* unsafe_arena_release_vendor_buy();
+  // .nightfall.v1.VendorSellRequest vendor_sell = 31;
+  bool has_vendor_sell() const;
+  private:
+  bool _internal_has_vendor_sell() const;
+
+  public:
+  void clear_vendor_sell() ;
+  const ::nightfall::v1::VendorSellRequest& vendor_sell() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::VendorSellRequest* release_vendor_sell();
+  ::nightfall::v1::VendorSellRequest* mutable_vendor_sell();
+  void set_allocated_vendor_sell(::nightfall::v1::VendorSellRequest* vendor_sell);
+  private:
+  const ::nightfall::v1::VendorSellRequest& _internal_vendor_sell() const;
+  ::nightfall::v1::VendorSellRequest* _internal_mutable_vendor_sell();
+  public:
+  void unsafe_arena_set_allocated_vendor_sell(
+      ::nightfall::v1::VendorSellRequest* vendor_sell);
+  ::nightfall::v1::VendorSellRequest* unsafe_arena_release_vendor_sell();
+  // .nightfall.v1.VendorRefundRequest vendor_refund = 32;
+  bool has_vendor_refund() const;
+  private:
+  bool _internal_has_vendor_refund() const;
+
+  public:
+  void clear_vendor_refund() ;
+  const ::nightfall::v1::VendorRefundRequest& vendor_refund() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::VendorRefundRequest* release_vendor_refund();
+  ::nightfall::v1::VendorRefundRequest* mutable_vendor_refund();
+  void set_allocated_vendor_refund(::nightfall::v1::VendorRefundRequest* vendor_refund);
+  private:
+  const ::nightfall::v1::VendorRefundRequest& _internal_vendor_refund() const;
+  ::nightfall::v1::VendorRefundRequest* _internal_mutable_vendor_refund();
+  public:
+  void unsafe_arena_set_allocated_vendor_refund(
+      ::nightfall::v1::VendorRefundRequest* vendor_refund);
+  ::nightfall::v1::VendorRefundRequest* unsafe_arena_release_vendor_refund();
+  // .nightfall.v1.MultisellChooseRequest multisell_choose = 33;
+  bool has_multisell_choose() const;
+  private:
+  bool _internal_has_multisell_choose() const;
+
+  public:
+  void clear_multisell_choose() ;
+  const ::nightfall::v1::MultisellChooseRequest& multisell_choose() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::MultisellChooseRequest* release_multisell_choose();
+  ::nightfall::v1::MultisellChooseRequest* mutable_multisell_choose();
+  void set_allocated_multisell_choose(::nightfall::v1::MultisellChooseRequest* multisell_choose);
+  private:
+  const ::nightfall::v1::MultisellChooseRequest& _internal_multisell_choose() const;
+  ::nightfall::v1::MultisellChooseRequest* _internal_mutable_multisell_choose();
+  public:
+  void unsafe_arena_set_allocated_multisell_choose(
+      ::nightfall::v1::MultisellChooseRequest* multisell_choose);
+  ::nightfall::v1::MultisellChooseRequest* unsafe_arena_release_multisell_choose();
+  // .nightfall.v1.RegisterRecipeRequest register_recipe = 34;
+  bool has_register_recipe() const;
+  private:
+  bool _internal_has_register_recipe() const;
+
+  public:
+  void clear_register_recipe() ;
+  const ::nightfall::v1::RegisterRecipeRequest& register_recipe() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::RegisterRecipeRequest* release_register_recipe();
+  ::nightfall::v1::RegisterRecipeRequest* mutable_register_recipe();
+  void set_allocated_register_recipe(::nightfall::v1::RegisterRecipeRequest* register_recipe);
+  private:
+  const ::nightfall::v1::RegisterRecipeRequest& _internal_register_recipe() const;
+  ::nightfall::v1::RegisterRecipeRequest* _internal_mutable_register_recipe();
+  public:
+  void unsafe_arena_set_allocated_register_recipe(
+      ::nightfall::v1::RegisterRecipeRequest* register_recipe);
+  ::nightfall::v1::RegisterRecipeRequest* unsafe_arena_release_register_recipe();
+  // .nightfall.v1.DeleteRecipeRequest delete_recipe = 35;
+  bool has_delete_recipe() const;
+  private:
+  bool _internal_has_delete_recipe() const;
+
+  public:
+  void clear_delete_recipe() ;
+  const ::nightfall::v1::DeleteRecipeRequest& delete_recipe() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::DeleteRecipeRequest* release_delete_recipe();
+  ::nightfall::v1::DeleteRecipeRequest* mutable_delete_recipe();
+  void set_allocated_delete_recipe(::nightfall::v1::DeleteRecipeRequest* delete_recipe);
+  private:
+  const ::nightfall::v1::DeleteRecipeRequest& _internal_delete_recipe() const;
+  ::nightfall::v1::DeleteRecipeRequest* _internal_mutable_delete_recipe();
+  public:
+  void unsafe_arena_set_allocated_delete_recipe(
+      ::nightfall::v1::DeleteRecipeRequest* delete_recipe);
+  ::nightfall::v1::DeleteRecipeRequest* unsafe_arena_release_delete_recipe();
+  // .nightfall.v1.CraftItemRequest craft_item = 36;
+  bool has_craft_item() const;
+  private:
+  bool _internal_has_craft_item() const;
+
+  public:
+  void clear_craft_item() ;
+  const ::nightfall::v1::CraftItemRequest& craft_item() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::CraftItemRequest* release_craft_item();
+  ::nightfall::v1::CraftItemRequest* mutable_craft_item();
+  void set_allocated_craft_item(::nightfall::v1::CraftItemRequest* craft_item);
+  private:
+  const ::nightfall::v1::CraftItemRequest& _internal_craft_item() const;
+  ::nightfall::v1::CraftItemRequest* _internal_mutable_craft_item();
+  public:
+  void unsafe_arena_set_allocated_craft_item(
+      ::nightfall::v1::CraftItemRequest* craft_item);
+  ::nightfall::v1::CraftItemRequest* unsafe_arena_release_craft_item();
+  // .nightfall.v1.TradeRequestRequest trade_request = 37;
+  bool has_trade_request() const;
+  private:
+  bool _internal_has_trade_request() const;
+
+  public:
+  void clear_trade_request() ;
+  const ::nightfall::v1::TradeRequestRequest& trade_request() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::TradeRequestRequest* release_trade_request();
+  ::nightfall::v1::TradeRequestRequest* mutable_trade_request();
+  void set_allocated_trade_request(::nightfall::v1::TradeRequestRequest* trade_request);
+  private:
+  const ::nightfall::v1::TradeRequestRequest& _internal_trade_request() const;
+  ::nightfall::v1::TradeRequestRequest* _internal_mutable_trade_request();
+  public:
+  void unsafe_arena_set_allocated_trade_request(
+      ::nightfall::v1::TradeRequestRequest* trade_request);
+  ::nightfall::v1::TradeRequestRequest* unsafe_arena_release_trade_request();
+  // .nightfall.v1.TradeAnswerRequest trade_answer = 38;
+  bool has_trade_answer() const;
+  private:
+  bool _internal_has_trade_answer() const;
+
+  public:
+  void clear_trade_answer() ;
+  const ::nightfall::v1::TradeAnswerRequest& trade_answer() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::TradeAnswerRequest* release_trade_answer();
+  ::nightfall::v1::TradeAnswerRequest* mutable_trade_answer();
+  void set_allocated_trade_answer(::nightfall::v1::TradeAnswerRequest* trade_answer);
+  private:
+  const ::nightfall::v1::TradeAnswerRequest& _internal_trade_answer() const;
+  ::nightfall::v1::TradeAnswerRequest* _internal_mutable_trade_answer();
+  public:
+  void unsafe_arena_set_allocated_trade_answer(
+      ::nightfall::v1::TradeAnswerRequest* trade_answer);
+  ::nightfall::v1::TradeAnswerRequest* unsafe_arena_release_trade_answer();
+  // .nightfall.v1.TradeAddItemRequest trade_add_item = 39;
+  bool has_trade_add_item() const;
+  private:
+  bool _internal_has_trade_add_item() const;
+
+  public:
+  void clear_trade_add_item() ;
+  const ::nightfall::v1::TradeAddItemRequest& trade_add_item() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::TradeAddItemRequest* release_trade_add_item();
+  ::nightfall::v1::TradeAddItemRequest* mutable_trade_add_item();
+  void set_allocated_trade_add_item(::nightfall::v1::TradeAddItemRequest* trade_add_item);
+  private:
+  const ::nightfall::v1::TradeAddItemRequest& _internal_trade_add_item() const;
+  ::nightfall::v1::TradeAddItemRequest* _internal_mutable_trade_add_item();
+  public:
+  void unsafe_arena_set_allocated_trade_add_item(
+      ::nightfall::v1::TradeAddItemRequest* trade_add_item);
+  ::nightfall::v1::TradeAddItemRequest* unsafe_arena_release_trade_add_item();
+  // .nightfall.v1.TradeConfirmRequest trade_confirm = 40;
+  bool has_trade_confirm() const;
+  private:
+  bool _internal_has_trade_confirm() const;
+
+  public:
+  void clear_trade_confirm() ;
+  const ::nightfall::v1::TradeConfirmRequest& trade_confirm() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::TradeConfirmRequest* release_trade_confirm();
+  ::nightfall::v1::TradeConfirmRequest* mutable_trade_confirm();
+  void set_allocated_trade_confirm(::nightfall::v1::TradeConfirmRequest* trade_confirm);
+  private:
+  const ::nightfall::v1::TradeConfirmRequest& _internal_trade_confirm() const;
+  ::nightfall::v1::TradeConfirmRequest* _internal_mutable_trade_confirm();
+  public:
+  void unsafe_arena_set_allocated_trade_confirm(
+      ::nightfall::v1::TradeConfirmRequest* trade_confirm);
+  ::nightfall::v1::TradeConfirmRequest* unsafe_arena_release_trade_confirm();
+  // .nightfall.v1.TradeCancelRequest trade_cancel = 41;
+  bool has_trade_cancel() const;
+  private:
+  bool _internal_has_trade_cancel() const;
+
+  public:
+  void clear_trade_cancel() ;
+  const ::nightfall::v1::TradeCancelRequest& trade_cancel() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::TradeCancelRequest* release_trade_cancel();
+  ::nightfall::v1::TradeCancelRequest* mutable_trade_cancel();
+  void set_allocated_trade_cancel(::nightfall::v1::TradeCancelRequest* trade_cancel);
+  private:
+  const ::nightfall::v1::TradeCancelRequest& _internal_trade_cancel() const;
+  ::nightfall::v1::TradeCancelRequest* _internal_mutable_trade_cancel();
+  public:
+  void unsafe_arena_set_allocated_trade_cancel(
+      ::nightfall::v1::TradeCancelRequest* trade_cancel);
+  ::nightfall::v1::TradeCancelRequest* unsafe_arena_release_trade_cancel();
+  // .nightfall.v1.SetPrivateStoreSellRequest set_private_store_sell = 42;
+  bool has_set_private_store_sell() const;
+  private:
+  bool _internal_has_set_private_store_sell() const;
+
+  public:
+  void clear_set_private_store_sell() ;
+  const ::nightfall::v1::SetPrivateStoreSellRequest& set_private_store_sell() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::SetPrivateStoreSellRequest* release_set_private_store_sell();
+  ::nightfall::v1::SetPrivateStoreSellRequest* mutable_set_private_store_sell();
+  void set_allocated_set_private_store_sell(::nightfall::v1::SetPrivateStoreSellRequest* set_private_store_sell);
+  private:
+  const ::nightfall::v1::SetPrivateStoreSellRequest& _internal_set_private_store_sell() const;
+  ::nightfall::v1::SetPrivateStoreSellRequest* _internal_mutable_set_private_store_sell();
+  public:
+  void unsafe_arena_set_allocated_set_private_store_sell(
+      ::nightfall::v1::SetPrivateStoreSellRequest* set_private_store_sell);
+  ::nightfall::v1::SetPrivateStoreSellRequest* unsafe_arena_release_set_private_store_sell();
+  // .nightfall.v1.SetPrivateStoreBuyRequest set_private_store_buy = 43;
+  bool has_set_private_store_buy() const;
+  private:
+  bool _internal_has_set_private_store_buy() const;
+
+  public:
+  void clear_set_private_store_buy() ;
+  const ::nightfall::v1::SetPrivateStoreBuyRequest& set_private_store_buy() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::SetPrivateStoreBuyRequest* release_set_private_store_buy();
+  ::nightfall::v1::SetPrivateStoreBuyRequest* mutable_set_private_store_buy();
+  void set_allocated_set_private_store_buy(::nightfall::v1::SetPrivateStoreBuyRequest* set_private_store_buy);
+  private:
+  const ::nightfall::v1::SetPrivateStoreBuyRequest& _internal_set_private_store_buy() const;
+  ::nightfall::v1::SetPrivateStoreBuyRequest* _internal_mutable_set_private_store_buy();
+  public:
+  void unsafe_arena_set_allocated_set_private_store_buy(
+      ::nightfall::v1::SetPrivateStoreBuyRequest* set_private_store_buy);
+  ::nightfall::v1::SetPrivateStoreBuyRequest* unsafe_arena_release_set_private_store_buy();
+  // .nightfall.v1.SetPrivateManufactureRequest set_private_manufacture = 44;
+  bool has_set_private_manufacture() const;
+  private:
+  bool _internal_has_set_private_manufacture() const;
+
+  public:
+  void clear_set_private_manufacture() ;
+  const ::nightfall::v1::SetPrivateManufactureRequest& set_private_manufacture() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::SetPrivateManufactureRequest* release_set_private_manufacture();
+  ::nightfall::v1::SetPrivateManufactureRequest* mutable_set_private_manufacture();
+  void set_allocated_set_private_manufacture(::nightfall::v1::SetPrivateManufactureRequest* set_private_manufacture);
+  private:
+  const ::nightfall::v1::SetPrivateManufactureRequest& _internal_set_private_manufacture() const;
+  ::nightfall::v1::SetPrivateManufactureRequest* _internal_mutable_set_private_manufacture();
+  public:
+  void unsafe_arena_set_allocated_set_private_manufacture(
+      ::nightfall::v1::SetPrivateManufactureRequest* set_private_manufacture);
+  ::nightfall::v1::SetPrivateManufactureRequest* unsafe_arena_release_set_private_manufacture();
+  // .nightfall.v1.ClosePrivateStoreRequest close_private_store = 45;
+  bool has_close_private_store() const;
+  private:
+  bool _internal_has_close_private_store() const;
+
+  public:
+  void clear_close_private_store() ;
+  const ::nightfall::v1::ClosePrivateStoreRequest& close_private_store() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::ClosePrivateStoreRequest* release_close_private_store();
+  ::nightfall::v1::ClosePrivateStoreRequest* mutable_close_private_store();
+  void set_allocated_close_private_store(::nightfall::v1::ClosePrivateStoreRequest* close_private_store);
+  private:
+  const ::nightfall::v1::ClosePrivateStoreRequest& _internal_close_private_store() const;
+  ::nightfall::v1::ClosePrivateStoreRequest* _internal_mutable_close_private_store();
+  public:
+  void unsafe_arena_set_allocated_close_private_store(
+      ::nightfall::v1::ClosePrivateStoreRequest* close_private_store);
+  ::nightfall::v1::ClosePrivateStoreRequest* unsafe_arena_release_close_private_store();
+  // .nightfall.v1.PrivateStoreBuyRequest private_store_buy = 46;
+  bool has_private_store_buy() const;
+  private:
+  bool _internal_has_private_store_buy() const;
+
+  public:
+  void clear_private_store_buy() ;
+  const ::nightfall::v1::PrivateStoreBuyRequest& private_store_buy() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::PrivateStoreBuyRequest* release_private_store_buy();
+  ::nightfall::v1::PrivateStoreBuyRequest* mutable_private_store_buy();
+  void set_allocated_private_store_buy(::nightfall::v1::PrivateStoreBuyRequest* private_store_buy);
+  private:
+  const ::nightfall::v1::PrivateStoreBuyRequest& _internal_private_store_buy() const;
+  ::nightfall::v1::PrivateStoreBuyRequest* _internal_mutable_private_store_buy();
+  public:
+  void unsafe_arena_set_allocated_private_store_buy(
+      ::nightfall::v1::PrivateStoreBuyRequest* private_store_buy);
+  ::nightfall::v1::PrivateStoreBuyRequest* unsafe_arena_release_private_store_buy();
+  // .nightfall.v1.PrivateStoreSellRequest private_store_sell = 47;
+  bool has_private_store_sell() const;
+  private:
+  bool _internal_has_private_store_sell() const;
+
+  public:
+  void clear_private_store_sell() ;
+  const ::nightfall::v1::PrivateStoreSellRequest& private_store_sell() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::PrivateStoreSellRequest* release_private_store_sell();
+  ::nightfall::v1::PrivateStoreSellRequest* mutable_private_store_sell();
+  void set_allocated_private_store_sell(::nightfall::v1::PrivateStoreSellRequest* private_store_sell);
+  private:
+  const ::nightfall::v1::PrivateStoreSellRequest& _internal_private_store_sell() const;
+  ::nightfall::v1::PrivateStoreSellRequest* _internal_mutable_private_store_sell();
+  public:
+  void unsafe_arena_set_allocated_private_store_sell(
+      ::nightfall::v1::PrivateStoreSellRequest* private_store_sell);
+  ::nightfall::v1::PrivateStoreSellRequest* unsafe_arena_release_private_store_sell();
+  // .nightfall.v1.PrivateManufactureOrderRequest private_manufacture_order = 48;
+  bool has_private_manufacture_order() const;
+  private:
+  bool _internal_has_private_manufacture_order() const;
+
+  public:
+  void clear_private_manufacture_order() ;
+  const ::nightfall::v1::PrivateManufactureOrderRequest& private_manufacture_order() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::PrivateManufactureOrderRequest* release_private_manufacture_order();
+  ::nightfall::v1::PrivateManufactureOrderRequest* mutable_private_manufacture_order();
+  void set_allocated_private_manufacture_order(::nightfall::v1::PrivateManufactureOrderRequest* private_manufacture_order);
+  private:
+  const ::nightfall::v1::PrivateManufactureOrderRequest& _internal_private_manufacture_order() const;
+  ::nightfall::v1::PrivateManufactureOrderRequest* _internal_mutable_private_manufacture_order();
+  public:
+  void unsafe_arena_set_allocated_private_manufacture_order(
+      ::nightfall::v1::PrivateManufactureOrderRequest* private_manufacture_order);
+  ::nightfall::v1::PrivateManufactureOrderRequest* unsafe_arena_release_private_manufacture_order();
+  // .nightfall.v1.PartyInviteRequest party_invite = 49;
+  bool has_party_invite() const;
+  private:
+  bool _internal_has_party_invite() const;
+
+  public:
+  void clear_party_invite() ;
+  const ::nightfall::v1::PartyInviteRequest& party_invite() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::PartyInviteRequest* release_party_invite();
+  ::nightfall::v1::PartyInviteRequest* mutable_party_invite();
+  void set_allocated_party_invite(::nightfall::v1::PartyInviteRequest* party_invite);
+  private:
+  const ::nightfall::v1::PartyInviteRequest& _internal_party_invite() const;
+  ::nightfall::v1::PartyInviteRequest* _internal_mutable_party_invite();
+  public:
+  void unsafe_arena_set_allocated_party_invite(
+      ::nightfall::v1::PartyInviteRequest* party_invite);
+  ::nightfall::v1::PartyInviteRequest* unsafe_arena_release_party_invite();
+  // .nightfall.v1.PartyAnswerRequest party_answer = 50;
+  bool has_party_answer() const;
+  private:
+  bool _internal_has_party_answer() const;
+
+  public:
+  void clear_party_answer() ;
+  const ::nightfall::v1::PartyAnswerRequest& party_answer() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::PartyAnswerRequest* release_party_answer();
+  ::nightfall::v1::PartyAnswerRequest* mutable_party_answer();
+  void set_allocated_party_answer(::nightfall::v1::PartyAnswerRequest* party_answer);
+  private:
+  const ::nightfall::v1::PartyAnswerRequest& _internal_party_answer() const;
+  ::nightfall::v1::PartyAnswerRequest* _internal_mutable_party_answer();
+  public:
+  void unsafe_arena_set_allocated_party_answer(
+      ::nightfall::v1::PartyAnswerRequest* party_answer);
+  ::nightfall::v1::PartyAnswerRequest* unsafe_arena_release_party_answer();
+  // .nightfall.v1.PartyLeaveRequest party_leave = 51;
+  bool has_party_leave() const;
+  private:
+  bool _internal_has_party_leave() const;
+
+  public:
+  void clear_party_leave() ;
+  const ::nightfall::v1::PartyLeaveRequest& party_leave() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::PartyLeaveRequest* release_party_leave();
+  ::nightfall::v1::PartyLeaveRequest* mutable_party_leave();
+  void set_allocated_party_leave(::nightfall::v1::PartyLeaveRequest* party_leave);
+  private:
+  const ::nightfall::v1::PartyLeaveRequest& _internal_party_leave() const;
+  ::nightfall::v1::PartyLeaveRequest* _internal_mutable_party_leave();
+  public:
+  void unsafe_arena_set_allocated_party_leave(
+      ::nightfall::v1::PartyLeaveRequest* party_leave);
+  ::nightfall::v1::PartyLeaveRequest* unsafe_arena_release_party_leave();
+  // .nightfall.v1.PartyKickRequest party_kick = 52;
+  bool has_party_kick() const;
+  private:
+  bool _internal_has_party_kick() const;
+
+  public:
+  void clear_party_kick() ;
+  const ::nightfall::v1::PartyKickRequest& party_kick() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::PartyKickRequest* release_party_kick();
+  ::nightfall::v1::PartyKickRequest* mutable_party_kick();
+  void set_allocated_party_kick(::nightfall::v1::PartyKickRequest* party_kick);
+  private:
+  const ::nightfall::v1::PartyKickRequest& _internal_party_kick() const;
+  ::nightfall::v1::PartyKickRequest* _internal_mutable_party_kick();
+  public:
+  void unsafe_arena_set_allocated_party_kick(
+      ::nightfall::v1::PartyKickRequest* party_kick);
+  ::nightfall::v1::PartyKickRequest* unsafe_arena_release_party_kick();
+  // .nightfall.v1.PartyChangeLeaderRequest party_change_leader = 53;
+  bool has_party_change_leader() const;
+  private:
+  bool _internal_has_party_change_leader() const;
+
+  public:
+  void clear_party_change_leader() ;
+  const ::nightfall::v1::PartyChangeLeaderRequest& party_change_leader() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::PartyChangeLeaderRequest* release_party_change_leader();
+  ::nightfall::v1::PartyChangeLeaderRequest* mutable_party_change_leader();
+  void set_allocated_party_change_leader(::nightfall::v1::PartyChangeLeaderRequest* party_change_leader);
+  private:
+  const ::nightfall::v1::PartyChangeLeaderRequest& _internal_party_change_leader() const;
+  ::nightfall::v1::PartyChangeLeaderRequest* _internal_mutable_party_change_leader();
+  public:
+  void unsafe_arena_set_allocated_party_change_leader(
+      ::nightfall::v1::PartyChangeLeaderRequest* party_change_leader);
+  ::nightfall::v1::PartyChangeLeaderRequest* unsafe_arena_release_party_change_leader();
+  // .nightfall.v1.PartyLootChangeRequest party_loot_change_request = 54;
+  bool has_party_loot_change_request() const;
+  private:
+  bool _internal_has_party_loot_change_request() const;
+
+  public:
+  void clear_party_loot_change_request() ;
+  const ::nightfall::v1::PartyLootChangeRequest& party_loot_change_request() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::PartyLootChangeRequest* release_party_loot_change_request();
+  ::nightfall::v1::PartyLootChangeRequest* mutable_party_loot_change_request();
+  void set_allocated_party_loot_change_request(::nightfall::v1::PartyLootChangeRequest* party_loot_change_request);
+  private:
+  const ::nightfall::v1::PartyLootChangeRequest& _internal_party_loot_change_request() const;
+  ::nightfall::v1::PartyLootChangeRequest* _internal_mutable_party_loot_change_request();
+  public:
+  void unsafe_arena_set_allocated_party_loot_change_request(
+      ::nightfall::v1::PartyLootChangeRequest* party_loot_change_request);
+  ::nightfall::v1::PartyLootChangeRequest* unsafe_arena_release_party_loot_change_request();
+  // .nightfall.v1.PartyLootChangeAnswer party_loot_change_answer = 55;
+  bool has_party_loot_change_answer() const;
+  private:
+  bool _internal_has_party_loot_change_answer() const;
+
+  public:
+  void clear_party_loot_change_answer() ;
+  const ::nightfall::v1::PartyLootChangeAnswer& party_loot_change_answer() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::PartyLootChangeAnswer* release_party_loot_change_answer();
+  ::nightfall::v1::PartyLootChangeAnswer* mutable_party_loot_change_answer();
+  void set_allocated_party_loot_change_answer(::nightfall::v1::PartyLootChangeAnswer* party_loot_change_answer);
+  private:
+  const ::nightfall::v1::PartyLootChangeAnswer& _internal_party_loot_change_answer() const;
+  ::nightfall::v1::PartyLootChangeAnswer* _internal_mutable_party_loot_change_answer();
+  public:
+  void unsafe_arena_set_allocated_party_loot_change_answer(
+      ::nightfall::v1::PartyLootChangeAnswer* party_loot_change_answer);
+  ::nightfall::v1::PartyLootChangeAnswer* unsafe_arena_release_party_loot_change_answer();
+  // .nightfall.v1.WarehouseDepositRequest warehouse_deposit = 56;
+  bool has_warehouse_deposit() const;
+  private:
+  bool _internal_has_warehouse_deposit() const;
+
+  public:
+  void clear_warehouse_deposit() ;
+  const ::nightfall::v1::WarehouseDepositRequest& warehouse_deposit() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::WarehouseDepositRequest* release_warehouse_deposit();
+  ::nightfall::v1::WarehouseDepositRequest* mutable_warehouse_deposit();
+  void set_allocated_warehouse_deposit(::nightfall::v1::WarehouseDepositRequest* warehouse_deposit);
+  private:
+  const ::nightfall::v1::WarehouseDepositRequest& _internal_warehouse_deposit() const;
+  ::nightfall::v1::WarehouseDepositRequest* _internal_mutable_warehouse_deposit();
+  public:
+  void unsafe_arena_set_allocated_warehouse_deposit(
+      ::nightfall::v1::WarehouseDepositRequest* warehouse_deposit);
+  ::nightfall::v1::WarehouseDepositRequest* unsafe_arena_release_warehouse_deposit();
+  // .nightfall.v1.WarehouseWithdrawRequest warehouse_withdraw = 57;
+  bool has_warehouse_withdraw() const;
+  private:
+  bool _internal_has_warehouse_withdraw() const;
+
+  public:
+  void clear_warehouse_withdraw() ;
+  const ::nightfall::v1::WarehouseWithdrawRequest& warehouse_withdraw() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::WarehouseWithdrawRequest* release_warehouse_withdraw();
+  ::nightfall::v1::WarehouseWithdrawRequest* mutable_warehouse_withdraw();
+  void set_allocated_warehouse_withdraw(::nightfall::v1::WarehouseWithdrawRequest* warehouse_withdraw);
+  private:
+  const ::nightfall::v1::WarehouseWithdrawRequest& _internal_warehouse_withdraw() const;
+  ::nightfall::v1::WarehouseWithdrawRequest* _internal_mutable_warehouse_withdraw();
+  public:
+  void unsafe_arena_set_allocated_warehouse_withdraw(
+      ::nightfall::v1::WarehouseWithdrawRequest* warehouse_withdraw);
+  ::nightfall::v1::WarehouseWithdrawRequest* unsafe_arena_release_warehouse_withdraw();
+  // .nightfall.v1.FreightSendRequest freight_send = 58;
+  bool has_freight_send() const;
+  private:
+  bool _internal_has_freight_send() const;
+
+  public:
+  void clear_freight_send() ;
+  const ::nightfall::v1::FreightSendRequest& freight_send() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::FreightSendRequest* release_freight_send();
+  ::nightfall::v1::FreightSendRequest* mutable_freight_send();
+  void set_allocated_freight_send(::nightfall::v1::FreightSendRequest* freight_send);
+  private:
+  const ::nightfall::v1::FreightSendRequest& _internal_freight_send() const;
+  ::nightfall::v1::FreightSendRequest* _internal_mutable_freight_send();
+  public:
+  void unsafe_arena_set_allocated_freight_send(
+      ::nightfall::v1::FreightSendRequest* freight_send);
+  ::nightfall::v1::FreightSendRequest* unsafe_arena_release_freight_send();
+  // .nightfall.v1.FreightWithdrawRequest freight_withdraw = 59;
+  bool has_freight_withdraw() const;
+  private:
+  bool _internal_has_freight_withdraw() const;
+
+  public:
+  void clear_freight_withdraw() ;
+  const ::nightfall::v1::FreightWithdrawRequest& freight_withdraw() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::FreightWithdrawRequest* release_freight_withdraw();
+  ::nightfall::v1::FreightWithdrawRequest* mutable_freight_withdraw();
+  void set_allocated_freight_withdraw(::nightfall::v1::FreightWithdrawRequest* freight_withdraw);
+  private:
+  const ::nightfall::v1::FreightWithdrawRequest& _internal_freight_withdraw() const;
+  ::nightfall::v1::FreightWithdrawRequest* _internal_mutable_freight_withdraw();
+  public:
+  void unsafe_arena_set_allocated_freight_withdraw(
+      ::nightfall::v1::FreightWithdrawRequest* freight_withdraw);
+  ::nightfall::v1::FreightWithdrawRequest* unsafe_arena_release_freight_withdraw();
+  // .nightfall.v1.MailSendRequest mail_send = 60;
+  bool has_mail_send() const;
+  private:
+  bool _internal_has_mail_send() const;
+
+  public:
+  void clear_mail_send() ;
+  const ::nightfall::v1::MailSendRequest& mail_send() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::MailSendRequest* release_mail_send();
+  ::nightfall::v1::MailSendRequest* mutable_mail_send();
+  void set_allocated_mail_send(::nightfall::v1::MailSendRequest* mail_send);
+  private:
+  const ::nightfall::v1::MailSendRequest& _internal_mail_send() const;
+  ::nightfall::v1::MailSendRequest* _internal_mutable_mail_send();
+  public:
+  void unsafe_arena_set_allocated_mail_send(
+      ::nightfall::v1::MailSendRequest* mail_send);
+  ::nightfall::v1::MailSendRequest* unsafe_arena_release_mail_send();
+  // .nightfall.v1.MailTakeAttachmentsRequest mail_take_attachments = 61;
+  bool has_mail_take_attachments() const;
+  private:
+  bool _internal_has_mail_take_attachments() const;
+
+  public:
+  void clear_mail_take_attachments() ;
+  const ::nightfall::v1::MailTakeAttachmentsRequest& mail_take_attachments() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::MailTakeAttachmentsRequest* release_mail_take_attachments();
+  ::nightfall::v1::MailTakeAttachmentsRequest* mutable_mail_take_attachments();
+  void set_allocated_mail_take_attachments(::nightfall::v1::MailTakeAttachmentsRequest* mail_take_attachments);
+  private:
+  const ::nightfall::v1::MailTakeAttachmentsRequest& _internal_mail_take_attachments() const;
+  ::nightfall::v1::MailTakeAttachmentsRequest* _internal_mutable_mail_take_attachments();
+  public:
+  void unsafe_arena_set_allocated_mail_take_attachments(
+      ::nightfall::v1::MailTakeAttachmentsRequest* mail_take_attachments);
+  ::nightfall::v1::MailTakeAttachmentsRequest* unsafe_arena_release_mail_take_attachments();
+  // .nightfall.v1.MailRejectRequest mail_reject = 62;
+  bool has_mail_reject() const;
+  private:
+  bool _internal_has_mail_reject() const;
+
+  public:
+  void clear_mail_reject() ;
+  const ::nightfall::v1::MailRejectRequest& mail_reject() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::MailRejectRequest* release_mail_reject();
+  ::nightfall::v1::MailRejectRequest* mutable_mail_reject();
+  void set_allocated_mail_reject(::nightfall::v1::MailRejectRequest* mail_reject);
+  private:
+  const ::nightfall::v1::MailRejectRequest& _internal_mail_reject() const;
+  ::nightfall::v1::MailRejectRequest* _internal_mutable_mail_reject();
+  public:
+  void unsafe_arena_set_allocated_mail_reject(
+      ::nightfall::v1::MailRejectRequest* mail_reject);
+  ::nightfall::v1::MailRejectRequest* unsafe_arena_release_mail_reject();
+  // .nightfall.v1.MailCancelRequest mail_cancel = 63;
+  bool has_mail_cancel() const;
+  private:
+  bool _internal_has_mail_cancel() const;
+
+  public:
+  void clear_mail_cancel() ;
+  const ::nightfall::v1::MailCancelRequest& mail_cancel() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::MailCancelRequest* release_mail_cancel();
+  ::nightfall::v1::MailCancelRequest* mutable_mail_cancel();
+  void set_allocated_mail_cancel(::nightfall::v1::MailCancelRequest* mail_cancel);
+  private:
+  const ::nightfall::v1::MailCancelRequest& _internal_mail_cancel() const;
+  ::nightfall::v1::MailCancelRequest* _internal_mutable_mail_cancel();
+  public:
+  void unsafe_arena_set_allocated_mail_cancel(
+      ::nightfall::v1::MailCancelRequest* mail_cancel);
+  ::nightfall::v1::MailCancelRequest* unsafe_arena_release_mail_cancel();
+  // .nightfall.v1.MailDeleteRequest mail_delete = 64;
+  bool has_mail_delete() const;
+  private:
+  bool _internal_has_mail_delete() const;
+
+  public:
+  void clear_mail_delete() ;
+  const ::nightfall::v1::MailDeleteRequest& mail_delete() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::MailDeleteRequest* release_mail_delete();
+  ::nightfall::v1::MailDeleteRequest* mutable_mail_delete();
+  void set_allocated_mail_delete(::nightfall::v1::MailDeleteRequest* mail_delete);
+  private:
+  const ::nightfall::v1::MailDeleteRequest& _internal_mail_delete() const;
+  ::nightfall::v1::MailDeleteRequest* _internal_mutable_mail_delete();
+  public:
+  void unsafe_arena_set_allocated_mail_delete(
+      ::nightfall::v1::MailDeleteRequest* mail_delete);
+  ::nightfall::v1::MailDeleteRequest* unsafe_arena_release_mail_delete();
+  // .nightfall.v1.ManorBuySeedRequest manor_buy_seed = 65;
+  bool has_manor_buy_seed() const;
+  private:
+  bool _internal_has_manor_buy_seed() const;
+
+  public:
+  void clear_manor_buy_seed() ;
+  const ::nightfall::v1::ManorBuySeedRequest& manor_buy_seed() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::ManorBuySeedRequest* release_manor_buy_seed();
+  ::nightfall::v1::ManorBuySeedRequest* mutable_manor_buy_seed();
+  void set_allocated_manor_buy_seed(::nightfall::v1::ManorBuySeedRequest* manor_buy_seed);
+  private:
+  const ::nightfall::v1::ManorBuySeedRequest& _internal_manor_buy_seed() const;
+  ::nightfall::v1::ManorBuySeedRequest* _internal_mutable_manor_buy_seed();
+  public:
+  void unsafe_arena_set_allocated_manor_buy_seed(
+      ::nightfall::v1::ManorBuySeedRequest* manor_buy_seed);
+  ::nightfall::v1::ManorBuySeedRequest* unsafe_arena_release_manor_buy_seed();
+  // .nightfall.v1.ManorSellCropRequest manor_sell_crop = 66;
+  bool has_manor_sell_crop() const;
+  private:
+  bool _internal_has_manor_sell_crop() const;
+
+  public:
+  void clear_manor_sell_crop() ;
+  const ::nightfall::v1::ManorSellCropRequest& manor_sell_crop() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::ManorSellCropRequest* release_manor_sell_crop();
+  ::nightfall::v1::ManorSellCropRequest* mutable_manor_sell_crop();
+  void set_allocated_manor_sell_crop(::nightfall::v1::ManorSellCropRequest* manor_sell_crop);
+  private:
+  const ::nightfall::v1::ManorSellCropRequest& _internal_manor_sell_crop() const;
+  ::nightfall::v1::ManorSellCropRequest* _internal_mutable_manor_sell_crop();
+  public:
+  void unsafe_arena_set_allocated_manor_sell_crop(
+      ::nightfall::v1::ManorSellCropRequest* manor_sell_crop);
+  ::nightfall::v1::ManorSellCropRequest* unsafe_arena_release_manor_sell_crop();
+  // .nightfall.v1.ItemAuctionBidRequest item_auction_bid = 67;
+  bool has_item_auction_bid() const;
+  private:
+  bool _internal_has_item_auction_bid() const;
+
+  public:
+  void clear_item_auction_bid() ;
+  const ::nightfall::v1::ItemAuctionBidRequest& item_auction_bid() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::ItemAuctionBidRequest* release_item_auction_bid();
+  ::nightfall::v1::ItemAuctionBidRequest* mutable_item_auction_bid();
+  void set_allocated_item_auction_bid(::nightfall::v1::ItemAuctionBidRequest* item_auction_bid);
+  private:
+  const ::nightfall::v1::ItemAuctionBidRequest& _internal_item_auction_bid() const;
+  ::nightfall::v1::ItemAuctionBidRequest* _internal_mutable_item_auction_bid();
+  public:
+  void unsafe_arena_set_allocated_item_auction_bid(
+      ::nightfall::v1::ItemAuctionBidRequest* item_auction_bid);
+  ::nightfall::v1::ItemAuctionBidRequest* unsafe_arena_release_item_auction_bid();
+  // .nightfall.v1.ItemAuctionCancelBidRequest item_auction_cancel_bid = 68;
+  bool has_item_auction_cancel_bid() const;
+  private:
+  bool _internal_has_item_auction_cancel_bid() const;
+
+  public:
+  void clear_item_auction_cancel_bid() ;
+  const ::nightfall::v1::ItemAuctionCancelBidRequest& item_auction_cancel_bid() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::ItemAuctionCancelBidRequest* release_item_auction_cancel_bid();
+  ::nightfall::v1::ItemAuctionCancelBidRequest* mutable_item_auction_cancel_bid();
+  void set_allocated_item_auction_cancel_bid(::nightfall::v1::ItemAuctionCancelBidRequest* item_auction_cancel_bid);
+  private:
+  const ::nightfall::v1::ItemAuctionCancelBidRequest& _internal_item_auction_cancel_bid() const;
+  ::nightfall::v1::ItemAuctionCancelBidRequest* _internal_mutable_item_auction_cancel_bid();
+  public:
+  void unsafe_arena_set_allocated_item_auction_cancel_bid(
+      ::nightfall::v1::ItemAuctionCancelBidRequest* item_auction_cancel_bid);
+  ::nightfall::v1::ItemAuctionCancelBidRequest* unsafe_arena_release_item_auction_cancel_bid();
+  // .nightfall.v1.MailMarkReadRequest mail_mark_read = 69;
+  bool has_mail_mark_read() const;
+  private:
+  bool _internal_has_mail_mark_read() const;
+
+  public:
+  void clear_mail_mark_read() ;
+  const ::nightfall::v1::MailMarkReadRequest& mail_mark_read() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::MailMarkReadRequest* release_mail_mark_read();
+  ::nightfall::v1::MailMarkReadRequest* mutable_mail_mark_read();
+  void set_allocated_mail_mark_read(::nightfall::v1::MailMarkReadRequest* mail_mark_read);
+  private:
+  const ::nightfall::v1::MailMarkReadRequest& _internal_mail_mark_read() const;
+  ::nightfall::v1::MailMarkReadRequest* _internal_mutable_mail_mark_read();
+  public:
+  void unsafe_arena_set_allocated_mail_mark_read(
+      ::nightfall::v1::MailMarkReadRequest* mail_mark_read);
+  ::nightfall::v1::MailMarkReadRequest* unsafe_arena_release_mail_mark_read();
   void clear_intent();
   IntentCase intent_case() const;
   // @@protoc_insertion_point(class_scope:nightfall.v1.ClientMessage)
@@ -1229,6 +2102,47 @@ class ClientMessage final :
   void set_has_cancel_refine();
   void set_has_exchange_special_ability();
   void set_has_crystallize_item();
+  void set_has_pick_up_item();
+  void set_has_vendor_buy();
+  void set_has_vendor_sell();
+  void set_has_vendor_refund();
+  void set_has_multisell_choose();
+  void set_has_register_recipe();
+  void set_has_delete_recipe();
+  void set_has_craft_item();
+  void set_has_trade_request();
+  void set_has_trade_answer();
+  void set_has_trade_add_item();
+  void set_has_trade_confirm();
+  void set_has_trade_cancel();
+  void set_has_set_private_store_sell();
+  void set_has_set_private_store_buy();
+  void set_has_set_private_manufacture();
+  void set_has_close_private_store();
+  void set_has_private_store_buy();
+  void set_has_private_store_sell();
+  void set_has_private_manufacture_order();
+  void set_has_party_invite();
+  void set_has_party_answer();
+  void set_has_party_leave();
+  void set_has_party_kick();
+  void set_has_party_change_leader();
+  void set_has_party_loot_change_request();
+  void set_has_party_loot_change_answer();
+  void set_has_warehouse_deposit();
+  void set_has_warehouse_withdraw();
+  void set_has_freight_send();
+  void set_has_freight_withdraw();
+  void set_has_mail_send();
+  void set_has_mail_take_attachments();
+  void set_has_mail_reject();
+  void set_has_mail_cancel();
+  void set_has_mail_delete();
+  void set_has_manor_buy_seed();
+  void set_has_manor_sell_crop();
+  void set_has_item_auction_bid();
+  void set_has_item_auction_cancel_bid();
+  void set_has_mail_mark_read();
 
   inline bool has_intent() const;
   inline void clear_has_intent();
@@ -1260,6 +2174,47 @@ class ClientMessage final :
       ::nightfall::v1::CancelRefineRequest* cancel_refine_;
       ::nightfall::v1::ExchangeSpecialAbilityRequest* exchange_special_ability_;
       ::nightfall::v1::CrystallizeItemRequest* crystallize_item_;
+      ::nightfall::v1::PickUpItemRequest* pick_up_item_;
+      ::nightfall::v1::VendorBuyRequest* vendor_buy_;
+      ::nightfall::v1::VendorSellRequest* vendor_sell_;
+      ::nightfall::v1::VendorRefundRequest* vendor_refund_;
+      ::nightfall::v1::MultisellChooseRequest* multisell_choose_;
+      ::nightfall::v1::RegisterRecipeRequest* register_recipe_;
+      ::nightfall::v1::DeleteRecipeRequest* delete_recipe_;
+      ::nightfall::v1::CraftItemRequest* craft_item_;
+      ::nightfall::v1::TradeRequestRequest* trade_request_;
+      ::nightfall::v1::TradeAnswerRequest* trade_answer_;
+      ::nightfall::v1::TradeAddItemRequest* trade_add_item_;
+      ::nightfall::v1::TradeConfirmRequest* trade_confirm_;
+      ::nightfall::v1::TradeCancelRequest* trade_cancel_;
+      ::nightfall::v1::SetPrivateStoreSellRequest* set_private_store_sell_;
+      ::nightfall::v1::SetPrivateStoreBuyRequest* set_private_store_buy_;
+      ::nightfall::v1::SetPrivateManufactureRequest* set_private_manufacture_;
+      ::nightfall::v1::ClosePrivateStoreRequest* close_private_store_;
+      ::nightfall::v1::PrivateStoreBuyRequest* private_store_buy_;
+      ::nightfall::v1::PrivateStoreSellRequest* private_store_sell_;
+      ::nightfall::v1::PrivateManufactureOrderRequest* private_manufacture_order_;
+      ::nightfall::v1::PartyInviteRequest* party_invite_;
+      ::nightfall::v1::PartyAnswerRequest* party_answer_;
+      ::nightfall::v1::PartyLeaveRequest* party_leave_;
+      ::nightfall::v1::PartyKickRequest* party_kick_;
+      ::nightfall::v1::PartyChangeLeaderRequest* party_change_leader_;
+      ::nightfall::v1::PartyLootChangeRequest* party_loot_change_request_;
+      ::nightfall::v1::PartyLootChangeAnswer* party_loot_change_answer_;
+      ::nightfall::v1::WarehouseDepositRequest* warehouse_deposit_;
+      ::nightfall::v1::WarehouseWithdrawRequest* warehouse_withdraw_;
+      ::nightfall::v1::FreightSendRequest* freight_send_;
+      ::nightfall::v1::FreightWithdrawRequest* freight_withdraw_;
+      ::nightfall::v1::MailSendRequest* mail_send_;
+      ::nightfall::v1::MailTakeAttachmentsRequest* mail_take_attachments_;
+      ::nightfall::v1::MailRejectRequest* mail_reject_;
+      ::nightfall::v1::MailCancelRequest* mail_cancel_;
+      ::nightfall::v1::MailDeleteRequest* mail_delete_;
+      ::nightfall::v1::ManorBuySeedRequest* manor_buy_seed_;
+      ::nightfall::v1::ManorSellCropRequest* manor_sell_crop_;
+      ::nightfall::v1::ItemAuctionBidRequest* item_auction_bid_;
+      ::nightfall::v1::ItemAuctionCancelBidRequest* item_auction_cancel_bid_;
+      ::nightfall::v1::MailMarkReadRequest* mail_mark_read_;
     } intent_;
     mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
     ::uint32_t _oneof_case_[1];
@@ -3258,6 +4213,18 @@ class WorldEvent final :
     kEnchantResult = 31,
     kRefineResult = 32,
     kItemOperationResult = 33,
+    kEconomyResult = 34,
+    kCorpseStateChanged = 35,
+    kPartyStateChanged = 36,
+    kPartyLootVote = 37,
+    kPartyInviteReceived = 38,
+    kTradeRequestReceived = 39,
+    kTradeSessionChanged = 40,
+    kPrivateStoreChanged = 41,
+    kMailNotification = 42,
+    kRecipeBookSync = 43,
+    kItemAuctionStatusChanged = 44,
+    kLootDistributed = 45,
     EVENT_NOT_SET = 0,
   };
 
@@ -3371,6 +4338,18 @@ class WorldEvent final :
     kEnchantResultFieldNumber = 31,
     kRefineResultFieldNumber = 32,
     kItemOperationResultFieldNumber = 33,
+    kEconomyResultFieldNumber = 34,
+    kCorpseStateChangedFieldNumber = 35,
+    kPartyStateChangedFieldNumber = 36,
+    kPartyLootVoteFieldNumber = 37,
+    kPartyInviteReceivedFieldNumber = 38,
+    kTradeRequestReceivedFieldNumber = 39,
+    kTradeSessionChangedFieldNumber = 40,
+    kPrivateStoreChangedFieldNumber = 41,
+    kMailNotificationFieldNumber = 42,
+    kRecipeBookSyncFieldNumber = 43,
+    kItemAuctionStatusChangedFieldNumber = 44,
+    kLootDistributedFieldNumber = 45,
   };
   // .nightfall.v1.EntitySpawn spawn = 1;
   bool has_spawn() const;
@@ -3966,6 +4945,222 @@ class WorldEvent final :
   void unsafe_arena_set_allocated_item_operation_result(
       ::nightfall::v1::ItemOperationResult* item_operation_result);
   ::nightfall::v1::ItemOperationResult* unsafe_arena_release_item_operation_result();
+  // .nightfall.v1.EconomyResult economy_result = 34;
+  bool has_economy_result() const;
+  private:
+  bool _internal_has_economy_result() const;
+
+  public:
+  void clear_economy_result() ;
+  const ::nightfall::v1::EconomyResult& economy_result() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::EconomyResult* release_economy_result();
+  ::nightfall::v1::EconomyResult* mutable_economy_result();
+  void set_allocated_economy_result(::nightfall::v1::EconomyResult* economy_result);
+  private:
+  const ::nightfall::v1::EconomyResult& _internal_economy_result() const;
+  ::nightfall::v1::EconomyResult* _internal_mutable_economy_result();
+  public:
+  void unsafe_arena_set_allocated_economy_result(
+      ::nightfall::v1::EconomyResult* economy_result);
+  ::nightfall::v1::EconomyResult* unsafe_arena_release_economy_result();
+  // .nightfall.v1.CorpseStateChanged corpse_state_changed = 35;
+  bool has_corpse_state_changed() const;
+  private:
+  bool _internal_has_corpse_state_changed() const;
+
+  public:
+  void clear_corpse_state_changed() ;
+  const ::nightfall::v1::CorpseStateChanged& corpse_state_changed() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::CorpseStateChanged* release_corpse_state_changed();
+  ::nightfall::v1::CorpseStateChanged* mutable_corpse_state_changed();
+  void set_allocated_corpse_state_changed(::nightfall::v1::CorpseStateChanged* corpse_state_changed);
+  private:
+  const ::nightfall::v1::CorpseStateChanged& _internal_corpse_state_changed() const;
+  ::nightfall::v1::CorpseStateChanged* _internal_mutable_corpse_state_changed();
+  public:
+  void unsafe_arena_set_allocated_corpse_state_changed(
+      ::nightfall::v1::CorpseStateChanged* corpse_state_changed);
+  ::nightfall::v1::CorpseStateChanged* unsafe_arena_release_corpse_state_changed();
+  // .nightfall.v1.PartyStateChanged party_state_changed = 36;
+  bool has_party_state_changed() const;
+  private:
+  bool _internal_has_party_state_changed() const;
+
+  public:
+  void clear_party_state_changed() ;
+  const ::nightfall::v1::PartyStateChanged& party_state_changed() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::PartyStateChanged* release_party_state_changed();
+  ::nightfall::v1::PartyStateChanged* mutable_party_state_changed();
+  void set_allocated_party_state_changed(::nightfall::v1::PartyStateChanged* party_state_changed);
+  private:
+  const ::nightfall::v1::PartyStateChanged& _internal_party_state_changed() const;
+  ::nightfall::v1::PartyStateChanged* _internal_mutable_party_state_changed();
+  public:
+  void unsafe_arena_set_allocated_party_state_changed(
+      ::nightfall::v1::PartyStateChanged* party_state_changed);
+  ::nightfall::v1::PartyStateChanged* unsafe_arena_release_party_state_changed();
+  // .nightfall.v1.PartyLootVote party_loot_vote = 37;
+  bool has_party_loot_vote() const;
+  private:
+  bool _internal_has_party_loot_vote() const;
+
+  public:
+  void clear_party_loot_vote() ;
+  const ::nightfall::v1::PartyLootVote& party_loot_vote() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::PartyLootVote* release_party_loot_vote();
+  ::nightfall::v1::PartyLootVote* mutable_party_loot_vote();
+  void set_allocated_party_loot_vote(::nightfall::v1::PartyLootVote* party_loot_vote);
+  private:
+  const ::nightfall::v1::PartyLootVote& _internal_party_loot_vote() const;
+  ::nightfall::v1::PartyLootVote* _internal_mutable_party_loot_vote();
+  public:
+  void unsafe_arena_set_allocated_party_loot_vote(
+      ::nightfall::v1::PartyLootVote* party_loot_vote);
+  ::nightfall::v1::PartyLootVote* unsafe_arena_release_party_loot_vote();
+  // .nightfall.v1.PartyInviteReceived party_invite_received = 38;
+  bool has_party_invite_received() const;
+  private:
+  bool _internal_has_party_invite_received() const;
+
+  public:
+  void clear_party_invite_received() ;
+  const ::nightfall::v1::PartyInviteReceived& party_invite_received() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::PartyInviteReceived* release_party_invite_received();
+  ::nightfall::v1::PartyInviteReceived* mutable_party_invite_received();
+  void set_allocated_party_invite_received(::nightfall::v1::PartyInviteReceived* party_invite_received);
+  private:
+  const ::nightfall::v1::PartyInviteReceived& _internal_party_invite_received() const;
+  ::nightfall::v1::PartyInviteReceived* _internal_mutable_party_invite_received();
+  public:
+  void unsafe_arena_set_allocated_party_invite_received(
+      ::nightfall::v1::PartyInviteReceived* party_invite_received);
+  ::nightfall::v1::PartyInviteReceived* unsafe_arena_release_party_invite_received();
+  // .nightfall.v1.TradeRequestReceived trade_request_received = 39;
+  bool has_trade_request_received() const;
+  private:
+  bool _internal_has_trade_request_received() const;
+
+  public:
+  void clear_trade_request_received() ;
+  const ::nightfall::v1::TradeRequestReceived& trade_request_received() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::TradeRequestReceived* release_trade_request_received();
+  ::nightfall::v1::TradeRequestReceived* mutable_trade_request_received();
+  void set_allocated_trade_request_received(::nightfall::v1::TradeRequestReceived* trade_request_received);
+  private:
+  const ::nightfall::v1::TradeRequestReceived& _internal_trade_request_received() const;
+  ::nightfall::v1::TradeRequestReceived* _internal_mutable_trade_request_received();
+  public:
+  void unsafe_arena_set_allocated_trade_request_received(
+      ::nightfall::v1::TradeRequestReceived* trade_request_received);
+  ::nightfall::v1::TradeRequestReceived* unsafe_arena_release_trade_request_received();
+  // .nightfall.v1.TradeSessionChanged trade_session_changed = 40;
+  bool has_trade_session_changed() const;
+  private:
+  bool _internal_has_trade_session_changed() const;
+
+  public:
+  void clear_trade_session_changed() ;
+  const ::nightfall::v1::TradeSessionChanged& trade_session_changed() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::TradeSessionChanged* release_trade_session_changed();
+  ::nightfall::v1::TradeSessionChanged* mutable_trade_session_changed();
+  void set_allocated_trade_session_changed(::nightfall::v1::TradeSessionChanged* trade_session_changed);
+  private:
+  const ::nightfall::v1::TradeSessionChanged& _internal_trade_session_changed() const;
+  ::nightfall::v1::TradeSessionChanged* _internal_mutable_trade_session_changed();
+  public:
+  void unsafe_arena_set_allocated_trade_session_changed(
+      ::nightfall::v1::TradeSessionChanged* trade_session_changed);
+  ::nightfall::v1::TradeSessionChanged* unsafe_arena_release_trade_session_changed();
+  // .nightfall.v1.PrivateStoreChanged private_store_changed = 41;
+  bool has_private_store_changed() const;
+  private:
+  bool _internal_has_private_store_changed() const;
+
+  public:
+  void clear_private_store_changed() ;
+  const ::nightfall::v1::PrivateStoreChanged& private_store_changed() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::PrivateStoreChanged* release_private_store_changed();
+  ::nightfall::v1::PrivateStoreChanged* mutable_private_store_changed();
+  void set_allocated_private_store_changed(::nightfall::v1::PrivateStoreChanged* private_store_changed);
+  private:
+  const ::nightfall::v1::PrivateStoreChanged& _internal_private_store_changed() const;
+  ::nightfall::v1::PrivateStoreChanged* _internal_mutable_private_store_changed();
+  public:
+  void unsafe_arena_set_allocated_private_store_changed(
+      ::nightfall::v1::PrivateStoreChanged* private_store_changed);
+  ::nightfall::v1::PrivateStoreChanged* unsafe_arena_release_private_store_changed();
+  // .nightfall.v1.MailNotification mail_notification = 42;
+  bool has_mail_notification() const;
+  private:
+  bool _internal_has_mail_notification() const;
+
+  public:
+  void clear_mail_notification() ;
+  const ::nightfall::v1::MailNotification& mail_notification() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::MailNotification* release_mail_notification();
+  ::nightfall::v1::MailNotification* mutable_mail_notification();
+  void set_allocated_mail_notification(::nightfall::v1::MailNotification* mail_notification);
+  private:
+  const ::nightfall::v1::MailNotification& _internal_mail_notification() const;
+  ::nightfall::v1::MailNotification* _internal_mutable_mail_notification();
+  public:
+  void unsafe_arena_set_allocated_mail_notification(
+      ::nightfall::v1::MailNotification* mail_notification);
+  ::nightfall::v1::MailNotification* unsafe_arena_release_mail_notification();
+  // .nightfall.v1.RecipeBookSync recipe_book_sync = 43;
+  bool has_recipe_book_sync() const;
+  private:
+  bool _internal_has_recipe_book_sync() const;
+
+  public:
+  void clear_recipe_book_sync() ;
+  const ::nightfall::v1::RecipeBookSync& recipe_book_sync() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::RecipeBookSync* release_recipe_book_sync();
+  ::nightfall::v1::RecipeBookSync* mutable_recipe_book_sync();
+  void set_allocated_recipe_book_sync(::nightfall::v1::RecipeBookSync* recipe_book_sync);
+  private:
+  const ::nightfall::v1::RecipeBookSync& _internal_recipe_book_sync() const;
+  ::nightfall::v1::RecipeBookSync* _internal_mutable_recipe_book_sync();
+  public:
+  void unsafe_arena_set_allocated_recipe_book_sync(
+      ::nightfall::v1::RecipeBookSync* recipe_book_sync);
+  ::nightfall::v1::RecipeBookSync* unsafe_arena_release_recipe_book_sync();
+  // .nightfall.v1.ItemAuctionStatusChanged item_auction_status_changed = 44;
+  bool has_item_auction_status_changed() const;
+  private:
+  bool _internal_has_item_auction_status_changed() const;
+
+  public:
+  void clear_item_auction_status_changed() ;
+  const ::nightfall::v1::ItemAuctionStatusChanged& item_auction_status_changed() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::ItemAuctionStatusChanged* release_item_auction_status_changed();
+  ::nightfall::v1::ItemAuctionStatusChanged* mutable_item_auction_status_changed();
+  void set_allocated_item_auction_status_changed(::nightfall::v1::ItemAuctionStatusChanged* item_auction_status_changed);
+  private:
+  const ::nightfall::v1::ItemAuctionStatusChanged& _internal_item_auction_status_changed() const;
+  ::nightfall::v1::ItemAuctionStatusChanged* _internal_mutable_item_auction_status_changed();
+  public:
+  void unsafe_arena_set_allocated_item_auction_status_changed(
+      ::nightfall::v1::ItemAuctionStatusChanged* item_auction_status_changed);
+  ::nightfall::v1::ItemAuctionStatusChanged* unsafe_arena_release_item_auction_status_changed();
+  // .nightfall.v1.LootDistributed loot_distributed = 45;
+  bool has_loot_distributed() const;
+  private:
+  bool _internal_has_loot_distributed() const;
+
+  public:
+  void clear_loot_distributed() ;
+  const ::nightfall::v1::LootDistributed& loot_distributed() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::LootDistributed* release_loot_distributed();
+  ::nightfall::v1::LootDistributed* mutable_loot_distributed();
+  void set_allocated_loot_distributed(::nightfall::v1::LootDistributed* loot_distributed);
+  private:
+  const ::nightfall::v1::LootDistributed& _internal_loot_distributed() const;
+  ::nightfall::v1::LootDistributed* _internal_mutable_loot_distributed();
+  public:
+  void unsafe_arena_set_allocated_loot_distributed(
+      ::nightfall::v1::LootDistributed* loot_distributed);
+  ::nightfall::v1::LootDistributed* unsafe_arena_release_loot_distributed();
   void clear_event();
   EventCase event_case() const;
   // @@protoc_insertion_point(class_scope:nightfall.v1.WorldEvent)
@@ -4004,6 +5199,18 @@ class WorldEvent final :
   void set_has_enchant_result();
   void set_has_refine_result();
   void set_has_item_operation_result();
+  void set_has_economy_result();
+  void set_has_corpse_state_changed();
+  void set_has_party_state_changed();
+  void set_has_party_loot_vote();
+  void set_has_party_invite_received();
+  void set_has_trade_request_received();
+  void set_has_trade_session_changed();
+  void set_has_private_store_changed();
+  void set_has_mail_notification();
+  void set_has_recipe_book_sync();
+  void set_has_item_auction_status_changed();
+  void set_has_loot_distributed();
 
   inline bool has_event() const;
   inline void clear_has_event();
@@ -4048,6 +5255,18 @@ class WorldEvent final :
       ::nightfall::v1::EnchantResult* enchant_result_;
       ::nightfall::v1::RefineResult* refine_result_;
       ::nightfall::v1::ItemOperationResult* item_operation_result_;
+      ::nightfall::v1::EconomyResult* economy_result_;
+      ::nightfall::v1::CorpseStateChanged* corpse_state_changed_;
+      ::nightfall::v1::PartyStateChanged* party_state_changed_;
+      ::nightfall::v1::PartyLootVote* party_loot_vote_;
+      ::nightfall::v1::PartyInviteReceived* party_invite_received_;
+      ::nightfall::v1::TradeRequestReceived* trade_request_received_;
+      ::nightfall::v1::TradeSessionChanged* trade_session_changed_;
+      ::nightfall::v1::PrivateStoreChanged* private_store_changed_;
+      ::nightfall::v1::MailNotification* mail_notification_;
+      ::nightfall::v1::RecipeBookSync* recipe_book_sync_;
+      ::nightfall::v1::ItemAuctionStatusChanged* item_auction_status_changed_;
+      ::nightfall::v1::LootDistributed* loot_distributed_;
     } event_;
     mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
     ::uint32_t _oneof_case_[1];
@@ -4193,6 +5412,7 @@ class EntitySpawn final :
     kPositionFieldNumber = 3,
     kPendingSwingFieldNumber = 14,
     kPendingCastFieldNumber = 25,
+    kGroundItemFieldNumber = 30,
     kKindFieldNumber = 4,
     kSessionGenerationFieldNumber = 5,
     kLifeIncarnationFieldNumber = 8,
@@ -4357,6 +5577,20 @@ class EntitySpawn final :
   void unsafe_arena_set_allocated_pending_cast(
       ::nightfall::v1::SkillCastStarted* pending_cast);
   ::nightfall::v1::SkillCastStarted* unsafe_arena_release_pending_cast();
+  // .nightfall.v1.GroundItemDetail ground_item = 30;
+  bool has_ground_item() const;
+  void clear_ground_item() ;
+  const ::nightfall::v1::GroundItemDetail& ground_item() const;
+  PROTOBUF_NODISCARD ::nightfall::v1::GroundItemDetail* release_ground_item();
+  ::nightfall::v1::GroundItemDetail* mutable_ground_item();
+  void set_allocated_ground_item(::nightfall::v1::GroundItemDetail* ground_item);
+  private:
+  const ::nightfall::v1::GroundItemDetail& _internal_ground_item() const;
+  ::nightfall::v1::GroundItemDetail* _internal_mutable_ground_item();
+  public:
+  void unsafe_arena_set_allocated_ground_item(
+      ::nightfall::v1::GroundItemDetail* ground_item);
+  ::nightfall::v1::GroundItemDetail* unsafe_arena_release_ground_item();
   // .nightfall.v1.EntityKind kind = 4;
   void clear_kind() ;
   ::nightfall::v1::EntityKind kind() const;
@@ -4585,6 +5819,7 @@ class EntitySpawn final :
     ::nightfall::v1::Position* position_;
     ::nightfall::v1::AttackStarted* pending_swing_;
     ::nightfall::v1::SkillCastStarted* pending_cast_;
+    ::nightfall::v1::GroundItemDetail* ground_item_;
     int kind_;
     ::uint32_t session_generation_;
     ::uint32_t life_incarnation_;
@@ -12907,6 +14142,2712 @@ inline ::nightfall::v1::CrystallizeItemRequest* ClientMessage::mutable_crystalli
   return _msg;
 }
 
+// .nightfall.v1.PickUpItemRequest pick_up_item = 29;
+inline bool ClientMessage::has_pick_up_item() const {
+  return intent_case() == kPickUpItem;
+}
+inline bool ClientMessage::_internal_has_pick_up_item() const {
+  return intent_case() == kPickUpItem;
+}
+inline void ClientMessage::set_has_pick_up_item() {
+  _impl_._oneof_case_[0] = kPickUpItem;
+}
+inline ::nightfall::v1::PickUpItemRequest* ClientMessage::release_pick_up_item() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.pick_up_item)
+  if (intent_case() == kPickUpItem) {
+    clear_has_intent();
+    ::nightfall::v1::PickUpItemRequest* temp = _impl_.intent_.pick_up_item_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.pick_up_item_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::PickUpItemRequest& ClientMessage::_internal_pick_up_item() const {
+  return intent_case() == kPickUpItem
+      ? *_impl_.intent_.pick_up_item_
+      : reinterpret_cast<::nightfall::v1::PickUpItemRequest&>(::nightfall::v1::_PickUpItemRequest_default_instance_);
+}
+inline const ::nightfall::v1::PickUpItemRequest& ClientMessage::pick_up_item() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.pick_up_item)
+  return _internal_pick_up_item();
+}
+inline ::nightfall::v1::PickUpItemRequest* ClientMessage::unsafe_arena_release_pick_up_item() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.pick_up_item)
+  if (intent_case() == kPickUpItem) {
+    clear_has_intent();
+    ::nightfall::v1::PickUpItemRequest* temp = _impl_.intent_.pick_up_item_;
+    _impl_.intent_.pick_up_item_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_pick_up_item(::nightfall::v1::PickUpItemRequest* pick_up_item) {
+  clear_intent();
+  if (pick_up_item) {
+    set_has_pick_up_item();
+    _impl_.intent_.pick_up_item_ = pick_up_item;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.pick_up_item)
+}
+inline ::nightfall::v1::PickUpItemRequest* ClientMessage::_internal_mutable_pick_up_item() {
+  if (intent_case() != kPickUpItem) {
+    clear_intent();
+    set_has_pick_up_item();
+    _impl_.intent_.pick_up_item_ = CreateMaybeMessage< ::nightfall::v1::PickUpItemRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.pick_up_item_;
+}
+inline ::nightfall::v1::PickUpItemRequest* ClientMessage::mutable_pick_up_item() {
+  ::nightfall::v1::PickUpItemRequest* _msg = _internal_mutable_pick_up_item();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.pick_up_item)
+  return _msg;
+}
+
+// .nightfall.v1.VendorBuyRequest vendor_buy = 30;
+inline bool ClientMessage::has_vendor_buy() const {
+  return intent_case() == kVendorBuy;
+}
+inline bool ClientMessage::_internal_has_vendor_buy() const {
+  return intent_case() == kVendorBuy;
+}
+inline void ClientMessage::set_has_vendor_buy() {
+  _impl_._oneof_case_[0] = kVendorBuy;
+}
+inline ::nightfall::v1::VendorBuyRequest* ClientMessage::release_vendor_buy() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.vendor_buy)
+  if (intent_case() == kVendorBuy) {
+    clear_has_intent();
+    ::nightfall::v1::VendorBuyRequest* temp = _impl_.intent_.vendor_buy_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.vendor_buy_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::VendorBuyRequest& ClientMessage::_internal_vendor_buy() const {
+  return intent_case() == kVendorBuy
+      ? *_impl_.intent_.vendor_buy_
+      : reinterpret_cast<::nightfall::v1::VendorBuyRequest&>(::nightfall::v1::_VendorBuyRequest_default_instance_);
+}
+inline const ::nightfall::v1::VendorBuyRequest& ClientMessage::vendor_buy() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.vendor_buy)
+  return _internal_vendor_buy();
+}
+inline ::nightfall::v1::VendorBuyRequest* ClientMessage::unsafe_arena_release_vendor_buy() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.vendor_buy)
+  if (intent_case() == kVendorBuy) {
+    clear_has_intent();
+    ::nightfall::v1::VendorBuyRequest* temp = _impl_.intent_.vendor_buy_;
+    _impl_.intent_.vendor_buy_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_vendor_buy(::nightfall::v1::VendorBuyRequest* vendor_buy) {
+  clear_intent();
+  if (vendor_buy) {
+    set_has_vendor_buy();
+    _impl_.intent_.vendor_buy_ = vendor_buy;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.vendor_buy)
+}
+inline ::nightfall::v1::VendorBuyRequest* ClientMessage::_internal_mutable_vendor_buy() {
+  if (intent_case() != kVendorBuy) {
+    clear_intent();
+    set_has_vendor_buy();
+    _impl_.intent_.vendor_buy_ = CreateMaybeMessage< ::nightfall::v1::VendorBuyRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.vendor_buy_;
+}
+inline ::nightfall::v1::VendorBuyRequest* ClientMessage::mutable_vendor_buy() {
+  ::nightfall::v1::VendorBuyRequest* _msg = _internal_mutable_vendor_buy();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.vendor_buy)
+  return _msg;
+}
+
+// .nightfall.v1.VendorSellRequest vendor_sell = 31;
+inline bool ClientMessage::has_vendor_sell() const {
+  return intent_case() == kVendorSell;
+}
+inline bool ClientMessage::_internal_has_vendor_sell() const {
+  return intent_case() == kVendorSell;
+}
+inline void ClientMessage::set_has_vendor_sell() {
+  _impl_._oneof_case_[0] = kVendorSell;
+}
+inline ::nightfall::v1::VendorSellRequest* ClientMessage::release_vendor_sell() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.vendor_sell)
+  if (intent_case() == kVendorSell) {
+    clear_has_intent();
+    ::nightfall::v1::VendorSellRequest* temp = _impl_.intent_.vendor_sell_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.vendor_sell_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::VendorSellRequest& ClientMessage::_internal_vendor_sell() const {
+  return intent_case() == kVendorSell
+      ? *_impl_.intent_.vendor_sell_
+      : reinterpret_cast<::nightfall::v1::VendorSellRequest&>(::nightfall::v1::_VendorSellRequest_default_instance_);
+}
+inline const ::nightfall::v1::VendorSellRequest& ClientMessage::vendor_sell() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.vendor_sell)
+  return _internal_vendor_sell();
+}
+inline ::nightfall::v1::VendorSellRequest* ClientMessage::unsafe_arena_release_vendor_sell() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.vendor_sell)
+  if (intent_case() == kVendorSell) {
+    clear_has_intent();
+    ::nightfall::v1::VendorSellRequest* temp = _impl_.intent_.vendor_sell_;
+    _impl_.intent_.vendor_sell_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_vendor_sell(::nightfall::v1::VendorSellRequest* vendor_sell) {
+  clear_intent();
+  if (vendor_sell) {
+    set_has_vendor_sell();
+    _impl_.intent_.vendor_sell_ = vendor_sell;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.vendor_sell)
+}
+inline ::nightfall::v1::VendorSellRequest* ClientMessage::_internal_mutable_vendor_sell() {
+  if (intent_case() != kVendorSell) {
+    clear_intent();
+    set_has_vendor_sell();
+    _impl_.intent_.vendor_sell_ = CreateMaybeMessage< ::nightfall::v1::VendorSellRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.vendor_sell_;
+}
+inline ::nightfall::v1::VendorSellRequest* ClientMessage::mutable_vendor_sell() {
+  ::nightfall::v1::VendorSellRequest* _msg = _internal_mutable_vendor_sell();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.vendor_sell)
+  return _msg;
+}
+
+// .nightfall.v1.VendorRefundRequest vendor_refund = 32;
+inline bool ClientMessage::has_vendor_refund() const {
+  return intent_case() == kVendorRefund;
+}
+inline bool ClientMessage::_internal_has_vendor_refund() const {
+  return intent_case() == kVendorRefund;
+}
+inline void ClientMessage::set_has_vendor_refund() {
+  _impl_._oneof_case_[0] = kVendorRefund;
+}
+inline ::nightfall::v1::VendorRefundRequest* ClientMessage::release_vendor_refund() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.vendor_refund)
+  if (intent_case() == kVendorRefund) {
+    clear_has_intent();
+    ::nightfall::v1::VendorRefundRequest* temp = _impl_.intent_.vendor_refund_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.vendor_refund_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::VendorRefundRequest& ClientMessage::_internal_vendor_refund() const {
+  return intent_case() == kVendorRefund
+      ? *_impl_.intent_.vendor_refund_
+      : reinterpret_cast<::nightfall::v1::VendorRefundRequest&>(::nightfall::v1::_VendorRefundRequest_default_instance_);
+}
+inline const ::nightfall::v1::VendorRefundRequest& ClientMessage::vendor_refund() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.vendor_refund)
+  return _internal_vendor_refund();
+}
+inline ::nightfall::v1::VendorRefundRequest* ClientMessage::unsafe_arena_release_vendor_refund() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.vendor_refund)
+  if (intent_case() == kVendorRefund) {
+    clear_has_intent();
+    ::nightfall::v1::VendorRefundRequest* temp = _impl_.intent_.vendor_refund_;
+    _impl_.intent_.vendor_refund_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_vendor_refund(::nightfall::v1::VendorRefundRequest* vendor_refund) {
+  clear_intent();
+  if (vendor_refund) {
+    set_has_vendor_refund();
+    _impl_.intent_.vendor_refund_ = vendor_refund;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.vendor_refund)
+}
+inline ::nightfall::v1::VendorRefundRequest* ClientMessage::_internal_mutable_vendor_refund() {
+  if (intent_case() != kVendorRefund) {
+    clear_intent();
+    set_has_vendor_refund();
+    _impl_.intent_.vendor_refund_ = CreateMaybeMessage< ::nightfall::v1::VendorRefundRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.vendor_refund_;
+}
+inline ::nightfall::v1::VendorRefundRequest* ClientMessage::mutable_vendor_refund() {
+  ::nightfall::v1::VendorRefundRequest* _msg = _internal_mutable_vendor_refund();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.vendor_refund)
+  return _msg;
+}
+
+// .nightfall.v1.MultisellChooseRequest multisell_choose = 33;
+inline bool ClientMessage::has_multisell_choose() const {
+  return intent_case() == kMultisellChoose;
+}
+inline bool ClientMessage::_internal_has_multisell_choose() const {
+  return intent_case() == kMultisellChoose;
+}
+inline void ClientMessage::set_has_multisell_choose() {
+  _impl_._oneof_case_[0] = kMultisellChoose;
+}
+inline ::nightfall::v1::MultisellChooseRequest* ClientMessage::release_multisell_choose() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.multisell_choose)
+  if (intent_case() == kMultisellChoose) {
+    clear_has_intent();
+    ::nightfall::v1::MultisellChooseRequest* temp = _impl_.intent_.multisell_choose_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.multisell_choose_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::MultisellChooseRequest& ClientMessage::_internal_multisell_choose() const {
+  return intent_case() == kMultisellChoose
+      ? *_impl_.intent_.multisell_choose_
+      : reinterpret_cast<::nightfall::v1::MultisellChooseRequest&>(::nightfall::v1::_MultisellChooseRequest_default_instance_);
+}
+inline const ::nightfall::v1::MultisellChooseRequest& ClientMessage::multisell_choose() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.multisell_choose)
+  return _internal_multisell_choose();
+}
+inline ::nightfall::v1::MultisellChooseRequest* ClientMessage::unsafe_arena_release_multisell_choose() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.multisell_choose)
+  if (intent_case() == kMultisellChoose) {
+    clear_has_intent();
+    ::nightfall::v1::MultisellChooseRequest* temp = _impl_.intent_.multisell_choose_;
+    _impl_.intent_.multisell_choose_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_multisell_choose(::nightfall::v1::MultisellChooseRequest* multisell_choose) {
+  clear_intent();
+  if (multisell_choose) {
+    set_has_multisell_choose();
+    _impl_.intent_.multisell_choose_ = multisell_choose;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.multisell_choose)
+}
+inline ::nightfall::v1::MultisellChooseRequest* ClientMessage::_internal_mutable_multisell_choose() {
+  if (intent_case() != kMultisellChoose) {
+    clear_intent();
+    set_has_multisell_choose();
+    _impl_.intent_.multisell_choose_ = CreateMaybeMessage< ::nightfall::v1::MultisellChooseRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.multisell_choose_;
+}
+inline ::nightfall::v1::MultisellChooseRequest* ClientMessage::mutable_multisell_choose() {
+  ::nightfall::v1::MultisellChooseRequest* _msg = _internal_mutable_multisell_choose();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.multisell_choose)
+  return _msg;
+}
+
+// .nightfall.v1.RegisterRecipeRequest register_recipe = 34;
+inline bool ClientMessage::has_register_recipe() const {
+  return intent_case() == kRegisterRecipe;
+}
+inline bool ClientMessage::_internal_has_register_recipe() const {
+  return intent_case() == kRegisterRecipe;
+}
+inline void ClientMessage::set_has_register_recipe() {
+  _impl_._oneof_case_[0] = kRegisterRecipe;
+}
+inline ::nightfall::v1::RegisterRecipeRequest* ClientMessage::release_register_recipe() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.register_recipe)
+  if (intent_case() == kRegisterRecipe) {
+    clear_has_intent();
+    ::nightfall::v1::RegisterRecipeRequest* temp = _impl_.intent_.register_recipe_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.register_recipe_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::RegisterRecipeRequest& ClientMessage::_internal_register_recipe() const {
+  return intent_case() == kRegisterRecipe
+      ? *_impl_.intent_.register_recipe_
+      : reinterpret_cast<::nightfall::v1::RegisterRecipeRequest&>(::nightfall::v1::_RegisterRecipeRequest_default_instance_);
+}
+inline const ::nightfall::v1::RegisterRecipeRequest& ClientMessage::register_recipe() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.register_recipe)
+  return _internal_register_recipe();
+}
+inline ::nightfall::v1::RegisterRecipeRequest* ClientMessage::unsafe_arena_release_register_recipe() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.register_recipe)
+  if (intent_case() == kRegisterRecipe) {
+    clear_has_intent();
+    ::nightfall::v1::RegisterRecipeRequest* temp = _impl_.intent_.register_recipe_;
+    _impl_.intent_.register_recipe_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_register_recipe(::nightfall::v1::RegisterRecipeRequest* register_recipe) {
+  clear_intent();
+  if (register_recipe) {
+    set_has_register_recipe();
+    _impl_.intent_.register_recipe_ = register_recipe;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.register_recipe)
+}
+inline ::nightfall::v1::RegisterRecipeRequest* ClientMessage::_internal_mutable_register_recipe() {
+  if (intent_case() != kRegisterRecipe) {
+    clear_intent();
+    set_has_register_recipe();
+    _impl_.intent_.register_recipe_ = CreateMaybeMessage< ::nightfall::v1::RegisterRecipeRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.register_recipe_;
+}
+inline ::nightfall::v1::RegisterRecipeRequest* ClientMessage::mutable_register_recipe() {
+  ::nightfall::v1::RegisterRecipeRequest* _msg = _internal_mutable_register_recipe();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.register_recipe)
+  return _msg;
+}
+
+// .nightfall.v1.DeleteRecipeRequest delete_recipe = 35;
+inline bool ClientMessage::has_delete_recipe() const {
+  return intent_case() == kDeleteRecipe;
+}
+inline bool ClientMessage::_internal_has_delete_recipe() const {
+  return intent_case() == kDeleteRecipe;
+}
+inline void ClientMessage::set_has_delete_recipe() {
+  _impl_._oneof_case_[0] = kDeleteRecipe;
+}
+inline ::nightfall::v1::DeleteRecipeRequest* ClientMessage::release_delete_recipe() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.delete_recipe)
+  if (intent_case() == kDeleteRecipe) {
+    clear_has_intent();
+    ::nightfall::v1::DeleteRecipeRequest* temp = _impl_.intent_.delete_recipe_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.delete_recipe_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::DeleteRecipeRequest& ClientMessage::_internal_delete_recipe() const {
+  return intent_case() == kDeleteRecipe
+      ? *_impl_.intent_.delete_recipe_
+      : reinterpret_cast<::nightfall::v1::DeleteRecipeRequest&>(::nightfall::v1::_DeleteRecipeRequest_default_instance_);
+}
+inline const ::nightfall::v1::DeleteRecipeRequest& ClientMessage::delete_recipe() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.delete_recipe)
+  return _internal_delete_recipe();
+}
+inline ::nightfall::v1::DeleteRecipeRequest* ClientMessage::unsafe_arena_release_delete_recipe() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.delete_recipe)
+  if (intent_case() == kDeleteRecipe) {
+    clear_has_intent();
+    ::nightfall::v1::DeleteRecipeRequest* temp = _impl_.intent_.delete_recipe_;
+    _impl_.intent_.delete_recipe_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_delete_recipe(::nightfall::v1::DeleteRecipeRequest* delete_recipe) {
+  clear_intent();
+  if (delete_recipe) {
+    set_has_delete_recipe();
+    _impl_.intent_.delete_recipe_ = delete_recipe;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.delete_recipe)
+}
+inline ::nightfall::v1::DeleteRecipeRequest* ClientMessage::_internal_mutable_delete_recipe() {
+  if (intent_case() != kDeleteRecipe) {
+    clear_intent();
+    set_has_delete_recipe();
+    _impl_.intent_.delete_recipe_ = CreateMaybeMessage< ::nightfall::v1::DeleteRecipeRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.delete_recipe_;
+}
+inline ::nightfall::v1::DeleteRecipeRequest* ClientMessage::mutable_delete_recipe() {
+  ::nightfall::v1::DeleteRecipeRequest* _msg = _internal_mutable_delete_recipe();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.delete_recipe)
+  return _msg;
+}
+
+// .nightfall.v1.CraftItemRequest craft_item = 36;
+inline bool ClientMessage::has_craft_item() const {
+  return intent_case() == kCraftItem;
+}
+inline bool ClientMessage::_internal_has_craft_item() const {
+  return intent_case() == kCraftItem;
+}
+inline void ClientMessage::set_has_craft_item() {
+  _impl_._oneof_case_[0] = kCraftItem;
+}
+inline ::nightfall::v1::CraftItemRequest* ClientMessage::release_craft_item() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.craft_item)
+  if (intent_case() == kCraftItem) {
+    clear_has_intent();
+    ::nightfall::v1::CraftItemRequest* temp = _impl_.intent_.craft_item_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.craft_item_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::CraftItemRequest& ClientMessage::_internal_craft_item() const {
+  return intent_case() == kCraftItem
+      ? *_impl_.intent_.craft_item_
+      : reinterpret_cast<::nightfall::v1::CraftItemRequest&>(::nightfall::v1::_CraftItemRequest_default_instance_);
+}
+inline const ::nightfall::v1::CraftItemRequest& ClientMessage::craft_item() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.craft_item)
+  return _internal_craft_item();
+}
+inline ::nightfall::v1::CraftItemRequest* ClientMessage::unsafe_arena_release_craft_item() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.craft_item)
+  if (intent_case() == kCraftItem) {
+    clear_has_intent();
+    ::nightfall::v1::CraftItemRequest* temp = _impl_.intent_.craft_item_;
+    _impl_.intent_.craft_item_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_craft_item(::nightfall::v1::CraftItemRequest* craft_item) {
+  clear_intent();
+  if (craft_item) {
+    set_has_craft_item();
+    _impl_.intent_.craft_item_ = craft_item;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.craft_item)
+}
+inline ::nightfall::v1::CraftItemRequest* ClientMessage::_internal_mutable_craft_item() {
+  if (intent_case() != kCraftItem) {
+    clear_intent();
+    set_has_craft_item();
+    _impl_.intent_.craft_item_ = CreateMaybeMessage< ::nightfall::v1::CraftItemRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.craft_item_;
+}
+inline ::nightfall::v1::CraftItemRequest* ClientMessage::mutable_craft_item() {
+  ::nightfall::v1::CraftItemRequest* _msg = _internal_mutable_craft_item();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.craft_item)
+  return _msg;
+}
+
+// .nightfall.v1.TradeRequestRequest trade_request = 37;
+inline bool ClientMessage::has_trade_request() const {
+  return intent_case() == kTradeRequest;
+}
+inline bool ClientMessage::_internal_has_trade_request() const {
+  return intent_case() == kTradeRequest;
+}
+inline void ClientMessage::set_has_trade_request() {
+  _impl_._oneof_case_[0] = kTradeRequest;
+}
+inline ::nightfall::v1::TradeRequestRequest* ClientMessage::release_trade_request() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.trade_request)
+  if (intent_case() == kTradeRequest) {
+    clear_has_intent();
+    ::nightfall::v1::TradeRequestRequest* temp = _impl_.intent_.trade_request_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.trade_request_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::TradeRequestRequest& ClientMessage::_internal_trade_request() const {
+  return intent_case() == kTradeRequest
+      ? *_impl_.intent_.trade_request_
+      : reinterpret_cast<::nightfall::v1::TradeRequestRequest&>(::nightfall::v1::_TradeRequestRequest_default_instance_);
+}
+inline const ::nightfall::v1::TradeRequestRequest& ClientMessage::trade_request() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.trade_request)
+  return _internal_trade_request();
+}
+inline ::nightfall::v1::TradeRequestRequest* ClientMessage::unsafe_arena_release_trade_request() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.trade_request)
+  if (intent_case() == kTradeRequest) {
+    clear_has_intent();
+    ::nightfall::v1::TradeRequestRequest* temp = _impl_.intent_.trade_request_;
+    _impl_.intent_.trade_request_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_trade_request(::nightfall::v1::TradeRequestRequest* trade_request) {
+  clear_intent();
+  if (trade_request) {
+    set_has_trade_request();
+    _impl_.intent_.trade_request_ = trade_request;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.trade_request)
+}
+inline ::nightfall::v1::TradeRequestRequest* ClientMessage::_internal_mutable_trade_request() {
+  if (intent_case() != kTradeRequest) {
+    clear_intent();
+    set_has_trade_request();
+    _impl_.intent_.trade_request_ = CreateMaybeMessage< ::nightfall::v1::TradeRequestRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.trade_request_;
+}
+inline ::nightfall::v1::TradeRequestRequest* ClientMessage::mutable_trade_request() {
+  ::nightfall::v1::TradeRequestRequest* _msg = _internal_mutable_trade_request();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.trade_request)
+  return _msg;
+}
+
+// .nightfall.v1.TradeAnswerRequest trade_answer = 38;
+inline bool ClientMessage::has_trade_answer() const {
+  return intent_case() == kTradeAnswer;
+}
+inline bool ClientMessage::_internal_has_trade_answer() const {
+  return intent_case() == kTradeAnswer;
+}
+inline void ClientMessage::set_has_trade_answer() {
+  _impl_._oneof_case_[0] = kTradeAnswer;
+}
+inline ::nightfall::v1::TradeAnswerRequest* ClientMessage::release_trade_answer() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.trade_answer)
+  if (intent_case() == kTradeAnswer) {
+    clear_has_intent();
+    ::nightfall::v1::TradeAnswerRequest* temp = _impl_.intent_.trade_answer_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.trade_answer_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::TradeAnswerRequest& ClientMessage::_internal_trade_answer() const {
+  return intent_case() == kTradeAnswer
+      ? *_impl_.intent_.trade_answer_
+      : reinterpret_cast<::nightfall::v1::TradeAnswerRequest&>(::nightfall::v1::_TradeAnswerRequest_default_instance_);
+}
+inline const ::nightfall::v1::TradeAnswerRequest& ClientMessage::trade_answer() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.trade_answer)
+  return _internal_trade_answer();
+}
+inline ::nightfall::v1::TradeAnswerRequest* ClientMessage::unsafe_arena_release_trade_answer() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.trade_answer)
+  if (intent_case() == kTradeAnswer) {
+    clear_has_intent();
+    ::nightfall::v1::TradeAnswerRequest* temp = _impl_.intent_.trade_answer_;
+    _impl_.intent_.trade_answer_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_trade_answer(::nightfall::v1::TradeAnswerRequest* trade_answer) {
+  clear_intent();
+  if (trade_answer) {
+    set_has_trade_answer();
+    _impl_.intent_.trade_answer_ = trade_answer;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.trade_answer)
+}
+inline ::nightfall::v1::TradeAnswerRequest* ClientMessage::_internal_mutable_trade_answer() {
+  if (intent_case() != kTradeAnswer) {
+    clear_intent();
+    set_has_trade_answer();
+    _impl_.intent_.trade_answer_ = CreateMaybeMessage< ::nightfall::v1::TradeAnswerRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.trade_answer_;
+}
+inline ::nightfall::v1::TradeAnswerRequest* ClientMessage::mutable_trade_answer() {
+  ::nightfall::v1::TradeAnswerRequest* _msg = _internal_mutable_trade_answer();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.trade_answer)
+  return _msg;
+}
+
+// .nightfall.v1.TradeAddItemRequest trade_add_item = 39;
+inline bool ClientMessage::has_trade_add_item() const {
+  return intent_case() == kTradeAddItem;
+}
+inline bool ClientMessage::_internal_has_trade_add_item() const {
+  return intent_case() == kTradeAddItem;
+}
+inline void ClientMessage::set_has_trade_add_item() {
+  _impl_._oneof_case_[0] = kTradeAddItem;
+}
+inline ::nightfall::v1::TradeAddItemRequest* ClientMessage::release_trade_add_item() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.trade_add_item)
+  if (intent_case() == kTradeAddItem) {
+    clear_has_intent();
+    ::nightfall::v1::TradeAddItemRequest* temp = _impl_.intent_.trade_add_item_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.trade_add_item_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::TradeAddItemRequest& ClientMessage::_internal_trade_add_item() const {
+  return intent_case() == kTradeAddItem
+      ? *_impl_.intent_.trade_add_item_
+      : reinterpret_cast<::nightfall::v1::TradeAddItemRequest&>(::nightfall::v1::_TradeAddItemRequest_default_instance_);
+}
+inline const ::nightfall::v1::TradeAddItemRequest& ClientMessage::trade_add_item() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.trade_add_item)
+  return _internal_trade_add_item();
+}
+inline ::nightfall::v1::TradeAddItemRequest* ClientMessage::unsafe_arena_release_trade_add_item() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.trade_add_item)
+  if (intent_case() == kTradeAddItem) {
+    clear_has_intent();
+    ::nightfall::v1::TradeAddItemRequest* temp = _impl_.intent_.trade_add_item_;
+    _impl_.intent_.trade_add_item_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_trade_add_item(::nightfall::v1::TradeAddItemRequest* trade_add_item) {
+  clear_intent();
+  if (trade_add_item) {
+    set_has_trade_add_item();
+    _impl_.intent_.trade_add_item_ = trade_add_item;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.trade_add_item)
+}
+inline ::nightfall::v1::TradeAddItemRequest* ClientMessage::_internal_mutable_trade_add_item() {
+  if (intent_case() != kTradeAddItem) {
+    clear_intent();
+    set_has_trade_add_item();
+    _impl_.intent_.trade_add_item_ = CreateMaybeMessage< ::nightfall::v1::TradeAddItemRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.trade_add_item_;
+}
+inline ::nightfall::v1::TradeAddItemRequest* ClientMessage::mutable_trade_add_item() {
+  ::nightfall::v1::TradeAddItemRequest* _msg = _internal_mutable_trade_add_item();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.trade_add_item)
+  return _msg;
+}
+
+// .nightfall.v1.TradeConfirmRequest trade_confirm = 40;
+inline bool ClientMessage::has_trade_confirm() const {
+  return intent_case() == kTradeConfirm;
+}
+inline bool ClientMessage::_internal_has_trade_confirm() const {
+  return intent_case() == kTradeConfirm;
+}
+inline void ClientMessage::set_has_trade_confirm() {
+  _impl_._oneof_case_[0] = kTradeConfirm;
+}
+inline ::nightfall::v1::TradeConfirmRequest* ClientMessage::release_trade_confirm() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.trade_confirm)
+  if (intent_case() == kTradeConfirm) {
+    clear_has_intent();
+    ::nightfall::v1::TradeConfirmRequest* temp = _impl_.intent_.trade_confirm_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.trade_confirm_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::TradeConfirmRequest& ClientMessage::_internal_trade_confirm() const {
+  return intent_case() == kTradeConfirm
+      ? *_impl_.intent_.trade_confirm_
+      : reinterpret_cast<::nightfall::v1::TradeConfirmRequest&>(::nightfall::v1::_TradeConfirmRequest_default_instance_);
+}
+inline const ::nightfall::v1::TradeConfirmRequest& ClientMessage::trade_confirm() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.trade_confirm)
+  return _internal_trade_confirm();
+}
+inline ::nightfall::v1::TradeConfirmRequest* ClientMessage::unsafe_arena_release_trade_confirm() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.trade_confirm)
+  if (intent_case() == kTradeConfirm) {
+    clear_has_intent();
+    ::nightfall::v1::TradeConfirmRequest* temp = _impl_.intent_.trade_confirm_;
+    _impl_.intent_.trade_confirm_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_trade_confirm(::nightfall::v1::TradeConfirmRequest* trade_confirm) {
+  clear_intent();
+  if (trade_confirm) {
+    set_has_trade_confirm();
+    _impl_.intent_.trade_confirm_ = trade_confirm;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.trade_confirm)
+}
+inline ::nightfall::v1::TradeConfirmRequest* ClientMessage::_internal_mutable_trade_confirm() {
+  if (intent_case() != kTradeConfirm) {
+    clear_intent();
+    set_has_trade_confirm();
+    _impl_.intent_.trade_confirm_ = CreateMaybeMessage< ::nightfall::v1::TradeConfirmRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.trade_confirm_;
+}
+inline ::nightfall::v1::TradeConfirmRequest* ClientMessage::mutable_trade_confirm() {
+  ::nightfall::v1::TradeConfirmRequest* _msg = _internal_mutable_trade_confirm();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.trade_confirm)
+  return _msg;
+}
+
+// .nightfall.v1.TradeCancelRequest trade_cancel = 41;
+inline bool ClientMessage::has_trade_cancel() const {
+  return intent_case() == kTradeCancel;
+}
+inline bool ClientMessage::_internal_has_trade_cancel() const {
+  return intent_case() == kTradeCancel;
+}
+inline void ClientMessage::set_has_trade_cancel() {
+  _impl_._oneof_case_[0] = kTradeCancel;
+}
+inline ::nightfall::v1::TradeCancelRequest* ClientMessage::release_trade_cancel() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.trade_cancel)
+  if (intent_case() == kTradeCancel) {
+    clear_has_intent();
+    ::nightfall::v1::TradeCancelRequest* temp = _impl_.intent_.trade_cancel_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.trade_cancel_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::TradeCancelRequest& ClientMessage::_internal_trade_cancel() const {
+  return intent_case() == kTradeCancel
+      ? *_impl_.intent_.trade_cancel_
+      : reinterpret_cast<::nightfall::v1::TradeCancelRequest&>(::nightfall::v1::_TradeCancelRequest_default_instance_);
+}
+inline const ::nightfall::v1::TradeCancelRequest& ClientMessage::trade_cancel() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.trade_cancel)
+  return _internal_trade_cancel();
+}
+inline ::nightfall::v1::TradeCancelRequest* ClientMessage::unsafe_arena_release_trade_cancel() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.trade_cancel)
+  if (intent_case() == kTradeCancel) {
+    clear_has_intent();
+    ::nightfall::v1::TradeCancelRequest* temp = _impl_.intent_.trade_cancel_;
+    _impl_.intent_.trade_cancel_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_trade_cancel(::nightfall::v1::TradeCancelRequest* trade_cancel) {
+  clear_intent();
+  if (trade_cancel) {
+    set_has_trade_cancel();
+    _impl_.intent_.trade_cancel_ = trade_cancel;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.trade_cancel)
+}
+inline ::nightfall::v1::TradeCancelRequest* ClientMessage::_internal_mutable_trade_cancel() {
+  if (intent_case() != kTradeCancel) {
+    clear_intent();
+    set_has_trade_cancel();
+    _impl_.intent_.trade_cancel_ = CreateMaybeMessage< ::nightfall::v1::TradeCancelRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.trade_cancel_;
+}
+inline ::nightfall::v1::TradeCancelRequest* ClientMessage::mutable_trade_cancel() {
+  ::nightfall::v1::TradeCancelRequest* _msg = _internal_mutable_trade_cancel();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.trade_cancel)
+  return _msg;
+}
+
+// .nightfall.v1.SetPrivateStoreSellRequest set_private_store_sell = 42;
+inline bool ClientMessage::has_set_private_store_sell() const {
+  return intent_case() == kSetPrivateStoreSell;
+}
+inline bool ClientMessage::_internal_has_set_private_store_sell() const {
+  return intent_case() == kSetPrivateStoreSell;
+}
+inline void ClientMessage::set_has_set_private_store_sell() {
+  _impl_._oneof_case_[0] = kSetPrivateStoreSell;
+}
+inline ::nightfall::v1::SetPrivateStoreSellRequest* ClientMessage::release_set_private_store_sell() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.set_private_store_sell)
+  if (intent_case() == kSetPrivateStoreSell) {
+    clear_has_intent();
+    ::nightfall::v1::SetPrivateStoreSellRequest* temp = _impl_.intent_.set_private_store_sell_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.set_private_store_sell_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::SetPrivateStoreSellRequest& ClientMessage::_internal_set_private_store_sell() const {
+  return intent_case() == kSetPrivateStoreSell
+      ? *_impl_.intent_.set_private_store_sell_
+      : reinterpret_cast<::nightfall::v1::SetPrivateStoreSellRequest&>(::nightfall::v1::_SetPrivateStoreSellRequest_default_instance_);
+}
+inline const ::nightfall::v1::SetPrivateStoreSellRequest& ClientMessage::set_private_store_sell() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.set_private_store_sell)
+  return _internal_set_private_store_sell();
+}
+inline ::nightfall::v1::SetPrivateStoreSellRequest* ClientMessage::unsafe_arena_release_set_private_store_sell() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.set_private_store_sell)
+  if (intent_case() == kSetPrivateStoreSell) {
+    clear_has_intent();
+    ::nightfall::v1::SetPrivateStoreSellRequest* temp = _impl_.intent_.set_private_store_sell_;
+    _impl_.intent_.set_private_store_sell_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_set_private_store_sell(::nightfall::v1::SetPrivateStoreSellRequest* set_private_store_sell) {
+  clear_intent();
+  if (set_private_store_sell) {
+    set_has_set_private_store_sell();
+    _impl_.intent_.set_private_store_sell_ = set_private_store_sell;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.set_private_store_sell)
+}
+inline ::nightfall::v1::SetPrivateStoreSellRequest* ClientMessage::_internal_mutable_set_private_store_sell() {
+  if (intent_case() != kSetPrivateStoreSell) {
+    clear_intent();
+    set_has_set_private_store_sell();
+    _impl_.intent_.set_private_store_sell_ = CreateMaybeMessage< ::nightfall::v1::SetPrivateStoreSellRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.set_private_store_sell_;
+}
+inline ::nightfall::v1::SetPrivateStoreSellRequest* ClientMessage::mutable_set_private_store_sell() {
+  ::nightfall::v1::SetPrivateStoreSellRequest* _msg = _internal_mutable_set_private_store_sell();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.set_private_store_sell)
+  return _msg;
+}
+
+// .nightfall.v1.SetPrivateStoreBuyRequest set_private_store_buy = 43;
+inline bool ClientMessage::has_set_private_store_buy() const {
+  return intent_case() == kSetPrivateStoreBuy;
+}
+inline bool ClientMessage::_internal_has_set_private_store_buy() const {
+  return intent_case() == kSetPrivateStoreBuy;
+}
+inline void ClientMessage::set_has_set_private_store_buy() {
+  _impl_._oneof_case_[0] = kSetPrivateStoreBuy;
+}
+inline ::nightfall::v1::SetPrivateStoreBuyRequest* ClientMessage::release_set_private_store_buy() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.set_private_store_buy)
+  if (intent_case() == kSetPrivateStoreBuy) {
+    clear_has_intent();
+    ::nightfall::v1::SetPrivateStoreBuyRequest* temp = _impl_.intent_.set_private_store_buy_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.set_private_store_buy_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::SetPrivateStoreBuyRequest& ClientMessage::_internal_set_private_store_buy() const {
+  return intent_case() == kSetPrivateStoreBuy
+      ? *_impl_.intent_.set_private_store_buy_
+      : reinterpret_cast<::nightfall::v1::SetPrivateStoreBuyRequest&>(::nightfall::v1::_SetPrivateStoreBuyRequest_default_instance_);
+}
+inline const ::nightfall::v1::SetPrivateStoreBuyRequest& ClientMessage::set_private_store_buy() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.set_private_store_buy)
+  return _internal_set_private_store_buy();
+}
+inline ::nightfall::v1::SetPrivateStoreBuyRequest* ClientMessage::unsafe_arena_release_set_private_store_buy() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.set_private_store_buy)
+  if (intent_case() == kSetPrivateStoreBuy) {
+    clear_has_intent();
+    ::nightfall::v1::SetPrivateStoreBuyRequest* temp = _impl_.intent_.set_private_store_buy_;
+    _impl_.intent_.set_private_store_buy_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_set_private_store_buy(::nightfall::v1::SetPrivateStoreBuyRequest* set_private_store_buy) {
+  clear_intent();
+  if (set_private_store_buy) {
+    set_has_set_private_store_buy();
+    _impl_.intent_.set_private_store_buy_ = set_private_store_buy;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.set_private_store_buy)
+}
+inline ::nightfall::v1::SetPrivateStoreBuyRequest* ClientMessage::_internal_mutable_set_private_store_buy() {
+  if (intent_case() != kSetPrivateStoreBuy) {
+    clear_intent();
+    set_has_set_private_store_buy();
+    _impl_.intent_.set_private_store_buy_ = CreateMaybeMessage< ::nightfall::v1::SetPrivateStoreBuyRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.set_private_store_buy_;
+}
+inline ::nightfall::v1::SetPrivateStoreBuyRequest* ClientMessage::mutable_set_private_store_buy() {
+  ::nightfall::v1::SetPrivateStoreBuyRequest* _msg = _internal_mutable_set_private_store_buy();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.set_private_store_buy)
+  return _msg;
+}
+
+// .nightfall.v1.SetPrivateManufactureRequest set_private_manufacture = 44;
+inline bool ClientMessage::has_set_private_manufacture() const {
+  return intent_case() == kSetPrivateManufacture;
+}
+inline bool ClientMessage::_internal_has_set_private_manufacture() const {
+  return intent_case() == kSetPrivateManufacture;
+}
+inline void ClientMessage::set_has_set_private_manufacture() {
+  _impl_._oneof_case_[0] = kSetPrivateManufacture;
+}
+inline ::nightfall::v1::SetPrivateManufactureRequest* ClientMessage::release_set_private_manufacture() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.set_private_manufacture)
+  if (intent_case() == kSetPrivateManufacture) {
+    clear_has_intent();
+    ::nightfall::v1::SetPrivateManufactureRequest* temp = _impl_.intent_.set_private_manufacture_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.set_private_manufacture_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::SetPrivateManufactureRequest& ClientMessage::_internal_set_private_manufacture() const {
+  return intent_case() == kSetPrivateManufacture
+      ? *_impl_.intent_.set_private_manufacture_
+      : reinterpret_cast<::nightfall::v1::SetPrivateManufactureRequest&>(::nightfall::v1::_SetPrivateManufactureRequest_default_instance_);
+}
+inline const ::nightfall::v1::SetPrivateManufactureRequest& ClientMessage::set_private_manufacture() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.set_private_manufacture)
+  return _internal_set_private_manufacture();
+}
+inline ::nightfall::v1::SetPrivateManufactureRequest* ClientMessage::unsafe_arena_release_set_private_manufacture() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.set_private_manufacture)
+  if (intent_case() == kSetPrivateManufacture) {
+    clear_has_intent();
+    ::nightfall::v1::SetPrivateManufactureRequest* temp = _impl_.intent_.set_private_manufacture_;
+    _impl_.intent_.set_private_manufacture_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_set_private_manufacture(::nightfall::v1::SetPrivateManufactureRequest* set_private_manufacture) {
+  clear_intent();
+  if (set_private_manufacture) {
+    set_has_set_private_manufacture();
+    _impl_.intent_.set_private_manufacture_ = set_private_manufacture;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.set_private_manufacture)
+}
+inline ::nightfall::v1::SetPrivateManufactureRequest* ClientMessage::_internal_mutable_set_private_manufacture() {
+  if (intent_case() != kSetPrivateManufacture) {
+    clear_intent();
+    set_has_set_private_manufacture();
+    _impl_.intent_.set_private_manufacture_ = CreateMaybeMessage< ::nightfall::v1::SetPrivateManufactureRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.set_private_manufacture_;
+}
+inline ::nightfall::v1::SetPrivateManufactureRequest* ClientMessage::mutable_set_private_manufacture() {
+  ::nightfall::v1::SetPrivateManufactureRequest* _msg = _internal_mutable_set_private_manufacture();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.set_private_manufacture)
+  return _msg;
+}
+
+// .nightfall.v1.ClosePrivateStoreRequest close_private_store = 45;
+inline bool ClientMessage::has_close_private_store() const {
+  return intent_case() == kClosePrivateStore;
+}
+inline bool ClientMessage::_internal_has_close_private_store() const {
+  return intent_case() == kClosePrivateStore;
+}
+inline void ClientMessage::set_has_close_private_store() {
+  _impl_._oneof_case_[0] = kClosePrivateStore;
+}
+inline ::nightfall::v1::ClosePrivateStoreRequest* ClientMessage::release_close_private_store() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.close_private_store)
+  if (intent_case() == kClosePrivateStore) {
+    clear_has_intent();
+    ::nightfall::v1::ClosePrivateStoreRequest* temp = _impl_.intent_.close_private_store_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.close_private_store_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::ClosePrivateStoreRequest& ClientMessage::_internal_close_private_store() const {
+  return intent_case() == kClosePrivateStore
+      ? *_impl_.intent_.close_private_store_
+      : reinterpret_cast<::nightfall::v1::ClosePrivateStoreRequest&>(::nightfall::v1::_ClosePrivateStoreRequest_default_instance_);
+}
+inline const ::nightfall::v1::ClosePrivateStoreRequest& ClientMessage::close_private_store() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.close_private_store)
+  return _internal_close_private_store();
+}
+inline ::nightfall::v1::ClosePrivateStoreRequest* ClientMessage::unsafe_arena_release_close_private_store() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.close_private_store)
+  if (intent_case() == kClosePrivateStore) {
+    clear_has_intent();
+    ::nightfall::v1::ClosePrivateStoreRequest* temp = _impl_.intent_.close_private_store_;
+    _impl_.intent_.close_private_store_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_close_private_store(::nightfall::v1::ClosePrivateStoreRequest* close_private_store) {
+  clear_intent();
+  if (close_private_store) {
+    set_has_close_private_store();
+    _impl_.intent_.close_private_store_ = close_private_store;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.close_private_store)
+}
+inline ::nightfall::v1::ClosePrivateStoreRequest* ClientMessage::_internal_mutable_close_private_store() {
+  if (intent_case() != kClosePrivateStore) {
+    clear_intent();
+    set_has_close_private_store();
+    _impl_.intent_.close_private_store_ = CreateMaybeMessage< ::nightfall::v1::ClosePrivateStoreRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.close_private_store_;
+}
+inline ::nightfall::v1::ClosePrivateStoreRequest* ClientMessage::mutable_close_private_store() {
+  ::nightfall::v1::ClosePrivateStoreRequest* _msg = _internal_mutable_close_private_store();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.close_private_store)
+  return _msg;
+}
+
+// .nightfall.v1.PrivateStoreBuyRequest private_store_buy = 46;
+inline bool ClientMessage::has_private_store_buy() const {
+  return intent_case() == kPrivateStoreBuy;
+}
+inline bool ClientMessage::_internal_has_private_store_buy() const {
+  return intent_case() == kPrivateStoreBuy;
+}
+inline void ClientMessage::set_has_private_store_buy() {
+  _impl_._oneof_case_[0] = kPrivateStoreBuy;
+}
+inline ::nightfall::v1::PrivateStoreBuyRequest* ClientMessage::release_private_store_buy() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.private_store_buy)
+  if (intent_case() == kPrivateStoreBuy) {
+    clear_has_intent();
+    ::nightfall::v1::PrivateStoreBuyRequest* temp = _impl_.intent_.private_store_buy_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.private_store_buy_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::PrivateStoreBuyRequest& ClientMessage::_internal_private_store_buy() const {
+  return intent_case() == kPrivateStoreBuy
+      ? *_impl_.intent_.private_store_buy_
+      : reinterpret_cast<::nightfall::v1::PrivateStoreBuyRequest&>(::nightfall::v1::_PrivateStoreBuyRequest_default_instance_);
+}
+inline const ::nightfall::v1::PrivateStoreBuyRequest& ClientMessage::private_store_buy() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.private_store_buy)
+  return _internal_private_store_buy();
+}
+inline ::nightfall::v1::PrivateStoreBuyRequest* ClientMessage::unsafe_arena_release_private_store_buy() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.private_store_buy)
+  if (intent_case() == kPrivateStoreBuy) {
+    clear_has_intent();
+    ::nightfall::v1::PrivateStoreBuyRequest* temp = _impl_.intent_.private_store_buy_;
+    _impl_.intent_.private_store_buy_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_private_store_buy(::nightfall::v1::PrivateStoreBuyRequest* private_store_buy) {
+  clear_intent();
+  if (private_store_buy) {
+    set_has_private_store_buy();
+    _impl_.intent_.private_store_buy_ = private_store_buy;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.private_store_buy)
+}
+inline ::nightfall::v1::PrivateStoreBuyRequest* ClientMessage::_internal_mutable_private_store_buy() {
+  if (intent_case() != kPrivateStoreBuy) {
+    clear_intent();
+    set_has_private_store_buy();
+    _impl_.intent_.private_store_buy_ = CreateMaybeMessage< ::nightfall::v1::PrivateStoreBuyRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.private_store_buy_;
+}
+inline ::nightfall::v1::PrivateStoreBuyRequest* ClientMessage::mutable_private_store_buy() {
+  ::nightfall::v1::PrivateStoreBuyRequest* _msg = _internal_mutable_private_store_buy();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.private_store_buy)
+  return _msg;
+}
+
+// .nightfall.v1.PrivateStoreSellRequest private_store_sell = 47;
+inline bool ClientMessage::has_private_store_sell() const {
+  return intent_case() == kPrivateStoreSell;
+}
+inline bool ClientMessage::_internal_has_private_store_sell() const {
+  return intent_case() == kPrivateStoreSell;
+}
+inline void ClientMessage::set_has_private_store_sell() {
+  _impl_._oneof_case_[0] = kPrivateStoreSell;
+}
+inline ::nightfall::v1::PrivateStoreSellRequest* ClientMessage::release_private_store_sell() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.private_store_sell)
+  if (intent_case() == kPrivateStoreSell) {
+    clear_has_intent();
+    ::nightfall::v1::PrivateStoreSellRequest* temp = _impl_.intent_.private_store_sell_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.private_store_sell_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::PrivateStoreSellRequest& ClientMessage::_internal_private_store_sell() const {
+  return intent_case() == kPrivateStoreSell
+      ? *_impl_.intent_.private_store_sell_
+      : reinterpret_cast<::nightfall::v1::PrivateStoreSellRequest&>(::nightfall::v1::_PrivateStoreSellRequest_default_instance_);
+}
+inline const ::nightfall::v1::PrivateStoreSellRequest& ClientMessage::private_store_sell() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.private_store_sell)
+  return _internal_private_store_sell();
+}
+inline ::nightfall::v1::PrivateStoreSellRequest* ClientMessage::unsafe_arena_release_private_store_sell() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.private_store_sell)
+  if (intent_case() == kPrivateStoreSell) {
+    clear_has_intent();
+    ::nightfall::v1::PrivateStoreSellRequest* temp = _impl_.intent_.private_store_sell_;
+    _impl_.intent_.private_store_sell_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_private_store_sell(::nightfall::v1::PrivateStoreSellRequest* private_store_sell) {
+  clear_intent();
+  if (private_store_sell) {
+    set_has_private_store_sell();
+    _impl_.intent_.private_store_sell_ = private_store_sell;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.private_store_sell)
+}
+inline ::nightfall::v1::PrivateStoreSellRequest* ClientMessage::_internal_mutable_private_store_sell() {
+  if (intent_case() != kPrivateStoreSell) {
+    clear_intent();
+    set_has_private_store_sell();
+    _impl_.intent_.private_store_sell_ = CreateMaybeMessage< ::nightfall::v1::PrivateStoreSellRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.private_store_sell_;
+}
+inline ::nightfall::v1::PrivateStoreSellRequest* ClientMessage::mutable_private_store_sell() {
+  ::nightfall::v1::PrivateStoreSellRequest* _msg = _internal_mutable_private_store_sell();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.private_store_sell)
+  return _msg;
+}
+
+// .nightfall.v1.PrivateManufactureOrderRequest private_manufacture_order = 48;
+inline bool ClientMessage::has_private_manufacture_order() const {
+  return intent_case() == kPrivateManufactureOrder;
+}
+inline bool ClientMessage::_internal_has_private_manufacture_order() const {
+  return intent_case() == kPrivateManufactureOrder;
+}
+inline void ClientMessage::set_has_private_manufacture_order() {
+  _impl_._oneof_case_[0] = kPrivateManufactureOrder;
+}
+inline ::nightfall::v1::PrivateManufactureOrderRequest* ClientMessage::release_private_manufacture_order() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.private_manufacture_order)
+  if (intent_case() == kPrivateManufactureOrder) {
+    clear_has_intent();
+    ::nightfall::v1::PrivateManufactureOrderRequest* temp = _impl_.intent_.private_manufacture_order_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.private_manufacture_order_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::PrivateManufactureOrderRequest& ClientMessage::_internal_private_manufacture_order() const {
+  return intent_case() == kPrivateManufactureOrder
+      ? *_impl_.intent_.private_manufacture_order_
+      : reinterpret_cast<::nightfall::v1::PrivateManufactureOrderRequest&>(::nightfall::v1::_PrivateManufactureOrderRequest_default_instance_);
+}
+inline const ::nightfall::v1::PrivateManufactureOrderRequest& ClientMessage::private_manufacture_order() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.private_manufacture_order)
+  return _internal_private_manufacture_order();
+}
+inline ::nightfall::v1::PrivateManufactureOrderRequest* ClientMessage::unsafe_arena_release_private_manufacture_order() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.private_manufacture_order)
+  if (intent_case() == kPrivateManufactureOrder) {
+    clear_has_intent();
+    ::nightfall::v1::PrivateManufactureOrderRequest* temp = _impl_.intent_.private_manufacture_order_;
+    _impl_.intent_.private_manufacture_order_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_private_manufacture_order(::nightfall::v1::PrivateManufactureOrderRequest* private_manufacture_order) {
+  clear_intent();
+  if (private_manufacture_order) {
+    set_has_private_manufacture_order();
+    _impl_.intent_.private_manufacture_order_ = private_manufacture_order;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.private_manufacture_order)
+}
+inline ::nightfall::v1::PrivateManufactureOrderRequest* ClientMessage::_internal_mutable_private_manufacture_order() {
+  if (intent_case() != kPrivateManufactureOrder) {
+    clear_intent();
+    set_has_private_manufacture_order();
+    _impl_.intent_.private_manufacture_order_ = CreateMaybeMessage< ::nightfall::v1::PrivateManufactureOrderRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.private_manufacture_order_;
+}
+inline ::nightfall::v1::PrivateManufactureOrderRequest* ClientMessage::mutable_private_manufacture_order() {
+  ::nightfall::v1::PrivateManufactureOrderRequest* _msg = _internal_mutable_private_manufacture_order();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.private_manufacture_order)
+  return _msg;
+}
+
+// .nightfall.v1.PartyInviteRequest party_invite = 49;
+inline bool ClientMessage::has_party_invite() const {
+  return intent_case() == kPartyInvite;
+}
+inline bool ClientMessage::_internal_has_party_invite() const {
+  return intent_case() == kPartyInvite;
+}
+inline void ClientMessage::set_has_party_invite() {
+  _impl_._oneof_case_[0] = kPartyInvite;
+}
+inline ::nightfall::v1::PartyInviteRequest* ClientMessage::release_party_invite() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.party_invite)
+  if (intent_case() == kPartyInvite) {
+    clear_has_intent();
+    ::nightfall::v1::PartyInviteRequest* temp = _impl_.intent_.party_invite_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.party_invite_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::PartyInviteRequest& ClientMessage::_internal_party_invite() const {
+  return intent_case() == kPartyInvite
+      ? *_impl_.intent_.party_invite_
+      : reinterpret_cast<::nightfall::v1::PartyInviteRequest&>(::nightfall::v1::_PartyInviteRequest_default_instance_);
+}
+inline const ::nightfall::v1::PartyInviteRequest& ClientMessage::party_invite() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.party_invite)
+  return _internal_party_invite();
+}
+inline ::nightfall::v1::PartyInviteRequest* ClientMessage::unsafe_arena_release_party_invite() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.party_invite)
+  if (intent_case() == kPartyInvite) {
+    clear_has_intent();
+    ::nightfall::v1::PartyInviteRequest* temp = _impl_.intent_.party_invite_;
+    _impl_.intent_.party_invite_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_party_invite(::nightfall::v1::PartyInviteRequest* party_invite) {
+  clear_intent();
+  if (party_invite) {
+    set_has_party_invite();
+    _impl_.intent_.party_invite_ = party_invite;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.party_invite)
+}
+inline ::nightfall::v1::PartyInviteRequest* ClientMessage::_internal_mutable_party_invite() {
+  if (intent_case() != kPartyInvite) {
+    clear_intent();
+    set_has_party_invite();
+    _impl_.intent_.party_invite_ = CreateMaybeMessage< ::nightfall::v1::PartyInviteRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.party_invite_;
+}
+inline ::nightfall::v1::PartyInviteRequest* ClientMessage::mutable_party_invite() {
+  ::nightfall::v1::PartyInviteRequest* _msg = _internal_mutable_party_invite();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.party_invite)
+  return _msg;
+}
+
+// .nightfall.v1.PartyAnswerRequest party_answer = 50;
+inline bool ClientMessage::has_party_answer() const {
+  return intent_case() == kPartyAnswer;
+}
+inline bool ClientMessage::_internal_has_party_answer() const {
+  return intent_case() == kPartyAnswer;
+}
+inline void ClientMessage::set_has_party_answer() {
+  _impl_._oneof_case_[0] = kPartyAnswer;
+}
+inline ::nightfall::v1::PartyAnswerRequest* ClientMessage::release_party_answer() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.party_answer)
+  if (intent_case() == kPartyAnswer) {
+    clear_has_intent();
+    ::nightfall::v1::PartyAnswerRequest* temp = _impl_.intent_.party_answer_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.party_answer_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::PartyAnswerRequest& ClientMessage::_internal_party_answer() const {
+  return intent_case() == kPartyAnswer
+      ? *_impl_.intent_.party_answer_
+      : reinterpret_cast<::nightfall::v1::PartyAnswerRequest&>(::nightfall::v1::_PartyAnswerRequest_default_instance_);
+}
+inline const ::nightfall::v1::PartyAnswerRequest& ClientMessage::party_answer() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.party_answer)
+  return _internal_party_answer();
+}
+inline ::nightfall::v1::PartyAnswerRequest* ClientMessage::unsafe_arena_release_party_answer() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.party_answer)
+  if (intent_case() == kPartyAnswer) {
+    clear_has_intent();
+    ::nightfall::v1::PartyAnswerRequest* temp = _impl_.intent_.party_answer_;
+    _impl_.intent_.party_answer_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_party_answer(::nightfall::v1::PartyAnswerRequest* party_answer) {
+  clear_intent();
+  if (party_answer) {
+    set_has_party_answer();
+    _impl_.intent_.party_answer_ = party_answer;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.party_answer)
+}
+inline ::nightfall::v1::PartyAnswerRequest* ClientMessage::_internal_mutable_party_answer() {
+  if (intent_case() != kPartyAnswer) {
+    clear_intent();
+    set_has_party_answer();
+    _impl_.intent_.party_answer_ = CreateMaybeMessage< ::nightfall::v1::PartyAnswerRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.party_answer_;
+}
+inline ::nightfall::v1::PartyAnswerRequest* ClientMessage::mutable_party_answer() {
+  ::nightfall::v1::PartyAnswerRequest* _msg = _internal_mutable_party_answer();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.party_answer)
+  return _msg;
+}
+
+// .nightfall.v1.PartyLeaveRequest party_leave = 51;
+inline bool ClientMessage::has_party_leave() const {
+  return intent_case() == kPartyLeave;
+}
+inline bool ClientMessage::_internal_has_party_leave() const {
+  return intent_case() == kPartyLeave;
+}
+inline void ClientMessage::set_has_party_leave() {
+  _impl_._oneof_case_[0] = kPartyLeave;
+}
+inline ::nightfall::v1::PartyLeaveRequest* ClientMessage::release_party_leave() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.party_leave)
+  if (intent_case() == kPartyLeave) {
+    clear_has_intent();
+    ::nightfall::v1::PartyLeaveRequest* temp = _impl_.intent_.party_leave_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.party_leave_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::PartyLeaveRequest& ClientMessage::_internal_party_leave() const {
+  return intent_case() == kPartyLeave
+      ? *_impl_.intent_.party_leave_
+      : reinterpret_cast<::nightfall::v1::PartyLeaveRequest&>(::nightfall::v1::_PartyLeaveRequest_default_instance_);
+}
+inline const ::nightfall::v1::PartyLeaveRequest& ClientMessage::party_leave() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.party_leave)
+  return _internal_party_leave();
+}
+inline ::nightfall::v1::PartyLeaveRequest* ClientMessage::unsafe_arena_release_party_leave() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.party_leave)
+  if (intent_case() == kPartyLeave) {
+    clear_has_intent();
+    ::nightfall::v1::PartyLeaveRequest* temp = _impl_.intent_.party_leave_;
+    _impl_.intent_.party_leave_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_party_leave(::nightfall::v1::PartyLeaveRequest* party_leave) {
+  clear_intent();
+  if (party_leave) {
+    set_has_party_leave();
+    _impl_.intent_.party_leave_ = party_leave;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.party_leave)
+}
+inline ::nightfall::v1::PartyLeaveRequest* ClientMessage::_internal_mutable_party_leave() {
+  if (intent_case() != kPartyLeave) {
+    clear_intent();
+    set_has_party_leave();
+    _impl_.intent_.party_leave_ = CreateMaybeMessage< ::nightfall::v1::PartyLeaveRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.party_leave_;
+}
+inline ::nightfall::v1::PartyLeaveRequest* ClientMessage::mutable_party_leave() {
+  ::nightfall::v1::PartyLeaveRequest* _msg = _internal_mutable_party_leave();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.party_leave)
+  return _msg;
+}
+
+// .nightfall.v1.PartyKickRequest party_kick = 52;
+inline bool ClientMessage::has_party_kick() const {
+  return intent_case() == kPartyKick;
+}
+inline bool ClientMessage::_internal_has_party_kick() const {
+  return intent_case() == kPartyKick;
+}
+inline void ClientMessage::set_has_party_kick() {
+  _impl_._oneof_case_[0] = kPartyKick;
+}
+inline ::nightfall::v1::PartyKickRequest* ClientMessage::release_party_kick() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.party_kick)
+  if (intent_case() == kPartyKick) {
+    clear_has_intent();
+    ::nightfall::v1::PartyKickRequest* temp = _impl_.intent_.party_kick_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.party_kick_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::PartyKickRequest& ClientMessage::_internal_party_kick() const {
+  return intent_case() == kPartyKick
+      ? *_impl_.intent_.party_kick_
+      : reinterpret_cast<::nightfall::v1::PartyKickRequest&>(::nightfall::v1::_PartyKickRequest_default_instance_);
+}
+inline const ::nightfall::v1::PartyKickRequest& ClientMessage::party_kick() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.party_kick)
+  return _internal_party_kick();
+}
+inline ::nightfall::v1::PartyKickRequest* ClientMessage::unsafe_arena_release_party_kick() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.party_kick)
+  if (intent_case() == kPartyKick) {
+    clear_has_intent();
+    ::nightfall::v1::PartyKickRequest* temp = _impl_.intent_.party_kick_;
+    _impl_.intent_.party_kick_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_party_kick(::nightfall::v1::PartyKickRequest* party_kick) {
+  clear_intent();
+  if (party_kick) {
+    set_has_party_kick();
+    _impl_.intent_.party_kick_ = party_kick;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.party_kick)
+}
+inline ::nightfall::v1::PartyKickRequest* ClientMessage::_internal_mutable_party_kick() {
+  if (intent_case() != kPartyKick) {
+    clear_intent();
+    set_has_party_kick();
+    _impl_.intent_.party_kick_ = CreateMaybeMessage< ::nightfall::v1::PartyKickRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.party_kick_;
+}
+inline ::nightfall::v1::PartyKickRequest* ClientMessage::mutable_party_kick() {
+  ::nightfall::v1::PartyKickRequest* _msg = _internal_mutable_party_kick();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.party_kick)
+  return _msg;
+}
+
+// .nightfall.v1.PartyChangeLeaderRequest party_change_leader = 53;
+inline bool ClientMessage::has_party_change_leader() const {
+  return intent_case() == kPartyChangeLeader;
+}
+inline bool ClientMessage::_internal_has_party_change_leader() const {
+  return intent_case() == kPartyChangeLeader;
+}
+inline void ClientMessage::set_has_party_change_leader() {
+  _impl_._oneof_case_[0] = kPartyChangeLeader;
+}
+inline ::nightfall::v1::PartyChangeLeaderRequest* ClientMessage::release_party_change_leader() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.party_change_leader)
+  if (intent_case() == kPartyChangeLeader) {
+    clear_has_intent();
+    ::nightfall::v1::PartyChangeLeaderRequest* temp = _impl_.intent_.party_change_leader_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.party_change_leader_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::PartyChangeLeaderRequest& ClientMessage::_internal_party_change_leader() const {
+  return intent_case() == kPartyChangeLeader
+      ? *_impl_.intent_.party_change_leader_
+      : reinterpret_cast<::nightfall::v1::PartyChangeLeaderRequest&>(::nightfall::v1::_PartyChangeLeaderRequest_default_instance_);
+}
+inline const ::nightfall::v1::PartyChangeLeaderRequest& ClientMessage::party_change_leader() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.party_change_leader)
+  return _internal_party_change_leader();
+}
+inline ::nightfall::v1::PartyChangeLeaderRequest* ClientMessage::unsafe_arena_release_party_change_leader() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.party_change_leader)
+  if (intent_case() == kPartyChangeLeader) {
+    clear_has_intent();
+    ::nightfall::v1::PartyChangeLeaderRequest* temp = _impl_.intent_.party_change_leader_;
+    _impl_.intent_.party_change_leader_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_party_change_leader(::nightfall::v1::PartyChangeLeaderRequest* party_change_leader) {
+  clear_intent();
+  if (party_change_leader) {
+    set_has_party_change_leader();
+    _impl_.intent_.party_change_leader_ = party_change_leader;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.party_change_leader)
+}
+inline ::nightfall::v1::PartyChangeLeaderRequest* ClientMessage::_internal_mutable_party_change_leader() {
+  if (intent_case() != kPartyChangeLeader) {
+    clear_intent();
+    set_has_party_change_leader();
+    _impl_.intent_.party_change_leader_ = CreateMaybeMessage< ::nightfall::v1::PartyChangeLeaderRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.party_change_leader_;
+}
+inline ::nightfall::v1::PartyChangeLeaderRequest* ClientMessage::mutable_party_change_leader() {
+  ::nightfall::v1::PartyChangeLeaderRequest* _msg = _internal_mutable_party_change_leader();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.party_change_leader)
+  return _msg;
+}
+
+// .nightfall.v1.PartyLootChangeRequest party_loot_change_request = 54;
+inline bool ClientMessage::has_party_loot_change_request() const {
+  return intent_case() == kPartyLootChangeRequest;
+}
+inline bool ClientMessage::_internal_has_party_loot_change_request() const {
+  return intent_case() == kPartyLootChangeRequest;
+}
+inline void ClientMessage::set_has_party_loot_change_request() {
+  _impl_._oneof_case_[0] = kPartyLootChangeRequest;
+}
+inline ::nightfall::v1::PartyLootChangeRequest* ClientMessage::release_party_loot_change_request() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.party_loot_change_request)
+  if (intent_case() == kPartyLootChangeRequest) {
+    clear_has_intent();
+    ::nightfall::v1::PartyLootChangeRequest* temp = _impl_.intent_.party_loot_change_request_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.party_loot_change_request_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::PartyLootChangeRequest& ClientMessage::_internal_party_loot_change_request() const {
+  return intent_case() == kPartyLootChangeRequest
+      ? *_impl_.intent_.party_loot_change_request_
+      : reinterpret_cast<::nightfall::v1::PartyLootChangeRequest&>(::nightfall::v1::_PartyLootChangeRequest_default_instance_);
+}
+inline const ::nightfall::v1::PartyLootChangeRequest& ClientMessage::party_loot_change_request() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.party_loot_change_request)
+  return _internal_party_loot_change_request();
+}
+inline ::nightfall::v1::PartyLootChangeRequest* ClientMessage::unsafe_arena_release_party_loot_change_request() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.party_loot_change_request)
+  if (intent_case() == kPartyLootChangeRequest) {
+    clear_has_intent();
+    ::nightfall::v1::PartyLootChangeRequest* temp = _impl_.intent_.party_loot_change_request_;
+    _impl_.intent_.party_loot_change_request_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_party_loot_change_request(::nightfall::v1::PartyLootChangeRequest* party_loot_change_request) {
+  clear_intent();
+  if (party_loot_change_request) {
+    set_has_party_loot_change_request();
+    _impl_.intent_.party_loot_change_request_ = party_loot_change_request;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.party_loot_change_request)
+}
+inline ::nightfall::v1::PartyLootChangeRequest* ClientMessage::_internal_mutable_party_loot_change_request() {
+  if (intent_case() != kPartyLootChangeRequest) {
+    clear_intent();
+    set_has_party_loot_change_request();
+    _impl_.intent_.party_loot_change_request_ = CreateMaybeMessage< ::nightfall::v1::PartyLootChangeRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.party_loot_change_request_;
+}
+inline ::nightfall::v1::PartyLootChangeRequest* ClientMessage::mutable_party_loot_change_request() {
+  ::nightfall::v1::PartyLootChangeRequest* _msg = _internal_mutable_party_loot_change_request();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.party_loot_change_request)
+  return _msg;
+}
+
+// .nightfall.v1.PartyLootChangeAnswer party_loot_change_answer = 55;
+inline bool ClientMessage::has_party_loot_change_answer() const {
+  return intent_case() == kPartyLootChangeAnswer;
+}
+inline bool ClientMessage::_internal_has_party_loot_change_answer() const {
+  return intent_case() == kPartyLootChangeAnswer;
+}
+inline void ClientMessage::set_has_party_loot_change_answer() {
+  _impl_._oneof_case_[0] = kPartyLootChangeAnswer;
+}
+inline ::nightfall::v1::PartyLootChangeAnswer* ClientMessage::release_party_loot_change_answer() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.party_loot_change_answer)
+  if (intent_case() == kPartyLootChangeAnswer) {
+    clear_has_intent();
+    ::nightfall::v1::PartyLootChangeAnswer* temp = _impl_.intent_.party_loot_change_answer_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.party_loot_change_answer_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::PartyLootChangeAnswer& ClientMessage::_internal_party_loot_change_answer() const {
+  return intent_case() == kPartyLootChangeAnswer
+      ? *_impl_.intent_.party_loot_change_answer_
+      : reinterpret_cast<::nightfall::v1::PartyLootChangeAnswer&>(::nightfall::v1::_PartyLootChangeAnswer_default_instance_);
+}
+inline const ::nightfall::v1::PartyLootChangeAnswer& ClientMessage::party_loot_change_answer() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.party_loot_change_answer)
+  return _internal_party_loot_change_answer();
+}
+inline ::nightfall::v1::PartyLootChangeAnswer* ClientMessage::unsafe_arena_release_party_loot_change_answer() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.party_loot_change_answer)
+  if (intent_case() == kPartyLootChangeAnswer) {
+    clear_has_intent();
+    ::nightfall::v1::PartyLootChangeAnswer* temp = _impl_.intent_.party_loot_change_answer_;
+    _impl_.intent_.party_loot_change_answer_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_party_loot_change_answer(::nightfall::v1::PartyLootChangeAnswer* party_loot_change_answer) {
+  clear_intent();
+  if (party_loot_change_answer) {
+    set_has_party_loot_change_answer();
+    _impl_.intent_.party_loot_change_answer_ = party_loot_change_answer;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.party_loot_change_answer)
+}
+inline ::nightfall::v1::PartyLootChangeAnswer* ClientMessage::_internal_mutable_party_loot_change_answer() {
+  if (intent_case() != kPartyLootChangeAnswer) {
+    clear_intent();
+    set_has_party_loot_change_answer();
+    _impl_.intent_.party_loot_change_answer_ = CreateMaybeMessage< ::nightfall::v1::PartyLootChangeAnswer >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.party_loot_change_answer_;
+}
+inline ::nightfall::v1::PartyLootChangeAnswer* ClientMessage::mutable_party_loot_change_answer() {
+  ::nightfall::v1::PartyLootChangeAnswer* _msg = _internal_mutable_party_loot_change_answer();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.party_loot_change_answer)
+  return _msg;
+}
+
+// .nightfall.v1.WarehouseDepositRequest warehouse_deposit = 56;
+inline bool ClientMessage::has_warehouse_deposit() const {
+  return intent_case() == kWarehouseDeposit;
+}
+inline bool ClientMessage::_internal_has_warehouse_deposit() const {
+  return intent_case() == kWarehouseDeposit;
+}
+inline void ClientMessage::set_has_warehouse_deposit() {
+  _impl_._oneof_case_[0] = kWarehouseDeposit;
+}
+inline ::nightfall::v1::WarehouseDepositRequest* ClientMessage::release_warehouse_deposit() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.warehouse_deposit)
+  if (intent_case() == kWarehouseDeposit) {
+    clear_has_intent();
+    ::nightfall::v1::WarehouseDepositRequest* temp = _impl_.intent_.warehouse_deposit_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.warehouse_deposit_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::WarehouseDepositRequest& ClientMessage::_internal_warehouse_deposit() const {
+  return intent_case() == kWarehouseDeposit
+      ? *_impl_.intent_.warehouse_deposit_
+      : reinterpret_cast<::nightfall::v1::WarehouseDepositRequest&>(::nightfall::v1::_WarehouseDepositRequest_default_instance_);
+}
+inline const ::nightfall::v1::WarehouseDepositRequest& ClientMessage::warehouse_deposit() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.warehouse_deposit)
+  return _internal_warehouse_deposit();
+}
+inline ::nightfall::v1::WarehouseDepositRequest* ClientMessage::unsafe_arena_release_warehouse_deposit() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.warehouse_deposit)
+  if (intent_case() == kWarehouseDeposit) {
+    clear_has_intent();
+    ::nightfall::v1::WarehouseDepositRequest* temp = _impl_.intent_.warehouse_deposit_;
+    _impl_.intent_.warehouse_deposit_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_warehouse_deposit(::nightfall::v1::WarehouseDepositRequest* warehouse_deposit) {
+  clear_intent();
+  if (warehouse_deposit) {
+    set_has_warehouse_deposit();
+    _impl_.intent_.warehouse_deposit_ = warehouse_deposit;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.warehouse_deposit)
+}
+inline ::nightfall::v1::WarehouseDepositRequest* ClientMessage::_internal_mutable_warehouse_deposit() {
+  if (intent_case() != kWarehouseDeposit) {
+    clear_intent();
+    set_has_warehouse_deposit();
+    _impl_.intent_.warehouse_deposit_ = CreateMaybeMessage< ::nightfall::v1::WarehouseDepositRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.warehouse_deposit_;
+}
+inline ::nightfall::v1::WarehouseDepositRequest* ClientMessage::mutable_warehouse_deposit() {
+  ::nightfall::v1::WarehouseDepositRequest* _msg = _internal_mutable_warehouse_deposit();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.warehouse_deposit)
+  return _msg;
+}
+
+// .nightfall.v1.WarehouseWithdrawRequest warehouse_withdraw = 57;
+inline bool ClientMessage::has_warehouse_withdraw() const {
+  return intent_case() == kWarehouseWithdraw;
+}
+inline bool ClientMessage::_internal_has_warehouse_withdraw() const {
+  return intent_case() == kWarehouseWithdraw;
+}
+inline void ClientMessage::set_has_warehouse_withdraw() {
+  _impl_._oneof_case_[0] = kWarehouseWithdraw;
+}
+inline ::nightfall::v1::WarehouseWithdrawRequest* ClientMessage::release_warehouse_withdraw() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.warehouse_withdraw)
+  if (intent_case() == kWarehouseWithdraw) {
+    clear_has_intent();
+    ::nightfall::v1::WarehouseWithdrawRequest* temp = _impl_.intent_.warehouse_withdraw_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.warehouse_withdraw_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::WarehouseWithdrawRequest& ClientMessage::_internal_warehouse_withdraw() const {
+  return intent_case() == kWarehouseWithdraw
+      ? *_impl_.intent_.warehouse_withdraw_
+      : reinterpret_cast<::nightfall::v1::WarehouseWithdrawRequest&>(::nightfall::v1::_WarehouseWithdrawRequest_default_instance_);
+}
+inline const ::nightfall::v1::WarehouseWithdrawRequest& ClientMessage::warehouse_withdraw() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.warehouse_withdraw)
+  return _internal_warehouse_withdraw();
+}
+inline ::nightfall::v1::WarehouseWithdrawRequest* ClientMessage::unsafe_arena_release_warehouse_withdraw() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.warehouse_withdraw)
+  if (intent_case() == kWarehouseWithdraw) {
+    clear_has_intent();
+    ::nightfall::v1::WarehouseWithdrawRequest* temp = _impl_.intent_.warehouse_withdraw_;
+    _impl_.intent_.warehouse_withdraw_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_warehouse_withdraw(::nightfall::v1::WarehouseWithdrawRequest* warehouse_withdraw) {
+  clear_intent();
+  if (warehouse_withdraw) {
+    set_has_warehouse_withdraw();
+    _impl_.intent_.warehouse_withdraw_ = warehouse_withdraw;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.warehouse_withdraw)
+}
+inline ::nightfall::v1::WarehouseWithdrawRequest* ClientMessage::_internal_mutable_warehouse_withdraw() {
+  if (intent_case() != kWarehouseWithdraw) {
+    clear_intent();
+    set_has_warehouse_withdraw();
+    _impl_.intent_.warehouse_withdraw_ = CreateMaybeMessage< ::nightfall::v1::WarehouseWithdrawRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.warehouse_withdraw_;
+}
+inline ::nightfall::v1::WarehouseWithdrawRequest* ClientMessage::mutable_warehouse_withdraw() {
+  ::nightfall::v1::WarehouseWithdrawRequest* _msg = _internal_mutable_warehouse_withdraw();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.warehouse_withdraw)
+  return _msg;
+}
+
+// .nightfall.v1.FreightSendRequest freight_send = 58;
+inline bool ClientMessage::has_freight_send() const {
+  return intent_case() == kFreightSend;
+}
+inline bool ClientMessage::_internal_has_freight_send() const {
+  return intent_case() == kFreightSend;
+}
+inline void ClientMessage::set_has_freight_send() {
+  _impl_._oneof_case_[0] = kFreightSend;
+}
+inline ::nightfall::v1::FreightSendRequest* ClientMessage::release_freight_send() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.freight_send)
+  if (intent_case() == kFreightSend) {
+    clear_has_intent();
+    ::nightfall::v1::FreightSendRequest* temp = _impl_.intent_.freight_send_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.freight_send_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::FreightSendRequest& ClientMessage::_internal_freight_send() const {
+  return intent_case() == kFreightSend
+      ? *_impl_.intent_.freight_send_
+      : reinterpret_cast<::nightfall::v1::FreightSendRequest&>(::nightfall::v1::_FreightSendRequest_default_instance_);
+}
+inline const ::nightfall::v1::FreightSendRequest& ClientMessage::freight_send() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.freight_send)
+  return _internal_freight_send();
+}
+inline ::nightfall::v1::FreightSendRequest* ClientMessage::unsafe_arena_release_freight_send() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.freight_send)
+  if (intent_case() == kFreightSend) {
+    clear_has_intent();
+    ::nightfall::v1::FreightSendRequest* temp = _impl_.intent_.freight_send_;
+    _impl_.intent_.freight_send_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_freight_send(::nightfall::v1::FreightSendRequest* freight_send) {
+  clear_intent();
+  if (freight_send) {
+    set_has_freight_send();
+    _impl_.intent_.freight_send_ = freight_send;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.freight_send)
+}
+inline ::nightfall::v1::FreightSendRequest* ClientMessage::_internal_mutable_freight_send() {
+  if (intent_case() != kFreightSend) {
+    clear_intent();
+    set_has_freight_send();
+    _impl_.intent_.freight_send_ = CreateMaybeMessage< ::nightfall::v1::FreightSendRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.freight_send_;
+}
+inline ::nightfall::v1::FreightSendRequest* ClientMessage::mutable_freight_send() {
+  ::nightfall::v1::FreightSendRequest* _msg = _internal_mutable_freight_send();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.freight_send)
+  return _msg;
+}
+
+// .nightfall.v1.FreightWithdrawRequest freight_withdraw = 59;
+inline bool ClientMessage::has_freight_withdraw() const {
+  return intent_case() == kFreightWithdraw;
+}
+inline bool ClientMessage::_internal_has_freight_withdraw() const {
+  return intent_case() == kFreightWithdraw;
+}
+inline void ClientMessage::set_has_freight_withdraw() {
+  _impl_._oneof_case_[0] = kFreightWithdraw;
+}
+inline ::nightfall::v1::FreightWithdrawRequest* ClientMessage::release_freight_withdraw() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.freight_withdraw)
+  if (intent_case() == kFreightWithdraw) {
+    clear_has_intent();
+    ::nightfall::v1::FreightWithdrawRequest* temp = _impl_.intent_.freight_withdraw_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.freight_withdraw_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::FreightWithdrawRequest& ClientMessage::_internal_freight_withdraw() const {
+  return intent_case() == kFreightWithdraw
+      ? *_impl_.intent_.freight_withdraw_
+      : reinterpret_cast<::nightfall::v1::FreightWithdrawRequest&>(::nightfall::v1::_FreightWithdrawRequest_default_instance_);
+}
+inline const ::nightfall::v1::FreightWithdrawRequest& ClientMessage::freight_withdraw() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.freight_withdraw)
+  return _internal_freight_withdraw();
+}
+inline ::nightfall::v1::FreightWithdrawRequest* ClientMessage::unsafe_arena_release_freight_withdraw() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.freight_withdraw)
+  if (intent_case() == kFreightWithdraw) {
+    clear_has_intent();
+    ::nightfall::v1::FreightWithdrawRequest* temp = _impl_.intent_.freight_withdraw_;
+    _impl_.intent_.freight_withdraw_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_freight_withdraw(::nightfall::v1::FreightWithdrawRequest* freight_withdraw) {
+  clear_intent();
+  if (freight_withdraw) {
+    set_has_freight_withdraw();
+    _impl_.intent_.freight_withdraw_ = freight_withdraw;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.freight_withdraw)
+}
+inline ::nightfall::v1::FreightWithdrawRequest* ClientMessage::_internal_mutable_freight_withdraw() {
+  if (intent_case() != kFreightWithdraw) {
+    clear_intent();
+    set_has_freight_withdraw();
+    _impl_.intent_.freight_withdraw_ = CreateMaybeMessage< ::nightfall::v1::FreightWithdrawRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.freight_withdraw_;
+}
+inline ::nightfall::v1::FreightWithdrawRequest* ClientMessage::mutable_freight_withdraw() {
+  ::nightfall::v1::FreightWithdrawRequest* _msg = _internal_mutable_freight_withdraw();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.freight_withdraw)
+  return _msg;
+}
+
+// .nightfall.v1.MailSendRequest mail_send = 60;
+inline bool ClientMessage::has_mail_send() const {
+  return intent_case() == kMailSend;
+}
+inline bool ClientMessage::_internal_has_mail_send() const {
+  return intent_case() == kMailSend;
+}
+inline void ClientMessage::set_has_mail_send() {
+  _impl_._oneof_case_[0] = kMailSend;
+}
+inline ::nightfall::v1::MailSendRequest* ClientMessage::release_mail_send() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.mail_send)
+  if (intent_case() == kMailSend) {
+    clear_has_intent();
+    ::nightfall::v1::MailSendRequest* temp = _impl_.intent_.mail_send_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.mail_send_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::MailSendRequest& ClientMessage::_internal_mail_send() const {
+  return intent_case() == kMailSend
+      ? *_impl_.intent_.mail_send_
+      : reinterpret_cast<::nightfall::v1::MailSendRequest&>(::nightfall::v1::_MailSendRequest_default_instance_);
+}
+inline const ::nightfall::v1::MailSendRequest& ClientMessage::mail_send() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.mail_send)
+  return _internal_mail_send();
+}
+inline ::nightfall::v1::MailSendRequest* ClientMessage::unsafe_arena_release_mail_send() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.mail_send)
+  if (intent_case() == kMailSend) {
+    clear_has_intent();
+    ::nightfall::v1::MailSendRequest* temp = _impl_.intent_.mail_send_;
+    _impl_.intent_.mail_send_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_mail_send(::nightfall::v1::MailSendRequest* mail_send) {
+  clear_intent();
+  if (mail_send) {
+    set_has_mail_send();
+    _impl_.intent_.mail_send_ = mail_send;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.mail_send)
+}
+inline ::nightfall::v1::MailSendRequest* ClientMessage::_internal_mutable_mail_send() {
+  if (intent_case() != kMailSend) {
+    clear_intent();
+    set_has_mail_send();
+    _impl_.intent_.mail_send_ = CreateMaybeMessage< ::nightfall::v1::MailSendRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.mail_send_;
+}
+inline ::nightfall::v1::MailSendRequest* ClientMessage::mutable_mail_send() {
+  ::nightfall::v1::MailSendRequest* _msg = _internal_mutable_mail_send();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.mail_send)
+  return _msg;
+}
+
+// .nightfall.v1.MailTakeAttachmentsRequest mail_take_attachments = 61;
+inline bool ClientMessage::has_mail_take_attachments() const {
+  return intent_case() == kMailTakeAttachments;
+}
+inline bool ClientMessage::_internal_has_mail_take_attachments() const {
+  return intent_case() == kMailTakeAttachments;
+}
+inline void ClientMessage::set_has_mail_take_attachments() {
+  _impl_._oneof_case_[0] = kMailTakeAttachments;
+}
+inline ::nightfall::v1::MailTakeAttachmentsRequest* ClientMessage::release_mail_take_attachments() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.mail_take_attachments)
+  if (intent_case() == kMailTakeAttachments) {
+    clear_has_intent();
+    ::nightfall::v1::MailTakeAttachmentsRequest* temp = _impl_.intent_.mail_take_attachments_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.mail_take_attachments_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::MailTakeAttachmentsRequest& ClientMessage::_internal_mail_take_attachments() const {
+  return intent_case() == kMailTakeAttachments
+      ? *_impl_.intent_.mail_take_attachments_
+      : reinterpret_cast<::nightfall::v1::MailTakeAttachmentsRequest&>(::nightfall::v1::_MailTakeAttachmentsRequest_default_instance_);
+}
+inline const ::nightfall::v1::MailTakeAttachmentsRequest& ClientMessage::mail_take_attachments() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.mail_take_attachments)
+  return _internal_mail_take_attachments();
+}
+inline ::nightfall::v1::MailTakeAttachmentsRequest* ClientMessage::unsafe_arena_release_mail_take_attachments() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.mail_take_attachments)
+  if (intent_case() == kMailTakeAttachments) {
+    clear_has_intent();
+    ::nightfall::v1::MailTakeAttachmentsRequest* temp = _impl_.intent_.mail_take_attachments_;
+    _impl_.intent_.mail_take_attachments_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_mail_take_attachments(::nightfall::v1::MailTakeAttachmentsRequest* mail_take_attachments) {
+  clear_intent();
+  if (mail_take_attachments) {
+    set_has_mail_take_attachments();
+    _impl_.intent_.mail_take_attachments_ = mail_take_attachments;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.mail_take_attachments)
+}
+inline ::nightfall::v1::MailTakeAttachmentsRequest* ClientMessage::_internal_mutable_mail_take_attachments() {
+  if (intent_case() != kMailTakeAttachments) {
+    clear_intent();
+    set_has_mail_take_attachments();
+    _impl_.intent_.mail_take_attachments_ = CreateMaybeMessage< ::nightfall::v1::MailTakeAttachmentsRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.mail_take_attachments_;
+}
+inline ::nightfall::v1::MailTakeAttachmentsRequest* ClientMessage::mutable_mail_take_attachments() {
+  ::nightfall::v1::MailTakeAttachmentsRequest* _msg = _internal_mutable_mail_take_attachments();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.mail_take_attachments)
+  return _msg;
+}
+
+// .nightfall.v1.MailRejectRequest mail_reject = 62;
+inline bool ClientMessage::has_mail_reject() const {
+  return intent_case() == kMailReject;
+}
+inline bool ClientMessage::_internal_has_mail_reject() const {
+  return intent_case() == kMailReject;
+}
+inline void ClientMessage::set_has_mail_reject() {
+  _impl_._oneof_case_[0] = kMailReject;
+}
+inline ::nightfall::v1::MailRejectRequest* ClientMessage::release_mail_reject() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.mail_reject)
+  if (intent_case() == kMailReject) {
+    clear_has_intent();
+    ::nightfall::v1::MailRejectRequest* temp = _impl_.intent_.mail_reject_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.mail_reject_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::MailRejectRequest& ClientMessage::_internal_mail_reject() const {
+  return intent_case() == kMailReject
+      ? *_impl_.intent_.mail_reject_
+      : reinterpret_cast<::nightfall::v1::MailRejectRequest&>(::nightfall::v1::_MailRejectRequest_default_instance_);
+}
+inline const ::nightfall::v1::MailRejectRequest& ClientMessage::mail_reject() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.mail_reject)
+  return _internal_mail_reject();
+}
+inline ::nightfall::v1::MailRejectRequest* ClientMessage::unsafe_arena_release_mail_reject() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.mail_reject)
+  if (intent_case() == kMailReject) {
+    clear_has_intent();
+    ::nightfall::v1::MailRejectRequest* temp = _impl_.intent_.mail_reject_;
+    _impl_.intent_.mail_reject_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_mail_reject(::nightfall::v1::MailRejectRequest* mail_reject) {
+  clear_intent();
+  if (mail_reject) {
+    set_has_mail_reject();
+    _impl_.intent_.mail_reject_ = mail_reject;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.mail_reject)
+}
+inline ::nightfall::v1::MailRejectRequest* ClientMessage::_internal_mutable_mail_reject() {
+  if (intent_case() != kMailReject) {
+    clear_intent();
+    set_has_mail_reject();
+    _impl_.intent_.mail_reject_ = CreateMaybeMessage< ::nightfall::v1::MailRejectRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.mail_reject_;
+}
+inline ::nightfall::v1::MailRejectRequest* ClientMessage::mutable_mail_reject() {
+  ::nightfall::v1::MailRejectRequest* _msg = _internal_mutable_mail_reject();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.mail_reject)
+  return _msg;
+}
+
+// .nightfall.v1.MailCancelRequest mail_cancel = 63;
+inline bool ClientMessage::has_mail_cancel() const {
+  return intent_case() == kMailCancel;
+}
+inline bool ClientMessage::_internal_has_mail_cancel() const {
+  return intent_case() == kMailCancel;
+}
+inline void ClientMessage::set_has_mail_cancel() {
+  _impl_._oneof_case_[0] = kMailCancel;
+}
+inline ::nightfall::v1::MailCancelRequest* ClientMessage::release_mail_cancel() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.mail_cancel)
+  if (intent_case() == kMailCancel) {
+    clear_has_intent();
+    ::nightfall::v1::MailCancelRequest* temp = _impl_.intent_.mail_cancel_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.mail_cancel_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::MailCancelRequest& ClientMessage::_internal_mail_cancel() const {
+  return intent_case() == kMailCancel
+      ? *_impl_.intent_.mail_cancel_
+      : reinterpret_cast<::nightfall::v1::MailCancelRequest&>(::nightfall::v1::_MailCancelRequest_default_instance_);
+}
+inline const ::nightfall::v1::MailCancelRequest& ClientMessage::mail_cancel() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.mail_cancel)
+  return _internal_mail_cancel();
+}
+inline ::nightfall::v1::MailCancelRequest* ClientMessage::unsafe_arena_release_mail_cancel() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.mail_cancel)
+  if (intent_case() == kMailCancel) {
+    clear_has_intent();
+    ::nightfall::v1::MailCancelRequest* temp = _impl_.intent_.mail_cancel_;
+    _impl_.intent_.mail_cancel_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_mail_cancel(::nightfall::v1::MailCancelRequest* mail_cancel) {
+  clear_intent();
+  if (mail_cancel) {
+    set_has_mail_cancel();
+    _impl_.intent_.mail_cancel_ = mail_cancel;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.mail_cancel)
+}
+inline ::nightfall::v1::MailCancelRequest* ClientMessage::_internal_mutable_mail_cancel() {
+  if (intent_case() != kMailCancel) {
+    clear_intent();
+    set_has_mail_cancel();
+    _impl_.intent_.mail_cancel_ = CreateMaybeMessage< ::nightfall::v1::MailCancelRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.mail_cancel_;
+}
+inline ::nightfall::v1::MailCancelRequest* ClientMessage::mutable_mail_cancel() {
+  ::nightfall::v1::MailCancelRequest* _msg = _internal_mutable_mail_cancel();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.mail_cancel)
+  return _msg;
+}
+
+// .nightfall.v1.MailDeleteRequest mail_delete = 64;
+inline bool ClientMessage::has_mail_delete() const {
+  return intent_case() == kMailDelete;
+}
+inline bool ClientMessage::_internal_has_mail_delete() const {
+  return intent_case() == kMailDelete;
+}
+inline void ClientMessage::set_has_mail_delete() {
+  _impl_._oneof_case_[0] = kMailDelete;
+}
+inline ::nightfall::v1::MailDeleteRequest* ClientMessage::release_mail_delete() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.mail_delete)
+  if (intent_case() == kMailDelete) {
+    clear_has_intent();
+    ::nightfall::v1::MailDeleteRequest* temp = _impl_.intent_.mail_delete_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.mail_delete_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::MailDeleteRequest& ClientMessage::_internal_mail_delete() const {
+  return intent_case() == kMailDelete
+      ? *_impl_.intent_.mail_delete_
+      : reinterpret_cast<::nightfall::v1::MailDeleteRequest&>(::nightfall::v1::_MailDeleteRequest_default_instance_);
+}
+inline const ::nightfall::v1::MailDeleteRequest& ClientMessage::mail_delete() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.mail_delete)
+  return _internal_mail_delete();
+}
+inline ::nightfall::v1::MailDeleteRequest* ClientMessage::unsafe_arena_release_mail_delete() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.mail_delete)
+  if (intent_case() == kMailDelete) {
+    clear_has_intent();
+    ::nightfall::v1::MailDeleteRequest* temp = _impl_.intent_.mail_delete_;
+    _impl_.intent_.mail_delete_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_mail_delete(::nightfall::v1::MailDeleteRequest* mail_delete) {
+  clear_intent();
+  if (mail_delete) {
+    set_has_mail_delete();
+    _impl_.intent_.mail_delete_ = mail_delete;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.mail_delete)
+}
+inline ::nightfall::v1::MailDeleteRequest* ClientMessage::_internal_mutable_mail_delete() {
+  if (intent_case() != kMailDelete) {
+    clear_intent();
+    set_has_mail_delete();
+    _impl_.intent_.mail_delete_ = CreateMaybeMessage< ::nightfall::v1::MailDeleteRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.mail_delete_;
+}
+inline ::nightfall::v1::MailDeleteRequest* ClientMessage::mutable_mail_delete() {
+  ::nightfall::v1::MailDeleteRequest* _msg = _internal_mutable_mail_delete();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.mail_delete)
+  return _msg;
+}
+
+// .nightfall.v1.ManorBuySeedRequest manor_buy_seed = 65;
+inline bool ClientMessage::has_manor_buy_seed() const {
+  return intent_case() == kManorBuySeed;
+}
+inline bool ClientMessage::_internal_has_manor_buy_seed() const {
+  return intent_case() == kManorBuySeed;
+}
+inline void ClientMessage::set_has_manor_buy_seed() {
+  _impl_._oneof_case_[0] = kManorBuySeed;
+}
+inline ::nightfall::v1::ManorBuySeedRequest* ClientMessage::release_manor_buy_seed() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.manor_buy_seed)
+  if (intent_case() == kManorBuySeed) {
+    clear_has_intent();
+    ::nightfall::v1::ManorBuySeedRequest* temp = _impl_.intent_.manor_buy_seed_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.manor_buy_seed_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::ManorBuySeedRequest& ClientMessage::_internal_manor_buy_seed() const {
+  return intent_case() == kManorBuySeed
+      ? *_impl_.intent_.manor_buy_seed_
+      : reinterpret_cast<::nightfall::v1::ManorBuySeedRequest&>(::nightfall::v1::_ManorBuySeedRequest_default_instance_);
+}
+inline const ::nightfall::v1::ManorBuySeedRequest& ClientMessage::manor_buy_seed() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.manor_buy_seed)
+  return _internal_manor_buy_seed();
+}
+inline ::nightfall::v1::ManorBuySeedRequest* ClientMessage::unsafe_arena_release_manor_buy_seed() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.manor_buy_seed)
+  if (intent_case() == kManorBuySeed) {
+    clear_has_intent();
+    ::nightfall::v1::ManorBuySeedRequest* temp = _impl_.intent_.manor_buy_seed_;
+    _impl_.intent_.manor_buy_seed_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_manor_buy_seed(::nightfall::v1::ManorBuySeedRequest* manor_buy_seed) {
+  clear_intent();
+  if (manor_buy_seed) {
+    set_has_manor_buy_seed();
+    _impl_.intent_.manor_buy_seed_ = manor_buy_seed;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.manor_buy_seed)
+}
+inline ::nightfall::v1::ManorBuySeedRequest* ClientMessage::_internal_mutable_manor_buy_seed() {
+  if (intent_case() != kManorBuySeed) {
+    clear_intent();
+    set_has_manor_buy_seed();
+    _impl_.intent_.manor_buy_seed_ = CreateMaybeMessage< ::nightfall::v1::ManorBuySeedRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.manor_buy_seed_;
+}
+inline ::nightfall::v1::ManorBuySeedRequest* ClientMessage::mutable_manor_buy_seed() {
+  ::nightfall::v1::ManorBuySeedRequest* _msg = _internal_mutable_manor_buy_seed();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.manor_buy_seed)
+  return _msg;
+}
+
+// .nightfall.v1.ManorSellCropRequest manor_sell_crop = 66;
+inline bool ClientMessage::has_manor_sell_crop() const {
+  return intent_case() == kManorSellCrop;
+}
+inline bool ClientMessage::_internal_has_manor_sell_crop() const {
+  return intent_case() == kManorSellCrop;
+}
+inline void ClientMessage::set_has_manor_sell_crop() {
+  _impl_._oneof_case_[0] = kManorSellCrop;
+}
+inline ::nightfall::v1::ManorSellCropRequest* ClientMessage::release_manor_sell_crop() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.manor_sell_crop)
+  if (intent_case() == kManorSellCrop) {
+    clear_has_intent();
+    ::nightfall::v1::ManorSellCropRequest* temp = _impl_.intent_.manor_sell_crop_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.manor_sell_crop_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::ManorSellCropRequest& ClientMessage::_internal_manor_sell_crop() const {
+  return intent_case() == kManorSellCrop
+      ? *_impl_.intent_.manor_sell_crop_
+      : reinterpret_cast<::nightfall::v1::ManorSellCropRequest&>(::nightfall::v1::_ManorSellCropRequest_default_instance_);
+}
+inline const ::nightfall::v1::ManorSellCropRequest& ClientMessage::manor_sell_crop() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.manor_sell_crop)
+  return _internal_manor_sell_crop();
+}
+inline ::nightfall::v1::ManorSellCropRequest* ClientMessage::unsafe_arena_release_manor_sell_crop() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.manor_sell_crop)
+  if (intent_case() == kManorSellCrop) {
+    clear_has_intent();
+    ::nightfall::v1::ManorSellCropRequest* temp = _impl_.intent_.manor_sell_crop_;
+    _impl_.intent_.manor_sell_crop_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_manor_sell_crop(::nightfall::v1::ManorSellCropRequest* manor_sell_crop) {
+  clear_intent();
+  if (manor_sell_crop) {
+    set_has_manor_sell_crop();
+    _impl_.intent_.manor_sell_crop_ = manor_sell_crop;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.manor_sell_crop)
+}
+inline ::nightfall::v1::ManorSellCropRequest* ClientMessage::_internal_mutable_manor_sell_crop() {
+  if (intent_case() != kManorSellCrop) {
+    clear_intent();
+    set_has_manor_sell_crop();
+    _impl_.intent_.manor_sell_crop_ = CreateMaybeMessage< ::nightfall::v1::ManorSellCropRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.manor_sell_crop_;
+}
+inline ::nightfall::v1::ManorSellCropRequest* ClientMessage::mutable_manor_sell_crop() {
+  ::nightfall::v1::ManorSellCropRequest* _msg = _internal_mutable_manor_sell_crop();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.manor_sell_crop)
+  return _msg;
+}
+
+// .nightfall.v1.ItemAuctionBidRequest item_auction_bid = 67;
+inline bool ClientMessage::has_item_auction_bid() const {
+  return intent_case() == kItemAuctionBid;
+}
+inline bool ClientMessage::_internal_has_item_auction_bid() const {
+  return intent_case() == kItemAuctionBid;
+}
+inline void ClientMessage::set_has_item_auction_bid() {
+  _impl_._oneof_case_[0] = kItemAuctionBid;
+}
+inline ::nightfall::v1::ItemAuctionBidRequest* ClientMessage::release_item_auction_bid() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.item_auction_bid)
+  if (intent_case() == kItemAuctionBid) {
+    clear_has_intent();
+    ::nightfall::v1::ItemAuctionBidRequest* temp = _impl_.intent_.item_auction_bid_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.item_auction_bid_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::ItemAuctionBidRequest& ClientMessage::_internal_item_auction_bid() const {
+  return intent_case() == kItemAuctionBid
+      ? *_impl_.intent_.item_auction_bid_
+      : reinterpret_cast<::nightfall::v1::ItemAuctionBidRequest&>(::nightfall::v1::_ItemAuctionBidRequest_default_instance_);
+}
+inline const ::nightfall::v1::ItemAuctionBidRequest& ClientMessage::item_auction_bid() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.item_auction_bid)
+  return _internal_item_auction_bid();
+}
+inline ::nightfall::v1::ItemAuctionBidRequest* ClientMessage::unsafe_arena_release_item_auction_bid() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.item_auction_bid)
+  if (intent_case() == kItemAuctionBid) {
+    clear_has_intent();
+    ::nightfall::v1::ItemAuctionBidRequest* temp = _impl_.intent_.item_auction_bid_;
+    _impl_.intent_.item_auction_bid_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_item_auction_bid(::nightfall::v1::ItemAuctionBidRequest* item_auction_bid) {
+  clear_intent();
+  if (item_auction_bid) {
+    set_has_item_auction_bid();
+    _impl_.intent_.item_auction_bid_ = item_auction_bid;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.item_auction_bid)
+}
+inline ::nightfall::v1::ItemAuctionBidRequest* ClientMessage::_internal_mutable_item_auction_bid() {
+  if (intent_case() != kItemAuctionBid) {
+    clear_intent();
+    set_has_item_auction_bid();
+    _impl_.intent_.item_auction_bid_ = CreateMaybeMessage< ::nightfall::v1::ItemAuctionBidRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.item_auction_bid_;
+}
+inline ::nightfall::v1::ItemAuctionBidRequest* ClientMessage::mutable_item_auction_bid() {
+  ::nightfall::v1::ItemAuctionBidRequest* _msg = _internal_mutable_item_auction_bid();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.item_auction_bid)
+  return _msg;
+}
+
+// .nightfall.v1.ItemAuctionCancelBidRequest item_auction_cancel_bid = 68;
+inline bool ClientMessage::has_item_auction_cancel_bid() const {
+  return intent_case() == kItemAuctionCancelBid;
+}
+inline bool ClientMessage::_internal_has_item_auction_cancel_bid() const {
+  return intent_case() == kItemAuctionCancelBid;
+}
+inline void ClientMessage::set_has_item_auction_cancel_bid() {
+  _impl_._oneof_case_[0] = kItemAuctionCancelBid;
+}
+inline ::nightfall::v1::ItemAuctionCancelBidRequest* ClientMessage::release_item_auction_cancel_bid() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.item_auction_cancel_bid)
+  if (intent_case() == kItemAuctionCancelBid) {
+    clear_has_intent();
+    ::nightfall::v1::ItemAuctionCancelBidRequest* temp = _impl_.intent_.item_auction_cancel_bid_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.item_auction_cancel_bid_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::ItemAuctionCancelBidRequest& ClientMessage::_internal_item_auction_cancel_bid() const {
+  return intent_case() == kItemAuctionCancelBid
+      ? *_impl_.intent_.item_auction_cancel_bid_
+      : reinterpret_cast<::nightfall::v1::ItemAuctionCancelBidRequest&>(::nightfall::v1::_ItemAuctionCancelBidRequest_default_instance_);
+}
+inline const ::nightfall::v1::ItemAuctionCancelBidRequest& ClientMessage::item_auction_cancel_bid() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.item_auction_cancel_bid)
+  return _internal_item_auction_cancel_bid();
+}
+inline ::nightfall::v1::ItemAuctionCancelBidRequest* ClientMessage::unsafe_arena_release_item_auction_cancel_bid() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.item_auction_cancel_bid)
+  if (intent_case() == kItemAuctionCancelBid) {
+    clear_has_intent();
+    ::nightfall::v1::ItemAuctionCancelBidRequest* temp = _impl_.intent_.item_auction_cancel_bid_;
+    _impl_.intent_.item_auction_cancel_bid_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_item_auction_cancel_bid(::nightfall::v1::ItemAuctionCancelBidRequest* item_auction_cancel_bid) {
+  clear_intent();
+  if (item_auction_cancel_bid) {
+    set_has_item_auction_cancel_bid();
+    _impl_.intent_.item_auction_cancel_bid_ = item_auction_cancel_bid;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.item_auction_cancel_bid)
+}
+inline ::nightfall::v1::ItemAuctionCancelBidRequest* ClientMessage::_internal_mutable_item_auction_cancel_bid() {
+  if (intent_case() != kItemAuctionCancelBid) {
+    clear_intent();
+    set_has_item_auction_cancel_bid();
+    _impl_.intent_.item_auction_cancel_bid_ = CreateMaybeMessage< ::nightfall::v1::ItemAuctionCancelBidRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.item_auction_cancel_bid_;
+}
+inline ::nightfall::v1::ItemAuctionCancelBidRequest* ClientMessage::mutable_item_auction_cancel_bid() {
+  ::nightfall::v1::ItemAuctionCancelBidRequest* _msg = _internal_mutable_item_auction_cancel_bid();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.item_auction_cancel_bid)
+  return _msg;
+}
+
+// .nightfall.v1.MailMarkReadRequest mail_mark_read = 69;
+inline bool ClientMessage::has_mail_mark_read() const {
+  return intent_case() == kMailMarkRead;
+}
+inline bool ClientMessage::_internal_has_mail_mark_read() const {
+  return intent_case() == kMailMarkRead;
+}
+inline void ClientMessage::set_has_mail_mark_read() {
+  _impl_._oneof_case_[0] = kMailMarkRead;
+}
+inline ::nightfall::v1::MailMarkReadRequest* ClientMessage::release_mail_mark_read() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.ClientMessage.mail_mark_read)
+  if (intent_case() == kMailMarkRead) {
+    clear_has_intent();
+    ::nightfall::v1::MailMarkReadRequest* temp = _impl_.intent_.mail_mark_read_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.intent_.mail_mark_read_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::MailMarkReadRequest& ClientMessage::_internal_mail_mark_read() const {
+  return intent_case() == kMailMarkRead
+      ? *_impl_.intent_.mail_mark_read_
+      : reinterpret_cast<::nightfall::v1::MailMarkReadRequest&>(::nightfall::v1::_MailMarkReadRequest_default_instance_);
+}
+inline const ::nightfall::v1::MailMarkReadRequest& ClientMessage::mail_mark_read() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.ClientMessage.mail_mark_read)
+  return _internal_mail_mark_read();
+}
+inline ::nightfall::v1::MailMarkReadRequest* ClientMessage::unsafe_arena_release_mail_mark_read() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.ClientMessage.mail_mark_read)
+  if (intent_case() == kMailMarkRead) {
+    clear_has_intent();
+    ::nightfall::v1::MailMarkReadRequest* temp = _impl_.intent_.mail_mark_read_;
+    _impl_.intent_.mail_mark_read_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ClientMessage::unsafe_arena_set_allocated_mail_mark_read(::nightfall::v1::MailMarkReadRequest* mail_mark_read) {
+  clear_intent();
+  if (mail_mark_read) {
+    set_has_mail_mark_read();
+    _impl_.intent_.mail_mark_read_ = mail_mark_read;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.ClientMessage.mail_mark_read)
+}
+inline ::nightfall::v1::MailMarkReadRequest* ClientMessage::_internal_mutable_mail_mark_read() {
+  if (intent_case() != kMailMarkRead) {
+    clear_intent();
+    set_has_mail_mark_read();
+    _impl_.intent_.mail_mark_read_ = CreateMaybeMessage< ::nightfall::v1::MailMarkReadRequest >(GetArenaForAllocation());
+  }
+  return _impl_.intent_.mail_mark_read_;
+}
+inline ::nightfall::v1::MailMarkReadRequest* ClientMessage::mutable_mail_mark_read() {
+  ::nightfall::v1::MailMarkReadRequest* _msg = _internal_mutable_mail_mark_read();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.ClientMessage.mail_mark_read)
+  return _msg;
+}
+
 inline bool ClientMessage::has_intent() const {
   return intent_case() != INTENT_NOT_SET;
 }
@@ -15985,6 +19926,798 @@ inline ::nightfall::v1::ItemOperationResult* WorldEvent::mutable_item_operation_
   return _msg;
 }
 
+// .nightfall.v1.EconomyResult economy_result = 34;
+inline bool WorldEvent::has_economy_result() const {
+  return event_case() == kEconomyResult;
+}
+inline bool WorldEvent::_internal_has_economy_result() const {
+  return event_case() == kEconomyResult;
+}
+inline void WorldEvent::set_has_economy_result() {
+  _impl_._oneof_case_[0] = kEconomyResult;
+}
+inline ::nightfall::v1::EconomyResult* WorldEvent::release_economy_result() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.WorldEvent.economy_result)
+  if (event_case() == kEconomyResult) {
+    clear_has_event();
+    ::nightfall::v1::EconomyResult* temp = _impl_.event_.economy_result_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.event_.economy_result_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::EconomyResult& WorldEvent::_internal_economy_result() const {
+  return event_case() == kEconomyResult
+      ? *_impl_.event_.economy_result_
+      : reinterpret_cast<::nightfall::v1::EconomyResult&>(::nightfall::v1::_EconomyResult_default_instance_);
+}
+inline const ::nightfall::v1::EconomyResult& WorldEvent::economy_result() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.WorldEvent.economy_result)
+  return _internal_economy_result();
+}
+inline ::nightfall::v1::EconomyResult* WorldEvent::unsafe_arena_release_economy_result() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.WorldEvent.economy_result)
+  if (event_case() == kEconomyResult) {
+    clear_has_event();
+    ::nightfall::v1::EconomyResult* temp = _impl_.event_.economy_result_;
+    _impl_.event_.economy_result_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void WorldEvent::unsafe_arena_set_allocated_economy_result(::nightfall::v1::EconomyResult* economy_result) {
+  clear_event();
+  if (economy_result) {
+    set_has_economy_result();
+    _impl_.event_.economy_result_ = economy_result;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.WorldEvent.economy_result)
+}
+inline ::nightfall::v1::EconomyResult* WorldEvent::_internal_mutable_economy_result() {
+  if (event_case() != kEconomyResult) {
+    clear_event();
+    set_has_economy_result();
+    _impl_.event_.economy_result_ = CreateMaybeMessage< ::nightfall::v1::EconomyResult >(GetArenaForAllocation());
+  }
+  return _impl_.event_.economy_result_;
+}
+inline ::nightfall::v1::EconomyResult* WorldEvent::mutable_economy_result() {
+  ::nightfall::v1::EconomyResult* _msg = _internal_mutable_economy_result();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.WorldEvent.economy_result)
+  return _msg;
+}
+
+// .nightfall.v1.CorpseStateChanged corpse_state_changed = 35;
+inline bool WorldEvent::has_corpse_state_changed() const {
+  return event_case() == kCorpseStateChanged;
+}
+inline bool WorldEvent::_internal_has_corpse_state_changed() const {
+  return event_case() == kCorpseStateChanged;
+}
+inline void WorldEvent::set_has_corpse_state_changed() {
+  _impl_._oneof_case_[0] = kCorpseStateChanged;
+}
+inline ::nightfall::v1::CorpseStateChanged* WorldEvent::release_corpse_state_changed() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.WorldEvent.corpse_state_changed)
+  if (event_case() == kCorpseStateChanged) {
+    clear_has_event();
+    ::nightfall::v1::CorpseStateChanged* temp = _impl_.event_.corpse_state_changed_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.event_.corpse_state_changed_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::CorpseStateChanged& WorldEvent::_internal_corpse_state_changed() const {
+  return event_case() == kCorpseStateChanged
+      ? *_impl_.event_.corpse_state_changed_
+      : reinterpret_cast<::nightfall::v1::CorpseStateChanged&>(::nightfall::v1::_CorpseStateChanged_default_instance_);
+}
+inline const ::nightfall::v1::CorpseStateChanged& WorldEvent::corpse_state_changed() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.WorldEvent.corpse_state_changed)
+  return _internal_corpse_state_changed();
+}
+inline ::nightfall::v1::CorpseStateChanged* WorldEvent::unsafe_arena_release_corpse_state_changed() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.WorldEvent.corpse_state_changed)
+  if (event_case() == kCorpseStateChanged) {
+    clear_has_event();
+    ::nightfall::v1::CorpseStateChanged* temp = _impl_.event_.corpse_state_changed_;
+    _impl_.event_.corpse_state_changed_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void WorldEvent::unsafe_arena_set_allocated_corpse_state_changed(::nightfall::v1::CorpseStateChanged* corpse_state_changed) {
+  clear_event();
+  if (corpse_state_changed) {
+    set_has_corpse_state_changed();
+    _impl_.event_.corpse_state_changed_ = corpse_state_changed;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.WorldEvent.corpse_state_changed)
+}
+inline ::nightfall::v1::CorpseStateChanged* WorldEvent::_internal_mutable_corpse_state_changed() {
+  if (event_case() != kCorpseStateChanged) {
+    clear_event();
+    set_has_corpse_state_changed();
+    _impl_.event_.corpse_state_changed_ = CreateMaybeMessage< ::nightfall::v1::CorpseStateChanged >(GetArenaForAllocation());
+  }
+  return _impl_.event_.corpse_state_changed_;
+}
+inline ::nightfall::v1::CorpseStateChanged* WorldEvent::mutable_corpse_state_changed() {
+  ::nightfall::v1::CorpseStateChanged* _msg = _internal_mutable_corpse_state_changed();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.WorldEvent.corpse_state_changed)
+  return _msg;
+}
+
+// .nightfall.v1.PartyStateChanged party_state_changed = 36;
+inline bool WorldEvent::has_party_state_changed() const {
+  return event_case() == kPartyStateChanged;
+}
+inline bool WorldEvent::_internal_has_party_state_changed() const {
+  return event_case() == kPartyStateChanged;
+}
+inline void WorldEvent::set_has_party_state_changed() {
+  _impl_._oneof_case_[0] = kPartyStateChanged;
+}
+inline ::nightfall::v1::PartyStateChanged* WorldEvent::release_party_state_changed() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.WorldEvent.party_state_changed)
+  if (event_case() == kPartyStateChanged) {
+    clear_has_event();
+    ::nightfall::v1::PartyStateChanged* temp = _impl_.event_.party_state_changed_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.event_.party_state_changed_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::PartyStateChanged& WorldEvent::_internal_party_state_changed() const {
+  return event_case() == kPartyStateChanged
+      ? *_impl_.event_.party_state_changed_
+      : reinterpret_cast<::nightfall::v1::PartyStateChanged&>(::nightfall::v1::_PartyStateChanged_default_instance_);
+}
+inline const ::nightfall::v1::PartyStateChanged& WorldEvent::party_state_changed() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.WorldEvent.party_state_changed)
+  return _internal_party_state_changed();
+}
+inline ::nightfall::v1::PartyStateChanged* WorldEvent::unsafe_arena_release_party_state_changed() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.WorldEvent.party_state_changed)
+  if (event_case() == kPartyStateChanged) {
+    clear_has_event();
+    ::nightfall::v1::PartyStateChanged* temp = _impl_.event_.party_state_changed_;
+    _impl_.event_.party_state_changed_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void WorldEvent::unsafe_arena_set_allocated_party_state_changed(::nightfall::v1::PartyStateChanged* party_state_changed) {
+  clear_event();
+  if (party_state_changed) {
+    set_has_party_state_changed();
+    _impl_.event_.party_state_changed_ = party_state_changed;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.WorldEvent.party_state_changed)
+}
+inline ::nightfall::v1::PartyStateChanged* WorldEvent::_internal_mutable_party_state_changed() {
+  if (event_case() != kPartyStateChanged) {
+    clear_event();
+    set_has_party_state_changed();
+    _impl_.event_.party_state_changed_ = CreateMaybeMessage< ::nightfall::v1::PartyStateChanged >(GetArenaForAllocation());
+  }
+  return _impl_.event_.party_state_changed_;
+}
+inline ::nightfall::v1::PartyStateChanged* WorldEvent::mutable_party_state_changed() {
+  ::nightfall::v1::PartyStateChanged* _msg = _internal_mutable_party_state_changed();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.WorldEvent.party_state_changed)
+  return _msg;
+}
+
+// .nightfall.v1.PartyLootVote party_loot_vote = 37;
+inline bool WorldEvent::has_party_loot_vote() const {
+  return event_case() == kPartyLootVote;
+}
+inline bool WorldEvent::_internal_has_party_loot_vote() const {
+  return event_case() == kPartyLootVote;
+}
+inline void WorldEvent::set_has_party_loot_vote() {
+  _impl_._oneof_case_[0] = kPartyLootVote;
+}
+inline ::nightfall::v1::PartyLootVote* WorldEvent::release_party_loot_vote() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.WorldEvent.party_loot_vote)
+  if (event_case() == kPartyLootVote) {
+    clear_has_event();
+    ::nightfall::v1::PartyLootVote* temp = _impl_.event_.party_loot_vote_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.event_.party_loot_vote_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::PartyLootVote& WorldEvent::_internal_party_loot_vote() const {
+  return event_case() == kPartyLootVote
+      ? *_impl_.event_.party_loot_vote_
+      : reinterpret_cast<::nightfall::v1::PartyLootVote&>(::nightfall::v1::_PartyLootVote_default_instance_);
+}
+inline const ::nightfall::v1::PartyLootVote& WorldEvent::party_loot_vote() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.WorldEvent.party_loot_vote)
+  return _internal_party_loot_vote();
+}
+inline ::nightfall::v1::PartyLootVote* WorldEvent::unsafe_arena_release_party_loot_vote() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.WorldEvent.party_loot_vote)
+  if (event_case() == kPartyLootVote) {
+    clear_has_event();
+    ::nightfall::v1::PartyLootVote* temp = _impl_.event_.party_loot_vote_;
+    _impl_.event_.party_loot_vote_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void WorldEvent::unsafe_arena_set_allocated_party_loot_vote(::nightfall::v1::PartyLootVote* party_loot_vote) {
+  clear_event();
+  if (party_loot_vote) {
+    set_has_party_loot_vote();
+    _impl_.event_.party_loot_vote_ = party_loot_vote;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.WorldEvent.party_loot_vote)
+}
+inline ::nightfall::v1::PartyLootVote* WorldEvent::_internal_mutable_party_loot_vote() {
+  if (event_case() != kPartyLootVote) {
+    clear_event();
+    set_has_party_loot_vote();
+    _impl_.event_.party_loot_vote_ = CreateMaybeMessage< ::nightfall::v1::PartyLootVote >(GetArenaForAllocation());
+  }
+  return _impl_.event_.party_loot_vote_;
+}
+inline ::nightfall::v1::PartyLootVote* WorldEvent::mutable_party_loot_vote() {
+  ::nightfall::v1::PartyLootVote* _msg = _internal_mutable_party_loot_vote();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.WorldEvent.party_loot_vote)
+  return _msg;
+}
+
+// .nightfall.v1.PartyInviteReceived party_invite_received = 38;
+inline bool WorldEvent::has_party_invite_received() const {
+  return event_case() == kPartyInviteReceived;
+}
+inline bool WorldEvent::_internal_has_party_invite_received() const {
+  return event_case() == kPartyInviteReceived;
+}
+inline void WorldEvent::set_has_party_invite_received() {
+  _impl_._oneof_case_[0] = kPartyInviteReceived;
+}
+inline ::nightfall::v1::PartyInviteReceived* WorldEvent::release_party_invite_received() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.WorldEvent.party_invite_received)
+  if (event_case() == kPartyInviteReceived) {
+    clear_has_event();
+    ::nightfall::v1::PartyInviteReceived* temp = _impl_.event_.party_invite_received_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.event_.party_invite_received_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::PartyInviteReceived& WorldEvent::_internal_party_invite_received() const {
+  return event_case() == kPartyInviteReceived
+      ? *_impl_.event_.party_invite_received_
+      : reinterpret_cast<::nightfall::v1::PartyInviteReceived&>(::nightfall::v1::_PartyInviteReceived_default_instance_);
+}
+inline const ::nightfall::v1::PartyInviteReceived& WorldEvent::party_invite_received() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.WorldEvent.party_invite_received)
+  return _internal_party_invite_received();
+}
+inline ::nightfall::v1::PartyInviteReceived* WorldEvent::unsafe_arena_release_party_invite_received() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.WorldEvent.party_invite_received)
+  if (event_case() == kPartyInviteReceived) {
+    clear_has_event();
+    ::nightfall::v1::PartyInviteReceived* temp = _impl_.event_.party_invite_received_;
+    _impl_.event_.party_invite_received_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void WorldEvent::unsafe_arena_set_allocated_party_invite_received(::nightfall::v1::PartyInviteReceived* party_invite_received) {
+  clear_event();
+  if (party_invite_received) {
+    set_has_party_invite_received();
+    _impl_.event_.party_invite_received_ = party_invite_received;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.WorldEvent.party_invite_received)
+}
+inline ::nightfall::v1::PartyInviteReceived* WorldEvent::_internal_mutable_party_invite_received() {
+  if (event_case() != kPartyInviteReceived) {
+    clear_event();
+    set_has_party_invite_received();
+    _impl_.event_.party_invite_received_ = CreateMaybeMessage< ::nightfall::v1::PartyInviteReceived >(GetArenaForAllocation());
+  }
+  return _impl_.event_.party_invite_received_;
+}
+inline ::nightfall::v1::PartyInviteReceived* WorldEvent::mutable_party_invite_received() {
+  ::nightfall::v1::PartyInviteReceived* _msg = _internal_mutable_party_invite_received();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.WorldEvent.party_invite_received)
+  return _msg;
+}
+
+// .nightfall.v1.TradeRequestReceived trade_request_received = 39;
+inline bool WorldEvent::has_trade_request_received() const {
+  return event_case() == kTradeRequestReceived;
+}
+inline bool WorldEvent::_internal_has_trade_request_received() const {
+  return event_case() == kTradeRequestReceived;
+}
+inline void WorldEvent::set_has_trade_request_received() {
+  _impl_._oneof_case_[0] = kTradeRequestReceived;
+}
+inline ::nightfall::v1::TradeRequestReceived* WorldEvent::release_trade_request_received() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.WorldEvent.trade_request_received)
+  if (event_case() == kTradeRequestReceived) {
+    clear_has_event();
+    ::nightfall::v1::TradeRequestReceived* temp = _impl_.event_.trade_request_received_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.event_.trade_request_received_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::TradeRequestReceived& WorldEvent::_internal_trade_request_received() const {
+  return event_case() == kTradeRequestReceived
+      ? *_impl_.event_.trade_request_received_
+      : reinterpret_cast<::nightfall::v1::TradeRequestReceived&>(::nightfall::v1::_TradeRequestReceived_default_instance_);
+}
+inline const ::nightfall::v1::TradeRequestReceived& WorldEvent::trade_request_received() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.WorldEvent.trade_request_received)
+  return _internal_trade_request_received();
+}
+inline ::nightfall::v1::TradeRequestReceived* WorldEvent::unsafe_arena_release_trade_request_received() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.WorldEvent.trade_request_received)
+  if (event_case() == kTradeRequestReceived) {
+    clear_has_event();
+    ::nightfall::v1::TradeRequestReceived* temp = _impl_.event_.trade_request_received_;
+    _impl_.event_.trade_request_received_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void WorldEvent::unsafe_arena_set_allocated_trade_request_received(::nightfall::v1::TradeRequestReceived* trade_request_received) {
+  clear_event();
+  if (trade_request_received) {
+    set_has_trade_request_received();
+    _impl_.event_.trade_request_received_ = trade_request_received;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.WorldEvent.trade_request_received)
+}
+inline ::nightfall::v1::TradeRequestReceived* WorldEvent::_internal_mutable_trade_request_received() {
+  if (event_case() != kTradeRequestReceived) {
+    clear_event();
+    set_has_trade_request_received();
+    _impl_.event_.trade_request_received_ = CreateMaybeMessage< ::nightfall::v1::TradeRequestReceived >(GetArenaForAllocation());
+  }
+  return _impl_.event_.trade_request_received_;
+}
+inline ::nightfall::v1::TradeRequestReceived* WorldEvent::mutable_trade_request_received() {
+  ::nightfall::v1::TradeRequestReceived* _msg = _internal_mutable_trade_request_received();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.WorldEvent.trade_request_received)
+  return _msg;
+}
+
+// .nightfall.v1.TradeSessionChanged trade_session_changed = 40;
+inline bool WorldEvent::has_trade_session_changed() const {
+  return event_case() == kTradeSessionChanged;
+}
+inline bool WorldEvent::_internal_has_trade_session_changed() const {
+  return event_case() == kTradeSessionChanged;
+}
+inline void WorldEvent::set_has_trade_session_changed() {
+  _impl_._oneof_case_[0] = kTradeSessionChanged;
+}
+inline ::nightfall::v1::TradeSessionChanged* WorldEvent::release_trade_session_changed() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.WorldEvent.trade_session_changed)
+  if (event_case() == kTradeSessionChanged) {
+    clear_has_event();
+    ::nightfall::v1::TradeSessionChanged* temp = _impl_.event_.trade_session_changed_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.event_.trade_session_changed_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::TradeSessionChanged& WorldEvent::_internal_trade_session_changed() const {
+  return event_case() == kTradeSessionChanged
+      ? *_impl_.event_.trade_session_changed_
+      : reinterpret_cast<::nightfall::v1::TradeSessionChanged&>(::nightfall::v1::_TradeSessionChanged_default_instance_);
+}
+inline const ::nightfall::v1::TradeSessionChanged& WorldEvent::trade_session_changed() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.WorldEvent.trade_session_changed)
+  return _internal_trade_session_changed();
+}
+inline ::nightfall::v1::TradeSessionChanged* WorldEvent::unsafe_arena_release_trade_session_changed() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.WorldEvent.trade_session_changed)
+  if (event_case() == kTradeSessionChanged) {
+    clear_has_event();
+    ::nightfall::v1::TradeSessionChanged* temp = _impl_.event_.trade_session_changed_;
+    _impl_.event_.trade_session_changed_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void WorldEvent::unsafe_arena_set_allocated_trade_session_changed(::nightfall::v1::TradeSessionChanged* trade_session_changed) {
+  clear_event();
+  if (trade_session_changed) {
+    set_has_trade_session_changed();
+    _impl_.event_.trade_session_changed_ = trade_session_changed;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.WorldEvent.trade_session_changed)
+}
+inline ::nightfall::v1::TradeSessionChanged* WorldEvent::_internal_mutable_trade_session_changed() {
+  if (event_case() != kTradeSessionChanged) {
+    clear_event();
+    set_has_trade_session_changed();
+    _impl_.event_.trade_session_changed_ = CreateMaybeMessage< ::nightfall::v1::TradeSessionChanged >(GetArenaForAllocation());
+  }
+  return _impl_.event_.trade_session_changed_;
+}
+inline ::nightfall::v1::TradeSessionChanged* WorldEvent::mutable_trade_session_changed() {
+  ::nightfall::v1::TradeSessionChanged* _msg = _internal_mutable_trade_session_changed();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.WorldEvent.trade_session_changed)
+  return _msg;
+}
+
+// .nightfall.v1.PrivateStoreChanged private_store_changed = 41;
+inline bool WorldEvent::has_private_store_changed() const {
+  return event_case() == kPrivateStoreChanged;
+}
+inline bool WorldEvent::_internal_has_private_store_changed() const {
+  return event_case() == kPrivateStoreChanged;
+}
+inline void WorldEvent::set_has_private_store_changed() {
+  _impl_._oneof_case_[0] = kPrivateStoreChanged;
+}
+inline ::nightfall::v1::PrivateStoreChanged* WorldEvent::release_private_store_changed() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.WorldEvent.private_store_changed)
+  if (event_case() == kPrivateStoreChanged) {
+    clear_has_event();
+    ::nightfall::v1::PrivateStoreChanged* temp = _impl_.event_.private_store_changed_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.event_.private_store_changed_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::PrivateStoreChanged& WorldEvent::_internal_private_store_changed() const {
+  return event_case() == kPrivateStoreChanged
+      ? *_impl_.event_.private_store_changed_
+      : reinterpret_cast<::nightfall::v1::PrivateStoreChanged&>(::nightfall::v1::_PrivateStoreChanged_default_instance_);
+}
+inline const ::nightfall::v1::PrivateStoreChanged& WorldEvent::private_store_changed() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.WorldEvent.private_store_changed)
+  return _internal_private_store_changed();
+}
+inline ::nightfall::v1::PrivateStoreChanged* WorldEvent::unsafe_arena_release_private_store_changed() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.WorldEvent.private_store_changed)
+  if (event_case() == kPrivateStoreChanged) {
+    clear_has_event();
+    ::nightfall::v1::PrivateStoreChanged* temp = _impl_.event_.private_store_changed_;
+    _impl_.event_.private_store_changed_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void WorldEvent::unsafe_arena_set_allocated_private_store_changed(::nightfall::v1::PrivateStoreChanged* private_store_changed) {
+  clear_event();
+  if (private_store_changed) {
+    set_has_private_store_changed();
+    _impl_.event_.private_store_changed_ = private_store_changed;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.WorldEvent.private_store_changed)
+}
+inline ::nightfall::v1::PrivateStoreChanged* WorldEvent::_internal_mutable_private_store_changed() {
+  if (event_case() != kPrivateStoreChanged) {
+    clear_event();
+    set_has_private_store_changed();
+    _impl_.event_.private_store_changed_ = CreateMaybeMessage< ::nightfall::v1::PrivateStoreChanged >(GetArenaForAllocation());
+  }
+  return _impl_.event_.private_store_changed_;
+}
+inline ::nightfall::v1::PrivateStoreChanged* WorldEvent::mutable_private_store_changed() {
+  ::nightfall::v1::PrivateStoreChanged* _msg = _internal_mutable_private_store_changed();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.WorldEvent.private_store_changed)
+  return _msg;
+}
+
+// .nightfall.v1.MailNotification mail_notification = 42;
+inline bool WorldEvent::has_mail_notification() const {
+  return event_case() == kMailNotification;
+}
+inline bool WorldEvent::_internal_has_mail_notification() const {
+  return event_case() == kMailNotification;
+}
+inline void WorldEvent::set_has_mail_notification() {
+  _impl_._oneof_case_[0] = kMailNotification;
+}
+inline ::nightfall::v1::MailNotification* WorldEvent::release_mail_notification() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.WorldEvent.mail_notification)
+  if (event_case() == kMailNotification) {
+    clear_has_event();
+    ::nightfall::v1::MailNotification* temp = _impl_.event_.mail_notification_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.event_.mail_notification_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::MailNotification& WorldEvent::_internal_mail_notification() const {
+  return event_case() == kMailNotification
+      ? *_impl_.event_.mail_notification_
+      : reinterpret_cast<::nightfall::v1::MailNotification&>(::nightfall::v1::_MailNotification_default_instance_);
+}
+inline const ::nightfall::v1::MailNotification& WorldEvent::mail_notification() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.WorldEvent.mail_notification)
+  return _internal_mail_notification();
+}
+inline ::nightfall::v1::MailNotification* WorldEvent::unsafe_arena_release_mail_notification() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.WorldEvent.mail_notification)
+  if (event_case() == kMailNotification) {
+    clear_has_event();
+    ::nightfall::v1::MailNotification* temp = _impl_.event_.mail_notification_;
+    _impl_.event_.mail_notification_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void WorldEvent::unsafe_arena_set_allocated_mail_notification(::nightfall::v1::MailNotification* mail_notification) {
+  clear_event();
+  if (mail_notification) {
+    set_has_mail_notification();
+    _impl_.event_.mail_notification_ = mail_notification;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.WorldEvent.mail_notification)
+}
+inline ::nightfall::v1::MailNotification* WorldEvent::_internal_mutable_mail_notification() {
+  if (event_case() != kMailNotification) {
+    clear_event();
+    set_has_mail_notification();
+    _impl_.event_.mail_notification_ = CreateMaybeMessage< ::nightfall::v1::MailNotification >(GetArenaForAllocation());
+  }
+  return _impl_.event_.mail_notification_;
+}
+inline ::nightfall::v1::MailNotification* WorldEvent::mutable_mail_notification() {
+  ::nightfall::v1::MailNotification* _msg = _internal_mutable_mail_notification();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.WorldEvent.mail_notification)
+  return _msg;
+}
+
+// .nightfall.v1.RecipeBookSync recipe_book_sync = 43;
+inline bool WorldEvent::has_recipe_book_sync() const {
+  return event_case() == kRecipeBookSync;
+}
+inline bool WorldEvent::_internal_has_recipe_book_sync() const {
+  return event_case() == kRecipeBookSync;
+}
+inline void WorldEvent::set_has_recipe_book_sync() {
+  _impl_._oneof_case_[0] = kRecipeBookSync;
+}
+inline ::nightfall::v1::RecipeBookSync* WorldEvent::release_recipe_book_sync() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.WorldEvent.recipe_book_sync)
+  if (event_case() == kRecipeBookSync) {
+    clear_has_event();
+    ::nightfall::v1::RecipeBookSync* temp = _impl_.event_.recipe_book_sync_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.event_.recipe_book_sync_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::RecipeBookSync& WorldEvent::_internal_recipe_book_sync() const {
+  return event_case() == kRecipeBookSync
+      ? *_impl_.event_.recipe_book_sync_
+      : reinterpret_cast<::nightfall::v1::RecipeBookSync&>(::nightfall::v1::_RecipeBookSync_default_instance_);
+}
+inline const ::nightfall::v1::RecipeBookSync& WorldEvent::recipe_book_sync() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.WorldEvent.recipe_book_sync)
+  return _internal_recipe_book_sync();
+}
+inline ::nightfall::v1::RecipeBookSync* WorldEvent::unsafe_arena_release_recipe_book_sync() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.WorldEvent.recipe_book_sync)
+  if (event_case() == kRecipeBookSync) {
+    clear_has_event();
+    ::nightfall::v1::RecipeBookSync* temp = _impl_.event_.recipe_book_sync_;
+    _impl_.event_.recipe_book_sync_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void WorldEvent::unsafe_arena_set_allocated_recipe_book_sync(::nightfall::v1::RecipeBookSync* recipe_book_sync) {
+  clear_event();
+  if (recipe_book_sync) {
+    set_has_recipe_book_sync();
+    _impl_.event_.recipe_book_sync_ = recipe_book_sync;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.WorldEvent.recipe_book_sync)
+}
+inline ::nightfall::v1::RecipeBookSync* WorldEvent::_internal_mutable_recipe_book_sync() {
+  if (event_case() != kRecipeBookSync) {
+    clear_event();
+    set_has_recipe_book_sync();
+    _impl_.event_.recipe_book_sync_ = CreateMaybeMessage< ::nightfall::v1::RecipeBookSync >(GetArenaForAllocation());
+  }
+  return _impl_.event_.recipe_book_sync_;
+}
+inline ::nightfall::v1::RecipeBookSync* WorldEvent::mutable_recipe_book_sync() {
+  ::nightfall::v1::RecipeBookSync* _msg = _internal_mutable_recipe_book_sync();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.WorldEvent.recipe_book_sync)
+  return _msg;
+}
+
+// .nightfall.v1.ItemAuctionStatusChanged item_auction_status_changed = 44;
+inline bool WorldEvent::has_item_auction_status_changed() const {
+  return event_case() == kItemAuctionStatusChanged;
+}
+inline bool WorldEvent::_internal_has_item_auction_status_changed() const {
+  return event_case() == kItemAuctionStatusChanged;
+}
+inline void WorldEvent::set_has_item_auction_status_changed() {
+  _impl_._oneof_case_[0] = kItemAuctionStatusChanged;
+}
+inline ::nightfall::v1::ItemAuctionStatusChanged* WorldEvent::release_item_auction_status_changed() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.WorldEvent.item_auction_status_changed)
+  if (event_case() == kItemAuctionStatusChanged) {
+    clear_has_event();
+    ::nightfall::v1::ItemAuctionStatusChanged* temp = _impl_.event_.item_auction_status_changed_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.event_.item_auction_status_changed_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::ItemAuctionStatusChanged& WorldEvent::_internal_item_auction_status_changed() const {
+  return event_case() == kItemAuctionStatusChanged
+      ? *_impl_.event_.item_auction_status_changed_
+      : reinterpret_cast<::nightfall::v1::ItemAuctionStatusChanged&>(::nightfall::v1::_ItemAuctionStatusChanged_default_instance_);
+}
+inline const ::nightfall::v1::ItemAuctionStatusChanged& WorldEvent::item_auction_status_changed() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.WorldEvent.item_auction_status_changed)
+  return _internal_item_auction_status_changed();
+}
+inline ::nightfall::v1::ItemAuctionStatusChanged* WorldEvent::unsafe_arena_release_item_auction_status_changed() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.WorldEvent.item_auction_status_changed)
+  if (event_case() == kItemAuctionStatusChanged) {
+    clear_has_event();
+    ::nightfall::v1::ItemAuctionStatusChanged* temp = _impl_.event_.item_auction_status_changed_;
+    _impl_.event_.item_auction_status_changed_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void WorldEvent::unsafe_arena_set_allocated_item_auction_status_changed(::nightfall::v1::ItemAuctionStatusChanged* item_auction_status_changed) {
+  clear_event();
+  if (item_auction_status_changed) {
+    set_has_item_auction_status_changed();
+    _impl_.event_.item_auction_status_changed_ = item_auction_status_changed;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.WorldEvent.item_auction_status_changed)
+}
+inline ::nightfall::v1::ItemAuctionStatusChanged* WorldEvent::_internal_mutable_item_auction_status_changed() {
+  if (event_case() != kItemAuctionStatusChanged) {
+    clear_event();
+    set_has_item_auction_status_changed();
+    _impl_.event_.item_auction_status_changed_ = CreateMaybeMessage< ::nightfall::v1::ItemAuctionStatusChanged >(GetArenaForAllocation());
+  }
+  return _impl_.event_.item_auction_status_changed_;
+}
+inline ::nightfall::v1::ItemAuctionStatusChanged* WorldEvent::mutable_item_auction_status_changed() {
+  ::nightfall::v1::ItemAuctionStatusChanged* _msg = _internal_mutable_item_auction_status_changed();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.WorldEvent.item_auction_status_changed)
+  return _msg;
+}
+
+// .nightfall.v1.LootDistributed loot_distributed = 45;
+inline bool WorldEvent::has_loot_distributed() const {
+  return event_case() == kLootDistributed;
+}
+inline bool WorldEvent::_internal_has_loot_distributed() const {
+  return event_case() == kLootDistributed;
+}
+inline void WorldEvent::set_has_loot_distributed() {
+  _impl_._oneof_case_[0] = kLootDistributed;
+}
+inline ::nightfall::v1::LootDistributed* WorldEvent::release_loot_distributed() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.WorldEvent.loot_distributed)
+  if (event_case() == kLootDistributed) {
+    clear_has_event();
+    ::nightfall::v1::LootDistributed* temp = _impl_.event_.loot_distributed_;
+    if (GetArenaForAllocation() != nullptr) {
+      temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.event_.loot_distributed_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::nightfall::v1::LootDistributed& WorldEvent::_internal_loot_distributed() const {
+  return event_case() == kLootDistributed
+      ? *_impl_.event_.loot_distributed_
+      : reinterpret_cast<::nightfall::v1::LootDistributed&>(::nightfall::v1::_LootDistributed_default_instance_);
+}
+inline const ::nightfall::v1::LootDistributed& WorldEvent::loot_distributed() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.WorldEvent.loot_distributed)
+  return _internal_loot_distributed();
+}
+inline ::nightfall::v1::LootDistributed* WorldEvent::unsafe_arena_release_loot_distributed() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:nightfall.v1.WorldEvent.loot_distributed)
+  if (event_case() == kLootDistributed) {
+    clear_has_event();
+    ::nightfall::v1::LootDistributed* temp = _impl_.event_.loot_distributed_;
+    _impl_.event_.loot_distributed_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void WorldEvent::unsafe_arena_set_allocated_loot_distributed(::nightfall::v1::LootDistributed* loot_distributed) {
+  clear_event();
+  if (loot_distributed) {
+    set_has_loot_distributed();
+    _impl_.event_.loot_distributed_ = loot_distributed;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.WorldEvent.loot_distributed)
+}
+inline ::nightfall::v1::LootDistributed* WorldEvent::_internal_mutable_loot_distributed() {
+  if (event_case() != kLootDistributed) {
+    clear_event();
+    set_has_loot_distributed();
+    _impl_.event_.loot_distributed_ = CreateMaybeMessage< ::nightfall::v1::LootDistributed >(GetArenaForAllocation());
+  }
+  return _impl_.event_.loot_distributed_;
+}
+inline ::nightfall::v1::LootDistributed* WorldEvent::mutable_loot_distributed() {
+  ::nightfall::v1::LootDistributed* _msg = _internal_mutable_loot_distributed();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.WorldEvent.loot_distributed)
+  return _msg;
+}
+
 inline bool WorldEvent::has_event() const {
   return event_case() != EVENT_NOT_SET;
 }
@@ -16908,6 +21641,90 @@ EntitySpawn::_internal_visible_equipment() const {
 inline ::PROTOBUF_NAMESPACE_ID::RepeatedPtrField<::nightfall::v1::VisibleEquipment>*
 EntitySpawn::_internal_mutable_visible_equipment() {
   return &_impl_.visible_equipment_;
+}
+
+// .nightfall.v1.GroundItemDetail ground_item = 30;
+inline bool EntitySpawn::has_ground_item() const {
+  bool value = (_impl_._has_bits_[0] & 0x00000008u) != 0;
+  PROTOBUF_ASSUME(!value || _impl_.ground_item_ != nullptr);
+  return value;
+}
+inline const ::nightfall::v1::GroundItemDetail& EntitySpawn::_internal_ground_item() const {
+  const ::nightfall::v1::GroundItemDetail* p = _impl_.ground_item_;
+  return p != nullptr ? *p : reinterpret_cast<const ::nightfall::v1::GroundItemDetail&>(
+      ::nightfall::v1::_GroundItemDetail_default_instance_);
+}
+inline const ::nightfall::v1::GroundItemDetail& EntitySpawn::ground_item() const {
+  // @@protoc_insertion_point(field_get:nightfall.v1.EntitySpawn.ground_item)
+  return _internal_ground_item();
+}
+inline void EntitySpawn::unsafe_arena_set_allocated_ground_item(
+    ::nightfall::v1::GroundItemDetail* ground_item) {
+  if (GetArenaForAllocation() == nullptr) {
+    delete reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(_impl_.ground_item_);
+  }
+  _impl_.ground_item_ = ground_item;
+  if (ground_item) {
+    _impl_._has_bits_[0] |= 0x00000008u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000008u;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:nightfall.v1.EntitySpawn.ground_item)
+}
+inline ::nightfall::v1::GroundItemDetail* EntitySpawn::release_ground_item() {
+  _impl_._has_bits_[0] &= ~0x00000008u;
+  ::nightfall::v1::GroundItemDetail* temp = _impl_.ground_item_;
+  _impl_.ground_item_ = nullptr;
+#ifdef PROTOBUF_FORCE_COPY_IN_RELEASE
+  auto* old =  reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(temp);
+  temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+  if (GetArenaForAllocation() == nullptr) { delete old; }
+#else  // PROTOBUF_FORCE_COPY_IN_RELEASE
+  if (GetArenaForAllocation() != nullptr) {
+    temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+  }
+#endif  // !PROTOBUF_FORCE_COPY_IN_RELEASE
+  return temp;
+}
+inline ::nightfall::v1::GroundItemDetail* EntitySpawn::unsafe_arena_release_ground_item() {
+  // @@protoc_insertion_point(field_release:nightfall.v1.EntitySpawn.ground_item)
+  _impl_._has_bits_[0] &= ~0x00000008u;
+  ::nightfall::v1::GroundItemDetail* temp = _impl_.ground_item_;
+  _impl_.ground_item_ = nullptr;
+  return temp;
+}
+inline ::nightfall::v1::GroundItemDetail* EntitySpawn::_internal_mutable_ground_item() {
+  _impl_._has_bits_[0] |= 0x00000008u;
+  if (_impl_.ground_item_ == nullptr) {
+    auto* p = CreateMaybeMessage<::nightfall::v1::GroundItemDetail>(GetArenaForAllocation());
+    _impl_.ground_item_ = p;
+  }
+  return _impl_.ground_item_;
+}
+inline ::nightfall::v1::GroundItemDetail* EntitySpawn::mutable_ground_item() {
+  ::nightfall::v1::GroundItemDetail* _msg = _internal_mutable_ground_item();
+  // @@protoc_insertion_point(field_mutable:nightfall.v1.EntitySpawn.ground_item)
+  return _msg;
+}
+inline void EntitySpawn::set_allocated_ground_item(::nightfall::v1::GroundItemDetail* ground_item) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  if (message_arena == nullptr) {
+    delete reinterpret_cast< ::PROTOBUF_NAMESPACE_ID::MessageLite*>(_impl_.ground_item_);
+  }
+  if (ground_item) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(ground_item));
+    if (message_arena != submessage_arena) {
+      ground_item = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, ground_item, submessage_arena);
+    }
+    _impl_._has_bits_[0] |= 0x00000008u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000008u;
+  }
+  _impl_.ground_item_ = ground_item;
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.EntitySpawn.ground_item)
 }
 
 // -------------------------------------------------------------------

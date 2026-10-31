@@ -54,7 +54,20 @@ FGrpcNightfallV1ClientMessageIntent UGrpcNightfallV1ClientMessageIntentHelperLib
     FGrpcNightfallV1EquipItemRequest EquipItem, FGrpcNightfallV1UnequipItemRequest UnequipItem, FGrpcNightfallV1UseItemRequest UseItem,
     FGrpcNightfallV1DestroyItemRequest DestroyItem, FGrpcNightfallV1EnchantItemRequest EnchantItem, FGrpcNightfallV1ToggleAutoShotRequest ToggleAutoShot,
     FGrpcNightfallV1RefineItemRequest RefineItem, FGrpcNightfallV1CancelRefineRequest CancelRefine, FGrpcNightfallV1ExchangeSpecialAbilityRequest ExchangeSpecialAbility,
-    FGrpcNightfallV1CrystallizeItemRequest CrystallizeItem
+    FGrpcNightfallV1CrystallizeItemRequest CrystallizeItem, FGrpcNightfallV1PickUpItemRequest PickUpItem, FGrpcNightfallV1VendorBuyRequest VendorBuy,
+    FGrpcNightfallV1VendorSellRequest VendorSell, FGrpcNightfallV1VendorRefundRequest VendorRefund, FGrpcNightfallV1MultisellChooseRequest MultisellChoose,
+    FGrpcNightfallV1RegisterRecipeRequest RegisterRecipe, FGrpcNightfallV1DeleteRecipeRequest DeleteRecipe, FGrpcNightfallV1CraftItemRequest CraftItem,
+    FGrpcNightfallV1TradeRequestRequest TradeRequest, FGrpcNightfallV1TradeAnswerRequest TradeAnswer, FGrpcNightfallV1TradeAddItemRequest TradeAddItem,
+    FGrpcNightfallV1TradeConfirmRequest TradeConfirm, FGrpcNightfallV1TradeCancelRequest TradeCancel, FGrpcNightfallV1SetPrivateStoreSellRequest SetPrivateStoreSell,
+    FGrpcNightfallV1SetPrivateStoreBuyRequest SetPrivateStoreBuy, FGrpcNightfallV1SetPrivateManufactureRequest SetPrivateManufacture, FGrpcNightfallV1ClosePrivateStoreRequest ClosePrivateStore,
+    FGrpcNightfallV1PrivateStoreBuyRequest PrivateStoreBuy, FGrpcNightfallV1PrivateStoreSellRequest PrivateStoreSell, FGrpcNightfallV1PrivateManufactureOrderRequest PrivateManufactureOrder,
+    FGrpcNightfallV1PartyInviteRequest PartyInvite, FGrpcNightfallV1PartyAnswerRequest PartyAnswer, FGrpcNightfallV1PartyLeaveRequest PartyLeave,
+    FGrpcNightfallV1PartyKickRequest PartyKick, FGrpcNightfallV1PartyChangeLeaderRequest PartyChangeLeader, FGrpcNightfallV1PartyLootChangeRequest PartyLootChangeRequest,
+    FGrpcNightfallV1PartyLootChangeAnswer PartyLootChangeAnswer, FGrpcNightfallV1WarehouseDepositRequest WarehouseDeposit, FGrpcNightfallV1WarehouseWithdrawRequest WarehouseWithdraw,
+    FGrpcNightfallV1FreightSendRequest FreightSend, FGrpcNightfallV1FreightWithdrawRequest FreightWithdraw, FGrpcNightfallV1MailSendRequest MailSend,
+    FGrpcNightfallV1MailTakeAttachmentsRequest MailTakeAttachments, FGrpcNightfallV1MailRejectRequest MailReject, FGrpcNightfallV1MailCancelRequest MailCancel,
+    FGrpcNightfallV1MailDeleteRequest MailDelete, FGrpcNightfallV1ManorBuySeedRequest ManorBuySeed, FGrpcNightfallV1ManorSellCropRequest ManorSellCrop,
+    FGrpcNightfallV1ItemAuctionBidRequest ItemAuctionBid, FGrpcNightfallV1ItemAuctionCancelBidRequest ItemAuctionCancelBid, FGrpcNightfallV1MailMarkReadRequest MailMarkRead
 )
 {
     FGrpcNightfallV1ClientMessageIntent Intent;
@@ -78,6 +91,47 @@ FGrpcNightfallV1ClientMessageIntent UGrpcNightfallV1ClientMessageIntentHelperLib
     Intent.CancelRefine = CancelRefine;
     Intent.ExchangeSpecialAbility = ExchangeSpecialAbility;
     Intent.CrystallizeItem = CrystallizeItem;
+    Intent.PickUpItem = PickUpItem;
+    Intent.VendorBuy = VendorBuy;
+    Intent.VendorSell = VendorSell;
+    Intent.VendorRefund = VendorRefund;
+    Intent.MultisellChoose = MultisellChoose;
+    Intent.RegisterRecipe = RegisterRecipe;
+    Intent.DeleteRecipe = DeleteRecipe;
+    Intent.CraftItem = CraftItem;
+    Intent.TradeRequest = TradeRequest;
+    Intent.TradeAnswer = TradeAnswer;
+    Intent.TradeAddItem = TradeAddItem;
+    Intent.TradeConfirm = TradeConfirm;
+    Intent.TradeCancel = TradeCancel;
+    Intent.SetPrivateStoreSell = SetPrivateStoreSell;
+    Intent.SetPrivateStoreBuy = SetPrivateStoreBuy;
+    Intent.SetPrivateManufacture = SetPrivateManufacture;
+    Intent.ClosePrivateStore = ClosePrivateStore;
+    Intent.PrivateStoreBuy = PrivateStoreBuy;
+    Intent.PrivateStoreSell = PrivateStoreSell;
+    Intent.PrivateManufactureOrder = PrivateManufactureOrder;
+    Intent.PartyInvite = PartyInvite;
+    Intent.PartyAnswer = PartyAnswer;
+    Intent.PartyLeave = PartyLeave;
+    Intent.PartyKick = PartyKick;
+    Intent.PartyChangeLeader = PartyChangeLeader;
+    Intent.PartyLootChangeRequest = PartyLootChangeRequest;
+    Intent.PartyLootChangeAnswer = PartyLootChangeAnswer;
+    Intent.WarehouseDeposit = WarehouseDeposit;
+    Intent.WarehouseWithdraw = WarehouseWithdraw;
+    Intent.FreightSend = FreightSend;
+    Intent.FreightWithdraw = FreightWithdraw;
+    Intent.MailSend = MailSend;
+    Intent.MailTakeAttachments = MailTakeAttachments;
+    Intent.MailReject = MailReject;
+    Intent.MailCancel = MailCancel;
+    Intent.MailDelete = MailDelete;
+    Intent.ManorBuySeed = ManorBuySeed;
+    Intent.ManorSellCrop = ManorSellCrop;
+    Intent.ItemAuctionBid = ItemAuctionBid;
+    Intent.ItemAuctionCancelBid = ItemAuctionCancelBid;
+    Intent.MailMarkRead = MailMarkRead;
 
     return Intent;
 }
@@ -89,7 +143,20 @@ void UGrpcNightfallV1ClientMessageIntentHelperLibrary::BreakIntent(const FGrpcNi
     FGrpcNightfallV1EquipItemRequest& EquipItem, FGrpcNightfallV1UnequipItemRequest& UnequipItem, FGrpcNightfallV1UseItemRequest& UseItem,
     FGrpcNightfallV1DestroyItemRequest& DestroyItem, FGrpcNightfallV1EnchantItemRequest& EnchantItem, FGrpcNightfallV1ToggleAutoShotRequest& ToggleAutoShot,
     FGrpcNightfallV1RefineItemRequest& RefineItem, FGrpcNightfallV1CancelRefineRequest& CancelRefine, FGrpcNightfallV1ExchangeSpecialAbilityRequest& ExchangeSpecialAbility,
-    FGrpcNightfallV1CrystallizeItemRequest& CrystallizeItem
+    FGrpcNightfallV1CrystallizeItemRequest& CrystallizeItem, FGrpcNightfallV1PickUpItemRequest& PickUpItem, FGrpcNightfallV1VendorBuyRequest& VendorBuy,
+    FGrpcNightfallV1VendorSellRequest& VendorSell, FGrpcNightfallV1VendorRefundRequest& VendorRefund, FGrpcNightfallV1MultisellChooseRequest& MultisellChoose,
+    FGrpcNightfallV1RegisterRecipeRequest& RegisterRecipe, FGrpcNightfallV1DeleteRecipeRequest& DeleteRecipe, FGrpcNightfallV1CraftItemRequest& CraftItem,
+    FGrpcNightfallV1TradeRequestRequest& TradeRequest, FGrpcNightfallV1TradeAnswerRequest& TradeAnswer, FGrpcNightfallV1TradeAddItemRequest& TradeAddItem,
+    FGrpcNightfallV1TradeConfirmRequest& TradeConfirm, FGrpcNightfallV1TradeCancelRequest& TradeCancel, FGrpcNightfallV1SetPrivateStoreSellRequest& SetPrivateStoreSell,
+    FGrpcNightfallV1SetPrivateStoreBuyRequest& SetPrivateStoreBuy, FGrpcNightfallV1SetPrivateManufactureRequest& SetPrivateManufacture, FGrpcNightfallV1ClosePrivateStoreRequest& ClosePrivateStore,
+    FGrpcNightfallV1PrivateStoreBuyRequest& PrivateStoreBuy, FGrpcNightfallV1PrivateStoreSellRequest& PrivateStoreSell, FGrpcNightfallV1PrivateManufactureOrderRequest& PrivateManufactureOrder,
+    FGrpcNightfallV1PartyInviteRequest& PartyInvite, FGrpcNightfallV1PartyAnswerRequest& PartyAnswer, FGrpcNightfallV1PartyLeaveRequest& PartyLeave,
+    FGrpcNightfallV1PartyKickRequest& PartyKick, FGrpcNightfallV1PartyChangeLeaderRequest& PartyChangeLeader, FGrpcNightfallV1PartyLootChangeRequest& PartyLootChangeRequest,
+    FGrpcNightfallV1PartyLootChangeAnswer& PartyLootChangeAnswer, FGrpcNightfallV1WarehouseDepositRequest& WarehouseDeposit, FGrpcNightfallV1WarehouseWithdrawRequest& WarehouseWithdraw,
+    FGrpcNightfallV1FreightSendRequest& FreightSend, FGrpcNightfallV1FreightWithdrawRequest& FreightWithdraw, FGrpcNightfallV1MailSendRequest& MailSend,
+    FGrpcNightfallV1MailTakeAttachmentsRequest& MailTakeAttachments, FGrpcNightfallV1MailRejectRequest& MailReject, FGrpcNightfallV1MailCancelRequest& MailCancel,
+    FGrpcNightfallV1MailDeleteRequest& MailDelete, FGrpcNightfallV1ManorBuySeedRequest& ManorBuySeed, FGrpcNightfallV1ManorSellCropRequest& ManorSellCrop,
+    FGrpcNightfallV1ItemAuctionBidRequest& ItemAuctionBid, FGrpcNightfallV1ItemAuctionCancelBidRequest& ItemAuctionCancelBid, FGrpcNightfallV1MailMarkReadRequest& MailMarkRead
 )
 {
     IntentCase = Intent.IntentCase;
@@ -139,6 +206,47 @@ void UGrpcNightfallV1ClientMessageIntentHelperLibrary::BreakIntent(const FGrpcNi
     CancelRefine = Intent.CancelRefine;
     ExchangeSpecialAbility = Intent.ExchangeSpecialAbility;
     CrystallizeItem = Intent.CrystallizeItem;
+    PickUpItem = Intent.PickUpItem;
+    VendorBuy = Intent.VendorBuy;
+    VendorSell = Intent.VendorSell;
+    VendorRefund = Intent.VendorRefund;
+    MultisellChoose = Intent.MultisellChoose;
+    RegisterRecipe = Intent.RegisterRecipe;
+    DeleteRecipe = Intent.DeleteRecipe;
+    CraftItem = Intent.CraftItem;
+    TradeRequest = Intent.TradeRequest;
+    TradeAnswer = Intent.TradeAnswer;
+    TradeAddItem = Intent.TradeAddItem;
+    TradeConfirm = Intent.TradeConfirm;
+    TradeCancel = Intent.TradeCancel;
+    SetPrivateStoreSell = Intent.SetPrivateStoreSell;
+    SetPrivateStoreBuy = Intent.SetPrivateStoreBuy;
+    SetPrivateManufacture = Intent.SetPrivateManufacture;
+    ClosePrivateStore = Intent.ClosePrivateStore;
+    PrivateStoreBuy = Intent.PrivateStoreBuy;
+    PrivateStoreSell = Intent.PrivateStoreSell;
+    PrivateManufactureOrder = Intent.PrivateManufactureOrder;
+    PartyInvite = Intent.PartyInvite;
+    PartyAnswer = Intent.PartyAnswer;
+    PartyLeave = Intent.PartyLeave;
+    PartyKick = Intent.PartyKick;
+    PartyChangeLeader = Intent.PartyChangeLeader;
+    PartyLootChangeRequest = Intent.PartyLootChangeRequest;
+    PartyLootChangeAnswer = Intent.PartyLootChangeAnswer;
+    WarehouseDeposit = Intent.WarehouseDeposit;
+    WarehouseWithdraw = Intent.WarehouseWithdraw;
+    FreightSend = Intent.FreightSend;
+    FreightWithdraw = Intent.FreightWithdraw;
+    MailSend = Intent.MailSend;
+    MailTakeAttachments = Intent.MailTakeAttachments;
+    MailReject = Intent.MailReject;
+    MailCancel = Intent.MailCancel;
+    MailDelete = Intent.MailDelete;
+    ManorBuySeed = Intent.ManorBuySeed;
+    ManorSellCrop = Intent.ManorSellCrop;
+    ItemAuctionBid = Intent.ItemAuctionBid;
+    ItemAuctionCancelBid = Intent.ItemAuctionCancelBid;
+    MailMarkRead = Intent.MailMarkRead;
 }
 
 FGrpcNightfallV1CastSkillRequest_target UGrpcNightfallV1CastSkillRequest_targetHelperLibrary::Make_target(EGrpcNightfallV1CastSkillRequest_target _targetCase,
@@ -222,7 +330,11 @@ FGrpcNightfallV1WorldEventEvent UGrpcNightfallV1WorldEventEventHelperLibrary::Ma
     FGrpcNightfallV1ResurrectOffer ResurrectOffer, FGrpcNightfallV1SpGained SpGained, FGrpcNightfallV1SkillStateSync SkillStateSync,
     FGrpcNightfallV1VitalsChanged VitalsChanged, FGrpcNightfallV1InventorySync InventorySync, FGrpcNightfallV1InventoryChanged InventoryChanged,
     FGrpcNightfallV1EquipmentChanged EquipmentChanged, FGrpcNightfallV1WeightChanged WeightChanged, FGrpcNightfallV1PenaltyChanged PenaltyChanged,
-    FGrpcNightfallV1EnchantResult EnchantResult, FGrpcNightfallV1RefineResult RefineResult, FGrpcNightfallV1ItemOperationResult ItemOperationResult
+    FGrpcNightfallV1EnchantResult EnchantResult, FGrpcNightfallV1RefineResult RefineResult, FGrpcNightfallV1ItemOperationResult ItemOperationResult,
+    FGrpcNightfallV1EconomyResult EconomyResult, FGrpcNightfallV1CorpseStateChanged CorpseStateChanged, FGrpcNightfallV1PartyStateChanged PartyStateChanged,
+    FGrpcNightfallV1PartyLootVote PartyLootVote, FGrpcNightfallV1PartyInviteReceived PartyInviteReceived, FGrpcNightfallV1TradeRequestReceived TradeRequestReceived,
+    FGrpcNightfallV1TradeSessionChanged TradeSessionChanged, FGrpcNightfallV1PrivateStoreChanged PrivateStoreChanged, FGrpcNightfallV1MailNotification MailNotification,
+    FGrpcNightfallV1RecipeBookSync RecipeBookSync, FGrpcNightfallV1ItemAuctionStatusChanged ItemAuctionStatusChanged, FGrpcNightfallV1LootDistributed LootDistributed
 )
 {
     FGrpcNightfallV1WorldEventEvent Event;
@@ -260,6 +372,18 @@ FGrpcNightfallV1WorldEventEvent UGrpcNightfallV1WorldEventEventHelperLibrary::Ma
     Event.EnchantResult = EnchantResult;
     Event.RefineResult = RefineResult;
     Event.ItemOperationResult = ItemOperationResult;
+    Event.EconomyResult = EconomyResult;
+    Event.CorpseStateChanged = CorpseStateChanged;
+    Event.PartyStateChanged = PartyStateChanged;
+    Event.PartyLootVote = PartyLootVote;
+    Event.PartyInviteReceived = PartyInviteReceived;
+    Event.TradeRequestReceived = TradeRequestReceived;
+    Event.TradeSessionChanged = TradeSessionChanged;
+    Event.PrivateStoreChanged = PrivateStoreChanged;
+    Event.MailNotification = MailNotification;
+    Event.RecipeBookSync = RecipeBookSync;
+    Event.ItemAuctionStatusChanged = ItemAuctionStatusChanged;
+    Event.LootDistributed = LootDistributed;
 
     return Event;
 }
@@ -275,7 +399,11 @@ void UGrpcNightfallV1WorldEventEventHelperLibrary::BreakEvent(const FGrpcNightfa
     FGrpcNightfallV1ResurrectOffer& ResurrectOffer, FGrpcNightfallV1SpGained& SpGained, FGrpcNightfallV1SkillStateSync& SkillStateSync,
     FGrpcNightfallV1VitalsChanged& VitalsChanged, FGrpcNightfallV1InventorySync& InventorySync, FGrpcNightfallV1InventoryChanged& InventoryChanged,
     FGrpcNightfallV1EquipmentChanged& EquipmentChanged, FGrpcNightfallV1WeightChanged& WeightChanged, FGrpcNightfallV1PenaltyChanged& PenaltyChanged,
-    FGrpcNightfallV1EnchantResult& EnchantResult, FGrpcNightfallV1RefineResult& RefineResult, FGrpcNightfallV1ItemOperationResult& ItemOperationResult
+    FGrpcNightfallV1EnchantResult& EnchantResult, FGrpcNightfallV1RefineResult& RefineResult, FGrpcNightfallV1ItemOperationResult& ItemOperationResult,
+    FGrpcNightfallV1EconomyResult& EconomyResult, FGrpcNightfallV1CorpseStateChanged& CorpseStateChanged, FGrpcNightfallV1PartyStateChanged& PartyStateChanged,
+    FGrpcNightfallV1PartyLootVote& PartyLootVote, FGrpcNightfallV1PartyInviteReceived& PartyInviteReceived, FGrpcNightfallV1TradeRequestReceived& TradeRequestReceived,
+    FGrpcNightfallV1TradeSessionChanged& TradeSessionChanged, FGrpcNightfallV1PrivateStoreChanged& PrivateStoreChanged, FGrpcNightfallV1MailNotification& MailNotification,
+    FGrpcNightfallV1RecipeBookSync& RecipeBookSync, FGrpcNightfallV1ItemAuctionStatusChanged& ItemAuctionStatusChanged, FGrpcNightfallV1LootDistributed& LootDistributed
 )
 {
     EventCase = Event.EventCase;
@@ -387,6 +515,18 @@ void UGrpcNightfallV1WorldEventEventHelperLibrary::BreakEvent(const FGrpcNightfa
     EnchantResult = Event.EnchantResult;
     RefineResult = Event.RefineResult;
     ItemOperationResult = Event.ItemOperationResult;
+    EconomyResult = Event.EconomyResult;
+    CorpseStateChanged = Event.CorpseStateChanged;
+    PartyStateChanged = Event.PartyStateChanged;
+    PartyLootVote = Event.PartyLootVote;
+    PartyInviteReceived = Event.PartyInviteReceived;
+    TradeRequestReceived = Event.TradeRequestReceived;
+    TradeSessionChanged = Event.TradeSessionChanged;
+    PrivateStoreChanged = Event.PrivateStoreChanged;
+    MailNotification = Event.MailNotification;
+    RecipeBookSync = Event.RecipeBookSync;
+    ItemAuctionStatusChanged = Event.ItemAuctionStatusChanged;
+    LootDistributed = Event.LootDistributed;
 }
 
 FGrpcNightfallV1EntitySpawn UGrpcNightfallV1EntitySpawnHelperLibrary::MakeEntitySpawn(
@@ -399,7 +539,7 @@ FGrpcNightfallV1EntitySpawn UGrpcNightfallV1EntitySpawnHelperLibrary::MakeEntity
     FUInt32 HairColor, FUInt32 Face, FUInt64 StateTick,
     FUInt64 FlagUntilTick, FUInt32 Karma, TArray<FGrpcNightfallV1ActiveEffect> ActiveEffects,
     FGrpcNightfallV1SkillCastStarted PendingCast, FUInt32 PkCount, FUInt32 PvpCount,
-    FUInt64 StatusFlags, TArray<FGrpcNightfallV1VisibleEquipment> VisibleEquipment
+    FUInt64 StatusFlags, TArray<FGrpcNightfallV1VisibleEquipment> VisibleEquipment, FGrpcNightfallV1GroundItemDetail GroundItem
 )
 {
     FGrpcNightfallV1EntitySpawn EntitySpawn;
@@ -435,6 +575,7 @@ FGrpcNightfallV1EntitySpawn UGrpcNightfallV1EntitySpawnHelperLibrary::MakeEntity
     EntitySpawn.PvpCount = PvpCount;
     EntitySpawn.StatusFlags = StatusFlags;
     EntitySpawn.VisibleEquipment = VisibleEquipment;
+    EntitySpawn.GroundItem = GroundItem;
 
     return EntitySpawn;
 }
@@ -449,7 +590,7 @@ void UGrpcNightfallV1EntitySpawnHelperLibrary::BreakEntitySpawn(const FGrpcNight
     FUInt32& HairColor, FUInt32& Face, FUInt64& StateTick,
     FUInt64& FlagUntilTick, FUInt32& Karma, TArray<FGrpcNightfallV1ActiveEffect>& ActiveEffects,
     FGrpcNightfallV1SkillCastStarted& PendingCast, FUInt32& PkCount, FUInt32& PvpCount,
-    FUInt64& StatusFlags, TArray<FGrpcNightfallV1VisibleEquipment>& VisibleEquipment
+    FUInt64& StatusFlags, TArray<FGrpcNightfallV1VisibleEquipment>& VisibleEquipment, FGrpcNightfallV1GroundItemDetail& GroundItem
 )
 {
     EntityId = EntitySpawn.EntityId;
@@ -490,6 +631,7 @@ void UGrpcNightfallV1EntitySpawnHelperLibrary::BreakEntitySpawn(const FGrpcNight
     PvpCount = EntitySpawn.PvpCount;
     StatusFlags = EntitySpawn.StatusFlags;
     VisibleEquipment = EntitySpawn.VisibleEquipment;
+    GroundItem = EntitySpawn.GroundItem;
 }
 
 FGrpcNightfallV1AttackStarted_attacker_incarnation UGrpcNightfallV1AttackStarted_attacker_incarnationHelperLibrary::Make_attacker_incarnation(EGrpcNightfallV1AttackStarted_attacker_incarnation _attacker_incarnationCase,

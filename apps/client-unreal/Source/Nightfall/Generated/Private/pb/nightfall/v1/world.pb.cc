@@ -290,6 +290,7 @@ PROTOBUF_CONSTEXPR EntitySpawn::EntitySpawn(
   , /*decltype(_impl_.position_)*/nullptr
   , /*decltype(_impl_.pending_swing_)*/nullptr
   , /*decltype(_impl_.pending_cast_)*/nullptr
+  , /*decltype(_impl_.ground_item_)*/nullptr
   , /*decltype(_impl_.kind_)*/ 0
 
   , /*decltype(_impl_.session_generation_)*/ 0u
@@ -1258,6 +1259,47 @@ const ::uint32_t TableStruct_nightfall_2fv1_2fworld_2eproto::offsets[] PROTOBUF_
     ::_pbi::kInvalidFieldOffsetTag,
     ::_pbi::kInvalidFieldOffsetTag,
     ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::ClientMessage, _impl_.intent_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::MoveToRequest, _impl_._has_bits_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::MoveToRequest, _internal_metadata_),
@@ -1416,6 +1458,18 @@ const ::uint32_t TableStruct_nightfall_2fv1_2fworld_2eproto::offsets[] PROTOBUF_
     ::_pbi::kInvalidFieldOffsetTag,
     ::_pbi::kInvalidFieldOffsetTag,
     ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
+    ::_pbi::kInvalidFieldOffsetTag,
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::WorldEvent, _impl_.event_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::EntitySpawn, _impl_._has_bits_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::EntitySpawn, _internal_metadata_),
@@ -1454,6 +1508,7 @@ const ::uint32_t TableStruct_nightfall_2fv1_2fworld_2eproto::offsets[] PROTOBUF_
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::EntitySpawn, _impl_.pvp_count_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::EntitySpawn, _impl_.status_flags_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::EntitySpawn, _impl_.visible_equipment_),
+    PROTOBUF_FIELD_OFFSET(::nightfall::v1::EntitySpawn, _impl_.ground_item_),
     ~0u,
     ~0u,
     0,
@@ -1483,6 +1538,7 @@ const ::uint32_t TableStruct_nightfall_2fv1_2fworld_2eproto::offsets[] PROTOBUF_
     ~0u,
     ~0u,
     ~0u,
+    3,
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::EntityMove, _impl_._has_bits_),
     PROTOBUF_FIELD_OFFSET(::nightfall::v1::EntityMove, _internal_metadata_),
     ~0u,  // no _extensions_
@@ -2028,48 +2084,48 @@ const ::uint32_t TableStruct_nightfall_2fv1_2fworld_2eproto::offsets[] PROTOBUF_
 static const ::_pbi::MigrationSchema
     schemas[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) = {
         { 0, -1, -1, sizeof(::nightfall::v1::ClientMessage)},
-        { 29, 38, -1, sizeof(::nightfall::v1::MoveToRequest)},
-        { 39, -1, -1, sizeof(::nightfall::v1::StopMoveRequest)},
-        { 47, -1, -1, sizeof(::nightfall::v1::SetTargetRequest)},
-        { 56, -1, -1, sizeof(::nightfall::v1::AttackRequest)},
-        { 64, -1, -1, sizeof(::nightfall::v1::StopAttackRequest)},
-        { 72, -1, -1, sizeof(::nightfall::v1::RespawnRequest)},
-        { 80, 90, -1, sizeof(::nightfall::v1::CastSkillRequest)},
-        { 92, 101, -1, sizeof(::nightfall::v1::CancelCastRequest)},
-        { 102, -1, -1, sizeof(::nightfall::v1::AcceptResurrectRequest)},
-        { 112, -1, -1, sizeof(::nightfall::v1::ServerMessage)},
-        { 124, -1, -1, sizeof(::nightfall::v1::Ack)},
-        { 134, -1, -1, sizeof(::nightfall::v1::IntentRejected)},
-        { 145, -1, -1, sizeof(::nightfall::v1::WorldEvent)},
-        { 187, 224, -1, sizeof(::nightfall::v1::EntitySpawn)},
-        { 253, 267, -1, sizeof(::nightfall::v1::EntityMove)},
-        { 273, -1, -1, sizeof(::nightfall::v1::EntityDespawn)},
-        { 282, -1, -1, sizeof(::nightfall::v1::AttackResult)},
-        { 298, -1, -1, sizeof(::nightfall::v1::EntityDied)},
-        { 310, 327, -1, sizeof(::nightfall::v1::AttackStarted)},
-        { 336, -1, -1, sizeof(::nightfall::v1::AttackCancelled)},
-        { 348, 361, -1, sizeof(::nightfall::v1::EntityRespawned)},
-        { 366, 400, -1, sizeof(::nightfall::v1::StatsChanged)},
-        { 426, -1, -1, sizeof(::nightfall::v1::XpGained)},
-        { 437, -1, -1, sizeof(::nightfall::v1::LevelUp)},
-        { 447, 461, -1, sizeof(::nightfall::v1::TargetChanged)},
-        { 467, -1, -1, sizeof(::nightfall::v1::ClassChanged)},
-        { 479, 495, -1, sizeof(::nightfall::v1::ActiveEffect)},
-        { 503, 524, -1, sizeof(::nightfall::v1::SkillCastStarted)},
-        { 537, -1, -1, sizeof(::nightfall::v1::SkillTargetResult)},
-        { 556, 572, -1, sizeof(::nightfall::v1::SkillCastResult)},
-        { 580, -1, -1, sizeof(::nightfall::v1::SkillCastCancelled)},
-        { 593, 617, -1, sizeof(::nightfall::v1::EffectApplied)},
-        { 633, -1, -1, sizeof(::nightfall::v1::EffectRemoved)},
-        { 646, -1, -1, sizeof(::nightfall::v1::SkillReuse)},
-        { 659, -1, -1, sizeof(::nightfall::v1::SkillLearned)},
-        { 675, -1, -1, sizeof(::nightfall::v1::PvpStateChanged)},
-        { 692, 712, -1, sizeof(::nightfall::v1::ResurrectOffer)},
-        { 724, -1, -1, sizeof(::nightfall::v1::SpGained)},
-        { 737, -1, -1, sizeof(::nightfall::v1::LearnedSkillRank)},
-        { 747, -1, -1, sizeof(::nightfall::v1::SkillReuseState)},
-        { 757, -1, -1, sizeof(::nightfall::v1::SkillStateSync)},
-        { 778, -1, -1, sizeof(::nightfall::v1::VitalsChanged)},
+        { 70, 79, -1, sizeof(::nightfall::v1::MoveToRequest)},
+        { 80, -1, -1, sizeof(::nightfall::v1::StopMoveRequest)},
+        { 88, -1, -1, sizeof(::nightfall::v1::SetTargetRequest)},
+        { 97, -1, -1, sizeof(::nightfall::v1::AttackRequest)},
+        { 105, -1, -1, sizeof(::nightfall::v1::StopAttackRequest)},
+        { 113, -1, -1, sizeof(::nightfall::v1::RespawnRequest)},
+        { 121, 131, -1, sizeof(::nightfall::v1::CastSkillRequest)},
+        { 133, 142, -1, sizeof(::nightfall::v1::CancelCastRequest)},
+        { 143, -1, -1, sizeof(::nightfall::v1::AcceptResurrectRequest)},
+        { 153, -1, -1, sizeof(::nightfall::v1::ServerMessage)},
+        { 165, -1, -1, sizeof(::nightfall::v1::Ack)},
+        { 175, -1, -1, sizeof(::nightfall::v1::IntentRejected)},
+        { 186, -1, -1, sizeof(::nightfall::v1::WorldEvent)},
+        { 240, 278, -1, sizeof(::nightfall::v1::EntitySpawn)},
+        { 308, 322, -1, sizeof(::nightfall::v1::EntityMove)},
+        { 328, -1, -1, sizeof(::nightfall::v1::EntityDespawn)},
+        { 337, -1, -1, sizeof(::nightfall::v1::AttackResult)},
+        { 353, -1, -1, sizeof(::nightfall::v1::EntityDied)},
+        { 365, 382, -1, sizeof(::nightfall::v1::AttackStarted)},
+        { 391, -1, -1, sizeof(::nightfall::v1::AttackCancelled)},
+        { 403, 416, -1, sizeof(::nightfall::v1::EntityRespawned)},
+        { 421, 455, -1, sizeof(::nightfall::v1::StatsChanged)},
+        { 481, -1, -1, sizeof(::nightfall::v1::XpGained)},
+        { 492, -1, -1, sizeof(::nightfall::v1::LevelUp)},
+        { 502, 516, -1, sizeof(::nightfall::v1::TargetChanged)},
+        { 522, -1, -1, sizeof(::nightfall::v1::ClassChanged)},
+        { 534, 550, -1, sizeof(::nightfall::v1::ActiveEffect)},
+        { 558, 579, -1, sizeof(::nightfall::v1::SkillCastStarted)},
+        { 592, -1, -1, sizeof(::nightfall::v1::SkillTargetResult)},
+        { 611, 627, -1, sizeof(::nightfall::v1::SkillCastResult)},
+        { 635, -1, -1, sizeof(::nightfall::v1::SkillCastCancelled)},
+        { 648, 672, -1, sizeof(::nightfall::v1::EffectApplied)},
+        { 688, -1, -1, sizeof(::nightfall::v1::EffectRemoved)},
+        { 701, -1, -1, sizeof(::nightfall::v1::SkillReuse)},
+        { 714, -1, -1, sizeof(::nightfall::v1::SkillLearned)},
+        { 730, -1, -1, sizeof(::nightfall::v1::PvpStateChanged)},
+        { 747, 767, -1, sizeof(::nightfall::v1::ResurrectOffer)},
+        { 779, -1, -1, sizeof(::nightfall::v1::SpGained)},
+        { 792, -1, -1, sizeof(::nightfall::v1::LearnedSkillRank)},
+        { 802, -1, -1, sizeof(::nightfall::v1::SkillReuseState)},
+        { 812, -1, -1, sizeof(::nightfall::v1::SkillStateSync)},
+        { 833, -1, -1, sizeof(::nightfall::v1::VitalsChanged)},
 };
 
 static const ::_pb::Message* const file_default_instances[] = {
@@ -2119,332 +2175,467 @@ static const ::_pb::Message* const file_default_instances[] = {
 };
 const char descriptor_table_protodef_nightfall_2fv1_2fworld_2eproto[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) = {
     "\n\030nightfall/v1/world.proto\022\014nightfall.v1"
-    "\032\027nightfall/v1/game.proto\032\030nightfall/v1/"
-    "items.proto\"\346\010\n\rClientMessage\022\013\n\003seq\030\001 \001"
-    "(\r\022.\n\007move_to\030\n \001(\0132\033.nightfall.v1.MoveT"
-    "oRequestH\000\0222\n\tstop_move\030\013 \001(\0132\035.nightfal"
-    "l.v1.StopMoveRequestH\000\0224\n\nset_target\030\014 \001"
-    "(\0132\036.nightfall.v1.SetTargetRequestH\000\022-\n\006"
-    "attack\030\r \001(\0132\033.nightfall.v1.AttackReques"
-    "tH\000\0226\n\013stop_attack\030\016 \001(\0132\037.nightfall.v1."
-    "StopAttackRequestH\000\022/\n\007respawn\030\017 \001(\0132\034.n"
-    "ightfall.v1.RespawnRequestH\000\0224\n\ncast_ski"
-    "ll\030\020 \001(\0132\036.nightfall.v1.CastSkillRequest"
-    "H\000\0226\n\013cancel_cast\030\021 \001(\0132\037.nightfall.v1.C"
-    "ancelCastRequestH\000\022@\n\020accept_resurrect\030\022"
-    " \001(\0132$.nightfall.v1.AcceptResurrectReque"
-    "stH\000\0224\n\nequip_item\030\023 \001(\0132\036.nightfall.v1."
-    "EquipItemRequestH\000\0228\n\014unequip_item\030\024 \001(\013"
-    "2 .nightfall.v1.UnequipItemRequestH\000\0220\n\010"
-    "use_item\030\025 \001(\0132\034.nightfall.v1.UseItemReq"
-    "uestH\000\0228\n\014destroy_item\030\026 \001(\0132 .nightfall"
-    ".v1.DestroyItemRequestH\000\0228\n\014enchant_item"
-    "\030\027 \001(\0132 .nightfall.v1.EnchantItemRequest"
-    "H\000\022\?\n\020toggle_auto_shot\030\030 \001(\0132#.nightfall"
-    ".v1.ToggleAutoShotRequestH\000\0226\n\013refine_it"
-    "em\030\031 \001(\0132\037.nightfall.v1.RefineItemReques"
-    "tH\000\022:\n\rcancel_refine\030\032 \001(\0132!.nightfall.v"
-    "1.CancelRefineRequestH\000\022O\n\030exchange_spec"
-    "ial_ability\030\033 \001(\0132+.nightfall.v1.Exchang"
-    "eSpecialAbilityRequestH\000\022@\n\020crystallize_"
-    "item\030\034 \001(\0132$.nightfall.v1.CrystallizeIte"
-    "mRequestH\000B\010\n\006intent\"<\n\rMoveToRequest\022+\n"
-    "\013destination\030\001 \001(\0132\026.nightfall.v1.Positi"
-    "on\"\021\n\017StopMoveRequest\"%\n\020SetTargetReques"
-    "t\022\021\n\tentity_id\030\001 \001(\t\"\017\n\rAttackRequest\"\023\n"
-    "\021StopAttackRequest\"\020\n\016RespawnRequest\"D\n\020"
-    "CastSkillRequest\022\020\n\010skill_id\030\001 \001(\r\022\023\n\006ta"
-    "rget\030\002 \001(\tH\000\210\001\001B\t\n\007_target\"5\n\021CancelCast"
-    "Request\022\024\n\007cast_id\030\001 \001(\004H\000\210\001\001B\n\n\010_cast_i"
-    "d\":\n\026AcceptResurrectRequest\022\020\n\010offer_id\030"
-    "\001 \001(\004\022\016\n\006accept\030\002 \001(\010\"\231\001\n\rServerMessage\022"
-    " \n\003ack\030\001 \001(\0132\021.nightfall.v1.AckH\000\022)\n\005eve"
-    "nt\030\002 \001(\0132\030.nightfall.v1.WorldEventH\000\0220\n\010"
-    "rejected\030\003 \001(\0132\034.nightfall.v1.IntentReje"
-    "ctedH\000B\t\n\007payload\" \n\003Ack\022\013\n\003seq\030\001 \001(\r\022\014\n"
-    "\004tick\030\002 \001(\004\"Y\n\016IntentRejected\022\013\n\003seq\030\001 \001"
-    "(\r\022*\n\006reason\030\002 \001(\0162\032.nightfall.v1.Reject"
-    "Reason\022\016\n\006detail\030\003 \001(\t\"\233\016\n\nWorldEvent\022*\n"
-    "\005spawn\030\001 \001(\0132\031.nightfall.v1.EntitySpawnH"
-    "\000\022(\n\004move\030\002 \001(\0132\030.nightfall.v1.EntityMov"
-    "eH\000\022.\n\007despawn\030\003 \001(\0132\033.nightfall.v1.Enti"
-    "tyDespawnH\000\0223\n\rattack_result\030\004 \001(\0132\032.nig"
-    "htfall.v1.AttackResultH\000\022/\n\013entity_died\030"
-    "\005 \001(\0132\030.nightfall.v1.EntityDiedH\000\0229\n\020ent"
-    "ity_respawned\030\006 \001(\0132\035.nightfall.v1.Entit"
-    "yRespawnedH\000\0223\n\rstats_changed\030\007 \001(\0132\032.ni"
-    "ghtfall.v1.StatsChangedH\000\022+\n\txp_gained\030\010"
-    " \001(\0132\026.nightfall.v1.XpGainedH\000\022)\n\010level_"
-    "up\030\t \001(\0132\025.nightfall.v1.LevelUpH\000\0225\n\016tar"
-    "get_changed\030\n \001(\0132\033.nightfall.v1.TargetC"
-    "hangedH\000\0225\n\016attack_started\030\013 \001(\0132\033.night"
-    "fall.v1.AttackStartedH\000\0229\n\020attack_cancel"
-    "led\030\014 \001(\0132\035.nightfall.v1.AttackCancelled"
-    "H\000\0223\n\rclass_changed\030\r \001(\0132\032.nightfall.v1"
-    ".ClassChangedH\000\022<\n\022skill_cast_started\030\016 "
-    "\001(\0132\036.nightfall.v1.SkillCastStartedH\000\022:\n"
-    "\021skill_cast_result\030\017 \001(\0132\035.nightfall.v1."
-    "SkillCastResultH\000\022@\n\024skill_cast_cancelle"
-    "d\030\020 \001(\0132 .nightfall.v1.SkillCastCancelle"
-    "dH\000\0225\n\016effect_applied\030\021 \001(\0132\033.nightfall."
-    "v1.EffectAppliedH\000\0225\n\016effect_removed\030\022 \001"
-    "(\0132\033.nightfall.v1.EffectRemovedH\000\022/\n\013ski"
-    "ll_reuse\030\023 \001(\0132\030.nightfall.v1.SkillReuse"
-    "H\000\0223\n\rskill_learned\030\024 \001(\0132\032.nightfall.v1"
-    ".SkillLearnedH\000\022:\n\021pvp_state_changed\030\025 \001"
-    "(\0132\035.nightfall.v1.PvpStateChangedH\000\0227\n\017r"
-    "esurrect_offer\030\026 \001(\0132\034.nightfall.v1.Resu"
-    "rrectOfferH\000\022+\n\tsp_gained\030\027 \001(\0132\026.nightf"
-    "all.v1.SpGainedH\000\0228\n\020skill_state_sync\030\030 "
-    "\001(\0132\034.nightfall.v1.SkillStateSyncH\000\0225\n\016v"
-    "itals_changed\030\031 \001(\0132\033.nightfall.v1.Vital"
-    "sChangedH\000\0225\n\016inventory_sync\030\032 \001(\0132\033.nig"
-    "htfall.v1.InventorySyncH\000\022;\n\021inventory_c"
-    "hanged\030\033 \001(\0132\036.nightfall.v1.InventoryCha"
-    "ngedH\000\022;\n\021equipment_changed\030\034 \001(\0132\036.nigh"
-    "tfall.v1.EquipmentChangedH\000\0225\n\016weight_ch"
-    "anged\030\035 \001(\0132\033.nightfall.v1.WeightChanged"
-    "H\000\0227\n\017penalty_changed\030\036 \001(\0132\034.nightfall."
-    "v1.PenaltyChangedH\000\0225\n\016enchant_result\030\037 "
-    "\001(\0132\033.nightfall.v1.EnchantResultH\000\0223\n\rre"
-    "fine_result\030  \001(\0132\032.nightfall.v1.RefineR"
-    "esultH\000\022B\n\025item_operation_result\030! \001(\0132!"
-    ".nightfall.v1.ItemOperationResultH\000B\007\n\005e"
-    "vent\"\205\006\n\013EntitySpawn\022\021\n\tentity_id\030\001 \001(\t\022"
-    "\014\n\004name\030\002 \001(\t\022(\n\010position\030\003 \001(\0132\026.nightf"
-    "all.v1.Position\022&\n\004kind\030\004 \001(\0162\030.nightfal"
-    "l.v1.EntityKind\022\032\n\022session_generation\030\005 "
-    "\001(\r\022\021\n\tcombatant\030\006 \001(\010\022\023\n\013template_id\030\007 "
-    "\001(\t\022\030\n\020life_incarnation\030\010 \001(\r\022\014\n\004dead\030\t "
-    "\001(\010\022\022\n\nattackable\030\n \001(\010\022\n\n\002hp\030\013 \001(\r\022\016\n\006m"
-    "ax_hp\030\014 \001(\r\022\r\n\005level\030\r \001(\r\0222\n\rpending_sw"
-    "ing\030\016 \001(\0132\033.nightfall.v1.AttackStarted\022 "
-    "\n\004race\030\017 \001(\0162\022.nightfall.v1.Race\022\020\n\010clas"
-    "s_id\030\020 \001(\r\022\036\n\003sex\030\021 \001(\0162\021.nightfall.v1.S"
-    "ex\022\022\n\nhair_style\030\022 \001(\r\022\022\n\nhair_color\030\023 \001"
-    "(\r\022\014\n\004face\030\024 \001(\r\022\022\n\nstate_tick\030\025 \001(\004\022\027\n\017"
-    "flag_until_tick\030\026 \001(\004\022\r\n\005karma\030\027 \001(\r\0222\n\016"
-    "active_effects\030\030 \003(\0132\032.nightfall.v1.Acti"
-    "veEffect\0224\n\014pending_cast\030\031 \001(\0132\036.nightfa"
-    "ll.v1.SkillCastStarted\022\020\n\010pk_count\030\032 \001(\r"
-    "\022\021\n\tpvp_count\030\033 \001(\r\022\024\n\014status_flags\030\034 \001("
-    "\004\0229\n\021visible_equipment\030\035 \003(\0132\036.nightfall"
-    ".v1.VisibleEquipment\"\253\001\n\nEntityMove\022\021\n\te"
-    "ntity_id\030\001 \001(\t\022(\n\010position\030\002 \001(\0132\026.night"
-    "fall.v1.Position\022+\n\013destination\030\003 \001(\0132\026."
-    "nightfall.v1.Position\022\r\n\005speed\030\004 \001(\002\022\026\n\016"
-    "server_time_ms\030\005 \001(\003\022\014\n\004tick\030\006 \001(\004\"\"\n\rEn"
-    "tityDespawn\022\021\n\tentity_id\030\001 \001(\t\"\304\001\n\014Attac"
-    "kResult\022\020\n\010attacker\030\001 \001(\t\022\016\n\006target\030\002 \001("
-    "\t\022\014\n\004tick\030\003 \001(\004\022,\n\007outcome\030\004 \001(\0162\033.night"
-    "fall.v1.AttackOutcome\022\016\n\006damage\030\005 \001(\r\022\027\n"
-    "\017target_hp_after\030\006 \001(\r\022\032\n\022target_incarna"
-    "tion\030\007 \001(\r\022\021\n\tcp_damage\030\010 \001(\r\"O\n\nEntityD"
-    "ied\022\016\n\006entity\030\001 \001(\t\022\014\n\004tick\030\002 \001(\004\022\016\n\006kil"
-    "ler\030\003 \001(\t\022\023\n\013incarnation\030\004 \001(\r\"\351\001\n\rAttac"
-    "kStarted\022\020\n\010attacker\030\001 \001(\t\022\016\n\006target\030\002 \001"
-    "(\t\022\014\n\004tick\030\003 \001(\004\022\023\n\013impact_tick\030\004 \001(\004\022\022\n"
-    "\nready_tick\030\005 \001(\004\022\032\n\022target_incarnation\030"
-    "\006 \001(\r\022\020\n\010baseline\030\007 \001(\010\022\025\n\rbaseline_tick"
-    "\030\010 \001(\004\022!\n\024attacker_incarnation\030\t \001(\rH\000\210\001"
-    "\001B\027\n\025_attacker_incarnation\"r\n\017AttackCanc"
-    "elled\022\020\n\010attacker\030\001 \001(\t\022\016\n\006target\030\002 \001(\t\022"
-    "\014\n\004tick\030\003 \001(\004\022/\n\006reason\030\004 \001(\0162\037.nightfal"
-    "l.v1.SwingCancelReason\"z\n\017EntityRespawne"
-    "d\022\016\n\006entity\030\001 \001(\t\022\014\n\004tick\030\002 \001(\004\022(\n\010posit"
-    "ion\030\003 \001(\0132\026.nightfall.v1.Position\022\n\n\002hp\030"
-    "\004 \001(\r\022\023\n\013incarnation\030\005 \001(\r\"\330\004\n\014StatsChan"
-    "ged\022\016\n\006entity\030\001 \001(\t\022\n\n\002hp\030\002 \001(\r\022\016\n\006max_h"
-    "p\030\003 \001(\r\022\n\n\002mp\030\004 \001(\r\022\016\n\006max_mp\030\005 \001(\r\022\r\n\005l"
-    "evel\030\006 \001(\r\022\n\n\002xp\030\007 \001(\004\022\n\n\002cp\030\010 \001(\r\022\016\n\006ma"
-    "x_cp\030\t \001(\r\022\020\n\010class_id\030\n \001(\r\022\n\n\002sp\030\013 \001(\004"
-    "\022\032\n\022token_tier_1_count\030\014 \001(\r\022\032\n\022token_ti"
-    "er_2_count\030\r \001(\r\022\014\n\004tick\030\016 \001(\004\022\r\n\005karma\030"
-    "\017 \001(\r\022\020\n\010pk_count\030\020 \001(\r\022\021\n\tpvp_count\030\021 \001"
-    "(\r\022\027\n\017flag_until_tick\030\022 \001(\004\022\033\n\023death_pen"
-    "alty_level\030\023 \001(\r\0225\n\017effective_stats\030\024 \001("
-    "\0132\034.nightfall.v1.EffectiveStats\022\020\n\010basel"
-    "ine\030\025 \001(\010\022\025\n\rbaseline_tick\030\026 \001(\004\022\023\n\013inca"
-    "rnation\030\027 \001(\r\0222\n\013item_weight\030\030 \001(\0132\035.nig"
-    "htfall.v1.ItemWeightState\0226\n\016item_penalt"
-    "ies\030\031 \001(\0132\036.nightfall.v1.ItemPenaltyStat"
-    "e\022\032\n\022inventory_revision\030\032 \001(\004\"9\n\010XpGaine"
-    "d\022\016\n\006entity\030\001 \001(\t\022\016\n\006amount\030\002 \001(\004\022\r\n\005tot"
-    "al\030\003 \001(\004\"(\n\007LevelUp\022\016\n\006entity\030\001 \001(\t\022\r\n\005l"
-    "evel\030\002 \001(\r\"\236\001\n\rTargetChanged\022\016\n\006entity\030\001"
-    " \001(\t\022\016\n\006target\030\002 \001(\t\022\020\n\010baseline\030\003 \001(\010\022\025"
-    "\n\rbaseline_tick\030\004 \001(\004\022\037\n\022target_incarnat"
-    "ion\030\005 \001(\rH\000\210\001\001\022\014\n\004tick\030\006 \001(\004B\025\n\023_target_"
-    "incarnation\"Z\n\014ClassChanged\022\016\n\006entity\030\001 "
-    "\001(\t\022\020\n\010class_id\030\002 \001(\r\022\014\n\004tick\030\003 \001(\004\022\032\n\022s"
-    "ession_generation\030\004 \001(\r\"\350\001\n\014ActiveEffect"
-    "\022\020\n\010skill_id\030\001 \001(\r\022\023\n\013skill_level\030\002 \001(\r\022"
-    "\027\n\017remaining_ticks\030\003 \001(\004\022\021\n\tis_debuff\030\004 "
-    "\001(\010\022\023\n\006caster\030\005 \001(\tH\000\210\001\001\022\021\n\teffect_id\030\006 "
-    "\001(\004\022\037\n\022caster_incarnation\030\007 \001(\rH\001\210\001\001\022\032\n\022"
-    "target_incarnation\030\010 \001(\rB\t\n\007_casterB\025\n\023_"
-    "caster_incarnation\"\305\002\n\020SkillCastStarted\022"
-    "\016\n\006caster\030\001 \001(\t\022\023\n\006target\030\002 \001(\tH\000\210\001\001\022\020\n\010"
-    "skill_id\030\003 \001(\r\022\023\n\013skill_level\030\004 \001(\r\022\017\n\007c"
-    "ast_id\030\005 \001(\004\022\014\n\004tick\030\006 \001(\004\022\025\n\rcomplete_t"
-    "ick\030\007 \001(\004\022\032\n\022caster_incarnation\030\010 \001(\r\022\037\n"
-    "\022target_incarnation\030\t \001(\rH\001\210\001\001\022\020\n\010baseli"
-    "ne\030\n \001(\010\022\025\n\rbaseline_tick\030\013 \001(\004\022\023\n\013launc"
-    "h_tick\030\014 \001(\004\022\022\n\nstart_tick\030\r \001(\004B\t\n\007_tar"
-    "getB\025\n\023_target_incarnation\"\262\002\n\021SkillTarg"
-    "etResult\022\016\n\006target\030\001 \001(\t\022\032\n\022target_incar"
-    "nation\030\002 \001(\r\022\014\n\004tick\030\003 \001(\004\022:\n\017resolution"
-    "_kind\030\004 \001(\0162!.nightfall.v1.SkillResoluti"
-    "onKind\022\016\n\006rolled\030\005 \001(\r\022\023\n\013cp_absorbed\030\006 "
-    "\001(\r\022\022\n\nhp_removed\030\007 \001(\r\022\014\n\004heal\030\010 \001(\r\022+\n"
-    "\007outcome\030\t \001(\0162\032.nightfall.v1.SkillOutco"
-    "me\022\027\n\017target_hp_after\030\n \001(\r\022\032\n\022applied_e"
-    "ffect_ids\030\013 \003(\004\"\333\001\n\017SkillCastResult\022\016\n\006c"
-    "aster\030\001 \001(\t\022\032\n\022caster_incarnation\030\002 \001(\r\022"
-    "\017\n\007cast_id\030\003 \001(\004\022\014\n\004tick\030\004 \001(\004\022\020\n\010skill_"
-    "id\030\005 \001(\r\022\023\n\013skill_level\030\006 \001(\r\0220\n\007targets"
-    "\030\007 \003(\0132\037.nightfall.v1.SkillTargetResult\022"
-    "\026\n\teffect_id\030\010 \001(\004H\000\210\001\001B\014\n\n_effect_id\"\217\001"
-    "\n\022SkillCastCancelled\022\016\n\006caster\030\001 \001(\t\022\017\n\007"
-    "cast_id\030\002 \001(\004\022.\n\006reason\030\003 \001(\0162\036.nightfal"
-    "l.v1.CastCancelReason\022\014\n\004tick\030\004 \001(\004\022\032\n\022c"
-    "aster_incarnation\030\005 \001(\r\"\231\003\n\rEffectApplie"
-    "d\022\016\n\006target\030\001 \001(\t\022\032\n\022target_incarnation\030"
-    "\002 \001(\r\022\023\n\006caster\030\003 \001(\tH\000\210\001\001\022\037\n\022caster_inc"
-    "arnation\030\004 \001(\rH\001\210\001\001\022\021\n\teffect_id\030\005 \001(\004\022\020"
-    "\n\010skill_id\030\006 \001(\r\022\023\n\013skill_level\030\007 \001(\r\022&\n"
-    "\004pool\030\010 \001(\0162\030.nightfall.v1.EffectPool\022\014\n"
-    "\004tick\030\t \001(\004\022\020\n\010end_tick\030\n \001(\004\022\025\n\rabnorma"
-    "l_type\030\013 \001(\t\022\026\n\016abnormal_level\030\014 \001(\r\022\024\n\014"
-    "status_flags\030\r \001(\004\022\020\n\010baseline\030\016 \001(\010\022\025\n\r"
-    "baseline_tick\030\017 \001(\004\022\024\n\014applied_tick\030\020 \001("
-    "\004B\t\n\007_casterB\025\n\023_caster_incarnation\"\216\001\n\r"
-    "EffectRemoved\022\016\n\006target\030\001 \001(\t\022\032\n\022target_"
-    "incarnation\030\002 \001(\r\022\021\n\teffect_id\030\003 \001(\004\0220\n\006"
-    "reason\030\004 \001(\0162 .nightfall.v1.EffectRemove"
-    "Reason\022\014\n\004tick\030\005 \001(\004\"e\n\nSkillReuse\022\016\n\006en"
-    "tity\030\001 \001(\t\022\020\n\010skill_id\030\002 \001(\r\022\022\n\nready_ti"
-    "ck\030\003 \001(\004\022\014\n\004tick\030\004 \001(\004\022\023\n\013incarnation\030\005 "
-    "\001(\r\"\250\001\n\014SkillLearned\022\016\n\006entity\030\001 \001(\t\022\020\n\010"
-    "skill_id\030\002 \001(\r\022\023\n\013skill_level\030\003 \001(\r\022\017\n\007s"
-    "p_cost\030\004 \001(\004\022\024\n\014sp_remaining\030\005 \001(\004\022\027\n\017id"
-    "empotency_key\030\006 \001(\t\022\014\n\004tick\030\007 \001(\004\022\023\n\013inc"
-    "arnation\030\010 \001(\r\"\272\001\n\017PvpStateChanged\022\016\n\006en"
-    "tity\030\001 \001(\t\022\027\n\017flag_until_tick\030\002 \001(\004\022\r\n\005k"
-    "arma\030\003 \001(\r\022\020\n\010pk_count\030\004 \001(\r\022\021\n\tpvp_coun"
-    "t\030\005 \001(\r\022\014\n\004tick\030\006 \001(\004\022\023\n\013incarnation\030\007 \001"
-    "(\r\022\020\n\010baseline\030\010 \001(\010\022\025\n\rbaseline_tick\030\t "
-    "\001(\004\"\327\002\n\016ResurrectOffer\022\016\n\006target\030\001 \001(\t\022\032"
-    "\n\022target_incarnation\030\002 \001(\r\022\020\n\010offer_id\030\003"
-    " \001(\004\022\023\n\006caster\030\004 \001(\tH\000\210\001\001\022\037\n\022caster_inca"
-    "rnation\030\005 \001(\rH\001\210\001\001\022\031\n\021restore_percent_q\030"
-    "\006 \001(\003\022\026\n\016recoverable_xp\030\007 \001(\004\022\023\n\013expiry_"
-    "tick\030\010 \001(\004\0220\n\005state\030\t \001(\0162!.nightfall.v1"
-    ".ResurrectOfferState\022\014\n\004tick\030\n \001(\004\022\020\n\010ba"
-    "seline\030\013 \001(\010\022\025\n\rbaseline_tick\030\014 \001(\004B\t\n\007_"
-    "casterB\025\n\023_caster_incarnation\"\\\n\010SpGaine"
-    "d\022\016\n\006entity\030\001 \001(\t\022\016\n\006amount\030\002 \001(\004\022\r\n\005tot"
-    "al\030\003 \001(\004\022\014\n\004tick\030\004 \001(\004\022\023\n\013incarnation\030\005 "
-    "\001(\r\"9\n\020LearnedSkillRank\022\020\n\010skill_id\030\001 \001("
-    "\r\022\023\n\013skill_level\030\002 \001(\r\"7\n\017SkillReuseStat"
-    "e\022\020\n\010skill_id\030\001 \001(\r\022\022\n\nready_tick\030\002 \001(\004\""
-    "\301\002\n\016SkillStateSync\022\016\n\006entity\030\001 \001(\t\022/\n\007le"
-    "arned\030\002 \003(\0132\036.nightfall.v1.LearnedSkillR"
-    "ank\022,\n\005reuse\030\003 \003(\0132\035.nightfall.v1.SkillR"
-    "euseState\022\n\n\002sp\030\004 \001(\004\022\r\n\005karma\030\005 \001(\r\022\020\n\010"
-    "pk_count\030\006 \001(\r\022\021\n\tpvp_count\030\007 \001(\r\022\027\n\017fla"
-    "g_until_tick\030\010 \001(\004\022\033\n\023death_penalty_leve"
-    "l\030\t \001(\r\022\014\n\004tick\030\n \001(\004\022\023\n\013incarnation\030\013 \001"
-    "(\r\022\020\n\010baseline\030\014 \001(\010\022\025\n\rbaseline_tick\030\r "
-    "\001(\004\"\207\001\n\rVitalsChanged\022\016\n\006entity\030\001 \001(\t\022\n\n"
-    "\002hp\030\002 \001(\r\022\016\n\006max_hp\030\003 \001(\r\022\014\n\004tick\030\004 \001(\004\022"
-    "\023\n\013incarnation\030\005 \001(\r\022\020\n\010baseline\030\006 \001(\010\022\025"
-    "\n\rbaseline_tick\030\007 \001(\004*\270\n\n\014RejectReason\022\035"
-    "\n\031REJECT_REASON_UNSPECIFIED\020\000\022\037\n\033REJECT_"
-    "REASON_OUT_OF_BOUNDS\020\001\022\031\n\025REJECT_REASON_"
-    "TOO_FAR\020\002\022 \n\034REJECT_REASON_UNKNOWN_ENTIT"
-    "Y\020\003\022\034\n\030REJECT_REASON_OVERLOADED\020\004\022\036\n\032REJ"
-    "ECT_REASON_RATE_LIMITED\020\005\022\031\n\025REJECT_REAS"
-    "ON_INVALID\020\006\022\034\n\030REJECT_REASON_DEAD_ACTOR"
-    "\020\007\022\'\n#REJECT_REASON_NON_ATTACKABLE_TARGE"
-    "T\020\010\022#\n\037REJECT_REASON_TARGET_NOT_IN_AOI\020\t"
-    "\022\036\n\032REJECT_REASON_OUT_OF_RANGE\020\n\022\033\n\027REJE"
-    "CT_REASON_PROTECTED\020\013\022%\n!REJECT_REASON_N"
-    "OT_YET_IMPLEMENTED\020\014\022\037\n\033REJECT_REASON_SK"
-    "ILL_UNKNOWN\020\r\022#\n\037REJECT_REASON_SKILL_NOT"
-    "_LEARNED\020\016\022 \n\034REJECT_REASON_SKILL_COOLDO"
-    "WN\020\017\022!\n\035REJECT_REASON_INSUFFICIENT_MP\020\020\022"
-    "!\n\035REJECT_REASON_INSUFFICIENT_HP\020\021\022!\n\035RE"
-    "JECT_REASON_ALREADY_CASTING\020\022\022\037\n\033REJECT_"
-    "REASON_INCAPACITATED\020\023\022\032\n\026REJECT_REASON_"
-    "SILENCED\020\024\022%\n!REJECT_REASON_INVALID_TARG"
-    "ET_TYPE\020\025\022\034\n\030REJECT_REASON_PEACE_ZONE\020\026\022"
-    "\"\n\036REJECT_REASON_WEAPON_CONDITION\020\027\022$\n R"
-    "EJECT_REASON_NO_RESURRECT_OFFER\020\030\022 \n\034REJ"
-    "ECT_REASON_ITEM_NOT_OWNED\020\031\022!\n\035REJECT_RE"
-    "ASON_ITEM_NOT_USABLE\020\032\022$\n REJECT_REASON_"
-    "INVALID_EQUIP_SLOT\020\033\022$\n REJECT_REASON_IN"
-    "SUFFICIENT_ITEMS\020\034\022 \n\034REJECT_REASON_INVE"
-    "NTORY_FULL\020\035\022%\n!REJECT_REASON_ITEM_GRADE"
-    "_MISMATCH\020\036\022\034\n\030REJECT_REASON_ITEM_REUSE\020"
-    "\037\022!\n\035REJECT_REASON_INVALID_ENCHANT\020 \022$\n "
-    "REJECT_REASON_INVALID_REFINEMENT\020!\022 \n\034RE"
-    "JECT_REASON_INVALID_RECIPE\020\"\022)\n%REJECT_R"
-    "EASON_ITEM_OPERATION_CONFLICT\020#\022*\n&REJEC"
-    "T_REASON_ITEM_CAPABILITY_DEFERRED\020$\022+\n\'R"
-    "EJECT_REASON_CRYSTALLIZE_LEVEL_TOO_LOW\020%"
-    "*V\n\nEntityKind\022\033\n\027ENTITY_KIND_UNSPECIFIE"
-    "D\020\000\022\026\n\022ENTITY_KIND_PLAYER\020\001\022\023\n\017ENTITY_KI"
-    "ND_NPC\020\002*y\n\rAttackOutcome\022\036\n\032ATTACK_OUTC"
-    "OME_UNSPECIFIED\020\000\022\027\n\023ATTACK_OUTCOME_MISS"
-    "\020\001\022\026\n\022ATTACK_OUTCOME_HIT\020\002\022\027\n\023ATTACK_OUT"
-    "COME_CRIT\020\003*\222\002\n\021SwingCancelReason\022#\n\037SWI"
-    "NG_CANCEL_REASON_UNSPECIFIED\020\000\022\037\n\033SWING_"
-    "CANCEL_REASON_STOPPED\020\001\022&\n\"SWING_CANCEL_"
-    "REASON_TARGET_CHANGED\020\002\022\035\n\031SWING_CANCEL_"
-    "REASON_MOVED\020\003\022$\n SWING_CANCEL_REASON_OU"
-    "T_OF_RANGE\020\004\022#\n\037SWING_CANCEL_REASON_TARG"
-    "ET_LOST\020\005\022%\n!SWING_CANCEL_REASON_ATTACKE"
-    "R_DIED\020\006*\355\001\n\023SkillResolutionKind\022%\n!SKIL"
-    "L_RESOLUTION_KIND_UNSPECIFIED\020\000\022\"\n\036SKILL"
-    "_RESOLUTION_KIND_PHYSICAL\020\001\022!\n\035SKILL_RES"
-    "OLUTION_KIND_MAGICAL\020\002\022 \n\034SKILL_RESOLUTI"
-    "ON_KIND_EFFECT\020\003\022\036\n\032SKILL_RESOLUTION_KIN"
-    "D_HEAL\020\004\022&\n\"SKILL_RESOLUTION_KIND_RESURR"
-    "ECTION\020\005*\246\001\n\014SkillOutcome\022\035\n\031SKILL_OUTCO"
-    "ME_UNSPECIFIED\020\000\022\026\n\022SKILL_OUTCOME_MISS\020\001"
-    "\022\025\n\021SKILL_OUTCOME_HIT\020\002\022\026\n\022SKILL_OUTCOME"
-    "_CRIT\020\003\022\030\n\024SKILL_OUTCOME_RESIST\020\004\022\026\n\022SKI"
-    "LL_OUTCOME_HALF\020\005*\214\003\n\020CastCancelReason\022\""
-    "\n\036CAST_CANCEL_REASON_UNSPECIFIED\020\000\022\036\n\032CA"
-    "ST_CANCEL_REASON_STOPPED\020\001\022\034\n\030CAST_CANCE"
-    "L_REASON_MOVED\020\002\022\035\n\031CAST_CANCEL_REASON_D"
-    "AMAGE\020\003\022$\n CAST_CANCEL_REASON_INCAPACITA"
-    "TED\020\004\022\"\n\036CAST_CANCEL_REASON_TARGET_LOST\020"
-    "\005\022#\n\037CAST_CANCEL_REASON_OUT_OF_RANGE\020\006\022 "
-    "\n\034CAST_CANCEL_REASON_RESOURCES\020\007\022\"\n\036CAST"
-    "_CANCEL_REASON_CASTER_DIED\020\010\022!\n\035CAST_CAN"
-    "CEL_REASON_PEACE_ZONE\020\t\022\037\n\033CAST_CANCEL_R"
-    "EASON_TRANSFER\020\n*s\n\nEffectPool\022\033\n\027EFFECT"
-    "_POOL_UNSPECIFIED\020\000\022\024\n\020EFFECT_POOL_BUFF\020"
-    "\001\022\032\n\026EFFECT_POOL_SONG_DANCE\020\002\022\026\n\022EFFECT_"
-    "POOL_DEBUFF\020\003*\252\002\n\022EffectRemoveReason\022$\n "
-    "EFFECT_REMOVE_REASON_UNSPECIFIED\020\000\022 \n\034EF"
-    "FECT_REMOVE_REASON_EXPIRED\020\001\022!\n\035EFFECT_R"
-    "EMOVE_REASON_REPLACED\020\002\022!\n\035EFFECT_REMOVE"
-    "_REASON_OVERFLOW\020\003\022\"\n\036EFFECT_REMOVE_REAS"
-    "ON_DISPELLED\020\004\022\037\n\033EFFECT_REMOVE_REASON_D"
-    "AMAGE\020\005\022\036\n\032EFFECT_REMOVE_REASON_DEATH\020\006\022"
-    "!\n\035EFFECT_REMOVE_REASON_TRANSFER\020\007*\312\001\n\023R"
-    "esurrectOfferState\022%\n!RESURRECT_OFFER_ST"
-    "ATE_UNSPECIFIED\020\000\022!\n\035RESURRECT_OFFER_STA"
-    "TE_OFFERED\020\001\022\"\n\036RESURRECT_OFFER_STATE_DE"
-    "CLINED\020\002\022!\n\035RESURRECT_OFFER_STATE_EXPIRE"
-    "D\020\003\022\"\n\036RESURRECT_OFFER_STATE_ACCEPTED\020\004b"
-    "\006proto3"
+    "\032\032nightfall/v1/economy.proto\032\027nightfall/"
+    "v1/game.proto\032\030nightfall/v1/items.proto\""
+    "\237\035\n\rClientMessage\022\013\n\003seq\030\001 \001(\r\022.\n\007move_t"
+    "o\030\n \001(\0132\033.nightfall.v1.MoveToRequestH\000\0222"
+    "\n\tstop_move\030\013 \001(\0132\035.nightfall.v1.StopMov"
+    "eRequestH\000\0224\n\nset_target\030\014 \001(\0132\036.nightfa"
+    "ll.v1.SetTargetRequestH\000\022-\n\006attack\030\r \001(\013"
+    "2\033.nightfall.v1.AttackRequestH\000\0226\n\013stop_"
+    "attack\030\016 \001(\0132\037.nightfall.v1.StopAttackRe"
+    "questH\000\022/\n\007respawn\030\017 \001(\0132\034.nightfall.v1."
+    "RespawnRequestH\000\0224\n\ncast_skill\030\020 \001(\0132\036.n"
+    "ightfall.v1.CastSkillRequestH\000\0226\n\013cancel"
+    "_cast\030\021 \001(\0132\037.nightfall.v1.CancelCastReq"
+    "uestH\000\022@\n\020accept_resurrect\030\022 \001(\0132$.night"
+    "fall.v1.AcceptResurrectRequestH\000\0224\n\nequi"
+    "p_item\030\023 \001(\0132\036.nightfall.v1.EquipItemReq"
+    "uestH\000\0228\n\014unequip_item\030\024 \001(\0132 .nightfall"
+    ".v1.UnequipItemRequestH\000\0220\n\010use_item\030\025 \001"
+    "(\0132\034.nightfall.v1.UseItemRequestH\000\0228\n\014de"
+    "stroy_item\030\026 \001(\0132 .nightfall.v1.DestroyI"
+    "temRequestH\000\0228\n\014enchant_item\030\027 \001(\0132 .nig"
+    "htfall.v1.EnchantItemRequestH\000\022\?\n\020toggle"
+    "_auto_shot\030\030 \001(\0132#.nightfall.v1.ToggleAu"
+    "toShotRequestH\000\0226\n\013refine_item\030\031 \001(\0132\037.n"
+    "ightfall.v1.RefineItemRequestH\000\022:\n\rcance"
+    "l_refine\030\032 \001(\0132!.nightfall.v1.CancelRefi"
+    "neRequestH\000\022O\n\030exchange_special_ability\030"
+    "\033 \001(\0132+.nightfall.v1.ExchangeSpecialAbil"
+    "ityRequestH\000\022@\n\020crystallize_item\030\034 \001(\0132$"
+    ".nightfall.v1.CrystallizeItemRequestH\000\0227"
+    "\n\014pick_up_item\030\035 \001(\0132\037.nightfall.v1.Pick"
+    "UpItemRequestH\000\0224\n\nvendor_buy\030\036 \001(\0132\036.ni"
+    "ghtfall.v1.VendorBuyRequestH\000\0226\n\013vendor_"
+    "sell\030\037 \001(\0132\037.nightfall.v1.VendorSellRequ"
+    "estH\000\022:\n\rvendor_refund\030  \001(\0132!.nightfall"
+    ".v1.VendorRefundRequestH\000\022@\n\020multisell_c"
+    "hoose\030! \001(\0132$.nightfall.v1.MultisellChoo"
+    "seRequestH\000\022>\n\017register_recipe\030\" \001(\0132#.n"
+    "ightfall.v1.RegisterRecipeRequestH\000\022:\n\rd"
+    "elete_recipe\030# \001(\0132!.nightfall.v1.Delete"
+    "RecipeRequestH\000\0224\n\ncraft_item\030$ \001(\0132\036.ni"
+    "ghtfall.v1.CraftItemRequestH\000\022:\n\rtrade_r"
+    "equest\030% \001(\0132!.nightfall.v1.TradeRequest"
+    "RequestH\000\0228\n\014trade_answer\030& \001(\0132 .nightf"
+    "all.v1.TradeAnswerRequestH\000\022;\n\016trade_add"
+    "_item\030\' \001(\0132!.nightfall.v1.TradeAddItemR"
+    "equestH\000\022:\n\rtrade_confirm\030( \001(\0132!.nightf"
+    "all.v1.TradeConfirmRequestH\000\0228\n\014trade_ca"
+    "ncel\030) \001(\0132 .nightfall.v1.TradeCancelReq"
+    "uestH\000\022J\n\026set_private_store_sell\030* \001(\0132("
+    ".nightfall.v1.SetPrivateStoreSellRequest"
+    "H\000\022H\n\025set_private_store_buy\030+ \001(\0132\'.nigh"
+    "tfall.v1.SetPrivateStoreBuyRequestH\000\022M\n\027"
+    "set_private_manufacture\030, \001(\0132*.nightfal"
+    "l.v1.SetPrivateManufactureRequestH\000\022E\n\023c"
+    "lose_private_store\030- \001(\0132&.nightfall.v1."
+    "ClosePrivateStoreRequestH\000\022A\n\021private_st"
+    "ore_buy\030. \001(\0132$.nightfall.v1.PrivateStor"
+    "eBuyRequestH\000\022C\n\022private_store_sell\030/ \001("
+    "\0132%.nightfall.v1.PrivateStoreSellRequest"
+    "H\000\022Q\n\031private_manufacture_order\0300 \001(\0132,."
+    "nightfall.v1.PrivateManufactureOrderRequ"
+    "estH\000\0228\n\014party_invite\0301 \001(\0132 .nightfall."
+    "v1.PartyInviteRequestH\000\0228\n\014party_answer\030"
+    "2 \001(\0132 .nightfall.v1.PartyAnswerRequestH"
+    "\000\0226\n\013party_leave\0303 \001(\0132\037.nightfall.v1.Pa"
+    "rtyLeaveRequestH\000\0224\n\nparty_kick\0304 \001(\0132\036."
+    "nightfall.v1.PartyKickRequestH\000\022E\n\023party"
+    "_change_leader\0305 \001(\0132&.nightfall.v1.Part"
+    "yChangeLeaderRequestH\000\022I\n\031party_loot_cha"
+    "nge_request\0306 \001(\0132$.nightfall.v1.PartyLo"
+    "otChangeRequestH\000\022G\n\030party_loot_change_a"
+    "nswer\0307 \001(\0132#.nightfall.v1.PartyLootChan"
+    "geAnswerH\000\022B\n\021warehouse_deposit\0308 \001(\0132%."
+    "nightfall.v1.WarehouseDepositRequestH\000\022D"
+    "\n\022warehouse_withdraw\0309 \001(\0132&.nightfall.v"
+    "1.WarehouseWithdrawRequestH\000\0228\n\014freight_"
+    "send\030: \001(\0132 .nightfall.v1.FreightSendReq"
+    "uestH\000\022@\n\020freight_withdraw\030; \001(\0132$.night"
+    "fall.v1.FreightWithdrawRequestH\000\0222\n\tmail"
+    "_send\030< \001(\0132\035.nightfall.v1.MailSendReque"
+    "stH\000\022I\n\025mail_take_attachments\030= \001(\0132(.ni"
+    "ghtfall.v1.MailTakeAttachmentsRequestH\000\022"
+    "6\n\013mail_reject\030> \001(\0132\037.nightfall.v1.Mail"
+    "RejectRequestH\000\0226\n\013mail_cancel\030\? \001(\0132\037.n"
+    "ightfall.v1.MailCancelRequestH\000\0226\n\013mail_"
+    "delete\030@ \001(\0132\037.nightfall.v1.MailDeleteRe"
+    "questH\000\022;\n\016manor_buy_seed\030A \001(\0132!.nightf"
+    "all.v1.ManorBuySeedRequestH\000\022=\n\017manor_se"
+    "ll_crop\030B \001(\0132\".nightfall.v1.ManorSellCr"
+    "opRequestH\000\022\?\n\020item_auction_bid\030C \001(\0132#."
+    "nightfall.v1.ItemAuctionBidRequestH\000\022L\n\027"
+    "item_auction_cancel_bid\030D \001(\0132).nightfal"
+    "l.v1.ItemAuctionCancelBidRequestH\000\022;\n\016ma"
+    "il_mark_read\030E \001(\0132!.nightfall.v1.MailMa"
+    "rkReadRequestH\000B\010\n\006intent\"<\n\rMoveToReque"
+    "st\022+\n\013destination\030\001 \001(\0132\026.nightfall.v1.P"
+    "osition\"\021\n\017StopMoveRequest\"%\n\020SetTargetR"
+    "equest\022\021\n\tentity_id\030\001 \001(\t\"\017\n\rAttackReque"
+    "st\"\023\n\021StopAttackRequest\"\020\n\016RespawnReques"
+    "t\"D\n\020CastSkillRequest\022\020\n\010skill_id\030\001 \001(\r\022"
+    "\023\n\006target\030\002 \001(\tH\000\210\001\001B\t\n\007_target\"5\n\021Cance"
+    "lCastRequest\022\024\n\007cast_id\030\001 \001(\004H\000\210\001\001B\n\n\010_c"
+    "ast_id\":\n\026AcceptResurrectRequest\022\020\n\010offe"
+    "r_id\030\001 \001(\004\022\016\n\006accept\030\002 \001(\010\"\231\001\n\rServerMes"
+    "sage\022 \n\003ack\030\001 \001(\0132\021.nightfall.v1.AckH\000\022)"
+    "\n\005event\030\002 \001(\0132\030.nightfall.v1.WorldEventH"
+    "\000\0220\n\010rejected\030\003 \001(\0132\034.nightfall.v1.Inten"
+    "tRejectedH\000B\t\n\007payload\" \n\003Ack\022\013\n\003seq\030\001 \001"
+    "(\r\022\014\n\004tick\030\002 \001(\004\"Y\n\016IntentRejected\022\013\n\003se"
+    "q\030\001 \001(\r\022*\n\006reason\030\002 \001(\0162\032.nightfall.v1.R"
+    "ejectReason\022\016\n\006detail\030\003 \001(\t\"\237\024\n\nWorldEve"
+    "nt\022*\n\005spawn\030\001 \001(\0132\031.nightfall.v1.EntityS"
+    "pawnH\000\022(\n\004move\030\002 \001(\0132\030.nightfall.v1.Enti"
+    "tyMoveH\000\022.\n\007despawn\030\003 \001(\0132\033.nightfall.v1"
+    ".EntityDespawnH\000\0223\n\rattack_result\030\004 \001(\0132"
+    "\032.nightfall.v1.AttackResultH\000\022/\n\013entity_"
+    "died\030\005 \001(\0132\030.nightfall.v1.EntityDiedH\000\0229"
+    "\n\020entity_respawned\030\006 \001(\0132\035.nightfall.v1."
+    "EntityRespawnedH\000\0223\n\rstats_changed\030\007 \001(\013"
+    "2\032.nightfall.v1.StatsChangedH\000\022+\n\txp_gai"
+    "ned\030\010 \001(\0132\026.nightfall.v1.XpGainedH\000\022)\n\010l"
+    "evel_up\030\t \001(\0132\025.nightfall.v1.LevelUpH\000\0225"
+    "\n\016target_changed\030\n \001(\0132\033.nightfall.v1.Ta"
+    "rgetChangedH\000\0225\n\016attack_started\030\013 \001(\0132\033."
+    "nightfall.v1.AttackStartedH\000\0229\n\020attack_c"
+    "ancelled\030\014 \001(\0132\035.nightfall.v1.AttackCanc"
+    "elledH\000\0223\n\rclass_changed\030\r \001(\0132\032.nightfa"
+    "ll.v1.ClassChangedH\000\022<\n\022skill_cast_start"
+    "ed\030\016 \001(\0132\036.nightfall.v1.SkillCastStarted"
+    "H\000\022:\n\021skill_cast_result\030\017 \001(\0132\035.nightfal"
+    "l.v1.SkillCastResultH\000\022@\n\024skill_cast_can"
+    "celled\030\020 \001(\0132 .nightfall.v1.SkillCastCan"
+    "celledH\000\0225\n\016effect_applied\030\021 \001(\0132\033.night"
+    "fall.v1.EffectAppliedH\000\0225\n\016effect_remove"
+    "d\030\022 \001(\0132\033.nightfall.v1.EffectRemovedH\000\022/"
+    "\n\013skill_reuse\030\023 \001(\0132\030.nightfall.v1.Skill"
+    "ReuseH\000\0223\n\rskill_learned\030\024 \001(\0132\032.nightfa"
+    "ll.v1.SkillLearnedH\000\022:\n\021pvp_state_change"
+    "d\030\025 \001(\0132\035.nightfall.v1.PvpStateChangedH\000"
+    "\0227\n\017resurrect_offer\030\026 \001(\0132\034.nightfall.v1"
+    ".ResurrectOfferH\000\022+\n\tsp_gained\030\027 \001(\0132\026.n"
+    "ightfall.v1.SpGainedH\000\0228\n\020skill_state_sy"
+    "nc\030\030 \001(\0132\034.nightfall.v1.SkillStateSyncH\000"
+    "\0225\n\016vitals_changed\030\031 \001(\0132\033.nightfall.v1."
+    "VitalsChangedH\000\0225\n\016inventory_sync\030\032 \001(\0132"
+    "\033.nightfall.v1.InventorySyncH\000\022;\n\021invent"
+    "ory_changed\030\033 \001(\0132\036.nightfall.v1.Invento"
+    "ryChangedH\000\022;\n\021equipment_changed\030\034 \001(\0132\036"
+    ".nightfall.v1.EquipmentChangedH\000\0225\n\016weig"
+    "ht_changed\030\035 \001(\0132\033.nightfall.v1.WeightCh"
+    "angedH\000\0227\n\017penalty_changed\030\036 \001(\0132\034.night"
+    "fall.v1.PenaltyChangedH\000\0225\n\016enchant_resu"
+    "lt\030\037 \001(\0132\033.nightfall.v1.EnchantResultH\000\022"
+    "3\n\rrefine_result\030  \001(\0132\032.nightfall.v1.Re"
+    "fineResultH\000\022B\n\025item_operation_result\030! "
+    "\001(\0132!.nightfall.v1.ItemOperationResultH\000"
+    "\0225\n\016economy_result\030\" \001(\0132\033.nightfall.v1."
+    "EconomyResultH\000\022@\n\024corpse_state_changed\030"
+    "# \001(\0132 .nightfall.v1.CorpseStateChangedH"
+    "\000\022>\n\023party_state_changed\030$ \001(\0132\037.nightfa"
+    "ll.v1.PartyStateChangedH\000\0226\n\017party_loot_"
+    "vote\030% \001(\0132\033.nightfall.v1.PartyLootVoteH"
+    "\000\022B\n\025party_invite_received\030& \001(\0132!.night"
+    "fall.v1.PartyInviteReceivedH\000\022D\n\026trade_r"
+    "equest_received\030\' \001(\0132\".nightfall.v1.Tra"
+    "deRequestReceivedH\000\022B\n\025trade_session_cha"
+    "nged\030( \001(\0132!.nightfall.v1.TradeSessionCh"
+    "angedH\000\022B\n\025private_store_changed\030) \001(\0132!"
+    ".nightfall.v1.PrivateStoreChangedH\000\022;\n\021m"
+    "ail_notification\030* \001(\0132\036.nightfall.v1.Ma"
+    "ilNotificationH\000\0228\n\020recipe_book_sync\030+ \001"
+    "(\0132\034.nightfall.v1.RecipeBookSyncH\000\022M\n\033it"
+    "em_auction_status_changed\030, \001(\0132&.nightf"
+    "all.v1.ItemAuctionStatusChangedH\000\0229\n\020loo"
+    "t_distributed\030- \001(\0132\035.nightfall.v1.LootD"
+    "istributedH\000B\007\n\005event\"\272\006\n\013EntitySpawn\022\021\n"
+    "\tentity_id\030\001 \001(\t\022\014\n\004name\030\002 \001(\t\022(\n\010positi"
+    "on\030\003 \001(\0132\026.nightfall.v1.Position\022&\n\004kind"
+    "\030\004 \001(\0162\030.nightfall.v1.EntityKind\022\032\n\022sess"
+    "ion_generation\030\005 \001(\r\022\021\n\tcombatant\030\006 \001(\010\022"
+    "\023\n\013template_id\030\007 \001(\t\022\030\n\020life_incarnation"
+    "\030\010 \001(\r\022\014\n\004dead\030\t \001(\010\022\022\n\nattackable\030\n \001(\010"
+    "\022\n\n\002hp\030\013 \001(\r\022\016\n\006max_hp\030\014 \001(\r\022\r\n\005level\030\r "
+    "\001(\r\0222\n\rpending_swing\030\016 \001(\0132\033.nightfall.v"
+    "1.AttackStarted\022 \n\004race\030\017 \001(\0162\022.nightfal"
+    "l.v1.Race\022\020\n\010class_id\030\020 \001(\r\022\036\n\003sex\030\021 \001(\016"
+    "2\021.nightfall.v1.Sex\022\022\n\nhair_style\030\022 \001(\r\022"
+    "\022\n\nhair_color\030\023 \001(\r\022\014\n\004face\030\024 \001(\r\022\022\n\nsta"
+    "te_tick\030\025 \001(\004\022\027\n\017flag_until_tick\030\026 \001(\004\022\r"
+    "\n\005karma\030\027 \001(\r\0222\n\016active_effects\030\030 \003(\0132\032."
+    "nightfall.v1.ActiveEffect\0224\n\014pending_cas"
+    "t\030\031 \001(\0132\036.nightfall.v1.SkillCastStarted\022"
+    "\020\n\010pk_count\030\032 \001(\r\022\021\n\tpvp_count\030\033 \001(\r\022\024\n\014"
+    "status_flags\030\034 \001(\004\0229\n\021visible_equipment\030"
+    "\035 \003(\0132\036.nightfall.v1.VisibleEquipment\0223\n"
+    "\013ground_item\030\036 \001(\0132\036.nightfall.v1.Ground"
+    "ItemDetail\"\253\001\n\nEntityMove\022\021\n\tentity_id\030\001"
+    " \001(\t\022(\n\010position\030\002 \001(\0132\026.nightfall.v1.Po"
+    "sition\022+\n\013destination\030\003 \001(\0132\026.nightfall."
+    "v1.Position\022\r\n\005speed\030\004 \001(\002\022\026\n\016server_tim"
+    "e_ms\030\005 \001(\003\022\014\n\004tick\030\006 \001(\004\"\"\n\rEntityDespaw"
+    "n\022\021\n\tentity_id\030\001 \001(\t\"\304\001\n\014AttackResult\022\020\n"
+    "\010attacker\030\001 \001(\t\022\016\n\006target\030\002 \001(\t\022\014\n\004tick\030"
+    "\003 \001(\004\022,\n\007outcome\030\004 \001(\0162\033.nightfall.v1.At"
+    "tackOutcome\022\016\n\006damage\030\005 \001(\r\022\027\n\017target_hp"
+    "_after\030\006 \001(\r\022\032\n\022target_incarnation\030\007 \001(\r"
+    "\022\021\n\tcp_damage\030\010 \001(\r\"O\n\nEntityDied\022\016\n\006ent"
+    "ity\030\001 \001(\t\022\014\n\004tick\030\002 \001(\004\022\016\n\006killer\030\003 \001(\t\022"
+    "\023\n\013incarnation\030\004 \001(\r\"\351\001\n\rAttackStarted\022\020"
+    "\n\010attacker\030\001 \001(\t\022\016\n\006target\030\002 \001(\t\022\014\n\004tick"
+    "\030\003 \001(\004\022\023\n\013impact_tick\030\004 \001(\004\022\022\n\nready_tic"
+    "k\030\005 \001(\004\022\032\n\022target_incarnation\030\006 \001(\r\022\020\n\010b"
+    "aseline\030\007 \001(\010\022\025\n\rbaseline_tick\030\010 \001(\004\022!\n\024"
+    "attacker_incarnation\030\t \001(\rH\000\210\001\001B\027\n\025_atta"
+    "cker_incarnation\"r\n\017AttackCancelled\022\020\n\010a"
+    "ttacker\030\001 \001(\t\022\016\n\006target\030\002 \001(\t\022\014\n\004tick\030\003 "
+    "\001(\004\022/\n\006reason\030\004 \001(\0162\037.nightfall.v1.Swing"
+    "CancelReason\"z\n\017EntityRespawned\022\016\n\006entit"
+    "y\030\001 \001(\t\022\014\n\004tick\030\002 \001(\004\022(\n\010position\030\003 \001(\0132"
+    "\026.nightfall.v1.Position\022\n\n\002hp\030\004 \001(\r\022\023\n\013i"
+    "ncarnation\030\005 \001(\r\"\330\004\n\014StatsChanged\022\016\n\006ent"
+    "ity\030\001 \001(\t\022\n\n\002hp\030\002 \001(\r\022\016\n\006max_hp\030\003 \001(\r\022\n\n"
+    "\002mp\030\004 \001(\r\022\016\n\006max_mp\030\005 \001(\r\022\r\n\005level\030\006 \001(\r"
+    "\022\n\n\002xp\030\007 \001(\004\022\n\n\002cp\030\010 \001(\r\022\016\n\006max_cp\030\t \001(\r"
+    "\022\020\n\010class_id\030\n \001(\r\022\n\n\002sp\030\013 \001(\004\022\032\n\022token_"
+    "tier_1_count\030\014 \001(\r\022\032\n\022token_tier_2_count"
+    "\030\r \001(\r\022\014\n\004tick\030\016 \001(\004\022\r\n\005karma\030\017 \001(\r\022\020\n\010p"
+    "k_count\030\020 \001(\r\022\021\n\tpvp_count\030\021 \001(\r\022\027\n\017flag"
+    "_until_tick\030\022 \001(\004\022\033\n\023death_penalty_level"
+    "\030\023 \001(\r\0225\n\017effective_stats\030\024 \001(\0132\034.nightf"
+    "all.v1.EffectiveStats\022\020\n\010baseline\030\025 \001(\010\022"
+    "\025\n\rbaseline_tick\030\026 \001(\004\022\023\n\013incarnation\030\027 "
+    "\001(\r\0222\n\013item_weight\030\030 \001(\0132\035.nightfall.v1."
+    "ItemWeightState\0226\n\016item_penalties\030\031 \001(\0132"
+    "\036.nightfall.v1.ItemPenaltyState\022\032\n\022inven"
+    "tory_revision\030\032 \001(\004\"9\n\010XpGained\022\016\n\006entit"
+    "y\030\001 \001(\t\022\016\n\006amount\030\002 \001(\004\022\r\n\005total\030\003 \001(\004\"("
+    "\n\007LevelUp\022\016\n\006entity\030\001 \001(\t\022\r\n\005level\030\002 \001(\r"
+    "\"\236\001\n\rTargetChanged\022\016\n\006entity\030\001 \001(\t\022\016\n\006ta"
+    "rget\030\002 \001(\t\022\020\n\010baseline\030\003 \001(\010\022\025\n\rbaseline"
+    "_tick\030\004 \001(\004\022\037\n\022target_incarnation\030\005 \001(\rH"
+    "\000\210\001\001\022\014\n\004tick\030\006 \001(\004B\025\n\023_target_incarnatio"
+    "n\"Z\n\014ClassChanged\022\016\n\006entity\030\001 \001(\t\022\020\n\010cla"
+    "ss_id\030\002 \001(\r\022\014\n\004tick\030\003 \001(\004\022\032\n\022session_gen"
+    "eration\030\004 \001(\r\"\350\001\n\014ActiveEffect\022\020\n\010skill_"
+    "id\030\001 \001(\r\022\023\n\013skill_level\030\002 \001(\r\022\027\n\017remaini"
+    "ng_ticks\030\003 \001(\004\022\021\n\tis_debuff\030\004 \001(\010\022\023\n\006cas"
+    "ter\030\005 \001(\tH\000\210\001\001\022\021\n\teffect_id\030\006 \001(\004\022\037\n\022cas"
+    "ter_incarnation\030\007 \001(\rH\001\210\001\001\022\032\n\022target_inc"
+    "arnation\030\010 \001(\rB\t\n\007_casterB\025\n\023_caster_inc"
+    "arnation\"\305\002\n\020SkillCastStarted\022\016\n\006caster\030"
+    "\001 \001(\t\022\023\n\006target\030\002 \001(\tH\000\210\001\001\022\020\n\010skill_id\030\003"
+    " \001(\r\022\023\n\013skill_level\030\004 \001(\r\022\017\n\007cast_id\030\005 \001"
+    "(\004\022\014\n\004tick\030\006 \001(\004\022\025\n\rcomplete_tick\030\007 \001(\004\022"
+    "\032\n\022caster_incarnation\030\010 \001(\r\022\037\n\022target_in"
+    "carnation\030\t \001(\rH\001\210\001\001\022\020\n\010baseline\030\n \001(\010\022\025"
+    "\n\rbaseline_tick\030\013 \001(\004\022\023\n\013launch_tick\030\014 \001"
+    "(\004\022\022\n\nstart_tick\030\r \001(\004B\t\n\007_targetB\025\n\023_ta"
+    "rget_incarnation\"\262\002\n\021SkillTargetResult\022\016"
+    "\n\006target\030\001 \001(\t\022\032\n\022target_incarnation\030\002 \001"
+    "(\r\022\014\n\004tick\030\003 \001(\004\022:\n\017resolution_kind\030\004 \001("
+    "\0162!.nightfall.v1.SkillResolutionKind\022\016\n\006"
+    "rolled\030\005 \001(\r\022\023\n\013cp_absorbed\030\006 \001(\r\022\022\n\nhp_"
+    "removed\030\007 \001(\r\022\014\n\004heal\030\010 \001(\r\022+\n\007outcome\030\t"
+    " \001(\0162\032.nightfall.v1.SkillOutcome\022\027\n\017targ"
+    "et_hp_after\030\n \001(\r\022\032\n\022applied_effect_ids\030"
+    "\013 \003(\004\"\333\001\n\017SkillCastResult\022\016\n\006caster\030\001 \001("
+    "\t\022\032\n\022caster_incarnation\030\002 \001(\r\022\017\n\007cast_id"
+    "\030\003 \001(\004\022\014\n\004tick\030\004 \001(\004\022\020\n\010skill_id\030\005 \001(\r\022\023"
+    "\n\013skill_level\030\006 \001(\r\0220\n\007targets\030\007 \003(\0132\037.n"
+    "ightfall.v1.SkillTargetResult\022\026\n\teffect_"
+    "id\030\010 \001(\004H\000\210\001\001B\014\n\n_effect_id\"\217\001\n\022SkillCas"
+    "tCancelled\022\016\n\006caster\030\001 \001(\t\022\017\n\007cast_id\030\002 "
+    "\001(\004\022.\n\006reason\030\003 \001(\0162\036.nightfall.v1.CastC"
+    "ancelReason\022\014\n\004tick\030\004 \001(\004\022\032\n\022caster_inca"
+    "rnation\030\005 \001(\r\"\231\003\n\rEffectApplied\022\016\n\006targe"
+    "t\030\001 \001(\t\022\032\n\022target_incarnation\030\002 \001(\r\022\023\n\006c"
+    "aster\030\003 \001(\tH\000\210\001\001\022\037\n\022caster_incarnation\030\004"
+    " \001(\rH\001\210\001\001\022\021\n\teffect_id\030\005 \001(\004\022\020\n\010skill_id"
+    "\030\006 \001(\r\022\023\n\013skill_level\030\007 \001(\r\022&\n\004pool\030\010 \001("
+    "\0162\030.nightfall.v1.EffectPool\022\014\n\004tick\030\t \001("
+    "\004\022\020\n\010end_tick\030\n \001(\004\022\025\n\rabnormal_type\030\013 \001"
+    "(\t\022\026\n\016abnormal_level\030\014 \001(\r\022\024\n\014status_fla"
+    "gs\030\r \001(\004\022\020\n\010baseline\030\016 \001(\010\022\025\n\rbaseline_t"
+    "ick\030\017 \001(\004\022\024\n\014applied_tick\030\020 \001(\004B\t\n\007_cast"
+    "erB\025\n\023_caster_incarnation\"\216\001\n\rEffectRemo"
+    "ved\022\016\n\006target\030\001 \001(\t\022\032\n\022target_incarnatio"
+    "n\030\002 \001(\r\022\021\n\teffect_id\030\003 \001(\004\0220\n\006reason\030\004 \001"
+    "(\0162 .nightfall.v1.EffectRemoveReason\022\014\n\004"
+    "tick\030\005 \001(\004\"e\n\nSkillReuse\022\016\n\006entity\030\001 \001(\t"
+    "\022\020\n\010skill_id\030\002 \001(\r\022\022\n\nready_tick\030\003 \001(\004\022\014"
+    "\n\004tick\030\004 \001(\004\022\023\n\013incarnation\030\005 \001(\r\"\250\001\n\014Sk"
+    "illLearned\022\016\n\006entity\030\001 \001(\t\022\020\n\010skill_id\030\002"
+    " \001(\r\022\023\n\013skill_level\030\003 \001(\r\022\017\n\007sp_cost\030\004 \001"
+    "(\004\022\024\n\014sp_remaining\030\005 \001(\004\022\027\n\017idempotency_"
+    "key\030\006 \001(\t\022\014\n\004tick\030\007 \001(\004\022\023\n\013incarnation\030\010"
+    " \001(\r\"\272\001\n\017PvpStateChanged\022\016\n\006entity\030\001 \001(\t"
+    "\022\027\n\017flag_until_tick\030\002 \001(\004\022\r\n\005karma\030\003 \001(\r"
+    "\022\020\n\010pk_count\030\004 \001(\r\022\021\n\tpvp_count\030\005 \001(\r\022\014\n"
+    "\004tick\030\006 \001(\004\022\023\n\013incarnation\030\007 \001(\r\022\020\n\010base"
+    "line\030\010 \001(\010\022\025\n\rbaseline_tick\030\t \001(\004\"\327\002\n\016Re"
+    "surrectOffer\022\016\n\006target\030\001 \001(\t\022\032\n\022target_i"
+    "ncarnation\030\002 \001(\r\022\020\n\010offer_id\030\003 \001(\004\022\023\n\006ca"
+    "ster\030\004 \001(\tH\000\210\001\001\022\037\n\022caster_incarnation\030\005 "
+    "\001(\rH\001\210\001\001\022\031\n\021restore_percent_q\030\006 \001(\003\022\026\n\016r"
+    "ecoverable_xp\030\007 \001(\004\022\023\n\013expiry_tick\030\010 \001(\004"
+    "\0220\n\005state\030\t \001(\0162!.nightfall.v1.Resurrect"
+    "OfferState\022\014\n\004tick\030\n \001(\004\022\020\n\010baseline\030\013 \001"
+    "(\010\022\025\n\rbaseline_tick\030\014 \001(\004B\t\n\007_casterB\025\n\023"
+    "_caster_incarnation\"\\\n\010SpGained\022\016\n\006entit"
+    "y\030\001 \001(\t\022\016\n\006amount\030\002 \001(\004\022\r\n\005total\030\003 \001(\004\022\014"
+    "\n\004tick\030\004 \001(\004\022\023\n\013incarnation\030\005 \001(\r\"9\n\020Lea"
+    "rnedSkillRank\022\020\n\010skill_id\030\001 \001(\r\022\023\n\013skill"
+    "_level\030\002 \001(\r\"7\n\017SkillReuseState\022\020\n\010skill"
+    "_id\030\001 \001(\r\022\022\n\nready_tick\030\002 \001(\004\"\301\002\n\016SkillS"
+    "tateSync\022\016\n\006entity\030\001 \001(\t\022/\n\007learned\030\002 \003("
+    "\0132\036.nightfall.v1.LearnedSkillRank\022,\n\005reu"
+    "se\030\003 \003(\0132\035.nightfall.v1.SkillReuseState\022"
+    "\n\n\002sp\030\004 \001(\004\022\r\n\005karma\030\005 \001(\r\022\020\n\010pk_count\030\006"
+    " \001(\r\022\021\n\tpvp_count\030\007 \001(\r\022\027\n\017flag_until_ti"
+    "ck\030\010 \001(\004\022\033\n\023death_penalty_level\030\t \001(\r\022\014\n"
+    "\004tick\030\n \001(\004\022\023\n\013incarnation\030\013 \001(\r\022\020\n\010base"
+    "line\030\014 \001(\010\022\025\n\rbaseline_tick\030\r \001(\004\"\207\001\n\rVi"
+    "talsChanged\022\016\n\006entity\030\001 \001(\t\022\n\n\002hp\030\002 \001(\r\022"
+    "\016\n\006max_hp\030\003 \001(\r\022\014\n\004tick\030\004 \001(\004\022\023\n\013incarna"
+    "tion\030\005 \001(\r\022\020\n\010baseline\030\006 \001(\010\022\025\n\rbaseline"
+    "_tick\030\007 \001(\004*\227\031\n\014RejectReason\022\035\n\031REJECT_R"
+    "EASON_UNSPECIFIED\020\000\022\037\n\033REJECT_REASON_OUT"
+    "_OF_BOUNDS\020\001\022\031\n\025REJECT_REASON_TOO_FAR\020\002\022"
+    " \n\034REJECT_REASON_UNKNOWN_ENTITY\020\003\022\034\n\030REJ"
+    "ECT_REASON_OVERLOADED\020\004\022\036\n\032REJECT_REASON"
+    "_RATE_LIMITED\020\005\022\031\n\025REJECT_REASON_INVALID"
+    "\020\006\022\034\n\030REJECT_REASON_DEAD_ACTOR\020\007\022\'\n#REJE"
+    "CT_REASON_NON_ATTACKABLE_TARGET\020\010\022#\n\037REJ"
+    "ECT_REASON_TARGET_NOT_IN_AOI\020\t\022\036\n\032REJECT"
+    "_REASON_OUT_OF_RANGE\020\n\022\033\n\027REJECT_REASON_"
+    "PROTECTED\020\013\022%\n!REJECT_REASON_NOT_YET_IMP"
+    "LEMENTED\020\014\022\037\n\033REJECT_REASON_SKILL_UNKNOW"
+    "N\020\r\022#\n\037REJECT_REASON_SKILL_NOT_LEARNED\020\016"
+    "\022 \n\034REJECT_REASON_SKILL_COOLDOWN\020\017\022!\n\035RE"
+    "JECT_REASON_INSUFFICIENT_MP\020\020\022!\n\035REJECT_"
+    "REASON_INSUFFICIENT_HP\020\021\022!\n\035REJECT_REASO"
+    "N_ALREADY_CASTING\020\022\022\037\n\033REJECT_REASON_INC"
+    "APACITATED\020\023\022\032\n\026REJECT_REASON_SILENCED\020\024"
+    "\022%\n!REJECT_REASON_INVALID_TARGET_TYPE\020\025\022"
+    "\034\n\030REJECT_REASON_PEACE_ZONE\020\026\022\"\n\036REJECT_"
+    "REASON_WEAPON_CONDITION\020\027\022$\n REJECT_REAS"
+    "ON_NO_RESURRECT_OFFER\020\030\022 \n\034REJECT_REASON"
+    "_ITEM_NOT_OWNED\020\031\022!\n\035REJECT_REASON_ITEM_"
+    "NOT_USABLE\020\032\022$\n REJECT_REASON_INVALID_EQ"
+    "UIP_SLOT\020\033\022$\n REJECT_REASON_INSUFFICIENT"
+    "_ITEMS\020\034\022 \n\034REJECT_REASON_INVENTORY_FULL"
+    "\020\035\022%\n!REJECT_REASON_ITEM_GRADE_MISMATCH\020"
+    "\036\022\034\n\030REJECT_REASON_ITEM_REUSE\020\037\022!\n\035REJEC"
+    "T_REASON_INVALID_ENCHANT\020 \022$\n REJECT_REA"
+    "SON_INVALID_REFINEMENT\020!\022 \n\034REJECT_REASO"
+    "N_INVALID_RECIPE\020\"\022)\n%REJECT_REASON_ITEM"
+    "_OPERATION_CONFLICT\020#\022*\n&REJECT_REASON_I"
+    "TEM_CAPABILITY_DEFERRED\020$\022+\n\'REJECT_REAS"
+    "ON_CRYSTALLIZE_LEVEL_TOO_LOW\020%\022\'\n#REJECT"
+    "_REASON_GROUND_ITEM_NOT_FOUND\020&\022\'\n#REJEC"
+    "T_REASON_GROUND_ITEM_PROTECTED\020\'\022\"\n\036REJE"
+    "CT_REASON_INVALID_MERCHANT\020(\022\"\n\036REJECT_R"
+    "EASON_INVALID_QUANTITY\020)\022%\n!REJECT_REASO"
+    "N_VENDOR_OUT_OF_STOCK\020*\022\035\n\031REJECT_REASON"
+    "_ADENA_LIMIT\020+\022\036\n\032REJECT_REASON_WEIGHT_L"
+    "IMIT\020,\022$\n REJECT_REASON_INSUFFICIENT_ADE"
+    "NA\020-\022#\n\037REJECT_REASON_ITEM_NOT_SELLABLE\020"
+    ".\022 \n\034REJECT_REASON_ITEM_COUNT_CAP\020/\022+\n\'R"
+    "EJECT_REASON_RECIPE_ALREADY_REGISTERED\0200"
+    "\022\"\n\036REJECT_REASON_RECIPE_BOOK_FULL\0201\022%\n!"
+    "REJECT_REASON_CRAFT_SKILL_MISSING\0202\022%\n!R"
+    "EJECT_REASON_CRAFT_LEVEL_TOO_LOW\0203\022#\n\037RE"
+    "JECT_REASON_MISSING_MATERIALS\0204\022\033\n\027REJEC"
+    "T_REASON_IN_COMBAT\0205\022$\n REJECT_REASON_NO"
+    "_PENDING_REQUEST\0206\022!\n\035REJECT_REASON_ALRE"
+    "ADY_TRADING\0207\022\035\n\031REJECT_REASON_TARGET_BU"
+    "SY\0208\022\'\n#REJECT_REASON_CANNOT_TRADE_IN_ST"
+    "ORE\0209\022-\n)REJECT_REASON_CANNOT_ADJUST_AFT"
+    "ER_CONFIRM\020:\022#\n\037REJECT_REASON_ITEM_NOT_T"
+    "RADABLE\020;\022\"\n\036REJECT_REASON_STORE_SLOT_LI"
+    "MIT\020<\022 \n\034REJECT_REASON_STORE_NOT_OPEN\020=\022"
+    "$\n REJECT_REASON_PACKAGE_INCOMPLETE\020>\022 \n"
+    "\034REJECT_REASON_PRICE_MISMATCH\020\?\022\034\n\030REJEC"
+    "T_REASON_PARTY_FULL\020@\022(\n$REJECT_REASON_P"
+    "ARTY_ALREADY_IN_PARTY\020A\022\"\n\036REJECT_REASON"
+    "_NOT_PARTY_LEADER\020B\022\"\n\036REJECT_REASON_NOT"
+    "_PARTY_MEMBER\020C\022-\n)REJECT_REASON_PARTY_L"
+    "OOT_VOTE_IN_PROGRESS\020D\022 \n\034REJECT_REASON_"
+    "CONTAINER_BUSY\020E\022 \n\034REJECT_REASON_WAREHO"
+    "USE_FULL\020F\022&\n\"REJECT_REASON_ITEM_NOT_DEP"
+    "OSITABLE\020G\022(\n$REJECT_REASON_FREIGHT_TARG"
+    "ET_INVALID\020H\022&\n\"REJECT_REASON_ITEM_NOT_F"
+    "REIGHTABLE\020I\022\036\n\032REJECT_REASON_FREIGHT_FU"
+    "LL\020J\022%\n!REJECT_REASON_PEACE_ZONE_REQUIRE"
+    "D\020K\022+\n\'REJECT_REASON_MAIL_ATTACHMENTS_EX"
+    "CEEDED\020L\022)\n%REJECT_REASON_MAIL_RECEIVER_"
+    "NOT_FOUND\020M\022\036\n\032REJECT_REASON_MAILBOX_FUL"
+    "L\020N\022 \n\034REJECT_REASON_MAIL_NOT_FOUND\020O\022$\n"
+    " REJECT_REASON_MAIL_ALREADY_TAKEN\020P\022#\n\037R"
+    "EJECT_REASON_SWEEP_NOT_ALLOWED\020Q\022\036\n\032REJE"
+    "CT_REASON_NOT_SEEDABLE\020R\022%\n!REJECT_REASO"
+    "N_HARVEST_NOT_ALLOWED\020S\022#\n\037REJECT_REASON"
+    "_MANOR_UNAVAILABLE\020T\022$\n REJECT_REASON_AU"
+    "CTION_NOT_ACTIVE\020U\022\035\n\031REJECT_REASON_BID_"
+    "TOO_LOW\020V\022\036\n\032REJECT_REASON_BID_TOO_HIGH\020"
+    "W\022\"\n\036REJECT_REASON_NO_BID_TO_CANCEL\020X*s\n"
+    "\nEntityKind\022\033\n\027ENTITY_KIND_UNSPECIFIED\020\000"
+    "\022\026\n\022ENTITY_KIND_PLAYER\020\001\022\023\n\017ENTITY_KIND_"
+    "NPC\020\002\022\033\n\027ENTITY_KIND_GROUND_ITEM\020\003*y\n\rAt"
+    "tackOutcome\022\036\n\032ATTACK_OUTCOME_UNSPECIFIE"
+    "D\020\000\022\027\n\023ATTACK_OUTCOME_MISS\020\001\022\026\n\022ATTACK_O"
+    "UTCOME_HIT\020\002\022\027\n\023ATTACK_OUTCOME_CRIT\020\003*\222\002"
+    "\n\021SwingCancelReason\022#\n\037SWING_CANCEL_REAS"
+    "ON_UNSPECIFIED\020\000\022\037\n\033SWING_CANCEL_REASON_"
+    "STOPPED\020\001\022&\n\"SWING_CANCEL_REASON_TARGET_"
+    "CHANGED\020\002\022\035\n\031SWING_CANCEL_REASON_MOVED\020\003"
+    "\022$\n SWING_CANCEL_REASON_OUT_OF_RANGE\020\004\022#"
+    "\n\037SWING_CANCEL_REASON_TARGET_LOST\020\005\022%\n!S"
+    "WING_CANCEL_REASON_ATTACKER_DIED\020\006*\355\001\n\023S"
+    "killResolutionKind\022%\n!SKILL_RESOLUTION_K"
+    "IND_UNSPECIFIED\020\000\022\"\n\036SKILL_RESOLUTION_KI"
+    "ND_PHYSICAL\020\001\022!\n\035SKILL_RESOLUTION_KIND_M"
+    "AGICAL\020\002\022 \n\034SKILL_RESOLUTION_KIND_EFFECT"
+    "\020\003\022\036\n\032SKILL_RESOLUTION_KIND_HEAL\020\004\022&\n\"SK"
+    "ILL_RESOLUTION_KIND_RESURRECTION\020\005*\246\001\n\014S"
+    "killOutcome\022\035\n\031SKILL_OUTCOME_UNSPECIFIED"
+    "\020\000\022\026\n\022SKILL_OUTCOME_MISS\020\001\022\025\n\021SKILL_OUTC"
+    "OME_HIT\020\002\022\026\n\022SKILL_OUTCOME_CRIT\020\003\022\030\n\024SKI"
+    "LL_OUTCOME_RESIST\020\004\022\026\n\022SKILL_OUTCOME_HAL"
+    "F\020\005*\214\003\n\020CastCancelReason\022\"\n\036CAST_CANCEL_"
+    "REASON_UNSPECIFIED\020\000\022\036\n\032CAST_CANCEL_REAS"
+    "ON_STOPPED\020\001\022\034\n\030CAST_CANCEL_REASON_MOVED"
+    "\020\002\022\035\n\031CAST_CANCEL_REASON_DAMAGE\020\003\022$\n CAS"
+    "T_CANCEL_REASON_INCAPACITATED\020\004\022\"\n\036CAST_"
+    "CANCEL_REASON_TARGET_LOST\020\005\022#\n\037CAST_CANC"
+    "EL_REASON_OUT_OF_RANGE\020\006\022 \n\034CAST_CANCEL_"
+    "REASON_RESOURCES\020\007\022\"\n\036CAST_CANCEL_REASON"
+    "_CASTER_DIED\020\010\022!\n\035CAST_CANCEL_REASON_PEA"
+    "CE_ZONE\020\t\022\037\n\033CAST_CANCEL_REASON_TRANSFER"
+    "\020\n*s\n\nEffectPool\022\033\n\027EFFECT_POOL_UNSPECIF"
+    "IED\020\000\022\024\n\020EFFECT_POOL_BUFF\020\001\022\032\n\026EFFECT_PO"
+    "OL_SONG_DANCE\020\002\022\026\n\022EFFECT_POOL_DEBUFF\020\003*"
+    "\252\002\n\022EffectRemoveReason\022$\n EFFECT_REMOVE_"
+    "REASON_UNSPECIFIED\020\000\022 \n\034EFFECT_REMOVE_RE"
+    "ASON_EXPIRED\020\001\022!\n\035EFFECT_REMOVE_REASON_R"
+    "EPLACED\020\002\022!\n\035EFFECT_REMOVE_REASON_OVERFL"
+    "OW\020\003\022\"\n\036EFFECT_REMOVE_REASON_DISPELLED\020\004"
+    "\022\037\n\033EFFECT_REMOVE_REASON_DAMAGE\020\005\022\036\n\032EFF"
+    "ECT_REMOVE_REASON_DEATH\020\006\022!\n\035EFFECT_REMO"
+    "VE_REASON_TRANSFER\020\007*\312\001\n\023ResurrectOfferS"
+    "tate\022%\n!RESURRECT_OFFER_STATE_UNSPECIFIE"
+    "D\020\000\022!\n\035RESURRECT_OFFER_STATE_OFFERED\020\001\022\""
+    "\n\036RESURRECT_OFFER_STATE_DECLINED\020\002\022!\n\035RE"
+    "SURRECT_OFFER_STATE_EXPIRED\020\003\022\"\n\036RESURRE"
+    "CT_OFFER_STATE_ACCEPTED\020\004b\006proto3"
 };
-static const ::_pbi::DescriptorTable* const descriptor_table_nightfall_2fv1_2fworld_2eproto_deps[2] =
+static const ::_pbi::DescriptorTable* const descriptor_table_nightfall_2fv1_2fworld_2eproto_deps[3] =
     {
+        &::descriptor_table_nightfall_2fv1_2feconomy_2eproto,
         &::descriptor_table_nightfall_2fv1_2fgame_2eproto,
         &::descriptor_table_nightfall_2fv1_2fitems_2eproto,
 };
@@ -2452,12 +2643,12 @@ static ::absl::once_flag descriptor_table_nightfall_2fv1_2fworld_2eproto_once;
 const ::_pbi::DescriptorTable descriptor_table_nightfall_2fv1_2fworld_2eproto = {
     false,
     false,
-    12927,
+    18313,
     descriptor_table_protodef_nightfall_2fv1_2fworld_2eproto,
     "nightfall/v1/world.proto",
     &descriptor_table_nightfall_2fv1_2fworld_2eproto_once,
     descriptor_table_nightfall_2fv1_2fworld_2eproto_deps,
-    2,
+    3,
     43,
     schemas,
     file_default_instances,
@@ -2530,6 +2721,57 @@ bool RejectReason_IsValid(int value) {
     case 35:
     case 36:
     case 37:
+    case 38:
+    case 39:
+    case 40:
+    case 41:
+    case 42:
+    case 43:
+    case 44:
+    case 45:
+    case 46:
+    case 47:
+    case 48:
+    case 49:
+    case 50:
+    case 51:
+    case 52:
+    case 53:
+    case 54:
+    case 55:
+    case 56:
+    case 57:
+    case 58:
+    case 59:
+    case 60:
+    case 61:
+    case 62:
+    case 63:
+    case 64:
+    case 65:
+    case 66:
+    case 67:
+    case 68:
+    case 69:
+    case 70:
+    case 71:
+    case 72:
+    case 73:
+    case 74:
+    case 75:
+    case 76:
+    case 77:
+    case 78:
+    case 79:
+    case 80:
+    case 81:
+    case 82:
+    case 83:
+    case 84:
+    case 85:
+    case 86:
+    case 87:
+    case 88:
       return true;
     default:
       return false;
@@ -2544,6 +2786,7 @@ bool EntityKind_IsValid(int value) {
     case 0:
     case 1:
     case 2:
+    case 3:
       return true;
     default:
       return false;
@@ -2713,6 +2956,47 @@ class ClientMessage::_Internal {
   static const ::nightfall::v1::CancelRefineRequest& cancel_refine(const ClientMessage* msg);
   static const ::nightfall::v1::ExchangeSpecialAbilityRequest& exchange_special_ability(const ClientMessage* msg);
   static const ::nightfall::v1::CrystallizeItemRequest& crystallize_item(const ClientMessage* msg);
+  static const ::nightfall::v1::PickUpItemRequest& pick_up_item(const ClientMessage* msg);
+  static const ::nightfall::v1::VendorBuyRequest& vendor_buy(const ClientMessage* msg);
+  static const ::nightfall::v1::VendorSellRequest& vendor_sell(const ClientMessage* msg);
+  static const ::nightfall::v1::VendorRefundRequest& vendor_refund(const ClientMessage* msg);
+  static const ::nightfall::v1::MultisellChooseRequest& multisell_choose(const ClientMessage* msg);
+  static const ::nightfall::v1::RegisterRecipeRequest& register_recipe(const ClientMessage* msg);
+  static const ::nightfall::v1::DeleteRecipeRequest& delete_recipe(const ClientMessage* msg);
+  static const ::nightfall::v1::CraftItemRequest& craft_item(const ClientMessage* msg);
+  static const ::nightfall::v1::TradeRequestRequest& trade_request(const ClientMessage* msg);
+  static const ::nightfall::v1::TradeAnswerRequest& trade_answer(const ClientMessage* msg);
+  static const ::nightfall::v1::TradeAddItemRequest& trade_add_item(const ClientMessage* msg);
+  static const ::nightfall::v1::TradeConfirmRequest& trade_confirm(const ClientMessage* msg);
+  static const ::nightfall::v1::TradeCancelRequest& trade_cancel(const ClientMessage* msg);
+  static const ::nightfall::v1::SetPrivateStoreSellRequest& set_private_store_sell(const ClientMessage* msg);
+  static const ::nightfall::v1::SetPrivateStoreBuyRequest& set_private_store_buy(const ClientMessage* msg);
+  static const ::nightfall::v1::SetPrivateManufactureRequest& set_private_manufacture(const ClientMessage* msg);
+  static const ::nightfall::v1::ClosePrivateStoreRequest& close_private_store(const ClientMessage* msg);
+  static const ::nightfall::v1::PrivateStoreBuyRequest& private_store_buy(const ClientMessage* msg);
+  static const ::nightfall::v1::PrivateStoreSellRequest& private_store_sell(const ClientMessage* msg);
+  static const ::nightfall::v1::PrivateManufactureOrderRequest& private_manufacture_order(const ClientMessage* msg);
+  static const ::nightfall::v1::PartyInviteRequest& party_invite(const ClientMessage* msg);
+  static const ::nightfall::v1::PartyAnswerRequest& party_answer(const ClientMessage* msg);
+  static const ::nightfall::v1::PartyLeaveRequest& party_leave(const ClientMessage* msg);
+  static const ::nightfall::v1::PartyKickRequest& party_kick(const ClientMessage* msg);
+  static const ::nightfall::v1::PartyChangeLeaderRequest& party_change_leader(const ClientMessage* msg);
+  static const ::nightfall::v1::PartyLootChangeRequest& party_loot_change_request(const ClientMessage* msg);
+  static const ::nightfall::v1::PartyLootChangeAnswer& party_loot_change_answer(const ClientMessage* msg);
+  static const ::nightfall::v1::WarehouseDepositRequest& warehouse_deposit(const ClientMessage* msg);
+  static const ::nightfall::v1::WarehouseWithdrawRequest& warehouse_withdraw(const ClientMessage* msg);
+  static const ::nightfall::v1::FreightSendRequest& freight_send(const ClientMessage* msg);
+  static const ::nightfall::v1::FreightWithdrawRequest& freight_withdraw(const ClientMessage* msg);
+  static const ::nightfall::v1::MailSendRequest& mail_send(const ClientMessage* msg);
+  static const ::nightfall::v1::MailTakeAttachmentsRequest& mail_take_attachments(const ClientMessage* msg);
+  static const ::nightfall::v1::MailRejectRequest& mail_reject(const ClientMessage* msg);
+  static const ::nightfall::v1::MailCancelRequest& mail_cancel(const ClientMessage* msg);
+  static const ::nightfall::v1::MailDeleteRequest& mail_delete(const ClientMessage* msg);
+  static const ::nightfall::v1::ManorBuySeedRequest& manor_buy_seed(const ClientMessage* msg);
+  static const ::nightfall::v1::ManorSellCropRequest& manor_sell_crop(const ClientMessage* msg);
+  static const ::nightfall::v1::ItemAuctionBidRequest& item_auction_bid(const ClientMessage* msg);
+  static const ::nightfall::v1::ItemAuctionCancelBidRequest& item_auction_cancel_bid(const ClientMessage* msg);
+  static const ::nightfall::v1::MailMarkReadRequest& mail_mark_read(const ClientMessage* msg);
 };
 
 const ::nightfall::v1::MoveToRequest&
@@ -2790,6 +3074,170 @@ ClientMessage::_Internal::exchange_special_ability(const ClientMessage* msg) {
 const ::nightfall::v1::CrystallizeItemRequest&
 ClientMessage::_Internal::crystallize_item(const ClientMessage* msg) {
   return *msg->_impl_.intent_.crystallize_item_;
+}
+const ::nightfall::v1::PickUpItemRequest&
+ClientMessage::_Internal::pick_up_item(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.pick_up_item_;
+}
+const ::nightfall::v1::VendorBuyRequest&
+ClientMessage::_Internal::vendor_buy(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.vendor_buy_;
+}
+const ::nightfall::v1::VendorSellRequest&
+ClientMessage::_Internal::vendor_sell(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.vendor_sell_;
+}
+const ::nightfall::v1::VendorRefundRequest&
+ClientMessage::_Internal::vendor_refund(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.vendor_refund_;
+}
+const ::nightfall::v1::MultisellChooseRequest&
+ClientMessage::_Internal::multisell_choose(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.multisell_choose_;
+}
+const ::nightfall::v1::RegisterRecipeRequest&
+ClientMessage::_Internal::register_recipe(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.register_recipe_;
+}
+const ::nightfall::v1::DeleteRecipeRequest&
+ClientMessage::_Internal::delete_recipe(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.delete_recipe_;
+}
+const ::nightfall::v1::CraftItemRequest&
+ClientMessage::_Internal::craft_item(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.craft_item_;
+}
+const ::nightfall::v1::TradeRequestRequest&
+ClientMessage::_Internal::trade_request(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.trade_request_;
+}
+const ::nightfall::v1::TradeAnswerRequest&
+ClientMessage::_Internal::trade_answer(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.trade_answer_;
+}
+const ::nightfall::v1::TradeAddItemRequest&
+ClientMessage::_Internal::trade_add_item(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.trade_add_item_;
+}
+const ::nightfall::v1::TradeConfirmRequest&
+ClientMessage::_Internal::trade_confirm(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.trade_confirm_;
+}
+const ::nightfall::v1::TradeCancelRequest&
+ClientMessage::_Internal::trade_cancel(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.trade_cancel_;
+}
+const ::nightfall::v1::SetPrivateStoreSellRequest&
+ClientMessage::_Internal::set_private_store_sell(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.set_private_store_sell_;
+}
+const ::nightfall::v1::SetPrivateStoreBuyRequest&
+ClientMessage::_Internal::set_private_store_buy(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.set_private_store_buy_;
+}
+const ::nightfall::v1::SetPrivateManufactureRequest&
+ClientMessage::_Internal::set_private_manufacture(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.set_private_manufacture_;
+}
+const ::nightfall::v1::ClosePrivateStoreRequest&
+ClientMessage::_Internal::close_private_store(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.close_private_store_;
+}
+const ::nightfall::v1::PrivateStoreBuyRequest&
+ClientMessage::_Internal::private_store_buy(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.private_store_buy_;
+}
+const ::nightfall::v1::PrivateStoreSellRequest&
+ClientMessage::_Internal::private_store_sell(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.private_store_sell_;
+}
+const ::nightfall::v1::PrivateManufactureOrderRequest&
+ClientMessage::_Internal::private_manufacture_order(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.private_manufacture_order_;
+}
+const ::nightfall::v1::PartyInviteRequest&
+ClientMessage::_Internal::party_invite(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.party_invite_;
+}
+const ::nightfall::v1::PartyAnswerRequest&
+ClientMessage::_Internal::party_answer(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.party_answer_;
+}
+const ::nightfall::v1::PartyLeaveRequest&
+ClientMessage::_Internal::party_leave(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.party_leave_;
+}
+const ::nightfall::v1::PartyKickRequest&
+ClientMessage::_Internal::party_kick(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.party_kick_;
+}
+const ::nightfall::v1::PartyChangeLeaderRequest&
+ClientMessage::_Internal::party_change_leader(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.party_change_leader_;
+}
+const ::nightfall::v1::PartyLootChangeRequest&
+ClientMessage::_Internal::party_loot_change_request(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.party_loot_change_request_;
+}
+const ::nightfall::v1::PartyLootChangeAnswer&
+ClientMessage::_Internal::party_loot_change_answer(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.party_loot_change_answer_;
+}
+const ::nightfall::v1::WarehouseDepositRequest&
+ClientMessage::_Internal::warehouse_deposit(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.warehouse_deposit_;
+}
+const ::nightfall::v1::WarehouseWithdrawRequest&
+ClientMessage::_Internal::warehouse_withdraw(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.warehouse_withdraw_;
+}
+const ::nightfall::v1::FreightSendRequest&
+ClientMessage::_Internal::freight_send(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.freight_send_;
+}
+const ::nightfall::v1::FreightWithdrawRequest&
+ClientMessage::_Internal::freight_withdraw(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.freight_withdraw_;
+}
+const ::nightfall::v1::MailSendRequest&
+ClientMessage::_Internal::mail_send(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.mail_send_;
+}
+const ::nightfall::v1::MailTakeAttachmentsRequest&
+ClientMessage::_Internal::mail_take_attachments(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.mail_take_attachments_;
+}
+const ::nightfall::v1::MailRejectRequest&
+ClientMessage::_Internal::mail_reject(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.mail_reject_;
+}
+const ::nightfall::v1::MailCancelRequest&
+ClientMessage::_Internal::mail_cancel(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.mail_cancel_;
+}
+const ::nightfall::v1::MailDeleteRequest&
+ClientMessage::_Internal::mail_delete(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.mail_delete_;
+}
+const ::nightfall::v1::ManorBuySeedRequest&
+ClientMessage::_Internal::manor_buy_seed(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.manor_buy_seed_;
+}
+const ::nightfall::v1::ManorSellCropRequest&
+ClientMessage::_Internal::manor_sell_crop(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.manor_sell_crop_;
+}
+const ::nightfall::v1::ItemAuctionBidRequest&
+ClientMessage::_Internal::item_auction_bid(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.item_auction_bid_;
+}
+const ::nightfall::v1::ItemAuctionCancelBidRequest&
+ClientMessage::_Internal::item_auction_cancel_bid(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.item_auction_cancel_bid_;
+}
+const ::nightfall::v1::MailMarkReadRequest&
+ClientMessage::_Internal::mail_mark_read(const ClientMessage* msg) {
+  return *msg->_impl_.intent_.mail_mark_read_;
 }
 void ClientMessage::set_allocated_move_to(::nightfall::v1::MoveToRequest* move_to) {
   ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
@@ -3166,6 +3614,990 @@ void ClientMessage::clear_crystallize_item() {
     clear_has_intent();
   }
 }
+void ClientMessage::set_allocated_pick_up_item(::nightfall::v1::PickUpItemRequest* pick_up_item) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (pick_up_item) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(pick_up_item));
+    if (message_arena != submessage_arena) {
+      pick_up_item = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, pick_up_item, submessage_arena);
+    }
+    set_has_pick_up_item();
+    _impl_.intent_.pick_up_item_ = pick_up_item;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.pick_up_item)
+}
+void ClientMessage::clear_pick_up_item() {
+  if (intent_case() == kPickUpItem) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.pick_up_item_;
+    }
+    clear_has_intent();
+  }
+}
+void ClientMessage::set_allocated_vendor_buy(::nightfall::v1::VendorBuyRequest* vendor_buy) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (vendor_buy) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(vendor_buy));
+    if (message_arena != submessage_arena) {
+      vendor_buy = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, vendor_buy, submessage_arena);
+    }
+    set_has_vendor_buy();
+    _impl_.intent_.vendor_buy_ = vendor_buy;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.vendor_buy)
+}
+void ClientMessage::clear_vendor_buy() {
+  if (intent_case() == kVendorBuy) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.vendor_buy_;
+    }
+    clear_has_intent();
+  }
+}
+void ClientMessage::set_allocated_vendor_sell(::nightfall::v1::VendorSellRequest* vendor_sell) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (vendor_sell) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(vendor_sell));
+    if (message_arena != submessage_arena) {
+      vendor_sell = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, vendor_sell, submessage_arena);
+    }
+    set_has_vendor_sell();
+    _impl_.intent_.vendor_sell_ = vendor_sell;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.vendor_sell)
+}
+void ClientMessage::clear_vendor_sell() {
+  if (intent_case() == kVendorSell) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.vendor_sell_;
+    }
+    clear_has_intent();
+  }
+}
+void ClientMessage::set_allocated_vendor_refund(::nightfall::v1::VendorRefundRequest* vendor_refund) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (vendor_refund) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(vendor_refund));
+    if (message_arena != submessage_arena) {
+      vendor_refund = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, vendor_refund, submessage_arena);
+    }
+    set_has_vendor_refund();
+    _impl_.intent_.vendor_refund_ = vendor_refund;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.vendor_refund)
+}
+void ClientMessage::clear_vendor_refund() {
+  if (intent_case() == kVendorRefund) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.vendor_refund_;
+    }
+    clear_has_intent();
+  }
+}
+void ClientMessage::set_allocated_multisell_choose(::nightfall::v1::MultisellChooseRequest* multisell_choose) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (multisell_choose) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(multisell_choose));
+    if (message_arena != submessage_arena) {
+      multisell_choose = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, multisell_choose, submessage_arena);
+    }
+    set_has_multisell_choose();
+    _impl_.intent_.multisell_choose_ = multisell_choose;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.multisell_choose)
+}
+void ClientMessage::clear_multisell_choose() {
+  if (intent_case() == kMultisellChoose) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.multisell_choose_;
+    }
+    clear_has_intent();
+  }
+}
+void ClientMessage::set_allocated_register_recipe(::nightfall::v1::RegisterRecipeRequest* register_recipe) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (register_recipe) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(register_recipe));
+    if (message_arena != submessage_arena) {
+      register_recipe = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, register_recipe, submessage_arena);
+    }
+    set_has_register_recipe();
+    _impl_.intent_.register_recipe_ = register_recipe;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.register_recipe)
+}
+void ClientMessage::clear_register_recipe() {
+  if (intent_case() == kRegisterRecipe) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.register_recipe_;
+    }
+    clear_has_intent();
+  }
+}
+void ClientMessage::set_allocated_delete_recipe(::nightfall::v1::DeleteRecipeRequest* delete_recipe) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (delete_recipe) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(delete_recipe));
+    if (message_arena != submessage_arena) {
+      delete_recipe = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, delete_recipe, submessage_arena);
+    }
+    set_has_delete_recipe();
+    _impl_.intent_.delete_recipe_ = delete_recipe;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.delete_recipe)
+}
+void ClientMessage::clear_delete_recipe() {
+  if (intent_case() == kDeleteRecipe) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.delete_recipe_;
+    }
+    clear_has_intent();
+  }
+}
+void ClientMessage::set_allocated_craft_item(::nightfall::v1::CraftItemRequest* craft_item) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (craft_item) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(craft_item));
+    if (message_arena != submessage_arena) {
+      craft_item = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, craft_item, submessage_arena);
+    }
+    set_has_craft_item();
+    _impl_.intent_.craft_item_ = craft_item;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.craft_item)
+}
+void ClientMessage::clear_craft_item() {
+  if (intent_case() == kCraftItem) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.craft_item_;
+    }
+    clear_has_intent();
+  }
+}
+void ClientMessage::set_allocated_trade_request(::nightfall::v1::TradeRequestRequest* trade_request) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (trade_request) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(trade_request));
+    if (message_arena != submessage_arena) {
+      trade_request = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, trade_request, submessage_arena);
+    }
+    set_has_trade_request();
+    _impl_.intent_.trade_request_ = trade_request;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.trade_request)
+}
+void ClientMessage::clear_trade_request() {
+  if (intent_case() == kTradeRequest) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.trade_request_;
+    }
+    clear_has_intent();
+  }
+}
+void ClientMessage::set_allocated_trade_answer(::nightfall::v1::TradeAnswerRequest* trade_answer) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (trade_answer) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(trade_answer));
+    if (message_arena != submessage_arena) {
+      trade_answer = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, trade_answer, submessage_arena);
+    }
+    set_has_trade_answer();
+    _impl_.intent_.trade_answer_ = trade_answer;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.trade_answer)
+}
+void ClientMessage::clear_trade_answer() {
+  if (intent_case() == kTradeAnswer) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.trade_answer_;
+    }
+    clear_has_intent();
+  }
+}
+void ClientMessage::set_allocated_trade_add_item(::nightfall::v1::TradeAddItemRequest* trade_add_item) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (trade_add_item) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(trade_add_item));
+    if (message_arena != submessage_arena) {
+      trade_add_item = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, trade_add_item, submessage_arena);
+    }
+    set_has_trade_add_item();
+    _impl_.intent_.trade_add_item_ = trade_add_item;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.trade_add_item)
+}
+void ClientMessage::clear_trade_add_item() {
+  if (intent_case() == kTradeAddItem) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.trade_add_item_;
+    }
+    clear_has_intent();
+  }
+}
+void ClientMessage::set_allocated_trade_confirm(::nightfall::v1::TradeConfirmRequest* trade_confirm) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (trade_confirm) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(trade_confirm));
+    if (message_arena != submessage_arena) {
+      trade_confirm = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, trade_confirm, submessage_arena);
+    }
+    set_has_trade_confirm();
+    _impl_.intent_.trade_confirm_ = trade_confirm;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.trade_confirm)
+}
+void ClientMessage::clear_trade_confirm() {
+  if (intent_case() == kTradeConfirm) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.trade_confirm_;
+    }
+    clear_has_intent();
+  }
+}
+void ClientMessage::set_allocated_trade_cancel(::nightfall::v1::TradeCancelRequest* trade_cancel) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (trade_cancel) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(trade_cancel));
+    if (message_arena != submessage_arena) {
+      trade_cancel = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, trade_cancel, submessage_arena);
+    }
+    set_has_trade_cancel();
+    _impl_.intent_.trade_cancel_ = trade_cancel;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.trade_cancel)
+}
+void ClientMessage::clear_trade_cancel() {
+  if (intent_case() == kTradeCancel) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.trade_cancel_;
+    }
+    clear_has_intent();
+  }
+}
+void ClientMessage::set_allocated_set_private_store_sell(::nightfall::v1::SetPrivateStoreSellRequest* set_private_store_sell) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (set_private_store_sell) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(set_private_store_sell));
+    if (message_arena != submessage_arena) {
+      set_private_store_sell = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, set_private_store_sell, submessage_arena);
+    }
+    set_has_set_private_store_sell();
+    _impl_.intent_.set_private_store_sell_ = set_private_store_sell;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.set_private_store_sell)
+}
+void ClientMessage::clear_set_private_store_sell() {
+  if (intent_case() == kSetPrivateStoreSell) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.set_private_store_sell_;
+    }
+    clear_has_intent();
+  }
+}
+void ClientMessage::set_allocated_set_private_store_buy(::nightfall::v1::SetPrivateStoreBuyRequest* set_private_store_buy) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (set_private_store_buy) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(set_private_store_buy));
+    if (message_arena != submessage_arena) {
+      set_private_store_buy = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, set_private_store_buy, submessage_arena);
+    }
+    set_has_set_private_store_buy();
+    _impl_.intent_.set_private_store_buy_ = set_private_store_buy;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.set_private_store_buy)
+}
+void ClientMessage::clear_set_private_store_buy() {
+  if (intent_case() == kSetPrivateStoreBuy) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.set_private_store_buy_;
+    }
+    clear_has_intent();
+  }
+}
+void ClientMessage::set_allocated_set_private_manufacture(::nightfall::v1::SetPrivateManufactureRequest* set_private_manufacture) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (set_private_manufacture) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(set_private_manufacture));
+    if (message_arena != submessage_arena) {
+      set_private_manufacture = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, set_private_manufacture, submessage_arena);
+    }
+    set_has_set_private_manufacture();
+    _impl_.intent_.set_private_manufacture_ = set_private_manufacture;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.set_private_manufacture)
+}
+void ClientMessage::clear_set_private_manufacture() {
+  if (intent_case() == kSetPrivateManufacture) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.set_private_manufacture_;
+    }
+    clear_has_intent();
+  }
+}
+void ClientMessage::set_allocated_close_private_store(::nightfall::v1::ClosePrivateStoreRequest* close_private_store) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (close_private_store) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(close_private_store));
+    if (message_arena != submessage_arena) {
+      close_private_store = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, close_private_store, submessage_arena);
+    }
+    set_has_close_private_store();
+    _impl_.intent_.close_private_store_ = close_private_store;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.close_private_store)
+}
+void ClientMessage::clear_close_private_store() {
+  if (intent_case() == kClosePrivateStore) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.close_private_store_;
+    }
+    clear_has_intent();
+  }
+}
+void ClientMessage::set_allocated_private_store_buy(::nightfall::v1::PrivateStoreBuyRequest* private_store_buy) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (private_store_buy) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(private_store_buy));
+    if (message_arena != submessage_arena) {
+      private_store_buy = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, private_store_buy, submessage_arena);
+    }
+    set_has_private_store_buy();
+    _impl_.intent_.private_store_buy_ = private_store_buy;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.private_store_buy)
+}
+void ClientMessage::clear_private_store_buy() {
+  if (intent_case() == kPrivateStoreBuy) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.private_store_buy_;
+    }
+    clear_has_intent();
+  }
+}
+void ClientMessage::set_allocated_private_store_sell(::nightfall::v1::PrivateStoreSellRequest* private_store_sell) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (private_store_sell) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(private_store_sell));
+    if (message_arena != submessage_arena) {
+      private_store_sell = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, private_store_sell, submessage_arena);
+    }
+    set_has_private_store_sell();
+    _impl_.intent_.private_store_sell_ = private_store_sell;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.private_store_sell)
+}
+void ClientMessage::clear_private_store_sell() {
+  if (intent_case() == kPrivateStoreSell) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.private_store_sell_;
+    }
+    clear_has_intent();
+  }
+}
+void ClientMessage::set_allocated_private_manufacture_order(::nightfall::v1::PrivateManufactureOrderRequest* private_manufacture_order) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (private_manufacture_order) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(private_manufacture_order));
+    if (message_arena != submessage_arena) {
+      private_manufacture_order = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, private_manufacture_order, submessage_arena);
+    }
+    set_has_private_manufacture_order();
+    _impl_.intent_.private_manufacture_order_ = private_manufacture_order;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.private_manufacture_order)
+}
+void ClientMessage::clear_private_manufacture_order() {
+  if (intent_case() == kPrivateManufactureOrder) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.private_manufacture_order_;
+    }
+    clear_has_intent();
+  }
+}
+void ClientMessage::set_allocated_party_invite(::nightfall::v1::PartyInviteRequest* party_invite) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (party_invite) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(party_invite));
+    if (message_arena != submessage_arena) {
+      party_invite = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, party_invite, submessage_arena);
+    }
+    set_has_party_invite();
+    _impl_.intent_.party_invite_ = party_invite;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.party_invite)
+}
+void ClientMessage::clear_party_invite() {
+  if (intent_case() == kPartyInvite) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.party_invite_;
+    }
+    clear_has_intent();
+  }
+}
+void ClientMessage::set_allocated_party_answer(::nightfall::v1::PartyAnswerRequest* party_answer) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (party_answer) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(party_answer));
+    if (message_arena != submessage_arena) {
+      party_answer = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, party_answer, submessage_arena);
+    }
+    set_has_party_answer();
+    _impl_.intent_.party_answer_ = party_answer;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.party_answer)
+}
+void ClientMessage::clear_party_answer() {
+  if (intent_case() == kPartyAnswer) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.party_answer_;
+    }
+    clear_has_intent();
+  }
+}
+void ClientMessage::set_allocated_party_leave(::nightfall::v1::PartyLeaveRequest* party_leave) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (party_leave) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(party_leave));
+    if (message_arena != submessage_arena) {
+      party_leave = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, party_leave, submessage_arena);
+    }
+    set_has_party_leave();
+    _impl_.intent_.party_leave_ = party_leave;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.party_leave)
+}
+void ClientMessage::clear_party_leave() {
+  if (intent_case() == kPartyLeave) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.party_leave_;
+    }
+    clear_has_intent();
+  }
+}
+void ClientMessage::set_allocated_party_kick(::nightfall::v1::PartyKickRequest* party_kick) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (party_kick) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(party_kick));
+    if (message_arena != submessage_arena) {
+      party_kick = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, party_kick, submessage_arena);
+    }
+    set_has_party_kick();
+    _impl_.intent_.party_kick_ = party_kick;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.party_kick)
+}
+void ClientMessage::clear_party_kick() {
+  if (intent_case() == kPartyKick) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.party_kick_;
+    }
+    clear_has_intent();
+  }
+}
+void ClientMessage::set_allocated_party_change_leader(::nightfall::v1::PartyChangeLeaderRequest* party_change_leader) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (party_change_leader) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(party_change_leader));
+    if (message_arena != submessage_arena) {
+      party_change_leader = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, party_change_leader, submessage_arena);
+    }
+    set_has_party_change_leader();
+    _impl_.intent_.party_change_leader_ = party_change_leader;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.party_change_leader)
+}
+void ClientMessage::clear_party_change_leader() {
+  if (intent_case() == kPartyChangeLeader) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.party_change_leader_;
+    }
+    clear_has_intent();
+  }
+}
+void ClientMessage::set_allocated_party_loot_change_request(::nightfall::v1::PartyLootChangeRequest* party_loot_change_request) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (party_loot_change_request) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(party_loot_change_request));
+    if (message_arena != submessage_arena) {
+      party_loot_change_request = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, party_loot_change_request, submessage_arena);
+    }
+    set_has_party_loot_change_request();
+    _impl_.intent_.party_loot_change_request_ = party_loot_change_request;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.party_loot_change_request)
+}
+void ClientMessage::clear_party_loot_change_request() {
+  if (intent_case() == kPartyLootChangeRequest) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.party_loot_change_request_;
+    }
+    clear_has_intent();
+  }
+}
+void ClientMessage::set_allocated_party_loot_change_answer(::nightfall::v1::PartyLootChangeAnswer* party_loot_change_answer) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (party_loot_change_answer) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(party_loot_change_answer));
+    if (message_arena != submessage_arena) {
+      party_loot_change_answer = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, party_loot_change_answer, submessage_arena);
+    }
+    set_has_party_loot_change_answer();
+    _impl_.intent_.party_loot_change_answer_ = party_loot_change_answer;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.party_loot_change_answer)
+}
+void ClientMessage::clear_party_loot_change_answer() {
+  if (intent_case() == kPartyLootChangeAnswer) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.party_loot_change_answer_;
+    }
+    clear_has_intent();
+  }
+}
+void ClientMessage::set_allocated_warehouse_deposit(::nightfall::v1::WarehouseDepositRequest* warehouse_deposit) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (warehouse_deposit) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(warehouse_deposit));
+    if (message_arena != submessage_arena) {
+      warehouse_deposit = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, warehouse_deposit, submessage_arena);
+    }
+    set_has_warehouse_deposit();
+    _impl_.intent_.warehouse_deposit_ = warehouse_deposit;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.warehouse_deposit)
+}
+void ClientMessage::clear_warehouse_deposit() {
+  if (intent_case() == kWarehouseDeposit) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.warehouse_deposit_;
+    }
+    clear_has_intent();
+  }
+}
+void ClientMessage::set_allocated_warehouse_withdraw(::nightfall::v1::WarehouseWithdrawRequest* warehouse_withdraw) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (warehouse_withdraw) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(warehouse_withdraw));
+    if (message_arena != submessage_arena) {
+      warehouse_withdraw = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, warehouse_withdraw, submessage_arena);
+    }
+    set_has_warehouse_withdraw();
+    _impl_.intent_.warehouse_withdraw_ = warehouse_withdraw;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.warehouse_withdraw)
+}
+void ClientMessage::clear_warehouse_withdraw() {
+  if (intent_case() == kWarehouseWithdraw) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.warehouse_withdraw_;
+    }
+    clear_has_intent();
+  }
+}
+void ClientMessage::set_allocated_freight_send(::nightfall::v1::FreightSendRequest* freight_send) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (freight_send) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(freight_send));
+    if (message_arena != submessage_arena) {
+      freight_send = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, freight_send, submessage_arena);
+    }
+    set_has_freight_send();
+    _impl_.intent_.freight_send_ = freight_send;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.freight_send)
+}
+void ClientMessage::clear_freight_send() {
+  if (intent_case() == kFreightSend) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.freight_send_;
+    }
+    clear_has_intent();
+  }
+}
+void ClientMessage::set_allocated_freight_withdraw(::nightfall::v1::FreightWithdrawRequest* freight_withdraw) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (freight_withdraw) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(freight_withdraw));
+    if (message_arena != submessage_arena) {
+      freight_withdraw = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, freight_withdraw, submessage_arena);
+    }
+    set_has_freight_withdraw();
+    _impl_.intent_.freight_withdraw_ = freight_withdraw;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.freight_withdraw)
+}
+void ClientMessage::clear_freight_withdraw() {
+  if (intent_case() == kFreightWithdraw) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.freight_withdraw_;
+    }
+    clear_has_intent();
+  }
+}
+void ClientMessage::set_allocated_mail_send(::nightfall::v1::MailSendRequest* mail_send) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (mail_send) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(mail_send));
+    if (message_arena != submessage_arena) {
+      mail_send = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, mail_send, submessage_arena);
+    }
+    set_has_mail_send();
+    _impl_.intent_.mail_send_ = mail_send;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.mail_send)
+}
+void ClientMessage::clear_mail_send() {
+  if (intent_case() == kMailSend) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.mail_send_;
+    }
+    clear_has_intent();
+  }
+}
+void ClientMessage::set_allocated_mail_take_attachments(::nightfall::v1::MailTakeAttachmentsRequest* mail_take_attachments) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (mail_take_attachments) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(mail_take_attachments));
+    if (message_arena != submessage_arena) {
+      mail_take_attachments = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, mail_take_attachments, submessage_arena);
+    }
+    set_has_mail_take_attachments();
+    _impl_.intent_.mail_take_attachments_ = mail_take_attachments;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.mail_take_attachments)
+}
+void ClientMessage::clear_mail_take_attachments() {
+  if (intent_case() == kMailTakeAttachments) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.mail_take_attachments_;
+    }
+    clear_has_intent();
+  }
+}
+void ClientMessage::set_allocated_mail_reject(::nightfall::v1::MailRejectRequest* mail_reject) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (mail_reject) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(mail_reject));
+    if (message_arena != submessage_arena) {
+      mail_reject = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, mail_reject, submessage_arena);
+    }
+    set_has_mail_reject();
+    _impl_.intent_.mail_reject_ = mail_reject;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.mail_reject)
+}
+void ClientMessage::clear_mail_reject() {
+  if (intent_case() == kMailReject) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.mail_reject_;
+    }
+    clear_has_intent();
+  }
+}
+void ClientMessage::set_allocated_mail_cancel(::nightfall::v1::MailCancelRequest* mail_cancel) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (mail_cancel) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(mail_cancel));
+    if (message_arena != submessage_arena) {
+      mail_cancel = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, mail_cancel, submessage_arena);
+    }
+    set_has_mail_cancel();
+    _impl_.intent_.mail_cancel_ = mail_cancel;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.mail_cancel)
+}
+void ClientMessage::clear_mail_cancel() {
+  if (intent_case() == kMailCancel) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.mail_cancel_;
+    }
+    clear_has_intent();
+  }
+}
+void ClientMessage::set_allocated_mail_delete(::nightfall::v1::MailDeleteRequest* mail_delete) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (mail_delete) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(mail_delete));
+    if (message_arena != submessage_arena) {
+      mail_delete = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, mail_delete, submessage_arena);
+    }
+    set_has_mail_delete();
+    _impl_.intent_.mail_delete_ = mail_delete;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.mail_delete)
+}
+void ClientMessage::clear_mail_delete() {
+  if (intent_case() == kMailDelete) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.mail_delete_;
+    }
+    clear_has_intent();
+  }
+}
+void ClientMessage::set_allocated_manor_buy_seed(::nightfall::v1::ManorBuySeedRequest* manor_buy_seed) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (manor_buy_seed) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(manor_buy_seed));
+    if (message_arena != submessage_arena) {
+      manor_buy_seed = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, manor_buy_seed, submessage_arena);
+    }
+    set_has_manor_buy_seed();
+    _impl_.intent_.manor_buy_seed_ = manor_buy_seed;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.manor_buy_seed)
+}
+void ClientMessage::clear_manor_buy_seed() {
+  if (intent_case() == kManorBuySeed) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.manor_buy_seed_;
+    }
+    clear_has_intent();
+  }
+}
+void ClientMessage::set_allocated_manor_sell_crop(::nightfall::v1::ManorSellCropRequest* manor_sell_crop) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (manor_sell_crop) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(manor_sell_crop));
+    if (message_arena != submessage_arena) {
+      manor_sell_crop = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, manor_sell_crop, submessage_arena);
+    }
+    set_has_manor_sell_crop();
+    _impl_.intent_.manor_sell_crop_ = manor_sell_crop;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.manor_sell_crop)
+}
+void ClientMessage::clear_manor_sell_crop() {
+  if (intent_case() == kManorSellCrop) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.manor_sell_crop_;
+    }
+    clear_has_intent();
+  }
+}
+void ClientMessage::set_allocated_item_auction_bid(::nightfall::v1::ItemAuctionBidRequest* item_auction_bid) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (item_auction_bid) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(item_auction_bid));
+    if (message_arena != submessage_arena) {
+      item_auction_bid = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, item_auction_bid, submessage_arena);
+    }
+    set_has_item_auction_bid();
+    _impl_.intent_.item_auction_bid_ = item_auction_bid;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.item_auction_bid)
+}
+void ClientMessage::clear_item_auction_bid() {
+  if (intent_case() == kItemAuctionBid) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.item_auction_bid_;
+    }
+    clear_has_intent();
+  }
+}
+void ClientMessage::set_allocated_item_auction_cancel_bid(::nightfall::v1::ItemAuctionCancelBidRequest* item_auction_cancel_bid) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (item_auction_cancel_bid) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(item_auction_cancel_bid));
+    if (message_arena != submessage_arena) {
+      item_auction_cancel_bid = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, item_auction_cancel_bid, submessage_arena);
+    }
+    set_has_item_auction_cancel_bid();
+    _impl_.intent_.item_auction_cancel_bid_ = item_auction_cancel_bid;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.item_auction_cancel_bid)
+}
+void ClientMessage::clear_item_auction_cancel_bid() {
+  if (intent_case() == kItemAuctionCancelBid) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.item_auction_cancel_bid_;
+    }
+    clear_has_intent();
+  }
+}
+void ClientMessage::set_allocated_mail_mark_read(::nightfall::v1::MailMarkReadRequest* mail_mark_read) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_intent();
+  if (mail_mark_read) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(mail_mark_read));
+    if (message_arena != submessage_arena) {
+      mail_mark_read = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, mail_mark_read, submessage_arena);
+    }
+    set_has_mail_mark_read();
+    _impl_.intent_.mail_mark_read_ = mail_mark_read;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.ClientMessage.mail_mark_read)
+}
+void ClientMessage::clear_mail_mark_read() {
+  if (intent_case() == kMailMarkRead) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.intent_.mail_mark_read_;
+    }
+    clear_has_intent();
+  }
+}
 ClientMessage::ClientMessage(::PROTOBUF_NAMESPACE_ID::Arena* arena)
   : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
   SharedCtor(arena);
@@ -3278,6 +4710,211 @@ ClientMessage::ClientMessage(const ClientMessage& from)
     case kCrystallizeItem: {
       _this->_internal_mutable_crystallize_item()->::nightfall::v1::CrystallizeItemRequest::MergeFrom(
           from._internal_crystallize_item());
+      break;
+    }
+    case kPickUpItem: {
+      _this->_internal_mutable_pick_up_item()->::nightfall::v1::PickUpItemRequest::MergeFrom(
+          from._internal_pick_up_item());
+      break;
+    }
+    case kVendorBuy: {
+      _this->_internal_mutable_vendor_buy()->::nightfall::v1::VendorBuyRequest::MergeFrom(
+          from._internal_vendor_buy());
+      break;
+    }
+    case kVendorSell: {
+      _this->_internal_mutable_vendor_sell()->::nightfall::v1::VendorSellRequest::MergeFrom(
+          from._internal_vendor_sell());
+      break;
+    }
+    case kVendorRefund: {
+      _this->_internal_mutable_vendor_refund()->::nightfall::v1::VendorRefundRequest::MergeFrom(
+          from._internal_vendor_refund());
+      break;
+    }
+    case kMultisellChoose: {
+      _this->_internal_mutable_multisell_choose()->::nightfall::v1::MultisellChooseRequest::MergeFrom(
+          from._internal_multisell_choose());
+      break;
+    }
+    case kRegisterRecipe: {
+      _this->_internal_mutable_register_recipe()->::nightfall::v1::RegisterRecipeRequest::MergeFrom(
+          from._internal_register_recipe());
+      break;
+    }
+    case kDeleteRecipe: {
+      _this->_internal_mutable_delete_recipe()->::nightfall::v1::DeleteRecipeRequest::MergeFrom(
+          from._internal_delete_recipe());
+      break;
+    }
+    case kCraftItem: {
+      _this->_internal_mutable_craft_item()->::nightfall::v1::CraftItemRequest::MergeFrom(
+          from._internal_craft_item());
+      break;
+    }
+    case kTradeRequest: {
+      _this->_internal_mutable_trade_request()->::nightfall::v1::TradeRequestRequest::MergeFrom(
+          from._internal_trade_request());
+      break;
+    }
+    case kTradeAnswer: {
+      _this->_internal_mutable_trade_answer()->::nightfall::v1::TradeAnswerRequest::MergeFrom(
+          from._internal_trade_answer());
+      break;
+    }
+    case kTradeAddItem: {
+      _this->_internal_mutable_trade_add_item()->::nightfall::v1::TradeAddItemRequest::MergeFrom(
+          from._internal_trade_add_item());
+      break;
+    }
+    case kTradeConfirm: {
+      _this->_internal_mutable_trade_confirm()->::nightfall::v1::TradeConfirmRequest::MergeFrom(
+          from._internal_trade_confirm());
+      break;
+    }
+    case kTradeCancel: {
+      _this->_internal_mutable_trade_cancel()->::nightfall::v1::TradeCancelRequest::MergeFrom(
+          from._internal_trade_cancel());
+      break;
+    }
+    case kSetPrivateStoreSell: {
+      _this->_internal_mutable_set_private_store_sell()->::nightfall::v1::SetPrivateStoreSellRequest::MergeFrom(
+          from._internal_set_private_store_sell());
+      break;
+    }
+    case kSetPrivateStoreBuy: {
+      _this->_internal_mutable_set_private_store_buy()->::nightfall::v1::SetPrivateStoreBuyRequest::MergeFrom(
+          from._internal_set_private_store_buy());
+      break;
+    }
+    case kSetPrivateManufacture: {
+      _this->_internal_mutable_set_private_manufacture()->::nightfall::v1::SetPrivateManufactureRequest::MergeFrom(
+          from._internal_set_private_manufacture());
+      break;
+    }
+    case kClosePrivateStore: {
+      _this->_internal_mutable_close_private_store()->::nightfall::v1::ClosePrivateStoreRequest::MergeFrom(
+          from._internal_close_private_store());
+      break;
+    }
+    case kPrivateStoreBuy: {
+      _this->_internal_mutable_private_store_buy()->::nightfall::v1::PrivateStoreBuyRequest::MergeFrom(
+          from._internal_private_store_buy());
+      break;
+    }
+    case kPrivateStoreSell: {
+      _this->_internal_mutable_private_store_sell()->::nightfall::v1::PrivateStoreSellRequest::MergeFrom(
+          from._internal_private_store_sell());
+      break;
+    }
+    case kPrivateManufactureOrder: {
+      _this->_internal_mutable_private_manufacture_order()->::nightfall::v1::PrivateManufactureOrderRequest::MergeFrom(
+          from._internal_private_manufacture_order());
+      break;
+    }
+    case kPartyInvite: {
+      _this->_internal_mutable_party_invite()->::nightfall::v1::PartyInviteRequest::MergeFrom(
+          from._internal_party_invite());
+      break;
+    }
+    case kPartyAnswer: {
+      _this->_internal_mutable_party_answer()->::nightfall::v1::PartyAnswerRequest::MergeFrom(
+          from._internal_party_answer());
+      break;
+    }
+    case kPartyLeave: {
+      _this->_internal_mutable_party_leave()->::nightfall::v1::PartyLeaveRequest::MergeFrom(
+          from._internal_party_leave());
+      break;
+    }
+    case kPartyKick: {
+      _this->_internal_mutable_party_kick()->::nightfall::v1::PartyKickRequest::MergeFrom(
+          from._internal_party_kick());
+      break;
+    }
+    case kPartyChangeLeader: {
+      _this->_internal_mutable_party_change_leader()->::nightfall::v1::PartyChangeLeaderRequest::MergeFrom(
+          from._internal_party_change_leader());
+      break;
+    }
+    case kPartyLootChangeRequest: {
+      _this->_internal_mutable_party_loot_change_request()->::nightfall::v1::PartyLootChangeRequest::MergeFrom(
+          from._internal_party_loot_change_request());
+      break;
+    }
+    case kPartyLootChangeAnswer: {
+      _this->_internal_mutable_party_loot_change_answer()->::nightfall::v1::PartyLootChangeAnswer::MergeFrom(
+          from._internal_party_loot_change_answer());
+      break;
+    }
+    case kWarehouseDeposit: {
+      _this->_internal_mutable_warehouse_deposit()->::nightfall::v1::WarehouseDepositRequest::MergeFrom(
+          from._internal_warehouse_deposit());
+      break;
+    }
+    case kWarehouseWithdraw: {
+      _this->_internal_mutable_warehouse_withdraw()->::nightfall::v1::WarehouseWithdrawRequest::MergeFrom(
+          from._internal_warehouse_withdraw());
+      break;
+    }
+    case kFreightSend: {
+      _this->_internal_mutable_freight_send()->::nightfall::v1::FreightSendRequest::MergeFrom(
+          from._internal_freight_send());
+      break;
+    }
+    case kFreightWithdraw: {
+      _this->_internal_mutable_freight_withdraw()->::nightfall::v1::FreightWithdrawRequest::MergeFrom(
+          from._internal_freight_withdraw());
+      break;
+    }
+    case kMailSend: {
+      _this->_internal_mutable_mail_send()->::nightfall::v1::MailSendRequest::MergeFrom(
+          from._internal_mail_send());
+      break;
+    }
+    case kMailTakeAttachments: {
+      _this->_internal_mutable_mail_take_attachments()->::nightfall::v1::MailTakeAttachmentsRequest::MergeFrom(
+          from._internal_mail_take_attachments());
+      break;
+    }
+    case kMailReject: {
+      _this->_internal_mutable_mail_reject()->::nightfall::v1::MailRejectRequest::MergeFrom(
+          from._internal_mail_reject());
+      break;
+    }
+    case kMailCancel: {
+      _this->_internal_mutable_mail_cancel()->::nightfall::v1::MailCancelRequest::MergeFrom(
+          from._internal_mail_cancel());
+      break;
+    }
+    case kMailDelete: {
+      _this->_internal_mutable_mail_delete()->::nightfall::v1::MailDeleteRequest::MergeFrom(
+          from._internal_mail_delete());
+      break;
+    }
+    case kManorBuySeed: {
+      _this->_internal_mutable_manor_buy_seed()->::nightfall::v1::ManorBuySeedRequest::MergeFrom(
+          from._internal_manor_buy_seed());
+      break;
+    }
+    case kManorSellCrop: {
+      _this->_internal_mutable_manor_sell_crop()->::nightfall::v1::ManorSellCropRequest::MergeFrom(
+          from._internal_manor_sell_crop());
+      break;
+    }
+    case kItemAuctionBid: {
+      _this->_internal_mutable_item_auction_bid()->::nightfall::v1::ItemAuctionBidRequest::MergeFrom(
+          from._internal_item_auction_bid());
+      break;
+    }
+    case kItemAuctionCancelBid: {
+      _this->_internal_mutable_item_auction_cancel_bid()->::nightfall::v1::ItemAuctionCancelBidRequest::MergeFrom(
+          from._internal_item_auction_cancel_bid());
+      break;
+    }
+    case kMailMarkRead: {
+      _this->_internal_mutable_mail_mark_read()->::nightfall::v1::MailMarkReadRequest::MergeFrom(
+          from._internal_mail_mark_read());
       break;
     }
     case INTENT_NOT_SET: {
@@ -3433,6 +5070,252 @@ void ClientMessage::clear_intent() {
     case kCrystallizeItem: {
       if (GetArenaForAllocation() == nullptr) {
         delete _impl_.intent_.crystallize_item_;
+      }
+      break;
+    }
+    case kPickUpItem: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.pick_up_item_;
+      }
+      break;
+    }
+    case kVendorBuy: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.vendor_buy_;
+      }
+      break;
+    }
+    case kVendorSell: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.vendor_sell_;
+      }
+      break;
+    }
+    case kVendorRefund: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.vendor_refund_;
+      }
+      break;
+    }
+    case kMultisellChoose: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.multisell_choose_;
+      }
+      break;
+    }
+    case kRegisterRecipe: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.register_recipe_;
+      }
+      break;
+    }
+    case kDeleteRecipe: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.delete_recipe_;
+      }
+      break;
+    }
+    case kCraftItem: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.craft_item_;
+      }
+      break;
+    }
+    case kTradeRequest: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.trade_request_;
+      }
+      break;
+    }
+    case kTradeAnswer: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.trade_answer_;
+      }
+      break;
+    }
+    case kTradeAddItem: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.trade_add_item_;
+      }
+      break;
+    }
+    case kTradeConfirm: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.trade_confirm_;
+      }
+      break;
+    }
+    case kTradeCancel: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.trade_cancel_;
+      }
+      break;
+    }
+    case kSetPrivateStoreSell: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.set_private_store_sell_;
+      }
+      break;
+    }
+    case kSetPrivateStoreBuy: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.set_private_store_buy_;
+      }
+      break;
+    }
+    case kSetPrivateManufacture: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.set_private_manufacture_;
+      }
+      break;
+    }
+    case kClosePrivateStore: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.close_private_store_;
+      }
+      break;
+    }
+    case kPrivateStoreBuy: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.private_store_buy_;
+      }
+      break;
+    }
+    case kPrivateStoreSell: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.private_store_sell_;
+      }
+      break;
+    }
+    case kPrivateManufactureOrder: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.private_manufacture_order_;
+      }
+      break;
+    }
+    case kPartyInvite: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.party_invite_;
+      }
+      break;
+    }
+    case kPartyAnswer: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.party_answer_;
+      }
+      break;
+    }
+    case kPartyLeave: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.party_leave_;
+      }
+      break;
+    }
+    case kPartyKick: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.party_kick_;
+      }
+      break;
+    }
+    case kPartyChangeLeader: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.party_change_leader_;
+      }
+      break;
+    }
+    case kPartyLootChangeRequest: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.party_loot_change_request_;
+      }
+      break;
+    }
+    case kPartyLootChangeAnswer: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.party_loot_change_answer_;
+      }
+      break;
+    }
+    case kWarehouseDeposit: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.warehouse_deposit_;
+      }
+      break;
+    }
+    case kWarehouseWithdraw: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.warehouse_withdraw_;
+      }
+      break;
+    }
+    case kFreightSend: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.freight_send_;
+      }
+      break;
+    }
+    case kFreightWithdraw: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.freight_withdraw_;
+      }
+      break;
+    }
+    case kMailSend: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.mail_send_;
+      }
+      break;
+    }
+    case kMailTakeAttachments: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.mail_take_attachments_;
+      }
+      break;
+    }
+    case kMailReject: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.mail_reject_;
+      }
+      break;
+    }
+    case kMailCancel: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.mail_cancel_;
+      }
+      break;
+    }
+    case kMailDelete: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.mail_delete_;
+      }
+      break;
+    }
+    case kManorBuySeed: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.manor_buy_seed_;
+      }
+      break;
+    }
+    case kManorSellCrop: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.manor_sell_crop_;
+      }
+      break;
+    }
+    case kItemAuctionBid: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.item_auction_bid_;
+      }
+      break;
+    }
+    case kItemAuctionCancelBid: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.item_auction_cancel_bid_;
+      }
+      break;
+    }
+    case kMailMarkRead: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.intent_.mail_mark_read_;
       }
       break;
     }
@@ -3641,6 +5524,375 @@ const char* ClientMessage::_InternalParse(const char* ptr, ::_pbi::ParseContext*
           goto handle_unusual;
         }
         continue;
+      // .nightfall.v1.PickUpItemRequest pick_up_item = 29;
+      case 29:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 234)) {
+          ptr = ctx->ParseMessage(_internal_mutable_pick_up_item(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.VendorBuyRequest vendor_buy = 30;
+      case 30:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 242)) {
+          ptr = ctx->ParseMessage(_internal_mutable_vendor_buy(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.VendorSellRequest vendor_sell = 31;
+      case 31:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 250)) {
+          ptr = ctx->ParseMessage(_internal_mutable_vendor_sell(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.VendorRefundRequest vendor_refund = 32;
+      case 32:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 2)) {
+          ptr = ctx->ParseMessage(_internal_mutable_vendor_refund(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.MultisellChooseRequest multisell_choose = 33;
+      case 33:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
+          ptr = ctx->ParseMessage(_internal_mutable_multisell_choose(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.RegisterRecipeRequest register_recipe = 34;
+      case 34:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 18)) {
+          ptr = ctx->ParseMessage(_internal_mutable_register_recipe(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.DeleteRecipeRequest delete_recipe = 35;
+      case 35:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 26)) {
+          ptr = ctx->ParseMessage(_internal_mutable_delete_recipe(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.CraftItemRequest craft_item = 36;
+      case 36:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 34)) {
+          ptr = ctx->ParseMessage(_internal_mutable_craft_item(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.TradeRequestRequest trade_request = 37;
+      case 37:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 42)) {
+          ptr = ctx->ParseMessage(_internal_mutable_trade_request(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.TradeAnswerRequest trade_answer = 38;
+      case 38:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 50)) {
+          ptr = ctx->ParseMessage(_internal_mutable_trade_answer(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.TradeAddItemRequest trade_add_item = 39;
+      case 39:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 58)) {
+          ptr = ctx->ParseMessage(_internal_mutable_trade_add_item(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.TradeConfirmRequest trade_confirm = 40;
+      case 40:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 66)) {
+          ptr = ctx->ParseMessage(_internal_mutable_trade_confirm(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.TradeCancelRequest trade_cancel = 41;
+      case 41:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 74)) {
+          ptr = ctx->ParseMessage(_internal_mutable_trade_cancel(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.SetPrivateStoreSellRequest set_private_store_sell = 42;
+      case 42:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 82)) {
+          ptr = ctx->ParseMessage(_internal_mutable_set_private_store_sell(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.SetPrivateStoreBuyRequest set_private_store_buy = 43;
+      case 43:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 90)) {
+          ptr = ctx->ParseMessage(_internal_mutable_set_private_store_buy(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.SetPrivateManufactureRequest set_private_manufacture = 44;
+      case 44:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 98)) {
+          ptr = ctx->ParseMessage(_internal_mutable_set_private_manufacture(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.ClosePrivateStoreRequest close_private_store = 45;
+      case 45:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 106)) {
+          ptr = ctx->ParseMessage(_internal_mutable_close_private_store(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.PrivateStoreBuyRequest private_store_buy = 46;
+      case 46:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 114)) {
+          ptr = ctx->ParseMessage(_internal_mutable_private_store_buy(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.PrivateStoreSellRequest private_store_sell = 47;
+      case 47:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 122)) {
+          ptr = ctx->ParseMessage(_internal_mutable_private_store_sell(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.PrivateManufactureOrderRequest private_manufacture_order = 48;
+      case 48:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 130)) {
+          ptr = ctx->ParseMessage(_internal_mutable_private_manufacture_order(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.PartyInviteRequest party_invite = 49;
+      case 49:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 138)) {
+          ptr = ctx->ParseMessage(_internal_mutable_party_invite(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.PartyAnswerRequest party_answer = 50;
+      case 50:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 146)) {
+          ptr = ctx->ParseMessage(_internal_mutable_party_answer(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.PartyLeaveRequest party_leave = 51;
+      case 51:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 154)) {
+          ptr = ctx->ParseMessage(_internal_mutable_party_leave(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.PartyKickRequest party_kick = 52;
+      case 52:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 162)) {
+          ptr = ctx->ParseMessage(_internal_mutable_party_kick(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.PartyChangeLeaderRequest party_change_leader = 53;
+      case 53:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 170)) {
+          ptr = ctx->ParseMessage(_internal_mutable_party_change_leader(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.PartyLootChangeRequest party_loot_change_request = 54;
+      case 54:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 178)) {
+          ptr = ctx->ParseMessage(_internal_mutable_party_loot_change_request(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.PartyLootChangeAnswer party_loot_change_answer = 55;
+      case 55:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 186)) {
+          ptr = ctx->ParseMessage(_internal_mutable_party_loot_change_answer(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.WarehouseDepositRequest warehouse_deposit = 56;
+      case 56:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 194)) {
+          ptr = ctx->ParseMessage(_internal_mutable_warehouse_deposit(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.WarehouseWithdrawRequest warehouse_withdraw = 57;
+      case 57:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 202)) {
+          ptr = ctx->ParseMessage(_internal_mutable_warehouse_withdraw(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.FreightSendRequest freight_send = 58;
+      case 58:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 210)) {
+          ptr = ctx->ParseMessage(_internal_mutable_freight_send(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.FreightWithdrawRequest freight_withdraw = 59;
+      case 59:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 218)) {
+          ptr = ctx->ParseMessage(_internal_mutable_freight_withdraw(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.MailSendRequest mail_send = 60;
+      case 60:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 226)) {
+          ptr = ctx->ParseMessage(_internal_mutable_mail_send(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.MailTakeAttachmentsRequest mail_take_attachments = 61;
+      case 61:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 234)) {
+          ptr = ctx->ParseMessage(_internal_mutable_mail_take_attachments(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.MailRejectRequest mail_reject = 62;
+      case 62:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 242)) {
+          ptr = ctx->ParseMessage(_internal_mutable_mail_reject(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.MailCancelRequest mail_cancel = 63;
+      case 63:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 250)) {
+          ptr = ctx->ParseMessage(_internal_mutable_mail_cancel(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.MailDeleteRequest mail_delete = 64;
+      case 64:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 2)) {
+          ptr = ctx->ParseMessage(_internal_mutable_mail_delete(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.ManorBuySeedRequest manor_buy_seed = 65;
+      case 65:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
+          ptr = ctx->ParseMessage(_internal_mutable_manor_buy_seed(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.ManorSellCropRequest manor_sell_crop = 66;
+      case 66:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 18)) {
+          ptr = ctx->ParseMessage(_internal_mutable_manor_sell_crop(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.ItemAuctionBidRequest item_auction_bid = 67;
+      case 67:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 26)) {
+          ptr = ctx->ParseMessage(_internal_mutable_item_auction_bid(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.ItemAuctionCancelBidRequest item_auction_cancel_bid = 68;
+      case 68:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 34)) {
+          ptr = ctx->ParseMessage(_internal_mutable_item_auction_cancel_bid(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.MailMarkReadRequest mail_mark_read = 69;
+      case 69:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 42)) {
+          ptr = ctx->ParseMessage(_internal_mutable_mail_mark_read(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
       default:
         goto handle_unusual;
     }  // switch
@@ -3790,6 +6042,252 @@ failure:
       target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
         InternalWriteMessage(28, _Internal::crystallize_item(this),
           _Internal::crystallize_item(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kPickUpItem: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(29, _Internal::pick_up_item(this),
+          _Internal::pick_up_item(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kVendorBuy: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(30, _Internal::vendor_buy(this),
+          _Internal::vendor_buy(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kVendorSell: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(31, _Internal::vendor_sell(this),
+          _Internal::vendor_sell(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kVendorRefund: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(32, _Internal::vendor_refund(this),
+          _Internal::vendor_refund(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kMultisellChoose: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(33, _Internal::multisell_choose(this),
+          _Internal::multisell_choose(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kRegisterRecipe: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(34, _Internal::register_recipe(this),
+          _Internal::register_recipe(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kDeleteRecipe: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(35, _Internal::delete_recipe(this),
+          _Internal::delete_recipe(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kCraftItem: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(36, _Internal::craft_item(this),
+          _Internal::craft_item(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kTradeRequest: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(37, _Internal::trade_request(this),
+          _Internal::trade_request(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kTradeAnswer: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(38, _Internal::trade_answer(this),
+          _Internal::trade_answer(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kTradeAddItem: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(39, _Internal::trade_add_item(this),
+          _Internal::trade_add_item(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kTradeConfirm: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(40, _Internal::trade_confirm(this),
+          _Internal::trade_confirm(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kTradeCancel: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(41, _Internal::trade_cancel(this),
+          _Internal::trade_cancel(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kSetPrivateStoreSell: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(42, _Internal::set_private_store_sell(this),
+          _Internal::set_private_store_sell(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kSetPrivateStoreBuy: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(43, _Internal::set_private_store_buy(this),
+          _Internal::set_private_store_buy(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kSetPrivateManufacture: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(44, _Internal::set_private_manufacture(this),
+          _Internal::set_private_manufacture(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kClosePrivateStore: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(45, _Internal::close_private_store(this),
+          _Internal::close_private_store(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kPrivateStoreBuy: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(46, _Internal::private_store_buy(this),
+          _Internal::private_store_buy(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kPrivateStoreSell: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(47, _Internal::private_store_sell(this),
+          _Internal::private_store_sell(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kPrivateManufactureOrder: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(48, _Internal::private_manufacture_order(this),
+          _Internal::private_manufacture_order(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kPartyInvite: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(49, _Internal::party_invite(this),
+          _Internal::party_invite(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kPartyAnswer: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(50, _Internal::party_answer(this),
+          _Internal::party_answer(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kPartyLeave: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(51, _Internal::party_leave(this),
+          _Internal::party_leave(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kPartyKick: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(52, _Internal::party_kick(this),
+          _Internal::party_kick(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kPartyChangeLeader: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(53, _Internal::party_change_leader(this),
+          _Internal::party_change_leader(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kPartyLootChangeRequest: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(54, _Internal::party_loot_change_request(this),
+          _Internal::party_loot_change_request(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kPartyLootChangeAnswer: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(55, _Internal::party_loot_change_answer(this),
+          _Internal::party_loot_change_answer(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kWarehouseDeposit: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(56, _Internal::warehouse_deposit(this),
+          _Internal::warehouse_deposit(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kWarehouseWithdraw: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(57, _Internal::warehouse_withdraw(this),
+          _Internal::warehouse_withdraw(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kFreightSend: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(58, _Internal::freight_send(this),
+          _Internal::freight_send(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kFreightWithdraw: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(59, _Internal::freight_withdraw(this),
+          _Internal::freight_withdraw(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kMailSend: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(60, _Internal::mail_send(this),
+          _Internal::mail_send(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kMailTakeAttachments: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(61, _Internal::mail_take_attachments(this),
+          _Internal::mail_take_attachments(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kMailReject: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(62, _Internal::mail_reject(this),
+          _Internal::mail_reject(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kMailCancel: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(63, _Internal::mail_cancel(this),
+          _Internal::mail_cancel(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kMailDelete: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(64, _Internal::mail_delete(this),
+          _Internal::mail_delete(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kManorBuySeed: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(65, _Internal::manor_buy_seed(this),
+          _Internal::manor_buy_seed(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kManorSellCrop: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(66, _Internal::manor_sell_crop(this),
+          _Internal::manor_sell_crop(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kItemAuctionBid: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(67, _Internal::item_auction_bid(this),
+          _Internal::item_auction_bid(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kItemAuctionCancelBid: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(68, _Internal::item_auction_cancel_bid(this),
+          _Internal::item_auction_cancel_bid(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kMailMarkRead: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(69, _Internal::mail_mark_read(this),
+          _Internal::mail_mark_read(this).GetCachedSize(), target, stream);
       break;
     }
     default: ;
@@ -3950,6 +6448,293 @@ failure:
           *_impl_.intent_.crystallize_item_);
       break;
     }
+    // .nightfall.v1.PickUpItemRequest pick_up_item = 29;
+    case kPickUpItem: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.pick_up_item_);
+      break;
+    }
+    // .nightfall.v1.VendorBuyRequest vendor_buy = 30;
+    case kVendorBuy: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.vendor_buy_);
+      break;
+    }
+    // .nightfall.v1.VendorSellRequest vendor_sell = 31;
+    case kVendorSell: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.vendor_sell_);
+      break;
+    }
+    // .nightfall.v1.VendorRefundRequest vendor_refund = 32;
+    case kVendorRefund: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.vendor_refund_);
+      break;
+    }
+    // .nightfall.v1.MultisellChooseRequest multisell_choose = 33;
+    case kMultisellChoose: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.multisell_choose_);
+      break;
+    }
+    // .nightfall.v1.RegisterRecipeRequest register_recipe = 34;
+    case kRegisterRecipe: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.register_recipe_);
+      break;
+    }
+    // .nightfall.v1.DeleteRecipeRequest delete_recipe = 35;
+    case kDeleteRecipe: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.delete_recipe_);
+      break;
+    }
+    // .nightfall.v1.CraftItemRequest craft_item = 36;
+    case kCraftItem: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.craft_item_);
+      break;
+    }
+    // .nightfall.v1.TradeRequestRequest trade_request = 37;
+    case kTradeRequest: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.trade_request_);
+      break;
+    }
+    // .nightfall.v1.TradeAnswerRequest trade_answer = 38;
+    case kTradeAnswer: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.trade_answer_);
+      break;
+    }
+    // .nightfall.v1.TradeAddItemRequest trade_add_item = 39;
+    case kTradeAddItem: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.trade_add_item_);
+      break;
+    }
+    // .nightfall.v1.TradeConfirmRequest trade_confirm = 40;
+    case kTradeConfirm: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.trade_confirm_);
+      break;
+    }
+    // .nightfall.v1.TradeCancelRequest trade_cancel = 41;
+    case kTradeCancel: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.trade_cancel_);
+      break;
+    }
+    // .nightfall.v1.SetPrivateStoreSellRequest set_private_store_sell = 42;
+    case kSetPrivateStoreSell: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.set_private_store_sell_);
+      break;
+    }
+    // .nightfall.v1.SetPrivateStoreBuyRequest set_private_store_buy = 43;
+    case kSetPrivateStoreBuy: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.set_private_store_buy_);
+      break;
+    }
+    // .nightfall.v1.SetPrivateManufactureRequest set_private_manufacture = 44;
+    case kSetPrivateManufacture: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.set_private_manufacture_);
+      break;
+    }
+    // .nightfall.v1.ClosePrivateStoreRequest close_private_store = 45;
+    case kClosePrivateStore: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.close_private_store_);
+      break;
+    }
+    // .nightfall.v1.PrivateStoreBuyRequest private_store_buy = 46;
+    case kPrivateStoreBuy: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.private_store_buy_);
+      break;
+    }
+    // .nightfall.v1.PrivateStoreSellRequest private_store_sell = 47;
+    case kPrivateStoreSell: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.private_store_sell_);
+      break;
+    }
+    // .nightfall.v1.PrivateManufactureOrderRequest private_manufacture_order = 48;
+    case kPrivateManufactureOrder: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.private_manufacture_order_);
+      break;
+    }
+    // .nightfall.v1.PartyInviteRequest party_invite = 49;
+    case kPartyInvite: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.party_invite_);
+      break;
+    }
+    // .nightfall.v1.PartyAnswerRequest party_answer = 50;
+    case kPartyAnswer: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.party_answer_);
+      break;
+    }
+    // .nightfall.v1.PartyLeaveRequest party_leave = 51;
+    case kPartyLeave: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.party_leave_);
+      break;
+    }
+    // .nightfall.v1.PartyKickRequest party_kick = 52;
+    case kPartyKick: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.party_kick_);
+      break;
+    }
+    // .nightfall.v1.PartyChangeLeaderRequest party_change_leader = 53;
+    case kPartyChangeLeader: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.party_change_leader_);
+      break;
+    }
+    // .nightfall.v1.PartyLootChangeRequest party_loot_change_request = 54;
+    case kPartyLootChangeRequest: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.party_loot_change_request_);
+      break;
+    }
+    // .nightfall.v1.PartyLootChangeAnswer party_loot_change_answer = 55;
+    case kPartyLootChangeAnswer: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.party_loot_change_answer_);
+      break;
+    }
+    // .nightfall.v1.WarehouseDepositRequest warehouse_deposit = 56;
+    case kWarehouseDeposit: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.warehouse_deposit_);
+      break;
+    }
+    // .nightfall.v1.WarehouseWithdrawRequest warehouse_withdraw = 57;
+    case kWarehouseWithdraw: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.warehouse_withdraw_);
+      break;
+    }
+    // .nightfall.v1.FreightSendRequest freight_send = 58;
+    case kFreightSend: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.freight_send_);
+      break;
+    }
+    // .nightfall.v1.FreightWithdrawRequest freight_withdraw = 59;
+    case kFreightWithdraw: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.freight_withdraw_);
+      break;
+    }
+    // .nightfall.v1.MailSendRequest mail_send = 60;
+    case kMailSend: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.mail_send_);
+      break;
+    }
+    // .nightfall.v1.MailTakeAttachmentsRequest mail_take_attachments = 61;
+    case kMailTakeAttachments: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.mail_take_attachments_);
+      break;
+    }
+    // .nightfall.v1.MailRejectRequest mail_reject = 62;
+    case kMailReject: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.mail_reject_);
+      break;
+    }
+    // .nightfall.v1.MailCancelRequest mail_cancel = 63;
+    case kMailCancel: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.mail_cancel_);
+      break;
+    }
+    // .nightfall.v1.MailDeleteRequest mail_delete = 64;
+    case kMailDelete: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.mail_delete_);
+      break;
+    }
+    // .nightfall.v1.ManorBuySeedRequest manor_buy_seed = 65;
+    case kManorBuySeed: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.manor_buy_seed_);
+      break;
+    }
+    // .nightfall.v1.ManorSellCropRequest manor_sell_crop = 66;
+    case kManorSellCrop: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.manor_sell_crop_);
+      break;
+    }
+    // .nightfall.v1.ItemAuctionBidRequest item_auction_bid = 67;
+    case kItemAuctionBid: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.item_auction_bid_);
+      break;
+    }
+    // .nightfall.v1.ItemAuctionCancelBidRequest item_auction_cancel_bid = 68;
+    case kItemAuctionCancelBid: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.item_auction_cancel_bid_);
+      break;
+    }
+    // .nightfall.v1.MailMarkReadRequest mail_mark_read = 69;
+    case kMailMarkRead: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.intent_.mail_mark_read_);
+      break;
+    }
     case INTENT_NOT_SET: {
       break;
     }
@@ -4069,6 +6854,211 @@ void ClientMessage::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::
     case kCrystallizeItem: {
       _this->_internal_mutable_crystallize_item()->::nightfall::v1::CrystallizeItemRequest::MergeFrom(
           from._internal_crystallize_item());
+      break;
+    }
+    case kPickUpItem: {
+      _this->_internal_mutable_pick_up_item()->::nightfall::v1::PickUpItemRequest::MergeFrom(
+          from._internal_pick_up_item());
+      break;
+    }
+    case kVendorBuy: {
+      _this->_internal_mutable_vendor_buy()->::nightfall::v1::VendorBuyRequest::MergeFrom(
+          from._internal_vendor_buy());
+      break;
+    }
+    case kVendorSell: {
+      _this->_internal_mutable_vendor_sell()->::nightfall::v1::VendorSellRequest::MergeFrom(
+          from._internal_vendor_sell());
+      break;
+    }
+    case kVendorRefund: {
+      _this->_internal_mutable_vendor_refund()->::nightfall::v1::VendorRefundRequest::MergeFrom(
+          from._internal_vendor_refund());
+      break;
+    }
+    case kMultisellChoose: {
+      _this->_internal_mutable_multisell_choose()->::nightfall::v1::MultisellChooseRequest::MergeFrom(
+          from._internal_multisell_choose());
+      break;
+    }
+    case kRegisterRecipe: {
+      _this->_internal_mutable_register_recipe()->::nightfall::v1::RegisterRecipeRequest::MergeFrom(
+          from._internal_register_recipe());
+      break;
+    }
+    case kDeleteRecipe: {
+      _this->_internal_mutable_delete_recipe()->::nightfall::v1::DeleteRecipeRequest::MergeFrom(
+          from._internal_delete_recipe());
+      break;
+    }
+    case kCraftItem: {
+      _this->_internal_mutable_craft_item()->::nightfall::v1::CraftItemRequest::MergeFrom(
+          from._internal_craft_item());
+      break;
+    }
+    case kTradeRequest: {
+      _this->_internal_mutable_trade_request()->::nightfall::v1::TradeRequestRequest::MergeFrom(
+          from._internal_trade_request());
+      break;
+    }
+    case kTradeAnswer: {
+      _this->_internal_mutable_trade_answer()->::nightfall::v1::TradeAnswerRequest::MergeFrom(
+          from._internal_trade_answer());
+      break;
+    }
+    case kTradeAddItem: {
+      _this->_internal_mutable_trade_add_item()->::nightfall::v1::TradeAddItemRequest::MergeFrom(
+          from._internal_trade_add_item());
+      break;
+    }
+    case kTradeConfirm: {
+      _this->_internal_mutable_trade_confirm()->::nightfall::v1::TradeConfirmRequest::MergeFrom(
+          from._internal_trade_confirm());
+      break;
+    }
+    case kTradeCancel: {
+      _this->_internal_mutable_trade_cancel()->::nightfall::v1::TradeCancelRequest::MergeFrom(
+          from._internal_trade_cancel());
+      break;
+    }
+    case kSetPrivateStoreSell: {
+      _this->_internal_mutable_set_private_store_sell()->::nightfall::v1::SetPrivateStoreSellRequest::MergeFrom(
+          from._internal_set_private_store_sell());
+      break;
+    }
+    case kSetPrivateStoreBuy: {
+      _this->_internal_mutable_set_private_store_buy()->::nightfall::v1::SetPrivateStoreBuyRequest::MergeFrom(
+          from._internal_set_private_store_buy());
+      break;
+    }
+    case kSetPrivateManufacture: {
+      _this->_internal_mutable_set_private_manufacture()->::nightfall::v1::SetPrivateManufactureRequest::MergeFrom(
+          from._internal_set_private_manufacture());
+      break;
+    }
+    case kClosePrivateStore: {
+      _this->_internal_mutable_close_private_store()->::nightfall::v1::ClosePrivateStoreRequest::MergeFrom(
+          from._internal_close_private_store());
+      break;
+    }
+    case kPrivateStoreBuy: {
+      _this->_internal_mutable_private_store_buy()->::nightfall::v1::PrivateStoreBuyRequest::MergeFrom(
+          from._internal_private_store_buy());
+      break;
+    }
+    case kPrivateStoreSell: {
+      _this->_internal_mutable_private_store_sell()->::nightfall::v1::PrivateStoreSellRequest::MergeFrom(
+          from._internal_private_store_sell());
+      break;
+    }
+    case kPrivateManufactureOrder: {
+      _this->_internal_mutable_private_manufacture_order()->::nightfall::v1::PrivateManufactureOrderRequest::MergeFrom(
+          from._internal_private_manufacture_order());
+      break;
+    }
+    case kPartyInvite: {
+      _this->_internal_mutable_party_invite()->::nightfall::v1::PartyInviteRequest::MergeFrom(
+          from._internal_party_invite());
+      break;
+    }
+    case kPartyAnswer: {
+      _this->_internal_mutable_party_answer()->::nightfall::v1::PartyAnswerRequest::MergeFrom(
+          from._internal_party_answer());
+      break;
+    }
+    case kPartyLeave: {
+      _this->_internal_mutable_party_leave()->::nightfall::v1::PartyLeaveRequest::MergeFrom(
+          from._internal_party_leave());
+      break;
+    }
+    case kPartyKick: {
+      _this->_internal_mutable_party_kick()->::nightfall::v1::PartyKickRequest::MergeFrom(
+          from._internal_party_kick());
+      break;
+    }
+    case kPartyChangeLeader: {
+      _this->_internal_mutable_party_change_leader()->::nightfall::v1::PartyChangeLeaderRequest::MergeFrom(
+          from._internal_party_change_leader());
+      break;
+    }
+    case kPartyLootChangeRequest: {
+      _this->_internal_mutable_party_loot_change_request()->::nightfall::v1::PartyLootChangeRequest::MergeFrom(
+          from._internal_party_loot_change_request());
+      break;
+    }
+    case kPartyLootChangeAnswer: {
+      _this->_internal_mutable_party_loot_change_answer()->::nightfall::v1::PartyLootChangeAnswer::MergeFrom(
+          from._internal_party_loot_change_answer());
+      break;
+    }
+    case kWarehouseDeposit: {
+      _this->_internal_mutable_warehouse_deposit()->::nightfall::v1::WarehouseDepositRequest::MergeFrom(
+          from._internal_warehouse_deposit());
+      break;
+    }
+    case kWarehouseWithdraw: {
+      _this->_internal_mutable_warehouse_withdraw()->::nightfall::v1::WarehouseWithdrawRequest::MergeFrom(
+          from._internal_warehouse_withdraw());
+      break;
+    }
+    case kFreightSend: {
+      _this->_internal_mutable_freight_send()->::nightfall::v1::FreightSendRequest::MergeFrom(
+          from._internal_freight_send());
+      break;
+    }
+    case kFreightWithdraw: {
+      _this->_internal_mutable_freight_withdraw()->::nightfall::v1::FreightWithdrawRequest::MergeFrom(
+          from._internal_freight_withdraw());
+      break;
+    }
+    case kMailSend: {
+      _this->_internal_mutable_mail_send()->::nightfall::v1::MailSendRequest::MergeFrom(
+          from._internal_mail_send());
+      break;
+    }
+    case kMailTakeAttachments: {
+      _this->_internal_mutable_mail_take_attachments()->::nightfall::v1::MailTakeAttachmentsRequest::MergeFrom(
+          from._internal_mail_take_attachments());
+      break;
+    }
+    case kMailReject: {
+      _this->_internal_mutable_mail_reject()->::nightfall::v1::MailRejectRequest::MergeFrom(
+          from._internal_mail_reject());
+      break;
+    }
+    case kMailCancel: {
+      _this->_internal_mutable_mail_cancel()->::nightfall::v1::MailCancelRequest::MergeFrom(
+          from._internal_mail_cancel());
+      break;
+    }
+    case kMailDelete: {
+      _this->_internal_mutable_mail_delete()->::nightfall::v1::MailDeleteRequest::MergeFrom(
+          from._internal_mail_delete());
+      break;
+    }
+    case kManorBuySeed: {
+      _this->_internal_mutable_manor_buy_seed()->::nightfall::v1::ManorBuySeedRequest::MergeFrom(
+          from._internal_manor_buy_seed());
+      break;
+    }
+    case kManorSellCrop: {
+      _this->_internal_mutable_manor_sell_crop()->::nightfall::v1::ManorSellCropRequest::MergeFrom(
+          from._internal_manor_sell_crop());
+      break;
+    }
+    case kItemAuctionBid: {
+      _this->_internal_mutable_item_auction_bid()->::nightfall::v1::ItemAuctionBidRequest::MergeFrom(
+          from._internal_item_auction_bid());
+      break;
+    }
+    case kItemAuctionCancelBid: {
+      _this->_internal_mutable_item_auction_cancel_bid()->::nightfall::v1::ItemAuctionCancelBidRequest::MergeFrom(
+          from._internal_item_auction_cancel_bid());
+      break;
+    }
+    case kMailMarkRead: {
+      _this->_internal_mutable_mail_mark_read()->::nightfall::v1::MailMarkReadRequest::MergeFrom(
+          from._internal_mail_mark_read());
       break;
     }
     case INTENT_NOT_SET: {
@@ -6177,6 +9167,18 @@ class WorldEvent::_Internal {
   static const ::nightfall::v1::EnchantResult& enchant_result(const WorldEvent* msg);
   static const ::nightfall::v1::RefineResult& refine_result(const WorldEvent* msg);
   static const ::nightfall::v1::ItemOperationResult& item_operation_result(const WorldEvent* msg);
+  static const ::nightfall::v1::EconomyResult& economy_result(const WorldEvent* msg);
+  static const ::nightfall::v1::CorpseStateChanged& corpse_state_changed(const WorldEvent* msg);
+  static const ::nightfall::v1::PartyStateChanged& party_state_changed(const WorldEvent* msg);
+  static const ::nightfall::v1::PartyLootVote& party_loot_vote(const WorldEvent* msg);
+  static const ::nightfall::v1::PartyInviteReceived& party_invite_received(const WorldEvent* msg);
+  static const ::nightfall::v1::TradeRequestReceived& trade_request_received(const WorldEvent* msg);
+  static const ::nightfall::v1::TradeSessionChanged& trade_session_changed(const WorldEvent* msg);
+  static const ::nightfall::v1::PrivateStoreChanged& private_store_changed(const WorldEvent* msg);
+  static const ::nightfall::v1::MailNotification& mail_notification(const WorldEvent* msg);
+  static const ::nightfall::v1::RecipeBookSync& recipe_book_sync(const WorldEvent* msg);
+  static const ::nightfall::v1::ItemAuctionStatusChanged& item_auction_status_changed(const WorldEvent* msg);
+  static const ::nightfall::v1::LootDistributed& loot_distributed(const WorldEvent* msg);
 };
 
 const ::nightfall::v1::EntitySpawn&
@@ -6310,6 +9312,54 @@ WorldEvent::_Internal::refine_result(const WorldEvent* msg) {
 const ::nightfall::v1::ItemOperationResult&
 WorldEvent::_Internal::item_operation_result(const WorldEvent* msg) {
   return *msg->_impl_.event_.item_operation_result_;
+}
+const ::nightfall::v1::EconomyResult&
+WorldEvent::_Internal::economy_result(const WorldEvent* msg) {
+  return *msg->_impl_.event_.economy_result_;
+}
+const ::nightfall::v1::CorpseStateChanged&
+WorldEvent::_Internal::corpse_state_changed(const WorldEvent* msg) {
+  return *msg->_impl_.event_.corpse_state_changed_;
+}
+const ::nightfall::v1::PartyStateChanged&
+WorldEvent::_Internal::party_state_changed(const WorldEvent* msg) {
+  return *msg->_impl_.event_.party_state_changed_;
+}
+const ::nightfall::v1::PartyLootVote&
+WorldEvent::_Internal::party_loot_vote(const WorldEvent* msg) {
+  return *msg->_impl_.event_.party_loot_vote_;
+}
+const ::nightfall::v1::PartyInviteReceived&
+WorldEvent::_Internal::party_invite_received(const WorldEvent* msg) {
+  return *msg->_impl_.event_.party_invite_received_;
+}
+const ::nightfall::v1::TradeRequestReceived&
+WorldEvent::_Internal::trade_request_received(const WorldEvent* msg) {
+  return *msg->_impl_.event_.trade_request_received_;
+}
+const ::nightfall::v1::TradeSessionChanged&
+WorldEvent::_Internal::trade_session_changed(const WorldEvent* msg) {
+  return *msg->_impl_.event_.trade_session_changed_;
+}
+const ::nightfall::v1::PrivateStoreChanged&
+WorldEvent::_Internal::private_store_changed(const WorldEvent* msg) {
+  return *msg->_impl_.event_.private_store_changed_;
+}
+const ::nightfall::v1::MailNotification&
+WorldEvent::_Internal::mail_notification(const WorldEvent* msg) {
+  return *msg->_impl_.event_.mail_notification_;
+}
+const ::nightfall::v1::RecipeBookSync&
+WorldEvent::_Internal::recipe_book_sync(const WorldEvent* msg) {
+  return *msg->_impl_.event_.recipe_book_sync_;
+}
+const ::nightfall::v1::ItemAuctionStatusChanged&
+WorldEvent::_Internal::item_auction_status_changed(const WorldEvent* msg) {
+  return *msg->_impl_.event_.item_auction_status_changed_;
+}
+const ::nightfall::v1::LootDistributed&
+WorldEvent::_Internal::loot_distributed(const WorldEvent* msg) {
+  return *msg->_impl_.event_.loot_distributed_;
 }
 void WorldEvent::set_allocated_spawn(::nightfall::v1::EntitySpawn* spawn) {
   ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
@@ -6878,6 +9928,294 @@ void WorldEvent::clear_item_operation_result() {
     clear_has_event();
   }
 }
+void WorldEvent::set_allocated_economy_result(::nightfall::v1::EconomyResult* economy_result) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_event();
+  if (economy_result) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(economy_result));
+    if (message_arena != submessage_arena) {
+      economy_result = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, economy_result, submessage_arena);
+    }
+    set_has_economy_result();
+    _impl_.event_.economy_result_ = economy_result;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.WorldEvent.economy_result)
+}
+void WorldEvent::clear_economy_result() {
+  if (event_case() == kEconomyResult) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.event_.economy_result_;
+    }
+    clear_has_event();
+  }
+}
+void WorldEvent::set_allocated_corpse_state_changed(::nightfall::v1::CorpseStateChanged* corpse_state_changed) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_event();
+  if (corpse_state_changed) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(corpse_state_changed));
+    if (message_arena != submessage_arena) {
+      corpse_state_changed = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, corpse_state_changed, submessage_arena);
+    }
+    set_has_corpse_state_changed();
+    _impl_.event_.corpse_state_changed_ = corpse_state_changed;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.WorldEvent.corpse_state_changed)
+}
+void WorldEvent::clear_corpse_state_changed() {
+  if (event_case() == kCorpseStateChanged) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.event_.corpse_state_changed_;
+    }
+    clear_has_event();
+  }
+}
+void WorldEvent::set_allocated_party_state_changed(::nightfall::v1::PartyStateChanged* party_state_changed) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_event();
+  if (party_state_changed) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(party_state_changed));
+    if (message_arena != submessage_arena) {
+      party_state_changed = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, party_state_changed, submessage_arena);
+    }
+    set_has_party_state_changed();
+    _impl_.event_.party_state_changed_ = party_state_changed;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.WorldEvent.party_state_changed)
+}
+void WorldEvent::clear_party_state_changed() {
+  if (event_case() == kPartyStateChanged) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.event_.party_state_changed_;
+    }
+    clear_has_event();
+  }
+}
+void WorldEvent::set_allocated_party_loot_vote(::nightfall::v1::PartyLootVote* party_loot_vote) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_event();
+  if (party_loot_vote) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(party_loot_vote));
+    if (message_arena != submessage_arena) {
+      party_loot_vote = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, party_loot_vote, submessage_arena);
+    }
+    set_has_party_loot_vote();
+    _impl_.event_.party_loot_vote_ = party_loot_vote;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.WorldEvent.party_loot_vote)
+}
+void WorldEvent::clear_party_loot_vote() {
+  if (event_case() == kPartyLootVote) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.event_.party_loot_vote_;
+    }
+    clear_has_event();
+  }
+}
+void WorldEvent::set_allocated_party_invite_received(::nightfall::v1::PartyInviteReceived* party_invite_received) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_event();
+  if (party_invite_received) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(party_invite_received));
+    if (message_arena != submessage_arena) {
+      party_invite_received = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, party_invite_received, submessage_arena);
+    }
+    set_has_party_invite_received();
+    _impl_.event_.party_invite_received_ = party_invite_received;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.WorldEvent.party_invite_received)
+}
+void WorldEvent::clear_party_invite_received() {
+  if (event_case() == kPartyInviteReceived) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.event_.party_invite_received_;
+    }
+    clear_has_event();
+  }
+}
+void WorldEvent::set_allocated_trade_request_received(::nightfall::v1::TradeRequestReceived* trade_request_received) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_event();
+  if (trade_request_received) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(trade_request_received));
+    if (message_arena != submessage_arena) {
+      trade_request_received = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, trade_request_received, submessage_arena);
+    }
+    set_has_trade_request_received();
+    _impl_.event_.trade_request_received_ = trade_request_received;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.WorldEvent.trade_request_received)
+}
+void WorldEvent::clear_trade_request_received() {
+  if (event_case() == kTradeRequestReceived) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.event_.trade_request_received_;
+    }
+    clear_has_event();
+  }
+}
+void WorldEvent::set_allocated_trade_session_changed(::nightfall::v1::TradeSessionChanged* trade_session_changed) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_event();
+  if (trade_session_changed) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(trade_session_changed));
+    if (message_arena != submessage_arena) {
+      trade_session_changed = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, trade_session_changed, submessage_arena);
+    }
+    set_has_trade_session_changed();
+    _impl_.event_.trade_session_changed_ = trade_session_changed;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.WorldEvent.trade_session_changed)
+}
+void WorldEvent::clear_trade_session_changed() {
+  if (event_case() == kTradeSessionChanged) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.event_.trade_session_changed_;
+    }
+    clear_has_event();
+  }
+}
+void WorldEvent::set_allocated_private_store_changed(::nightfall::v1::PrivateStoreChanged* private_store_changed) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_event();
+  if (private_store_changed) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(private_store_changed));
+    if (message_arena != submessage_arena) {
+      private_store_changed = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, private_store_changed, submessage_arena);
+    }
+    set_has_private_store_changed();
+    _impl_.event_.private_store_changed_ = private_store_changed;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.WorldEvent.private_store_changed)
+}
+void WorldEvent::clear_private_store_changed() {
+  if (event_case() == kPrivateStoreChanged) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.event_.private_store_changed_;
+    }
+    clear_has_event();
+  }
+}
+void WorldEvent::set_allocated_mail_notification(::nightfall::v1::MailNotification* mail_notification) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_event();
+  if (mail_notification) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(mail_notification));
+    if (message_arena != submessage_arena) {
+      mail_notification = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, mail_notification, submessage_arena);
+    }
+    set_has_mail_notification();
+    _impl_.event_.mail_notification_ = mail_notification;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.WorldEvent.mail_notification)
+}
+void WorldEvent::clear_mail_notification() {
+  if (event_case() == kMailNotification) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.event_.mail_notification_;
+    }
+    clear_has_event();
+  }
+}
+void WorldEvent::set_allocated_recipe_book_sync(::nightfall::v1::RecipeBookSync* recipe_book_sync) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_event();
+  if (recipe_book_sync) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(recipe_book_sync));
+    if (message_arena != submessage_arena) {
+      recipe_book_sync = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, recipe_book_sync, submessage_arena);
+    }
+    set_has_recipe_book_sync();
+    _impl_.event_.recipe_book_sync_ = recipe_book_sync;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.WorldEvent.recipe_book_sync)
+}
+void WorldEvent::clear_recipe_book_sync() {
+  if (event_case() == kRecipeBookSync) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.event_.recipe_book_sync_;
+    }
+    clear_has_event();
+  }
+}
+void WorldEvent::set_allocated_item_auction_status_changed(::nightfall::v1::ItemAuctionStatusChanged* item_auction_status_changed) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_event();
+  if (item_auction_status_changed) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(item_auction_status_changed));
+    if (message_arena != submessage_arena) {
+      item_auction_status_changed = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, item_auction_status_changed, submessage_arena);
+    }
+    set_has_item_auction_status_changed();
+    _impl_.event_.item_auction_status_changed_ = item_auction_status_changed;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.WorldEvent.item_auction_status_changed)
+}
+void WorldEvent::clear_item_auction_status_changed() {
+  if (event_case() == kItemAuctionStatusChanged) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.event_.item_auction_status_changed_;
+    }
+    clear_has_event();
+  }
+}
+void WorldEvent::set_allocated_loot_distributed(::nightfall::v1::LootDistributed* loot_distributed) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  clear_event();
+  if (loot_distributed) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(
+                reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(loot_distributed));
+    if (message_arena != submessage_arena) {
+      loot_distributed = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, loot_distributed, submessage_arena);
+    }
+    set_has_loot_distributed();
+    _impl_.event_.loot_distributed_ = loot_distributed;
+  }
+  // @@protoc_insertion_point(field_set_allocated:nightfall.v1.WorldEvent.loot_distributed)
+}
+void WorldEvent::clear_loot_distributed() {
+  if (event_case() == kLootDistributed) {
+    if (GetArenaForAllocation() == nullptr) {
+      delete _impl_.event_.loot_distributed_;
+    }
+    clear_has_event();
+  }
+}
 WorldEvent::WorldEvent(::PROTOBUF_NAMESPACE_ID::Arena* arena)
   : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
   SharedCtor(arena);
@@ -7057,6 +10395,66 @@ WorldEvent::WorldEvent(const WorldEvent& from)
     case kItemOperationResult: {
       _this->_internal_mutable_item_operation_result()->::nightfall::v1::ItemOperationResult::MergeFrom(
           from._internal_item_operation_result());
+      break;
+    }
+    case kEconomyResult: {
+      _this->_internal_mutable_economy_result()->::nightfall::v1::EconomyResult::MergeFrom(
+          from._internal_economy_result());
+      break;
+    }
+    case kCorpseStateChanged: {
+      _this->_internal_mutable_corpse_state_changed()->::nightfall::v1::CorpseStateChanged::MergeFrom(
+          from._internal_corpse_state_changed());
+      break;
+    }
+    case kPartyStateChanged: {
+      _this->_internal_mutable_party_state_changed()->::nightfall::v1::PartyStateChanged::MergeFrom(
+          from._internal_party_state_changed());
+      break;
+    }
+    case kPartyLootVote: {
+      _this->_internal_mutable_party_loot_vote()->::nightfall::v1::PartyLootVote::MergeFrom(
+          from._internal_party_loot_vote());
+      break;
+    }
+    case kPartyInviteReceived: {
+      _this->_internal_mutable_party_invite_received()->::nightfall::v1::PartyInviteReceived::MergeFrom(
+          from._internal_party_invite_received());
+      break;
+    }
+    case kTradeRequestReceived: {
+      _this->_internal_mutable_trade_request_received()->::nightfall::v1::TradeRequestReceived::MergeFrom(
+          from._internal_trade_request_received());
+      break;
+    }
+    case kTradeSessionChanged: {
+      _this->_internal_mutable_trade_session_changed()->::nightfall::v1::TradeSessionChanged::MergeFrom(
+          from._internal_trade_session_changed());
+      break;
+    }
+    case kPrivateStoreChanged: {
+      _this->_internal_mutable_private_store_changed()->::nightfall::v1::PrivateStoreChanged::MergeFrom(
+          from._internal_private_store_changed());
+      break;
+    }
+    case kMailNotification: {
+      _this->_internal_mutable_mail_notification()->::nightfall::v1::MailNotification::MergeFrom(
+          from._internal_mail_notification());
+      break;
+    }
+    case kRecipeBookSync: {
+      _this->_internal_mutable_recipe_book_sync()->::nightfall::v1::RecipeBookSync::MergeFrom(
+          from._internal_recipe_book_sync());
+      break;
+    }
+    case kItemAuctionStatusChanged: {
+      _this->_internal_mutable_item_auction_status_changed()->::nightfall::v1::ItemAuctionStatusChanged::MergeFrom(
+          from._internal_item_auction_status_changed());
+      break;
+    }
+    case kLootDistributed: {
+      _this->_internal_mutable_loot_distributed()->::nightfall::v1::LootDistributed::MergeFrom(
+          from._internal_loot_distributed());
       break;
     }
     case EVENT_NOT_SET: {
@@ -7294,6 +10692,78 @@ void WorldEvent::clear_event() {
     case kItemOperationResult: {
       if (GetArenaForAllocation() == nullptr) {
         delete _impl_.event_.item_operation_result_;
+      }
+      break;
+    }
+    case kEconomyResult: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.event_.economy_result_;
+      }
+      break;
+    }
+    case kCorpseStateChanged: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.event_.corpse_state_changed_;
+      }
+      break;
+    }
+    case kPartyStateChanged: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.event_.party_state_changed_;
+      }
+      break;
+    }
+    case kPartyLootVote: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.event_.party_loot_vote_;
+      }
+      break;
+    }
+    case kPartyInviteReceived: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.event_.party_invite_received_;
+      }
+      break;
+    }
+    case kTradeRequestReceived: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.event_.trade_request_received_;
+      }
+      break;
+    }
+    case kTradeSessionChanged: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.event_.trade_session_changed_;
+      }
+      break;
+    }
+    case kPrivateStoreChanged: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.event_.private_store_changed_;
+      }
+      break;
+    }
+    case kMailNotification: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.event_.mail_notification_;
+      }
+      break;
+    }
+    case kRecipeBookSync: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.event_.recipe_book_sync_;
+      }
+      break;
+    }
+    case kItemAuctionStatusChanged: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.event_.item_auction_status_changed_;
+      }
+      break;
+    }
+    case kLootDistributed: {
+      if (GetArenaForAllocation() == nullptr) {
+        delete _impl_.event_.loot_distributed_;
       }
       break;
     }
@@ -7618,6 +11088,114 @@ const char* WorldEvent::_InternalParse(const char* ptr, ::_pbi::ParseContext* ct
           goto handle_unusual;
         }
         continue;
+      // .nightfall.v1.EconomyResult economy_result = 34;
+      case 34:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 18)) {
+          ptr = ctx->ParseMessage(_internal_mutable_economy_result(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.CorpseStateChanged corpse_state_changed = 35;
+      case 35:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 26)) {
+          ptr = ctx->ParseMessage(_internal_mutable_corpse_state_changed(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.PartyStateChanged party_state_changed = 36;
+      case 36:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 34)) {
+          ptr = ctx->ParseMessage(_internal_mutable_party_state_changed(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.PartyLootVote party_loot_vote = 37;
+      case 37:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 42)) {
+          ptr = ctx->ParseMessage(_internal_mutable_party_loot_vote(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.PartyInviteReceived party_invite_received = 38;
+      case 38:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 50)) {
+          ptr = ctx->ParseMessage(_internal_mutable_party_invite_received(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.TradeRequestReceived trade_request_received = 39;
+      case 39:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 58)) {
+          ptr = ctx->ParseMessage(_internal_mutable_trade_request_received(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.TradeSessionChanged trade_session_changed = 40;
+      case 40:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 66)) {
+          ptr = ctx->ParseMessage(_internal_mutable_trade_session_changed(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.PrivateStoreChanged private_store_changed = 41;
+      case 41:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 74)) {
+          ptr = ctx->ParseMessage(_internal_mutable_private_store_changed(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.MailNotification mail_notification = 42;
+      case 42:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 82)) {
+          ptr = ctx->ParseMessage(_internal_mutable_mail_notification(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.RecipeBookSync recipe_book_sync = 43;
+      case 43:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 90)) {
+          ptr = ctx->ParseMessage(_internal_mutable_recipe_book_sync(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.ItemAuctionStatusChanged item_auction_status_changed = 44;
+      case 44:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 98)) {
+          ptr = ctx->ParseMessage(_internal_mutable_item_auction_status_changed(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .nightfall.v1.LootDistributed loot_distributed = 45;
+      case 45:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 106)) {
+          ptr = ctx->ParseMessage(_internal_mutable_loot_distributed(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
       default:
         goto handle_unusual;
     }  // switch
@@ -7844,6 +11422,78 @@ failure:
       target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
         InternalWriteMessage(33, _Internal::item_operation_result(this),
           _Internal::item_operation_result(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kEconomyResult: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(34, _Internal::economy_result(this),
+          _Internal::economy_result(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kCorpseStateChanged: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(35, _Internal::corpse_state_changed(this),
+          _Internal::corpse_state_changed(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kPartyStateChanged: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(36, _Internal::party_state_changed(this),
+          _Internal::party_state_changed(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kPartyLootVote: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(37, _Internal::party_loot_vote(this),
+          _Internal::party_loot_vote(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kPartyInviteReceived: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(38, _Internal::party_invite_received(this),
+          _Internal::party_invite_received(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kTradeRequestReceived: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(39, _Internal::trade_request_received(this),
+          _Internal::trade_request_received(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kTradeSessionChanged: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(40, _Internal::trade_session_changed(this),
+          _Internal::trade_session_changed(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kPrivateStoreChanged: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(41, _Internal::private_store_changed(this),
+          _Internal::private_store_changed(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kMailNotification: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(42, _Internal::mail_notification(this),
+          _Internal::mail_notification(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kRecipeBookSync: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(43, _Internal::recipe_book_sync(this),
+          _Internal::recipe_book_sync(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kItemAuctionStatusChanged: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(44, _Internal::item_auction_status_changed(this),
+          _Internal::item_auction_status_changed(this).GetCachedSize(), target, stream);
+      break;
+    }
+    case kLootDistributed: {
+      target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+        InternalWriteMessage(45, _Internal::loot_distributed(this),
+          _Internal::loot_distributed(this).GetCachedSize(), target, stream);
       break;
     }
     default: ;
@@ -8096,6 +11746,90 @@ failure:
           *_impl_.event_.item_operation_result_);
       break;
     }
+    // .nightfall.v1.EconomyResult economy_result = 34;
+    case kEconomyResult: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.event_.economy_result_);
+      break;
+    }
+    // .nightfall.v1.CorpseStateChanged corpse_state_changed = 35;
+    case kCorpseStateChanged: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.event_.corpse_state_changed_);
+      break;
+    }
+    // .nightfall.v1.PartyStateChanged party_state_changed = 36;
+    case kPartyStateChanged: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.event_.party_state_changed_);
+      break;
+    }
+    // .nightfall.v1.PartyLootVote party_loot_vote = 37;
+    case kPartyLootVote: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.event_.party_loot_vote_);
+      break;
+    }
+    // .nightfall.v1.PartyInviteReceived party_invite_received = 38;
+    case kPartyInviteReceived: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.event_.party_invite_received_);
+      break;
+    }
+    // .nightfall.v1.TradeRequestReceived trade_request_received = 39;
+    case kTradeRequestReceived: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.event_.trade_request_received_);
+      break;
+    }
+    // .nightfall.v1.TradeSessionChanged trade_session_changed = 40;
+    case kTradeSessionChanged: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.event_.trade_session_changed_);
+      break;
+    }
+    // .nightfall.v1.PrivateStoreChanged private_store_changed = 41;
+    case kPrivateStoreChanged: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.event_.private_store_changed_);
+      break;
+    }
+    // .nightfall.v1.MailNotification mail_notification = 42;
+    case kMailNotification: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.event_.mail_notification_);
+      break;
+    }
+    // .nightfall.v1.RecipeBookSync recipe_book_sync = 43;
+    case kRecipeBookSync: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.event_.recipe_book_sync_);
+      break;
+    }
+    // .nightfall.v1.ItemAuctionStatusChanged item_auction_status_changed = 44;
+    case kItemAuctionStatusChanged: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.event_.item_auction_status_changed_);
+      break;
+    }
+    // .nightfall.v1.LootDistributed loot_distributed = 45;
+    case kLootDistributed: {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.event_.loot_distributed_);
+      break;
+    }
     case EVENT_NOT_SET: {
       break;
     }
@@ -8284,6 +12018,66 @@ void WorldEvent::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PRO
           from._internal_item_operation_result());
       break;
     }
+    case kEconomyResult: {
+      _this->_internal_mutable_economy_result()->::nightfall::v1::EconomyResult::MergeFrom(
+          from._internal_economy_result());
+      break;
+    }
+    case kCorpseStateChanged: {
+      _this->_internal_mutable_corpse_state_changed()->::nightfall::v1::CorpseStateChanged::MergeFrom(
+          from._internal_corpse_state_changed());
+      break;
+    }
+    case kPartyStateChanged: {
+      _this->_internal_mutable_party_state_changed()->::nightfall::v1::PartyStateChanged::MergeFrom(
+          from._internal_party_state_changed());
+      break;
+    }
+    case kPartyLootVote: {
+      _this->_internal_mutable_party_loot_vote()->::nightfall::v1::PartyLootVote::MergeFrom(
+          from._internal_party_loot_vote());
+      break;
+    }
+    case kPartyInviteReceived: {
+      _this->_internal_mutable_party_invite_received()->::nightfall::v1::PartyInviteReceived::MergeFrom(
+          from._internal_party_invite_received());
+      break;
+    }
+    case kTradeRequestReceived: {
+      _this->_internal_mutable_trade_request_received()->::nightfall::v1::TradeRequestReceived::MergeFrom(
+          from._internal_trade_request_received());
+      break;
+    }
+    case kTradeSessionChanged: {
+      _this->_internal_mutable_trade_session_changed()->::nightfall::v1::TradeSessionChanged::MergeFrom(
+          from._internal_trade_session_changed());
+      break;
+    }
+    case kPrivateStoreChanged: {
+      _this->_internal_mutable_private_store_changed()->::nightfall::v1::PrivateStoreChanged::MergeFrom(
+          from._internal_private_store_changed());
+      break;
+    }
+    case kMailNotification: {
+      _this->_internal_mutable_mail_notification()->::nightfall::v1::MailNotification::MergeFrom(
+          from._internal_mail_notification());
+      break;
+    }
+    case kRecipeBookSync: {
+      _this->_internal_mutable_recipe_book_sync()->::nightfall::v1::RecipeBookSync::MergeFrom(
+          from._internal_recipe_book_sync());
+      break;
+    }
+    case kItemAuctionStatusChanged: {
+      _this->_internal_mutable_item_auction_status_changed()->::nightfall::v1::ItemAuctionStatusChanged::MergeFrom(
+          from._internal_item_auction_status_changed());
+      break;
+    }
+    case kLootDistributed: {
+      _this->_internal_mutable_loot_distributed()->::nightfall::v1::LootDistributed::MergeFrom(
+          from._internal_loot_distributed());
+      break;
+    }
     case EVENT_NOT_SET: {
       break;
     }
@@ -8333,6 +12127,10 @@ class EntitySpawn::_Internal {
   static void set_has_pending_cast(HasBits* has_bits) {
     (*has_bits)[0] |= 4u;
   }
+  static const ::nightfall::v1::GroundItemDetail& ground_item(const EntitySpawn* msg);
+  static void set_has_ground_item(HasBits* has_bits) {
+    (*has_bits)[0] |= 8u;
+  }
 };
 
 const ::nightfall::v1::Position&
@@ -8347,12 +12145,20 @@ const ::nightfall::v1::SkillCastStarted&
 EntitySpawn::_Internal::pending_cast(const EntitySpawn* msg) {
   return *msg->_impl_.pending_cast_;
 }
+const ::nightfall::v1::GroundItemDetail&
+EntitySpawn::_Internal::ground_item(const EntitySpawn* msg) {
+  return *msg->_impl_.ground_item_;
+}
 void EntitySpawn::clear_position() {
   if (_impl_.position_ != nullptr) _impl_.position_->Clear();
   _impl_._has_bits_[0] &= ~0x00000001u;
 }
 void EntitySpawn::clear_visible_equipment() {
   _internal_mutable_visible_equipment()->Clear();
+}
+void EntitySpawn::clear_ground_item() {
+  if (_impl_.ground_item_ != nullptr) _impl_.ground_item_->Clear();
+  _impl_._has_bits_[0] &= ~0x00000008u;
 }
 EntitySpawn::EntitySpawn(::PROTOBUF_NAMESPACE_ID::Arena* arena)
   : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
@@ -8376,6 +12182,7 @@ EntitySpawn::EntitySpawn(const EntitySpawn& from)
     , decltype(_impl_.position_){nullptr}
     , decltype(_impl_.pending_swing_){nullptr}
     , decltype(_impl_.pending_cast_){nullptr}
+    , decltype(_impl_.ground_item_){nullptr}
     , decltype(_impl_.kind_) {}
 
     , decltype(_impl_.session_generation_) {}
@@ -8450,6 +12257,9 @@ EntitySpawn::EntitySpawn(const EntitySpawn& from)
   if ((from._impl_._has_bits_[0] & 0x00000004u) != 0) {
     _this->_impl_.pending_cast_ = new ::nightfall::v1::SkillCastStarted(*from._impl_.pending_cast_);
   }
+  if ((from._impl_._has_bits_[0] & 0x00000008u) != 0) {
+    _this->_impl_.ground_item_ = new ::nightfall::v1::GroundItemDetail(*from._impl_.ground_item_);
+  }
   ::memcpy(&_impl_.kind_, &from._impl_.kind_,
     static_cast<::size_t>(reinterpret_cast<char*>(&_impl_.status_flags_) -
     reinterpret_cast<char*>(&_impl_.kind_)) + sizeof(_impl_.status_flags_));
@@ -8472,6 +12282,7 @@ inline void EntitySpawn::SharedCtor(::_pb::Arena* arena) {
     , decltype(_impl_.position_){nullptr}
     , decltype(_impl_.pending_swing_){nullptr}
     , decltype(_impl_.pending_cast_){nullptr}
+    , decltype(_impl_.ground_item_){nullptr}
     , decltype(_impl_.kind_) { 0 }
 
     , decltype(_impl_.session_generation_) { 0u }
@@ -8548,6 +12359,7 @@ inline void EntitySpawn::SharedDtor() {
   if (this != internal_default_instance()) delete _impl_.position_;
   if (this != internal_default_instance()) delete _impl_.pending_swing_;
   if (this != internal_default_instance()) delete _impl_.pending_cast_;
+  if (this != internal_default_instance()) delete _impl_.ground_item_;
 }
 
 void EntitySpawn::SetCachedSize(int size) const {
@@ -8566,7 +12378,7 @@ void EntitySpawn::Clear() {
   _impl_.name_.ClearToEmpty();
   _impl_.template_id_.ClearToEmpty();
   cached_has_bits = _impl_._has_bits_[0];
-  if (cached_has_bits & 0x00000007u) {
+  if (cached_has_bits & 0x0000000fu) {
     if (cached_has_bits & 0x00000001u) {
       ABSL_DCHECK(_impl_.position_ != nullptr);
       _impl_.position_->Clear();
@@ -8578,6 +12390,10 @@ void EntitySpawn::Clear() {
     if (cached_has_bits & 0x00000004u) {
       ABSL_DCHECK(_impl_.pending_cast_ != nullptr);
       _impl_.pending_cast_->Clear();
+    }
+    if (cached_has_bits & 0x00000008u) {
+      ABSL_DCHECK(_impl_.ground_item_ != nullptr);
+      _impl_.ground_item_->Clear();
     }
   }
   ::memset(&_impl_.kind_, 0, static_cast<::size_t>(
@@ -8874,6 +12690,15 @@ const char* EntitySpawn::_InternalParse(const char* ptr, ::_pbi::ParseContext* c
           goto handle_unusual;
         }
         continue;
+      // .nightfall.v1.GroundItemDetail ground_item = 30;
+      case 30:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 242)) {
+          ptr = ctx->ParseMessage(_internal_mutable_ground_item(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
       default:
         goto handle_unusual;
     }  // switch
@@ -9113,6 +12938,13 @@ failure:
         InternalWriteMessage(29, repfield, repfield.GetCachedSize(), target, stream);
   }
 
+  // .nightfall.v1.GroundItemDetail ground_item = 30;
+  if (cached_has_bits & 0x00000008u) {
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+      InternalWriteMessage(30, _Internal::ground_item(this),
+        _Internal::ground_item(this).GetCachedSize(), target, stream);
+  }
+
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
     target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
@@ -9162,7 +12994,7 @@ failure:
   }
 
   cached_has_bits = _impl_._has_bits_[0];
-  if (cached_has_bits & 0x00000007u) {
+  if (cached_has_bits & 0x0000000fu) {
     // .nightfall.v1.Position position = 3;
     if (cached_has_bits & 0x00000001u) {
       total_size += 1 +
@@ -9182,6 +13014,13 @@ failure:
       total_size += 2 +
         ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
           *_impl_.pending_cast_);
+    }
+
+    // .nightfall.v1.GroundItemDetail ground_item = 30;
+    if (cached_has_bits & 0x00000008u) {
+      total_size += 2 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.ground_item_);
     }
 
   }
@@ -9338,7 +13177,7 @@ void EntitySpawn::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PR
     _this->_internal_set_template_id(from._internal_template_id());
   }
   cached_has_bits = from._impl_._has_bits_[0];
-  if (cached_has_bits & 0x00000007u) {
+  if (cached_has_bits & 0x0000000fu) {
     if (cached_has_bits & 0x00000001u) {
       _this->_internal_mutable_position()->::nightfall::v1::Position::MergeFrom(
           from._internal_position());
@@ -9350,6 +13189,10 @@ void EntitySpawn::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PR
     if (cached_has_bits & 0x00000004u) {
       _this->_internal_mutable_pending_cast()->::nightfall::v1::SkillCastStarted::MergeFrom(
           from._internal_pending_cast());
+    }
+    if (cached_has_bits & 0x00000008u) {
+      _this->_internal_mutable_ground_item()->::nightfall::v1::GroundItemDetail::MergeFrom(
+          from._internal_ground_item());
     }
   }
   if (from._internal_kind() != 0) {

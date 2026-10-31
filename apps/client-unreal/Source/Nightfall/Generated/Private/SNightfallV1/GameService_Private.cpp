@@ -105,3 +105,75 @@ void UGameServiceGrantItemLambdaWrapper::OnResponse(FGrpcContextHandle _Handle, 
 	InnerClient->OnGrantItemResponse.RemoveDynamic(this, &UGameServiceGrantItemLambdaWrapper::OnResponse);
 }
 
+void UGameServiceListBuylistLambdaWrapper::OnResponse(FGrpcContextHandle _Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1ListBuylistResponse& Response)
+{
+	if (_Handle != this->Handle) return;
+
+	ResponseLambda(GrpcResult, Response);
+	InnerClient->OnListBuylistResponse.RemoveDynamic(this, &UGameServiceListBuylistLambdaWrapper::OnResponse);
+}
+
+void UGameServiceGetMultisellListLambdaWrapper::OnResponse(FGrpcContextHandle _Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1GetMultisellListResponse& Response)
+{
+	if (_Handle != this->Handle) return;
+
+	ResponseLambda(GrpcResult, Response);
+	InnerClient->OnGetMultisellListResponse.RemoveDynamic(this, &UGameServiceGetMultisellListLambdaWrapper::OnResponse);
+}
+
+void UGameServiceGetRecipeBookLambdaWrapper::OnResponse(FGrpcContextHandle _Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1GetRecipeBookResponse& Response)
+{
+	if (_Handle != this->Handle) return;
+
+	ResponseLambda(GrpcResult, Response);
+	InnerClient->OnGetRecipeBookResponse.RemoveDynamic(this, &UGameServiceGetRecipeBookLambdaWrapper::OnResponse);
+}
+
+void UGameServiceGetWarehouseLambdaWrapper::OnResponse(FGrpcContextHandle _Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1GetWarehouseResponse& Response)
+{
+	if (_Handle != this->Handle) return;
+
+	ResponseLambda(GrpcResult, Response);
+	InnerClient->OnGetWarehouseResponse.RemoveDynamic(this, &UGameServiceGetWarehouseLambdaWrapper::OnResponse);
+}
+
+void UGameServiceGetFreightLambdaWrapper::OnResponse(FGrpcContextHandle _Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1GetFreightResponse& Response)
+{
+	if (_Handle != this->Handle) return;
+
+	ResponseLambda(GrpcResult, Response);
+	InnerClient->OnGetFreightResponse.RemoveDynamic(this, &UGameServiceGetFreightLambdaWrapper::OnResponse);
+}
+
+void UGameServiceListMailLambdaWrapper::OnResponse(FGrpcContextHandle _Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1ListMailResponse& Response)
+{
+	if (_Handle != this->Handle) return;
+
+	ResponseLambda(GrpcResult, Response);
+	InnerClient->OnListMailResponse.RemoveDynamic(this, &UGameServiceListMailLambdaWrapper::OnResponse);
+}
+
+void UGameServiceReadMailLambdaWrapper::OnResponse(FGrpcContextHandle _Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1ReadMailResponse& Response)
+{
+	if (_Handle != this->Handle) return;
+
+	ResponseLambda(GrpcResult, Response);
+	InnerClient->OnReadMailResponse.RemoveDynamic(this, &UGameServiceReadMailLambdaWrapper::OnResponse);
+}
+
+void UGameServiceListItemAuctionsLambdaWrapper::OnResponse(FGrpcContextHandle _Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1ListItemAuctionsResponse& Response)
+{
+	if (_Handle != this->Handle) return;
+
+	ResponseLambda(GrpcResult, Response);
+	InnerClient->OnListItemAuctionsResponse.RemoveDynamic(this, &UGameServiceListItemAuctionsLambdaWrapper::OnResponse);
+}
+
+void UGameServiceGetManorDataLambdaWrapper::OnResponse(FGrpcContextHandle _Handle, const FGrpcResult& GrpcResult, const FGrpcNightfallV1GetManorDataResponse& Response)
+{
+	if (_Handle != this->Handle) return;
+
+	ResponseLambda(GrpcResult, Response);
+	InnerClient->OnGetManorDataResponse.RemoveDynamic(this, &UGameServiceGetManorDataLambdaWrapper::OnResponse);
+}
+

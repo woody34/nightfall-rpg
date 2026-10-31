@@ -189,6 +189,87 @@ class GameService final {
     std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GrantItemResponse>> PrepareAsyncGrantItem(::grpc::ClientContext* context, const ::nightfall::v1::GrantItemRequest& request, ::grpc::CompletionQueue* cq) {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GrantItemResponse>>(PrepareAsyncGrantItemRaw(context, request, cq));
     }
+    // Phase 5 reads (phase-5-zone-design.md §13.4; E14, E31). All nine are authenticated,
+    // naturally idempotent reads with no key, and none writes a row. `character_id` is 16
+    // canonical UUID bytes. Common errors: UNAUTHENTICATED, INVALID_ARGUMENT, NOT_FOUND,
+    // PERMISSION_DENIED, UNAVAILABLE (zone, rules or runtime absent), INTERNAL.
+    //
+    // Static unit prices (D §6.2 table at castle 0) plus live stock and the caller's refund tab
+    // from the zone read port. FAILED_PRECONDITION unless the caller is admitted.
+    virtual ::grpc::Status ListBuylist(::grpc::ClientContext* context, const ::nightfall::v1::ListBuylistRequest& request, ::nightfall::v1::ListBuylistResponse* response) = 0;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::ListBuylistResponse>> AsyncListBuylist(::grpc::ClientContext* context, const ::nightfall::v1::ListBuylistRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::ListBuylistResponse>>(AsyncListBuylistRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::ListBuylistResponse>> PrepareAsyncListBuylist(::grpc::ClientContext* context, const ::nightfall::v1::ListBuylistRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::ListBuylistResponse>>(PrepareAsyncListBuylistRaw(context, request, cq));
+    }
+    // Static multisell list from Phase5Rules.
+    virtual ::grpc::Status GetMultisellList(::grpc::ClientContext* context, const ::nightfall::v1::GetMultisellListRequest& request, ::nightfall::v1::GetMultisellListResponse* response) = 0;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GetMultisellListResponse>> AsyncGetMultisellList(::grpc::ClientContext* context, const ::nightfall::v1::GetMultisellListRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GetMultisellListResponse>>(AsyncGetMultisellListRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GetMultisellListResponse>> PrepareAsyncGetMultisellList(::grpc::ClientContext* context, const ::nightfall::v1::GetMultisellListRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GetMultisellListResponse>>(PrepareAsyncGetMultisellListRaw(context, request, cq));
+    }
+    // Out-of-world checkpoint view. FAILED_PRECONDITION while admitted (RecipeBookSync is the
+    // live baseline, D15 pattern).
+    virtual ::grpc::Status GetRecipeBook(::grpc::ClientContext* context, const ::nightfall::v1::GetRecipeBookRequest& request, ::nightfall::v1::GetRecipeBookResponse* response) = 0;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GetRecipeBookResponse>> AsyncGetRecipeBook(::grpc::ClientContext* context, const ::nightfall::v1::GetRecipeBookRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GetRecipeBookResponse>>(AsyncGetRecipeBookRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GetRecipeBookResponse>> PrepareAsyncGetRecipeBook(::grpc::ClientContext* context, const ::nightfall::v1::GetRecipeBookRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GetRecipeBookResponse>>(PrepareAsyncGetRecipeBookRaw(context, request, cq));
+    }
+    // Owner-only warehouse rows (location WAREHOUSE).
+    virtual ::grpc::Status GetWarehouse(::grpc::ClientContext* context, const ::nightfall::v1::GetWarehouseRequest& request, ::nightfall::v1::GetWarehouseResponse* response) = 0;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GetWarehouseResponse>> AsyncGetWarehouse(::grpc::ClientContext* context, const ::nightfall::v1::GetWarehouseRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GetWarehouseResponse>>(AsyncGetWarehouseRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GetWarehouseResponse>> PrepareAsyncGetWarehouse(::grpc::ClientContext* context, const ::nightfall::v1::GetWarehouseRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GetWarehouseResponse>>(PrepareAsyncGetWarehouseRaw(context, request, cq));
+    }
+    // Owner-only freight rows (location FREIGHT).
+    virtual ::grpc::Status GetFreight(::grpc::ClientContext* context, const ::nightfall::v1::GetFreightRequest& request, ::nightfall::v1::GetFreightResponse* response) = 0;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GetFreightResponse>> AsyncGetFreight(::grpc::ClientContext* context, const ::nightfall::v1::GetFreightRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GetFreightResponse>>(AsyncGetFreightRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GetFreightResponse>> PrepareAsyncGetFreight(::grpc::ClientContext* context, const ::nightfall::v1::GetFreightRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GetFreightResponse>>(PrepareAsyncGetFreightRaw(context, request, cq));
+    }
+    // Owner-only mail headers; expired messages are hidden.
+    virtual ::grpc::Status ListMail(::grpc::ClientContext* context, const ::nightfall::v1::ListMailRequest& request, ::nightfall::v1::ListMailResponse* response) = 0;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::ListMailResponse>> AsyncListMail(::grpc::ClientContext* context, const ::nightfall::v1::ListMailRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::ListMailResponse>>(AsyncListMailRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::ListMailResponse>> PrepareAsyncListMail(::grpc::ClientContext* context, const ::nightfall::v1::ListMailRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::ListMailResponse>>(PrepareAsyncListMailRaw(context, request, cq));
+    }
+    // Owner-only mail body. Writes nothing (the read flag moves through MailMarkRead).
+    // FAILED_PRECONDITION for a message with attachments unless the reader is admitted inside
+    // a peace square; out of world, the header and body come without attachment rows.
+    virtual ::grpc::Status ReadMail(::grpc::ClientContext* context, const ::nightfall::v1::ReadMailRequest& request, ::nightfall::v1::ReadMailResponse* response) = 0;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::ReadMailResponse>> AsyncReadMail(::grpc::ClientContext* context, const ::nightfall::v1::ReadMailRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::ReadMailResponse>>(AsyncReadMailRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::ReadMailResponse>> PrepareAsyncReadMail(::grpc::ClientContext* context, const ::nightfall::v1::ReadMailRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::ReadMailResponse>>(PrepareAsyncReadMailRaw(context, request, cq));
+    }
+    // Current, next and the caller's refundable bids for one auctioneer instance.
+    virtual ::grpc::Status ListItemAuctions(::grpc::ClientContext* context, const ::nightfall::v1::ListItemAuctionsRequest& request, ::nightfall::v1::ListItemAuctionsResponse* response) = 0;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::ListItemAuctionsResponse>> AsyncListItemAuctions(::grpc::ClientContext* context, const ::nightfall::v1::ListItemAuctionsRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::ListItemAuctionsResponse>>(AsyncListItemAuctionsRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::ListItemAuctionsResponse>> PrepareAsyncListItemAuctions(::grpc::ClientContext* context, const ::nightfall::v1::ListItemAuctionsRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::ListItemAuctionsResponse>>(PrepareAsyncListItemAuctionsRaw(context, request, cq));
+    }
+    // Fixture manor lists plus current amounts (Gludio only in Phase 5, E28).
+    virtual ::grpc::Status GetManorData(::grpc::ClientContext* context, const ::nightfall::v1::GetManorDataRequest& request, ::nightfall::v1::GetManorDataResponse* response) = 0;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GetManorDataResponse>> AsyncGetManorData(::grpc::ClientContext* context, const ::nightfall::v1::GetManorDataRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GetManorDataResponse>>(AsyncGetManorDataRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GetManorDataResponse>> PrepareAsyncGetManorData(::grpc::ClientContext* context, const ::nightfall::v1::GetManorDataRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GetManorDataResponse>>(PrepareAsyncGetManorDataRaw(context, request, cq));
+    }
     class async_interface {
      public:
       virtual ~async_interface() {}
@@ -273,6 +354,42 @@ class GameService final {
       // RESOURCE_EXHAUSTED (capacity/queue), INTERNAL.
       virtual void GrantItem(::grpc::ClientContext* context, const ::nightfall::v1::GrantItemRequest* request, ::nightfall::v1::GrantItemResponse* response, std::function<void(::grpc::Status)>) = 0;
       virtual void GrantItem(::grpc::ClientContext* context, const ::nightfall::v1::GrantItemRequest* request, ::nightfall::v1::GrantItemResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
+      // Phase 5 reads (phase-5-zone-design.md §13.4; E14, E31). All nine are authenticated,
+      // naturally idempotent reads with no key, and none writes a row. `character_id` is 16
+      // canonical UUID bytes. Common errors: UNAUTHENTICATED, INVALID_ARGUMENT, NOT_FOUND,
+      // PERMISSION_DENIED, UNAVAILABLE (zone, rules or runtime absent), INTERNAL.
+      //
+      // Static unit prices (D §6.2 table at castle 0) plus live stock and the caller's refund tab
+      // from the zone read port. FAILED_PRECONDITION unless the caller is admitted.
+      virtual void ListBuylist(::grpc::ClientContext* context, const ::nightfall::v1::ListBuylistRequest* request, ::nightfall::v1::ListBuylistResponse* response, std::function<void(::grpc::Status)>) = 0;
+      virtual void ListBuylist(::grpc::ClientContext* context, const ::nightfall::v1::ListBuylistRequest* request, ::nightfall::v1::ListBuylistResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
+      // Static multisell list from Phase5Rules.
+      virtual void GetMultisellList(::grpc::ClientContext* context, const ::nightfall::v1::GetMultisellListRequest* request, ::nightfall::v1::GetMultisellListResponse* response, std::function<void(::grpc::Status)>) = 0;
+      virtual void GetMultisellList(::grpc::ClientContext* context, const ::nightfall::v1::GetMultisellListRequest* request, ::nightfall::v1::GetMultisellListResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
+      // Out-of-world checkpoint view. FAILED_PRECONDITION while admitted (RecipeBookSync is the
+      // live baseline, D15 pattern).
+      virtual void GetRecipeBook(::grpc::ClientContext* context, const ::nightfall::v1::GetRecipeBookRequest* request, ::nightfall::v1::GetRecipeBookResponse* response, std::function<void(::grpc::Status)>) = 0;
+      virtual void GetRecipeBook(::grpc::ClientContext* context, const ::nightfall::v1::GetRecipeBookRequest* request, ::nightfall::v1::GetRecipeBookResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
+      // Owner-only warehouse rows (location WAREHOUSE).
+      virtual void GetWarehouse(::grpc::ClientContext* context, const ::nightfall::v1::GetWarehouseRequest* request, ::nightfall::v1::GetWarehouseResponse* response, std::function<void(::grpc::Status)>) = 0;
+      virtual void GetWarehouse(::grpc::ClientContext* context, const ::nightfall::v1::GetWarehouseRequest* request, ::nightfall::v1::GetWarehouseResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
+      // Owner-only freight rows (location FREIGHT).
+      virtual void GetFreight(::grpc::ClientContext* context, const ::nightfall::v1::GetFreightRequest* request, ::nightfall::v1::GetFreightResponse* response, std::function<void(::grpc::Status)>) = 0;
+      virtual void GetFreight(::grpc::ClientContext* context, const ::nightfall::v1::GetFreightRequest* request, ::nightfall::v1::GetFreightResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
+      // Owner-only mail headers; expired messages are hidden.
+      virtual void ListMail(::grpc::ClientContext* context, const ::nightfall::v1::ListMailRequest* request, ::nightfall::v1::ListMailResponse* response, std::function<void(::grpc::Status)>) = 0;
+      virtual void ListMail(::grpc::ClientContext* context, const ::nightfall::v1::ListMailRequest* request, ::nightfall::v1::ListMailResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
+      // Owner-only mail body. Writes nothing (the read flag moves through MailMarkRead).
+      // FAILED_PRECONDITION for a message with attachments unless the reader is admitted inside
+      // a peace square; out of world, the header and body come without attachment rows.
+      virtual void ReadMail(::grpc::ClientContext* context, const ::nightfall::v1::ReadMailRequest* request, ::nightfall::v1::ReadMailResponse* response, std::function<void(::grpc::Status)>) = 0;
+      virtual void ReadMail(::grpc::ClientContext* context, const ::nightfall::v1::ReadMailRequest* request, ::nightfall::v1::ReadMailResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
+      // Current, next and the caller's refundable bids for one auctioneer instance.
+      virtual void ListItemAuctions(::grpc::ClientContext* context, const ::nightfall::v1::ListItemAuctionsRequest* request, ::nightfall::v1::ListItemAuctionsResponse* response, std::function<void(::grpc::Status)>) = 0;
+      virtual void ListItemAuctions(::grpc::ClientContext* context, const ::nightfall::v1::ListItemAuctionsRequest* request, ::nightfall::v1::ListItemAuctionsResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
+      // Fixture manor lists plus current amounts (Gludio only in Phase 5, E28).
+      virtual void GetManorData(::grpc::ClientContext* context, const ::nightfall::v1::GetManorDataRequest* request, ::nightfall::v1::GetManorDataResponse* response, std::function<void(::grpc::Status)>) = 0;
+      virtual void GetManorData(::grpc::ClientContext* context, const ::nightfall::v1::GetManorDataRequest* request, ::nightfall::v1::GetManorDataResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
     };
     typedef class async_interface experimental_async_interface;
     virtual class async_interface* async() { return nullptr; }
@@ -304,6 +421,24 @@ class GameService final {
     virtual ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GetInventoryResponse>* PrepareAsyncGetInventoryRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetInventoryRequest& request, ::grpc::CompletionQueue* cq) = 0;
     virtual ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GrantItemResponse>* AsyncGrantItemRaw(::grpc::ClientContext* context, const ::nightfall::v1::GrantItemRequest& request, ::grpc::CompletionQueue* cq) = 0;
     virtual ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GrantItemResponse>* PrepareAsyncGrantItemRaw(::grpc::ClientContext* context, const ::nightfall::v1::GrantItemRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::ListBuylistResponse>* AsyncListBuylistRaw(::grpc::ClientContext* context, const ::nightfall::v1::ListBuylistRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::ListBuylistResponse>* PrepareAsyncListBuylistRaw(::grpc::ClientContext* context, const ::nightfall::v1::ListBuylistRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GetMultisellListResponse>* AsyncGetMultisellListRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetMultisellListRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GetMultisellListResponse>* PrepareAsyncGetMultisellListRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetMultisellListRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GetRecipeBookResponse>* AsyncGetRecipeBookRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetRecipeBookRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GetRecipeBookResponse>* PrepareAsyncGetRecipeBookRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetRecipeBookRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GetWarehouseResponse>* AsyncGetWarehouseRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetWarehouseRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GetWarehouseResponse>* PrepareAsyncGetWarehouseRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetWarehouseRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GetFreightResponse>* AsyncGetFreightRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetFreightRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GetFreightResponse>* PrepareAsyncGetFreightRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetFreightRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::ListMailResponse>* AsyncListMailRaw(::grpc::ClientContext* context, const ::nightfall::v1::ListMailRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::ListMailResponse>* PrepareAsyncListMailRaw(::grpc::ClientContext* context, const ::nightfall::v1::ListMailRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::ReadMailResponse>* AsyncReadMailRaw(::grpc::ClientContext* context, const ::nightfall::v1::ReadMailRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::ReadMailResponse>* PrepareAsyncReadMailRaw(::grpc::ClientContext* context, const ::nightfall::v1::ReadMailRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::ListItemAuctionsResponse>* AsyncListItemAuctionsRaw(::grpc::ClientContext* context, const ::nightfall::v1::ListItemAuctionsRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::ListItemAuctionsResponse>* PrepareAsyncListItemAuctionsRaw(::grpc::ClientContext* context, const ::nightfall::v1::ListItemAuctionsRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GetManorDataResponse>* AsyncGetManorDataRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetManorDataRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::nightfall::v1::GetManorDataResponse>* PrepareAsyncGetManorDataRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetManorDataRequest& request, ::grpc::CompletionQueue* cq) = 0;
   };
   class Stub final : public StubInterface {
    public:
@@ -399,6 +534,69 @@ class GameService final {
     std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GrantItemResponse>> PrepareAsyncGrantItem(::grpc::ClientContext* context, const ::nightfall::v1::GrantItemRequest& request, ::grpc::CompletionQueue* cq) {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GrantItemResponse>>(PrepareAsyncGrantItemRaw(context, request, cq));
     }
+    ::grpc::Status ListBuylist(::grpc::ClientContext* context, const ::nightfall::v1::ListBuylistRequest& request, ::nightfall::v1::ListBuylistResponse* response) override;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::ListBuylistResponse>> AsyncListBuylist(::grpc::ClientContext* context, const ::nightfall::v1::ListBuylistRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::ListBuylistResponse>>(AsyncListBuylistRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::ListBuylistResponse>> PrepareAsyncListBuylist(::grpc::ClientContext* context, const ::nightfall::v1::ListBuylistRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::ListBuylistResponse>>(PrepareAsyncListBuylistRaw(context, request, cq));
+    }
+    ::grpc::Status GetMultisellList(::grpc::ClientContext* context, const ::nightfall::v1::GetMultisellListRequest& request, ::nightfall::v1::GetMultisellListResponse* response) override;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetMultisellListResponse>> AsyncGetMultisellList(::grpc::ClientContext* context, const ::nightfall::v1::GetMultisellListRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetMultisellListResponse>>(AsyncGetMultisellListRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetMultisellListResponse>> PrepareAsyncGetMultisellList(::grpc::ClientContext* context, const ::nightfall::v1::GetMultisellListRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetMultisellListResponse>>(PrepareAsyncGetMultisellListRaw(context, request, cq));
+    }
+    ::grpc::Status GetRecipeBook(::grpc::ClientContext* context, const ::nightfall::v1::GetRecipeBookRequest& request, ::nightfall::v1::GetRecipeBookResponse* response) override;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetRecipeBookResponse>> AsyncGetRecipeBook(::grpc::ClientContext* context, const ::nightfall::v1::GetRecipeBookRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetRecipeBookResponse>>(AsyncGetRecipeBookRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetRecipeBookResponse>> PrepareAsyncGetRecipeBook(::grpc::ClientContext* context, const ::nightfall::v1::GetRecipeBookRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetRecipeBookResponse>>(PrepareAsyncGetRecipeBookRaw(context, request, cq));
+    }
+    ::grpc::Status GetWarehouse(::grpc::ClientContext* context, const ::nightfall::v1::GetWarehouseRequest& request, ::nightfall::v1::GetWarehouseResponse* response) override;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetWarehouseResponse>> AsyncGetWarehouse(::grpc::ClientContext* context, const ::nightfall::v1::GetWarehouseRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetWarehouseResponse>>(AsyncGetWarehouseRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetWarehouseResponse>> PrepareAsyncGetWarehouse(::grpc::ClientContext* context, const ::nightfall::v1::GetWarehouseRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetWarehouseResponse>>(PrepareAsyncGetWarehouseRaw(context, request, cq));
+    }
+    ::grpc::Status GetFreight(::grpc::ClientContext* context, const ::nightfall::v1::GetFreightRequest& request, ::nightfall::v1::GetFreightResponse* response) override;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetFreightResponse>> AsyncGetFreight(::grpc::ClientContext* context, const ::nightfall::v1::GetFreightRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetFreightResponse>>(AsyncGetFreightRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetFreightResponse>> PrepareAsyncGetFreight(::grpc::ClientContext* context, const ::nightfall::v1::GetFreightRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetFreightResponse>>(PrepareAsyncGetFreightRaw(context, request, cq));
+    }
+    ::grpc::Status ListMail(::grpc::ClientContext* context, const ::nightfall::v1::ListMailRequest& request, ::nightfall::v1::ListMailResponse* response) override;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::ListMailResponse>> AsyncListMail(::grpc::ClientContext* context, const ::nightfall::v1::ListMailRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::ListMailResponse>>(AsyncListMailRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::ListMailResponse>> PrepareAsyncListMail(::grpc::ClientContext* context, const ::nightfall::v1::ListMailRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::ListMailResponse>>(PrepareAsyncListMailRaw(context, request, cq));
+    }
+    ::grpc::Status ReadMail(::grpc::ClientContext* context, const ::nightfall::v1::ReadMailRequest& request, ::nightfall::v1::ReadMailResponse* response) override;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::ReadMailResponse>> AsyncReadMail(::grpc::ClientContext* context, const ::nightfall::v1::ReadMailRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::ReadMailResponse>>(AsyncReadMailRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::ReadMailResponse>> PrepareAsyncReadMail(::grpc::ClientContext* context, const ::nightfall::v1::ReadMailRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::ReadMailResponse>>(PrepareAsyncReadMailRaw(context, request, cq));
+    }
+    ::grpc::Status ListItemAuctions(::grpc::ClientContext* context, const ::nightfall::v1::ListItemAuctionsRequest& request, ::nightfall::v1::ListItemAuctionsResponse* response) override;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::ListItemAuctionsResponse>> AsyncListItemAuctions(::grpc::ClientContext* context, const ::nightfall::v1::ListItemAuctionsRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::ListItemAuctionsResponse>>(AsyncListItemAuctionsRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::ListItemAuctionsResponse>> PrepareAsyncListItemAuctions(::grpc::ClientContext* context, const ::nightfall::v1::ListItemAuctionsRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::ListItemAuctionsResponse>>(PrepareAsyncListItemAuctionsRaw(context, request, cq));
+    }
+    ::grpc::Status GetManorData(::grpc::ClientContext* context, const ::nightfall::v1::GetManorDataRequest& request, ::nightfall::v1::GetManorDataResponse* response) override;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetManorDataResponse>> AsyncGetManorData(::grpc::ClientContext* context, const ::nightfall::v1::GetManorDataRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetManorDataResponse>>(AsyncGetManorDataRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetManorDataResponse>> PrepareAsyncGetManorData(::grpc::ClientContext* context, const ::nightfall::v1::GetManorDataRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetManorDataResponse>>(PrepareAsyncGetManorDataRaw(context, request, cq));
+    }
     class async final :
       public StubInterface::async_interface {
      public:
@@ -428,6 +626,24 @@ class GameService final {
       void GetInventory(::grpc::ClientContext* context, const ::nightfall::v1::GetInventoryRequest* request, ::nightfall::v1::GetInventoryResponse* response, ::grpc::ClientUnaryReactor* reactor) override;
       void GrantItem(::grpc::ClientContext* context, const ::nightfall::v1::GrantItemRequest* request, ::nightfall::v1::GrantItemResponse* response, std::function<void(::grpc::Status)>) override;
       void GrantItem(::grpc::ClientContext* context, const ::nightfall::v1::GrantItemRequest* request, ::nightfall::v1::GrantItemResponse* response, ::grpc::ClientUnaryReactor* reactor) override;
+      void ListBuylist(::grpc::ClientContext* context, const ::nightfall::v1::ListBuylistRequest* request, ::nightfall::v1::ListBuylistResponse* response, std::function<void(::grpc::Status)>) override;
+      void ListBuylist(::grpc::ClientContext* context, const ::nightfall::v1::ListBuylistRequest* request, ::nightfall::v1::ListBuylistResponse* response, ::grpc::ClientUnaryReactor* reactor) override;
+      void GetMultisellList(::grpc::ClientContext* context, const ::nightfall::v1::GetMultisellListRequest* request, ::nightfall::v1::GetMultisellListResponse* response, std::function<void(::grpc::Status)>) override;
+      void GetMultisellList(::grpc::ClientContext* context, const ::nightfall::v1::GetMultisellListRequest* request, ::nightfall::v1::GetMultisellListResponse* response, ::grpc::ClientUnaryReactor* reactor) override;
+      void GetRecipeBook(::grpc::ClientContext* context, const ::nightfall::v1::GetRecipeBookRequest* request, ::nightfall::v1::GetRecipeBookResponse* response, std::function<void(::grpc::Status)>) override;
+      void GetRecipeBook(::grpc::ClientContext* context, const ::nightfall::v1::GetRecipeBookRequest* request, ::nightfall::v1::GetRecipeBookResponse* response, ::grpc::ClientUnaryReactor* reactor) override;
+      void GetWarehouse(::grpc::ClientContext* context, const ::nightfall::v1::GetWarehouseRequest* request, ::nightfall::v1::GetWarehouseResponse* response, std::function<void(::grpc::Status)>) override;
+      void GetWarehouse(::grpc::ClientContext* context, const ::nightfall::v1::GetWarehouseRequest* request, ::nightfall::v1::GetWarehouseResponse* response, ::grpc::ClientUnaryReactor* reactor) override;
+      void GetFreight(::grpc::ClientContext* context, const ::nightfall::v1::GetFreightRequest* request, ::nightfall::v1::GetFreightResponse* response, std::function<void(::grpc::Status)>) override;
+      void GetFreight(::grpc::ClientContext* context, const ::nightfall::v1::GetFreightRequest* request, ::nightfall::v1::GetFreightResponse* response, ::grpc::ClientUnaryReactor* reactor) override;
+      void ListMail(::grpc::ClientContext* context, const ::nightfall::v1::ListMailRequest* request, ::nightfall::v1::ListMailResponse* response, std::function<void(::grpc::Status)>) override;
+      void ListMail(::grpc::ClientContext* context, const ::nightfall::v1::ListMailRequest* request, ::nightfall::v1::ListMailResponse* response, ::grpc::ClientUnaryReactor* reactor) override;
+      void ReadMail(::grpc::ClientContext* context, const ::nightfall::v1::ReadMailRequest* request, ::nightfall::v1::ReadMailResponse* response, std::function<void(::grpc::Status)>) override;
+      void ReadMail(::grpc::ClientContext* context, const ::nightfall::v1::ReadMailRequest* request, ::nightfall::v1::ReadMailResponse* response, ::grpc::ClientUnaryReactor* reactor) override;
+      void ListItemAuctions(::grpc::ClientContext* context, const ::nightfall::v1::ListItemAuctionsRequest* request, ::nightfall::v1::ListItemAuctionsResponse* response, std::function<void(::grpc::Status)>) override;
+      void ListItemAuctions(::grpc::ClientContext* context, const ::nightfall::v1::ListItemAuctionsRequest* request, ::nightfall::v1::ListItemAuctionsResponse* response, ::grpc::ClientUnaryReactor* reactor) override;
+      void GetManorData(::grpc::ClientContext* context, const ::nightfall::v1::GetManorDataRequest* request, ::nightfall::v1::GetManorDataResponse* response, std::function<void(::grpc::Status)>) override;
+      void GetManorData(::grpc::ClientContext* context, const ::nightfall::v1::GetManorDataRequest* request, ::nightfall::v1::GetManorDataResponse* response, ::grpc::ClientUnaryReactor* reactor) override;
      private:
       friend class Stub;
       explicit async(Stub* stub): stub_(stub) { }
@@ -465,6 +681,24 @@ class GameService final {
     ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetInventoryResponse>* PrepareAsyncGetInventoryRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetInventoryRequest& request, ::grpc::CompletionQueue* cq) override;
     ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GrantItemResponse>* AsyncGrantItemRaw(::grpc::ClientContext* context, const ::nightfall::v1::GrantItemRequest& request, ::grpc::CompletionQueue* cq) override;
     ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GrantItemResponse>* PrepareAsyncGrantItemRaw(::grpc::ClientContext* context, const ::nightfall::v1::GrantItemRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::nightfall::v1::ListBuylistResponse>* AsyncListBuylistRaw(::grpc::ClientContext* context, const ::nightfall::v1::ListBuylistRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::nightfall::v1::ListBuylistResponse>* PrepareAsyncListBuylistRaw(::grpc::ClientContext* context, const ::nightfall::v1::ListBuylistRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetMultisellListResponse>* AsyncGetMultisellListRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetMultisellListRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetMultisellListResponse>* PrepareAsyncGetMultisellListRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetMultisellListRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetRecipeBookResponse>* AsyncGetRecipeBookRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetRecipeBookRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetRecipeBookResponse>* PrepareAsyncGetRecipeBookRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetRecipeBookRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetWarehouseResponse>* AsyncGetWarehouseRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetWarehouseRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetWarehouseResponse>* PrepareAsyncGetWarehouseRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetWarehouseRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetFreightResponse>* AsyncGetFreightRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetFreightRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetFreightResponse>* PrepareAsyncGetFreightRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetFreightRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::nightfall::v1::ListMailResponse>* AsyncListMailRaw(::grpc::ClientContext* context, const ::nightfall::v1::ListMailRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::nightfall::v1::ListMailResponse>* PrepareAsyncListMailRaw(::grpc::ClientContext* context, const ::nightfall::v1::ListMailRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::nightfall::v1::ReadMailResponse>* AsyncReadMailRaw(::grpc::ClientContext* context, const ::nightfall::v1::ReadMailRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::nightfall::v1::ReadMailResponse>* PrepareAsyncReadMailRaw(::grpc::ClientContext* context, const ::nightfall::v1::ReadMailRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::nightfall::v1::ListItemAuctionsResponse>* AsyncListItemAuctionsRaw(::grpc::ClientContext* context, const ::nightfall::v1::ListItemAuctionsRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::nightfall::v1::ListItemAuctionsResponse>* PrepareAsyncListItemAuctionsRaw(::grpc::ClientContext* context, const ::nightfall::v1::ListItemAuctionsRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetManorDataResponse>* AsyncGetManorDataRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetManorDataRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::nightfall::v1::GetManorDataResponse>* PrepareAsyncGetManorDataRaw(::grpc::ClientContext* context, const ::nightfall::v1::GetManorDataRequest& request, ::grpc::CompletionQueue* cq) override;
     const ::grpc::internal::RpcMethod rpcmethod_Ping_;
     const ::grpc::internal::RpcMethod rpcmethod_GetCharacter_;
     const ::grpc::internal::RpcMethod rpcmethod_CreateCharacter_;
@@ -478,6 +712,15 @@ class GameService final {
     const ::grpc::internal::RpcMethod rpcmethod_GetItemCatalog_;
     const ::grpc::internal::RpcMethod rpcmethod_GetInventory_;
     const ::grpc::internal::RpcMethod rpcmethod_GrantItem_;
+    const ::grpc::internal::RpcMethod rpcmethod_ListBuylist_;
+    const ::grpc::internal::RpcMethod rpcmethod_GetMultisellList_;
+    const ::grpc::internal::RpcMethod rpcmethod_GetRecipeBook_;
+    const ::grpc::internal::RpcMethod rpcmethod_GetWarehouse_;
+    const ::grpc::internal::RpcMethod rpcmethod_GetFreight_;
+    const ::grpc::internal::RpcMethod rpcmethod_ListMail_;
+    const ::grpc::internal::RpcMethod rpcmethod_ReadMail_;
+    const ::grpc::internal::RpcMethod rpcmethod_ListItemAuctions_;
+    const ::grpc::internal::RpcMethod rpcmethod_GetManorData_;
   };
   static std::unique_ptr<Stub> NewStub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& options = ::grpc::StubOptions());
 
@@ -553,6 +796,33 @@ class GameService final {
     // FAILED_PRECONDITION (dev gate off, key conflict, item eligibility), UNAVAILABLE,
     // RESOURCE_EXHAUSTED (capacity/queue), INTERNAL.
     virtual ::grpc::Status GrantItem(::grpc::ServerContext* context, const ::nightfall::v1::GrantItemRequest* request, ::nightfall::v1::GrantItemResponse* response);
+    // Phase 5 reads (phase-5-zone-design.md §13.4; E14, E31). All nine are authenticated,
+    // naturally idempotent reads with no key, and none writes a row. `character_id` is 16
+    // canonical UUID bytes. Common errors: UNAUTHENTICATED, INVALID_ARGUMENT, NOT_FOUND,
+    // PERMISSION_DENIED, UNAVAILABLE (zone, rules or runtime absent), INTERNAL.
+    //
+    // Static unit prices (D §6.2 table at castle 0) plus live stock and the caller's refund tab
+    // from the zone read port. FAILED_PRECONDITION unless the caller is admitted.
+    virtual ::grpc::Status ListBuylist(::grpc::ServerContext* context, const ::nightfall::v1::ListBuylistRequest* request, ::nightfall::v1::ListBuylistResponse* response);
+    // Static multisell list from Phase5Rules.
+    virtual ::grpc::Status GetMultisellList(::grpc::ServerContext* context, const ::nightfall::v1::GetMultisellListRequest* request, ::nightfall::v1::GetMultisellListResponse* response);
+    // Out-of-world checkpoint view. FAILED_PRECONDITION while admitted (RecipeBookSync is the
+    // live baseline, D15 pattern).
+    virtual ::grpc::Status GetRecipeBook(::grpc::ServerContext* context, const ::nightfall::v1::GetRecipeBookRequest* request, ::nightfall::v1::GetRecipeBookResponse* response);
+    // Owner-only warehouse rows (location WAREHOUSE).
+    virtual ::grpc::Status GetWarehouse(::grpc::ServerContext* context, const ::nightfall::v1::GetWarehouseRequest* request, ::nightfall::v1::GetWarehouseResponse* response);
+    // Owner-only freight rows (location FREIGHT).
+    virtual ::grpc::Status GetFreight(::grpc::ServerContext* context, const ::nightfall::v1::GetFreightRequest* request, ::nightfall::v1::GetFreightResponse* response);
+    // Owner-only mail headers; expired messages are hidden.
+    virtual ::grpc::Status ListMail(::grpc::ServerContext* context, const ::nightfall::v1::ListMailRequest* request, ::nightfall::v1::ListMailResponse* response);
+    // Owner-only mail body. Writes nothing (the read flag moves through MailMarkRead).
+    // FAILED_PRECONDITION for a message with attachments unless the reader is admitted inside
+    // a peace square; out of world, the header and body come without attachment rows.
+    virtual ::grpc::Status ReadMail(::grpc::ServerContext* context, const ::nightfall::v1::ReadMailRequest* request, ::nightfall::v1::ReadMailResponse* response);
+    // Current, next and the caller's refundable bids for one auctioneer instance.
+    virtual ::grpc::Status ListItemAuctions(::grpc::ServerContext* context, const ::nightfall::v1::ListItemAuctionsRequest* request, ::nightfall::v1::ListItemAuctionsResponse* response);
+    // Fixture manor lists plus current amounts (Gludio only in Phase 5, E28).
+    virtual ::grpc::Status GetManorData(::grpc::ServerContext* context, const ::nightfall::v1::GetManorDataRequest* request, ::nightfall::v1::GetManorDataResponse* response);
   };
   template <class BaseClass>
   class WithAsyncMethod_Ping : public BaseClass {
@@ -814,7 +1084,187 @@ class GameService final {
       ::grpc::Service::RequestAsyncUnary(12, context, request, response, new_call_cq, notification_cq, tag);
     }
   };
-  typedef WithAsyncMethod_Ping<WithAsyncMethod_GetCharacter<WithAsyncMethod_CreateCharacter<WithAsyncMethod_ListMyCharacters<WithAsyncMethod_ListClasses<WithAsyncMethod_TransferOptions<WithAsyncMethod_ChangeClass<WithAsyncMethod_ListLearnableSkills<WithAsyncMethod_LearnSkill<WithAsyncMethod_GetSkillCatalog<WithAsyncMethod_GetItemCatalog<WithAsyncMethod_GetInventory<WithAsyncMethod_GrantItem<Service > > > > > > > > > > > > > AsyncService;
+  template <class BaseClass>
+  class WithAsyncMethod_ListBuylist : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithAsyncMethod_ListBuylist() {
+      ::grpc::Service::MarkMethodAsync(13);
+    }
+    ~WithAsyncMethod_ListBuylist() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status ListBuylist(::grpc::ServerContext* /*context*/, const ::nightfall::v1::ListBuylistRequest* /*request*/, ::nightfall::v1::ListBuylistResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestListBuylist(::grpc::ServerContext* context, ::nightfall::v1::ListBuylistRequest* request, ::grpc::ServerAsyncResponseWriter< ::nightfall::v1::ListBuylistResponse>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(13, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithAsyncMethod_GetMultisellList : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithAsyncMethod_GetMultisellList() {
+      ::grpc::Service::MarkMethodAsync(14);
+    }
+    ~WithAsyncMethod_GetMultisellList() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GetMultisellList(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GetMultisellListRequest* /*request*/, ::nightfall::v1::GetMultisellListResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestGetMultisellList(::grpc::ServerContext* context, ::nightfall::v1::GetMultisellListRequest* request, ::grpc::ServerAsyncResponseWriter< ::nightfall::v1::GetMultisellListResponse>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(14, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithAsyncMethod_GetRecipeBook : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithAsyncMethod_GetRecipeBook() {
+      ::grpc::Service::MarkMethodAsync(15);
+    }
+    ~WithAsyncMethod_GetRecipeBook() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GetRecipeBook(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GetRecipeBookRequest* /*request*/, ::nightfall::v1::GetRecipeBookResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestGetRecipeBook(::grpc::ServerContext* context, ::nightfall::v1::GetRecipeBookRequest* request, ::grpc::ServerAsyncResponseWriter< ::nightfall::v1::GetRecipeBookResponse>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(15, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithAsyncMethod_GetWarehouse : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithAsyncMethod_GetWarehouse() {
+      ::grpc::Service::MarkMethodAsync(16);
+    }
+    ~WithAsyncMethod_GetWarehouse() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GetWarehouse(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GetWarehouseRequest* /*request*/, ::nightfall::v1::GetWarehouseResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestGetWarehouse(::grpc::ServerContext* context, ::nightfall::v1::GetWarehouseRequest* request, ::grpc::ServerAsyncResponseWriter< ::nightfall::v1::GetWarehouseResponse>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(16, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithAsyncMethod_GetFreight : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithAsyncMethod_GetFreight() {
+      ::grpc::Service::MarkMethodAsync(17);
+    }
+    ~WithAsyncMethod_GetFreight() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GetFreight(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GetFreightRequest* /*request*/, ::nightfall::v1::GetFreightResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestGetFreight(::grpc::ServerContext* context, ::nightfall::v1::GetFreightRequest* request, ::grpc::ServerAsyncResponseWriter< ::nightfall::v1::GetFreightResponse>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(17, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithAsyncMethod_ListMail : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithAsyncMethod_ListMail() {
+      ::grpc::Service::MarkMethodAsync(18);
+    }
+    ~WithAsyncMethod_ListMail() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status ListMail(::grpc::ServerContext* /*context*/, const ::nightfall::v1::ListMailRequest* /*request*/, ::nightfall::v1::ListMailResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestListMail(::grpc::ServerContext* context, ::nightfall::v1::ListMailRequest* request, ::grpc::ServerAsyncResponseWriter< ::nightfall::v1::ListMailResponse>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(18, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithAsyncMethod_ReadMail : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithAsyncMethod_ReadMail() {
+      ::grpc::Service::MarkMethodAsync(19);
+    }
+    ~WithAsyncMethod_ReadMail() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status ReadMail(::grpc::ServerContext* /*context*/, const ::nightfall::v1::ReadMailRequest* /*request*/, ::nightfall::v1::ReadMailResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestReadMail(::grpc::ServerContext* context, ::nightfall::v1::ReadMailRequest* request, ::grpc::ServerAsyncResponseWriter< ::nightfall::v1::ReadMailResponse>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(19, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithAsyncMethod_ListItemAuctions : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithAsyncMethod_ListItemAuctions() {
+      ::grpc::Service::MarkMethodAsync(20);
+    }
+    ~WithAsyncMethod_ListItemAuctions() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status ListItemAuctions(::grpc::ServerContext* /*context*/, const ::nightfall::v1::ListItemAuctionsRequest* /*request*/, ::nightfall::v1::ListItemAuctionsResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestListItemAuctions(::grpc::ServerContext* context, ::nightfall::v1::ListItemAuctionsRequest* request, ::grpc::ServerAsyncResponseWriter< ::nightfall::v1::ListItemAuctionsResponse>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(20, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithAsyncMethod_GetManorData : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithAsyncMethod_GetManorData() {
+      ::grpc::Service::MarkMethodAsync(21);
+    }
+    ~WithAsyncMethod_GetManorData() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GetManorData(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GetManorDataRequest* /*request*/, ::nightfall::v1::GetManorDataResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestGetManorData(::grpc::ServerContext* context, ::nightfall::v1::GetManorDataRequest* request, ::grpc::ServerAsyncResponseWriter< ::nightfall::v1::GetManorDataResponse>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(21, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  typedef WithAsyncMethod_Ping<WithAsyncMethod_GetCharacter<WithAsyncMethod_CreateCharacter<WithAsyncMethod_ListMyCharacters<WithAsyncMethod_ListClasses<WithAsyncMethod_TransferOptions<WithAsyncMethod_ChangeClass<WithAsyncMethod_ListLearnableSkills<WithAsyncMethod_LearnSkill<WithAsyncMethod_GetSkillCatalog<WithAsyncMethod_GetItemCatalog<WithAsyncMethod_GetInventory<WithAsyncMethod_GrantItem<WithAsyncMethod_ListBuylist<WithAsyncMethod_GetMultisellList<WithAsyncMethod_GetRecipeBook<WithAsyncMethod_GetWarehouse<WithAsyncMethod_GetFreight<WithAsyncMethod_ListMail<WithAsyncMethod_ReadMail<WithAsyncMethod_ListItemAuctions<WithAsyncMethod_GetManorData<Service > > > > > > > > > > > > > > > > > > > > > > AsyncService;
   template <class BaseClass>
   class WithCallbackMethod_Ping : public BaseClass {
    private:
@@ -1166,7 +1616,250 @@ class GameService final {
     virtual ::grpc::ServerUnaryReactor* GrantItem(
       ::grpc::CallbackServerContext* /*context*/, const ::nightfall::v1::GrantItemRequest* /*request*/, ::nightfall::v1::GrantItemResponse* /*response*/)  { return nullptr; }
   };
-  typedef WithCallbackMethod_Ping<WithCallbackMethod_GetCharacter<WithCallbackMethod_CreateCharacter<WithCallbackMethod_ListMyCharacters<WithCallbackMethod_ListClasses<WithCallbackMethod_TransferOptions<WithCallbackMethod_ChangeClass<WithCallbackMethod_ListLearnableSkills<WithCallbackMethod_LearnSkill<WithCallbackMethod_GetSkillCatalog<WithCallbackMethod_GetItemCatalog<WithCallbackMethod_GetInventory<WithCallbackMethod_GrantItem<Service > > > > > > > > > > > > > CallbackService;
+  template <class BaseClass>
+  class WithCallbackMethod_ListBuylist : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithCallbackMethod_ListBuylist() {
+      ::grpc::Service::MarkMethodCallback(13,
+          new ::grpc::internal::CallbackUnaryHandler< ::nightfall::v1::ListBuylistRequest, ::nightfall::v1::ListBuylistResponse>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::nightfall::v1::ListBuylistRequest* request, ::nightfall::v1::ListBuylistResponse* response) { return this->ListBuylist(context, request, response); }));}
+    void SetMessageAllocatorFor_ListBuylist(
+        ::grpc::MessageAllocator< ::nightfall::v1::ListBuylistRequest, ::nightfall::v1::ListBuylistResponse>* allocator) {
+      ::grpc::internal::MethodHandler* const handler = ::grpc::Service::GetHandler(13);
+      static_cast<::grpc::internal::CallbackUnaryHandler< ::nightfall::v1::ListBuylistRequest, ::nightfall::v1::ListBuylistResponse>*>(handler)
+              ->SetMessageAllocator(allocator);
+    }
+    ~WithCallbackMethod_ListBuylist() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status ListBuylist(::grpc::ServerContext* /*context*/, const ::nightfall::v1::ListBuylistRequest* /*request*/, ::nightfall::v1::ListBuylistResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* ListBuylist(
+      ::grpc::CallbackServerContext* /*context*/, const ::nightfall::v1::ListBuylistRequest* /*request*/, ::nightfall::v1::ListBuylistResponse* /*response*/)  { return nullptr; }
+  };
+  template <class BaseClass>
+  class WithCallbackMethod_GetMultisellList : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithCallbackMethod_GetMultisellList() {
+      ::grpc::Service::MarkMethodCallback(14,
+          new ::grpc::internal::CallbackUnaryHandler< ::nightfall::v1::GetMultisellListRequest, ::nightfall::v1::GetMultisellListResponse>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::nightfall::v1::GetMultisellListRequest* request, ::nightfall::v1::GetMultisellListResponse* response) { return this->GetMultisellList(context, request, response); }));}
+    void SetMessageAllocatorFor_GetMultisellList(
+        ::grpc::MessageAllocator< ::nightfall::v1::GetMultisellListRequest, ::nightfall::v1::GetMultisellListResponse>* allocator) {
+      ::grpc::internal::MethodHandler* const handler = ::grpc::Service::GetHandler(14);
+      static_cast<::grpc::internal::CallbackUnaryHandler< ::nightfall::v1::GetMultisellListRequest, ::nightfall::v1::GetMultisellListResponse>*>(handler)
+              ->SetMessageAllocator(allocator);
+    }
+    ~WithCallbackMethod_GetMultisellList() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GetMultisellList(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GetMultisellListRequest* /*request*/, ::nightfall::v1::GetMultisellListResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* GetMultisellList(
+      ::grpc::CallbackServerContext* /*context*/, const ::nightfall::v1::GetMultisellListRequest* /*request*/, ::nightfall::v1::GetMultisellListResponse* /*response*/)  { return nullptr; }
+  };
+  template <class BaseClass>
+  class WithCallbackMethod_GetRecipeBook : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithCallbackMethod_GetRecipeBook() {
+      ::grpc::Service::MarkMethodCallback(15,
+          new ::grpc::internal::CallbackUnaryHandler< ::nightfall::v1::GetRecipeBookRequest, ::nightfall::v1::GetRecipeBookResponse>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::nightfall::v1::GetRecipeBookRequest* request, ::nightfall::v1::GetRecipeBookResponse* response) { return this->GetRecipeBook(context, request, response); }));}
+    void SetMessageAllocatorFor_GetRecipeBook(
+        ::grpc::MessageAllocator< ::nightfall::v1::GetRecipeBookRequest, ::nightfall::v1::GetRecipeBookResponse>* allocator) {
+      ::grpc::internal::MethodHandler* const handler = ::grpc::Service::GetHandler(15);
+      static_cast<::grpc::internal::CallbackUnaryHandler< ::nightfall::v1::GetRecipeBookRequest, ::nightfall::v1::GetRecipeBookResponse>*>(handler)
+              ->SetMessageAllocator(allocator);
+    }
+    ~WithCallbackMethod_GetRecipeBook() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GetRecipeBook(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GetRecipeBookRequest* /*request*/, ::nightfall::v1::GetRecipeBookResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* GetRecipeBook(
+      ::grpc::CallbackServerContext* /*context*/, const ::nightfall::v1::GetRecipeBookRequest* /*request*/, ::nightfall::v1::GetRecipeBookResponse* /*response*/)  { return nullptr; }
+  };
+  template <class BaseClass>
+  class WithCallbackMethod_GetWarehouse : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithCallbackMethod_GetWarehouse() {
+      ::grpc::Service::MarkMethodCallback(16,
+          new ::grpc::internal::CallbackUnaryHandler< ::nightfall::v1::GetWarehouseRequest, ::nightfall::v1::GetWarehouseResponse>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::nightfall::v1::GetWarehouseRequest* request, ::nightfall::v1::GetWarehouseResponse* response) { return this->GetWarehouse(context, request, response); }));}
+    void SetMessageAllocatorFor_GetWarehouse(
+        ::grpc::MessageAllocator< ::nightfall::v1::GetWarehouseRequest, ::nightfall::v1::GetWarehouseResponse>* allocator) {
+      ::grpc::internal::MethodHandler* const handler = ::grpc::Service::GetHandler(16);
+      static_cast<::grpc::internal::CallbackUnaryHandler< ::nightfall::v1::GetWarehouseRequest, ::nightfall::v1::GetWarehouseResponse>*>(handler)
+              ->SetMessageAllocator(allocator);
+    }
+    ~WithCallbackMethod_GetWarehouse() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GetWarehouse(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GetWarehouseRequest* /*request*/, ::nightfall::v1::GetWarehouseResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* GetWarehouse(
+      ::grpc::CallbackServerContext* /*context*/, const ::nightfall::v1::GetWarehouseRequest* /*request*/, ::nightfall::v1::GetWarehouseResponse* /*response*/)  { return nullptr; }
+  };
+  template <class BaseClass>
+  class WithCallbackMethod_GetFreight : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithCallbackMethod_GetFreight() {
+      ::grpc::Service::MarkMethodCallback(17,
+          new ::grpc::internal::CallbackUnaryHandler< ::nightfall::v1::GetFreightRequest, ::nightfall::v1::GetFreightResponse>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::nightfall::v1::GetFreightRequest* request, ::nightfall::v1::GetFreightResponse* response) { return this->GetFreight(context, request, response); }));}
+    void SetMessageAllocatorFor_GetFreight(
+        ::grpc::MessageAllocator< ::nightfall::v1::GetFreightRequest, ::nightfall::v1::GetFreightResponse>* allocator) {
+      ::grpc::internal::MethodHandler* const handler = ::grpc::Service::GetHandler(17);
+      static_cast<::grpc::internal::CallbackUnaryHandler< ::nightfall::v1::GetFreightRequest, ::nightfall::v1::GetFreightResponse>*>(handler)
+              ->SetMessageAllocator(allocator);
+    }
+    ~WithCallbackMethod_GetFreight() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GetFreight(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GetFreightRequest* /*request*/, ::nightfall::v1::GetFreightResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* GetFreight(
+      ::grpc::CallbackServerContext* /*context*/, const ::nightfall::v1::GetFreightRequest* /*request*/, ::nightfall::v1::GetFreightResponse* /*response*/)  { return nullptr; }
+  };
+  template <class BaseClass>
+  class WithCallbackMethod_ListMail : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithCallbackMethod_ListMail() {
+      ::grpc::Service::MarkMethodCallback(18,
+          new ::grpc::internal::CallbackUnaryHandler< ::nightfall::v1::ListMailRequest, ::nightfall::v1::ListMailResponse>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::nightfall::v1::ListMailRequest* request, ::nightfall::v1::ListMailResponse* response) { return this->ListMail(context, request, response); }));}
+    void SetMessageAllocatorFor_ListMail(
+        ::grpc::MessageAllocator< ::nightfall::v1::ListMailRequest, ::nightfall::v1::ListMailResponse>* allocator) {
+      ::grpc::internal::MethodHandler* const handler = ::grpc::Service::GetHandler(18);
+      static_cast<::grpc::internal::CallbackUnaryHandler< ::nightfall::v1::ListMailRequest, ::nightfall::v1::ListMailResponse>*>(handler)
+              ->SetMessageAllocator(allocator);
+    }
+    ~WithCallbackMethod_ListMail() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status ListMail(::grpc::ServerContext* /*context*/, const ::nightfall::v1::ListMailRequest* /*request*/, ::nightfall::v1::ListMailResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* ListMail(
+      ::grpc::CallbackServerContext* /*context*/, const ::nightfall::v1::ListMailRequest* /*request*/, ::nightfall::v1::ListMailResponse* /*response*/)  { return nullptr; }
+  };
+  template <class BaseClass>
+  class WithCallbackMethod_ReadMail : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithCallbackMethod_ReadMail() {
+      ::grpc::Service::MarkMethodCallback(19,
+          new ::grpc::internal::CallbackUnaryHandler< ::nightfall::v1::ReadMailRequest, ::nightfall::v1::ReadMailResponse>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::nightfall::v1::ReadMailRequest* request, ::nightfall::v1::ReadMailResponse* response) { return this->ReadMail(context, request, response); }));}
+    void SetMessageAllocatorFor_ReadMail(
+        ::grpc::MessageAllocator< ::nightfall::v1::ReadMailRequest, ::nightfall::v1::ReadMailResponse>* allocator) {
+      ::grpc::internal::MethodHandler* const handler = ::grpc::Service::GetHandler(19);
+      static_cast<::grpc::internal::CallbackUnaryHandler< ::nightfall::v1::ReadMailRequest, ::nightfall::v1::ReadMailResponse>*>(handler)
+              ->SetMessageAllocator(allocator);
+    }
+    ~WithCallbackMethod_ReadMail() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status ReadMail(::grpc::ServerContext* /*context*/, const ::nightfall::v1::ReadMailRequest* /*request*/, ::nightfall::v1::ReadMailResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* ReadMail(
+      ::grpc::CallbackServerContext* /*context*/, const ::nightfall::v1::ReadMailRequest* /*request*/, ::nightfall::v1::ReadMailResponse* /*response*/)  { return nullptr; }
+  };
+  template <class BaseClass>
+  class WithCallbackMethod_ListItemAuctions : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithCallbackMethod_ListItemAuctions() {
+      ::grpc::Service::MarkMethodCallback(20,
+          new ::grpc::internal::CallbackUnaryHandler< ::nightfall::v1::ListItemAuctionsRequest, ::nightfall::v1::ListItemAuctionsResponse>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::nightfall::v1::ListItemAuctionsRequest* request, ::nightfall::v1::ListItemAuctionsResponse* response) { return this->ListItemAuctions(context, request, response); }));}
+    void SetMessageAllocatorFor_ListItemAuctions(
+        ::grpc::MessageAllocator< ::nightfall::v1::ListItemAuctionsRequest, ::nightfall::v1::ListItemAuctionsResponse>* allocator) {
+      ::grpc::internal::MethodHandler* const handler = ::grpc::Service::GetHandler(20);
+      static_cast<::grpc::internal::CallbackUnaryHandler< ::nightfall::v1::ListItemAuctionsRequest, ::nightfall::v1::ListItemAuctionsResponse>*>(handler)
+              ->SetMessageAllocator(allocator);
+    }
+    ~WithCallbackMethod_ListItemAuctions() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status ListItemAuctions(::grpc::ServerContext* /*context*/, const ::nightfall::v1::ListItemAuctionsRequest* /*request*/, ::nightfall::v1::ListItemAuctionsResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* ListItemAuctions(
+      ::grpc::CallbackServerContext* /*context*/, const ::nightfall::v1::ListItemAuctionsRequest* /*request*/, ::nightfall::v1::ListItemAuctionsResponse* /*response*/)  { return nullptr; }
+  };
+  template <class BaseClass>
+  class WithCallbackMethod_GetManorData : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithCallbackMethod_GetManorData() {
+      ::grpc::Service::MarkMethodCallback(21,
+          new ::grpc::internal::CallbackUnaryHandler< ::nightfall::v1::GetManorDataRequest, ::nightfall::v1::GetManorDataResponse>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::nightfall::v1::GetManorDataRequest* request, ::nightfall::v1::GetManorDataResponse* response) { return this->GetManorData(context, request, response); }));}
+    void SetMessageAllocatorFor_GetManorData(
+        ::grpc::MessageAllocator< ::nightfall::v1::GetManorDataRequest, ::nightfall::v1::GetManorDataResponse>* allocator) {
+      ::grpc::internal::MethodHandler* const handler = ::grpc::Service::GetHandler(21);
+      static_cast<::grpc::internal::CallbackUnaryHandler< ::nightfall::v1::GetManorDataRequest, ::nightfall::v1::GetManorDataResponse>*>(handler)
+              ->SetMessageAllocator(allocator);
+    }
+    ~WithCallbackMethod_GetManorData() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GetManorData(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GetManorDataRequest* /*request*/, ::nightfall::v1::GetManorDataResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* GetManorData(
+      ::grpc::CallbackServerContext* /*context*/, const ::nightfall::v1::GetManorDataRequest* /*request*/, ::nightfall::v1::GetManorDataResponse* /*response*/)  { return nullptr; }
+  };
+  typedef WithCallbackMethod_Ping<WithCallbackMethod_GetCharacter<WithCallbackMethod_CreateCharacter<WithCallbackMethod_ListMyCharacters<WithCallbackMethod_ListClasses<WithCallbackMethod_TransferOptions<WithCallbackMethod_ChangeClass<WithCallbackMethod_ListLearnableSkills<WithCallbackMethod_LearnSkill<WithCallbackMethod_GetSkillCatalog<WithCallbackMethod_GetItemCatalog<WithCallbackMethod_GetInventory<WithCallbackMethod_GrantItem<WithCallbackMethod_ListBuylist<WithCallbackMethod_GetMultisellList<WithCallbackMethod_GetRecipeBook<WithCallbackMethod_GetWarehouse<WithCallbackMethod_GetFreight<WithCallbackMethod_ListMail<WithCallbackMethod_ReadMail<WithCallbackMethod_ListItemAuctions<WithCallbackMethod_GetManorData<Service > > > > > > > > > > > > > > > > > > > > > > CallbackService;
   typedef CallbackService ExperimentalCallbackService;
   template <class BaseClass>
   class WithGenericMethod_Ping : public BaseClass {
@@ -1385,6 +2078,159 @@ class GameService final {
     }
     // disable synchronous version of this method
     ::grpc::Status GrantItem(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GrantItemRequest* /*request*/, ::nightfall::v1::GrantItemResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+  };
+  template <class BaseClass>
+  class WithGenericMethod_ListBuylist : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithGenericMethod_ListBuylist() {
+      ::grpc::Service::MarkMethodGeneric(13);
+    }
+    ~WithGenericMethod_ListBuylist() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status ListBuylist(::grpc::ServerContext* /*context*/, const ::nightfall::v1::ListBuylistRequest* /*request*/, ::nightfall::v1::ListBuylistResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+  };
+  template <class BaseClass>
+  class WithGenericMethod_GetMultisellList : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithGenericMethod_GetMultisellList() {
+      ::grpc::Service::MarkMethodGeneric(14);
+    }
+    ~WithGenericMethod_GetMultisellList() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GetMultisellList(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GetMultisellListRequest* /*request*/, ::nightfall::v1::GetMultisellListResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+  };
+  template <class BaseClass>
+  class WithGenericMethod_GetRecipeBook : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithGenericMethod_GetRecipeBook() {
+      ::grpc::Service::MarkMethodGeneric(15);
+    }
+    ~WithGenericMethod_GetRecipeBook() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GetRecipeBook(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GetRecipeBookRequest* /*request*/, ::nightfall::v1::GetRecipeBookResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+  };
+  template <class BaseClass>
+  class WithGenericMethod_GetWarehouse : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithGenericMethod_GetWarehouse() {
+      ::grpc::Service::MarkMethodGeneric(16);
+    }
+    ~WithGenericMethod_GetWarehouse() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GetWarehouse(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GetWarehouseRequest* /*request*/, ::nightfall::v1::GetWarehouseResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+  };
+  template <class BaseClass>
+  class WithGenericMethod_GetFreight : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithGenericMethod_GetFreight() {
+      ::grpc::Service::MarkMethodGeneric(17);
+    }
+    ~WithGenericMethod_GetFreight() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GetFreight(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GetFreightRequest* /*request*/, ::nightfall::v1::GetFreightResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+  };
+  template <class BaseClass>
+  class WithGenericMethod_ListMail : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithGenericMethod_ListMail() {
+      ::grpc::Service::MarkMethodGeneric(18);
+    }
+    ~WithGenericMethod_ListMail() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status ListMail(::grpc::ServerContext* /*context*/, const ::nightfall::v1::ListMailRequest* /*request*/, ::nightfall::v1::ListMailResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+  };
+  template <class BaseClass>
+  class WithGenericMethod_ReadMail : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithGenericMethod_ReadMail() {
+      ::grpc::Service::MarkMethodGeneric(19);
+    }
+    ~WithGenericMethod_ReadMail() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status ReadMail(::grpc::ServerContext* /*context*/, const ::nightfall::v1::ReadMailRequest* /*request*/, ::nightfall::v1::ReadMailResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+  };
+  template <class BaseClass>
+  class WithGenericMethod_ListItemAuctions : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithGenericMethod_ListItemAuctions() {
+      ::grpc::Service::MarkMethodGeneric(20);
+    }
+    ~WithGenericMethod_ListItemAuctions() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status ListItemAuctions(::grpc::ServerContext* /*context*/, const ::nightfall::v1::ListItemAuctionsRequest* /*request*/, ::nightfall::v1::ListItemAuctionsResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+  };
+  template <class BaseClass>
+  class WithGenericMethod_GetManorData : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithGenericMethod_GetManorData() {
+      ::grpc::Service::MarkMethodGeneric(21);
+    }
+    ~WithGenericMethod_GetManorData() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GetManorData(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GetManorDataRequest* /*request*/, ::nightfall::v1::GetManorDataResponse* /*response*/) override {
       abort();
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
@@ -1647,6 +2493,186 @@ class GameService final {
     }
     void RequestGrantItem(::grpc::ServerContext* context, ::grpc::ByteBuffer* request, ::grpc::ServerAsyncResponseWriter< ::grpc::ByteBuffer>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
       ::grpc::Service::RequestAsyncUnary(12, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithRawMethod_ListBuylist : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawMethod_ListBuylist() {
+      ::grpc::Service::MarkMethodRaw(13);
+    }
+    ~WithRawMethod_ListBuylist() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status ListBuylist(::grpc::ServerContext* /*context*/, const ::nightfall::v1::ListBuylistRequest* /*request*/, ::nightfall::v1::ListBuylistResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestListBuylist(::grpc::ServerContext* context, ::grpc::ByteBuffer* request, ::grpc::ServerAsyncResponseWriter< ::grpc::ByteBuffer>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(13, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithRawMethod_GetMultisellList : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawMethod_GetMultisellList() {
+      ::grpc::Service::MarkMethodRaw(14);
+    }
+    ~WithRawMethod_GetMultisellList() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GetMultisellList(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GetMultisellListRequest* /*request*/, ::nightfall::v1::GetMultisellListResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestGetMultisellList(::grpc::ServerContext* context, ::grpc::ByteBuffer* request, ::grpc::ServerAsyncResponseWriter< ::grpc::ByteBuffer>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(14, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithRawMethod_GetRecipeBook : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawMethod_GetRecipeBook() {
+      ::grpc::Service::MarkMethodRaw(15);
+    }
+    ~WithRawMethod_GetRecipeBook() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GetRecipeBook(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GetRecipeBookRequest* /*request*/, ::nightfall::v1::GetRecipeBookResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestGetRecipeBook(::grpc::ServerContext* context, ::grpc::ByteBuffer* request, ::grpc::ServerAsyncResponseWriter< ::grpc::ByteBuffer>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(15, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithRawMethod_GetWarehouse : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawMethod_GetWarehouse() {
+      ::grpc::Service::MarkMethodRaw(16);
+    }
+    ~WithRawMethod_GetWarehouse() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GetWarehouse(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GetWarehouseRequest* /*request*/, ::nightfall::v1::GetWarehouseResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestGetWarehouse(::grpc::ServerContext* context, ::grpc::ByteBuffer* request, ::grpc::ServerAsyncResponseWriter< ::grpc::ByteBuffer>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(16, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithRawMethod_GetFreight : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawMethod_GetFreight() {
+      ::grpc::Service::MarkMethodRaw(17);
+    }
+    ~WithRawMethod_GetFreight() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GetFreight(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GetFreightRequest* /*request*/, ::nightfall::v1::GetFreightResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestGetFreight(::grpc::ServerContext* context, ::grpc::ByteBuffer* request, ::grpc::ServerAsyncResponseWriter< ::grpc::ByteBuffer>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(17, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithRawMethod_ListMail : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawMethod_ListMail() {
+      ::grpc::Service::MarkMethodRaw(18);
+    }
+    ~WithRawMethod_ListMail() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status ListMail(::grpc::ServerContext* /*context*/, const ::nightfall::v1::ListMailRequest* /*request*/, ::nightfall::v1::ListMailResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestListMail(::grpc::ServerContext* context, ::grpc::ByteBuffer* request, ::grpc::ServerAsyncResponseWriter< ::grpc::ByteBuffer>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(18, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithRawMethod_ReadMail : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawMethod_ReadMail() {
+      ::grpc::Service::MarkMethodRaw(19);
+    }
+    ~WithRawMethod_ReadMail() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status ReadMail(::grpc::ServerContext* /*context*/, const ::nightfall::v1::ReadMailRequest* /*request*/, ::nightfall::v1::ReadMailResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestReadMail(::grpc::ServerContext* context, ::grpc::ByteBuffer* request, ::grpc::ServerAsyncResponseWriter< ::grpc::ByteBuffer>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(19, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithRawMethod_ListItemAuctions : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawMethod_ListItemAuctions() {
+      ::grpc::Service::MarkMethodRaw(20);
+    }
+    ~WithRawMethod_ListItemAuctions() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status ListItemAuctions(::grpc::ServerContext* /*context*/, const ::nightfall::v1::ListItemAuctionsRequest* /*request*/, ::nightfall::v1::ListItemAuctionsResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestListItemAuctions(::grpc::ServerContext* context, ::grpc::ByteBuffer* request, ::grpc::ServerAsyncResponseWriter< ::grpc::ByteBuffer>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(20, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithRawMethod_GetManorData : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawMethod_GetManorData() {
+      ::grpc::Service::MarkMethodRaw(21);
+    }
+    ~WithRawMethod_GetManorData() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GetManorData(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GetManorDataRequest* /*request*/, ::nightfall::v1::GetManorDataResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestGetManorData(::grpc::ServerContext* context, ::grpc::ByteBuffer* request, ::grpc::ServerAsyncResponseWriter< ::grpc::ByteBuffer>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(21, context, request, response, new_call_cq, notification_cq, tag);
     }
   };
   template <class BaseClass>
@@ -1933,6 +2959,204 @@ class GameService final {
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
     virtual ::grpc::ServerUnaryReactor* GrantItem(
+      ::grpc::CallbackServerContext* /*context*/, const ::grpc::ByteBuffer* /*request*/, ::grpc::ByteBuffer* /*response*/)  { return nullptr; }
+  };
+  template <class BaseClass>
+  class WithRawCallbackMethod_ListBuylist : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawCallbackMethod_ListBuylist() {
+      ::grpc::Service::MarkMethodRawCallback(13,
+          new ::grpc::internal::CallbackUnaryHandler< ::grpc::ByteBuffer, ::grpc::ByteBuffer>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::grpc::ByteBuffer* request, ::grpc::ByteBuffer* response) { return this->ListBuylist(context, request, response); }));
+    }
+    ~WithRawCallbackMethod_ListBuylist() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status ListBuylist(::grpc::ServerContext* /*context*/, const ::nightfall::v1::ListBuylistRequest* /*request*/, ::nightfall::v1::ListBuylistResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* ListBuylist(
+      ::grpc::CallbackServerContext* /*context*/, const ::grpc::ByteBuffer* /*request*/, ::grpc::ByteBuffer* /*response*/)  { return nullptr; }
+  };
+  template <class BaseClass>
+  class WithRawCallbackMethod_GetMultisellList : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawCallbackMethod_GetMultisellList() {
+      ::grpc::Service::MarkMethodRawCallback(14,
+          new ::grpc::internal::CallbackUnaryHandler< ::grpc::ByteBuffer, ::grpc::ByteBuffer>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::grpc::ByteBuffer* request, ::grpc::ByteBuffer* response) { return this->GetMultisellList(context, request, response); }));
+    }
+    ~WithRawCallbackMethod_GetMultisellList() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GetMultisellList(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GetMultisellListRequest* /*request*/, ::nightfall::v1::GetMultisellListResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* GetMultisellList(
+      ::grpc::CallbackServerContext* /*context*/, const ::grpc::ByteBuffer* /*request*/, ::grpc::ByteBuffer* /*response*/)  { return nullptr; }
+  };
+  template <class BaseClass>
+  class WithRawCallbackMethod_GetRecipeBook : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawCallbackMethod_GetRecipeBook() {
+      ::grpc::Service::MarkMethodRawCallback(15,
+          new ::grpc::internal::CallbackUnaryHandler< ::grpc::ByteBuffer, ::grpc::ByteBuffer>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::grpc::ByteBuffer* request, ::grpc::ByteBuffer* response) { return this->GetRecipeBook(context, request, response); }));
+    }
+    ~WithRawCallbackMethod_GetRecipeBook() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GetRecipeBook(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GetRecipeBookRequest* /*request*/, ::nightfall::v1::GetRecipeBookResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* GetRecipeBook(
+      ::grpc::CallbackServerContext* /*context*/, const ::grpc::ByteBuffer* /*request*/, ::grpc::ByteBuffer* /*response*/)  { return nullptr; }
+  };
+  template <class BaseClass>
+  class WithRawCallbackMethod_GetWarehouse : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawCallbackMethod_GetWarehouse() {
+      ::grpc::Service::MarkMethodRawCallback(16,
+          new ::grpc::internal::CallbackUnaryHandler< ::grpc::ByteBuffer, ::grpc::ByteBuffer>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::grpc::ByteBuffer* request, ::grpc::ByteBuffer* response) { return this->GetWarehouse(context, request, response); }));
+    }
+    ~WithRawCallbackMethod_GetWarehouse() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GetWarehouse(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GetWarehouseRequest* /*request*/, ::nightfall::v1::GetWarehouseResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* GetWarehouse(
+      ::grpc::CallbackServerContext* /*context*/, const ::grpc::ByteBuffer* /*request*/, ::grpc::ByteBuffer* /*response*/)  { return nullptr; }
+  };
+  template <class BaseClass>
+  class WithRawCallbackMethod_GetFreight : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawCallbackMethod_GetFreight() {
+      ::grpc::Service::MarkMethodRawCallback(17,
+          new ::grpc::internal::CallbackUnaryHandler< ::grpc::ByteBuffer, ::grpc::ByteBuffer>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::grpc::ByteBuffer* request, ::grpc::ByteBuffer* response) { return this->GetFreight(context, request, response); }));
+    }
+    ~WithRawCallbackMethod_GetFreight() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GetFreight(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GetFreightRequest* /*request*/, ::nightfall::v1::GetFreightResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* GetFreight(
+      ::grpc::CallbackServerContext* /*context*/, const ::grpc::ByteBuffer* /*request*/, ::grpc::ByteBuffer* /*response*/)  { return nullptr; }
+  };
+  template <class BaseClass>
+  class WithRawCallbackMethod_ListMail : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawCallbackMethod_ListMail() {
+      ::grpc::Service::MarkMethodRawCallback(18,
+          new ::grpc::internal::CallbackUnaryHandler< ::grpc::ByteBuffer, ::grpc::ByteBuffer>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::grpc::ByteBuffer* request, ::grpc::ByteBuffer* response) { return this->ListMail(context, request, response); }));
+    }
+    ~WithRawCallbackMethod_ListMail() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status ListMail(::grpc::ServerContext* /*context*/, const ::nightfall::v1::ListMailRequest* /*request*/, ::nightfall::v1::ListMailResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* ListMail(
+      ::grpc::CallbackServerContext* /*context*/, const ::grpc::ByteBuffer* /*request*/, ::grpc::ByteBuffer* /*response*/)  { return nullptr; }
+  };
+  template <class BaseClass>
+  class WithRawCallbackMethod_ReadMail : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawCallbackMethod_ReadMail() {
+      ::grpc::Service::MarkMethodRawCallback(19,
+          new ::grpc::internal::CallbackUnaryHandler< ::grpc::ByteBuffer, ::grpc::ByteBuffer>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::grpc::ByteBuffer* request, ::grpc::ByteBuffer* response) { return this->ReadMail(context, request, response); }));
+    }
+    ~WithRawCallbackMethod_ReadMail() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status ReadMail(::grpc::ServerContext* /*context*/, const ::nightfall::v1::ReadMailRequest* /*request*/, ::nightfall::v1::ReadMailResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* ReadMail(
+      ::grpc::CallbackServerContext* /*context*/, const ::grpc::ByteBuffer* /*request*/, ::grpc::ByteBuffer* /*response*/)  { return nullptr; }
+  };
+  template <class BaseClass>
+  class WithRawCallbackMethod_ListItemAuctions : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawCallbackMethod_ListItemAuctions() {
+      ::grpc::Service::MarkMethodRawCallback(20,
+          new ::grpc::internal::CallbackUnaryHandler< ::grpc::ByteBuffer, ::grpc::ByteBuffer>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::grpc::ByteBuffer* request, ::grpc::ByteBuffer* response) { return this->ListItemAuctions(context, request, response); }));
+    }
+    ~WithRawCallbackMethod_ListItemAuctions() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status ListItemAuctions(::grpc::ServerContext* /*context*/, const ::nightfall::v1::ListItemAuctionsRequest* /*request*/, ::nightfall::v1::ListItemAuctionsResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* ListItemAuctions(
+      ::grpc::CallbackServerContext* /*context*/, const ::grpc::ByteBuffer* /*request*/, ::grpc::ByteBuffer* /*response*/)  { return nullptr; }
+  };
+  template <class BaseClass>
+  class WithRawCallbackMethod_GetManorData : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawCallbackMethod_GetManorData() {
+      ::grpc::Service::MarkMethodRawCallback(21,
+          new ::grpc::internal::CallbackUnaryHandler< ::grpc::ByteBuffer, ::grpc::ByteBuffer>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::grpc::ByteBuffer* request, ::grpc::ByteBuffer* response) { return this->GetManorData(context, request, response); }));
+    }
+    ~WithRawCallbackMethod_GetManorData() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GetManorData(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GetManorDataRequest* /*request*/, ::nightfall::v1::GetManorDataResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* GetManorData(
       ::grpc::CallbackServerContext* /*context*/, const ::grpc::ByteBuffer* /*request*/, ::grpc::ByteBuffer* /*response*/)  { return nullptr; }
   };
   template <class BaseClass>
@@ -2286,9 +3510,252 @@ class GameService final {
     // replace default version of method with streamed unary
     virtual ::grpc::Status StreamedGrantItem(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< ::nightfall::v1::GrantItemRequest,::nightfall::v1::GrantItemResponse>* server_unary_streamer) = 0;
   };
-  typedef WithStreamedUnaryMethod_Ping<WithStreamedUnaryMethod_GetCharacter<WithStreamedUnaryMethod_CreateCharacter<WithStreamedUnaryMethod_ListMyCharacters<WithStreamedUnaryMethod_ListClasses<WithStreamedUnaryMethod_TransferOptions<WithStreamedUnaryMethod_ChangeClass<WithStreamedUnaryMethod_ListLearnableSkills<WithStreamedUnaryMethod_LearnSkill<WithStreamedUnaryMethod_GetSkillCatalog<WithStreamedUnaryMethod_GetItemCatalog<WithStreamedUnaryMethod_GetInventory<WithStreamedUnaryMethod_GrantItem<Service > > > > > > > > > > > > > StreamedUnaryService;
+  template <class BaseClass>
+  class WithStreamedUnaryMethod_ListBuylist : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithStreamedUnaryMethod_ListBuylist() {
+      ::grpc::Service::MarkMethodStreamed(13,
+        new ::grpc::internal::StreamedUnaryHandler<
+          ::nightfall::v1::ListBuylistRequest, ::nightfall::v1::ListBuylistResponse>(
+            [this](::grpc::ServerContext* context,
+                   ::grpc::ServerUnaryStreamer<
+                     ::nightfall::v1::ListBuylistRequest, ::nightfall::v1::ListBuylistResponse>* streamer) {
+                       return this->StreamedListBuylist(context,
+                         streamer);
+                  }));
+    }
+    ~WithStreamedUnaryMethod_ListBuylist() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable regular version of this method
+    ::grpc::Status ListBuylist(::grpc::ServerContext* /*context*/, const ::nightfall::v1::ListBuylistRequest* /*request*/, ::nightfall::v1::ListBuylistResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    // replace default version of method with streamed unary
+    virtual ::grpc::Status StreamedListBuylist(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< ::nightfall::v1::ListBuylistRequest,::nightfall::v1::ListBuylistResponse>* server_unary_streamer) = 0;
+  };
+  template <class BaseClass>
+  class WithStreamedUnaryMethod_GetMultisellList : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithStreamedUnaryMethod_GetMultisellList() {
+      ::grpc::Service::MarkMethodStreamed(14,
+        new ::grpc::internal::StreamedUnaryHandler<
+          ::nightfall::v1::GetMultisellListRequest, ::nightfall::v1::GetMultisellListResponse>(
+            [this](::grpc::ServerContext* context,
+                   ::grpc::ServerUnaryStreamer<
+                     ::nightfall::v1::GetMultisellListRequest, ::nightfall::v1::GetMultisellListResponse>* streamer) {
+                       return this->StreamedGetMultisellList(context,
+                         streamer);
+                  }));
+    }
+    ~WithStreamedUnaryMethod_GetMultisellList() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable regular version of this method
+    ::grpc::Status GetMultisellList(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GetMultisellListRequest* /*request*/, ::nightfall::v1::GetMultisellListResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    // replace default version of method with streamed unary
+    virtual ::grpc::Status StreamedGetMultisellList(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< ::nightfall::v1::GetMultisellListRequest,::nightfall::v1::GetMultisellListResponse>* server_unary_streamer) = 0;
+  };
+  template <class BaseClass>
+  class WithStreamedUnaryMethod_GetRecipeBook : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithStreamedUnaryMethod_GetRecipeBook() {
+      ::grpc::Service::MarkMethodStreamed(15,
+        new ::grpc::internal::StreamedUnaryHandler<
+          ::nightfall::v1::GetRecipeBookRequest, ::nightfall::v1::GetRecipeBookResponse>(
+            [this](::grpc::ServerContext* context,
+                   ::grpc::ServerUnaryStreamer<
+                     ::nightfall::v1::GetRecipeBookRequest, ::nightfall::v1::GetRecipeBookResponse>* streamer) {
+                       return this->StreamedGetRecipeBook(context,
+                         streamer);
+                  }));
+    }
+    ~WithStreamedUnaryMethod_GetRecipeBook() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable regular version of this method
+    ::grpc::Status GetRecipeBook(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GetRecipeBookRequest* /*request*/, ::nightfall::v1::GetRecipeBookResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    // replace default version of method with streamed unary
+    virtual ::grpc::Status StreamedGetRecipeBook(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< ::nightfall::v1::GetRecipeBookRequest,::nightfall::v1::GetRecipeBookResponse>* server_unary_streamer) = 0;
+  };
+  template <class BaseClass>
+  class WithStreamedUnaryMethod_GetWarehouse : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithStreamedUnaryMethod_GetWarehouse() {
+      ::grpc::Service::MarkMethodStreamed(16,
+        new ::grpc::internal::StreamedUnaryHandler<
+          ::nightfall::v1::GetWarehouseRequest, ::nightfall::v1::GetWarehouseResponse>(
+            [this](::grpc::ServerContext* context,
+                   ::grpc::ServerUnaryStreamer<
+                     ::nightfall::v1::GetWarehouseRequest, ::nightfall::v1::GetWarehouseResponse>* streamer) {
+                       return this->StreamedGetWarehouse(context,
+                         streamer);
+                  }));
+    }
+    ~WithStreamedUnaryMethod_GetWarehouse() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable regular version of this method
+    ::grpc::Status GetWarehouse(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GetWarehouseRequest* /*request*/, ::nightfall::v1::GetWarehouseResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    // replace default version of method with streamed unary
+    virtual ::grpc::Status StreamedGetWarehouse(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< ::nightfall::v1::GetWarehouseRequest,::nightfall::v1::GetWarehouseResponse>* server_unary_streamer) = 0;
+  };
+  template <class BaseClass>
+  class WithStreamedUnaryMethod_GetFreight : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithStreamedUnaryMethod_GetFreight() {
+      ::grpc::Service::MarkMethodStreamed(17,
+        new ::grpc::internal::StreamedUnaryHandler<
+          ::nightfall::v1::GetFreightRequest, ::nightfall::v1::GetFreightResponse>(
+            [this](::grpc::ServerContext* context,
+                   ::grpc::ServerUnaryStreamer<
+                     ::nightfall::v1::GetFreightRequest, ::nightfall::v1::GetFreightResponse>* streamer) {
+                       return this->StreamedGetFreight(context,
+                         streamer);
+                  }));
+    }
+    ~WithStreamedUnaryMethod_GetFreight() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable regular version of this method
+    ::grpc::Status GetFreight(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GetFreightRequest* /*request*/, ::nightfall::v1::GetFreightResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    // replace default version of method with streamed unary
+    virtual ::grpc::Status StreamedGetFreight(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< ::nightfall::v1::GetFreightRequest,::nightfall::v1::GetFreightResponse>* server_unary_streamer) = 0;
+  };
+  template <class BaseClass>
+  class WithStreamedUnaryMethod_ListMail : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithStreamedUnaryMethod_ListMail() {
+      ::grpc::Service::MarkMethodStreamed(18,
+        new ::grpc::internal::StreamedUnaryHandler<
+          ::nightfall::v1::ListMailRequest, ::nightfall::v1::ListMailResponse>(
+            [this](::grpc::ServerContext* context,
+                   ::grpc::ServerUnaryStreamer<
+                     ::nightfall::v1::ListMailRequest, ::nightfall::v1::ListMailResponse>* streamer) {
+                       return this->StreamedListMail(context,
+                         streamer);
+                  }));
+    }
+    ~WithStreamedUnaryMethod_ListMail() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable regular version of this method
+    ::grpc::Status ListMail(::grpc::ServerContext* /*context*/, const ::nightfall::v1::ListMailRequest* /*request*/, ::nightfall::v1::ListMailResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    // replace default version of method with streamed unary
+    virtual ::grpc::Status StreamedListMail(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< ::nightfall::v1::ListMailRequest,::nightfall::v1::ListMailResponse>* server_unary_streamer) = 0;
+  };
+  template <class BaseClass>
+  class WithStreamedUnaryMethod_ReadMail : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithStreamedUnaryMethod_ReadMail() {
+      ::grpc::Service::MarkMethodStreamed(19,
+        new ::grpc::internal::StreamedUnaryHandler<
+          ::nightfall::v1::ReadMailRequest, ::nightfall::v1::ReadMailResponse>(
+            [this](::grpc::ServerContext* context,
+                   ::grpc::ServerUnaryStreamer<
+                     ::nightfall::v1::ReadMailRequest, ::nightfall::v1::ReadMailResponse>* streamer) {
+                       return this->StreamedReadMail(context,
+                         streamer);
+                  }));
+    }
+    ~WithStreamedUnaryMethod_ReadMail() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable regular version of this method
+    ::grpc::Status ReadMail(::grpc::ServerContext* /*context*/, const ::nightfall::v1::ReadMailRequest* /*request*/, ::nightfall::v1::ReadMailResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    // replace default version of method with streamed unary
+    virtual ::grpc::Status StreamedReadMail(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< ::nightfall::v1::ReadMailRequest,::nightfall::v1::ReadMailResponse>* server_unary_streamer) = 0;
+  };
+  template <class BaseClass>
+  class WithStreamedUnaryMethod_ListItemAuctions : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithStreamedUnaryMethod_ListItemAuctions() {
+      ::grpc::Service::MarkMethodStreamed(20,
+        new ::grpc::internal::StreamedUnaryHandler<
+          ::nightfall::v1::ListItemAuctionsRequest, ::nightfall::v1::ListItemAuctionsResponse>(
+            [this](::grpc::ServerContext* context,
+                   ::grpc::ServerUnaryStreamer<
+                     ::nightfall::v1::ListItemAuctionsRequest, ::nightfall::v1::ListItemAuctionsResponse>* streamer) {
+                       return this->StreamedListItemAuctions(context,
+                         streamer);
+                  }));
+    }
+    ~WithStreamedUnaryMethod_ListItemAuctions() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable regular version of this method
+    ::grpc::Status ListItemAuctions(::grpc::ServerContext* /*context*/, const ::nightfall::v1::ListItemAuctionsRequest* /*request*/, ::nightfall::v1::ListItemAuctionsResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    // replace default version of method with streamed unary
+    virtual ::grpc::Status StreamedListItemAuctions(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< ::nightfall::v1::ListItemAuctionsRequest,::nightfall::v1::ListItemAuctionsResponse>* server_unary_streamer) = 0;
+  };
+  template <class BaseClass>
+  class WithStreamedUnaryMethod_GetManorData : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithStreamedUnaryMethod_GetManorData() {
+      ::grpc::Service::MarkMethodStreamed(21,
+        new ::grpc::internal::StreamedUnaryHandler<
+          ::nightfall::v1::GetManorDataRequest, ::nightfall::v1::GetManorDataResponse>(
+            [this](::grpc::ServerContext* context,
+                   ::grpc::ServerUnaryStreamer<
+                     ::nightfall::v1::GetManorDataRequest, ::nightfall::v1::GetManorDataResponse>* streamer) {
+                       return this->StreamedGetManorData(context,
+                         streamer);
+                  }));
+    }
+    ~WithStreamedUnaryMethod_GetManorData() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable regular version of this method
+    ::grpc::Status GetManorData(::grpc::ServerContext* /*context*/, const ::nightfall::v1::GetManorDataRequest* /*request*/, ::nightfall::v1::GetManorDataResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    // replace default version of method with streamed unary
+    virtual ::grpc::Status StreamedGetManorData(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< ::nightfall::v1::GetManorDataRequest,::nightfall::v1::GetManorDataResponse>* server_unary_streamer) = 0;
+  };
+  typedef WithStreamedUnaryMethod_Ping<WithStreamedUnaryMethod_GetCharacter<WithStreamedUnaryMethod_CreateCharacter<WithStreamedUnaryMethod_ListMyCharacters<WithStreamedUnaryMethod_ListClasses<WithStreamedUnaryMethod_TransferOptions<WithStreamedUnaryMethod_ChangeClass<WithStreamedUnaryMethod_ListLearnableSkills<WithStreamedUnaryMethod_LearnSkill<WithStreamedUnaryMethod_GetSkillCatalog<WithStreamedUnaryMethod_GetItemCatalog<WithStreamedUnaryMethod_GetInventory<WithStreamedUnaryMethod_GrantItem<WithStreamedUnaryMethod_ListBuylist<WithStreamedUnaryMethod_GetMultisellList<WithStreamedUnaryMethod_GetRecipeBook<WithStreamedUnaryMethod_GetWarehouse<WithStreamedUnaryMethod_GetFreight<WithStreamedUnaryMethod_ListMail<WithStreamedUnaryMethod_ReadMail<WithStreamedUnaryMethod_ListItemAuctions<WithStreamedUnaryMethod_GetManorData<Service > > > > > > > > > > > > > > > > > > > > > > StreamedUnaryService;
   typedef Service SplitStreamedService;
-  typedef WithStreamedUnaryMethod_Ping<WithStreamedUnaryMethod_GetCharacter<WithStreamedUnaryMethod_CreateCharacter<WithStreamedUnaryMethod_ListMyCharacters<WithStreamedUnaryMethod_ListClasses<WithStreamedUnaryMethod_TransferOptions<WithStreamedUnaryMethod_ChangeClass<WithStreamedUnaryMethod_ListLearnableSkills<WithStreamedUnaryMethod_LearnSkill<WithStreamedUnaryMethod_GetSkillCatalog<WithStreamedUnaryMethod_GetItemCatalog<WithStreamedUnaryMethod_GetInventory<WithStreamedUnaryMethod_GrantItem<Service > > > > > > > > > > > > > StreamedService;
+  typedef WithStreamedUnaryMethod_Ping<WithStreamedUnaryMethod_GetCharacter<WithStreamedUnaryMethod_CreateCharacter<WithStreamedUnaryMethod_ListMyCharacters<WithStreamedUnaryMethod_ListClasses<WithStreamedUnaryMethod_TransferOptions<WithStreamedUnaryMethod_ChangeClass<WithStreamedUnaryMethod_ListLearnableSkills<WithStreamedUnaryMethod_LearnSkill<WithStreamedUnaryMethod_GetSkillCatalog<WithStreamedUnaryMethod_GetItemCatalog<WithStreamedUnaryMethod_GetInventory<WithStreamedUnaryMethod_GrantItem<WithStreamedUnaryMethod_ListBuylist<WithStreamedUnaryMethod_GetMultisellList<WithStreamedUnaryMethod_GetRecipeBook<WithStreamedUnaryMethod_GetWarehouse<WithStreamedUnaryMethod_GetFreight<WithStreamedUnaryMethod_ListMail<WithStreamedUnaryMethod_ReadMail<WithStreamedUnaryMethod_ListItemAuctions<WithStreamedUnaryMethod_GetManorData<Service > > > > > > > > > > > > > > > > > > > > > > StreamedService;
 };
 
 }  // namespace v1
