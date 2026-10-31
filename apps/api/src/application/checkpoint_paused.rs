@@ -142,6 +142,8 @@ pub(crate) fn paused_checkpoint(
         .as_ref()
         .ok_or_else(|| anyhow::anyhow!("offline progression missing"))?;
     Ok(CharacterCheckpoint {
+        // A paused V7 owner keeps the recipe book it was admitted with.
+        phase5: load.phase5.clone(),
         character_id: CharacterId::from_uuid(projection.entity.as_uuid()),
         revision_seen: load
             .checkpoint_revision

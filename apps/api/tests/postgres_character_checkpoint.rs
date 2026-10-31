@@ -40,6 +40,7 @@ async fn seeded(pool: &PgPool) -> (PgCharacterRepository, Character) {
 
 fn checkpoint(c: &Character, revision_seen: u64, k: &str) -> CharacterCheckpoint {
     CharacterCheckpoint {
+        phase5: None,
         phase4: None,
         phase3: None,
         class_state: None,
@@ -255,6 +256,7 @@ async fn same_key_replays_and_different_body_is_rejected() {
     assert!(matches!(err, CheckpointError::KeyReused), "{err:?}");
 
     let missing = CharacterCheckpoint {
+        phase5: None,
         phase4: None,
         phase3: None,
         character_id: Uuid::from_u128(9).into(),

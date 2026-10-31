@@ -121,11 +121,12 @@ impl ItemGrantRuntime for SessionContext {
                     let phase3 = super::paused_skill_origin(&loaded).ok_or_else(|| {
                         AppError::FailedPrecondition("paused skill checkpoint unavailable".into())
                     })?;
+                    let phase5 = paused_phase5(&loaded, &self.zone)?;
                     command.paused = Some(Box::new(ItemPausedCore {
                         name: loaded.name.as_str().to_owned(),
                         position,
                         load: PlayerLoad {
-                            phase5: None,
+                            phase5,
                             phase4: loaded.phase4,
                             phase3: Some(phase3),
                             progression: Some(Box::new(PlayerProgression {
@@ -164,6 +165,18 @@ async fn wait_for_grant_checkpoint(
     })
     .await
     .map_err(|_| AppError::Unavailable("grant reply task stopped; retry the same key".into()))?
+}
+
+/// Story 4.2: a paused V7 owner carries its recipe book bound to the epoch rules (D27).
+fn paused_phase5(
+    loaded: &crate::application::ProgressionState,
+    zone: &super::ZoneHandle,
+) -> Result<Option<crate::domain::zone::Phase5Checkpoint>, AppError> {
+    crate::application::ports::phase5_admission_load(
+        loaded.phase5.clone(),
+        zone.phase5_rules_hash(),
+    )
+    .map_err(|reason| AppError::FailedPrecondition(reason.into()))
 }
 
 #[cfg(test)]

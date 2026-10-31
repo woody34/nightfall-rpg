@@ -387,6 +387,7 @@ async fn logged_purchase_with_stale_checkpoint_quarantines_the_owner_during_reco
     let mut output = zone.subscribe();
     let before = repo.load_for_admission(c.id).await.unwrap().unwrap();
     let newer = CharacterCheckpoint {
+        phase5: None,
         phase4: None,
         character_id: c.id,
         revision_seen: before.revision,

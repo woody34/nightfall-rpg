@@ -81,6 +81,7 @@ fn commit(
         result,
     };
     let cp = CharacterCheckpoint {
+        phase5: None,
         phase4: None,
         phase3: None,
         character_id: c.id,

@@ -169,7 +169,24 @@ def catalogue_blockers(profile, repo=REPO):
             for row in profile['inventory'] if not admitted(row['template_id'], repo)]
 
 
-def npc_template_text(repo, npc_id, level):
+@lru_cache(maxsize=None)
+def pinned_npc_levels(repo=REPO):
+    """P5-D14: the pinned level of every NPC template (tables-phase5/rewards.toml, P5-D12)."""
+    rows = tomllib.loads((repo / 'packages/data/tables-phase5/rewards.toml').read_text())['npc']
+    return {row['id']: row['level'] for row in rows}
+
+
+def pinned_level(npc_id, declared=None, repo=REPO):
+    """The overlay NPC level is the pinned level; a pack that declares another level is refused."""
+    levels = pinned_npc_levels(repo)
+    if npc_id not in levels:
+        raise ValueError(f'NPC {npc_id} is not a pinned template')
+    if declared is not None and declared != levels[npc_id]:
+        raise ValueError(f'NPC {npc_id}: pack level {declared} differs from the pinned level {levels[npc_id]} (P5-D14)')
+    return levels[npc_id]
+
+
+def npc_template_text(repo, npc_id, level=None):
     """A monster template for a pinned NPC id: the shipped keltir body (combat numbers and the
     validated Phase 3 suffix stay) with the id, name, level and `pinned_npc_id` of the Phase 5 NPC.
     The engine (story 3.3) binds the drops.toml lists by `pinned_npc_id`; the id string is not parsed."""
@@ -179,6 +196,7 @@ def npc_template_text(repo, npc_id, level):
     # monsters only (phase4.create_overlay never carries it) and a Phase 5 unit boots only under V7 with 3.3.
     text = re.sub(r'^id = "keltir"$', f'id = "npc_{npc_id}"\npinned_npc_id = {npc_id}', text, count=1, flags=re.M)
     text = re.sub(r'^name = "Keltir"$', f'name = "Npc_{npc_id}"', text, count=1, flags=re.M)  # one token: the bot splits on whitespace (BotPredicates.cpp:566-571)
+    level = pinned_level(npc_id, level, repo)  # P5-D14: always the pinned level
     text = re.sub(r'^level = 1$', f'level = {level}', text, count=1, flags=re.M)
     header = (f'# Phase 5 fixture monster for pinned NPC {npc_id} (tables-phase5/drops.toml npc[id]); body from keltir.toml.\n'
               f'# pinned_npc_id binds the drop and corpse lists (story 3.3, design §1.3); combat numbers are the keltir starter values.\n')

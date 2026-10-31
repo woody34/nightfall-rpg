@@ -408,13 +408,27 @@ def exp_party_vote(p: dict) -> dict:
             "size_cap": pt["size_cap"], "phases": ["REQUESTED", "APPLIED", "CANCELLED"]}
 
 
+def role_race(r: dict) -> str:
+    """The seeded character's race: the pack class id's profession (packages/data/professions)."""
+    import tomllib
+    for path in sorted((REPO / "packages/data/professions").glob("*.toml")):
+        definition = tomllib.loads(path.read_text())
+        if definition["id"] == r["class_id"]:
+            return definition["race"]
+    raise ValueError(f"unknown class id {r['class_id']}")
+
+
 def exp_party_xp(p: dict) -> dict:
     npc = npc_row(20003)
     X, S = eo.base_rewards(npc["level"], npc["exp_rate"], npc["sp"])
     levels = [r["level"] for r in p["roles"]]
     top = max(levels)
-    return {"npc": npc["id"], "X": X, "S": S, "levels": levels, "party_distribute_all_alive": eo.party_distribute(X, S, levels, [True] * len(levels), top),
+    races = [role_race(r) for r in p["roles"]]
+    alive = eo.party_distribute(X, S, levels, [True] * len(levels), top)
+    return {"npc": npc["id"], "X": X, "S": S, "levels": levels, "party_distribute_all_alive": alive,
             "party_distribute_b_dead": eo.party_distribute(X, S, levels, [True, False], top),
+            # P5-D11: the received XpGained amount is award_xp of the distributed share (Human x1.05).
+            "races": races, "awarded_all_alive": [[eo.award_xp(xp, race), sp] for (xp, sp), race in zip(alive, races)],
             "bonus_table": tbl("party")["party"]["bonus_exp_sp"], "bonus_n2_bits": bits(eo.bonus(2, "RatePartyXp")),
             "cutoff": tbl("party")["party"]["xp_cutoff"], "rule": "D §4.5: level-squared shares, Math.round XP / floor SP, highfive gap percent"}
 
@@ -428,7 +442,10 @@ def exp_solo_xp(p: dict) -> dict:
         for lvl in (10, 12, 20):
             rows[f"a_dmg{dmg_a}_of{total}_level{lvl}"] = eo.calc_exp_sp(lvl - npc["level"], dmg_a, total, X, S)
     sp_only = npc_row(4301)
-    return {"npc": npc["id"], "X": X, "S": S, "shares": rows, "sp_only_npc": {"id": 4301, "level": sp_only["level"], "exp_rate": sp_only["exp_rate"], "sp": sp_only["sp"], "award": [0, 0], "source": sp_only["source"]},
+    race = role_race(next(r for r in p["roles"] if r["role"] == "a"))
+    awarded = {k: [eo.award_xp(xp, race), sp] for k, (xp, sp) in rows.items()}
+    return {"npc": npc["id"], "X": X, "S": S, "shares": rows, "killer_race": race, "awarded_shares": awarded,
+            "awarded_max_level10": max(v[0] for k, v in awarded.items() if k.endswith("_level10")), "sp_only_npc": {"id": 4301, "level": sp_only["level"], "exp_rate": sp_only["exp_rate"], "sp": sp_only["sp"], "award": [0, 0], "source": sp_only["source"]},
             "rule": "B16: per-attacker damage share X*dmg/total, pow56 penalty above diff 5, 0 XP -> 0 SP"}
 
 

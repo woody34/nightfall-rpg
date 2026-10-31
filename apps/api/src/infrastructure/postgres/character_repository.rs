@@ -433,6 +433,10 @@ impl CharacterRepository for PgCharacterRepository {
                 let revision = u64::try_from(m.revision)?;
                 let phase3 = phase3_checkpoint::load(&tx, &m).await?;
                 let phase4 = super::phase4_checkpoint::load(&tx, &m, phase3.as_ref()).await?;
+                // Story 4.2: the recipe book's only durable home, read strictly (fail closed).
+                let phase5 = crate::application::ports::phase5_checkpoint_from_column(
+                    m.phase5_checkpoint.clone(),
+                )?;
                 // Legacy readers must never silently drop retained V6 inventory.
                 anyhow::ensure!(
                     self.phase4_rules.is_some() || phase4.is_none(),
@@ -457,6 +461,7 @@ impl CharacterRepository for PgCharacterRepository {
                     None
                 };
                 Some(ProgressionState {
+                    phase5,
                     phase4,
                     phase3,
                     position: c.position,
@@ -494,7 +499,7 @@ impl CharacterRepository for PgCharacterRepository {
         events: &[DomainEvent],
     ) -> Result<CheckpointOutcome, CheckpointError> {
         match self
-            .timed("checkpoint", Box::pin(self.checkpoint_tx(checkpoint, events, None, None)))
+            .timed("checkpoint", Box::pin(self.checkpoint_tx(checkpoint, events, None, None, None)))
             .await?
         {
             LearningCheckpointOutcome::Checkpoint(outcome) => Ok(outcome),
@@ -551,7 +556,7 @@ impl LearningCheckpointRepository for PgCharacterRepository {
     ) -> Result<LearningCheckpointOutcome, CheckpointError> {
         self.timed(
             "checkpoint_learning",
-            Box::pin(self.checkpoint_tx(checkpoint, events, Some(receipt), None)),
+            Box::pin(self.checkpoint_tx(checkpoint, events, Some(receipt), None, None)),
         )
         .await
     }
@@ -626,6 +631,26 @@ async fn claim_learning(
 }
 
 impl PgCharacterRepository {
+    /// The V7 economy checkpoint (story 4.2 / E4.5): the character checkpoint, its item
+    /// projection and the economy write in ONE revision-fenced transaction (design §11.5).
+    /// The zone actor's economy settlement calls this, never
+    /// [`EconomyCheckpointRepository::checkpoint_economy`](crate::application::economy::EconomyCheckpointRepository::checkpoint_economy).
+    pub async fn checkpoint_with_economy(
+        &self,
+        cp: &CharacterCheckpoint,
+        events: &[DomainEvent],
+        items: Option<&crate::application::ports::ItemCheckpointWork>,
+        economy: &crate::application::economy::EconomyCheckpointWrite,
+    ) -> Result<CheckpointOutcome, CheckpointError> {
+        match Box::pin(self.checkpoint_tx(cp, events, None, items, Some(economy))).await? {
+            LearningCheckpointOutcome::Checkpoint(outcome) => Ok(outcome),
+            LearningCheckpointOutcome::ReceiptReplayed(_) => {
+                Err(anyhow::anyhow!("economy checkpoint without a learn receipt replayed one")
+                    .into())
+            },
+        }
+    }
+
     #[allow(clippy::too_many_lines)] // Keep receipt/key/fence/ledger/outbox ordering visible in one transaction.
     #[tracing::instrument(
         name = "storage",
@@ -640,8 +665,13 @@ impl PgCharacterRepository {
         events: &[DomainEvent],
         receipt: Option<&SuccessfulLearnReceipt>,
         items: Option<&crate::application::ports::ItemCheckpointWork>,
+        economy: Option<&crate::application::economy::EconomyCheckpointWrite>,
     ) -> Result<LearningCheckpointOutcome, CheckpointError> {
         let other = checkpoint_db_error;
+        if let Some(write) = economy {
+            // Structural refusal before any row is locked (design §11.5).
+            write.validate().map_err(super::economy::checkpoint_error)?;
+        }
         // Item audit facts require the atomic inventory/ledger/receipt projection lane.
         if items.is_none() && events.iter().any(DomainEvent::is_item) {
             return Err(CheckpointError::Constraint("item_projection_required".into()));
@@ -851,6 +881,10 @@ impl PgCharacterRepository {
         if phase3_seen && cp.phase3.is_none() {
             return Err(CheckpointError::Constraint("characters_phase3_downgrade".into()));
         }
+        // A stored V7 recipe book is never dropped by a pre-V7 writer (story 4.2).
+        if original_model.phase5_checkpoint.is_some() && cp.phase5.is_none() {
+            return Err(CheckpointError::Constraint("characters_phase5_downgrade".into()));
+        }
         if let Some(ledger) = &cp.class_state {
             self.validate_versioned(&original, ledger, cp.phase3.as_ref(), cp.alive)
                 .map_err(|_| CheckpointError::Constraint("characters_class_state_valid".into()))?;
@@ -871,6 +905,32 @@ impl PgCharacterRepository {
             .await?;
         } else if let Some(phase4) = &cp.phase4 {
             super::phase4_checkpoint::persist_retained(&tx, cp.character_id, phase4).await?;
+        }
+        if let Some(phase5) = &cp.phase5 {
+            let changed = tx
+                .execute_raw(Statement::from_sql_and_values(
+                    DbBackend::Postgres,
+                    "UPDATE characters SET phase5_checkpoint=$2 WHERE id=$1",
+                    [
+                        cp.character_id.as_uuid().into(),
+                        serde_json::to_value(phase5)
+                            .map_err(anyhow::Error::from)?
+                            .into(),
+                    ],
+                ))
+                .await
+                .map_err(other)?;
+            if changed.rows_affected() != 1 {
+                return Err(anyhow::anyhow!("Phase 5 checkpoint parent disappeared").into());
+            }
+        }
+        // c-review-4 P2-1 (design §11.5): container deltas, ledger, deliveries, lease deletes
+        // and the economy outbox commit in this same revision-fenced transaction, after the
+        // character fence above; a writer whose leases were released is fenced out.
+        if let Some(write) = economy {
+            super::economy::checkpoint_in(&tx, write)
+                .await
+                .map_err(super::economy::checkpoint_error)?;
         }
 
         for event in events {

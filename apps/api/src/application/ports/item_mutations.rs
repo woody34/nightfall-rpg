@@ -1560,6 +1560,7 @@ mod learn_payment_tests {
             successful_transfer_receipts: Vec::new(),
         };
         let cp = CharacterCheckpoint {
+            phase5: None,
             character_id: character,
             revision_seen: 1,
             level: 40,

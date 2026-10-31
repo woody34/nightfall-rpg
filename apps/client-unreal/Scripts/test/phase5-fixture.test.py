@@ -130,6 +130,29 @@ class Overlay(unittest.TestCase):
             for path in (phase4_dest / 'npcs').glob('*.toml'):
                 self.assertNotIn('pinned_npc_id', path.read_text(), path.name)
 
+    def test_overlay_monster_levels_are_the_pinned_levels(self):
+        # P5-D14: every Phase 5 overlay monster carries the pinned NPC level (rewards.toml, P5-D12).
+        pinned = {r['id']: r['level'] for r in tomllib.loads((REPO / 'packages/data/tables-phase5/rewards.toml').read_text())['npc']}
+        seen = 0
+        with tempfile.TemporaryDirectory() as tmp:
+            for pack in sorted(fixture.PHASE5):
+                monsters = fixture.PACKS[pack].get('monsters', [])
+                if not monsters:
+                    continue
+                dest = Path(tmp) / pack
+                fixture.create_overlay(dest, REPO, pack)
+                for monster in monsters:
+                    template = tomllib.loads((dest / 'npcs' / f'npc_{monster["npc_id"]}.toml').read_text())
+                    self.assertEqual(template['level'], pinned[monster['npc_id']], (pack, monster['npc_id']))
+                    self.assertEqual(template['pinned_npc_id'], monster['npc_id'])
+                    seen += 1
+        self.assertGreaterEqual(seen, 18)
+        self.assertEqual(tomllib.loads(fixture.npc_template_text(REPO, 4301))['level'], pinned[4301])
+        with self.assertRaisesRegex(ValueError, 'P5-D14'):
+            fixture.npc_template_text(REPO, 20003, pinned[20003] + 1)
+        with self.assertRaisesRegex(ValueError, 'not a pinned template'):
+            fixture.pinned_level(999_999_999)
+
     def test_split_unit_and_declared_roles(self):
         with tempfile.TemporaryDirectory() as tmp:
             for path in sorted((SCRIPTS.parent / 'Scenarios').glob('5-*.nfs')):

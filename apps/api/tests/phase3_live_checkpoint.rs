@@ -124,6 +124,7 @@ async fn seed_named(repo: Arc<dyn CharacterRepository>, name: &str) -> Character
     p.modifier_install_order
         .push(RetainedModifierSource::Effect { effect_ordinal: 0 });
     let cp = CharacterCheckpoint {
+        phase5: None,
         phase4: None,
         character_id: c.id,
         revision_seen: 0,
@@ -263,14 +264,18 @@ async fn lifecycle(repo: Arc<dyn CharacterRepository>) {
 }
 #[tokio::test]
 async fn memory_real_admission_logout_rebase_and_recovery() {
-    lifecycle(Arc::new(InMemoryCharacterRepository::default().with_phase3_rules(rules()))).await;
+    Box::pin(lifecycle(Arc::new(
+        InMemoryCharacterRepository::default().with_phase3_rules(rules()),
+    )))
+    .await;
 }
 #[tokio::test]
 async fn postgres_real_admission_logout_rebase_and_recovery() {
     let Some(pool) = common::pg::migrated_pool().await else {
         return;
     };
-    lifecycle(Arc::new(PgCharacterRepository::new(pool).with_phase3_rules(rules()))).await;
+    Box::pin(lifecycle(Arc::new(PgCharacterRepository::new(pool).with_phase3_rules(rules()))))
+        .await;
 }
 
 #[tokio::test]
@@ -318,6 +323,7 @@ async fn retained_admission_stale_revision_fences_before_output() {
     // Admission captured revision 1. A newer writer wins before this tick checkpoints.
     let saved = repo.load_for_admission(c.id).await.unwrap().unwrap();
     let newer = CharacterCheckpoint {
+        phase5: None,
         phase4: None,
         character_id: c.id,
         revision_seen: saved.revision,
@@ -888,6 +894,7 @@ async fn seed_full_cp_named(repo: Arc<dyn CharacterRepository>, name: &str) -> C
     let mut ledger = saved.class_state;
     ledger.cp = max_cp;
     let cp = CharacterCheckpoint {
+        phase5: None,
         character_id: c.id,
         revision_seen: saved.revision,
         level: saved.level,

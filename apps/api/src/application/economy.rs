@@ -706,8 +706,12 @@ pub trait LeaseRepository: Send + Sync {
 #[async_trait]
 pub trait EconomyCheckpointRepository: Send + Sync {
     /// Apply the whole write in one transaction: deltas (CAS) and lease deletes in key order,
-    /// delivery inserts/completions, ledger rows, outbox facts. `LeaseViolation` is permanent;
-    /// `Transient` means retry at the next cadence with the same acknowledged draft.
+    /// delivery inserts/completions, ledger rows, outbox facts. `LeaseViolation` is permanent
+    /// (a CAS miss, or a lease delete that removes no row); `Transient` means retry at the next
+    /// cadence with the same acknowledged draft.
+    ///
+    /// Tests and tools only: the zone actor commits economy writes inside the revision-fenced
+    /// character checkpoint (`PgCharacterRepository::checkpoint_with_economy`, design §11.5).
     async fn checkpoint_economy(&self, write: &EconomyCheckpointWrite) -> Result<(), EconomyError>;
 }
 

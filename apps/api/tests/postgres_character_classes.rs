@@ -75,6 +75,7 @@ fn checkpoint(c: &Character, key: IdempotencyKey) -> CharacterCheckpoint {
         level: 1,
     }]);
     CharacterCheckpoint {
+        phase5: None,
         phase4: None,
         phase3: None,
         character_id: c.id,
@@ -335,6 +336,7 @@ async fn transfer_checkpoint_atomically_round_trips_ledger_receipt_skills_and_ou
     second_result.token_tier_2_count = 0;
     second_result.granted_skill_keys.clear();
     let mut second = CharacterCheckpoint {
+        phase5: None,
         revision_seen: 1,
         idempotency: ("save_checkpoint".into(), IdempotencyKey::new()),
         ..cp.clone()
@@ -390,6 +392,7 @@ async fn transfer_checkpoint_atomically_round_trips_ledger_receipt_skills_and_ou
     assert_eq!(reconnected.get(c.id).await.unwrap().unwrap(), before_retry);
     assert_level_40_catchup_ranks(&reconnected, &pool, c.id).await;
     let later = CharacterCheckpoint {
+        phase5: None,
         revision_seen: 2,
         level: 40,
         xp: 500,

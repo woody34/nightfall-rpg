@@ -164,6 +164,7 @@ where
             }
             class_state.merge_learned_skills(skills);
             let checkpoint = api::application::CharacterCheckpoint {
+                phase5: None,
                 character_id: c.id,
                 revision_seen: loaded.revision,
                 level: loaded.level,
@@ -934,6 +935,7 @@ where
         level: 1,
     }]);
     let unpaid = api::application::CharacterCheckpoint {
+        phase5: None,
         character_id: scene.character.id,
         revision_seen: loaded.revision,
         level: loaded.level,

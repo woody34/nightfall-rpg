@@ -136,6 +136,7 @@ async fn seed(repo: &dyn CharacterRepository) -> Character {
 }
 fn checkpoint(c: &Character, phase3: Phase3Checkpoint) -> CharacterCheckpoint {
     CharacterCheckpoint {
+        phase5: None,
         phase4: None,
         character_id: c.id,
         revision_seen: 0,

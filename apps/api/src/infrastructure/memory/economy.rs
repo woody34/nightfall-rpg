@@ -226,6 +226,17 @@ impl EconomyCheckpointRepository for InMemoryEconomyStore {
         write.validate()?;
         let mut state = self.lock();
         Self::take_transient(&mut state)?;
+        // c-review-4 P2-1: every released lease must still be held by this (zone, epoch); a
+        // writer whose leases recovery released is fenced, with nothing written.
+        for key in &write.lease_releases {
+            if !state
+                .leases
+                .get(key)
+                .is_some_and(|g| g.zone_id == write.zone_id && g.epoch == write.epoch)
+            {
+                return Err(EconomyError::LeaseViolation(*key));
+            }
+        }
         // Dry-run the CAS over a copy so a violation leaves the store untouched (one transaction).
         let mut rows = state.rows.clone();
         let mut deliveries = state.deliveries.clone();
@@ -268,13 +279,7 @@ impl EconomyCheckpointRepository for InMemoryEconomyStore {
         state.ledger.extend(write.ledger.iter().cloned());
         state.outbox.extend(write.outbox.iter().cloned());
         for key in &write.lease_releases {
-            if state
-                .leases
-                .get(key)
-                .is_some_and(|g| g.zone_id == write.zone_id && g.epoch == write.epoch)
-            {
-                state.leases.remove(key);
-            }
+            state.leases.remove(key);
         }
         Ok(())
     }
