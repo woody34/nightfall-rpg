@@ -349,6 +349,9 @@ pub struct Phase5Zone {
     /// A V7 invariant failure latched by an infallible hook; turned into a tick error before
     /// anything is flushed. Never snapshot state.
     pub fault: Option<String>,
+    /// The B16 awards computed in `death_v7` from the hate ledger, consumed at `kill()` step 7
+    /// of the same death (design §2.2). Never snapshot state.
+    pub rewards: Option<(EntityId, Vec<super::rewards::Award>)>,
 }
 
 /// Inputs the invariants read from the rest of the zone (design §1.11).

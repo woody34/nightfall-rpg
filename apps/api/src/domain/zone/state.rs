@@ -942,6 +942,7 @@ impl ZoneState {
                     canonical,
                     rules: economy,
                     fault: None,
+                    rewards: None,
                 }))
             },
             _ => Err(SnapshotError::Rules("explicit matching V7 economy rules required".into())),

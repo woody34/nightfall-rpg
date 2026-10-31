@@ -559,7 +559,10 @@ impl ZoneState {
         }
         self.rebuild_v5(target.entity)?;
         if recipient.kind == EntityKind::Npc && request.source.kind == EffectSourceKind::Player {
-            self.credit_sp_v5(tick, source, recipient, events)?;
+            // V7 credits SP through the B16 distribution inside kill() (design §4.5).
+            if !self.phase5_enabled() {
+                self.credit_sp_v5(tick, source, recipient, events)?;
+            }
             self.sync_passives_v5(source.entity)?;
             self.rebuild_v5(source.entity)?;
         }

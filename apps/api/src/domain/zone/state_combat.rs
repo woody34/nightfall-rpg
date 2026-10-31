@@ -688,12 +688,16 @@ impl ZoneState {
             .map(|c| c.role.clone());
         match role {
             Some(CombatRole::Player { .. }) => self.charge_death(tick, victim, killer, events),
-            Some(CombatRole::Npc { xp_reward, .. }) => {
+            // V7 step 7: the B16 distribution stashed by death_v7 replaces the killing-blow
+            // award; V5/V6 (and V7 NPCs without a pinned row) keep it.
+            Some(CombatRole::Npc { xp_reward, .. })
+                if !self.apply_phase5_rewards(tick, victim, events) =>
+            {
                 if let Some(player) = credit {
                     self.award_xp(tick, player, xp_reward, events);
                 }
             },
-            None => {},
+            Some(CombatRole::Npc { .. }) | None => {},
         }
     }
 
@@ -757,7 +761,13 @@ impl ZoneState {
 
     /// Adds `reward` (capped at `X[86] − 1`) to a living player's XP, then emits `XpGained`,
     /// one `LevelUp` per threshold crossed and a final `StatsChanged` (plan §3.3).
-    fn award_xp(&mut self, tick: Tick, player: EntityId, reward: u64, events: &mut Vec<ZoneEvent>) {
+    pub(super) fn award_xp(
+        &mut self,
+        tick: Tick,
+        player: EntityId,
+        reward: u64,
+        events: &mut Vec<ZoneEvent>,
+    ) {
         let Some(rules) = self.rules.clone() else {
             return;
         };

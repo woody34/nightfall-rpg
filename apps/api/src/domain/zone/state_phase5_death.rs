@@ -113,6 +113,148 @@ impl ZoneState {
         })
     }
 
+    /// The reward snapshot `R` of design §4.5 (the §3.6 filter: player rows with `damage > 1`
+    /// within `PartyRange`), the facts of every player it and its parties name, and the pass.
+    fn reward_awards(
+        &self,
+        victim: EntityId,
+        rules: &Phase5Rules,
+        npc: &crate::domain::zone::phase5_rules::DropNpc,
+    ) -> Result<Vec<crate::domain::zone::rewards::Award>, DropError> {
+        use crate::domain::zone::rewards::{base_rewards, reward_pass, RewardPlayer};
+        use std::collections::BTreeMap;
+        let Some(entity) = self.entities.get(&victim) else {
+            return Ok(Vec::new());
+        };
+        let npc_level = entity
+            .combat
+            .as_ref()
+            .map(|c| c.sheet.level())
+            .ok_or(DropError::Rules("victim without combat"))?;
+        let radius = entity
+            .combat
+            .as_ref()
+            .map_or(0, |c| i64::from(c.collision_radius.raw()));
+        let bound = square(PARTY_RANGE_MILLI.saturating_mul(2).saturating_add(radius));
+        let in_range = |pos: Vec2Fixed| {
+            let dx = i64::from(pos.x.raw()).saturating_sub(i64::from(entity.pos.x.raw()));
+            let dy = i64::from(pos.y.raw()).saturating_sub(i64::from(entity.pos.y.raw()));
+            square(dx).saturating_add(square(dy)).saturating_mul(4) <= bound
+        };
+        let facts = |id: EntityId| -> Option<RewardPlayer> {
+            let player = self
+                .entities
+                .get(&id)
+                .filter(|e| e.kind == EntityKind::Player)?;
+            Some(RewardPlayer {
+                level: player.combat.as_ref().map_or(1, |c| c.sheet.level()),
+                alive: !player.targeting.dead,
+                in_range: in_range(player.pos),
+            })
+        };
+        let mut damage = BTreeMap::new();
+        if let Some(ledger) = self.hate.get(&victim) {
+            for (id, row) in ledger.iter() {
+                if row.damage > 1 && facts(id).is_some_and(|f| f.in_range) {
+                    damage.insert(id, row.damage);
+                }
+            }
+        }
+        if damage.is_empty() {
+            return Ok(Vec::new());
+        }
+        let block = self
+            .phase5
+            .as_ref()
+            .map(|p| &p.canonical)
+            .ok_or(DropError::Rules("V7 block vanished"))?;
+        let mut parties = Vec::new();
+        let mut players = BTreeMap::new();
+        for id in damage.keys() {
+            let party = block
+                .players
+                .get(id)
+                .and_then(|p| p.party)
+                .and_then(|party| block.parties.get(&party));
+            if let Some(party) = party {
+                if !parties.contains(&party.members) {
+                    parties.push(party.members.clone());
+                }
+            }
+        }
+        for id in damage.keys().chain(parties.iter().flatten()) {
+            // A member that left the zone is not alive here (departure removes it, §4.6).
+            let f = facts(*id).unwrap_or(RewardPlayer {
+                level: 1,
+                alive: false,
+                in_range: false,
+            });
+            players.insert(*id, f);
+        }
+        let base = base_rewards(rules, npc_level, &npc.exp_rate, &npc.sp)?;
+        reward_pass(rules, &damage, &parties, &players, npc_level, base)
+    }
+
+    /// Apply the stashed B16 awards of this death (`kill()` step 7): the existing XP path (level
+    /// ups unchanged) and the V5 SP credit. `false` when this death has none (V5/V6, or no
+    /// pinned row), so the caller keeps the killing-blow award.
+    pub(super) fn apply_phase5_rewards(
+        &mut self,
+        tick: Tick,
+        victim: EntityId,
+        events: &mut Vec<ZoneEvent>,
+    ) -> bool {
+        let Some((owner, awards)) = self.phase5.as_mut().and_then(|p| p.rewards.take()) else {
+            return false;
+        };
+        if owner != victim {
+            return false;
+        }
+        for award in awards {
+            if award.exp > 0 {
+                self.award_xp(tick, award.player, award.exp, events);
+            }
+            if award.sp > 0 {
+                self.credit_sp_amount(tick, award.player, award.sp, events);
+            }
+        }
+        true
+    }
+
+    /// Credit SP exactly as the V5 skill-kill credit does (`SpGained` with the live
+    /// incarnation), for an amount computed by B16.
+    fn credit_sp_amount(
+        &mut self,
+        tick: Tick,
+        player: EntityId,
+        amount: u64,
+        events: &mut Vec<ZoneEvent>,
+    ) {
+        let Some(c) = self
+            .entities
+            .get_mut(&player)
+            .and_then(|e| e.combat.as_mut())
+        else {
+            return;
+        };
+        let incarnation = c.incarnation;
+        if let crate::domain::zone::CombatRole::Player {
+            progression: Some(p),
+            ..
+        } = &mut c.role
+        {
+            let old = p.class_state.sp;
+            p.class_state.sp = old.saturating_add(amount).min(i64::MAX.unsigned_abs());
+            events.push(ZoneEvent::SpGained {
+                tick,
+                entity: player,
+                incarnation,
+                amount: p.class_state.sp.saturating_sub(old),
+                total: p.class_state.sp,
+            });
+        }
+    }
+
     /// The V7 `kill()` hook (design §2.2), between `EntityDied` and `npc_died`: an NPC rolls
     /// its corpse list (if spoiled) into the sweep holders, then its death list, and creates
     /// the loot on the ground. A player victim runs the PK loop (story 3.3, PK commit).
@@ -139,6 +281,12 @@ impl ZoneState {
         let npc = rules
             .drop_npc(pinned)
             .ok_or(DropError::Rules("pinned npc without a drops.toml row"))?;
+        // B16 (design §4.5): the awards come from the reward snapshot taken now, before the
+        // hate ledger is removed; they are applied at kill() step 7. Draw-free.
+        let awards = self.reward_awards(victim, &rules, npc)?;
+        if let Some(phase5) = &mut self.phase5 {
+            phase5.rewards = Some((victim, awards));
+        }
         let Some(actor) = self.drop_actor(victim, attacker) else {
             return Ok(());
         };
@@ -154,10 +302,10 @@ impl ZoneState {
         };
         let killer_level = level(actor).ok_or(DropError::Rules("drop actor without combat"))?;
         let origin = entity.pos;
-        let spoiled = phase5
-            .canonical
-            .npcs
-            .get(&victim)
+        let spoiled = self
+            .phase5
+            .as_ref()
+            .and_then(|p| p.canonical.npcs.get(&victim))
             .is_some_and(|n| n.spoiler.is_some());
         if spoiled {
             let sweep =
@@ -545,6 +693,12 @@ mod tests {
             .or_default()
             .add(stats.constants(), player, 100, 100);
         let tick = zone.next_tick;
+        // B16 (story 3.4): the expected award from the same snapshot, before the kill.
+        let expected = zone
+            .reward_awards(npc, &rules, rules.drop_npc(pinned).unwrap())
+            .unwrap();
+        assert_eq!(expected.len(), 1, "a solo attacker");
+        assert_eq!(expected[0].player, player);
         let words = zone.rng.get_word_pos();
         let mut events = Vec::new();
         zone.kill(
@@ -599,6 +753,20 @@ mod tests {
             assert!(dx <= 2187 && dy <= 2187, "offsets within m(70)");
             assert_eq!(zone.entities[entity].kind, EntityKind::GroundItem);
         }
+        // Step 7: exactly the B16 award, not the template's killing-blow XP.
+        let gained: Vec<u64> = events
+            .iter()
+            .filter_map(|e| match e {
+                ZoneEvent::XpGained { entity, amount, .. } if *entity == player => Some(*amount),
+                _ => None,
+            })
+            .collect();
+        if expected[0].exp > 0 {
+            assert_eq!(gained, vec![expected[0].exp]);
+        } else {
+            assert!(gained.is_empty());
+        }
+        assert!(zone.phase5.as_ref().unwrap().rewards.is_none(), "the stash is consumed");
         // V7 corpse time: 10 × corpseTime, not extended (not spoiled, not seeded).
         let corpse_time = rules.drop_npc(pinned).unwrap().corpse_time;
         assert_eq!(
