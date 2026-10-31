@@ -130,7 +130,8 @@ fn the_recorded_version_wins_over_the_phase5_selection() {
             phase5_enabled: selection.map(str::to_owned),
             ..ZoneRuntimeConfig::default()
         };
-        assert_eq!(config.phase5_requested().unwrap(), selection != Some("0"));
+        // P5-D15(a): only an explicit "1" selects V7.
+        assert_eq!(config.phase5_requested().unwrap(), selection == Some("1"));
         let restored = restore_snapshot(snapshot.clone()).unwrap();
         assert!(!restored.phase5_enabled());
         assert_eq!(restored.snapshot().meta.schema_version, 10);

@@ -47,7 +47,9 @@ fn v7_zone() -> ZoneState {
             .registry,
         (*bundle.skills).clone(),
         bundle.items.clone(),
-        ItemInstanceRange::new(1, 1, 100).unwrap(),
+        // Ids below 50 count as allocated in this epoch, so the fixture's NPC loot (id 7)
+        // satisfies the allocator rule (z-review-2 P3-7).
+        ItemInstanceRange::new(1, 50, 100).unwrap(),
         economy_data::embedded_phase5_rules().unwrap(),
     )
     .unwrap()
@@ -660,6 +662,27 @@ fn invariants_fail_closed_at_restore() {
         b.ground.insert(g.entity, g);
     })
     .is_err());
+    // z-review-2 P3-7 (Phase 4 I1): NPC loot is minted from this epoch's allocated range;
+    // an in-range id at or past `next` is never valid; a PK drop may carry an older id.
+    for (item, pk, ok) in [
+        (60, false, false),
+        (200, false, false),
+        (60, true, false),
+        (200, true, true),
+    ] {
+        let accepted = restore(&|b| {
+            let mut g = ground(seed, item, 57, 120, Tick(0));
+            if pk {
+                g.source = GroundSource::PkDrop { victim: id(5) };
+                g.loot_owner = None;
+                g.drop_protection = None;
+                g.decay_due = None;
+            }
+            b.ground.insert(g.entity, g);
+        })
+        .is_ok();
+        assert_eq!(accepted, ok, "id {item} pk {pk}");
+    }
     // Duplicate instance across two ground items.
     assert!(restore(&|b| {
         let g = ground(seed, 7, 57, 120, Tick(0));

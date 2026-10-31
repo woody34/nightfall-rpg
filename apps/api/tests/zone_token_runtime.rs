@@ -148,6 +148,12 @@ async fn persistent_v7_startup_with_unreachable_broker_creates_no_epoch() {
     let store = PgZoneSnapshotStore::new(db.clone());
     let (_dir, zone, mut cfg) = isolated_zone();
     cfg.phase5_enabled = Some("1".into());
+    // The V6 bundle is composed once per process (and is slow in debug builds); compose it
+    // first so the bound measures what P2-6 is about: no Phase 5 table validation before
+    // the broker connects.
+    cfg.prepare_phase4(&load_classes(&ClassSource::embedded()).unwrap())
+        .unwrap()
+        .unwrap();
     let error = tokio::time::timeout(
         Duration::from_secs(10),
         zone_runtime::start(&cfg, Some("nats://127.0.0.1:0"), Some(db), &Dependencies::in_memory()),
