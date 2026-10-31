@@ -237,6 +237,12 @@ void UNetClientSubsystem::DispatchServerMessage(const FServerMessage& Msg)
 		if (E.EnchantResult.IsSet()) LatestReceivedTick = FMath::Max(LatestReceivedTick, E.EnchantResult->Tick.Value);
 		if (E.RefineResult.IsSet()) LatestReceivedTick = FMath::Max(LatestReceivedTick, E.RefineResult->Tick.Value);
 		if (E.ItemOperationResult.IsSet()) LatestReceivedTick = FMath::Max(LatestReceivedTick, E.ItemOperationResult->Tick.Value);
+		if (E.EconomyResult.IsSet()) LatestReceivedTick = FMath::Max(LatestReceivedTick, E.EconomyResult->Tick.Value);
+		if (E.CorpseStateChanged.IsSet()) LatestReceivedTick = FMath::Max(LatestReceivedTick, E.CorpseStateChanged->Tick.Value);
+		if (E.PartyStateChanged.IsSet()) LatestReceivedTick = FMath::Max(LatestReceivedTick, E.PartyStateChanged->Tick.Value);
+		if (E.TradeSessionChanged.IsSet()) LatestReceivedTick = FMath::Max(LatestReceivedTick, E.TradeSessionChanged->Tick.Value);
+		if (E.PrivateStoreChanged.IsSet()) LatestReceivedTick = FMath::Max(LatestReceivedTick, E.PrivateStoreChanged->Tick.Value);
+		if (E.RecipeBookSync.IsSet()) LatestReceivedTick = FMath::Max(LatestReceivedTick, E.RecipeBookSync->Tick.Value);
 		if (E.Move.IsSet()) LatestReceivedTick = FMath::Max(LatestReceivedTick, E.Move->Tick);
 		if (E.AttackResult.IsSet()) LatestReceivedTick = FMath::Max(LatestReceivedTick, E.AttackResult->Tick);
 		if (E.EntityDied.IsSet()) LatestReceivedTick = FMath::Max(LatestReceivedTick, E.EntityDied->Tick);
@@ -357,6 +363,18 @@ void UNetClientSubsystem::DispatchServerMessage(const FServerMessage& Msg)
 		if (E.ItemOperationResult.IsSet()) OnItemOperationResult.Broadcast(*E.ItemOperationResult);
 		if (E.VitalsChanged.IsSet()) OnVitalsChanged.Broadcast(*E.VitalsChanged);
 		if(E.EnchantResult.IsSet() || E.RefineResult.IsSet() || E.ItemOperationResult.IsSet())OnItemReceiptPayload.Broadcast(E);
+		if (E.EconomyResult.IsSet()) { OnEconomyResult.Broadcast(*E.EconomyResult); OnEconomyReceiptPayload.Broadcast(E); }
+		if (E.CorpseStateChanged.IsSet()) OnCorpseStateChanged.Broadcast(*E.CorpseStateChanged);
+		if (E.PartyStateChanged.IsSet()) OnPartyStateChanged.Broadcast(*E.PartyStateChanged);
+		if (E.PartyLootVote.IsSet()) OnPartyLootVote.Broadcast(*E.PartyLootVote);
+		if (E.PartyInviteReceived.IsSet()) OnPartyInviteReceived.Broadcast(*E.PartyInviteReceived);
+		if (E.TradeRequestReceived.IsSet()) OnTradeRequestReceived.Broadcast(*E.TradeRequestReceived);
+		if (E.TradeSessionChanged.IsSet()) OnTradeSessionChanged.Broadcast(*E.TradeSessionChanged);
+		if (E.PrivateStoreChanged.IsSet()) OnPrivateStoreChanged.Broadcast(*E.PrivateStoreChanged);
+		if (E.MailNotification.IsSet()) OnMailNotification.Broadcast(*E.MailNotification);
+		if (E.RecipeBookSync.IsSet()) OnRecipeBookSync.Broadcast(*E.RecipeBookSync);
+		if (E.ItemAuctionStatusChanged.IsSet()) OnItemAuctionStatusChanged.Broadcast(*E.ItemAuctionStatusChanged);
+		if (E.LootDistributed.IsSet()) OnLootDistributed.Broadcast(*E.LootDistributed);
 		if (E.XpGained.IsSet()) OnXpGained.Broadcast(*E.XpGained);
 		if (E.LevelUp.IsSet()) OnLevelUp.Broadcast(*E.LevelUp);
 		if (E.TargetChanged.IsSet()) OnTargetChanged.Broadcast(*E.TargetChanged);

@@ -267,8 +267,14 @@ def bot_args(folder, scenario):
             or token_file.stat().st_mode & 0o777 != 0o600
             or (value['fixture'] != 'phase4-grant-denied' and token_file.read_text().strip() != f"test:{role['account_id']}")):
         raise ValueError('fixture role requires its private owned token file')
-    return [f'-DevTokenFile={token_file}',
+    args = [f'-DevTokenFile={token_file}',
             f"-ini:Game:[/Script/Nightfall.NetSettings]:GrpcEndpoint=127.0.0.1:{value['ports']['grpc']}"]
+    if value['fixture'] in PHASE5:
+        # Every role of the unit: `a:<character uuid>:<name>,...` so `nf.TradeRequest b` / `nf.MailSend b ...`
+        # bind the pack role to the seeded character (EconomyStateSubsystem reads -Phase5Roles=).
+        roles = sorted({r['role']: r['character_id'] for r in value['roles'].values()}.items())
+        args.append('-Phase5Roles=' + ','.join(f"{role}:{character}:{phase5.character_name(role)}" for role, character in roles))
+    return args
 
 
 def private_json(path, value):

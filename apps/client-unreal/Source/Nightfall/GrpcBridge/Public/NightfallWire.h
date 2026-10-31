@@ -19,6 +19,9 @@ namespace NightfallWire
  TURBOLINKGRPC_API void EncodeItemReceipt(const FGrpcNightfallV1EnchantResult& In,TArray<uint8>& Out);
  TURBOLINKGRPC_API void EncodeItemReceipt(const FGrpcNightfallV1RefineResult& In,TArray<uint8>& Out);
  TURBOLINKGRPC_API void EncodeItemReceipt(const FGrpcNightfallV1ItemOperationResult& In,TArray<uint8>& Out);
+ /** Phase 5: the exact bytes of WorldEvent.economy_result (34) in a received ServerMessage; empty when absent or malformed. */
+ TURBOLINKGRPC_API void EconomyReceiptBytes(const uint8* Data,int32 Size,TArray<uint8>& Out);
+ TURBOLINKGRPC_API void EncodeEconomyReceipt(const FGrpcNightfallV1EconomyResult& In,TArray<uint8>& Out);
 
 	/** Serializes a populated server envelope for offline contract/replay tests. */
 	TURBOLINKGRPC_API void EncodeServerMessage(const FGrpcNightfallV1ServerMessage& In, TArray<uint8>& Out);

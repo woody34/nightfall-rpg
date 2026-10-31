@@ -481,6 +481,7 @@ The scripts (`run-sim.sh`, `run-sim-multi.sh`, CI) use exactly this contract:
 | `-BotDataDir=<dir>` | The server fixture data directory (`tables/*.toml`, `zones/*.toml`). Default `<project>/../../packages/data`. |
 | `-BotLoop=<seconds>` | Run the scenario again and again for at least this long. The runner resets the login between iterations (see "Nightly Gauntlet soak"). |
 | `-BotLoopScenario=<path>` | Only with `-BotLoop` (D155). Iteration 1 runs the `-BotScenario` script. Iteration 2 and all later iterations run this script. The runner resolves the path like `-BotScenario`. The runner parses both scripts before the first step. A missing or invalid loop script is a parse error (exit code 1), not a passing timeout. Without this flag, each iteration runs the `-BotScenario` script. |
+| `-Phase5Roles=a:<character uuid>:<name>,b:...` | Phase 5 only. The pack roles of the unit. `nf.TradeRequest b`, `nf.PartyInvite b`, `nf.FreightSend b`, `nf.StoreBuyFrom b` and `store_state_of b` bind the letter to that character id; `nf.MailSend b` uses the name. The dispatcher (`phase2-fixture.py args`) writes it from the pack and the seeder names. Without it, a role command fails and the runner logs a warning. |
 | `-DevToken=<token>` / `-DevTokenFile=<path>` | The same as for all runs. If you give neither, `nf.Login` uses a new `test:<uuid>` account (the API must run with `AUTH_DEV_TOKENS=1`). The JUnit `account` property records the account. |
 | `-game -nullrhi -nosound -unattended` | The headless client (plan D1). `-unattended` prevents ensures and dialogs from blocking. |
 
@@ -876,6 +877,8 @@ builds Linux generators into `~/.cache/nightfall/proto-tools` (approximately 10 
   templates. The script preprocesses them with `dotnet-t4` and builds an SDK-style project.
 
 The output is deterministic: if you generate unchanged protos again, there is no diff.
+`Scripts/test/proto-determinism.test.py` (P5-D2) proves it: it generates into a scratch directory
+(`NIGHTFALL_GEN_OUT`) and compares every file with the committed `Source/Nightfall/Generated`.
 
 ## Login and connect (Stories 1.5 and 6.2)
 
@@ -1335,6 +1338,16 @@ The E6 command/predicate authority is [phase4-fixtures.md](Scripts/phase4-fixtur
 - The arrow classification comes from pinned E1 ARROW metadata. The client compares it with the name/kind of the received catalogue.
 - After an E1 catalogue update, run `python3 Scripts/gen-item-client-metadata.py` to make the arrow metadata again.
 - `nf.GrantItem` uses the authenticated RPC. The server enforces AUTH_DEV_TOKENS. When the server refuses, `item_rpc_error` shows the refusal.
+
+## Economy (Phase 5, stories 5.1, 5.2 and 5.6 skeleton)
+
+The E5 command/predicate authority is [phase5-fixtures.md](Scripts/phase5-fixtures.md) and [phase5-grammar.py](Scripts/phase5-grammar.py). `Source/Nightfall/Bot/EconomyBotPredicates.cpp` registers every §5.3 command (41) and predicate (96; `rejected` is the Phase 1 builtin, and it resolves the Phase 5 reasons). `Scripts/test/phase5-client-registry.test.py` compares the two tables.
+
+- `Source/Nightfall/Economy/EconomyStateSubsystem` is the owner projection of the Phase 5 wire facts: `EntitySpawn.ground_item`, the twelve events `WorldEvent` 34..45 and the `EconomyResult` receipt. It applies the Phase 4 rules: the identity fence, baseline before delta (`PartyStateChanged`, `RecipeBookSync`), ticks only forward, and the D43 keyed replay (one key, one frozen body; the same key with other arguments is a conflict; the exact received receipt bytes are compared on a replay). An unknown `oneof` member decodes to nothing (fail-closed).
+- The client never predicts a count, a price, a chance, a protection deadline or a party membership. The read RPCs (`ListBuylist`, `GetWarehouse`, `GetFreight`, `ListMail`, `ListItemAuctions`) give detached views. A predicate that needs a view asks for it (at most once per second) and stays UNKNOWN until the view arrives. A container receipt projects its received `moved` rows onto the view.
+- Reset rules: the transport reset clears everything; the own `EntitySpawn` clears the identity-scoped facts; the own `EntityRespawned` clears the owner-incarnation facts; `nf.MarkItemState` re-samples the adena mark.
+- Export-bound and sidecar-bound predicates (`rules_rate_multiplier`, `xp_share_matches_export`, `vendor_restock_due_delta`, `epoch_reconcile_rows_before_admission`, `pk_dropped_excluded`, `craft_materials_consumed`, `manor_drops_unchanged`, `adena_split_origin`) parse, but the client reports them UNKNOWN. The C14 export and the oracle sidecars decide them (stories 3.15, 6.2, 6.6).
+- No UI. The dialogs and widgets are story 5.7.
 
 Item content:
 

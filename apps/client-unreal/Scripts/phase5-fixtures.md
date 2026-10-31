@@ -46,6 +46,7 @@ as one unit and refuses copies of two files.
 | Overlay | `phase5-fixtures.py create_overlay` | The Phase 4 overlay (blacksmith) plus the pack's fixed NPCs (`[[npcs]]` named `merchant`, `exchanger`, `warehouse_keeper`, `manor_manager`, `auctioneer`) and monsters (`[[spawn_slots]]` with templates `npc_<pinned id>` named `Npc_<pinned id>`). |
 | Seeder | `infra/scripts/seed-phase5-fixture.py`, `Scripts/test/phase5-fixture.test.py` | Stages below. `--help` lists the 27 packs. |
 | Dispatcher | `Scripts/phase2-fixture.py`, `Scripts/run-sim-ci.py`, `Scripts/sim-lib.sh` | Phase 5 branch: version 5 stack (`nf_phase5_fixture_*`, `nightfall-phase5-harness-*`), `PHASE5_ENABLED=1`, role tokens `a|b|c.token`, grant stage, per-role `instance:` mapping. |
+| Client registry | `Source/Nightfall/Bot/EconomyBotPredicates.cpp`, `Source/Nightfall/Economy/EconomyStateSubsystem.cpp`, `Scripts/test/phase5-client-registry.test.py` | The client registers the 41 commands and 96 predicates of this grammar (story 5.6). The dispatcher passes `-Phase5Roles=<role>:<character uuid>:<name>,...` (`phase2-fixture.py args`, names from `character_name`) so a role letter in a command binds to the seeded character. |
 
 ### Seeder stages
 

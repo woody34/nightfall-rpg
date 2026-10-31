@@ -316,6 +316,7 @@ namespace
 		Out.PvpCount = S.PvpCount;
 		Out.StatusFlags = S.StatusFlags;
 		Out.VisibleEquipment = S.VisibleEquipment;
+		if (S.HasGroundItem) Out.GroundItem = S.GroundItem;
 		return Out;
 	}
 
@@ -517,7 +518,44 @@ namespace
 		case EGrpcNightfallV1WorldEventEvent::VitalsChanged:
 			if (Ev.VitalsChanged.IsValid()) Out.VitalsChanged = FromGrpc(*Ev.VitalsChanged);
 			break;
+		case EGrpcNightfallV1WorldEventEvent::EconomyResult:
+			Out.EconomyResult = Ev.EconomyResult;
+			break;
+		case EGrpcNightfallV1WorldEventEvent::CorpseStateChanged:
+			Out.CorpseStateChanged = Ev.CorpseStateChanged;
+			break;
+		case EGrpcNightfallV1WorldEventEvent::PartyStateChanged:
+			Out.PartyStateChanged = Ev.PartyStateChanged;
+			break;
+		case EGrpcNightfallV1WorldEventEvent::PartyLootVote:
+			Out.PartyLootVote = Ev.PartyLootVote;
+			break;
+		case EGrpcNightfallV1WorldEventEvent::PartyInviteReceived:
+			Out.PartyInviteReceived = Ev.PartyInviteReceived;
+			break;
+		case EGrpcNightfallV1WorldEventEvent::TradeRequestReceived:
+			Out.TradeRequestReceived = Ev.TradeRequestReceived;
+			break;
+		case EGrpcNightfallV1WorldEventEvent::TradeSessionChanged:
+			Out.TradeSessionChanged = Ev.TradeSessionChanged;
+			break;
+		case EGrpcNightfallV1WorldEventEvent::PrivateStoreChanged:
+			Out.PrivateStoreChanged = Ev.PrivateStoreChanged;
+			break;
+		case EGrpcNightfallV1WorldEventEvent::MailNotification:
+			Out.MailNotification = Ev.MailNotification;
+			break;
+		case EGrpcNightfallV1WorldEventEvent::RecipeBookSync:
+			Out.RecipeBookSync = Ev.RecipeBookSync;
+			break;
+		case EGrpcNightfallV1WorldEventEvent::ItemAuctionStatusChanged:
+			Out.ItemAuctionStatusChanged = Ev.ItemAuctionStatusChanged;
+			break;
+		case EGrpcNightfallV1WorldEventEvent::LootDistributed:
+			Out.LootDistributed = Ev.LootDistributed;
+			break;
 		default:
+			// An unknown oneof member (a newer server) decodes to an event with nothing set: fail-closed.
 			break;
 		}
 		return Out;
@@ -648,6 +686,211 @@ namespace NightfallProto
 			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::CrystallizeItem;
 			Msg.Intent.CrystallizeItem = *In.CrystallizeItem;
 		}
+		else if (In.PickUpItem.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::PickUpItem;
+			Msg.Intent.PickUpItem = *In.PickUpItem;
+		}
+		else if (In.VendorBuy.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::VendorBuy;
+			Msg.Intent.VendorBuy = *In.VendorBuy;
+		}
+		else if (In.VendorSell.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::VendorSell;
+			Msg.Intent.VendorSell = *In.VendorSell;
+		}
+		else if (In.VendorRefund.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::VendorRefund;
+			Msg.Intent.VendorRefund = *In.VendorRefund;
+		}
+		else if (In.MultisellChoose.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::MultisellChoose;
+			Msg.Intent.MultisellChoose = *In.MultisellChoose;
+		}
+		else if (In.RegisterRecipe.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::RegisterRecipe;
+			Msg.Intent.RegisterRecipe = *In.RegisterRecipe;
+		}
+		else if (In.DeleteRecipe.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::DeleteRecipe;
+			Msg.Intent.DeleteRecipe = *In.DeleteRecipe;
+		}
+		else if (In.CraftItem.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::CraftItem;
+			Msg.Intent.CraftItem = *In.CraftItem;
+		}
+		else if (In.TradeRequest.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::TradeRequest;
+			Msg.Intent.TradeRequest = *In.TradeRequest;
+		}
+		else if (In.TradeAnswer.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::TradeAnswer;
+			Msg.Intent.TradeAnswer = *In.TradeAnswer;
+		}
+		else if (In.TradeAddItem.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::TradeAddItem;
+			Msg.Intent.TradeAddItem = *In.TradeAddItem;
+		}
+		else if (In.TradeConfirm.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::TradeConfirm;
+			Msg.Intent.TradeConfirm = *In.TradeConfirm;
+		}
+		else if (In.TradeCancel.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::TradeCancel;
+			Msg.Intent.TradeCancel = *In.TradeCancel;
+		}
+		else if (In.SetPrivateStoreSell.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::SetPrivateStoreSell;
+			Msg.Intent.SetPrivateStoreSell = *In.SetPrivateStoreSell;
+		}
+		else if (In.SetPrivateStoreBuy.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::SetPrivateStoreBuy;
+			Msg.Intent.SetPrivateStoreBuy = *In.SetPrivateStoreBuy;
+		}
+		else if (In.SetPrivateManufacture.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::SetPrivateManufacture;
+			Msg.Intent.SetPrivateManufacture = *In.SetPrivateManufacture;
+		}
+		else if (In.ClosePrivateStore.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::ClosePrivateStore;
+			Msg.Intent.ClosePrivateStore = *In.ClosePrivateStore;
+		}
+		else if (In.PrivateStoreBuy.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::PrivateStoreBuy;
+			Msg.Intent.PrivateStoreBuy = *In.PrivateStoreBuy;
+		}
+		else if (In.PrivateStoreSell.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::PrivateStoreSell;
+			Msg.Intent.PrivateStoreSell = *In.PrivateStoreSell;
+		}
+		else if (In.PrivateManufactureOrder.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::PrivateManufactureOrder;
+			Msg.Intent.PrivateManufactureOrder = *In.PrivateManufactureOrder;
+		}
+		else if (In.PartyInvite.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::PartyInvite;
+			Msg.Intent.PartyInvite = *In.PartyInvite;
+		}
+		else if (In.PartyAnswer.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::PartyAnswer;
+			Msg.Intent.PartyAnswer = *In.PartyAnswer;
+		}
+		else if (In.PartyLeave.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::PartyLeave;
+			Msg.Intent.PartyLeave = *In.PartyLeave;
+		}
+		else if (In.PartyKick.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::PartyKick;
+			Msg.Intent.PartyKick = *In.PartyKick;
+		}
+		else if (In.PartyChangeLeader.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::PartyChangeLeader;
+			Msg.Intent.PartyChangeLeader = *In.PartyChangeLeader;
+		}
+		else if (In.PartyLootChangeRequest.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::PartyLootChangeRequest;
+			Msg.Intent.PartyLootChangeRequest = *In.PartyLootChangeRequest;
+		}
+		else if (In.PartyLootChangeAnswer.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::PartyLootChangeAnswer;
+			Msg.Intent.PartyLootChangeAnswer = *In.PartyLootChangeAnswer;
+		}
+		else if (In.WarehouseDeposit.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::WarehouseDeposit;
+			Msg.Intent.WarehouseDeposit = *In.WarehouseDeposit;
+		}
+		else if (In.WarehouseWithdraw.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::WarehouseWithdraw;
+			Msg.Intent.WarehouseWithdraw = *In.WarehouseWithdraw;
+		}
+		else if (In.FreightSend.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::FreightSend;
+			Msg.Intent.FreightSend = *In.FreightSend;
+		}
+		else if (In.FreightWithdraw.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::FreightWithdraw;
+			Msg.Intent.FreightWithdraw = *In.FreightWithdraw;
+		}
+		else if (In.MailSend.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::MailSend;
+			Msg.Intent.MailSend = *In.MailSend;
+		}
+		else if (In.MailTakeAttachments.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::MailTakeAttachments;
+			Msg.Intent.MailTakeAttachments = *In.MailTakeAttachments;
+		}
+		else if (In.MailReject.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::MailReject;
+			Msg.Intent.MailReject = *In.MailReject;
+		}
+		else if (In.MailCancel.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::MailCancel;
+			Msg.Intent.MailCancel = *In.MailCancel;
+		}
+		else if (In.MailDelete.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::MailDelete;
+			Msg.Intent.MailDelete = *In.MailDelete;
+		}
+		else if (In.ManorBuySeed.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::ManorBuySeed;
+			Msg.Intent.ManorBuySeed = *In.ManorBuySeed;
+		}
+		else if (In.ManorSellCrop.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::ManorSellCrop;
+			Msg.Intent.ManorSellCrop = *In.ManorSellCrop;
+		}
+		else if (In.ItemAuctionBid.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::ItemAuctionBid;
+			Msg.Intent.ItemAuctionBid = *In.ItemAuctionBid;
+		}
+		else if (In.ItemAuctionCancelBid.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::ItemAuctionCancelBid;
+			Msg.Intent.ItemAuctionCancelBid = *In.ItemAuctionCancelBid;
+		}
+		else if (In.MailMarkRead.IsSet())
+		{
+			Msg.Intent.IntentCase = EGrpcNightfallV1ClientMessageIntent::MailMarkRead;
+			Msg.Intent.MailMarkRead = *In.MailMarkRead;
+		}
 		NightfallWire::EncodeClientMessage(Msg, Out);
 	}
 
@@ -667,7 +910,7 @@ namespace NightfallProto
 			if (Payload.Ack.IsValid()) { Out.Ack = FAck{ Payload.Ack->Seq, Payload.Ack->Tick }; }
 			break;
 		case EGrpcNightfallV1ServerMessagePayload::Event:
-			if (Payload.Event.IsValid()) { Out.Event = FromGrpc(*Payload.Event); Out.Event->bReceivedFromWire=true; NightfallWire::ItemReceiptBytes(Data,Size,Out.Event->ItemReceiptPayload); }
+			if (Payload.Event.IsValid()) { Out.Event = FromGrpc(*Payload.Event); Out.Event->bReceivedFromWire=true; NightfallWire::ItemReceiptBytes(Data,Size,Out.Event->ItemReceiptPayload); NightfallWire::EconomyReceiptBytes(Data,Size,Out.Event->EconomyReceiptPayload); }
 			break;
 		case EGrpcNightfallV1ServerMessagePayload::Rejected:
 			if (Payload.Rejected.IsValid())

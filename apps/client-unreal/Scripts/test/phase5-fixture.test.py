@@ -245,6 +245,15 @@ class Seeder(unittest.TestCase):
         self.assertIn('character_transfer_receipts', craft)
         self.assertIn('target_class_id) VALUES', craft)
 
+    def test_role_names_match_the_seeded_characters(self):
+        # The client binds `nf.MailSend <role>` to this name (-Phase5Roles=); the seeder must insert the same one.
+        out = seeder('--fixture', 'phase5-trade', '--account', f'a={A}', f'b={B}', '--dry-run').stdout
+        for declaration in fixture.PACKS['phase5-trade']['roles']:
+            name = fixture.character_name(declaration['role'])
+            self.assertRegex(out, rf"\('{declaration['character_id']}','[0-9a-f-]+','{name}',")
+        with self.assertRaises(ValueError):
+            fixture.character_name('d')
+
     def test_guards(self):
         self.assertIn('NIGHTFALL_PHASE5_FIXTURE=1 required', seeder('--fixture', 'phase5-epoch', '--account', f'a={A}', '--dry-run', env={'NIGHTFALL_PHASE5_FIXTURE': '0'}).stderr)
         for url in ('postgres://x@127.0.0.1:5432/nf_phase5_fixture_a', 'postgres://x@db.example:15432/nf_phase5_fixture_a', 'postgres://x@127.0.0.1:15432/nf_phase4_fixture_a'):

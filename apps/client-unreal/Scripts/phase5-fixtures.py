@@ -36,6 +36,15 @@ PACKS_PATH = REPO / 'apps/client-unreal/Scenarios/fixtures/phase5-packs.json'
 PACKS = json.loads(PACKS_PATH.read_text())['packs']
 PHASE5 = frozenset(PACKS)
 ROLE_ORDER = ('a', 'b', 'c')
+
+
+def character_name(role):
+    """The seeded character name of a role: seed-phase3-fixture.py seed_sql names every role `Skill<key>`
+    and the Phase 5 seeder keys the profiles by role letter, so role `b` is `Skillb`. The client reads it from
+    `-Phase5Roles=` for `nf.MailSend <role> ...` (MailSendRequest.receiver_name is a name, not an id)."""
+    if role not in ROLE_ORDER:
+        raise ValueError(f'unknown Phase 5 role {role!r}')
+    return f'Skill{role}'
 ROLE_INDEX = {'a': 0, 'b': 1, 'c': 2}
 # Skills the Phase 5 engine admits through the cast pipeline (B11) that no Phase 3 class tree
 # carries: seeded as learned ranks so the role can cast them. Z's E2/E3 skill admission binds them.

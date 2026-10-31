@@ -47,6 +47,19 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnPenaltyChanged, const FGrpcNightfallV1Pen
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnEnchantResult, const FGrpcNightfallV1EnchantResult&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnRefineResult, const FGrpcNightfallV1RefineResult&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnItemOperationResult, const FGrpcNightfallV1ItemOperationResult&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnEconomyResult, const FGrpcNightfallV1EconomyResult&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnEconomyReceiptPayload, const FWorldEvent&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnCorpseStateChanged, const FGrpcNightfallV1CorpseStateChanged&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnPartyStateChanged, const FGrpcNightfallV1PartyStateChanged&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnPartyLootVote, const FGrpcNightfallV1PartyLootVote&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnPartyInviteReceived, const FGrpcNightfallV1PartyInviteReceived&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnTradeRequestReceived, const FGrpcNightfallV1TradeRequestReceived&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnTradeSessionChanged, const FGrpcNightfallV1TradeSessionChanged&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnPrivateStoreChanged, const FGrpcNightfallV1PrivateStoreChanged&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnMailNotification, const FGrpcNightfallV1MailNotification&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnRecipeBookSync, const FGrpcNightfallV1RecipeBookSync&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnItemAuctionStatusChanged, const FGrpcNightfallV1ItemAuctionStatusChanged&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnLootDistributed, const FGrpcNightfallV1LootDistributed&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnWireFrameObserved, const TArray<uint8>&);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnWireCloseObserved, int32);
 
@@ -260,6 +273,21 @@ public:
 	FOnEnchantResult OnEnchantResult;
 	FOnRefineResult OnRefineResult;
 	FOnItemOperationResult OnItemOperationResult;
+	// Phase 5 (WorldEvent 34..45). OnEconomyReceiptPayload carries the whole event so the exact
+	// received receipt bytes travel with the decoded EconomyResult (D43).
+	FOnEconomyResult OnEconomyResult;
+	FOnEconomyReceiptPayload OnEconomyReceiptPayload;
+	FOnCorpseStateChanged OnCorpseStateChanged;
+	FOnPartyStateChanged OnPartyStateChanged;
+	FOnPartyLootVote OnPartyLootVote;
+	FOnPartyInviteReceived OnPartyInviteReceived;
+	FOnTradeRequestReceived OnTradeRequestReceived;
+	FOnTradeSessionChanged OnTradeSessionChanged;
+	FOnPrivateStoreChanged OnPrivateStoreChanged;
+	FOnMailNotification OnMailNotification;
+	FOnRecipeBookSync OnRecipeBookSync;
+	FOnItemAuctionStatusChanged OnItemAuctionStatusChanged;
+	FOnLootDistributed OnLootDistributed;
 	FOnWireFrameObserved OnWireSent;
 	FOnWireFrameObserved OnWireReceived;
 	FOnWireCloseObserved OnWireClosed;

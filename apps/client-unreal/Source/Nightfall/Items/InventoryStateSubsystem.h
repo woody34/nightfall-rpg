@@ -86,6 +86,10 @@ public:
  TOptional<bool> ReceiptMatchesFirst() const { return ReceiptMatches; }
  const FString& Status() const { return StatusText; }
  FOnInventoryStateChanged OnChanged;
+ /** nf.MarkItemState accepted: Phase 5 observers (adena deltas) sample their marks here. */
+ FOnInventoryStateChanged OnMarked;
+ /** Received count of a template at the newest accepted mark; unset without a mark for this character. */
+ TOptional<uint64> MarkedCount(uint32 Template) const;
 private:
  bool StatsSynchronized() const;
  bool Owner(const FBytes& Id) const;
@@ -127,6 +131,7 @@ private:
  TOptional<FStatsChanged> CurrentStats,MarkedStats;
  TOptional<uint64> MarkRevision;
  FString MarkOwner;
+ TMap<uint32,uint64> MarkCounts;
  TMap<FString,FString> CommittedFingerprints;
  TMap<FString,TArray<TPair<uint32,bool>>> Hotbars;
  TOptional<EGrpcNightfallV1ItemOperation> Operation;

@@ -2,6 +2,7 @@
 
 #include "CoreMinimal.h"
 #include "SNightfallV1/ItemsMessage.h"
+#include "SNightfallV1/EconomyMessage.h"
 
 // Wire types the client sends and receives. Mirrors packages/proto/nightfall/v1/world.proto.
 // The structs here are the client's view; the codec maps them to protobuf bytes.
@@ -42,6 +43,49 @@ struct FClientMessage
 	TOptional<FGrpcNightfallV1CancelRefineRequest> CancelRefine;
 	TOptional<FGrpcNightfallV1ExchangeSpecialAbilityRequest> ExchangeSpecialAbility;
 	TOptional<FGrpcNightfallV1CrystallizeItemRequest> CrystallizeItem;
+	// Phase 5 economy intents (world.proto ClientMessage.intent 29..69, design §13). Exactly one
+	// optional is set per message; Encode() picks the first set member, like the Phase 4 ones.
+	TOptional<FGrpcNightfallV1PickUpItemRequest> PickUpItem;
+	TOptional<FGrpcNightfallV1VendorBuyRequest> VendorBuy;
+	TOptional<FGrpcNightfallV1VendorSellRequest> VendorSell;
+	TOptional<FGrpcNightfallV1VendorRefundRequest> VendorRefund;
+	TOptional<FGrpcNightfallV1MultisellChooseRequest> MultisellChoose;
+	TOptional<FGrpcNightfallV1RegisterRecipeRequest> RegisterRecipe;
+	TOptional<FGrpcNightfallV1DeleteRecipeRequest> DeleteRecipe;
+	TOptional<FGrpcNightfallV1CraftItemRequest> CraftItem;
+	TOptional<FGrpcNightfallV1TradeRequestRequest> TradeRequest;
+	TOptional<FGrpcNightfallV1TradeAnswerRequest> TradeAnswer;
+	TOptional<FGrpcNightfallV1TradeAddItemRequest> TradeAddItem;
+	TOptional<FGrpcNightfallV1TradeConfirmRequest> TradeConfirm;
+	TOptional<FGrpcNightfallV1TradeCancelRequest> TradeCancel;
+	TOptional<FGrpcNightfallV1SetPrivateStoreSellRequest> SetPrivateStoreSell;
+	TOptional<FGrpcNightfallV1SetPrivateStoreBuyRequest> SetPrivateStoreBuy;
+	TOptional<FGrpcNightfallV1SetPrivateManufactureRequest> SetPrivateManufacture;
+	TOptional<FGrpcNightfallV1ClosePrivateStoreRequest> ClosePrivateStore;
+	TOptional<FGrpcNightfallV1PrivateStoreBuyRequest> PrivateStoreBuy;
+	TOptional<FGrpcNightfallV1PrivateStoreSellRequest> PrivateStoreSell;
+	TOptional<FGrpcNightfallV1PrivateManufactureOrderRequest> PrivateManufactureOrder;
+	TOptional<FGrpcNightfallV1PartyInviteRequest> PartyInvite;
+	TOptional<FGrpcNightfallV1PartyAnswerRequest> PartyAnswer;
+	TOptional<FGrpcNightfallV1PartyLeaveRequest> PartyLeave;
+	TOptional<FGrpcNightfallV1PartyKickRequest> PartyKick;
+	TOptional<FGrpcNightfallV1PartyChangeLeaderRequest> PartyChangeLeader;
+	TOptional<FGrpcNightfallV1PartyLootChangeRequest> PartyLootChangeRequest;
+	TOptional<FGrpcNightfallV1PartyLootChangeAnswer> PartyLootChangeAnswer;
+	TOptional<FGrpcNightfallV1WarehouseDepositRequest> WarehouseDeposit;
+	TOptional<FGrpcNightfallV1WarehouseWithdrawRequest> WarehouseWithdraw;
+	TOptional<FGrpcNightfallV1FreightSendRequest> FreightSend;
+	TOptional<FGrpcNightfallV1FreightWithdrawRequest> FreightWithdraw;
+	TOptional<FGrpcNightfallV1MailSendRequest> MailSend;
+	TOptional<FGrpcNightfallV1MailTakeAttachmentsRequest> MailTakeAttachments;
+	TOptional<FGrpcNightfallV1MailRejectRequest> MailReject;
+	TOptional<FGrpcNightfallV1MailCancelRequest> MailCancel;
+	TOptional<FGrpcNightfallV1MailDeleteRequest> MailDelete;
+	TOptional<FGrpcNightfallV1ManorBuySeedRequest> ManorBuySeed;
+	TOptional<FGrpcNightfallV1ManorSellCropRequest> ManorSellCrop;
+	TOptional<FGrpcNightfallV1ItemAuctionBidRequest> ItemAuctionBid;
+	TOptional<FGrpcNightfallV1ItemAuctionCancelBidRequest> ItemAuctionCancelBid;
+	TOptional<FGrpcNightfallV1MailMarkReadRequest> MailMarkRead;
 	uint32 Seq = 0;
 	TOptional<FCastSkillIntent> CastSkill;
 	TOptional<FCancelCastIntent> CancelCast;
@@ -317,6 +361,7 @@ struct FEntitySpawn
 	uint64 StatusFlags = 0; // 28
 	TOptional<FAttackStarted> PendingSwing;
 	TArray<FGrpcNightfallV1VisibleEquipment> VisibleEquipment;
+	TOptional<FGrpcNightfallV1GroundItemDetail> GroundItem; // 30: present iff Kind == ENTITY_KIND_GROUND_ITEM (3)
 };
 
 struct FEntityMove
@@ -440,6 +485,21 @@ struct FWorldEvent
 	TOptional<FGrpcNightfallV1EnchantResult> EnchantResult;
 	TOptional<FGrpcNightfallV1RefineResult> RefineResult;
 	TOptional<FGrpcNightfallV1ItemOperationResult> ItemOperationResult;
+	// Phase 5 (world.proto WorldEvent 34..45). EconomyResult is the owner-only frozen receipt; its
+	// exact received bytes travel in EconomyReceiptPayload (D43 byte-exact replay, like item receipts).
+	TArray<uint8> EconomyReceiptPayload;
+	TOptional<FGrpcNightfallV1EconomyResult> EconomyResult;                         // 34
+	TOptional<FGrpcNightfallV1CorpseStateChanged> CorpseStateChanged;               // 35
+	TOptional<FGrpcNightfallV1PartyStateChanged> PartyStateChanged;                 // 36
+	TOptional<FGrpcNightfallV1PartyLootVote> PartyLootVote;                         // 37
+	TOptional<FGrpcNightfallV1PartyInviteReceived> PartyInviteReceived;             // 38
+	TOptional<FGrpcNightfallV1TradeRequestReceived> TradeRequestReceived;           // 39
+	TOptional<FGrpcNightfallV1TradeSessionChanged> TradeSessionChanged;             // 40
+	TOptional<FGrpcNightfallV1PrivateStoreChanged> PrivateStoreChanged;             // 41
+	TOptional<FGrpcNightfallV1MailNotification> MailNotification;                   // 42
+	TOptional<FGrpcNightfallV1RecipeBookSync> RecipeBookSync;                       // 43
+	TOptional<FGrpcNightfallV1ItemAuctionStatusChanged> ItemAuctionStatusChanged;   // 44
+	TOptional<FGrpcNightfallV1LootDistributed> LootDistributed;                     // 45
 
 	TOptional<FEntitySpawn> Spawn;     // WorldEvent.spawn = 1
 	TOptional<FEntityMove> Move;       // WorldEvent.move = 2

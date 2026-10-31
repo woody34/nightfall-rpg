@@ -20,7 +20,9 @@ fi
 HERE="$(cd "$(dirname "$0")" && pwd)"
 CLIENT="$(cd "$HERE/.." && pwd)"
 PROTO_ROOT="$(cd "$CLIENT/../../packages/proto" && pwd)"
-OUT="$CLIENT/Source/Nightfall/Generated"
+# NIGHTFALL_GEN_OUT: an alternative output directory (the P5-D2 determinism test generates into a
+# scratch directory and diffs it against the committed Generated/).
+OUT="${NIGHTFALL_GEN_OUT:-$CLIENT/Source/Nightfall/Generated}"
 TOOLS="${NIGHTFALL_PROTO_TOOLS:-$HOME/.cache/nightfall/proto-tools}"
 FIX_DIR="$CLIENT/Plugins/TurboLink/Tools"
 
