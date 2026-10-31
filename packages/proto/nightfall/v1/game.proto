@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package nightfall.v1;
 
+import "nightfall/v1/economy.proto";
 import "nightfall/v1/items.proto";
 
 // First-pass contract. Expand as the character / combat systems take shape.
@@ -92,6 +93,42 @@ service GameService {
   // FAILED_PRECONDITION (dev gate off, key conflict, item eligibility), UNAVAILABLE,
   // RESOURCE_EXHAUSTED (capacity/queue), INTERNAL.
   rpc GrantItem(GrantItemRequest) returns (GrantItemResponse);
+
+  // Phase 5 reads (phase-5-zone-design.md §13.4; E14, E31). All nine are authenticated,
+  // naturally idempotent reads with no key, and none writes a row. `character_id` is 16
+  // canonical UUID bytes. Common errors: UNAUTHENTICATED, INVALID_ARGUMENT, NOT_FOUND,
+  // PERMISSION_DENIED, UNAVAILABLE (zone, rules or runtime absent), INTERNAL.
+
+  // Static unit prices (D §6.2 table at castle 0) plus live stock and the caller's refund tab
+  // from the zone read port. FAILED_PRECONDITION unless the caller is admitted.
+  rpc ListBuylist(ListBuylistRequest) returns (ListBuylistResponse);
+
+  // Static multisell list from Phase5Rules.
+  rpc GetMultisellList(GetMultisellListRequest) returns (GetMultisellListResponse);
+
+  // Out-of-world checkpoint view. FAILED_PRECONDITION while admitted (RecipeBookSync is the
+  // live baseline, D15 pattern).
+  rpc GetRecipeBook(GetRecipeBookRequest) returns (GetRecipeBookResponse);
+
+  // Owner-only warehouse rows (location WAREHOUSE).
+  rpc GetWarehouse(GetWarehouseRequest) returns (GetWarehouseResponse);
+
+  // Owner-only freight rows (location FREIGHT).
+  rpc GetFreight(GetFreightRequest) returns (GetFreightResponse);
+
+  // Owner-only mail headers; expired messages are hidden.
+  rpc ListMail(ListMailRequest) returns (ListMailResponse);
+
+  // Owner-only mail body. Writes nothing (the read flag moves through MailMarkRead).
+  // FAILED_PRECONDITION for a message with attachments unless the reader is admitted inside
+  // a peace square; out of world, the header and body come without attachment rows.
+  rpc ReadMail(ReadMailRequest) returns (ReadMailResponse);
+
+  // Current, next and the caller's refundable bids for one auctioneer instance.
+  rpc ListItemAuctions(ListItemAuctionsRequest) returns (ListItemAuctionsResponse);
+
+  // Fixture manor lists plus current amounts (Gludio only in Phase 5, E28).
+  rpc GetManorData(GetManorDataRequest) returns (GetManorDataResponse);
 }
 
 message ListMyCharactersRequest {}

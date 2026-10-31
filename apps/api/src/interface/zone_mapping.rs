@@ -41,6 +41,9 @@ pub enum MappingError {
     /// Phase 4 contract is present; item actor integration is not installed yet.
     #[error("phase 4 runtime is not yet available")]
     Phase4Unavailable,
+    /// Phase 5 contract is present; the economy runtime is not installed yet.
+    #[error("phase 5 runtime is not yet available")]
+    Phase5Unavailable,
     /// Invalid item key/identity/count/slot or stale target binding shape.
     #[error("invalid item request")]
     InvalidItem,
@@ -61,7 +64,7 @@ impl MappingError {
     #[must_use]
     pub const fn reject_reason(self) -> pb::RejectReason {
         match self {
-            Self::Phase3Unavailable | Self::Phase4Unavailable => {
+            Self::Phase3Unavailable | Self::Phase4Unavailable | Self::Phase5Unavailable => {
                 pb::RejectReason::NotYetImplemented
             },
             Self::InvalidCoordinate => pb::RejectReason::OutOfBounds,
@@ -212,6 +215,48 @@ pub fn command_from_pb(
         pb::client_message::Intent::CastSkill(_)
         | pb::client_message::Intent::CancelCast(_)
         | pb::client_message::Intent::AcceptResurrect(_) => Err(MappingError::Phase3Unavailable),
+        // Phase 5 economy intents (E2.1 contract); the zone economy runtime lands with E3/E4.
+        pb::client_message::Intent::PickUpItem(_)
+        | pb::client_message::Intent::VendorBuy(_)
+        | pb::client_message::Intent::VendorSell(_)
+        | pb::client_message::Intent::VendorRefund(_)
+        | pb::client_message::Intent::MultisellChoose(_)
+        | pb::client_message::Intent::RegisterRecipe(_)
+        | pb::client_message::Intent::DeleteRecipe(_)
+        | pb::client_message::Intent::CraftItem(_)
+        | pb::client_message::Intent::TradeRequest(_)
+        | pb::client_message::Intent::TradeAnswer(_)
+        | pb::client_message::Intent::TradeAddItem(_)
+        | pb::client_message::Intent::TradeConfirm(_)
+        | pb::client_message::Intent::TradeCancel(_)
+        | pb::client_message::Intent::SetPrivateStoreSell(_)
+        | pb::client_message::Intent::SetPrivateStoreBuy(_)
+        | pb::client_message::Intent::SetPrivateManufacture(_)
+        | pb::client_message::Intent::ClosePrivateStore(_)
+        | pb::client_message::Intent::PrivateStoreBuy(_)
+        | pb::client_message::Intent::PrivateStoreSell(_)
+        | pb::client_message::Intent::PrivateManufactureOrder(_)
+        | pb::client_message::Intent::PartyInvite(_)
+        | pb::client_message::Intent::PartyAnswer(_)
+        | pb::client_message::Intent::PartyLeave(_)
+        | pb::client_message::Intent::PartyKick(_)
+        | pb::client_message::Intent::PartyChangeLeader(_)
+        | pb::client_message::Intent::PartyLootChangeRequest(_)
+        | pb::client_message::Intent::PartyLootChangeAnswer(_)
+        | pb::client_message::Intent::WarehouseDeposit(_)
+        | pb::client_message::Intent::WarehouseWithdraw(_)
+        | pb::client_message::Intent::FreightSend(_)
+        | pb::client_message::Intent::FreightWithdraw(_)
+        | pb::client_message::Intent::MailSend(_)
+        | pb::client_message::Intent::MailTakeAttachments(_)
+        | pb::client_message::Intent::MailReject(_)
+        | pb::client_message::Intent::MailCancel(_)
+        | pb::client_message::Intent::MailDelete(_)
+        | pb::client_message::Intent::ManorBuySeed(_)
+        | pb::client_message::Intent::ManorSellCrop(_)
+        | pb::client_message::Intent::ItemAuctionBid(_)
+        | pb::client_message::Intent::ItemAuctionCancelBid(_)
+        | pb::client_message::Intent::MailMarkRead(_) => Err(MappingError::Phase5Unavailable),
     }
 }
 

@@ -1,0 +1,815 @@
+syntax = "proto3";
+
+package nightfall.v1;
+
+import "nightfall/v1/items.proto";
+
+// Phase 5 economy and crafting wire (phase-5-zone-design.md §13; plan §2.1). Additive only:
+// this file holds the new message types; world.proto, items.proto and game.proto hold the
+// appended oneof lines, enum values and RPCs. Never renumber; reserve removed fields.
+//
+// Every mutating intent carries `idempotency_key` (a UUID string). The same key with the same
+// body replays the frozen receipt; the same key with a different body is rejected before
+// mutation; a rejection consumes no key (D41-D43). The owner always comes from the session.
+// Entity references are UUID strings. Ids are uint64; counts and prices are uint64 with server
+// range checks. Enum value 0 (_UNSPECIFIED) is rejected where the field is required.
+
+// ---------------------------------------------------------------------------------------
+// Intent bodies (ClientMessage 29..69)
+// ---------------------------------------------------------------------------------------
+
+// Pick up a ground item entity in pawn range (36 L2 units, D §4.1).
+message PickUpItemRequest {
+  string idempotency_key = 1;
+  string ground_entity = 2;
+}
+
+// An owned item instance and a count.
+message ItemCount {
+  uint64 instance_id = 1;
+  uint64 count = 2;
+}
+
+// An item template and a count.
+message TemplateCount {
+  uint32 template_id = 1;
+  uint64 count = 2;
+}
+
+// Buy from a merchant buylist (D §6.3).
+message VendorBuyRequest {
+  string idempotency_key = 1;
+  string merchant = 2;
+  uint64 list_id = 3;
+  repeated TemplateCount items = 4;
+}
+
+// Sell to a merchant; sold items enter the refund tab (D §6.5).
+message VendorSellRequest {
+  string idempotency_key = 1;
+  string merchant = 2;
+  uint64 list_id = 3;
+  repeated ItemCount items = 4;
+}
+
+// Buy back refund-tab entries by index (D §6.6).
+message VendorRefundRequest {
+  string idempotency_key = 1;
+  string merchant = 2;
+  uint64 list_id = 3;
+  repeated uint32 refund_indices = 4;
+}
+
+// Execute one multisell entry `amount` times (D §7).
+message MultisellChooseRequest {
+  string idempotency_key = 1;
+  string npc = 2;
+  uint32 list_id = 3;
+  uint32 entry_id = 4;
+  uint64 amount = 5;
+}
+
+// Register a recipe from an owned recipe item; the item is consumed (D §8.1).
+message RegisterRecipeRequest {
+  string idempotency_key = 1;
+  uint64 recipe_instance_id = 2;
+}
+
+// Remove a recipe from the recipe book (D §8.1).
+message DeleteRecipeRequest {
+  string idempotency_key = 1;
+  uint32 recipe_id = 2;
+}
+
+// Craft one product from a registered recipe (D §8.2).
+message CraftItemRequest {
+  string idempotency_key = 1;
+  uint32 recipe_id = 2;
+}
+
+// Ask another player to trade (D §9.1).
+message TradeRequestRequest {
+  string idempotency_key = 1;
+  string target = 2;
+}
+
+// Answer the single active trade request (R33).
+message TradeAnswerRequest {
+  string idempotency_key = 1;
+  bool accept = 2;
+}
+
+// Add an owned item to the actor's trade list (D §9.2).
+message TradeAddItemRequest {
+  string idempotency_key = 1;
+  uint64 instance_id = 2;
+  uint64 count = 3;
+}
+
+// Confirm the actor's trade list (D §9.2).
+message TradeConfirmRequest {
+  string idempotency_key = 1;
+}
+
+// Cancel the active trade session (D §9.2).
+message TradeCancelRequest {
+  string idempotency_key = 1;
+}
+
+// A sell-store entry: an owned instance, a count and a unit price.
+message StoreSellEntry {
+  uint64 instance_id = 1;
+  uint64 count = 2;
+  uint64 price = 3;
+}
+
+// A buy-store entry: a template, an enchant level, a count and a unit price.
+message StoreBuyEntry {
+  uint32 template_id = 1;
+  uint32 enchant = 2;
+  uint64 count = 3;
+  uint64 price = 4;
+}
+
+// A manufacture-store entry: a registered recipe and its fee.
+message ManufactureEntry {
+  uint32 recipe_id = 1;
+  uint64 cost = 2;
+}
+
+// Open a private sell store or a package sale (D §9.3).
+message SetPrivateStoreSellRequest {
+  string idempotency_key = 1;
+  string title = 2;
+  bool package_sale = 3;
+  repeated StoreSellEntry entries = 4;
+}
+
+// Open a private buy store (D §9.3).
+message SetPrivateStoreBuyRequest {
+  string idempotency_key = 1;
+  string title = 2;
+  repeated StoreBuyEntry entries = 3;
+}
+
+// Open a private manufacture store (D §9.3).
+message SetPrivateManufactureRequest {
+  string idempotency_key = 1;
+  string title = 2;
+  repeated ManufactureEntry entries = 3;
+}
+
+// Close the actor's private store (D §9.3).
+message ClosePrivateStoreRequest {
+  string idempotency_key = 1;
+}
+
+// Buy from another player's sell store (D §9.3).
+message PrivateStoreBuyRequest {
+  string idempotency_key = 1;
+  string store_owner = 2;
+  repeated StoreSellEntry entries = 3;
+}
+
+// One item the actor sells into another player's buy store.
+message PrivateStoreSellEntry {
+  uint64 instance_id = 1;
+  uint32 template_id = 2;
+  uint64 count = 3;
+  uint64 price = 4;
+}
+
+// Sell into another player's buy store (D §9.3).
+message PrivateStoreSellRequest {
+  string idempotency_key = 1;
+  string store_owner = 2;
+  repeated PrivateStoreSellEntry entries = 3;
+}
+
+// Order one craft from another player's manufacture store (D §9.3).
+message PrivateManufactureOrderRequest {
+  string idempotency_key = 1;
+  string store_owner = 2;
+  uint32 recipe_id = 3;
+}
+
+// Party loot mode. Wire value = pinned PartyDistributionType id + 1; UNSPECIFIED rejects INVALID.
+enum LootMode {
+  LOOT_MODE_UNSPECIFIED = 0;
+  LOOT_MODE_FINDERS_KEEPERS = 1;
+  LOOT_MODE_RANDOM = 2;
+  LOOT_MODE_RANDOM_INCLUDING_SPOIL = 3;
+  LOOT_MODE_BY_TURN = 4;
+  LOOT_MODE_BY_TURN_INCLUDING_SPOIL = 5;
+}
+
+// Invite a player into a party; the mode applies when a new party forms (D §4.4).
+message PartyInviteRequest {
+  string idempotency_key = 1;
+  string target = 2;
+  LootMode mode = 3;
+}
+
+// Answer a pending party invite with the pinned -1 / 0 / 1 value (D §4.4).
+message PartyAnswerRequest {
+  string idempotency_key = 1;
+  int32 answer = 2;
+}
+
+// Leave the party (D §4.4).
+message PartyLeaveRequest {
+  string idempotency_key = 1;
+}
+
+// Leader only: remove a member (D §4.4).
+message PartyKickRequest {
+  string idempotency_key = 1;
+  string member = 2;
+}
+
+// Leader only: hand leadership to a member (D §4.4).
+message PartyChangeLeaderRequest {
+  string idempotency_key = 1;
+  string member = 2;
+}
+
+// Leader only: start a loot-mode vote (B15).
+message PartyLootChangeRequest {
+  string idempotency_key = 1;
+  LootMode mode = 2;
+}
+
+// A member's vote on the pending loot-mode change (B15).
+message PartyLootChangeAnswer {
+  string idempotency_key = 1;
+  bool accept = 2;
+}
+
+// Deposit owned items into the private warehouse at a keeper (D §10.1).
+message WarehouseDepositRequest {
+  string idempotency_key = 1;
+  string keeper = 2;
+  repeated ItemCount entries = 3;
+}
+
+// Withdraw warehouse rows into the inventory at a keeper (D §10.1).
+message WarehouseWithdrawRequest {
+  string idempotency_key = 1;
+  string keeper = 2;
+  repeated ItemCount entries = 3;
+}
+
+// Send owned items to a character on the same account (E8, D §10.2).
+message FreightSendRequest {
+  string idempotency_key = 1;
+  string keeper = 2;
+  string target_character = 3;
+  repeated ItemCount entries = 4;
+}
+
+// Withdraw freight rows into the inventory at a keeper (D §10.2).
+message FreightWithdrawRequest {
+  string idempotency_key = 1;
+  string keeper = 2;
+  repeated ItemCount entries = 3;
+}
+
+// Send mail; attachments need a peace zone (D §10.3).
+message MailSendRequest {
+  string idempotency_key = 1;
+  string receiver_name = 2;
+  string subject = 3;
+  string body = 4;
+  uint64 cod_adena = 5;
+  repeated ItemCount attachments = 6;
+}
+
+// Take the attachments of a received mail, paying any COD (D §10.3).
+message MailTakeAttachmentsRequest {
+  string idempotency_key = 1;
+  string message_id = 2;
+}
+
+// Return a received mail with attachments to the sender (D §10.3).
+message MailRejectRequest {
+  string idempotency_key = 1;
+  string message_id = 2;
+}
+
+// Cancel a sent mail whose attachments are untaken (D §10.3).
+message MailCancelRequest {
+  string idempotency_key = 1;
+  string message_id = 2;
+}
+
+// Delete read mails from the inbox or the sent box (D §10.3).
+message MailDeleteRequest {
+  string idempotency_key = 1;
+  repeated string message_ids = 2;
+  bool sent_box = 3;
+}
+
+// Buy seeds from a manor manager (D §10.6).
+message ManorBuySeedRequest {
+  string idempotency_key = 1;
+  string manager = 2;
+  uint32 manor_id = 3;
+  repeated TemplateCount seeds = 4;
+}
+
+// One crop sale: the owned crop instance, the crop template, the manor and a count.
+message CropSale {
+  uint64 instance_id = 1;
+  uint32 crop_id = 2;
+  uint32 manor_id = 3;
+  uint64 count = 4;
+}
+
+// Sell crops to a manor manager (D §10.6).
+message ManorSellCropRequest {
+  string idempotency_key = 1;
+  string manager = 2;
+  repeated CropSale entries = 3;
+}
+
+// Bid on the current item auction of an auctioneer instance (D §10.5).
+message ItemAuctionBidRequest {
+  string idempotency_key = 1;
+  uint32 instance_npc_id = 2;
+  uint64 bid = 3;
+}
+
+// Cancel an outbid bid and reclaim the adena (E16, D §10.5).
+message ItemAuctionCancelBidRequest {
+  string idempotency_key = 1;
+  string auctioneer = 2;
+  uint32 instance_npc_id = 3;
+}
+
+// Set the read flag of a received mail (E31).
+message MailMarkReadRequest {
+  string idempotency_key = 1;
+  string message_id = 2;
+}
+
+// ---------------------------------------------------------------------------------------
+// EntitySpawn enrichment (EntitySpawn.ground_item = 30; kind == ENTITY_KIND_GROUND_ITEM)
+// ---------------------------------------------------------------------------------------
+
+// Public ground item detail. Owner fields are empty / 0 when no protection applies (D §3.7).
+message GroundItemDetail {
+  uint64 item_instance_id = 1;
+  uint32 template_id = 2;
+  uint64 count = 3;
+  uint32 enchant = 4;
+  string loot_owner = 5;
+  uint64 loot_until_tick = 6;
+  string drop_protect_owner = 7;
+  uint64 drop_protect_until_tick = 8;
+  uint64 dropped_tick = 9;
+  bool herb = 10;
+}
+
+// ---------------------------------------------------------------------------------------
+// World events (WorldEvent 34..45)
+// ---------------------------------------------------------------------------------------
+
+// Owner-only frozen receipt of an accepted economy intent. Emit only after log acknowledgement
+// and fenced checkpoint commit. Tags 1..10 are the D53 receipt fields of ItemOperationResult
+// with the same meanings; `recipe_id` is intentionally omitted, so the later tags differ.
+// A refusal is the existing IntentRejected and consumes no key.
+message EconomyResult {
+  bytes entity_id = 1;
+  uint32 incarnation = 2;
+  uint64 tick = 3;
+  uint64 inventory_revision = 4;
+  string receipt_id = 5;
+  ItemOperation operation = 6;
+  repeated uint64 affected_instance_ids = 7;
+  bytes request_key = 8;
+  string request_fingerprint = 9;
+  optional uint64 accepted_client_seq = 10;
+  oneof outcome {
+    PickupOutcome pickup = 20;
+    VendorOutcome vendor = 21;
+    CraftOutcome craft = 22;
+    ExchangeOutcome multisell = 23;
+    TradeOutcome trade = 24;
+    StoreOutcome store = 25;
+    ContainerOutcome container = 26;
+    MailOutcome mail = 27;
+    ManorOutcome manor = 28;
+    AuctionOutcome auction = 29;
+    PartyOutcome party = 30;
+    RecipeOutcome recipe = 31;
+  }
+}
+
+message PickupOutcome {
+  uint32 template_id = 1;
+  uint64 count = 2;
+  string recipient = 3;
+  bool herb = 4;
+  bool split = 5;
+}
+
+message VendorOutcome {
+  uint64 adena_delta_abs = 1;
+  bool adena_paid = 2;
+  repeated uint32 refund_order = 3;
+}
+
+message CraftOutcome {
+  bool success = 1;
+  bool masterwork = 2;
+  uint32 product_template = 3;
+  uint64 count = 4;
+  uint64 fee = 5;
+}
+
+message ExchangeOutcome {
+  uint32 list_id = 1;
+  uint32 entry_id = 2;
+  uint64 amount = 3;
+}
+
+message TradeOutcome {
+  string partner = 1;
+  repeated ItemCount given = 2;
+  repeated ItemCount received = 3;
+}
+
+message StoreOutcome {
+  string counterparty = 1;
+  repeated ItemCount items = 2;
+  uint64 adena = 3;
+  repeated uint32 skipped = 4;
+}
+
+message ContainerOutcome {
+  string container = 1;
+  uint64 fee = 2;
+  repeated ItemCount moved = 3;
+}
+
+message MailOutcome {
+  string message_id = 1;
+  uint64 fee = 2;
+  uint64 cod_paid = 3;
+  uint32 processed = 4;
+}
+
+message ManorOutcome {
+  repeated TemplateCount granted = 1;
+  uint64 adena = 2;
+  uint64 fee = 3;
+}
+
+message AuctionOutcome {
+  uint64 auction_id = 1;
+  uint64 bid = 2;
+  uint64 paid = 3;
+  uint64 refunded = 4;
+  bool reserve_not_met = 5;
+}
+
+message PartyOutcome {
+  uint64 party_id = 1;
+}
+
+message RecipeOutcome {
+  uint32 recipe_id = 1;
+  bool dwarven = 2;
+}
+
+// Public corpse state (D §5.3).
+message CorpseStateChanged {
+  string npc = 1;
+  uint64 tick = 2;
+  bool spoiled = 3;
+  bool seeded = 4;
+  bool sweepable = 5;
+  bool swept = 6;
+}
+
+message PartyMember {
+  string entity = 1;
+  uint32 level = 2;
+}
+
+// Party members only; `baseline` marks the admission baseline (D §4.4).
+message PartyStateChanged {
+  uint64 party_id = 1;
+  repeated PartyMember members = 2;
+  LootMode mode = 3;
+  bool baseline = 4;
+  bool disbanded = 5;
+  uint64 tick = 6;
+}
+
+enum LootVotePhase {
+  LOOT_VOTE_PHASE_UNSPECIFIED = 0;
+  LOOT_VOTE_PHASE_REQUESTED = 1;
+  LOOT_VOTE_PHASE_APPLIED = 2;
+  LOOT_VOTE_PHASE_CANCELLED = 3;
+}
+
+// Party members only (B15).
+message PartyLootVote {
+  uint64 party_id = 1;
+  LootMode mode = 2;
+  LootVotePhase phase = 3;
+  uint64 expires_tick = 4;
+}
+
+// Invite target only (D §4.4).
+message PartyInviteReceived {
+  string requester = 1;
+  LootMode mode = 2;
+  uint64 expires_tick = 3;
+}
+
+// Trade target only (D §9.1).
+message TradeRequestReceived {
+  string requester = 1;
+  uint64 expires_tick = 2;
+}
+
+message TradeEntry {
+  uint64 instance_id = 1;
+  uint32 template_id = 2;
+  uint64 count = 3;
+  uint32 enchant = 4;
+}
+
+enum TradePhase {
+  TRADE_PHASE_UNSPECIFIED = 0;
+  TRADE_PHASE_STARTED = 1;
+  TRADE_PHASE_ITEM_ADDED = 2;
+  TRADE_PHASE_PARTNER_CONFIRMED = 3;
+  TRADE_PHASE_COMPLETED = 4;
+  TRADE_PHASE_CANCELLED = 5;
+}
+
+// Both participants (D §9.2).
+message TradeSessionChanged {
+  string partner = 1;
+  TradePhase phase = 2;
+  repeated TradeEntry own = 3;
+  repeated TradeEntry partner_items = 4;
+  bool own_confirmed = 5;
+  bool partner_confirmed = 6;
+  string cancel_reason = 7;
+  uint64 tick = 8;
+}
+
+enum StoreKind {
+  STORE_KIND_UNSPECIFIED = 0;
+  STORE_KIND_NONE = 1;
+  STORE_KIND_SELL = 2;
+  STORE_KIND_PACKAGE_SELL = 3;
+  STORE_KIND_BUY = 4;
+  STORE_KIND_MANUFACTURE = 5;
+}
+
+// AOI (D §9.3). STORE_KIND_NONE means the store closed.
+message PrivateStoreChanged {
+  string owner = 1;
+  StoreKind kind = 2;
+  string title = 3;
+  repeated StoreSellEntry sell = 4;
+  repeated StoreBuyEntry buy = 5;
+  repeated ManufactureEntry manufacture = 6;
+  uint64 tick = 7;
+}
+
+// Receiver only. Sent by the API gateway from committed rows; never a zone output (D §12.3).
+message MailNotification {
+  string message_id = 1;
+  string sender_name = 2;
+  string subject = 3;
+  bool has_attachments = 4;
+  uint64 cod_adena = 5;
+}
+
+// Owner only; baseline at admission, deltas after RegisterRecipe / DeleteRecipe (D §8.1).
+message RecipeBookSync {
+  repeated uint32 dwarven = 1;
+  repeated uint32 common = 2;
+  uint32 dwarven_limit = 3;
+  uint32 common_limit = 4;
+  bool baseline = 5;
+  uint64 tick = 6;
+  uint32 incarnation = 7;
+}
+
+enum AuctionState {
+  AUCTION_STATE_UNSPECIFIED = 0;
+  AUCTION_STATE_CREATED = 1;
+  AUCTION_STATE_STARTED = 2;
+  AUCTION_STATE_FINISHED = 3;
+}
+
+// Bidders and the auctioneer AOI (D §10.5).
+message ItemAuctionStatusChanged {
+  uint32 instance_npc_id = 1;
+  uint64 auction_id = 2;
+  uint32 template_id = 3;
+  uint64 highest_bid = 4;
+  AuctionState state = 5;
+  uint64 init_bid = 6;
+  bool extended = 7;
+}
+
+// Party members except the recipient (D §4.2).
+message LootDistributed {
+  string picker = 1;
+  string recipient = 2;
+  uint32 template_id = 3;
+  uint64 count = 4;
+  LootMode mode = 5;
+  bool spoil = 6;
+}
+
+// ---------------------------------------------------------------------------------------
+// GameService reads (D §13.4). None writes any row. `character_id` is 16 canonical UUID bytes.
+// ---------------------------------------------------------------------------------------
+
+// `merchant` is the merchant entity UUID string.
+message ListBuylistRequest {
+  bytes character_id = 1;
+  string merchant = 2;
+}
+
+message BuylistEntry {
+  uint32 template_id = 1;
+  uint64 unit_price = 2;
+  bool limited = 3;
+  uint64 stock = 4;
+  uint64 max_stock = 5;
+}
+
+// Prices are the D §6.2 table at castle 0; stock and refund_tab come from the zone read port
+// at `state_tick`.
+message ListBuylistResponse {
+  uint64 list_id = 1;
+  uint32 merchant_npc_id = 2;
+  uint32 castle_tax_percent = 3;
+  repeated BuylistEntry entries = 4;
+  repeated OwnedItem refund_tab = 5;
+  uint64 state_tick = 6;
+}
+
+message GetMultisellListRequest {
+  uint32 list_id = 1;
+}
+
+message MultisellIngredient {
+  uint32 template_id = 1;
+  uint64 count = 2;
+  bool tax_ingredient = 3;
+  bool maintain_ingredient = 4;
+  uint32 enchant = 5;
+}
+
+message MultisellEntry {
+  uint32 entry_id = 1;
+  repeated MultisellIngredient ingredients = 2;
+  repeated MultisellIngredient products = 3;
+  bool stackable = 4;
+}
+
+message GetMultisellListResponse {
+  uint32 list_id = 1;
+  bool maintain_enchantment = 2;
+  bool apply_taxes = 3;
+  repeated uint32 allowed_npc_ids = 4;
+  repeated MultisellEntry entries = 5;
+}
+
+message GetRecipeBookRequest {
+  bytes character_id = 1;
+}
+
+// Detached view: tick = 0 and incarnation = 0 (D36 pattern).
+message GetRecipeBookResponse {
+  RecipeBookSync book = 1;
+}
+
+message GetWarehouseRequest {
+  bytes character_id = 1;
+}
+
+// Items carry location WAREHOUSE.
+message GetWarehouseResponse {
+  repeated OwnedItem items = 1;
+  uint32 capacity = 2;
+  uint64 revision = 3;
+}
+
+message GetFreightRequest {
+  bytes character_id = 1;
+}
+
+// Items carry location FREIGHT.
+message GetFreightResponse {
+  repeated OwnedItem items = 1;
+  uint32 capacity = 2;
+  uint64 revision = 3;
+}
+
+enum MailBox {
+  MAIL_BOX_UNSPECIFIED = 0;
+  MAIL_BOX_INBOX = 1;
+  MAIL_BOX_OUTBOX = 2;
+}
+
+// Timestamps are DB time; they never enter zone state (D65).
+message MailHeader {
+  string message_id = 1;
+  string sender_name = 2;
+  string receiver_name = 3;
+  string subject = 4;
+  bool has_attachments = 5;
+  uint64 cod_adena = 6;
+  bool read = 7;
+  bool returned = 8;
+  uint32 system_kind = 9;
+  int64 expires_unix_ms = 10;
+}
+
+message ListMailRequest {
+  bytes character_id = 1;
+  MailBox box = 2;
+}
+
+// `limit` is the pinned mailbox limit (240).
+message ListMailResponse {
+  repeated MailHeader messages = 1;
+  uint32 count = 2;
+  uint32 limit = 3;
+}
+
+message ReadMailRequest {
+  bytes character_id = 1;
+  string message_id = 2;
+}
+
+// Attachments carry location MAIL and are omitted unless the reader is admitted in a peace
+// square (pinned RequestReceivedPost.java:58). ReadMail writes nothing (E31).
+message ReadMailResponse {
+  MailHeader header = 1;
+  string body = 2;
+  repeated OwnedItem attachments = 3;
+}
+
+message ListItemAuctionsRequest {
+  uint32 instance_npc_id = 1;
+  bytes character_id = 2;
+}
+
+message AuctionView {
+  uint64 auction_id = 1;
+  AuctionState state = 2;
+  uint32 template_id = 3;
+  uint64 count = 4;
+  uint64 init_bid = 5;
+  uint64 highest_bid = 6;
+  int64 start_unix_ms = 7;
+  int64 end_unix_ms = 8;
+  uint64 own_bid = 9;
+  bool own_cancelled = 10;
+}
+
+// `own_bids` lists the caller's bids that ItemAuctionCancelBid can reclaim.
+message ListItemAuctionsResponse {
+  AuctionView current = 1;
+  AuctionView next = 2;
+  repeated AuctionView own_bids = 3;
+}
+
+message GetManorDataRequest {
+  uint32 castle_id = 1;
+}
+
+message SeedProductionView {
+  uint32 seed_id = 1;
+  uint64 price = 2;
+  uint64 start_amount = 3;
+  uint64 amount = 4;
+}
+
+message CropProcureView {
+  uint32 crop_id = 1;
+  uint64 price = 2;
+  uint64 start_amount = 3;
+  uint64 amount = 4;
+  uint32 reward_type = 5;
+}
+
+// Gludio (castle 1) only in Phase 5 (E28); other castles return empty lists.
+message GetManorDataResponse {
+  uint32 castle_id = 1;
+  repeated SeedProductionView seeds = 2;
+  repeated CropProcureView crops = 3;
+}
