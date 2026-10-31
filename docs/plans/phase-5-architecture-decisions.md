@@ -1,7 +1,7 @@
 > **BINDING RECORD (as of plan rev 8):** This document is the binding Phase 5 architecture decisions record (P1–P4, A1–A20, B1–B26, E1–E56, all sections). Verbatim body plus this banner: the body below is byte-identical to the architect notes (sha256 2dd80d893e0916b872b534d6f262c09193670eeb7b97065f773880c19ff91e73), re-synced per B12. Later sections amend earlier ones.
 
 # Phase 5 (Economy and Crafting) — locked architecture decisions and worker brief
-Architect: Claude (root orchestrator). Date 2026-10-13. Repo /home/matt-woodruff/repos/nightfall-rpg. Base: codex/phase4-integration (Phase 4 contracts; final Phase 4 SHA recorded at Phase 4 close). Reference: docs/planning/05-economy-and-crafting.md (UNPINNED research) — re-cite every number against the pinned clones; use reference-brief-v2.md (verified) and reference-brief-verification.md in this directory. Phase 3 and Phase 4 binding records remain binding (docs/plans/phase-3-*.md, docs/plans/phase-4-*.md, phase4 notes D1–D75); this file only adds.
+Architect: Claude (root orchestrator). Date 2026-10-13. Repo /home/matt-woodruff/repos/nightfall-rpg. Base: main 5abae32 (Phase 4 merged 2026-10-24; Phase 4 contracts). Reference: docs/planning/05-economy-and-crafting.md (UNPINNED research) — re-cite every number against the pinned clones; use reference-brief-v2.md (verified) and reference-brief-verification.md in this directory. Phase 3 and Phase 4 binding records remain binding (docs/plans/phase-3-*.md, docs/plans/phase-4-*.md, phase4 notes D1–D75); this file only adds.
 Companions here: owner-decisions.md (P1–P4 + approved defaults), reference-brief-v2.md, reference-brief-verification.md, worker-common.md, inbox/<role>-{inbox,progress}.md.
 
 ## 0. Product decisions approved by the owner (2026-10-13)
@@ -34,7 +34,7 @@ Approved defaults: chaotic PK drops ON at pinned rates (equipped items unequippe
 - A20 Tooling: Codex unavailable. Model assignment: Z/C critical sim, API, Unreal, harness = Claude subagents (opus); D = agy gemini-3.8-flash for data generation (with Claude verification of every table against pinned sources), docs, diagrams, plan/design DRAFTS (Claude review mandatory), first-pass reviews. Author ≠ reviewer always; agy output is never accepted without Claude verification.
 
 ## 2. Ownership / worktrees
-Branches codex/phase5-* (name retained for consistency) under .claude/worktrees/phase5-{plan,design,data,zone-engine,server-api,client,sim-harness,integration}, based on the final Phase 4 integration SHA (until Phase 4 closes: codex/phase4-integration).
+Branches codex/phase5-* (name retained for consistency) under .claude/worktrees/phase5-{plan,design,data,zone-engine,server-api,client,sim-harness,integration}, based on the final Phase 4 `main` SHA 5abae32.
 
 ## 5. Architect dispositions on writer QUESTIONs (2026-10-13) — these AMEND §1
 - B1 (plan Q1, manor) Phase 5 ships: manor data (seeds, crops, castle production/procurement tables, prices) as tables-phase5 with provenance; the item-side mechanics — seed sowing on a monster (consume seed, mark the monster seeded; crop drop replaces the normal drop per pinned rules), crop turn-in to the manor manager NPC via the exchange path (ExchangeAudit) — and a manor manager state machine driven by a fixture-scheduled period (static approved period/prices, no castle owner decisions). The full daily cycle with castle-lord procurement lands with castles (Phase 6/7). No invented tallies; pinned CastleManorManager semantics cited for the parts implemented.

@@ -11,7 +11,7 @@
 | [`phase-5-zone-design.md`](phase-5-zone-design.md) @ **91fc056** (rev 10; section numbers unchanged since 0d525c7) | The **frozen** design (`codex/phase5-design`, AD5 B22). The file lives on that branch until integration merges it, so this link resolves only after the merge. Cited as **D §n**. Every contract, number and formula is normative there. This plan never restates a formula differently: where it summarises, the design wins. |
 | [`phase-5-architecture-decisions.md`](phase-5-architecture-decisions.md) | Binding decisions P1–P4, A1–A20, B1–B26 and E1–E56. Re-synced from the architect notes in this commit: verbatim body plus a banner (B12). |
 | `codex/phase5-data` @ **3410877** | The final Epic 1 data branch (E56). Stories 1.1–1.7 are complete there. |
-| Final Phase 4 `main` SHA: *to be filled at Phase 4 close* | All Phase 5 worktrees branch from this SHA. |
+| Final Phase 4 `main` SHA: **5abae32** (merged 2026-10-24) | All Phase 5 worktrees branch from this SHA. |
 | [`05-economy-and-crafting.md`](../planning/05-economy-and-crafting.md) | Owner scope (P1). It is unpinned research. Its numbers never override the pinned sources or the design. |
 
 Pinned sources: l2j-game `abfde0490ac52a2106e884b7242c0276c44cdf76` and l2j-dp `3ca488dd2bd0bfaca43e378886a3c2e37968153a`, under `/home/matt-woodruff/.cache/nightfall/l2j/`. They are build-time provenance, never a runtime or replay dependency.
@@ -244,7 +244,7 @@ Lease sets per command, verbatim from D §10.0:
 | EpochReconcile (system) | none (ledger only) | — |
 
 **Migrations (D §11.4).**
-- **Numbering.** Phase 4 API migrations end at `m20261014_000014` (`character_lane_quarantines`). Phase 5 migrations are therefore **000015..000019**. Re-verify against the final Phase 4 `main` SHA before story 4.1. Design §11.4 still shows 000014..000018: each number shifts by one. The design's first implementation-time touch (story 7.2) records this shift; the frozen design is not edited now.
+- **Numbering.** Phase 4 API migrations end at `m20261014_000014` (`character_lane_quarantines`). Phase 5 migrations are therefore **000015..000019**. Verified at the final Phase 4 `main` SHA 5abae32: the last migration is `m20261014_000014`. Design §11.4 still shows 000014..000018: each number shifts by one. The design's first implementation-time touch (story 7.2) records this shift; the frozen design is not edited now.
 - **Names:**
   - `m2026XXXX_000015_economy_ledger_owners`
   - `…_000016_economy_items`
@@ -420,7 +420,7 @@ Every story ends on unit, property, replay and oracle evidence. None runs `.nfs`
 
 | Story | Model | Work / Done When |
 |---|---|---|
-| 4.1 Migrations and entities [required] | C | The §2.5 migrations 000015..000019 (re-verify the numbers against the final Phase 4 `main` SHA first), with `.sql`/`_down.sql`/`.rs` and the `entities.sh` regeneration. **Done When:** 4.1 owns the D §14.4 "Migrations" item: up/down on an empty DB and on a seeded Phase 4 DB pass; the T1 trigger accepts the legacy D76 shape and the T1 shape and rejects others. `entities.sh --check` is clean. |
+| 4.1 Migrations and entities [required] | C | The §2.5 migrations 000015..000019 (the numbers are verified at the final Phase 4 `main` SHA 5abae32), with `.sql`/`_down.sql`/`.rs` and the `entities.sh` regeneration. **Done When:** 4.1 owns the D §14.4 "Migrations" item: up/down on an empty DB and on a seeded Phase 4 DB pass; the T1 trigger accepts the legacy D76 shape and the T1 shape and rejects others. `entities.sh --check` is clean. |
 | 4.2 Checkpoint and admission adapter [required] | C | `characters.phase5_checkpoint` (the only durable recipe-book home), the PbPlayerLoad 11 producer, memory/Postgres parity. **Done When:** fingerprint parity and fail-closed unknown-field/version units pass on both adapters. No `character_recipes` table exists. |
 | 4.3 Lease manager, preflight and frozen inputs [required] | C | D §10.0: per-command lease sets, canonical keys with bytewise order and `COLLATE "C"`, all-or-nothing acquisition, no data-row locks, pre-images and DB-time decisions per the D §12.2 frozen table, and the system-job `request_key` derivation. **Done When:** units pass for every lease set; opposite-role MailSend acquires in the same order; a held key gives `CONTAINER_BUSY` with nothing inserted. |
 | 4.4 Economy checkpoint writer and outbox [required] | C | D §11.5: container CAS in key order, lease deletes in the same order, owner-kind ledger rows, delivery rows, `expires_at` computed in the insert, outbox subjects, `40P01`/`40001` transient, `economy_lease_violation` permanent. **Done When:** memory/Postgres adapter units pass, including forced 40P01 retry and a CAS-miss fence (4.4 owns the D §14.4 "lease CAS" engine-unit item). |
@@ -533,6 +533,8 @@ Every story ends on unit, property, replay and oracle evidence. None runs `.nfs`
 
 ## 6. Dependencies, order and integration gates
 
+Phase 4 merged to `main` at 5abae32 without the soak gate. T54 (soak tick p99) is open, and its fix path is on `codex/phase4-server-api`. Phase 5 story 6.7 inherits that open item.
+
 Phases 1–4 acceptance remains required. There is no whole-epic circular gate:
 
 1. **Foundation:**
@@ -567,7 +569,7 @@ Phases 1–4 acceptance remains required. There is no whole-epic circular gate:
 | Unbounded ground state (E25) | Snapshot exceeds C10 | Measurement gate plus gauge; overflow is reported, never truncated |
 | Lease contention | `CONTAINER_BUSY` storms; delayed deliveries | Bytewise key order, no data-row locks, busy re-queue, per-delivery bound (E41) and crash-window tests |
 | V7 changes earlier-phase observables (B16, jitter order, corpse time) | Silent weakening of older suites | Story 6.3 before/after report and re-derivation; no relaxed assertion |
-| Migration numbering collision with late Phase 4 migrations | Broken migration order | Phase 5 starts at 000015 after Phase 4's `m20261014_000014`; re-verify against the final Phase 4 `main` SHA before 4.1 |
+| Migration numbering collision with late Phase 4 migrations | Broken migration order | Phase 5 starts at 000015 after Phase 4's `m20261014_000014`; verified at the final Phase 4 `main` SHA 5abae32 |
 | Unreal shared build state | Invalid evidence | Root lock; named automation, cook and stage receipts |
 
 ## 8. Out of scope
