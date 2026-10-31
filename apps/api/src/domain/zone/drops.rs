@@ -558,6 +558,167 @@ mod tests {
         assert_eq!(exact_100, summary["exact_100"].as_u64().unwrap());
         assert_eq!(below, ids("below_100_npcs"));
         assert_eq!(above, ids("above_100_npcs"));
+        // Design §14.1 D-E literals (z-review-2 P2-5), so oracle drift cannot pass silently.
+        assert_eq!(groups, 11_557);
+        assert_eq!(falloff, 1_127);
+        assert_eq!(exact_100, 121);
+        assert_eq!(below, [29068, 29150, 29186].into());
+        assert_eq!(above, [29028, 29068, 29118, 29163].into());
+    }
+
+    /// Bits of the widest side of the E15 test `r · 100 · 2^k < num · 2^64` (`r < 2^64`)
+    /// for a binary64 chance `num / 2^k`: `(reduced, as the engine builds it)`. The oracle
+    /// measures the reduced fraction; [`dyadic_chance`] keeps the unreduced mantissa.
+    fn chance_width(c: Binary64) -> (u32, u32) {
+        let (num, k) = crate::domain::zone::wide::dyadic_chance(c).unwrap();
+        if num == crate::domain::zone::wide::U256::ZERO {
+            return (0, 0);
+        }
+        let side = |num_bits: u32, k: u32| (71 + k).max(num_bits + 64);
+        let bits = num.bits();
+        // With k > 0 the numerator is the bare 53-bit mantissa, so limb 0 holds it.
+        let trailing = if k == 0 {
+            0
+        } else {
+            num.limbs()[0].trailing_zeros().min(k)
+        };
+        (side(bits - trailing, k - trailing), side(bits, k))
+    }
+
+    /// Family D-W (design §3.2 / §14.1, z-review-2 P2-5): the widest U256 chance-test
+    /// operand over every row and group of both scopes × the 19 distinct L values × G in
+    /// {1, 2^-32, 2^32}, folded as the oracle does (every rate 1, so `m = fl32(fl(G))`).
+    /// It equals the oracle widths and stays at most 255 bits. Identical inputs are
+    /// measured once (the width is a maximum).
+    #[test]
+    fn chance_widths_match_the_oracle_and_fit_u256() {
+        use std::collections::BTreeSet;
+        let rules = rules();
+        let widths = &oracle()["dw_widths"];
+        let mut ls = BTreeSet::new();
+        for strategy in ["item_window", "raid_clamp", "adena_window"] {
+            for d in -20..=2 {
+                ls.insert(rules.killer_modifier(strategy, d).unwrap().0);
+            }
+        }
+        assert_eq!(ls.len(), 19);
+        let ls: Vec<Binary64> = ls.into_iter().map(Binary64).collect();
+        let mut items = BTreeSet::new();
+        let mut singles = BTreeSet::new();
+        let mut groups = BTreeSet::new();
+        for npc in &rules.parts().drops.npc {
+            for node in npc.death.iter().chain(&npc.corpse) {
+                match node {
+                    DropNode::Item { chance_bits, .. } => {
+                        items.insert(Binary64::parse_hex(chance_bits).unwrap().0);
+                    },
+                    DropNode::Group {
+                        chance_bits,
+                        items: rows,
+                        ..
+                    } => {
+                        let group = Binary64::parse_hex(chance_bits).unwrap().0;
+                        let rows: Vec<u64> = rows
+                            .iter()
+                            .map(|row| Binary64::parse_hex(&row.chance_bits).unwrap().0)
+                            .collect();
+                        if let [row] = rows.as_slice() {
+                            singles.insert((*row, group));
+                        } else {
+                            groups.insert((group, rows));
+                        }
+                    },
+                }
+            }
+        }
+        let hundred = integer(100).unwrap();
+        let remainder = |c: Binary64| {
+            let value = c.rational().unwrap();
+            let base = i64::try_from(value.floor_u64().unwrap() / 100 * 100).unwrap();
+            value.sub(&Rational::integer(base)).fl().unwrap()
+        };
+        for (label, g) in [
+            ("G=1", Binary64::ONE),
+            (
+                "G=2^-32",
+                Rational::integer(1)
+                    .div(&Rational::integer(1 << 32))
+                    .unwrap()
+                    .fl()
+                    .unwrap(),
+            ),
+            ("G=2^32", integer(1 << 32).unwrap()),
+        ] {
+            let m = crate::domain::zone::binary64::g_fold(
+                Binary64::ONE,
+                crate::domain::zone::binary64::g_fold(Binary64::ONE, g).unwrap(),
+            )
+            .unwrap();
+            let mut widest = (0_u32, 0_u32);
+            let mut measure = |c: Binary64| {
+                let (reduced, engine) = chance_width(c);
+                widest = (widest.0.max(reduced), widest.1.max(engine));
+            };
+            // Ungrouped C = L · fl(cd · m); single-item C = L · fl(fl(fl(cd · g) / 100) · m).
+            let bases: BTreeSet<u64> = items
+                .iter()
+                .map(|cd| mul(Binary64(*cd), m).unwrap().0)
+                .chain(singles.iter().map(|(cd, group)| {
+                    let collapsed =
+                        div(mul(Binary64(*cd), Binary64(*group)).unwrap(), hundred).unwrap();
+                    mul(collapsed, m).unwrap().0
+                }))
+                .collect();
+            for base in &bases {
+                for l in &ls {
+                    let c = mul(*l, Binary64(*base)).unwrap();
+                    measure(c);
+                    if c.rational()
+                        .unwrap()
+                        .compare(&hundred.rational().unwrap())
+                        .is_gt()
+                    {
+                        measure(remainder(c));
+                    }
+                }
+            }
+            for (group, rows) in &groups {
+                let weighted: Vec<Binary64> = rows
+                    .iter()
+                    .map(|cd| mul(mul(Binary64(*cd), m).unwrap(), Binary64(*group)).unwrap())
+                    .collect();
+                for l in &ls {
+                    let raw: Vec<Binary64> =
+                        weighted.iter().map(|w| mul(*w, *l).unwrap()).collect();
+                    let mut sum = Binary64::ZERO;
+                    for product in &raw {
+                        sum = add(sum, div(*product, hundred).unwrap()).unwrap();
+                    }
+                    if sum == Binary64::ZERO {
+                        continue;
+                    }
+                    measure(sum);
+                    if sum
+                        .rational()
+                        .unwrap()
+                        .compare(&hundred.rational().unwrap())
+                        .is_ge()
+                    {
+                        measure(remainder(sum));
+                    }
+                    let mut total = Binary64::ZERO;
+                    for product in &raw {
+                        total = add(total, div(*product, sum).unwrap()).unwrap();
+                        measure(total);
+                    }
+                }
+            }
+            assert_eq!(u64::from(widest.0), widths[label].as_u64().unwrap(), "{label}");
+            assert!(widest.1 <= 255, "{label}: engine operand width {}", widest.1);
+        }
+        assert_eq!(widths["G=1"].as_u64(), Some(141));
+        assert_eq!(widths["G=2^-32"].as_u64(), Some(173));
+        assert_eq!(widths["G=2^32"].as_u64(), Some(131));
     }
 
     #[test]

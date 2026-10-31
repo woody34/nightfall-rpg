@@ -426,6 +426,17 @@ impl Phase5Snapshot {
                 return fail("ground item without its P1 entity id");
             }
             ground.item.validate()?;
+            // z-review-2 P3-7 (Phase 4 I1): an id inside this epoch's range is allocated
+            // (below `next`), and NPC loot is always minted from that range in this epoch;
+            // a PK drop keeps the victim's (possibly older) id.
+            let (start, next, end) = context.phase4.allocator.bounds();
+            let id = ground.item.id.get();
+            if (id >= start && id < end && id >= next)
+                || (matches!(ground.source, GroundSource::NpcLoot { .. })
+                    && !(start..next).contains(&id))
+            {
+                return fail("ground item id outside the allocated instance range");
+            }
             if ground.item.location != ItemLocation::Ground || ground.item.slot.is_some() {
                 return fail("ground item not located on the ground");
             }
@@ -504,12 +515,13 @@ impl Phase5Snapshot {
             return fail("Phase5 player set differs from the admitted players");
         }
         let limits = &rules.parts().recipes.config;
-        let recipe_ids: BTreeSet<u32> = rules
+        // z-review-2 P3-9: each recipe id belongs to the book of its rules type.
+        let recipe_types: BTreeMap<u32, &str> = rules
             .parts()
             .recipes
             .recipe
             .iter()
-            .map(|recipe| recipe.id)
+            .map(|recipe| (recipe.id, recipe.r#type.as_str()))
             .collect();
         for (id, player) in &self.players {
             if player.recipes.dwarven.len()
@@ -521,8 +533,12 @@ impl Phase5Snapshot {
                     .recipes
                     .dwarven
                     .iter()
-                    .chain(&player.recipes.common)
-                    .any(|recipe| !recipe_ids.contains(recipe))
+                    .any(|recipe| recipe_types.get(recipe) != Some(&"dwarven"))
+                || player
+                    .recipes
+                    .common
+                    .iter()
+                    .any(|recipe| recipe_types.get(recipe) != Some(&"common"))
             {
                 return fail("recipe book outside the rules");
             }
@@ -605,7 +621,11 @@ impl Phase5Snapshot {
                 let Some(owner) = context.phase4.players.get(&who) else {
                     return fail("trade participant not admitted");
                 };
+                let mut listed = BTreeSet::new();
                 for (instance, count) in &list.items {
+                    if !listed.insert(*instance) {
+                        return fail("trade lists one instance twice");
+                    }
                     let Some(item) = owner.inventory.get(instance) else {
                         return fail("trade lists an item the participant does not own");
                     };

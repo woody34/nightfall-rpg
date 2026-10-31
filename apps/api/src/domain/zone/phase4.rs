@@ -255,7 +255,7 @@ impl Phase4Snapshot {
                 return Err(ItemError("unsupported automatic shot template"));
             }
             for (key, item) in &player.inventory {
-                item.validate()?;
+                item.validate_character_owned()?;
                 if *key != item.id
                     || !instances.insert(*key)
                     || (key.get() >= start && key.get() < end && key.get() >= next)

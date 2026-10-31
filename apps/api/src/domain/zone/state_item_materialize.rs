@@ -785,4 +785,243 @@ mod tests {
         }
         assert_eq!(lineages, 9);
     }
+
+    /// A fresh V6 or V7 zone and a first-login load with a starter kit (one lineage).
+    fn fresh_zone_and_kit_load(v7: bool) -> (ZoneState, PlayerLoad, EntityId) {
+        let bundle = crate::infrastructure::item_data::embedded_phase4_bundle().unwrap();
+        let classes = load_classes(&ClassSource::embedded()).unwrap().registry;
+        let seed = ZoneSeed {
+            zone: ZoneId(1),
+            epoch: 1,
+        };
+        let bounds =
+            ZoneBounds::new(Vec2Fixed::from_tiles(0, 0), Vec2Fixed::from_tiles(256, 256)).unwrap();
+        let range = ItemInstanceRange::new(1, 1, 10000).unwrap();
+        let rules = load_rules(&RulesSource::embedded()).unwrap().rules;
+        let zone = if v7 {
+            ZoneState::new_phase5(
+                seed,
+                bounds,
+                0,
+                rules,
+                Arc::clone(&classes),
+                (*bundle.skills).clone(),
+                Arc::clone(&bundle.items),
+                range,
+                crate::infrastructure::economy_data::embedded_phase5_rules().unwrap(),
+            )
+        } else {
+            ZoneState::new_phase4(
+                seed,
+                bounds,
+                0,
+                rules,
+                Arc::clone(&classes),
+                (*bundle.skills).clone(),
+                Arc::clone(&bundle.items),
+                range,
+            )
+        }
+        .unwrap();
+        let source = bundle
+            .items
+            .parts()
+            .starter_kits
+            .iter()
+            .find(|source| classes.get(ClassId(source.class_id)).is_some())
+            .unwrap();
+        let class = classes.get(ClassId(source.class_id)).unwrap();
+        let materialization = ItemMaterialization::Starter(ItemKitManifest {
+            source_class_id: class.id,
+            items: source
+                .items
+                .iter()
+                .map(|row| StarterKitSeed {
+                    template_id: row.template_id,
+                    count: row.count,
+                    equipped: row.equipped,
+                })
+                .collect(),
+        });
+        let request = PendingItemMaterialization {
+            request_id: uuid::Uuid::from_u128(900),
+            request_fingerprint: "source-kit-fixture".into(),
+            manifest_version: 1,
+            manifest_hash: materialization.manifest_hash().unwrap(),
+            materialization,
+        };
+        let mut load = PlayerLoad::fresh(
+            crate::domain::character_progression::base_class_profile(class.id).unwrap(),
+        );
+        load.phase3 = Some(Phase3Checkpoint::new());
+        load.phase4 = Some(Phase4PlayerLoad {
+            checkpoint: None,
+            pending: vec![request],
+        });
+        load.checkpoint_revision = Some(0);
+        load.progression = Some(Box::new(PlayerProgression {
+            identity: CharacterIdentity {
+                account_id: AccountId::from_uuid(uuid::Uuid::from_u128(72)),
+                race: class.race,
+                base_class_id: class.id,
+                appearance: CharacterAppearance::default(),
+            },
+            class_state: ClassState::new(class.id),
+            max_cp: 0,
+        }));
+        (zone, load, EntityId::from_uuid(uuid::Uuid::from_u128(71)))
+    }
+
+    fn spawn_kit(id: EntityId, load: PlayerLoad) -> ZoneInput {
+        ZoneInput::system(ZoneCommand::SpawnPlayer {
+            entity: id,
+            name: "Kit".into(),
+            pos: Vec2Fixed::from_tiles(10, 10),
+            speed: Speed::DEFAULT,
+            generation: SessionGeneration(1),
+            load: Some(Box::new(load)),
+        })
+    }
+
+    fn restore(
+        zone: &ZoneState,
+        snapshot: crate::domain::zone::ZoneSnapshot,
+    ) -> Result<ZoneState, String> {
+        ZoneState::from_snapshot_with_bundles(
+            snapshot,
+            zone.phase4.as_ref().map(|items| Arc::clone(&items.rules)),
+            zone.phase5
+                .as_ref()
+                .map(|economy| Arc::clone(&economy.rules)),
+        )
+        .map_err(|error| format!("{error:?}"))
+    }
+
+    /// z-review-2 P2-3: V7 admission and departure through real ticks (with the T55
+    /// restore identity running after each one): no checkpoint and a stale rules hash are
+    /// refused with no state change; the matching checkpoint admits a Phase 5 record;
+    /// despawn removes it again.
+    #[test]
+    fn v7_admission_needs_a_matching_phase5_checkpoint_and_departure_removes_the_record() {
+        let (zone, load, id) = fresh_zone_and_kit_load(true);
+        let rules = crate::infrastructure::economy_data::embedded_phase5_rules().unwrap();
+        let checkpoint = |rules_hash: String| crate::domain::zone::Phase5Checkpoint {
+            schema_version: 1,
+            rules_hash,
+            recipes: crate::domain::zone::RecipeBook::default(),
+        };
+        let empty_digest = zone.state_digest();
+        for phase5 in [None, Some(checkpoint("00".repeat(32)))] {
+            let mut refused = zone.clone();
+            let mut bad = load.clone();
+            bad.phase5 = phase5;
+            let tick = refused
+                .run_tick(refused.draft(vec![spawn_kit(id, bad)]))
+                .unwrap();
+            let reasons: Vec<_> = tick.dispositions.iter().map(|d| d.reason).collect();
+            assert_eq!(reasons, vec![RejectReason::InvalidLoad]);
+            assert!(refused.entities.is_empty());
+            assert!(refused.phase5_block().unwrap().players.is_empty());
+            assert!(refused
+                .phase4
+                .as_ref()
+                .unwrap()
+                .canonical
+                .players
+                .is_empty());
+        }
+        let mut admitted = zone.clone();
+        let mut good = load;
+        good.phase5 = Some(checkpoint(rules.hash_hex()));
+        let tick = admitted
+            .run_tick(admitted.draft(vec![spawn_kit(id, good)]))
+            .unwrap();
+        assert!(tick.dispositions.is_empty());
+        assert!(admitted.entities.contains_key(&id));
+        assert!(admitted.phase5_block().unwrap().players.contains_key(&id));
+        let joined_digest = admitted.state_digest();
+        assert_ne!(joined_digest, empty_digest);
+        let restored = restore(&admitted, admitted.snapshot()).unwrap();
+        assert_eq!(restored.state_digest(), joined_digest);
+        assert_eq!(restored.snapshot(), admitted.snapshot());
+        let tick = admitted
+            .run_tick(admitted.draft(vec![ZoneInput::system(ZoneCommand::Despawn { entity: id })]))
+            .unwrap();
+        assert!(tick.dispositions.is_empty());
+        assert!(!admitted.entities.contains_key(&id));
+        assert!(admitted.phase5_block().unwrap().players.is_empty());
+        assert!(admitted
+            .phase4
+            .as_ref()
+            .unwrap()
+            .canonical
+            .players
+            .is_empty());
+        assert_ne!(admitted.state_digest(), joined_digest);
+        let restored = restore(&admitted, admitted.snapshot()).unwrap();
+        assert_eq!(restored.state_digest(), admitted.state_digest());
+    }
+
+    /// z-review-2 P2-2: a character inventory holds only `Inventory` or `Paperdoll`
+    /// instances, in a V6 (Snapshot 10, format 2) and a V7 (Snapshot 11) restore and in the
+    /// player checkpoint.
+    #[test]
+    fn character_inventories_refuse_ground_refund_and_db_only_locations() {
+        use crate::domain::zone::ItemLocation;
+        for v7 in [false, true] {
+            let (mut zone, mut load, id) = fresh_zone_and_kit_load(v7);
+            if v7 {
+                load.phase5 = Some(crate::domain::zone::Phase5Checkpoint {
+                    schema_version: 1,
+                    rules_hash: zone.phase5.as_ref().unwrap().rules.hash_hex(),
+                    recipes: crate::domain::zone::RecipeBook::default(),
+                });
+            }
+            let tick = zone
+                .run_tick(zone.draft(vec![spawn_kit(id, load)]))
+                .unwrap();
+            assert!(tick.dispositions.is_empty());
+            let snapshot = zone.snapshot();
+            assert!(restore(&zone, snapshot.clone()).is_ok());
+            for location in [
+                ItemLocation::Ground,
+                ItemLocation::Refund,
+                ItemLocation::Warehouse,
+                ItemLocation::Freight,
+                ItemLocation::Mail,
+                ItemLocation::Delivery,
+                ItemLocation::AuctionBid,
+            ] {
+                let mut forged = snapshot.clone();
+                let player = forged
+                    .phase4
+                    .as_mut()
+                    .unwrap()
+                    .players
+                    .get_mut(&id)
+                    .unwrap();
+                let item = player
+                    .inventory
+                    .values_mut()
+                    .find(|item| item.location == ItemLocation::Inventory)
+                    .unwrap();
+                item.location = location;
+                let error = restore(&zone, forged).unwrap_err();
+                assert!(
+                    error.contains("character item outside Inventory or Paperdoll"),
+                    "v7={v7} {location:?}: {error}"
+                );
+                let mut item = zone.phase4.as_ref().unwrap().canonical.players[&id]
+                    .inventory
+                    .values()
+                    .find(|item| item.location == ItemLocation::Inventory)
+                    .unwrap()
+                    .clone();
+                item.validate_character_owned().unwrap();
+                item.location = location;
+                assert!(item.validate().is_ok());
+                assert!(item.validate_character_owned().is_err());
+            }
+        }
+    }
 }

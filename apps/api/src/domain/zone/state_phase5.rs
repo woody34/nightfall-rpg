@@ -12,11 +12,14 @@ impl ZoneState {
     /// `draw_u64()`: `hi = next_u32(); lo = next_u32(); (hi << 32) | lo` (design §2.3).
     /// Used only for E15 chance tests.
     pub fn draw_u64(&mut self) -> u64 {
+        // z-review-2 P2-4: each word is noted right after it is drawn, so the two raw
+        // draws carry distinct positions (before → before+1 → before+2).
         let before = self.rng.get_word_pos();
         let hi = self.rng.next_u32();
-        let lo = self.rng.next_u32();
         self.note_raw_draw("econ_draw_u64_hi", before, 0, hi);
-        self.note_raw_draw("econ_draw_u64_lo", before, 0, lo);
+        let middle = self.rng.get_word_pos();
+        let lo = self.rng.next_u32();
+        self.note_raw_draw("econ_draw_u64_lo", middle, 0, lo);
         (u64::from(hi) << 32) | u64::from(lo)
     }
 
@@ -85,6 +88,34 @@ mod tests {
         assert!(!a.chance_bound(0, 100).unwrap());
         assert!(a.chance_bound(1, 0).is_err());
         assert_eq!(a.rng.get_word_pos(), before + 10);
+    }
+
+    /// z-review-2 P2-4: the two words of one `draw_u64` are recorded at distinct
+    /// positions, `hi` at (before, before+1) and `lo` at (before+1, before+2).
+    #[test]
+    fn draw_u64_records_each_word_at_its_own_position() {
+        let mut a = zone();
+        a.evidence = Some(crate::domain::zone::evidence::EvidenceBuffer {
+            items: Some(Vec::new()),
+            ..Default::default()
+        });
+        let mut b = zone();
+        let hi = b.rng.next_u32();
+        let lo = b.rng.next_u32();
+        let before = a.rng.get_word_pos();
+        a.draw_u64();
+        let draws = &a.evidence.as_ref().unwrap().raw_draws;
+        let positions: Vec<_> = draws
+            .iter()
+            .map(|d| (d.callsite.as_str(), d.word_before, d.word_after, d.value))
+            .collect();
+        assert_eq!(
+            positions,
+            vec![
+                ("econ_draw_u64_hi", before, before + 1, hi),
+                ("econ_draw_u64_lo", before + 1, before + 2, lo),
+            ]
+        );
     }
 
     /// Design §14.4 / story 3.2: no `u128`/`i128` chance product in the Phase 5 engine.
