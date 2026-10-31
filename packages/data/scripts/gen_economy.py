@@ -543,6 +543,72 @@ G_MULTIPLIED = {"DeathDropChanceMultiplier", "CorpseDropChanceMultiplier", "Herb
                 "RaidDropChanceMultiplier", "RateXp", "RateSp", "DropChanceMultiplierByItemId"}
 
 
+def gen_rewards_table() -> str:
+    """P5-D12: base XP/SP inputs of B16 (design §4.5) for EVERY pinned NPC template.
+
+    `drops.toml` carries `level`/`expRate`/`sp` only on NPCs with a drop or corpse list; B16 needs
+    them for every NPC a player can kill, including the SP-only templates (sp > 0, no expRate)
+    and NPCs without any drop list. Same derivations and encodings as the drops table: absent
+    `<acquire>` attributes are the loader defaults (`expRate` 0, `sp` 0), decimals stay exact
+    decimal strings, `collision_radius` is the truncated `<collision><radius normal>`.
+    """
+    npc_rel = DPD + "stats/npcs/"
+    sepulcher_raids = sepulcher_raid_ids()
+    raids = raid_types()
+    tmpl = GJ + "model/actor/templates/L2NpcTemplate.java"
+    default_level = src_int("game", tmpl, r'_level = set\.getByte\("level", \(byte\) (\d+)\);')
+    src_find("game", tmpl, r'_type = set\.getString\("type", "L2Npc"\);')
+    src_find("game", tmpl, r'_corpseTime = set\.getInt\("corpseTime", npc\(\)\.getDefaultCorpseTime\(\)\);')
+    default_corpse = prop_int("npc.properties", "DefaultCorpseTime")
+    default_radius = src_int("game", GJ + "model/actor/templates/L2CharTemplate.java",
+                             r'_fCollisionRadius = set\.getDouble\("collisionRadius", (\d+)\);')
+    src_find("game", tmpl, r'_expRate = set\.getDouble\("expRate", 0\);')
+    src_find("game", tmpl, r'_sp = set\.getDouble\("sp", 0\);')
+    rows = []
+    seen = set()
+    for f in dp_glob(npc_rel):
+        for npc in ET.parse(f).getroot().findall("npc"):
+            npc_id = int(npc.get("id"))
+            if npc_id in seen:
+                raise SourceError(f"duplicate NPC template {npc_id}")
+            seen.add(npc_id)
+            level = int(npc.get("level", default_level))
+            npc_type = npc.get("type", "L2Npc")
+            is_raid = npc_type in raids or (npc_type == "L2SepulcherMonster" and npc_id in sepulcher_raids)
+            ct_elem = npc.find("corpseTime")
+            corpse_time = int(ct_elem.text.strip()) if ct_elem is not None and ct_elem.text else default_corpse
+            exp_rate, sp_val = "0", "0"
+            acq = npc.find("acquire")
+            if acq is not None:
+                exp_rate = acq.get("expRate", "0")
+                sp_val = acq.get("sp", "0")
+            for label, value in (("expRate", exp_rate), ("sp", sp_val)):
+                if Fraction(value) < 0:
+                    raise SourceError(f"NPC {npc_id}: negative {label} {value}")
+            coll_radius = default_radius
+            coll = npc.find("collision")
+            if coll is not None:
+                r = coll.find("radius")
+                if r is not None and r.get("normal"):
+                    coll_radius = int(Fraction(r.get("normal")))
+            rows.append((npc_id, level, exp_rate, sp_val, is_raid, corpse_time, coll_radius))
+    rows.sort()
+    lines = [
+        HEADER,
+        "# P5-D12: B16 base rewards (design §4.5) for every pinned NPC template, ascending id.",
+        "schema_version = 1",
+        f"npc_count = {len(rows)}",
+        "",
+    ]
+    for npc_id, level, exp_rate, sp_val, is_raid, corpse_time, coll_radius in rows:
+        lines.append(f'npc = {{ id = {npc_id}, level = {level}, exp_rate = "{exp_rate}", sp = "{sp_val}", '
+                     f"is_raid = {toml_bool(is_raid)}, corpse_time = {corpse_time}, collision_radius = {coll_radius} }}")
+    # One array of inline tables keeps the 7k-row table compact and order-exact.
+    body = [line for line in lines if not line.startswith("npc = ")]
+    entries = [line[len("npc = "):] for line in lines if line.startswith("npc = ")]
+    return "\n".join(body) + "npc = [\n" + "".join(f"  {e},\n" for e in entries) + "]\n"
+
+
 def rate_kind(key: str) -> str:
     m = src_find("game", GJ + "config/RatesConfiguration.java",
                  rf'@Key\("{key}"\)\s*(?:@\w+\([^)]*\)\s*)*([\w<>, ]+?)\s+get\w+\(\);')
@@ -1739,6 +1805,7 @@ def generate(dp_root: Path, game_root: Path, data_root: Path, stories: list[str]
     if "1.2" in stories or "1.4" in stories:
         plan += [
             ("tables-phase5/drops.toml", gen_drops_table),
+            ("tables-phase5/rewards.toml", gen_rewards_table),
             ("tables-phase5/rates.toml", gen_rates_table),
             ("tables-phase5/ground.toml", gen_ground_table),
             ("tables-phase5/party.toml", gen_party_table),
