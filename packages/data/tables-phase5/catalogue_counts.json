@@ -1,0 +1,84 @@
+{
+  "schema": 1,
+  "source_revisions": {
+    "datapack": "3ca488dd2bd0bfaca43e378886a3c2e37968153a",
+    "game": "abfde0490ac52a2106e884b7242c0276c44cdf76",
+    "phase4_data": "95754e0f837295ff55130ba7aee322692c476896"
+  },
+  "referenced_templates": 9338,
+  "imported": 9338,
+  "in_phase4_catalogue": 5074,
+  "phase4_closure_additions": 4264,
+  "storable": 9338,
+  "not_storable": 0,
+  "storable_pending_d97": 182,
+  "lifetime_deferred": 109,
+  "phase4_contexts": {
+    "context:common": 618,
+    "context:shadow": 106,
+    "context:time_limited": 3,
+    "context:npc_only": 182,
+    "context:pet": 0
+  },
+  "executable": {
+    "yes": 1300,
+    "no": 26,
+    "not_required": 8012
+  },
+  "recipe_items": {
+    "register_executable": 998,
+    "not_executable": 1,
+    "shared": {
+      "5008": [
+        138,
+        436
+      ]
+    }
+  },
+  "herbs": {
+    "total": 68,
+    "pickup_effect_executable": 34,
+    "pickup_effect_deferred": 25,
+    "destroy_no_effect": 9
+  },
+  "roles": {
+    "auction": 82,
+    "corpse": 989,
+    "crop": 54,
+    "crop_reward": 34,
+    "death": 2416,
+    "ground_auto_destroy": 1,
+    "harvester": 1,
+    "herb": 68,
+    "manor_fixture": 64,
+    "mature_crop": 54,
+    "merchant": 3116,
+    "multisell_ingredient": 4043,
+    "multisell_product": 4629,
+    "recipe_ingredient": 1276,
+    "recipe_item": 999,
+    "recipe_product": 820,
+    "recipe_rare_product": 434,
+    "seed": 258
+  },
+  "special_multisell_ingredients": {
+    "FAME": {
+      "id": -300,
+      "lists": 3,
+      "entries": 634,
+      "ingredient_rows": 633,
+      "product_rows": 1,
+      "lists_admitted": true,
+      "entry_capability": "deferred:ItemCapabilityDeferred"
+    },
+    "CLAN_REPUTATION": {
+      "id": -200,
+      "lists": 2,
+      "entries": 30,
+      "ingredient_rows": 30,
+      "product_rows": 0,
+      "lists_admitted": true,
+      "entry_capability": "deferred:ItemCapabilityDeferred"
+    }
+  }
+}
