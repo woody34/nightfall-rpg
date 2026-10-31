@@ -49,10 +49,11 @@ pub struct ZoneRuntimeConfig {
     /// Phase 4 item and skill bundle. V6 extends V5, so it requires the V5 selection.
     /// Malformed values refuse startup.
     pub phase4_enabled: Option<String>,
-    /// `PHASE5_ENABLED` (design §12.1): unset selects V7 new epochs, except under a historical
-    /// simulation-fixture selection; exact `0` keeps the V6-and-older selection; exact `1`
-    /// selects V7. Any other value refuses startup. The recorded version always wins on
-    /// replay. V7 extends V6, so it refuses an explicit `PHASE4_ENABLED=0`/`PHASE3_ENABLED=0`.
+    /// `PHASE5_ENABLED` (design §12.1, ruling P5-D15(a)): unset or exact `0` keeps the
+    /// pre-Phase-5 selection (the Phase 4 default is unchanged); exact `1` selects V7 and
+    /// composes the V6 bundle. Any other value refuses startup. The recorded version always
+    /// wins on replay. V7 extends V6, so it refuses an explicit `PHASE4_ENABLED=0` or
+    /// `PHASE3_ENABLED=0`. The default moves to V7 only after E4.5 persists the checkpoint.
     pub phase5_enabled: Option<String>,
 }
 
@@ -98,14 +99,21 @@ impl ZoneRuntimeConfig {
             None if !self.phase5_requested()? => Ok(false),
             None | Some("1") => {
                 if !self.phase3_requested()? {
+                    // Name the switch that asked for V6: PHASE4_ENABLED=1 itself, or
+                    // PHASE5_ENABLED=1 through its implied V6 bundle.
+                    let cause = if self.phase4_enabled.is_some() {
+                        "PHASE4_ENABLED=1"
+                    } else {
+                        "PHASE5_ENABLED=1 (V7 implies the V6 bundle)"
+                    };
                     if self.phase3_enabled.is_none() {
                         anyhow::bail!(
-                            "PHASE4_ENABLED=1 extends the V5 bundle, but ZONE_SIM_FIXTURE keeps \
-                             legacy epochs by default; set PHASE3_ENABLED=1 to select V5"
+                            "{cause} extends the V5 bundle, but ZONE_SIM_FIXTURE keeps legacy \
+                             epochs by default; set PHASE3_ENABLED=1 to select V5"
                         );
                     }
                     anyhow::bail!(
-                        "PHASE4_ENABLED=1 extends the V5 bundle; PHASE3_ENABLED must be unset or 1"
+                        "{cause} extends the V5 bundle; PHASE3_ENABLED must be unset or 1"
                     );
                 }
                 Ok(true)
@@ -114,19 +122,15 @@ impl ZoneRuntimeConfig {
         }
     }
 
-    /// The `PHASE5_ENABLED` matrix (design §12.1): unset → V7 unless a simulation fixture
-    /// keeps its historical epochs; `0` → the older selection; `1` → V7; anything else
-    /// refuses boot. V7 extends V6 and V5, so an explicit `0` on either older switch is a
+    /// The `PHASE5_ENABLED` matrix (design §12.1, ruling P5-D15(a)): unset or `0` → the
+    /// pre-Phase-5 selection; `1` → V7; anything else refuses boot. V7 extends V6 and V5, so an explicit `0` on either older switch is a
     /// contradiction and refuses boot too. The V7 bundle itself (Phase 5 rules and block)
     /// is composed by the engine stories; this selection is what they consult.
     pub fn phase5_requested(&self) -> anyhow::Result<bool> {
         let requested = match self.phase5_enabled.as_deref() {
-            // Unset keeps the older selection under a simulation fixture or an explicit
-            // `PHASE4_ENABLED=0` (no V6, so no V7; no error), and selects V7 otherwise.
-            None => {
-                self.simulation_fixture.is_none() && self.phase4_enabled.as_deref() != Some("0")
-            },
-            Some("0") => false,
+            // P5-D15(a): unset keeps the pre-Phase-5 selection until E4.5 persists the
+            // Phase 5 checkpoint, so login and offline grants keep working by default.
+            None | Some("0") => false,
             Some("1") => true,
             Some(_) => anyhow::bail!("PHASE5_ENABLED must be unset, 0 or 1"),
         };
@@ -151,9 +155,8 @@ impl ZoneRuntimeConfig {
 
     /// The Phase 5 rules a V7 epoch is bound to (design §1.10, D27): the embedded tables
     /// validated and hashed against the V6 bundle this process composed. `None` when V7 is
-    /// not selected, or when it is selected only by default without a V6 bundle (the epoch
-    /// version itself is chosen by the engine stories); an explicit `PHASE5_ENABLED=1`
-    /// without `PHASE4_ENABLED=1` refuses boot, as does any table validation failure.
+    /// not selected. A V7 selection without a composed V6 bundle refuses boot, as does any
+    /// table validation failure.
     pub fn prepare_phase5(
         &self,
         phase4: Option<&crate::infrastructure::item_data::Phase4RuleBundle>,
@@ -355,9 +358,6 @@ pub async fn start(
             &crate::infrastructure::class_data::ClassSource::embedded(),
         )?)?,
     };
-    // E2.3: a V7 selection validates and binds the Phase 5 rules before anything connects;
-    // the engine stories consume the bound rules when they open V7 epochs.
-    let phase5 = cfg.prepare_phase5(phase4.as_ref())?;
     let metrics = deps.metrics.clone();
     let clock = deps.clock.clone();
     let def = cfg.load_zone()?;
@@ -397,6 +397,10 @@ pub async fn start(
         tracing::warn!("NATS_URL not set: zone replay log is in memory (lost on exit)");
         Arc::new(InMemoryEventLog::default())
     };
+    // E2.3 / z-review-2 P2-6: a V7 selection validates and binds the Phase 5 rules (about
+    // 13 s release) after the broker connects, so a broken broker still fails fast, and
+    // before recovery or any epoch opens.
+    let phase5 = cfg.prepare_phase5(phase4.as_ref())?;
     let snapshots: Option<Arc<dyn ZoneSnapshotStore>> = db.map(|db| {
         Arc::new(PgZoneSnapshotStore::new(db).with_metrics(metrics.clone()))
             as Arc<dyn ZoneSnapshotStore>

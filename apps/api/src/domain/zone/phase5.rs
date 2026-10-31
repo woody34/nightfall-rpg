@@ -346,6 +346,12 @@ pub struct Phase5Zone {
     pub canonical: Phase5Snapshot,
     /// The rules the epoch is bound to; the snapshot carries only their hash.
     pub rules: Arc<Phase5Rules>,
+    /// A V7 invariant failure latched by an infallible hook; turned into a tick error before
+    /// anything is flushed. Never snapshot state.
+    pub fault: Option<String>,
+    /// The B16 awards computed in `death_v7` from the hate ledger, consumed at `kill()` step 7
+    /// of the same death (design §2.2). Never snapshot state.
+    pub rewards: Option<(EntityId, Vec<super::rewards::Award>)>,
 }
 
 /// Inputs the invariants read from the rest of the zone (design §1.11).
@@ -420,19 +426,28 @@ impl Phase5Snapshot {
                 return fail("ground item without its P1 entity id");
             }
             ground.item.validate()?;
+            // z-review-2 P3-7 (Phase 4 I1): an id inside this epoch's range is allocated
+            // (below `next`), and NPC loot is always minted from that range in this epoch;
+            // a PK drop keeps the victim's (possibly older) id.
+            let (start, next, end) = context.phase4.allocator.bounds();
+            let id = ground.item.id.get();
+            if (id >= start && id < end && id >= next)
+                || (matches!(ground.source, GroundSource::NpcLoot { .. })
+                    && !(start..next).contains(&id))
+            {
+                return fail("ground item id outside the allocated instance range");
+            }
             if ground.item.location != ItemLocation::Ground || ground.item.slot.is_some() {
                 return fail("ground item not located on the ground");
             }
             if !catalogue.contains(&ground.item.template_id) {
                 return fail("ground item template outside the catalogue");
             }
-            let stackable = context
-                .items
-                .parts()
-                .items
-                .get(&ground.item.template_id)
-                .is_some_and(|definition| definition.stackable);
-            if !stackable && ground.item.count != 1 {
+            // D10: the closure's definitions join the V6 ones when items_closure.toml binds.
+            let Some(definition) = context.items.parts().items.get(&ground.item.template_id) else {
+                return fail("ground item template without an item definition");
+            };
+            if !definition.stackable && ground.item.count != 1 {
                 return fail("non-stackable ground item with count != 1");
             }
             if !instances.insert(ground.item.id) {
@@ -442,13 +457,12 @@ impl Phase5Snapshot {
                 || ground
                     .decay_due
                     .is_some_and(|due| due < ground.dropped_tick)
-                || context.entities.contains_key(entity)
-                    && context
-                        .entities
-                        .get(entity)
-                        .is_some_and(|e| e.kind != EntityKind::Npc)
+                || context
+                    .entities
+                    .get(entity)
+                    .is_none_or(|e| e.kind != EntityKind::GroundItem || e.pos != ground.pos)
             {
-                return fail("ground item timing or entity collision");
+                return fail("ground item timing or entity mismatch");
             }
             for owner in [
                 ground.loot_owner.map(|p| p.owner),
@@ -461,6 +475,13 @@ impl Phase5Snapshot {
                     return fail("ground protection without an owner");
                 }
             }
+        }
+        if context
+            .entities
+            .values()
+            .any(|e| e.kind == EntityKind::GroundItem && !self.ground.contains_key(&e.id))
+        {
+            return fail("ground entity without a ground item record");
         }
         // Each sidecar NPC exists; a sweep holder only while dead with corpse_until > tick.
         for (npc, economy) in &self.npcs {
@@ -494,12 +515,13 @@ impl Phase5Snapshot {
             return fail("Phase5 player set differs from the admitted players");
         }
         let limits = &rules.parts().recipes.config;
-        let recipe_ids: BTreeSet<u32> = rules
+        // z-review-2 P3-9: each recipe id belongs to the book of its rules type.
+        let recipe_types: BTreeMap<u32, &str> = rules
             .parts()
             .recipes
             .recipe
             .iter()
-            .map(|recipe| recipe.id)
+            .map(|recipe| (recipe.id, recipe.r#type.as_str()))
             .collect();
         for (id, player) in &self.players {
             if player.recipes.dwarven.len()
@@ -511,8 +533,12 @@ impl Phase5Snapshot {
                     .recipes
                     .dwarven
                     .iter()
-                    .chain(&player.recipes.common)
-                    .any(|recipe| !recipe_ids.contains(recipe))
+                    .any(|recipe| recipe_types.get(recipe) != Some(&"dwarven"))
+                || player
+                    .recipes
+                    .common
+                    .iter()
+                    .any(|recipe| recipe_types.get(recipe) != Some(&"common"))
             {
                 return fail("recipe book outside the rules");
             }
@@ -595,7 +621,11 @@ impl Phase5Snapshot {
                 let Some(owner) = context.phase4.players.get(&who) else {
                     return fail("trade participant not admitted");
                 };
+                let mut listed = BTreeSet::new();
                 for (instance, count) in &list.items {
+                    if !listed.insert(*instance) {
+                        return fail("trade lists one instance twice");
+                    }
                     let Some(item) = owner.inventory.get(instance) else {
                         return fail("trade lists an item the participant does not own");
                     };

@@ -437,6 +437,8 @@ impl Writer {
         self.0.push(match kind {
             EntityKind::Player => 0,
             EntityKind::Npc => 1,
+            // V7 only: no V5/V6 epoch contains a ground item, so their layouts are unchanged.
+            EntityKind::GroundItem => 2,
         });
         self.string(name);
         self.pos(*pos);

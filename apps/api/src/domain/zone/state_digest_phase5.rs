@@ -91,7 +91,8 @@ fn instance(w: &mut Writer, item: &ItemInstance) {
         ItemLocation::Delivery => 7,
         ItemLocation::AuctionBid => 8,
     });
-    w.option(item.slot.as_ref(), |w, slot| w.string(&format!("{slot:?}")));
+    // z-review-2 P3-5: the V6 slot code, so a variant rename cannot move V7 digests.
+    w.option(item.slot.as_ref(), |w, slot| w.u8(*slot as u8));
     w.u32(item.enchant);
     w.option(item.augment_id.as_ref(), |w, id| w.u32(*id));
     w.u8(item.charges);

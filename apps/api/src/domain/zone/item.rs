@@ -181,6 +181,15 @@ pub enum ItemLocation {
     AuctionBid,
 }
 
+impl ItemLocation {
+    /// A character's zone inventory holds only carried or equipped instances (z-review-2
+    /// P2-2): ground, refund and the DB-only V7 locations never appear there.
+    #[must_use]
+    pub const fn is_character_owned(self) -> bool {
+        matches!(self, Self::Inventory | Self::Paperdoll)
+    }
+}
+
 /// Immutable clock namespace of an item's creation; retained items can cross epochs.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -245,6 +254,15 @@ impl ItemInstance {
         }
         if self.created_tick.0 > i64::MAX as u64 || self.revision > i64::MAX as u64 {
             return Err(ItemError("item tick or revision outside bigint"));
+        }
+        Ok(())
+    }
+
+    /// [`Self::validate`] plus the character-inventory location rule (z-review-2 P2-2).
+    pub fn validate_character_owned(&self) -> Result<(), ItemError> {
+        self.validate()?;
+        if !self.location.is_character_owned() {
+            return Err(ItemError("character item outside Inventory or Paperdoll"));
         }
         Ok(())
     }

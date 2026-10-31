@@ -35,6 +35,13 @@ impl ZoneState {
         if self.rules.is_none() {
             return self;
         }
+        // The drop binding is V7 state: older epochs never carry it (byte-exact legacy).
+        let mut slots = slots;
+        if self.phase5.is_none() {
+            for spec in &mut slots {
+                spec.pinned_npc_id = None;
+            }
+        }
         self.members.clear();
         for (i, spec) in slots.iter().enumerate() {
             let Ok(slot) = u16::try_from(i) else { break };
@@ -250,8 +257,12 @@ impl ZoneState {
         };
         let (corpse_ticks, delay, random) =
             (spec.brain.corpse_decay_ticks, spec.respawn_delay_secs, spec.respawn_random_secs);
+        // V7 corpse time (design §1.3); V5/V6 keep the template ticks.
+        let corpse_ticks = self
+            .v7_corpse_ticks(npc)
+            .unwrap_or_else(|| u64::from(corpse_ticks));
         self.set_intention(tick, npc, Intention::Dead, events);
-        let corpse_until = Tick(tick.0.saturating_add(corpse_ticks.into()));
+        let corpse_until = Tick(tick.0.saturating_add(corpse_ticks));
         if let Some(ai) = self.entities.get_mut(&npc).and_then(|e| e.ai.as_mut()) {
             ai.corpse_until = Some(corpse_until);
             ai.called_help = false;

@@ -26,6 +26,8 @@ mod item_use;
 mod item_views;
 #[path = "state_items.rs"]
 mod items;
+#[path = "state_phase5_death.rs"]
+mod phase5_death;
 #[path = "state_phase5.rs"]
 mod phase5_runtime;
 #[path = "state_runtime.rs"]
@@ -457,6 +459,10 @@ pub enum TickError {
     /// A checked Phase 3 invariant failed; no draft is published.
     #[error("Phase 3 runtime invariant failed")]
     Phase3Invariant,
+    /// A checked V7 economy invariant failed (e.g. a drop with no item definition); no draft
+    /// is published.
+    #[error("Phase 5 runtime invariant failed")]
+    Phase5Invariant,
     /// Application stopped before applying a lifecycle transition after a failed save.
     #[error("checkpoint persistence fence")]
     PersistenceFence,
@@ -938,6 +944,8 @@ impl ZoneState {
                 Ok(Some(super::phase5::Phase5Zone {
                     canonical,
                     rules: economy,
+                    fault: None,
+                    rewards: None,
                 }))
             },
             _ => Err(SnapshotError::Rules("explicit matching V7 economy rules required".into())),
@@ -1290,9 +1298,13 @@ impl ZoneState {
         }
         let Some(items) = &self.phase4 else { return };
         let snapshot = self.snapshot();
-        let restored =
-            Self::from_snapshot_with_items(snapshot.clone(), Some(Arc::clone(&items.rules)))
-                .expect("T55: a V6 snapshot restores");
+        // V7 restores with its bound economy rules as well (D27), under the same identity.
+        let restored = Self::from_snapshot_with_bundles(
+            snapshot.clone(),
+            Some(Arc::clone(&items.rules)),
+            self.phase5.as_ref().map(|p| Arc::clone(&p.rules)),
+        )
+        .expect("T55: a V6/V7 snapshot restores");
         assert_eq!(restored.state_digest(), self.state_digest(), "T55: restored digest");
         assert!(restored.snapshot() == snapshot, "T55: restored snapshot differs");
     }

@@ -175,7 +175,7 @@ impl Phase4Checkpoint {
         let mut previous = None;
         let mut equipped = BTreeMap::new();
         for item in &self.instances {
-            item.validate()?;
+            item.validate_character_owned()?;
             if previous.is_some_and(|id| id >= item.id) || item.revision > self.inventory_revision {
                 return Err(ItemError("unordered item IDs or future revision"));
             }
@@ -427,6 +427,13 @@ mod tests {
             .push(bad.equipment_install_order.first().unwrap().clone());
         assert!(bad.validate_structure(0).is_err());
         assert!(state.validate_structure(1).is_err());
+        // z-review-2 P2-2: a stored character inventory holds no V7 location.
+        let mut bad = state.clone();
+        let stored = bad.instances.first_mut().unwrap();
+        stored.location = ItemLocation::Warehouse;
+        stored.slot = None;
+        let error = bad.validate_structure(0).unwrap_err();
+        assert_eq!(error.0, "character item outside Inventory or Paperdoll");
         let mut valid = state;
         valid
             .equipment_install_order

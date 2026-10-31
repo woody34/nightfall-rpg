@@ -168,6 +168,9 @@ pub fn kind_to_pb(k: EntityKind) -> pb::EntityKind {
     match k {
         EntityKind::Player => pb::EntityKind::Player,
         EntityKind::Npc => pb::EntityKind::Npc,
+        // `ENTITY_KIND_GROUND_ITEM = 3` lands with economy.proto (story 2.1); ground spawns
+        // are not mapped to the wire before it (see `world_event_to_pb`).
+        EntityKind::GroundItem => pb::EntityKind::Unspecified,
     }
 }
 
@@ -383,6 +386,12 @@ pub fn world_event_to_pb(ev: &ZoneEvent, server_time_ms: i64) -> Vec<pb::WorldEv
             generation,
             combat,
         } => {
+            // Ground items need ENTITY_KIND_GROUND_ITEM and GroundItemDetail (field 30), which
+            // land with economy.proto (story 2.1 / Epic 4 gateway); no V7 epoch is served
+            // before that, and nothing half-typed is ever put on the wire.
+            if *kind == EntityKind::GroundItem {
+                return Vec::new();
+            }
             let mut spawn = spawn_to_pb(*entity, *kind, name, *pos, *generation, combat.as_ref());
             // D26: public visible equipment only (field 29); never owned records.
             if let (Some(items), Some(Event::Spawn(s))) = (phase4, &mut spawn.event) {

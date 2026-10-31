@@ -213,6 +213,7 @@ impl TickTelemetry for CombatConsumer {
                         let kind = match kind {
                             EntityKind::Player => "player",
                             EntityKind::Npc => "npc",
+                            EntityKind::GroundItem => "ground_item",
                         };
                         let counter = if matches!(event, ZoneEvent::EntityDied { .. }) {
                             &self.metrics.combat_deaths_total

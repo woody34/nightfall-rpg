@@ -47,7 +47,9 @@ fn v7_zone() -> ZoneState {
             .registry,
         (*bundle.skills).clone(),
         bundle.items.clone(),
-        ItemInstanceRange::new(1, 1, 100).unwrap(),
+        // Ids below 50 count as allocated in this epoch, so the fixture's NPC loot (id 7)
+        // satisfies the allocator rule (z-review-2 P3-7).
+        ItemInstanceRange::new(1, 50, 100).unwrap(),
         economy_data::embedded_phase5_rules().unwrap(),
     )
     .unwrap()
@@ -116,6 +118,39 @@ fn ground(seed: ZoneSeed, item: u64, template: u32, count: u64, tick: Tick) -> G
         }),
         decay_due: Some(Tick(tick.0 + 6000)),
     }
+}
+
+/// Give every ground record of the block its `GroundItem` entity and AOI cell (design §1.2:
+/// a ground item is a zone entity), as the engine does when it drops one.
+fn materialize_ground(snapshot: &mut ZoneSnapshot) {
+    let records: Vec<GroundItem> = snapshot
+        .phase5
+        .as_ref()
+        .map(|b| b.ground.values().cloned().collect())
+        .unwrap_or_default();
+    for g in records {
+        if snapshot.entities.iter().any(|e| e.id == g.entity) {
+            continue;
+        }
+        snapshot.entities.push(Entity {
+            id: g.entity,
+            kind: EntityKind::GroundItem,
+            name: String::new(),
+            pos: g.pos,
+            dest: None,
+            speed: Speed::from_milli_tiles_per_tick(0),
+            generation: SessionGeneration::default(),
+            targeting: TargetingState::default(),
+            combat: None,
+            ai: None,
+        });
+    }
+    snapshot.entities.sort_by_key(|e| e.id);
+    let mut aoi = AoiIndex::default();
+    for e in &snapshot.entities {
+        aoi.insert(e.id, e.pos);
+    }
+    snapshot.aoi = aoi.to_cells();
 }
 
 /// One of everything, for the digest and codec tests (not validated: no admitted players).
@@ -274,6 +309,7 @@ fn snapshot_round_trips_through_the_codec_and_restore() {
             due: None,
         },
     );
+    materialize_ground(&mut populated_snapshot);
     let bytes = encode_snapshot(&populated_snapshot).unwrap();
     let decoded = decode_snapshot(&bytes).unwrap();
     assert_eq!(decoded, populated_snapshot);
@@ -564,8 +600,34 @@ fn invariants_fail_closed_at_restore() {
     let restore = |edit: &dyn Fn(&mut Phase5Snapshot)| {
         let mut s = snapshot.clone();
         edit(s.phase5.as_mut().unwrap());
+        materialize_ground(&mut s);
         ZoneState::from_snapshot_with_bundles(s, Some(bundle().items), Some(rules.clone()))
     };
+    // A ground entity without its record, or a record whose entity is missing, is refused.
+    let mut orphan = snapshot.clone();
+    let g = ground(seed, 7, 57, 120, Tick(0));
+    orphan
+        .phase5
+        .as_mut()
+        .unwrap()
+        .ground
+        .insert(g.entity, g.clone());
+    materialize_ground(&mut orphan);
+    orphan.phase5.as_mut().unwrap().ground.clear();
+    assert!(ZoneState::from_snapshot_with_bundles(
+        orphan,
+        Some(bundle().items),
+        Some(rules.clone())
+    )
+    .is_err());
+    let mut missing = snapshot.clone();
+    missing.phase5.as_mut().unwrap().ground.insert(g.entity, g);
+    assert!(ZoneState::from_snapshot_with_bundles(
+        missing,
+        Some(bundle().items),
+        Some(rules.clone())
+    )
+    .is_err());
     // A valid ground item passes.
     restore(&|b| {
         let g = ground(seed, 7, 57, 120, Tick(0));
@@ -600,6 +662,27 @@ fn invariants_fail_closed_at_restore() {
         b.ground.insert(g.entity, g);
     })
     .is_err());
+    // z-review-2 P3-7 (Phase 4 I1): NPC loot is minted from this epoch's allocated range;
+    // an in-range id at or past `next` is never valid; a PK drop may carry an older id.
+    for (item, pk, ok) in [
+        (60, false, false),
+        (200, false, false),
+        (60, true, false),
+        (200, true, true),
+    ] {
+        let accepted = restore(&|b| {
+            let mut g = ground(seed, item, 57, 120, Tick(0));
+            if pk {
+                g.source = GroundSource::PkDrop { victim: id(5) };
+                g.loot_owner = None;
+                g.drop_protection = None;
+                g.decay_due = None;
+            }
+            b.ground.insert(g.entity, g);
+        })
+        .is_ok();
+        assert_eq!(accepted, ok, "id {item} pk {pk}");
+    }
     // Duplicate instance across two ground items.
     assert!(restore(&|b| {
         let g = ground(seed, 7, 57, 120, Tick(0));

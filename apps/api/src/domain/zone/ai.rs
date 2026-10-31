@@ -144,6 +144,10 @@ pub struct SpawnSlotSpec {
     pub respawn_delay_secs: u32,
     /// Random extra respawn seconds, `0..=` this.
     pub respawn_random_secs: u32,
+    /// V7 only: the pinned npc id binding the slot's monsters to `drops.toml` (story 3.3).
+    /// Always `None` outside V7, so V5/V6 snapshot bytes are unchanged.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pinned_npc_id: Option<u32>,
 }
 
 impl SpawnSlotSpec {
@@ -160,6 +164,7 @@ impl SpawnSlotSpec {
             brain: NpcBrain::from_template(template),
             respawn_delay_secs: slot.respawn_delay_secs,
             respawn_random_secs: slot.respawn_random_secs,
+            pinned_npc_id: template.pinned_npc_id,
         }
     }
 }

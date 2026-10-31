@@ -56,6 +56,9 @@ pub enum EntityKind {
     Player,
     /// Controlled by the server.
     Npc,
+    /// V7 only (design §1.2, wire `ENTITY_KIND_GROUND_ITEM = 3`): an item on the ground. It
+    /// has no combat, AI or movement; its item lives in the Phase 5 block.
+    GroundItem,
 }
 
 /// One entity in a zone.

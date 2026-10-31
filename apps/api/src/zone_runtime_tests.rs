@@ -374,17 +374,42 @@ fn phase3_switch_defaults_normal_startup_to_v5_and_refuses_truthy_values() {
     }
 }
 
-/// Story 2.2: the `PHASE5_ENABLED` matrix of design §12.1.
+/// Story 2.2: the `PHASE5_ENABLED` matrix of design §12.1 (ruling P5-D15(a)).
 #[test]
-fn phase5_switch_defaults_to_v7_and_refuses_malformed_or_contradictory_values() {
-    // Unset selects V7, except under the historical simulation-fixture selection.
-    assert!(config(&[]).phase5_requested().unwrap());
-    assert!(config(&[("PHASE4_ENABLED", "1")])
+fn phase5_switch_defaults_off_and_refuses_malformed_or_contradictory_values() {
+    // P5-D15(a): unset keeps the pre-Phase-5 selection; the Phase 4 default is unchanged.
+    assert!(!config(&[]).phase5_requested().unwrap());
+    assert!(!config(&[]).phase4_requested().unwrap());
+    assert!(config(&[]).phase3_requested().unwrap());
+    assert!(!config(&[("PHASE4_ENABLED", "1")])
         .phase5_requested()
+        .unwrap());
+    assert!(config(&[("PHASE4_ENABLED", "1")])
+        .phase4_requested()
         .unwrap());
     assert!(!config(&[("ZONE_SIM_FIXTURE", "phase1a-social-aggro")])
         .phase5_requested()
         .unwrap());
+    // z-review-2 P1-2: the documented off switch PHASE3_ENABLED=0 alone boots legacy epochs.
+    let off = config(&[("PHASE3_ENABLED", "0")]);
+    assert!(!off.phase5_requested().unwrap());
+    assert!(!off.phase4_requested().unwrap());
+    assert!(!off.phase3_requested().unwrap());
+    assert!(off.validate_production_selection().is_ok());
+    // An explicit V7 selection implies V6; V6 then needs V5 and names the real cause.
+    assert!(config(&[("PHASE5_ENABLED", "1")])
+        .phase4_requested()
+        .unwrap());
+    let err = config(&[("PHASE5_ENABLED", "1"), ("PHASE3_ENABLED", "0")])
+        .validate_production_selection()
+        .unwrap_err()
+        .to_string();
+    assert!(err.contains("PHASE5_ENABLED=1"), "{err}");
+    let err = config(&[("PHASE4_ENABLED", "1"), ("PHASE3_ENABLED", "0")])
+        .validate_production_selection()
+        .unwrap_err()
+        .to_string();
+    assert!(err.starts_with("PHASE4_ENABLED=1"), "{err}");
     // Exact 0 keeps the older selection; exact 1 selects V7.
     assert!(!config(&[("PHASE5_ENABLED", "0")])
         .phase5_requested()
@@ -437,9 +462,9 @@ fn phase5_switch_defaults_to_v7_and_refuses_malformed_or_contradictory_values() 
 /// Story 2.3: the Phase 5 rules bind to the V6 bundle at boot (D27) or refuse boot.
 #[test]
 fn phase5_rules_bind_to_the_v6_bundle_or_refuse_boot() {
-    // V7 without a composed V6 bundle refuses boot (the bundle is composed for V7); an
-    // explicit PHASE4_ENABLED=0 keeps the V6-off selection with no V7 and no refusal.
-    assert!(config(&[]).prepare_phase5(None).is_err());
+    // V7 without a composed V6 bundle refuses boot (the bundle is composed for V7); the
+    // default and an explicit PHASE4_ENABLED=0 select no V7 and refuse nothing.
+    assert!(config(&[]).prepare_phase5(None).unwrap().is_none());
     assert!(config(&[("PHASE5_ENABLED", "1")])
         .prepare_phase5(None)
         .is_err());
@@ -453,7 +478,11 @@ fn phase5_rules_bind_to_the_v6_bundle_or_refuse_boot() {
         .prepare_phase5(Some(&bundle))
         .unwrap()
         .is_none());
-    let rules = config(&[("PHASE4_ENABLED", "1")])
+    assert!(config(&[("PHASE4_ENABLED", "1")])
+        .prepare_phase5(Some(&bundle))
+        .unwrap()
+        .is_none());
+    let rules = config(&[("PHASE5_ENABLED", "1")])
         .prepare_phase5(Some(&bundle))
         .unwrap()
         .unwrap();

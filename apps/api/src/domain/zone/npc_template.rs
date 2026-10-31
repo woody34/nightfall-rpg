@@ -50,6 +50,9 @@ pub struct NpcTemplate {
     pub respawn_delay_secs: u32,
     /// Random extra respawn seconds, drawn from `0..=` this.
     pub respawn_random_secs: u32,
+    /// V7 only: the pinned L2J npc id whose `drops.toml` row (drop and corpse lists, corpse
+    /// time, raid flag) this template uses (story 3.3, P5-Q8). `None` = no drop lists.
+    pub pinned_npc_id: Option<u32>,
 }
 
 /// A place where `count` monsters of one template live and respawn.
