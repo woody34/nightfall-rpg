@@ -960,6 +960,13 @@ impl ZoneState {
     ) -> Result<Self, SnapshotError> {
         snapshot.validate_version()?;
         let phase5 = Self::bind_phase5(snapshot.phase5.clone(), economy, rules.as_deref())?;
+        // D10: a V7 state restores on the V7 item view (V6 ∪ closure, under the V6 hash).
+        let rules = match &phase5 {
+            Some(phase5) => Some(Arc::clone(phase5.rules.v7_items().ok_or_else(|| {
+                SnapshotError::Rules("V7 economy rules without the bound closure items".into())
+            })?)),
+            None => rules,
+        };
         let phase4 = match (snapshot.phase4.clone(), rules) {
             (None, None) => None,
             (Some(canonical), Some(rules)) => {

@@ -272,6 +272,35 @@ impl Phase4Rules {
         Ok(())
     }
 
+    /// D10: the V7 item view, this bundle plus the Phase 5 closure rows, under THIS bundle's
+    /// hash (the V6 bytes are unchanged; `Phase5Rules` hashes and validates the closure).
+    /// Every closure row is a new template with its capability; nothing is replaced.
+    pub fn with_closure(
+        &self,
+        items: &[ItemDefinition],
+        capabilities: &[ItemCapability],
+    ) -> Result<Self, String> {
+        let mut parts = self.parts.clone();
+        for row in items {
+            if parts.items.insert(row.template_id, row.clone()).is_some() {
+                return Err(format!("closure item {} replaces a V6 row", row.template_id));
+            }
+        }
+        for row in capabilities {
+            if parts
+                .capabilities
+                .insert(row.template_id, row.clone())
+                .is_some()
+            {
+                return Err(format!("closure capability {} replaces a V6 row", row.template_id));
+            }
+        }
+        Ok(Self {
+            parts,
+            hash: self.hash,
+        })
+    }
+
     /// Full rule contents; mutation requires a newly validated bundle and a new epoch.
     pub const fn parts(&self) -> &ItemRulesParts {
         &self.parts

@@ -119,7 +119,7 @@ impl ZoneState {
         &self,
         victim: EntityId,
         rules: &Phase5Rules,
-        npc: &crate::domain::zone::phase5_rules::DropNpc,
+        npc: &crate::domain::zone::phase5_rules::RewardNpc,
     ) -> Result<Vec<crate::domain::zone::rewards::Award>, DropError> {
         use crate::domain::zone::rewards::{base_rewards, reward_pass, RewardPlayer};
         use std::collections::BTreeMap;
@@ -278,15 +278,21 @@ impl ZoneState {
         let Some(pinned) = self.pinned_npc(victim) else {
             return Ok(());
         };
-        let npc = rules
-            .drop_npc(pinned)
-            .ok_or(DropError::Rules("pinned npc without a drops.toml row"))?;
+        // P5-D12: every pinned template has a rewards.toml row (the only reward source).
+        let reward = rules
+            .reward_npc(pinned)
+            .ok_or(DropError::Rules("pinned npc without a rewards.toml row"))?;
         // B16 (design §4.5): the awards come from the reward snapshot taken now, before the
         // hate ledger is removed; they are applied at kill() step 7. Draw-free.
-        let awards = self.reward_awards(victim, &rules, npc)?;
+        let awards = self.reward_awards(victim, &rules, reward)?;
+        let raid = reward.is_raid;
         if let Some(phase5) = &mut self.phase5 {
             phase5.rewards = Some((victim, awards));
         }
+        // An NPC without a `<death>`/`<corpse>` list has no drops.toml row: nothing to roll.
+        let Some(npc) = rules.drop_npc(pinned) else {
+            return Ok(());
+        };
         let Some(actor) = self.drop_actor(victim, attacker) else {
             return Ok(());
         };
@@ -297,7 +303,7 @@ impl ZoneState {
                 .map(|c| i64::from(c.sheet.level()))
         };
         let victim_facts = DropVictim {
-            raid: npc.is_raid,
+            raid,
             level: level(victim).ok_or(DropError::Rules("victim without combat"))?,
         };
         let killer_level = level(actor).ok_or(DropError::Rules("drop actor without combat"))?;
@@ -320,7 +326,7 @@ impl ZoneState {
         }
         let holders = roll_list(&rules, npc, DropScope::Death, victim_facts, killer_level, self)?;
         for holder in holders {
-            self.spawn_npc_loot(tick, victim, origin, actor, npc.is_raid, holder, &rules, events)?;
+            self.spawn_npc_loot(tick, victim, origin, actor, raid, holder, &rules, events)?;
         }
         Ok(())
     }
@@ -451,7 +457,7 @@ impl ZoneState {
         let phase5 = self.phase5.as_ref()?;
         let seconds = self
             .pinned_npc(npc)
-            .and_then(|pinned| phase5.rules.drop_npc(pinned))
+            .and_then(|pinned| phase5.rules.reward_npc(pinned))
             .map_or(DEFAULT_CORPSE_TIME, |row| row.corpse_time);
         let extended = phase5
             .canonical
@@ -695,7 +701,7 @@ mod tests {
         let tick = zone.next_tick;
         // B16 (story 3.4): the expected award from the same snapshot, before the kill.
         let expected = zone
-            .reward_awards(npc, &rules, rules.drop_npc(pinned).unwrap())
+            .reward_awards(npc, &rules, rules.reward_npc(pinned).unwrap())
             .unwrap();
         assert_eq!(expected.len(), 1, "a solo attacker");
         assert_eq!(expected[0].player, player);

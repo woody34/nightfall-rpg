@@ -18,19 +18,21 @@ use crate::domain::zone::phase5_rules::{Phase5RulesParts, PowTable};
 use crate::domain::zone::{Phase4Rules, Phase5Rules, PHASE5_FORMULA_REVISION};
 
 /// The generated tables, in file-name order.
-pub const PHASE5_TABLES: [&str; 14] = [
+pub const PHASE5_TABLES: [&str; 16] = [
     "adaptations.toml",
     "auction.toml",
     "catalogue.toml",
     "drops.toml",
     "ground.toml",
     "herbs.toml",
+    "items_closure.toml",
     "manor.toml",
     "merchants.toml",
     "multisell.toml",
     "party.toml",
     "rates.toml",
     "recipes.toml",
+    "rewards.toml",
     "sources.toml",
     "storage_mail.toml",
 ];
@@ -78,6 +80,12 @@ impl Phase5DataSource<'_> {
                     include_str!("../../../../packages/data/tables-phase5/ground.toml")
                 },
                 "herbs.toml" => include_str!("../../../../packages/data/tables-phase5/herbs.toml"),
+                "items_closure.toml" => {
+                    include_str!("../../../../packages/data/tables-phase5/items_closure.toml")
+                },
+                "rewards.toml" => {
+                    include_str!("../../../../packages/data/tables-phase5/rewards.toml")
+                },
                 "manor.toml" => include_str!("../../../../packages/data/tables-phase5/manor.toml"),
                 "merchants.toml" => {
                     include_str!("../../../../packages/data/tables-phase5/merchants.toml")
@@ -222,8 +230,13 @@ fn parts_from(loaded: &Loaded, phase4: &Phase4Rules) -> Result<Phase5RulesParts,
             .cloned()
             .ok_or_else(|| format!("{file}: not loaded"))
     };
+    // D10: closure rows use the V6 row encoding, so they take the V6 normalisation (exact
+    // literals as `n/d`, provenance-only `source`/`raw`/`line` keys dropped).
+    let closure = super::item_data::normalize_rows(get("items_closure.toml")?)?;
     Ok(Phase5RulesParts {
         drops: typed("drops.toml", get("drops.toml")?)?,
+        rewards: typed("rewards.toml", get("rewards.toml")?)?,
+        items_closure: typed("items_closure.toml", closure)?,
         rates: typed("rates.toml", get("rates.toml")?)?,
         ground: typed("ground.toml", get("ground.toml")?)?,
         party: typed("party.toml", get("party.toml")?)?,
@@ -260,8 +273,8 @@ pub fn load_phase5_rules(
     source: &Phase5DataSource<'_>,
     phase4: &Phase4Rules,
 ) -> Result<Phase5Rules, String> {
-    let rules = Phase5Rules::try_new(load_phase5_parts(source, phase4)?)?;
-    rules.validate_phase4(phase4)?;
+    let mut rules = Phase5Rules::try_new(load_phase5_parts(source, phase4)?)?;
+    rules.bind_items(phase4)?;
     Ok(rules)
 }
 
@@ -391,6 +404,95 @@ mod tests {
         let mut stale = checkpoint;
         stale.rules_hash = other.hash_hex();
         assert!(stale.validate_rules(&a).is_err());
+    }
+
+    /// D10 and P5-D12: the closure rows and the rewards table are part of the Phase 5 hash;
+    /// the V7 item view is V6 plus the closure under the unchanged V6 hash; rewards cover
+    /// every pinned template, including NPCs without a drop list.
+    #[test]
+    fn closure_items_and_rewards_bind_to_the_v6_bundle_and_fail_closed() {
+        let rules = rules();
+        let bundle = super::super::item_data::embedded_phase4_bundle().unwrap();
+        let inv = rules.inventory();
+        assert_eq!((inv.closure_items, inv.reward_npcs), (4264, 10_461));
+        // The V6 bundle is unchanged; the V7 view adds exactly the closure under its hash.
+        let v6_hex: String = bundle
+            .items
+            .hash()
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect();
+        assert_eq!(v6_hex, "bfee2e7d9fb73f53706c7a4afc19f5d095f4d630ca90e9a5747895c0e5472aad");
+        assert_eq!(rules.parts().items_closure.v6_items_sha256, v6_hex);
+        let view = rules.v7_items().unwrap();
+        assert_eq!(view.hash(), bundle.items.hash());
+        assert!(!bundle.items.parts().items.contains_key(&1048));
+        assert!(view.parts().items.contains_key(&1048));
+        assert_eq!(view.parts().items.len(), bundle.items.parts().items.len() + 4264);
+        for template in &rules.parts().catalogue.templates {
+            assert!(view.parts().items.contains_key(&template.id), "{}", template.id);
+            assert!(view.parts().capabilities.contains_key(&template.id), "{}", template.id);
+        }
+        // Binding is idempotent on the V7 view itself (a V7 restore passes it back).
+        let mut again = Phase5Rules::try_new(parts()).unwrap();
+        again.bind_items(view).unwrap();
+        assert_eq!(again.v7_items().unwrap().parts(), view.parts());
+        // A closure bound to another V6 bundle, a closure row that shadows a V6 item, a row
+        // missing, a non-storable row: refused.
+        let mut other_bundle = parts();
+        other_bundle.items_closure.v6_items_sha256 = "00".repeat(32);
+        let mut other_bundle = Phase5Rules::try_new(other_bundle).unwrap();
+        assert!(other_bundle
+            .bind_items(&bundle.items)
+            .unwrap_err()
+            .contains("v6_items_sha256"));
+        let mut shadow = parts();
+        let v6_row = bundle.items.parts().items.values().next().unwrap().clone();
+        shadow.items_closure.items[0] = v6_row;
+        assert!(Phase5Rules::try_new(shadow).is_err());
+        let mut missing = parts();
+        missing.items_closure.items.pop();
+        assert!(Phase5Rules::try_new(missing)
+            .unwrap_err()
+            .contains("items_closure"));
+        let mut stored = parts();
+        stored.items_closure.capabilities[0].storable = false;
+        assert!(Phase5Rules::try_new(stored)
+            .unwrap_err()
+            .contains("storable"));
+        let mut closure_value = parts();
+        closure_value.items_closure.items[0].weight += 1;
+        assert_ne!(Phase5Rules::try_new(closure_value).unwrap().hash(), rules.hash());
+        // Rewards: every sp-only template and a template without a drop list have a row.
+        for id in &rules.parts().drops.sp_only_templates {
+            assert!(rules.reward_npc(*id).is_some(), "{id}");
+        }
+        let row = rules.reward_npc(102).unwrap();
+        assert_eq!((row.level, row.exp_rate.as_str(), row.sp.as_str()), (70, "0.1", "10"));
+        assert!(rules.drop_npc(102).is_none());
+        let mut disagree = parts();
+        let first = disagree.drops.npc[0].id;
+        disagree
+            .rewards
+            .npc
+            .iter_mut()
+            .find(|row| row.id == first)
+            .unwrap()
+            .level += 1;
+        assert!(Phase5Rules::try_new(disagree)
+            .unwrap_err()
+            .contains("disagrees"));
+        let mut count = parts();
+        count.rewards.npc_count += 1;
+        assert!(Phase5Rules::try_new(count).is_err());
+        let mut reward_value = parts();
+        reward_value
+            .rewards
+            .npc
+            .last_mut()
+            .unwrap()
+            .collision_radius += 1;
+        assert_ne!(Phase5Rules::try_new(reward_value).unwrap().hash(), rules.hash());
     }
 
     #[test]

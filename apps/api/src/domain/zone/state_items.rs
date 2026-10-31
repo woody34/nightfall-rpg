@@ -98,6 +98,10 @@ impl ZoneState {
         economy
             .validate_phase4(&items)
             .map_err(SnapshotError::Rules)?;
+        // D10: a V7 epoch runs on the V7 item view (V6 ∪ closure, under the V6 hash).
+        let items = Arc::clone(economy.v7_items().ok_or_else(|| {
+            SnapshotError::Rules("V7 economy rules without the bound closure items".into())
+        })?);
         let mut state = Self::new_phase4(
             seed,
             bounds,
