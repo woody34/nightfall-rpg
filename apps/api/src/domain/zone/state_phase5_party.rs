@@ -72,6 +72,9 @@ impl ZoneState {
         if matches!(command, Phase5Command::VendorRefund { .. }) {
             return self.vendor_refund(tick, actor, command, seq, events);
         }
+        if matches!(command, Phase5Command::MultisellChoose { .. }) {
+            return self.multisell_choose(tick, actor, command, seq, events);
+        }
         if let Phase5Command::PickUpItem { ground, .. } = command {
             return self.pick_up_item(
                 tick,

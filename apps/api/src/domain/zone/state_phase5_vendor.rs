@@ -63,6 +63,13 @@ impl ZoneState {
         actor: EntityId,
         merchant: EntityId,
     ) -> Result<u32, RejectReason> {
+        let id = self.merchant_binding_v7(merchant)?;
+        self.merchant_range_v7(actor, merchant)?;
+        Ok(id)
+    }
+
+    /// The pinned NPC id a fixture merchant entity is bound to, else `INVALID_MERCHANT`.
+    pub(super) fn merchant_binding_v7(&self, merchant: EntityId) -> Result<u32, RejectReason> {
         let rules = &self
             .phase5
             .as_ref()
@@ -79,8 +86,20 @@ impl ZoneState {
         {
             return Err(RejectReason::InvalidMerchant);
         }
-        let id = rules
+        rules
             .merchant_fixture(&npc.name, npc.pos)
+            .ok_or(RejectReason::InvalidMerchant)
+    }
+
+    /// The `m(150)` interaction range to a merchant (2D, non-strict), else `OUT_OF_RANGE`.
+    pub(super) fn merchant_range_v7(
+        &self,
+        actor: EntityId,
+        merchant: EntityId,
+    ) -> Result<(), RejectReason> {
+        let npc = self
+            .entities
+            .get(&merchant)
             .ok_or(RejectReason::InvalidMerchant)?;
         let me = self
             .entities
@@ -89,7 +108,7 @@ impl ZoneState {
         if dist_sq(me.pos, npc.pos) > square(INTERACTION_RANGE_MILLI) {
             return Err(RejectReason::OutOfRange);
         }
-        Ok(id)
+        Ok(())
     }
 
     /// `FloodProtectorAction.tryPerformAction` (design §2.4): refuse while `tick < next`;
@@ -300,6 +319,24 @@ impl ZoneState {
         owner: EntityId,
         additions: &[(u32, u64)],
     ) -> Result<(), RejectReason> {
+        let inventory = self
+            .phase4
+            .as_ref()
+            .and_then(|items| items.canonical.players.get(&owner))
+            .ok_or(RejectReason::InvalidLoad)?
+            .inventory
+            .clone();
+        self.room_in_v7(owner, &inventory, additions)
+    }
+
+    /// [`Self::room_for_v7`] over `inventory` (e.g. the inventory after a choose's inputs
+    /// are paid, design §7).
+    pub(super) fn room_in_v7(
+        &self,
+        owner: EntityId,
+        inventory: &BTreeMap<ItemInstanceId, ItemInstance>,
+        additions: &[(u32, u64)],
+    ) -> Result<(), RejectReason> {
         let items = self.phase4.as_ref().ok_or(RejectReason::InvalidLoad)?;
         let player = items
             .canonical
@@ -307,7 +344,7 @@ impl ZoneState {
             .get(&owner)
             .ok_or(RejectReason::InvalidLoad)?;
         let (mut ordinary, mut quest, weight) =
-            inventory_totals(&player.inventory, &items.rules).map_err(invalid)?;
+            inventory_totals(inventory, &items.rules).map_err(invalid)?;
         let mut weight = i128::from(weight);
         let mut stacked = BTreeSet::new();
         for (template, count) in additions {
@@ -320,9 +357,7 @@ impl ZoneState {
             weight = weight
                 .saturating_add(i128::from(definition.weight).saturating_mul(i128::from(*count)));
             let slots = if definition.stackable {
-                u64::from(
-                    stack_of(&player.inventory, *template).is_none() && stacked.insert(*template),
-                )
+                u64::from(stack_of(inventory, *template).is_none() && stacked.insert(*template))
             } else {
                 *count
             };

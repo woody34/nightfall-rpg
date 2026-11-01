@@ -30,6 +30,8 @@ mod items;
 mod phase5_death;
 #[path = "state_phase5_manor.rs"]
 mod phase5_manor;
+#[path = "state_phase5_multisell.rs"]
+mod phase5_multisell;
 #[path = "state_phase5_party.rs"]
 mod phase5_party;
 #[path = "state_phase5_pickup.rs"]
