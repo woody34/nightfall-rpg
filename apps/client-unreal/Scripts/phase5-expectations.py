@@ -161,6 +161,15 @@ def fixture_npc(kind: str, npc_id: int | None, pos: tuple[int, int], name: str) 
     return {"kind": kind, "npc_id": npc_id, "name": name, "position": list(pos), "attackable": False}
 
 
+def merchant_npc(kind: str, npc_id: int) -> dict:
+    """P5-D29: a merchant or exchanger is a tables-phase5/merchant_fixtures.toml row (the V7
+    bootstrap spawns it); the pack declares the same name and position."""
+    row = next((r for r in tbl("merchant_fixtures")["merchants"] if r["npc"] == npc_id), None)
+    if row is None:
+        raise eo.OracleError(f"npc {npc_id} is not a merchant fixture")
+    return fixture_npc(kind, npc_id, (row["x"], row["y"]), row["name"])
+
+
 def herb_npc(herb_id: int) -> int:
     for n in tbl("drops")["npc"]:
         for node in n["death"]:
@@ -275,9 +284,9 @@ def build_packs() -> dict[str, dict]:
         "phase5-spoil": {"roles": [role("a", 20, pos_a, class_id=54)], "monsters": [monster(20003, (103, 100))], "note": "Scavenger 54 needs level >= 20 (class minimum); d = -15 against 20003"},
         "phase5-pk-drop": {"roles": [role("a", 20, pos_a, karma=100, pk_count=6, inventory=[inv(1864, 10), inv(57, 1000)] + [inv(1869, 1) for _ in range(12)]), role("b", 20, pos_b)],
                           "note": "a is chaotic with pk_count >= 6; b kills a. The equipped weapon (10 %) and armour (40 %) rows are the starter kit's own equipped items (GrantItem cannot equip beyond the kit)"},
-        "phase5-vendors": {"roles": [role("a", 20, pos_a, inventory=[adena(100000)] + [inv(1294, 1) for _ in range(13)])], "fixed_npcs": [fixture_npc("merchant", MERCHANT["npc"], (102, 100), "merchant")], "merchant": MERCHANT},
-        "phase5-vendor-restock": {"roles": [role("a", 20, pos_a, inventory=[adena(1000000)])], "fixed_npcs": [fixture_npc("merchant", RESTOCK["npc"], (102, 100), "merchant")], "merchant": RESTOCK},
-        "phase5-multisell": {"roles": [role("a", 20, pos_a, inventory=[inv(9417, 1, enchant=3), inv(9417, 1, enchant=0)])], "fixed_npcs": [fixture_npc("multisell", MULTISELL["npc"], (102, 100), "exchanger")], "multisell": MULTISELL},
+        "phase5-vendors": {"roles": [role("a", 20, pos_a, inventory=[adena(100000)] + [inv(1294, 1) for _ in range(13)])], "fixed_npcs": [merchant_npc("merchant", MERCHANT["npc"])], "merchant": MERCHANT},
+        "phase5-vendor-restock": {"roles": [role("a", 20, pos_a, inventory=[adena(1000000)])], "fixed_npcs": [merchant_npc("merchant", RESTOCK["npc"])], "merchant": RESTOCK},
+        "phase5-multisell": {"roles": [role("a", 20, pos_a, inventory=[inv(9417, 1, enchant=3), inv(9417, 1, enchant=0)])], "fixed_npcs": [merchant_npc("multisell", MULTISELL["npc"])], "multisell": MULTISELL},
         "phase5-craft": {"roles": [role("a", 20, pos_a, class_id=54, inventory=[inv(r1["recipe_id"], 1), inv(rf["recipe_id"], 1)] + mats(r1, 2) + mats(rf, 1), create_item_rank=2)], "recipes": {"dwarven": [RECIPE_DWARF, RECIPE_DWARF_FAIL]}},
         "phase5-craft-common": {"roles": [role("a", 20, pos_a, inventory=[inv(rc["recipe_id"], 1)] + mats(rc, 3), create_common_item_rank=max(1, rc["craft_level"]))], "recipes": {"common": [rc["id"]]}},
         "phase5-manufacture": {"roles": [role("a", 20, pos_a, class_id=54, create_item_rank=1, registered_recipes={"dwarven": [RECIPE_DWARF]}), role("b", 20, pos_b, inventory=[adena(5000)] + mats(r1, 2))], "manufacture_fee": 1000},

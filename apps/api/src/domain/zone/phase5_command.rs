@@ -136,6 +136,19 @@ pub enum AuctionTransition {
     Purge,
 }
 
+impl AuctionTransition {
+    /// The snake-case name (the serde form; the system-job request key input).
+    #[must_use]
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Create => "create",
+            Self::Start => "start",
+            Self::Finish => "finish",
+            Self::Purge => "purge",
+        }
+    }
+}
+
 /// The pinned `PartyAnswer` responses (design §13.2: `int32 answer`, pinned −1 / 0 / 1).
 pub const PARTY_ANSWERS: [i32; 3] = [-1, 0, 1];
 /// `mail_messages.subject` bound (design §11.4).

@@ -10,6 +10,9 @@ class UNightfallHud;
 class UNightfallClassDialog;
 class UNightfallSkillDialog;
 class UNightfallInventoryDialog;
+class UNightfallVendorDialog;
+class UNightfallMultisellDialog;
+class UNightfallRecipeDialog;
 class AClassMasterActor;
 
 /**
@@ -63,6 +66,11 @@ public:
 
 	void OpenSkillDialog();
 	void OpenInventoryDialog();
+	/** Story 5.3: the economy dialogs. The vendor and multisell dialogs address the current target NPC. */
+	void OpenVendorDialog();
+	void OpenMultisellDialog(uint32 ListId = 0);
+	void OpenRecipeDialog();
+	void OpenMultisellDialogFromKey() { OpenMultisellDialog(0); }
 	/** Production mouse-hit resolver and key-binding setup, also exercised headlessly. */
 	bool ClickEntityProxy(const FString& EntityId);
 	void BindSkillKeys();
@@ -78,6 +86,9 @@ private:
 	void OnClickMove();
 	UPROPERTY(Transient) TObjectPtr<UNightfallSkillDialog> SkillDialog;
 	UPROPERTY(Transient) TObjectPtr<UNightfallInventoryDialog> InventoryDialog;
+	UPROPERTY(Transient) TObjectPtr<UNightfallVendorDialog> VendorDialog;
+	UPROPERTY(Transient) TObjectPtr<UNightfallMultisellDialog> MultisellDialog;
+	UPROPERTY(Transient) TObjectPtr<UNightfallRecipeDialog> RecipeDialog;
 	void ShowClassMaster();
 	void LoadClassCatalogue();
 	UPROPERTY(Transient) TObjectPtr<UNightfallClassDialog> ClassDialog;

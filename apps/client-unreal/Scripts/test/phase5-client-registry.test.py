@@ -32,7 +32,7 @@ class Registry(unittest.TestCase):
     def test_predicate_table_equals_grammar_order(self):
         expected = [p for p in grammar.PREDICATES if p != 'rejected']
         self.assertEqual(table(PREDICATES_CPP, 'Predicates'), expected)
-        self.assertEqual(len(expected), 96)
+        self.assertEqual(len(expected), 97)
 
     def test_command_table_equals_grammar_order_and_console_commands(self):
         commands = table(PREDICATES_CPP, 'Commands')

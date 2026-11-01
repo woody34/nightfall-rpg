@@ -630,12 +630,13 @@ async fn claim_learning(
     Ok(None)
 }
 
-impl PgCharacterRepository {
-    /// The V7 economy checkpoint (story 4.2 / E4.5): the character checkpoint, its item
-    /// projection and the economy write in ONE revision-fenced transaction (design §11.5).
-    /// The zone actor's economy settlement calls this, never
-    /// [`EconomyCheckpointRepository::checkpoint_economy`](crate::application::economy::EconomyCheckpointRepository::checkpoint_economy).
-    pub async fn checkpoint_with_economy(
+/// The V7 economy checkpoint (story 4.2 / E4.5, P5-D16): the character checkpoint, its item
+/// projection and the economy write in ONE revision-fenced transaction (design §11.5).
+/// The zone actor's economy settlement calls this, never
+/// [`EconomyCheckpointRepository::checkpoint_economy`](crate::application::economy::EconomyCheckpointRepository::checkpoint_economy).
+#[async_trait]
+impl crate::application::economy::EconomyCharacterCheckpointRepository for PgCharacterRepository {
+    async fn checkpoint_with_economy(
         &self,
         cp: &CharacterCheckpoint,
         events: &[DomainEvent],
@@ -651,27 +652,35 @@ impl PgCharacterRepository {
         }
     }
 
-    #[allow(clippy::too_many_lines)] // Keep receipt/key/fence/ledger/outbox ordering visible in one transaction.
-    #[tracing::instrument(
-        name = "storage",
-        target = "nightfall_api::runtime_timing",
-        level = "debug",
-        skip_all,
-        fields(phase = "checkpoint")
-    )]
-    pub(super) async fn checkpoint_tx(
+    async fn checkpoint_many(
+        &self,
+        parts: &[crate::application::economy::CharacterCheckpointPart<'_>],
+        economy: &crate::application::economy::EconomyCheckpointWrite,
+    ) -> Result<Vec<CheckpointOutcome>, CheckpointError> {
+        Box::pin(self.checkpoint_many_tx(parts, economy)).await
+    }
+}
+
+/// How one character's part of a checkpoint transaction ends.
+enum Settle {
+    /// Applied: commit (single) or continue with the next part (multi), with the V7 fact rows.
+    Commit(LearningCheckpointOutcome, Vec<crate::application::economy_facts::FactRow>),
+    /// A replay proved by a stored claim: commit what the claim wrote (nothing else changed).
+    CommitEarly(LearningCheckpointOutcome),
+    /// Stale, replayed or a known receipt: nothing of this draft is applied.
+    Rollback(LearningCheckpointOutcome),
+}
+
+impl PgCharacterRepository {
+    /// The checks before any row is locked, and the checkpoint fingerprint.
+    fn prepare(
         &self,
         cp: &CharacterCheckpoint,
         events: &[DomainEvent],
         receipt: Option<&SuccessfulLearnReceipt>,
         items: Option<&crate::application::ports::ItemCheckpointWork>,
         economy: Option<&crate::application::economy::EconomyCheckpointWrite>,
-    ) -> Result<LearningCheckpointOutcome, CheckpointError> {
-        let other = checkpoint_db_error;
-        if let Some(write) = economy {
-            // Structural refusal before any row is locked (design §11.5).
-            write.validate().map_err(super::economy::checkpoint_error)?;
-        }
+    ) -> Result<String, CheckpointError> {
         // Item audit facts require the atomic inventory/ledger/receipt projection lane.
         if items.is_none() && events.iter().any(DomainEvent::is_item) {
             return Err(CheckpointError::Constraint("item_projection_required".into()));
@@ -699,6 +708,204 @@ impl PgCharacterRepository {
                 |receipt| receipt.checkpoint_fingerprint(cp, events),
             )?
         };
+        crate::application::economy_closure::economy_fingerprint(fingerprint, economy)
+    }
+
+    /// P5-D27: N characters and the shared economy write in one revision-fenced transaction.
+    #[allow(clippy::too_many_lines)] // Fence, preload, re-home, parts and economy in one visible order.
+    pub async fn checkpoint_many_tx(
+        &self,
+        parts: &[crate::application::economy::CharacterCheckpointPart<'_>],
+        economy: &crate::application::economy::EconomyCheckpointWrite,
+    ) -> Result<Vec<CheckpointOutcome>, CheckpointError> {
+        let other = checkpoint_db_error;
+        economy
+            .validate()
+            .map_err(super::economy::checkpoint_error)?;
+        let order = crate::application::economy::fence_order(parts)?;
+        crate::application::economy_closure::close_operations(parts, economy, true)?;
+        if economy.receipts.iter().any(|r| {
+            !parts
+                .iter()
+                .any(|p| p.cp.character_id.as_uuid() == r.character_id)
+        }) {
+            return Err(CheckpointError::Constraint("economy_receipt_scope".into()));
+        }
+        let mut links = crate::application::ports::IdentityLinks::of_write(economy)?;
+        for part in parts {
+            if let Some(work) = part.items {
+                links.add_projection(work);
+            }
+        }
+        let mut fingerprints = Vec::with_capacity(parts.len());
+        for part in parts {
+            fingerprints.push(self.prepare(
+                part.cp,
+                part.events,
+                None,
+                part.items,
+                Some(economy),
+            )?);
+        }
+        let tx = self.db.begin().await.map_err(other)?;
+        // Every fence in canonical order first, so opposite-order writers never deadlock.
+        let ids: Vec<Uuid> = order
+            .iter()
+            .filter_map(|&i| parts.get(i).map(|p| p.cp.character_id.as_uuid()))
+            .collect();
+        let locked = tx
+            .query_all_raw(Statement::from_sql_and_values(
+                DbBackend::Postgres,
+                "SELECT id FROM characters WHERE id = ANY($1) ORDER BY id FOR UPDATE",
+                [ids.clone().into()],
+            ))
+            .await
+            .map_err(other)?;
+        if locked.len() != ids.len() {
+            return Err(CheckpointError::NotFound);
+        }
+        let mut preloaded = Vec::with_capacity(parts.len());
+        for part in parts {
+            let model = characters::Entity::find_by_id(part.cp.character_id.as_uuid())
+                .one(&tx)
+                .await
+                .map_err(other)?
+                .ok_or(CheckpointError::NotFound)?;
+            let phase3 = phase3_checkpoint::load(&tx, &model).await?;
+            preloaded.push(super::phase4_checkpoint::load(&tx, &model, phase3.as_ref()).await?);
+        }
+        super::economy::container_removals(&tx, economy)
+            .await
+            .map_err(super::economy::checkpoint_error)?;
+        // Character to character (trade, store): remove each re-homed instance from its source
+        // before any part settles, so the target's upsert never meets the source's row.
+        let rehomed = links.settle_rehomes(parts.iter().filter_map(|p| p.items));
+        for instance in &rehomed {
+            let source = parts.iter().find(|p| {
+                p.items.is_some_and(|w| {
+                    w.projection.ledger.iter().any(|d| {
+                        d.instance.get() == *instance
+                            && d.operation
+                                == crate::domain::zone::phase4_projection::ItemOperation::TransferOut
+                    })
+                })
+            });
+            let Some(source) = source else {
+                return Err(CheckpointError::Constraint("economy_transfer_unlinked".into()));
+            };
+            let deleted = tx
+                .execute_raw(Statement::from_sql_and_values(
+                    DbBackend::Postgres,
+                    "DELETE FROM item_instances WHERE id=$1 AND character_id=$2 AND owner_kind='character'",
+                    [
+                        i64::try_from(*instance).map_err(anyhow::Error::from)?.into(),
+                        source.cp.character_id.as_uuid().into(),
+                    ],
+                ))
+                .await
+                .map_err(other)?;
+            // An exact replay finds the row already re-homed (the preload proved the rows of
+            // a fresh write exist); the parts decide the outcome.
+            let _ = deleted;
+        }
+        let mut outcomes = vec![CheckpointOutcome::Stale; parts.len()];
+        let mut facts = Vec::new();
+        let mut applied = 0_usize;
+        for &i in &order {
+            let (Some(part), Some(fingerprint)) = (parts.get(i), fingerprints.get(i)) else {
+                continue;
+            };
+            let settled = self
+                .checkpoint_body(
+                    &tx,
+                    part.cp,
+                    part.events,
+                    None,
+                    part.items,
+                    Some(economy),
+                    &links,
+                    fingerprint,
+                    false,
+                    preloaded.get(i),
+                )
+                .await?;
+            let outcome = match settled {
+                Settle::Commit(LearningCheckpointOutcome::Checkpoint(outcome), rows) => {
+                    facts.extend(rows);
+                    applied = applied.saturating_add(1);
+                    outcome
+                },
+                Settle::CommitEarly(LearningCheckpointOutcome::Checkpoint(outcome))
+                | Settle::Rollback(LearningCheckpointOutcome::Checkpoint(outcome)) => outcome,
+                Settle::Commit(LearningCheckpointOutcome::ReceiptReplayed(_), _)
+                | Settle::CommitEarly(LearningCheckpointOutcome::ReceiptReplayed(_))
+                | Settle::Rollback(LearningCheckpointOutcome::ReceiptReplayed(_)) => {
+                    return Err(
+                        anyhow::anyhow!("a multi-character write has no learn receipt").into()
+                    );
+                },
+            };
+            if let Some(slot) = outcomes.get_mut(i) {
+                *slot = outcome;
+            }
+        }
+        // All or nothing: every part applied, or nothing is written.
+        if applied != parts.len() {
+            tx.rollback().await.map_err(other)?;
+            let replayed = outcomes
+                .iter()
+                .all(|o| matches!(o, CheckpointOutcome::Replayed(_)));
+            return Ok(if replayed {
+                outcomes
+            } else {
+                vec![CheckpointOutcome::Stale; parts.len()]
+            });
+        }
+        super::economy::checkpoint_in(
+            &tx,
+            economy,
+            super::economy::DeltaPhase::InsertsOnly,
+            &facts,
+        )
+        .await
+        .map_err(super::economy::checkpoint_error)?;
+        tx.commit().await.map_err(other)?;
+        Ok(outcomes)
+    }
+
+    #[allow(clippy::too_many_lines)] // Keep receipt/key/fence/ledger/outbox ordering visible in one transaction.
+    #[tracing::instrument(
+        name = "storage",
+        target = "nightfall_api::runtime_timing",
+        level = "debug",
+        skip_all,
+        fields(phase = "checkpoint")
+    )]
+    pub(super) async fn checkpoint_tx(
+        &self,
+        cp: &CharacterCheckpoint,
+        events: &[DomainEvent],
+        receipt: Option<&SuccessfulLearnReceipt>,
+        items: Option<&crate::application::ports::ItemCheckpointWork>,
+        economy: Option<&crate::application::economy::EconomyCheckpointWrite>,
+    ) -> Result<LearningCheckpointOutcome, CheckpointError> {
+        let other = checkpoint_db_error;
+        if let Some(write) = economy {
+            // Structural refusal before any row is locked (design §11.5).
+            write.validate().map_err(super::economy::checkpoint_error)?;
+            // P5-D28: a single-character write carries only operations of this character.
+            let part = crate::application::economy::CharacterCheckpointPart { cp, events, items };
+            crate::application::economy_closure::close_operations(&[part], write, false)?;
+        }
+        // P5-Q13: the economy rows of this character are the ledger of its changed scalars,
+        // which only the V6 item projection writes.
+        // P5-D22: the character's economy rows are in the item projection; the economy write
+        // carries the other owners and the B13 links (character rows refused).
+        let links = economy
+            .map(crate::application::ports::IdentityLinks::of_write)
+            .transpose()?
+            .unwrap_or_default();
+        let fingerprint = self.prepare(cp, events, receipt, items, economy)?;
         let mut db = self.db.clone();
         if tracing::enabled!(target: "nightfall_api::runtime_timing", tracing::Level::DEBUG) {
             db.set_metric_callback(|info| {
@@ -710,10 +917,61 @@ impl PgCharacterRepository {
             target: "nightfall_api::runtime_timing", "storage_subphase", subphase = "pool_and_begin"
         ));
         let tx = self.timed("checkpoint_begin", begin).await.map_err(other)?;
+        let settled = self
+            .checkpoint_body(
+                &tx,
+                cp,
+                events,
+                receipt,
+                items,
+                economy,
+                &links,
+                &fingerprint,
+                true,
+                None,
+            )
+            .await?;
+        match settled {
+            Settle::Commit(outcome, _) | Settle::CommitEarly(outcome) => {
+                self.timed(
+                    "checkpoint_commit",
+                    super::storage_timing::timed("checkpoint", "commit", tx.commit()),
+                )
+                .await
+                .map_err(other)?;
+                Ok(outcome)
+            },
+            Settle::Rollback(outcome) => {
+                super::storage_timing::timed("checkpoint", "rollback", tx.rollback())
+                    .await
+                    .map_err(other)?;
+                Ok(outcome)
+            },
+        }
+    }
+
+    /// One character's part of a revision-fenced checkpoint transaction. `single` applies the
+    /// economy write here; a multi-character write (P5-D27) applies it once, after every part,
+    /// and collects each part's V7 fact rows.
+    #[allow(clippy::too_many_lines, clippy::too_many_arguments)] // The unchanged per-character ordering.
+    async fn checkpoint_body(
+        &self,
+        tx: &sea_orm::DatabaseTransaction,
+        cp: &CharacterCheckpoint,
+        events: &[DomainEvent],
+        receipt: Option<&SuccessfulLearnReceipt>,
+        items: Option<&crate::application::ports::ItemCheckpointWork>,
+        economy: Option<&crate::application::economy::EconomyCheckpointWrite>,
+        links: &crate::application::ports::IdentityLinks,
+        fingerprint: &str,
+        single: bool,
+        preloaded: Option<&Option<crate::domain::zone::Phase4Checkpoint>>,
+    ) -> Result<Settle, CheckpointError> {
+        let other = checkpoint_db_error;
 
         let original = characters::Entity::find_by_id(cp.character_id.as_uuid())
             .lock(sea_orm::sea_query::LockType::Update)
-            .one(&tx)
+            .one(tx)
             .await
             .map_err(other)?
             .ok_or(CheckpointError::NotFound)?;
@@ -723,13 +981,14 @@ impl PgCharacterRepository {
         let account = original.account_id.as_uuid();
         // An exact immutable checkpoint retry proves this draft committed, even after
         // another revision. A receipt alone proves only that some purchase won the key.
-        if receipt.is_some() || items.is_some() {
+        // c-review-7 P2-3: every economy write too, item-less ones (MailMarkRead) included.
+        if receipt.is_some() || items.is_some() || economy.is_some() {
             if let Some(stored) = super::entities::idempotency_keys::Entity::find_by_id((
                 cp.idempotency.1.as_uuid(),
                 account,
                 cp.idempotency.0.clone(),
             ))
-            .one(&tx)
+            .one(tx)
             .await
             .map_err(other)?
             {
@@ -738,11 +997,8 @@ impl PgCharacterRepository {
                 }
                 let result: StoredCheckpoint =
                     serde_json::from_value(stored.response).map_err(anyhow::Error::from)?;
-                super::storage_timing::timed("checkpoint", "rollback", tx.rollback())
-                    .await
-                    .map_err(other)?;
-                return Ok(LearningCheckpointOutcome::Checkpoint(CheckpointOutcome::Replayed(
-                    result.revision,
+                return Ok(Settle::Rollback(LearningCheckpointOutcome::Checkpoint(
+                    CheckpointOutcome::Replayed(result.revision),
                 )));
             }
         }
@@ -757,17 +1013,50 @@ impl PgCharacterRepository {
             work.validate(cp, original.account_id)?;
             work.validate_catalogue(rules)?;
             work.validate_events(cp, events)?;
-            if super::item_settlement::claim_receipts(&tx, cp, work).await? {
-                tx.rollback().await.map_err(other)?;
-                return Ok(LearningCheckpointOutcome::Checkpoint(CheckpointOutcome::Stale));
+            if super::item_settlement::claim_receipts(tx, cp, work).await? {
+                return Ok(Settle::Rollback(LearningCheckpointOutcome::Checkpoint(
+                    CheckpointOutcome::Stale,
+                )));
+            }
+        }
+        // P5-Q13: economy receipts claim their request scope like V6 receipts, before the
+        // revision fence: a known key with the same fingerprint is a replay of a settled
+        // command (nothing of this draft is applied); another fingerprint is the D43 conflict.
+        if let Some(write) = economy {
+            // P5-D27: a multi-character write claims each character's receipts in its part.
+            for receipt in write
+                .receipts
+                .iter()
+                .filter(|r| single || r.character_id == cp.character_id.as_uuid())
+            {
+                if receipt.character_id != cp.character_id.as_uuid()
+                    || receipt.account_id != account
+                {
+                    return Err(CheckpointError::Constraint("economy_receipt_scope".into()));
+                }
+                let claim = idempotency::claim(
+                    tx,
+                    AccountId::from_uuid(account),
+                    &receipt.operation,
+                    &IdempotencyKey::from_uuid(receipt.request_key),
+                    &receipt.fingerprint,
+                    receipt.response(),
+                )
+                .await
+                .map_err(checkpoint_anyhow_error)?;
+                if let Claim::Existing { fingerprint, .. } = claim {
+                    if fingerprint != receipt.fingerprint {
+                        return Err(CheckpointError::KeyReused);
+                    }
+                    return Ok(Settle::Rollback(LearningCheckpointOutcome::Checkpoint(
+                        CheckpointOutcome::Stale,
+                    )));
+                }
             }
         }
         if let Some(receipt) = receipt {
-            if let Some(result) = claim_learning(&tx, cp, original.account_id, receipt).await? {
-                super::storage_timing::timed("checkpoint", "rollback", tx.rollback())
-                    .await
-                    .map_err(other)?;
-                return Ok(LearningCheckpointOutcome::ReceiptReplayed(result));
+            if let Some(result) = claim_learning(tx, cp, original.account_id, receipt).await? {
+                return Ok(Settle::Rollback(LearningCheckpointOutcome::ReceiptReplayed(result)));
             }
         }
         if let Some(name) = cp.violated_constraint() {
@@ -779,11 +1068,11 @@ impl PgCharacterRepository {
             .checked_add(1)
             .ok_or_else(|| anyhow::anyhow!("revision overflow"))?;
         let claim = idempotency::claim(
-            &tx,
+            tx,
             AccountId::from_uuid(account),
             &cp.idempotency.0,
             &cp.idempotency.1,
-            &fingerprint,
+            fingerprint,
             serde_json::to_value(StoredCheckpoint { revision: produced })
                 .map_err(anyhow::Error::from)?,
         )
@@ -795,21 +1084,12 @@ impl PgCharacterRepository {
         } = claim
         {
             if stored_fp != fingerprint {
-                super::storage_timing::timed("checkpoint", "rollback", tx.rollback())
-                    .await
-                    .map_err(other)?;
                 return Err(CheckpointError::KeyReused);
             }
             let stored: StoredCheckpoint =
                 serde_json::from_value(response).map_err(anyhow::Error::from)?;
-            self.timed(
-                "checkpoint_commit",
-                super::storage_timing::timed("checkpoint", "commit", tx.commit()),
-            )
-            .await
-            .map_err(other)?;
-            return Ok(LearningCheckpointOutcome::Checkpoint(CheckpointOutcome::Replayed(
-                stored.revision,
+            return Ok(Settle::CommitEarly(LearningCheckpointOutcome::Checkpoint(
+                CheckpointOutcome::Replayed(stored.revision),
             )));
         }
 
@@ -859,19 +1139,26 @@ impl PgCharacterRepository {
                     Expr::value(i16::from(ledger.milestone_claimed_mask)),
                 );
         }
-        let updated = update.exec(&tx).await.map_err(checkpoint_db_error)?;
+        let updated = update.exec(tx).await.map_err(checkpoint_db_error)?;
         if updated.rows_affected == 0 {
-            super::storage_timing::timed("checkpoint", "rollback", tx.rollback())
-                .await
-                .map_err(other)?;
-            return Ok(LearningCheckpointOutcome::Checkpoint(CheckpointOutcome::Stale));
+            return Ok(Settle::Rollback(LearningCheckpointOutcome::Checkpoint(
+                CheckpointOutcome::Stale,
+            )));
         }
 
-        let phase3_original = phase3_checkpoint::load(&tx, &original_model).await?;
-        let phase4_original =
-            super::phase4_checkpoint::load(&tx, &original_model, phase3_original.as_ref()).await?;
+        // P5-D27: a multi-character write loads every part before any row is re-homed.
+        let phase4_original = if let Some(preloaded) = preloaded {
+            preloaded.clone()
+        } else {
+            let phase3_original = phase3_checkpoint::load(tx, &original_model).await?;
+            super::phase4_checkpoint::load(tx, &original_model, phase3_original.as_ref()).await?
+        };
         if let Some(work) = items {
-            work.validate_before_with(phase4_original.as_ref(), self.phase4_rules.as_deref())?;
+            work.validate_before_with_economy(
+                phase4_original.as_ref(),
+                self.phase4_rules.as_deref(),
+                links,
+            )?;
         } else {
             crate::application::ports::validate_item_retention(
                 phase4_original.as_ref(),
@@ -889,22 +1176,40 @@ impl PgCharacterRepository {
             self.validate_versioned(&original, ledger, cp.phase3.as_ref(), cp.alive)
                 .map_err(|_| CheckpointError::Constraint("characters_class_state_valid".into()))?;
         }
-        character_ledger::persist(&tx, cp, &original).await?;
+        character_ledger::persist(tx, cp, &original).await?;
         if let Some(phase3) = &cp.phase3 {
-            phase3_checkpoint::persist(&tx, cp.character_id, phase3).await?;
+            phase3_checkpoint::persist(tx, cp.character_id, phase3).await?;
         }
 
+        // P5-D16: one transaction, in this order: (1) container deltas that delete or update
+        // rows, (2) the item settlement, (3) container inserts, (4) the rest of the economy
+        // write. A withdraw (container Delete + inventory upsert of the same id) and a deposit
+        // (inventory delete + container Insert of the same id) both hold.
+        let character_facts: Vec<crate::application::economy_facts::FactRow> = items
+            .map(|work| {
+                crate::application::economy_facts::FactRow::of_projection(
+                    cp.character_id.as_uuid(),
+                    work,
+                )
+            })
+            .unwrap_or_default();
+        if let (true, Some(write)) = (single, economy) {
+            super::economy::container_removals(tx, write)
+                .await
+                .map_err(super::economy::checkpoint_error)?;
+        }
         if let Some(work) = items {
             super::item_settlement::persist(
-                &tx,
+                tx,
                 cp,
                 work,
                 phase4_original.as_ref(),
                 self.phase4_rules.as_deref(),
+                links,
             )
             .await?;
         } else if let Some(phase4) = &cp.phase4 {
-            super::phase4_checkpoint::persist_retained(&tx, cp.character_id, phase4).await?;
+            super::phase4_checkpoint::persist_retained(tx, cp.character_id, phase4).await?;
         }
         if let Some(phase5) = &cp.phase5 {
             let changed = tx
@@ -927,8 +1232,27 @@ impl PgCharacterRepository {
         // c-review-4 P2-1 (design §11.5): container deltas, ledger, deliveries, lease deletes
         // and the economy outbox commit in this same revision-fenced transaction, after the
         // character fence above; a writer whose leases were released is fenced out.
-        if let Some(write) = economy {
-            super::economy::checkpoint_in(&tx, write)
+        if !single {
+            // P5-D27: the caller applies the shared economy write once, after every part.
+        } else if let Some(write) = economy {
+            super::economy::checkpoint_in(
+                tx,
+                write,
+                super::economy::DeltaPhase::InsertsOnly,
+                &character_facts,
+            )
+            .await
+            .map_err(super::economy::checkpoint_error)?;
+        } else if !character_facts.is_empty() {
+            // P5-D18: a V7 tick with only character rows (for example a vendor buy).
+            let facts = crate::application::economy_facts::derive_facts(
+                items.map_or(0, |w| w.zone.0),
+                items.map_or(0, |w| w.epoch),
+                items.map_or(0, |w| w.projection.tick.0),
+                &character_facts,
+            )
+            .map_err(super::economy::checkpoint_error)?;
+            super::economy::insert_facts(tx, facts.iter())
                 .await
                 .map_err(super::economy::checkpoint_error)?;
         }
@@ -942,18 +1266,15 @@ impl PgCharacterRepository {
                 ..Default::default()
             };
             outbox::Entity::insert(staged)
-                .exec_without_returning(&tx)
+                .exec_without_returning(tx)
                 .await
                 .map_err(other)?;
         }
 
-        self.timed(
-            "checkpoint_commit",
-            super::storage_timing::timed("checkpoint", "commit", tx.commit()),
-        )
-        .await
-        .map_err(other)?;
-        Ok(LearningCheckpointOutcome::Checkpoint(CheckpointOutcome::Applied(produced)))
+        Ok(Settle::Commit(
+            LearningCheckpointOutcome::Checkpoint(CheckpointOutcome::Applied(produced)),
+            character_facts,
+        ))
     }
 
     async fn create_idempotent_tx(

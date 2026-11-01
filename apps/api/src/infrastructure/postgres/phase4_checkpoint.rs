@@ -58,14 +58,17 @@ pub(super) async fn load<C: ConnectionTrait>(
 
 // Story 4.2: only character-owned rows (inventory, paperdoll) are the retained V6 inventory;
 // V7 container rows (warehouse, freight, mail, delivery, auction bid) keep `character_id` as
-// their owner reference and are never part of the character's Phase 4 checkpoint.
+// their owner reference and are never part of the character's Phase 4 checkpoint. The creation
+// origin is the instance's first `before = null` ledger row across every owner (P5-Q13): for an
+// item that reached the character by a V7 transfer it is the creating owner's row (for example
+// the ground drop), not the character's `transfer_in`. For a V6-only instance it is unchanged.
 async fn load_inner<C: ConnectionTrait>(
     db: &C,
     parent: &characters::Model,
     phase3: Option<&crate::domain::zone::Phase3Checkpoint>,
 ) -> anyhow::Result<Option<Phase4Checkpoint>> {
     let rows=db.query_all_raw(Statement::from_sql_and_values(DbBackend::Postgres,
-        "SELECT i.id,i.template_id,i.count,i.location,i.slot,i.enchant,i.augment_id,i.charge_bits,i.bound,i.created_tick,i.revision,origin.zone_id AS origin_zone,origin.epoch AS origin_epoch,origin.created_tick AS origin_tick FROM item_instances i LEFT JOIN LATERAL (SELECT zone_id,epoch,(l.delta->'after'->>'created_tick')::bigint AS created_tick FROM item_ledger l WHERE l.instance_id=i.id AND l.character_id=i.character_id AND l.delta->'before'='null'::jsonb ORDER BY l.id LIMIT 1) origin ON true WHERE i.character_id=$1 AND i.owner_kind='character' ORDER BY i.id",
+        "SELECT i.id,i.template_id,i.count,i.location,i.slot,i.enchant,i.augment_id,i.charge_bits,i.bound,i.created_tick,i.revision,origin.zone_id AS origin_zone,origin.epoch AS origin_epoch,origin.created_tick AS origin_tick FROM item_instances i LEFT JOIN LATERAL (SELECT zone_id,epoch,(l.delta->'after'->>'created_tick')::bigint AS created_tick FROM item_ledger l WHERE l.instance_id=i.id AND l.delta->'before'='null'::jsonb ORDER BY l.id LIMIT 1) origin ON true WHERE i.character_id=$1 AND i.owner_kind='character' ORDER BY i.id",
         [parent.id.into()])).await?;
     let Some(value) = &parent.phase4_checkpoint else {
         anyhow::ensure!(rows.is_empty(), "item rows exist without a Phase4 checkpoint");

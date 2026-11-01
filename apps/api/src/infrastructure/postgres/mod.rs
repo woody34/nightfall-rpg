@@ -21,6 +21,7 @@ mod zone_snapshot_store;
 pub use account_repository::PgAccountRepository;
 pub use character_repository::PgCharacterRepository;
 pub use economy::{classify as classify_economy_error, PgEconomyRepository};
+mod economy_reads;
 pub use migrations::Migrator;
 use sea_orm::{DatabaseConnection, SqlxPostgresConnector};
 use sea_orm_migration::MigratorTrait;

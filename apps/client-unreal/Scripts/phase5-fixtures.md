@@ -43,7 +43,7 @@ as one unit and refuses copies of two files.
 |-------|------|---------|
 | Grammar | `Scripts/phase5-grammar.py`, `Scripts/test/phase5-grammar.test.py` | Syntax of the 41 §5.3 commands and the predicates, each with its received carrier and reset rule. Every line of the 36 files parses. |
 | Profiles | `Scripts/phase5-fixtures.py`, `Scenarios/phase5-harness.json` | Pack role -> seedable profile: profession from `class_id`, level, position, starter kit + declared inventory (role stride 10,000), chaotic state, learned ranks. Published for review. |
-| Overlay | `phase5-fixtures.py create_overlay` | The Phase 4 overlay (blacksmith) plus the pack's fixed NPCs (`[[npcs]]` named `merchant`, `exchanger`, `warehouse_keeper`, `manor_manager`, `auctioneer`) and monsters (`[[spawn_slots]]` with templates `npc_<pinned id>` named `Npc_<pinned id>`, each template carrying `pinned_npc_id`). |
+| Overlay | `phase5-fixtures.py create_overlay` | The Phase 4 overlay (blacksmith) plus the pack's fixed NPCs (`[[npcs]]` named `warehouse_keeper`, `manor_manager`, `auctioneer`) and monsters (`[[spawn_slots]]` with templates `npc_<pinned id>` named `Npc_<pinned id>`, each template carrying `pinned_npc_id`). The overlay does not add the merchant fixtures (`merchant`, `restock_merchant`, `exchanger`). The V7 bootstrap spawns them from `packages/data/tables-phase5/merchant_fixtures.toml` (P5-D29). The overlay refuses a pack whose merchant declaration is not a row of that table. |
 | Seeder | `infra/scripts/seed-phase5-fixture.py`, `Scripts/test/phase5-fixture.test.py` | Stages below. `--help` lists the 27 packs. |
 | Dispatcher | `Scripts/phase2-fixture.py`, `Scripts/run-sim-ci.py`, `Scripts/sim-lib.sh` | Phase 5 branch: version 5 stack (`nf_phase5_fixture_*`, `nightfall-phase5-harness-*`), `PHASE5_ENABLED=1`, role tokens `a|b|c.token`, grant stage, per-role `instance:` mapping. |
 | Client registry | `Source/Nightfall/Bot/EconomyBotPredicates.cpp`, `Source/Nightfall/Economy/EconomyStateSubsystem.cpp`, `Scripts/test/phase5-client-registry.test.py` | The client registers the 41 commands and 96 predicates of this grammar (story 5.6). The dispatcher passes `-Phase5Roles=<role>:<character uuid>:<name>,...` (`phase2-fixture.py args`, names from `character_name`) so a role letter in a command binds to the seeded character. |
@@ -107,7 +107,7 @@ files and this table together.
 | Command | Form used | Carrier |
 |---------|-----------|---------|
 | `nf.PickUp` | `template:<id>` (the nearest received ground item of that template) or `nearest` | EntityDespawn + EconomyResult(pickup) |
-| `nf.Buy` / `nf.Sell` / `nf.Refund` | `merchant <list_id> <template|template:<id>> <count>`; `Refund merchant <list_id> <index>` | EconomyResult(vendor) |
+| `nf.Buy` / `nf.Sell` / `nf.Refund` | `<vendor> <list_id> <template|template:<id>> <count>`; `Refund <vendor> <list_id> <index>`. `<vendor>` is `merchant` or `restock_merchant` (P5-D29). | EconomyResult(vendor) |
 | `nf.Multisell` | `exchanger <list_id> <entry_index> <amount> [enchant:<n>]` | EconomyResult(multisell) |
 | `nf.RegisterRecipe` / `nf.Craft` | `template:<recipe item>`; `Craft <recipe_id>` | RecipeBookSync / EconomyResult(recipe, craft) |
 | `nf.ManufactureOrder` | `<owner role> <recipe_id>` | EconomyResult(craft) for both |

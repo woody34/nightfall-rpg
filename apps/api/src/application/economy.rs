@@ -309,27 +309,8 @@ impl DeliveryKind {
     }
 }
 
-/// `AuctionSchedule` transitions (design §10.5, §12.2).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-#[allow(missing_docs)]
-pub enum AuctionTransition {
-    Create,
-    Start,
-    Finish,
-    Purge,
-}
-
-impl AuctionTransition {
-    const fn name(self) -> &'static str {
-        match self {
-            Self::Create => "create",
-            Self::Start => "start",
-            Self::Finish => "finish",
-            Self::Purge => "purge",
-        }
-    }
-}
+/// `AuctionSchedule` transitions (design §10.5, §12.2): the zone command's own type.
+pub use crate::domain::zone::phase5_command::AuctionTransition;
 
 /// The system jobs' derived `request_key` (design §11.4; DR5 nit 10):
 /// `UUIDv5(NS_SYSJOB, kind ‖ delivery_id | auction_id ‖ transition | message_id)`. Recovery keys on it.
@@ -630,6 +611,73 @@ pub struct EconomyCheckpointWrite {
     pub lease_releases: Vec<LeaseKey>,
     /// Outbox facts.
     pub outbox: Vec<OutboxFact>,
+    /// Frozen economy receipts (P5-Q13), persisted to `item_mutation_receipts` in the same
+    /// transaction. Only the revision-fenced character checkpoint takes receipts.
+    #[serde(default)]
+    pub receipts: Vec<EconomyReceipt>,
+}
+
+/// The receipt scopes of the economy intents (`item_mutation_receipts.operation`, scope 14..42).
+pub const ECONOMY_RECEIPT_OPERATIONS: &[&str] = &[
+    "pick_up_item",
+    "vendor_buy",
+    "vendor_sell",
+    "vendor_refund",
+    "multisell_choose",
+    "register_recipe",
+    "delete_recipe",
+    "craft_item",
+    "trade_confirm",
+    "store_buy",
+    "store_sell",
+    "private_manufacture",
+    "warehouse_deposit",
+    "warehouse_withdraw",
+    "freight_send",
+    "freight_withdraw",
+    "mail_send",
+    "mail_take",
+    "mail_reject",
+    "mail_cancel",
+    "mail_delete",
+    "manor_buy_seed",
+    "manor_sell_crop",
+    "auction_bid",
+    "auction_cancel_bid",
+    "party",
+    "trade_session",
+    "store_setup",
+    "mail_mark_read",
+];
+
+/// One frozen `EconomyResult` receipt (owner only, `PbOutput` 43). A replay of the same request
+/// key with the same fingerprint returns the stored receipt; another fingerprint is the D43
+/// conflict, as for V6 receipts.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct EconomyReceipt {
+    /// The caller's account.
+    pub account_id: Uuid,
+    /// The acting character (the checkpointed one).
+    pub character_id: Uuid,
+    /// The request scope, one of [`ECONOMY_RECEIPT_OPERATIONS`].
+    pub operation: String,
+    /// The intent's idempotency key.
+    pub request_key: Uuid,
+    /// The request fingerprint.
+    pub fingerprint: String,
+    /// The receipt id.
+    pub receipt_id: Uuid,
+    /// The frozen `EconomyResult` protobuf bytes, lowercase hex.
+    pub frozen_result: String,
+}
+
+impl EconomyReceipt {
+    /// The stored `item_mutation_receipts.response` (and idempotency response) JSON.
+    #[must_use]
+    pub fn response(&self) -> serde_json::Value {
+        serde_json::json!({ "receipt_id": self.receipt_id.to_string(), "economy_result": self.frozen_result })
+    }
 }
 
 impl EconomyCheckpointWrite {
@@ -653,6 +701,29 @@ impl EconomyCheckpointWrite {
                 return Err(EconomyError::Constraint(
                     "insert deltas carry no expected revision; updates and deletes must".into(),
                 ));
+            }
+        }
+        // P5-D22: character-owner rows travel in the character's item projection.
+        if self.ledger.iter().any(|row| row.owner_kind == "character") {
+            return Err(EconomyError::Constraint("economy_character_row_in_economy_write".into()));
+        }
+        let mut scopes = std::collections::BTreeSet::new();
+        for receipt in &self.receipts {
+            if !ECONOMY_RECEIPT_OPERATIONS.contains(&receipt.operation.as_str())
+                || receipt.fingerprint.is_empty()
+                || receipt.frozen_result.is_empty()
+                || receipt.frozen_result.len() % 2 != 0
+                || !receipt
+                    .frozen_result
+                    .bytes()
+                    .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+                || !scopes.insert((
+                    receipt.account_id,
+                    receipt.operation.as_str(),
+                    receipt.request_key,
+                ))
+            {
+                return Err(EconomyError::Constraint("economy_receipt_invalid".into()));
             }
         }
         for fact in &self.outbox {
@@ -713,6 +784,95 @@ pub trait EconomyCheckpointRepository: Send + Sync {
     /// Tests and tools only: the zone actor commits economy writes inside the revision-fenced
     /// character checkpoint (`PgCharacterRepository::checkpoint_with_economy`, design §11.5).
     async fn checkpoint_economy(&self, write: &EconomyCheckpointWrite) -> Result<(), EconomyError>;
+}
+
+/// The V7 character checkpoint with its economy write: ONE revision-fenced transaction per
+/// character (design §11.5; c-review-6 P3-2, P5-D16). The order inside it is fixed: container
+/// deltas that delete or update rows, then the item settlement, then container inserts, then
+/// deliveries, ledger rows, receipts, lease deletes and the outbox.
+///
+/// Per-character split (c-review-6 P3-6, P5-D22, P5-D28): a tick's `EconomyCheckpoint` is
+/// written once per character. Each write carries that character's checkpoint, its item
+/// projection (which holds the character's V7 economy rows), its receipts, and the container,
+/// ground and refund rows of the operations that character performed. The economy write never
+/// carries a character row (`economy_character_row_in_economy_write`). An operation that
+/// touches more than one character (a party split with two or more recipients, a non-split
+/// party loot to another member, a sweep to a party, a trade, a private store or manufacture)
+/// settles in ONE [`Self::checkpoint_many`] write, so it derives one fact. The single writer
+/// refuses a write that carries only a part of an operation
+/// (`economy_multi_character_operation:<rule>:<key>`, [`super::economy_closure`]).
+#[async_trait]
+pub trait EconomyCharacterCheckpointRepository: Send + Sync {
+    /// Settle the checkpoint, its optional V6 item projection and the economy write atomically.
+    async fn checkpoint_with_economy(
+        &self,
+        cp: &crate::application::CharacterCheckpoint,
+        events: &[crate::domain::DomainEvent],
+        items: Option<&crate::application::ports::ItemCheckpointWork>,
+        economy: &EconomyCheckpointWrite,
+    ) -> Result<crate::application::CheckpointOutcome, crate::application::CheckpointError>;
+
+    /// P5-D27: one revision-fenced transaction checkpoints every part and the shared economy
+    /// write. Character fences are taken in ascending `character_id` order (canonical bytes),
+    /// so opposite-order writers never deadlock. All or nothing: a fence miss in any part makes
+    /// the whole write `Stale` (every outcome `Stale`, nothing written). A write whose every
+    /// part is an exact replay returns each part's `Replayed`. Outcomes follow `parts` order.
+    async fn checkpoint_many(
+        &self,
+        parts: &[CharacterCheckpointPart<'_>],
+        economy: &EconomyCheckpointWrite,
+    ) -> Result<Vec<crate::application::CheckpointOutcome>, crate::application::CheckpointError>;
+}
+
+/// One character of a multi-character checkpoint (P5-D27): a trade, a private store sale.
+#[derive(Debug, Clone, Copy)]
+pub struct CharacterCheckpointPart<'a> {
+    /// The character checkpoint.
+    pub cp: &'a crate::application::CharacterCheckpoint,
+    /// Its domain events.
+    pub events: &'a [crate::domain::DomainEvent],
+    /// Its item projection (V7 rows included, P5-D22).
+    pub items: Option<&'a crate::application::ports::ItemCheckpointWork>,
+}
+
+/// The canonical fence order of a multi-character write: ascending character bytes, distinct.
+pub fn fence_order(
+    parts: &[CharacterCheckpointPart<'_>],
+) -> Result<Vec<usize>, crate::application::CheckpointError> {
+    let mut order: Vec<usize> = (0..parts.len()).collect();
+    order.sort_by_key(|&i| {
+        parts
+            .get(i)
+            .map(|p| *p.cp.character_id.as_uuid().as_bytes())
+    });
+    let distinct = order.windows(2).all(|w| {
+        let id = |i: usize| parts.get(i).map(|p| p.cp.character_id);
+        w.first()
+            .zip(w.get(1))
+            .is_some_and(|(a, b)| id(*a) != id(*b))
+    });
+    if parts.is_empty() || !distinct {
+        return Err(crate::application::CheckpointError::Constraint(
+            "economy_multi_character_parts".into(),
+        ));
+    }
+    Ok(order)
+}
+
+/// An economy error inside a character checkpoint: a lease violation and a named constraint are
+/// permanent named constraints; busy, transient and other errors keep the retry class.
+#[must_use]
+pub fn checkpoint_error(error: EconomyError) -> crate::application::CheckpointError {
+    use crate::application::CheckpointError;
+    match error {
+        EconomyError::LeaseViolation(key) => {
+            CheckpointError::Constraint(format!("economy_lease_violation:{}", key.canonical()))
+        },
+        EconomyError::Constraint(name) => CheckpointError::Constraint(name),
+        other @ (EconomyError::Busy(_) | EconomyError::Transient(_) | EconomyError::Other(_)) => {
+            CheckpointError::Other(anyhow::Error::new(other))
+        },
+    }
 }
 
 /// Pending deliveries (design §10.4; E38/E41 queue: ascending id, one per target per tick).

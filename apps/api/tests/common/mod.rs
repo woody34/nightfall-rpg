@@ -68,6 +68,11 @@ impl Interceptor for Bearer {
 pub type Game = GameServiceClient<InterceptedService<Channel, Bearer>>;
 pub type Session = SessionServiceClient<InterceptedService<Channel, Bearer>>;
 
+/// Composes the Phase 5 read use cases over the app's final dependencies.
+pub type EconomyBuilder = Box<
+    dyn FnOnce(&Dependencies) -> Arc<nightfall_api::application::use_cases::EconomyQueries> + Send,
+>;
+
 pub struct TestApp {
     pub http_base: String,
     pub grpc_base: String,
@@ -126,7 +131,7 @@ impl TestApp {
         customize: impl FnOnce(&mut Dependencies),
         zone: ZoneHandle,
     ) -> Self {
-        Self::spawn_with_handle_config(customize, zone, None, None).await
+        Self::spawn_with_handle_config(customize, zone, None, None, None).await
     }
 
     /// Installs test use cases through the real service without changing production startup.
@@ -142,6 +147,7 @@ impl TestApp {
             move |deps| deps.characters = repo,
             zone,
             Some(use_cases),
+            None,
             None,
         )
         .await
@@ -159,6 +165,7 @@ impl TestApp {
                 deps.metrics = metrics;
             },
             zone,
+            None,
             None,
             None,
         )
@@ -183,8 +190,22 @@ impl TestApp {
             zone,
             None,
             Some(use_case),
+            None,
         )
         .await
+    }
+
+    /// Installs the Phase 5 read use cases (story 4.6) that `build` composes over the app's
+    /// final dependencies (its in-memory character repository included).
+    pub async fn spawn_with_economy(
+        customize: impl FnOnce(&mut Dependencies),
+        build: EconomyBuilder,
+    ) -> Self {
+        let zone = nightfall_api::application::zone_actor::ZoneActor::spawn(
+            crate::common::fixture_zone(),
+            IntervalTicks::new(),
+        );
+        Self::spawn_with_handle_config(customize, zone, None, None, Some(build)).await
     }
 
     async fn spawn_with_handle_config(
@@ -192,6 +213,7 @@ impl TestApp {
         zone: ZoneHandle,
         phase3: Option<nightfall_api::interface::grpc::Phase3UseCases>,
         inventory: Option<nightfall_api::application::use_cases::GetInventory>,
+        economy: Option<EconomyBuilder>,
     ) -> Self {
         let characters = Arc::new(InMemoryCharacterRepository::default());
         let accounts = Arc::new(InMemoryAccountRepository::default());
@@ -223,6 +245,9 @@ impl TestApp {
         }
         if let Some(use_case) = inventory {
             services.game = services.game.with_get_inventory(use_case);
+        }
+        if let Some(build) = economy {
+            services.game = services.game.with_economy(build(&deps));
         }
         let router = build_http_router(&deps, &realtime);
 

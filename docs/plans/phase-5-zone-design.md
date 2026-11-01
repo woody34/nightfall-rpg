@@ -1000,6 +1000,7 @@ Checks: weight, slots, adena. Commit: consume adena, then each entry moves back 
 - the entry exists, and a non-stackable entry requires `amount == 1` (`:135`);
 - slots and weight for products × `amount` (`:151-155`);
 - ingredients: `count × amount` is owned and available (`:201-212`).
+- an entry with a Fame (−300) or Clan Reputation (−200) ingredient or product refuses `ITEM_CAPABILITY_DEFERRED` (E52, P5-D20). These capabilities arrive with Phase 7.
 
 Capacity and weight are evaluated after inputs are paid (Phase 4 `InventoryMutation`, `Z/item_inventory.rs:109-111`).
 
@@ -1687,6 +1688,16 @@ Per tick, one revision-fenced SeaORM transaction contains:
 
 Ground and refund owners have ledger rows but **no** `item_instances` rows (snapshot only).
 
+**Writers (rulings P5-D27, P5-D28).** The API writes the economy rows of an operation in the checkpoint transaction of the character that did the operation. These operations change more than one character: a party split with two or more recipients, a party loot to another member, a sweep to a party, a trade, a private store and a private manufacture. The API writes each of them in one multi-character transaction:
+- The transaction locks the character fences in ascending `character_id` byte order. Thus two writers in opposite order cannot deadlock.
+- All parts apply, or no part applies. If one fence is not correct, the API writes nothing, and each part is `Stale`.
+- The operation gives one fact. The fact id stays one per operation (P5-D18).
+
+Before it locks a row, each writer makes sure that each operation in the write is complete. If the write has only a part of an operation, the writer refuses it with `economy_multi_character_operation:<rule>:<key>`:
+- `receipt`: a character row names a receipt that the write does not claim;
+- `transfer`: a transfer link does not have exactly one `transfer_out` and one `transfer_in`;
+- `party_split`: the `party_split` rows of a receipt do not add up to the count that the ground rows of that receipt destroy. The single-character writer also refuses a `party_split` row that has only an automatic cause (a sweep to a party).
+
 Outbox subjects, extending A20/C9: `nightfall.item.{looted, picked_up, dropped_pk, swept, harvested, purchased, sold, refunded, crafted, traded, deposited, withdrawn, freighted, mailed, mail_taken, mail_returned, mail_expired, delivered, delivery_blocked, auction_bid, auction_refunded, auction_awarded, manor_traded, decayed}`, plus the existing `destroyed` and `exchanged`. `economy_counters` is filled **asynchronously** by the outbox consumer, idempotent by `fact_id` (B8). Metric labels are bounded: operation kind, outcome, item class, grade (A19). The per-zone gauge `nightfall_zone_ground_items{kind}` (E25, §1.12) is the only new gauge.
 
 ### 11.6 Epoch close and abandoned epochs
@@ -1694,6 +1705,9 @@ Outbox subjects, extending A20/C9: `nightfall.item.{looted, picked_up, dropped_p
 - **Graceful close.** A graceful epoch close emits, in its final tick, `destroy` rows for every remaining ground item and refund entry, with cause `epoch_close:<epoch>`. Pinned `SaveDroppedItem = False` drops ground items at shutdown.
 - **Abandoned epoch** (crash with no successor recovery). The next epoch of the same zone executes a system command `EpochReconcile{abandoned_epoch, ground and refund manifest from the last fenced snapshot}` before admitting players. It writes `destroy` rows with cause `epoch_void:<epoch>`, so every live instance in the ledger has a terminal fact.
 - Leases of the closed or abandoned epoch are released in the same transaction.
+- **Manifest source (P5-D23).** The API reads the manifest from the committed ledger. A ground or refund chain is live when its last row is not terminal. Ground and refund owners have no `item_instances` rows.
+- **Fenced-snapshot guard (P5-D23).** If a fenced snapshot of the abandoned epoch exists, each of its ground and refund instances must agree with the ledger. The instance is live in the ledger, or its chain ended after the snapshot tick. If one instance does not agree, the API stops with the invariant `epoch_reconcile_snapshot_mismatch`. It releases no lease and queues no reconcile.
+- **Fingerprint (P5-D24).** The `EpochReconcile` command is `{request_key, abandoned_epoch}`. The manifest is in the frozen inputs (`decisions.manifest`), and the frozen inputs are part of the fingerprint.
 
 ## 12. Replay, codec and digest
 
@@ -2182,7 +2196,7 @@ message GetManorDataResponse { uint32 castle_id = 1; repeated SeedProductionView
 | RPC | Contract |
 |---|---|
 | `ListBuylist` | The prices are static: the §6.2 table at castle 0. `stock` and `refund_tab` come from the zone runtime **read** port at the zone's current tick (`state_tick`); the refund tab is the caller's own. The call refuses `FAILED_PRECONDITION` unless the caller is admitted, and `UNAVAILABLE` if the zone is absent. |
-| `GetMultisellList` | Static, from Phase5Rules. |
+| `GetMultisellList` | Static, from Phase5Rules. The response does not include an entry with a Fame (−300) or Clan Reputation (−200) ingredient or product (P5-D20). The wire `template_id` is unsigned, and the capability is deferred (E52). The other entries keep their pinned 1-based `entry_id`. There is no wire change. |
 | `GetRecipeBook` | Checkpoint view out of world; `FAILED_PRECONDITION` while admitted (D15 pattern: `RecipeBookSync` is the live baseline). |
 | `GetWarehouse` / `GetFreight` | DB rows (owner only); `capacity` is base + 0 (R40). |
 | `ListMail` / `ReadMail` | DB rows; expired messages hidden. Timestamps are DB time and never enter zone state (D65). `ReadMail` **writes nothing** (E31): the read flag is set by `MailMarkRead`. Pinned requires a peace zone to open a mail with attachments (`RequestReceivedPost.java:58`). `ReadMail` therefore omits `attachments` and returns `FAILED_PRECONDITION` for such a message, unless the zone read port confirms the reader is admitted inside a peace square. A reader out of world gets the header and body with no attachment rows. |

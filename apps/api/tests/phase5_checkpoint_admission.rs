@@ -11,6 +11,7 @@
 )]
 
 mod common;
+use nightfall_api::application::economy::EconomyCharacterCheckpointRepository as _;
 
 use nightfall_api::application::economy::{
     ContainerDelta, DeltaChange, EconomyCheckpointRepository, EconomyCheckpointWrite, EconomyError,

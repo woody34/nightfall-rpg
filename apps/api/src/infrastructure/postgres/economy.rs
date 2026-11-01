@@ -25,12 +25,12 @@ use uuid::Uuid;
 use crate::application::economy::{
     canonical_keys, ContainerDelta, DeliveryKind, DeliveryRepository, DeliveryRow, DeltaChange,
     EconomyCheckpointRepository, EconomyCheckpointWrite, EconomyCounterRepository, EconomyError,
-    LeaseGrant, LeaseKey, LeaseKind, LeaseRepository,
+    LeaseGrant, LeaseKey, LeaseKind, LeaseRepository, OwnerLedgerRow,
 };
 
 /// `SeaORM`-backed economy repository over the story 4.1 tables.
 pub struct PgEconomyRepository {
-    db: DatabaseConnection,
+    pub(super) db: DatabaseConnection,
 }
 
 impl PgEconomyRepository {
@@ -341,6 +341,15 @@ async fn apply_delta(tx: &DatabaseTransaction, delta: &ContainerDelta) -> Result
                      column_opt_uuid(c, "last_bidder")?.into(), column_opt_uuid(c, "highest_bidder")?.into(),
                      c.get("highest_bid").and_then(serde_json::Value::as_i64).into()]).await?
         },
+        ("item_auction", DeltaChange::Insert) => {
+            // AuctionCreate (§10.5): start/end come from the hashed fixture schedule (epoch ms).
+            execute(tx, "INSERT INTO item_auctions(id,instance_npc,item_index,state,extend_state,start_at,end_at,revision) VALUES($1,$2,$3,$4,0,'epoch'::timestamptz + $5::bigint * interval '1 millisecond','epoch'::timestamptz + $6::bigint * interval '1 millisecond',0)",
+                vec![delta.row_key.parse::<i64>().map_err(|_| EconomyError::Constraint("economy_delta_row_key".into()))?.into(),
+                     i32::try_from(column_i64(c, "instance_npc")?).map_err(|e| EconomyError::Other(e.into()))?.into(),
+                     i32::try_from(column_i64(c, "item_index")?).map_err(|e| EconomyError::Other(e.into()))?.into(),
+                     i16::try_from(column_i64(c, "state")?).map_err(|e| EconomyError::Other(e.into()))?.into(),
+                     column_i64(c, "start_unix_ms")?.into(), column_i64(c, "end_unix_ms")?.into()]).await?
+        },
         ("item_auction", DeltaChange::Delete) => {
             execute(tx, "DELETE FROM item_auctions WHERE id=$1 AND revision=$2",
                 vec![delta.row_key.parse::<i64>().map_err(|_| EconomyError::Constraint("economy_delta_row_key".into()))?.into(), expected.into()]).await?
@@ -383,8 +392,13 @@ async fn apply_delta(tx: &DatabaseTransaction, delta: &ContainerDelta) -> Result
 impl EconomyCheckpointRepository for PgEconomyRepository {
     async fn checkpoint_economy(&self, write: &EconomyCheckpointWrite) -> Result<(), EconomyError> {
         write.validate()?;
+        if !write.receipts.is_empty() {
+            return Err(EconomyError::Constraint(
+                "economy_receipts_need_character_checkpoint".into(),
+            ));
+        }
         let tx = self.db.begin().await.map_err(classify)?;
-        let result = checkpoint_in(&tx, write).await;
+        let result = checkpoint_in(&tx, write, DeltaPhase::All, &[]).await;
         match result {
             Ok(()) => tx.commit().await.map_err(classify),
             Err(error) => {
@@ -396,13 +410,64 @@ impl EconomyCheckpointRepository for PgEconomyRepository {
     }
 }
 
-pub(super) async fn checkpoint_in(
+/// Which container deltas [`checkpoint_in`] applies.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum DeltaPhase {
+    /// Every delta, in ascending lease-key order (the standalone economy write).
+    All,
+    /// Only inserts: [`container_removals`] applied the deletes and updates before the item
+    /// settlement (P5-D16).
+    InsertsOnly,
+}
+
+/// P5-D16 step 1: the container deltas that delete or update rows, in ascending lease-key
+/// order, before the item settlement of the same transaction.
+pub(super) async fn container_removals(
     tx: &DatabaseTransaction,
     write: &EconomyCheckpointWrite,
 ) -> Result<(), EconomyError> {
+    for delta in write.ordered_deltas() {
+        if delta.change != DeltaChange::Insert {
+            apply_delta(tx, delta).await?;
+        }
+    }
+    Ok(())
+}
+
+/// Outbox facts as `nightfall.item.<subject>` rows, each payload carrying its `fact_id`.
+pub(super) async fn insert_facts<'a>(
+    tx: &DatabaseTransaction,
+    facts: impl Iterator<Item = &'a crate::application::economy::OutboxFact>,
+) -> Result<(), EconomyError> {
+    for fact in facts {
+        let mut payload = fact.payload.clone();
+        if let serde_json::Value::Object(map) = &mut payload {
+            map.insert("fact_id".into(), serde_json::Value::String(fact.fact_id.to_string()));
+        }
+        execute(
+            tx,
+            "INSERT INTO outbox(subject,payload) VALUES($1,$2)",
+            vec![
+                format!("nightfall.item.{}", fact.subject).into(),
+                payload.into(),
+            ],
+        )
+        .await?;
+    }
+    Ok(())
+}
+
+pub(super) async fn checkpoint_in(
+    tx: &DatabaseTransaction,
+    write: &EconomyCheckpointWrite,
+    phase: DeltaPhase,
+    character_rows: &[crate::application::economy_facts::FactRow],
+) -> Result<(), EconomyError> {
     let zone = i32::try_from(write.zone_id).map_err(|e| EconomyError::Other(e.into()))?;
     for delta in write.ordered_deltas() {
-        apply_delta(tx, delta).await?;
+        if phase == DeltaPhase::All || delta.change == DeltaChange::Insert {
+            apply_delta(tx, delta).await?;
+        }
     }
     for delivery in &write.deliveries {
         execute(tx, "INSERT INTO economy_deliveries(id,target_character,kind,payload,status,revision) VALUES($1,$2,$3,$4,'pending',0)",
@@ -419,7 +484,12 @@ pub(super) async fn checkpoint_in(
             )));
         }
     }
-    for row in &write.ledger {
+    // T1: a stable sort by row position keeps the write's order between owners (the creating
+    // row of an instance stays first, P5-Q13) and makes each inserted (owner, instance) prefix
+    // hold positions 0..k, so the row ordinal trigger also holds when it is already immediate.
+    let mut ledger: Vec<&OwnerLedgerRow> = write.ledger.iter().collect();
+    ledger.sort_by_key(|row| row.operation_ordinal);
+    for row in ledger {
         let character: Option<Uuid> = (row.owner_kind == "character").then_some(row.owner_id);
         let owner: Option<Uuid> = (row.owner_kind != "character").then_some(row.owner_id);
         execute(tx, "INSERT INTO item_ledger(owner_kind,owner_id,character_id,zone_id,epoch,tick,revision,op,instance_id,operation_ordinal,delta,receipt_ref) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)",
@@ -427,21 +497,16 @@ pub(super) async fn checkpoint_in(
                  signed(row.epoch)?.into(), signed(row.tick)?.into(), signed(row.revision)?.into(), row.op.clone().into(), signed(row.instance_id)?.into(),
                  i32::try_from(row.operation_ordinal).map_err(|e| EconomyError::Other(e.into()))?.into(), row.delta.clone().into(), row.receipt_ref.into()]).await?;
     }
-    for fact in &write.outbox {
-        let mut payload = fact.payload.clone();
-        if let serde_json::Value::Object(map) = &mut payload {
-            map.insert("fact_id".into(), serde_json::Value::String(fact.fact_id.to_string()));
-        }
-        execute(
-            tx,
-            "INSERT INTO outbox(subject,payload) VALUES($1,$2)",
-            vec![
-                format!("nightfall.item.{}", fact.subject).into(),
-                payload.into(),
-            ],
-        )
-        .await?;
+    // P5-Q13: the scopes were claimed in `idempotency_keys` before the revision fence.
+    for receipt in &write.receipts {
+        execute(tx, "INSERT INTO item_mutation_receipts(account_id,operation,key,character_id,fingerprint,response) VALUES($1,$2,$3,$4,$5,$6)",
+            vec![receipt.account_id.into(), receipt.operation.clone().into(), receipt.request_key.into(), receipt.character_id.into(),
+                 receipt.fingerprint.clone().into(), receipt.response().into()]).await?;
     }
+    // P5-D18: the economy facts are derived from the ledger rows here (with the same tick's
+    // V7 character rows of the item projection, P5-D22); the zone emits none.
+    let derived = crate::application::economy_facts::derive_write_facts(write, character_rows)?;
+    insert_facts(tx, write.outbox.iter().chain(&derived)).await?;
     for key in &write.lease_releases {
         let deleted = execute(tx, "DELETE FROM economy_leases WHERE owner_kind=$1 AND owner_id=$2 AND zone_id=$3 AND epoch=$4",
             vec![key.kind.name().into(), format!("{:039}", key.owner).into(), zone.into(), signed(write.epoch)?.into()]).await?;
@@ -456,16 +521,7 @@ pub(super) async fn checkpoint_in(
 /// Maps an economy failure inside the character checkpoint transaction (story 4.2). The fence
 /// and integrity classes keep their names; anything else keeps the economy error as its cause.
 pub(super) fn checkpoint_error(error: EconomyError) -> crate::application::CheckpointError {
-    use crate::application::CheckpointError;
-    match error {
-        EconomyError::LeaseViolation(key) => {
-            CheckpointError::Constraint(format!("economy_lease_violation:{}", key.canonical()))
-        },
-        EconomyError::Constraint(name) => CheckpointError::Constraint(name),
-        other @ (EconomyError::Busy(_) | EconomyError::Transient(_) | EconomyError::Other(_)) => {
-            CheckpointError::Other(anyhow::Error::new(other))
-        },
-    }
+    crate::application::economy::checkpoint_error(error)
 }
 
 #[async_trait]

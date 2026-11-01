@@ -678,8 +678,8 @@
      "name": "exchanger",
      "npc_id": 32347,
      "position": [
-      102,
-      100
+      101,
+      98
      ]
     }
    ],
@@ -1311,11 +1311,11 @@
     {
      "attackable": false,
      "kind": "merchant",
-     "name": "merchant",
+     "name": "restock_merchant",
      "npc_id": 35363,
      "position": [
-      102,
-      100
+      99,
+      102
      ]
     }
    ],
@@ -1362,8 +1362,8 @@
      "name": "merchant",
      "npc_id": 31413,
      "position": [
-      102,
-      100
+      101,
+      102
      ]
     }
    ],

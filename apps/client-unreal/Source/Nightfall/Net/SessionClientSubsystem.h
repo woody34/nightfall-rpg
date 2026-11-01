@@ -90,6 +90,8 @@ public:
 	using FGetFreightCallback = TFunction<void(const FNetResult&, const FGrpcNightfallV1GetFreightResponse&)>;
 	using FListMailCallback = TFunction<void(const FNetResult&, const FGrpcNightfallV1ListMailResponse&)>;
 	using FListItemAuctionsCallback = TFunction<void(const FNetResult&, const FGrpcNightfallV1ListItemAuctionsResponse&)>;
+	using FGetMultisellListCallback = TFunction<void(const FNetResult&, const FGrpcNightfallV1GetMultisellListResponse&)>;
+	using FGetRecipeBookCallback = TFunction<void(const FNetResult&, const FGrpcNightfallV1GetRecipeBookResponse&)>;
 	using FPlayTicketCallback = TFunction<void(const FNetResult&, const FGrpcNightfallV1IssuePlayTicketResponse&)>;
 
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
@@ -104,6 +106,8 @@ public:
 	void GetFreight(const FGrpcNightfallV1GetFreightRequest& Request, FGetFreightCallback Callback);
 	void ListMail(const FGrpcNightfallV1ListMailRequest& Request, FListMailCallback Callback);
 	void ListItemAuctions(const FGrpcNightfallV1ListItemAuctionsRequest& Request, FListItemAuctionsCallback Callback);
+	void GetMultisellList(const FGrpcNightfallV1GetMultisellListRequest& Request, FGetMultisellListCallback Callback);
+	void GetRecipeBook(const FGrpcNightfallV1GetRecipeBookRequest& Request, FGetRecipeBookCallback Callback);
 	void Ping(FPingCallback Callback);
 	void ListClasses(FCatalogueCallback Callback);
 	void GetSkillCatalog(const FGrpcNightfallV1GetSkillCatalogRequest& Request, FSkillCatalogCallback Callback);
@@ -198,6 +202,10 @@ private:
 	TMap<uint32, FListMailCallback> PendingListMail;
 	UFUNCTION() void HandleListItemAuctions(FGrpcContextHandle Handle, const FGrpcResult& Result, const FGrpcNightfallV1ListItemAuctionsResponse& Response);
 	TMap<uint32, FListItemAuctionsCallback> PendingListItemAuctions;
+	UFUNCTION() void HandleGetMultisellList(FGrpcContextHandle Handle, const FGrpcResult& Result, const FGrpcNightfallV1GetMultisellListResponse& Response);
+	TMap<uint32, FGetMultisellListCallback> PendingGetMultisellList;
+	UFUNCTION() void HandleGetRecipeBook(FGrpcContextHandle Handle, const FGrpcResult& Result, const FGrpcNightfallV1GetRecipeBookResponse& Response);
+	TMap<uint32, FGetRecipeBookCallback> PendingGetRecipeBook;
 	UPROPERTY()
 	TObjectPtr<UTurboLinkGrpcManager> Manager;
 
