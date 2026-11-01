@@ -119,10 +119,9 @@ impl ZoneState {
         }
         let rules = std::sync::Arc::clone(&phase5.rules);
         let template = ground.item.template_id;
-        if rules.is_herb(template) {
-            // Story 3.5c: herb skills execute on pickup (§4.3).
-            return Err(RejectReason::NotYetImplemented);
-        }
+        // §4.3: herbs never occupy a slot (`validateCapacity` exempts them) and are never
+        // distributed; their skills run on the picker.
+        let herb = rules.is_herb(template);
         let party = self
             .party_of_player(actor)
             .and_then(|id| phase5.canonical.parties.get(&id))
@@ -152,9 +151,10 @@ impl ZoneState {
             .copied()
             .ok_or(RejectReason::InvalidLoad)?;
         // 4b. Capacity, solo or FINDERS_KEEPERS only: slots, not weight (rule P7).
-        if party
-            .as_ref()
-            .is_none_or(|p| p.distribution == LootMode::FindersKeepers)
+        if !herb
+            && party
+                .as_ref()
+                .is_none_or(|p| p.distribution == LootMode::FindersKeepers)
         {
             let player = items
                 .canonical
@@ -185,6 +185,9 @@ impl ZoneState {
             if owner.owner != actor && !(online && self.same_party(owner.owner, actor)) {
                 return Err(RejectReason::GroundItemProtected);
             }
+        }
+        if herb {
+            return self.pick_up_herb(tick, actor, &ground, command, seq, events);
         }
         // Distribution plan (`L2Party.distributeItem`, §4.2).
         let count = ground.item.count;
@@ -487,6 +490,235 @@ impl ZoneState {
             events,
         );
         Ok(())
+    }
+
+    /// The item skills a herb runs (`ItemSkillsTemplate.useItem`), in `item_skill` list order:
+    /// `(skill, xml_ordinal, simultaneous)`. A handler-less herb runs none. A herb whose
+    /// template or any skill is not executable refuses `ITEM_CAPABILITY_DEFERRED` (§4.1 step
+    /// 4), before anything is removed.
+    fn herb_skills(
+        &self,
+        template: u32,
+    ) -> Result<Vec<(crate::domain::zone::skill::SkillRef, u32, bool)>, RejectReason> {
+        let items = self.phase4.as_ref().ok_or(RejectReason::InvalidLoad)?;
+        let phase = self.phase3.as_ref().ok_or(RejectReason::InvalidLoad)?;
+        let definition = items
+            .rules
+            .parts()
+            .items
+            .get(&template)
+            .ok_or(RejectReason::InvalidLoad)?;
+        if definition.handler != "ItemSkills" {
+            return Ok(Vec::new());
+        }
+        // Pinned herbs have no item-level reuse (every herb: reuse_delay 0, no shared
+        // group); one that had would need the D79 revision step, so it fails closed.
+        if definition.reuse_delay != 0 || definition.shared_reuse_group > 0 {
+            return Err(RejectReason::ItemCapabilityDeferred);
+        }
+        if items
+            .rules
+            .parts()
+            .capabilities
+            .get(&template)
+            .is_none_or(|cap| !cap.admitted || !cap.use_blockers.is_empty())
+        {
+            return Err(RejectReason::ItemCapabilityDeferred);
+        }
+        let mut skills = Vec::new();
+        for source in definition.skills.iter().filter(|s| s.kind == "item") {
+            let reference = crate::domain::zone::skill::SkillRef {
+                id: crate::domain::zone::skill::SkillId(source.id),
+                rank: source.level,
+            };
+            let skill = phase
+                .canonical
+                .rules
+                .skills()
+                .get(reference.id)
+                .ok_or(RejectReason::ItemCapabilityDeferred)?;
+            if items
+                .rules
+                .parts()
+                .skill_capabilities
+                .get(&source.id)
+                .is_none_or(|cap| !cap.admitted)
+                || reference.rank == 0
+                || reference.rank > skill.max_level
+            {
+                return Err(RejectReason::ItemCapabilityDeferred);
+            }
+            let simultaneous =
+                crate::domain::zone::item_cast::simultaneous(definition, skill, source.level)
+                    .map_err(invalid)?;
+            skills.push((reference, source.xml_ordinal, simultaneous));
+        }
+        Ok(skills)
+    }
+
+    /// §4.3 herb pickup: the herb is destroyed whatever happens (`destroyItem("Consume")`),
+    /// with a ground `destroy` row (`herb:<receipt>`); its skills then run on the picker in
+    /// list order until the first failing check (item reuse is vacuous for pinned herbs;
+    /// `checkCondition`, `isSkillDisabled` and the skill's own reuse, keyed by id **and**
+    /// level). Each runs through the Phase 4 item-cast path as an immediate item-origin skill
+    /// with the P5-D17 `herb` origin marker.
+    #[allow(clippy::too_many_arguments)] // The pickup's explicit inputs.
+    fn pick_up_herb(
+        &mut self,
+        tick: Tick,
+        actor: EntityId,
+        ground: &GroundItem,
+        command: &Phase5Command,
+        seq: Option<u32>,
+        events: &mut Vec<ZoneEvent>,
+    ) -> Result<(), RejectReason> {
+        let skills = self.herb_skills(ground.item.template_id)?;
+        let key = command.request_key();
+        let receipt = format!("receipt:pick_up_item:{key}");
+        if let Some(phase5) = &mut self.phase5 {
+            phase5.canonical.ground.remove(&ground.entity);
+        }
+        events.extend(self.despawn(tick, ground.entity));
+        self.push_ledger(EconomyLedgerRow {
+            owner_kind: OwnerKind::Ground,
+            owner: ground.entity.as_uuid(),
+            instance: ground.item.id,
+            op: LedgerOp::Destroy,
+            operation_ordinal: 0,
+            count_delta: i64::try_from(ground.item.count)
+                .map_err(invalid)?
+                .saturating_neg(),
+            before: Some(ground.item.clone()),
+            after: None,
+            transfer: None,
+            receipt: Some(receipt.clone()),
+            causes: vec![format!("herb:{receipt}")],
+        });
+        let caster = self.binding(actor).ok_or(RejectReason::InvalidLoad)?;
+        for (reference, xml_ordinal, simultaneous) in skills {
+            // checkReuse, keyed by (id, level) like pinned `getReuseHashCode` (§4.3).
+            if self.herb_reuse_active(actor, reference, tick) {
+                break;
+            }
+            let Some(definition) = self
+                .phase3
+                .as_ref()
+                .and_then(|p| p.canonical.rules.skills().get(reference.id))
+                .cloned()
+            else {
+                break;
+            };
+            let started = self.start_defined_cast_v6(
+                tick,
+                &crate::domain::zone::state_skill::StagedCast {
+                    ordinal: self.next_ordinal,
+                    caster,
+                    skill_id: reference.id,
+                    target: Some(crate::domain::zone::state_skill::CapturedTarget {
+                        entity: actor,
+                        incarnation: Some(caster.incarnation),
+                    }),
+                    canceled: None,
+                },
+                &definition,
+                reference,
+                Some((
+                    crate::domain::zone::phase4::ItemCastOrigin {
+                        instance: ground.item.id,
+                        template: ground.item.template_id,
+                        count: 0,
+                        skill_ordinal: xml_ordinal,
+                        receipt: crate::domain::zone::phase4_projection::ItemReceiptRef {
+                            operation: crate::domain::zone::phase4_projection::ItemOperation::Use,
+                            key,
+                        },
+                        herb: true,
+                    },
+                    simultaneous,
+                )),
+                None,
+                events,
+            );
+            // Early abort: the first failing check abandons this and every later skill.
+            if started.is_err() {
+                break;
+            }
+            let reuse_ms = definition
+                .reuse_ms
+                .at(reference.rank, definition.max_level)
+                .copied()
+                .and_then(|ms| u64::try_from(ms).ok())
+                .unwrap_or(0);
+            self.stamp_herb_reuse(actor, reference, tick, reuse_ms);
+        }
+        self.economy_receipt(
+            tick,
+            actor,
+            command,
+            seq,
+            EconomyScope::PickUpItem,
+            Vec::new(),
+            EconomyOutcome::Pickup {
+                template_id: ground.item.template_id,
+                count: ground.item.count,
+                recipient: actor,
+                herb: true,
+                split: false,
+            },
+            events,
+        );
+        Ok(())
+    }
+
+    fn herb_reuse_active(
+        &self,
+        actor: EntityId,
+        skill: crate::domain::zone::skill::SkillRef,
+        tick: Tick,
+    ) -> bool {
+        self.phase5
+            .as_ref()
+            .and_then(|p| p.canonical.players.get(&actor))
+            .is_some_and(|player| {
+                player
+                    .herb_reuse
+                    .iter()
+                    .any(|r| r.skill == skill.id.0 && r.level == skill.rank && r.until > tick)
+            })
+    }
+
+    /// `addTimeStamp` for a cast herb skill with `reuseDelay > 0` (46 of the 48 herb skills,
+    /// 2,000 ms = 20 ticks); expired entries are dropped at the same time.
+    fn stamp_herb_reuse(
+        &mut self,
+        actor: EntityId,
+        skill: crate::domain::zone::skill::SkillRef,
+        tick: Tick,
+        reuse_ms: u64,
+    ) {
+        let Some(player) = self
+            .phase5
+            .as_mut()
+            .and_then(|p| p.canonical.players.get_mut(&actor))
+        else {
+            return;
+        };
+        player.herb_reuse.retain(|r| r.until > tick);
+        if reuse_ms == 0 {
+            return;
+        }
+        let until = Tick(tick.0.saturating_add(reuse_ms.div_ceil(100)));
+        player
+            .herb_reuse
+            .retain(|r| !(r.skill == skill.id.0 && r.level == skill.rank));
+        player
+            .herb_reuse
+            .push(crate::domain::zone::phase5::HerbReuse {
+                skill: skill.id.0,
+                level: skill.rank,
+                until,
+            });
+        player.herb_reuse.sort_by_key(|r| (r.skill, r.level));
     }
 
     fn party_of_player(&self, id: EntityId) -> Option<crate::domain::zone::phase5::PartyId> {
@@ -1118,6 +1350,53 @@ mod tests {
         assert_eq!(zone.next_tick, until);
         assert!(pickup(&mut zone, P1, 2, ground).dispositions.is_empty());
         assert_eq!(holding(&zone, P1, 57), 10);
+    }
+
+    /// §4.3 herbs: a handler-less herb (10213) is destroyed with no effect, a ground
+    /// `destroy` row (`herb:<receipt>`) and a herb receipt, and occupies no slot; a handled herb
+    /// whose skills are not executable yet (8600: skill 2278 is outside the V6 skill bundle
+    /// until the P5-D19 promotions land) refuses `ITEM_CAPABILITY_DEFERRED` before removal.
+    #[test]
+    fn herbs_are_destroyed_on_pickup_or_refused_while_deferred() {
+        let mut zone = zone();
+        let before = zone.phase4.as_ref().unwrap().canonical.players[&id(P1)].clone();
+        let plain = drop(&mut zone, 10213, 1, here(), None);
+        let tick = pickup(&mut zone, P1, 1, plain);
+        assert!(tick.dispositions.is_empty(), "{:?}", tick.dispositions);
+        assert!(!zone.entities.contains_key(&plain));
+        assert_eq!(
+            zone.phase4.as_ref().unwrap().canonical.players[&id(P1)].inventory,
+            before.inventory,
+            "a herb never enters the inventory"
+        );
+        let rows = ledger(&tick);
+        assert_eq!(rows.len(), 1);
+        assert_eq!((rows[0].owner_kind, rows[0].op), (OwnerKind::Ground, LedgerOp::Destroy));
+        assert_eq!(
+            rows[0].causes,
+            vec![format!(
+                "herb:receipt:pick_up_item:{}",
+                uuid::Uuid::from_u128(1)
+            )]
+        );
+        assert!(tick.events.iter().any(|e| matches!(
+            e,
+            ZoneEvent::Economy(ev) if matches!(
+                ev.body,
+                EconomyBody::EconomyResult { outcome: EconomyOutcome::Pickup { herb: true, .. }, .. }
+            )
+        )));
+        let handled = drop(&mut zone, 8600, 1, here(), None);
+        let tick = pickup(&mut zone, P1, 2, handled);
+        assert_eq!(
+            tick.dispositions
+                .iter()
+                .map(|d| d.reason)
+                .collect::<Vec<_>>(),
+            vec![RejectReason::ItemCapabilityDeferred]
+        );
+        assert!(zone.entities.contains_key(&handled));
+        assert!(ledger(&tick).is_empty());
     }
 
     /// D68: a pickup that would exceed `MaxAdena` is refused before any change.

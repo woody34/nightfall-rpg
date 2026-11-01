@@ -1863,6 +1863,11 @@ impl ZoneState {
             },
         )
         .map_err(cast_reject)?;
+        // P5-D17: a herb skill's reuse is keyed by (id, level) in the V7 block (§4.3), so it
+        // never stamps the id-keyed Phase 3 reuse.
+        if origin.as_ref().is_some_and(|(origin, _)| origin.herb) {
+            terms.reuse_ms = 0;
+        }
         if skill.is_magic == 1 && shots & 6 != 0 {
             let hit_time = u32::try_from(
                 *skill

@@ -246,4 +246,11 @@ fn phase5_player(w: &mut Writer, p: &Phase5Player) {
         w.u8(FloodKind::ordinal(*kind));
         tick(w, *next);
     }
+    // P5-D17 herb reuse, after the §12.4 item-9 fields.
+    w.len(p.herb_reuse.len());
+    for reuse in &p.herb_reuse {
+        w.u32(reuse.skill);
+        w.u32(reuse.level);
+        tick(w, reuse.until);
+    }
 }

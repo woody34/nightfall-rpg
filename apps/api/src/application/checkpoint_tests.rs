@@ -993,6 +993,7 @@ fn phase5_checkpoint_of_carries_the_recipe_book_under_the_block_rules() {
             party: None,
             trade: None,
             flood: std::collections::BTreeMap::new(),
+            herb_reuse: Vec::new(),
         },
     );
     let checkpoint = super::phase5_checkpoint_of(Some(&block), player)

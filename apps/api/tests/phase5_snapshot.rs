@@ -16,7 +16,7 @@ use nightfall_api::{
     application::replay_log::{decode_snapshot, encode_snapshot, restore_snapshot},
     domain::zone::{
         phase5::{
-            DropProtect, LootOwner, LootVote, NpcEconomy, Party, PartyId, PrivateStore,
+            DropProtect, HerbReuse, LootOwner, LootVote, NpcEconomy, Party, PartyId, PrivateStore,
             PrivateStoreKind, SeedBinding, TradeList, TradeSession, TxKind, TxRequest, VendorStock,
         },
         phase5_command::{LootMode, StoreBuyEntry, StoreSellEntry},
@@ -258,6 +258,11 @@ fn populated(block: &mut Phase5Snapshot) {
             ]
             .into_iter()
             .collect(),
+            herb_reuse: vec![HerbReuse {
+                skill: 2278,
+                level: 3,
+                until: Tick(60),
+            }],
         },
     );
 }
@@ -571,6 +576,14 @@ fn every_phase5_field_is_digested_in_design_order() {
                 f.remove(&FloodKind::ServerBypass);
                 f.insert(FloodKind::Manor, Tick(5));
             }),
+        ),
+        (
+            "player.herb_reuse.level",
+            Box::new(|b| b.players.values_mut().next().unwrap().herb_reuse[0].level = 2),
+        ),
+        (
+            "player.herb_reuse.until",
+            Box::new(|b| b.players.values_mut().next().unwrap().herb_reuse[0].until = Tick(61)),
         ),
     ];
     let mut digests: BTreeMap<[u8; 32], &str> = BTreeMap::new();

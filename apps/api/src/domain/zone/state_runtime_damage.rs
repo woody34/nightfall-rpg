@@ -6237,6 +6237,7 @@ mod tests {
                             operation: crate::domain::zone::phase4_projection::ItemOperation::Use,
                             key: Uuid::from_u128(u128::from(template)),
                         },
+                        herb: false,
                     }),
                     simultaneous,
                     weapon: None,
