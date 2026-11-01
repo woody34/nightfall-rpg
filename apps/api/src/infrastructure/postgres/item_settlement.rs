@@ -217,7 +217,8 @@ async fn persist_rows(
                 vec![character.as_uuid().into(), signed(item.id.get())?.into()],
             )
             .await?;
-            if deleted != 1 {
+            // P5-D27: a re-homed instance was removed from this character before the parts.
+            if deleted != 1 && !(deleted == 0 && links.is_rehomed(item.id.get())) {
                 return Err(CheckpointError::Constraint("item_checkpoint_missing_scalar".into()));
             }
         }

@@ -16,7 +16,8 @@
     clippy::arithmetic_side_effects,
     clippy::too_many_arguments,
     clippy::doc_markdown,
-    clippy::similar_names
+    clippy::similar_names,
+    clippy::many_single_char_names
 )]
 mod common;
 use nightfall_api::application::economy::{
@@ -1508,4 +1509,355 @@ async fn postgres_commit_crash_windows() {
         }) as std::pin::Pin<Box<dyn std::future::Future<Output = usize> + Send>>
     };
     commit_crash_windows(&repo, &economy, &facts, None, &bundle, "PgCrash").await;
+}
+
+// ---- P5-D27: the multi-character writer (trade, private store) ---------------------------------
+
+struct Trader {
+    cp: CharacterCheckpoint,
+    work: ItemCheckpointWork,
+    id: Uuid,
+}
+
+/// A and B swap one non-stackable item each (identity transfers, links L1/L2), revision 2.
+fn swap(
+    a: &Trader,
+    b: &Trader,
+    key: u128,
+) -> (
+    (CharacterCheckpoint, ItemCheckpointWork),
+    (CharacterCheckpoint, ItemCheckpointWork),
+    EconomyCheckpointWrite,
+) {
+    let pick = |t: &Trader| {
+        t.work
+            .projection
+            .checkpoint
+            .instances
+            .iter()
+            .find(|i| i.count == 1)
+            .cloned()
+            .unwrap()
+    };
+    let (x, y) = (pick(a), pick(b));
+    let receipt_key = receipt_text("trade_confirm", key);
+    let l1 = Uuid::new_v5(&Uuid::NAMESPACE_OID, format!("l1:{key}").as_bytes()).to_string();
+    let l2 = Uuid::new_v5(&Uuid::NAMESPACE_OID, format!("l2:{key}").as_bytes()).to_string();
+    let side =
+        |me: &Trader, give: &ItemInstance, take: &ItemInstance, out_link: &str, in_link: &str| {
+            let mut instances: Vec<ItemInstance> = me
+                .work
+                .projection
+                .checkpoint
+                .instances
+                .iter()
+                .filter(|i| i.id != give.id)
+                .cloned()
+                .collect();
+            let taken = ItemInstance {
+                revision: 2,
+                ..take.clone()
+            };
+            instances.push(taken.clone());
+            let (cp, mut work) = tick(&me.cp, &me.work, 1, 2, 90, instances);
+            let mut rows = vec![
+                plan(
+                    ItemOperation::TransferOut,
+                    give.id.get(),
+                    Some(give),
+                    None,
+                    0,
+                    &receipt_key,
+                    Some(out_link),
+                ),
+                plan(
+                    ItemOperation::TransferIn,
+                    take.id.get(),
+                    None,
+                    Some(&taken),
+                    0,
+                    &receipt_key,
+                    Some(in_link),
+                ),
+            ];
+            rows.sort_by_key(|d| d.instance);
+            work.projection.ledger = rows;
+            (cp, work)
+        };
+    let a_side = side(a, &x, &y, &l1, &l2);
+    let b_side = side(b, &y, &x, &l2, &l1);
+    let write = EconomyCheckpointWrite {
+        zone_id: 1,
+        epoch: 1,
+        tick: 90,
+        receipts: vec![receipt(
+            b.id,
+            "trade_confirm",
+            key,
+            &format!("fp-trade-{key}"),
+        )],
+        ..Default::default()
+    };
+    (a_side, b_side, write)
+}
+
+async fn traders<R: CharacterRepository + ItemAdmissionRepository + ItemCheckpointRepository>(
+    repo: &R,
+    bundle: &Phase4RuleBundle,
+    name: &str,
+) -> (Trader, Trader) {
+    let mut out = Vec::new();
+    for suffix in ["A", "B"] {
+        let (character, cp, work, events) = starter(repo, bundle, &format!("{name}{suffix}")).await;
+        assert_eq!(
+            repo.checkpoint_items(&cp, &events, &work, None)
+                .await
+                .unwrap(),
+            CheckpointOutcome::Applied(1)
+        );
+        out.push(Trader {
+            cp,
+            work,
+            id: character.id.as_uuid(),
+        });
+    }
+    let b = out.pop().unwrap();
+    let a = out.pop().unwrap();
+    (a, b)
+}
+
+async fn holds<R: CharacterRepository>(repo: &R, who: Uuid, item: ItemInstanceId) -> bool {
+    repo.load_for_admission(nightfall_api::domain::CharacterId::from_uuid(who))
+        .await
+        .unwrap()
+        .unwrap()
+        .phase4
+        .unwrap()
+        .checkpoint
+        .unwrap()
+        .instances
+        .iter()
+        .any(|i| i.id == item)
+}
+
+async fn multi_character_contract<R>(repo: Arc<R>, bundle: &Phase4RuleBundle, name: &str)
+where
+    R: CharacterRepository
+        + ItemAdmissionRepository
+        + ItemCheckpointRepository
+        + EconomyCharacterCheckpointRepository
+        + 'static,
+{
+    use nightfall_api::application::economy::CharacterCheckpointPart;
+    let part = |side: &(CharacterCheckpoint, ItemCheckpointWork)| -> (CharacterCheckpoint, ItemCheckpointWork) { side.clone() };
+    // (1) A partial fence miss writes nothing: B's part has a stale revision.
+    let (a, b) = traders(repo.as_ref(), bundle, &format!("{name}F")).await;
+    let (sa, sb, write) = swap(&a, &b, 0x9100);
+    let mut stale_b = sb.0.clone();
+    stale_b.revision_seen = 7;
+    let outcomes = repo
+        .checkpoint_many(
+            &[
+                CharacterCheckpointPart {
+                    cp: &sa.0,
+                    events: &[],
+                    items: Some(&sa.1),
+                },
+                CharacterCheckpointPart {
+                    cp: &stale_b,
+                    events: &[],
+                    items: Some(&sb.1),
+                },
+            ],
+            &write,
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        outcomes,
+        vec![CheckpointOutcome::Stale, CheckpointOutcome::Stale],
+        "all or nothing"
+    );
+    let x =
+        sa.1.projection
+            .ledger
+            .iter()
+            .find(|d| d.operation == ItemOperation::TransferOut)
+            .unwrap()
+            .instance;
+    assert!(
+        holds(repo.as_ref(), a.id, x).await && !holds(repo.as_ref(), b.id, x).await,
+        "nothing moved"
+    );
+    // The swap applies in either part order (fences are canonical), once; the retry replays.
+    let parts = [
+        CharacterCheckpointPart {
+            cp: &sb.0,
+            events: &[],
+            items: Some(&sb.1),
+        },
+        CharacterCheckpointPart {
+            cp: &sa.0,
+            events: &[],
+            items: Some(&sa.1),
+        },
+    ];
+    assert_eq!(
+        repo.checkpoint_many(&parts, &write).await.unwrap(),
+        vec![CheckpointOutcome::Applied(2), CheckpointOutcome::Applied(2)]
+    );
+    assert!(
+        holds(repo.as_ref(), b.id, x).await && !holds(repo.as_ref(), a.id, x).await,
+        "X re-homed A to B, same id"
+    );
+    let y =
+        sb.1.projection
+            .ledger
+            .iter()
+            .find(|d| d.operation == ItemOperation::TransferOut)
+            .unwrap()
+            .instance;
+    assert!(
+        holds(repo.as_ref(), a.id, y).await && !holds(repo.as_ref(), b.id, y).await,
+        "Y re-homed B to A"
+    );
+    assert_eq!(
+        repo.checkpoint_many(&parts, &write).await.unwrap(),
+        vec![
+            CheckpointOutcome::Replayed(2),
+            CheckpointOutcome::Replayed(2)
+        ]
+    );
+
+    // (2) Opposite-order writers on the same pair: no deadlock, exactly one applies.
+    let (a, b) = traders(repo.as_ref(), bundle, &format!("{name}O")).await;
+    let (sa1, sb1, w1) = swap(&a, &b, 0x9200);
+    let (sa2, sb2, w2) = swap(&a, &b, 0x9201);
+    let (r1, r2) = (repo.clone(), repo.clone());
+    let (p1, p2) = (part(&sa1), part(&sb1));
+    let (q1, q2) = (part(&sa2), part(&sb2));
+    let first = tokio::spawn(async move {
+        r1.checkpoint_many(
+            &[
+                CharacterCheckpointPart {
+                    cp: &p1.0,
+                    events: &[],
+                    items: Some(&p1.1),
+                },
+                CharacterCheckpointPart {
+                    cp: &p2.0,
+                    events: &[],
+                    items: Some(&p2.1),
+                },
+            ],
+            &w1,
+        )
+        .await
+    });
+    let second = tokio::spawn(async move {
+        r2.checkpoint_many(
+            &[
+                CharacterCheckpointPart {
+                    cp: &q2.0,
+                    events: &[],
+                    items: Some(&q2.1),
+                },
+                CharacterCheckpointPart {
+                    cp: &q1.0,
+                    events: &[],
+                    items: Some(&q1.1),
+                },
+            ],
+            &w2,
+        )
+        .await
+    });
+    let results = tokio::time::timeout(std::time::Duration::from_secs(60), async {
+        (first.await.unwrap().unwrap(), second.await.unwrap().unwrap())
+    })
+    .await
+    .expect("opposite-order writers finish (no deadlock)");
+    let applied = [&results.0, &results.1]
+        .iter()
+        .filter(|o| o.iter().all(|x| matches!(x, CheckpointOutcome::Applied(2))))
+        .count();
+    let stale = [&results.0, &results.1]
+        .iter()
+        .filter(|o| o.iter().all(|x| *x == CheckpointOutcome::Stale))
+        .count();
+    assert_eq!((applied, stale), (1, 1), "{results:?}");
+
+    // (3) An 8-way race on one pair: exactly one write applies, seven are Stale.
+    let (a, b) = traders(repo.as_ref(), bundle, &format!("{name}R")).await;
+    let mut tasks = Vec::new();
+    for n in 0..8_u128 {
+        let (sa, sb, w) = swap(&a, &b, 0x9300 + n);
+        let r = repo.clone();
+        tasks.push(tokio::spawn(async move {
+            let parts = if n % 2 == 0 {
+                vec![(sa.0, sa.1), (sb.0, sb.1)]
+            } else {
+                vec![(sb.0, sb.1), (sa.0, sa.1)]
+            };
+            let refs: Vec<CharacterCheckpointPart<'_>> = parts
+                .iter()
+                .map(|(cp, work)| CharacterCheckpointPart {
+                    cp,
+                    events: &[],
+                    items: Some(work),
+                })
+                .collect();
+            r.checkpoint_many(&refs, &w).await.unwrap()
+        }));
+    }
+    let mut winners = 0;
+    for task in tasks {
+        let outcome = tokio::time::timeout(std::time::Duration::from_secs(120), task)
+            .await
+            .expect("no deadlock")
+            .unwrap();
+        if outcome
+            .iter()
+            .all(|o| matches!(o, CheckpointOutcome::Applied(2)))
+        {
+            winners += 1;
+        } else {
+            assert!(outcome.iter().all(|o| *o == CheckpointOutcome::Stale), "{outcome:?}");
+        }
+    }
+    assert_eq!(winners, 1);
+}
+
+#[tokio::test]
+async fn memory_multi_character_writer_is_all_or_nothing_and_canonically_fenced() {
+    let bundle = embedded_phase4_bundle().unwrap();
+    let store = Arc::new(InMemoryEconomyStore::default());
+    let repo = Arc::new(
+        InMemoryCharacterRepository::default()
+            .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
+            .unwrap()
+            .with_economy(store),
+    );
+    Box::pin(multi_character_contract(repo, &bundle, "MemMulti")).await;
+}
+
+#[tokio::test]
+async fn postgres_multi_character_writer_is_all_or_nothing_and_canonically_fenced() {
+    let Some(pool) = common::pg::migrated_pool().await else {
+        return;
+    };
+    common::pg::insert_account(&pool, ACCOUNT).await;
+    let bundle = embedded_phase4_bundle().unwrap();
+    let repo = Arc::new(
+        PgCharacterRepository::new(pool.clone())
+            .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
+            .unwrap(),
+    );
+    Box::pin(multi_character_contract(repo, &bundle, "PgMulti")).await;
+    let traded: i64 =
+        sqlx::query_scalar("SELECT count(*) FROM outbox WHERE subject='nightfall.item.traded'")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    assert_eq!(traded, 3, "one traded fact per applied trade");
 }

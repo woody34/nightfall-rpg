@@ -807,6 +807,52 @@ pub trait EconomyCharacterCheckpointRepository: Send + Sync {
         items: Option<&crate::application::ports::ItemCheckpointWork>,
         economy: &EconomyCheckpointWrite,
     ) -> Result<crate::application::CheckpointOutcome, crate::application::CheckpointError>;
+
+    /// P5-D27: one revision-fenced transaction checkpoints every part and the shared economy
+    /// write. Character fences are taken in ascending `character_id` order (canonical bytes),
+    /// so opposite-order writers never deadlock. All or nothing: a fence miss in any part makes
+    /// the whole write `Stale` (every outcome `Stale`, nothing written). A write whose every
+    /// part is an exact replay returns each part's `Replayed`. Outcomes follow `parts` order.
+    async fn checkpoint_many(
+        &self,
+        parts: &[CharacterCheckpointPart<'_>],
+        economy: &EconomyCheckpointWrite,
+    ) -> Result<Vec<crate::application::CheckpointOutcome>, crate::application::CheckpointError>;
+}
+
+/// One character of a multi-character checkpoint (P5-D27): a trade, a private store sale.
+#[derive(Debug, Clone, Copy)]
+pub struct CharacterCheckpointPart<'a> {
+    /// The character checkpoint.
+    pub cp: &'a crate::application::CharacterCheckpoint,
+    /// Its domain events.
+    pub events: &'a [crate::domain::DomainEvent],
+    /// Its item projection (V7 rows included, P5-D22).
+    pub items: Option<&'a crate::application::ports::ItemCheckpointWork>,
+}
+
+/// The canonical fence order of a multi-character write: ascending character bytes, distinct.
+pub fn fence_order(
+    parts: &[CharacterCheckpointPart<'_>],
+) -> Result<Vec<usize>, crate::application::CheckpointError> {
+    let mut order: Vec<usize> = (0..parts.len()).collect();
+    order.sort_by_key(|&i| {
+        parts
+            .get(i)
+            .map(|p| *p.cp.character_id.as_uuid().as_bytes())
+    });
+    let distinct = order.windows(2).all(|w| {
+        let id = |i: usize| parts.get(i).map(|p| p.cp.character_id);
+        w.first()
+            .zip(w.get(1))
+            .is_some_and(|(a, b)| id(*a) != id(*b))
+    });
+    if parts.is_empty() || !distinct {
+        return Err(crate::application::CheckpointError::Constraint(
+            "economy_multi_character_parts".into(),
+        ));
+    }
+    Ok(order)
 }
 
 /// An economy error inside a character checkpoint: a lease violation and a named constraint are

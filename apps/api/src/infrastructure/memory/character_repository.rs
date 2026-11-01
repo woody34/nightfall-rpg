@@ -579,6 +579,9 @@ struct EconomyPart<'a> {
     store: &'a super::InMemoryEconomyStore,
     write: &'a crate::application::economy::EconomyCheckpointWrite,
     links: &'a crate::application::ports::IdentityLinks,
+    /// P5-D27: one part of a multi-character write; the caller claims nothing for the other
+    /// characters and applies the economy write once, after every part.
+    multi: bool,
 }
 
 impl State {
@@ -588,8 +591,13 @@ impl State {
         owner: AccountId,
         cp: &CharacterCheckpoint,
         write: &crate::application::economy::EconomyCheckpointWrite,
+        multi: bool,
     ) -> Result<Option<CheckpointOutcome>, CheckpointError> {
-        for receipt in &write.receipts {
+        for receipt in write
+            .receipts
+            .iter()
+            .filter(|r| !multi || r.character_id == cp.character_id.as_uuid())
+        {
             if receipt.character_id != cp.character_id.as_uuid()
                 || receipt.account_id != owner.as_uuid()
             {
@@ -610,14 +618,16 @@ impl State {
     }
 
     /// Commit-time bookkeeping of the combined write: receipts and cross-owner births.
-    fn record_economy(
-        &mut self,
-        owner: AccountId,
-        write: &crate::application::economy::EconomyCheckpointWrite,
-    ) {
+    fn record_economy(&mut self, write: &crate::application::economy::EconomyCheckpointWrite) {
         for receipt in &write.receipts {
-            self.economy_receipts
-                .insert((owner, receipt.operation.clone(), receipt.request_key), receipt.clone());
+            self.economy_receipts.insert(
+                (
+                    AccountId::from_uuid(receipt.account_id),
+                    receipt.operation.clone(),
+                    receipt.request_key,
+                ),
+                receipt.clone(),
+            );
         }
         for row in &write.ledger {
             let Ok(id) = crate::domain::zone::ItemInstanceId::new(row.instance_id) else {
@@ -653,8 +663,23 @@ impl InMemoryCharacterRepository {
         learning: Option<&crate::application::ports::SuccessfulLearnReceipt>,
         economy: Option<EconomyPart<'_>>,
     ) -> Result<CheckpointOutcome, CheckpointError> {
-        use crate::application::ports::PendingItemStatus;
         let mut current = self.state.lock();
+        self.settle_in(&mut current, cp, events, work, learning, economy)
+    }
+
+    /// One character's item settlement against `current` (the store's state, or the staged
+    /// state of a multi-character write), committed into it only when applied.
+    #[allow(clippy::too_many_lines, clippy::too_many_arguments)] // Same key/fence/child/outbox transaction ordering as Pg.
+    fn settle_in(
+        &self,
+        current: &mut State,
+        cp: &CharacterCheckpoint,
+        events: &[DomainEvent],
+        work: &crate::application::ports::ItemCheckpointWork,
+        learning: Option<&crate::application::ports::SuccessfulLearnReceipt>,
+        economy: Option<EconomyPart<'_>>,
+    ) -> Result<CheckpointOutcome, CheckpointError> {
+        use crate::application::ports::PendingItemStatus;
         let owner = current
             .characters
             .get(&cp.character_id)
@@ -700,7 +725,9 @@ impl InMemoryCharacterRepository {
             }
         }
         if let Some(part) = economy {
-            if let Some(outcome) = current.claim_economy_receipts(owner, cp, part.write)? {
+            if let Some(outcome) =
+                current.claim_economy_receipts(owner, cp, part.write, part.multi)?
+            {
                 return Ok(outcome);
             }
         }
@@ -805,10 +832,13 @@ impl InMemoryCharacterRepository {
         // D76 row positions are enforced by `validate_before` before any row is staged; the
         // Postgres item_ledger_row_ordinal trigger is storage defence in depth with no memory copy.
         for item in &work.projection.checkpoint.instances {
-            if staged.item_inventories.iter().any(|(id, inventory)| {
-                *id != cp.character_id
-                    && inventory.instances.iter().any(|known| known.id == item.id)
-            }) {
+            // P5-D27: a re-homed instance leaves its source part in the same write.
+            if !links.is_rehomed(item.id.get())
+                && staged.item_inventories.iter().any(|(id, inventory)| {
+                    *id != cp.character_id
+                        && inventory.instances.iter().any(|known| known.id == item.id)
+                })
+            {
                 return Err(CheckpointError::Constraint("item_instance_owner_immutable".into()));
             }
         }
@@ -843,7 +873,7 @@ impl InMemoryCharacterRepository {
                 (receipt.request_fingerprint.clone(), receipt.result.clone()),
             );
         }
-        if let Some(part) = economy {
+        if let Some(part) = economy.filter(|part| !part.multi) {
             // Every character-side check passed; the store write is atomic on its own and
             // nothing is committed here unless it succeeds.
             let facts = crate::application::economy_facts::FactRow::of_projection(
@@ -853,7 +883,7 @@ impl InMemoryCharacterRepository {
             part.store
                 .apply_write(part.write, &facts)
                 .map_err(crate::application::economy::checkpoint_error)?;
-            staged.record_economy(owner, part.write);
+            staged.record_economy(part.write);
         }
         *current = staged;
         Ok(outcome)
@@ -883,6 +913,7 @@ impl crate::application::economy::EconomyCharacterCheckpointRepository
             store,
             write: economy,
             links: &links,
+            multi: false,
         };
         if let Some(work) = items {
             return self.settle_items(cp, events, work, None, Some(part));
@@ -893,7 +924,7 @@ impl crate::application::economy::EconomyCharacterCheckpointRepository
             .get(&cp.character_id)
             .ok_or(CheckpointError::NotFound)?
             .account_id;
-        if let Some(outcome) = current.claim_economy_receipts(owner, cp, economy)? {
+        if let Some(outcome) = current.claim_economy_receipts(owner, cp, economy, false)? {
             return Ok(outcome);
         }
         let mut staged = current.clone();
@@ -905,9 +936,104 @@ impl crate::application::economy::EconomyCharacterCheckpointRepository
         store
             .apply_write(economy, &[])
             .map_err(crate::application::economy::checkpoint_error)?;
-        staged.record_economy(owner, economy);
+        staged.record_economy(economy);
         *current = staged;
         Ok(outcome)
+    }
+
+    async fn checkpoint_many(
+        &self,
+        parts: &[crate::application::economy::CharacterCheckpointPart<'_>],
+        economy: &crate::application::economy::EconomyCheckpointWrite,
+    ) -> Result<Vec<CheckpointOutcome>, CheckpointError> {
+        economy
+            .validate()
+            .map_err(crate::application::economy::checkpoint_error)?;
+        let order = crate::application::economy::fence_order(parts)?;
+        if economy.receipts.iter().any(|r| {
+            !parts
+                .iter()
+                .any(|p| p.cp.character_id.as_uuid() == r.character_id)
+        }) {
+            return Err(CheckpointError::Constraint("economy_receipt_scope".into()));
+        }
+        let mut links = crate::application::ports::IdentityLinks::of_write(economy)?;
+        for part in parts {
+            if let Some(work) = part.items {
+                links.add_projection(work);
+            }
+        }
+        let store = self
+            .economy
+            .as_deref()
+            .ok_or_else(|| anyhow::anyhow!("the memory economy store is not attached"))?;
+        links.settle_rehomes(parts.iter().filter_map(|p| p.items));
+        let mut current = self.state.lock();
+        let mut staged = current.clone();
+        let mut outcomes = vec![CheckpointOutcome::Stale; parts.len()];
+        let mut facts = Vec::new();
+        let mut applied = 0_usize;
+        for &i in &order {
+            let Some(part) = parts.get(i) else { continue };
+            let economy_part = EconomyPart {
+                store,
+                write: economy,
+                links: &links,
+                multi: true,
+            };
+            let outcome = if let Some(work) = part.items {
+                self.settle_in(&mut staged, part.cp, part.events, work, None, Some(economy_part))?
+            } else {
+                let owner = staged
+                    .characters
+                    .get(&part.cp.character_id)
+                    .ok_or(CheckpointError::NotFound)?
+                    .account_id;
+                if let Some(outcome) =
+                    staged.claim_economy_receipts(owner, part.cp, economy, true)?
+                {
+                    outcome
+                } else {
+                    self.checkpoint_locked(
+                        &mut staged,
+                        part.cp,
+                        part.events,
+                        part.cp.fingerprint(part.events),
+                        None,
+                        &links,
+                    )?
+                }
+            };
+            if matches!(outcome, CheckpointOutcome::Applied(_)) {
+                applied = applied.saturating_add(1);
+                if let Some(work) = part.items {
+                    facts.extend(crate::application::economy_facts::FactRow::of_projection(
+                        part.cp.character_id.as_uuid(),
+                        work,
+                    ));
+                }
+            }
+            if let Some(slot) = outcomes.get_mut(i) {
+                *slot = outcome;
+            }
+        }
+        // All or nothing: every part applied, or the store keeps its state.
+        if applied != parts.len() {
+            let replayed = outcomes
+                .iter()
+                .all(|o| matches!(o, CheckpointOutcome::Replayed(_)));
+            return Ok(if replayed {
+                outcomes
+            } else {
+                vec![CheckpointOutcome::Stale; parts.len()]
+            });
+        }
+        store
+            .apply_write(economy, &facts)
+            .map_err(crate::application::economy::checkpoint_error)?;
+        staged.record_economy(economy);
+        *current = staged;
+        Ok(outcomes)
     }
 }
 
