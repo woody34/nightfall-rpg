@@ -738,6 +738,57 @@ pub fn magic_success_rate(
     )?)
 }
 
+/// V7 `calcMagicSuccess` (design §6.2 rule E32; V5/V6 keep [`magic_success_rate`]): the level
+/// modifier is Java's `Math.pow(1.3, d)`, the exact power of `fl(1.3)` rounded once (the
+/// frozen OpenJDK table that `Phase5Rules` validates), then left to right in `double`
+/// `fl(fl(lvlModifier × second) × third)`, the `(float)` cast, `Math.round(float)` with
+/// `int` saturation, and `100 − round`. The live caller passes the NPC penalty (pinned
+/// `targetModifier`) second and `magicSuccRes` third, as for [`magic_success_rate`].
+pub fn magic_success_rate_v7(
+    level_difference: i32,
+    second: ExactRatio,
+    third: ExactRatio,
+) -> Result<i32, StatError> {
+    use super::binary64::{pow13, Rational};
+    use num_bigint::BigUint;
+    if !(-84..=84).contains(&level_difference) {
+        return Err(StatError::Overflow);
+    }
+    let exact = |ratio: ExactRatio| -> Result<Rational, StatError> {
+        let (num, den) = ratio.parts();
+        Rational::new(num < 0, BigUint::from(num.unsigned_abs()), BigUint::from(den.unsigned_abs()))
+            .map_err(|_| StatError::Overflow)
+    };
+    let fl = |value: &Rational| -> Result<Rational, StatError> {
+        value
+            .fl()
+            .and_then(|b| b.rational())
+            .map_err(|_| StatError::Overflow)
+    };
+    let level = pow13(level_difference)
+        .and_then(|b| b.rational())
+        .map_err(|_| StatError::Overflow)?;
+    let second = fl(&exact(second)?)?;
+    let third = fl(&exact(third)?)?;
+    let product = fl(&fl(&level.mul(&second))?.mul(&third))?;
+    let narrowed = product
+        .fl32()
+        .and_then(|b| b.rational())
+        .map_err(|_| StatError::Overflow)?;
+    if narrowed.compare(&Rational::integer(0)).is_lt() {
+        return Err(StatError::Overflow);
+    }
+    let half = Rational::integer(1)
+        .div(&Rational::integer(2))
+        .map_err(|_| StatError::Overflow)?;
+    let rounded = narrowed
+        .add(&half)
+        .floor_u64()
+        .map_err(|_| StatError::Overflow)?
+        .min(u64::from(i32::MAX.unsigned_abs()));
+    narrow(sub(100, i128::from(rounded))?)
+}
+
 /// `Formulas.java:1440-1560`. `attack` already includes matching skill attribute power;
 /// `matching_element` encodes the NONE/mismatched weapon early exit, before any arithmetic.
 pub fn attribute_bonus(
@@ -1575,6 +1626,42 @@ mod tests {
                 "{vector}"
             );
         }
+    }
+
+    /// Story 3.6 / design E32: the V7 factor re-run over the full admitted domain against the
+    /// independent `generate_v7.py` Fraction oracle (frozen JVM `pow13` bits), both slots.
+    #[test]
+    fn magic_success_v7_full_admitted_gap_oracle() {
+        let vectors: Value =
+            serde_json::from_str(include_str!("../../../fixtures/magic-success/vectors_v7.json"))
+                .unwrap();
+        let v5: Value =
+            serde_json::from_str(include_str!("../../../fixtures/magic-success/vectors.json"))
+                .unwrap();
+        assert_eq!(vectors.as_array().unwrap().len(), 169 * 7);
+        for (vector, old) in vectors
+            .as_array()
+            .unwrap()
+            .iter()
+            .zip(v5.as_array().unwrap())
+        {
+            let gap = i32::try_from(vector["gap"].as_i64().unwrap()).unwrap();
+            let modifier = ratio(&vector["modifier"]);
+            let expected = i32::try_from(vector["rate"].as_i64().unwrap()).unwrap();
+            assert_eq!(
+                magic_success_rate_v7(gap, modifier, ExactRatio::whole(1)).unwrap(),
+                expected,
+                "{vector}"
+            );
+            assert_eq!(
+                magic_success_rate_v7(gap, ExactRatio::whole(1), modifier).unwrap(),
+                expected,
+                "{vector}"
+            );
+            // DR5 nit 11: on this domain the V7 factor changes no rate.
+            assert_eq!(vector["rate"], old["rate"], "{vector}");
+        }
+        assert!(magic_success_rate_v7(85, ExactRatio::whole(1), ExactRatio::whole(1)).is_err());
     }
 
     #[test]
