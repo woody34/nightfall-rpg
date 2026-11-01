@@ -551,7 +551,7 @@ record!(Phase5RulesParts {
     items_closure: ItemsClosureTable,
     skill_promotions: SkillPromotionsTable,
     merchants: MerchantsTable,
-    /// P5-D29 (interim: empty until C's table is bound; then required).
+    /// P5-D29 (required).
     merchant_fixtures: MerchantFixturesTable,
     multisell: MultisellTable,
     recipes: RecipesTable,
@@ -2340,7 +2340,7 @@ impl Phase5RulesParts {
             }
             by_id.insert(row.id, row);
         }
-        // The six shared fields of every drops.toml npc agree with its rewards row.
+        // The eight shared fields of every drops.toml npc agree with its rewards row.
         for npc in &self.drops.npc {
             let row = by_id
                 .get(&npc.id)
@@ -2351,7 +2351,10 @@ impl Phase5RulesParts {
                     && row.sp == npc.sp
                     && row.is_raid == npc.is_raid
                     && row.corpse_time == npc.corpse_time
-                    && row.collision_radius == npc.collision_radius,
+                    && row.collision_radius == npc.collision_radius
+                    // P5-D30: and the manor inputs.
+                    && row.can_be_sown == npc.can_be_sown
+                    && row.harvest_skills == npc.harvest_skills,
                 || format!("rewards: npc {} disagrees with drops.toml", npc.id),
             )?;
         }

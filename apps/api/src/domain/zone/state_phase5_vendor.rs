@@ -1202,7 +1202,6 @@ pub(super) fn refund_price(reference: u64, count: u64) -> u64 {
 mod tests {
     use super::*;
     use crate::domain::zone::phase5_command::{ItemCount, TemplateCount};
-    use crate::domain::zone::phase5_rules::{MerchantFixture, Phase5Rules};
     use crate::domain::zone::{SessionGeneration, Speed, ZoneCommand, ZoneInput};
 
     use super::super::item_materialize::tests::{fresh_zone_and_kit_load, spawn_kit};
@@ -1210,29 +1209,11 @@ mod tests {
 
     const P1: u128 = 71;
     const LIST: u64 = 353_630;
-    const NPC: u32 = 35_363;
     const CHEAP: u32 = 6316; // unlimited, ref 300, tax 10
     const LIMITED: u32 = 16_127; // limited 10, restock 60 min
 
     fn id(n: u128) -> EntityId {
         EntityId::from_uuid(uuid::Uuid::from_u128(n))
-    }
-
-    /// The embedded rules with one fixture merchant `(NPC, "Alfred", pos)` bound.
-    fn rules_with_merchant(pos: (i32, i32)) -> std::sync::Arc<Phase5Rules> {
-        let base = crate::infrastructure::economy_data::embedded_phase5_rules().unwrap();
-        let mut parts = base.parts().clone();
-        parts.merchant_fixtures.merchants.push(MerchantFixture {
-            npc: NPC,
-            name: "Alfred".into(),
-            x: pos.0,
-            y: pos.1,
-        });
-        let bundle = crate::infrastructure::item_data::embedded_phase4_bundle().unwrap();
-        let mut rules = Phase5Rules::try_new(parts).unwrap();
-        rules.bind_items(&bundle.items).unwrap();
-        rules.bind_skills(&bundle.skills).unwrap();
-        std::sync::Arc::new(rules)
     }
 
     /// A V7 zone with one admitted kit player holding `adena`, and the merchant beside it.
@@ -1247,19 +1228,19 @@ mod tests {
             .run_tick(zone.draft(vec![spawn_kit(id(P1), load)]))
             .unwrap();
         assert!(tick.dispositions.is_empty(), "{:?}", tick.dispositions);
-        let here = zone.entities[&id(P1)].pos;
-        let tiles = (here.x.raw() / 1000, here.y.raw() / 1000);
-        let rules = rules_with_merchant(tiles);
-        let phase5 = zone.phase5.as_mut().unwrap();
-        phase5.canonical.rules_hash = rules.hash();
-        phase5.rules = rules;
+        // The bound P5-D29 fixture: the player stands on its tile.
+        let tiles = (99, 102);
+        let here = Vec2Fixed::from_tiles(tiles.0, tiles.1);
+        let from = zone.entities[&id(P1)].pos;
+        zone.entities.get_mut(&id(P1)).unwrap().pos = here;
+        zone.aoi.relocate(id(P1), from, here);
         let merchant = id(5_000);
         zone.spawn(
             Tick(zone.next_tick.0 - 1),
             Spawned {
                 id: merchant,
                 kind: EntityKind::Npc,
-                name: "Alfred",
+                name: "restock_merchant",
                 pos: Vec2Fixed::from_tiles(tiles.0, tiles.1),
                 speed: Speed::from_milli_tiles_per_tick(0),
                 generation: SessionGeneration::default(),

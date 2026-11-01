@@ -396,6 +396,33 @@ impl ZoneBootstrap {
                     .map_err(|e| anyhow::anyhow!("queue Phase4 blacksmith: {e}"))?;
             }
         }
+        // P5-D29: a V7 epoch spawns every fixture merchant as a non-combat NPC (D58 pattern);
+        // the engine binds it by name and exact position.
+        if let Some(economy) = &self.phase5 {
+            for merchant in &economy.parts().merchant_fixtures.merchants {
+                let pos = crate::domain::zone::Vec2Fixed::from_tiles(merchant.x, merchant.y);
+                anyhow::ensure!(
+                    def.bounds.contains(pos),
+                    "fixture merchant {} is outside zone bounds",
+                    merchant.npc
+                );
+                if def
+                    .npcs
+                    .iter()
+                    .any(|npc| npc.name == merchant.name && npc.pos == pos)
+                {
+                    continue;
+                }
+                handle
+                    .send(ZoneInput::system(ZoneCommand::SpawnNpc {
+                        name: merchant.name.clone(),
+                        pos,
+                        speed: crate::domain::zone::Speed::from_milli_tiles_per_tick(0),
+                        combat: None,
+                    }))
+                    .map_err(|e| anyhow::anyhow!("queue fixture merchant {}: {e}", merchant.npc))?;
+            }
+        }
         if let Some(store) = &self.snapshots {
             tokio::spawn(record_first_seq(
                 store.clone(),
