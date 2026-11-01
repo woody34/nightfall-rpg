@@ -36,13 +36,13 @@ fn rules() -> (Arc<Phase4Rules>, Arc<Phase5Rules>) {
     static RULES: OnceLock<(Arc<Phase4Rules>, Arc<Phase5Rules>)> = OnceLock::new();
     RULES
         .get_or_init(|| {
-            let phase4 = Arc::new(
-                nightfall_api::infrastructure::item_data::load_embedded_phase4_rules([7; 32])
-                    .unwrap(),
-            );
+            // The V6 bundle Phase5Rules binds to (D10), and the V7 item view over it (Q4).
+            let bundle =
+                nightfall_api::infrastructure::item_data::embedded_phase4_bundle().unwrap();
             let phase5 =
-                nightfall_api::infrastructure::economy_data::phase5_rules_for(&phase4).unwrap();
-            (phase4, phase5)
+                nightfall_api::infrastructure::economy_data::phase5_rules_for(&bundle.items)
+                    .unwrap();
+            (phase5.v7_items().unwrap().clone(), phase5)
         })
         .clone()
 }
