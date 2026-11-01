@@ -1562,7 +1562,8 @@ mod tests {
                 EconomyBody::EconomyResult { outcome: EconomyOutcome::Pickup { herb: true, .. }, .. }
             )
         )));
-        let handled = drop(&mut zone, 8600, 1, here(), None);
+        // 8603: its skill 2279 is blocked (effect:MpPerMax), so the herb stays deferred.
+        let handled = drop(&mut zone, 8603, 1, here(), None);
         let tick = pickup(&mut zone, P1, 2, handled);
         assert_eq!(
             tick.dispositions
