@@ -13,6 +13,9 @@ class UNightfallInventoryDialog;
 class UNightfallVendorDialog;
 class UNightfallMultisellDialog;
 class UNightfallRecipeDialog;
+class UNightfallTradeDialog;
+class UNightfallStoreSetupDialog;
+class UNightfallStoreVisitDialog;
 class AClassMasterActor;
 
 /**
@@ -71,6 +74,10 @@ public:
 	void OpenMultisellDialog(uint32 ListId = 0);
 	void OpenRecipeDialog();
 	void OpenMultisellDialogFromKey() { OpenMultisellDialog(0); }
+	/** Story 5.4: T trades with the target player, P sets up the own private store, B visits the target's store. */
+	void OpenTradeDialog();
+	void OpenStoreSetupDialog();
+	void OpenStoreVisitDialog();
 	/** Production mouse-hit resolver and key-binding setup, also exercised headlessly. */
 	bool ClickEntityProxy(const FString& EntityId);
 	void BindSkillKeys();
@@ -88,6 +95,9 @@ private:
 	UPROPERTY(Transient) TObjectPtr<UNightfallInventoryDialog> InventoryDialog;
 	UPROPERTY(Transient) TObjectPtr<UNightfallVendorDialog> VendorDialog;
 	UPROPERTY(Transient) TObjectPtr<UNightfallMultisellDialog> MultisellDialog;
+	UPROPERTY(Transient) TObjectPtr<UNightfallTradeDialog> TradeDialog;
+	UPROPERTY(Transient) TObjectPtr<UNightfallStoreSetupDialog> StoreSetupDialog;
+	UPROPERTY(Transient) TObjectPtr<UNightfallStoreVisitDialog> StoreVisitDialog;
 	UPROPERTY(Transient) TObjectPtr<UNightfallRecipeDialog> RecipeDialog;
 	void ShowClassMaster();
 	void LoadClassCatalogue();

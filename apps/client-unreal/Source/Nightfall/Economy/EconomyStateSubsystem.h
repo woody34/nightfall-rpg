@@ -91,6 +91,8 @@ public:
  const TOptional<FGrpcNightfallV1TradeRequestReceived>& TradeRequest() const { return PendingTrade; }
  const FGrpcNightfallV1PrivateStoreChanged* Store(const FString& Owner) const { return Stores.Find(Owner.ToLower()); }
  const TMap<FString, FGrpcNightfallV1PrivateStoreChanged>& AllStores() const { return Stores; }
+ /** The own player entity id (lower case); empty before admission. */
+ FString OwnEntityId() const;
  struct FMailNotice { FGrpcNightfallV1MailNotification Notice; int64 ReceivedUnixMs = 0; };
  const TArray<FMailNotice>& MailNotices() const { return Mail; }
  const TOptional<FGrpcNightfallV1ListMailResponse>& Inbox() const { return InboxView; }

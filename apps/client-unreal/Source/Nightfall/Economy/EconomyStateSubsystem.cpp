@@ -113,6 +113,7 @@ void UEconomyStateSubsystem::ResetIncarnationScoped()
 
 bool UEconomyStateSubsystem::Own(const FString& Id) const { return Net && Net->IsOwnEntity(Id); }
 bool UEconomyStateSubsystem::OwnerVisible(const FBytes& Id, uint32 Inc) const { const FString S = NightfallItems::UuidString(Id); return !S.IsEmpty() && Own(S) && Fence.Visible(S, Inc); }
+FString UEconomyStateSubsystem::OwnEntityId() const { return Net ? Net->GetOwnEntityId().ToLower() : FString(); }
 FBytes UEconomyStateSubsystem::OwnCharacterId() const { return Net ? NightfallItems::UuidBytes(Net->GetOwnEntityId()) : FBytes(); }
 
 // --- Reducers ------------------------------------------------------------------------------------

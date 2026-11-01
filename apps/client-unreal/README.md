@@ -1339,9 +1339,9 @@ The E6 command/predicate authority is [phase4-fixtures.md](Scripts/phase4-fixtur
 - After an E1 catalogue update, run `python3 Scripts/gen-item-client-metadata.py` to make the arrow metadata again.
 - `nf.GrantItem` uses the authenticated RPC. The server enforces AUTH_DEV_TOKENS. When the server refuses, `item_rpc_error` shows the refusal.
 
-## Economy (Phase 5, stories 5.1, 5.2, 5.3 and 5.6 skeleton)
+## Economy (Phase 5, stories 5.1, 5.2, 5.3, 5.4 and 5.6 skeleton)
 
-The E5 command/predicate authority is [phase5-fixtures.md](Scripts/phase5-fixtures.md) and [phase5-grammar.py](Scripts/phase5-grammar.py). `Source/Nightfall/Bot/EconomyBotPredicates.cpp` registers every §5.3 command (41) and predicate (96; `rejected` is the Phase 1 builtin, and it resolves the Phase 5 reasons). `Scripts/test/phase5-client-registry.test.py` compares the two tables.
+The E5 command/predicate authority is [phase5-fixtures.md](Scripts/phase5-fixtures.md) and [phase5-grammar.py](Scripts/phase5-grammar.py). `Source/Nightfall/Bot/EconomyBotPredicates.cpp` registers every §5.3 command (41) and predicate (97; `rejected` is the Phase 1 builtin, and it resolves the Phase 5 reasons). `Scripts/test/phase5-client-registry.test.py` compares the two tables.
 
 - `Source/Nightfall/Economy/EconomyStateSubsystem` is the owner projection of the Phase 5 wire facts: `EntitySpawn.ground_item`, the twelve events `WorldEvent` 34..45 and the `EconomyResult` receipt. It applies the Phase 4 rules: the identity fence, baseline before delta (`PartyStateChanged`, `RecipeBookSync`), ticks only forward, and the D43 keyed replay (one key, one frozen body; the same key with other arguments is a conflict; the exact received receipt bytes are compared on a replay). An unknown `oneof` member decodes to nothing (fail-closed).
 - The client never predicts a count, a price, a chance, a protection deadline or a party membership. The read RPCs (`ListBuylist`, `GetWarehouse`, `GetFreight`, `ListMail`, `ListItemAuctions`) give detached views. A predicate that needs a view asks for it (at most once per second) and stays UNKNOWN until the view arrives. A container receipt projects its received `moved` rows onto the view.
@@ -1354,7 +1354,13 @@ The E5 command/predicate authority is [phase5-fixtures.md](Scripts/phase5-fixtur
 - The dialogs show the received values only. They do no price, count or chance arithmetic. The server refuses a bad request.
 - Request keys: each dialog freezes one request per key. A changed selection or count makes a new key. Confirm sends a new request with a new key. Retry sends the last frozen request again with the same key and the same body (D43, `UEconomyStateSubsystem::Submit`). A busy state disables the controls. A rejection enables Retry.
 - Tests: `Nightfall.Economy.UI.VendorBuySellRefundRetry`, `Nightfall.Economy.UI.MultisellEntriesAndRetry` and `Nightfall.Economy.UI.RecipeBookCraftRegisterManufacture`.
-- The other dialogs and widgets are stories 5.4, 5.5 and 5.7.
+- Story 5.4 adds three windows (same file):
+  - **Trade** (key T; the target player is the partner of a new request): the received request (Accept or Decline), and the received session: the partner, the phase, both lists (with the enchant level), both confirmations and the cancel reason. The actions are Request, Accept, Decline, Add item (an owned item that is not offered yet), Confirm (only before the own confirmation) and Cancel. The window offers only the actions of the received state.
+  - **Private store** (key P): the owner collects Sell, Package sell, Buy (template, count, unit price) or Manufacture (a registered recipe and its fee) entries, and sends them in one SetPrivateStore request. Another store kind drops the collected entries. Close store sends ClosePrivateStore when the received own store is open. The open store shown is the received `PrivateStoreChanged`, never the local entries.
+  - **Store visit** (key B, for the target player): the received store of that player. Buy from a sell store (the received instance and price), buy a package store whole, sell an owned instance of the entry's template into a buy store (the received price), or order from a manufacture store.
+- The same request-key rules apply to these windows: an added or cleared entry makes a new key, and Retry resends the frozen request.
+- Story 5.4 tests: `Nightfall.Economy.UI.TradeRequestAnswerAddConfirmCancel`, `Nightfall.Economy.UI.PrivateStoreSetupSellBuyManufactureClose` and `Nightfall.Economy.UI.PrivateStoreVisitBuySellPackageOrder`.
+- The other dialogs and widgets are stories 5.5 and 5.7.
 
 Item content:
 

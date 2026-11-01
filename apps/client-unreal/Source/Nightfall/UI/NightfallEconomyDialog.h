@@ -137,3 +137,112 @@ private:
  struct FChoice { uint64 Id = 0; FString Owner; };
  TMap<FString, FChoice> Choices;
 };
+
+/**
+ * Story 5.4: the trade window. It shows the received request, the received session (both lists, both
+ * confirmations, the phase and the cancel reason) and sends TradeRequest / TradeAnswer / TradeAddItem /
+ * TradeConfirm / TradeCancel. The actions follow the received state only.
+ */
+UCLASS()
+class NIGHTFALL_API UNightfallTradeDialog : public UNightfallEconomyDialog
+{
+ GENERATED_BODY()
+public:
+ void EnsureLayout();
+ void BindState(UEconomyStateSubsystem* Economy, UInventoryStateSubsystem* Inventory, const FString& Target);
+ virtual void Render() override;
+ bool CanConfirm() const;
+ UComboBoxString* ActionControl() const { return Action; }
+ UComboBoxString* ItemControl() const { return Item; }
+ UEditableTextBox* CountControl() const { return Count; }
+ /** The rendered session: request, partner, phase, both lists and confirmations. */
+ FString SessionText() const;
+protected:
+ virtual void Confirm() override;
+private:
+ UPROPERTY() TObjectPtr<UTextBlock> Session;
+ UPROPERTY() TObjectPtr<UComboBoxString> Action;
+ UPROPERTY() TObjectPtr<UComboBoxString> Item;
+ UPROPERTY() TObjectPtr<UEditableTextBox> Count;
+ TMap<FString, uint64> Items;
+ FString Target;
+};
+
+/**
+ * Story 5.4: the owner's private store: sell, package sell, buy or manufacture entries are collected
+ * locally and sent in one SetPrivateStore* request; Close store sends ClosePrivateStore. The open
+ * store shown is the received PrivateStoreChanged of the own entity.
+ */
+UCLASS()
+class NIGHTFALL_API UNightfallStoreSetupDialog : public UNightfallEconomyDialog
+{
+ GENERATED_BODY()
+public:
+ void EnsureLayout();
+ void BindState(UEconomyStateSubsystem* Economy, UInventoryStateSubsystem* Inventory);
+ virtual void Render() override;
+ bool CanConfirm() const;
+ bool CanAdd() const;
+ UComboBoxString* KindControl() const { return Kind; }
+ UEditableTextBox* TitleControl() const { return Title; }
+ UComboBoxString* EntryControl() const { return Entry; }
+ UEditableTextBox* TemplateControl() const { return Template; }
+ UEditableTextBox* CountControl() const { return Count; }
+ UEditableTextBox* PriceControl() const { return Price; }
+ UButton* AddControl() const { return AddEntry; }
+ UButton* ClearControl() const { return ClearEntries; }
+ int32 PendingCount() const;
+ /** The received open store of the own entity, as shown. */
+ FString OpenStoreText() const;
+protected:
+ virtual void Confirm() override;
+private:
+ UFUNCTION() void Add();
+ UFUNCTION() void Clear();
+ UPROPERTY() TObjectPtr<UComboBoxString> Kind;
+ UPROPERTY() TObjectPtr<UEditableTextBox> Title;
+ UPROPERTY() TObjectPtr<UComboBoxString> Entry;
+ UPROPERTY() TObjectPtr<UEditableTextBox> Template;
+ UPROPERTY() TObjectPtr<UEditableTextBox> Count;
+ UPROPERTY() TObjectPtr<UEditableTextBox> Price;
+ UPROPERTY() TObjectPtr<UButton> AddEntry;
+ UPROPERTY() TObjectPtr<UButton> ClearEntries;
+ UPROPERTY() TObjectPtr<UTextBlock> Pending;
+ UPROPERTY() TObjectPtr<UTextBlock> Open;
+ TMap<FString, uint64> Choices; // label -> instance (sell) or recipe id (manufacture)
+ TArray<FGrpcNightfallV1StoreSellEntry> SellEntries;
+ TArray<FGrpcNightfallV1StoreBuyEntry> BuyEntries;
+ TArray<FGrpcNightfallV1ManufactureEntry> MakeEntries;
+ FString PendingKind;
+};
+
+/**
+ * Story 5.4: another player's private store, from its received PrivateStoreChanged. Buy from a sell
+ * store (a package store sells only all of its entries), sell into a buy store, or order from a
+ * manufacture store. Prices are the store's received prices.
+ */
+UCLASS()
+class NIGHTFALL_API UNightfallStoreVisitDialog : public UNightfallEconomyDialog
+{
+ GENERATED_BODY()
+public:
+ void EnsureLayout();
+ void BindState(UEconomyStateSubsystem* Economy, UInventoryStateSubsystem* Inventory, const FString& StoreOwner);
+ virtual void Render() override;
+ bool CanConfirm() const;
+ UComboBoxString* EntryControl() const { return Entry; }
+ UComboBoxString* ItemControl() const { return Item; }
+ UEditableTextBox* CountControl() const { return Count; }
+ FString StoreText() const;
+protected:
+ virtual void Confirm() override;
+private:
+ const FGrpcNightfallV1PrivateStoreChanged* Store() const;
+ UPROPERTY() TObjectPtr<UTextBlock> Shown;
+ UPROPERTY() TObjectPtr<UComboBoxString> Entry;
+ UPROPERTY() TObjectPtr<UComboBoxString> Item;
+ UPROPERTY() TObjectPtr<UEditableTextBox> Count;
+ TMap<FString, int32> Entries; // label -> index into the received sell/buy/manufacture rows
+ TMap<FString, uint64> Items;  // label -> owned instance (sell into a buy store)
+ FString Owner;
+};

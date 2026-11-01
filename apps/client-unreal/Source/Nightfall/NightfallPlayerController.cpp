@@ -93,6 +93,10 @@ void ANightfallPlayerController::BindSkillKeys()
  InputComponent->BindKey(EKeys::V,IE_Pressed,this,&ANightfallPlayerController::OpenVendorDialog);
  InputComponent->BindKey(EKeys::X,IE_Pressed,this,&ANightfallPlayerController::OpenMultisellDialogFromKey);
  InputComponent->BindKey(EKeys::R,IE_Pressed,this,&ANightfallPlayerController::OpenRecipeDialog);
+ // Story 5.4: T trades with the target player, P opens the own store, B visits the target's store.
+ InputComponent->BindKey(EKeys::T,IE_Pressed,this,&ANightfallPlayerController::OpenTradeDialog);
+ InputComponent->BindKey(EKeys::P,IE_Pressed,this,&ANightfallPlayerController::OpenStoreSetupDialog);
+ InputComponent->BindKey(EKeys::B,IE_Pressed,this,&ANightfallPlayerController::OpenStoreVisitDialog);
 
 }
 
@@ -259,6 +263,25 @@ void ANightfallPlayerController::OpenRecipeDialog()
  auto* GI=GetGameInstance();if(!GI)return;
  if(!RecipeDialog)RecipeDialog=CreateWidget<UNightfallRecipeDialog>(this);
  if(RecipeDialog){if(!RecipeDialog->IsInViewport())RecipeDialog->AddToViewport(55);RecipeDialog->BindState(GI->GetSubsystem<UEconomyStateSubsystem>(),GI->GetSubsystem<UInventoryStateSubsystem>());RecipeDialog->ActivateWidget();}
+}
+void ANightfallPlayerController::OpenTradeDialog()
+{
+ auto* GI=GetGameInstance();if(!GI)return;auto* Combat=GI->GetSubsystem<UCombatStateSubsystem>();
+ // The target is the trade partner of a new request; an open session or a received request needs none.
+ if(!TradeDialog)TradeDialog=CreateWidget<UNightfallTradeDialog>(this);
+ if(TradeDialog){if(!TradeDialog->IsInViewport())TradeDialog->AddToViewport(55);TradeDialog->BindState(GI->GetSubsystem<UEconomyStateSubsystem>(),GI->GetSubsystem<UInventoryStateSubsystem>(),Combat?Combat->GetTargetId():FString());TradeDialog->ActivateWidget();}
+}
+void ANightfallPlayerController::OpenStoreSetupDialog()
+{
+ auto* GI=GetGameInstance();if(!GI)return;
+ if(!StoreSetupDialog)StoreSetupDialog=CreateWidget<UNightfallStoreSetupDialog>(this);
+ if(StoreSetupDialog){if(!StoreSetupDialog->IsInViewport())StoreSetupDialog->AddToViewport(55);StoreSetupDialog->BindState(GI->GetSubsystem<UEconomyStateSubsystem>(),GI->GetSubsystem<UInventoryStateSubsystem>());StoreSetupDialog->ActivateWidget();}
+}
+void ANightfallPlayerController::OpenStoreVisitDialog()
+{
+ auto* GI=GetGameInstance();auto* Combat=GI?GI->GetSubsystem<UCombatStateSubsystem>():nullptr;if(!Combat || Combat->GetTargetId().IsEmpty())return;
+ if(!StoreVisitDialog)StoreVisitDialog=CreateWidget<UNightfallStoreVisitDialog>(this);
+ if(StoreVisitDialog){if(!StoreVisitDialog->IsInViewport())StoreVisitDialog->AddToViewport(55);StoreVisitDialog->BindState(GI->GetSubsystem<UEconomyStateSubsystem>(),GI->GetSubsystem<UInventoryStateSubsystem>(),Combat->GetTargetId());StoreVisitDialog->ActivateWidget();}
 }
 void ANightfallPlayerController::OpenInventoryDialog()
 {
