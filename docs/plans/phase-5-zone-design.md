@@ -989,6 +989,7 @@ Checks: weight, slots, adena. Commit: consume adena, then each entry moves back 
 - the entry exists, and a non-stackable entry requires `amount == 1` (`:135`);
 - slots and weight for products × `amount` (`:151-155`);
 - ingredients: `count × amount` is owned and available (`:201-212`).
+- an entry with a Fame (−300) or Clan Reputation (−200) ingredient or product refuses `ITEM_CAPABILITY_DEFERRED` (E52, P5-D20). These capabilities arrive with Phase 7.
 
 Capacity and weight are evaluated after inputs are paid (Phase 4 `InventoryMutation`, `Z/item_inventory.rs:109-111`).
 
@@ -2162,7 +2163,7 @@ message GetManorDataResponse { uint32 castle_id = 1; repeated SeedProductionView
 | RPC | Contract |
 |---|---|
 | `ListBuylist` | The prices are static: the §6.2 table at castle 0. `stock` and `refund_tab` come from the zone runtime **read** port at the zone's current tick (`state_tick`); the refund tab is the caller's own. The call refuses `FAILED_PRECONDITION` unless the caller is admitted, and `UNAVAILABLE` if the zone is absent. |
-| `GetMultisellList` | Static, from Phase5Rules. |
+| `GetMultisellList` | Static, from Phase5Rules. The response does not include an entry with a Fame (−300) or Clan Reputation (−200) ingredient or product (P5-D20). The wire `template_id` is unsigned, and the capability is deferred (E52). The other entries keep their pinned 1-based `entry_id`. There is no wire change. |
 | `GetRecipeBook` | Checkpoint view out of world; `FAILED_PRECONDITION` while admitted (D15 pattern: `RecipeBookSync` is the live baseline). |
 | `GetWarehouse` / `GetFreight` | DB rows (owner only); `capacity` is base + 0 (R40). |
 | `ListMail` / `ReadMail` | DB rows; expired messages hidden. Timestamps are DB time and never enter zone state (D65). `ReadMail` **writes nothing** (E31): the read flag is set by `MailMarkRead`. Pinned requires a peace zone to open a mail with attachments (`RequestReceivedPost.java:58`). `ReadMail` therefore omits `attachments` and returns `FAILED_PRECONDITION` for such a message, unless the zone read port confirms the reader is admitted inside a peace square. A reader out of world gets the header and body with no attachment rows. |

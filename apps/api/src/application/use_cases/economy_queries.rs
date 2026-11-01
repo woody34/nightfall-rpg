@@ -330,7 +330,7 @@ impl EconomyQueries {
     /// `GetMultisellList`: static, from `Phase5Rules`. `entry_id` is the pinned 1-based entry
     /// order. Entries with a special (negative id) ingredient or product (FAME, clan
     /// reputation; capability deferred in `catalogue.toml`) are omitted: the wire
-    /// `template_id` is unsigned (P5-Q15). An entry is stackable when every product is
+    /// `template_id` is unsigned; the capability is deferred (E52, P5-D20). An entry is stackable when every product is
     /// (pinned `multisell/Entry.java:52-60`).
     pub fn get_multisell_list(&self, list_id: u32) -> Result<MultisellView, AppError> {
         let list = self

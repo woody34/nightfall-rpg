@@ -466,7 +466,7 @@ async fn get_multisell_list_is_static_and_keeps_the_pinned_entry_order() {
     assert_eq!(view.entries.len(), list.entries.len());
     assert_eq!(view.entries[0].entry_id, 1, "entry ids are the 1-based pinned order");
     assert_eq!(view.entries[0].ingredients[0].count, list.entries[0].ingredients[0].count);
-    // Lists with a FAME / clan-reputation ingredient omit only those entries (P5-Q15).
+    // Lists with a FAME / clan-reputation ingredient omit only those entries (P5-D20).
     let fame = phase5.parts().catalogue.special_multisell_ingredients[0].lists[0];
     let source = phase5
         .parts()
@@ -487,6 +487,21 @@ async fn get_multisell_list_is_static_and_keeps_the_pinned_entry_order() {
         .count();
     assert_eq!(view.entries.len(), plain);
     assert!(view.entries.len() < source.entries.len());
+    // P5-D20: exactly the deferred-capability entries are absent; the others keep their pinned id.
+    let deferred: Vec<u32> = source
+        .entries
+        .iter()
+        .enumerate()
+        .filter(|(_, e)| {
+            e.ingredients.iter().any(|i| i.id < 0) || e.products.iter().any(|p| p.id < 0)
+        })
+        .map(|(i, _)| u32::try_from(i).unwrap() + 1)
+        .collect();
+    let shown: Vec<u32> = view.entries.iter().map(|e| e.entry_id).collect();
+    assert!(!deferred.is_empty() && deferred.iter().all(|id| !shown.contains(id)));
+    let total = u32::try_from(source.entries.len()).unwrap();
+    assert_eq!(shown.len() + deferred.len(), source.entries.len());
+    assert!(shown.iter().all(|id| (1..=total).contains(id)));
     assert!(view
         .entries
         .windows(2)
