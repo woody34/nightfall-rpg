@@ -184,7 +184,14 @@ impl Phase4Snapshot {
                 }
             }
             let authority = if let Some(origin) = &lane.origin {
-                if (origin.count == 0 && !player.inventory.contains_key(&origin.instance))
+                // P5-D17: a herb's skill comes from a destroyed ground instance that nobody
+                // owns and pays nothing. Only V7 creates one; Record ≤ 8 / Snapshot ≤ 10
+                // payloads refuse the `herb` key (codec_validation).
+                let herb = origin.herb;
+                if (herb && origin.count != 0)
+                    || (!herb
+                        && origin.count == 0
+                        && !player.inventory.contains_key(&origin.instance))
                     || origin.receipt.key.is_nil()
                     || origin.receipt.operation != super::phase4_projection::ItemOperation::Use
                     || i64::try_from(origin.count).is_err()
@@ -237,7 +244,9 @@ impl Phase4Snapshot {
                         .checked_add(count)
                         .ok_or(ItemError("item origin cost overflow"))?;
                 }
-                if (clicked_cost == 0 && origin.count != 0)
+                if herb {
+                    // No payment: the herb was destroyed at pickup (§4.3).
+                } else if (clicked_cost == 0 && origin.count != 0)
                     || (clicked_cost > 0
                         && (origin.count == 0
                             || origin.count > clicked_cost

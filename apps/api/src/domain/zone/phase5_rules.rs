@@ -220,6 +220,27 @@ record!(CatalogueTable {
     templates: Vec<CatalogueTemplate>, counts: CatalogueCounts
 });
 
+// P5-D19: V7 skill promotions (deferred V6 skills made executable) and additions (skills
+// absent from the V6 bundle), so the V6 skill bundle stays unchanged.
+record!(SkillPromotion { id: u32, min_level: u32, max_level: u32, clears: Vec<String> });
+record!(SkillAddition { clears: Vec<String>, skill: super::skill::SkillDef });
+record!(SkillPromotionsTable {
+    schema_version: u32, v6_skills_sha256: String, formula_revision: u32,
+    promotions: Vec<SkillPromotion>, additions: Vec<SkillAddition>
+});
+
+/// The blockers the V7 engine of formula revision 1 implements (P5-D19): a promotion may
+/// clear exactly these and nothing else.
+pub const V7_IMPLEMENTED_BLOCKERS: [&str; 7] = [
+    "cond:player:canSweep",
+    "effect:ConsumeBody",
+    "effect:Harvesting",
+    "effect:Sow",
+    "effect:Spoil",
+    "effect:Sweeper",
+    "target:NPC_BODY",
+];
+
 // D10: the closure templates' item rows, a Phase 5 table so the V6 bundle stays unchanged.
 record!(ItemsClosureTable {
     schema_version: u32, v6_items_sha256: String,
@@ -506,6 +527,7 @@ record!(Phase5RulesParts {
     herbs: HerbsTable,
     catalogue: CatalogueTable,
     items_closure: ItemsClosureTable,
+    skill_promotions: SkillPromotionsTable,
     merchants: MerchantsTable,
     multisell: MultisellTable,
     recipes: RecipesTable,
@@ -560,6 +582,7 @@ pub struct Phase5Inventory {
     pub pow_entries: u64,
     pub reward_npcs: u64,
     pub closure_items: u64,
+    pub skill_promotions: u64,
 }
 
 /// Validated and hashed Phase 5 rules (design §1.10).
@@ -576,6 +599,8 @@ pub struct Phase5Rules {
     /// D10: the V7 item view, bound by [`Self::bind_items`] (a function of `parts` and the
     /// bound V6 bundle, so not hashed).
     v7_items: Option<Arc<super::Phase4Rules>>,
+    /// P5-D19: the V7 skill view, bound by [`Self::bind_skills`] (not hashed, as above).
+    v7_skills: Option<Arc<super::Phase3Rules>>,
 }
 
 /// The drop list a roll walks (design §3.1): DEATH uses the DROP strategies, CORPSE the SPOIL
@@ -655,6 +680,7 @@ impl Phase5Rules {
                 json(&(
                     &parts.adaptations,
                     &parts.sources,
+                    &parts.skill_promotions,
                     &parts.pow,
                     parts.formula_revision,
                     hex(parts.phase3_hash),
@@ -696,7 +722,70 @@ impl Phase5Rules {
             reward_index,
             herbs,
             v7_items: None,
+            v7_skills: None,
         })
+    }
+
+    /// P5-D19: bind the skill promotions to the V6 skill bundle these rules are bound to and
+    /// build the V7 skill view (V6 skills ∪ promotions under the unchanged Phase 3 hash).
+    pub fn bind_skills(&mut self, phase3: &super::Phase3Rules) -> Result<(), String> {
+        ensure(self.parts.phase3_hash == phase3.hash(), || {
+            "Phase5 skill/profile hash mismatch".into()
+        })?;
+        let table = &self.parts.skill_promotions;
+        ensure(table.v6_skills_sha256 == hex(phase3.hash()), || {
+            "skill_promotions: v6_skills_sha256 differs from the bound Phase 3 hash".into()
+        })?;
+        let registry = phase3.skills();
+        let mut promoted = Vec::new();
+        for row in &table.promotions {
+            let id = super::skill::SkillId(row.id);
+            let skill = registry
+                .get(id)
+                .ok_or_else(|| format!("skill_promotions: skill {} is not in V6", row.id))?;
+            if skill.runtime_status == crate::domain::class::RuntimeSkillStatus::Executable
+                && skill.blockers.is_empty()
+            {
+                // Already the V7 view (a V7 restore passes it back in).
+                continue;
+            }
+            ensure(
+                skill.runtime_status == crate::domain::class::RuntimeSkillStatus::Deferred
+                    && row.min_level == 1
+                    && row.max_level == skill.max_level
+                    && row.clears == skill.blockers,
+                || format!("skill_promotions: skill {} does not match its V6 row", row.id),
+            )?;
+            promoted.push(id);
+        }
+        let mut added = Vec::new();
+        for row in &table.additions {
+            match registry.get(row.skill.id) {
+                Some(existing)
+                    if existing.runtime_status
+                        == crate::domain::class::RuntimeSkillStatus::Executable
+                        && existing.id == row.skill.id =>
+                {
+                    // Already added in the V7 view.
+                },
+                Some(_) => {
+                    return Err(format!(
+                        "skill_promotions: addition {} is already in V6",
+                        row.skill.id.0
+                    ))
+                },
+                None => added.push(row.skill.clone()),
+            }
+        }
+        let view = registry.with_v7_promotions(&promoted, &added)?;
+        self.v7_skills = Some(Arc::new(phase3.with_v7_registry(view)));
+        Ok(())
+    }
+
+    /// The V7 skill view; `None` until [`Self::bind_skills`].
+    #[must_use]
+    pub fn v7_skills(&self) -> Option<&Arc<super::Phase3Rules>> {
+        self.v7_skills.as_ref()
     }
 
     /// The `rewards.toml` row of a pinned npc id (P5-D12): every pinned template has one.
@@ -1131,6 +1220,7 @@ impl Phase5RulesParts {
             ("drops", self.drops.schema_version),
             ("rewards", self.rewards.schema_version),
             ("items_closure", self.items_closure.schema_version),
+            ("skill_promotions", self.skill_promotions.schema_version),
             ("rates", self.rates.schema_version),
             ("ground", self.ground.schema_version),
             ("party", self.party.schema_version),
@@ -1966,6 +2056,7 @@ impl Phase5RulesParts {
         inv.pow_entries = len(&self.pow.pow56).saturating_add(len(&self.pow.pow13));
 
         self.validate_rewards_and_closure(&mut inv)?;
+        self.validate_skill_promotions(&mut inv)?;
 
         // Closure: the catalogue is exactly the set of referenced templates.
         ensure(closure.referenced.len() == templates.len(), || {
@@ -1976,6 +2067,47 @@ impl Phase5RulesParts {
             )
         })?;
         Ok((inv, g))
+    }
+
+    /// P5-D19 promotions without the V6 bundle: the formula revision, ascending disjoint
+    /// ids, and every `clears` set sorted, unique, inside [`V7_IMPLEMENTED_BLOCKERS`] and (for
+    /// an addition) equal to the row's own deferred blockers.
+    fn validate_skill_promotions(&self, inv: &mut Phase5Inventory) -> Check {
+        let table = &self.skill_promotions;
+        ensure(table.formula_revision == PHASE5_FORMULA_REVISION, || {
+            format!("skill_promotions: formula_revision {}", table.formula_revision)
+        })?;
+        let clears_ok = |clears: &[String]| {
+            !clears.is_empty()
+                && clears.windows(2).all(|w| w.first() < w.get(1))
+                && clears
+                    .iter()
+                    .all(|c| V7_IMPLEMENTED_BLOCKERS.contains(&c.as_str()))
+        };
+        let mut ids = BTreeSet::new();
+        let mut previous = 0;
+        for row in &table.promotions {
+            ensure(row.id > previous && ids.insert(row.id) && clears_ok(&row.clears), || {
+                format!("skill_promotions: promotion {} out of order or unimplemented", row.id)
+            })?;
+            previous = row.id;
+        }
+        let mut previous = 0;
+        for row in &table.additions {
+            let id = row.skill.id.0;
+            ensure(
+                id > previous
+                    && ids.insert(id)
+                    && clears_ok(&row.clears)
+                    && row.skill.runtime_status
+                        == crate::domain::class::RuntimeSkillStatus::Deferred
+                    && row.skill.blockers == row.clears,
+                || format!("skill_promotions: addition {id} out of order or unimplemented"),
+            )?;
+            previous = id;
+        }
+        inv.skill_promotions = len(&table.promotions).saturating_add(len(&table.additions));
+        Ok(())
     }
 
     /// P5-D12 rewards and the D10 closure item rows (the V6-dependent half is

@@ -126,6 +126,15 @@ impl Phase3Rules {
         )
     }
 
+    /// P5-D19: the V7 skill view — these rules with `skills` replaced by the promoted
+    /// registry, under this bundle's unchanged hash (built only by `Phase5Rules`).
+    #[must_use]
+    pub fn with_v7_registry(&self, skills: super::skill::SkillRegistry) -> Self {
+        let mut view = self.clone();
+        view.skills = skills;
+        view
+    }
+
     /// Whether these rules are the V6 composition (the Phase 4 skill closure).
     pub const fn is_v6(&self) -> bool {
         self.runtime_revision == V6_RUNTIME_REVISION

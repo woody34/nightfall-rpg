@@ -331,12 +331,14 @@ pub const PHASE5_LAST_REJECT_REASON: i32 = 102;
 pub const GROUND_ITEM_ENTITY_KIND: i32 = 3;
 
 /// Canonical-JSON keys that only V7 payloads may carry (snapshot, command, load or event).
-pub const V7_JSON_KEYS: [&str; 5] = [
+pub const V7_JSON_KEYS: [&str; 6] = [
     "phase5",
     "ground_item",
     "economy",
     "economy_checkpoint",
     "lease_releases",
+    // P5-D17: the V7-only herb marker of an item-cast origin.
+    "herb",
 ];
 
 /// `ItemLocation` values that exist only under V7 (design §11.2).

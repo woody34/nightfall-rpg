@@ -110,6 +110,11 @@ pub struct ItemCastOrigin {
     pub count: u64,
     pub skill_ordinal: u32,
     pub receipt: super::phase4_projection::ItemReceiptRef,
+    /// P5-D17 (V7 only; omitted otherwise, so V5/V6 bytes are unchanged): a herb's item
+    /// skill. `instance` is the destroyed ground instance (never owned), `count` is 0 and
+    /// `receipt.key` is the pickup's request key.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub herb: bool,
 }
 
 /// A simultaneous item-origin lane owns its complete cast; a main cast's shot context

@@ -90,7 +90,18 @@ impl ItemMutationOperation {
                 ItemOperation::Consume
                 | ItemOperation::Enchant
                 | ItemOperation::Refine
-                | ItemOperation::CancelRefine => return Err(invalid("item_receipt_operation")),
+                | ItemOperation::CancelRefine
+                | ItemOperation::TransferOut
+                | ItemOperation::TransferIn
+                | ItemOperation::PartySplit
+                | ItemOperation::Sweep
+                | ItemOperation::Harvest
+                | ItemOperation::Purchase
+                | ItemOperation::SaleProceeds
+                | ItemOperation::Craft
+                | ItemOperation::CodCredit
+                | ItemOperation::AuctionAward
+                | ItemOperation::ManorReward => return Err(invalid("item_receipt_operation")),
             },
         })
     }
@@ -1197,6 +1208,18 @@ fn ledger_operation(operation: ItemOperation) -> Result<ItemLedgerOperation, Che
         ItemOperation::Exchange => ItemLedgerOperation::Exchange,
         ItemOperation::Use => ItemLedgerOperation::Use,
         ItemOperation::ToggleAutoShot => return Err(invalid("item_ledger_owner_sidecar")),
+        // P5-D22: V7 economy rows; the economy checkpoint writer (C lane) owns their mapping.
+        ItemOperation::TransferOut
+        | ItemOperation::TransferIn
+        | ItemOperation::PartySplit
+        | ItemOperation::Sweep
+        | ItemOperation::Harvest
+        | ItemOperation::Purchase
+        | ItemOperation::SaleProceeds
+        | ItemOperation::Craft
+        | ItemOperation::CodCredit
+        | ItemOperation::AuctionAward
+        | ItemOperation::ManorReward => return Err(invalid("item_ledger_v7_economy_op")),
     })
 }
 /// D68 pinned stack maxima. L2ItemInstance.java:422 caps adena (template 57) at `MaxAdena`

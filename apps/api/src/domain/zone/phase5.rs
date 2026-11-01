@@ -279,6 +279,20 @@ pub struct Phase5Player {
     pub trade: Option<(EntityId, EntityId)>,
     /// Next-allowed tick per pinned protector.
     pub flood: BTreeMap<FloodKind, Tick>,
+    /// Herb item-skill reuse (P5-D17, §4.3), ascending `(skill, level)`, unique.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub herb_reuse: Vec<HerbReuse>,
+}
+
+/// A herb item skill's reuse deadline, keyed by skill id **and** level like pinned
+/// `getReuseHashCode` (design §4.3). V7 only.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[allow(missing_docs)]
+pub struct HerbReuse {
+    pub skill: u32,
+    pub level: u32,
+    pub until: Tick,
 }
 
 /// The maximum refund-tab length (`PcRefund`, design §1.9).
@@ -548,6 +562,15 @@ impl Phase5Snapshot {
             if player.refund.len() > REFUND_TAB_LIMIT {
                 return fail("refund tab longer than 12");
             }
+            if player.herb_reuse.windows(2).any(|w| {
+                w.first().map(|a| (a.skill, a.level)) >= w.get(1).map(|b| (b.skill, b.level))
+            }) || player
+                .herb_reuse
+                .iter()
+                .any(|r| r.skill == 0 || r.level == 0)
+            {
+                return fail("herb reuse out of order, duplicated or zero");
+            }
             for item in &player.refund {
                 item.validate()?;
                 if item.location != ItemLocation::Refund || !instances.insert(item.id) {
@@ -719,6 +742,7 @@ mod tests {
         assert_eq!(ordinals, [0, 1, 2, 3, 4, 5]);
         let json = serde_json::to_string(&Phase5Player {
             flood: [(FloodKind::ServerBypass, Tick(5))].into_iter().collect(),
+            herb_reuse: Vec::new(),
             ..Phase5Player::default()
         })
         .unwrap();

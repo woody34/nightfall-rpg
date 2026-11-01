@@ -442,9 +442,18 @@ pub(super) fn decode(bytes: &[u8]) -> Result<ZoneSnapshot, CodecError> {
             .as_ref()
             .ok_or_else(|| error("missing V6 items"))?
             .rules_hash;
-        crate::infrastructure::item_data::resolve_phase4_bundle(item_hash, rules_hash)
-            .map_err(error)?
-            .skills
+        let bundle = crate::infrastructure::item_data::resolve_phase4_bundle(item_hash, rules_hash)
+            .map_err(error)?;
+        if message.format == 3 {
+            // P5-D19: a V7 snapshot runs on the V7 skill view (same Phase 3 hash).
+            crate::infrastructure::economy_data::phase5_rules_for(&bundle.items)
+                .map_err(error)?
+                .v7_skills()
+                .cloned()
+                .ok_or_else(|| error("V7 rules without the skill view"))?
+        } else {
+            bundle.skills
+        }
     };
     if rules.hash() != rules_hash {
         return Err(error("rules hash mismatch"));
