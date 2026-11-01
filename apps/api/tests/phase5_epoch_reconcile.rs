@@ -355,10 +355,12 @@ async fn store_with(
 }
 
 /// P5-D23: a fenced ground instance unknown to the ledger is an invariant failure. Nothing is
-/// released and no reconcile runs. A fenced instance that is live in the ledger agrees.
-#[tokio::test]
-async fn a_fenced_snapshot_that_disagrees_with_the_ledger_fails_closed() {
-    let repo = Arc::new(InMemoryEconomyStore::default());
+/// released and no reconcile runs. A fenced instance that is live in the ledger agrees. `repo`
+/// and `closed` are two empty stores of one adapter.
+async fn guard_contract<R>(repo: Arc<R>, closed: Arc<R>)
+where
+    R: EconomyCheckpointRepository + LeaseRepository + EconomyReadRepository + 'static,
+{
     let (snapshot, entity) = fenced_snapshot(201);
     // The ledger knows instance 201 under its ground entity, live; 202 is absent.
     repo.checkpoint_economy(&write(
@@ -398,7 +400,6 @@ async fn a_fenced_snapshot_that_disagrees_with_the_ledger_fails_closed() {
     assert!(port.jobs.lock().is_empty(), "no reconcile");
     assert_eq!(repo.lease_epochs(1, 3).await.unwrap(), vec![1], "nothing released");
     // An instance whose chain ended before the snapshot tick but is still fenced also disagrees.
-    let closed = Arc::new(InMemoryEconomyStore::default());
     closed
         .checkpoint_economy(&write(
             1,
@@ -428,4 +429,31 @@ async fn a_fenced_snapshot_that_disagrees_with_the_ledger_fails_closed() {
     let report = agrees.before_admission(1, 3).await.unwrap();
     assert_eq!(report.reconciled, vec![(1, 1)]);
     assert_eq!(report.released.len(), 1);
+}
+
+#[tokio::test]
+async fn a_fenced_snapshot_that_disagrees_with_the_ledger_fails_closed() {
+    guard_contract(
+        Arc::new(InMemoryEconomyStore::default()),
+        Arc::new(InMemoryEconomyStore::default()),
+    )
+    .await;
+}
+
+/// c-review-7 P3-1: the same guard over `PgEconomyRepository::ground_refund_chains`.
+#[tokio::test]
+async fn postgres_fenced_snapshot_that_disagrees_with_the_ledger_fails_closed() {
+    let mut stores = Vec::new();
+    for _ in 0..2 {
+        let Some(pool) = common::pg::empty_schema_pool().await else {
+            return;
+        };
+        let db = connection_from_pool(&pool);
+        Migrator::up(&db, None).await.unwrap();
+        common::pg::insert_account(&pool, ACCOUNT).await;
+        stores.push(Arc::new(PgEconomyRepository::new(db)));
+    }
+    let closed = stores.pop().unwrap();
+    let repo = stores.pop().unwrap();
+    guard_contract(repo, closed).await;
 }

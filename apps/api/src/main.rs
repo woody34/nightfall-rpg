@@ -168,6 +168,12 @@ async fn build_dependencies(
     // bundle the zone boots with: the embedded D27 item tables bound to the Phase 3 data of
     // the configured source (RULES_DIR overlay, else embedded), composed once (T8).
     let phase4 = zone_cfg.prepare_phase4(&classes)?;
+    // c-review-7 P2-2 (P5-D15, z-review-2 P2-6): the broker connects before the Phase 5 rules
+    // are validated (about 13 s release), so a V7 boot with a broken broker fails fast.
+    let bus = match cfg.nats_url.as_deref() {
+        Some(url) => Some(infrastructure::nats::NatsEventBus::connect(url).await?),
+        None => None,
+    };
     // Q4 (P5-D7/D10): a V7 epoch serves and persists the V7 item view (V6 ∪ closure, under the
     // unchanged V6 hash), so the catalogue, dev grants and checkpoint validation accept the
     // closure templates the V7 zone accepts. V5/V6 keep the V6 bundle.
@@ -271,8 +277,7 @@ async fn build_dependencies(
 
     let mut relay = None;
     let mut audit_drain = None;
-    if let Some(url) = &cfg.nats_url {
-        let bus = infrastructure::nats::NatsEventBus::connect(url).await?;
+    if let Some(bus) = bus {
         let client = bus.client().clone();
         deps.bus = Arc::new(bus);
         // When using the relay, narrow legacy NF_EVENTS before creating replay streams.
@@ -598,6 +603,42 @@ mod tests {
             .await
             .unwrap();
         zone.shutdown(WatermarkReason::Shutdown).await.unwrap();
+    }
+
+    /// c-review-7 P2-2 (P5-D15, z-review-2 P2-6): the composition root connects the broker
+    /// before it validates the Phase 5 rules, so a V7 boot with an unreachable broker fails
+    /// inside the 10 s bound with the broker error.
+    #[tokio::test]
+    #[allow(clippy::panic)]
+    async fn v7_composition_with_an_unreachable_broker_fails_fast() {
+        let zone_cfg = ZoneRuntimeConfig {
+            phase5_enabled: Some("1".into()),
+            ..ZoneRuntimeConfig::default()
+        };
+        // The V6 bundle is composed once per process (slow in debug builds); compose it first
+        // so the bound measures only what comes after it.
+        let classes = infrastructure::class_data::load_classes(
+            &infrastructure::class_data::ClassSource::embedded(),
+        )
+        .unwrap();
+        zone_cfg.prepare_phase4(&classes).unwrap().unwrap();
+        let started = std::time::Instant::now();
+        let Ok(Err(error)) = tokio::time::timeout(
+            std::time::Duration::from_secs(10),
+            build_dependencies(
+                &config(Some("nats://127.0.0.1:0".into())),
+                &zone_cfg,
+                telemetry::Metrics::detached(),
+                &CancellationToken::new(),
+            ),
+        )
+        .await
+        else {
+            panic!("a V7 boot with a broken broker must fail inside the bound");
+        };
+        assert!(started.elapsed() < std::time::Duration::from_secs(10));
+        let text = format!("{error:#}");
+        assert!(!text.contains("Phase 5") && !text.contains("phase5"), "{text}");
     }
 
     #[test]
