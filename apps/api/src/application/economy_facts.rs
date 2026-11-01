@@ -93,7 +93,11 @@ impl FactRow {
         character: Uuid,
         delta: &crate::domain::zone::phase4_projection::ItemDeltaPlan,
     ) -> Option<Self> {
-        if !delta.operation.is_economy() {
+        // Story 3.7: a multisell product is an Exchange row with an `economy` cause.
+        let multisell = delta.operation
+            == crate::domain::zone::phase4_projection::ItemOperation::Exchange
+            && crate::application::ports::economy_cause(delta).is_some();
+        if !delta.operation.is_economy() && !multisell {
             return None;
         }
         let cause = crate::application::ports::economy_cause(delta);
@@ -374,6 +378,34 @@ mod tests {
         assert!(facts
             .iter()
             .all(|f| super::super::economy::OUTBOX_SUBJECTS.contains(&f.subject.as_str())));
+    }
+
+    #[test]
+    /// Story 3.7: a multisell product (Exchange with an `economy` cause, no receipt) and the
+    /// purchase/sale rows of the vendors derive their facts; a Phase 4 SA exchange (no
+    /// `economy` cause) derives none here.
+    fn multisell_exchange_and_vendor_rows_derive_their_facts() {
+        let choose = "receipt:multisell_choose:aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
+        let buy = "receipt:vendor_buy:aaaaaaaa-bbbb-4ccc-8ddd-ffffffffffff";
+        let who = Uuid::from_u128(9);
+        let product = plan(ItemOperation::Exchange, 41, 1666, 1, choose);
+        let second = plan(ItemOperation::Exchange, 42, 1666, 1, choose);
+        let bought = plan(ItemOperation::Purchase, 43, 1864, 3, buy);
+        let mut sa = plan(ItemOperation::Exchange, 44, 1666, 1, "x");
+        sa.causes.clear();
+        assert!(FactRow::of_plan(who, &sa).is_none(), "a Phase 4 SA exchange is not economy");
+        let rows: Vec<FactRow> = [&product, &second, &bought]
+            .into_iter()
+            .map(|d| FactRow::of_plan(who, d).unwrap())
+            .collect();
+        assert_eq!(rows[0].op, "exchange");
+        let facts = derive_facts(1, 2, 30, &rows).unwrap();
+        assert_eq!(
+            facts.iter().map(|f| f.subject.as_str()).collect::<Vec<_>>(),
+            vec!["exchanged", "purchased"],
+            "one ItemExchanged fact per choose"
+        );
+        assert_eq!(facts[0].payload["rows"].as_array().unwrap().len(), 2);
     }
 
     #[test]

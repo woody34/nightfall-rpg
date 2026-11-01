@@ -1224,6 +1224,8 @@ def gen_recipes_table() -> str:
         f"dwarf_recipe_limit = {prop_int('character.properties', 'DwarfRecipeLimit')}",
         f"common_recipe_limit = {prop_int('character.properties', 'CommonRecipeLimit')}",
         f"alternative_crafting = {toml_bool(prop_bool('character.properties', 'AlternativeCrafting'))}",
+        # Z lane 3.7: multisell consumes the maintained ingredients too (GC/character.properties:520).
+        f"blacksmith_use_recipes = {toml_bool(prop_bool('character.properties', 'BlacksmithUseRecipes'))}",
         "",
     ]
     for key, enum_name in (("create_item", "CREATE_DWARVEN"), ("create_common_item", "CREATE_COMMON")):

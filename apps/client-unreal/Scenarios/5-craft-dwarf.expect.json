@@ -16,6 +16,7 @@
   "failure": "100 % material loss; MP spent (D \u00a78.2)",
   "limits": {
    "alternative_crafting": false,
+   "blacksmith_use_recipes": true,
    "common_recipe_limit": 50,
    "craft_masterwork": true,
    "dwarf_recipe_limit": 50
@@ -118,7 +119,7 @@
    ]
   }
  },
- "expectations_sha256": "1806c936a2ffa6d6c8906736da1af61243f815512d3ddcdd6eeac7ca6fcf012c",
+ "expectations_sha256": "e199d1dd157f1cf734c0dbe17ff22f2d84000eae259c291fe2a7a77693f9b68d",
  "fixture": "phase5-craft",
  "scenario": "5-craft-dwarf.nfs",
  "schema_version": 1,

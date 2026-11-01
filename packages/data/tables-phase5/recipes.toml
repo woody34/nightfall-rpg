@@ -20,6 +20,7 @@ craft_masterwork = true
 dwarf_recipe_limit = 50
 common_recipe_limit = 50
 alternative_crafting = false
+blacksmith_use_recipes = true
 
 [create_item]
 skill_id = 172
