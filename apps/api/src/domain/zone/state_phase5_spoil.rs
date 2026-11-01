@@ -23,7 +23,7 @@ const SWEEP_MIN_CORPSE_TICKS: u64 = 20;
 
 /// The effect names of the B11 handlers.
 pub(super) fn v7_instant_handler(name: &str) -> bool {
-    matches!(name, "Spoil" | "Sweeper" | "ConsumeBody")
+    matches!(name, "Spoil" | "Sweeper" | "ConsumeBody" | "Sow" | "Harvesting")
 }
 
 fn square(x: i64) -> i64 {
@@ -148,9 +148,12 @@ impl ZoneState {
             .as_ref()
             .and_then(|p| p.canonical.npcs.get(&npc))
             .ok_or(RejectReason::SweepNotAllowed)?;
-        let (Some(spoiler), Some(holders)) = (sidecar.spoiler, sidecar.sweep.as_ref()) else {
+        // z-review-5 P2-1: pinned `canSweep` needs `isSpoiled()` only; a spoiled corpse
+        // whose roll produced nothing is an empty holder list (the cast still runs).
+        let Some(spoiler) = sidecar.spoiler else {
             return Err(RejectReason::SweepNotAllowed);
         };
+        let holders: &[(u32, u64)] = sidecar.sweep.as_deref().unwrap_or_default();
         let corpse = self
             .entities
             .get(&npc)
@@ -162,7 +165,9 @@ impl ZoneState {
         {
             return Err(RejectReason::SweepNotAllowed);
         }
-        if !self.sweep_capacity_v7(sweeper, holders) {
+        // z-review-5 P3-3: allocator room is checked here too, so a sweep never starts only
+        // to lose its holders at the impact for a Nightfall-only reason.
+        if !self.sweep_capacity_v7(sweeper, holders) || !self.sweep_ids_available_v7(holders) {
             return Err(RejectReason::InventoryFull);
         }
         Ok(())
@@ -208,6 +213,8 @@ impl ZoneState {
             "Spoil" => self.spoil_v7(caster, target, skill, rank)?,
             "Sweeper" => self.sweeper_v7(tick, caster, target, cast_id, events)?,
             "ConsumeBody" => self.consume_body_v7(tick, target, events),
+            "Sow" => self.sow_v7(tick, caster, target, cast_id, events)?,
+            "Harvesting" => self.harvesting_v7(tick, caster, target, cast_id, events)?,
             _ => return Err(super::TickError::Phase5Invariant),
         };
         let hp = self
@@ -323,9 +330,10 @@ impl ZoneState {
         else {
             return Ok(SkillOutcome::Miss);
         };
-        let (Some(spoiler), Some(holders)) = (sidecar.spoiler, sidecar.sweep.clone()) else {
+        let Some(spoiler) = sidecar.spoiler else {
             return Ok(SkillOutcome::Miss);
         };
+        let holders = sidecar.sweep.clone().unwrap_or_default();
         if !self.spoil_owner_v7(caster.entity, spoiler)
             || !self.sweep_capacity_v7(caster.entity, &holders)
             || !self.sweep_ids_available_v7(&holders)
@@ -658,7 +666,7 @@ impl ZoneState {
                 CharacterRow {
                     operation,
                     before,
-                    after,
+                    after: Some(after),
                     count_delta,
                     receipt: None,
                     cause: Some(resolution.to_owned()),
@@ -912,8 +920,19 @@ mod tests {
             .npcs
             .get_mut(&npc)
             .unwrap()
-            .sweep = None;
+            .spoiler = None;
         assert_eq!(zone.can_sweep_v7(tick, id(P1), npc), Err(RejectReason::SweepNotAllowed));
+        // z-review-5 P2-1: spoiled with an empty roll is still sweepable.
+        corpse(&mut zone, npc, 100, id(P1), vec![(57, 10)]);
+        zone.phase5
+            .as_mut()
+            .unwrap()
+            .canonical
+            .npcs
+            .get_mut(&npc)
+            .unwrap()
+            .sweep = None;
+        zone.can_sweep_v7(tick, id(P1), npc).unwrap();
         // Too heavy for the load ceiling.
         corpse(&mut zone, npc, 100, id(P1), vec![(1, 100_000)]);
         assert_eq!(zone.can_sweep_v7(tick, id(P1), npc), Err(RejectReason::InventoryFull));
@@ -981,6 +1000,185 @@ mod tests {
         ));
     }
 
+    /// Coordinator / z-review-6 P1-1: Spoil and Sweeper through `ZoneCommand::CastSkill` →
+    /// launch → impact for a level-10 dwarven fighter who learned both (pinned tree, level
+    /// 10), with the T55 restore after every tick: Spoil marks the living monster, a real
+    /// kill rolls the corpse list, and Sweeper + `ConsumeBody` end the corpse.
+    #[test]
+    fn spoil_and_sweeper_run_through_cast_skill_launch_and_impact() {
+        use crate::domain::subclass::LearnedSkill;
+        use crate::domain::zone::{SessionGeneration, ZoneCommand, ZoneInput};
+        let (mut zone, mut load, me) =
+            super::super::item_materialize::tests::kit_load_for(true, Some(53));
+        let stats = zone.rules.clone().unwrap();
+        load.level = 10;
+        load.xp = stats.xp_table()[9];
+        if let Some(progression) = load.progression.as_mut() {
+            progression.class_state.learned_skills = vec![
+                LearnedSkill {
+                    key: "l2.skill.254".into(),
+                    level: 1,
+                },
+                LearnedSkill {
+                    key: "l2.skill.42".into(),
+                    level: 1,
+                },
+            ];
+        }
+        load.phase5 = Some(crate::domain::zone::Phase5Checkpoint {
+            schema_version: 1,
+            rules_hash: zone.phase5.as_ref().unwrap().rules.hash_hex(),
+            recipes: crate::domain::zone::RecipeBook::default(),
+        });
+        let tick = zone
+            .run_tick(zone.draft(vec![spawn_kit(me, load)]))
+            .unwrap();
+        assert!(tick.dispositions.is_empty(), "{:?}", tick.dispositions);
+        let def = zone_data::parse_zone(zone_data::TEST_ZONE_TOML).unwrap();
+        let mut specs = crate::application::zone_bootstrap::slot_specs(&stats, &def).unwrap();
+        specs.truncate(1);
+        specs[0].count = 1;
+        specs[0].pinned_npc_id = Some(20_481);
+        zone = zone.try_with_spawn_slots(specs).unwrap();
+        zone.run_tick(zone.draft(Vec::new())).unwrap();
+        let npc = zone
+            .entities
+            .values()
+            .find(|e| e.kind == EntityKind::Npc && e.ai.is_some())
+            .unwrap()
+            .id;
+        let here = zone.entities[&me].pos;
+        let from = zone.entities[&npc].pos;
+        let body = zone.entities.get_mut(&npc).unwrap();
+        body.pos = here;
+        body.ai.as_mut().unwrap().home = here;
+        zone.aoi.relocate(npc, from, here);
+        let mut seq = 1;
+        let mut send = |zone: &mut ZoneState, command: ZoneCommand| {
+            seq += 1;
+            let tick = zone
+                .run_tick(zone.draft(vec![ZoneInput::session(
+                    me,
+                    SessionGeneration(1),
+                    seq,
+                    command,
+                )]))
+                .unwrap();
+            assert!(tick.dispositions.is_empty(), "{:?}", tick.dispositions);
+            tick
+        };
+        let result = |tick: &crate::domain::zone::AppliedTick, skill: u32| {
+            tick.events.iter().find_map(|e| match e {
+                ZoneEvent::SkillCastResult {
+                    caster,
+                    skill: s,
+                    targets,
+                    ..
+                } if caster.entity == me && s.id.0 == skill => {
+                    Some(targets.iter().map(|t| t.outcome).collect::<Vec<_>>())
+                },
+                _ => None,
+            })
+        };
+        let spoiled = |zone: &ZoneState| {
+            zone.phase5
+                .as_ref()
+                .unwrap()
+                .canonical
+                .npcs
+                .get(&npc)
+                .and_then(|n| n.spoiler)
+        };
+        // Spoil until it lands (reuse 3 s between tries).
+        for _ in 0..8 {
+            send(
+                &mut zone,
+                ZoneCommand::CastSkill {
+                    entity: me,
+                    skill_id: SkillId(254),
+                    target: Some(npc),
+                },
+            );
+            let mut outcome = None;
+            for _ in 0..80 {
+                let tick = zone.run_tick(zone.draft(Vec::new())).unwrap();
+                if let Some(o) = result(&tick, 254) {
+                    outcome = Some(o);
+                    break;
+                }
+            }
+            assert!(outcome.is_some(), "Spoil impact within 80 ticks");
+            if spoiled(&zone).is_some() {
+                break;
+            }
+            for _ in 0..31 {
+                zone.run_tick(zone.draft(Vec::new())).unwrap();
+            }
+        }
+        assert_eq!(spoiled(&zone), Some(me), "spoiled by the caster");
+        // Kill it through combat (the V7 death rolls the corpse list into the holders).
+        zone.entities
+            .get_mut(&npc)
+            .unwrap()
+            .combat
+            .as_mut()
+            .unwrap()
+            .hp = 1;
+        send(
+            &mut zone,
+            ZoneCommand::SetTarget {
+                entity: me,
+                target: Some(npc),
+            },
+        );
+        send(&mut zone, ZoneCommand::Attack { entity: me });
+        for _ in 0..200 {
+            if zone.entities[&npc].targeting.dead {
+                break;
+            }
+            zone.run_tick(zone.draft(Vec::new())).unwrap();
+        }
+        assert!(zone.entities[&npc].targeting.dead, "killed");
+        let corpse = zone.entities[&npc]
+            .ai
+            .as_ref()
+            .unwrap()
+            .corpse_until
+            .unwrap();
+        assert!(corpse.0 >= zone.next_tick.0 + 20, "a fresh, spoiled (extended) corpse");
+        send(
+            &mut zone,
+            ZoneCommand::CastSkill {
+                entity: me,
+                skill_id: SkillId(42),
+                target: Some(npc),
+            },
+        );
+        let mut swept = None;
+        for _ in 0..40 {
+            let tick = zone.run_tick(zone.draft(Vec::new())).unwrap();
+            if let Some(o) = result(&tick, 42) {
+                swept = Some((o, tick.tick));
+                break;
+            }
+        }
+        let (outcomes, at) = swept.unwrap();
+        assert_eq!(outcomes, vec![SkillOutcome::Hit, SkillOutcome::Hit], "Sweeper, ConsumeBody");
+        assert!(zone
+            .phase5
+            .as_ref()
+            .unwrap()
+            .canonical
+            .npcs
+            .get(&npc)
+            .is_none_or(|n| n.sweep.is_none()));
+        assert!(zone.entities.get(&npc).is_none_or(|e| e
+            .ai
+            .as_ref()
+            .and_then(|ai| ai.corpse_until)
+            .is_some_and(|until| until <= at)));
+    }
+
     /// `Sweeper` then `ConsumeBody` (design §5.1–§5.3): the holders become fresh instances (or a
     /// merge) with `sweep` rows in the sweeper's projection, the corpse ends this tick and
     /// the holders are gone; `CorpseStateChanged{swept}` is public.
@@ -1026,6 +1224,41 @@ mod tests {
             e,
             ZoneEvent::Economy(ev) if matches!(ev.body, EconomyBody::CorpseStateChanged { swept: true, .. })
         )));
+        // z-review-5 P2-1: a spoiled corpse with an empty roll: the sweep grants nothing and
+        // ConsumeBody still ends the corpse.
+        corpse(&mut zone, npc, 100, id(P1), Vec::new());
+        zone.phase5
+            .as_mut()
+            .unwrap()
+            .canonical
+            .npcs
+            .get_mut(&npc)
+            .unwrap()
+            .sweep = None;
+        let before = zone.phase4.as_ref().unwrap().canonical.players[&id(P1)]
+            .inventory
+            .clone();
+        let mut empty = Vec::new();
+        let swept = zone
+            .v7_instant_v7(tick, caster, target, &sweeper, 1, CastId(11), "Sweeper", &mut empty)
+            .unwrap();
+        assert_eq!(swept.outcome, SkillOutcome::Hit);
+        assert_eq!(zone.phase4.as_ref().unwrap().canonical.players[&id(P1)].inventory, before);
+        assert!(!empty
+            .iter()
+            .any(|e| matches!(e, ZoneEvent::ItemCheckpoint(_))));
+        zone.v7_instant_v7(
+            tick,
+            caster,
+            target,
+            &sweeper,
+            1,
+            CastId(11),
+            "ConsumeBody",
+            &mut empty,
+        )
+        .unwrap();
+        assert_eq!(zone.entities[&npc].ai.as_ref().unwrap().corpse_until, Some(tick));
         // A failed re-check (not the owner) takes nothing; ConsumeBody still clears holders.
         corpse(&mut zone, npc, 100, id(P1), vec![(57, 5)]);
         let other = binding(&zone, id(P2));

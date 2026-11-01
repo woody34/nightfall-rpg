@@ -1559,4 +1559,151 @@ pub(crate) mod tests {
             EntityId::from_uuid(uuid::Uuid::from_u128(99));
         assert!(state.validate_structure(0).is_err());
     }
+
+    fn d66_item(
+        count: u64,
+        location: ItemLocation,
+        slot: Option<super::super::EquipSlot>,
+    ) -> ItemInstance {
+        ItemInstance {
+            creation_origin: None,
+            id: ItemInstanceId::new(9).unwrap(),
+            template_id: 1835,
+            count,
+            location,
+            slot,
+            enchant: 0,
+            augment_id: None,
+            charges: 0,
+            created_tick: Tick(1),
+            revision: 3,
+        }
+    }
+
+    fn d66_row(
+        op: ItemOperation,
+        before: ItemInstance,
+        after: ItemInstance,
+        ord: u32,
+    ) -> ItemDeltaPlan {
+        let delta = i64::try_from(after.count)
+            .unwrap()
+            .checked_sub(i64::try_from(before.count).unwrap())
+            .unwrap();
+        ItemDeltaPlan {
+            operation: op,
+            operation_ordinal: ord,
+            instance: before.id,
+            before: Some(before),
+            after: Some(after),
+            count_delta: delta,
+            receipt: None,
+            receipt_refs: Vec::new(),
+            causes: Vec::new(),
+        }
+    }
+
+    fn d66_normalized(
+        rows: Vec<ItemDeltaPlan>,
+        end: ItemInstance,
+    ) -> Vec<(ItemOperation, u32, u64, u64)> {
+        let mut p = projection();
+        p.checkpoint.instances = vec![end];
+        p.ledger = rows;
+        p.normalize_d66().unwrap();
+        p.ledger
+            .iter()
+            .map(|r| {
+                (
+                    r.operation,
+                    r.operation_ordinal,
+                    r.before.as_ref().map_or(0, |i| i.count),
+                    r.after.as_ref().map_or(0, |i| i.count),
+                )
+            })
+            .collect()
+    }
+
+    /// Rule D66-V7 (P5-D22; z-review-5 P3-1, reviewer probe): a V7 merge row and V6 rows on
+    /// one instance and tick normalize to one deterministic chain — merge then consume in
+    /// either resolution order, and merge then equip then consume.
+    #[test]
+    fn d66_orders_v7_merge_rows_with_consume_and_equip() {
+        use ItemLocation::Inventory as Inv;
+        let merge_then_consume = d66_normalized(
+            vec![
+                d66_row(
+                    ItemOperation::TransferIn,
+                    d66_item(100, Inv, None),
+                    d66_item(150, Inv, None),
+                    0,
+                ),
+                d66_row(
+                    ItemOperation::Consume,
+                    d66_item(150, Inv, None),
+                    d66_item(140, Inv, None),
+                    1,
+                ),
+            ],
+            d66_item(140, Inv, None),
+        );
+        let consume_then_merge = d66_normalized(
+            vec![
+                d66_row(
+                    ItemOperation::Consume,
+                    d66_item(100, Inv, None),
+                    d66_item(90, Inv, None),
+                    0,
+                ),
+                d66_row(
+                    ItemOperation::TransferIn,
+                    d66_item(90, Inv, None),
+                    d66_item(140, Inv, None),
+                    1,
+                ),
+            ],
+            d66_item(140, Inv, None),
+        );
+        assert_eq!(
+            merge_then_consume,
+            vec![
+                (ItemOperation::TransferIn, 0, 100, 150),
+                (ItemOperation::Consume, 1, 150, 140)
+            ]
+        );
+        assert_eq!(merge_then_consume, consume_then_merge, "order-independent for these rows");
+        let lhand = Some(super::super::EquipSlot::Lhand);
+        let rows = || {
+            vec![
+                d66_row(
+                    ItemOperation::TransferIn,
+                    d66_item(100, Inv, None),
+                    d66_item(150, Inv, None),
+                    0,
+                ),
+                d66_row(
+                    ItemOperation::Equip,
+                    d66_item(150, Inv, None),
+                    d66_item(150, ItemLocation::Paperdoll, lhand),
+                    1,
+                ),
+                d66_row(
+                    ItemOperation::Consume,
+                    d66_item(150, ItemLocation::Paperdoll, lhand),
+                    d66_item(149, ItemLocation::Paperdoll, lhand),
+                    2,
+                ),
+            ]
+        };
+        let equip = d66_normalized(rows(), d66_item(149, ItemLocation::Paperdoll, lhand));
+        assert_eq!(
+            equip,
+            vec![
+                (ItemOperation::TransferIn, 0, 100, 150),
+                (ItemOperation::Equip, 1, 150, 150),
+                (ItemOperation::Consume, 2, 150, 149)
+            ]
+        );
+        assert_eq!(equip, d66_normalized(rows(), d66_item(149, ItemLocation::Paperdoll, lhand)));
+    }
 }

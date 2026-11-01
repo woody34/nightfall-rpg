@@ -431,6 +431,8 @@ pub enum RejectReason {
     BidTooHigh,
     /// Phase 5 `REJECT_REASON_NO_BID_TO_CANCEL` (wire 88).
     NoBidToCancel,
+    /// Phase 5 pinned flood gate refusal (design §2.4): wire `REJECT_REASON_RATE_LIMITED` (5).
+    RateLimited,
 
     /// Skill is outside the current lineage or automatically granted.
     SkillNotLearnable,
@@ -588,6 +590,7 @@ impl RejectReason {
             Self::BidTooLow => "BidTooLow",
             Self::BidTooHigh => "BidTooHigh",
             Self::NoBidToCancel => "NoBidToCancel",
+            Self::RateLimited => "RateLimited",
             Self::SkillUnknown => "SkillUnknown",
             Self::SkillNotLearned => "SkillNotLearned",
             Self::SkillCooldown => "SkillCooldown",

@@ -1121,6 +1121,7 @@ pub fn reject_reason_to_pb(r: RejectReason) -> pb::RejectReason {
         RejectReason::BidTooLow => pb::RejectReason::BidTooLow,
         RejectReason::BidTooHigh => pb::RejectReason::BidTooHigh,
         RejectReason::NoBidToCancel => pb::RejectReason::NoBidToCancel,
+        RejectReason::RateLimited => pb::RejectReason::RateLimited,
         RejectReason::SkillUnknown => pb::RejectReason::SkillUnknown,
         RejectReason::SkillNotLearned => pb::RejectReason::SkillNotLearned,
         RejectReason::SkillCooldown => pb::RejectReason::SkillCooldown,

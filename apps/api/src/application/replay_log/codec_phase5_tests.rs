@@ -375,5 +375,10 @@ fn phase5_reject_reasons_take_codec_52_to_102_and_wire_38_to_88() {
         assert!(!seen.contains(&reason));
         seen.push(reason);
     }
-    assert!(reason_from_pb(103).is_err());
+    // Story 3.7: the pinned flood gates' refusal takes codec 103 and wire RATE_LIMITED (5).
+    let limited = reason_from_pb(103).unwrap();
+    assert_eq!(limited, RejectReason::RateLimited);
+    assert_eq!(reason_to_pb(limited), 103);
+    assert_eq!(crate::interface::zone_mapping::reject_reason_to_pb(limited) as i32, 5);
+    assert!(reason_from_pb(104).is_err());
 }
