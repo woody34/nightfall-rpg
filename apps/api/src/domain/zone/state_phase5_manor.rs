@@ -188,8 +188,9 @@ impl ZoneState {
             return Ok(SkillOutcome::Miss);
         };
         let pinned = self.pinned_npc(target.entity);
+        // z-review-6 P2-2 / P5-D30: every pinned template's manor inputs (rewards.toml).
         let can_be_sown = pinned
-            .and_then(|id| rules.drop_npc(id))
+            .and_then(|id| rules.reward_npc(id))
             .is_some_and(|row| row.can_be_sown);
         let alive = self
             .entities
@@ -231,7 +232,7 @@ impl ZoneState {
         }
         let manor = &rules.parts().manor.skills;
         let strong = pinned
-            .and_then(|id| rules.drop_npc(id))
+            .and_then(|id| rules.reward_npc(id))
             .map(|row| row.harvest_skills.clone())
             .unwrap_or_default();
         let count = harvest_count(

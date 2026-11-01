@@ -18,7 +18,7 @@ use crate::domain::zone::phase5_rules::{Phase5RulesParts, PowTable};
 use crate::domain::zone::{Phase4Rules, Phase5Rules, PHASE5_FORMULA_REVISION};
 
 /// The generated tables, in file-name order.
-pub const PHASE5_TABLES: [&str; 17] = [
+pub const PHASE5_TABLES: [&str; 18] = [
     "adaptations.toml",
     "auction.toml",
     "catalogue.toml",
@@ -27,6 +27,7 @@ pub const PHASE5_TABLES: [&str; 17] = [
     "herbs.toml",
     "items_closure.toml",
     "manor.toml",
+    "merchant_fixtures.toml",
     "merchants.toml",
     "multisell.toml",
     "party.toml",
@@ -91,6 +92,9 @@ impl Phase5DataSource<'_> {
                     include_str!("../../../../packages/data/tables-phase5/skill_promotions.toml")
                 },
                 "manor.toml" => include_str!("../../../../packages/data/tables-phase5/manor.toml"),
+                "merchant_fixtures.toml" => {
+                    include_str!("../../../../packages/data/tables-phase5/merchant_fixtures.toml")
+                },
                 "merchants.toml" => {
                     include_str!("../../../../packages/data/tables-phase5/merchants.toml")
                 },
@@ -248,8 +252,8 @@ fn parts_from(loaded: &Loaded, phase4: &Phase4Rules) -> Result<Phase5RulesParts,
         herbs: typed("herbs.toml", get("herbs.toml")?)?,
         catalogue: typed("catalogue.toml", get("catalogue.toml")?)?,
         merchants: typed("merchants.toml", get("merchants.toml")?)?,
-        // P5-D29 interim: C's merchant_fixtures.toml is bound (and required) when it lands.
-        merchant_fixtures: crate::domain::zone::phase5_rules::MerchantFixturesTable::default(),
+        // P5-D29: required; a missing table refuses the load (no silent "no merchants").
+        merchant_fixtures: typed("merchant_fixtures.toml", get("merchant_fixtures.toml")?)?,
         multisell: typed("multisell.toml", get("multisell.toml")?)?,
         recipes: typed("recipes.toml", get("recipes.toml")?)?,
         storage_mail: typed("storage_mail.toml", get("storage_mail.toml")?)?,
@@ -499,6 +503,36 @@ mod tests {
             .unwrap()
             .collision_radius += 1;
         assert_ne!(Phase5Rules::try_new(reward_value).unwrap().hash(), rules.hash());
+    }
+
+    /// P5-D29: the bound fixture merchants resolve by name and exact position; nothing else
+    /// does; a duplicate npc or an npc that is neither a buylist nor a multisell NPC refuses.
+    #[test]
+    fn merchant_fixtures_bind_by_name_and_position() {
+        use crate::domain::zone::Vec2Fixed;
+        let rules = rules();
+        assert_eq!(rules.parts().merchant_fixtures.merchants.len(), 3);
+        assert_eq!(
+            rules.merchant_fixture("restock_merchant", Vec2Fixed::from_tiles(99, 102)),
+            Some(35_363)
+        );
+        assert_eq!(
+            rules.merchant_fixture("exchanger", Vec2Fixed::from_tiles(101, 98)),
+            Some(32_347)
+        );
+        assert_eq!(
+            rules.merchant_fixture("merchant", Vec2Fixed::from_tiles(101, 102)),
+            Some(31_413)
+        );
+        assert_eq!(rules.merchant_fixture("merchant", Vec2Fixed::from_tiles(101, 103)), None);
+        assert_eq!(rules.merchant_fixture("Gatekeeper", Vec2Fixed::from_tiles(128, 128)), None);
+        let mut duplicate = parts();
+        let first = duplicate.merchant_fixtures.merchants[0].clone();
+        duplicate.merchant_fixtures.merchants.insert(0, first);
+        assert!(Phase5Rules::try_new(duplicate).is_err());
+        let mut unknown = parts();
+        unknown.merchant_fixtures.merchants[0].npc = 1;
+        assert!(Phase5Rules::try_new(unknown).is_err());
     }
 
     /// P5-D19: the promotions are hashed, refuse blockers outside the engine constant, bind

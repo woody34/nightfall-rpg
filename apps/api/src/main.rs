@@ -188,8 +188,8 @@ async fn build_dependencies(
         (Some(bundle), None) => Some(bundle.items.clone()),
         (None, _) => None,
     };
-    // The skills those items are validated against: a V7 epoch's item view admits the
-    // promoted skills (P5-D19), so it binds to the V7 skill view; V5/V6 keep the V6 bundle.
+    // P5-D19: the V7 item view admits the V7-executable skills, so every V7 consumer pairs
+    // it with the V7 skill view (same Phase 3 hash); V6 keeps the V6 skills.
     let skills = match (&phase4, &phase5) {
         (Some(_), Some(rules)) => Some(
             rules

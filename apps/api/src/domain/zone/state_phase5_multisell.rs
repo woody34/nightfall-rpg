@@ -452,7 +452,7 @@ fn take_stackable(
 mod tests {
     use super::*;
     use crate::domain::zone::item_inventory::inventory_totals;
-    use crate::domain::zone::phase5_rules::{MerchantFixture, Phase5Rules};
+    use crate::domain::zone::phase5_rules::Phase5Rules;
     use crate::domain::zone::{
         EntityKind, ItemCreationOrigin, SessionGeneration, Speed, Vec2Fixed, ZoneCommand, ZoneInput,
     };
@@ -461,7 +461,6 @@ mod tests {
     use super::super::Spawned;
 
     const P1: u128 = 71;
-    const NPC: u32 = 32_347;
 
     fn id(n: u128) -> EntityId {
         EntityId::from_uuid(uuid::Uuid::from_u128(n))
@@ -589,29 +588,19 @@ mod tests {
             .run_tick(zone.draft(vec![spawn_kit(id(P1), load)]))
             .unwrap();
         assert!(tick.dispositions.is_empty(), "{:?}", tick.dispositions);
-        let here = zone.entities[&id(P1)].pos;
-        let tiles = (here.x.raw() / 1000, here.y.raw() / 1000);
-        let mut parts = rules().parts().clone();
-        parts.merchant_fixtures.merchants.push(MerchantFixture {
-            npc: NPC,
-            name: "Trader".into(),
-            x: tiles.0,
-            y: tiles.1,
-        });
-        let bundle = crate::infrastructure::item_data::embedded_phase4_bundle().unwrap();
-        let mut bound = Phase5Rules::try_new(parts).unwrap();
-        bound.bind_items(&bundle.items).unwrap();
-        bound.bind_skills(&bundle.skills).unwrap();
-        let phase5 = zone.phase5.as_mut().unwrap();
-        phase5.canonical.rules_hash = bound.hash();
-        phase5.rules = std::sync::Arc::new(bound);
+        // The bound P5-D29 fixture: the player stands on its tile.
+        let tiles = (101, 98);
+        let here = Vec2Fixed::from_tiles(tiles.0, tiles.1);
+        let from = zone.entities[&id(P1)].pos;
+        zone.entities.get_mut(&id(P1)).unwrap().pos = here;
+        zone.aoi.relocate(id(P1), from, here);
         let npc = id(6_000);
         zone.spawn(
             Tick(zone.next_tick.0 - 1),
             Spawned {
                 id: npc,
                 kind: EntityKind::Npc,
-                name: "Trader",
+                name: "exchanger",
                 pos: Vec2Fixed::from_tiles(tiles.0, tiles.1),
                 speed: Speed::from_milli_tiles_per_tick(0),
                 generation: SessionGeneration::default(),
