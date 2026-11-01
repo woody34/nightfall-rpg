@@ -14,7 +14,9 @@
     clippy::expect_used,
     clippy::too_many_lines,
     clippy::arithmetic_side_effects,
-    clippy::too_many_arguments
+    clippy::too_many_arguments,
+    clippy::doc_markdown,
+    clippy::similar_names
 )]
 mod common;
 use nightfall_api::application::economy::{
@@ -858,4 +860,652 @@ async fn postgres_deposit_and_withdraw_keep_the_instance_id() {
         nightfall_api::infrastructure::postgres::connection_from_pool(&pool),
     );
     deposit_and_withdraw(&repo, &economy, &economy, &bundle, "PgDeposit").await;
+}
+
+// ---- Story 4.8 (design §14.4 "Crash windows"): the character-checkpoint rows -------------------
+//
+// Each row runs on memory and Postgres through `checkpoint_with_economy`:
+// - crash after commit, before the ack: the identical retry replays (`Replayed`) and the zone's
+//   redo of the same request (a new checkpoint key, the same receipt) is `Stale`. Nothing is
+//   applied twice: one fact, one container change.
+// - crash before commit (memory injects it; on Postgres a crash before COMMIT leaves nothing by
+//   construction): nothing is written, and the retry applies once.
+
+fn receipt(character: Uuid, scope: &str, n: u128, fingerprint: &str) -> EconomyReceipt {
+    EconomyReceipt {
+        account_id: ACCOUNT,
+        character_id: character,
+        operation: scope.into(),
+        request_key: Uuid::from_u128(n),
+        fingerprint: fingerprint.into(),
+        receipt_id: Uuid::from_u128(n + 1),
+        frozen_result: "0a00".into(),
+    }
+}
+
+fn receipt_text(scope: &str, n: u128) -> String {
+    format!("receipt:{scope}:{}", Uuid::from_u128(n))
+}
+
+fn ground_row(
+    op: &str,
+    owner: Uuid,
+    tick: u64,
+    instance: u64,
+    delta: serde_json::Value,
+) -> OwnerLedgerRow {
+    OwnerLedgerRow {
+        instance_id: instance,
+        ..row("ground", owner, op, 1, tick, 0, delta)
+    }
+}
+
+fn item(
+    id: u64,
+    template: u32,
+    count: u64,
+    location: ItemLocation,
+    revision: u64,
+    created: u64,
+) -> ItemInstance {
+    ItemInstance {
+        creation_origin: Some(ItemCreationOrigin {
+            zone: ZoneId(1),
+            epoch: 1,
+        }),
+        id: ItemInstanceId::new(id).unwrap(),
+        template_id: template,
+        count,
+        location,
+        slot: None,
+        enchant: 0,
+        augment_id: None,
+        charges: 0,
+        created_tick: Tick(created),
+        revision,
+    }
+}
+
+/// Settle `write` + `work` once, prove the replay and the zone redo, and count the facts.
+async fn settle_with_replays<R>(
+    repo: &R,
+    cp: &CharacterCheckpoint,
+    work: &ItemCheckpointWork,
+    write: &EconomyCheckpointWrite,
+    applied: u64,
+) where
+    R: EconomyCharacterCheckpointRepository,
+{
+    assert_eq!(
+        repo.checkpoint_with_economy(cp, &[], Some(work), write)
+            .await
+            .unwrap(),
+        CheckpointOutcome::Applied(applied)
+    );
+    assert_eq!(
+        repo.checkpoint_with_economy(cp, &[], Some(work), write)
+            .await
+            .unwrap(),
+        CheckpointOutcome::Replayed(applied),
+        "identical retry"
+    );
+    if !write.receipts.is_empty() {
+        let mut redo = cp.clone();
+        redo.idempotency = ("save_checkpoint".into(), IdempotencyKey::new());
+        redo.revision_seen = applied;
+        assert_eq!(
+            repo.checkpoint_with_economy(&redo, &[], Some(work), write)
+                .await
+                .unwrap(),
+            CheckpointOutcome::Stale,
+            "zone redo of the same request"
+        );
+    }
+}
+
+trait EconomyAdapter:
+    LeaseRepository + EconomyCheckpointRepository + EconomyReadRepository + Sync
+{
+}
+impl<T: LeaseRepository + EconomyCheckpointRepository + EconomyReadRepository + Sync> EconomyAdapter
+    for T
+{
+}
+
+async fn commit_crash_windows<R>(
+    repo: &R,
+    economy: &dyn EconomyAdapter,
+    facts: &(dyn Fn(&str) -> std::pin::Pin<Box<dyn std::future::Future<Output = usize> + Send>>
+          + Sync),
+    inject: Option<&InMemoryEconomyStore>,
+    bundle: &Phase4RuleBundle,
+    name: &str,
+) where
+    R: CharacterRepository
+        + ItemAdmissionRepository
+        + ItemCheckpointRepository
+        + EconomyCharacterCheckpointRepository,
+{
+    let (character, cp, work, events) = starter(repo, bundle, name).await;
+    assert_eq!(
+        repo.checkpoint_items(&cp, &events, &work, None)
+            .await
+            .unwrap(),
+        CheckpointOutcome::Applied(1)
+    );
+    let me = character.id.as_uuid();
+    let (receiver, _, _, _) = starter(repo, bundle, &format!("{name}R")).await;
+    let ground = Uuid::from_u128(0x6100);
+    // Drops in epoch 1: adena 9_100_001 (120) and 9_100_002 (10).
+    let adena = item(9_100_001, 57, 120, ItemLocation::Ground, 0, 70);
+    let split_drop = item(9_100_002, 57, 10, ItemLocation::Ground, 0, 71);
+    economy
+        .checkpoint_economy(&EconomyCheckpointWrite {
+            zone_id: 1,
+            epoch: 1,
+            tick: 72,
+            ledger: vec![
+                ground_row("loot", ground, 72, 9_100_001, serde_json::json!({"before": null, "after": adena, "causes": ["loot:npc@72"]})),
+                ground_row("loot", Uuid::from_u128(0x6101), 72, 9_100_002, serde_json::json!({"before": null, "after": split_drop, "causes": ["loot:npc@72"]})),
+            ],
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+    let mut instances = work.projection.checkpoint.instances.clone();
+
+    // (1) Pickup, tick 80, revision 2.
+    let held = item(9_100_001, 57, 120, ItemLocation::Inventory, 2, 70);
+    instances.push(held.clone());
+    let (cp2, mut w2) = tick(&cp, &work, 1, 2, 80, instances.clone());
+    let pick = receipt_text("pick_up_item", 0x8000);
+    w2.projection.ledger = vec![plan(
+        ItemOperation::TransferIn,
+        9_100_001,
+        None,
+        Some(&held),
+        0,
+        &pick,
+        Some("6f1c3c1e-7c55-5d7e-9e1a-0000000000a1"),
+    )];
+    let pickup = EconomyCheckpointWrite {
+        zone_id: 1,
+        epoch: 1,
+        tick: 80,
+        ledger: vec![ground_row(
+            "transfer_out",
+            ground,
+            80,
+            9_100_001,
+            serde_json::json!({"before": adena, "after": null, "receipt": pick, "transfer": {"link": "6f1c3c1e-7c55-5d7e-9e1a-0000000000a1", "mode": "identity"}}),
+        )],
+        receipts: vec![receipt(me, "pick_up_item", 0x8000, "fp-pick")],
+        ..Default::default()
+    };
+    if let Some(store) = inject {
+        // Crash before commit: the economy half fails, so nothing of the tick is written.
+        store.fail_next_transient(1);
+        assert!(repo
+            .checkpoint_with_economy(&cp2, &[], Some(&w2), &pickup)
+            .await
+            .is_err());
+        let loaded = repo
+            .load_for_admission(character.id)
+            .await
+            .unwrap()
+            .unwrap()
+            .phase4
+            .unwrap()
+            .checkpoint
+            .unwrap();
+        assert!(loaded.instances.iter().all(|i| i.id.get() != 9_100_001));
+        assert_eq!(facts("picked_up").await, 0);
+    }
+    settle_with_replays(repo, &cp2, &w2, &pickup, 2).await;
+    assert_eq!(facts("picked_up").await, 1, "one pickup fact");
+
+    // (2) Party even split, tick 81, revision 3: the ground stack is destroyed and the (only)
+    // recipient gets a fresh party_split row.
+    let mut allocation = w2.allocation;
+    let fresh = allocation.allocate().unwrap();
+    let share = item(fresh.get(), 57, 10, ItemLocation::Inventory, 3, 81);
+    instances.push(share.clone());
+    let (cp3, mut w3) = tick(&cp2, &w2, 2, 3, 81, instances.clone());
+    w3.allocation = allocation;
+    let split = receipt_text("pick_up_item", 0x8100);
+    w3.projection.ledger = vec![plan(
+        ItemOperation::PartySplit,
+        fresh.get(),
+        None,
+        Some(&share),
+        0,
+        &split,
+        None,
+    )];
+    let party = EconomyCheckpointWrite {
+        zone_id: 1,
+        epoch: 1,
+        tick: 81,
+        ledger: vec![OwnerLedgerRow {
+            owner_id: Uuid::from_u128(0x6101),
+            ..ground_row(
+                "destroy",
+                ground,
+                81,
+                9_100_002,
+                serde_json::json!({"before": split_drop, "after": null, "receipt": split, "causes": ["party_split:r"]}),
+            )
+        }],
+        receipts: vec![receipt(me, "pick_up_item", 0x8100, "fp-split")],
+        ..Default::default()
+    };
+    settle_with_replays(repo, &cp3, &w3, &party, 3).await;
+    assert_eq!(facts("picked_up").await, 2, "one fact per pickup operation");
+
+    // (3) Warehouse deposit with merge, tick 82, revision 4: the inventory stack leaves whole,
+    // the warehouse stack of the template grows (CAS Update).
+    let stack = work
+        .projection
+        .checkpoint
+        .instances
+        .iter()
+        .find(|i| i.count > 1)
+        .cloned()
+        .expect("a stackable starter item");
+    let key = LeaseKey::of_uuid(LeaseKind::Warehouse, me);
+    economy.acquire(&grant(vec![key], 0x8200)).await.unwrap();
+    let stored = item(9_100_100, stack.template_id, 3, ItemLocation::Warehouse, 0, 1);
+    economy
+        .checkpoint_economy(&EconomyCheckpointWrite {
+            zone_id: 1,
+            epoch: 1,
+            tick: 75,
+            deltas: vec![ContainerDelta {
+                lease: key,
+                row_kind: "item_instance".into(),
+                row_key: "9100100".into(),
+                change: DeltaChange::Insert,
+                expected_revision: None,
+                columns: [
+                    ("character_id", serde_json::json!(me.to_string())),
+                    ("owner_kind", serde_json::json!("warehouse")),
+                    ("location", serde_json::json!("warehouse")),
+                    ("template_id", serde_json::json!(stack.template_id)),
+                    ("count", serde_json::json!(3)),
+                    ("created_tick", serde_json::json!(1)),
+                ]
+                .into_iter()
+                .map(|(k, v)| (k.to_owned(), v))
+                .collect(),
+            }],
+            ledger: vec![OwnerLedgerRow {
+                owner_kind: "warehouse".into(),
+                owner_id: me,
+                instance_id: 9_100_100,
+                ..ground_row(
+                    "transfer_in",
+                    me,
+                    75,
+                    9_100_100,
+                    serde_json::json!({"before": null, "after": stored}),
+                )
+            }],
+            lease_releases: vec![key],
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+    economy.acquire(&grant(vec![key], 0x8201)).await.unwrap();
+    instances.retain(|i| i.id != stack.id);
+    let (cp4, mut w4) = tick(&cp3, &w3, 3, 4, 82, instances.clone());
+    let deposit = receipt_text("warehouse_deposit", 0x8300);
+    let merge_link = "6f1c3c1e-7c55-5d7e-9e1a-0000000000a3";
+    let mut out = plan(
+        ItemOperation::TransferOut,
+        stack.id.get(),
+        Some(&stack),
+        None,
+        0,
+        &deposit,
+        None,
+    );
+    out.causes[0]
+        .fields
+        .insert("link".into(), ItemEvidenceValue::Text(merge_link.into()));
+    out.causes[0]
+        .fields
+        .insert("mode".into(), ItemEvidenceValue::Text("merge".into()));
+    w4.projection.ledger = vec![out];
+    let grown = item(9_100_100, stack.template_id, 3 + stack.count, ItemLocation::Warehouse, 1, 1);
+    let merge = EconomyCheckpointWrite {
+        zone_id: 1,
+        epoch: 1,
+        tick: 82,
+        deltas: vec![ContainerDelta {
+            lease: key,
+            row_kind: "item_instance".into(),
+            row_key: "9100100".into(),
+            change: DeltaChange::Update,
+            expected_revision: Some(0),
+            columns: [
+                ("character_id", serde_json::json!(me.to_string())),
+                ("owner_kind", serde_json::json!("warehouse")),
+                ("location", serde_json::json!("warehouse")),
+                ("count", serde_json::json!(3 + stack.count)),
+            ]
+            .into_iter()
+            .map(|(k, v)| (k.to_owned(), v))
+            .collect(),
+        }],
+        ledger: vec![OwnerLedgerRow {
+            owner_kind: "warehouse".into(),
+            owner_id: me,
+            instance_id: 9_100_100,
+            ..ground_row(
+                "transfer_in",
+                me,
+                82,
+                9_100_100,
+                serde_json::json!({"before": stored, "after": grown, "receipt": deposit, "transfer": {"link": merge_link, "mode": "merge"}}),
+            )
+        }],
+        lease_releases: vec![key],
+        receipts: vec![receipt(me, "warehouse_deposit", 0x8300, "fp-deposit")],
+        ..Default::default()
+    };
+    settle_with_replays(repo, &cp4, &w4, &merge, 4).await;
+    let warehouse = economy.container_items("warehouse", me).await.unwrap();
+    assert_eq!(
+        (warehouse.len(), warehouse[0].count),
+        (1, 3 + stack.count),
+        "merged exactly once"
+    );
+    assert_eq!(facts("deposited").await, 1);
+
+    // (4) Auction bid, tick 83, revision 5: 100 adena split off the picked stack into escrow.
+    let auction = LeaseKey {
+        kind: LeaseKind::Auction,
+        owner: 7,
+    };
+    economy
+        .acquire(&grant(vec![auction], 0x8400))
+        .await
+        .unwrap();
+    economy
+        .checkpoint_economy(&EconomyCheckpointWrite {
+            zone_id: 1,
+            epoch: 1,
+            tick: 76,
+            deltas: vec![ContainerDelta {
+                lease: auction,
+                row_kind: "item_auction".into(),
+                row_key: "7".into(),
+                change: DeltaChange::Insert,
+                expected_revision: None,
+                columns: [
+                    ("instance_npc", serde_json::json!(32320)),
+                    ("item_index", serde_json::json!(0)),
+                    ("state", serde_json::json!(1)),
+                    ("start_unix_ms", serde_json::json!(1_000)),
+                    ("end_unix_ms", serde_json::json!(4_102_444_800_000_i64)),
+                ]
+                .into_iter()
+                .map(|(k, v)| (k.to_owned(), v))
+                .collect(),
+            }],
+            lease_releases: vec![auction],
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+    economy
+        .acquire(&grant(nightfall_api::application::economy::sets::auction(7), 0x8401))
+        .await
+        .unwrap();
+    let left = item(9_100_001, 57, 20, ItemLocation::Inventory, 5, 70);
+    instances.retain(|i| i.id.get() != 9_100_001);
+    instances.push(left.clone());
+    let (cp5, mut w5) = tick(&cp4, &w4, 4, 5, 83, instances.clone());
+    let bid = receipt_text("auction_bid", 0x8500);
+    let bid_link = "6f1c3c1e-7c55-5d7e-9e1a-0000000000a5";
+    let mut split_out =
+        plan(ItemOperation::TransferOut, 9_100_001, Some(&held), Some(&left), 0, &bid, None);
+    split_out.causes[0]
+        .fields
+        .insert("link".into(), ItemEvidenceValue::Text(bid_link.into()));
+    split_out.causes[0]
+        .fields
+        .insert("mode".into(), ItemEvidenceValue::Text("split".into()));
+    w5.projection.ledger = vec![split_out];
+    let escrow_owner = nightfall_api::application::economy::auction_bid_owner(7, me);
+    let escrow = item(9_100_200, 57, 100, ItemLocation::AuctionBid, 0, 83);
+    let bid_write = EconomyCheckpointWrite {
+        zone_id: 1,
+        epoch: 1,
+        tick: 83,
+        deltas: vec![
+            ContainerDelta {
+                lease: auction,
+                row_kind: "item_auction".into(),
+                row_key: "7".into(),
+                change: DeltaChange::Update,
+                expected_revision: Some(0),
+                columns: [
+                    ("instance_npc", serde_json::json!(32320)),
+                    ("item_index", serde_json::json!(0)),
+                    ("state", serde_json::json!(1)),
+                    ("highest_bidder", serde_json::json!(me.to_string())),
+                    ("last_bidder", serde_json::json!(me.to_string())),
+                    ("highest_bid", serde_json::json!(100)),
+                ]
+                .into_iter()
+                .map(|(k, v)| (k.to_owned(), v))
+                .collect(),
+            },
+            ContainerDelta {
+                lease: auction,
+                row_kind: "item_auction_bid".into(),
+                row_key: format!("7:{me}"),
+                change: DeltaChange::Insert,
+                expected_revision: None,
+                columns: [
+                    ("auction_id", serde_json::json!(7)),
+                    ("character_id", serde_json::json!(me.to_string())),
+                    ("last_bid", serde_json::json!(100)),
+                ]
+                .into_iter()
+                .map(|(k, v)| (k.to_owned(), v))
+                .collect(),
+            },
+            ContainerDelta {
+                lease: auction,
+                row_kind: "item_instance".into(),
+                row_key: "9100200".into(),
+                change: DeltaChange::Insert,
+                expected_revision: None,
+                columns: [
+                    ("owner_kind", serde_json::json!("auction_bid")),
+                    ("location", serde_json::json!("auction_bid")),
+                    ("container_id", serde_json::json!(escrow_owner.to_string())),
+                    ("template_id", serde_json::json!(57)),
+                    ("count", serde_json::json!(100)),
+                    ("created_tick", serde_json::json!(83)),
+                ]
+                .into_iter()
+                .map(|(k, v)| (k.to_owned(), v))
+                .collect(),
+            },
+        ],
+        ledger: vec![OwnerLedgerRow {
+            owner_kind: "auction_bid".into(),
+            owner_id: escrow_owner,
+            instance_id: 9_100_200,
+            ..ground_row(
+                "transfer_in",
+                escrow_owner,
+                83,
+                9_100_200,
+                serde_json::json!({"before": null, "after": escrow, "receipt": bid, "transfer": {"link": bid_link, "mode": "split"}}),
+            )
+        }],
+        lease_releases: nightfall_api::application::economy::sets::auction(7),
+        receipts: vec![receipt(me, "auction_bid", 0x8500, "fp-bid")],
+        ..Default::default()
+    };
+    settle_with_replays(repo, &cp5, &w5, &bid_write, 5).await;
+    assert_eq!(economy.bids(7).await.unwrap().len(), 1);
+    assert_eq!(economy.auctions(32320).await.unwrap()[0].highest_bid, Some(100));
+    assert_eq!(facts("auction_bid").await, 1);
+
+    // (5) Mail send with COD, tick 84, revision 6: a non-stackable item to another character's
+    // mailbox. The COD payment and the take are blocked on the economy-Consume contract (see
+    // api-inbox, E4.8 note); the delivery row they create executes as a system job, which
+    // `phase5_crash_windows` covers on both adapters.
+    let gift = work
+        .projection
+        .checkpoint
+        .instances
+        .iter()
+        .find(|i| i.count == 1)
+        .cloned()
+        .unwrap();
+    let message = Uuid::from_u128(0x8600);
+    economy
+        .acquire(&grant(
+            nightfall_api::application::economy::sets::mail_send(me, receiver.id.as_uuid()),
+            0x8600,
+        ))
+        .await
+        .unwrap();
+    instances.retain(|i| i.id != gift.id);
+    let (cp6, mut w6) = tick(&cp5, &w5, 5, 6, 84, instances.clone());
+    let send = receipt_text("mail_send", 0x8700);
+    let mail_link = "6f1c3c1e-7c55-5d7e-9e1a-0000000000a7";
+    w6.projection.ledger = vec![plan(
+        ItemOperation::TransferOut,
+        gift.id.get(),
+        Some(&gift),
+        None,
+        0,
+        &send,
+        Some(mail_link),
+    )];
+    let attached = located(&gift, ItemLocation::Mail, 0);
+    let mail_key = LeaseKey::of_uuid(LeaseKind::Mailbox, receiver.id.as_uuid());
+    let mail_write = EconomyCheckpointWrite {
+        zone_id: 1,
+        epoch: 1,
+        tick: 84,
+        deltas: vec![
+            ContainerDelta {
+                lease: mail_key,
+                row_kind: "mail_message".into(),
+                row_key: message.to_string(),
+                change: DeltaChange::Insert,
+                expected_revision: None,
+                columns: [
+                    ("sender_id", serde_json::json!(me.to_string())),
+                    ("receiver_id", serde_json::json!(receiver.id.as_uuid().to_string())),
+                    ("subject", serde_json::json!("cod")),
+                    ("body", serde_json::json!("pay")),
+                    ("cod_adena", serde_json::json!(100)),
+                    ("has_attachments", serde_json::json!(true)),
+                ]
+                .into_iter()
+                .map(|(k, v)| (k.to_owned(), v))
+                .collect(),
+            },
+            ContainerDelta {
+                lease: mail_key,
+                row_kind: "item_instance".into(),
+                row_key: gift.id.get().to_string(),
+                change: DeltaChange::Insert,
+                expected_revision: None,
+                columns: [
+                    ("owner_kind", serde_json::json!("mail")),
+                    ("location", serde_json::json!("mail")),
+                    ("container_id", serde_json::json!(message.to_string())),
+                    ("mail_id", serde_json::json!(message.to_string())),
+                    ("template_id", serde_json::json!(gift.template_id)),
+                    ("count", serde_json::json!(1)),
+                    ("created_tick", serde_json::json!(gift.created_tick.0)),
+                ]
+                .into_iter()
+                .map(|(k, v)| (k.to_owned(), v))
+                .collect(),
+            },
+        ],
+        ledger: vec![OwnerLedgerRow {
+            owner_kind: "mail".into(),
+            owner_id: message,
+            instance_id: gift.id.get(),
+            ..ground_row(
+                "transfer_in",
+                message,
+                84,
+                gift.id.get(),
+                serde_json::json!({"before": null, "after": attached, "receipt": send, "transfer": {"link": mail_link, "mode": "identity"}}),
+            )
+        }],
+        lease_releases: nightfall_api::application::economy::sets::mail_send(
+            me,
+            receiver.id.as_uuid(),
+        ),
+        receipts: vec![receipt(me, "mail_send", 0x8700, "fp-mail")],
+        ..Default::default()
+    };
+    settle_with_replays(repo, &cp6, &w6, &mail_write, 6).await;
+    assert_eq!(economy.mail_attachments(message).await.unwrap().len(), 1);
+    assert_eq!(facts("mailed").await, 1);
+}
+
+#[tokio::test]
+async fn memory_commit_crash_windows() {
+    let bundle = embedded_phase4_bundle().unwrap();
+    let store = Arc::new(InMemoryEconomyStore::default());
+    let repo = InMemoryCharacterRepository::default()
+        .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
+        .unwrap()
+        .with_economy(store.clone());
+    let facts = |subject: &str| {
+        let subject = subject.to_owned();
+        let store = store.clone();
+        Box::pin(async move {
+            store
+                .outbox()
+                .iter()
+                .filter(|f| f.subject == subject)
+                .count()
+        }) as std::pin::Pin<Box<dyn std::future::Future<Output = usize> + Send>>
+    };
+    commit_crash_windows(&repo, store.as_ref(), &facts, Some(store.as_ref()), &bundle, "MemCrash")
+        .await;
+}
+
+#[tokio::test]
+async fn postgres_commit_crash_windows() {
+    let Some(pool) = common::pg::migrated_pool().await else {
+        return;
+    };
+    common::pg::insert_account(&pool, ACCOUNT).await;
+    let bundle = embedded_phase4_bundle().unwrap();
+    let repo = PgCharacterRepository::new(pool.clone())
+        .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
+        .unwrap();
+    let economy = PgEconomyRepository::new(
+        nightfall_api::infrastructure::postgres::connection_from_pool(&pool),
+    );
+    let facts = |subject: &str| {
+        let subject = format!("nightfall.item.{subject}");
+        let pool = pool.clone();
+        Box::pin(async move {
+            let n: i64 = sqlx::query_scalar("SELECT count(*) FROM outbox WHERE subject=$1")
+                .bind(subject)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+            usize::try_from(n).unwrap()
+        }) as std::pin::Pin<Box<dyn std::future::Future<Output = usize> + Send>>
+    };
+    commit_crash_windows(&repo, &economy, &facts, None, &bundle, "PgCrash").await;
 }
