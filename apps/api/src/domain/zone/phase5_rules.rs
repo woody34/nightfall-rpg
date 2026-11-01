@@ -70,7 +70,11 @@ record!(RewardNpc {
     sp: String,
     is_raid: bool,
     corpse_time: u64,
-    collision_radius: u32
+    collision_radius: u32,
+    // P5-D30 (C lane data): the manor inputs of every template, also for the sowable NPCs
+    // without a drop list. The Z lane binds them (L2Attackable.setSeeded).
+    can_be_sown: bool,
+    harvest_skills: Vec<u32>
 });
 record!(RewardsTable { schema_version: u32, npc_count: u64, npc: Vec<RewardNpc> });
 record!(CorpseTimeOverride {
