@@ -282,7 +282,7 @@ impl ZoneBootstrap {
         if let Some(rules) = &self.rules {
             state = state
                 .with_rules(rules.rules.clone())
-                .with_spawn_slots(slot_specs(&rules.rules, def)?);
+                .try_with_spawn_slots(slot_specs(&rules.rules, def)?)?;
         }
         if let Some((registry, _)) = &self.classes {
             let rules = self

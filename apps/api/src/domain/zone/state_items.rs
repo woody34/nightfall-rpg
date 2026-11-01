@@ -121,6 +121,7 @@ impl ZoneState {
             rules: economy,
             fault: None,
             rewards: None,
+            ledger: Vec::new(),
         });
         state.meta.schema_version = 11;
         state.meta.digest_version = StateDigestVersion::BinaryV7;
@@ -147,7 +148,27 @@ impl ZoneState {
                     tick: self.next_tick,
                 },
             )
-            .map_err(|error| SnapshotError::Rules(error.to_string()))
+            .map_err(|error| SnapshotError::Rules(error.to_string()))?;
+        self.validate_pinned_slots()
+    }
+
+    /// z-review-3 P2-1: on a V7 zone every slot's `pinned_npc_id` names a pinned template
+    /// (one with a `rewards.toml` row, P5-D12), checked when the slots are installed and at
+    /// restore, so a bad overlay refuses boot instead of halting the zone at a kill.
+    pub(super) fn validate_pinned_slots(&self) -> Result<(), SnapshotError> {
+        let Some(phase5) = &self.phase5 else {
+            return Ok(());
+        };
+        for spec in &self.slots {
+            if let Some(id) = spec.pinned_npc_id {
+                if phase5.rules.reward_npc(id).is_none() {
+                    return Err(SnapshotError::Rules(format!(
+                        "spawn slot pins npc {id}, which is not a pinned template"
+                    )));
+                }
+            }
+        }
+        Ok(())
     }
 
     /// Admit a player's V7 record from its load (design §1.11): a V7 load requires the

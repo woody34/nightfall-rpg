@@ -30,6 +30,8 @@ mod items;
 mod phase5_death;
 #[path = "state_phase5_party.rs"]
 mod phase5_party;
+#[path = "state_phase5_pickup.rs"]
+mod phase5_pickup;
 #[path = "state_phase5.rs"]
 mod phase5_runtime;
 #[path = "state_runtime.rs"]
@@ -948,6 +950,7 @@ impl ZoneState {
                     rules: economy,
                     fault: None,
                     rewards: None,
+                    ledger: Vec::new(),
                 }))
             },
             _ => Err(SnapshotError::Rules("explicit matching V7 economy rules required".into())),

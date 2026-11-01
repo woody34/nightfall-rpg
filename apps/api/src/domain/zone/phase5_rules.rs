@@ -1388,6 +1388,15 @@ impl Phase5RulesParts {
         for row in &self.ground.ground.auto_destroy_time {
             closure.require("ground", row.item_id)?;
         }
+        // z-review-3 P3-3: the planner's NPC-killer branch (`isKillerNpc && level > 4`,
+        // `L2PcInstance.java:4503`) draws only for `PlayerRateDrop > 0`; the hashed value is
+        // the pinned 0, and anything else fails closed until that branch is implemented.
+        ensure(self.ground.pk.player_rate_drop == 0, || {
+            format!(
+                "ground: PlayerRateDrop {} needs the NPC-killer PK branch",
+                self.ground.pk.player_rate_drop
+            )
+        })?;
         ensure(self.ground.pk.pk_drop_protection == "None", || {
             "ground: pk_drop_protection must be None (E24)".into()
         })?;

@@ -62,7 +62,7 @@ impl ZoneState {
     }
 
     /// The pinned `drops.toml` row bound to an AI NPC through its spawn slot (story 3.3).
-    fn pinned_npc(&self, npc: EntityId) -> Option<u32> {
+    pub(super) fn pinned_npc(&self, npc: EntityId) -> Option<u32> {
         let slot = self.entities.get(&npc)?.ai.as_ref()?.slot;
         self.slots.get(usize::from(slot.slot))?.pinned_npc_id
     }
@@ -243,8 +243,14 @@ impl ZoneState {
             ..
         } = &mut c.role
         {
+            // `PlayableStat.addSp` (`:165-181`): SP is an `int`; at `Integer.MAX_VALUE`
+            // nothing is added, above it the total saturates.
+            const SP_MAX: u64 = 2_147_483_647;
             let old = p.class_state.sp;
-            p.class_state.sp = old.saturating_add(amount).min(i64::MAX.unsigned_abs());
+            if old >= SP_MAX || amount == 0 {
+                return;
+            }
+            p.class_state.sp = old.saturating_add(amount).min(SP_MAX);
             events.push(ZoneEvent::SpGained {
                 tick,
                 entity: player,
@@ -350,8 +356,8 @@ impl ZoneState {
             .phase4
             .as_ref()
             .and_then(|items| items.rules.parts().items.get(&template))
-            // D10: closure templates resolve once `items_closure.toml` is bound; until then a
-            // drop of one is an invariant failure, never a guessed stackability.
+            // D10: a V7 epoch runs on the V7 item view (V6 ∪ closure), so every catalogue
+            // template resolves; a missing definition is an invariant failure.
             .ok_or(DropError::Rules("drop template without an item definition"))?
             .stackable;
         let instances = if stackable { 1 } else { count };
@@ -440,6 +446,8 @@ impl ZoneState {
                     *phase5 = Some(Box::new(detail.clone()));
                 }
             }
+            // §11.3 "NPC loot creation": the ground owner's fresh `loot` row.
+            self.ledger_loot(&record, &format!("{}@{}", npc.as_uuid(), tick.0));
             self.phase5
                 .as_mut()
                 .ok_or(DropError::Rules("V7 block vanished"))?
@@ -497,8 +505,12 @@ impl ZoneState {
             .map(|g| g.entity)
             .collect();
         for entity in due {
-            if let Some(phase5) = &mut self.phase5 {
-                phase5.canonical.ground.remove(&entity);
+            let record = self
+                .phase5
+                .as_mut()
+                .and_then(|phase5| phase5.canonical.ground.remove(&entity));
+            if let Some(record) = record {
+                self.ledger_decay(tick, &record);
             }
             events.extend(self.despawn(tick, entity));
         }
@@ -642,6 +654,57 @@ mod tests {
             })
             .unwrap()
             .id
+    }
+
+    /// z-review-3 P2-1: an unknown `pinned_npc_id` refuses slot install and restore on a V7
+    /// zone (a pinned template is one with a `rewards.toml` row), instead of halting the
+    /// zone at that NPC's first kill.
+    #[test]
+    fn unknown_pinned_npc_ids_refuse_install_and_restore() {
+        let zone = v7_zone();
+        let stats = zone.rules.clone().unwrap();
+        let def = zone_data::parse_zone(zone_data::TEST_ZONE_TOML).unwrap();
+        let mut specs = crate::application::zone_bootstrap::slot_specs(&stats, &def).unwrap();
+        specs.truncate(1);
+        specs[0].pinned_npc_id = Some(999_999);
+        let error = zone
+            .clone()
+            .try_with_spawn_slots(specs.clone())
+            .unwrap_err();
+        assert!(format!("{error:?}").contains("999999"), "{error:?}");
+        // An NPC without a drop list is still a pinned template (rewards only).
+        specs[0].pinned_npc_id = Some(102);
+        let good = zone.clone().try_with_spawn_slots(specs.clone()).unwrap();
+        let mut snapshot = good.snapshot();
+        let items = Arc::clone(&good.phase4.as_ref().unwrap().rules);
+        let economy = Arc::clone(&good.phase5.as_ref().unwrap().rules);
+        ZoneState::from_snapshot_with_bundles(
+            snapshot.clone(),
+            Some(Arc::clone(&items)),
+            Some(Arc::clone(&economy)),
+        )
+        .unwrap();
+        snapshot.spawn_slots[0].pinned_npc_id = Some(999_999);
+        assert!(
+            ZoneState::from_snapshot_with_bundles(snapshot, Some(items), Some(economy)).is_err()
+        );
+        // Older epochs never carry the binding, so nothing is checked there.
+        let legacy = ZoneState::new(
+            crate::domain::zone::ZoneSeed {
+                zone: crate::domain::zone::ZoneId(75),
+                epoch: 5,
+            },
+            crate::domain::zone::ZoneBounds::new(
+                Vec2Fixed::from_tiles(0, 0),
+                Vec2Fixed::from_tiles(256, 256),
+            )
+            .unwrap(),
+            0,
+        )
+        .with_rules(stats);
+        specs[0].pinned_npc_id = Some(999_999);
+        let legacy = legacy.try_with_spawn_slots(specs).unwrap();
+        assert!(legacy.spawn_slots()[0].pinned_npc_id.is_none());
     }
 
     /// Story 3.3 end to end: a V7 kill rolls the pinned lists, puts the loot on the ground with

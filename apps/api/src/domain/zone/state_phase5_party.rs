@@ -46,11 +46,14 @@ fn event(tick: Tick, entity: EntityId, body: EconomyBody, audience: Vec<EntityId
 impl ZoneState {
     /// Dispatch one client economy intent (design §2.1 phase 0). Kinds whose stories have not
     /// landed refuse `NotYetImplemented`; system jobs are 3.11.
+    #[allow(clippy::too_many_arguments)] // The tick-start item state rides along explicitly.
     pub(super) fn phase5_intent(
         &mut self,
         tick: Tick,
         command: &Phase5Command,
         seq: Option<u32>,
+        before_items: Option<&crate::domain::zone::Phase4Snapshot>,
+        admitted: &std::collections::BTreeMap<EntityId, u64>,
         events: &mut Vec<ZoneEvent>,
     ) -> Result<(), RejectReason> {
         if self.phase5.is_none() {
@@ -60,6 +63,18 @@ impl ZoneState {
             return Err(RejectReason::NotPermitted);
         }
         let actor = command.entity().ok_or(RejectReason::NotPermitted)?;
+        if let Phase5Command::PickUpItem { ground, .. } = command {
+            return self.pick_up_item(
+                tick,
+                actor,
+                *ground,
+                command,
+                seq,
+                before_items,
+                admitted,
+                events,
+            );
+        }
         let party = match command {
             Phase5Command::PartyInvite { target, mode, .. } => {
                 self.party_invite(tick, actor, *target, *mode, events)?
@@ -80,8 +95,8 @@ impl ZoneState {
             Phase5Command::PartyLootChangeAnswer { accept, .. } => {
                 self.party_loot_answer(tick, actor, *accept, events)?
             },
-            // Pickup, vendors, multisell, crafting, trade, stores and containers land with
-            // stories 3.5 (pickup) and 3.7–3.11; until then they refuse.
+            // Pickup resolves above. Vendors, multisell, crafting, trade, stores and
+            // containers land with stories 3.7–3.11; until then they refuse.
             Phase5Command::PickUpItem { .. }
             | Phase5Command::VendorBuy { .. }
             | Phase5Command::VendorSell { .. }
@@ -850,7 +865,14 @@ mod tests {
     fn run(zone: &mut ZoneState, c: &Phase5Command) -> Result<Vec<ZoneEvent>, RejectReason> {
         let mut events = Vec::new();
         let before = zone.phase5.as_ref().unwrap().canonical.clone();
-        let result = zone.phase5_intent(zone.next_tick, c, Some(7), &mut events);
+        let result = zone.phase5_intent(
+            zone.next_tick,
+            c,
+            Some(7),
+            None,
+            &std::collections::BTreeMap::new(),
+            &mut events,
+        );
         if result.is_err() {
             assert_eq!(
                 zone.phase5.as_ref().unwrap().canonical,

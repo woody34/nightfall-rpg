@@ -62,6 +62,17 @@ impl ZoneState {
         self
     }
 
+    /// [`Self::with_spawn_slots`] that refuses, on a V7 zone, a `pinned_npc_id` that names no
+    /// pinned template (z-review-3 P2-1).
+    pub fn try_with_spawn_slots(
+        self,
+        slots: Vec<SpawnSlotSpec>,
+    ) -> Result<Self, super::super::SnapshotError> {
+        let state = self.with_spawn_slots(slots);
+        state.validate_pinned_slots()?;
+        Ok(state)
+    }
+
     /// The zone's spawn slots.
     #[must_use]
     pub fn spawn_slots(&self) -> &[SpawnSlotSpec] {

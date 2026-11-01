@@ -927,6 +927,11 @@ impl ZoneState {
             }
         }
         self.finish_cast_evidence_v6(&events);
+        // P5-Q13: every owner an economy operation changed has its item projection; the
+        // owner-kind rows leave as one `EconomyCheckpoint` with T1 ordinals.
+        self.ensure_economy_projections(tick, &mut events)
+            .map_err(|_| TickError::Phase5Invariant)?;
+        self.flush_economy_ledger(tick, &mut events);
         // D66: canonical per-instance ledger order is fixed once, at the tick boundary.
         for event in &mut events {
             if let ZoneEvent::ItemCheckpoint(projection) = event {
@@ -1278,7 +1283,14 @@ impl ZoneState {
             // the Phase 5 snapshot block (story 3.1), so this arm is unreachable until then:
             // a system job has no executor yet (3.11), a client intent no handler (3.3–3.10).
             // V7 phase 0 (design §2.1): every economy intent resolves here, in ordinal order.
-            ZoneCommand::Phase5(phase5) => self.phase5_intent(tick, phase5, command.seq, events)?,
+            ZoneCommand::Phase5(phase5) => self.phase5_intent(
+                tick,
+                phase5,
+                command.seq,
+                before_items,
+                &staged.admitted_revisions,
+                events,
+            )?,
             ZoneCommand::Item(item) => {
                 let explicit =
                     if let crate::domain::zone::ItemCommandKind::Use { target, .. } = item.kind {

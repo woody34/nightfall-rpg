@@ -512,7 +512,7 @@ impl ZoneState {
     clippy::too_many_lines,
     clippy::arithmetic_side_effects
 )]
-mod tests {
+pub(super) mod tests {
     use super::*;
     use crate::domain::character_progression::{
         CharacterAppearance, CharacterIdentity, ClassState,
@@ -787,7 +787,9 @@ mod tests {
     }
 
     /// A fresh V6 or V7 zone and a first-login load with a starter kit (one lineage).
-    fn fresh_zone_and_kit_load(v7: bool) -> (ZoneState, PlayerLoad, EntityId) {
+    pub(in crate::domain::zone::state) fn fresh_zone_and_kit_load(
+        v7: bool,
+    ) -> (ZoneState, PlayerLoad, EntityId) {
         let bundle = crate::infrastructure::item_data::embedded_phase4_bundle().unwrap();
         let classes = load_classes(&ClassSource::embedded()).unwrap().registry;
         let seed = ZoneSeed {
@@ -872,7 +874,7 @@ mod tests {
         (zone, load, EntityId::from_uuid(uuid::Uuid::from_u128(71)))
     }
 
-    fn spawn_kit(id: EntityId, load: PlayerLoad) -> ZoneInput {
+    pub(in crate::domain::zone::state) fn spawn_kit(id: EntityId, load: PlayerLoad) -> ZoneInput {
         ZoneInput::system(ZoneCommand::SpawnPlayer {
             entity: id,
             name: "Kit".into(),
