@@ -302,4 +302,128 @@ bool FPhase5RegistryTest::RunTest(const FString&)
   TestFalse(FString(TEXT("malformed command: ")) + Text, EconomyBotPredicates::ValidateCommand(Registry.Tokenize(Text), Error));
  return true;
 }
+// Story 5.6: the §5.3 predicate set is exactly the grammar's, every predicate is UNKNOWN (never true)
+// before its carrier, and a transport reset returns every one of them to UNKNOWN.
+namespace EconomyTest
+{
+ const TCHAR* const PredicateSamples[] = {
+  TEXT("ground_item_exists 57"),
+  TEXT("ground_item_kind 57 == 3"),
+  TEXT("ground_loot_owner 57 == self"),
+  TEXT("ground_drop_protection 57 == self"),
+  TEXT("ground_drop_protection_none"),
+  TEXT("ground_protection_expired 9599"),
+  TEXT("ground_item_count_between 8600 3 10"),
+  TEXT("ground_item_gone 8600"),
+  TEXT("ground_despawn_on_grid 9849"),
+  TEXT("ground_item_any"),
+  TEXT("ground_item_count == 0"),
+  TEXT("economy_result == pick_up_item"),
+  TEXT("economy_result_count multisell_choose == 1"),
+  TEXT("economy_export_marker"),
+  TEXT("own_level_between 11 15"),
+  TEXT("rules_rate_multiplier == 1.5"),
+  TEXT("herb_skill_early_abort 8612"),
+  TEXT("pk_drop_decays == false"),
+  TEXT("party_member_count == 2"),
+  TEXT("loot_mode == BY_TURN"),
+  TEXT("party_invite_received"),
+  TEXT("loot_recipient_in_party"),
+  TEXT("loot_recipient != self"),
+  TEXT("by_turn_cursor_advanced"),
+  TEXT("loot_distributed"),
+  TEXT("loot_distributed_mode == RANDOM"),
+  TEXT("loot_distributed_count == 0"),
+  TEXT("loot_distributed_spoil == true"),
+  TEXT("own_out_of_party_range"),
+  TEXT("corpse_spoiled template:npc_20003"),
+  TEXT("corpse_sweepable template:npc_20003"),
+  TEXT("corpse_swept template:npc_20003"),
+  TEXT("corpse_until_delta template:npc_20003 == 170"),
+  TEXT("sweep_recipient_in_party"),
+  TEXT("sweep_outcome_received"),
+  TEXT("party_sweep_done template:npc_20003"),
+  TEXT("adena_split_share_between 15 21"),
+  TEXT("adena_split_origin == npc"),
+  TEXT("loot_vote_phase == APPLIED"),
+  TEXT("xp_gained_events >= 1"),
+  TEXT("xp_gained_last == 80"),
+  TEXT("sp_gained_last == 2"),
+  TEXT("xp_gained_last_between 1 178"),
+  TEXT("xp_share_matches_export"),
+  TEXT("sp_gained_events_for template:npc_4301 == 0"),
+  TEXT("entity_gone template:npc_20003"),
+  TEXT("own_pk_count >= 6"),
+  TEXT("pk_drop_count_between 0 10"),
+  TEXT("pk_dropped_excluded == 0"),
+  TEXT("pk_unequipped_before_roll"),
+  TEXT("merchant_known"),
+  TEXT("restock_merchant_known"),
+  TEXT("adena_delta == -172"),
+  TEXT("refund_tab_count == 12"),
+  TEXT("refund_tab_oldest_destroyed"),
+  TEXT("vendor_stock 353630 16127 == 10"),
+  TEXT("vendor_restock_due_delta 353630 16127 == 36000"),
+  TEXT("exchanger_known"),
+  TEXT("enchant_of 9416 == 3"),
+  TEXT("craft_result_any"),
+  TEXT("craft_result == success"),
+  TEXT("craft_materials_consumed 322"),
+  TEXT("craft_masterwork == false"),
+  TEXT("craft_fee_before_roll"),
+  TEXT("store_state == PACKAGE_SELL"),
+  TEXT("store_state_of a == BUY"),
+  TEXT("manufacture_gate_ticks == 3"),
+  TEXT("own_trade_confirmed"),
+  TEXT("trade_state == COMPLETED"),
+  TEXT("trade_transfer_pairs == 2"),
+  TEXT("trade_request_received"),
+  TEXT("trade_cancel_reason == departure"),
+  TEXT("store_entries_skipped == 1"),
+  TEXT("warehouse_keeper_known"),
+  TEXT("container_fee == 60"),
+  TEXT("warehouse_has 1864 == 10"),
+  TEXT("container_busy_retry_observed"),
+  TEXT("freight_capacity == 200"),
+  TEXT("freight_has 20678 == 1"),
+  TEXT("cod_credit_received 500"),
+  TEXT("mail_received cod"),
+  TEXT("mail_expiry_hours == 360"),
+  TEXT("mail_gone cancel"),
+  TEXT("mail_has_attachments expiry"),
+  TEXT("auctioneer_known"),
+  TEXT("auction_state == FINISHED"),
+  TEXT("auction_highest_bid == 150000"),
+  TEXT("auction_award_to_warehouse 9901"),
+  TEXT("auction_leader != self"),
+  TEXT("manor_manager_known"),
+  TEXT("corpse_seeded_or_sow_failed template:npc_20003"),
+  TEXT("harvest_done template:npc_20003"),
+  TEXT("manor_drops_unchanged"),
+  TEXT("manor_fee_equals_p_div_20"),
+  TEXT("manor_result granted 1864 >= 1"),
+  TEXT("epoch_reconcile_rows_before_admission"),
+  TEXT("recipe_registered 1") };
+}
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPhase5PredicateUnknownTest, "Nightfall.Economy.Bot.EveryPredicateUnknownBeforeItsCarrierAndAfterReset", EAutomationTestFlags::EditorContext | EAutomationTestFlags::ProductFilter)
+bool FPhase5PredicateUnknownTest::RunTest(const FString&)
+{
+ using namespace EconomyTest; FScope S(*this);
+ TSet<FString> Covered; for (const TCHAR* Text : PredicateSamples) { FString Name; FString(Text).Split(TEXT(" "), &Name, nullptr); Covered.Add(Name.IsEmpty() ? FString(Text) : Name); }
+ TestEqual(TEXT("one sample per registered predicate"), Covered.Num(), EconomyBotPredicates::PredicateNames().Num());
+ for (const FString& Name : EconomyBotPredicates::PredicateNames()) TestTrue(FString(TEXT("sampled: ")) + Name, Covered.Contains(Name));
+ // Before admission nothing is known: every predicate is UNKNOWN, none is true.
+ for (const TCHAR* Text : PredicateSamples) { const FBotPredicateValue V = S.Eval(Text); TestFalse(FString(TEXT("UNKNOWN before the carrier: ")) + Text, V.bTrue); TestFalse(FString(TEXT("an observation names why: ")) + Text, V.Observed.IsEmpty()); }
+ // Populate received facts of several carriers, then reset the transport.
+ S.Admit();
+ DispatchSpawn(S.Net, GroundSpawn(57, 120, 11, Owner));
+ { FWorldEvent E; FGrpcNightfallV1TradeSessionChanged T; T.Partner = Partner; T.Phase = EGrpcNightfallV1TradePhase::TRADE_PHASE_STARTED; T.Tick = 12; E.TradeSessionChanged = T; Dispatch(S.Net, E); }
+ { FWorldEvent E; FGrpcNightfallV1PrivateStoreChanged C; C.Owner = Partner; C.Kind = EGrpcNightfallV1StoreKind::STORE_KIND_SELL; C.Tick = 12; E.PrivateStoreChanged = C; Dispatch(S.Net, E); }
+ { FWorldEvent E; FGrpcNightfallV1RecipeBookSync B; B.Baseline = true; B.Incarnation = 1; B.Tick = 12; B.Dwarven.Add(FUInt32(1)); B.DwarvenLimit = 50; B.CommonLimit = 50; E.RecipeBookSync = B; Dispatch(S.Net, E); }
+ TestTrue(TEXT("a received fact is true before the reset"), S.Eval(TEXT("ground_item_exists 57")).bTrue && S.Eval(TEXT("trade_state == STARTED")).bTrue && S.Eval(TEXT("recipe_registered 1")).bTrue);
+ // The transport reset (OnConnected / OnDisconnected call Reset; this scope has no socket).
+ S.Economy->Reset();
+ for (const TCHAR* Text : PredicateSamples) TestFalse(FString(TEXT("UNKNOWN after the transport reset: ")) + Text, S.Eval(Text).bTrue);
+ return true;
+}
 #endif

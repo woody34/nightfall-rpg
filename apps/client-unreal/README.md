@@ -1339,7 +1339,7 @@ The E6 command/predicate authority is [phase4-fixtures.md](Scripts/phase4-fixtur
 - After an E1 catalogue update, run `python3 Scripts/gen-item-client-metadata.py` to make the arrow metadata again.
 - `nf.GrantItem` uses the authenticated RPC. The server enforces AUTH_DEV_TOKENS. When the server refuses, `item_rpc_error` shows the refusal.
 
-## Economy (Phase 5, stories 5.1 to 5.5 and 5.6 skeleton)
+## Economy (Phase 5, stories 5.1 to 5.6)
 
 The E5 command/predicate authority is [phase5-fixtures.md](Scripts/phase5-fixtures.md) and [phase5-grammar.py](Scripts/phase5-grammar.py). `Source/Nightfall/Bot/EconomyBotPredicates.cpp` registers every §5.3 command (41) and predicate (97; `rejected` is the Phase 1 builtin, and it resolves the Phase 5 reasons). `Scripts/test/phase5-client-registry.test.py` compares the two tables.
 
@@ -1368,6 +1368,7 @@ The E5 command/predicate authority is [phase5-fixtures.md](Scripts/phase5-fixtur
 - CONTAINER_BUSY: when the server answers the frozen request with CONTAINER_BUSY, the dialog says so and tells the user that Retry sends the same request with the same key. A retry that is outstanding, a receipt or another rejection removes the notice.
 - Multisell: the dialog and `nf.Multisell` send the pinned PreparedEntry id (Z lane 3.7): the 1-based entry id of `GetMultisellList` × 100000, plus the kept enchant on a list that maintains the enchantment.
 - Story 5.5 tests: `Nightfall.Economy.UI.KeeperDepositWithdrawFreightBusyRetry`, `Nightfall.Economy.UI.MailReadTakeRejectCancelDeleteSend`, `Nightfall.Economy.UI.AuctionBidAndCancel` and `Nightfall.Economy.UI.ManorBuySeedSellCrop`.
+- Story 5.6 (bot DSL and predicates): the client has the §5.3 command and predicate set, and only that set. `Nightfall.Economy.Bot.Phase5ScenarioRegistry` parses all 36 sources and checks the valid and the malformed forms. `Nightfall.Economy.Bot.EveryPredicateUnknownBeforeItsCarrierAndAfterReset` evaluates one sample of each of the 97 predicates. Before its carrier each one is UNKNOWN (never true, with a reason). After the transport reset each one is UNKNOWN again. A count of received facts (`ground_item_count`, `loot_distributed_count`, `xp_gained_events`, `sp_gained_events_for`) is UNKNOWN until the owner baseline arrives: before admission, zero is not a known count.
 - The other widgets are story 5.7.
 
 Item content:
