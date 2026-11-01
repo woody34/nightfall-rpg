@@ -216,6 +216,9 @@ impl ZoneState {
         {
             return Ok(SkillOutcome::Miss);
         }
+        // z-review-6 P3-1: pinned `target.getAI().setIntention(AI_INTENTION_IDLE)` runs at the
+        // end of every Sow that consumed its seed, sown or not.
+        self.set_intention(tick, target.entity, crate::domain::zone::ai::Intention::Idle, events);
         let player = self.entity_level(caster.entity).unwrap_or(1);
         let npc = self.entity_level(target.entity).unwrap_or(1);
         let basic = sow_basic(i64::from(crop.level), crop.alternative, player, npc);

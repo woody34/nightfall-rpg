@@ -790,6 +790,14 @@ pub(super) mod tests {
     pub(in crate::domain::zone::state) fn fresh_zone_and_kit_load(
         v7: bool,
     ) -> (ZoneState, PlayerLoad, EntityId) {
+        kit_load_for(v7, None)
+    }
+
+    /// [`fresh_zone_and_kit_load`] for the starter kit of `class` (the first kit otherwise).
+    pub(in crate::domain::zone::state) fn kit_load_for(
+        v7: bool,
+        class: Option<u32>,
+    ) -> (ZoneState, PlayerLoad, EntityId) {
         let bundle = crate::infrastructure::item_data::embedded_phase4_bundle().unwrap();
         let classes = load_classes(&ClassSource::embedded()).unwrap().registry;
         let seed = ZoneSeed {
@@ -830,7 +838,10 @@ pub(super) mod tests {
             .parts()
             .starter_kits
             .iter()
-            .find(|source| classes.get(ClassId(source.class_id)).is_some())
+            .find(|source| {
+                classes.get(ClassId(source.class_id)).is_some()
+                    && class.is_none_or(|class| source.class_id == class)
+            })
             .unwrap();
         let class = classes.get(ClassId(source.class_id)).unwrap();
         let materialization = ItemMaterialization::Starter(ItemKitManifest {
