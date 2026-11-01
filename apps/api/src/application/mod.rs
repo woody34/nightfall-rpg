@@ -6,6 +6,7 @@
 
 pub mod checkpoint;
 pub mod economy;
+pub mod economy_closure;
 pub mod economy_epoch;
 pub mod economy_facts;
 pub mod economy_reads;

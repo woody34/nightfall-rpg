@@ -1675,6 +1675,16 @@ Per tick, one revision-fenced SeaORM transaction contains:
 
 Ground and refund owners have ledger rows but **no** `item_instances` rows (snapshot only).
 
+**Writers (rulings P5-D27, P5-D28).** The API writes the economy rows of an operation in the checkpoint transaction of the character that did the operation. These operations change more than one character: a party split with two or more recipients, a party loot to another member, a sweep to a party, a trade, a private store and a private manufacture. The API writes each of them in one multi-character transaction:
+- The transaction locks the character fences in ascending `character_id` byte order. Thus two writers in opposite order cannot deadlock.
+- All parts apply, or no part applies. If one fence is not correct, the API writes nothing, and each part is `Stale`.
+- The operation gives one fact. The fact id stays one per operation (P5-D18).
+
+Before it locks a row, each writer makes sure that each operation in the write is complete. If the write has only a part of an operation, the writer refuses it with `economy_multi_character_operation:<rule>:<key>`:
+- `receipt`: a character row names a receipt that the write does not claim;
+- `transfer`: a transfer link does not have exactly one `transfer_out` and one `transfer_in`;
+- `party_split`: the `party_split` rows of a receipt do not add up to the count that the ground rows of that receipt destroy. The single-character writer also refuses a `party_split` row that has only an automatic cause (a sweep to a party).
+
 Outbox subjects, extending A20/C9: `nightfall.item.{looted, picked_up, dropped_pk, swept, harvested, purchased, sold, refunded, crafted, traded, deposited, withdrawn, freighted, mailed, mail_taken, mail_returned, mail_expired, delivered, delivery_blocked, auction_bid, auction_refunded, auction_awarded, manor_traded, decayed}`, plus the existing `destroyed` and `exchanged`. `economy_counters` is filled **asynchronously** by the outbox consumer, idempotent by `fact_id` (B8). Metric labels are bounded: operation kind, outcome, item class, grade (A19). The per-zone gauge `nightfall_zone_ground_items{kind}` (E25, §1.12) is the only new gauge.
 
 ### 11.6 Epoch close and abandoned epochs

@@ -679,6 +679,7 @@ impl PgCharacterRepository {
         events: &[DomainEvent],
         receipt: Option<&SuccessfulLearnReceipt>,
         items: Option<&crate::application::ports::ItemCheckpointWork>,
+        economy: Option<&crate::application::economy::EconomyCheckpointWrite>,
     ) -> Result<String, CheckpointError> {
         // Item audit facts require the atomic inventory/ledger/receipt projection lane.
         if items.is_none() && events.iter().any(DomainEvent::is_item) {
@@ -707,7 +708,7 @@ impl PgCharacterRepository {
                 |receipt| receipt.checkpoint_fingerprint(cp, events),
             )?
         };
-        Ok(fingerprint)
+        crate::application::economy_closure::economy_fingerprint(fingerprint, economy)
     }
 
     /// P5-D27: N characters and the shared economy write in one revision-fenced transaction.
@@ -722,6 +723,7 @@ impl PgCharacterRepository {
             .validate()
             .map_err(super::economy::checkpoint_error)?;
         let order = crate::application::economy::fence_order(parts)?;
+        crate::application::economy_closure::close_operations(parts, economy, true)?;
         if economy.receipts.iter().any(|r| {
             !parts
                 .iter()
@@ -737,7 +739,13 @@ impl PgCharacterRepository {
         }
         let mut fingerprints = Vec::with_capacity(parts.len());
         for part in parts {
-            fingerprints.push(self.prepare(part.cp, part.events, None, part.items)?);
+            fingerprints.push(self.prepare(
+                part.cp,
+                part.events,
+                None,
+                part.items,
+                Some(economy),
+            )?);
         }
         let tx = self.db.begin().await.map_err(other)?;
         // Every fence in canonical order first, so opposite-order writers never deadlock.
@@ -885,6 +893,9 @@ impl PgCharacterRepository {
         if let Some(write) = economy {
             // Structural refusal before any row is locked (design §11.5).
             write.validate().map_err(super::economy::checkpoint_error)?;
+            // P5-D28: a single-character write carries only operations of this character.
+            let part = crate::application::economy::CharacterCheckpointPart { cp, events, items };
+            crate::application::economy_closure::close_operations(&[part], write, false)?;
         }
         // P5-Q13: the economy rows of this character are the ledger of its changed scalars,
         // which only the V6 item projection writes.
@@ -894,7 +905,7 @@ impl PgCharacterRepository {
             .map(crate::application::ports::IdentityLinks::of_write)
             .transpose()?
             .unwrap_or_default();
-        let fingerprint = self.prepare(cp, events, receipt, items)?;
+        let fingerprint = self.prepare(cp, events, receipt, items, economy)?;
         let mut db = self.db.clone();
         if tracing::enabled!(target: "nightfall_api::runtime_timing", tracing::Level::DEBUG) {
             db.set_metric_callback(|info| {
@@ -970,7 +981,8 @@ impl PgCharacterRepository {
         let account = original.account_id.as_uuid();
         // An exact immutable checkpoint retry proves this draft committed, even after
         // another revision. A receipt alone proves only that some purchase won the key.
-        if receipt.is_some() || items.is_some() {
+        // c-review-7 P2-3: every economy write too, item-less ones (MailMarkRead) included.
+        if receipt.is_some() || items.is_some() || economy.is_some() {
             if let Some(stored) = super::entities::idempotency_keys::Entity::find_by_id((
                 cp.idempotency.1.as_uuid(),
                 account,

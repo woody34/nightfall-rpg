@@ -470,14 +470,15 @@ async fn postgres_pickup_settles_scalars_economy_rows_and_receipt_in_one_transac
         .await
         .unwrap();
 
-    // Without the character-side row the scalar change is refused and nothing is written.
+    // Without the character-side row the ground transfer_out has no peer in the write (P5-D28),
+    // so the scalar change is refused and nothing is written.
     let (next, work2, write) = pickup(&cp, &work, false, "fp");
     let refused = repo
         .checkpoint_with_economy(&next, &[], Some(&work2), &write)
         .await
         .unwrap_err();
     assert!(
-        matches!(&refused, CheckpointError::Constraint(name) if name == "item_checkpoint_unledgered_scalar"),
+        matches!(&refused, CheckpointError::Constraint(name) if *name == format!("economy_multi_character_operation:transfer:{PICKUP_LINK}")),
         "{refused:?}"
     );
     let receipts: i64 = sqlx::query_scalar(
@@ -689,7 +690,7 @@ async fn deposit_and_withdraw<R>(
         Some(&item),
         None,
         0,
-        "receipt:warehouse_deposit:k1",
+        &receipt_text("warehouse_deposit", 0xd1),
         Some(link_in),
     )];
     let deposit = EconomyCheckpointWrite {
@@ -725,6 +726,7 @@ async fn deposit_and_withdraw<R>(
             Some(link_in),
         )],
         lease_releases: vec![key],
+        receipts: vec![receipt(owner, "warehouse_deposit", 0xd1, "fp-deposit")],
         ..Default::default()
     };
     assert_eq!(
@@ -755,17 +757,23 @@ async fn deposit_and_withdraw<R>(
     let mut instances = rest.clone();
     instances.push(back.clone());
     let (cp3, base3) = tick(&cp, &work, 2, 3, 81, instances);
-    let work3 = |link: Option<&str>| {
+    let work3 = |link: Option<&str>, mode: &str| {
         let mut w = base3.clone();
-        w.projection.ledger = vec![plan(
+        let mut row = plan(
             ItemOperation::TransferIn,
             id,
             None,
             Some(&back),
             0,
-            "receipt:warehouse_withdraw:k2",
+            &receipt_text("warehouse_withdraw", 0xd2),
             link,
-        )];
+        );
+        if link.is_some() {
+            row.causes[0]
+                .fields
+                .insert("mode".into(), ItemEvidenceValue::Text(mode.into()));
+        }
+        w.projection.ledger = vec![row];
         w
     };
     let withdraw = || EconomyCheckpointWrite {
@@ -791,12 +799,23 @@ async fn deposit_and_withdraw<R>(
             Some(link_out),
         )],
         lease_releases: vec![key],
+        receipts: vec![receipt(owner, "warehouse_withdraw", 0xd2, "fp-withdraw")],
         ..Default::default()
     };
-    // Without the B13 link the instance's history makes the before = None row a D67 reuse.
+    // Without the B13 link the warehouse transfer_out has no peer in the write (P5-D28).
     leases.acquire(&grant(vec![key], 2)).await.unwrap();
+    let unpaired = repo
+        .checkpoint_with_economy(&cp3, &[], Some(&work3(None, "identity")), &withdraw())
+        .await
+        .unwrap_err();
+    assert!(
+        matches!(&unpaired, CheckpointError::Constraint(n) if n.starts_with("economy_multi_character_operation:transfer:")),
+        "{unpaired:?}"
+    );
+    // With the link but not in identity mode the row is not the B13 identity, so the
+    // instance's history makes the before = None row a D67 reuse.
     let refused = repo
-        .checkpoint_with_economy(&cp3, &[], Some(&work3(None)), &withdraw())
+        .checkpoint_with_economy(&cp3, &[], Some(&work3(Some(link_out), "split")), &withdraw())
         .await
         .unwrap_err();
     assert!(
@@ -813,9 +832,14 @@ async fn deposit_and_withdraw<R>(
         "nothing written"
     );
     assert_eq!(
-        repo.checkpoint_with_economy(&cp3, &[], Some(&work3(Some(link_out))), &withdraw())
-            .await
-            .unwrap(),
+        repo.checkpoint_with_economy(
+            &cp3,
+            &[],
+            Some(&work3(Some(link_out), "identity")),
+            &withdraw()
+        )
+        .await
+        .unwrap(),
         CheckpointOutcome::Applied(3)
     );
     assert!(reads
@@ -1458,6 +1482,234 @@ async fn commit_crash_windows<R>(
     settle_with_replays(repo, &cp6, &w6, &mail_write, 6).await;
     assert_eq!(economy.mail_attachments(message).await.unwrap().len(), 1);
     assert_eq!(facts("mailed").await, 1);
+
+    // (6) c-review-7 P2-3: an item-less economy write (MailMarkRead), tick 85, revision 7. An
+    // exact retry replays (the lost-ack retry loop must not fence the lane), the zone redo of
+    // the same request is Stale, and another write under the same checkpoint key conflicts.
+    let (mut cp7, _) = tick(&cp6, &w6, 6, 7, 85, instances.clone());
+    cp7.phase4.clone_from(&cp6.phase4); // no item change: the stored inventory stays
+
+    let read = EconomyCheckpointWrite {
+        zone_id: 1,
+        epoch: 1,
+        tick: 85,
+        receipts: vec![receipt(me, "mail_mark_read", 0x8800, "fp-read")],
+        ..Default::default()
+    };
+    assert_eq!(
+        repo.checkpoint_with_economy(&cp7, &[], None, &read)
+            .await
+            .unwrap(),
+        CheckpointOutcome::Applied(7)
+    );
+    assert_eq!(
+        repo.checkpoint_with_economy(&cp7, &[], None, &read)
+            .await
+            .unwrap(),
+        CheckpointOutcome::Replayed(7),
+        "identical item-less retry"
+    );
+    let mut redo = cp7.clone();
+    redo.idempotency = ("save_checkpoint".into(), IdempotencyKey::new());
+    redo.revision_seen = 7;
+    assert_eq!(
+        repo.checkpoint_with_economy(&redo, &[], None, &read)
+            .await
+            .unwrap(),
+        CheckpointOutcome::Stale,
+        "zone redo of the same request"
+    );
+    let other = EconomyCheckpointWrite {
+        receipts: vec![receipt(me, "mail_mark_read", 0x8801, "fp-read-2")],
+        ..read.clone()
+    };
+    assert!(matches!(
+        repo.checkpoint_with_economy(&cp7, &[], None, &other).await,
+        Err(CheckpointError::KeyReused)
+    ));
+}
+
+/// P5-D28 (c-review-7 P2-4): a party even split with two recipients touches two characters, so
+/// it settles in ONE P5-D27 write with one fact. Each single-character half is refused.
+async fn party_split_two_recipients<R>(
+    repo: &R,
+    economy: &dyn EconomyAdapter,
+    facts: &(dyn Fn(&str) -> std::pin::Pin<Box<dyn std::future::Future<Output = usize> + Send>>
+          + Sync),
+    bundle: &Phase4RuleBundle,
+    name: &str,
+) where
+    R: CharacterRepository
+        + ItemAdmissionRepository
+        + ItemCheckpointRepository
+        + EconomyCharacterCheckpointRepository,
+{
+    use nightfall_api::application::economy::CharacterCheckpointPart;
+    let (a, b) = traders(repo, bundle, name).await;
+    let ground = Uuid::from_u128(0x6201);
+    let drop = item(9_200_001, 57, 10, ItemLocation::Ground, 0, 71);
+    economy
+        .checkpoint_economy(&EconomyCheckpointWrite {
+            zone_id: 1,
+            epoch: 1,
+            tick: 72,
+            ledger: vec![ground_row(
+                "loot",
+                ground,
+                72,
+                9_200_001,
+                serde_json::json!({"before": null, "after": drop, "causes": ["loot:npc@72"]}),
+            )],
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+    let split = receipt_text("pick_up_item", 0x9300);
+    // Both starters drew from one zone reservation, B after A: the shares take ids after B's.
+    let share = |t: &Trader, count: u64, skip: usize| {
+        let mut allocation = b.work.allocation;
+        for _ in 0..skip {
+            allocation.allocate().unwrap();
+        }
+        let fresh = allocation.allocate().unwrap();
+        let mine = item(fresh.get(), 57, count, ItemLocation::Inventory, 2, 81);
+        let mut instances = t.work.projection.checkpoint.instances.clone();
+        instances.push(mine.clone());
+        let (cp, mut work) = tick(&t.cp, &t.work, 1, 2, 81, instances);
+        work.allocation = allocation;
+        work.projection.ledger = vec![plan(
+            ItemOperation::PartySplit,
+            fresh.get(),
+            None,
+            Some(&mine),
+            0,
+            &split,
+            None,
+        )];
+        (cp, work)
+    };
+    let (cpa, wa) = share(&a, 6, 0);
+    let (cpb, wb) = share(&b, 4, 1);
+    let write = EconomyCheckpointWrite {
+        zone_id: 1,
+        epoch: 1,
+        tick: 81,
+        ledger: vec![ground_row(
+            "destroy",
+            ground,
+            81,
+            9_200_001,
+            serde_json::json!({"before": drop, "after": null, "receipt": split, "causes": ["party_split:r2"]}),
+        )],
+        receipts: vec![receipt(a.id, "pick_up_item", 0x9300, "fp-split-2")],
+        ..Default::default()
+    };
+    // The picker's half: its share does not account for the whole destroyed stack.
+    let picker = repo
+        .checkpoint_with_economy(&cpa, &[], Some(&wa), &write)
+        .await
+        .unwrap_err();
+    assert!(
+        matches!(&picker, CheckpointError::Constraint(n) if *n == format!("economy_multi_character_operation:party_split:{split}")),
+        "{picker:?}"
+    );
+    // The other recipient's half: its row names the picker's receipt.
+    let recipient = repo
+        .checkpoint_with_economy(
+            &cpb,
+            &[],
+            Some(&wb),
+            &EconomyCheckpointWrite {
+                ledger: Vec::new(),
+                receipts: Vec::new(),
+                ..write.clone()
+            },
+        )
+        .await
+        .unwrap_err();
+    assert!(
+        matches!(&recipient, CheckpointError::Constraint(n) if *n == format!("economy_multi_character_operation:receipt:{split}")),
+        "{recipient:?}"
+    );
+    assert_eq!(facts("picked_up").await, 0, "nothing written");
+    let parts = [
+        CharacterCheckpointPart {
+            cp: &cpa,
+            events: &[],
+            items: Some(&wa),
+        },
+        CharacterCheckpointPart {
+            cp: &cpb,
+            events: &[],
+            items: Some(&wb),
+        },
+    ];
+    assert_eq!(
+        repo.checkpoint_many(&parts, &write).await.unwrap(),
+        vec![CheckpointOutcome::Applied(2), CheckpointOutcome::Applied(2)]
+    );
+    assert_eq!(
+        repo.checkpoint_many(&parts, &write).await.unwrap(),
+        vec![
+            CheckpointOutcome::Replayed(2),
+            CheckpointOutcome::Replayed(2)
+        ],
+        "identical retry"
+    );
+    assert_eq!(facts("picked_up").await, 1, "one fact for the one operation");
+    for (who, work) in [(a.id, &wa), (b.id, &wb)] {
+        assert!(holds(repo, who, work.projection.ledger[0].instance).await);
+    }
+}
+
+#[tokio::test]
+async fn memory_party_split_with_two_recipients_settles_in_one_write() {
+    let bundle = embedded_phase4_bundle().unwrap();
+    let store = Arc::new(InMemoryEconomyStore::default());
+    let repo = InMemoryCharacterRepository::default()
+        .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
+        .unwrap()
+        .with_economy(store.clone());
+    let facts = |subject: &str| {
+        let subject = subject.to_owned();
+        let store = store.clone();
+        Box::pin(async move {
+            store
+                .outbox()
+                .iter()
+                .filter(|f| f.subject == subject)
+                .count()
+        }) as std::pin::Pin<Box<dyn std::future::Future<Output = usize> + Send>>
+    };
+    party_split_two_recipients(&repo, store.as_ref(), &facts, &bundle, "MemSplit").await;
+}
+
+#[tokio::test]
+async fn postgres_party_split_with_two_recipients_settles_in_one_write() {
+    let Some(pool) = common::pg::migrated_pool().await else {
+        return;
+    };
+    common::pg::insert_account(&pool, ACCOUNT).await;
+    let bundle = embedded_phase4_bundle().unwrap();
+    let repo = PgCharacterRepository::new(pool.clone())
+        .with_phase4_rules(bundle.items.clone(), bundle.skills.clone())
+        .unwrap();
+    let economy = PgEconomyRepository::new(
+        nightfall_api::infrastructure::postgres::connection_from_pool(&pool),
+    );
+    let facts = |subject: &str| {
+        let subject = format!("nightfall.item.{subject}");
+        let pool = pool.clone();
+        Box::pin(async move {
+            let n: i64 = sqlx::query_scalar("SELECT count(*) FROM outbox WHERE subject=$1")
+                .bind(subject)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+            usize::try_from(n).unwrap()
+        }) as std::pin::Pin<Box<dyn std::future::Future<Output = usize> + Send>>
+    };
+    Box::pin(party_split_two_recipients(&repo, &economy, &facts, &bundle, "PgSplit")).await;
 }
 
 #[tokio::test]

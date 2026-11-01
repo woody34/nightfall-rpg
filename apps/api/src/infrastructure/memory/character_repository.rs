@@ -585,6 +585,24 @@ struct EconomyPart<'a> {
 }
 
 impl State {
+    /// c-review-7 P2-3: an exact retry of a committed checkpoint key replays before any receipt
+    /// claim, for every economy write (item-less ones included); another fingerprint conflicts.
+    fn checkpoint_key_replay(
+        &self,
+        owner: AccountId,
+        cp: &CharacterCheckpoint,
+        fingerprint: &str,
+    ) -> Result<Option<CheckpointOutcome>, CheckpointError> {
+        let key = (owner, cp.idempotency.0.clone(), cp.idempotency.1);
+        match self.checkpoint_keys.get(&key) {
+            Some((stored, revision)) if stored == fingerprint => {
+                Ok(Some(CheckpointOutcome::Replayed(*revision)))
+            },
+            Some(_) => Err(CheckpointError::KeyReused),
+            None => Ok(None),
+        }
+    }
+
     /// Economy receipts claim their scope like V6 receipts (P5-Q13): `Some(outcome)` stops.
     fn claim_economy_receipts(
         &self,
@@ -685,7 +703,10 @@ impl InMemoryCharacterRepository {
             .get(&cp.character_id)
             .ok_or(CheckpointError::NotFound)?
             .account_id;
-        let fingerprint = work.fingerprint(cp, events, learning)?;
+        let fingerprint = crate::application::economy_closure::economy_fingerprint(
+            work.fingerprint(cp, events, learning)?,
+            economy.map(|part| part.write),
+        )?;
         let checkpoint_key = (owner, cp.idempotency.0.clone(), cp.idempotency.1);
         if let Some((stored, revision)) = current.checkpoint_keys.get(&checkpoint_key) {
             return if *stored == fingerprint {
@@ -904,6 +925,9 @@ impl crate::application::economy::EconomyCharacterCheckpointRepository
         economy
             .validate()
             .map_err(crate::application::economy::checkpoint_error)?;
+        // P5-D28: a single-character write carries only operations of this character.
+        let closed = crate::application::economy::CharacterCheckpointPart { cp, events, items };
+        crate::application::economy_closure::close_operations(&[closed], economy, false)?;
         let links = crate::application::ports::IdentityLinks::of_write(economy)?;
         let store = self
             .economy
@@ -924,12 +948,18 @@ impl crate::application::economy::EconomyCharacterCheckpointRepository
             .get(&cp.character_id)
             .ok_or(CheckpointError::NotFound)?
             .account_id;
+        let fingerprint = crate::application::economy_closure::economy_fingerprint(
+            cp.fingerprint(events),
+            Some(economy),
+        )?;
+        if let Some(outcome) = current.checkpoint_key_replay(owner, cp, &fingerprint)? {
+            return Ok(outcome);
+        }
         if let Some(outcome) = current.claim_economy_receipts(owner, cp, economy, false)? {
             return Ok(outcome);
         }
         let mut staged = current.clone();
-        let outcome =
-            self.checkpoint_locked(&mut staged, cp, events, cp.fingerprint(events), None, &links)?;
+        let outcome = self.checkpoint_locked(&mut staged, cp, events, fingerprint, None, &links)?;
         if !matches!(outcome, CheckpointOutcome::Applied(_)) {
             return Ok(outcome);
         }
@@ -950,6 +980,7 @@ impl crate::application::economy::EconomyCharacterCheckpointRepository
             .validate()
             .map_err(crate::application::economy::checkpoint_error)?;
         let order = crate::application::economy::fence_order(parts)?;
+        crate::application::economy_closure::close_operations(parts, economy, true)?;
         if economy.receipts.iter().any(|r| {
             !parts
                 .iter()
@@ -989,7 +1020,13 @@ impl crate::application::economy::EconomyCharacterCheckpointRepository
                     .get(&part.cp.character_id)
                     .ok_or(CheckpointError::NotFound)?
                     .account_id;
-                if let Some(outcome) =
+                let fingerprint = crate::application::economy_closure::economy_fingerprint(
+                    part.cp.fingerprint(part.events),
+                    Some(economy),
+                )?;
+                if let Some(outcome) = staged.checkpoint_key_replay(owner, part.cp, &fingerprint)? {
+                    outcome
+                } else if let Some(outcome) =
                     staged.claim_economy_receipts(owner, part.cp, economy, true)?
                 {
                     outcome
@@ -998,7 +1035,7 @@ impl crate::application::economy::EconomyCharacterCheckpointRepository
                         &mut staged,
                         part.cp,
                         part.events,
-                        part.cp.fingerprint(part.events),
+                        fingerprint,
                         None,
                         &links,
                     )?

@@ -791,12 +791,16 @@ pub trait EconomyCheckpointRepository: Send + Sync {
 /// deltas that delete or update rows, then the item settlement, then container inserts, then
 /// deliveries, ledger rows, receipts, lease deletes and the outbox.
 ///
-/// Per-character split (c-review-6 P3-6): a tick's `EconomyCheckpoint` is written once per
-/// character. Each write carries that character's checkpoint, its `owner_kind = character` rows
-/// and receipts, and the container/ground rows of the operations that character performed. A
-/// character row of another character is refused (`economy_character_row_foreign`). Operations
-/// that move items between two characters in one atomic step (trade, private store) need a
-/// multi-character writer, which a later story adds; until then they are not settled here.
+/// Per-character split (c-review-6 P3-6, P5-D22, P5-D28): a tick's `EconomyCheckpoint` is
+/// written once per character. Each write carries that character's checkpoint, its item
+/// projection (which holds the character's V7 economy rows), its receipts, and the container,
+/// ground and refund rows of the operations that character performed. The economy write never
+/// carries a character row (`economy_character_row_in_economy_write`). An operation that
+/// touches more than one character (a party split with two or more recipients, a non-split
+/// party loot to another member, a sweep to a party, a trade, a private store or manufacture)
+/// settles in ONE [`Self::checkpoint_many`] write, so it derives one fact. The single writer
+/// refuses a write that carries only a part of an operation
+/// (`economy_multi_character_operation:<rule>:<key>`, [`super::economy_closure`]).
 #[async_trait]
 pub trait EconomyCharacterCheckpointRepository: Send + Sync {
     /// Settle the checkpoint, its optional V6 item projection and the economy write atomically.

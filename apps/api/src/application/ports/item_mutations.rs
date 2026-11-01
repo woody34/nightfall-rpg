@@ -265,7 +265,33 @@ impl IdentityLinks {
                 .delta
                 .get("after")
                 .is_none_or(serde_json::Value::is_null);
-            if let (true, Some(link), true) = (row.op == "transfer_out", link, whole) {
+            // c-review-7 P3-3: only an identity source links an identity transfer_in.
+            let identity = row
+                .delta
+                .get("transfer")
+                .and_then(|t| t.get("mode"))
+                .and_then(serde_json::Value::as_str)
+                == Some("identity");
+            if let (true, Some(link), true, true) =
+                (row.op == "transfer_out", link, whole, identity)
+            {
+                // A container source leaves with its row: a Delete or Update delta of the same
+                // `item_instances` row (ground and refund owners have no rows).
+                let container = !matches!(row.owner_kind.as_str(), "ground" | "refund");
+                let row_key = row.instance_id.to_string();
+                if container
+                    && !write.deltas.iter().any(|d| {
+                        d.row_kind == "item_instance"
+                            && d.row_key == row_key
+                            && matches!(
+                                d.change,
+                                crate::application::economy::DeltaChange::Delete
+                                    | crate::application::economy::DeltaChange::Update
+                            )
+                    })
+                {
+                    return Err(invalid("economy_transfer_container_delta"));
+                }
                 let left = row
                     .delta
                     .get("before")
@@ -288,9 +314,11 @@ impl IdentityLinks {
             if delta.operation != ItemOperation::TransferOut || delta.after.is_some() {
                 continue;
             }
-            let (Some(left), Some(link)) = (
+            let cause = economy_cause(delta);
+            let (Some(left), Some(link), Some("identity")) = (
                 delta.before.as_ref(),
-                economy_cause(delta).and_then(|cause| economy_text(cause, "link")),
+                cause.and_then(|cause| economy_text(cause, "link")),
+                cause.and_then(|cause| economy_text(cause, "mode")),
             ) else {
                 continue;
             };
