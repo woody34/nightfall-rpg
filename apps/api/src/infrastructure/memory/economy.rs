@@ -782,6 +782,53 @@ impl crate::application::economy_reads::EconomyReadRepository for InMemoryEconom
         ))
     }
 
+    async fn open_ground_refund(
+        &self,
+        zone: u32,
+        epoch: u64,
+    ) -> Result<Vec<crate::application::economy_reads::OpenChain>, EconomyError> {
+        let state = self.lock();
+        let mut last: BTreeMap<(String, Uuid, u64), &OwnerLedgerRow> = BTreeMap::new();
+        for row in state
+            .ledger
+            .iter()
+            .filter(|r| r.zone_id == zone && matches!(r.owner_kind.as_str(), "ground" | "refund"))
+        {
+            last.insert((row.owner_kind.clone(), row.owner_id, row.instance_id), row);
+        }
+        let mut open: Vec<_> = last
+            .into_values()
+            .filter(|row| row.epoch < epoch && row.delta.get("after").is_some_and(|a| !a.is_null()))
+            .map(|row| crate::application::economy_reads::OpenChain {
+                epoch: row.epoch,
+                owner_kind: row.owner_kind.clone(),
+                owner: row.owner_id,
+                instance: row.instance_id,
+                after: row.delta.get("after").cloned().unwrap_or_default(),
+            })
+            .collect();
+        open.sort_by(|a, b| {
+            (a.epoch, &a.owner_kind, a.owner, a.instance).cmp(&(
+                b.epoch,
+                &b.owner_kind,
+                b.owner,
+                b.instance,
+            ))
+        });
+        Ok(open)
+    }
+
+    async fn lease_epochs(&self, zone: u32, epoch: u64) -> Result<Vec<u64>, EconomyError> {
+        let state = self.lock();
+        let epochs: BTreeSet<u64> = state
+            .leases
+            .values()
+            .filter(|g| g.zone_id == zone && g.epoch < epoch)
+            .map(|g| g.epoch)
+            .collect();
+        Ok(epochs.into_iter().collect())
+    }
+
     async fn pre_image(
         &self,
         keys: &[LeaseKey],

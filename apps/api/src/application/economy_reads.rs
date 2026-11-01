@@ -94,6 +94,19 @@ pub struct DeliveryState {
     pub pending: bool,
 }
 
+/// A ground or refund ledger chain whose last row is not terminal (design §11.6): the instance
+/// is still live in the ledger. `after` is the last row's `delta.after` scalar JSON.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[allow(missing_docs)]
+pub struct OpenChain {
+    /// The epoch of the chain's last row.
+    pub epoch: u64,
+    pub owner_kind: String,
+    pub owner: Uuid,
+    pub instance: u64,
+    pub after: serde_json::Value,
+}
+
 /// The read side of the DB-only economy (E31: no method writes).
 #[async_trait]
 pub trait EconomyReadRepository: Send + Sync {
@@ -128,6 +141,15 @@ pub trait EconomyReadRepository: Send + Sync {
     async fn delivery_targets(&self) -> Result<Vec<Uuid>, EconomyError>;
     /// `(inbox, outbox)` message counts of a character (deleted sides excluded).
     async fn mailbox_counts(&self, character: Uuid) -> Result<(u32, u32), EconomyError>;
+    /// Ground and refund chains of the zone whose last row (over every epoch) is not terminal
+    /// and was written before `epoch`, ascending by (epoch, owner kind, owner, instance).
+    async fn open_ground_refund(
+        &self,
+        zone: u32,
+        epoch: u64,
+    ) -> Result<Vec<OpenChain>, EconomyError>;
+    /// The epochs below `epoch` that still hold leases in the zone, ascending.
+    async fn lease_epochs(&self, zone: u32, epoch: u64) -> Result<Vec<u64>, EconomyError>;
     /// Pre-images of every row covered by the keys (design §10.0 step 1): integer/string
     /// columns only, no timestamps. Read after the leases are held (READ COMMITTED, E39).
     async fn pre_image(&self, keys: &[LeaseKey]) -> Result<Vec<FrozenRow>, EconomyError>;

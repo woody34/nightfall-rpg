@@ -348,6 +348,45 @@ impl EconomyReadRepository for PgEconomyRepository {
         Ok((unsigned(get::<i64>(row, "inbox")?)?, unsigned(get::<i64>(row, "outbox")?)?))
     }
 
+    async fn open_ground_refund(
+        &self,
+        zone: u32,
+        epoch: u64,
+    ) -> Result<Vec<crate::application::economy_reads::OpenChain>, EconomyError> {
+        let zone = i32::try_from(zone)
+            .map_err(|_| EconomyError::Constraint("economy_read_out_of_range".into()))?;
+        let rows = self
+            .rows(
+                "SELECT epoch,owner_kind,owner_id,instance_id,delta->'after' AS after FROM (SELECT DISTINCT ON (owner_kind,owner_id,instance_id) epoch,owner_kind,owner_id,instance_id,delta FROM item_ledger WHERE zone_id=$1 AND owner_kind IN ('ground','refund') ORDER BY owner_kind,owner_id,instance_id,id DESC) last WHERE epoch<$2 AND jsonb_typeof(delta->'after')='object' ORDER BY epoch,owner_kind,owner_id,instance_id",
+                vec![zone.into(), signed(epoch)?.into()],
+            )
+            .await?;
+        rows.iter()
+            .map(|row| {
+                Ok(crate::application::economy_reads::OpenChain {
+                    epoch: unsigned(get::<i64>(row, "epoch")?)?,
+                    owner_kind: get(row, "owner_kind")?,
+                    owner: get(row, "owner_id")?,
+                    instance: unsigned(get::<i64>(row, "instance_id")?)?,
+                    after: get(row, "after")?,
+                })
+            })
+            .collect()
+    }
+
+    async fn lease_epochs(&self, zone: u32, epoch: u64) -> Result<Vec<u64>, EconomyError> {
+        let zone = i32::try_from(zone)
+            .map_err(|_| EconomyError::Constraint("economy_read_out_of_range".into()))?;
+        self.rows(
+            "SELECT DISTINCT epoch FROM economy_leases WHERE zone_id=$1 AND epoch<$2 ORDER BY epoch",
+            vec![zone.into(), signed(epoch)?.into()],
+        )
+        .await?
+        .iter()
+        .map(|row| unsigned(get::<i64>(row, "epoch")?))
+        .collect()
+    }
+
     async fn pre_image(&self, keys: &[LeaseKey]) -> Result<Vec<FrozenRow>, EconomyError> {
         let mut out = Vec::new();
         for key in keys {
