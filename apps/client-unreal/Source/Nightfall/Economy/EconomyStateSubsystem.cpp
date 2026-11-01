@@ -453,7 +453,7 @@ bool UEconomyStateSubsystem::Execute(const TArray<FString>& Tokens)
  const FString Arguments = FString::Join(A, TEXT(" "));
  if (const TOptional<bool> Replayed = Resend(*Op, Key, Arguments); Replayed.IsSet()) return *Replayed;
  FClientMessage Body; if (!Build(Name, A, Key, Body)) return false;
- if (Name == TEXT("nf.buy") || Name == TEXT("nf.sell") || Name == TEXT("nf.refund")) LastMerchant = NpcNamed(TEXT("merchant"));
+ if (Name == TEXT("nf.buy") || Name == TEXT("nf.sell") || Name == TEXT("nf.refund")) LastMerchant = NpcNamed(A[0]);
  if (Name == TEXT("nf.sell") && Body.VendorSell.IsSet()) for (const auto& I : Body.VendorSell->Items) Sold.Add(I.InstanceId.Value);
  if (Name == TEXT("nf.auctionbid") || Name == TEXT("nf.auctioncancel")) LastAuctionNpc = uint32(EconomyDetail::Num(A[0]));
  const uint32 Seq = Net->SendItemMessage(Body); FinishSend(Seq, RequestScope(*Op, Key), *Op, Body, Arguments); return Seq != 0;
@@ -511,9 +511,9 @@ bool UEconomyStateSubsystem::Build(const FString& Name, const TArray<FString>& A
   for (const auto& P : Ground) { const FGroundItem& G = P.Value; if (A[0] != TEXT("nearest") && G.Detail.TemplateId.Value != Num(A[0].Mid(9))) continue; const double D = bOwnPos ? FMath::Square(double(G.Position.X) - double(OwnPos.X)) + FMath::Square(double(G.Position.Y) - double(OwnPos.Y)) : 0; if (!Best || D < BestD) { Best = &G; BestD = D; } }
   if (!Best) return false; FGrpcNightfallV1PickUpItemRequest Q; Q.IdempotencyKey = Key; Q.GroundEntity = Best->EntityId; M.PickUpItem = Q; return true;
  }
- if (Name == TEXT("nf.buy")) { const FString Merchant = Npc(TEXT("merchant")); if (Merchant.IsEmpty()) return false; FGrpcNightfallV1VendorBuyRequest Q; Q.IdempotencyKey = Key; Q.Merchant = Merchant; Q.ListId = Num(A[1]); FGrpcNightfallV1TemplateCount T; T.TemplateId = uint32(Num(A[2])); T.Count = Num(A[3]); Q.Items.Add(T); M.VendorBuy = Q; return true; }
- if (Name == TEXT("nf.sell")) { const FString Merchant = Npc(TEXT("merchant")); const auto Id = Instance(A[2]); if (Merchant.IsEmpty() || !Id.IsSet()) return false; FGrpcNightfallV1VendorSellRequest Q; Q.IdempotencyKey = Key; Q.Merchant = Merchant; Q.ListId = Num(A[1]); FGrpcNightfallV1ItemCount C; C.InstanceId = *Id; C.Count = Num(A[3]); Q.Items.Add(C); M.VendorSell = Q; return true; }
- if (Name == TEXT("nf.refund")) { const FString Merchant = Npc(TEXT("merchant")); if (Merchant.IsEmpty()) return false; FGrpcNightfallV1VendorRefundRequest Q; Q.IdempotencyKey = Key; Q.Merchant = Merchant; Q.ListId = Num(A[1]); Q.RefundIndices.Add(FUInt32(uint32(Num(A[2])))); M.VendorRefund = Q; return true; }
+ if (Name == TEXT("nf.buy")) { const FString Merchant = Npc(*A[0]); if (Merchant.IsEmpty()) return false; FGrpcNightfallV1VendorBuyRequest Q; Q.IdempotencyKey = Key; Q.Merchant = Merchant; Q.ListId = Num(A[1]); FGrpcNightfallV1TemplateCount T; T.TemplateId = uint32(Num(A[2])); T.Count = Num(A[3]); Q.Items.Add(T); M.VendorBuy = Q; return true; }
+ if (Name == TEXT("nf.sell")) { const FString Merchant = Npc(*A[0]); const auto Id = Instance(A[2]); if (Merchant.IsEmpty() || !Id.IsSet()) return false; FGrpcNightfallV1VendorSellRequest Q; Q.IdempotencyKey = Key; Q.Merchant = Merchant; Q.ListId = Num(A[1]); FGrpcNightfallV1ItemCount C; C.InstanceId = *Id; C.Count = Num(A[3]); Q.Items.Add(C); M.VendorSell = Q; return true; }
+ if (Name == TEXT("nf.refund")) { const FString Merchant = Npc(*A[0]); if (Merchant.IsEmpty()) return false; FGrpcNightfallV1VendorRefundRequest Q; Q.IdempotencyKey = Key; Q.Merchant = Merchant; Q.ListId = Num(A[1]); Q.RefundIndices.Add(FUInt32(uint32(Num(A[2])))); M.VendorRefund = Q; return true; }
  if (Name == TEXT("nf.multisell")) { const FString Ex = Npc(TEXT("exchanger")); if (Ex.IsEmpty()) return false; FGrpcNightfallV1MultisellChooseRequest Q; Q.IdempotencyKey = Key; Q.Npc = Ex; Q.ListId = uint32(Num(A[1])); Q.EntryId = uint32(Num(A[2])); Q.Amount = Num(A[3]); M.MultisellChoose = Q; return true; }
  if (Name == TEXT("nf.registerrecipe")) { const auto Id = Instance(A[0]); if (!Id.IsSet()) return false; FGrpcNightfallV1RegisterRecipeRequest Q; Q.IdempotencyKey = Key; Q.RecipeInstanceId = *Id; M.RegisterRecipe = Q; return true; }
  if (Name == TEXT("nf.deleterecipe")) { FGrpcNightfallV1DeleteRecipeRequest Q; Q.IdempotencyKey = Key; Q.RecipeId = uint32(Num(A[0])); M.DeleteRecipe = Q; return true; }

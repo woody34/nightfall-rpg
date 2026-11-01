@@ -52,6 +52,9 @@ SPOIL, SWEEPER, CREATE_ITEM, CREATE_COMMON_ITEM = 254, 42, 172, 1320
 DWARVEN_CRAFT_CLASSES = {54, 55, 56, 57}
 # Fixed noncombat fixture NPCs by pack kind: zone [[npcs]] names the bot resolves (phase4 blacksmith pattern).
 FIXED_NPC_KINDS = ('merchant', 'multisell', 'warehouse_keeper', 'manor_manager', 'auctioneer')
+# P5-D29: the V7 bootstrap spawns these kinds from tables-phase5/merchant_fixtures.toml; the overlay
+# only checks that the pack declares a table row (same npc, name and tile) and never adds them.
+MERCHANT_FIXTURE_KINDS = ('merchant', 'multisell')
 MISSING_FROM_PHASE4_CATALOGUE = ('template is in neither the Phase 4 item catalogue nor the Phase 5 catalogue closure '
                                  '(tables-phase5/catalogue.toml, storable); V7 admission refuses it (P5-D7)')
 
@@ -211,9 +214,15 @@ def create_overlay(destination, repo, pack):
     zone = destination / 'zones/test_zone.toml'
     text = zone.read_text()
     declared = PACKS[pack]
+    fixtures = tomllib.loads((repo / 'packages/data/tables-phase5/merchant_fixtures.toml').read_text())['merchants']
     for npc in declared.get('fixed_npcs', []):
         if npc['kind'] not in FIXED_NPC_KINDS:
             raise ValueError(f'unknown fixed NPC kind {npc["kind"]}')
+        if npc['kind'] in MERCHANT_FIXTURE_KINDS:
+            row = dict(npc=npc['npc_id'], name=npc['name'], x=npc['position'][0], y=npc['position'][1])
+            if row not in fixtures:
+                raise ValueError(f'{pack}: {npc["name"]} is not a merchant_fixtures.toml row (P5-D29)')
+            continue
         text += f'\n[[npcs]]\nname = "{npc["name"]}"\nattackable = false\npos = [{npc["position"][0]}, {npc["position"][1]}]\nspeed = 0\n'
     for monster in declared.get('monsters', []):
         template = f'npc_{monster["npc_id"]}'

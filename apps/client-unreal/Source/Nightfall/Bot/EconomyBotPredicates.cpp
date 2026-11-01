@@ -17,7 +17,7 @@ namespace EconomyBotDetail
   TEXT("party_member_count"), TEXT("loot_mode"), TEXT("party_invite_received"), TEXT("loot_recipient_in_party"), TEXT("loot_recipient"), TEXT("by_turn_cursor_advanced"), TEXT("loot_distributed"), TEXT("loot_distributed_mode"), TEXT("loot_distributed_count"), TEXT("loot_distributed_spoil"), TEXT("own_out_of_party_range"),
   TEXT("corpse_spoiled"), TEXT("corpse_sweepable"), TEXT("corpse_swept"), TEXT("corpse_until_delta"), TEXT("sweep_recipient_in_party"), TEXT("sweep_outcome_received"), TEXT("party_sweep_done"), TEXT("adena_split_share_between"), TEXT("adena_split_origin"), TEXT("loot_vote_phase"),
   TEXT("xp_gained_events"), TEXT("xp_gained_last"), TEXT("sp_gained_last"), TEXT("xp_gained_last_between"), TEXT("xp_share_matches_export"), TEXT("sp_gained_events_for"), TEXT("entity_gone"), TEXT("own_pk_count"), TEXT("pk_drop_count_between"), TEXT("pk_dropped_excluded"), TEXT("pk_unequipped_before_roll"),
-  TEXT("merchant_known"), TEXT("adena_delta"), TEXT("refund_tab_count"), TEXT("refund_tab_oldest_destroyed"), TEXT("vendor_stock"), TEXT("vendor_restock_due_delta"), TEXT("exchanger_known"), TEXT("enchant_of"),
+  TEXT("merchant_known"), TEXT("restock_merchant_known"), TEXT("adena_delta"), TEXT("refund_tab_count"), TEXT("refund_tab_oldest_destroyed"), TEXT("vendor_stock"), TEXT("vendor_restock_due_delta"), TEXT("exchanger_known"), TEXT("enchant_of"),
   TEXT("craft_result_any"), TEXT("craft_result"), TEXT("craft_materials_consumed"), TEXT("craft_masterwork"), TEXT("craft_fee_before_roll"), TEXT("store_state"), TEXT("store_state_of"), TEXT("manufacture_gate_ticks"),
   TEXT("own_trade_confirmed"), TEXT("trade_state"), TEXT("trade_transfer_pairs"), TEXT("trade_request_received"), TEXT("trade_cancel_reason"), TEXT("store_entries_skipped"),
   TEXT("warehouse_keeper_known"), TEXT("container_fee"), TEXT("warehouse_has"), TEXT("container_busy_retry_observed"), TEXT("freight_capacity"), TEXT("freight_has"), TEXT("cod_credit_received"), TEXT("mail_received"), TEXT("mail_expiry_hours"), TEXT("mail_gone"), TEXT("mail_has_attachments"),
@@ -85,10 +85,12 @@ bool EconomyBotPredicates::ValidateCommand(const TArray<FString>& T, FString& Er
  if (T.IsEmpty()) return true; const FString Name = T[0].ToLower(); bool bKnown = false; for (const TCHAR* C : Commands) bKnown = bKnown || Name == FString(C).ToLower(); if (!bKnown) return true;
  TArray<FString> A = T; A.RemoveAt(0); if (!A.IsEmpty() && Guid(A.Last())) A.Pop(); const int32 N = A.Num(); bool V = false;
  auto Mode = [](const FString& S) { return In(S, LootModes); };
+ // P5-D29: the vendor fixture names of tables-phase5/merchant_fixtures.toml.
+ auto Merchant = [](const FString& S) { return S == TEXT("merchant") || S == TEXT("restock_merchant"); };
  if (Name == TEXT("nf.pickup")) V = N == 1 && (A[0] == TEXT("nearest") || TemplateRef(A[0]));
- else if (Name == TEXT("nf.buy")) V = N == 4 && A[0] == TEXT("merchant") && Num(A[1]) && Num(A[2], MAX_uint32) && Num(A[3], MAX_int64);
- else if (Name == TEXT("nf.sell")) V = N == 4 && A[0] == TEXT("merchant") && Num(A[1]) && Item(A[2]) && Num(A[3], MAX_int64);
- else if (Name == TEXT("nf.refund")) V = N == 3 && A[0] == TEXT("merchant") && Num(A[1]) && Num(A[2], 11, true);
+ else if (Name == TEXT("nf.buy")) V = N == 4 && Merchant(A[0]) && Num(A[1]) && Num(A[2], MAX_uint32) && Num(A[3], MAX_int64);
+ else if (Name == TEXT("nf.sell")) V = N == 4 && Merchant(A[0]) && Num(A[1]) && Item(A[2]) && Num(A[3], MAX_int64);
+ else if (Name == TEXT("nf.refund")) V = N == 3 && Merchant(A[0]) && Num(A[1]) && Num(A[2], 11, true);
  else if (Name == TEXT("nf.multisell")) V = (N == 4 || N == 5) && A[0] == TEXT("exchanger") && Num(A[1], MAX_uint32) && Num(A[2], MAX_uint32, true) && Num(A[3], 5000) && (N == 4 || (A[4].StartsWith(TEXT("enchant:")) && Num(A[4].Mid(8), MAX_uint32, true)));
  else if (Name == TEXT("nf.registerrecipe")) V = N == 1 && Item(A[0]);
  else if (Name == TEXT("nf.deleterecipe") || Name == TEXT("nf.craft")) V = N == 1 && Num(A[0], MAX_uint32);
@@ -129,7 +131,7 @@ void EconomyBotPredicates::Register(FBotPredicateRegistry& R)
  {
   const int32 N = A.Num(); bool Valid = false;
   auto Flag0 = [&] { return N == 0; };
-  if (Name == TEXT("ground_drop_protection_none") || Name == TEXT("ground_item_any") || Name == TEXT("economy_export_marker") || Name == TEXT("party_invite_received") || Name == TEXT("loot_recipient_in_party") || Name == TEXT("by_turn_cursor_advanced") || Name == TEXT("loot_distributed") || Name == TEXT("own_out_of_party_range") || Name == TEXT("sweep_recipient_in_party") || Name == TEXT("sweep_outcome_received") || Name == TEXT("xp_share_matches_export") || Name == TEXT("pk_unequipped_before_roll") || Name == TEXT("merchant_known") || Name == TEXT("refund_tab_oldest_destroyed") || Name == TEXT("exchanger_known") || Name == TEXT("craft_result_any") || Name == TEXT("craft_fee_before_roll") || Name == TEXT("own_trade_confirmed") || Name == TEXT("trade_request_received") || Name == TEXT("warehouse_keeper_known") || Name == TEXT("container_busy_retry_observed") || Name == TEXT("auctioneer_known") || Name == TEXT("manor_manager_known") || Name == TEXT("manor_drops_unchanged") || Name == TEXT("manor_fee_equals_p_div_20") || Name == TEXT("epoch_reconcile_rows_before_admission")) Valid = Flag0();
+  if (Name == TEXT("ground_drop_protection_none") || Name == TEXT("ground_item_any") || Name == TEXT("economy_export_marker") || Name == TEXT("party_invite_received") || Name == TEXT("loot_recipient_in_party") || Name == TEXT("by_turn_cursor_advanced") || Name == TEXT("loot_distributed") || Name == TEXT("own_out_of_party_range") || Name == TEXT("sweep_recipient_in_party") || Name == TEXT("sweep_outcome_received") || Name == TEXT("xp_share_matches_export") || Name == TEXT("pk_unequipped_before_roll") || Name == TEXT("merchant_known") || Name == TEXT("restock_merchant_known") || Name == TEXT("refund_tab_oldest_destroyed") || Name == TEXT("exchanger_known") || Name == TEXT("craft_result_any") || Name == TEXT("craft_fee_before_roll") || Name == TEXT("own_trade_confirmed") || Name == TEXT("trade_request_received") || Name == TEXT("warehouse_keeper_known") || Name == TEXT("container_busy_retry_observed") || Name == TEXT("auctioneer_known") || Name == TEXT("manor_manager_known") || Name == TEXT("manor_drops_unchanged") || Name == TEXT("manor_fee_equals_p_div_20") || Name == TEXT("epoch_reconcile_rows_before_admission")) Valid = Flag0();
   else if (Name == TEXT("ground_item_exists") || Name == TEXT("ground_protection_expired") || Name == TEXT("ground_item_gone") || Name == TEXT("ground_despawn_on_grid") || Name == TEXT("herb_skill_early_abort") || Name == TEXT("auction_award_to_warehouse") || Name == TEXT("craft_materials_consumed") || Name == TEXT("recipe_registered")) Valid = N == 1 && Num(A[0], MAX_uint32);
   else if (Name == TEXT("corpse_spoiled") || Name == TEXT("corpse_sweepable") || Name == TEXT("corpse_swept") || Name == TEXT("party_sweep_done") || Name == TEXT("entity_gone") || Name == TEXT("corpse_seeded_or_sow_failed") || Name == TEXT("harvest_done")) Valid = N == 1 && NpcRef(A[0]);
   else if (Name == TEXT("ground_item_kind")) Valid = N == 3 && Num(A[0], MAX_uint32) && A[1] == TEXT("==") && A[2] == TEXT("3");
@@ -235,7 +237,10 @@ void EconomyBotPredicates::Register(FBotPredicateRegistry& R)
    if (Name == TEXT("pk_drop_count_between")) { const auto Nn = E->PkDropCount(); return Between(Nn.IsSet() ? TOptional<uint64>(uint64(*Nn)) : TOptional<uint64>(), V(0), V(1)); }
    if (Name == TEXT("pk_unequipped_before_roll")) { const auto X = E->PkUnequippedBeforeRoll(); return X.IsSet() ? Flag(*X, TEXT("equipment cleared before the removal"), TEXT("removal first")) : Unknown(TEXT("no death removal received")); }
    // NPC presence
-   if (Name == TEXT("merchant_known") || Name == TEXT("exchanger_known") || Name == TEXT("warehouse_keeper_known") || Name == TEXT("auctioneer_known") || Name == TEXT("manor_manager_known")) { FString Who = Name; Who.RemoveFromEnd(TEXT("_known")); const FString Id = E->NpcNamed(Who); return { !Id.IsEmpty(), Id.IsEmpty() ? FString(TEXT("unknown")) : Id }; }
+   if (Name == TEXT("merchant_known") || Name == TEXT("restock_merchant_known") || Name == TEXT("exchanger_known") || Name == TEXT("warehouse_keeper_known") || Name == TEXT("auctioneer_known") || Name == TEXT("manor_manager_known")) { FString Who = Name; Who.RemoveFromEnd(TEXT("_known")); const FString Id = E->NpcNamed(Who);
+    // P5-D29: a vendor fixture that the scenario waits for is the merchant of the next buylist reads.
+    if (!Id.IsEmpty() && (Who == TEXT("merchant") || Who == TEXT("restock_merchant")) && E->BuylistMerchant() != Id.ToLower()) E->OpenBuylist(Id);
+    return { !Id.IsEmpty(), Id.IsEmpty() ? FString(TEXT("unknown")) : Id }; }
    // vendors
    if (Name == TEXT("refund_tab_count") || Name == TEXT("refund_tab_oldest_destroyed") || Name == TEXT("vendor_stock"))
    {

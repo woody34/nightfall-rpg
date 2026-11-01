@@ -62,6 +62,61 @@ class Contract(unittest.TestCase):
         self.assertEqual({(s['skill_id'], s['line']) for s in TABLE['sources']}, {(42, 1465), (254, 1342), (2097, 1537), (2098, 1558)})
 
 
+class Herbs(unittest.TestCase):
+    """P5-D17/P5-D19: the 48 herb item skills (Z lane, api-inbox 2026-11-01)."""
+
+    BLOCKED = {
+        2245: ['effect:MpPerMax'], 2246: ['cond:using_kind:ETC'], 2279: ['effect:MpPerMax'],
+        2485: ['scope:PARTY', 'scope_filter:FRIEND'], 2486: ['effect:MpPerMax', 'scope:PARTY', 'scope_filter:FRIEND'],
+        2512: ['stat:absorbDam'], 2513: ['cond:player:transformationId'], 2580: ['stat:vitalityConsumeRate'],
+        2900: ['cond:player:level'], 2901: ['cond:player:level', 'effect:BlockDamage', 'effect:BlockDebuff'],
+        2902: ['cond:player:level'], 2903: ['cond:player:level'], 9162: ['stat:absorbDam'],
+        22004: ['stat:vitalityConsumeRate'], 22005: ['effect:VitalityPointUp'], 22030: ['stat:vitalityConsumeRate'],
+        22097: ['effect:MaxCp'], 22098: ['effect:MaxCp'], 22158: ['operate:A4'], 22160: ['stat:absorbDam'],
+        22162: ['stat:vitalityConsumeRate'],
+    }
+
+    @classmethod
+    def setUpClass(cls):
+        content, cls.counts = gen_skill_promotions.generate(DP, herbs=True)
+        cls.table = tomllib.loads(content)
+
+    def test_the_48_skills_split_into_clean_additions_and_reported_blockers(self):
+        herbs = gen_skill_promotions.herb_skill_ids()
+        self.assertEqual(len(herbs), 48)
+        clean = [a['skill']['id'] for a in self.table['additions'] if a['skill']['id'] in herbs]
+        self.assertEqual(len(clean), 27)
+        self.assertEqual({int(k): v for k, v in self.counts['blocked_herbs'].items()}, self.BLOCKED)
+        self.assertEqual(sorted(clean + list(self.BLOCKED)), herbs)
+        ids = [a['skill']['id'] for a in self.table['additions']]
+        self.assertEqual(ids, sorted(set(ids)))
+        self.assertFalse(floats(self.table))
+
+    def test_clean_rows_are_executable_v6_rows_with_empty_clears_for_every_level(self):
+        for row in self.table['additions']:
+            skill = row['skill']
+            if skill['id'] in (2097, 2098):
+                continue
+            with self.subTest(skill=skill['id']):
+                self.assertFalse((DATA / f'skills-phase4/{skill["id"]}.toml').exists())
+                self.assertEqual((row['clears'], skill['blockers'], skill['runtime_status']), ([], [], 'executable'))
+                self.assertLessEqual(SKILL_KEYS - {'conditions'}, set(skill) | {'conditions'})
+        levels = {a['skill']['id']: a['skill']['max_level'] for a in self.table['additions']}
+        self.assertEqual((levels[2278], levels[22128], levels[2244]), (3, 3, 1))
+
+    def test_herb_sources_point_at_the_pinned_skill_lines(self):
+        herbs = set(gen_skill_promotions.herb_skill_ids())
+        anchors = {src['skill_id']: (src['file'], src['line']) for src in self.table['sources'] if src['skill_id'] in herbs}
+        self.assertEqual(len(anchors), 27)
+        for sid, (rel, line) in anchors.items():
+            with self.subTest(skill=sid):
+                self.assertIn(f'<skill id="{sid}"', (DP / rel).read_text().splitlines()[line - 1])
+        # Spot checks against dp 3ca488dd (file:line, levels).
+        self.assertEqual(anchors[2278][0], 'src/main/resources/data/stats/skills/02200-02299.xml')
+        self.assertIn('levels="3"', (DP / anchors[2278][0]).read_text().splitlines()[anchors[2278][1] - 1])
+        self.assertIn('levels="3"', (DP / anchors[22128][0]).read_text().splitlines()[anchors[22128][1] - 1])
+
+
 class Guard(unittest.TestCase):
     def test_a_changed_v6_skill_bundle_is_refused(self):
         with tempfile.TemporaryDirectory() as tmp:
