@@ -1025,6 +1025,35 @@ def fam_lp(out: dict) -> str:
     return "RANDOM over 16 in-range subsets; BY_TURN cursor/wrap/full lap; even split k=1..9; sweep routing in 5 modes"
 
 
+INT_MAX = (1 << 31) - 1
+INT_MIN = -(1 << 31)
+LONG_MAX = (1 << 63) - 1
+LONG_MIN = -(1 << 63)
+
+
+def java_int(x: F) -> int:
+    """Java `(int)` of a float or double (JLS 5.1.3): truncate toward zero, then saturate at
+    Integer.MIN_VALUE / MAX_VALUE (z-review-3 P2-2). Compound `int *= float/double` is the same."""
+    return max(INT_MIN, min(INT_MAX, math.trunc(x)))
+
+
+def java_long(x: F) -> int:
+    """Java `(long)` of a float or double: truncate toward zero, saturate at Long.MIN/MAX_VALUE."""
+    return max(LONG_MIN, min(LONG_MAX, math.trunc(x)))
+
+
+def java_int_mul(a: int, b: int) -> int:
+    """Java `int * int`: two's-complement wrap to 32 bits (no saturation, JLS 15.17.1)."""
+    v = (a * b) & 0xFFFF_FFFF
+    return v - (1 << 32) if v > INT_MAX else v
+
+
+def java_div(a: int, b: int) -> int:
+    """Java integer division: truncates toward zero."""
+    q = abs(a) // abs(b)
+    return q if (a >= 0) == (b >= 0) else -q
+
+
 def pow56(k: int) -> F:
     require(1 <= k <= 79, f"pow56 k={k} fails closed")
     return fl(fl(F(5) / 6) ** k)
@@ -1034,8 +1063,9 @@ def base_rewards(level: int, exp_rate: str, sp: str, g: str = "1") -> tuple[int,
     G = fl(F(g))
     rx = rate_prime(prop("rates.properties", "RateXp"), "float", G)
     rs = rate_prime(prop("rates.properties", "RateSp"), "float", G)
-    X = math.floor(fl(fl(level * level * cd(exp_rate)) * rx))
-    S = math.floor(fl(cd(sp) * rs))
+    # getExpReward (long) and getSpReward (int, saturating at 2^31 - 1), L2Npc.java:961-970.
+    X = java_long(fl(fl(level * level * cd(exp_rate)) * rx))
+    S = java_int(fl(cd(sp) * rs))
     return X, S
 
 
@@ -1050,7 +1080,8 @@ def calc_exp_sp(diff: int, dmg: int, total: int, X: int, S: int) -> tuple[int, i
         x, s = F(0), F(0)
     elif s <= 0:
         s = F(0)
-    return math.floor(x), math.floor(s)
+    # `new int[] {(int) xp, (int) sp}` (L2Attackable.java:1173-1176): both saturate at 2^31 - 1.
+    return java_int(x), java_int(s)
 
 
 def award_xp(xp: int, race: str | None) -> int:
@@ -1072,8 +1103,9 @@ def bonus(n: int, key: str) -> F:
 
 def party_distribute(e: int, s: int, levels: list[int], alive: list[bool], top: int) -> list[tuple[int, int]]:
     n = len(levels)
-    e = math.floor(fl(e * bonus(n, "RatePartyXp")))
-    s = math.floor(fl(s * bonus(n, "RatePartySp")))
+    # xpReward *= getExpBonus (long); spReward *= getSpBonus (int, saturating), L2Party.java:647-648.
+    e = java_long(fl(e * bonus(n, "RatePartyXp")))
+    s = java_int(fl(s * bonus(n, "RatePartySp")))
     sq = sum(lv * lv for lv in levels)
     gaps = [tuple(map(int, g.split(","))) for g in prop("character.properties", "PartyXpCutoffGaps").split(";")]
     pct = [int(x) for x in prop("character.properties", "PartyXpCutoffGapPercent").split(",")]
@@ -1084,12 +1116,14 @@ def party_distribute(e: int, s: int, levels: list[int], alive: list[bool], top: 
             continue
         pre = fl(fl(F(lv * lv) / sq) * 1)
         ae = round_half_up(fl(e * pre))
-        as_ = math.floor(fl(s * pre))
+        as_ = java_int(fl(s * pre))  # int addsp = (int) (spReward * preCalculation), :673
         gap = top - lv
         award = (0, 0)
         for (lo, hi), p in zip(gaps, pct):
             if lo <= gap <= hi:
-                award = (ae * p // 100, as_ * p // 100)
+                # :703-704: xp in long arithmetic; sp = (addSp * percent) / 100 in int arithmetic,
+                # so addSp * percent wraps above 2^31 - 1 before the division.
+                award = (java_div(ae * p, 100), java_div(java_int_mul(as_, p), 100))
                 break
         out.append(award)
     return out
@@ -1138,8 +1172,8 @@ def reward_pass(R: dict[int, dict], parties: list[list[int]], players: dict[int,
                 party_lvl = max(party_lvl, pm["level"])
         party_mul = F(1) if party_dmg >= total else fl32(fl32(party_dmg) / fl32(total))
         e, s = calc_exp_sp(party_lvl - npc_level, party_dmg, total, X, S)
-        e = math.floor(fl32(fl32(e) * party_mul))
-        s = math.floor(fl32(fl32(s) * party_mul))
+        e = java_long(fl32(fl32(e) * party_mul))  # exp *= partyMul (long)
+        s = java_int(fl32(fl32(s) * party_mul))  # sp *= partyMul (int, saturating)
         rec = {"visit": pid, "branch": "party", "partyDmg": party_dmg, "partyLvl": party_lvl,
                "partyMul_bits": bits(party_mul), "exp": e, "sp": s, "rewarded": rewarded}
         if party_dmg > 0:
@@ -1152,6 +1186,47 @@ def reward_pass(R: dict[int, dict], parties: list[list[int]], players: dict[int,
             rec["distribution"] = dist
         passes.append(rec)
     return {"total": total, "passes": passes, "awards": {str(k): v for k, v in sorted(awards.items())}}
+
+
+def int_saturation_g8() -> dict:
+    """npc 29068 (level 85, exp_rate 74538.2124407948, sp 63323403; rewards.toml) at G = 8. The XP
+    base is above 2^31 - 1, so `(int) xp` in calculateExpAndSp saturates; `sp *= partyMul`
+    converts the saturated value through float (2^31) and saturates again; the party cutoff
+    multiplies addSp * percent in int arithmetic, which wraps (pinned L2Party.java:704)."""
+    row = next(r for r in table("rewards.toml")["npc"] if r["id"] == 29068)
+    require((row["level"], row["exp_rate"], row["sp"]) == (85, "74538.2124407948", "63323403"), "npc 29068 row")
+    X, S = base_rewards(row["level"], row["exp_rate"], row["sp"], "8")
+    require(X > INT_MAX and S <= INT_MAX, f"G = 8: X {X} above int, S {S} inside")
+    solo = calc_exp_sp(0, 1000, 1000, X, S)
+    require(solo[0] == INT_MAX, "calculateExpAndSp (int) xp saturates")
+    require(math.floor(fl(fl(F(X) * 1000) / 1000)) > INT_MAX, "the unclamped double is above int")
+    solo_exp = java_long(fl32(fl32(solo[0]) * 1))
+    require(solo_exp == 1 << 31, "exp *= penalty: fl32(2^31 - 1) = 2^31 in long")
+    # A party pass: the whole damage, so partyMul = 1; 3 members at levels 85/80/75 (gaps 0/5/10).
+    players = {1: {"level": 85, "alive": True, "in_range": True}, 2: {"level": 80, "alive": True, "in_range": True},
+               3: {"level": 75, "alive": True, "in_range": True}}
+    R = {1: {"damage": 700}, 2: {"damage": 300}}
+    rp = reward_pass(R, [[1, 2, 3]], players, 85, X, S)
+    p1 = rp["passes"][0]
+    require(p1["exp"] == 1 << 31 and p1["sp"] == java_int(fl32(F(S))), "party: exp 2^31 (long); sp through float")
+    # sp *= partyMul at the int maximum: float 2^31, then (int) saturates back to 2^31 - 1.
+    sat_sp = java_int(fl32(fl32(INT_MAX) * F(1)))
+    require(sat_sp == INT_MAX, "sp *= 1 at 2^31 - 1: float 2^31, (int) saturates to 2^31 - 1")
+    dist = p1["distribution"]
+    unclamped = []
+    e_b = java_long(fl(p1["exp"] * bonus(3, "RatePartyXp")))
+    s_b = java_int(fl(p1["sp"] * bonus(3, "RatePartySp")))
+    sq = sum(players[m]["level"] ** 2 for m in (1, 2, 3))
+    for m in (1, 2, 3):
+        pre = fl(fl(F(players[m]["level"] ** 2) / sq) * 1)
+        unclamped.append(java_int(fl(s_b * pre)))
+    wrapped = [i for i, (a, u) in enumerate(zip(dist, unclamped)) if u * 100 > INT_MAX]
+    require(wrapped, "addSp * percent wraps for at least one member")
+    return {"npc": 29068, "G": "8", "X": X, "S": S, "solo_diff0_full_damage": list(solo),
+            "solo_exp_after_penalty": solo_exp, "sp_times_partymul_at_int_max": sat_sp,
+            "party": {"players": {str(k): v for k, v in players.items()}, "R": {str(k): v for k, v in R.items()},
+                      "result": rp, "bonus_sp": s_b, "addsp_before_cutoff": unclamped,
+                      "cutoff_sp_int_overflow_members": wrapped}}
 
 
 @family("X", "1.6")
@@ -1249,6 +1324,8 @@ def fam_x(out: dict) -> str:
     vec["human_bonus"] = {"rule": "award_xp: floor(xp * 105 / 100) for race human (Phase 2), SP unchanged",
                           "examples": {str(x): award_xp(x, "human") for x in (80, 115, 999, 1000)},
                           "reward_pass_awards": as_human["awards"]}
+    # z-review-3 P2-2: Java (int) saturation at 2^31 - 1, npc 29068 at G = 8.
+    vec["int_saturation_g8"] = int_saturation_g8()
     vec["party"] = party
     vec["gaps"] = gaps
     vec["reward_pass"] = {"X": Xn, "S": Sn, "players": {str(k): v for k, v in players.items()},
