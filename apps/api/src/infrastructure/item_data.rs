@@ -568,6 +568,11 @@ fn insert_index(
     parts.insert(name.into(), serde_json::to_value(index).map_err(|error| error.to_string())?);
     Ok(())
 }
+/// The V6 row normalisation, for tables that reuse the V6 row encoding (D10 closure rows).
+pub(crate) fn normalize_rows(value: Value) -> Result<Value, String> {
+    normalize(value)
+}
+
 fn normalize(value: Value) -> Result<Value, String> {
     match value {
         Value::Array(values) => values

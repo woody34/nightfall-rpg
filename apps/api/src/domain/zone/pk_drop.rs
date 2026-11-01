@@ -103,7 +103,8 @@ pub fn plan_pk_drop(
 ) -> Result<PkPlan, DropError> {
     let mut plan = PkPlan::default();
     let karma_drop = karma > 0 && u64::from(pk_kills) >= policy.minimum_pk_required_to_drop;
-    // The NPC-killer branch's dropPercent is PlayerRateDrop = 0: the gate is never drawn.
+    // The NPC-killer branch's dropPercent is the hashed PlayerRateDrop, which
+    // `Phase5Rules::try_new` pins to 0 (z-review-3 P3-3): the gate is never drawn.
     if !killer || !karma_drop {
         return Ok(plan);
     }

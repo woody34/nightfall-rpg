@@ -349,3 +349,31 @@ fn record_schema_nine_is_binary_v7_and_older_schemas_stay_byte_exact() {
     assert_eq!(v6.digest_version, StateDigestVersion::BinaryV6);
     assert_eq!(v6.try_encode().unwrap(), empty(8).encode_to_vec());
 }
+
+#[test]
+fn phase5_reject_reasons_take_codec_52_to_102_and_wire_38_to_88() {
+    let names: Vec<(String, String, i32)> =
+        include_str!("../../../../../packages/proto/nightfall/v1/world.proto")
+            .lines()
+            .filter_map(|line| {
+                let line = line.trim();
+                let rest = line.strip_prefix("REJECT_REASON_")?;
+                let (name, value) = rest.split_once(" = ")?;
+                let value: i32 = value.split(';').next()?.trim().parse().ok()?;
+                (38..=88)
+                    .contains(&value)
+                    .then(|| (name.to_owned(), String::new(), value))
+            })
+            .collect();
+    assert_eq!(names.len(), 51);
+    let mut seen = Vec::new();
+    for codec in 52..=102 {
+        let reason = reason_from_pb(codec).unwrap();
+        assert_eq!(reason_to_pb(reason), codec);
+        let wire = crate::interface::zone_mapping::reject_reason_to_pb(reason) as i32;
+        assert_eq!(wire, codec - 14, "{reason:?}");
+        assert!(!seen.contains(&reason));
+        seen.push(reason);
+    }
+    assert!(reason_from_pb(103).is_err());
+}

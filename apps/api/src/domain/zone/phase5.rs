@@ -352,6 +352,9 @@ pub struct Phase5Zone {
     /// The B16 awards computed in `death_v7` from the hate ledger, consumed at `kill()` step 7
     /// of the same death (design §2.2). Never snapshot state.
     pub rewards: Option<(EntityId, Vec<super::rewards::Award>)>,
+    /// Owner-kind ledger rows staged this tick (design §11.2–§11.3), flushed with T1
+    /// ordinals into the tick's `EconomyCheckpoint`. Never snapshot state.
+    pub ledger: Vec<super::phase5_event::EconomyLedgerRow>,
 }
 
 /// Inputs the invariants read from the rest of the zone (design §1.11).

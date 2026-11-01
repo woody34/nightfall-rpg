@@ -329,6 +329,108 @@ pub enum RejectReason {
     ItemCapabilityDeferred,
     /// Phase 4 `CrystallizeLevelTooLow` refusal.
     CrystallizeLevelTooLow,
+    /// Phase 5 `REJECT_REASON_GROUND_ITEM_NOT_FOUND` (wire 38).
+    GroundItemNotFound,
+    /// Phase 5 `REJECT_REASON_GROUND_ITEM_PROTECTED` (wire 39): `DropProtection` or loot owner.
+    GroundItemProtected,
+    /// Phase 5 `REJECT_REASON_INVALID_MERCHANT` (wire 40): not a merchant/keeper/manager, or list not allowed.
+    InvalidMerchant,
+    /// Phase 5 `REJECT_REASON_INVALID_QUANTITY` (wire 41).
+    InvalidQuantity,
+    /// Phase 5 `REJECT_REASON_VENDOR_OUT_OF_STOCK` (wire 42).
+    VendorOutOfStock,
+    /// Phase 5 `REJECT_REASON_ADENA_LIMIT` (wire 43): `MaxAdena` / price overflow guards.
+    AdenaLimit,
+    /// Phase 5 `REJECT_REASON_WEIGHT_LIMIT` (wire 44).
+    WeightLimit,
+    /// Phase 5 `REJECT_REASON_INSUFFICIENT_ADENA` (wire 45).
+    InsufficientAdena,
+    /// Phase 5 `REJECT_REASON_ITEM_NOT_SELLABLE` (wire 46).
+    ItemNotSellable,
+    /// Phase 5 `REJECT_REASON_ITEM_COUNT_CAP` (wire 47): D68/D70 receiver cap.
+    ItemCountCap,
+    /// Phase 5 `REJECT_REASON_RECIPE_ALREADY_REGISTERED` (wire 48).
+    RecipeAlreadyRegistered,
+    /// Phase 5 `REJECT_REASON_RECIPE_BOOK_FULL` (wire 49).
+    RecipeBookFull,
+    /// Phase 5 `REJECT_REASON_CRAFT_SKILL_MISSING` (wire 50).
+    CraftSkillMissing,
+    /// Phase 5 `REJECT_REASON_CRAFT_LEVEL_TOO_LOW` (wire 51).
+    CraftLevelTooLow,
+    /// Phase 5 `REJECT_REASON_MISSING_MATERIALS` (wire 52).
+    MissingMaterials,
+    /// Phase 5 `REJECT_REASON_IN_COMBAT` (wire 53).
+    EconomyInCombat,
+    /// Phase 5 `REJECT_REASON_NO_PENDING_REQUEST` (wire 54).
+    NoPendingRequest,
+    /// Phase 5 `REJECT_REASON_ALREADY_TRADING` (wire 55).
+    AlreadyTrading,
+    /// Phase 5 `REJECT_REASON_TARGET_BUSY` (wire 56).
+    TargetBusy,
+    /// Phase 5 `REJECT_REASON_CANNOT_TRADE_IN_STORE` (wire 57).
+    CannotTradeInStore,
+    /// Phase 5 `REJECT_REASON_CANNOT_ADJUST_AFTER_CONFIRM` (wire 58).
+    CannotAdjustAfterConfirm,
+    /// Phase 5 `REJECT_REASON_ITEM_NOT_TRADABLE` (wire 59).
+    ItemNotTradable,
+    /// Phase 5 `REJECT_REASON_STORE_SLOT_LIMIT` (wire 60).
+    StoreSlotLimit,
+    /// Phase 5 `REJECT_REASON_STORE_NOT_OPEN` (wire 61).
+    StoreNotOpen,
+    /// Phase 5 `REJECT_REASON_PACKAGE_INCOMPLETE` (wire 62).
+    PackageIncomplete,
+    /// Phase 5 `REJECT_REASON_PRICE_MISMATCH` (wire 63).
+    PriceMismatch,
+    /// Phase 5 `REJECT_REASON_PARTY_FULL` (wire 64).
+    PartyFull,
+    /// Phase 5 `REJECT_REASON_PARTY_ALREADY_IN_PARTY` (wire 65).
+    PartyAlreadyInParty,
+    /// Phase 5 `REJECT_REASON_NOT_PARTY_LEADER` (wire 66).
+    NotPartyLeader,
+    /// Phase 5 `REJECT_REASON_NOT_PARTY_MEMBER` (wire 67).
+    NotPartyMember,
+    /// Phase 5 `REJECT_REASON_PARTY_LOOT_VOTE_IN_PROGRESS` (wire 68).
+    PartyLootVoteInProgress,
+    /// Phase 5 `REJECT_REASON_CONTAINER_BUSY` (wire 69): lease held (retryable).
+    ContainerBusy,
+    /// Phase 5 `REJECT_REASON_WAREHOUSE_FULL` (wire 70).
+    WarehouseFull,
+    /// Phase 5 `REJECT_REASON_ITEM_NOT_DEPOSITABLE` (wire 71).
+    ItemNotDepositable,
+    /// Phase 5 `REJECT_REASON_FREIGHT_TARGET_INVALID` (wire 72).
+    FreightTargetInvalid,
+    /// Phase 5 `REJECT_REASON_ITEM_NOT_FREIGHTABLE` (wire 73).
+    ItemNotFreightable,
+    /// Phase 5 `REJECT_REASON_FREIGHT_FULL` (wire 74).
+    FreightFull,
+    /// Phase 5 `REJECT_REASON_PEACE_ZONE_REQUIRED` (wire 75).
+    PeaceZoneRequired,
+    /// Phase 5 `REJECT_REASON_MAIL_ATTACHMENTS_EXCEEDED` (wire 76).
+    MailAttachmentsExceeded,
+    /// Phase 5 `REJECT_REASON_MAIL_RECEIVER_NOT_FOUND` (wire 77).
+    MailReceiverNotFound,
+    /// Phase 5 `REJECT_REASON_MAILBOX_FULL` (wire 78).
+    MailboxFull,
+    /// Phase 5 `REJECT_REASON_MAIL_NOT_FOUND` (wire 79): absent, expired, or not the actor's.
+    MailNotFound,
+    /// Phase 5 `REJECT_REASON_MAIL_ALREADY_TAKEN` (wire 80).
+    MailAlreadyTaken,
+    /// Phase 5 `REJECT_REASON_SWEEP_NOT_ALLOWED` (wire 81): not spoiler/party, old corpse, not spoiled.
+    SweepNotAllowed,
+    /// Phase 5 `REJECT_REASON_NOT_SEEDABLE` (wire 82): Seed handler failures incl. wrong castle area.
+    NotSeedable,
+    /// Phase 5 `REJECT_REASON_HARVEST_NOT_ALLOWED` (wire 83).
+    HarvestNotAllowed,
+    /// Phase 5 `REJECT_REASON_MANOR_UNAVAILABLE` (wire 84).
+    ManorUnavailable,
+    /// Phase 5 `REJECT_REASON_AUCTION_NOT_ACTIVE` (wire 85).
+    AuctionNotActive,
+    /// Phase 5 `REJECT_REASON_BID_TOO_LOW` (wire 86).
+    BidTooLow,
+    /// Phase 5 `REJECT_REASON_BID_TOO_HIGH` (wire 87): > 100,000,000,000.
+    BidTooHigh,
+    /// Phase 5 `REJECT_REASON_NO_BID_TO_CANCEL` (wire 88).
+    NoBidToCancel,
 
     /// Skill is outside the current lineage or automatically granted.
     SkillNotLearnable,
@@ -435,6 +537,57 @@ impl RejectReason {
             Self::ItemOperationConflict => "ItemOperationConflict",
             Self::ItemCapabilityDeferred => "ItemCapabilityDeferred",
             Self::CrystallizeLevelTooLow => "CrystallizeLevelTooLow",
+            Self::GroundItemNotFound => "GroundItemNotFound",
+            Self::GroundItemProtected => "GroundItemProtected",
+            Self::InvalidMerchant => "InvalidMerchant",
+            Self::InvalidQuantity => "InvalidQuantity",
+            Self::VendorOutOfStock => "VendorOutOfStock",
+            Self::AdenaLimit => "AdenaLimit",
+            Self::WeightLimit => "WeightLimit",
+            Self::InsufficientAdena => "InsufficientAdena",
+            Self::ItemNotSellable => "ItemNotSellable",
+            Self::ItemCountCap => "ItemCountCap",
+            Self::RecipeAlreadyRegistered => "RecipeAlreadyRegistered",
+            Self::RecipeBookFull => "RecipeBookFull",
+            Self::CraftSkillMissing => "CraftSkillMissing",
+            Self::CraftLevelTooLow => "CraftLevelTooLow",
+            Self::MissingMaterials => "MissingMaterials",
+            Self::EconomyInCombat => "InCombat",
+            Self::NoPendingRequest => "NoPendingRequest",
+            Self::AlreadyTrading => "AlreadyTrading",
+            Self::TargetBusy => "TargetBusy",
+            Self::CannotTradeInStore => "CannotTradeInStore",
+            Self::CannotAdjustAfterConfirm => "CannotAdjustAfterConfirm",
+            Self::ItemNotTradable => "ItemNotTradable",
+            Self::StoreSlotLimit => "StoreSlotLimit",
+            Self::StoreNotOpen => "StoreNotOpen",
+            Self::PackageIncomplete => "PackageIncomplete",
+            Self::PriceMismatch => "PriceMismatch",
+            Self::PartyFull => "PartyFull",
+            Self::PartyAlreadyInParty => "PartyAlreadyInParty",
+            Self::NotPartyLeader => "NotPartyLeader",
+            Self::NotPartyMember => "NotPartyMember",
+            Self::PartyLootVoteInProgress => "PartyLootVoteInProgress",
+            Self::ContainerBusy => "ContainerBusy",
+            Self::WarehouseFull => "WarehouseFull",
+            Self::ItemNotDepositable => "ItemNotDepositable",
+            Self::FreightTargetInvalid => "FreightTargetInvalid",
+            Self::ItemNotFreightable => "ItemNotFreightable",
+            Self::FreightFull => "FreightFull",
+            Self::PeaceZoneRequired => "PeaceZoneRequired",
+            Self::MailAttachmentsExceeded => "MailAttachmentsExceeded",
+            Self::MailReceiverNotFound => "MailReceiverNotFound",
+            Self::MailboxFull => "MailboxFull",
+            Self::MailNotFound => "MailNotFound",
+            Self::MailAlreadyTaken => "MailAlreadyTaken",
+            Self::SweepNotAllowed => "SweepNotAllowed",
+            Self::NotSeedable => "NotSeedable",
+            Self::HarvestNotAllowed => "HarvestNotAllowed",
+            Self::ManorUnavailable => "ManorUnavailable",
+            Self::AuctionNotActive => "AuctionNotActive",
+            Self::BidTooLow => "BidTooLow",
+            Self::BidTooHigh => "BidTooHigh",
+            Self::NoBidToCancel => "NoBidToCancel",
             Self::SkillUnknown => "SkillUnknown",
             Self::SkillNotLearned => "SkillNotLearned",
             Self::SkillCooldown => "SkillCooldown",

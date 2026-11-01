@@ -28,6 +28,10 @@ mod item_views;
 mod items;
 #[path = "state_phase5_death.rs"]
 mod phase5_death;
+#[path = "state_phase5_party.rs"]
+mod phase5_party;
+#[path = "state_phase5_pickup.rs"]
+mod phase5_pickup;
 #[path = "state_phase5.rs"]
 mod phase5_runtime;
 #[path = "state_runtime.rs"]
@@ -946,6 +950,7 @@ impl ZoneState {
                     rules: economy,
                     fault: None,
                     rewards: None,
+                    ledger: Vec::new(),
                 }))
             },
             _ => Err(SnapshotError::Rules("explicit matching V7 economy rules required".into())),
@@ -961,6 +966,13 @@ impl ZoneState {
     ) -> Result<Self, SnapshotError> {
         snapshot.validate_version()?;
         let phase5 = Self::bind_phase5(snapshot.phase5.clone(), economy, rules.as_deref())?;
+        // D10: a V7 state restores on the V7 item view (V6 ∪ closure, under the V6 hash).
+        let rules = match &phase5 {
+            Some(phase5) => Some(Arc::clone(phase5.rules.v7_items().ok_or_else(|| {
+                SnapshotError::Rules("V7 economy rules without the bound closure items".into())
+            })?)),
+            None => rules,
+        };
         let phase4 = match (snapshot.phase4.clone(), rules) {
             (None, None) => None,
             (Some(canonical), Some(rules)) => {
