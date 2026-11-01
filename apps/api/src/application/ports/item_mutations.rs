@@ -236,7 +236,14 @@ pub fn economy_text<'a>(
 /// `transfer_in` with `before = None` and the same link, instance and canonical fields is the
 /// only `before = None` row exempt from D67 (and from the allocator rule) for a known instance.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct IdentityLinks(BTreeMap<String, (u64, crate::domain::zone::ItemInstance)>);
+pub struct IdentityLinks {
+    by_link: BTreeMap<String, (u64, crate::domain::zone::ItemInstance)>,
+    /// Links whose source is another character's projection (P5-D27).
+    from_projection: BTreeSet<String>,
+    /// Instances re-homed from one character to another in this write: their source row is
+    /// removed before the parts settle, so the source's settlement tolerates the absence.
+    rehomed: BTreeSet<u64>,
+}
 
 impl IdentityLinks {
     /// The links of a write. Character rows are refused: under P5-D22 they travel in the
@@ -258,7 +265,33 @@ impl IdentityLinks {
                 .delta
                 .get("after")
                 .is_none_or(serde_json::Value::is_null);
-            if let (true, Some(link), true) = (row.op == "transfer_out", link, whole) {
+            // c-review-7 P3-3: only an identity source links an identity transfer_in.
+            let identity = row
+                .delta
+                .get("transfer")
+                .and_then(|t| t.get("mode"))
+                .and_then(serde_json::Value::as_str)
+                == Some("identity");
+            if let (true, Some(link), true, true) =
+                (row.op == "transfer_out", link, whole, identity)
+            {
+                // A container source leaves with its row: a Delete or Update delta of the same
+                // `item_instances` row (ground and refund owners have no rows).
+                let container = !matches!(row.owner_kind.as_str(), "ground" | "refund");
+                let row_key = row.instance_id.to_string();
+                if container
+                    && !write.deltas.iter().any(|d| {
+                        d.row_kind == "item_instance"
+                            && d.row_key == row_key
+                            && matches!(
+                                d.change,
+                                crate::application::economy::DeltaChange::Delete
+                                    | crate::application::economy::DeltaChange::Update
+                            )
+                    })
+                {
+                    return Err(invalid("economy_transfer_container_delta"));
+                }
                 let left = row
                     .delta
                     .get("before")
@@ -268,7 +301,58 @@ impl IdentityLinks {
                 links.insert(link.to_owned(), (row.instance_id, left));
             }
         }
-        Ok(Self(links))
+        Ok(Self {
+            by_link: links,
+            ..Self::default()
+        })
+    }
+
+    /// P5-D27: a character-to-character transfer (trade, store) has both rows in projections;
+    /// the source part's whole `transfer_out` rows with a link join the links.
+    pub fn add_projection(&mut self, work: &ItemCheckpointWork) {
+        for delta in &work.projection.ledger {
+            if delta.operation != ItemOperation::TransferOut || delta.after.is_some() {
+                continue;
+            }
+            let cause = economy_cause(delta);
+            let (Some(left), Some(link), Some("identity")) = (
+                delta.before.as_ref(),
+                cause.and_then(|cause| economy_text(cause, "link")),
+                cause.and_then(|cause| economy_text(cause, "mode")),
+            ) else {
+                continue;
+            };
+            self.by_link
+                .insert(link.to_owned(), (delta.instance.get(), left.clone()));
+            self.from_projection.insert(link.to_owned());
+        }
+    }
+
+    /// P5-D27: the instances that move character to character in this write (a linked identity
+    /// `transfer_in` whose source is another part's projection). Returns them, ascending.
+    pub fn settle_rehomes<'a>(
+        &mut self,
+        works: impl IntoIterator<Item = &'a ItemCheckpointWork>,
+    ) -> BTreeSet<u64> {
+        let mut rehomed = BTreeSet::new();
+        for work in works {
+            for delta in &work.projection.ledger {
+                let cross = economy_cause(delta)
+                    .and_then(|cause| economy_text(cause, "link"))
+                    .is_some_and(|link| self.from_projection.contains(link));
+                if cross && self.linked(delta) {
+                    rehomed.insert(delta.instance.get());
+                }
+            }
+        }
+        self.rehomed.clone_from(&rehomed);
+        rehomed
+    }
+
+    /// Whether the instance was re-homed between two characters of this write.
+    #[must_use]
+    pub fn is_rehomed(&self, instance: u64) -> bool {
+        self.rehomed.contains(&instance)
     }
 
     /// Whether a projection row is a linked identity `transfer_in` (canonical fields equal).
@@ -281,7 +365,8 @@ impl IdentityLinks {
             return false;
         };
         let identity = economy_text(cause, "mode") == Some("identity");
-        let Some((instance, left)) = economy_text(cause, "link").and_then(|l| self.0.get(l)) else {
+        let Some((instance, left)) = economy_text(cause, "link").and_then(|l| self.by_link.get(l))
+        else {
             return false;
         };
         identity

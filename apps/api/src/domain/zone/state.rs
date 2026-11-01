@@ -28,6 +28,10 @@ mod item_views;
 mod items;
 #[path = "state_phase5_death.rs"]
 mod phase5_death;
+#[path = "state_phase5_manor.rs"]
+mod phase5_manor;
+#[path = "state_phase5_multisell.rs"]
+mod phase5_multisell;
 #[path = "state_phase5_party.rs"]
 mod phase5_party;
 #[path = "state_phase5_pickup.rs"]
@@ -36,6 +40,8 @@ mod phase5_pickup;
 mod phase5_runtime;
 #[path = "state_phase5_spoil.rs"]
 mod phase5_spoil;
+#[path = "state_phase5_vendor.rs"]
+mod phase5_vendor;
 #[path = "state_runtime.rs"]
 mod runtime;
 

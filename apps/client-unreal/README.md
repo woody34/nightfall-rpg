@@ -1339,7 +1339,7 @@ The E6 command/predicate authority is [phase4-fixtures.md](Scripts/phase4-fixtur
 - After an E1 catalogue update, run `python3 Scripts/gen-item-client-metadata.py` to make the arrow metadata again.
 - `nf.GrantItem` uses the authenticated RPC. The server enforces AUTH_DEV_TOKENS. When the server refuses, `item_rpc_error` shows the refusal.
 
-## Economy (Phase 5, stories 5.1, 5.2 and 5.6 skeleton)
+## Economy (Phase 5, stories 5.1, 5.2, 5.3 and 5.6 skeleton)
 
 The E5 command/predicate authority is [phase5-fixtures.md](Scripts/phase5-fixtures.md) and [phase5-grammar.py](Scripts/phase5-grammar.py). `Source/Nightfall/Bot/EconomyBotPredicates.cpp` registers every §5.3 command (41) and predicate (96; `rejected` is the Phase 1 builtin, and it resolves the Phase 5 reasons). `Scripts/test/phase5-client-registry.test.py` compares the two tables.
 
@@ -1347,7 +1347,14 @@ The E5 command/predicate authority is [phase5-fixtures.md](Scripts/phase5-fixtur
 - The client never predicts a count, a price, a chance, a protection deadline or a party membership. The read RPCs (`ListBuylist`, `GetWarehouse`, `GetFreight`, `ListMail`, `ListItemAuctions`) give detached views. A predicate that needs a view asks for it (at most once per second) and stays UNKNOWN until the view arrives. A container receipt projects its received `moved` rows onto the view.
 - Reset rules: the transport reset clears everything; the own `EntitySpawn` clears the identity-scoped facts; the own `EntityRespawned` clears the owner-incarnation facts; `nf.MarkItemState` re-samples the adena mark.
 - Export-bound and sidecar-bound predicates (`rules_rate_multiplier`, `xp_share_matches_export`, `vendor_restock_due_delta`, `epoch_reconcile_rows_before_admission`, `pk_dropped_excluded`, `craft_materials_consumed`, `manor_drops_unchanged`, `adena_split_origin`) parse, but the client reports them UNKNOWN. The C14 export and the oracle sidecars decide them (stories 3.15, 6.2, 6.6).
-- No UI. The dialogs and widgets are story 5.7.
+- Story 5.3 adds three dialogs (`Source/Nightfall/UI/NightfallEconomyDialog`):
+  - **Merchant** (key V, for the target NPC): the buy, sell and refund tabs. The buy entries, unit prices and stock come from `ListBuylist`. The refund entries come from its refund tab. Sell lists the owned items.
+  - **Exchange** (key X, for the target NPC): the entries of a multisell list from `GetMultisellList`. The client asks for each list once, because the list is static data of the epoch.
+  - **Recipe book** (key R): the recipe ids and the limits from `RecipeBookSync`. The actions are Craft, Register (an owned recipe item), Delete and Manufacture (an entry of a received manufacture store, with its received cost).
+- The dialogs show the received values only. They do no price, count or chance arithmetic. The server refuses a bad request.
+- Request keys: each dialog freezes one request per key. A changed selection or count makes a new key. Confirm sends a new request with a new key. Retry sends the last frozen request again with the same key and the same body (D43, `UEconomyStateSubsystem::Submit`). A busy state disables the controls. A rejection enables Retry.
+- Tests: `Nightfall.Economy.UI.VendorBuySellRefundRetry`, `Nightfall.Economy.UI.MultisellEntriesAndRetry` and `Nightfall.Economy.UI.RecipeBookCraftRegisterManufacture`.
+- The other dialogs and widgets are stories 5.4, 5.5 and 5.7.
 
 Item content:
 

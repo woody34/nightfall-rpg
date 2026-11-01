@@ -791,12 +791,16 @@ pub trait EconomyCheckpointRepository: Send + Sync {
 /// deltas that delete or update rows, then the item settlement, then container inserts, then
 /// deliveries, ledger rows, receipts, lease deletes and the outbox.
 ///
-/// Per-character split (c-review-6 P3-6): a tick's `EconomyCheckpoint` is written once per
-/// character. Each write carries that character's checkpoint, its `owner_kind = character` rows
-/// and receipts, and the container/ground rows of the operations that character performed. A
-/// character row of another character is refused (`economy_character_row_foreign`). Operations
-/// that move items between two characters in one atomic step (trade, private store) need a
-/// multi-character writer, which a later story adds; until then they are not settled here.
+/// Per-character split (c-review-6 P3-6, P5-D22, P5-D28): a tick's `EconomyCheckpoint` is
+/// written once per character. Each write carries that character's checkpoint, its item
+/// projection (which holds the character's V7 economy rows), its receipts, and the container,
+/// ground and refund rows of the operations that character performed. The economy write never
+/// carries a character row (`economy_character_row_in_economy_write`). An operation that
+/// touches more than one character (a party split with two or more recipients, a non-split
+/// party loot to another member, a sweep to a party, a trade, a private store or manufacture)
+/// settles in ONE [`Self::checkpoint_many`] write, so it derives one fact. The single writer
+/// refuses a write that carries only a part of an operation
+/// (`economy_multi_character_operation:<rule>:<key>`, [`super::economy_closure`]).
 #[async_trait]
 pub trait EconomyCharacterCheckpointRepository: Send + Sync {
     /// Settle the checkpoint, its optional V6 item projection and the economy write atomically.
@@ -807,6 +811,52 @@ pub trait EconomyCharacterCheckpointRepository: Send + Sync {
         items: Option<&crate::application::ports::ItemCheckpointWork>,
         economy: &EconomyCheckpointWrite,
     ) -> Result<crate::application::CheckpointOutcome, crate::application::CheckpointError>;
+
+    /// P5-D27: one revision-fenced transaction checkpoints every part and the shared economy
+    /// write. Character fences are taken in ascending `character_id` order (canonical bytes),
+    /// so opposite-order writers never deadlock. All or nothing: a fence miss in any part makes
+    /// the whole write `Stale` (every outcome `Stale`, nothing written). A write whose every
+    /// part is an exact replay returns each part's `Replayed`. Outcomes follow `parts` order.
+    async fn checkpoint_many(
+        &self,
+        parts: &[CharacterCheckpointPart<'_>],
+        economy: &EconomyCheckpointWrite,
+    ) -> Result<Vec<crate::application::CheckpointOutcome>, crate::application::CheckpointError>;
+}
+
+/// One character of a multi-character checkpoint (P5-D27): a trade, a private store sale.
+#[derive(Debug, Clone, Copy)]
+pub struct CharacterCheckpointPart<'a> {
+    /// The character checkpoint.
+    pub cp: &'a crate::application::CharacterCheckpoint,
+    /// Its domain events.
+    pub events: &'a [crate::domain::DomainEvent],
+    /// Its item projection (V7 rows included, P5-D22).
+    pub items: Option<&'a crate::application::ports::ItemCheckpointWork>,
+}
+
+/// The canonical fence order of a multi-character write: ascending character bytes, distinct.
+pub fn fence_order(
+    parts: &[CharacterCheckpointPart<'_>],
+) -> Result<Vec<usize>, crate::application::CheckpointError> {
+    let mut order: Vec<usize> = (0..parts.len()).collect();
+    order.sort_by_key(|&i| {
+        parts
+            .get(i)
+            .map(|p| *p.cp.character_id.as_uuid().as_bytes())
+    });
+    let distinct = order.windows(2).all(|w| {
+        let id = |i: usize| parts.get(i).map(|p| p.cp.character_id);
+        w.first()
+            .zip(w.get(1))
+            .is_some_and(|(a, b)| id(*a) != id(*b))
+    });
+    if parts.is_empty() || !distinct {
+        return Err(crate::application::CheckpointError::Constraint(
+            "economy_multi_character_parts".into(),
+        ));
+    }
+    Ok(order)
 }
 
 /// An economy error inside a character checkpoint: a lease violation and a named constraint are

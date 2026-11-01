@@ -54,7 +54,11 @@ impl ZoneState {
             .items
             .get(&item.template_id)
             .ok_or(RejectReason::InvalidLoad)?;
-        if !matches!(definition.handler.as_str(), "ItemSkills" | "Elixir" | "ManaPotion") {
+        // V7 adds the manor handlers (design §10.6); their checks run in the resolve step.
+        if !(matches!(definition.handler.as_str(), "ItemSkills" | "Elixir" | "ManaPotion")
+            || (self.phase5.is_some()
+                && matches!(definition.handler.as_str(), "Seed" | "Harvester")))
+        {
             return Err(RejectReason::NotYetImplemented);
         }
         if definition.handler == "ManaPotion"
@@ -239,6 +243,21 @@ impl ZoneState {
                 },
             },
         )?;
+        // V7 manor handlers (§10.6): the Seed handler binds seed/seeder before its Sowing
+        // cast; the Harvester needs a dead monster. Both refuse before anything is paid.
+        match plan.definition.handler.as_str() {
+            "Seed" => {
+                self.seed_use_v7(id, plan.definition.template_id, timing.target.map(|t| t.entity))?;
+            },
+            "Harvester" => self.harvester_use_v7(timing.target.map(|t| t.entity))?,
+            _ => {},
+        }
+        let items = self.phase4.as_ref().ok_or(RejectReason::InvalidLoad)?;
+        let player = items
+            .canonical
+            .players
+            .get(&id)
+            .ok_or(RejectReason::InvalidLoad)?;
         let combat = self
             .entities
             .get(&id)
@@ -418,6 +437,12 @@ impl ZoneState {
                 )),
                 events,
             )?;
+        }
+        // V7 Seed handler: `setSeeded(seed, player)` once its Sowing cast has started.
+        if plan.definition.handler == "Seed" {
+            if let Some(target) = timing.target {
+                self.seed_bind_v7(id, plan.definition.template_id, target.entity);
+            }
         }
         self.rebuild_v5(id).map_err(|_| RejectReason::InvalidLoad)?;
         if let Some(inputs) = consumable {

@@ -104,6 +104,10 @@ class Overlay(unittest.TestCase):
                 names = [n['name'] for n in zone['npcs']]
                 self.assertIn('blacksmith', names)  # Phase 4 overlay kept (warehouse refine prologue)
                 for npc in fixture.PACKS[pack].get('fixed_npcs', []):
+                    if npc['kind'] in fixture.MERCHANT_FIXTURE_KINDS:
+                        # P5-D29: the V7 bootstrap spawns it from merchant_fixtures.toml.
+                        self.assertNotIn(npc['name'], names)
+                        continue
                     self.assertIn(npc['name'], names)
                     self.assertFalse(next(n for n in zone['npcs'] if n['name'] == npc['name'])['attackable'])
                 slots = {s['id']: s for s in zone['spawn_slots']}

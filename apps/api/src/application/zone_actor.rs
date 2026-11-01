@@ -1726,6 +1726,7 @@ pub(crate) fn class_error(reason: crate::domain::zone::RejectReason) -> super::A
         | RejectReason::BidTooLow
         | RejectReason::BidTooHigh
         | RejectReason::NoBidToCancel
+        | RejectReason::RateLimited
         | RejectReason::SkillNotLearnable
         | RejectReason::SkillWrongRank
         | RejectReason::SkillLevelRequired

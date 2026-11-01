@@ -217,13 +217,14 @@ async fn persist_rows(
                 vec![character.as_uuid().into(), signed(item.id.get())?.into()],
             )
             .await?;
-            if deleted != 1 {
+            // P5-D27: a re-homed instance was removed from this character before the parts.
+            if deleted != 1 && !(deleted == 0 && links.is_rehomed(item.id.get())) {
                 return Err(CheckpointError::Constraint("item_checkpoint_missing_scalar".into()));
             }
         }
     }
     // Clear slots before ordered upserts so swaps/displacements never hit the partial unique index.
-    execute(tx, "UPDATE item_instances SET location='inventory',slot=NULL WHERE character_id=$1 AND location='paperdoll'", vec![character.as_uuid().into()]).await?;
+    execute(tx, "UPDATE item_instances SET location='inventory',slot=NULL WHERE character_id=$1 AND location='paperdoll' AND owner_kind='character'", vec![character.as_uuid().into()]).await?;
     for item in &after.instances {
         let location = match item.location {
             ItemLocation::Inventory => "inventory",
@@ -240,7 +241,7 @@ async fn persist_rows(
                 return Err(CheckpointError::Constraint("item_location_not_character_owned".into()))
             },
         };
-        let written = execute(tx, "INSERT INTO item_instances(id,character_id,location,slot,template_id,count,enchant,augment_id,charge_bits,bound,created_tick,revision) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,false,$10,$11) ON CONFLICT(id) DO UPDATE SET location=EXCLUDED.location,slot=EXCLUDED.slot,template_id=EXCLUDED.template_id,count=EXCLUDED.count,enchant=EXCLUDED.enchant,augment_id=EXCLUDED.augment_id,charge_bits=EXCLUDED.charge_bits,created_tick=EXCLUDED.created_tick,revision=EXCLUDED.revision,updated_at=now() WHERE item_instances.character_id=EXCLUDED.character_id",
+        let written = execute(tx, "INSERT INTO item_instances(id,character_id,location,slot,template_id,count,enchant,augment_id,charge_bits,bound,created_tick,revision,owner_kind) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,false,$10,$11,'character') ON CONFLICT(id) DO UPDATE SET location=EXCLUDED.location,slot=EXCLUDED.slot,template_id=EXCLUDED.template_id,count=EXCLUDED.count,enchant=EXCLUDED.enchant,augment_id=EXCLUDED.augment_id,charge_bits=EXCLUDED.charge_bits,created_tick=EXCLUDED.created_tick,revision=EXCLUDED.revision,updated_at=now() WHERE item_instances.character_id=EXCLUDED.character_id AND item_instances.owner_kind='character'",
             vec![signed(item.id.get())?.into(),character.as_uuid().into(),location.into(),item.slot.map(|slot| i16::from(slot as u8)).into(),
                 i32::try_from(item.template_id).map_err(anyhow::Error::from)?.into(),signed(item.count)?.into(),i64::from(item.enchant).into(),
                 item.augment_id.map(i64::from).into(),i16::from(item.charges).into(),signed(item.created_tick.0)?.into(),signed(item.revision)?.into()]).await?;

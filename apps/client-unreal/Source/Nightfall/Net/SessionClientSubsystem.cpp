@@ -105,6 +105,8 @@ void USessionClient::Initialize(FSubsystemCollectionBase& Collection)
 	Client->OnGetFreightResponse.AddDynamic(this, &USessionClient::HandleGetFreight);
 	Client->OnListMailResponse.AddDynamic(this, &USessionClient::HandleListMail);
 	Client->OnListItemAuctionsResponse.AddDynamic(this, &USessionClient::HandleListItemAuctions);
+	Client->OnGetMultisellListResponse.AddDynamic(this, &USessionClient::HandleGetMultisellList);
+	Client->OnGetRecipeBookResponse.AddDynamic(this, &USessionClient::HandleGetRecipeBook);
 	Client->OnGetSkillCatalogResponse.AddDynamic(this, &USessionClient::HandleGetSkillCatalog);
 	Client->OnListClassesResponse.AddDynamic(this, &USessionClient::HandleListClasses);
 	Client->OnTransferOptionsResponse.AddDynamic(this, &USessionClient::HandleTransferOptions);
@@ -457,6 +459,30 @@ void USessionClient::GrantItem(const FGrpcNightfallV1GrantItemRequest& Request, 
 void USessionClient::HandleGrantItem(FGrpcContextHandle Handle, const FGrpcResult& Result, const FGrpcNightfallV1GrantItemResponse& Response)
 {
  Complete(PendingGrantItem, Handle.Value, Result, Response);
+}
+
+void USessionClient::GetMultisellList(const FGrpcNightfallV1GetMultisellListRequest& Request, FGetMultisellListCallback Callback)
+{
+ if (!EnsureClient(Client, [&](const FNetResult& R) { Callback(R, {}); })) return;
+ const auto Handle = Client->InitGetMultisellList();
+ PendingGetMultisellList.Add(Handle.Value, MoveTemp(Callback));
+ Client->GetMultisellList(Handle, Request, MakeMetaData(true), CallTimeoutSeconds);
+}
+void USessionClient::HandleGetMultisellList(FGrpcContextHandle Handle, const FGrpcResult& Result, const FGrpcNightfallV1GetMultisellListResponse& Response)
+{
+ Complete(PendingGetMultisellList, Handle.Value, Result, Response);
+}
+
+void USessionClient::GetRecipeBook(const FGrpcNightfallV1GetRecipeBookRequest& Request, FGetRecipeBookCallback Callback)
+{
+ if (!EnsureClient(Client, [&](const FNetResult& R) { Callback(R, {}); })) return;
+ const auto Handle = Client->InitGetRecipeBook();
+ PendingGetRecipeBook.Add(Handle.Value, MoveTemp(Callback));
+ Client->GetRecipeBook(Handle, Request, MakeMetaData(true), CallTimeoutSeconds);
+}
+void USessionClient::HandleGetRecipeBook(FGrpcContextHandle Handle, const FGrpcResult& Result, const FGrpcNightfallV1GetRecipeBookResponse& Response)
+{
+ Complete(PendingGetRecipeBook, Handle.Value, Result, Response);
 }
 
 void USessionClient::ListBuylist(const FGrpcNightfallV1ListBuylistRequest& Request, FListBuylistCallback Callback)

@@ -551,11 +551,19 @@ def gen_rewards_table() -> str:
     and NPCs without any drop list. Same derivations and encodings as the drops table: absent
     `<acquire>` attributes are the loader defaults (`expRate` 0, `sp` 0), decimals stay exact
     decimal strings, `collision_radius` is the truncated `<collision><radius normal>`.
+
+    P5-D30: every row also carries `can_be_sown` (`<status canBeSown>`, `Boolean.valueOf`, absent =
+    false; NpcData.java:248, L2NpcTemplate.java:137) and `harvest_skills` (the template's
+    `<skillList>` ids among the strong-type cases of `L2Attackable.setSeeded`), so a sowable NPC
+    without a drop list has its manor inputs.
     """
     npc_rel = DPD + "stats/npcs/"
     sepulcher_raids = sepulcher_raid_ids()
     raids = raid_types()
+    harvest_ids = set(harvest_multipliers())
     tmpl = GJ + "model/actor/templates/L2NpcTemplate.java"
+    src_find("game", tmpl, r'_canBeSown = set\.getBoolean\("canBeSown", false\);')
+    src_find("game", GJ + "data/xml/impl/NpcData.java", r'set\.set\("canBeSown", parseBoolean\(attrs, "canBeSown"\)\);')
     default_level = src_int("game", tmpl, r'_level = set\.getByte\("level", \(byte\) (\d+)\);')
     src_find("game", tmpl, r'_type = set\.getString\("type", "L2Npc"\);')
     src_find("game", tmpl, r'_corpseTime = set\.getInt\("corpseTime", npc\(\)\.getDefaultCorpseTime\(\)\);')
@@ -591,18 +599,24 @@ def gen_rewards_table() -> str:
                 r = coll.find("radius")
                 if r is not None and r.get("normal"):
                     coll_radius = int(Fraction(r.get("normal")))
-            rows.append((npc_id, level, exp_rate, sp_val, is_raid, corpse_time, coll_radius))
+            status = npc.find("status")
+            can_be_sown = status is not None and status.get("canBeSown", "").lower() == "true"
+            skills = npc.find("skillList")
+            harvest = sorted({int(sk.get("id")) for sk in (skills.findall("skill") if skills is not None else [])} & harvest_ids)
+            rows.append((npc_id, level, exp_rate, sp_val, is_raid, corpse_time, coll_radius, can_be_sown, harvest))
     rows.sort()
     lines = [
         HEADER,
         "# P5-D12: B16 base rewards (design §4.5) for every pinned NPC template, ascending id.",
+        "# P5-D30: with the manor inputs can_be_sown and harvest_skills (L2Attackable.setSeeded).",
         "schema_version = 1",
         f"npc_count = {len(rows)}",
         "",
     ]
-    for npc_id, level, exp_rate, sp_val, is_raid, corpse_time, coll_radius in rows:
+    for npc_id, level, exp_rate, sp_val, is_raid, corpse_time, coll_radius, can_be_sown, harvest in rows:
         lines.append(f'npc = {{ id = {npc_id}, level = {level}, exp_rate = "{exp_rate}", sp = "{sp_val}", '
-                     f"is_raid = {toml_bool(is_raid)}, corpse_time = {corpse_time}, collision_radius = {coll_radius} }}")
+                     f"is_raid = {toml_bool(is_raid)}, corpse_time = {corpse_time}, collision_radius = {coll_radius}, "
+                     f"can_be_sown = {toml_bool(can_be_sown)}, harvest_skills = {harvest} }}")
     # One array of inline tables keeps the 7k-row table compact and order-exact.
     body = [line for line in lines if not line.startswith("npc = ")]
     entries = [line[len("npc = "):] for line in lines if line.startswith("npc = ")]

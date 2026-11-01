@@ -77,6 +77,8 @@ def main() -> int:
         ("gen_items_closure.py", sources),
         # P5-D19: V7 skill promotions over the committed V6 skill bundle (gen_skills/gen_items).
         ("gen_skill_promotions.py", sources),
+        # P5-D29: the merchant fixture NPCs of the Phase 5 test zone (merchants/multisell tables).
+        ("gen_merchant_fixtures.py", sources),
         ("skill_oracle.py", []),
         ("skill_oracle.py", ["--class-phase3"]),
         ("starter_weapon_oracle.py", []),

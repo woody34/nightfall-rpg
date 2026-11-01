@@ -108,7 +108,7 @@ class Grammar(unittest.TestCase):
                        'sweep_recipient_in_party', 'party_sweep_done template:npc_20003', 'adena_split_share_between 15 21', 'adena_split_origin == npc', 'loot_vote_phase == APPLIED',
                        'xp_gained_last == 80', 'sp_gained_last == 2', 'xp_gained_last_between 1 178', 'xp_share_matches_export', 'sp_gained_events_for template:npc_4301 == 0',
                        'entity_gone template:npc_20003', 'own_pk_count >= 6', 'pk_drop_count_between 0 10', 'pk_dropped_excluded == 0',
-                       'pk_unequipped_before_roll', 'merchant_known', 'adena_delta == -172', 'adena_delta == 40', 'refund_tab_count == 12',
+                       'pk_unequipped_before_roll', 'merchant_known', 'restock_merchant_known', 'adena_delta == -172', 'adena_delta == 40', 'refund_tab_count == 12',
                        'refund_tab_oldest_destroyed', 'vendor_stock 353630 16127 == 10', 'vendor_restock_due_delta 353630 16127 == 36000', 'exchanger_known',
                        'enchant_of 9416 == 3', 'craft_result_any', 'craft_result == success', 'craft_materials_consumed 322', 'craft_masterwork == false',
                        'craft_fee_before_roll', 'store_state == PACKAGE_SELL', 'store_state_of a == BUY', 'manufacture_gate_ticks == 3', 'own_trade_confirmed',

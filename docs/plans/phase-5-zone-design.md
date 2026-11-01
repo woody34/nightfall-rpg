@@ -978,6 +978,17 @@ Request `{merchant, list_id, refund_indices: [u32]}`, with indices into the tab 
 
 Checks: weight, slots, adena. Commit: consume adena, then each entry moves back into the inventory (identity or merge).
 
+### 6.7 Engine notes (story 3.7)
+
+- **Refusal codes.** Pinned silent drops and `INVALID` cases map as follows:
+  - request size out of 1..250 or a count of 0 → `INVALID_QUANTITY`;
+  - a duplicate template or instance, a missing product, a pre-tax price of 0, or a bad refund index → `INVALID` (zone `NotPermitted`);
+  - a sold item that is equipped, augmented or not sellable → `ITEM_NOT_SELLABLE`;
+  - a flood-gate refusal → `RATE_LIMITED` (zone `RateLimited`, codec 103).
+- **Stock.** `stock[(list, template)]` exists only while a product is below its maximum or has a restock pending. An absent key means full stock. Phase 2 removes an entry on its due tick.
+- **`refund_order`.** It lists the refund tab's template ids in tab order after the operation, and it is empty for a buy.
+- **Merchant binding.** The fixture table is `merchant_fixtures.toml` (P5-D29). It is interim-empty until it lands.
+
 ## 7. Multisell (A9, B10; F19, R20, R42)
 
 `MultisellChoose{idempotency_key, npc, list_id, entry_id, amount}` mirrors pinned `MultiSellChoose` (`GJ/network/clientpackets/MultiSellChoose.java`). That handler reads `_listId`, `_entryId` and `_amount` (`:83`) and gates on the `MultiSell` flood protector at 1 tick (`:104`; `GC/floodprotector.properties:78`).
@@ -1008,6 +1019,8 @@ Capacity and weight are evaluated after inputs are paid (Phase 4 `InventoryMutat
 - **Consumption.** Consumption walks the prepared, unmerged list in its order (`:226`).
 - **Data effect.** 275 real pinned entries are reordered by this aggregation (data-review-1 Addendum 3; family M `multisell_prepared_ingredients`/`multisell_check_list`).
 - **Ledger order.** Within one choose, the adena payment is the **last** consumption contribution. Each instance's Consume aggregate lists its causes in this prepared order, and per (owner, tick, instance) the rows follow T1.
+
+**Prepared entry id (story 3.7).** The client sends pinned `PreparedEntry` ids: `template entry (1-based) × 100000 + enchant`. A non-zero enchant part is valid only on a `maintainEnchantment` list, where it is the enchant the armor/weapon ingredients must carry and the products receive. Entries with special currencies (negative ids: clan reputation, fame) refuse `ITEM_CAPABILITY_DEFERRED` until clans exist. `BlacksmithUseRecipes` is a pinned engine constant until a table hashes it.
 
 **Ledger.** One Exchange operation per choose (D37/D52/D57 pattern). Each consume carries the cause `receipt:multisell_choose:<key>`. Each product is a fresh `exchange` grant, or a merge into an existing stack. One `ItemExchanged` outbox fact is emitted per choose. Phase 4 SA exchanges keep their own path.
 
@@ -1674,6 +1687,16 @@ Per tick, one revision-fenced SeaORM transaction contains:
 - outbox facts.
 
 Ground and refund owners have ledger rows but **no** `item_instances` rows (snapshot only).
+
+**Writers (rulings P5-D27, P5-D28).** The API writes the economy rows of an operation in the checkpoint transaction of the character that did the operation. These operations change more than one character: a party split with two or more recipients, a party loot to another member, a sweep to a party, a trade, a private store and a private manufacture. The API writes each of them in one multi-character transaction:
+- The transaction locks the character fences in ascending `character_id` byte order. Thus two writers in opposite order cannot deadlock.
+- All parts apply, or no part applies. If one fence is not correct, the API writes nothing, and each part is `Stale`.
+- The operation gives one fact. The fact id stays one per operation (P5-D18).
+
+Before it locks a row, each writer makes sure that each operation in the write is complete. If the write has only a part of an operation, the writer refuses it with `economy_multi_character_operation:<rule>:<key>`:
+- `receipt`: a character row names a receipt that the write does not claim;
+- `transfer`: a transfer link does not have exactly one `transfer_out` and one `transfer_in`;
+- `party_split`: the `party_split` rows of a receipt do not add up to the count that the ground rows of that receipt destroy. The single-character writer also refuses a `party_split` row that has only an automatic cause (a sweep to a party).
 
 Outbox subjects, extending A20/C9: `nightfall.item.{looted, picked_up, dropped_pk, swept, harvested, purchased, sold, refunded, crafted, traded, deposited, withdrawn, freighted, mailed, mail_taken, mail_returned, mail_expired, delivered, delivery_blocked, auction_bid, auction_refunded, auction_awarded, manor_traded, decayed}`, plus the existing `destroyed` and `exchanged`. `economy_counters` is filled **asynchronously** by the outbox consumer, idempotent by `fact_id` (B8). Metric labels are bounded: operation kind, outcome, item class, grade (A19). The per-zone gauge `nightfall_zone_ground_items{kind}` (E25, §1.12) is the only new gauge.
 

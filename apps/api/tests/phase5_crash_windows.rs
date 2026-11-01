@@ -769,6 +769,12 @@ async fn postgres_forced_40p01_in_preflight_and_checkpoint_is_retryable() {
     let (k1o, k2o) = (owner(k1), owner(k2));
     let blocker = tokio::spawn(async move {
         let mut tx = other.begin().await.unwrap();
+        // c-review-7 P3-4: the blocker never runs the deadlock check first, so the adapter is
+        // always the victim, whatever the host load.
+        sqlx::query("SET LOCAL deadlock_timeout = '10s'")
+            .execute(&mut *tx)
+            .await
+            .unwrap();
         sqlx::query("INSERT INTO economy_leases(owner_kind,owner_id,zone_id,epoch,operation,request_key) VALUES('warehouse',$1,1,1,'blocker',$2)")
             .bind(&k2o).bind(Uuid::from_u128(0xB1)).execute(&mut *tx).await.unwrap();
         tokio::time::sleep(std::time::Duration::from_millis(400)).await;
@@ -823,6 +829,12 @@ async fn postgres_forced_40p01_in_preflight_and_checkpoint_is_retryable() {
     let lease_owner = owner(row_lease);
     let blocker = tokio::spawn(async move {
         let mut tx = other.begin().await.unwrap();
+        // c-review-7 P3-4: the blocker never runs the deadlock check first, so the adapter is
+        // always the victim, whatever the host load.
+        sqlx::query("SET LOCAL deadlock_timeout = '10s'")
+            .execute(&mut *tx)
+            .await
+            .unwrap();
         sqlx::query(
             "SELECT 1 FROM economy_leases WHERE owner_kind='warehouse' AND owner_id=$1 FOR UPDATE",
         )

@@ -42,11 +42,14 @@ REJECT_REASONS = {
 }
 
 # command -> (argument form, carrier that confirms it)
+# P5-D29: the vendor fixture names of tables-phase5/merchant_fixtures.toml (one token each).
+MERCHANTS = ('merchant', 'restock_merchant')
+
 COMMANDS = {
     'nf.PickUp': ('template:<id>|nearest [key]', 'EntityDespawn + EconomyResult(pick_up_item)'),
-    'nf.Buy': ('merchant <list_id> <template> <count> [key]', 'EconomyResult(vendor_buy) + InventoryChanged'),
-    'nf.Sell': ('merchant <list_id> <item> <count> [key]', 'EconomyResult(vendor_sell) + InventoryChanged'),
-    'nf.Refund': ('merchant <list_id> <index> [key]', 'EconomyResult(vendor_refund) + InventoryChanged'),
+    'nf.Buy': ('merchant|restock_merchant <list_id> <template> <count> [key]', 'EconomyResult(vendor_buy) + InventoryChanged'),
+    'nf.Sell': ('merchant|restock_merchant <list_id> <item> <count> [key]', 'EconomyResult(vendor_sell) + InventoryChanged'),
+    'nf.Refund': ('merchant|restock_merchant <list_id> <index> [key]', 'EconomyResult(vendor_refund) + InventoryChanged'),
     'nf.Multisell': ('exchanger <list_id> <entry_index> <amount> [enchant:<n>] [key]', 'EconomyResult(multisell_choose)'),
     'nf.RegisterRecipe': ('<item> [key]', 'RecipeBookSync + EconomyResult(register_recipe)'),
     'nf.DeleteRecipe': ('<recipe_id> [key]', 'RecipeBookSync + EconomyResult(delete_recipe)'),
@@ -140,6 +143,7 @@ PREDICATES = {
     'pk_dropped_excluded': ('== 0', 'removed_ids intersect the sidecar exclusion set', 'owner incarnation'),
     'pk_unequipped_before_roll': ('', 'EquipmentChanged clears precede InventoryChanged.removed_ids at the same tick', 'owner incarnation'),
     'merchant_known': ('', 'EntitySpawn of the noncombat entity named merchant', RESET_IDENTITY),
+    'restock_merchant_known': ('', 'EntitySpawn of the noncombat entity named restock_merchant (P5-D29)', RESET_IDENTITY),
     'adena_delta': ('== <signed>', 'owner adena count minus the nf.MarkItemState sample', 'mark / owner baseline'),
     'refund_tab_count': ('== <n>', 'ListBuylistResponse.refund_tab', 'owner departure'),
     'refund_tab_oldest_destroyed': ('', 'refund_tab lacks the first sold entry after 13 sells', 'owner departure'),
@@ -245,9 +249,9 @@ def command(tokens):
     role = lambda s: s in ROLES  # noqa: E731
     n = len(args)
     if name == 'nf.PickUp': return n == 1 and (args[0] == 'nearest' or template_ref(args[0]))
-    if name == 'nf.Buy': return n == 4 and args[0] == 'merchant' and number(args[1]) and number(args[2], 2**32 - 1) and number(args[3], 2**63 - 1)
-    if name == 'nf.Sell': return n == 4 and args[0] == 'merchant' and number(args[1]) and item(args[2]) and number(args[3], 2**63 - 1)
-    if name == 'nf.Refund': return n == 3 and args[0] == 'merchant' and number(args[1]) and number(args[2], 11, zero=True)
+    if name == 'nf.Buy': return n == 4 and args[0] in MERCHANTS and number(args[1]) and number(args[2], 2**32 - 1) and number(args[3], 2**63 - 1)
+    if name == 'nf.Sell': return n == 4 and args[0] in MERCHANTS and number(args[1]) and item(args[2]) and number(args[3], 2**63 - 1)
+    if name == 'nf.Refund': return n == 3 and args[0] in MERCHANTS and number(args[1]) and number(args[2], 11, zero=True)
     if name == 'nf.Multisell':
         return n in (4, 5) and args[0] == 'exchanger' and number(args[1], 2**32 - 1) and number(args[2], 2**32 - 1, zero=True) and number(args[3], 5000) \
             and (n == 4 or args[4].startswith('enchant:') and number(args[4][8:], 2**32 - 1, zero=True))

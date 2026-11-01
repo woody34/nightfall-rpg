@@ -493,6 +493,8 @@ impl ZoneState {
     /// the 50-tick grid every ground item with `decay_due ≤ tick` despawns, in `EntityId`
     /// order. (c)–(f) — requests, loot votes, invites, restocks — arrive with their stories.
     pub(super) fn expire_phase5(&mut self, tick: Tick, events: &mut Vec<ZoneEvent>) {
+        // §6.4: due limited stock refills in phase 2.
+        self.restock_v7(tick);
         let Some(phase5) = &mut self.phase5 else {
             return;
         };

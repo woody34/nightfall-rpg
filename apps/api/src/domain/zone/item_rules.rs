@@ -301,6 +301,34 @@ impl Phase4Rules {
         })
     }
 
+    /// The V7 item view with its capabilities recomputed against the V7 skill view and
+    /// handlers (`Phase5Rules::bind_skills`), under this bundle's hash.
+    #[must_use]
+    pub fn with_capabilities(
+        &self,
+        capabilities: BTreeMap<u32, ItemCapability>,
+        promoted_skills: &[(u32, u32)],
+    ) -> Self {
+        let mut parts = self.parts.clone();
+        parts.capabilities = capabilities;
+        // The V7-executable skills become admitted item skills (id, max level).
+        for (id, max_level) in promoted_skills {
+            parts.skill_capabilities.insert(
+                *id,
+                ItemSkillCapability {
+                    id: *id,
+                    max_level: *max_level,
+                    admitted: true,
+                    blockers: Vec::new(),
+                },
+            );
+        }
+        Self {
+            parts,
+            hash: self.hash,
+        }
+    }
+
     /// Full rule contents; mutation requires a newly validated bundle and a new epoch.
     pub const fn parts(&self) -> &ItemRulesParts {
         &self.parts

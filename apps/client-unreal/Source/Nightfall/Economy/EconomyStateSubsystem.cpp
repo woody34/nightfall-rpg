@@ -95,7 +95,7 @@ void UEconomyStateSubsystem::Reset()
  SequenceRequests.Reset(); Outstanding.Reset(); CommittedFingerprints.Reset(); ReceiptBytes.Reset(); ReceiptMatches.Reset(); StatusText.Reset();
  InstanceTemplates.Reset(); OwnInventoryTick = 0; AdenaIncrements.Reset(); LastAdena.Reset();
  BuylistView.Reset(); LastMerchant.Reset(); Sold.Reset(); WarehouseCounts.Reset(); FreightCounts.Reset(); WarehouseInstanceTemplates.Reset(); FreightInstanceTemplates.Reset(); bWarehouseKnown = bFreightKnown = false; FreightCapacityValue = 0;
- InboxView.Reset(); OutboxView.Reset(); MailSubjects.Reset(); AuctionsView.Reset(); LastAuctionNpc = 0; ++ViewSerial;
+ InboxView.Reset(); OutboxView.Reset(); MailSubjects.Reset(); AuctionsView.Reset(); LastAuctionNpc = 0; MultisellViews.Reset(); MultisellRequested.Reset(); ++ViewSerial;
  LastBuylistRequest = LastWarehouseRequest = LastFreightRequest = LastMailRequest = LastAuctionRequest = -1e9;
  OnChanged.Broadcast();
 }
@@ -450,21 +450,51 @@ bool UEconomyStateSubsystem::Execute(const TArray<FString>& Tokens)
  const TOptional<EGrpcNightfallV1ItemOperation> Op = OperationOf(Name); if (!Op.IsSet()) return false;
  FGuid G; FString Key = FGuid::NewGuid().ToString(EGuidFormats::DigitsWithHyphensLower);
  if (!A.IsEmpty() && FGuid::ParseExact(A.Last(), EGuidFormats::DigitsWithHyphens, G)) { Key = G.ToString(EGuidFormats::DigitsWithHyphensLower); A.Pop(); }
- const FString Scope = RequestScope(*Op, Key), Arguments = FString::Join(A, TEXT(" ")); if (Scope.IsEmpty()) return false;
+ const FString Arguments = FString::Join(A, TEXT(" "));
+ if (const TOptional<bool> Replayed = Resend(*Op, Key, Arguments); Replayed.IsSet()) return *Replayed;
+ FClientMessage Body; if (!Build(Name, A, Key, Body)) return false;
+ if (Name == TEXT("nf.buy") || Name == TEXT("nf.sell") || Name == TEXT("nf.refund")) LastMerchant = NpcNamed(A[0]);
+ if (Name == TEXT("nf.sell") && Body.VendorSell.IsSet()) for (const auto& I : Body.VendorSell->Items) Sold.Add(I.InstanceId.Value);
+ if (Name == TEXT("nf.auctionbid") || Name == TEXT("nf.auctioncancel")) LastAuctionNpc = uint32(EconomyDetail::Num(A[0]));
+ const uint32 Seq = Net->SendItemMessage(Body); FinishSend(Seq, RequestScope(*Op, Key), *Op, Body, Arguments); return Seq != 0;
+}
+TOptional<bool> UEconomyStateSubsystem::Resend(EGrpcNightfallV1ItemOperation Op, const FString& Key, const FString& Arguments)
+{
+ const FString Scope = RequestScope(Op, Key); if (Scope.IsEmpty() || !Net) return false;
  // D43: the same key with the same arguments resends the frozen body; a committed key with other arguments is a conflict.
  const FSubmittedRequest* Previous = nullptr; uint32 Latest = 0;
  for (const auto& P : SequenceRequests) if (P.Value.Scope == Scope && P.Value.Status != ERequestStatus::Rejected && P.Key > Latest) { Latest = P.Key; Previous = &P.Value; }
  if (Previous)
  {
   if (Previous->Arguments != Arguments) { StatusText = TEXT("D43 request conflict: FAILED_PRECONDITION"); OnChanged.Broadcast(); return false; }
-  const FClientMessage Body = Previous->Body; const uint32 Retry = Net->SendItemMessage(Body); FinishSend(Retry, Scope, *Op, Body, Arguments); return Retry != 0;
+  const FClientMessage Body = Previous->Body; const uint32 Retry = Net->SendItemMessage(Body); FinishSend(Retry, Scope, Op, Body, Arguments); return Retry != 0;
  }
  if (CommittedFingerprints.Contains(Scope)) { StatusText = TEXT("D43 request conflict: FAILED_PRECONDITION"); OnChanged.Broadcast(); return false; }
- FClientMessage Body; if (!Build(Name, A, Key, Body)) return false;
- if (Name == TEXT("nf.buy") || Name == TEXT("nf.sell") || Name == TEXT("nf.refund")) LastMerchant = NpcNamed(TEXT("merchant"));
- if (Name == TEXT("nf.sell") && Body.VendorSell.IsSet()) for (const auto& I : Body.VendorSell->Items) Sold.Add(I.InstanceId.Value);
- if (Name == TEXT("nf.auctionbid") || Name == TEXT("nf.auctioncancel")) LastAuctionNpc = uint32(EconomyDetail::Num(A[0]));
- const uint32 Seq = Net->SendItemMessage(Body); FinishSend(Seq, Scope, *Op, Body, Arguments); return Seq != 0;
+ return {};
+}
+bool UEconomyStateSubsystem::Submit(EGrpcNightfallV1ItemOperation Op, const FString& Key, const FString& Arguments, const FClientMessage& Body)
+{
+ // Story 5.3 dialogs: the dialog froze the body for its key; a retry with the same key resends it (D43).
+ if (const TOptional<bool> Replayed = Resend(Op, Key, Arguments); Replayed.IsSet()) return *Replayed;
+ const uint32 Seq = Net->SendItemMessage(Body); FinishSend(Seq, RequestScope(Op, Key), Op, Body, Arguments); return Seq != 0;
+}
+void UEconomyStateSubsystem::OpenBuylist(const FString& MerchantEntity)
+{
+ if (MerchantEntity.IsEmpty()) return;
+ if (LastMerchant != MerchantEntity.ToLower()) { BuylistView.Reset(); LastBuylistRequest = -1e9; }
+ LastMerchant = MerchantEntity.ToLower(); RefreshBuylist(); OnChanged.Broadcast();
+}
+void UEconomyStateSubsystem::OpenMultisell(uint32 ListId)
+{
+ // Static per epoch (GetMultisellList is Phase5Rules data): one request per list, cached.
+ if (MultisellViews.Contains(ListId) || MultisellRequested.Contains(ListId)) return;
+ MultisellRequested.Add(ListId); FGrpcNightfallV1GetMultisellListRequest Q; Q.ListId = ListId; const uint64 Serial = ViewSerial; TWeakObjectPtr<UEconomyStateSubsystem> Weak(this);
+ auto Done = [Weak, Serial, ListId](const FNetResult& R, const FGrpcNightfallV1GetMultisellListResponse& V) { if (!Weak.IsValid() || Weak->ViewSerial != Serial) return; Weak->MultisellRequested.Remove(ListId); if (R.IsOk()) Weak->ApplyMultisell(V); else { Weak->StatusText = TEXT("Multisell list unavailable"); Weak->OnChanged.Broadcast(); } };
+ if (MultisellProvider) MultisellProvider(Q, Done); else if (Session) Session->GetMultisellList(Q, Done);
+}
+void UEconomyStateSubsystem::ApplyMultisell(const FGrpcNightfallV1GetMultisellListResponse& R)
+{
+ MultisellViews.Add(R.ListId, R); OnChanged.Broadcast();
 }
 bool UEconomyStateSubsystem::Build(const FString& Name, const TArray<FString>& A, const FString& Key, FClientMessage& M) const
 {
@@ -481,9 +511,9 @@ bool UEconomyStateSubsystem::Build(const FString& Name, const TArray<FString>& A
   for (const auto& P : Ground) { const FGroundItem& G = P.Value; if (A[0] != TEXT("nearest") && G.Detail.TemplateId.Value != Num(A[0].Mid(9))) continue; const double D = bOwnPos ? FMath::Square(double(G.Position.X) - double(OwnPos.X)) + FMath::Square(double(G.Position.Y) - double(OwnPos.Y)) : 0; if (!Best || D < BestD) { Best = &G; BestD = D; } }
   if (!Best) return false; FGrpcNightfallV1PickUpItemRequest Q; Q.IdempotencyKey = Key; Q.GroundEntity = Best->EntityId; M.PickUpItem = Q; return true;
  }
- if (Name == TEXT("nf.buy")) { const FString Merchant = Npc(TEXT("merchant")); if (Merchant.IsEmpty()) return false; FGrpcNightfallV1VendorBuyRequest Q; Q.IdempotencyKey = Key; Q.Merchant = Merchant; Q.ListId = Num(A[1]); FGrpcNightfallV1TemplateCount T; T.TemplateId = uint32(Num(A[2])); T.Count = Num(A[3]); Q.Items.Add(T); M.VendorBuy = Q; return true; }
- if (Name == TEXT("nf.sell")) { const FString Merchant = Npc(TEXT("merchant")); const auto Id = Instance(A[2]); if (Merchant.IsEmpty() || !Id.IsSet()) return false; FGrpcNightfallV1VendorSellRequest Q; Q.IdempotencyKey = Key; Q.Merchant = Merchant; Q.ListId = Num(A[1]); FGrpcNightfallV1ItemCount C; C.InstanceId = *Id; C.Count = Num(A[3]); Q.Items.Add(C); M.VendorSell = Q; return true; }
- if (Name == TEXT("nf.refund")) { const FString Merchant = Npc(TEXT("merchant")); if (Merchant.IsEmpty()) return false; FGrpcNightfallV1VendorRefundRequest Q; Q.IdempotencyKey = Key; Q.Merchant = Merchant; Q.ListId = Num(A[1]); Q.RefundIndices.Add(FUInt32(uint32(Num(A[2])))); M.VendorRefund = Q; return true; }
+ if (Name == TEXT("nf.buy")) { const FString Merchant = Npc(*A[0]); if (Merchant.IsEmpty()) return false; FGrpcNightfallV1VendorBuyRequest Q; Q.IdempotencyKey = Key; Q.Merchant = Merchant; Q.ListId = Num(A[1]); FGrpcNightfallV1TemplateCount T; T.TemplateId = uint32(Num(A[2])); T.Count = Num(A[3]); Q.Items.Add(T); M.VendorBuy = Q; return true; }
+ if (Name == TEXT("nf.sell")) { const FString Merchant = Npc(*A[0]); const auto Id = Instance(A[2]); if (Merchant.IsEmpty() || !Id.IsSet()) return false; FGrpcNightfallV1VendorSellRequest Q; Q.IdempotencyKey = Key; Q.Merchant = Merchant; Q.ListId = Num(A[1]); FGrpcNightfallV1ItemCount C; C.InstanceId = *Id; C.Count = Num(A[3]); Q.Items.Add(C); M.VendorSell = Q; return true; }
+ if (Name == TEXT("nf.refund")) { const FString Merchant = Npc(*A[0]); if (Merchant.IsEmpty()) return false; FGrpcNightfallV1VendorRefundRequest Q; Q.IdempotencyKey = Key; Q.Merchant = Merchant; Q.ListId = Num(A[1]); Q.RefundIndices.Add(FUInt32(uint32(Num(A[2])))); M.VendorRefund = Q; return true; }
  if (Name == TEXT("nf.multisell")) { const FString Ex = Npc(TEXT("exchanger")); if (Ex.IsEmpty()) return false; FGrpcNightfallV1MultisellChooseRequest Q; Q.IdempotencyKey = Key; Q.Npc = Ex; Q.ListId = uint32(Num(A[1])); Q.EntryId = uint32(Num(A[2])); Q.Amount = Num(A[3]); M.MultisellChoose = Q; return true; }
  if (Name == TEXT("nf.registerrecipe")) { const auto Id = Instance(A[0]); if (!Id.IsSet()) return false; FGrpcNightfallV1RegisterRecipeRequest Q; Q.IdempotencyKey = Key; Q.RecipeInstanceId = *Id; M.RegisterRecipe = Q; return true; }
  if (Name == TEXT("nf.deleterecipe")) { FGrpcNightfallV1DeleteRecipeRequest Q; Q.IdempotencyKey = Key; Q.RecipeId = uint32(Num(A[0])); M.DeleteRecipe = Q; return true; }

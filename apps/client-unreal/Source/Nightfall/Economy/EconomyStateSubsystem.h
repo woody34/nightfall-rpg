@@ -90,6 +90,7 @@ public:
  const TOptional<FGrpcNightfallV1TradeSessionChanged>& Trade() const { return TradeState; }
  const TOptional<FGrpcNightfallV1TradeRequestReceived>& TradeRequest() const { return PendingTrade; }
  const FGrpcNightfallV1PrivateStoreChanged* Store(const FString& Owner) const { return Stores.Find(Owner.ToLower()); }
+ const TMap<FString, FGrpcNightfallV1PrivateStoreChanged>& AllStores() const { return Stores; }
  struct FMailNotice { FGrpcNightfallV1MailNotification Notice; int64 ReceivedUnixMs = 0; };
  const TArray<FMailNotice>& MailNotices() const { return Mail; }
  const TOptional<FGrpcNightfallV1ListMailResponse>& Inbox() const { return InboxView; }
@@ -143,6 +144,19 @@ public:
 
  // --- Commands (phase5-grammar.py COMMANDS): parse, resolve received bindings, send with D43 keys ---
  bool Execute(const TArray<FString>& Tokens);
+ /**
+  * Story 5.3 dialogs: send a body the dialog built and froze for `Key`. A second call with the same key
+  * and the same `Arguments` resends the first frozen body (D43 retry); other arguments on a committed
+  * key are refused locally. The server decides every price, count and chance.
+  */
+ bool Submit(EGrpcNightfallV1ItemOperation Op, const FString& Key, const FString& Arguments, const FClientMessage& Body);
+ /** Opens the buylist view of a merchant entity (ListBuylist, throttled). */
+ void OpenBuylist(const FString& MerchantEntity);
+ const FString& BuylistMerchant() const { return LastMerchant; }
+ /** Requests a multisell list once (GetMultisellList is static data of the epoch). */
+ void OpenMultisell(uint32 ListId);
+ const FGrpcNightfallV1GetMultisellListResponse* Multisell(uint32 ListId) const { return MultisellViews.Find(ListId); }
+ void ApplyMultisell(const FGrpcNightfallV1GetMultisellListResponse& R);
  static TOptional<EGrpcNightfallV1ItemOperation> OperationOf(const FString& CommandName);
  static FString OperationName(EGrpcNightfallV1ItemOperation Op);
  static TOptional<EGrpcNightfallV1ItemOperation> ParseOperation(const FString& Name);
@@ -157,6 +171,8 @@ public:
  using FFreightProvider = TFunction<void(const FGrpcNightfallV1GetFreightRequest&, USessionClient::FGetFreightCallback)>;
  using FMailProvider = TFunction<void(const FGrpcNightfallV1ListMailRequest&, USessionClient::FListMailCallback)>;
  using FAuctionsProvider = TFunction<void(const FGrpcNightfallV1ListItemAuctionsRequest&, USessionClient::FListItemAuctionsCallback)>;
+ using FMultisellProvider = TFunction<void(const FGrpcNightfallV1GetMultisellListRequest&, USessionClient::FGetMultisellListCallback)>;
+ void SetMultisellProviderForTesting(FMultisellProvider P) { MultisellProvider = MoveTemp(P); }
  void SetBuylistProviderForTesting(FBuylistProvider P) { BuylistProvider = MoveTemp(P); }
  void SetWarehouseProviderForTesting(FWarehouseProvider P) { WarehouseProvider = MoveTemp(P); }
  void SetFreightProviderForTesting(FFreightProvider P) { FreightProvider = MoveTemp(P); }
@@ -180,6 +196,8 @@ private:
  void Remember(EGrpcNightfallV1ItemOperation Op, const FString& Key, const FString& Fingerprint, const TArray<uint8>& Payload);
  void FinishSend(uint32 Seq, const FString& Scope, EGrpcNightfallV1ItemOperation Op, const FClientMessage& Body, const FString& Arguments);
  bool Build(const FString& Name, const TArray<FString>& A, const FString& Key, FClientMessage& Out) const;
+ /** D43 for an existing scope: set when the request was resent or refused; unset for a new key. */
+ TOptional<bool> Resend(EGrpcNightfallV1ItemOperation Op, const FString& Key, const FString& Arguments);
  TOptional<uint32> TemplateOfInstance(uint64 Instance) const;
  FBytes OwnCharacterId() const;
  double Now() const { return Clock ? Clock() : FPlatformTime::Seconds(); }
@@ -236,6 +254,7 @@ private:
  bool bWarehouseKnown = false, bFreightKnown = false; uint32 FreightCapacityValue = 0;
  TOptional<FGrpcNightfallV1ListMailResponse> InboxView, OutboxView; TMap<FString, FString> MailSubjects; // message id -> subject, every header ever seen
  TOptional<FGrpcNightfallV1ListItemAuctionsResponse> AuctionsView; uint32 LastAuctionNpc = 0;
+ TMap<uint32, FGrpcNightfallV1GetMultisellListResponse> MultisellViews; TSet<uint32> MultisellRequested; FMultisellProvider MultisellProvider;
  FBuylistProvider BuylistProvider; FWarehouseProvider WarehouseProvider; FFreightProvider FreightProvider; FMailProvider MailProvider; FAuctionsProvider AuctionsProvider;
  double LastBuylistRequest = -1e9, LastWarehouseRequest = -1e9, LastFreightRequest = -1e9, LastMailRequest = -1e9, LastAuctionRequest = -1e9;
  uint64 ViewSerial = 0;

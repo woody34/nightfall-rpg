@@ -303,7 +303,7 @@ impl ZoneState {
             .map(|ai| ai.intention)
     }
 
-    fn set_intention(
+    pub(super) fn set_intention(
         &mut self,
         tick: Tick,
         npc: EntityId,
