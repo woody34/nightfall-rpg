@@ -75,6 +75,15 @@ impl ZoneState {
         if matches!(command, Phase5Command::MultisellChoose { .. }) {
             return self.multisell_choose(tick, actor, command, seq, events);
         }
+        if matches!(command, Phase5Command::RegisterRecipe { .. }) {
+            return self.register_recipe(tick, actor, command, seq, events);
+        }
+        if matches!(command, Phase5Command::DeleteRecipe { .. }) {
+            return self.delete_recipe(tick, actor, command, seq, events);
+        }
+        if matches!(command, Phase5Command::CraftItem { .. }) {
+            return self.craft_item(tick, actor, command, seq, events);
+        }
         if let Phase5Command::PickUpItem { ground, .. } = command {
             return self.pick_up_item(
                 tick,

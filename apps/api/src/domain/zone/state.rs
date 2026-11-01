@@ -26,6 +26,8 @@ mod item_use;
 mod item_views;
 #[path = "state_items.rs"]
 mod items;
+#[path = "state_phase5_craft.rs"]
+mod phase5_craft;
 #[path = "state_phase5_death.rs"]
 mod phase5_death;
 #[path = "state_phase5_manor.rs"]
