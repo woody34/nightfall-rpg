@@ -740,7 +740,7 @@ pub fn magic_success_rate(
 
 /// V7 `calcMagicSuccess` (design §6.2 rule E32; V5/V6 keep [`magic_success_rate`]): the level
 /// modifier is Java's `Math.pow(1.3, d)`, the exact power of `fl(1.3)` rounded once (the
-/// frozen OpenJDK table that `Phase5Rules` validates), then left to right in `double`
+/// frozen `OpenJDK` table that `Phase5Rules` validates), then left to right in `double`
 /// `fl(fl(lvlModifier × second) × third)`, the `(float)` cast, `Math.round(float)` with
 /// `int` saturation, and `100 − round`. The live caller passes the NPC penalty (pinned
 /// `targetModifier`) second and `magicSuccRes` third, as for [`magic_success_rate`].
@@ -762,18 +762,18 @@ pub fn magic_success_rate_v7(
     let fl = |value: &Rational| -> Result<Rational, StatError> {
         value
             .fl()
-            .and_then(|b| b.rational())
+            .and_then(super::binary64::Binary64::rational)
             .map_err(|_| StatError::Overflow)
     };
     let level = pow13(level_difference)
-        .and_then(|b| b.rational())
+        .and_then(super::binary64::Binary64::rational)
         .map_err(|_| StatError::Overflow)?;
     let second = fl(&exact(second)?)?;
     let third = fl(&exact(third)?)?;
     let product = fl(&fl(&level.mul(&second))?.mul(&third))?;
     let narrowed = product
         .fl32()
-        .and_then(|b| b.rational())
+        .and_then(super::binary64::Binary64::rational)
         .map_err(|_| StatError::Overflow)?;
     if narrowed.compare(&Rational::integer(0)).is_lt() {
         return Err(StatError::Overflow);

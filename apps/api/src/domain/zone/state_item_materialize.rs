@@ -964,6 +964,33 @@ pub(super) mod tests {
         assert_eq!(restored.state_digest(), admitted.state_digest());
     }
 
+    /// P5-D19: a V7 epoch (new and restored) runs on the V7 skill view; a V6 epoch keeps the
+    /// deferred V6 skills.
+    #[test]
+    fn v7_epochs_run_on_the_promoted_skill_view() {
+        use crate::domain::class::RuntimeSkillStatus;
+        use crate::domain::zone::skill::SkillId;
+        let status = |zone: &ZoneState, id: u32| {
+            zone.phase3
+                .as_ref()
+                .unwrap()
+                .canonical
+                .rules
+                .skills()
+                .get(SkillId(id))
+                .map(|s| s.runtime_status)
+        };
+        let (v7, _, _) = fresh_zone_and_kit_load(true);
+        let (v6, _, _) = fresh_zone_and_kit_load(false);
+        assert_eq!(status(&v7, 254), Some(RuntimeSkillStatus::Executable));
+        assert_eq!(status(&v7, 2098), Some(RuntimeSkillStatus::Executable));
+        assert_eq!(status(&v6, 254), Some(RuntimeSkillStatus::Deferred));
+        assert_eq!(status(&v6, 2098), None);
+        let restored = restore(&v7, v7.snapshot()).unwrap();
+        assert_eq!(status(&restored, 42), Some(RuntimeSkillStatus::Executable));
+        assert_eq!(restored.state_digest(), v7.state_digest());
+    }
+
     /// z-review-2 P2-2: a character inventory holds only `Inventory` or `Paperdoll`
     /// instances, in a V6 (Snapshot 10, format 2) and a V7 (Snapshot 11) restore and in the
     /// player checkpoint.

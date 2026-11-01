@@ -497,6 +497,22 @@ pub enum TickError {
 }
 
 impl ZoneSnapshot {
+    /// P5-Q14: the pinned NPC template of a V7 NPC entity, from its spawn slot binding
+    /// (`SpawnSlotSpec::pinned_npc_id`); `None` for any other entity or epoch. Read ports
+    /// (merchant buylists, vendor routing) resolve `merchants.toml` `npc` through this.
+    #[must_use]
+    pub fn pinned_npc_id(&self, entity: EntityId) -> Option<u32> {
+        self.phase5.as_ref()?;
+        let slot = self
+            .entities
+            .iter()
+            .find(|e| e.id == entity)?
+            .ai
+            .as_ref()?
+            .slot;
+        self.spawn_slots.get(usize::from(slot.slot))?.pinned_npc_id
+    }
+
     /// Validates the epoch's immutable format/policy pair without hashing catalogue data.
     /// All decoding and encoding boundaries share this check; old epochs never normalize
     /// an unsupported digest into an accepted one.
@@ -957,6 +973,30 @@ impl ZoneState {
         }
     }
 
+    /// A V7 state restores on the V7 views: the item view (D10, V6 ∪ closure under the V6
+    /// hash) and the skill view (P5-D19, V6 skills ∪ promotions under the Phase 3 hash).
+    fn v7_views(
+        snapshot: &mut ZoneSnapshot,
+        phase5: Option<&super::phase5::Phase5Zone>,
+        rules: Option<Arc<super::Phase4Rules>>,
+    ) -> Result<Option<Arc<super::Phase4Rules>>, SnapshotError> {
+        let Some(phase5) = phase5 else {
+            return Ok(rules);
+        };
+        if let Some(phase3) = snapshot.phase3.as_mut() {
+            let view = phase5.rules.v7_skills().ok_or_else(|| {
+                SnapshotError::Rules("V7 economy rules without the bound skill promotions".into())
+            })?;
+            if view.hash() != phase3.rules.hash() {
+                return Err(SnapshotError::Rules("V7 skill view of another bundle".into()));
+            }
+            phase3.rules = Arc::clone(view);
+        }
+        Ok(Some(Arc::clone(phase5.rules.v7_items().ok_or_else(|| {
+            SnapshotError::Rules("V7 economy rules without the bound closure items".into())
+        })?)))
+    }
+
     /// Restore V7 with explicitly resolved item and economy rules (D27): a V7 snapshot
     /// without matching economy rules, or economy rules for a non-V7 snapshot, is refused.
     pub fn from_snapshot_with_bundles(
@@ -966,13 +1006,8 @@ impl ZoneState {
     ) -> Result<Self, SnapshotError> {
         snapshot.validate_version()?;
         let phase5 = Self::bind_phase5(snapshot.phase5.clone(), economy, rules.as_deref())?;
-        // D10: a V7 state restores on the V7 item view (V6 ∪ closure, under the V6 hash).
-        let rules = match &phase5 {
-            Some(phase5) => Some(Arc::clone(phase5.rules.v7_items().ok_or_else(|| {
-                SnapshotError::Rules("V7 economy rules without the bound closure items".into())
-            })?)),
-            None => rules,
-        };
+        let mut snapshot = snapshot;
+        let rules = Self::v7_views(&mut snapshot, phase5.as_ref(), rules)?;
         let phase4 = match (snapshot.phase4.clone(), rules) {
             (None, None) => None,
             (Some(canonical), Some(rules)) => {
